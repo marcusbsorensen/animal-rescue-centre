@@ -599,54 +599,56 @@ export class GameScene extends Phaser.Scene {
       );
     } else {
       this.gameContainer.add(
-        this.add.text(width / 2, 100,
-          `${hungry.length} animal${hungry.length > 1 ? 's are' : ' is'} hungry`, {
-          fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        this.add.text(width / 2, height / 2 - 60,
+          `${hungry.length} animal${hungry.length > 1 ? 's are' : ' is'} hungry!`, {
+          fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.text,
         }).setOrigin(0.5)
       );
 
-      // Show hungry animals with "Feed" buttons
-      const cols = Math.min(hungry.length, 5);
-      const startX = width / 2 - ((cols - 1) * 110) / 2;
+      // Show hungry animals as a preview
+      const previewEmojis = hungry.slice(0, 6).map((a) => this.speciesEmoji(a.species)).join(' ');
+      this.gameContainer.add(
+        this.add.text(width / 2, height / 2 - 20, previewEmojis, {
+          fontSize: '32px',
+        }).setOrigin(0.5)
+      );
 
-      hungry.slice(0, 10).forEach((animal, i) => {
-        const row = Math.floor(i / 5);
-        const col = i % 5;
-        const x = startX + col * 110;
-        const y = 170 + row * 120;
+      this.gameContainer.add(
+        this.add.text(width / 2, height / 2 + 20,
+          'Sort the right food into each animal\'s bowl!', {
+          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        }).setOrigin(0.5)
+      );
 
-        this.gameContainer.add(
-          this.add.rectangle(x, y, 50, 40, SPECIES_COLOURS[animal.species])
-            .setStrokeStyle(1, 0x000000, 0.3)
-        );
+      // Launch minigame button
+      this.gameContainer.add(
+        createButton(this, width / 2, height / 2 + 70, '🍽️ Start Sorting!', () => {
+          this.scene.start('KitchenMinigameScene', {
+            hungryAnimals: hungry,
+            allAnimals: this.animals,
+            onComplete: (updatedAnimals: Animal[]) => {
+              this.animals = updatedAnimals;
+              this.saveState();
+            },
+          });
+        }, { width: 260 })
+      );
 
-        this.gameContainer.add(
-          this.add.text(x, y + 30, animal.name, {
-            fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
-          }).setOrigin(0.5)
-        );
-
-        // Hunger bar
-        this.gameContainer.add(
-          this.add.rectangle(x, y + 45, 50, 6, 0xdddddd)
-        );
-        this.gameContainer.add(
-          this.add.rectangle(x - 25 + (animal.hunger / 100) * 25, y + 45,
-            (animal.hunger / 100) * 50, 6, 0xe74c3c)
-        );
-
-        this.gameContainer.add(
-          createButton(this, x, y + 70, 'Feed', () => {
+      // Quick-feed option for accessibility
+      this.gameContainer.add(
+        createTextButton(this, width / 2, height / 2 + 120,
+          'Quick feed all (skip minigame)', () => {
+          for (const animal of hungry) {
             const idx = this.animals.findIndex((a) => a.id === animal.id);
             if (idx >= 0) {
               this.animals[idx] = applyFeeding(this.animals[idx]);
               this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + 3);
             }
-            this.renderView();
-            this.saveState();
-          }, { width: 70, fontSize: '14px' })
-        );
-      });
+          }
+          this.renderView();
+          this.saveState();
+        })
+      );
     }
 
     this.gameContainer.add(

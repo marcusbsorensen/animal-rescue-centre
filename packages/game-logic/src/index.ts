@@ -1,6 +1,13 @@
 export { calculateBondIncrease, isBondComplete } from './bond';
 export { getSpeciesUnlocksForLevel, getRequiredRescuesForLevel } from './progression';
-export { validateFoodForSpecies } from './food';
+export {
+  validateFoodForSpecies,
+  isFoodValidForSpecies,
+  getFoodsForSpecies,
+  generateKitchenRound,
+  FOOD_CATALOGUE,
+} from './food';
+export type { FoodDefinition } from './food';
 export { assignRoom, assignSiblingBed } from './rooms';
 export {
   validatePin,
