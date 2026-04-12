@@ -41,8 +41,7 @@ export class MainMenuScene extends Phaser.Scene {
         .setOrigin(0.5);
 
       createButton(this, width / 2, height / 2 + 50, '▶  Enter your centre', () => {
-        // Future: transition to game scene
-        console.log('Entering game — coming in Phase 2');
+        this.scene.start('GameScene');
       }, { width: 300 });
 
       createButton(this, width / 2, height / 2 + 120, '👥  Friends', () => {
@@ -66,8 +65,13 @@ export class MainMenuScene extends Phaser.Scene {
     } else {
       // Not logged in — show signup/login
       createButton(this, width / 2, height / 2 + 30, '▶  Play', () => {
-        this.scene.start('SignupScene');
+        this.scene.start('GameScene');
       }, { width: 240 });
+
+      createTextButton(this, width / 2, height / 2 + 80,
+        'Create an account to save progress', () => {
+        this.scene.start('SignupScene');
+      });
 
       createTextButton(this, width / 2, height / 2 + 100,
         'I already have an account', () => {

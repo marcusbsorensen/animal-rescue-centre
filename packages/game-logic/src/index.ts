@@ -10,3 +10,19 @@ export {
   validateAvatarBgColour,
   isUsernameSafe,
 } from './auth-validation';
+export {
+  spawnAnimal,
+  spawnSiblingPair,
+  pickRandomSpecies,
+  shouldSpawnSiblings,
+  getRandomName,
+  SPECIES_COLOURS,
+} from './animals';
+export {
+  tickNeeds,
+  applyFeeding,
+  applySleep,
+  applyPlay,
+  getUrgentNeed,
+  getNeedSpeech,
+} from './needs';
