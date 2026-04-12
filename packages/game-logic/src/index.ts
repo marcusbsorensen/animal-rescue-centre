@@ -62,3 +62,21 @@ export {
   HOUSE_UPGRADES,
 } from './vet';
 export type { Illness, Severity, IllnessDef, HealAction, HealActionDef, HouseUpgrade } from './vet';
+export {
+  createAudioState,
+  transitionScene,
+  getSfxVolume,
+  getMusicVolume,
+  SCENE_MUSIC,
+  SOUND_EFFECTS,
+} from './audio';
+export type { AudioScene, SoundEffect, AudioState } from './audio';
+export {
+  shouldSpawnConflict,
+  generateConflict,
+  isResolutionEffective,
+  resolveConflict,
+  CONFLICT_TYPES,
+  RESOLUTION_ACTIONS,
+} from './conflicts';
+export type { Conflict, ConflictType, ResolutionAction, ResolutionDef } from './conflicts';
