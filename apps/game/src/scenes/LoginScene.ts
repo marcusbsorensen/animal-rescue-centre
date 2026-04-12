@@ -195,6 +195,21 @@ export class LoginScene extends Phaser.Scene {
     const btnSize = 60;
     const gap = 10;
 
+    const handleInput = (digit: string) => {
+      if (digit === '⌫') {
+        this.pin = this.pin.slice(0, -1);
+      } else if (digit === '✓') {
+        this.doLogin();
+        return;
+      } else if (this.pin.length < 4) {
+        this.pin += digit;
+      }
+      const dots = Array.from({ length: 4 }, (_, i) =>
+        i < this.pin.length ? '●' : '○'
+      ).join(' ');
+      pinDisplay.setText(dots);
+    };
+
     numPad.forEach((row, ri) => {
       row.forEach((digit, ci) => {
         const x = width / 2 + (ci - 1) * (btnSize + gap);
@@ -209,29 +224,31 @@ export class LoginScene extends Phaser.Scene {
           fontSize: '28px', fontFamily: FONTS.body, color: COLOURS.text,
         }).setOrigin(0.5);
 
-        bg.on('pointerdown', () => {
-          if (digit === '⌫') {
-            this.pin = this.pin.slice(0, -1);
-          } else if (digit === '✓') {
-            this.doLogin();
-          } else if (this.pin.length < 4) {
-            this.pin += digit;
-          }
-
-          const dots = Array.from({ length: 4 }, (_, i) =>
-            i < this.pin.length ? '●' : '○'
-          ).join(' ');
-          pinDisplay.setText(dots);
-        });
+        bg.on('pointerdown', () => handleInput(digit));
 
         this.container.add(bg);
         this.container.add(label);
       });
     });
 
+    // Keyboard input: number keys + Backspace + Enter
+    const keyHandler = (event: KeyboardEvent) => {
+      if (/^[0-9]$/.test(event.key)) {
+        handleInput(event.key);
+      } else if (event.key === 'Backspace') {
+        handleInput('⌫');
+      } else if (event.key === 'Enter') {
+        handleInput('✓');
+      }
+    };
+    this.input.keyboard?.on('keydown', keyHandler);
+
     this.container.add(
       createTextButton(this, width / 2, padStartY + 4 * (btnSize + gap) + 20,
-        '← Not me', () => this.showUsernameSelect())
+        '← Not me', () => {
+          this.input.keyboard?.off('keydown', keyHandler);
+          this.showUsernameSelect();
+        })
     );
   }
 

@@ -215,36 +215,53 @@ export class SignupScene extends Phaser.Scene {
 
   // ── Step 3: PIN ────────────────────────────────────────────────
 
-  private showPinStep(): void {
+  private pinDisplay!: Phaser.GameObjects.Text;
+  private pinStatusText!: Phaser.GameObjects.Text;
+  private pinTitleText!: Phaser.GameObjects.Text;
+  private keyboardListener?: (event: KeyboardEvent) => void;
+
+  private showPinStep(confirmMode = false): void {
     this.step = 'pin';
-    this.pin = '';
-    this.pinConfirm = '';
-    this.enteringConfirm = false;
+    if (!confirmMode) {
+      this.pin = '';
+      this.pinConfirm = '';
+      this.enteringConfirm = false;
+    } else {
+      this.pinConfirm = '';
+      this.enteringConfirm = true;
+    }
     this.clearContainer();
+
+    // Remove any previous keyboard listener
+    if (this.keyboardListener) {
+      this.input.keyboard?.off('keydown', this.keyboardListener);
+    }
+
     const { width } = this.scale;
 
-    this.container.add(
-      this.add.text(width / 2, 60, 'Choose a secret PIN', {
-        fontSize: '28px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
-    );
+    this.pinTitleText = this.add.text(width / 2, 60,
+      confirmMode ? 'Confirm your PIN' : 'Choose a secret PIN', {
+      fontSize: '28px', fontFamily: FONTS.title, color: COLOURS.text,
+    }).setOrigin(0.5);
+    this.container.add(this.pinTitleText);
 
     this.container.add(
-      this.add.text(width / 2, 100, 'Type 4 numbers to keep your account safe:', {
+      this.add.text(width / 2, 100,
+        confirmMode ? 'Type the same 4 numbers again:' : 'Type 4 numbers to keep your account safe:', {
         fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
     // PIN display (dots)
-    const pinDisplay = this.add.text(width / 2, 160, '○ ○ ○ ○', {
+    this.pinDisplay = this.add.text(width / 2, 160, '○ ○ ○ ○', {
       fontSize: '40px', fontFamily: FONTS.body, color: COLOURS.text,
     }).setOrigin(0.5);
-    this.container.add(pinDisplay);
+    this.container.add(this.pinDisplay);
 
-    const statusText = this.add.text(width / 2, 210, '', {
+    this.pinStatusText = this.add.text(width / 2, 210, '', {
       fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
     }).setOrigin(0.5);
-    this.container.add(statusText);
+    this.container.add(this.pinStatusText);
 
     // Number pad
     const numPad = [
@@ -272,43 +289,61 @@ export class SignupScene extends Phaser.Scene {
           fontSize: '28px', fontFamily: FONTS.body, color: COLOURS.text,
         }).setOrigin(0.5);
 
-        bg.on('pointerdown', () => {
-          if (digit === '⌫') {
-            if (this.enteringConfirm) {
-              this.pinConfirm = this.pinConfirm.slice(0, -1);
-            } else {
-              this.pin = this.pin.slice(0, -1);
-            }
-          } else if (digit === '✓') {
-            this.handlePinSubmit();
-          } else {
-            if (this.enteringConfirm) {
-              if (this.pinConfirm.length < 4) this.pinConfirm += digit;
-            } else {
-              if (this.pin.length < 4) this.pin += digit;
-            }
-          }
-          this.updatePinDisplay(pinDisplay, statusText);
-        });
+        bg.on('pointerdown', () => this.handlePinInput(digit));
 
         this.container.add(bg);
         this.container.add(label);
       });
     });
 
+    // Keyboard input: number keys + Backspace + Enter
+    this.keyboardListener = (event: KeyboardEvent) => {
+      if (this.step !== 'pin') return;
+      if (/^[0-9]$/.test(event.key)) {
+        this.handlePinInput(event.key);
+      } else if (event.key === 'Backspace') {
+        this.handlePinInput('⌫');
+      } else if (event.key === 'Enter') {
+        this.handlePinInput('✓');
+      }
+    };
+    this.input.keyboard?.on('keydown', this.keyboardListener);
+
     this.container.add(
       createTextButton(this, width / 2, padStartY + 4 * (btnSize + gap) + 20,
-        '← Back', () => this.showAvatarStep())
+        '← Back', () => {
+          if (this.keyboardListener) this.input.keyboard?.off('keydown', this.keyboardListener);
+          this.showAvatarStep();
+        })
     );
   }
 
-  private updatePinDisplay(display: Phaser.GameObjects.Text, status: Phaser.GameObjects.Text): void {
+  private handlePinInput(digit: string): void {
+    if (digit === '⌫') {
+      if (this.enteringConfirm) {
+        this.pinConfirm = this.pinConfirm.slice(0, -1);
+      } else {
+        this.pin = this.pin.slice(0, -1);
+      }
+    } else if (digit === '✓') {
+      this.handlePinSubmit();
+      return;
+    } else {
+      if (this.enteringConfirm) {
+        if (this.pinConfirm.length < 4) this.pinConfirm += digit;
+      } else {
+        if (this.pin.length < 4) this.pin += digit;
+      }
+    }
+    this.refreshPinDots();
+  }
+
+  private refreshPinDots(): void {
     const currentPin = this.enteringConfirm ? this.pinConfirm : this.pin;
     const dots = Array.from({ length: 4 }, (_, i) =>
       i < currentPin.length ? '●' : '○'
     ).join(' ');
-    display.setText(dots);
-    status.setText(this.enteringConfirm ? 'Type it again to confirm:' : '');
+    this.pinDisplay.setText(dots);
   }
 
   private handlePinSubmit(): void {
@@ -317,9 +352,8 @@ export class SignupScene extends Phaser.Scene {
         this.showError('PIN must be 4 digits');
         return;
       }
-      this.enteringConfirm = true;
-      this.showPinStep(); // Refresh display for confirm step
-      this.enteringConfirm = true; // re-set after clear
+      // Move to confirm mode — keep this.pin intact, re-render for confirm
+      this.showPinStep(true);
     } else {
       if (this.pinConfirm.length !== 4) {
         this.showError('Type all 4 digits again');
@@ -327,12 +361,11 @@ export class SignupScene extends Phaser.Scene {
       }
       if (this.pin !== this.pinConfirm) {
         this.showError('PINs don\'t match — try again');
-        this.pin = '';
-        this.pinConfirm = '';
-        this.enteringConfirm = false;
-        this.showPinStep();
+        this.showPinStep(false);
         return;
       }
+      // PINs match — proceed
+      if (this.keyboardListener) this.input.keyboard?.off('keydown', this.keyboardListener);
       this.showParentStep();
     }
   }
