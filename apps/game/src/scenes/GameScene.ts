@@ -15,18 +15,34 @@ import {
   SPECIES_COLOURS,
   applyFeeding,
   applyPlay,
+  calculateBondIncrease,
+  isBondComplete,
 } from '@arc/game-logic';
+import { evaluateBadges } from '@arc/badges';
 import { getSession } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { isSupabaseConfigured } from '../lib/supabase';
 
-type ViewMode = 'corridor' | 'room' | 'kitchen';
+type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
+
+const COLLAR_COLOURS = [
+  { name: 'Red',     hex: '#e74c3c' },
+  { name: 'Blue',    hex: '#3498db' },
+  { name: 'Green',   hex: '#2ecc71' },
+  { name: 'Purple',  hex: '#9b59b6' },
+  { name: 'Orange',  hex: '#e67e22' },
+  { name: 'Pink',    hex: '#ff6b9d' },
+  { name: 'Gold',    hex: '#f1c40f' },
+  { name: 'Teal',    hex: '#1abc9c' },
+];
 
 export class GameScene extends Phaser.Scene {
   private animals: Animal[] = [];
   private level = 1;
   private totalRescued = 0;
+  private totalBonded = 0;
   private unlockedSpecies: Species[] = ['cat', 'dog'];
+  private earnedBadges: string[] = [];
 
   private viewMode: ViewMode = 'corridor';
   private currentRoomSpecies?: Species;
@@ -91,6 +107,8 @@ export class GameScene extends Phaser.Scene {
         const saved = data.state as Record<string, unknown>;
         if (Array.isArray(saved.animals)) this.animals = saved.animals as Animal[];
         if (typeof saved.totalRescued === 'number') this.totalRescued = saved.totalRescued;
+        if (typeof saved.totalBonded === 'number') this.totalBonded = saved.totalBonded;
+        if (Array.isArray(saved.earnedBadges)) this.earnedBadges = saved.earnedBadges as string[];
         this.level = data.level ?? 1;
         this.unlockedSpecies = getSpeciesUnlocksForLevel(this.level);
       }
@@ -111,6 +129,8 @@ export class GameScene extends Phaser.Scene {
           state: {
             animals: this.animals,
             totalRescued: this.totalRescued,
+            totalBonded: this.totalBonded,
+            earnedBadges: this.earnedBadges,
           },
           level: this.level,
           updated_at: new Date().toISOString(),
@@ -170,6 +190,7 @@ export class GameScene extends Phaser.Scene {
       case 'corridor': this.renderCorridor(); break;
       case 'room': this.renderRoom(); break;
       case 'kitchen': this.renderKitchen(); break;
+      case 'garden': this.renderGarden(); break;
     }
   }
 
@@ -197,11 +218,20 @@ export class GameScene extends Phaser.Scene {
     );
 
     // Animals count
+    const petCount = this.animals.filter((a) => a.state === 'pet').length;
     this.uiContainer.add(
       this.add.text(280, 12, `🏠 ${this.animals.length} in centre`, {
         fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.white,
       })
     );
+
+    if (petCount > 0) {
+      this.uiContainer.add(
+        this.add.text(450, 12, `👑 ${petCount} pet${petCount > 1 ? 's' : ''}`, {
+          fontSize: '16px', fontFamily: FONTS.body, color: '#ffd700',
+        })
+      );
+    }
 
     // Next level indicator
     const required = getRequiredRescuesForLevel(this.level);
@@ -323,12 +353,23 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    // Kitchen button
+    // Bottom buttons row
+    const pets = this.animals.filter((a) => a.state === 'pet');
+    const btnRowY = height - 80;
+
     this.gameContainer.add(
-      createButton(this, width / 2, height - 80, '🍽️ Kitchen', () => {
+      createButton(this, width / 2 - 100, btnRowY, '🍽️ Kitchen', () => {
         this.viewMode = 'kitchen';
         this.renderView();
-      }, { width: 160, fontSize: '18px', bgColour: '#8b6914' })
+      }, { width: 150, fontSize: '16px', bgColour: '#8b6914' })
+    );
+
+    this.gameContainer.add(
+      createButton(this, width / 2 + 100, btnRowY,
+        `🌳 Garden (${pets.length})`, () => {
+        this.viewMode = 'garden';
+        this.renderView();
+      }, { width: 150, fontSize: '16px', bgColour: '#2ecc71' })
     );
 
     // Back to menu
@@ -499,29 +540,52 @@ export class GameScene extends Phaser.Scene {
 
     // Action buttons
     const btnY = statsY + 155;
-    this.gameContainer.add(
-      createButton(this, cx - 90, btnY, '🍽️ Feed', () => {
-        const idx = this.animals.findIndex((a) => a.id === animal.id);
-        if (idx >= 0) {
-          this.animals[idx] = applyFeeding(this.animals[idx]);
-          this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + 3);
-        }
-        this.closePopup();
-        this.renderView();
-      }, { width: 110, fontSize: '16px' })
-    );
 
-    this.gameContainer.add(
-      createButton(this, cx + 90, btnY, '🎾 Play', () => {
-        const idx = this.animals.findIndex((a) => a.id === animal.id);
-        if (idx >= 0) {
-          this.animals[idx] = applyPlay(this.animals[idx]);
-          this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + 5);
-        }
-        this.closePopup();
-        this.renderView();
-      }, { width: 110, fontSize: '16px' })
-    );
+    if (animal.state !== 'pet') {
+      this.gameContainer.add(
+        createButton(this, cx - 90, btnY, '🍽️ Feed', () => {
+          const idx = this.animals.findIndex((a) => a.id === animal.id);
+          if (idx >= 0) {
+            this.animals[idx] = applyFeeding(this.animals[idx]);
+            const bondGain = calculateBondIncrease(this.animals[idx], 'feed');
+            this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
+            this.checkBondComplete(this.animals[idx]);
+          }
+          this.closePopup();
+          this.renderView();
+        }, { width: 110, fontSize: '16px' })
+      );
+
+      this.gameContainer.add(
+        createButton(this, cx + 90, btnY, '🎾 Play', () => {
+          const idx = this.animals.findIndex((a) => a.id === animal.id);
+          if (idx >= 0) {
+            this.animals[idx] = applyPlay(this.animals[idx]);
+            const bondGain = calculateBondIncrease(this.animals[idx], 'play');
+            this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
+            this.checkBondComplete(this.animals[idx]);
+          }
+          this.closePopup();
+          this.renderView();
+        }, { width: 110, fontSize: '16px' })
+      );
+    } else {
+      // Pet — show collar and "Visit in garden" button
+      this.gameContainer.add(
+        this.add.text(cx, btnY - 10,
+          `🎀 Collar: ${animal.collarColour ?? 'None'}`, {
+          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+        }).setOrigin(0.5)
+      );
+
+      this.gameContainer.add(
+        createButton(this, cx, btnY + 30, '🌳 Visit in Garden', () => {
+          this.closePopup();
+          this.viewMode = 'garden';
+          this.renderView();
+        }, { width: 200, fontSize: '16px', bgColour: '#2ecc71' })
+      );
+    }
 
     // Close button
     const closeBtn = this.add.text(cx + cardW / 2 - 20, height / 2 - cardH / 2 + 10, '✕', {
@@ -642,7 +706,9 @@ export class GameScene extends Phaser.Scene {
             const idx = this.animals.findIndex((a) => a.id === animal.id);
             if (idx >= 0) {
               this.animals[idx] = applyFeeding(this.animals[idx]);
-              this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + 3);
+              const bondGain = calculateBondIncrease(this.animals[idx], 'feed');
+              this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
+              this.checkBondComplete(this.animals[idx]);
             }
           }
           this.renderView();
@@ -658,6 +724,352 @@ export class GameScene extends Phaser.Scene {
           this.renderView();
         })
     );
+  }
+
+  // ── Garden View ─────────────────────────────────────────────
+
+  private renderGarden(): void {
+    const { width, height } = this.scale;
+    const pets = this.animals.filter((a) => a.state === 'pet');
+
+    // Garden background — green and peaceful
+    this.gameContainer.add(
+      this.add.rectangle(width / 2, height / 2, width, height - 40, 0xe8f5e9)
+    );
+
+    this.gameContainer.add(
+      this.add.text(width / 2, 65, '🌳 Garden 🌳', {
+        fontSize: '24px', fontFamily: FONTS.title, color: COLOURS.text,
+      }).setOrigin(0.5)
+    );
+
+    if (pets.length === 0) {
+      this.gameContainer.add(
+        this.add.text(width / 2, height / 2 - 30,
+          'No pets yet!', {
+          fontSize: '22px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        }).setOrigin(0.5)
+      );
+      this.gameContainer.add(
+        this.add.text(width / 2, height / 2 + 10,
+          'Keep caring for your animals — when their bond\nreaches 100%, they become your pet forever! 💕', {
+          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          align: 'center',
+        }).setOrigin(0.5)
+      );
+    } else {
+      this.gameContainer.add(
+        this.add.text(width / 2, 95,
+          `${pets.length} pet${pets.length > 1 ? 's' : ''} living their best life!`, {
+          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        }).setOrigin(0.5)
+      );
+
+      // Scatter pets across the garden with gentle roaming positions
+      const margin = 80;
+      pets.forEach((pet, i) => {
+        // Distribute in a natural-looking pattern
+        const angle = (i / Math.max(pets.length, 1)) * Math.PI * 2;
+        const radius = Math.min(width, height) * 0.25;
+        const cx = width / 2 + Math.cos(angle) * radius * (0.6 + Math.random() * 0.4);
+        const cy = height / 2 + 20 + Math.sin(angle) * radius * 0.5 * (0.6 + Math.random() * 0.4);
+
+        // Collar colour ring
+        const collarHex = pet.collarColour ?? '#ff6b9d';
+        const collarColour = Phaser.Display.Color.HexStringToColor(collarHex).color;
+
+        // Pet sprite (larger than shelter animals, with gold border + collar)
+        const sprite = this.add.rectangle(cx, cy, 55, 44, SPECIES_COLOURS[pet.species])
+          .setInteractive({ useHandCursor: true })
+          .setStrokeStyle(3, collarColour);
+
+        // Crown / pet indicator
+        this.gameContainer.add(
+          this.add.text(cx, cy - 30, '👑', { fontSize: '16px' }).setOrigin(0.5)
+        );
+
+        // Name with collar colour dot
+        this.gameContainer.add(
+          this.add.text(cx, cy + 30, pet.name, {
+            fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.text,
+          }).setOrigin(0.5)
+        );
+
+        // Happiness indicator
+        const happyEmoji = pet.happiness > 70 ? '😊' : pet.happiness > 40 ? '😐' : '😢';
+        this.gameContainer.add(
+          this.add.text(cx + 30, cy - 20, happyEmoji, { fontSize: '14px' })
+        );
+
+        sprite.on('pointerdown', () => this.showAnimalDetails(pet));
+        this.gameContainer.add(sprite);
+
+        // Gentle floating animation
+        this.tweens.add({
+          targets: sprite,
+          y: cy - 4,
+          duration: 2000 + Math.random() * 1000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      });
+    }
+
+    // Badge display
+    if (this.earnedBadges.length > 0) {
+      this.gameContainer.add(
+        this.add.text(width / 2, height - 90,
+          `🏅 ${this.earnedBadges.length} badge${this.earnedBadges.length > 1 ? 's' : ''} earned`, {
+          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.primary,
+        }).setOrigin(0.5)
+      );
+    }
+
+    this.gameContainer.add(
+      createTextButton(this, width / 2, height - 50,
+        '← Back to corridor', () => {
+          this.viewMode = 'corridor';
+          this.renderView();
+        })
+    );
+  }
+
+  // ── Bond Completion + Collar Picker ────────────────────────
+
+  /**
+   * Check if animal just reached full bond, and if so, show collar picker.
+   */
+  private checkBondComplete(animal: Animal): void {
+    if (isBondComplete(animal) && animal.state !== 'pet') {
+      // Delay to show after current UI update
+      this.time.delayedCall(300, () => {
+        this.showCollarPicker(animal);
+      });
+    }
+  }
+
+  /**
+   * Show collar colour picker when an animal reaches full bond.
+   */
+  private showCollarPicker(animal: Animal): void {
+    this.clearView();
+    const { width, height } = this.scale;
+
+    // Celebration background
+    this.gameContainer.add(
+      this.add.rectangle(width / 2, height / 2, width, height, 0xfff8e7)
+    );
+
+    // Star burst celebration
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const star = this.add.text(
+        width / 2 + Math.cos(angle) * 120,
+        height / 2 - 80 + Math.sin(angle) * 80,
+        '⭐', { fontSize: '28px' }
+      ).setOrigin(0.5).setAlpha(0);
+
+      this.gameContainer.add(star);
+      this.tweens.add({
+        targets: star,
+        alpha: 1,
+        scale: { from: 0.3, to: 1 },
+        duration: 500,
+        delay: i * 100,
+        yoyo: true,
+        repeat: -1,
+        hold: 1000,
+      });
+    }
+
+    // Celebration text
+    this.gameContainer.add(
+      this.add.text(width / 2, 60, '🎉 Full Bond! 🎉', {
+        fontSize: '32px', fontFamily: FONTS.title, color: COLOURS.primary,
+      }).setOrigin(0.5)
+    );
+
+    this.gameContainer.add(
+      this.add.text(width / 2, 100,
+        `${animal.name} the ${animal.species} loves you so much\nthey want to be your pet forever!`, {
+        fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.text,
+        align: 'center',
+      }).setOrigin(0.5)
+    );
+
+    // Animal sprite (big, central)
+    this.gameContainer.add(
+      this.add.rectangle(width / 2, 170, 70, 56, SPECIES_COLOURS[animal.species])
+        .setStrokeStyle(3, 0xffd700)
+    );
+    this.gameContainer.add(
+      this.add.text(width / 2, 170, this.speciesEmoji(animal.species), {
+        fontSize: '36px',
+      }).setOrigin(0.5)
+    );
+
+    // Collar picker prompt
+    this.gameContainer.add(
+      this.add.text(width / 2, 220, 'Choose a collar colour for your new pet:', {
+        fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
+      }).setOrigin(0.5)
+    );
+
+    // Collar colour grid
+    const colsPerRow = 4;
+    const collarStartX = width / 2 - ((colsPerRow - 1) * 80) / 2;
+    const collarStartY = 265;
+
+    COLLAR_COLOURS.forEach((collar, i) => {
+      const col = i % colsPerRow;
+      const row = Math.floor(i / colsPerRow);
+      const x = collarStartX + col * 80;
+      const y = collarStartY + row * 65;
+
+      const colour = Phaser.Display.Color.HexStringToColor(collar.hex).color;
+
+      // Colour swatch
+      const swatch = this.add.circle(x, y, 22, colour)
+        .setInteractive({ useHandCursor: true })
+        .setStrokeStyle(2, 0xffffff);
+
+      // Label
+      this.gameContainer.add(
+        this.add.text(x, y + 30, collar.name, {
+          fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
+        }).setOrigin(0.5)
+      );
+
+      swatch.on('pointerover', () => swatch.setStrokeStyle(3, 0x000000));
+      swatch.on('pointerout', () => swatch.setStrokeStyle(2, 0xffffff));
+      swatch.on('pointerdown', () => {
+        this.completeBonding(animal, collar.hex);
+      });
+
+      this.gameContainer.add(swatch);
+    });
+  }
+
+  /**
+   * Complete the bonding process — animal becomes a pet.
+   */
+  private completeBonding(animal: Animal, collarColour: string): void {
+    const idx = this.animals.findIndex((a) => a.id === animal.id);
+    if (idx >= 0) {
+      this.animals[idx].state = 'pet';
+      this.animals[idx].collarColour = collarColour;
+      this.totalBonded++;
+    }
+
+    // Check for new badges
+    this.checkBadges();
+    this.saveState();
+
+    // Show celebration then go to garden
+    this.clearView();
+    const { width, height } = this.scale;
+
+    this.gameContainer.add(
+      this.add.rectangle(width / 2, height / 2, width, height, 0xe8f5e9)
+    );
+
+    this.gameContainer.add(
+      this.add.text(width / 2, height / 2 - 60, '💕', {
+        fontSize: '64px',
+      }).setOrigin(0.5)
+    );
+
+    this.gameContainer.add(
+      this.add.text(width / 2, height / 2 + 10,
+        `${animal.name} is now your pet!`, {
+        fontSize: '24px', fontFamily: FONTS.title, color: COLOURS.primary,
+      }).setOrigin(0.5)
+    );
+
+    this.gameContainer.add(
+      this.add.text(width / 2, height / 2 + 50,
+        'They\'ll live in the garden from now on.', {
+        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      }).setOrigin(0.5)
+    );
+
+    this.gameContainer.add(
+      createButton(this, width / 2, height / 2 + 110, '🌳 Visit Garden', () => {
+        this.viewMode = 'garden';
+        this.renderView();
+      }, { width: 220, bgColour: '#2ecc71' })
+    );
+  }
+
+  // ── Badge Evaluation ───────────────────────────────────────
+
+  private checkBadges(): void {
+    const pets = this.animals.filter((a) => a.state === 'pet');
+    const siblingPairs = this.animals.filter(
+      (a) => a.siblingId && a.state !== 'arriving'
+    ).length / 2;
+
+    const stats = {
+      userId: '',
+      catsRescued: this.animals.filter((a) => a.species === 'cat').length,
+      dogsRescued: this.animals.filter((a) => a.species === 'dog').length,
+      bunniesRescued: this.animals.filter((a) => a.species === 'bunny').length,
+      foxesRescued: this.animals.filter((a) => a.species === 'fox').length,
+      snakesRescued: this.animals.filter((a) => a.species === 'snake').length,
+      parrotsRescued: this.animals.filter((a) => a.species === 'parrot').length,
+      batsRescued: this.animals.filter((a) => a.species === 'bat').length,
+      totalRescued: this.totalRescued,
+      badgesUnlockedCount: this.earnedBadges.length,
+      giftsSentCount: 0,
+      giftsReceivedCount: 0,
+      extras: {
+        totalBonded: this.totalBonded,
+        siblingPairsReunited: Math.floor(siblingPairs),
+        selfHealed: 0,
+        walksWithoutIncident: 0,
+        animalsTrained: 0,
+        conflictsResolved: 0,
+        houseUpgrades: 0,
+        totalPets: pets.length,
+        consecutiveDays: 1,
+        totalDaysPlayed: 1,
+        playerNumber: 999, // placeholder
+        level: this.level,
+      },
+    };
+
+    const newBadges = evaluateBadges(stats, stats.extras, this.earnedBadges);
+    if (newBadges.length > 0) {
+      this.earnedBadges.push(...newBadges);
+      // Show badge notification for first new badge
+      this.showBadgeNotification(newBadges[0]);
+    }
+  }
+
+  private showBadgeNotification(badgeCode: string): void {
+    const { width } = this.scale;
+
+    // Simple toast notification at top
+    const toast = this.add.container(width / 2, -50);
+    const bg = this.add.rectangle(0, 0, 300, 50, 0xffd700)
+      .setStrokeStyle(2, 0xdaa520);
+    const text = this.add.text(0, 0, `🏅 New Badge: ${badgeCode}!`, {
+      fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+    }).setOrigin(0.5);
+
+    toast.add([bg, text]);
+    toast.setDepth(100);
+
+    this.tweens.add({
+      targets: toast,
+      y: 70,
+      duration: 500,
+      ease: 'Back.easeOut',
+      hold: 3000,
+      yoyo: true,
+      onComplete: () => toast.destroy(),
+    });
   }
 
   // ── Helpers ─────────────────────────────────────────────────

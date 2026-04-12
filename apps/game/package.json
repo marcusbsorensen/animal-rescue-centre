@@ -16,6 +16,7 @@
     "phaser": "^3.80.1"
   },
   "devDependencies": {
+    "@arc/badges": "workspace:*",
     "@arc/game-logic": "workspace:*",
     "@arc/shared-types": "workspace:*",
     "@typescript-eslint/eslint-plugin": "^8.0.0",

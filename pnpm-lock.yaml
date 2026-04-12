@@ -52,6 +52,9 @@ importers:
         specifier: ^3.80.1
         version: 3.90.0
     devDependencies:
+      '@arc/badges':
+        specifier: workspace:*
+        version: link:../../packages/badges
       '@arc/game-logic':
         specifier: workspace:*
         version: link:../../packages/game-logic
