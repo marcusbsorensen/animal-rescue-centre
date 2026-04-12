@@ -66,8 +66,13 @@ export class KitchenMinigameScene extends Phaser.Scene {
   create(): void {
     const { width, height } = this.scale;
 
-    // Background — warm kitchen colour
-    this.add.rectangle(width / 2, height / 2, width, height, 0xfff8e7);
+    // Background — kitchen art or warm colour fallback
+    if (this.textures.exists('bg-kitchen')) {
+      const bg = this.add.image(width / 2, height / 2, 'bg-kitchen');
+      bg.setDisplaySize(width, height);
+    } else {
+      this.add.rectangle(width / 2, height / 2, width, height, 0xfff8e7);
+    }
 
     // Title
     this.add.text(width / 2, 30, '🍽️ Kitchen — Sort the Food! 🍽️', {

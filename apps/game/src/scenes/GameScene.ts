@@ -303,11 +303,17 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     // Background
-    this.gameContainer.add(
-      this.add.rectangle(width / 2, height / 2, width, height - 40,
-        Phaser.Display.Color.HexStringToColor('#f5efe4').color
-      ).setOrigin(0.5)
-    );
+    if (this.textures.exists('bg-corridor')) {
+      const bg = this.add.image(width / 2, height / 2, 'bg-corridor');
+      bg.setDisplaySize(width, height - 40);
+      this.gameContainer.add(bg);
+    } else {
+      this.gameContainer.add(
+        this.add.rectangle(width / 2, height / 2, width, height - 40,
+          Phaser.Display.Color.HexStringToColor('#f5efe4').color
+        ).setOrigin(0.5)
+      );
+    }
 
     // Title
     this.gameContainer.add(
@@ -440,11 +446,18 @@ export class GameScene extends Phaser.Scene {
       (a) => a.species === species && a.state !== 'arriving'
     );
 
-    // Background
-    const colour = SPECIES_COLOURS[species];
-    this.gameContainer.add(
-      this.add.rectangle(width / 2, height / 2, width, height - 40, colour, 0.1)
-    );
+    // Background — use species-specific or generic room background
+    const roomBgKey = this.textures.exists(`bg-room-${species}`) ? `bg-room-${species}` : 'bg-room-generic';
+    if (this.textures.exists(roomBgKey)) {
+      const bg = this.add.image(width / 2, height / 2, roomBgKey);
+      bg.setDisplaySize(width, height - 40);
+      this.gameContainer.add(bg);
+    } else {
+      const colour = SPECIES_COLOURS[species];
+      this.gameContainer.add(
+        this.add.rectangle(width / 2, height / 2, width, height - 40, colour, 0.1)
+      );
+    }
 
     this.gameContainer.add(
       this.add.text(width / 2, 65,
@@ -564,9 +577,12 @@ export class GameScene extends Phaser.Scene {
     const detailSprite = createAnimalSprite(this, cx, cy + 10, animal, { width: 60, height: 48 });
     this.gameContainer.add(detailSprite);
 
-    // Name + species
+    // Name + species (with variant if available)
+    const speciesLabel = animal.variant
+      ? `${animal.variant} ${animal.species}`
+      : animal.species;
     this.gameContainer.add(
-      this.add.text(cx, cy + 55, `${animal.name} the ${animal.species}`, {
+      this.add.text(cx, cy + 55, `${animal.name} the ${speciesLabel}`, {
         fontSize: '22px', fontFamily: FONTS.title, color: COLOURS.text,
       }).setOrigin(0.5)
     );
@@ -750,10 +766,17 @@ export class GameScene extends Phaser.Scene {
   private renderKitchen(): void {
     const { width, height } = this.scale;
 
-    this.gameContainer.add(
-      this.add.rectangle(width / 2, height / 2, width, height - 40,
-        Phaser.Display.Color.HexStringToColor('#fff8e7').color)
-    );
+    // Kitchen background
+    if (this.textures.exists('bg-kitchen')) {
+      const bg = this.add.image(width / 2, height / 2, 'bg-kitchen');
+      bg.setDisplaySize(width, height - 40);
+      this.gameContainer.add(bg);
+    } else {
+      this.gameContainer.add(
+        this.add.rectangle(width / 2, height / 2, width, height - 40,
+          Phaser.Display.Color.HexStringToColor('#fff8e7').color)
+      );
+    }
 
     this.gameContainer.add(
       this.add.text(width / 2, 65, '🍽️ Kitchen', {
@@ -778,13 +801,13 @@ export class GameScene extends Phaser.Scene {
         }).setOrigin(0.5)
       );
 
-      // Show hungry animals as a preview
-      const previewEmojis = hungry.slice(0, 6).map((a) => this.speciesEmoji(a.species)).join(' ');
-      this.gameContainer.add(
-        this.add.text(width / 2, height / 2 - 20, previewEmojis, {
-          fontSize: '32px',
-        }).setOrigin(0.5)
-      );
+      // Show hungry animals as sprite preview
+      const previewAnimals = hungry.slice(0, 6);
+      const previewStartX = width / 2 - ((previewAnimals.length - 1) * 55) / 2;
+      previewAnimals.forEach((a, i) => {
+        const sprite = createAnimalSprite(this, previewStartX + i * 55, height / 2 - 20, a, { width: 40, height: 32 });
+        this.gameContainer.add(sprite);
+      });
 
       this.gameContainer.add(
         this.add.text(width / 2, height / 2 + 20,
@@ -841,10 +864,16 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const pets = this.animals.filter((a) => a.state === 'pet');
 
-    // Garden background — green and peaceful
-    this.gameContainer.add(
-      this.add.rectangle(width / 2, height / 2, width, height - 40, 0xe8f5e9)
-    );
+    // Garden background
+    if (this.textures.exists('bg-garden')) {
+      const bg = this.add.image(width / 2, height / 2, 'bg-garden');
+      bg.setDisplaySize(width, height - 40);
+      this.gameContainer.add(bg);
+    } else {
+      this.gameContainer.add(
+        this.add.rectangle(width / 2, height / 2, width, height - 40, 0xe8f5e9)
+      );
+    }
 
     this.gameContainer.add(
       this.add.text(width / 2, 65, '🌳 Garden 🌳', {
@@ -887,13 +916,16 @@ export class GameScene extends Phaser.Scene {
         const collarHex = pet.collarColour ?? '#ff6b9d';
         const collarColour = Phaser.Display.Color.HexStringToColor(collarHex).color;
 
-        // Pet sprite (larger than shelter animals, with gold border + collar)
+        // Pet sprite (larger than shelter animals, with collar colour ring)
         const sprite = createAnimalSprite(this, cx, cy, pet, { width: 55, height: 44, interactive: true });
         if (sprite instanceof Phaser.GameObjects.Rectangle) {
           sprite.setStrokeStyle(3, collarColour);
-        } else {
-          sprite.setTint(Phaser.Display.Color.HexStringToColor(collarHex).color);
         }
+
+        // Collar colour dot below name
+        this.gameContainer.add(
+          this.add.circle(cx, cy + 42, 5, collarColour)
+        );
 
         // Crown / pet indicator
         this.gameContainer.add(
