@@ -18,7 +18,13 @@ import {
   calculateBondIncrease,
   isBondComplete,
   canGoOnWalk,
+  shouldGetSick,
+  pickIllness,
+  applySickness,
+  getAvailableUpgrades,
+  getUnlockedUpgrades,
 } from '@arc/game-logic';
+import type { IllnessDef } from '@arc/game-logic';
 import { evaluateBadges } from '@arc/badges';
 import { getSession } from '../lib/auth';
 import { supabase } from '../lib/supabase';
@@ -44,6 +50,8 @@ export class GameScene extends Phaser.Scene {
   private totalBonded = 0;
   private unlockedSpecies: Species[] = ['cat', 'dog'];
   private earnedBadges: string[] = [];
+  private houseUpgrades: string[] = [];
+  private sickAnimals: Map<string, IllnessDef> = new Map();
 
   private viewMode: ViewMode = 'corridor';
   private currentRoomSpecies?: Species;
@@ -110,6 +118,10 @@ export class GameScene extends Phaser.Scene {
         if (typeof saved.totalRescued === 'number') this.totalRescued = saved.totalRescued;
         if (typeof saved.totalBonded === 'number') this.totalBonded = saved.totalBonded;
         if (Array.isArray(saved.earnedBadges)) this.earnedBadges = saved.earnedBadges as string[];
+        if (Array.isArray(saved.houseUpgrades)) this.houseUpgrades = saved.houseUpgrades as string[];
+        if (saved.sickAnimals && typeof saved.sickAnimals === 'object') {
+          this.sickAnimals = new Map(Object.entries(saved.sickAnimals as Record<string, IllnessDef>));
+        }
         this.level = data.level ?? 1;
         this.unlockedSpecies = getSpeciesUnlocksForLevel(this.level);
       }
@@ -132,6 +144,8 @@ export class GameScene extends Phaser.Scene {
             totalRescued: this.totalRescued,
             totalBonded: this.totalBonded,
             earnedBadges: this.earnedBadges,
+            houseUpgrades: this.houseUpgrades,
+            sickAnimals: Object.fromEntries(this.sickAnimals),
           },
           level: this.level,
           updated_at: new Date().toISOString(),
@@ -172,6 +186,19 @@ export class GameScene extends Phaser.Scene {
 
   private tickAllNeeds(): void {
     this.animals = this.animals.map((a) => tickNeeds(a));
+
+    // Check for sickness on each tick
+    for (const animal of this.animals) {
+      if (!this.sickAnimals.has(animal.id) && shouldGetSick(animal)) {
+        const illness = pickIllness(animal.species);
+        const idx = this.animals.findIndex((a) => a.id === animal.id);
+        if (idx >= 0) {
+          this.animals[idx] = applySickness(this.animals[idx], illness);
+          this.sickAnimals.set(animal.id, illness);
+        }
+      }
+    }
+
     // Refresh if viewing a room
     if (this.viewMode === 'room' && this.selectedAnimal) {
       const updated = this.animals.find((a) => a.id === this.selectedAnimal!.id);
@@ -444,13 +471,21 @@ export class GameScene extends Phaser.Scene {
           }).setOrigin(0.5)
         );
 
-        // Need indicator
-        const need = getUrgentNeed(animal);
-        if (need) {
-          const needEmoji = need === 'hunger' ? '🍽️' : need === 'tiredness' ? '😴' : need === 'happiness' ? '💔' : '🏥';
+        // Sick indicator (priority over need)
+        const sickIllness = this.sickAnimals.get(animal.id);
+        if (sickIllness) {
           this.gameContainer.add(
-            this.add.text(x + 20, y - 20, needEmoji, { fontSize: '16px' })
+            this.add.text(x + 20, y - 20, sickIllness.emoji, { fontSize: '16px' })
           );
+        } else {
+          // Need indicator
+          const need = getUrgentNeed(animal);
+          if (need) {
+            const needEmoji = need === 'hunger' ? '🍽️' : need === 'tiredness' ? '😴' : need === 'happiness' ? '💔' : '🏥';
+            this.gameContainer.add(
+              this.add.text(x + 20, y - 20, needEmoji, { fontSize: '16px' })
+            );
+          }
         }
 
         // Bond indicator
@@ -594,6 +629,37 @@ export class GameScene extends Phaser.Scene {
               },
             });
           }, { width: 95, fontSize: '15px', bgColour: '#27ae60' })
+        );
+      }
+
+      // Heal button (when animal is sick)
+      const illness = this.sickAnimals.get(animal.id);
+      if (illness) {
+        this.gameContainer.add(
+          this.add.text(cx, btnY + 40,
+            `${illness.emoji} Sick: ${illness.label}`, {
+            fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b',
+          }).setOrigin(0.5)
+        );
+
+        this.gameContainer.add(
+          createButton(this, cx, btnY + 70, '🏥 Heal!', () => {
+            this.closePopup();
+            this.saveState();
+            this.scene.start('VetScene', {
+              animal,
+              illness,
+              allAnimals: this.animals,
+              onComplete: (updatedAnimals: Animal[], healed: boolean) => {
+                this.animals = updatedAnimals;
+                if (healed) {
+                  this.sickAnimals.delete(animal.id);
+                }
+                this.checkBadges();
+                this.saveState();
+              },
+            });
+          }, { width: 130, fontSize: '15px', bgColour: '#e74c3c' })
         );
       }
     } else {
@@ -843,10 +909,35 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
+    // Upgrades display
+    const unlocked = getUnlockedUpgrades(this.houseUpgrades);
+    if (unlocked.length > 0) {
+      const upgradeEmojis = unlocked.map((u) => u.emoji).join(' ');
+      this.gameContainer.add(
+        this.add.text(width / 2, height - 110, upgradeEmojis, {
+          fontSize: '20px',
+        }).setOrigin(0.5)
+      );
+    }
+
+    // Check for new available upgrades
+    const available = getAvailableUpgrades(pets.length, this.houseUpgrades);
+    if (available.length > 0) {
+      this.gameContainer.add(
+        createTextButton(this, width / 2, height - 85,
+          `🏗️ New upgrade available: ${available[0].name}!`, () => {
+            this.houseUpgrades.push(available[0].code);
+            this.checkBadges();
+            this.saveState();
+            this.renderView();
+          })
+      );
+    }
+
     // Badge display
     if (this.earnedBadges.length > 0) {
       this.gameContainer.add(
-        this.add.text(width / 2, height - 90,
+        this.add.text(width / 2, height - 65,
           `🏅 ${this.earnedBadges.length} badge${this.earnedBadges.length > 1 ? 's' : ''} earned`, {
           fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.primary,
         }).setOrigin(0.5)

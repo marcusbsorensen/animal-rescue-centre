@@ -49,3 +49,16 @@ export {
   WALKABLE_SPECIES,
 } from './walks';
 export type { WalkState, WalkZone, WalkEvent, Trick, TrickDef, WalkEventDef } from './walks';
+export {
+  shouldGetSick,
+  pickIllness,
+  applySickness,
+  isHealActionEffective,
+  applyHealStep,
+  getAvailableUpgrades,
+  getUnlockedUpgrades,
+  ILLNESSES,
+  HEAL_ACTIONS,
+  HOUSE_UPGRADES,
+} from './vet';
+export type { Illness, Severity, IllnessDef, HealAction, HealActionDef, HouseUpgrade } from './vet';
