@@ -1,10 +1,6 @@
-[project]
-id = "arc"
-name = "Animal Rescue Centre"
-
 [db]
 port = 54322
-major_version = 15
+major_version = 17
 
 [studio]
 port = 54323
