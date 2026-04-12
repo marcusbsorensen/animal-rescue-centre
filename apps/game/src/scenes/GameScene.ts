@@ -358,18 +358,25 @@ export class GameScene extends Phaser.Scene {
     const btnRowY = height - 80;
 
     this.gameContainer.add(
-      createButton(this, width / 2 - 100, btnRowY, '🍽️ Kitchen', () => {
+      createButton(this, width / 2 - 160, btnRowY, '🍽️ Kitchen', () => {
         this.viewMode = 'kitchen';
         this.renderView();
-      }, { width: 150, fontSize: '16px', bgColour: '#8b6914' })
+      }, { width: 135, fontSize: '15px', bgColour: '#8b6914' })
     );
 
     this.gameContainer.add(
-      createButton(this, width / 2 + 100, btnRowY,
+      createButton(this, width / 2, btnRowY,
         `🌳 Garden (${pets.length})`, () => {
         this.viewMode = 'garden';
         this.renderView();
-      }, { width: 150, fontSize: '16px', bgColour: '#2ecc71' })
+      }, { width: 135, fontSize: '15px', bgColour: '#2ecc71' })
+    );
+
+    this.gameContainer.add(
+      createButton(this, width / 2 + 160, btnRowY, '💌 Social', () => {
+        this.saveState();
+        this.scene.start('SocialScene');
+      }, { width: 135, fontSize: '15px', bgColour: '#9b59b6' })
     );
 
     // Back to menu
