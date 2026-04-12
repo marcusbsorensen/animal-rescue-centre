@@ -17,6 +17,7 @@ import {
   applyPlay,
   calculateBondIncrease,
   isBondComplete,
+  canGoOnWalk,
 } from '@arc/game-logic';
 import { evaluateBadges } from '@arc/badges';
 import { getSession } from '../lib/auth';
@@ -550,7 +551,7 @@ export class GameScene extends Phaser.Scene {
 
     if (animal.state !== 'pet') {
       this.gameContainer.add(
-        createButton(this, cx - 90, btnY, '🍽️ Feed', () => {
+        createButton(this, cx - 120, btnY, '🍽️ Feed', () => {
           const idx = this.animals.findIndex((a) => a.id === animal.id);
           if (idx >= 0) {
             this.animals[idx] = applyFeeding(this.animals[idx]);
@@ -560,11 +561,11 @@ export class GameScene extends Phaser.Scene {
           }
           this.closePopup();
           this.renderView();
-        }, { width: 110, fontSize: '16px' })
+        }, { width: 95, fontSize: '15px' })
       );
 
       this.gameContainer.add(
-        createButton(this, cx + 90, btnY, '🎾 Play', () => {
+        createButton(this, cx, btnY, '🎾 Play', () => {
           const idx = this.animals.findIndex((a) => a.id === animal.id);
           if (idx >= 0) {
             this.animals[idx] = applyPlay(this.animals[idx]);
@@ -574,8 +575,27 @@ export class GameScene extends Phaser.Scene {
           }
           this.closePopup();
           this.renderView();
-        }, { width: 110, fontSize: '16px' })
+        }, { width: 95, fontSize: '15px' })
       );
+
+      // Walk button (only for walkable species in good condition)
+      if (canGoOnWalk(animal)) {
+        this.gameContainer.add(
+          createButton(this, cx + 120, btnY, '🐾 Walk', () => {
+            this.closePopup();
+            this.saveState();
+            this.scene.start('WalkScene', {
+              animal,
+              allAnimals: this.animals,
+              onComplete: (updatedAnimals: Animal[], walkResult: { perfectWalk: boolean }) => {
+                this.animals = updatedAnimals;
+                this.checkBadges();
+                this.saveState();
+              },
+            });
+          }, { width: 95, fontSize: '15px', bgColour: '#27ae60' })
+        );
+      }
     } else {
       // Pet — show collar and "Visit in garden" button
       this.gameContainer.add(

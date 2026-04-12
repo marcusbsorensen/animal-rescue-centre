@@ -33,3 +33,19 @@ export {
   getUrgentNeed,
   getNeedSpeech,
 } from './needs';
+export {
+  canGoOnWalk,
+  generateWalkEvents,
+  startWalk,
+  advanceWalk,
+  handleRoadCrossingSuccess,
+  handleRoadCrossingFail,
+  calculateWalkRewards,
+  getAvailableTricks,
+  canTrain,
+  WALK_EVENTS,
+  WALK_ZONES,
+  TRICKS,
+  WALKABLE_SPECIES,
+} from './walks';
+export type { WalkState, WalkZone, WalkEvent, Trick, TrickDef, WalkEventDef } from './walks';
