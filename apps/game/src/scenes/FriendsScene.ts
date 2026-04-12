@@ -1,0 +1,181 @@
+import Phaser from 'phaser';
+import { COLOURS, FONTS } from '../ui/constants';
+import { createButton, createTextButton } from '../ui/UIButton';
+import { getSession } from '../lib/auth';
+import { addFriendByCode, getFriends, type Friend } from '../lib/friends';
+import { isSupabaseConfigured } from '../lib/supabase';
+
+export class FriendsScene extends Phaser.Scene {
+  private container!: Phaser.GameObjects.Container;
+  private errorText!: Phaser.GameObjects.Text;
+
+  constructor() {
+    super({ key: 'FriendsScene' });
+  }
+
+  create(): void {
+    const { width, height } = this.scale;
+    this.container = this.add.container(0, 0);
+    this.errorText = this.add.text(width / 2, height - 40, '', {
+      fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.error,
+    }).setOrigin(0.5);
+
+    this.showFriendsList();
+  }
+
+  private clearContainer(): void {
+    this.container.removeAll(true);
+    this.errorText.setText('');
+  }
+
+  private async showFriendsList(): Promise<void> {
+    this.clearContainer();
+    const { width, height } = this.scale;
+    const session = getSession();
+
+    this.container.add(
+      this.add.text(width / 2, 50, '👥 Friends', {
+        fontSize: '32px', fontFamily: FONTS.title, color: COLOURS.text,
+      }).setOrigin(0.5)
+    );
+
+    // Show join code prominently
+    if (session) {
+      this.container.add(
+        this.add.text(width / 2, 100,
+          `Your friend code: ${session.joinCode}`, {
+          fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.primary,
+          backgroundColor: COLOURS.inputBg,
+          padding: { x: 16, y: 8 },
+        }).setOrigin(0.5)
+      );
+
+      this.container.add(
+        this.add.text(width / 2, 135,
+          'Tell a friend this code so they can add you!', {
+          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        }).setOrigin(0.5)
+      );
+    }
+
+    // Add friend button
+    this.container.add(
+      createButton(this, width / 2, 185, '➕ Add a friend', () => {
+        this.showAddFriend();
+      }, { width: 240 })
+    );
+
+    // Friends list
+    let friends: Friend[] = [];
+    try {
+      if (isSupabaseConfigured()) {
+        friends = await getFriends();
+      }
+    } catch {
+      // silently fail
+    }
+
+    if (friends.length === 0) {
+      this.container.add(
+        this.add.text(width / 2, 280,
+          'No friends yet!\nShare your code with someone to get started.', {
+          fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          align: 'center',
+        }).setOrigin(0.5)
+      );
+    } else {
+      let y = 260;
+      friends.forEach((friend) => {
+        const row = this.add.text(width / 2, y,
+          `${friend.avatarEmoji}  ${friend.username}`, {
+          fontSize: '22px', fontFamily: FONTS.body, color: COLOURS.text,
+          backgroundColor: COLOURS.inputBg,
+          padding: { x: 16, y: 8 },
+        }).setOrigin(0.5);
+        this.container.add(row);
+        y += 50;
+      });
+    }
+
+    // Back button
+    this.container.add(
+      createTextButton(this, width / 2, height - 80,
+        '← Back to menu', () => this.scene.start('MainMenuScene'))
+    );
+  }
+
+  private showAddFriend(): void {
+    this.clearContainer();
+    const { width, height } = this.scale;
+
+    this.container.add(
+      this.add.text(width / 2, 60, 'Add a Friend', {
+        fontSize: '28px', fontFamily: FONTS.title, color: COLOURS.text,
+      }).setOrigin(0.5)
+    );
+
+    this.container.add(
+      this.add.text(width / 2, 110,
+        'Type their friend code (like FOX-428):', {
+        fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      }).setOrigin(0.5)
+    );
+
+    let code = '';
+    const codeDisplay = this.add.text(width / 2, 170, '___-___', {
+      fontSize: '36px', fontFamily: FONTS.body, color: COLOURS.text,
+      backgroundColor: COLOURS.inputBg,
+      padding: { x: 20, y: 10 },
+    }).setOrigin(0.5);
+    this.container.add(codeDisplay);
+
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      if (event.key === 'Backspace') {
+        code = code.slice(0, -1);
+        // Remove dash if we just deleted past it
+        if (code.length === 3 && code.endsWith('-')) {
+          code = code.slice(0, -1);
+        }
+      } else if (event.key === 'Enter' && code.length >= 6) {
+        this.doAddFriend(code);
+      } else if (/^[a-zA-Z]$/.test(event.key) && code.replace('-', '').length < 6) {
+        if (code.length === 3 && !code.includes('-')) {
+          code += '-';
+        }
+        code += event.key.toUpperCase();
+      } else if (/^\d$/.test(event.key) && code.replace('-', '').length < 6) {
+        if (code.length === 3 && !code.includes('-')) {
+          code += '-';
+        }
+        code += event.key;
+      }
+      codeDisplay.setText(code || '___-___');
+    });
+
+    this.container.add(
+      createButton(this, width / 2, 250, 'Add Friend', () => {
+        if (code.length >= 6) this.doAddFriend(code);
+        else this.errorText.setText('Enter the full code');
+      })
+    );
+
+    this.container.add(
+      createTextButton(this, width / 2, height - 80,
+        '← Back', () => this.showFriendsList())
+    );
+  }
+
+  private async doAddFriend(code: string): Promise<void> {
+    try {
+      if (!isSupabaseConfigured()) {
+        console.log('Demo add friend:', code);
+        this.showFriendsList();
+        return;
+      }
+      await addFriendByCode(code);
+      this.showFriendsList();
+    } catch (err) {
+      this.errorText.setText(err instanceof Error ? err.message : 'Failed to add friend');
+    }
+  }
+}

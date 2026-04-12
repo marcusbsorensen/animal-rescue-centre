@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.103.0",
     "phaser": "^3.80.1"
   },
   "devDependencies": {
