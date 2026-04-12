@@ -1,0 +1,27 @@
+{
+  "name": "arc",
+  "private": true,
+  "type": "module",
+  "version": "0.0.1",
+  "description": "A.R.C. — Animal Rescue Centre",
+  "scripts": {
+    "dev": "pnpm --filter @arc/game dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "eslint": "^9.39.4",
+    "typescript-eslint": "^8.58.1"
+  }
+}

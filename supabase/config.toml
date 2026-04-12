@@ -1,0 +1,18 @@
+[project]
+id = "arc"
+name = "Animal Rescue Centre"
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false
