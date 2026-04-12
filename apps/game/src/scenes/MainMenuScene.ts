@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { COLOURS, FONTS } from '../ui/constants';
 import { createButton, createTextButton } from '../ui/UIButton';
 import { getSession, logout } from '../lib/auth';
+import { AudioManager } from '../audio/AudioManager';
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -11,6 +12,11 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     const { width, height } = this.scale;
     const session = getSession();
+
+    // Start menu music
+    const audio = AudioManager.getInstance();
+    audio.setScene(this);
+    audio.playSceneMusic('menu');
 
     // Logo image (with fallback to text)
     if (this.textures.exists('logo-full')) {

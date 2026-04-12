@@ -10,6 +10,7 @@ import {
 } from '@arc/game-logic';
 import type { FoodDefinition } from '@arc/game-logic';
 import { createFoodSprite } from '../ui/sprites';
+import { AudioManager } from '../audio/AudioManager';
 
 /**
  * KitchenMinigameScene — Phase 3 food-sorting drag-drop game.
@@ -65,6 +66,9 @@ export class KitchenMinigameScene extends Phaser.Scene {
 
   create(): void {
     const { width, height } = this.scale;
+    const audio = AudioManager.getInstance();
+    audio.setScene(this);
+    audio.playSceneMusic('kitchen');
 
     // Background — kitchen art or warm colour fallback
     if (this.textures.exists('bg-kitchen')) {
@@ -277,6 +281,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
   ): void {
     this.fedAnimals.add(animalId);
     this.correctCount++;
+    AudioManager.getInstance().playSfx('food_correct');
 
     // Apply feeding to the animal in our local state
     const idx = this.allAnimals.findIndex((a) => a.id === animalId);
@@ -330,6 +335,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     if (!origin) return;
 
     if (message) {
+      AudioManager.getInstance().playSfx('food_wrong');
       this.showFeedback(message, COLOURS.textLight);
     }
 

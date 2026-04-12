@@ -98,6 +98,23 @@ export class BootScene extends Phaser.Scene {
     for (const c of collarColours) {
       this.load.image(`ui-collar-${c}`, `assets/ui/ui-collar-${c}.png`);
     }
+
+    // ── Audio ─────────────────────────────────────────────────
+    // Music tracks (loopable MP3s)
+    const musicTracks = ['menu', 'corridor', 'room', 'kitchen', 'walk', 'vet', 'garden', 'social', 'conflict'];
+    for (const t of musicTracks) {
+      this.load.audio(`music-${t}`, `assets/audio/music-${t}.mp3`);
+    }
+
+    // Sound effects
+    const sfxFiles = [
+      'feed', 'play', 'pet', 'sleep', 'arrive', 'bond-up', 'bond-complete',
+      'collar', 'badge', 'level-up', 'correct', 'wrong', 'heal',
+      'conflict', 'resolved', 'gift', 'button', 'walk-road',
+    ];
+    for (const s of sfxFiles) {
+      this.load.audio(`sfx-${s}`, `assets/audio/sfx-${s}.mp3`);
+    }
   }
 
   create(): void {

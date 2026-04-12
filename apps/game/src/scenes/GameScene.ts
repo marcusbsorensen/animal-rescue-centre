@@ -3,6 +3,7 @@ import type { Animal, Species, GameState } from '@arc/shared-types';
 import { COLOURS, FONTS } from '../ui/constants';
 import { createButton, createTextButton } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
+import { AudioManager } from '../audio/AudioManager';
 import {
   spawnAnimal,
   spawnSiblingPair,
@@ -75,6 +76,11 @@ export class GameScene extends Phaser.Scene {
 
   async create(): Promise<void> {
     const { width, height } = this.scale;
+
+    // Initialise audio
+    const audio = AudioManager.getInstance();
+    audio.setScene(this);
+    audio.playSceneMusic('corridor');
 
     this.gameContainer = this.add.container(0, 0);
     this.uiContainer = this.add.container(0, 0);
@@ -233,6 +239,13 @@ export class GameScene extends Phaser.Scene {
 
   private renderView(): void {
     this.clearView();
+    // Transition music to match current view
+    const audio = AudioManager.getInstance();
+    const sceneMap: Record<ViewMode, 'corridor' | 'room' | 'kitchen' | 'garden'> = {
+      corridor: 'corridor', room: 'room', kitchen: 'kitchen', garden: 'garden',
+    };
+    audio.playSceneMusic(sceneMap[this.viewMode]);
+
     switch (this.viewMode) {
       case 'corridor': this.renderCorridor(); break;
       case 'room': this.renderRoom(); break;
@@ -288,6 +301,18 @@ export class GameScene extends Phaser.Scene {
         fontSize: '14px', fontFamily: FONTS.body, color: '#aaa',
       })
     );
+
+    // Audio toggle
+    const audioState = AudioManager.getInstance().getState();
+    const audioBtn = this.add.text(width - 80, 12,
+      audioState.musicEnabled ? '🔊' : '🔇', {
+      fontSize: '18px',
+    }).setInteractive({ useHandCursor: true });
+    audioBtn.on('pointerdown', () => {
+      const enabled = AudioManager.getInstance().toggleMusic();
+      audioBtn.setText(enabled ? '🔊' : '🔇');
+    });
+    this.uiContainer.add(audioBtn);
 
     // Save button
     const saveBtn = this.add.text(width - 50, 12, '💾', {
@@ -395,6 +420,7 @@ export class GameScene extends Phaser.Scene {
       this.gameContainer.add(
         createButton(this, width / 2, arriveY + 120, '✓ Accept into centre', () => {
           arriving.forEach((a) => { a.state = 'sheltered'; });
+          AudioManager.getInstance().playSfx('animal_arrive');
           this.saveState();
           this.renderView();
         }, { width: 260, fontSize: '18px' })
@@ -624,6 +650,7 @@ export class GameScene extends Phaser.Scene {
             this.animals[idx] = applyFeeding(this.animals[idx]);
             const bondGain = calculateBondIncrease(this.animals[idx], 'feed');
             this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
+            AudioManager.getInstance().playSfx('animal_fed');
             this.checkBondComplete(this.animals[idx]);
           }
           this.closePopup();
@@ -638,6 +665,7 @@ export class GameScene extends Phaser.Scene {
             this.animals[idx] = applyPlay(this.animals[idx]);
             const bondGain = calculateBondIncrease(this.animals[idx], 'play');
             this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
+            AudioManager.getInstance().playSfx('animal_happy');
             this.checkBondComplete(this.animals[idx]);
           }
           this.closePopup();
@@ -1127,6 +1155,8 @@ export class GameScene extends Phaser.Scene {
       this.totalBonded++;
     }
 
+    AudioManager.getInstance().playSfx('bond_complete');
+
     // Check for new badges
     this.checkBadges();
     this.saveState();
@@ -1214,6 +1244,7 @@ export class GameScene extends Phaser.Scene {
 
   private showBadgeNotification(badgeCode: string): void {
     const { width } = this.scale;
+    AudioManager.getInstance().playSfx('badge_earned');
 
     // Simple toast notification at top
     const toast = this.add.container(width / 2, -50);
@@ -1312,7 +1343,12 @@ export class GameScene extends Phaser.Scene {
       if (idx >= 0) this.animals[idx] = updatedAnimal;
     }
 
-    if (effective) this.conflictsResolved++;
+    if (effective) {
+      this.conflictsResolved++;
+      AudioManager.getInstance().playSfx('heal_complete');
+    } else {
+      AudioManager.getInstance().playSfx('food_wrong');
+    }
     this.activeConflict = undefined;
 
     // Show result feedback
