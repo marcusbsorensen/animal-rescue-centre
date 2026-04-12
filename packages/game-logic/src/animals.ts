@@ -69,6 +69,29 @@ const ANIMAL_NAMES: Record<Species, string[]> = {
 };
 
 /**
+ * Visual variants per species — each variant is a different character design.
+ * The sprite key becomes `{species}-{variant}-{state}`.
+ * Fallback: if no variant art exists, `{species}-{state}` is used.
+ */
+export const SPECIES_VARIANTS: Record<Species, string[]> = {
+  cat: ['ginger', 'black', 'calico', 'grey', 'siamese', 'white', 'tuxedo', 'tortie'],
+  dog: ['golden', 'dalmatian', 'chocolate', 'beagle', 'husky', 'pug', 'collie', 'terrier'],
+  fox: ['red', 'arctic', 'silver', 'cross', 'marble', 'fennec'],
+  bunny: ['dutch', 'lop', 'lionhead', 'rex', 'angora', 'spotted'],
+  bat: ['brown', 'fruit', 'longeared', 'pipistrelle', 'white'],
+  parrot: ['budgie', 'cockatiel', 'grey', 'macaw', 'lovebird'],
+  snake: ['corn', 'python', 'king', 'garter', 'hognose'],
+};
+
+/**
+ * Pick a random variant for a species.
+ */
+export function pickRandomVariant(species: Species): string {
+  const variants = SPECIES_VARIANTS[species];
+  return variants[Math.floor(Math.random() * variants.length)];
+}
+
+/**
  * Colours for placeholder rectangle sprites per species.
  */
 export const SPECIES_COLOURS: Record<Species, number> = {
@@ -99,6 +122,7 @@ export function spawnAnimal(
     id,
     name: names[Math.floor(Math.random() * names.length)],
     species,
+    variant: pickRandomVariant(species),
     state: 'arriving',
     arrivalStory: stories[Math.floor(Math.random() * stories.length)],
     hunger: 60 + Math.floor(Math.random() * 30),       // 60–89 (hungry)

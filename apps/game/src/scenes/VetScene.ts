@@ -8,6 +8,7 @@ import {
   ILLNESSES,
   SPECIES_COLOURS,
 } from '@arc/game-logic';
+import { createAnimalSprite } from '../ui/sprites';
 import type { IllnessDef, HealAction } from '@arc/game-logic';
 
 /**
@@ -77,10 +78,11 @@ export class VetScene extends Phaser.Scene {
     );
 
     // Animal info
-    this.container.add(
-      this.add.rectangle(width / 2, 100, 60, 48, SPECIES_COLOURS[this.animal.species])
-        .setStrokeStyle(2, 0xff6b6b)
-    );
+    const animalSprite = createAnimalSprite(this, width / 2, 100, this.animal, { width: 60, height: 48 });
+    if (animalSprite instanceof Phaser.GameObjects.Rectangle) {
+      animalSprite.setStrokeStyle(2, 0xff6b6b);
+    }
+    this.container.add(animalSprite);
 
     this.container.add(
       this.add.text(width / 2, 140,

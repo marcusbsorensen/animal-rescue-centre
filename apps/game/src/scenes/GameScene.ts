@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { Animal, Species, GameState } from '@arc/shared-types';
 import { COLOURS, FONTS } from '../ui/constants';
 import { createButton, createTextButton } from '../ui/UIButton';
+import { createAnimalSprite } from '../ui/sprites';
 import {
   spawnAnimal,
   spawnSiblingPair,
@@ -23,8 +24,13 @@ import {
   applySickness,
   getAvailableUpgrades,
   getUnlockedUpgrades,
+  shouldSpawnConflict,
+  generateConflict,
+  isResolutionEffective,
+  resolveConflict,
+  RESOLUTION_ACTIONS,
 } from '@arc/game-logic';
-import type { IllnessDef } from '@arc/game-logic';
+import type { IllnessDef, Conflict, ResolutionAction } from '@arc/game-logic';
 import { evaluateBadges } from '@arc/badges';
 import { getSession } from '../lib/auth';
 import { supabase } from '../lib/supabase';
@@ -52,6 +58,8 @@ export class GameScene extends Phaser.Scene {
   private earnedBadges: string[] = [];
   private houseUpgrades: string[] = [];
   private sickAnimals: Map<string, IllnessDef> = new Map();
+  private activeConflict?: Conflict;
+  private conflictsResolved = 0;
 
   private viewMode: ViewMode = 'corridor';
   private currentRoomSpecies?: Species;
@@ -195,6 +203,17 @@ export class GameScene extends Phaser.Scene {
         if (idx >= 0) {
           this.animals[idx] = applySickness(this.animals[idx], illness);
           this.sickAnimals.set(animal.id, illness);
+        }
+      }
+    }
+
+    // Check for conflicts (only when no active conflict)
+    if (!this.activeConflict && this.animals.length >= 2) {
+      const shelteredAnimals = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding');
+      if (shouldSpawnConflict(shelteredAnimals)) {
+        this.activeConflict = generateConflict(shelteredAnimals);
+        if (this.activeConflict) {
+          this.showConflictPopup(this.activeConflict);
         }
       }
     }
@@ -353,22 +372,17 @@ export class GameScene extends Phaser.Scene {
         const ax = width / 2 - 150 + i * 100;
         const ay = arriveY + 60;
 
-        // Coloured rectangle sprite
-        const sprite = this.add.rectangle(ax, ay, 50, 40,
-          SPECIES_COLOURS[animal.species]
-        ).setInteractive({ useHandCursor: true })
-          .setStrokeStyle(1, 0x000000, 0.3);
+        // Animal sprite (real art or fallback rectangle)
+        const sprite = createAnimalSprite(this, ax, ay, animal, { interactive: true });
+        sprite.on('pointerdown', () => this.showAnimalDetails(animal));
+        this.gameContainer.add(sprite);
 
         // Name
-        const name = this.add.text(ax, ay + 30, animal.name, {
-          fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
-        }).setOrigin(0.5);
-
-        // Speech bubble with arrival story
-        sprite.on('pointerdown', () => this.showAnimalDetails(animal));
-
-        this.gameContainer.add(sprite);
-        this.gameContainer.add(name);
+        this.gameContainer.add(
+          this.add.text(ax, ay + 30, animal.name, {
+            fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
+          }).setOrigin(0.5)
+        );
       });
 
       // "Accept all" button
@@ -457,12 +471,16 @@ export class GameScene extends Phaser.Scene {
         const x = startX + col * 100;
         const y = startY + row * 120;
 
-        // Coloured rectangle (placeholder sprite)
+        // Animal sprite (real art or fallback rectangle)
         const size = animal.state === 'pet' ? 55 : 45;
-        const sprite = this.add.rectangle(x, y, size, size * 0.8, colour)
-          .setInteractive({ useHandCursor: true })
-          .setStrokeStyle(animal.state === 'pet' ? 3 : 1,
-            animal.state === 'pet' ? 0xffd700 : 0x000000, 0.5);
+        const sprite = createAnimalSprite(this, x, y, animal, {
+          width: size, height: size * 0.8, interactive: true,
+        });
+
+        // Pet gold border (if sprite is a rectangle fallback)
+        if (animal.state === 'pet' && sprite instanceof Phaser.GameObjects.Rectangle) {
+          sprite.setStrokeStyle(3, 0xffd700, 0.8);
+        }
 
         // Name
         this.gameContainer.add(
@@ -543,10 +561,8 @@ export class GameScene extends Phaser.Scene {
     const cy = height / 2 - cardH / 2 + 30;
 
     // Species sprite
-    this.gameContainer.add(
-      this.add.rectangle(cx, cy + 10, 60, 48, SPECIES_COLOURS[animal.species])
-        .setStrokeStyle(1, 0x000000, 0.3)
-    );
+    const detailSprite = createAnimalSprite(this, cx, cy + 10, animal, { width: 60, height: 48 });
+    this.gameContainer.add(detailSprite);
 
     // Name + species
     this.gameContainer.add(
@@ -872,9 +888,12 @@ export class GameScene extends Phaser.Scene {
         const collarColour = Phaser.Display.Color.HexStringToColor(collarHex).color;
 
         // Pet sprite (larger than shelter animals, with gold border + collar)
-        const sprite = this.add.rectangle(cx, cy, 55, 44, SPECIES_COLOURS[pet.species])
-          .setInteractive({ useHandCursor: true })
-          .setStrokeStyle(3, collarColour);
+        const sprite = createAnimalSprite(this, cx, cy, pet, { width: 55, height: 44, interactive: true });
+        if (sprite instanceof Phaser.GameObjects.Rectangle) {
+          sprite.setStrokeStyle(3, collarColour);
+        } else {
+          sprite.setTint(Phaser.Display.Color.HexStringToColor(collarHex).color);
+        }
 
         // Crown / pet indicator
         this.gameContainer.add(
@@ -1017,15 +1036,11 @@ export class GameScene extends Phaser.Scene {
     );
 
     // Animal sprite (big, central)
-    this.gameContainer.add(
-      this.add.rectangle(width / 2, 170, 70, 56, SPECIES_COLOURS[animal.species])
-        .setStrokeStyle(3, 0xffd700)
-    );
-    this.gameContainer.add(
-      this.add.text(width / 2, 170, this.speciesEmoji(animal.species), {
-        fontSize: '36px',
-      }).setOrigin(0.5)
-    );
+    const collarSprite = createAnimalSprite(this, width / 2, 170, animal, { width: 70, height: 56 });
+    if (collarSprite instanceof Phaser.GameObjects.Rectangle) {
+      collarSprite.setStrokeStyle(3, 0xffd700);
+    }
+    this.gameContainer.add(collarSprite);
 
     // Collar picker prompt
     this.gameContainer.add(
@@ -1147,7 +1162,7 @@ export class GameScene extends Phaser.Scene {
         selfHealed: 0,
         walksWithoutIncident: 0,
         animalsTrained: 0,
-        conflictsResolved: 0,
+        conflictsResolved: this.conflictsResolved,
         houseUpgrades: 0,
         totalPets: pets.length,
         consecutiveDays: 1,
@@ -1188,6 +1203,121 @@ export class GameScene extends Phaser.Scene {
       yoyo: true,
       onComplete: () => toast.destroy(),
     });
+  }
+
+  // ── Conflict System ─────────────────────────────────────────
+
+  private showConflictPopup(conflict: Conflict): void {
+    this.clearView();
+    const { width, height } = this.scale;
+
+    // Background
+    this.gameContainer.add(
+      this.add.rectangle(width / 2, height / 2, width, height, 0xfff3e0)
+    );
+
+    // Title
+    this.gameContainer.add(
+      this.add.text(width / 2, 60, `⚡ ${conflict.type.replace('_', ' ').toUpperCase()}!`, {
+        fontSize: '26px', fontFamily: FONTS.title, color: '#e74c3c',
+      }).setOrigin(0.5)
+    );
+
+    // Description
+    const animal1 = this.animals.find((a) => a.id === conflict.animalIds[0]);
+    const animal2 = conflict.animalIds[1] ? this.animals.find((a) => a.id === conflict.animalIds[1]) : undefined;
+
+    const conflictDesc = animal2
+      ? `${animal1?.name} and ${animal2?.name} are having a ${conflict.type.replace('_', ' ')}!`
+      : `${animal1?.name} is ${conflict.type === 'food_guarding' ? 'guarding their food' : 'being territorial'}!`;
+
+    this.gameContainer.add(
+      this.add.text(width / 2, 110, conflictDesc, {
+        fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
+        wordWrap: { width: width - 60 }, align: 'center',
+      }).setOrigin(0.5)
+    );
+
+    // Animal sprites
+    if (animal1) {
+      const sprite1 = createAnimalSprite(this, width / 2 - 50, 170, animal1, { width: 50, height: 40 });
+      this.gameContainer.add(sprite1);
+    }
+    if (animal2) {
+      const sprite2 = createAnimalSprite(this, width / 2 + 50, 170, animal2, { width: 50, height: 40 });
+      this.gameContainer.add(sprite2);
+    }
+
+    // Prompt
+    this.gameContainer.add(
+      this.add.text(width / 2, 220, 'How do you want to help?', {
+        fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      }).setOrigin(0.5)
+    );
+
+    // Resolution buttons
+    const actions = RESOLUTION_ACTIONS;
+    const startY = 270;
+    actions.forEach((action, i) => {
+      const btn = createButton(this, width / 2, startY + i * 60,
+        `${action.emoji}  ${action.label}`, () => {
+          this.resolveActiveConflict(action);
+        }, { width: 280 }
+      );
+      this.gameContainer.add(btn);
+    });
+  }
+
+  private resolveActiveConflict(action: ResolutionAction): void {
+    if (!this.activeConflict) return;
+
+    const result = resolveConflict(this.activeConflict, action.type, this.animals);
+    const effective = isResolutionEffective(this.activeConflict.type, action.type);
+
+    // Apply happiness changes
+    for (const updatedAnimal of result.updatedAnimals) {
+      const idx = this.animals.findIndex((a) => a.id === updatedAnimal.id);
+      if (idx >= 0) this.animals[idx] = updatedAnimal;
+    }
+
+    if (effective) this.conflictsResolved++;
+    this.activeConflict = undefined;
+
+    // Show result feedback
+    this.clearView();
+    const { width, height } = this.scale;
+
+    this.gameContainer.add(
+      this.add.rectangle(width / 2, height / 2, width, height,
+        effective ? 0xe8f5e9 : 0xfff9c4)
+    );
+
+    this.gameContainer.add(
+      this.add.text(width / 2, height / 2 - 30,
+        effective ? '✨ Great job!' : '🤔 That helped a little...', {
+        fontSize: '28px', fontFamily: FONTS.title,
+        color: effective ? COLOURS.primary : '#f39c12',
+      }).setOrigin(0.5)
+    );
+
+    this.gameContainer.add(
+      this.add.text(width / 2, height / 2 + 20,
+        effective
+          ? 'The animals feel much happier now! (+10 happiness)'
+          : 'The animals calmed down a bit. (+3 happiness)', {
+        fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.text,
+        wordWrap: { width: width - 60 }, align: 'center',
+      }).setOrigin(0.5)
+    );
+
+    this.gameContainer.add(
+      createButton(this, width / 2, height / 2 + 80, '← Back', () => {
+        this.viewMode = 'corridor';
+        this.renderView();
+      }, { width: 180 })
+    );
+
+    this.checkBadges();
   }
 
   // ── Helpers ─────────────────────────────────────────────────

@@ -23,7 +23,9 @@ export {
   pickRandomSpecies,
   shouldSpawnSiblings,
   getRandomName,
+  pickRandomVariant,
   SPECIES_COLOURS,
+  SPECIES_VARIANTS,
 } from './animals';
 export {
   tickNeeds,

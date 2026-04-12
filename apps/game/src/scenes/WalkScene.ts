@@ -13,6 +13,7 @@ import {
   WALK_ZONES,
   SPECIES_COLOURS,
 } from '@arc/game-logic';
+import { createAnimalSprite } from '../ui/sprites';
 import type { WalkState, WalkZone, WalkEventDef } from '@arc/game-logic';
 
 /**
@@ -162,11 +163,8 @@ export class WalkScene extends Phaser.Scene {
     this.renderProgressBar(width);
 
     // Animal walking
-    this.container.add(
-      this.add.rectangle(width / 2, height / 2 - 40, 60, 48,
-        SPECIES_COLOURS[this.animal.species])
-        .setStrokeStyle(2, 0xffffff)
-    );
+    const walkSprite = createAnimalSprite(this, width / 2, height / 2 - 40, this.animal, { width: 60, height: 48 });
+    this.container.add(walkSprite);
 
     // Event display
     this.container.add(

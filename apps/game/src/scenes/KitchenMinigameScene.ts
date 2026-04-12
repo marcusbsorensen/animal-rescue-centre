@@ -9,6 +9,7 @@ import {
   SPECIES_COLOURS,
 } from '@arc/game-logic';
 import type { FoodDefinition } from '@arc/game-logic';
+import { createFoodSprite } from '../ui/sprites';
 
 /**
  * KitchenMinigameScene — Phase 3 food-sorting drag-drop game.
@@ -228,10 +229,8 @@ export class KitchenMinigameScene extends Phaser.Scene {
    * Create a single draggable food item.
    */
   private createDraggableFood(food: FoodDefinition, x: number, y: number, index: number): void {
-    // Food emoji (large, draggable)
-    const emoji = this.add.text(0, -8, food.emoji, {
-      fontSize: '36px',
-    }).setOrigin(0.5);
+    // Food sprite (uses real art if available, emoji fallback)
+    const foodSprite = createFoodSprite(this, 0, -8, food.type, food.emoji, 36);
 
     // Label below
     const label = this.add.text(0, 18, food.label, {
@@ -243,7 +242,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     // Background circle for better hit area
     const bg = this.add.circle(0, 0, 30, 0xffffff, 0.5);
 
-    const container = this.add.container(x, y, [bg, emoji, label]);
+    const container = this.add.container(x, y, [bg, foodSprite, label]);
     container.setSize(60, 60);
     container.setInteractive({ draggable: true, useHandCursor: true });
     container.setData('foodType', food.type);

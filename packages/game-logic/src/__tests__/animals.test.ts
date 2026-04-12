@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spawnAnimal, spawnSiblingPair, pickRandomSpecies, shouldSpawnSiblings } from '../animals';
+import { spawnAnimal, spawnSiblingPair, pickRandomSpecies, shouldSpawnSiblings, pickRandomVariant, SPECIES_VARIANTS } from '../animals';
 
 describe('spawnAnimal', () => {
   it('creates an animal with correct species', () => {
@@ -53,5 +53,32 @@ describe('shouldSpawnSiblings', () => {
   it('returns a boolean', () => {
     const result = shouldSpawnSiblings();
     expect(typeof result).toBe('boolean');
+  });
+});
+
+describe('pickRandomVariant', () => {
+  it('returns a valid variant for each species', () => {
+    for (const [species, variants] of Object.entries(SPECIES_VARIANTS)) {
+      for (let i = 0; i < 10; i++) {
+        const v = pickRandomVariant(species as any);
+        expect(variants).toContain(v);
+      }
+    }
+  });
+});
+
+describe('animal variant assignment', () => {
+  it('spawned animals get a variant', () => {
+    const cat = spawnAnimal('cat');
+    expect(cat.variant).toBeDefined();
+    expect(SPECIES_VARIANTS.cat).toContain(cat.variant);
+  });
+
+  it('sibling pairs get independent variants', () => {
+    const [a, b] = spawnSiblingPair('dog');
+    expect(a.variant).toBeDefined();
+    expect(b.variant).toBeDefined();
+    expect(SPECIES_VARIANTS.dog).toContain(a.variant);
+    expect(SPECIES_VARIANTS.dog).toContain(b.variant);
   });
 });

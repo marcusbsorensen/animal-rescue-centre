@@ -9,6 +9,7 @@ export interface Animal {
   id: string;
   name: string;
   species: Species;
+  variant?: string;     // e.g. 'ginger', 'dalmatian' — visual variety
   state: AnimalState;
   arrivalStory: string;
   hunger: number;       // 0–100, 0 = full
