@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { AssetLoader } from '../lib/AssetLoader';
 import { createAmbientParticles } from '../ui/UIButton';
 
@@ -29,6 +29,8 @@ const LOADING_MESSAGES = [
 const BOUNCE_ANIMALS = ['🐱', '🐶', '🐰', '🦊', '🦜', '🦇', '🐍'];
 
 export class LoadingScene extends Phaser.Scene {
+  private _lastWidth = 0;
+  private _lastHeight = 0;
   private messageText?: Phaser.GameObjects.Text;
   private messageIndex = 0;
   private barFillGfx?: Phaser.GameObjects.Graphics;
@@ -140,7 +142,7 @@ export class LoadingScene extends Phaser.Scene {
     for (let i = 0; i < pawCount; i++) {
       const px = this.barX - this.barW / 2 + (this.barW / (pawCount - 1)) * i;
       this.add.text(px, this.barY, '🐾', {
-        fontSize: '10px',
+        fontSize: '14px', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5).setAlpha(0.2);
     }
 
@@ -181,6 +183,19 @@ export class LoadingScene extends Phaser.Scene {
 
     // Start/continue background loading
     loader.startBackgroundLoad(this);
+
+    // Viewport resize handling
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+        this._lastWidth = w;
+        this._lastHeight = h;
+        this.scene.restart();
+      }
+    });
+    this._lastWidth = this.scale.width;
+    this._lastHeight = this.scale.height;
 
     // Fade-in entrance
     this.cameras.main.fadeIn(300, 245, 235, 224);

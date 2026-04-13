@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   applyHealStep,
@@ -20,6 +20,8 @@ import type { IllnessDef, HealAction } from '@arc/game-logic';
  * After enough correct actions, the animal is healed!
  */
 export class VetScene extends Phaser.Scene {
+  private _lastWidth = 0;
+  private _lastHeight = 0;
   private animal!: Animal;
   private illness!: IllnessDef;
   private allAnimals: Animal[] = [];
@@ -58,6 +60,20 @@ export class VetScene extends Phaser.Scene {
     this.cameras.main.fadeIn(400, 245, 235, 224);
 
     this.container = this.add.container(0, 0);
+
+    // Viewport resize handling
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+        this._lastWidth = w;
+        this._lastHeight = h;
+        this.scene.restart();
+      }
+    });
+    this._lastWidth = this.scale.width;
+    this._lastHeight = this.scale.height;
+
     this.renderView();
   }
 
@@ -83,9 +99,22 @@ export class VetScene extends Phaser.Scene {
       this.add.rectangle(width / 2, 3, width, 6, 0x000000, 0.04)
     );
 
+    // Subtle medical cross/plus background pattern
+    const bgPattern = this.add.graphics();
+    bgPattern.lineStyle(1.5, 0xd4c8b8, 0.05);
+    for (let mx = 50; mx < width; mx += 100) {
+      for (let my = 50; my < height; my += 100) {
+        const ox = ((my / 100) % 2) * 50;
+        const x = mx + ox, y = my;
+        bgPattern.strokeRect(x - 3, y - 10, 6, 20);
+        bgPattern.strokeRect(x - 10, y - 3, 20, 6);
+      }
+    }
+    this.container.add(bgPattern);
+
     // Title
     this.container.add(
-      createPillTitle(this, width / 2, 35, '🏥 Vet Clinic', { bgColour: 0xE74C3C, fontSize: '20px' })
+      createPillTitle(this, width / 2, 35, 'Vet Clinic', { bgColour: 0xE74C3C, fontSize: '20px', icon: 'icon-vet-clinic' })
     );
 
     // Animal info
@@ -129,7 +158,7 @@ export class VetScene extends Phaser.Scene {
     );
     this.container.add(
       this.add.text(width / 2 + 120, barY, `${Math.round(this.animal.health)}%`, {
-        fontSize: '13px', fontFamily: FONTS.body, color: '#888',
+        fontSize: '14px', fontFamily: FONTS.body, color: '#888', resolution: TEXT_RESOLUTION,
       })
     );
 
@@ -179,11 +208,11 @@ export class VetScene extends Phaser.Scene {
       }).setOrigin(0.5);
 
       const label = this.add.text(x, y + 12, action.label, {
-        fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
 
       const desc = this.add.text(x, y + 28, action.description, {
-        fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         wordWrap: { width: actionW - 20 }, align: 'center',
       }).setOrigin(0.5);
 
@@ -303,11 +332,11 @@ export class VetScene extends Phaser.Scene {
     );
 
     this.container.add(
-      createButton(this, width / 2, height / 2 + 70, '✅ Back to Centre', () => {
+      createButton(this, width / 2, height / 2 + 70, 'Back to Centre', () => {
         this.registry.set('updatedAnimals', this.allAnimals);
         this.registry.set('vetResult', { healed: true, animalId: this.animal.id });
         this.scene.start('GameScene');
-      }, { width: 240 })
+      }, { width: 240, icon: 'icon-back' })
     );
   }
 }

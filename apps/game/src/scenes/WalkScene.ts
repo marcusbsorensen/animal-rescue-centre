@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   startWalk,
@@ -24,6 +24,8 @@ import type { WalkState, WalkZone, WalkEventDef } from '@arc/game-logic';
  * player must press STOP within 3 seconds. Rewards at the end.
  */
 export class WalkScene extends Phaser.Scene {
+  private _lastWidth = 0;
+  private _lastHeight = 0;
   private animal!: Animal;
   private allAnimals: Animal[] = [];
   private onComplete?: (animals: Animal[], walkResult: { perfectWalk: boolean }) => void;
@@ -61,6 +63,20 @@ export class WalkScene extends Phaser.Scene {
     this.cameras.main.fadeIn(400, 245, 235, 224);
 
     this.container = this.add.container(0, 0);
+
+    // Viewport resize handling
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+        this._lastWidth = w;
+        this._lastHeight = h;
+        this.scene.restart();
+      }
+    });
+    this._lastWidth = this.scale.width;
+    this._lastHeight = this.scale.height;
+
     this.renderView();
 
     // Clean up keyboard listeners when scene shuts down
@@ -112,7 +128,7 @@ export class WalkScene extends Phaser.Scene {
 
   private renderZoneSelect(width: number, height: number): void {
     this.container.add(
-      createPillTitle(this, width / 2, 40, `🐾 Walk with ${this.animal.name}!`, { bgColour: 0x2E8B57, fontSize: '20px' })
+      createPillTitle(this, width / 2, 40, `Walk with ${this.animal.name}!`, { bgColour: 0x2E8B57, fontSize: '20px', icon: 'icon-walk-scene' })
     );
 
     this.container.add(
@@ -143,7 +159,7 @@ export class WalkScene extends Phaser.Scene {
 
       this.container.add(
         this.add.text(width / 2 - 140, y + 15, zone.description, {
-          fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(0, 0.5)
       );
 
@@ -215,16 +231,16 @@ export class WalkScene extends Phaser.Scene {
     // "Continue walking" button
     this.container.add(
       createButton(this, width / 2, height / 2 + 140,
-        '🐾 Keep walking', () => {
+        'Keep walking', () => {
           this.walkState = advanceWalk(this.walkState!);
           this.showNextEvent();
-        }, { width: 220 })
+        }, { width: 220, icon: 'icon-walk' })
     );
 
     // Lead toggle
     this.container.add(
       createTextButton(this, width / 2, height - 50,
-        `Lead: ${this.walkState.leadOn ? '✅ On' : '❌ Off'}`, () => {
+        `Lead: ${this.walkState.leadOn ? 'On' : 'Off'}`, () => {
           this.walkState!.leadOn = !this.walkState!.leadOn;
           this.renderView();
         })
@@ -345,10 +361,10 @@ export class WalkScene extends Phaser.Scene {
     );
 
     this.container.add(
-      createButton(this, width / 2, height / 2 + 80, '🐾 Continue walk', () => {
+      createButton(this, width / 2, height / 2 + 80, 'Continue walk', () => {
         this.walkState = advanceWalk(this.walkState!);
         this.showNextEvent();
-      }, { width: 220 })
+      }, { width: 220, icon: 'icon-walk' })
     );
   }
 
@@ -434,11 +450,11 @@ export class WalkScene extends Phaser.Scene {
     );
 
     this.container.add(
-      createButton(this, width / 2, height - 80, '✅ Back to Centre', () => {
+      createButton(this, width / 2, height - 80, 'Back to Centre', () => {
         this.registry.set('updatedAnimals', this.allAnimals);
         this.registry.set('walkResult', { perfectWalk: rewards.perfectWalk });
         this.scene.start('GameScene');
-      }, { width: 240 })
+      }, { width: 240, icon: 'icon-back' })
     );
   }
 
@@ -467,7 +483,7 @@ export class WalkScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, barY,
         `Step ${this.walkState.currentEventIndex + 1}/${this.walkState.events.length}`, {
-        fontSize: '10px', fontFamily: FONTS.body, color: '#ffffff',
+        fontSize: '14px', fontFamily: FONTS.body, color: '#ffffff', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
   }

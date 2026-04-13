@@ -21,6 +21,8 @@ import { AudioManager } from '../audio/AudioManager';
  * Wrong pairing → food bounces back with a gentle wobble.
  */
 export class KitchenMinigameScene extends Phaser.Scene {
+  private _lastWidth = 0;
+  private _lastHeight = 0;
   /** Hungry animals passed in from GameScene */
   private hungryAnimals: Animal[] = [];
   /** All animals (so we can update the fed ones) */
@@ -82,8 +84,28 @@ export class KitchenMinigameScene extends Phaser.Scene {
       this.add.rectangle(width / 2, height / 2, width, height, 0xfff8e7);
     }
 
+    // Subtle utensil shapes background pattern
+    const bgPattern = this.add.graphics();
+    bgPattern.lineStyle(1, 0xd4c8b8, 0.05);
+    for (let ux = 40; ux < width; ux += 90) {
+      for (let uy = 40; uy < height; uy += 90) {
+        const ox = ((uy / 90) % 2) * 45;
+        const x = ux + ox, y = uy;
+        if ((ux + uy) % 2 === 0) {
+          // Fork
+          bgPattern.lineBetween(x, y - 10, x, y + 10);
+          bgPattern.lineBetween(x - 4, y - 10, x - 4, y - 2);
+          bgPattern.lineBetween(x + 4, y - 10, x + 4, y - 2);
+        } else {
+          // Spoon
+          bgPattern.lineBetween(x, y + 2, x, y + 12);
+          bgPattern.strokeCircle(x, y - 3, 5);
+        }
+      }
+    }
+
     // Title
-    createPillTitle(this, width / 2, 30, '🍽️ Sort the Food!', { bgColour: 0xD4A017, fontSize: '20px' });
+    createPillTitle(this, width / 2, 30, '🍽️ Sort the Food!', { bgColour: 0xD4A017, fontSize: '20px', icon: 'icon-kitchen' });
 
     // Progress counter — shows how many animals still need feeding
     this.progressText = this.add.text(width / 2, 62,
@@ -106,6 +128,19 @@ export class KitchenMinigameScene extends Phaser.Scene {
     this.createBowls(width, height);
     this.createPrepSurface(width, height);
     this.createFeedbackArea(width, height);
+
+    // Viewport resize handling
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+        this._lastWidth = w;
+        this._lastHeight = h;
+        this.scene.restart();
+      }
+    });
+    this._lastWidth = this.scale.width;
+    this._lastHeight = this.scale.height;
 
     // Back button
     createTextButton(this, width / 2, height - 25, '← Back to centre', () => {
@@ -179,7 +214,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     this.add.rectangle(width / 2, surfaceY + surfaceH / 2, width - 60, surfaceH, 0xf5efe4)
       .setStrokeStyle(2, 0xd4c8b8);
 
-    this.add.text(width / 2, surfaceY + 10, '🧑‍🍳 Prep Surface', {
+    this.add.text(width / 2, surfaceY + 10, 'Prep Surface', {
       fontSize: '14px',
       fontFamily: FONTS.body,
       color: COLOURS.textLight,
@@ -483,9 +518,9 @@ export class KitchenMinigameScene extends Phaser.Scene {
     // Ambient celebration particles
     createAmbientParticles(this, ['🍽️', '⭐'], { count: 10, minAlpha: 0.1, maxAlpha: 0.25 });
 
-    createButton(this, width / 2, height / 2 + 60, '✅ Back to Centre', () => {
+    createButton(this, width / 2, height / 2 + 60, 'Back to Centre', () => {
       this.exitMinigame();
-    }, { width: 220 });
+    }, { width: 220, icon: 'icon-back' });
   }
 
   /**

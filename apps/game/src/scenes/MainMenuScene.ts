@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { createButton, createTextButton, createAmbientParticles } from '../ui/UIButton';
 import { getSession, logout } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
@@ -16,6 +16,9 @@ import type { Species } from '@arc/shared-types';
  * Designed by Lily (age 8) 💜
  */
 export class MainMenuScene extends Phaser.Scene {
+  private _lastWidth = 0;
+  private _lastHeight = 0;
+
   constructor() {
     super({ key: 'MainMenuScene' });
   }
@@ -47,6 +50,22 @@ export class MainMenuScene extends Phaser.Scene {
     // ── Background fills ────────────────────────────────────
     // Outer background — subtle pattern
     this.add.rectangle(cx, cy, width, height, 0xf0e8d8);
+
+    // Subtle paw-print pattern on outer background
+    const bgPattern = this.add.graphics();
+    bgPattern.lineStyle(1.2, 0xd4c8b8, 0.08);
+    for (let px = 30; px < width; px += 90) {
+      for (let py = 30; py < height; py += 90) {
+        const ox = ((py / 90) % 2) * 45; // offset every other row
+        // Main pad
+        bgPattern.strokeCircle(px + ox, py, 8);
+        // Four toes
+        bgPattern.strokeCircle(px + ox - 7, py - 10, 4);
+        bgPattern.strokeCircle(px + ox + 7, py - 10, 4);
+        bgPattern.strokeCircle(px + ox - 11, py - 3, 3.5);
+        bgPattern.strokeCircle(px + ox + 11, py - 3, 3.5);
+      }
+    }
 
     // Warm radial glow behind the panel
     const glow = this.add.graphics();
@@ -129,7 +148,7 @@ export class MainMenuScene extends Phaser.Scene {
     yPos += 68 * sf;
 
     // ── Description ─────────────────────────────────────────
-    const descSize = Math.round(12 * sf);
+    const descSize = Math.max(14, Math.round(12 * sf));
     const descLines = [
       'Feed hungry animals, play with them, take them on walks,',
       'cure them when they\'re sick, and find them forever homes!',
@@ -140,7 +159,7 @@ export class MainMenuScene extends Phaser.Scene {
         align: 'center',
       }).setOrigin(0.5);
     });
-    yPos += (descSize + 4) * descLines.length + 15 * sf;
+    yPos += (descSize + 4) * descLines.length + 30 * sf;
 
     // ── Action Buttons ──────────────────────────────────────
     const btnW = Math.round(Math.min(260, panelW - 60));
@@ -164,20 +183,20 @@ export class MainMenuScene extends Phaser.Scene {
       }).setOrigin(0.5);
       yPos += 35 * sf;
 
-      createButton(this, cx, yPos, '▶  Enter your centre', () => {
+      createButton(this, cx, yPos, 'Enter your centre', () => {
         this.startGame();
-      }, { width: btnW, fontSize: btnFontMain });
+      }, { width: btnW, fontSize: btnFontMain, icon: 'icon-play' });
       yPos += 52 * sf;
 
-      createButton(this, cx, yPos, '👥  Friends', () => {
+      createButton(this, cx, yPos, 'Friends', () => {
         this.scene.start('FriendsScene');
-      }, { width: btnW, fontSize: btnFontSub, bgColour: COLOURS.warm });
+      }, { width: btnW, fontSize: btnFontSub, bgColour: COLOURS.warm, icon: 'icon-friends' });
       yPos += 48 * sf;
 
       // Friend code
       this.add.text(cx, yPos,
         `Your friend code: ${session.joinCode}`, {
-        fontSize: `${Math.round(12 * sf)}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: `${Math.max(14, Math.round(12 * sf))}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5);
       yPos += 22 * sf;
 
@@ -187,43 +206,71 @@ export class MainMenuScene extends Phaser.Scene {
       });
     } else {
       // ─ Not logged-in layout ─
-      createButton(this, cx, yPos, '▶  Play', () => {
+      createButton(this, cx, yPos, 'Play', () => {
         this.startGame();
-      }, { width: btnW, fontSize: btnFontMain });
-      yPos += 55 * sf;
+      }, { width: btnW, fontSize: btnFontMain, icon: 'icon-play' });
+      yPos += 60 * sf;
 
-      createButton(this, cx, yPos, '📝  Create an account', () => {
+      createButton(this, cx, yPos, 'Create an account', () => {
         this.scene.start('SignupScene');
-      }, { width: btnW, fontSize: btnFontSub, bgColour: COLOURS.warm });
-      yPos += 52 * sf;
+      }, { width: btnW, fontSize: btnFontSub, bgColour: COLOURS.warm, icon: 'icon-create-account' });
+      yPos += 56 * sf;
 
-      createButton(this, cx, yPos, '🔑  I already have an account', () => {
+      createButton(this, cx, yPos, 'I already have an account', () => {
         this.scene.start('LoginScene');
-      }, { width: btnW, fontSize: btnFontSub, bgColour: COLOURS.accent });
+      }, { width: btnW, fontSize: btnFontSub, bgColour: COLOURS.info, icon: 'icon-login' });
     }
 
     // ── Credits (pinned to panel bottom) ────────────────────
     const creditsY = panelTop + panelH - 38 * sf;
     this.add.text(cx, creditsY, 'Designed by Lily (age 8) 💜', {
-      fontSize: `${Math.round(12 * sf)}px`, fontFamily: FONTS.body, color: COLOURS.primary,
+      fontSize: `${Math.max(14, Math.round(12 * sf))}px`, fontFamily: FONTS.body, color: COLOURS.primary,
       fontStyle: 'italic',
     }).setOrigin(0.5);
 
     this.add.text(cx, creditsY + 16 * sf, 'Built with love by Dad 🛠️', {
-      fontSize: `${Math.round(10 * sf)}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: `${Math.max(14, Math.round(10 * sf))}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
     }).setOrigin(0.5);
 
     // ── Music Toggle (top-right corner of panel) ────────────
     const musicOn = audio.isMusicOn();
-    const musicBtn = this.add.text(
-      cx + panelW / 2 - 15, panelTop + 12,
-      musicOn ? '🔊' : '🔇',
-      { fontSize: '20px' }
-    ).setOrigin(1, 0).setInteractive({ useHandCursor: true });
-    musicBtn.on('pointerdown', () => {
-      audio.toggleMusic();
-      musicBtn.setText(audio.isMusicOn() ? '🔊' : '🔇');
+    const hasMusicIcons = this.textures.exists('icon-music-on') && this.textures.exists('icon-music-off');
+
+    if (hasMusicIcons) {
+      const musicImg = this.add.image(
+        cx + panelW / 2 - 15, panelTop + 12,
+        musicOn ? 'icon-music-on' : 'icon-music-off'
+      ).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+      const iconScale = 24 / Math.max(musicImg.width, musicImg.height);
+      musicImg.setScale(iconScale);
+      musicImg.on('pointerdown', () => {
+        audio.toggleMusic();
+        musicImg.setTexture(audio.isMusicOn() ? 'icon-music-on' : 'icon-music-off');
+      });
+    } else {
+      const musicBtn = this.add.text(
+        cx + panelW / 2 - 15, panelTop + 12,
+        musicOn ? '🔊' : '🔇',
+        { fontSize: '20px' }
+      ).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+      musicBtn.on('pointerdown', () => {
+        audio.toggleMusic();
+        musicBtn.setText(audio.isMusicOn() ? '🔊' : '🔇');
+      });
+    }
+
+    // ── Viewport resize handling ───────────────────────────
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+        this._lastWidth = w;
+        this._lastHeight = h;
+        this.scene.restart();
+      }
     });
+    this._lastWidth = this.scale.width;
+    this._lastHeight = this.scale.height;
 
     // ── Entrance fade ───────────────────────────────────────
     this.cameras.main.fadeIn(400, 245, 235, 224);
@@ -297,7 +344,7 @@ export class MainMenuScene extends Phaser.Scene {
         cx - stripW / 2 + tuftSpacing * (i + 1) + (i % 2 === 0 ? 5 : -5),
         y + stripH / 2 - 12 * sf,
         tuft,
-        { fontSize: `${Math.round(11 * sf)}px` }
+        { fontSize: `${Math.max(14, Math.round(11 * sf))}px` }
       ).setOrigin(0.5).setAlpha(0.4);
     });
 

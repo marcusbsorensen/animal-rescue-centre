@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton, createPanel, createAmbientParticles } from '../ui/UIButton';
+import { createButton, createTextButton, createPanel, createAmbientParticles, createPillTitle } from '../ui/UIButton';
 import { getSession } from '../lib/auth';
 import { addFriendByCode, getFriends, type Friend } from '../lib/friends';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 export class FriendsScene extends Phaser.Scene {
+  private _lastWidth = 0;
+  private _lastHeight = 0;
   private container!: Phaser.GameObjects.Container;
   private errorText!: Phaser.GameObjects.Text;
 
@@ -23,10 +25,40 @@ export class FriendsScene extends Phaser.Scene {
     // Fade-in transition
     this.cameras.main.fadeIn(300, 245, 235, 224);
 
+    // Viewport resize handling
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+        this._lastWidth = w;
+        this._lastHeight = h;
+        this.scene.restart();
+      }
+    });
+    this._lastWidth = this.scale.width;
+    this._lastHeight = this.scale.height;
+
     // Subtle ambient particles
     createAmbientParticles(this, ['⭐', '👥'], {
       count: 8, minAlpha: 0.06, maxAlpha: 0.15, speed: 0.5,
     }).setDepth(-1);
+
+    // Subtle heart outlines background pattern
+    const bgPattern = this.add.graphics();
+    bgPattern.lineStyle(1.2, 0xd4c8b8, 0.06);
+    for (let hx = 40; hx < width; hx += 100) {
+      for (let hy = 40; hy < height; hy += 100) {
+        const ox = ((hy / 100) % 2) * 50;
+        const x = hx + ox, y = hy;
+        bgPattern.beginPath();
+        bgPattern.arc(x - 5, y - 3, 6, Math.PI, 0, false);
+        bgPattern.arc(x + 5, y - 3, 6, Math.PI, 0, false);
+        bgPattern.lineTo(x, y + 10);
+        bgPattern.closePath();
+        bgPattern.strokePath();
+      }
+    }
+    bgPattern.setDepth(-1);
 
     this.showFriendsList();
   }
@@ -42,9 +74,11 @@ export class FriendsScene extends Phaser.Scene {
     const session = getSession();
 
     this.container.add(
-      this.add.text(width / 2, 50, '👥 Friends', {
-        fontSize: '32px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 50, 'Friends', {
+        bgColour: 0x9b59b6,
+        icon: 'icon-friends',
+        iconSize: 24,
+      })
     );
 
     // Show join code prominently

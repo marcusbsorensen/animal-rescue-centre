@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import type { Animal, Species, GameState } from '@arc/shared-types';
-import { COLOURS, FONTS, pluralSpecies } from '../ui/constants';
+import type { Animal, Species, GameState, CalendarState, DepotState, Economy } from '@arc/shared-types';
+import { COLOURS, FONTS, pluralSpecies, TEXT_RESOLUTION } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
@@ -31,6 +31,10 @@ import {
   isResolutionEffective,
   resolveConflict,
   RESOLUTION_ACTIONS,
+  createCalendarState,
+  advanceCalendar,
+  isDailyReset,
+  resetDailySessions,
 } from '@arc/game-logic';
 import type { IllnessDef, Conflict, ResolutionDef } from '@arc/game-logic';
 import { evaluateBadges } from '@arc/badges';
@@ -52,6 +56,8 @@ const COLLAR_COLOURS = [
 ];
 
 export class GameScene extends Phaser.Scene {
+  private _lastWidth = 0;
+  private _lastHeight = 0;
   private animals: Animal[] = [];
   private level = 1;
   private totalRescued = 0;
@@ -62,6 +68,9 @@ export class GameScene extends Phaser.Scene {
   private sickAnimals: Map<string, IllnessDef> = new Map();
   private activeConflict?: Conflict;
   private conflictsResolved = 0;
+  private calendar!: CalendarState;
+  private depot!: DepotState;
+  private economy: Economy = { coins: 0, lifetimeEarnings: 0 };
 
   private viewMode: ViewMode = 'corridor';
   private currentRoomSpecies?: Species;
@@ -109,6 +118,20 @@ export class GameScene extends Phaser.Scene {
       this.saveState();
     }
 
+    // Check if returning from depot/supply with updated economy
+    const updatedEconomy = this.registry.get('updatedEconomy') as Economy | undefined;
+    if (updatedEconomy) {
+      this.economy = updatedEconomy;
+      this.registry.remove('updatedEconomy');
+      this.saveState();
+    }
+    const updatedDepot = this.registry.get('updatedDepot') as DepotState | undefined;
+    if (updatedDepot) {
+      this.depot = updatedDepot;
+      this.registry.remove('updatedDepot');
+      this.saveState();
+    }
+
     // Start needs decay timer (every 2 seconds = 1 game-minute)
     this.needsTimer = this.time.addEvent({
       delay: 2000,
@@ -129,6 +152,19 @@ export class GameScene extends Phaser.Scene {
     if (this.animals.length === 0) {
       this.spawnNewAnimal();
     }
+
+    // Viewport resize handling
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+        this._lastWidth = w;
+        this._lastHeight = h;
+        this.scene.restart();
+      }
+    });
+    this._lastWidth = this.scale.width;
+    this._lastHeight = this.scale.height;
 
     this.renderView();
     this.renderHUD();
@@ -162,9 +198,45 @@ export class GameScene extends Phaser.Scene {
 
         // Sync ID counter to avoid collisions with loaded animals
         syncNextId(this.animals);
+
+        // Calendar
+        if (saved.calendar && typeof saved.calendar === 'object') {
+          this.calendar = saved.calendar as CalendarState;
+        }
+        // Depot
+        if (saved.depot && typeof saved.depot === 'object') {
+          this.depot = saved.depot as DepotState;
+        }
+        // Economy
+        if (saved.economy && typeof saved.economy === 'object') {
+          this.economy = saved.economy as Economy;
+        }
       }
     } catch {
       // First time — no saved state
+    }
+
+    // Initialize subsystems with defaults if not loaded from save
+    if (!this.calendar) {
+      this.calendar = createCalendarState(new Date().toISOString());
+    }
+    if (!this.depot) {
+      this.depot = {
+        sessionsRemainingToday: 3,
+        sessionsMaxToday: 3,
+        lastSessionDay: '',
+        totalSessionsPlayed: 0,
+        inventory: {
+          parts: {}, tools: {}, treats: {}, superTreats: {},
+          decorations: {}, medicalSupplies: {},
+        },
+      };
+    }
+
+    // Advance calendar and check for daily reset
+    this.calendar = advanceCalendar(this.calendar, this.calendar.gameStartedAt);
+    if (isDailyReset(this.calendar, new Date())) {
+      this.depot = resetDailySessions(this.depot);
     }
   }
 
@@ -184,6 +256,9 @@ export class GameScene extends Phaser.Scene {
             earnedBadges: this.earnedBadges,
             houseUpgrades: this.houseUpgrades,
             sickAnimals: Object.fromEntries(this.sickAnimals),
+            calendar: this.calendar,
+            depot: this.depot,
+            economy: this.economy,
           },
           level: this.level,
           updated_at: new Date().toISOString(),
@@ -345,12 +420,15 @@ export class GameScene extends Phaser.Scene {
 
     // ── Stat chips (centre) ──────────────────────────────────────
     const chipY = barH / 2;
-    const chips: { emoji: string; value: string; colour: number }[] = [
-      { emoji: '🐾', value: `${this.totalRescued}`, colour: 0x5B8C3E },
-      { emoji: '🏠', value: `${this.animals.length}`, colour: 0x6B5B3E },
+    const chips: { emoji: string; icon?: string; value: string; colour: number }[] = [
+      { emoji: '🐾', icon: 'icon-hud-animals', value: `${this.totalRescued}`, colour: 0x5B8C3E },
+      { emoji: '🏠', icon: 'icon-hud-homes', value: `${this.animals.length}`, colour: 0x6B5B3E },
     ];
     if (petCount > 0) {
       chips.push({ emoji: '👑', value: `${petCount}`, colour: 0xB8860B });
+    }
+    if (this.economy.coins > 0) {
+      chips.push({ emoji: '🪙', icon: 'icon-hud-coins', value: `${this.economy.coins}`, colour: 0xB8860B });
     }
 
     const chipStartX = 185;
@@ -362,11 +440,24 @@ export class GameScene extends Phaser.Scene {
       chipGfx.fillRoundedRect(cx - 28, chipY - 12, 56, 24, 12);
       this.uiContainer.add(chipGfx);
 
-      this.uiContainer.add(
-        this.add.text(cx, chipY, `${chip.emoji} ${chip.value}`, {
-          fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff',
-        }).setOrigin(0.5)
-      );
+      // Use custom icon if available, otherwise fall back to emoji
+      const iconKey = chip.icon;
+      if (iconKey && this.textures.exists(iconKey)) {
+        const icon = this.add.image(cx - 10, chipY, iconKey)
+          .setDisplaySize(16, 16).setOrigin(0.5);
+        this.uiContainer.add(icon);
+        this.uiContainer.add(
+          this.add.text(cx + 6, chipY, chip.value, {
+            fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
+          }).setOrigin(0.5)
+        );
+      } else {
+        this.uiContainer.add(
+          this.add.text(cx, chipY, `${chip.emoji} ${chip.value}`, {
+            fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
+          }).setOrigin(0.5)
+        );
+      }
     });
 
     // ── Icon buttons (right side) ────────────────────────────────
@@ -380,15 +471,30 @@ export class GameScene extends Phaser.Scene {
     audioBg.fillCircle(width - 62, btnY, btnSize / 2);
     this.uiContainer.add(audioBg);
 
-    const audioBtn = this.add.text(width - 62, btnY,
-      audioState.musicEnabled ? '🔊' : '🔇', {
-      fontSize: '18px',
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    audioBtn.on('pointerdown', () => {
-      const enabled = AudioManager.getInstance().toggleMusic();
-      audioBtn.setText(enabled ? '🔊' : '🔇');
-    });
-    this.uiContainer.add(audioBtn);
+    const musicOnKey = 'icon-music-on';
+    const musicOffKey = 'icon-music-off';
+    const hasMusicIcons = this.textures.exists(musicOnKey) && this.textures.exists(musicOffKey);
+
+    if (hasMusicIcons) {
+      const audioImg = this.add.image(width - 62, btnY,
+        audioState.musicEnabled ? musicOnKey : musicOffKey
+      ).setDisplaySize(20, 20).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      audioImg.on('pointerdown', () => {
+        const enabled = AudioManager.getInstance().toggleMusic();
+        audioImg.setTexture(enabled ? musicOnKey : musicOffKey);
+      });
+      this.uiContainer.add(audioImg);
+    } else {
+      const audioBtn = this.add.text(width - 62, btnY,
+        audioState.musicEnabled ? '🔊' : '🔇', {
+        fontSize: '18px',
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      audioBtn.on('pointerdown', () => {
+        const enabled = AudioManager.getInstance().toggleMusic();
+        audioBtn.setText(enabled ? '🔊' : '🔇');
+      });
+      this.uiContainer.add(audioBtn);
+    }
 
     // Save button
     const saveBg = this.add.graphics();
@@ -396,11 +502,18 @@ export class GameScene extends Phaser.Scene {
     saveBg.fillCircle(width - 24, btnY, btnSize / 2);
     this.uiContainer.add(saveBg);
 
-    const saveBtn = this.add.text(width - 24, btnY, '💾', {
-      fontSize: '18px',
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    saveBtn.on('pointerdown', () => this.saveState());
-    this.uiContainer.add(saveBtn);
+    if (this.textures.exists('icon-save')) {
+      const saveImg = this.add.image(width - 24, btnY, 'icon-save')
+        .setDisplaySize(20, 20).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      saveImg.on('pointerdown', () => this.saveState());
+      this.uiContainer.add(saveImg);
+    } else {
+      const saveBtn = this.add.text(width - 24, btnY, '💾', {
+        fontSize: '18px',
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      saveBtn.on('pointerdown', () => this.saveState());
+      this.uiContainer.add(saveBtn);
+    }
   }
 
   // ── Bottom Navigation Bar ────────────────────────────────────
@@ -411,14 +524,14 @@ export class GameScene extends Phaser.Scene {
 
     // ── Tab definitions with individual colours ──
     type NavTab = {
-      icon: string; label: string; colour: number;
+      icon: string; iconKey?: string; label: string; colour: number;
       active: boolean; action: () => void;
     };
     const tabs: NavTab[] = [];
 
     if (options?.showBack) {
       tabs.push({
-        icon: '⬅️', label: 'Back', colour: 0x6b5a4a,
+        icon: '⬅️', iconKey: 'icon-back', label: 'Back', colour: 0x6b5a4a,
         active: false,
         action: () => { this.viewMode = 'corridor'; this.renderView(); },
       });
@@ -426,37 +539,27 @@ export class GameScene extends Phaser.Scene {
 
     tabs.push(
       {
-        icon: '🏠', label: 'Home', colour: 0x8b6914,
+        icon: '🏠', iconKey: 'icon-home', label: 'Home', colour: 0x8b6914,
         active: this.viewMode === 'corridor',
         action: () => { this.viewMode = 'corridor'; this.renderView(); },
       },
       {
-        icon: '🍽️', label: 'Kitchen', colour: 0xc27830,
-        active: this.viewMode === 'kitchen',
+        icon: '🍽️', iconKey: 'icon-kitchen', label: 'Care', colour: 0xc27830,
+        active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
         action: () => { this.viewMode = 'kitchen'; this.renderView(); },
       },
       {
-        icon: '🌳', label: `Garden${pets.length > 0 ? ` ${pets.length}` : ''}`, colour: 0x3a9e50,
-        active: this.viewMode === 'garden',
-        action: () => { this.viewMode = 'garden'; this.renderView(); },
-      },
-      {
-        icon: '💌', label: 'Social', colour: 0x9b59b6,
+        icon: '❤️', iconKey: 'icon-social', label: 'Social', colour: 0x9b59b6,
         active: false,
         action: () => { this.saveState(); this.scene.start('SocialScene'); },
       },
       {
-        icon: '🏗️', label: 'Depot', colour: 0x5a3d8a,
+        icon: '🎮', iconKey: 'icon-games', label: 'Games', colour: 0x5a3d8a,
         active: false,
-        action: () => { this.saveState(); this.scene.start('DepotScene', { level: this.level }); },
+        action: () => { this.showGamesPopup(); },
       },
       {
-        icon: '🚛', label: 'Supply', colour: 0xd46020,
-        active: false,
-        action: () => { this.saveState(); this.scene.start('SupplyRunScene', { level: this.level }); },
-      },
-      {
-        icon: '🚪', label: 'Menu', colour: 0x6b5a4a,
+        icon: '⚙️', iconKey: 'icon-menu', label: 'Menu', colour: 0x6b5a4a,
         active: false,
         action: () => { this.saveState(); this.scene.start('MainMenuScene'); },
       },
@@ -503,11 +606,18 @@ export class GameScene extends Phaser.Scene {
       }
       this.gameContainer.add(pillGfx);
 
-      // Icon (larger for active)
-      const iconSize = tab.active ? '20px' : '17px';
-      this.gameContainer.add(
-        this.add.text(tx, ty - 7, tab.icon, { fontSize: iconSize }).setOrigin(0.5)
-      );
+      // Icon (larger for active) — use custom image if available
+      const iconPx = tab.active ? 22 : 18;
+      if (tab.iconKey && this.textures.exists(tab.iconKey)) {
+        const iconImg = this.add.image(tx, ty - 7, tab.iconKey)
+          .setDisplaySize(iconPx, iconPx).setOrigin(0.5);
+        if (!tab.active) iconImg.setAlpha(0.75);
+        this.gameContainer.add(iconImg);
+      } else {
+        this.gameContainer.add(
+          this.add.text(tx, ty - 7, tab.icon, { fontSize: `${iconPx}px` }).setOrigin(0.5)
+        );
+      }
 
       // Label
       const labelColour = tab.active ? '#ffffff' : '#d4c8b8';
@@ -533,6 +643,64 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // ── Games Popup ─────────────────────────────────────────────
+
+  private showGamesPopup(): void {
+    const { width, height } = this.scale;
+
+    // Overlay to capture taps outside the popup
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.4)
+      .setInteractive();
+    this.gameContainer.add(overlay);
+
+    // Popup panel
+    const popupW = Math.min(300, width - 40);
+    const popupH = 200;
+    const popupX = width / 2;
+    const popupY = height / 2 - 40;
+
+    // Panel shadow
+    const popupGfx = this.add.graphics();
+    popupGfx.fillStyle(0x000000, 0.15);
+    popupGfx.fillRoundedRect(popupX - popupW / 2 + 4, popupY - popupH / 2 + 5, popupW, popupH, 16);
+    popupGfx.fillStyle(0xfef9ef, 1);
+    popupGfx.fillRoundedRect(popupX - popupW / 2, popupY - popupH / 2, popupW, popupH, 14);
+    popupGfx.lineStyle(2, 0x5a3d8a, 0.6);
+    popupGfx.strokeRoundedRect(popupX - popupW / 2, popupY - popupH / 2, popupW, popupH, 14);
+    this.gameContainer.add(popupGfx);
+
+    // Title
+    this.gameContainer.add(
+      this.add.text(popupX, popupY - popupH / 2 + 30, 'Games', {
+        fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
+        color: COLOURS.text,
+      }).setOrigin(0.5)
+    );
+
+    // Depot button
+    const btnW = Math.min(220, popupW - 40);
+    this.gameContainer.add(
+      createButton(this, popupX, popupY - 10, 'Depot', () => {
+        this.saveState();
+        this.scene.start('DepotScene', { level: this.level, depot: this.depot, economy: this.economy });
+      }, { width: btnW, fontSize: '20px', bgColour: '#4a2d7a', icon: 'icon-depot' })
+    );
+
+    // Supply Run button
+    this.gameContainer.add(
+      createButton(this, popupX, popupY + 52, 'Supply Run', () => {
+        this.saveState();
+        this.scene.start('SupplyRunScene', { level: this.level, economy: this.economy });
+      }, { width: btnW, fontSize: '20px', bgColour: '#d46020', icon: 'icon-supply-run' })
+    );
+
+    // Tap overlay to close
+    overlay.on('pointerdown', () => {
+      // Remove popup elements by re-rendering
+      this.renderView();
+    });
+  }
+
   // ── Corridor View ───────────────────────────────────────────
 
   private renderCorridor(): void {
@@ -554,9 +722,20 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
+    // Subtle brick/building interior pattern
+    const bgPattern = this.add.graphics();
+    bgPattern.lineStyle(1, 0xd4c8b8, 0.05);
+    for (let bx = 0; bx < width; bx += 50) {
+      for (let by = 0; by < height; by += 25) {
+        const ox = ((by / 25) % 2) * 25;
+        bgPattern.strokeRect(bx + ox, by, 48, 23);
+      }
+    }
+    this.gameContainer.add(bgPattern);
+
     // Title
     this.gameContainer.add(
-      createPillTitle(this, width / 2, 55, '🏠 Rescue Centre', { bgColour: 0x8B6914, fontSize: '20px' })
+      createPillTitle(this, width / 2, 55, 'Rescue Centre', { bgColour: 0x8B6914, fontSize: '20px', icon: 'icon-rescue-centre' })
     );
 
     // Room doors (one per unlocked species) — solid card panels
@@ -608,7 +787,7 @@ export class GameScene extends Phaser.Scene {
       // Count + species name (proper grammar)
       this.gameContainer.add(
         this.add.text(x, y + 22, `${count} ${pluralSpecies(species, count)}`, {
-          fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text,
+          fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
     });
@@ -681,7 +860,7 @@ export class GameScene extends Phaser.Scene {
         const storyTextW = storyCardW - 140;
         this.gameContainer.add(
           this.add.text(textX, cy - storyCardH / 2 + 36, `"${animal.arrivalStory}"`, {
-            fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.textLight,
+            fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
             fontStyle: 'italic', wordWrap: { width: storyTextW }, lineSpacing: 2,
           }).setOrigin(0)
         );
@@ -712,7 +891,7 @@ export class GameScene extends Phaser.Scene {
       // "Welcome all" button at bottom
       const acceptBtnY = nextCardY + 20;
       this.gameContainer.add(
-        createButton(this, width / 2, acceptBtnY, '✅ Welcome them all in!', () => {
+        createButton(this, width / 2, acceptBtnY, 'Welcome them all in!', () => {
           if (this.processing) return;
           this.processing = true;
           arriving.forEach((a) => { a.state = 'sheltered'; });
@@ -722,7 +901,7 @@ export class GameScene extends Phaser.Scene {
             this.processing = false;
             this.renderView();
           });
-        }, { width: 300, fontSize: '18px' })
+        }, { width: 300, fontSize: '18px', icon: 'icon-welcome' })
       );
     }
 
@@ -788,7 +967,7 @@ export class GameScene extends Phaser.Scene {
         // Name
         this.gameContainer.add(
           this.add.text(x, y + size / 2 + 8, animal.name, {
-            fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
+            fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5)
         );
 
@@ -823,7 +1002,7 @@ export class GameScene extends Phaser.Scene {
         // Sibling indicator
         if (animal.siblingId) {
           this.gameContainer.add(
-            this.add.text(x - 22, y - 18, '👯', { fontSize: '12px' })
+            this.add.text(x - 22, y - 18, '👯', { fontSize: '14px', resolution: TEXT_RESOLUTION })
           );
         }
 
@@ -944,7 +1123,7 @@ export class GameScene extends Phaser.Scene {
       // Walk button (only for walkable species in good condition)
       if (canGoOnWalk(animal)) {
         this.gameContainer.add(
-          createButton(this, cx + 120, btnY, '🐾 Walk', () => {
+          createButton(this, cx + 120, btnY, 'Walk', () => {
             this.closePopup();
             this.saveState();
             this.scene.start('WalkScene', {
@@ -956,7 +1135,7 @@ export class GameScene extends Phaser.Scene {
                 this.saveState();
               },
             });
-          }, { width: 95, fontSize: '15px', bgColour: '#27ae60' })
+          }, { width: 95, fontSize: '15px', bgColour: '#27ae60', icon: 'icon-walk' })
         );
       }
 
@@ -971,7 +1150,7 @@ export class GameScene extends Phaser.Scene {
         );
 
         this.gameContainer.add(
-          createButton(this, cx, btnY + 70, '🏥 Heal!', () => {
+          createButton(this, cx, btnY + 70, 'Heal!', () => {
             this.closePopup();
             this.saveState();
             this.scene.start('VetScene', {
@@ -987,7 +1166,7 @@ export class GameScene extends Phaser.Scene {
                 this.saveState();
               },
             });
-          }, { width: 130, fontSize: '15px', bgColour: '#e74c3c' })
+          }, { width: 130, fontSize: '15px', bgColour: '#e74c3c', icon: 'icon-heal' })
         );
       }
     } else {
@@ -1018,7 +1197,7 @@ export class GameScene extends Phaser.Scene {
         );
 
         this.gameContainer.add(
-          createButton(this, cx, btnY + 95, '🏥 Take to Vet', () => {
+          createButton(this, cx, btnY + 95, 'Take to Vet', () => {
             this.closePopup();
             this.saveState();
             this.scene.start('VetScene', {
@@ -1034,7 +1213,7 @@ export class GameScene extends Phaser.Scene {
                 this.saveState();
               },
             });
-          }, { width: 180, fontSize: '15px', bgColour: '#e74c3c' })
+          }, { width: 180, fontSize: '15px', bgColour: '#e74c3c', icon: 'icon-vet' })
         );
       }
     }
@@ -1059,7 +1238,7 @@ export class GameScene extends Phaser.Scene {
 
     this.gameContainer.add(
       this.add.text(x, y, label, {
-        fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
       })
     );
 
@@ -1078,7 +1257,7 @@ export class GameScene extends Phaser.Scene {
     // Value text
     this.gameContainer.add(
       this.add.text(x + 240, y, `${Math.round(displayValue)}%`, {
-        fontSize: '12px', fontFamily: FONTS.body, color: '#888',
+        fontSize: '14px', fontFamily: FONTS.body, color: '#888', resolution: TEXT_RESOLUTION,
       })
     );
   }
@@ -1252,7 +1431,7 @@ export class GameScene extends Phaser.Scene {
         // Name with collar colour dot
         this.gameContainer.add(
           this.add.text(cx, cy + 30, pet.name, {
-            fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.text,
+            fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5)
         );
 
@@ -1266,7 +1445,7 @@ export class GameScene extends Phaser.Scene {
         const petSickIllness = this.sickAnimals.get(pet.id);
         if (petSickIllness) {
           const sickLabel = this.add.text(cx, cy + 50, `${petSickIllness.emoji} Sick!`, {
-            fontSize: '12px', fontFamily: FONTS.body, color: '#c0392b',
+            fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b', resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5);
           this.gameContainer.add(sickLabel);
           // Pulse to draw attention
@@ -1431,7 +1610,7 @@ export class GameScene extends Phaser.Scene {
       // Label
       this.gameContainer.add(
         this.add.text(x, y + 30, collar.name, {
-          fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
+          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
 

@@ -9,19 +9,24 @@
 
 export const COLOURS = {
   // ── Brand greens (from "A.R.C." lettering) ──
-  primary: '#5AAE4A',
-  primaryDark: '#4A9438',
+  primary: '#3D8A2E',
+  primaryDark: '#2D6B1F',
   primaryLight: '#7CC76E',
 
   // ── Brand reds (from heart/paw) ──
-  accent: '#D44040',
+  accent: '#A82020',
   accentDark: '#B83030',
   accentLight: '#E06060',
 
   // ── Brand orange (from outlines/subtitle) ──
-  warm: '#D4783C',
+  warm: '#A85A28',
   warmDark: '#B86428',
   warmLight: '#E09050',
+
+  // ── Calm blue (for secondary / info actions) ──
+  info: '#2E6B8A',
+  infoDark: '#1F5570',
+  infoLight: '#5A9CB8',
 
   // ── Neutrals ──
   bg: '#fef9ef',
@@ -61,6 +66,27 @@ export function pluralSpecies(species: string, count: number): string {
   if (species === 'fox') return 'foxes';
   return species + 's';
 }
+
+/**
+ * Device pixel ratio for crisp text on retina displays.
+ * Cached once at startup so we don't read it every frame.
+ */
+export const TEXT_RESOLUTION = typeof window !== 'undefined'
+  ? Math.min(window.devicePixelRatio || 1, 3)
+  : 2;
+
+/**
+ * Minimum font sizes for children's game UX (ages 7-11).
+ * Based on: Hourcade 2015, British Dyslexia Association,
+ * Sesame Workshop design guidelines, NNG children's UX studies.
+ */
+export const MIN_FONT = {
+  body: 16,       // body text / descriptions
+  button: 18,     // button labels
+  heading: 24,    // scene titles / headings
+  hud: 16,        // scores, timers, counters
+  small: 14,      // smallest allowed text (hints, credits)
+} as const;
 
 export const GIFT_MESSAGES = [
   { code: 'hi', text: 'Hi from me!' },

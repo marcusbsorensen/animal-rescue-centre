@@ -10,7 +10,7 @@ import Phaser from 'phaser';
  * Uses the build-time asset manifest to avoid any 404 requests.
  */
 
-type AssetCategory = 'logo' | 'animals' | 'food' | 'bg' | 'ui' | 'audio';
+type AssetCategory = 'logo' | 'animals' | 'food' | 'bg' | 'ui' | 'icons' | 'audio';
 
 interface ManifestEntry {
   key: string;
@@ -58,10 +58,12 @@ export class AssetLoader {
     }
   }
 
-  /** Stage 1: Load only logo assets (instant). */
+  /** Stage 1: Load logo + icon assets (fast — small PNGs). */
   loadBootAssets(scene: Phaser.Scene): void {
-    const logos = this.parsedEntries.filter((e) => e.category === 'logo');
-    for (const entry of logos) {
+    const bootAssets = this.parsedEntries.filter(
+      (e) => e.category === 'logo' || e.category === 'icons'
+    );
+    for (const entry of bootAssets) {
       if (!scene.textures.exists(entry.key)) {
         scene.load.image(entry.key, entry.path);
       }
@@ -75,7 +77,7 @@ export class AssetLoader {
 
     // Queue everything not yet loaded
     const toLoad = this.parsedEntries.filter(
-      (e) => e.category !== 'logo' && !this.isLoaded(e.key, e.type, scene)
+      (e) => e.category !== 'logo' && e.category !== 'icons' && !this.isLoaded(e.key, e.type, scene)
     );
 
     if (toLoad.length === 0) {
@@ -160,6 +162,7 @@ export class AssetLoader {
     else if (dir === 'animals') category = 'animals';
     else if (dir === 'food') category = 'food';
     else if (dir === 'bg') category = 'bg';
+    else if (dir === 'icons') category = 'icons';
     else if (dir === 'ui' || dir === 'l1') category = 'ui';
     else if (dir === 'audio') category = 'audio';
 

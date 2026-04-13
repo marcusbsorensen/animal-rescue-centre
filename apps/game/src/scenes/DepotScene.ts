@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
 import { AudioManager } from '../audio/AudioManager';
 import {
@@ -16,7 +16,7 @@ import {
   generateRewards,
   getSeasonForMonth,
 } from '@arc/game-logic';
-import type { DepotMode, Tile, BoardState, BoardGoal, PowerUpType } from '@arc/shared-types';
+import type { DepotMode, Tile, BoardState, BoardGoal, PowerUpType, DepotState, Economy } from '@arc/shared-types';
 import type { TileDefinition, RewardItem } from '@arc/game-logic';
 
 // ── Colour palette for the depot ─────────────────────────────
@@ -47,6 +47,8 @@ const POWER_UP_DISPLAY: Record<PowerUpType, { emoji: string; colour: number }> =
  * Four modes: Parts & Tools, Treats Kitchen, Decorations, Medical Supplies.
  */
 export class DepotScene extends Phaser.Scene {
+  private _lastWidth = 0;
+  private _lastHeight = 0;
   private phase: 'mode_select' | 'playing' | 'results' = 'mode_select';
   private container!: Phaser.GameObjects.Container;
   private playerLevel = 1;
@@ -74,8 +76,13 @@ export class DepotScene extends Phaser.Scene {
     super({ key: 'DepotScene' });
   }
 
-  init(data?: { level?: number }): void {
+  private depotState?: DepotState;
+  private economy: Economy = { coins: 0, lifetimeEarnings: 0 };
+
+  init(data?: { level?: number; depot?: DepotState; economy?: Economy }): void {
     this.playerLevel = data?.level ?? 1;
+    this.depotState = data?.depot;
+    this.economy = data?.economy ?? { coins: 0, lifetimeEarnings: 0 };
     this.phase = 'mode_select';
     this.mode = undefined;
     this.boardState = undefined;
@@ -89,6 +96,20 @@ export class DepotScene extends Phaser.Scene {
     audio.playSceneMusic('depot');
 
     this.container = this.add.container(0, 0);
+
+    // Viewport resize handling
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+        this._lastWidth = w;
+        this._lastHeight = h;
+        this.scene.restart();
+      }
+    });
+    this._lastWidth = this.scale.width;
+    this._lastHeight = this.scale.height;
+
     this.renderView();
   }
 
@@ -117,9 +138,10 @@ export class DepotScene extends Phaser.Scene {
 
   private renderModeSelect(width: number, height: number): void {
     this.container.add(
-      createPillTitle(this, width / 2, 45, '🏗️ The Depot', {
+      createPillTitle(this, width / 2, 45, 'The Depot', {
         bgColour: DEPOT_COLOURS.headerBg,
         fontSize: '26px',
+        icon: 'icon-depot',
       })
     );
 
@@ -128,6 +150,26 @@ export class DepotScene extends Phaser.Scene {
         fontSize: '16px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
       }).setOrigin(0.5)
     );
+
+    const cardW = Math.min(width - 80, 500);
+    const cardX = (width - cardW) / 2;
+
+    // Subtle gear/cog pattern background
+    const bgPattern = this.add.graphics();
+    bgPattern.lineStyle(1, 0xffffff, 0.03);
+    for (let gx = 60; gx < width; gx += 120) {
+      for (let gy = 30; gy < height; gy += 120) {
+        const r = 25 + ((gx + gy) % 3) * 8;
+        bgPattern.strokeCircle(gx, gy, r);
+        // Teeth
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+          const tx = gx + Math.cos(a) * (r + 5);
+          const ty = gy + Math.sin(a) * (r + 5);
+          bgPattern.strokeRect(tx - 3, ty - 3, 6, 6);
+        }
+      }
+    }
+    this.container.add(bgPattern);
 
     const modes: { mode: DepotMode; emoji: string; label: string; desc: string }[] = [
       { mode: 'parts_and_tools', emoji: '🔧', label: 'Parts & Tools', desc: 'Fix up the rescue van!' },
@@ -144,24 +186,24 @@ export class DepotScene extends Phaser.Scene {
       // Card background
       const card = this.add.graphics();
       card.fillStyle(0xffffff, 0.18);
-      card.fillRoundedRect(40, y - 35, width - 80, 85, 14);
+      card.fillRoundedRect(cardX, y - 35, cardW, 85, 14);
       if (unlocked) {
         card.lineStyle(2, DEPOT_COLOURS.accent, 0.6);
-        card.strokeRoundedRect(40, y - 35, width - 80, 85, 14);
+        card.strokeRoundedRect(cardX, y - 35, cardW, 85, 14);
       }
       card.setAlpha(alpha);
       this.container.add(card);
 
       // Emoji
       this.container.add(
-        this.add.text(75, y, m.emoji, {
+        this.add.text(cardX + 35, y, m.emoji, {
           fontSize: '36px',
         }).setOrigin(0.5).setAlpha(alpha)
       );
 
       // Label
       this.container.add(
-        this.add.text(110, y - 12, m.label, {
+        this.add.text(cardX + 70, y - 12, m.label, {
           fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
           color: unlocked ? DEPOT_COLOURS.text : '#666666',
         }).setOrigin(0, 0.5).setAlpha(alpha)
@@ -169,15 +211,15 @@ export class DepotScene extends Phaser.Scene {
 
       // Description
       this.container.add(
-        this.add.text(110, y + 14, unlocked ? m.desc : `Unlocks at level ${m.mode === 'medical_supplies' ? 15 : 1}`, {
-          fontSize: '13px', fontFamily: FONTS.body,
+        this.add.text(cardX + 70, y + 14, unlocked ? m.desc : `Unlocks at level ${m.mode === 'medical_supplies' ? 15 : 1}`, {
+          fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
           color: unlocked ? DEPOT_COLOURS.textDim : '#555555',
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
 
       if (unlocked) {
         // Invisible hit area over the card
-        const hitArea = this.add.rectangle(width / 2, y, width - 80, 85, 0xffffff, 0)
+        const hitArea = this.add.rectangle(width / 2, y, cardW, 85, 0xffffff, 0)
           .setInteractive({ useHandCursor: true });
         hitArea.on('pointerover', () => card.setAlpha(1));
         hitArea.on('pointerout', () => card.setAlpha(alpha));
@@ -266,7 +308,7 @@ export class DepotScene extends Phaser.Scene {
     const movesLeft = this.maxMoves - (this.boardState?.moves ?? 0);
     this.container.add(
       this.add.text(width - 15, headerH / 2 + 12, `Moves: ${movesLeft}`, {
-        fontSize: '13px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
+        fontSize: '14px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim, resolution: TEXT_RESOLUTION,
       }).setOrigin(1, 0.5)
     );
 
@@ -343,7 +385,7 @@ export class DepotScene extends Phaser.Scene {
 
       this.container.add(
         this.add.text(x, y + 14, progress, {
-          fontSize: '12px', fontFamily: FONTS.body,
+          fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
           color: done ? '#4adc7b' : DEPOT_COLOURS.textDim,
           fontStyle: done ? 'bold' : 'normal',
         }).setOrigin(0.5)
@@ -393,24 +435,46 @@ export class DepotScene extends Phaser.Scene {
 
     hitArea.on('pointerover', () => {
       if (this.animating || !this.boardState) return;
-      // Highlight group
+      // Highlight entire connected group
       const group = findGroup(this.boardState.grid, row, col);
       if (group.length >= 2) {
-        bg.clear();
-        bg.fillStyle(DEPOT_COLOURS.cellHover, 1);
-        bg.fillRoundedRect(-size / 2, -size / 2, size, size, 6);
+        for (const g of group) {
+          const cell = this.cellObjects[g.row]?.[g.col];
+          if (cell) {
+            cell.setScale(1.08);
+            const cellBg = cell.first as Phaser.GameObjects.Graphics;
+            if (cellBg) {
+              cellBg.clear();
+              cellBg.fillStyle(DEPOT_COLOURS.cellHover, 1);
+              cellBg.fillRoundedRect(-size / 2, -size / 2, size, size, 6);
+              cellBg.lineStyle(1.5, DEPOT_COLOURS.accent, 0.5);
+              cellBg.strokeRoundedRect(-size / 2, -size / 2, size, size, 6);
+            }
+          }
+        }
       }
     });
 
     hitArea.on('pointerout', () => {
-      if (!tile) return;
-      bg.clear();
-      bg.fillStyle(DEPOT_COLOURS.cellBg, 1);
-      bg.fillRoundedRect(-size / 2, -size / 2, size, size, 6);
-      if (tile.powerUp) {
-        const puInfo = POWER_UP_DISPLAY[tile.powerUp];
-        bg.lineStyle(2, puInfo.colour, 0.8);
-        bg.strokeRoundedRect(-size / 2, -size / 2, size, size, 6);
+      if (!this.boardState) return;
+      const group = findGroup(this.boardState.grid, row, col);
+      for (const g of group) {
+        const cell = this.cellObjects[g.row]?.[g.col];
+        if (cell) {
+          cell.setScale(1);
+          const cellBg = cell.first as Phaser.GameObjects.Graphics;
+          const t = this.boardState.grid[g.row]?.[g.col];
+          if (cellBg && t) {
+            cellBg.clear();
+            cellBg.fillStyle(DEPOT_COLOURS.cellBg, 1);
+            cellBg.fillRoundedRect(-size / 2, -size / 2, size, size, 6);
+            if (t.powerUp) {
+              const puInfo = POWER_UP_DISPLAY[t.powerUp];
+              cellBg.lineStyle(2, puInfo.colour, 0.8);
+              cellBg.strokeRoundedRect(-size / 2, -size / 2, size, size, 6);
+            }
+          }
+        }
       }
     });
 
@@ -425,49 +489,145 @@ export class DepotScene extends Phaser.Scene {
   // ── Tap Handler ────────────────────────────────────────────
 
   private handleTap(row: number, col: number): void {
-    if (!this.boardState) return;
+    if (!this.boardState || this.animating) return;
     const tile = this.boardState.grid[row]?.[col];
     if (!tile) return;
 
-    // Power-up activation (manual — directly manipulate grid)
+    const { width } = this.scale;
+
+    // Power-up activation
     if (tile.powerUp) {
+      this.animating = true;
       const result = activatePowerUp(this.boardState.grid, row, col);
       let grid = applyGravity(result.grid);
       grid = refillBoard(grid, this.tileTypes);
       const scoreIncrease = result.tilesRemoved * 15;
 
-      this.boardState = {
-        ...this.boardState,
-        grid,
-        moves: this.boardState.moves + 1,
-        score: this.boardState.score + scoreIncrease,
-      };
+      // Animate the power-up cell popping out
+      this.animateCellsRemoved([{ row, col }], () => {
+        this.boardState = {
+          ...this.boardState!,
+          grid,
+          moves: this.boardState!.moves + 1,
+          score: this.boardState!.score + scoreIncrease,
+        };
+        this.showScorePopup(row, col, scoreIncrease, '🚀');
+        this.checkEndCondition();
+        this.animating = false;
+        this.renderView();
+      });
 
       AudioManager.getInstance().playSfx('power_up_activate');
-      this.checkEndCondition();
-      this.renderView();
+      this.cameras.main.shake(150, 0.008);
       return;
     }
 
     // Regular tap — need group of 2+
     const group = findGroup(this.boardState.grid, row, col);
-    if (group.length < 2) return;
-
-    // tapCell handles gravity, refill, goals, scoring internally
-    const result = tapCell(this.boardState, row, col, this.tileTypes);
-    this.boardState = result.board;
-
-    // SFX
-    if (result.powerUpCreated) {
-      AudioManager.getInstance().playSfx('power_up_create');
-    } else if (group.length >= 5) {
-      AudioManager.getInstance().playSfx('chain_reaction');
-    } else {
-      AudioManager.getInstance().playSfx('tile_collapse');
+    if (group.length < 2) {
+      // Shake the tapped cell to indicate "can't collapse this"
+      const cell = this.cellObjects[row]?.[col];
+      if (cell) {
+        this.tweens.add({
+          targets: cell, x: cell.x - 3, duration: 40,
+          yoyo: true, repeat: 2,
+        });
+      }
+      return;
     }
 
-    this.checkEndCondition();
-    this.renderView();
+    this.animating = true;
+
+    // Animate the group collapsing
+    this.animateCellsRemoved(group, () => {
+      // tapCell handles gravity, refill, goals, scoring internally
+      const result = tapCell(this.boardState!, row, col, this.tileTypes);
+      const scoreDelta = result.board.score - this.boardState!.score;
+      this.boardState = result.board;
+
+      // Score popup
+      const sizeLabel = group.length >= 7 ? '🌈 HUGE!' : group.length >= 5 ? '🚀 BIG!' : '';
+      this.showScorePopup(row, col, scoreDelta, sizeLabel);
+
+      // SFX
+      if (result.powerUpCreated) {
+        AudioManager.getInstance().playSfx('power_up_create');
+      } else if (group.length >= 5) {
+        AudioManager.getInstance().playSfx('chain_reaction');
+        this.cameras.main.shake(100, 0.004);
+      } else {
+        AudioManager.getInstance().playSfx('tile_collapse');
+      }
+
+      this.checkEndCondition();
+      this.animating = false;
+      this.renderView();
+    });
+  }
+
+  /**
+   * Animate cells shrinking and popping before removal.
+   */
+  private animateCellsRemoved(cells: { row: number; col: number }[], onComplete: () => void): void {
+    let completed = 0;
+    const total = cells.length;
+
+    if (total === 0) {
+      onComplete();
+      return;
+    }
+
+    cells.forEach((pos, i) => {
+      const r = pos.row;
+      const c = pos.col;
+      const cell = this.cellObjects[r]?.[c];
+      if (cell) {
+        this.tweens.add({
+          targets: cell,
+          scaleX: 0.1, scaleY: 0.1, alpha: 0,
+          rotation: (Math.random() - 0.5) * 0.5,
+          duration: 180,
+          delay: i * 15, // staggered
+          ease: 'Back.easeIn',
+          onComplete: () => {
+            completed++;
+            if (completed >= total) {
+              onComplete();
+            }
+          },
+        });
+      } else {
+        completed++;
+        if (completed >= total) onComplete();
+      }
+    });
+  }
+
+  /**
+   * Show a floating score popup at a cell position.
+   */
+  private showScorePopup(row: number, col: number, score: number, extra: string): void {
+    if (score <= 0) return;
+    const x = this.boardOffsetX + col * this.cellSize + this.cellSize / 2;
+    const y = this.boardOffsetY + row * this.cellSize;
+
+    const text = `+${score} ${extra}`.trim();
+    const popup = this.add.text(x, y, text, {
+      fontSize: extra ? '18px' : '15px',
+      fontFamily: FONTS.title,
+      fontStyle: 'bold',
+      color: extra ? '#f0c040' : '#ffffff',
+      shadow: { offsetX: 0, offsetY: 0, color: '#f0c040', blur: 6, fill: true },
+    }).setOrigin(0.5);
+    this.container.add(popup);
+
+    this.tweens.add({
+      targets: popup,
+      y: y - 40, alpha: 0, scale: 1.3,
+      duration: 700,
+      ease: 'Sine.easeOut',
+      onComplete: () => popup.destroy(),
+    });
   }
 
   private checkEndCondition(): void {
@@ -478,6 +638,12 @@ export class DepotScene extends Phaser.Scene {
       this.time.delayedCall(300, () => {
         AudioManager.getInstance().playSfx('depot_complete');
         this.rewards = generateRewards(this.mode!, this.boardState!.score, this.boardState!.goals);
+        // Track session in depot state and publish updates via registry
+        if (this.depotState) {
+          this.depotState.sessionsRemainingToday = Math.max(0, this.depotState.sessionsRemainingToday - 1);
+          this.depotState.totalSessionsPlayed += 1;
+          this.registry.set('updatedDepot', { ...this.depotState });
+        }
         this.phase = 'results';
         this.renderView();
       });
@@ -560,7 +726,7 @@ export class DepotScene extends Phaser.Scene {
 
         this.container.add(
           this.add.text(rx, ry + 28, reward.label, {
-            fontSize: '10px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
+            fontSize: '14px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim, resolution: TEXT_RESOLUTION,
             align: 'center', wordWrap: { width: 60 },
           }).setOrigin(0.5, 0)
         );
@@ -588,16 +754,16 @@ export class DepotScene extends Phaser.Scene {
 
     // Buttons
     this.container.add(
-      createButton(this, width / 2, height - 85, '🔄 Play Again', () => {
+      createButton(this, width / 2, height - 85, 'Play Again', () => {
         this.phase = 'mode_select';
         this.renderView();
       }, { width: 200, bgColour: '#4a2d7a' })
     );
 
     this.container.add(
-      createButton(this, width / 2, height - 35, '✅ Back to Centre', () => {
+      createButton(this, width / 2, height - 35, 'Back to Centre', () => {
         this.scene.start('GameScene');
-      }, { width: 200 })
+      }, { width: 200, icon: 'icon-back' })
     );
   }
 }

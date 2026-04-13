@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION } from './constants';
 
 /**
  * Polished rounded button with shadow and 3D bevel effect.
@@ -19,11 +19,14 @@ export function createButton(
     width?: number;
     height?: number;
     radius?: number;
+    icon?: string;       // texture key for a custom icon (e.g. 'icon-play')
+    iconSize?: number;   // display size of icon in px (default 24)
   }
 ): Phaser.GameObjects.Container {
   const fontSize = options?.fontSize ?? '22px';
   const bgHex = options?.bgColour ?? COLOURS.primaryDark;
   const radius = options?.radius ?? 16;
+  const iconSize = options?.iconSize ?? 24;
 
   const text = scene.add.text(0, -1, label, {
     fontSize,
@@ -31,11 +34,25 @@ export function createButton(
     fontStyle: 'bold',
     color: COLOURS.white,
     shadow: { offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.3)', blur: 2, fill: true },
+    resolution: TEXT_RESOLUTION,
   }).setOrigin(0.5);
+
+  // Optional icon to the left of text
+  let iconSprite: Phaser.GameObjects.Image | undefined;
+  let iconOffset = 0;
+  if (options?.icon && scene.textures.exists(options.icon)) {
+    iconSprite = scene.add.image(0, -1, options.icon).setOrigin(0.5);
+    const scale = iconSize / Math.max(iconSprite.width, iconSprite.height);
+    iconSprite.setScale(scale);
+    iconOffset = (iconSize + 6) / 2; // half the icon+gap for centering
+    text.setX(iconOffset);
+    iconSprite.setX(-text.width / 2 - 6 + iconOffset - iconSize / 2);
+  }
 
   const padX = 28;
   const padY = 14;
-  const w = Math.max(text.width + padX * 2, options?.width ?? 200);
+  const contentW = text.width + (iconSprite ? iconSize + 6 : 0);
+  const w = Math.max(contentW + padX * 2, options?.width ?? 200);
   const h = options?.height ?? text.height + padY * 2;
 
   const baseColour = Phaser.Display.Color.HexStringToColor(bgHex);
@@ -86,7 +103,10 @@ export function createButton(
   const hitArea = scene.add.rectangle(0, 0, w, h, 0x000000, 0)
     .setInteractive({ useHandCursor: true });
 
-  const container = scene.add.container(x, y, [gfx, text, hitArea]);
+  const children: Phaser.GameObjects.GameObject[] = [gfx, text];
+  if (iconSprite) children.push(iconSprite);
+  children.push(hitArea);
+  const container = scene.add.container(x, y, children);
 
   hitArea.on('pointerover', () => {
     container.setScale(1.03);
@@ -125,6 +145,7 @@ export function createTextButton(
     fontFamily: FONTS.body,
     fontStyle: 'bold',
     color: COLOURS.primary,
+    resolution: TEXT_RESOLUTION,
   }).setOrigin(0.5);
 
   // Underline (hidden initially)
@@ -168,6 +189,8 @@ export function createPillTitle(
     padX?: number;
     padY?: number;
     shadow?: boolean;
+    icon?: string;       // texture key for a custom icon
+    iconSize?: number;   // display size in px (default 28)
   }
 ): Phaser.GameObjects.Container {
   const fontSize = options?.fontSize ?? '22px';
@@ -176,6 +199,7 @@ export function createPillTitle(
   const padY = options?.padY ?? 10;
   const bgColour = options?.bgColour ?? 0x4A9438;
   const shadow = options?.shadow ?? true;
+  const iconSize = options?.iconSize ?? 28;
 
   const text = scene.add.text(0, 0, label, {
     fontSize,
@@ -183,9 +207,22 @@ export function createPillTitle(
     fontStyle: 'bold',
     color: textColour,
     shadow: { offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.25)', blur: 2, fill: true },
+    resolution: TEXT_RESOLUTION,
   }).setOrigin(0.5);
 
-  const w = text.width + padX * 2;
+  // Optional icon to the left of text
+  let pillIcon: Phaser.GameObjects.Image | undefined;
+  if (options?.icon && scene.textures.exists(options.icon)) {
+    pillIcon = scene.add.image(0, 0, options.icon).setOrigin(0.5);
+    const scale = iconSize / Math.max(pillIcon.width, pillIcon.height);
+    pillIcon.setScale(scale);
+    const totalW = iconSize + 8 + text.width;
+    text.setX((iconSize + 8) / 2);
+    pillIcon.setX(-totalW / 2 + iconSize / 2);
+  }
+
+  const contentW = text.width + (pillIcon ? iconSize + 8 : 0);
+  const w = contentW + padX * 2;
   const h = text.height + padY * 2;
   const radius = h / 2;
 
@@ -217,7 +254,9 @@ export function createPillTitle(
   gfx.lineStyle(1, 0xffffff, 0.2);
   gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
 
-  const container = scene.add.container(x, y, [gfx, text]);
+  const pillChildren: Phaser.GameObjects.GameObject[] = [gfx, text];
+  if (pillIcon) pillChildren.push(pillIcon);
+  const container = scene.add.container(x, y, pillChildren);
   return container;
 }
 

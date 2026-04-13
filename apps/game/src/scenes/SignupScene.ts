@@ -7,6 +7,8 @@ import { isSupabaseConfigured } from '../lib/supabase';
 type SignupStep = 'username' | 'avatar' | 'pin' | 'parent';
 
 export class SignupScene extends Phaser.Scene {
+  private _lastWidth = 0;
+  private _lastHeight = 0;
   private step: SignupStep = 'username';
   private selectedUsername = '';
   private selectedEmoji = '';
@@ -46,6 +48,19 @@ export class SignupScene extends Phaser.Scene {
       fontFamily: FONTS.body,
       color: COLOURS.error,
     }).setOrigin(0.5);
+
+    // Viewport resize handling
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+        this._lastWidth = w;
+        this._lastHeight = h;
+        this.scene.restart();
+      }
+    });
+    this._lastWidth = this.scale.width;
+    this._lastHeight = this.scale.height;
 
     // Fade-in transition
     this.cameras.main.fadeIn(300, 245, 235, 224);

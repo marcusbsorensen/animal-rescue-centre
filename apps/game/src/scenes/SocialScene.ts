@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, GIFT_MESSAGES } from '../ui/constants';
-import { createButton, createTextButton, createPanel, createAmbientParticles } from '../ui/UIButton';
+import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION } from '../ui/constants';
+import { createButton, createTextButton, createPanel, createAmbientParticles, createPillTitle } from '../ui/UIButton';
 import { getFriends, type Friend } from '../lib/friends';
 import {
   sendGift,
@@ -23,6 +23,8 @@ const GIFT_TYPES = [
 ];
 
 export class SocialScene extends Phaser.Scene {
+  private _lastWidth = 0;
+  private _lastHeight = 0;
   private tab: SocialTab = 'inbox';
   private container!: Phaser.GameObjects.Container;
   private friends: Friend[] = [];
@@ -66,6 +68,19 @@ export class SocialScene extends Phaser.Scene {
       }
     }
 
+    // Viewport resize handling
+    this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+        this._lastWidth = w;
+        this._lastHeight = h;
+        this.scene.restart();
+      }
+    });
+    this._lastWidth = this.scale.width;
+    this._lastHeight = this.scale.height;
+
     // Fade-in transition
     this.cameras.main.fadeIn(400, 245, 235, 224);
 
@@ -85,11 +100,27 @@ export class SocialScene extends Phaser.Scene {
       this.add.rectangle(width / 2, height / 2, width, height, 0xfef9ef)
     );
 
+    // Subtle envelope/mail outlines background pattern
+    const bgPattern = this.add.graphics();
+    bgPattern.lineStyle(1, 0xd4c8b8, 0.05);
+    for (let ex = 50; ex < width; ex += 110) {
+      for (let ey = 40; ey < height; ey += 110) {
+        const ox = ((ey / 110) % 2) * 55;
+        const x = ex + ox, y = ey;
+        bgPattern.strokeRect(x - 12, y - 8, 24, 16);
+        bgPattern.lineBetween(x - 12, y - 8, x, y + 2);
+        bgPattern.lineBetween(x + 12, y - 8, x, y + 2);
+      }
+    }
+    this.container.add(bgPattern);
+
     // Title
     this.container.add(
-      this.add.text(width / 2, 30, '💌 Social', {
-        fontSize: '28px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 30, 'Social', {
+        bgColour: 0x9b59b6,
+        icon: 'icon-social-scene',
+        iconSize: 24,
+      })
     );
 
     // Tab bar
@@ -114,10 +145,10 @@ export class SocialScene extends Phaser.Scene {
 
   private renderTabBar(width: number): void {
     const tabs: { key: SocialTab; label: string; badge?: number }[] = [
-      { key: 'inbox', label: `📬 Inbox${this.inbox.length > 0 ? ` (${this.inbox.length})` : ''}` },
-      { key: 'send', label: '🎁 Send' },
-      { key: 'leaderboard', label: '🏆 Board' },
-      { key: 'showcase', label: '📸 Share' },
+      { key: 'inbox', label: `Inbox${this.inbox.length > 0 ? ` (${this.inbox.length})` : ''}` },
+      { key: 'send', label: 'Send' },
+      { key: 'leaderboard', label: 'Board' },
+      { key: 'showcase', label: 'Share' },
     ];
 
     const tabWidth = (width - 40) / tabs.length;
@@ -130,7 +161,7 @@ export class SocialScene extends Phaser.Scene {
       ).setInteractive({ useHandCursor: true });
 
       const text = this.add.text(x, 65, t.label, {
-        fontSize: '13px', fontFamily: FONTS.body,
+        fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
         color: isActive ? '#ffffff' : COLOURS.text,
       }).setOrigin(0.5);
 
@@ -195,7 +226,7 @@ export class SocialScene extends Phaser.Scene {
       this.container.add(
         this.add.text(30, y + 8,
           `${giftDef?.emoji ?? '🎁'} "${message?.text ?? gift.messagePresetCode}"`, {
-          fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(0, 0.5)
       );
 
@@ -259,7 +290,7 @@ export class SocialScene extends Phaser.Scene {
       }).setOrigin(0.5);
 
       const name = this.add.text(x, friendY + 32, friend.username.slice(0, 8), {
-        fontSize: '10px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
 
       bg.on('pointerdown', () => {
@@ -299,7 +330,7 @@ export class SocialScene extends Phaser.Scene {
       }).setOrigin(0.5);
 
       const label = this.add.text(x, y + 15, gift.label, {
-        fontSize: '10px', fontFamily: FONTS.body,
+        fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
         color: isSelected ? '#ffffff' : COLOURS.text,
       }).setOrigin(0.5);
 
@@ -334,7 +365,7 @@ export class SocialScene extends Phaser.Scene {
       const isSelected = this.selectedMessage === msg.code;
 
       const text = this.add.text(x, y, `${isSelected ? '✅ ' : '○ '}${msg.text}`, {
-        fontSize: '12px', fontFamily: FONTS.body,
+        fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
         color: isSelected ? COLOURS.primary : COLOURS.text,
       }).setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
@@ -353,7 +384,7 @@ export class SocialScene extends Phaser.Scene {
       const sendY = msgStartY + Math.ceil(8 / msgCols) * 30 + 20;
       this.container.add(
         createButton(this, width / 2, sendY,
-          `🎁 Send to ${this.selectedFriend!.username}!`, async () => {
+          `Send to ${this.selectedFriend!.username}!`, async () => {
           if (this.loading) return;
           this.loading = true;
           try {
@@ -399,7 +430,7 @@ export class SocialScene extends Phaser.Scene {
     const startY = 100;
 
     this.container.add(
-      this.add.text(width / 2, startY, '🏆 Friends Leaderboard', {
+      this.add.text(width / 2, startY, 'Friends Leaderboard', {
         fontSize: '20px', fontFamily: FONTS.title, color: COLOURS.text,
       }).setOrigin(0.5)
     );
@@ -437,7 +468,7 @@ export class SocialScene extends Phaser.Scene {
       this.container.add(
         this.add.text(width - 30, y,
           `Lv${entry.level} · ${entry.totalRescued} rescued`, {
-          fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(1, 0.5)
       );
 
@@ -456,7 +487,7 @@ export class SocialScene extends Phaser.Scene {
     const startY = 100;
 
     this.container.add(
-      this.add.text(width / 2, startY, '📸 Share Your Centre', {
+      this.add.text(width / 2, startY, 'Share Your Centre', {
         fontSize: '20px', fontFamily: FONTS.title, color: COLOURS.text,
       }).setOrigin(0.5)
     );
@@ -502,7 +533,7 @@ export class SocialScene extends Phaser.Scene {
 
       this.container.add(
         this.add.text(width / 2, startY + 190, 'Link expires in 7 days', {
-          fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
     } else {
