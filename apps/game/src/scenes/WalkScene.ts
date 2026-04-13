@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton } from '../ui/UIButton';
+import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
 import {
   startWalk,
   advanceWalk,
@@ -109,9 +109,7 @@ export class WalkScene extends Phaser.Scene {
 
   private renderZoneSelect(width: number, height: number): void {
     this.container.add(
-      this.add.text(width / 2, 40, `🐾 Walk with ${this.animal.name}!`, {
-        fontSize: '26px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 40, `🐾 Walk with ${this.animal.name}!`, { bgColour: 0x2E8B57, fontSize: '20px' })
     );
 
     this.container.add(

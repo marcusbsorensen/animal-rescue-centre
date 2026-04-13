@@ -61,8 +61,8 @@ export function createAnimalSprite(
   animal: Animal,
   options?: { width?: number; height?: number; interactive?: boolean }
 ): Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle {
-  const w = options?.width ?? 50;
-  const h = options?.height ?? 40;
+  const w = options?.width ?? 80;
+  const h = options?.height ?? 64;
 
   const textureKey = getAnimalTextureKey(scene, animal.species, animal.state, animal.variant);
 
@@ -97,7 +97,7 @@ export function createFoodSprite(
   y: number,
   foodType: string,
   fallbackEmoji: string,
-  size = 40
+  size = 56
 ): Phaser.GameObjects.Image | Phaser.GameObjects.Text {
   const key = `food-${foodType}`;
   if (scene.textures.exists(key)) {

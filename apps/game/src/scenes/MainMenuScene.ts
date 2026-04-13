@@ -47,11 +47,11 @@ export class MainMenuScene extends Phaser.Scene {
     } else {
       // Fallback text logo
       this.add.text(width / 2, 45, '🐾 A.R.C. 🐾', {
-        fontSize: '52px', fontFamily: FONTS.title, color: COLOURS.primary,
+        fontSize: '52px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.primary,
       }).setOrigin(0.5);
 
       this.add.text(width / 2, 105, 'Animal Rescue Centre', {
-        fontSize: '22px', fontFamily: FONTS.title, color: COLOURS.text,
+        fontSize: '22px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text,
       }).setOrigin(0.5);
 
       logoBottom = 130;

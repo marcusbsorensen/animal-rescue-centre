@@ -67,3 +67,52 @@ export function createTextButton(
 
   return text;
 }
+
+/**
+ * Colourful pill-shaped title banner — used for location headings.
+ * Returns a Container with a rounded-rect background + bold white text.
+ */
+export function createPillTitle(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  label: string,
+  options?: {
+    bgColour?: number;
+    fontSize?: string;
+    textColour?: string;
+    padX?: number;
+    padY?: number;
+    shadow?: boolean;
+  }
+): Phaser.GameObjects.Container {
+  const fontSize = options?.fontSize ?? '22px';
+  const textColour = options?.textColour ?? '#ffffff';
+  const padX = options?.padX ?? 28;
+  const padY = options?.padY ?? 10;
+  const bgColour = options?.bgColour ?? 0x4a9c5d;
+  const shadow = options?.shadow ?? true;
+
+  const text = scene.add.text(0, 0, label, {
+    fontSize,
+    fontFamily: FONTS.title,
+    fontStyle: 'bold',
+    color: textColour,
+  }).setOrigin(0.5);
+
+  const w = text.width + padX * 2;
+  const h = text.height + padY * 2;
+  const radius = h / 2;
+
+  // Draw a pill shape using graphics
+  const gfx = scene.add.graphics();
+  if (shadow) {
+    gfx.fillStyle(0x000000, 0.15);
+    gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 3, w, h, radius);
+  }
+  gfx.fillStyle(bgColour, 1);
+  gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
+
+  const container = scene.add.container(x, y, [gfx, text]);
+  return container;
+}

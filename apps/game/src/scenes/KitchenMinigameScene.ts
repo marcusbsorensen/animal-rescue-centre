@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton } from '../ui/UIButton';
+import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
 import {
   generateKitchenRound,
   isFoodValidForSpecies,
@@ -37,6 +37,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
   private prepContainer!: Phaser.GameObjects.Container;
   private bowlsContainer!: Phaser.GameObjects.Container;
   private feedbackText?: Phaser.GameObjects.Text;
+  private progressText?: Phaser.GameObjects.Text;
 
   /** Bowl positions keyed by animal id */
   private bowlPositions: Map<string, { x: number; y: number; species: Species }> = new Map();
@@ -79,13 +80,16 @@ export class KitchenMinigameScene extends Phaser.Scene {
     }
 
     // Title
-    this.add.text(width / 2, 30, '🍽️ Kitchen — Sort the Food! 🍽️', {
-      fontSize: '28px',
-      fontFamily: FONTS.title,
+    createPillTitle(this, width / 2, 30, '🍽️ Sort the Food!', { bgColour: 0xD4A017, fontSize: '20px' });
+
+    // Progress counter — shows how many animals still need feeding
+    this.progressText = this.add.text(width / 2, 62,
+      `Fed: 0 / ${this.hungryAnimals.length}`, {
+      fontSize: '16px', fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.text,
     }).setOrigin(0.5);
 
-    this.add.text(width / 2, 60, 'Drag each food to the right animal\'s bowl', {
+    this.add.text(width / 2, 82, 'Drag each food to the right animal\'s bowl', {
       fontSize: '16px',
       fontFamily: FONTS.body,
       color: COLOURS.textLight,
@@ -239,20 +243,20 @@ export class KitchenMinigameScene extends Phaser.Scene {
    */
   private createDraggableFood(food: FoodDefinition, x: number, y: number, index: number): void {
     // Food sprite (uses real art if available, emoji fallback)
-    const foodSprite = createFoodSprite(this, 0, -8, food.type, food.emoji, 36);
+    const foodSprite = createFoodSprite(this, 0, -10, food.type, food.emoji, 56);
 
     // Label below
-    const label = this.add.text(0, 18, food.label, {
-      fontSize: '12px',
+    const label = this.add.text(0, 28, food.label, {
+      fontSize: '14px',
       fontFamily: FONTS.body,
       color: COLOURS.text,
     }).setOrigin(0.5);
 
     // Background circle for better hit area
-    const bg = this.add.circle(0, 0, 30, 0xffffff, 0.5);
+    const bg = this.add.circle(0, 0, 42, 0xffffff, 0.5);
 
     const container = this.add.container(x, y, [bg, foodSprite, label]);
-    container.setSize(60, 60);
+    container.setSize(84, 84);
     container.setInteractive({ draggable: true, useHandCursor: true });
     container.setData('foodType', food.type);
     container.setData('foodIdx', index);
@@ -282,6 +286,10 @@ export class KitchenMinigameScene extends Phaser.Scene {
     this.fedAnimals.add(animalId);
     this.correctCount++;
     AudioManager.getInstance().playSfx('food_correct');
+
+    if (this.progressText) {
+      this.progressText.setText(`Fed: ${this.fedAnimals.size} / ${this.hungryAnimals.length}`);
+    }
 
     // Apply feeding to the animal in our local state
     const idx = this.allAnimals.findIndex((a) => a.id === animalId);

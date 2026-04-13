@@ -13,8 +13,8 @@ export const COLOURS = {
 } as const;
 
 export const FONTS = {
-  title: 'Georgia, serif',
-  body: 'system-ui, -apple-system, sans-serif',
+  title: '"Nunito", "Baloo 2", "Fredoka", system-ui, -apple-system, sans-serif',
+  body: '"Nunito", system-ui, -apple-system, sans-serif',
 } as const;
 
 export const AVATAR_EMOJIS = [

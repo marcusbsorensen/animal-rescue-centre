@@ -59,13 +59,20 @@ const ARRIVAL_STORIES: Record<Species, string[]> = {
  * Preset animal names per species (no free text — spec §3).
  */
 const ANIMAL_NAMES: Record<Species, string[]> = {
-  cat: ['Whiskers', 'Mittens', 'Luna', 'Shadow', 'Ginger', 'Mochi', 'Pepper', 'Biscuit', 'Cleo', 'Felix'],
-  dog: ['Buddy', 'Bella', 'Max', 'Daisy', 'Rocky', 'Rosie', 'Scout', 'Poppy', 'Bear', 'Milo'],
-  fox: ['Rusty', 'Amber', 'Bracken', 'Fern', 'Blaze', 'Maple', 'Thorn', 'Willow', 'Flicker', 'Bramble'],
-  bunny: ['Clover', 'Thumper', 'Hazel', 'Snowdrop', 'Pippin', 'Flopsy', 'Nutmeg', 'Blossom', 'Pebble', 'Bramble'],
-  bat: ['Echo', 'Dusk', 'Shadow', 'Pip', 'Velvet', 'Midnight', 'Sonar', 'Moth', 'Starling', 'Flicker'],
-  parrot: ['Rio', 'Kiwi', 'Mango', 'Sky', 'Sunny', 'Pepper', 'Jade', 'Coral', 'Ziggy', 'Biscuit'],
-  snake: ['Noodle', 'Pretzel', 'Zigzag', 'Scales', 'Slither', 'Ribbon', 'Copper', 'Marble', 'Ivy', 'Basil'],
+  cat: ['Whiskers', 'Mittens', 'Luna', 'Shadow', 'Ginger', 'Mochi', 'Pepper', 'Biscuit', 'Cleo', 'Felix',
+        'Willow', 'Patches', 'Smokey', 'Misty', 'Tiger', 'Pumpkin', 'Olive', 'Socks', 'Marble', 'Nala'],
+  dog: ['Buddy', 'Bella', 'Daisy', 'Rocky', 'Rosie', 'Scout', 'Poppy', 'Bear', 'Milo', 'Biscuit',
+        'Toffee', 'Bramble', 'Sage', 'Ziggy', 'Rolo', 'Patch', 'Winnie', 'Barnaby', 'Pickle', 'Lola'],
+  fox: ['Rusty', 'Amber', 'Bracken', 'Fern', 'Blaze', 'Maple', 'Thorn', 'Willow', 'Flicker', 'Bramble',
+        'Copper', 'Ember', 'Sorrel', 'Rowan', 'Hawthorn', 'Clover', 'Acorn', 'Juniper', 'Sage', 'Conker'],
+  bunny: ['Clover', 'Thumper', 'Hazel', 'Snowdrop', 'Pippin', 'Flopsy', 'Nutmeg', 'Blossom', 'Pebble', 'Bramble',
+          'Dandelion', 'Cotton', 'Daisy', 'Maple', 'Parsley', 'Cinnamon', 'Juniper', 'Muffin', 'Crumble', 'Clementine'],
+  bat: ['Echo', 'Dusk', 'Shadow', 'Pip', 'Velvet', 'Midnight', 'Sonar', 'Moth', 'Starling', 'Flicker',
+        'Luna', 'Cobweb', 'Twilight', 'Berry', 'Storm', 'Dewdrop', 'Jasper', 'Cosmo', 'Nettle', 'Fig'],
+  parrot: ['Rio', 'Kiwi', 'Mango', 'Sky', 'Sunny', 'Pepper', 'Jade', 'Coral', 'Ziggy', 'Biscuit',
+           'Tango', 'Papaya', 'Bluebell', 'Tutti', 'Skittles', 'Rainbow', 'Dazzle', 'Samba', 'Pico', 'Calypso'],
+  snake: ['Noodle', 'Pretzel', 'Zigzag', 'Scales', 'Slither', 'Ribbon', 'Copper', 'Marble', 'Ivy', 'Basil',
+          'Coil', 'Twizzle', 'Bramble', 'Mossy', 'Pebble', 'Russet', 'Juniper', 'Fern', 'Flint', 'Thistle'],
 };
 
 /**
@@ -123,19 +130,31 @@ export function syncNextId(existingAnimals: { id: string }[]): void {
 
 /**
  * Spawn a new animal with random story and name.
- * Optionally link to a sibling.
+ * Optionally link to a sibling. Pass existingNames to avoid duplicates.
  */
 export function spawnAnimal(
   species: Species,
-  siblingId?: string
+  siblingId?: string,
+  existingNames?: string[]
 ): Animal {
   const id = `animal-${nextId++}`;
   const stories = ARRIVAL_STORIES[species];
   const names = ANIMAL_NAMES[species];
 
+  // Pick a name not already in use (if possible)
+  let name: string;
+  if (existingNames && existingNames.length > 0) {
+    const available = names.filter((n) => !existingNames.includes(n));
+    name = available.length > 0
+      ? available[Math.floor(Math.random() * available.length)]
+      : names[Math.floor(Math.random() * names.length)];
+  } else {
+    name = names[Math.floor(Math.random() * names.length)];
+  }
+
   return {
     id,
-    name: names[Math.floor(Math.random() * names.length)],
+    name,
     species,
     variant: pickRandomVariant(species),
     state: 'arriving',

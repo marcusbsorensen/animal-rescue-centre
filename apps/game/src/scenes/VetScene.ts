@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton } from '../ui/UIButton';
+import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
 import {
   applyHealStep,
   HEAL_ACTIONS,
@@ -78,13 +78,11 @@ export class VetScene extends Phaser.Scene {
 
     // Title
     this.container.add(
-      this.add.text(width / 2, 35, '🏥 Vet Clinic', {
-        fontSize: '26px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 35, '🏥 Vet Clinic', { bgColour: 0xE74C3C, fontSize: '20px' })
     );
 
     // Animal info
-    const animalSprite = createAnimalSprite(this, width / 2, 100, this.animal, { width: 60, height: 48 });
+    const animalSprite = createAnimalSprite(this, width / 2, 100, this.animal, { width: 90, height: 72 });
     if (animalSprite instanceof Phaser.GameObjects.Rectangle) {
       animalSprite.setStrokeStyle(2, 0xff6b6b);
     }
