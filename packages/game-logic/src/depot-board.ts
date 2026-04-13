@@ -228,7 +228,7 @@ export function activatePowerUp(
   const cell = grid[row]?.[col];
   if (!cell?.powerUp) return { grid: cloneGrid(grid), tilesRemoved: 0 };
 
-  let result = cloneGrid(grid);
+  const result = cloneGrid(grid);
   const rows = result.length;
   const cols = result[0].length;
   let removed = 0;
@@ -330,7 +330,7 @@ function activatePowerUpImpl(
   const cell = grid[row]?.[col];
   if (!cell?.powerUp) return { grid: cloneGrid(grid), tilesRemoved: 0 };
 
-  let result = cloneGrid(grid);
+  const result = cloneGrid(grid);
   const rows = result.length;
   const cols = result[0].length;
   let removed = 0;
