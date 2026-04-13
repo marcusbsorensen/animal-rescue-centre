@@ -50,8 +50,23 @@ export {
   WALK_ZONES,
   TRICKS,
   WALKABLE_SPECIES,
+  // Grid walk system
+  generateWalkGrid,
+  startGridWalk,
+  movePlayer,
+  interactWithTile,
+  handleAnimalEncounter,
+  handleGridRoadCrossing,
+  advanceNPCs,
+  calculateGridWalkRewards,
+  TILE_DEFS,
 } from './walks';
-export type { WalkState, WalkZone, WalkEvent, Trick, TrickDef, WalkEventDef } from './walks';
+export type {
+  WalkState, WalkZone, WalkEvent, Trick, TrickDef, WalkEventDef,
+  WalkTileType, WalkTile, WalkNPC, WalkGridMap, WalkGridState,
+  WalkDirection, NPCTemperament, MoveTrigger,
+  InteractionResult, EncounterResult,
+} from './walks';
 export {
   shouldGetSick,
   pickIllness,

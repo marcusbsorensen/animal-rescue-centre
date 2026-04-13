@@ -1512,7 +1512,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.gameContainer.add(
-      createPillTitle(this, width / 2, 55, '🌳 Garden', { bgColour: 0x2E8B57, fontSize: '20px' })
+      createPillTitle(this, width / 2, 55, 'Garden', { bgColour: 0x2E8B57, fontSize: '22px', icon: 'icon-garden' })
     );
 
     if (pets.length === 0) {
@@ -1537,14 +1537,19 @@ export class GameScene extends Phaser.Scene {
         }).setOrigin(0.5)
       );
 
-      // Scatter pets across the garden with gentle roaming positions
-      const margin = 80;
+      // Scatter pets on the grass (lower 40% of screen, above nav bar)
       pets.forEach((pet, i) => {
-        // Distribute in a natural-looking pattern
-        const angle = (i / Math.max(pets.length, 1)) * Math.PI * 2;
-        const radius = Math.min(width, height) * 0.25;
-        const cx = width / 2 + Math.cos(angle) * radius * (0.6 + Math.random() * 0.4);
-        const cy = height / 2 + 20 + Math.sin(angle) * radius * 0.5 * (0.6 + Math.random() * 0.4);
+        // Place on grass area — between 60% and 85% of screen height
+        const grassTop = height * 0.6;
+        const grassBottom = height * 0.82;
+        const gardenLeft = width * 0.15;
+        const gardenRight = width * 0.85;
+        const cols = Math.min(pets.length, 4);
+        const spacing = (gardenRight - gardenLeft) / (cols + 1);
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const cx = gardenLeft + spacing * (col + 1) + (Math.random() - 0.5) * 30;
+        const cy = grassTop + row * 80 + (Math.random() * 20);
 
         // Collar colour ring
         const collarHex = pet.collarColour ?? '#ff6b9d';
@@ -1561,9 +1566,9 @@ export class GameScene extends Phaser.Scene {
           this.add.circle(cx, cy + 42, 5, collarColour)
         );
 
-        // Crown / pet indicator
+        // Collar colour dot above pet
         this.gameContainer.add(
-          this.add.text(cx, cy - 30, '👑', { fontSize: '16px' }).setOrigin(0.5)
+          this.add.circle(cx, cy - 44, 6, collarColour).setStrokeStyle(1, 0xffffff, 0.8)
         );
 
         // Name with collar colour dot
