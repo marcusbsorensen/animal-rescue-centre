@@ -3,6 +3,21 @@ import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS } from '@arc/game-logic';
 
 /**
+ * Derive a visual sprite state from the animal's needs and game state.
+ * Available sprite states: arriving, eating, sleeping, sheltered
+ */
+function deriveVisualState(animal: Animal): string {
+  // If arriving, always show arriving sprite
+  if (animal.state === 'arriving') return 'arriving';
+  // Very tired → sleeping sprite
+  if (animal.tiredness >= 70) return 'sleeping';
+  // Very hungry → eating sprite (they need food!)
+  if (animal.hunger >= 70) return 'eating';
+  // Default: sheltered (happy/active)
+  return 'sheltered';
+}
+
+/**
  * Get the texture key for an animal based on species, variant, and state.
  * Resolution order:
  *   1. species-variant-spriteState  (e.g. cat-ginger-sheltered)
@@ -64,7 +79,8 @@ export function createAnimalSprite(
   const w = options?.width ?? 80;
   const h = options?.height ?? 64;
 
-  const textureKey = getAnimalTextureKey(scene, animal.species, animal.state, animal.variant);
+  const visualState = deriveVisualState(animal);
+  const textureKey = getAnimalTextureKey(scene, animal.species, visualState, animal.variant);
 
   if (textureKey) {
     const img = scene.add.image(x, y, textureKey);
