@@ -16,10 +16,10 @@ import { isSupabaseConfigured } from '../lib/supabase';
 type SocialTab = 'inbox' | 'send' | 'leaderboard' | 'showcase';
 
 const GIFT_TYPES = [
-  { type: 'treat_bundle', emoji: '🍬', label: 'Treat Bundle' },
-  { type: 'toy', emoji: '🧸', label: 'Toy' },
-  { type: 'blanket_pattern', emoji: '🧶', label: 'Blanket' },
-  { type: 'decoration', emoji: '🎀', label: 'Decoration' },
+  { type: 'treat_bundle', emoji: '', label: 'Treat Bundle' },
+  { type: 'toy', emoji: '', label: 'Toy' },
+  { type: 'blanket_pattern', emoji: '', label: 'Blanket' },
+  { type: 'decoration', emoji: '', label: 'Decoration' },
 ];
 
 export class SocialScene extends Phaser.Scene {
@@ -192,7 +192,7 @@ export class SocialScene extends Phaser.Scene {
       );
       this.container.add(
         this.add.text(width / 2, height / 2 + 10,
-          'Ask your friends to send you something 💌', {
+          'Ask your friends to send you something!', {
           fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(0.5)
       );
@@ -225,7 +225,7 @@ export class SocialScene extends Phaser.Scene {
       // Gift type + message
       this.container.add(
         this.add.text(30, y + 8,
-          `${giftDef?.emoji ?? '🎁'} "${message?.text ?? gift.messagePresetCode}"`, {
+          `${giftDef?.emoji ?? '[gift]'} "${message?.text ?? gift.messagePresetCode}"`, {
           fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(0, 0.5)
       );
@@ -364,7 +364,7 @@ export class SocialScene extends Phaser.Scene {
       const y = msgStartY + row * 30;
       const isSelected = this.selectedMessage === msg.code;
 
-      const text = this.add.text(x, y, `${isSelected ? '✅ ' : '○ '}${msg.text}`, {
+      const text = this.add.text(x, y, `${isSelected ? '> ' : '  '}${msg.text}`, {
         fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
         color: isSelected ? COLOURS.primary : COLOURS.text,
       }).setOrigin(0.5)
@@ -398,9 +398,9 @@ export class SocialScene extends Phaser.Scene {
             this.selectedGiftType = undefined;
             this.selectedMessage = undefined;
             this.loading = false;
-            this.showToast('Gift sent! 🎉');
+            this.showToast('Gift sent!');
             // Celebration particles
-            const particles = createAmbientParticles(this, ['🎉', '🎁', '💌', '✨'], {
+            const particles = createAmbientParticles(this, [], {
               count: 16, minAlpha: 0.3, maxAlpha: 0.7, speed: 2,
             });
             particles.setDepth(90);
@@ -444,18 +444,24 @@ export class SocialScene extends Phaser.Scene {
       return;
     }
 
-    const medals = ['🥇', '🥈', '🥉'];
+    const medalColours = [0xffd700, 0xc0c0c0, 0xcd7f32];
 
     this.leaderboard.slice(0, 10).forEach((entry, i) => {
       const y = startY + 45 + i * 40;
 
       // Rank
-      const rank = i < 3 ? medals[i] : `${i + 1}.`;
-      this.container.add(
-        this.add.text(30, y, rank, {
-          fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.text,
-        }).setOrigin(0, 0.5)
-      );
+      const rank = i < 3 ? '' : `${i + 1}.`;
+      if (i < 3) {
+        this.container.add(
+          this.add.circle(40, y, 10, medalColours[i])
+        );
+      } else {
+        this.container.add(
+          this.add.text(30, y, rank, {
+            fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.text,
+          }).setOrigin(0, 0.5)
+        );
+      }
 
       // Avatar + name
       this.container.add(
@@ -505,7 +511,7 @@ export class SocialScene extends Phaser.Scene {
       const url = `${window.location.origin}/showcase/${this.showcaseToken}`;
 
       this.container.add(
-        this.add.text(width / 2, startY + 90, '✅ Showcase created!', {
+        this.add.text(width / 2, startY + 90, 'Showcase created!', {
           fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.primary,
         }).setOrigin(0.5)
       );
@@ -539,7 +545,7 @@ export class SocialScene extends Phaser.Scene {
     } else {
       this.container.add(
         createButton(this, width / 2, startY + 90,
-          '📸 Create Showcase Link', async () => {
+          'Create Showcase Link', async () => {
           if (this.loading) return;
           this.loading = true;
           try {

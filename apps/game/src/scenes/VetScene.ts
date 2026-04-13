@@ -254,9 +254,9 @@ export class VetScene extends Phaser.Scene {
 
     if (result.effective) {
       this.healStep++;
-      this.showFeedback(`✅ ${action} is helping! Good choice!`, COLOURS.primary);
+      this.showFeedback(`${action} is helping! Good choice!`, COLOURS.primary);
     } else {
-      this.showFeedback(`🤔 That didn't help much... try something else!`, COLOURS.textLight);
+      this.showFeedback(`That didn't help much... try something else!`, COLOURS.textLight);
     }
 
     if (result.healed) {
@@ -283,17 +283,17 @@ export class VetScene extends Phaser.Scene {
       this.add.rectangle(width / 2, height / 2, width, height, 0xe8f5e9)
     );
 
-    // Celebration
+    // Celebration — green circles
     for (let i = 0; i < 6; i++) {
       const angle = (i / 6) * Math.PI * 2;
-      const star = this.add.text(
+      const healCircle = this.add.circle(
         width / 2 + Math.cos(angle) * 80,
         height / 2 - 60 + Math.sin(angle) * 60,
-        '💚', { fontSize: '28px' }
-      ).setOrigin(0.5).setAlpha(0);
-      this.container.add(star);
+        10, 0x2ecc71
+      ).setAlpha(0);
+      this.container.add(healCircle);
       this.tweens.add({
-        targets: star,
+        targets: healCircle,
         alpha: 1, scale: { from: 0.3, to: 1 },
         duration: 500, delay: i * 100,
         yoyo: true, repeat: -1, hold: 1000,
@@ -301,7 +301,7 @@ export class VetScene extends Phaser.Scene {
     }
 
     this.container.add(
-      this.add.text(width / 2, height / 2 - 80, '🎉 All Better! 🎉', {
+      this.add.text(width / 2, height / 2 - 80, 'All Better!', {
         fontSize: '32px', fontFamily: FONTS.title, color: COLOURS.primary,
       }).setOrigin(0.5)
     );
@@ -315,7 +315,7 @@ export class VetScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, height / 2 + 5,
-        'You\'re an amazing vet! +8 bond ❤️', {
+        'You\'re an amazing vet! +8 bond', {
         fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
@@ -326,9 +326,9 @@ export class VetScene extends Phaser.Scene {
       this.allAnimals[idx].bondLevel = Math.min(100, this.allAnimals[idx].bondLevel + 8);
     }
 
-    // Ambient celebration particles
+    // Ambient celebration particles (empty = no emoji particles)
     this.container.add(
-      createAmbientParticles(this, ['💚', '⭐', '✨'], { count: 10, minAlpha: 0.1, maxAlpha: 0.25 })
+      createAmbientParticles(this, [], { count: 10, minAlpha: 0.1, maxAlpha: 0.25 })
     );
 
     this.container.add(

@@ -1,5 +1,5 @@
 export { calculateBondIncrease, isBondComplete } from './bond';
-export { getSpeciesUnlocksForLevel, getRequiredRescuesForLevel } from './progression';
+export { getSpeciesUnlocksForLevel, getRequiredRescuesForLevel, getMaxShelterAnimals, getMaxArrivals } from './progression';
 export {
   validateFoodForSpecies,
   isFoodValidForSpecies,

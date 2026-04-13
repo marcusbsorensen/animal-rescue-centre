@@ -12,21 +12,21 @@ import { createAmbientParticles } from '../ui/UIButton';
  */
 
 const LOADING_MESSAGES = [
-  '🥣 Filling the food bowls...',
-  '🧸 Finding the squeaky toys...',
-  '🛏️ Fluffing the blankets...',
-  '📞 Calling the animals...',
-  '🧹 Sweeping the corridors...',
-  '💊 Stocking the vet supplies...',
-  '🎀 Tying little bows...',
-  '🏠 Opening the doors...',
-  '🦴 Hiding treats everywhere...',
-  '🌻 Watering the garden...',
-  '🐾 Following paw prints...',
-  '🧤 Putting on gloves...',
+  'Filling the food bowls...',
+  'Finding the squeaky toys...',
+  'Fluffing the blankets...',
+  'Calling the animals...',
+  'Sweeping the corridors...',
+  'Stocking the vet supplies...',
+  'Tying little bows...',
+  'Opening the doors...',
+  'Hiding treats everywhere...',
+  'Watering the garden...',
+  'Following paw prints...',
+  'Putting on gloves...',
 ];
 
-const BOUNCE_ANIMALS = ['🐱', '🐶', '🐰', '🦊', '🦜', '🦇', '🐍'];
+const BOUNCE_ANIMALS = ['cat', 'dog', 'bunny', 'fox', 'parrot', 'bat', 'snake'];
 
 export class LoadingScene extends Phaser.Scene {
   private _lastWidth = 0;
@@ -62,7 +62,7 @@ export class LoadingScene extends Phaser.Scene {
     glow.fillCircle(width / 2, height / 2 - 30, 250);
 
     // Ambient particles
-    createAmbientParticles(this, ['🐾', '⭐', '💚', '✨'], {
+    createAmbientParticles(this, [], {
       count: 10,
       minAlpha: 0.06,
       maxAlpha: 0.14,
@@ -74,9 +74,12 @@ export class LoadingScene extends Phaser.Scene {
     const spacing = Math.min(68, (width - 100) / BOUNCE_ANIMALS.length);
     const startX = width / 2 - ((BOUNCE_ANIMALS.length - 1) * spacing) / 2;
 
-    BOUNCE_ANIMALS.forEach((emoji, i) => {
-      const animal = this.add.text(startX + i * spacing, animalY, emoji, {
-        fontSize: '40px',
+    const ANIMAL_COLOURS = [0xff7eb3, 0xa0c878, 0xf9d56e, 0xff8c5a, 0x7bcfff, 0xc87bff, 0x78e0c8];
+    BOUNCE_ANIMALS.forEach((label, i) => {
+      const animal = this.add.text(startX + i * spacing, animalY, label, {
+        fontSize: '14px', fontFamily: FONTS.body, color: '#ffffff',
+        backgroundColor: '#' + ANIMAL_COLOURS[i % ANIMAL_COLOURS.length].toString(16).padStart(6, '0'),
+        padding: { x: 6, y: 4 },
       }).setOrigin(0.5);
 
       // Staggered bounce
@@ -137,13 +140,11 @@ export class LoadingScene extends Phaser.Scene {
     this.barFillGfx = this.add.graphics();
     this.drawBarFill(0);
 
-    // Paw prints along the track
+    // Dots along the track
     const pawCount = 5;
     for (let i = 0; i < pawCount; i++) {
       const px = this.barX - this.barW / 2 + (this.barW / (pawCount - 1)) * i;
-      this.add.text(px, this.barY, '🐾', {
-        fontSize: '14px', resolution: TEXT_RESOLUTION,
-      }).setOrigin(0.5).setAlpha(0.2);
+      this.add.circle(px, this.barY, 5, 0x5AAE4A, 0.2);
     }
 
     // ── Rotating fun messages ───────────────────────────────

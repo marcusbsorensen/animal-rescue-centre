@@ -35,6 +35,8 @@ import {
   advanceCalendar,
   isDailyReset,
   resetDailySessions,
+  getMaxShelterAnimals,
+  getMaxArrivals,
 } from '@arc/game-logic';
 import type { IllnessDef, Conflict, ResolutionDef } from '@arc/game-logic';
 import { evaluateBadges } from '@arc/badges';
@@ -82,7 +84,6 @@ export class GameScene extends Phaser.Scene {
   private selectedAnimal?: Animal;
   private processing = false;         // double-click guard
   private showingCollarPicker = false; // bond race guard
-  private static readonly MAX_ANIMALS = 30; // population cap
   private scrollY = 0;
   private maxScrollY = 0;
   private scrollDragStartY = 0;
@@ -299,17 +300,24 @@ export class GameScene extends Phaser.Scene {
   // ── Animal Spawning ─────────────────────────────────────────
 
   private spawnNewAnimal(): void {
-    // Population cap — don't overcrowd the centre
-    const nonPets = this.animals.filter((a) => a.state !== 'pet').length;
-    if (nonPets >= GameScene.MAX_ANIMALS) return;
+    // Level-based population cap — don't overcrowd the centre
+    const sheltered = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length;
+    const maxShelter = getMaxShelterAnimals(this.level);
+    if (sheltered >= maxShelter) return;
 
-    // Don't overwhelm — pause spawning if 3+ animals are already waiting
-    const arriving = this.animals.filter((a) => a.state === 'arriving').length;
-    if (arriving >= 3) return;
+    // Level-based arrival queue cap
+    const arriving = this.animals.filter((a) => a.state === 'arriving');
+    const maxArrivals = getMaxArrivals(this.level);
+    if (arriving.length >= maxArrivals) return;
 
-    const species = pickRandomSpecies(this.unlockedSpecies);
+    // Pick a species not already in the arrival queue (variety for the player)
+    const arrivingSpecies = new Set(arriving.map((a) => a.species));
+    const availableSpecies = this.unlockedSpecies.filter((s) => !arrivingSpecies.has(s));
+    if (availableSpecies.length === 0) return;
 
-    if (shouldSpawnSiblings()) {
+    const species = pickRandomSpecies(availableSpecies);
+
+    if (shouldSpawnSiblings() && sheltered + 2 <= maxShelter) {
       const [a, b] = spawnSiblingPair(species);
       this.animals.push(a, b);
     } else {
@@ -445,7 +453,7 @@ export class GameScene extends Phaser.Scene {
     const chipY = barH / 2;
     const chips: { label: string; icon?: string; value: string; colour: number }[] = [
       { label: 'Rescued', icon: 'icon-hud-animals', value: `${this.totalRescued}`, colour: 0x5B8C3E },
-      { label: 'Shelter', icon: 'icon-hud-homes', value: `${this.animals.length}`, colour: 0x6B5B3E },
+      { label: 'Shelter', icon: 'icon-hud-homes', value: `${this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length}/${getMaxShelterAnimals(this.level)}`, colour: 0x6B5B3E },
     ];
     if (petCount > 0) {
       chips.push({ label: 'Pets', value: `${petCount}`, colour: 0xB8860B });
@@ -514,12 +522,12 @@ export class GameScene extends Phaser.Scene {
       this.uiContainer.add(audioImg);
     } else {
       const audioBtn = this.add.text(audioBtnX, btnY,
-        audioState.musicEnabled ? '🔊' : '🔇', {
-        fontSize: '20px',
+        audioState.musicEnabled ? 'ON' : 'OFF', {
+        fontSize: '12px', fontFamily: FONTS.body, color: '#ffffff',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       audioBtn.on('pointerdown', () => {
         const enabled = AudioManager.getInstance().toggleMusic();
-        audioBtn.setText(enabled ? '🔊' : '🔇');
+        audioBtn.setText(enabled ? 'ON' : 'OFF');
       });
       this.uiContainer.add(audioBtn);
     }
@@ -537,8 +545,8 @@ export class GameScene extends Phaser.Scene {
       saveImg.on('pointerdown', () => this.saveState());
       this.uiContainer.add(saveImg);
     } else {
-      const saveBtn = this.add.text(saveBtnX, btnY, '💾', {
-        fontSize: '20px',
+      const saveBtn = this.add.text(saveBtnX, btnY, 'SAVE', {
+        fontSize: '10px', fontFamily: FONTS.body, color: '#ffffff',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       saveBtn.on('pointerdown', () => this.saveState());
       this.uiContainer.add(saveBtn);
@@ -560,7 +568,7 @@ export class GameScene extends Phaser.Scene {
 
     if (options?.showBack) {
       tabs.push({
-        icon: '⬅️', iconKey: 'icon-back', label: 'Back', colour: 0x6b5a4a,
+        icon: '', iconKey: 'icon-back', label: 'Back', colour: 0x6b5a4a,
         active: false,
         action: () => { this.viewMode = 'corridor'; this.renderView(); },
       });
@@ -568,27 +576,27 @@ export class GameScene extends Phaser.Scene {
 
     tabs.push(
       {
-        icon: '🏠', iconKey: 'icon-home', label: 'Home', colour: 0x8b6914,
+        icon: '', iconKey: 'icon-home', label: 'Home', colour: 0x8b6914,
         active: this.viewMode === 'corridor',
         action: () => { this.viewMode = 'corridor'; this.renderView(); },
       },
       {
-        icon: '🍽️', iconKey: 'icon-kitchen', label: 'Care', colour: 0xc27830,
+        icon: '', iconKey: 'icon-kitchen', label: 'Care', colour: 0xc27830,
         active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
         action: () => { this.viewMode = 'kitchen'; this.renderView(); },
       },
       {
-        icon: '❤️', iconKey: 'icon-social', label: 'Social', colour: 0x9b59b6,
+        icon: '', iconKey: 'icon-social', label: 'Social', colour: 0x9b59b6,
         active: false,
         action: () => { this.saveState(); this.scene.start('SocialScene'); },
       },
       {
-        icon: '🎮', iconKey: 'icon-games', label: 'Games', colour: 0x5a3d8a,
+        icon: '', iconKey: 'icon-games', label: 'Games', colour: 0x5a3d8a,
         active: false,
         action: () => { this.showGamesPopup(); },
       },
       {
-        icon: '⚙️', iconKey: 'icon-menu', label: 'Menu', colour: 0x6b5a4a,
+        icon: '', iconKey: 'icon-menu', label: 'Menu', colour: 0x6b5a4a,
         active: false,
         action: () => { this.saveState(); this.scene.start('MainMenuScene'); },
       },
@@ -837,8 +845,8 @@ export class GameScene extends Phaser.Scene {
       // Arrivals banner pill
       this.gameContainer.add(
         createPillTitle(this, width / 2, arriveY,
-          `📬 ${arriving.length} new arrival${arriving.length > 1 ? 's' : ''}!`,
-          { bgColour: 0xE67E22, fontSize: '17px' })
+          `${arriving.length} new arrival${arriving.length > 1 ? 's' : ''}!`,
+          { bgColour: 0xE67E22, fontSize: '17px', icon: 'icon-inbox' })
       );
 
       // Story cards — one per animal, stacked vertically
@@ -908,12 +916,9 @@ export class GameScene extends Phaser.Scene {
           }).setOrigin(0)
         );
 
-        // Per-animal "Welcome" text button on right
-        const welcomeX = cx + storyCardW / 2 - 16;
-        const welcomeBtn = this.add.text(welcomeX, cy, '🏠', {
-          fontSize: '22px',
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        welcomeBtn.on('pointerdown', () => {
+        // Per-animal "Welcome" pill button on right
+        const welcomeX = cx + storyCardW / 2 - 50;
+        const welcomeBtn = createButton(this, welcomeX, cy, 'Welcome', () => {
           if (this.processing) return;
           this.processing = true;
           animal.state = 'sheltered';
@@ -921,13 +926,9 @@ export class GameScene extends Phaser.Scene {
           this.checkLevelProgression();
           AudioManager.getInstance().playSfx('animal_arrive');
           this.saveState();
-          this.time.delayedCall(100, () => {
-            this.processing = false;
-            this.renderView();
-          });
-        });
-        welcomeBtn.on('pointerover', () => welcomeBtn.setScale(1.2));
-        welcomeBtn.on('pointerout', () => welcomeBtn.setScale(1));
+          this.processing = false;
+          this.renderView();
+        }, { width: 90, fontSize: '13px', bgColour: '#e74c3c', icon: 'icon-welcome' });
         this.gameContainer.add(welcomeBtn);
 
         nextCardY += storyCardH / 2 + storyGap;
@@ -944,10 +945,8 @@ export class GameScene extends Phaser.Scene {
           this.checkLevelProgression();
           AudioManager.getInstance().playSfx('animal_arrive');
           this.saveState();
-          this.time.delayedCall(100, () => {
-            this.processing = false;
-            this.renderView();
-          });
+          this.processing = false;
+          this.renderView();
         }, { width: 300, fontSize: '18px', icon: 'icon-welcome' })
       );
     }
@@ -1040,9 +1039,9 @@ export class GameScene extends Phaser.Scene {
               .setDisplaySize(22, 22).setOrigin(0.5);
             this.gameContainer.add(sickIcon);
           } else {
-            this.gameContainer.add(
-              this.add.text(x + size / 2 - 6, y - size * 0.4 - 6, '🏥', { fontSize: '18px' }).setOrigin(0.5)
-            );
+            const sickDot = this.add.circle(x + size / 2 - 6, y - size * 0.4 - 6, 8, 0xe74c3c)
+              .setStrokeStyle(1, 0xffffff, 0.8);
+            this.gameContainer.add(sickDot);
           }
         } else {
           // Need indicator — use icons where available
@@ -1057,10 +1056,10 @@ export class GameScene extends Phaser.Scene {
                 .setDisplaySize(20, 20).setOrigin(0.5);
               this.gameContainer.add(ni);
             } else {
-              const needEmoji = need === 'hunger' ? '🍽️' : need === 'tiredness' ? '😴' : need === 'happiness' ? '💔' : '🏥';
-              this.gameContainer.add(
-                this.add.text(x + size / 2 - 6, y - size * 0.4 - 6, needEmoji, { fontSize: '18px' }).setOrigin(0.5)
-              );
+              const needColour = need === 'hunger' ? 0xe74c3c : need === 'tiredness' ? 0x3498db : need === 'happiness' ? 0xf1c40f : 0x2ecc71;
+              const needDot = this.add.circle(x + size / 2 - 6, y - size * 0.4 - 6, 7, needColour)
+                .setStrokeStyle(1, 0xffffff, 0.8);
+              this.gameContainer.add(needDot);
             }
           }
         }
@@ -1086,9 +1085,10 @@ export class GameScene extends Phaser.Scene {
               .setDisplaySize(18, 18).setOrigin(0.5);
             this.gameContainer.add(sibIcon);
           } else {
-            this.gameContainer.add(
-              this.add.text(x - size / 2 + 6, y - size * 0.4 - 6, '🔗', { fontSize: '14px', resolution: TEXT_RESOLUTION }).setOrigin(0.5)
-            );
+            // Sibling link dot
+            const sibDot = this.add.circle(x - size / 2 + 6, y - size * 0.4 - 6, 6, 0x9b59b6)
+              .setStrokeStyle(1, 0xffffff, 0.8);
+            this.gameContainer.add(sibDot);
           }
         }
 
@@ -1171,7 +1171,7 @@ export class GameScene extends Phaser.Scene {
 
     if (animal.state !== 'pet') {
       this.gameContainer.add(
-        createButton(this, cx - 120, btnY, '🍽️ Feed', () => {
+        createButton(this, cx - 120, btnY, 'Feed', () => {
           if (this.processing) return;
           this.processing = true;
           const idx = this.animals.findIndex((a) => a.id === animal.id);
@@ -1185,11 +1185,11 @@ export class GameScene extends Phaser.Scene {
           this.closePopup();
           this.renderView();
           this.processing = false;
-        }, { width: 95, fontSize: '15px' })
+        }, { width: 95, fontSize: '15px', icon: 'icon-kitchen' })
       );
 
       this.gameContainer.add(
-        createButton(this, cx, btnY, '🎾 Play', () => {
+        createButton(this, cx, btnY, 'Play', () => {
           if (this.processing) return;
           this.processing = true;
           const idx = this.animals.findIndex((a) => a.id === animal.id);
@@ -1413,7 +1413,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.gameContainer.add(
-      createPillTitle(this, width / 2, 55, '🍽️ Kitchen', { bgColour: 0xD4A017, fontSize: '20px' })
+      createPillTitle(this, width / 2, 55, 'Kitchen', { bgColour: 0xD4A017, fontSize: '20px', icon: 'icon-kitchen' })
     );
 
     // Find hungry animals
@@ -1421,7 +1421,7 @@ export class GameScene extends Phaser.Scene {
 
     if (hungry.length === 0) {
       this.gameContainer.add(
-        this.add.text(width / 2, height / 2, 'Everyone is well-fed! 🎉', {
+        this.add.text(width / 2, height / 2, 'Everyone is well-fed!', {
           fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(0.5)
       );
@@ -1450,7 +1450,7 @@ export class GameScene extends Phaser.Scene {
 
       // Launch minigame button
       this.gameContainer.add(
-        createButton(this, width / 2, height / 2 + 70, '🍽️ Start Sorting!', () => {
+        createButton(this, width / 2, height / 2 + 70, 'Start Sorting!', () => {
           this.scene.start('KitchenMinigameScene', {
             hungryAnimals: hungry,
             allAnimals: this.animals,
@@ -1524,7 +1524,7 @@ export class GameScene extends Phaser.Scene {
       );
       this.gameContainer.add(
         this.add.text(width / 2, height / 2 + 10,
-          'Keep caring for your animals — when their bond\nreaches 100%, they become your pet forever! 💕', {
+          'Keep caring for your animals — when their bond\nreaches 100%, they become your pet forever!', {
           fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
           align: 'center',
         }).setOrigin(0.5)
@@ -1578,16 +1578,16 @@ export class GameScene extends Phaser.Scene {
           }).setOrigin(0.5)
         );
 
-        // Happiness indicator
-        const happyEmoji = pet.happiness > 70 ? '😊' : pet.happiness > 40 ? '😐' : '😢';
+        // Happiness indicator — coloured dot (green=happy, yellow=ok, red=sad)
+        const happyColour = pet.happiness > 70 ? 0x2ecc71 : pet.happiness > 40 ? 0xf1c40f : 0xe74c3c;
         this.gameContainer.add(
-          this.add.text(cx + 30, cy - 20, happyEmoji, { fontSize: '14px' })
+          this.add.circle(cx + 30, cy - 20, 6, happyColour).setStrokeStyle(1, 0xffffff, 0.8)
         );
 
         // Sick indicator — alert player this pet needs vet attention
         const petSickIllness = this.sickAnimals.get(pet.id);
         if (petSickIllness) {
-          const sickLabel = this.add.text(cx, cy + 50, `${petSickIllness.emoji} Sick!`, {
+          const sickLabel = this.add.text(cx, cy + 50, 'Sick!', {
             fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b', resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5);
           this.gameContainer.add(sickLabel);
@@ -1619,10 +1619,10 @@ export class GameScene extends Phaser.Scene {
     // Upgrades display
     const unlocked = getUnlockedUpgrades(this.houseUpgrades);
     if (unlocked.length > 0) {
-      const upgradeEmojis = unlocked.map((u) => u.emoji).join(' ');
+      const upgradeNames = unlocked.map((u) => u.name).join(', ');
       this.gameContainer.add(
-        this.add.text(width / 2, height - 110, upgradeEmojis, {
-          fontSize: '20px',
+        this.add.text(width / 2, height - 110, `Upgrades: ${upgradeNames}`, {
+          fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(0.5)
       );
     }
@@ -1632,7 +1632,7 @@ export class GameScene extends Phaser.Scene {
     if (available.length > 0) {
       this.gameContainer.add(
         createTextButton(this, width / 2, height - 85,
-          `🏗️ New upgrade available: ${available[0].name}!`, () => {
+          `New upgrade available: ${available[0].name}!`, () => {
             this.houseUpgrades.push(available[0].code);
             this.checkBadges();
             this.saveState();
@@ -1645,7 +1645,7 @@ export class GameScene extends Phaser.Scene {
     if (this.earnedBadges.length > 0) {
       this.gameContainer.add(
         this.add.text(width / 2, height - 65,
-          `🏅 ${this.earnedBadges.length} badge${this.earnedBadges.length > 1 ? 's' : ''} earned`, {
+          `${this.earnedBadges.length} badge${this.earnedBadges.length > 1 ? 's' : ''} earned`, {
           fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.primary,
         }).setOrigin(0.5)
       );
@@ -1681,14 +1681,13 @@ export class GameScene extends Phaser.Scene {
       this.add.rectangle(width / 2, height / 2, width, height, 0xfff8e7)
     );
 
-    // Star burst celebration
+    // Star burst celebration — golden circles
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2;
-      const star = this.add.text(
-        width / 2 + Math.cos(angle) * 120,
-        height / 2 - 80 + Math.sin(angle) * 80,
-        '⭐', { fontSize: '28px' }
-      ).setOrigin(0.5).setAlpha(0);
+      const sx = width / 2 + Math.cos(angle) * 120;
+      const sy = height / 2 - 80 + Math.sin(angle) * 80;
+      const star = this.add.circle(sx, sy, 12, 0xffd700)
+        .setStrokeStyle(2, 0xdaa520).setAlpha(0);
 
       this.gameContainer.add(star);
       this.tweens.add({
@@ -1794,11 +1793,13 @@ export class GameScene extends Phaser.Scene {
       this.add.rectangle(width / 2, height / 2, width, height, 0xe8f5e9)
     );
 
-    this.gameContainer.add(
-      this.add.text(width / 2, height / 2 - 60, '💕', {
-        fontSize: '64px',
-      }).setOrigin(0.5)
-    );
+    // Heart graphic
+    const heartGfx = this.add.graphics();
+    heartGfx.fillStyle(0xff6b9d, 1);
+    heartGfx.fillCircle(width / 2 - 14, height / 2 - 68, 16);
+    heartGfx.fillCircle(width / 2 + 14, height / 2 - 68, 16);
+    heartGfx.fillTriangle(width / 2 - 28, height / 2 - 60, width / 2 + 28, height / 2 - 60, width / 2, height / 2 - 36);
+    this.gameContainer.add(heartGfx);
 
     this.gameContainer.add(
       this.add.text(width / 2, height / 2 + 10,
@@ -1815,7 +1816,7 @@ export class GameScene extends Phaser.Scene {
     );
 
     this.gameContainer.add(
-      createButton(this, width / 2, height / 2 + 110, '🌳 Visit Garden', () => {
+      createButton(this, width / 2, height / 2 + 110, 'Visit Garden', () => {
         this.viewMode = 'garden';
         this.renderView();
       }, { width: 220, bgColour: '#2ecc71' })
@@ -1875,7 +1876,7 @@ export class GameScene extends Phaser.Scene {
     const toast = this.add.container(width / 2, -50);
     const bg = this.add.rectangle(0, 0, 300, 50, 0xffd700)
       .setStrokeStyle(2, 0xdaa520);
-    const text = this.add.text(0, 0, `🏅 New Badge: ${badgeCode}!`, {
+    const text = this.add.text(0, 0, `New Badge: ${badgeCode}!`, {
       fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
     }).setOrigin(0.5);
 
@@ -1906,7 +1907,7 @@ export class GameScene extends Phaser.Scene {
 
     // Title
     this.gameContainer.add(
-      this.add.text(width / 2, 60, `⚡ ${conflict.type.replace('_', ' ').toUpperCase()}!`, {
+      this.add.text(width / 2, 60, `${conflict.type.replace('_', ' ').toUpperCase()}!`, {
         fontSize: '26px', fontFamily: FONTS.title, color: '#e74c3c',
       }).setOrigin(0.5)
     );
@@ -1944,7 +1945,7 @@ export class GameScene extends Phaser.Scene {
     const startY = 270;
     actions.forEach((action, i) => {
       const btn = createButton(this, width / 2, startY + i * 60,
-        `${action.emoji}  ${action.label}`, () => {
+        action.label, () => {
           this.resolveActiveConflict(action);
         }, { width: 280 }
       );
@@ -1988,7 +1989,7 @@ export class GameScene extends Phaser.Scene {
 
     this.gameContainer.add(
       this.add.text(width / 2, height / 2 - 30,
-        effective ? '✨ Great job!' : '🤔 That helped a little...', {
+        effective ? 'Great job!' : 'That helped a little...', {
         fontSize: '28px', fontFamily: FONTS.title,
         color: effective ? COLOURS.primary : '#f39c12',
       }).setOrigin(0.5)
@@ -2045,7 +2046,7 @@ export class GameScene extends Phaser.Scene {
     container.add(overlay);
 
     // Main title
-    const title = this.add.text(width / 2, height / 2 - 60, `\u{1F389} Level Up! \u{1F389}`, {
+    const title = this.add.text(width / 2, height / 2 - 60, 'Level Up!', {
       fontSize: '36px', fontFamily: FONTS.title, color: '#ffd700',
     }).setOrigin(0.5);
     container.add(title);
@@ -2074,16 +2075,16 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
     container.add(hint);
 
-    // Animated sparkles / stars
-    const sparkleChars = ['\u2728', '\u2B50', '\u{1F31F}', '\u2734\uFE0F'];
-    const sparkles: Phaser.GameObjects.Text[] = [];
+    // Animated sparkles — golden circles
+    const sparkleColours = [0xffd700, 0xffec8b, 0xffa500, 0xfffacd];
+    const sparkles: Phaser.GameObjects.Arc[] = [];
     for (let i = 0; i < 12; i++) {
       const sx = Phaser.Math.Between(40, width - 40);
       const sy = Phaser.Math.Between(40, height - 40);
-      const sparkle = this.add.text(sx, sy,
-        sparkleChars[Phaser.Math.Between(0, sparkleChars.length - 1)],
-        { fontSize: `${Phaser.Math.Between(16, 30)}px` },
-      ).setOrigin(0.5).setAlpha(0);
+      const r = Phaser.Math.Between(4, 10);
+      const sparkle = this.add.circle(sx, sy, r,
+        sparkleColours[Phaser.Math.Between(0, sparkleColours.length - 1)]
+      ).setAlpha(0);
       container.add(sparkle);
       sparkles.push(sparkle);
 
@@ -2128,14 +2129,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ── Helpers ─────────────────────────────────────────────────
-
-  private speciesEmoji(species: Species): string {
-    const emojis: Record<Species, string> = {
-      cat: '🐱', dog: '🐶', fox: '🦊', bunny: '🐰',
-      bat: '🦇', parrot: '🦜', snake: '🐍',
-    };
-    return emojis[species];
-  }
 
   shutdown(): void {
     this.needsTimer?.destroy();

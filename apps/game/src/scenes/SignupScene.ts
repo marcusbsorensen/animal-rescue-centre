@@ -32,7 +32,7 @@ export class SignupScene extends Phaser.Scene {
       Phaser.Display.Color.HexStringToColor(COLOURS.bgDark).color);
 
     // Ambient particles behind everything
-    createAmbientParticles(this, ['🐾', '⭐', '✨', '🌱'], {
+    createAmbientParticles(this, [], {
       count: 10, minAlpha: 0.06, maxAlpha: 0.15,
     });
 
@@ -133,7 +133,7 @@ export class SignupScene extends Phaser.Scene {
     // "Show me different ones" link
     this.container.add(
       createTextButton(this, width / 2, startY + this.usernameOptions.length * 70 + 20,
-        '🔄 Show me different ones', () => this.showUsernameStep())
+        'Show me different ones', () => this.showUsernameStep())
     );
 
     // Back to login
@@ -457,7 +457,7 @@ export class SignupScene extends Phaser.Scene {
 
     // Skip button (prominent — skipping is fine)
     this.container.add(
-      createButton(this, width / 2, height / 2 + 20, 'Skip — start playing! 🎮', () => {
+      createButton(this, width / 2, height / 2 + 20, 'Skip — start playing!', () => {
         this.doSignup();
       }, { width: 320 })
     );

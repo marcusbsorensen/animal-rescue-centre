@@ -35,9 +35,9 @@ const DEPOT_COLOURS = {
 
 // ── Power-up visual config ───────────────────────────────────
 const POWER_UP_DISPLAY: Record<PowerUpType, { emoji: string; colour: number }> = {
-  rocket: { emoji: '🚀', colour: 0xff6b35 },
-  bomb:   { emoji: '💣', colour: 0xff4444 },
-  rainbow: { emoji: '🌈', colour: 0xaa55ff },
+  rocket: { emoji: 'BOOST', colour: 0xff6b35 },
+  bomb:   { emoji: 'BOMB', colour: 0xff4444 },
+  rainbow: { emoji: 'WILD', colour: 0xaa55ff },
 };
 
 /**
@@ -171,11 +171,11 @@ export class DepotScene extends Phaser.Scene {
     }
     this.container.add(bgPattern);
 
-    const modes: { mode: DepotMode; emoji: string; label: string; desc: string }[] = [
-      { mode: 'parts_and_tools', emoji: '🔧', label: 'Parts & Tools', desc: 'Fix up the rescue van!' },
-      { mode: 'treats_kitchen', emoji: '🍪', label: 'Treats Kitchen', desc: 'Bake tasty treats for animals!' },
-      { mode: 'decorations', emoji: '🎨', label: 'Decorations', desc: 'Brighten up the centre!' },
-      { mode: 'medical_supplies', emoji: '🩹', label: 'Medical Supplies', desc: 'Stock up the vet clinic!' },
+    const modes: { mode: DepotMode; colour: number; label: string; desc: string }[] = [
+      { mode: 'parts_and_tools', colour: 0xff8c35, label: 'Parts & Tools', desc: 'Fix up the rescue van!' },
+      { mode: 'treats_kitchen', colour: 0xd4783c, label: 'Treats Kitchen', desc: 'Bake tasty treats for animals!' },
+      { mode: 'decorations', colour: 0x9b59b6, label: 'Decorations', desc: 'Brighten up the centre!' },
+      { mode: 'medical_supplies', colour: 0xe74c3c, label: 'Medical Supplies', desc: 'Stock up the vet clinic!' },
     ];
 
     modes.forEach((m, i) => {
@@ -194,11 +194,9 @@ export class DepotScene extends Phaser.Scene {
       card.setAlpha(alpha);
       this.container.add(card);
 
-      // Emoji
+      // Colour icon circle
       this.container.add(
-        this.add.text(cardX + 35, y, m.emoji, {
-          fontSize: '36px',
-        }).setOrigin(0.5).setAlpha(alpha)
+        this.add.circle(cardX + 35, y, 18, m.colour).setAlpha(alpha)
       );
 
       // Label
@@ -284,10 +282,10 @@ export class DepotScene extends Phaser.Scene {
     );
 
     const modeLabels: Record<DepotMode, string> = {
-      parts_and_tools: '🔧 Parts & Tools',
-      treats_kitchen: '🍪 Treats Kitchen',
-      decorations: '🎨 Decorations',
-      medical_supplies: '🩹 Medical',
+      parts_and_tools: 'Parts & Tools',
+      treats_kitchen: 'Treats Kitchen',
+      decorations: 'Decorations',
+      medical_supplies: 'Medical',
     };
 
     this.container.add(
@@ -299,7 +297,7 @@ export class DepotScene extends Phaser.Scene {
 
     // Score
     this.container.add(
-      this.add.text(width - 15, headerH / 2 - 10, `⭐ ${this.boardState?.score ?? 0}`, {
+      this.add.text(width - 15, headerH / 2 - 10, `Score: ${this.boardState?.score ?? 0}`, {
         fontSize: '16px', fontFamily: FONTS.body, color: '#f0c040',
       }).setOrigin(1, 0.5)
     );
@@ -355,7 +353,7 @@ export class DepotScene extends Phaser.Scene {
     // Quit button
     this.container.add(
       createTextButton(this, width / 2, height - 22,
-        '🚪 Leave Depot', () => {
+        'Leave Depot', () => {
           this.phase = 'results';
           this.renderView();
         })
@@ -374,14 +372,20 @@ export class DepotScene extends Phaser.Scene {
       const def = this.tileDefs.find((t) => t.type === goal.targetTile);
       const done = goal.currentCount >= goal.targetCount;
 
-      const emoji = def?.emoji ?? '⬜';
+      const emoji = def?.emoji ?? '';
       const progress = `${Math.min(goal.currentCount, goal.targetCount)}/${goal.targetCount}`;
 
-      this.container.add(
-        this.add.text(x, y - 6, emoji, {
-          fontSize: '18px',
-        }).setOrigin(0.5)
-      );
+      if (emoji) {
+        this.container.add(
+          this.add.text(x, y - 6, emoji, {
+            fontSize: '18px',
+          }).setOrigin(0.5)
+        );
+      } else {
+        this.container.add(
+          this.add.circle(x, y - 6, 9, 0x9b59b6)
+        );
+      }
 
       this.container.add(
         this.add.text(x, y + 14, progress, {
@@ -418,7 +422,7 @@ export class DepotScene extends Phaser.Scene {
     const def = this.tileDefs.find((t) => t.type === tile.type);
     const displayText = tile.powerUp
       ? POWER_UP_DISPLAY[tile.powerUp].emoji
-      : (def?.emoji ?? '⬜');
+      : (def?.emoji ?? '');
 
     const fontSize = Math.max(14, Math.min(this.cellSize - 14, 28));
     const emoji = this.add.text(0, 0, displayText, {
@@ -511,7 +515,7 @@ export class DepotScene extends Phaser.Scene {
           moves: this.boardState!.moves + 1,
           score: this.boardState!.score + scoreIncrease,
         };
-        this.showScorePopup(row, col, scoreIncrease, '🚀');
+        this.showScorePopup(row, col, scoreIncrease, 'BOOST!');
         this.checkEndCondition();
         this.animating = false;
         this.renderView();
@@ -546,7 +550,7 @@ export class DepotScene extends Phaser.Scene {
       this.boardState = result.board;
 
       // Score popup
-      const sizeLabel = group.length >= 7 ? '🌈 HUGE!' : group.length >= 5 ? '🚀 BIG!' : '';
+      const sizeLabel = group.length >= 7 ? 'HUGE!' : group.length >= 5 ? 'BIG!' : '';
       this.showScorePopup(row, col, scoreDelta, sizeLabel);
 
       // SFX
@@ -659,7 +663,7 @@ export class DepotScene extends Phaser.Scene {
     // Title
     this.container.add(
       createPillTitle(this, width / 2, 50,
-        allGoalsMet ? '🌟 Session Complete!' : '⏱️ Out of Moves!', {
+        allGoalsMet ? 'Session Complete!' : 'Out of Moves!', {
         bgColour: allGoalsMet ? DEPOT_COLOURS.green : DEPOT_COLOURS.headerBg,
         fontSize: '24px',
       })
@@ -667,7 +671,7 @@ export class DepotScene extends Phaser.Scene {
 
     // Score summary
     this.container.add(
-      this.add.text(width / 2, 100, `Score: ${this.boardState?.score ?? 0} ⭐`, {
+      this.add.text(width / 2, 100, `Score: ${this.boardState?.score ?? 0}`, {
         fontSize: '22px', fontFamily: FONTS.title, color: '#f0c040',
       }).setOrigin(0.5)
     );
@@ -685,7 +689,7 @@ export class DepotScene extends Phaser.Scene {
       const def = this.tileDefs.find((t) => t.type === goal.targetTile);
       this.container.add(
         this.add.text(width / 2, goalY + i * 25,
-          `${done ? '✅' : '❌'} ${def?.emoji ?? ''} ${goal.currentCount}/${goal.targetCount}`, {
+          `${done ? '[done]' : '[x]'} ${def?.emoji ?? ''} ${goal.currentCount}/${goal.targetCount}`, {
           fontSize: '15px', fontFamily: FONTS.body,
           color: done ? '#4adc7b' : '#e74c3c',
         }).setOrigin(0.5)
@@ -696,7 +700,7 @@ export class DepotScene extends Phaser.Scene {
     if (this.rewards.length > 0) {
       const rewardsY = goalY + goals.length * 25 + 30;
       this.container.add(
-        this.add.text(width / 2, rewardsY, '🎁 Rewards:', {
+        this.add.text(width / 2, rewardsY, 'Rewards:', {
           fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
           color: DEPOT_COLOURS.text,
         }).setOrigin(0.5)
@@ -737,11 +741,11 @@ export class DepotScene extends Phaser.Scene {
     if (allGoalsMet) {
       for (let i = 0; i < 5; i++) {
         const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
-        const star = this.add.text(
+        const star = this.add.circle(
           width / 2 + Math.cos(angle) * 90,
           50 + Math.sin(angle) * 30,
-          '✨', { fontSize: '20px' }
-        ).setOrigin(0.5).setAlpha(0);
+          6, 0xf0c040
+        ).setAlpha(0);
         this.container.add(star);
         this.tweens.add({
           targets: star,

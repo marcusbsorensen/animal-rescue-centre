@@ -39,7 +39,7 @@ export class FriendsScene extends Phaser.Scene {
     this._lastHeight = this.scale.height;
 
     // Subtle ambient particles
-    createAmbientParticles(this, ['⭐', '👥'], {
+    createAmbientParticles(this, [], {
       count: 8, minAlpha: 0.06, maxAlpha: 0.15, speed: 0.5,
     }).setDepth(-1);
 
@@ -102,7 +102,7 @@ export class FriendsScene extends Phaser.Scene {
 
     // Add friend button
     this.container.add(
-      createButton(this, width / 2, 185, '➕ Add a friend', () => {
+      createButton(this, width / 2, 185, 'Add a friend', () => {
         this.showAddFriend();
       }, { width: 240 })
     );

@@ -18,10 +18,8 @@ export class BootScene extends Phaser.Scene {
   create(): void {
     const { width, height } = this.scale;
 
-    // Cute bouncing paw while we fetch manifest + logo
-    const paw = this.add.text(width / 2, height / 2, '🐾', {
-      fontSize: '48px',
-    }).setOrigin(0.5);
+    // Bouncing circle while we fetch manifest + logo
+    const paw = this.add.circle(width / 2, height / 2, 24, 0x5AAE4A);
     this.tweens.add({
       targets: paw,
       y: height / 2 - 15,

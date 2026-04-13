@@ -18,3 +18,23 @@ export function getSpeciesUnlocksForLevel(level: number): Species[] {
 export function getRequiredRescuesForLevel(level: number): number {
   return 5 * level;
 }
+
+/**
+ * Maximum number of shelter animals (non-pet) allowed at the player's current level.
+ * Starts small so young players aren't overwhelmed and can properly care for each animal.
+ * L1: 2, L2: 4, L3: 6, L4: 8, L5: 10, L6+: 12 (hard cap)
+ */
+export function getMaxShelterAnimals(level: number): number {
+  if (level <= 0) return 2;
+  return Math.min(2 * level, 12);
+}
+
+/**
+ * Maximum number of animals arriving at once (waiting in queue).
+ * Keeps the welcoming area manageable.
+ */
+export function getMaxArrivals(level: number): number {
+  if (level <= 1) return 1;
+  if (level <= 3) return 2;
+  return 3;
+}

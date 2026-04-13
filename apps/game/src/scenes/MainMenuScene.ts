@@ -87,7 +87,7 @@ export class MainMenuScene extends Phaser.Scene {
     this.add.rectangle(cx, height, width, 4, 0xD4783C).setOrigin(0.5, 1);
 
     // Ambient floating particles (behind the panel)
-    createAmbientParticles(this, ['🐾', '❤️', '⭐', '✨'], {
+    createAmbientParticles(this, [], {
       count: 12,
       minAlpha: 0.05,
       maxAlpha: 0.12,
@@ -128,12 +128,12 @@ export class MainMenuScene extends Phaser.Scene {
     } else {
       // Fallback text logo
       const titleSize = Math.round(42 * sf);
-      this.add.text(cx, yPos + 30 * sf, '🐾  A.R.C.  🐾', {
+      this.add.text(cx, yPos + 30 * sf, 'A.R.C.', {
         fontSize: `${titleSize}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.primary,
       }).setOrigin(0.5);
 
       // Text shadow
-      this.add.text(cx + 2, yPos + 32 * sf, '🐾  A.R.C.  🐾', {
+      this.add.text(cx + 2, yPos + 32 * sf, 'A.R.C.', {
         fontSize: `${titleSize}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#2a6e3a',
       }).setOrigin(0.5).setAlpha(0.15).setDepth(-1);
 
@@ -145,7 +145,7 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     // ── Tagline ─────────────────────────────────────────────
-    this.add.text(cx, yPos, 'Rescue, care for and rehome animals in need! 🏠', {
+    this.add.text(cx, yPos, 'Rescue, care for and rehome animals in need!', {
       fontSize: `${Math.round(14 * sf)}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
       fontStyle: 'italic', align: 'center',
       wordWrap: { width: panelW - 50 },
@@ -233,12 +233,12 @@ export class MainMenuScene extends Phaser.Scene {
 
     // ── Credits (pinned to panel bottom) ────────────────────
     const creditsY = panelTop + panelH - 38 * sf;
-    this.add.text(cx, creditsY, 'Designed by Lily (age 8) 💜', {
+    this.add.text(cx, creditsY, 'Designed by Lily (age 8)', {
       fontSize: `${Math.max(14, Math.round(12 * sf))}px`, fontFamily: FONTS.body, color: COLOURS.primary,
       fontStyle: 'italic',
     }).setOrigin(0.5);
 
-    this.add.text(cx, creditsY + 16 * sf, 'Built with love by Dad 🛠️', {
+    this.add.text(cx, creditsY + 16 * sf, 'Built with love by Dad', {
       fontSize: `${Math.max(14, Math.round(10 * sf))}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
     }).setOrigin(0.5);
 
@@ -260,12 +260,12 @@ export class MainMenuScene extends Phaser.Scene {
     } else {
       const musicBtn = this.add.text(
         cx + panelW / 2 - 15, panelTop + 12,
-        musicOn ? '🔊' : '🔇',
-        { fontSize: '20px' }
+        musicOn ? 'ON' : 'OFF',
+        { fontSize: '12px', fontFamily: FONTS.body, color: '#888' }
       ).setOrigin(1, 0).setInteractive({ useHandCursor: true });
       musicBtn.on('pointerdown', () => {
         audio.toggleMusic();
-        musicBtn.setText(audio.isMusicOn() ? '🔊' : '🔇');
+        musicBtn.setText(audio.isMusicOn() ? 'ON' : 'OFF');
       });
     }
 
@@ -346,17 +346,17 @@ export class MainMenuScene extends Phaser.Scene {
     grass.lineStyle(1.5, 0xffffff, 0.12);
     grass.strokeRoundedRect(cx - stripW / 2, y - stripH / 2, stripW, stripH, 12);
 
-    // Grass tufts
-    const tufts = ['🌱', '🌿', '🍀', '🌱', '🌿'];
-    const tuftSpacing = stripW / (tufts.length + 1);
-    tufts.forEach((tuft, i) => {
-      this.add.text(
-        cx - stripW / 2 + tuftSpacing * (i + 1) + (i % 2 === 0 ? 5 : -5),
-        y + stripH / 2 - 12 * sf,
-        tuft,
-        { fontSize: `${Math.max(14, Math.round(11 * sf))}px` }
-      ).setOrigin(0.5).setAlpha(0.4);
-    });
+    // Grass tufts — small green blades
+    const tuftCount = 5;
+    const tuftSpacing = stripW / (tuftCount + 1);
+    for (let i = 0; i < tuftCount; i++) {
+      const tx = cx - stripW / 2 + tuftSpacing * (i + 1) + (i % 2 === 0 ? 5 : -5);
+      const ty = y + stripH / 2 - 12 * sf;
+      const tuftGfx = this.add.graphics();
+      tuftGfx.fillStyle(0x4A9438, 0.5);
+      tuftGfx.fillTriangle(tx - 3, ty + 4, tx, ty - 6, tx + 3, ty + 4);
+      tuftGfx.fillTriangle(tx + 2, ty + 4, tx + 5, ty - 4, tx + 8, ty + 4);
+    }
 
     // ── Animals (in a swappable container) ────────────────
     this.animalContainer = this.add.container(0, 0);
@@ -393,9 +393,9 @@ export class MainMenuScene extends Phaser.Scene {
           type: 'sprite' as const,
           key: sv.variant ? `${sv.species}-${sv.variant}-sheltered` : `${sv.species}-sheltered`,
         }))
-      : ['🐱', '🐶', '🐰', '🦊', '🦜', '🦇', '🐍'].map(e => ({
-          type: 'emoji' as const,
-          emoji: e,
+      : showcaseSpecies.map(sp => ({
+          type: 'colour' as const,
+          species: sp,
         }));
 
     const count = items.length;
@@ -418,17 +418,19 @@ export class MainMenuScene extends Phaser.Scene {
           ease: 'Sine.easeInOut', delay: i * 150,
         });
         this.animalContainer!.add(sprite);
-      } else {
-        const txt = this.add.text(ix, iy, item.emoji, {
-          fontSize: `${Math.round(30 * sf)}px`,
-        }).setOrigin(0.5);
+      } else if (item.type === 'colour') {
+        // Coloured circle fallback for each species
+        const circleColour = SPECIES_COLOURS[item.species] ?? 0x888888;
+        const size = Math.round(20 * sf);
+        const circle = this.add.circle(ix, iy, size, circleColour)
+          .setStrokeStyle(2, 0xffffff, 0.6);
 
         this.tweens.add({
-          targets: txt, y: iy - 5 * sf,
+          targets: circle, y: iy - 5 * sf,
           duration: 800 + i * 100, yoyo: true, repeat: -1,
           ease: 'Sine.easeInOut', delay: i * 120,
         });
-        this.animalContainer!.add(txt);
+        this.animalContainer!.add(circle);
       }
     });
   }

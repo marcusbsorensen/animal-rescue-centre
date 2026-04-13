@@ -24,7 +24,7 @@ export class LoginScene extends Phaser.Scene {
       Phaser.Display.Color.HexStringToColor(COLOURS.bgDark).color);
 
     // Ambient particles behind everything
-    createAmbientParticles(this, ['🐾', '❤️', '⭐', '✨'], {
+    createAmbientParticles(this, [], {
       count: 10, minAlpha: 0.06, maxAlpha: 0.15,
     });
 

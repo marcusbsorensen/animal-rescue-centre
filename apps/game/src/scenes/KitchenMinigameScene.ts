@@ -105,7 +105,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     }
 
     // Title
-    createPillTitle(this, width / 2, 30, '🍽️ Sort the Food!', { bgColour: 0xD4A017, fontSize: '20px', icon: 'icon-kitchen' });
+    createPillTitle(this, width / 2, 30, 'Sort the Food!', { bgColour: 0xD4A017, fontSize: '20px', icon: 'icon-kitchen' });
 
     // Progress counter — shows how many animals still need feeding
     this.progressText = this.add.text(width / 2, 62,
@@ -169,18 +169,16 @@ export class KitchenMinigameScene extends Phaser.Scene {
       // Species colour dot
       this.add.circle(x - 40, bowlY - 25, 10, SPECIES_COLOURS[animal.species]);
 
-      // Animal name + emoji
-      const speciesEmoji = this.getSpeciesEmoji(animal.species);
-      this.add.text(x, bowlY - 28, `${speciesEmoji} ${animal.name}`, {
+      // Animal name
+      this.add.text(x, bowlY - 28, animal.name, {
         fontSize: '14px',
         fontFamily: FONTS.body,
         color: COLOURS.text,
       }).setOrigin(0.5);
 
-      // Bowl icon
-      this.add.text(x, bowlY + 5, '🥣', {
-        fontSize: '28px',
-      }).setOrigin(0.5);
+      // Bowl indicator (coloured rectangle)
+      this.add.rectangle(x, bowlY + 5, 40, 20, SPECIES_COLOURS[animal.species])
+        .setStrokeStyle(1, 0x888888, 0.3);
 
       // Hunger indicator
       const hungerPct = animal.hunger / 100;
@@ -258,7 +256,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
 
       if (this.fedAnimals.has(animalId)) {
         // Already fed — bounce back
-        this.bounceBack(gameObject, foodIdx, 'Already fed! 😊');
+        this.bounceBack(gameObject, foodIdx, 'Already fed!');
         return;
       }
 
@@ -267,7 +265,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
         this.handleCorrectDrop(gameObject, animalId, species);
       } else {
         // Wrong — bounce back gently
-        this.bounceBack(gameObject, foodIdx, 'Hmm, that\'s not quite right! Try another bowl 🤔');
+        this.bounceBack(gameObject, foodIdx, 'Hmm, that\'s not quite right! Try another bowl.');
       }
     });
 
@@ -358,8 +356,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     });
 
     // Show happy feedback
-    const emoji = this.getSpeciesEmoji(species);
-    this.showFeedback(`${emoji} Yum! That's perfect! +3 bond ❤️`, COLOURS.primary);
+    this.showFeedback(`Yum! That's perfect! +3 bond`, COLOURS.primary);
 
     // Star burst particles at the bowl
     if (bowl) {
@@ -450,7 +447,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
   private createFeedbackArea(_width: number, _height: number): void {
     // Score display in top right
     const { width } = this.scale;
-    this.add.text(width - 20, 30, `🎯 ${this.hungryAnimals.length} to feed`, {
+    this.add.text(width - 20, 30, `${this.hungryAnimals.length} to feed`, {
       fontSize: '16px',
       fontFamily: FONTS.body,
       color: COLOURS.textLight,
@@ -461,11 +458,9 @@ export class KitchenMinigameScene extends Phaser.Scene {
    * Star burst visual effect on correct answer.
    */
   private createStarBurst(x: number, y: number): void {
-    const stars = ['⭐', '✨', '💫', '🌟'];
+    const starColours = [0xffd700, 0xffaa00, 0xff8800, 0xffdd00, 0xffcc44];
     for (let i = 0; i < 5; i++) {
-      const star = this.add.text(x, y, stars[i % stars.length], {
-        fontSize: '20px',
-      }).setOrigin(0.5);
+      const star = this.add.circle(x, y, 8, starColours[i % starColours.length]);
 
       const angle = (i / 5) * Math.PI * 2;
       this.tweens.add({
@@ -496,7 +491,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     this.add.rectangle(width / 2, height / 2, panelW, panelH, 0xffffff)
       .setStrokeStyle(3, Phaser.Display.Color.HexStringToColor(COLOURS.primary).color);
 
-    this.add.text(width / 2, height / 2 - 70, '🎉 All Fed! 🎉', {
+    this.add.text(width / 2, height / 2 - 70, 'All Fed!', {
       fontSize: '32px',
       fontFamily: FONTS.title,
       color: COLOURS.primary,
@@ -509,14 +504,14 @@ export class KitchenMinigameScene extends Phaser.Scene {
       color: COLOURS.text,
     }).setOrigin(0.5);
 
-    this.add.text(width / 2, height / 2 + 10, 'Every animal got a tasty meal 😊', {
+    this.add.text(width / 2, height / 2 + 10, 'Every animal got a tasty meal!', {
       fontSize: '16px',
       fontFamily: FONTS.body,
       color: COLOURS.textLight,
     }).setOrigin(0.5);
 
     // Ambient celebration particles
-    createAmbientParticles(this, ['🍽️', '⭐'], { count: 10, minAlpha: 0.1, maxAlpha: 0.25 });
+    createAmbientParticles(this, [], { count: 10, minAlpha: 0.1, maxAlpha: 0.25 });
 
     createButton(this, width / 2, height / 2 + 60, 'Back to Centre', () => {
       this.exitMinigame();
@@ -532,11 +527,4 @@ export class KitchenMinigameScene extends Phaser.Scene {
     this.scene.start('GameScene');
   }
 
-  private getSpeciesEmoji(species: Species): string {
-    const emojis: Record<Species, string> = {
-      cat: '🐱', dog: '🐶', fox: '🦊', bunny: '🐰',
-      bat: '🦇', parrot: '🦜', snake: '🐍',
-    };
-    return emojis[species];
-  }
 }

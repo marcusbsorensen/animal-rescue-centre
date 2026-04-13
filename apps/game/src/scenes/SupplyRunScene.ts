@@ -285,7 +285,7 @@ export class SupplyRunScene extends Phaser.Scene {
 
       this.container.add(
         this.add.text(cardX + 70, y + 25,
-          unlocked ? `💰 Base pay: ${dest.basePay} coins  |  Distance: ${dest.distance}` : `🔒 Unlocks at level ${dest.unlockLevel}`, {
+          unlocked ? `Base pay: ${dest.basePay} coins  |  Distance: ${dest.distance}` : `Unlocks at level ${dest.unlockLevel}`, {
           fontSize: '14px', fontFamily: FONTS.body,
           color: unlocked ? '#ffd700' : '#555555',
         }).setOrigin(0, 0.5).setAlpha(alpha)
@@ -458,7 +458,7 @@ export class SupplyRunScene extends Phaser.Scene {
     this.container.add(this.hudProgressBar);
 
     // Row 2: smash counter, combo, damage
-    this.hudSmashText = this.add.text(10, row2Y, '💥 0 smashed', {
+    this.hudSmashText = this.add.text(10, row2Y, '0 smashed', {
       fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffd700',
     }).setOrigin(0, 0);
     this.container.add(this.hudSmashText);
@@ -469,7 +469,7 @@ export class SupplyRunScene extends Phaser.Scene {
     }).setOrigin(0.5, 0).setAlpha(0);
     this.container.add(this.hudComboText);
 
-    this.hudDamageText = this.add.text(width - 10, row2Y, '🔧 0%', {
+    this.hudDamageText = this.add.text(width - 10, row2Y, '0%', {
       fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#00ff88',
     }).setOrigin(1, 0);
     this.container.add(this.hudDamageText);
@@ -753,13 +753,14 @@ export class SupplyRunScene extends Phaser.Scene {
         });
 
         // Debris particles
+        const debrisColours = [0xff6600, 0xffd700, 0x00ffcc];
         for (let p = 0; p < 4; p++) {
-          const particle = this.add.text(
+          const particle = this.add.circle(
             proj.x + (Math.random() - 0.5) * 30,
             proj.y,
-            ['💥', '✨', '⚡'][Math.floor(Math.random() * 3)],
-            { fontSize: '14px' }
-          ).setOrigin(0.5);
+            4 + Math.random() * 4,
+            debrisColours[Math.floor(Math.random() * debrisColours.length)]
+          );
           this.container.add(particle);
           this.tweens.add({
             targets: particle,
@@ -902,15 +903,16 @@ export class SupplyRunScene extends Phaser.Scene {
     this.container.add(glowGfx);
     obs.glowGfx = glowGfx;
 
-    const emojiText = this.add.text(0, 0, obstacle.emoji, {
+    const emojiText = this.add.text(0, 0, obstacle.emoji ?? '', {
       fontSize: '34px',
     }).setOrigin(0.5).setVisible(false);
     this.container.add(emojiText);
     obs.emojiText = emojiText;
 
-    const labelEmoji = obstacle.smashable ? '💥' : '⚠️';
-    const labelText = this.add.text(0, 0, labelEmoji, {
-      fontSize: '10px',
+    const labelStr = obstacle.smashable ? '!' : 'X';
+    const labelText = this.add.text(0, 0, labelStr, {
+      fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
+      color: obstacle.smashable ? '#ffd700' : '#ff2244',
     }).setOrigin(0.5).setVisible(false);
     this.container.add(labelText);
     obs.labelText = labelText;
@@ -991,14 +993,14 @@ export class SupplyRunScene extends Phaser.Scene {
 
     // Smash counter
     if (this.hudSmashText) {
-      this.hudSmashText.setText(`💥 ${this.runState.obstaclesDestroyed} smashed`);
+      this.hudSmashText.setText(`${this.runState.obstaclesDestroyed} smashed`);
     }
 
     // Combo display
     const now = this.time.now;
     if (this.comboCount > 1 && now - this.lastSmashTime < COMBO_WINDOW_MS) {
       if (this.hudComboText) {
-        this.hudComboText.setText(`🔥 x${this.comboCount} COMBO!`);
+        this.hudComboText.setText(`x${this.comboCount} COMBO!`);
         this.hudComboText.setAlpha(1);
       }
     } else if (now - this.lastSmashTime >= COMBO_WINDOW_MS) {
@@ -1011,7 +1013,7 @@ export class SupplyRunScene extends Phaser.Scene {
     // Damage meter
     const totalDmg = this.runState.damages.reduce((s, d) => s + d.severity, 0);
     if (this.hudDamageText) {
-      this.hudDamageText.setText(`🔧 ${Math.min(totalDmg, 100)}%`);
+      this.hudDamageText.setText(`${Math.min(totalDmg, 100)}%`);
       if (totalDmg > 60) {
         this.hudDamageText.setColor('#ff2244');
       } else if (totalDmg > 30) {
@@ -1058,7 +1060,7 @@ export class SupplyRunScene extends Phaser.Scene {
     // Title
     this.container.add(
       createPillTitle(this, width / 2, 50,
-        totalled ? '💥 TOTALLED!' : rewards.perfectRun ? '🌟 PERFECT RUN!' : '🏁 RUN COMPLETE!', {
+        totalled ? 'TOTALLED!' : rewards.perfectRun ? 'PERFECT RUN!' : 'RUN COMPLETE!', {
         bgColour: totalled ? NEON.danger : rewards.perfectRun ? NEON.success : NEON.accent,
         fontSize: '24px',
       })
@@ -1074,10 +1076,10 @@ export class SupplyRunScene extends Phaser.Scene {
     // Stats
     const statsY = 135;
     const stats = [
-      { label: '💰 Earnings', value: `${rewards.earnings} coins`, colour: '#ffd700' },
-      { label: '💥 Obstacles Smashed', value: `${this.runState.obstaclesDestroyed}`, colour: '#ff6600' },
-      { label: '🔧 Total Damage', value: `${this.runState.damages.reduce((s, d) => s + d.severity, 0)}%`, colour: totalled ? '#ff2244' : '#00ff88' },
-      { label: '⏱️ Time', value: `${(this.runState.timeTakenMs / 1000).toFixed(1)}s`, colour: NEON.text },
+      { label: 'Earnings', value: `${rewards.earnings} coins`, colour: '#ffd700' },
+      { label: 'Obstacles Smashed', value: `${this.runState.obstaclesDestroyed}`, colour: '#ff6600' },
+      { label: 'Total Damage', value: `${this.runState.damages.reduce((s, d) => s + d.severity, 0)}%`, colour: totalled ? '#ff2244' : '#00ff88' },
+      { label: 'Time', value: `${(this.runState.timeTakenMs / 1000).toFixed(1)}s`, colour: NEON.text },
     ];
 
     stats.forEach((stat, i) => {
@@ -1100,7 +1102,7 @@ export class SupplyRunScene extends Phaser.Scene {
       const bonusY = statsY + stats.length * 35 + 15;
       rewards.bonuses.forEach((bonus, i) => {
         this.container.add(
-          this.add.text(width / 2, bonusY + i * 22, `⭐ ${bonus}`, {
+          this.add.text(width / 2, bonusY + i * 22, bonus, {
             fontSize: '14px', fontFamily: FONTS.body,
             color: bonus.includes('No Earnings') ? '#ff2244' : '#ffd700',
           }).setOrigin(0.5)
@@ -1136,15 +1138,15 @@ export class SupplyRunScene extends Phaser.Scene {
       }
     }
 
-    // Star burst for perfect run
+    // Dot burst for perfect run
     if (rewards.perfectRun) {
       for (let i = 0; i < 6; i++) {
         const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
-        const star = this.add.text(
+        const star = this.add.circle(
           width / 2 + Math.cos(angle) * 100,
           50 + Math.sin(angle) * 30,
-          '⭐', { fontSize: '18px' }
-        ).setOrigin(0.5).setAlpha(0);
+          7, 0xffd700
+        ).setAlpha(0);
         this.container.add(star);
         this.tweens.add({
           targets: star,
