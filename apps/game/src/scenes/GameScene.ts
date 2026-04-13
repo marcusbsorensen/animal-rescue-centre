@@ -312,22 +312,9 @@ export class GameScene extends Phaser.Scene {
     if (shouldSpawnSiblings()) {
       const [a, b] = spawnSiblingPair(species);
       this.animals.push(a, b);
-      this.totalRescued += 2;
     } else {
       const animal = spawnAnimal(species, undefined, this.animals.map(a => a.name));
       this.animals.push(animal);
-      this.totalRescued += 1;
-    }
-
-    // Check level progression
-    const required = getRequiredRescuesForLevel(this.level);
-    if (this.totalRescued >= required) {
-      this.level++;
-      this.unlockedSpecies = getSpeciesUnlocksForLevel(this.level);
-      const newSpecies = getSpeciesUnlocksForLevel(this.level).filter(
-        (s) => !getSpeciesUnlocksForLevel(this.level - 1).includes(s),
-      );
-      this.showLevelUpCelebration(this.level, newSpecies);
     }
 
     this.saveState();
@@ -404,107 +391,112 @@ export class GameScene extends Phaser.Scene {
     const required = getRequiredRescuesForLevel(this.level);
     const xpProgress = Math.min(this.totalRescued / required, 1);
 
-    // ── Background bar with gradient feel ──────────────────────
-    const barH = 44;
+    // ── Background bar (constrained to max 600px centred) ──────
+    const barH = 52;
+    const maxBarW = Math.min(width, 600);
+    const barX = (width - maxBarW) / 2;
+
     const barGfx = this.add.graphics();
     barGfx.fillStyle(0x2d1f14, 0.92);
-    barGfx.fillRoundedRect(0, 0, width, barH, { tl: 0, tr: 0, bl: 12, br: 12 });
+    barGfx.fillRoundedRect(barX, 0, maxBarW, barH, { tl: 0, tr: 0, bl: 14, br: 14 });
     this.uiContainer.add(barGfx);
 
     // Thin accent line at bottom of bar
     const accentGfx = this.add.graphics();
     accentGfx.fillStyle(0x5AAE4A, 0.6);
-    accentGfx.fillRect(0, barH - 3, width, 3);
+    accentGfx.fillRect(barX, barH - 3, maxBarW, 3);
     this.uiContainer.add(accentGfx);
 
-    // ── Level badge (left side) ─────────────────────────────────
-    const lvlX = 12;
+    // ── Level badge (left side of constrained bar) ──────────────
+    const lvlX = barX + 14;
     const lvlY = barH / 2;
     const lvlBadge = this.add.graphics();
     lvlBadge.fillStyle(0x5AAE4A, 1);
-    lvlBadge.fillRoundedRect(lvlX, lvlY - 14, 56, 28, 14);
+    lvlBadge.fillRoundedRect(lvlX, lvlY - 16, 64, 32, 16);
     this.uiContainer.add(lvlBadge);
 
     this.uiContainer.add(
-      this.add.text(lvlX + 28, lvlY, `Lv ${this.level}`, {
-        fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      this.add.text(lvlX + 32, lvlY, `Lv ${this.level}`, {
+        fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
       }).setOrigin(0.5)
     );
 
     // ── XP progress bar ──────────────────────────────────────────
-    const xpX = 78;
-    const xpW = 90;
+    const xpX = lvlX + 74;
+    const xpW = 100;
     const xpY = lvlY;
-    // Background track
     const xpTrack = this.add.graphics();
     xpTrack.fillStyle(0x000000, 0.3);
-    xpTrack.fillRoundedRect(xpX, xpY - 5, xpW, 10, 5);
+    xpTrack.fillRoundedRect(xpX, xpY - 6, xpW, 12, 6);
     this.uiContainer.add(xpTrack);
-    // Fill
     if (xpProgress > 0) {
       const xpFill = this.add.graphics();
       xpFill.fillStyle(0x6dd58c, 1);
-      xpFill.fillRoundedRect(xpX, xpY - 5, Math.max(10, xpW * xpProgress), 10, 5);
+      xpFill.fillRoundedRect(xpX, xpY - 6, Math.max(12, xpW * xpProgress), 12, 6);
       this.uiContainer.add(xpFill);
     }
-    // XP label
     this.uiContainer.add(
-      this.add.text(xpX + xpW / 2, xpY, `${this.totalRescued}/${required}`, {
-        fontSize: '9px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff',
+      this.add.text(xpX + xpW / 2, xpY, `${this.totalRescued}/${required} rescued`, {
+        fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
 
-    // ── Stat chips (centre) ──────────────────────────────────────
+    // ── Stat chips (centred in remaining bar space) ──────────────
     const chipY = barH / 2;
-    const chips: { emoji: string; icon?: string; value: string; colour: number }[] = [
-      { emoji: '🐾', icon: 'icon-hud-animals', value: `${this.totalRescued}`, colour: 0x5B8C3E },
-      { emoji: '🏠', icon: 'icon-hud-homes', value: `${this.animals.length}`, colour: 0x6B5B3E },
+    const chips: { label: string; icon?: string; value: string; colour: number }[] = [
+      { label: 'Rescued', icon: 'icon-hud-animals', value: `${this.totalRescued}`, colour: 0x5B8C3E },
+      { label: 'Shelter', icon: 'icon-hud-homes', value: `${this.animals.length}`, colour: 0x6B5B3E },
     ];
     if (petCount > 0) {
-      chips.push({ emoji: '👑', value: `${petCount}`, colour: 0xB8860B });
+      chips.push({ label: 'Pets', value: `${petCount}`, colour: 0xB8860B });
     }
     if (this.economy.coins > 0) {
-      chips.push({ emoji: '🪙', icon: 'icon-hud-coins', value: `${this.economy.coins}`, colour: 0xB8860B });
+      chips.push({ label: 'Coins', icon: 'icon-hud-coins', value: `${this.economy.coins}`, colour: 0xB8860B });
     }
 
-    const chipStartX = 185;
-    const chipSpacing = 68;
+    const chipAreaStart = xpX + xpW + 16;
+    const chipAreaEnd = barX + maxBarW - 50; // leave room for audio button
+    const chipSpacing = Math.min(80, (chipAreaEnd - chipAreaStart) / chips.length);
     chips.forEach((chip, i) => {
-      const cx = chipStartX + i * chipSpacing;
+      const cx = chipAreaStart + i * chipSpacing + chipSpacing / 2;
       const chipGfx = this.add.graphics();
       chipGfx.fillStyle(chip.colour, 0.85);
-      chipGfx.fillRoundedRect(cx - 28, chipY - 12, 56, 24, 12);
+      chipGfx.fillRoundedRect(cx - 32, chipY - 14, 64, 28, 14);
       this.uiContainer.add(chipGfx);
 
-      // Use custom icon if available, otherwise fall back to emoji
       const iconKey = chip.icon;
       if (iconKey && this.textures.exists(iconKey)) {
-        const icon = this.add.image(cx - 10, chipY, iconKey)
-          .setDisplaySize(16, 16).setOrigin(0.5);
+        const icon = this.add.image(cx - 12, chipY, iconKey)
+          .setDisplaySize(20, 20).setOrigin(0.5);
         this.uiContainer.add(icon);
         this.uiContainer.add(
-          this.add.text(cx + 6, chipY, chip.value, {
-            fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
+          this.add.text(cx + 8, chipY, chip.value, {
+            fontSize: '16px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5)
         );
       } else {
         this.uiContainer.add(
-          this.add.text(cx, chipY, `${chip.emoji} ${chip.value}`, {
-            fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
+          this.add.text(cx, chipY, chip.value, {
+            fontSize: '16px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
+          }).setOrigin(0.5)
+        );
+        this.uiContainer.add(
+          this.add.text(cx, chipY + 12, chip.label, {
+            fontSize: '8px', fontFamily: FONTS.body, color: '#aaaaaa', resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5)
         );
       }
     });
 
-    // ── Icon buttons (right side) ────────────────────────────────
+    // ── Audio toggle (right end of constrained bar) ────────────
+    const audioBtnX = barX + maxBarW - 24;
     const btnY = barH / 2;
-    const btnSize = 32;
+    const btnSize = 34;
 
-    // Audio toggle
     const audioState = AudioManager.getInstance().getState();
     const audioBg = this.add.graphics();
     audioBg.fillStyle(0x000000, 0.3);
-    audioBg.fillCircle(width - 62, btnY, btnSize / 2);
+    audioBg.fillCircle(audioBtnX, btnY, btnSize / 2);
     this.uiContainer.add(audioBg);
 
     const musicOnKey = 'icon-music-on';
@@ -512,18 +504,18 @@ export class GameScene extends Phaser.Scene {
     const hasMusicIcons = this.textures.exists(musicOnKey) && this.textures.exists(musicOffKey);
 
     if (hasMusicIcons) {
-      const audioImg = this.add.image(width - 62, btnY,
+      const audioImg = this.add.image(audioBtnX, btnY,
         audioState.musicEnabled ? musicOnKey : musicOffKey
-      ).setDisplaySize(20, 20).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      ).setDisplaySize(22, 22).setOrigin(0.5).setInteractive({ useHandCursor: true });
       audioImg.on('pointerdown', () => {
         const enabled = AudioManager.getInstance().toggleMusic();
         audioImg.setTexture(enabled ? musicOnKey : musicOffKey);
       });
       this.uiContainer.add(audioImg);
     } else {
-      const audioBtn = this.add.text(width - 62, btnY,
+      const audioBtn = this.add.text(audioBtnX, btnY,
         audioState.musicEnabled ? '🔊' : '🔇', {
-        fontSize: '18px',
+        fontSize: '20px',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       audioBtn.on('pointerdown', () => {
         const enabled = AudioManager.getInstance().toggleMusic();
@@ -924,6 +916,8 @@ export class GameScene extends Phaser.Scene {
           if (this.processing) return;
           this.processing = true;
           animal.state = 'sheltered';
+          this.totalRescued += 1;
+          this.checkLevelProgression();
           AudioManager.getInstance().playSfx('animal_arrive');
           this.saveState();
           this.time.delayedCall(100, () => {
@@ -945,6 +939,8 @@ export class GameScene extends Phaser.Scene {
           if (this.processing) return;
           this.processing = true;
           arriving.forEach((a) => { a.state = 'sheltered'; });
+          this.totalRescued += arriving.length;
+          this.checkLevelProgression();
           AudioManager.getInstance().playSfx('animal_arrive');
           this.saveState();
           this.time.delayedCall(100, () => {
@@ -1710,16 +1706,18 @@ export class GameScene extends Phaser.Scene {
       }).setOrigin(0.5)
     );
 
-    // Animal sprite (big, central)
-    const collarSprite = createAnimalSprite(this, width / 2, 170, animal, { width: 160, height: 128 });
+    // Animal sprite (big, central — positioned with space below for text)
+    const spriteY = 190;
+    const collarSprite = createAnimalSprite(this, width / 2, spriteY, animal, { width: 140, height: 112 });
     if (collarSprite instanceof Phaser.GameObjects.Rectangle) {
       collarSprite.setStrokeStyle(3, 0xffd700);
     }
     this.gameContainer.add(collarSprite);
 
-    // Collar picker prompt
+    // Collar picker prompt — placed well below sprite
+    const promptY = spriteY + 80;
     this.gameContainer.add(
-      this.add.text(width / 2, 220, 'Choose a collar colour for your new pet:', {
+      this.add.text(width / 2, promptY, 'Choose a collar colour for your new pet:', {
         fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
       }).setOrigin(0.5)
     );
@@ -1727,7 +1725,7 @@ export class GameScene extends Phaser.Scene {
     // Collar colour grid
     const colsPerRow = 4;
     const collarStartX = width / 2 - ((colsPerRow - 1) * 80) / 2;
-    const collarStartY = 265;
+    const collarStartY = promptY + 40;
 
     COLLAR_COLOURS.forEach((collar, i) => {
       const col = i % colsPerRow;
@@ -2006,7 +2004,21 @@ export class GameScene extends Phaser.Scene {
     this.checkBadges();
   }
 
-  // ── Level-Up Celebration ────────────────────────────────────
+  // ── Level Progression ──────────────────────────────────────
+
+  private checkLevelProgression(): void {
+    // Use while loop so accepting multiple animals at once can trigger multiple level-ups
+    while (true) {
+      const required = getRequiredRescuesForLevel(this.level);
+      if (this.totalRescued < required) break;
+      this.level++;
+      this.unlockedSpecies = getSpeciesUnlocksForLevel(this.level);
+      const newSpecies = getSpeciesUnlocksForLevel(this.level).filter(
+        (s) => !getSpeciesUnlocksForLevel(this.level - 1).includes(s),
+      );
+      this.showLevelUpCelebration(this.level, newSpecies);
+    }
+  }
 
   private showLevelUpCelebration(newLevel: number, unlockedSpecies: Species[]): void {
     const { width, height } = this.scale;
