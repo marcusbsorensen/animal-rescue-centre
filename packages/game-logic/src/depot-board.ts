@@ -330,7 +330,7 @@ function activatePowerUpImpl(
   const cell = grid[row]?.[col];
   if (!cell?.powerUp) return { grid: cloneGrid(grid), tilesRemoved: 0 };
 
-  const result = cloneGrid(grid);
+  let result = cloneGrid(grid);
   const rows = result.length;
   const cols = result[0].length;
   let removed = 0;
