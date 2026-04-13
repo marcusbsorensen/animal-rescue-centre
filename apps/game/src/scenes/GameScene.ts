@@ -538,19 +538,21 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    // Bottom buttons row
+    // Bottom buttons — two rows
     const pets = this.animals.filter((a) => a.state === 'pet');
-    const btnRowY = height - 80;
+    const btnRow1Y = height - 105;
+    const btnRow2Y = height - 60;
 
+    // Row 1: Core locations
     this.gameContainer.add(
-      createButton(this, width / 2 - 160, btnRowY, '🍽️ Kitchen', () => {
+      createButton(this, width / 2 - 160, btnRow1Y, '🍽️ Kitchen', () => {
         this.viewMode = 'kitchen';
         this.renderView();
       }, { width: 135, fontSize: '15px', bgColour: '#8b6914' })
     );
 
     this.gameContainer.add(
-      createButton(this, width / 2, btnRowY,
+      createButton(this, width / 2, btnRow1Y,
         `🌳 Garden (${pets.length})`, () => {
         this.viewMode = 'garden';
         this.renderView();
@@ -558,16 +560,30 @@ export class GameScene extends Phaser.Scene {
     );
 
     this.gameContainer.add(
-      createButton(this, width / 2 + 160, btnRowY, '💌 Social', () => {
+      createButton(this, width / 2 + 160, btnRow1Y, '💌 Social', () => {
         this.saveState();
         this.scene.start('SocialScene');
       }, { width: 135, fontSize: '15px', bgColour: '#9b59b6' })
     );
 
-    // Back to menu
+    // Row 2: Depot + Supply Run + Menu
     this.gameContainer.add(
-      createTextButton(this, width / 2, height - 45,
-        '← Main Menu', () => {
+      createButton(this, width / 2 - 130, btnRow2Y, '🏗️ Depot', () => {
+        this.saveState();
+        this.scene.start('DepotScene', { level: this.level });
+      }, { width: 115, fontSize: '14px', bgColour: '#4a2d7a' })
+    );
+
+    this.gameContainer.add(
+      createButton(this, width / 2, btnRow2Y, '🚛 Supply Run', () => {
+        this.saveState();
+        this.scene.start('SupplyRunScene', { level: this.level });
+      }, { width: 130, fontSize: '14px', bgColour: '#ff6600' })
+    );
+
+    this.gameContainer.add(
+      createTextButton(this, width / 2 + 150, btnRow2Y,
+        '← Menu', () => {
           this.saveState();
           this.scene.start('MainMenuScene');
         })

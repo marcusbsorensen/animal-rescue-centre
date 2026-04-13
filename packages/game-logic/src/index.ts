@@ -83,3 +83,64 @@ export {
   RESOLUTION_ACTIONS,
 } from './conflicts';
 export type { Conflict, ConflictType, ResolutionAction, ResolutionDef } from './conflicts';
+export {
+  createCalendarState,
+  calculateCurrentDate,
+  getSeasonForMonth,
+  getSeasonForDate,
+  getCurrentSeason,
+  getSeasonDef,
+  getActiveEvents,
+  advanceCalendar,
+  isDailyReset,
+  SEASONS,
+  SEASON_THEMES,
+  CALENDAR_EVENTS,
+} from './calendar';
+export type { Season, CalendarState, SeasonDef, CalendarEventDef } from './calendar';
+export {
+  canAccessDestination,
+  startSupplyRun,
+  generateObstacle,
+  applyObstacleHit,
+  applySmash,
+  changeLane,
+  advanceDistance,
+  checkCompletion,
+  isCatastrophicDamage,
+  calculateSupplyRewards,
+  getRepairCost,
+  getDailyContractBonus,
+  SUPPLY_DESTINATIONS,
+  OBSTACLES,
+  DAMAGE_THRESHOLDS,
+} from './supply-runs';
+export type { DestinationDef, ObstacleDef, DamageThreshold, SupplyRunLaneState } from './supply-runs';
+export {
+  getTilesForMode,
+  getBoardDimensions,
+  generateRewards,
+  rollForSuperTreat,
+  canAccessMode,
+  getSessionLimit,
+  resetDailySessions,
+  PARTS_TILES,
+  TREATS_TILES,
+  DECORATIONS_TILES,
+  MEDICAL_TILES,
+  ALL_REWARDS,
+} from './depot-inventory';
+export type { TileDefinition, RewardItem } from './depot-inventory';
+export {
+  createBoard,
+  findGroup,
+  tapCell,
+  applyGravity,
+  refillBoard,
+  activatePowerUp,
+  checkGoals,
+  generateGoals,
+  serialiseBoard,
+  deserialiseBoard,
+  MODE_TILE_TYPES,
+} from './depot-board';

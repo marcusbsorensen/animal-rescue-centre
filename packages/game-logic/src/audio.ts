@@ -12,7 +12,9 @@ export type AudioScene =
   | 'walk'
   | 'vet'
   | 'social'
-  | 'celebration';
+  | 'celebration'
+  | 'depot'
+  | 'supply_run';
 
 export type SoundEffect =
   | 'button_click'
@@ -32,7 +34,17 @@ export type SoundEffect =
   | 'gift_receive'
   | 'badge_earned'
   | 'upgrade_unlock'
-  | 'collar_pick';
+  | 'collar_pick'
+  | 'tile_tap'
+  | 'tile_collapse'
+  | 'power_up_create'
+  | 'power_up_activate'
+  | 'chain_reaction'
+  | 'depot_complete'
+  | 'truck_engine'
+  | 'obstacle_smash'
+  | 'obstacle_hit'
+  | 'supply_complete';
 
 export interface AudioState {
   currentScene: AudioScene;
@@ -53,6 +65,8 @@ export const SCENE_MUSIC: Record<AudioScene, string> = {
   vet:         'music_caring',
   social:      'music_friendly',
   celebration: 'music_celebration',
+  depot:       'music_playful',     // reuse playful until dedicated track exists
+  supply_run:  'music_adventure',   // reuse adventure until dedicated track exists
 };
 
 /** Sound effect descriptions (for Phaser to load) */
@@ -75,6 +89,16 @@ export const SOUND_EFFECTS: Record<SoundEffect, { file: string; volume: number }
   badge_earned:   { file: 'sfx_achievement', volume: 0.7 },
   upgrade_unlock: { file: 'sfx_build',      volume: 0.5 },
   collar_pick:    { file: 'sfx_jingle',     volume: 0.4 },
+  tile_tap:       { file: 'sfx_click',      volume: 0.3 },
+  tile_collapse:  { file: 'sfx_correct',    volume: 0.4 },
+  power_up_create: { file: 'sfx_sparkle',   volume: 0.6 },
+  power_up_activate: { file: 'sfx_fanfare', volume: 0.5 },
+  chain_reaction: { file: 'sfx_sparkle',    volume: 0.5 },
+  depot_complete: { file: 'sfx_tada',       volume: 0.7 },
+  truck_engine:   { file: 'sfx_brake',      volume: 0.3 },
+  obstacle_smash: { file: 'sfx_correct',    volume: 0.5 },
+  obstacle_hit:   { file: 'sfx_honk',       volume: 0.5 },
+  supply_complete: { file: 'sfx_achievement', volume: 0.7 },
 };
 
 /**

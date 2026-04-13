@@ -9,6 +9,8 @@ import { KitchenMinigameScene } from './scenes/KitchenMinigameScene';
 import { SocialScene } from './scenes/SocialScene';
 import { WalkScene } from './scenes/WalkScene';
 import { VetScene } from './scenes/VetScene';
+import { DepotScene } from './scenes/DepotScene';
+import { SupplyRunScene } from './scenes/SupplyRunScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -20,7 +22,7 @@ const config: Phaser.Types.Core.GameConfig = {
     height: 720,
   },
   backgroundColor: '#fef9ef',
-  scene: [BootScene, MainMenuScene, SignupScene, LoginScene, FriendsScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene],
+  scene: [BootScene, MainMenuScene, SignupScene, LoginScene, FriendsScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, DepotScene, SupplyRunScene],
   physics: {
     default: 'arcade',
     arcade: {
