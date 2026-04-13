@@ -475,9 +475,8 @@ export class KitchenMinigameScene extends Phaser.Scene {
    * Exit and return updated animals to GameScene.
    */
   private exitMinigame(): void {
-    if (this.onComplete) {
-      this.onComplete(this.allAnimals);
-    }
+    // Store updated animals in registry so GameScene can pick them up
+    this.registry.set('updatedAnimals', this.allAnimals);
     this.scene.start('GameScene');
   }
 

@@ -51,3 +51,65 @@ describe('isBondComplete', () => {
     expect(isBondComplete(makeAnimal({ bondLevel: 99 }))).toBe(false);
   });
 });
+
+// ── Edge cases an 8-year-old might trigger ──
+
+describe('bond edge cases', () => {
+  it('calculateBondIncrease when bond is already 100', () => {
+    const animal = makeAnimal({ bondLevel: 100, happiness: 80 });
+    const increase = calculateBondIncrease(animal, 'feed');
+    expect(increase).toBe(0);
+    expect(animal.bondLevel + increase).toBe(100);
+  });
+
+  it('calculateBondIncrease when bond is already 100 for all actions', () => {
+    const animal = makeAnimal({ bondLevel: 100, happiness: 100 });
+    const actions = ['feed', 'walk', 'train', 'play', 'heal'] as const;
+    for (const action of actions) {
+      const increase = calculateBondIncrease(animal, action);
+      expect(increase).toBe(0);
+    }
+  });
+
+  it('isBondComplete at exactly 100 vs 99', () => {
+    expect(isBondComplete(makeAnimal({ bondLevel: 100 }))).toBe(true);
+    expect(isBondComplete(makeAnimal({ bondLevel: 99 }))).toBe(false);
+  });
+
+  it('isBondComplete at above 100 (should still be true)', () => {
+    // In case bond somehow exceeds 100 through a bug elsewhere
+    expect(isBondComplete(makeAnimal({ bondLevel: 150 }))).toBe(true);
+  });
+
+  it('calculateBondIncrease at bond=99 does not exceed 100', () => {
+    const animal = makeAnimal({ bondLevel: 99, happiness: 100 });
+    const increase = calculateBondIncrease(animal, 'heal'); // base=8, max multiplier=1.0
+    expect(animal.bondLevel + increase).toBeLessThanOrEqual(100);
+  });
+
+  it('calculateBondIncrease with happiness=0 still gives some bond', () => {
+    const animal = makeAnimal({ bondLevel: 0, happiness: 0 });
+    const increase = calculateBondIncrease(animal, 'heal'); // base=8, multiplier=0.5 -> 4
+    expect(increase).toBeGreaterThan(0);
+    expect(increase).toBe(4); // Math.round(8 * 0.5)
+  });
+
+  it('calculateBondIncrease with happiness=0 and bond=0 for feed', () => {
+    const animal = makeAnimal({ bondLevel: 0, happiness: 0 });
+    const increase = calculateBondIncrease(animal, 'feed'); // base=3, multiplier=0.5 -> round(1.5)=2
+    expect(increase).toBe(2);
+  });
+
+  it('bond progression from 0 to 100 via repeated heal actions', () => {
+    let animal = makeAnimal({ bondLevel: 0, happiness: 80 });
+    let totalIncrease = 0;
+    for (let i = 0; i < 100; i++) {
+      const increase = calculateBondIncrease(animal, 'heal');
+      totalIncrease += increase;
+      animal = { ...animal, bondLevel: Math.min(100, animal.bondLevel + increase) };
+      if (animal.bondLevel >= 100) break;
+    }
+    expect(animal.bondLevel).toBe(100);
+    expect(isBondComplete(animal)).toBe(true);
+  });
+});

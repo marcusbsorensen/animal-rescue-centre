@@ -24,6 +24,7 @@ export {
   shouldSpawnSiblings,
   getRandomName,
   pickRandomVariant,
+  syncNextId,
   SPECIES_COLOURS,
   SPECIES_VARIANTS,
 } from './animals';

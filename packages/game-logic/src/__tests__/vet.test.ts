@@ -197,3 +197,84 @@ describe('house upgrades', () => {
     }
   });
 });
+
+// ── Edge cases an 8-year-old might trigger ──
+
+describe('vet edge cases', () => {
+  it('applyHealStep on animal already at health=100', () => {
+    const illness = ILLNESSES.find((i) => i.illness === 'cold')!;
+    const animal = makeAnimal({ health: 100 });
+    const result = applyHealStep(animal, illness, 'blanket', 0);
+    // Health should not exceed 100
+    expect(result.animal.health).toBeLessThanOrEqual(100);
+    expect(result.effective).toBe(true);
+  });
+
+  it('applyHealStep called after animal is fully healed (step >= healSteps)', () => {
+    const illness = ILLNESSES.find((i) => i.illness === 'cold')!; // 2 healSteps
+    const animal = makeAnimal({ health: 80 });
+    // Simulate: step 0 -> effective, step 1 -> healed
+    const step1 = applyHealStep(animal, illness, 'blanket', 0);
+    const step2 = applyHealStep(step1.animal, illness, 'rest', 1);
+    expect(step2.healed).toBe(true);
+    expect(step2.animal.health).toBe(100);
+    // Kid taps heal again even though already healed — pass currentStep=2 which >= healSteps
+    const step3 = applyHealStep(step2.animal, illness, 'blanket', 2);
+    // Should still mark as healed since step (3) >= healSteps (2)
+    expect(step3.healed).toBe(true);
+    expect(step3.animal.health).toBe(100);
+  });
+
+  it('applyHealStep with ineffective action many times does not overheal', () => {
+    const illness = ILLNESSES.find((i) => i.illness === 'cold')!;
+    let animal = makeAnimal({ health: 90 });
+    // Keep using bandage (ineffective for cold), step never advances
+    for (let i = 0; i < 10; i++) {
+      const result = applyHealStep(animal, illness, 'bandage', 0);
+      animal = result.animal;
+      expect(result.effective).toBe(false);
+      expect(result.healed).toBe(false);
+    }
+    // Health capped at 100 after many +5 steps
+    expect(animal.health).toBeLessThanOrEqual(100);
+  });
+
+  it('shouldGetSick returns boolean for a perfectly healthy pet', () => {
+    const pet = makeAnimal({ state: 'sheltered', health: 100, hunger: 0, tiredness: 0, happiness: 100 });
+    // With perfect stats, sickness chance should be extremely low
+    let gotSick = false;
+    for (let i = 0; i < 1000; i++) {
+      if (shouldGetSick(pet)) { gotSick = true; break; }
+    }
+    // stressLevel would be 0*0.3 + 0*0.3 + 0*0.4 = 0, so chance = 0
+    expect(gotSick).toBe(false);
+  });
+
+  it('shouldGetSick for a pet-state animal still works', () => {
+    // "pet" state is not "arriving" so the function should still check
+    const pet = makeAnimal({ state: 'pet' as any, health: 100, hunger: 90, tiredness: 90, happiness: 10 });
+    let gotSick = false;
+    for (let i = 0; i < 5000; i++) {
+      if (shouldGetSick(pet)) { gotSick = true; break; }
+    }
+    expect(gotSick).toBe(true);
+  });
+
+  it('applySickness on animal with health=0 stays at 0', () => {
+    const illness = ILLNESSES.find((i) => i.severity === 'moderate')!;
+    const animal = makeAnimal({ health: 0 });
+    const sick = applySickness(animal, illness);
+    expect(sick.health).toBe(0);
+  });
+
+  it('pickIllness always returns a valid illness for every species', () => {
+    const allSpecies = ['cat', 'dog', 'fox', 'bunny', 'bat', 'parrot', 'snake'] as const;
+    for (const s of allSpecies) {
+      for (let i = 0; i < 20; i++) {
+        const illness = pickIllness(s);
+        expect(illness).toBeDefined();
+        expect(illness.species === 'all' || illness.species.includes(s)).toBe(true);
+      }
+    }
+  });
+});

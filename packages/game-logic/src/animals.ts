@@ -107,6 +107,21 @@ export const SPECIES_COLOURS: Record<Species, number> = {
 let nextId = 1;
 
 /**
+ * Sync the ID counter to avoid collisions with loaded animals.
+ * Call this after loading saved state.
+ */
+export function syncNextId(existingAnimals: { id: string }[]): void {
+  let maxId = 0;
+  for (const a of existingAnimals) {
+    const match = a.id.match(/^animal-(\d+)$/);
+    if (match) {
+      maxId = Math.max(maxId, parseInt(match[1], 10));
+    }
+  }
+  nextId = maxId + 1;
+}
+
+/**
  * Spawn a new animal with random story and name.
  * Optionally link to a sibling.
  */

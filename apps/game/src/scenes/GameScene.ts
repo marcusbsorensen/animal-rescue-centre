@@ -25,13 +25,14 @@ import {
   applySickness,
   getAvailableUpgrades,
   getUnlockedUpgrades,
+  syncNextId,
   shouldSpawnConflict,
   generateConflict,
   isResolutionEffective,
   resolveConflict,
   RESOLUTION_ACTIONS,
 } from '@arc/game-logic';
-import type { IllnessDef, Conflict, ResolutionAction } from '@arc/game-logic';
+import type { IllnessDef, Conflict, ResolutionDef } from '@arc/game-logic';
 import { evaluateBadges } from '@arc/badges';
 import { getSession } from '../lib/auth';
 import { supabase } from '../lib/supabase';
@@ -69,6 +70,9 @@ export class GameScene extends Phaser.Scene {
   private needsTimer?: Phaser.Time.TimerEvent;
   private spawnTimer?: Phaser.Time.TimerEvent;
   private selectedAnimal?: Animal;
+  private processing = false;         // double-click guard
+  private showingCollarPicker = false; // bond race guard
+  private static readonly MAX_ANIMALS = 30; // population cap
 
   constructor() {
     super({ key: 'GameScene' });
@@ -87,6 +91,23 @@ export class GameScene extends Phaser.Scene {
 
     // Load saved state if available
     await this.loadState();
+
+    // Check if returning from a minigame with updated animals
+    const updatedAnimals = this.registry.get('updatedAnimals') as Animal[] | undefined;
+    if (updatedAnimals) {
+      this.animals = updatedAnimals;
+      this.registry.remove('updatedAnimals');
+
+      // Check for vet results (clear sickness if healed)
+      const vetResult = this.registry.get('vetResult') as { healed: boolean; animalId?: string } | undefined;
+      if (vetResult?.healed && vetResult.animalId) {
+        this.sickAnimals.delete(vetResult.animalId);
+      }
+      this.registry.remove('vetResult');
+      this.registry.remove('walkResult');
+
+      this.saveState();
+    }
 
     // Start needs decay timer (every 2 seconds = 1 game-minute)
     this.needsTimer = this.time.addEvent({
@@ -138,6 +159,9 @@ export class GameScene extends Phaser.Scene {
         }
         this.level = data.level ?? 1;
         this.unlockedSpecies = getSpeciesUnlocksForLevel(this.level);
+
+        // Sync ID counter to avoid collisions with loaded animals
+        syncNextId(this.animals);
       }
     } catch {
       // First time — no saved state
@@ -172,6 +196,10 @@ export class GameScene extends Phaser.Scene {
   // ── Animal Spawning ─────────────────────────────────────────
 
   private spawnNewAnimal(): void {
+    // Population cap — don't overcrowd the centre
+    const nonPets = this.animals.filter((a) => a.state !== 'pet').length;
+    if (nonPets >= GameScene.MAX_ANIMALS) return;
+
     const species = pickRandomSpecies(this.unlockedSpecies);
 
     if (shouldSpawnSiblings()) {
@@ -189,6 +217,10 @@ export class GameScene extends Phaser.Scene {
     if (this.totalRescued >= required) {
       this.level++;
       this.unlockedSpecies = getSpeciesUnlocksForLevel(this.level);
+      const newSpecies = getSpeciesUnlocksForLevel(this.level).filter(
+        (s) => !getSpeciesUnlocksForLevel(this.level - 1).includes(s),
+      );
+      this.showLevelUpCelebration(this.level, newSpecies);
     }
 
     this.saveState();
@@ -213,14 +245,14 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Check for conflicts (only when no active conflict)
-    if (!this.activeConflict && this.animals.length >= 2) {
+    // Check for conflicts (only when no active conflict and viewing corridor/room)
+    if (!this.activeConflict && this.viewMode !== 'garden') {
       const shelteredAnimals = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding');
-      if (shouldSpawnConflict(shelteredAnimals)) {
-        this.activeConflict = generateConflict(shelteredAnimals);
-        if (this.activeConflict) {
-          this.showConflictPopup(this.activeConflict);
-        }
+      if (shelteredAnimals.length >= 2 && shouldSpawnConflict(shelteredAnimals)) {
+        // Pick two random animals for the conflict
+        const shuffled = [...shelteredAnimals].sort(() => Math.random() - 0.5);
+        this.activeConflict = generateConflict(shuffled[0], shuffled[1]);
+        this.showConflictPopup(this.activeConflict);
       }
     }
 
@@ -645,6 +677,8 @@ export class GameScene extends Phaser.Scene {
     if (animal.state !== 'pet') {
       this.gameContainer.add(
         createButton(this, cx - 120, btnY, '🍽️ Feed', () => {
+          if (this.processing) return;
+          this.processing = true;
           const idx = this.animals.findIndex((a) => a.id === animal.id);
           if (idx >= 0) {
             this.animals[idx] = applyFeeding(this.animals[idx]);
@@ -655,11 +689,14 @@ export class GameScene extends Phaser.Scene {
           }
           this.closePopup();
           this.renderView();
+          this.processing = false;
         }, { width: 95, fontSize: '15px' })
       );
 
       this.gameContainer.add(
         createButton(this, cx, btnY, '🎾 Play', () => {
+          if (this.processing) return;
+          this.processing = true;
           const idx = this.animals.findIndex((a) => a.id === animal.id);
           if (idx >= 0) {
             this.animals[idx] = applyPlay(this.animals[idx]);
@@ -670,6 +707,7 @@ export class GameScene extends Phaser.Scene {
           }
           this.closePopup();
           this.renderView();
+          this.processing = false;
         }, { width: 95, fontSize: '15px' })
       );
 
@@ -738,6 +776,37 @@ export class GameScene extends Phaser.Scene {
           this.renderView();
         }, { width: 200, fontSize: '16px', bgColour: '#2ecc71' })
       );
+
+      // Heal button for sick pets (pets can get sick in the garden too)
+      const petIllness = this.sickAnimals.get(animal.id);
+      if (petIllness) {
+        this.gameContainer.add(
+          this.add.text(cx, btnY + 65,
+            `${petIllness.emoji} Sick: ${petIllness.label}`, {
+            fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b',
+          }).setOrigin(0.5)
+        );
+
+        this.gameContainer.add(
+          createButton(this, cx, btnY + 95, '🏥 Take to Vet', () => {
+            this.closePopup();
+            this.saveState();
+            this.scene.start('VetScene', {
+              animal,
+              illness: petIllness,
+              allAnimals: this.animals,
+              onComplete: (updatedAnimals: Animal[], healed: boolean) => {
+                this.animals = updatedAnimals;
+                if (healed) {
+                  this.sickAnimals.delete(animal.id);
+                }
+                this.checkBadges();
+                this.saveState();
+              },
+            });
+          }, { width: 180, fontSize: '15px', bgColour: '#e74c3c' })
+        );
+      }
     }
 
     // Close button
@@ -973,6 +1042,23 @@ export class GameScene extends Phaser.Scene {
           this.add.text(cx + 30, cy - 20, happyEmoji, { fontSize: '14px' })
         );
 
+        // Sick indicator — alert player this pet needs vet attention
+        const petSickIllness = this.sickAnimals.get(pet.id);
+        if (petSickIllness) {
+          const sickLabel = this.add.text(cx, cy + 50, `${petSickIllness.emoji} Sick!`, {
+            fontSize: '12px', fontFamily: FONTS.body, color: '#c0392b',
+          }).setOrigin(0.5);
+          this.gameContainer.add(sickLabel);
+          // Pulse to draw attention
+          this.tweens.add({
+            targets: sickLabel,
+            alpha: 0.4,
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+          });
+        }
+
         sprite.on('pointerdown', () => this.showAnimalDetails(pet));
         this.gameContainer.add(sprite);
 
@@ -1038,7 +1124,8 @@ export class GameScene extends Phaser.Scene {
    * Check if animal just reached full bond, and if so, show collar picker.
    */
   private checkBondComplete(animal: Animal): void {
-    if (isBondComplete(animal) && animal.state !== 'pet') {
+    if (isBondComplete(animal) && animal.state !== 'pet' && !this.showingCollarPicker) {
+      this.showingCollarPicker = true;
       // Delay to show after current UI update
       this.time.delayedCall(300, () => {
         this.showCollarPicker(animal);
@@ -1148,8 +1235,10 @@ export class GameScene extends Phaser.Scene {
    * Complete the bonding process — animal becomes a pet.
    */
   private completeBonding(animal: Animal, collarColour: string): void {
+    this.showingCollarPicker = false;
     const idx = this.animals.findIndex((a) => a.id === animal.id);
     if (idx >= 0) {
+      if (this.animals[idx].state === 'pet') return; // already bonded (race guard)
       this.animals[idx].state = 'pet';
       this.animals[idx].collarColour = collarColour;
       this.totalBonded++;
@@ -1286,16 +1375,12 @@ export class GameScene extends Phaser.Scene {
       }).setOrigin(0.5)
     );
 
-    // Description
-    const animal1 = this.animals.find((a) => a.id === conflict.animalIds[0]);
-    const animal2 = conflict.animalIds[1] ? this.animals.find((a) => a.id === conflict.animalIds[1]) : undefined;
-
-    const conflictDesc = animal2
-      ? `${animal1?.name} and ${animal2?.name} are having a ${conflict.type.replace('_', ' ')}!`
-      : `${animal1?.name} is ${conflict.type === 'food_guarding' ? 'guarding their food' : 'being territorial'}!`;
+    // Description — use the pre-built description from generateConflict
+    const animal1 = this.animals.find((a) => a.id === conflict.animal1Id);
+    const animal2 = this.animals.find((a) => a.id === conflict.animal2Id);
 
     this.gameContainer.add(
-      this.add.text(width / 2, 110, conflictDesc, {
+      this.add.text(width / 2, 110, conflict.description, {
         fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
         wordWrap: { width: width - 60 }, align: 'center',
       }).setOrigin(0.5)
@@ -1331,18 +1416,23 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private resolveActiveConflict(action: ResolutionAction): void {
+  private resolveActiveConflict(actionDef: ResolutionDef): void {
     if (!this.activeConflict) return;
 
-    const result = resolveConflict(this.activeConflict, action.type, this.animals);
-    const effective = isResolutionEffective(this.activeConflict.type, action.type);
+    const result = resolveConflict(this.activeConflict.type, actionDef.action);
 
-    // Apply happiness changes
-    for (const updatedAnimal of result.updatedAnimals) {
-      const idx = this.animals.findIndex((a) => a.id === updatedAnimal.id);
-      if (idx >= 0) this.animals[idx] = updatedAnimal;
+    // Apply happiness boost to both conflict animals
+    for (const animalId of [this.activeConflict.animal1Id, this.activeConflict.animal2Id]) {
+      const idx = this.animals.findIndex((a) => a.id === animalId);
+      if (idx >= 0) {
+        this.animals[idx] = {
+          ...this.animals[idx],
+          happiness: Math.min(100, this.animals[idx].happiness + result.happinessBoost),
+        };
+      }
     }
 
+    const effective = result.effective;
     if (effective) {
       this.conflictsResolved++;
       AudioManager.getInstance().playSfx('heal_complete');
@@ -1386,6 +1476,105 @@ export class GameScene extends Phaser.Scene {
     );
 
     this.checkBadges();
+  }
+
+  // ── Level-Up Celebration ────────────────────────────────────
+
+  private showLevelUpCelebration(newLevel: number, unlockedSpecies: Species[]): void {
+    const { width, height } = this.scale;
+
+    // Play sound effect
+    AudioManager.getInstance().playSfx('upgrade_unlock');
+
+    // Container for all celebration elements (renders above everything)
+    const container = this.add.container(0, 0).setDepth(1000);
+
+    // Semi-transparent overlay
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55)
+      .setInteractive();
+    container.add(overlay);
+
+    // Main title
+    const title = this.add.text(width / 2, height / 2 - 60, `\u{1F389} Level Up! \u{1F389}`, {
+      fontSize: '36px', fontFamily: FONTS.title, color: '#ffd700',
+    }).setOrigin(0.5);
+    container.add(title);
+
+    // Level number
+    const levelText = this.add.text(width / 2, height / 2 - 20, `Level ${newLevel}`, {
+      fontSize: '24px', fontFamily: FONTS.body, color: COLOURS.white,
+    }).setOrigin(0.5);
+    container.add(levelText);
+
+    // Unlocked species list
+    if (unlockedSpecies.length > 0) {
+      const lines = unlockedSpecies.map(
+        (s) => `${this.speciesEmoji(s)} ${s.charAt(0).toUpperCase() + s.slice(1)} unlocked!`,
+      );
+      const unlockText = this.add.text(width / 2, height / 2 + 25, lines.join('\n'), {
+        fontSize: '20px', fontFamily: FONTS.body, color: '#2ecc71',
+        align: 'center',
+      }).setOrigin(0.5);
+      container.add(unlockText);
+    }
+
+    // Tap to dismiss hint
+    const hint = this.add.text(width / 2, height / 2 + 90, 'Tap to continue', {
+      fontSize: '14px', fontFamily: FONTS.body, color: '#aaa',
+    }).setOrigin(0.5);
+    container.add(hint);
+
+    // Animated sparkles / stars
+    const sparkleChars = ['\u2728', '\u2B50', '\u{1F31F}', '\u2734\uFE0F'];
+    const sparkles: Phaser.GameObjects.Text[] = [];
+    for (let i = 0; i < 12; i++) {
+      const sx = Phaser.Math.Between(40, width - 40);
+      const sy = Phaser.Math.Between(40, height - 40);
+      const sparkle = this.add.text(sx, sy,
+        sparkleChars[Phaser.Math.Between(0, sparkleChars.length - 1)],
+        { fontSize: `${Phaser.Math.Between(16, 30)}px` },
+      ).setOrigin(0.5).setAlpha(0);
+      container.add(sparkle);
+      sparkles.push(sparkle);
+
+      this.tweens.add({
+        targets: sparkle,
+        alpha: { from: 0, to: 1 },
+        y: sy - Phaser.Math.Between(20, 50),
+        duration: 800,
+        delay: Phaser.Math.Between(0, 600),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    }
+
+    // Title pulse animation
+    this.tweens.add({
+      targets: title,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Dismiss handler
+    const dismiss = () => {
+      this.tweens.killTweensOf(title);
+      sparkles.forEach((s) => this.tweens.killTweensOf(s));
+      container.destroy(true);
+    };
+
+    // Auto-dismiss after 3 seconds
+    const timer = this.time.delayedCall(3000, dismiss);
+
+    // Tap to dismiss early
+    overlay.on('pointerdown', () => {
+      timer.destroy();
+      dismiss();
+    });
   }
 
   // ── Helpers ─────────────────────────────────────────────────

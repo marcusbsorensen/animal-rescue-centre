@@ -47,6 +47,26 @@ export class AudioManager {
 
   /** Bind to a Phaser scene (call from each scene's create()) */
   setScene(scene: Phaser.Scene): void {
+    // Stop any sounds still playing on the old scene before switching
+    if (this.scene && this.scene !== scene) {
+      try {
+        // Cancel any running crossfade tweens on the old scene
+        if (this.crossfadeTween) {
+          this.crossfadeTween.stop();
+          this.crossfadeTween = null;
+        }
+        // Stop and destroy current music (it belongs to the old scene's sound manager)
+        if (this.currentMusic) {
+          this.currentMusic.stop();
+          this.currentMusic.destroy();
+          this.currentMusic = null;
+        }
+      } catch {
+        // Old scene may already be destroyed — safe to ignore
+        this.currentMusic = null;
+        this.crossfadeTween = null;
+      }
+    }
     this.scene = scene;
   }
 
@@ -157,6 +177,16 @@ export class AudioManager {
   toggleSfx(): boolean {
     this.state.sfxEnabled = !this.state.sfxEnabled;
     this.savePrefs();
+    return this.state.sfxEnabled;
+  }
+
+  /** Check if music is currently enabled */
+  isMusicOn(): boolean {
+    return this.state.musicEnabled;
+  }
+
+  /** Check if SFX is currently enabled */
+  isSfxOn(): boolean {
     return this.state.sfxEnabled;
   }
 

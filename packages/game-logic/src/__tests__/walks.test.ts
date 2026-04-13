@@ -184,3 +184,83 @@ describe('WALKABLE_SPECIES', () => {
     expect(WALKABLE_SPECIES).not.toContain('snake');
   });
 });
+
+// ── Edge cases an 8-year-old might trigger ──
+
+describe('walk edge cases', () => {
+  it('advanceWalk called after walk is already completed', () => {
+    let state = startWalk(makeAnimal(), 'park');
+    while (!state.completed) {
+      state = advanceWalk(state);
+    }
+    expect(state.completed).toBe(true);
+    // Kid keeps tapping — advance again past the end
+    const beyond = advanceWalk(state);
+    expect(beyond.completed).toBe(true);
+    expect(beyond.steps).toBe(state.steps + 1);
+    expect(beyond.currentEventIndex).toBe(state.currentEventIndex + 1);
+  });
+
+  it('advanceWalk called many times past completion does not crash', () => {
+    let state = startWalk(makeAnimal(), 'park');
+    // Advance 20 times regardless of maxSteps
+    for (let i = 0; i < 20; i++) {
+      state = advanceWalk(state);
+    }
+    expect(state.completed).toBe(true);
+    expect(state.steps).toBe(20);
+  });
+
+  it('handleRoadCrossingSuccess called twice keeps score the same', () => {
+    const state = startWalk(makeAnimal(), 'park');
+    const after1 = handleRoadCrossingSuccess(state);
+    const after2 = handleRoadCrossingSuccess(after1);
+    expect(after2.roadSafetyScore).toBe(100);
+    expect(after2.incidentCount).toBe(0);
+  });
+
+  it('handleRoadCrossingFail called twice stacks penalties', () => {
+    const state = startWalk(makeAnimal(), 'park');
+    const after1 = handleRoadCrossingFail(state);
+    const after2 = handleRoadCrossingFail(after1);
+    expect(after2.roadSafetyScore).toBe(50);
+    expect(after2.incidentCount).toBe(2);
+  });
+
+  it('handleRoadCrossingFail called 5 times clamps score at 0', () => {
+    let state = startWalk(makeAnimal(), 'park');
+    for (let i = 0; i < 5; i++) {
+      state = handleRoadCrossingFail(state);
+    }
+    expect(state.roadSafetyScore).toBe(0);
+    expect(state.incidentCount).toBe(5);
+  });
+
+  it('handleRoadCrossingFail called 10 times never goes negative', () => {
+    let state = startWalk(makeAnimal(), 'park');
+    for (let i = 0; i < 10; i++) {
+      state = handleRoadCrossingFail(state);
+    }
+    expect(state.roadSafetyScore).toBe(0);
+    expect(state.incidentCount).toBe(10);
+  });
+
+  it('calculateWalkRewards with extremely high incidentCount', () => {
+    const state = startWalk(makeAnimal(), 'park');
+    const rewards = calculateWalkRewards({ ...state, incidentCount: 999, completed: true });
+    expect(rewards.perfectWalk).toBe(false);
+    expect(rewards.bondIncrease).toBe(5);
+  });
+
+  it('generateWalkEvents with 0 steps returns empty array', () => {
+    const events = generateWalkEvents('park', 0);
+    expect(events).toHaveLength(0);
+  });
+
+  it('generateWalkEvents with 1 step ensures road crossing', () => {
+    const events = generateWalkEvents('forest', 1);
+    expect(events).toHaveLength(1);
+    // With 1 step and the guarantee logic, it should be a road crossing
+    expect(events).toContain('road_crossing');
+  });
+});

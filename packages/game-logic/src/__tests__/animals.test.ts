@@ -82,3 +82,69 @@ describe('animal variant assignment', () => {
     expect(SPECIES_VARIANTS.dog).toContain(b.variant);
   });
 });
+
+// ── Edge cases an 8-year-old might trigger ──
+
+describe('animals edge cases', () => {
+  it('spawnAnimal 1000 times produces all unique IDs', () => {
+    const ids = new Set<string>();
+    for (let i = 0; i < 1000; i++) {
+      const animal = spawnAnimal('cat');
+      ids.add(animal.id);
+    }
+    expect(ids.size).toBe(1000);
+  });
+
+  it('spawnAnimal rapid calls always produce valid animals', () => {
+    for (let i = 0; i < 100; i++) {
+      const animal = spawnAnimal('dog');
+      expect(animal.id).toBeTruthy();
+      expect(animal.name.length).toBeGreaterThan(0);
+      expect(animal.species).toBe('dog');
+      expect(animal.variant).toBeDefined();
+      expect(SPECIES_VARIANTS.dog).toContain(animal.variant);
+      expect(animal.state).toBe('arriving');
+    }
+  });
+
+  it('variant assignment covers all variants over many spawns', () => {
+    // Verify randomness produces all variants eventually
+    const allSpecies = ['cat', 'dog', 'fox', 'bunny', 'bat', 'parrot', 'snake'] as const;
+    for (const species of allSpecies) {
+      const seenVariants = new Set<string>();
+      const expectedVariants = SPECIES_VARIANTS[species];
+      for (let i = 0; i < 500; i++) {
+        seenVariants.add(pickRandomVariant(species));
+      }
+      // With 500 draws, all variants should appear
+      for (const v of expectedVariants) {
+        expect(seenVariants.has(v)).toBe(true);
+      }
+    }
+  });
+
+  it('pickRandomVariant always returns a string from the species variants', () => {
+    for (let i = 0; i < 100; i++) {
+      const v = pickRandomVariant('snake');
+      expect(typeof v).toBe('string');
+      expect(SPECIES_VARIANTS.snake).toContain(v);
+    }
+  });
+
+  it('spawnAnimal for every species produces valid roomId', () => {
+    const allSpecies = ['cat', 'dog', 'fox', 'bunny', 'bat', 'parrot', 'snake'] as const;
+    for (const species of allSpecies) {
+      const animal = spawnAnimal(species);
+      expect(animal.roomId).toBe(`room-${species}`);
+    }
+  });
+
+  it('spawnSiblingPair 100 times always links correctly', () => {
+    for (let i = 0; i < 100; i++) {
+      const [a, b] = spawnSiblingPair('cat');
+      expect(a.siblingId).toBe(b.id);
+      expect(b.siblingId).toBe(a.id);
+      expect(a.id).not.toBe(b.id);
+    }
+  });
+});

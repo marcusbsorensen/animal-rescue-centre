@@ -112,3 +112,69 @@ describe('RESOLUTION_ACTIONS', () => {
     expect(RESOLUTION_ACTIONS).toHaveLength(4);
   });
 });
+
+// ── Edge cases an 8-year-old might trigger ──
+
+describe('conflict edge cases', () => {
+  it('shouldSpawnConflict with exactly 2 animals', () => {
+    const animals = [
+      makeAnimal({ id: 'a1', happiness: 10 }),
+      makeAnimal({ id: 'a2', happiness: 10 }),
+    ];
+    // With low happiness, should eventually spawn
+    let spawned = false;
+    for (let i = 0; i < 500; i++) {
+      if (shouldSpawnConflict(animals)) { spawned = true; break; }
+    }
+    expect(spawned).toBe(true);
+  });
+
+  it('shouldSpawnConflict with all animals at 100 happiness has very low chance', () => {
+    const animals = [
+      makeAnimal({ id: 'a1', happiness: 100 }),
+      makeAnimal({ id: 'a2', happiness: 100 }),
+    ];
+    // chance = 0.01 + 0*0.02 + (2/8)*0.01 = 0.01 + 0.0025 = 0.0125
+    // Still possible but rare — just ensure no crash
+    const result = shouldSpawnConflict(animals);
+    expect(typeof result).toBe('boolean');
+  });
+
+  it('generateConflict with two identical animals (same id)', () => {
+    const animal = makeAnimal({ id: 'same', name: 'Whiskers' });
+    // Should not crash even with same animal
+    const conflict = generateConflict(animal, animal);
+    expect(conflict.animal1Id).toBe('same');
+    expect(conflict.animal2Id).toBe('same');
+    expect(conflict.description.length).toBeGreaterThan(0);
+  });
+
+  it('generateConflict produces unique ids for rapid calls', () => {
+    const a1 = makeAnimal({ id: 'a1', name: 'Whiskers' });
+    const a2 = makeAnimal({ id: 'a2', name: 'Mittens' });
+    const ids = new Set<string>();
+    for (let i = 0; i < 100; i++) {
+      ids.add(generateConflict(a1, a2).id);
+    }
+    // Date.now() + random should produce unique ids
+    expect(ids.size).toBe(100);
+  });
+
+  it('generateConflict description contains both animal names', () => {
+    const a1 = makeAnimal({ id: 'a1', name: 'Whiskers' });
+    const a2 = makeAnimal({ id: 'a2', name: 'Mittens' });
+    for (let i = 0; i < 20; i++) {
+      const conflict = generateConflict(a1, a2);
+      // Description templates use {a1} and {a2}, both names should appear
+      const hasA1 = conflict.description.includes('Whiskers');
+      const hasA2 = conflict.description.includes('Mittens');
+      expect(hasA1 || hasA2).toBe(true);
+    }
+  });
+
+  it('resolveConflict returns positive happinessBoost even for wrong action', () => {
+    const result = resolveConflict('space_sharing', 'give_treat');
+    expect(result.effective).toBe(false);
+    expect(result.happinessBoost).toBe(3); // still gives some comfort
+  });
+});

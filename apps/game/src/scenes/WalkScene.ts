@@ -14,6 +14,7 @@ import {
   SPECIES_COLOURS,
 } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
+import { AudioManager } from '../audio/AudioManager';
 import type { WalkState, WalkZone, WalkEventDef } from '@arc/game-logic';
 
 /**
@@ -32,6 +33,7 @@ export class WalkScene extends Phaser.Scene {
   private container!: Phaser.GameObjects.Container;
   private roadTimer?: Phaser.Time.TimerEvent;
   private roadTimeLeft = 3000;
+  private roadKeys: Phaser.Input.Keyboard.Key[] = [];
 
   constructor() {
     super({ key: 'WalkScene' });
@@ -50,8 +52,22 @@ export class WalkScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Start walk music
+    const audio = AudioManager.getInstance();
+    audio.setScene(this);
+    audio.playSceneMusic('walk');
+
     this.container = this.add.container(0, 0);
     this.renderView();
+
+    // Clean up keyboard listeners when scene shuts down
+    this.events.on('shutdown', () => {
+      this.cleanupRoadKeys();
+      if (this.roadTimer) {
+        this.roadTimer.destroy();
+        this.roadTimer = undefined;
+      }
+    });
   }
 
   private clearView(): void {
@@ -60,6 +76,16 @@ export class WalkScene extends Phaser.Scene {
       this.roadTimer.destroy();
       this.roadTimer = undefined;
     }
+    // Clean up any lingering keyboard handlers from road crossing
+    this.cleanupRoadKeys();
+  }
+
+  private cleanupRoadKeys(): void {
+    for (const key of this.roadKeys) {
+      key.removeAllListeners();
+      this.input.keyboard?.removeKey(key);
+    }
+    this.roadKeys = [];
   }
 
   private renderView(): void {
@@ -265,14 +291,16 @@ export class WalkScene extends Phaser.Scene {
     });
 
     // Keyboard support — Space or Enter to stop
+    this.cleanupRoadKeys(); // ensure no stale keys from previous crossing
     const spaceKey = this.input.keyboard?.addKey('SPACE');
     const enterKey = this.input.keyboard?.addKey('ENTER');
+    if (spaceKey) this.roadKeys.push(spaceKey);
+    if (enterKey) this.roadKeys.push(enterKey);
     const handler = () => {
       if (this.roadTimer) {
         this.roadTimer.destroy();
         this.roadTimer = undefined;
-        spaceKey?.off('down', handler);
-        enterKey?.off('down', handler);
+        this.cleanupRoadKeys();
         this.walkState = handleRoadCrossingSuccess(this.walkState!);
         this.showRoadResult(true);
       }
@@ -394,9 +422,8 @@ export class WalkScene extends Phaser.Scene {
 
     this.container.add(
       createButton(this, width / 2, height - 80, '✅ Back to Centre', () => {
-        if (this.onComplete) {
-          this.onComplete(this.allAnimals, { perfectWalk: rewards.perfectWalk });
-        }
+        this.registry.set('updatedAnimals', this.allAnimals);
+        this.registry.set('walkResult', { perfectWalk: rewards.perfectWalk });
         this.scene.start('GameScene');
       }, { width: 240 })
     );

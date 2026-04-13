@@ -9,6 +9,7 @@ import {
   SPECIES_COLOURS,
 } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
+import { AudioManager } from '../audio/AudioManager';
 import type { IllnessDef, HealAction } from '@arc/game-logic';
 
 /**
@@ -48,6 +49,11 @@ export class VetScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Start vet music
+    const audio = AudioManager.getInstance();
+    audio.setScene(this);
+    audio.playSceneMusic('vet');
+
     this.container = this.add.container(0, 0);
     this.renderView();
   }
@@ -191,9 +197,8 @@ export class VetScene extends Phaser.Scene {
     this.container.add(
       createTextButton(this, width / 2, height - 25,
         '← Back to centre (leave sick)', () => {
-          if (this.onComplete) {
-            this.onComplete(this.allAnimals, false);
-          }
+          this.registry.set('updatedAnimals', this.allAnimals);
+          this.registry.set('vetResult', { healed: false });
           this.scene.start('GameScene');
         })
     );
@@ -285,9 +290,8 @@ export class VetScene extends Phaser.Scene {
 
     this.container.add(
       createButton(this, width / 2, height / 2 + 70, '✅ Back to Centre', () => {
-        if (this.onComplete) {
-          this.onComplete(this.allAnimals, true);
-        }
+        this.registry.set('updatedAnimals', this.allAnimals);
+        this.registry.set('vetResult', { healed: true, animalId: this.animal.id });
         this.scene.start('GameScene');
       }, { width: 240 })
     );

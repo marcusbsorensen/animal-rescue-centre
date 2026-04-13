@@ -12,3 +12,9 @@ coverage/
 supabase/.temp/
 *.tsbuildinfo
 .vercel
+
+# Manus working directories
+arc-game-assets.zip
+arc-logo-final/
+manus-output-full/
+manus-variants/
