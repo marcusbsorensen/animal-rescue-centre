@@ -194,7 +194,7 @@ export class WalkScene extends Phaser.Scene {
     this.renderProgressBar(width);
 
     // Animal walking
-    const walkSprite = createAnimalSprite(this, width / 2, height / 2 - 40, this.animal, { width: 60, height: 48 });
+    const walkSprite = createAnimalSprite(this, width / 2, height / 2 - 40, this.animal, { width: 120, height: 96 });
     this.container.add(walkSprite);
 
     // Event display

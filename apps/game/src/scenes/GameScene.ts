@@ -606,8 +606,8 @@ export class GameScene extends Phaser.Scene {
       );
 
       // Story cards — one per animal, stacked vertically
-      const storyCardW = Math.min(380, width - 40);
-      const storyCardH = 105;
+      const storyCardW = Math.min(420, width - 40);
+      const storyCardH = 120;
       const storyGap = 12;
       let nextCardY = arriveY + 40;
 
@@ -634,20 +634,20 @@ export class GameScene extends Phaser.Scene {
         this.gameContainer.add(storyGfx);
 
         // Animal sprite on left side
-        const spriteX = cx - storyCardW / 2 + 50;
-        const sprite = createAnimalSprite(this, spriteX, cy - 8, animal, { width: 56, height: 46, interactive: true });
+        const spriteX = cx - storyCardW / 2 + 58;
+        const sprite = createAnimalSprite(this, spriteX, cy - 4, animal, { width: 90, height: 74, interactive: true });
         sprite.on('pointerdown', () => this.showAnimalDetails(animal));
         this.gameContainer.add(sprite);
 
         // Species emoji below sprite
         this.gameContainer.add(
-          this.add.text(spriteX, cy + 28, this.speciesEmoji(animal.species), {
+          this.add.text(spriteX, cy + 36, this.speciesEmoji(animal.species), {
             fontSize: '16px',
           }).setOrigin(0.5)
         );
 
         // Name + species label (right of sprite)
-        const textX = cx - storyCardW / 2 + 95;
+        const textX = cx - storyCardW / 2 + 115;
         const speciesLabel = animal.variant
           ? `${animal.variant} ${animal.species}`
           : animal.species;
@@ -658,7 +658,7 @@ export class GameScene extends Phaser.Scene {
         );
 
         // Arrival story text (the key part — shows who they are)
-        const storyTextW = storyCardW - 110;
+        const storyTextW = storyCardW - 140;
         this.gameContainer.add(
           this.add.text(textX, cy - storyCardH / 2 + 36, `"${animal.arrivalStory}"`, {
             fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.textLight,
@@ -755,7 +755,7 @@ export class GameScene extends Phaser.Scene {
         const y = startY + row * 120;
 
         // Animal sprite (real art or fallback rectangle)
-        const size = animal.state === 'pet' ? 55 : 45;
+        const size = animal.state === 'pet' ? 110 : 95;
         const sprite = createAnimalSprite(this, x, y, animal, {
           width: size, height: size * 0.8, interactive: true,
         });
@@ -842,7 +842,7 @@ export class GameScene extends Phaser.Scene {
     const cy = height / 2 - cardH / 2 + 30;
 
     // Species sprite
-    const detailSprite = createAnimalSprite(this, cx, cy + 10, animal, { width: 90, height: 72 });
+    const detailSprite = createAnimalSprite(this, cx, cy + 10, animal, { width: 160, height: 128 });
     this.gameContainer.add(detailSprite);
 
     // Name + species (with variant if available)
@@ -1110,7 +1110,7 @@ export class GameScene extends Phaser.Scene {
       const previewAnimals = hungry.slice(0, 6);
       const previewStartX = width / 2 - ((previewAnimals.length - 1) * 55) / 2;
       previewAnimals.forEach((a, i) => {
-        const sprite = createAnimalSprite(this, previewStartX + i * 55, height / 2 - 20, a, { width: 70, height: 56 });
+        const sprite = createAnimalSprite(this, previewStartX + i * 55, height / 2 - 20, a, { width: 100, height: 80 });
         this.gameContainer.add(sprite);
       });
 
@@ -1214,7 +1214,7 @@ export class GameScene extends Phaser.Scene {
         const collarColour = Phaser.Display.Color.HexStringToColor(collarHex).color;
 
         // Pet sprite (larger than shelter animals, with collar colour ring)
-        const sprite = createAnimalSprite(this, cx, cy, pet, { width: 55, height: 44, interactive: true });
+        const sprite = createAnimalSprite(this, cx, cy, pet, { width: 100, height: 80, interactive: true });
         if (sprite instanceof Phaser.GameObjects.Rectangle) {
           sprite.setStrokeStyle(3, collarColour);
         }
@@ -1377,7 +1377,7 @@ export class GameScene extends Phaser.Scene {
     );
 
     // Animal sprite (big, central)
-    const collarSprite = createAnimalSprite(this, width / 2, 170, animal, { width: 100, height: 80 });
+    const collarSprite = createAnimalSprite(this, width / 2, 170, animal, { width: 160, height: 128 });
     if (collarSprite instanceof Phaser.GameObjects.Rectangle) {
       collarSprite.setStrokeStyle(3, 0xffd700);
     }
@@ -1582,11 +1582,11 @@ export class GameScene extends Phaser.Scene {
 
     // Animal sprites
     if (animal1) {
-      const sprite1 = createAnimalSprite(this, width / 2 - 50, 170, animal1, { width: 80, height: 64 });
+      const sprite1 = createAnimalSprite(this, width / 2 - 50, 170, animal1, { width: 130, height: 104 });
       this.gameContainer.add(sprite1);
     }
     if (animal2) {
-      const sprite2 = createAnimalSprite(this, width / 2 + 50, 170, animal2, { width: 80, height: 64 });
+      const sprite2 = createAnimalSprite(this, width / 2 + 50, 170, animal2, { width: 130, height: 104 });
       this.gameContainer.add(sprite2);
     }
 

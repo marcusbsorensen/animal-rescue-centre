@@ -89,7 +89,7 @@ export class VetScene extends Phaser.Scene {
     );
 
     // Animal info
-    const animalSprite = createAnimalSprite(this, width / 2, 100, this.animal, { width: 90, height: 72 });
+    const animalSprite = createAnimalSprite(this, width / 2, 100, this.animal, { width: 150, height: 120 });
     if (animalSprite instanceof Phaser.GameObjects.Rectangle) {
       animalSprite.setStrokeStyle(2, 0xff6b6b);
     }
