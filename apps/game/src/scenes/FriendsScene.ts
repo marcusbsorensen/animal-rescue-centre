@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton } from '../ui/UIButton';
+import { createButton, createTextButton, createPanel, createAmbientParticles } from '../ui/UIButton';
 import { getSession } from '../lib/auth';
 import { addFriendByCode, getFriends, type Friend } from '../lib/friends';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -19,6 +19,20 @@ export class FriendsScene extends Phaser.Scene {
     this.errorText = this.add.text(width / 2, height - 40, '', {
       fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.error,
     }).setOrigin(0.5);
+
+    // Fade-in transition
+    this.cameras.main.setAlpha(0);
+    this.tweens.add({
+      targets: this.cameras.main,
+      alpha: 1,
+      duration: 400,
+      ease: 'Sine.easeOut',
+    });
+
+    // Subtle ambient particles
+    createAmbientParticles(this, ['⭐', '👥'], {
+      count: 8, minAlpha: 0.06, maxAlpha: 0.15, speed: 0.5,
+    }).setDepth(-1);
 
     this.showFriendsList();
   }
@@ -86,10 +100,18 @@ export class FriendsScene extends Phaser.Scene {
     } else {
       let y = 260;
       friends.forEach((friend) => {
+        // Shadow card behind each friend row
+        this.container.add(
+          createPanel(this, width / 2, y, width - 60, 44, {
+            fillColour: 0xffffff,
+            borderColour: 0xd4c8b8,
+            borderWidth: 1,
+            radius: 10,
+          })
+        );
         const row = this.add.text(width / 2, y,
           `${friend.avatarEmoji}  ${friend.username}`, {
           fontSize: '22px', fontFamily: FONTS.body, color: COLOURS.text,
-          backgroundColor: COLOURS.inputBg,
           padding: { x: 16, y: 8 },
         }).setOrigin(0.5);
         this.container.add(row);

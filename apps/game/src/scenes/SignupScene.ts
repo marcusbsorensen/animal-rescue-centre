@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS } from '../ui/constants';
-import { createButton, createTextButton } from '../ui/UIButton';
+import { createButton, createTextButton, createPanel, createPillTitle, createAmbientParticles } from '../ui/UIButton';
 import { getAvailableUsernames, signup } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 
@@ -24,6 +24,21 @@ export class SignupScene extends Phaser.Scene {
 
   create(): void {
     const { width, height } = this.scale;
+
+    // Background fill
+    this.add.rectangle(width / 2, height / 2, width, height,
+      Phaser.Display.Color.HexStringToColor(COLOURS.bgDark).color);
+
+    // Ambient particles behind everything
+    createAmbientParticles(this, ['🐾', '⭐', '✨', '🌱'], {
+      count: 10, minAlpha: 0.06, maxAlpha: 0.15,
+    });
+
+    // Central card panel
+    createPanel(this, width / 2, height / 2, width - 40, height - 40, {
+      fillColour: 0xffffff, fillAlpha: 0.92, radius: 20,
+    });
+
     this.container = this.add.container(0, 0);
 
     this.errorText = this.add.text(width / 2, height - 40, '', {
@@ -31,6 +46,10 @@ export class SignupScene extends Phaser.Scene {
       fontFamily: FONTS.body,
       color: COLOURS.error,
     }).setOrigin(0.5);
+
+    // Fade-in transition
+    this.cameras.main.setAlpha(0);
+    this.tweens.add({ targets: this.cameras.main, alpha: 1, duration: 300 });
 
     this.showUsernameStep();
   }
@@ -52,9 +71,9 @@ export class SignupScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      this.add.text(width / 2, 60, "Let's make your rescue centre!", {
-        fontSize: '32px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 60, "Let's make your rescue centre!", {
+        bgColour: 0x5AAE4A, fontSize: '24px',
+      })
     );
 
     this.container.add(
@@ -118,9 +137,9 @@ export class SignupScene extends Phaser.Scene {
     const { width } = this.scale;
 
     this.container.add(
-      this.add.text(width / 2, 40, `Hi, ${this.selectedUsername}!`, {
-        fontSize: '28px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 40, `Hi, ${this.selectedUsername}!`, {
+        bgColour: 0x5AAE4A, fontSize: '22px',
+      })
     );
 
     this.container.add(
@@ -134,6 +153,16 @@ export class SignupScene extends Phaser.Scene {
     const emojiSize = 48;
     const startX = width / 2 - (cols * emojiSize) / 2 + emojiSize / 2;
     const startY = 120;
+
+    // Panel behind emoji grid
+    const emojiRows = Math.ceil(AVATAR_EMOJIS.length / cols);
+    this.container.add(
+      createPanel(this, width / 2, startY + (emojiRows * emojiSize) / 2 - emojiSize / 2,
+        cols * emojiSize + 20, emojiRows * emojiSize + 16, {
+        fillColour: 0xf5efe4, fillAlpha: 0.6, radius: 12,
+        borderColour: 0xd4c8b8, borderWidth: 1,
+      })
+    );
 
     AVATAR_EMOJIS.forEach((emoji, i) => {
       const row = Math.floor(i / cols);
@@ -162,6 +191,15 @@ export class SignupScene extends Phaser.Scene {
 
     const colourSize = 50;
     const colourStartX = width / 2 - (AVATAR_BG_COLOURS.length * colourSize) / 2 + colourSize / 2;
+
+    // Panel behind colour swatches
+    this.container.add(
+      createPanel(this, width / 2, colourStartY + 50,
+        AVATAR_BG_COLOURS.length * colourSize + 20, 60, {
+        fillColour: 0xf5efe4, fillAlpha: 0.6, radius: 12,
+        borderColour: 0xd4c8b8, borderWidth: 1,
+      })
+    );
 
     AVATAR_BG_COLOURS.forEach((colour, i) => {
       const swatch = this.add.rectangle(
@@ -239,17 +277,28 @@ export class SignupScene extends Phaser.Scene {
 
     const { width } = this.scale;
 
-    this.pinTitleText = this.add.text(width / 2, 60,
+    const pinTitleContainer = createPillTitle(this, width / 2, 60,
       confirmMode ? 'Confirm your PIN' : 'Choose a secret PIN', {
-      fontSize: '28px', fontFamily: FONTS.title, color: COLOURS.text,
-    }).setOrigin(0.5);
-    this.container.add(this.pinTitleText);
+      bgColour: 0xD4783C, fontSize: '22px',
+    });
+    this.pinTitleText = pinTitleContainer.list.find(
+      (obj): obj is Phaser.GameObjects.Text => obj instanceof Phaser.GameObjects.Text
+    )!;
+    this.container.add(pinTitleContainer);
 
     this.container.add(
       this.add.text(width / 2, 100,
         confirmMode ? 'Type the same 4 numbers again:' : 'Type 4 numbers to keep your account safe:', {
         fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
+    );
+
+    // PIN dots panel
+    this.container.add(
+      createPanel(this, width / 2, 160, 220, 60, {
+        fillColour: 0xf5efe4, fillAlpha: 1, radius: 12,
+        borderColour: 0xd4c8b8, borderWidth: 2,
+      })
     );
 
     // PIN display (dots)
@@ -280,19 +329,14 @@ export class SignupScene extends Phaser.Scene {
         const x = width / 2 + (ci - 1) * (btnSize + gap);
         const y = padStartY + ri * (btnSize + gap);
 
-        const bg = this.add.rectangle(x, y, btnSize, btnSize,
-          Phaser.Display.Color.HexStringToColor(COLOURS.inputBg).color
-        ).setInteractive({ useHandCursor: true })
-          .setStrokeStyle(1, Phaser.Display.Color.HexStringToColor(COLOURS.inputBorder).color);
-
-        const label = this.add.text(x, y, digit, {
-          fontSize: '28px', fontFamily: FONTS.body, color: COLOURS.text,
-        }).setOrigin(0.5);
-
-        bg.on('pointerdown', () => this.handlePinInput(digit));
-
-        this.container.add(bg);
-        this.container.add(label);
+        const bgColour = digit === '✓' ? COLOURS.primary
+          : digit === '⌫' ? COLOURS.warm : '#f5efe4';
+        const btn = createButton(this, x, y, digit, () => this.handlePinInput(digit), {
+          width: btnSize, height: btnSize, radius: 12,
+          bgColour,
+          fontSize: (digit === '✓' || digit === '⌫') ? '24px' : '28px',
+        });
+        this.container.add(btn);
       });
     });
 
@@ -378,9 +422,9 @@ export class SignupScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      this.add.text(width / 2, 60, 'Almost there!', {
-        fontSize: '28px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 60, 'Almost there!', {
+        bgColour: 0x5AAE4A, fontSize: '24px',
+      })
     );
 
     this.container.add(

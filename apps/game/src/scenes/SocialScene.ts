@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, GIFT_MESSAGES } from '../ui/constants';
-import { createButton, createTextButton } from '../ui/UIButton';
+import { createButton, createTextButton, createPanel, createAmbientParticles } from '../ui/UIButton';
 import { getFriends, type Friend } from '../lib/friends';
 import {
   sendGift,
@@ -65,6 +65,15 @@ export class SocialScene extends Phaser.Scene {
         // Offline or not logged in
       }
     }
+
+    // Fade-in transition
+    this.cameras.main.setAlpha(0);
+    this.tweens.add({
+      targets: this.cameras.main,
+      alpha: 1,
+      duration: 400,
+      ease: 'Sine.easeOut',
+    });
 
     this.renderView();
   }
@@ -170,10 +179,14 @@ export class SocialScene extends Phaser.Scene {
       const message = GIFT_MESSAGES.find((m) => m.code === gift.messagePresetCode);
       const giftDef = GIFT_TYPES.find((g) => g.type === gift.giftType);
 
-      // Gift card
+      // Gift card (panel with shadow)
       this.container.add(
-        this.add.rectangle(width / 2, y, width - 40, 50, 0xffffff)
-          .setStrokeStyle(2, 0xc8b8a4)
+        createPanel(this, width / 2, y, width - 40, 50, {
+          fillColour: 0xffffff,
+          borderColour: 0xc8b8a4,
+          borderWidth: 2,
+          radius: 10,
+        })
       );
 
       // From
@@ -278,9 +291,13 @@ export class SocialScene extends Phaser.Scene {
       const y = giftY + 35;
       const isSelected = this.selectedGiftType === gift.type;
 
-      const bg = this.add.rectangle(x, y, 65, 50,
-        isSelected ? 0x4a9c5d : 0xffffff
-      ).setStrokeStyle(2, 0xc8b8a4)
+      const panel = createPanel(this, x, y, 65, 50, {
+        fillColour: isSelected ? 0x4a9c5d : 0xffffff,
+        borderColour: 0xc8b8a4,
+        borderWidth: 2,
+        radius: 8,
+      });
+      const bg = this.add.rectangle(x, y, 65, 50, 0x000000, 0)
         .setInteractive({ useHandCursor: true });
 
       const emoji = this.add.text(x, y - 8, gift.emoji, {
@@ -297,6 +314,7 @@ export class SocialScene extends Phaser.Scene {
         this.renderView();
       });
 
+      this.container.add(panel);
       this.container.add(bg);
       this.container.add(emoji);
       this.container.add(label);
@@ -356,6 +374,12 @@ export class SocialScene extends Phaser.Scene {
             this.selectedMessage = undefined;
             this.loading = false;
             this.showToast('Gift sent! 🎉');
+            // Celebration particles
+            const particles = createAmbientParticles(this, ['🎉', '🎁', '💌', '✨'], {
+              count: 16, minAlpha: 0.3, maxAlpha: 0.7, speed: 2,
+            });
+            particles.setDepth(90);
+            this.time.delayedCall(4000, () => particles.destroy());
             this.renderView();
           } catch (err) {
             this.loading = false;
@@ -469,8 +493,12 @@ export class SocialScene extends Phaser.Scene {
 
       // Token display (for copying)
       this.container.add(
-        this.add.rectangle(width / 2, startY + 155, 300, 40, 0xffffff)
-          .setStrokeStyle(2, 0x4a9c5d)
+        createPanel(this, width / 2, startY + 155, 300, 40, {
+          fillColour: 0xffffff,
+          borderColour: 0x4a9c5d,
+          borderWidth: 2,
+          radius: 10,
+        })
       );
       this.container.add(
         this.add.text(width / 2, startY + 155, this.showcaseToken, {

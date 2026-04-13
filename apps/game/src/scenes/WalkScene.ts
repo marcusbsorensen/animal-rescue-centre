@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
+import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   startWalk,
   advanceWalk,
@@ -56,6 +56,10 @@ export class WalkScene extends Phaser.Scene {
     const audio = AudioManager.getInstance();
     audio.setScene(this);
     audio.playSceneMusic('walk');
+
+    // Fade-in transition
+    this.cameras.main.setAlpha(0);
+    this.tweens.add({ targets: this.cameras.main, alpha: 1, duration: 400, ease: 'Power2' });
 
     this.container = this.add.container(0, 0);
     this.renderView();
@@ -120,6 +124,10 @@ export class WalkScene extends Phaser.Scene {
 
     WALK_ZONES.forEach((zone, i) => {
       const y = 130 + i * 100;
+
+      // Card shadow
+      const shadow = this.add.rectangle(width / 2 + 3, y + 4, width - 80, 80, 0x000000, 0.1);
+      this.container.add(shadow);
 
       const bg = this.add.rectangle(width / 2, y, width - 80, 80, 0xffffff)
         .setStrokeStyle(2, 0xd4c8b8)
@@ -231,10 +239,11 @@ export class WalkScene extends Phaser.Scene {
 
     this.renderProgressBar(width);
 
-    // Danger zone visual
+    // Danger zone visual — panel with shadow
     this.container.add(
-      this.add.rectangle(width / 2, height / 2 - 20, width - 40, 200, 0xffe0e0)
-        .setStrokeStyle(3, 0xe74c3c)
+      createPanel(this, width / 2, height / 2 - 20, width - 40, 200, {
+        fillColour: 0xffe0e0, borderColour: 0xe74c3c, borderWidth: 3, shadow: true,
+      })
     );
 
     this.container.add(
@@ -419,6 +428,11 @@ export class WalkScene extends Phaser.Scene {
         }).setOrigin(0.5)
       );
     });
+
+    // Ambient celebration particles
+    this.container.add(
+      createAmbientParticles(this, ['⭐', '🐾', '🌟'], { count: 10, minAlpha: 0.1, maxAlpha: 0.25 })
+    );
 
     this.container.add(
       createButton(this, width / 2, height - 80, '✅ Back to Centre', () => {

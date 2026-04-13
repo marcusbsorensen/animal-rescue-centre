@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
+import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   generateKitchenRound,
   isFoodValidForSpecies,
@@ -71,6 +71,10 @@ export class KitchenMinigameScene extends Phaser.Scene {
     audio.setScene(this);
     audio.playSceneMusic('kitchen');
 
+    // Fade-in transition
+    this.cameras.main.setAlpha(0);
+    this.tweens.add({ targets: this.cameras.main, alpha: 1, duration: 400, ease: 'Power2' });
+
     // Background — kitchen art or warm colour fallback
     if (this.textures.exists('bg-kitchen')) {
       const bg = this.add.image(width / 2, height / 2, 'bg-kitchen');
@@ -123,7 +127,8 @@ export class KitchenMinigameScene extends Phaser.Scene {
       const animal = animals[i];
       const x = startX + i * spacing;
 
-      // Bowl background
+      // Bowl shadow + background
+      this.add.rectangle(x + 3, bowlY + 4, 120, 90, 0x000000, 0.1);
       const bowlBg = this.add.rectangle(x, bowlY, 120, 90, 0xffffff)
         .setStrokeStyle(2, SPECIES_COLOURS[animal.species], 0.8);
 
@@ -170,6 +175,8 @@ export class KitchenMinigameScene extends Phaser.Scene {
     const surfaceY = 160;
     const surfaceH = 200;
 
+    // Prep surface shadow
+    this.add.rectangle(width / 2 + 3, surfaceY + surfaceH / 2 + 4, width - 60, surfaceH, 0x000000, 0.1);
     this.add.rectangle(width / 2, surfaceY + surfaceH / 2, width - 60, surfaceH, 0xf5efe4)
       .setStrokeStyle(2, 0xd4c8b8);
 
@@ -473,6 +480,9 @@ export class KitchenMinigameScene extends Phaser.Scene {
       fontFamily: FONTS.body,
       color: COLOURS.textLight,
     }).setOrigin(0.5);
+
+    // Ambient celebration particles
+    createAmbientParticles(this, ['🍽️', '⭐'], { count: 10, minAlpha: 0.1, maxAlpha: 0.25 });
 
     createButton(this, width / 2, height / 2 + 60, '✅ Back to Centre', () => {
       this.exitMinigame();

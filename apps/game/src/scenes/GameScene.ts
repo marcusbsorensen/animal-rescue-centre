@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species, GameState } from '@arc/shared-types';
 import { COLOURS, FONTS, pluralSpecies } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
+import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
 import {
@@ -271,6 +271,9 @@ export class GameScene extends Phaser.Scene {
 
   private renderView(): void {
     this.clearView();
+    // Fade-in transition
+    this.cameras.main.setAlpha(0.7);
+    this.tweens.add({ targets: this.cameras.main, alpha: 1, duration: 200 });
     // Transition music to match current view
     const audio = AudioManager.getInstance();
     const sceneMap: Record<ViewMode, 'corridor' | 'room' | 'kitchen' | 'garden'> = {
@@ -302,7 +305,7 @@ export class GameScene extends Phaser.Scene {
 
     // Thin accent line at bottom of bar
     const accentGfx = this.add.graphics();
-    accentGfx.fillStyle(0x4a9c5d, 0.6);
+    accentGfx.fillStyle(0x5AAE4A, 0.6);
     accentGfx.fillRect(0, barH - 3, width, 3);
     this.uiContainer.add(accentGfx);
 
@@ -310,7 +313,7 @@ export class GameScene extends Phaser.Scene {
     const lvlX = 12;
     const lvlY = barH / 2;
     const lvlBadge = this.add.graphics();
-    lvlBadge.fillStyle(0x4a9c5d, 1);
+    lvlBadge.fillStyle(0x5AAE4A, 1);
     lvlBadge.fillRoundedRect(lvlX, lvlY - 14, 56, 28, 14);
     this.uiContainer.add(lvlBadge);
 
@@ -419,6 +422,9 @@ export class GameScene extends Phaser.Scene {
           Phaser.Display.Color.HexStringToColor('#f5efe4').color
         ).setOrigin(0.5)
       );
+      this.gameContainer.add(
+        createAmbientParticles(this, ['\uD83D\uDC3E', '\u2B50'], { count: 8, minAlpha: 0.04, maxAlpha: 0.1 })
+      );
     }
 
     // Title
@@ -443,8 +449,10 @@ export class GameScene extends Phaser.Scene {
       const count = roomAnimals.length;
       const colour = SPECIES_COLOURS[species];
 
-      // Solid white card with coloured top stripe
+      // Solid white card with coloured top stripe + shadow
       const cardGfx = this.add.graphics();
+      cardGfx.fillStyle(0x000000, 0.1);
+      cardGfx.fillRoundedRect(x - doorWidth / 2 + 3, y - doorHeight / 2 + 4, doorWidth, doorHeight, 12);
       cardGfx.fillStyle(0xffffff, 0.92);
       cardGfx.fillRoundedRect(x - doorWidth / 2, y - doorHeight / 2, doorWidth, doorHeight, 12);
       cardGfx.fillStyle(colour, 1);
@@ -490,41 +498,94 @@ export class GameScene extends Phaser.Scene {
           { bgColour: 0xE67E22, fontSize: '17px' })
       );
 
-      // Animal cards with backing panels
-      const cardW = 100;
-      const cardH = 110;
-      const maxShow = Math.min(arriving.length, 4);
-      const arrCardStartX = width / 2 - ((maxShow - 1) * (cardW + 10)) / 2;
+      // Story cards — one per animal, stacked vertically
+      const storyCardW = Math.min(380, width - 40);
+      const storyCardH = 105;
+      const storyGap = 12;
+      let nextCardY = arriveY + 40;
 
-      arriving.slice(0, maxShow).forEach((animal, i) => {
-        const ax = arrCardStartX + i * (cardW + 10);
-        const ay = arriveY + 75;
+      arriving.forEach((animal) => {
+        nextCardY += storyCardH / 2 + 4;
+        const cy = nextCardY;
+        const cx = width / 2;
+        const speciesColour = SPECIES_COLOURS[animal.species];
 
-        // White card backing
-        const arrCard = this.add.graphics();
-        arrCard.fillStyle(0xffffff, 0.9);
-        arrCard.fillRoundedRect(ax - cardW / 2, ay - cardH / 2, cardW, cardH, 10);
-        arrCard.lineStyle(2, 0xE67E22, 0.6);
-        arrCard.strokeRoundedRect(ax - cardW / 2, ay - cardH / 2, cardW, cardH, 10);
-        this.gameContainer.add(arrCard);
+        // Card background with shadow + species-coloured left accent
+        const storyGfx = this.add.graphics();
+        // Drop shadow
+        storyGfx.fillStyle(0x000000, 0.1);
+        storyGfx.fillRoundedRect(cx - storyCardW / 2 + 3, cy - storyCardH / 2 + 4, storyCardW, storyCardH, 12);
+        // White card
+        storyGfx.fillStyle(0xffffff, 0.95);
+        storyGfx.fillRoundedRect(cx - storyCardW / 2, cy - storyCardH / 2, storyCardW, storyCardH, 12);
+        // Species-coloured left accent strip
+        storyGfx.fillStyle(speciesColour, 1);
+        storyGfx.fillRoundedRect(cx - storyCardW / 2, cy - storyCardH / 2, 8, storyCardH, { tl: 12, tr: 0, bl: 12, br: 0 });
+        // Subtle orange top border
+        storyGfx.lineStyle(1.5, 0xE67E22, 0.3);
+        storyGfx.strokeRoundedRect(cx - storyCardW / 2, cy - storyCardH / 2, storyCardW, storyCardH, 12);
+        this.gameContainer.add(storyGfx);
 
-        // Animal sprite
-        const sprite = createAnimalSprite(this, ax, ay - 12, animal, { width: 64, height: 52, interactive: true });
+        // Animal sprite on left side
+        const spriteX = cx - storyCardW / 2 + 50;
+        const sprite = createAnimalSprite(this, spriteX, cy - 8, animal, { width: 56, height: 46, interactive: true });
         sprite.on('pointerdown', () => this.showAnimalDetails(animal));
         this.gameContainer.add(sprite);
 
-        // Name below
+        // Species emoji below sprite
         this.gameContainer.add(
-          this.add.text(ax, ay + 32, animal.name, {
-            fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text,
+          this.add.text(spriteX, cy + 28, this.speciesEmoji(animal.species), {
+            fontSize: '16px',
           }).setOrigin(0.5)
         );
+
+        // Name + species label (right of sprite)
+        const textX = cx - storyCardW / 2 + 95;
+        const speciesLabel = animal.variant
+          ? `${animal.variant} ${animal.species}`
+          : animal.species;
+        this.gameContainer.add(
+          this.add.text(textX, cy - storyCardH / 2 + 16, `${animal.name} the ${speciesLabel}`, {
+            fontSize: '15px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+          }).setOrigin(0)
+        );
+
+        // Arrival story text (the key part — shows who they are)
+        const storyTextW = storyCardW - 110;
+        this.gameContainer.add(
+          this.add.text(textX, cy - storyCardH / 2 + 36, `"${animal.arrivalStory}"`, {
+            fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.textLight,
+            fontStyle: 'italic', wordWrap: { width: storyTextW }, lineSpacing: 2,
+          }).setOrigin(0)
+        );
+
+        // Per-animal "Welcome" text button on right
+        const welcomeX = cx + storyCardW / 2 - 16;
+        const welcomeBtn = this.add.text(welcomeX, cy, '🏠', {
+          fontSize: '22px',
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        welcomeBtn.on('pointerdown', () => {
+          if (this.processing) return;
+          this.processing = true;
+          animal.state = 'sheltered';
+          AudioManager.getInstance().playSfx('animal_arrive');
+          this.saveState();
+          this.time.delayedCall(100, () => {
+            this.processing = false;
+            this.renderView();
+          });
+        });
+        welcomeBtn.on('pointerover', () => welcomeBtn.setScale(1.2));
+        welcomeBtn.on('pointerout', () => welcomeBtn.setScale(1));
+        this.gameContainer.add(welcomeBtn);
+
+        nextCardY += storyCardH / 2 + storyGap;
       });
 
-      // "Accept all" button with double-click guard
-      const acceptBtnY = arriveY + 75 + cardH / 2 + 25;
+      // "Welcome all" button at bottom
+      const acceptBtnY = nextCardY + 20;
       this.gameContainer.add(
-        createButton(this, width / 2, acceptBtnY, '✅ Welcome them in!', () => {
+        createButton(this, width / 2, acceptBtnY, '✅ Welcome them all in!', () => {
           if (this.processing) return;
           this.processing = true;
           arriving.forEach((a) => { a.state = 'sheltered'; });
@@ -534,7 +595,7 @@ export class GameScene extends Phaser.Scene {
             this.processing = false;
             this.renderView();
           });
-        }, { width: 280, fontSize: '18px' })
+        }, { width: 300, fontSize: '18px' })
       );
     }
 
@@ -613,7 +674,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.gameContainer.add(
-      createPillTitle(this, width / 2, 55, `${this.speciesEmoji(species)} ${species.charAt(0).toUpperCase() + species.slice(1)} Room`, { bgColour: 0x4a9c5d, fontSize: '20px' })
+      createPillTitle(this, width / 2, 55, `${this.speciesEmoji(species)} ${species.charAt(0).toUpperCase() + species.slice(1)} Room`, { bgColour: 0x5AAE4A, fontSize: '20px' })
     );
 
     if (roomAnimals.length === 0) {
@@ -713,9 +774,13 @@ export class GameScene extends Phaser.Scene {
       .setInteractive();
     this.gameContainer.add(overlay);
 
-    // Card
+    // Card with shadow
     const cardW = 380;
     const cardH = 400;
+    const cardShadow = this.add.graphics();
+    cardShadow.fillStyle(0x000000, 0.1);
+    cardShadow.fillRoundedRect(width / 2 - cardW / 2 + 3, height / 2 - cardH / 2 + 4, cardW, cardH, 14);
+    this.gameContainer.add(cardShadow);
     const card = this.add.rectangle(width / 2, height / 2, cardW, cardH, 0xffffff)
       .setStrokeStyle(2, 0x000000, 0.2);
     this.gameContainer.add(card);

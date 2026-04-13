@@ -173,7 +173,7 @@ export function createPillTitle(
   const textColour = options?.textColour ?? '#ffffff';
   const padX = options?.padX ?? 28;
   const padY = options?.padY ?? 10;
-  const bgColour = options?.bgColour ?? 0x4a9c5d;
+  const bgColour = options?.bgColour ?? 0x5AAE4A;
   const shadow = options?.shadow ?? true;
 
   const text = scene.add.text(0, 0, label, {

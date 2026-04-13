@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
+import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   applyHealStep,
   HEAL_ACTIONS,
@@ -54,6 +54,10 @@ export class VetScene extends Phaser.Scene {
     audio.setScene(this);
     audio.playSceneMusic('vet');
 
+    // Fade-in transition
+    this.cameras.main.setAlpha(0);
+    this.tweens.add({ targets: this.cameras.main, alpha: 1, duration: 400, ease: 'Power2' });
+
     this.container = this.add.container(0, 0);
     this.renderView();
   }
@@ -71,9 +75,13 @@ export class VetScene extends Phaser.Scene {
       return;
     }
 
-    // Background — vet clinic feel
+    // Background — vet clinic feel (with subtle inner shadow via slightly offset dark rect)
     this.container.add(
       this.add.rectangle(width / 2, height / 2, width, height, 0xf0f8ff)
+    );
+    // Soft inner shadow at top edge
+    this.container.add(
+      this.add.rectangle(width / 2, 3, width, 6, 0x000000, 0.04)
     );
 
     // Title
@@ -158,6 +166,10 @@ export class VetScene extends Phaser.Scene {
       const row = Math.floor(i / actionsPerRow);
       const x = 30 + col * actionW + actionW / 2;
       const y = 330 + row * 90;
+
+      // Treatment card shadow
+      const cardShadow = this.add.rectangle(x + 3, y + 4, actionW - 10, 75, 0x000000, 0.1);
+      this.container.add(cardShadow);
 
       const bg = this.add.rectangle(x, y, actionW - 10, 75, 0xffffff)
         .setStrokeStyle(2, 0xb8a898)
@@ -285,6 +297,11 @@ export class VetScene extends Phaser.Scene {
     if (idx >= 0) {
       this.allAnimals[idx].bondLevel = Math.min(100, this.allAnimals[idx].bondLevel + 8);
     }
+
+    // Ambient celebration particles
+    this.container.add(
+      createAmbientParticles(this, ['💚', '⭐', '✨'], { count: 10, minAlpha: 0.1, maxAlpha: 0.25 })
+    );
 
     this.container.add(
       createButton(this, width / 2, height / 2 + 70, '✅ Back to Centre', () => {

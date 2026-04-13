@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton } from '../ui/UIButton';
+import { createButton, createTextButton, createPanel, createPillTitle, createAmbientParticles } from '../ui/UIButton';
 import { getRememberedUsernames, login, searchUsername } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 
@@ -16,11 +16,30 @@ export class LoginScene extends Phaser.Scene {
 
   create(): void {
     const { width, height } = this.scale;
+
+    // Background fill
+    this.add.rectangle(width / 2, height / 2, width, height,
+      Phaser.Display.Color.HexStringToColor(COLOURS.bgDark).color);
+
+    // Ambient particles behind everything
+    createAmbientParticles(this, ['🐾', '❤️', '⭐', '✨'], {
+      count: 10, minAlpha: 0.06, maxAlpha: 0.15,
+    });
+
+    // Central card panel
+    createPanel(this, width / 2, height / 2, width - 40, height - 40, {
+      fillColour: 0xffffff, fillAlpha: 0.92, radius: 20,
+    });
+
     this.container = this.add.container(0, 0);
 
     this.errorText = this.add.text(width / 2, height - 40, '', {
       fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.error,
     }).setOrigin(0.5);
+
+    // Fade-in transition
+    this.cameras.main.setAlpha(0);
+    this.tweens.add({ targets: this.cameras.main, alpha: 1, duration: 300 });
 
     this.showUsernameSelect();
   }
@@ -41,9 +60,9 @@ export class LoginScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      this.add.text(width / 2, 60, 'Welcome back!', {
-        fontSize: '32px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 60, 'Welcome back!', {
+        bgColour: 0x5AAE4A, fontSize: '28px',
+      })
     );
 
     this.container.add(
@@ -90,9 +109,9 @@ export class LoginScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      this.add.text(width / 2, 60, 'Find your username', {
-        fontSize: '28px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 60, 'Find your username', {
+        bgColour: 0x5AAE4A, fontSize: '24px',
+      })
     );
 
     this.container.add(
@@ -167,15 +186,23 @@ export class LoginScene extends Phaser.Scene {
     const { width } = this.scale;
 
     this.container.add(
-      this.add.text(width / 2, 60, `Hi, ${this.selectedUsername}!`, {
-        fontSize: '28px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 60, `Hi, ${this.selectedUsername}!`, {
+        bgColour: 0x5AAE4A, fontSize: '24px',
+      })
     );
 
     this.container.add(
       this.add.text(width / 2, 110, 'Enter your PIN:', {
         fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
+    );
+
+    // PIN dots panel
+    this.container.add(
+      createPanel(this, width / 2, 170, 220, 60, {
+        fillColour: 0xf5efe4, fillAlpha: 1, radius: 12,
+        borderColour: 0xd4c8b8, borderWidth: 2,
+      })
     );
 
     const pinDisplay = this.add.text(width / 2, 170, '○ ○ ○ ○', {
@@ -215,19 +242,15 @@ export class LoginScene extends Phaser.Scene {
         const x = width / 2 + (ci - 1) * (btnSize + gap);
         const y = padStartY + ri * (btnSize + gap);
 
-        const bg = this.add.rectangle(x, y, btnSize, btnSize,
-          Phaser.Display.Color.HexStringToColor(COLOURS.inputBg).color
-        ).setInteractive({ useHandCursor: true })
-          .setStrokeStyle(1, Phaser.Display.Color.HexStringToColor(COLOURS.inputBorder).color);
-
-        const label = this.add.text(x, y, digit, {
-          fontSize: '28px', fontFamily: FONTS.body, color: COLOURS.text,
-        }).setOrigin(0.5);
-
-        bg.on('pointerdown', () => handleInput(digit));
-
-        this.container.add(bg);
-        this.container.add(label);
+        const isAction = digit === '✓' || digit === '⌫';
+        const bgColour = digit === '✓' ? COLOURS.primary
+          : digit === '⌫' ? COLOURS.warm : '#f5efe4';
+        const btn = createButton(this, x, y, digit, () => handleInput(digit), {
+          width: btnSize, height: btnSize, radius: 12,
+          bgColour,
+          fontSize: isAction ? '24px' : '28px',
+        });
+        this.container.add(btn);
       });
     });
 

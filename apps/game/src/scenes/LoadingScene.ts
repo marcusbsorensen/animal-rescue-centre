@@ -198,7 +198,7 @@ export class LoadingScene extends Phaser.Scene {
     if (pct <= 0) return;
 
     const fillW = Math.max(this.barH, this.barW * pct); // min width = bar height for rounded end
-    this.barFillGfx.fillStyle(0x4a9c5d, 1);
+    this.barFillGfx.fillStyle(0x5AAE4A, 1);
     this.barFillGfx.fillRoundedRect(
       this.barX - this.barW / 2,
       this.barY - this.barH / 2,
@@ -208,7 +208,7 @@ export class LoadingScene extends Phaser.Scene {
     );
 
     // Highlight on top of fill bar
-    this.barFillGfx.fillStyle(0x6abb6a, 0.5);
+    this.barFillGfx.fillStyle(0x7CC76E, 0.5);
     this.barFillGfx.fillRoundedRect(
       this.barX - this.barW / 2 + 2,
       this.barY - this.barH / 2 + 2,
