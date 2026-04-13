@@ -643,7 +643,7 @@ export class GameScene extends Phaser.Scene {
       this.navContainer.add(pillGfx);
 
       // Icon (larger for active) — use custom image if available
-      const iconPx = tab.active ? 22 : 18;
+      const iconPx = tab.active ? 30 : 26;
       if (tab.iconKey && this.textures.exists(tab.iconKey)) {
         const iconImg = this.add.image(tx, ty - 7, tab.iconKey)
           .setDisplaySize(iconPx, iconPx).setOrigin(0.5);
@@ -813,12 +813,20 @@ export class GameScene extends Phaser.Scene {
       });
       this.gameContainer.add(hitArea);
 
-      // Species emoji
-      this.gameContainer.add(
-        this.add.text(x, y - 12, this.speciesEmoji(species), {
-          fontSize: '30px',
-        }).setOrigin(0.5)
-      );
+      // Species icon (use first animal's sprite if available, otherwise species icon)
+      const previewAnimal = roomAnimals[0];
+      if (previewAnimal) {
+        const preview = createAnimalSprite(this, x, y - 10, previewAnimal, { width: 60, height: 48 });
+        this.gameContainer.add(preview);
+      } else {
+        // Empty room — show species icon if available
+        const speciesIconKey = `icon-${species}`;
+        if (this.textures.exists(speciesIconKey)) {
+          this.gameContainer.add(
+            this.add.image(x, y - 10, speciesIconKey).setDisplaySize(36, 36).setOrigin(0.5)
+          );
+        }
+      }
 
       // Count + species name (proper grammar)
       this.gameContainer.add(
@@ -874,12 +882,18 @@ export class GameScene extends Phaser.Scene {
         sprite.on('pointerdown', () => this.showAnimalDetails(animal));
         this.gameContainer.add(sprite);
 
-        // Species emoji below sprite
-        this.gameContainer.add(
-          this.add.text(spriteX, cy + 36, this.speciesEmoji(animal.species), {
-            fontSize: '16px',
-          }).setOrigin(0.5)
-        );
+        // Species label pill below sprite
+        const speciesPillGfx = this.add.graphics();
+        const spLabel = animal.species.charAt(0).toUpperCase() + animal.species.slice(1);
+        const spText = this.add.text(spriteX, cy + 36, spLabel, {
+          fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5);
+        const spW = spText.width + 12;
+        const spH = spText.height + 4;
+        speciesPillGfx.fillStyle(SPECIES_COLOURS[animal.species], 0.8);
+        speciesPillGfx.fillRoundedRect(spriteX - spW / 2, cy + 36 - spH / 2, spW, spH, 6);
+        this.gameContainer.add(speciesPillGfx);
+        this.gameContainer.add(spText);
 
         // Name + species label (right of sprite)
         const textX = cx - storyCardW / 2 + 115;
@@ -975,7 +989,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.gameContainer.add(
-      createPillTitle(this, width / 2, 55, `${this.speciesEmoji(species)} ${species.charAt(0).toUpperCase() + species.slice(1)} Room`, { bgColour: 0x5AAE4A, fontSize: '20px' })
+      createPillTitle(this, width / 2, 55, `${species.charAt(0).toUpperCase() + species.slice(1)} Room`, { bgColour: 0x5AAE4A, fontSize: '28px', padX: 36, padY: 14 })
     );
 
     if (roomAnimals.length === 0) {
@@ -985,19 +999,20 @@ export class GameScene extends Phaser.Scene {
         }).setOrigin(0.5)
       );
     } else {
-      // Grid of animals
-      const cols = Math.min(roomAnimals.length, 5);
-      const startX = width / 2 - ((cols - 1) * 100) / 2;
-      const startY = 120;
+      // Grid of animals — positioned at floor level (~65% screen height)
+      const cols = Math.min(roomAnimals.length, 4);
+      const colSpacing = Math.min(140, (width - 60) / cols);
+      const startX = width / 2 - ((cols - 1) * colSpacing) / 2;
+      const floorY = height * 0.55;
 
       roomAnimals.forEach((animal, i) => {
-        const row = Math.floor(i / 5);
-        const col = i % 5;
-        const x = startX + col * 100;
-        const y = startY + row * 120;
+        const row = Math.floor(i / 4);
+        const col = i % 4;
+        const x = startX + col * colSpacing;
+        const y = floorY + row * 150;
 
         // Animal sprite (real art or fallback rectangle)
-        const size = animal.state === 'pet' ? 110 : 95;
+        const size = animal.state === 'pet' ? 120 : 100;
         const sprite = createAnimalSprite(this, x, y, animal, {
           width: size, height: size * 0.8, interactive: true,
         });
@@ -1007,46 +1022,77 @@ export class GameScene extends Phaser.Scene {
           sprite.setStrokeStyle(3, 0xffd700, 0.8);
         }
 
-        // Name
-        this.gameContainer.add(
-          this.add.text(x, y + size / 2 + 8, animal.name, {
-            fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
-          }).setOrigin(0.5)
-        );
+        // Name pill badge
+        const namePillGfx = this.add.graphics();
+        const nameText = this.add.text(x, y + size / 2 + 14, animal.name, {
+          fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5);
+        const nw = nameText.width + 20;
+        const nh = nameText.height + 8;
+        namePillGfx.fillStyle(SPECIES_COLOURS[animal.species], 0.85);
+        namePillGfx.fillRoundedRect(x - nw / 2, y + size / 2 + 14 - nh / 2, nw, nh, 10);
+        this.gameContainer.add(namePillGfx);
+        this.gameContainer.add(nameText);
 
-        // Sick indicator (priority over need)
+        // Sick indicator (icon-based, priority over need)
         const sickIllness = this.sickAnimals.get(animal.id);
         if (sickIllness) {
-          this.gameContainer.add(
-            this.add.text(x + 20, y - 20, sickIllness.emoji, { fontSize: '16px' })
-          );
+          const sickIconKey = 'icon-heal';
+          if (this.textures.exists(sickIconKey)) {
+            const sickIcon = this.add.image(x + size / 2 - 6, y - size * 0.4 - 6, sickIconKey)
+              .setDisplaySize(22, 22).setOrigin(0.5);
+            this.gameContainer.add(sickIcon);
+          } else {
+            this.gameContainer.add(
+              this.add.text(x + size / 2 - 6, y - size * 0.4 - 6, '🏥', { fontSize: '18px' }).setOrigin(0.5)
+            );
+          }
         } else {
-          // Need indicator
+          // Need indicator — use icons where available
           const need = getUrgentNeed(animal);
           if (need) {
-            const needEmoji = need === 'hunger' ? '🍽️' : need === 'tiredness' ? '😴' : need === 'happiness' ? '💔' : '🏥';
-            this.gameContainer.add(
-              this.add.text(x + 20, y - 20, needEmoji, { fontSize: '16px' })
-            );
+            const needIconMap: Record<string, string> = {
+              hunger: 'icon-feed', tiredness: 'icon-rest', happiness: 'icon-play', health: 'icon-heal',
+            };
+            const needIcon = needIconMap[need];
+            if (needIcon && this.textures.exists(needIcon)) {
+              const ni = this.add.image(x + size / 2 - 6, y - size * 0.4 - 6, needIcon)
+                .setDisplaySize(20, 20).setOrigin(0.5);
+              this.gameContainer.add(ni);
+            } else {
+              const needEmoji = need === 'hunger' ? '🍽️' : need === 'tiredness' ? '😴' : need === 'happiness' ? '💔' : '🏥';
+              this.gameContainer.add(
+                this.add.text(x + size / 2 - 6, y - size * 0.4 - 6, needEmoji, { fontSize: '18px' }).setOrigin(0.5)
+              );
+            }
           }
         }
 
         // Bond indicator
         if (animal.bondLevel > 0) {
-          const bondBar = this.add.rectangle(x, y + size / 2 + 22, 40, 4, 0xdddddd);
+          const barW = 50;
+          const barY = y + size / 2 + 32;
+          const bondBar = this.add.rectangle(x, barY, barW, 5, 0xdddddd, 0.6).setOrigin(0.5);
           const bondFill = this.add.rectangle(
-            x - 20 + (animal.bondLevel / 100) * 20, y + size / 2 + 22,
-            (animal.bondLevel / 100) * 40, 4, 0xff6b9d
-          );
+            x - barW / 2 + (animal.bondLevel / 100) * barW / 2, barY,
+            (animal.bondLevel / 100) * barW, 5, 0xff6b9d
+          ).setOrigin(0.5);
           this.gameContainer.add(bondBar);
           this.gameContainer.add(bondFill);
         }
 
-        // Sibling indicator
+        // Sibling indicator — small link icon or text
         if (animal.siblingId) {
-          this.gameContainer.add(
-            this.add.text(x - 22, y - 18, '👯', { fontSize: '14px', resolution: TEXT_RESOLUTION })
-          );
+          const sibIconKey = 'icon-friends';
+          if (this.textures.exists(sibIconKey)) {
+            const sibIcon = this.add.image(x - size / 2 + 6, y - size * 0.4 - 6, sibIconKey)
+              .setDisplaySize(18, 18).setOrigin(0.5);
+            this.gameContainer.add(sibIcon);
+          } else {
+            this.gameContainer.add(
+              this.add.text(x - size / 2 + 6, y - size * 0.4 - 6, '🔗', { fontSize: '14px', resolution: TEXT_RESOLUTION }).setOrigin(0.5)
+            );
+          }
         }
 
         sprite.on('pointerdown', () => this.showAnimalDetails(animal));
@@ -1109,7 +1155,7 @@ export class GameScene extends Phaser.Scene {
     const speech = getNeedSpeech(animal);
     if (speech) {
       this.gameContainer.add(
-        this.add.text(cx, cy + 125, `💬 "${speech}"`, {
+        this.add.text(cx, cy + 125, `"${speech}"`, {
           fontSize: '15px', fontFamily: FONTS.body, color: '#c0392b',
         }).setOrigin(0.5)
       );
@@ -1187,18 +1233,36 @@ export class GameScene extends Phaser.Scene {
       if (illness) {
         this.gameContainer.add(
           this.add.text(cx, btnY + 40,
-            `${illness.emoji} Sick: ${illness.label}`, {
+            `Sick: ${illness.label}`, {
             fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b',
           }).setOrigin(0.5)
         );
 
         this.gameContainer.add(
           createButton(this, cx, btnY + 70, 'Heal!', () => {
+            if (this.processing) return;
+            this.processing = true;
+            // Re-fetch illness in case it was cleared by a needs tick
+            const currentIllness = this.sickAnimals.get(animal.id);
+            if (!currentIllness) {
+              this.processing = false;
+              this.closePopup();
+              this.renderView();
+              return;
+            }
+            // Re-fetch the animal from the live array to avoid stale data
+            const liveAnimal = this.animals.find((a) => a.id === animal.id);
+            if (!liveAnimal) {
+              this.processing = false;
+              this.closePopup();
+              this.renderView();
+              return;
+            }
             this.closePopup();
             this.saveState();
             this.scene.start('VetScene', {
-              animal,
-              illness,
+              animal: liveAnimal,
+              illness: currentIllness,
               allAnimals: this.animals,
               onComplete: (updatedAnimals: Animal[], healed: boolean) => {
                 this.animals = updatedAnimals;
@@ -1209,6 +1273,7 @@ export class GameScene extends Phaser.Scene {
                 this.saveState();
               },
             });
+            this.processing = false;
           }, { width: 130, fontSize: '15px', bgColour: '#e74c3c', icon: 'icon-heal' })
         );
       }
@@ -1234,18 +1299,34 @@ export class GameScene extends Phaser.Scene {
       if (petIllness) {
         this.gameContainer.add(
           this.add.text(cx, btnY + 65,
-            `${petIllness.emoji} Sick: ${petIllness.label}`, {
+            `Sick: ${petIllness.label}`, {
             fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b',
           }).setOrigin(0.5)
         );
 
         this.gameContainer.add(
           createButton(this, cx, btnY + 95, 'Take to Vet', () => {
+            if (this.processing) return;
+            this.processing = true;
+            const currentPetIllness = this.sickAnimals.get(animal.id);
+            if (!currentPetIllness) {
+              this.processing = false;
+              this.closePopup();
+              this.renderView();
+              return;
+            }
+            const livePet = this.animals.find((a) => a.id === animal.id);
+            if (!livePet) {
+              this.processing = false;
+              this.closePopup();
+              this.renderView();
+              return;
+            }
             this.closePopup();
             this.saveState();
             this.scene.start('VetScene', {
-              animal,
-              illness: petIllness,
+              animal: livePet,
+              illness: currentPetIllness,
               allAnimals: this.animals,
               onComplete: (updatedAnimals: Animal[], healed: boolean) => {
                 this.animals = updatedAnimals;
@@ -1256,6 +1337,7 @@ export class GameScene extends Phaser.Scene {
                 this.saveState();
               },
             });
+            this.processing = false;
           }, { width: 180, fontSize: '15px', bgColour: '#e74c3c', icon: 'icon-vet' })
         );
       }
@@ -1955,7 +2037,7 @@ export class GameScene extends Phaser.Scene {
     // Unlocked species list
     if (unlockedSpecies.length > 0) {
       const lines = unlockedSpecies.map(
-        (s) => `${this.speciesEmoji(s)} ${s.charAt(0).toUpperCase() + s.slice(1)} unlocked!`,
+        (s) => `${s.charAt(0).toUpperCase() + s.slice(1)} unlocked!`,
       );
       const unlockText = this.add.text(width / 2, height / 2 + 25, lines.join('\n'), {
         fontSize: '20px', fontFamily: FONTS.body, color: '#2ecc71',
