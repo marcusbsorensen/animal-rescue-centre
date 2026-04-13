@@ -1,9 +1,31 @@
-// Shared UI constants for consistent styling across scenes
+// Shared UI constants — colours derived from the A.R.C. logo
+//
+//   Logo palette:
+//     🟢 Green lettering  → #5AAE4A (primary)
+//     🔴 Red heart/paw    → #D44040 (accent)
+//     🟠 Orange outlines  → #D4783C (warm)
+//     🟤 Brown text        → #3a2e22 (text)
+//     🟡 Cream background → #fef9ef (bg)
 
 export const COLOURS = {
+  // ── Brand greens (from "A.R.C." lettering) ──
+  primary: '#5AAE4A',
+  primaryDark: '#4A9438',
+  primaryLight: '#7CC76E',
+
+  // ── Brand reds (from heart/paw) ──
+  accent: '#D44040',
+  accentDark: '#B83030',
+  accentLight: '#E06060',
+
+  // ── Brand orange (from outlines/subtitle) ──
+  warm: '#D4783C',
+  warmDark: '#B86428',
+  warmLight: '#E09050',
+
+  // ── Neutrals ──
   bg: '#fef9ef',
-  primary: '#4a9c5d',
-  primaryDark: '#3d8a4e',
+  bgDark: '#f5ebe0',
   text: '#3a2e22',
   textLight: '#7c6b5a',
   white: '#ffffff',

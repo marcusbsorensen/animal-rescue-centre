@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
+import { LoadingScene } from './scenes/LoadingScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { SignupScene } from './scenes/SignupScene';
 import { LoginScene } from './scenes/LoginScene';
@@ -22,7 +23,7 @@ const config: Phaser.Types.Core.GameConfig = {
     height: 720,
   },
   backgroundColor: '#fef9ef',
-  scene: [BootScene, MainMenuScene, SignupScene, LoginScene, FriendsScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, DepotScene, SupplyRunScene],
+  scene: [BootScene, LoadingScene, MainMenuScene, SignupScene, LoginScene, FriendsScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, DepotScene, SupplyRunScene],
   physics: {
     default: 'arcade',
     arcade: {
@@ -32,4 +33,9 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// Expose for dev tools / visual inspection
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__PHASER_GAME__ = game;
+}

@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import assetManifestPlugin from './plugins/asset-manifest';
 
 export default defineConfig({
   plugins: [
+    assetManifestPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
