@@ -524,20 +524,21 @@ export class GameScene extends Phaser.Scene {
       this.uiContainer.add(audioBtn);
     }
 
-    // Save button
+    // Save button (right of audio, outside constrained bar for wide screens)
+    const saveBtnX = audioBtnX + 38;
     const saveBg = this.add.graphics();
     saveBg.fillStyle(0x000000, 0.3);
-    saveBg.fillCircle(width - 24, btnY, btnSize / 2);
+    saveBg.fillCircle(saveBtnX, btnY, btnSize / 2);
     this.uiContainer.add(saveBg);
 
     if (this.textures.exists('icon-save')) {
-      const saveImg = this.add.image(width - 24, btnY, 'icon-save')
-        .setDisplaySize(20, 20).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const saveImg = this.add.image(saveBtnX, btnY, 'icon-save')
+        .setDisplaySize(22, 22).setOrigin(0.5).setInteractive({ useHandCursor: true });
       saveImg.on('pointerdown', () => this.saveState());
       this.uiContainer.add(saveImg);
     } else {
-      const saveBtn = this.add.text(width - 24, btnY, '💾', {
-        fontSize: '18px',
+      const saveBtn = this.add.text(saveBtnX, btnY, '💾', {
+        fontSize: '20px',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       saveBtn.on('pointerdown', () => this.saveState());
       this.uiContainer.add(saveBtn);
@@ -1111,9 +1112,9 @@ export class GameScene extends Phaser.Scene {
       .setInteractive();
     this.gameContainer.add(overlay);
 
-    // Card with shadow
-    const cardW = 380;
-    const cardH = 400;
+    // Card with shadow — taller to fit content
+    const cardW = 400;
+    const cardH = 480;
     const cardShadow = this.add.graphics();
     cardShadow.fillStyle(0x000000, 0.1);
     cardShadow.fillRoundedRect(width / 2 - cardW / 2 + 3, height / 2 - cardH / 2 + 4, cardW, cardH, 14);
@@ -1123,10 +1124,10 @@ export class GameScene extends Phaser.Scene {
     this.gameContainer.add(card);
 
     const cx = width / 2;
-    const cy = height / 2 - cardH / 2 + 30;
+    const cardTop = height / 2 - cardH / 2;
 
-    // Species sprite
-    const detailSprite = createAnimalSprite(this, cx, cy + 10, animal, { width: 160, height: 128 });
+    // Species sprite — constrained to fit inside card
+    const detailSprite = createAnimalSprite(this, cx, cardTop + 65, animal, { width: 90, height: 72 });
     this.gameContainer.add(detailSprite);
 
     // Name + species (with variant if available)
@@ -1134,15 +1135,15 @@ export class GameScene extends Phaser.Scene {
       ? `${animal.variant} ${animal.species}`
       : animal.species;
     this.gameContainer.add(
-      this.add.text(cx, cy + 55, `${animal.name} the ${speciesLabel}`, {
-        fontSize: '22px', fontFamily: FONTS.title, color: COLOURS.text,
+      this.add.text(cx, cardTop + 115, `${animal.name} the ${speciesLabel}`, {
+        fontSize: '20px', fontFamily: FONTS.title, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
     // Story
     this.gameContainer.add(
-      this.add.text(cx, cy + 85, `"${animal.arrivalStory}"`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      this.add.text(cx, cardTop + 145, `"${animal.arrivalStory}"`, {
+        fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
         fontStyle: 'italic', wordWrap: { width: cardW - 40 }, align: 'center',
       }).setOrigin(0.5)
     );
@@ -1151,14 +1152,14 @@ export class GameScene extends Phaser.Scene {
     const speech = getNeedSpeech(animal);
     if (speech) {
       this.gameContainer.add(
-        this.add.text(cx, cy + 125, `"${speech}"`, {
-          fontSize: '15px', fontFamily: FONTS.body, color: '#c0392b',
+        this.add.text(cx, cardTop + 178, `"${speech}"`, {
+          fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b',
         }).setOrigin(0.5)
       );
     }
 
     // Stats bars
-    const statsY = cy + 160;
+    const statsY = cardTop + 205;
     this.renderStatBar('Hunger', animal.hunger, 0xe74c3c, cx - 120, statsY, true);
     this.renderStatBar('Tiredness', animal.tiredness, 0x3498db, cx - 120, statsY + 28, true);
     this.renderStatBar('Happiness', animal.happiness, 0xf1c40f, cx - 120, statsY + 56, false);
@@ -1274,16 +1275,22 @@ export class GameScene extends Phaser.Scene {
         );
       }
     } else {
-      // Pet — show collar and "Visit in garden" button
+      // Pet — show collar colour swatch + name, and "Visit in garden" button
+      const collarHexVal = animal.collarColour ?? '#ff6b9d';
+      const collarName = COLLAR_COLOURS.find((c) => c.hex === collarHexVal)?.name ?? 'Custom';
+      const collarSwatchColour = Phaser.Display.Color.HexStringToColor(collarHexVal).color;
+      const collarSwatchGfx = this.add.circle(cx - 60, btnY - 10, 8, collarSwatchColour)
+        .setStrokeStyle(1, 0x000000, 0.2);
+      this.gameContainer.add(collarSwatchGfx);
       this.gameContainer.add(
-        this.add.text(cx, btnY - 10,
-          `🎀 Collar: ${animal.collarColour ?? 'None'}`, {
+        this.add.text(cx - 44, btnY - 10,
+          `${collarName} Collar`, {
           fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
-        }).setOrigin(0.5)
+        }).setOrigin(0, 0.5)
       );
 
       this.gameContainer.add(
-        createButton(this, cx, btnY + 30, '🌳 Visit in Garden', () => {
+        createButton(this, cx, btnY + 30, 'Visit in Garden', () => {
           this.closePopup();
           this.viewMode = 'garden';
           this.renderView();
@@ -1691,31 +1698,29 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    // Celebration text
+    // Celebration text — above sprite
     this.gameContainer.add(
-      this.add.text(width / 2, 60, '🎉 Full Bond! 🎉', {
-        fontSize: '32px', fontFamily: FONTS.title, color: COLOURS.primary,
-      }).setOrigin(0.5)
+      createPillTitle(this, width / 2, 55, 'Full Bond!', { bgColour: 0xB8860B, fontSize: '26px', padX: 32, padY: 12 })
     );
 
     this.gameContainer.add(
-      this.add.text(width / 2, 100,
-        `${animal.name} the ${animal.species} loves you so much\nthey want to be your pet forever!`, {
-        fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.text,
-        align: 'center',
+      this.add.text(width / 2, 95,
+        `${animal.name} loves you so much — they want to be your pet forever!`, {
+        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+        align: 'center', wordWrap: { width: width - 80 },
       }).setOrigin(0.5)
     );
 
-    // Animal sprite (big, central — positioned with space below for text)
-    const spriteY = 190;
-    const collarSprite = createAnimalSprite(this, width / 2, spriteY, animal, { width: 140, height: 112 });
+    // Animal sprite — smaller, centred in upper area
+    const spriteY = height * 0.28;
+    const collarSprite = createAnimalSprite(this, width / 2, spriteY, animal, { width: 100, height: 80 });
     if (collarSprite instanceof Phaser.GameObjects.Rectangle) {
       collarSprite.setStrokeStyle(3, 0xffd700);
     }
     this.gameContainer.add(collarSprite);
 
-    // Collar picker prompt — placed well below sprite
-    const promptY = spriteY + 80;
+    // Collar picker prompt
+    const promptY = height * 0.42;
     this.gameContainer.add(
       this.add.text(width / 2, promptY, 'Choose a collar colour for your new pet:', {
         fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
@@ -1725,7 +1730,7 @@ export class GameScene extends Phaser.Scene {
     // Collar colour grid
     const colsPerRow = 4;
     const collarStartX = width / 2 - ((colsPerRow - 1) * 80) / 2;
-    const collarStartY = promptY + 40;
+    const collarStartY = promptY + 35;
 
     COLLAR_COLOURS.forEach((collar, i) => {
       const col = i % colsPerRow;
