@@ -162,10 +162,10 @@ export class SupplyRunScene extends Phaser.Scene {
 
       // Card with neon border
       const card = this.add.graphics();
-      card.fillStyle(0xffffff, 0.05);
+      card.fillStyle(0xffffff, 0.15);
       card.fillRoundedRect(30, y - 40, width - 60, 100, 12);
       if (unlocked) {
-        card.lineStyle(2, NEON.hudBorder, 0.5);
+        card.lineStyle(3, NEON.hudBorder, 0.7);
         card.strokeRoundedRect(30, y - 40, width - 60, 100, 12);
       }
       card.setAlpha(alpha);

@@ -160,7 +160,7 @@ export class VetScene extends Phaser.Scene {
       const y = 330 + row * 90;
 
       const bg = this.add.rectangle(x, y, actionW - 10, 75, 0xffffff)
-        .setStrokeStyle(1, 0xd4c8b8)
+        .setStrokeStyle(2, 0xb8a898)
         .setInteractive({ useHandCursor: true });
 
       const emoji = this.add.text(x, y - 15, action.emoji, {
@@ -172,7 +172,7 @@ export class VetScene extends Phaser.Scene {
       }).setOrigin(0.5);
 
       const desc = this.add.text(x, y + 28, action.description, {
-        fontSize: '10px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.textLight,
         wordWrap: { width: actionW - 20 }, align: 'center',
       }).setOrigin(0.5);
 

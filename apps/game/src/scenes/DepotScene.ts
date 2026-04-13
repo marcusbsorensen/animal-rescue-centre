@@ -9,17 +9,14 @@ import {
   applyGravity,
   refillBoard,
   activatePowerUp,
-  checkGoals,
   generateGoals,
   getTilesForMode,
   getBoardDimensions,
   canAccessMode,
   generateRewards,
-  getSessionLimit,
-  getCurrentSeason,
-  createCalendarState,
+  getSeasonForMonth,
 } from '@arc/game-logic';
-import type { DepotMode, Tile, BoardGoal, PowerUpType } from '@arc/shared-types';
+import type { DepotMode, Tile, BoardState, BoardGoal, PowerUpType } from '@arc/shared-types';
 import type { TileDefinition, RewardItem } from '@arc/game-logic';
 
 // ── Colour palette for the depot ─────────────────────────────
@@ -56,14 +53,11 @@ export class DepotScene extends Phaser.Scene {
 
   // Board state
   private mode?: DepotMode;
-  private grid: (Tile | null)[][] = [];
+  private boardState?: BoardState;
   private tileTypes: string[] = [];
   private tileDefs: TileDefinition[] = [];
   private boardW = 0;
   private boardH = 0;
-  private moves = 0;
-  private score = 0;
-  private goals: BoardGoal[] = [];
   private maxMoves = 25;
 
   // Visual grid
@@ -84,10 +78,7 @@ export class DepotScene extends Phaser.Scene {
     this.playerLevel = data?.level ?? 1;
     this.phase = 'mode_select';
     this.mode = undefined;
-    this.grid = [];
-    this.moves = 0;
-    this.score = 0;
-    this.goals = [];
+    this.boardState = undefined;
     this.rewards = [];
     this.animating = false;
   }
@@ -152,10 +143,10 @@ export class DepotScene extends Phaser.Scene {
 
       // Card background
       const card = this.add.graphics();
-      card.fillStyle(0xffffff, 0.08);
+      card.fillStyle(0xffffff, 0.18);
       card.fillRoundedRect(40, y - 35, width - 80, 85, 14);
       if (unlocked) {
-        card.lineStyle(2, DEPOT_COLOURS.accent, 0.3);
+        card.lineStyle(2, DEPOT_COLOURS.accent, 0.6);
         card.strokeRoundedRect(40, y - 35, width - 80, 85, 14);
       }
       card.setAlpha(alpha);
@@ -212,18 +203,28 @@ export class DepotScene extends Phaser.Scene {
     this.boardW = dims.width;
     this.boardH = dims.height;
 
-    // Get tile types for this mode
-    const calendarState = createCalendarState();
-    const season = getCurrentSeason(calendarState);
+    // Get tile types for this mode (season-aware for decorations)
+    const currentMonth = new Date().getMonth() + 1; // 1-12
+    const season = getSeasonForMonth(currentMonth);
     this.tileDefs = getTilesForMode(mode, season);
     this.tileTypes = this.tileDefs.map((t) => t.type);
 
     // Create the board
-    this.grid = createBoard(this.boardW, this.boardH, this.tileTypes);
-    this.moves = 0;
-    this.score = 0;
+    const grid = createBoard(this.boardW, this.boardH, this.tileTypes);
     this.maxMoves = mode === 'medical_supplies' ? 20 : 25;
-    this.goals = generateGoals(this.tileTypes, mode);
+    const goals = generateGoals(mode, 3); // difficulty 3 for now
+
+    this.boardState = {
+      grid,
+      rows: this.boardH,
+      cols: this.boardW,
+      mode,
+      moves: 0,
+      score: 0,
+      goals,
+      isComplete: false,
+      startedAt: new Date().toISOString(),
+    };
 
     this.phase = 'playing';
     this.renderView();
@@ -256,14 +257,15 @@ export class DepotScene extends Phaser.Scene {
 
     // Score
     this.container.add(
-      this.add.text(width - 15, headerH / 2 - 10, `⭐ ${this.score}`, {
+      this.add.text(width - 15, headerH / 2 - 10, `⭐ ${this.boardState?.score ?? 0}`, {
         fontSize: '16px', fontFamily: FONTS.body, color: '#f0c040',
       }).setOrigin(1, 0.5)
     );
 
     // Moves remaining
+    const movesLeft = this.maxMoves - (this.boardState?.moves ?? 0);
     this.container.add(
-      this.add.text(width - 15, headerH / 2 + 12, `Moves: ${this.maxMoves - this.moves}`, {
+      this.add.text(width - 15, headerH / 2 + 12, `Moves: ${movesLeft}`, {
         fontSize: '13px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
       }).setOrigin(1, 0.5)
     );
@@ -319,11 +321,13 @@ export class DepotScene extends Phaser.Scene {
   }
 
   private renderGoals(width: number, y: number): void {
-    const goalCount = this.goals.length;
+    if (!this.boardState) return;
+    const goals = this.boardState.goals;
+    const goalCount = goals.length;
     const spacing = Math.min(120, (width - 40) / goalCount);
     const startX = width / 2 - ((goalCount - 1) * spacing) / 2;
 
-    this.goals.forEach((goal, i) => {
+    goals.forEach((goal, i) => {
       const x = startX + i * spacing;
       const def = this.tileDefs.find((t) => t.type === goal.targetTile);
       const done = goal.currentCount >= goal.targetCount;
@@ -348,7 +352,7 @@ export class DepotScene extends Phaser.Scene {
   }
 
   private createCell(row: number, col: number): Phaser.GameObjects.Container | null {
-    const tile = this.grid[row]?.[col];
+    const tile = this.boardState?.grid[row]?.[col];
     if (!tile) return null;
 
     const x = this.boardOffsetX + col * this.cellSize + this.cellSize / 2;
@@ -388,9 +392,9 @@ export class DepotScene extends Phaser.Scene {
     cellContainer.add(hitArea);
 
     hitArea.on('pointerover', () => {
-      if (this.animating) return;
+      if (this.animating || !this.boardState) return;
       // Highlight group
-      const group = findGroup(this.grid, row, col);
+      const group = findGroup(this.boardState.grid, row, col);
       if (group.length >= 2) {
         bg.clear();
         bg.fillStyle(DEPOT_COLOURS.cellHover, 1);
@@ -421,38 +425,37 @@ export class DepotScene extends Phaser.Scene {
   // ── Tap Handler ────────────────────────────────────────────
 
   private handleTap(row: number, col: number): void {
-    const tile = this.grid[row]?.[col];
+    if (!this.boardState) return;
+    const tile = this.boardState.grid[row]?.[col];
     if (!tile) return;
 
-    // Power-up activation
+    // Power-up activation (manual — directly manipulate grid)
     if (tile.powerUp) {
-      const result = activatePowerUp(this.grid, row, col, this.tileTypes);
-      this.grid = result.grid;
-      this.score += result.tilesDestroyed * 15;
-      this.moves++;
-      this.updateGoals(result.tilesDestroyed, tile.type);
+      const result = activatePowerUp(this.boardState.grid, row, col);
+      let grid = applyGravity(result.grid);
+      grid = refillBoard(grid, this.tileTypes);
+      const scoreIncrease = result.tilesRemoved * 15;
+
+      this.boardState = {
+        ...this.boardState,
+        grid,
+        moves: this.boardState.moves + 1,
+        score: this.boardState.score + scoreIncrease,
+      };
 
       AudioManager.getInstance().playSfx('power_up_activate');
-
-      // Apply gravity + refill
-      this.grid = applyGravity(this.grid);
-      this.grid = refillBoard(this.grid, this.tileTypes);
       this.checkEndCondition();
       this.renderView();
       return;
     }
 
     // Regular tap — need group of 2+
-    const group = findGroup(this.grid, row, col);
+    const group = findGroup(this.boardState.grid, row, col);
     if (group.length < 2) return;
 
-    const result = tapCell(this.grid, row, col, this.tileTypes);
-    this.grid = result.grid;
-    this.score += result.scoreGained;
-    this.moves++;
-
-    // Update goal progress
-    this.updateGoals(group.length, tile.type);
+    // tapCell handles gravity, refill, goals, scoring internally
+    const result = tapCell(this.boardState, row, col, this.tileTypes);
+    this.boardState = result.board;
 
     // SFX
     if (result.powerUpCreated) {
@@ -463,31 +466,18 @@ export class DepotScene extends Phaser.Scene {
       AudioManager.getInstance().playSfx('tile_collapse');
     }
 
-    // Apply gravity + refill
-    this.grid = applyGravity(this.grid);
-    this.grid = refillBoard(this.grid, this.tileTypes);
-
     this.checkEndCondition();
     this.renderView();
   }
 
-  private updateGoals(tilesCleared: number, tileType: string): void {
-    for (const goal of this.goals) {
-      if (goal.type === 'clear_count') {
-        goal.currentCount += tilesCleared;
-      } else if (goal.type === 'collect_type' && goal.targetTile === tileType) {
-        goal.currentCount += tilesCleared;
-      }
-    }
-  }
-
   private checkEndCondition(): void {
-    const allGoalsMet = this.goals.every((g) => g.currentCount >= g.targetCount);
-    if (allGoalsMet || this.moves >= this.maxMoves) {
+    if (!this.boardState) return;
+    const allGoalsMet = this.boardState.isComplete || this.boardState.goals.every((g) => g.currentCount >= g.targetCount);
+    if (allGoalsMet || this.boardState.moves >= this.maxMoves) {
       // Small delay before showing results
       this.time.delayedCall(300, () => {
         AudioManager.getInstance().playSfx('depot_complete');
-        this.rewards = generateRewards(this.mode!, this.score, this.goals);
+        this.rewards = generateRewards(this.mode!, this.boardState!.score, this.boardState!.goals);
         this.phase = 'results';
         this.renderView();
       });
@@ -497,7 +487,8 @@ export class DepotScene extends Phaser.Scene {
   // ── Results Screen ─────────────────────────────────────────
 
   private renderResults(width: number, height: number): void {
-    const allGoalsMet = this.goals.every((g) => g.currentCount >= g.targetCount);
+    const goals = this.boardState?.goals ?? [];
+    const allGoalsMet = goals.every((g) => g.currentCount >= g.targetCount);
 
     // Title
     this.container.add(
@@ -510,20 +501,20 @@ export class DepotScene extends Phaser.Scene {
 
     // Score summary
     this.container.add(
-      this.add.text(width / 2, 100, `Score: ${this.score} ⭐`, {
+      this.add.text(width / 2, 100, `Score: ${this.boardState?.score ?? 0} ⭐`, {
         fontSize: '22px', fontFamily: FONTS.title, color: '#f0c040',
       }).setOrigin(0.5)
     );
 
     this.container.add(
-      this.add.text(width / 2, 130, `Moves used: ${this.moves} / ${this.maxMoves}`, {
+      this.add.text(width / 2, 130, `Moves used: ${this.boardState?.moves ?? 0} / ${this.maxMoves}`, {
         fontSize: '14px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
       }).setOrigin(0.5)
     );
 
     // Goals summary
     const goalY = 165;
-    this.goals.forEach((goal, i) => {
+    goals.forEach((goal, i) => {
       const done = goal.currentCount >= goal.targetCount;
       const def = this.tileDefs.find((t) => t.type === goal.targetTile);
       this.container.add(
@@ -537,7 +528,7 @@ export class DepotScene extends Phaser.Scene {
 
     // Rewards
     if (this.rewards.length > 0) {
-      const rewardsY = goalY + this.goals.length * 25 + 30;
+      const rewardsY = goalY + goals.length * 25 + 30;
       this.container.add(
         this.add.text(width / 2, rewardsY, '🎁 Rewards:', {
           fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',

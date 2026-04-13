@@ -246,7 +246,8 @@ export class WalkScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, height / 2 - 40,
         'Quick! Press STOP to keep your animal safe!', {
-        fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: '17px', fontFamily: FONTS.body, color: '#ffffff',
+        backgroundColor: '#c0392b', padding: { x: 8, y: 4 },
       }).setOrigin(0.5)
     );
 
@@ -266,7 +267,8 @@ export class WalkScene extends Phaser.Scene {
     this.roadTimeLeft = 3000;
     const timerText = this.add.text(width / 2, height / 2 + 80,
       'Time: 3.0s', {
-      fontSize: '20px', fontFamily: FONTS.body, color: '#c0392b',
+      fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      backgroundColor: '#c0392b', padding: { x: 10, y: 4 },
     }).setOrigin(0.5);
     this.container.add(timerText);
 

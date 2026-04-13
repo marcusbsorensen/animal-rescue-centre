@@ -173,7 +173,7 @@ export class SocialScene extends Phaser.Scene {
       // Gift card
       this.container.add(
         this.add.rectangle(width / 2, y, width - 40, 50, 0xffffff)
-          .setStrokeStyle(1, 0xe0d6c8)
+          .setStrokeStyle(2, 0xc8b8a4)
       );
 
       // From
@@ -280,7 +280,7 @@ export class SocialScene extends Phaser.Scene {
 
       const bg = this.add.rectangle(x, y, 65, 50,
         isSelected ? 0x4a9c5d : 0xffffff
-      ).setStrokeStyle(1, 0xe0d6c8)
+      ).setStrokeStyle(2, 0xc8b8a4)
         .setInteractive({ useHandCursor: true });
 
       const emoji = this.add.text(x, y - 8, gift.emoji, {
