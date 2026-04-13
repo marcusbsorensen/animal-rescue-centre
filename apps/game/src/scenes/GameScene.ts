@@ -407,26 +407,18 @@ export class GameScene extends Phaser.Scene {
 
   private renderNavBar(options?: { showBack?: boolean }): void {
     const { width, height } = this.scale;
-    const barH = 56;
-    const barY = height - barH;
     const pets = this.animals.filter((a) => a.state === 'pet');
 
-    // ── Dark background strip ──
-    const barGfx = this.add.graphics();
-    barGfx.fillStyle(0x2d1f14, 0.92);
-    barGfx.fillRoundedRect(0, barY, width, barH, { tl: 12, tr: 12, bl: 0, br: 0 });
-    // Thin accent line at top of bar
-    barGfx.fillStyle(0x5AAE4A, 0.5);
-    barGfx.fillRect(0, barY, width, 2);
-    this.gameContainer.add(barGfx);
-
-    // ── Tab definitions ──
-    type NavTab = { icon: string; label: string; active: boolean; action: () => void };
+    // ── Tab definitions with individual colours ──
+    type NavTab = {
+      icon: string; label: string; colour: number;
+      active: boolean; action: () => void;
+    };
     const tabs: NavTab[] = [];
 
     if (options?.showBack) {
       tabs.push({
-        icon: '⬅️', label: 'Back',
+        icon: '⬅️', label: 'Back', colour: 0x6b5a4a,
         active: false,
         action: () => { this.viewMode = 'corridor'; this.renderView(); },
       });
@@ -434,80 +426,108 @@ export class GameScene extends Phaser.Scene {
 
     tabs.push(
       {
-        icon: '🏠', label: 'Home',
+        icon: '🏠', label: 'Home', colour: 0x8b6914,
         active: this.viewMode === 'corridor',
         action: () => { this.viewMode = 'corridor'; this.renderView(); },
       },
       {
-        icon: '🍽️', label: 'Kitchen',
+        icon: '🍽️', label: 'Kitchen', colour: 0xc27830,
         active: this.viewMode === 'kitchen',
         action: () => { this.viewMode = 'kitchen'; this.renderView(); },
       },
       {
-        icon: '🌳', label: `Garden${pets.length > 0 ? ` (${pets.length})` : ''}`,
+        icon: '🌳', label: `Garden${pets.length > 0 ? ` ${pets.length}` : ''}`, colour: 0x3a9e50,
         active: this.viewMode === 'garden',
         action: () => { this.viewMode = 'garden'; this.renderView(); },
       },
       {
-        icon: '💌', label: 'Social',
+        icon: '💌', label: 'Social', colour: 0x9b59b6,
         active: false,
         action: () => { this.saveState(); this.scene.start('SocialScene'); },
       },
       {
-        icon: '🏗️', label: 'Depot',
+        icon: '🏗️', label: 'Depot', colour: 0x5a3d8a,
         active: false,
         action: () => { this.saveState(); this.scene.start('DepotScene', { level: this.level }); },
       },
       {
-        icon: '🚛', label: 'Supply',
+        icon: '🚛', label: 'Supply', colour: 0xd46020,
         active: false,
         action: () => { this.saveState(); this.scene.start('SupplyRunScene', { level: this.level }); },
       },
       {
-        icon: '🚪', label: 'Menu',
+        icon: '🚪', label: 'Menu', colour: 0x6b5a4a,
         active: false,
         action: () => { this.saveState(); this.scene.start('MainMenuScene'); },
       },
     );
 
-    // ── Render tabs evenly spaced ──
-    const tabCount = tabs.length;
-    const tabW = width / tabCount;
-    const tabCenterY = barY + barH / 2;
+    // ── Layout: compact dock centred at bottom ──
+    const btnW = 72;
+    const btnH = 48;
+    const gap = 6;
+    const dockW = tabs.length * btnW + (tabs.length - 1) * gap + 20; // 10px padding each side
+    const maxDockW = Math.min(dockW, width - 20);
+    const actualBtnW = (maxDockW - 20 - (tabs.length - 1) * gap) / tabs.length;
+    const dockX = (width - maxDockW) / 2;
+    const dockY = height - btnH - 14;
+    const dockH = btnH + 12; // padding top/bottom
 
+    // Dock background — frosted dark panel
+    const dockGfx = this.add.graphics();
+    dockGfx.fillStyle(0x2d1f14, 0.88);
+    dockGfx.fillRoundedRect(dockX, dockY - 6, maxDockW, dockH, 16);
+    // Subtle inner glow at top
+    dockGfx.fillStyle(0xffffff, 0.06);
+    dockGfx.fillRoundedRect(dockX + 2, dockY - 5, maxDockW - 4, 3, { tl: 16, tr: 16, bl: 0, br: 0 });
+    this.gameContainer.add(dockGfx);
+
+    // ── Render each tab button ──
     tabs.forEach((tab, i) => {
-      const tx = tabW * i + tabW / 2;
+      const tx = dockX + 10 + i * (actualBtnW + gap) + actualBtnW / 2;
+      const ty = dockY + dockH / 2 - 5;
 
-      // Active highlight
+      // Coloured pill background for each button
+      const pillGfx = this.add.graphics();
       if (tab.active) {
-        const hlGfx = this.add.graphics();
-        hlGfx.fillStyle(0x5AAE4A, 0.25);
-        hlGfx.fillRoundedRect(tx - tabW / 2 + 4, barY + 4, tabW - 8, barH - 8, 8);
-        this.gameContainer.add(hlGfx);
+        // Active: bright coloured pill
+        pillGfx.fillStyle(tab.colour, 0.9);
+        pillGfx.fillRoundedRect(tx - actualBtnW / 2, ty - btnH / 2, actualBtnW, btnH, 10);
+        // Bright top edge
+        pillGfx.fillStyle(0xffffff, 0.15);
+        pillGfx.fillRoundedRect(tx - actualBtnW / 2 + 1, ty - btnH / 2 + 1, actualBtnW - 2, btnH * 0.4, { tl: 9, tr: 9, bl: 0, br: 0 });
+      } else {
+        // Inactive: subtle tinted background
+        pillGfx.fillStyle(tab.colour, 0.25);
+        pillGfx.fillRoundedRect(tx - actualBtnW / 2, ty - btnH / 2, actualBtnW, btnH, 10);
       }
+      this.gameContainer.add(pillGfx);
 
-      // Icon
+      // Icon (larger for active)
+      const iconSize = tab.active ? '20px' : '17px';
       this.gameContainer.add(
-        this.add.text(tx, tabCenterY - 10, tab.icon, {
-          fontSize: '18px',
-        }).setOrigin(0.5)
+        this.add.text(tx, ty - 7, tab.icon, { fontSize: iconSize }).setOrigin(0.5)
       );
 
       // Label
+      const labelColour = tab.active ? '#ffffff' : '#d4c8b8';
       this.gameContainer.add(
-        this.add.text(tx, tabCenterY + 12, tab.label, {
-          fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
-          color: tab.active ? '#7CC76E' : '#c8b8a0',
+        this.add.text(tx, ty + 14, tab.label, {
+          fontSize: '9px', fontFamily: FONTS.body, fontStyle: 'bold',
+          color: labelColour,
+          shadow: tab.active
+            ? { offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.4)', blur: 2, fill: true }
+            : undefined,
         }).setOrigin(0.5)
       );
 
       // Hit area
-      const hitArea = this.add.rectangle(tx, tabCenterY, tabW - 4, barH - 6, 0x000000, 0)
+      const hitArea = this.add.rectangle(tx, ty, actualBtnW, btnH, 0x000000, 0)
         .setInteractive({ useHandCursor: true });
       hitArea.on('pointerover', () => {
-        if (!tab.active) hitArea.setAlpha(0.8);
+        if (!tab.active) pillGfx.setAlpha(1.4);
       });
-      hitArea.on('pointerout', () => hitArea.setAlpha(1));
+      hitArea.on('pointerout', () => pillGfx.setAlpha(1));
       hitArea.on('pointerdown', tab.action);
       this.gameContainer.add(hitArea);
     });
