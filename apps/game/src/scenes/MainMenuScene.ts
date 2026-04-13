@@ -18,6 +18,8 @@ import type { Species } from '@arc/shared-types';
 export class MainMenuScene extends Phaser.Scene {
   private _lastWidth = 0;
   private _lastHeight = 0;
+  private animalContainer?: Phaser.GameObjects.Container;
+  private bannerParams?: { cx: number; y: number; stripW: number; sf: number };
 
   constructor() {
     super({ key: 'MainMenuScene' });
@@ -35,6 +37,14 @@ export class MainMenuScene extends Phaser.Scene {
     // Start background loading of all game assets
     const assetLoader = AssetLoader.getInstance();
     assetLoader.startBackgroundLoad(this);
+
+    // When background load finishes, re-render animal banner with real sprites
+    assetLoader.onComplete(() => {
+      if (this.bannerParams && this.animalContainer) {
+        this.animalContainer.removeAll(true);
+        this.renderAnimalSprites(this.bannerParams.cx, this.bannerParams.y, this.bannerParams.stripW, this.bannerParams.sf);
+      }
+    });
 
     // ── Responsive sizing ───────────────────────────────────
     // Panel is capped at a comfortable max width/height
@@ -348,7 +358,17 @@ export class MainMenuScene extends Phaser.Scene {
       ).setOrigin(0.5).setAlpha(0.4);
     });
 
-    // ── Animals ─────────────────────────────────────────────
+    // ── Animals (in a swappable container) ────────────────
+    this.animalContainer = this.add.container(0, 0);
+    this.bannerParams = { cx, y, stripW, sf };
+    this.renderAnimalSprites(cx, y, stripW, sf);
+  }
+
+  /**
+   * Render animal sprites (or emoji fallback) into the banner container.
+   * Called once on create, and again when background loading completes.
+   */
+  private renderAnimalSprites(cx: number, y: number, stripW: number, sf: number): void {
     const showcaseSpecies: Species[] = ['cat', 'dog', 'bunny', 'fox', 'parrot', 'bat', 'snake'];
     const showcaseVariants: { species: Species; variant: string }[] = [];
 
@@ -397,6 +417,7 @@ export class MainMenuScene extends Phaser.Scene {
           duration: 900 + i * 80, yoyo: true, repeat: -1,
           ease: 'Sine.easeInOut', delay: i * 150,
         });
+        this.animalContainer!.add(sprite);
       } else {
         const txt = this.add.text(ix, iy, item.emoji, {
           fontSize: `${Math.round(30 * sf)}px`,
@@ -407,6 +428,7 @@ export class MainMenuScene extends Phaser.Scene {
           duration: 800 + i * 100, yoyo: true, repeat: -1,
           ease: 'Sine.easeInOut', delay: i * 120,
         });
+        this.animalContainer!.add(txt);
       }
     });
   }
