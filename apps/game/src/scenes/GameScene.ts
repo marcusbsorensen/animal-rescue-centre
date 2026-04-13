@@ -75,6 +75,7 @@ export class GameScene extends Phaser.Scene {
   private viewMode: ViewMode = 'corridor';
   private currentRoomSpecies?: Species;
   private gameContainer!: Phaser.GameObjects.Container;
+  private navContainer!: Phaser.GameObjects.Container;
   private uiContainer!: Phaser.GameObjects.Container;
   private needsTimer?: Phaser.Time.TimerEvent;
   private spawnTimer?: Phaser.Time.TimerEvent;
@@ -82,6 +83,11 @@ export class GameScene extends Phaser.Scene {
   private processing = false;         // double-click guard
   private showingCollarPicker = false; // bond race guard
   private static readonly MAX_ANIMALS = 30; // population cap
+  private scrollY = 0;
+  private maxScrollY = 0;
+  private scrollDragStartY = 0;
+  private scrollDragStartOffset = 0;
+  private isDragging = false;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -96,7 +102,29 @@ export class GameScene extends Phaser.Scene {
     audio.playSceneMusic('corridor');
 
     this.gameContainer = this.add.container(0, 0);
+    this.navContainer = this.add.container(0, 0);  // fixed above scrollable content
     this.uiContainer = this.add.container(0, 0);
+
+    // ── Scroll support (drag + mouse wheel) ──
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.scrollDragStartY = pointer.y;
+      this.scrollDragStartOffset = this.scrollY;
+      this.isDragging = false;
+    });
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown || this.maxScrollY <= 0) return;
+      const dy = pointer.y - this.scrollDragStartY;
+      if (Math.abs(dy) > 8) this.isDragging = true;
+      if (this.isDragging) {
+        this.scrollY = Phaser.Math.Clamp(this.scrollDragStartOffset + dy, -this.maxScrollY, 0);
+        this.gameContainer.y = this.scrollY;
+      }
+    });
+    this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gos: unknown, _dx: number, dy: number) => {
+      if (this.maxScrollY <= 0) return;
+      this.scrollY = Phaser.Math.Clamp(this.scrollY - dy * 0.5, -this.maxScrollY, 0);
+      this.gameContainer.y = this.scrollY;
+    });
 
     // Load saved state if available
     await this.loadState();
@@ -140,9 +168,9 @@ export class GameScene extends Phaser.Scene {
       loop: true,
     });
 
-    // Spawn a new animal periodically (every 15 seconds)
+    // Spawn a new animal periodically (every 45 seconds — gentle pace for kids)
     this.spawnTimer = this.time.addEvent({
-      delay: 15000,
+      delay: 45000,
       callback: this.spawnNewAnimal,
       callbackScope: this,
       loop: true,
@@ -275,6 +303,10 @@ export class GameScene extends Phaser.Scene {
     const nonPets = this.animals.filter((a) => a.state !== 'pet').length;
     if (nonPets >= GameScene.MAX_ANIMALS) return;
 
+    // Don't overwhelm — pause spawning if 3+ animals are already waiting
+    const arriving = this.animals.filter((a) => a.state === 'arriving').length;
+    if (arriving >= 3) return;
+
     const species = pickRandomSpecies(this.unlockedSpecies);
 
     if (shouldSpawnSiblings()) {
@@ -342,6 +374,10 @@ export class GameScene extends Phaser.Scene {
 
   private clearView(): void {
     this.gameContainer.removeAll(true);
+    this.navContainer.removeAll(true);
+    this.scrollY = 0;
+    this.maxScrollY = 0;
+    this.gameContainer.y = 0;
   }
 
   private renderView(): void {
@@ -583,7 +619,7 @@ export class GameScene extends Phaser.Scene {
     // Subtle inner glow at top
     dockGfx.fillStyle(0xffffff, 0.06);
     dockGfx.fillRoundedRect(dockX + 2, dockY - 5, maxDockW - 4, 3, { tl: 16, tr: 16, bl: 0, br: 0 });
-    this.gameContainer.add(dockGfx);
+    this.navContainer.add(dockGfx);
 
     // ── Render each tab button ──
     tabs.forEach((tab, i) => {
@@ -604,7 +640,7 @@ export class GameScene extends Phaser.Scene {
         pillGfx.fillStyle(tab.colour, 0.25);
         pillGfx.fillRoundedRect(tx - actualBtnW / 2, ty - btnH / 2, actualBtnW, btnH, 10);
       }
-      this.gameContainer.add(pillGfx);
+      this.navContainer.add(pillGfx);
 
       // Icon (larger for active) — use custom image if available
       const iconPx = tab.active ? 22 : 18;
@@ -612,16 +648,16 @@ export class GameScene extends Phaser.Scene {
         const iconImg = this.add.image(tx, ty - 7, tab.iconKey)
           .setDisplaySize(iconPx, iconPx).setOrigin(0.5);
         if (!tab.active) iconImg.setAlpha(0.75);
-        this.gameContainer.add(iconImg);
+        this.navContainer.add(iconImg);
       } else {
-        this.gameContainer.add(
+        this.navContainer.add(
           this.add.text(tx, ty - 7, tab.icon, { fontSize: `${iconPx}px` }).setOrigin(0.5)
         );
       }
 
       // Label
       const labelColour = tab.active ? '#ffffff' : '#d4c8b8';
-      this.gameContainer.add(
+      this.navContainer.add(
         this.add.text(tx, ty + 14, tab.label, {
           fontSize: '9px', fontFamily: FONTS.body, fontStyle: 'bold',
           color: labelColour,
@@ -639,7 +675,7 @@ export class GameScene extends Phaser.Scene {
       });
       hitArea.on('pointerout', () => pillGfx.setAlpha(1));
       hitArea.on('pointerdown', tab.action);
-      this.gameContainer.add(hitArea);
+      this.navContainer.add(hitArea);
     });
   }
 
@@ -904,6 +940,13 @@ export class GameScene extends Phaser.Scene {
         }, { width: 300, fontSize: '18px', icon: 'icon-welcome' })
       );
     }
+
+    // Calculate scroll bounds — if content extends below the nav bar
+    const navBarTop = height - 74; // dock sits ~74px from bottom
+    const contentBottom = arriving.length > 0
+      ? (doorY + Math.ceil(this.unlockedSpecies.length / 4) * (doorHeight + 20) + 20) + 40 + arriving.length * (120 + 12) + 60
+      : doorY + Math.ceil(this.unlockedSpecies.length / 4) * (doorHeight + 20);
+    this.maxScrollY = Math.max(0, contentBottom - navBarTop + 20);
 
     // Bottom navigation bar
     this.renderNavBar();
@@ -1352,6 +1395,16 @@ export class GameScene extends Phaser.Scene {
         })
       );
     }
+
+    // Garden shortcut — always show below kitchen content
+    const gardenBtnY = hungry.length > 0 ? height / 2 + 170 : height / 2 + 40;
+    const sheltered = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'pet');
+    this.gameContainer.add(
+      createButton(this, width / 2, gardenBtnY, `Garden (${sheltered.length} animals)`, () => {
+        this.viewMode = 'garden';
+        this.renderView();
+      }, { width: 260, fontSize: '16px', bgColour: '#2ecc71', icon: 'icon-walk' })
+    );
 
     this.renderNavBar({ showBack: true });
   }
