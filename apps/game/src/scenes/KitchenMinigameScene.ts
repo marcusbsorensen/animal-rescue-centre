@@ -72,8 +72,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     audio.playSceneMusic('kitchen');
 
     // Fade-in transition
-    this.cameras.main.setAlpha(0);
-    this.tweens.add({ targets: this.cameras.main, alpha: 1, duration: 400, ease: 'Power2' });
+    this.cameras.main.fadeIn(400, 245, 235, 224);
 
     // Background — kitchen art or warm colour fallback
     if (this.textures.exists('bg-kitchen')) {

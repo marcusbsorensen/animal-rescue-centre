@@ -22,7 +22,7 @@ export function createButton(
   }
 ): Phaser.GameObjects.Container {
   const fontSize = options?.fontSize ?? '22px';
-  const bgHex = options?.bgColour ?? COLOURS.primary;
+  const bgHex = options?.bgColour ?? COLOURS.primaryDark;
   const radius = options?.radius ?? 16;
 
   const text = scene.add.text(0, -1, label, {
@@ -30,6 +30,7 @@ export function createButton(
     fontFamily: FONTS.body,
     fontStyle: 'bold',
     color: COLOURS.white,
+    shadow: { offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.3)', blur: 2, fill: true },
   }).setOrigin(0.5);
 
   const padX = 28;
@@ -56,29 +57,29 @@ export function createButton(
     );
   };
 
-  const topColour = lighten(baseColour, 35);
-  const bottomColour = darken(baseColour, 40);
+  const topColour = lighten(baseColour, 25);
+  const bottomColour = darken(baseColour, 35);
 
   const gfx = scene.add.graphics();
 
   // Drop shadow
-  gfx.fillStyle(0x000000, 0.15);
+  gfx.fillStyle(0x000000, 0.22);
   gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 3, w, h, radius);
 
   // Main body
   gfx.fillStyle(baseNum, 1);
   gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
 
-  // Top highlight (lighter strip inside top)
-  gfx.fillStyle(topColour, 0.5);
-  gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 1, w - 4, h * 0.45, { tl: radius - 1, tr: radius - 1, bl: 0, br: 0 });
+  // Top highlight (lighter strip inside top — subtle)
+  gfx.fillStyle(topColour, 0.3);
+  gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 1, w - 4, h * 0.38, { tl: radius - 1, tr: radius - 1, bl: 0, br: 0 });
 
   // Bottom darken (darker strip inside bottom)
-  gfx.fillStyle(bottomColour, 0.3);
-  gfx.fillRoundedRect(-w / 2 + 2, h * 0.05, w - 4, h * 0.45 - 1, { tl: 0, tr: 0, bl: radius - 1, br: radius - 1 });
+  gfx.fillStyle(bottomColour, 0.35);
+  gfx.fillRoundedRect(-w / 2 + 2, h * 0.05, w - 4, h * 0.42 - 1, { tl: 0, tr: 0, bl: radius - 1, br: radius - 1 });
 
   // Thin white outline for crispness
-  gfx.lineStyle(1.5, 0xffffff, 0.25);
+  gfx.lineStyle(1.5, 0xffffff, 0.3);
   gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
 
   // Hit area (invisible rect for pointer events)
@@ -173,7 +174,7 @@ export function createPillTitle(
   const textColour = options?.textColour ?? '#ffffff';
   const padX = options?.padX ?? 28;
   const padY = options?.padY ?? 10;
-  const bgColour = options?.bgColour ?? 0x5AAE4A;
+  const bgColour = options?.bgColour ?? 0x4A9438;
   const shadow = options?.shadow ?? true;
 
   const text = scene.add.text(0, 0, label, {
@@ -181,6 +182,7 @@ export function createPillTitle(
     fontFamily: FONTS.title,
     fontStyle: 'bold',
     color: textColour,
+    shadow: { offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.25)', blur: 2, fill: true },
   }).setOrigin(0.5);
 
   const w = text.width + padX * 2;
@@ -208,8 +210,8 @@ export function createPillTitle(
     Math.min(255, baseG + 30),
     Math.min(255, baseB + 30)
   );
-  gfx.fillStyle(highlight, 0.35);
-  gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 1, w - 4, h * 0.48, { tl: radius, tr: radius, bl: 0, br: 0 });
+  gfx.fillStyle(highlight, 0.2);
+  gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 1, w - 4, h * 0.42, { tl: radius, tr: radius, bl: 0, br: 0 });
 
   // Thin outline
   gfx.lineStyle(1, 0xffffff, 0.2);
@@ -259,7 +261,7 @@ export function createPanel(
 
   // Border
   if (borderWidth > 0) {
-    gfx.lineStyle(borderWidth, borderColour, 0.7);
+    gfx.lineStyle(borderWidth, borderColour, 0.85);
     gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
   }
 

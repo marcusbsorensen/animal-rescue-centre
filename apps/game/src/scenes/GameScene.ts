@@ -271,9 +271,6 @@ export class GameScene extends Phaser.Scene {
 
   private renderView(): void {
     this.clearView();
-    // Fade-in transition
-    this.cameras.main.setAlpha(0.7);
-    this.tweens.add({ targets: this.cameras.main, alpha: 1, duration: 200 });
     // Transition music to match current view
     const audio = AudioManager.getInstance();
     const sceneMap: Record<ViewMode, 'corridor' | 'room' | 'kitchen' | 'garden'> = {
@@ -404,6 +401,116 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     saveBtn.on('pointerdown', () => this.saveState());
     this.uiContainer.add(saveBtn);
+  }
+
+  // ── Bottom Navigation Bar ────────────────────────────────────
+
+  private renderNavBar(options?: { showBack?: boolean }): void {
+    const { width, height } = this.scale;
+    const barH = 56;
+    const barY = height - barH;
+    const pets = this.animals.filter((a) => a.state === 'pet');
+
+    // ── Dark background strip ──
+    const barGfx = this.add.graphics();
+    barGfx.fillStyle(0x2d1f14, 0.92);
+    barGfx.fillRoundedRect(0, barY, width, barH, { tl: 12, tr: 12, bl: 0, br: 0 });
+    // Thin accent line at top of bar
+    barGfx.fillStyle(0x5AAE4A, 0.5);
+    barGfx.fillRect(0, barY, width, 2);
+    this.gameContainer.add(barGfx);
+
+    // ── Tab definitions ──
+    type NavTab = { icon: string; label: string; active: boolean; action: () => void };
+    const tabs: NavTab[] = [];
+
+    if (options?.showBack) {
+      tabs.push({
+        icon: '⬅️', label: 'Back',
+        active: false,
+        action: () => { this.viewMode = 'corridor'; this.renderView(); },
+      });
+    }
+
+    tabs.push(
+      {
+        icon: '🏠', label: 'Home',
+        active: this.viewMode === 'corridor',
+        action: () => { this.viewMode = 'corridor'; this.renderView(); },
+      },
+      {
+        icon: '🍽️', label: 'Kitchen',
+        active: this.viewMode === 'kitchen',
+        action: () => { this.viewMode = 'kitchen'; this.renderView(); },
+      },
+      {
+        icon: '🌳', label: `Garden${pets.length > 0 ? ` (${pets.length})` : ''}`,
+        active: this.viewMode === 'garden',
+        action: () => { this.viewMode = 'garden'; this.renderView(); },
+      },
+      {
+        icon: '💌', label: 'Social',
+        active: false,
+        action: () => { this.saveState(); this.scene.start('SocialScene'); },
+      },
+      {
+        icon: '🏗️', label: 'Depot',
+        active: false,
+        action: () => { this.saveState(); this.scene.start('DepotScene', { level: this.level }); },
+      },
+      {
+        icon: '🚛', label: 'Supply',
+        active: false,
+        action: () => { this.saveState(); this.scene.start('SupplyRunScene', { level: this.level }); },
+      },
+      {
+        icon: '🚪', label: 'Menu',
+        active: false,
+        action: () => { this.saveState(); this.scene.start('MainMenuScene'); },
+      },
+    );
+
+    // ── Render tabs evenly spaced ──
+    const tabCount = tabs.length;
+    const tabW = width / tabCount;
+    const tabCenterY = barY + barH / 2;
+
+    tabs.forEach((tab, i) => {
+      const tx = tabW * i + tabW / 2;
+
+      // Active highlight
+      if (tab.active) {
+        const hlGfx = this.add.graphics();
+        hlGfx.fillStyle(0x5AAE4A, 0.25);
+        hlGfx.fillRoundedRect(tx - tabW / 2 + 4, barY + 4, tabW - 8, barH - 8, 8);
+        this.gameContainer.add(hlGfx);
+      }
+
+      // Icon
+      this.gameContainer.add(
+        this.add.text(tx, tabCenterY - 10, tab.icon, {
+          fontSize: '18px',
+        }).setOrigin(0.5)
+      );
+
+      // Label
+      this.gameContainer.add(
+        this.add.text(tx, tabCenterY + 12, tab.label, {
+          fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
+          color: tab.active ? '#7CC76E' : '#c8b8a0',
+        }).setOrigin(0.5)
+      );
+
+      // Hit area
+      const hitArea = this.add.rectangle(tx, tabCenterY, tabW - 4, barH - 6, 0x000000, 0)
+        .setInteractive({ useHandCursor: true });
+      hitArea.on('pointerover', () => {
+        if (!tab.active) hitArea.setAlpha(0.8);
+      });
+      hitArea.on('pointerout', () => hitArea.setAlpha(1));
+      hitArea.on('pointerdown', tab.action);
+      this.gameContainer.add(hitArea);
+    });
   }
 
   // ── Corridor View ───────────────────────────────────────────
@@ -599,56 +706,8 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    // Bottom buttons — two rows
-    const pets = this.animals.filter((a) => a.state === 'pet');
-    const btnRow1Y = height - 105;
-    const btnRow2Y = height - 60;
-
-    // Row 1: Core locations
-    this.gameContainer.add(
-      createButton(this, width / 2 - 160, btnRow1Y, '🍽️ Kitchen', () => {
-        this.viewMode = 'kitchen';
-        this.renderView();
-      }, { width: 135, fontSize: '15px', bgColour: '#8b6914' })
-    );
-
-    this.gameContainer.add(
-      createButton(this, width / 2, btnRow1Y,
-        `🌳 Garden (${pets.length})`, () => {
-        this.viewMode = 'garden';
-        this.renderView();
-      }, { width: 135, fontSize: '15px', bgColour: '#2ecc71' })
-    );
-
-    this.gameContainer.add(
-      createButton(this, width / 2 + 160, btnRow1Y, '💌 Social', () => {
-        this.saveState();
-        this.scene.start('SocialScene');
-      }, { width: 135, fontSize: '15px', bgColour: '#9b59b6' })
-    );
-
-    // Row 2: Depot + Supply Run + Menu
-    this.gameContainer.add(
-      createButton(this, width / 2 - 130, btnRow2Y, '🏗️ Depot', () => {
-        this.saveState();
-        this.scene.start('DepotScene', { level: this.level });
-      }, { width: 115, fontSize: '14px', bgColour: '#4a2d7a' })
-    );
-
-    this.gameContainer.add(
-      createButton(this, width / 2, btnRow2Y, '🚛 Supply Run', () => {
-        this.saveState();
-        this.scene.start('SupplyRunScene', { level: this.level });
-      }, { width: 130, fontSize: '14px', bgColour: '#ff6600' })
-    );
-
-    this.gameContainer.add(
-      createTextButton(this, width / 2 + 150, btnRow2Y,
-        '← Menu', () => {
-          this.saveState();
-          this.scene.start('MainMenuScene');
-        })
-    );
+    // Bottom navigation bar
+    this.renderNavBar();
   }
 
   // ── Room View ───────────────────────────────────────────────
@@ -753,14 +812,8 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    // Back to corridor
-    this.gameContainer.add(
-      createTextButton(this, width / 2, height - 50,
-        '← Back to corridor', () => {
-          this.viewMode = 'corridor';
-          this.renderView();
-        })
-    );
+    // Bottom navigation bar with back button
+    this.renderNavBar({ showBack: true });
   }
 
   // ── Animal Details Popup ────────────────────────────────────
@@ -1101,13 +1154,7 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    this.gameContainer.add(
-      createTextButton(this, width / 2, height - 50,
-        '← Back to corridor', () => {
-          this.viewMode = 'corridor';
-          this.renderView();
-        })
-    );
+    this.renderNavBar({ showBack: true });
   }
 
   // ── Garden View ─────────────────────────────────────────────
@@ -1262,13 +1309,7 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    this.gameContainer.add(
-      createTextButton(this, width / 2, height - 50,
-        '← Back to corridor', () => {
-          this.viewMode = 'corridor';
-          this.renderView();
-        })
-    );
+    this.renderNavBar({ showBack: true });
   }
 
   // ── Bond Completion + Collar Picker ────────────────────────

@@ -27,7 +27,7 @@ export const COLOURS = {
   bg: '#fef9ef',
   bgDark: '#f5ebe0',
   text: '#3a2e22',
-  textLight: '#7c6b5a',
+  textLight: '#6b5a4a',
   white: '#ffffff',
   error: '#c0392b',
   inputBg: '#f5efe4',

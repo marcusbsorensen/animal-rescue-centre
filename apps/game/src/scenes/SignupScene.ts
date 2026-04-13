@@ -48,8 +48,7 @@ export class SignupScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Fade-in transition
-    this.cameras.main.setAlpha(0);
-    this.tweens.add({ targets: this.cameras.main, alpha: 1, duration: 300 });
+    this.cameras.main.fadeIn(300, 245, 235, 224);
 
     this.showUsernameStep();
   }

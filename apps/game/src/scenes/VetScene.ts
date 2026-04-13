@@ -55,8 +55,7 @@ export class VetScene extends Phaser.Scene {
     audio.playSceneMusic('vet');
 
     // Fade-in transition
-    this.cameras.main.setAlpha(0);
-    this.tweens.add({ targets: this.cameras.main, alpha: 1, duration: 400, ease: 'Power2' });
+    this.cameras.main.fadeIn(400, 245, 235, 224);
 
     this.container = this.add.container(0, 0);
     this.renderView();

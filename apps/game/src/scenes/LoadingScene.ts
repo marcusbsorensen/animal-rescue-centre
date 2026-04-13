@@ -183,12 +183,7 @@ export class LoadingScene extends Phaser.Scene {
     loader.startBackgroundLoad(this);
 
     // Fade-in entrance
-    this.cameras.main.setAlpha(0);
-    this.tweens.add({
-      targets: this.cameras.main,
-      alpha: 1,
-      duration: 300,
-    });
+    this.cameras.main.fadeIn(300, 245, 235, 224);
   }
 
   private drawBarFill(pct: number): void {
