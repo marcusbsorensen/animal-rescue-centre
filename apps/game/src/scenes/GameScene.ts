@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species, GameState } from '@arc/shared-types';
-import { COLOURS, FONTS } from '../ui/constants';
+import { COLOURS, FONTS, pluralSpecies } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
@@ -426,83 +426,115 @@ export class GameScene extends Phaser.Scene {
       createPillTitle(this, width / 2, 55, '🏠 Rescue Centre', { bgColour: 0x8B6914, fontSize: '20px' })
     );
 
-    // Room doors (one per unlocked species)
-    const doorWidth = 120;
-    const doorHeight = 100;
+    // Room doors (one per unlocked species) — solid card panels
+    const doorWidth = 130;
+    const doorHeight = 90;
     const doorsPerRow = Math.min(this.unlockedSpecies.length, 4);
-    const startX = width / 2 - ((doorsPerRow - 1) * (doorWidth + 20)) / 2;
-    const doorY = 150;
+    const startX = width / 2 - ((doorsPerRow - 1) * (doorWidth + 16)) / 2;
+    const doorY = 145;
 
     this.unlockedSpecies.forEach((species, i) => {
       const row = Math.floor(i / 4);
       const col = i % 4;
-      const x = startX + col * (doorWidth + 20);
-      const y = doorY + row * (doorHeight + 30);
+      const x = startX + col * (doorWidth + 16);
+      const y = doorY + row * (doorHeight + 20);
 
-      const roomAnimals = this.animals.filter((a) => a.species === species);
+      const roomAnimals = this.animals.filter((a) => a.species === species && a.state !== 'arriving');
+      const count = roomAnimals.length;
       const colour = SPECIES_COLOURS[species];
 
-      // Door rectangle
-      const door = this.add.rectangle(x, y, doorWidth, doorHeight, colour, 0.3)
-        .setInteractive({ useHandCursor: true })
-        .setStrokeStyle(2, colour);
+      // Solid white card with coloured top stripe
+      const cardGfx = this.add.graphics();
+      cardGfx.fillStyle(0xffffff, 0.92);
+      cardGfx.fillRoundedRect(x - doorWidth / 2, y - doorHeight / 2, doorWidth, doorHeight, 12);
+      cardGfx.fillStyle(colour, 1);
+      cardGfx.fillRoundedRect(x - doorWidth / 2, y - doorHeight / 2, doorWidth, 8, { tl: 12, tr: 12, bl: 0, br: 0 });
+      this.gameContainer.add(cardGfx);
 
-      // Species label
-      const label = this.add.text(x, y - 15, this.speciesEmoji(species), {
-        fontSize: '32px',
-      }).setOrigin(0.5);
-
-      const countText = this.add.text(x, y + 20, `${roomAnimals.length} ${species}s`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
-      }).setOrigin(0.5);
-
-      door.on('pointerdown', () => {
+      // Hit area over card
+      const hitArea = this.add.rectangle(x, y, doorWidth, doorHeight, 0x000000, 0)
+        .setInteractive({ useHandCursor: true });
+      hitArea.on('pointerover', () => cardGfx.setAlpha(0.85));
+      hitArea.on('pointerout', () => cardGfx.setAlpha(1));
+      hitArea.on('pointerdown', () => {
         this.currentRoomSpecies = species;
         this.viewMode = 'room';
         this.renderView();
       });
+      this.gameContainer.add(hitArea);
 
-      this.gameContainer.add(door);
-      this.gameContainer.add(label);
-      this.gameContainer.add(countText);
-    });
-
-    // Arriving animals section
-    const arriving = this.animals.filter((a) => a.state === 'arriving');
-    if (arriving.length > 0) {
-      const arriveY = doorY + Math.ceil(this.unlockedSpecies.length / 4) * 130 + 30;
-
+      // Species emoji
       this.gameContainer.add(
-        this.add.text(width / 2, arriveY, `📬 ${arriving.length} new arrival${arriving.length > 1 ? 's' : ''}!`, {
-          fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.primary,
+        this.add.text(x, y - 12, this.speciesEmoji(species), {
+          fontSize: '30px',
         }).setOrigin(0.5)
       );
 
-      arriving.slice(0, 4).forEach((animal, i) => {
-        const ax = width / 2 - 150 + i * 100;
-        const ay = arriveY + 60;
+      // Count + species name (proper grammar)
+      this.gameContainer.add(
+        this.add.text(x, y + 22, `${count} ${pluralSpecies(species, count)}`, {
+          fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text,
+        }).setOrigin(0.5)
+      );
+    });
 
-        // Animal sprite (real art or fallback rectangle)
-        const sprite = createAnimalSprite(this, ax, ay, animal, { interactive: true });
+    // ── Arriving animals section ──────────────────────────────────
+    const arriving = this.animals.filter((a) => a.state === 'arriving');
+    if (arriving.length > 0) {
+      const arriveY = doorY + Math.ceil(this.unlockedSpecies.length / 4) * (doorHeight + 20) + 20;
+
+      // Arrivals banner pill
+      this.gameContainer.add(
+        createPillTitle(this, width / 2, arriveY,
+          `📬 ${arriving.length} new arrival${arriving.length > 1 ? 's' : ''}!`,
+          { bgColour: 0xE67E22, fontSize: '17px' })
+      );
+
+      // Animal cards with backing panels
+      const cardW = 100;
+      const cardH = 110;
+      const maxShow = Math.min(arriving.length, 4);
+      const arrCardStartX = width / 2 - ((maxShow - 1) * (cardW + 10)) / 2;
+
+      arriving.slice(0, maxShow).forEach((animal, i) => {
+        const ax = arrCardStartX + i * (cardW + 10);
+        const ay = arriveY + 75;
+
+        // White card backing
+        const arrCard = this.add.graphics();
+        arrCard.fillStyle(0xffffff, 0.9);
+        arrCard.fillRoundedRect(ax - cardW / 2, ay - cardH / 2, cardW, cardH, 10);
+        arrCard.lineStyle(2, 0xE67E22, 0.6);
+        arrCard.strokeRoundedRect(ax - cardW / 2, ay - cardH / 2, cardW, cardH, 10);
+        this.gameContainer.add(arrCard);
+
+        // Animal sprite
+        const sprite = createAnimalSprite(this, ax, ay - 12, animal, { width: 64, height: 52, interactive: true });
         sprite.on('pointerdown', () => this.showAnimalDetails(animal));
         this.gameContainer.add(sprite);
 
-        // Name
+        // Name below
         this.gameContainer.add(
-          this.add.text(ax, ay + 30, animal.name, {
-            fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
+          this.add.text(ax, ay + 32, animal.name, {
+            fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text,
           }).setOrigin(0.5)
         );
       });
 
-      // "Accept all" button
+      // "Accept all" button with double-click guard
+      const acceptBtnY = arriveY + 75 + cardH / 2 + 25;
       this.gameContainer.add(
-        createButton(this, width / 2, arriveY + 120, '✓ Accept into centre', () => {
+        createButton(this, width / 2, acceptBtnY, '✅ Welcome them in!', () => {
+          if (this.processing) return;
+          this.processing = true;
           arriving.forEach((a) => { a.state = 'sheltered'; });
           AudioManager.getInstance().playSfx('animal_arrive');
           this.saveState();
-          this.renderView();
-        }, { width: 260, fontSize: '18px' })
+          this.time.delayedCall(100, () => {
+            this.processing = false;
+            this.renderView();
+          });
+        }, { width: 280, fontSize: '18px' })
       );
     }
 

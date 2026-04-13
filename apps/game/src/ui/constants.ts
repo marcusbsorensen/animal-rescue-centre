@@ -30,6 +30,16 @@ export const AVATAR_BG_COLOURS = [
   '#FFD9B3', '#D9B3FF', '#B3D9FF', '#C9FFB3',
 ] as const;
 
+/**
+ * Pluralise a species name correctly.
+ */
+export function pluralSpecies(species: string, count: number): string {
+  if (count === 1) return species;
+  if (species === 'bunny') return 'bunnies';
+  if (species === 'fox') return 'foxes';
+  return species + 's';
+}
+
 export const GIFT_MESSAGES = [
   { code: 'hi', text: 'Hi from me!' },
   { code: 'cool_pets', text: 'Your pets are cool!' },

@@ -118,6 +118,15 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.scene.start('MainMenuScene');
+    // Wait for web fonts (Nunito) to load before transitioning —
+    // Phaser canvas text falls back to serif if font isn't ready
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        this.scene.start('MainMenuScene');
+      });
+    } else {
+      // Fallback for browsers without FontFaceSet API
+      this.scene.start('MainMenuScene');
+    }
   }
 }
