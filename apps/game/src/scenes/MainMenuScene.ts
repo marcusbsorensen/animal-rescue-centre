@@ -4,7 +4,7 @@ import { createButton, createTextButton, createAmbientParticles } from '../ui/UI
 import { getSession, logout } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
 import { AssetLoader } from '../lib/AssetLoader';
-import { SPECIES_VARIANTS } from '@arc/game-logic';
+import { SPECIES_VARIANTS, SPECIES_COLOURS } from '@arc/game-logic';
 import type { Species } from '@arc/shared-types';
 
 /**

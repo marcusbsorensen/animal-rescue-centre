@@ -211,7 +211,7 @@ export class WalkScene extends Phaser.Scene {
     // Put collar on button
     this.container.add(
       createButton(this, width / 2, height * 0.65, 'Put collar on!', () => {
-        AudioManager.getInstance().playSfx('collar_on');
+        AudioManager.getInstance().playSfx('collar_pick');
         if (this.gridState) this.gridState.collarOn = true;
         this.phase = 'select_zone';
         this.renderPhase();
@@ -392,7 +392,7 @@ export class WalkScene extends Phaser.Scene {
         const fakeAnimal: Animal = {
           id: npc.id, name: npc.label, species: npc.species,
           state: 'sheltered', hunger: 0, tiredness: 0, happiness: 100,
-          health: 100, bondLevel: 0, arrivalStory: '',
+          health: 100, bondLevel: 0, arrivalStory: '', roomId: '',
         };
         const sprite = createAnimalSprite(this, x, y, fakeAnimal, {
           width: this.cellSize * 0.7, height: this.cellSize * 0.6,
