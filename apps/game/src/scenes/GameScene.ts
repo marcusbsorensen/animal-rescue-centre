@@ -396,161 +396,132 @@ export class GameScene extends Phaser.Scene {
   private renderHUD(): void {
     this.uiContainer.removeAll(true);
     const { width } = this.scale;
-    const petCount = this.animals.filter((a) => a.state === 'pet').length;
     const required = getRequiredRescuesForLevel(this.level);
     const xpProgress = Math.min(this.totalRescued / required, 1);
+    const shelteredCount = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length;
+    const maxShelter = getMaxShelterAnimals(this.level);
 
-    // ── Background bar (constrained to max 600px centred) ──────
-    const barH = 52;
-    const maxBarW = Math.min(width, 600);
-    const barX = (width - maxBarW) / 2;
+    // Constrain to 600px centred for large screens
+    const maxW = Math.min(width, 600);
+    const leftEdge = (width - maxW) / 2 + 10;
+    const rightEdge = width - (width - maxW) / 2 - 10;
+    const orbY = 30;
+    const orbH = 44;
 
-    const barGfx = this.add.graphics();
-    barGfx.fillStyle(0x2d1f14, 0.92);
-    barGfx.fillRoundedRect(barX, 0, maxBarW, barH, { tl: 0, tr: 0, bl: 14, br: 14 });
-    this.uiContainer.add(barGfx);
+    // ── LEFT: Level orb with XP bar ───────────────────────────
+    const leftOrbW = 170;
+    const leftX = leftEdge;
+    const leftGfx = this.add.graphics();
+    leftGfx.fillStyle(0x000000, 0.14);
+    leftGfx.fillRoundedRect(leftX + 2, orbY - orbH / 2 + 3, leftOrbW, orbH, orbH / 2);
+    leftGfx.fillStyle(0xffffff, 0.96);
+    leftGfx.fillRoundedRect(leftX, orbY - orbH / 2, leftOrbW, orbH, orbH / 2);
+    this.uiContainer.add(leftGfx);
 
-    // Thin accent line at bottom of bar
-    const accentGfx = this.add.graphics();
-    accentGfx.fillStyle(0x5AAE4A, 0.6);
-    accentGfx.fillRect(barX, barH - 3, maxBarW, 3);
-    this.uiContainer.add(accentGfx);
-
-    // ── Level badge (left side of constrained bar) ──────────────
-    const lvlX = barX + 14;
-    const lvlY = barH / 2;
-    const lvlBadge = this.add.graphics();
-    lvlBadge.fillStyle(0x5AAE4A, 1);
-    lvlBadge.fillRoundedRect(lvlX, lvlY - 16, 64, 32, 16);
-    this.uiContainer.add(lvlBadge);
-
+    // Green level circle
+    const lvlCx = leftX + orbH / 2;
+    const lvlCircle = this.add.graphics();
+    lvlCircle.fillStyle(0x5AAE4A, 1);
+    lvlCircle.fillCircle(lvlCx, orbY, orbH / 2 - 4);
+    this.uiContainer.add(lvlCircle);
     this.uiContainer.add(
-      this.add.text(lvlX + 32, lvlY, `Lv ${this.level}`, {
-        fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      this.add.text(lvlCx, orbY, `${this.level}`, {
+        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
 
-    // ── XP progress bar ──────────────────────────────────────────
-    const xpX = lvlX + 74;
-    const xpW = 100;
-    const xpY = lvlY;
-    const xpTrack = this.add.graphics();
-    xpTrack.fillStyle(0x000000, 0.3);
-    xpTrack.fillRoundedRect(xpX, xpY - 6, xpW, 12, 6);
-    this.uiContainer.add(xpTrack);
+    // XP label + bar
+    const xpX = leftX + orbH + 2;
+    const xpW = leftOrbW - orbH - 14;
+    this.uiContainer.add(
+      this.add.text(xpX, orbY - 9, `${this.totalRescued} / ${required} rescued`, {
+        fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0, 0.5)
+    );
+    const xpBar = this.add.graphics();
+    xpBar.fillStyle(0xe6e2d8, 1);
+    xpBar.fillRoundedRect(xpX, orbY + 3, xpW, 7, 3.5);
     if (xpProgress > 0) {
-      const xpFill = this.add.graphics();
-      xpFill.fillStyle(0x6dd58c, 1);
-      xpFill.fillRoundedRect(xpX, xpY - 6, Math.max(12, xpW * xpProgress), 12, 6);
-      this.uiContainer.add(xpFill);
+      xpBar.fillStyle(0x5AAE4A, 1);
+      xpBar.fillRoundedRect(xpX, orbY + 3, Math.max(6, xpW * xpProgress), 7, 3.5);
     }
-    this.uiContainer.add(
-      this.add.text(xpX + xpW / 2, xpY, `${this.totalRescued}/${required} rescued`, {
-        fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
-      }).setOrigin(0.5)
-    );
+    this.uiContainer.add(xpBar);
 
-    // ── Stat chips (centred in remaining bar space) ──────────────
-    const chipY = barH / 2;
-    const chips: { label: string; icon?: string; value: string; colour: number }[] = [
-      { label: 'Rescued', icon: 'icon-hud-animals', value: `${this.totalRescued}`, colour: 0x5B8C3E },
-      { label: 'Shelter', icon: 'icon-hud-homes', value: `${this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length}/${getMaxShelterAnimals(this.level)}`, colour: 0x6B5B3E },
-    ];
-    if (petCount > 0) {
-      chips.push({ label: 'Pets', value: `${petCount}`, colour: 0xB8860B });
-    }
-    if (this.economy.coins > 0) {
-      chips.push({ label: 'Coins', icon: 'icon-hud-coins', value: `${this.economy.coins}`, colour: 0xB8860B });
-    }
+    // ── RIGHT SIDE: stack orbs from right edge leftward ─────
+    let rx = rightEdge;
+    const orbSize = 40;
 
-    const chipAreaStart = xpX + xpW + 16;
-    const chipAreaEnd = barX + maxBarW - 50; // leave room for audio button
-    const chipSpacing = Math.min(80, (chipAreaEnd - chipAreaStart) / chips.length);
-    chips.forEach((chip, i) => {
-      const cx = chipAreaStart + i * chipSpacing + chipSpacing / 2;
-      const chipGfx = this.add.graphics();
-      chipGfx.fillStyle(chip.colour, 0.85);
-      chipGfx.fillRoundedRect(cx - 32, chipY - 14, 64, 28, 14);
-      this.uiContainer.add(chipGfx);
-
-      const iconKey = chip.icon;
-      if (iconKey && this.textures.exists(iconKey)) {
-        const icon = this.add.image(cx - 12, chipY, iconKey)
-          .setDisplaySize(20, 20).setOrigin(0.5);
-        this.uiContainer.add(icon);
-        this.uiContainer.add(
-          this.add.text(cx + 8, chipY, chip.value, {
-            fontSize: '16px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
-          }).setOrigin(0.5)
-        );
+    // Helper — round icon button orb
+    const drawIconOrb = (iconKey: string, textFallback: string, onTap: () => void) => {
+      const cx = rx - orbSize / 2;
+      const shadow = this.add.graphics();
+      shadow.fillStyle(0x000000, 0.14);
+      shadow.fillCircle(cx + 2, orbY + 3, orbSize / 2);
+      shadow.fillStyle(0xffffff, 0.96);
+      shadow.fillCircle(cx, orbY, orbSize / 2);
+      this.uiContainer.add(shadow);
+      if (this.textures.exists(iconKey)) {
+        const img = this.add.image(cx, orbY, iconKey).setDisplaySize(22, 22).setOrigin(0.5);
+        this.uiContainer.add(img);
       } else {
         this.uiContainer.add(
-          this.add.text(cx, chipY, chip.value, {
-            fontSize: '16px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
-          }).setOrigin(0.5)
-        );
-        this.uiContainer.add(
-          this.add.text(cx, chipY + 12, chip.label, {
-            fontSize: '8px', fontFamily: FONTS.body, color: '#aaaaaa', resolution: TEXT_RESOLUTION,
+          this.add.text(cx, orbY, textFallback, {
+            fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text, resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5)
         );
       }
+      const hit = this.add.circle(cx, orbY, orbSize / 2, 0x000000, 0).setInteractive({ useHandCursor: true });
+      hit.on('pointerdown', onTap);
+      this.uiContainer.add(hit);
+      rx -= orbSize + 6;
+    };
+
+    // Helper — pill showing a value next to a coloured circle icon
+    const drawValuePill = (value: string, iconKey: string, iconTint: number) => {
+      const pillW = 70;
+      const x0 = rx - pillW;
+      const gfx = this.add.graphics();
+      gfx.fillStyle(0x000000, 0.14);
+      gfx.fillRoundedRect(x0 + 2, orbY - orbH / 2 + 3, pillW, orbH, orbH / 2);
+      gfx.fillStyle(0xffffff, 0.96);
+      gfx.fillRoundedRect(x0, orbY - orbH / 2, pillW, orbH, orbH / 2);
+      this.uiContainer.add(gfx);
+      const circ = this.add.graphics();
+      circ.fillStyle(iconTint, 1);
+      circ.fillCircle(x0 + orbH / 2, orbY, orbH / 2 - 5);
+      this.uiContainer.add(circ);
+      if (this.textures.exists(iconKey)) {
+        this.uiContainer.add(
+          this.add.image(x0 + orbH / 2, orbY, iconKey).setDisplaySize(22, 22).setOrigin(0.5)
+        );
+      }
+      this.uiContainer.add(
+        this.add.text(x0 + orbH + 2, orbY, value, {
+          fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text, resolution: TEXT_RESOLUTION,
+        }).setOrigin(0, 0.5)
+      );
+      rx = x0 - 6;
+    };
+
+    // Save orb (right-most)
+    drawIconOrb('icon-save', 'SAVE', () => this.saveState());
+
+    // Audio toggle orb
+    const audioState = AudioManager.getInstance().getState();
+    const audioKey = audioState.musicEnabled ? 'icon-music-on' : 'icon-music-off';
+    drawIconOrb(audioKey, audioState.musicEnabled ? 'ON' : 'OFF', () => {
+      AudioManager.getInstance().toggleMusic();
+      this.renderHUD();
     });
 
-    // ── Audio toggle (right end of constrained bar) ────────────
-    const audioBtnX = barX + maxBarW - 24;
-    const btnY = barH / 2;
-    const btnSize = 34;
-
-    const audioState = AudioManager.getInstance().getState();
-    const audioBg = this.add.graphics();
-    audioBg.fillStyle(0x000000, 0.3);
-    audioBg.fillCircle(audioBtnX, btnY, btnSize / 2);
-    this.uiContainer.add(audioBg);
-
-    const musicOnKey = 'icon-music-on';
-    const musicOffKey = 'icon-music-off';
-    const hasMusicIcons = this.textures.exists(musicOnKey) && this.textures.exists(musicOffKey);
-
-    if (hasMusicIcons) {
-      const audioImg = this.add.image(audioBtnX, btnY,
-        audioState.musicEnabled ? musicOnKey : musicOffKey
-      ).setDisplaySize(22, 22).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      audioImg.on('pointerdown', () => {
-        const enabled = AudioManager.getInstance().toggleMusic();
-        audioImg.setTexture(enabled ? musicOnKey : musicOffKey);
-      });
-      this.uiContainer.add(audioImg);
-    } else {
-      const audioBtn = this.add.text(audioBtnX, btnY,
-        audioState.musicEnabled ? 'ON' : 'OFF', {
-        fontSize: '12px', fontFamily: FONTS.body, color: '#ffffff',
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      audioBtn.on('pointerdown', () => {
-        const enabled = AudioManager.getInstance().toggleMusic();
-        audioBtn.setText(enabled ? 'ON' : 'OFF');
-      });
-      this.uiContainer.add(audioBtn);
+    // Coin pill
+    if (this.economy.coins > 0) {
+      drawValuePill(`${this.economy.coins}`, 'icon-hud-coins', 0xe3b04b);
     }
 
-    // Save button (right of audio, outside constrained bar for wide screens)
-    const saveBtnX = audioBtnX + 38;
-    const saveBg = this.add.graphics();
-    saveBg.fillStyle(0x000000, 0.3);
-    saveBg.fillCircle(saveBtnX, btnY, btnSize / 2);
-    this.uiContainer.add(saveBg);
-
-    if (this.textures.exists('icon-save')) {
-      const saveImg = this.add.image(saveBtnX, btnY, 'icon-save')
-        .setDisplaySize(22, 22).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      saveImg.on('pointerdown', () => this.saveState());
-      this.uiContainer.add(saveImg);
-    } else {
-      const saveBtn = this.add.text(saveBtnX, btnY, 'SAVE', {
-        fontSize: '10px', fontFamily: FONTS.body, color: '#ffffff',
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      saveBtn.on('pointerdown', () => this.saveState());
-      this.uiContainer.add(saveBtn);
+    // Shelter pill (if room used)
+    if (shelteredCount > 0) {
+      drawValuePill(`${shelteredCount}/${maxShelter}`, 'icon-hud-homes', 0x8B6914);
     }
   }
 
@@ -558,127 +529,137 @@ export class GameScene extends Phaser.Scene {
 
   private renderNavBar(options?: { showBack?: boolean }): void {
     const { width, height } = this.scale;
-    const pets = this.animals.filter((a) => a.state === 'pet');
 
-    // ── Tab definitions with individual colours ──
     type NavTab = {
-      icon: string; iconKey?: string; label: string; colour: number;
-      active: boolean; action: () => void;
+      iconKey: string; label: string; active: boolean; action: () => void;
     };
-    const tabs: NavTab[] = [];
 
-    if (options?.showBack) {
-      tabs.push({
-        icon: '', iconKey: 'icon-back', label: 'Back', colour: 0x6b5a4a,
-        active: false,
-        action: () => { this.viewMode = 'corridor'; this.renderView(); },
-      });
-    }
+    // Layout: 2 tabs LEFT of centre, central FAB, 2 tabs RIGHT of centre
+    const leftTabs: NavTab[] = options?.showBack
+      ? [
+          { iconKey: 'icon-back', label: 'Back', active: false,
+            action: () => { this.viewMode = 'corridor'; this.renderView(); } },
+          { iconKey: 'icon-kitchen', label: 'Care', active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
+            action: () => { this.viewMode = 'kitchen'; this.renderView(); } },
+        ]
+      : [
+          { iconKey: 'icon-home', label: 'Home', active: this.viewMode === 'corridor',
+            action: () => { this.viewMode = 'corridor'; this.renderView(); } },
+          { iconKey: 'icon-kitchen', label: 'Care', active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
+            action: () => { this.viewMode = 'kitchen'; this.renderView(); } },
+        ];
 
-    tabs.push(
-      {
-        icon: '', iconKey: 'icon-home', label: 'Home', colour: 0x8b6914,
-        active: this.viewMode === 'corridor',
-        action: () => { this.viewMode = 'corridor'; this.renderView(); },
-      },
-      {
-        icon: '', iconKey: 'icon-kitchen', label: 'Care', colour: 0xc27830,
-        active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
-        action: () => { this.viewMode = 'kitchen'; this.renderView(); },
-      },
-      {
-        icon: '', iconKey: 'icon-social', label: 'Social', colour: 0x9b59b6,
-        active: false,
-        action: () => { this.saveState(); this.scene.start('SocialScene'); },
-      },
-      {
-        icon: '', iconKey: 'icon-games', label: 'Games', colour: 0x5a3d8a,
-        active: false,
-        action: () => { this.showGamesPopup(); },
-      },
-      {
-        icon: '', iconKey: 'icon-menu', label: 'Menu', colour: 0x6b5a4a,
-        active: false,
-        action: () => { this.saveState(); this.scene.start('MainMenuScene'); },
-      },
-    );
+    const rightTabs: NavTab[] = [
+      { iconKey: 'icon-social', label: 'Social', active: false,
+        action: () => { this.saveState(); this.scene.start('SocialScene'); } },
+      { iconKey: 'icon-menu', label: 'Menu', active: false,
+        action: () => { this.saveState(); this.scene.start('MainMenuScene'); } },
+    ];
 
-    // ── Layout: compact dock centred at bottom ──
-    const btnW = 72;
-    const btnH = 48;
-    const gap = 6;
-    const dockW = tabs.length * btnW + (tabs.length - 1) * gap + 20; // 10px padding each side
-    const maxDockW = Math.min(dockW, width - 20);
-    const actualBtnW = (maxDockW - 20 - (tabs.length - 1) * gap) / tabs.length;
-    const dockX = (width - maxDockW) / 2;
-    const dockY = height - btnH - 14;
-    const dockH = btnH + 12; // padding top/bottom
+    // ── Bar geometry ──────────────────────────────────────
+    const tabW = 64;
+    const tabH = 54;
+    const fabSize = 62;
+    const fabGap = 10;
+    const tabsSide = leftTabs.length; // 2
+    const barW = Math.min(width - 20, tabsSide * 2 * tabW + fabSize + fabGap * 2 + 24);
+    const barH = tabH + 14;
+    const barX = (width - barW) / 2;
+    const barY = height - barH - 12;
 
-    // Dock background — frosted dark panel
-    const dockGfx = this.add.graphics();
-    dockGfx.fillStyle(0x2d1f14, 0.88);
-    dockGfx.fillRoundedRect(dockX, dockY - 6, maxDockW, dockH, 16);
-    // Subtle inner glow at top
-    dockGfx.fillStyle(0xffffff, 0.06);
-    dockGfx.fillRoundedRect(dockX + 2, dockY - 5, maxDockW - 4, 3, { tl: 16, tr: 16, bl: 0, br: 0 });
-    this.navContainer.add(dockGfx);
+    // Glass bar background
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.14);
+    bg.fillRoundedRect(barX + 2, barY + 4, barW, barH, barH / 2);
+    bg.fillStyle(0xffffff, 0.92);
+    bg.fillRoundedRect(barX, barY, barW, barH, barH / 2);
+    // Inner top highlight
+    bg.fillStyle(0xffffff, 0.6);
+    bg.fillRoundedRect(barX + 2, barY + 2, barW - 4, 6, { tl: barH / 2, tr: barH / 2, bl: 0, br: 0 });
+    this.navContainer.add(bg);
 
-    // ── Render each tab button ──
-    tabs.forEach((tab, i) => {
-      const tx = dockX + 10 + i * (actualBtnW + gap) + actualBtnW / 2;
-      const ty = dockY + dockH / 2 - 5;
-
-      // Coloured pill background for each button
-      const pillGfx = this.add.graphics();
+    // ── Tab drawer ────────────────────────────────────────
+    const drawTab = (tab: NavTab, tx: number, ty: number) => {
       if (tab.active) {
-        // Active: bright coloured pill
-        pillGfx.fillStyle(tab.colour, 0.9);
-        pillGfx.fillRoundedRect(tx - actualBtnW / 2, ty - btnH / 2, actualBtnW, btnH, 10);
-        // Bright top edge
-        pillGfx.fillStyle(0xffffff, 0.15);
-        pillGfx.fillRoundedRect(tx - actualBtnW / 2 + 1, ty - btnH / 2 + 1, actualBtnW - 2, btnH * 0.4, { tl: 9, tr: 9, bl: 0, br: 0 });
-      } else {
-        // Inactive: subtle tinted background
-        pillGfx.fillStyle(tab.colour, 0.25);
-        pillGfx.fillRoundedRect(tx - actualBtnW / 2, ty - btnH / 2, actualBtnW, btnH, 10);
+        const pill = this.add.graphics();
+        pill.fillStyle(0x5AAE4A, 0.16);
+        pill.fillRoundedRect(tx - tabW / 2 + 4, ty - tabH / 2 + 2, tabW - 8, tabH - 4, 14);
+        this.navContainer.add(pill);
       }
-      this.navContainer.add(pillGfx);
-
-      // Icon (larger for active) — use custom image if available
-      const iconPx = tab.active ? 30 : 26;
-      if (tab.iconKey && this.textures.exists(tab.iconKey)) {
-        const iconImg = this.add.image(tx, ty - 7, tab.iconKey)
-          .setDisplaySize(iconPx, iconPx).setOrigin(0.5);
-        if (!tab.active) iconImg.setAlpha(0.75);
-        this.navContainer.add(iconImg);
+      const iconPx = tab.active ? 28 : 24;
+      if (this.textures.exists(tab.iconKey)) {
+        const img = this.add.image(tx, ty - 7, tab.iconKey).setDisplaySize(iconPx, iconPx).setOrigin(0.5);
+        if (!tab.active) img.setAlpha(0.72);
+        this.navContainer.add(img);
       } else {
         this.navContainer.add(
-          this.add.text(tx, ty - 7, tab.icon, { fontSize: `${iconPx}px` }).setOrigin(0.5)
+          this.add.text(tx, ty - 7, tab.label.slice(0, 2), {
+            fontSize: `${iconPx}px`, fontFamily: FONTS.title, fontStyle: 'bold',
+            color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
+          }).setOrigin(0.5)
         );
       }
-
-      // Label
-      const labelColour = tab.active ? '#ffffff' : '#d4c8b8';
       this.navContainer.add(
-        this.add.text(tx, ty + 14, tab.label, {
-          fontSize: '9px', fontFamily: FONTS.body, fontStyle: 'bold',
-          color: labelColour,
-          shadow: tab.active
-            ? { offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.4)', blur: 2, fill: true }
-            : undefined,
+        this.add.text(tx, ty + 16, tab.label, {
+          fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
+          color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
+      const hit = this.add.rectangle(tx, ty, tabW, tabH, 0x000000, 0).setInteractive({ useHandCursor: true });
+      hit.on('pointerdown', tab.action);
+      this.navContainer.add(hit);
+    };
 
-      // Hit area
-      const hitArea = this.add.rectangle(tx, ty, actualBtnW, btnH, 0x000000, 0)
-        .setInteractive({ useHandCursor: true });
-      hitArea.on('pointerover', () => {
-        if (!tab.active) pillGfx.setAlpha(1.4);
-      });
-      hitArea.on('pointerout', () => pillGfx.setAlpha(1));
-      hitArea.on('pointerdown', tab.action);
-      this.navContainer.add(hitArea);
+    // Positions — divide bar into left/FAB/right regions
+    const ty = barY + barH / 2;
+    const fabX = barX + barW / 2;
+    const fabY = barY - 14;
+
+    const leftStart = barX + 10;
+    const leftAvail = (barW / 2) - (fabSize / 2 + fabGap) - 10;
+    leftTabs.forEach((tab, i) => {
+      const tx = leftStart + leftAvail * ((i + 0.5) / leftTabs.length);
+      drawTab(tab, tx, ty);
     });
+
+    const rightStart = barX + barW / 2 + fabSize / 2 + fabGap;
+    const rightAvail = (barW / 2) - (fabSize / 2 + fabGap) - 10;
+    rightTabs.forEach((tab, i) => {
+      const tx = rightStart + rightAvail * ((i + 0.5) / rightTabs.length);
+      drawTab(tab, tx, ty);
+    });
+
+    // ── Central FAB (raised above the bar) ────────────────
+    const fabShadow = this.add.graphics();
+    fabShadow.fillStyle(0x000000, 0.28);
+    fabShadow.fillCircle(fabX + 2, fabY + 5, fabSize / 2);
+    this.navContainer.add(fabShadow);
+
+    const fabBg = this.add.graphics();
+    fabBg.fillStyle(0xE67E22, 1);
+    fabBg.fillCircle(fabX, fabY, fabSize / 2);
+    // White border ring
+    fabBg.lineStyle(3, 0xffffff, 1);
+    fabBg.strokeCircle(fabX, fabY, fabSize / 2);
+    // Soft top highlight
+    fabBg.fillStyle(0xffffff, 0.22);
+    fabBg.fillCircle(fabX, fabY - fabSize / 6, fabSize / 4);
+    this.navContainer.add(fabBg);
+
+    if (this.textures.exists('icon-games')) {
+      const fabIcon = this.add.image(fabX, fabY, 'icon-games').setDisplaySize(34, 34).setOrigin(0.5);
+      this.navContainer.add(fabIcon);
+    } else {
+      this.navContainer.add(
+        this.add.text(fabX, fabY, 'Play', {
+          fontSize: '12px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5)
+      );
+    }
+
+    const fabHit = this.add.circle(fabX, fabY, fabSize / 2, 0x000000, 0).setInteractive({ useHandCursor: true });
+    fabHit.on('pointerdown', () => this.showGamesPopup());
+    this.navContainer.add(fabHit);
   }
 
   // ── Games Popup ─────────────────────────────────────────────
