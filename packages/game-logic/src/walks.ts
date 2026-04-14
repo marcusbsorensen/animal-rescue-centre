@@ -829,7 +829,7 @@ export function calculateGridWalkRewards(state: WalkGridState): {
   // Base rewards
   let bondIncrease = 5;
   let happinessIncrease = 8;
-  let tirednessIncrease = 15;
+  const tirednessIncrease = 15;
 
   // Bonuses
   if (perfectRoads) bondIncrease += 3;
