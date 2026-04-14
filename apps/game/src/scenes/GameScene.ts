@@ -757,79 +757,109 @@ export class GameScene extends Phaser.Scene {
       createPillTitle(this, width / 2, 55, 'Rescue Centre', { bgColour: 0x8B6914, fontSize: '20px', icon: 'icon-rescue-centre' })
     );
 
-    // Room doors (one per unlocked species) — solid card panels
-    const doorWidth = 130;
-    const doorHeight = 90;
-    const doorsPerRow = Math.min(this.unlockedSpecies.length, 4);
-    const startX = width / 2 - ((doorsPerRow - 1) * (doorWidth + 16)) / 2;
-    const doorY = 145;
+    // Painted corridor has 7 doors in perspective. Map unlocked species to door slots
+    // (outer doors first — biggest / most visible), placing a wooden nameplate sign
+    // overlay with species icon + count. The sign, not a white card, is the hit target.
+    const DOOR_SLOTS: { xFrac: number; yFrac: number; scale: number }[] = [
+      { xFrac: 0.09, yFrac: 0.56, scale: 1.00 }, // far left
+      { xFrac: 0.91, yFrac: 0.56, scale: 1.00 }, // far right
+      { xFrac: 0.22, yFrac: 0.55, scale: 0.82 }, // left-2
+      { xFrac: 0.78, yFrac: 0.55, scale: 0.82 }, // right-2
+      { xFrac: 0.36, yFrac: 0.54, scale: 0.68 }, // left-3
+      { xFrac: 0.64, yFrac: 0.54, scale: 0.68 }, // right-3
+      { xFrac: 0.50, yFrac: 0.53, scale: 0.60 }, // centre (furthest)
+    ];
+    const doorBodyH = height - 40;
+    const doorBodyTop = 20;
 
     this.unlockedSpecies.forEach((species, i) => {
-      const row = Math.floor(i / 4);
-      const col = i % 4;
-      const x = startX + col * (doorWidth + 16);
-      const y = doorY + row * (doorHeight + 20);
+      const slot = DOOR_SLOTS[i] ?? DOOR_SLOTS[DOOR_SLOTS.length - 1];
+      const x = width * slot.xFrac;
+      const y = doorBodyTop + doorBodyH * slot.yFrac;
+      const s = slot.scale;
+      const signW = 120 * s;
+      const signH = 56 * s;
 
       const roomAnimals = this.animals.filter((a) => a.species === species && a.state !== 'arriving');
       const count = roomAnimals.length;
       const colour = SPECIES_COLOURS[species];
 
-      // Solid white card with coloured top stripe + shadow
-      const cardGfx = this.add.graphics();
-      cardGfx.fillStyle(0x000000, 0.1);
-      cardGfx.fillRoundedRect(x - doorWidth / 2 + 3, y - doorHeight / 2 + 4, doorWidth, doorHeight, 12);
-      cardGfx.fillStyle(0xffffff, 0.92);
-      cardGfx.fillRoundedRect(x - doorWidth / 2, y - doorHeight / 2, doorWidth, doorHeight, 12);
-      cardGfx.fillStyle(colour, 1);
-      cardGfx.fillRoundedRect(x - doorWidth / 2, y - doorHeight / 2, doorWidth, 8, { tl: 12, tr: 12, bl: 0, br: 0 });
-      this.gameContainer.add(cardGfx);
+      // Wooden door sign (rounded plank with darker rim)
+      const signGfx = this.add.graphics();
+      // subtle shadow
+      signGfx.fillStyle(0x000000, 0.22);
+      signGfx.fillRoundedRect(x - signW / 2 + 2, y - signH / 2 + 3, signW, signH, 10);
+      // wood backing
+      signGfx.fillStyle(0xd4a574, 1);
+      signGfx.fillRoundedRect(x - signW / 2, y - signH / 2, signW, signH, 10);
+      // inner wood panel
+      signGfx.fillStyle(0xe8c48d, 1);
+      signGfx.fillRoundedRect(x - signW / 2 + 4, y - signH / 2 + 4, signW - 8, signH - 8, 7);
+      // species colour strip on the left edge
+      signGfx.fillStyle(colour, 1);
+      signGfx.fillRoundedRect(x - signW / 2 + 4, y - signH / 2 + 4, 5, signH - 8, { tl: 7, tr: 0, bl: 7, br: 0 });
+      // rim outline
+      signGfx.lineStyle(2, 0x8b5a2b, 0.85);
+      signGfx.strokeRoundedRect(x - signW / 2, y - signH / 2, signW, signH, 10);
+      this.gameContainer.add(signGfx);
 
-      // Hit area over card
-      const hitArea = this.add.rectangle(x, y, doorWidth, doorHeight, 0x000000, 0)
+      // Species icon on the left of the sign
+      const iconX = x - signW / 2 + 22 * s;
+      const iconPx = 34 * s;
+      const speciesIconKey = `icon-${species}`;
+      if (this.textures.exists(speciesIconKey)) {
+        const iconImg = this.add.image(iconX, y, speciesIconKey).setDisplaySize(iconPx, iconPx).setOrigin(0.5);
+        this.gameContainer.add(iconImg);
+      } else {
+        // Coloured circle fallback
+        const fg = this.add.graphics();
+        fg.fillStyle(colour, 1);
+        fg.fillCircle(iconX, y, iconPx / 2);
+        this.gameContainer.add(fg);
+      }
+
+      // Species name + count stacked on the right of the sign
+      const textX = iconX + iconPx / 2 + 6;
+      const nameLabel = species.charAt(0).toUpperCase() + species.slice(1);
+      this.gameContainer.add(
+        this.add.text(textX, y - 9, nameLabel, {
+          fontSize: `${Math.round(13 * s)}px`, fontFamily: FONTS.title, fontStyle: 'bold',
+          color: '#4a2d14', resolution: TEXT_RESOLUTION,
+        }).setOrigin(0, 0.5)
+      );
+      this.gameContainer.add(
+        this.add.text(textX, y + 9, `${count} ${pluralSpecies(species, count)}`, {
+          fontSize: `${Math.round(11 * s)}px`, fontFamily: FONTS.body, fontStyle: 'bold',
+          color: '#6b4020', resolution: TEXT_RESOLUTION,
+        }).setOrigin(0, 0.5)
+      );
+
+      // Hit area over the sign
+      const hitArea = this.add.rectangle(x, y, signW, signH, 0x000000, 0)
         .setInteractive({ useHandCursor: true });
-      hitArea.on('pointerover', () => cardGfx.setAlpha(0.85));
-      hitArea.on('pointerout', () => cardGfx.setAlpha(1));
+      hitArea.on('pointerover', () => signGfx.setAlpha(0.9));
+      hitArea.on('pointerout', () => signGfx.setAlpha(1));
       hitArea.on('pointerdown', () => {
         this.currentRoomSpecies = species;
         this.viewMode = 'room';
         this.renderView();
       });
       this.gameContainer.add(hitArea);
-
-      // Species icon (use first animal's sprite if available, otherwise species icon)
-      const previewAnimal = roomAnimals[0];
-      if (previewAnimal) {
-        const preview = createAnimalSprite(this, x, y - 10, previewAnimal, { width: 60, height: 48 });
-        this.gameContainer.add(preview);
-      } else {
-        // Empty room — show species icon if available
-        const speciesIconKey = `icon-${species}`;
-        if (this.textures.exists(speciesIconKey)) {
-          this.gameContainer.add(
-            this.add.image(x, y - 10, speciesIconKey).setDisplaySize(36, 36).setOrigin(0.5)
-          );
-        }
-      }
-
-      // Count + species name (proper grammar)
-      this.gameContainer.add(
-        this.add.text(x, y + 22, `${count} ${pluralSpecies(species, count)}`, {
-          fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text, resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
     });
 
     // ── Arriving animals — stand on the corridor floor with speech bubbles ──
     const arriving = this.animals.filter((a) => a.state === 'arriving');
-    const navBarTop = height - 74; // dock sits ~74px from bottom
-    const floorY = navBarTop - 24; // a little breathing room above the dock
+    // Floor placed well above the FAB/nav dock so the animal doesn't collide with it.
+    // Nav dock sits at ~height - 80; FAB raises above that by 14px + its radius (31).
+    // So the FAB-top is roughly at height - 125. Keep the animal's feet clear above.
+    const navDockTopEst = height - 80 - 45; // with FAB lift room
+    const floorY = Math.max(height * 0.68, navDockTopEst);
 
     if (arriving.length > 0) {
-      const doorsBottomY = doorY + Math.ceil(this.unlockedSpecies.length / 4) * (doorHeight + 20);
-
-      // Banner pill just under the doors
+      // Banner pill positioned between the painted doors and the floor
+      const bannerY = Math.min(height * 0.62, floorY - 80);
       this.gameContainer.add(
-        createPillTitle(this, width / 2, doorsBottomY + 16,
+        createPillTitle(this, width / 2, bannerY,
           `${arriving.length} new arrival${arriving.length > 1 ? 's' : ''}!`,
           { bgColour: 0xE67E22, fontSize: '17px', icon: 'icon-inbox' })
       );
@@ -902,7 +932,7 @@ export class GameScene extends Phaser.Scene {
       // "Welcome them all" shortcut if more than one — pinned below the doors banner
       if (arriving.length > 1) {
         this.gameContainer.add(
-          createButton(this, width / 2, doorsBottomY + 48, 'Welcome them all', () => {
+          createButton(this, width / 2, bannerY + 36, 'Welcome them all', () => {
             if (this.processing) return;
             this.processing = true;
             arriving.forEach((a) => { a.state = 'sheltered'; });
@@ -1881,7 +1911,7 @@ export class GameScene extends Phaser.Scene {
 
     // Title
     this.gameContainer.add(
-      this.add.text(width / 2, 60, `${conflict.type.replace('_', ' ').toUpperCase()}!`, {
+      this.add.text(width / 2, 80, `${conflict.type.replace('_', ' ').toUpperCase()}!`, {
         fontSize: '26px', fontFamily: FONTS.title, color: '#e74c3c',
       }).setOrigin(0.5)
     );
@@ -1891,32 +1921,43 @@ export class GameScene extends Phaser.Scene {
     const animal2 = this.animals.find((a) => a.id === conflict.animal2Id);
 
     this.gameContainer.add(
-      this.add.text(width / 2, 110, conflict.description, {
+      this.add.text(width / 2, 130, conflict.description, {
         fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
-        wordWrap: { width: width - 60 }, align: 'center',
+        wordWrap: { width: width - 80 }, align: 'center',
       }).setOrigin(0.5)
     );
 
-    // Animal sprites
+    // Animal sprites — match the conflict narrative so visuals reflect text.
+    // a1 = instigator, a2 = disturbed party (matches description order).
+    const stateByRole: Record<string, [string, string]> = {
+      noise_complaint: ['sheltered', 'sleeping'],   // one being noisy, the other trying to sleep
+      food_jealousy:   ['eating', 'sheltered'],     // one eating, one watching
+      space_sharing:   ['sleeping', 'sheltered'],   // one resting, one wanting the spot
+      sibling_squabble:['sheltered', 'sheltered'],  // both active
+    };
+    const [s1State, s2State] = stateByRole[conflict.type] ?? ['sheltered', 'sheltered'];
+
+    const spriteW = 110, spriteH = 88;
+    const spriteRowY = 225;
     if (animal1) {
-      const sprite1 = createAnimalSprite(this, width / 2 - 50, 170, animal1, { width: 130, height: 104 });
+      const sprite1 = createAnimalSprite(this, width / 2 - 80, spriteRowY, animal1, { width: spriteW, height: spriteH, stateOverride: s1State });
       this.gameContainer.add(sprite1);
     }
     if (animal2) {
-      const sprite2 = createAnimalSprite(this, width / 2 + 50, 170, animal2, { width: 130, height: 104 });
+      const sprite2 = createAnimalSprite(this, width / 2 + 80, spriteRowY, animal2, { width: spriteW, height: spriteH, stateOverride: s2State });
       this.gameContainer.add(sprite2);
     }
 
-    // Prompt
+    // Prompt — below sprites
     this.gameContainer.add(
-      this.add.text(width / 2, 220, 'How do you want to help?', {
+      this.add.text(width / 2, 305, 'How do you want to help?', {
         fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
     // Resolution buttons
     const actions = RESOLUTION_ACTIONS;
-    const startY = 270;
+    const startY = 350;
     actions.forEach((action, i) => {
       const btn = createButton(this, width / 2, startY + i * 60,
         action.label, () => {

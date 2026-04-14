@@ -74,12 +74,12 @@ export function createAnimalSprite(
   x: number,
   y: number,
   animal: Animal,
-  options?: { width?: number; height?: number; interactive?: boolean }
+  options?: { width?: number; height?: number; interactive?: boolean; stateOverride?: string }
 ): Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle {
   const w = options?.width ?? 80;
   const h = options?.height ?? 64;
 
-  const visualState = deriveVisualState(animal);
+  const visualState = options?.stateOverride ?? deriveVisualState(animal);
   const textureKey = getAnimalTextureKey(scene, animal.species, visualState, animal.variant);
 
   if (textureKey) {

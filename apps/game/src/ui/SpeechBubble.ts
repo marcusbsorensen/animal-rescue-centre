@@ -27,8 +27,8 @@ export function createSpeechBubble(
     maxWidth?: number;
   }
 ): Phaser.GameObjects.Container {
-  const maxW = opts.maxWidth ?? 260;
-  const innerW = maxW - 24; // padding 12 each side
+  const maxW = opts.maxWidth ?? 280;
+  const innerW = maxW - 40; // padding 20 each side
   const accent = opts.accentColour ?? 0xE67E22;
 
   // Build content first to measure height
@@ -51,15 +51,15 @@ export function createSpeechBubble(
   if (opts.actionLabel && opts.onAction) {
     action = createButton(scene, 0, 0, opts.actionLabel, opts.onAction, {
       width: 120, fontSize: '13px',
-      bgColour: opts.actionBgHex ?? '#e74c3c',
+      bgColour: opts.actionBgHex ?? '#27ae60',
       icon: opts.actionIcon,
     });
   }
 
   // Layout vertically
-  const padX = 12;
-  const padY = 10;
-  const gap = 8;
+  const padX = 20;
+  const padY = 18;
+  const gap = 10;
   let cursorY = padY;
   title.setPosition(padX, cursorY);
   cursorY += title.height + (body ? gap : 0);
