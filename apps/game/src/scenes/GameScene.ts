@@ -3,6 +3,7 @@ import type { Animal, Species, GameState, CalendarState, DepotState, Economy } f
 import { COLOURS, FONTS, pluralSpecies, TEXT_RESOLUTION } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
+import { createSpeechBubble } from '../ui/SpeechBubble';
 import { AudioManager } from '../audio/AudioManager';
 import {
   spawnAnimal,
@@ -837,126 +838,106 @@ export class GameScene extends Phaser.Scene {
       );
     });
 
-    // ── Arriving animals section ──────────────────────────────────
+    // ── Arriving animals — stand on the corridor floor with speech bubbles ──
     const arriving = this.animals.filter((a) => a.state === 'arriving');
-    if (arriving.length > 0) {
-      const arriveY = doorY + Math.ceil(this.unlockedSpecies.length / 4) * (doorHeight + 20) + 20;
+    const navBarTop = height - 74; // dock sits ~74px from bottom
+    const floorY = navBarTop - 24; // a little breathing room above the dock
 
-      // Arrivals banner pill
+    if (arriving.length > 0) {
+      const doorsBottomY = doorY + Math.ceil(this.unlockedSpecies.length / 4) * (doorHeight + 20);
+
+      // Banner pill just under the doors
       this.gameContainer.add(
-        createPillTitle(this, width / 2, arriveY,
+        createPillTitle(this, width / 2, doorsBottomY + 16,
           `${arriving.length} new arrival${arriving.length > 1 ? 's' : ''}!`,
           { bgColour: 0xE67E22, fontSize: '17px', icon: 'icon-inbox' })
       );
 
-      // Story cards — one per animal, stacked vertically
-      const storyCardW = Math.min(420, width - 40);
-      const storyCardH = 120;
-      const storyGap = 12;
-      let nextCardY = arriveY + 40;
+      // Subtle floor line across the corridor
+      const floorGfx = this.add.graphics();
+      floorGfx.fillStyle(0x000000, 0.08);
+      floorGfx.fillRect(20, floorY + 1, width - 40, 2);
+      this.gameContainer.add(floorGfx);
 
-      arriving.forEach((animal) => {
-        nextCardY += storyCardH / 2 + 4;
-        const cy = nextCardY;
-        const cx = width / 2;
-        const speciesColour = SPECIES_COLOURS[animal.species];
+      // Layout animals evenly along the floor
+      const n = arriving.length;
+      const slotW = Math.min(280, (width - 40) / n);
+      const startX = width / 2 - ((n - 1) * slotW) / 2;
 
-        // Card background with shadow + species-coloured left accent
-        const storyGfx = this.add.graphics();
-        // Drop shadow
-        storyGfx.fillStyle(0x000000, 0.1);
-        storyGfx.fillRoundedRect(cx - storyCardW / 2 + 3, cy - storyCardH / 2 + 4, storyCardW, storyCardH, 12);
-        // White card
-        storyGfx.fillStyle(0xffffff, 0.95);
-        storyGfx.fillRoundedRect(cx - storyCardW / 2, cy - storyCardH / 2, storyCardW, storyCardH, 12);
-        // Species-coloured left accent strip
-        storyGfx.fillStyle(speciesColour, 1);
-        storyGfx.fillRoundedRect(cx - storyCardW / 2, cy - storyCardH / 2, 8, storyCardH, { tl: 12, tr: 0, bl: 12, br: 0 });
-        // Subtle orange top border
-        storyGfx.lineStyle(1.5, 0xE67E22, 0.3);
-        storyGfx.strokeRoundedRect(cx - storyCardW / 2, cy - storyCardH / 2, storyCardW, storyCardH, 12);
-        this.gameContainer.add(storyGfx);
+      arriving.forEach((animal, i) => {
+        const ax = startX + i * slotW;
+        const spriteW = 90;
+        const spriteH = 74;
 
-        // Animal sprite on left side
-        const spriteX = cx - storyCardW / 2 + 58;
-        const sprite = createAnimalSprite(this, spriteX, cy - 4, animal, { width: 90, height: 74, interactive: true });
+        // Drop shadow anchoring sprite to the floor
+        const shadow = this.add.ellipse(ax, floorY + 4, spriteW * 0.65, spriteH * 0.16, 0x000000, 0.28);
+        this.gameContainer.add(shadow);
+
+        // Sprite sits with its bottom on the floor line
+        const sprite = createAnimalSprite(
+          this, ax, floorY - spriteH / 2 + 2, animal,
+          { width: spriteW, height: spriteH, interactive: true }
+        );
         sprite.on('pointerdown', () => this.showAnimalDetails(animal));
         this.gameContainer.add(sprite);
 
-        // Species label pill below sprite
-        const speciesPillGfx = this.add.graphics();
-        const spLabel = animal.species.charAt(0).toUpperCase() + animal.species.slice(1);
-        const spText = this.add.text(spriteX, cy + 36, spLabel, {
-          fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5);
-        const spW = spText.width + 12;
-        const spH = spText.height + 4;
-        speciesPillGfx.fillStyle(SPECIES_COLOURS[animal.species], 0.8);
-        speciesPillGfx.fillRoundedRect(spriteX - spW / 2, cy + 36 - spH / 2, spW, spH, 6);
-        this.gameContainer.add(speciesPillGfx);
-        this.gameContainer.add(spText);
+        // Gentle idle bob so the sprite feels alive
+        this.tweens.add({
+          targets: sprite, y: sprite.y - 3,
+          duration: 1400 + i * 120, yoyo: true, repeat: -1,
+          ease: 'Sine.easeInOut', delay: i * 200,
+        });
 
-        // Name + species label (right of sprite)
-        const textX = cx - storyCardW / 2 + 115;
+        // Speech bubble above — tail points at the top of the sprite
+        const bubbleAnchorY = floorY - spriteH - 4;
         const speciesLabel = animal.variant
           ? `${animal.variant} ${animal.species}`
           : animal.species;
-        this.gameContainer.add(
-          this.add.text(textX, cy - storyCardH / 2 + 16, `${animal.name} the ${speciesLabel}`, {
-            fontSize: '15px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-          }).setOrigin(0)
-        );
-
-        // Arrival story text (the key part — shows who they are)
-        const storyTextW = storyCardW - 140;
-        this.gameContainer.add(
-          this.add.text(textX, cy - storyCardH / 2 + 36, `"${animal.arrivalStory}"`, {
-            fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
-            fontStyle: 'italic', wordWrap: { width: storyTextW }, lineSpacing: 2,
-          }).setOrigin(0)
-        );
-
-        // Per-animal "Welcome" pill button on right
-        const welcomeX = cx + storyCardW / 2 - 50;
-        const welcomeBtn = createButton(this, welcomeX, cy, 'Welcome', () => {
-          if (this.processing) return;
-          this.processing = true;
-          animal.state = 'sheltered';
-          this.totalRescued += 1;
-          this.checkLevelProgression();
-          AudioManager.getInstance().playSfx('animal_arrive');
-          this.saveState();
-          this.processing = false;
-          this.renderView();
-        }, { width: 90, fontSize: '13px', bgColour: '#e74c3c', icon: 'icon-welcome' });
-        this.gameContainer.add(welcomeBtn);
-
-        nextCardY += storyCardH / 2 + storyGap;
+        const title = `${animal.name} the ${speciesLabel}`;
+        const bubbleW = Math.min(260, slotW - 20);
+        const bubble = createSpeechBubble(this, ax, bubbleAnchorY, {
+          title,
+          body: animal.arrivalStory,
+          actionLabel: 'Welcome',
+          actionBgHex: '#e74c3c',
+          actionIcon: 'icon-welcome',
+          accentColour: SPECIES_COLOURS[animal.species],
+          maxWidth: bubbleW,
+          onAction: () => {
+            if (this.processing) return;
+            this.processing = true;
+            animal.state = 'sheltered';
+            this.totalRescued += 1;
+            this.checkLevelProgression();
+            AudioManager.getInstance().playSfx('animal_arrive');
+            this.saveState();
+            this.processing = false;
+            this.renderView();
+          },
+        });
+        this.gameContainer.add(bubble);
       });
 
-      // "Welcome all" button at bottom
-      const acceptBtnY = nextCardY + 20;
-      this.gameContainer.add(
-        createButton(this, width / 2, acceptBtnY, 'Welcome them all in!', () => {
-          if (this.processing) return;
-          this.processing = true;
-          arriving.forEach((a) => { a.state = 'sheltered'; });
-          this.totalRescued += arriving.length;
-          this.checkLevelProgression();
-          AudioManager.getInstance().playSfx('animal_arrive');
-          this.saveState();
-          this.processing = false;
-          this.renderView();
-        }, { width: 300, fontSize: '18px', icon: 'icon-welcome' })
-      );
+      // "Welcome them all" shortcut if more than one — pinned below the doors banner
+      if (arriving.length > 1) {
+        this.gameContainer.add(
+          createButton(this, width / 2, doorsBottomY + 48, 'Welcome them all', () => {
+            if (this.processing) return;
+            this.processing = true;
+            arriving.forEach((a) => { a.state = 'sheltered'; });
+            this.totalRescued += arriving.length;
+            this.checkLevelProgression();
+            AudioManager.getInstance().playSfx('animal_arrive');
+            this.saveState();
+            this.processing = false;
+            this.renderView();
+          }, { width: 240, fontSize: '14px', icon: 'icon-welcome' })
+        );
+      }
     }
 
-    // Calculate scroll bounds — if content extends below the nav bar
-    const navBarTop = height - 74; // dock sits ~74px from bottom
-    const contentBottom = arriving.length > 0
-      ? (doorY + Math.ceil(this.unlockedSpecies.length / 4) * (doorHeight + 20) + 20) + 40 + arriving.length * (120 + 12) + 60
-      : doorY + Math.ceil(this.unlockedSpecies.length / 4) * (doorHeight + 20);
-    this.maxScrollY = Math.max(0, contentBottom - navBarTop + 20);
+    // Corridor never needs scroll — everything fits in viewport (doors + floor)
+    this.maxScrollY = 0;
 
     // Bottom navigation bar
     this.renderNavBar();
@@ -1433,12 +1414,24 @@ export class GameScene extends Phaser.Scene {
         }).setOrigin(0.5)
       );
 
-      // Show hungry animals as sprite preview
+      // Show hungry animals as sprite preview — standing on a kitchen floor line
       const previewAnimals = hungry.slice(0, 6);
-      const previewStartX = width / 2 - ((previewAnimals.length - 1) * 55) / 2;
+      const previewFloorY = height / 2 + 20;
+      const slotW = 62;
+      const previewStartX = width / 2 - ((previewAnimals.length - 1) * slotW) / 2;
       previewAnimals.forEach((a, i) => {
-        const sprite = createAnimalSprite(this, previewStartX + i * 55, height / 2 - 20, a, { width: 100, height: 80 });
+        const px = previewStartX + i * slotW;
+        const spriteH = 80;
+        // Drop shadow under each sprite
+        const shadow = this.add.ellipse(px, previewFloorY + 3, 60, 12, 0x000000, 0.25);
+        this.gameContainer.add(shadow);
+        const sprite = createAnimalSprite(this, px, previewFloorY - spriteH / 2 + 2, a, { width: 100, height: spriteH });
         this.gameContainer.add(sprite);
+        this.tweens.add({
+          targets: sprite, y: sprite.y - 2,
+          duration: 1400 + i * 100, yoyo: true, repeat: -1,
+          ease: 'Sine.easeInOut', delay: i * 150,
+        });
       });
 
       this.gameContainer.add(

@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>A.R.C. — Menu Mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --primary: #5AAE4A;
+    --primary-dark: #3d8a2e;
+    --warm: #E67E22;
+    --danger: #e74c3c;
+    --info: #5d9cec;
+    --text: #2d1f14;
+    --text-light: #6b5a4a;
+    --cream: #fef9ef;
+    --bg: #f0e8d8;
+    --species-cat: #F4A460;
+    --species-dog: #8B6F47;
+    --species-bunny: #E6E0D4;
+    --species-fox: #D95D39;
+    --species-bat: #2d2d3a;
+    --species-parrot: #2E8B57;
+    --species-snake: #6B8E23;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Nunito, system-ui, sans-serif; background: var(--bg); color: var(--text);
+    padding: 24px; line-height: 1.5;
+  }
+  h1 { font-family: Fredoka, sans-serif; font-weight: 700; margin-bottom: 8px; }
+  h2 { font-family: Fredoka, sans-serif; font-weight: 600; margin: 24px 0 12px; font-size: 22px; }
+  h3 { font-family: Fredoka, sans-serif; font-weight: 600; margin: 16px 0 8px; font-size: 16px; color: var(--text-light); }
+  p  { color: var(--text-light); margin-bottom: 12px; max-width: 70ch; }
+  .row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 24px; }
+
+  .size-toggle { display: flex; gap: 8px; margin-bottom: 20px; }
+  .size-toggle button {
+    padding: 8px 16px; border: 2px solid var(--primary); background: white; color: var(--primary);
+    font-family: inherit; font-weight: 700; font-size: 14px; border-radius: 20px; cursor: pointer;
+  }
+  .size-toggle button.active { background: var(--primary); color: white; }
+
+  /* Device frame */
+  .device {
+    background: #111; border-radius: 18px; padding: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    display: inline-block; transition: width .3s ease;
+  }
+  .device .screen {
+    background: var(--cream);
+    border-radius: 10px; overflow: hidden; position: relative;
+  }
+  .device.mobile  .screen { width: 360px; height: 720px; }
+  .device.tablet  .screen { width: 600px; height: 800px; }
+  .device.desktop .screen { width: 960px; height: 600px; }
+
+  .label { font-size: 12px; font-weight: 700; color: var(--text-light); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+  .annot { font-size: 13px; color: var(--text-light); margin-top: 10px; max-width: 360px; }
+
+  /* ─── Game screen mock ─── */
+  .game {
+    position: relative; width: 100%; height: 100%;
+    background:
+      radial-gradient(circle at 50% 40%, #fff7e0 0%, transparent 70%),
+      linear-gradient(180deg, #e8d5b7 0%, #f5e6c8 45%, #c49a6c 46%, #b88a5a 100%);
+    display: flex; flex-direction: column;
+  }
+  .game .body { flex: 1; position: relative; padding: 72px 16px 100px; }
+  .game .door-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+  .game .door {
+    width: 90px; height: 70px; background: white; border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.1); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; position: relative; overflow: hidden;
+  }
+  .game .door::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 6px;
+    background: var(--primary);
+  }
+  .game .door.cat::before   { background: var(--species-cat); }
+  .game .door.dog::before   { background: var(--species-dog); }
+  .game .door.bunny::before { background: var(--species-bunny); }
+  .game .door .ico { font-size: 24px; margin-top: 6px; }
+  .game .door .ct  { font-size: 11px; font-weight: 700; margin-top: 2px; }
+
+  /* ─── TOP BAR VARIANTS ─── */
+  .topbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 56px;
+    display: flex; align-items: center; padding: 0 12px; z-index: 2;
+  }
+
+  /* Current: dark bar with chips */
+  .topbar.current {
+    background: rgba(45, 31, 20, 0.92);
+    border-radius: 0 0 14px 14px;
+    justify-content: space-between; color: white;
+  }
+  .topbar.current .level {
+    background: var(--primary); border-radius: 16px; padding: 4px 10px;
+    font-weight: 800; font-size: 13px; display: flex; align-items: center; gap: 6px;
+  }
+  .topbar.current .xp {
+    flex: 0 0 80px; margin-left: 8px;
+    height: 10px; background: rgba(0,0,0,.3); border-radius: 5px; position: relative;
+  }
+  .topbar.current .xp::after {
+    content: ""; position: absolute; inset: 0; width: 40%;
+    background: #6dd58c; border-radius: 5px;
+  }
+  .topbar.current .chips { display: flex; gap: 6px; }
+  .topbar.current .chip {
+    background: rgba(139, 105, 20, 0.85); border-radius: 14px; padding: 4px 10px;
+    font-size: 12px; font-weight: 700;
+  }
+  .topbar.current .audio {
+    width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.3);
+    display: grid; place-items: center; font-size: 14px;
+  }
+
+  /* A: Two-row quieter HUD, primary info first */
+  .topbar.variantA {
+    background: transparent; flex-direction: column; align-items: stretch;
+    padding: 8px 12px; height: auto; gap: 6px;
+  }
+  .topbar.variantA .row1 { display: flex; justify-content: space-between; align-items: center; }
+  .topbar.variantA .title-pill {
+    background: white; padding: 6px 14px 6px 10px; border-radius: 18px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.12); font-weight: 700; color: var(--text);
+    font-size: 14px; display: flex; align-items: center; gap: 6px;
+  }
+  .topbar.variantA .actions { display: flex; gap: 6px; }
+  .topbar.variantA .icon-btn {
+    width: 34px; height: 34px; border-radius: 50%; background: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,.12); display: grid; place-items: center; font-size: 16px;
+  }
+  .topbar.variantA .row2 {
+    background: white; border-radius: 14px; padding: 8px 10px; display: flex;
+    align-items: center; gap: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.08);
+  }
+  .topbar.variantA .lvl-badge {
+    background: var(--primary); color: white; border-radius: 50%; width: 30px; height: 30px;
+    display: grid; place-items: center; font-weight: 800; font-size: 13px;
+  }
+  .topbar.variantA .xp-wrap { flex: 1; }
+  .topbar.variantA .xp-label { font-size: 10px; color: var(--text-light); margin-bottom: 2px; font-weight: 700; }
+  .topbar.variantA .xp { height: 8px; background: #eee; border-radius: 4px; position: relative; }
+  .topbar.variantA .xp::after {
+    content: ""; position: absolute; inset: 0; width: 40%;
+    background: var(--primary); border-radius: 4px;
+  }
+  .topbar.variantA .coins {
+    background: #fff4d6; padding: 4px 10px; border-radius: 14px; font-weight: 800;
+    color: #a07020; font-size: 13px; display: flex; align-items: center; gap: 4px;
+  }
+
+  /* B: Floating orb HUD (Neko Atsume / Pou style) */
+  .topbar.variantB {
+    background: transparent; justify-content: space-between;
+    padding: 10px 14px;
+  }
+  .topbar.variantB .orb {
+    background: white; border-radius: 22px; padding: 6px 12px 6px 6px;
+    display: flex; align-items: center; gap: 8px; box-shadow: 0 3px 8px rgba(0,0,0,.14);
+  }
+  .topbar.variantB .orb .circle {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--primary);
+    color: white; display: grid; place-items: center; font-weight: 800; font-size: 13px;
+  }
+  .topbar.variantB .orb .num { font-weight: 800; font-size: 14px; }
+  .topbar.variantB .orb .sub { font-size: 10px; color: var(--text-light); font-weight: 700; }
+  .topbar.variantB .right { display: flex; gap: 6px; align-items: center; }
+  .topbar.variantB .right .orb { padding: 6px 10px; }
+  .topbar.variantB .right .orb.coin .circle { background: #e3b04b; }
+
+  /* ─── BOTTOM NAV VARIANTS ─── */
+  .nav {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 3; display: flex; gap: 4px;
+  }
+
+  /* Current: dark dock with 5 tinted pills */
+  .nav.current {
+    background: rgba(45,31,20,.88); padding: 6px; border-radius: 16px; gap: 4px;
+  }
+  .nav.current .tab {
+    width: 62px; height: 48px; border-radius: 10px; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800; color: #d4c8b8; background: rgba(139,105,20,.25);
+  }
+  .nav.current .tab .ico { font-size: 18px; opacity: .75; margin-bottom: 2px; }
+  .nav.current .tab.active { background: rgba(139,105,20,.9); color: white; }
+  .nav.current .tab.active .ico { opacity: 1; }
+
+  /* A: Big friendly tab bar — larger targets, bright active pill, labels always visible */
+  .nav.variantA {
+    background: white; padding: 8px; border-radius: 24px; gap: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.14);
+  }
+  .nav.variantA .tab {
+    min-width: 70px; height: 56px; padding: 6px 10px; border-radius: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: var(--text-light); background: transparent;
+    transition: background .2s;
+  }
+  .nav.variantA .tab .ico { font-size: 22px; margin-bottom: 2px; }
+  .nav.variantA .tab.active {
+    background: var(--primary); color: white; transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(90,174,74,.4);
+  }
+
+  /* B: Segmented glass bar (Pocket Camp style) — semitransparent, blurred, fewer tabs, central raised FAB */
+  .nav.variantB {
+    background: rgba(255,255,255,.86); padding: 8px 12px; border-radius: 28px; gap: 2px;
+    backdrop-filter: blur(8px); box-shadow: 0 4px 20px rgba(0,0,0,.14);
+    align-items: center;
+  }
+  .nav.variantB .tab {
+    min-width: 60px; height: 52px; padding: 4px; border-radius: 14px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: var(--text-light);
+  }
+  .nav.variantB .tab .ico { font-size: 20px; margin-bottom: 1px; }
+  .nav.variantB .tab.active .ico { transform: scale(1.15); }
+  .nav.variantB .tab.active { color: var(--primary); }
+  .nav.variantB .fab {
+    width: 64px; height: 64px; border-radius: 50%; background: var(--warm);
+    color: white; display: grid; place-items: center; font-size: 26px; font-weight: 800;
+    box-shadow: 0 4px 10px rgba(230,126,34,.5); margin: -14px 6px 0;
+    border: 3px solid white;
+  }
+
+  /* Floor + animal (for the welcome preview in mockups) */
+  .floor { position: absolute; left: 8%; right: 8%; bottom: 90px; height: 2px; background: rgba(0,0,0,.12); }
+  .anim  { position: absolute; bottom: 92px; width: 72px; height: 64px;
+           background: #E6E0D4; border-radius: 36px 36px 22px 22px;
+           box-shadow: 0 4px 0 rgba(0,0,0,.12); display: grid; place-items: center; }
+  .anim::after {
+    content: ""; position: absolute; bottom: -8px; left: 10%; right: 10%; height: 10px;
+    background: rgba(0,0,0,.25); border-radius: 50%; filter: blur(4px);
+  }
+  .bubble {
+    position: absolute; bottom: 172px; background: white; border-radius: 14px;
+    padding: 10px 12px; min-width: 160px; max-width: 200px; box-shadow: 0 4px 10px rgba(0,0,0,.14);
+    border-top: 4px solid var(--warm); font-size: 12px;
+  }
+  .bubble::after {
+    content: ""; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+    border: 10px solid transparent; border-top-color: white;
+  }
+  .bubble .name { font-weight: 800; font-size: 13px; margin-bottom: 4px; }
+  .bubble .story { font-size: 11px; color: var(--text-light); font-style: italic; margin-bottom: 8px; }
+  .bubble .btn {
+    background: var(--danger); color: white; padding: 6px 12px; border-radius: 10px;
+    text-align: center; font-weight: 800; font-size: 12px;
+  }
+
+  .legend {
+    background: white; padding: 14px 18px; border-radius: 12px;
+    max-width: 360px; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  }
+  .legend li { margin: 4px 0 4px 18px; }
+
+  .note {
+    background: #fff4d6; border-left: 3px solid var(--warm); padding: 8px 12px;
+    border-radius: 6px; font-size: 12px; color: var(--text); margin-top: 12px; max-width: 360px;
+  }
+</style>
+</head>
+<body>
+
+<h1>A.R.C. — Menu Mockups</h1>
+<p>Based on the UX research: big touch targets (≥60px), bright active states, labels always visible for kids 8+, warm palette, no emojis in final (these mockups use emoji glyphs as stand-ins for icon-* PNGs). Toggle the device size to see each variant.</p>
+
+<div class="size-toggle">
+  <button data-size="mobile"  class="active">Mobile (360×720)</button>
+  <button data-size="tablet">Tablet (600×800)</button>
+  <button data-size="desktop">Desktop (960×600)</button>
+</div>
+
+<!-- ===================== ROW 1: TOP BARS ===================== -->
+<h2>Top bar (HUD)</h2>
+
+<div class="row">
+
+  <!-- Current -->
+  <div>
+    <div class="label">Current — dark bar, 4 chips</div>
+    <div class="device mobile">
+      <div class="screen">
+        <div class="game">
+          <div class="topbar current">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="level">Lv 1</div>
+              <div class="xp"></div>
+            </div>
+            <div class="chips">
+              <div class="chip">2 Rescued</div>
+              <div class="chip">2/2 Shelter</div>
+            </div>
+            <div class="audio">♪</div>
+          </div>
+          <div class="body">
+            <div class="door-row">
+              <div class="door cat"><div class="ico">🐱</div><div class="ct">1 cat</div></div>
+              <div class="door dog"><div class="ico">🐶</div><div class="ct">1 dog</div></div>
+              <div class="door bunny"><div class="ico">🐰</div><div class="ct">0 bunnies</div></div>
+            </div>
+          </div>
+          <div class="nav current">
+            <div class="tab active"><div class="ico">🏠</div>Home</div>
+            <div class="tab"><div class="ico">🥣</div>Care</div>
+            <div class="tab"><div class="ico">👥</div>Social</div>
+            <div class="tab"><div class="ico">🎮</div>Games</div>
+            <div class="tab"><div class="ico">≡</div>Menu</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annot">Dense single row. Hard to read at small sizes. Level, XP, 2–4 chips, audio all fighting for space.</div>
+  </div>
+
+  <!-- Variant A -->
+  <div>
+    <div class="label">Variant A — two-row, pill + XP card</div>
+    <div class="device mobile">
+      <div class="screen">
+        <div class="game">
+          <div class="topbar variantA">
+            <div class="row1">
+              <div class="title-pill">🏠 Rescue Centre</div>
+              <div class="actions">
+                <div class="icon-btn">♪</div>
+                <div class="icon-btn">💾</div>
+              </div>
+            </div>
+            <div class="row2">
+              <div class="lvl-badge">1</div>
+              <div class="xp-wrap">
+                <div class="xp-label">2 / 5 rescued</div>
+                <div class="xp"></div>
+              </div>
+              <div class="coins">🪙 42</div>
+            </div>
+          </div>
+          <div class="body">
+            <div class="door-row">
+              <div class="door cat"><div class="ico">🐱</div><div class="ct">1 cat</div></div>
+              <div class="door dog"><div class="ico">🐶</div><div class="ct">1 dog</div></div>
+              <div class="door bunny"><div class="ico">🐰</div><div class="ct">0 bunnies</div></div>
+            </div>
+          </div>
+          <div class="nav variantA">
+            <div class="tab active"><div class="ico">🏠</div>Home</div>
+            <div class="tab"><div class="ico">🥣</div>Care</div>
+            <div class="tab"><div class="ico">👥</div>Social</div>
+            <div class="tab"><div class="ico">🎮</div>Games</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annot">Separates identity (scene title) from status (level/XP/coins). Floating white elements on the scene — airier. Bottom nav labels always visible; fewer tabs (Menu moves to title-pill long-press / settings).</div>
+  </div>
+
+  <!-- Variant B -->
+  <div>
+    <div class="label">Variant B — floating orbs + central FAB</div>
+    <div class="device mobile">
+      <div class="screen">
+        <div class="game">
+          <div class="topbar variantB">
+            <div class="orb">
+              <div class="circle">1</div>
+              <div>
+                <div class="num">2/5</div>
+                <div class="sub">rescued</div>
+              </div>
+            </div>
+            <div class="right">
+              <div class="orb coin"><div class="circle">🪙</div><div class="num">42</div></div>
+              <div class="icon-btn" style="width:34px;height:34px;border-radius:50%;background:white;box-shadow:0 2px 6px rgba(0,0,0,.12);display:grid;place-items:center;font-size:16px;">♪</div>
+            </div>
+          </div>
+          <div class="body">
+            <div class="door-row">
+              <div class="door cat"><div class="ico">🐱</div><div class="ct">1 cat</div></div>
+              <div class="door dog"><div class="ico">🐶</div><div class="ct">1 dog</div></div>
+              <div class="door bunny"><div class="ico">🐰</div><div class="ct">0 bunnies</div></div>
+            </div>
+          </div>
+          <div class="nav variantB">
+            <div class="tab"><div class="ico">🏠</div>Home</div>
+            <div class="tab"><div class="ico">🥣</div>Care</div>
+            <div class="fab">🐾</div>
+            <div class="tab active"><div class="ico">👥</div>Friends</div>
+            <div class="tab"><div class="ico">🎮</div>Games</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annot">Big friendly orbs instead of a bar — feels playful, less app-like. Central raised FAB (paw) opens a quick-actions wheel (walk, feed, play). Glass bar, 4 side tabs + 1 FAB. Most similar to Pocket Camp / Happy Pet Story.</div>
+  </div>
+
+</div>
+
+<!-- ===================== ROW 2: WELCOME FLOW WITH BUBBLE ===================== -->
+<h2>New arrival → corridor floor + speech bubble (applies the grounding principle)</h2>
+<div class="row">
+  <div>
+    <div class="label">Arrival on floor with bubble</div>
+    <div class="device mobile">
+      <div class="screen">
+        <div class="game">
+          <div class="topbar variantA">
+            <div class="row1">
+              <div class="title-pill">🏠 Rescue Centre</div>
+              <div class="actions">
+                <div class="icon-btn">♪</div>
+                <div class="icon-btn">💾</div>
+              </div>
+            </div>
+            <div class="row2">
+              <div class="lvl-badge">1</div>
+              <div class="xp-wrap">
+                <div class="xp-label">1 / 5 rescued</div>
+                <div class="xp"></div>
+              </div>
+              <div class="coins">🪙 42</div>
+            </div>
+          </div>
+          <div class="body">
+            <div class="door-row">
+              <div class="door cat"><div class="ico">🐱</div><div class="ct">0 cats</div></div>
+              <div class="door dog"><div class="ico">🐶</div><div class="ct">1 dog</div></div>
+              <div class="door bunny"><div class="ico">🐰</div><div class="ct">0 bunnies</div></div>
+            </div>
+            <div class="floor"></div>
+            <div class="anim" style="left:50%;margin-left:-36px;">🐱</div>
+            <div class="bubble" style="left:50%;margin-left:-100px;">
+              <div class="name">Whiskers the tabby cat</div>
+              <div class="story">"Found hiding in a bakery — hungry and ready for a new home."</div>
+              <div class="btn">♥ Welcome</div>
+            </div>
+          </div>
+          <div class="nav variantA">
+            <div class="tab active"><div class="ico">🏠</div>Home</div>
+            <div class="tab"><div class="ico">🥣</div>Care</div>
+            <div class="tab"><div class="ico">👥</div>Social</div>
+            <div class="tab"><div class="ico">🎮</div>Games</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="annot">New animal stands on the corridor floor line (drop-shadow), bubble with name + story + Welcome button appears directly above them — cause and effect feel connected to the character instead of a separate card list.</div>
+  </div>
+
+  <aside class="legend">
+    <strong>Design decisions — why these choices</strong>
+    <ul>
+      <li><strong>≥60px touch targets:</strong> kids have less fine motor precision.</li>
+      <li><strong>Labels always visible</strong> for ages 8+ — icon-only is too opaque.</li>
+      <li><strong>Active tab raised + coloured</strong> — spatial cue stronger than colour alone.</li>
+      <li><strong>Max 5 tabs</strong> — scanning above 5 taxes short-term memory.</li>
+      <li><strong>HUD split into identity vs. status</strong> reduces visual noise.</li>
+      <li><strong>Speech bubble attached to animal</strong> (not a side card) so cause/effect connects.</li>
+      <li><strong>Drop shadows on every animal</strong> — #1 "looks amateur" tell if missing.</li>
+      <li><strong>Warm palette, no pure saturated reds</strong> — friendly coral &amp; green.</li>
+      <li><strong>No emojis in final build</strong> — these mocks are placeholders; PNG icons replace.</li>
+    </ul>
+    <div class="note">What I need your input on:
+      <ol style="margin-left:18px;margin-top:6px;">
+        <li>Top bar: current vs. A (two-row white card) vs. B (floating orbs + FAB)?</li>
+        <li>Bottom nav: current (dark dock) vs. A (big white bar) vs. B (glass bar + central FAB)?</li>
+        <li>Should we reduce to 4 tabs (dropping Menu into a settings icon), or keep 5?</li>
+        <li>Is a central FAB (B) worth the complexity for kids, or too clever?</li>
+      </ol>
+    </div>
+  </aside>
+</div>
+
+<script>
+  const btns = document.querySelectorAll('.size-toggle button');
+  btns.forEach(b => b.addEventListener('click', () => {
+    btns.forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    const size = b.dataset.size;
+    document.querySelectorAll('.device').forEach(d => {
+      d.classList.remove('mobile','tablet','desktop');
+      d.classList.add(size);
+    });
+  }));
+</script>
+</body>
+</html>
