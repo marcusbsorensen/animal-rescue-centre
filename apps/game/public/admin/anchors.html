@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>A.R.C. Room Anchor Editor</title>
+<style>
+  :root { --bg: #fff6eb; --panel: #fff; --ink: #3a2e20; --muted: #8a7864; --accent: #e67e22; --green: #27ae60; --danger: #e74c3c; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); overflow: hidden; }
+  .app { display: grid; grid-template-columns: 260px 1fr 320px; grid-template-rows: 52px 1fr; height: 100vh; }
+  header { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 0 20px; background: #fff; border-bottom: 1px solid #eadbc5; }
+  header h1 { margin: 0; font-size: 16px; }
+  header .controls { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  select, button { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid #d9c4a0; background: #fff; cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.green { background: var(--green); color: #fff; border-color: var(--green); }
+  button.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+  aside { background: var(--panel); overflow-y: auto; border-right: 1px solid #eadbc5; padding: 16px; }
+  aside.right { border-right: none; border-left: 1px solid #eadbc5; }
+  aside h3 { margin: 4px 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+  .palette { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .palette .chip { background: #fff6e8; border: 2px dashed #e8ccaa; border-radius: 10px; padding: 6px; text-align: center; cursor: grab; user-select: none; }
+  .palette .chip img { width: 100%; height: 60px; object-fit: contain; }
+  .palette .chip .l { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .palette .chip:hover { background: #ffe8c8; border-color: var(--accent); }
+  main { position: relative; overflow: hidden; background: #efe3d1; display: flex; justify-content: center; align-items: center; padding: 20px; }
+  #stage { position: relative; background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.15); max-width: 100%; max-height: 100%; border-radius: 6px; overflow: hidden; }
+  #stage img.bg { display: block; max-width: 100%; max-height: calc(100vh - 100px); width: auto; height: auto; user-select: none; -webkit-user-drag: none; }
+  .anchor { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: move; }
+  .anchor img { display: block; pointer-events: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
+  .anchor .dot { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent); }
+  .anchor.selected .dot { background: var(--green); box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--green); }
+  .anchor .label { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; background: #fff; padding: 1px 6px; border-radius: 4px; border: 1px solid #d9c4a0; white-space: nowrap; }
+  #json { width: 100%; height: 250px; font: 11px/1.4 ui-monospace, Menlo, monospace; border: 1px solid #d9c4a0; border-radius: 6px; padding: 8px; resize: vertical; }
+  .row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+  .empty { text-align: center; color: var(--muted); font-size: 12px; padding: 20px; background: #fff6e8; border-radius: 8px; }
+  .anchors-list { max-height: 200px; overflow-y: auto; font-size: 12px; }
+  .anchors-list .item { display: flex; justify-content: space-between; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+  .anchors-list .item:hover { background: #fff6e8; }
+  .anchors-list .item.selected { background: #ffe8c8; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Room Anchor Editor</h1>
+    <div class="controls">
+      <label>Room: <select id="roomPicker"></select></label>
+      <button id="loadJson">Load JSON</button>
+      <input type="file" id="jsonFile" accept="application/json" style="display:none">
+      <button id="exportJson" class="primary">Download JSON</button>
+      <button id="copyJson" class="green">Copy</button>
+    </div>
+  </header>
+  <aside>
+    <h3>Sprite palette</h3>
+    <p class="hint">Drag a sprite onto the room to create an anchor.</p>
+    <div class="palette" id="palette"></div>
+  </aside>
+  <main>
+    <div id="stage"><img id="bg" class="bg" src="" alt=""></div>
+  </main>
+  <aside class="right">
+    <h3>Selected anchor</h3>
+    <div id="selectedPanel" class="empty">Click an anchor to select.</div>
+    <h3 style="margin-top: 20px;">Anchors in this room</h3>
+    <div class="anchors-list" id="anchorsList"></div>
+    <h3 style="margin-top: 20px;">JSON (all rooms)</h3>
+    <textarea id="json" readonly></textarea>
+    <p class="hint">Keys: arrows nudge, Shift = 10px, [ ] scale, F flip, Del delete</p>
+  </aside>
+</div>
+<script src="./anchors.js"></script>
+</body>
+</html>
