@@ -503,10 +503,7 @@ export class GameScene extends Phaser.Scene {
       rx = x0 - 6;
     };
 
-    // Save orb (right-most)
-    drawIconOrb('icon-save', 'SAVE', () => this.saveState());
-
-    // Audio toggle orb
+    // Audio toggle orb (right-most — save is now automatic, no button needed)
     const audioState = AudioManager.getInstance().getState();
     const audioKey = audioState.musicEnabled ? 'icon-music-on' : 'icon-music-off';
     drawIconOrb(audioKey, audioState.musicEnabled ? 'ON' : 'OFF', () => {
@@ -514,14 +511,16 @@ export class GameScene extends Phaser.Scene {
       this.renderHUD();
     });
 
-    // Coin pill
+    // Coin pill (painterly hud-coins sign)
     if (this.economy.coins > 0) {
-      drawValuePill(`${this.economy.coins}`, 'icon-hud-coins', 0xe3b04b);
+      const coinIcon = this.textures.exists('hud-coins') ? 'hud-coins' : 'icon-hud-coins';
+      drawValuePill(`${this.economy.coins}`, coinIcon, 0xe3b04b);
     }
 
-    // Shelter pill (if room used)
+    // Shelter pill (painterly hud-homes sign)
     if (shelteredCount > 0) {
-      drawValuePill(`${shelteredCount}/${maxShelter}`, 'icon-hud-homes', 0x8B6914);
+      const homesIcon = this.textures.exists('hud-homes') ? 'hud-homes' : 'icon-hud-homes';
+      drawValuePill(`${shelteredCount}/${maxShelter}`, homesIcon, 0x8B6914);
     }
   }
 
@@ -534,26 +533,33 @@ export class GameScene extends Phaser.Scene {
       iconKey: string; label: string; active: boolean; action: () => void;
     };
 
-    // Layout: 2 tabs LEFT of centre, central FAB, 2 tabs RIGHT of centre
+    // Painterly nav icons live in signs/ — fall back to older icons/ keys if texture missing
+    const homeKey = this.textures.exists('nav-home') ? 'nav-home' : 'icon-home';
+    const careKey = this.textures.exists('nav-care') ? 'nav-care' : 'icon-kitchen';
+    const socialKey = this.textures.exists('nav-social') ? 'nav-social' : 'icon-social';
+    const playKey = this.textures.exists('nav-play') ? 'nav-play' : 'icon-games';
+
+    // Layout: 2 tabs LEFT of centre, central A.R.C. FAB, 2 tabs RIGHT of centre
     const leftTabs: NavTab[] = options?.showBack
       ? [
           { iconKey: 'icon-back', label: 'Back', active: false,
             action: () => { this.viewMode = 'corridor'; this.renderView(); } },
-          { iconKey: 'icon-kitchen', label: 'Care', active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
+          { iconKey: careKey, label: 'Care', active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
             action: () => { this.viewMode = 'kitchen'; this.renderView(); } },
         ]
       : [
-          { iconKey: 'icon-home', label: 'Home', active: this.viewMode === 'corridor',
+          { iconKey: homeKey, label: 'Home', active: this.viewMode === 'corridor',
             action: () => { this.viewMode = 'corridor'; this.renderView(); } },
-          { iconKey: 'icon-kitchen', label: 'Care', active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
+          { iconKey: careKey, label: 'Care', active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
             action: () => { this.viewMode = 'kitchen'; this.renderView(); } },
         ];
 
+    // Right tabs: Play (opens games popup) + Social
     const rightTabs: NavTab[] = [
-      { iconKey: 'icon-social', label: 'Social', active: false,
+      { iconKey: playKey, label: 'Play', active: false,
+        action: () => this.showGamesPopup() },
+      { iconKey: socialKey, label: 'Social', active: false,
         action: () => { this.saveState(); this.scene.start('SocialScene'); } },
-      { iconKey: 'icon-menu', label: 'Menu', active: false,
-        action: () => { this.saveState(); this.scene.start('MainMenuScene'); } },
     ];
 
     // ── Bar geometry ──────────────────────────────────────
@@ -629,36 +635,35 @@ export class GameScene extends Phaser.Scene {
       drawTab(tab, tx, ty);
     });
 
-    // ── Central FAB (raised above the bar) ────────────────
+    // ── Central FAB: A.R.C. signboard → MainMenuScene ─────
     const fabShadow = this.add.graphics();
     fabShadow.fillStyle(0x000000, 0.28);
     fabShadow.fillCircle(fabX + 2, fabY + 5, fabSize / 2);
     this.navContainer.add(fabShadow);
 
-    const fabBg = this.add.graphics();
-    fabBg.fillStyle(0xE67E22, 1);
-    fabBg.fillCircle(fabX, fabY, fabSize / 2);
-    // White border ring
-    fabBg.lineStyle(3, 0xffffff, 1);
-    fabBg.strokeCircle(fabX, fabY, fabSize / 2);
-    // Soft top highlight
-    fabBg.fillStyle(0xffffff, 0.22);
-    fabBg.fillCircle(fabX, fabY - fabSize / 6, fabSize / 4);
-    this.navContainer.add(fabBg);
-
-    if (this.textures.exists('icon-games')) {
-      const fabIcon = this.add.image(fabX, fabY, 'icon-games').setDisplaySize(34, 34).setOrigin(0.5);
+    if (this.textures.exists('fab-arc')) {
+      // Painterly signboard — no coloured disc behind it, let the art breathe
+      const fabIcon = this.add.image(fabX, fabY, 'fab-arc').setDisplaySize(fabSize + 8, fabSize + 8).setOrigin(0.5);
       this.navContainer.add(fabIcon);
     } else {
+      // Fallback: cream disc with "A.R.C." lettering
+      const fabBg = this.add.graphics();
+      fabBg.fillStyle(0xE67E22, 1);
+      fabBg.fillCircle(fabX, fabY, fabSize / 2);
+      fabBg.lineStyle(3, 0xffffff, 1);
+      fabBg.strokeCircle(fabX, fabY, fabSize / 2);
+      fabBg.fillStyle(0xffffff, 0.22);
+      fabBg.fillCircle(fabX, fabY - fabSize / 6, fabSize / 4);
+      this.navContainer.add(fabBg);
       this.navContainer.add(
-        this.add.text(fabX, fabY, 'Play', {
+        this.add.text(fabX, fabY, 'A.R.C.', {
           fontSize: '12px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
     }
 
-    const fabHit = this.add.circle(fabX, fabY, fabSize / 2, 0x000000, 0).setInteractive({ useHandCursor: true });
-    fabHit.on('pointerdown', () => this.showGamesPopup());
+    const fabHit = this.add.circle(fabX, fabY, (fabSize + 8) / 2, 0x000000, 0).setInteractive({ useHandCursor: true });
+    fabHit.on('pointerdown', () => { this.saveState(); this.scene.start('MainMenuScene'); });
     this.navContainer.add(fabHit);
   }
 

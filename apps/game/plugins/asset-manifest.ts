@@ -18,8 +18,9 @@ function scanAssets(publicDir: string): string[] {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        // skip reference/samples directories — not used at runtime
+        // skip reference/samples/preview/backup directories — not used at runtime
         if (entry.name === 'reference' || entry.name === 'samples') continue;
+        if (entry.name.endsWith('-preview') || entry.name.startsWith('_backup')) continue;
         walk(full);
       } else {
         // Store path relative to public dir (e.g. "assets/animals/cat-arriving.png")

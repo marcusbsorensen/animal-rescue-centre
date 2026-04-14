@@ -30,6 +30,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,jpg,svg,woff2}'],
+        globIgnores: ['**/*-preview/**', '**/_backup*/**', '**/reference/**', '**/samples/**'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),
   ],
