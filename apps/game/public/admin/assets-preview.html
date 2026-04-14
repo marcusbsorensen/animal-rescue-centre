@@ -17,17 +17,19 @@
   .icons { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
   .card { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(60,40,10,0.08); display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .card img { max-width: 100%; height: auto; image-rendering: -webkit-optimize-contrast; }
-  .sign-img { max-height: 90px; }
-  .icon-img { max-height: 120px; background: #f4e7d4; border-radius: 50%; padding: 10px; }
+  /* Signs preserve their natural aspect ratio — no stretch */
+  .sign-img { max-height: 90px; width: auto; object-fit: contain; }
+  .icon-img { max-height: 120px; width: auto; object-fit: contain; background: #f4e7d4; border-radius: 50%; padding: 10px; }
   .label { font-size: 13px; color: var(--muted); }
   .size-toggle { display: inline-flex; gap: 8px; margin-top: 6px; }
   .size-toggle button { background: #fff; border: 1px solid #e6cfa6; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
   .size-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   /* Runtime sample sizes */
   body[data-size="actual"] .sign-img { height: auto; max-height: none; width: 400px; }
-  body[data-size="actual"] .icon-img { height: 256px; width: 256px; }
-  body[data-size="game"] .sign-img { width: 180px; height: auto; }
-  body[data-size="game"] .icon-img { height: 40px; width: 40px; padding: 6px; }
+  body[data-size="actual"] .icon-img { height: 256px; width: 256px; object-fit: contain; }
+  /* In-game: don't force a square — let aspect ratio be preserved at small height */
+  body[data-size="game"] .sign-img { height: 50px; width: auto; max-height: 50px; }
+  body[data-size="game"] .icon-img { height: 40px; width: 40px; padding: 6px; object-fit: contain; }
 </style>
 </head>
 <body data-size="design">

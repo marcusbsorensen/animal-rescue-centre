@@ -310,12 +310,12 @@ export class DepotScene extends Phaser.Scene {
       }).setOrigin(1, 0.5)
     );
 
-    // Goals bar
-    const goalsY = headerH + 28;
+    // Goals bar — positioned below header with room for label above + hint below
+    const goalsY = headerH + 50;
     this.renderGoals(width, goalsY);
 
-    // Calculate cell sizing to fit the board
-    const boardAreaTop = goalsY + 35;
+    // Calculate cell sizing to fit the board (goals card H=58, hint ~15, pad)
+    const boardAreaTop = goalsY + 60;
     const boardAreaBottom = height - 50;
     const boardAreaH = boardAreaBottom - boardAreaTop;
     const boardAreaW = width - 20;
@@ -364,37 +364,62 @@ export class DepotScene extends Phaser.Scene {
     if (!this.boardState) return;
     const goals = this.boardState.goals;
     const goalCount = goals.length;
-    const spacing = Math.min(120, (width - 40) / goalCount);
+
+    // "MATCH THESE:" label above the target cards
+    this.container.add(
+      this.add.text(width / 2, y - 30, 'MATCH THESE:', {
+        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: '#f0c040', resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5)
+    );
+
+    const cardW = 72;
+    const cardH = 58;
+    const spacing = Math.min(90, (width - 40) / goalCount);
     const startX = width / 2 - ((goalCount - 1) * spacing) / 2;
 
     goals.forEach((goal, i) => {
       const x = startX + i * spacing;
       const def = this.tileDefs.find((t) => t.type === goal.targetTile);
       const done = goal.currentCount >= goal.targetCount;
-
       const emoji = def?.emoji ?? '';
       const progress = `${Math.min(goal.currentCount, goal.targetCount)}/${goal.targetCount}`;
 
+      // Card background — makes the target icon unmistakable
+      const card = this.add.graphics();
+      card.fillStyle(done ? 0x27ae60 : 0xffffff, done ? 0.25 : 0.1);
+      card.fillRoundedRect(x - cardW / 2, y - cardH / 2, cardW, cardH, 10);
+      card.lineStyle(2, done ? 0x27ae60 : 0xf0c040, done ? 1 : 0.7);
+      card.strokeRoundedRect(x - cardW / 2, y - cardH / 2, cardW, cardH, 10);
+      this.container.add(card);
+
       if (emoji) {
         this.container.add(
-          this.add.text(x, y - 6, emoji, {
-            fontSize: '18px',
+          this.add.text(x, y - 10, emoji, {
+            fontSize: '34px',
           }).setOrigin(0.5)
         );
       } else {
-        this.container.add(
-          this.add.circle(x, y - 6, 9, 0x9b59b6)
-        );
+        this.container.add(this.add.circle(x, y - 10, 16, 0x9b59b6));
       }
 
       this.container.add(
-        this.add.text(x, y + 14, progress, {
-          fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
-          color: done ? '#4adc7b' : DEPOT_COLOURS.textDim,
-          fontStyle: done ? 'bold' : 'normal',
+        this.add.text(x, y + 18, progress, {
+          fontSize: '15px', fontFamily: FONTS.body, fontStyle: 'bold',
+          resolution: TEXT_RESOLUTION,
+          color: done ? '#4adc7b' : '#ffffff',
         }).setOrigin(0.5)
       );
     });
+
+    // "How to play" hint beneath the cards (only while playing, not overwhelming)
+    this.container.add(
+      this.add.text(width / 2, y + cardH / 2 + 14,
+        'Tap a group of 2+ matching tiles to collapse them.', {
+          fontSize: '11px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
+          resolution: TEXT_RESOLUTION, fontStyle: 'italic',
+        }).setOrigin(0.5)
+    );
   }
 
   private createCell(row: number, col: number): Phaser.GameObjects.Container | null {
@@ -682,17 +707,46 @@ export class DepotScene extends Phaser.Scene {
       }).setOrigin(0.5)
     );
 
-    // Goals summary
-    const goalY = 165;
+    // Goals summary — show each target as a card with status badge + big icon
+    const goalY = 175;
+    const rowH = 52;
     goals.forEach((goal, i) => {
       const done = goal.currentCount >= goal.targetCount;
       const def = this.tileDefs.find((t) => t.type === goal.targetTile);
+      const cy = goalY + i * rowH;
+      const rowW = 240;
+
+      // Row pill background
+      const row = this.add.graphics();
+      row.fillStyle(done ? 0x27ae60 : 0xe74c3c, 0.18);
+      row.fillRoundedRect(width / 2 - rowW / 2, cy - 22, rowW, 44, 22);
+      this.container.add(row);
+
+      // Status circle
+      const statusCircle = this.add.circle(width / 2 - rowW / 2 + 22, cy, 14,
+        done ? 0x27ae60 : 0xe74c3c);
+      this.container.add(statusCircle);
       this.container.add(
-        this.add.text(width / 2, goalY + i * 25,
-          `${done ? '[done]' : '[x]'} ${def?.emoji ?? ''} ${goal.currentCount}/${goal.targetCount}`, {
-          fontSize: '15px', fontFamily: FONTS.body,
-          color: done ? '#4adc7b' : '#e74c3c',
+        this.add.text(width / 2 - rowW / 2 + 22, cy, done ? '✓' : '×', {
+          fontSize: '20px', fontFamily: FONTS.body, fontStyle: 'bold',
+          color: '#ffffff', resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
+      );
+
+      // Big target emoji
+      this.container.add(
+        this.add.text(width / 2 - 10, cy, def?.emoji ?? '', {
+          fontSize: '28px',
+        }).setOrigin(0.5)
+      );
+
+      // Progress label
+      this.container.add(
+        this.add.text(width / 2 + rowW / 2 - 22, cy,
+          `${goal.currentCount}/${goal.targetCount}`, {
+          fontSize: '17px', fontFamily: FONTS.body, fontStyle: 'bold',
+          color: done ? '#4adc7b' : '#ffcfcf', resolution: TEXT_RESOLUTION,
+        }).setOrigin(1, 0.5)
       );
     });
 

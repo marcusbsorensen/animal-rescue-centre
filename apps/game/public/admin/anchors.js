@@ -16,6 +16,10 @@ const STATES  = ['sheltered','sleeping','eating','arriving'];
 const PALETTE = [];
 SPECIES.forEach(sp => STATES.forEach(st => PALETTE.push({ species: sp, state: st })));
 
+// In-game baseline: animal sprite ~100 wide in a 1280x720 viewport (~14% of height)
+// We use 16% of bg height at scale=1.0 so it looks "right" against room art.
+const BASE_SPRITE_FRACTION = 0.16;
+
 let data = {};
 let currentRoom = ROOMS[0].key;
 let selectedAnchorEl = null;
@@ -150,23 +154,45 @@ function renderAnchors() {
   const room = data[currentRoom] || {};
   const rect = bg.getBoundingClientRect();
   if (!rect.width) return;
+
+  // In-game-equivalent sprite size: scale 1.0 = ~16% of bg height
+  const baseHeight = rect.height * BASE_SPRITE_FRACTION;
+
   const items = [];
   Object.entries(room).forEach(([species, states]) => {
     Object.entries(states).forEach(([state, anchors]) => {
       anchors.forEach((a, i) => items.push({ species, state, index: i, a }));
     });
   });
+
   items.forEach(({species, state, index, a}) => {
+    // The anchor element is positioned at (x, y) — the FEET point.
+    // The dot is at the anchor element's centre = the feet point.
+    // The sprite image grows UP from this point so its bottom sits on the floor.
     const node = el('div', { class: 'anchor' });
     node.style.left = (a.x * 100) + '%';
     node.style.top  = (a.y * 100) + '%';
+
+    const spriteH = baseHeight * a.scale;
+
     const img = el('img');
     img.src = `/assets/animals/${species}-${state}.png`;
-    img.style.transform = `scale(${a.scale * 0.3}) scaleX(${a.facing === 'left' ? -1 : 1})`;
+    // Position image so its BOTTOM-CENTRE sits at the dot (the feet anchor).
+    img.style.position = 'absolute';
+    img.style.left = '50%';
+    img.style.bottom = '0';
+    img.style.height = spriteH + 'px';
+    img.style.width = 'auto';
+    img.style.transform = `translateX(-50%) scaleX(${a.facing === 'left' ? -1 : 1})`;
+    img.style.transformOrigin = 'bottom center';
     img.style.opacity = 0.92;
     img.addEventListener('error', () => { img.style.display = 'none'; });
+
     const dot = el('div', { class: 'dot' });
     const label = el('div', { class: 'label', text: `${species} · ${state}` });
+    label.style.bottom = (spriteH + 6) + 'px';
+    label.style.top = 'auto';
+
     node.appendChild(img); node.appendChild(dot); node.appendChild(label);
     node._anchor = a; node._roomKey = currentRoom; node._species = species; node._state = state; node._index = index;
     node.addEventListener('mousedown', (ev) => {
@@ -213,7 +239,7 @@ function renderSelectedPanel() {
   const title = el('strong', { text: `${selectedAnchorEl._species} · ${selectedAnchorEl._state}` });
   info.appendChild(title);
   info.appendChild(el('br'));
-  info.appendChild(document.createTextNode(`x: ${(a.x*100).toFixed(1)}% · y: ${(a.y*100).toFixed(1)}%`));
+  info.appendChild(document.createTextNode(`feet at x: ${(a.x*100).toFixed(1)}%, y: ${(a.y*100).toFixed(1)}%`));
   info.appendChild(el('br'));
   info.appendChild(document.createTextNode(`scale: ${a.scale.toFixed(2)} · facing: ${a.facing}`));
   selectedPanel.appendChild(info);
