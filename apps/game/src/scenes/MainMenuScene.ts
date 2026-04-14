@@ -387,16 +387,20 @@ export class MainMenuScene extends Phaser.Scene {
       }
     }
 
-    // Use sprites if available, otherwise emoji fallback
-    const items = showcaseVariants.length > 0
-      ? showcaseVariants.map(sv => ({
+    // Prefer full sprites → species icons (always boot-loaded) → coloured circle
+    const items = showcaseSpecies.map((sp) => {
+      const sv = showcaseVariants.find((x) => x.species === sp);
+      if (sv) {
+        return {
           type: 'sprite' as const,
           key: sv.variant ? `${sv.species}-${sv.variant}-sheltered` : `${sv.species}-sheltered`,
-        }))
-      : showcaseSpecies.map(sp => ({
-          type: 'colour' as const,
-          species: sp,
-        }));
+        };
+      }
+      if (this.textures.exists(`icon-${sp}`)) {
+        return { type: 'sprite' as const, key: `icon-${sp}` };
+      }
+      return { type: 'colour' as const, species: sp };
+    });
 
     const count = items.length;
     const spacing = Math.min(55 * sf, (stripW - 30) / count);
