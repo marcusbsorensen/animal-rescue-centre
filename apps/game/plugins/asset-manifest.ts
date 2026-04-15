@@ -23,6 +23,8 @@ function scanAssets(publicDir: string): string[] {
         if (entry.name.endsWith('-preview') || entry.name.startsWith('_backup')) continue;
         walk(full);
       } else {
+        // Skip underscore-prefixed files (backups, references, previews)
+        if (entry.name.startsWith('_')) continue;
         // Store path relative to public dir (e.g. "assets/animals/cat-arriving.png")
         results.push(path.relative(publicDir, full));
       }

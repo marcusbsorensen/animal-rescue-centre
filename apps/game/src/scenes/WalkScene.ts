@@ -324,33 +324,7 @@ export class WalkScene extends Phaser.Scene {
     // Render tiles
     for (let r = 0; r < map.rows; r++) {
       for (let c = 0; c < map.cols; c++) {
-        const tile = map.tiles[r][c];
-        const def = TILE_DEFS[tile.type];
-        const { x, y } = this.tileToScreen(r, c);
-
-        // Tile rectangle
-        const tileRect = this.add.rectangle(x, y, this.cellSize - 1, this.cellSize - 1, def.colour);
-        if (tile.interacted) tileRect.setAlpha(0.6);
-        this.gridContainer.add(tileRect);
-
-        // Emoji overlay for interactable/feature tiles
-        if (def.emoji) {
-          const emojiSize = Math.max(10, this.cellSize * 0.5);
-          const emoji = this.add.text(x, y, def.emoji, {
-            fontSize: `${emojiSize}px`,
-          }).setOrigin(0.5);
-          if (tile.interacted) emoji.setAlpha(0.4);
-          this.gridContainer.add(emoji);
-        }
-
-        // Interacted checkmark
-        if (tile.interacted && tile.interactable) {
-          this.gridContainer.add(
-            this.add.text(x + this.cellSize * 0.3, y - this.cellSize * 0.3, '✓', {
-              fontSize: `${this.cellSize * 0.3}px`, color: '#ffffff',
-            }).setOrigin(0.5)
-          );
-        }
+        this.drawTileAt(r, c, map.tiles[r][c]);
       }
     }
 
@@ -779,33 +753,80 @@ export class WalkScene extends Phaser.Scene {
     const { map } = this.gridState;
     for (let r = 0; r < map.rows; r++) {
       for (let c = 0; c < map.cols; c++) {
-        const tile = map.tiles[r][c];
-        const def = TILE_DEFS[tile.type];
-        const { x, y } = this.tileToScreen(r, c);
-
-        const tileRect = this.add.rectangle(x, y, this.cellSize - 1, this.cellSize - 1, def.colour);
-        if (tile.interacted) tileRect.setAlpha(0.6);
-        this.gridContainer.add(tileRect);
-
-        if (def.emoji) {
-          const emojiSize = Math.max(10, this.cellSize * 0.5);
-          const emoji = this.add.text(x, y, def.emoji, { fontSize: `${emojiSize}px` }).setOrigin(0.5);
-          if (tile.interacted) emoji.setAlpha(0.4);
-          this.gridContainer.add(emoji);
-        }
-
-        if (tile.interacted && tile.interactable) {
-          this.gridContainer.add(
-            this.add.text(x + this.cellSize * 0.3, y - this.cellSize * 0.3, '✓', {
-              fontSize: `${this.cellSize * 0.3}px`, color: '#ffffff',
-            }).setOrigin(0.5)
-          );
-        }
+        this.drawTileAt(r, c, map.tiles[r][c]);
       }
     }
 
     this.renderNPCs();
     this.renderPlayer();
+  }
+
+  // ── Tile drawing helper ────────────────────────────────────
+  // Feature tiles sit ON a grass base; base tiles fill the cell.
+  private static readonly BASE_TILE_TYPES = new Set(['grass', 'path', 'road', 'sand', 'water', 'exit']);
+
+  private drawTileAt(row: number, col: number, tile: import('@arc/game-logic').WalkTile): void {
+    const def = TILE_DEFS[tile.type];
+    const { x, y } = this.tileToScreen(row, col);
+    const size = this.cellSize - 1;
+    const isBase = WalkScene.BASE_TILE_TYPES.has(tile.type);
+    const texKey = `tile-${tile.type}`;
+    const hasTex = this.textures.exists(texKey);
+
+    // 1. Base layer: for feature tiles, draw grass beneath. For base tiles,
+    //    use the tile's own texture/colour as the fill.
+    if (isBase) {
+      if (hasTex) {
+        const img = this.add.image(x, y, texKey).setDisplaySize(size, size);
+        if (tile.interacted) img.setAlpha(0.6);
+        this.gridContainer.add(img);
+      } else {
+        const rect = this.add.rectangle(x, y, size, size, def.colour);
+        if (tile.interacted) rect.setAlpha(0.6);
+        this.gridContainer.add(rect);
+      }
+    } else {
+      // Grass base
+      if (this.textures.exists('tile-grass')) {
+        this.gridContainer.add(this.add.image(x, y, 'tile-grass').setDisplaySize(size, size));
+      } else {
+        this.gridContainer.add(this.add.rectangle(x, y, size, size, TILE_DEFS.grass.colour));
+      }
+      // Feature on top
+      if (hasTex) {
+        const feat = this.add.image(x, y, texKey).setDisplaySize(size * 0.95, size * 0.95);
+        if (tile.interacted) feat.setAlpha(0.4);
+        this.gridContainer.add(feat);
+      } else if (def.emoji) {
+        const emoji = this.add.text(x, y, def.emoji, {
+          fontSize: `${Math.max(10, this.cellSize * 0.5)}px`,
+        }).setOrigin(0.5);
+        if (tile.interacted) emoji.setAlpha(0.4);
+        this.gridContainer.add(emoji);
+      } else {
+        const rect = this.add.rectangle(x, y, size, size, def.colour);
+        if (tile.interacted) rect.setAlpha(0.6);
+        this.gridContainer.add(rect);
+      }
+    }
+
+    // Exit flag on top of its green base
+    if (tile.type === 'exit' && def.emoji) {
+      this.gridContainer.add(
+        this.add.text(x, y, def.emoji, {
+          fontSize: `${Math.max(10, this.cellSize * 0.5)}px`,
+        }).setOrigin(0.5)
+      );
+    }
+
+    // Interacted checkmark (feature tiles only)
+    if (tile.interacted && tile.interactable) {
+      this.gridContainer.add(
+        this.add.text(x + this.cellSize * 0.3, y - this.cellSize * 0.3, '✓', {
+          fontSize: `${this.cellSize * 0.3}px`, color: '#ffffff',
+        }).setOrigin(0.5)
+      );
+    }
   }
 
   // ── Phase 4: Road Crossing ────────────────────────────────
