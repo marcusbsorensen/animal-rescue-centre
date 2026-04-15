@@ -37,5 +37,16 @@ export default defineConfig({
   ],
   build: {
     target: 'es2022',
+    // Split Phaser (big, rarely changes) into its own chunk so the app shell
+    // stays small and the engine caches independently across deploys.
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/phaser')) return 'phaser';
+          if (id.includes('node_modules')) return 'vendor';
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1500,
   },
 });
