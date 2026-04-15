@@ -3,6 +3,7 @@ import type { Animal, Species, GameState, CalendarState, DepotState, Economy } f
 import { COLOURS, FONTS, pluralSpecies, TEXT_RESOLUTION } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
+import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
 import { createSpeechBubble } from '../ui/SpeechBubble';
 import { AudioManager } from '../audio/AudioManager';
 import {
@@ -880,20 +881,31 @@ export class GameScene extends Phaser.Scene {
       const slotW = Math.min(280, (width - 40) / n);
       const startX = width / 2 - ((n - 1) * slotW) / 2;
 
+      const anchors = RoomAnchors.getInstance();
+      const bgTopY = 20, bgW = width, bgH = height - 40;
+
       arriving.forEach((animal, i) => {
-        const ax = startX + i * slotW;
-        const spriteW = 90;
-        const spriteH = 74;
+        const anchor = anchors.pick('corridor', animal.species, 'arriving', i);
+        const placed = this.resolveAnchor(anchor, bgTopY, bgW, bgH, 90, 74);
+
+        const ax = placed ? placed.cx : startX + i * slotW;
+        const spriteW = placed ? placed.w : 90;
+        const spriteH = placed ? placed.h : 74;
+        const spriteCy = placed ? placed.cy : floorY - spriteH / 2 + 2;
 
         // Drop shadow anchoring sprite to the floor
-        const shadow = this.add.ellipse(ax, floorY + 4, spriteW * 0.65, spriteH * 0.16, 0x000000, 0.28);
+        const shadowFeetY = spriteCy + spriteH / 2;
+        const shadow = this.add.ellipse(ax, shadowFeetY + 4, spriteW * 0.65, spriteH * 0.16, 0x000000, 0.28);
         this.gameContainer.add(shadow);
 
-        // Sprite sits with its bottom on the floor line
+        // Sprite sits with its bottom on the floor line (or anchor)
         const sprite = createAnimalSprite(
-          this, ax, floorY - spriteH / 2 + 2, animal,
+          this, ax, spriteCy, animal,
           { width: spriteW, height: spriteH, interactive: true }
         );
+        if (placed?.flipX && 'setFlipX' in sprite) {
+          (sprite as Phaser.GameObjects.Image).setFlipX(true);
+        }
         sprite.on('pointerdown', () => this.showAnimalDetails(animal));
         this.gameContainer.add(sprite);
 
@@ -959,6 +971,40 @@ export class GameScene extends Phaser.Scene {
     this.renderNavBar();
   }
 
+  // ── Anchor placement helpers ────────────────────────────────
+
+  /** Derive sprite visual state (mirrors sprites.ts) for anchor lookup. */
+  private deriveAnchorState(animal: Animal): string {
+    if (animal.state === 'arriving') return 'arriving';
+    if (animal.tiredness >= 70) return 'sleeping';
+    if (animal.hunger >= 70) return 'eating';
+    return 'sheltered';
+  }
+
+  /**
+   * Convert an Anchor (feet position in fractional bg coords) into a pixel
+   * sprite-centre position, plus the size to render at. Returns null if no
+   * anchor is supplied so caller can fall back to procedural layout.
+   */
+  private resolveAnchor(
+    anchor: Anchor | null,
+    bgTopY: number, bgW: number, bgH: number,
+    baseW: number, baseH: number,
+  ): { cx: number; cy: number; w: number; h: number; flipX: boolean } | null {
+    if (!anchor) return null;
+    const s = anchor.scale ?? 1;
+    const w = baseW * s;
+    const h = baseH * s;
+    const feetX = anchor.x * bgW;
+    const feetY = bgTopY + anchor.y * bgH;
+    return {
+      cx: feetX,
+      cy: feetY - h / 2,
+      w, h,
+      flipX: anchor.facing === 'left',
+    };
+  }
+
   // ── Room View ───────────────────────────────────────────────
 
   private renderRoom(): void {
@@ -998,17 +1044,28 @@ export class GameScene extends Phaser.Scene {
       const startX = width / 2 - ((cols - 1) * colSpacing) / 2;
       const floorY = height * 0.55;
 
+      // Anchor-driven placement when available (falls back to grid otherwise)
+      const anchors = RoomAnchors.getInstance();
+      const roomKey = `room-${species}`;
+      const bgTopY = 20, bgW = width, bgH = height - 40;
+
       roomAnimals.forEach((animal, i) => {
-        const row = Math.floor(i / 4);
-        const col = i % 4;
-        const x = startX + col * colSpacing;
-        const y = floorY + row * 150;
+        const baseSize = animal.state === 'pet' ? 120 : 100;
+        const visualState = this.deriveAnchorState(animal);
+        const anchor = anchors.pick(roomKey, animal.species, visualState, i);
+        const placed = this.resolveAnchor(anchor, bgTopY, bgW, bgH, baseSize, baseSize * 0.8);
+
+        const x = placed ? placed.cx : startX + (i % 4) * colSpacing;
+        const y = placed ? placed.cy : floorY + Math.floor(i / 4) * 150;
+        const size = placed ? placed.w : baseSize;
 
         // Animal sprite (real art or fallback rectangle)
-        const size = animal.state === 'pet' ? 120 : 100;
         const sprite = createAnimalSprite(this, x, y, animal, {
           width: size, height: size * 0.8, interactive: true,
         });
+        if (placed?.flipX && 'setFlipX' in sprite) {
+          (sprite as Phaser.GameObjects.Image).setFlipX(true);
+        }
 
         // Pet gold border (if sprite is a rectangle fallback)
         if (animal.state === 'pet' && sprite instanceof Phaser.GameObjects.Rectangle) {
@@ -1435,13 +1492,26 @@ export class GameScene extends Phaser.Scene {
       const previewFloorY = height / 2 + 20;
       const slotW = 62;
       const previewStartX = width / 2 - ((previewAnimals.length - 1) * slotW) / 2;
+      const anchors = RoomAnchors.getInstance();
+      const bgTopY = 20, bgW = width, bgH = height - 40;
+
       previewAnimals.forEach((a, i) => {
-        const px = previewStartX + i * slotW;
-        const spriteH = 80;
-        // Drop shadow under each sprite
-        const shadow = this.add.ellipse(px, previewFloorY + 3, 60, 12, 0x000000, 0.25);
+        const anchor = anchors.pick('kitchen', a.species, 'eating', i);
+        const placed = this.resolveAnchor(anchor, bgTopY, bgW, bgH, 100, 80);
+
+        const px = placed ? placed.cx : previewStartX + i * slotW;
+        const spriteH = placed ? placed.h : 80;
+        const spriteW = placed ? placed.w : 100;
+        const spriteCy = placed ? placed.cy : previewFloorY - spriteH / 2 + 2;
+
+        // Drop shadow under each sprite (at feet)
+        const feetY = spriteCy + spriteH / 2;
+        const shadow = this.add.ellipse(px, feetY + 3, spriteW * 0.6, 12, 0x000000, 0.25);
         this.gameContainer.add(shadow);
-        const sprite = createAnimalSprite(this, px, previewFloorY - spriteH / 2 + 2, a, { width: 100, height: spriteH });
+        const sprite = createAnimalSprite(this, px, spriteCy, a, { width: spriteW, height: spriteH });
+        if (placed?.flipX && 'setFlipX' in sprite) {
+          (sprite as Phaser.GameObjects.Image).setFlipX(true);
+        }
         this.gameContainer.add(sprite);
         this.tweens.add({
           targets: sprite, y: sprite.y - 2,
@@ -1547,25 +1617,39 @@ export class GameScene extends Phaser.Scene {
       );
 
       // Scatter pets on the grass (lower 40% of screen, above nav bar)
+      const anchors = RoomAnchors.getInstance();
+      const bgTopY = 20, bgW = width, bgH = height - 40;
+
       pets.forEach((pet, i) => {
         // Place on grass area — between 60% and 85% of screen height
         const grassTop = height * 0.6;
-        const grassBottom = height * 0.82;
         const gardenLeft = width * 0.15;
         const gardenRight = width * 0.85;
         const cols = Math.min(pets.length, 4);
         const spacing = (gardenRight - gardenLeft) / (cols + 1);
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const cx = gardenLeft + spacing * (col + 1) + (Math.random() - 0.5) * 30;
-        const cy = grassTop + row * 80 + (Math.random() * 20);
+
+        const visualState = this.deriveAnchorState(pet);
+        const anchor = anchors.pick('garden', pet.species, visualState, i);
+        const placed = this.resolveAnchor(anchor, bgTopY, bgW, bgH, 100, 80);
+
+        const cx = placed
+          ? placed.cx
+          : gardenLeft + spacing * ((i % cols) + 1) + (Math.random() - 0.5) * 30;
+        const cy = placed
+          ? placed.cy
+          : grassTop + Math.floor(i / cols) * 80 + (Math.random() * 20);
+        const spriteW = placed ? placed.w : 100;
+        const spriteH = placed ? placed.h : 80;
 
         // Collar colour ring
         const collarHex = pet.collarColour ?? '#ff6b9d';
         const collarColour = Phaser.Display.Color.HexStringToColor(collarHex).color;
 
         // Pet sprite (larger than shelter animals, with collar colour ring)
-        const sprite = createAnimalSprite(this, cx, cy, pet, { width: 100, height: 80, interactive: true });
+        const sprite = createAnimalSprite(this, cx, cy, pet, { width: spriteW, height: spriteH, interactive: true });
+        if (placed?.flipX && 'setFlipX' in sprite) {
+          (sprite as Phaser.GameObjects.Image).setFlipX(true);
+        }
         if (sprite instanceof Phaser.GameObjects.Rectangle) {
           sprite.setStrokeStyle(3, collarColour);
         }

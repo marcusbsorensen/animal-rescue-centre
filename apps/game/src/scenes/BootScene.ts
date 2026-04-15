@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { AssetLoader } from '../lib/AssetLoader';
+import { RoomAnchors } from '../lib/RoomAnchors';
 
 /**
  * BootScene — ultra-fast boot that gets kids to the menu in <1 second.
@@ -29,6 +30,9 @@ export class BootScene extends Phaser.Scene {
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
+
+    // Kick off room-anchors JSON fetch in parallel — non-blocking, used by GameScene
+    RoomAnchors.getInstance().load();
 
     // Fetch manifest, then load logo, then transition
     const loader = AssetLoader.getInstance();
