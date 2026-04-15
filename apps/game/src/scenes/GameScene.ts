@@ -145,6 +145,7 @@ export class GameScene extends Phaser.Scene {
       }
       this.registry.remove('vetResult');
       this.registry.remove('walkResult');
+      this.registry.remove('groomResult');
 
       this.saveState();
     }
@@ -1276,6 +1277,26 @@ export class GameScene extends Phaser.Scene {
               },
             });
           }, { width: 95, fontSize: '15px', bgColour: '#27ae60', icon: 'icon-walk' })
+        );
+      }
+
+      // Groom button (only if animal is grubby)
+      const cleanliness = animal.cleanliness ?? 100;
+      const isSick = this.sickAnimals.has(animal.id);
+      if (cleanliness < 60 && !isSick) {
+        this.gameContainer.add(
+          createButton(this, cx, btnY + 40, 'Groom', () => {
+            this.closePopup();
+            this.saveState();
+            this.scene.start('GroomingScene', {
+              animal,
+              allAnimals: this.animals,
+              onComplete: (updatedAnimals: Animal[]) => {
+                this.animals = updatedAnimals;
+                this.saveState();
+              },
+            });
+          }, { width: 130, fontSize: '15px', bgColour: '#5A9CB8' })
         );
       }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tickNeeds, applyFeeding, applySleep, applyPlay, getUrgentNeed, getNeedSpeech } from '../needs';
+import { tickNeeds, applyFeeding, applySleep, applyPlay, applyGrooming, getUrgentNeed, getNeedSpeech } from '../needs';
 import type { Animal } from '@arc/shared-types';
 
 function makeAnimal(overrides: Partial<Animal> = {}): Animal {
@@ -84,6 +84,28 @@ describe('applyPlay', () => {
     expect(after.happiness).toBe(55);
     expect(after.tiredness).toBe(40);
     expect(after.hunger).toBe(35);
+  });
+});
+
+describe('cleanliness', () => {
+  it('tickNeeds decays cleanliness slowly from default clean state', () => {
+    const animal = makeAnimal(); // cleanliness undefined → defaults to 100
+    const after = tickNeeds(animal);
+    expect(after.cleanliness).toBeCloseTo(99.92);
+  });
+
+  it('applyGrooming restores cleanliness to 100 and boosts happiness + bond', () => {
+    const animal = makeAnimal({ cleanliness: 10, happiness: 50, bondLevel: 30 });
+    const after = applyGrooming(animal);
+    expect(after.cleanliness).toBe(100);
+    expect(after.happiness).toBe(55);
+    expect(after.bondLevel).toBe(32);
+  });
+
+  it('getUrgentNeed returns cleanliness when below 25 and speech is grubby', () => {
+    const dirty = makeAnimal({ cleanliness: 20, hunger: 40, tiredness: 40, happiness: 50 });
+    expect(getUrgentNeed(dirty)).toBe('cleanliness');
+    expect(getNeedSpeech(dirty)).toContain('grubby');
   });
 });
 

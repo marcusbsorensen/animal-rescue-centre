@@ -33,6 +33,7 @@ export {
   applyFeeding,
   applySleep,
   applyPlay,
+  applyGrooming,
   getUrgentNeed,
   getNeedSpeech,
 } from './needs';

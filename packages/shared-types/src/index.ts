@@ -17,6 +17,7 @@ export interface Animal {
   happiness: number;    // 0–100, 100 = max
   health: number;       // 0–100, 100 = full health
   bondLevel: number;    // 0–100, 100 = fully bonded
+  cleanliness?: number; // 0–100, 100 = pristine (optional for save compat)
   siblingId?: string;   // linked sibling
   roomId: string;
   bedId?: string;

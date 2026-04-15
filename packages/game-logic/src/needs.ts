@@ -8,6 +8,7 @@ const DECAY_RATES = {
   hunger: 0.3,      // gets hungry over time
   tiredness: 0.2,   // gets tired over time
   happiness: -0.1,  // happiness slowly drops when not interacted with
+  cleanliness: -0.08, // cleanliness slowly drops (slower than happiness)
 };
 
 /**
@@ -15,11 +16,13 @@ const DECAY_RATES = {
  * Returns a new animal object (immutable).
  */
 export function tickNeeds(animal: Animal): Animal {
+  const currentCleanliness = animal.cleanliness ?? 100;
   return {
     ...animal,
     hunger: clamp(animal.hunger + DECAY_RATES.hunger, 0, 100),
     tiredness: clamp(animal.tiredness + DECAY_RATES.tiredness, 0, 100),
     happiness: clamp(animal.happiness + DECAY_RATES.happiness, 0, 100),
+    cleanliness: clamp(currentCleanliness + DECAY_RATES.cleanliness, 0, 100),
   };
 }
 
@@ -58,12 +61,25 @@ export function applyPlay(animal: Animal): Animal {
 }
 
 /**
+ * Apply grooming effect — fully cleans the animal, small happiness + bond boost.
+ */
+export function applyGrooming(animal: Animal): Animal {
+  return {
+    ...animal,
+    cleanliness: 100,
+    happiness: clamp(animal.happiness + 5, 0, 100),
+    bondLevel: clamp(animal.bondLevel + 2, 0, 100),
+  };
+}
+
+/**
  * Get the most urgent need for an animal.
  */
-export function getUrgentNeed(animal: Animal): 'hunger' | 'tiredness' | 'happiness' | 'health' | null {
+export function getUrgentNeed(animal: Animal): 'hunger' | 'tiredness' | 'happiness' | 'health' | 'cleanliness' | null {
   if (animal.health < 30) return 'health';
   if (animal.hunger > 80) return 'hunger';
   if (animal.tiredness > 80) return 'tiredness';
+  if ((animal.cleanliness ?? 100) < 25) return 'cleanliness';
   if (animal.happiness < 20) return 'happiness';
   return null;
 }
@@ -78,6 +94,7 @@ export function getNeedSpeech(animal: Animal): string | null {
     case 'tiredness': return "I'm so sleepy...";
     case 'happiness': return "I'm feeling lonely...";
     case 'health': return "I don't feel well...";
+    case 'cleanliness': return "I feel all grubby...";
     default: return null;
   }
 }
