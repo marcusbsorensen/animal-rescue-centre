@@ -117,116 +117,153 @@ export class VetScene extends Phaser.Scene {
       createPillTitle(this, width / 2, 35, 'Vet Clinic', { bgColour: 0xE74C3C, fontSize: '20px', icon: 'icon-vet-clinic' })
     );
 
-    // Animal info
-    const animalSprite = createAnimalSprite(this, width / 2, 100, this.animal, { width: 150, height: 120 });
+    // ── Patient card: sprite on the left, name + illness on the right ────
+    // Sprite sits fully below the title pill (title has ~30px height → bottom ~50).
+    const spriteW = 100, spriteH = 90;
+    const spriteX = width / 2 - 110;
+    const spriteY = 120;
+    const animalSprite = createAnimalSprite(this, spriteX, spriteY, this.animal, { width: spriteW, height: spriteH });
     if (animalSprite instanceof Phaser.GameObjects.Rectangle) {
       animalSprite.setStrokeStyle(2, 0xff6b6b);
     }
     this.container.add(animalSprite);
 
+    // Name + illness label, left-aligned next to sprite
+    const textX = width / 2 - 40;
     this.container.add(
-      this.add.text(width / 2, 140,
-        `${this.animal.name} has ${this.illness.emoji} ${this.illness.label}`, {
-        fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.text,
-      }).setOrigin(0.5)
+      this.add.text(textX, spriteY - 18,
+        `${this.animal.name}`, {
+        fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
+        color: COLOURS.text, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0, 0.5)
+    );
+    this.container.add(
+      this.add.text(textX, spriteY + 4,
+        `has ${this.illness.emoji} ${this.illness.label}`, {
+        fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0, 0.5)
+    );
+    this.container.add(
+      this.add.text(textX, spriteY + 24, this.illness.description, {
+        fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontStyle: 'italic', resolution: TEXT_RESOLUTION,
+        wordWrap: { width: Math.min(260, width - textX - 20) },
+      }).setOrigin(0, 0.5)
     );
 
-    this.container.add(
-      this.add.text(width / 2, 165, this.illness.description, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
-        fontStyle: 'italic',
-      }).setOrigin(0.5)
-    );
-
-    // Health bar
+    // ── Health bar ──────────────────────────────────────────────
     const barY = 200;
+    const barW = 220;
+    const barX = width / 2 - barW / 2;
     this.container.add(
-      this.add.text(width / 2 - 100, barY, 'Health:', {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
-      })
+      this.add.text(width / 2, barY - 14, 'Health', {
+        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5)
     );
-    this.container.add(
-      this.add.rectangle(width / 2 + 30, barY + 6, 160, 14, 0xdddddd)
-    );
-    const healthPct = this.animal.health / 100;
+    // Track
+    const trackGfx = this.add.graphics();
+    trackGfx.fillStyle(0xdddddd, 1);
+    trackGfx.fillRoundedRect(barX, barY, barW, 14, 7);
+    this.container.add(trackGfx);
+    // Fill
+    const healthPct = Math.max(0, Math.min(1, this.animal.health / 100));
     const healthColour = healthPct > 0.5 ? 0x2ecc71 : healthPct > 0.25 ? 0xf1c40f : 0xe74c3c;
+    if (healthPct > 0.01) {
+      const fillGfx = this.add.graphics();
+      fillGfx.fillStyle(healthColour, 1);
+      fillGfx.fillRoundedRect(barX, barY, Math.max(14, barW * healthPct), 14, 7);
+      this.container.add(fillGfx);
+    }
+    // Percentage on the right
     this.container.add(
-      this.add.rectangle(
-        width / 2 + 30 - 80 + healthPct * 80, barY + 6,
-        healthPct * 160, 14, healthColour
-      )
-    );
-    this.container.add(
-      this.add.text(width / 2 + 120, barY, `${Math.round(this.animal.health)}%`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: '#888', resolution: TEXT_RESOLUTION,
-      })
+      this.add.text(barX + barW + 8, barY + 7, `${Math.round(this.animal.health)}%`, {
+        fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: COLOURS.text, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0, 0.5)
     );
 
-    // Progress
+    // ── Progress ────────────────────────────────────────────────
     this.container.add(
-      this.add.text(width / 2, 230,
+      this.add.text(width / 2, 238,
         `Healing progress: ${this.healStep}/${this.illness.healSteps}`, {
-        fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.primary,
+        fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: COLOURS.primary, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
 
     // Progress dots
     for (let i = 0; i < this.illness.healSteps; i++) {
-      const dotX = width / 2 - ((this.illness.healSteps - 1) * 25) / 2 + i * 25;
+      const dotX = width / 2 - ((this.illness.healSteps - 1) * 22) / 2 + i * 22;
       this.container.add(
-        this.add.circle(dotX, 255, 8,
-          i < this.healStep ? 0x2ecc71 : 0xdddddd
-        ).setStrokeStyle(1, 0x999999)
+        this.add.circle(dotX, 260, 7,
+          i < this.healStep ? 0x2ecc71 : 0xe6e6e6
+        ).setStrokeStyle(1, 0xb8b8b8)
       );
     }
 
-    // Heal action buttons
+    // ── Heal action buttons ─────────────────────────────────────
     this.container.add(
-      this.add.text(width / 2, 285, 'Choose a treatment:', {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+      this.add.text(width / 2, 288, 'Choose a treatment', {
+        fontSize: '15px', fontFamily: FONTS.title, fontStyle: 'bold',
+        color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
 
-    const actionsPerRow = 3;
-    const actionW = (width - 60) / actionsPerRow;
+    const actionsPerRow = Math.min(3, HEAL_ACTIONS.length);
+    const sidePad = 16;
+    const cardGap = 10;
+    const cardW = (width - sidePad * 2 - cardGap * (actionsPerRow - 1)) / actionsPerRow;
+    const cardH = 86;
+    const cardsTop = 320;
     HEAL_ACTIONS.forEach((action, i) => {
       const col = i % actionsPerRow;
       const row = Math.floor(i / actionsPerRow);
-      const x = 30 + col * actionW + actionW / 2;
-      const y = 330 + row * 90;
+      const x = sidePad + col * (cardW + cardGap) + cardW / 2;
+      const y = cardsTop + row * (cardH + 12) + cardH / 2;
 
-      // Treatment card shadow
-      const cardShadow = this.add.rectangle(x + 3, y + 4, actionW - 10, 75, 0x000000, 0.1);
-      this.container.add(cardShadow);
+      // Card (shadow + rounded white panel with species-coloured accent bar)
+      const shadow = this.add.graphics();
+      shadow.fillStyle(0x000000, 0.12);
+      shadow.fillRoundedRect(x - cardW / 2 + 2, y - cardH / 2 + 4, cardW, cardH, 12);
+      this.container.add(shadow);
 
-      const bg = this.add.rectangle(x, y, actionW - 10, 75, 0xffffff)
-        .setStrokeStyle(2, 0xb8a898)
+      const cardGfx = this.add.graphics();
+      cardGfx.fillStyle(0xffffff, 1);
+      cardGfx.fillRoundedRect(x - cardW / 2, y - cardH / 2, cardW, cardH, 12);
+      cardGfx.lineStyle(1.5, 0xe6d8bf, 1);
+      cardGfx.strokeRoundedRect(x - cardW / 2, y - cardH / 2, cardW, cardH, 12);
+      // Accent bar down the left (red clinic theme)
+      cardGfx.fillStyle(0xE74C3C, 0.85);
+      cardGfx.fillRoundedRect(x - cardW / 2, y - cardH / 2, 4, cardH, { tl: 12, tr: 0, bl: 12, br: 0 });
+      this.container.add(cardGfx);
+
+      const emojiY = y - cardH / 2 + 22;
+      this.container.add(
+        this.add.text(x, emojiY, action.emoji, { fontSize: '30px' }).setOrigin(0.5)
+      );
+      this.container.add(
+        this.add.text(x, emojiY + 24, action.label, {
+          fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold',
+          color: COLOURS.text, resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5)
+      );
+      this.container.add(
+        this.add.text(x, emojiY + 42, action.description, {
+          fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          resolution: TEXT_RESOLUTION, wordWrap: { width: cardW - 16 }, align: 'center',
+        }).setOrigin(0.5)
+      );
+
+      const hit = this.add.rectangle(x, y, cardW, cardH, 0x000000, 0)
         .setInteractive({ useHandCursor: true });
-
-      const emoji = this.add.text(x, y - 15, action.emoji, {
-        fontSize: '28px',
-      }).setOrigin(0.5);
-
-      const label = this.add.text(x, y + 12, action.label, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
-      }).setOrigin(0.5);
-
-      const desc = this.add.text(x, y + 28, action.description, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
-        wordWrap: { width: actionW - 20 }, align: 'center',
-      }).setOrigin(0.5);
-
-      bg.on('pointerover', () => bg.setFillStyle(0xf5efe4));
-      bg.on('pointerout', () => bg.setFillStyle(0xffffff));
-      bg.on('pointerdown', () => this.applyAction(action.action));
-
-      this.container.add(bg);
-      this.container.add(emoji);
-      this.container.add(label);
-      this.container.add(desc);
+      hit.on('pointerover', () => cardGfx.setAlpha(0.85));
+      hit.on('pointerout', () => cardGfx.setAlpha(1));
+      hit.on('pointerdown', () => this.applyAction(action.action));
+      this.container.add(hit);
     });
 
-    // Feedback area
+    // Feedback area (below cards, above back button)
     if (this.feedbackText) {
       this.container.add(this.feedbackText);
     }
@@ -278,6 +315,11 @@ export class VetScene extends Phaser.Scene {
   }
 
   private renderHealed(width: number, height: number): void {
+    // Clear any lingering treatment feedback toast
+    if (this.feedbackText) {
+      this.feedbackText.destroy();
+      this.feedbackText = undefined;
+    }
     // Happy background
     this.container.add(
       this.add.rectangle(width / 2, height / 2, width, height, 0xe8f5e9)
