@@ -561,30 +561,29 @@ export class WalkScene extends Phaser.Scene {
         ease: 'Quad.easeOut',
         onComplete: () => {
           this.isMoving = false;
-          this.handleTrigger(result.trigger, result.npcId);
+          this.handleTrigger(result.trigger, direction, result.npcId);
         },
       });
     } else {
       this.isMoving = false;
-      this.handleTrigger(result.trigger, result.npcId);
+      this.handleTrigger(result.trigger, direction, result.npcId);
     }
   }
 
-  private handleTrigger(trigger: MoveTrigger, npcId?: string): void {
+  private handleTrigger(trigger: MoveTrigger, direction: WalkDirection, npcId?: string): void {
     if (!this.gridState) return;
 
     switch (trigger) {
       case 'road_crossing': {
-        // Find which road row the player is trying to cross
-        const dr = this.gridState.playerRow;
-        // Check below current position for a road
-        for (let r = Math.max(0, dr); r < Math.min(this.gridState.map.rows, dr + 2); r++) {
-          if (this.gridState.map.tiles[r]?.[this.gridState.playerCol]?.type === 'road' &&
-              !this.gridState.crossedRoadRows.includes(r)) {
-            this.pendingRoadRow = r;
-            break;
-          }
-        }
+        // movePlayer returns trigger='road_crossing' without committing the move,
+        // so the target road row is the tile one step in `direction` from the
+        // player's current position.
+        const dr = direction === 'up' ? -1 : direction === 'down' ? 1 : 0;
+        const dc = direction === 'left' ? -1 : direction === 'right' ? 1 : 0;
+        const targetRow = this.gridState.playerRow + dr;
+        const targetCol = this.gridState.playerCol + dc;
+        const targetTile = this.gridState.map.tiles[targetRow]?.[targetCol];
+        this.pendingRoadRow = targetTile?.type === 'road' ? targetRow : -1;
         this.phase = 'road_crossing';
         this.renderPhase();
         break;
