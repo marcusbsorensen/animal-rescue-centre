@@ -416,6 +416,13 @@ export class GameScene extends Phaser.Scene {
       (a) => a.state === 'sheltered' || a.state === 'bonding' || a.state === 'pet',
     ).length;
     const arrivingCount = this.animals.filter((a) => a.state === 'arriving').length;
+    // Count sheltered/bonding animals that need the player's attention —
+    // urgent need or illness. Pets in the garden are self-sufficient and
+    // don't contribute to the HUD care counter.
+    const needsCareCount = this.animals.filter((a) => {
+      if (a.state !== 'sheltered' && a.state !== 'bonding') return false;
+      return getUrgentNeed(a) !== null || this.sickAnimals.has(a.id);
+    }).length;
     const xpProgress = Math.min(this.totalRescued / required, 1);
     const shelteredCount = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length;
     const maxShelter = getMaxShelterAnimals(this.level);
@@ -529,6 +536,56 @@ export class GameScene extends Phaser.Scene {
         this.renderView();
       });
       this.uiContainer.add(alertHit);
+    }
+
+    // ── Amber badge: animals in rooms that need attention ────
+    // Shown to the right of the red alert (or where the red alert would be
+    // if there are no arrivals) so kids can spot "someone needs me" without
+    // having to pop into every room.
+    if (needsCareCount > 0) {
+      const careX = leftX + leftOrbW + 14 + (arrivingCount > 0 ? 32 : 0);
+      const careY = orbY;
+      const careR = 13;
+      const careGfx = this.add.graphics();
+      careGfx.fillStyle(0x000000, 0.2);
+      careGfx.fillCircle(careX + 1, careY + 2, careR);
+      // Amber — distinct from the red arrivals alert, still urgent enough to spot
+      careGfx.fillStyle(0xe3b04b, 1);
+      careGfx.fillCircle(careX, careY, careR);
+      careGfx.lineStyle(2, 0xffffff, 1);
+      careGfx.strokeCircle(careX, careY, careR);
+      this.uiContainer.add(careGfx);
+      this.uiContainer.add(
+        this.add.text(careX, careY, `${needsCareCount}`, {
+          fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
+          color: '#ffffff', resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5)
+      );
+      // Softer pulse than the red one — same rhythm but subtler
+      const carePulse = { s: 1 };
+      this.tweens.add({
+        targets: carePulse,
+        s: 1.14,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        onUpdate: () => {
+          careGfx.setScale(carePulse.s, carePulse.s);
+          careGfx.x = careX * (1 - carePulse.s);
+          careGfx.y = careY * (1 - carePulse.s);
+        },
+      });
+      // Tap → jump to the corridor so the player can pick the room
+      // with the unhappy animal. (We don't auto-open a specific room
+      // because multiple rooms may need care at once.)
+      const careHit = this.add.circle(careX, careY, careR + 4, 0x000000, 0)
+        .setInteractive({ useHandCursor: true });
+      careHit.on('pointerdown', () => {
+        this.viewMode = 'corridor';
+        this.renderView();
+      });
+      this.uiContainer.add(careHit);
     }
 
     // ── RIGHT SIDE: stack orbs from right edge leftward ─────
@@ -930,26 +987,37 @@ export class GameScene extends Phaser.Scene {
       createPillTitle(this, width / 2, 55, 'Rescue Centre', { bgColour: 0x8B6914, fontSize: '20px', icon: 'icon-rescue-centre' })
     );
 
-    // Painted corridor has 7 doors in perspective. Map unlocked species to door slots
-    // (outer doors first — biggest / most visible), placing a wooden nameplate sign
-    // overlay with species icon + count. The sign, not a white card, is the hit target.
+    // The painted corridor is now a flat view: 7 same-sized doors across
+    // the back wall. We place signs starting from the MIDDLE of the
+    // corridor and radiate outward as more species unlock — so at L1
+    // (cat + dog only) the two signs sit side-by-side near the centre,
+    // and the outer doors fill in as kids level up. No perspective
+    // scaling needed; all doors are equal.
+    // Unlock order: cat=0, dog=1, fox=2, bunny=3, bat=4, parrot=5, snake=6.
     const DOOR_SLOTS: { xFrac: number; yFrac: number; scale: number }[] = [
-      { xFrac: 0.09, yFrac: 0.56, scale: 1.00 }, // far left
-      { xFrac: 0.91, yFrac: 0.56, scale: 1.00 }, // far right
-      { xFrac: 0.22, yFrac: 0.55, scale: 0.82 }, // left-2
-      { xFrac: 0.78, yFrac: 0.55, scale: 0.82 }, // right-2
-      { xFrac: 0.36, yFrac: 0.54, scale: 0.68 }, // left-3
-      { xFrac: 0.64, yFrac: 0.54, scale: 0.68 }, // right-3
-      { xFrac: 0.50, yFrac: 0.53, scale: 0.60 }, // centre (furthest)
+      { xFrac: 0.40, yFrac: 0.38, scale: 1.00 }, // 0 cat   — left-of-centre
+      { xFrac: 0.60, yFrac: 0.38, scale: 1.00 }, // 1 dog   — right-of-centre
+      { xFrac: 0.27, yFrac: 0.38, scale: 1.00 }, // 2 fox
+      { xFrac: 0.73, yFrac: 0.38, scale: 1.00 }, // 3 bunny
+      { xFrac: 0.14, yFrac: 0.38, scale: 1.00 }, // 4 bat   — far left
+      { xFrac: 0.86, yFrac: 0.38, scale: 1.00 }, // 5 parrot — far right
+      { xFrac: 0.50, yFrac: 0.38, scale: 1.00 }, // 6 snake — dead centre (fills last)
     ];
     const doorBodyH = height - 40;
     const doorBodyTop = 20;
 
+    // If the anchor editor has placed sign decor for the corridor, prefer
+    // those hand-tuned positions over the hardcoded DOOR_SLOTS. This lets
+    // signs be repositioned per background art without redeploying code.
+    const corridorDecor = RoomAnchors.getInstance().getDecor('corridor');
+
     this.unlockedSpecies.forEach((species, i) => {
-      const slot = DOOR_SLOTS[i] ?? DOOR_SLOTS[DOOR_SLOTS.length - 1];
-      const x = width * slot.xFrac;
-      const y = doorBodyTop + doorBodyH * slot.yFrac;
-      const s = slot.scale;
+      const fallbackSlot = DOOR_SLOTS[i] ?? DOOR_SLOTS[DOOR_SLOTS.length - 1];
+      const placedAnchors = corridorDecor[`sign-${species}`] ?? [];
+      const placed = placedAnchors[0];
+      const x = placed ? width * placed.x : width * fallbackSlot.xFrac;
+      const y = placed ? doorBodyTop + doorBodyH * placed.y : doorBodyTop + doorBodyH * fallbackSlot.yFrac;
+      const s = placed ? placed.scale : fallbackSlot.scale;
 
       const roomAnimals = this.animals.filter((a) => a.species === species && a.state !== 'arriving');
       const count = roomAnimals.length;
@@ -1114,7 +1182,7 @@ export class GameScene extends Phaser.Scene {
           this, ax, spriteCy, animal,
           { width: spriteW, height: spriteH, interactive: true }
         );
-        sprite.on('pointerdown', () => this.showAnimalDetails(animal));
+        sprite.on('pointerdown', () => this.showAnimalDetails(animal, { x: ax, y: spriteCy, size: spriteW }));
         this.gameContainer.add(sprite);
 
         // Gentle idle bob so the sprite feels alive
@@ -1280,6 +1348,58 @@ export class GameScene extends Phaser.Scene {
           sprite.setStrokeStyle(3, 0xffd700, 0.8);
         }
 
+        // ── Dirty overlay (mud spots + flies buzzing) ───────
+        // When cleanliness drops below 60 the animal looks visibly grubby:
+        // a few muddy smudges sit on the sprite and one or two flies buzz
+        // in a lazy loop above it. Kids learn to read the visuals (mud =
+        // needs a brush) rather than a tiny icon.
+        const cleanliness = animal.cleanliness ?? 100;
+        if (cleanliness < 60 && animal.state !== 'pet') {
+          // Deterministic-ish spot placement seeded by id so mud doesn't
+          // dance around every re-render.
+          const seed = animal.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+          const rand = (n: number) => {
+            const x = Math.sin(seed * 9999 + n) * 10000;
+            return x - Math.floor(x); // 0..1
+          };
+          // More mud the dirtier they are (3 spots at 59, up to 6 at 0)
+          const spotCount = 3 + Math.floor((60 - cleanliness) / 15);
+          const halfW = size * 0.28;
+          const halfH = size * 0.22;
+          for (let si = 0; si < spotCount; si++) {
+            const ox = (rand(si * 2) * 2 - 1) * halfW;
+            const oy = (rand(si * 2 + 1) * 2 - 1) * halfH + size * 0.05;
+            const r = 4 + rand(si * 3) * 4;
+            const tone = rand(si * 5) > 0.5 ? 0x8b6f47 : 0x6b5a4a;
+            const mud = this.add.ellipse(x + ox, y + oy, r * 2, r * 1.4, tone, 0.72);
+            this.gameContainer.add(mud);
+          }
+          // Flies — one at 40-59 cleanliness, two below. They fly a tiny
+          // figure-8 above the animal's head.
+          const flyCount = cleanliness < 40 ? 2 : 1;
+          for (let fi = 0; fi < flyCount; fi++) {
+            const flyOriginX = x + (fi === 0 ? -size * 0.18 : size * 0.18);
+            const flyOriginY = y - size * 0.48;
+            const fly = this.add.text(flyOriginX, flyOriginY, '🐝', {
+              fontSize: '12px', resolution: TEXT_RESOLUTION,
+            }).setOrigin(0.5).setAlpha(0.85);
+            this.gameContainer.add(fly);
+            // Gentle orbit — looks like buzzing
+            const phase = fi * Math.PI;
+            const orbit = { t: phase };
+            this.tweens.add({
+              targets: orbit,
+              t: phase + Math.PI * 2,
+              duration: 1800 + fi * 300,
+              repeat: -1,
+              onUpdate: () => {
+                fly.x = flyOriginX + Math.cos(orbit.t) * 12;
+                fly.y = flyOriginY + Math.sin(orbit.t * 2) * 6;
+              },
+            });
+          }
+        }
+
         // Name pill badge
         const namePillGfx = this.add.graphics();
         const nameText = this.add.text(x, y + size / 2 + 14, animal.name, {
@@ -1292,39 +1412,78 @@ export class GameScene extends Phaser.Scene {
         this.gameContainer.add(namePillGfx);
         this.gameContainer.add(nameText);
 
-        // Sick indicator (icon-based, priority over need)
+        // ── Status icon stack (right side of sprite) ─────────
+        // We build a short list of status "chips" in priority order so kids
+        // can read at a glance what the animal needs: sickness first (most
+        // urgent, red heart), then unmet needs (hunger/tired/sad). Each chip
+        // is a soft white disc with a painterly icon on top, gently pulsing
+        // so it draws the eye without being alarming.
+        type StatusChip = { iconKey: string; tint: number; emoji: string; pulse: boolean };
+        const chips: StatusChip[] = [];
         const sickIllness = this.sickAnimals.get(animal.id);
         if (sickIllness) {
-          const sickIconKey = 'icon-heal';
-          if (this.textures.exists(sickIconKey)) {
-            const sickIcon = this.add.image(x + size / 2 - 6, y - size * 0.4 - 6, sickIconKey)
-              .setDisplaySize(22, 22).setOrigin(0.5);
-            this.gameContainer.add(sickIcon);
-          } else {
-            const sickDot = this.add.circle(x + size / 2 - 6, y - size * 0.4 - 6, 8, 0xe74c3c)
-              .setStrokeStyle(1, 0xffffff, 0.8);
-            this.gameContainer.add(sickDot);
-          }
-        } else {
-          // Need indicator — use icons where available
-          const need = getUrgentNeed(animal);
-          if (need) {
-            const needIconMap: Record<string, string> = {
-              hunger: 'icon-feed', tiredness: 'icon-rest', happiness: 'icon-play', health: 'icon-heal',
-            };
-            const needIcon = needIconMap[need];
-            if (needIcon && this.textures.exists(needIcon)) {
-              const ni = this.add.image(x + size / 2 - 6, y - size * 0.4 - 6, needIcon)
-                .setDisplaySize(20, 20).setOrigin(0.5);
-              this.gameContainer.add(ni);
-            } else {
-              const needColour = need === 'hunger' ? 0xe74c3c : need === 'tiredness' ? 0x3498db : need === 'happiness' ? 0xf1c40f : 0x2ecc71;
-              const needDot = this.add.circle(x + size / 2 - 6, y - size * 0.4 - 6, 7, needColour)
-                .setStrokeStyle(1, 0xffffff, 0.8);
-              this.gameContainer.add(needDot);
-            }
-          }
+          chips.push({ iconKey: 'icon-heal', tint: 0xe74c3c, emoji: '🩹', pulse: true });
         }
+        // Multiple unmet needs can show at once — the stack teaches body
+        // language (hungry + tired = "she's had a rough day").
+        if (animal.hunger >= 70) {
+          chips.push({ iconKey: 'icon-feed', tint: 0xe67e22, emoji: '🍽️', pulse: !sickIllness });
+        }
+        if (animal.tiredness >= 70) {
+          chips.push({ iconKey: 'icon-rest', tint: 0x3498db, emoji: '💤', pulse: false });
+        }
+        if (animal.happiness <= 30) {
+          chips.push({ iconKey: 'icon-play', tint: 0xf1c40f, emoji: '🙁', pulse: false });
+        }
+
+        // Cap at 3 chips to keep the room uncluttered — if we ever exceed
+        // three, the fourth is a silent "…more" dot that the popup surfaces.
+        const visibleChips = chips.slice(0, 3);
+        visibleChips.forEach((chip, ci) => {
+          const chipX = x + size / 2 - 4;
+          const chipY = y - size * 0.4 - 4 + ci * 28;
+          const chipR = 14;
+          // Soft shadow + white disc backing
+          const bg = this.add.graphics();
+          bg.fillStyle(0x000000, 0.18);
+          bg.fillCircle(chipX + 1, chipY + 2, chipR);
+          bg.fillStyle(0xfffaf0, 1);
+          bg.fillCircle(chipX, chipY, chipR);
+          bg.lineStyle(2, chip.tint, 0.9);
+          bg.strokeCircle(chipX, chipY, chipR);
+          this.gameContainer.add(bg);
+          // Icon (painterly) or emoji fallback
+          if (this.textures.exists(chip.iconKey)) {
+            const ic = this.add.image(chipX, chipY, chip.iconKey)
+              .setDisplaySize(20, 20).setOrigin(0.5);
+            this.textures.get(chip.iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
+            this.gameContainer.add(ic);
+          } else {
+            const em = this.add.text(chipX, chipY, chip.emoji, {
+              fontSize: '16px', resolution: TEXT_RESOLUTION,
+            }).setOrigin(0.5);
+            this.gameContainer.add(em);
+          }
+          // Gentle pulse for the top chip only — draws the eye without a
+          // wall of wobbling icons. Sickness always pulses because it's
+          // the most urgent.
+          if (chip.pulse) {
+            const p = { s: 1 };
+            this.tweens.add({
+              targets: p,
+              s: 1.2,
+              duration: 650,
+              yoyo: true,
+              repeat: -1,
+              ease: 'Sine.easeInOut',
+              onUpdate: () => {
+                bg.setScale(p.s, p.s);
+                bg.x = chipX * (1 - p.s);
+                bg.y = chipY * (1 - p.s);
+              },
+            });
+          }
+        });
 
         // Bond indicator
         if (animal.bondLevel > 0) {
@@ -1354,7 +1513,7 @@ export class GameScene extends Phaser.Scene {
           }
         }
 
-        sprite.on('pointerdown', () => this.showAnimalDetails(animal));
+        sprite.on('pointerdown', () => this.showAnimalDetails(animal, { x, y, size }));
         this.gameContainer.add(sprite);
       });
     }
@@ -1365,75 +1524,243 @@ export class GameScene extends Phaser.Scene {
 
   // ── Animal Details Popup ────────────────────────────────────
 
-  private showAnimalDetails(animal: Animal): void {
+  /**
+   * Show the animal details as a speech-bubble style modal anchored near
+   * the tapped sprite. We deliberately avoid redrawing the animal inside
+   * the panel — the player can still see the animal on the room floor,
+   * with the panel "speaking" from it via a little tail. A light overlay
+   * dims the rest of the scene without fully hiding the animal.
+   *
+   * The `anchor` argument is the tapped sprite's world position + size.
+   * It's optional so legacy callers keep working (they get a centered
+   * card as before).
+   */
+  private showAnimalDetails(
+    animal: Animal,
+    anchor?: { x: number; y: number; size: number },
+  ): void {
     this.selectedAnimal = animal;
     const { width, height } = this.scale;
 
-    // Overlay
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.5)
+    // Light overlay — dims the scene but keeps the tapped animal visible.
+    // Tapping the overlay closes the panel (standard sheet-dismiss gesture).
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.32)
       .setInteractive();
     this.gameContainer.add(overlay);
 
-    // Card with shadow — taller to fit content
-    const cardW = 400;
-    const cardH = 480;
-    const cardShadow = this.add.graphics();
-    cardShadow.fillStyle(0x000000, 0.1);
-    cardShadow.fillRoundedRect(width / 2 - cardW / 2 + 3, height / 2 - cardH / 2 + 4, cardW, cardH, 14);
-    this.gameContainer.add(cardShadow);
-    const card = this.add.rectangle(width / 2, height / 2, cardW, cardH, 0xffffff)
-      .setStrokeStyle(2, 0x000000, 0.2);
-    this.gameContainer.add(card);
+    // ── Compute panel dimensions + actions list ──────────────
+    // We size the panel based on how many action buttons it will hold so
+    // short panels stay snug and tall ones still fit on phones.
+    const isPet = animal.state === 'pet';
+    const isSick = this.sickAnimals.has(animal.id);
+    const cleanliness = animal.cleanliness ?? 100;
+    const canWalk = !isPet && canGoOnWalk(animal);
+    const canGroom = !isPet && cleanliness < 60 && !isSick;
 
-    const cx = width / 2;
-    const cardTop = height / 2 - cardH / 2;
+    const panelW = 320;
+    // Rough height calc: header 44 + story 44 + need-speech (0 or 28) +
+    // 5 stat rows × 18 + action rows × 48 + padding 24
+    const speech = getNeedSpeech(animal);
+    const speechH = speech ? 30 : 0;
+    // Action button layout — always 2 primary (Feed/Play) on one row.
+    // Extra rows for Walk/Groom/Heal/VisitGarden as needed.
+    const extraActionRows =
+      (isPet ? 1 : 0) +               // Visit garden
+      (isPet && isSick ? 1 : 0) +     // Take to Vet
+      (!isPet && isSick ? 1 : 0) +    // Heal
+      (!isPet && canGroom ? 1 : 0) +  // Groom
+      (!isPet && canWalk && !canGroom && !isSick ? 0 : canWalk ? 1 : 0); // Walk
+    const baseActionRows = isPet ? 0 : 1;
+    const actionRows = baseActionRows + extraActionRows;
+    const panelH = 44 + 44 + speechH + 5 * 18 + actionRows * 46 + 28;
 
-    // Species sprite — constrained to fit inside card
-    const detailSprite = createAnimalSprite(this, cx, cardTop + 65, animal, { width: 90, height: 72 });
-    this.gameContainer.add(detailSprite);
+    // ── Smart placement ──────────────────────────────────────
+    // Default: centre on screen. If we have an anchor, try to pop above
+    // the sprite; if that would push off the top, pop below; always
+    // clamp horizontally to stay on-screen with a 12px margin.
+    let px = width / 2;
+    let py = height / 2;
+    let tailSide: 'bottom' | 'top' | 'none' = 'none';
+    let tailX = 0;
 
-    // Name + species (with variant if available)
+    if (anchor) {
+      const margin = 12;
+      // Try above: bubble's bottom edge 16px above the sprite's top
+      const spriteTop = anchor.y - anchor.size / 2;
+      const spriteBottom = anchor.y + anchor.size * 0.4; // sprite y centre + half-height roughly
+      const aboveCy = spriteTop - 16 - panelH / 2;
+      const belowCy = spriteBottom + 16 + panelH / 2;
+      const topMargin = 40; // clear of HUD
+      const bottomMargin = 80; // clear of nav bar
+
+      if (aboveCy - panelH / 2 >= topMargin) {
+        py = aboveCy;
+        tailSide = 'bottom';
+      } else if (belowCy + panelH / 2 <= height - bottomMargin) {
+        py = belowCy;
+        tailSide = 'top';
+      } else {
+        // Last resort: centre vertically, no tail
+        py = Math.max(topMargin + panelH / 2, Math.min(height - bottomMargin - panelH / 2, height / 2));
+        tailSide = 'none';
+      }
+
+      px = Phaser.Math.Clamp(anchor.x, panelW / 2 + margin, width - panelW / 2 - margin);
+      // Tail points back at the sprite — clamp within the panel width
+      tailX = Phaser.Math.Clamp(anchor.x, px - panelW / 2 + 28, px + panelW / 2 - 28);
+    }
+
+    const panelLeft = px - panelW / 2;
+    const panelTop = py - panelH / 2;
+
+    // ── Drop shadow (soft, offset down-right) ────────────────
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.22);
+    shadow.fillRoundedRect(panelLeft + 4, panelTop + 6, panelW, panelH, 18);
+    this.gameContainer.add(shadow);
+
+    // ── Panel body (cream card with subtle species-tinted border) ──
+    const borderColour = SPECIES_COLOURS[animal.species] ?? 0xd9c8a8;
+    const body = this.add.graphics();
+    body.fillStyle(0xfffaf0, 1);
+    body.fillRoundedRect(panelLeft, panelTop, panelW, panelH, 18);
+    body.lineStyle(2, borderColour, 0.55);
+    body.strokeRoundedRect(panelLeft, panelTop, panelW, panelH, 18);
+    this.gameContainer.add(body);
+
+    // ── Speech-bubble tail ───────────────────────────────────
+    if (tailSide !== 'none' && anchor) {
+      const tail = this.add.graphics();
+      const tailW = 22;
+      const tailH = 14;
+      tail.fillStyle(0xfffaf0, 1);
+      tail.lineStyle(2, borderColour, 0.55);
+      if (tailSide === 'bottom') {
+        // Tail hanging off bottom of panel pointing down at sprite
+        const ty = panelTop + panelH;
+        tail.beginPath();
+        tail.moveTo(tailX - tailW / 2, ty - 1);
+        tail.lineTo(tailX + tailW / 2, ty - 1);
+        tail.lineTo(tailX, ty + tailH);
+        tail.closePath();
+        tail.fillPath();
+        // Draw side strokes (skip the top edge which overlaps the panel border)
+        tail.beginPath();
+        tail.moveTo(tailX - tailW / 2, ty);
+        tail.lineTo(tailX, ty + tailH);
+        tail.lineTo(tailX + tailW / 2, ty);
+        tail.strokePath();
+      } else {
+        // Tail hanging off top of panel pointing up at sprite
+        const ty = panelTop;
+        tail.beginPath();
+        tail.moveTo(tailX - tailW / 2, ty + 1);
+        tail.lineTo(tailX + tailW / 2, ty + 1);
+        tail.lineTo(tailX, ty - tailH);
+        tail.closePath();
+        tail.fillPath();
+        tail.beginPath();
+        tail.moveTo(tailX - tailW / 2, ty);
+        tail.lineTo(tailX, ty - tailH);
+        tail.lineTo(tailX + tailW / 2, ty);
+        tail.strokePath();
+      }
+      this.gameContainer.add(tail);
+    }
+
+    // ── Header: name + species + close X ─────────────────────
     const speciesLabel = animal.variant
       ? `${animal.variant} ${animal.species}`
       : animal.species;
     this.gameContainer.add(
-      this.add.text(cx, cardTop + 115, `${animal.name} the ${speciesLabel}`, {
-        fontSize: '20px', fontFamily: FONTS.title, color: COLOURS.text,
-      }).setOrigin(0.5)
+      this.add.text(panelLeft + 18, panelTop + 16, `${animal.name}`, {
+        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+        color: COLOURS.text, resolution: TEXT_RESOLUTION,
+      })
     );
-
-    // Story
     this.gameContainer.add(
-      this.add.text(cx, cardTop + 145, `"${animal.arrivalStory}"`, {
-        fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
-        fontStyle: 'italic', wordWrap: { width: cardW - 40 }, align: 'center',
-      }).setOrigin(0.5)
+      this.add.text(panelLeft + 18, panelTop + 36, `the ${speciesLabel}`, {
+        fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        resolution: TEXT_RESOLUTION,
+      })
     );
 
-    // Need speech
-    const speech = getNeedSpeech(animal);
+    // Close X in top-right
+    const closeX = this.add.text(panelLeft + panelW - 20, panelTop + 10, '✕', {
+      fontSize: '18px', color: '#999', resolution: TEXT_RESOLUTION,
+    }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
+    closeX.on('pointerdown', () => this.closePopup());
+    this.gameContainer.add(closeX);
+
+    // ── Arrival story (compact, italic) ──────────────────────
+    let cursorY = panelTop + 60;
+    const storyText = this.add.text(panelLeft + 18, cursorY,
+      `"${animal.arrivalStory}"`, {
+        fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontStyle: 'italic', wordWrap: { width: panelW - 36 },
+        resolution: TEXT_RESOLUTION,
+      });
+    this.gameContainer.add(storyText);
+    cursorY += Math.max(32, storyText.height) + 6;
+
+    // ── Need speech (if animal wants something) ──────────────
     if (speech) {
-      this.gameContainer.add(
-        this.add.text(cx, cardTop + 178, `"${speech}"`, {
-          fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b',
-        }).setOrigin(0.5)
-      );
+      const speechText = this.add.text(panelLeft + 18, cursorY, `"${speech}"`, {
+        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: '#c0392b', wordWrap: { width: panelW - 36 },
+        resolution: TEXT_RESOLUTION,
+      });
+      this.gameContainer.add(speechText);
+      cursorY += speechText.height + 6;
     }
 
-    // Stats bars
-    const statsY = cardTop + 205;
-    this.renderStatBar('Hunger', animal.hunger, 0xe74c3c, cx - 120, statsY, true);
-    this.renderStatBar('Tiredness', animal.tiredness, 0x3498db, cx - 120, statsY + 28, true);
-    this.renderStatBar('Happiness', animal.happiness, 0xf1c40f, cx - 120, statsY + 56, false);
-    this.renderStatBar('Health', animal.health, 0x2ecc71, cx - 120, statsY + 84, false);
-    this.renderStatBar('Bond', animal.bondLevel, 0xff6b9d, cx - 120, statsY + 112, false);
-
-    // Action buttons
-    const btnY = statsY + 155;
-
-    if (animal.state !== 'pet') {
+    // ── Compact stat bars (5 rows, 150-wide bars) ────────────
+    const barX = panelLeft + 18;
+    const barW = panelW - 36;
+    const statRowH = 18;
+    const statDefs: Array<[string, number, number, boolean]> = [
+      ['Hunger',    animal.hunger,    0xe74c3c, true],
+      ['Tired',     animal.tiredness, 0x3498db, true],
+      ['Happy',     animal.happiness, 0xf1c40f, false],
+      ['Health',    animal.health,    0x2ecc71, false],
+      ['Bond',      animal.bondLevel, 0xff6b9d, false],
+    ];
+    statDefs.forEach(([label, value, colour, inverted]) => {
+      const displayValue = inverted ? 100 - value : value;
       this.gameContainer.add(
-        createButton(this, cx - 120, btnY, 'Feed', () => {
+        this.add.text(barX, cursorY, label, {
+          fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.text,
+          resolution: TEXT_RESOLUTION,
+        })
+      );
+      // Bar track
+      const trackX = barX + 56;
+      const trackW = barW - 56 - 36;
+      const track = this.add.graphics();
+      track.fillStyle(0xe6e2d8, 1);
+      track.fillRoundedRect(trackX, cursorY + 3, trackW, 8, 4);
+      if (displayValue > 0) {
+        track.fillStyle(colour, 1);
+        track.fillRoundedRect(trackX, cursorY + 3, Math.max(6, trackW * displayValue / 100), 8, 4);
+      }
+      this.gameContainer.add(track);
+      // Percent label
+      this.gameContainer.add(
+        this.add.text(barX + barW, cursorY, `${Math.round(displayValue)}%`, {
+          fontSize: '10px', fontFamily: FONTS.body, color: '#888',
+          resolution: TEXT_RESOLUTION,
+        }).setOrigin(1, 0)
+      );
+      cursorY += statRowH;
+    });
+    cursorY += 6;
+
+    // ── Action buttons ───────────────────────────────────────
+    const btnRow1Y = cursorY + 14;
+
+    if (!isPet) {
+      this.gameContainer.add(
+        createButton(this, panelLeft + panelW / 2 - 70, btnRow1Y, 'Feed', () => {
           if (this.processing) return;
           this.processing = true;
           const idx = this.animals.findIndex((a) => a.id === animal.id);
@@ -1447,11 +1774,11 @@ export class GameScene extends Phaser.Scene {
           this.closePopup();
           this.renderView();
           this.processing = false;
-        }, { width: 95, fontSize: '15px', icon: 'icon-kitchen' })
+        }, { width: 120, fontSize: '14px', icon: 'icon-kitchen' })
       );
 
       this.gameContainer.add(
-        createButton(this, cx, btnY, 'Play', () => {
+        createButton(this, panelLeft + panelW / 2 + 70, btnRow1Y, 'Play', () => {
           if (this.processing) return;
           this.processing = true;
           const idx = this.animals.findIndex((a) => a.id === animal.id);
@@ -1465,34 +1792,33 @@ export class GameScene extends Phaser.Scene {
           this.closePopup();
           this.renderView();
           this.processing = false;
-        }, { width: 95, fontSize: '15px' })
+        }, { width: 120, fontSize: '14px' })
       );
 
-      // Walk button (only for walkable species in good condition)
-      if (canGoOnWalk(animal)) {
+      let extraY = btnRow1Y + 46;
+
+      if (canWalk) {
         this.gameContainer.add(
-          createButton(this, cx + 120, btnY, 'Walk', () => {
+          createButton(this, panelLeft + panelW / 2, extraY, 'Go for a Walk', () => {
             this.closePopup();
             this.saveState();
             this.scene.start('WalkScene', {
               animal,
               allAnimals: this.animals,
-              onComplete: (updatedAnimals: Animal[], walkResult: { perfectWalk: boolean }) => {
+              onComplete: (updatedAnimals: Animal[], _walkResult: { perfectWalk: boolean }) => {
                 this.animals = updatedAnimals;
                 this.checkBadges();
                 this.saveState();
               },
             });
-          }, { width: 95, fontSize: '15px', bgColour: '#27ae60', icon: 'icon-walk' })
+          }, { width: 250, fontSize: '14px', bgColour: '#27ae60', icon: 'icon-walk' })
         );
+        extraY += 46;
       }
 
-      // Groom button (only if animal is grubby)
-      const cleanliness = animal.cleanliness ?? 100;
-      const isSick = this.sickAnimals.has(animal.id);
-      if (cleanliness < 60 && !isSick) {
+      if (canGroom) {
         this.gameContainer.add(
-          createButton(this, cx, btnY + 40, 'Groom', () => {
+          createButton(this, panelLeft + panelW / 2, extraY, 'Groom', () => {
             this.closePopup();
             this.saveState();
             this.scene.start('GroomingScene', {
@@ -1503,38 +1829,25 @@ export class GameScene extends Phaser.Scene {
                 this.saveState();
               },
             });
-          }, { width: 130, fontSize: '15px', bgColour: '#5A9CB8' })
+          }, { width: 250, fontSize: '14px', bgColour: '#5A9CB8' })
         );
+        extraY += 46;
       }
 
-      // Heal button (when animal is sick)
       const illness = this.sickAnimals.get(animal.id);
       if (illness) {
         this.gameContainer.add(
-          this.add.text(cx, btnY + 40,
-            `Sick: ${illness.label}`, {
-            fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b',
-          }).setOrigin(0.5)
-        );
-
-        this.gameContainer.add(
-          createButton(this, cx, btnY + 70, 'Heal!', () => {
+          createButton(this, panelLeft + panelW / 2, extraY, `Heal (${illness.label})`, () => {
             if (this.processing) return;
             this.processing = true;
-            // Re-fetch illness in case it was cleared by a needs tick
             const currentIllness = this.sickAnimals.get(animal.id);
             if (!currentIllness) {
-              this.processing = false;
-              this.closePopup();
-              this.renderView();
+              this.processing = false; this.closePopup(); this.renderView();
               return;
             }
-            // Re-fetch the animal from the live array to avoid stale data
             const liveAnimal = this.animals.find((a) => a.id === animal.id);
             if (!liveAnimal) {
-              this.processing = false;
-              this.closePopup();
-              this.renderView();
+              this.processing = false; this.closePopup(); this.renderView();
               return;
             }
             this.closePopup();
@@ -1545,66 +1858,54 @@ export class GameScene extends Phaser.Scene {
               allAnimals: this.animals,
               onComplete: (updatedAnimals: Animal[], healed: boolean) => {
                 this.animals = updatedAnimals;
-                if (healed) {
-                  this.sickAnimals.delete(animal.id);
-                }
+                if (healed) this.sickAnimals.delete(animal.id);
                 this.checkBadges();
                 this.saveState();
               },
             });
             this.processing = false;
-          }, { width: 130, fontSize: '15px', bgColour: '#e74c3c', icon: 'icon-heal' })
+          }, { width: 250, fontSize: '14px', bgColour: '#e74c3c', icon: 'icon-heal' })
         );
       }
     } else {
-      // Pet — show collar colour swatch + name, and "Visit in garden" button
+      // Pet — show collar colour + Visit Garden + optional Take to Vet
       const collarHexVal = animal.collarColour ?? '#ff6b9d';
       const collarName = COLLAR_COLOURS.find((c) => c.hex === collarHexVal)?.name ?? 'Custom';
       const collarSwatchColour = Phaser.Display.Color.HexStringToColor(collarHexVal).color;
-      const collarSwatchGfx = this.add.circle(cx - 60, btnY - 10, 8, collarSwatchColour)
-        .setStrokeStyle(1, 0x000000, 0.2);
-      this.gameContainer.add(collarSwatchGfx);
       this.gameContainer.add(
-        this.add.text(cx - 44, btnY - 10,
-          `${collarName} Collar`, {
-          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+        this.add.circle(panelLeft + 28, btnRow1Y - 14, 7, collarSwatchColour)
+          .setStrokeStyle(1, 0x000000, 0.2)
+      );
+      this.gameContainer.add(
+        this.add.text(panelLeft + 42, btnRow1Y - 14, `${collarName} Collar`, {
+          fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
+          resolution: TEXT_RESOLUTION,
         }).setOrigin(0, 0.5)
       );
 
       this.gameContainer.add(
-        createButton(this, cx, btnY + 30, 'Visit in Garden', () => {
+        createButton(this, panelLeft + panelW / 2, btnRow1Y + 16, 'Visit in Garden', () => {
           this.closePopup();
           this.viewMode = 'garden';
           this.renderView();
-        }, { width: 200, fontSize: '16px', bgColour: '#2ecc71' })
+        }, { width: 250, fontSize: '14px', bgColour: '#2ecc71' })
       );
 
-      // Heal button for sick pets (pets can get sick in the garden too)
       const petIllness = this.sickAnimals.get(animal.id);
       if (petIllness) {
         this.gameContainer.add(
-          this.add.text(cx, btnY + 65,
-            `Sick: ${petIllness.label}`, {
-            fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b',
-          }).setOrigin(0.5)
-        );
-
-        this.gameContainer.add(
-          createButton(this, cx, btnY + 95, 'Take to Vet', () => {
+          createButton(this, panelLeft + panelW / 2, btnRow1Y + 62,
+            `Take to Vet (${petIllness.label})`, () => {
             if (this.processing) return;
             this.processing = true;
             const currentPetIllness = this.sickAnimals.get(animal.id);
             if (!currentPetIllness) {
-              this.processing = false;
-              this.closePopup();
-              this.renderView();
+              this.processing = false; this.closePopup(); this.renderView();
               return;
             }
             const livePet = this.animals.find((a) => a.id === animal.id);
             if (!livePet) {
-              this.processing = false;
-              this.closePopup();
-              this.renderView();
+              this.processing = false; this.closePopup(); this.renderView();
               return;
             }
             this.closePopup();
@@ -1615,62 +1916,21 @@ export class GameScene extends Phaser.Scene {
               allAnimals: this.animals,
               onComplete: (updatedAnimals: Animal[], healed: boolean) => {
                 this.animals = updatedAnimals;
-                if (healed) {
-                  this.sickAnimals.delete(animal.id);
-                }
+                if (healed) this.sickAnimals.delete(animal.id);
                 this.checkBadges();
                 this.saveState();
               },
             });
             this.processing = false;
-          }, { width: 180, fontSize: '15px', bgColour: '#e74c3c', icon: 'icon-vet' })
+          }, { width: 250, fontSize: '14px', bgColour: '#e74c3c', icon: 'icon-vet' })
         );
       }
     }
 
-    // Close button
-    const closeBtn = this.add.text(cx + cardW / 2 - 20, height / 2 - cardH / 2 + 10, '✕', {
-      fontSize: '22px', color: '#999',
-    }).setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerdown', () => this.closePopup());
-    this.gameContainer.add(closeBtn);
-
-    // Click overlay to close
+    // Tap overlay to close
     overlay.on('pointerdown', () => this.closePopup());
   }
 
-  private renderStatBar(
-    label: string, value: number, colour: number,
-    x: number, y: number, inverted: boolean
-  ): void {
-    // For hunger/tiredness, lower is better (inverted)
-    const displayValue = inverted ? 100 - value : value;
-
-    this.gameContainer.add(
-      this.add.text(x, y, label, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
-      })
-    );
-
-    // Background bar
-    this.gameContainer.add(
-      this.add.rectangle(x + 90 + 75, y + 6, 150, 10, 0xdddddd).setOrigin(0.5)
-    );
-    // Fill bar
-    this.gameContainer.add(
-      this.add.rectangle(
-        x + 90 + (displayValue / 100) * 75, y + 6,
-        (displayValue / 100) * 150, 10, colour
-      ).setOrigin(0.5)
-    );
-
-    // Value text
-    this.gameContainer.add(
-      this.add.text(x + 240, y, `${Math.round(displayValue)}%`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: '#888', resolution: TEXT_RESOLUTION,
-      })
-    );
-  }
 
   private closePopup(): void {
     this.selectedAnimal = undefined;
@@ -1946,7 +2206,7 @@ export class GameScene extends Phaser.Scene {
           });
         }
 
-        sprite.on('pointerdown', () => this.showAnimalDetails(pet));
+        sprite.on('pointerdown', () => this.showAnimalDetails(pet, { x: cx, y: cy, size: spriteW }));
         this.gameContainer.add(sprite);
 
         // Gentle floating animation
