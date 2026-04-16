@@ -84,6 +84,13 @@ export class GameScene extends Phaser.Scene {
   private gameContainer!: Phaser.GameObjects.Container;
   private navContainer!: Phaser.GameObjects.Container;
   private uiContainer!: Phaser.GameObjects.Container;
+  // Persistent layer for cross-fading sprites during state transitions.
+  // NOT cleared by gameContainer.removeAll() so ghost sprites can outlive
+  // a re-render while fading out.
+  private transitionLayer!: Phaser.GameObjects.Container;
+  // Last rendered visual state per animal id, used to detect transitions.
+  // Absent entry → first render, no cross-fade.
+  private lastVisualStates = new Map<string, string>();
   private needsTimer?: Phaser.Time.TimerEvent;
   private spawnTimer?: Phaser.Time.TimerEvent;
   private selectedAnimal?: Animal;
@@ -108,6 +115,7 @@ export class GameScene extends Phaser.Scene {
     audio.playSceneMusic('corridor');
 
     this.gameContainer = this.add.container(0, 0);
+    this.transitionLayer = this.add.container(0, 0).setDepth(500);
     this.navContainer = this.add.container(0, 0);  // fixed above scrollable content
     this.uiContainer = this.add.container(0, 0);
 
@@ -1241,8 +1249,11 @@ export class GameScene extends Phaser.Scene {
           title,
           body: animal.arrivalStory,
           actionLabel: 'Welcome',
-          actionBgHex: '#e74c3c',
-          actionIcon: 'icon-welcome',
+          // Green because welcoming is a positive, safe action — the old
+          // red read like a "delete" / warning, which scared kids off
+          // tapping it. `icon-accept` is a simple tick, unambiguous.
+          actionBgHex: '#3D8A2E',
+          actionIcon: 'icon-accept',
           accentColour: SPECIES_COLOURS[animal.species],
           maxWidth: bubbleW,
           onAction: () => {
@@ -1260,10 +1271,13 @@ export class GameScene extends Phaser.Scene {
         this.gameContainer.add(bubble);
       });
 
-      // "Welcome them all" shortcut if more than one — pinned below the doors banner
+      // "Welcome them all" shortcut if more than one — pinned ABOVE the
+      // banner (the previous position below the banner sat right on top
+      // of the speech bubbles and the sprite heads). Green to match the
+      // per-animal Welcome buttons.
       if (arriving.length > 1) {
         this.gameContainer.add(
-          createButton(this, width / 2, bannerY + 36, 'Welcome them all', () => {
+          createButton(this, width / 2, bannerY - 34, 'Welcome them all', () => {
             if (this.processing) return;
             this.processing = true;
             arriving.forEach((a) => { a.state = 'sheltered'; });
@@ -1273,7 +1287,7 @@ export class GameScene extends Phaser.Scene {
             this.saveState();
             this.processing = false;
             this.renderView();
-          }, { width: 240, fontSize: '14px', icon: 'icon-welcome' })
+          }, { width: 240, fontSize: '14px', icon: 'icon-accept', bgColour: '#3D8A2E' })
         );
       }
     }
@@ -1373,6 +1387,13 @@ export class GameScene extends Phaser.Scene {
         const y = placed ? placed.cy : floorY + Math.floor(i / 4) * 150;
         const size = placed ? placed.w : baseSize;
 
+        // Cross-fade when this animal's visual state has changed since the
+        // last render — a ghost of the old sprite fades out while the new
+        // sprite fades in, so kids see the mood/need change rather than a
+        // jarring hard swap.
+        const prevVisualState = this.lastVisualStates.get(animal.id);
+        const stateChanged = prevVisualState !== undefined && prevVisualState !== visualState;
+
         // Animal sprite (real art or fallback rectangle)
         const sprite = createAnimalSprite(this, x, y, animal, {
           width: size, height: size * 0.8, interactive: true,
@@ -1380,6 +1401,34 @@ export class GameScene extends Phaser.Scene {
         if (placed?.flipX && 'setFlipX' in sprite) {
           (sprite as Phaser.GameObjects.Image).setFlipX(true);
         }
+
+        if (stateChanged) {
+          // Old-state ghost lives in the persistent transition layer so it
+          // survives the next gameContainer.removeAll() cleanly.
+          const ghost = createAnimalSprite(this, x, y, animal, {
+            width: size, height: size * 0.8, stateOverride: prevVisualState,
+          });
+          if (placed?.flipX && 'setFlipX' in ghost) {
+            (ghost as Phaser.GameObjects.Image).setFlipX(true);
+          }
+          this.transitionLayer.add(ghost);
+          this.tweens.add({
+            targets: ghost,
+            alpha: 0,
+            duration: 400,
+            ease: 'Sine.easeOut',
+            onComplete: () => ghost.destroy(),
+          });
+          // New sprite fades in on top
+          sprite.setAlpha(0);
+          this.tweens.add({
+            targets: sprite,
+            alpha: 1,
+            duration: 400,
+            ease: 'Sine.easeIn',
+          });
+        }
+        this.lastVisualStates.set(animal.id, visualState);
 
         // Pet gold border (if sprite is a rectangle fallback)
         if (animal.state === 'pet' && sprite instanceof Phaser.GameObjects.Rectangle) {
@@ -1753,18 +1802,23 @@ export class GameScene extends Phaser.Scene {
     }
 
     // ── Compact stat bars (5 rows, 150-wide bars) ────────────
+    //
+    // Hunger and Tired are "problem" stats — the bar shows the current
+    // level of the problem, not its inverse. So a very hungry animal has
+    // a full red bar, and the bar DROPS as the player feeds them. Matches
+    // how kids expect a progress/problem bar to read (fuller = worse).
     const barX = panelLeft + 18;
     const barW = panelW - 36;
     const statRowH = 18;
-    const statDefs: Array<[string, number, number, boolean]> = [
-      ['Hunger',    animal.hunger,    0xe74c3c, true],
-      ['Tired',     animal.tiredness, 0x3498db, true],
-      ['Happy',     animal.happiness, 0xf1c40f, false],
-      ['Health',    animal.health,    0x2ecc71, false],
-      ['Bond',      animal.bondLevel, 0xff6b9d, false],
+    const statDefs: Array<[string, number, number]> = [
+      ['Hunger',    animal.hunger,    0xe74c3c],
+      ['Tired',     animal.tiredness, 0x3498db],
+      ['Happy',     animal.happiness, 0xf1c40f],
+      ['Health',    animal.health,    0x2ecc71],
+      ['Bond',      animal.bondLevel, 0xff6b9d],
     ];
-    statDefs.forEach(([label, value, colour, inverted]) => {
-      const displayValue = inverted ? 100 - value : value;
+    statDefs.forEach(([label, value, colour]) => {
+      const displayValue = value;
       this.gameContainer.add(
         this.add.text(barX, cursorY, label, {
           fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.text,
