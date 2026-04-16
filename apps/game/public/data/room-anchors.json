@@ -310,5 +310,35 @@
         }
       ]
     }
+  },
+  "kitchen-bowls": {
+    "slot": {
+      "eating": [
+        {
+          "x": 0.245,
+          "y": 0.56,
+          "scale": 1.0,
+          "facing": "right"
+        },
+        {
+          "x": 0.42,
+          "y": 0.56,
+          "scale": 1.0,
+          "facing": "right"
+        },
+        {
+          "x": 0.605,
+          "y": 0.595,
+          "scale": 1.0,
+          "facing": "right"
+        },
+        {
+          "x": 0.79,
+          "y": 0.565,
+          "scale": 1.0,
+          "facing": "right"
+        }
+      ]
+    }
   }
 }

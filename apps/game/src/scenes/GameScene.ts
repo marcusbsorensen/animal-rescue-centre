@@ -565,15 +565,15 @@ export class GameScene extends Phaser.Scene {
     ];
 
     // ── Bar geometry ──────────────────────────────────────
-    const tabW = 64;
-    const tabH = 54;
-    const fabSize = 62;
-    const fabGap = 10;
+    const tabW = 74;
+    const tabH = 60;
+    const fabSize = 68;
+    const fabGap = 12;
     const tabsSide = leftTabs.length; // 2
-    const barW = Math.min(width - 20, tabsSide * 2 * tabW + fabSize + fabGap * 2 + 24);
-    const barH = tabH + 14;
+    const barW = Math.min(width - 20, tabsSide * 2 * tabW + fabSize + fabGap * 2 + 28);
+    const barH = tabH + 16;
     const barX = (width - barW) / 2;
-    const barY = height - barH - 12;
+    const barY = height - barH - 16;
 
     // Glass bar background
     const bg = this.add.graphics();
@@ -590,26 +590,27 @@ export class GameScene extends Phaser.Scene {
     const drawTab = (tab: NavTab, tx: number, ty: number) => {
       if (tab.active) {
         const pill = this.add.graphics();
-        pill.fillStyle(0x5AAE4A, 0.16);
-        pill.fillRoundedRect(tx - tabW / 2 + 4, ty - tabH / 2 + 2, tabW - 8, tabH - 4, 14);
+        pill.fillStyle(0x5AAE4A, 0.18);
+        pill.fillRoundedRect(tx - tabW / 2 + 3, ty - tabH / 2 + 2, tabW - 6, tabH - 4, 16);
         this.navContainer.add(pill);
       }
-      const iconPx = tab.active ? 28 : 24;
+      const iconPx = tab.active ? 40 : 36;
       if (this.textures.exists(tab.iconKey)) {
-        const img = this.add.image(tx, ty - 7, tab.iconKey).setDisplaySize(iconPx, iconPx).setOrigin(0.5);
-        if (!tab.active) img.setAlpha(0.72);
+        const img = this.add.image(tx, ty - 9, tab.iconKey).setDisplaySize(iconPx, iconPx).setOrigin(0.5);
+        if (!tab.active) img.setAlpha(0.78);
         this.navContainer.add(img);
       } else {
         this.navContainer.add(
-          this.add.text(tx, ty - 7, tab.label.slice(0, 2), {
+          this.add.text(tx, ty - 9, tab.label.slice(0, 2), {
             fontSize: `${iconPx}px`, fontFamily: FONTS.title, fontStyle: 'bold',
             color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5)
         );
       }
       this.navContainer.add(
-        this.add.text(tx, ty + 16, tab.label, {
-          fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
+        this.add.text(tx, ty + 18, tab.label, {
+          fontSize: tab.active ? '12px' : '11px',
+          fontFamily: FONTS.body, fontStyle: 'bold',
           color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
@@ -784,68 +785,114 @@ export class GameScene extends Phaser.Scene {
       const x = width * slot.xFrac;
       const y = doorBodyTop + doorBodyH * slot.yFrac;
       const s = slot.scale;
-      const signW = 120 * s;
-      const signH = 56 * s;
 
       const roomAnimals = this.animals.filter((a) => a.species === species && a.state !== 'arriving');
       const count = roomAnimals.length;
       const colour = SPECIES_COLOURS[species];
 
-      // Wooden door sign (rounded plank with darker rim)
-      const signGfx = this.add.graphics();
-      // subtle shadow
-      signGfx.fillStyle(0x000000, 0.22);
-      signGfx.fillRoundedRect(x - signW / 2 + 2, y - signH / 2 + 3, signW, signH, 10);
-      // wood backing
-      signGfx.fillStyle(0xd4a574, 1);
-      signGfx.fillRoundedRect(x - signW / 2, y - signH / 2, signW, signH, 10);
-      // inner wood panel
-      signGfx.fillStyle(0xe8c48d, 1);
-      signGfx.fillRoundedRect(x - signW / 2 + 4, y - signH / 2 + 4, signW - 8, signH - 8, 7);
-      // species colour strip on the left edge
-      signGfx.fillStyle(colour, 1);
-      signGfx.fillRoundedRect(x - signW / 2 + 4, y - signH / 2 + 4, 5, signH - 8, { tl: 7, tr: 0, bl: 7, br: 0 });
-      // rim outline
-      signGfx.lineStyle(2, 0x8b5a2b, 0.85);
-      signGfx.strokeRoundedRect(x - signW / 2, y - signH / 2, signW, signH, 10);
-      this.gameContainer.add(signGfx);
+      // Painted door sign (sign-cat.png, sign-dog.png, …). Fall back to the old
+      // programmatic plank + icon combo only if the painted asset is missing.
+      const signKey = `sign-${species}`;
+      const hasPainted = this.textures.exists(signKey);
 
-      // Species icon on the left of the sign
-      const iconX = x - signW / 2 + 22 * s;
-      const iconPx = 34 * s;
-      const speciesIconKey = `icon-${species}`;
-      if (this.textures.exists(speciesIconKey)) {
-        const iconImg = this.add.image(iconX, y, speciesIconKey).setDisplaySize(iconPx, iconPx).setOrigin(0.5);
-        this.gameContainer.add(iconImg);
+      // Sign display size scales with the door slot (preserve painted aspect ratio)
+      const signW = 140 * s;
+      const signDisplay = hasPainted
+        ? (() => {
+            const tex = this.textures.get(signKey).getSourceImage() as HTMLImageElement;
+            const ratio = tex && tex.height ? tex.width / tex.height : 2.2;
+            const w = signW;
+            const h = w / ratio;
+            return { w, h };
+          })()
+        : { w: 120 * s, h: 56 * s };
+
+      let signDisplayObj: Phaser.GameObjects.GameObject;
+
+      if (hasPainted) {
+        const signImg = this.add.image(x, y, signKey)
+          .setDisplaySize(signDisplay.w, signDisplay.h)
+          .setOrigin(0.5);
+        this.gameContainer.add(signImg);
+        signDisplayObj = signImg;
       } else {
-        // Coloured circle fallback
-        const fg = this.add.graphics();
-        fg.fillStyle(colour, 1);
-        fg.fillCircle(iconX, y, iconPx / 2);
-        this.gameContainer.add(fg);
+        // Fallback: programmatic wooden plank with species icon + name + count.
+        const signGfx = this.add.graphics();
+        const sw = signDisplay.w, sh = signDisplay.h;
+        signGfx.fillStyle(0x000000, 0.22);
+        signGfx.fillRoundedRect(x - sw / 2 + 2, y - sh / 2 + 3, sw, sh, 10);
+        signGfx.fillStyle(0xd4a574, 1);
+        signGfx.fillRoundedRect(x - sw / 2, y - sh / 2, sw, sh, 10);
+        signGfx.fillStyle(0xe8c48d, 1);
+        signGfx.fillRoundedRect(x - sw / 2 + 4, y - sh / 2 + 4, sw - 8, sh - 8, 7);
+        signGfx.fillStyle(colour, 1);
+        signGfx.fillRoundedRect(x - sw / 2 + 4, y - sh / 2 + 4, 5, sh - 8, { tl: 7, tr: 0, bl: 7, br: 0 });
+        signGfx.lineStyle(2, 0x8b5a2b, 0.85);
+        signGfx.strokeRoundedRect(x - sw / 2, y - sh / 2, sw, sh, 10);
+        this.gameContainer.add(signGfx);
+
+        const iconX = x - sw / 2 + 22 * s;
+        const iconPx = 34 * s;
+        const speciesIconKey = `icon-${species}`;
+        if (this.textures.exists(speciesIconKey)) {
+          this.gameContainer.add(
+            this.add.image(iconX, y, speciesIconKey).setDisplaySize(iconPx, iconPx).setOrigin(0.5)
+          );
+        } else {
+          const fg = this.add.graphics();
+          fg.fillStyle(colour, 1);
+          fg.fillCircle(iconX, y, iconPx / 2);
+          this.gameContainer.add(fg);
+        }
+
+        const textX = iconX + iconPx / 2 + 6;
+        const nameLabel = species.charAt(0).toUpperCase() + species.slice(1);
+        this.gameContainer.add(
+          this.add.text(textX, y - 9, nameLabel, {
+            fontSize: `${Math.round(13 * s)}px`, fontFamily: FONTS.title, fontStyle: 'bold',
+            color: '#4a2d14', resolution: TEXT_RESOLUTION,
+          }).setOrigin(0, 0.5)
+        );
+        this.gameContainer.add(
+          this.add.text(textX, y + 9, `${count} ${pluralSpecies(species, count)}`, {
+            fontSize: `${Math.round(11 * s)}px`, fontFamily: FONTS.body, fontStyle: 'bold',
+            color: '#6b4020', resolution: TEXT_RESOLUTION,
+          }).setOrigin(0, 0.5)
+        );
+        signDisplayObj = signGfx;
       }
 
-      // Species name + count stacked on the right of the sign
-      const textX = iconX + iconPx / 2 + 6;
-      const nameLabel = species.charAt(0).toUpperCase() + species.slice(1);
-      this.gameContainer.add(
-        this.add.text(textX, y - 9, nameLabel, {
-          fontSize: `${Math.round(13 * s)}px`, fontFamily: FONTS.title, fontStyle: 'bold',
-          color: '#4a2d14', resolution: TEXT_RESOLUTION,
-        }).setOrigin(0, 0.5)
-      );
-      this.gameContainer.add(
-        this.add.text(textX, y + 9, `${count} ${pluralSpecies(species, count)}`, {
-          fontSize: `${Math.round(11 * s)}px`, fontFamily: FONTS.body, fontStyle: 'bold',
-          color: '#6b4020', resolution: TEXT_RESOLUTION,
-        }).setOrigin(0, 0.5)
-      );
+      // Count badge in the top-right corner of the sign (painted signs only — the
+      // programmatic fallback already shows the count inline).
+      if (hasPainted && count > 0) {
+        const badgeR = Math.max(10, 14 * s);
+        const badgeX = x + signDisplay.w / 2 - badgeR * 0.4;
+        const badgeY = y - signDisplay.h / 2 + badgeR * 0.4;
+        const badgeGfx = this.add.graphics();
+        badgeGfx.fillStyle(0x000000, 0.28);
+        badgeGfx.fillCircle(badgeX + 1, badgeY + 2, badgeR);
+        badgeGfx.fillStyle(colour, 1);
+        badgeGfx.fillCircle(badgeX, badgeY, badgeR);
+        badgeGfx.lineStyle(2, 0xffffff, 0.95);
+        badgeGfx.strokeCircle(badgeX, badgeY, badgeR);
+        this.gameContainer.add(badgeGfx);
+        this.gameContainer.add(
+          this.add.text(badgeX, badgeY, String(count), {
+            fontSize: `${Math.round(badgeR * 1.2)}px`, fontFamily: FONTS.title,
+            fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
+          }).setOrigin(0.5)
+        );
+      }
 
       // Hit area over the sign
-      const hitArea = this.add.rectangle(x, y, signW, signH, 0x000000, 0)
+      const hitArea = this.add.rectangle(x, y, signDisplay.w, signDisplay.h, 0x000000, 0)
         .setInteractive({ useHandCursor: true });
-      hitArea.on('pointerover', () => signGfx.setAlpha(0.9));
-      hitArea.on('pointerout', () => signGfx.setAlpha(1));
+      hitArea.on('pointerover', () => {
+        if ('setAlpha' in signDisplayObj) (signDisplayObj as Phaser.GameObjects.Image).setAlpha(0.85);
+      });
+      hitArea.on('pointerout', () => {
+        if ('setAlpha' in signDisplayObj) (signDisplayObj as Phaser.GameObjects.Image).setAlpha(1);
+      });
       hitArea.on('pointerdown', () => {
         this.currentRoomSpecies = species;
         this.viewMode = 'room';
@@ -882,31 +929,26 @@ export class GameScene extends Phaser.Scene {
       const slotW = Math.min(280, (width - 40) / n);
       const startX = width / 2 - ((n - 1) * slotW) / 2;
 
-      const anchors = RoomAnchors.getInstance();
-      const bgTopY = 20, bgW = width, bgH = height - 40;
-
+      // Corridor uses procedural even-spacing — existing corridor.*.arriving
+      // anchors only define a single spot per species, so multiple animals of
+      // the same species would stack on top of each other. Spread them evenly
+      // along the floor instead.
       arriving.forEach((animal, i) => {
-        const anchor = anchors.pick('corridor', animal.species, 'arriving', i);
-        const placed = this.resolveAnchor(anchor, bgTopY, bgW, bgH, 90, 74);
-
-        const ax = placed ? placed.cx : startX + i * slotW;
-        const spriteW = placed ? placed.w : 90;
-        const spriteH = placed ? placed.h : 74;
-        const spriteCy = placed ? placed.cy : floorY - spriteH / 2 + 2;
+        const ax = startX + i * slotW;
+        const spriteW = 90;
+        const spriteH = 74;
+        const spriteCy = floorY - spriteH / 2 + 2;
 
         // Drop shadow anchoring sprite to the floor
         const shadowFeetY = spriteCy + spriteH / 2;
         const shadow = this.add.ellipse(ax, shadowFeetY + 4, spriteW * 0.65, spriteH * 0.16, 0x000000, 0.28);
         this.gameContainer.add(shadow);
 
-        // Sprite sits with its bottom on the floor line (or anchor)
+        // Sprite sits with its bottom on the floor line
         const sprite = createAnimalSprite(
           this, ax, spriteCy, animal,
           { width: spriteW, height: spriteH, interactive: true }
         );
-        if (placed?.flipX && 'setFlipX' in sprite) {
-          (sprite as Phaser.GameObjects.Image).setFlipX(true);
-        }
         sprite.on('pointerdown', () => this.showAnimalDetails(animal));
         this.gameContainer.add(sprite);
 
@@ -1493,64 +1535,84 @@ export class GameScene extends Phaser.Scene {
 
     // Find hungry animals
     const hungry = this.animals.filter((a) => a.hunger > 60 && a.state !== 'arriving');
+    const sheltered = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'pet');
+
+    // ── Semi-transparent card behind the text + buttons ───────────────
+    // Sits over the painted counter so body text stays readable against the
+    // busy kitchen background.
+    const panelW = Math.min(420, width - 40);
+    const panelH = hungry.length > 0 ? 260 : 140;
+    const panelCy = height / 2 + 10;
+    this.gameContainer.add(
+      createPanel(this, width / 2, panelCy, panelW, panelH, {
+        fillColour: 0xffffff,
+        fillAlpha: 0.92,
+        borderColour: 0xd4a017,
+        borderWidth: 2,
+        radius: 18,
+      })
+    );
 
     if (hungry.length === 0) {
       this.gameContainer.add(
-        this.add.text(width / 2, height / 2, 'Everyone is well-fed!', {
-          fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        this.add.text(width / 2, panelCy - 10, 'Everyone is well-fed!', {
+          fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.primary,
+          resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5)
+      );
+      this.gameContainer.add(
+        this.add.text(width / 2, panelCy + 18, 'Check back when someone gets peckish.', {
+          fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
     } else {
+      // Title
       this.gameContainer.add(
-        this.add.text(width / 2, height / 2 - 60,
+        this.add.text(width / 2, panelCy - 90,
           `${hungry.length} animal${hungry.length > 1 ? 's are' : ' is'} hungry!`, {
-          fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.text,
+          fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+          resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
 
-      // Show hungry animals as sprite preview — standing on a kitchen floor line
-      const previewAnimals = hungry.slice(0, 6);
-      const previewFloorY = height / 2 + 20;
-      const slotW = 62;
-      const previewStartX = width / 2 - ((previewAnimals.length - 1) * slotW) / 2;
-      const anchors = RoomAnchors.getInstance();
-      const bgTopY = 20, bgW = width, bgH = height - 40;
-
-      previewAnimals.forEach((a, i) => {
-        const anchor = anchors.pick('kitchen', a.species, 'eating', i);
-        const placed = this.resolveAnchor(anchor, bgTopY, bgW, bgH, 100, 80);
-
-        const px = placed ? placed.cx : previewStartX + i * slotW;
-        const spriteH = placed ? placed.h : 80;
-        const spriteW = placed ? placed.w : 100;
-        const spriteCy = placed ? placed.cy : previewFloorY - spriteH / 2 + 2;
-
-        // Drop shadow under each sprite (at feet)
-        const feetY = spriteCy + spriteH / 2;
-        const shadow = this.add.ellipse(px, feetY + 3, spriteW * 0.6, 12, 0x000000, 0.25);
-        this.gameContainer.add(shadow);
-        const sprite = createAnimalSprite(this, px, spriteCy, a, { width: spriteW, height: spriteH });
-        if (placed?.flipX && 'setFlipX' in sprite) {
-          (sprite as Phaser.GameObjects.Image).setFlipX(true);
-        }
-        this.gameContainer.add(sprite);
-        this.tweens.add({
-          targets: sprite, y: sprite.y - 2,
-          duration: 1400 + i * 100, yoyo: true, repeat: -1,
-          ease: 'Sine.easeInOut', delay: i * 150,
-        });
-      });
-
+      // Subtitle
       this.gameContainer.add(
-        this.add.text(width / 2, height / 2 + 20,
+        this.add.text(width / 2, panelCy - 62,
           'Sort the right food into each animal\'s bowl!', {
-          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
+
+      // Species icons strip — small coloured dots for each hungry animal
+      const iconSize = 32;
+      const iconY = panelCy - 20;
+      const iconSpacing = 40;
+      const shownHungry = hungry.slice(0, Math.min(hungry.length, 8));
+      const iconsStartX = width / 2 - ((shownHungry.length - 1) * iconSpacing) / 2;
+      shownHungry.forEach((a, i) => {
+        const ix = iconsStartX + i * iconSpacing;
+        const bg = this.add.graphics();
+        bg.fillStyle(SPECIES_COLOURS[a.species], 0.25);
+        bg.fillCircle(ix, iconY, iconSize / 2 + 2);
+        this.gameContainer.add(bg);
+        const speciesIconKey = `icon-${a.species}`;
+        if (this.textures.exists(speciesIconKey)) {
+          this.gameContainer.add(
+            this.add.image(ix, iconY, speciesIconKey).setDisplaySize(iconSize, iconSize).setOrigin(0.5)
+          );
+        } else {
+          const c = this.add.graphics();
+          c.fillStyle(SPECIES_COLOURS[a.species], 1);
+          c.fillCircle(ix, iconY, iconSize / 2);
+          this.gameContainer.add(c);
+        }
+      });
 
       // Launch minigame button
       this.gameContainer.add(
-        createButton(this, width / 2, height / 2 + 70, 'Start Sorting!', () => {
+        createButton(this, width / 2, panelCy + 30, 'Start Sorting!', () => {
           this.scene.start('KitchenMinigameScene', {
             hungryAnimals: hungry,
             allAnimals: this.animals,
@@ -1559,12 +1621,12 @@ export class GameScene extends Phaser.Scene {
               this.saveState();
             },
           });
-        }, { width: 260 })
+        }, { width: 240 })
       );
 
       // Quick-feed option for accessibility
       this.gameContainer.add(
-        createTextButton(this, width / 2, height / 2 + 120,
+        createTextButton(this, width / 2, panelCy + 78,
           'Quick feed all (skip minigame)', () => {
           for (const animal of hungry) {
             const idx = this.animals.findIndex((a) => a.id === animal.id);
@@ -1582,13 +1644,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Garden shortcut — always show below kitchen content
-    const gardenBtnY = hungry.length > 0 ? height / 2 + 170 : height / 2 + 40;
-    const sheltered = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'pet');
+    const gardenBtnY = panelCy + panelH / 2 + 30;
     this.gameContainer.add(
       createButton(this, width / 2, gardenBtnY, `Garden (${sheltered.length} animals)`, () => {
         this.viewMode = 'garden';
         this.renderView();
-      }, { width: 260, fontSize: '16px', bgColour: '#2ecc71', icon: 'icon-walk' })
+      }, { width: 240, fontSize: '15px', bgColour: '#2ecc71', icon: 'icon-walk' })
     );
 
     this.renderNavBar({ showBack: true });
