@@ -1535,7 +1535,8 @@ export class GameScene extends Phaser.Scene {
 
     // Find hungry animals
     const hungry = this.animals.filter((a) => a.hunger > 60 && a.state !== 'arriving');
-    const sheltered = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'pet');
+    // Count of pets living in the Garden (the only ones actually rendered there)
+    const petCount = this.animals.filter((a) => a.state === 'pet').length;
 
     // ── Semi-transparent card behind the text + buttons ───────────────
     // Sits over the painted counter so body text stays readable against the
@@ -1644,9 +1645,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Garden shortcut — always show below kitchen content
+    // Label reflects pets only, because that's what the Garden actually shows.
     const gardenBtnY = panelCy + panelH / 2 + 30;
+    const gardenLabel = petCount === 0
+      ? 'Garden (empty)'
+      : `Garden (${petCount} ${petCount === 1 ? 'pet' : 'pets'})`;
     this.gameContainer.add(
-      createButton(this, width / 2, gardenBtnY, `Garden (${sheltered.length} animals)`, () => {
+      createButton(this, width / 2, gardenBtnY, gardenLabel, () => {
         this.viewMode = 'garden';
         this.renderView();
       }, { width: 240, fontSize: '15px', bgColour: '#2ecc71', icon: 'icon-walk' })
