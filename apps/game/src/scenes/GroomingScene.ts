@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { Animal } from '@arc/shared-types';
+import type { Animal, Species } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createAmbientParticles } from '../ui/UIButton';
 import { applyGrooming } from '@arc/game-logic';
@@ -7,6 +7,20 @@ import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
 
 type Phase = 'intro' | 'brushing' | 'done';
+
+// Grooming tool per species — we match the real-world tool kids would
+// associate with that animal's care rather than a generic shampoo bottle.
+// Furry animals get a brush; snakes get a soft cloth; parrots get a
+// water-mist (birds are "bathed" by gentle misting).
+const GROOMING_TOOL: Record<Species, { emoji: string; label: string; verb: string }> = {
+  cat:    { emoji: '🪮', label: 'Brush',    verb: 'Brush brush!' },
+  dog:    { emoji: '🪮', label: 'Brush',    verb: 'Brush brush!' },
+  fox:    { emoji: '🪮', label: 'Brush',    verb: 'Brush brush!' },
+  bunny:  { emoji: '🪮', label: 'Brush',    verb: 'Brush brush!' },
+  bat:    { emoji: '🪮', label: 'Brush',    verb: 'Brush brush!' },
+  snake:  { emoji: '🧽', label: 'Cloth',    verb: 'Wipe wipe!' },
+  parrot: { emoji: '💧', label: 'Mist',     verb: 'Spritz spritz!' },
+};
 
 interface DirtSpot {
   gfx: Phaser.GameObjects.Arc;
@@ -119,15 +133,35 @@ export class GroomingScene extends Phaser.Scene {
     const sprite = createAnimalSprite(this, width / 2, cy, this.animal, { width: 180, height: 160 });
     this.container.add(sprite);
 
+    // Tailor intro copy to the species so brush/cloth/mist reads naturally.
+    const tool = GROOMING_TOOL[this.animal.species];
+    const introMsg: Record<Species, string> = {
+      cat:    `${this.animal.name} needs a good brush!`,
+      dog:    `${this.animal.name} needs a good brush!`,
+      fox:    `${this.animal.name} needs a good brush!`,
+      bunny:  `${this.animal.name} needs a good brush!`,
+      bat:    `${this.animal.name} needs a good brush!`,
+      snake:  `${this.animal.name} needs a gentle wipe down!`,
+      parrot: `${this.animal.name} needs a light mist!`,
+    };
     this.container.add(
-      this.add.text(width / 2, cy + 110, `${this.animal.name} needs a good brush!`, {
+      this.add.text(width / 2, cy + 110, introMsg[this.animal.species], {
         fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
 
+    const startLabel: Record<Species, string> = {
+      cat:    'Start brushing!',
+      dog:    'Start brushing!',
+      fox:    'Start brushing!',
+      bunny:  'Start brushing!',
+      bat:    'Start brushing!',
+      snake:  'Start wiping!',
+      parrot: 'Start misting!',
+    };
     this.container.add(
-      createButton(this, width / 2, cy + 170, 'Start brushing!', () => {
+      createButton(this, width / 2, cy + 170, startLabel[this.animal.species], () => {
         this.phase = 'brushing';
         this.renderView();
       }, { width: 240, bgColour: '#5A9CB8' })
@@ -166,8 +200,9 @@ export class GroomingScene extends Phaser.Scene {
     }).setOrigin(0, 0.5);
     this.container.add(this.cleanlinessLabel);
 
-    // Encouragement text
-    this.encouragementText = this.add.text(width / 2, barY + 36, 'Scrub scrub!', {
+    // Encouragement text — verb matches the tool (brush/cloth/mist)
+    const tool = GROOMING_TOOL[this.animal.species];
+    this.encouragementText = this.add.text(width / 2, barY + 36, tool.verb, {
       fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
       color: COLOURS.info, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
@@ -197,8 +232,10 @@ export class GroomingScene extends Phaser.Scene {
     }
     this.totalDirt = this.dirtSpots.length;
 
-    // Brush icon that follows pointer
-    this.brushIcon = this.add.text(-100, -100, '🧴', {
+    // Grooming-tool cursor that follows pointer — a brush for fur, a cloth
+    // for snakes, a water mist for parrots. Matches what the animal would
+    // actually want so kids learn real-world care.
+    this.brushIcon = this.add.text(-100, -100, tool.emoji, {
       fontSize: '40px',
     }).setOrigin(0.5).setDepth(1000);
     this.container.add(this.brushIcon);
@@ -283,12 +320,13 @@ export class GroomingScene extends Phaser.Scene {
     }
     this.cleanlinessLabel.setText(`${Math.round(pct * 100)}%`);
     if (this.encouragementText) {
+      const tool = GROOMING_TOOL[this.animal.species];
       if (pct >= 1) {
         this.encouragementText.setText('Sparkly clean!');
       } else if (pct >= 0.6) {
         this.encouragementText.setText('Almost there!');
       } else {
-        this.encouragementText.setText('Scrub scrub!');
+        this.encouragementText.setText(tool.verb);
       }
     }
   }

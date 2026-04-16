@@ -1,10 +1,17 @@
 /**
- * RoomAnchors — loads hand-designed animal placement anchors from
+ * RoomAnchors — loads hand-designed placement data from
  * /data/room-anchors.json (produced by the admin anchor editor) and
  * exposes a simple lookup API.
  *
  * JSON shape:
- *   { [roomKey]: { [species]: { [state]: Anchor[] } } }
+ *   {
+ *     [roomKey]: {
+ *       // animal anchors: species → state → Anchor[]
+ *       [species]: { [state]: Anchor[] },
+ *       // decor anchors (room signs, food props, …): propKey → Anchor[]
+ *       __decor?: { [propKey]: Anchor[] }
+ *     }
+ *   }
  *
  * Rooms currently anchored: room-cat, corridor, kitchen, garden.
  * Unanchored rooms fall back to the existing procedural layout in GameScene.
@@ -17,7 +24,10 @@ export interface Anchor {
   facing: 'left' | 'right';
 }
 
-type AnchorMap = Record<string, Record<string, Record<string, Anchor[]>>>;
+// The room map is loose at the type level because it mixes species
+// subtrees with the special __decor subtree. Callers use the typed
+// accessors below rather than touching the raw shape.
+type AnchorMap = Record<string, Record<string, unknown>>;
 
 export class RoomAnchors {
   private static instance: RoomAnchors;
@@ -44,7 +54,10 @@ export class RoomAnchors {
 
   /** Return all anchors for a given room + species + state, or []. */
   get(roomKey: string, species: string, state: string): Anchor[] {
-    return this.data?.[roomKey]?.[species]?.[state] ?? [];
+    const room = this.data?.[roomKey];
+    if (!room) return [];
+    const speciesTree = room[species] as Record<string, Anchor[]> | undefined;
+    return speciesTree?.[state] ?? [];
   }
 
   /**
@@ -63,5 +76,18 @@ export class RoomAnchors {
       if (fb.length > 0) return fb[index % fb.length];
     }
     return null;
+  }
+
+  /**
+   * Return the decor anchors for a room as { [propKey]: Anchor[] }.
+   * Empty object if the room has no decor. Scenes that want to use
+   * placed room signs / food props can iterate this and draw the
+   * matching texture at each anchor.
+   */
+  getDecor(roomKey: string): Record<string, Anchor[]> {
+    const room = this.data?.[roomKey];
+    if (!room) return {};
+    const decor = room.__decor as Record<string, Anchor[]> | undefined;
+    return decor ?? {};
   }
 }

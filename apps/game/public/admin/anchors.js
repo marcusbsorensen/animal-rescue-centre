@@ -1,4 +1,17 @@
 // A.R.C. Room Anchor Editor — pure DOM, no innerHTML for dynamic content
+//
+// Data model (room-anchors.json):
+//   {
+//     "corridor":  { "__decor": { "sign-cat": [{ x, y, scale, facing }, ...], ... } },
+//     "room-cat":  { "cat": { "sheltered": [{...}], "sleeping": [{...}] } },
+//     "kitchen":   { "__decor": { "food-kibble": [{...}], ... } },
+//     ...
+//   }
+//
+// Animal anchors live at data[room][species][state]; decorative props
+// (room signs, food bowls, etc.) live at data[room].__decor[key]. Keeping
+// them in separate branches means the runtime animal-loader keeps working
+// unchanged, and props can be consumed by the specific scene that cares.
 const ROOMS = [
   { key: 'room-cat',    label: 'Cat room',    bg: '/assets/bg/bg-room-cat.png'   },
   { key: 'room-dog',    label: 'Dog room',    bg: '/assets/bg/bg-room-dog.png'   },
@@ -11,27 +24,30 @@ const ROOMS = [
   { key: 'kitchen',     label: 'Kitchen',     bg: '/assets/bg/bg-kitchen.png'    },
   { key: 'garden',      label: 'Garden',      bg: '/assets/bg/bg-garden.png'     },
 ];
+const STATES = ['sheltered', 'sleeping', 'eating', 'arriving'];
 const SPECIES = ['cat','dog','bunny','fox','bat','parrot','snake'];
-const STATES  = ['sheltered','sleeping','eating','arriving'];
-const PALETTE = [];
-SPECIES.forEach(sp => STATES.forEach(st => PALETTE.push({ species: sp, state: st })));
 
-// In-game baseline: animal sprite ~100 wide in a 1280x720 viewport (~14% of height)
-// We use 16% of bg height at scale=1.0 so it looks "right" against room art.
-const BASE_SPRITE_FRACTION = 0.16;
+// In-game baseline: animal sprite ~100 wide in 1280x720 viewport (~14% of
+// height). Decor (room signs) is scaled relative to the bg width so a 1.0
+// scale sign reads like the in-game corridor sign.
+const BASE_SPRITE_FRACTION = 0.16;   // animals
+const BASE_DECOR_FRACTION  = 0.12;   // decor (bg-height-relative)
 
 let data = {};
 let currentRoom = ROOMS[0].key;
 let selectedAnchorEl = null;
 
-const stage = document.getElementById('stage');
-const bg = document.getElementById('bg');
-const roomPicker = document.getElementById('roomPicker');
-const palette = document.getElementById('palette');
-const json = document.getElementById('json');
-const anchorsList = document.getElementById('anchorsList');
-const selectedPanel = document.getElementById('selectedPanel');
+const stage        = document.getElementById('stage');
+const bg           = document.getElementById('bg');
+const roomPicker   = document.getElementById('roomPicker');
+const palette      = document.getElementById('palette');
+const json         = document.getElementById('json');
+const anchorsList  = document.getElementById('anchorsList');
+const selectedPanel= document.getElementById('selectedPanel');
+const paletteTitle = document.getElementById('paletteTitle');
+const paletteHint  = document.getElementById('paletteHint');
 
+// ── Helpers ────────────────────────────────────────────────
 function el(tag, opts) {
   const n = document.createElement(tag);
   if (opts) {
@@ -44,6 +60,83 @@ function el(tag, opts) {
 }
 function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
+// ── Scene-aware palette ────────────────────────────────────
+// Returns `{ title, hint, items: [{type, ...}] }` for the currently selected
+// scene. Palettes are intentionally narrow — you don't want to see cat
+// sprites when dressing the corridor.
+function paletteForScene(roomKey) {
+  if (roomKey === 'corridor') {
+    return {
+      title: 'Room signs',
+      hint:  'Drop a door sign to mark each species room.',
+      items: SPECIES.map(sp => ({
+        type: 'decor', key: `sign-${sp}`, label: `${sp} sign`,
+        src: `/assets/signs/sign-${sp}.png`,
+      })),
+    };
+  }
+  if (roomKey === 'kitchen') {
+    const foods = [
+      'berries','bone','carrot','chicken','egg','fish','fruit','hay',
+      'insects','kibble','lettuce','mouse','nuts','seeds','tuna',
+    ];
+    return {
+      title: 'Food props',
+      hint:  'Drop a food item onto a bowl or counter.',
+      items: foods.map(f => ({
+        type: 'decor', key: `food-${f}`, label: f,
+        src: `/assets/food/food-${f}.png`,
+      })),
+    };
+  }
+  if (roomKey === 'garden') {
+    return {
+      title: 'Garden',
+      hint:  'Garden anchors are placed by runtime — no palette items yet.',
+      items: [],
+    };
+  }
+  // room-<species>: show only that species' sprite states
+  const species = roomKey.replace(/^room-/, '');
+  return {
+    title: `${species} sprites`,
+    hint:  'Drag a state sprite to anchor where that pose should appear.',
+    items: STATES.map(state => ({
+      type: 'animal', species, state,
+      src: `/assets/animals/${species}-${state}.png`,
+      label: `${species} · ${state}`,
+    })),
+  };
+}
+
+function renderPalette() {
+  clear(palette);
+  const pal = paletteForScene(currentRoom);
+  paletteTitle.textContent = pal.title;
+  paletteHint.textContent  = pal.hint;
+  if (pal.items.length === 0) {
+    palette.appendChild(el('div', { class: 'empty', text: 'Nothing to place here.' }));
+    return;
+  }
+  pal.items.forEach(item => {
+    const chip = el('div', { class: 'chip' });
+    chip.draggable = true;
+    chip.dataset.payload = JSON.stringify(item);
+    const img = el('img');
+    img.src = item.src;
+    img.alt = item.label;
+    img.addEventListener('error', () => { img.style.opacity = 0.3; });
+    const l = el('div', { class: 'l', text: item.label });
+    chip.appendChild(img); chip.appendChild(l);
+    chip.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('application/x-arc-sprite', chip.dataset.payload);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    palette.appendChild(chip);
+  });
+}
+
+// ── Room picker ────────────────────────────────────────────
 ROOMS.forEach(r => {
   const opt = el('option', { text: r.label });
   opt.value = r.key;
@@ -51,24 +144,7 @@ ROOMS.forEach(r => {
 });
 roomPicker.addEventListener('change', () => loadRoom(roomPicker.value));
 
-PALETTE.forEach(p => {
-  const chip = el('div', { class: 'chip' });
-  chip.draggable = true;
-  chip.dataset.species = p.species;
-  chip.dataset.state = p.state;
-  const img = el('img');
-  img.src = `/assets/animals/${p.species}-${p.state}.png`;
-  img.alt = `${p.species} ${p.state}`;
-  img.addEventListener('error', () => { img.style.opacity = 0.3; });
-  const l = el('div', { class: 'l', text: `${p.species} · ${p.state}` });
-  chip.appendChild(img); chip.appendChild(l);
-  chip.addEventListener('dragstart', (e) => {
-    e.dataTransfer.setData('application/x-arc-sprite', JSON.stringify(p));
-    e.dataTransfer.effectAllowed = 'copy';
-  });
-  palette.appendChild(chip);
-});
-
+// ── Drop handling — scene-aware ────────────────────────────
 stage.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
 stage.addEventListener('drop', (e) => {
   e.preventDefault();
@@ -78,11 +154,16 @@ stage.addEventListener('drop', (e) => {
   const rect = bg.getBoundingClientRect();
   const x = (e.clientX - rect.left) / rect.width;
   const y = (e.clientY - rect.top) / rect.height;
-  addAnchor(currentRoom, p.species, p.state, { x, y, scale: 1.0, facing: 'right' });
+  if (p.type === 'animal') {
+    addAnimalAnchor(currentRoom, p.species, p.state, { x, y, scale: 1.0, facing: 'right' });
+  } else {
+    addDecorAnchor(currentRoom, p.key, { x, y, scale: 1.0, facing: 'right' });
+  }
   renderAnchors();
   emitJson();
 });
 
+// ── Toolbar ────────────────────────────────────────────────
 document.getElementById('exportJson').addEventListener('click', () => {
   const blob = new Blob([json.value], { type: 'application/json' });
   const a = document.createElement('a');
@@ -101,6 +182,7 @@ document.getElementById('jsonFile').addEventListener('change', async (e) => {
   renderAnchors(); emitJson();
 });
 
+// ── Keyboard controls (works for any selected anchor) ──────
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   const sel = selectedAnchorEl;
@@ -109,75 +191,109 @@ document.addEventListener('keydown', (e) => {
   const rect = bg.getBoundingClientRect();
   const a = sel._anchor;
   let changed = true;
-  if (e.key === 'ArrowLeft')  a.x -= step / rect.width;
+  if      (e.key === 'ArrowLeft')  a.x -= step / rect.width;
   else if (e.key === 'ArrowRight') a.x += step / rect.width;
-  else if (e.key === 'ArrowUp') a.y -= step / rect.height;
-  else if (e.key === 'ArrowDown') a.y += step / rect.height;
-  else if (e.key === '[') a.scale = Math.max(0.2, a.scale - 0.05);
-  else if (e.key === ']') a.scale = Math.min(3.0, a.scale + 0.05);
+  else if (e.key === 'ArrowUp')    a.y -= step / rect.height;
+  else if (e.key === 'ArrowDown')  a.y += step / rect.height;
+  else if (e.key === '[')          a.scale = Math.max(0.2, a.scale - 0.05);
+  else if (e.key === ']')          a.scale = Math.min(3.0, a.scale + 0.05);
   else if (e.key === 'f' || e.key === 'F') a.facing = a.facing === 'right' ? 'left' : 'right';
   else if (e.key === 'Delete' || e.key === 'Backspace') {
-    removeAnchor(sel._roomKey, sel._species, sel._state, sel._index);
-    selectedAnchorEl = null;
-    renderAnchors(); emitJson();
+    deleteSelected();
     return;
   } else changed = false;
   if (changed) { e.preventDefault(); renderAnchors(); emitJson(); }
 });
 
-function ensurePath(roomKey, species, state) {
+// ── Data mutations ─────────────────────────────────────────
+function ensureAnimalPath(roomKey, species, state) {
   if (!data[roomKey]) data[roomKey] = {};
   if (!data[roomKey][species]) data[roomKey][species] = {};
   if (!data[roomKey][species][state]) data[roomKey][species][state] = [];
 }
-function addAnchor(roomKey, species, state, anchor) {
-  ensurePath(roomKey, species, state);
+function ensureDecorPath(roomKey, propKey) {
+  if (!data[roomKey]) data[roomKey] = {};
+  if (!data[roomKey].__decor) data[roomKey].__decor = {};
+  if (!data[roomKey].__decor[propKey]) data[roomKey].__decor[propKey] = [];
+}
+function addAnimalAnchor(roomKey, species, state, anchor) {
+  ensureAnimalPath(roomKey, species, state);
   data[roomKey][species][state].push(anchor);
 }
-function removeAnchor(roomKey, species, state, i) {
+function addDecorAnchor(roomKey, propKey, anchor) {
+  ensureDecorPath(roomKey, propKey);
+  data[roomKey].__decor[propKey].push(anchor);
+}
+function removeAnimalAnchor(roomKey, species, state, i) {
   data[roomKey][species][state].splice(i, 1);
   if (data[roomKey][species][state].length === 0) delete data[roomKey][species][state];
   if (data[roomKey][species] && Object.keys(data[roomKey][species]).length === 0) delete data[roomKey][species];
+  // Clean up __decor holder if the room ends up empty apart from it
+  if (data[roomKey] && Object.keys(data[roomKey]).length === 0) delete data[roomKey];
+}
+function removeDecorAnchor(roomKey, propKey, i) {
+  data[roomKey].__decor[propKey].splice(i, 1);
+  if (data[roomKey].__decor[propKey].length === 0) delete data[roomKey].__decor[propKey];
+  if (Object.keys(data[roomKey].__decor).length === 0) delete data[roomKey].__decor;
+  if (data[roomKey] && Object.keys(data[roomKey]).length === 0) delete data[roomKey];
 }
 
+// ── Room loading ───────────────────────────────────────────
 function loadRoom(key) {
   currentRoom = key;
   const room = ROOMS.find(r => r.key === key);
   bg.src = room.bg;
   bg.onload = () => renderAnchors();
   selectedAnchorEl = null;
+  renderPalette();
   renderSelectedPanel();
 }
 
+// ── Render ─────────────────────────────────────────────────
 function renderAnchors() {
   Array.from(stage.querySelectorAll('.anchor')).forEach(n => n.remove());
   const room = data[currentRoom] || {};
   const rect = bg.getBoundingClientRect();
   if (!rect.width) return;
 
-  // In-game-equivalent sprite size: scale 1.0 = ~16% of bg height
-  const baseHeight = rect.height * BASE_SPRITE_FRACTION;
+  const animalBaseH = rect.height * BASE_SPRITE_FRACTION;
+  const decorBaseH  = rect.height * BASE_DECOR_FRACTION;
 
+  // Flatten all placeable anchors so we can render them in a uniform loop.
   const items = [];
-  Object.entries(room).forEach(([species, states]) => {
-    Object.entries(states).forEach(([state, anchors]) => {
-      anchors.forEach((a, i) => items.push({ species, state, index: i, a }));
-    });
+  Object.entries(room).forEach(([key, subtree]) => {
+    if (key === '__decor') {
+      Object.entries(subtree).forEach(([propKey, anchors]) => {
+        anchors.forEach((a, i) => items.push({ kind: 'decor', propKey, index: i, a }));
+      });
+    } else {
+      // key is a species; subtree is { state: [anchors] }
+      Object.entries(subtree).forEach(([state, anchors]) => {
+        anchors.forEach((a, i) => items.push({ kind: 'animal', species: key, state, index: i, a }));
+      });
+    }
   });
 
-  items.forEach(({species, state, index, a}) => {
-    // The anchor element is positioned at (x, y) — the FEET point.
-    // The dot is at the anchor element's centre = the feet point.
-    // The sprite image grows UP from this point so its bottom sits on the floor.
+  items.forEach((item) => {
+    const { kind, a } = item;
     const node = el('div', { class: 'anchor' });
     node.style.left = (a.x * 100) + '%';
     node.style.top  = (a.y * 100) + '%';
 
-    const spriteH = baseHeight * a.scale;
-
+    const spriteH = (kind === 'animal' ? animalBaseH : decorBaseH) * a.scale;
     const img = el('img');
-    img.src = `/assets/animals/${species}-${state}.png`;
-    // Position image so its BOTTOM-CENTRE sits at the dot (the feet anchor).
+    img.src = kind === 'animal'
+      ? `/assets/animals/${item.species}-${item.state}.png`
+      : `/assets/signs/${item.propKey}.png`; // covers sign-* and fab-* in signs dir
+    // fall back to food directory if the sign file 404s — lets kitchen
+    // items render too. Simpler than branching per kitchen/corridor.
+    img.addEventListener('error', () => {
+      if (kind === 'decor' && img.src.includes('/signs/')) {
+        img.src = img.src.replace('/signs/', '/food/');
+      } else {
+        img.style.display = 'none';
+      }
+    });
     img.style.position = 'absolute';
     img.style.left = '50%';
     img.style.bottom = '0';
@@ -186,15 +302,26 @@ function renderAnchors() {
     img.style.transform = `translateX(-50%) scaleX(${a.facing === 'left' ? -1 : 1})`;
     img.style.transformOrigin = 'bottom center';
     img.style.opacity = 0.92;
-    img.addEventListener('error', () => { img.style.display = 'none'; });
 
     const dot = el('div', { class: 'dot' });
-    const label = el('div', { class: 'label', text: `${species} · ${state}` });
+    const labelText = kind === 'animal'
+      ? `${item.species} · ${item.state}`
+      : item.propKey;
+    const label = el('div', { class: 'label', text: labelText });
     label.style.bottom = (spriteH + 6) + 'px';
     label.style.top = 'auto';
 
     node.appendChild(img); node.appendChild(dot); node.appendChild(label);
-    node._anchor = a; node._roomKey = currentRoom; node._species = species; node._state = state; node._index = index;
+    node._anchor = a;
+    node._roomKey = currentRoom;
+    node._kind = kind;
+    if (kind === 'animal') {
+      node._species = item.species;
+      node._state = item.state;
+    } else {
+      node._propKey = item.propKey;
+    }
+    node._index = item.index;
     node.addEventListener('mousedown', (ev) => {
       ev.preventDefault();
       selectAnchor(node);
@@ -235,11 +362,13 @@ function renderSelectedPanel() {
   }
   selectedPanel.className = '';
   const a = selectedAnchorEl._anchor;
+  const titleText = selectedAnchorEl._kind === 'animal'
+    ? `${selectedAnchorEl._species} · ${selectedAnchorEl._state}`
+    : selectedAnchorEl._propKey;
   const info = el('div', { style: { fontSize: '13px', marginBottom: '8px' } });
-  const title = el('strong', { text: `${selectedAnchorEl._species} · ${selectedAnchorEl._state}` });
-  info.appendChild(title);
+  info.appendChild(el('strong', { text: titleText }));
   info.appendChild(el('br'));
-  info.appendChild(document.createTextNode(`feet at x: ${(a.x*100).toFixed(1)}%, y: ${(a.y*100).toFixed(1)}%`));
+  info.appendChild(document.createTextNode(`anchor at x: ${(a.x*100).toFixed(1)}%, y: ${(a.y*100).toFixed(1)}%`));
   info.appendChild(el('br'));
   info.appendChild(document.createTextNode(`scale: ${a.scale.toFixed(2)} · facing: ${a.facing}`));
   selectedPanel.appendChild(info);
@@ -256,24 +385,43 @@ function renderAnchorsList() {
   clear(anchorsList);
   const room = data[currentRoom] || {};
   const items = [];
-  Object.entries(room).forEach(([species, states]) => {
-    Object.entries(states).forEach(([state, anchors]) => {
-      anchors.forEach((a, i) => items.push({ species, state, index: i, a }));
-    });
+  Object.entries(room).forEach(([key, subtree]) => {
+    if (key === '__decor') {
+      Object.entries(subtree).forEach(([propKey, anchors]) => {
+        anchors.forEach((a, i) => items.push({ kind: 'decor', propKey, index: i, a }));
+      });
+    } else {
+      Object.entries(subtree).forEach(([state, anchors]) => {
+        anchors.forEach((a, i) => items.push({ kind: 'animal', species: key, state, index: i, a }));
+      });
+    }
   });
   if (items.length === 0) {
-    const empty = el('div', { class: 'empty', text: 'No anchors yet. Drag a sprite from the left.' });
-    anchorsList.appendChild(empty);
+    anchorsList.appendChild(el('div', { class: 'empty', text: 'No anchors yet. Drag something from the left.' }));
     return;
   }
   items.forEach((it) => {
-    const sel = selectedAnchorEl && selectedAnchorEl._species === it.species && selectedAnchorEl._state === it.state && selectedAnchorEl._index === it.index;
+    let sel = false;
+    if (selectedAnchorEl && selectedAnchorEl._kind === it.kind && selectedAnchorEl._index === it.index) {
+      if (it.kind === 'animal') {
+        sel = selectedAnchorEl._species === it.species && selectedAnchorEl._state === it.state;
+      } else {
+        sel = selectedAnchorEl._propKey === it.propKey;
+      }
+    }
     const row = el('div', { class: 'item' + (sel ? ' selected' : '') });
-    row.appendChild(el('span', { text: `${it.species} · ${it.state} #${it.index}` }));
+    const labelText = it.kind === 'animal'
+      ? `${it.species} · ${it.state} #${it.index}`
+      : `${it.propKey} #${it.index}`;
+    row.appendChild(el('span', { text: labelText }));
     row.appendChild(el('span', { text: `(${(it.a.x*100).toFixed(0)}, ${(it.a.y*100).toFixed(0)})` }));
     row.addEventListener('click', () => {
       const anchorEls = Array.from(stage.querySelectorAll('.anchor'));
-      const match = anchorEls.find(en => en._species === it.species && en._state === it.state && en._index === it.index);
+      const match = anchorEls.find(en => {
+        if (en._kind !== it.kind || en._index !== it.index) return false;
+        if (it.kind === 'animal') return en._species === it.species && en._state === it.state;
+        return en._propKey === it.propKey;
+      });
       if (match) selectAnchor(match);
     });
     anchorsList.appendChild(row);
@@ -293,7 +441,12 @@ function toggleFacing() {
 }
 function deleteSelected() {
   if (!selectedAnchorEl) return;
-  removeAnchor(selectedAnchorEl._roomKey, selectedAnchorEl._species, selectedAnchorEl._state, selectedAnchorEl._index);
+  const sel = selectedAnchorEl;
+  if (sel._kind === 'animal') {
+    removeAnimalAnchor(sel._roomKey, sel._species, sel._state, sel._index);
+  } else {
+    removeDecorAnchor(sel._roomKey, sel._propKey, sel._index);
+  }
   selectedAnchorEl = null;
   renderAnchors(); emitJson();
 }
