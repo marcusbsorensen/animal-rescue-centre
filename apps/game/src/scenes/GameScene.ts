@@ -1095,26 +1095,64 @@ export class GameScene extends Phaser.Scene {
         signDisplayObj = signGfx;
       }
 
-      // Count badge in the top-right corner of the sign (painted signs only — the
-      // programmatic fallback already shows the count inline).
+      // Chalkboard hung on the door right under the sign, showing the current
+      // number of inhabitants in chalk-writing. Feels like something a child
+      // would have scribbled at the rescue centre rather than an app-style
+      // notification badge. Painted signs only — the programmatic fallback
+      // already renders the count inline.
       if (hasPainted && count > 0) {
-        const badgeR = Math.max(10, 14 * s);
-        const badgeX = x + signDisplay.w / 2 - badgeR * 0.4;
-        const badgeY = y - signDisplay.h / 2 + badgeR * 0.4;
-        const badgeGfx = this.add.graphics();
-        badgeGfx.fillStyle(0x000000, 0.28);
-        badgeGfx.fillCircle(badgeX + 1, badgeY + 2, badgeR);
-        badgeGfx.fillStyle(colour, 1);
-        badgeGfx.fillCircle(badgeX, badgeY, badgeR);
-        badgeGfx.lineStyle(2, 0xffffff, 0.95);
-        badgeGfx.strokeCircle(badgeX, badgeY, badgeR);
-        this.gameContainer.add(badgeGfx);
-        this.gameContainer.add(
-          this.add.text(badgeX, badgeY, String(count), {
-            fontSize: `${Math.round(badgeR * 1.2)}px`, fontFamily: FONTS.title,
-            fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
-          }).setOrigin(0.5)
+        const boardW = Math.max(44, 58 * s);
+        const boardH = Math.max(30, 38 * s);
+        const boardX = x;
+        const boardY = y + signDisplay.h / 2 + boardH / 2 + 6 * s;
+        // Slight hand-hung tilt, seeded by species so it's stable across frames.
+        const tiltSeed = species.charCodeAt(0) % 5;
+        const tilt = Phaser.Math.DegToRad(-2 + tiltSeed);
+
+        // Draw the board in local coords so rotation pivots on its centre.
+        const innerPad = Math.max(3, 4 * s);
+        const boardGfx = this.add.graphics();
+        boardGfx.x = boardX;
+        boardGfx.y = boardY;
+        boardGfx.setRotation(tilt);
+        // Soft drop shadow
+        boardGfx.fillStyle(0x000000, 0.22);
+        boardGfx.fillRoundedRect(-boardW / 2 + 2, -boardH / 2 + 3, boardW, boardH, 4);
+        // Wooden frame
+        boardGfx.fillStyle(0x6b4423, 1);
+        boardGfx.fillRoundedRect(-boardW / 2, -boardH / 2, boardW, boardH, 4);
+        // Slate surface
+        boardGfx.fillStyle(0x1e3a2a, 1);
+        boardGfx.fillRoundedRect(
+          -boardW / 2 + innerPad, -boardH / 2 + innerPad,
+          boardW - innerPad * 2, boardH - innerPad * 2, 2
         );
+        // Chalk smudge highlight so the slate doesn't read as a flat block
+        boardGfx.fillStyle(0xffffff, 0.05);
+        boardGfx.fillEllipse(0, -boardH * 0.18, boardW * 0.6, boardH * 0.25);
+        this.gameContainer.add(boardGfx);
+
+        // Tiny hanging string from sign to chalkboard
+        const stringGfx = this.add.graphics();
+        stringGfx.lineStyle(1, 0x3a2a1a, 0.55);
+        stringGfx.lineBetween(
+          boardX - boardW * 0.25, y + signDisplay.h / 2 + 1,
+          boardX - boardW * 0.25, boardY - boardH / 2
+        );
+        stringGfx.lineBetween(
+          boardX + boardW * 0.25, y + signDisplay.h / 2 + 1,
+          boardX + boardW * 0.25, boardY - boardH / 2
+        );
+        this.gameContainer.add(stringGfx);
+
+        const chalkText = this.add.text(boardX, boardY + 2 * s, String(count), {
+          fontSize: `${Math.round(boardH * 0.85)}px`,
+          fontFamily: FONTS.chalk,
+          fontStyle: 'bold',
+          color: '#fffaf0',
+          resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5).setRotation(tilt).setAlpha(0.95);
+        this.gameContainer.add(chalkText);
       }
 
       // Hit area over the sign

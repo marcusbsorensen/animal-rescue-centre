@@ -42,6 +42,9 @@ export const COLOURS = {
 export const FONTS = {
   title: '"Nunito", "Baloo 2", "Fredoka", system-ui, -apple-system, sans-serif',
   body: '"Nunito", system-ui, -apple-system, sans-serif',
+  // Handwritten / chalk style — used for chalkboards, hand-hung notes,
+  // anywhere we want the feel of marker or chalk rather than printed type.
+  chalk: '"Caveat", "Patrick Hand", "Comic Sans MS", cursive',
 } as const;
 
 export const AVATAR_EMOJIS = [
