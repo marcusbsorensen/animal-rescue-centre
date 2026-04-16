@@ -83,6 +83,19 @@
     font-style: italic;
     color: var(--muted);
   }
+  /* Vertical divider between basic states and emotional states */
+  th.group-start, td.group-start {
+    border-left: 2px dashed #f0d9b8;
+    padding-left: 10px;
+  }
+  body[data-bg="dark"] th.group-start,
+  body[data-bg="dark"] td.group-start { border-left-color: #555; }
+  th.group-label {
+    text-align: left;
+    color: var(--accent);
+    font-style: italic;
+    padding-left: 10px;
+  }
 
   .cell {
     background:
@@ -173,7 +186,13 @@
     parrot: ['budgie', 'cockatiel', 'grey', 'macaw', 'lovebird'],
     snake:  ['corn', 'python', 'king', 'garter', 'hognose'],
   };
-  const STATES = ['arriving', 'sheltered', 'eating', 'sleeping', 'walking'];
+  // Two state groups — basic in-game states and emotional/conflict states.
+  // The divider between them renders as a dashed left border on the first
+  // emotional column, so it's easy to see at a glance which per-variant
+  // sprites are for conflict/incident screens.
+  const BASIC_STATES = ['arriving', 'sheltered', 'eating', 'sleeping', 'walking'];
+  const EMOTIONAL_STATES = ['growling', 'grumpy', 'scared', 'sick'];
+  const STATES = [...BASIC_STATES, ...EMOTIONAL_STATES];
 
   const root = document.getElementById('grid-root');
   const statusEl = document.getElementById('status');
@@ -191,6 +210,7 @@
     const src = '/assets/animals/' + prefix + '-' + state + '.png';
 
     const td = document.createElement('td');
+    if (state === EMOTIONAL_STATES[0]) td.className = 'group-start';
     const cell = document.createElement('div');
     cell.className = 'cell';
 
@@ -233,6 +253,7 @@
     for (const state of STATES) {
       const th = document.createElement('th');
       th.textContent = state;
+      if (state === EMOTIONAL_STATES[0]) th.className = 'group-start';
       headRow.appendChild(th);
     }
     thead.appendChild(headRow);
