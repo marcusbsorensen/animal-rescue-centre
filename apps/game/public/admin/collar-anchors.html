@@ -99,6 +99,11 @@
   .handle:active { cursor: grabbing; }
   .handle.left  { background: #3498db; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3498db, 0 2px 6px rgba(0,0,0,0.3); }
   .handle.right { background: #e74c3c; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #e74c3c, 0 2px 6px rgba(0,0,0,0.3); }
+  .handle.mask-center { background: #16a085; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #16a085, 0 2px 6px rgba(0,0,0,0.3); }
+  .handle.mask-w      { background: #1abc9c; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1abc9c, 0 2px 6px rgba(0,0,0,0.3); }
+  .handle.mask-h      { background: #1abc9c; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1abc9c, 0 2px 6px rgba(0,0,0,0.3); }
+  .handle.rotate      { background: #9b59b6; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #9b59b6, 0 2px 6px rgba(0,0,0,0.3); }
+  .handle[hidden] { display: none !important; }
 
   .hint { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.4; text-align: center; }
 
@@ -124,6 +129,8 @@
     <h1>Collar Anchor Editor</h1>
     <div class="controls">
       <label class="toggle">Collar colour: <input type="color" id="collarColor" value="#ff6b9d"></label>
+      <label class="toggle"><input type="checkbox" id="maskToggle"> Neck mask</label>
+      <button id="clearMask" title="Remove mask from current entry" style="display:none;">Clear mask</button>
       <button id="loadJson">Load JSON</button>
       <input type="file" id="jsonFile" accept="application/json" style="display:none">
       <button id="exportJson" class="primary">Download JSON</button>
@@ -146,8 +153,15 @@
       <div class="handle center" id="handleCenter"></div>
       <div class="handle left"   id="handleLeft"></div>
       <div class="handle right"  id="handleRight"></div>
+      <div class="handle rotate"      id="handleRotate"></div>
+      <div class="handle mask-center" id="handleMaskCenter" hidden></div>
+      <div class="handle mask-w"      id="handleMaskW"      hidden></div>
+      <div class="handle mask-h"      id="handleMaskH"      hidden></div>
     </div>
-    <div class="hint">Drag the orange dot to move the collar. Drag the blue/red dots to resize it. Switch species in the left panel.</div>
+    <div class="hint">
+      Orange = collar centre. Blue / red = collar width. Purple = rotate.<br>
+      Tick <strong>Neck mask</strong> to hide the part of the collar behind the neck &mdash; teal dot moves the mask, teal outlines resize it.
+    </div>
   </main>
 
   <aside class="right">
@@ -171,6 +185,8 @@ const SPECIES_VARIANTS = {
 };
 
 const DEFAULT_ANCHOR = { dx: 0.10, dy: -0.10, widthFrac: 0.40, heightFrac: 0.09 };
+// Default mask shape used when first enabling "Neck mask" on an entry.
+const DEFAULT_MASK = { maskDx: 0.0, maskDy: -0.08, maskWidthFrac: 0.28, maskHeightFrac: 0.22 };
 
 let data = {};
 let currentSpecies = 'cat';
@@ -183,6 +199,12 @@ const els = {
   hCenter: document.getElementById('handleCenter'),
   hLeft: document.getElementById('handleLeft'),
   hRight: document.getElementById('handleRight'),
+  hRotate: document.getElementById('handleRotate'),
+  hMaskCenter: document.getElementById('handleMaskCenter'),
+  hMaskW: document.getElementById('handleMaskW'),
+  hMaskH: document.getElementById('handleMaskH'),
+  maskToggle: document.getElementById('maskToggle'),
+  clearMask: document.getElementById('clearMask'),
   speciesList: document.getElementById('speciesList'),
   variantList: document.getElementById('variantList'),
   json: document.getElementById('json'),
@@ -194,6 +216,10 @@ const els = {
   exportJson: document.getElementById('exportJson'),
   copyJson: document.getElementById('copyJson'),
 };
+
+function hasMask(a) {
+  return a && a.maskWidthFrac != null && a.maskHeightFrac != null;
+}
 
 function clearChildren(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
@@ -246,12 +272,66 @@ function renderCollar() {
   const cy = r.top + r.height / 2 + a.dy * r.height;
   const rw = a.widthFrac * r.width;
   const rh = (a.heightFrac || 0.09) * r.height;
+  const rotationDeg = a.rotation || 0;
+  const rotationRad = rotationDeg * Math.PI / 180;
+  const cosR = Math.cos(rotationRad);
+  const sinR = Math.sin(rotationRad);
 
   const color = els.collarColor.value;
+  const hasMaskFields = hasMask(a);
 
   els.overlay.setAttribute('width', els.stage.clientWidth);
   els.overlay.setAttribute('height', els.stage.clientHeight);
   clearChildren(els.overlay);
+
+  // If a neck mask is defined, wrap the collar shapes in an SVG <mask> so the
+  // portion inside the mask ellipse is rendered transparent ("behind" the
+  // neck). White = visible, black = hidden in SVG masks.
+  let maskedParent = els.overlay;
+  let mcx = 0, mcy = 0, mrw = 0, mrh = 0;
+  if (hasMaskFields) {
+    mcx = r.left + r.width / 2 + a.maskDx * r.width;
+    mcy = r.top + r.height / 2 + a.maskDy * r.height;
+    mrw = a.maskWidthFrac * r.width;
+    mrh = a.maskHeightFrac * r.height;
+
+    const defs = document.createElementNS(SVG_NS, 'defs');
+    const mask = document.createElementNS(SVG_NS, 'mask');
+    mask.setAttribute('id', 'collar-mask');
+    mask.setAttribute('maskUnits', 'userSpaceOnUse');
+
+    const fullRect = document.createElementNS(SVG_NS, 'rect');
+    fullRect.setAttribute('x', 0);
+    fullRect.setAttribute('y', 0);
+    fullRect.setAttribute('width', els.stage.clientWidth);
+    fullRect.setAttribute('height', els.stage.clientHeight);
+    fullRect.setAttribute('fill', 'white');
+    mask.appendChild(fullRect);
+
+    const cutout = document.createElementNS(SVG_NS, 'ellipse');
+    cutout.setAttribute('cx', mcx);
+    cutout.setAttribute('cy', mcy);
+    cutout.setAttribute('rx', mrw / 2);
+    cutout.setAttribute('ry', mrh / 2);
+    cutout.setAttribute('fill', 'black');
+    mask.appendChild(cutout);
+
+    defs.appendChild(mask);
+    els.overlay.appendChild(defs);
+
+    const mgroup = document.createElementNS(SVG_NS, 'g');
+    mgroup.setAttribute('mask', 'url(#collar-mask)');
+    els.overlay.appendChild(mgroup);
+    maskedParent = mgroup;
+  }
+
+  // Rotation group — all collar shapes live inside so they share the
+  // same rotation pivot (the collar centre).
+  const rotGroup = document.createElementNS(SVG_NS, 'g');
+  if (rotationDeg !== 0) {
+    rotGroup.setAttribute('transform', `rotate(${rotationDeg}, ${cx}, ${cy})`);
+  }
+  maskedParent.appendChild(rotGroup);
 
   const ring = document.createElementNS(SVG_NS, 'ellipse');
   ring.setAttribute('cx', cx);
@@ -261,7 +341,7 @@ function renderCollar() {
   ring.setAttribute('fill', 'none');
   ring.setAttribute('stroke', color);
   ring.setAttribute('stroke-width', Math.max(2, r.height * 0.025));
-  els.overlay.appendChild(ring);
+  rotGroup.appendChild(ring);
 
   const inner = document.createElementNS(SVG_NS, 'ellipse');
   inner.setAttribute('cx', cx);
@@ -271,7 +351,7 @@ function renderCollar() {
   inner.setAttribute('fill', 'none');
   inner.setAttribute('stroke', '#ffffffb0');
   inner.setAttribute('stroke-width', Math.max(1, r.height * 0.008));
-  els.overlay.appendChild(inner);
+  rotGroup.appendChild(inner);
 
   const tagR = Math.max(3, r.height * 0.03);
   const tagY = cy + rh * 0.55 + tagR * 0.3;
@@ -282,21 +362,69 @@ function renderCollar() {
   tag.setAttribute('fill', color);
   tag.setAttribute('stroke', '#fff');
   tag.setAttribute('stroke-width', 1);
-  els.overlay.appendChild(tag);
+  rotGroup.appendChild(tag);
 
   const dot = document.createElementNS(SVG_NS, 'circle');
   dot.setAttribute('cx', cx);
   dot.setAttribute('cy', tagY);
   dot.setAttribute('r', Math.max(1, tagR * 0.5));
   dot.setAttribute('fill', '#ffd700');
-  els.overlay.appendChild(dot);
+  rotGroup.appendChild(dot);
+
+  // Draw the mask outline on top (outside the mask group) so the user can see
+  // where the neck mask is while editing. Dashed + semi-transparent so it
+  // doesn't clash with the actual collar.
+  if (hasMaskFields) {
+    const maskOutline = document.createElementNS(SVG_NS, 'ellipse');
+    maskOutline.setAttribute('cx', mcx);
+    maskOutline.setAttribute('cy', mcy);
+    maskOutline.setAttribute('rx', mrw / 2);
+    maskOutline.setAttribute('ry', mrh / 2);
+    maskOutline.setAttribute('fill', 'rgba(22, 160, 133, 0.08)');
+    maskOutline.setAttribute('stroke', '#16a085');
+    maskOutline.setAttribute('stroke-width', 1.5);
+    maskOutline.setAttribute('stroke-dasharray', '4 4');
+    els.overlay.appendChild(maskOutline);
+  }
+
+  // Handle positions — width handles sit at the rotated left/right edges
+  // of the ellipse; the rotate handle sits above the rotated ring.
+  const halfW = rw / 2;
+  const leftX  = cx - halfW * cosR;
+  const leftY  = cy - halfW * sinR;
+  const rightX = cx + halfW * cosR;
+  const rightY = cy + halfW * sinR;
+
+  const rotateRadius = Math.max(40, rh * 0.6 + 28);
+  // "Above" the collar in its rotated frame = (0, -rotateRadius) before rotation.
+  const rotX = cx - (-rotateRadius) * sinR; // = cx + rotateRadius * sinR
+  const rotY = cy + (-rotateRadius) * cosR;
 
   els.hCenter.style.left = cx + 'px';
   els.hCenter.style.top = cy + 'px';
-  els.hLeft.style.left = (cx - rw / 2) + 'px';
-  els.hLeft.style.top = cy + 'px';
-  els.hRight.style.left = (cx + rw / 2) + 'px';
-  els.hRight.style.top = cy + 'px';
+  els.hLeft.style.left = leftX + 'px';
+  els.hLeft.style.top = leftY + 'px';
+  els.hRight.style.left = rightX + 'px';
+  els.hRight.style.top = rightY + 'px';
+  els.hRotate.style.left = rotX + 'px';
+  els.hRotate.style.top = rotY + 'px';
+
+  // Mask handles (only shown when the mask is enabled for this entry).
+  const showMaskHandles = hasMaskFields;
+  els.hMaskCenter.hidden = !showMaskHandles;
+  els.hMaskW.hidden = !showMaskHandles;
+  els.hMaskH.hidden = !showMaskHandles;
+  els.clearMask.style.display = showMaskHandles ? '' : 'none';
+  if (showMaskHandles) {
+    els.hMaskCenter.style.left = mcx + 'px';
+    els.hMaskCenter.style.top  = mcy + 'px';
+    els.hMaskW.style.left      = (mcx + mrw / 2) + 'px';
+    els.hMaskW.style.top       = mcy + 'px';
+    els.hMaskH.style.left      = mcx + 'px';
+    els.hMaskH.style.top       = (mcy + mrh / 2) + 'px';
+  }
+  // Keep the toggle in sync with the underlying data for the current entry.
+  els.maskToggle.checked = hasMaskFields;
 }
 
 function renderValues() {
@@ -305,11 +433,21 @@ function renderValues() {
   const hasOwn = !!data[key];
   const source = hasOwn ? 'this entry' : (data[currentSpecies] ? 'species default' : 'built-in default');
   els.currentLabel.textContent = key + ' (' + source + ')';
-  els.values.textContent =
+  let text =
     'dx=' + a.dx.toFixed(3) +
     '  dy=' + a.dy.toFixed(3) +
     '  widthFrac=' + a.widthFrac.toFixed(3) +
     '  heightFrac=' + (a.heightFrac != null ? a.heightFrac : 0.09).toFixed(3);
+  if (a.rotation) text += '  rotation=' + a.rotation.toFixed(1) + '\u00B0';
+  if (hasMask(a)) {
+    text +=
+      '\nmaskDx=' + a.maskDx.toFixed(3) +
+      '  maskDy=' + a.maskDy.toFixed(3) +
+      '  maskWidthFrac=' + a.maskWidthFrac.toFixed(3) +
+      '  maskHeightFrac=' + a.maskHeightFrac.toFixed(3);
+  }
+  els.values.textContent = text;
+  els.values.style.whiteSpace = 'pre';
 }
 
 function renderJson() {
@@ -343,20 +481,68 @@ startDrag(els.hCenter, (px, py) => {
   setAnchor({ dx, dy });
 });
 
-startDrag(els.hLeft, (px) => {
+// Width handles — distance-from-centre so dragging works naturally
+// regardless of how the collar is rotated.
+startDrag(els.hLeft, (px, py) => {
   const r = spriteRect();
   const a = currentAnchor();
   const cx = r.left + r.width / 2 + a.dx * r.width;
-  const widthPx = Math.max(8, (cx - px) * 2);
+  const cy = r.top + r.height / 2 + a.dy * r.height;
+  const widthPx = Math.max(8, Math.hypot(px - cx, py - cy) * 2);
   setAnchor({ widthFrac: widthPx / r.width });
 });
 
-startDrag(els.hRight, (px) => {
+startDrag(els.hRight, (px, py) => {
   const r = spriteRect();
   const a = currentAnchor();
   const cx = r.left + r.width / 2 + a.dx * r.width;
-  const widthPx = Math.max(8, (px - cx) * 2);
+  const cy = r.top + r.height / 2 + a.dy * r.height;
+  const widthPx = Math.max(8, Math.hypot(px - cx, py - cy) * 2);
   setAnchor({ widthFrac: widthPx / r.width });
+});
+
+// Rotate handle — set rotation to the angle from collar centre to pointer,
+// offset by 90° so that dragging the handle straight up yields rotation=0.
+startDrag(els.hRotate, (px, py) => {
+  const r = spriteRect();
+  const a = currentAnchor();
+  const cx = r.left + r.width / 2 + a.dx * r.width;
+  const cy = r.top + r.height / 2 + a.dy * r.height;
+  const angleRad = Math.atan2(py - cy, px - cx);
+  let rotation = (angleRad * 180 / Math.PI) + 90;
+  // Normalise to (-180, 180]
+  if (rotation > 180)  rotation -= 360;
+  if (rotation <= -180) rotation += 360;
+  setAnchor({ rotation });
+});
+
+startDrag(els.hMaskCenter, (px, py) => {
+  if (!hasMask(currentAnchor())) return;
+  const r = spriteRect();
+  const centreX = r.left + r.width / 2;
+  const centreY = r.top + r.height / 2;
+  setAnchor({
+    maskDx: (px - centreX) / r.width,
+    maskDy: (py - centreY) / r.height,
+  });
+});
+
+startDrag(els.hMaskW, (px) => {
+  const a = currentAnchor();
+  if (!hasMask(a)) return;
+  const r = spriteRect();
+  const mcx = r.left + r.width / 2 + a.maskDx * r.width;
+  const widthPx = Math.max(8, (px - mcx) * 2);
+  setAnchor({ maskWidthFrac: widthPx / r.width });
+});
+
+startDrag(els.hMaskH, (_px, py) => {
+  const a = currentAnchor();
+  if (!hasMask(a)) return;
+  const r = spriteRect();
+  const mcy = r.top + r.height / 2 + a.maskDy * r.height;
+  const heightPx = Math.max(8, (py - mcy) * 2);
+  setAnchor({ maskHeightFrac: heightPx / r.height });
 });
 
 function renderSpeciesList() {
@@ -482,6 +668,36 @@ els.copyJson.addEventListener('click', async () => {
 });
 
 els.collarColor.addEventListener('input', renderCollar);
+
+els.maskToggle.addEventListener('change', () => {
+  const a = currentAnchor();
+  if (els.maskToggle.checked) {
+    // Seed default mask values on the current entry if it doesn't already
+    // have them. Existing collar dx/dy/widthFrac/heightFrac are preserved.
+    if (!hasMask(a)) setAnchor({ ...DEFAULT_MASK });
+    else renderCollar();
+  } else {
+    // Strip mask keys from the current entry.
+    const key = currentKey();
+    const existing = data[key] || data[currentSpecies];
+    if (existing) {
+      const next = { ...existing };
+      delete next.maskDx;
+      delete next.maskDy;
+      delete next.maskWidthFrac;
+      delete next.maskHeightFrac;
+      data[key] = next;
+    }
+    renderCollar();
+    renderValues();
+    renderJson();
+  }
+});
+
+els.clearMask.addEventListener('click', () => {
+  els.maskToggle.checked = false;
+  els.maskToggle.dispatchEvent(new Event('change'));
+});
 
 async function bootstrap() {
   try {

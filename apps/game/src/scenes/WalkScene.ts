@@ -578,13 +578,18 @@ export class WalkScene extends Phaser.Scene {
   /**
    * Build the collar overlay for the walking sprite: a thin ring around
    * the neck in the chosen collar colour, plus a small gold-centred tag
-   * dangling just below. Returns a Graphics positioned relative to the
+   * dangling just below. Returns a Container positioned relative to the
    * sprite centre (0, 0). Anchor positions come from the hand-placed
    * /data/collar-anchors.json (see admin/collar-anchors.html).
+   *
+   * If the anchor defines a neck mask (maskDx/maskDy/maskWidthFrac/
+   * maskHeightFrac) the portion of the collar inside that ellipse is
+   * hidden via an inverted geometry mask — this sells the illusion that
+   * the back of the collar is hidden behind the animal's neck.
    */
-  private drawWalkCollar(spriteSize: number): Phaser.GameObjects.Graphics {
-    const g = this.add.graphics();
-    if (!this.gridState) return g;
+  private drawWalkCollar(spriteSize: number): Phaser.GameObjects.Container {
+    const container = this.add.container(0, 0);
+    if (!this.gridState) return container;
 
     const { species, variant } = this.gridState.animal;
     const anchor = CollarAnchors.getInstance().get(species, variant);
@@ -597,24 +602,61 @@ export class WalkScene extends Phaser.Scene {
 
     const rgb = Phaser.Display.Color.HexStringToColor(this.selectedCollarHex).color;
 
-    // Collar ring — thin coloured band plus a subtle white inner highlight
-    // so the collar reads clearly against both dark and light fur.
+    // Draw collar geometry relative to (0, 0) so we can position + rotate
+    // the whole Graphics around the collar centre (cx, cy).
+    const g = this.add.graphics();
     g.lineStyle(strokeW, rgb, 1);
-    g.strokeEllipse(cx, cy, ellipseW, ellipseH);
+    g.strokeEllipse(0, 0, ellipseW, ellipseH);
     g.lineStyle(Math.max(1, strokeW * 0.4), 0xffffff, 0.7);
-    g.strokeEllipse(cx, cy, ellipseW, ellipseH);
+    g.strokeEllipse(0, 0, ellipseW, ellipseH);
 
-    // Dangling tag — coloured circle with gold centre dot
+    // Dangling tag — coloured circle with gold centre dot. Positioned
+    // below the ring in the collar's local frame so it rotates with it.
     const tagR = Math.max(2, spriteSize * 0.06);
-    const tagY = cy + ellipseH * 0.55 + tagR * 0.3;
+    const tagYOffset = ellipseH * 0.55 + tagR * 0.3;
     g.fillStyle(rgb, 1);
-    g.fillCircle(cx, tagY, tagR);
+    g.fillCircle(0, tagYOffset, tagR);
     g.fillStyle(0xffd700, 1);
-    g.fillCircle(cx, tagY, Math.max(1, tagR * 0.5));
+    g.fillCircle(0, tagYOffset, Math.max(1, tagR * 0.5));
     g.lineStyle(1, 0xffffff, 0.85);
-    g.strokeCircle(cx, tagY, tagR);
+    g.strokeCircle(0, tagYOffset, tagR);
 
-    return g;
+    g.setPosition(cx, cy);
+    const rotationDeg = anchor.rotation ?? 0;
+    if (rotationDeg !== 0) g.setRotation(rotationDeg * Math.PI / 180);
+
+    container.add(g);
+
+    // Apply the neck mask if the anchor defines one. Geometry masks in
+    // Phaser use world-space coordinates, so the mask shape has to live
+    // on the player container (not on this inner container) — we add it
+    // to the player container later in renderPlayer(), but its position
+    // still needs to track the sprite. Simplest: build the mask graphics
+    // here with coords relative to the sprite centre, add it to this
+    // container alongside the collar, hide it, and use it as the mask.
+    if (
+      anchor.maskWidthFrac != null &&
+      anchor.maskHeightFrac != null &&
+      anchor.maskDx != null &&
+      anchor.maskDy != null
+    ) {
+      const maskShape = this.add.graphics();
+      maskShape.fillStyle(0xffffff, 1);
+      maskShape.fillEllipse(
+        anchor.maskDx * spriteSize,
+        anchor.maskDy * spriteSize,
+        anchor.maskWidthFrac * spriteSize,
+        anchor.maskHeightFrac * spriteSize,
+      );
+      maskShape.setVisible(false);
+      container.add(maskShape);
+
+      const geomMask = maskShape.createGeometryMask();
+      geomMask.setInvertAlpha(true);
+      g.setMask(geomMask);
+    }
+
+    return container;
   }
 
   private renderNPCs(): void {

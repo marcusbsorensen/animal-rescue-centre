@@ -28,6 +28,17 @@ export interface CollarAnchor {
   dy: number;
   widthFrac: number;
   heightFrac?: number;
+  // Optional tilt of the collar in degrees, rotated around the collar
+  // centre. Positive = clockwise. Lets animals whose heads dip forward
+  // (sniffing dogs, crouching cats) wear a collar that follows the
+  // slope of the neck rather than sitting perfectly horizontal.
+  rotation?: number;
+  // Optional neck mask — if all four are present, the portion of the collar
+  // inside this ellipse is hidden (represents the occluding neck mass).
+  maskDx?: number;
+  maskDy?: number;
+  maskWidthFrac?: number;
+  maskHeightFrac?: number;
 }
 
 const DEFAULT_ANCHOR: CollarAnchor = {
