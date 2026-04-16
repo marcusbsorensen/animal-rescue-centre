@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AssetLoader } from '../lib/AssetLoader';
 import { RoomAnchors } from '../lib/RoomAnchors';
+import { CollarAnchors } from '../lib/CollarAnchors';
 
 /**
  * BootScene — ultra-fast boot that gets kids to the menu in <1 second.
@@ -33,6 +34,9 @@ export class BootScene extends Phaser.Scene {
 
     // Kick off room-anchors JSON fetch in parallel — non-blocking, used by GameScene
     RoomAnchors.getInstance().load();
+    // Collar anchors JSON — hand-placed neck positions for the walking
+    // player sprite in WalkScene.
+    CollarAnchors.getInstance().load();
 
     // Fetch manifest, then load logo, then transition
     const loader = AssetLoader.getInstance();

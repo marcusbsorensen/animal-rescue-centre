@@ -21,6 +21,7 @@ import type {
 } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
+import { CollarAnchors } from '../lib/CollarAnchors';
 
 type WalkPhase = 'collar' | 'select_zone' | 'exploring' | 'road_crossing' | 'interaction' | 'encounter' | 'results';
 
@@ -59,7 +60,9 @@ export class WalkScene extends Phaser.Scene {
   private dpadContainer!: Phaser.GameObjects.Container;
   private overlayContainer!: Phaser.GameObjects.Container;
 
-  // Player sprite on grid
+  // Player sprite on grid — wrapped in a container together with the
+  // collar overlay so they move and flip as one unit.
+  private playerContainer?: Phaser.GameObjects.Container;
   private playerSprite?: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
   private npcSprites: Map<string, Phaser.GameObjects.Image | Phaser.GameObjects.Text | Phaser.GameObjects.Rectangle> = new Map();
 
@@ -177,6 +180,7 @@ export class WalkScene extends Phaser.Scene {
     this.dpadContainer.removeAll(true);
     this.overlayContainer.removeAll(true);
     this.playerSprite = undefined;
+    this.playerContainer = undefined;
     this.npcSprites.clear();
   }
 
@@ -545,14 +549,72 @@ export class WalkScene extends Phaser.Scene {
     const { x, y } = this.tileToScreen(this.gridState.playerRow, this.gridState.playerCol);
     const spriteSize = this.cellSize * 0.85;
 
+    // Container so the sprite + collar move and flip together. Phaser
+    // containers don't flip children with setFlipX, so we mirror via
+    // scaleX = -1. That keeps the visual offset of the collar on the
+    // front of the body correct whichever way the pet is walking.
+    const container = this.add.container(x, y);
+
     // Use 'walking' state so we pick up walking-pose art when it exists.
     // createAnimalSprite falls back to 'sheltered' for species that don't
     // yet have a dedicated walking sprite.
-    this.playerSprite = createAnimalSprite(this, x, y, this.gridState.animal, {
+    const sprite = createAnimalSprite(this, 0, 0, this.gridState.animal, {
       width: spriteSize, height: spriteSize * 0.8,
       stateOverride: 'walking',
     });
-    this.gridContainer.add(this.playerSprite);
+    container.add(sprite);
+
+    // Collar overlay — visible proof that the kid's chosen/earned collar
+    // is actually being worn by their pet on the walk. Drawn on top of
+    // the walking sprite at an anatomically-reasonable neck position.
+    const collar = this.drawWalkCollar(spriteSize);
+    container.add(collar);
+
+    this.gridContainer.add(container);
+    this.playerContainer = container;
+    this.playerSprite = sprite;
+  }
+
+  /**
+   * Build the collar overlay for the walking sprite: a thin ring around
+   * the neck in the chosen collar colour, plus a small gold-centred tag
+   * dangling just below. Returns a Graphics positioned relative to the
+   * sprite centre (0, 0). Anchor positions come from the hand-placed
+   * /data/collar-anchors.json (see admin/collar-anchors.html).
+   */
+  private drawWalkCollar(spriteSize: number): Phaser.GameObjects.Graphics {
+    const g = this.add.graphics();
+    if (!this.gridState) return g;
+
+    const { species, variant } = this.gridState.animal;
+    const anchor = CollarAnchors.getInstance().get(species, variant);
+
+    const cx = anchor.dx * spriteSize;
+    const cy = anchor.dy * spriteSize;
+    const ellipseW = anchor.widthFrac * spriteSize;
+    const ellipseH = Math.max(3, spriteSize * (anchor.heightFrac ?? 0.09));
+    const strokeW = Math.max(1.5, spriteSize * 0.035);
+
+    const rgb = Phaser.Display.Color.HexStringToColor(this.selectedCollarHex).color;
+
+    // Collar ring — thin coloured band plus a subtle white inner highlight
+    // so the collar reads clearly against both dark and light fur.
+    g.lineStyle(strokeW, rgb, 1);
+    g.strokeEllipse(cx, cy, ellipseW, ellipseH);
+    g.lineStyle(Math.max(1, strokeW * 0.4), 0xffffff, 0.7);
+    g.strokeEllipse(cx, cy, ellipseW, ellipseH);
+
+    // Dangling tag — coloured circle with gold centre dot
+    const tagR = Math.max(2, spriteSize * 0.06);
+    const tagY = cy + ellipseH * 0.55 + tagR * 0.3;
+    g.fillStyle(rgb, 1);
+    g.fillCircle(cx, tagY, tagR);
+    g.fillStyle(0xffd700, 1);
+    g.fillCircle(cx, tagY, Math.max(1, tagR * 0.5));
+    g.lineStyle(1, 0xffffff, 0.85);
+    g.strokeCircle(cx, tagY, tagR);
+
+    return g;
   }
 
   private renderNPCs(): void {
@@ -738,26 +800,24 @@ export class WalkScene extends Phaser.Scene {
     this.isMoving = true;
     const { x, y } = this.tileToScreen(this.gridState.playerRow, this.gridState.playerCol);
 
-    if (this.playerSprite) {
-      // Face the direction we're moving. Walking sprites are side-facing, so
-      // we mirror them horizontally when moving left, and leave the up/down
-      // moves facing whichever way the sprite was already. Rectangles (the
-      // fallback when art is missing) don't support flipping.
-      if (this.playerSprite instanceof Phaser.GameObjects.Image) {
-        if (direction === 'left') this.playerSprite.setFlipX(true);
-        else if (direction === 'right') this.playerSprite.setFlipX(false);
-      }
+    if (this.playerContainer) {
+      // Face the direction we're moving. Walking sprites are side-facing,
+      // so we mirror the whole container (sprite + collar overlay) via
+      // scaleX = -1 when moving left. Up/down leave the facing unchanged.
+      // A plain Image fallback (no container) is handled below.
+      if (direction === 'left') this.playerContainer.setScale(-1, 1);
+      else if (direction === 'right') this.playerContainer.setScale(1, 1);
 
       // Small vertical bob to suggest a step.
       const baseY = y;
       this.tweens.add({
-        targets: this.playerSprite,
+        targets: this.playerContainer,
         x, y: baseY - 3,
         duration: 50,
         yoyo: true,
         ease: 'Sine.easeInOut',
         onComplete: () => {
-          if (this.playerSprite) this.playerSprite.y = baseY;
+          if (this.playerContainer) this.playerContainer.y = baseY;
           this.isMoving = false;
           this.handleTrigger(result.trigger, direction, result.npcId);
         },
@@ -974,6 +1034,7 @@ export class WalkScene extends Phaser.Scene {
     this.gridContainer.removeAll(true);
     this.npcSprites.clear();
     this.playerSprite = undefined;
+    this.playerContainer = undefined;
 
     const { map } = this.gridState;
     for (let r = 0; r < map.rows; r++) {

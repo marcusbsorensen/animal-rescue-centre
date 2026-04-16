@@ -1,0 +1,6 @@
+{
+  "cat": { "dx": 0.18, "dy": -0.08, "widthFrac": 0.38, "heightFrac": 0.09 },
+  "dog": { "dx": 0.20, "dy": -0.10, "widthFrac": 0.42, "heightFrac": 0.09 },
+  "fox": { "dx": 0.22, "dy": -0.08, "widthFrac": 0.40, "heightFrac": 0.09 },
+  "bunny": { "dx": 0.12, "dy": -0.12, "widthFrac": 0.36, "heightFrac": 0.09 }
+}

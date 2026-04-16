@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>A.R.C. — Collar Anchor Editor</title>
+<style>
+  :root {
+    --bg: #fff6eb; --panel: #fff; --ink: #3a2e20; --muted: #8a7864;
+    --accent: #e67e22; --green: #27ae60; --border: #eadbc5;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--ink); overflow: hidden;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr 320px;
+    grid-template-rows: 52px 1fr;
+    height: 100vh;
+  }
+  header {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 20px;
+    background: #fff; border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0; font-size: 16px; }
+  header .controls { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  button, select, input[type="color"] {
+    font: inherit; padding: 6px 10px;
+    border-radius: 6px; border: 1px solid #d9c4a0;
+    background: #fff; cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.green   { background: var(--green);  color: #fff; border-color: var(--green); }
+
+  aside {
+    background: var(--panel); overflow-y: auto;
+    border-right: 1px solid var(--border); padding: 16px;
+  }
+  aside.right { border-right: none; border-left: 1px solid var(--border); }
+  aside h3 {
+    margin: 4px 0 10px 0; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);
+  }
+
+  .list { display: flex; flex-direction: column; gap: 4px; }
+  .list .item {
+    padding: 6px 10px; border-radius: 6px;
+    cursor: pointer; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .list .item:hover { background: #fff6e8; }
+  .list .item.active { background: var(--accent); color: #fff; }
+  .list .item .check { font-size: 11px; opacity: 0.65; }
+
+  main {
+    position: relative; overflow: hidden;
+    background: #efe3d1;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    padding: 20px;
+  }
+  #stage {
+    position: relative;
+    background:
+      linear-gradient(45deg, #dcd0ba 25%, transparent 25%),
+      linear-gradient(-45deg, #dcd0ba 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #dcd0ba 75%),
+      linear-gradient(-45deg, transparent 75%, #dcd0ba 75%);
+    background-size: 24px 24px;
+    background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    background-color: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    border-radius: 6px;
+    overflow: hidden;
+    width: 520px; height: 520px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #stage img.sprite {
+    max-width: 100%; max-height: 100%;
+    image-rendering: -webkit-optimize-contrast;
+    user-select: none; -webkit-user-drag: none;
+  }
+  #overlay {
+    position: absolute; inset: 0; pointer-events: none;
+  }
+  .handle {
+    position: absolute;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent), 0 2px 6px rgba(0,0,0,0.3);
+    cursor: grab;
+    pointer-events: auto;
+    transform: translate(-50%, -50%);
+  }
+  .handle:active { cursor: grabbing; }
+  .handle.left  { background: #3498db; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3498db, 0 2px 6px rgba(0,0,0,0.3); }
+  .handle.right { background: #e74c3c; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #e74c3c, 0 2px 6px rgba(0,0,0,0.3); }
+
+  .hint { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.4; text-align: center; }
+
+  .values { font: 12px/1.5 ui-monospace, Menlo, monospace; color: var(--muted); }
+  .values .k { color: var(--ink); font-weight: 600; }
+  #json {
+    width: 100%; height: 220px;
+    font: 11px/1.4 ui-monospace, Menlo, monospace;
+    border: 1px solid #d9c4a0; border-radius: 6px;
+    padding: 8px; resize: vertical;
+  }
+  .row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>Collar Anchor Editor</h1>
+    <div class="controls">
+      <label class="toggle">Collar colour: <input type="color" id="collarColor" value="#ff6b9d"></label>
+      <button id="loadJson">Load JSON</button>
+      <input type="file" id="jsonFile" accept="application/json" style="display:none">
+      <button id="exportJson" class="primary">Download JSON</button>
+      <button id="copyJson" class="green">Copy</button>
+    </div>
+  </header>
+
+  <aside>
+    <h3>Species</h3>
+    <div class="list" id="speciesList"></div>
+    <h3 style="margin-top: 20px;">Variant (optional)</h3>
+    <p class="hint" style="text-align:left; margin: 0 0 8px 0;">Leaving "species default" selected edits the fallback used by every breed. Pick a named variant to override it for just that breed.</p>
+    <div class="list" id="variantList"></div>
+  </aside>
+
+  <main>
+    <div id="stage">
+      <img id="sprite" class="sprite" alt="">
+      <svg id="overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="handle center" id="handleCenter"></div>
+      <div class="handle left"   id="handleLeft"></div>
+      <div class="handle right"  id="handleRight"></div>
+    </div>
+    <div class="hint">Drag the orange dot to move the collar. Drag the blue/red dots to resize it. Switch species in the left panel.</div>
+  </main>
+
+  <aside class="right">
+    <h3>Current anchor</h3>
+    <div id="currentLabel" class="values">&mdash;</div>
+    <div id="values" class="values" style="margin-top: 6px;">&mdash;</div>
+
+    <h3 style="margin-top: 20px;">JSON (all keys)</h3>
+    <textarea id="json" readonly></textarea>
+    <p class="hint" style="text-align:left;">Saves to <code>/data/collar-anchors.json</code>. Commit alongside the assets.</p>
+  </aside>
+
+</div>
+
+<script>
+const SPECIES_VARIANTS = {
+  cat:   ['ginger', 'black', 'calico', 'grey', 'siamese', 'white', 'tuxedo', 'tortie'],
+  dog:   ['golden', 'dalmatian', 'chocolate', 'beagle', 'husky', 'pug', 'collie', 'terrier'],
+  fox:   ['red', 'arctic', 'silver', 'cross', 'marble', 'fennec'],
+  bunny: ['dutch', 'lop', 'lionhead', 'rex', 'angora', 'spotted'],
+};
+
+const DEFAULT_ANCHOR = { dx: 0.10, dy: -0.10, widthFrac: 0.40, heightFrac: 0.09 };
+
+let data = {};
+let currentSpecies = 'cat';
+let currentVariant = null;
+
+const els = {
+  sprite: document.getElementById('sprite'),
+  stage: document.getElementById('stage'),
+  overlay: document.getElementById('overlay'),
+  hCenter: document.getElementById('handleCenter'),
+  hLeft: document.getElementById('handleLeft'),
+  hRight: document.getElementById('handleRight'),
+  speciesList: document.getElementById('speciesList'),
+  variantList: document.getElementById('variantList'),
+  json: document.getElementById('json'),
+  values: document.getElementById('values'),
+  currentLabel: document.getElementById('currentLabel'),
+  collarColor: document.getElementById('collarColor'),
+  loadJson: document.getElementById('loadJson'),
+  jsonFile: document.getElementById('jsonFile'),
+  exportJson: document.getElementById('exportJson'),
+  copyJson: document.getElementById('copyJson'),
+};
+
+function clearChildren(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function spriteRect() {
+  const stageR = els.stage.getBoundingClientRect();
+  const img = els.sprite;
+  const naturalRatio = img.naturalWidth / img.naturalHeight;
+  const stageRatio = stageR.width / stageR.height;
+  let w, h;
+  if (naturalRatio > stageRatio) {
+    w = stageR.width; h = w / naturalRatio;
+  } else {
+    h = stageR.height; w = h * naturalRatio;
+  }
+  return {
+    left:   (stageR.width  - w) / 2,
+    top:    (stageR.height - h) / 2,
+    width:  w,
+    height: h,
+  };
+}
+
+function currentKey() {
+  return currentVariant ? currentSpecies + '-' + currentVariant : currentSpecies;
+}
+
+function currentAnchor() {
+  const key = currentKey();
+  return data[key] || data[currentSpecies] || { ...DEFAULT_ANCHOR };
+}
+
+function setAnchor(partial) {
+  const key = currentKey();
+  const existing = data[key] || data[currentSpecies] || DEFAULT_ANCHOR;
+  data[key] = { ...existing, ...partial };
+  renderCollar();
+  renderValues();
+  renderJson();
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function renderCollar() {
+  const r = spriteRect();
+  const a = currentAnchor();
+
+  const cx = r.left + r.width / 2 + a.dx * r.width;
+  const cy = r.top + r.height / 2 + a.dy * r.height;
+  const rw = a.widthFrac * r.width;
+  const rh = (a.heightFrac || 0.09) * r.height;
+
+  const color = els.collarColor.value;
+
+  els.overlay.setAttribute('width', els.stage.clientWidth);
+  els.overlay.setAttribute('height', els.stage.clientHeight);
+  clearChildren(els.overlay);
+
+  const ring = document.createElementNS(SVG_NS, 'ellipse');
+  ring.setAttribute('cx', cx);
+  ring.setAttribute('cy', cy);
+  ring.setAttribute('rx', rw / 2);
+  ring.setAttribute('ry', rh / 2);
+  ring.setAttribute('fill', 'none');
+  ring.setAttribute('stroke', color);
+  ring.setAttribute('stroke-width', Math.max(2, r.height * 0.025));
+  els.overlay.appendChild(ring);
+
+  const inner = document.createElementNS(SVG_NS, 'ellipse');
+  inner.setAttribute('cx', cx);
+  inner.setAttribute('cy', cy);
+  inner.setAttribute('rx', rw / 2);
+  inner.setAttribute('ry', rh / 2);
+  inner.setAttribute('fill', 'none');
+  inner.setAttribute('stroke', '#ffffffb0');
+  inner.setAttribute('stroke-width', Math.max(1, r.height * 0.008));
+  els.overlay.appendChild(inner);
+
+  const tagR = Math.max(3, r.height * 0.03);
+  const tagY = cy + rh * 0.55 + tagR * 0.3;
+  const tag = document.createElementNS(SVG_NS, 'circle');
+  tag.setAttribute('cx', cx);
+  tag.setAttribute('cy', tagY);
+  tag.setAttribute('r', tagR);
+  tag.setAttribute('fill', color);
+  tag.setAttribute('stroke', '#fff');
+  tag.setAttribute('stroke-width', 1);
+  els.overlay.appendChild(tag);
+
+  const dot = document.createElementNS(SVG_NS, 'circle');
+  dot.setAttribute('cx', cx);
+  dot.setAttribute('cy', tagY);
+  dot.setAttribute('r', Math.max(1, tagR * 0.5));
+  dot.setAttribute('fill', '#ffd700');
+  els.overlay.appendChild(dot);
+
+  els.hCenter.style.left = cx + 'px';
+  els.hCenter.style.top = cy + 'px';
+  els.hLeft.style.left = (cx - rw / 2) + 'px';
+  els.hLeft.style.top = cy + 'px';
+  els.hRight.style.left = (cx + rw / 2) + 'px';
+  els.hRight.style.top = cy + 'px';
+}
+
+function renderValues() {
+  const a = currentAnchor();
+  const key = currentKey();
+  const hasOwn = !!data[key];
+  const source = hasOwn ? 'this entry' : (data[currentSpecies] ? 'species default' : 'built-in default');
+  els.currentLabel.textContent = key + ' (' + source + ')';
+  els.values.textContent =
+    'dx=' + a.dx.toFixed(3) +
+    '  dy=' + a.dy.toFixed(3) +
+    '  widthFrac=' + a.widthFrac.toFixed(3) +
+    '  heightFrac=' + (a.heightFrac != null ? a.heightFrac : 0.09).toFixed(3);
+}
+
+function renderJson() {
+  els.json.value = JSON.stringify(data, null, 2);
+}
+
+function startDrag(handle, onMove) {
+  let dragging = false;
+  handle.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    handle.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const stageR = els.stage.getBoundingClientRect();
+    const px = e.clientX - stageR.left;
+    const py = e.clientY - stageR.top;
+    onMove(px, py);
+  });
+  handle.addEventListener('pointerup',   () => { dragging = false; });
+  handle.addEventListener('pointercancel', () => { dragging = false; });
+}
+
+startDrag(els.hCenter, (px, py) => {
+  const r = spriteRect();
+  const centreX = r.left + r.width / 2;
+  const centreY = r.top + r.height / 2;
+  const dx = (px - centreX) / r.width;
+  const dy = (py - centreY) / r.height;
+  setAnchor({ dx, dy });
+});
+
+startDrag(els.hLeft, (px) => {
+  const r = spriteRect();
+  const a = currentAnchor();
+  const cx = r.left + r.width / 2 + a.dx * r.width;
+  const widthPx = Math.max(8, (cx - px) * 2);
+  setAnchor({ widthFrac: widthPx / r.width });
+});
+
+startDrag(els.hRight, (px) => {
+  const r = spriteRect();
+  const a = currentAnchor();
+  const cx = r.left + r.width / 2 + a.dx * r.width;
+  const widthPx = Math.max(8, (px - cx) * 2);
+  setAnchor({ widthFrac: widthPx / r.width });
+});
+
+function renderSpeciesList() {
+  clearChildren(els.speciesList);
+  for (const s of Object.keys(SPECIES_VARIANTS)) {
+    const item = document.createElement('div');
+    item.className = 'item';
+    if (s === currentSpecies) item.classList.add('active');
+
+    const label = document.createElement('span');
+    label.textContent = s;
+    item.appendChild(label);
+
+    const check = document.createElement('span');
+    check.className = 'check';
+    check.textContent = data[s] ? '\u2713' : '';
+    item.appendChild(check);
+
+    item.addEventListener('click', () => {
+      currentSpecies = s;
+      currentVariant = null;
+      loadSpriteAndRender();
+      renderSpeciesList();
+      renderVariantList();
+    });
+    els.speciesList.appendChild(item);
+  }
+}
+
+function renderVariantList() {
+  clearChildren(els.variantList);
+
+  const defaultItem = document.createElement('div');
+  defaultItem.className = 'item' + (currentVariant === null ? ' active' : '');
+  defaultItem.textContent = 'species default';
+  defaultItem.addEventListener('click', () => {
+    currentVariant = null;
+    loadSpriteAndRender();
+    renderVariantList();
+  });
+  els.variantList.appendChild(defaultItem);
+
+  for (const v of SPECIES_VARIANTS[currentSpecies]) {
+    const item = document.createElement('div');
+    item.className = 'item' + (currentVariant === v ? ' active' : '');
+
+    const label = document.createElement('span');
+    label.textContent = v;
+    item.appendChild(label);
+
+    const check = document.createElement('span');
+    check.className = 'check';
+    check.textContent = data[currentSpecies + '-' + v] ? '\u2713' : '';
+    item.appendChild(check);
+
+    item.addEventListener('click', () => {
+      currentVariant = v;
+      loadSpriteAndRender();
+      renderVariantList();
+    });
+    els.variantList.appendChild(item);
+  }
+}
+
+function spriteUrl() {
+  if (currentVariant) {
+    return '/assets/animals/' + currentSpecies + '-' + currentVariant + '-walking.png';
+  }
+  return '/assets/animals/' + currentSpecies + '-walking.png';
+}
+
+function loadSpriteAndRender() {
+  const url = spriteUrl();
+  els.sprite.onload = () => {
+    renderCollar();
+    renderValues();
+  };
+  els.sprite.onerror = () => {
+    if (currentVariant && els.sprite.src.indexOf(currentSpecies + '-' + currentVariant) >= 0) {
+      els.sprite.src = '/assets/animals/' + currentSpecies + '-walking.png';
+    }
+  };
+  els.sprite.src = url;
+}
+
+els.loadJson.addEventListener('click', () => els.jsonFile.click());
+els.jsonFile.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      data = JSON.parse(reader.result);
+      renderSpeciesList();
+      renderVariantList();
+      renderCollar();
+      renderValues();
+      renderJson();
+    } catch (err) {
+      alert('Invalid JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+els.exportJson.addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'collar-anchors.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+els.copyJson.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(els.json.value);
+    els.copyJson.textContent = 'Copied!';
+    setTimeout(() => { els.copyJson.textContent = 'Copy'; }, 1500);
+  } catch (err) {
+    alert('Clipboard write failed: ' + err.message);
+  }
+});
+
+els.collarColor.addEventListener('input', renderCollar);
+
+async function bootstrap() {
+  try {
+    const res = await fetch('/data/collar-anchors.json', { cache: 'no-store' });
+    if (res.ok) data = await res.json();
+  } catch {}
+  renderSpeciesList();
+  renderVariantList();
+  loadSpriteAndRender();
+  renderJson();
+}
+bootstrap();
+
+window.addEventListener('resize', renderCollar);
+</script>
+</body>
+</html>
