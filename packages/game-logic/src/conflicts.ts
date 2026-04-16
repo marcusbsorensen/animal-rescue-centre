@@ -62,15 +62,25 @@ export const CONFLICT_TYPES: ConflictDef[] = [
  * Check if a conflict should spawn between animals in a room.
  * Conflicts are more likely when animals have low happiness or
  * there are many animals in one room.
+ *
+ * Tuned DOWN from the original values — playtesting showed squabbles
+ * interrupted kids too often, making the shelter feel stressful rather
+ * than cosy. Roughly ~1/4 of the old frequency, and we only start to
+ * factor in low happiness once it actually dips below 60.
  */
 export function shouldSpawnConflict(roomAnimals: Animal[]): boolean {
   if (roomAnimals.length < 2) return false;
 
   const avgHappiness = roomAnimals.reduce((sum, a) => sum + a.happiness, 0) / roomAnimals.length;
-  const crowding = Math.min(roomAnimals.length / 8, 1); // max at 8 animals
+  // Only unhappy animals drive extra conflicts — if they're all content,
+  // the shelter should feel calm.
+  const unhappiness = Math.max(0, 60 - avgHappiness) / 60; // 0..1 below 60
+  const crowding = Math.max(0, roomAnimals.length - 3) / 6; // 0..1 beyond 3 animals
 
-  // Base ~1% chance, increasing with low happiness and crowding
-  const chance = 0.01 + (1 - avgHappiness / 100) * 0.02 + crowding * 0.01;
+  // Base ~0.25% chance, up to ~1% when animals are genuinely unhappy and
+  // the room is crowded. That's well below the old 1–4% range so kids
+  // aren't interrupted every few ticks.
+  const chance = 0.0025 + unhappiness * 0.005 + crowding * 0.003;
   return Math.random() < chance;
 }
 

@@ -41,7 +41,7 @@ import {
   getMaxArrivals,
 } from '@arc/game-logic';
 import type { IllnessDef, Conflict, ResolutionDef } from '@arc/game-logic';
-import { evaluateBadges } from '@arc/badges';
+import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { getSession } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -72,6 +72,9 @@ export class GameScene extends Phaser.Scene {
   private sickAnimals: Map<string, IllnessDef> = new Map();
   private activeConflict?: Conflict;
   private conflictsResolved = 0;
+  // Epoch-ms of the last conflict popup (spawned OR resolved). We suppress
+  // new conflicts for a generous cooldown so kids get time to breathe.
+  private lastConflictAt = 0;
   private calendar!: CalendarState;
   private depot!: DepotState;
   private economy: Economy = { coins: 0, lifetimeEarnings: 0 };
@@ -350,13 +353,19 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Check for conflicts (only when no active conflict and viewing corridor/room)
-    if (!this.activeConflict && this.viewMode !== 'garden') {
+    // Check for conflicts (only when no active conflict and viewing corridor/room).
+    // A 90-second cooldown after the last conflict keeps the shelter from
+    // feeling like constant triage — kids resolve one, then get a real
+    // stretch of calm play before another one can appear.
+    const CONFLICT_COOLDOWN_MS = 90_000;
+    const cooledDown = Date.now() - this.lastConflictAt > CONFLICT_COOLDOWN_MS;
+    if (!this.activeConflict && this.viewMode !== 'garden' && cooledDown) {
       const shelteredAnimals = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding');
       if (shelteredAnimals.length >= 2 && shouldSpawnConflict(shelteredAnimals)) {
         // Pick two random animals for the conflict
         const shuffled = [...shelteredAnimals].sort(() => Math.random() - 0.5);
         this.activeConflict = generateConflict(shuffled[0], shuffled[1]);
+        this.lastConflictAt = Date.now();
         this.showConflictPopup(this.activeConflict);
       }
     }
@@ -399,6 +408,14 @@ export class GameScene extends Phaser.Scene {
     this.uiContainer.removeAll(true);
     const { width } = this.scale;
     const required = getRequiredRescuesForLevel(this.level);
+    // "Rescued" on the HUD is the count of animals the player has actually
+    // welcomed into the shelter — NOT the ones still waiting at the door.
+    // We compute this from live state so the number matches what the player
+    // can see in the rooms/garden, regardless of any cumulative counter.
+    const welcomedCount = this.animals.filter(
+      (a) => a.state === 'sheltered' || a.state === 'bonding' || a.state === 'pet',
+    ).length;
+    const arrivingCount = this.animals.filter((a) => a.state === 'arriving').length;
     const xpProgress = Math.min(this.totalRescued / required, 1);
     const shelteredCount = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length;
     const maxShelter = getMaxShelterAnimals(this.level);
@@ -432,11 +449,13 @@ export class GameScene extends Phaser.Scene {
       }).setOrigin(0.5)
     );
 
-    // XP label + bar
+    // XP label + bar. The visible count is the live in-care number so kids
+    // see a number that matches the animals around them. The bar still
+    // tracks cumulative progress (totalRescued) toward the next level.
     const xpX = leftX + orbH + 2;
     const xpW = leftOrbW - orbH - 14;
     this.uiContainer.add(
-      this.add.text(xpX, orbY - 9, `${this.totalRescued} / ${required} rescued`, {
+      this.add.text(xpX, orbY - 9, `${welcomedCount} in care`, {
         fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5)
     );
@@ -448,6 +467,69 @@ export class GameScene extends Phaser.Scene {
       xpBar.fillRoundedRect(xpX, orbY + 3, Math.max(6, xpW * xpProgress), 7, 3.5);
     }
     this.uiContainer.add(xpBar);
+
+    // Make the level orb tappable → opens Account scene (badges/stats).
+    const orbHit = this.add.circle(lvlCx, orbY, orbH / 2, 0x000000, 0)
+      .setInteractive({ useHandCursor: true });
+    orbHit.on('pointerdown', () => {
+      this.saveState();
+      this.scene.start('AccountScene', {
+        level: this.level,
+        totalRescued: this.totalRescued,
+        totalBonded: this.totalBonded,
+        earnedBadges: this.earnedBadges,
+        animals: this.animals,
+        economy: this.economy,
+      });
+    });
+    this.uiContainer.add(orbHit);
+
+    // ── Red alert badge: animals waiting in the lobby ───────
+    if (arrivingCount > 0) {
+      const alertX = leftX + leftOrbW + 14;
+      const alertY = orbY;
+      const alertR = 13;
+      const alertGfx = this.add.graphics();
+      // subtle dark shadow
+      alertGfx.fillStyle(0x000000, 0.2);
+      alertGfx.fillCircle(alertX + 1, alertY + 2, alertR);
+      // red alert
+      alertGfx.fillStyle(0xe74c3c, 1);
+      alertGfx.fillCircle(alertX, alertY, alertR);
+      // white ring
+      alertGfx.lineStyle(2, 0xffffff, 1);
+      alertGfx.strokeCircle(alertX, alertY, alertR);
+      this.uiContainer.add(alertGfx);
+      this.uiContainer.add(
+        this.add.text(alertX, alertY, `${arrivingCount}`, {
+          fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
+          color: '#ffffff', resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5)
+      );
+      // Gentle pulse so it draws the eye
+      const pulseTarget = { s: 1 };
+      this.tweens.add({
+        targets: pulseTarget,
+        s: 1.18,
+        duration: 550,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        onUpdate: () => {
+          alertGfx.setScale(pulseTarget.s, pulseTarget.s);
+          alertGfx.x = alertX * (1 - pulseTarget.s);
+          alertGfx.y = alertY * (1 - pulseTarget.s);
+        },
+      });
+      // Tap → jump to corridor so the player can welcome them
+      const alertHit = this.add.circle(alertX, alertY, alertR + 4, 0x000000, 0)
+        .setInteractive({ useHandCursor: true });
+      alertHit.on('pointerdown', () => {
+        this.viewMode = 'corridor';
+        this.renderView();
+      });
+      this.uiContainer.add(alertHit);
+    }
 
     // ── RIGHT SIDE: stack orbs from right edge leftward ─────
     let rx = rightEdge;
@@ -463,7 +545,9 @@ export class GameScene extends Phaser.Scene {
       shadow.fillCircle(cx, orbY, orbSize / 2);
       this.uiContainer.add(shadow);
       if (this.textures.exists(iconKey)) {
-        const img = this.add.image(cx, orbY, iconKey).setDisplaySize(22, 22).setOrigin(0.5);
+        // Bump HUD icon from 22 → 28 for a less brutal downscale.
+        const img = this.add.image(cx, orbY, iconKey).setDisplaySize(28, 28).setOrigin(0.5);
+        this.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
         this.uiContainer.add(img);
       } else {
         this.uiContainer.add(
@@ -493,8 +577,9 @@ export class GameScene extends Phaser.Scene {
       circ.fillCircle(x0 + orbH / 2, orbY, orbH / 2 - 5);
       this.uiContainer.add(circ);
       if (this.textures.exists(iconKey)) {
+        this.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
         this.uiContainer.add(
-          this.add.image(x0 + orbH / 2, orbY, iconKey).setDisplaySize(22, 22).setOrigin(0.5)
+          this.add.image(x0 + orbH / 2, orbY, iconKey).setDisplaySize(28, 28).setOrigin(0.5)
         );
       }
       this.uiContainer.add(
@@ -539,7 +624,18 @@ export class GameScene extends Phaser.Scene {
     const homeKey = this.textures.exists('nav-home') ? 'nav-home' : 'icon-home';
     const careKey = this.textures.exists('nav-care') ? 'nav-care' : 'icon-kitchen';
     const socialKey = this.textures.exists('nav-social') ? 'nav-social' : 'icon-social';
-    const playKey = this.textures.exists('nav-play') ? 'nav-play' : 'icon-games';
+    // "Walk" is a much more obvious right-hand tab than the old "Play" (which
+    // looked like a pet-playtime action). Fall back to a leash/paw icon.
+    const walkKey = this.textures.exists('nav-walk')
+      ? 'nav-walk'
+      : (this.textures.exists('icon-walk') ? 'icon-walk' : 'icon-games');
+    // Central FAB now represents supply runs — we want an icon that clearly
+    // reads as "go get supplies" (box/truck/crate).
+    const fabKey = this.textures.exists('fab-supplies')
+      ? 'fab-supplies'
+      : (this.textures.exists('icon-supply-run')
+          ? 'icon-supply-run'
+          : (this.textures.exists('icon-depot') ? 'icon-depot' : 'fab-arc'));
 
     // Layout: 2 tabs LEFT of centre, central A.R.C. FAB, 2 tabs RIGHT of centre
     const leftTabs: NavTab[] = options?.showBack
@@ -556,10 +652,12 @@ export class GameScene extends Phaser.Scene {
             action: () => { this.viewMode = 'kitchen'; this.renderView(); } },
         ];
 
-    // Right tabs: Play (opens games popup) + Social
+    // Right tabs: Walk (go on a walk with a pet) + Social. The old "Play"
+    // tab was ambiguous — it looked like "play with an animal" but actually
+    // opened Depot/Supply-Run. Those mini-games now live on the central FAB.
     const rightTabs: NavTab[] = [
-      { iconKey: playKey, label: 'Play', active: false,
-        action: () => this.showGamesPopup() },
+      { iconKey: walkKey, label: 'Walk', active: false,
+        action: () => this.handleWalkTap() },
       { iconKey: socialKey, label: 'Social', active: false,
         action: () => { this.saveState(); this.scene.start('SocialScene'); } },
     ];
@@ -594,10 +692,20 @@ export class GameScene extends Phaser.Scene {
         pill.fillRoundedRect(tx - tabW / 2 + 3, ty - tabH / 2 + 2, tabW - 6, tabH - 4, 16);
         this.navContainer.add(pill);
       }
-      const iconPx = tab.active ? 40 : 36;
+      // Bumped up from 36/40 → 46/52. The painterly icons are 256-px
+      // source art, so a larger display size reduces the downscale factor
+      // (which is the real cause of the "pixellated" look on retina).
+      const iconPx = tab.active ? 52 : 46;
       if (this.textures.exists(tab.iconKey)) {
-        const img = this.add.image(tx, ty - 9, tab.iconKey).setDisplaySize(iconPx, iconPx).setOrigin(0.5);
-        if (!tab.active) img.setAlpha(0.78);
+        const img = this.add.image(tx, ty - 9, tab.iconKey)
+          .setDisplaySize(iconPx, iconPx)
+          .setOrigin(0.5);
+        img.setTexture(tab.iconKey); // ensure current key
+        // Explicit LINEAR filtering — Phaser's default, but worth stating
+        // so a future pixelArt-mode tweak doesn't silently regress.
+        const tex = this.textures.get(tab.iconKey);
+        tex.setFilter(Phaser.Textures.FilterMode.LINEAR);
+        if (!tab.active) img.setAlpha(0.82);
         this.navContainer.add(img);
       } else {
         this.navContainer.add(
@@ -619,10 +727,11 @@ export class GameScene extends Phaser.Scene {
       this.navContainer.add(hit);
     };
 
-    // Positions — divide bar into left/FAB/right regions
+    // Positions — divide bar into left/FAB/right regions. FAB sits lower
+    // so it reads as part of the bar rather than a floating afterthought.
     const ty = barY + barH / 2;
     const fabX = barX + barW / 2;
-    const fabY = barY - 14;
+    const fabY = barY + 6;
 
     const leftStart = barX + 10;
     const leftAvail = (barW / 2) - (fabSize / 2 + fabGap) - 10;
@@ -638,36 +747,92 @@ export class GameScene extends Phaser.Scene {
       drawTab(tab, tx, ty);
     });
 
-    // ── Central FAB: A.R.C. signboard → MainMenuScene ─────
+    // ── Central FAB: Supplies / Depot runs ────────────────
+    // This is the "always something to do" button — kids can earn supplies
+    // and coins via Supply Run or spend them in the Depot.
     const fabShadow = this.add.graphics();
-    fabShadow.fillStyle(0x000000, 0.28);
+    fabShadow.fillStyle(0x000000, 0.3);
     fabShadow.fillCircle(fabX + 2, fabY + 5, fabSize / 2);
     this.navContainer.add(fabShadow);
 
-    if (this.textures.exists('fab-arc')) {
-      // Painterly signboard — no coloured disc behind it, let the art breathe
-      const fabIcon = this.add.image(fabX, fabY, 'fab-arc').setDisplaySize(fabSize + 8, fabSize + 8).setOrigin(0.5);
+    // Cream disc background (matches bar), with warm accent ring so it
+    // reads as the primary action on the bar.
+    const fabBg = this.add.graphics();
+    fabBg.fillStyle(0xffffff, 0.98);
+    fabBg.fillCircle(fabX, fabY, fabSize / 2);
+    fabBg.lineStyle(3, 0xE67E22, 1);
+    fabBg.strokeCircle(fabX, fabY, fabSize / 2 - 1);
+    this.navContainer.add(fabBg);
+
+    if (this.textures.exists(fabKey)) {
+      const fabIcon = this.add.image(fabX, fabY - 2, fabKey)
+        .setDisplaySize(fabSize - 14, fabSize - 14).setOrigin(0.5);
       this.navContainer.add(fabIcon);
     } else {
-      // Fallback: cream disc with "A.R.C." lettering
-      const fabBg = this.add.graphics();
-      fabBg.fillStyle(0xE67E22, 1);
-      fabBg.fillCircle(fabX, fabY, fabSize / 2);
-      fabBg.lineStyle(3, 0xffffff, 1);
-      fabBg.strokeCircle(fabX, fabY, fabSize / 2);
-      fabBg.fillStyle(0xffffff, 0.22);
-      fabBg.fillCircle(fabX, fabY - fabSize / 6, fabSize / 4);
-      this.navContainer.add(fabBg);
+      // Fallback: simple crate emoji
       this.navContainer.add(
-        this.add.text(fabX, fabY, 'A.R.C.', {
-          fontSize: '12px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
+        this.add.text(fabX, fabY - 2, '📦', {
+          fontSize: '28px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
     }
 
+    // Caption under the FAB so kids know what it does
+    this.navContainer.add(
+      this.add.text(fabX, fabY + fabSize / 2 - 6, 'Supplies', {
+        fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: '#6b5a4a', resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5, 0)
+    );
+
     const fabHit = this.add.circle(fabX, fabY, (fabSize + 8) / 2, 0x000000, 0).setInteractive({ useHandCursor: true });
-    fabHit.on('pointerdown', () => { this.saveState(); this.scene.start('MainMenuScene'); });
+    fabHit.on('pointerdown', () => this.showGamesPopup());
     this.navContainer.add(fabHit);
+  }
+
+  // ── Walk tab ────────────────────────────────────────────────
+  //
+  // If the player has no walkable animals, show a gentle note rather than
+  // throwing them into an empty WalkScene. Otherwise jump straight in.
+  private handleWalkTap(): void {
+    const walkable = this.animals.filter(
+      (a) => (a.state === 'sheltered' || a.state === 'bonding') && canGoOnWalk(a),
+    );
+    if (walkable.length === 0) {
+      this.showQuickToast('No pets are ready for a walk right now. Build a bond first!');
+      return;
+    }
+    this.saveState();
+    this.scene.start('WalkScene', {
+      animals: this.animals,
+      level: this.level,
+      economy: this.economy,
+    });
+  }
+
+  // Tiny floating toast used by quick nav feedback.
+  private showQuickToast(message: string): void {
+    const { width, height } = this.scale;
+    const toast = this.add.container(width / 2, height - 140).setDepth(200);
+    const padX = 18;
+    const label = this.add.text(0, 0, message, {
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+      color: '#ffffff', resolution: TEXT_RESOLUTION,
+      wordWrap: { width: Math.min(width - 60, 360) },
+      align: 'center',
+    }).setOrigin(0.5);
+    const w = label.width + padX * 2;
+    const h = label.height + 18;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.78);
+    bg.fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+    toast.add([bg, label]);
+    toast.setAlpha(0);
+    this.tweens.add({
+      targets: toast, alpha: 1, duration: 180,
+      hold: 1800, yoyo: true,
+      onComplete: () => toast.destroy(),
+    });
   }
 
   // ── Games Popup ─────────────────────────────────────────────
@@ -2052,23 +2217,83 @@ export class GameScene extends Phaser.Scene {
     const { width } = this.scale;
     AudioManager.getInstance().playSfx('badge_earned');
 
-    // Simple toast notification at top
-    const toast = this.add.container(width / 2, -50);
-    const bg = this.add.rectangle(0, 0, 300, 50, 0xffd700)
-      .setStrokeStyle(2, 0xdaa520);
-    const text = this.add.text(0, 0, `New Badge: ${badgeCode}!`, {
-      fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
-    }).setOrigin(0.5);
+    // Look up the real badge definition — the stored list uses `code` as
+    // the stable identifier but the player should see the friendly name
+    // and description, not the raw variable id.
+    const def = BADGE_DEFINITIONS.find((b) => b.code === badgeCode);
+    const title = def ? def.name : badgeCode;
+    const subtitle = def ? def.description : 'Nice work!';
 
-    toast.add([bg, text]);
-    toast.setDepth(100);
+    // Painterly toast card at the top of the screen.
+    const toast = this.add.container(width / 2, -80);
+    toast.setDepth(200);
+
+    const cardW = Math.min(360, width - 40);
+    const cardH = 92;
+
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.22);
+    shadow.fillRoundedRect(-cardW / 2 + 3, -cardH / 2 + 4, cardW, cardH, 18);
+    toast.add(shadow);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0xfff4d6, 1);
+    bg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 18);
+    bg.lineStyle(3, 0xe3b04b, 1);
+    bg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 18);
+    toast.add(bg);
+
+    // Medal/rosette icon on the left — use painterly badge art if we
+    // happen to have it loaded, otherwise a gold disc with a star.
+    const iconX = -cardW / 2 + 38;
+    const iconKey = `badge-${badgeCode}`;
+    if (this.textures.exists(iconKey)) {
+      toast.add(this.add.image(iconX, 0, iconKey).setDisplaySize(52, 52));
+    } else if (this.textures.exists('icon-badge')) {
+      toast.add(this.add.image(iconX, 0, 'icon-badge').setDisplaySize(52, 52));
+    } else {
+      const medal = this.add.graphics();
+      medal.fillStyle(0xf1c40f, 1);
+      medal.fillCircle(iconX, 0, 22);
+      medal.lineStyle(3, 0xffffff, 1);
+      medal.strokeCircle(iconX, 0, 22);
+      toast.add(medal);
+      toast.add(
+        this.add.text(iconX, 0, '\u2605', {
+          fontSize: '26px', fontFamily: FONTS.title, color: '#ffffff',
+          resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5)
+      );
+    }
+
+    // Text block
+    const textX = iconX + 36;
+    toast.add(
+      this.add.text(textX, -14, 'New badge!', {
+        fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: '#b88213', resolution: TEXT_RESOLUTION,
+      })
+    );
+    toast.add(
+      this.add.text(textX, -2, title, {
+        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+        color: COLOURS.text, resolution: TEXT_RESOLUTION,
+      })
+    );
+    toast.add(
+      this.add.text(textX, 22, subtitle, {
+        fontSize: '12px', fontFamily: FONTS.body,
+        color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+        wordWrap: { width: cardW - (textX + cardW / 2 + 14) },
+      })
+    );
 
     this.tweens.add({
       targets: toast,
       y: 70,
       duration: 500,
       ease: 'Back.easeOut',
-      hold: 3000,
+      hold: 2800,
       yoyo: true,
       onComplete: () => toast.destroy(),
     });
@@ -2131,16 +2356,86 @@ export class GameScene extends Phaser.Scene {
       }).setOrigin(0.5)
     );
 
-    // Resolution buttons
+    // Resolution buttons — big visual cards with painterly icons so
+    // younger kids can pick an option by sight even if they can't read
+    // the label yet. Falls back to the emoji when the icon art hasn't
+    // been generated yet, then eventually to the label alone.
     const actions = RESOLUTION_ACTIONS;
+    const iconKeyFor: Record<string, string> = {
+      give_treat:    'icon-resolve-treat',
+      separate:      'icon-resolve-separate',
+      pet_both:      'icon-resolve-comfort',
+      play_together: 'icon-resolve-play',
+    };
+    const cardW = Math.min(320, width - 40);
+    const cardH = 66;
     const startY = 350;
     actions.forEach((action, i) => {
-      const btn = createButton(this, width / 2, startY + i * 60,
-        action.label, () => {
-          this.resolveActiveConflict(action);
-        }, { width: 280 }
+      const cy = startY + i * (cardH + 10);
+      const card = this.add.container(width / 2, cy);
+
+      // Shadow + body
+      const cardGfx = this.add.graphics();
+      cardGfx.fillStyle(0x000000, 0.18);
+      cardGfx.fillRoundedRect(-cardW / 2 + 2, -cardH / 2 + 3, cardW, cardH, 16);
+      cardGfx.fillStyle(0xffffff, 0.98);
+      cardGfx.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
+      cardGfx.lineStyle(2, 0x5AAE4A, 0.55);
+      cardGfx.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
+      card.add(cardGfx);
+
+      // Big icon on the left
+      const iconKey = iconKeyFor[action.action];
+      const iconX = -cardW / 2 + 34;
+      if (iconKey && this.textures.exists(iconKey)) {
+        const iconImg = this.add.image(iconX, 0, iconKey).setDisplaySize(48, 48).setOrigin(0.5);
+        this.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
+        card.add(iconImg);
+      } else {
+        // Coloured circle + emoji for visual recognition pre-art
+        const circleBg = this.add.graphics();
+        const tintHex: Record<string, number> = {
+          give_treat:    0xffd27a,
+          separate:      0xffb4a2,
+          pet_both:      0xcdb4db,
+          play_together: 0xb5e48c,
+        };
+        circleBg.fillStyle(tintHex[action.action] ?? 0xffe4b3, 1);
+        circleBg.fillCircle(iconX, 0, 24);
+        card.add(circleBg);
+        card.add(
+          this.add.text(iconX, 0, action.emoji, {
+            fontSize: '28px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
+          }).setOrigin(0.5)
+        );
+      }
+
+      // Label + helper text — label bold, helper lighter
+      const textX = iconX + 36;
+      card.add(
+        this.add.text(textX, -10, action.label, {
+          fontSize: '17px', fontFamily: FONTS.body, fontStyle: 'bold',
+          color: COLOURS.text, resolution: TEXT_RESOLUTION,
+        }).setOrigin(0, 0.5)
       );
-      this.gameContainer.add(btn);
+      card.add(
+        this.add.text(textX, 12, action.description, {
+          fontSize: '11px', fontFamily: FONTS.body,
+          color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+          wordWrap: { width: cardW - (textX + cardW / 2 + 10) },
+        }).setOrigin(0, 0.5)
+      );
+
+      // Hit area
+      const hit = this.add.rectangle(0, 0, cardW, cardH, 0x000000, 0)
+        .setInteractive({ useHandCursor: true });
+      hit.on('pointerdown', () => {
+        this.tweens.add({ targets: card, scale: 0.96, duration: 80, yoyo: true });
+        this.resolveActiveConflict(action);
+      });
+      card.add(hit);
+
+      this.gameContainer.add(card);
     });
   }
 
@@ -2168,6 +2463,9 @@ export class GameScene extends Phaser.Scene {
       AudioManager.getInstance().playSfx('food_wrong');
     }
     this.activeConflict = undefined;
+    // Restart the cooldown from the moment of resolution so another
+    // conflict can't immediately jump in.
+    this.lastConflictAt = Date.now();
 
     // Show result feedback
     this.clearView();
