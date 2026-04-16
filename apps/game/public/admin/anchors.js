@@ -452,6 +452,16 @@ function deleteSelected() {
 }
 function emitJson() { json.value = JSON.stringify(data, null, 2); }
 
-loadRoom(currentRoom);
-emitJson();
+// Auto-load the currently-deployed room-anchors.json on startup so the
+// editor opens with your saved positions instead of a blank slate. Falls
+// back to empty data if the file doesn't exist yet.
+async function bootstrap() {
+  try {
+    const res = await fetch('/data/room-anchors.json', { cache: 'no-store' });
+    if (res.ok) data = await res.json();
+  } catch { /* no existing file — start empty */ }
+  loadRoom(currentRoom);
+  emitJson();
+}
+bootstrap();
 window.addEventListener('resize', renderAnchors);
