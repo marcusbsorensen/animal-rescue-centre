@@ -128,6 +128,42 @@
     letter-spacing: 0.05em;
   }
 
+  /* Review-mode marks — click a cell while review mode is on to cycle:
+     unset → ok → regen → todo → unset. State persists in localStorage. */
+  body[data-review="on"] .cell:not(.missing) { cursor: pointer; }
+  body[data-review="on"] .cell:not(.missing):hover {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .review-badge {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .review-badge.ok    { background: #3D8A2E; }
+  .review-badge.regen { background: #c0392b; }
+  .review-badge.todo  { background: #f39c12; }
+  .cell.review-ok    { box-shadow: inset 0 0 0 3px #3D8A2E; }
+  .cell.review-regen { box-shadow: inset 0 0 0 3px #c0392b; }
+  .cell.review-todo  { box-shadow: inset 0 0 0 3px #f39c12; }
+
+  .review-summary {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 12px;
+  }
+  .review-summary .tick { color: #3D8A2E; font-weight: 700; }
+  .review-summary .cross { color: #c0392b; font-weight: 700; }
+  .review-summary .wip { color: #f39c12; font-weight: 700; }
+
   /* Dark-background toggle for verifying transparency / light-coloured fur */
   body[data-bg="dark"] {
     background: #1c1c1c;
@@ -161,7 +197,10 @@
 <header>
   <div>
     <h1>A.R.C. — Animal sprite grid</h1>
-    <div class="status" id="status">Counting sprites…</div>
+    <div class="status">
+      <span id="status">Counting sprites…</span>
+      <span class="review-summary" id="review-summary"></span>
+    </div>
   </div>
   <div class="controls">
     <span class="legend"><span class="dot ok"></span>Present</span>
@@ -171,6 +210,9 @@
     <button data-size="large">Large</button>
     <button data-bg="light" class="active">Light</button>
     <button data-bg="dark">Dark</button>
+    <button id="review-toggle">Review mode: off</button>
+    <button id="review-export" title="Copy review marks as JSON to clipboard">Export</button>
+    <button id="review-reset" title="Clear all review marks">Reset</button>
   </div>
 </header>
 
@@ -196,10 +238,78 @@
 
   const root = document.getElementById('grid-root');
   const statusEl = document.getElementById('status');
+  const reviewSummaryEl = document.getElementById('review-summary');
 
   let totalCells = 0;
   let presentCells = 0;
   const pending = [];
+
+  // ── Review overlay: mark each sprite as ok / regen / todo ────────
+  // Marks persist in localStorage so Marcus can chip away across sessions.
+  // The key is the sprite filename (e.g. "dog-chocolate-scared.png") so
+  // moving cells around in the grid doesn't lose data.
+  const REVIEW_KEY = 'arc-sprite-review';
+  const REVIEW_CYCLE = ['unset', 'ok', 'regen', 'todo'];
+  const REVIEW_BADGE = { ok: '\u2713', regen: '\u2717', todo: '\u22EF' };
+  const REVIEW_CLASS = { ok: 'review-ok', regen: 'review-regen', todo: 'review-todo' };
+
+  let reviewState = {};
+  try {
+    reviewState = JSON.parse(localStorage.getItem(REVIEW_KEY) || '{}') || {};
+  } catch (e) {
+    reviewState = {};
+  }
+
+  // Keep a registry so reset / import can re-render every cell in place.
+  const cellRegistry = []; // { cell, path }
+
+  function applyReviewMark(cell, path) {
+    // Strip old state + badge
+    for (const cls of Object.values(REVIEW_CLASS)) cell.classList.remove(cls);
+    const existingBadge = cell.querySelector('.review-badge');
+    if (existingBadge) existingBadge.remove();
+
+    const state = reviewState[path];
+    if (!state || state === 'unset') return;
+
+    cell.classList.add(REVIEW_CLASS[state]);
+    const badge = document.createElement('div');
+    badge.className = 'review-badge ' + state;
+    badge.textContent = REVIEW_BADGE[state];
+    cell.appendChild(badge);
+  }
+
+  function cycleReview(path, cell) {
+    const current = reviewState[path] || 'unset';
+    const next = REVIEW_CYCLE[(REVIEW_CYCLE.indexOf(current) + 1) % REVIEW_CYCLE.length];
+    if (next === 'unset') delete reviewState[path];
+    else reviewState[path] = next;
+    localStorage.setItem(REVIEW_KEY, JSON.stringify(reviewState));
+    applyReviewMark(cell, path);
+    renderReviewSummary();
+  }
+
+  function renderReviewSummary() {
+    const counts = { ok: 0, regen: 0, todo: 0 };
+    for (const v of Object.values(reviewState)) {
+      if (counts[v] !== undefined) counts[v]++;
+    }
+    reviewSummaryEl.textContent = '';
+    if (counts.ok + counts.regen + counts.todo === 0) return;
+    const parts = [
+      ['tick', '\u2713 ' + counts.ok],
+      ['cross', '\u2717 ' + counts.regen],
+      ['wip', '\u22EF ' + counts.todo],
+    ];
+    reviewSummaryEl.append(' \u2014 review: ');
+    parts.forEach(([cls, text], i) => {
+      const span = document.createElement('span');
+      span.className = cls;
+      span.textContent = text;
+      reviewSummaryEl.appendChild(span);
+      if (i < parts.length - 1) reviewSummaryEl.append(' / ');
+    });
+  }
 
   // Using <img> onload/onerror rather than HEAD — Vite (and Vercel's SPA
   // fallback) returns index.html with status 200 for missing asset paths,
@@ -207,12 +317,14 @@
   // rejects HTML bytes and fires onerror.
   function cellFor(species, variant, state) {
     const prefix = variant ? species + '-' + variant : species;
-    const src = '/assets/animals/' + prefix + '-' + state + '.png';
+    const filename = prefix + '-' + state + '.png';
+    const src = '/assets/animals/' + filename;
 
     const td = document.createElement('td');
     if (state === EMOTIONAL_STATES[0]) td.className = 'group-start';
     const cell = document.createElement('div');
     cell.className = 'cell';
+    cell.dataset.path = filename;
 
     const img = document.createElement('img');
     img.alt = prefix + '-' + state;
@@ -221,6 +333,8 @@
     const done = new Promise((resolve) => {
       img.addEventListener('load', () => {
         presentCells++;
+        // Apply any existing review mark now the image is settled.
+        applyReviewMark(cell, filename);
         resolve();
       });
       img.addEventListener('error', () => {
@@ -233,8 +347,15 @@
     img.src = src;
     pending.push(done);
 
+    cell.addEventListener('click', () => {
+      if (document.body.dataset.review !== 'on') return;
+      if (cell.classList.contains('missing')) return;
+      cycleReview(filename, cell);
+    });
+
     cell.appendChild(img);
     td.appendChild(cell);
+    cellRegistry.push({ cell, path: filename });
     return td;
   }
 
@@ -307,7 +428,10 @@
     statusEl.append(okNode, ' present \u00A0/\u00A0 ', missingNode, ' missing \u00A0/\u00A0 ', String(totalCells) + ' total');
   }
 
-  Promise.all(pending).then(renderStatus);
+  Promise.all(pending).then(() => {
+    renderStatus();
+    renderReviewSummary();
+  });
 
   for (const btn of document.querySelectorAll('.controls button')) {
     btn.addEventListener('click', () => {
@@ -323,6 +447,65 @@
       }
     });
   }
+
+  // ── Review-mode buttons ──────────────────────────────────────────
+  const reviewToggleBtn = document.getElementById('review-toggle');
+  const reviewExportBtn = document.getElementById('review-export');
+  const reviewResetBtn  = document.getElementById('review-reset');
+
+  reviewToggleBtn.addEventListener('click', () => {
+    const on = document.body.dataset.review !== 'on';
+    document.body.dataset.review = on ? 'on' : 'off';
+    reviewToggleBtn.textContent = 'Review mode: ' + (on ? 'on' : 'off');
+    reviewToggleBtn.classList.toggle('active', on);
+  });
+
+  reviewExportBtn.addEventListener('click', async () => {
+    // Group by species for easy copy-paste into a regen prompt.
+    const grouped = {};
+    for (const [path, state] of Object.entries(reviewState)) {
+      const species = path.split('-')[0];
+      (grouped[species] = grouped[species] || { ok: [], regen: [], todo: [] })[state].push(path);
+    }
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      totals: {
+        ok:    Object.values(reviewState).filter(v => v === 'ok').length,
+        regen: Object.values(reviewState).filter(v => v === 'regen').length,
+        todo:  Object.values(reviewState).filter(v => v === 'todo').length,
+      },
+      bySpecies: grouped,
+      all: reviewState,
+    };
+    const json = JSON.stringify(payload, null, 2);
+    try {
+      await navigator.clipboard.writeText(json);
+      reviewExportBtn.textContent = 'Copied!';
+      setTimeout(() => { reviewExportBtn.textContent = 'Export'; }, 1200);
+    } catch (e) {
+      // Fallback: open a new window with the JSON so Marcus can grab it.
+      const w = window.open('', '_blank');
+      if (w) {
+        w.document.title = 'A.R.C. sprite review export';
+        const pre = w.document.createElement('pre');
+        pre.textContent = json;
+        w.document.body.appendChild(pre);
+      } else {
+        alert(json);
+      }
+    }
+  });
+
+  reviewResetBtn.addEventListener('click', () => {
+    if (!confirm('Clear all review marks? This cannot be undone.')) return;
+    reviewState = {};
+    localStorage.removeItem(REVIEW_KEY);
+    for (const { cell, path } of cellRegistry) applyReviewMark(cell, path);
+    renderReviewSummary();
+  });
+
+  // Initial review-mode state (always off at load — marks still visible).
+  document.body.dataset.review = 'off';
 </script>
 </body>
 </html>
