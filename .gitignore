@@ -21,3 +21,4 @@ manus-variants/
 
 # Local-only sign/bg drafts, previews, and backups (not served)
 asset-drafts/
+manus-output/
