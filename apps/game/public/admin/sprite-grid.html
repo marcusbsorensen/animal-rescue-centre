@@ -163,6 +163,85 @@
   .review-summary .tick { color: #3D8A2E; font-weight: 700; }
   .review-summary .cross { color: #c0392b; font-weight: 700; }
   .review-summary .wip { color: #f39c12; font-weight: 700; }
+  .review-summary .reuse { color: #2980b9; font-weight: 700; }
+
+  /* Reallocate marker — a cell with reuse targets shows a blue pill at the
+     bottom listing the target states. Shift-click to open the picker. */
+  .reuse-label {
+    position: absolute;
+    left: 3px; right: 3px; bottom: 3px;
+    background: #2980b9;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 4px;
+    padding: 2px 4px;
+    pointer-events: none;
+    z-index: 2;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cell.has-reuse { box-shadow: inset 0 0 0 2px #2980b9; }
+  /* When a cell has BOTH a review mark and a reuse target, keep both rings */
+  .cell.review-ok.has-reuse    { box-shadow: inset 0 0 0 3px #3D8A2E, inset 0 0 0 6px #2980b9; }
+  .cell.review-regen.has-reuse { box-shadow: inset 0 0 0 3px #c0392b, inset 0 0 0 6px #2980b9; }
+  .cell.review-todo.has-reuse  { box-shadow: inset 0 0 0 3px #f39c12, inset 0 0 0 6px #2980b9; }
+
+  /* Reallocate popover — floats over a cell when shift-clicked */
+  .reuse-popover {
+    position: fixed;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 100;
+    font-size: 12px;
+    max-width: 280px;
+  }
+  body[data-bg="dark"] .reuse-popover {
+    background: #2a2a2a; color: #eee; border-color: #555;
+  }
+  .reuse-popover .title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .reuse-popover .chips {
+    display: flex; flex-wrap: wrap; gap: 4px;
+  }
+  .reuse-popover .chip {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 3px 10px;
+    cursor: pointer;
+    font-size: 11px;
+    user-select: none;
+  }
+  .reuse-popover .chip:hover { background: #f5f5f5; }
+  .reuse-popover .chip.on {
+    background: #2980b9;
+    color: #fff;
+    border-color: #2980b9;
+  }
+  .reuse-popover .actions {
+    display: flex; justify-content: space-between; margin-top: 8px;
+    font-size: 11px;
+  }
+  .reuse-popover button {
+    background: none; border: 1px solid var(--border);
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;
+  }
+  .reuse-popover button:hover { background: #f5f5f5; }
 
   /* Dark-background toggle for verifying transparency / light-coloured fur */
   body[data-bg="dark"] {
@@ -210,9 +289,9 @@
     <button data-size="large">Large</button>
     <button data-bg="light" class="active">Light</button>
     <button data-bg="dark">Dark</button>
-    <button id="review-toggle">Review mode: off</button>
-    <button id="review-export" title="Copy review marks as JSON to clipboard">Export</button>
-    <button id="review-reset" title="Clear all review marks">Reset</button>
+    <button id="review-toggle" title="Click cells to cycle ok/regen/todo. Shift-click to reallocate.">Review mode: off</button>
+    <button id="review-export" title="Copy review + reuse marks as JSON to clipboard">Export</button>
+    <button id="review-reset" title="Clear all review + reuse marks">Reset</button>
   </div>
 </header>
 
@@ -260,23 +339,54 @@
     reviewState = {};
   }
 
+  // Reallocations: source path -> array of target state names. E.g.
+  // { "dog-husky-arriving.png": ["scared"] } means the husky arriving sprite
+  // should also be used as dog-husky-scared. Shift-click a cell to open the
+  // picker. Persisted separately so a sprite can carry both a review mark
+  // AND a reuse target simultaneously.
+  const REUSE_KEY = 'arc-sprite-reuse';
+  let reuseState = {};
+  try {
+    reuseState = JSON.parse(localStorage.getItem(REUSE_KEY) || '{}') || {};
+  } catch (e) {
+    reuseState = {};
+  }
+
   // Keep a registry so reset / import can re-render every cell in place.
   const cellRegistry = []; // { cell, path }
 
   function applyReviewMark(cell, path) {
-    // Strip old state + badge
+    // Strip old review state + badge (but leave reuse label / has-reuse class intact)
     for (const cls of Object.values(REVIEW_CLASS)) cell.classList.remove(cls);
     const existingBadge = cell.querySelector('.review-badge');
     if (existingBadge) existingBadge.remove();
 
     const state = reviewState[path];
-    if (!state || state === 'unset') return;
+    if (state && state !== 'unset') {
+      cell.classList.add(REVIEW_CLASS[state]);
+      const badge = document.createElement('div');
+      badge.className = 'review-badge ' + state;
+      badge.textContent = REVIEW_BADGE[state];
+      cell.appendChild(badge);
+    }
 
-    cell.classList.add(REVIEW_CLASS[state]);
-    const badge = document.createElement('div');
-    badge.className = 'review-badge ' + state;
-    badge.textContent = REVIEW_BADGE[state];
-    cell.appendChild(badge);
+    // Re-apply reuse ring / label (box-shadow combines with review rings via CSS)
+    applyReuseMark(cell, path);
+  }
+
+  function applyReuseMark(cell, path) {
+    cell.classList.remove('has-reuse');
+    const existing = cell.querySelector('.reuse-label');
+    if (existing) existing.remove();
+
+    const targets = reuseState[path];
+    if (!targets || targets.length === 0) return;
+
+    cell.classList.add('has-reuse');
+    const label = document.createElement('div');
+    label.className = 'reuse-label';
+    label.textContent = '\u21AA ' + targets.join(', ');
+    cell.appendChild(label);
   }
 
   function cycleReview(path, cell) {
@@ -294,13 +404,20 @@
     for (const v of Object.values(reviewState)) {
       if (counts[v] !== undefined) counts[v]++;
     }
+    let reuseTargetCount = 0;
+    for (const targets of Object.values(reuseState)) {
+      reuseTargetCount += targets.length;
+    }
     reviewSummaryEl.textContent = '';
-    if (counts.ok + counts.regen + counts.todo === 0) return;
+    if (counts.ok + counts.regen + counts.todo + reuseTargetCount === 0) return;
+
     const parts = [
       ['tick', '\u2713 ' + counts.ok],
       ['cross', '\u2717 ' + counts.regen],
       ['wip', '\u22EF ' + counts.todo],
     ];
+    if (reuseTargetCount > 0) parts.push(['reuse', '\u21AA ' + reuseTargetCount]);
+
     reviewSummaryEl.append(' \u2014 review: ');
     parts.forEach(([cls, text], i) => {
       const span = document.createElement('span');
@@ -347,9 +464,13 @@
     img.src = src;
     pending.push(done);
 
-    cell.addEventListener('click', () => {
+    cell.addEventListener('click', (e) => {
       if (document.body.dataset.review !== 'on') return;
       if (cell.classList.contains('missing')) return;
+      if (e.shiftKey) {
+        openReusePopover(cell, filename, state);
+        return;
+      }
       cycleReview(filename, cell);
     });
 
@@ -448,6 +569,98 @@
     });
   }
 
+  // ── Reallocate popover ───────────────────────────────────────────
+  let currentPopover = null;
+
+  function closeReusePopover() {
+    if (currentPopover) {
+      currentPopover.remove();
+      currentPopover = null;
+      document.removeEventListener('click', outsideClickHandler, true);
+    }
+  }
+
+  function outsideClickHandler(e) {
+    if (currentPopover && !currentPopover.contains(e.target)) {
+      closeReusePopover();
+    }
+  }
+
+  function openReusePopover(cell, path, sourceState) {
+    closeReusePopover();
+
+    const pop = document.createElement('div');
+    pop.className = 'reuse-popover';
+
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = 'Also use "' + path + '" as:';
+    pop.appendChild(title);
+
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    pop.appendChild(chips);
+
+    const current = new Set(reuseState[path] || []);
+    for (const s of STATES) {
+      if (s === sourceState) continue;  // own state is nonsense
+      const chip = document.createElement('span');
+      chip.className = 'chip' + (current.has(s) ? ' on' : '');
+      chip.textContent = s;
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (current.has(s)) current.delete(s);
+        else current.add(s);
+        chip.classList.toggle('on');
+      });
+      chips.appendChild(chip);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    saveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targets = Array.from(current);
+      if (targets.length === 0) delete reuseState[path];
+      else reuseState[path] = targets;
+      localStorage.setItem(REUSE_KEY, JSON.stringify(reuseState));
+      applyReuseMark(cell, path);
+      renderReviewSummary();
+      closeReusePopover();
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeReusePopover();
+    });
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(saveBtn);
+    pop.appendChild(actions);
+
+    document.body.appendChild(pop);
+
+    // Position near the cell (right side, falling back to left if off-screen)
+    const rect = cell.getBoundingClientRect();
+    const popW = pop.offsetWidth;
+    const popH = pop.offsetHeight;
+    let left = rect.right + 8;
+    let top = rect.top;
+    if (left + popW > window.innerWidth - 8) left = rect.left - popW - 8;
+    if (top + popH > window.innerHeight - 8) top = window.innerHeight - popH - 8;
+    if (top < 8) top = 8;
+    pop.style.left = left + 'px';
+    pop.style.top = top + 'px';
+
+    currentPopover = pop;
+    setTimeout(() => document.addEventListener('click', outsideClickHandler, true), 0);
+  }
+
   // ── Review-mode buttons ──────────────────────────────────────────
   const reviewToggleBtn = document.getElementById('review-toggle');
   const reviewExportBtn = document.getElementById('review-export');
@@ -467,14 +680,28 @@
       const species = path.split('-')[0];
       (grouped[species] = grouped[species] || { ok: [], regen: [], todo: [] })[state].push(path);
     }
+    // Reallocations flipped into target-state buckets so we know what
+    // needs copying where on disk (and what doesn't need regenerating).
+    const reuseByTarget = {};
+    for (const [src, targets] of Object.entries(reuseState)) {
+      for (const t of targets) {
+        (reuseByTarget[t] = reuseByTarget[t] || []).push(src);
+      }
+    }
+    const reuseTargetCount = Object.values(reuseState)
+      .reduce((n, arr) => n + arr.length, 0);
+
     const payload = {
       exportedAt: new Date().toISOString(),
       totals: {
         ok:    Object.values(reviewState).filter(v => v === 'ok').length,
         regen: Object.values(reviewState).filter(v => v === 'regen').length,
         todo:  Object.values(reviewState).filter(v => v === 'todo').length,
+        reuse: reuseTargetCount,
       },
       bySpecies: grouped,
+      reuseByTarget,
+      reuseBySource: reuseState,
       all: reviewState,
     };
     const json = JSON.stringify(payload, null, 2);
@@ -497,9 +724,11 @@
   });
 
   reviewResetBtn.addEventListener('click', () => {
-    if (!confirm('Clear all review marks? This cannot be undone.')) return;
+    if (!confirm('Clear all review marks AND reuse targets? This cannot be undone.')) return;
     reviewState = {};
+    reuseState = {};
     localStorage.removeItem(REVIEW_KEY);
+    localStorage.removeItem(REUSE_KEY);
     for (const { cell, path } of cellRegistry) applyReviewMark(cell, path);
     renderReviewSummary();
   });
