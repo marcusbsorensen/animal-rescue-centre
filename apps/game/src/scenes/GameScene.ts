@@ -3,6 +3,7 @@ import type { Animal, Species, DepotState, Economy } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { type Anchor } from '../lib/RoomAnchors';
 import { AudioManager } from '../audio/AudioManager';
+import { AssetLoader } from '../lib/AssetLoader';
 import {
   spawnAnimal,
   spawnSiblingPair,
@@ -218,6 +219,15 @@ export class GameScene extends Phaser.Scene {
 
     this.renderView();
     this.renderHUD();
+
+    // Re-ensure the essential tier in case the player tapped the
+    // LoadingScene's "Play now" escape hatch with essentials still
+    // loading — this picks up any stragglers. Idempotent.
+    // Then kick off the variant-sprite tier silently behind the game.
+    const loader = AssetLoader.getInstance();
+    loader.clearCallbacks();  // no UI to notify now
+    loader.startBackgroundLoad(this);
+    loader.startVariantLoad(this);
   }
 
   // ── State Management ────────────────────────────────────────

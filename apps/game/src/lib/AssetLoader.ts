@@ -1,32 +1,63 @@
 import Phaser from 'phaser';
 
 /**
- * AssetLoader — staged asset loading with manifest support.
+ * AssetLoader — tiered asset loading from the build-time manifest.
  *
- * Stage 1 (boot): Logo only → MainMenu in <1s
- * Stage 2 (background): Load all game assets while kid browses menus
- * Stage 3 (gate): If Play is clicked before loading finishes, show fun loader
+ * Three tiers keep the "time-to-play" fast even on older iPads while
+ * still surfacing per-variant sprite art as it lands:
  *
- * Uses the build-time asset manifest to avoid any 404 requests.
+ *   1. **Boot**       — logo + HUD / nav icons. Loaded by BootScene
+ *                      before MainMenu shows. ~60 files, <1 s target.
+ *   2. **Essential**  — everything needed for the game to render
+ *                      correctly with species-level fallback art:
+ *                      backgrounds, UI, audio, signs, food, tiles,
+ *                      and the per-species "fallback" animal sprites
+ *                      ({species}-{state}.png). Loading-screen gates
+ *                      on this tier. ~180 files.
+ *   3. **Variant**    — per-variant animal sprites
+ *                      ({species}-{variant}-{state}.png). ~380 files.
+ *                      Loads silently in the background once the game
+ *                      is running; createAnimalSprite falls back to
+ *                      the species-level art until a variant lands,
+ *                      so the player sees improving visuals over time
+ *                      rather than being gated on all of them.
+ *
+ * Falls back gracefully when the manifest isn't reachable (dev HMR
+ * blip, offline mode) — we log and ship what we have.
  */
 
 type AssetCategory = 'logo' | 'animals' | 'food' | 'bg' | 'ui' | 'icons' | 'audio';
+type AssetTier = 'boot' | 'essential' | 'variant';
 
 interface ManifestEntry {
   key: string;
   path: string;
   category: AssetCategory;
   type: 'image' | 'audio';
+  tier: AssetTier;
 }
+
+// Used to classify animal filenames: a 2-token name like `cat-sheltered`
+// is a species-level fallback; a 3-token name like `cat-ginger-sleeping`
+// is a per-variant sprite.
+const ANIMAL_STATES = new Set([
+  'arriving', 'sheltered', 'eating', 'sleeping', 'walking',
+  'growling', 'grumpy', 'scared', 'sick',
+]);
 
 export class AssetLoader {
   private static instance: AssetLoader;
   private manifest: string[] = [];
   private parsedEntries: ManifestEntry[] = [];
-  private loadedKeys = new Set<string>();
-  private backgroundLoadStarted = false;
-  private _backgroundLoadComplete = false;
+
+  // Essential-tier progress (the one surfaced on the loading screen)
+  private _essentialComplete = false;
   private _progress = 0;
+
+  // Variant-tier bookkeeping (silent, no UI)
+  private variantLoadStarted = false;
+  private _variantComplete = false;
+
   private onProgressCallbacks: ((pct: number) => void)[] = [];
   private onCompleteCallbacks: (() => void)[] = [];
 
@@ -37,8 +68,14 @@ export class AssetLoader {
     return AssetLoader.instance;
   }
 
+  /** True once the essential tier is in cache — game is safe to show. */
   get isFullyLoaded(): boolean {
-    return this._backgroundLoadComplete;
+    return this._essentialComplete;
+  }
+
+  /** True once both essential and variant tiers are fully cached. */
+  get isVariantComplete(): boolean {
+    return this._variantComplete;
   }
 
   get progress(): number {
@@ -58,11 +95,9 @@ export class AssetLoader {
     }
   }
 
-  /** Stage 1: Load logo + icon assets (fast — small PNGs). */
+  /** Tier 1: Load logo + icon assets (fast — small PNGs). */
   loadBootAssets(scene: Phaser.Scene): void {
-    const bootAssets = this.parsedEntries.filter(
-      (e) => e.category === 'logo' || e.category === 'icons'
-    );
+    const bootAssets = this.parsedEntries.filter((e) => e.tier === 'boot');
     for (const entry of bootAssets) {
       if (!scene.textures.exists(entry.key)) {
         scene.load.image(entry.key, entry.path);
@@ -71,30 +106,27 @@ export class AssetLoader {
   }
 
   /**
-   * Stage 2: Start (or resume) background loading of remaining assets.
+   * Tier 2: Start (or resume) loading the essential tier.
    *
-   * Intentionally idempotent — can be called from multiple scenes safely.
-   * This matters because MainMenuScene starts the load, then Phaser
-   * stops MainMenuScene when the player taps Play (scene.start kills
-   * the previous scene's loader mid-download). Without the re-queue
-   * below, LoadingScene would take over but nothing would ever complete.
+   * Idempotent — safe to call from multiple scenes. Phaser kills the
+   * previous scene's loader on `scene.start`, so when LoadingScene takes
+   * over from MainMenuScene mid-load, the re-queue through the new
+   * scene's loader keeps the progress flowing.
    *
-   * On each call we:
-   *   - Filter out already-loaded keys (via scene.textures / cache.audio)
-   *   - Queue the remainder through the CURRENT scene's loader
-   *   - Wire progress + complete + loaderror events to THIS scene
-   *   - Update `backgroundLoadStarted` for introspection only
+   * Progress is weighted by already-loaded files so the bar doesn't
+   * snap back to 0 on scene handoff.
+   *
+   * (Kept under the historical name `startBackgroundLoad` so existing
+   * MainMenuScene / LoadingScene callsites don't need editing.)
    */
   startBackgroundLoad(scene: Phaser.Scene): void {
-    this.backgroundLoadStarted = true;
-
-    // If everything we know about is already loaded, we're done.
     const toLoad = this.parsedEntries.filter(
-      (e) => e.category !== 'logo' && e.category !== 'icons' && !this.isLoaded(e.key, e.type, scene),
+      (e) => e.tier === 'essential' && !this.isLoaded(e.key, e.type, scene),
     );
+    const totalEssential = this.parsedEntries.filter((e) => e.tier === 'essential').length;
 
     if (toLoad.length === 0) {
-      this._backgroundLoadComplete = true;
+      this._essentialComplete = true;
       this._progress = 1;
       this.fireComplete();
       return;
@@ -105,32 +137,72 @@ export class AssetLoader {
       console.debug(`[AssetLoader] Skipping: ${file.key}`);
     });
 
-    // Weight progress by what's already loaded so the bar doesn't jump
-    // back to 0 if a second scene re-enters this path. `value` is a
-    // per-scene ratio of remaining-file completion; we translate it
-    // to the overall completion ratio.
-    const alreadyLoaded = this.parsedEntries.length - toLoad.length;
-    const totalKnown = this.parsedEntries.length;
+    const alreadyLoaded = totalEssential - toLoad.length;
     scene.load.on('progress', (value: number) => {
-      const overallPct = totalKnown > 0
-        ? (alreadyLoaded + value * toLoad.length) / totalKnown
+      const overallPct = totalEssential > 0
+        ? (alreadyLoaded + value * toLoad.length) / totalEssential
         : value;
       this._progress = overallPct;
       for (const cb of this.onProgressCallbacks) cb(overallPct);
     });
 
     scene.load.on('complete', () => {
-      this._backgroundLoadComplete = true;
+      this._essentialComplete = true;
       this._progress = 1;
       this.fireComplete();
     });
 
     for (const entry of toLoad) {
-      if (entry.type === 'image') {
-        scene.load.image(entry.key, entry.path);
-      } else if (entry.type === 'audio') {
-        scene.load.audio(entry.key, entry.path);
-      }
+      if (entry.type === 'image') scene.load.image(entry.key, entry.path);
+      else if (entry.type === 'audio') scene.load.audio(entry.key, entry.path);
+    }
+
+    scene.load.start();
+  }
+
+  /**
+   * Tier 3: Silently load per-variant sprites in the background once
+   * the game is running.
+   *
+   * No UI, no player-facing events — the player sees gradually
+   * improving sprites as variant textures land. Missing variants fall
+   * back to the species-level sprite (via sprites.ts getAnimalTextureKey),
+   * so this is purely progressive enhancement.
+   *
+   * Idempotent. First call after essentials complete kicks it off; any
+   * later call is a no-op.
+   */
+  startVariantLoad(scene: Phaser.Scene): void {
+    if (this.variantLoadStarted) return;
+    this.variantLoadStarted = true;
+
+    const toLoad = this.parsedEntries.filter(
+      (e) => e.tier === 'variant' && !this.isLoaded(e.key, e.type, scene),
+    );
+
+    if (toLoad.length === 0) {
+      this._variantComplete = true;
+      return;
+    }
+
+    scene.load.on('loaderror', (file: Phaser.Loader.File) => {
+      console.debug(`[AssetLoader] Variant skip: ${file.key}`);
+    });
+
+    scene.load.on('complete', () => {
+      // Phaser fires this for every load.start() batch; only flag
+      // complete once our variant queue is empty.
+      const stillPending = this.parsedEntries.filter(
+        (e) => e.tier === 'variant' && !this.isLoaded(e.key, e.type, scene),
+      );
+      if (stillPending.length === 0) this._variantComplete = true;
+    });
+
+    for (const entry of toLoad) {
+      // All variants are images — no per-variant audio — but keep the
+      // branch for future-proofing.
+      if (entry.type === 'image') scene.load.image(entry.key, entry.path);
+      else if (entry.type === 'audio') scene.load.audio(entry.key, entry.path);
     }
 
     scene.load.start();
@@ -141,13 +213,10 @@ export class AssetLoader {
     this.onProgressCallbacks.push(cb);
   }
 
-  /** Register a completion callback. */
+  /** Register a completion callback (fires when essentials are ready). */
   onComplete(cb: () => void): void {
-    if (this._backgroundLoadComplete) {
-      cb();
-    } else {
-      this.onCompleteCallbacks.push(cb);
-    }
+    if (this._essentialComplete) cb();
+    else this.onCompleteCallbacks.push(cb);
   }
 
   /** Clear callbacks (when leaving a scene). */
@@ -190,12 +259,29 @@ export class AssetLoader {
 
     // Logo keys: strip "arc-" prefix → "logo-full", "logo-icon" etc.
     // (matches the texture keys used in scenes)
-    // Audio/image keys: use filename without extension
     let key = name;
     if (category === 'logo' && key.startsWith('arc-')) {
       key = key.slice(4); // "arc-logo-full" → "logo-full"
     }
 
-    return { key, path: filePath, category, type };
+    // Tier assignment
+    //   - logo + icons → boot (BootScene loads these eagerly)
+    //   - animals: split fallback vs variant by filename-token count
+    //   - everything else → essential
+    let tier: AssetTier = 'essential';
+    if (category === 'logo' || category === 'icons') {
+      tier = 'boot';
+    } else if (category === 'animals') {
+      // {species}-{state}.png → 2 tokens → fallback (essential)
+      // {species}-{variant}-{state}.png → 3 tokens → variant
+      const tokens = name.split('-');
+      if (tokens.length === 2 && ANIMAL_STATES.has(tokens[1])) {
+        tier = 'essential';  // species fallback
+      } else {
+        tier = 'variant';    // per-variant sprite
+      }
+    }
+
+    return { key, path: filePath, category, type, tier };
   }
 }
