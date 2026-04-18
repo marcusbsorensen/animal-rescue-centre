@@ -47,6 +47,7 @@ import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
 import { GameStateStore, loadGameState, saveGameState } from '../game-state';
+import { renderGarden } from '../game-views';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
 
@@ -2241,176 +2242,26 @@ export class GameScene extends Phaser.Scene {
 
   // ── Garden View ─────────────────────────────────────────────
 
+  /**
+   * Thin wrapper — delegates to the extracted GardenView module
+   * (apps/game/src/game-views/GardenView.ts). Kept as a private method
+   * for now so the existing `renderView()` dispatcher doesn't need to
+   * change shape. Subsequent phases do the same for the other views.
+   */
   private renderGarden(): void {
-    const { width, height } = this.scale;
-    const pets = this.store.animals.filter((a) => a.state === 'pet');
-
-    // Garden background
-    if (this.textures.exists('bg-garden')) {
-      const bg = this.add.image(width / 2, height / 2, 'bg-garden');
-      bg.setDisplaySize(width, height - 40);
-      this.gameContainer.add(bg);
-    } else {
-      this.gameContainer.add(
-        this.add.rectangle(width / 2, height / 2, width, height - 40, 0xe8f5e9)
-      );
-    }
-
-    this.gameContainer.add(
-      createPillTitle(this, width / 2, 55, 'Garden', { bgColour: 0x2E8B57, fontSize: '22px', icon: 'icon-garden' })
-    );
-
-    if (pets.length === 0) {
-      this.gameContainer.add(
-        this.add.text(width / 2, height / 2 - 30,
-          'No pets yet!', {
-          fontSize: '22px', fontFamily: FONTS.body, color: COLOURS.textLight,
-        }).setOrigin(0.5)
-      );
-      this.gameContainer.add(
-        this.add.text(width / 2, height / 2 + 10,
-          'Keep caring for your animals — when their bond\nreaches 100%, they become your pet forever!', {
-          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
-          align: 'center',
-        }).setOrigin(0.5)
-      );
-    } else {
-      this.gameContainer.add(
-        this.add.text(width / 2, 95,
-          `${pets.length} pet${pets.length > 1 ? 's' : ''} living their best life!`, {
-          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
-        }).setOrigin(0.5)
-      );
-
-      // Scatter pets on the grass (lower 40% of screen, above nav bar)
-      const anchors = RoomAnchors.getInstance();
-      const bgTopY = 20, bgW = width, bgH = height - 40;
-
-      pets.forEach((pet, i) => {
-        // Place on grass area — between 60% and 85% of screen height
-        const grassTop = height * 0.6;
-        const gardenLeft = width * 0.15;
-        const gardenRight = width * 0.85;
-        const cols = Math.min(pets.length, 4);
-        const spacing = (gardenRight - gardenLeft) / (cols + 1);
-
-        const visualState = this.deriveAnchorState(pet);
-        const anchor = anchors.pick('garden', pet.species, visualState, i);
-        const placed = this.resolveAnchor(anchor, bgTopY, bgW, bgH, 100, 80);
-
-        const cx = placed
-          ? placed.cx
-          : gardenLeft + spacing * ((i % cols) + 1) + (Math.random() - 0.5) * 30;
-        const cy = placed
-          ? placed.cy
-          : grassTop + Math.floor(i / cols) * 80 + (Math.random() * 20);
-        const spriteW = placed ? placed.w : 100;
-        const spriteH = placed ? placed.h : 80;
-
-        // Collar colour ring
-        const collarHex = pet.collarColour ?? '#ff6b9d';
-        const collarColour = Phaser.Display.Color.HexStringToColor(collarHex).color;
-
-        // Pet sprite (larger than shelter animals, with collar colour ring)
-        const sprite = createAnimalSprite(this, cx, cy, pet, { width: spriteW, height: spriteH, interactive: true });
-        if (placed?.flipX && 'setFlipX' in sprite) {
-          (sprite as Phaser.GameObjects.Image).setFlipX(true);
-        }
-        if (sprite instanceof Phaser.GameObjects.Rectangle) {
-          sprite.setStrokeStyle(3, collarColour);
-        }
-
-        // Collar colour dot below name
-        this.gameContainer.add(
-          this.add.circle(cx, cy + 42, 5, collarColour)
-        );
-
-        // Collar colour dot above pet
-        this.gameContainer.add(
-          this.add.circle(cx, cy - 44, 6, collarColour).setStrokeStyle(1, 0xffffff, 0.8)
-        );
-
-        // Name with collar colour dot
-        this.gameContainer.add(
-          this.add.text(cx, cy + 30, pet.name, {
-            fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
-          }).setOrigin(0.5)
-        );
-
-        // Happiness indicator — coloured dot (green=happy, yellow=ok, red=sad)
-        const happyColour = pet.happiness > 70 ? 0x2ecc71 : pet.happiness > 40 ? 0xf1c40f : 0xe74c3c;
-        this.gameContainer.add(
-          this.add.circle(cx + 30, cy - 20, 6, happyColour).setStrokeStyle(1, 0xffffff, 0.8)
-        );
-
-        // Sick indicator — alert player this pet needs vet attention
-        const petSickIllness = this.store.sickAnimals.get(pet.id);
-        if (petSickIllness) {
-          const sickLabel = this.add.text(cx, cy + 50, 'Sick!', {
-            fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b', resolution: TEXT_RESOLUTION,
-          }).setOrigin(0.5);
-          this.gameContainer.add(sickLabel);
-          // Pulse to draw attention
-          this.tweens.add({
-            targets: sickLabel,
-            alpha: 0.4,
-            duration: 800,
-            yoyo: true,
-            repeat: -1,
-          });
-        }
-
-        sprite.on('pointerdown', () => this.showAnimalDetails(pet, { x: cx, y: cy, size: spriteW }));
-        this.gameContainer.add(sprite);
-
-        // Gentle floating animation
-        this.tweens.add({
-          targets: sprite,
-          y: cy - 4,
-          duration: 2000 + Math.random() * 1000,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-      });
-    }
-
-    // Upgrades display
-    const unlocked = getUnlockedUpgrades(this.store.houseUpgrades);
-    if (unlocked.length > 0) {
-      const upgradeNames = unlocked.map((u) => u.name).join(', ');
-      this.gameContainer.add(
-        this.add.text(width / 2, height - 110, `Upgrades: ${upgradeNames}`, {
-          fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
-        }).setOrigin(0.5)
-      );
-    }
-
-    // Check for new available upgrades
-    const available = getAvailableUpgrades(pets.length, this.store.houseUpgrades);
-    if (available.length > 0) {
-      this.gameContainer.add(
-        createTextButton(this, width / 2, height - 85,
-          `New upgrade available: ${available[0].name}!`, () => {
-            this.store.houseUpgrades.push(available[0].code);
-            this.checkBadges();
-            this.saveState();
-            this.renderView();
-          })
-      );
-    }
-
-    // Badge display
-    if (this.store.earnedBadges.length > 0) {
-      this.gameContainer.add(
-        this.add.text(width / 2, height - 65,
-          `${this.store.earnedBadges.length} badge${this.store.earnedBadges.length > 1 ? 's' : ''} earned`, {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.primary,
-        }).setOrigin(0.5)
-      );
-    }
-
-    this.renderNavBar({ showBack: true });
+    renderGarden(this, this.store, this.gameContainer, {
+      deriveAnchorState: (animal) => this.deriveAnchorState(animal),
+      resolveAnchor: (anchor, bgTopY, bgW, bgH, baseW, baseH) =>
+        this.resolveAnchor(anchor, bgTopY, bgW, bgH, baseW, baseH),
+      showAnimalDetails: (pet, pos) => this.showAnimalDetails(pet, pos),
+      onUpgradeClaimed: (code) => {
+        this.store.houseUpgrades.push(code);
+        this.checkBadges();
+        this.saveState();
+        this.renderView();
+      },
+      renderNavBar: (opts) => this.renderNavBar(opts),
+    });
   }
 
   // ── Bond Completion + Collar Picker ────────────────────────
