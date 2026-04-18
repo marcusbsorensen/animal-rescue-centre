@@ -160,3 +160,11 @@ export {
   deserialiseBoard,
   MODE_TILE_TYPES,
 } from './depot-board';
+export {
+  placeDecoration,
+  removeDecoration,
+  moveDecoration,
+  getRoomDecorations,
+  getAvailableDecorationCounts,
+  syncPlacedDecorationId,
+} from './decorations';

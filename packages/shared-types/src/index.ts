@@ -37,6 +37,22 @@ export interface GameState {
   supplyRuns?: SupplyRunsStats;
   calendar?: CalendarState;
   economy?: Economy;
+  placedDecorations?: PlacedDecoration[];  // room decorations placed by the player
+}
+
+/**
+ * A decoration placed in a species room. Earned via the decorations
+ * depot mode (code matches the DECORATION_REWARDS catalogue). Position
+ * is stored as fractional screen coordinates (0..1) so it scales with
+ * viewport size.
+ */
+export interface PlacedDecoration {
+  id: string;          // unique instance id (for remove/move)
+  code: string;        // matches RewardItem.code in depot catalogue
+  roomId: string;      // 'room-cat', 'room-dog', etc.
+  x: number;           // 0..1 fractional x position within room bg
+  y: number;           // 0..1 fractional y position within room bg
+  placedAt: string;    // ISO timestamp
 }
 
 export interface Inventory {

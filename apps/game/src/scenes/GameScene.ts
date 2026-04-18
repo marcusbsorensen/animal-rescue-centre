@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { Animal, Species, GameState, CalendarState, DepotState, Economy } from '@arc/shared-types';
+import type { Animal, Species, GameState, CalendarState, DepotState, Economy, PlacedDecoration } from '@arc/shared-types';
 import { COLOURS, FONTS, pluralSpecies, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
@@ -39,6 +39,12 @@ import {
   resetDailySessions,
   getMaxShelterAnimals,
   getMaxArrivals,
+  placeDecoration,
+  removeDecoration,
+  getRoomDecorations,
+  getAvailableDecorationCounts,
+  syncPlacedDecorationId,
+  ALL_REWARDS,
 } from '@arc/game-logic';
 import type { IllnessDef, Conflict, ResolutionDef } from '@arc/game-logic';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
@@ -46,6 +52,7 @@ import { getSession } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { showToast, showBlocking } from '../ui/ErrorOverlay';
+import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
 
@@ -68,6 +75,9 @@ export class GameScene extends Phaser.Scene {
   private calendar!: CalendarState;
   private depot!: DepotState;
   private economy: Economy = { coins: 0, lifetimeEarnings: 0 };
+  private placedDecorations: PlacedDecoration[] = [];
+  private decorateMode = false;
+  private decoratePanelDispose?: () => void;
 
   private viewMode: ViewMode = 'corridor';
   private currentRoomSpecies?: Species;
@@ -249,6 +259,10 @@ export class GameScene extends Phaser.Scene {
         if (saved.economy && typeof saved.economy === 'object') {
           this.economy = saved.economy as Economy;
         }
+        if (Array.isArray(saved.placedDecorations)) {
+          this.placedDecorations = saved.placedDecorations as PlacedDecoration[];
+          syncPlacedDecorationId(this.placedDecorations);
+        }
       }
       return true;
     };
@@ -324,6 +338,7 @@ export class GameScene extends Phaser.Scene {
             calendar: this.calendar,
             depot: this.depot,
             economy: this.economy,
+            placedDecorations: this.placedDecorations,
           },
           level: this.level,
           updated_at: new Date().toISOString(),
@@ -1389,6 +1404,19 @@ export class GameScene extends Phaser.Scene {
       createPillTitle(this, width / 2, 55, `${species.charAt(0).toUpperCase() + species.slice(1)} Room`, { bgColour: 0x5AAE4A, fontSize: '28px', padX: 36, padY: 14 })
     );
 
+    // Render any decorations the player has placed in this room.
+    // Drawn before animals so animals always sit in front of decor.
+    this.renderRoomDecorations(width, height);
+
+    // Floating "Decorate" button — only visible if the player has any
+    // decorations in their depot inventory. Opens the DecoratePanel.
+    const availableDecorCount = Object.values(
+      getAvailableDecorationCounts(this.depot)
+    ).reduce((sum, n) => sum + n, 0);
+    if (availableDecorCount > 0 || this.placedDecorations.some((d) => d.roomId === `room-${species}`)) {
+      this.renderDecorateButton(width);
+    }
+
     if (roomAnimals.length === 0) {
       this.gameContainer.add(
         this.add.text(width / 2, height / 2, 'No animals here yet.', {
@@ -2057,6 +2085,124 @@ export class GameScene extends Phaser.Scene {
   private closePopup(): void {
     this.selectedAnimal = undefined;
     this.renderView();
+  }
+
+  // ── Room Decorations ────────────────────────────────────────
+
+  /** Render any decorations the player has placed in the current room. */
+  private renderRoomDecorations(width: number, height: number): void {
+    const species = this.currentRoomSpecies;
+    if (!species) return;
+    const roomId = `room-${species}`;
+    const inRoom = getRoomDecorations(this.placedDecorations, roomId);
+    if (inRoom.length === 0) return;
+
+    // Room background area is roughly the top of the screen to the
+    // nav bar. Decorations are positioned via fractional coords within
+    // this box.
+    const roomBounds = { x: 0, y: 20, width, height: height - 40 };
+
+    for (const deco of inRoom) {
+      const px = roomBounds.x + deco.x * roomBounds.width;
+      const py = roomBounds.y + deco.y * roomBounds.height;
+      const emojiText = this.add
+        .text(px, py, getDecorationEmoji(deco.code), { fontSize: '32px' })
+        .setOrigin(0.5)
+        .setResolution(TEXT_RESOLUTION);
+      // Ensure they sit below animals but above the background.
+      emojiText.setDepth(5);
+      this.gameContainer.add(emojiText);
+    }
+  }
+
+  /** Floating "🎀 Decorate" button in the top-right of the room. */
+  private renderDecorateButton(width: number): void {
+    const btnBg = this.add
+      .rectangle(width - 70, 55, 120, 40, 0xffffff, 0.96)
+      .setStrokeStyle(2, 0xd4783c)
+      .setInteractive({ useHandCursor: true });
+    const btnText = this.add
+      .text(width - 70, 55, '🎀 Decorate', {
+        fontSize: '14px',
+        fontFamily: FONTS.title,
+        color: COLOURS.text,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setResolution(TEXT_RESOLUTION);
+    btnBg.on('pointerdown', () => this.enterDecorateMode());
+    this.gameContainer.add([btnBg, btnText]);
+  }
+
+  /** Open the decorate panel. */
+  private enterDecorateMode(): void {
+    if (this.decorateMode || !this.currentRoomSpecies) return;
+    this.decorateMode = true;
+
+    const species = this.currentRoomSpecies;
+    const { width, height } = this.scale;
+    const roomId = `room-${species}`;
+    const roomBounds = { x: 0, y: 20, width, height: height - 40 };
+
+    const { dispose } = buildDecoratePanel(this, {
+      depot: this.depot,
+      placedInRoom: getRoomDecorations(this.placedDecorations, roomId),
+      roomBounds,
+      callbacks: {
+        onPlace: (code, x, y) => this.handlePlaceDecoration(code, roomId, x, y),
+        onRemove: (id) => this.handleRemoveDecoration(id),
+        onExit: () => this.exitDecorateMode(),
+      },
+    });
+    this.decoratePanelDispose = dispose;
+  }
+
+  private exitDecorateMode(): void {
+    this.decorateMode = false;
+    if (this.decoratePanelDispose) {
+      this.decoratePanelDispose();
+      this.decoratePanelDispose = undefined;
+    }
+    this.saveState();
+    this.renderView();
+  }
+
+  private handlePlaceDecoration(code: string, roomId: string, x: number, y: number): void {
+    const result = placeDecoration(this.placedDecorations, this.depot, code, roomId, x, y);
+    if (!result) {
+      showToast(this, "Out of stock for that decoration — earn more at the depot.");
+      return;
+    }
+    this.placedDecorations = result.placed;
+    this.depot = result.depot;
+    // Re-render the whole room + panel so the new item shows and the
+    // palette count updates.
+    this.refreshDecoratePanel();
+  }
+
+  private handleRemoveDecoration(id: string): void {
+    const result = removeDecoration(this.placedDecorations, this.depot, id);
+    if (!result) return;
+    this.placedDecorations = result.placed;
+    this.depot = result.depot;
+    const label = getDecorationLabel(this.placedDecorations.find((d) => d.id === id)?.code ?? '');
+    if (label) showToast(this, `${label} returned to inventory`);
+    this.refreshDecoratePanel();
+  }
+
+  /** Re-open the panel after a state change so counts and placed items
+   *  stay in sync. Cheap — we rebuild the small UI, not the whole scene. */
+  private refreshDecoratePanel(): void {
+    if (!this.decorateMode || !this.currentRoomSpecies) return;
+    if (this.decoratePanelDispose) {
+      this.decoratePanelDispose();
+      this.decoratePanelDispose = undefined;
+    }
+    // Redraw the background room decorations (cheap full view refresh).
+    this.renderView();
+    // Re-enter decorate mode without toggling the flag off.
+    this.decorateMode = false;
+    this.enterDecorateMode();
   }
 
   // ── Kitchen View ────────────────────────────────────────────
