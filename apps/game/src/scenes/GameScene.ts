@@ -47,7 +47,16 @@ import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
 import { GameStateStore, loadGameState, saveGameState } from '../game-state';
-import { renderGarden, renderKitchen } from '../game-views';
+import {
+  renderGarden,
+  renderKitchen,
+  showBadgeNotification,
+  showLevelUpCelebration,
+  renderConflictPopup,
+  renderConflictResult,
+  renderCollarPicker,
+  renderPetCreated,
+} from '../game-views';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
 
@@ -2156,108 +2165,21 @@ export class GameScene extends Phaser.Scene {
   /**
    * Show collar colour picker when an animal reaches full bond.
    */
+  /** Thin wrapper — delegates to CollarPickerView.renderCollarPicker. */
   private showCollarPicker(animal: Animal): void {
     this.clearView();
-    const { width, height } = this.scale;
-
-    // Celebration background
-    this.gameContainer.add(
-      this.add.rectangle(width / 2, height / 2, width, height, 0xfff8e7)
-    );
-
-    // Star burst celebration — golden circles
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const sx = width / 2 + Math.cos(angle) * 120;
-      const sy = height / 2 - 80 + Math.sin(angle) * 80;
-      const star = this.add.circle(sx, sy, 12, 0xffd700)
-        .setStrokeStyle(2, 0xdaa520).setAlpha(0);
-
-      this.gameContainer.add(star);
-      this.tweens.add({
-        targets: star,
-        alpha: 1,
-        scale: { from: 0.3, to: 1 },
-        duration: 500,
-        delay: i * 100,
-        yoyo: true,
-        repeat: -1,
-        hold: 1000,
-      });
-    }
-
-    // Celebration text — above sprite
-    this.gameContainer.add(
-      createPillTitle(this, width / 2, 55, 'Full Bond!', { bgColour: 0xB8860B, fontSize: '26px', padX: 32, padY: 12 })
-    );
-
-    this.gameContainer.add(
-      this.add.text(width / 2, 95,
-        `${animal.name} loves you so much — they want to be your pet forever!`, {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
-        align: 'center', wordWrap: { width: width - 80 },
-      }).setOrigin(0.5)
-    );
-
-    // Animal sprite — smaller, centred in upper area
-    const spriteY = height * 0.28;
-    const collarSprite = createAnimalSprite(this, width / 2, spriteY, animal, { width: 100, height: 80 });
-    if (collarSprite instanceof Phaser.GameObjects.Rectangle) {
-      collarSprite.setStrokeStyle(3, 0xffd700);
-    }
-    this.gameContainer.add(collarSprite);
-
-    // Collar picker prompt
-    const promptY = height * 0.42;
-    this.gameContainer.add(
-      this.add.text(width / 2, promptY, 'Choose a collar colour for your new pet:', {
-        fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
-      }).setOrigin(0.5)
-    );
-
-    // Collar colour grid
-    const colsPerRow = 4;
-    const collarStartX = width / 2 - ((colsPerRow - 1) * 80) / 2;
-    const collarStartY = promptY + 35;
-
-    COLLAR_COLOURS.forEach((collar, i) => {
-      const col = i % colsPerRow;
-      const row = Math.floor(i / colsPerRow);
-      const x = collarStartX + col * 80;
-      const y = collarStartY + row * 65;
-
-      const colour = Phaser.Display.Color.HexStringToColor(collar.hex).color;
-
-      // Colour swatch
-      const swatch = this.add.circle(x, y, 22, colour)
-        .setInteractive({ useHandCursor: true })
-        .setStrokeStyle(2, 0xffffff);
-
-      // Label
-      this.gameContainer.add(
-        this.add.text(x, y + 30, collar.name, {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-
-      swatch.on('pointerover', () => swatch.setStrokeStyle(3, 0x000000));
-      swatch.on('pointerout', () => swatch.setStrokeStyle(2, 0xffffff));
-      swatch.on('pointerdown', () => {
-        this.completeBonding(animal, collar.hex);
-      });
-
-      this.gameContainer.add(swatch);
+    renderCollarPicker(this, this.gameContainer, animal, {
+      onCollarChosen: (hex) => this.completeBonding(animal, hex),
     });
   }
 
-  /**
-   * Complete the bonding process — animal becomes a pet.
-   */
+  /** Complete the bonding process — animal becomes a pet. Mutations live
+   *  here; the celebration is rendered by CollarPickerView.renderPetCreated. */
   private completeBonding(animal: Animal, collarColour: string): void {
     this.showingCollarPicker = false;
     const idx = this.store.animals.findIndex((a) => a.id === animal.id);
     if (idx >= 0) {
-      if (this.store.animals[idx].state === 'pet') return; // already bonded (race guard)
+      if (this.store.animals[idx].state === 'pet') return; // race guard
       this.store.animals[idx].state = 'pet';
       this.store.animals[idx].collarColour = collarColour;
       this.store.totalBonded++;
@@ -2265,46 +2187,16 @@ export class GameScene extends Phaser.Scene {
 
     AudioManager.getInstance().playSfx('bond_complete');
 
-    // Check for new badges
     this.checkBadges();
     this.saveState();
 
-    // Show celebration then go to garden
     this.clearView();
-    const { width, height } = this.scale;
-
-    this.gameContainer.add(
-      this.add.rectangle(width / 2, height / 2, width, height, 0xe8f5e9)
-    );
-
-    // Heart graphic
-    const heartGfx = this.add.graphics();
-    heartGfx.fillStyle(0xff6b9d, 1);
-    heartGfx.fillCircle(width / 2 - 14, height / 2 - 68, 16);
-    heartGfx.fillCircle(width / 2 + 14, height / 2 - 68, 16);
-    heartGfx.fillTriangle(width / 2 - 28, height / 2 - 60, width / 2 + 28, height / 2 - 60, width / 2, height / 2 - 36);
-    this.gameContainer.add(heartGfx);
-
-    this.gameContainer.add(
-      this.add.text(width / 2, height / 2 + 10,
-        `${animal.name} is now your pet!`, {
-        fontSize: '24px', fontFamily: FONTS.title, color: COLOURS.primary,
-      }).setOrigin(0.5)
-    );
-
-    this.gameContainer.add(
-      this.add.text(width / 2, height / 2 + 50,
-        'They\'ll live in the garden from now on.', {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
-      }).setOrigin(0.5)
-    );
-
-    this.gameContainer.add(
-      createButton(this, width / 2, height / 2 + 110, 'Visit Garden', () => {
+    renderPetCreated(this, this.gameContainer, animal, {
+      onVisitGarden: () => {
         this.viewMode = 'garden';
         this.renderView();
-      }, { width: 220, bgColour: '#2ecc71' })
-    );
+      },
+    });
   }
 
   // ── Badge Evaluation ───────────────────────────────────────
@@ -2352,232 +2244,28 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Thin wrapper — delegates to the extracted CelebrationViews module. */
   private showBadgeNotification(badgeCode: string): void {
-    const { width } = this.scale;
-    AudioManager.getInstance().playSfx('badge_earned');
-
-    // Look up the real badge definition — the stored list uses `code` as
-    // the stable identifier but the player should see the friendly name
-    // and description, not the raw variable id.
-    const def = BADGE_DEFINITIONS.find((b) => b.code === badgeCode);
-    const title = def ? def.name : badgeCode;
-    const subtitle = def ? def.description : 'Nice work!';
-
-    // Painterly toast card at the top of the screen.
-    const toast = this.add.container(width / 2, -80);
-    toast.setDepth(200);
-
-    const cardW = Math.min(360, width - 40);
-    const cardH = 92;
-
-    const shadow = this.add.graphics();
-    shadow.fillStyle(0x000000, 0.22);
-    shadow.fillRoundedRect(-cardW / 2 + 3, -cardH / 2 + 4, cardW, cardH, 18);
-    toast.add(shadow);
-
-    const bg = this.add.graphics();
-    bg.fillStyle(0xfff4d6, 1);
-    bg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 18);
-    bg.lineStyle(3, 0xe3b04b, 1);
-    bg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 18);
-    toast.add(bg);
-
-    // Medal/rosette icon on the left — use painterly badge art if we
-    // happen to have it loaded, otherwise a gold disc with a star.
-    const iconX = -cardW / 2 + 38;
-    const iconKey = `badge-${badgeCode}`;
-    if (this.textures.exists(iconKey)) {
-      toast.add(this.add.image(iconX, 0, iconKey).setDisplaySize(52, 52));
-    } else if (this.textures.exists('icon-badge')) {
-      toast.add(this.add.image(iconX, 0, 'icon-badge').setDisplaySize(52, 52));
-    } else {
-      const medal = this.add.graphics();
-      medal.fillStyle(0xf1c40f, 1);
-      medal.fillCircle(iconX, 0, 22);
-      medal.lineStyle(3, 0xffffff, 1);
-      medal.strokeCircle(iconX, 0, 22);
-      toast.add(medal);
-      toast.add(
-        this.add.text(iconX, 0, '\u2605', {
-          fontSize: '26px', fontFamily: FONTS.title, color: '#ffffff',
-          resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-    }
-
-    // Text block
-    const textX = iconX + 36;
-    toast.add(
-      this.add.text(textX, -14, 'New badge!', {
-        fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
-        color: '#b88213', resolution: TEXT_RESOLUTION,
-      })
-    );
-    toast.add(
-      this.add.text(textX, -2, title, {
-        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
-        color: COLOURS.text, resolution: TEXT_RESOLUTION,
-      })
-    );
-    toast.add(
-      this.add.text(textX, 22, subtitle, {
-        fontSize: '12px', fontFamily: FONTS.body,
-        color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
-        wordWrap: { width: cardW - (textX + cardW / 2 + 14) },
-      })
-    );
-
-    this.tweens.add({
-      targets: toast,
-      y: 70,
-      duration: 500,
-      ease: 'Back.easeOut',
-      hold: 2800,
-      yoyo: true,
-      onComplete: () => toast.destroy(),
-    });
+    showBadgeNotification(this, badgeCode);
   }
 
   // ── Conflict System ─────────────────────────────────────────
 
+  /** Thin wrapper — delegates to ConflictView.renderConflictPopup.
+   *  Keeps the `clearView()` + container-reuse ceremony here since that's
+   *  a scene concern; the view just renders into the provided container. */
   private showConflictPopup(conflict: Conflict): void {
     this.clearView();
-    const { width, height } = this.scale;
-
-    // Background
-    this.gameContainer.add(
-      this.add.rectangle(width / 2, height / 2, width, height, 0xfff3e0)
-    );
-
-    // Title
-    this.gameContainer.add(
-      this.add.text(width / 2, 80, `${conflict.type.replace('_', ' ').toUpperCase()}!`, {
-        fontSize: '26px', fontFamily: FONTS.title, color: '#e74c3c',
-      }).setOrigin(0.5)
-    );
-
-    // Description — use the pre-built description from generateConflict
-    const animal1 = this.store.animals.find((a) => a.id === conflict.animal1Id);
-    const animal2 = this.store.animals.find((a) => a.id === conflict.animal2Id);
-
-    this.gameContainer.add(
-      this.add.text(width / 2, 130, conflict.description, {
-        fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
-        wordWrap: { width: width - 80 }, align: 'center',
-      }).setOrigin(0.5)
-    );
-
-    // Animal sprites — match the conflict narrative so visuals reflect text.
-    // a1 = instigator, a2 = disturbed party (matches description order).
-    const stateByRole: Record<string, [string, string]> = {
-      noise_complaint: ['sheltered', 'sleeping'],   // one being noisy, the other trying to sleep
-      food_jealousy:   ['eating', 'sheltered'],     // one eating, one watching
-      space_sharing:   ['sleeping', 'sheltered'],   // one resting, one wanting the spot
-      sibling_squabble:['sheltered', 'sheltered'],  // both active
-    };
-    const [s1State, s2State] = stateByRole[conflict.type] ?? ['sheltered', 'sheltered'];
-
-    const spriteW = 110, spriteH = 88;
-    const spriteRowY = 225;
-    if (animal1) {
-      const sprite1 = createAnimalSprite(this, width / 2 - 80, spriteRowY, animal1, { width: spriteW, height: spriteH, stateOverride: s1State });
-      this.gameContainer.add(sprite1);
-    }
-    if (animal2) {
-      const sprite2 = createAnimalSprite(this, width / 2 + 80, spriteRowY, animal2, { width: spriteW, height: spriteH, stateOverride: s2State });
-      this.gameContainer.add(sprite2);
-    }
-
-    // Prompt — below sprites
-    this.gameContainer.add(
-      this.add.text(width / 2, 305, 'How do you want to help?', {
-        fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
-      }).setOrigin(0.5)
-    );
-
-    // Resolution buttons — big visual cards with painterly icons so
-    // younger kids can pick an option by sight even if they can't read
-    // the label yet. Falls back to the emoji when the icon art hasn't
-    // been generated yet, then eventually to the label alone.
-    const actions = RESOLUTION_ACTIONS;
-    const iconKeyFor: Record<string, string> = {
-      give_treat:    'icon-resolve-treat',
-      separate:      'icon-resolve-separate',
-      pet_both:      'icon-resolve-comfort',
-      play_together: 'icon-resolve-play',
-    };
-    const cardW = Math.min(320, width - 40);
-    const cardH = 66;
-    const startY = 350;
-    actions.forEach((action, i) => {
-      const cy = startY + i * (cardH + 10);
-      const card = this.add.container(width / 2, cy);
-
-      // Shadow + body
-      const cardGfx = this.add.graphics();
-      cardGfx.fillStyle(0x000000, 0.18);
-      cardGfx.fillRoundedRect(-cardW / 2 + 2, -cardH / 2 + 3, cardW, cardH, 16);
-      cardGfx.fillStyle(0xffffff, 0.98);
-      cardGfx.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
-      cardGfx.lineStyle(2, 0x5AAE4A, 0.55);
-      cardGfx.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
-      card.add(cardGfx);
-
-      // Big icon on the left
-      const iconKey = iconKeyFor[action.action];
-      const iconX = -cardW / 2 + 34;
-      if (iconKey && this.textures.exists(iconKey)) {
-        const iconImg = this.add.image(iconX, 0, iconKey).setDisplaySize(48, 48).setOrigin(0.5);
-        this.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
-        card.add(iconImg);
-      } else {
-        // Coloured circle + emoji for visual recognition pre-art
-        const circleBg = this.add.graphics();
-        const tintHex: Record<string, number> = {
-          give_treat:    0xffd27a,
-          separate:      0xffb4a2,
-          pet_both:      0xcdb4db,
-          play_together: 0xb5e48c,
-        };
-        circleBg.fillStyle(tintHex[action.action] ?? 0xffe4b3, 1);
-        circleBg.fillCircle(iconX, 0, 24);
-        card.add(circleBg);
-        card.add(
-          this.add.text(iconX, 0, action.emoji, {
-            fontSize: '28px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
-          }).setOrigin(0.5)
-        );
-      }
-
-      // Label + helper text — label bold, helper lighter
-      const textX = iconX + 36;
-      card.add(
-        this.add.text(textX, -10, action.label, {
-          fontSize: '17px', fontFamily: FONTS.body, fontStyle: 'bold',
-          color: COLOURS.text, resolution: TEXT_RESOLUTION,
-        }).setOrigin(0, 0.5)
-      );
-      card.add(
-        this.add.text(textX, 12, action.description, {
-          fontSize: '11px', fontFamily: FONTS.body,
-          color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
-          wordWrap: { width: cardW - (textX + cardW / 2 + 10) },
-        }).setOrigin(0, 0.5)
-      );
-
-      // Hit area
-      const hit = this.add.rectangle(0, 0, cardW, cardH, 0x000000, 0)
-        .setInteractive({ useHandCursor: true });
-      hit.on('pointerdown', () => {
-        this.tweens.add({ targets: card, scale: 0.96, duration: 80, yoyo: true });
-        this.resolveActiveConflict(action);
-      });
-      card.add(hit);
-
-      this.gameContainer.add(card);
+    renderConflictPopup(this, this.store, this.gameContainer, conflict, {
+      onResolve: (action) => this.resolveActiveConflict(action),
     });
   }
 
+  /**
+   * State mutation + result-screen rendering for a conflict resolution.
+   * Mutations stay here (scene owns state via store); the calm-after
+   * render delegates to ConflictView.renderConflictResult.
+   */
   private resolveActiveConflict(actionDef: ResolutionDef): void {
     if (!this.store.activeConflict) return;
 
@@ -2606,39 +2294,13 @@ export class GameScene extends Phaser.Scene {
     // conflict can't immediately jump in.
     this.store.lastConflictAt = Date.now();
 
-    // Show result feedback
     this.clearView();
-    const { width, height } = this.scale;
-
-    this.gameContainer.add(
-      this.add.rectangle(width / 2, height / 2, width, height,
-        effective ? 0xe8f5e9 : 0xfff9c4)
-    );
-
-    this.gameContainer.add(
-      this.add.text(width / 2, height / 2 - 30,
-        effective ? 'Great job!' : 'That helped a little...', {
-        fontSize: '28px', fontFamily: FONTS.title,
-        color: effective ? COLOURS.primary : '#f39c12',
-      }).setOrigin(0.5)
-    );
-
-    this.gameContainer.add(
-      this.add.text(width / 2, height / 2 + 20,
-        effective
-          ? 'The animals feel much happier now! (+10 happiness)'
-          : 'The animals calmed down a bit. (+3 happiness)', {
-        fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.text,
-        wordWrap: { width: width - 60 }, align: 'center',
-      }).setOrigin(0.5)
-    );
-
-    this.gameContainer.add(
-      createButton(this, width / 2, height / 2 + 80, '← Back', () => {
+    renderConflictResult(this, this.gameContainer, effective, {
+      onBack: () => {
         this.viewMode = 'corridor';
         this.renderView();
-      }, { width: 180 })
-    );
+      },
+    });
 
     this.checkBadges();
   }
@@ -2659,101 +2321,9 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Thin wrapper — delegates to the extracted CelebrationViews module. */
   private showLevelUpCelebration(newLevel: number, unlockedSpecies: Species[]): void {
-    const { width, height } = this.scale;
-
-    // Play sound effect
-    AudioManager.getInstance().playSfx('upgrade_unlock');
-
-    // Container for all celebration elements (renders above everything)
-    const container = this.add.container(0, 0).setDepth(1000);
-
-    // Semi-transparent overlay
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55)
-      .setInteractive();
-    container.add(overlay);
-
-    // Main title
-    const title = this.add.text(width / 2, height / 2 - 60, 'Level Up!', {
-      fontSize: '36px', fontFamily: FONTS.title, color: '#ffd700',
-    }).setOrigin(0.5);
-    container.add(title);
-
-    // Level number
-    const levelText = this.add.text(width / 2, height / 2 - 20, `Level ${newLevel}`, {
-      fontSize: '24px', fontFamily: FONTS.body, color: COLOURS.white,
-    }).setOrigin(0.5);
-    container.add(levelText);
-
-    // Unlocked species list
-    if (unlockedSpecies.length > 0) {
-      const lines = unlockedSpecies.map(
-        (s) => `${s.charAt(0).toUpperCase() + s.slice(1)} unlocked!`,
-      );
-      const unlockText = this.add.text(width / 2, height / 2 + 25, lines.join('\n'), {
-        fontSize: '20px', fontFamily: FONTS.body, color: '#2ecc71',
-        align: 'center',
-      }).setOrigin(0.5);
-      container.add(unlockText);
-    }
-
-    // Tap to dismiss hint
-    const hint = this.add.text(width / 2, height / 2 + 90, 'Tap to continue', {
-      fontSize: '14px', fontFamily: FONTS.body, color: '#aaa',
-    }).setOrigin(0.5);
-    container.add(hint);
-
-    // Animated sparkles — golden circles
-    const sparkleColours = [0xffd700, 0xffec8b, 0xffa500, 0xfffacd];
-    const sparkles: Phaser.GameObjects.Arc[] = [];
-    for (let i = 0; i < 12; i++) {
-      const sx = Phaser.Math.Between(40, width - 40);
-      const sy = Phaser.Math.Between(40, height - 40);
-      const r = Phaser.Math.Between(4, 10);
-      const sparkle = this.add.circle(sx, sy, r,
-        sparkleColours[Phaser.Math.Between(0, sparkleColours.length - 1)]
-      ).setAlpha(0);
-      container.add(sparkle);
-      sparkles.push(sparkle);
-
-      this.tweens.add({
-        targets: sparkle,
-        alpha: { from: 0, to: 1 },
-        y: sy - Phaser.Math.Between(20, 50),
-        duration: 800,
-        delay: Phaser.Math.Between(0, 600),
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-    }
-
-    // Title pulse animation
-    this.tweens.add({
-      targets: title,
-      scaleX: 1.1,
-      scaleY: 1.1,
-      duration: 500,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    // Dismiss handler
-    const dismiss = () => {
-      this.tweens.killTweensOf(title);
-      sparkles.forEach((s) => this.tweens.killTweensOf(s));
-      container.destroy(true);
-    };
-
-    // Auto-dismiss after 3 seconds
-    const timer = this.time.delayedCall(3000, dismiss);
-
-    // Tap to dismiss early
-    overlay.on('pointerdown', () => {
-      timer.destroy();
-      dismiss();
-    });
+    showLevelUpCelebration(this, newLevel, unlockedSpecies);
   }
 
   // ── Helpers ─────────────────────────────────────────────────

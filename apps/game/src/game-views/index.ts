@@ -6,3 +6,8 @@ export { renderGarden } from './GardenView';
 export type { GardenCallbacks, ResolvedAnchor } from './GardenView';
 export { renderKitchen } from './KitchenView';
 export type { KitchenCallbacks } from './KitchenView';
+export { showBadgeNotification, showLevelUpCelebration } from './CelebrationViews';
+export { renderConflictPopup, renderConflictResult } from './ConflictView';
+export type { ConflictPopupCallbacks, ConflictResultCallbacks } from './ConflictView';
+export { renderCollarPicker, renderPetCreated } from './CollarPickerView';
+export type { CollarPickerCallbacks, PetCreatedCallbacks } from './CollarPickerView';
