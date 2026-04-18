@@ -20,6 +20,7 @@ import {
   applyFeeding,
   applyPlay,
   calculateBondIncrease,
+  isSiblingPresent,
   isBondComplete,
   canGoOnWalk,
   shouldGetSick,
@@ -1916,9 +1917,11 @@ export class GameScene extends Phaser.Scene {
           const idx = this.animals.findIndex((a) => a.id === animal.id);
           if (idx >= 0) {
             this.animals[idx] = applyFeeding(this.animals[idx]);
-            const bondGain = calculateBondIncrease(this.animals[idx], 'feed');
+            const sibPresent = isSiblingPresent(this.animals[idx], this.animals);
+            const bondGain = calculateBondIncrease(this.animals[idx], 'feed', sibPresent);
             this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
             AudioManager.getInstance().playSfx('animal_fed');
+            if (sibPresent) showToast(this, '💫 Sibling nearby — extra bond!');
             this.checkBondComplete(this.animals[idx]);
           }
           this.closePopup();
@@ -1934,9 +1937,11 @@ export class GameScene extends Phaser.Scene {
           const idx = this.animals.findIndex((a) => a.id === animal.id);
           if (idx >= 0) {
             this.animals[idx] = applyPlay(this.animals[idx]);
-            const bondGain = calculateBondIncrease(this.animals[idx], 'play');
+            const sibPresent = isSiblingPresent(this.animals[idx], this.animals);
+            const bondGain = calculateBondIncrease(this.animals[idx], 'play', sibPresent);
             this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
             AudioManager.getInstance().playSfx('animal_happy');
+            if (sibPresent) showToast(this, '💫 Sibling nearby — extra bond!');
             this.checkBondComplete(this.animals[idx]);
           }
           this.closePopup();
@@ -2326,7 +2331,8 @@ export class GameScene extends Phaser.Scene {
             const idx = this.animals.findIndex((a) => a.id === animal.id);
             if (idx >= 0) {
               this.animals[idx] = applyFeeding(this.animals[idx]);
-              const bondGain = calculateBondIncrease(this.animals[idx], 'feed');
+              const sibPresent = isSiblingPresent(this.animals[idx], this.animals);
+              const bondGain = calculateBondIncrease(this.animals[idx], 'feed', sibPresent);
               this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
               this.checkBondComplete(this.animals[idx]);
             }

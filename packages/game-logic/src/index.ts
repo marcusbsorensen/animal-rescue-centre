@@ -1,4 +1,4 @@
-export { calculateBondIncrease, isBondComplete } from './bond';
+export { calculateBondIncrease, isBondComplete, isSiblingPresent, SIBLING_BOND_BONUS } from './bond';
 export { getSpeciesUnlocksForLevel, getRequiredRescuesForLevel, getMaxShelterAnimals, getMaxArrivals } from './progression';
 export {
   validateFoodForSpecies,

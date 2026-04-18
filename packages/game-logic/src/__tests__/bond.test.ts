@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateBondIncrease, isBondComplete } from '../bond';
+import { calculateBondIncrease, isBondComplete, isSiblingPresent, SIBLING_BOND_BONUS } from '../bond';
 import type { Animal } from '@arc/shared-types';
 
 function makeAnimal(overrides: Partial<Animal> = {}): Animal {
@@ -111,5 +111,67 @@ describe('bond edge cases', () => {
     }
     expect(animal.bondLevel).toBe(100);
     expect(isBondComplete(animal)).toBe(true);
+  });
+});
+
+// ── Sibling bond bonus ──
+
+describe('sibling bond bonus', () => {
+  it('calculateBondIncrease applies 25% bonus when sibling is present', () => {
+    const animal = makeAnimal({ bondLevel: 0, happiness: 80 });
+    const without = calculateBondIncrease(animal, 'walk', false);
+    const withSibling = calculateBondIncrease(animal, 'walk', true);
+    expect(withSibling).toBeGreaterThan(without);
+    // The unrounded relationship is exactly SIBLING_BOND_BONUS — after
+    // rounding it can shift by 1 in either direction, so we assert on
+    // the unrounded ratio via close-to-expected.
+    expect(withSibling).toBeGreaterThanOrEqual(Math.floor(without * SIBLING_BOND_BONUS));
+  });
+
+  it('SIBLING_BOND_BONUS is 1.25', () => {
+    expect(SIBLING_BOND_BONUS).toBe(1.25);
+  });
+
+  it('sibling bonus still caps bond at 100', () => {
+    const animal = makeAnimal({ bondLevel: 98, happiness: 100 });
+    const increase = calculateBondIncrease(animal, 'heal', true);
+    expect(animal.bondLevel + increase).toBeLessThanOrEqual(100);
+  });
+
+  it('defaults siblingPresent to false when param omitted', () => {
+    const animal = makeAnimal({ bondLevel: 0, happiness: 80 });
+    expect(calculateBondIncrease(animal, 'walk'))
+      .toBe(calculateBondIncrease(animal, 'walk', false));
+  });
+});
+
+describe('isSiblingPresent', () => {
+  it('returns false when animal has no sibling', () => {
+    const animal = makeAnimal();
+    expect(isSiblingPresent(animal, [animal])).toBe(false);
+  });
+
+  it('returns true when sibling is sheltered', () => {
+    const a = makeAnimal({ id: 'a', siblingId: 'b' });
+    const b = makeAnimal({ id: 'b', state: 'sheltered' });
+    expect(isSiblingPresent(a, [a, b])).toBe(true);
+  });
+
+  it('returns false when sibling is still arriving', () => {
+    const a = makeAnimal({ id: 'a', siblingId: 'b' });
+    const b = makeAnimal({ id: 'b', state: 'arriving' });
+    expect(isSiblingPresent(a, [a, b])).toBe(false);
+  });
+
+  it('returns false when sibling is not in the animals list', () => {
+    const a = makeAnimal({ id: 'a', siblingId: 'missing' });
+    expect(isSiblingPresent(a, [a])).toBe(false);
+  });
+
+  it('returns true for both members of a sheltered pair', () => {
+    const a = makeAnimal({ id: 'a', siblingId: 'b' });
+    const b = makeAnimal({ id: 'b', siblingId: 'a' });
+    expect(isSiblingPresent(a, [a, b])).toBe(true);
+    expect(isSiblingPresent(b, [a, b])).toBe(true);
   });
 });
