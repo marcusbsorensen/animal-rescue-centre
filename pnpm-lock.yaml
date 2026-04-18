@@ -17,6 +17,12 @@ importers:
 
   apps/admin:
     dependencies:
+      '@arc/badges':
+        specifier: workspace:*
+        version: link:../../packages/badges
+      '@arc/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
       '@supabase/supabase-js':
         specifier: ^2.103.0
         version: 2.103.0

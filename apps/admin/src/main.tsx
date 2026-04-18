@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { createClient } from '@supabase/supabase-js';
+import { BADGE_DEFINITIONS } from '@arc/badges';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
 const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY ?? '';
@@ -156,7 +157,7 @@ function Stat({ label, value, colour }: { label: string; value: number; colour?:
   );
 }
 
-function UserManagement() {
+function UserManagement({ onInspect }: { onInspect?: (userId: string, username: string) => void }) {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -212,6 +213,14 @@ function UserManagement() {
                 {u.is_active ? '✅' : '❌'}
               </td>
               <td style={{ padding: '8px' }}>
+                {onInspect && (
+                  <button
+                    onClick={() => onInspect(u.id, u.username)}
+                    style={{ ...btnStyle, background: '#2E6B8A', marginRight: 8 }}
+                  >
+                    Inspect
+                  </button>
+                )}
                 <button
                   onClick={() => toggleActive(u.id, u.is_active)}
                   style={{ ...btnStyle, background: u.is_active ? '#c0392b' : '#4a9c5d' }}
@@ -227,11 +236,256 @@ function UserManagement() {
   );
 }
 
+// ── Game State Inspector ───────────────────────────────────
+
+interface GameStateRow {
+  user_id: string;
+  state: Record<string, unknown>;
+  level: number;
+  updated_at: string;
+}
+
+function GameStateInspector({ userId, username, onBack }: { userId: string; username: string; onBack: () => void }) {
+  const [row, setRow] = useState<GameStateRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      if (!supabase) return;
+      setLoading(true);
+      setErr(null);
+      const { data, error } = await supabase
+        .from('game_states')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) setErr(error.message);
+      setRow(data ?? null);
+      setLoading(false);
+    })();
+  }, [userId]);
+
+  const state = row?.state ?? {};
+  const animals = Array.isArray((state as Record<string, unknown>).animals)
+    ? ((state as Record<string, unknown>).animals as Array<Record<string, unknown>>)
+    : [];
+  const placedDecorations = Array.isArray((state as Record<string, unknown>).placedDecorations)
+    ? ((state as Record<string, unknown>).placedDecorations as Array<Record<string, unknown>>)
+    : [];
+  const economy = ((state as Record<string, unknown>).economy ?? {}) as Record<string, number>;
+  const earnedBadges = Array.isArray((state as Record<string, unknown>).earnedBadges)
+    ? ((state as Record<string, unknown>).earnedBadges as string[])
+    : [];
+
+  return (
+    <div>
+      <button onClick={onBack} style={{ ...btnStyle, background: '#888', marginBottom: 12 }}>
+        ← Back to users
+      </button>
+      <h2>Game State: {username}</h2>
+      {loading && <p>Loading…</p>}
+      {err && <p style={{ color: '#c0392b' }}>Error: {err}</p>}
+      {!loading && !row && (
+        <p style={{ color: '#666' }}>No saved game state for this user yet.</p>
+      )}
+      {row && (
+        <>
+          <div style={{ display: 'flex', gap: '2rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+            <Stat label="Level" value={row.level} />
+            <Stat label="Animals" value={animals.length} />
+            <Stat label="Coins" value={economy.coins ?? 0} />
+            <Stat label="Lifetime" value={economy.lifetimeEarnings ?? 0} />
+            <Stat label="Badges" value={earnedBadges.length} />
+            <Stat label="Decor placed" value={placedDecorations.length} />
+          </div>
+          <p style={{ color: '#666', fontSize: '13px', marginBottom: '1rem' }}>
+            Last updated {new Date(row.updated_at).toLocaleString()}
+          </p>
+
+          <h3>Animals ({animals.length})</h3>
+          {animals.length === 0 ? (
+            <p style={{ color: '#666' }}>No animals yet.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                  <th style={{ padding: '4px 8px' }}>Name</th>
+                  <th style={{ padding: '4px 8px' }}>Species</th>
+                  <th style={{ padding: '4px 8px' }}>Variant</th>
+                  <th style={{ padding: '4px 8px' }}>State</th>
+                  <th style={{ padding: '4px 8px' }}>Bond</th>
+                  <th style={{ padding: '4px 8px' }}>Health</th>
+                  <th style={{ padding: '4px 8px' }}>Sibling</th>
+                </tr>
+              </thead>
+              <tbody>
+                {animals.map((a) => {
+                  const sibId = (a as { siblingId?: string }).siblingId;
+                  return (
+                    <tr key={String(a.id)} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '4px 8px', fontWeight: 'bold' }}>{String(a.name)}</td>
+                      <td style={{ padding: '4px 8px' }}>{String(a.species)}</td>
+                      <td style={{ padding: '4px 8px', color: '#666' }}>{String(a.variant ?? '—')}</td>
+                      <td style={{ padding: '4px 8px' }}>{String(a.state)}</td>
+                      <td style={{ padding: '4px 8px' }}>{String(a.bondLevel)}</td>
+                      <td style={{ padding: '4px 8px' }}>{String(a.health)}</td>
+                      <td style={{ padding: '4px 8px' }}>{sibId ? '🔗' : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          <details style={{ marginTop: '1rem' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Raw state JSON</summary>
+            <pre style={{
+              background: '#f5efe4',
+              padding: '1rem',
+              borderRadius: 4,
+              fontSize: 12,
+              overflow: 'auto',
+              maxHeight: 500,
+            }}>
+              {JSON.stringify(state, null, 2)}
+            </pre>
+          </details>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Badge Progress ─────────────────────────────────────────
+
+interface BadgeEarnedRow {
+  user_id: string;
+  badge_code: string;
+  earned_at: string;
+}
+
+function BadgeProgress() {
+  const [rows, setRows] = useState<BadgeEarnedRow[]>([]);
+  const [usersById, setUsersById] = useState<Map<string, string>>(new Map());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      if (!supabase) return;
+      setLoading(true);
+      const { data: badges } = await supabase
+        .from('badges_earned')
+        .select('*')
+        .order('earned_at', { ascending: false });
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, username');
+      const map = new Map<string, string>();
+      for (const u of users ?? []) map.set(u.id, u.username);
+      setUsersById(map);
+      setRows(badges ?? []);
+      setLoading(false);
+    })();
+  }, []);
+
+  // Count earned per badge code
+  const earnedByCode = new Map<string, number>();
+  for (const r of rows) {
+    earnedByCode.set(r.badge_code, (earnedByCode.get(r.badge_code) ?? 0) + 1);
+  }
+
+  if (loading) return <p>Loading badge data…</p>;
+
+  return (
+    <div>
+      <h2>Badge Progress</h2>
+      <p style={{ color: '#666' }}>
+        {BADGE_DEFINITIONS.length} badges defined, {rows.length} earned across {usersById.size} users.
+      </p>
+
+      <h3 style={{ marginTop: '1.5rem' }}>Catalogue</h3>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+            <th style={{ padding: '6px 8px' }}>Code</th>
+            <th style={{ padding: '6px 8px' }}>Name</th>
+            <th style={{ padding: '6px 8px' }}>Description</th>
+            <th style={{ padding: '6px 8px', textAlign: 'right' }}>Earned by</th>
+          </tr>
+        </thead>
+        <tbody>
+          {BADGE_DEFINITIONS.map((b) => {
+            const count = earnedByCode.get(b.code) ?? 0;
+            return (
+              <tr key={b.code} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: 12, color: '#666' }}>{b.code}</td>
+                <td style={{ padding: '6px 8px', fontWeight: 'bold' }}>{b.name}</td>
+                <td style={{ padding: '6px 8px', color: '#444' }}>{b.description}</td>
+                <td style={{
+                  padding: '6px 8px',
+                  textAlign: 'right',
+                  color: count > 0 ? '#3D8A2E' : '#999',
+                  fontWeight: count > 0 ? 'bold' : 'normal',
+                }}>
+                  {count} {count === 1 ? 'user' : 'users'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <h3>Recent badge awards</h3>
+      {rows.length === 0 ? (
+        <p style={{ color: '#666' }}>Nobody has earned a badge yet.</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+              <th style={{ padding: '6px 8px' }}>User</th>
+              <th style={{ padding: '6px 8px' }}>Badge</th>
+              <th style={{ padding: '6px 8px' }}>Earned</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 50).map((r, i) => {
+              const def = BADGE_DEFINITIONS.find((b) => b.code === r.badge_code);
+              return (
+                <tr key={r.user_id + r.badge_code + i} style={{ borderBottom: '1px solid #eee' }}>
+                  <td style={{ padding: '6px 8px', fontWeight: 'bold' }}>
+                    {usersById.get(r.user_id) ?? '(unknown)'}
+                  </td>
+                  <td style={{ padding: '6px 8px' }}>{def?.name ?? r.badge_code}</td>
+                  <td style={{ padding: '6px 8px', color: '#666' }}>
+                    {new Date(r.earned_at).toLocaleString()}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 // ── App ────────────────────────────────────────────────────
+
+type Tab = 'pool' | 'review' | 'users' | 'badges' | 'state';
+
+const TAB_LABELS: Record<Tab, string> = {
+  pool: 'Username Pool',
+  review: 'Review Names',
+  users: 'Users',
+  badges: 'Badge Progress',
+  state: 'Game State',
+};
 
 function App() {
   const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState<'pool' | 'review' | 'users'>('pool');
+  const [tab, setTab] = useState<Tab>('pool');
+  const [inspecting, setInspecting] = useState<{ userId: string; username: string } | null>(null);
 
   if (!supabase) {
     return (
@@ -258,28 +512,54 @@ function App() {
     );
   }
 
+  const handleInspect = (userId: string, username: string) => {
+    setInspecting({ userId, username });
+    setTab('state');
+  };
+
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: 1100, margin: '0 auto' }}>
       <h1>🐾 A.R.C. Admin</h1>
-      <nav style={{ marginBottom: '1rem', display: 'flex', gap: '8px' }}>
-        {(['pool', 'review', 'users'] as const).map((t) => (
+      <nav style={{ marginBottom: '1rem', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {(['pool', 'review', 'users', 'badges', 'state'] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setTab(t);
+              if (t !== 'state') setInspecting(null);
+            }}
             style={{
               ...btnStyle,
               background: tab === t ? '#4a9c5d' : '#ccc',
               color: tab === t ? '#fff' : '#333',
             }}
           >
-            {t === 'pool' ? 'Username Pool' : t === 'review' ? 'Review Names' : 'Users'}
+            {TAB_LABELS[t]}
           </button>
         ))}
       </nav>
 
       {tab === 'pool' && <PoolStatus />}
       {tab === 'review' && <UsernameReview />}
-      {tab === 'users' && <UserManagement />}
+      {tab === 'users' && <UserManagement onInspect={handleInspect} />}
+      {tab === 'badges' && <BadgeProgress />}
+      {tab === 'state' && (
+        inspecting ? (
+          <GameStateInspector
+            userId={inspecting.userId}
+            username={inspecting.username}
+            onBack={() => { setInspecting(null); setTab('users'); }}
+          />
+        ) : (
+          <div>
+            <h2>Game State Inspector</h2>
+            <p style={{ color: '#666' }}>
+              Open the <strong>Users</strong> tab and click <em>Inspect</em> on a user to view their
+              saved game state — animals, economy, badges, placed decorations, raw JSON.
+            </p>
+          </div>
+        )
+      )}
     </div>
   );
 }

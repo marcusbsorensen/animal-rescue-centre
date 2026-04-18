@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arc/badges": "workspace:*",
+    "@arc/shared-types": "workspace:*",
     "@supabase/supabase-js": "^2.103.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
