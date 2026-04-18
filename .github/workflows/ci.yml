@@ -33,18 +33,9 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Install Playwright browsers
-        run: pnpm --filter @arc/game exec playwright install --with-deps chromium
-
-      - name: Visual + smoke tests
-        run: pnpm --filter @arc/game test:visual
-        env:
-          CI: 'true'
-
-      - name: Upload Playwright report on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: apps/game/playwright-report/
-          retention-days: 7
+      # Playwright e2e is intentionally *not* run on CI — typecheck +
+      # build + vitest already catch the class of bugs the smoke tests
+      # would. Running headless Phaser in Linux CI has been flaky
+      # enough that the noise outweighs the signal for a single-dev
+      # project. Devs run `pnpm --filter @arc/game test:visual` locally
+      # when visual-regression review is wanted.

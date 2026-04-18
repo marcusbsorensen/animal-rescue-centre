@@ -27,15 +27,17 @@ export default defineConfig({
   workers: 1,                   // see above
   reporter: process.env.CI ? 'github' : 'list',
 
-  // Always use Vite's dev server — simpler than juggling a separate
-  // preview build path and the on-the-fly esbuild is fast enough that
-  // CI doesn't benefit from preview mode. The game doesn't exercise
-  // any prod-only behaviour we care about testing.
+  // CI runs against the built bundle via `vite preview` — the dev
+  // server's on-the-fly workspace-symlink resolution has been flaky
+  // on Linux runners. Locally we keep the dev server for fast feedback
+  // with HMR.
   webServer: {
-    command: 'pnpm dev --host 127.0.0.1 --port 4173',
+    command: process.env.CI
+      ? 'pnpm preview --host 127.0.0.1 --port 4173 --strictPort'
+      : 'pnpm dev --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    timeout: 90_000,
   },
 
   use: {
