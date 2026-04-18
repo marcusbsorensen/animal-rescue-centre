@@ -285,25 +285,68 @@ export function renderCorridor(
     const slotW = Math.min(280, (width - 40) / n);
     const startX = width / 2 - ((n - 1) * slotW) / 2;
 
-    // Corridor uses procedural even-spacing — existing corridor.*.arriving
-    // anchors define only a single spot per species so multiples would stack.
+    // If the anchor editor has placed corridor.<species>.arriving anchors,
+    // use them. Otherwise fall back to procedural even-spacing along the
+    // floor. Per-species index tracking ensures that when multiple of the
+    // same species arrive together, subsequent animals cycle through any
+    // additional anchors defined for that species (RoomAnchors.pick
+    // handles the modulo cycling).
+    const corridorAnchors = RoomAnchors.getInstance();
+    const bgTopY = 20;
+    const bgW = width;
+    const bgH = height - 40;
+    const perSpeciesCounter: Record<string, number> = {};
+
     arriving.forEach((animal, i) => {
-      const ax = startX + i * slotW;
+      const speciesIdx = perSpeciesCounter[animal.species] ?? 0;
+      perSpeciesCounter[animal.species] = speciesIdx + 1;
+
+      const anchor = corridorAnchors.pick('corridor', animal.species, 'arriving', speciesIdx);
+      // Default procedural position (on the floor, evenly spaced)
+      const proceduralAX = startX + i * slotW;
       const spriteW = 90;
       const spriteH = 74;
-      const spriteCy = floorY - spriteH / 2 + 2;
+      const proceduralCY = floorY - spriteH / 2 + 2;
 
-      // Floor drop shadow
-      const shadowFeetY = spriteCy + spriteH / 2;
-      const shadow = scene.add.ellipse(ax, shadowFeetY + 4, spriteW * 0.65, spriteH * 0.16, 0x000000, 0.28);
+      let ax = proceduralAX;
+      let spriteCy = proceduralCY;
+      let useAnchorScale = false;
+      let anchorW = spriteW;
+      let anchorH = spriteH;
+      let anchorFlipX = false;
+
+      if (anchor) {
+        // Anchor is feet-position in fractional bg coords; translate to
+        // sprite-centre for drawing. Matches resolveAnchor in GameScene
+        // but inlined here to avoid pulling the helper through a callback.
+        const s = anchor.scale ?? 1;
+        anchorW = spriteW * s;
+        anchorH = spriteH * s;
+        const feetX = anchor.x * bgW;
+        const feetY = bgTopY + anchor.y * bgH;
+        ax = feetX;
+        spriteCy = feetY - anchorH / 2;
+        useAnchorScale = true;
+        anchorFlipX = anchor.facing === 'left';
+      }
+
+      const drawW = useAnchorScale ? anchorW : spriteW;
+      const drawH = useAnchorScale ? anchorH : spriteH;
+
+      // Floor drop shadow — feet sit at sprite centre + half-height
+      const shadowFeetY = spriteCy + drawH / 2;
+      const shadow = scene.add.ellipse(ax, shadowFeetY + 4, drawW * 0.65, drawH * 0.16, 0x000000, 0.28);
       container.add(shadow);
 
       const sprite = createAnimalSprite(
         scene, ax, spriteCy, animal,
-        { width: spriteW, height: spriteH, interactive: true },
+        { width: drawW, height: drawH, interactive: true },
       );
+      if (anchorFlipX && 'setFlipX' in sprite) {
+        (sprite as Phaser.GameObjects.Image).setFlipX(true);
+      }
       sprite.on('pointerdown', () =>
-        callbacks.onShowAnimalDetails(animal, { x: ax, y: spriteCy, size: spriteW }),
+        callbacks.onShowAnimalDetails(animal, { x: ax, y: spriteCy, size: drawW }),
       );
       container.add(sprite);
 
@@ -314,8 +357,8 @@ export function renderCorridor(
         ease: 'Sine.easeInOut', delay: i * 200,
       });
 
-      // Speech bubble above the animal
-      const bubbleAnchorY = floorY - spriteH - 4;
+      // Speech bubble sits above the sprite, following its actual height
+      const bubbleAnchorY = spriteCy - drawH / 2 - 4;
       const speciesLabel = animal.variant
         ? `${animal.variant} ${animal.species}`
         : animal.species;

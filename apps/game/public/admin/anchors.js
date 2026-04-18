@@ -66,13 +66,28 @@ function clear(node) { while (node.firstChild) node.removeChild(node.firstChild)
 // sprites when dressing the corridor.
 function paletteForScene(roomKey) {
   if (roomKey === 'corridor') {
-    return {
-      title: 'Room signs',
-      hint:  'Drop a door sign to mark each species room.',
-      items: SPECIES.map(sp => ({
+    // Two categories for the corridor:
+    //   1. Door signs (decor) — mark each species room
+    //   2. Arriving animal sprites — newly-rescued animals stand in the
+    //      corridor before they're welcomed in. Hand-placing their
+    //      anchors lets the art direct where kids see them (e.g. near
+    //      the entrance, on a rescue mat) rather than the runtime's
+    //      procedural even-spacing.
+    const items = [
+      ...SPECIES.map(sp => ({
         type: 'decor', key: `sign-${sp}`, label: `${sp} sign`,
         src: `/assets/signs/sign-${sp}.png`,
       })),
+      ...SPECIES.map(sp => ({
+        type: 'animal', species: sp, state: 'arriving',
+        src: `/assets/animals/${sp}-arriving.png`,
+        label: `${sp} · arriving`,
+      })),
+    ];
+    return {
+      title: 'Signs + arriving sprites',
+      hint:  'Signs for door slots, arriving sprites for where new rescues stand in the corridor.',
+      items,
     };
   }
   if (roomKey === 'kitchen') {
