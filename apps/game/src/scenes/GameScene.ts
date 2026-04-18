@@ -1,10 +1,7 @@
 import Phaser from 'phaser';
-import type { Animal, Species, GameState, DepotState, Economy } from '@arc/shared-types';
-import { COLOURS, FONTS, pluralSpecies, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
-import { createAnimalSprite } from '../ui/sprites';
-import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
-import { createSpeechBubble } from '../ui/SpeechBubble';
+import type { Animal, Species, DepotState, Economy } from '@arc/shared-types';
+import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { type Anchor } from '../lib/RoomAnchors';
 import { AudioManager } from '../audio/AudioManager';
 import {
   spawnAnimal,
@@ -14,9 +11,6 @@ import {
   getSpeciesUnlocksForLevel,
   getRequiredRescuesForLevel,
   tickNeeds,
-  getUrgentNeed,
-  getNeedSpeech,
-  SPECIES_COLOURS,
   applyFeeding,
   applyPlay,
   calculateBondIncrease,
@@ -28,22 +22,17 @@ import {
   shouldGetSick,
   pickIllness,
   applySickness,
-  getAvailableUpgrades,
-  getUnlockedUpgrades,
   shouldSpawnConflict,
   generateConflict,
-  isResolutionEffective,
   resolveConflict,
-  RESOLUTION_ACTIONS,
   getMaxShelterAnimals,
   getMaxArrivals,
   placeDecoration,
   removeDecoration,
   getRoomDecorations,
-  getAvailableDecorationCounts,
 } from '@arc/game-logic';
-import type { IllnessDef, Conflict, ResolutionDef } from '@arc/game-logic';
-import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
+import type { Conflict, ResolutionDef } from '@arc/game-logic';
+import { evaluateBadges } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
 import { GameStateStore, loadGameState, saveGameState } from '../game-state';
