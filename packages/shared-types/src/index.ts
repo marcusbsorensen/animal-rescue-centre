@@ -38,7 +38,40 @@ export interface GameState {
   calendar?: CalendarState;
   economy?: Economy;
   placedDecorations?: PlacedDecoration[];  // room decorations placed by the player
+  relationships?: AnimalRelationship[];    // player-defined bonds/feuds between animals
 }
+
+/**
+ * A directional relationship between two animals. Most relationship
+ * types are bidirectional by semantics (A is B's sibling ↔ B is A's
+ * sibling), but we store both directions explicitly so lookups are
+ * O(n) on relationship count rather than O(n²) on animal count, and
+ * so asymmetric cases (A tolerates B, B is scared of A) remain
+ * expressible in future.
+ *
+ * All current types (sibling/friend/enemy) are assumed bidirectional
+ * when used by the game logic — writing one direction creates both.
+ */
+export interface AnimalRelationship {
+  fromId: string;
+  toId: string;
+  type: RelationshipType;
+}
+
+/**
+ * - sibling:    family bond. Bond bonus when together, sibling_squabble
+ *               conflict flavour when they do argue.
+ * - friend:     bond bonus when together, conflict risk between the pair
+ *               is suppressed.
+ * - enemy:      sharply elevated conflict risk between the pair.
+ * - intolerant: mildly elevated conflict risk (softer than enemy).
+ *               Good for "doesn't love each other but can share a room".
+ *
+ * These also feed the supply-run vehicle loader when animals are driven
+ * to the vet — enemies shouldn't share a crate, friends calm each other
+ * on the journey, etc.
+ */
+export type RelationshipType = 'sibling' | 'friend' | 'enemy' | 'intolerant';
 
 /**
  * A decoration placed in a species room. Earned via the decorations

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@arc/badges": "workspace:*",
+    "@arc/game-logic": "workspace:*",
     "@arc/shared-types": "workspace:*",
     "@supabase/supabase-js": "^2.103.0",
     "react": "^19.0.0",

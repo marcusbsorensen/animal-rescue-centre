@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { Animal, Species, GameState, CalendarState, DepotState, Economy, PlacedDecoration } from '@arc/shared-types';
+import type { Animal, Species, GameState, CalendarState, DepotState, Economy, PlacedDecoration, AnimalRelationship } from '@arc/shared-types';
 import { COLOURS, FONTS, pluralSpecies, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
@@ -21,6 +21,10 @@ import {
   applyPlay,
   calculateBondIncrease,
   isSiblingPresent,
+  pickConflictPair,
+  hasAllyPresent,
+  relationshipsFromSiblingIds,
+  syncSiblingIds,
   isBondComplete,
   canGoOnWalk,
   shouldGetSick,
@@ -77,6 +81,7 @@ export class GameScene extends Phaser.Scene {
   private depot!: DepotState;
   private economy: Economy = { coins: 0, lifetimeEarnings: 0 };
   private placedDecorations: PlacedDecoration[] = [];
+  private relationships: AnimalRelationship[] = [];
   private decorateMode = false;
   private decoratePanelDispose?: () => void;
 
@@ -264,6 +269,14 @@ export class GameScene extends Phaser.Scene {
           this.placedDecorations = saved.placedDecorations as PlacedDecoration[];
           syncPlacedDecorationId(this.placedDecorations);
         }
+        // Relationships: load the saved list if present, otherwise
+        // migrate from legacy `siblingId` fields on the animals. This
+        // keeps older save files functional without a separate migration.
+        if (Array.isArray(saved.relationships)) {
+          this.relationships = saved.relationships as AnimalRelationship[];
+        } else {
+          this.relationships = relationshipsFromSiblingIds(this.animals);
+        }
       }
       return true;
     };
@@ -340,6 +353,7 @@ export class GameScene extends Phaser.Scene {
             depot: this.depot,
             economy: this.economy,
             placedDecorations: this.placedDecorations,
+            relationships: this.relationships,
           },
           level: this.level,
           updated_at: new Date().toISOString(),
@@ -416,11 +430,16 @@ export class GameScene extends Phaser.Scene {
     if (!this.activeConflict && this.viewMode !== 'garden' && cooledDown) {
       const shelteredAnimals = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding');
       if (shelteredAnimals.length >= 2 && shouldSpawnConflict(shelteredAnimals)) {
-        // Pick two random animals for the conflict
-        const shuffled = [...shelteredAnimals].sort(() => Math.random() - 0.5);
-        this.activeConflict = generateConflict(shuffled[0], shuffled[1]);
-        this.lastConflictAt = Date.now();
-        this.showConflictPopup(this.activeConflict);
+        // Relationship-aware pair selection: enemies weighted 5x,
+        // intolerant 2x, siblings 1.5x, friends filtered out,
+        // unrelated pairs 1x. Falls back to random when the result
+        // set is empty (everyone in the room is friends — calm).
+        const pair = pickConflictPair(shelteredAnimals, this.relationships);
+        if (pair) {
+          this.activeConflict = generateConflict(pair[0], pair[1]);
+          this.lastConflictAt = Date.now();
+          this.showConflictPopup(this.activeConflict);
+        }
       }
     }
 
@@ -1917,7 +1936,10 @@ export class GameScene extends Phaser.Scene {
           const idx = this.animals.findIndex((a) => a.id === animal.id);
           if (idx >= 0) {
             this.animals[idx] = applyFeeding(this.animals[idx]);
-            const sibPresent = isSiblingPresent(this.animals[idx], this.animals);
+            // Bond bonus fires for either a sibling OR a friend
+            // who's currently in the shelter — "good company" boost.
+            const sibPresent = isSiblingPresent(this.animals[idx], this.animals)
+              || hasAllyPresent(this.relationships, this.animals[idx], this.animals, 'friend');
             const bondGain = calculateBondIncrease(this.animals[idx], 'feed', sibPresent);
             this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
             AudioManager.getInstance().playSfx('animal_fed');
@@ -1937,7 +1959,10 @@ export class GameScene extends Phaser.Scene {
           const idx = this.animals.findIndex((a) => a.id === animal.id);
           if (idx >= 0) {
             this.animals[idx] = applyPlay(this.animals[idx]);
-            const sibPresent = isSiblingPresent(this.animals[idx], this.animals);
+            // Bond bonus fires for either a sibling OR a friend
+            // who's currently in the shelter — "good company" boost.
+            const sibPresent = isSiblingPresent(this.animals[idx], this.animals)
+              || hasAllyPresent(this.relationships, this.animals[idx], this.animals, 'friend');
             const bondGain = calculateBondIncrease(this.animals[idx], 'play', sibPresent);
             this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
             AudioManager.getInstance().playSfx('animal_happy');
@@ -2331,7 +2356,10 @@ export class GameScene extends Phaser.Scene {
             const idx = this.animals.findIndex((a) => a.id === animal.id);
             if (idx >= 0) {
               this.animals[idx] = applyFeeding(this.animals[idx]);
-              const sibPresent = isSiblingPresent(this.animals[idx], this.animals);
+              // Bond bonus fires for either a sibling OR a friend
+            // who's currently in the shelter — "good company" boost.
+            const sibPresent = isSiblingPresent(this.animals[idx], this.animals)
+              || hasAllyPresent(this.relationships, this.animals[idx], this.animals, 'friend');
               const bondGain = calculateBondIncrease(this.animals[idx], 'feed', sibPresent);
               this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
               this.checkBondComplete(this.animals[idx]);

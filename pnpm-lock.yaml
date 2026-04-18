@@ -20,6 +20,9 @@ importers:
       '@arc/badges':
         specifier: workspace:*
         version: link:../../packages/badges
+      '@arc/game-logic':
+        specifier: workspace:*
+        version: link:../../packages/game-logic
       '@arc/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types

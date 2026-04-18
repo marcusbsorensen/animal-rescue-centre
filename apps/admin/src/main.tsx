@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { createClient } from '@supabase/supabase-js';
 import { BADGE_DEFINITIONS } from '@arc/badges';
+import {
+  setRelationship,
+  clearRelationship,
+  getRelationship,
+  syncSiblingIds,
+} from '@arc/game-logic';
+import type { AnimalRelationship, RelationshipType, Animal } from '@arc/shared-types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
 const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY ?? '';
@@ -250,25 +257,25 @@ function GameStateInspector({ userId, username, onBack }: { userId: string; user
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      if (!supabase) return;
-      setLoading(true);
-      setErr(null);
-      const { data, error } = await supabase
-        .from('game_states')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (error) setErr(error.message);
-      setRow(data ?? null);
-      setLoading(false);
-    })();
-  }, [userId]);
+  const fetchState = async () => {
+    if (!supabase) return;
+    setLoading(true);
+    setErr(null);
+    const { data, error } = await supabase
+      .from('game_states')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) setErr(error.message);
+    setRow(data ?? null);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchState(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [userId]);
 
   const state = row?.state ?? {};
   const animals = Array.isArray((state as Record<string, unknown>).animals)
-    ? ((state as Record<string, unknown>).animals as Array<Record<string, unknown>>)
+    ? ((state as Record<string, unknown>).animals as Array<Animal>)
     : [];
   const placedDecorations = Array.isArray((state as Record<string, unknown>).placedDecorations)
     ? ((state as Record<string, unknown>).placedDecorations as Array<Record<string, unknown>>)
@@ -277,6 +284,30 @@ function GameStateInspector({ userId, username, onBack }: { userId: string; user
   const earnedBadges = Array.isArray((state as Record<string, unknown>).earnedBadges)
     ? ((state as Record<string, unknown>).earnedBadges as string[])
     : [];
+  const relationships = Array.isArray((state as Record<string, unknown>).relationships)
+    ? ((state as Record<string, unknown>).relationships as AnimalRelationship[])
+    : [];
+
+  /** Write a new relationships array back to this user's game_state row.
+   *  Also syncs the legacy `siblingId` field on animals. */
+  const saveRelationships = async (nextRels: AnimalRelationship[]) => {
+    if (!supabase || !row) return;
+    const nextAnimals = syncSiblingIds(animals, nextRels);
+    const nextState = {
+      ...(row.state as Record<string, unknown>),
+      relationships: nextRels,
+      animals: nextAnimals,
+    };
+    const { error: upsertErr } = await supabase
+      .from('game_states')
+      .update({ state: nextState, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+    if (upsertErr) {
+      setErr(upsertErr.message);
+      return;
+    }
+    setRow({ ...row, state: nextState, updated_at: new Date().toISOString() });
+  };
 
   return (
     <div>
@@ -338,6 +369,12 @@ function GameStateInspector({ userId, username, onBack }: { userId: string; user
             </table>
           )}
 
+          <RelationshipEditor
+            animals={animals}
+            relationships={relationships}
+            onSave={saveRelationships}
+          />
+
           <details style={{ marginTop: '1rem' }}>
             <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Raw state JSON</summary>
             <pre style={{
@@ -352,6 +389,239 @@ function GameStateInspector({ userId, username, onBack }: { userId: string; user
             </pre>
           </details>
         </>
+      )}
+    </div>
+  );
+}
+
+// ── Relationship Editor ────────────────────────────────────
+
+const REL_META: Record<RelationshipType, { emoji: string; label: string; colour: string }> = {
+  sibling:    { emoji: '🫂', label: 'Sibling',    colour: '#9b59b6' },
+  friend:     { emoji: '💛', label: 'Friend',     colour: '#f1c40f' },
+  enemy:      { emoji: '😡', label: 'Enemy',      colour: '#c0392b' },
+  intolerant: { emoji: '😾', label: 'Intolerant', colour: '#e67e22' },
+};
+
+function RelationshipEditor({
+  animals,
+  relationships,
+  onSave,
+}: {
+  animals: Animal[];
+  relationships: AnimalRelationship[];
+  onSave: (next: AnimalRelationship[]) => Promise<void>;
+}) {
+  const [picked, setPicked] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  if (animals.length < 2) {
+    return (
+      <div style={{ marginTop: '2rem', color: '#666' }}>
+        <h3>Relationships</h3>
+        <p>
+          Need at least two animals before you can set up friendships or
+          rivalries.
+        </p>
+      </div>
+    );
+  }
+
+  const toggle = (id: string) => {
+    if (picked.includes(id)) {
+      setPicked(picked.filter((p) => p !== id));
+    } else if (picked.length >= 2) {
+      setPicked([id]);
+    } else {
+      setPicked([...picked, id]);
+    }
+  };
+
+  const setRel = async (type: RelationshipType | null) => {
+    if (picked.length !== 2) return;
+    setSaving(true);
+    const [a, b] = picked;
+    const nextRels = type
+      ? setRelationship(relationships, a, b, type)
+      : clearRelationship(relationships, a, b);
+    await onSave(nextRels);
+    setSaving(false);
+    setPicked([]);
+  };
+
+  const currentBetweenPicked: RelationshipType | undefined =
+    picked.length === 2 ? getRelationship(relationships, picked[0], picked[1]) : undefined;
+
+  // For display: group relationships by pair (dedupe the two directions)
+  const seen = new Set<string>();
+  const uniquePairs: { a: Animal; b: Animal; type: RelationshipType }[] = [];
+  for (const r of relationships) {
+    const key = [r.fromId, r.toId].sort().join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const animalA = animals.find((x) => x.id === r.fromId);
+    const animalB = animals.find((x) => x.id === r.toId);
+    if (animalA && animalB) {
+      uniquePairs.push({ a: animalA, b: animalB, type: r.type });
+    }
+  }
+
+  return (
+    <div style={{ marginTop: '2rem' }}>
+      <h3>Relationships</h3>
+      <p style={{ color: '#666', fontSize: 13 }}>
+        Click an animal, then click another — pick how they feel about each other.
+        These affect conflicts, bond bonuses, and (later) vehicle loading on vet trips.
+      </p>
+
+      {/* Picker row — all animals as tappable chips */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '1rem' }}>
+        {animals.map((a) => {
+          const on = picked.includes(a.id);
+          return (
+            <button
+              key={a.id}
+              onClick={() => toggle(a.id)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 20,
+                border: on ? '2px solid #4a9c5d' : '1px solid #ccc',
+                background: on ? '#e8f5ea' : '#fff',
+                color: '#333',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: on ? 'bold' : 'normal',
+              }}
+            >
+              {a.name} <span style={{ color: '#999', fontSize: 12 }}>({a.species})</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Action bar — shown once a pair is selected */}
+      {picked.length === 2 && (
+        <div style={{
+          padding: '1rem',
+          background: '#fef9ef',
+          border: '1px solid #d4c8b8',
+          borderRadius: 4,
+          marginBottom: '1rem',
+        }}>
+          <div style={{ marginBottom: 8 }}>
+            <strong>{animals.find((x) => x.id === picked[0])?.name}</strong>
+            {' ↔ '}
+            <strong>{animals.find((x) => x.id === picked[1])?.name}</strong>
+            {currentBetweenPicked && (
+              <span style={{ marginLeft: 12, color: REL_META[currentBetweenPicked].colour, fontWeight: 'bold' }}>
+                currently {REL_META[currentBetweenPicked].emoji} {REL_META[currentBetweenPicked].label}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {(Object.keys(REL_META) as RelationshipType[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setRel(t)}
+                disabled={saving}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 4,
+                  border: 'none',
+                  background: REL_META[t].colour,
+                  color: '#fff',
+                  cursor: saving ? 'wait' : 'pointer',
+                  fontSize: 13,
+                  fontWeight: 'bold',
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {REL_META[t].emoji} {REL_META[t].label}
+              </button>
+            ))}
+            <button
+              onClick={() => setRel(null)}
+              disabled={saving}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 4,
+                border: '1px solid #aaa',
+                background: '#fff',
+                color: '#333',
+                cursor: saving ? 'wait' : 'pointer',
+                fontSize: 13,
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              Clear
+            </button>
+            <button
+              onClick={() => setPicked([])}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 4,
+                border: '1px solid #aaa',
+                background: '#f5efe4',
+                color: '#666',
+                cursor: 'pointer',
+                fontSize: 13,
+                marginLeft: 'auto',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Existing pairs table */}
+      {uniquePairs.length === 0 ? (
+        <p style={{ color: '#666', fontStyle: 'italic' }}>
+          No relationships set yet. Pick two animals above to create one.
+        </p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+              <th style={{ padding: '6px 8px' }}>Pair</th>
+              <th style={{ padding: '6px 8px' }}>Relationship</th>
+              <th style={{ padding: '6px 8px', textAlign: 'right' }}>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {uniquePairs.map((p) => (
+              <tr key={p.a.id + '|' + p.b.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '6px 8px' }}>
+                  <strong>{p.a.name}</strong> ↔ <strong>{p.b.name}</strong>
+                </td>
+                <td style={{ padding: '6px 8px', color: REL_META[p.type].colour, fontWeight: 'bold' }}>
+                  {REL_META[p.type].emoji} {REL_META[p.type].label}
+                </td>
+                <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                  <button
+                    onClick={async () => {
+                      setSaving(true);
+                      await onSave(clearRelationship(relationships, p.a.id, p.b.id));
+                      setSaving(false);
+                    }}
+                    disabled={saving}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      border: '1px solid #c0392b',
+                      background: '#fff',
+                      color: '#c0392b',
+                      cursor: saving ? 'wait' : 'pointer',
+                      fontSize: 12,
+                    }}
+                  >
+                    Clear
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );

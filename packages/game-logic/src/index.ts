@@ -93,6 +93,7 @@ export type { AudioScene, SoundEffect, AudioState } from './audio';
 export {
   shouldSpawnConflict,
   generateConflict,
+  pickConflictPair,
   isResolutionEffective,
   resolveConflict,
   CONFLICT_TYPES,
@@ -168,3 +169,12 @@ export {
   getAvailableDecorationCounts,
   syncPlacedDecorationId,
 } from './decorations';
+export {
+  setRelationship,
+  clearRelationship,
+  getRelationship,
+  getRelationshipsFor,
+  hasAllyPresent,
+  syncSiblingIds,
+  relationshipsFromSiblingIds,
+} from './relationships';

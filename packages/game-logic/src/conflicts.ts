@@ -85,6 +85,61 @@ export function shouldSpawnConflict(roomAnimals: Animal[]): boolean {
 }
 
 /**
+ * Pick the pair of animals that will argue. With no relationships
+ * provided, falls back to a random pair. When relationships exist:
+ *
+ * - enemy pairs get weight 5 (strongly more likely to clash)
+ * - intolerant pairs get weight 2
+ * - sibling pairs get weight 1.5 (they bicker)
+ * - friend pairs get weight 0 (they don't fight)
+ * - unrelated pairs get weight 1
+ *
+ * Returns [a, b] or null if the weighted pool is empty (e.g. everyone
+ * in the room is friends).
+ */
+import type { AnimalRelationship } from '@arc/shared-types';
+
+export function pickConflictPair(
+  roomAnimals: Animal[],
+  relationships: AnimalRelationship[] = [],
+): [Animal, Animal] | null {
+  if (roomAnimals.length < 2) return null;
+
+  const weightForPair = (a: Animal, b: Animal): number => {
+    const rel = relationships.find(
+      (r) => (r.fromId === a.id && r.toId === b.id) || (r.fromId === b.id && r.toId === a.id),
+    );
+    switch (rel?.type) {
+      case 'enemy':      return 5;
+      case 'intolerant': return 2;
+      case 'sibling':    return 1.5;
+      case 'friend':     return 0;
+      default:           return 1;
+    }
+  };
+
+  // Build weighted pair pool
+  const pool: { a: Animal; b: Animal; w: number }[] = [];
+  for (let i = 0; i < roomAnimals.length; i += 1) {
+    for (let j = i + 1; j < roomAnimals.length; j += 1) {
+      const w = weightForPair(roomAnimals[i], roomAnimals[j]);
+      if (w > 0) pool.push({ a: roomAnimals[i], b: roomAnimals[j], w });
+    }
+  }
+  if (pool.length === 0) return null;
+
+  // Weighted random selection
+  const total = pool.reduce((s, p) => s + p.w, 0);
+  let r = Math.random() * total;
+  for (const p of pool) {
+    r -= p.w;
+    if (r <= 0) return [p.a, p.b];
+  }
+  const last = pool[pool.length - 1];
+  return [last.a, last.b];
+}
+
+/**
  * Generate a conflict between two animals.
  */
 export function generateConflict(animal1: Animal, animal2: Animal): Conflict {

@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest';
 import {
   shouldSpawnConflict,
   generateConflict,
+  pickConflictPair,
   isResolutionEffective,
   resolveConflict,
   CONFLICT_TYPES,
   RESOLUTION_ACTIONS,
 } from '../conflicts';
-import type { Animal } from '@arc/shared-types';
+import { setRelationship } from '../relationships';
+import type { Animal, AnimalRelationship } from '@arc/shared-types';
 
 function makeAnimal(overrides: Partial<Animal> = {}): Animal {
   return {
@@ -176,5 +178,61 @@ describe('conflict edge cases', () => {
     const result = resolveConflict('space_sharing', 'give_treat');
     expect(result.effective).toBe(false);
     expect(result.happinessBoost).toBe(3); // still gives some comfort
+  });
+});
+
+describe('pickConflictPair', () => {
+  it('returns null for fewer than 2 animals', () => {
+    expect(pickConflictPair([])).toBeNull();
+    expect(pickConflictPair([makeAnimal({ id: 'a' })])).toBeNull();
+  });
+
+  it('returns a pair for 2+ unrelated animals', () => {
+    const a = makeAnimal({ id: 'a' });
+    const b = makeAnimal({ id: 'b' });
+    const pair = pickConflictPair([a, b]);
+    expect(pair).not.toBeNull();
+    expect(pair![0].id === 'a' || pair![0].id === 'b').toBe(true);
+  });
+
+  it('returns null when all pairs are friends', () => {
+    const a = makeAnimal({ id: 'a' });
+    const b = makeAnimal({ id: 'b' });
+    const rels: AnimalRelationship[] = setRelationship([], 'a', 'b', 'friend');
+    expect(pickConflictPair([a, b], rels)).toBeNull();
+  });
+
+  it('strongly biases toward enemy pairs', () => {
+    const a = makeAnimal({ id: 'a' });
+    const b = makeAnimal({ id: 'b' });
+    const c = makeAnimal({ id: 'c' });
+    const d = makeAnimal({ id: 'd' });
+    // A and B are enemies; all others are unrelated
+    const rels = setRelationship([], 'a', 'b', 'enemy');
+
+    // Sample many times; enemies should dominate but not monopolise.
+    let enemyPicks = 0;
+    const ITER = 4000;
+    for (let i = 0; i < ITER; i += 1) {
+      const pair = pickConflictPair([a, b, c, d], rels);
+      if (!pair) continue;
+      const ids = new Set([pair[0].id, pair[1].id]);
+      if (ids.has('a') && ids.has('b')) enemyPicks += 1;
+    }
+
+    // There are 6 pairs total; a-b has weight 5, others weight 1.
+    // Expected proportion: 5 / (5 + 5) = 0.5.
+    // Wide tolerance for RNG noise.
+    expect(enemyPicks / ITER).toBeGreaterThan(0.4);
+    expect(enemyPicks / ITER).toBeLessThan(0.6);
+  });
+
+  it('never picks friend pairs even when they are the only option', () => {
+    const a = makeAnimal({ id: 'a' });
+    const b = makeAnimal({ id: 'b' });
+    const rels = setRelationship([], 'a', 'b', 'friend');
+    for (let i = 0; i < 100; i += 1) {
+      expect(pickConflictPair([a, b], rels)).toBeNull();
+    }
   });
 });
