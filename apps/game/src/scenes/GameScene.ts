@@ -56,6 +56,7 @@ import {
   renderConflictResult,
   renderCollarPicker,
   renderPetCreated,
+  renderAnimalDetails,
 } from '../game-views';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
@@ -1562,415 +1563,128 @@ export class GameScene extends Phaser.Scene {
    * It's optional so legacy callers keep working (they get a centered
    * card as before).
    */
+  /**
+   * Thin wrapper — delegates rendering to AnimalDetailsPopup. All
+   * action handlers live here so state mutation and scene transitions
+   * remain the scene's responsibility; the view is purely rendering.
+   */
   private showAnimalDetails(
     animal: Animal,
     anchor?: { x: number; y: number; size: number },
   ): void {
     this.selectedAnimal = animal;
-    const { width, height } = this.scale;
 
-    // Light overlay — dims the scene but keeps the tapped animal visible.
-    // Tapping the overlay closes the panel (standard sheet-dismiss gesture).
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.32)
-      .setInteractive();
-    this.gameContainer.add(overlay);
-
-    // ── Compute panel dimensions + actions list ──────────────
-    // We size the panel based on how many action buttons it will hold so
-    // short panels stay snug and tall ones still fit on phones.
-    const isPet = animal.state === 'pet';
-    const isSick = this.store.sickAnimals.has(animal.id);
-    const cleanliness = animal.cleanliness ?? 100;
-    const canWalk = !isPet && canGoOnWalk(animal);
-    const canGroom = !isPet && cleanliness < 60 && !isSick;
-
-    const panelW = 320;
-    // Rough height calc: header 44 + story 44 + need-speech (0 or 28) +
-    // 5 stat rows × 18 + action rows × 48 + padding 24
-    const speech = getNeedSpeech(animal);
-    const speechH = speech ? 30 : 0;
-    // Action button layout — always 2 primary (Feed/Play) on one row.
-    // Extra rows for Walk/Groom/Heal/VisitGarden as needed.
-    const extraActionRows =
-      (isPet ? 1 : 0) +               // Visit garden
-      (isPet && isSick ? 1 : 0) +     // Take to Vet
-      (!isPet && isSick ? 1 : 0) +    // Heal
-      (!isPet && canGroom ? 1 : 0) +  // Groom
-      (!isPet && canWalk && !canGroom && !isSick ? 0 : canWalk ? 1 : 0); // Walk
-    const baseActionRows = isPet ? 0 : 1;
-    const actionRows = baseActionRows + extraActionRows;
-    const panelH = 44 + 44 + speechH + 5 * 18 + actionRows * 46 + 28;
-
-    // ── Smart placement ──────────────────────────────────────
-    // Default: centre on screen. If we have an anchor, try to pop above
-    // the sprite; if that would push off the top, pop below; always
-    // clamp horizontally to stay on-screen with a 12px margin.
-    let px = width / 2;
-    let py = height / 2;
-    let tailSide: 'bottom' | 'top' | 'none' = 'none';
-    let tailX = 0;
-
-    if (anchor) {
-      const margin = 12;
-      // Try above: bubble's bottom edge 16px above the sprite's top
-      const spriteTop = anchor.y - anchor.size / 2;
-      const spriteBottom = anchor.y + anchor.size * 0.4; // sprite y centre + half-height roughly
-      const aboveCy = spriteTop - 16 - panelH / 2;
-      const belowCy = spriteBottom + 16 + panelH / 2;
-      const topMargin = 40; // clear of HUD
-      const bottomMargin = 80; // clear of nav bar
-
-      if (aboveCy - panelH / 2 >= topMargin) {
-        py = aboveCy;
-        tailSide = 'bottom';
-      } else if (belowCy + panelH / 2 <= height - bottomMargin) {
-        py = belowCy;
-        tailSide = 'top';
-      } else {
-        // Last resort: centre vertically, no tail
-        py = Math.max(topMargin + panelH / 2, Math.min(height - bottomMargin - panelH / 2, height / 2));
-        tailSide = 'none';
+    const doFeed = () => {
+      if (this.processing) return;
+      this.processing = true;
+      const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+      if (idx >= 0) {
+        this.store.animals[idx] = applyFeeding(this.store.animals[idx]);
+        const sibPresent = isSiblingPresent(this.store.animals[idx], this.store.animals)
+          || hasAllyPresent(this.store.relationships, this.store.animals[idx], this.store.animals, 'friend');
+        const bondGain = calculateBondIncrease(this.store.animals[idx], 'feed', sibPresent);
+        this.store.animals[idx].bondLevel = Math.min(100, this.store.animals[idx].bondLevel + bondGain);
+        AudioManager.getInstance().playSfx('animal_fed');
+        if (sibPresent) showToast(this, '💫 Sibling nearby — extra bond!');
+        this.checkBondComplete(this.store.animals[idx]);
       }
+      this.closePopup();
+      this.renderView();
+      this.processing = false;
+    };
 
-      px = Phaser.Math.Clamp(anchor.x, panelW / 2 + margin, width - panelW / 2 - margin);
-      // Tail points back at the sprite — clamp within the panel width
-      tailX = Phaser.Math.Clamp(anchor.x, px - panelW / 2 + 28, px + panelW / 2 - 28);
-    }
-
-    const panelLeft = px - panelW / 2;
-    const panelTop = py - panelH / 2;
-
-    // ── Drop shadow (soft, offset down-right) ────────────────
-    const shadow = this.add.graphics();
-    shadow.fillStyle(0x000000, 0.22);
-    shadow.fillRoundedRect(panelLeft + 4, panelTop + 6, panelW, panelH, 18);
-    this.gameContainer.add(shadow);
-
-    // ── Panel body (cream card with subtle species-tinted border) ──
-    const borderColour = SPECIES_COLOURS[animal.species] ?? 0xd9c8a8;
-    const body = this.add.graphics();
-    body.fillStyle(0xfffaf0, 1);
-    body.fillRoundedRect(panelLeft, panelTop, panelW, panelH, 18);
-    body.lineStyle(2, borderColour, 0.55);
-    body.strokeRoundedRect(panelLeft, panelTop, panelW, panelH, 18);
-    this.gameContainer.add(body);
-
-    // ── Speech-bubble tail ───────────────────────────────────
-    if (tailSide !== 'none' && anchor) {
-      const tail = this.add.graphics();
-      const tailW = 22;
-      const tailH = 14;
-      tail.fillStyle(0xfffaf0, 1);
-      tail.lineStyle(2, borderColour, 0.55);
-      if (tailSide === 'bottom') {
-        // Tail hanging off bottom of panel pointing down at sprite
-        const ty = panelTop + panelH;
-        tail.beginPath();
-        tail.moveTo(tailX - tailW / 2, ty - 1);
-        tail.lineTo(tailX + tailW / 2, ty - 1);
-        tail.lineTo(tailX, ty + tailH);
-        tail.closePath();
-        tail.fillPath();
-        // Draw side strokes (skip the top edge which overlaps the panel border)
-        tail.beginPath();
-        tail.moveTo(tailX - tailW / 2, ty);
-        tail.lineTo(tailX, ty + tailH);
-        tail.lineTo(tailX + tailW / 2, ty);
-        tail.strokePath();
-      } else {
-        // Tail hanging off top of panel pointing up at sprite
-        const ty = panelTop;
-        tail.beginPath();
-        tail.moveTo(tailX - tailW / 2, ty + 1);
-        tail.lineTo(tailX + tailW / 2, ty + 1);
-        tail.lineTo(tailX, ty - tailH);
-        tail.closePath();
-        tail.fillPath();
-        tail.beginPath();
-        tail.moveTo(tailX - tailW / 2, ty);
-        tail.lineTo(tailX, ty - tailH);
-        tail.lineTo(tailX + tailW / 2, ty);
-        tail.strokePath();
+    const doPlay = () => {
+      if (this.processing) return;
+      this.processing = true;
+      const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+      if (idx >= 0) {
+        this.store.animals[idx] = applyPlay(this.store.animals[idx]);
+        const sibPresent = isSiblingPresent(this.store.animals[idx], this.store.animals)
+          || hasAllyPresent(this.store.relationships, this.store.animals[idx], this.store.animals, 'friend');
+        const bondGain = calculateBondIncrease(this.store.animals[idx], 'play', sibPresent);
+        this.store.animals[idx].bondLevel = Math.min(100, this.store.animals[idx].bondLevel + bondGain);
+        AudioManager.getInstance().playSfx('animal_happy');
+        if (sibPresent) showToast(this, '💫 Sibling nearby — extra bond!');
+        this.checkBondComplete(this.store.animals[idx]);
       }
-      this.gameContainer.add(tail);
-    }
+      this.closePopup();
+      this.renderView();
+      this.processing = false;
+    };
 
-    // ── Header: name + species + close X ─────────────────────
-    const speciesLabel = animal.variant
-      ? `${animal.variant} ${animal.species}`
-      : animal.species;
-    this.gameContainer.add(
-      this.add.text(panelLeft + 18, panelTop + 16, `${animal.name}`, {
-        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
-        color: COLOURS.text, resolution: TEXT_RESOLUTION,
-      })
-    );
-    this.gameContainer.add(
-      this.add.text(panelLeft + 18, panelTop + 36, `the ${speciesLabel}`, {
-        fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
-        resolution: TEXT_RESOLUTION,
-      })
-    );
-
-    // Close X in top-right
-    const closeX = this.add.text(panelLeft + panelW - 20, panelTop + 10, '✕', {
-      fontSize: '18px', color: '#999', resolution: TEXT_RESOLUTION,
-    }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
-    closeX.on('pointerdown', () => this.closePopup());
-    this.gameContainer.add(closeX);
-
-    // ── Arrival story (compact, italic) ──────────────────────
-    let cursorY = panelTop + 60;
-    const storyText = this.add.text(panelLeft + 18, cursorY,
-      `"${animal.arrivalStory}"`, {
-        fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
-        fontStyle: 'italic', wordWrap: { width: panelW - 36 },
-        resolution: TEXT_RESOLUTION,
+    const doWalk = () => {
+      this.closePopup();
+      this.saveState();
+      this.scene.start('WalkScene', {
+        animal,
+        allAnimals: this.store.animals,
+        onComplete: (updatedAnimals: Animal[], _walkResult: { perfectWalk: boolean }) => {
+          this.store.animals = updatedAnimals;
+          this.checkBadges();
+          this.saveState();
+        },
       });
-    this.gameContainer.add(storyText);
-    cursorY += Math.max(32, storyText.height) + 6;
+    };
 
-    // ── Need speech (if animal wants something) ──────────────
-    if (speech) {
-      const speechText = this.add.text(panelLeft + 18, cursorY, `"${speech}"`, {
-        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
-        color: '#c0392b', wordWrap: { width: panelW - 36 },
-        resolution: TEXT_RESOLUTION,
+    const doGroom = () => {
+      this.closePopup();
+      this.saveState();
+      this.scene.start('GroomingScene', {
+        animal,
+        allAnimals: this.store.animals,
+        onComplete: (updatedAnimals: Animal[]) => {
+          this.store.animals = updatedAnimals;
+          this.saveState();
+        },
       });
-      this.gameContainer.add(speechText);
-      cursorY += speechText.height + 6;
-    }
+    };
 
-    // ── Compact stat bars (5 rows, 150-wide bars) ────────────
-    //
-    // Hunger and Tired are "problem" stats — the bar shows the current
-    // level of the problem, not its inverse. So a very hungry animal has
-    // a full red bar, and the bar DROPS as the player feeds them. Matches
-    // how kids expect a progress/problem bar to read (fuller = worse).
-    const barX = panelLeft + 18;
-    const barW = panelW - 36;
-    const statRowH = 18;
-    const statDefs: Array<[string, number, number]> = [
-      ['Hunger',    animal.hunger,    0xe74c3c],
-      ['Tired',     animal.tiredness, 0x3498db],
-      ['Happy',     animal.happiness, 0xf1c40f],
-      ['Health',    animal.health,    0x2ecc71],
-      ['Bond',      animal.bondLevel, 0xff6b9d],
-    ];
-    statDefs.forEach(([label, value, colour]) => {
-      const displayValue = value;
-      this.gameContainer.add(
-        this.add.text(barX, cursorY, label, {
-          fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.text,
-          resolution: TEXT_RESOLUTION,
-        })
-      );
-      // Bar track
-      const trackX = barX + 56;
-      const trackW = barW - 56 - 36;
-      const track = this.add.graphics();
-      track.fillStyle(0xe6e2d8, 1);
-      track.fillRoundedRect(trackX, cursorY + 3, trackW, 8, 4);
-      if (displayValue > 0) {
-        track.fillStyle(colour, 1);
-        track.fillRoundedRect(trackX, cursorY + 3, Math.max(6, trackW * displayValue / 100), 8, 4);
+    // Vet flow — shared between shelter-animal "Heal" and pet "Take to Vet".
+    // The processing guard + liveness checks are the same; only the button
+    // label differs upstream in the popup.
+    const doVetVisit = () => {
+      if (this.processing) return;
+      this.processing = true;
+      const currentIllness = this.store.sickAnimals.get(animal.id);
+      if (!currentIllness) {
+        this.processing = false; this.closePopup(); this.renderView();
+        return;
       }
-      this.gameContainer.add(track);
-      // Percent label
-      this.gameContainer.add(
-        this.add.text(barX + barW, cursorY, `${Math.round(displayValue)}%`, {
-          fontSize: '10px', fontFamily: FONTS.body, color: '#888',
-          resolution: TEXT_RESOLUTION,
-        }).setOrigin(1, 0)
-      );
-      cursorY += statRowH;
+      const liveAnimal = this.store.animals.find((a) => a.id === animal.id);
+      if (!liveAnimal) {
+        this.processing = false; this.closePopup(); this.renderView();
+        return;
+      }
+      this.closePopup();
+      this.saveState();
+      this.scene.start('VetScene', {
+        animal: liveAnimal,
+        illness: currentIllness,
+        allAnimals: this.store.animals,
+        onComplete: (updatedAnimals: Animal[], healed: boolean) => {
+          this.store.animals = updatedAnimals;
+          if (healed) this.store.sickAnimals.delete(animal.id);
+          this.checkBadges();
+          this.saveState();
+        },
+      });
+      this.processing = false;
+    };
+
+    renderAnimalDetails(this, this.store, this.gameContainer, animal, anchor, {
+      onClose: () => this.closePopup(),
+      onFeed: doFeed,
+      onPlay: doPlay,
+      onWalk: doWalk,
+      onGroom: doGroom,
+      onHeal: doVetVisit,
+      onTakeToVet: doVetVisit,
+      onVisitGarden: () => {
+        this.closePopup();
+        this.viewMode = 'garden';
+        this.renderView();
+      },
     });
-    cursorY += 6;
-
-    // ── Action buttons ───────────────────────────────────────
-    const btnRow1Y = cursorY + 14;
-
-    if (!isPet) {
-      this.gameContainer.add(
-        createButton(this, panelLeft + panelW / 2 - 70, btnRow1Y, 'Feed', () => {
-          if (this.processing) return;
-          this.processing = true;
-          const idx = this.store.animals.findIndex((a) => a.id === animal.id);
-          if (idx >= 0) {
-            this.store.animals[idx] = applyFeeding(this.store.animals[idx]);
-            // Bond bonus fires for either a sibling OR a friend
-            // who's currently in the shelter — "good company" boost.
-            const sibPresent = isSiblingPresent(this.store.animals[idx], this.store.animals)
-              || hasAllyPresent(this.store.relationships, this.store.animals[idx], this.store.animals, 'friend');
-            const bondGain = calculateBondIncrease(this.store.animals[idx], 'feed', sibPresent);
-            this.store.animals[idx].bondLevel = Math.min(100, this.store.animals[idx].bondLevel + bondGain);
-            AudioManager.getInstance().playSfx('animal_fed');
-            if (sibPresent) showToast(this, '💫 Sibling nearby — extra bond!');
-            this.checkBondComplete(this.store.animals[idx]);
-          }
-          this.closePopup();
-          this.renderView();
-          this.processing = false;
-        }, { width: 120, fontSize: '14px', icon: 'icon-kitchen' })
-      );
-
-      this.gameContainer.add(
-        createButton(this, panelLeft + panelW / 2 + 70, btnRow1Y, 'Play', () => {
-          if (this.processing) return;
-          this.processing = true;
-          const idx = this.store.animals.findIndex((a) => a.id === animal.id);
-          if (idx >= 0) {
-            this.store.animals[idx] = applyPlay(this.store.animals[idx]);
-            // Bond bonus fires for either a sibling OR a friend
-            // who's currently in the shelter — "good company" boost.
-            const sibPresent = isSiblingPresent(this.store.animals[idx], this.store.animals)
-              || hasAllyPresent(this.store.relationships, this.store.animals[idx], this.store.animals, 'friend');
-            const bondGain = calculateBondIncrease(this.store.animals[idx], 'play', sibPresent);
-            this.store.animals[idx].bondLevel = Math.min(100, this.store.animals[idx].bondLevel + bondGain);
-            AudioManager.getInstance().playSfx('animal_happy');
-            if (sibPresent) showToast(this, '💫 Sibling nearby — extra bond!');
-            this.checkBondComplete(this.store.animals[idx]);
-          }
-          this.closePopup();
-          this.renderView();
-          this.processing = false;
-        }, { width: 120, fontSize: '14px' })
-      );
-
-      let extraY = btnRow1Y + 46;
-
-      if (canWalk) {
-        this.gameContainer.add(
-          createButton(this, panelLeft + panelW / 2, extraY, 'Go for a Walk', () => {
-            this.closePopup();
-            this.saveState();
-            this.scene.start('WalkScene', {
-              animal,
-              allAnimals: this.store.animals,
-              onComplete: (updatedAnimals: Animal[], _walkResult: { perfectWalk: boolean }) => {
-                this.store.animals = updatedAnimals;
-                this.checkBadges();
-                this.saveState();
-              },
-            });
-          }, { width: 250, fontSize: '14px', bgColour: '#27ae60', icon: 'icon-walk' })
-        );
-        extraY += 46;
-      }
-
-      if (canGroom) {
-        this.gameContainer.add(
-          createButton(this, panelLeft + panelW / 2, extraY, 'Groom', () => {
-            this.closePopup();
-            this.saveState();
-            this.scene.start('GroomingScene', {
-              animal,
-              allAnimals: this.store.animals,
-              onComplete: (updatedAnimals: Animal[]) => {
-                this.store.animals = updatedAnimals;
-                this.saveState();
-              },
-            });
-          }, { width: 250, fontSize: '14px', bgColour: '#5A9CB8' })
-        );
-        extraY += 46;
-      }
-
-      const illness = this.store.sickAnimals.get(animal.id);
-      if (illness) {
-        this.gameContainer.add(
-          createButton(this, panelLeft + panelW / 2, extraY, `Heal (${illness.label})`, () => {
-            if (this.processing) return;
-            this.processing = true;
-            const currentIllness = this.store.sickAnimals.get(animal.id);
-            if (!currentIllness) {
-              this.processing = false; this.closePopup(); this.renderView();
-              return;
-            }
-            const liveAnimal = this.store.animals.find((a) => a.id === animal.id);
-            if (!liveAnimal) {
-              this.processing = false; this.closePopup(); this.renderView();
-              return;
-            }
-            this.closePopup();
-            this.saveState();
-            this.scene.start('VetScene', {
-              animal: liveAnimal,
-              illness: currentIllness,
-              allAnimals: this.store.animals,
-              onComplete: (updatedAnimals: Animal[], healed: boolean) => {
-                this.store.animals = updatedAnimals;
-                if (healed) this.store.sickAnimals.delete(animal.id);
-                this.checkBadges();
-                this.saveState();
-              },
-            });
-            this.processing = false;
-          }, { width: 250, fontSize: '14px', bgColour: '#e74c3c', icon: 'icon-heal' })
-        );
-      }
-    } else {
-      // Pet — show collar colour + Visit Garden + optional Take to Vet
-      const collarHexVal = animal.collarColour ?? '#ff6b9d';
-      const collarName = COLLAR_COLOURS.find((c) => c.hex === collarHexVal)?.name ?? 'Custom';
-      const collarSwatchColour = Phaser.Display.Color.HexStringToColor(collarHexVal).color;
-      this.gameContainer.add(
-        this.add.circle(panelLeft + 28, btnRow1Y - 14, 7, collarSwatchColour)
-          .setStrokeStyle(1, 0x000000, 0.2)
-      );
-      this.gameContainer.add(
-        this.add.text(panelLeft + 42, btnRow1Y - 14, `${collarName} Collar`, {
-          fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
-          resolution: TEXT_RESOLUTION,
-        }).setOrigin(0, 0.5)
-      );
-
-      this.gameContainer.add(
-        createButton(this, panelLeft + panelW / 2, btnRow1Y + 16, 'Visit in Garden', () => {
-          this.closePopup();
-          this.viewMode = 'garden';
-          this.renderView();
-        }, { width: 250, fontSize: '14px', bgColour: '#2ecc71' })
-      );
-
-      const petIllness = this.store.sickAnimals.get(animal.id);
-      if (petIllness) {
-        this.gameContainer.add(
-          createButton(this, panelLeft + panelW / 2, btnRow1Y + 62,
-            `Take to Vet (${petIllness.label})`, () => {
-            if (this.processing) return;
-            this.processing = true;
-            const currentPetIllness = this.store.sickAnimals.get(animal.id);
-            if (!currentPetIllness) {
-              this.processing = false; this.closePopup(); this.renderView();
-              return;
-            }
-            const livePet = this.store.animals.find((a) => a.id === animal.id);
-            if (!livePet) {
-              this.processing = false; this.closePopup(); this.renderView();
-              return;
-            }
-            this.closePopup();
-            this.saveState();
-            this.scene.start('VetScene', {
-              animal: livePet,
-              illness: currentPetIllness,
-              allAnimals: this.store.animals,
-              onComplete: (updatedAnimals: Animal[], healed: boolean) => {
-                this.store.animals = updatedAnimals;
-                if (healed) this.store.sickAnimals.delete(animal.id);
-                this.checkBadges();
-                this.saveState();
-              },
-            });
-            this.processing = false;
-          }, { width: 250, fontSize: '14px', bgColour: '#e74c3c', icon: 'icon-vet' })
-        );
-      }
-    }
-
-    // Tap overlay to close
-    overlay.on('pointerdown', () => this.closePopup());
   }
 
 

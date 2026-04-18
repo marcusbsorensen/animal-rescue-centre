@@ -11,3 +11,5 @@ export { renderConflictPopup, renderConflictResult } from './ConflictView';
 export type { ConflictPopupCallbacks, ConflictResultCallbacks } from './ConflictView';
 export { renderCollarPicker, renderPetCreated } from './CollarPickerView';
 export type { CollarPickerCallbacks, PetCreatedCallbacks } from './CollarPickerView';
+export { renderAnimalDetails } from './AnimalDetailsPopup';
+export type { AnimalDetailsCallbacks } from './AnimalDetailsPopup';
