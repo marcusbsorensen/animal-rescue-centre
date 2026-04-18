@@ -1,0 +1,59 @@
+import type {
+  Animal,
+  Species,
+  CalendarState,
+  DepotState,
+  Economy,
+  PlacedDecoration,
+  AnimalRelationship,
+} from '@arc/shared-types';
+import type { IllnessDef, Conflict } from '@arc/game-logic';
+
+/**
+ * GameStateStore — a plain container holding all mutable game state.
+ *
+ * Constructed once per play session and held:
+ *   - by GameScene (`this.store`)
+ *   - by the game registry (`scene.registry.set('gameStore', store)`)
+ *
+ * Both references are the SAME object. Because we put the store on the
+ * registry before any `scene.restart()` (triggered by resize handlers),
+ * the post-restart `create()` reads the existing store off the registry
+ * rather than constructing a fresh one — so no state is lost and no
+ * closure over `this.store` becomes stale.
+ *
+ * Fields are public-mutable by design. Rendering modules read them;
+ * action handlers mutate them and call `saveGameState()`. We intentionally
+ * do NOT build a reactive change-notification system here — Phaser's
+ * render model is explicit (`renderView()` redraws the current view), and
+ * adding a pub/sub layer would hide the call graph rather than simplify it.
+ *
+ * This lives under `apps/game/src/game-state/` alongside `loadSaveState`,
+ * separate from `scenes/` so non-scene modules (views, panels) can import
+ * the store without dragging in Phaser scene dependencies.
+ */
+export class GameStateStore {
+  animals: Animal[] = [];
+  level = 1;
+  totalRescued = 0;
+  totalBonded = 0;
+  unlockedSpecies: Species[] = ['cat', 'dog'];
+  earnedBadges: string[] = [];
+  houseUpgrades: string[] = [];
+  sickAnimals: Map<string, IllnessDef> = new Map();
+  activeConflict?: Conflict;
+  conflictsResolved = 0;
+
+  /**
+   * Epoch-ms of the last conflict popup (spawned OR resolved). We suppress
+   * new conflicts for a generous cooldown so kids get time to breathe
+   * rather than feeling perpetually interrupted.
+   */
+  lastConflictAt = 0;
+
+  calendar!: CalendarState;
+  depot!: DepotState;
+  economy: Economy = { coins: 0, lifetimeEarnings: 0 };
+  placedDecorations: PlacedDecoration[] = [];
+  relationships: AnimalRelationship[] = [];
+}

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { Animal, Species, GameState, CalendarState, DepotState, Economy, PlacedDecoration, AnimalRelationship } from '@arc/shared-types';
+import type { Animal, Species, GameState, DepotState, Economy } from '@arc/shared-types';
 import { COLOURS, FONTS, pluralSpecies, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
@@ -23,8 +23,6 @@ import {
   isSiblingPresent,
   pickConflictPair,
   hasAllyPresent,
-  relationshipsFromSiblingIds,
-  syncSiblingIds,
   isBondComplete,
   canGoOnWalk,
   shouldGetSick,
@@ -32,56 +30,43 @@ import {
   applySickness,
   getAvailableUpgrades,
   getUnlockedUpgrades,
-  syncNextId,
   shouldSpawnConflict,
   generateConflict,
   isResolutionEffective,
   resolveConflict,
   RESOLUTION_ACTIONS,
-  createCalendarState,
-  advanceCalendar,
-  isDailyReset,
-  resetDailySessions,
   getMaxShelterAnimals,
   getMaxArrivals,
   placeDecoration,
   removeDecoration,
   getRoomDecorations,
   getAvailableDecorationCounts,
-  syncPlacedDecorationId,
-  ALL_REWARDS,
 } from '@arc/game-logic';
 import type { IllnessDef, Conflict, ResolutionDef } from '@arc/game-logic';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
-import { getSession } from '../lib/auth';
-import { supabase } from '../lib/supabase';
-import { isSupabaseConfigured } from '../lib/supabase';
-import { showToast, showBlocking } from '../ui/ErrorOverlay';
+import { showToast } from '../ui/ErrorOverlay';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
+import { GameStateStore, loadGameState, saveGameState } from '../game-state';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
 
 export class GameScene extends Phaser.Scene {
   private _lastWidth = 0;
   private _lastHeight = 0;
-  private animals: Animal[] = [];
-  private level = 1;
-  private totalRescued = 0;
-  private totalBonded = 0;
-  private unlockedSpecies: Species[] = ['cat', 'dog'];
-  private earnedBadges: string[] = [];
-  private houseUpgrades: string[] = [];
-  private sickAnimals: Map<string, IllnessDef> = new Map();
-  private activeConflict?: Conflict;
-  private conflictsResolved = 0;
-  // Epoch-ms of the last conflict popup (spawned OR resolved). We suppress
-  // new conflicts for a generous cooldown so kids get time to breathe.
-  private lastConflictAt = 0;
-  private calendar!: CalendarState;
-  private depot!: DepotState;
-  private economy: Economy = { coins: 0, lifetimeEarnings: 0 };
-  private placedDecorations: PlacedDecoration[] = [];
-  private relationships: AnimalRelationship[] = [];
+
+  /**
+   * All persistent game state lives in a separate store object. The
+   * store is also placed in `this.registry` so that if Phaser restarts
+   * this scene (resize handler, hot-reload), `create()` can pick up
+   * the same store and no in-memory state is lost.
+   *
+   * Every closure that assigns back to state after a scene return
+   * (WalkScene.onComplete etc) captures `this.store` rather than the
+   * scene instance, which keeps those assignments correct even across
+   * scene restarts.
+   */
+  private store!: GameStateStore;
+
   private decorateMode = false;
   private decoratePanelDispose?: () => void;
 
@@ -120,6 +105,12 @@ export class GameScene extends Phaser.Scene {
     audio.setScene(this);
     audio.playSceneMusic('corridor');
 
+    // Reuse the store across scene restarts (resize handler calls
+    // scene.restart). Only build a fresh one on first boot.
+    const existingStore = this.registry.get('gameStore') as GameStateStore | undefined;
+    this.store = existingStore ?? new GameStateStore();
+    this.registry.set('gameStore', this.store);
+
     this.gameContainer = this.add.container(0, 0);
     this.transitionLayer = this.add.container(0, 0).setDepth(500);
     this.navContainer = this.add.container(0, 0);  // fixed above scrollable content
@@ -146,19 +137,23 @@ export class GameScene extends Phaser.Scene {
       this.gameContainer.y = this.scrollY;
     });
 
-    // Load saved state if available
-    await this.loadState();
+    // Load saved state (only on fresh boot — on a restart the store
+    // already has everything). Skipping re-load avoids a brief flicker
+    // where the resized scene shows defaults before Supabase returns.
+    if (!existingStore) {
+      await loadGameState(this, this.store);
+    }
 
     // Check if returning from a minigame with updated animals
     const updatedAnimals = this.registry.get('updatedAnimals') as Animal[] | undefined;
     if (updatedAnimals) {
-      this.animals = updatedAnimals;
+      this.store.animals = updatedAnimals;
       this.registry.remove('updatedAnimals');
 
       // Check for vet results (clear sickness if healed)
       const vetResult = this.registry.get('vetResult') as { healed: boolean; animalId?: string } | undefined;
       if (vetResult?.healed && vetResult.animalId) {
-        this.sickAnimals.delete(vetResult.animalId);
+        this.store.sickAnimals.delete(vetResult.animalId);
       }
       this.registry.remove('vetResult');
       this.registry.remove('walkResult');
@@ -170,13 +165,13 @@ export class GameScene extends Phaser.Scene {
     // Check if returning from depot/supply with updated economy
     const updatedEconomy = this.registry.get('updatedEconomy') as Economy | undefined;
     if (updatedEconomy) {
-      this.economy = updatedEconomy;
+      this.store.economy = updatedEconomy;
       this.registry.remove('updatedEconomy');
       this.saveState();
     }
     const updatedDepot = this.registry.get('updatedDepot') as DepotState | undefined;
     if (updatedDepot) {
-      this.depot = updatedDepot;
+      this.store.depot = updatedDepot;
       this.registry.remove('updatedDepot');
       this.saveState();
     }
@@ -198,7 +193,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Start with an animal if none exist
-    if (this.animals.length === 0) {
+    if (this.store.animals.length === 0) {
       this.spawnNewAnimal();
     }
 
@@ -221,182 +216,39 @@ export class GameScene extends Phaser.Scene {
 
   // ── State Management ────────────────────────────────────────
 
-  private async loadState(): Promise<void> {
-    const session = getSession();
-    if (!session || !isSupabaseConfigured()) return;
-
-    // Shared inner function so the error-overlay retry button can call
-    // the same logic without us re-entering loadState (which also
-    // initialises subsystems at the end).
-    const attempt = async (): Promise<boolean> => {
-      const { data, error } = await supabase
-        .from('game_states')
-        .select('state, level')
-        .eq('user_id', session.userId)
-        .maybeSingle();
-
-      // `maybeSingle` returns null (not an error) when the row doesn't
-      // exist yet — that's the first-time-player case. Only genuine
-      // network / server errors should surface the retry UI.
-      if (error) throw error;
-
-      if (data?.state && typeof data.state === 'object') {
-        const saved = data.state as Record<string, unknown>;
-        if (Array.isArray(saved.animals)) this.animals = saved.animals as Animal[];
-        if (typeof saved.totalRescued === 'number') this.totalRescued = saved.totalRescued;
-        if (typeof saved.totalBonded === 'number') this.totalBonded = saved.totalBonded;
-        if (Array.isArray(saved.earnedBadges)) this.earnedBadges = saved.earnedBadges as string[];
-        if (Array.isArray(saved.houseUpgrades)) this.houseUpgrades = saved.houseUpgrades as string[];
-        if (saved.sickAnimals && typeof saved.sickAnimals === 'object') {
-          this.sickAnimals = new Map(Object.entries(saved.sickAnimals as Record<string, IllnessDef>));
-        }
-        this.level = data.level ?? 1;
-        this.unlockedSpecies = getSpeciesUnlocksForLevel(this.level);
-
-        // Sync ID counter to avoid collisions with loaded animals
-        syncNextId(this.animals);
-
-        if (saved.calendar && typeof saved.calendar === 'object') {
-          this.calendar = saved.calendar as CalendarState;
-        }
-        if (saved.depot && typeof saved.depot === 'object') {
-          this.depot = saved.depot as DepotState;
-        }
-        if (saved.economy && typeof saved.economy === 'object') {
-          this.economy = saved.economy as Economy;
-        }
-        if (Array.isArray(saved.placedDecorations)) {
-          this.placedDecorations = saved.placedDecorations as PlacedDecoration[];
-          syncPlacedDecorationId(this.placedDecorations);
-        }
-        // Relationships: load the saved list if present, otherwise
-        // migrate from legacy `siblingId` fields on the animals. This
-        // keeps older save files functional without a separate migration.
-        if (Array.isArray(saved.relationships)) {
-          this.relationships = saved.relationships as AnimalRelationship[];
-        } else {
-          this.relationships = relationshipsFromSiblingIds(this.animals);
-        }
-      }
-      return true;
-    };
-
-    try {
-      await attempt();
-    } catch (err) {
-      // Load is blocking — without game state there's nothing to render.
-      // Surface a retry modal and let the player try again.
-      const msg = err instanceof Error ? err.message : 'Something went wrong loading your shelter.';
-      console.warn('[GameScene] loadState failed:', msg);
-      showBlocking(
-        this,
-        'We couldn\'t reach the server to load your shelter.\nCheck your internet and try again.',
-        async () => {
-          try {
-            await attempt();
-            return true;
-          } catch {
-            return false;
-          }
-        },
-      );
-    }
-
-    // Initialize subsystems with defaults if not loaded from save
-    if (!this.calendar) {
-      this.calendar = createCalendarState(new Date().toISOString());
-    }
-    if (!this.depot) {
-      this.depot = {
-        sessionsRemainingToday: 3,
-        sessionsMaxToday: 3,
-        lastSessionDay: '',
-        totalSessionsPlayed: 0,
-        inventory: {
-          parts: {}, tools: {}, treats: {}, superTreats: {},
-          decorations: {}, medicalSupplies: {},
-        },
-      };
-    }
-
-    // Advance calendar and check for daily reset
-    this.calendar = advanceCalendar(this.calendar, this.calendar.gameStartedAt);
-    if (isDailyReset(this.calendar, new Date())) {
-      this.depot = resetDailySessions(this.depot);
-    }
-  }
-
-  // Save failures are throttled — a single flaky network shouldn't spam
-  // the player with a toast every time we save (we save on nearly every
-  // action). Only the first failure in a 30s window surfaces the toast;
-  // subsequent failures update the count silently.
-  private lastSaveToastAt = 0;
-  private consecutiveSaveFailures = 0;
-
+  /** Thin wrapper so existing call sites keep working — forwards to the
+   *  extracted saveGameState in ../game-state. Kept until subsequent
+   *  refactor phases migrate callers to import the module function. */
   private async saveState(): Promise<void> {
-    const session = getSession();
-    if (!session || !isSupabaseConfigured()) return;
-
-    try {
-      const { error } = await supabase
-        .from('game_states')
-        .upsert({
-          user_id: session.userId,
-          state: {
-            animals: this.animals,
-            totalRescued: this.totalRescued,
-            totalBonded: this.totalBonded,
-            earnedBadges: this.earnedBadges,
-            houseUpgrades: this.houseUpgrades,
-            sickAnimals: Object.fromEntries(this.sickAnimals),
-            calendar: this.calendar,
-            depot: this.depot,
-            economy: this.economy,
-            placedDecorations: this.placedDecorations,
-            relationships: this.relationships,
-          },
-          level: this.level,
-          updated_at: new Date().toISOString(),
-        });
-      if (error) throw error;
-      this.consecutiveSaveFailures = 0;  // reset on success
-    } catch (err) {
-      this.consecutiveSaveFailures += 1;
-      console.warn('[GameScene] saveState failed:', err);
-      const now = Date.now();
-      if (now - this.lastSaveToastAt > 30_000) {
-        this.lastSaveToastAt = now;
-        showToast(this, "Couldn't save to the cloud — we'll retry next action.");
-      }
-    }
+    return saveGameState(this, this.store);
   }
 
   // ── Animal Spawning ─────────────────────────────────────────
 
   private spawnNewAnimal(): void {
     // Level-based population cap — don't overcrowd the centre
-    const sheltered = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length;
-    const maxShelter = getMaxShelterAnimals(this.level);
+    const sheltered = this.store.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length;
+    const maxShelter = getMaxShelterAnimals(this.store.level);
     if (sheltered >= maxShelter) return;
 
     // Level-based arrival queue cap
-    const arriving = this.animals.filter((a) => a.state === 'arriving');
-    const maxArrivals = getMaxArrivals(this.level);
+    const arriving = this.store.animals.filter((a) => a.state === 'arriving');
+    const maxArrivals = getMaxArrivals(this.store.level);
     if (arriving.length >= maxArrivals) return;
 
     // Pick a species not already in the arrival queue (variety for the player)
     const arrivingSpecies = new Set(arriving.map((a) => a.species));
-    const availableSpecies = this.unlockedSpecies.filter((s) => !arrivingSpecies.has(s));
+    const availableSpecies = this.store.unlockedSpecies.filter((s) => !arrivingSpecies.has(s));
     if (availableSpecies.length === 0) return;
 
     const species = pickRandomSpecies(availableSpecies);
 
     if (shouldSpawnSiblings() && sheltered + 2 <= maxShelter) {
       const [a, b] = spawnSiblingPair(species);
-      this.animals.push(a, b);
+      this.store.animals.push(a, b);
     } else {
-      const animal = spawnAnimal(species, undefined, this.animals.map(a => a.name));
-      this.animals.push(animal);
+      const animal = spawnAnimal(species, undefined, this.store.animals.map(a => a.name));
+      this.store.animals.push(animal);
     }
 
     this.saveState();
@@ -407,16 +259,16 @@ export class GameScene extends Phaser.Scene {
   // ── Needs System ────────────────────────────────────────────
 
   private tickAllNeeds(): void {
-    this.animals = this.animals.map((a) => tickNeeds(a));
+    this.store.animals = this.store.animals.map((a) => tickNeeds(a));
 
     // Check for sickness on each tick
-    for (const animal of this.animals) {
-      if (!this.sickAnimals.has(animal.id) && shouldGetSick(animal)) {
+    for (const animal of this.store.animals) {
+      if (!this.store.sickAnimals.has(animal.id) && shouldGetSick(animal)) {
         const illness = pickIllness(animal.species);
-        const idx = this.animals.findIndex((a) => a.id === animal.id);
+        const idx = this.store.animals.findIndex((a) => a.id === animal.id);
         if (idx >= 0) {
-          this.animals[idx] = applySickness(this.animals[idx], illness);
-          this.sickAnimals.set(animal.id, illness);
+          this.store.animals[idx] = applySickness(this.store.animals[idx], illness);
+          this.store.sickAnimals.set(animal.id, illness);
         }
       }
     }
@@ -426,26 +278,26 @@ export class GameScene extends Phaser.Scene {
     // feeling like constant triage — kids resolve one, then get a real
     // stretch of calm play before another one can appear.
     const CONFLICT_COOLDOWN_MS = 90_000;
-    const cooledDown = Date.now() - this.lastConflictAt > CONFLICT_COOLDOWN_MS;
-    if (!this.activeConflict && this.viewMode !== 'garden' && cooledDown) {
-      const shelteredAnimals = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding');
+    const cooledDown = Date.now() - this.store.lastConflictAt > CONFLICT_COOLDOWN_MS;
+    if (!this.store.activeConflict && this.viewMode !== 'garden' && cooledDown) {
+      const shelteredAnimals = this.store.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding');
       if (shelteredAnimals.length >= 2 && shouldSpawnConflict(shelteredAnimals)) {
         // Relationship-aware pair selection: enemies weighted 5x,
         // intolerant 2x, siblings 1.5x, friends filtered out,
         // unrelated pairs 1x. Falls back to random when the result
         // set is empty (everyone in the room is friends — calm).
-        const pair = pickConflictPair(shelteredAnimals, this.relationships);
+        const pair = pickConflictPair(shelteredAnimals, this.store.relationships);
         if (pair) {
-          this.activeConflict = generateConflict(pair[0], pair[1]);
-          this.lastConflictAt = Date.now();
-          this.showConflictPopup(this.activeConflict);
+          this.store.activeConflict = generateConflict(pair[0], pair[1]);
+          this.store.lastConflictAt = Date.now();
+          this.showConflictPopup(this.store.activeConflict);
         }
       }
     }
 
     // Refresh if viewing a room
     if (this.viewMode === 'room' && this.selectedAnimal) {
-      const updated = this.animals.find((a) => a.id === this.selectedAnimal!.id);
+      const updated = this.store.animals.find((a) => a.id === this.selectedAnimal!.id);
       if (updated) this.selectedAnimal = updated;
     }
   }
@@ -480,25 +332,25 @@ export class GameScene extends Phaser.Scene {
   private renderHUD(): void {
     this.uiContainer.removeAll(true);
     const { width } = this.scale;
-    const required = getRequiredRescuesForLevel(this.level);
+    const required = getRequiredRescuesForLevel(this.store.level);
     // "Rescued" on the HUD is the count of animals the player has actually
     // welcomed into the shelter — NOT the ones still waiting at the door.
     // We compute this from live state so the number matches what the player
     // can see in the rooms/garden, regardless of any cumulative counter.
-    const welcomedCount = this.animals.filter(
+    const welcomedCount = this.store.animals.filter(
       (a) => a.state === 'sheltered' || a.state === 'bonding' || a.state === 'pet',
     ).length;
-    const arrivingCount = this.animals.filter((a) => a.state === 'arriving').length;
+    const arrivingCount = this.store.animals.filter((a) => a.state === 'arriving').length;
     // Count sheltered/bonding animals that need the player's attention —
     // urgent need or illness. Pets in the garden are self-sufficient and
     // don't contribute to the HUD care counter.
-    const needsCareCount = this.animals.filter((a) => {
+    const needsCareCount = this.store.animals.filter((a) => {
       if (a.state !== 'sheltered' && a.state !== 'bonding') return false;
-      return getUrgentNeed(a) !== null || this.sickAnimals.has(a.id);
+      return getUrgentNeed(a) !== null || this.store.sickAnimals.has(a.id);
     }).length;
-    const xpProgress = Math.min(this.totalRescued / required, 1);
-    const shelteredCount = this.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length;
-    const maxShelter = getMaxShelterAnimals(this.level);
+    const xpProgress = Math.min(this.store.totalRescued / required, 1);
+    const shelteredCount = this.store.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length;
+    const maxShelter = getMaxShelterAnimals(this.store.level);
 
     // Constrain to 600px centred for large screens
     const maxW = Math.min(width, 600);
@@ -524,7 +376,7 @@ export class GameScene extends Phaser.Scene {
     lvlCircle.fillCircle(lvlCx, orbY, orbH / 2 - 4);
     this.uiContainer.add(lvlCircle);
     this.uiContainer.add(
-      this.add.text(lvlCx, orbY, `${this.level}`, {
+      this.add.text(lvlCx, orbY, `${this.store.level}`, {
         fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
@@ -554,12 +406,12 @@ export class GameScene extends Phaser.Scene {
     orbHit.on('pointerdown', () => {
       this.saveState();
       this.scene.start('AccountScene', {
-        level: this.level,
-        totalRescued: this.totalRescued,
-        totalBonded: this.totalBonded,
-        earnedBadges: this.earnedBadges,
-        animals: this.animals,
-        economy: this.economy,
+        level: this.store.level,
+        totalRescued: this.store.totalRescued,
+        totalBonded: this.store.totalBonded,
+        earnedBadges: this.store.earnedBadges,
+        animals: this.store.animals,
+        economy: this.store.economy,
       });
     });
     this.uiContainer.add(orbHit);
@@ -729,9 +581,9 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Coin pill (painterly hud-coins sign)
-    if (this.economy.coins > 0) {
+    if (this.store.economy.coins > 0) {
       const coinIcon = this.textures.exists('hud-coins') ? 'hud-coins' : 'icon-hud-coins';
-      drawValuePill(`${this.economy.coins}`, coinIcon, 0xe3b04b);
+      drawValuePill(`${this.store.economy.coins}`, coinIcon, 0xe3b04b);
     }
 
     // Shelter pill (painterly hud-homes sign)
@@ -925,7 +777,7 @@ export class GameScene extends Phaser.Scene {
   // If the player has no walkable animals, show a gentle note rather than
   // throwing them into an empty WalkScene. Otherwise jump straight in.
   private handleWalkTap(): void {
-    const walkable = this.animals.filter(
+    const walkable = this.store.animals.filter(
       (a) => (a.state === 'sheltered' || a.state === 'bonding') && canGoOnWalk(a),
     );
     if (walkable.length === 0) {
@@ -934,9 +786,9 @@ export class GameScene extends Phaser.Scene {
     }
     this.saveState();
     this.scene.start('WalkScene', {
-      animals: this.animals,
-      level: this.level,
-      economy: this.economy,
+      animals: this.store.animals,
+      level: this.store.level,
+      economy: this.store.economy,
     });
   }
 
@@ -1004,7 +856,7 @@ export class GameScene extends Phaser.Scene {
     this.gameContainer.add(
       createButton(this, popupX, popupY - 10, 'Depot', () => {
         this.saveState();
-        this.scene.start('DepotScene', { level: this.level, depot: this.depot, economy: this.economy });
+        this.scene.start('DepotScene', { level: this.store.level, depot: this.store.depot, economy: this.store.economy });
       }, { width: btnW, fontSize: '20px', bgColour: '#4a2d7a', icon: 'icon-depot' })
     );
 
@@ -1012,7 +864,7 @@ export class GameScene extends Phaser.Scene {
     this.gameContainer.add(
       createButton(this, popupX, popupY + 52, 'Supply Run', () => {
         this.saveState();
-        this.scene.start('SupplyRunScene', { level: this.level, economy: this.economy });
+        this.scene.start('SupplyRunScene', { level: this.store.level, economy: this.store.economy });
       }, { width: btnW, fontSize: '20px', bgColour: '#d46020', icon: 'icon-supply-run' })
     );
 
@@ -1084,7 +936,7 @@ export class GameScene extends Phaser.Scene {
     // signs be repositioned per background art without redeploying code.
     const corridorDecor = RoomAnchors.getInstance().getDecor('corridor');
 
-    this.unlockedSpecies.forEach((species, i) => {
+    this.store.unlockedSpecies.forEach((species, i) => {
       const fallbackSlot = DOOR_SLOTS[i] ?? DOOR_SLOTS[DOOR_SLOTS.length - 1];
       const placedAnchors = corridorDecor[`sign-${species}`] ?? [];
       const placed = placedAnchors[0];
@@ -1092,7 +944,7 @@ export class GameScene extends Phaser.Scene {
       const y = placed ? doorBodyTop + doorBodyH * placed.y : doorBodyTop + doorBodyH * fallbackSlot.yFrac;
       const s = placed ? placed.scale : fallbackSlot.scale;
 
-      const roomAnimals = this.animals.filter((a) => a.species === species && a.state !== 'arriving');
+      const roomAnimals = this.store.animals.filter((a) => a.species === species && a.state !== 'arriving');
       const count = roomAnimals.length;
       const colour = SPECIES_COLOURS[species];
 
@@ -1246,7 +1098,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // ── Arriving animals — stand on the corridor floor with speech bubbles ──
-    const arriving = this.animals.filter((a) => a.state === 'arriving');
+    const arriving = this.store.animals.filter((a) => a.state === 'arriving');
     // Floor placed well above the FAB/nav dock so the animal doesn't collide with it.
     // Nav dock sits at ~height - 80; FAB raises above that by 14px + its radius (31).
     // So the FAB-top is roughly at height - 125. Keep the animal's feet clear above.
@@ -1325,7 +1177,7 @@ export class GameScene extends Phaser.Scene {
             if (this.processing) return;
             this.processing = true;
             animal.state = 'sheltered';
-            this.totalRescued += 1;
+            this.store.totalRescued += 1;
             this.checkLevelProgression();
             AudioManager.getInstance().playSfx('animal_arrive');
             this.saveState();
@@ -1346,7 +1198,7 @@ export class GameScene extends Phaser.Scene {
             if (this.processing) return;
             this.processing = true;
             arriving.forEach((a) => { a.state = 'sheltered'; });
-            this.totalRescued += arriving.length;
+            this.store.totalRescued += arriving.length;
             this.checkLevelProgression();
             AudioManager.getInstance().playSfx('animal_arrive');
             this.saveState();
@@ -1403,7 +1255,7 @@ export class GameScene extends Phaser.Scene {
   private renderRoom(): void {
     const { width, height } = this.scale;
     const species = this.currentRoomSpecies!;
-    const roomAnimals = this.animals.filter(
+    const roomAnimals = this.store.animals.filter(
       (a) => a.species === species && a.state !== 'arriving'
     );
 
@@ -1431,9 +1283,9 @@ export class GameScene extends Phaser.Scene {
     // Floating "Decorate" button — only visible if the player has any
     // decorations in their depot inventory. Opens the DecoratePanel.
     const availableDecorCount = Object.values(
-      getAvailableDecorationCounts(this.depot)
+      getAvailableDecorationCounts(this.store.depot)
     ).reduce((sum, n) => sum + n, 0);
-    if (availableDecorCount > 0 || this.placedDecorations.some((d) => d.roomId === `room-${species}`)) {
+    if (availableDecorCount > 0 || this.store.placedDecorations.some((d) => d.roomId === `room-${species}`)) {
       this.renderDecorateButton(width);
     }
 
@@ -1585,7 +1437,7 @@ export class GameScene extends Phaser.Scene {
         // so it draws the eye without being alarming.
         type StatusChip = { iconKey: string; tint: number; emoji: string; pulse: boolean };
         const chips: StatusChip[] = [];
-        const sickIllness = this.sickAnimals.get(animal.id);
+        const sickIllness = this.store.sickAnimals.get(animal.id);
         if (sickIllness) {
           chips.push({ iconKey: 'icon-heal', tint: 0xe74c3c, emoji: '🩹', pulse: true });
         }
@@ -1717,7 +1569,7 @@ export class GameScene extends Phaser.Scene {
     // We size the panel based on how many action buttons it will hold so
     // short panels stay snug and tall ones still fit on phones.
     const isPet = animal.state === 'pet';
-    const isSick = this.sickAnimals.has(animal.id);
+    const isSick = this.store.sickAnimals.has(animal.id);
     const cleanliness = animal.cleanliness ?? 100;
     const canWalk = !isPet && canGoOnWalk(animal);
     const canGroom = !isPet && cleanliness < 60 && !isSick;
@@ -1933,18 +1785,18 @@ export class GameScene extends Phaser.Scene {
         createButton(this, panelLeft + panelW / 2 - 70, btnRow1Y, 'Feed', () => {
           if (this.processing) return;
           this.processing = true;
-          const idx = this.animals.findIndex((a) => a.id === animal.id);
+          const idx = this.store.animals.findIndex((a) => a.id === animal.id);
           if (idx >= 0) {
-            this.animals[idx] = applyFeeding(this.animals[idx]);
+            this.store.animals[idx] = applyFeeding(this.store.animals[idx]);
             // Bond bonus fires for either a sibling OR a friend
             // who's currently in the shelter — "good company" boost.
-            const sibPresent = isSiblingPresent(this.animals[idx], this.animals)
-              || hasAllyPresent(this.relationships, this.animals[idx], this.animals, 'friend');
-            const bondGain = calculateBondIncrease(this.animals[idx], 'feed', sibPresent);
-            this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
+            const sibPresent = isSiblingPresent(this.store.animals[idx], this.store.animals)
+              || hasAllyPresent(this.store.relationships, this.store.animals[idx], this.store.animals, 'friend');
+            const bondGain = calculateBondIncrease(this.store.animals[idx], 'feed', sibPresent);
+            this.store.animals[idx].bondLevel = Math.min(100, this.store.animals[idx].bondLevel + bondGain);
             AudioManager.getInstance().playSfx('animal_fed');
             if (sibPresent) showToast(this, '💫 Sibling nearby — extra bond!');
-            this.checkBondComplete(this.animals[idx]);
+            this.checkBondComplete(this.store.animals[idx]);
           }
           this.closePopup();
           this.renderView();
@@ -1956,18 +1808,18 @@ export class GameScene extends Phaser.Scene {
         createButton(this, panelLeft + panelW / 2 + 70, btnRow1Y, 'Play', () => {
           if (this.processing) return;
           this.processing = true;
-          const idx = this.animals.findIndex((a) => a.id === animal.id);
+          const idx = this.store.animals.findIndex((a) => a.id === animal.id);
           if (idx >= 0) {
-            this.animals[idx] = applyPlay(this.animals[idx]);
+            this.store.animals[idx] = applyPlay(this.store.animals[idx]);
             // Bond bonus fires for either a sibling OR a friend
             // who's currently in the shelter — "good company" boost.
-            const sibPresent = isSiblingPresent(this.animals[idx], this.animals)
-              || hasAllyPresent(this.relationships, this.animals[idx], this.animals, 'friend');
-            const bondGain = calculateBondIncrease(this.animals[idx], 'play', sibPresent);
-            this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
+            const sibPresent = isSiblingPresent(this.store.animals[idx], this.store.animals)
+              || hasAllyPresent(this.store.relationships, this.store.animals[idx], this.store.animals, 'friend');
+            const bondGain = calculateBondIncrease(this.store.animals[idx], 'play', sibPresent);
+            this.store.animals[idx].bondLevel = Math.min(100, this.store.animals[idx].bondLevel + bondGain);
             AudioManager.getInstance().playSfx('animal_happy');
             if (sibPresent) showToast(this, '💫 Sibling nearby — extra bond!');
-            this.checkBondComplete(this.animals[idx]);
+            this.checkBondComplete(this.store.animals[idx]);
           }
           this.closePopup();
           this.renderView();
@@ -1984,9 +1836,9 @@ export class GameScene extends Phaser.Scene {
             this.saveState();
             this.scene.start('WalkScene', {
               animal,
-              allAnimals: this.animals,
+              allAnimals: this.store.animals,
               onComplete: (updatedAnimals: Animal[], _walkResult: { perfectWalk: boolean }) => {
-                this.animals = updatedAnimals;
+                this.store.animals = updatedAnimals;
                 this.checkBadges();
                 this.saveState();
               },
@@ -2003,9 +1855,9 @@ export class GameScene extends Phaser.Scene {
             this.saveState();
             this.scene.start('GroomingScene', {
               animal,
-              allAnimals: this.animals,
+              allAnimals: this.store.animals,
               onComplete: (updatedAnimals: Animal[]) => {
-                this.animals = updatedAnimals;
+                this.store.animals = updatedAnimals;
                 this.saveState();
               },
             });
@@ -2014,18 +1866,18 @@ export class GameScene extends Phaser.Scene {
         extraY += 46;
       }
 
-      const illness = this.sickAnimals.get(animal.id);
+      const illness = this.store.sickAnimals.get(animal.id);
       if (illness) {
         this.gameContainer.add(
           createButton(this, panelLeft + panelW / 2, extraY, `Heal (${illness.label})`, () => {
             if (this.processing) return;
             this.processing = true;
-            const currentIllness = this.sickAnimals.get(animal.id);
+            const currentIllness = this.store.sickAnimals.get(animal.id);
             if (!currentIllness) {
               this.processing = false; this.closePopup(); this.renderView();
               return;
             }
-            const liveAnimal = this.animals.find((a) => a.id === animal.id);
+            const liveAnimal = this.store.animals.find((a) => a.id === animal.id);
             if (!liveAnimal) {
               this.processing = false; this.closePopup(); this.renderView();
               return;
@@ -2035,10 +1887,10 @@ export class GameScene extends Phaser.Scene {
             this.scene.start('VetScene', {
               animal: liveAnimal,
               illness: currentIllness,
-              allAnimals: this.animals,
+              allAnimals: this.store.animals,
               onComplete: (updatedAnimals: Animal[], healed: boolean) => {
-                this.animals = updatedAnimals;
-                if (healed) this.sickAnimals.delete(animal.id);
+                this.store.animals = updatedAnimals;
+                if (healed) this.store.sickAnimals.delete(animal.id);
                 this.checkBadges();
                 this.saveState();
               },
@@ -2071,19 +1923,19 @@ export class GameScene extends Phaser.Scene {
         }, { width: 250, fontSize: '14px', bgColour: '#2ecc71' })
       );
 
-      const petIllness = this.sickAnimals.get(animal.id);
+      const petIllness = this.store.sickAnimals.get(animal.id);
       if (petIllness) {
         this.gameContainer.add(
           createButton(this, panelLeft + panelW / 2, btnRow1Y + 62,
             `Take to Vet (${petIllness.label})`, () => {
             if (this.processing) return;
             this.processing = true;
-            const currentPetIllness = this.sickAnimals.get(animal.id);
+            const currentPetIllness = this.store.sickAnimals.get(animal.id);
             if (!currentPetIllness) {
               this.processing = false; this.closePopup(); this.renderView();
               return;
             }
-            const livePet = this.animals.find((a) => a.id === animal.id);
+            const livePet = this.store.animals.find((a) => a.id === animal.id);
             if (!livePet) {
               this.processing = false; this.closePopup(); this.renderView();
               return;
@@ -2093,10 +1945,10 @@ export class GameScene extends Phaser.Scene {
             this.scene.start('VetScene', {
               animal: livePet,
               illness: currentPetIllness,
-              allAnimals: this.animals,
+              allAnimals: this.store.animals,
               onComplete: (updatedAnimals: Animal[], healed: boolean) => {
-                this.animals = updatedAnimals;
-                if (healed) this.sickAnimals.delete(animal.id);
+                this.store.animals = updatedAnimals;
+                if (healed) this.store.sickAnimals.delete(animal.id);
                 this.checkBadges();
                 this.saveState();
               },
@@ -2124,7 +1976,7 @@ export class GameScene extends Phaser.Scene {
     const species = this.currentRoomSpecies;
     if (!species) return;
     const roomId = `room-${species}`;
-    const inRoom = getRoomDecorations(this.placedDecorations, roomId);
+    const inRoom = getRoomDecorations(this.store.placedDecorations, roomId);
     if (inRoom.length === 0) return;
 
     // Room background area is roughly the top of the screen to the
@@ -2175,8 +2027,8 @@ export class GameScene extends Phaser.Scene {
     const roomBounds = { x: 0, y: 20, width, height: height - 40 };
 
     const { dispose } = buildDecoratePanel(this, {
-      depot: this.depot,
-      placedInRoom: getRoomDecorations(this.placedDecorations, roomId),
+      depot: this.store.depot,
+      placedInRoom: getRoomDecorations(this.store.placedDecorations, roomId),
       roomBounds,
       callbacks: {
         onPlace: (code, x, y) => this.handlePlaceDecoration(code, roomId, x, y),
@@ -2198,24 +2050,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handlePlaceDecoration(code: string, roomId: string, x: number, y: number): void {
-    const result = placeDecoration(this.placedDecorations, this.depot, code, roomId, x, y);
+    const result = placeDecoration(this.store.placedDecorations, this.store.depot, code, roomId, x, y);
     if (!result) {
       showToast(this, "Out of stock for that decoration — earn more at the depot.");
       return;
     }
-    this.placedDecorations = result.placed;
-    this.depot = result.depot;
+    this.store.placedDecorations = result.placed;
+    this.store.depot = result.depot;
     // Re-render the whole room + panel so the new item shows and the
     // palette count updates.
     this.refreshDecoratePanel();
   }
 
   private handleRemoveDecoration(id: string): void {
-    const result = removeDecoration(this.placedDecorations, this.depot, id);
+    const result = removeDecoration(this.store.placedDecorations, this.store.depot, id);
     if (!result) return;
-    this.placedDecorations = result.placed;
-    this.depot = result.depot;
-    const label = getDecorationLabel(this.placedDecorations.find((d) => d.id === id)?.code ?? '');
+    this.store.placedDecorations = result.placed;
+    this.store.depot = result.depot;
+    const label = getDecorationLabel(this.store.placedDecorations.find((d) => d.id === id)?.code ?? '');
     if (label) showToast(this, `${label} returned to inventory`);
     this.refreshDecoratePanel();
   }
@@ -2257,9 +2109,9 @@ export class GameScene extends Phaser.Scene {
     );
 
     // Find hungry animals
-    const hungry = this.animals.filter((a) => a.hunger > 60 && a.state !== 'arriving');
+    const hungry = this.store.animals.filter((a) => a.hunger > 60 && a.state !== 'arriving');
     // Count of pets living in the Garden (the only ones actually rendered there)
-    const petCount = this.animals.filter((a) => a.state === 'pet').length;
+    const petCount = this.store.animals.filter((a) => a.state === 'pet').length;
 
     // ── Semi-transparent card behind the text + buttons ───────────────
     // Sits over the painted counter so body text stays readable against the
@@ -2339,9 +2191,9 @@ export class GameScene extends Phaser.Scene {
         createButton(this, width / 2, panelCy + 30, 'Start Sorting!', () => {
           this.scene.start('KitchenMinigameScene', {
             hungryAnimals: hungry,
-            allAnimals: this.animals,
+            allAnimals: this.store.animals,
             onComplete: (updatedAnimals: Animal[]) => {
-              this.animals = updatedAnimals;
+              this.store.animals = updatedAnimals;
               this.saveState();
             },
           });
@@ -2353,16 +2205,16 @@ export class GameScene extends Phaser.Scene {
         createTextButton(this, width / 2, panelCy + 78,
           'Quick feed all (skip minigame)', () => {
           for (const animal of hungry) {
-            const idx = this.animals.findIndex((a) => a.id === animal.id);
+            const idx = this.store.animals.findIndex((a) => a.id === animal.id);
             if (idx >= 0) {
-              this.animals[idx] = applyFeeding(this.animals[idx]);
+              this.store.animals[idx] = applyFeeding(this.store.animals[idx]);
               // Bond bonus fires for either a sibling OR a friend
             // who's currently in the shelter — "good company" boost.
-            const sibPresent = isSiblingPresent(this.animals[idx], this.animals)
-              || hasAllyPresent(this.relationships, this.animals[idx], this.animals, 'friend');
-              const bondGain = calculateBondIncrease(this.animals[idx], 'feed', sibPresent);
-              this.animals[idx].bondLevel = Math.min(100, this.animals[idx].bondLevel + bondGain);
-              this.checkBondComplete(this.animals[idx]);
+            const sibPresent = isSiblingPresent(this.store.animals[idx], this.store.animals)
+              || hasAllyPresent(this.store.relationships, this.store.animals[idx], this.store.animals, 'friend');
+              const bondGain = calculateBondIncrease(this.store.animals[idx], 'feed', sibPresent);
+              this.store.animals[idx].bondLevel = Math.min(100, this.store.animals[idx].bondLevel + bondGain);
+              this.checkBondComplete(this.store.animals[idx]);
             }
           }
           this.renderView();
@@ -2391,7 +2243,7 @@ export class GameScene extends Phaser.Scene {
 
   private renderGarden(): void {
     const { width, height } = this.scale;
-    const pets = this.animals.filter((a) => a.state === 'pet');
+    const pets = this.store.animals.filter((a) => a.state === 'pet');
 
     // Garden background
     if (this.textures.exists('bg-garden')) {
@@ -2492,7 +2344,7 @@ export class GameScene extends Phaser.Scene {
         );
 
         // Sick indicator — alert player this pet needs vet attention
-        const petSickIllness = this.sickAnimals.get(pet.id);
+        const petSickIllness = this.store.sickAnimals.get(pet.id);
         if (petSickIllness) {
           const sickLabel = this.add.text(cx, cy + 50, 'Sick!', {
             fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b', resolution: TEXT_RESOLUTION,
@@ -2524,7 +2376,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Upgrades display
-    const unlocked = getUnlockedUpgrades(this.houseUpgrades);
+    const unlocked = getUnlockedUpgrades(this.store.houseUpgrades);
     if (unlocked.length > 0) {
       const upgradeNames = unlocked.map((u) => u.name).join(', ');
       this.gameContainer.add(
@@ -2535,12 +2387,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Check for new available upgrades
-    const available = getAvailableUpgrades(pets.length, this.houseUpgrades);
+    const available = getAvailableUpgrades(pets.length, this.store.houseUpgrades);
     if (available.length > 0) {
       this.gameContainer.add(
         createTextButton(this, width / 2, height - 85,
           `New upgrade available: ${available[0].name}!`, () => {
-            this.houseUpgrades.push(available[0].code);
+            this.store.houseUpgrades.push(available[0].code);
             this.checkBadges();
             this.saveState();
             this.renderView();
@@ -2549,10 +2401,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Badge display
-    if (this.earnedBadges.length > 0) {
+    if (this.store.earnedBadges.length > 0) {
       this.gameContainer.add(
         this.add.text(width / 2, height - 65,
-          `${this.earnedBadges.length} badge${this.earnedBadges.length > 1 ? 's' : ''} earned`, {
+          `${this.store.earnedBadges.length} badge${this.store.earnedBadges.length > 1 ? 's' : ''} earned`, {
           fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.primary,
         }).setOrigin(0.5)
       );
@@ -2678,12 +2530,12 @@ export class GameScene extends Phaser.Scene {
    */
   private completeBonding(animal: Animal, collarColour: string): void {
     this.showingCollarPicker = false;
-    const idx = this.animals.findIndex((a) => a.id === animal.id);
+    const idx = this.store.animals.findIndex((a) => a.id === animal.id);
     if (idx >= 0) {
-      if (this.animals[idx].state === 'pet') return; // already bonded (race guard)
-      this.animals[idx].state = 'pet';
-      this.animals[idx].collarColour = collarColour;
-      this.totalBonded++;
+      if (this.store.animals[idx].state === 'pet') return; // already bonded (race guard)
+      this.store.animals[idx].state = 'pet';
+      this.store.animals[idx].collarColour = collarColour;
+      this.store.totalBonded++;
     }
 
     AudioManager.getInstance().playSfx('bond_complete');
@@ -2733,43 +2585,43 @@ export class GameScene extends Phaser.Scene {
   // ── Badge Evaluation ───────────────────────────────────────
 
   private checkBadges(): void {
-    const pets = this.animals.filter((a) => a.state === 'pet');
-    const siblingPairs = this.animals.filter(
+    const pets = this.store.animals.filter((a) => a.state === 'pet');
+    const siblingPairs = this.store.animals.filter(
       (a) => a.siblingId && a.state !== 'arriving'
     ).length / 2;
 
     const stats = {
       userId: '',
-      catsRescued: this.animals.filter((a) => a.species === 'cat').length,
-      dogsRescued: this.animals.filter((a) => a.species === 'dog').length,
-      bunniesRescued: this.animals.filter((a) => a.species === 'bunny').length,
-      foxesRescued: this.animals.filter((a) => a.species === 'fox').length,
-      snakesRescued: this.animals.filter((a) => a.species === 'snake').length,
-      parrotsRescued: this.animals.filter((a) => a.species === 'parrot').length,
-      batsRescued: this.animals.filter((a) => a.species === 'bat').length,
-      totalRescued: this.totalRescued,
-      badgesUnlockedCount: this.earnedBadges.length,
+      catsRescued: this.store.animals.filter((a) => a.species === 'cat').length,
+      dogsRescued: this.store.animals.filter((a) => a.species === 'dog').length,
+      bunniesRescued: this.store.animals.filter((a) => a.species === 'bunny').length,
+      foxesRescued: this.store.animals.filter((a) => a.species === 'fox').length,
+      snakesRescued: this.store.animals.filter((a) => a.species === 'snake').length,
+      parrotsRescued: this.store.animals.filter((a) => a.species === 'parrot').length,
+      batsRescued: this.store.animals.filter((a) => a.species === 'bat').length,
+      totalRescued: this.store.totalRescued,
+      badgesUnlockedCount: this.store.earnedBadges.length,
       giftsSentCount: 0,
       giftsReceivedCount: 0,
       extras: {
-        totalBonded: this.totalBonded,
+        totalBonded: this.store.totalBonded,
         siblingPairsReunited: Math.floor(siblingPairs),
         selfHealed: 0,
         walksWithoutIncident: 0,
         animalsTrained: 0,
-        conflictsResolved: this.conflictsResolved,
+        conflictsResolved: this.store.conflictsResolved,
         houseUpgrades: 0,
         totalPets: pets.length,
         consecutiveDays: 1,
         totalDaysPlayed: 1,
         playerNumber: 999, // placeholder
-        level: this.level,
+        level: this.store.level,
       },
     };
 
-    const newBadges = evaluateBadges(stats, stats.extras, this.earnedBadges);
+    const newBadges = evaluateBadges(stats, stats.extras, this.store.earnedBadges);
     if (newBadges.length > 0) {
-      this.earnedBadges.push(...newBadges);
+      this.store.earnedBadges.push(...newBadges);
       // Show badge notification for first new badge
       this.showBadgeNotification(newBadges[0]);
     }
@@ -2880,8 +2732,8 @@ export class GameScene extends Phaser.Scene {
     );
 
     // Description — use the pre-built description from generateConflict
-    const animal1 = this.animals.find((a) => a.id === conflict.animal1Id);
-    const animal2 = this.animals.find((a) => a.id === conflict.animal2Id);
+    const animal1 = this.store.animals.find((a) => a.id === conflict.animal1Id);
+    const animal2 = this.store.animals.find((a) => a.id === conflict.animal2Id);
 
     this.gameContainer.add(
       this.add.text(width / 2, 130, conflict.description, {
@@ -3002,32 +2854,32 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resolveActiveConflict(actionDef: ResolutionDef): void {
-    if (!this.activeConflict) return;
+    if (!this.store.activeConflict) return;
 
-    const result = resolveConflict(this.activeConflict.type, actionDef.action);
+    const result = resolveConflict(this.store.activeConflict.type, actionDef.action);
 
     // Apply happiness boost to both conflict animals
-    for (const animalId of [this.activeConflict.animal1Id, this.activeConflict.animal2Id]) {
-      const idx = this.animals.findIndex((a) => a.id === animalId);
+    for (const animalId of [this.store.activeConflict.animal1Id, this.store.activeConflict.animal2Id]) {
+      const idx = this.store.animals.findIndex((a) => a.id === animalId);
       if (idx >= 0) {
-        this.animals[idx] = {
-          ...this.animals[idx],
-          happiness: Math.min(100, this.animals[idx].happiness + result.happinessBoost),
+        this.store.animals[idx] = {
+          ...this.store.animals[idx],
+          happiness: Math.min(100, this.store.animals[idx].happiness + result.happinessBoost),
         };
       }
     }
 
     const effective = result.effective;
     if (effective) {
-      this.conflictsResolved++;
+      this.store.conflictsResolved++;
       AudioManager.getInstance().playSfx('heal_complete');
     } else {
       AudioManager.getInstance().playSfx('food_wrong');
     }
-    this.activeConflict = undefined;
+    this.store.activeConflict = undefined;
     // Restart the cooldown from the moment of resolution so another
     // conflict can't immediately jump in.
-    this.lastConflictAt = Date.now();
+    this.store.lastConflictAt = Date.now();
 
     // Show result feedback
     this.clearView();
@@ -3071,14 +2923,14 @@ export class GameScene extends Phaser.Scene {
   private checkLevelProgression(): void {
     // Use while loop so accepting multiple animals at once can trigger multiple level-ups
     while (true) {
-      const required = getRequiredRescuesForLevel(this.level);
-      if (this.totalRescued < required) break;
-      this.level++;
-      this.unlockedSpecies = getSpeciesUnlocksForLevel(this.level);
-      const newSpecies = getSpeciesUnlocksForLevel(this.level).filter(
-        (s) => !getSpeciesUnlocksForLevel(this.level - 1).includes(s),
+      const required = getRequiredRescuesForLevel(this.store.level);
+      if (this.store.totalRescued < required) break;
+      this.store.level++;
+      this.store.unlockedSpecies = getSpeciesUnlocksForLevel(this.store.level);
+      const newSpecies = getSpeciesUnlocksForLevel(this.store.level).filter(
+        (s) => !getSpeciesUnlocksForLevel(this.store.level - 1).includes(s),
       );
-      this.showLevelUpCelebration(this.level, newSpecies);
+      this.showLevelUpCelebration(this.store.level, newSpecies);
     }
   }
 
