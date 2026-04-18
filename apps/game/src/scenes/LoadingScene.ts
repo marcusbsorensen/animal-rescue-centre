@@ -26,18 +26,34 @@ const LOADING_MESSAGES = [
   'Putting on gloves...',
 ];
 
-const BOUNCE_ANIMALS = ['cat', 'dog', 'bunny', 'fox', 'parrot', 'bat', 'snake'];
+// Emoji-only bounce animals. Previously these were text pills with
+// species names — which reads as "broken" for a kid (they look like
+// placeholders, not animals). Using emoji keeps the load screen
+// playful and diagnostic-free even when the sprite assets haven't
+// decoded yet.
+const BOUNCE_ANIMALS = ['🐱', '🐶', '🐰', '🦊', '🦜', '🦇', '🐍'];
+
+// If loading stalls for this long, we give the player a "Play anyway"
+// escape hatch so they're never trapped on the loading screen. The
+// game will lazy-load any missing textures on-demand at render time
+// (sprites.ts falls back to coloured rectangles until the texture
+// arrives), so playing early is safe.
+const ESCAPE_HATCH_MS = 20_000;
 
 export class LoadingScene extends Phaser.Scene {
   private _lastWidth = 0;
   private _lastHeight = 0;
   private messageText?: Phaser.GameObjects.Text;
+  private progressText?: Phaser.GameObjects.Text;
+  private escapeHatchBtn?: Phaser.GameObjects.Container;
+  private escapeHatchTimer?: Phaser.Time.TimerEvent;
   private messageIndex = 0;
   private barFillGfx?: Phaser.GameObjects.Graphics;
   private barW = 300;
   private barH = 24;
   private barX = 0;
   private barY = 0;
+  private lastProgressAt = 0;
 
   constructor() {
     super({ key: 'LoadingScene' });
@@ -74,12 +90,13 @@ export class LoadingScene extends Phaser.Scene {
     const spacing = Math.min(68, (width - 100) / BOUNCE_ANIMALS.length);
     const startX = width / 2 - ((BOUNCE_ANIMALS.length - 1) * spacing) / 2;
 
-    const ANIMAL_COLOURS = [0xff7eb3, 0xa0c878, 0xf9d56e, 0xff8c5a, 0x7bcfff, 0xc87bff, 0x78e0c8];
-    BOUNCE_ANIMALS.forEach((label, i) => {
-      const animal = this.add.text(startX + i * spacing, animalY, label, {
-        fontSize: '14px', fontFamily: FONTS.body, color: '#ffffff',
-        backgroundColor: '#' + ANIMAL_COLOURS[i % ANIMAL_COLOURS.length].toString(16).padStart(6, '0'),
-        padding: { x: 6, y: 4 },
+    BOUNCE_ANIMALS.forEach((emoji, i) => {
+      // Emoji-sized text (no background pill, no padding — the emoji
+      // itself is the visual). Large enough to be the hero of the
+      // loading screen rather than a chip.
+      const animal = this.add.text(startX + i * spacing, animalY, emoji, {
+        fontSize: '44px', fontFamily: FONTS.body,
+        resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
 
       // Staggered bounce
@@ -163,9 +180,21 @@ export class LoadingScene extends Phaser.Scene {
       callback: () => this.cycleMessage(),
     });
 
+    // ── Small visible percentage + last-progress marker ──────
+    // Helps a worried parent (and future me) see at a glance whether
+    // loading is actually progressing. If it stalls, the escape hatch
+    // below kicks in.
+    this.progressText = this.add.text(width / 2, this.barY + 60, '0%', {
+      fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      resolution: TEXT_RESOLUTION,
+    }).setOrigin(0.5);
+    this.lastProgressAt = Date.now();
+
     // ── Wire up progress ────────────────────────────────────
     loader.onProgress((pct) => {
       this.drawBarFill(pct);
+      this.lastProgressAt = Date.now();
+      if (this.progressText) this.progressText.setText(`${Math.round(pct * 100)}%`);
     });
 
     loader.onComplete(() => {
@@ -173,6 +202,7 @@ export class LoadingScene extends Phaser.Scene {
       // Celebration flash then go
       this.time.delayedCall(300, () => {
         loader.clearCallbacks();
+        this.escapeHatchTimer?.remove();
         this.tweens.add({
           targets: this.cameras.main,
           alpha: 0,
@@ -184,6 +214,17 @@ export class LoadingScene extends Phaser.Scene {
 
     // Start/continue background loading
     loader.startBackgroundLoad(this);
+
+    // ── Escape hatch ─────────────────────────────────────────
+    // Reveal a "Play now" button once loading has stalled for a while.
+    // Sprite fallback rectangles mean the game renders even without
+    // full art — we're not risking anything by letting the player in
+    // early, and it beats trapping them on the loading screen.
+    this.escapeHatchTimer = this.time.delayedCall(ESCAPE_HATCH_MS, () => {
+      // Only surface if we haven't already completed
+      if (loader.isFullyLoaded) return;
+      this.showEscapeHatch();
+    });
 
     // Viewport resize handling
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
@@ -246,5 +287,61 @@ export class LoadingScene extends Phaser.Scene {
         });
       },
     });
+  }
+
+  /**
+   * Reveal the "Play now" escape hatch after ESCAPE_HATCH_MS of
+   * loading. Never takes focus unless things are genuinely slow.
+   */
+  private showEscapeHatch(): void {
+    if (this.escapeHatchBtn) return;
+    const { width, height } = this.scale;
+    const cy = height - 60;
+
+    const container = this.add.container(width / 2, cy);
+    container.setAlpha(0);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.2);
+    bg.fillRoundedRect(-110, -22, 220, 44, 22);
+    bg.fillStyle(0xE67E22, 1);
+    bg.fillRoundedRect(-108, -20, 216, 40, 20);
+    container.add(bg);
+
+    const label = this.add.text(0, 0, 'Play now →', {
+      fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold',
+      color: '#ffffff', resolution: TEXT_RESOLUTION,
+    }).setOrigin(0.5);
+    container.add(label);
+
+    const hit = this.add.rectangle(0, 0, 220, 44, 0x000000, 0)
+      .setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', () => {
+      // Kill tweens + loader callbacks before leaving so they don't
+      // run against a destroyed scene.
+      AssetLoader.getInstance().clearCallbacks();
+      this.tweens.add({
+        targets: this.cameras.main,
+        alpha: 0,
+        duration: 250,
+        onComplete: () => this.scene.start('GameScene'),
+      });
+    });
+    container.add(hit);
+
+    // Small "loading is slow" hint below
+    const hint = this.add.text(0, 34, 'Assets will keep loading in the background', {
+      fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      resolution: TEXT_RESOLUTION,
+    }).setOrigin(0.5);
+    container.add(hint);
+
+    this.tweens.add({
+      targets: container,
+      alpha: 1,
+      duration: 300,
+      ease: 'Back.easeOut',
+    });
+    this.escapeHatchBtn = container;
   }
 }

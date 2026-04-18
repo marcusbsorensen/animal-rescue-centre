@@ -70,14 +70,27 @@ export class AssetLoader {
     }
   }
 
-  /** Stage 2: Start background loading of ALL remaining assets. */
+  /**
+   * Stage 2: Start (or resume) background loading of remaining assets.
+   *
+   * Intentionally idempotent — can be called from multiple scenes safely.
+   * This matters because MainMenuScene starts the load, then Phaser
+   * stops MainMenuScene when the player taps Play (scene.start kills
+   * the previous scene's loader mid-download). Without the re-queue
+   * below, LoadingScene would take over but nothing would ever complete.
+   *
+   * On each call we:
+   *   - Filter out already-loaded keys (via scene.textures / cache.audio)
+   *   - Queue the remainder through the CURRENT scene's loader
+   *   - Wire progress + complete + loaderror events to THIS scene
+   *   - Update `backgroundLoadStarted` for introspection only
+   */
   startBackgroundLoad(scene: Phaser.Scene): void {
-    if (this.backgroundLoadStarted) return;
     this.backgroundLoadStarted = true;
 
-    // Queue everything not yet loaded
+    // If everything we know about is already loaded, we're done.
     const toLoad = this.parsedEntries.filter(
-      (e) => e.category !== 'logo' && e.category !== 'icons' && !this.isLoaded(e.key, e.type, scene)
+      (e) => e.category !== 'logo' && e.category !== 'icons' && !this.isLoaded(e.key, e.type, scene),
     );
 
     if (toLoad.length === 0) {
@@ -92,9 +105,18 @@ export class AssetLoader {
       console.debug(`[AssetLoader] Skipping: ${file.key}`);
     });
 
+    // Weight progress by what's already loaded so the bar doesn't jump
+    // back to 0 if a second scene re-enters this path. `value` is a
+    // per-scene ratio of remaining-file completion; we translate it
+    // to the overall completion ratio.
+    const alreadyLoaded = this.parsedEntries.length - toLoad.length;
+    const totalKnown = this.parsedEntries.length;
     scene.load.on('progress', (value: number) => {
-      this._progress = value;
-      for (const cb of this.onProgressCallbacks) cb(value);
+      const overallPct = totalKnown > 0
+        ? (alreadyLoaded + value * toLoad.length) / totalKnown
+        : value;
+      this._progress = overallPct;
+      for (const cb of this.onProgressCallbacks) cb(overallPct);
     });
 
     scene.load.on('complete', () => {
