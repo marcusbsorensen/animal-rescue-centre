@@ -47,7 +47,7 @@ import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
 import { GameStateStore, loadGameState, saveGameState } from '../game-state';
-import { renderGarden } from '../game-views';
+import { renderGarden, renderKitchen } from '../game-views';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
 
@@ -2090,154 +2090,28 @@ export class GameScene extends Phaser.Scene {
 
   // ── Kitchen View ────────────────────────────────────────────
 
+  /** Thin wrapper — delegates to the extracted KitchenView module. */
   private renderKitchen(): void {
-    const { width, height } = this.scale;
-
-    // Kitchen background
-    if (this.textures.exists('bg-kitchen')) {
-      const bg = this.add.image(width / 2, height / 2, 'bg-kitchen');
-      bg.setDisplaySize(width, height - 40);
-      this.gameContainer.add(bg);
-    } else {
-      this.gameContainer.add(
-        this.add.rectangle(width / 2, height / 2, width, height - 40,
-          Phaser.Display.Color.HexStringToColor('#fff8e7').color)
-      );
-    }
-
-    this.gameContainer.add(
-      createPillTitle(this, width / 2, 55, 'Kitchen', { bgColour: 0xD4A017, fontSize: '20px', icon: 'icon-kitchen' })
-    );
-
-    // Find hungry animals
-    const hungry = this.store.animals.filter((a) => a.hunger > 60 && a.state !== 'arriving');
-    // Count of pets living in the Garden (the only ones actually rendered there)
-    const petCount = this.store.animals.filter((a) => a.state === 'pet').length;
-
-    // ── Semi-transparent card behind the text + buttons ───────────────
-    // Sits over the painted counter so body text stays readable against the
-    // busy kitchen background.
-    const panelW = Math.min(420, width - 40);
-    const panelH = hungry.length > 0 ? 260 : 140;
-    const panelCy = height / 2 + 10;
-    this.gameContainer.add(
-      createPanel(this, width / 2, panelCy, panelW, panelH, {
-        fillColour: 0xffffff,
-        fillAlpha: 0.92,
-        borderColour: 0xd4a017,
-        borderWidth: 2,
-        radius: 18,
-      })
-    );
-
-    if (hungry.length === 0) {
-      this.gameContainer.add(
-        this.add.text(width / 2, panelCy - 10, 'Everyone is well-fed!', {
-          fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.primary,
-          resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-      this.gameContainer.add(
-        this.add.text(width / 2, panelCy + 18, 'Check back when someone gets peckish.', {
-          fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
-          resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-    } else {
-      // Title
-      this.gameContainer.add(
-        this.add.text(width / 2, panelCy - 90,
-          `${hungry.length} animal${hungry.length > 1 ? 's are' : ' is'} hungry!`, {
-          fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-          resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-
-      // Subtitle
-      this.gameContainer.add(
-        this.add.text(width / 2, panelCy - 62,
-          'Sort the right food into each animal\'s bowl!', {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
-          resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-
-      // Species icons strip — small coloured dots for each hungry animal
-      const iconSize = 32;
-      const iconY = panelCy - 20;
-      const iconSpacing = 40;
-      const shownHungry = hungry.slice(0, Math.min(hungry.length, 8));
-      const iconsStartX = width / 2 - ((shownHungry.length - 1) * iconSpacing) / 2;
-      shownHungry.forEach((a, i) => {
-        const ix = iconsStartX + i * iconSpacing;
-        const bg = this.add.graphics();
-        bg.fillStyle(SPECIES_COLOURS[a.species], 0.25);
-        bg.fillCircle(ix, iconY, iconSize / 2 + 2);
-        this.gameContainer.add(bg);
-        const speciesIconKey = `icon-${a.species}`;
-        if (this.textures.exists(speciesIconKey)) {
-          this.gameContainer.add(
-            this.add.image(ix, iconY, speciesIconKey).setDisplaySize(iconSize, iconSize).setOrigin(0.5)
-          );
-        } else {
-          const c = this.add.graphics();
-          c.fillStyle(SPECIES_COLOURS[a.species], 1);
-          c.fillCircle(ix, iconY, iconSize / 2);
-          this.gameContainer.add(c);
-        }
-      });
-
-      // Launch minigame button
-      this.gameContainer.add(
-        createButton(this, width / 2, panelCy + 30, 'Start Sorting!', () => {
-          this.scene.start('KitchenMinigameScene', {
-            hungryAnimals: hungry,
-            allAnimals: this.store.animals,
-            onComplete: (updatedAnimals: Animal[]) => {
-              this.store.animals = updatedAnimals;
-              this.saveState();
-            },
-          });
-        }, { width: 240 })
-      );
-
-      // Quick-feed option for accessibility
-      this.gameContainer.add(
-        createTextButton(this, width / 2, panelCy + 78,
-          'Quick feed all (skip minigame)', () => {
-          for (const animal of hungry) {
-            const idx = this.store.animals.findIndex((a) => a.id === animal.id);
-            if (idx >= 0) {
-              this.store.animals[idx] = applyFeeding(this.store.animals[idx]);
-              // Bond bonus fires for either a sibling OR a friend
-            // who's currently in the shelter — "good company" boost.
-            const sibPresent = isSiblingPresent(this.store.animals[idx], this.store.animals)
-              || hasAllyPresent(this.store.relationships, this.store.animals[idx], this.store.animals, 'friend');
-              const bondGain = calculateBondIncrease(this.store.animals[idx], 'feed', sibPresent);
-              this.store.animals[idx].bondLevel = Math.min(100, this.store.animals[idx].bondLevel + bondGain);
-              this.checkBondComplete(this.store.animals[idx]);
-            }
-          }
-          this.renderView();
-          this.saveState();
-        })
-      );
-    }
-
-    // Garden shortcut — always show below kitchen content
-    // Label reflects pets only, because that's what the Garden actually shows.
-    const gardenBtnY = panelCy + panelH / 2 + 30;
-    const gardenLabel = petCount === 0
-      ? 'Garden (empty)'
-      : `Garden (${petCount} ${petCount === 1 ? 'pet' : 'pets'})`;
-    this.gameContainer.add(
-      createButton(this, width / 2, gardenBtnY, gardenLabel, () => {
+    renderKitchen(this, this.store, this.gameContainer, {
+      launchMinigame: (hungry) => {
+        this.scene.start('KitchenMinigameScene', {
+          hungryAnimals: hungry,
+          allAnimals: this.store.animals,
+          onComplete: (updatedAnimals: Animal[]) => {
+            this.store.animals = updatedAnimals;
+            this.saveState();
+          },
+        });
+      },
+      onQuickFedAnimal: (animal) => this.checkBondComplete(animal),
+      goToGarden: () => {
         this.viewMode = 'garden';
         this.renderView();
-      }, { width: 240, fontSize: '15px', bgColour: '#2ecc71', icon: 'icon-walk' })
-    );
-
-    this.renderNavBar({ showBack: true });
+      },
+      rerender: () => this.renderView(),
+      save: () => this.saveState(),
+      renderNavBar: (opts) => this.renderNavBar(opts),
+    });
   }
 
   // ── Garden View ─────────────────────────────────────────────

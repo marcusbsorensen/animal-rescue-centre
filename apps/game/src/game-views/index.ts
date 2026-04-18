@@ -4,3 +4,5 @@
 // callbacks bag for scene-level coordination.
 export { renderGarden } from './GardenView';
 export type { GardenCallbacks, ResolvedAnchor } from './GardenView';
+export { renderKitchen } from './KitchenView';
+export type { KitchenCallbacks } from './KitchenView';
