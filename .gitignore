@@ -22,3 +22,10 @@ manus-variants/
 # Local-only sign/bg drafts, previews, and backups (not served)
 asset-drafts/
 manus-output/
+
+# Playwright e2e artefacts — reports, traces, actual/diff images.
+# Committed baseline screenshots under e2e/__screenshots__/ stay tracked.
+apps/game/playwright-report/
+apps/game/test-results/
+apps/game/e2e/__screenshots__/**/*-actual.png
+apps/game/e2e/__screenshots__/**/*-diff.png

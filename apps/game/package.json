@@ -8,6 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots",
+    "test:visual:report": "playwright show-report",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
@@ -19,6 +22,7 @@
     "@arc/badges": "workspace:*",
     "@arc/game-logic": "workspace:*",
     "@arc/shared-types": "workspace:*",
+    "@playwright/test": "^1.59.1",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.0.0",

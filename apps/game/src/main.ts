@@ -53,7 +53,8 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 
-// Expose for dev tools / visual inspection
-if (import.meta.env.DEV) {
-  (window as unknown as Record<string, unknown>).__PHASER_GAME__ = game;
-}
+// Expose for dev-tools inspection and Playwright e2e tests. Harmless
+// to expose in production — kids playing in the browser can already
+// poke the game state via devtools regardless, and this is a single-
+// player client-side app, not a server.
+(window as unknown as Record<string, unknown>).__PHASER_GAME__ = game;
