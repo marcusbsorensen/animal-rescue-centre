@@ -57,6 +57,10 @@ import {
   renderCollarPicker,
   renderPetCreated,
   renderAnimalDetails,
+  renderHUD,
+  renderNavBar,
+  renderGamesPopup,
+  showQuickToast,
 } from '../game-views';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
@@ -340,459 +344,59 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Thin wrapper — delegates to HUDView.renderHUD. */
   private renderHUD(): void {
-    this.uiContainer.removeAll(true);
-    const { width } = this.scale;
-    const required = getRequiredRescuesForLevel(this.store.level);
-    // "Rescued" on the HUD is the count of animals the player has actually
-    // welcomed into the shelter — NOT the ones still waiting at the door.
-    // We compute this from live state so the number matches what the player
-    // can see in the rooms/garden, regardless of any cumulative counter.
-    const welcomedCount = this.store.animals.filter(
-      (a) => a.state === 'sheltered' || a.state === 'bonding' || a.state === 'pet',
-    ).length;
-    const arrivingCount = this.store.animals.filter((a) => a.state === 'arriving').length;
-    // Count sheltered/bonding animals that need the player's attention —
-    // urgent need or illness. Pets in the garden are self-sufficient and
-    // don't contribute to the HUD care counter.
-    const needsCareCount = this.store.animals.filter((a) => {
-      if (a.state !== 'sheltered' && a.state !== 'bonding') return false;
-      return getUrgentNeed(a) !== null || this.store.sickAnimals.has(a.id);
-    }).length;
-    const xpProgress = Math.min(this.store.totalRescued / required, 1);
-    const shelteredCount = this.store.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length;
-    const maxShelter = getMaxShelterAnimals(this.store.level);
-
-    // Constrain to 600px centred for large screens
-    const maxW = Math.min(width, 600);
-    const leftEdge = (width - maxW) / 2 + 10;
-    const rightEdge = width - (width - maxW) / 2 - 10;
-    const orbY = 30;
-    const orbH = 44;
-
-    // ── LEFT: Level orb with XP bar ───────────────────────────
-    const leftOrbW = 170;
-    const leftX = leftEdge;
-    const leftGfx = this.add.graphics();
-    leftGfx.fillStyle(0x000000, 0.14);
-    leftGfx.fillRoundedRect(leftX + 2, orbY - orbH / 2 + 3, leftOrbW, orbH, orbH / 2);
-    leftGfx.fillStyle(0xffffff, 0.96);
-    leftGfx.fillRoundedRect(leftX, orbY - orbH / 2, leftOrbW, orbH, orbH / 2);
-    this.uiContainer.add(leftGfx);
-
-    // Green level circle
-    const lvlCx = leftX + orbH / 2;
-    const lvlCircle = this.add.graphics();
-    lvlCircle.fillStyle(0x5AAE4A, 1);
-    lvlCircle.fillCircle(lvlCx, orbY, orbH / 2 - 4);
-    this.uiContainer.add(lvlCircle);
-    this.uiContainer.add(
-      this.add.text(lvlCx, orbY, `${this.store.level}`, {
-        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', resolution: TEXT_RESOLUTION,
-      }).setOrigin(0.5)
-    );
-
-    // XP label + bar. The visible count is the live in-care number so kids
-    // see a number that matches the animals around them. The bar still
-    // tracks cumulative progress (totalRescued) toward the next level.
-    const xpX = leftX + orbH + 2;
-    const xpW = leftOrbW - orbH - 14;
-    this.uiContainer.add(
-      this.add.text(xpX, orbY - 9, `${welcomedCount} in care`, {
-        fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
-      }).setOrigin(0, 0.5)
-    );
-    const xpBar = this.add.graphics();
-    xpBar.fillStyle(0xe6e2d8, 1);
-    xpBar.fillRoundedRect(xpX, orbY + 3, xpW, 7, 3.5);
-    if (xpProgress > 0) {
-      xpBar.fillStyle(0x5AAE4A, 1);
-      xpBar.fillRoundedRect(xpX, orbY + 3, Math.max(6, xpW * xpProgress), 7, 3.5);
-    }
-    this.uiContainer.add(xpBar);
-
-    // Make the level orb tappable → opens Account scene (badges/stats).
-    const orbHit = this.add.circle(lvlCx, orbY, orbH / 2, 0x000000, 0)
-      .setInteractive({ useHandCursor: true });
-    orbHit.on('pointerdown', () => {
-      this.saveState();
-      this.scene.start('AccountScene', {
-        level: this.store.level,
-        totalRescued: this.store.totalRescued,
-        totalBonded: this.store.totalBonded,
-        earnedBadges: this.store.earnedBadges,
-        animals: this.store.animals,
-        economy: this.store.economy,
-      });
-    });
-    this.uiContainer.add(orbHit);
-
-    // ── Red alert badge: animals waiting in the lobby ───────
-    if (arrivingCount > 0) {
-      const alertX = leftX + leftOrbW + 14;
-      const alertY = orbY;
-      const alertR = 13;
-      const alertGfx = this.add.graphics();
-      // subtle dark shadow
-      alertGfx.fillStyle(0x000000, 0.2);
-      alertGfx.fillCircle(alertX + 1, alertY + 2, alertR);
-      // red alert
-      alertGfx.fillStyle(0xe74c3c, 1);
-      alertGfx.fillCircle(alertX, alertY, alertR);
-      // white ring
-      alertGfx.lineStyle(2, 0xffffff, 1);
-      alertGfx.strokeCircle(alertX, alertY, alertR);
-      this.uiContainer.add(alertGfx);
-      this.uiContainer.add(
-        this.add.text(alertX, alertY, `${arrivingCount}`, {
-          fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
-          color: '#ffffff', resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-      // Gentle pulse so it draws the eye
-      const pulseTarget = { s: 1 };
-      this.tweens.add({
-        targets: pulseTarget,
-        s: 1.18,
-        duration: 550,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        onUpdate: () => {
-          alertGfx.setScale(pulseTarget.s, pulseTarget.s);
-          alertGfx.x = alertX * (1 - pulseTarget.s);
-          alertGfx.y = alertY * (1 - pulseTarget.s);
-        },
-      });
-      // Tap → jump to corridor so the player can welcome them
-      const alertHit = this.add.circle(alertX, alertY, alertR + 4, 0x000000, 0)
-        .setInteractive({ useHandCursor: true });
-      alertHit.on('pointerdown', () => {
+    renderHUD(this, this.store, this.uiContainer, {
+      onLevelOrbTap: () => {
+        this.saveState();
+        this.scene.start('AccountScene', {
+          level: this.store.level,
+          totalRescued: this.store.totalRescued,
+          totalBonded: this.store.totalBonded,
+          earnedBadges: this.store.earnedBadges,
+          animals: this.store.animals,
+          economy: this.store.economy,
+        });
+      },
+      onArrivalAlertTap: () => {
         this.viewMode = 'corridor';
         this.renderView();
-      });
-      this.uiContainer.add(alertHit);
-    }
-
-    // ── Amber badge: animals in rooms that need attention ────
-    // Shown to the right of the red alert (or where the red alert would be
-    // if there are no arrivals) so kids can spot "someone needs me" without
-    // having to pop into every room.
-    if (needsCareCount > 0) {
-      const careX = leftX + leftOrbW + 14 + (arrivingCount > 0 ? 32 : 0);
-      const careY = orbY;
-      const careR = 13;
-      const careGfx = this.add.graphics();
-      careGfx.fillStyle(0x000000, 0.2);
-      careGfx.fillCircle(careX + 1, careY + 2, careR);
-      // Amber — distinct from the red arrivals alert, still urgent enough to spot
-      careGfx.fillStyle(0xe3b04b, 1);
-      careGfx.fillCircle(careX, careY, careR);
-      careGfx.lineStyle(2, 0xffffff, 1);
-      careGfx.strokeCircle(careX, careY, careR);
-      this.uiContainer.add(careGfx);
-      this.uiContainer.add(
-        this.add.text(careX, careY, `${needsCareCount}`, {
-          fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
-          color: '#ffffff', resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-      // Softer pulse than the red one — same rhythm but subtler
-      const carePulse = { s: 1 };
-      this.tweens.add({
-        targets: carePulse,
-        s: 1.14,
-        duration: 700,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        onUpdate: () => {
-          careGfx.setScale(carePulse.s, carePulse.s);
-          careGfx.x = careX * (1 - carePulse.s);
-          careGfx.y = careY * (1 - carePulse.s);
-        },
-      });
-      // Tap → jump to the corridor so the player can pick the room
-      // with the unhappy animal. (We don't auto-open a specific room
-      // because multiple rooms may need care at once.)
-      const careHit = this.add.circle(careX, careY, careR + 4, 0x000000, 0)
-        .setInteractive({ useHandCursor: true });
-      careHit.on('pointerdown', () => {
+      },
+      onCareAlertTap: () => {
         this.viewMode = 'corridor';
         this.renderView();
-      });
-      this.uiContainer.add(careHit);
-    }
-
-    // ── RIGHT SIDE: stack orbs from right edge leftward ─────
-    let rx = rightEdge;
-    const orbSize = 40;
-
-    // Helper — round icon button orb
-    const drawIconOrb = (iconKey: string, textFallback: string, onTap: () => void) => {
-      const cx = rx - orbSize / 2;
-      const shadow = this.add.graphics();
-      shadow.fillStyle(0x000000, 0.14);
-      shadow.fillCircle(cx + 2, orbY + 3, orbSize / 2);
-      shadow.fillStyle(0xffffff, 0.96);
-      shadow.fillCircle(cx, orbY, orbSize / 2);
-      this.uiContainer.add(shadow);
-      if (this.textures.exists(iconKey)) {
-        // Bump HUD icon from 22 → 28 for a less brutal downscale.
-        const img = this.add.image(cx, orbY, iconKey).setDisplaySize(28, 28).setOrigin(0.5);
-        this.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
-        this.uiContainer.add(img);
-      } else {
-        this.uiContainer.add(
-          this.add.text(cx, orbY, textFallback, {
-            fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text, resolution: TEXT_RESOLUTION,
-          }).setOrigin(0.5)
-        );
-      }
-      const hit = this.add.circle(cx, orbY, orbSize / 2, 0x000000, 0).setInteractive({ useHandCursor: true });
-      hit.on('pointerdown', onTap);
-      this.uiContainer.add(hit);
-      rx -= orbSize + 6;
-    };
-
-    // Helper — pill showing a value next to a coloured circle icon
-    const drawValuePill = (value: string, iconKey: string, iconTint: number) => {
-      const pillW = 70;
-      const x0 = rx - pillW;
-      const gfx = this.add.graphics();
-      gfx.fillStyle(0x000000, 0.14);
-      gfx.fillRoundedRect(x0 + 2, orbY - orbH / 2 + 3, pillW, orbH, orbH / 2);
-      gfx.fillStyle(0xffffff, 0.96);
-      gfx.fillRoundedRect(x0, orbY - orbH / 2, pillW, orbH, orbH / 2);
-      this.uiContainer.add(gfx);
-      const circ = this.add.graphics();
-      circ.fillStyle(iconTint, 1);
-      circ.fillCircle(x0 + orbH / 2, orbY, orbH / 2 - 5);
-      this.uiContainer.add(circ);
-      if (this.textures.exists(iconKey)) {
-        this.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
-        this.uiContainer.add(
-          this.add.image(x0 + orbH / 2, orbY, iconKey).setDisplaySize(28, 28).setOrigin(0.5)
-        );
-      }
-      this.uiContainer.add(
-        this.add.text(x0 + orbH + 2, orbY, value, {
-          fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text, resolution: TEXT_RESOLUTION,
-        }).setOrigin(0, 0.5)
-      );
-      rx = x0 - 6;
-    };
-
-    // Audio toggle orb (right-most — save is now automatic, no button needed)
-    const audioState = AudioManager.getInstance().getState();
-    const audioKey = audioState.musicEnabled ? 'icon-music-on' : 'icon-music-off';
-    drawIconOrb(audioKey, audioState.musicEnabled ? 'ON' : 'OFF', () => {
-      AudioManager.getInstance().toggleMusic();
-      this.renderHUD();
+      },
+      onAudioToggle: () => {
+        AudioManager.getInstance().toggleMusic();
+        this.renderHUD();
+      },
     });
-
-    // Coin pill (painterly hud-coins sign)
-    if (this.store.economy.coins > 0) {
-      const coinIcon = this.textures.exists('hud-coins') ? 'hud-coins' : 'icon-hud-coins';
-      drawValuePill(`${this.store.economy.coins}`, coinIcon, 0xe3b04b);
-    }
-
-    // Shelter pill (painterly hud-homes sign)
-    if (shelteredCount > 0) {
-      const homesIcon = this.textures.exists('hud-homes') ? 'hud-homes' : 'icon-hud-homes';
-      drawValuePill(`${shelteredCount}/${maxShelter}`, homesIcon, 0x8B6914);
-    }
   }
 
-  // ── Bottom Navigation Bar ────────────────────────────────────
+  // ── Bottom Navigation Bar + helpers (thin wrappers) ─────────
 
+  /** Thin wrapper — delegates to NavBarView.renderNavBar. */
   private renderNavBar(options?: { showBack?: boolean }): void {
-    const { width, height } = this.scale;
-
-    type NavTab = {
-      iconKey: string; label: string; active: boolean; action: () => void;
-    };
-
-    // Painterly nav icons live in signs/ — fall back to older icons/ keys if texture missing
-    const homeKey = this.textures.exists('nav-home') ? 'nav-home' : 'icon-home';
-    const careKey = this.textures.exists('nav-care') ? 'nav-care' : 'icon-kitchen';
-    const socialKey = this.textures.exists('nav-social') ? 'nav-social' : 'icon-social';
-    // "Walk" is a much more obvious right-hand tab than the old "Play" (which
-    // looked like a pet-playtime action). Fall back to a leash/paw icon.
-    const walkKey = this.textures.exists('nav-walk')
-      ? 'nav-walk'
-      : (this.textures.exists('icon-walk') ? 'icon-walk' : 'icon-games');
-    // Central FAB now represents supply runs — we want an icon that clearly
-    // reads as "go get supplies" (box/truck/crate).
-    const fabKey = this.textures.exists('fab-supplies')
-      ? 'fab-supplies'
-      : (this.textures.exists('icon-supply-run')
-          ? 'icon-supply-run'
-          : (this.textures.exists('icon-depot') ? 'icon-depot' : 'fab-arc'));
-
-    // Layout: 2 tabs LEFT of centre, central A.R.C. FAB, 2 tabs RIGHT of centre
-    const leftTabs: NavTab[] = options?.showBack
-      ? [
-          { iconKey: 'icon-back', label: 'Back', active: false,
-            action: () => { this.viewMode = 'corridor'; this.renderView(); } },
-          { iconKey: careKey, label: 'Care', active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
-            action: () => { this.viewMode = 'kitchen'; this.renderView(); } },
-        ]
-      : [
-          { iconKey: homeKey, label: 'Home', active: this.viewMode === 'corridor',
-            action: () => { this.viewMode = 'corridor'; this.renderView(); } },
-          { iconKey: careKey, label: 'Care', active: this.viewMode === 'kitchen' || this.viewMode === 'garden',
-            action: () => { this.viewMode = 'kitchen'; this.renderView(); } },
-        ];
-
-    // Right tabs: Walk (go on a walk with a pet) + Social. The old "Play"
-    // tab was ambiguous — it looked like "play with an animal" but actually
-    // opened Depot/Supply-Run. Those mini-games now live on the central FAB.
-    const rightTabs: NavTab[] = [
-      { iconKey: walkKey, label: 'Walk', active: false,
-        action: () => this.handleWalkTap() },
-      { iconKey: socialKey, label: 'Social', active: false,
-        action: () => { this.saveState(); this.scene.start('SocialScene'); } },
-    ];
-
-    // ── Bar geometry ──────────────────────────────────────
-    const tabW = 74;
-    const tabH = 60;
-    const fabSize = 68;
-    const fabGap = 12;
-    const tabsSide = leftTabs.length; // 2
-    const barW = Math.min(width - 20, tabsSide * 2 * tabW + fabSize + fabGap * 2 + 28);
-    const barH = tabH + 16;
-    const barX = (width - barW) / 2;
-    const barY = height - barH - 16;
-
-    // Glass bar background
-    const bg = this.add.graphics();
-    bg.fillStyle(0x000000, 0.14);
-    bg.fillRoundedRect(barX + 2, barY + 4, barW, barH, barH / 2);
-    bg.fillStyle(0xffffff, 0.92);
-    bg.fillRoundedRect(barX, barY, barW, barH, barH / 2);
-    // Inner top highlight
-    bg.fillStyle(0xffffff, 0.6);
-    bg.fillRoundedRect(barX + 2, barY + 2, barW - 4, 6, { tl: barH / 2, tr: barH / 2, bl: 0, br: 0 });
-    this.navContainer.add(bg);
-
-    // ── Tab drawer ────────────────────────────────────────
-    const drawTab = (tab: NavTab, tx: number, ty: number) => {
-      if (tab.active) {
-        const pill = this.add.graphics();
-        pill.fillStyle(0x5AAE4A, 0.18);
-        pill.fillRoundedRect(tx - tabW / 2 + 3, ty - tabH / 2 + 2, tabW - 6, tabH - 4, 16);
-        this.navContainer.add(pill);
-      }
-      // Bumped up from 36/40 → 46/52. The painterly icons are 256-px
-      // source art, so a larger display size reduces the downscale factor
-      // (which is the real cause of the "pixellated" look on retina).
-      const iconPx = tab.active ? 52 : 46;
-      if (this.textures.exists(tab.iconKey)) {
-        const img = this.add.image(tx, ty - 9, tab.iconKey)
-          .setDisplaySize(iconPx, iconPx)
-          .setOrigin(0.5);
-        img.setTexture(tab.iconKey); // ensure current key
-        // Explicit LINEAR filtering — Phaser's default, but worth stating
-        // so a future pixelArt-mode tweak doesn't silently regress.
-        const tex = this.textures.get(tab.iconKey);
-        tex.setFilter(Phaser.Textures.FilterMode.LINEAR);
-        if (!tab.active) img.setAlpha(0.82);
-        this.navContainer.add(img);
-      } else {
-        this.navContainer.add(
-          this.add.text(tx, ty - 9, tab.label.slice(0, 2), {
-            fontSize: `${iconPx}px`, fontFamily: FONTS.title, fontStyle: 'bold',
-            color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
-          }).setOrigin(0.5)
-        );
-      }
-      this.navContainer.add(
-        this.add.text(tx, ty + 18, tab.label, {
-          fontSize: tab.active ? '12px' : '11px',
-          fontFamily: FONTS.body, fontStyle: 'bold',
-          color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-      const hit = this.add.rectangle(tx, ty, tabW, tabH, 0x000000, 0).setInteractive({ useHandCursor: true });
-      hit.on('pointerdown', tab.action);
-      this.navContainer.add(hit);
-    };
-
-    // Positions — divide bar into left/FAB/right regions. FAB sits lower
-    // so it reads as part of the bar rather than a floating afterthought.
-    const ty = barY + barH / 2;
-    const fabX = barX + barW / 2;
-    const fabY = barY + 6;
-
-    const leftStart = barX + 10;
-    const leftAvail = (barW / 2) - (fabSize / 2 + fabGap) - 10;
-    leftTabs.forEach((tab, i) => {
-      const tx = leftStart + leftAvail * ((i + 0.5) / leftTabs.length);
-      drawTab(tab, tx, ty);
-    });
-
-    const rightStart = barX + barW / 2 + fabSize / 2 + fabGap;
-    const rightAvail = (barW / 2) - (fabSize / 2 + fabGap) - 10;
-    rightTabs.forEach((tab, i) => {
-      const tx = rightStart + rightAvail * ((i + 0.5) / rightTabs.length);
-      drawTab(tab, tx, ty);
-    });
-
-    // ── Central FAB: Supplies / Depot runs ────────────────
-    // This is the "always something to do" button — kids can earn supplies
-    // and coins via Supply Run or spend them in the Depot.
-    const fabShadow = this.add.graphics();
-    fabShadow.fillStyle(0x000000, 0.3);
-    fabShadow.fillCircle(fabX + 2, fabY + 5, fabSize / 2);
-    this.navContainer.add(fabShadow);
-
-    // Cream disc background (matches bar), with warm accent ring so it
-    // reads as the primary action on the bar.
-    const fabBg = this.add.graphics();
-    fabBg.fillStyle(0xffffff, 0.98);
-    fabBg.fillCircle(fabX, fabY, fabSize / 2);
-    fabBg.lineStyle(3, 0xE67E22, 1);
-    fabBg.strokeCircle(fabX, fabY, fabSize / 2 - 1);
-    this.navContainer.add(fabBg);
-
-    if (this.textures.exists(fabKey)) {
-      const fabIcon = this.add.image(fabX, fabY - 2, fabKey)
-        .setDisplaySize(fabSize - 14, fabSize - 14).setOrigin(0.5);
-      this.navContainer.add(fabIcon);
-    } else {
-      // Fallback: simple crate emoji
-      this.navContainer.add(
-        this.add.text(fabX, fabY - 2, '📦', {
-          fontSize: '28px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-    }
-
-    // Caption under the FAB so kids know what it does
-    this.navContainer.add(
-      this.add.text(fabX, fabY + fabSize / 2 - 6, 'Supplies', {
-        fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
-        color: '#6b5a4a', resolution: TEXT_RESOLUTION,
-      }).setOrigin(0.5, 0)
+    renderNavBar(this, this.navContainer,
+      { showBack: options?.showBack, activeMode: this.viewMode },
+      {
+        onBack: () => { this.viewMode = 'corridor'; this.renderView(); },
+        onHome: () => { this.viewMode = 'corridor'; this.renderView(); },
+        onCare: () => { this.viewMode = 'kitchen'; this.renderView(); },
+        onWalk: () => this.handleWalkTap(),
+        onSocial: () => { this.saveState(); this.scene.start('SocialScene'); },
+        onFab: () => this.showGamesPopup(),
+      },
     );
-
-    const fabHit = this.add.circle(fabX, fabY, (fabSize + 8) / 2, 0x000000, 0).setInteractive({ useHandCursor: true });
-    fabHit.on('pointerdown', () => this.showGamesPopup());
-    this.navContainer.add(fabHit);
   }
 
-  // ── Walk tab ────────────────────────────────────────────────
-  //
-  // If the player has no walkable animals, show a gentle note rather than
-  // throwing them into an empty WalkScene. Otherwise jump straight in.
+  /** Walk-tab guard: empty shelter-animal list → friendly toast. */
   private handleWalkTap(): void {
     const walkable = this.store.animals.filter(
       (a) => (a.state === 'sheltered' || a.state === 'bonding') && canGoOnWalk(a),
     );
     if (walkable.length === 0) {
-      this.showQuickToast('No pets are ready for a walk right now. Build a bond first!');
+      showQuickToast(this, 'No pets are ready for a walk right now. Build a bond first!');
       return;
     }
     this.saveState();
@@ -803,86 +407,25 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // Tiny floating toast used by quick nav feedback.
-  private showQuickToast(message: string): void {
-    const { width, height } = this.scale;
-    const toast = this.add.container(width / 2, height - 140).setDepth(200);
-    const padX = 18;
-    const label = this.add.text(0, 0, message, {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
-      color: '#ffffff', resolution: TEXT_RESOLUTION,
-      wordWrap: { width: Math.min(width - 60, 360) },
-      align: 'center',
-    }).setOrigin(0.5);
-    const w = label.width + padX * 2;
-    const h = label.height + 18;
-    const bg = this.add.graphics();
-    bg.fillStyle(0x000000, 0.78);
-    bg.fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-    toast.add([bg, label]);
-    toast.setAlpha(0);
-    this.tweens.add({
-      targets: toast, alpha: 1, duration: 180,
-      hold: 1800, yoyo: true,
-      onComplete: () => toast.destroy(),
-    });
-  }
-
-  // ── Games Popup ─────────────────────────────────────────────
-
+  /** Thin wrapper — delegates to NavBarView.renderGamesPopup. */
   private showGamesPopup(): void {
-    const { width, height } = this.scale;
-
-    // Overlay to capture taps outside the popup
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.4)
-      .setInteractive();
-    this.gameContainer.add(overlay);
-
-    // Popup panel
-    const popupW = Math.min(300, width - 40);
-    const popupH = 200;
-    const popupX = width / 2;
-    const popupY = height / 2 - 40;
-
-    // Panel shadow
-    const popupGfx = this.add.graphics();
-    popupGfx.fillStyle(0x000000, 0.15);
-    popupGfx.fillRoundedRect(popupX - popupW / 2 + 4, popupY - popupH / 2 + 5, popupW, popupH, 16);
-    popupGfx.fillStyle(0xfef9ef, 1);
-    popupGfx.fillRoundedRect(popupX - popupW / 2, popupY - popupH / 2, popupW, popupH, 14);
-    popupGfx.lineStyle(2, 0x5a3d8a, 0.6);
-    popupGfx.strokeRoundedRect(popupX - popupW / 2, popupY - popupH / 2, popupW, popupH, 14);
-    this.gameContainer.add(popupGfx);
-
-    // Title
-    this.gameContainer.add(
-      this.add.text(popupX, popupY - popupH / 2 + 30, 'Games', {
-        fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
-        color: COLOURS.text,
-      }).setOrigin(0.5)
-    );
-
-    // Depot button
-    const btnW = Math.min(220, popupW - 40);
-    this.gameContainer.add(
-      createButton(this, popupX, popupY - 10, 'Depot', () => {
+    renderGamesPopup(this, this.gameContainer, {
+      onDepot: () => {
         this.saveState();
-        this.scene.start('DepotScene', { level: this.store.level, depot: this.store.depot, economy: this.store.economy });
-      }, { width: btnW, fontSize: '20px', bgColour: '#4a2d7a', icon: 'icon-depot' })
-    );
-
-    // Supply Run button
-    this.gameContainer.add(
-      createButton(this, popupX, popupY + 52, 'Supply Run', () => {
+        this.scene.start('DepotScene', {
+          level: this.store.level,
+          depot: this.store.depot,
+          economy: this.store.economy,
+        });
+      },
+      onSupplyRun: () => {
         this.saveState();
-        this.scene.start('SupplyRunScene', { level: this.store.level, economy: this.store.economy });
-      }, { width: btnW, fontSize: '20px', bgColour: '#d46020', icon: 'icon-supply-run' })
-    );
-
-    // Tap overlay to close
-    overlay.on('pointerdown', () => {
-      // Remove popup elements by re-rendering
-      this.renderView();
+        this.scene.start('SupplyRunScene', {
+          level: this.store.level,
+          economy: this.store.economy,
+        });
+      },
+      onDismiss: () => this.renderView(),
     });
   }
 
