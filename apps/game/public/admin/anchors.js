@@ -105,10 +105,33 @@ function paletteForScene(roomKey) {
     };
   }
   if (roomKey === 'garden') {
+    // The garden holds bonded pets from ANY species, so we offer all
+    // seven. Most pets in the garden are in `sheltered` or `sleeping`
+    // state (deriveAnchorState returns those whenever hunger/tiredness
+    // aren't urgent, which is most of the time for happy pets), so
+    // those are the two states worth anchoring. `eating` is included
+    // for variety — if a pet does get peckish, the art director can
+    // anchor a bowl-side pose too.
+    //
+    // (Runtime calls anchors.pick('garden', species, visualState, i)
+    // with modulo cycling across multiple anchors for the same species
+    // and state — place as many as you like to get variety when
+    // multiple pets of the same species coexist in the garden.)
+    const gardenStates = ['sheltered', 'sleeping', 'eating'];
+    const items = [];
+    for (const sp of SPECIES) {
+      for (const state of gardenStates) {
+        items.push({
+          type: 'animal', species: sp, state,
+          src: `/assets/animals/${sp}-${state}.png`,
+          label: `${sp} · ${state}`,
+        });
+      }
+    }
     return {
-      title: 'Garden',
-      hint:  'Garden anchors are placed by runtime — no palette items yet.',
-      items: [],
+      title: 'Garden pets',
+      hint:  'Drop a pet sprite wherever that species should sit / snooze / nibble in the garden.',
+      items,
     };
   }
   // room-<species>: show only that species' sprite states
