@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species, GameState, CalendarState, DepotState, Economy } from '@arc/shared-types';
-import { COLOURS, FONTS, pluralSpecies, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, pluralSpecies, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
@@ -47,17 +47,6 @@ import { supabase } from '../lib/supabase';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
-
-const COLLAR_COLOURS = [
-  { name: 'Red',     hex: '#e74c3c' },
-  { name: 'Blue',    hex: '#3498db' },
-  { name: 'Green',   hex: '#2ecc71' },
-  { name: 'Purple',  hex: '#9b59b6' },
-  { name: 'Orange',  hex: '#e67e22' },
-  { name: 'Pink',    hex: '#ff6b9d' },
-  { name: 'Gold',    hex: '#f1c40f' },
-  { name: 'Teal',    hex: '#1abc9c' },
-];
 
 export class GameScene extends Phaser.Scene {
   private _lastWidth = 0;

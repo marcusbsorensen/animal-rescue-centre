@@ -47,6 +47,23 @@ export const FONTS = {
   chalk: '"Caveat", "Patrick Hand", "Comic Sans MS", cursive',
 } as const;
 
+/**
+ * Collar colour palette — used when the player picks a collar for a pet
+ * (the walk minigame's first phase) and when rendering a bonded animal's
+ * collar in the room view. Shared so the picker and the renderer can't
+ * drift out of sync.
+ */
+export const COLLAR_COLOURS = [
+  { name: 'Red',    hex: '#e74c3c' },
+  { name: 'Blue',   hex: '#3498db' },
+  { name: 'Green',  hex: '#2ecc71' },
+  { name: 'Purple', hex: '#9b59b6' },
+  { name: 'Orange', hex: '#e67e22' },
+  { name: 'Pink',   hex: '#ff6b9d' },
+  { name: 'Gold',   hex: '#f1c40f' },
+  { name: 'Teal',   hex: '#1abc9c' },
+] as const;
+
 export const AVATAR_EMOJIS = [
   '🐱', '🐶', '🐰', '🦊', '🐻', '🐼', '🐨', '🐸',
   '🦉', '🐝', '🐞', '🦋', '🐢', '🐙', '🐬', '🦩',

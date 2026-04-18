@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel } from '../ui/UIButton';
 import {
   startGridWalk,
@@ -24,17 +24,6 @@ import { AudioManager } from '../audio/AudioManager';
 import { CollarAnchors } from '../lib/CollarAnchors';
 
 type WalkPhase = 'collar' | 'select_zone' | 'exploring' | 'road_crossing' | 'interaction' | 'encounter' | 'results';
-
-const COLLAR_COLOURS = [
-  { name: 'Red',     hex: '#e74c3c' },
-  { name: 'Blue',    hex: '#3498db' },
-  { name: 'Green',   hex: '#2ecc71' },
-  { name: 'Purple',  hex: '#9b59b6' },
-  { name: 'Orange',  hex: '#e67e22' },
-  { name: 'Pink',    hex: '#ff6b9d' },
-  { name: 'Gold',    hex: '#f1c40f' },
-  { name: 'Teal',    hex: '#1abc9c' },
-];
 
 /**
  * WalkScene — Grid-based pet walking exploration game.
