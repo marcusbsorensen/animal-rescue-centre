@@ -45,6 +45,7 @@ import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { getSession } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { showToast, showBlocking } from '../ui/ErrorOverlay';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
 
@@ -208,12 +209,20 @@ export class GameScene extends Phaser.Scene {
     const session = getSession();
     if (!session || !isSupabaseConfigured()) return;
 
-    try {
-      const { data } = await supabase
+    // Shared inner function so the error-overlay retry button can call
+    // the same logic without us re-entering loadState (which also
+    // initialises subsystems at the end).
+    const attempt = async (): Promise<boolean> => {
+      const { data, error } = await supabase
         .from('game_states')
         .select('state, level')
         .eq('user_id', session.userId)
-        .single();
+        .maybeSingle();
+
+      // `maybeSingle` returns null (not an error) when the row doesn't
+      // exist yet — that's the first-time-player case. Only genuine
+      // network / server errors should surface the retry UI.
+      if (error) throw error;
 
       if (data?.state && typeof data.state === 'object') {
         const saved = data.state as Record<string, unknown>;
@@ -231,21 +240,38 @@ export class GameScene extends Phaser.Scene {
         // Sync ID counter to avoid collisions with loaded animals
         syncNextId(this.animals);
 
-        // Calendar
         if (saved.calendar && typeof saved.calendar === 'object') {
           this.calendar = saved.calendar as CalendarState;
         }
-        // Depot
         if (saved.depot && typeof saved.depot === 'object') {
           this.depot = saved.depot as DepotState;
         }
-        // Economy
         if (saved.economy && typeof saved.economy === 'object') {
           this.economy = saved.economy as Economy;
         }
       }
-    } catch {
-      // First time — no saved state
+      return true;
+    };
+
+    try {
+      await attempt();
+    } catch (err) {
+      // Load is blocking — without game state there's nothing to render.
+      // Surface a retry modal and let the player try again.
+      const msg = err instanceof Error ? err.message : 'Something went wrong loading your shelter.';
+      console.warn('[GameScene] loadState failed:', msg);
+      showBlocking(
+        this,
+        'We couldn\'t reach the server to load your shelter.\nCheck your internet and try again.',
+        async () => {
+          try {
+            await attempt();
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      );
     }
 
     // Initialize subsystems with defaults if not loaded from save
@@ -272,12 +298,19 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // Save failures are throttled — a single flaky network shouldn't spam
+  // the player with a toast every time we save (we save on nearly every
+  // action). Only the first failure in a 30s window surfaces the toast;
+  // subsequent failures update the count silently.
+  private lastSaveToastAt = 0;
+  private consecutiveSaveFailures = 0;
+
   private async saveState(): Promise<void> {
     const session = getSession();
     if (!session || !isSupabaseConfigured()) return;
 
     try {
-      await supabase
+      const { error } = await supabase
         .from('game_states')
         .upsert({
           user_id: session.userId,
@@ -295,8 +328,16 @@ export class GameScene extends Phaser.Scene {
           level: this.level,
           updated_at: new Date().toISOString(),
         });
-    } catch {
-      // Silently fail on save errors
+      if (error) throw error;
+      this.consecutiveSaveFailures = 0;  // reset on success
+    } catch (err) {
+      this.consecutiveSaveFailures += 1;
+      console.warn('[GameScene] saveState failed:', err);
+      const now = Date.now();
+      if (now - this.lastSaveToastAt > 30_000) {
+        this.lastSaveToastAt = now;
+        showToast(this, "Couldn't save to the cloud — we'll retry next action.");
+      }
     }
   }
 
