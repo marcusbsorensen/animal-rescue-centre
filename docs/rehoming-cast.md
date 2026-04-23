@@ -16,14 +16,14 @@
 
 ---
 
-## The cast (29 households)
+## The cast (30 households)
 
 ### Solo adopters
 
 | # | Name | Pronouns | Age | Signature | Household traits | Adoption preference |
 |---|---|---|---|---|---|---|
 | 1 | **Priya "Pri" Kaur** | she/her | 32 | Wheelchair, teal headscarf, laptop bag | Quiet home · Patient · Cat-experienced | Calm cat or small dog happy in a flat |
-| 2 | **Marcus Lindqvist** (gentle beekeeper) | he/him | 45 | Soft-spoken, wool cardigan, bee pin | Garden-rich · Slow-paced · Rabbit-experienced | A bunny or a small exotic that likes gardens |
+| 2 | **Jan Lindqvist** (gentle beekeeper) | he/him | 45 | Swedish-Portuguese heritage, soft-spoken, wool cardigan, bee pin | Garden-rich · Slow-paced · Rabbit-experienced | A bunny or a small exotic that likes gardens |
 | 3 | **Nova Adebayo** | they/them | 22 | Non-binary, paint-splattered overalls, undercut hair, studio mug | Attic studio · Creative chaos · First-time pet owner | A playful cat to keep them company while they draw |
 | 4 | **Babcia Basia Kowalska** (everyone calls her Babcia) | she/her | 72 | Flowered apron over a cardigan, walking cane, pocket always full of biscuit crumbs for feeding anything that comes near | Lap-focused · Cozy home · Spoils rotten | A senior lap cat or tiny dog |
 | 5 | **Finn O'Malley** | he/him, trans man | 29 | Running kit, mud-spattered trainers, freckles | Very active · Outdoors · Needs a running buddy | An energetic dog who loves distance |
@@ -63,6 +63,14 @@
 | 26 | **Sunnybrook Children's Home** | Represented by **Ms. Aisha Hassan** (she/her, 38, Somali-British care-worker, warm, hijab, always a tea mug in hand). Home to 6 children aged 7-15. | Aisha in a soft cardigan with a children's-home lanyard, kids' drawings on the fridge | Steady routine · Many gentle children · Shared care | A calm medium dog who's a steady best-friend to kids who've had hard starts |
 | 27 | **Oak Lodge Care Home** | Represented by **Nurse Tomás "Tom" Rivera** (he/him, 52, Spanish-British, thick glasses, pocket watch he inherited). 12 elderly residents. | Tom in scrubs + cardigan, a stethoscope doubling as a paw-scratcher | Therapy household · Gentle hands · Routine | A therapy cat or small dog who loves being passed gently from lap to lap |
 | 28 | **Ms. Popescu's Year 3 class** (Birchcroft Primary) | Represented by **Ms. Iris Popescu** (she/her, 29, Romanian-British primary teacher, round glasses, pencil always tucked behind her ear). 26 seven-year-olds. | Iris in a cardigan with laminated animal posters, a "class pet" jar of weekly turns | Classroom routine · Many small hands · Predictable · Educational | A corn snake or calm parrot — something the class can learn to care for gently |
+
+### The Two-Houses family (one pet, two homes)
+
+A separate category because the *household* is two houses connected by a child who moves between them. The pet is co-adopted by both parents and travels with the child — or lives at whichever home suits them better. Either way the pet learns both homes are safe. Kids who play A.R.C. and live across two houses get to see their own life reflected warmly.
+
+| # | Household | Members | Signature | Traits | Preference |
+|---|---|---|---|---|---|
+| 30 | **Dad's house & Mum's house** (the Sørensen-Wiśniewski child) | **Marcus Sørensen** (he/him, 44, Danish, psychotherapist, bald + bearded, fitness-focused, tidy flat with houseplants and kettlebells by the door) · **Gosia Wiśniewska** (she/her, 42, Polish homebody, flowered housecoat, hair in a top-knot bun, cozy cottage full of blankets and bookshelves) · **Rhubarb** (they/them, 11, genderqueer, army-camo cargos + skater Converse, rock-band tee, headphones always round neck — splits the week between parents) | Two very different homes: Dad's is bright + active, Mum's is warm + slow. They co-parent warmly. Rhubarb rolls between them on a skateboard. | Dual home · Adaptable pet · Shared care · Experienced adults · One gentle kid | A calm, adaptable pet who can settle equally in a bright active flat and a cozy book-filled cottage — or a bonded pair, one for each home |
 
 ### Return visitors (already connected to A.R.C.)
 
