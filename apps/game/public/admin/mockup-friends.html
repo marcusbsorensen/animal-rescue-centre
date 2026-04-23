@@ -870,6 +870,45 @@
     opacity: 0.9;
     line-height: 1;
   }
+  /* Apprentice-able hint + recruit button on a friend card. Compact so
+     it slots in between the name/visit lines and the bond medal on the
+     right. The hint is quiet star text; the button is a small honey-wood
+     pill consistent with the rest of the sign's palette. */
+  .apprentice-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(11px, 1.5cqh, 13px);
+    color: #fffbe8;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
+    opacity: 0.95;
+    line-height: 1.1;
+    margin-top: 1px;
+  }
+  .apprentice-chip .star { filter: drop-shadow(0 1px 0 rgba(0,0,0,0.4)); }
+  .recruit-btn {
+    flex: 0 0 auto;
+    margin-right: clamp(4px, 0.8cqw, 8px);
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(10px, 1.4cqh, 12px);
+    color: #fffbe8;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+    border: 2px solid #7a4b15;
+    border-radius: 999px;
+    padding: clamp(4px, 0.7cqh, 6px) clamp(8px, 1.4cqw, 12px);
+    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+    cursor: pointer;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.28);
+    white-space: nowrap;
+  }
+  .recruit-btn:active { transform: translateY(1px); }
+  .recruit-btn[disabled] {
+    opacity: 0.55; cursor: default;
+    background: linear-gradient(180deg, #bdb3a2 0%, #8f8676 100%);
+    border-color: #6b6254;
+  }
+
   /* Invite CTA uses .btn-primary, but we swap the paws for post emojis */
   .btn-primary .postmark {
     font-size: clamp(30px, 5.2cqh, 46px);
@@ -1095,13 +1134,21 @@
     });
   }
   // Sample friends data — shown in the mockup preview AND as the default
-  // when the host hasn't sent an 'init' payload yet.
+  // when the host hasn't sent an 'init' payload yet. Three of these are
+  // apprentice-eligible (Rhubarb, Amara, Kofi) so the design review can
+  // see the "⭐ Apprentice-able" chip + Recruit! button inline.
   const SAMPLE_FRIENDS = [
-    { username: 'Sam',   emoji: '🐾', bg: '#6ea8d8', lastVisit: 'yesterday',    bond: 5, online: true  },
-    { username: 'Rosie', emoji: '🐰', bg: '#7ec24a', lastVisit: '3 days ago',   bond: 3, online: false },
-    { username: 'Mia',   emoji: '🐱', bg: '#e89bb8', lastVisit: 'last week',    bond: 2, online: false },
-    { username: 'Finn',  emoji: '🦊', bg: '#e7a84a', lastVisit: '2 hours ago',  bond: 4, online: true  },
+    { username: 'Sam',     emoji: '🐾', bg: '#6ea8d8', lastVisit: 'yesterday',   bond: 5, online: true  },
+    { username: 'Rhubarb', emoji: '🥕', bg: '#d86a4a', lastVisit: 'today',       bond: 4, online: true,
+      apprenticeId: 'rhubarb', householdId: '30-two-houses' },
+    { username: 'Amara',   emoji: '🐱', bg: '#e89bb8', lastVisit: 'yesterday',   bond: 3, online: false,
+      apprenticeId: 'amara',   householdId: '13-kumar-ishii' },
+    { username: 'Kofi',    emoji: '🦜', bg: '#e7a84a', lastVisit: '2 hours ago', bond: 4, online: true,
+      apprenticeId: 'kofi',    householdId: '14-theo-grandkids' },
   ];
+
+  // Set of apprentice ids already recruited — populated from host init.
+  let RECRUITED = new Set();
 
   // Progressive bond levels — 1=Sprout (just starting) through 5=Champion.
   // Single medal on the right of each row replaces the old 5-paw meter.
@@ -1116,7 +1163,7 @@
   // Render friend cards with document.createElement + textContent only —
   // every string field comes from untrusted host payloads, so we never
   // touch innerHTML. Click handler only fires in embed mode (closure).
-  function renderFriends(friends, onOpen) {
+  function renderFriends(friends, onOpen, onRecruit) {
     const list = document.getElementById('friends-list');
     if (!list) return;
     list.textContent = '';  // clear
@@ -1151,7 +1198,39 @@
       visitEl.className = 'friend-visit';
       visitEl.textContent = 'Last visit: ' + (typeof f.lastVisit === 'string' ? f.lastVisit : '—');
       info.appendChild(visitEl);
+
+      // Apprentice-able hint — shown only on the three recruitable kids
+      // (Rhubarb / Amara / Kofi). Once they're recruited, we swap the
+      // chip copy to a quiet "⭐ Apprentice" confirmation instead.
+      if (typeof f.apprenticeId === 'string') {
+        const recruited = RECRUITED.has(f.apprenticeId);
+        const chip = document.createElement('div');
+        chip.className = 'apprentice-chip';
+        const star = document.createElement('span');
+        star.className = 'star';
+        star.textContent = '⭐';
+        chip.appendChild(star);
+        const chipText = document.createElement('span');
+        chipText.textContent = recruited ? 'Apprentice' : 'Apprentice-able';
+        chip.appendChild(chipText);
+        info.appendChild(chip);
+      }
       card.appendChild(info);
+
+      // Recruit button — right-aligned, only for apprentice-able friends
+      // who haven't been recruited yet. Stops card click from also firing.
+      if (typeof f.apprenticeId === 'string' && !RECRUITED.has(f.apprenticeId)) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'recruit-btn';
+        btn.textContent = 'Recruit!';
+        btn.setAttribute('aria-label', 'Recruit ' + (f.username || '') + ' as an apprentice');
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          if (typeof onRecruit === 'function') onRecruit(f.apprenticeId);
+        });
+        card.appendChild(btn);
+      }
 
       // Single progressive bond medal on the right — 1..5 → Sprout..Champion.
       const bondIdx = Math.max(1, Math.min(5, Number(f.bond) | 0)) - 1;
@@ -1197,17 +1276,24 @@
         const p = m.payload;
         const codeEl = document.getElementById('friend-code');
         if (codeEl && typeof p.joinCode === 'string') codeEl.textContent = p.joinCode;
-        if (Array.isArray(p.friends)) {
-          renderFriends(p.friends, (username) => send('open-friend', { username }));
-        } else {
-          // No list supplied — still wire click handlers on the sample data.
-          renderFriends(SAMPLE_FRIENDS, (username) => send('open-friend', { username }));
+        if (Array.isArray(p.recruited)) {
+          RECRUITED = new Set(p.recruited.filter((x) => typeof x === 'string'));
         }
+        const list = Array.isArray(p.friends) ? p.friends : SAMPLE_FRIENDS;
+        renderFriends(
+          list,
+          (username) => send('open-friend', { username }),
+          (id) => send('recruit-apprentice', { id }),
+        );
       }
     });
     // Wire sample-data clicks immediately so embed-mode preview is interactive
     // even before the host posts an init payload.
-    renderFriends(SAMPLE_FRIENDS, (username) => send('open-friend', { username }));
+    renderFriends(
+      SAMPLE_FRIENDS,
+      (username) => send('open-friend', { username }),
+      (id) => send('recruit-apprentice', { id }),
+    );
 
     document.getElementById('back-btn')?.addEventListener('click', () => send('back-to-menu'));
     document.getElementById('invite-btn')?.addEventListener('click', () => send('invite-friend'));

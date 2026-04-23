@@ -20,12 +20,14 @@ export type AuthAction =
   | 'signup'
   | 'friends'
   | 'logout'
+  | 'back-to-menu'
   | 'back-to-welcome'
+  | 'recruit-apprentice'
   | 'auth-success-existing'      // login() resolved
   | 'auth-success-new';           // signup() resolved — route to welcome-new
 
 export interface AuthOverlayHandlers {
-  onAction: (action: AuthAction, session?: AuthSession) => void;
+  onAction: (action: AuthAction, session?: AuthSession, payload?: Record<string, unknown>) => void;
 }
 
 export interface MenuStats {
@@ -34,7 +36,7 @@ export interface MenuStats {
   needFeeding?: number;
 }
 
-export type AuthPage = 'welcome' | 'login' | 'signup' | 'welcome-new' | 'menu';
+export type AuthPage = 'welcome' | 'login' | 'signup' | 'welcome-new' | 'menu' | 'friends';
 
 const PAGE_URLS: Record<AuthPage, string> = {
   welcome:      '/admin/mockup-welcome.html?embed=1',
@@ -42,6 +44,7 @@ const PAGE_URLS: Record<AuthPage, string> = {
   signup:       '/admin/mockup-signup.html?embed=1',
   'welcome-new': '/admin/mockup-welcome-new.html?embed=1',
   menu:         '/admin/mockup-menu.html?embed=1',
+  friends:      '/admin/mockup-friends.html?embed=1',
 };
 
 let activeFrame: HTMLIFrameElement | null = null;
@@ -56,7 +59,7 @@ function postToFrame(type: string, payload?: unknown): void {
 export function mountAuth(
   page: AuthPage,
   handlers: AuthOverlayHandlers,
-  context?: { name?: string; session?: AuthSession; stats?: MenuStats },
+  context?: { name?: string; session?: AuthSession; stats?: MenuStats; recruited?: string[] },
 ): () => void {
   unmountAuth();
 
@@ -85,6 +88,12 @@ export function mountAuth(
     if (page === 'menu' && context?.session) {
       postToFrame('init', { ...context.session, stats: context.stats });
     }
+    if (page === 'friends') {
+      postToFrame('init', {
+        joinCode: context?.session?.joinCode,
+        recruited: context?.recruited ?? [],
+      });
+    }
   });
 
   activeListener = async (e: MessageEvent) => {
@@ -95,8 +104,15 @@ export function mountAuth(
     // Navigation-style actions — pass straight through to the host scene.
     if (msg.type === 'play' || msg.type === 'login' ||
         msg.type === 'signup' || msg.type === 'back-to-welcome' ||
-        msg.type === 'friends' || msg.type === 'logout') {
+        msg.type === 'friends' || msg.type === 'logout' ||
+        msg.type === 'back-to-menu') {
       handlers.onAction(msg.type as AuthAction);
+      return;
+    }
+    // Friends-page: recruit-apprentice carries a {id} payload up to
+    // the host scene, which calls the game-logic recruit function.
+    if (msg.type === 'recruit-apprentice') {
+      handlers.onAction('recruit-apprentice', undefined, msg.payload);
       return;
     }
 

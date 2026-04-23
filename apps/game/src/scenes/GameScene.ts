@@ -27,6 +27,9 @@ import {
   resolveConflict,
   getMaxShelterAnimals,
   getMaxArrivals,
+  canRecruit,
+  recruitApprentice,
+  APPRENTICE_DEFS,
   placeDecoration,
   removeDecoration,
   getRoomDecorations,
@@ -36,8 +39,11 @@ import {
   isRainy,
   getSpeciesRainTolerance,
   recordCareTask,
+  scheduleVisitsForDay,
+  getDueVisitors,
+  markVisitSeen,
 } from '@arc/game-logic';
-import type { Conflict, ResolutionDef } from '@arc/game-logic';
+import type { Conflict, ResolutionDef, VisitorEntry } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
 import { evaluateBadges } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
@@ -98,6 +104,13 @@ export class GameScene extends Phaser.Scene {
   private lastVisualStates = new Map<string, string>();
   private needsTimer?: Phaser.Time.TimerEvent;
   private spawnTimer?: Phaser.Time.TimerEvent;
+  private visitorTimer?: Phaser.Time.TimerEvent;
+  /** Epoch-ms of the last successful dawn schedule, so we don't re-roll
+   *  on every scene restart (resize handler). 1 roll per real-world day. */
+  private lastVisitorSchedule = 0;
+  /** Id of the visit currently showing as a toast — guards against
+   *  stacking multiple toasts if the timer fires mid-show. */
+  private activeVisitorToastId?: string;
   private selectedAnimal?: Animal;
   private processing = false;         // double-click guard
   private showingCollarPicker = false; // bond race guard
@@ -205,6 +218,20 @@ export class GameScene extends Phaser.Scene {
       callbackScope: this,
       loop: true,
     });
+
+    // Visitors — schedule today's return visits once per scene create
+    // (acts as our "dawn" for MVP) and start a slow poll that pops any
+    // due visit as a toast. One at a time, marked seen on display.
+    this.scheduleDailyVisitors();
+    this.visitorTimer = this.time.addEvent({
+      delay: 15000,
+      callback: this.checkDueVisitors,
+      callbackScope: this,
+      loop: true,
+    });
+    // Also check once immediately so past-due visits from previous sessions
+    // surface without waiting 15s.
+    this.time.delayedCall(1500, () => this.checkDueVisitors());
 
     // Start with an animal if none exist
     if (this.store.animals.length === 0) {
@@ -868,6 +895,32 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Recruit a volunteer apprentice. Thin wrapper that delegates the
+   * rule-check + state mutation to @arc/game-logic, then persists and
+   * surfaces a celebration toast. No-ops (with a reason toast) if the
+   * preconditions aren't met, e.g. double-recruit or under-levelled.
+   */
+  private recruitApprenticeInGame(apprenticeId: string): void {
+    const check = canRecruit(apprenticeId, this.store);
+    if (!check.ok) {
+      showToast(this, check.reason ?? 'Not ready to recruit them yet.');
+      return;
+    }
+    try {
+      recruitApprentice(apprenticeId, this.store);
+    } catch (err) {
+      showToast(this, err instanceof Error ? err.message : 'Could not recruit.');
+      return;
+    }
+    const def = APPRENTICE_DEFS[apprenticeId as keyof typeof APPRENTICE_DEFS];
+    const name = def?.name ?? 'Your new friend';
+    AudioManager.getInstance().playSfx('animal_happy');
+    showToast(this, `⭐ ${name} is now a volunteer apprentice!`);
+    this.saveState();
+    this.renderHUD();
+  }
+
+  /**
    * Record a care-task tick against the in-game clock. If the tick
    * advances the phase, update the weather to the new phase's forecast
    * entry and surface a small toast so Lily sees the world respond.
@@ -891,6 +944,91 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+
+  // ── Visitors ────────────────────────────────────────────────
+  // MVP: schedule once per real-world day on scene create, poll every
+  // 15s for due visits, surface one toast at a time. The painted
+  // postcard/"visitor at the door" popup is a follow-up (mockup-visitor).
+
+  private scheduleDailyVisitors(): void {
+    const now = Date.now();
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    if (now - this.lastVisitorSchedule < ONE_DAY) return;
+    const entries = scheduleVisitsForDay(this.store);
+    if (entries.length === 0) {
+      this.lastVisitorSchedule = now;
+      return;
+    }
+    this.store.visitors.push(...entries);
+    this.lastVisitorSchedule = now;
+    this.saveState();
+  }
+
+  private checkDueVisitors(): void {
+    if (this.activeVisitorToastId) return;  // one at a time
+    const due = getDueVisitors(this.store, Date.now());
+    if (due.length === 0) return;
+    const next = due[0];
+    this.showVisitorToast(next);
+  }
+
+  private showVisitorToast(visit: VisitorEntry): void {
+    this.activeVisitorToastId = visit.id;
+
+    // Apply any gift immediately — feel of "they brought us supplies".
+    if (visit.type === 'donation' && visit.payload?.gift) {
+      const gift = visit.payload.gift;
+      if (gift.kind === 'coins') {
+        this.store.economy.coins += gift.amount;
+        this.store.economy.lifetimeEarnings += gift.amount;
+      } else if (gift.kind === 'toys') {
+        // No dedicated toy slot — land the gift in the decorations bucket
+        // under a stable key so the depot UI can surface it.
+        const key = 'donation-toy';
+        const inv = this.store.depot.inventory.decorations;
+        inv[key] = (inv[key] ?? 0) + gift.amount;
+      } else if (gift.kind === 'food') {
+        const key = 'donation-food';
+        const inv = this.store.depot.inventory.treats;
+        inv[key] = (inv[key] ?? 0) + gift.amount;
+      }
+    }
+
+    const msg = this.buildVisitorToastMessage(visit);
+    showToast(this, msg);
+
+    // Mark seen and clear guard after a short debounce.
+    markVisitSeen(this.store, visit.id);
+    this.saveState();
+    this.time.delayedCall(3500, () => {
+      this.activeVisitorToastId = undefined;
+    });
+  }
+
+  private buildVisitorToastMessage(visit: VisitorEntry): string {
+    const animalName =
+      this.store.rehomed.find((r) => r.animalId === visit.animalId)?.animalName
+      ?? this.store.rewilded.find((w) => w.animalId === visit.animalId)?.animalName
+      ?? 'A friend';
+    switch (visit.type) {
+      case 'drop-by':
+        return `👋 ${animalName} dropped by to say hi!`;
+      case 'donation': {
+        const g = visit.payload?.gift;
+        if (!g) return `🎁 A donation arrived for A.R.C.!`;
+        const label = g.kind === 'coins' ? `${g.amount} coins` : `${g.amount} ${g.kind}`;
+        return `🎁 ${animalName}'s family dropped off ${label}!`;
+      }
+      case 'photo-letter':
+        return `💌 ${animalName} sent a photo from their new home!`;
+      case 'second-adopt':
+        return `🏡 ${animalName}'s family is ready to welcome another friend!`;
+      case 'wild-visit':
+        return `🌲 ${animalName} was spotted at the hedge — peek out in the garden!`;
+      default:
+        return `👋 A friend came to visit!`;
+    }
+  }
 
   private closePopup(): void {
     this.selectedAnimal = undefined;

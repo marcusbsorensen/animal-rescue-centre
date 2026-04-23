@@ -9,7 +9,7 @@ import type {
   TimeProgress,
   GardenWeather,
 } from '@arc/shared-types';
-import type { IllnessDef, Conflict } from '@arc/game-logic';
+import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks } from '@arc/game-logic';
 
 /**
  * GameStateStore — a plain container holding all mutable game state.
@@ -109,5 +109,46 @@ export class GameStateStore {
     animalId: string;
     role: 'therapy' | 'greeter' | 'mouser' | 'ambassador';
     sinceDate: number;
+  }> = [];
+
+  /**
+   * Scheduled / pending return visits from rehomed or rewilded animals
+   * (and their humans). Entries stay after they're seen so players can
+   * review visitor history later. Default `[]` keeps older saves
+   * crash-free — see loadSaveState hydration.
+   */
+  /**
+   * Recruited volunteer apprentices — the three specific neighbourhood
+   * kids (Rhubarb, Amara, Kofi) who can sign up to help at A.R.C.
+   * Recruiting them is the growth mechanic: each unlocks a different
+   * capacity expansion (see apprenticeUnlocks below). Default `[]`
+   * keeps older saves crash-free; loadSaveState hydrates from the save.
+   */
+  apprentices: ApprenticeEntry[] = [];
+
+  /**
+   * Derived capacity unlocks from the apprentice list — cached here so
+   * UI and rescue logic can read the current cap cheaply without folding
+   * the list on every call. `recruitApprentice` recomputes this from
+   * `apprentices` every time; never mutate it directly.
+   */
+  apprenticeUnlocks: ApprenticeUnlocks = {
+    extraCareTasksPerDay: 0,
+    extraCatSlots: 0,
+    extraSpeciesSlots: 0,
+  };
+
+  visitors: Array<{
+    id: string;
+    householdId: string;
+    animalId?: string;
+    type: 'drop-by' | 'donation' | 'second-adopt' | 'photo-letter' | 'wild-visit';
+    scheduledFor: number;
+    seen: boolean;
+    payload?: {
+      gift?: { kind: 'toys' | 'food' | 'coins'; amount: number };
+      message?: string;
+      photoCaption?: string;
+    };
   }> = [];
 }

@@ -22,8 +22,9 @@ import {
   generateDailyWeather,
   countFullyBondedPets,
   isWeekend,
+  recomputeApprenticeUnlocks,
 } from '@arc/game-logic';
-import type { IllnessDef } from '@arc/game-logic';
+import type { IllnessDef, ApprenticeEntry } from '@arc/game-logic';
 import { getSession } from '../lib/auth';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { showToast, showBlocking } from '../ui/ErrorOverlay';
@@ -118,6 +119,24 @@ export async function loadGameState(
       if (saved.gardenWeather && typeof saved.gardenWeather === 'object') {
         store.gardenWeather = saved.gardenWeather as GardenWeather;
       }
+      // Back-compat: older saves won't have rehomed/rewilded/visitors;
+      // keep the empty-array defaults in that case.
+      if (Array.isArray(saved.rehomed)) {
+        store.rehomed = saved.rehomed as GameStateStore['rehomed'];
+      }
+      if (Array.isArray(saved.rewilded)) {
+        store.rewilded = saved.rewilded as GameStateStore['rewilded'];
+      }
+      if (Array.isArray(saved.visitors)) {
+        store.visitors = saved.visitors as GameStateStore['visitors'];
+      }
+      // Apprentices — empty on older saves. Always recompute the
+      // derived unlocks bag from the list so the cache can't drift
+      // from the source of truth even if the save had a stale value.
+      if (Array.isArray(saved.apprentices)) {
+        store.apprentices = saved.apprentices as ApprenticeEntry[];
+      }
+      store.apprenticeUnlocks = recomputeApprenticeUnlocks(store.apprentices);
     }
     return true;
   };
@@ -239,6 +258,10 @@ export async function saveGameState(
           relationships: store.relationships,
           timeProgress: store.timeProgress,
           gardenWeather: store.gardenWeather,
+          rehomed: store.rehomed,
+          rewilded: store.rewilded,
+          visitors: store.visitors,
+          apprentices: store.apprentices,
         },
         level: store.level,
         updated_at: new Date().toISOString(),

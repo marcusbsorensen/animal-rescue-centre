@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Visitor at the door v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --garden-green: #2E8B57;
+    --honey-amber: #e3b04b;
+    --trellis-brown: #7b5c3a;
+    --ink: #3a3a3a;
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
+    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #222; }
+  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+  body.embed { background: #fef9ef; }
+  body.embed .vp-bar { display: none; }
+  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
+  body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .vp-bar button {
+    background: #444; color: #fff; border: 1px solid #555;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+  }
+  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+
+  .device-frame {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: auto;
+  }
+  .device {
+    background: var(--cream-wash);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s, height 0.3s;
+    flex-shrink: 0;
+  }
+  .device[data-size="iphone"]    { width: 390px;  height: 844px; }
+  .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
+  .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
+  .device[data-size="desktop"]   { width: 1280px; height: 800px; }
+
+  .scene {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+    container-type: size;
+    container-name: scene;
+  }
+  /* Blurred corridor/door background with a warm dim wash. */
+  .scene::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: url('/assets/bg/bg-room-dog.png');
+    background-size: cover; background-position: center;
+    filter: blur(3px) saturate(0.85) brightness(0.9);
+    transform: scale(1.05);
+    z-index: 0;
+  }
+  .scene::after {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(26, 18, 10, 0.42);
+    z-index: 1;
+  }
+
+  /* ── Painted-postcard plaque ── */
+  .plaque {
+    position: absolute; inset: 0;
+    margin: auto;
+    width: min(92%, 460px);
+    max-height: 90%;
+    align-self: center;
+    padding: clamp(22px, 3.5cqh, 32px) clamp(20px, 3cqw, 30px) clamp(24px, 3.5cqh, 32px);
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: 3px solid #8a5a2a;
+    border-radius: 12px;
+    box-shadow:
+      0 12px 28px rgba(0,0,0,0.5),
+      inset 0 0 24px rgba(0,0,0,0.25),
+      inset 0 3px 0 rgba(255,240,210,0.2);
+    transform: rotate(-0.6deg);
+    z-index: 20;
+    display: flex; flex-direction: column; align-items: center;
+    gap: clamp(10px, 1.8cqh, 16px);
+    animation: plaqueDrop 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes plaqueDrop {
+    0%   { transform: translateY(-60px) rotate(-4deg); opacity: 0; }
+    60%  { transform: translateY(4px)   rotate(0.5deg); opacity: 1; }
+    100% { transform: translateY(0)     rotate(-0.6deg); opacity: 1; }
+  }
+  .plaque::before, .plaque::after {
+    content: '';
+    position: absolute; top: 10px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .plaque::before { left: 12px; }
+  .plaque::after  { right: 12px; }
+
+  /* Postcard stamp flag top-right */
+  .visit-flag {
+    position: absolute;
+    top: -20px; right: -10px;
+    padding: clamp(6px, 1cqh, 10px) clamp(10px, 1.4cqw, 14px);
+    border-radius: 10px;
+    background: linear-gradient(180deg, #7ec24a 0%, #3d8c31 65%, #2a6e26 100%);
+    border: 3px solid #1d5c2a;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(13px, 1.8cqh, 16px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    transform: rotate(8deg);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  /* Portrait row: household disc + heart + pet portrait */
+  .visit-portraits {
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(8px, 1.5cqw, 16px);
+    margin-top: clamp(4px, 0.8cqh, 10px);
+  }
+  .portrait-disc {
+    width: clamp(86px, 14cqh, 132px);
+    height: clamp(86px, 14cqh, 132px);
+    border-radius: 50%;
+    overflow: hidden;
+    background: #fef9ef;
+    border: 4px solid #fff8e1;
+    box-shadow:
+      0 6px 14px rgba(0,0,0,0.35),
+      inset 0 2px 0 rgba(255,240,210,0.3);
+  }
+  .portrait-disc img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .portrait-disc.household { transform: rotate(-4deg); }
+  .portrait-disc.pet {
+    transform: rotate(4deg);
+    background: linear-gradient(180deg, #fff6d9 0%, #f6d9a0 100%);
+  }
+  .portrait-disc.pet img {
+    object-fit: contain;
+    padding: 8%;
+  }
+  .heart {
+    font-size: clamp(22px, 3.4cqh, 32px);
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.35));
+    animation: heartPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes heartPulse {
+    0%, 100% { transform: scale(1) rotate(-4deg); }
+    50%      { transform: scale(1.12) rotate(-2deg); }
+  }
+
+  .visit-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(20px, 3.2cqh, 28px);
+    letter-spacing: 0.02em;
+    text-align: center;
+    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
+    line-height: 1.1;
+  }
+  .visit-message {
+    font-family: var(--sign-font);
+    color: #fffbe8;
+    font-size: clamp(15px, 2.2cqh, 20px);
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    text-align: center;
+    line-height: 1.3;
+    padding: 0 clamp(6px, 1cqw, 10px);
+  }
+
+  .wave-btn {
+    width: 100%;
+    margin-top: clamp(6px, 1cqh, 12px);
+    padding: clamp(12px, 2.2cqh, 18px) clamp(18px, 3cqw, 26px);
+    font-family: var(--sign-title-font);
+    font-size: clamp(20px, 3.2cqh, 28px);
+    font-weight: 700;
+    color: #fffbe8;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 33%,
+        rgba(0,0,0,0.32) 33.5%, rgba(255,240,210,0.2) 34%, transparent 34.6%,
+        transparent 66%,
+        rgba(0,0,0,0.32) 66.5%, rgba(255,240,210,0.2) 67%, transparent 67.6%,
+        transparent 100%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 50%, #a2651c 100%);
+    border: 3px solid #9a6528;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow:
+      inset 0 0 20px rgba(0,0,0,0.25),
+      inset 0 2px 0 rgba(255,240,210,0.25),
+      0 6px 12px rgba(0,0,0,0.35);
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(8px, 1.4cqw, 12px);
+    transition: transform 0.1s;
+    transform: rotate(0.6deg);
+    position: relative;
+  }
+  .wave-btn:hover { transform: rotate(0.6deg) translateY(-1px); }
+  .wave-btn:active { transform: rotate(0.6deg) translateY(2px); }
+  .wave-btn::before, .wave-btn::after {
+    content: '';
+    position: absolute;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    top: 8px;
+  }
+  .wave-btn::before { left: 10px; }
+  .wave-btn::after  { right: 10px; }
+  .wave-emoji {
+    font-size: clamp(24px, 3.8cqh, 32px);
+    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.3));
+    animation: waveHand 1.2s ease-in-out infinite;
+    transform-origin: bottom right;
+  }
+  @keyframes waveHand {
+    0%, 100% { transform: rotate(-10deg); }
+    50%      { transform: rotate(18deg); }
+  }
+
+  /* Narrow layout tweaks */
+  @container scene (max-width: 420px) {
+    .portrait-disc {
+      width: clamp(72px, 12cqh, 100px);
+      height: clamp(72px, 12cqh, 100px);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="vp-bar">
+  <strong>Visitor at the door v1</strong>
+  <span>·</span>
+  <button data-size="iphone">📱 iPhone (390×844)</button>
+  <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
+  <button data-size="ipad-l">📱 iPad L (1024×768)</button>
+  <button data-size="desktop">🖥 Desktop (1280×800)</button>
+  <a href="/admin/mockup-conflict.html" style="color:#8fd3ff; margin-left:12px;">→ Conflict mockup</a>
+  <span class="hint">(painted postcard — return-visit rhythm)</span>
+</div>
+
+<div class="device-frame">
+  <div class="device" id="device" data-size="ipad-p">
+    <div class="scene">
+
+      <!-- Visitor plaque: household disc + heart + pet portrait,
+           one-line message, single Wave button. -->
+      <div class="plaque">
+        <div class="visit-flag">A VISITOR!</div>
+
+        <div class="visit-portraits">
+          <div class="portrait-disc household" title="Grandpa Theo & grandkids">
+            <img src="/admin/mockup-assets/cast/14-theo-grandkids.png" alt="Grandpa Theo and grandkids">
+          </div>
+          <div class="heart">💚</div>
+          <div class="portrait-disc pet" title="Luna the collie">
+            <img src="/assets/animals/dog-collie-sheltered.png" alt="Luna the collie">
+          </div>
+        </div>
+
+        <div class="visit-title">A familiar face!</div>
+        <div class="visit-message">
+          Grandpa Theo dropped by with Luna — she loved seeing you!
+        </div>
+
+        <button class="wave-btn" id="wave-btn">
+          <span class="wave-emoji">👋</span>
+          <span>Wave hello!</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const device = document.getElementById('device');
+  for (const btn of document.querySelectorAll('.vp-bar button[data-size]')) {
+    btn.addEventListener('click', () => {
+      for (const b of document.querySelectorAll('.vp-bar button[data-size]')) b.classList.remove('on');
+      btn.classList.add('on');
+      device.dataset.size = btn.dataset.size;
+    });
+  }
+
+  // Embed mode — when loaded inside the game as an overlay, drop the
+  // simulator chrome and have the device fill the viewport. The Wave
+  // button postMessages 'visitor-seen' back to the host scene.
+  const params = new URLSearchParams(location.search);
+  if (params.has('embed')) {
+    document.body.classList.add('embed');
+    const send = (type, payload) => {
+      try { parent.postMessage({ source: 'arc-visitor', type, ...payload }, '*'); } catch (_) {}
+    };
+    document.getElementById('wave-btn')?.addEventListener('click', () => {
+      send('visitor-seen', { visitId: params.get('id') ?? null });
+    });
+  }
+</script>
+</body>
+</html>

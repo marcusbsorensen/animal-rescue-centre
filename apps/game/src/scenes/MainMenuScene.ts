@@ -3,8 +3,10 @@ import { getSession, logout } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
 import { AssetLoader } from '../lib/AssetLoader';
 import { GameStateStore } from '../game-state/GameStateStore';
-import { loadGameState } from '../game-state/loadSaveState';
+import { loadGameState, saveGameState } from '../game-state/loadSaveState';
 import { mountAuth, unmountAuth, type MenuStats } from '../auth-overlay/AuthOverlay';
+import { canRecruit, recruitApprentice, APPRENTICE_DEFS } from '@arc/game-logic';
+import { showToast } from '../ui/ErrorOverlay';
 
 /**
  * MainMenuScene — lightweight router between the three HTML auth overlays.
@@ -50,7 +52,7 @@ export class MainMenuScene extends Phaser.Scene {
       const menuUnmount = mountAuth('menu', {
         onAction: (action) => {
           if (action === 'play')    { menuUnmount(); this.startGame(); return; }
-          if (action === 'friends') { menuUnmount(); this.scene.start('FriendsScene'); return; }
+          if (action === 'friends') { menuUnmount(); this.openFriendsOverlay(store, session); return; }
           if (action === 'logout')  {
             menuUnmount();
             logout();
@@ -68,6 +70,52 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Kick off asset prefetch in parallel so CONTINUE is instant.
     AssetLoader.getInstance().startBackgroundLoad(this);
+  }
+
+  /**
+   * Open the HTML Friends mockup as an iframe overlay. The page sends
+   * back 'back-to-menu' and 'recruit-apprentice' postMessages; we bridge
+   * the recruit one into game-logic, persist, then re-render the overlay
+   * on success so the apprentice-able badges update in place.
+   */
+  private openFriendsOverlay(store: GameStateStore, session: ReturnType<typeof getSession>): void {
+    const mount = (): void => {
+      const friendsUnmount = mountAuth('friends', {
+        onAction: (action, _session, payload) => {
+          if (action === 'back-to-menu') {
+            friendsUnmount();
+            this.scene.restart();
+            return;
+          }
+          if (action === 'recruit-apprentice') {
+            const id = typeof payload?.id === 'string' ? payload.id : '';
+            const check = canRecruit(id, store);
+            if (!check.ok) {
+              showToast(this, check.reason ?? 'Not ready to recruit them yet.');
+              return;
+            }
+            try {
+              recruitApprentice(id, store);
+            } catch (err) {
+              showToast(this, err instanceof Error ? err.message : 'Could not recruit.');
+              return;
+            }
+            const def = APPRENTICE_DEFS[id as keyof typeof APPRENTICE_DEFS];
+            showToast(this, `⭐ ${def?.name ?? 'Apprentice'} is now a volunteer apprentice!`);
+            saveGameState(this, store);
+            // Re-mount so the mockup re-renders with the new state.
+            friendsUnmount();
+            mount();
+          }
+        },
+      }, {
+        session: session ?? undefined,
+        recruited: store.apprentices.map((a) => a.id),
+      });
+      this.events.once('shutdown', unmountAuth);
+      this.events.once('destroy', unmountAuth);
+    };
+    mount();
   }
 
   /**

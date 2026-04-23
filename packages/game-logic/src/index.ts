@@ -27,6 +27,21 @@ export {
 export type { Garment, WardrobeAnchor } from './wardrobe';
 export { getSpeciesUnlocksForLevel, getRequiredRescuesForLevel, getMaxShelterAnimals, getMaxArrivals } from './progression';
 export {
+  APPRENTICE_DEFS,
+  APPRENTICE_MIN_LEVEL,
+  canRecruit,
+  recruitApprentice,
+  recomputeApprenticeUnlocks,
+  isApprenticeRecruited,
+} from './apprentices';
+export type {
+  ApprenticeId,
+  ApprenticeEntry,
+  ApprenticeUnlocks,
+  ApprenticeStoreSlice,
+  CanRecruitResult,
+} from './apprentices';
+export {
   validateFoodForSpecies,
   isFoodValidForSpecies,
   getFoodsForSpecies,
@@ -231,3 +246,11 @@ export {
   syncSiblingIds,
   relationshipsFromSiblingIds,
 } from './relationships';
+export {
+  scheduleVisitsForDay,
+  getDueVisitors,
+  markVisitSeen,
+  REHOMED_VISIT_CHANCE,
+  REWILDED_VISIT_CHANCE,
+} from './visitors';
+export type { VisitType, VisitorEntry, VisitorStoreShape } from './visitors';
