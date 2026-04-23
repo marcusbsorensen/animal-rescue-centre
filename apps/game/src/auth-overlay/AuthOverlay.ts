@@ -18,6 +18,8 @@ export type AuthAction =
   | 'play'
   | 'login'
   | 'signup'
+  | 'friends'
+  | 'logout'
   | 'back-to-welcome'
   | 'auth-success-existing'      // login() resolved
   | 'auth-success-new';           // signup() resolved — route to welcome-new
@@ -26,13 +28,20 @@ export interface AuthOverlayHandlers {
   onAction: (action: AuthAction, session?: AuthSession) => void;
 }
 
-export type AuthPage = 'welcome' | 'login' | 'signup' | 'welcome-new';
+export interface MenuStats {
+  totalAnimals?: number;
+  happyToday?: number;
+  needFeeding?: number;
+}
+
+export type AuthPage = 'welcome' | 'login' | 'signup' | 'welcome-new' | 'menu';
 
 const PAGE_URLS: Record<AuthPage, string> = {
   welcome:      '/admin/mockup-welcome.html?embed=1',
   login:        '/admin/mockup-login.html?embed=1',
   signup:       '/admin/mockup-signup.html?embed=1',
   'welcome-new': '/admin/mockup-welcome-new.html?embed=1',
+  menu:         '/admin/mockup-menu.html?embed=1',
 };
 
 let activeFrame: HTMLIFrameElement | null = null;
@@ -47,7 +56,7 @@ function postToFrame(type: string, payload?: unknown): void {
 export function mountAuth(
   page: AuthPage,
   handlers: AuthOverlayHandlers,
-  context?: { name?: string },
+  context?: { name?: string; session?: AuthSession; stats?: MenuStats },
 ): () => void {
   unmountAuth();
 
@@ -73,6 +82,9 @@ export function mountAuth(
       const usernames = getRememberedUsernames();
       postToFrame('init', { usernames });
     }
+    if (page === 'menu' && context?.session) {
+      postToFrame('init', { ...context.session, stats: context.stats });
+    }
   });
 
   activeListener = async (e: MessageEvent) => {
@@ -82,7 +94,8 @@ export function mountAuth(
 
     // Navigation-style actions — pass straight through to the host scene.
     if (msg.type === 'play' || msg.type === 'login' ||
-        msg.type === 'signup' || msg.type === 'back-to-welcome') {
+        msg.type === 'signup' || msg.type === 'back-to-welcome' ||
+        msg.type === 'friends' || msg.type === 'logout') {
       handlers.onAction(msg.type as AuthAction);
       return;
     }

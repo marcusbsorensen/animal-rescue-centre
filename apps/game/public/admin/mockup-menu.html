@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Main Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --garden-green: #2E8B57;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
+    --ink: #3a3a3a;
+    --ink-soft: #6b6b6b;
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    /* Chalkboard-style stack for sign text — matches the painted crayon logo.
+       On Mac/iOS the native 'Chalkboard SE' wins; elsewhere Kalam (Google
+       Font) provides the closest hand-drawn crayon feel. Gochi Hand is a
+       chunkier fallback for the sign titles. */
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
+    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #222; }
+  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+  /* Embed mode — loaded inside the game via ?embed=1. Strips the design-
+     review chrome so the welcome screen fills the viewport fullscreen. */
+  body.embed { background: #fef9ef; }
+  body.embed .vp-bar { display: none; }
+  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
+  body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
+  /* mock toolbar */
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .vp-bar button {
+    background: #444; color: #fff; border: 1px solid #555;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+  }
+  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+  .vp-bar a { color: #8fd3ff; margin-left: 12px; }
+
+  .device-frame {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: auto;
+  }
+  .device {
+    background: var(--cream-wash);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s, height 0.3s;
+    flex-shrink: 0;  /* don't let flex parent squeeze the simulated device */
+  }
+  .device[data-size="iphone"]    { width: 390px;  height: 844px; }
+  .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
+  .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
+  .device[data-size="desktop"]   { width: 1280px; height: 800px; }
+
+  /* ── welcome design ── */
+  .welcome {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+    container-type: size;     /* enables @container queries on size */
+    container-name: welcome;
+  }
+  .welcome::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+    background-size: cover; background-position: center;
+    z-index: 0;
+  }
+  .welcome::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg,
+      rgba(254,249,239,0.75) 0%,
+      rgba(254,249,239,0.50) 45%,
+      rgba(254,249,239,0.68) 85%,
+      rgba(254,249,239,0.90) 100%);
+    z-index: 1;
+  }
+
+  .welcome-inner {
+    position: relative; z-index: 5;
+    width: 100%; height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "top" "content" "credits";
+    padding: clamp(10px, 2cqh, 18px) 0 0;
+  }
+
+  .top-strip {
+    grid-area: top;
+    display: flex; justify-content: flex-end;
+    padding: 0 clamp(12px, 3cqw, 24px);
+  }
+  .audio-btn {
+    width: clamp(36px, 5.5cqh, 44px); height: clamp(36px, 5.5cqh, 44px);
+    background: rgba(255,255,255,0.85);
+    border: 2px solid rgba(46,139,87,0.3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: clamp(16px, 2.4cqh, 20px);
+  }
+
+  .welcome-content {
+    grid-area: content;
+    display: flex; flex-direction: column; align-items: center;
+    /* Flex-start + padding keeps the logo visible at the top even when
+       the content is taller than the row on iPad P / iPhone. */
+    justify-content: flex-start;
+    gap: clamp(10px, 2cqh, 22px);
+    padding: clamp(8px, 1.5cqh, 18px) clamp(16px, 4cqw, 32px) 0;
+    text-align: center;
+    min-height: 0;
+    position: relative;
+  }
+
+  .logo-img {
+    height: clamp(96px, 18cqh, 180px);
+    width: auto; max-width: 92%;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.12));
+    position: relative;
+    display: block;
+    margin: 0 auto;
+  }
+  .logo-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8cqh, 8px); }
+
+  /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
+  .sign-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    font-size: clamp(20px, 3.8cqh, 34px);
+    line-height: 1.05;
+    text-align: center;
+    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
+    position: relative;
+    /* Logo-matched green gradient: bright leaf → rich grass → deep pine */
+    background: linear-gradient(180deg,
+      #8cc63f 0%,
+      #5faa3a 28%,
+      #3d8c31 62%,
+      #2a6e26 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(8, 38, 11, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(8,38,11,0.55));
+  }
+
+  /* ── No more logo-bunny; bunny now sits at the base of the wooden stake ── */
+  .logo-bunny { display: none; }
+
+  .intro {
+    position: relative;
+    /* Weathered wooden garden-sign look — horizontal plank gradient with
+       subtle grain streaks. Cream-on-wood paint for readability. */
+    background:
+      /* Horizontal plank separator lines — dark groove + highlight pair.
+         4 grooves split the sign into 5 planks, running top-to-bottom. */
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 39%,
+        rgba(0,0,0,0.32) 39.5%, rgba(0,0,0,0.32) 40%,
+        rgba(255,240,210,0.18) 40.3%, transparent 40.8%,
+        transparent 59%,
+        rgba(0,0,0,0.32) 59.5%, rgba(0,0,0,0.32) 60%,
+        rgba(255,240,210,0.18) 60.3%, transparent 60.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      /* Vertical grain streaks (subtle) */
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      /* Base wood colour — warm medium oak */
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: clamp(2px, 0.3cqh, 3px) solid #8a5a2a;
+    border-radius: clamp(6px, 0.8cqh, 10px);
+    padding: clamp(14px, 2.4cqh, 22px) clamp(18px, 3.5cqw, 28px);
+    max-width: min(92%, 480px);
+    box-shadow:
+      inset 0 0 clamp(16px, 3cqh, 28px) rgba(0,0,0,0.25),
+      inset 0 clamp(2px, 0.5cqh, 4px) 0 rgba(255,240,210,0.15),
+      0 clamp(6px, 1.2cqh, 12px) clamp(14px, 2.6cqh, 22px) rgba(0,0,0,0.35);
+    transform: rotate(-1.2deg);
+  }
+  /* Tiny painted "nails" at the corners to anchor the sign visually */
+  .intro::before, .intro::after {
+    content: '';
+    position: absolute;
+    width: clamp(7px, 1.2cqh, 10px);
+    height: clamp(7px, 1.2cqh, 10px);
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .intro::before { top: clamp(6px, 1cqh, 9px); left: clamp(6px, 1cqh, 9px); }
+  .intro::after  { top: clamp(6px, 1cqh, 9px); right: clamp(6px, 1cqh, 9px); }
+  .intro ol {
+    list-style: none; counter-reset: step;
+    display: flex; flex-direction: column;
+    gap: clamp(8px, 1.3cqh, 14px);
+    position: relative;
+  }
+  .intro li {
+    counter-increment: step;
+    font-family: var(--sign-font);
+    font-size: clamp(15px, 2.2cqh, 21px);
+    /* Cream hand-painted chalk-style text on the wooden sign */
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    font-weight: 700; line-height: 1.35;
+    display: flex; align-items: center; gap: clamp(8px, 1.4cqw, 14px);
+    text-align: left;
+    white-space: nowrap;   /* each point must fit one line */
+  }
+  .intro li::before {
+    content: counter(step);
+    flex: 0 0 auto;
+    width: clamp(26px, 4cqh, 34px); height: clamp(26px, 4cqh, 34px);
+    /* Painted green number disk on the sign, matching logo green */
+    background: radial-gradient(circle at 35% 30%, #7ec24a 0%, #3d8c31 75%, #2a6e26 100%);
+    color: #fffbe8;
+    border: 2px solid #1d5c2a;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--headline-font); font-weight: 700;
+    font-size: clamp(14px, 2.2cqh, 20px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.35),
+                inset 0 2px 3px rgba(255,255,255,0.2);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    margin-right: 0;
+    margin-top: clamp(-2px, -0.3cqh, 0px);
+  }
+
+  /* ── Animal: cat sleeping ON TOP of the intro panel ── */
+  .intro-cat {
+    position: absolute;
+    right: clamp(10px, 2.5cqw, 24px);
+    /* Sit ON the top of the sign — half overlapping the sign, half above */
+    top: clamp(-76px, -11cqh, -56px);
+    height: clamp(80px, 13cqh, 130px);
+    transform: rotate(8deg);
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.2));
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* ─── Sign-on-stake wrapper: holds intro + play, with a central
+     wooden post running behind both, planted into the ground ─── */
+  .signs-on-stake {
+    position: relative;
+    width: 100%;
+    max-width: min(92%, 480px);
+    display: flex; flex-direction: column;
+    align-items: center;
+    gap: clamp(12px, 2.2cqh, 22px);
+    padding-bottom: clamp(70px, 12cqh, 130px);  /* extra stake length below secondary buttons before meeting the grass */
+  }
+  /* The central wooden post */
+  .signs-on-stake::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: clamp(8px, 1.5cqh, 16px); bottom: clamp(-6px, -1cqh, -4px);
+    transform: translateX(-50%);
+    width: clamp(12px, 2cqw, 18px);
+    background:
+      linear-gradient(90deg,
+        #5d3a18 0%, #7a5023 18%, #a07038 50%, #7a5023 82%, #5d3a18 100%),
+      linear-gradient(180deg, #7a5023 0%, #6b4820 100%);
+    background-blend-mode: multiply;
+    border-radius: 3px 3px 2px 2px;
+    box-shadow:
+      inset 0 2px 0 rgba(255,240,210,0.18),
+      2px 3px 5px rgba(0,0,0,0.35);
+    z-index: 0;
+  }
+  /* Pointed bottom tip of the stake going into the ground */
+  .signs-on-stake::after {
+    content: '';
+    position: absolute;
+    left: 50%; bottom: clamp(6px, 1cqh, 10px);
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: clamp(6px, 1cqw, 9px) solid transparent;
+    border-right: clamp(6px, 1cqw, 9px) solid transparent;
+    border-top: clamp(10px, 1.6cqh, 16px) solid #5d3a18;
+    filter: drop-shadow(2px 3px 3px rgba(0,0,0,0.4));
+    z-index: 0;
+  }
+
+  .cta-stack {
+    display: flex; flex-direction: column;
+    gap: clamp(10px, 1.8cqh, 18px);
+    width: 100%;
+    max-width: 100%;
+    align-items: center;
+    position: relative;
+    z-index: 2;   /* above the post */
+  }
+  .intro { z-index: 2; }   /* also above the post */
+
+  /* Ground-level bunny sitting right next to the grass tuft at the base */
+  .ground-bunny {
+    position: absolute;
+    /* Sit just left of the grass clump, within the stake's footprint */
+    left: calc(50% - clamp(72px, 14cqw, 130px));
+    bottom: clamp(-4px, -0.8cqh, 2px);
+    height: clamp(54px, 10cqh, 105px);
+    transform: rotate(-4deg);
+    transform-origin: bottom center;
+    /* Occasional hops — sit still most of the cycle, hop twice, sit still again. */
+    animation: bunnyHop 5.2s ease-in-out infinite;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.25));
+    pointer-events: none;
+    z-index: 5;  /* above the grass blades */
+  }
+
+  /* ── Main-menu (logged in) specific elements ── */
+  .player-badge {
+    display: flex; align-items: center; gap: clamp(10px, 2cqw, 16px);
+    padding: clamp(4px, 0.8cqh, 8px) 0 clamp(10px, 1.6cqh, 14px);
+  }
+  .player-avatar {
+    width: clamp(56px, 8.5cqh, 82px);
+    height: clamp(56px, 8.5cqh, 82px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(32px, 5cqh, 50px);
+    background: radial-gradient(circle at 35% 30%, #ffd07a 0%, #e7a84a 60%, #b06e28 100%);
+    border: 3px solid #fffbe8;
+    border-radius: 50%;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.3);
+    flex: 0 0 auto;
+  }
+  .player-greeting { flex: 1 1 0; text-align: left; }
+  .player-hello {
+    font-family: var(--sign-font);
+    font-size: clamp(15px, 2.2cqh, 19px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    opacity: 0.9;
+  }
+  .player-greeting .sign-title {
+    text-align: left;
+    padding: 0;
+    margin: 0;
+    font-size: clamp(28px, 4.6cqh, 42px);
+  }
+  /* Activity card — "your animals are waiting" inset panel on the sign */
+  .menu-card {
+    background: rgba(254,249,239,0.15);
+    border: 2px solid rgba(255,240,210,0.3);
+    border-radius: clamp(8px, 1.2cqh, 12px);
+    padding: clamp(10px, 1.8cqh, 16px) clamp(12px, 2.4cqw, 20px);
+    margin-bottom: clamp(10px, 1.6cqh, 14px);
+  }
+  .menu-card-title {
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(15px, 2.2cqh, 19px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
+    text-align: center;
+    margin-bottom: clamp(8px, 1.4cqh, 12px);
+  }
+  .menu-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(6px, 1.2cqw, 12px);
+  }
+  .menu-stat {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px;
+    color: #fffbe8;
+  }
+  .menu-stat-num {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(24px, 3.8cqh, 34px);
+    line-height: 1;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+  }
+  .menu-stat-label {
+    font-family: var(--sign-font);
+    font-size: clamp(11px, 1.5cqh, 13px);
+    line-height: 1.15;
+    opacity: 0.9;
+    text-align: center;
+  }
+  /* Friend-code cream-paper strip pinned to the sign */
+  .friend-code-pill {
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(6px, 1cqw, 10px);
+    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
+    border: 2px solid #7a4b15;
+    border-radius: 999px;
+    padding: clamp(4px, 0.8cqh, 8px) clamp(12px, 2.4cqw, 20px);
+    box-shadow: 0 2px 3px rgba(0,0,0,0.2), inset 0 1px 2px rgba(0,0,0,0.1);
+    margin-top: clamp(2px, 0.4cqh, 4px);
+  }
+  .friend-code-label {
+    font-family: var(--sign-font);
+    font-size: clamp(11px, 1.5cqh, 13px);
+    color: #6b4820;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+  .friend-code-value {
+    font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+    font-size: clamp(12px, 1.7cqh, 15px);
+    font-weight: 700;
+    color: #3a2618;
+    letter-spacing: 0.03em;
+  }
+
+  /* Subtitle for the new-player welcome */
+  .sign-subtitle {
+    font-family: var(--sign-font);
+    font-weight: 700;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    font-size: clamp(15px, 2.2cqh, 19px);
+    text-align: center;
+    margin-top: clamp(6px, 1.2cqh, 12px);
+    margin-bottom: clamp(6px, 1.2cqh, 10px);
+    opacity: 0.95;
+  }
+  /* ARC exterior snapshot — painted panel pinned inside the sign so new
+     players can orient themselves (where am I heading?). Dual-use asset:
+     also shows up on the in-game News screen when updates drop. */
+  .arc-snapshot-wrap {
+    display: flex; justify-content: center;
+    padding: clamp(6px, 1.2cqh, 12px) 0 clamp(2px, 0.6cqh, 6px);
+  }
+  .arc-snapshot {
+    width: 100%;
+    max-width: clamp(220px, 50cqw, 360px);
+    height: auto;
+    border-radius: clamp(6px, 1cqh, 10px);
+    border: clamp(2px, 0.3cqh, 3px) solid #7a4b15;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    display: block;
+  }
+
+  /* Flying bee — animated on its own layer above the grass, tracing a wavy
+     figure-8-ish path so it reads as a real bee doing a lazy circle over the
+     flowers at the stake's base rather than a static decal. */
+  .bee-flyer {
+    position: absolute;
+    /* Starting anchor near the left end of the grass tuft */
+    left: calc(50% - clamp(80px, 16cqw, 160px));
+    bottom: clamp(14px, 3cqh, 40px);
+    width: clamp(28px, 5cqh, 46px);
+    height: auto;
+    pointer-events: none;
+    z-index: 6;    /* above grass (z:4) and bunny (z:5) */
+    filter: drop-shadow(2px 3px 3px rgba(0,0,0,0.25));
+    animation: beeBuzz 8s ease-in-out infinite;
+    transform-origin: center;
+    will-change: transform;
+  }
+  @keyframes beeBuzz {
+    /* Vertical figure-eight — two dips onto imaginary flowers per cycle.
+       Horizontal drift stays modest so the bee never flies "backwards" for
+       long; vertical range is bigger so the motion reads as "seeking a
+       flower from above, swooping down, popping back up". */
+    0%   { transform: translate(0,     -40px) rotate(-4deg); }  /* hovering high, left */
+    15%  { transform: translate(10px,  10px)  rotate(14deg); }  /* diving to left flower */
+    25%  { transform: translate(25px,  -20px) rotate(-8deg); }  /* popping back up */
+    40%  { transform: translate(55px,  -50px) rotate(4deg); }   /* gliding right, high */
+    55%  { transform: translate(80px,  15px)  rotate(-16deg); } /* diving to right flower */
+    65%  { transform: translate(95px,  -25px) rotate(8deg); }   /* popping back up */
+    80%  { transform: translate(50px,  -55px) rotate(-6deg); }  /* drifting back, higher still */
+    92%  { transform: translate(-10px, -30px) rotate(6deg); }   /* settling */
+    100% { transform: translate(0,     -40px) rotate(-4deg); }  /* loop */
+  }
+
+  /* Grass clump at the base of the stake — hand-painted tuft of blades */
+  .grass-clump {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(-8px, -1.5cqh, -2px);
+    transform: translateX(-50%);
+    width: 100%;    /* match sign width — tuft reads as ground, not detail */
+    height: auto;      /* grass source is now 3:1 landscape — full artwork renders naturally */
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 4;   /* above the stake tip but visually part of the ground */
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.2));
+  }
+  .btn-primary-wrap {
+    position: relative;
+    width: 100%;
+  }
+  .btn-primary {
+    width: 100%;
+    padding: clamp(14px, 2.6cqh, 22px) clamp(24px, 4cqw, 32px);
+    font-family: var(--sign-title-font);
+    font-size: clamp(24px, 4cqh, 36px); font-weight: 700;
+    /* Cream paint text on weathered wood, with a dark shadow for depth */
+    color: #fffbe8;
+    text-shadow: 2px 3px 0 rgba(0,0,0,0.5);
+    /* Weathered amber/honey-wood sign */
+    background:
+      /* Horizontal plank grooves — single pair top + bottom since Play sign is shallower */
+      linear-gradient(180deg,
+        transparent 0%, transparent 32%,
+        rgba(0,0,0,0.32) 32.5%, rgba(0,0,0,0.32) 33%,
+        rgba(255,240,210,0.2) 33.3%, transparent 33.9%,
+        transparent 66%,
+        rgba(0,0,0,0.32) 66.5%, rgba(0,0,0,0.32) 67%,
+        rgba(255,240,210,0.2) 67.3%, transparent 67.9%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 32%,
+        rgba(0,0,0,0.07) 33%, transparent 34%, transparent 65%,
+        rgba(0,0,0,0.07) 66%, transparent 67%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 50%, #a2651c 100%);
+    border: clamp(2px, 0.3cqh, 3px) solid #9a6528;
+    border-radius: clamp(6px, 0.8cqh, 10px);
+    cursor: pointer;
+    box-shadow:
+      inset 0 0 clamp(14px, 2.5cqh, 24px) rgba(0,0,0,0.25),
+      inset 0 clamp(2px, 0.4cqh, 3px) 0 rgba(255,240,210,0.25),
+      0 clamp(5px, 1cqh, 10px) clamp(10px, 2cqh, 16px) rgba(0,0,0,0.35);
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(8px, 1.5cqw, 12px);
+    transition: transform 0.1s;
+    transform: rotate(0.8deg);
+    position: relative;
+  }
+  /* Nail heads at the Play-sign corners too */
+  .btn-primary::before, .btn-primary::after {
+    content: '';
+    position: absolute;
+    width: clamp(7px, 1.2cqh, 10px);
+    height: clamp(7px, 1.2cqh, 10px);
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    pointer-events: none;
+  }
+  .btn-primary::before { top: clamp(6px, 1cqh, 9px); left: clamp(8px, 1.2cqw, 12px); }
+  .btn-primary::after  { top: clamp(6px, 1cqh, 9px); right: clamp(8px, 1.2cqw, 12px); }
+  /* Pawprint decoration on each side of PLAY! — larger than the text,
+     crisp (no drop-shadow, which was distorting the glyph). */
+  .btn-primary .paw {
+    font-size: clamp(34px, 6cqh, 52px);
+    line-height: 1;
+    text-shadow: none;
+    filter: none;
+    transform: translateY(2px);
+  }
+  .btn-primary .paw-left  { transform: translateY(2px) rotate(-12deg); }
+  .btn-primary .paw-right { transform: translateY(2px) rotate(12deg); }
+  .btn-primary:active { transform: rotate(0.8deg) translateY(2px); }
+  /* ── Animal: parrot perched on TOP of the Play button ── */
+  /* Small lovebird (real-world size relative to a dog) — deliberately tiny */
+  .play-parrot {
+    position: absolute;
+    right: 10%;
+    top: -32%;
+    height: clamp(56px, 8cqh, 100px);
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
+    pointer-events: none;
+    /* Feet stay planted on the sign; top wobbles from side to side. */
+    transform-origin: bottom center;
+    animation: parrotSway 3.6s ease-in-out infinite;
+  }
+  @keyframes parrotSway {
+    0%, 100% { transform: rotate(-8deg); }
+    50%      { transform: rotate(2deg); }
+  }
+  /* Bunny hops: sit still, hop-hop, sit still again. Two quick hops in the
+     middle of the cycle, rest of the time sitting peacefully. */
+  @keyframes bunnyHop {
+    0%, 55%, 100% { transform: rotate(-4deg) translateY(0); }
+    62%           { transform: rotate(-6deg) translateY(-14px); }
+    69%           { transform: rotate(-4deg) translateY(0); }
+    76%           { transform: rotate(-6deg) translateY(-14px); }
+    83%           { transform: rotate(-4deg) translateY(0); }
+  }
+
+  .secondary-row {
+    display: flex; gap: clamp(8px, 2cqw, 20px);
+    align-items: center; justify-content: center;
+    flex-wrap: wrap;
+    position: relative;
+    /* No z-index — let the grass clump cover the base for an integrated look. */
+  }
+  /* Shared wooden-pill — both secondary buttons read as little reclaimed
+     planks nailed to the stake. Colour variants below make each look like
+     a different bit of salvaged wood with its own imperfect paintwork. */
+  .link-btn {
+    position: relative;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(13px, 1.7cqh, 17px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    text-decoration: none;
+    border-radius: 999px;
+    padding: clamp(8px, 1.4cqh, 12px) clamp(18px, 3cqw, 28px);
+    box-shadow:
+      inset 0 0 clamp(8px, 1.4cqh, 14px) rgba(0,0,0,0.22),
+      inset 0 clamp(1px, 0.3cqh, 2px) 0 rgba(255,240,210,0.22),
+      0 clamp(3px, 0.6cqh, 6px) clamp(6px, 1.2cqh, 10px) rgba(0,0,0,0.28);
+    border: clamp(2px, 0.35cqh, 3px) solid;
+  }
+  /* Iron nails at each end — planks are hammered to the stake */
+  .link-btn::before,
+  .link-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: clamp(5px, 0.9cqw, 7px);
+    height: clamp(5px, 0.9cqw, 7px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #6b6b6b 0%, #2a2a2a 70%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15), inset -1px -1px 1px rgba(0,0,0,0.4);
+    transform: translateY(-50%);
+  }
+  .link-btn::before { left: clamp(8px, 1.4cqw, 12px); }
+  .link-btn::after  { right: clamp(8px, 1.4cqw, 12px); }
+  /* Variant A — honey-amber plank, same family as the Play sign. */
+  .link-btn.outlined {
+    border-color: #7a4b15;
+    background:
+      /* Subtle vertical grain streaks */
+      linear-gradient(90deg,
+        transparent 0%, transparent 40%,
+        rgba(0,0,0,0.06) 41%, transparent 42%, transparent 68%,
+        rgba(0,0,0,0.06) 69%, transparent 70%),
+      /* Paint chip near the left end — base wood peeking through */
+      radial-gradient(ellipse 14px 8px at 22% 70%, rgba(92,60,22,0.55) 0%, transparent 70%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+  }
+  /* Variant B — weathered sage-green paint over driftwood, with chipping.
+     Reads like a different plank salvaged from an old barn door. */
+  .link-btn.plank-sage {
+    border-color: #3c5238;
+    background:
+      /* Vertical grain — slightly different spacing for variety */
+      linear-gradient(90deg,
+        transparent 0%, transparent 28%,
+        rgba(0,0,0,0.08) 29%, transparent 30%, transparent 57%,
+        rgba(0,0,0,0.07) 58%, transparent 59%, transparent 82%,
+        rgba(0,0,0,0.08) 83%, transparent 84%),
+      /* Two paint chips showing bare wood beneath the sage paint */
+      radial-gradient(ellipse 12px 7px at 72% 30%, rgba(145,100,55,0.75) 0%, transparent 70%),
+      radial-gradient(ellipse 10px 6px at 30% 78%, rgba(145,100,55,0.7) 0%, transparent 70%),
+      linear-gradient(180deg, #7ea063 0%, #5d7f4a 50%, #3f5d32 100%);
+  }
+
+  /* ── Animals in the foreground at the bottom corners ── */
+  .foreground-dog, .foreground-fox {
+    position: absolute;
+    bottom: clamp(22px, 4cqh, 50px);
+    z-index: 6;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+    pointer-events: none;
+  }
+  /* Dog and fox standing together like friends, at the bottom-right corner
+     of the frame. The fox is slightly behind/right of the dog — they're
+     a pair hanging out. Size them proportionally (dog > fox). */
+  .foreground-dog {
+    right: clamp(86px, 16cqw, 190px);
+    /* Golden retriever ~ 60cm tall in real life */
+    height: clamp(110px, 20cqh, 240px);
+    /* Flip horizontally so the dog faces the fox on its right.
+       Flipped rotation: negate the original angle to preserve the
+       same visual tilt direction. */
+    transform: scaleX(-1) rotate(3deg);
+  }
+  .foreground-fox {
+    right: clamp(6px, 2cqw, 30px);
+    /* Red fox ~ 40cm — smaller than dog */
+    height: clamp(80px, 15cqh, 180px);
+    transform: rotate(3deg);
+  }
+
+  .credits {
+    grid-area: credits;
+    padding: clamp(60px, 11cqh, 120px) 0 clamp(10px, 1.5cqh, 16px);
+    display: flex; flex-direction: column; align-items: center;
+    gap: clamp(2px, 0.4cqh, 4px);
+    position: relative; z-index: 5;
+  }
+  /* Handwritten-scrawl credits — cursive green, designed to look like
+     a blade of grass at first glance and read as a signature on closer look. */
+  .credit-scrawl {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(13px, 1.9cqh, 17px);
+    color: #2f6a32;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    opacity: 0.88;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+  }
+
+  /* ── Wide layout: 2+ columns of breathing room, so the logo floats to
+        the top-left corner and the signs sit centred on the stake down
+        the middle of the viewport. ── */
+  @container welcome (min-width: 900px) {
+    .welcome-content {
+      align-items: center;
+      justify-content: center;
+      padding-top: clamp(18px, 3cqh, 36px);
+    }
+    .welcome-content > .logo-wrap {
+      position: absolute;
+      top: clamp(14px, 2.4cqh, 28px);
+      left: clamp(18px, 3cqw, 36px);
+      align-items: flex-start;
+      z-index: 10;
+    }
+    .logo-img {
+      height: clamp(110px, 18cqh, 170px);
+      margin: 0;
+    }
+    .text-block {
+      display: flex; flex-direction: column; align-items: center;
+      gap: clamp(14px, 2cqh, 22px);
+      width: 100%;
+      max-width: 520px;
+    }
+    /* Stack secondary pills vertically on wide screens too — each pill
+       is nailed to the single vertical stake, so they must run down its
+       centre line rather than floating side by side. */
+    .secondary-row {
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(10px, 1.6cqh, 16px);
+    }
+    /* Extra breathing room between the secondary pills and the grass so
+       the painted blades don't obscure the pill text. */
+    .signs-on-stake {
+      padding-bottom: clamp(130px, 22cqh, 210px);
+    }
+    /* Credit scrawls sit at grass-tuft level and extend outward from the
+       left and right edges of the clump — at first glance they look like
+       scribbled blades; on closer inspection, signatures. */
+    .credits {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 0;
+      height: 0;
+      display: block;
+      pointer-events: none;
+      padding: 0;
+    }
+    .credit-scrawl {
+      position: absolute;
+      /* Sit below the foreground dog/fox so the handwriting is never
+         eclipsed by them. Dog/fox bottom ≈ 22–50px; scrawls clear at ≤18px. */
+      bottom: clamp(6px, 1.2cqh, 16px);
+      font-size: clamp(15px, 2.2cqh, 19px);
+      white-space: nowrap;
+      transform: rotate(-3deg);
+    }
+    /* Left scrawl: ends where the grass tuft begins, extends leftward. */
+    .credit-left {
+      right: calc(50% + clamp(110px, 20cqw, 220px));
+      text-align: right;
+    }
+    /* Right scrawl: starts where the grass tuft ends, extends rightward. */
+    .credit-right {
+      left: calc(50% + clamp(110px, 20cqw, 220px));
+      text-align: left;
+      transform: rotate(2deg);
+    }
+  }
+
+  /* Narrow / iPhone: simplify — hide extras to avoid clutter */
+  @container welcome (max-width: 420px) {
+    .foreground-dog { height: clamp(62px, 12cqh, 110px); left: 0; }
+    .foreground-fox { height: clamp(64px, 12cqh, 115px); right: 0; }
+    .logo-bunny { display: none; }
+    .intro-cat { height: clamp(50px, 8cqh, 80px); right: -4%; bottom: -24%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="vp-bar">
+  <strong>Main menu v1 (logged-in)</strong>
+  <span>·</span>
+  <button data-size="iphone">📱 iPhone (390×844)</button>
+  <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
+  <button data-size="ipad-l">📱 iPad L (1024×768)</button>
+  <button data-size="desktop">🖥 Desktop (1280×800)</button>
+  <a href="/admin/mockup-login.html">→ Login mockup</a>
+  <span class="hint">(real logo + contextual animals)</span>
+</div>
+
+<div class="device-frame">
+  <div class="device" id="device" data-size="ipad-p">
+    <div class="welcome">
+
+      <div class="welcome-inner">
+
+        <div class="top-strip">
+          <button class="audio-btn" aria-label="Toggle sound">🔊</button>
+        </div>
+
+        <div class="welcome-content">
+          <div class="logo-wrap">
+            <img class="logo-img" src="/assets/logo/arc-logo-portrait.png" alt="A.R.C. — Animal Rescue Centre">
+            <img class="logo-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
+          </div>
+
+          <div class="text-block">
+            <div class="signs-on-stake">
+              <div class="intro">
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <div class="player-badge">
+                  <span class="player-avatar" id="player-avatar">🦊</span>
+                  <div class="player-greeting">
+                    <div class="player-hello">Welcome back,</div>
+                    <div class="sign-title" id="player-name">Lily</div>
+                  </div>
+                </div>
+                <div class="menu-card" id="menu-card">
+                  <div class="menu-card-title">Your animals are waiting!</div>
+                  <div class="menu-stats">
+                    <div class="menu-stat"><span class="menu-stat-num" id="stat-animals">5</span><span class="menu-stat-label">in the centre</span></div>
+                    <div class="menu-stat"><span class="menu-stat-num" id="stat-happy">3</span><span class="menu-stat-label">happy today</span></div>
+                    <div class="menu-stat"><span class="menu-stat-num" id="stat-hungry">2</span><span class="menu-stat-label">need feeding</span></div>
+                  </div>
+                </div>
+                <div class="friend-code-pill">
+                  <span class="friend-code-label">Your friend code:</span>
+                  <span class="friend-code-value" id="friend-code">SUNNY-FOX-2026</span>
+                </div>
+              </div>
+
+              <div class="cta-stack">
+                <div class="btn-primary-wrap">
+                  <button class="btn-primary" id="continue-btn">
+                    <span class="paw paw-left">🐾</span>
+                    <span class="play-label">CONTINUE!</span>
+                    <span class="paw paw-right">🐾</span>
+                  </button>
+                  <img class="play-parrot" src="/admin/mockup-assets/parrot-macaw-nobranch.png" alt="">
+                </div>
+                <div class="secondary-row">
+                  <button class="link-btn outlined" id="friends-btn">👋 Friends</button>
+                  <button class="link-btn plank-sage" id="logout-btn">Log out</button>
+                </div>
+              </div>
+
+              <!-- Bunny sitting on the ground at the foot of the garden post -->
+              <img class="ground-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
+
+              <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
+              <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
+
+              <!-- Flying bee on its own animated layer above the grass -->
+              <img class="bee-flyer" src="/admin/mockup-assets/bee-flying.png" alt="" aria-hidden="true">
+            </div>
+          </div>
+        </div>
+
+        <div class="credits">
+          <span class="credit-scrawl credit-left">Designed by Lily age 8</span>
+          <span class="credit-scrawl credit-right">Built by Dad and Claude Code</span>
+        </div>
+
+      </div>
+
+      <!-- Foreground corner animals — the 'cast' welcoming the player -->
+      <img class="foreground-dog" src="/assets/animals/dog-golden-sheltered.png" alt="">
+      <img class="foreground-fox" src="/assets/animals/fox-red-sheltered.png" alt="">
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const device = document.getElementById('device');
+  for (const btn of document.querySelectorAll('.vp-bar button[data-size]')) {
+    btn.addEventListener('click', () => {
+      for (const b of document.querySelectorAll('.vp-bar button[data-size]')) b.classList.remove('on');
+      btn.classList.add('on');
+      device.dataset.size = btn.dataset.size;
+    });
+  }
+  // Embed mode — when loaded inside the game as an overlay, drop the
+  // simulator chrome and have the device fill the viewport. Clicks on the
+  // primary CTAs postMessage up to the host scene instead of being dead.
+  const params = new URLSearchParams(location.search);
+  if (params.has('embed')) {
+    document.body.classList.add('embed');
+    const send = (type) => {
+      try { parent.postMessage({ source: 'arc-auth', type }, '*'); } catch (_) {}
+    };
+    // Handshake — parent sends the current session payload. We only render
+    // safe fields via textContent so no sanitisation needed.
+    window.addEventListener('message', (e) => {
+      const m = e.data;
+      if (m?.source !== 'arc-auth-host') return;
+      if (m.type === 'init' && m.payload) {
+        const p = m.payload;
+        const nameEl = document.getElementById('player-name');
+        if (nameEl && typeof p.username === 'string') nameEl.textContent = p.username;
+        const avEl = document.getElementById('player-avatar');
+        if (avEl) {
+          if (typeof p.avatarEmoji === 'string') avEl.textContent = p.avatarEmoji;
+          if (typeof p.avatarBgColour === 'string') avEl.style.background = p.avatarBgColour;
+        }
+        const codeEl = document.getElementById('friend-code');
+        if (codeEl && typeof p.joinCode === 'string') codeEl.textContent = p.joinCode;
+        if (typeof p.stats === 'object' && p.stats) {
+          const setNum = (id, v) => { const n = document.getElementById(id); if (n && typeof v === 'number') n.textContent = String(v); };
+          setNum('stat-animals', p.stats.totalAnimals);
+          setNum('stat-happy',   p.stats.happyToday);
+          setNum('stat-hungry',  p.stats.needFeeding);
+        }
+      }
+    });
+    document.getElementById('continue-btn')?.addEventListener('click', () => send('play'));
+    document.getElementById('friends-btn')?.addEventListener('click', () => send('friends'));
+    document.getElementById('logout-btn')?.addEventListener('click', () => send('logout'));
+  }
+</script>
+</body>
+</html>

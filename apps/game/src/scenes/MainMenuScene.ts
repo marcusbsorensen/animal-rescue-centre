@@ -54,6 +54,28 @@ export class MainMenuScene extends Phaser.Scene {
       return;
     }
 
+    // Logged in: painted main-menu overlay (welcome back + animal stats +
+    // CONTINUE / Friends / Log out pills). Still mounts the HTML iframe so
+    // the aesthetic matches the welcome/login/signup flow kids just came
+    // through. Stats remain placeholder numbers until we wire the store.
+    const menuUnmount = mountAuth('menu', {
+      onAction: (action) => {
+        if (action === 'play')    { menuUnmount(); this.startGame(); return; }
+        if (action === 'friends') { menuUnmount(); this.scene.start('FriendsScene'); return; }
+        if (action === 'logout')  {
+          menuUnmount();
+          logout();
+          this.scene.start('MainMenuScene');
+          return;
+        }
+      },
+    }, { session });
+    this.events.once('shutdown', unmountAuth);
+    this.events.once('destroy', unmountAuth);
+    // Still kick off asset prefetch in the background so CONTINUE is instant.
+    AssetLoader.getInstance().startBackgroundLoad(this);
+    return;
+
     // Start background loading of all game assets
     const assetLoader = AssetLoader.getInstance();
     assetLoader.startBackgroundLoad(this);
