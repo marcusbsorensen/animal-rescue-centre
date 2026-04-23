@@ -25,7 +25,7 @@
 | 1 | **Priya "Pri" Kaur** | she/her | 32 | Wheelchair, teal headscarf, laptop bag | Quiet home · Patient · Cat-experienced | Calm cat or small dog happy in a flat |
 | 2 | **Marcus Lindqvist** (gentle beekeeper) | he/him | 45 | Soft-spoken, wool cardigan, bee pin | Garden-rich · Slow-paced · Rabbit-experienced | A bunny or a small exotic that likes gardens |
 | 3 | **Nova Adebayo** | they/them | 22 | Non-binary, paint-splattered overalls, undercut hair, studio mug | Attic studio · Creative chaos · First-time pet owner | A playful cat to keep them company while they draw |
-| 4 | **Grandma Rosa Esposito** | she/her | 72 | Apron, walking cane, always has a pocket of breadcrumbs | Lap-focused · Cozy home · Spoils rotten | A senior lap cat or tiny dog |
+| 4 | **Babcia Basia Kowalska** (everyone calls her Babcia) | she/her | 72 | Flowered apron over a cardigan, walking cane, pocket always full of biscuit crumbs for feeding anything that comes near | Lap-focused · Cozy home · Spoils rotten | A senior lap cat or tiny dog |
 | 5 | **Finn O'Malley** | he/him, trans man | 29 | Running kit, mud-spattered trainers, freckles | Very active · Outdoors · Needs a running buddy | An energetic dog who loves distance |
 | 6 | **Hiroshi "Hiro" Nakamura** | he/him | 62 | Retired fisherman, hearing aids, always carrying a library book | Very quiet · Patient · Recently bereaved | A sweet older cat who wants a gentle forever |
 
