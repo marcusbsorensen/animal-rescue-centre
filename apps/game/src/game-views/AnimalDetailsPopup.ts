@@ -3,7 +3,10 @@ import type { Animal } from '@arc/shared-types';
 import {
   SPECIES_COLOURS,
   canGoOnWalk,
+  canLetOutside,
   getNeedSpeech,
+  getGarmentForSpecies,
+  needsCoat,
   type IllnessDef,
 } from '@arc/game-logic';
 import { createButton } from '../ui/UIButton';
@@ -39,6 +42,28 @@ export interface AnimalDetailsCallbacks {
   onTakeToVet: () => void;
   /** Navigate to the garden view. */
   onVisitGarden: () => void;
+
+  /**
+   * Let a sheltered/bonding animal out into the garden. Applies the
+   * letOutside mutation from game-logic, records a `garden_let_out`
+   * care-task tick, saves state, and re-renders. Caller should first
+   * verify via `canLetOutside(animal, ..., weather).ok === true`.
+   */
+  onLetOutside: () => void;
+
+  /**
+   * Bring an outsider (animal with `outsideAt` set) back indoors.
+   * If they're a rain-loving species that got wet, also marks `wet: true`
+   * so the shake-off comedy can fire.
+   */
+  onBringInside: () => void;
+
+  /**
+   * Open the wardrobe picker to equip the species' garment
+   * (coat / scarf / hat depending on species). The picker UI is
+   * handled by the scene; this popup just triggers it.
+   */
+  onEquipWardrobe: () => void;
 }
 
 export function renderAnimalDetails(
@@ -66,6 +91,20 @@ export function renderAnimalDetails(
   const canWalk = !isPet && canGoOnWalk(animal);
   const canGroom = !isPet && cleanliness < 60 && !isSick;
 
+  // Garden / wardrobe gates
+  const isOutside = !!animal.outsideAt;
+  const currentWeather = store.gardenWeather?.current;
+  const letOutsideCheck = !isPet && !isOutside
+    ? canLetOutside(animal, store.animals, store.sickAnimals, currentWeather)
+    : { ok: false as const, reason: '' };
+  const canLetOut = letOutsideCheck.ok;
+  // Show "Get a {garment}" button when weather demands one and the
+  // animal isn't already dressed — regardless of other gating.
+  const needsGarment = !isPet
+    && !!currentWeather
+    && needsCoat(animal, currentWeather)
+    && !animal.wardrobe;
+
   const panelW = 320;
   const speech = getNeedSpeech(animal);
   const speechH = speech ? 30 : 0;
@@ -73,11 +112,14 @@ export function renderAnimalDetails(
   // Action button layout — always 2 primary (Feed/Play) on one row.
   // Extra rows for Walk/Groom/Heal/VisitGarden as needed.
   const extraActionRows =
-    (isPet ? 1 : 0) +                // Visit garden
-    (isPet && isSick ? 1 : 0) +      // Take to Vet
-    (!isPet && isSick ? 1 : 0) +     // Heal
-    (!isPet && canGroom ? 1 : 0) +   // Groom
-    (!isPet && canWalk && !canGroom && !isSick ? 0 : canWalk ? 1 : 0);  // Walk
+    (isPet ? 1 : 0) +                 // Visit garden
+    (isPet && isSick ? 1 : 0) +       // Take to Vet
+    (!isPet && isSick ? 1 : 0) +      // Heal
+    (!isPet && canGroom ? 1 : 0) +    // Groom
+    (!isPet && canWalk ? 1 : 0) +     // Walk
+    (isOutside ? 1 : 0) +             // Bring inside
+    (canLetOut ? 1 : 0) +             // Let outside
+    (needsGarment ? 1 : 0);           // Equip wardrobe
   const baseActionRows = isPet ? 0 : 1;
   const actionRows = baseActionRows + extraActionRows;
   const panelH = 44 + 44 + speechH + 5 * 18 + actionRows * 46 + 28;
@@ -297,6 +339,36 @@ export function renderAnimalDetails(
           () => callbacks.onHeal(),
           { width: 250, fontSize: '14px', bgColour: '#e74c3c', icon: 'icon-heal' }),
       );
+      extraY += 46;
+    }
+
+    // ── Garden actions ─────────────────────────────────────
+    if (isOutside) {
+      container.add(
+        createButton(scene, panelLeft + panelW / 2, extraY, 'Bring inside',
+          () => callbacks.onBringInside(),
+          { width: 250, fontSize: '14px', bgColour: '#7b5c3a' }),
+      );
+      extraY += 46;
+    } else if (canLetOut) {
+      container.add(
+        createButton(scene, panelLeft + panelW / 2, extraY, 'Let outside',
+          () => callbacks.onLetOutside(),
+          { width: 250, fontSize: '14px', bgColour: '#2E8B57' }),
+      );
+      extraY += 46;
+    }
+
+    // ── Wardrobe action ────────────────────────────────────
+    if (needsGarment) {
+      const garment = getGarmentForSpecies(animal.species);
+      container.add(
+        createButton(scene, panelLeft + panelW / 2, extraY,
+          `Get a ${garment} — weather needs it`,
+          () => callbacks.onEquipWardrobe(),
+          { width: 250, fontSize: '13px', bgColour: '#8B6914' }),
+      );
+      extraY += 46;
     }
   } else {
     // Pet — show collar colour + Visit Garden + optional Take to Vet

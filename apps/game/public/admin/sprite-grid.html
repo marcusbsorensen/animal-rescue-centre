@@ -269,6 +269,103 @@
   .legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
   .legend .dot.ok { background: var(--ok); }
   .legend .dot.missing { background: var(--missing); }
+
+  /* Problem-tag chips on regen cells. Up to 4 letters (A/B/C/D) in a row
+     along the bottom-left of the cell. Each chip has a tooltip describing
+     the problem ("Too cartoon-like" etc.). Colour-coded so the eye can
+     scan patterns across a species row at a glance. */
+  .problem-chips {
+    position: absolute;
+    left: 3px; bottom: 3px;
+    display: flex; gap: 2px;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .problem-chip {
+    width: 16px; height: 16px;
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  .problem-chip.A { background: #e91e63; }  /* cartoon → pink */
+  .problem-chip.B { background: #795548; }  /* too old → brown */
+  .problem-chip.C { background: #546e7a; }  /* photo → slate */
+  .problem-chip.D { background: #ff9800; }  /* breed/colour → orange */
+  .problem-chip.E { background: #7b1fa2; }  /* wrong object → purple */
+  /* A note chip indicates a free-text description is attached. Hover
+     reveals the note as a tooltip via the element's title attribute. */
+  .problem-chip.N {
+    background: #455a64;
+    width: auto; min-width: 16px; padding: 0 4px;
+    font-size: 9px;
+  }
+  /* When a cell has a reuse-label at the bottom, shove chips higher so
+     they don't overlap. */
+  .cell.has-reuse .problem-chips { bottom: 22px; }
+
+  /* Problem legend in the header — same coloured chips with labels */
+  .problem-legend {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 11px; color: var(--muted);
+    padding: 0 8px; margin-left: 8px;
+    border-left: 1px solid var(--border);
+  }
+  .problem-legend .item { display: inline-flex; align-items: center; gap: 4px; }
+  .problem-legend .problem-chip {
+    position: static;
+    box-shadow: none;
+  }
+
+  /* Problem-tag popover — opens on alt-click of a regen cell */
+  .problem-popover {
+    position: fixed;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 100;
+    font-size: 12px;
+    max-width: 300px;
+  }
+  body[data-bg="dark"] .problem-popover {
+    background: #2a2a2a; color: #eee; border-color: #555;
+  }
+  .problem-popover .title {
+    font-weight: 700;
+    margin-bottom: 8px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .problem-popover .opts {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .problem-popover .opt {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .problem-popover .opt:hover { background: #f5f5f5; }
+  body[data-bg="dark"] .problem-popover .opt:hover { background: #3a3a3a; }
+  .problem-popover .opt input { margin: 0; cursor: pointer; }
+  .problem-popover .opt .problem-chip { position: static; }
+  .problem-popover .opt .label { flex: 1; }
+  .problem-popover .actions {
+    display: flex; justify-content: space-between; margin-top: 10px;
+    font-size: 11px;
+  }
+  .problem-popover button {
+    background: none; border: 1px solid var(--border);
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;
+  }
+  .problem-popover button:hover { background: #f5f5f5; }
 </style>
 </head>
 <body data-bg="light" data-size="design">
@@ -284,14 +381,22 @@
   <div class="controls">
     <span class="legend"><span class="dot ok"></span>Present</span>
     <span class="legend"><span class="dot missing"></span>Missing</span>
+    <span class="problem-legend" title="Alt-click a regen (red) cell to tag which problems it has">
+      <span class="item"><span class="problem-chip A">A</span>cartoon</span>
+      <span class="item"><span class="problem-chip B">B</span>too old</span>
+      <span class="item"><span class="problem-chip C">C</span>photo</span>
+      <span class="item"><span class="problem-chip D">D</span>breed/colour</span>
+      <span class="item"><span class="problem-chip E">E</span>wrong object</span>
+      <span class="item"><span class="problem-chip N">N</span>note</span>
+    </span>
     <button data-size="design" class="active">Design size</button>
     <button data-size="game">In-game size</button>
     <button data-size="large">Large</button>
     <button data-bg="light" class="active">Light</button>
     <button data-bg="dark">Dark</button>
-    <button id="review-toggle" title="Click cells to cycle ok/regen/todo. Shift-click to reallocate.">Review mode: off</button>
-    <button id="review-export" title="Copy review + reuse marks as JSON to clipboard">Export</button>
-    <button id="review-reset" title="Clear all review + reuse marks">Reset</button>
+    <button id="review-toggle" title="Click cells to cycle ok/regen/todo. Shift-click to reallocate. Alt-click regen cells to tag problems.">Review mode: off</button>
+    <button id="review-export" title="Copy review + reuse marks + problem tags as JSON to clipboard">Export</button>
+    <button id="review-reset" title="Clear all review + reuse + problem marks">Reset</button>
   </div>
 </header>
 
@@ -302,7 +407,7 @@
     cat:    ['ginger', 'black', 'calico', 'grey', 'siamese', 'white', 'tuxedo', 'tortie'],
     dog:    ['golden', 'dalmatian', 'chocolate', 'beagle', 'husky', 'pug', 'collie', 'terrier'],
     fox:    ['red', 'arctic', 'silver', 'cross', 'marble', 'fennec'],
-    bunny:  ['dutch', 'lop', 'lionhead', 'rex', 'angora', 'spotted'],
+    bunny:  ['dutch', 'lop', 'lionhead', 'rex', 'angora', 'spotted', 'arctic'],
     bat:    ['brown', 'fruit', 'longeared', 'pipistrelle', 'white'],
     parrot: ['budgie', 'cockatiel', 'grey', 'macaw', 'lovebird'],
     snake:  ['corn', 'python', 'king', 'garter', 'hognose'],
@@ -352,6 +457,36 @@
     reuseState = {};
   }
 
+  // Problem tags: path → array of 'A'|'B'|'C'|'D'. Only meaningful on
+  // regen cells but we persist regardless so flipping to regen later
+  // remembers previous tags. Alt-click a cell in review mode to tag.
+  const PROBLEM_KEY = 'arc-sprite-problems';
+  const PROBLEM_CODES = ['A', 'B', 'C', 'D', 'E'];
+  const PROBLEM_LABELS = {
+    A: 'Too cartoon-like compared to reference',
+    B: 'Too old compared to reference',
+    C: 'Too photo-realistic compared to reference',
+    D: 'Wrong breed / colour compared to reference',
+    E: 'Wrong object (missing / excess / nonsensical elements)',
+  };
+  let problemState = {};
+  try {
+    problemState = JSON.parse(localStorage.getItem(PROBLEM_KEY) || '{}') || {};
+  } catch (e) {
+    problemState = {};
+  }
+
+  // Free-text notes about what's specifically wrong. Keyed by filename
+  // independently of the code tags — a sprite can have codes only,
+  // a note only, or both.
+  const NOTE_KEY = 'arc-sprite-notes';
+  let noteState = {};
+  try {
+    noteState = JSON.parse(localStorage.getItem(NOTE_KEY) || '{}') || {};
+  } catch (e) {
+    noteState = {};
+  }
+
   // Keep a registry so reset / import can re-render every cell in place.
   const cellRegistry = []; // { cell, path }
 
@@ -372,6 +507,40 @@
 
     // Re-apply reuse ring / label (box-shadow combines with review rings via CSS)
     applyReuseMark(cell, path);
+
+    // Problem chips only render on regen cells (other states ignore them
+    // for display purposes; state is still persisted).
+    applyProblemChips(cell, path);
+  }
+
+  function applyProblemChips(cell, path) {
+    const existing = cell.querySelector('.problem-chips');
+    if (existing) existing.remove();
+
+    const state = reviewState[path];
+    if (state !== 'regen') return;
+    const codes = problemState[path] || [];
+    const note = (noteState[path] || '').trim();
+    if (codes.length === 0 && !note) return;
+
+    const strip = document.createElement('div');
+    strip.className = 'problem-chips';
+    for (const code of codes) {
+      if (!PROBLEM_CODES.includes(code)) continue;
+      const chip = document.createElement('div');
+      chip.className = 'problem-chip ' + code;
+      chip.textContent = code;
+      chip.title = PROBLEM_LABELS[code];
+      strip.appendChild(chip);
+    }
+    if (note) {
+      const nchip = document.createElement('div');
+      nchip.className = 'problem-chip N';
+      nchip.textContent = 'note';
+      nchip.title = note;
+      strip.appendChild(nchip);
+    }
+    cell.appendChild(strip);
   }
 
   function applyReuseMark(cell, path) {
@@ -469,6 +638,18 @@
       if (cell.classList.contains('missing')) return;
       if (e.shiftKey) {
         openReusePopover(cell, filename, state);
+        return;
+      }
+      if (e.altKey) {
+        // Alt-click opens the problem-tag popover for regen cells. If the
+        // cell isn't already regen, promote it first so the chips render.
+        if (reviewState[filename] !== 'regen') {
+          reviewState[filename] = 'regen';
+          localStorage.setItem(REVIEW_KEY, JSON.stringify(reviewState));
+          applyReviewMark(cell, filename);
+          renderReviewSummary();
+        }
+        openProblemPopover(cell, filename);
         return;
       }
       cycleReview(filename, cell);
@@ -661,6 +842,130 @@
     setTimeout(() => document.addEventListener('click', outsideClickHandler, true), 0);
   }
 
+  // ── Problem-tag popover ──────────────────────────────────────────
+  // Opens on alt-click of a regen cell. Lets Marcus pick which of the
+  // four problem codes (A/B/C/D) apply. Selections persist in
+  // localStorage under `arc-sprite-problems` and render as coloured
+  // chip letters along the bottom of the cell.
+  function openProblemPopover(cell, path) {
+    closeReusePopover();
+    closeProblemPopover();
+
+    const pop = document.createElement('div');
+    pop.className = 'problem-popover';
+
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = 'What\u2019s wrong with "' + path + '"?';
+    pop.appendChild(title);
+
+    const opts = document.createElement('div');
+    opts.className = 'opts';
+    pop.appendChild(opts);
+
+    const current = new Set(problemState[path] || []);
+    for (const code of PROBLEM_CODES) {
+      const label = document.createElement('label');
+      label.className = 'opt';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = current.has(code);
+      cb.addEventListener('change', () => {
+        if (cb.checked) current.add(code);
+        else current.delete(code);
+      });
+      const chip = document.createElement('span');
+      chip.className = 'problem-chip ' + code;
+      chip.textContent = code;
+      const txt = document.createElement('span');
+      txt.className = 'label';
+      txt.textContent = PROBLEM_LABELS[code];
+      label.appendChild(cb);
+      label.appendChild(chip);
+      label.appendChild(txt);
+      opts.appendChild(label);
+    }
+
+    // Free-text field: what's missing, in excess, or nonsensical?
+    const noteLabel = document.createElement('div');
+    noteLabel.style.marginTop = '10px';
+    noteLabel.style.fontSize = '11px';
+    noteLabel.style.color = 'var(--muted)';
+    noteLabel.textContent = 'Extra notes (optional):';
+    const noteArea = document.createElement('textarea');
+    noteArea.rows = 3;
+    noteArea.style.width = '100%';
+    noteArea.style.marginTop = '4px';
+    noteArea.style.fontSize = '12px';
+    noteArea.style.boxSizing = 'border-box';
+    noteArea.placeholder = 'e.g. "missing bowl", "knot makes no sense", "wrong colour for king snake"';
+    noteArea.value = noteState[path] || '';
+    pop.appendChild(noteLabel);
+    pop.appendChild(noteArea);
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    saveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const codes = Array.from(current).sort();
+      if (codes.length === 0) delete problemState[path];
+      else problemState[path] = codes;
+      localStorage.setItem(PROBLEM_KEY, JSON.stringify(problemState));
+
+      const note = noteArea.value.trim();
+      if (!note) delete noteState[path];
+      else noteState[path] = note;
+      localStorage.setItem(NOTE_KEY, JSON.stringify(noteState));
+
+      applyProblemChips(cell, path);
+      closeProblemPopover();
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeProblemPopover();
+    });
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(saveBtn);
+    pop.appendChild(actions);
+
+    document.body.appendChild(pop);
+
+    const rect = cell.getBoundingClientRect();
+    const popW = pop.offsetWidth;
+    const popH = pop.offsetHeight;
+    let left = rect.right + 8;
+    let top = rect.top;
+    if (left + popW > window.innerWidth - 8) left = rect.left - popW - 8;
+    if (top + popH > window.innerHeight - 8) top = window.innerHeight - popH - 8;
+    if (top < 8) top = 8;
+    pop.style.left = left + 'px';
+    pop.style.top = top + 'px';
+
+    currentProblemPopover = pop;
+    setTimeout(() => document.addEventListener('click', outsideProblemClickHandler, true), 0);
+  }
+
+  let currentProblemPopover = null;
+  function closeProblemPopover() {
+    if (currentProblemPopover) {
+      currentProblemPopover.remove();
+      currentProblemPopover = null;
+      document.removeEventListener('click', outsideProblemClickHandler, true);
+    }
+  }
+  function outsideProblemClickHandler(e) {
+    if (currentProblemPopover && !currentProblemPopover.contains(e.target)) {
+      closeProblemPopover();
+    }
+  }
+
   // ── Review-mode buttons ──────────────────────────────────────────
   const reviewToggleBtn = document.getElementById('review-toggle');
   const reviewExportBtn = document.getElementById('review-export');
@@ -691,6 +996,18 @@
     const reuseTargetCount = Object.values(reuseState)
       .reduce((n, arr) => n + arr.length, 0);
 
+    // Problem tags by species — each regen sprite with tags flips into
+    // a per-code bucket so it's easy to write per-issue regen prompts.
+    const problemsBySpecies = {};
+    const problemsByCode = { A: [], B: [], C: [], D: [] };
+    for (const [path, codes] of Object.entries(problemState)) {
+      if (reviewState[path] !== 'regen') continue;  // only regen tags matter
+      if (!codes || codes.length === 0) continue;
+      const species = path.split('-')[0];
+      (problemsBySpecies[species] = problemsBySpecies[species] || {})[path] = codes;
+      for (const c of codes) if (problemsByCode[c]) problemsByCode[c].push(path);
+    }
+
     const payload = {
       exportedAt: new Date().toISOString(),
       totals: {
@@ -698,10 +1015,15 @@
         regen: Object.values(reviewState).filter(v => v === 'regen').length,
         todo:  Object.values(reviewState).filter(v => v === 'todo').length,
         reuse: reuseTargetCount,
+        tagged: Object.keys(problemState).filter(p => reviewState[p] === 'regen' && (problemState[p] || []).length > 0).length,
       },
       bySpecies: grouped,
       reuseByTarget,
       reuseBySource: reuseState,
+      problemsBySpecies,
+      problemsByCode,
+      problems: problemState,
+      notes: noteState,
       all: reviewState,
     };
     const json = JSON.stringify(payload, null, 2);
@@ -724,11 +1046,15 @@
   });
 
   reviewResetBtn.addEventListener('click', () => {
-    if (!confirm('Clear all review marks AND reuse targets? This cannot be undone.')) return;
+    if (!confirm('Clear all review marks, reuse targets, problem tags AND notes? This cannot be undone.')) return;
     reviewState = {};
     reuseState = {};
+    problemState = {};
+    noteState = {};
     localStorage.removeItem(REVIEW_KEY);
     localStorage.removeItem(REUSE_KEY);
+    localStorage.removeItem(PROBLEM_KEY);
+    localStorage.removeItem(NOTE_KEY);
     for (const { cell, path } of cellRegistry) applyReviewMark(cell, path);
     renderReviewSummary();
   });

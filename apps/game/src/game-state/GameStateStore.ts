@@ -6,6 +6,8 @@ import type {
   Economy,
   PlacedDecoration,
   AnimalRelationship,
+  TimeProgress,
+  GardenWeather,
 } from '@arc/shared-types';
 import type { IllnessDef, Conflict } from '@arc/game-logic';
 
@@ -56,4 +58,19 @@ export class GameStateStore {
   economy: Economy = { coins: 0, lifetimeEarnings: 0 };
   placedDecorations: PlacedDecoration[] = [];
   relationships: AnimalRelationship[] = [];
+
+  /**
+   * Task-driven in-game clock (morning/afternoon/evening/night). Phase
+   * advances when `recordCareTask` is called (feeding, walking, etc.).
+   * Optional for backwards-compat with older saves — populated by
+   * loadSaveState on first load.
+   */
+  timeProgress?: TimeProgress;
+
+  /**
+   * Today's garden weather forecast (one weather per phase). Re-rolled
+   * at dawn using a day-seeded RNG so reloads don't reshuffle. Optional
+   * for back-compat; populated by loadSaveState.
+   */
+  gardenWeather?: GardenWeather;
 }

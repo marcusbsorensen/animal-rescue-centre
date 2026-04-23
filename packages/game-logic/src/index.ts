@@ -1,4 +1,30 @@
 export { calculateBondIncrease, isBondComplete, isSiblingPresent, SIBLING_BOND_BONUS } from './bond';
+export {
+  generateDailyWeather,
+  advanceWeatherToPhase,
+  getSpeciesRainTolerance,
+  getSpeciesColdTolerance,
+  isRainy,
+  isCold,
+  needsCoat,
+  rainHappinessDelta,
+  markWet,
+  dry,
+  shouldAutoDry,
+  applyShakeOff,
+  WET_DURATION_MS,
+} from './weather';
+export type { RainTolerance, ColdTolerance, ShakeOffEffect } from './weather';
+export {
+  getGarmentForSpecies,
+  getWardrobeTextureKey,
+  getWardrobeAnchor,
+  equipWardrobe,
+  unequipWardrobe,
+  isDressedForWeather,
+  dressingBlockReason,
+} from './wardrobe';
+export type { Garment, WardrobeAnchor } from './wardrobe';
 export { getSpeciesUnlocksForLevel, getRequiredRescuesForLevel, getMaxShelterAnimals, getMaxArrivals } from './progression';
 export {
   validateFoodForSpecies,
@@ -169,6 +195,33 @@ export {
   getAvailableDecorationCounts,
   syncPlacedDecorationId,
 } from './decorations';
+export {
+  phaseIndex,
+  nextPhase,
+  getTaskWeight,
+  baseTasksPerPhase,
+  computeTasksPerPhase,
+  createTimeProgress,
+  recordCareTask,
+  refreshTasksPerPhase,
+  countFullyBondedPets,
+  isWeekend,
+} from './time';
+export type { HelperModifiers, RecordTaskResult } from './time';
+export {
+  getSpeciesTemperament,
+  getOutsideBondThreshold,
+  hasChaperoneInGarden,
+  inGarden,
+  canLetOutside,
+  assignGardenZone,
+  letOutside,
+  bringInside,
+  switchZone,
+  gardenOccupants,
+  partitionByZone,
+} from './garden';
+export type { LetOutsideBlock } from './garden';
 export {
   setRelationship,
   clearRelationship,

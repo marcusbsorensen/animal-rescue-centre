@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>A.R.C. — Sprite Grid v3 (regen review)</title>
+<style>
+  :root {
+    --bg: #f5f2ec;
+    --ink: #3a3a3a;
+    --muted: #6b6b6b;
+    --border: #d9d3c7;
+    --accept: #3D8A2E;
+    --reject: #c0392b;
+    --retry:  #e67e22;
+    --accent: #5a67d8;
+  }
+  body {
+    margin: 0;
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  body[data-bg="dark"] { background: #1c1c1c; color: #eee; }
+  body[data-bg="dark"] section, body[data-bg="dark"] .cell { background: #2a2a2a; border-color: #444; }
+  body[data-bg="dark"] .muted { color: #bbb; }
+  body[data-bg="dark"] th { color: #bbb; }
+  body[data-bg="dark"] header { background: #1c1c1c; border-color: #444; }
+  body[data-bg="dark"] td.variant { color: #eee; }
+  body[data-bg="dark"] td.variant.fallback { color: #bbb; }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg);
+    padding: 10px 0 12px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  h1 { margin: 0 0 4px 0; font-size: 18px; }
+  .status { font-size: 12px; color: var(--muted); }
+  .status b { color: var(--ink); }
+  body[data-bg="dark"] .status b { color: #eee; }
+  .controls {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin-top: 8px; font-size: 12px;
+  }
+  .controls button, .filter-chip {
+    background: #fff; border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  .controls button:hover { background: #eee; }
+  .controls button.active, .filter-chip.on { background: #333; color: #fff; border-color: #333; }
+
+  section {
+    margin-bottom: 28px;
+  }
+  h2 {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    padding: 4px 8px;
+    background: #eae3d4;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  body[data-bg="dark"] h2 { background: #3a3a3a; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 4px 2px;
+    text-align: center;
+  }
+  th.group-start, td.group-start { border-left: 1px dashed var(--border); }
+  td.variant {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    text-align: right;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+  td.variant.fallback {
+    color: var(--muted);
+    font-style: italic;
+    font-weight: 400;
+  }
+  .cell {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    min-width: 80px;
+    max-width: 160px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background-image:
+      linear-gradient(45deg, #e5e5e5 25%, transparent 25%),
+      linear-gradient(-45deg, #e5e5e5 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e5e5e5 75%),
+      linear-gradient(-45deg, transparent 75%, #e5e5e5 75%);
+    background-size: 14px 14px;
+    background-position: 0 0, 0 7px, 7px -7px, 7px 0;
+    background-color: #f0f0f0;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  body[data-bg="dark"] .cell { background-color: #2a2a2a; }
+  .cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .cell .old-overlay {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 30%;
+    height: 30%;
+    border: 1px solid rgba(255,255,255,0.8);
+    border-radius: 3px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    pointer-events: auto;
+    transition: all 0.15s ease;
+  }
+  .cell .old-overlay:hover {
+    width: 95%;
+    height: 95%;
+    top: 2.5%;
+    left: 2.5%;
+    right: 2.5%;
+    bottom: 2.5%;
+    z-index: 5;
+  }
+  .cell .old-overlay .old-label {
+    position: absolute;
+    top: 1px; left: 2px;
+    font-size: 7px; font-weight: 700;
+    background: rgba(0,0,0,0.7); color: #fff;
+    padding: 0 3px;
+    border-radius: 2px;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+  }
+  .cell .old-overlay img {
+    width: 100%; height: 100%; object-fit: contain;
+  }
+  .cell.accept { box-shadow: inset 0 0 0 3px var(--accept); }
+  .cell.reject { box-shadow: inset 0 0 0 3px var(--reject); }
+  .cell.retry  { box-shadow: inset 0 0 0 3px var(--retry); }
+  .cell.missing {
+    color: #c00; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    text-transform: uppercase;
+  }
+  .cell.no-new {
+    color: var(--muted); font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    text-transform: uppercase;
+    background: none;
+    border: 1px dashed var(--border);
+  }
+  .verdict-badge {
+    position: absolute;
+    top: 3px; right: 3px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    pointer-events: none;
+    z-index: 6;
+  }
+  .verdict-badge.accept { background: var(--accept); }
+  .verdict-badge.reject { background: var(--reject); }
+  .verdict-badge.retry  { background: var(--retry); }
+  .note-icon {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 14px; height: 14px;
+    background: #455a64;
+    color: #fff;
+    font-size: 9px; font-weight: 700;
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+    z-index: 6;
+  }
+
+  .legend {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 11px; color: var(--muted);
+    padding: 0 8px; margin-left: 4px;
+    border-left: 1px solid var(--border);
+  }
+  .legend .chip {
+    display: inline-block; padding: 2px 6px; border-radius: 3px;
+    font-weight: 700; color: #fff; font-size: 10px;
+  }
+  .legend .chip.accept { background: var(--accept); }
+  .legend .chip.reject { background: var(--reject); }
+  .legend .chip.retry  { background: var(--retry); }
+
+  /* Note popover */
+  .note-popover {
+    position: fixed;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 100;
+    font-size: 12px;
+    width: 280px;
+  }
+  body[data-bg="dark"] .note-popover {
+    background: #2a2a2a; color: #eee; border-color: #555;
+  }
+  .note-popover .title {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
+  }
+  .note-popover textarea {
+    width: 100%; font-size: 11px; padding: 6px; border: 1px solid var(--border);
+    border-radius: 4px; box-sizing: border-box; font-family: inherit;
+    min-height: 60px; resize: vertical;
+  }
+  .note-popover .actions {
+    display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;
+  }
+  .note-popover button {
+    background: none; border: 1px solid var(--border);
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;
+  }
+  .note-popover button:hover { background: #f5f5f5; }
+
+  body[data-size="tiny"]  .cell { max-width: 64px; }
+  body[data-size="small"] .cell { max-width: 100px; }
+  body[data-size="normal"] .cell { max-width: 140px; }
+  body[data-size="large"] .cell { max-width: 200px; }
+</style>
+</head>
+<body data-bg="light" data-size="normal">
+
+<header>
+  <h1>A.R.C. — Sprite Grid v3 (regen review)</h1>
+  <div class="status" id="status">Loading…</div>
+  <div class="controls">
+    <button data-size="tiny">Tiny</button>
+    <button data-size="small">Small</button>
+    <button data-size="normal" class="active">Normal</button>
+    <button data-size="large">Large</button>
+    <button data-bg="light" class="active">Light</button>
+    <button data-bg="dark">Dark</button>
+    <span class="legend">
+      <span class="chip accept">Accept</span>
+      <span class="chip retry">Retry</span>
+      <span class="chip reject">Reject</span>
+      <span class="muted">· click cell to cycle · alt-click for note</span>
+    </span>
+    <span class="legend">
+      <span>Filter:</span>
+      <span class="filter-chip on" data-filter="all">All</span>
+      <span class="filter-chip" data-filter="pending">Pending</span>
+      <span class="filter-chip" data-filter="accept">Accepted</span>
+      <span class="filter-chip" data-filter="retry">Retry</span>
+      <span class="filter-chip" data-filter="reject">Rejected</span>
+    </span>
+    <button id="export">Export JSON</button>
+    <button id="reset">Reset</button>
+  </div>
+</header>
+
+<main id="root"></main>
+
+<script>
+  // Only the variants that were re-generated in v3. Fallback species
+  // (cat, dog, fox, etc.) are NOT in the v3 regen — they stay as-is.
+  // Full variant library — matches SPECIES_VARIANTS in packages/game-logic/src/animals.ts.
+  // Variants without a v3-generated replacement show "NO v3" in the NEW slot,
+  // while the OLD (installed) sprite still renders in the overlay corner —
+  // useful for auditing the full library state.
+  const V3_VARIANTS = {
+    cat:    ['ginger', 'black', 'calico', 'grey', 'siamese', 'white', 'tuxedo', 'tortie'],
+    dog:    ['golden', 'dalmatian', 'chocolate', 'beagle', 'husky', 'pug', 'collie', 'terrier'],
+    fox:    ['red', 'arctic', 'silver', 'cross', 'marble', 'fennec'],
+    bunny:  ['dutch', 'lop', 'lionhead', 'rex', 'angora', 'spotted', 'arctic'],
+    bat:    ['brown', 'fruit', 'longeared', 'pipistrelle', 'white'],
+    parrot: ['budgie', 'cockatiel', 'grey', 'macaw', 'lovebird'],
+    snake:  ['corn', 'python', 'king', 'garter', 'hognose'],
+  };
+  const BASIC_STATES = ['arriving', 'sheltered', 'eating', 'sleeping', 'walking', 'playing'];
+  const EMOTIONAL_STATES = ['growling', 'grumpy', 'scared', 'sick'];
+  const STATES = [...BASIC_STATES, ...EMOTIONAL_STATES];
+
+  const VERDICT_CYCLE = ['unset', 'accept', 'retry', 'reject'];
+  const VERDICT_BADGE = { accept: '\u2713', retry: '\u27F3', reject: '\u2717' };
+
+  const STORAGE_KEY = 'arc-sprite-v3-verdicts';
+  let verdicts = {}, notes = {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    verdicts = parsed.verdicts || {};
+    notes = parsed.notes || {};
+  } catch (e) {}
+
+  const root = document.getElementById('root');
+  const statusEl = document.getElementById('status');
+  let activeFilter = 'all';
+  const cellRegistry = [];
+
+  function mkCell(filename) {
+    const td = document.createElement('td');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.path = filename;
+
+    // NEW image (main) — from staged v3 folder. If it fails to load
+    // (no v3 replacement exists for this variant), we fall back to
+    // promoting the OLD installed sprite to main-size so the whole
+    // library still shows at the same size for auditing purposes.
+    // In that state the cell is marked `no-v3` (informational), but
+    // still fully clickable so Marcus can triage installed sprites too.
+    const newImg = document.createElement('img');
+    newImg.src = '/admin/regen-v3-sprites/' + filename;
+    let oldOverlay;  // declared here so the error handler can remove it
+    newImg.addEventListener('error', () => {
+      cell.classList.add('no-v3');
+      newImg.remove();
+      // Remove the corner overlay — we'll make the OLD the main image instead
+      if (oldOverlay) oldOverlay.remove();
+      // Promote OLD to full-size main image
+      const mainOld = document.createElement('img');
+      mainOld.src = '/assets/animals/' + filename;
+      mainOld.addEventListener('error', () => {
+        cell.classList.add('missing');
+        mainOld.remove();
+        cell.appendChild(document.createTextNode('missing'));
+      });
+      cell.appendChild(mainOld);
+      // Small "OLD" badge in the corner to signal this is the installed
+      // sprite, not a v3 replacement
+      const badge = document.createElement('span');
+      badge.className = 'label';
+      badge.textContent = 'OLD';
+      badge.style.cssText = 'position:absolute;top:3px;left:3px;font-size:9px;font-weight:700;'
+        + 'background:rgba(0,0,0,0.6);color:#fff;padding:1px 5px;border-radius:3px;'
+        + 'text-transform:uppercase;letter-spacing:0.05em;pointer-events:none;z-index:6;';
+      cell.appendChild(badge);
+    });
+    cell.appendChild(newImg);
+
+    // OLD overlay in corner — shown ONLY when NEW exists. If NEW fails,
+    // the error handler above removes this overlay and promotes OLD to main.
+    oldOverlay = document.createElement('div');
+    oldOverlay.className = 'old-overlay';
+    const oldLabel = document.createElement('span');
+    oldLabel.className = 'old-label';
+    oldLabel.textContent = 'OLD';
+    oldOverlay.appendChild(oldLabel);
+    const oldImg = document.createElement('img');
+    oldImg.src = '/assets/animals/' + filename;
+    oldImg.addEventListener('error', () => {
+      oldOverlay.style.display = 'none';
+    });
+    oldOverlay.appendChild(oldImg);
+    // Stop clicks on overlay from bubbling to cell
+    oldOverlay.addEventListener('click', (e) => e.stopPropagation());
+    cell.appendChild(oldOverlay);
+
+    cell.addEventListener('click', (e) => {
+      if (cell.classList.contains('missing')) return;
+      if (e.altKey) {
+        openNotePopover(cell, filename);
+        return;
+      }
+      cycleVerdict(filename, cell);
+    });
+
+    td.appendChild(cell);
+    cellRegistry.push({ cell, path: filename });
+    applyVerdict(cell, filename);
+    return td;
+  }
+
+  function cycleVerdict(path, cell) {
+    const current = verdicts[path] || 'unset';
+    const next = VERDICT_CYCLE[(VERDICT_CYCLE.indexOf(current) + 1) % VERDICT_CYCLE.length];
+    if (next === 'unset') delete verdicts[path];
+    else verdicts[path] = next;
+    save();
+    applyVerdict(cell, path);
+    renderStatus();
+    applyFilter();
+  }
+
+  function applyVerdict(cell, path) {
+    for (const v of ['accept', 'retry', 'reject']) cell.classList.remove(v);
+    const existingBadge = cell.querySelector('.verdict-badge');
+    if (existingBadge) existingBadge.remove();
+    const existingNote = cell.querySelector('.note-icon');
+    if (existingNote) existingNote.remove();
+
+    const state = verdicts[path];
+    if (state) {
+      cell.classList.add(state);
+      const badge = document.createElement('div');
+      badge.className = 'verdict-badge ' + state;
+      badge.textContent = VERDICT_BADGE[state] || '';
+      cell.appendChild(badge);
+    }
+    if (notes[path]) {
+      const note = document.createElement('div');
+      note.className = 'note-icon';
+      note.textContent = 'N';
+      note.title = notes[path];
+      cell.appendChild(note);
+    }
+  }
+
+  function applyFilter() {
+    for (const { cell, path } of cellRegistry) {
+      const v = verdicts[path] || 'unset';
+      let show = true;
+      if (activeFilter === 'pending') show = (v === 'unset');
+      else if (activeFilter !== 'all') show = (v === activeFilter);
+      cell.style.display = show ? '' : 'none';
+    }
+  }
+
+  function renderStatus() {
+    let accept = 0, reject = 0, retry = 0, pending = 0, total = 0;
+    for (const { path } of cellRegistry) {
+      total++;
+      const v = verdicts[path] || 'unset';
+      if (v === 'accept') accept++;
+      else if (v === 'reject') reject++;
+      else if (v === 'retry') retry++;
+      else pending++;
+    }
+    while (statusEl.firstChild) statusEl.removeChild(statusEl.firstChild);
+    const frag = document.createDocumentFragment();
+    function b(n) { const el = document.createElement('b'); el.textContent = String(n); return el; }
+    frag.appendChild(b(accept)); frag.appendChild(document.createTextNode(' accepted \u00B7 '));
+    frag.appendChild(b(retry));  frag.appendChild(document.createTextNode(' retry \u00B7 '));
+    frag.appendChild(b(reject)); frag.appendChild(document.createTextNode(' rejected \u00B7 '));
+    frag.appendChild(b(pending)); frag.appendChild(document.createTextNode(' pending (of ' + total + ')'));
+    statusEl.appendChild(frag);
+  }
+
+  function renderSpecies(species, variants) {
+    const section = document.createElement('section');
+    const h2 = document.createElement('h2');
+    h2.textContent = species + ' — ' + variants.length + ' variants';
+    section.appendChild(h2);
+
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.appendChild(document.createElement('th'));
+    for (const state of STATES) {
+      const th = document.createElement('th');
+      th.textContent = state;
+      if (state === EMOTIONAL_STATES[0]) th.className = 'group-start';
+      headRow.appendChild(th);
+    }
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for (const variant of variants) {
+      const row = document.createElement('tr');
+      const label = document.createElement('td');
+      label.className = 'variant';
+      label.textContent = variant;
+      row.appendChild(label);
+      for (const state of STATES) {
+        const filename = species + '-' + variant + '-' + state + '.png';
+        const td = mkCell(filename);
+        if (state === EMOTIONAL_STATES[0]) td.classList.add('group-start');
+        row.appendChild(td);
+      }
+      tbody.appendChild(row);
+    }
+    table.appendChild(tbody);
+    section.appendChild(table);
+    root.appendChild(section);
+  }
+
+  for (const [species, variants] of Object.entries(V3_VARIANTS)) {
+    renderSpecies(species, variants);
+  }
+
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ verdicts, notes })); }
+  renderStatus();
+  applyFilter();
+
+  // ── Note popover ──────────────────────────────────────────
+  let currentPopover = null;
+
+  function closeNotePopover() {
+    if (currentPopover) {
+      currentPopover.remove();
+      currentPopover = null;
+      document.removeEventListener('click', outsideClickHandler, true);
+    }
+  }
+  function outsideClickHandler(e) {
+    if (currentPopover && !currentPopover.contains(e.target)) closeNotePopover();
+  }
+
+  function openNotePopover(cell, path) {
+    closeNotePopover();
+    const pop = document.createElement('div');
+    pop.className = 'note-popover';
+
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = path;
+    pop.appendChild(title);
+
+    const ta = document.createElement('textarea');
+    ta.placeholder = 'Notes: what to fix on retry, why rejected, etc.';
+    ta.value = notes[path] || '';
+    pop.appendChild(ta);
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    saveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = ta.value.trim();
+      if (val) notes[path] = val;
+      else delete notes[path];
+      save();
+      applyVerdict(cell, path);
+      closeNotePopover();
+    });
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); closeNotePopover(); });
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(saveBtn);
+    pop.appendChild(actions);
+
+    document.body.appendChild(pop);
+    const rect = cell.getBoundingClientRect();
+    let left = rect.right + 8;
+    let top = rect.top;
+    if (left + pop.offsetWidth > window.innerWidth - 8) left = rect.left - pop.offsetWidth - 8;
+    if (top + pop.offsetHeight > window.innerHeight - 8) top = window.innerHeight - pop.offsetHeight - 8;
+    if (top < 8) top = 8;
+    pop.style.left = left + 'px';
+    pop.style.top = top + 'px';
+
+    currentPopover = pop;
+    setTimeout(() => document.addEventListener('click', outsideClickHandler, true), 0);
+    ta.focus();
+  }
+
+  // ── Buttons ───────────────────────────────────────────────
+  for (const btn of document.querySelectorAll('.controls button')) {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.size) {
+        for (const b of document.querySelectorAll('[data-size]')) b.classList.remove('active');
+        document.body.dataset.size = btn.dataset.size;
+        btn.classList.add('active');
+      }
+      if (btn.dataset.bg) {
+        for (const b of document.querySelectorAll('[data-bg]')) b.classList.remove('active');
+        document.body.dataset.bg = btn.dataset.bg;
+        btn.classList.add('active');
+      }
+    });
+  }
+
+  for (const chip of document.querySelectorAll('.filter-chip')) {
+    chip.addEventListener('click', () => {
+      activeFilter = chip.dataset.filter;
+      for (const x of document.querySelectorAll('.filter-chip')) x.classList.remove('on');
+      chip.classList.add('on');
+      applyFilter();
+    });
+  }
+
+  document.getElementById('export').addEventListener('click', async () => {
+    const counts = { accept: 0, reject: 0, retry: 0, unset: 0 };
+    const accepted = [], rejected = [], retry = [];
+    for (const { path } of cellRegistry) {
+      const v = verdicts[path] || 'unset';
+      counts[v]++;
+      if (v === 'accept') accepted.push(path);
+      else if (v === 'reject') rejected.push({ file: path, note: notes[path] || '' });
+      else if (v === 'retry') retry.push({ file: path, note: notes[path] || '' });
+    }
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      counts, accepted, rejected, retry,
+      all: verdicts, notes,
+    };
+    const json = JSON.stringify(payload, null, 2);
+    try {
+      await navigator.clipboard.writeText(json);
+      alert('Copied to clipboard');
+    } catch (e) {
+      const w = window.open('', '_blank');
+      if (w) {
+        const pre = w.document.createElement('pre');
+        pre.style.fontSize = '11px';
+        pre.style.padding = '12px';
+        pre.textContent = json;
+        w.document.body.appendChild(pre);
+      } else alert(json);
+    }
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    if (!confirm('Clear all verdicts and notes?')) return;
+    verdicts = {}; notes = {};
+    localStorage.removeItem(STORAGE_KEY);
+    for (const { cell, path } of cellRegistry) applyVerdict(cell, path);
+    renderStatus();
+    applyFilter();
+  });
+</script>
+</body>
+</html>

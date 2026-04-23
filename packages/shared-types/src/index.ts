@@ -22,6 +22,133 @@ export interface Animal {
   roomId: string;
   bedId?: string;
   collarColour?: string; // set when becomes pet
+
+  /**
+   * ISO timestamp set when the player tapped "Let outside" on this
+   * animal. Presence = currently in the garden as a visitor (not a
+   * resident pet). Cleared on "Bring inside". Pets (state === 'pet')
+   * don't use this — they're already in the garden permanently.
+   *
+   * Added as optional to keep older save files back-compat.
+   */
+  outsideAt?: string;
+
+  /**
+   * Which garden zone the animal sits in when in the garden. Two
+   * zones separate incompatible pairs (enemies, intolerant) so each
+   * can still chaperone their own species' visitors without clashing.
+   *
+   * - 'lawn'  — the sunny default zone; social species congregate here
+   * - 'quiet' — a calmer secondary zone for solitary species, or any
+   *   animal whose enemy/intolerant is currently on the lawn
+   *
+   * Auto-assigned on bonding / let-out; can be manually reassigned
+   * by the player. Only meaningful when the animal is in the garden
+   * (state = 'pet' OR outsideAt is set). Absent for pre-garden save
+   * compat.
+   */
+  gardenZone?: GardenZone;
+
+  /**
+   * Set when the animal has been outside in the rain and not yet dried
+   * off / been groomed. Wet animals trigger shake-off comedy when
+   * brought indoors or when passing close to other animals in the
+   * garden. Auto-clears after ~2 real minutes, or instantly when
+   * groomed with a towel.
+   */
+  wet?: boolean;
+  /** ISO timestamp after which `wet` should auto-clear. */
+  wetUntil?: string;
+
+  /**
+   * Equipped wardrobe item code (e.g. "coat", "scarf", "hat"). Placed
+   * via the per-variant `wardrobeAnchor` on the sprite so it sits
+   * correctly regardless of breed. Required for cold-intolerant
+   * species in winter — see game-logic/weather.ts needsCoat().
+   */
+  wardrobe?: string;
+}
+
+export type GardenZone = 'lawn' | 'quiet';
+
+/**
+ * Four coarse phases of the in-game day. Drives which garden
+ * background is picked and gates nocturnal/diurnal animal behaviour.
+ *
+ * The clock is TASK-DRIVEN, not wall-clock: phases advance as the
+ * player completes animal-care actions (feeding, walking, etc.). This
+ * keeps the world responsive to Lily's play pace and makes helpers /
+ * tools / trained pets (which reduce the tasks-per-phase threshold)
+ * feel like genuine progression rewards.
+ */
+export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
+
+/**
+ * Task-driven in-game time progress. Lives on GameState.
+ *
+ * - `currentPhase`     — which TimeOfDay is on right now
+ * - `tasksThisPhase`   — count of care-tasks completed toward the next advance
+ * - `tasksPerPhase`    — threshold; recomputed when level / helpers change
+ * - `lastPhaseAdvanceAt` — ISO timestamp of the last advance (for UI sparkles)
+ *
+ * Hitting `tasksThisPhase >= tasksPerPhase` rolls to the next phase and
+ * resets the counter. Rolling past `night` rolls the calendar date
+ * forward by one day (see game-logic/time.ts).
+ */
+export interface TimeProgress {
+  currentPhase: TimeOfDay;
+  tasksThisPhase: number;
+  tasksPerPhase: number;
+  lastPhaseAdvanceAt: string;
+}
+
+/**
+ * The kinds of player actions that count toward in-game time
+ * progression. Each counts as one tick of the clock, except
+ * `supply_run_complete` which counts as several (it's a big mission).
+ */
+export type CareTaskType =
+  | 'feed'
+  | 'walk'
+  | 'play'
+  | 'groom'
+  | 'heal'
+  | 'welcome'
+  | 'bond'
+  | 'garden_let_out'
+  | 'garden_bring_in'
+  | 'conflict_resolve'
+  | 'supply_run_complete';
+
+/**
+ * Weather states for the garden. Generated per in-game day, shifted
+ * at each phase advance. Season weights the probability distribution
+ * — see `generateDailyWeather` in game-logic.
+ */
+export type Weather =
+  | 'sunny'
+  | 'cloudy'
+  | 'overcast'
+  | 'light_rain'
+  | 'heavy_rain'
+  | 'snow'
+  | 'fog'
+  | 'windy';
+
+/**
+ * Garden weather for the current in-game day. Four slots — one per
+ * TimeOfDay phase — are rolled deterministically at dawn so reloads
+ * don't reshuffle the weather Lily was already expecting.
+ */
+export interface GardenWeather {
+  /** Current weather (= forecast[currentPhase] for the current day). */
+  current: Weather;
+  /** The full day's forecast, keyed by phase. */
+  forecast: Record<TimeOfDay, Weather>;
+  /** ISO timestamp of when `current` was set. */
+  setAt: string;
+  /** YYYY-MM-DD of the forecast — re-rolled when this changes. */
+  forDay: string;
 }
 
 export interface GameState {
@@ -39,6 +166,8 @@ export interface GameState {
   economy?: Economy;
   placedDecorations?: PlacedDecoration[];  // room decorations placed by the player
   relationships?: AnimalRelationship[];    // player-defined bonds/feuds between animals
+  timeProgress?: TimeProgress;             // task-driven in-game clock (morning/afternoon/evening/night)
+  gardenWeather?: GardenWeather;           // today's garden weather by phase
 }
 
 /**

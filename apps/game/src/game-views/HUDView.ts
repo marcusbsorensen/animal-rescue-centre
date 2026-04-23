@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { TimeOfDay, Weather } from '@arc/shared-types';
 import {
   getRequiredRescuesForLevel,
   getUrgentNeed,
@@ -7,6 +8,35 @@ import {
 import { AudioManager } from '../audio/AudioManager';
 import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
+
+// Human-readable names for phases + weathers (shown in HUD pills).
+const PHASE_LABELS: Record<TimeOfDay, string> = {
+  morning: 'Morning',
+  afternoon: 'Afternoon',
+  evening: 'Evening',
+  night: 'Night',
+};
+const WEATHER_LABELS: Record<Weather, string> = {
+  sunny: 'Sunny',
+  cloudy: 'Cloudy',
+  overcast: 'Overcast',
+  light_rain: 'Rain',
+  heavy_rain: 'Heavy rain',
+  snow: 'Snow',
+  fog: 'Fog',
+  windy: 'Windy',
+};
+// Map weather to texture keys on disk (snake-case → dashed).
+const WEATHER_ICON: Record<Weather, string> = {
+  sunny: 'weather-sunny',
+  cloudy: 'weather-cloudy',
+  overcast: 'weather-overcast',
+  light_rain: 'weather-light-rain',
+  heavy_rain: 'weather-heavy-rain',
+  snow: 'weather-snow',
+  fog: 'weather-fog',
+  windy: 'weather-windy',
+};
 
 /**
  * HUDView — the always-on top strip: level orb, XP bar, arrival /
@@ -180,6 +210,165 @@ export function renderHUD(
       orbH,
     });
   }
+
+  // ── Second row: time + weather strip ─────────────────────
+  // Only drawn if the store has been populated with timeProgress + weather
+  // (old saves won't have these yet; loadSaveState populates on first load).
+  if (store.timeProgress || store.gardenWeather) {
+    drawTimeWeatherStrip(scene, uiContainer, store, {
+      leftEdge,
+      rightEdge,
+      cy: orbY + orbH + 8,
+    });
+  }
+}
+
+// ── Time + weather strip ───────────────────────────────────
+
+interface TimeWeatherStripOpts {
+  leftEdge: number;
+  rightEdge: number;
+  cy: number;
+}
+
+/**
+ * Second HUD row. Two pills, centred horizontally:
+ *   [sundial]  Morning  ▓▓▓░░      [☁]  Cloudy
+ *
+ * The phase pill doubles as a progress indicator for "tasks until next
+ * phase" — the bar fills as the player completes care actions, giving
+ * Lily visible feedback that time will move when she does things.
+ */
+function drawTimeWeatherStrip(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  store: GameStateStore,
+  opts: TimeWeatherStripOpts,
+): void {
+  const { leftEdge, rightEdge, cy } = opts;
+  const pillH = 28;
+  const centre = (leftEdge + rightEdge) / 2;
+
+  // Phase pill (left of centre)
+  if (store.timeProgress) {
+    const { currentPhase, tasksThisPhase, tasksPerPhase } = store.timeProgress;
+    const progress = Math.min(1, tasksThisPhase / Math.max(1, tasksPerPhase));
+    const pillW = 160;
+    const x0 = centre - pillW - 6;
+
+    const bg = scene.add.graphics();
+    bg.fillStyle(0x000000, 0.12);
+    bg.fillRoundedRect(x0 + 1, cy - pillH / 2 + 2, pillW, pillH, pillH / 2);
+    bg.fillStyle(0xffffff, 0.96);
+    bg.fillRoundedRect(x0, cy - pillH / 2, pillW, pillH, pillH / 2);
+    container.add(bg);
+
+    // Sundial/phase icon
+    const iconCx = x0 + pillH / 2;
+    if (scene.textures.exists('sundial')) {
+      scene.textures.get('sundial').setFilter(Phaser.Textures.FilterMode.LINEAR);
+      container.add(
+        scene.add.image(iconCx, cy, 'sundial').setDisplaySize(22, 22).setOrigin(0.5),
+      );
+    } else {
+      // Unicode glyph fallback if the sundial texture isn't loaded yet
+      const fallback = { morning: '\u2600', afternoon: '\u2600', evening: '\u263D', night: '\u263D' }[currentPhase];
+      container.add(
+        scene.add.text(iconCx, cy, fallback, {
+          fontSize: '16px', fontFamily: FONTS.body,
+          color: COLOURS.text, resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5),
+      );
+    }
+
+    // Phase name
+    const labelX = x0 + pillH + 4;
+    container.add(
+      scene.add.text(labelX, cy - 5, PHASE_LABELS[currentPhase], {
+        fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: COLOURS.text, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0, 0.5),
+    );
+
+    // Progress bar
+    const barX = labelX;
+    const barY = cy + 5;
+    const barW = pillW - (pillH + 12);
+    const bar = scene.add.graphics();
+    bar.fillStyle(0xe6e2d8, 1);
+    bar.fillRoundedRect(barX, barY, barW, 4, 2);
+    if (progress > 0) {
+      bar.fillStyle(0xe3b04b, 1);
+      bar.fillRoundedRect(barX, barY, Math.max(3, barW * progress), 4, 2);
+    }
+    container.add(bar);
+
+    // Hit target — tap to see phase tooltip (future)
+    const hit = scene.add.rectangle(x0 + pillW / 2, cy, pillW, pillH, 0x000000, 0)
+      .setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', () => {
+      // Placeholder: log the remaining-task count. A proper tooltip comes later.
+      const remaining = Math.max(0, tasksPerPhase - tasksThisPhase);
+      console.log(`[HUD] ${remaining} more tasks until ${nextPhaseLabel(currentPhase)}`);
+    });
+    container.add(hit);
+  }
+
+  // Weather pill (right of centre)
+  if (store.gardenWeather) {
+    const current = store.gardenWeather.current;
+    const pillW = 130;
+    const x0 = centre + 6;
+
+    const bg = scene.add.graphics();
+    bg.fillStyle(0x000000, 0.12);
+    bg.fillRoundedRect(x0 + 1, cy - pillH / 2 + 2, pillW, pillH, pillH / 2);
+    bg.fillStyle(0xffffff, 0.96);
+    bg.fillRoundedRect(x0, cy - pillH / 2, pillW, pillH, pillH / 2);
+    container.add(bg);
+
+    // Weather icon
+    const iconCx = x0 + pillH / 2;
+    const iconKey = WEATHER_ICON[current];
+    if (scene.textures.exists(iconKey)) {
+      scene.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
+      container.add(
+        scene.add.image(iconCx, cy, iconKey).setDisplaySize(24, 24).setOrigin(0.5),
+      );
+    } else {
+      // Unicode fallback so something always renders
+      const glyph = ({
+        sunny: '\u2600',
+        cloudy: '\u26C5',
+        overcast: '\u2601',
+        light_rain: '\u2614',
+        heavy_rain: '\u2614',
+        snow: '\u2744',
+        fog: '\u2591',
+        windy: '\u2248',
+      } as Record<Weather, string>)[current];
+      container.add(
+        scene.add.text(iconCx, cy, glyph, {
+          fontSize: '16px', fontFamily: FONTS.body,
+          color: COLOURS.text, resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5),
+      );
+    }
+
+    // Weather label
+    container.add(
+      scene.add.text(x0 + pillH + 4, cy, WEATHER_LABELS[current], {
+        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: COLOURS.text, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0, 0.5),
+    );
+  }
+}
+
+function nextPhaseLabel(phase: TimeOfDay): string {
+  const order: TimeOfDay[] = ['morning', 'afternoon', 'evening', 'night'];
+  const i = order.indexOf(phase);
+  return PHASE_LABELS[order[(i + 1) % 4]];
 }
 
 // ── Helpers ────────────────────────────────────────────────

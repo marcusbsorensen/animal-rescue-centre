@@ -31,6 +31,12 @@ import {
   placeDecoration,
   removeDecoration,
   getRoomDecorations,
+  letOutside,
+  bringInside,
+  markWet,
+  isRainy,
+  getSpeciesRainTolerance,
+  recordCareTask,
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef } from '@arc/game-logic';
 import { evaluateBadges } from '@arc/badges';
@@ -47,6 +53,7 @@ import {
   renderCollarPicker,
   renderPetCreated,
   renderAnimalDetails,
+  renderWardrobePicker,
   renderHUD,
   renderNavBar,
   renderGamesPopup,
@@ -638,10 +645,86 @@ export class GameScene extends Phaser.Scene {
       this.processing = false;
     };
 
+    // ── Garden actions ──────────────────────────────────────
+    // Letting an animal outside applies the letOutside mutation
+    // (happiness bonus + gardenZone auto-pick), records a care-task
+    // tick so the clock advances, and bounces the view into the garden
+    // so the player sees where the animal landed.
+    const doLetOutside = () => {
+      if (this.processing) return;
+      this.processing = true;
+      const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+      if (idx >= 0) {
+        this.store.animals[idx] = letOutside(
+          this.store.animals[idx],
+          this.store.animals,
+          this.store.relationships,
+        );
+        this.tickClock('garden_let_out');
+      }
+      this.closePopup();
+      this.viewMode = 'garden';
+      this.renderView();
+      this.saveState();
+      this.processing = false;
+    };
+
+    const doBringInside = () => {
+      if (this.processing) return;
+      this.processing = true;
+      const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+      if (idx >= 0) {
+        let updated = bringInside(this.store.animals[idx]);
+        // If they were outside in the rain AND their species loves rain
+        // (dogs!), flag them as wet so the shake-off comedy fires when
+        // the player next interacts with them indoors.
+        const w = this.store.gardenWeather?.current;
+        if (w && isRainy(w) && getSpeciesRainTolerance(updated.species) === 'loves') {
+          updated = markWet(updated);
+        }
+        this.store.animals[idx] = updated;
+        this.tickClock('garden_bring_in');
+      }
+      this.closePopup();
+      this.renderView();
+      this.saveState();
+      this.processing = false;
+    };
+
+    const doEquipWardrobe = () => {
+      // Open the wardrobe picker — player chooses a colour for the
+      // species' garment. Picker renders into the gameContainer on top
+      // of everything else; its own overlay blocks input to lower
+      // layers. Equip/remove/close all close the popup then re-render.
+      this.closePopup();
+      renderWardrobePicker(this, this.gameContainer, animal, {
+        onEquip: (wardrobeCode) => {
+          const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+          if (idx >= 0) {
+            this.store.animals[idx] = { ...this.store.animals[idx], wardrobe: wardrobeCode };
+            showToast(this, `${animal.name} is now dressed for the weather.`);
+          }
+          this.renderView();
+          this.saveState();
+        },
+        onRemove: () => {
+          const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+          if (idx >= 0) {
+            const next = { ...this.store.animals[idx] };
+            delete next.wardrobe;
+            this.store.animals[idx] = next;
+          }
+          this.renderView();
+          this.saveState();
+        },
+        onClose: () => this.renderView(),
+      });
+    };
+
     renderAnimalDetails(this, this.store, this.gameContainer, animal, anchor, {
       onClose: () => this.closePopup(),
-      onFeed: doFeed,
-      onPlay: doPlay,
+      onFeed: () => { doFeed(); this.tickClock('feed'); },
+      onPlay: () => { doPlay(); this.tickClock('play'); },
       onWalk: doWalk,
       onGroom: doGroom,
       onHeal: doVetVisit,
@@ -651,7 +734,34 @@ export class GameScene extends Phaser.Scene {
         this.viewMode = 'garden';
         this.renderView();
       },
+      onLetOutside: doLetOutside,
+      onBringInside: doBringInside,
+      onEquipWardrobe: doEquipWardrobe,
     });
+  }
+
+  /**
+   * Record a care-task tick against the in-game clock. If the tick
+   * advances the phase, update the weather to the new phase's forecast
+   * entry and surface a small toast so Lily sees the world respond.
+   */
+  private tickClock(task: Parameters<typeof recordCareTask>[1]): void {
+    if (!this.store.timeProgress) return;
+    const result = recordCareTask(this.store.timeProgress, task);
+    this.store.timeProgress = result.progress;
+    if (result.phaseAdvanced) {
+      // Advance weather slot to the new phase
+      if (this.store.gardenWeather) {
+        const next = this.store.gardenWeather.forecast[result.newPhase];
+        this.store.gardenWeather = {
+          ...this.store.gardenWeather,
+          current: next,
+          setAt: new Date().toISOString(),
+        };
+      }
+      const capPhase = result.newPhase[0].toUpperCase() + result.newPhase.slice(1);
+      showToast(this, `${capPhase} has come.`);
+    }
   }
 
 

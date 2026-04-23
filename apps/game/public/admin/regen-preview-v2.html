@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>A.R.C. — Regen preview v2</title>
+<style>
+  :root {
+    --bg: #f5f2ec;
+    --ink: #3a3a3a;
+    --muted: #6b6b6b;
+    --border: #d9d3c7;
+    --accept: #3D8A2E;
+    --reject: #c0392b;
+    --retry:  #e67e22;
+  }
+  body {
+    margin: 0;
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  body[data-bg="dark"] { background: #1c1c1c; color: #eee; }
+  body[data-bg="dark"] .pair { background: #2a2a2a; border-color: #444; }
+  body[data-bg="dark"] .muted { color: #bbb; }
+  body[data-bg="dark"] header { background: #1c1c1c; border-color: #444; }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg);
+    padding: 10px 0 12px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  h1 { margin: 0 0 4px 0; font-size: 18px; }
+  .status { font-size: 12px; color: var(--muted); }
+  .status b { color: var(--ink); }
+  body[data-bg="dark"] .status b { color: #eee; }
+  .controls {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin-top: 8px; font-size: 12px;
+  }
+  .controls button {
+    background: #fff; border: 1px solid var(--border);
+    padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  }
+  .controls button:hover { background: #eee; }
+  .controls button.active { background: #333; color: #fff; border-color: #333; }
+
+  .batch-heading {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 20px 0 8px 0;
+    padding: 4px 8px;
+    background: #eae3d4;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  body[data-bg="dark"] .batch-heading { background: #3a3a3a; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+    gap: 16px;
+  }
+  .pair {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    transition: box-shadow 0.15s;
+  }
+  .pair.accept { box-shadow: inset 0 0 0 3px var(--accept); }
+  .pair.reject { box-shadow: inset 0 0 0 3px var(--reject); }
+  .pair.retry  { box-shadow: inset 0 0 0 3px var(--retry); }
+  .pair h3 {
+    margin: 0 0 6px 0;
+    font-size: 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    word-break: break-all;
+  }
+  .images {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .cell {
+    background-image:
+      linear-gradient(45deg, #e5e5e5 25%, transparent 25%),
+      linear-gradient(-45deg, #e5e5e5 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e5e5e5 75%),
+      linear-gradient(-45deg, transparent 75%, #e5e5e5 75%);
+    background-size: 14px 14px;
+    background-position: 0 0, 0 7px, 7px -7px, 7px 0;
+    background-color: #f0f0f0;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  body[data-bg="dark"] .cell { background-color: #2a2a2a; border-color: #555; }
+  .cell img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .cell .label {
+    position: absolute; top: 3px; left: 4px;
+    font-size: 9px; font-weight: 700;
+    background: rgba(0,0,0,0.6); color: #fff;
+    padding: 1px 5px; border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .cell.missing { color: #c00; font-size: 11px; font-weight: 700; }
+
+  .actions { display: flex; gap: 6px; }
+  .actions button {
+    flex: 1;
+    background: #fff; border: 1px solid var(--border);
+    padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;
+    font-weight: 600;
+  }
+  .actions button[data-verdict="accept"].on { background: var(--accept); color: #fff; border-color: var(--accept); }
+  .actions button[data-verdict="reject"].on { background: var(--reject); color: #fff; border-color: var(--reject); }
+  .actions button[data-verdict="retry"].on  { background: var(--retry);  color: #fff; border-color: var(--retry); }
+
+  .notes {
+    width: 100%; margin-top: 6px;
+    font-size: 11px; padding: 4px; border: 1px solid var(--border); border-radius: 4px;
+    box-sizing: border-box;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 34px;
+  }
+
+  .muted { color: var(--muted); font-size: 11px; }
+  .filter-chip {
+    cursor: pointer; padding: 3px 8px;
+    border: 1px solid var(--border); border-radius: 12px;
+    font-size: 11px; background: #fff;
+  }
+  .filter-chip.on { background: #333; color: #fff; border-color: #333; }
+
+  pre.export-view {
+    background: #fff; border: 1px solid var(--border); border-radius: 4px;
+    padding: 12px; font-size: 11px; max-height: 80vh; overflow: auto;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+</style>
+</head>
+<body data-bg="light">
+
+<header>
+  <h1>Regen preview v2 — with reference-attached sprites</h1>
+  <div class="status" id="status">Loading…</div>
+  <div class="controls">
+    <button data-bg="light" class="active">Light</button>
+    <button data-bg="dark">Dark</button>
+    <span class="muted">|</span>
+    <span class="muted">Filter:</span>
+    <span class="filter-chip on" data-filter="all">All</span>
+    <span class="filter-chip" data-filter="unset">Pending</span>
+    <span class="filter-chip" data-filter="accept">Accepted</span>
+    <span class="filter-chip" data-filter="reject">Rejected</span>
+    <span class="filter-chip" data-filter="retry">Retry</span>
+    <span class="muted">|</span>
+    <button id="export">Export JSON</button>
+    <button id="reset">Reset all</button>
+  </div>
+</header>
+
+<main id="root"></main>
+
+<script>
+  // 42 regen sprites across 11 batches. Grouped so Marcus can eyeball a
+  // whole batch at a time — if the whole batch is bad it's a prompt issue,
+  // if only 1 is bad it's a single-file retry.
+  const BATCHES = [
+    { batch: 'calico', label: 'Calico 4-state match (sick/walking/scared/growling)', files: [
+      'cat-calico-sick.png', 'cat-calico-walking.png', 'cat-calico-scared.png', 'cat-calico-growling.png',
+    ]},
+    { batch: 'siamese', label: 'Siamese less-photoreal (arriving/growling/grumpy/sick)', files: [
+      'cat-siamese-arriving.png', 'cat-siamese-growling.png', 'cat-siamese-grumpy.png', 'cat-siamese-sick.png',
+    ]},
+    { batch: 'ginger-arriving', label: 'Ginger arriving — cartoonier', files: [
+      'cat-ginger-arriving.png',
+    ]},
+    { batch: 'collie', label: 'Collie — younger', files: [
+      'dog-collie-arriving.png', 'dog-collie-growling.png', 'dog-collie-sick.png', 'dog-collie-sleeping.png',
+    ]},
+    { batch: 'silver-fox', label: 'Silver fox — white tail tip + less detail', files: [
+      'fox-silver-arriving.png', 'fox-silver-sheltered.png', 'fox-silver-grumpy.png', 'fox-silver-sick.png',
+    ]},
+    { batch: 'pipistrelle', label: 'Pipistrelle — dark brown + sad + box not branch', files: [
+      'bat-pipistrelle-arriving.png', 'bat-pipistrelle-grumpy.png', 'bat-pipistrelle-eating.png',
+    ]},
+    { batch: 'snakes', label: 'Snakes — shabby boxes, no floor shadow, wary not happy', files: [
+      'snake-arriving.png', 'snake-sheltered.png', 'snake-garter-arriving.png',
+    ]},
+    { batch: 'singles', label: 'Singles pack — per-file fixes', files: [
+      'bat-brown-arriving.png', 'parrot-budgie-eating.png', 'bunny-lionhead-scared.png',
+      'dog-terrier-growling.png', 'snake-hognose-grumpy.png',
+    ]},
+    { batch: 'rejected-with-notes', label: 'Rejected-with-notes retries', files: [
+      'fox-silver-growling.png', 'dog-chocolate-sick.png',
+    ]},
+    { batch: 'lovebirds', label: 'Lovebirds — transparency + magenta keying', files: [
+      'parrot-lovebird-arriving.png', 'parrot-lovebird-sheltered.png', 'parrot-lovebird-eating.png',
+      'parrot-lovebird-sleeping.png', 'parrot-lovebird-walking.png', 'parrot-lovebird-growling.png',
+      'parrot-lovebird-grumpy.png', 'parrot-lovebird-scared.png', 'parrot-lovebird-sick.png',
+    ]},
+    { batch: 'macaws', label: 'Macaws — transparency (arriving/growling) + sick full redo', files: [
+      'parrot-macaw-arriving.png', 'parrot-macaw-growling.png', 'parrot-macaw-sick.png',
+    ]},
+  ];
+
+  // Flat list for counting / export
+  const ALL = BATCHES.flatMap(b => b.files.map(f => ({ file: f, batch: b.batch })));
+
+  const STORAGE_KEY = 'arc-regen-v2-verdicts';
+  let verdicts = {}, notes = {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    verdicts = parsed.verdicts || {};
+    notes = parsed.notes || {};
+  } catch (e) {}
+
+  const root = document.getElementById('root');
+  const statusEl = document.getElementById('status');
+  let activeFilter = 'all';
+
+  function mkCell(labelText, src) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const lbl = document.createElement('span');
+    lbl.className = 'label';
+    lbl.textContent = labelText;
+    cell.appendChild(lbl);
+    const img = document.createElement('img');
+    img.src = src;
+    img.addEventListener('error', () => {
+      cell.classList.add('missing');
+      img.remove();
+      cell.appendChild(document.createTextNode(' missing '));
+    });
+    cell.appendChild(img);
+    return cell;
+  }
+
+  function render() {
+    while (root.firstChild) root.removeChild(root.firstChild);
+    for (const { batch, label, files } of BATCHES) {
+      // Show batch heading
+      const heading = document.createElement('div');
+      heading.className = 'batch-heading';
+      heading.textContent = label + ' (' + files.length + ')';
+      root.appendChild(heading);
+
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+
+      for (const file of files) {
+        const verdict = verdicts[file] || 'unset';
+        if (activeFilter !== 'all' && verdict !== activeFilter) continue;
+
+        const card = document.createElement('div');
+        card.className = 'pair' + (verdict !== 'unset' ? ' ' + verdict : '');
+        card.dataset.file = file;
+
+        const h3 = document.createElement('h3');
+        h3.textContent = file;
+        card.appendChild(h3);
+
+        const images = document.createElement('div');
+        images.className = 'images';
+        images.appendChild(mkCell('CURRENT', '/assets/animals/' + file));
+        images.appendChild(mkCell('NEW', '/admin/regen-preview-v2/' + file));
+        card.appendChild(images);
+
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        for (const v of ['accept', 'retry', 'reject']) {
+          const btn = document.createElement('button');
+          btn.dataset.verdict = v;
+          btn.textContent = v === 'accept' ? '\u2713 Accept' : v === 'retry' ? '\u27F3 Retry' : '\u2717 Reject';
+          if (verdict === v) btn.classList.add('on');
+          btn.addEventListener('click', () => {
+            const current = verdicts[file] || 'unset';
+            if (current === v) delete verdicts[file];
+            else verdicts[file] = v;
+            save();
+            render();
+          });
+          actions.appendChild(btn);
+        }
+        card.appendChild(actions);
+
+        const ta = document.createElement('textarea');
+        ta.className = 'notes';
+        ta.placeholder = 'Notes for retry / reject\u2026';
+        ta.value = notes[file] || '';
+        ta.addEventListener('input', () => { notes[file] = ta.value; save(); });
+        card.appendChild(ta);
+
+        grid.appendChild(card);
+      }
+
+      if (grid.children.length > 0) root.appendChild(grid);
+    }
+    renderStatus();
+  }
+
+  function renderStatus() {
+    let accept = 0, reject = 0, retry = 0, unset = 0;
+    for (const { file } of ALL) {
+      const v = verdicts[file] || 'unset';
+      if (v === 'accept') accept++;
+      else if (v === 'reject') reject++;
+      else if (v === 'retry') retry++;
+      else unset++;
+    }
+    while (statusEl.firstChild) statusEl.removeChild(statusEl.firstChild);
+    const frag = document.createDocumentFragment();
+    function b(n) { const el = document.createElement('b'); el.textContent = String(n); return el; }
+    frag.appendChild(b(accept)); frag.appendChild(document.createTextNode(' accepted \u00B7 '));
+    frag.appendChild(b(retry));  frag.appendChild(document.createTextNode(' retry \u00B7 '));
+    frag.appendChild(b(reject)); frag.appendChild(document.createTextNode(' rejected \u00B7 '));
+    frag.appendChild(b(unset));  frag.appendChild(document.createTextNode(' pending (of ' + ALL.length + ')'));
+    statusEl.appendChild(frag);
+  }
+
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ verdicts, notes })); }
+
+  render();
+
+  for (const b of document.querySelectorAll('[data-bg]')) {
+    b.addEventListener('click', () => {
+      document.body.dataset.bg = b.dataset.bg;
+      for (const x of document.querySelectorAll('[data-bg]')) x.classList.remove('active');
+      b.classList.add('active');
+    });
+  }
+
+  for (const chip of document.querySelectorAll('.filter-chip')) {
+    chip.addEventListener('click', () => {
+      activeFilter = chip.dataset.filter;
+      for (const x of document.querySelectorAll('.filter-chip')) x.classList.remove('on');
+      chip.classList.add('on');
+      render();
+    });
+  }
+
+  document.getElementById('export').addEventListener('click', async () => {
+    const counts = { accept: 0, reject: 0, retry: 0, unset: 0 };
+    for (const { file } of ALL) counts[verdicts[file] || 'unset']++;
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      counts,
+      accepted: ALL.filter(r => verdicts[r.file] === 'accept').map(r => r.file),
+      rejected: ALL.filter(r => verdicts[r.file] === 'reject').map(r => ({ file: r.file, batch: r.batch, note: notes[r.file] || '' })),
+      retry:    ALL.filter(r => verdicts[r.file] === 'retry').map(r => ({ file: r.file, batch: r.batch, note: notes[r.file] || '' })),
+      all: verdicts,
+    };
+    const json = JSON.stringify(payload, null, 2);
+    try {
+      await navigator.clipboard.writeText(json);
+      alert('Copied to clipboard');
+    } catch (e) {
+      const w = window.open('', '_blank');
+      if (w) {
+        const pre = w.document.createElement('pre');
+        pre.className = 'export-view';
+        pre.textContent = json;
+        w.document.body.appendChild(pre);
+      } else {
+        alert(json);
+      }
+    }
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    if (!confirm('Clear all verdicts and notes?')) return;
+    verdicts = {}; notes = {};
+    localStorage.removeItem(STORAGE_KEY);
+    render();
+  });
+</script>
+</body>
+</html>

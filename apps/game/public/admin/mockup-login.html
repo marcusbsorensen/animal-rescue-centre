@@ -473,6 +473,35 @@
     z-index: 5;  /* above the grass blades */
   }
 
+  /* Flying bee — animated on its own layer above the grass, tracing a wavy
+     figure-eight path so it reads as a real bee doing a lazy circle. */
+  .bee-flyer {
+    position: absolute;
+    left: calc(50% - clamp(80px, 16cqw, 160px));
+    bottom: clamp(14px, 3cqh, 40px);
+    width: clamp(28px, 5cqh, 46px);
+    height: auto;
+    pointer-events: none;
+    z-index: 6;
+    filter: drop-shadow(2px 3px 3px rgba(0,0,0,0.25));
+    animation: beeBuzz 8s ease-in-out infinite;
+    transform-origin: center;
+    will-change: transform;
+  }
+  @keyframes beeBuzz {
+    0%   { transform: translate(0, 0)      rotate(0deg); }
+    10%  { transform: translate(40px, -18px) rotate(8deg); }
+    20%  { transform: translate(90px, -8px)  rotate(-4deg); }
+    30%  { transform: translate(140px, -24px) rotate(10deg); }
+    40%  { transform: translate(180px, 0)    rotate(-6deg); }
+    50%  { transform: translate(160px, 28px) rotate(-12deg); }
+    60%  { transform: translate(110px, 14px) rotate(6deg); }
+    70%  { transform: translate(60px, 32px)  rotate(-4deg); }
+    80%  { transform: translate(10px, 10px)  rotate(10deg); }
+    90%  { transform: translate(-30px, -8px) rotate(-6deg); }
+    100% { transform: translate(0, 0)      rotate(0deg); }
+  }
+
   /* Grass clump at the base of the stake — hand-painted tuft of blades */
   .grass-clump {
     position: absolute;
@@ -869,8 +898,11 @@
               <!-- Bunny sitting on the ground at the foot of the garden post -->
               <img class="ground-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
 
-              <!-- Painted grass clump with bee, ladybird, daisies, clover (from Manus) -->
+              <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
               <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
+
+              <!-- Flying bee on its own animated layer above the grass -->
+              <img class="bee-flyer" src="/admin/mockup-assets/bee-flying.png" alt="" aria-hidden="true">
             </div>
           </div>
         </div>

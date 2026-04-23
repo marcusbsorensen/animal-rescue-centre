@@ -6,6 +6,8 @@ import type {
   Economy,
   PlacedDecoration,
   AnimalRelationship,
+  TimeProgress,
+  GardenWeather,
 } from '@arc/shared-types';
 import {
   getSpeciesUnlocksForLevel,
@@ -16,6 +18,10 @@ import {
   isDailyReset,
   resetDailySessions,
   relationshipsFromSiblingIds,
+  createTimeProgress,
+  generateDailyWeather,
+  countFullyBondedPets,
+  isWeekend,
 } from '@arc/game-logic';
 import type { IllnessDef } from '@arc/game-logic';
 import { getSession } from '../lib/auth';
@@ -106,6 +112,12 @@ export async function loadGameState(
       } else {
         store.relationships = relationshipsFromSiblingIds(store.animals);
       }
+      if (saved.timeProgress && typeof saved.timeProgress === 'object') {
+        store.timeProgress = saved.timeProgress as TimeProgress;
+      }
+      if (saved.gardenWeather && typeof saved.gardenWeather === 'object') {
+        store.gardenWeather = saved.gardenWeather as GardenWeather;
+      }
     }
     return true;
   };
@@ -162,6 +174,22 @@ function initialiseSubsystems(store: GameStateStore): void {
   if (isDailyReset(store.calendar, new Date())) {
     store.depot = resetDailySessions(store.depot);
   }
+
+  // Time progress — task-driven clock. Init on first load; refreshed
+  // elsewhere when level or helper-count changes.
+  if (!store.timeProgress) {
+    store.timeProgress = createTimeProgress(store.level, {
+      fullyBondedPets: countFullyBondedPets(store.animals),
+      isWeekend: isWeekend(new Date()),
+    });
+  }
+
+  // Daily weather — re-roll when the in-game day changes.
+  const today = store.calendar.currentInGameDate;
+  const todayKey = `${today.year}-${String(today.month).padStart(2, '0')}-${String(today.day).padStart(2, '0')}`;
+  if (!store.gardenWeather || store.gardenWeather.forDay !== todayKey) {
+    store.gardenWeather = generateDailyWeather(today, store.calendar.currentSeason);
+  }
 }
 
 // ── Save ──────────────────────────────────────────────────────
@@ -209,6 +237,8 @@ export async function saveGameState(
           economy: store.economy,
           placedDecorations: store.placedDecorations,
           relationships: store.relationships,
+          timeProgress: store.timeProgress,
+          gardenWeather: store.gardenWeather,
         },
         level: store.level,
         updated_at: new Date().toISOString(),

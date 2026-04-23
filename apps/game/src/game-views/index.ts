@@ -13,6 +13,8 @@ export { renderCollarPicker, renderPetCreated } from './CollarPickerView';
 export type { CollarPickerCallbacks, PetCreatedCallbacks } from './CollarPickerView';
 export { renderAnimalDetails } from './AnimalDetailsPopup';
 export type { AnimalDetailsCallbacks } from './AnimalDetailsPopup';
+export { renderWardrobePicker } from './WardrobePickerView';
+export type { WardrobePickerCallbacks } from './WardrobePickerView';
 export { renderHUD } from './HUDView';
 export type { HUDCallbacks } from './HUDView';
 export { renderNavBar, renderGamesPopup, showQuickToast } from './NavBarView';

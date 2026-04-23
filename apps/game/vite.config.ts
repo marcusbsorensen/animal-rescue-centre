@@ -30,8 +30,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,jpg,svg,woff2}'],
-        globIgnores: ['**/*-preview/**', '**/_backup*/**', '**/reference/**', '**/samples/**'],
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        globIgnores: ['**/*-preview/**', '**/*-preview-v2/**', '**/regen-v3-sprites/**', '**/_backup*/**', '**/reference/**', '**/samples/**'],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         // Don't let the SPA app-shell fallback hijack admin tools, JSON data
         // files, or the 404 page — we want the real file (or Vercel's 404) to
         // win for these routes instead of returning index.html from cache.

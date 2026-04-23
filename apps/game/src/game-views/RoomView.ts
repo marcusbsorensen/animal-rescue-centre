@@ -61,8 +61,10 @@ export function renderRoom(
 ): void {
   const { width, height } = scene.scale;
   const species = ctx.species;
+  // Hide outsiders — animals currently let out into the garden
+  // shouldn't appear in their indoor room. They render in GardenView.
   const roomAnimals = store.animals.filter(
-    (a) => a.species === species && a.state !== 'arriving',
+    (a) => a.species === species && a.state !== 'arriving' && !a.outsideAt,
   );
 
   // ── Background ───────────────────────────────────────────

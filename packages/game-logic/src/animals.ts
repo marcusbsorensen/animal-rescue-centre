@@ -84,7 +84,7 @@ export const SPECIES_VARIANTS: Record<Species, string[]> = {
   cat: ['ginger', 'black', 'calico', 'grey', 'siamese', 'white', 'tuxedo', 'tortie'],
   dog: ['golden', 'dalmatian', 'chocolate', 'beagle', 'husky', 'pug', 'collie', 'terrier'],
   fox: ['red', 'arctic', 'silver', 'cross', 'marble', 'fennec'],
-  bunny: ['dutch', 'lop', 'lionhead', 'rex', 'angora', 'spotted'],
+  bunny: ['dutch', 'lop', 'lionhead', 'rex', 'angora', 'spotted', 'arctic'],
   bat: ['brown', 'fruit', 'longeared', 'pipistrelle', 'white'],
   parrot: ['budgie', 'cockatiel', 'grey', 'macaw', 'lovebird'],
   snake: ['corn', 'python', 'king', 'garter', 'hognose'],
