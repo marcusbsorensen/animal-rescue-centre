@@ -123,9 +123,12 @@ describe('conflict edge cases', () => {
       makeAnimal({ id: 'a1', happiness: 10 }),
       makeAnimal({ id: 'a2', happiness: 10 }),
     ];
-    // With low happiness, should eventually spawn
+    // With low happiness the per-call spawn chance is ~0.0067
+    // (0.0025 base + 0.833·0.005 unhappiness, zero crowding at 2 animals).
+    // 500 trials has a ~3.5% miss rate on CI — flaky. 3000 trials drops
+    // the miss probability below 1e-8 while still completing in <10ms.
     let spawned = false;
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < 3000; i++) {
       if (shouldSpawnConflict(animals)) { spawned = true; break; }
     }
     expect(spawned).toBe(true);

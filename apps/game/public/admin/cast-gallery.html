@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Rehoming Cast Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #fef9ef; font-family: 'Quicksand', system-ui, sans-serif; color: #3a3a3a; }
+  body { min-height: 100vh; padding: 20px clamp(12px, 3vw, 40px) 60px; }
+  header {
+    max-width: 1400px; margin: 0 auto 24px;
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  h1 { font-family: 'Fredoka', sans-serif; font-weight: 700; color: #2a6e26; font-size: clamp(22px, 3vw, 30px); }
+  .sub { font-family: 'Caveat', cursive; color: #6b4820; font-size: clamp(16px, 1.8vw, 20px); }
+  .meta { margin-left: auto; font-size: 13px; color: #6b6b6b; font-style: italic; }
+  .grid {
+    max-width: 1400px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  .card {
+    background: #fffaf0;
+    border: 2px solid #e2c28a;
+    border-radius: 14px;
+    padding: 10px;
+    display: flex; flex-direction: column; gap: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+  .card img {
+    width: 100%; aspect-ratio: 1; object-fit: contain;
+    background: linear-gradient(180deg, #fef9ef 0%, #f3e8cc 100%);
+    border-radius: 10px;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  .id { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: #a08a60; letter-spacing: 0.05em; }
+  .name { font-family: 'Fredoka', sans-serif; font-weight: 600; color: #2a6e26; font-size: 15px; line-height: 1.2; }
+  .blurb { font-size: 12px; color: #6b5a4a; line-height: 1.3; }
+  .card a {
+    display: inline-block;
+    font-family: 'Caveat', cursive;
+    color: #6b4820; font-size: 13px;
+    text-decoration: none; margin-top: auto;
+    padding-top: 4px;
+  }
+  .card a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <h1>A.R.C. Rehoming Cast</h1>
+  <span class="sub">30 households · Phase 1 neutral portraits</span>
+  <span class="meta">See <a href="/../docs/rehoming-cast.md">rehoming-cast.md</a> for traits &amp; stories</span>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<script>
+  const CAST = [
+    { id: '01-priya', name: 'Priya Kaur', blurb: 'Wheelchair user, 32, quiet flat, cat-experienced' },
+    { id: '02-jan', name: 'Jan Lindqvist', blurb: 'Beekeeper, 45, garden-rich · wants a bunny' },
+    { id: '03-nova', name: 'Nova Adebayo', blurb: 'Non-binary illustrator, 22, studio cat please' },
+    { id: '04-babcia', name: 'Babcia Basia Kowalska', blurb: 'Polish grandma, 72, lap-cat forever home' },
+    { id: '05-finn', name: 'Finn O\'Malley', blurb: 'Trans man runner, 29, needs a running dog' },
+    { id: '06-hiro', name: 'Hiroshi Nakamura', blurb: 'Bereaved fisherman, 62, gentle senior cat' },
+    { id: '07-patel-greens', name: 'Patel-Greens', blurb: 'Couple (she/her + they/them), peaceful retirement cat' },
+    { id: '08-walkers', name: 'Chris & Jamie Walker', blurb: 'Two-dad couple, experienced, second dog' },
+    { id: '09-okonkwo-harts', name: 'Okonkwo-Harts', blurb: 'First-time parents, playful kitten' },
+    { id: '10-dani-rex', name: 'Dani & Rex', blurb: 'Tomboy + gentle VFX artist, farmhouse dog' },
+    { id: '11-vargas-chen', name: 'Vargas-Chen family', blurb: 'Maya, Kai + Lucia (11) + Ronan (8), robust dog' },
+    { id: '12-odenkirks', name: 'The Odenkirks', blurb: 'Helen (MS) + autistic teen Bo, quiet snake/parrot' },
+    { id: '13-kumar-ishii', name: 'Kumar-Ishii family', blurb: 'Two mums + tree-climbing Amara (9), second cat' },
+    { id: '14-theo-grandkids', name: 'Grandpa Theo & grandkids', blurb: 'Weekend visitors, gentle family dog' },
+    { id: '15-khans', name: 'The Khan family', blurb: 'Returning donors, drop off toys & photos' },
+    { id: '16-tata', name: 'Ana "Tata" Silva', blurb: 'Farmer, former border collie adopter, repeats' },
+    { id: '17-benji', name: 'Ben "Benji" Mackenzie', blurb: 'Trans rewilder, brings wild-visit reports' },
+    { id: '18-tali', name: 'Avital "Tali" Rosenberg', blurb: 'Jewish pottery teacher, studio cat' },
+    { id: '19-linny', name: 'Mei Lin "Linny" Chow', blurb: 'British-Chinese food blogger, photogenic kitten' },
+    { id: '20-lei', name: 'Leilani "Lei" Kealoha', blurb: 'Hawaiian ukulele teacher in Cornwall, lap cat' },
+    { id: '21-mara', name: 'Mariama "Mara" Diop', blurb: 'Senegalese seamstress, shop dog' },
+    { id: '22-yilmaz', name: 'Cem & Leyla Yılmaz', blurb: 'Turkish baker + nurse, cozy cat' },
+    { id: '23-wiri-harper', name: 'Wiri & Harper', blurb: 'Maori ranger + nb biologist, field-trip dog' },
+    { id: '24-perera-fernando', name: 'Perera-Fernando family', blurb: 'Sri Lankan, twins (9), calm family dog' },
+    { id: '25-bramble-house', name: 'The Bramble House', blurb: 'Four mature students, chill study cat' },
+    { id: '26-aisha-childrens-home', name: 'Sunnybrook Children\'s Home', blurb: 'Aisha Hassan rep · gentle dog for 6 kids' },
+    { id: '27-tomas-care-home', name: 'Oak Lodge Care Home', blurb: 'Tom Rivera rep · therapy cat for elders' },
+    { id: '28-iris-teacher', name: 'Ms. Popescu\'s Year 3', blurb: 'Romanian teacher · class corn snake or parrot' },
+    { id: '29-wenna', name: 'Wenna Treloar', blurb: 'Cornish lighthouse keeper, shaggy sea-dog' },
+    { id: '30-two-houses', name: 'Marcus, Gosia & Rhubarb', blurb: 'Two-houses family · adaptable travelling pet' },
+  ];
+
+  const grid = document.getElementById('grid');
+  for (const c of CAST) {
+    const card = document.createElement('div'); card.className = 'card';
+    const img = document.createElement('img');
+    img.src = `/admin/mockup-assets/cast/${c.id}.png`;
+    img.alt = c.name;
+    img.loading = 'lazy';
+    card.appendChild(img);
+    const id = document.createElement('span'); id.className = 'id'; id.textContent = '#' + c.id.split('-')[0];
+    card.appendChild(id);
+    const name = document.createElement('div'); name.className = 'name'; name.textContent = c.name;
+    card.appendChild(name);
+    const blurb = document.createElement('div'); blurb.className = 'blurb'; blurb.textContent = c.blurb;
+    card.appendChild(blurb);
+    const orig = document.createElement('a');
+    orig.href = `/admin/mockup-assets/cast/original/${c.id}.png`;
+    orig.target = '_blank';
+    orig.textContent = 'view 1024 original →';
+    card.appendChild(orig);
+    grid.appendChild(card);
+  }
+</script>
+</body>
+</html>
