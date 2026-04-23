@@ -93,8 +93,8 @@ Once the roster is frozen, the batch plan:
 
 All generated via the GPT-Image-1.5 pipeline with 2-3 reference images of the painted animals to lock the art style. Same regen script family as `tools/regen-play-poses.sh`.
 
-## Open questions
+## Decisions (locked 2026-04-23)
 
-- **Dynamic matching or curated pairings?** Does the game decide from traits which characters appear for a given animal, or are some iconic pairings hand-authored (e.g. Tata Silva always gets the best border collies)?
-- **Relationship evolution** — can a casual visitor become an adopter over time if the player keeps engaging them?
-- **Rewilding + humans** — can a rewilded animal return when Benji brings them back for a visit? Or is "wild" permanent?
+- **Dynamic matching.** The game picks which adopter shows up for a given animal based on trait fit from the pool of 17 households. No hand-authored pairings — every match is earned by the player preparing the animal appropriately.
+- **Visitors can become adopters.** A character who starts as a casual visitor / donor (e.g. Theo brings his grandkids to visit, Khan drops off donations) can *evolve* into an adopter over time if the player keeps engaging them warmly. This creates a slow-burn relationship arc — kids learn that trust is built gradually.
+- **Rewilded animals may return to visit — but stay outdoors.** A rewilded animal accompanying its rewilder (e.g. Benji bringing his fox back) plays only in the garden / outdoor zones. They don't come back into the rescue rooms. Reinforces "they live free now" while still allowing the player to see them and feel the bond.
