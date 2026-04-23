@@ -64,7 +64,18 @@ export interface AnimalDetailsCallbacks {
    * handled by the scene; this popup just triggers it.
    */
   onEquipWardrobe: () => void;
+
+  /**
+   * Open the Paths panel (Forever family / Rewild / Stay at A.R.C.).
+   * Only shown for shelter animals whose bondLevel has reached ≥ 50 —
+   * the player has "earned knowing this animal" and can aspire to a
+   * future for them.
+   */
+  onOpenPaths?: () => void;
 }
+
+/** Bond level at which the Paths panel unlocks. */
+const PATHS_UNLOCK_BOND = 50;
 
 export function renderAnimalDetails(
   scene: Phaser.Scene,
@@ -367,6 +378,17 @@ export function renderAnimalDetails(
           `Get a ${garment} — weather needs it`,
           () => callbacks.onEquipWardrobe(),
           { width: 250, fontSize: '13px', bgColour: '#8B6914' }),
+      );
+      extraY += 46;
+    }
+
+    // ── Future paths — unlocks at bondLevel ≥ 50 ───────────
+    if (animal.bondLevel >= PATHS_UNLOCK_BOND && callbacks.onOpenPaths) {
+      container.add(
+        createButton(scene, panelLeft + panelW / 2, extraY,
+          `💫 What will ${animal.name} become?`,
+          () => callbacks.onOpenPaths!(),
+          { width: 250, fontSize: '13px', bgColour: '#8a6eb2' }),
       );
       extraY += 46;
     }

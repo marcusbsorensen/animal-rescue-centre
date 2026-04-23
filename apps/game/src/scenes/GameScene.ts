@@ -39,6 +39,7 @@ import {
   recordCareTask,
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef } from '@arc/game-logic';
+import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
 import { evaluateBadges } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
@@ -737,7 +738,85 @@ export class GameScene extends Phaser.Scene {
       onLetOutside: doLetOutside,
       onBringInside: doBringInside,
       onEquipWardrobe: doEquipWardrobe,
+      onOpenPaths: () => {
+        this.closePopup();
+        this.openPathsOverlay(animal);
+      },
     });
+  }
+
+  /**
+   * Mount the HTML Paths panel as an iframe overlay over Phaser.
+   * Aspiring to a path will be persisted when we wire the store side;
+   * for now the ceremony / adopter flows chain off the aspiration choice.
+   */
+  private openPathsOverlay(animal: Animal): void {
+    const unmount = mountInGame('paths', {
+      onAction: (action) => {
+        if (action === 'close' || action === 'back-to-menu') {
+          unmount();
+          return;
+        }
+        if (action === 'aspire-rehome') {
+          unmount();
+          this.openAdoptersOverlay(animal);
+          return;
+        }
+        if (action === 'aspire-rewild') {
+          unmount();
+          this.openRewildingOverlay(animal);
+          return;
+        }
+        if (action === 'aspire-stay') {
+          // Staying at A.R.C. — for now just dismiss; persistence TODO.
+          unmount();
+          return;
+        }
+      },
+    }, { animalName: animal.name, animalSpecies: animal.species, bond: animal.bondLevel });
+    this.events.once('shutdown', unmountInGame);
+  }
+
+  private openAdoptersOverlay(animal: Animal): void {
+    const unmount = mountInGame('adopters', {
+      onAction: (action, payload) => {
+        if (action === 'back-to-menu') { unmount(); return; }
+        if (action === 'meet-adopter') {
+          unmount();
+          this.openAdoptionOverlay(animal, (payload?.id as string) ?? '');
+          return;
+        }
+      },
+    }, { animalName: animal.name, animalSpecies: animal.species });
+    this.events.once('shutdown', unmountInGame);
+  }
+
+  private openAdoptionOverlay(animal: Animal, householdId: string): void {
+    const unmount = mountInGame('adoption', {
+      onAction: (action) => {
+        if (action === 'adoption-cancel') { unmount(); return; }
+        if (action === 'adoption-confirm') {
+          // TODO: remove animal from store, update history, etc.
+          unmount();
+          return;
+        }
+      },
+    }, { animalId: animal.id, animalName: animal.name, householdId });
+    this.events.once('shutdown', unmountInGame);
+  }
+
+  private openRewildingOverlay(animal: Animal): void {
+    const unmount = mountInGame('rewilding', {
+      onAction: (action) => {
+        if (action === 'rewild-cancel') { unmount(); return; }
+        if (action === 'rewild-confirm') {
+          // TODO: remove animal from store + record in rewilded list.
+          unmount();
+          return;
+        }
+      },
+    }, { animalId: animal.id, animalName: animal.name });
+    this.events.once('shutdown', unmountInGame);
   }
 
   /**

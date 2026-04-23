@@ -1200,12 +1200,35 @@
   const params = new URLSearchParams(location.search);
   if (params.has('embed')) {
     document.body.classList.add('embed');
-    const send = (type) => {
-      try { parent.postMessage({ source: 'arc-auth', type }, '*'); } catch (_) {}
+    const send = (type, payload) => {
+      try { parent.postMessage({ source: 'arc-game', type, payload }, '*'); } catch (_) {}
     };
-    document.querySelector('.btn-primary')?.addEventListener('click', () => send('play'));
-    document.querySelector('.link-btn.outlined')?.addEventListener('click', () => send('login'));
-    document.querySelector('.link-btn.plank-sage')?.addEventListener('click', () => send('signup'));
+    // Path-card click — map each card to an aspire-* action.
+    const pathToAction = { rehome: 'aspire-rehome', rewild: 'aspire-rewild', work: 'aspire-stay' };
+    for (const card of document.querySelectorAll('.path-card')) {
+      card.addEventListener('click', () => {
+        const path = card.dataset.path;
+        const stateEl = card.querySelector('.path-state');
+        // Block locked cards from firing (e.g. "Not for collies").
+        if (stateEl && stateEl.classList.contains('path-state-locked')) return;
+        const type = pathToAction[path];
+        if (type) send(type, { path });
+      });
+    }
+    // "← Back to Luna" button
+    document.querySelector('[data-action="close"]')?.addEventListener('click', () => send('close'));
+    // Personalise the title from ?animalName=… if the host sent an init payload
+    window.addEventListener('message', (e) => {
+      const m = e.data;
+      if (m?.source !== 'arc-game-host' || m.type !== 'init' || !m.payload) return;
+      const name = typeof m.payload.animalName === 'string' ? m.payload.animalName : null;
+      if (name) {
+        const titleEl = document.querySelector('.paths-title');
+        if (titleEl) titleEl.textContent = `What will ${name} become?`;
+        const backBtn = document.querySelector('[data-action="close"]');
+        if (backBtn) backBtn.textContent = `← Back to ${name}`;
+      }
+    });
   }
 </script>
 </body>
