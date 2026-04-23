@@ -67,6 +67,13 @@ export interface Animal {
    * species in winter — see game-logic/weather.ts needsCoat().
    */
   wardrobe?: string;
+
+  /**
+   * The future the player is aspiring to for this animal. Set when the
+   * player picks a path card on the Paths panel (bond ≥ 50 unlocks it).
+   * Non-committing — can be changed any time until the final ceremony.
+   */
+  aspiration?: 'rehome' | 'rewild' | 'stay';
 }
 
 export type GardenZone = 'lawn' | 'quiet';

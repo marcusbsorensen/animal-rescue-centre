@@ -42,7 +42,7 @@ interface ManifestEntry {
 // is a per-variant sprite.
 const ANIMAL_STATES = new Set([
   'arriving', 'sheltered', 'eating', 'sleeping', 'walking',
-  'growling', 'grumpy', 'scared', 'sick',
+  'growling', 'grumpy', 'scared', 'sick', 'playing',
 ]);
 
 export class AssetLoader {

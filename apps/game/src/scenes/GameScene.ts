@@ -13,7 +13,6 @@ import {
   getRequiredRescuesForLevel,
   tickNeeds,
   applyFeeding,
-  applyPlay,
   calculateBondIncrease,
   isSiblingPresent,
   pickConflictPair,
@@ -570,21 +569,17 @@ export class GameScene extends Phaser.Scene {
 
     const doPlay = () => {
       if (this.processing) return;
-      this.processing = true;
-      const idx = this.store.animals.findIndex((a) => a.id === animal.id);
-      if (idx >= 0) {
-        this.store.animals[idx] = applyPlay(this.store.animals[idx]);
-        const sibPresent = isSiblingPresent(this.store.animals[idx], this.store.animals)
-          || hasAllyPresent(this.store.relationships, this.store.animals[idx], this.store.animals, 'friend');
-        const bondGain = calculateBondIncrease(this.store.animals[idx], 'play', sibPresent);
-        this.store.animals[idx].bondLevel = Math.min(100, this.store.animals[idx].bondLevel + bondGain);
-        AudioManager.getInstance().playSfx('animal_happy');
-        if (sibPresent) showToast(this, '💫 Sibling nearby — extra bond!');
-        this.checkBondComplete(this.store.animals[idx]);
-      }
       this.closePopup();
-      this.renderView();
-      this.processing = false;
+      this.saveState();
+      this.scene.start('PlayScene', {
+        animal,
+        allAnimals: this.store.animals,
+        onComplete: (updatedAnimals: Animal[], _result: { perfect: boolean }) => {
+          this.store.animals = updatedAnimals;
+          this.checkBadges();
+          this.saveState();
+        },
+      });
     };
 
     const doWalk = () => {
@@ -758,17 +753,21 @@ export class GameScene extends Phaser.Scene {
           return;
         }
         if (action === 'aspire-rehome') {
+          this.setAspiration(animal, 'rehome');
           unmount();
           this.openAdoptersOverlay(animal);
           return;
         }
         if (action === 'aspire-rewild') {
+          this.setAspiration(animal, 'rewild');
           unmount();
           this.openRewildingOverlay(animal);
           return;
         }
         if (action === 'aspire-stay') {
-          // Staying at A.R.C. — for now just dismiss; persistence TODO.
+          // Aspiration saved — final commit happens later via a working-
+          // animal slot. For now dismiss back to the game.
+          this.setAspiration(animal, 'stay');
           unmount();
           return;
         }
@@ -796,7 +795,7 @@ export class GameScene extends Phaser.Scene {
       onAction: (action) => {
         if (action === 'adoption-cancel') { unmount(); return; }
         if (action === 'adoption-confirm') {
-          // TODO: remove animal from store, update history, etc.
+          this.commitAdoption(animal, householdId);
           unmount();
           return;
         }
@@ -810,13 +809,62 @@ export class GameScene extends Phaser.Scene {
       onAction: (action) => {
         if (action === 'rewild-cancel') { unmount(); return; }
         if (action === 'rewild-confirm') {
-          // TODO: remove animal from store + record in rewilded list.
+          this.commitRewilding(animal);
           unmount();
           return;
         }
       },
     }, { animalId: animal.id, animalName: animal.name });
     this.events.once('shutdown', unmountInGame);
+  }
+
+  /** Persist a non-committing aspiration onto the animal. Can be changed. */
+  private setAspiration(animal: Animal, aspiration: 'rehome' | 'rewild' | 'stay'): void {
+    const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+    if (idx < 0) return;
+    this.store.animals[idx] = { ...this.store.animals[idx], aspiration };
+    this.saveState();
+  }
+
+  /** Commit: remove animal from centre, record in rehomed history, save. */
+  private commitAdoption(animal: Animal, householdId: string): void {
+    const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+    if (idx < 0) return;
+    const a = this.store.animals[idx];
+    this.store.rehomed.push({
+      animalId: a.id,
+      animalName: a.name,
+      species: a.species,
+      variant: a.variant,
+      householdId,
+      date: Date.now(),
+    });
+    this.store.animals.splice(idx, 1);
+    this.store.sickAnimals.delete(a.id);
+    AudioManager.getInstance().playSfx('animal_happy');
+    showToast(this, `💚 ${a.name} found their forever home!`);
+    this.saveState();
+    this.renderView();
+  }
+
+  /** Commit: remove animal from centre, record in rewilded list, save. */
+  private commitRewilding(animal: Animal): void {
+    const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+    if (idx < 0) return;
+    const a = this.store.animals[idx];
+    this.store.rewilded.push({
+      animalId: a.id,
+      animalName: a.name,
+      species: a.species,
+      variant: a.variant,
+      date: Date.now(),
+    });
+    this.store.animals.splice(idx, 1);
+    this.store.sickAnimals.delete(a.id);
+    AudioManager.getInstance().playSfx('animal_happy');
+    showToast(this, `🌲 ${a.name} is running free in the wild — they'll come to visit!`);
+    this.saveState();
+    this.renderView();
   }
 
   /**

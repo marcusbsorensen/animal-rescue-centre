@@ -73,4 +73,41 @@ export class GameStateStore {
    * for back-compat; populated by loadSaveState.
    */
   gardenWeather?: GardenWeather;
+
+  /**
+   * Animals who have found their forever family. Kept on the save so
+   * they can return as visitors (photos, playdates, second-adoption
+   * approaches) and so the player sees their lifetime impact.
+   */
+  rehomed: Array<{
+    animalId: string;
+    animalName: string;
+    species: Species;
+    variant?: string;
+    householdId: string;
+    date: number;        // epoch ms of the adoption
+  }> = [];
+
+  /**
+   * Animals released back to the wild. They can return as garden-only
+   * visitors once the "visit in the wild" mechanic lands.
+   */
+  rewilded: Array<{
+    animalId: string;
+    animalName: string;
+    species: Species;
+    variant?: string;
+    date: number;
+  }> = [];
+
+  /**
+   * Animals who stay at A.R.C. in a working role (therapy, mouser,
+   * greeter, etc.). Still visible in the centre but gated from
+   * adoption / rewilding flows.
+   */
+  workingAnimals: Array<{
+    animalId: string;
+    role: 'therapy' | 'greeter' | 'mouser' | 'ambassador';
+    sinceDate: number;
+  }> = [];
 }
