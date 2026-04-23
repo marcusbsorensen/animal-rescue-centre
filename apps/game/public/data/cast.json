@@ -1,0 +1,72 @@
+{
+  "$schema": "./cast.schema.json",
+  "__comment": "Source of truth for the rehoming cast — what they want, what they carry, what's visible in their portrait. Runtime-loadable. Regenerate tags after the full-regen pass to reflect the final portraits.",
+  "categories": {
+    "solo": "Single-adult adopter",
+    "couple": "Two-adult romantic household",
+    "family": "Adults + children",
+    "housemates": "Adults sharing a house, not romantic",
+    "institutional": "Adopting on behalf of a residence / classroom",
+    "return-visitor": "Already connected to A.R.C. — periodic visits / donations",
+    "two-houses": "Co-parenting across two homes, shared pet"
+  },
+  "traits_vocabulary": [
+    "active-outdoors", "quiet-patient", "cozy-lap", "kids-family",
+    "experienced-handler", "first-time", "garden-rural", "flat-urban",
+    "creative-chaos", "specific-interest", "shared-care", "bird-welcoming",
+    "dual-home", "travels-well", "routine-predictable", "therapy-household",
+    "classroom-routine", "coastal-remote"
+  ],
+  "species_vocabulary": ["cat", "dog", "bunny", "fox", "bat", "parrot", "snake"],
+  "props_vocabulary": [
+    "wheelchair", "cane", "crutches", "walking-frame",
+    "hearing-aids", "glasses", "headphones", "noise-cancelling-headphones",
+    "book", "notebook", "camera", "clipboard", "laptop-bag",
+    "mug", "teacup", "water-bottle",
+    "kettlebell", "skateboard", "running-kit",
+    "apron", "housecoat", "cardigan", "scrubs", "overalls", "boubou",
+    "walking-stick", "lanyard", "stethoscope", "pencil",
+    "pounamu-pendant", "hibiscus-flower", "bee-pin", "tape-measure",
+    "carrier-bag", "donation-box", "wildlife-photo", "field-guide",
+    "ukulele", "paint-splatter", "clay-dust", "flour-dust"
+  ],
+  "cast": [
+    { "id": "01-priya",               "name": "Priya Kaur",                   "category": "solo",           "members": 1, "traits": ["quiet-patient", "flat-urban", "experienced-handler"], "species": ["cat", "dog"], "props": ["wheelchair", "laptop-bag"], "free_hand": "left" },
+    { "id": "02-jan",                 "name": "Jan Lindqvist",                "category": "solo",           "members": 1, "traits": ["garden-rural", "quiet-patient", "experienced-handler"], "species": ["bunny", "snake"], "props": ["cardigan", "bee-pin"], "free_hand": "both" },
+    { "id": "03-nova",                "name": "Nova Adebayo",                 "category": "solo",           "members": 1, "traits": ["creative-chaos", "flat-urban", "first-time"], "species": ["cat"], "props": ["paint-splatter", "mug"], "free_hand": "right" },
+    { "id": "04-babcia",              "name": "Babcia Basia Kowalska",        "category": "solo",           "members": 1, "traits": ["cozy-lap", "quiet-patient"], "species": ["cat", "dog"], "props": ["cane", "apron"], "free_hand": "left" },
+    { "id": "05-finn",                "name": "Finn O'Malley",                "category": "solo",           "members": 1, "traits": ["active-outdoors"], "species": ["dog"], "props": ["running-kit", "water-bottle"], "free_hand": "left" },
+    { "id": "06-hiro",                "name": "Hiroshi Nakamura",             "category": "solo",           "members": 1, "traits": ["quiet-patient", "cozy-lap"], "species": ["cat"], "props": ["hearing-aids", "book"], "free_hand": "right" },
+
+    { "id": "18-tali",                "name": "Avital 'Tali' Rosenberg",      "category": "solo",           "members": 1, "traits": ["creative-chaos", "first-time"], "species": ["cat"], "props": ["clay-dust", "apron"], "free_hand": "both" },
+    { "id": "19-linny",               "name": "Mei Lin 'Linny' Chow",         "category": "solo",           "members": 1, "traits": ["flat-urban", "first-time"], "species": ["cat"], "props": ["camera", "notebook"], "free_hand": "right" },
+    { "id": "20-lei",                 "name": "Leilani 'Lei' Kealoha",        "category": "solo",           "members": 1, "traits": ["cozy-lap", "bird-welcoming"], "species": ["parrot"], "props": ["cane", "hibiscus-flower", "ukulele"], "free_hand": "right" },
+    { "id": "21-mara",                "name": "Mariama 'Mara' Diop",          "category": "solo",           "members": 1, "traits": ["creative-chaos", "bird-welcoming", "experienced-handler"], "species": ["parrot"], "props": ["boubou", "tape-measure"], "free_hand": "both" },
+    { "id": "29-wenna",               "name": "Wenna Treloar",                "category": "solo",           "members": 1, "traits": ["coastal-remote", "experienced-handler", "active-outdoors"], "species": ["dog"], "props": [], "free_hand": "both" },
+
+    { "id": "07-patel-greens",        "name": "Patel-Greens",                 "category": "couple",         "members": 2, "traits": ["quiet-patient", "experienced-handler"], "species": ["cat"], "props": [], "free_hand": "both" },
+    { "id": "08-walkers",             "name": "Chris & Jamie Walker",         "category": "couple",         "members": 2, "traits": ["experienced-handler", "garden-rural"], "species": ["dog"], "props": ["pencil"], "free_hand": "both" },
+    { "id": "09-okonkwo-harts",       "name": "Okonkwo-Harts",                "category": "couple",         "members": 2, "traits": ["first-time", "cozy-lap"], "species": ["cat"], "props": ["apron", "flour-dust"], "free_hand": "both" },
+    { "id": "10-dani-rex",            "name": "Dani & Rex",                   "category": "couple",         "members": 2, "traits": ["active-outdoors", "garden-rural", "experienced-handler"], "species": ["dog"], "props": ["glasses"], "free_hand": "both" },
+    { "id": "22-yilmaz",              "name": "Cem & Leyla Yılmaz",           "category": "couple",         "members": 2, "traits": ["cozy-lap", "quiet-patient"], "species": ["cat"], "props": ["apron", "flour-dust", "lanyard"], "free_hand": "both" },
+    { "id": "23-wiri-harper",         "name": "Wiri & Harper",                "category": "couple",         "members": 2, "traits": ["active-outdoors", "garden-rural", "experienced-handler"], "species": ["dog"], "props": ["pounamu-pendant", "clipboard"], "free_hand": "both" },
+
+    { "id": "11-vargas-chen",         "name": "Vargas-Chen family",           "category": "family",         "members": 4, "traits": ["kids-family", "active-outdoors"], "species": ["dog"], "props": [], "free_hand": "both" },
+    { "id": "12-odenkirks",           "name": "The Odenkirks",                "category": "family",         "members": 2, "traits": ["quiet-patient", "specific-interest", "routine-predictable"], "species": ["snake", "parrot", "cat"], "props": ["cane", "noise-cancelling-headphones", "field-guide"], "free_hand": "both" },
+    { "id": "13-kumar-ishii",         "name": "Kumar-Ishii family",           "category": "family",         "members": 3, "traits": ["kids-family", "experienced-handler"], "species": ["cat"], "props": ["scrubs", "notebook"], "free_hand": "both" },
+    { "id": "14-theo-grandkids",      "name": "Grandpa Theo & grandkids",     "category": "family",         "members": 3, "traits": ["kids-family", "quiet-patient", "first-time"], "species": ["dog"], "props": [], "free_hand": "both" },
+    { "id": "24-perera-fernando",     "name": "Perera-Fernando family",       "category": "family",         "members": 4, "traits": ["kids-family", "quiet-patient", "first-time"], "species": ["dog", "cat"], "props": ["glasses"], "free_hand": "both" },
+
+    { "id": "25-bramble-house",       "name": "Bramble House housemates",     "category": "housemates",     "members": 4, "traits": ["shared-care", "quiet-patient", "creative-chaos"], "species": ["cat"], "props": ["glasses", "hijab", "stethoscope"], "free_hand": "both" },
+
+    { "id": "26-aisha-childrens-home","name": "Sunnybrook Children's Home",   "category": "institutional",  "members": 1, "traits": ["kids-family", "shared-care", "routine-predictable"], "species": ["dog", "cat"], "props": ["lanyard", "mug", "cardigan"], "free_hand": "both" },
+    { "id": "27-tomas-care-home",     "name": "Oak Lodge Care Home",          "category": "institutional",  "members": 1, "traits": ["therapy-household", "quiet-patient", "routine-predictable"], "species": ["cat", "dog"], "props": ["glasses", "scrubs"], "free_hand": "both" },
+    { "id": "28-iris-teacher",        "name": "Ms. Popescu's Year 3",         "category": "institutional",  "members": 1, "traits": ["classroom-routine", "routine-predictable", "specific-interest"], "species": ["snake", "parrot"], "props": ["glasses", "pencil", "cardigan"], "free_hand": "both" },
+
+    { "id": "15-khans",               "name": "The Khan family",              "category": "return-visitor", "members": 4, "traits": ["kids-family"], "species": ["cat"], "props": ["carrier-bag", "donation-box"], "return_rhythm": "donation", "free_hand": "none" },
+    { "id": "16-tata",                "name": "Ana 'Tata' Silva",             "category": "return-visitor", "members": 1, "traits": ["garden-rural", "active-outdoors", "experienced-handler"], "species": ["dog"], "props": [], "return_rhythm": "repeat-adopter", "free_hand": "both" },
+    { "id": "17-benji",               "name": "Ben 'Benji' Mackenzie",        "category": "return-visitor", "members": 1, "traits": ["active-outdoors", "experienced-handler"], "species": ["fox"], "props": ["wildlife-photo", "camera"], "return_rhythm": "wild-visit", "free_hand": "left" },
+
+    { "id": "30-two-houses",          "name": "Marcus, Gosia & Rhubarb",      "category": "two-houses",     "members": 3, "traits": ["dual-home", "travels-well", "shared-care", "experienced-handler"], "species": ["dog", "cat", "bunny", "parrot"], "props": ["kettlebell", "headphones", "skateboard", "housecoat"], "free_hand": "both", "notes": "Rhubarb wants ALL the animals — game should gently rein them in. Is an apprentice-slot unlock when present." }
+  ]
+}
