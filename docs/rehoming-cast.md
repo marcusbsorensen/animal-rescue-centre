@@ -16,7 +16,7 @@
 
 ---
 
-## The cast (30 households)
+## The cast (31 households)
 
 ### Solo adopters
 
@@ -54,6 +54,7 @@
 | 13 | **Kumar-Ishii family** | Dr. Ishii (she/her, 50, vet) · Priti (she/her, 48, accountant) · Amara (she/her, 9, tomboy, loves trees) | Dr. Ishii in scrubs; Priti always has a notebook; Amara is usually covered in leaves | Repeat adopters · Vet expertise · Existing ARC cat | A second cat — companion to their first |
 | 14 | **Grandpa Theo & the grandkids** | Theo (he/him, 70, Black British, retired librarian) · Kofi (10) · Zuri (7) — weekends only | Theo in corduroys with a pipe he never lights; Kofi in glasses; Zuri in butterfly-wings backpack | Weekend-only kids · Gentle older adult · First-time | A sweet medium dog good with visiting children |
 | 24 | **Perera-Fernando family** | Ranjith (he/him, 44, civil engineer) · Shanthi (she/her, 42, primary teacher) · twins Arjun & Anoushka (9) | Sri Lankan British; Ranjith in a button-down + glasses, Shanthi in a cardigan, twins in matching rain boots (different colours) | Gentle · Vegetarian home · First family pet | A calm family-friendly dog the twins can grow up with |
+| 31 | **The Estrada Train** (Lily's nickname for them) | Dad Tomasz (he/him, 38, tall, dark hair, dark stubble) · Mum Luz (she/her, 36, tall, dark-hair bob, *currently pregnant*) · 8 kids: **Samuel** (he/him, 8, *Lily's best friend* — the train's engine), 5 more brothers and 2 sisters, ages 1 to 12 evenly distributed (1, 2, 4, 5, 7, 9, 10, 12 — Samuel is the 8-year-old), and a baby on the way. ALL 8 kids share a signature haircut — tousled dark-brown curls on top, clean shorter sides. | Polish-Colombian; extremely boisterous household, always-a-kid-awake energy, cheerful chaos. Parents wrangle. | Boisterous · Large-family chaos · Exotic-loving · Experienced wranglers | Parrots and snakes — loud, colourful, exotic pets that can hold their own in this riotous household. Absolutely NOT a quiet-cat household. |
 | 25 | **The Bramble House housemates** | Zoya (she/her, 28, Ukrainian-British PhD botany, pink hair) · Bruno (he/him, 31, Brazilian mature architecture student) · Sadia (she/her, 26, British-Bangladeshi medical student, hijab some days) · Obi (they/them, 27, Nigerian-British philosophy PhD) | Shared terraced house, dissertation-era chaos, one always home | Rotating care · Academic home · Quiet study hours | A chill cat who can handle round-the-clock study sessions |
 
 ### Institutional adopters (the pet becomes part of a residence — many people share the love)
