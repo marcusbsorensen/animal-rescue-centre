@@ -726,9 +726,15 @@
     text-shadow: 0 1px 0 rgba(255,255,255,0.35);
   }
 
-  /* ── Friends page: back-to-menu pill inside the sign ── */
-  .back-pill {
-    align-self: flex-start;
+  /* ── Friends page: back-to-menu tab nailed to the TOP-LEFT of the sign ──
+     Styled as a small honey-amber wooden plank that looks like someone
+     hammered it on later — sticks up and to the left past the sign edge,
+     with a single iron nail head holding it in place. */
+  .back-tab {
+    position: absolute;
+    top: clamp(-18px, -2.6cqh, -14px);
+    left: clamp(-14px, -2cqw, -10px);
+    z-index: 4;   /* above the intro sign body */
     display: inline-flex; align-items: center;
     gap: clamp(4px, 0.8cqw, 6px);
     font-family: var(--sign-font);
@@ -736,18 +742,43 @@
     font-size: clamp(11px, 1.5cqh, 14px);
     color: #fffbe8;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
-    background: linear-gradient(180deg, #7ea063 0%, #5d7f4a 50%, #3f5d32 100%);
-    border: 2px solid #3c5238;
-    border-radius: 999px;
-    padding: clamp(3px, 0.6cqh, 6px) clamp(10px, 1.8cqw, 14px);
+    /* Same honey-amber wooden palette as the main sign, slightly lighter
+       so it reads as a separate plank rather than a cutout. */
+    background:
+      linear-gradient(90deg,
+        transparent 0%, transparent 30%,
+        rgba(0,0,0,0.06) 31%, transparent 32%, transparent 62%,
+        rgba(0,0,0,0.06) 63%, transparent 64%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+    border: 2px solid #7a4b15;
+    border-radius: clamp(4px, 0.6cqh, 6px);
+    padding: clamp(4px, 0.8cqh, 7px) clamp(12px, 2cqw, 16px) clamp(4px, 0.8cqh, 7px) clamp(16px, 2.8cqw, 22px);
     cursor: pointer;
-    box-shadow: 0 2px 3px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,240,210,0.2);
-    margin-bottom: clamp(4px, 0.8cqh, 8px);
+    box-shadow:
+      inset 0 0 clamp(6px, 1.2cqh, 12px) rgba(0,0,0,0.22),
+      inset 0 1px 0 rgba(255,240,210,0.22),
+      0 3px 5px rgba(0,0,0,0.35);
+    transform: rotate(-2.5deg);
   }
-  /* Friends list — stacked cards inside the sign */
+  /* Single iron nail head at the left end of the tab */
+  .back-tab::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: clamp(5px, 0.9cqw, 8px);
+    width: clamp(6px, 1cqw, 8px);
+    height: clamp(6px, 1cqw, 8px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #6b6b6b 0%, #2a2a2a 70%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15), inset -1px -1px 1px rgba(0,0,0,0.4);
+    transform: translateY(-50%);
+  }
+  /* Friends list — stacked cards inside the sign. Compact: one row
+     = avatar-disc + (name / last-visit) + single bond medal. Row height
+     is clamped so the sign doesn't balloon when lots of friends are added. */
   .friends-list {
     display: flex; flex-direction: column;
-    gap: clamp(6px, 1.2cqh, 10px);
+    gap: clamp(5px, 0.9cqh, 8px);
     margin: clamp(6px, 1.2cqh, 10px) 0 clamp(4px, 0.8cqh, 8px);
   }
   .friend-card {
@@ -756,7 +787,8 @@
     background: rgba(254,249,239,0.15);
     border: 2px solid rgba(255,240,210,0.3);
     border-radius: clamp(8px, 1.2cqh, 12px);
-    padding: clamp(6px, 1.2cqh, 10px) clamp(10px, 2cqw, 14px);
+    padding: clamp(4px, 0.8cqh, 7px) clamp(10px, 2cqw, 14px);
+    min-height: clamp(56px, 9cqh, 64px);
     cursor: pointer;
     text-align: left;
     width: 100%;
@@ -770,10 +802,10 @@
     flex: 0 0 auto;
   }
   .friend-avatar {
-    width: clamp(40px, 6cqh, 56px);
-    height: clamp(40px, 6cqh, 56px);
+    width: clamp(38px, 5.5cqh, 48px);
+    height: clamp(38px, 5.5cqh, 48px);
     display: flex; align-items: center; justify-content: center;
-    font-size: clamp(22px, 3.4cqh, 32px);
+    font-size: clamp(20px, 3cqh, 28px);
     border: 2px solid #fffbe8;
     border-radius: 50%;
     box-shadow: 0 2px 3px rgba(0,0,0,0.25), inset 0 2px 3px rgba(255,255,255,0.2);
@@ -788,11 +820,15 @@
     border: 2px solid #fffbe8;
     box-shadow: 0 1px 2px rgba(0,0,0,0.3);
   }
-  .friend-info { flex: 1 1 0; min-width: 0; }
+  .friend-info {
+    flex: 1 1 0; min-width: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    gap: 1px;
+  }
   .friend-name {
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(15px, 2.1cqh, 19px);
+    font-size: clamp(14px, 2cqh, 18px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
     line-height: 1.1;
@@ -801,18 +837,38 @@
     font-family: 'Caveat', 'Kalam', cursive;
     font-style: italic;
     font-weight: 500;
-    font-size: clamp(13px, 1.8cqh, 16px);
+    font-size: clamp(12px, 1.6cqh, 14px);
     color: #fffbe8;
     opacity: 0.85;
     line-height: 1.1;
-    margin-top: 2px;
   }
-  .friend-bond {
-    font-size: clamp(12px, 1.6cqh, 14px);
-    line-height: 1.1;
-    letter-spacing: 0.05em;
-    margin-top: 2px;
-    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.3));
+  /* Bond medal — single cream-painted disc with the level emoji on it.
+     Replaces the old multi-paw rendering; one progressive icon per friend. */
+  .friend-medal-wrap {
+    flex: 0 0 auto;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 1px;
+  }
+  .friend-medal {
+    width: clamp(36px, 5.4cqh, 44px);
+    height: clamp(36px, 5.4cqh, 44px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(20px, 2.8cqh, 26px);
+    line-height: 1;
+    background: radial-gradient(circle at 35% 30%, #fffbe8 0%, #f5ecd0 70%, #ead9a6 100%);
+    border: 2px solid #8a5a2a;
+    border-radius: 50%;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.4);
+  }
+  .friend-medal-label {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-style: italic;
+    font-weight: 700;
+    font-size: clamp(10px, 1.3cqh, 12px);
+    color: #fffbe8;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
+    opacity: 0.9;
+    line-height: 1;
   }
   /* Invite CTA uses .btn-primary, but we swap the paws for post emojis */
   .btn-primary .postmark {
@@ -978,8 +1034,8 @@
           <div class="text-block">
             <div class="signs-on-stake">
               <div class="intro">
-                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
-                <button class="back-pill" id="back-btn">← Menu</button>
+                <img class="intro-cat" src="/assets/animals/cat-black-sleeping.png" alt="">
+                <button class="back-tab" id="back-btn">← Menu</button>
                 <div class="sign-title">Your A.R.C. Friends</div>
                 <div class="friends-list" id="friends-list"><!-- friend cards injected by JS --></div>
               </div>
@@ -991,7 +1047,7 @@
                     <span class="play-label">INVITE A FRIEND!</span>
                     <span class="postmark postmark-right">📮</span>
                   </button>
-                  <img class="play-parrot" src="/admin/mockup-assets/parrot-macaw-nobranch.png" alt="">
+                  <img class="play-parrot" src="/assets/animals/parrot-grey-sheltered.png" alt="">
                 </div>
                 <div class="invite-code-pill">
                   <div class="invite-code-left">
@@ -1003,7 +1059,7 @@
               </div>
 
               <!-- Bunny sitting on the ground at the foot of the garden post -->
-              <img class="ground-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
+              <img class="ground-bunny" src="/assets/animals/bunny-lop-sheltered.png" alt="">
 
               <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
               <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
@@ -1022,8 +1078,8 @@
       </div>
 
       <!-- Foreground corner animals — the 'cast' welcoming the player -->
-      <img class="foreground-dog" src="/assets/animals/dog-golden-sheltered.png" alt="">
-      <img class="foreground-fox" src="/assets/animals/fox-red-sheltered.png" alt="">
+      <img class="foreground-dog" src="/assets/animals/dog-husky-sheltered.png" alt="">
+      <img class="foreground-fox" src="/assets/animals/fox-arctic-sheltered.png" alt="">
 
     </div>
   </div>
@@ -1045,6 +1101,16 @@
     { username: 'Rosie', emoji: '🐰', bg: '#7ec24a', lastVisit: '3 days ago',   bond: 3, online: false },
     { username: 'Mia',   emoji: '🐱', bg: '#e89bb8', lastVisit: 'last week',    bond: 2, online: false },
     { username: 'Finn',  emoji: '🦊', bg: '#e7a84a', lastVisit: '2 hours ago',  bond: 4, online: true  },
+  ];
+
+  // Progressive bond levels — 1=Sprout (just starting) through 5=Champion.
+  // Single medal on the right of each row replaces the old 5-paw meter.
+  const BOND_LEVELS = [
+    { emoji: '🌱', label: 'Sprout' },     // 1
+    { emoji: '🌿', label: 'Bud' },        // 2
+    { emoji: '🌸', label: 'Bloom' },      // 3
+    { emoji: '🌺', label: 'Flourish' },   // 4
+    { emoji: '🏆', label: 'Champion' },   // 5
   ];
 
   // Render friend cards with document.createElement + textContent only —
@@ -1085,14 +1151,23 @@
       visitEl.className = 'friend-visit';
       visitEl.textContent = 'Last visit: ' + (typeof f.lastVisit === 'string' ? f.lastVisit : '—');
       info.appendChild(visitEl);
-
-      const bondEl = document.createElement('div');
-      bondEl.className = 'friend-bond';
-      // Clamp bond to 0..5 filled paws; remainder filled with ✨ (empty slot)
-      const filled = Math.max(0, Math.min(5, Number(f.bond) | 0));
-      bondEl.textContent = 'Bond: ' + '🐾'.repeat(filled) + '✨'.repeat(5 - filled);
-      info.appendChild(bondEl);
       card.appendChild(info);
+
+      // Single progressive bond medal on the right — 1..5 → Sprout..Champion.
+      const bondIdx = Math.max(1, Math.min(5, Number(f.bond) | 0)) - 1;
+      const level = BOND_LEVELS[bondIdx];
+      const medalWrap = document.createElement('div');
+      medalWrap.className = 'friend-medal-wrap';
+      const medal = document.createElement('span');
+      medal.className = 'friend-medal';
+      medal.setAttribute('aria-label', 'Bond: ' + level.label);
+      medal.textContent = level.emoji;
+      medalWrap.appendChild(medal);
+      const medalLabel = document.createElement('span');
+      medalLabel.className = 'friend-medal-label';
+      medalLabel.textContent = level.label;
+      medalWrap.appendChild(medalLabel);
+      card.appendChild(medalWrap);
 
       if (typeof onOpen === 'function') {
         card.addEventListener('click', () => onOpen(f.username));

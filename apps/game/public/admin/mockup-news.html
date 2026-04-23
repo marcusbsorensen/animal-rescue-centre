@@ -804,25 +804,51 @@
   .arc-snapshot.news-hero {
     max-width: clamp(180px, 40cqw, 250px);
   }
-  /* Back pill at the top-left of the sign — tiny cream plank. */
+  /* Back tab — a small wooden plank nailed ON to the top-left corner of the
+     main sign, sticking up and left beyond the sign edge. Same honey-amber
+     palette as the main sign; single iron nail head; slight tilt. */
   .back-pill {
     position: absolute;
-    top: clamp(8px, 1.4cqh, 12px);
-    left: clamp(10px, 1.8cqw, 16px);
+    /* Poke out above and to the left of the sign's top-left corner */
+    top: clamp(-16px, -2.4cqh, -10px);
+    left: clamp(-12px, -1.8cqw, -6px);
     z-index: 4;
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
     font-size: clamp(11px, 1.5cqh, 14px);
-    color: #3a2618;
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
+    color: #fffbe8;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
+    /* Honey-amber wood, same family as the main sign / Play button */
+    background:
+      linear-gradient(90deg,
+        transparent 0%, transparent 40%,
+        rgba(0,0,0,0.06) 41%, transparent 42%, transparent 68%,
+        rgba(0,0,0,0.06) 69%, transparent 70%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
     border: 2px solid #7a4b15;
-    border-radius: 999px;
-    padding: clamp(3px, 0.6cqh, 5px) clamp(8px, 1.4cqw, 12px);
-    box-shadow: 0 2px 3px rgba(0,0,0,0.22), inset 0 1px 2px rgba(0,0,0,0.08);
-    text-shadow: none;
+    border-radius: clamp(4px, 0.6cqh, 6px);
+    padding: clamp(4px, 0.7cqh, 6px) clamp(10px, 1.6cqw, 14px) clamp(4px, 0.7cqh, 6px) clamp(14px, 2.2cqw, 18px);
+    box-shadow:
+      inset 0 0 clamp(6px, 1cqh, 10px) rgba(0,0,0,0.22),
+      inset 0 clamp(1px, 0.25cqh, 2px) 0 rgba(255,240,210,0.22),
+      0 clamp(3px, 0.6cqh, 5px) clamp(5px, 1cqh, 8px) rgba(0,0,0,0.35);
+    transform: rotate(-2.5deg);
   }
-  .back-pill:active { transform: translateY(1px); }
+  /* Single iron nail head on the left — the one nail holding the tab on */
+  .back-pill::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: clamp(4px, 0.7cqw, 6px);
+    width: clamp(5px, 0.9cqw, 7px);
+    height: clamp(5px, 0.9cqw, 7px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #6b6b6b 0%, #2a2a2a 70%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.18), inset -1px -1px 1px rgba(0,0,0,0.4);
+    transform: translateY(-50%);
+  }
+  .back-pill:active { transform: rotate(-2.5deg) translateY(1px); }
 
   .news-title {
     text-align: center;
@@ -832,16 +858,17 @@
 
   .news-list {
     display: flex; flex-direction: column;
-    gap: clamp(8px, 1.4cqh, 12px);
-    margin-top: clamp(6px, 1.2cqh, 10px);
+    gap: clamp(6px, 1cqh, 10px);
+    margin-top: clamp(4px, 0.8cqh, 8px);
   }
-  /* Cream-paper card — same paper stock as the friend-code pill / name-input. */
+  /* Cream-paper card — same paper stock as the friend-code pill / name-input.
+     Tightened vertical padding so 4 items fit more cleanly on iPhone. */
   .news-item {
     position: relative;
     background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
     border: 2px solid #7a4b15;
     border-radius: clamp(6px, 1cqh, 9px);
-    padding: clamp(8px, 1.4cqh, 12px) clamp(10px, 2cqw, 16px);
+    padding: clamp(5px, 0.9cqh, 8px) clamp(10px, 2cqw, 16px) clamp(6px, 1cqh, 9px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.22), inset 0 1px 2px rgba(0,0,0,0.08);
     text-align: left;
   }
@@ -865,7 +892,7 @@
     color: #2a6e26;
     line-height: 1.2;
     padding-right: clamp(60px, 12cqw, 90px);  /* leave room for the date */
-    margin-bottom: clamp(3px, 0.5cqh, 5px);
+    margin-bottom: clamp(2px, 0.3cqh, 3px);
   }
   .news-blurb {
     font-family: var(--body-font);
@@ -927,7 +954,7 @@
           <div class="text-block">
             <div class="signs-on-stake">
               <div class="intro">
-                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="intro-cat" src="/assets/animals/cat-siamese-sleeping.png" alt="">
                 <button class="back-pill" id="back-pill" type="button">← Menu</button>
                 <div class="sign-title news-title">What's New at A.R.C.</div>
                 <div class="arc-snapshot-wrap">
@@ -943,12 +970,12 @@
                     <span class="play-label">BACK TO GAME</span>
                     <span class="paw paw-right">📬</span>
                   </button>
-                  <img class="play-parrot" src="/admin/mockup-assets/parrot-macaw-nobranch.png" alt="">
+                  <img class="play-parrot" src="/assets/animals/parrot-cockatiel-sheltered.png" alt="">
                 </div>
               </div>
 
               <!-- Bunny sitting on the ground at the foot of the garden post -->
-              <img class="ground-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
+              <img class="ground-bunny" src="/assets/animals/bunny-rex-sheltered.png" alt="">
 
               <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
               <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
@@ -967,8 +994,8 @@
       </div>
 
       <!-- Foreground corner animals — the 'cast' welcoming the player -->
-      <img class="foreground-dog" src="/assets/animals/dog-golden-sheltered.png" alt="">
-      <img class="foreground-fox" src="/assets/animals/fox-red-sheltered.png" alt="">
+      <img class="foreground-dog" src="/assets/animals/dog-beagle-sheltered.png" alt="">
+      <img class="foreground-fox" src="/assets/animals/fox-fennec-sheltered.png" alt="">
 
     </div>
   </div>
