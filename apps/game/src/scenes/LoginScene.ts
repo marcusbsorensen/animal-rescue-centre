@@ -3,6 +3,7 @@ import { COLOURS, FONTS } from '../ui/constants';
 import { createButton, createTextButton, createPanel, createPillTitle, createAmbientParticles } from '../ui/UIButton';
 import { getRememberedUsernames, login, searchUsername } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
 
 export class LoginScene extends Phaser.Scene {
   private _lastWidth = 0;
@@ -17,6 +18,21 @@ export class LoginScene extends Phaser.Scene {
   }
 
   create(): void {
+    // HTML overlay — mounts the painted-sign login mockup over Phaser. The
+    // Phaser fallback path below still exists for when we wire real auth.
+    const USE_OVERLAY = true as boolean;
+    if (USE_OVERLAY) {
+      const unmount = mountAuth('login', {
+        onAction: (action) => {
+          if (action === 'back-to-welcome') { unmount(); this.scene.start('MainMenuScene'); return; }
+          if (action === 'signup')          { unmount(); this.scene.start('SignupScene'); return; }
+        },
+      });
+      this.events.once('shutdown', unmountAuth);
+      this.events.once('destroy', unmountAuth);
+      return;
+    }
+
     const { width, height } = this.scale;
 
     // Background fill

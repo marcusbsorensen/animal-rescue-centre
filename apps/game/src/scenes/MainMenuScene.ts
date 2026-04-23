@@ -6,6 +6,7 @@ import { AudioManager } from '../audio/AudioManager';
 import { AssetLoader } from '../lib/AssetLoader';
 import { SPECIES_VARIANTS, SPECIES_COLOURS } from '@arc/game-logic';
 import type { Species } from '@arc/shared-types';
+import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
 
 /**
  * MainMenuScene — warm, polished welcome screen.
@@ -33,6 +34,22 @@ export class MainMenuScene extends Phaser.Scene {
     const audio = AudioManager.getInstance();
     audio.setScene(this);
     audio.playSceneMusic('menu');
+
+    // Not logged in: show the HTML welcome overlay (Lily's painted sign design)
+    // on top of Phaser. PLAY → startGame, "I already have account" → login,
+    // "Make an account" → signup. Overlay is torn down when we leave scene.
+    if (!session) {
+      const unmount = mountAuth('welcome', {
+        onAction: (action) => {
+          if (action === 'play')   { unmount(); this.startGame(); return; }
+          if (action === 'login')  { unmount(); this.scene.start('LoginScene'); return; }
+          if (action === 'signup') { unmount(); this.scene.start('SignupScene'); return; }
+        },
+      });
+      this.events.once('shutdown', unmountAuth);
+      this.events.once('destroy', unmountAuth);
+      return;
+    }
 
     // Start background loading of all game assets
     const assetLoader = AssetLoader.getInstance();

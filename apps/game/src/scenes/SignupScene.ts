@@ -3,6 +3,7 @@ import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS } from '../ui/constant
 import { createButton, createTextButton, createPanel, createPillTitle, createAmbientParticles } from '../ui/UIButton';
 import { getAvailableUsernames, signup } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
 
 type SignupStep = 'username' | 'avatar' | 'pin' | 'parent';
 
@@ -25,6 +26,19 @@ export class SignupScene extends Phaser.Scene {
   }
 
   create(): void {
+    const USE_OVERLAY = true as boolean;
+    if (USE_OVERLAY) {
+      const unmount = mountAuth('signup', {
+        onAction: (action) => {
+          if (action === 'back-to-welcome') { unmount(); this.scene.start('MainMenuScene'); return; }
+          if (action === 'login')           { unmount(); this.scene.start('LoginScene'); return; }
+        },
+      });
+      this.events.once('shutdown', unmountAuth);
+      this.events.once('destroy', unmountAuth);
+      return;
+    }
+
     const { width, height } = this.scale;
 
     // Background fill
