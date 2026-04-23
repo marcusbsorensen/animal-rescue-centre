@@ -70,7 +70,7 @@ A separate category because the *household* is two houses connected by a child w
 
 | # | Household | Members | Signature | Traits | Preference |
 |---|---|---|---|---|---|
-| 30 | **Dad's house & Mum's house** (the Sørensen-Siwek child) | **Marcus Sørensen** (he/him, 44, Danish, psychotherapist, bald + bearded, fitness-focused, tidy flat with houseplants and kettlebells by the door) · **Gosia Siwek** (she/her, 42, Polish homebody, flowered housecoat, hair in a top-knot bun, cozy cottage full of blankets and bookshelves) · **Rhubarb** (they/them, 11, genderqueer, army-camo cargos + skater Converse, rock-band tee, headphones always round neck — splits the week between parents, *wants to adopt every single animal and has to be gently reined in by both parents*) | Two very different homes: Dad's is bright + active, Mum's is warm + slow. They co-parent warmly. Rhubarb rolls between them on a skateboard with an animal carrier strapped to their back. | Dual home · **Travels-well-between-houses pet required** · Shared care · Experienced adults · One wildly enthusiastic kid | A confident, car-ride-loving, people-attached pet who treats both houses as their territory — not a flighty or anxious one. Species that travel well: adaptable dogs, outgoing cats, bonded bunnies, some parrots. The game should actively *block* Rhubarb's puppy-eyed "can we adopt this one too!" spiral — this household gets ONE animal at a time |
+| 30 | **Dad's house & Mum's house** (first names only — no surnames shown in game) | **Marcus** (he/him, 44, Danish, psychotherapist, bald + bearded, fitness-focused, tidy flat with houseplants and kettlebells by the door) · **Gosia** (she/her, 42, Polish homebody, flowered housecoat, hair in a top-knot bun, cozy cottage full of blankets and bookshelves) · **Rhubarb** (they/them, 11, genderqueer, army-camo cargos + skater Converse, rock-band tee, headphones always round neck — splits the week between parents, *wants to adopt every single animal and has to be gently reined in by both parents*) | Two very different homes: Dad's is bright + active, Mum's is warm + slow. They co-parent warmly. Rhubarb rolls between them on a skateboard with an animal carrier strapped to their back. | Dual home · **Travels-well-between-houses pet required** · Shared care · Experienced adults · One wildly enthusiastic kid | A confident, car-ride-loving, people-attached pet who treats both houses as their territory — not a flighty or anxious one. Species that travel well: adaptable dogs, outgoing cats, bonded bunnies, some parrots. The game should actively *block* Rhubarb's puppy-eyed "can we adopt this one too!" spiral — this household gets ONE animal at a time |
 
 ### Return visitors (already connected to A.R.C.)
 
@@ -81,6 +81,22 @@ A separate category because the *household* is two houses connected by a child w
 | 17 | **Ben "Benji" Mackenzie** | Helped rewild a red fox a year ago. | **Wild-visit reporter** — brings photos/stories from the fox's territory; unlocks the "visit in the wild" mechanic |
 
 ---
+
+## Volunteer apprentices (growth system)
+
+Some cast members are too fond of animals to adopt just one. Their defining trait is **"wants to adopt ALL the animals every visit"** — a loving impulse that has to be channelled, not just reined in. These characters can be **recruited as volunteer apprentices** at A.R.C., helping with care tasks, greeting new arrivals, feeding runs, and cleaning. Recruiting apprentices is what unlocks **new species**, **expanded rooms**, and **more concurrent rescues** — the rescue centre literally grows because more hands want to help.
+
+| Apprentice | From | Why them | Unlocks |
+|---|---|---|---|
+| **Rhubarb** | Two-Houses household #30 | Wants to adopt every single animal; skater-rocker energy directed into care work; splits the week so can volunteer both weekends and a weekday | First apprentice slot — unlocks the **apprentices room** and one extra daily care task |
+| **Amara** | Kumar-Ishii family #13 | 9yo tomboy, already grew up with an ARC cat, mum is a vet; climbs every tree at the centre looking for cat-friendly perches | Unlocks **second concurrent rescue slot** for cats |
+| **Kofi** | Grandpa Theo's grandkids #14 | 10yo weekend visitor with his grandpa; reads every animal care book in the library | Unlocks **new species slot** (his request determines which — parrot or snake typically) |
+
+Apprentices don't replace staff — they shadow the player. In gameplay terms they bring small bonuses (faster feeding, gentler arrival calming, occasional found-items during cleaning).
+
+### Special: Rhubarb + Lily
+
+When the player's name on signup is **Lily**, Rhubarb's matching weight is biased higher — Rhubarb turns up more often as a visiting apprentice, brings Lily little postcards, and the copy around them warms slightly. A quiet Easter egg so Lily feels reflected in the game she's helping design. This bias is never called out in UI; Lily will just feel it.
 
 ## Lifestyle traits (the matching grammar)
 
