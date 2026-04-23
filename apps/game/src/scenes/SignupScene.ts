@@ -28,10 +28,25 @@ export class SignupScene extends Phaser.Scene {
   create(): void {
     const USE_OVERLAY = true as boolean;
     if (USE_OVERLAY) {
+      // Two-step flow: signup → welcome-new (orientation) → play.
+      const routeAfterSignup = (session: { username?: string } | undefined) => {
+        const name = session?.username;
+        const unmount2 = mountAuth('welcome-new', {
+          onAction: (a2) => {
+            if (a2 === 'play') { unmount2(); this.scene.start('MainMenuScene'); }
+          },
+        }, { name });
+        this.events.once('shutdown', unmountAuth);
+      };
       const unmount = mountAuth('signup', {
-        onAction: (action) => {
+        onAction: (action, session) => {
           if (action === 'back-to-welcome') { unmount(); this.scene.start('MainMenuScene'); return; }
           if (action === 'login')           { unmount(); this.scene.start('LoginScene'); return; }
+          if (action === 'auth-success-new') {
+            unmount();
+            routeAfterSignup(session);
+            return;
+          }
         },
       });
       this.events.once('shutdown', unmountAuth);

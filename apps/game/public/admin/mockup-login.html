@@ -257,6 +257,15 @@
 
   /* ── Login-specific additions: subtitle, avatar chips, PIN keypad ── */
   .hidden { display: none !important; }
+  /* Wrong-PIN feedback — the sign shudders + the dots flash red before clearing. */
+  .intro.shake { animation: signShake 0.5s cubic-bezier(.36,.07,.19,.97); }
+  .intro.shake .pin-dot { border-color: #c54838; background: rgba(197,72,56,0.3); }
+  @keyframes signShake {
+    10%, 90% { transform: translateX(-2px) rotate(-1.2deg); }
+    20%, 80% { transform: translateX(4px)  rotate(-1.2deg); }
+    30%, 50%, 70% { transform: translateX(-8px) rotate(-1.2deg); }
+    40%, 60% { transform: translateX(8px)  rotate(-1.2deg); }
+  }
   .sign-subtitle {
     font-family: var(--sign-font);
     font-weight: 400;
@@ -956,12 +965,84 @@
     };
     document.querySelector('.link-btn.outlined')?.addEventListener('click', () => send('back-to-welcome'));
     document.querySelector('.link-btn.plank-sage')?.addEventListener('click', () => send('signup'));
-    // On PIN stage, the red clear is "× / reset", entering PIN would submit.
-    // For now, any numeric key-press that fills 4 dots could emit 'submit'.
+
+    // ── Real login flow ──
+    let selectedUsername = null;
+    let pinBuffer = '';
+    function renderPinDots() {
+      document.querySelectorAll('.pin-dots .pin-dot').forEach((d, i) => {
+        d.classList.toggle('filled', i < pinBuffer.length);
+      });
+    }
+    function clearPin() { pinBuffer = ''; renderPinDots(); }
+    function shakeError() {
+      const stage = document.getElementById('stage-pin');
+      if (!stage) return;
+      stage.classList.remove('shake'); void stage.offsetWidth;
+      stage.classList.add('shake');
+      setTimeout(() => stage.classList.remove('shake'), 500);
+      clearPin();
+    }
+    function submitPin() {
+      if (!selectedUsername || pinBuffer.length !== 4) return;
+      send('login-submit', { username: selectedUsername, pin: pinBuffer });
+    }
+    function selectChip(el) {
+      selectedUsername = el.dataset.username || el.querySelector('.chip-name')?.textContent.trim();
+      const nameEl = document.querySelector('#stage-pin .sign-title');
+      if (nameEl && selectedUsername) nameEl.textContent = `Hi, ${selectedUsername}!`;
+      setStage('pin');
+      clearPin();
+    }
+    function buildChip(name, avatar, bg, last) {
+      const btn = document.createElement('button');
+      btn.className = 'chip';
+      btn.dataset.username = name;
+      const av = document.createElement('span'); av.className = 'chip-avatar'; av.style.background = bg; av.textContent = avatar; btn.appendChild(av);
+      const txt = document.createElement('span'); txt.className = 'chip-text';
+      const nm = document.createElement('span'); nm.className = 'chip-name'; nm.textContent = name; txt.appendChild(nm);
+      const lt = document.createElement('span'); lt.className = 'chip-last'; lt.textContent = last; txt.appendChild(lt);
+      btn.appendChild(txt);
+      btn.addEventListener('click', () => selectChip(btn));
+      return btn;
+    }
+    // Handshake: parent sends remembered usernames; repopulate chips safely.
+    window.addEventListener('message', (e) => {
+      const m = e.data;
+      if (!m || m.source !== 'arc-auth-host') return;
+      if (m.type === 'init' && Array.isArray(m.payload?.usernames) && m.payload.usernames.length) {
+        const chipsEl = document.querySelector('.chips');
+        if (!chipsEl) return;
+        chipsEl.replaceChildren();
+        const palette = [['🦊','#ffd0a0'], ['🐾','#a0cfff'], ['🐰','#d0f0c0'], ['🐱','#ffe0e0']];
+        m.payload.usernames.slice(0, 4).forEach((name, i) => {
+          const [em, bg] = palette[i % palette.length];
+          chipsEl.appendChild(buildChip(String(name), em, bg, 'tap to sign in'));
+        });
+      }
+      if (m.type === 'auth-error') shakeError();
+    });
+    // Hard-coded mockup chips still function (when no 'init' or for design review).
+    document.querySelectorAll('.chips .chip').forEach((chip) => chip.addEventListener('click', () => selectChip(chip)));
+    // Keypad wiring: digits append, ← deletes, ✕ clears, auto-submit at 4.
+    document.querySelectorAll('.keypad .key').forEach((key) => {
+      key.addEventListener('click', () => {
+        if (key.classList.contains('key-clear')) { clearPin(); return; }
+        if (key.classList.contains('key-back')) {
+          pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); return;
+        }
+        if (pinBuffer.length >= 4) return;
+        pinBuffer += (key.textContent || '').trim();
+        renderPinDots();
+        if (pinBuffer.length === 4) setTimeout(submitPin, 150);
+      });
+    });
   }
-  // Tapping a chip jumps to PIN stage
-  for (const chip of document.querySelectorAll('.chip')) {
-    chip.addEventListener('click', () => setStage('pin'));
+  // Outside embed mode: tap a chip → jump straight to PIN stage for design review.
+  if (!new URLSearchParams(location.search).has('embed')) {
+    for (const chip of document.querySelectorAll('.chip')) {
+      chip.addEventListener('click', () => setStage('pin'));
+    }
   }
 </script>
 </body>

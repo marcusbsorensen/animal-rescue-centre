@@ -44,6 +44,9 @@ export class MainMenuScene extends Phaser.Scene {
           if (action === 'play')   { unmount(); this.startGame(); return; }
           if (action === 'login')  { unmount(); this.scene.start('LoginScene'); return; }
           if (action === 'signup') { unmount(); this.scene.start('SignupScene'); return; }
+          // PLAY! on the unauth welcome can also mean "I've been here before" —
+          // but we route via startGame() which checks session and redirects to
+          // login as needed.
         },
       });
       this.events.once('shutdown', unmountAuth);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>A.R.C. — Signup Mockup v3</title>
+<title>A.R.C. — New Player Welcome</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -28,6 +28,8 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
   body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+  /* Embed mode — loaded inside the game via ?embed=1. Strips the design-
+     review chrome so the welcome screen fills the viewport fullscreen. */
   body.embed { background: #fef9ef; }
   body.embed .vp-bar { display: none; }
   body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
@@ -120,6 +122,8 @@
   .welcome-content {
     grid-area: content;
     display: flex; flex-direction: column; align-items: center;
+    /* Flex-start + padding keeps the logo visible at the top even when
+       the content is taller than the row on iPad P / iPhone. */
     justify-content: flex-start;
     gap: clamp(10px, 2cqh, 22px);
     padding: clamp(8px, 1.5cqh, 18px) clamp(16px, 4cqw, 32px) 0;
@@ -255,193 +259,6 @@
     margin-top: clamp(-2px, -0.3cqh, 0px);
   }
 
-  /* ── Login-specific additions: subtitle, avatar chips, PIN keypad ── */
-  .hidden { display: none !important; }
-  .intro.shake { animation: signShake 0.5s cubic-bezier(.36,.07,.19,.97); }
-  .intro.shake .pin-dot { border-color: #c54838; background: rgba(197,72,56,0.3); }
-  @keyframes signShake {
-    10%, 90% { transform: translateX(-2px) rotate(-1.2deg); }
-    20%, 80% { transform: translateX(4px)  rotate(-1.2deg); }
-    30%, 50%, 70% { transform: translateX(-8px) rotate(-1.2deg); }
-    40%, 60% { transform: translateX(8px)  rotate(-1.2deg); }
-  }
-  .sign-subtitle {
-    font-family: var(--sign-font);
-    font-weight: 400;
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
-    font-size: clamp(14px, 2.1cqh, 19px);
-    text-align: center;
-    opacity: 0.95;
-    margin-bottom: clamp(10px, 1.6cqh, 16px);
-  }
-  .chips {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: clamp(10px, 1.6cqh, 18px) clamp(12px, 2cqw, 20px);
-    padding: clamp(2px, 0.4cqh, 4px) 0;
-  }
-  .chip {
-    display: flex; align-items: center; gap: clamp(10px, 1.8cqw, 14px);
-    background: rgba(254,249,239,0.12);
-    border: 2px solid rgba(255,240,210,0.25);
-    border-radius: 14px;
-    padding: clamp(6px, 1cqh, 10px) clamp(8px, 1.5cqw, 14px);
-    color: #fffbe8;
-    cursor: pointer;
-    font-family: var(--sign-font);
-    text-align: left;
-    transition: transform 0.12s, background 0.15s;
-  }
-  .chip:hover { background: rgba(254,249,239,0.22); transform: translateY(-2px); }
-  .chip-avatar {
-    width: clamp(38px, 5.8cqh, 52px);
-    height: clamp(38px, 5.8cqh, 52px);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: clamp(22px, 3.2cqh, 30px);
-    border: 2px solid #fffbe8;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.25);
-    flex: 0 0 auto;
-  }
-  .chip-text {
-    display: flex; flex-direction: column; gap: 2px;
-    flex: 1 1 0; min-width: 0;
-  }
-  .chip-name {
-    font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 19px);
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
-    line-height: 1.1;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .chip-last {
-    display: block;
-    font-size: clamp(11px, 1.5cqh, 13px);
-    font-weight: 400;
-    opacity: 0.85;
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
-    font-family: 'Caveat', var(--sign-font);
-    font-style: italic;
-  }
-  .chip-name::after {
-    /* Small line break between name and last-seen in the chip */
-    content: '';
-  }
-  .chip .chip-last { display: block; margin-top: 2px; }
-  /* PIN dots — cream-painted dots above the keypad, fill as PIN typed. */
-  .pin-dots {
-    display: flex; justify-content: center;
-    gap: clamp(10px, 1.8cqw, 16px);
-    padding: clamp(4px, 0.8cqh, 8px) 0 clamp(10px, 1.8cqh, 16px);
-  }
-  .pin-dot {
-    width: clamp(14px, 2.2cqh, 22px);
-    height: clamp(14px, 2.2cqh, 22px);
-    border-radius: 50%;
-    border: 2px solid #fffbe8;
-    background: transparent;
-    box-shadow: 0 2px 3px rgba(0,0,0,0.3);
-  }
-  .pin-dot.filled { background: #fffbe8; }
-  /* Keypad — 3x4 grid of little wooden tile buttons nailed to the sign */
-  .keypad {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: clamp(8px, 1.3cqh, 14px) clamp(10px, 1.8cqw, 16px);
-  }
-  .key {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(22px, 3.6cqh, 32px);
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
-    padding: clamp(8px, 1.4cqh, 14px) 0;
-    cursor: pointer;
-    border: 2px solid #7a4b15;
-    border-radius: clamp(8px, 1.1cqh, 12px);
-    background:
-      linear-gradient(90deg,
-        transparent 0%, transparent 40%,
-        rgba(0,0,0,0.05) 41%, transparent 42%, transparent 65%,
-        rgba(0,0,0,0.05) 66%, transparent 67%),
-      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
-    box-shadow:
-      inset 0 0 clamp(6px, 1.2cqh, 12px) rgba(0,0,0,0.22),
-      inset 0 2px 0 rgba(255,240,210,0.25),
-      0 3px 6px rgba(0,0,0,0.25);
-    transition: transform 0.08s;
-  }
-  .key:active { transform: translateY(2px); }
-  .key.key-back {
-    background:
-      linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
-    border-color: #3c5238;
-    font-size: clamp(18px, 3cqh, 26px);
-  }
-  /* Full-clear/reset key — unmissable red with a bolder, bigger X so
-     children can see at a glance "this wipes the whole PIN". */
-  .key.key-clear {
-    background:
-      linear-gradient(180deg, #e76a5a 0%, #c54838 55%, #8f2e20 100%);
-    border-color: #6b2418;
-    font-size: clamp(30px, 4.8cqh, 42px);
-    font-weight: 900;
-    line-height: 1;
-  }
-  /* Name input — painted cream paper taped onto the sign. */
-  .name-field-wrap {
-    padding: clamp(4px, 0.8cqh, 8px) 0 clamp(10px, 1.6cqh, 16px);
-  }
-  .name-field {
-    width: 100%;
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(18px, 2.8cqh, 24px);
-    padding: clamp(10px, 1.6cqh, 14px) clamp(14px, 2.4cqw, 20px);
-    color: #3a2618;
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
-    border: 2px solid #7a4b15;
-    border-radius: 10px;
-    box-shadow:
-      inset 0 2px 4px rgba(0,0,0,0.15),
-      0 2px 3px rgba(0,0,0,0.2);
-    outline: none;
-    text-align: center;
-  }
-  .name-field::placeholder { color: rgba(58,38,24,0.4); }
-  .name-field:focus { border-color: #9a6528; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(231,168,74,0.4); }
-  /* Avatar picker chips — compact centred, single-word name, selected state ringed. */
-  .chips.avatar-picker {
-    grid-template-columns: repeat(3, 1fr);
-    gap: clamp(8px, 1.3cqh, 14px) clamp(8px, 1.5cqw, 14px);
-  }
-  .chip.avatar-pick {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: clamp(4px, 0.6cqh, 6px);
-    padding: clamp(6px, 1cqh, 10px);
-  }
-  .chip.avatar-pick .chip-text { flex: 0 0 auto; align-items: center; }
-  .chip.avatar-pick.selected {
-    background: rgba(254,249,239,0.3);
-    border-color: #fffbe8;
-    box-shadow:
-      0 0 0 3px rgba(126,194,74,0.8),
-      0 4px 8px rgba(0,0,0,0.3);
-    transform: translateY(-2px);
-  }
-  .chip.avatar-pick .chip-avatar { width: clamp(44px, 6.5cqh, 60px); height: clamp(44px, 6.5cqh, 60px); font-size: clamp(26px, 3.8cqh, 36px); }
-  /* A smaller "type your name" CTA — same wooden sign as Play but shorter. */
-  .name-input-sign {
-    font-size: clamp(18px, 3cqh, 26px) !important;
-    padding: clamp(10px, 1.8cqh, 16px) clamp(20px, 3.5cqw, 28px) !important;
-  }
-  .name-input-sign .paw {
-    font-size: clamp(24px, 4.2cqh, 38px) !important;
-  }
-
   /* ── Animal: cat sleeping ON TOP of the intro panel ── */
   .intro-cat {
     position: absolute;
@@ -525,31 +342,66 @@
     z-index: 5;  /* above the grass blades */
   }
 
+  /* Subtitle for the new-player welcome */
+  .sign-subtitle {
+    font-family: var(--sign-font);
+    font-weight: 700;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    font-size: clamp(15px, 2.2cqh, 19px);
+    text-align: center;
+    margin-top: clamp(6px, 1.2cqh, 12px);
+    margin-bottom: clamp(6px, 1.2cqh, 10px);
+    opacity: 0.95;
+  }
+  /* ARC exterior snapshot — painted panel pinned inside the sign so new
+     players can orient themselves (where am I heading?). Dual-use asset:
+     also shows up on the in-game News screen when updates drop. */
+  .arc-snapshot-wrap {
+    display: flex; justify-content: center;
+    padding: clamp(6px, 1.2cqh, 12px) 0 clamp(2px, 0.6cqh, 6px);
+  }
+  .arc-snapshot {
+    width: 100%;
+    max-width: clamp(220px, 50cqw, 360px);
+    height: auto;
+    border-radius: clamp(6px, 1cqh, 10px);
+    border: clamp(2px, 0.3cqh, 3px) solid #7a4b15;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    display: block;
+  }
+
   /* Flying bee — animated on its own layer above the grass, tracing a wavy
-     figure-eight path so it reads as a real bee doing a lazy circle. */
+     figure-8-ish path so it reads as a real bee doing a lazy circle over the
+     flowers at the stake's base rather than a static decal. */
   .bee-flyer {
     position: absolute;
+    /* Starting anchor near the left end of the grass tuft */
     left: calc(50% - clamp(80px, 16cqw, 160px));
     bottom: clamp(14px, 3cqh, 40px);
     width: clamp(28px, 5cqh, 46px);
     height: auto;
     pointer-events: none;
-    z-index: 6;
+    z-index: 6;    /* above grass (z:4) and bunny (z:5) */
     filter: drop-shadow(2px 3px 3px rgba(0,0,0,0.25));
     animation: beeBuzz 8s ease-in-out infinite;
     transform-origin: center;
     will-change: transform;
   }
   @keyframes beeBuzz {
-    0%   { transform: translate(0,     -40px) rotate(-4deg); }
-    15%  { transform: translate(10px,  10px)  rotate(14deg); }
-    25%  { transform: translate(25px,  -20px) rotate(-8deg); }
-    40%  { transform: translate(55px,  -50px) rotate(4deg); }
-    55%  { transform: translate(80px,  15px)  rotate(-16deg); }
-    65%  { transform: translate(95px,  -25px) rotate(8deg); }
-    80%  { transform: translate(50px,  -55px) rotate(-6deg); }
-    92%  { transform: translate(-10px, -30px) rotate(6deg); }
-    100% { transform: translate(0,     -40px) rotate(-4deg); }
+    /* Vertical figure-eight — two dips onto imaginary flowers per cycle.
+       Horizontal drift stays modest so the bee never flies "backwards" for
+       long; vertical range is bigger so the motion reads as "seeking a
+       flower from above, swooping down, popping back up". */
+    0%   { transform: translate(0,     -40px) rotate(-4deg); }  /* hovering high, left */
+    15%  { transform: translate(10px,  10px)  rotate(14deg); }  /* diving to left flower */
+    25%  { transform: translate(25px,  -20px) rotate(-8deg); }  /* popping back up */
+    40%  { transform: translate(55px,  -50px) rotate(4deg); }   /* gliding right, high */
+    55%  { transform: translate(80px,  15px)  rotate(-16deg); } /* diving to right flower */
+    65%  { transform: translate(95px,  -25px) rotate(8deg); }   /* popping back up */
+    80%  { transform: translate(50px,  -55px) rotate(-6deg); }  /* drifting back, higher still */
+    92%  { transform: translate(-10px, -30px) rotate(6deg); }   /* settling */
+    100% { transform: translate(0,     -40px) rotate(-4deg); }  /* loop */
   }
 
   /* Grass clump at the base of the stake — hand-painted tuft of blades */
@@ -559,7 +411,7 @@
     bottom: clamp(-8px, -1.5cqh, -2px);
     transform: translateX(-50%);
     width: 100%;    /* match sign width — tuft reads as ground, not detail */
-    height: auto;
+    height: auto;      /* grass source is now 3:1 landscape — full artwork renders naturally */
     object-fit: contain;
     pointer-events: none;
     z-index: 4;   /* above the stake tip but visually part of the ground */
@@ -862,14 +714,14 @@
 <body>
 
 <div class="vp-bar">
-  <strong>Signup mockup v3</strong>
+  <strong>New-player welcome v1</strong>
   <span>·</span>
   <button data-size="iphone">📱 iPhone (390×844)</button>
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-welcome.html">→ Welcome mockup</a>
-  <button id="stage-toggle" style="margin-left:12px;">Switch to PIN stage ↓</button>
+  <a href="/admin/mockup-login.html">→ Login mockup</a>
+  <span class="hint">(real logo + contextual animals)</span>
 </div>
 
 <div class="device-frame">
@@ -890,63 +742,28 @@
 
           <div class="text-block">
             <div class="signs-on-stake">
-              <!-- Stage A: pick name + avatar -->
-              <div class="intro stage-select" id="stage-select">
+              <div class="intro">
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
-                <div class="sign-title">Let's get started!</div>
-                <div class="sign-subtitle">What's your name, and which animal is you?</div>
-                <div class="name-field-wrap">
-                  <input type="text" class="name-field" placeholder="Type your name..." value="Lily" />
+                <div class="sign-title" id="welcome-title">Welcome, friend!</div>
+                <div class="arc-snapshot-wrap">
+                  <img class="arc-snapshot" src="/admin/mockup-assets/arc-exterior.png" alt="The Animal Rescue Centre from the outside — cottage with garden">
                 </div>
-                <div class="chips avatar-picker">
-                  <button class="chip avatar-pick selected"><span class="chip-avatar" style="background:#ffd0a0;">🦊</span><span class="chip-text"><span class="chip-name">Fox</span></span></button>
-                  <button class="chip avatar-pick"><span class="chip-avatar" style="background:#ffe0e0;">🐱</span><span class="chip-text"><span class="chip-name">Cat</span></span></button>
-                  <button class="chip avatar-pick"><span class="chip-avatar" style="background:#d0f0c0;">🐰</span><span class="chip-text"><span class="chip-name">Bunny</span></span></button>
-                  <button class="chip avatar-pick"><span class="chip-avatar" style="background:#ffd59c;">🐶</span><span class="chip-text"><span class="chip-name">Dog</span></span></button>
-                  <button class="chip avatar-pick"><span class="chip-avatar" style="background:#c4e1f5;">🦇</span><span class="chip-text"><span class="chip-name">Bat</span></span></button>
-                  <button class="chip avatar-pick"><span class="chip-avatar" style="background:#fff3b0;">🦜</span><span class="chip-text"><span class="chip-name">Parrot</span></span></button>
-                </div>
-              </div>
-
-              <!-- Stage B: pick secret PIN -->
-              <div class="intro stage-pin hidden" id="stage-pin">
-                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
-                <div class="sign-title">Nice, Lily!</div>
-                <div class="sign-subtitle">Pick a secret 4-number code no-one else will know</div>
-                <div class="pin-dots">
-                  <span class="pin-dot filled"></span>
-                  <span class="pin-dot filled"></span>
-                  <span class="pin-dot"></span>
-                  <span class="pin-dot"></span>
-                </div>
-                <div class="keypad">
-                  <button class="key">1</button>
-                  <button class="key">2</button>
-                  <button class="key">3</button>
-                  <button class="key">4</button>
-                  <button class="key">5</button>
-                  <button class="key">6</button>
-                  <button class="key">7</button>
-                  <button class="key">8</button>
-                  <button class="key">9</button>
-                  <button class="key key-back" aria-label="Delete last digit">←</button>
-                  <button class="key">0</button>
-                  <button class="key key-clear" aria-label="Clear PIN">✕</button>
-                </div>
+                <div class="sign-subtitle">Here's how A.R.C. works:</div>
+                <ol>
+                  <li>Rescue scared animals</li>
+                  <li>Feed, heal &amp; walk them</li>
+                  <li>Find forever homes</li>
+                </ol>
               </div>
 
               <div class="cta-stack">
                 <div class="btn-primary-wrap">
-                  <button class="btn-primary" id="next-btn">
+                  <button class="btn-primary">
                     <span class="paw paw-left">🐾</span>
-                    <span class="play-label" id="primary-label">NEXT!</span>
+                    <span class="play-label">START PLAYING!</span>
                     <span class="paw paw-right">🐾</span>
                   </button>
                   <img class="play-parrot" src="/admin/mockup-assets/parrot-macaw-nobranch.png" alt="">
-                </div>
-                <div class="secondary-row">
-                  <button class="link-btn outlined">← Back to welcome</button>
-                  <button class="link-btn plank-sage">I already have an account</button>
                 </div>
               </div>
 
@@ -986,94 +803,23 @@
       device.dataset.size = btn.dataset.size;
     });
   }
-  // Stage toggle: swap between player-select and PIN entry.
-  const stageSelect = document.getElementById('stage-select');
-  const stagePin = document.getElementById('stage-pin');
-  const stageToggle = document.getElementById('stage-toggle');
-  let showing = 'select';
-  function setStage(s) {
-    showing = s;
-    if (s === 'pin') {
-      stageSelect.classList.add('hidden');
-      stagePin.classList.remove('hidden');
-      stageToggle.textContent = 'Switch to player-select ↑';
-    } else {
-      stageSelect.classList.remove('hidden');
-      stagePin.classList.add('hidden');
-      stageToggle.textContent = 'Switch to PIN stage ↓';
-    }
-  }
-  stageToggle?.addEventListener('click', () => setStage(showing === 'select' ? 'pin' : 'select'));
-  // NEXT! button advances through the signup flow
-  document.getElementById('next-btn')?.addEventListener('click', () => {
-    if (showing === 'select') {
-      setStage('pin');
-      document.getElementById('primary-label').textContent = 'CREATE MY ACCOUNT!';
-    }
-  });
-  // Avatar picker — toggle .selected on tap, don't jump stages
-  for (const chip of document.querySelectorAll('.chip.avatar-pick')) {
-    chip.addEventListener('click', (e) => {
-      e.stopPropagation();
-      for (const c of document.querySelectorAll('.chip.avatar-pick')) c.classList.remove('selected');
-      chip.classList.add('selected');
-    });
-  }
-  // Embed-mode wiring + real signup flow.
+  // Embed mode — when loaded inside the game as an overlay, drop the
+  // simulator chrome and have the device fill the viewport. Clicks on the
+  // primary CTAs postMessage up to the host scene instead of being dead.
   const params = new URLSearchParams(location.search);
   if (params.has('embed')) {
     document.body.classList.add('embed');
-    const send = (type, payload) => {
-      try { parent.postMessage({ source: 'arc-auth', type, payload }, '*'); } catch (_) {}
+    const send = (type) => {
+      try { parent.postMessage({ source: 'arc-auth', type }, '*'); } catch (_) {}
     };
-    document.querySelector('.link-btn.outlined')?.addEventListener('click', () => send('back-to-welcome'));
-    document.querySelector('.link-btn.plank-sage')?.addEventListener('click', () => send('login'));
-
-    let pinBuffer = '';
-    function renderPinDots() {
-      document.querySelectorAll('.pin-dots .pin-dot').forEach((d, i) => {
-        d.classList.toggle('filled', i < pinBuffer.length);
-      });
+    // Personalize the title from ?name=…  (parent passes this when routing
+    // the newly-signed-up player here after a successful signup call).
+    const name = params.get('name');
+    if (name) {
+      const titleEl = document.getElementById('welcome-title');
+      if (titleEl) titleEl.textContent = `Welcome, ${name}!`;
     }
-    function clearPin() { pinBuffer = ''; renderPinDots(); }
-    function shakeError() {
-      const stage = document.getElementById('stage-pin');
-      if (!stage) return;
-      stage.classList.remove('shake'); void stage.offsetWidth;
-      stage.classList.add('shake');
-      setTimeout(() => stage.classList.remove('shake'), 500);
-      clearPin();
-    }
-    function currentAvatar() {
-      const sel = document.querySelector('.chip.avatar-pick.selected');
-      if (!sel) return { emoji: '🦊', bg: '#ffd0a0' };
-      return {
-        emoji: sel.querySelector('.chip-avatar')?.textContent.trim() || '🦊',
-        bg: sel.querySelector('.chip-avatar')?.style.background || '#ffd0a0',
-      };
-    }
-    function submitSignup() {
-      const name = (document.querySelector('.name-field')?.value || '').trim();
-      if (!name || pinBuffer.length !== 4) return;
-      const { emoji, bg } = currentAvatar();
-      send('signup-submit', { username: name, pin: pinBuffer, avatarEmoji: emoji, avatarBgColour: bg });
-    }
-    window.addEventListener('message', (e) => {
-      const m = e.data;
-      if (m?.source === 'arc-auth-host' && m.type === 'auth-error') shakeError();
-    });
-    document.querySelectorAll('.keypad .key').forEach((key) => {
-      key.addEventListener('click', () => {
-        if (key.classList.contains('key-clear')) { clearPin(); return; }
-        if (key.classList.contains('key-back')) {
-          pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); return;
-        }
-        if (pinBuffer.length >= 4) return;
-        pinBuffer += (key.textContent || '').trim();
-        renderPinDots();
-        if (pinBuffer.length === 4) setTimeout(submitSignup, 150);
-      });
-    });
+    document.querySelector('.btn-primary')?.addEventListener('click', () => send('play'));
   }
 </script>
 </body>
