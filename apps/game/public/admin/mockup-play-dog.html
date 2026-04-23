@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Play: ball throw</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --garden-green: #2E8B57;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
+    --ink: #3a3a3a;
+    --ink-soft: #6b6b6b;
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
+    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #222; }
+  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+
+  /* Embed mode */
+  body.embed { background: #fef9ef; }
+  body.embed .vp-bar { display: none; }
+  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
+  body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
+  /* mock toolbar */
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .vp-bar button {
+    background: #444; color: #fff; border: 1px solid #555;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+  }
+  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+  .vp-bar a { color: #8fd3ff; margin-left: 12px; }
+
+  .device-frame {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: auto;
+  }
+  .device {
+    background: var(--cream-wash);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s, height 0.3s;
+    flex-shrink: 0;
+  }
+  .device[data-size="iphone"]    { width: 390px;  height: 844px; }
+  .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
+  .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
+  .device[data-size="desktop"]   { width: 1280px; height: 800px; }
+
+  /* ── Scene container ── */
+  .scene {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+    container-type: size;
+    container-name: scene;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "hud" "stage" "hint";
+  }
+  /* Painted garden background, softly washed-out so the dog pops */
+  .scene::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+    background-size: cover; background-position: center;
+    filter: blur(2px) saturate(0.85) brightness(1.08);
+    z-index: 0;
+  }
+  .scene::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg,
+      rgba(254,249,239,0.35) 0%,
+      rgba(254,249,239,0.18) 40%,
+      rgba(254,249,239,0.35) 100%);
+    z-index: 1;
+  }
+
+  /* ── HUD bar ── honey-amber plank pinned to the top */
+  .hud {
+    grid-area: hud;
+    position: relative;
+    z-index: 10;
+    display: flex; align-items: center;
+    gap: clamp(10px, 2cqw, 20px);
+    padding: clamp(10px, 1.8cqh, 16px) clamp(14px, 3cqw, 24px);
+    /* Weathered plank, same family as .btn-primary in the menu mockup */
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 32%,
+        rgba(0,0,0,0.3) 32.5%, rgba(0,0,0,0.3) 33%,
+        rgba(255,240,210,0.2) 33.3%, transparent 33.9%,
+        transparent 66%,
+        rgba(0,0,0,0.3) 66.5%, rgba(0,0,0,0.3) 67%,
+        rgba(255,240,210,0.2) 67.3%, transparent 67.9%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 32%,
+        rgba(0,0,0,0.07) 33%, transparent 34%, transparent 65%,
+        rgba(0,0,0,0.07) 66%, transparent 67%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 50%, #a2651c 100%);
+    border-bottom: clamp(2px, 0.3cqh, 3px) solid #7a4b15;
+    box-shadow:
+      inset 0 clamp(2px, 0.4cqh, 3px) 0 rgba(255,240,210,0.25),
+      0 clamp(4px, 0.8cqh, 8px) clamp(8px, 1.6cqh, 14px) rgba(0,0,0,0.3);
+  }
+  /* Iron nails at each corner of the plank */
+  .hud::before, .hud::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: clamp(7px, 1.2cqh, 10px);
+    height: clamp(7px, 1.2cqh, 10px);
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+  .hud::before { left: clamp(6px, 1cqw, 10px); }
+  .hud::after  { right: clamp(6px, 1cqw, 10px); }
+
+  .back-btn {
+    position: relative;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(12px, 1.7cqh, 15px);
+    color: #fffbe8;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
+    border-radius: 999px;
+    padding: clamp(6px, 1cqh, 9px) clamp(12px, 2cqw, 18px);
+    border: clamp(2px, 0.3cqh, 3px) solid #3c5238;
+    background:
+      linear-gradient(90deg,
+        transparent 0%, transparent 28%,
+        rgba(0,0,0,0.08) 29%, transparent 30%, transparent 57%,
+        rgba(0,0,0,0.07) 58%, transparent 59%),
+      linear-gradient(180deg, #7ea063 0%, #5d7f4a 50%, #3f5d32 100%);
+    box-shadow:
+      inset 0 0 8px rgba(0,0,0,0.2),
+      inset 0 1px 0 rgba(255,240,210,0.2),
+      0 2px 4px rgba(0,0,0,0.25);
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .back-btn:active { transform: translateY(1px); }
+
+  .goal-text {
+    flex: 1 1 0;
+    text-align: center;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(15px, 2.4cqh, 22px);
+    color: #fffbe8;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+    line-height: 1.15;
+    padding: 0 clamp(6px, 1cqw, 12px);
+  }
+
+  .progress-paws {
+    flex: 0 0 auto;
+    display: flex; align-items: center;
+    gap: clamp(3px, 0.6cqw, 6px);
+    font-size: clamp(20px, 3.2cqh, 30px);
+    line-height: 1;
+  }
+  .paw-dot {
+    display: inline-block;
+    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.35));
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .paw-dot.empty {
+    opacity: 0.35;
+    filter: grayscale(0.8) drop-shadow(1px 1px 0 rgba(0,0,0,0.25));
+  }
+  .paw-dot.filled {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+
+  /* ── Stage: the playful scene ── */
+  .stage {
+    grid-area: stage;
+    position: relative;
+    z-index: 2;
+  }
+
+  .play-dog {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(24px, 5cqh, 70px);
+    transform: translateX(-50%);
+    width: clamp(220px, 42cqw, 520px);
+    height: auto;
+    filter: drop-shadow(3px 6px 10px rgba(0,0,0,0.28));
+    pointer-events: none;
+    /* subtle excited-bounce */
+    animation: dogBounce 1.8s ease-in-out infinite;
+    transform-origin: bottom center;
+  }
+  @keyframes dogBounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50%      { transform: translateX(-50%) translateY(-6px); }
+  }
+
+  /* Sparkle/joy particles around the dog */
+  .sparkle {
+    position: absolute;
+    font-size: clamp(16px, 2.6cqh, 28px);
+    line-height: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+    animation: sparkleFloat 2.4s ease-in-out infinite;
+    z-index: 3;
+  }
+  .sparkle.s1 { left: 28%; top: 32%;  animation-delay: 0s;   }
+  .sparkle.s2 { left: 62%; top: 26%;  animation-delay: 0.4s; }
+  .sparkle.s3 { left: 20%; top: 56%;  animation-delay: 0.8s; }
+  .sparkle.s4 { left: 72%; top: 50%;  animation-delay: 1.2s; }
+  .sparkle.s5 { left: 46%; top: 20%;  animation-delay: 1.6s; }
+  @keyframes sparkleFloat {
+    0%, 100% { transform: translateY(0) scale(0.9); opacity: 0.6; }
+    50%      { transform: translateY(-10px) scale(1.1); opacity: 1; }
+  }
+
+  /* ── Tennis-ball toy: draggable target at bottom-right ── */
+  .toy-wrap {
+    position: absolute;
+    right: clamp(18px, 4cqw, 56px);
+    bottom: clamp(50px, 10cqh, 130px);
+    display: flex; flex-direction: column; align-items: center;
+    gap: clamp(4px, 0.8cqh, 8px);
+    z-index: 5;
+  }
+  .toy-label {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-style: italic;
+    font-size: clamp(16px, 2.6cqh, 24px);
+    color: #3f5d32;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.55);
+    transform: rotate(-6deg);
+    letter-spacing: 0.02em;
+  }
+  .ball-btn {
+    cursor: grab;
+    width: clamp(80px, 14cqh, 140px);
+    height: clamp(80px, 14cqh, 140px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fffbe8 0%, #f5ecd0 70%, #e8dcb6 100%);
+    border: clamp(3px, 0.5cqh, 4px) solid #7a4b15;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(60px, 9.5cqh, 120px);
+    line-height: 1;
+    padding: 0;
+    box-shadow:
+      inset 0 2px 4px rgba(255,255,255,0.6),
+      inset 0 -3px 6px rgba(0,0,0,0.15),
+      0 6px 14px rgba(0,0,0,0.3);
+    animation: ballPulse 1.6s ease-in-out infinite;
+    transition: transform 0.1s;
+    position: relative;
+  }
+  .ball-btn:active { cursor: grabbing; transform: scale(0.96); }
+  @keyframes ballPulse {
+    0%, 100% {
+      transform: translateY(0) scale(1);
+      box-shadow:
+        inset 0 2px 4px rgba(255,255,255,0.6),
+        inset 0 -3px 6px rgba(0,0,0,0.15),
+        0 6px 14px rgba(0,0,0,0.3),
+        0 0 0 0 rgba(227,176,75,0.55);
+    }
+    50% {
+      transform: translateY(-6px) scale(1.04);
+      box-shadow:
+        inset 0 2px 4px rgba(255,255,255,0.6),
+        inset 0 -3px 6px rgba(0,0,0,0.15),
+        0 10px 18px rgba(0,0,0,0.35),
+        0 0 0 14px rgba(227,176,75,0);
+    }
+  }
+
+  /* ── Whisper hint strip at the bottom ── */
+  .hint-strip {
+    grid-area: hint;
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: clamp(8px, 1.4cqh, 14px) clamp(12px, 2.4cqw, 20px) clamp(10px, 1.8cqh, 18px);
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(15px, 2.2cqh, 22px);
+    color: #5d3a18;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+    letter-spacing: 0.02em;
+    background: linear-gradient(180deg,
+      rgba(254,249,239,0) 0%,
+      rgba(254,249,239,0.55) 50%,
+      rgba(254,249,239,0.75) 100%);
+  }
+  .hint-strip em { font-style: italic; opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<div class="vp-bar">
+  <strong>Play mini-game (dog) v1</strong>
+  <span>·</span>
+  <button data-size="iphone">📱 iPhone (390×844)</button>
+  <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
+  <button data-size="ipad-l">📱 iPad L (1024×768)</button>
+  <button data-size="desktop">🖥 Desktop (1280×800)</button>
+  <a href="/admin/mockup-menu.html">→ Menu mockup</a>
+  <span class="hint">(dog ball-throw — design prototype)</span>
+</div>
+
+<div class="device-frame">
+  <div class="device" id="device" data-size="ipad-p">
+    <div class="scene">
+
+      <!-- Wooden HUD plank -->
+      <div class="hud">
+        <button class="back-btn" id="back-btn" type="button">← Back</button>
+        <div class="goal-text" id="goal-text">🎾 Throw the ball 3 times!</div>
+        <div class="progress-paws" id="progress-paws" aria-label="Progress: 1 of 3">
+          <span class="paw-dot filled">🐾</span>
+          <span class="paw-dot empty">🐾</span>
+          <span class="paw-dot empty">🐾</span>
+        </div>
+      </div>
+
+      <!-- Play stage -->
+      <div class="stage">
+        <span class="sparkle s1">✨</span>
+        <span class="sparkle s2">✨</span>
+        <span class="sparkle s3">✨</span>
+        <span class="sparkle s4">✨</span>
+        <span class="sparkle s5">✨</span>
+
+        <img class="play-dog" src="/admin/regen-v3-sprites/dog-golden-playing.png" alt="Golden retriever in a play-bow">
+
+        <div class="toy-wrap">
+          <span class="toy-label">drag me!</span>
+          <button class="ball-btn" id="ball-btn" type="button" aria-label="Throw the ball">🎾</button>
+        </div>
+      </div>
+
+      <!-- Whispered interaction hint -->
+      <div class="hint-strip">
+        <em>tap or drag the ball to throw it for the dog…</em>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const device = document.getElementById('device');
+  for (const btn of document.querySelectorAll('.vp-bar button[data-size]')) {
+    btn.addEventListener('click', () => {
+      for (const b of document.querySelectorAll('.vp-bar button[data-size]')) b.classList.remove('on');
+      btn.classList.add('on');
+      device.dataset.size = btn.dataset.size;
+    });
+  }
+
+  // Embed mode — when loaded inside the game as an overlay, drop the
+  // simulator chrome and wire postMessage actions to the host scene.
+  const params = new URLSearchParams(location.search);
+  if (params.has('embed')) {
+    document.body.classList.add('embed');
+    const send = (type, payload) => {
+      try { parent.postMessage({ source: 'arc-play', type, payload }, '*'); } catch (_) {}
+    };
+
+    // Handshake — parent can send goal/progress updates.
+    window.addEventListener('message', (e) => {
+      const m = e.data;
+      if (m?.source !== 'arc-play-host') return;
+      if (m.type === 'init' && m.payload) {
+        const p = m.payload;
+        // Safe text-only updates via textContent — never innerHTML.
+        if (typeof p.goalText === 'string') {
+          const g = document.getElementById('goal-text');
+          if (g) g.textContent = p.goalText;
+        }
+        if (typeof p.progress === 'number' && typeof p.target === 'number') {
+          renderProgress(Math.max(0, Math.min(p.target, p.progress)), p.target);
+        }
+      }
+      if (m.type === 'progress' && m.payload) {
+        const p = m.payload;
+        if (typeof p.progress === 'number' && typeof p.target === 'number') {
+          renderProgress(Math.max(0, Math.min(p.target, p.progress)), p.target);
+        }
+      }
+    });
+
+    function renderProgress(filled, total) {
+      const host = document.getElementById('progress-paws');
+      if (!host) return;
+      // Wipe and rebuild with textContent — no innerHTML with untrusted strings.
+      while (host.firstChild) host.removeChild(host.firstChild);
+      for (let i = 0; i < total; i++) {
+        const span = document.createElement('span');
+        span.className = 'paw-dot ' + (i < filled ? 'filled' : 'empty');
+        span.textContent = '🐾';
+        host.appendChild(span);
+      }
+      host.setAttribute('aria-label', `Progress: ${filled} of ${total}`);
+    }
+
+    document.getElementById('back-btn')?.addEventListener('click', () => send('back-to-menu'));
+    document.getElementById('ball-btn')?.addEventListener('click', () => send('throw-ball'));
+  } else {
+    // Standalone preview — clicking the ball bumps the counter for feel-testing.
+    let filled = 1;
+    const total = 3;
+    document.getElementById('ball-btn')?.addEventListener('click', () => {
+      filled = (filled + 1) % (total + 1);
+      const dots = document.querySelectorAll('#progress-paws .paw-dot');
+      dots.forEach((el, i) => {
+        el.classList.toggle('filled', i < filled);
+        el.classList.toggle('empty',  i >= filled);
+      });
+      const host = document.getElementById('progress-paws');
+      if (host) host.setAttribute('aria-label', `Progress: ${filled} of ${total}`);
+    });
+    document.getElementById('back-btn')?.addEventListener('click', () => {
+      // No-op in standalone, but visually confirm the click landed.
+      const btn = document.getElementById('back-btn');
+      if (btn) { btn.style.opacity = '0.6'; setTimeout(() => { btn.style.opacity = ''; }, 150); }
+    });
+  }
+</script>
+</body>
+</html>
