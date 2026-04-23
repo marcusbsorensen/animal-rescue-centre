@@ -9,7 +9,7 @@ import type {
   TimeProgress,
   GardenWeather,
 } from '@arc/shared-types';
-import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks } from '@arc/game-logic';
+import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry } from '@arc/game-logic';
 
 /**
  * GameStateStore — a plain container holding all mutable game state.
@@ -168,13 +168,5 @@ export class GameStateStore {
    * Entries stay around until the player sees them; marked seen on
    * tap or when the player navigates out of the garden view.
    */
-  gardenReturns: Array<{
-    id: string;
-    animalId: string;
-    animalName: string;
-    species: Species;
-    variant?: string;
-    scheduledFor: number;
-    seen: boolean;
-  }> = [];
+  gardenReturns: GardenReturnEntry[] = [];
 }
