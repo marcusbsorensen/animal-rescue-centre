@@ -151,4 +151,30 @@ export class GameStateStore {
       photoCaption?: string;
     };
   }> = [];
+
+  /**
+   * Flipped to true the first time the player receives a 'wild-visit'
+   * visitor (Benji's household, 17-benji). Gates the wild-return
+   * mechanic: until it flips, rewilded animals never return to the
+   * garden. Once unlocked, each rewilded animal has a small per-day
+   * chance to drop by the garden. Default false; back-compat with
+   * older saves via loadSaveState hydration.
+   */
+  wildVisitsUnlocked = false;
+
+  /**
+   * Rewilded animals scheduled to visit the garden. They appear in
+   * GardenView as additional sprites with a small sparkle marker.
+   * Entries stay around until the player sees them; marked seen on
+   * tap or when the player navigates out of the garden view.
+   */
+  gardenReturns: Array<{
+    id: string;
+    animalId: string;
+    animalName: string;
+    species: Species;
+    variant?: string;
+    scheduledFor: number;
+    seen: boolean;
+  }> = [];
 }

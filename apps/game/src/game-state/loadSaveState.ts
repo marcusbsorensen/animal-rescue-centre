@@ -87,6 +87,9 @@ export async function loadGameState(
         store.sickAnimals = new Map(Object.entries(saved.sickAnimals as Record<string, IllnessDef>));
       }
       store.level = data.level ?? 1;
+      // unlockedSpecies is recomputed after apprentices hydrate (below) so
+      // Kofi's extra-species-slot is reflected on load. Keep a sensible
+      // fallback here in case the later apprentice block is skipped.
       store.unlockedSpecies = getSpeciesUnlocksForLevel(store.level);
 
       // Sync ID counter to avoid collisions with loaded animals
@@ -137,6 +140,21 @@ export async function loadGameState(
         store.apprentices = saved.apprentices as ApprenticeEntry[];
       }
       store.apprenticeUnlocks = recomputeApprenticeUnlocks(store.apprentices);
+      // Re-derive the species list now apprentices are known — Kofi's
+      // extraSpeciesSlots unlocks the next species in canonical order.
+      store.unlockedSpecies = getSpeciesUnlocksForLevel(
+        store.level,
+        store.apprenticeUnlocks.extraSpeciesSlots,
+      );
+
+      // Back-compat: wildVisitsUnlocked (Benji's first wild-visit flips
+      // this flag; older saves won't have the field).
+      if (typeof saved.wildVisitsUnlocked === 'boolean') {
+        store.wildVisitsUnlocked = saved.wildVisitsUnlocked;
+      }
+      if (Array.isArray(saved.gardenReturns)) {
+        store.gardenReturns = saved.gardenReturns as GameStateStore['gardenReturns'];
+      }
     }
     return true;
   };
@@ -262,6 +280,8 @@ export async function saveGameState(
           rewilded: store.rewilded,
           visitors: store.visitors,
           apprentices: store.apprentices,
+          wildVisitsUnlocked: store.wildVisitsUnlocked,
+          gardenReturns: store.gardenReturns,
         },
         level: store.level,
         updated_at: new Date().toISOString(),

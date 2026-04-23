@@ -40,8 +40,10 @@ import {
   getSpeciesRainTolerance,
   recordCareTask,
   scheduleVisitsForDay,
+  scheduleWildReturns,
   getDueVisitors,
   markVisitSeen,
+  markAllDueGardenReturnsSeen,
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef, VisitorEntry } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
@@ -91,6 +93,10 @@ export class GameScene extends Phaser.Scene {
   private decoratePanelDispose?: () => void;
 
   private viewMode: ViewMode = 'corridor';
+  /** Last view that was actually rendered — used to detect when the
+   *  player navigates *away* from a view (e.g. leaving garden marks
+   *  any pending wild-returns as seen). */
+  private lastRenderedView?: ViewMode;
   private currentRoomSpecies?: Species;
   private gameContainer!: Phaser.GameObjects.Container;
   private navContainer!: Phaser.GameObjects.Container;
@@ -111,6 +117,10 @@ export class GameScene extends Phaser.Scene {
   /** Id of the visit currently showing as a toast — guards against
    *  stacking multiple toasts if the timer fires mid-show. */
   private activeVisitorToastId?: string;
+  /** Cached cast.json (loaded on first visitor event). Null while the
+   *  fetch is in flight; undefined if never attempted. */
+  private castData?: Array<Record<string, unknown>> | null;
+  private castFetchPromise?: Promise<void>;
   private selectedAnimal?: Animal;
   private processing = false;         // double-click guard
   private showingCollarPicker = false; // bond race guard
@@ -223,6 +233,9 @@ export class GameScene extends Phaser.Scene {
     // (acts as our "dawn" for MVP) and start a slow poll that pops any
     // due visit as a toast. One at a time, marked seen on display.
     this.scheduleDailyVisitors();
+    // Pre-load cast.json so the painted popup is ready by the time the
+    // first due visit surfaces. The fallback toast kicks in if this races.
+    void this.ensureCastLoaded();
     this.visitorTimer = this.time.addEvent({
       delay: 15000,
       callback: this.checkDueVisitors,
@@ -286,9 +299,15 @@ export class GameScene extends Phaser.Scene {
     const maxArrivals = getMaxArrivals(this.store.level);
     if (arriving.length >= maxArrivals) return;
 
-    // Pick a species not already in the arrival queue (variety for the player)
+    // Pick a species not already in the arrival queue (variety for the player).
+    // Apply Kofi's apprentice peek: extraSpeciesSlots unlocks the next
+    // species in the canonical order early (parrot, then snake).
+    const unlockedWithApprentice = getSpeciesUnlocksForLevel(
+      this.store.level,
+      this.store.apprenticeUnlocks.extraSpeciesSlots,
+    );
     const arrivingSpecies = new Set(arriving.map((a) => a.species));
-    const availableSpecies = this.store.unlockedSpecies.filter((s) => !arrivingSpecies.has(s));
+    const availableSpecies = unlockedWithApprentice.filter((s) => !arrivingSpecies.has(s));
     if (availableSpecies.length === 0) return;
 
     const species = pickRandomSpecies(availableSpecies);
@@ -370,6 +389,14 @@ export class GameScene extends Phaser.Scene {
       corridor: 'corridor', room: 'room', kitchen: 'kitchen', garden: 'garden',
     };
     audio.playSceneMusic(sceneMap[this.viewMode]);
+
+    // Leaving the garden → mark any pending wild-return visits as seen
+    // (so they don't linger across sessions / other navigations).
+    if (this.lastRenderedView === 'garden' && this.viewMode !== 'garden') {
+      markAllDueGardenReturnsSeen(this.store, Date.now());
+      this.saveState();
+    }
+    this.lastRenderedView = this.viewMode;
 
     switch (this.viewMode) {
       case 'corridor': this.renderCorridor(); break;
@@ -908,6 +935,12 @@ export class GameScene extends Phaser.Scene {
     }
     try {
       recruitApprentice(apprenticeId, this.store);
+      // Refresh the unlocked species list — Kofi's apprentice slot
+      // grants early access to the next species in canonical order.
+      this.store.unlockedSpecies = getSpeciesUnlocksForLevel(
+        this.store.level,
+        this.store.apprenticeUnlocks.extraSpeciesSlots,
+      );
     } catch (err) {
       showToast(this, err instanceof Error ? err.message : 'Could not recruit.');
       return;
@@ -955,11 +988,15 @@ export class GameScene extends Phaser.Scene {
     const ONE_DAY = 24 * 60 * 60 * 1000;
     if (now - this.lastVisitorSchedule < ONE_DAY) return;
     const entries = scheduleVisitsForDay(this.store);
-    if (entries.length === 0) {
+    // Wild-return pass — rewilded animals dropping by the garden. Only
+    // runs once Benji has flipped wildVisitsUnlocked; no-op otherwise.
+    const returns = scheduleWildReturns(this.store);
+    if (entries.length === 0 && returns.length === 0) {
       this.lastVisitorSchedule = now;
       return;
     }
-    this.store.visitors.push(...entries);
+    if (entries.length) this.store.visitors.push(...entries);
+    if (returns.length) this.store.gardenReturns.push(...returns);
     this.lastVisitorSchedule = now;
     this.saveState();
   }
@@ -969,21 +1006,48 @@ export class GameScene extends Phaser.Scene {
     const due = getDueVisitors(this.store, Date.now());
     if (due.length === 0) return;
     const next = due[0];
-    this.showVisitorToast(next);
+    this.showVisitorPopup(next);
   }
 
-  private showVisitorToast(visit: VisitorEntry): void {
-    this.activeVisitorToastId = visit.id;
+  /** Lazy-load cast.json once per scene; cached on `this.castData`. */
+  private ensureCastLoaded(): Promise<void> {
+    if (this.castData !== undefined) return Promise.resolve();
+    if (this.castFetchPromise) return this.castFetchPromise;
+    this.castFetchPromise = fetch('/data/cast.json')
+      .then((r) => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then((json) => {
+        this.castData = Array.isArray(json?.cast) ? json.cast : null;
+      })
+      .catch(() => {
+        this.castData = null;
+      });
+    return this.castFetchPromise;
+  }
 
-    // Apply any gift immediately — feel of "they brought us supplies".
+  private findCast(householdId: string): Record<string, unknown> | undefined {
+    if (!this.castData) return undefined;
+    return this.castData.find((c) => c['id'] === householdId);
+  }
+
+  /**
+   * Apply the side-effects of a visit (donation depot credit) and mark
+   * it seen. Pulled out so both the painted popup and the fallback toast
+   * can invoke the same state mutations.
+   */
+  private applyVisitSideEffects(visit: VisitorEntry): void {
+    // First-ever wild-visit (Benji's household) unlocks the wild-return
+    // mechanic — rewilded animals can now drop by the garden. Flipped
+    // once; a no-op on subsequent wild-visit events.
+    if (visit.type === 'wild-visit' && !this.store.wildVisitsUnlocked) {
+      this.store.wildVisitsUnlocked = true;
+      this.saveState();
+    }
     if (visit.type === 'donation' && visit.payload?.gift) {
       const gift = visit.payload.gift;
       if (gift.kind === 'coins') {
         this.store.economy.coins += gift.amount;
         this.store.economy.lifetimeEarnings += gift.amount;
       } else if (gift.kind === 'toys') {
-        // No dedicated toy slot — land the gift in the decorations bucket
-        // under a stable key so the depot UI can surface it.
         const key = 'donation-toy';
         const inv = this.store.depot.inventory.decorations;
         inv[key] = (inv[key] ?? 0) + gift.amount;
@@ -993,11 +1057,86 @@ export class GameScene extends Phaser.Scene {
         inv[key] = (inv[key] ?? 0) + gift.amount;
       }
     }
+  }
 
+  /**
+   * Present a visit via the painted iframe popup. Falls back to the
+   * legacy toast if cast.json hasn't loaded yet (first visitor event
+   * after a fresh install may race the fetch).
+   */
+  private showVisitorPopup(visit: VisitorEntry): void {
+    this.activeVisitorToastId = visit.id;
+    this.applyVisitSideEffects(visit);
+
+    // Credit the depot immediately; persist before UI.
+    this.saveState();
+
+    // If cast hasn't been fetched, trigger the fetch but render the
+    // legacy toast for this one event so we don't block the player.
+    if (this.castData === undefined) {
+      void this.ensureCastLoaded();
+      this.showVisitorToastFallback(visit);
+      return;
+    }
+    if (this.castData === null) {
+      // fetch failed — keep the simple toast so visitors still surface.
+      this.showVisitorToastFallback(visit);
+      return;
+    }
+
+    const cast = this.findCast(visit.householdId);
+    const rehomed = this.store.rehomed.find((r) => r.animalId === visit.animalId);
+    const rewilded = this.store.rewilded.find((w) => w.animalId === visit.animalId);
+    const animalRec = rehomed ?? rewilded;
+
+    const animalPayload = animalRec
+      ? {
+          name: animalRec.animalName,
+          sprite: animalRec.variant
+            ? `/assets/animals/${animalRec.species}-${animalRec.variant}-sheltered.png`
+            : `/assets/animals/${animalRec.species}-sheltered.png`,
+        }
+      : null;
+
+    const castPayload = cast
+      ? { id: cast['id'] as string, name: (cast['name'] as string) ?? '' }
+      : null;
+
+    // Without cast data for this household we can't paint a portrait —
+    // fall back to the toast.
+    if (!castPayload) {
+      this.showVisitorToastFallback(visit);
+      return;
+    }
+
+    const initPayload = {
+      visitId: visit.id,
+      visitorType: visit.type,
+      cast: castPayload,
+      animal: animalPayload,
+      message: visit.payload?.message ?? this.buildVisitorToastMessage(visit),
+      gift: visit.payload?.gift ?? null,
+    };
+
+    const unmount = mountInGame('visitor', {
+      onAction: (action) => {
+        if (action === 'visitor-seen' || action === 'close') {
+          markVisitSeen(this.store, visit.id);
+          this.saveState();
+          unmount();
+          this.activeVisitorToastId = undefined;
+          // Dequeue the next due visitor, if any.
+          this.time.delayedCall(400, () => this.checkDueVisitors());
+        }
+      },
+    }, initPayload);
+    this.events.once('shutdown', unmountInGame);
+  }
+
+  /** Legacy toast — kept as a fallback when cast.json isn't ready. */
+  private showVisitorToastFallback(visit: VisitorEntry): void {
     const msg = this.buildVisitorToastMessage(visit);
     showToast(this, msg);
-
-    // Mark seen and clear guard after a short debounce.
     markVisitSeen(this.store, visit.id);
     this.saveState();
     this.time.delayedCall(3500, () => {
@@ -1369,9 +1508,10 @@ export class GameScene extends Phaser.Scene {
       const required = getRequiredRescuesForLevel(this.store.level);
       if (this.store.totalRescued < required) break;
       this.store.level++;
-      this.store.unlockedSpecies = getSpeciesUnlocksForLevel(this.store.level);
-      const newSpecies = getSpeciesUnlocksForLevel(this.store.level).filter(
-        (s) => !getSpeciesUnlocksForLevel(this.store.level - 1).includes(s),
+      const extra = this.store.apprenticeUnlocks.extraSpeciesSlots;
+      this.store.unlockedSpecies = getSpeciesUnlocksForLevel(this.store.level, extra);
+      const newSpecies = getSpeciesUnlocksForLevel(this.store.level, extra).filter(
+        (s) => !getSpeciesUnlocksForLevel(this.store.level - 1, extra).includes(s),
       );
       this.showLevelUpCelebration(this.store.level, newSpecies);
     }

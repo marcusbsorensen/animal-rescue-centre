@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { createButton, createAmbientParticles } from '../ui/UIButton';
-import { applyPlay } from '@arc/game-logic';
+import { applyPlay, TOY_DEFS, DEFAULT_TOY_FOR_SPECIES, getPlayToyId, getToyBondBonus } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
 
@@ -29,6 +29,10 @@ export class PlayScene extends Phaser.Scene {
 
   private animal!: Animal;
   private allAnimals: Animal[] = [];
+  /** Toy chosen for this play session — see getPlayToyId. */
+  private toyId: string = 'tennis-ball';
+  /** Bond bonus earned for using a favourite toy. Added in finishGame. */
+  private toyBondBonus = 0;
   private onComplete?: (updatedAnimals: Animal[], result: PlayResult) => void;
 
   private phase: Phase = 'intro';
@@ -163,6 +167,11 @@ export class PlayScene extends Phaser.Scene {
     this.events.once('shutdown', () => this.cleanupTimers());
 
     this.phase = 'playing';
+    // Choose the equipped toy for this session — defaults to the species
+    // default when the animal has no favourite set (back-compat for old
+    // saves without toys/favouriteToy fields).
+    this.toyId = getPlayToyId(this.animal);
+    this.toyBondBonus = getToyBondBonus(this.animal, this.toyId);
     this.configureSpeciesTarget();
     this.renderView();
   }
@@ -416,7 +425,11 @@ export class PlayScene extends Phaser.Scene {
   // ──────────────────────────────────────────────────────────────
 
   private renderDogGame(width: number, height: number): void {
-    this.renderHud(width, `🎾 Throw the ball ${this.targetCount} times!`);
+    const toy = TOY_DEFS[this.toyId] ?? TOY_DEFS[DEFAULT_TOY_FOR_SPECIES.dog];
+    const goalCopy = this.toyId === DEFAULT_TOY_FOR_SPECIES.dog
+      ? `${toy.emoji} Throw the ball ${this.targetCount} times!`
+      : `${toy.emoji} Toss the ${toy.label.toLowerCase()} for ${this.animal.name}!`;
+    this.renderHud(width, goalCopy);
 
     const dogCX = width / 2;
     const dogCY = height / 2 + 40;
@@ -469,7 +482,7 @@ export class PlayScene extends Phaser.Scene {
     frame.fillCircle(0, 0, size / 2 - 2);
     c.add(frame);
 
-    const ballEmoji = this.add.text(0, 0, '🎾', {
+    const ballEmoji = this.add.text(0, 0, TOY_DEFS[this.toyId]?.emoji ?? '🎾', {
       fontSize: `${Math.floor(size * 0.75)}px`,
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
@@ -556,12 +569,16 @@ export class PlayScene extends Phaser.Scene {
   // ──────────────────────────────────────────────────────────────
 
   private renderCatGame(width: number, height: number): void {
-    this.renderHud(width, `🪶 Make the cat pounce ${this.targetCount} times!`);
+    const toy = TOY_DEFS[this.toyId] ?? TOY_DEFS[DEFAULT_TOY_FOR_SPECIES.cat];
+    const goalCopy = this.toyId === DEFAULT_TOY_FOR_SPECIES.cat
+      ? `${toy.emoji} Make the cat pounce ${this.targetCount} times!`
+      : `${toy.emoji} Wiggle the ${toy.label.toLowerCase()} for ${this.animal.name}!`;
+    this.renderHud(width, goalCopy);
     const sprite = this.spawnSprite(width, height);
 
     const featherX = width / 2;
     const featherY = height - 140;
-    const feather = this.add.text(featherX, featherY, '🪶', {
+    const feather = this.add.text(featherX, featherY, toy.emoji, {
       fontSize: '44px',
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
@@ -627,7 +644,11 @@ export class PlayScene extends Phaser.Scene {
   // ──────────────────────────────────────────────────────────────
 
   private renderBunnyGame(width: number, height: number): void {
-    this.renderHud(width, `🍃 Rustle until the bunny binkies ${this.targetCount} times!`);
+    const toy = TOY_DEFS[this.toyId] ?? TOY_DEFS[DEFAULT_TOY_FOR_SPECIES.bunny];
+    const goalCopy = this.toyId === DEFAULT_TOY_FOR_SPECIES.bunny
+      ? `🍃 Rustle until the bunny binkies ${this.targetCount} times!`
+      : `${toy.emoji} Wiggle the ${toy.label.toLowerCase()} for ${this.animal.name}!`;
+    this.renderHud(width, goalCopy);
     this.spawnSprite(width, height);
 
     const pileX = width / 2;
@@ -699,7 +720,11 @@ export class PlayScene extends Phaser.Scene {
   // ──────────────────────────────────────────────────────────────
 
   private renderFoxGame(width: number, height: number): void {
-    this.renderHud(width, `🍖 Help the fox find ${this.targetCount} treats!`);
+    const toy = TOY_DEFS[this.toyId] ?? TOY_DEFS[DEFAULT_TOY_FOR_SPECIES.fox];
+    const goalCopy = this.toyId === DEFAULT_TOY_FOR_SPECIES.fox
+      ? `🍖 Help the fox find ${this.targetCount} treats!`
+      : `${toy.emoji} Hunt down ${this.targetCount} ${toy.label.toLowerCase()}s for ${this.animal.name}!`;
+    this.renderHud(width, goalCopy);
     this.spawnSprite(width, height);
 
     // 6 patches arranged along the bottom band
@@ -799,7 +824,9 @@ export class PlayScene extends Phaser.Scene {
   // ──────────────────────────────────────────────────────────────
 
   private renderBatGame(width: number, height: number): void {
-    this.renderHud(width, `🐛 Catch ${this.targetCount} mealworms!`);
+    const toy = TOY_DEFS[this.toyId] ?? TOY_DEFS[DEFAULT_TOY_FOR_SPECIES.bat];
+    const goalCopy = `${toy.emoji} Catch ${this.targetCount} ${toy.label.toLowerCase()}s!`;
+    this.renderHud(width, goalCopy);
     this.spawnSprite(width, height);
 
     // Spawn 6 worms staggered across ~12 seconds
@@ -890,7 +917,11 @@ export class PlayScene extends Phaser.Scene {
   // ──────────────────────────────────────────────────────────────
 
   private renderParrotGame(width: number, height: number): void {
-    this.renderHud(width, `🔔 Match the parrot's rhythm!`);
+    const toy = TOY_DEFS[this.toyId] ?? TOY_DEFS[DEFAULT_TOY_FOR_SPECIES.parrot];
+    const goalCopy = this.toyId === DEFAULT_TOY_FOR_SPECIES.parrot
+      ? `🔔 Match the parrot's rhythm!`
+      : `${toy.emoji} Match ${this.animal.name}'s rhythm!`;
+    this.renderHud(width, goalCopy);
     this.spawnSprite(width, height);
 
     const bellX = width - 110;
@@ -898,7 +929,7 @@ export class PlayScene extends Phaser.Scene {
     const bell = this.add.container(bellX, bellY);
     const halo = this.add.circle(0, 0, 52, 0xfff3c4, 0.4);
     bell.add(halo);
-    const bellEmoji = this.add.text(0, 0, '🔔', {
+    const bellEmoji = this.add.text(0, 0, TOY_DEFS[this.toyId]?.emoji ?? '🔔', {
       fontSize: '72px',
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
@@ -1045,7 +1076,11 @@ export class PlayScene extends Phaser.Scene {
   // ──────────────────────────────────────────────────────────────
 
   private renderSnakeGame(width: number, height: number): void {
-    this.renderHud(width, `🪨 Keep the rock warm for the snake!`);
+    const toy = TOY_DEFS[this.toyId] ?? TOY_DEFS[DEFAULT_TOY_FOR_SPECIES.snake];
+    const goalCopy = this.toyId === DEFAULT_TOY_FOR_SPECIES.snake
+      ? `🪨 Keep the rock warm for the snake!`
+      : `${toy.emoji} Keep the ${toy.label.toLowerCase()} warm for ${this.animal.name}!`;
+    this.renderHud(width, goalCopy);
     this.spawnSprite(width, height);
 
     // Warmth bar (below HUD)
@@ -1169,7 +1204,8 @@ export class PlayScene extends Phaser.Scene {
     const idx = this.allAnimals.findIndex((a) => a.id === this.animal.id);
     if (idx >= 0) {
       const played = applyPlay(this.allAnimals[idx]);
-      played.bondLevel = Math.min(100, played.bondLevel + 3);
+      const baseBond = 3;
+      played.bondLevel = Math.min(100, played.bondLevel + baseBond + this.toyBondBonus);
       played.happiness = Math.min(100, played.happiness + 2);
       this.allAnimals[idx] = played;
       this.animal = played;
@@ -1225,9 +1261,13 @@ export class PlayScene extends Phaser.Scene {
         }).setOrigin(0.5)
     );
 
+    const totalBond = 3 + this.toyBondBonus;
+    const bondCopy = this.toyBondBonus > 0
+      ? `+${totalBond} bond +2 happiness  (favourite toy!)`
+      : `+${totalBond} bond +2 happiness`;
     this.container.add(
       this.add.text(width / 2, height / 2 - 8,
-        '+2 bond +2 happiness', {
+        bondCopy, {
           fontSize: '22px',
           fontFamily: FONTS.chalk,
           fontStyle: 'bold',

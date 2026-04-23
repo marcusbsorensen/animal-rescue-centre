@@ -15,7 +15,7 @@
  * the host scene's onAction handler.
  */
 
-export type InGamePage = 'paths' | 'adopters' | 'adoption' | 'rewilding' | 'conflict';
+export type InGamePage = 'paths' | 'adopters' | 'adoption' | 'rewilding' | 'conflict' | 'visitor';
 
 export type InGameAction =
   | 'close'
@@ -30,7 +30,8 @@ export type InGameAction =
   | 'rewild-cancel'
   | 'give-space'
   | 'split-toy'
-  | 'treat';
+  | 'treat'
+  | 'visitor-seen';
 
 export interface InGameOverlayHandlers {
   onAction: (action: InGameAction, payload?: Record<string, unknown>) => void;
@@ -42,11 +43,12 @@ const PAGE_URLS: Record<InGamePage, string> = {
   adoption:  '/admin/mockup-adoption.html?embed=1',
   rewilding: '/admin/mockup-rewilding.html?embed=1',
   conflict:  '/admin/mockup-conflict.html?embed=1',
+  visitor:   '/admin/mockup-visitor.html?embed=1',
 };
 
 /** Valid postMessage source names we'll forward. */
 const VALID_SOURCES = new Set([
-  'arc-game', 'arc-auth', 'arc-adopters', 'arc-adoption', 'arc-rewild',
+  'arc-game', 'arc-auth', 'arc-adopters', 'arc-adoption', 'arc-rewild', 'arc-visitor',
 ]);
 
 let activeFrame: HTMLIFrameElement | null = null;

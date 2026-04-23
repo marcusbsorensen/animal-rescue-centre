@@ -295,24 +295,44 @@
     <div class="scene">
 
       <!-- Visitor plaque: household disc + heart + pet portrait,
-           one-line message, single Wave button. -->
+           one-line message, single Wave button. Populated via the
+           init handshake (postMessage from the host scene). -->
       <div class="plaque">
-        <div class="visit-flag">A VISITOR!</div>
+        <div class="visit-flag" id="visit-flag">A VISITOR!</div>
 
-        <div class="visit-portraits">
-          <div class="portrait-disc household" title="Grandpa Theo & grandkids">
-            <img src="/admin/mockup-assets/cast/14-theo-grandkids.png" alt="Grandpa Theo and grandkids">
+        <div class="visit-portraits" id="visit-portraits">
+          <div class="portrait-disc household" id="portrait-household">
+            <img id="household-img" src="/admin/mockup-assets/cast/14-theo-grandkids.png" alt="">
           </div>
-          <div class="heart">💚</div>
-          <div class="portrait-disc pet" title="Luna the collie">
-            <img src="/assets/animals/dog-collie-sheltered.png" alt="Luna the collie">
+          <div class="heart" id="heart">💚</div>
+          <div class="portrait-disc pet" id="portrait-pet">
+            <img id="pet-img" src="/assets/animals/dog-collie-sheltered.png" alt="">
           </div>
         </div>
 
-        <div class="visit-title">A familiar face!</div>
-        <div class="visit-message">
+        <div class="visit-title" id="visit-title">A familiar face!</div>
+        <div class="visit-message" id="visit-message">
           Grandpa Theo dropped by with Luna — she loved seeing you!
         </div>
+
+        <div id="gift-box" style="
+          display: none;
+          margin-top: clamp(4px, 0.8cqh, 8px);
+          padding: clamp(8px, 1.4cqh, 12px) clamp(12px, 2cqw, 18px);
+          background: linear-gradient(180deg, rgba(255,246,217,0.92) 0%, rgba(246,217,160,0.92) 100%);
+          border: 3px solid #8a5a2a;
+          border-radius: 10px;
+          box-shadow: inset 0 2px 0 rgba(255,240,210,0.5), 0 3px 8px rgba(0,0,0,0.3);
+          font-family: var(--sign-title-font);
+          font-weight: 700;
+          font-size: clamp(15px, 2.2cqh, 20px);
+          color: #5a3a12;
+          text-align: center;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transform: rotate(-1deg);
+        "><span id="gift-icon" style="font-size: 1.3em;"></span><span id="gift-label"></span></div>
 
         <button class="wave-btn" id="wave-btn">
           <span class="wave-emoji">👋</span>
@@ -337,13 +357,86 @@
   // simulator chrome and have the device fill the viewport. The Wave
   // button postMessages 'visitor-seen' back to the host scene.
   const params = new URLSearchParams(location.search);
+
+  // Per-visitor-type copy. Keep headlines short and upbeat; messages are
+  // gentle fallbacks — host usually supplies `message` via init payload.
+  const VARIANTS = {
+    'drop-by':       { flag: 'A VISITOR!',   title: 'Drop-in visit!',    fallback: 'They dropped by to say hi!' },
+    'donation':      { flag: 'A GIFT!',      title: 'Donation delivered!', fallback: 'They brought something for A.R.C.!' },
+    'second-adopt':  { flag: 'BACK AGAIN!',  title: 'Back for another!', fallback: "They're ready to welcome another friend home." },
+    'photo-letter':  { flag: 'POST!',        title: 'A photo arrived!',  fallback: 'A painted postcard slid under the door.' },
+    'wild-visit':    { flag: 'WILD VISIT!',  title: 'From the wild!',    fallback: 'Spotted at the hedge — peek out in the garden!' },
+  };
+
+  const GIFT_ICONS = { toys: '🧸', food: '🥫', coins: '💰' };
+
+  function applyPayload(payload) {
+    const p = payload || {};
+    const variant = VARIANTS[p.visitorType] ?? VARIANTS['drop-by'];
+
+    const flagEl = document.getElementById('visit-flag');
+    const titleEl = document.getElementById('visit-title');
+    const msgEl = document.getElementById('visit-message');
+    flagEl.textContent = variant.flag;
+    titleEl.textContent = variant.title;
+    msgEl.textContent = p.message || variant.fallback;
+
+    // Cast portrait
+    const householdImg = document.getElementById('household-img');
+    const householdBlock = document.getElementById('portrait-household');
+    if (p.cast && p.cast.id) {
+      householdImg.src = `/admin/mockup-assets/cast/${p.cast.id}.png`;
+      householdImg.alt = p.cast.name || '';
+      householdBlock.title = p.cast.name || '';
+    }
+
+    // Pet portrait + hide block when no animal
+    const petImg = document.getElementById('pet-img');
+    const petBlock = document.getElementById('portrait-pet');
+    const heartEl = document.getElementById('heart');
+    if (p.animal && p.animal.sprite) {
+      petImg.src = p.animal.sprite;
+      petImg.alt = p.animal.name || '';
+      petBlock.title = p.animal.name || '';
+      petBlock.style.display = '';
+      heartEl.style.display = '';
+    } else {
+      petBlock.style.display = 'none';
+      heartEl.style.display = 'none';
+    }
+
+    // Gift box for donation visits
+    const giftBox = document.getElementById('gift-box');
+    const giftIcon = document.getElementById('gift-icon');
+    const giftLabel = document.getElementById('gift-label');
+    if (p.visitorType === 'donation' && p.gift && typeof p.gift.amount === 'number') {
+      giftIcon.textContent = GIFT_ICONS[p.gift.kind] || '🎁';
+      const kindLabel = p.gift.kind === 'coins' ? 'coins'
+                      : p.gift.kind === 'toys' ? 'toys'
+                      : p.gift.kind === 'food' ? 'food' : '';
+      giftLabel.textContent = `${p.gift.amount} ${kindLabel}`.trim();
+      giftBox.style.display = 'flex';
+    } else {
+      giftBox.style.display = 'none';
+    }
+  }
+
   if (params.has('embed')) {
     document.body.classList.add('embed');
-    const send = (type, payload) => {
-      try { parent.postMessage({ source: 'arc-visitor', type, ...payload }, '*'); } catch (_) {}
+    const send = (type, extra) => {
+      try { parent.postMessage({ source: 'arc-visitor', type, ...(extra || {}) }, '*'); } catch (_) {}
     };
+    let lastVisitId = params.get('id') ?? null;
+    window.addEventListener('message', (e) => {
+      const msg = e.data;
+      if (!msg || msg.source !== 'arc-game-host') return;
+      if (msg.type === 'init') {
+        applyPayload(msg.payload);
+        if (msg.payload && msg.payload.visitId) lastVisitId = msg.payload.visitId;
+      }
+    });
     document.getElementById('wave-btn')?.addEventListener('click', () => {
-      send('visitor-seen', { visitId: params.get('id') ?? null });
+      send('visitor-seen', { payload: { visitId: lastVisitId } });
     });
   }
 </script>

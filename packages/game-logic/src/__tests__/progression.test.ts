@@ -28,6 +28,41 @@ describe('getSpeciesUnlocksForLevel', () => {
     expect(species).toContain('snake');
     expect(species).toHaveLength(7);
   });
+
+  it('defaults to zero extra slots when not specified', () => {
+    expect(getSpeciesUnlocksForLevel(1)).toEqual(getSpeciesUnlocksForLevel(1, 0));
+  });
+
+  it('extraSpeciesSlots=1 at a level without parrot unlocks parrot', () => {
+    // Level 2 normally has cat/dog/fox/bunny. Kofi's slot peeks parrot
+    // (the next species in the canonical order).
+    const species = getSpeciesUnlocksForLevel(2, 1);
+    expect(species).toContain('parrot');
+    expect(species).not.toContain('snake');
+    expect(species).toHaveLength(5);
+  });
+
+  it('extraSpeciesSlots=1 after parrot is already unlocked adds snake', () => {
+    // Level 3 already has parrot, so Kofi peeks snake instead.
+    const species = getSpeciesUnlocksForLevel(3, 1);
+    expect(species).toContain('parrot');
+    expect(species).toContain('snake');
+    expect(species).toHaveLength(7);
+  });
+
+  it('extraSpeciesSlots=1 when both parrot and snake already unlocked → no change', () => {
+    const baseline = getSpeciesUnlocksForLevel(4);
+    const withSlot = getSpeciesUnlocksForLevel(4, 1);
+    expect(withSlot).toEqual(baseline);
+  });
+
+  it('extraSpeciesSlots=1 at level 1 unlocks parrot first', () => {
+    const species = getSpeciesUnlocksForLevel(1, 1);
+    expect(species).toContain('cat');
+    expect(species).toContain('dog');
+    expect(species).toContain('parrot');
+    expect(species).toHaveLength(3);
+  });
 });
 
 describe('getRequiredRescuesForLevel', () => {

@@ -1,4 +1,5 @@
 import type { Animal, Species } from '@arc/shared-types';
+import { rollArrivalToy } from './toys';
 
 /**
  * Arrival stories per species — randomly selected when an animal spawns.
@@ -152,7 +153,7 @@ export function spawnAnimal(
     name = names[Math.floor(Math.random() * names.length)];
   }
 
-  return {
+  const animal: Animal = {
     id,
     name,
     species,
@@ -167,6 +168,18 @@ export function spawnAnimal(
     siblingId,
     roomId: `room-${species}`,
   };
+
+  // Some animals arrive clutching a favourite toy — roll for it here.
+  // When present, the arrival toy also becomes the initial favourite
+  // (arrival-toy-is-favourite rule).
+  const arrivalToy = rollArrivalToy(species);
+  if (arrivalToy) {
+    animal.toys = [arrivalToy];
+    animal.arrivalToy = arrivalToy;
+    animal.favouriteToy = arrivalToy;
+  }
+
+  return animal;
 }
 
 /**

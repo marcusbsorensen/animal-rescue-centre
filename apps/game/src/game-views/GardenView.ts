@@ -8,9 +8,13 @@ import {
   partitionByZone,
   applyShakeOff,
   dry,
+  getDueGardenReturns,
+  markGardenReturnSeen,
+  markAllDueGardenReturnsSeen,
 } from '@arc/game-logic';
 import { playShakeOff } from '../ui/ShakeOffAnimation';
 import { createPillTitle, createTextButton } from '../ui/UIButton';
+import { showToast } from '../ui/ErrorOverlay';
 import { createAnimalSprite } from '../ui/sprites';
 import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
@@ -412,6 +416,59 @@ function renderZone(
       ease: 'Sine.easeInOut',
     });
   });
+
+  // ── Wild returners (rewilded animals dropping by the garden) ────
+  // Only rendered on the lawn zone — the quiet nook is for resident
+  // pets that need calm. Renders as additional sprites with a sparkle
+  // marker; tapping shows a small toast and marks the visit seen.
+  if (zone === 'lawn') {
+    const dueReturns = getDueGardenReturns(store, Date.now());
+    dueReturns.forEach((ret, i) => {
+      const cx = width * 0.2 + (i % 3) * (width * 0.22);
+      const cy = height * 0.68 + Math.floor(i / 3) * 70;
+
+      // Build a minimal Animal-like shape so createAnimalSprite can
+      // pick the right texture. Uses the "playing" state since these
+      // animals are happy to be back.
+      const fakeAnimal = {
+        id: `garden-return-${ret.id}`,
+        species: ret.species,
+        variant: ret.variant,
+        name: ret.animalName,
+        state: 'pet',
+        happiness: 100,
+      } as unknown as Animal;
+
+      const sprite = createAnimalSprite(scene, cx, cy, fakeAnimal, {
+        width: 90, height: 72, interactive: true,
+        stateOverride: 'playing',
+      });
+
+      // Sparkle marker above — "wild visitor"
+      const sparkle = scene.add.text(cx, cy - 46, '\u2728', {
+        fontSize: '20px', fontFamily: FONTS.body, color: '#ffd86b',
+        resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5);
+      scene.tweens.add({
+        targets: sparkle, alpha: 0.5, duration: 900,
+        yoyo: true, repeat: -1,
+      });
+
+      container.add(sprite);
+      container.add(sparkle);
+      container.add(
+        scene.add.text(cx, cy + 30, ret.animalName, {
+          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
+          resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5),
+      );
+
+      sprite.on('pointerdown', () => {
+        showToast(scene, `\uD83C\uDF32 ${ret.animalName} came back to visit!`);
+        markGardenReturnSeen(store, ret.id);
+      });
+    });
+  }
 
   // ── Upgrades + badges footer (pets only — visitors don't count) ──
   const allPets = store.animals.filter((a) => a.state === 'pet');

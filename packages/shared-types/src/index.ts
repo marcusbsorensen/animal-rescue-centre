@@ -74,6 +74,25 @@ export interface Animal {
    * Non-committing — can be changed any time until the final ceremony.
    */
   aspiration?: 'rehome' | 'rewild' | 'stay';
+
+  /**
+   * Toy identifiers the animal currently owns. Must include one entry
+   * that's flagged as the arrival-toy, if any. See TOY_DEFS in
+   * game-logic/src/toys.ts.
+   */
+  toys?: string[];
+
+  /**
+   * The toy this animal arrived with (if any). Not always present —
+   * some animals arrive without a toy. Matches one of TOY_DEFS.
+   */
+  arrivalToy?: string;
+
+  /**
+   * The toy currently equipped for play — determines which mini-game
+   * variant runs. Defaults to the species' default toy when absent.
+   */
+  favouriteToy?: string;
 }
 
 export type GardenZone = 'lawn' | 'quiet';

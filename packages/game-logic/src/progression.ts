@@ -3,12 +3,34 @@ import type { Species } from '@arc/shared-types';
 /**
  * Species unlock schedule by level.
  * L1: cats+dogs → L2: +foxes+bunnies → L3: +bats+parrots → L4: +snakes → L5+: all
+ *
+ * Kofi the apprentice (bookworm) can unlock one additional species slot
+ * early — see `ApprenticeUnlocks.extraSpeciesSlots`. When that bag is
+ * set to 1, the player gets an early peek at the next species in the
+ * normal progression order (parrot, then snake). It's a specific
+ * early-peek, not a wildcard: if parrot AND snake are already unlocked
+ * by level, the extra slot has no further effect.
  */
-export function getSpeciesUnlocksForLevel(level: number): Species[] {
+export function getSpeciesUnlocksForLevel(
+  level: number,
+  extraSpeciesSlots = 0,
+): Species[] {
   const unlocks: Species[] = ['cat', 'dog'];
   if (level >= 2) unlocks.push('fox', 'bunny');
   if (level >= 3) unlocks.push('bat', 'parrot');
   if (level >= 4) unlocks.push('snake');
+
+  // Apprentice early-peek: follows the normal progression order so
+  // level-driven unlocks and apprentice-driven unlocks stay consistent.
+  if (extraSpeciesSlots > 0) {
+    const earlyOrder: Species[] = ['parrot', 'snake'];
+    for (const species of earlyOrder) {
+      if (!unlocks.includes(species)) {
+        unlocks.push(species);
+        break;
+      }
+    }
+  }
   return unlocks;
 }
 

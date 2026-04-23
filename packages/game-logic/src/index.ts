@@ -250,7 +250,28 @@ export {
   scheduleVisitsForDay,
   getDueVisitors,
   markVisitSeen,
+  scheduleWildReturns,
+  getDueGardenReturns,
+  markGardenReturnSeen,
+  markAllDueGardenReturnsSeen,
   REHOMED_VISIT_CHANCE,
   REWILDED_VISIT_CHANCE,
+  WILD_RETURN_CHANCE,
 } from './visitors';
-export type { VisitType, VisitorEntry, VisitorStoreShape } from './visitors';
+export type {
+  VisitType,
+  VisitorEntry,
+  VisitorStoreShape,
+  GardenReturnEntry,
+  WildReturnStoreShape,
+} from './visitors';
+export {
+  TOY_DEFS,
+  DEFAULT_TOY_FOR_SPECIES,
+  ARRIVAL_TOY_PROBABILITY,
+  rollArrivalToy,
+  getAvailableToys,
+  getToyBondBonus,
+  getPlayToyId,
+} from './toys';
+export type { ToyDef } from './toys';
