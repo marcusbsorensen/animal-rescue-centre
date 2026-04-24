@@ -279,15 +279,47 @@ Lily being able to recognise her home town in the game is part of the point. Nam
 | **North Sea horizon** | Backdrop, harbour/Cove Harbour implied further along the coast toward Margate |
 | **Road toward Margate / Herne Bay** | Outskirts drives; leads to specialist destinations (Pinebark Medical etc) |
 
-#### Verify with Marcus before finalising
+#### Confirmed naming + local details (Marcus, 2026-04-24)
 
-The mapping above is a best-guess sketch from web-sourced geography. Before committing to art or map coords, Marcus should confirm / correct:
+**Town name: "Birchie-on-Sea"** (light fictionalisation; preserves recognition).
 
-- Which real landmarks Lily knows best (those get the plumpest cameo).
-- Whether Quex-as-the-Centre feels right or is too "real" — A.R.C. may want a fictional-but-nearby estate instead so it doesn't collide with the museum.
-- What to call Centre-invented locations that don't have Birchington analogues (Pinebark Medical, Pet Show venues, prosthetics vet, training academies).
-- Whether to name streets recognisably (Minnis Road, Station Road, etc.) or keep them generic.
-- Any family / local in-jokes that should land on the map (a favourite cafe? a park the family walks?).
+**Streets:**
+- Minnis Road → **Bay Road** (fictionalised — avoids using the real home address)
+- Station Road → **Station Road** (kept — generic enough)
+
+**Confirmed landmarks + local details to fold into the map:**
+
+- **Parade of colourful beach huts** — signature Minnis Bay visual. Painted as a rainbow strip along the promenade. Cosmetic anchor for the coastal drive.
+- **Town library** — village-centre landmark, good calm beat; possible skill-training venue (parrot intelligence reading-comprehension?).
+- **Best fish & chip shop** — paired with **Christy's wine bar across the road**. A pairing the game can surface ("drive past the chippy and Christy's on the way to the vet"). Adult-flavour nod; could be where apprentices hang out after shifts.
+- **"New Quex"** — a different-named estate standing in for the real Quex Park: woodlands, **alpacas**, farm adventure area, frequent events. This is a **multi-purpose destination**:
+  - **Pet-show venue** (their events calendar is perfect for fête / county-tier shows)
+  - **Skill-training assessment centre** (the farmland + woodland = pre-rewilding foraging training; the alpacas + farm animals = socialisation training for guide-dog candidates)
+  - **Seasonal treks** — ties into the in-game calendar (spring bloom walk, autumn-hush leaf walks, winter cosy lantern trek). Each trek is a drive + guided walk event.
+  - Naming TBD — keep the regal feel ("Duxbury Park"? "Thornside Park"?). Not Quex.
+- **Hand car wash at the west entrance to Birchie** with its famous **inflatable wavy arm-man**. Two game uses:
+  - **Supply Run hazard/gag**: driving through the wavy-arm zone creates a little chaos — random steering jitter, visual comedy.
+  - **Vehicle wash destination**: a calm-mode use — take a dusty PTV van through, pay a coin, emerge sparkling (cosmetic bonus, visible cleaner vehicle sprite, small mood lift to whoever's on board). Lily will love the inflatable guy as a recurring character.
+- **Hedgehog crossing signs** — Birchie is locally famous for these cute warning signs. Put them on the roadside as ambient props AND set up the hedgehog storyline for the future animal batch. A hedgehog's arrival story could literally be "found by the Bay Road hedgehog-crossing sign."
+- **Hedgehog rescue centre near Herne Bay** (real place) — two options:
+  - Sister-centre collection destination (drive there to pick up a rescued hedgehog).
+  - Inspiration/namesake only; A.R.C. itself handles the rehab.
+  - Decision deferred until the hedgehog batch lands.
+- **Minnis Bay beach** — tidal-aware dog destination:
+  - **Huge at low tide, almost gone at high tide**. The in-game tide state determines whether the beach drive is worthwhile.
+  - **Dog-friendly Sept–April on the main beach**; more distant sections only during the summer season.
+  - **Tidal pool** — gentle paddling for scared or recovering dogs.
+  - Use: drive dogs there for a splash + dig + sand romp → big happiness boost, mud-meter fills (connects to bath / grooming loop).
+  - Crowd density: "tonnes of dog walkers" — real social scene; good for cast-walk-by cameos.
+- **Kids' playground next to The Dip** — a sunken multifunctional sports ground (below ground level to keep balls, wind, and waves out). Visible landmark from the coast road. Possible enclosed **pet-show venue** (the sunk bowl shape is natural seating).
+
+#### Still open — decisions deferred
+
+- Name for the fictional-Quex estate (keeping the alpacas-and-events feel).
+- Whether the specialist-prosthetics vet has a Birchie analogue, or sits in nearby Margate / Canterbury.
+- Whether to reference real shops or keep fish-chip-shop and Christy's generic.
+- How much tidal realism to model (a simple day/night + low/high-tide cycle is enough; no lunar calendar required).
+- Powell-Cotton Museum — kept as flavour or replaced by a fictional museum?
 
 #### Consequences for art + music
 
