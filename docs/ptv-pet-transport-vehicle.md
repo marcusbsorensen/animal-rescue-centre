@@ -291,11 +291,11 @@ Lily being able to recognise her home town in the game is part of the point. Nam
 - **Parade of colourful beach huts** — signature Minnis Bay visual. Painted as a rainbow strip along the promenade. Cosmetic anchor for the coastal drive.
 - **Town library** — village-centre landmark, good calm beat; possible skill-training venue (parrot intelligence reading-comprehension?).
 - **Best fish & chip shop** — paired with **Christy's wine bar across the road**. A pairing the game can surface ("drive past the chippy and Christy's on the way to the vet"). Adult-flavour nod; could be where apprentices hang out after shifts.
-- **"New Quex"** — a different-named estate standing in for the real Quex Park: woodlands, **alpacas**, farm adventure area, frequent events. This is a **multi-purpose destination**:
+- **Wyx Park** — the estate standing in for the real Quex Park. Woodlands, **alpacas**, farm adventure area, frequent events. This is a **multi-purpose destination**:
   - **Pet-show venue** (their events calendar is perfect for fête / county-tier shows)
   - **Skill-training assessment centre** (the farmland + woodland = pre-rewilding foraging training; the alpacas + farm animals = socialisation training for guide-dog candidates)
   - **Seasonal treks** — ties into the in-game calendar (spring bloom walk, autumn-hush leaf walks, winter cosy lantern trek). Each trek is a drive + guided walk event.
-  - Naming TBD — keep the regal feel ("Duxbury Park"? "Thornside Park"?). Not Quex.
+  - **Tonal note (Marcus, 2026-04-24):** Wyx Park leans **witchy-woodland**, NOT futuristic or cartoon-whimsy. Think ancient-tree-country-estate: gnarled oaks, lichen-draped gates, moss on stone steps, woodsmoke on cold mornings, a faint mist in the morning lanes. The alpacas feel like gentle witches' familiars, not petting-zoo exhibits. Events have a folk-fair flavour (lanterns, wooden stalls, fiddle music) rather than a theme-park flavour.
 - **Hand car wash at the west entrance to Birchie** with its famous **inflatable wavy arm-man**. Two game uses:
   - **Supply Run hazard/gag**: driving through the wavy-arm zone creates a little chaos — random steering jitter, visual comedy.
   - **Vehicle wash destination**: a calm-mode use — take a dusty PTV van through, pay a coin, emerge sparkling (cosmetic bonus, visible cleaner vehicle sprite, small mood lift to whoever's on board). Lily will love the inflatable guy as a recurring character.
@@ -324,21 +324,6 @@ Lily being able to recognise her home town in the game is part of the point. Nam
   - Unlock trigger remains story-driven (a dachshund / fennec arrives needing wheels — see §"Destinations discovered through pet needs").
 
 #### Still open — decisions deferred
-
-- Name for the fictional-Quex estate. Shortlist below — locals will recognise by letter pattern (short, spiky Q/X/Y/Z feel).
-
-  | Name | Flavour |
-  |---|---|
-  | **Pyx Park** | P-Y-X, real word (ecclesiastical box), dignified-but-weird |
-  | **Qix Park** | Keeps Quex's Q and X |
-  | **Vyx Park** | V-Y-X, invented, crisp |
-  | **Jynx Park** | Playful, great to say out loud |
-  | **Zox Park** | Bouncy, two unusual letters |
-  | **Wyx Park** | Echoes Quex rhythmically |
-  | **Byx Park** | Ye-olde feel |
-  | **Quem Park** | Keeps Q-U-E- pattern, soft ending |
-
-  Claude's pick: **Pyx Park** (dignified, real word, right shape) or **Jynx Park** (most fun to say). Marcus to pick.
 
 - How much tidal realism to model (a simple day/night + low/high-tide cycle is enough; no lunar calendar required).
 
