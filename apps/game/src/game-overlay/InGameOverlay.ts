@@ -17,7 +17,7 @@
 
 export type InGamePage =
   | 'paths' | 'adopters' | 'adoption' | 'rewilding' | 'conflict' | 'visitor' | 'vet'
-  | 'arrival' | 'badge' | 'map';
+  | 'arrival' | 'badge' | 'map' | 'drive';
 
 export type InGameAction =
   | 'close'
@@ -41,7 +41,9 @@ export type InGameAction =
   | 'welcome-hi'
   | 'welcome-treat'
   | 'badge-seen'
-  | 'drive-to';
+  | 'drive-to'
+  | 'drive-complete'
+  | 'drive-skipped';
 
 export interface InGameOverlayHandlers {
   onAction: (action: InGameAction, payload?: Record<string, unknown>) => void;
@@ -58,12 +60,13 @@ const PAGE_URLS: Record<InGamePage, string> = {
   arrival:   '/admin/mockup-arrival.html?embed=1',
   badge:     '/admin/mockup-badge.html?embed=1',
   map:       '/admin/mockup-map.html?embed=1',
+  drive:     '/admin/drive-overlay.html?embed=1',
 };
 
 /** Valid postMessage source names we'll forward. */
 const VALID_SOURCES = new Set([
   'arc-game', 'arc-auth', 'arc-adopters', 'arc-adoption', 'arc-rewild', 'arc-visitor', 'arc-vet',
-  'arc-arrival', 'arc-badge', 'arc-map',
+  'arc-arrival', 'arc-badge', 'arc-map', 'arc-drive',
 ]);
 
 let activeFrame: HTMLIFrameElement | null = null;

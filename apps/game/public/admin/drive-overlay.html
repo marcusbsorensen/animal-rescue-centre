@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Drive (Vet Run)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --garden-green: #2E8B57;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
+    --sky-soft: #bfe3ef;
+    --road-grey: #5a5a58;
+    --road-stripe: #fff3c0;
+    --grass-green: #8fbf66;
+    --ink: #3a3a3a;
+    --ink-soft: #6b6b6b;
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
+    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #222; }
+  body {
+    font-family: var(--body-font); color: var(--ink);
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  body.embed { background: var(--cream-wash); }
+  body.embed .vp-bar { display: none; }
+  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
+  body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .vp-bar button {
+    background: #444; color: #fff; border: 1px solid #555;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+  }
+  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+
+  .device-frame {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: auto;
+  }
+  .device {
+    background: var(--cream-wash);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s, height 0.3s;
+    flex-shrink: 0;
+  }
+  .device[data-size="iphone"]    { width: 390px;  height: 844px; }
+  .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
+  .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
+  .device[data-size="desktop"]   { width: 1280px; height: 800px; }
+
+  .stage {
+    width: 100%; height: 100%;
+    position: relative; overflow: hidden;
+  }
+  .stage[hidden] { display: none; }
+
+  /* ── Stage 1 — call to action ── */
+  .cta {
+    width: 100%; height: 100%;
+    position: relative;
+    background:
+      radial-gradient(ellipse at 50% 30%, #fff8e4 0%, #fbe9b9 55%, #e6c47a 100%);
+    display: flex; flex-direction: column; align-items: center;
+    padding: clamp(20px, 4vh, 48px) clamp(16px, 4vw, 40px);
+    overflow: hidden;
+  }
+  .cta::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 80%, rgba(255,255,255,0.18) 0 3px, transparent 4px),
+      radial-gradient(circle at 70% 20%, rgba(255,255,255,0.22) 0 2px, transparent 3px),
+      radial-gradient(circle at 85% 65%, rgba(255,255,255,0.15) 0 2px, transparent 3px);
+    background-size: 260px 260px, 180px 180px, 220px 220px;
+    pointer-events: none;
+  }
+
+  .tutorial-banner {
+    background: #3e2c1a;
+    color: #fff5d0;
+    font-family: var(--sign-title-font);
+    font-size: clamp(16px, 2.4vh, 22px);
+    font-weight: 700;
+    padding: 10px 22px;
+    border-radius: 999px;
+    box-shadow: 0 6px 0 #1f1408, 0 10px 20px rgba(0,0,0,0.25);
+    transform: rotate(-2deg);
+    margin-bottom: 14px;
+    position: relative; z-index: 2;
+    letter-spacing: 0.5px;
+  }
+  .tutorial-banner::before { content: '🎓 '; }
+
+  .cta-title {
+    font-family: var(--sign-title-font);
+    font-size: clamp(28px, 5.5vh, 48px);
+    color: #4a2e14;
+    text-align: center;
+    line-height: 1.1;
+    margin-bottom: 8px;
+    position: relative; z-index: 2;
+    text-shadow: 0 2px 0 rgba(255,255,255,0.5);
+  }
+  .cta-sub {
+    font-family: var(--sign-font);
+    font-size: clamp(16px, 2.4vh, 22px);
+    color: #5b3b1e;
+    text-align: center;
+    margin-bottom: clamp(14px, 3vh, 28px);
+    max-width: 520px;
+    position: relative; z-index: 2;
+  }
+
+  .pet-vignette {
+    position: relative; z-index: 2;
+    width: min(60vh, 60vw, 320px);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at center, #fff 0%, #fff 60%, rgba(255,255,255,0.0) 75%);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+    box-shadow: inset 0 0 40px rgba(255,230,150,0.6);
+  }
+  .pet-vignette img {
+    width: 85%; height: 85%; object-fit: contain;
+    filter: drop-shadow(0 6px 8px rgba(0,0,0,0.15));
+  }
+  .illness-chip {
+    position: relative; z-index: 2;
+    background: #b9452e;
+    color: #fff;
+    font-family: var(--sign-font);
+    font-size: clamp(14px, 2.1vh, 18px);
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 999px;
+    margin-bottom: clamp(14px, 3vh, 28px);
+    box-shadow: 0 3px 0 #7e2e1e;
+  }
+  .illness-chip::before { content: '🤒 '; }
+
+  .cta-actions {
+    position: relative; z-index: 2;
+    display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+  }
+  .btn {
+    font-family: var(--sign-title-font);
+    font-size: clamp(16px, 2.4vh, 20px);
+    font-weight: 700;
+    padding: 12px 24px;
+    border: none; border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    letter-spacing: 0.3px;
+  }
+  .btn:active { transform: translateY(2px); }
+  .btn-primary {
+    background: var(--garden-green);
+    color: #fff;
+    box-shadow: 0 5px 0 #1f5d3a, 0 8px 16px rgba(0,0,0,0.2);
+  }
+  .btn-primary:active { box-shadow: 0 3px 0 #1f5d3a, 0 4px 8px rgba(0,0,0,0.2); }
+  .btn-secondary {
+    background: #f3e6c8;
+    color: #4a2e14;
+    box-shadow: 0 5px 0 #c9b58a, 0 8px 16px rgba(0,0,0,0.15);
+  }
+  .btn-secondary:active { box-shadow: 0 3px 0 #c9b58a, 0 4px 8px rgba(0,0,0,0.15); }
+
+  /* ── Stage 2 — drive ── */
+  .drive {
+    width: 100%; height: 100%;
+    position: relative;
+    background: linear-gradient(to bottom, var(--sky-soft) 0%, #d8f0d0 55%, var(--grass-green) 100%);
+    overflow: hidden;
+  }
+  /* Scrolling road */
+  .road {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 55%;
+    background:
+      linear-gradient(to bottom,
+        transparent 0%, transparent 28%,
+        var(--road-grey) 28%, var(--road-grey) 100%);
+  }
+  .road::before {
+    /* scrolling dashed centre line */
+    content: ''; position: absolute;
+    left: 50%; transform: translateX(-50%);
+    top: 28%; bottom: 0;
+    width: 12px;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--road-stripe) 0px, var(--road-stripe) 32px,
+      transparent 32px, transparent 72px
+    );
+    animation: roadScroll 0.6s linear infinite;
+  }
+  @keyframes roadScroll {
+    from { background-position-y: 0px; }
+    to   { background-position-y: 104px; }
+  }
+  /* Rolling hedgerow silhouettes */
+  .hedges {
+    position: absolute; left: 0; right: 0;
+    top: 40%; height: 20%;
+    background-image:
+      radial-gradient(ellipse 80px 40px at 10% 100%, #4a6b35 0 98%, transparent 100%),
+      radial-gradient(ellipse 110px 55px at 35% 100%, #5d7f44 0 98%, transparent 100%),
+      radial-gradient(ellipse 90px 45px at 60% 100%, #4a6b35 0 98%, transparent 100%),
+      radial-gradient(ellipse 120px 60px at 85% 100%, #5d7f44 0 98%, transparent 100%);
+    background-size: 320px 100%;
+    background-repeat: repeat-x;
+    animation: hedgeScroll 3s linear infinite;
+    opacity: 0.85;
+  }
+  @keyframes hedgeScroll {
+    from { background-position-x: 0; }
+    to   { background-position-x: -320px; }
+  }
+  .sun {
+    position: absolute; top: 8%; right: 10%;
+    width: 64px; height: 64px; border-radius: 50%;
+    background: radial-gradient(circle, #fff5b0 0%, #ffcf56 70%, rgba(255,200,80,0) 100%);
+    box-shadow: 0 0 40px rgba(255,220,140,0.7);
+  }
+
+  /* Trikey (painted) */
+  .trikey {
+    position: absolute;
+    left: 50%; bottom: 16%;
+    transform: translateX(-50%);
+    width: min(38vh, 220px);
+    aspect-ratio: 1.4 / 1;
+    animation: trikeyBob 0.4s ease-in-out infinite alternate;
+    pointer-events: none;
+    filter: drop-shadow(0 8px 10px rgba(0,0,0,0.25));
+  }
+  @keyframes trikeyBob {
+    from { transform: translateX(-50%) translateY(0); }
+    to   { transform: translateX(-50%) translateY(-3px); }
+  }
+  .trikey-body {
+    position: absolute; left: 15%; right: 15%; top: 20%; height: 55%;
+    background: linear-gradient(to bottom, #e3b04b 0%, #b88a37 100%);
+    border-radius: 18px 18px 8px 8px / 22px 22px 8px 8px;
+    border: 3px solid #4a2e14;
+  }
+  .trikey-body::after {
+    content: 'ARC'; position: absolute;
+    left: 50%; top: 40%;
+    transform: translate(-50%, -50%);
+    font-family: var(--sign-title-font); font-weight: 700;
+    font-size: 18px; color: #4a2e14;
+    letter-spacing: 2px;
+  }
+  .trikey-cabin {
+    position: absolute; left: 28%; right: 28%; top: 3%; height: 35%;
+    background: #bfe3ef;
+    border: 3px solid #4a2e14;
+    border-radius: 16px 16px 4px 4px;
+  }
+  .trikey-wheel {
+    position: absolute; bottom: 4%;
+    width: 28%; aspect-ratio: 1/1;
+    background: #2a2a2a;
+    border: 3px solid #4a2e14;
+    border-radius: 50%;
+  }
+  .trikey-wheel::after {
+    content: ''; position: absolute; inset: 20%;
+    background: #888;
+    border-radius: 50%;
+    animation: wheelSpin 0.15s linear infinite;
+  }
+  @keyframes wheelSpin {
+    from { transform: rotate(0); }
+    to   { transform: rotate(360deg); }
+  }
+  .trikey-wheel.left  { left: 4%; }
+  .trikey-wheel.right { right: 4%; }
+
+  /* GPS mini-panel top-left */
+  .gps-panel {
+    position: absolute; top: 14px; left: 14px;
+    width: min(32vw, 180px);
+    background: rgba(255, 249, 239, 0.94);
+    border: 3px solid #4a2e14;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-family: var(--sign-font);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    z-index: 3;
+  }
+  .gps-title {
+    font-size: 12px; font-weight: 700;
+    color: #4a2e14;
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .gps-map {
+    position: relative;
+    width: 100%; height: 80px;
+    background: #eef6e3;
+    border-radius: 6px;
+    border: 1px solid #b8c89e;
+    overflow: hidden;
+  }
+  .gps-route {
+    position: absolute; inset: 0;
+  }
+  .gps-route svg { width: 100%; height: 100%; display: block; }
+  .gps-pin {
+    position: absolute;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+  .gps-pin.start { background: var(--garden-green); top: 18%; left: 22%; }
+  .gps-pin.end   { background: #b9452e; top: 78%; left: 80%; }
+  .gps-marker {
+    position: absolute;
+    width: 14px; height: 14px;
+    background: var(--honey-amber);
+    border: 2px solid #4a2e14;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 4px rgba(227,176,75,0.35);
+    transition: top 0.4s linear, left 0.4s linear;
+  }
+
+  /* Destination panel top-right */
+  .dest-panel {
+    position: absolute; top: 14px; right: 14px;
+    background: #fff5d0;
+    border: 3px solid #4a2e14;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-family: var(--sign-title-font);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    transform: rotate(2deg);
+    z-index: 3;
+  }
+  .dest-panel .dest-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #7b5c3a;
+  }
+  .dest-panel .dest-name { font-size: 18px; font-weight: 700; color: #4a2e14; }
+
+  /* Narrator bubble */
+  .narrator {
+    position: absolute;
+    left: 50%; bottom: 6%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95);
+    color: #4a2e14;
+    font-family: var(--sign-font);
+    font-size: clamp(14px, 2vh, 18px);
+    font-weight: 700;
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 2px solid #4a2e14;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    max-width: 86%;
+    text-align: center;
+    z-index: 3;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .narrator.show { opacity: 1; }
+
+  /* Tutorial dashboard spotlight (tutorial-only) */
+  .dashboard-hints {
+    position: absolute; left: 50%; bottom: 3%;
+    transform: translateX(-50%);
+    display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+    padding: 8px 12px;
+    background: rgba(62, 44, 26, 0.88);
+    border-radius: 14px;
+    z-index: 4;
+    max-width: 96%;
+  }
+  .dashboard-hints[hidden] { display: none; }
+  .dashboard-hints .hint {
+    font-family: var(--sign-font);
+    font-size: 11px;
+    color: #fff5d0;
+    background: rgba(255,255,255,0.14);
+    padding: 4px 9px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  .dashboard-hints .hint::before { content: '✨ '; }
+
+  /* ── Stage 3 — arrival ── */
+  .arrival {
+    width: 100%; height: 100%;
+    position: relative;
+    background: linear-gradient(to bottom, #c4e4f0 0%, #f8e2b0 60%, #8fbf66 100%);
+    display: flex; flex-direction: column; align-items: center;
+    padding: clamp(20px, 4vh, 40px) clamp(16px, 4vw, 32px);
+    overflow: hidden;
+  }
+  .clinic {
+    position: relative;
+    margin: clamp(12px, 3vh, 28px) 0 clamp(8px, 2vh, 20px);
+    width: min(80vw, 420px);
+    aspect-ratio: 1.4 / 1;
+    background:
+      linear-gradient(to bottom, #f7d9a8 0%, #e6b87a 100%);
+    border: 4px solid #4a2e14;
+    border-radius: 20px 20px 8px 8px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.3);
+  }
+  .clinic-roof {
+    position: absolute; left: -6%; right: -6%; top: -22%;
+    height: 30%;
+    background: #b9452e;
+    border: 4px solid #4a2e14;
+    clip-path: polygon(6% 100%, 50% 0%, 94% 100%);
+  }
+  .clinic-sign {
+    position: absolute; top: 18%; left: 50%;
+    transform: translateX(-50%) rotate(-2deg);
+    background: #fff5d0;
+    border: 3px solid #4a2e14;
+    border-radius: 8px;
+    padding: 4px 14px;
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(14px, 2.2vh, 18px);
+    color: #4a2e14;
+    white-space: nowrap;
+    box-shadow: 0 3px 0 #7b5c3a;
+  }
+  .clinic-door {
+    position: absolute; left: 50%; bottom: 0;
+    transform: translateX(-50%);
+    width: 28%; height: 55%;
+    background: #5a3822;
+    border: 3px solid #4a2e14;
+    border-radius: 14px 14px 0 0;
+  }
+  .clinic-door::after {
+    content: ''; position: absolute;
+    right: 14%; top: 50%;
+    width: 6px; height: 6px;
+    background: var(--honey-amber);
+    border-radius: 50%;
+  }
+  .clinic-window {
+    position: absolute;
+    top: 35%; width: 18%; height: 22%;
+    background: var(--sky-soft);
+    border: 3px solid #4a2e14;
+    border-radius: 6px;
+  }
+  .clinic-window.left  { left: 12%; }
+  .clinic-window.right { right: 12%; }
+
+  .vet-figure {
+    position: absolute;
+    bottom: -6%; left: 14%;
+    width: 18%; aspect-ratio: 1/1.6;
+    background: linear-gradient(to bottom, #ffe1c6 0%, #ffe1c6 32%, #fff 33%, #fff 72%, #2a5a8a 73%, #2a5a8a 100%);
+    border: 3px solid #4a2e14;
+    border-radius: 40% 40% 14% 14%;
+  }
+  .vet-figure::after {
+    /* little cross on the coat */
+    content: '+'; position: absolute;
+    left: 50%; top: 52%;
+    transform: translate(-50%, -50%);
+    color: #b9452e;
+    font-family: var(--sign-title-font);
+    font-size: 18px; font-weight: 700;
+  }
+
+  .arrival-title {
+    font-family: var(--sign-title-font);
+    font-size: clamp(24px, 4.5vh, 38px);
+    color: #4a2e14;
+    text-align: center;
+    line-height: 1.15;
+    margin-top: clamp(20px, 4vh, 36px);
+    text-shadow: 0 2px 0 rgba(255,255,255,0.4);
+  }
+  .arrival-sub {
+    font-family: var(--sign-font);
+    font-size: clamp(15px, 2.2vh, 20px);
+    color: #5b3b1e;
+    text-align: center;
+    margin: 6px auto 0;
+    max-width: 480px;
+  }
+
+  .bonus-chalkboard {
+    margin: clamp(10px, 2vh, 20px) auto 0;
+    background: #2d3d2a;
+    color: #fff5d0;
+    font-family: var(--sign-title-font);
+    font-size: clamp(15px, 2.2vh, 19px);
+    font-weight: 700;
+    padding: 8px 18px;
+    border-radius: 10px;
+    border: 3px solid #1e2a1c;
+    box-shadow: 0 4px 0 #14190f, 0 6px 12px rgba(0,0,0,0.25);
+    transform: rotate(-1.5deg);
+  }
+  .bonus-chalkboard::before { content: '✨ '; }
+
+  .arrival-actions {
+    margin-top: clamp(14px, 3vh, 28px);
+  }
+
+  /* small-screen tweaks */
+  @media (max-height: 520px) {
+    .pet-vignette { width: min(36vh, 36vw, 200px); }
+    .cta-sub { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="vp-bar">
+    <strong>A.R.C.</strong> <span>drive-overlay.html</span>
+    <button data-size="iphone" class="on">iPhone</button>
+    <button data-size="ipad-p">iPad P</button>
+    <button data-size="ipad-l">iPad L</button>
+    <button data-size="desktop">Desktop</button>
+    <span class="hint">Vet-run first-drive overlay</span>
+  </div>
+  <div class="device-frame">
+    <div class="device" id="device" data-size="iphone">
+
+      <!-- Stage 1 — CTA -->
+      <div class="stage" id="stage-cta">
+        <div class="cta">
+          <div class="tutorial-banner" id="tutorialBanner" hidden>Tutorial — your first drive</div>
+          <h1 class="cta-title">Oh no — <span id="petName">your pet</span> isn't feeling well.</h1>
+          <p class="cta-sub">Let's take them to the vet. Trikey is warmed up and ready to go.</p>
+          <div class="pet-vignette">
+            <img id="petSprite" alt="" src="/assets/animals/cat-tabby-sick.png" onerror="this.style.visibility='hidden'"/>
+          </div>
+          <div class="illness-chip" id="illnessChip">tummy bug</div>
+          <div class="cta-actions">
+            <button class="btn btn-primary" id="btnDrive">Let's drive!</button>
+            <button class="btn btn-secondary" id="btnSkip">Not right now</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage 2 — drive -->
+      <div class="stage" id="stage-drive" hidden>
+        <div class="drive">
+          <div class="sun"></div>
+          <div class="hedges"></div>
+          <div class="road"></div>
+
+          <div class="gps-panel">
+            <div class="gps-title">🗺 Route</div>
+            <div class="gps-map">
+              <div class="gps-route">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <path d="M22,18 C 40,28 30,50 50,55 C 70,60 65,76 80,78"
+                        stroke="#4a2e14" stroke-width="2"
+                        stroke-dasharray="3 2" fill="none"/>
+                </svg>
+              </div>
+              <div class="gps-pin start" title="The Arc"></div>
+              <div class="gps-pin end"   title="Bay Road Vets"></div>
+              <div class="gps-marker" id="gpsMarker" style="top: 18%; left: 22%;"></div>
+            </div>
+          </div>
+
+          <div class="dest-panel">
+            <div class="dest-label">Destination</div>
+            <div class="dest-name">Bay Road Vets</div>
+          </div>
+
+          <div class="trikey">
+            <div class="trikey-cabin"></div>
+            <div class="trikey-body"></div>
+            <div class="trikey-wheel left"></div>
+            <div class="trikey-wheel right"></div>
+          </div>
+
+          <div class="narrator" id="narrator">Nearly there, good driving!</div>
+
+          <div class="dashboard-hints" id="dashboardHints" hidden>
+            <span class="hint">steering wheel</span>
+            <span class="hint">accelerator</span>
+            <span class="hint">brake</span>
+            <span class="hint">horn</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage 3 — arrival -->
+      <div class="stage" id="stage-arrival" hidden>
+        <div class="arrival">
+          <h1 class="arrival-title">We've arrived at Bay Road Vets</h1>
+          <p class="arrival-sub">The vet is waiting on the doorstep.</p>
+          <div class="clinic">
+            <div class="clinic-roof"></div>
+            <div class="clinic-sign">Bay Road Vets</div>
+            <div class="clinic-window left"></div>
+            <div class="clinic-window right"></div>
+            <div class="clinic-door"></div>
+            <div class="vet-figure"></div>
+          </div>
+          <div class="bonus-chalkboard">+1 happiness — safe drive bonus</div>
+          <div class="arrival-actions">
+            <button class="btn btn-primary" id="btnEnterClinic">Into the clinic →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  const device = document.getElementById('device');
+  for (const btn of document.querySelectorAll('.vp-bar button[data-size]')) {
+    btn.addEventListener('click', () => {
+      for (const b of document.querySelectorAll('.vp-bar button[data-size]')) b.classList.remove('on');
+      btn.classList.add('on');
+      device.dataset.size = btn.dataset.size;
+    });
+  }
+
+  const params = new URLSearchParams(location.search);
+  const embedded = params.has('embed');
+  if (embedded) document.body.classList.add('embed');
+
+  const send = (type, payload) => {
+    try { parent.postMessage({ source: 'arc-drive', type, payload }, '*'); } catch (_) {}
+  };
+
+  const stages = {
+    cta:     document.getElementById('stage-cta'),
+    drive:   document.getElementById('stage-drive'),
+    arrival: document.getElementById('stage-arrival'),
+  };
+  function showStage(name) {
+    for (const key of Object.keys(stages)) {
+      stages[key].hidden = (key !== name);
+    }
+  }
+
+  // State driven by init payload.
+  let state = {
+    petName: 'Your pet',
+    species: 'cat',
+    variant: 'tabby',
+    illnessName: 'tummy bug',
+    isFirstDrive: true,
+  };
+
+  // Audio — best-effort, fail silently if files missing or blocked.
+  let music = null;
+  let narratorSfx = null;
+  let bellSfx = null;
+  function tryAudio(path, opts = {}) {
+    try {
+      const a = new Audio(path);
+      a.volume = opts.volume ?? 0.5;
+      if (opts.loop) a.loop = true;
+      return a;
+    } catch (_) { return null; }
+  }
+  function play(a) { if (!a) return; try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (_) {} }
+  function stop(a) { if (!a) return; try { a.pause(); } catch (_) {} }
+
+  function applyInit(payload) {
+    if (!payload) return;
+    if (typeof payload.petName === 'string') state.petName = payload.petName;
+    if (typeof payload.species === 'string') state.species = payload.species;
+    if (typeof payload.variant === 'string') state.variant = payload.variant;
+    if (typeof payload.illnessName === 'string') state.illnessName = payload.illnessName;
+    if (typeof payload.isFirstDrive === 'boolean') state.isFirstDrive = payload.isFirstDrive;
+
+    document.getElementById('petName').textContent = state.petName;
+    document.getElementById('illnessChip').textContent = state.illnessName;
+    const img = document.getElementById('petSprite');
+    // Prefer a scared/sick look if available, fall back to arriving.
+    img.src = `/assets/animals/${state.species}-${state.variant}-scared.png`;
+    img.onerror = () => {
+      img.onerror = () => { img.style.visibility = 'hidden'; };
+      img.src = `/assets/animals/${state.species}-${state.variant}-arriving.png`;
+    };
+    img.style.visibility = '';
+
+    document.getElementById('tutorialBanner').hidden = !state.isFirstDrive;
+    document.getElementById('dashboardHints').hidden = !state.isFirstDrive;
+  }
+
+  // Listen for init payload from host.
+  window.addEventListener('message', (e) => {
+    const msg = e.data;
+    if (!msg || msg.source !== 'arc-game-host') return;
+    if (msg.type === 'init') applyInit(msg.payload);
+  });
+
+  // Stage 1 → buttons.
+  document.getElementById('btnDrive').addEventListener('click', () => {
+    startDrive();
+  });
+  document.getElementById('btnSkip').addEventListener('click', () => {
+    send('drive-skipped');
+  });
+
+  // Stage 3 → button.
+  document.getElementById('btnEnterClinic').addEventListener('click', () => {
+    send('drive-complete');
+  });
+
+  // ── Drive sequence ────────────────────────────────────────────
+  let driveTimers = [];
+  function clearTimers() {
+    for (const t of driveTimers) clearTimeout(t);
+    driveTimers = [];
+  }
+  function startDrive() {
+    showStage('drive');
+
+    // Music (PTV ambient corridor loop — also used for drive ambience).
+    music = tryAudio('/assets/audio/music-corridor.ogg', { loop: true, volume: 0.35 });
+    play(music);
+
+    // Animate GPS marker from start (22%,18%) → end (80%,78%).
+    const marker = document.getElementById('gpsMarker');
+    const steps = [
+      { t: 200,  left: 30, top: 32 },
+      { t: 1600, left: 38, top: 44 },
+      { t: 3400, left: 50, top: 55 },
+      { t: 5200, left: 62, top: 64 },
+      { t: 7000, left: 72, top: 72 },
+      { t: 8400, left: 80, top: 78 },
+    ];
+    for (const s of steps) {
+      driveTimers.push(setTimeout(() => {
+        marker.style.left = s.left + '%';
+        marker.style.top  = s.top  + '%';
+      }, s.t));
+    }
+
+    // Mid-drive narrator line.
+    driveTimers.push(setTimeout(() => {
+      document.getElementById('narrator').classList.add('show');
+      narratorSfx = tryAudio('/assets/audio/voice-almost-there.ogg', { volume: 0.9 });
+      play(narratorSfx);
+    }, 4200));
+    driveTimers.push(setTimeout(() => {
+      document.getElementById('narrator').classList.remove('show');
+    }, 7200));
+
+    // End of drive → show arrival.
+    driveTimers.push(setTimeout(() => {
+      stop(music);
+      bellSfx = tryAudio('/assets/audio/ui-bell.ogg', { volume: 0.6 });
+      play(bellSfx);
+      showStage('arrival');
+    }, 9000));
+  }
+
+  // Clean up audio if the host unmounts us.
+  window.addEventListener('pagehide', () => { clearTimers(); stop(music); });
+
+  // Standalone preview convenience: if not embedded, auto-apply a
+  // plausible payload so devs can eyeball the flow.
+  if (!embedded) {
+    applyInit({
+      petName: 'Biscuit',
+      species: 'cat',
+      variant: 'tabby',
+      illnessName: 'tummy bug',
+      isFirstDrive: true,
+    });
+  }
+</script>
+</body>
+</html>

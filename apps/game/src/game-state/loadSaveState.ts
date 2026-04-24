@@ -152,6 +152,9 @@ export async function loadGameState(
       if (typeof saved.wildVisitsUnlocked === 'boolean') {
         store.wildVisitsUnlocked = saved.wildVisitsUnlocked;
       }
+      if (typeof saved.hasCompletedFirstDrive === 'boolean') {
+        store.hasCompletedFirstDrive = saved.hasCompletedFirstDrive;
+      }
       if (Array.isArray(saved.gardenReturns)) {
         store.gardenReturns = saved.gardenReturns as GameStateStore['gardenReturns'];
       }
@@ -291,6 +294,7 @@ export async function saveGameState(
           visitors: store.visitors,
           apprentices: store.apprentices,
           wildVisitsUnlocked: store.wildVisitsUnlocked,
+          hasCompletedFirstDrive: store.hasCompletedFirstDrive,
           gardenReturns: store.gardenReturns,
           lastGrantCheckAt: store.lastGrantCheckAt,
           grantsReceived: store.grantsReceived,

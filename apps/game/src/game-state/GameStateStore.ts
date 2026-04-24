@@ -163,6 +163,15 @@ export class GameStateStore {
   wildVisitsUnlocked = false;
 
   /**
+   * Flipped to true the first time the player completes a PTV drive
+   * (the onboarding vet-run). Gates the "Tutorial — your first drive"
+   * banner and the dashboard-label spotlight hints in the drive
+   * overlay. Default false; back-compat with older saves via
+   * loadSaveState hydration.
+   */
+  hasCompletedFirstDrive = false;
+
+  /**
    * Rewilded animals scheduled to visit the garden. They appear in
    * GardenView as additional sprites with a small sparkle marker.
    * Entries stay around until the player sees them; marked seen on

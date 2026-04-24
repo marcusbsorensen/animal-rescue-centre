@@ -51,7 +51,7 @@ import {
   pickRandomFact,
   getDestination,
 } from '@arc/game-logic';
-import type { Conflict, ResolutionDef, VisitorEntry } from '@arc/game-logic';
+import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
@@ -1034,6 +1034,63 @@ export class GameScene extends Phaser.Scene {
     const illness = this.store.sickAnimals.get(animal.id);
     if (!illness) return;
 
+    // PTV first-drive: offer a painted vet-run drive before the vet
+    // popup opens. The drive overlay posts `drive-complete` (apply
+    // +1 happiness bonus, then open the vet popup) or `drive-skipped`
+    // (open the vet popup directly, no bonus). On first completion
+    // we flip `hasCompletedFirstDrive` so subsequent vet runs skip
+    // the tutorial banner + dashboard-label spotlights.
+    this.openDriveOverlay(animal, illness.label?.toLowerCase() ?? 'tummy bug', () => {
+      this.mountVetPopup(animal, illness);
+    });
+  }
+
+  /**
+   * Mount the painted drive overlay (CTA → drive → arrival). On
+   * completion calls `onArrive` so the caller can open the next
+   * screen (today: the vet popup). On skip, calls `onArrive` without
+   * the happiness bonus.
+   */
+  private openDriveOverlay(
+    animal: Animal,
+    illnessName: string,
+    onArrive: () => void,
+  ): void {
+    const unmount = mountInGame('drive', {
+      onAction: (action) => {
+        if (action === 'drive-complete') {
+          // +1 happiness bonus for the safe drive. Animal.happiness
+          // is optional in the type; clamp to a sensible ceiling.
+          const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+          if (idx >= 0) {
+            const a = this.store.animals[idx];
+            const current = typeof a.happiness === 'number' ? a.happiness : 0;
+            this.store.animals[idx] = { ...a, happiness: Math.min(100, current + 1) };
+          }
+          this.store.hasCompletedFirstDrive = true;
+          this.saveState();
+          unmount();
+          onArrive();
+          return;
+        }
+        if (action === 'drive-skipped' || action === 'close') {
+          unmount();
+          onArrive();
+          return;
+        }
+      },
+    }, {
+      petName: animal.name,
+      species: animal.species,
+      variant: animal.variant,
+      illnessName,
+      isFirstDrive: !this.store.hasCompletedFirstDrive,
+    });
+    this.events.once('shutdown', unmountInGame);
+  }
+
+  /** Internal: the original vet popup mount, factored out of openVetOverlay. */
+  private mountVetPopup(animal: Animal, illness: IllnessDef): void {
     const unmount = mountInGame('vet', {
       onAction: (action) => {
         if (action === 'close') { unmount(); return; }
