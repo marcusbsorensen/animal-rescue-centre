@@ -13,6 +13,7 @@
  */
 
 import { login, signup, getRememberedUsernames, type AuthSession } from '../lib/auth';
+import { AudioManager } from '../audio/AudioManager';
 
 export type AuthAction =
   | 'play'
@@ -94,6 +95,9 @@ export function mountAuth(
         recruited: context?.recruited ?? [],
       });
     }
+    // Always sync the current music-on state so the speaker emoji
+    // starts in the right 🔊/🔇 position regardless of page.
+    postToFrame('music-state', { enabled: AudioManager.getInstance().isMusicOn() });
   });
 
   activeListener = async (e: MessageEvent) => {
@@ -113,6 +117,15 @@ export function mountAuth(
     // the host scene, which calls the game-logic recruit function.
     if (msg.type === 'recruit-apprentice') {
       handlers.onAction('recruit-apprentice', undefined, msg.payload);
+      return;
+    }
+    // Speaker icon in the mockup — toggle music, then echo the state
+    // back so the icon flips between 🔊 and 🔇. This runs inside the
+    // user-activation bubble of the click, so the AudioContext is
+    // allowed to start (browsers block autoplay without a gesture).
+    if (msg.type === 'toggle-music') {
+      const enabled = AudioManager.getInstance().toggleMusic();
+      postToFrame('music-state', { enabled });
       return;
     }
 

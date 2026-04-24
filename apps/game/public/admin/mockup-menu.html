@@ -828,7 +828,7 @@
       <div class="welcome-inner">
 
         <div class="top-strip">
-          <button class="audio-btn" aria-label="Toggle sound">🔊</button>
+          <button class="audio-btn" id="audio-btn" aria-label="Toggle sound">🔊</button>
         </div>
 
         <div class="welcome-content">
@@ -924,9 +924,15 @@
     };
     // Handshake — parent sends the current session payload. We only render
     // safe fields via textContent so no sanitisation needed.
+    const audioBtn = document.getElementById('audio-btn');
+    audioBtn?.addEventListener('click', () => send('toggle-music'));
     window.addEventListener('message', (e) => {
       const m = e.data;
       if (m?.source !== 'arc-auth-host') return;
+      if (m.type === 'music-state' && audioBtn) {
+        audioBtn.textContent = m.payload?.enabled ? '🔊' : '🔇';
+        return;
+      }
       if (m.type === 'init' && m.payload) {
         const p = m.payload;
         const nameEl = document.getElementById('player-name');

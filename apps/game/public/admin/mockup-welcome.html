@@ -702,7 +702,7 @@
       <div class="welcome-inner">
 
         <div class="top-strip">
-          <button class="audio-btn" aria-label="Toggle sound">🔊</button>
+          <button class="audio-btn" id="audio-btn" aria-label="Toggle sound">🔊</button>
         </div>
 
         <div class="welcome-content">
@@ -780,12 +780,21 @@
   const params = new URLSearchParams(location.search);
   if (params.has('embed')) {
     document.body.classList.add('embed');
-    const send = (type) => {
-      try { parent.postMessage({ source: 'arc-auth', type }, '*'); } catch (_) {}
+    const send = (type, payload) => {
+      try { parent.postMessage({ source: 'arc-auth', type, payload }, '*'); } catch (_) {}
     };
     document.querySelector('.btn-primary')?.addEventListener('click', () => send('play'));
     document.querySelector('.link-btn.outlined')?.addEventListener('click', () => send('login'));
     document.querySelector('.link-btn.plank-sage')?.addEventListener('click', () => send('signup'));
+    // Speaker icon → tell host to toggle music. Host echoes the new state
+    // back as {type:'music-state', payload:{enabled}} so we can flip the emoji.
+    const audioBtn = document.getElementById('audio-btn');
+    audioBtn?.addEventListener('click', () => send('toggle-music'));
+    window.addEventListener('message', (e) => {
+      const m = e.data;
+      if (m?.source !== 'arc-auth-host' || m.type !== 'music-state' || !audioBtn) return;
+      audioBtn.textContent = m.payload?.enabled ? '🔊' : '🔇';
+    });
   }
 </script>
 </body>
