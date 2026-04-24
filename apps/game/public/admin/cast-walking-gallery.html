@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Cast walking gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Caveat:wght@700&family=Fredoka:wght@500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Fredoka', system-ui, sans-serif;
+    background: #f5ecd4;
+    color: #3a2a18;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    font-size: 32px;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-family: 'Caveat', cursive;
+    font-size: 20px;
+    color: #6b5840;
+    margin-bottom: 24px;
+  }
+  nav { margin-bottom: 32px; font-size: 13px; }
+  nav a { color: #8a5a2a; text-decoration: none; margin-right: 12px; }
+  nav a:hover { text-decoration: underline; }
+  .character {
+    margin-bottom: 40px;
+    background: #fffbe8;
+    border: 2px solid #c88436;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  }
+  .character h2 {
+    font-family: 'Kalam', cursive;
+    font-size: 24px;
+    color: #8a5a2a;
+    margin-bottom: 4px;
+  }
+  .character .desc {
+    font-family: 'Caveat', cursive;
+    font-size: 17px;
+    color: #6b5840;
+    margin-bottom: 16px;
+  }
+  .poses {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .pose {
+    background: #f5ecd4;
+    border: 1px dashed #c88436;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .pose img {
+    width: 100%;
+    max-width: 260px;
+    height: auto;
+    display: block;
+    margin: 0 auto 8px;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  .pose .label {
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    font-size: 14px;
+    color: #3a2a18;
+  }
+  .pose .filename {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    color: #8a7658;
+    margin-top: 2px;
+    user-select: all;
+  }
+  .bg-toggle {
+    position: fixed; top: 16px; right: 16px;
+    background: #fffbe8;
+    border: 2px solid #c88436;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  }
+  body.bg-road { background: #484030; }
+  body.bg-road .character { background: rgba(255,251,232,0.95); }
+  body.bg-road .pose { background: rgba(245,236,212,0.95); }
+  body.bg-checker {
+    background-image:
+      linear-gradient(45deg, #e6d8b0 25%, transparent 25%),
+      linear-gradient(-45deg, #e6d8b0 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e6d8b0 75%),
+      linear-gradient(-45deg, transparent 75%, #e6d8b0 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, 10px 0;
+  }
+</style>
+</head>
+<body class="bg-cream">
+
+<button class="bg-toggle" id="bg-toggle">Background: cream</button>
+
+<h1>A.R.C. — apprentice walking gallery</h1>
+<p class="subtitle">9 sprites, OpenAI gpt-image-1.5 with 3 reference portraits each. ~$0.50 total.</p>
+
+<nav>
+  <a href="/admin/mockup-welcome.html">← welcome</a>
+  <a href="/admin/mockup-cockpit.html">cockpit</a>
+  <a href="/admin/mockup-map.html">map</a>
+  <a href="/admin/mockup-pre-drive.html">pre-drive</a>
+  <a href="/admin/cockpit-editor.html">editor</a>
+</nav>
+
+<section class="character">
+  <h2>Rhubarb</h2>
+  <p class="desc">Genderqueer androgynous young adult, surfer blonde hair, grey skull hoodie, jeans, sneakers. Kind expression.</p>
+  <div class="poses">
+    <div class="pose">
+      <img src="mockup-assets/cast/apprentices-walking/rhubarb-walking-front.png" alt="Rhubarb walking front"/>
+      <div class="label">Front-view walking</div>
+      <div class="filename">rhubarb-walking-front.png</div>
+    </div>
+    <div class="pose">
+      <img src="mockup-assets/cast/apprentices-walking/rhubarb-walking-side.png" alt="Rhubarb walking side"/>
+      <div class="label">Side-view walking</div>
+      <div class="filename">rhubarb-walking-side.png</div>
+    </div>
+    <div class="pose">
+      <img src="mockup-assets/cast/apprentices-walking/rhubarb-waving.png" alt="Rhubarb waving"/>
+      <div class="label">Waving</div>
+      <div class="filename">rhubarb-waving.png</div>
+    </div>
+  </div>
+</section>
+
+<section class="character">
+  <h2>Amara</h2>
+  <p class="desc">Cheerful young woman, curly black hair, warm brown skin, blue tee, olive shorts, red sneakers.</p>
+  <div class="poses">
+    <div class="pose">
+      <img src="mockup-assets/cast/apprentices-walking/amara-walking-front.png" alt="Amara walking front"/>
+      <div class="label">Front-view walking</div>
+      <div class="filename">amara-walking-front.png</div>
+    </div>
+    <div class="pose">
+      <img src="mockup-assets/cast/apprentices-walking/amara-walking-side.png" alt="Amara walking side"/>
+      <div class="label">Side-view walking</div>
+      <div class="filename">amara-walking-side.png</div>
+    </div>
+    <div class="pose">
+      <img src="mockup-assets/cast/apprentices-walking/amara-waving.png" alt="Amara waving"/>
+      <div class="label">Waving</div>
+      <div class="filename">amara-waving.png</div>
+    </div>
+  </div>
+</section>
+
+<section class="character">
+  <h2>Kofi</h2>
+  <p class="desc">Gentle young man, short dark hair, warm brown skin, round glasses (preserved!), pale blue jumper, yellow shorts.</p>
+  <div class="poses">
+    <div class="pose">
+      <img src="mockup-assets/cast/apprentices-walking/kofi-walking-front.png" alt="Kofi walking front"/>
+      <div class="label">Front-view walking</div>
+      <div class="filename">kofi-walking-front.png</div>
+    </div>
+    <div class="pose">
+      <img src="mockup-assets/cast/apprentices-walking/kofi-walking-side.png" alt="Kofi walking side"/>
+      <div class="label">Side-view walking</div>
+      <div class="filename">kofi-walking-side.png</div>
+    </div>
+    <div class="pose">
+      <img src="mockup-assets/cast/apprentices-walking/kofi-waving.png" alt="Kofi waving"/>
+      <div class="label">Waving</div>
+      <div class="filename">kofi-waving.png</div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const bgModes = ['cream', 'road', 'checker'];
+  let current = 0;
+  const btn = document.getElementById('bg-toggle');
+  btn.onclick = () => {
+    document.body.classList.remove('bg-' + bgModes[current]);
+    current = (current + 1) % bgModes.length;
+    document.body.classList.add('bg-' + bgModes[current]);
+    btn.textContent = 'Background: ' + bgModes[current];
+  };
+</script>
+
+</body>
+</html>
