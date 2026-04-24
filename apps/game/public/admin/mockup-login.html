@@ -945,14 +945,19 @@
   let showing = 'select';
   function setStage(s) {
     showing = s;
+    const typeNameBtn = document.getElementById('type-name-btn');
     if (s === 'pin') {
       stageSelect.classList.add('hidden');
       stagePin.classList.remove('hidden');
       stageToggle.textContent = 'Switch to player-select ↑';
+      // The "TYPE YOUR NAME" sign only makes sense on stage-select.
+      // On PIN stage, hide it — the player has already picked their chip.
+      if (typeNameBtn) typeNameBtn.style.display = 'none';
     } else {
       stageSelect.classList.remove('hidden');
       stagePin.classList.add('hidden');
       stageToggle.textContent = 'Switch to PIN stage ↓';
+      if (typeNameBtn) typeNameBtn.style.display = '';
     }
   }
   stageToggle?.addEventListener('click', () => setStage(showing === 'select' ? 'pin' : 'select'));
