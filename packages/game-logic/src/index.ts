@@ -305,3 +305,5 @@ export {
   countFactsForSpecies,
 } from './species-facts';
 export type { SpeciesFact } from './species-facts';
+
+export * from './crate-stacking';

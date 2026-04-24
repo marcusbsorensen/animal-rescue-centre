@@ -16,7 +16,7 @@
 
 ---
 
-## The cast (31 households)
+## The cast (32 households)
 
 ### Solo adopters
 
@@ -80,6 +80,7 @@ A separate category because the *household* is two houses connected by a child w
 | 15 | **The Khan family** | Adopted a rescue cat 2 years ago. Recently moved to a wheelchair-accessible home. | **Donation drop-offs** — brings toys, food, photos of their now-adult cat |
 | 16 | **Ana "Tata" Silva** | Farmer. Former adopter of Rufus the border collie, now her farm's pride. | **Repeat adopter** — comes back every couple of years for another working dog |
 | 17 | **Ben "Benji" Mackenzie** | Helped rewild a red fox a year ago. | **Wild-visit reporter** — brings photos/stories from the fox's territory; unlocks the "visit in the wild" mechanic |
+| 32 | **Simeon & Karo** (Lily's real-life aunt and uncle) | Simeon (he/him, Welsh, *very tall and slim*, tousled brown hair with grey flecks, big toothy grin, bat specialist) and Karo (she/her, Polish, Gosia's twin sister but much more stylish — long blonde hair, bright blue eyes, flashy statement earrings, red lipstick, denim jacket, *noticeably shorter than Simeon*). Already adopted a stray cat **Poppy**. | **Bat-rewilding helpers + toy drop-offs** — visit to help with bat rehabilitation runs (Simeon is the expert), occasionally bring bat enrichment toys and cat toys for the centre. Also drop by with photos of Poppy thriving. Second Lily-personal cameo alongside the Two-Houses family. |
 
 ---
 
