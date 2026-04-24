@@ -837,7 +837,11 @@ The v1 cockpit mockup had elements scattered around the screen (pedals bottom-le
 - **Horn** — **in the centre of the steering wheel**, like a real car. You *slam the middle of the wheel* to honk. (No more separate bell button off to the side.)
 - **Speedometer** — **above or directly beside the wheel**, in the dashboard area the driver naturally looks at. **Goes red when the player is speeding** (over a configurable limit per road — important for care-driving teaching).
 - **Accelerator + brake pedals** — **below the steering wheel**, not off to the side. Left pedal = brake, right pedal = accelerator (real-car layout). Player presses down to engage.
-- **Ignition** — **to the LEFT of the steering wheel**, like a real car (keyed ignition sits there on most right-hand-drive cars). Turn/hold to start.
+- **Ignition** — **to the LEFT of the steering wheel**, like a real car (keyed ignition sits there on most right-hand-drive cars). Interaction varies by vehicle (Marcus, 2026-04-24):
+  - **Spark (electric)** → a **button**. Press-and-release once. Lamp lights immediately.
+  - **Henry / Bea / Big Tilly** → a **chunky painted car key** visible in the ignition barrel. Click-and-drag the key **45° clockwise** to spark the engine. Holding the key at the 45° position for ~1 s registers as a start (simulates the real "turn and hold"). Release = return to rest. Nice tactile animation: key rotates, a little spark pops, ignition lamp glows warm amber, engine idles.
+  - **Trikey (pedal trike)** → no real ignition — a small painted **"GO!" flag** you flip up on the handlebar. Purely ceremonial; immediately "started".
+  Each vehicle's ignition animation is part of its dashboard identity (see "Dashboard varies per vehicle" below).
 - **Hazard button** — **new element**, to be added. Player presses to switch on hazard lights when pulled over at the roadside, at the petrol station, at the vet door, or when stopped for a hedgehog. Visible orange hazard-lamp indicator on the dashboard while on.
 - **GPS** — top area, unchanged.
 - **Cargo-comfort meter** (PTV only) — dashboard corner, unchanged.
