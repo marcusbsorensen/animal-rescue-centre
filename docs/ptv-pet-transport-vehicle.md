@@ -257,7 +257,55 @@ Marcus's note (2026-04-24): the PTV world map needs destinations beyond the thre
 - Rewards: coins + unique trophies / rosettes (decorative, display in Centre), prestige points, occasionally adopter-interest spikes (families saw the animal on TV).
 - Win conditions feed off bond level, skill-training progress, happiness, and specific trained tricks — so pet shows are a *consequence* of good care, not a separate grind.
 
-### Driving UX — Lily's spec
+### Drive format, setting, onboarding, discovery
+
+Marcus's note (2026-04-24):
+
+#### Real-time drive, compact city + surroundings
+
+Drives are **real-time**, not cut-scenes — the player actually drives for the duration of the trip. Setting is a **compact city with its surroundings** (countryside, outskirts, harbour, moorland, etc). "Compact" is the key word: the world is small enough to be traversable at real-time speeds without feeling like a road-trip slog. Destinations are minutes-apart, not hours.
+
+The fake-3D road (see above) renders city blocks, outskirts, and countryside as the player drives through them. Art budget matters: the compact scale keeps the required environment-tile set tractable.
+
+Drive lengths scale with destination distance in [`destinations.ts`](../packages/game-logic/src/destinations.ts) — short trips (~30–60 s) for in-city runs, longer (~90–180 s) for moorland / deep-forest / sea-cliffs rewilding. Kid-appropriate; no 10-minute drives.
+
+#### Onboarding: first drive is a driving lesson
+
+The player's **very first PTV drive** is a one-pet lesson, deliberately simple:
+
+- One animal, one crate, one destination.
+- No crate-stacking puzzle (nothing to stack against — single pet, single slot).
+- The UI spotlights the cockpit piece by piece: ignition → accelerator → steering → brake → horn. Each element has a tiny tutorial beat.
+- Destination is close and safe (e.g. adoption delivery to a local household in town).
+- Success is the payoff, not a score.
+
+#### Crate-stacking introduced on the second drive
+
+The **second** PTV drive adds a second pet. Now the player has to think about crate type and adjacency for the first time. The mechanic is discovered through gentle play:
+
+- "We've got two going out today — let's load them together."
+- First conflict spotted mid-load → ⚠ icon appears, short explanation bubble.
+- No punishment for messing up the first stacked drive — arrival just comments ("she was a bit unsettled…") and teaches.
+
+This is the opposite of a tutorial wall: the player meets each mechanic on the drive that needs it.
+
+#### Destinations discovered through pet needs, not levels
+
+New destinations unlock because an animal **arrives with a need that requires them**, not because the player hit an XP threshold. This is the dominant unlock logic for PTV destinations — level-gating is a fallback, not the primary mechanism.
+
+Examples:
+- A **dachshund** arrives with IVDD (slipped disc) and can't walk on its back legs → unlocks the **specialist prosthetics vet** so the player can drive them there for a wheeled cart.
+- A **fennec fox** arrives with hind-leg paralysis → same unlock, but now pre-existing, so the drive is framed as "we know where to take her."
+- A clever **African Grey** arrives with a backstory about escaping a bad owner → unlocks **parrot intelligence testing** as a voluntary path.
+- A **Labrador pup** shows exceptional calm and focus → unlocks **guide-dog potential testing**.
+- A **wild-injured fox cub** needs survival retraining before release → unlocks **pre-rewilding specialist training**.
+- Winning a small local **pet show** (fête tier) opens the county-show tier, and so on up the pet-show ladder.
+
+Design intent: the destination list grows alongside the story of which animals have passed through the Centre. Every unlock is a memory of a specific pet.
+
+This implies:
+- Each destination has an **unlock trigger** keyed to an arrival event or outcome, not just `unlockLevel`. The current `DestinationDef.unlockLevel` stays as a fallback cap (so destinations don't appear absurdly early), but the primary predicate is a per-destination `canUnlockFrom(store)` check driven by arrivals / bond levels / completed PTV outcomes.
+- Arrivals should carry **hidden "story hooks"** (condition, temperament, traits) that can trigger destination unlocks when the player meets them for the first time. The arrival popup shows the story; the map quietly lights up a new pin.
 
 Marcus's note (2026-04-24), carrying Lily's direct design requests. Applies to both PTV drives and Supply Runs (it's the shared driving interface).
 
