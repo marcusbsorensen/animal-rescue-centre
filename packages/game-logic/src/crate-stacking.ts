@@ -1,10 +1,16 @@
 /**
- * Crate-stacking — the cargo-drive puzzle where animals loaded into a
- * vehicle's crate grid react to their neighbours. Teaches prey/predator
- * awareness, species welfare, and spatial planning.
+ * Crate-stacking — the core mechanic of the PTV (Pet Transport
+ * Vehicle) system. Animals loaded into a vehicle's crate grid react
+ * to their orthogonal neighbours. Teaches prey/predator awareness,
+ * species welfare, and spatial planning.
  *
- * See docs/driving-crate-stacking.md for the full mechanic design.
- * This module is the pure game-logic layer: the compatibility matrix,
+ * NOT to be confused with Supply Runs (supply-runs.ts), which are
+ * cargo-FREE chaos drives for coins + stress relief. PTV and Supply
+ * Runs share vehicle aesthetics and the coin economy but are
+ * different systems — see docs/driving-systems.md.
+ *
+ * Full mechanic design: docs/ptv-pet-transport-vehicle.md. This
+ * module is the pure game-logic layer: the compatibility matrix,
  * arrival-happiness calculation, and helpers for the UI to ask
  * "can I place animal X in this slot?".
  */

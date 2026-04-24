@@ -127,15 +127,12 @@ You asked "anything else" and challenged me to go at the wishlist.
 Here's the second batch:
 
 ### Design
-- **`docs/driving-crate-stacking.md`** — full design doc for the cargo
-  driving game: 5 vehicles (Trikey / Henry / Bea / Big Tilly / Spark),
-  6 crate types per species temperament, a 7×7 compatibility matrix
-  with happy/stressed/blocked levels, arrival-happiness calculation,
-  phased build scope. Flag: you said there were earlier discussions
-  about the driving-game improvements + "chaos outlet" framing — I
-  couldn't find them in the repo, so this doc captures my own
-  pass. Worth a reconciliation pass in the morning to layer in what
-  I missed.
+- **`docs/ptv-pet-transport-vehicle.md`** (was `driving-crate-stacking.md`) +
+  **`docs/driving-systems.md`** — reconciled with the prior spec after
+  finding the compacted session notes. The cargo-drive doc is now correctly
+  framed as **PTV** (Pet Transport Vehicle), with an overview doc making
+  clear PTV / Supply Runs (cargo-free chaos) / Depot (tap-collapse) are
+  three distinct systems. v0.1 had conflated PTV with Supply Runs — fixed.
 
 ### Code shipped
 - **`game-logic/crate-stacking.ts`** + 32 new tests — the rule engine
@@ -193,7 +190,8 @@ Arrival popup (with fact card): https://animal-rescue-centre.vercel.app/admin/mo
 Badge popup: https://animal-rescue-centre.vercel.app/admin/mockup-badge.html
 Visitor popup: https://animal-rescue-centre.vercel.app/admin/mockup-visitor.html
 Design docs:
-- `docs/driving-crate-stacking.md`
+- `docs/driving-systems.md` (overview: PTV / Supply Runs / Depot)
+- `docs/ptv-pet-transport-vehicle.md` (the animal-transport system)
 - `docs/rehoming-cast.md` (now 32 households)
 - `docs/future-features-lily.md` (still the compass)
 
