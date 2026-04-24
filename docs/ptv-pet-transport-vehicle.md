@@ -400,6 +400,56 @@ Lily being able to recognise her home town in the game is part of the point. Nam
   - Crowd density: "tonnes of dog walkers" — real social scene; good for cast-walk-by cameos.
 - **Kids' playground next to The Dip** — a sunken multifunctional sports ground (below ground level to keep balls, wind, and waves out). Visible landmark from the coast road. Possible enclosed **pet-show venue** (the sunk bowl shape is natural seating).
 
+#### Village errands — GP pharmacy + pet supplies shop (Marcus, 2026-04-24)
+
+Two real Birchie shops pinned as in-game destinations. Both are **short-hop village errands** — the kind of drive that suits the first-drive lesson and daily routine.
+
+**GP clinic + attached pharmacy** (Birchington Medical Practice, on **Bay Road** / Minnis Road in real life).
+- In-game role: **pet medication collection point**.
+- Loop: a vet (steampunk-barn prosthetics vet, specialist, or general) prescribes → player drives to the village pharmacy to pick up the prescription → back to the Centre to administer → animal recovers faster.
+- Reuses the Depot's medical-supplies catalogue but represents a *prescribed* med (specific to an animal), not a general stock item.
+- Good for the second-tier onboarding tutorial after the adoption-delivery lesson — it teaches the drive-errand rhythm without the emotional weight of an adoption.
+- Visual cue: white-painted shopfront with the green cross, bench outside, posters in the window for local events.
+- Tonally careful: the clinic is a **people** clinic with an attached **pet-med pharmacy**. Not a vet — a vet signs the prescription; the pharmacy fills it. Keeps the tonal line between "adults-go-to-GP" and "pets-go-to-vet" clear so kids don't get confused.
+
+**Pet supplies shop** (real shop on Station Road).
+- In-game role: **toys, food top-ups, treats, grooming supplies** — the consumer side of the Centre's running costs.
+- Loop: running low on kibble / toys / shampoo → drive to Station Road → pick up → back to Centre.
+- Ties into:
+  - Existing **toy-picker UI** — toys bought here populate the toy rotation.
+  - Existing **food catalogue** — food restock happens here rather than as an abstract menu order.
+  - **Arrival-toy probability** (`rollArrivalToy`) — toys physically originate here.
+- Sometimes a **cast walk-by** is browsing the shop when the player arrives (aligns with the coherent-world principle — visitors shop for their own pets too).
+- Visual cue: chunky painted shop sign with a paw-print logo. Window display of leashes, bags of kibble stacked in the doorway, a water bowl for dogs at the entrance.
+- Budget pressure: shop prices are gentle; stock is the main gate, not cost.
+
+Both locations fit the cast-walk-by rule — adopters / visitors / apprentices might be stepping out of the pharmacy with their own prescription, or coming out of the pet shop with a bag. More "coherent world" wins.
+
+#### Candidate locations for the A.R.C. itself
+
+Marcus is mulling where the Centre sits in Birchie. The requirements:
+
+- Enough **outdoor space** for rehab runs, gardens, and the painted-garden-bg tiles already in the repo.
+- Several **room types** — corridor, vet, play, sleep, kitchen, outhouse, pond, garden.
+- **Car access** for PTV drives (the Centre is the origin of every drive).
+- **Slightly out of the main village** so drives into town feel meaningful — but not remote.
+- Walking distance to the coast, the chippy, the pet shop (the "coherent world" needs realistic pedestrian reach).
+
+Four candidate sites, pros and cons:
+
+| Candidate | Vibe | Pros | Cons |
+|---|---|---|---|
+| **1. Converted farm on the village edge, south of Birchie** — halfway between the village proper and Wyx Park | Red-brick barns + stables + fields, working-countryside-turned-sanctuary | Natural neighbour to Wyx Park (easy trek-out for skill training); plenty of outdoor space; car access from the main road; rural-but-walkable | Could compete visually with Wyx Park if both are in the same kind of rural idiom |
+| **2. Quieter eastern coast plot — near Epple Bay or Grenham Bay** | Coastal bungalow / former boarding house with a big garden, sea air, cliff walks | Sea views are magical; beach-dog-walks minutes away; echoes the real Birchie coastal identity; good for rewilding-to-Sea-Cliffs drives (short hop) | Limited outdoor run space if close to the cliff edge; weather-exposed |
+| **3. Former coastguard / lifeboat station on the coast road** | Stone-and-weatherboard heritage building with a stubby tower, painted Centre signage | Distinctive silhouette Lily could recognise instantly; ties rescue-work heritage into the real coastline feel | Small footprint; limited indoor rooms; retrofit-feel may clash with the cosy-storybook vibe |
+| **4. Large Victorian house + walled garden on a quiet Birchie street** | Red-brick Victorian villa, gabled roof, big overgrown garden, iron gate at the front | Walkable to the village; plausible retrofit into a rescue centre (many real rescue centres are in converted houses); works with existing Manus painted-garden backdrops | Limited space for big outdoor rehab runs unless the garden is generous |
+
+Claude's lean: **Candidate 1** (converted farm, village-edge, south). It gives the Centre room to breathe, makes the seasonal treks feel like "walking next door to Wyx Park," sets up the weather-aware-vehicle mechanic (the access road is the first bit of every drive — gives weather a chance to register), and reads as a *rescue centre* rather than a private house.
+
+Candidate 2 (quiet coast plot near Epple Bay) is a close second — the sea air and beach-walk immediacy are lovely, and it's very photogenic.
+
+Marcus to decide — or suggest a real local plot he had in mind.
+
 #### Additional decisions (Marcus, 2026-04-24)
 
 - **Powell-Cotton Museum**: **dropped** from the game. The real museum is full of taxidermy — tonally wrong for a kind-to-animals game. Don't reference it, even as flavour. If a museum is ever needed, invent one.
