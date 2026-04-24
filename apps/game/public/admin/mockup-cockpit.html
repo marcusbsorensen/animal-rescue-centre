@@ -1260,6 +1260,11 @@
   cockpit.classList.remove('v-trikey','v-henry','v-bea','v-big-tilly','v-spark');
   cockpit.classList.add('v-' + vehicle);
 
+  // Use painted Henry dashboard asset (Manus-delivered) when vehicle
+  // is Henry in PTV mode. Other vehicles keep the CSS-drawn dashboard
+  // until their painted assets land.
+  cockpit.classList.toggle('has-painted-dash', vehicle === 'henry' && mode === 'ptv');
+
   document.getElementById('url-hint').textContent =
     '?vehicle=' + vehicle + '&mode=' + mode + (forceSpeeding ? '&speeding=true' : '');
 
