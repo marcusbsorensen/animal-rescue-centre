@@ -34,9 +34,9 @@ A.R.C. has **three distinct "driving/vehicle" systems**. They share aesthetics (
 
 ## What each doc covers
 
-- [`ptv-pet-transport-vehicle.md`](ptv-pet-transport-vehicle.md) — the animal-transport system (vehicle pick → crate-stacking puzzle → drive → arrival happiness deltas).
-- [`extracted-driving-spec.md`](extracted-driving-spec.md) — reconstruction of the original Supply Runs + Depot + calendar spec from a compacted prior session. Canonical reference for those two systems until the user provides a fresher source.
-- There is **no dedicated Supply Runs or Depot doc yet** — the implementations in `supply-runs.ts` / `depot-*.ts` are the source of truth, and the extracted-driving-spec captures the design intent.
+- [`original-depot-supply-spec.md`](original-depot-supply-spec.md) — **🟢 canonical verbatim source** for Supply Runs + Depot, recovered from Marcus's original spec paste (queue-enqueued at 2026-04-13T07:41:20Z). Read this first for anything touching those two systems.
+- [`ptv-pet-transport-vehicle.md`](ptv-pet-transport-vehicle.md) — the animal-transport system. ⚠ Note: the verbatim **PTV spec itself was never pasted** into the session — it was only referenced as `ARC_PTV_spec.md` in the Depot spec header. The vehicle names (Trikey / Henry / Bea / Big Tilly / Spark), crate types, and adjacency matrix in this doc are Claude's own design, not Marcus's. If Marcus has the original PTV spec locally, it supersedes this doc.
+- [`extracted-driving-spec.md`](extracted-driving-spec.md) — earlier partial reconstruction from the compacted post-spec session (implementation code + approved plans). Superseded by the verbatim recovery, kept for the implementation-correlation tables.
 
 ## Naming discipline
 
@@ -47,3 +47,16 @@ A prior design doc (`driving-crate-stacking.md`, v0.1) used "cargo drive" for bo
 - "**Depot session**" = tap-to-collapse mini-game.
 
 Don't mix them in new writing or code.
+
+## Divergences to reconcile
+
+Spot-check of current code against the recovered verbatim spec — reconciliation pending:
+
+- **Depot move limit**: spec says *"No timer. No move limit by default."* Current `DepotScene.ts` hardcodes `maxMoves = 25`. Either drop the cap or make it configurable per-mode.
+- **Supply Run music**: spec calls for *"energetic rock / electronic / funk, no vocals"*. Current Manus pack has a general acoustic `music-play.ogg`; no dedicated Supply Run track. Consider a Manus regen for a neon-chaos track.
+- **Supply Run framing**: spec is emphatic that Supply Runs are **not** a penalty for poor animal care — they're an always-available alternative income for players who just like driving. Current docs/onboarding don't contradict this but it's worth surfacing in the UI copy.
+- **Super-treat effects**: spec defines all 13 effects (Thunder Crunch = next walk immune to road-crossing misses, Worry Wafer = halves stress, Silly Sardine = cats go bananas, etc). Only Rainbow Biscuit's effect is implemented. The other 12 have catalogue entries but no gameplay hooks.
+- **Extra-session earning rules**: spec specifies feed-all-animals-in-a-day → +1, vet delivery success → 30 % chance +1, daily login → +1. Unverified whether the current code hooks these up.
+- **Hall of Fame categories**: spec has six categories (Most Runs, Biggest Smash, Cleanest Dirty Run, Speed Demon, The Collector, Repair Bill of Shame). `SupplyRunsStats` persists three (`totalRuns`, `biggestSmash`, `fastestTimes`) — rest TBD.
+
+None of these are bugs, just gaps between spec and implementation. Worth a grooming pass when you're ready to polish the driving/depot loop.

@@ -1,6 +1,8 @@
 # PTV — Pet Transport Vehicle
 
-*v0.2 — reconciled with the original spec. See also [driving-systems.md](driving-systems.md) for how PTV fits alongside Supply Runs and the Depot.*
+*v0.2 — Claude-authored design. See also [driving-systems.md](driving-systems.md) for how PTV fits alongside Supply Runs and the Depot.*
+
+> **⚠ Provenance note.** Marcus's original `ARC_PTV_spec.md` was referenced in the [Depot & Supply Run spec](original-depot-supply-spec.md) but **never pasted into any Claude Code session**. The vehicle names, crate types, and adjacency matrix below are Claude's own design, written overnight while interpreting the Depot spec's forward-reference. If Marcus has the authoritative PTV spec locally, it overrides this doc.
 
 ## What PTV is (and is not)
 

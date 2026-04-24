@@ -1,6 +1,10 @@
 # Extracted Driving/Depot Spec — from session `81fbb806…`
 
-**Important note on provenance.** The original user-pasted spec ("A.R.C. — The Depot & Supply Run System") was in a session that was **context-compacted before this transcript begins**. What survives in this transcript are:
+> **⚠ SUPERSEDED** by the verbatim recovery at [`original-depot-supply-spec.md`](original-depot-supply-spec.md). That file is Marcus's original text, captured from a queue-enqueue entry on 2026-04-13. This file is a **secondary** reconstruction from implementation code + plan summaries — kept as a correlation reference between the spec and the shipped code, not as the source of truth.
+
+---
+
+**Important note on provenance.** This file was written before the verbatim spec was recovered. The original user-pasted spec ("A.R.C. — The Depot & Supply Run System") was thought to be in a session that was **context-compacted before this transcript begins**. What survives in this transcript are:
 
 1. The **continuation-summary** at line 2219 that references the spec.
 2. The **approved plan** `/Users/marcus/.claude/plans/ticklish-sprouting-wave.md` (lines 2136, 2148, 2164, 2165, 3712) — this is the distilled, approved version of the spec.
