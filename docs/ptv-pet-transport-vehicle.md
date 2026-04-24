@@ -459,19 +459,13 @@ Marcus shared a zoomed map of Birchie centre. Transcribing faithfully so the in-
 
 This is a **coastal** A.R.C., not a west-end-of-Bay-Road A.R.C. as previously sketched.
 
-**Naming: TBD** — needs to be distinct from Goose End Farm (which is a separate collection-source farm out west; see §"Collection drives"). Marcus to pick from the shortlist below:
+**Naming (Marcus, 2026-04-24):** **A.R.C.** is the formal name. In dialogue and narrator copy, locals refer to the Centre affectionately as **"The Arc"** — echoing **"The Dip"** next door and carrying a gentle **Noah's Ark** allusion (a place that keeps all the animals safe). The acronym / nickname pairing is the whole identity; no additional placename needed.
 
-| Candidate | Why |
-|---|---|
-| **Dip End Rescue** | Parallels Goose End Farm's "End" rhythm; anchors to the landmark Lily sees every day |
-| **Tide End Rescue** | Poetic, coastal, same "End" cadence |
-| **Longship Sanctuary** | Viking-heritage nod — lovely personal resonance for a Danish family |
-| **Bayside Rescue** | Vanilla but clear |
-| **Chalkcliff Rescue** | Geographic, distinctive silhouette |
-| **Hearthstone Rescue** | Warm, homey, un-cloying |
-| **Minnis Green Sanctuary** | Names the plot + coastal feel |
-
-Working name used throughout this doc: **A.R.C.** (formal brand) — treat the warm placename as the affectionate nickname still to be chosen.
+Canonical usage:
+- **Written**: "A.R.C." (brand / map pin / signage / menus).
+- **Spoken in-game**: "The Arc." Narrator: *"welcome to The Arc!"*. Adopters: *"we'll bring her back to see everyone at The Arc soon."*
+- **Entrance-gate sign**: *"A.R.C. — Animal Rescue Centre"* in painted wooden letters.
+- **Gentle Noah's-Ark echo**: when things are at their most hopeful (a big rescue, an adoption ceremony, an entire storm-night of strays coming in), leaning a fraction into the Ark imagery is fine — never overtly religious; just the warm "everyone safe here" flavour.
 
 ##### What's right next to A.R.C.
 
@@ -519,7 +513,7 @@ Borrowing what the real site offers:
 - Corridor / vet / kitchen / play rooms in the main building.
 - Outside grounds wrap around to the south: garden, pond, outhouse, paddocks for larger rehab runs (horses / ponies if the roster ever expands).
 - Apprentice bothy + tool shed (the Depot can live here) at the back.
-- A painted wooden sign at the entrance gate: *[A.R.C. name TBD] — Animal Rescue Centre*.
+- A painted wooden sign at the entrance gate: *A.R.C. — Animal Rescue Centre*. Locals call it "The Arc".
 
 ##### Viking / Danish heritage in the street names
 
@@ -538,7 +532,7 @@ Design implications:
 
 | Real place | In-game |
 |---|---|
-| The green south of The Dip (between Canute / Viking / Dane roads) | **A.R.C.** plot — name TBD |
+| The green south of The Dip (between Canute / Viking / Dane roads) | **A.R.C.** — "The Arc" in dialogue |
 | The Dip | **The Dip** — kept (descriptive, affectionate name) |
 | Minnis Bay + paddling pool | **Bay beach + paddling pool** (Minnis → Bay to match Minnis-Road → Bay-Road rule) |
 | The Parade | **The Parade** — kept (generic, descriptive) |
