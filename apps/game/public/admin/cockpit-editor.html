@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Cockpit Slot Editor</title>
+<style>
+  :root {
+    --bg: #1a1a1a;
+    --panel: #242424;
+    --panel-2: #2e2e2e;
+    --border: #3a3a3a;
+    --ink: #eee;
+    --muted: #999;
+    --accent: #8fd3ff;
+    --canvas-cream: #f5ecd4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    background: var(--bg);
+    color: var(--ink);
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .vp-bar a { color: var(--accent); text-decoration: none; }
+  .vp-bar a:hover { text-decoration: underline; }
+  .vp-bar .sep { color: #666; }
+  .vp-bar strong { color: #fff; }
+
+  .tabs {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .tab, .toolbar button, .tabs button.tool {
+    padding: 6px 14px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 12px;
+  }
+  .tabs button.tool { color: var(--ink); padding: 5px 10px; font-size: 11px; }
+  .tab:hover { color: var(--ink); }
+  .tab.active {
+    background: var(--accent);
+    color: #111;
+    border-color: var(--accent);
+    font-weight: bold;
+  }
+  .tabs .spacer { flex: 1; }
+  .toolbar button, .toolbar input[type="text"] {
+    padding: 5px 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .toolbar {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 12px;
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    font-size: 11px;
+  }
+  .toolbar input[type="text"] { width: 220px; cursor: text; }
+  .toolbar input[type="file"] { font-size: 10px; color: var(--muted); width: 180px; }
+  .toolbar label.chk { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+  .toolbar label.chk input { margin: 0; }
+  .toolbar .sep, .tabs .sep { color: #666; margin: 0 4px; }
+
+  .main {
+    display: flex;
+    height: calc(100vh - 110px);
+    min-height: 400px;
+  }
+  .canvas-wrap {
+    flex: 1;
+    overflow: auto;
+    background: #111;
+    position: relative;
+    padding: 20px;
+  }
+  .canvas-frame {
+    position: relative;
+    transform-origin: top left;
+    width: 1920px;
+    height: 1080px;
+    flex-shrink: 0;
+  }
+  .canvas {
+    position: absolute;
+    inset: 0;
+    background: var(--canvas-cream);
+    overflow: hidden;
+    border: 2px solid #444;
+  }
+  .ref-img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    opacity: 0.5;
+    pointer-events: none;
+    object-fit: contain;
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(circle, rgba(0,0,0,0.18) 1px, transparent 1px);
+    background-size: 20px 20px;
+    pointer-events: none;
+  }
+  .slot {
+    position: absolute;
+    border: 2px solid rgba(0,0,0,0.5);
+    cursor: move;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: ui-monospace, monospace;
+    font-size: 14px;
+    font-weight: bold;
+    color: #111;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.7);
+    text-align: center;
+    line-height: 1.1;
+    padding: 4px;
+  }
+  .slot small { display: block; font-weight: normal; opacity: 0.7; font-size: 10px; margin-top: 2px; }
+  .slot.shape-circle, .slot.shape-oval { border-radius: 50%; }
+  .slot.shape-rect { border-radius: 4px; }
+  .slot.selected { border-color: #fff; border-width: 3px; box-shadow: 0 0 0 2px rgba(143,211,255,0.5); z-index: 100; }
+  .slot.hidden-slot { display: none; }
+
+  .handle {
+    position: absolute;
+    width: 12px; height: 12px;
+    background: #fff;
+    border: 2px solid #000;
+    box-sizing: border-box;
+    z-index: 101;
+  }
+  .handle.nw { top: -6px; left: -6px; cursor: nwse-resize; }
+  .handle.n  { top: -6px; left: 50%; margin-left: -6px; cursor: ns-resize; }
+  .handle.ne { top: -6px; right: -6px; cursor: nesw-resize; }
+  .handle.e  { top: 50%; right: -6px; margin-top: -6px; cursor: ew-resize; }
+  .handle.se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+  .handle.s  { bottom: -6px; left: 50%; margin-left: -6px; cursor: ns-resize; }
+  .handle.sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+  .handle.w  { top: 50%; left: -6px; margin-top: -6px; cursor: ew-resize; }
+
+  .sidebar {
+    width: 320px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 12px;
+    font-size: 12px;
+  }
+  .sidebar h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 12px 0 6px;
+    letter-spacing: 1px;
+  }
+  .sidebar h3:first-child { margin-top: 0; }
+  .slot-list {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .slot-list-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .slot-list-row:last-child { border-bottom: none; }
+  .slot-list-row:hover { background: #3a3a3a; }
+  .slot-list-row.active { background: #3f5a6e; }
+  .slot-list-row .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.5);
+  }
+  .slot-list-row .lbl { flex: 1; }
+  .slot-list-row .id-col { color: var(--muted); font-size: 10px; }
+  .slot-list-row .vis {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    padding: 2px 6px; font-size: 10px; cursor: pointer; border-radius: 3px;
+    font-family: inherit;
+  }
+
+  .prop-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: center; }
+  .prop-grid label { color: var(--muted); font-size: 11px; }
+  .prop-grid input, .prop-grid select {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 4px 6px;
+    font-family: inherit;
+    font-size: 11px;
+    border-radius: 3px;
+    width: 100%;
+  }
+  .prop-empty { color: var(--muted); font-style: italic; padding: 8px 4px; font-size: 11px; }
+  .prop-actions { margin-top: 10px; display: flex; gap: 6px; }
+  .prop-actions button {
+    padding: 5px 10px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 4px;
+    color: var(--ink); font-family: inherit; font-size: 11px; cursor: pointer;
+  }
+
+  .add-row button {
+    padding: 5px 10px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 4px;
+    color: var(--ink); font-family: inherit; font-size: 11px; cursor: pointer;
+  }
+  .add-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .json-panel {
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 8px 12px;
+    height: 150px;
+    display: flex; flex-direction: column;
+    gap: 4px;
+  }
+  .json-panel .row {
+    display: flex; gap: 6px; align-items: center; font-size: 11px;
+  }
+  .json-panel button {
+    padding: 4px 10px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 3px;
+    color: var(--ink); font-family: inherit; font-size: 11px; cursor: pointer;
+  }
+  .json-panel textarea {
+    flex: 1;
+    background: #111;
+    color: #b5e6c7;
+    border: 1px solid var(--border);
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    padding: 6px;
+    resize: none;
+    border-radius: 3px;
+  }
+
+  .help-card {
+    position: fixed;
+    bottom: 170px; right: 340px;
+    background: rgba(30,30,30,0.95);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 10px;
+    max-width: 260px;
+    z-index: 500;
+    line-height: 1.5;
+  }
+  .help-card h4 { font-size: 11px; margin-bottom: 4px; color: var(--accent); }
+  .help-card kbd {
+    background: #444; padding: 1px 4px; border-radius: 2px;
+    font-size: 10px; font-family: inherit;
+  }
+  .help-card.hidden { display: none; }
+
+  button:hover, .tab:hover { filter: brightness(1.2); }
+</style>
+</head>
+<body>
+
+<div class="vp-bar">
+  <strong>Cockpit Slot Editor</strong>
+  <span class="sep">·</span>
+  <a href="/admin/mockup-cockpit.html">cockpit</a>
+  <a href="/admin/mockup-pre-drive.html">pre-drive</a>
+  <a href="/admin/mockup-map.html">map</a>
+  <span class="sep">·</span>
+  <span style="color:#aaa; margin-left:auto; font-style:italic;">Interactive-first: place slots, painted art fills around them.</span>
+</div>
+
+<div class="tabs">
+  <span style="color:var(--muted); margin-right: 4px;">Vehicle:</span>
+  <button class="tab" data-vehicle="trikey">trikey</button>
+  <button class="tab active" data-vehicle="henry">henry</button>
+  <button class="tab" data-vehicle="bea">bea</button>
+  <button class="tab" data-vehicle="big-tilly">big-tilly</button>
+  <button class="tab" data-vehicle="spark">spark</button>
+  <span class="sep">·</span>
+  <button class="tool" id="btn-dup-from">Duplicate from…</button>
+  <button class="tool" id="btn-reset">Reset vehicle</button>
+  <span class="spacer"></span>
+  <button class="tool" id="btn-help">? Help</button>
+</div>
+
+<div class="toolbar">
+  <label class="chk"><input type="checkbox" id="chk-grid" checked> Grid</label>
+  <label class="chk"><input type="checkbox" id="chk-snap" checked> Snap 20px</label>
+  <span class="sep">·</span>
+  <button id="btn-zoom-out">−</button>
+  <span id="zoom-readout" style="min-width: 46px; text-align: center;">50%</span>
+  <button id="btn-zoom-in">+</button>
+  <button id="btn-zoom-fit">Fit</button>
+  <span class="sep">·</span>
+  <label class="chk"><input type="checkbox" id="chk-ref"> Reference image</label>
+  <button id="btn-ref-henry">Henry preset</button>
+  <input type="text" id="ref-url" placeholder="or paste URL…"/>
+  <input type="file" id="ref-file" accept="image/*"/>
+  <span class="sep">·</span>
+  <button id="btn-export-png">Export PNG mask</button>
+</div>
+
+<div class="main">
+  <div class="canvas-wrap" id="canvas-wrap">
+    <div class="canvas-frame" id="canvas-frame">
+      <div class="canvas" id="canvas">
+        <img class="ref-img" id="ref-img" style="display:none" alt=""/>
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h3>Slots</h3>
+    <div class="slot-list" id="slot-list"></div>
+
+    <h3>Selected</h3>
+    <div id="prop-panel"><div class="prop-empty">Nothing selected. Click a slot.</div></div>
+
+    <h3 style="margin-top:16px;">Add slot</h3>
+    <div class="add-row">
+      <button id="btn-add-rect">+ rect</button>
+      <button id="btn-add-circle">+ circle</button>
+      <button id="btn-add-oval">+ oval</button>
+    </div>
+  </div>
+</div>
+
+<div class="json-panel">
+  <div class="row">
+    <strong style="font-size:11px;">JSON</strong>
+    <button id="btn-export">Export → clipboard</button>
+    <button id="btn-import">Import ← textarea</button>
+    <button id="btn-download">Download .json</button>
+    <span style="color:var(--muted); margin-left:auto; font-size:10px;" id="status-line"></span>
+  </div>
+  <textarea id="json-area" spellcheck="false"></textarea>
+</div>
+
+<div class="help-card hidden" id="help-card">
+  <h4>Shortcuts</h4>
+  Click = select · Drag = move · Handles = resize<br/>
+  <kbd>↑↓←→</kbd> nudge 1px · <kbd>Shift+arrow</kbd> 10px<br/>
+  <kbd>Shift</kbd> while resizing = aspect lock<br/>
+  <kbd>Cmd/Ctrl+D</kbd> duplicate · <kbd>Del</kbd> remove<br/>
+  <kbd>Esc</kbd> deselect
+</div>
+
+<script>
+/* Cockpit Slot Editor — vanilla JS, no deps. Admin-only tool. */
+
+const VEHICLES = ['trikey', 'henry', 'bea', 'big-tilly', 'spark'];
+const CANVAS_W = 1920, CANVAS_H = 1080;
+const GRID = 20;
+
+const SLOT_COLORS = {
+  'wheel':         'rgba(70, 130, 220, 0.35)',
+  'speedometer':   'rgba(240, 140, 40, 0.35)',
+  'fuel-gauge':    'rgba(80, 180, 80, 0.35)',
+  'ignition':      'rgba(220, 170, 40, 0.35)',
+  'key-or-button': 'rgba(240, 120, 180, 0.35)',
+  'hazard':        'rgba(230, 70, 70, 0.35)',
+  'gps':           'rgba(40, 180, 180, 0.35)',
+  'pedals':        'rgba(160, 80, 200, 0.35)',
+  'mirror':        'rgba(140, 100, 70, 0.35)',
+  'cargo-comfort': 'rgba(230, 210, 60, 0.35)',
+  'charm-hang':    'rgba(220, 60, 200, 0.35)',
+};
+const SLOT_SOLID = {
+  'wheel':         '#4682dc',
+  'speedometer':   '#f08c28',
+  'fuel-gauge':    '#50b450',
+  'ignition':      '#dcaa28',
+  'key-or-button': '#f078b4',
+  'hazard':        '#e64646',
+  'gps':           '#28b4b4',
+  'pedals':        '#a050c8',
+  'mirror':        '#8c6446',
+  'cargo-comfort': '#e6d23c',
+  'charm-hang':    '#dc3cc8',
+};
+
+function defaultSlots() {
+  return [
+    { id: 'wheel',         label: 'Steering wheel',      shape: 'circle', x: (1920-420)/2, y: 580, w: 420, h: 420, hidden: false },
+    { id: 'speedometer',   label: 'Speedometer',         shape: 'circle', x: 500, y: 600, w: 220, h: 220, hidden: false },
+    { id: 'fuel-gauge',    label: 'Fuel gauge',          shape: 'circle', x: 400, y: 720, w: 100, h: 100, hidden: false },
+    { id: 'ignition',      label: 'Ignition barrel',     shape: 'circle', x: 340, y: 640, w: 90,  h: 90,  hidden: false },
+    { id: 'key-or-button', label: 'Key / button',        shape: 'rect',   x: 380, y: 720, w: 60,  h: 160, hidden: false },
+    { id: 'hazard',        label: 'Hazard button',       shape: 'rect',   x: 120, y: 660, w: 90,  h: 90,  hidden: false },
+    { id: 'gps',           label: 'GPS screen',          shape: 'rect',   x: 1200, y: 620, w: 340, h: 210, hidden: false },
+    { id: 'pedals',        label: 'Pedal pair',          shape: 'rect',   x: (1920-240)/2, y: 940, w: 240, h: 120, hidden: false },
+    { id: 'mirror',        label: 'Rear-view mirror',    shape: 'oval',   x: (1920-280)/2, y: 60,  w: 280, h: 180, hidden: false },
+    { id: 'cargo-comfort', label: 'Cargo-comfort meter', shape: 'rect',   x: 1680, y: 640, w: 220, h: 90,  hidden: false },
+    { id: 'charm-hang',    label: 'Charm anchor',        shape: 'circle', x: (1920-20)/2, y: 250, w: 20,  h: 20,  hidden: false },
+  ];
+}
+
+let state = {
+  vehicle: 'henry',
+  slots: [],
+  selectedIdx: -1,
+  zoom: 0.5,
+  showGrid: true,
+  snap: true,
+  showRef: false,
+  refUrl: '',
+  dirty: false,
+};
+
+const lsKey = (v) => `cockpit-editor:${v}`;
+
+function saveVehicle() {
+  localStorage.setItem(lsKey(state.vehicle), JSON.stringify({ slots: state.slots }));
+  state.dirty = false;
+  flashStatus('saved');
+}
+
+function loadVehicle(v) {
+  const raw = localStorage.getItem(lsKey(v));
+  if (raw) {
+    try { return JSON.parse(raw).slots; } catch (e) {}
+  }
+  return defaultSlots();
+}
+
+function flashStatus(msg) {
+  const el = document.getElementById('status-line');
+  el.textContent = msg;
+  clearTimeout(flashStatus._t);
+  flashStatus._t = setTimeout(() => { el.textContent = ''; }, 1500);
+}
+
+const canvas = document.getElementById('canvas');
+const canvasFrame = document.getElementById('canvas-frame');
+const canvasWrap = document.getElementById('canvas-wrap');
+const gridEl = document.getElementById('grid');
+const refImg = document.getElementById('ref-img');
+const slotListEl = document.getElementById('slot-list');
+const propPanel = document.getElementById('prop-panel');
+const jsonArea = document.getElementById('json-area');
+
+function baseId(id) {
+  if (SLOT_COLORS[id]) return id;
+  const stripped = id.replace(/-\d+$/, '');
+  if (SLOT_COLORS[stripped]) return stripped;
+  return id;
+}
+
+function el(tag, attrs, children) {
+  const e = document.createElement(tag);
+  if (attrs) {
+    for (const k in attrs) {
+      if (k === 'class') e.className = attrs[k];
+      else if (k === 'style') e.style.cssText = attrs[k];
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), attrs[k]);
+      else if (k === 'value') e.value = attrs[k];
+      else if (k === 'checked') e.checked = !!attrs[k];
+      else if (k === 'dataset') Object.assign(e.dataset, attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    }
+  }
+  if (children != null) {
+    const arr = Array.isArray(children) ? children : [children];
+    for (const c of arr) {
+      if (c == null) continue;
+      e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    }
+  }
+  return e;
+}
+
+function render() {
+  document.querySelectorAll('.tab[data-vehicle]').forEach(t => {
+    t.classList.toggle('active', t.dataset.vehicle === state.vehicle);
+  });
+  canvasFrame.style.transform = `scale(${state.zoom})`;
+  document.getElementById('zoom-readout').textContent = Math.round(state.zoom * 100) + '%';
+  gridEl.style.display = state.showGrid ? 'block' : 'none';
+
+  if (state.showRef && state.refUrl) {
+    refImg.src = state.refUrl;
+    refImg.style.display = 'block';
+  } else {
+    refImg.style.display = 'none';
+  }
+
+  [...canvas.querySelectorAll('.slot')].forEach(n => n.remove());
+  state.slots.forEach((s, idx) => {
+    const cls = `slot shape-${s.shape}${s.hidden ? ' hidden-slot' : ''}${idx === state.selectedIdx ? ' selected' : ''}`;
+    const slotEl = el('div', {
+      class: cls,
+      style: `left:${s.x}px; top:${s.y}px; width:${s.w}px; height:${s.h}px; background:${SLOT_COLORS[baseId(s.id)] || 'rgba(200,200,200,0.35)'};`,
+      dataset: { idx: String(idx) },
+    }, [
+      el('span', null, [
+        s.label,
+        el('small', null, s.id),
+      ]),
+    ]);
+    if (idx === state.selectedIdx) {
+      ['nw','n','ne','e','se','s','sw','w'].forEach(h => {
+        slotEl.appendChild(el('div', { class: 'handle ' + h, dataset: { handle: h } }));
+      });
+    }
+    canvas.appendChild(slotEl);
+  });
+
+  renderSlotList();
+  renderPropPanel();
+  renderJson();
+}
+
+function renderSlotList() {
+  slotListEl.textContent = '';
+  state.slots.forEach((s, idx) => {
+    const row = el('div', {
+      class: 'slot-list-row' + (idx === state.selectedIdx ? ' active' : ''),
+      onclick: (e) => {
+        if (e.target.classList.contains('vis')) return;
+        state.selectedIdx = idx;
+        render();
+      },
+    }, [
+      el('div', { class: 'dot', style: `background:${SLOT_COLORS[baseId(s.id)] || '#999'}` }),
+      el('div', { class: 'lbl' }, s.label),
+      el('div', { class: 'id-col' }, s.id),
+      el('button', {
+        class: 'vis',
+        onclick: (e) => {
+          e.stopPropagation();
+          state.slots[idx].hidden = !state.slots[idx].hidden;
+          markDirty();
+          render();
+        },
+      }, s.hidden ? 'show' : 'hide'),
+    ]);
+    slotListEl.appendChild(row);
+  });
+}
+
+function renderPropPanel() {
+  propPanel.textContent = '';
+  if (state.selectedIdx < 0 || !state.slots[state.selectedIdx]) {
+    propPanel.appendChild(el('div', { class: 'prop-empty' }, 'Nothing selected. Click a slot.'));
+    return;
+  }
+  const s = state.slots[state.selectedIdx];
+  const bindInput = (type, prop, isNum) => {
+    const attrs = { type, value: String(s[prop]) };
+    attrs.oninput = (ev) => {
+      const v = isNum ? (parseInt(ev.target.value, 10) || 0) : ev.target.value;
+      state.slots[state.selectedIdx][prop] = v;
+      markDirty();
+      render();
+    };
+    return el('input', attrs);
+  };
+  const shapeSel = el('select', {
+    onchange: (ev) => {
+      state.slots[state.selectedIdx].shape = ev.target.value;
+      markDirty();
+      render();
+    },
+  }, ['circle', 'rect', 'oval'].map(v => {
+    const opt = el('option', { value: v }, v);
+    if (s.shape === v) opt.selected = true;
+    return opt;
+  }));
+
+  const grid = el('div', { class: 'prop-grid' }, [
+    el('label', null, 'Label'), bindInput('text', 'label', false),
+    el('label', null, 'ID'),    bindInput('text', 'id', false),
+    el('label', null, 'Shape'), shapeSel,
+    el('label', null, 'x'),     bindInput('number', 'x', true),
+    el('label', null, 'y'),     bindInput('number', 'y', true),
+    el('label', null, 'w'),     bindInput('number', 'w', true),
+    el('label', null, 'h'),     bindInput('number', 'h', true),
+  ]);
+  propPanel.appendChild(grid);
+  propPanel.appendChild(el('div', { class: 'prop-actions' }, [
+    el('button', { onclick: duplicateSelected }, 'Duplicate'),
+    el('button', { onclick: deleteSelected }, 'Delete'),
+  ]));
+}
+
+function renderJson() {
+  jsonArea.value = JSON.stringify(currentExport(), null, 2);
+}
+
+function currentExport() {
+  return {
+    vehicle: state.vehicle,
+    canvas: { width: CANVAS_W, height: CANVAS_H },
+    slots: state.slots.map(s => ({
+      id: s.id, label: s.label, shape: s.shape,
+      x: Math.round(s.x), y: Math.round(s.y),
+      w: Math.round(s.w), h: Math.round(s.h),
+      ...(s.hidden ? { hidden: true } : {}),
+    })),
+  };
+}
+
+function markDirty() { state.dirty = true; saveVehicle(); }
+
+let drag = null;
+
+function canvasPointFromEvent(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / state.zoom,
+    y: (e.clientY - rect.top) / state.zoom,
+  };
+}
+function snap(v) { return state.snap ? Math.round(v / GRID) * GRID : Math.round(v); }
+
+canvas.addEventListener('mousedown', (e) => {
+  const handleEl = e.target.closest('.handle');
+  const slotEl = e.target.closest('.slot');
+  if (!slotEl) {
+    state.selectedIdx = -1;
+    render();
+    return;
+  }
+  const idx = parseInt(slotEl.dataset.idx, 10);
+  state.selectedIdx = idx;
+  const s = state.slots[idx];
+  const p = canvasPointFromEvent(e);
+  if (handleEl) {
+    drag = { kind: 'resize', handle: handleEl.dataset.handle, startX: p.x, startY: p.y, orig: { x: s.x, y: s.y, w: s.w, h: s.h }, idx };
+  } else {
+    drag = { kind: 'move', startX: p.x, startY: p.y, orig: { x: s.x, y: s.y }, idx };
+  }
+  render();
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!drag) return;
+  const p = canvasPointFromEvent(e);
+  const s = state.slots[drag.idx];
+  const dx = p.x - drag.startX;
+  const dy = p.y - drag.startY;
+  if (drag.kind === 'move') {
+    s.x = snap(drag.orig.x + dx);
+    s.y = snap(drag.orig.y + dy);
+  } else {
+    let { x, y, w, h } = drag.orig;
+    const h_ = drag.handle;
+    if (h_.includes('e')) w = drag.orig.w + dx;
+    if (h_.includes('s')) h = drag.orig.h + dy;
+    if (h_.includes('w')) { x = drag.orig.x + dx; w = drag.orig.w - dx; }
+    if (h_.includes('n')) { y = drag.orig.y + dy; h = drag.orig.h - dy; }
+    if (e.shiftKey) {
+      const ratio = drag.orig.w / drag.orig.h;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        const newH = w / ratio;
+        if (h_.includes('n')) y = drag.orig.y + (drag.orig.h - newH);
+        h = newH;
+      } else {
+        const newW = h * ratio;
+        if (h_.includes('w')) x = drag.orig.x + (drag.orig.w - newW);
+        w = newW;
+      }
+    }
+    w = Math.max(10, w); h = Math.max(10, h);
+    s.x = snap(x); s.y = snap(y);
+    s.w = snap(w); s.h = snap(h);
+  }
+  render();
+});
+
+window.addEventListener('mouseup', () => {
+  if (drag) markDirty();
+  drag = null;
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, textarea, select')) return;
+  if (state.selectedIdx < 0) {
+    if (e.key === 'Escape') { state.selectedIdx = -1; render(); }
+    return;
+  }
+  const s = state.slots[state.selectedIdx];
+  const step = e.shiftKey ? 10 : 1;
+  let handled = true;
+  switch (e.key) {
+    case 'ArrowUp':    s.y -= step; break;
+    case 'ArrowDown':  s.y += step; break;
+    case 'ArrowLeft':  s.x -= step; break;
+    case 'ArrowRight': s.x += step; break;
+    case 'Escape':     state.selectedIdx = -1; break;
+    case 'Delete':
+    case 'Backspace':  deleteSelected(); break;
+    case 'd':
+    case 'D':
+      if (e.metaKey || e.ctrlKey) { e.preventDefault(); duplicateSelected(); }
+      else handled = false;
+      break;
+    default: handled = false;
+  }
+  if (handled) { e.preventDefault(); markDirty(); render(); }
+});
+
+function duplicateSelected() {
+  if (state.selectedIdx < 0) return;
+  const s = state.slots[state.selectedIdx];
+  const copy = { ...s, id: s.id + '-2', x: s.x + 40, y: s.y + 40 };
+  let n = 2;
+  const existing = new Set(state.slots.map(x => x.id));
+  while (existing.has(copy.id)) { n++; copy.id = s.id.replace(/-\d+$/, '') + '-' + n; }
+  state.slots.splice(state.selectedIdx + 1, 0, copy);
+  state.selectedIdx++;
+  markDirty();
+  render();
+}
+
+function deleteSelected() {
+  if (state.selectedIdx < 0) return;
+  state.slots.splice(state.selectedIdx, 1);
+  state.selectedIdx = -1;
+  markDirty();
+  render();
+}
+
+function addSlot(shape) {
+  const id = 'new-' + Date.now().toString(36);
+  state.slots.push({ id, label: 'New slot', shape, x: 800, y: 400, w: 200, h: 200, hidden: false });
+  state.selectedIdx = state.slots.length - 1;
+  markDirty();
+  render();
+}
+document.getElementById('btn-add-rect').onclick = () => addSlot('rect');
+document.getElementById('btn-add-circle').onclick = () => addSlot('circle');
+document.getElementById('btn-add-oval').onclick = () => addSlot('oval');
+
+function setZoom(z) {
+  state.zoom = Math.max(0.1, Math.min(2, z));
+  render();
+}
+document.getElementById('btn-zoom-in').onclick  = () => setZoom(state.zoom * 1.25);
+document.getElementById('btn-zoom-out').onclick = () => setZoom(state.zoom / 1.25);
+function fitZoom() {
+  const pad = 40;
+  const wFit = (canvasWrap.clientWidth - pad) / CANVAS_W;
+  const hFit = (canvasWrap.clientHeight - pad) / CANVAS_H;
+  setZoom(Math.min(wFit, hFit));
+}
+document.getElementById('btn-zoom-fit').onclick = fitZoom;
+
+document.getElementById('chk-grid').onchange = (e) => { state.showGrid = e.target.checked; render(); };
+document.getElementById('chk-snap').onchange = (e) => { state.snap = e.target.checked; };
+document.getElementById('chk-ref').onchange = (e) => { state.showRef = e.target.checked; render(); };
+document.getElementById('ref-url').addEventListener('change', (e) => {
+  state.refUrl = e.target.value.trim();
+  state.showRef = !!state.refUrl;
+  document.getElementById('chk-ref').checked = state.showRef;
+  render();
+});
+document.getElementById('ref-file').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.refUrl = reader.result;
+    state.showRef = true;
+    document.getElementById('chk-ref').checked = true;
+    render();
+  };
+  reader.readAsDataURL(f);
+});
+document.getElementById('btn-ref-henry').onclick = () => {
+  state.refUrl = '/assets/driving/dashboard-henry-ptv.png';
+  state.showRef = true;
+  document.getElementById('chk-ref').checked = true;
+  document.getElementById('ref-url').value = state.refUrl;
+  render();
+};
+
+document.querySelectorAll('.tab[data-vehicle]').forEach(t => {
+  t.addEventListener('click', () => {
+    const v = t.dataset.vehicle;
+    if (v === state.vehicle) return;
+    if (state.dirty) {
+      if (!confirm('You have unsaved changes. Switch anyway?')) return;
+    }
+    state.vehicle = v;
+    state.slots = loadVehicle(v);
+    state.selectedIdx = -1;
+    render();
+  });
+});
+
+document.getElementById('btn-reset').onclick = () => {
+  if (!confirm(`Reset ${state.vehicle} to default slot layout?`)) return;
+  state.slots = defaultSlots();
+  state.selectedIdx = -1;
+  markDirty();
+  render();
+};
+
+document.getElementById('btn-dup-from').onclick = () => {
+  const src = prompt(`Copy slot layout from which vehicle? (${VEHICLES.join(', ')})`, 'henry');
+  if (!src || !VEHICLES.includes(src)) return;
+  const srcSlots = loadVehicle(src);
+  state.slots = JSON.parse(JSON.stringify(srcSlots));
+  state.selectedIdx = -1;
+  markDirty();
+  render();
+};
+
+document.getElementById('btn-help').onclick = () => {
+  document.getElementById('help-card').classList.toggle('hidden');
+};
+
+document.getElementById('btn-export').onclick = async () => {
+  const json = JSON.stringify(currentExport(), null, 2);
+  jsonArea.value = json;
+  try {
+    await navigator.clipboard.writeText(json);
+    flashStatus('copied to clipboard');
+  } catch (e) {
+    flashStatus('clipboard failed — copy from textarea');
+  }
+};
+document.getElementById('btn-import').onclick = () => {
+  try {
+    const data = JSON.parse(jsonArea.value);
+    if (!Array.isArray(data.slots)) throw new Error('missing slots[]');
+    state.slots = data.slots.map(s => ({
+      id: s.id, label: s.label || s.id,
+      shape: s.shape || 'rect',
+      x: s.x|0, y: s.y|0, w: s.w|0, h: s.h|0,
+      hidden: !!s.hidden,
+    }));
+    state.selectedIdx = -1;
+    markDirty();
+    render();
+    flashStatus('imported');
+  } catch (err) {
+    alert('Import failed: ' + err.message);
+  }
+};
+document.getElementById('btn-download').onclick = () => {
+  const json = JSON.stringify(currentExport(), null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cockpit-slots-${state.vehicle}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+document.getElementById('btn-export-png').onclick = () => {
+  const cv = document.createElement('canvas');
+  cv.width = CANVAS_W; cv.height = CANVAS_H;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  state.slots.forEach(s => {
+    if (s.hidden) return;
+    const col = SLOT_SOLID[baseId(s.id)] || '#888888';
+    ctx.fillStyle = col;
+    if (s.shape === 'circle' || s.shape === 'oval') {
+      ctx.beginPath();
+      ctx.ellipse(s.x + s.w/2, s.y + s.h/2, s.w/2, s.h/2, 0, 0, Math.PI*2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(s.x, s.y, s.w, s.h);
+    }
+  });
+  cv.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cockpit-mask-${state.vehicle}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+};
+
+// Boot
+state.slots = loadVehicle(state.vehicle);
+setTimeout(fitZoom, 0);
+render();
+
+window.addEventListener('beforeunload', (e) => {
+  if (state.dirty) { e.preventDefault(); e.returnValue = ''; }
+});
+</script>
+</body>
+</html>
