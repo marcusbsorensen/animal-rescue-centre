@@ -45,6 +45,11 @@ import {
   markVisitSeen,
   markAllDueGardenReturnsSeen,
   getAvailableToys,
+  calculateAdoptionFee,
+  checkCharityGrants,
+  getGrantDef,
+  pickRandomFact,
+  getDestination,
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef, VisitorEntry } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
@@ -340,6 +345,7 @@ export class GameScene extends Phaser.Scene {
    * player's welcome choice applies a small bond bonus to the new animal.
    */
   private openArrivalOverlay(animal: Animal): void {
+    const fact = pickRandomFact(animal.species, animal.variant);
     const unmount = mountInGame('arrival', {
       onAction: (action) => {
         const applyAndClose = (bondBonus: number, hungerDelta = 0) => {
@@ -367,6 +373,8 @@ export class GameScene extends Phaser.Scene {
       animalName: animal.name,
       species: animal.species,
       variant: animal.variant ?? '',
+      fact: fact?.fact ?? '',
+      factIcon: fact?.icon ?? '💡',
     });
     this.events.once('shutdown', unmountInGame);
   }
@@ -983,6 +991,34 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Mount the HTML world-map overlay. Players use this map to pick driving
+   * destinations — supply runs, adoption deliveries, rewilding releases,
+   * and visits to rewilded animals in their habitats.
+   *
+   * The map posts a 'drive-to' action with `{ destinationId, context }` when
+   * the player taps "Drive here!". For v1 we just toast the intent — wiring
+   * to an actual drive scene is v2. The `context` parameter is reserved so
+   * later callers can open the map filtered to rewilded-visit destinations
+   * (e.g. openMapOverlay('visit-rewilded')).
+   */
+  public openMapOverlay(context: 'default' | 'visit-rewilded' = 'default'): void {
+    const unmount = mountInGame('map', {
+      onAction: (action, payload) => {
+        if (action === 'close' || action === 'back-to-menu') { unmount(); return; }
+        if (action === 'drive-to') {
+          const id = typeof payload?.destinationId === 'string' ? payload.destinationId : '';
+          const dest = getDestination(id);
+          const name = dest?.label ?? id;
+          showToast(this, `🗺 Drive to ${name} coming soon!`);
+          unmount();
+          return;
+        }
+      },
+    }, { context, playerLevel: this.store.level });
+    this.events.once('shutdown', unmountInGame);
+  }
+
+  /**
    * Mount the HTML Vet popup over Phaser and wire the three treatment
    * choices back onto the game state.
    *
@@ -1071,8 +1107,27 @@ export class GameScene extends Phaser.Scene {
     });
     this.store.animals.splice(idx, 1);
     this.store.sickAnimals.delete(a.id);
+
+    // Adoption-fee donation — base 20 + bond/species bonuses, capped
+    // at 50. The household entry might not be loaded yet (cast.json
+    // races with adoption on a cold boot); calculateAdoptionFee
+    // tolerates an undefined household by skipping the species bonus.
+    const castEntry = this.findCast(householdId);
+    const householdSpecies = Array.isArray(castEntry?.['species'])
+      ? (castEntry['species'] as Species[])
+      : undefined;
+    const householdName = typeof castEntry?.['name'] === 'string'
+      ? (castEntry['name'] as string)
+      : 'The family';
+    const fee = calculateAdoptionFee(a, { id: householdId, species: householdSpecies });
+    this.store.economy.coins += fee;
+    this.store.economy.lifetimeEarnings += fee;
+
     AudioManager.getInstance().playSfx('animal_happy');
     showToast(this, `💚 ${a.name} found their forever home!`);
+    this.time.delayedCall(900, () => {
+      showToast(this, `💰 ${householdName} donated ${fee} coins, thank you!`);
+    });
     this.saveState();
     this.renderView();
   }
@@ -1176,6 +1231,13 @@ export class GameScene extends Phaser.Scene {
   private scheduleDailyVisitors(): void {
     const now = Date.now();
     const ONE_DAY = 24 * 60 * 60 * 1000;
+
+    // Charity grants roll alongside the daily scheduler — at most once
+    // per in-game month per qualifying grant. `checkCharityGrants` is
+    // gated on `store.lastGrantCheckAt` so it's safe to call every
+    // scene boot; it returns [] when nothing's due.
+    this.checkAndCreditCharityGrants(now);
+
     if (now - this.lastVisitorSchedule < ONE_DAY) return;
     const entries = scheduleVisitsForDay(this.store);
     // Wild-return pass — rewilded animals dropping by the garden. Only
@@ -1188,6 +1250,30 @@ export class GameScene extends Phaser.Scene {
     if (entries.length) this.store.visitors.push(...entries);
     if (returns.length) this.store.gardenReturns.push(...returns);
     this.lastVisitorSchedule = now;
+    this.saveState();
+  }
+
+  /**
+   * Roll for monthly charity grants. Credits each award to coins +
+   * lifetime earnings, logs onto `grantsReceived`, and surfaces one
+   * painted toast per award (staggered so multiple grants don't stomp
+   * each other on the same frame).
+   */
+  private checkAndCreditCharityGrants(now: number): void {
+    const awards = checkCharityGrants(this.store, now);
+    if (awards.length === 0) return;
+    for (const award of awards) {
+      this.store.economy.coins += award.amount;
+      this.store.economy.lifetimeEarnings += award.amount;
+      this.store.grantsReceived.push(award);
+    }
+    awards.forEach((award, idx) => {
+      const def = getGrantDef(award.grantId);
+      if (!def) return;
+      this.time.delayedCall(idx * 1200, () => {
+        showToast(this, `${def.emoji} ${def.label} — ${award.amount} coins!`);
+      });
+    });
     this.saveState();
   }
 

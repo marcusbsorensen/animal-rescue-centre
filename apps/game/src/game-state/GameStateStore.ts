@@ -9,7 +9,7 @@ import type {
   TimeProgress,
   GardenWeather,
 } from '@arc/shared-types';
-import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry } from '@arc/game-logic';
+import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward } from '@arc/game-logic';
 
 /**
  * GameStateStore — a plain container holding all mutable game state.
@@ -169,4 +169,19 @@ export class GameStateStore {
    * tap or when the player navigates out of the garden view.
    */
   gardenReturns: GardenReturnEntry[] = [];
+
+  /**
+   * Epoch-ms of the last charity-grant roll. Gates the monthly
+   * recurring payout so the same in-game month never double-fires.
+   * Seeded by `checkCharityGrants` on first check. Missing-safe for
+   * old saves (undefined → treated as "seed now, pay nothing yet").
+   */
+  lastGrantCheckAt?: number;
+
+  /**
+   * History of all grants the player has received. Drives "grant income
+   * this year" stats later; grows unbounded but at 3 grants × 12 months
+   * × many years the footprint stays tiny.
+   */
+  grantsReceived: GrantAward[] = [];
 }

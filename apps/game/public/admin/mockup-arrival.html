@@ -255,6 +255,48 @@
   }
   .choice-cream .choice-hint { color: #6b4820; }
 
+  /* "Did you know?" inset card — painted cream paper pinned below the
+     three choice pills. Stays on-theme with the wooden plaque. */
+  .fact-card {
+    margin-top: clamp(10px, 1.6cqh, 14px);
+    padding: clamp(8px, 1.2cqh, 12px) clamp(12px, 2cqw, 16px);
+    background:
+      linear-gradient(180deg, #fff8e5 0%, #f5e8c2 100%);
+    border: 2px solid #b38b43;
+    border-radius: 10px;
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,0.6),
+      inset 0 -2px 0 rgba(0,0,0,0.08),
+      0 2px 4px rgba(0,0,0,0.25);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: clamp(8px, 1.4cqw, 12px);
+    align-items: center;
+    transform: rotate(0.4deg);
+  }
+  .fact-card[hidden] { display: none; }
+  .fact-icon {
+    font-size: clamp(24px, 3.6cqh, 30px);
+    grid-row: 1 / span 2;
+    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.15));
+  }
+  .fact-header {
+    font-family: 'Chalkboard SE', 'Chalkboard', var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(13px, 1.9cqh, 16px);
+    color: #4a6b3a;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+  }
+  .fact-text {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(14px, 2.1cqh, 17px);
+    color: #4a3416;
+    line-height: 1.2;
+  }
+
   .welcome-inner {
     position: relative; z-index: 5;
     width: 100%; height: 100%;
@@ -322,6 +364,12 @@
               <span class="choice-hint">Warm welcome!</span>
             </button>
           </div>
+
+          <div class="fact-card" id="factCard" hidden>
+            <span class="fact-icon" id="factIcon">💡</span>
+            <span class="fact-header">Did you know?</span>
+            <span class="fact-text" id="factText"></span>
+          </div>
         </div>
       </div>
     </div>
@@ -355,7 +403,7 @@
     window.addEventListener('message', (e) => {
       const msg = e.data;
       if (!msg || msg.source !== 'arc-game-host' || msg.type !== 'init') return;
-      const { species, variant } = msg.payload || {};
+      const { species, variant, fact, factIcon } = msg.payload || {};
       if (species && variant) {
         const img = document.getElementById('arrivalAnim');
         img.src = `/assets/animals/${species}-${variant}-arriving.png`;
@@ -363,6 +411,19 @@
       if (species) {
         document.getElementById('arrivalSubtitle').textContent =
           `Someone just dropped off a little ${species}. They look a bit scared…`;
+      }
+      // "Did you know?" plaque — shown only when the host supplies a
+      // fact via the init payload. Hidden otherwise so the card never
+      // flashes empty on older hosts.
+      const factCard = document.getElementById('factCard');
+      const factText = document.getElementById('factText');
+      const factIconEl = document.getElementById('factIcon');
+      if (fact && typeof fact === 'string' && fact.trim().length > 0) {
+        factText.textContent = fact;
+        if (factIcon && typeof factIcon === 'string') factIconEl.textContent = factIcon;
+        factCard.hidden = false;
+      } else {
+        factCard.hidden = true;
       }
     });
   }

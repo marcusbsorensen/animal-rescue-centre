@@ -275,3 +275,33 @@ export {
   getPlayToyId,
 } from './toys';
 export type { ToyDef } from './toys';
+export {
+  DESTINATIONS,
+  getDestination,
+  getAvailableDestinations,
+  habitatForSpecies,
+} from './destinations';
+export type {
+  DestinationDef as MapDestinationDef,
+  DestinationKind,
+  RewildingHabitat,
+} from './destinations';
+export {
+  calculateAdoptionFee,
+  checkCharityGrants,
+  getGrantDef,
+  GRANTS,
+  MS_PER_GRANT_MONTH,
+  ADOPTION_FEE_BASE,
+  ADOPTION_FEE_BOND_BONUS,
+  ADOPTION_FEE_SPECIES_MATCH,
+  ADOPTION_FEE_CAP,
+  ADOPTION_FEE_BOND_THRESHOLD,
+} from './charity';
+export type { GrantId, GrantDef, GrantAward, GrantCheckStore, HouseholdLike } from './charity';
+export {
+  SPECIES_FACTS,
+  pickRandomFact,
+  countFactsForSpecies,
+} from './species-facts';
+export type { SpeciesFact } from './species-facts';

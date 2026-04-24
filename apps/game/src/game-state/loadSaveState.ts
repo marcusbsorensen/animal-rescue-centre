@@ -155,6 +155,16 @@ export async function loadGameState(
       if (Array.isArray(saved.gardenReturns)) {
         store.gardenReturns = saved.gardenReturns as GameStateStore['gardenReturns'];
       }
+
+      // Back-compat: lastGrantCheckAt (gate for monthly charity grants).
+      // Leave undefined for brand-new / older saves — charity.ts seeds
+      // on first call without paying a spurious grant.
+      if (typeof saved.lastGrantCheckAt === 'number') {
+        store.lastGrantCheckAt = saved.lastGrantCheckAt;
+      }
+      if (Array.isArray(saved.grantsReceived)) {
+        store.grantsReceived = saved.grantsReceived as GameStateStore['grantsReceived'];
+      }
     }
     return true;
   };
@@ -282,6 +292,8 @@ export async function saveGameState(
           apprentices: store.apprentices,
           wildVisitsUnlocked: store.wildVisitsUnlocked,
           gardenReturns: store.gardenReturns,
+          lastGrantCheckAt: store.lastGrantCheckAt,
+          grantsReceived: store.grantsReceived,
         },
         level: store.level,
         updated_at: new Date().toISOString(),
