@@ -11,6 +11,7 @@ import { createSpeechBubble } from '../ui/SpeechBubble';
 import { RoomAnchors } from '../lib/RoomAnchors';
 import { FONTS, TEXT_RESOLUTION, pluralSpecies } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
+import { renderApprenticeDecorations } from './ApprenticeDecorations';
 
 /**
  * CorridorView — renders the rescue-centre corridor with painted door
@@ -396,6 +397,14 @@ export function renderCorridor(
       );
     }
   }
+
+  // Apprentice decorations — recruited apprentices make cameo
+  // appearances around the corridor. Safe no-op when none are recruited.
+  renderApprenticeDecorations(scene, container, store, {
+    viewMode: 'corridor',
+    width,
+    height,
+  });
 
   // Corridor never scrolls — doors + floor always fit
   callbacks.setMaxScrollY(0);

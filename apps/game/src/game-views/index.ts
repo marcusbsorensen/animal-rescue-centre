@@ -25,3 +25,8 @@ export { renderCorridor } from './CorridorView';
 export type { CorridorCallbacks } from './CorridorView';
 export { renderRoom } from './RoomView';
 export type { RoomCallbacks, RoomRenderContext } from './RoomView';
+export { renderApprenticeDecorations } from './ApprenticeDecorations';
+export type {
+  ApprenticeDecorationOptions,
+  ApprenticeRoomSpecies,
+} from './ApprenticeDecorations';

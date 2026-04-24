@@ -44,6 +44,36 @@ export class BootScene extends Phaser.Scene {
       // Queue logo files
       loader.loadBootAssets(this);
 
+      // Queue apprentice action-pose sprites. Small painted chibi
+      // decorations shown in the rescue centre when an apprentice
+      // has been recruited. They live outside the asset-manifest
+      // pipeline (served straight from /admin/mockup-assets/) so we
+      // register them by URL here, once, up front.
+      const APPRENTICE_POSES: string[] = [
+        'rhubarb-feeding',
+        'rhubarb-cat-lap',
+        'rhubarb-skateboarding-garden',
+        'amara-cat-shoulder',
+        'amara-treat',
+        'amara-climbing',
+        'kofi-reading-aloud',
+        'kofi-parrot-arm',
+        'kofi-snake-nose',
+      ];
+      for (const pose of APPRENTICE_POSES) {
+        const key = `apprentice-${pose}`;
+        if (!this.textures.exists(key)) {
+          this.load.image(key, `/admin/mockup-assets/cast/apprentices/${pose}.png`);
+        }
+      }
+
+      // Don't fail the whole boot if an apprentice pose 404s.
+      this.load.on('loaderror', (file: Phaser.Loader.File) => {
+        if (file.key.startsWith('apprentice-')) {
+          console.debug(`[BootScene] apprentice pose missing: ${file.key}`);
+        }
+      });
+
       // Always start the loader — listen for complete event.
       // If nothing was queued, Phaser fires 'complete' immediately.
       this.load.once('complete', () => this.waitForFontsAndGo());

@@ -20,6 +20,7 @@ import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
 import { createWeatherParticles, type WeatherParticleHandle } from '../ui/WeatherParticles';
 import type { GameStateStore } from '../game-state';
+import { renderApprenticeDecorations } from './ApprenticeDecorations';
 
 /**
  * GardenView — renders the "bonded pets living their best life" area
@@ -502,6 +503,14 @@ function renderZone(
         }).setOrigin(0.5),
     );
   }
+
+  // Apprentice decorations — Rhubarb skateboarding in the lawn area,
+  // etc. Only recruited apprentices render.
+  renderApprenticeDecorations(scene, container, store, {
+    viewMode: 'garden',
+    width,
+    height,
+  });
 
   callbacks.renderNavBar({ showBack: true });
 }

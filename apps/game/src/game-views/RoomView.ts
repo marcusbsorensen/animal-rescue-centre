@@ -8,6 +8,10 @@ import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { getDecorationEmoji } from '../ui/DecoratePanel';
 import type { GameStateStore } from '../game-state';
 import type { ResolvedAnchor } from './GardenView';
+import {
+  renderApprenticeDecorations,
+  type ApprenticeRoomSpecies,
+} from './ApprenticeDecorations';
 
 /**
  * RoomView — renders a single species room with all its sheltered /
@@ -230,6 +234,15 @@ export function renderRoom(
       container.add(sprite);
     });
   }
+
+  // Apprentice decorations — species-specific cameos (cat room gets
+  // Amara/Rhubarb, parrot/snake rooms get Kofi, etc).
+  renderApprenticeDecorations(scene, container, store, {
+    viewMode: 'room',
+    roomSpecies: species as ApprenticeRoomSpecies,
+    width,
+    height,
+  });
 
   callbacks.renderNavBar({ showBack: true });
 }
