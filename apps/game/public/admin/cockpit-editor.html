@@ -336,6 +336,8 @@
       <div class="canvas" id="canvas">
         <img class="ref-img" id="ref-img" style="display:none" alt=""/>
         <div class="grid" id="grid"></div>
+        <svg id="poly-svg" width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg"
+             style="position:absolute; inset:0; pointer-events:none; z-index:1;"></svg>
       </div>
     </div>
   </div>
@@ -395,6 +397,8 @@ const SLOT_COLORS = {
   'mirror':        'rgba(140, 100, 70, 0.35)',
   'cargo-comfort': 'rgba(230, 210, 60, 0.35)',
   'charm-hang':    'rgba(220, 60, 200, 0.35)',
+  'dash-top':      'rgba(80, 140, 200, 0.35)',
+  'dash-bottom':   'rgba(160, 100, 60, 0.35)',
 };
 const SLOT_SOLID = {
   'wheel':         '#4682dc',
@@ -408,6 +412,8 @@ const SLOT_SOLID = {
   'mirror':        '#8c6446',
   'cargo-comfort': '#e6d23c',
   'charm-hang':    '#dc3cc8',
+  'dash-top':      '#508cc8',
+  'dash-bottom':   '#a06438',
 };
 
 function defaultSlots() {
@@ -428,6 +434,10 @@ function defaultSlots() {
     { id: 'mirror',        label: 'Rear-view mirror',    shape: 'oval',   x: (1920-280)/2, y: 60,  w: 280, h: 180, hidden: false },
     { id: 'cargo-comfort', label: 'Cargo-comfort meter', shape: 'rect',   x: 1680, y: 640, w: 220, h: 90,  hidden: false },
     { id: 'charm-hang',    label: 'Charm anchor',        shape: 'circle', x: (1920-20)/2, y: 250, w: 20,  h: 20,  hidden: false },
+    { id: 'dash-top',      label: 'Dashboard — top edge (road above)',    shape: 'polyline',
+      points: [[0,500],[480,500],[960,500],[1440,500],[1920,500]], hidden: false },
+    { id: 'dash-bottom',   label: 'Dashboard — bottom edge (floor below)', shape: 'polyline',
+      points: [[0,930],[480,930],[960,930],[1440,930],[1920,930]], hidden: false },
   ];
 }
 
@@ -435,6 +445,7 @@ let state = {
   vehicle: 'henry',
   slots: [],
   selectedIdx: -1,
+  selectedPointIdx: -1,
   zoom: 0.5,
   showGrid: true,
   snap: true,
@@ -442,6 +453,8 @@ let state = {
   refUrl: '',
   dirty: false,
 };
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const lsKey = (v) => `cockpit-editor:${v}`;
 
@@ -521,11 +534,13 @@ function render() {
   }
 
   [...canvas.querySelectorAll('.slot')].forEach(n => n.remove());
+  renderPolylines();
   state.slots.forEach((s, idx) => {
+    if (s.shape === 'polyline') return;
     const cls = `slot shape-${s.shape}${s.hidden ? ' hidden-slot' : ''}${idx === state.selectedIdx ? ' selected' : ''}`;
     const slotEl = el('div', {
       class: cls,
-      style: `left:${s.x}px; top:${s.y}px; width:${s.w}px; height:${s.h}px; background:${SLOT_COLORS[baseId(s.id)] || 'rgba(200,200,200,0.35)'};`,
+      style: `left:${s.x}px; top:${s.y}px; width:${s.w}px; height:${s.h}px; background:${SLOT_COLORS[baseId(s.id)] || 'rgba(200,200,200,0.35)'}; z-index:2;`,
       dataset: { idx: String(idx) },
     }, [
       el('span', null, [
@@ -546,6 +561,175 @@ function render() {
   renderJson();
 }
 
+function svgEl(tag, attrs) {
+  const e = document.createElementNS(SVG_NS, tag);
+  if (attrs) for (const k in attrs) {
+    if (k.startsWith('on')) e.addEventListener(k.slice(2), attrs[k]);
+    else if (k === 'dataset') Object.assign(e.dataset, attrs[k]);
+    else e.setAttribute(k, attrs[k]);
+  }
+  return e;
+}
+
+function polylineRegionPath(s) {
+  // Returns SVG path d filling the region "above" (dash-top) or "below" (dash-bottom) the polyline.
+  const pts = s.points;
+  const isTop = s.id === 'dash-top';
+  const parts = [];
+  if (isTop) {
+    parts.push(`M 0 0`);
+    parts.push(`L ${pts[0][0]} ${pts[0][1]}`);
+    for (let i = 1; i < pts.length; i++) parts.push(`L ${pts[i][0]} ${pts[i][1]}`);
+    parts.push(`L ${CANVAS_W} 0 Z`);
+  } else {
+    parts.push(`M 0 ${CANVAS_H}`);
+    parts.push(`L ${pts[0][0]} ${pts[0][1]}`);
+    for (let i = 1; i < pts.length; i++) parts.push(`L ${pts[i][0]} ${pts[i][1]}`);
+    parts.push(`L ${CANVAS_W} ${CANVAS_H} Z`);
+  }
+  return parts.join(' ');
+}
+
+function polylinePointsStr(pts) {
+  return pts.map(p => p[0] + ',' + p[1]).join(' ');
+}
+
+function renderPolylines() {
+  const svg = document.getElementById('poly-svg');
+  svg.textContent = '';
+  svg.style.pointerEvents = 'none';
+  state.slots.forEach((s, idx) => {
+    if (s.shape !== 'polyline' || s.hidden) return;
+    const fill = SLOT_COLORS[baseId(s.id)] || 'rgba(200,200,200,0.35)';
+    const stroke = SLOT_SOLID[baseId(s.id)] || '#888';
+    // filled region
+    svg.appendChild(svgEl('path', {
+      d: polylineRegionPath(s),
+      fill, stroke: 'none',
+      'pointer-events': 'none',
+    }));
+    // the polyline stroke — clickable to insert a point
+    const line = svgEl('polyline', {
+      points: polylinePointsStr(s.points),
+      fill: 'none', stroke, 'stroke-width': '3',
+      'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+      style: 'pointer-events: stroke; cursor: copy;',
+      dataset: { polyIdx: String(idx) },
+    });
+    line.addEventListener('mousedown', (e) => onPolylineLineMouseDown(e, idx));
+    svg.appendChild(line);
+    // invisible wider hit line for easier clicking
+    const hit = svgEl('polyline', {
+      points: polylinePointsStr(s.points),
+      fill: 'none', stroke: 'transparent', 'stroke-width': '14',
+      style: 'pointer-events: stroke; cursor: copy;',
+      dataset: { polyIdx: String(idx) },
+    });
+    hit.addEventListener('mousedown', (e) => onPolylineLineMouseDown(e, idx));
+    svg.appendChild(hit);
+
+    // handles — only render when selected
+    if (idx === state.selectedIdx) {
+      s.points.forEach((pt, pIdx) => {
+        const isSelPt = pIdx === state.selectedPointIdx;
+        const h = svgEl('circle', {
+          cx: pt[0], cy: pt[1], r: isSelPt ? 10 : 8,
+          fill: isSelPt ? stroke : '#fff',
+          stroke: '#000', 'stroke-width': '2',
+          style: 'pointer-events: all; cursor: ns-resize;',
+          dataset: { polyIdx: String(idx), ptIdx: String(pIdx) },
+        });
+        h.addEventListener('mousedown', (e) => onPolylineHandleMouseDown(e, idx, pIdx));
+        h.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          removePolylinePoint(idx, pIdx);
+        });
+        svg.appendChild(h);
+
+        if (isSelPt) {
+          const tip = svgEl('text', {
+            x: pt[0] + 14, y: pt[1] - 14,
+            fill: '#111', 'font-size': '14', 'font-family': 'ui-monospace, monospace',
+            'paint-order': 'stroke', stroke: '#fff', 'stroke-width': '3',
+            'pointer-events': 'none',
+          });
+          tip.textContent = `${pt[0]},${pt[1]}`;
+          svg.appendChild(tip);
+        }
+      });
+    }
+  });
+  // SVG root stays pointer-events:none; interactive children opt in via their own pointer-events.
+  svg.style.pointerEvents = 'none';
+}
+
+function interpY(points, x) {
+  // Linear interpolate y at given x along ordered points (x ascending)
+  for (let i = 0; i < points.length - 1; i++) {
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[i + 1];
+    if (x >= x1 && x <= x2) {
+      const t = (x - x1) / (x2 - x1 || 1);
+      return Math.round(y1 + t * (y2 - y1));
+    }
+  }
+  return points[points.length - 1][1];
+}
+
+function onPolylineLineMouseDown(e, idx) {
+  e.preventDefault();
+  e.stopPropagation();
+  const s = state.slots[idx];
+  const p = canvasPointFromEvent(e);
+  let x = Math.max(1, Math.min(CANVAS_W - 1, Math.round(p.x)));
+  // find insertion index (between two existing points by x)
+  let insertAt = s.points.length - 1;
+  for (let i = 0; i < s.points.length - 1; i++) {
+    if (x > s.points[i][0] && x < s.points[i + 1][0]) { insertAt = i + 1; break; }
+  }
+  if (state.snap) x = Math.round(x / GRID) * GRID;
+  // guard against duplicate x
+  if (s.points.some(pt => pt[0] === x)) x += 1;
+  const y = interpY(s.points, x);
+  s.points.splice(insertAt, 0, [x, y]);
+  state.selectedIdx = idx;
+  state.selectedPointIdx = insertAt;
+  markDirty();
+  render();
+}
+
+function onPolylineHandleMouseDown(e, idx, pIdx) {
+  e.preventDefault();
+  e.stopPropagation();
+  state.selectedIdx = idx;
+  state.selectedPointIdx = pIdx;
+  const s = state.slots[idx];
+  const startP = canvasPointFromEvent(e);
+  drag = {
+    kind: 'polypoint', idx, pIdx,
+    startX: startP.x, startY: startP.y,
+    origX: s.points[pIdx][0], origY: s.points[pIdx][1],
+    isEnd: (pIdx === 0 || pIdx === s.points.length - 1),
+  };
+  render();
+}
+
+function removePolylinePoint(idx, pIdx) {
+  const s = state.slots[idx];
+  if (!s || s.shape !== 'polyline') return;
+  if (s.points.length <= 3) { flashStatus('min 3 points required'); return; }
+  // Keep first + last always
+  if (pIdx === 0 || pIdx === s.points.length - 1) {
+    flashStatus('cannot remove endpoint');
+    return;
+  }
+  s.points.splice(pIdx, 1);
+  if (state.selectedPointIdx === pIdx) state.selectedPointIdx = -1;
+  else if (state.selectedPointIdx > pIdx) state.selectedPointIdx--;
+  markDirty();
+  render();
+}
+
 function renderSlotList() {
   slotListEl.textContent = '';
   state.slots.forEach((s, idx) => {
@@ -553,6 +737,7 @@ function renderSlotList() {
       class: 'slot-list-row' + (idx === state.selectedIdx ? ' active' : ''),
       onclick: (e) => {
         if (e.target.classList.contains('vis')) return;
+        if (state.selectedIdx !== idx) state.selectedPointIdx = -1;
         state.selectedIdx = idx;
         render();
       },
@@ -581,6 +766,10 @@ function renderPropPanel() {
     return;
   }
   const s = state.slots[state.selectedIdx];
+  if (s.shape === 'polyline') {
+    renderPolylinePropPanel(s);
+    return;
+  }
   const bindInput = (type, prop, isNum) => {
     const attrs = { type, value: String(s[prop]) };
     attrs.oninput = (ev) => {
@@ -619,6 +808,90 @@ function renderPropPanel() {
   ]));
 }
 
+function renderPolylinePropPanel(s) {
+  const hasPt = state.selectedPointIdx >= 0 && state.selectedPointIdx < s.points.length;
+  if (hasPt) {
+    const pt = s.points[state.selectedPointIdx];
+    const isEnd = state.selectedPointIdx === 0 || state.selectedPointIdx === s.points.length - 1;
+    const grid = el('div', { class: 'prop-grid' }, [
+      el('label', null, 'Label'),
+      el('input', { type: 'text', value: s.label, oninput: (ev) => {
+        state.slots[state.selectedIdx].label = ev.target.value;
+        markDirty(); render();
+      } }),
+      el('label', null, 'ID'),
+      el('input', { type: 'text', value: s.id, oninput: (ev) => {
+        state.slots[state.selectedIdx].id = ev.target.value;
+        markDirty(); render();
+      } }),
+      el('label', null, `Point #${state.selectedPointIdx + 1}/${s.points.length}`),
+      el('span', { style: 'font-size:10px;color:var(--muted);' }, isEnd ? '(endpoint)' : '(interior)'),
+      el('label', null, 'x'),
+      el('input', { type: 'number', value: String(pt[0]), readonly: 'readonly',
+        style: 'opacity:0.6;cursor:not-allowed;' }),
+      el('label', null, 'y'),
+      el('input', { type: 'number', value: String(pt[1]), oninput: (ev) => {
+        const v = parseInt(ev.target.value, 10) || 0;
+        state.slots[state.selectedIdx].points[state.selectedPointIdx][1] = v;
+        markDirty(); render();
+      } }),
+    ]);
+    propPanel.appendChild(grid);
+    propPanel.appendChild(el('div', { class: 'prop-actions' }, [
+      el('button', { onclick: () => { state.selectedPointIdx = -1; render(); } }, 'Deselect point'),
+      el('button', { onclick: () => removePolylinePoint(state.selectedIdx, state.selectedPointIdx) }, 'Remove point'),
+    ]));
+    return;
+  }
+  const grid = el('div', { class: 'prop-grid' }, [
+    el('label', null, 'Label'),
+    el('input', { type: 'text', value: s.label, oninput: (ev) => {
+      state.slots[state.selectedIdx].label = ev.target.value;
+      markDirty(); render();
+    } }),
+    el('label', null, 'ID'),
+    el('input', { type: 'text', value: s.id, oninput: (ev) => {
+      state.slots[state.selectedIdx].id = ev.target.value;
+      markDirty(); render();
+    } }),
+    el('label', null, 'Shape'),
+    el('span', null, 'polyline'),
+    el('label', null, 'Points'),
+    el('span', null, String(s.points.length)),
+  ]);
+  propPanel.appendChild(grid);
+  propPanel.appendChild(el('div', { class: 'prop-actions' }, [
+    el('button', { onclick: () => addPolylinePointAtLongestSegment(state.selectedIdx) }, '+ point'),
+    el('button', { onclick: () => resetPolylineToFlat(state.selectedIdx) }, 'Reset to flat'),
+    el('button', { onclick: deleteSelected }, 'Delete'),
+  ]));
+}
+
+function addPolylinePointAtLongestSegment(idx) {
+  const s = state.slots[idx];
+  if (!s || s.shape !== 'polyline') return;
+  let bestI = 0, bestLen = -1;
+  for (let i = 0; i < s.points.length - 1; i++) {
+    const dx = s.points[i+1][0] - s.points[i][0];
+    if (dx > bestLen) { bestLen = dx; bestI = i; }
+  }
+  const x = Math.round((s.points[bestI][0] + s.points[bestI+1][0]) / 2);
+  const y = Math.round((s.points[bestI][1] + s.points[bestI+1][1]) / 2);
+  s.points.splice(bestI + 1, 0, [x, y]);
+  state.selectedPointIdx = bestI + 1;
+  markDirty(); render();
+}
+
+function resetPolylineToFlat(idx) {
+  const s = state.slots[idx];
+  if (!s || s.shape !== 'polyline') return;
+  const ys = s.points.map(p => p[1]);
+  const avg = Math.round(ys.reduce((a,b) => a+b, 0) / ys.length);
+  s.points = [[0, avg], [CANVAS_W, avg]];
+  state.selectedPointIdx = -1;
+  markDirty(); render();
+}
+
 function renderJson() {
   jsonArea.value = JSON.stringify(currentExport(), null, 2);
 }
@@ -627,12 +900,21 @@ function currentExport() {
   return {
     vehicle: state.vehicle,
     canvas: { width: CANVAS_W, height: CANVAS_H },
-    slots: state.slots.map(s => ({
-      id: s.id, label: s.label, shape: s.shape,
-      x: Math.round(s.x), y: Math.round(s.y),
-      w: Math.round(s.w), h: Math.round(s.h),
-      ...(s.hidden ? { hidden: true } : {}),
-    })),
+    slots: state.slots.map(s => {
+      if (s.shape === 'polyline') {
+        return {
+          id: s.id, label: s.label, shape: 'polyline',
+          points: s.points.map(p => [Math.round(p[0]), Math.round(p[1])]),
+          ...(s.hidden ? { hidden: true } : {}),
+        };
+      }
+      return {
+        id: s.id, label: s.label, shape: s.shape,
+        x: Math.round(s.x), y: Math.round(s.y),
+        w: Math.round(s.w), h: Math.round(s.h),
+        ...(s.hidden ? { hidden: true } : {}),
+      };
+    }),
   };
 }
 
@@ -653,7 +935,9 @@ canvas.addEventListener('mousedown', (e) => {
   const handleEl = e.target.closest('.handle');
   const slotEl = e.target.closest('.slot');
   if (!slotEl) {
+    // Let SVG handlers (handles/lines) manage their own clicks via stopPropagation.
     state.selectedIdx = -1;
+    state.selectedPointIdx = -1;
     render();
     return;
   }
@@ -676,6 +960,14 @@ window.addEventListener('mousemove', (e) => {
   const s = state.slots[drag.idx];
   const dx = p.x - drag.startX;
   const dy = p.y - drag.startY;
+  if (drag.kind === 'polypoint') {
+    const sp = state.slots[drag.idx];
+    const pt = sp.points[drag.pIdx];
+    // Only Y moves; X fixed for all polyline points.
+    pt[1] = Math.max(0, Math.min(CANVAS_H, snap(drag.origY + dy)));
+    render();
+    return;
+  }
   if (drag.kind === 'move') {
     s.x = snap(drag.orig.x + dx);
     s.y = snap(drag.orig.y + dy);
@@ -719,6 +1011,25 @@ window.addEventListener('keydown', (e) => {
   const s = state.slots[state.selectedIdx];
   const step = e.shiftKey ? 10 : 1;
   let handled = true;
+  if (s.shape === 'polyline') {
+    const pIdx = state.selectedPointIdx;
+    const hasPt = pIdx >= 0 && pIdx < s.points.length;
+    switch (e.key) {
+      case 'ArrowUp':    if (hasPt) s.points[pIdx][1] = Math.max(0, s.points[pIdx][1] - step); else handled = false; break;
+      case 'ArrowDown':  if (hasPt) s.points[pIdx][1] = Math.min(CANVAS_H, s.points[pIdx][1] + step); else handled = false; break;
+      case 'ArrowLeft':
+      case 'ArrowRight': handled = false; break; // x is fixed
+      case 'Escape':     state.selectedPointIdx = -1; state.selectedIdx = -1; break;
+      case 'Delete':
+      case 'Backspace':
+        if (hasPt) removePolylinePoint(state.selectedIdx, pIdx);
+        else handled = false;
+        break;
+      default: handled = false;
+    }
+    if (handled) { e.preventDefault(); markDirty(); render(); }
+    return;
+  }
   switch (e.key) {
     case 'ArrowUp':    s.y -= step; break;
     case 'ArrowDown':  s.y += step; break;
@@ -740,7 +1051,9 @@ window.addEventListener('keydown', (e) => {
 function duplicateSelected() {
   if (state.selectedIdx < 0) return;
   const s = state.slots[state.selectedIdx];
-  const copy = { ...s, id: s.id + '-2', x: s.x + 40, y: s.y + 40 };
+  const copy = (s.shape === 'polyline')
+    ? { ...s, id: s.id + '-2', points: s.points.map(p => [p[0], p[1]]) }
+    : { ...s, id: s.id + '-2', x: s.x + 40, y: s.y + 40 };
   let n = 2;
   const existing = new Set(state.slots.map(x => x.id));
   while (existing.has(copy.id)) { n++; copy.id = s.id.replace(/-\d+$/, '') + '-' + n; }
@@ -862,12 +1175,21 @@ document.getElementById('btn-import').onclick = () => {
   try {
     const data = JSON.parse(jsonArea.value);
     if (!Array.isArray(data.slots)) throw new Error('missing slots[]');
-    state.slots = data.slots.map(s => ({
-      id: s.id, label: s.label || s.id,
-      shape: s.shape || 'rect',
-      x: s.x|0, y: s.y|0, w: s.w|0, h: s.h|0,
-      hidden: !!s.hidden,
-    }));
+    state.slots = data.slots.map(s => {
+      if (s.shape === 'polyline') {
+        return {
+          id: s.id, label: s.label || s.id, shape: 'polyline',
+          points: (s.points || []).map(p => [p[0]|0, p[1]|0]),
+          hidden: !!s.hidden,
+        };
+      }
+      return {
+        id: s.id, label: s.label || s.id,
+        shape: s.shape || 'rect',
+        x: s.x|0, y: s.y|0, w: s.w|0, h: s.h|0,
+        hidden: !!s.hidden,
+      };
+    });
     state.selectedIdx = -1;
     markDirty();
     render();
@@ -893,8 +1215,29 @@ document.getElementById('btn-export-png').onclick = () => {
   const ctx = cv.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  // Draw polylines first (beneath rect/circle/oval)
   state.slots.forEach(s => {
-    if (s.hidden) return;
+    if (s.hidden || s.shape !== 'polyline') return;
+    const col = SLOT_SOLID[baseId(s.id)] || '#888888';
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    const isTop = s.id === 'dash-top';
+    if (isTop) {
+      ctx.moveTo(0, 0);
+      ctx.lineTo(s.points[0][0], s.points[0][1]);
+      for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i][0], s.points[i][1]);
+      ctx.lineTo(CANVAS_W, 0);
+    } else {
+      ctx.moveTo(0, CANVAS_H);
+      ctx.lineTo(s.points[0][0], s.points[0][1]);
+      for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i][0], s.points[i][1]);
+      ctx.lineTo(CANVAS_W, CANVAS_H);
+    }
+    ctx.closePath();
+    ctx.fill();
+  });
+  state.slots.forEach(s => {
+    if (s.hidden || s.shape === 'polyline') return;
     const col = SLOT_SOLID[baseId(s.id)] || '#888888';
     ctx.fillStyle = col;
     if (s.shape === 'circle' || s.shape === 'oval') {
