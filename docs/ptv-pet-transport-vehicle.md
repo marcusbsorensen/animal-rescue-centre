@@ -266,7 +266,7 @@ Moving from mechanic-spec into visual-spec. Marcus's note (2026-04-24): *"visual
 - **Placement**: left side of the road on the **west entrance to Birchie** (the main road approach from the Herne Bay direction).
 - **Exact reference**: the **blue-dungarees + red-shirt + blue cap** inflatable from the three-tube-man reference set (AliExpress listing Marcus shared). **Right arm is the one that flaps**, waving drivers in. Left arm stays low.
 - **Visual**: a classic fan-powered inflatable tube-man. Big painted smile. Eyes full of cheer. Red "CAR WASH" letters running down the tube vertically. Anchored on a black fan base.
-- **Motion**: the right arm flaps rhythmically — big flap, flop, big flap, flop. Head and body sway slightly. Not a smooth animation — that janky, over-inflated floppy motion is the whole charm.
+- **Motion**: the right arm flaps rhythmically — big flap, flop, big flap, flop — while the whole tube body whips side-to-side in a drunken, rhythmic sway. Head sways with the body. Left arm stays low on Birchie's unit even though the demo video shows it moving on other units. Deliberately janky — no smooth curves, no easing; the over-inflated floppy jerk is the whole charm. **Video reference** saved locally at `apps/game/public/admin/mockup-assets/reference/birchie-west-entrance/wavy-arm-motion-demo.mp4`, plus 8 extracted stills in `motion-frames/` for quick browsing. Use the video for animation timing + real-light colour pulls, not the static photo alone.
 - **Use in game**:
   - **Supply Runs**: drive past him to trigger a mild steering jitter + visual laugh beat.
   - **PTV drives**: pull in for a wash (cosmetic cleaner-van sprite + small on-board happiness bump). Cost a coin.
