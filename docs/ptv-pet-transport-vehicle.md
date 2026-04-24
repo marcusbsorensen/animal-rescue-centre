@@ -2,7 +2,7 @@
 
 *v0.2 — Claude-authored design. See also [driving-systems.md](driving-systems.md) for how PTV fits alongside Supply Runs and the Depot.*
 
-> **⚠ Provenance note.** Marcus's original `ARC_PTV_spec.md` was referenced in the [Depot & Supply Run spec](original-depot-supply-spec.md) but **never pasted into any Claude Code session**. The vehicle names, crate types, and adjacency matrix below are Claude's own design, written overnight while interpreting the Depot spec's forward-reference. If Marcus has the authoritative PTV spec locally, it overrides this doc.
+> **⚠ Provenance note.** Marcus's original `ARC_PTV_spec.md` was referenced in the [Depot & Supply Run spec](original-depot-supply-spec.md) but **never written as a standalone document**. A deep search of every Claude Code session (project + home directory, ~420 MB total) returned zero hits — confirmed 2026-04-24. Marcus's own words: "no specs were written locally ever, everything was discussed in this chat." The vehicle names (Trikey / Henry / Bea / Big Tilly / Spark), crate types, and adjacency matrix below are Claude's own design from the overnight session. Authoritative design notes Marcus has added since are captured in §"User-dictated additions" at the bottom of this doc and should be treated as canonical where they contradict the Claude-authored body.
 
 ## What PTV is (and is not)
 
@@ -193,6 +193,42 @@ Layered in after v1:
 3. **Multi-stop topology**: 3 separate adjacency puzzles on 3 legs, or one shared grid with stops picking animals off one by one? Leaning one shared grid; adjacency is evaluated continuously.
 4. **Drive button copy**: "Drive!" vs "Off we go!" — Lily-facing copy pending Marcus's ear.
 5. **Voice-clip hooks**: which of the Manus voice clips (`voice-forever-home`, `voice-running-free`, `voice-new-arrival`) plays when, per drive type.
+
+---
+
+## User-dictated additions
+
+Canonical design notes from Marcus, added in chat. Where these contradict the Claude-authored body above, these take priority.
+
+### Weather matters on PTV drives
+
+Animals can **overheat** in the vehicle. Weather is a tactical concern during cargo drives — unlike Supply Runs where weather is atmospheric only. Implications:
+
+- Hot weather + underventilated crate + long drive → animal arrives with a health hit.
+- Rain / cold + wet animal → exacerbates anxious animals, bigger happiness penalty.
+- Fog / low visibility → harder to avoid scenery jolts, more cargo-comfort drain.
+- The player should be able to **check the weather before picking the vehicle** — Spark's cooling matters on a hot day; Big Tilly's slow pace hurts when there's a heat advisory.
+
+Weather-aware vehicle selection becomes a small strategy beat on top of the crate-stacking puzzle. Cargo-comfort meter should visibly tick down faster under bad weather.
+
+### Economic feedback loop with Supply Runs
+
+This is the core tonal mechanic tying the two systems together — **PTV is the reason Supply Runs exist**:
+
+1. PTV drives require careful, mindful play. Kids have to drive slow, watch the weather, pick the right crate, get adjacencies right.
+2. That carefulness is **tiring**. Kids (especially neurodivergent ones) need an escape valve.
+3. Supply Runs are that escape valve: pulse-raising motor madness, smash everything, no animals to worry about.
+4. But Supply Runs aren't *just* stress relief — they're also how you **pay the vet bill when PTV goes wrong.**
+5. A botched PTV drive (wrong weather, bad adjacency, stressed arrival) → animals end up at the vet longer → higher vet bills → player needs more Supply Run income to cover them.
+6. The economic loop reinforces the tonal dichotomy: care mode has real consequences; chaos mode pays for the consequences.
+
+This framing matters for UI copy, reward tuning, and art direction. Supply Runs should feel **cathartic**, not penance. The vet-bill pressure is a gentle nudge, never a guilt-trip.
+
+### Supply Run music: heavy metal
+
+Marcus's note (2026-04-24): *"supply run music probably needs to be more in the heavy metal genre (Lily loves Metallica!) and that works well for pulse-raising chaos-creating motor madness"*.
+
+Overrides the original verbatim spec's "energetic rock / electronic / funk" line — heavy metal with no vocals (per existing no-vocals rule) is the target. When regenerating the Supply Run music loop with Manus, brief for **Metallica-style driving metal, instrumental, no vocals, 40–60s seamless loop**. Chugging rhythm guitar, double-bass drums, melodic lead lines; kid-friendly energy but NOT watered-down — Lily can handle real metal energy.
 
 ---
 
