@@ -1098,6 +1098,76 @@
     .speedo { width: 110px; height: 110px; }
     .speedo-digit { font-size: 40px; }
   }
+
+  /* ── JSON-driven absolute slot layout (Henry only, for now).
+     When the cockpit-slots-henry.json file has been loaded the
+     dashboard container switches to .absolute-layout — the grid
+     template is dropped and every .slot-positioned child is placed
+     via percentage left/top/width/height relative to the dashboard
+     (which maps 1:1 with the 1920×1080 editor canvas). ── */
+  .dashboard.absolute-layout {
+    display: block;
+    padding: 0;
+    gap: 0;
+    overflow: visible;
+  }
+  .dashboard.absolute-layout > .slot-positioned {
+    position: absolute;
+    grid-area: unset !important;
+    margin: 0;
+  }
+  .dashboard.absolute-layout .pedals-panel { display: none; }
+  .dashboard.absolute-layout .pedal-group.slot-positioned {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .dashboard.absolute-layout .fuel-gauge {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.08), rgba(0,0,0,0.25));
+    border: 2px solid rgba(0,0,0,0.45);
+    font-family: var(--dash-label-font);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--dash-ink-soft);
+  }
+  .cockpit.has-painted-dash .dashboard.absolute-layout .fuel-gauge {
+    background: transparent !important;
+    border: none !important;
+  }
+  /* Mirror lives in .viewport; when JSON drives layout we override
+     its default top-centre placement with absolute coords mapped
+     onto the viewport (also 1920×1080 in canvas-space). */
+  .mirror.slot-positioned {
+    position: absolute;
+    left: 0; top: 0;
+    transform: none;
+  }
+  .mirror.slot-positioned:hover { transform: none; }
+
+  /* Debug polyline overlay for dash-top / dash-bottom. */
+  .cockpit-slot-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 50;
+    display: none;
+  }
+  .cockpit-slot-overlay.show { display: block; }
+
+  /* Reload-layout button in the vp-bar. */
+  .vp-bar button.reload-layout {
+    padding: 3px 10px;
+    background: #3a3a3a;
+    color: #8fd3ff;
+    border: 1px solid #555;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .vp-bar button.reload-layout:hover { background: #4a4a4a; }
 </style>
 </head>
 <body class="mode-ptv speed-0">
@@ -1119,6 +1189,8 @@
   <span>mode:</span>
   <a href="?mode=ptv">ptv</a>
   <a href="?mode=supply">supply</a>
+  <span class="sep">·</span>
+  <button class="reload-layout" id="btn-reload-layout" title="Re-fetch cockpit-slots-{vehicle}.json">Reload layout</button>
   <span class="hint">URL-param demo · arrows steer · hold pedals · slam wheel hub to honk · drag key 45°</span>
 </div>
 
@@ -1258,15 +1330,21 @@
     </div>
 
     <div class="pedals-panel">
-      <div class="pedal-group">
+      <div class="pedal-group" id="pedal-group-brake">
         <div class="pedal brake" id="pedal-brake">BRK</div>
         <div class="pedal-label">Brake</div>
       </div>
-      <div class="pedal-group">
+      <div class="pedal-group" id="pedal-group-acc">
         <div class="pedal acc" id="pedal-acc">ACC</div>
         <div class="pedal-label">Accelerator</div>
       </div>
     </div>
+
+    <div class="fuel-gauge" id="fuel-gauge" aria-label="Fuel gauge">FUEL</div>
+
+    <svg class="cockpit-slot-overlay" id="cockpit-slot-overlay"
+         viewBox="0 0 1920 1080" preserveAspectRatio="none"
+         xmlns="http://www.w3.org/2000/svg"></svg>
 
     <div class="gps-panel">
       <div class="dash-label">GPS — Birchie-on-Sea</div>
@@ -1333,6 +1411,120 @@
   // is Henry in PTV mode. Other vehicles keep the CSS-drawn dashboard
   // until their painted assets land.
   cockpit.classList.toggle('has-painted-dash', vehicle === 'henry' && mode === 'ptv');
+
+  // ── JSON-driven cockpit slot layout (Henry only for now). ──
+  // Maps slot ids from cockpit-slots-<vehicle>.json onto concrete
+  // DOM elements and positions them via percentage coordinates
+  // against the 1920×1080 editor canvas. Dashboard slots are
+  // relative to .dashboard (which occupies the bottom half);
+  // mirror (top half) is relative to .viewport.
+  var SLOT_DOM_MAP = {
+    'wheel':         { sel: '.wheel-panel',         container: 'dashboard' },
+    'speedometer':   { sel: '.speedo-panel',        container: 'dashboard' },
+    'fuel-gauge':    { sel: '#fuel-gauge',          container: 'dashboard' },
+    'ignition':      { sel: '.ignition-panel',      container: 'dashboard' },
+    'hazard':        { sel: '.hazard-panel',        container: 'dashboard' },
+    'gps':           { sel: '.gps-panel',           container: 'dashboard' },
+    'brake':         { sel: '#pedal-group-brake',   container: 'dashboard' },
+    'accelerator':   { sel: '#pedal-group-acc',     container: 'dashboard' },
+    'cargo-comfort': { sel: '.comfort-panel',       container: 'dashboard' },
+    'mirror':        { sel: '#mirror',              container: 'viewport' },
+  };
+  var CANVAS_W = 1920, CANVAS_H = 1080;
+  var dashboardEl = document.getElementById('dashboard');
+  var viewportEl = document.querySelector('.viewport');
+  var slotOverlayEl = document.getElementById('cockpit-slot-overlay');
+  var showSlotsParam = params.get('showSlots') === 'true';
+
+  function applySlotLayout(json) {
+    if (!json || !Array.isArray(json.slots)) return;
+    var canvasW = (json.canvas && json.canvas.width)  || CANVAS_W;
+    var canvasH = (json.canvas && json.canvas.height) || CANVAS_H;
+    dashboardEl.classList.add('absolute-layout');
+
+    // Dashboard occupies the bottom half of the cockpit (y: 540→1080
+    // in canvas space). Viewport occupies the top half (y: 0→540).
+    var DASH_Y_START = canvasH / 2;   // 540
+    var DASH_HEIGHT  = canvasH / 2;   // 540
+    var VIEW_HEIGHT  = canvasH / 2;   // 540
+
+    json.slots.forEach(function (s) {
+      if (s.hidden) return;
+      if (s.shape === 'polyline') return; // rendered separately
+      var def = SLOT_DOM_MAP[s.id];
+      if (!def) return;
+      var el = document.querySelector(def.sel);
+      if (!el) return;
+      el.classList.add('slot-positioned');
+      var host = def.container === 'viewport' ? viewportEl : dashboardEl;
+      if (el.parentNode !== host) host.appendChild(el);
+
+      var leftPct, topPct, widthPct, heightPct;
+      if (def.container === 'dashboard') {
+        var localY = s.y - DASH_Y_START;
+        leftPct   = (s.x / canvasW) * 100;
+        topPct    = (localY / DASH_HEIGHT) * 100;
+        widthPct  = (s.w / canvasW) * 100;
+        heightPct = (s.h / DASH_HEIGHT) * 100;
+      } else {
+        leftPct   = (s.x / canvasW) * 100;
+        topPct    = (s.y / VIEW_HEIGHT) * 100;
+        widthPct  = (s.w / canvasW) * 100;
+        heightPct = (s.h / VIEW_HEIGHT) * 100;
+      }
+      el.style.left   = leftPct + '%';
+      el.style.top    = topPct + '%';
+      el.style.width  = widthPct + '%';
+      el.style.height = heightPct + '%';
+    });
+
+    // Polylines → debug overlay on the cockpit (top-half only, but
+    // the SVG spans the whole cockpit so it can draw cleanly).
+    slotOverlayEl.textContent = '';
+    slotOverlayEl.setAttribute('viewBox', '0 0 ' + canvasW + ' ' + canvasH);
+    json.slots.forEach(function (s) {
+      if (s.shape !== 'polyline' || !s.points) return;
+      var pts = s.points.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
+      var line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      line.setAttribute('points', pts);
+      line.setAttribute('fill', 'none');
+      line.setAttribute('stroke', s.id === 'dash-top' ? '#508cc8' : '#a06438');
+      line.setAttribute('stroke-width', '4');
+      line.setAttribute('stroke-linejoin', 'round');
+      line.setAttribute('stroke-linecap', 'round');
+      slotOverlayEl.appendChild(line);
+    });
+    slotOverlayEl.classList.toggle('show', showSlotsParam);
+    // Slot overlay sits on top of viewport + dashboard; append to cockpit.
+    if (slotOverlayEl.parentNode !== cockpit) cockpit.appendChild(slotOverlayEl);
+  }
+
+  function loadSlotLayout() {
+    if (vehicle !== 'henry') return Promise.resolve(null);
+    var url = '/assets/driving/cockpit-slots-' + vehicle + '.json?t=' + Date.now();
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (json) {
+      applySlotLayout(json);
+      return json;
+    }).catch(function (err) {
+      console.warn('[cockpit] slot layout load failed:', err);
+      return null;
+    });
+  }
+
+  loadSlotLayout();
+
+  var reloadBtn = document.getElementById('btn-reload-layout');
+  if (reloadBtn) {
+    reloadBtn.addEventListener('click', function () {
+      reloadBtn.textContent = 'Reloading…';
+      loadSlotLayout().then(function () {
+        reloadBtn.textContent = 'Reload layout';
+      });
+    });
+  }
 
   document.getElementById('url-hint').textContent =
     '?vehicle=' + vehicle + '&mode=' + mode + (forceSpeeding ? '&speeding=true' : '');
