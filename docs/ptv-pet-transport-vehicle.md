@@ -810,6 +810,29 @@ Marcus's note (2026-04-24), carrying Lily's direct design requests. Applies to b
 - `ui-bell.ogg` — horn default tune (first candidate; regen a proper horn-tune set when ready).
 - `music-corridor.ogg` / `music-play.ogg` — PTV ambient (gentle). Supply Run music replaces with the heavy-metal brief below.
 
+### Rear-view mirror — live cargo check (Marcus, 2026-04-24)
+
+The v1 cockpit had no visible connection between the driver and the animals they're transporting. Fix: a **painted rear-view mirror** mounted at the top of the windscreen area, showing a **live view of the cargo** inside the vehicle.
+
+**What's in the mirror:**
+- A small top-down view of the vehicle's crate grid (same layout the player set up on the pre-drive screen).
+- Each occupied crate shows a tiny painted animal sprite with a **mood indicator**:
+  - Happy → painted smile, eyes closed in contentment, curled snuggle pose.
+  - Neutral → calm sitting / standing pose.
+  - Stressed (adjacency conflict or rough driving) → ears back, eyes wide, visible pacing / hunch.
+  - Sleeping → Zzz painted over the crate.
+- Adjacent-pair reactions visible: same-species pair leaning toward each other; stressed pair facing away / growling; blocked pair not possible (drive gate prevents departure).
+- **Any jolt, hedgehog brake, or cargo-comfort drop** triggers a small animation in the mirror: animals stagger, then settle. Makes careful driving visible in real-time.
+
+**Interaction:**
+- Passive: the mirror is always-on and reflective of cargo state.
+- Active: tap / click the mirror → a bigger **cargo-check panel** slides down over the windscreen for a proper look. Each animal visible, with their name and a happiness number. Close the panel to return to driving.
+- When the cargo-comfort meter drops significantly, the mirror gently pulses to draw the kid's eye (accessibility — same principle as the hedgehog warning triangle).
+
+**Supply Run mode:** mirror is hidden (no cargo). The space is replaced with a painted cheeky decal — a racing-stripe bumper sticker, a "LOUD" painted flag, or Lily's custom Supply Run emblem.
+
+**Placement:** top-centre of the cockpit viewport, hanging from the painted interior ceiling strip. Visually connected to the windscreen frame, not a floating panel.
+
 ### Pre-drive screen vs in-cockpit split (Marcus, 2026-04-24)
 
 Vehicle choice and PTV/Supply-Run mode are set **before** entering the vehicle, on a **pre-drive screen**. Once in the cockpit, those controls are out of the way — the player is focused on driving.

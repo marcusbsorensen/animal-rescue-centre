@@ -367,6 +367,98 @@
   @keyframes walkby { 0% { left: -12%; } 100% { left: 112%; } }
   body.mode-supply .passerby { display: none; }
 
+  /* ── Rear-view mirror — live cargo check (Marcus 2026-04-24) ──
+     Hangs from the top-centre ceiling. Shows a mini grid of the
+     animals loaded into the vehicle. Painted wooden frame with a
+     brass rim; interior renders live sprites. Hidden in Supply Run
+     mode (no cargo). Pulses when cargo-comfort drops. Tap to
+     expand into a full cargo-check panel (stub only in this
+     mockup). */
+  .mirror {
+    position: absolute;
+    left: 50%;
+    top: 0.5%;
+    transform: translateX(-50%);
+    width: 160px;
+    height: 110px;
+    z-index: 6;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .mirror .stem {
+    position: absolute;
+    top: -6px; left: 50%;
+    width: 8px; height: 14px;
+    background: linear-gradient(180deg,#8a5a2a,#5d3a18);
+    border-radius: 4px 4px 0 0;
+    transform: translateX(-50%);
+  }
+  .mirror .frame {
+    position: absolute; inset: 0;
+    border-radius: 52% / 42%;
+    background:
+      radial-gradient(ellipse at 35% 30%, #f3d08c 0%, #c88436 60%, #7d4310 100%);
+    border: 3px solid #5d3a18;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,240,200,0.35);
+    padding: 8px;
+  }
+  .mirror .frame::after {
+    /* brass rim */
+    content: '';
+    position: absolute; inset: 6px;
+    border-radius: 52% / 42%;
+    border: 2px solid #c79b45;
+    pointer-events: none;
+  }
+  .mirror .reflection {
+    position: relative;
+    width: 100%; height: 100%;
+    border-radius: 52% / 42%;
+    background: linear-gradient(180deg,#e9dcb8 0%,#8a9576 100%);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  .mirror .cargo-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 3px;
+    width: 80%;
+    height: 68%;
+  }
+  .mirror .crate-cell {
+    background: rgba(90,60,30,0.18);
+    border: 1px dashed rgba(90,60,30,0.45);
+    border-radius: 3px;
+    display: grid;
+    place-items: center;
+    font-size: 20px;
+  }
+  .mirror .crate-cell.occupied {
+    background: rgba(240,200,140,0.6);
+    border-style: solid;
+  }
+  .mirror .crate-cell .mood {
+    position: absolute;
+    margin-left: 18px; margin-top: -16px;
+    font-size: 10px;
+  }
+  .mirror .toy {
+    position: absolute;
+    top: 2px; right: 8px;
+    font-size: 14px;
+    opacity: 0.8;
+  }
+  .mirror.pulse {
+    animation: mirrorPulse 0.55s ease-in-out infinite alternate;
+  }
+  @keyframes mirrorPulse {
+    from { filter: drop-shadow(0 0 2px rgba(230,25,30,0.2)); }
+    to   { filter: drop-shadow(0 0 16px rgba(230,25,30,0.85)); }
+  }
+  .mirror:hover { transform: translateX(-50%) scale(1.04); }
+  body.mode-supply .mirror { display: none; }
+
   /* ── DASHBOARD BAND (bottom half) ── */
   .dashboard {
     position: absolute;
@@ -943,6 +1035,25 @@
     <div class="parked-chip" id="parked-chip"><span class="dot"></span>Parked</div>
 
     <div class="passerby" aria-hidden="true">walker · dog</div>
+
+    <!-- Rear-view mirror (Marcus 2026-04-24). Shows a mini grid of
+         the cargo crates with animal moods. Pulses red if cargo
+         comfort drops. Hidden in Supply Run mode. -->
+    <div class="mirror" id="mirror" title="Peek at the cargo">
+      <div class="stem"></div>
+      <div class="frame">
+        <div class="reflection">
+          <div class="cargo-grid" id="cargo-grid">
+            <!-- 2x2 demo grid — single pet in slot 0 (Pickle the cat) -->
+            <div class="crate-cell occupied">🐱<span class="mood">😊</span></div>
+            <div class="crate-cell"></div>
+            <div class="crate-cell"></div>
+            <div class="crate-cell"></div>
+          </div>
+          <span class="toy" aria-hidden="true">🧸</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="dashboard" id="dashboard">
