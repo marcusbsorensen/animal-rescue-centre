@@ -271,7 +271,6 @@ Lily being able to recognise her home town in the game is part of the point. Nam
 | **Grenham Bay / Beresford Gap / Epple Bay** | Smaller beaches — chalk cliffs, sea caves, cliff stacks | Sea Cliffs rewilding habitat (parrots / seabirds) |
 | **Chalk cliffs + sea caves** between bays | Rewilding habitat for seabirds; visual signature of the coastline |
 | **Quex Park Estate** (country house, deer park, grounds) | The A.R.C. itself — the Centre is set in an estate-like grounds with outbuildings |
-| **Powell-Cotton Museum** (inside Quex Park) | Story flavour — possible skill-training / education destination |
 | **Waterloo Tower** (Quex Park bell tower, 1818) | Landmark on the map, visible on the horizon; maybe a pet-show venue or Centre flavour |
 | **All Saints' Church** (13th-century, Rossetti's grave) | Village-heart pin — visual anchor, possible adoption delivery route landmark |
 | **Farmland inland / south of village** | Bramble Farm supply run — the real fields Marcus drives past |
@@ -313,13 +312,35 @@ Lily being able to recognise her home town in the game is part of the point. Nam
   - Crowd density: "tonnes of dog walkers" — real social scene; good for cast-walk-by cameos.
 - **Kids' playground next to The Dip** — a sunken multifunctional sports ground (below ground level to keep balls, wind, and waves out). Visible landmark from the coast road. Possible enclosed **pet-show venue** (the sunk bowl shape is natural seating).
 
+#### Additional decisions (Marcus, 2026-04-24)
+
+- **Powell-Cotton Museum**: **dropped** from the game. The real museum is full of taxidermy — tonally wrong for a kind-to-animals game. Don't reference it, even as flavour. If a museum is ever needed, invent one.
+- **Shop names**: **keep generic** — no real-named shops. "The chippy" and "the wine bar across the road" are fine; pub-sign art on the chippy is an identity without naming it after a real business.
+- **Specialist prosthetics vet**: **fictional countryside location**, housed in a **steampunk-converted barn**. Not in Birchie itself; a short drive out into the Kent countryside. Design cues:
+  - Red-brick barn with cogs, copper pipes, and a painted chimney stack.
+  - Animal-scale prosthetics on workbenches (wheels, springs, paw-braces), rendered playful not clinical.
+  - A vet who looks part-blacksmith, part-engineer — leather apron, goggles on the forehead, gentle manner.
+  - Workshop windows lit warm at night.
+  - Unlock trigger remains story-driven (a dachshund / fennec arrives needing wheels — see §"Destinations discovered through pet needs").
+
 #### Still open — decisions deferred
 
-- Name for the fictional-Quex estate (keeping the alpacas-and-events feel).
-- Whether the specialist-prosthetics vet has a Birchie analogue, or sits in nearby Margate / Canterbury.
-- Whether to reference real shops or keep fish-chip-shop and Christy's generic.
+- Name for the fictional-Quex estate. Shortlist below — locals will recognise by letter pattern (short, spiky Q/X/Y/Z feel).
+
+  | Name | Flavour |
+  |---|---|
+  | **Pyx Park** | P-Y-X, real word (ecclesiastical box), dignified-but-weird |
+  | **Qix Park** | Keeps Quex's Q and X |
+  | **Vyx Park** | V-Y-X, invented, crisp |
+  | **Jynx Park** | Playful, great to say out loud |
+  | **Zox Park** | Bouncy, two unusual letters |
+  | **Wyx Park** | Echoes Quex rhythmically |
+  | **Byx Park** | Ye-olde feel |
+  | **Quem Park** | Keeps Q-U-E- pattern, soft ending |
+
+  Claude's pick: **Pyx Park** (dignified, real word, right shape) or **Jynx Park** (most fun to say). Marcus to pick.
+
 - How much tidal realism to model (a simple day/night + low/high-tide cycle is enough; no lunar calendar required).
-- Powell-Cotton Museum — kept as flavour or replaced by a fictional museum?
 
 #### Consequences for art + music
 
