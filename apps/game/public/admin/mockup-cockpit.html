@@ -275,7 +275,7 @@
   .hedgehog-sign svg { width: 100%; height: 100%; }
   .hedgehog-prompt {
     position: absolute;
-    left: 50%; top: 16%;
+    left: 50%; top: 26%;            /* sits below the flashing triangle */
     transform: translateX(-50%) scale(0.6);
     font-family: var(--hand-font);
     font-size: 34px;
@@ -289,6 +289,33 @@
     z-index: 5;
   }
   .hedgehog-prompt.show { opacity: 1; transform: translateX(-50%) scale(1); }
+
+  /* Big central flashing road-warning triangle (Marcus 2026-04-24).
+     Red edge, white interior, black hedgehog silhouette. Shown
+     alongside the text so slow readers can react from the symbol
+     alone. Pulses red to catch the eye. Universal across both
+     driving modes. */
+  .animal-alert {
+    position: absolute;
+    left: 50%; top: 9%;
+    transform: translateX(-50%) scale(0.7);
+    width: 118px; height: 106px;
+    pointer-events: none;
+    opacity: 0;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,0.35));
+    transition: opacity 0.18s, transform 0.25s;
+    z-index: 7;
+  }
+  .animal-alert.show {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    animation: alertPulse 0.55s ease-in-out infinite alternate;
+  }
+  @keyframes alertPulse {
+    from { filter: drop-shadow(0 0 4px rgba(230,25,30,0.3)) drop-shadow(0 6px 14px rgba(0,0,0,0.35)); }
+    to   { filter: drop-shadow(0 0 22px rgba(230,25,30,0.95)) drop-shadow(0 6px 14px rgba(0,0,0,0.35)); }
+  }
+  .animal-alert svg { width: 100%; height: 100%; display: block; }
 
   .flash-msg {
     position: absolute;
@@ -888,6 +915,29 @@
       </svg>
     </div>
 
+    <!-- Big central flashing road-warning triangle: red edge, white
+         inside, black hedgehog silhouette. Shown with the text so
+         kids who read slowly can react from the symbol alone. -->
+    <div class="animal-alert" id="animal-alert" aria-hidden="true">
+      <svg viewBox="0 0 120 108">
+        <polygon points="60,4 116,102 4,102"
+                 fill="#ffffff" stroke="#e6191e" stroke-width="10" stroke-linejoin="round"/>
+        <!-- Black hedgehog silhouette: round body, spike halo, snout, feet -->
+        <g fill="#111" transform="translate(0,4)">
+          <ellipse cx="60" cy="74" rx="26" ry="15"/>
+          <!-- spike halo -->
+          <polygon points="36,70 32,58 40,64 36,50 46,60 44,46 52,58 54,44 60,58 66,44 68,58 76,46 74,60 80,50 76,64 84,58 80,70"/>
+          <!-- snout -->
+          <path d="M82 74 q6 0 8 4 q-4 4 -10 2 z"/>
+          <!-- eye -->
+          <circle cx="80" cy="70" r="1.6" fill="#fff"/>
+          <!-- little feet -->
+          <rect x="44" y="86" width="4" height="6" rx="1.5"/>
+          <rect x="70" y="86" width="4" height="6" rx="1.5"/>
+        </g>
+      </svg>
+    </div>
+
     <div class="hedgehog-prompt" id="hedgehog-prompt">Stop for hedgehog!</div>
     <div class="flash-msg" id="flash-msg"></div>
     <div class="parked-chip" id="parked-chip"><span class="dot"></span>Parked</div>
@@ -1270,6 +1320,7 @@
   // ── Hedgehog drill ──
   var hedgehogSign = document.getElementById('hedgehog-sign');
   var hedgehogPrompt = document.getElementById('hedgehog-prompt');
+  var animalAlert = document.getElementById('animal-alert');
   function scheduleHedgehog() {
     var delay = 7000 + Math.random() * 11000;
     setTimeout(triggerHedgehog, delay);
@@ -1277,10 +1328,12 @@
   function triggerHedgehog() {
     hedgehogSign.classList.add('lit');
     hedgehogPrompt.classList.add('show');
+    animalAlert.classList.add('show');  // flashing red-triangle warning
     var startSpeed = speed;
     setTimeout(function(){
       hedgehogSign.classList.remove('lit');
       hedgehogPrompt.classList.remove('show');
+      animalAlert.classList.remove('show');
       if (speed < startSpeed - 5 || speed < 5) {
         flash('Kind driver! Hedgehog trundles safely home.');
       } else {

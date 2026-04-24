@@ -321,7 +321,8 @@ This is a universal rule across both driving modes — it's not mode-specific. H
 #### Mechanic
 
 - While driving (PTV **or** Supply Run), a hedgehog trundles onto the road at a random moment, near one of the Bay Road hedgehog-crossing signs.
-- A warning beat plays: the hedgehog-sign lights up, a soft chime, brief on-screen prompt ("🦔 Stop!").
+- A warning beat plays: the **roadside hedgehog-sign lights up**, a soft chime, AND **a big flashing road-warning triangle** appears prominently in the driver's view — red-edged triangle with a white background and a black hedgehog silhouette inside. The text prompt ("Stop for hedgehog!") appears alongside it.
+- **Accessibility principle (Marcus, 2026-04-24):** any "stop for an animal in the road" warning must have a **visual-only fallback** so a kid who reads slowly can still react from the symbol alone. The triangle flashes red / pulses to catch the eye; the text is supplementary. This rule applies to every future roadside-animal event (duckling trains in spring, grass snakes in summer, migrating toads in autumn rain, etc) — each gets its own symbol in the same red-triangle frame.
 - Player must **release the accelerator and brake** before reaching the hedgehog.
 - Stop in time → hedgehog trundles safely across → player gets a small **kindness bonus** (+1 happiness for onboard PTV animals; +coin bonus on Supply Runs; unlocks the "Hedgehog Helper" sticker on first save).
 - Fail to stop → **cannot actually hit the hedgehog** (game nudges the vehicle to brake hard at the last moment; the hedgehog is never visibly harmed) but:
