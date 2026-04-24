@@ -241,19 +241,78 @@
   }
   body.speed-0 .road-dash { animation-play-state: paused; }
   body.mode-supply .road-dash { animation-duration: 0.35s; }
-  .hedge-left, .hedge-right {
+  /* ── Scrolling hedgerow strips (placeholder SVG — Marcus 2026-04-24) ──
+     Repeating SVG hedge-blob tile tiles horizontally and scrolls past
+     the camera to fake forward motion. Perspective-skewed toward the
+     vanishing point. This is a sanity-test prototype before Manus
+     briefs for painted verges. Replace with painted strips later. */
+  .hedgerow {
     position: absolute;
     top: 55%; bottom: 0;
-    width: 46%;
-    background:
-      repeating-linear-gradient(90deg,
-        var(--hedge) 0 14px,
-        var(--hedge-dark) 14px 22px),
-      linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 100%);
-    background-blend-mode: multiply, normal;
+    width: 50%;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80' preserveAspectRatio='none'><g fill='%234f7a3a'><ellipse cx='18' cy='50' rx='24' ry='28'/><ellipse cx='54' cy='44' rx='30' ry='34'/><ellipse cx='96' cy='52' rx='26' ry='30'/><ellipse cx='136' cy='42' rx='32' ry='36'/><ellipse cx='180' cy='50' rx='26' ry='32'/></g><g fill='%23355724' opacity='0.55'><ellipse cx='30' cy='58' rx='12' ry='10'/><ellipse cx='70' cy='60' rx='14' ry='10'/><ellipse cx='112' cy='62' rx='12' ry='9'/><ellipse cx='150' cy='58' rx='14' ry='10'/></g></svg>");
+    background-repeat: repeat-x;
+    background-size: 260px 100%;
+    background-position: 0 0;
+    filter: drop-shadow(0 -3px 0 rgba(0,0,0,0.2));
   }
-  .hedge-left  { left: 0;   clip-path: polygon(0 0, 46% 0, 2% 100%, 0 100%); }
-  .hedge-right { right: 0;  clip-path: polygon(54% 0, 100% 0, 100% 100%, 98% 100%); }
+  .hedgerow.left  { left: 0;   clip-path: polygon(0 0, 100% 0, 4% 100%, 0 100%); }
+  .hedgerow.right { right: 0;  clip-path: polygon(0 0, 100% 0, 100% 100%, 96% 100%); }
+  body.speed-0 .hedgerow { animation-play-state: paused; }
+
+  /* ── Scenery sprite spawner ──
+     Spawns placeholder SVG sprites at the vanishing point, scales them
+     up as they approach, and drifts them toward the relevant verge.
+     Each sprite has a label so Marcus can identify what it is. */
+  .scenery-layer {
+    position: absolute;
+    left: 0; right: 0;
+    top: 50%; bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 2;
+  }
+  .sprite {
+    position: absolute;
+    left: 50%; top: 0;
+    width: 80px; height: 110px;
+    transform: translate(-50%, 0) scale(0.1);
+    transform-origin: 50% 100%;
+    will-change: transform, left, top;
+  }
+  .sprite svg { width: 100%; height: 100%; overflow: visible; display: block; }
+  .sprite .label {
+    position: absolute;
+    left: 50%; bottom: -2px;
+    transform: translateX(-50%);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #1a1a1a;
+    background: rgba(255,255,255,0.82);
+    padding: 1px 4px;
+    border-radius: 2px;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+
+  /* Diagnostic overlay (top-right of viewport) */
+  .road-diag {
+    position: absolute;
+    top: 8px; right: 8px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    line-height: 1.35;
+    color: #fff;
+    background: rgba(0,0,0,0.55);
+    padding: 5px 8px;
+    border-radius: 4px;
+    z-index: 8;
+    pointer-events: none;
+    text-align: right;
+  }
+  .road-diag b { color: #ffde2f; font-weight: 700; }
 
   .hedgehog-sign {
     position: absolute;
@@ -480,6 +539,42 @@
     font-family: var(--dash-label-font);
     overflow: hidden;
   }
+  /* Painted Henry dashboard (Manus-delivered face-on, 1920×1080).
+     When .has-painted-dash is on the cockpit, the CSS chrome frames
+     for hazard / ignition / speedo / GPS / cargo-comfort are
+     hidden — only the INTERACTIVE overlays (key rotating in its
+     barrel, speedo needle, horn hub, ignition lamp, pedals, GPS
+     route line) render on top of the painted art. */
+  .cockpit.has-painted-dash .dashboard {
+    background: url('/assets/driving/dashboard-henry-ptv.png') center/cover no-repeat;
+    box-shadow: inset 0 12px 30px rgba(0,0,0,0.15);
+    border-top: 2px solid rgba(0,0,0,0.35);
+  }
+  .cockpit.has-painted-dash .ignition-panel,
+  .cockpit.has-painted-dash .hazard-btn-wrap,
+  .cockpit.has-painted-dash .speedo-panel,
+  .cockpit.has-painted-dash .gps-panel,
+  .cockpit.has-painted-dash .comfort-meter {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .cockpit.has-painted-dash .ignition-barrel {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+  .cockpit.has-painted-dash .speedo-dial,
+  .cockpit.has-painted-dash .speedo-ring,
+  .cockpit.has-painted-dash .speedo-tick,
+  .cockpit.has-painted-dash .speedo-num { display: none; }
+  .cockpit.has-painted-dash .dash-label { display: none; }
+  .cockpit.has-painted-dash .mirror .frame,
+  .cockpit.has-painted-dash .mirror .stem { background: transparent; border: none; box-shadow: none; }
+  .cockpit.has-painted-dash .mirror .frame::after { border: none; }
+  .cockpit.has-painted-dash .mirror .reflection { background: transparent; }
+  .cockpit.has-painted-dash .mirror .toy { display: none; }
+
   body.mode-supply .dashboard::before {
     content: '';
     position: absolute;
@@ -997,8 +1092,14 @@
     <div class="road" id="road">
       <div class="road-dash"></div>
     </div>
-    <div class="hedge-left"></div>
-    <div class="hedge-right"></div>
+    <div class="hedgerow left" id="hedgerow-left"></div>
+    <div class="hedgerow right" id="hedgerow-right"></div>
+    <div class="scenery-layer" id="scenery-layer"></div>
+    <div class="road-diag" id="road-diag">
+      <div>sprites: <b id="diag-count">0</b></div>
+      <div>speed: <b id="diag-speed">0</b></div>
+      <div>spawn/min: <b id="diag-rate">0</b></div>
+    </div>
 
     <div class="hedgehog-sign" id="hedgehog-sign" aria-hidden="true">
       <svg viewBox="0 0 100 100">
@@ -1467,6 +1568,227 @@
     clearTimeout(flashT);
     flashT = setTimeout(function(){ flashEl.classList.remove('show'); }, 2200);
   }
+
+  // ── Scenery + hedgerow scroll (Marcus 2026-04-24 placeholder prototype)
+  // ─────────────────────────────────────────────────────────────────────
+  // Placeholder SVG sprite pool. Each factory returns the inner <g> for
+  // an SVG so we can stamp them into <svg viewBox="0 0 80 100">. Labels
+  // are rendered separately as HTML so they stay crisp at any scale.
+  var sceneryLayer = document.getElementById('scenery-layer');
+  var hedgeLeftEl = document.getElementById('hedgerow-left');
+  var hedgeRightEl = document.getElementById('hedgerow-right');
+  var diagCount = document.getElementById('diag-count');
+  var diagSpeed = document.getElementById('diag-speed');
+  var diagRate = document.getElementById('diag-rate');
+
+  var SPRITE_POOL = {
+    left: [
+      { key:'tree-tall',   label:'TREE-TALL',   svg:
+        "<ellipse cx='40' cy='38' rx='22' ry='34' fill='%23355724'/>" +
+        "<ellipse cx='32' cy='30' rx='14' ry='20' fill='%234f7a3a'/>" +
+        "<rect x='36' y='66' width='8' height='26' fill='%234a2a14'/>" },
+      { key:'tree-round',  label:'TREE-ROUND',  svg:
+        "<circle cx='40' cy='46' r='28' fill='%234f7a3a'/>" +
+        "<circle cx='30' cy='40' r='14' fill='%23355724' opacity='0.6'/>" +
+        "<rect x='37' y='72' width='6' height='20' fill='%234a2a14'/>" },
+      { key:'fence-post',  label:'FENCE',       svg:
+        "<rect x='38' y='30' width='4' height='60' fill='%23a07a40'/>" +
+        "<rect x='20' y='44' width='40' height='3' fill='%23a07a40'/>" +
+        "<rect x='20' y='62' width='40' height='3' fill='%23a07a40'/>" },
+      { key:'wildflowers', label:'FLOWERS',     svg:
+        "<rect x='24' y='60' width='2' height='30' fill='%232a5a20'/>" +
+        "<rect x='40' y='54' width='2' height='36' fill='%232a5a20'/>" +
+        "<rect x='56' y='62' width='2' height='28' fill='%232a5a20'/>" +
+        "<circle cx='25' cy='58' r='5' fill='%23ff8ac0'/>" +
+        "<circle cx='41' cy='52' r='6' fill='%23fff066'/>" +
+        "<circle cx='57' cy='60' r='5' fill='%23b48aff'/>" },
+      { key:'hog-sign',    label:'HOG-SIGN',    svg:
+        "<rect x='38' y='40' width='4' height='50' fill='%234a2a14'/>" +
+        "<polygon points='40,10 72,60 8,60' fill='%23f5d24a' stroke='%233a2a18' stroke-width='3'/>" +
+        "<ellipse cx='40' cy='46' rx='12' ry='7' fill='%236b4a2a'/>" }
+    ],
+    right: [
+      { key:'beach-hut',   label:'BEACH-HUT',   svg:
+        "<polygon points='40,6 70,42 10,42' fill='%23__ROOF__' stroke='%232a1a0a' stroke-width='2'/>" +
+        "<rect x='18' y='42' width='44' height='44' fill='%23fff4d8' stroke='%232a1a0a' stroke-width='2'/>" +
+        "<rect x='34' y='54' width='12' height='32' fill='%232a5a6a'/>" },
+      { key:'cottage-gate',label:'GATE',        svg:
+        "<rect x='16' y='44' width='4' height='46' fill='%234a2a14'/>" +
+        "<rect x='60' y='44' width='4' height='46' fill='%234a2a14'/>" +
+        "<rect x='18' y='60' width='44' height='4' fill='%238a5a2a'/>" +
+        "<rect x='18' y='74' width='44' height='4' fill='%238a5a2a'/>" },
+      { key:'walker-dog',  label:'WALKER+DOG',  svg:
+        "<circle cx='30' cy='30' r='7' fill='%23f0c89a'/>" +
+        "<rect x='28' y='37' width='4' height='26' fill='%23c04a4a'/>" +
+        "<line x1='30' y1='42' x2='22' y2='56' stroke='%23f0c89a' stroke-width='3'/>" +
+        "<line x1='30' y1='42' x2='40' y2='56' stroke='%23f0c89a' stroke-width='3'/>" +
+        "<line x1='28' y1='63' x2='24' y2='84' stroke='%232a2a2a' stroke-width='3'/>" +
+        "<line x1='32' y1='63' x2='36' y2='84' stroke='%232a2a2a' stroke-width='3'/>" +
+        "<ellipse cx='54' cy='76' rx='10' ry='6' fill='%235a3a20'/>" +
+        "<circle cx='62' cy='72' r='4' fill='%235a3a20'/>" +
+        "<line x1='52' y1='80' x2='50' y2='86' stroke='%235a3a20' stroke-width='2'/>" +
+        "<line x1='58' y1='80' x2='58' y2='86' stroke='%235a3a20' stroke-width='2'/>" },
+      { key:'bollard',     label:'BOLLARD',     svg:
+        "<rect x='32' y='44' width='16' height='46' rx='4' fill='%23d9d9d9' stroke='%232a2a2a' stroke-width='2'/>" +
+        "<rect x='32' y='64' width='16' height='6' fill='%23e8253a'/>" },
+      { key:'cyclist',     label:'CYCLIST',     svg:
+        "<circle cx='24' cy='72' r='10' fill='none' stroke='%232a2a2a' stroke-width='2'/>" +
+        "<circle cx='56' cy='72' r='10' fill='none' stroke='%232a2a2a' stroke-width='2'/>" +
+        "<line x1='24' y1='72' x2='40' y2='50' stroke='%232a2a2a' stroke-width='2'/>" +
+        "<line x1='56' y1='72' x2='40' y2='50' stroke='%232a2a2a' stroke-width='2'/>" +
+        "<line x1='40' y1='50' x2='46' y2='40' stroke='%232a2a2a' stroke-width='2'/>" +
+        "<circle cx='44' cy='28' r='6' fill='%23f0c89a'/>" +
+        "<rect x='40' y='32' width='8' height='16' fill='%231e62d4'/>" }
+    ],
+    signs: [
+      { key:'road-sign',   label:'SIGN',        svg:
+        "<rect x='38' y='40' width='4' height='50' fill='%234a2a14'/>" +
+        "<rect x='8' y='16' width='64' height='28' fill='%23fff' stroke='%232a2a2a' stroke-width='2'/>" +
+        "<__SIGN_TEXT__/>" }
+    ]
+  };
+
+  var SIGN_TEXTS = ['BIRCHIE 1 MILE','BAY ROAD','GOOSE END FARM →','SLOW','HEDGEHOGS'];
+  var HUT_COLOURS = ['6ed0d8','f08a78','ffd86a','a8dd6a'];
+
+  function buildSprite(side) {
+    var pool, chosen, sideKey;
+    // ~18% chance of a sign regardless of side
+    if (Math.random() < 0.18) {
+      chosen = SPRITE_POOL.signs[0];
+      sideKey = side;
+    } else {
+      pool = SPRITE_POOL[side];
+      chosen = pool[Math.floor(Math.random() * pool.length)];
+      sideKey = side;
+    }
+
+    var svgInner = chosen.svg;
+    if (chosen.key === 'beach-hut') {
+      svgInner = svgInner.replace('__ROOF__', HUT_COLOURS[Math.floor(Math.random()*HUT_COLOURS.length)]);
+    }
+    var labelText = chosen.label;
+    if (chosen.key === 'road-sign') {
+      var txt = SIGN_TEXTS[Math.floor(Math.random()*SIGN_TEXTS.length)];
+      // Use plain <text> embedded; keep label generic
+      var textSvg = "<text x='40' y='34' font-family='Barlow Condensed, sans-serif' font-size='9' font-weight='700' fill='%23111' text-anchor='middle'>" + txt.replace(/→/g,'&gt;') + "</text>";
+      svgInner = svgInner.replace('<__SIGN_TEXT__/>', textSvg);
+      labelText = txt.replace('→','>');
+    }
+
+    var el = document.createElement('div');
+    el.className = 'sprite';
+    // Use an <img> with inline svg data URI so no innerHTML parsing of user data
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 100'>" + svgInner + "</svg>";
+    var img = document.createElement('img');
+    img.src = 'data:image/svg+xml;utf8,' + svg;
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.display = 'block';
+    el.appendChild(img);
+
+    var lab = document.createElement('div');
+    lab.className = 'label';
+    lab.textContent = labelText;
+    el.appendChild(lab);
+
+    // state
+    el._side = sideKey;
+    el._progress = 0; // 0 = horizon, 1 = past camera
+    el._duration = 4000 + Math.random() * 800;
+    el._spawnedAt = performance.now();
+    return el;
+  }
+
+  var activeSprites = [];
+  var MAX_SPRITES = 12;
+  var lastSpawn = performance.now();
+  var nextSpawnDelay = 1000;
+  var spawnTimestamps = []; // rolling window for rate calc
+
+  function maybeSpawn(now) {
+    if (activeSprites.length >= MAX_SPRITES) return;
+    if (speed < 1) return;
+    if (now - lastSpawn < nextSpawnDelay) return;
+    var side = Math.random() < 0.5 ? 'left' : 'right';
+    var el = buildSprite(side);
+    sceneryLayer.appendChild(el);
+    activeSprites.push(el);
+    lastSpawn = now;
+    spawnTimestamps.push(now);
+    // purge >60s old
+    while (spawnTimestamps.length && now - spawnTimestamps[0] > 60000) spawnTimestamps.shift();
+    // Next delay — base 800–1600 ms, halved when going fast.
+    var base = 800 + Math.random() * 800;
+    nextSpawnDelay = speed > 40 ? base * 0.5 : base;
+  }
+
+  // Horizon sits at ~50% of the viewport (the top of .scenery-layer).
+  // Sprites travel from scenery-layer top (y=0) down to y=100% and
+  // drift to their verge side as they approach the camera.
+  var lastFrame = performance.now();
+  function sceneryFrame(now) {
+    var dt = now - lastFrame;
+    lastFrame = now;
+    maybeSpawn(now);
+
+    var speedFactor = speed / 40; // 1.0 at 40 mph, 0 stopped
+    // Hedgerow scroll — faster background shift the faster you go.
+    if (speed > 0.1) {
+      var cur = parseFloat(hedgeLeftEl.dataset.pos || '0');
+      cur = (cur - speedFactor * 4) % 260;
+      hedgeLeftEl.dataset.pos = cur;
+      hedgeRightEl.dataset.pos = cur;
+      hedgeLeftEl.style.backgroundPosition = cur + 'px 0';
+      hedgeRightEl.style.backgroundPosition = (-cur) + 'px 0';
+    }
+
+    // Advance sprites
+    var layerH = sceneryLayer.clientHeight;
+    var layerW = sceneryLayer.clientWidth;
+    for (var i = activeSprites.length - 1; i >= 0; i--) {
+      var s = activeSprites[i];
+      var advance = (dt / s._duration) * Math.max(0.05, speedFactor);
+      s._progress += advance;
+      if (s._progress >= 1) {
+        sceneryLayer.removeChild(s);
+        activeSprites.splice(i, 1);
+        continue;
+      }
+      var p = s._progress;
+      // Ease-in on scale (things far away stay small longer, then rush)
+      var scale = 0.1 + Math.pow(p, 1.6) * 1.3;
+      // Vertical position: horizon (y=0) to bottom (y=layerH)
+      var y = Math.pow(p, 1.4) * layerH;
+      // Horizontal drift: start near centre, drift outward
+      var centre = layerW / 2;
+      var sideDir = s._side === 'left' ? -1 : 1;
+      // Outward offset grows with p
+      var offset = sideDir * Math.pow(p, 1.3) * (layerW * 0.55);
+      var x = centre + offset;
+      s.style.left = x + 'px';
+      s.style.top = y + 'px';
+      s.style.transform = 'translate(-50%, -100%) scale(' + scale.toFixed(3) + ')';
+      // Fade in for the first ~15%
+      s.style.opacity = p < 0.15 ? (p / 0.15).toFixed(2) : '1';
+    }
+
+    // Diagnostics
+    diagCount.textContent = activeSprites.length;
+    diagSpeed.textContent = Math.round(speed);
+    // Spawn rate per minute (last 60 s window, or extrapolated if shorter)
+    var rate;
+    if (spawnTimestamps.length < 2) {
+      rate = 0;
+    } else {
+      var windowMs = now - spawnTimestamps[0];
+      rate = Math.round(spawnTimestamps.length * 60000 / Math.max(windowMs, 1));
+    }
+    diagRate.textContent = rate;
+
+    requestAnimationFrame(sceneryFrame);
+  }
+  requestAnimationFrame(sceneryFrame);
 
   function unlock() {
     ['audio-horn','audio-horn-soft','audio-horn-deep','audio-horn-elec','audio-spark'].forEach(function(id){
