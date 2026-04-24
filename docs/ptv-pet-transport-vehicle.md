@@ -863,6 +863,7 @@ First-pass charm set (painted sprites on transparent background):
 | **Carrot** | First bunny adopted |
 | **Reflective safety star** | 5 clean hedgehog brakes |
 | **Golden driving medal** | 100 total drives |
+| **Smiley poop** (Lily's pick!) | Cleaned up after an animal had a little accident in the crate on a PTV drive. Kid humour, warmly painted, cheerful little face. Not gross — adorable. |
 
 **Cosmetic only** — charms have no gameplay effect beyond the wobble. Pure personalisation + sense-of-progress. The charm selection UI lives in the pre-drive screen (or on a simple garage-shelf panel accessed from the Centre).
 
