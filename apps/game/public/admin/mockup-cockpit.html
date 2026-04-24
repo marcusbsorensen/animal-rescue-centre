@@ -767,15 +767,19 @@
     padding: 0 8px;
   }
 
-  /* GPS */
+  /* GPS — mounted LANDSCAPE (wider than tall) like a real in-car
+     sat-nav. Sits at the top of its dashboard column; empty space
+     below can hold cosy dashboard details in the painted asset. */
   .gps-panel {
     grid-area: gps;
+    align-self: start;
+    aspect-ratio: 5 / 3;
     background: linear-gradient(180deg, #1a1a1a, #0a0a0a);
     border: 4px solid rgba(0,0,0,0.5);
     border-radius: 12px;
-    padding: 8px 10px;
+    padding: 6px 8px;
     box-shadow: inset 0 2px 6px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.3);
-    display: flex; flex-direction: column; gap: 6px;
+    display: flex; flex-direction: column; gap: 4px;
   }
   .gps-panel .dash-label { color: #9aa4b0; margin: 0; }
   .cockpit.v-trikey .gps-panel {

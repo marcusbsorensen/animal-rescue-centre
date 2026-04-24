@@ -867,7 +867,7 @@ The v1 cockpit mockup had elements scattered around the screen (pedals bottom-le
   - **Trikey (pedal trike)** → no real ignition — a small painted **"GO!" flag** you flip up on the handlebar. Purely ceremonial; immediately "started".
   Each vehicle's ignition animation is part of its dashboard identity (see "Dashboard varies per vehicle" below).
 - **Hazard button** — **new element**, to be added. Player presses to switch on hazard lights when pulled over at the roadside, at the petrol station, at the vet door, or when stopped for a hedgehog. Visible orange hazard-lamp indicator on the dashboard while on.
-- **GPS** — top area, unchanged.
+- **GPS** — mounted **landscape** (wider than tall, ~5:3 or 16:9, real in-car sat-nav shape — TomTom / built-in, not phone-in-portrait). Painted wooden nook with brass corner screws, empty screen interior for the game to render the route on top.
 - **Cargo-comfort meter** (PTV only) — dashboard corner, unchanged.
 - **Mode toggle** — dashboard side panel or menu, not driver-facing during a live drive.
 
