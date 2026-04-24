@@ -257,6 +257,40 @@ Marcus's note (2026-04-24): the PTV world map needs destinations beyond the thre
 - Rewards: coins + unique trophies / rosettes (decorative, display in Centre), prestige points, occasionally adopter-interest spikes (families saw the animal on TV).
 - Win conditions feed off bond level, skill-training progress, happiness, and specific trained tricks — so pet shows are a *consequence* of good care, not a separate grind.
 
+### Living world — households visible on the map + out walking
+
+Marcus's note (2026-04-24):
+
+Every **adopter**, **visitor**, and **apprentice** household has a physical presence in the world:
+
+- Their **house is visible on the GPS world map** as a painted pin, with the household's name / emoji identifier.
+- The pin appears as soon as the household first enters the game (first visit, first adoption arranged, apprentice recruited).
+- Adopter houses show the adopted pet on the map tile (cute "pet at home" icon) — visible proof the animal found a forever home.
+- Apprentice houses similarly carry the apprentice's portrait.
+
+**Out walking their pets.** While the player is driving, the compact-city layer renders **people on the pavements**, and some of them are recognisable faces from the cast:
+
+- Adopters occasionally walking the pets they adopted from the Centre. Seeing Luna the dachshund trotting along next to the Kumar-Ishii family on the way to Pinebark is a gold-standard moment.
+- Visitors (regulars who swing by the Centre) out and about in the town.
+- Apprentices on their way in or out of shifts.
+- Not every pedestrian is a cast member — most are anonymous townsfolk painted as background life. The cast appearances are the treat.
+
+**Design rules:**
+- The cast walk-bys are **never required** — it's ambient, feel-good density. Missing one has no penalty.
+- Honking at a cast-member cut-scene plays their specific greeting voice line instead of the usual townsfolk reaction (reuses the Manus `voice-hello-friend` etc).
+- Pet-adopting walks happen on roads near the adopter's own home pin, not randomly anywhere — reinforces the map geography.
+- The denser the player's rescue history (more adoptions, more apprentices, more visitors), the more of these appearances there are. A fully-populated town *feels* populated because the player built it.
+
+This is a core **"coherent world"** design principle — the Centre, the households, the pets, the pavements, the destinations all belong to the same compact city. Every pet placed and every household recruited leaves a visible mark on that city. Nothing is abstract menu-space.
+
+The ramifications are worth spelling out because they should govern downstream decisions:
+
+- **No disconnected screens.** The adoption ceremony doesn't happen in a void — it happens at the adopter's house pin, reached by driving there. The vet visit isn't a menu — it's a building you drive to. The pet show is a fête on a specific street corner.
+- **Map is persistent state.** The world remembers where every adopter lives, where every apprentice walks, where rewilded animals were released. Driving past those places *means something*.
+- **Consistency across systems.** PTV drives, Supply Runs, visitor arrivals, apprentice recruits, adoption deliveries — all operate on the same painted map with shared geography. A supply-run truck and a PTV van drive the same streets.
+- **Art direction consequence.** City and surroundings are a single art-world, not a set of separate scene backdrops. When Manus or another artist is briefed for any location, the brief should reference adjacent locations so styles match.
+- **Narrative consequence.** "Drive past Samuel's house on the way to Pinebark" is a sentence the game can plausibly surface. The world is small enough that route overlaps are meaningful.
+
 ### Drive format, setting, onboarding, discovery
 
 Marcus's note (2026-04-24):
