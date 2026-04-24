@@ -429,29 +429,140 @@ Marcus shared a zoomed map of Birchie centre. Transcribing faithfully so the in-
 
 **Reference:** Marcus's zoomed Birchie-centre screenshot (shared in chat 2026-04-24). If saved, goes into `apps/game/public/admin/mockup-assets/reference/birchie-centre/` with a README caption.
 
-#### Revised A.R.C. location — Gorse End Farm (west end of Bay Road)
+#### A.R.C. location — Goose End Farm, on the green south of The Dip (Marcus, 2026-04-24)
 
-The real **Gore End Farm** on the west end of Minnis Road is the obvious A.R.C. plot. Every requirement fits:
+**Name: Goose End Farm** — fictional, warm, geese-on-a-farm suggests rescue work and rural coastal charm without any of the "Gore" unease.
 
-- **Outdoor space** ✓ — working farm with fields.
-- **Several room types** ✓ — barns + farmhouse + outbuildings naturally decompose into corridor / vet / play / sleep / kitchen / garden / outhouse / pond.
-- **Car access** ✓ — straight out onto Bay Road.
-- **Slightly out of the main village** ✓ — westernmost plot, quiet end; drives east into town feel meaningful.
-- **Walking distance to coast, chippy, pet shop** ✓ — Minnis Bay is a short walk north; village retail a modest drive east.
+**Location: the open green space immediately south of The Dip**, a minute's walk north to Minnis Bay. Marcus pinned it from a second zoomed map of the Minnis Bay / Dip area (2026-04-24 screenshot). Reference folder: `apps/game/public/admin/mockup-assets/reference/birchie-minnis-bay/`.
 
-The drive arterial becomes a **scripted procession of familiar landmarks** every time the player heads into town:
+This is a **coastal** A.R.C., not a west-end-of-Minnis-Road A.R.C. as sketched previously. The revision has knock-on consequences — all captured below.
 
-> A.R.C. gate → Medical Centre (pharmacy pickup) → Parish of the Holy Family → train station → Bay Road Vets + Bay Road Garage → Christies + chippy → retail cluster.
+##### What's right next to A.R.C.
 
-Kids who live in Birchie will recognise the sequence *instantly*.
+Taking the coastal location seriously reshapes the local neighbourhood:
 
-**Naming — "Gore" sounds macabre for a kids' game.** Two options:
-- **Gorse End Farm** — gorse is a plant common around Kent coastal land, keeps the "-end" rhythm, phonetically almost identical, much softer feel. Claude's recommendation.
-- **Gore End Farm** kept as-is — if Lily already knows the real name and it doesn't feel dark to her, preserve the recognition.
+- **The Dip** (directly north of the A.R.C. plot) — the sunken multifunctional sports ground. Already canonical as a possible pet-show venue; now **literally next door**. Every fête-tier show is a walk, not a drive.
+- **Minnis Bay beach + paddling pool** (~1 min walk north past The Dip) — the tidal dog-beach destination and the gentle paddling pool for scared / recovering dogs. Dog rehab is on the doorstep.
+- **The Parade** — the seafront road with its **rainbow beach huts** — directly north. A.R.C. staff / apprentices walk dogs here daily.
+- **Dapper Dogs** (real dog groomer on the map) — **natural grooming partner**. Could be:
+  - a visiting apprentice's own business (walk-in cameos),
+  - a paid errand destination (drive a dog in for a trim, cosmetic clean-up mood bump),
+  - an apprentice-unlockable upgrade ("on-site grooming").
+- **Wagtails Cafe & Bar** (real café on the map) — thematic name is already perfect; **keep the real name verbatim** (this is the exception to the generic-shop-names rule; "Wagtails" is too on-brand to fictionalise). Canonically the cafe where apprentices hang out between shifts and visitors stop in on their Centre visits.
+- **Kearns Hall** (real local hall) — community hall; possible low-tier pet-show or adoption-day venue.
+- **The Bay United Reformed Church** — quiet-moment landmark on the coast-road walk.
+- **Bay Lodge** — possible adopter household pin / apprentice residence.
+- **Waves Bed & Breakfast** — friendly flavour landmark (visitors staying overnight?).
 
-Marcus to call which. Other A.R.C. candidates (coast plot, coastguard station, Victorian villa) kept in the doc for reference but Gorse End Farm is now the top pick.
+##### Revised drive arterial
 
-**Vet-and-garage pairing is a gameplay gift.** Vehicle breaks down on a PTV drive → animal goes to the vet (Bay Road Vets) AND van goes to the garage (Bay Road Garage) on the same short strip of Bay Road. Depot parts fix the van; prescriptions from the vet get filled at the Medical Centre pharmacy further down the same road. All three errands naturally cluster along the same arterial — keeps the driving loop tight and the geography memorable.
+The drive into town no longer *starts* on Bay Road — the A.R.C. is now north of the village. Heading east into the centre:
+
+> A.R.C. gate → walk or drive south through **residential streets** (King's Avenue / Ethelbert Road / Dane Road) → join **Bay Road (Minnis Road)** near the Parish → east past **Medical Centre + pharmacy** → **train station** → **Bay Road Vets + Bay Road Garage** (paired) → **Christies + chippy** → **retail cluster** (Sainsbury's, Co-op, Mandy's, Maria's, Wimpy).
+
+Heading west (out of town, for supply runs):
+
+> A.R.C. gate → south to Bay Road → west past **Goose End farmland plots** (real Gore End Farm area, reused as open fields / Bramble Farm supply-run territory) → **petrol station** (right side) → **wavy-arm car-wash** (left side) → leave town toward Herne Bay.
+
+Heading north (beach / dog rehab / seabird watching):
+
+> A.R.C. gate → straight onto **The Parade** → **beach huts** → **paddling pool** → **Minnis Bay beach** (tidal rules apply).
+
+Heading south (Wyx Park + Bramble Farm + wider countryside):
+
+> A.R.C. gate → residential streets → Bay Road → south off Bay Road via **Gordon Square or Old Farm Road** → **Wyx Park estate** → **steampunk-barn prosthetics vet** (further south, in the countryside) → Bramble Farm supply run.
+
+Every cardinal direction has its own flavour. Nicely varied for a real-time driving game.
+
+##### A.R.C. layout within the green plot
+
+Borrowing what the real site offers:
+
+- The plot is an **open green** — room for a sprawling sanctuary rather than a cramped courtyard.
+- Main building runs parallel to The Parade along the north edge — so the sea view is built into the kitchen, play room, corridor.
+- Corridor / vet / kitchen / play rooms in the main building.
+- Outside grounds wrap around to the south: garden, pond, outhouse, paddocks for larger rehab runs (horses / ponies if the roster ever expands).
+- Apprentice bothy + tool shed (the Depot can live here) at the back.
+- A painted wooden sign at the entrance gate: *Goose End Farm — Animal Rescue Centre*.
+
+##### Viking / Danish heritage in the street names
+
+Marcus's note (2026-04-24): *"ARC will then be placed between Viking, Canute and Dane-named roads, which is perfect as Lily and I are Viking descendants — we are literally Danish nationals."*
+
+The residential cluster around Goose End Farm is themed on Anglo-Saxon / Viking heritage — **Dane Road**, **Canute Road** (named for Cnut the Great, Danish king of England), **Viking Road**, and **Horsa Road** (the legendary Saxon-Norse leader). **Ingoldsby** is also Old Norse in origin.
+
+Design implications:
+
+- This is a **lovely personal coherent-world detail** — Lily is Danish, her family walks streets named after her own heritage, and the A.R.C. is planted right in the middle of that cluster. Keep all these street names verbatim; they're both authentic to real Birchie and personally resonant.
+- An occasional flavour line on the map or in narrator copy can nod to it — *"Goose End sits where the Viking lanes meet the sea"* — without being a lecture.
+- **Future animal storyline hook**: a Viking-themed rescue arc is now naturally available. A dog named Canute or Ragnar who washes up on Minnis Bay. Horsa-the-horse if the roster expands. Earned, not forced.
+- Optional badge set: "Viking Descendants" — awarded for completing rehomings to households along Dane/Viking/Canute/Horsa roads.
+
+##### Real-world renaming cheatsheet for this map
+
+| Real place | In-game |
+|---|---|
+| The green south of The Dip | **A.R.C. / Goose End Farm** plot |
+| The Dip | **The Dip** — kept (descriptive, affectionate name) |
+| Minnis Bay + paddling pool | **Bay beach + paddling pool** (Minnis → Bay to match Minnis-Road → Bay-Road rule) |
+| The Parade | **The Parade** — kept (generic, descriptive) |
+| Dapper Dogs | kept or renamed (**"Dapper Dogs"** is already great — recommend keep) |
+| Wagtails Cafe & Bar | **keep verbatim** — too on-brand to fictionalise |
+| Kearns Hall | fictionalise lightly (**Kearns Hall** fine, or "Bay Hall" / "Dip Hall") |
+| Bay United Reformed Church | **Bay Chapel** or kept |
+| Bay Lodge | **Bay Lodge** — fine |
+| King's Avenue, Ethelbert Road, Alfred Road, Dane Road, Old Farm Road, Horsa Road, Ingoldsby Road, Grenham Bay Avenue, Reculver Avenue | **Keep all real names** — authentic and safe |
+| Rose of Sharon Complementary Therapy | background flavour only; don't reference in-game |
+| Waves Bed & Breakfast | keep (lovely for visitor storylines) |
+
+**Vet-and-garage pairing is still a gameplay gift.** The vet + garage are on Bay Road (the real Thanet Vets / Birchington Auto Repairs stretch). A broken-down van with a sick animal onboard still lands both problems on the same strip; the difference now is the A.R.C. is a short drive north of them, not west of them.
+
+##### Goose End Farm's working-farm functions
+
+Marcus's note (2026-04-24): the A.R.C. is a **working farm** as well as a rescue centre. Specific functions beyond the obvious rescue loop:
+
+- **Hay production** — the rear fields grow hay for the rabbits, fed straight from the Centre. Small self-sufficiency loop: if the hay stores run low, drive out to **Bramble Farm** (supply run) for a top-up; otherwise the Centre's own fields cover normal use. A seasonal beat — a hay-cutting day in late summer, the kids helping bale.
+- **Border-collie herding training** — the paddocks support on-site working-dog training. Border collies arriving at the Centre can be assessed and trained here rather than driven to Wyx Park. Opens a quiet "working dog" career arc without making drives mandatory. Likely uses the same skill-training predicates as the Wyx Park paths (confidence + calm + focus thresholds).
+- **Stray drop-off point** — the front gate is where locals bring strays they've found. Farmers call; the gate bell rings; Lily answers. This is the low-pressure onboarding arrival mechanic.
+
+#### Collection drives — PTV goes out to fetch animals
+
+Marcus's note (2026-04-24): *"we also need the PTV to go collect animals later on in the game so they don't just appear in the welcoming hallway."* This is a major arrival-mechanic evolution.
+
+**Phase 1 (onboarding):** animals arrive at the Centre gate — the magic "they're just here" rhythm — the existing arrival popup. Low friction, keeps the first hour of play gentle.
+
+**Phase 2 (PTV unlocks collection):** once the player has a working PTV and the first adoption / rewilding drives under their belt, arrivals shift to a **call-and-collect** rhythm:
+
+- A **call comes in** — a notification on the GPS map, or a phone-ringing beat at the Centre: "*Hedgehog found in a garden on Horsa Road*", "*Injured fox cub on the moor path*", "*Three kittens dumped near Bramble Farm*".
+- Player opens the map, sees the **pickup pin** (distinct icon — a little paw + phone), chooses when to respond. Usually low-urgency; occasionally time-pressured (animal hurt, weather turning).
+- Player picks a vehicle, drives to the pickup location, crate-stacks (if multiple animals), drives back.
+- The drive back becomes the "arrival ceremony" — animal visible in the van, narrator introduces them, then the arrival popup on return to the Centre.
+
+Good source locations for collection calls:
+
+- **Farms around Birchie + inland** (real Gore End Farm plot is a prime example — farmers find strays; see §"Other A.R.C. candidates").
+- **Roadside pickups** (a hedgehog saved at a crossing sign becomes a resident).
+- **Coastline finds** — injured seabirds, oiled gannets after a storm, a seal pup at Epple Bay.
+- **Hedgehog rescue near Herne Bay** — sister-centre transfer when their space runs out.
+- **Garden reports** — householders in Birchie phone about a fox cub under a shed, bunnies dumped in a park.
+
+**Design beats:**
+
+- Collection calls respect the weather and time-of-day rules — a storm night + distressed seal is a higher-drama call than a garden bunny in sunshine.
+- The "drive back" re-uses the gentler PTV driving mode, since a new animal is onboard.
+- **Phase-gate cleanly**: don't switch arrival modes abruptly. From unlock moment, mix ~50 % gate-arrivals / ~50 % collection-calls, then gradually favour collection as the player levels up. Some gate arrivals keep happening (locals will always bring strays in) but the game's centre of gravity shifts to the truck.
+- **Failed collections** — if a call is ignored too long, the narrator mentions it later ("someone else took her in, she's safe") — no shaming. The world doesn't punish missed calls; it just carries on.
+- **Onboarding the mechanic** — the very first collection call is the **border-collie training-assessment dog**: a local farmer rings saying a young collie has shown up, needs assessment. Player drives out, collects her, brings her home, and the border-collie training arc begins. Gentle, purposeful, and demonstrates the new mechanic.
+
+This mechanic ties the PTV into the *beginning* of the care loop, not just the end. Previously PTV only handled outbound (adoption, rewilding, delivery); now it also handles inbound (collection). The full loop: **call-in → PTV collection → care at Goose End → PTV outbound (adoption / rewilding)**. Completely closed.
+
+#### Other A.R.C. candidates (archived)
+
+Kept in case the plot decision ever reverses:
+- Real Gore End Farm (west tip of Bay Road) — now reused as the farmland belt west of town; feeds the Bramble Farm supply run.
+- Coast plot near Epple/Grenham Bay — unused, but Grenham Bay Avenue is on the map as a residential road — possibly an adopter-cluster.
+- Coastguard station — dropped (no such building obvious from the map).
+- Victorian villa — dropped.
 
 #### Village errands — GP pharmacy + pet supplies shop (Marcus, 2026-04-24)
 
