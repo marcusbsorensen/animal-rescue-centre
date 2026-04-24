@@ -823,6 +823,51 @@ A single-lane road down the middle of the viewport doesn't read as a real road t
 
 For the v1 placeholder road prototype: add oncoming-traffic sprites spawning at the vanishing point in the right lane, and slow-same-direction sprites spawning in the left lane. Use simple SVG silhouettes; final painted versions come later.
 
+### Rear-view mirror — per vehicle + dangly charm customisation (Marcus, 2026-04-24)
+
+Each vehicle gets its own **painted rear-view mirror sprite** (part of the cockpit composition), distinct in shape + materials + frame style to match its dashboard identity:
+
+| Vehicle | Mirror style |
+|---|---|
+| **Trikey** | Small round painted handlebar mirror, weathered wooden frame, little leather strap |
+| **Henry** | Oval 1970s-van mirror, honey-wood frame with brass rim, cream-painted stem |
+| **Bea** | Oval walnut mirror with Art-Deco brass flourishes, painted-rose accent on the stem |
+| **Big Tilly** | Chunky rectangular truck mirror, chrome industrial frame, visible bolts |
+| **Spark** | Minimalist modern frameless mirror, slim matte-grey edge, anti-glare tint |
+
+The **interior** of each mirror is empty (transparent / soft gradient) so the game can render the live cargo grid + animal sprites inside.
+
+#### Dangly charms — separate sprite, wobbles with speed
+
+A **dangling charm** hangs from the mirror stem as a **separate sprite** — so it can wobble physically as the vehicle accelerates / brakes / hits a jolt. A small wobble (~±8° rotation, spring-damped) keyed to the accelerator. Bigger wobble on potholes and hedgehog brakes.
+
+**Customisation — unlockable charm library.** Players unlock new charms through driving + rescue progression. They can equip any one charm at a time, or remove entirely (for kids who find the wobble distracting).
+
+First-pass charm set (painted sprites on transparent background):
+
+| Charm | Unlock trigger |
+|---|---|
+| **Bone** | Default for Henry, always available |
+| **Lucky teddy** | Default option, always available |
+| **Bicycle bell miniature** | Default on Trikey |
+| **Hedgehog plushie** | First clean hedgehog brake |
+| **A.R.C. pawprint medal** | First vet run completed |
+| **Silver horseshoe** | 10 drives without a cargo-comfort drop |
+| **Viking longship** | A nod to Lily's heritage — gifted by the game on first adoption to a Viking-road household |
+| **Goose-End-Farm feather** | First collection from Goose End |
+| **Fox tail** | First rewilding drive |
+| **Treble clef** | First Rock On Music Academy supply run |
+| **Miniature alpaca** | First Wyx Park pet show visit |
+| **Painted Pickle the cat** | First cat adoption |
+| **Chequered flag pin** | First clean overtake |
+| **Carrot** | First bunny adopted |
+| **Reflective safety star** | 5 clean hedgehog brakes |
+| **Golden driving medal** | 100 total drives |
+
+**Cosmetic only** — charms have no gameplay effect beyond the wobble. Pure personalisation + sense-of-progress. The charm selection UI lives in the pre-drive screen (or on a simple garage-shelf panel accessed from the Centre).
+
+**Every unlock** gets a small celebratory beat: a chime, a painted "New charm unlocked!" card, Lily can pop the new charm on the mirror immediately if she wants.
+
 ### Rear-view mirror — live cargo check (Marcus, 2026-04-24)
 
 The v1 cockpit had no visible connection between the driver and the animals they're transporting. Fix: a **painted rear-view mirror** mounted at the top of the windscreen area, showing a **live view of the cargo** inside the vehicle.
