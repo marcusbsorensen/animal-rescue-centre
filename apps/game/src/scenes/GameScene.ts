@@ -44,10 +44,11 @@ import {
   getDueVisitors,
   markVisitSeen,
   markAllDueGardenReturnsSeen,
+  getAvailableToys,
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef, VisitorEntry } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
-import { evaluateBadges } from '@arc/badges';
+import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
 import { GameStateStore, loadGameState, saveGameState } from '../game-state';
@@ -62,6 +63,7 @@ import {
   renderPetCreated,
   renderAnimalDetails,
   renderWardrobePicker,
+  renderToyPicker,
   renderHUD,
   renderNavBar,
   renderGamesPopup,
@@ -312,17 +314,61 @@ export class GameScene extends Phaser.Scene {
 
     const species = pickRandomSpecies(availableSpecies);
 
+    let firstNew: Animal;
     if (shouldSpawnSiblings() && sheltered + 2 <= maxShelter) {
       const [a, b] = spawnSiblingPair(species);
       this.store.animals.push(a, b);
+      firstNew = a;
     } else {
       const animal = spawnAnimal(species, undefined, this.store.animals.map(a => a.name));
       this.store.animals.push(animal);
+      firstNew = animal;
     }
 
     this.saveState();
     if (this.viewMode === 'corridor') this.renderView();
     this.renderHUD();
+
+    // Celebrate the new arrival with the painted modal. Fires the arrival
+    // overlay over the running scene — the player picks a welcome gesture
+    // which nudges bond (and for the treat, hunger too).
+    this.openArrivalOverlay(firstNew);
+  }
+
+  /**
+   * Mount the HTML Arrival plaque as an iframe overlay over Phaser. The
+   * player's welcome choice applies a small bond bonus to the new animal.
+   */
+  private openArrivalOverlay(animal: Animal): void {
+    const unmount = mountInGame('arrival', {
+      onAction: (action) => {
+        const applyAndClose = (bondBonus: number, hungerDelta = 0) => {
+          const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+          if (idx >= 0) {
+            const a = this.store.animals[idx];
+            this.store.animals[idx] = {
+              ...a,
+              bondLevel: Math.min(100, a.bondLevel + bondBonus),
+              hunger: Math.max(0, Math.min(100, a.hunger + hungerDelta)),
+            };
+          }
+          this.saveState();
+          unmount();
+        };
+        if (action === 'welcome-space') return applyAndClose(0);
+        if (action === 'welcome-hi')    return applyAndClose(2);
+        // Treat: +3 bond AND -5 hunger (in this model 0 = full, so eating
+        // reduces the hunger value — "+5 fullness" in player-speak).
+        if (action === 'welcome-treat') return applyAndClose(3, -5);
+        if (action === 'close')         { unmount(); return; }
+      },
+    }, {
+      animalId: animal.id,
+      animalName: animal.name,
+      species: animal.species,
+      variant: animal.variant ?? '',
+    });
+    this.events.once('shutdown', unmountInGame);
   }
 
   // ── Needs System ────────────────────────────────────────────
@@ -621,12 +667,10 @@ export class GameScene extends Phaser.Scene {
       this.processing = false;
     };
 
-    const doPlay = () => {
-      if (this.processing) return;
-      this.closePopup();
+    const launchPlayScene = (animalToPlayWith: Animal) => {
       this.saveState();
       this.scene.start('PlayScene', {
-        animal,
+        animal: animalToPlayWith,
         allAnimals: this.store.animals,
         onComplete: (updatedAnimals: Animal[], _result: { perfect: boolean }) => {
           this.store.animals = updatedAnimals;
@@ -634,6 +678,28 @@ export class GameScene extends Phaser.Scene {
           this.saveState();
         },
       });
+    };
+
+    const doPlay = () => {
+      if (this.processing) return;
+
+      // Freshest snapshot of the animal — important in case another
+      // handler mutated them while the popup was open.
+      const liveAnimal = this.store.animals.find((a) => a.id === animal.id) ?? animal;
+      const availableToys = getAvailableToys(liveAnimal);
+
+      // Fast-path: one toy only (just species default) → skip the
+      // picker entirely. Maintains back-compat for animals without
+      // an arrivalToy or explicit favouriteToy.
+      if (availableToys.length <= 1) {
+        this.closePopup();
+        launchPlayScene(liveAnimal);
+        return;
+      }
+
+      // Multi-toy path: close popup + mount the picker.
+      this.closePopup();
+      this.openToyPicker(liveAnimal, launchPlayScene);
     };
 
     const doWalk = () => {
@@ -777,7 +843,12 @@ export class GameScene extends Phaser.Scene {
       onPlay: () => { doPlay(); this.tickClock('play'); },
       onWalk: doWalk,
       onGroom: doGroom,
-      onHeal: doVetVisit,
+      onHeal: () => {
+        // New: route to the HTML Vet popup with treatment choices.
+        // doVetVisit is kept as a fallback for onTakeToVet below.
+        this.closePopup();
+        this.openVetOverlay(animal);
+      },
       onTakeToVet: doVetVisit,
       onVisitGarden: () => {
         this.closePopup();
@@ -790,6 +861,45 @@ export class GameScene extends Phaser.Scene {
       onOpenPaths: () => {
         this.closePopup();
         this.openPathsOverlay(animal);
+      },
+    });
+  }
+
+  /**
+   * Mount the in-Phaser toy picker on top of the current view. The
+   * player selects a toy (persisted as `animal.favouriteToy`) and then
+   * taps "Play now!" to launch PlayScene. Back-tap dismisses without
+   * launching the mini-game.
+   *
+   * Runs in its own container so we can tear it down cleanly without
+   * disturbing the underlying corridor/room render.
+   */
+  private openToyPicker(animal: Animal, launchPlayScene: (a: Animal) => void): void {
+    const pickerContainer = this.add.container(0, 0).setDepth(900);
+
+    const dismiss = () => {
+      pickerContainer.destroy(true);
+    };
+
+    let currentAnimal = animal;
+
+    renderToyPicker(this, pickerContainer, currentAnimal, {
+      onPick: (toyId) => {
+        const idx = this.store.animals.findIndex((a) => a.id === currentAnimal.id);
+        if (idx >= 0) {
+          this.store.animals[idx] = { ...this.store.animals[idx], favouriteToy: toyId };
+          currentAnimal = this.store.animals[idx];
+        }
+        this.saveState();
+      },
+      onPlay: () => {
+        const latest = this.store.animals.find((a) => a.id === currentAnimal.id) ?? currentAnimal;
+        dismiss();
+        launchPlayScene(latest);
+      },
+      onBack: () => {
+        dismiss();
+        this.renderView();
       },
     });
   }
@@ -871,6 +981,72 @@ export class GameScene extends Phaser.Scene {
     }, { animalId: animal.id, animalName: animal.name });
     this.events.once('shutdown', unmountInGame);
   }
+
+  /**
+   * Mount the HTML Vet popup over Phaser and wire the three treatment
+   * choices back onto the game state.
+   *
+   *   - treatment-vet  → full heal immediately (costs 20 coins).
+   *   - treatment-home → 70% full heal, 30% stays sick.
+   *   - treatment-rest → marks a rest countdown; heals after ~2 ticks.
+   *
+   * sickAnimals is a `Map<string, IllnessDef>` — we keep that shape for
+   * back-compat with old saves and stash the rest countdown on a side
+   * Map instead of mutating the entry value.
+   */
+  private openVetOverlay(animal: Animal): void {
+    const illness = this.store.sickAnimals.get(animal.id);
+    if (!illness) return;
+
+    const unmount = mountInGame('vet', {
+      onAction: (action) => {
+        if (action === 'close') { unmount(); return; }
+        if (action === 'treatment-vet') {
+          // Full heal immediately (vet visit equivalent to doVetVisit).
+          this.store.sickAnimals.delete(animal.id);
+          if (this.store.economy?.coins != null && this.store.economy.coins >= 20) {
+            this.store.economy.coins -= 20;
+          }
+          this.checkBadges();
+          this.saveState();
+          this.renderView();
+          unmount();
+          return;
+        }
+        if (action === 'treatment-home') {
+          // 70% chance full heal, 30% stays sick.
+          if (Math.random() < 0.7) {
+            this.store.sickAnimals.delete(animal.id);
+            this.checkBadges();
+          }
+          this.saveState();
+          this.renderView();
+          unmount();
+          return;
+        }
+        if (action === 'treatment-rest') {
+          // Mark a heal-after-2-ticks countdown. Tracked on a side Map
+          // so the existing sickAnimals Map<string, IllnessDef> shape
+          // (and old saves) stays untouched.
+          this.restHealCountdown.set(animal.id, 2);
+          this.tickClock('heal');
+          this.saveState();
+          this.renderView();
+          unmount();
+          return;
+        }
+      },
+    }, {
+      animalName: animal.name,
+      animalSpecies: animal.species,
+      animalVariant: animal.variant,
+      illnessName: illness.label?.toLowerCase() ?? 'tummy bug',
+    });
+    this.events.once('shutdown', unmountInGame);
+  }
+
+  /** In-memory rest heal countdown keyed by animal id. MVP: not persisted. */
+  private restHealCountdown: Map<string, number> = new Map();
 
   /** Persist a non-committing aspiration onto the animal. Can be changed. */
   private setAspiration(animal: Animal, aspiration: 'rehome' | 'rewild' | 'stay'): void {
@@ -959,6 +1135,20 @@ export class GameScene extends Phaser.Scene {
    * entry and surface a small toast so Lily sees the world respond.
    */
   private tickClock(task: Parameters<typeof recordCareTask>[1]): void {
+    // Decrement any pending rest-heal countdowns set by the Vet popup
+    // 'treatment-rest' action. When a countdown hits zero, the animal
+    // is healed (sickness cleared from the sickAnimals Map).
+    if (this.restHealCountdown?.size) {
+      for (const [id, remaining] of this.restHealCountdown) {
+        const next = remaining - 1;
+        if (next <= 0) {
+          this.restHealCountdown.delete(id);
+          this.store.sickAnimals.delete(id);
+        } else {
+          this.restHealCountdown.set(id, next);
+        }
+      }
+    }
     if (!this.store.timeProgress) return;
     const result = recordCareTask(this.store.timeProgress, task);
     this.store.timeProgress = result.progress;
@@ -1434,9 +1624,30 @@ export class GameScene extends Phaser.Scene {
     const newBadges = evaluateBadges(stats, stats.extras, this.store.earnedBadges);
     if (newBadges.length > 0) {
       this.store.earnedBadges.push(...newBadges);
-      // Show badge notification for first new badge
-      this.showBadgeNotification(newBadges[0]);
+      // Painted celebration modal replaces the old toast for badge earns.
+      this.openBadgeOverlay(newBadges[0]);
     }
+  }
+
+  /**
+   * Mount the HTML Badge-earned plaque over Phaser. Single HURRAY button;
+   * dismissal saves + unmounts.
+   */
+  private openBadgeOverlay(badgeCode: string): void {
+    const def = BADGE_DEFINITIONS.find((b) => b.code === badgeCode);
+    const unmount = mountInGame('badge', {
+      onAction: (action) => {
+        if (action === 'badge-seen' || action === 'close') {
+          this.saveState();
+          unmount();
+        }
+      },
+    }, {
+      badgeCode,
+      badgeName: def?.name ?? badgeCode,
+      badgeDescription: def?.description ?? '',
+    });
+    this.events.once('shutdown', unmountInGame);
   }
 
   /** Thin wrapper — delegates to the extracted CelebrationViews module. */

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Badge Earned popup v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --honey-amber: #e3b04b;
+    --ink: #3a3a3a;
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
+    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #222; }
+  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+  body.embed { background: #fef9ef; }
+  body.embed .vp-bar { display: none; }
+  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
+  body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .vp-bar button {
+    background: #444; color: #fff; border: 1px solid #555;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+  }
+  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+
+  .device-frame {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: auto;
+  }
+  .device {
+    background: var(--cream-wash);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s, height 0.3s;
+    flex-shrink: 0;
+  }
+  .device[data-size="iphone"]    { width: 390px;  height: 844px; }
+  .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
+  .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
+  .device[data-size="desktop"]   { width: 1280px; height: 800px; }
+
+  .welcome {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+    container-type: size;
+    container-name: welcome;
+  }
+  /* Warm, bright celebratory bg — saturated summer-morning garden */
+  .welcome::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+    background-size: cover; background-position: center;
+    filter: saturate(1.3) brightness(1.08);
+    transform: scale(1.05);
+    z-index: 0;
+  }
+  /* Warm golden radial wash instead of dark overlay */
+  .welcome::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center,
+      rgba(255, 235, 170, 0.25) 0%,
+      rgba(255, 210, 120, 0.15) 40%,
+      rgba(180, 120, 40, 0.25) 100%);
+    z-index: 1;
+  }
+
+  /* Celebration stack — trophy on top, plaque below, centred */
+  .badge-stack {
+    position: absolute; inset: 0;
+    margin: auto;
+    width: min(92%, 400px);
+    max-height: 90%;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center;
+    z-index: 20;
+    gap: clamp(10px, 1.8cqh, 18px);
+    animation: stackDrop 0.6s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes stackDrop {
+    0%   { transform: translateY(-40px) scale(0.8); opacity: 0; }
+    60%  { transform: translateY(4px)   scale(1.05); opacity: 1; }
+    100% { transform: translateY(0)     scale(1);    opacity: 1; }
+  }
+
+  /* Giant painted trophy */
+  .badge-trophy-wrap {
+    position: relative;
+    width: clamp(120px, 20cqh, 180px);
+    height: clamp(120px, 20cqh, 180px);
+    display: flex; align-items: center; justify-content: center;
+    filter: drop-shadow(3px 5px 8px rgba(0,0,0,0.35));
+    animation: trophyBounce 2s ease-in-out infinite;
+  }
+  @keyframes trophyBounce {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50%      { transform: translateY(-6px) rotate(3deg); }
+  }
+  .badge-trophy {
+    font-size: clamp(90px, 15cqh, 140px);
+    line-height: 1;
+    text-shadow:
+      0 0 20px rgba(255, 220, 120, 0.8),
+      0 0 40px rgba(255, 200, 80, 0.5);
+  }
+  /* Sparkle decorations orbiting the trophy */
+  .sparkle {
+    position: absolute;
+    font-size: clamp(18px, 3cqh, 26px);
+    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.2));
+    animation: sparkleTwinkle 1.4s ease-in-out infinite;
+  }
+  .sparkle-tl { top: 4%;  left: 4%;  animation-delay: 0s; }
+  .sparkle-tr { top: 8%;  right: 6%; animation-delay: 0.4s; }
+  .sparkle-bl { bottom: 18%; left: 10%; animation-delay: 0.8s; }
+  .sparkle-br { bottom: 22%; right: 8%; animation-delay: 1.1s; }
+  @keyframes sparkleTwinkle {
+    0%, 100% { transform: scale(1) rotate(0deg);    opacity: 0.9; }
+    50%      { transform: scale(1.3) rotate(20deg); opacity: 1; }
+  }
+
+  /* Plaque — same wooden pattern but smaller */
+  .badge-plaque {
+    position: relative;
+    width: 100%;
+    padding: clamp(16px, 2.6cqh, 24px) clamp(18px, 3cqw, 26px) clamp(18px, 2.8cqh, 26px);
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: 3px solid #8a5a2a;
+    border-radius: 12px;
+    box-shadow:
+      0 12px 28px rgba(0,0,0,0.5),
+      inset 0 0 24px rgba(0,0,0,0.25),
+      inset 0 3px 0 rgba(255,240,210,0.2);
+    transform: rotate(-0.8deg);
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .badge-plaque::before, .badge-plaque::after {
+    content: '';
+    position: absolute; top: 10px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .badge-plaque::before { left: 12px; }
+  .badge-plaque::after  { right: 12px; }
+
+  .badge-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(26px, 4.4cqh, 36px);
+    letter-spacing: 0.02em;
+    text-align: center;
+    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
+    line-height: 1.1;
+  }
+  .badge-name {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-style: italic;
+    font-weight: 700;
+    font-size: clamp(22px, 3.4cqh, 30px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    text-align: center;
+    margin-top: clamp(6px, 1cqh, 10px);
+    line-height: 1.1;
+  }
+  .badge-description {
+    font-family: var(--sign-font);
+    font-size: clamp(13px, 1.9cqh, 16px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    text-align: center;
+    margin-top: clamp(6px, 1cqh, 10px);
+    opacity: 0.95;
+    line-height: 1.3;
+    padding: 0 clamp(4px, 1cqw, 10px);
+  }
+
+  /* Single big honey-amber button */
+  .hurray-btn {
+    margin-top: clamp(14px, 2.4cqh, 22px);
+    padding: clamp(16px, 2.8cqh, 22px) clamp(28px, 5cqw, 44px);
+    font-family: var(--sign-title-font);
+    font-size: clamp(22px, 3.6cqh, 30px);
+    font-weight: 700;
+    color: #fffbe8;
+    text-shadow: 2px 3px 0 rgba(0,0,0,0.5);
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 32%,
+        rgba(0,0,0,0.32) 32.5%, rgba(0,0,0,0.32) 33%,
+        rgba(255,240,210,0.2) 33.3%, transparent 33.9%,
+        transparent 66%,
+        rgba(0,0,0,0.32) 66.5%, rgba(0,0,0,0.32) 67%,
+        rgba(255,240,210,0.2) 67.3%, transparent 67.9%,
+        transparent 100%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 50%, #a2651c 100%);
+    border: 3px solid #9a6528;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow:
+      inset 0 0 24px rgba(0,0,0,0.25),
+      inset 0 3px 0 rgba(255,240,210,0.25),
+      0 8px 16px rgba(0,0,0,0.35);
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: clamp(8px, 1.5cqw, 14px);
+    transform: rotate(0.8deg);
+    transition: transform 0.1s;
+    animation: hurrayPulse 2s ease-in-out infinite;
+  }
+  @keyframes hurrayPulse {
+    0%, 100% { transform: rotate(0.8deg) scale(1); }
+    50%      { transform: rotate(0.8deg) scale(1.04); }
+  }
+  .hurray-btn:hover  { transform: rotate(0.8deg) translateY(-2px); }
+  .hurray-btn:active { transform: rotate(0.8deg) translateY(2px); }
+  .hurray-btn .spark {
+    font-size: clamp(24px, 4cqh, 32px);
+    text-shadow: none;
+    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.25));
+  }
+
+  /* Ambient confetti sparkles drifting over the whole viewport */
+  .confetti {
+    position: absolute;
+    top: -5%;
+    font-size: clamp(14px, 2.4cqh, 22px);
+    pointer-events: none;
+    opacity: 0;
+    animation: confettiDrift linear infinite;
+    z-index: 15;
+    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.15));
+  }
+  @keyframes confettiDrift {
+    0%   { transform: translateY(-20px) translateX(0) rotate(0deg); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateY(110cqh) translateX(40px) rotate(720deg); opacity: 0; }
+  }
+
+  .welcome-inner { position: relative; z-index: 5; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+
+<div class="vp-bar">
+  <strong>Badge Earned popup v1</strong>
+  <span>·</span>
+  <button data-size="iphone">📱 iPhone</button>
+  <button data-size="ipad-p" class="on">📱 iPad P</button>
+  <button data-size="ipad-l">📱 iPad L</button>
+  <button data-size="desktop">🖥 Desktop</button>
+  <span class="hint">(warm garden bg · trophy · confetti)</span>
+</div>
+
+<div class="device-frame">
+  <div class="device" id="device" data-size="ipad-p">
+    <div class="welcome">
+      <div class="welcome-inner" id="confettiRoot">
+
+        <div class="badge-stack">
+          <div class="badge-trophy-wrap">
+            <div class="badge-trophy">🏆</div>
+            <span class="sparkle sparkle-tl">✨</span>
+            <span class="sparkle sparkle-tr">✨</span>
+            <span class="sparkle sparkle-bl">✨</span>
+            <span class="sparkle sparkle-br">✨</span>
+          </div>
+
+          <div class="badge-plaque">
+            <div class="badge-title">Badge earned!</div>
+            <div class="badge-name" id="badgeName">First Rescue</div>
+            <div class="badge-description" id="badgeDescription">
+              You welcomed your first animal to A.R.C.
+            </div>
+            <button class="hurray-btn" id="hurrayBtn">
+              <span class="spark">✨</span>
+              <span>HURRAY!</span>
+              <span class="spark">✨</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const device = document.getElementById('device');
+  for (const btn of document.querySelectorAll('.vp-bar button[data-size]')) {
+    btn.addEventListener('click', () => {
+      for (const b of document.querySelectorAll('.vp-bar button[data-size]')) b.classList.remove('on');
+      btn.classList.add('on');
+      device.dataset.size = btn.dataset.size;
+    });
+  }
+
+  // Spawn ambient confetti — ✨ glyphs drifting across the viewport.
+  const sparkGlyphs = ['✨', '⭐', '🌟', '✨', '✨'];
+  const confettiRoot = document.getElementById('confettiRoot');
+  function spawnConfetti() {
+    for (let i = 0; i < 18; i++) {
+      const el = document.createElement('span');
+      el.className = 'confetti';
+      el.textContent = sparkGlyphs[Math.floor(Math.random() * sparkGlyphs.length)];
+      el.style.left = (Math.random() * 100) + '%';
+      el.style.animationDuration = (4 + Math.random() * 5) + 's';
+      el.style.animationDelay = (Math.random() * 4) + 's';
+      el.style.fontSize = (12 + Math.random() * 14) + 'px';
+      confettiRoot.appendChild(el);
+    }
+  }
+  spawnConfetti();
+
+  const params = new URLSearchParams(location.search);
+  if (params.has('embed')) {
+    document.body.classList.add('embed');
+    const send = (type, payload) => {
+      try { parent.postMessage({ source: 'arc-badge', type, payload }, '*'); } catch (_) {}
+    };
+    document.getElementById('hurrayBtn').addEventListener('click', () => send('badge-seen'));
+
+    window.addEventListener('message', (e) => {
+      const msg = e.data;
+      if (!msg || msg.source !== 'arc-game-host' || msg.type !== 'init') return;
+      const { badgeName, badgeDescription } = msg.payload || {};
+      if (badgeName) document.getElementById('badgeName').textContent = badgeName;
+      if (badgeDescription) document.getElementById('badgeDescription').textContent = badgeDescription;
+    });
+  }
+</script>
+</body>
+</html>

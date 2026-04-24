@@ -15,7 +15,9 @@
  * the host scene's onAction handler.
  */
 
-export type InGamePage = 'paths' | 'adopters' | 'adoption' | 'rewilding' | 'conflict' | 'visitor';
+export type InGamePage =
+  | 'paths' | 'adopters' | 'adoption' | 'rewilding' | 'conflict' | 'visitor' | 'vet'
+  | 'arrival' | 'badge';
 
 export type InGameAction =
   | 'close'
@@ -31,7 +33,14 @@ export type InGameAction =
   | 'give-space'
   | 'split-toy'
   | 'treat'
-  | 'visitor-seen';
+  | 'visitor-seen'
+  | 'treatment-rest'
+  | 'treatment-vet'
+  | 'treatment-home'
+  | 'welcome-space'
+  | 'welcome-hi'
+  | 'welcome-treat'
+  | 'badge-seen';
 
 export interface InGameOverlayHandlers {
   onAction: (action: InGameAction, payload?: Record<string, unknown>) => void;
@@ -44,11 +53,15 @@ const PAGE_URLS: Record<InGamePage, string> = {
   rewilding: '/admin/mockup-rewilding.html?embed=1',
   conflict:  '/admin/mockup-conflict.html?embed=1',
   visitor:   '/admin/mockup-visitor.html?embed=1',
+  vet:       '/admin/mockup-vet.html?embed=1',
+  arrival:   '/admin/mockup-arrival.html?embed=1',
+  badge:     '/admin/mockup-badge.html?embed=1',
 };
 
 /** Valid postMessage source names we'll forward. */
 const VALID_SOURCES = new Set([
-  'arc-game', 'arc-auth', 'arc-adopters', 'arc-adoption', 'arc-rewild', 'arc-visitor',
+  'arc-game', 'arc-auth', 'arc-adopters', 'arc-adoption', 'arc-rewild', 'arc-visitor', 'arc-vet',
+  'arc-arrival', 'arc-badge',
 ]);
 
 let activeFrame: HTMLIFrameElement | null = null;

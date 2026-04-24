@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Arrival popup v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --honey-amber: #e3b04b;
+    --ink: #3a3a3a;
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
+    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #222; }
+  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+  body.embed { background: #fef9ef; }
+  body.embed .vp-bar { display: none; }
+  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
+  body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .vp-bar button {
+    background: #444; color: #fff; border: 1px solid #555;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+  }
+  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+
+  .device-frame {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: auto;
+  }
+  .device {
+    background: var(--cream-wash);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s, height 0.3s;
+    flex-shrink: 0;
+  }
+  .device[data-size="iphone"]    { width: 390px;  height: 844px; }
+  .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
+  .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
+  .device[data-size="desktop"]   { width: 1280px; height: 800px; }
+
+  .welcome {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+    container-type: size;
+    container-name: welcome;
+  }
+  .welcome::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: url('/assets/bg/bg-room-generic.png');
+    background-size: cover; background-position: center;
+    filter: blur(3px) saturate(0.85) brightness(0.85);
+    transform: scale(1.05);
+    z-index: 0;
+  }
+  .welcome::after {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(26, 18, 10, 0.42);
+    z-index: 1;
+  }
+
+  /* Arrival plaque — same pattern as conflict, with delivery-box flag */
+  .arrival-plaque {
+    position: absolute; inset: 0;
+    margin: auto;
+    width: min(92%, 460px);
+    max-height: 90%;
+    padding: clamp(18px, 3cqh, 28px) clamp(18px, 3cqw, 28px) clamp(20px, 3.2cqh, 30px);
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: 3px solid #8a5a2a;
+    border-radius: 12px;
+    box-shadow:
+      0 12px 28px rgba(0,0,0,0.5),
+      inset 0 0 24px rgba(0,0,0,0.25),
+      inset 0 3px 0 rgba(255,240,210,0.2);
+    transform: rotate(-0.8deg);
+    z-index: 20;
+    display: flex; flex-direction: column; align-items: center;
+    animation: plaqueDrop 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes plaqueDrop {
+    0%   { transform: translateY(-60px) rotate(-4deg); opacity: 0; }
+    60%  { transform: translateY(4px)   rotate(0.5deg); opacity: 1; }
+    100% { transform: translateY(0)     rotate(-0.8deg); opacity: 1; }
+  }
+  /* Iron nails at the top corners */
+  .arrival-plaque::before, .arrival-plaque::after {
+    content: '';
+    position: absolute; top: 10px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .arrival-plaque::before { left: 12px; }
+  .arrival-plaque::after  { right: 12px; }
+
+  /* Delivery-box flag stamped top-right */
+  .arrival-flag {
+    position: absolute;
+    top: -24px; right: -16px;
+    width: clamp(52px, 8cqh, 72px);
+    height: clamp(52px, 8cqh, 72px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #7ec47a 0%, #4a9350 50%, #22581f 100%);
+    border: 3px solid #1d5c2a;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(28px, 4.4cqh, 40px);
+    transform: rotate(-10deg);
+    animation: flagPulse 1.6s ease-in-out infinite;
+    filter: drop-shadow(1px 2px 0 rgba(0,0,0,0.3));
+  }
+  @keyframes flagPulse {
+    0%, 100% { transform: rotate(-10deg) scale(1); }
+    50%      { transform: rotate(-10deg) scale(1.1); }
+  }
+
+  /* Single new-arrival animal, centred, larger than conflict sprites */
+  .arrival-scene {
+    position: relative;
+    width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: clamp(6px, 1cqh, 14px) 0 clamp(14px, 2cqh, 20px);
+  }
+  .arrival-anim {
+    height: clamp(140px, 22cqh, 200px);
+    width: auto;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));
+    animation: arrivalWobble 2.2s ease-in-out infinite;
+    transform-origin: bottom center;
+  }
+  @keyframes arrivalWobble {
+    0%, 100% { transform: rotate(-2deg) translateY(0); }
+    50%      { transform: rotate(2deg)  translateY(-4px); }
+  }
+
+  .arrival-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(24px, 4cqh, 34px);
+    letter-spacing: 0.02em;
+    text-align: center;
+    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
+    line-height: 1.1;
+  }
+  .arrival-subtitle {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-style: italic;
+    font-weight: 700;
+    color: #fffbe8;
+    font-size: clamp(17px, 2.6cqh, 22px);
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    text-align: center;
+    margin-top: clamp(4px, 0.8cqh, 8px);
+    margin-bottom: clamp(14px, 2.4cqh, 22px);
+    line-height: 1.25;
+    padding: 0 clamp(4px, 1cqw, 10px);
+  }
+
+  .arrival-choices {
+    display: flex; flex-direction: column; width: 100%;
+    gap: clamp(8px, 1.4cqh, 12px);
+  }
+  .choice-pill {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: clamp(10px, 2cqw, 14px);
+    align-items: center;
+    padding: clamp(8px, 1.3cqh, 12px) clamp(14px, 2.6cqw, 20px);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    text-align: left;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    border: 2px solid;
+    box-shadow:
+      inset 0 0 10px rgba(0,0,0,0.2),
+      inset 0 2px 0 rgba(255,240,210,0.2),
+      0 3px 6px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+  }
+  .choice-pill:hover { transform: translateY(-2px); }
+  .choice-emoji {
+    font-size: clamp(24px, 3.8cqh, 32px);
+    grid-row: 1 / span 2;
+    line-height: 1;
+    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.25));
+  }
+  .choice-label {
+    font-weight: 700;
+    font-size: clamp(15px, 2.2cqh, 18px);
+    line-height: 1.15;
+  }
+  .choice-hint {
+    font-size: clamp(12px, 1.6cqh, 14px);
+    font-family: 'Caveat', 'Kalam', cursive;
+    opacity: 0.9;
+    line-height: 1.1;
+  }
+  .choice-amber {
+    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+    border-color: #7a4b15;
+  }
+  .choice-sage {
+    background: linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
+    border-color: #3c5238;
+  }
+  .choice-cream {
+    background: linear-gradient(180deg, #fff0cc 0%, #e7c97a 55%, #b89246 100%);
+    border-color: #7a5a22;
+    color: #3a2618;
+    text-shadow: 1px 1px 0 rgba(255,240,210,0.6);
+  }
+  .choice-cream .choice-hint { color: #6b4820; }
+
+  .welcome-inner {
+    position: relative; z-index: 5;
+    width: 100%; height: 100%;
+  }
+  .top-strip {
+    position: absolute; top: clamp(10px, 2cqh, 18px);
+    right: clamp(12px, 3cqw, 24px);
+    z-index: 25;
+  }
+  .audio-btn {
+    width: clamp(36px, 5.5cqh, 44px); height: clamp(36px, 5.5cqh, 44px);
+    background: rgba(255,255,255,0.85);
+    border: 2px solid rgba(46,139,87,0.3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: clamp(16px, 2.4cqh, 20px);
+  }
+</style>
+</head>
+<body>
+
+<div class="vp-bar">
+  <strong>Arrival popup v1</strong>
+  <span>·</span>
+  <button data-size="iphone">📱 iPhone</button>
+  <button data-size="ipad-p" class="on">📱 iPad P</button>
+  <button data-size="ipad-l">📱 iPad L</button>
+  <button data-size="desktop">🖥 Desktop</button>
+  <span class="hint">(delivery-box flag · single arrival sprite)</span>
+</div>
+
+<div class="device-frame">
+  <div class="device" id="device" data-size="ipad-p">
+    <div class="welcome">
+      <div class="welcome-inner">
+        <div class="top-strip">
+          <button class="audio-btn" aria-label="Toggle sound">🔊</button>
+        </div>
+
+        <div class="arrival-plaque">
+          <div class="arrival-flag">📮</div>
+          <div class="arrival-scene">
+            <img class="arrival-anim" id="arrivalAnim"
+                 src="/assets/animals/bunny-lionhead-arriving.png" alt="">
+          </div>
+          <div class="arrival-title">A new arrival!</div>
+          <div class="arrival-subtitle" id="arrivalSubtitle">
+            Someone just dropped off a little bunny. They look a bit scared…
+          </div>
+          <div class="arrival-choices">
+            <button class="choice-pill choice-amber" data-action="welcome-space">
+              <span class="choice-emoji">🌿</span>
+              <span class="choice-label">Give them space</span>
+              <span class="choice-hint">Let them settle in their own time</span>
+            </button>
+            <button class="choice-pill choice-sage" data-action="welcome-hi">
+              <span class="choice-emoji">👋</span>
+              <span class="choice-label">Say hi gently</span>
+              <span class="choice-hint">Soft voice, slow hand</span>
+            </button>
+            <button class="choice-pill choice-cream" data-action="welcome-treat">
+              <span class="choice-emoji">🍪</span>
+              <span class="choice-label">Offer a treat</span>
+              <span class="choice-hint">Warm welcome!</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const device = document.getElementById('device');
+  for (const btn of document.querySelectorAll('.vp-bar button[data-size]')) {
+    btn.addEventListener('click', () => {
+      for (const b of document.querySelectorAll('.vp-bar button[data-size]')) b.classList.remove('on');
+      btn.classList.add('on');
+      device.dataset.size = btn.dataset.size;
+    });
+  }
+
+  const params = new URLSearchParams(location.search);
+  if (params.has('embed')) {
+    document.body.classList.add('embed');
+    const send = (type) => {
+      try { parent.postMessage({ source: 'arc-arrival', type }, '*'); } catch (_) {}
+    };
+    document.querySelectorAll('.choice-pill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        if (action) send(action);
+      });
+    });
+
+    // Accept init payload { species, variant } to swap sprite + subtitle.
+    window.addEventListener('message', (e) => {
+      const msg = e.data;
+      if (!msg || msg.source !== 'arc-game-host' || msg.type !== 'init') return;
+      const { species, variant } = msg.payload || {};
+      if (species && variant) {
+        const img = document.getElementById('arrivalAnim');
+        img.src = `/assets/animals/${species}-${variant}-arriving.png`;
+      }
+      if (species) {
+        document.getElementById('arrivalSubtitle').textContent =
+          `Someone just dropped off a little ${species}. They look a bit scared…`;
+      }
+    });
+  }
+</script>
+</body>
+</html>
