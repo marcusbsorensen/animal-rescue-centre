@@ -257,6 +257,44 @@ Marcus's note (2026-04-24): the PTV world map needs destinations beyond the thre
 - Rewards: coins + unique trophies / rosettes (decorative, display in Centre), prestige points, occasionally adopter-interest spikes (families saw the animal on TV).
 - Win conditions feed off bond level, skill-training progress, happiness, and specific trained tricks — so pet shows are a *consequence* of good care, not a separate grind.
 
+### Setting — modelled on Birchington-on-Sea, Kent
+
+Marcus's note (2026-04-24): the compact city is modelled on **Birchington-on-Sea**, the Kent coastal village where Marcus and Lily actually live. Not a generic seaside-resort stereotype — the real place has the right mix of features: North Sea coastline, chalk cliffs, four sandy bays, a large country estate (Quex Park), a 13th-century church, farmland behind, and it sits between the larger towns of Herne Bay and Margate on the Isle of Thanet. Population ~10,500 — genuinely compact.
+
+Lily being able to recognise her home town in the game is part of the point. Naming is open (full treatment as "Birchington-on-Sea" vs a light fictionalisation like "Birchbay-on-Sea" — both preserve recognisability; Marcus to pick).
+
+#### Landmark → game-world mapping (first pass)
+
+| Real Birchington feature | In-game role |
+|---|---|
+| **Minnis Bay** (western sandy bay, paddling pool, sailing) | Family beach area — pet-show fête venue, dog walks, gentle coastal drives |
+| **Grenham Bay / Beresford Gap / Epple Bay** | Smaller beaches — chalk cliffs, sea caves, cliff stacks | Sea Cliffs rewilding habitat (parrots / seabirds) |
+| **Chalk cliffs + sea caves** between bays | Rewilding habitat for seabirds; visual signature of the coastline |
+| **Quex Park Estate** (country house, deer park, grounds) | The A.R.C. itself — the Centre is set in an estate-like grounds with outbuildings |
+| **Powell-Cotton Museum** (inside Quex Park) | Story flavour — possible skill-training / education destination |
+| **Waterloo Tower** (Quex Park bell tower, 1818) | Landmark on the map, visible on the horizon; maybe a pet-show venue or Centre flavour |
+| **All Saints' Church** (13th-century, Rossetti's grave) | Village-heart pin — visual anchor, possible adoption delivery route landmark |
+| **Farmland inland / south of village** | Bramble Farm supply run — the real fields Marcus drives past |
+| **Train station / village centre** | Adopter-household cluster, pet shops, the Depot shed tucked behind it |
+| **North Sea horizon** | Backdrop, harbour/Cove Harbour implied further along the coast toward Margate |
+| **Road toward Margate / Herne Bay** | Outskirts drives; leads to specialist destinations (Pinebark Medical etc) |
+
+#### Verify with Marcus before finalising
+
+The mapping above is a best-guess sketch from web-sourced geography. Before committing to art or map coords, Marcus should confirm / correct:
+
+- Which real landmarks Lily knows best (those get the plumpest cameo).
+- Whether Quex-as-the-Centre feels right or is too "real" — A.R.C. may want a fictional-but-nearby estate instead so it doesn't collide with the museum.
+- What to call Centre-invented locations that don't have Birchington analogues (Pinebark Medical, Pet Show venues, prosthetics vet, training academies).
+- Whether to name streets recognisably (Minnis Road, Station Road, etc.) or keep them generic.
+- Any family / local in-jokes that should land on the map (a favourite cafe? a park the family walks?).
+
+#### Consequences for art + music
+
+- **Art direction**: the game-world reference photos should include real Birchington shots (chalk cliffs, Minnis Bay slipway, Quex tower) so Manus / GPT-Image can match. Red-brick Victorian seaside architecture, not pastel-Cornwall stereotypes.
+- **Weather**: North Sea weather — wind, mizzle, bright crisp days, winter storms. Reinforces the PTV weather-aware-vehicle beat.
+- **Wildlife reference**: real local species (herring gulls, peregrines on the cliffs, hedgehogs in hedgerows, badgers in Quex grounds) can shape which animals populate the rewilding habitats.
+
 ### Living world — households visible on the map + out walking
 
 Marcus's note (2026-04-24):
