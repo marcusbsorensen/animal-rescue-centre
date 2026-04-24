@@ -307,3 +307,21 @@ export {
 export type { SpeciesFact } from './species-facts';
 
 export * from './crate-stacking';
+export {
+  CHARMS,
+  initCharmsStore,
+  recordCharmEvent,
+  isCharmUnlocked,
+  getUnlockedCharms,
+  equipCharm,
+  unequipCharm,
+  getDefaultCharmForVehicle,
+} from './charms';
+export type {
+  CharmId,
+  CharmDef,
+  CharmUnlockRule,
+  CharmUnlockEvent,
+  CharmVehicle,
+  CharmsStoreSlice,
+} from './charms';
