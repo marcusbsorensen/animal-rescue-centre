@@ -94,6 +94,20 @@ Some cast members are too fond of animals to adopt just one. Their defining trai
 | **Amara** | Kumar-Ishii family #13 | 9yo tomboy, already grew up with an ARC cat, mum is a vet; climbs every tree at the centre looking for cat-friendly perches | Unlocks **second concurrent rescue slot** for cats |
 | **Kofi** | Grandpa Theo's grandkids #14 | 10yo weekend visitor with his grandpa; reads every animal care book in the library | Unlocks **new species slot** (his request determines which — parrot or snake typically) |
 
+#### Apprentice personality + face notes (Marcus, 2026-04-24)
+
+These are the canonical personality + expression notes for sprite / portrait commissions. Pulled together after a first walking-pose commission drifted into generic-cartoon-kid territory.
+
+- **Rhubarb** — 8 years old. **Cool & cynical** vibe — a slight knowing smirk, not a big grin. Genderqueer androgynous, unruly long blonde hair tumbling past the shoulders, army-camo cargo shorts, skater Converse, rock-band tee, headphones round neck. Skater-rocker energy, dry humour, sees through adults' nonsense but fundamentally kind. Think "tween who's already decided the world is mostly ridiculous but still shows up for the animals."
+- **Amara** — 9 years old. **Warm & friendly** — big smile is right for her, open and easy. Tomboy, climbs everything, covered in leaves. Dark curly hair, warm brown skin, casual activewear. Enthusiastic, curious, slightly chaotic good-energy.
+- **Kofi** — 10 years old. **Geeky** — round glasses (always preserved), earnest slightly-awkward smile, knows every animal fact, proud to be the reader. Short dark hair, warm brown skin, soft-coloured jumper + shorts. Not super-confident in body language — stands a little carefully.
+
+#### Style-anchor rule for all cast sprite commissions
+
+**ALWAYS include the ISO 2575 equivalent of our style rule in every sprite brief: anchor to the painted-watercolour treatment of the existing cast portraits, explicitly blocklist manga / anime / chibi / big-eyes / vector / cartoon-sweet.** The rest of the game uses Julia Donaldson / Raymond Briggs / Aardman-adjacent illustration — small realistic eyes set into soft painted faces, warm ink outlines, watercolour washes, storybook-warmth rather than cartoon-sweetness. The first walking-pose OpenAI commission drifted into generic anime-kid territory; future briefs must hard-anchor to the existing in-game portraits to prevent drift.
+
+See `docs/manus-sprite-rules.md` for the full sprite-briefing rules.
+
 Apprentices don't replace staff — they shadow the player. In gameplay terms they bring small bonuses (faster feeding, gentler arrival calming, occasional found-items during cleaning).
 
 ### Special: Rhubarb + Lily

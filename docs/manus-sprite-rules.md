@@ -53,11 +53,15 @@ Defaults unless a brief overrides:
 - **Clearance**: ≥10 % empty space above head + below feet for full-body sprites. Manus tends to crop tightly if not told; the crop-regen task of 2026-04-24 exists only because this rule was implicit, not explicit.
 - **Filenames**: exact filenames specified in the brief, one per expected sprite. Manus occasionally invents filenames; the brief should always say "Filenames (exact): ..." and enumerate.
 
-## Rule 4: Style-anchoring paragraph
+## Rule 4: Style-anchoring paragraph (tightened 2026-04-24)
 
-For painted-storybook work, paste this paragraph verbatim:
+For painted-storybook work, paste this paragraph verbatim. The update — after the first walking-pose commission drifted into generic-anime-kid territory — adds explicit blocklist language and stronger positive anchors.
 
-> Painted watercolour storybook style, matching the existing cast portraits and animal sprites. Warm ink outlines + soft colour washes. Think Julia Donaldson / Sarah & Duck / Axel Scheffler illustration. Loose painted imperfections welcome. **AVOID:** photorealism, anime, vector flat-shading, sci-fi / cyberpunk, racing-game HUD aesthetics, overly cute saccharine cartoon, neon / Blade Runner palettes.
+> **Style**: painted watercolour storybook treatment matching the existing in-game cast portraits exactly. Warm ink outlines, soft colour washes, painted imperfections. The reference set is Julia Donaldson, Raymond Briggs, Aardman-adjacent illustration — **small realistic eyes set into soft painted faces**, not big-eyed anime. Storybook warmth, not cartoon sweetness. Natural human proportions even for child characters — NOT chibi, NOT big-headed.
+>
+> **BLOCKLIST** (do not render in this style — will be rejected): anime · manga · chibi · big-eyed kawaii · vector flat-shading · comic-book cel-shading · photorealism · sci-fi · cyberpunk · neon / Blade Runner palettes · racing-game HUD aesthetics · overly cute saccharine Disney · generic Pixar-style 3D.
+>
+> The **face treatment** matters most. Small eyes, expressive but understated. If you are drawing child characters, do NOT default to big-eyed chibi / anime; instead render faces the way a children's-picture-book illustrator would — natural-proportion heads, eyes small, painted softly.
 
 ## Rule 5: Ask for self-check before delivery
 

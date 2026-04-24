@@ -46,6 +46,12 @@ $pose
 
 $SHARED"
   local out="$WORKDIR/$outname"
+  if [ -s "$out" ]; then
+    echo ">>> SKIP $outname (already exists at $out)"
+    cp "$out" "$STAGE/$outname"
+    echo "    staged -> $STAGE/$outname"
+    return 0
+  fi
   echo ">>> Generating $outname"
   "$REGEN" "$out" "$prompt" "${refs[@]}"
   cp "$out" "$STAGE/$outname"
