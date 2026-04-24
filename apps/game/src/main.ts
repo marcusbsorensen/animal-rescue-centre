@@ -15,6 +15,17 @@ import { PlayScene } from './scenes/PlayScene';
 import { DepotScene } from './scenes/DepotScene';
 import { SupplyRunScene } from './scenes/SupplyRunScene';
 import { AccountScene } from './scenes/AccountScene';
+import { showUpdateBanner } from './ui/UpdateBanner';
+import { registerSW } from 'virtual:pwa-register';
+
+// Show the painted "new version ready!" banner when vite-plugin-pwa
+// detects a waiting service worker. Refresh clicks skip-waiting the SW
+// and reload so the fresh bundle takes over immediately.
+const updateSW = registerSW({
+  onNeedRefresh() {
+    showUpdateBanner(() => updateSW(true));
+  },
+});
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
