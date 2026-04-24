@@ -121,5 +121,81 @@ Rough order — most impactful first.
 
 ---
 
+## ☀️ Second-shift additions (continued after the first report)
+
+You asked "anything else" and challenged me to go at the wishlist.
+Here's the second batch:
+
+### Design
+- **`docs/driving-crate-stacking.md`** — full design doc for the cargo
+  driving game: 5 vehicles (Trikey / Henry / Bea / Big Tilly / Spark),
+  6 crate types per species temperament, a 7×7 compatibility matrix
+  with happy/stressed/blocked levels, arrival-happiness calculation,
+  phased build scope. Flag: you said there were earlier discussions
+  about the driving-game improvements + "chaos outlet" framing — I
+  couldn't find them in the repo, so this doc captures my own
+  pass. Worth a reconciliation pass in the morning to layer in what
+  I missed.
+
+### Code shipped
+- **`game-logic/crate-stacking.ts`** + 32 new tests — the rule engine
+  for the cargo-drive puzzle (compatibility matrix, crate prefs,
+  vehicle defs, grid helpers, arrival-happiness calculator)
+- **`game-logic/destinations.ts`** + 11 tests — 9 destinations around
+  the A.R.C. with level gating + species-to-habitat mapping
+- **`game-logic/charity.ts`** — adoption fees (base 20 + bond + species
+  bonuses, capped 50) + 3 monthly charity grants unlocked by milestones
+- **`game-logic/species-facts.ts`** — ≥3 kid-friendly facts per species,
+  variant-aware picker
+- **`mockup-map.html`** — painted GPS-style world map with 9 destination
+  pins, unlock gating, status flags (NEW! / 💚 Visit / 📮)
+- **Arrival popup** gains a "Did you know?" card below the choice pills
+- **In-game plumbing** for all of the above — InGameOverlay gains the
+  `map` page + `drive-to` action; GameScene gains charity-grant checks
+  on scene boot and adoption-fee credit on commitAdoption
+
+### Art
+- **Simeon & Karo** household #32 — 3 portraits (neutral, greeting,
+  with-bat-toys). Simeon's grey-flecked hair and big-toothy grin are
+  a touch subtle; if you want them louder, easy iteration:
+  ```
+  tools/gpt-image-regen.sh apps/game/public/admin/mockup-assets/cast/32-simeon-karo.png \
+    "<STYLE> ... grey flecks MORE PROMINENT, GRIN showing more teeth ..." \
+    <refs>
+  ```
+- Full Phase-2 cast batch (41 new sprites, greeting + departing-with-
+  pet for every household) already shipped in the first shift
+
+### Manus
+- **Sound commission** — sent 02:19 UTC, Manus acknowledged, no
+  attachments yet (as of 03:55 UTC). Still processing. ⚠️ Cloud-run
+  gotcha — it'll email deliveries back; I've been polling. If they
+  land while you're still asleep, I'll pull them across.
+- **Driving-game art commission** — drafted (in your Gmail Drafts,
+  subject `A.R.C. game — driving game art: vehicles, crates, GPS map,
+  habitat destinations`). **Review the destination list in the brief
+  before sending** — it's 5 vehicles + 6 crates + 1 world map + 5
+  habitat landscapes + 5 road obstacles, budget check needed.
+
+### Numbers
+- 6 more commits tonight (total 12 for the overnight session)
+- 652/652 tests green (was 580, +72 new overnight)
+- Cast now at **32 households** (was 31)
+
+---
+
+## 🗺 Map of today's touchpoints
+
+Gallery: https://animal-rescue-centre.vercel.app/admin/cast-gallery.html
+World map: https://animal-rescue-centre.vercel.app/admin/mockup-map.html
+Vet popup: https://animal-rescue-centre.vercel.app/admin/mockup-vet.html
+Arrival popup (with fact card): https://animal-rescue-centre.vercel.app/admin/mockup-arrival.html
+Badge popup: https://animal-rescue-centre.vercel.app/admin/mockup-badge.html
+Visitor popup: https://animal-rescue-centre.vercel.app/admin/mockup-visitor.html
+Design docs:
+- `docs/driving-crate-stacking.md`
+- `docs/rehoming-cast.md` (now 32 households)
+- `docs/future-features-lily.md` (still the compass)
+
 Enjoy the coffee. 🐾
 — Claude
