@@ -809,6 +809,26 @@ Marcus's note (2026-04-24), carrying Lily's direct design requests. Applies to b
 - `ui-bell.ogg` — horn default tune (first candidate; regen a proper horn-tune set when ready).
 - `music-corridor.ogg` / `music-play.ogg` — PTV ambient (gentle). Supply Run music replaces with the heavy-metal brief below.
 
+### Pre-drive screen vs in-cockpit split (Marcus, 2026-04-24)
+
+Vehicle choice and PTV/Supply-Run mode are set **before** entering the vehicle, on a **pre-drive screen**. Once in the cockpit, those controls are out of the way — the player is focused on driving.
+
+**Pre-drive screen (new):**
+- Choose destination (from the GPS / map).
+- Choose vehicle (only unlocked ones).
+- Choose mode for this trip (PTV for animal transport / Supply Run for cargo-free).
+- Review the adjacency-puzzle / crate-load for PTV trips with 2+ pets.
+- "Let's go!" button.
+
+**Cockpit (in-vehicle):**
+- Road view (dominant).
+- Dashboard with: wheel, speedometer, pedals, ignition, hazard button, horn-in-wheel.
+- **GPS is mounted ON the dashboard** (like a real in-car GPS unit, not a floating overlay over the road). Small painted-screen panel with the route drawn and a "you are here" marker.
+- Cargo-comfort meter (PTV only) as a small dashboard gauge.
+- That's it. No vehicle picker. No mode toggle. No pre-drive options visible during driving.
+
+The v1 mockup violates this — it has vehicle picker + mode toggle on-screen during the "drive", and the GPS floats above the road. Marked for rebuild.
+
 ### Cockpit layout — emulate a real car (Marcus, 2026-04-24)
 
 The v1 cockpit mockup had elements scattered around the screen (pedals bottom-left, ignition bottom-centre, horn bottom-right, wheel centre). That's **wrong**. The layout should actually emulate how a car is laid out so the kid intuits where things are:
