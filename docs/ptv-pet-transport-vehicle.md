@@ -257,6 +257,39 @@ Marcus's note (2026-04-24): the PTV world map needs destinations beyond the thre
 - Rewards: coins + unique trophies / rosettes (decorative, display in Centre), prestige points, occasionally adopter-interest spikes (families saw the animal on TV).
 - Win conditions feed off bond level, skill-training progress, happiness, and specific trained tricks — so pet shows are a *consequence* of good care, not a separate grind.
 
+### Hedgehog crossings — stop the vehicle
+
+Marcus's note (2026-04-24): **hedgehogs occasionally cross the roads and the vehicle must stop for them.**
+
+This is a universal rule across both driving modes — it's not mode-specific. Hitting a hedgehog is off-limits in this game's world.
+
+#### Mechanic
+
+- While driving (PTV **or** Supply Run), a hedgehog trundles onto the road at a random moment, near one of the Bay Road hedgehog-crossing signs.
+- A warning beat plays: the hedgehog-sign lights up, a soft chime, brief on-screen prompt ("🦔 Stop!").
+- Player must **release the accelerator and brake** before reaching the hedgehog.
+- Stop in time → hedgehog trundles safely across → player gets a small **kindness bonus** (+1 happiness for onboard PTV animals; +coin bonus on Supply Runs; unlocks the "Hedgehog Helper" sticker on first save).
+- Fail to stop → **cannot actually hit the hedgehog** (game nudges the vehicle to brake hard at the last moment; the hedgehog is never visibly harmed) but:
+  - Cargo-comfort meter drops significantly (PTV).
+  - Score + coin penalty (Supply Run); neon HUD flashes with an apologetic animation.
+  - A chiding line from the narrator ("Oopsie! We need to watch out for hedgehogs!") — teaches without shaming.
+  - On Supply Runs, repeated misses disable the Smash Spree bonus for the run (kindness still comes first).
+
+#### Why this rule is universal
+
+Supply Runs are the chaos outlet — but the **coherent world** principle means animals are never collateral. A careless driving mode that *could* harm animals would break the game's core message. Hedgehogs crossing the road are the hard line: even when you're letting off steam, you still brake for the little ones.
+
+#### Frequency + variety
+
+- One to three hedgehog crossings per drive, random placement, weighted toward the Bay Road / residential zones.
+- Occasionally other small creatures instead, as the animal roster expands: a duckling train in spring, a grass snake in summer, a migrating toad in autumn rain.
+- Always signposted beforehand (the sign lights up) — no gotcha deaths.
+
+#### Hooks forward
+
+- Ties into the planned **hedgehog animal batch** — the first rescued hedgehog can be one the player saves at a crossing, triggering the Herne Bay hedgehog-rescue sister-centre unlock.
+- Ties into **skill-training destinations**: a confident brake-for-animals record unlocks guide-dog-in-training storylines ("this driver is safe with precious cargo").
+
 ### Setting — modelled on Birchington-on-Sea, Kent
 
 Marcus's note (2026-04-24): the compact city is modelled on **Birchington-on-Sea**, the Kent coastal village where Marcus and Lily actually live. Not a generic seaside-resort stereotype — the real place has the right mix of features: North Sea coastline, chalk cliffs, four sandy bays, a large country estate (Quex Park), a 13th-century church, farmland behind, and it sits between the larger towns of Herne Bay and Margate on the Isle of Thanet. Population ~10,500 — genuinely compact.
