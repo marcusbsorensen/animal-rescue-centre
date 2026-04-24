@@ -67,13 +67,31 @@ End every multi-sprite brief with:
 
 This catches drift before it eats review cycles.
 
-## Rule 6: When character-continuity matters most, use GPT-Image-2 instead
+## Rule 6: OpenAI ONLY for anything needing character / style continuity (Marcus, 2026-04-24)
 
-For **the highest-fidelity character preservation**, Manus's NanoBanana is not the best tool — it re-composes scenes and can drift even with references. Use the existing `tools/gpt-image-regen.sh` which wraps OpenAI's `/v1/images/edits` with proper reference-image conditioning. We've had better identity-preservation results from that path for animal sprites and cast portraits.
+**Hard rule:** if a sprite needs to preserve character identity, match existing art, or sit in a set alongside others, use **OpenAI's `/v1/images/edits`** via `tools/gpt-image-regen.sh` — NOT Manus.
 
-Rule of thumb:
-- **Brand-new sprites with loose identity requirements** → Manus with URL references.
-- **Regen existing sprites / preserve specific character identity** → GPT-Image-2 via `tools/gpt-image-regen.sh`.
+Why: Manus's NanoBanana re-composes scenes with only loose adherence to references, and — critically — will silently proceed without fetching references if it can't reach them (which it can't if references are local paths, and sometimes even with public URLs). That's an unacceptable failure mode for cast / cameo work.
+
+OpenAI's `/v1/images/edits` takes the reference image(s) as multipart input — no URL-fetch race, no silent drift. It's the canonical choice for:
+
+- Cast walking / waving / greeting poses.
+- Cast crop regens (preserving identity while fixing framing).
+- Animal sprite regens in a consistent style.
+- Any sprite that belongs to a set that must match.
+- Any sprite that must match a specific pre-existing character.
+
+Manus is acceptable ONLY for brand-new sprites with no character-continuity stakes — things like:
+
+- The original dangly-charm set (17 new items, no prior art to match).
+- The initial painted mirrors (5 new pieces, vehicle-specific vibes but no cross-reference constraints).
+- One-off backdrop illustrations, landscape scenes, unique props.
+
+**If there's any doubt, use OpenAI.**
+
+### STOP on reference-fetch failure
+
+Every OpenAI brief for continuity work must include: "if you cannot load the reference images, STOP and report back — do not generate from description alone." The `tools/gpt-image-regen.sh` pipeline has built-in reference-loading so this is a safeguard against future tooling changes.
 
 ---
 
