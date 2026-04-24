@@ -520,21 +520,35 @@
     height: 68%;
   }
   .mirror .crate-cell {
+    position: relative;
     background: rgba(90,60,30,0.18);
     border: 1px dashed rgba(90,60,30,0.45);
     border-radius: 3px;
     display: grid;
     place-items: center;
     font-size: 20px;
+    overflow: hidden;
   }
   .mirror .crate-cell.occupied {
     background: rgba(240,200,140,0.6);
     border-style: solid;
   }
+  .mirror .crate-cell .sprite {
+    width: 92%;
+    height: 92%;
+    object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25));
+    pointer-events: none;
+  }
   .mirror .crate-cell .mood {
     position: absolute;
-    margin-left: 18px; margin-top: -16px;
-    font-size: 10px;
+    right: 0px;
+    bottom: -2px;
+    font-size: 9px;
+    line-height: 1;
+    text-shadow: 0 0 3px rgba(255,255,255,0.9);
+    pointer-events: none;
   }
   .mirror .toy {
     position: absolute;
@@ -1280,9 +1294,15 @@
       <div class="stem"></div>
       <div class="frame">
         <div class="reflection">
-          <div class="cargo-grid" id="cargo-grid">
-            <!-- 2x2 demo grid — single pet in slot 0 (Pickle the cat) -->
-            <div class="crate-cell occupied">🐱<span class="mood">😊</span></div>
+          <div class="cargo-grid" id="cargo-grid" data-demo='[
+            {"species":"cat","mood":"happy","name":"Pickle"},
+            null,
+            {"species":"bunny","mood":"stressed","name":"Biscuit"},
+            null
+          ]'>
+            <!-- Populated by the mirror-cargo renderer further down.
+                 Fallback cells render as empty until JS runs. -->
+            <div class="crate-cell"></div>
             <div class="crate-cell"></div>
             <div class="crate-cell"></div>
             <div class="crate-cell"></div>
@@ -2381,6 +2401,62 @@
   }
   window.addEventListener('pointerdown', unlock, { once: true });
 
+})();
+</script>
+
+<!-- ── Rear-view mirror cargo renderer (Marcus 2026-04-24) ──
+     Pulls the mood-sprite index built by tools/build-mirror-mood-sprites.ts
+     and paints the 2×2 grid from the data-demo attribute on #cargo-grid.
+     Toggles `.pulse` on the mirror if any animal is `stressed`. -->
+<script>
+(function () {
+  var MOOD_EMOJI = { happy: '😊', neutral: '🙂', stressed: '😰', sleeping: '💤' };
+  var BASE = '/assets/driving/mirror-moods';
+  var grid = document.getElementById('cargo-grid');
+  var mirror = document.getElementById('mirror');
+  if (!grid || !mirror) return;
+
+  var demo;
+  try { demo = JSON.parse(grid.getAttribute('data-demo') || '[]'); }
+  catch (e) { demo = []; }
+
+  function urlFor(index, species, mood) {
+    var entry = index && index.sprites && index.sprites[species] && index.sprites[species][mood];
+    if (entry) return BASE + '/' + entry.file;
+    return BASE + '/' + species + '-' + mood + '.png';
+  }
+
+  function render(index) {
+    grid.innerHTML = '';
+    var anyStressed = false;
+    for (var i = 0; i < 4; i += 1) {
+      var cell = document.createElement('div');
+      cell.className = 'crate-cell';
+      var animal = demo[i];
+      if (animal) {
+        cell.classList.add('occupied');
+        if (animal.mood === 'stressed') anyStressed = true;
+        var img = document.createElement('img');
+        img.className = 'sprite';
+        img.alt = (animal.name || animal.species) + ' (' + animal.mood + ')';
+        img.src = urlFor(index, animal.species, animal.mood);
+        cell.appendChild(img);
+        var badge = document.createElement('span');
+        badge.className = 'mood';
+        badge.textContent = MOOD_EMOJI[animal.mood] || '';
+        cell.appendChild(badge);
+      }
+      grid.appendChild(cell);
+    }
+    mirror.classList.toggle('pulse', anyStressed);
+  }
+
+  // Best-effort: fetch the index, fall back to raw filename convention
+  // if it isn't available (static-server edge cases, build not run, etc).
+  fetch(BASE + '/index.json', { cache: 'no-cache' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .catch(function () { return null; })
+    .then(render);
 })();
 </script>
 </body>

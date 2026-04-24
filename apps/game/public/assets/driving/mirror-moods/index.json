@@ -1,0 +1,175 @@
+{
+  "generatedAt": "2026-04-24T16:40:45.612Z",
+  "size": 128,
+  "moods": [
+    "happy",
+    "neutral",
+    "stressed",
+    "sleeping"
+  ],
+  "species": [
+    "cat",
+    "dog",
+    "bunny",
+    "fox",
+    "bat",
+    "parrot",
+    "snake"
+  ],
+  "sprites": {
+    "cat": {
+      "happy": {
+        "file": "cat-happy.png",
+        "source": "cat-ginger-sheltered.png",
+        "fallback": false
+      },
+      "neutral": {
+        "file": "cat-neutral.png",
+        "source": "cat-ginger-arriving.png",
+        "fallback": false
+      },
+      "stressed": {
+        "file": "cat-stressed.png",
+        "source": "cat-ginger-grumpy.png",
+        "fallback": false
+      },
+      "sleeping": {
+        "file": "cat-sleeping.png",
+        "source": "cat-ginger-sleeping.png",
+        "fallback": false
+      }
+    },
+    "dog": {
+      "happy": {
+        "file": "dog-happy.png",
+        "source": "dog-collie-sheltered.png",
+        "fallback": false
+      },
+      "neutral": {
+        "file": "dog-neutral.png",
+        "source": "dog-collie-arriving.png",
+        "fallback": false
+      },
+      "stressed": {
+        "file": "dog-stressed.png",
+        "source": "dog-collie-grumpy.png",
+        "fallback": false
+      },
+      "sleeping": {
+        "file": "dog-sleeping.png",
+        "source": "dog-collie-sleeping.png",
+        "fallback": false
+      }
+    },
+    "bunny": {
+      "happy": {
+        "file": "bunny-happy.png",
+        "source": "bunny-lionhead-sheltered.png",
+        "fallback": false
+      },
+      "neutral": {
+        "file": "bunny-neutral.png",
+        "source": "bunny-lionhead-arriving.png",
+        "fallback": false
+      },
+      "stressed": {
+        "file": "bunny-stressed.png",
+        "source": "bunny-lionhead-grumpy.png",
+        "fallback": false
+      },
+      "sleeping": {
+        "file": "bunny-sleeping.png",
+        "source": "bunny-lionhead-sleeping.png",
+        "fallback": false
+      }
+    },
+    "fox": {
+      "happy": {
+        "file": "fox-happy.png",
+        "source": "fox-red-sheltered.png",
+        "fallback": false
+      },
+      "neutral": {
+        "file": "fox-neutral.png",
+        "source": "fox-red-arriving.png",
+        "fallback": false
+      },
+      "stressed": {
+        "file": "fox-stressed.png",
+        "source": "fox-red-grumpy.png",
+        "fallback": false
+      },
+      "sleeping": {
+        "file": "fox-sleeping.png",
+        "source": "fox-red-sleeping.png",
+        "fallback": false
+      }
+    },
+    "bat": {
+      "happy": {
+        "file": "bat-happy.png",
+        "source": "bat-brown-sheltered.png",
+        "fallback": false
+      },
+      "neutral": {
+        "file": "bat-neutral.png",
+        "source": "bat-brown-arriving.png",
+        "fallback": false
+      },
+      "stressed": {
+        "file": "bat-stressed.png",
+        "source": "bat-brown-grumpy.png",
+        "fallback": false
+      },
+      "sleeping": {
+        "file": "bat-sleeping.png",
+        "source": "bat-brown-sleeping.png",
+        "fallback": false
+      }
+    },
+    "parrot": {
+      "happy": {
+        "file": "parrot-happy.png",
+        "source": "parrot-macaw-sheltered.png",
+        "fallback": false
+      },
+      "neutral": {
+        "file": "parrot-neutral.png",
+        "source": "parrot-macaw-arriving.png",
+        "fallback": false
+      },
+      "stressed": {
+        "file": "parrot-stressed.png",
+        "source": "parrot-macaw-grumpy.png",
+        "fallback": false
+      },
+      "sleeping": {
+        "file": "parrot-sleeping.png",
+        "source": "parrot-macaw-sleeping.png",
+        "fallback": false
+      }
+    },
+    "snake": {
+      "happy": {
+        "file": "snake-happy.png",
+        "source": "snake-corn-sheltered.png",
+        "fallback": false
+      },
+      "neutral": {
+        "file": "snake-neutral.png",
+        "source": "snake-corn-arriving.png",
+        "fallback": false
+      },
+      "stressed": {
+        "file": "snake-stressed.png",
+        "source": "snake-corn-grumpy.png",
+        "fallback": false
+      },
+      "sleeping": {
+        "file": "snake-sleeping.png",
+        "source": "snake-corn-sleeping.png",
+        "fallback": false
+      }
+    }
+  }
+}
