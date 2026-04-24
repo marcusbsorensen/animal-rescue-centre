@@ -388,7 +388,6 @@ const SLOT_COLORS = {
   'speedometer':   'rgba(240, 140, 40, 0.35)',
   'fuel-gauge':    'rgba(80, 180, 80, 0.35)',
   'ignition':      'rgba(220, 170, 40, 0.35)',
-  'key-or-button': 'rgba(240, 120, 180, 0.35)',
   'hazard':        'rgba(230, 70, 70, 0.35)',
   'gps':           'rgba(40, 180, 180, 0.35)',
   'brake':         'rgba(200, 60, 60, 0.35)',
@@ -402,7 +401,6 @@ const SLOT_SOLID = {
   'speedometer':   '#f08c28',
   'fuel-gauge':    '#50b450',
   'ignition':      '#dcaa28',
-  'key-or-button': '#f078b4',
   'hazard':        '#e64646',
   'gps':           '#28b4b4',
   'brake':         '#c83c3c',
@@ -417,8 +415,10 @@ function defaultSlots() {
     { id: 'wheel',         label: 'Steering wheel',      shape: 'circle', x: (1920-420)/2, y: 580, w: 420, h: 420, hidden: false },
     { id: 'speedometer',   label: 'Speedometer',         shape: 'circle', x: 500, y: 600, w: 220, h: 220, hidden: false },
     { id: 'fuel-gauge',    label: 'Fuel gauge',          shape: 'circle', x: 400, y: 720, w: 100, h: 100, hidden: false },
-    { id: 'ignition',      label: 'Ignition barrel',     shape: 'circle', x: 340, y: 640, w: 90,  h: 90,  hidden: false },
-    { id: 'key-or-button', label: 'Key / button',        shape: 'rect',   x: 380, y: 720, w: 60,  h: 160, hidden: false },
+    /* Single ignition slot covers barrel + key/button together per
+       Marcus 2026-04-24 — barrel surround is painted by the
+       dashboard art, the key/button/flag sprite animates on top. */
+    { id: 'ignition',      label: 'Ignition',            shape: 'rect',   x: 340, y: 640, w: 120, h: 260, hidden: false },
     { id: 'hazard',        label: 'Hazard button',       shape: 'rect',   x: 120, y: 660, w: 90,  h: 90,  hidden: false },
     { id: 'gps',           label: 'GPS screen',          shape: 'rect',   x: 1200, y: 620, w: 340, h: 210, hidden: false },
     /* Brake is wider than accelerator (~1.6×) — real-car convention
