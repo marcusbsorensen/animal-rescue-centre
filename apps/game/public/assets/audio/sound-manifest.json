@@ -1,0 +1,557 @@
+{
+  "generated_by": "Manus",
+  "game": "A.R.C. (Animal Rescue Centre)",
+  "total_files": 55,
+  "files": [
+    {
+      "path": "voice/voice-almost-there.ogg",
+      "description": "Encouraging: Almost there...",
+      "duration_sec": 0.8,
+      "size_bytes": 10748,
+      "size_kb": 10.5,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-bedtime.ogg",
+      "description": "Gentle bedtime: Bedtime, little one.",
+      "duration_sec": 1.25,
+      "size_bytes": 13682,
+      "size_kb": 13.4,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-did-you-see-that.ogg",
+      "description": "Excited exclamation: Did you see that?!",
+      "duration_sec": 0.85,
+      "size_bytes": 10120,
+      "size_kb": 9.9,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-feeling-poorly.ogg",
+      "description": "Concerned: Oh no, someone's feeling poorly...",
+      "duration_sec": 1.75,
+      "size_bytes": 17571,
+      "size_kb": 17.2,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-forever-home.ogg",
+      "description": "Emotional adoption moment: A forever home!",
+      "duration_sec": 1.0,
+      "size_bytes": 11056,
+      "size_kb": 10.8,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-goodnight.ogg",
+      "description": "Soft farewell: Goodnight, sweet dreams.",
+      "duration_sec": 1.4,
+      "size_bytes": 14855,
+      "size_kb": 14.5,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-hello-friend.ogg",
+      "description": "Friendly greeting: Hello friend!",
+      "duration_sec": 0.9,
+      "size_bytes": 10565,
+      "size_kb": 10.3,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-hooray.ogg",
+      "description": "Drawn-out celebratory cheer: Hooray!",
+      "duration_sec": 1.73,
+      "size_bytes": 11535,
+      "size_kb": 11.3,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-lets-play.ogg",
+      "description": "Playful invitation: Let's play!",
+      "duration_sec": 0.85,
+      "size_bytes": 10150,
+      "size_kb": 9.9,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-new-arrival.ogg",
+      "description": "Excited announcement: A new arrival!",
+      "duration_sec": 1.15,
+      "size_bytes": 12327,
+      "size_kb": 12.0,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-oopsie.ogg",
+      "description": "Light-hearted mistake: Oopsie!",
+      "duration_sec": 0.75,
+      "size_bytes": 9764,
+      "size_kb": 9.5,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-pawsome.ogg",
+      "description": "Cheeky pun with pause: Paw-some!",
+      "duration_sec": 2.7,
+      "size_bytes": 22593,
+      "size_kb": 22.1,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-running-free.ogg",
+      "description": "Wistful rewilding: Running free!",
+      "duration_sec": 1.15,
+      "size_bytes": 12187,
+      "size_kb": 11.9,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-shh-sleeping.ogg",
+      "description": "Hushed whisper: Shhh, they're sleeping...",
+      "duration_sec": 1.8,
+      "size_bytes": 17555,
+      "size_kb": 17.1,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-silly-goose.ogg",
+      "description": "Affectionate tease: Silly goose!",
+      "duration_sec": 1.2,
+      "size_bytes": 12779,
+      "size_kb": 12.5,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-snuggle-time.ogg",
+      "description": "Cosy invitation: Snuggle time!",
+      "duration_sec": 1.0,
+      "size_bytes": 11229,
+      "size_kb": 11.0,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-so-brave.ogg",
+      "description": "Warm praise: So brave!",
+      "duration_sec": 1.0,
+      "size_bytes": 11287,
+      "size_kb": 11.0,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-wait-for-me.ogg",
+      "description": "Playful chase: Wait for me!",
+      "duration_sec": 0.9,
+      "size_bytes": 10299,
+      "size_kb": 10.1,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-wakey-wakey.ogg",
+      "description": "Morning wake-up: Wakey-wakey!",
+      "duration_sec": 1.1,
+      "size_bytes": 12539,
+      "size_kb": 12.2,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-welcome.ogg",
+      "description": "Warm narrator greeting: Welcome to A.R.C.!",
+      "duration_sec": 1.15,
+      "size_bytes": 13490,
+      "size_kb": 13.2,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-well-done.ogg",
+      "description": "Warm praise: Well done, you!",
+      "duration_sec": 0.95,
+      "size_bytes": 10850,
+      "size_kb": 10.6,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-what-will-you-become.ogg",
+      "description": "Curious wonder: What will you become?",
+      "duration_sec": 1.0,
+      "size_bytes": 11207,
+      "size_kb": 10.9,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-youre-amazing.ogg",
+      "description": "Warm praise: Awww, you're amazing!",
+      "duration_sec": 1.55,
+      "size_bytes": 15878,
+      "size_kb": 15.5,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "voice/voice-yumm.ogg",
+      "description": "Eating/treat delight: Yumm-yumm-yumm!",
+      "duration_sec": 1.1,
+      "size_bytes": 12197,
+      "size_kb": 11.9,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/bat-chitter.ogg",
+      "description": "Friendly bat chirp/chitter",
+      "duration_sec": 0.6,
+      "size_bytes": 7169,
+      "size_kb": 7.0,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/bunny-binky.ogg",
+      "description": "Bunny binky thump on ground",
+      "duration_sec": 0.5,
+      "size_bytes": 7108,
+      "size_kb": 6.9,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/bunny-squeak.ogg",
+      "description": "Little happy bunny squeak",
+      "duration_sec": 0.6,
+      "size_bytes": 8262,
+      "size_kb": 8.1,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/cat-chirp.ogg",
+      "description": "Trilly cat chirp greeting",
+      "duration_sec": 1.0,
+      "size_bytes": 12656,
+      "size_kb": 12.4,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/cat-meow.ogg",
+      "description": "Gentle inquisitive cat meow",
+      "duration_sec": 1.2,
+      "size_bytes": 14075,
+      "size_kb": 13.7,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/cat-purr.ogg",
+      "description": "Soft cat purr loop (loopable, ~3s)",
+      "duration_sec": 3.0,
+      "size_bytes": 26554,
+      "size_kb": 25.9,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/dog-bark.ogg",
+      "description": "Happy friendly dog bark",
+      "duration_sec": 0.8,
+      "size_bytes": 9939,
+      "size_kb": 9.7,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/dog-pant.ogg",
+      "description": "Happy dog panting loop (loopable, ~2s)",
+      "duration_sec": 2.0,
+      "size_bytes": 20667,
+      "size_kb": 20.2,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/dog-whine.ogg",
+      "description": "Gentle please-whine from a puppy",
+      "duration_sec": 1.2,
+      "size_bytes": 14300,
+      "size_kb": 14.0,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/fox-yip.ogg",
+      "description": "Playful fox yip",
+      "duration_sec": 0.8,
+      "size_bytes": 9389,
+      "size_kb": 9.2,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/parrot-squawk.ogg",
+      "description": "Gentle colourful parrot squawk",
+      "duration_sec": 1.0,
+      "size_bytes": 11333,
+      "size_kb": 11.1,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/parrot-whistle.ogg",
+      "description": "Cheerful parrot whistle",
+      "duration_sec": 1.2,
+      "size_bytes": 12574,
+      "size_kb": 12.3,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "animal/snake-hiss.ogg",
+      "description": "Very gentle snake hiss, almost a shh",
+      "duration_sec": 0.7,
+      "size_bytes": 9509,
+      "size_kb": 9.3,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-bell.ogg",
+      "description": "Soft notification bell",
+      "duration_sec": 0.65,
+      "size_bytes": 8191,
+      "size_kb": 8.0,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-chime-soft-no.ogg",
+      "description": "Gentle descending chime \u2014 soft error/not this time",
+      "duration_sec": 0.65,
+      "size_bytes": 7938,
+      "size_kb": 7.8,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-chime-success.ogg",
+      "description": "Three-note ascending chime \u2014 goal achieved",
+      "duration_sec": 0.65,
+      "size_bytes": 8242,
+      "size_kb": 8.0,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-coin.ogg",
+      "description": "Small coin/pouch jingle \u2014 reward",
+      "duration_sec": 0.6,
+      "size_bytes": 7791,
+      "size_kb": 7.6,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-heart.ogg",
+      "description": "Soft heart ding \u2014 bond level up",
+      "duration_sec": 0.6,
+      "size_bytes": 6893,
+      "size_kb": 6.7,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-page-turn.ogg",
+      "description": "Paper page turn \u2014 navigation",
+      "duration_sec": 0.5,
+      "size_bytes": 7703,
+      "size_kb": 7.5,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-paw-tap.ogg",
+      "description": "Paw pad tapping wood \u2014 button press",
+      "duration_sec": 0.5,
+      "size_bytes": 6567,
+      "size_kb": 6.4,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-pop.ogg",
+      "description": "Happy bubble pop \u2014 item selection",
+      "duration_sec": 0.3,
+      "size_bytes": 5697,
+      "size_kb": 5.6,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-sign-drop.ogg",
+      "description": "Wooden sign dropping down \u2014 modal appear",
+      "duration_sec": 0.6,
+      "size_bytes": 7808,
+      "size_kb": 7.6,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-sign-rise.ogg",
+      "description": "Wooden sign rising \u2014 modal close",
+      "duration_sec": 0.6,
+      "size_bytes": 8496,
+      "size_kb": 8.3,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "ui/ui-sparkle.ogg",
+      "description": "Shimmery sparkle \u2014 rewards/level-up",
+      "duration_sec": 0.6,
+      "size_bytes": 8021,
+      "size_kb": 7.8,
+      "channels": "mono",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "music/music-adoption.ogg",
+      "description": "Warm emotional resolution \u2014 adoption farewell (seamless loop)",
+      "duration_sec": 49.63,
+      "size_bytes": 1110529,
+      "size_kb": 1084.5,
+      "channels": "stereo",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "music/music-corridor.ogg",
+      "description": "Cosy daytime hum \u2014 rescue centre interior (seamless loop)",
+      "duration_sec": 43.96,
+      "size_bytes": 837512,
+      "size_kb": 817.9,
+      "channels": "stereo",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "music/music-garden-evening.ogg",
+      "description": "Soft sunset-calm garden (seamless loop)",
+      "duration_sec": 43.05,
+      "size_bytes": 813026,
+      "size_kb": 794.0,
+      "channels": "stereo",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "music/music-garden-morning.ogg",
+      "description": "Breezy bright morning garden (seamless loop)",
+      "duration_sec": 58.28,
+      "size_bytes": 991339,
+      "size_kb": 968.1,
+      "channels": "stereo",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "music/music-play.ogg",
+      "description": "Upbeat playful \u2014 mini-games (seamless loop)",
+      "duration_sec": 53.66,
+      "size_bytes": 1076373,
+      "size_kb": 1051.1,
+      "channels": "stereo",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "music/music-rewilding.ogg",
+      "description": "Open, expansive nature feel \u2014 rewilding (seamless loop)",
+      "duration_sec": 47.96,
+      "size_bytes": 1016056,
+      "size_kb": 992.2,
+      "channels": "stereo",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    },
+    {
+      "path": "music/music-vet.ogg",
+      "description": "Caring, comforting, slightly wistful \u2014 vet room (seamless loop)",
+      "duration_sec": 45.0,
+      "size_bytes": 989605,
+      "size_kb": 966.4,
+      "channels": "stereo",
+      "sample_rate": "44100 Hz",
+      "format": "OGG Vorbis"
+    }
+  ]
+}
