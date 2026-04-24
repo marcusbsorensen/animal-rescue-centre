@@ -580,6 +580,12 @@ Good source locations for collection calls (per Marcus's 2026-04-24 additions):
 
 - **Goose End Farm** — the real working farm out west on Bay Road (see naming note below). Farmer rings about a found stray; the PTV goes out to fetch.
 - **Westbeach Golf Club** (real: Westgate & Birchington Golf Club, top-right of the wider map — renamed **Westbeach** per Marcus). Injured wildlife found on the fairways (a hedgehog with a golf-ball-sized bruise, a trapped rabbit, birds flown into netting). Good source for both wild and lost-domestic pickups.
+- **All Saints' Church / Bay Chapel / Parish of the Holy Family** — strays often turn up on church grounds, with room for genuinely funny + affectionate vignettes:
+  - A **grass snake entangled on a gravestone** — vicar rings apologetically, won't touch it.
+  - A **parrot up in the rafters singing loudly during the service** — escaped from an adopter's garden, has discovered the acoustics. Hymn verses get joined by an enthusiastic "HELLO! HELLO!" from the ceiling.
+  - A cat who's moved into the churchyard and claimed the bell-tower stairwell.
+  - Wet kittens abandoned under the porch after the Sunday service.
+  - The vicar is a recurring cameo — kind, slightly exasperated, always offers a cup of tea when the PTV arrives.
 - **Other farms around Birchie + inland** — farmers find strays; rural collection runs.
 - **Roadside pickups** — a hedgehog saved at a crossing sign becomes a resident.
 - **Coastline finds** — injured seabirds, oiled gannets after a storm, a seal pup at Epple Bay.
