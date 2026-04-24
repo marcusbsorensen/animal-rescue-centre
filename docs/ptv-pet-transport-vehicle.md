@@ -400,6 +400,30 @@ Lily being able to recognise her home town in the game is part of the point. Nam
   - Crowd density: "tonnes of dog walkers" — real social scene; good for cast-walk-by cameos.
 - **Kids' playground next to The Dip** — a sunken multifunctional sports ground (below ground level to keep balls, wind, and waves out). Visible landmark from the coast road. Possible enclosed **pet-show venue** (the sunk bowl shape is natural seating).
 
+#### Whole-town layout + west-entrance + Wyx Park span + Rock On Academy (Marcus, 2026-04-24)
+
+Marcus shared the wider-area map (saved at `apps/game/public/admin/mockup-assets/reference/birchie-area/birchie-area-map.png`). Extra pins and corrections from the new view:
+
+**West-entrance confirmed:**
+- **Fishbone Grill** (real restaurant, south-west edge of town on the main road out) → the **wavy-arm car-wash location**. Approach from Herne Bay direction hits Fishbone Grill first, then the Esso.
+- **Esso petrol station** (real, visible on the map next to Fishbone Grill) → the in-game petrol station. Naming: recommend generic ("Bay Fuel" / "The Pump") since Esso is a global brand; the real location stays as the reference. Marcus to confirm.
+
+**Wyx Park's full span** (bottom-right of the map):
+- Runs from the **Recreation Ground** at the top down to **Quex Glamping** at the bottom.
+- Includes **Quex Barn**, **The Carriage Livery at Tilleys Glamping** (far south-east), and **Crape Park** (south-east edge).
+- **Birchington CE Primary School** is adjacent at the north edge — could be a cameo (school-group visits to the A.R.C. for open days? pet-show spectators?).
+- **Powell-Cotton Museum** still present on the real map — still **dropped from game** (taxidermy).
+- Note: **"Tilleys" glamping** echoes our animal-lorry "Big Tilly" — happy coincidence, keep as-is.
+
+**Rhubarb's Rock On Music Academy** (Marcus's note): next to **Jungle Jim's Ltd** (real softplay centre on the map). Where apprentice Rhubarb learns guitar, drums, and keyboard.
+
+- **Keep the name verbatim** — "Rock On" is already on-brand; pair with the heavy-metal Supply Run music target.
+- **Supply-run destination**: collect fresh instruments or gig merch for local events, deliver equipment to Wyx Park for a pet show's stage, drop Rhubarb off before a lesson. A Rock On Academy supply run plays the full Metallica-style track on the dashboard — thematically, it's Rhubarb's playlist from music school scoring the drive.
+- **Thematic tie-in**: the Supply Run heavy-metal soundtrack now has an in-world origin story — it's the music Rhubarb plays around the Centre when she's off shift, and the Academy is the source of it.
+- **Jungle Jim's** next door — low-stakes flavour (kid adopters go there after a Centre visit, cast walk-bys).
+
+**The Cow Shed** (visible on the map, south-central) — pub / restaurant. Optional cameo; good name for a low-tier pet-show venue if one's ever needed.
+
 #### Confirmed Bay Road (Minnis Road) geography (Marcus, 2026-04-24)
 
 Marcus shared a zoomed map of Birchie centre. Transcribing faithfully so the in-game arterial can mirror the real layout — which means every drive through town passes a familiar sequence of landmarks in the same order Lily knows them.
@@ -429,13 +453,25 @@ Marcus shared a zoomed map of Birchie centre. Transcribing faithfully so the in-
 
 **Reference:** Marcus's zoomed Birchie-centre screenshot (shared in chat 2026-04-24). If saved, goes into `apps/game/public/admin/mockup-assets/reference/birchie-centre/` with a README caption.
 
-#### A.R.C. location — Goose End Farm, on the green south of The Dip (Marcus, 2026-04-24)
+#### A.R.C. location — coastal green south of The Dip, between Canute / Viking / Dane roads (Marcus, 2026-04-24)
 
-**Name: Goose End Farm** — fictional, warm, geese-on-a-farm suggests rescue work and rural coastal charm without any of the "Gore" unease.
+**Location: the open green space immediately south of The Dip**, bounded to the south/east by **Canute Road, Viking Road, and Dane Road** (the Viking-heritage cluster). A minute's walk north to Minnis Bay. Marcus pinned it from a zoomed map of the Minnis Bay / Dip area. Reference folder: `apps/game/public/admin/mockup-assets/reference/birchie-minnis-bay/`.
 
-**Location: the open green space immediately south of The Dip**, a minute's walk north to Minnis Bay. Marcus pinned it from a second zoomed map of the Minnis Bay / Dip area (2026-04-24 screenshot). Reference folder: `apps/game/public/admin/mockup-assets/reference/birchie-minnis-bay/`.
+This is a **coastal** A.R.C., not a west-end-of-Bay-Road A.R.C. as previously sketched.
 
-This is a **coastal** A.R.C., not a west-end-of-Minnis-Road A.R.C. as sketched previously. The revision has knock-on consequences — all captured below.
+**Naming: TBD** — needs to be distinct from Goose End Farm (which is a separate collection-source farm out west; see §"Collection drives"). Marcus to pick from the shortlist below:
+
+| Candidate | Why |
+|---|---|
+| **Dip End Rescue** | Parallels Goose End Farm's "End" rhythm; anchors to the landmark Lily sees every day |
+| **Tide End Rescue** | Poetic, coastal, same "End" cadence |
+| **Longship Sanctuary** | Viking-heritage nod — lovely personal resonance for a Danish family |
+| **Bayside Rescue** | Vanilla but clear |
+| **Chalkcliff Rescue** | Geographic, distinctive silhouette |
+| **Hearthstone Rescue** | Warm, homey, un-cloying |
+| **Minnis Green Sanctuary** | Names the plot + coastal feel |
+
+Working name used throughout this doc: **A.R.C.** (formal brand) — treat the warm placename as the affectionate nickname still to be chosen.
 
 ##### What's right next to A.R.C.
 
@@ -462,7 +498,7 @@ The drive into town no longer *starts* on Bay Road — the A.R.C. is now north o
 
 Heading west (out of town, for supply runs):
 
-> A.R.C. gate → south to Bay Road → west past **Goose End farmland plots** (real Gore End Farm area, reused as open fields / Bramble Farm supply-run territory) → **petrol station** (right side) → **wavy-arm car-wash** (left side) → leave town toward Herne Bay.
+> A.R.C. gate → south to Bay Road → west past **Goose End Farm** (real Gore End Farm — now a working farm / collection source) and the farmland belt → **Esso petrol station** (right side) → **Fishbone Grill + wavy-arm car-wash** (left side) → leave town toward Herne Bay.
 
 Heading north (beach / dog rehab / seabird watching):
 
@@ -483,18 +519,18 @@ Borrowing what the real site offers:
 - Corridor / vet / kitchen / play rooms in the main building.
 - Outside grounds wrap around to the south: garden, pond, outhouse, paddocks for larger rehab runs (horses / ponies if the roster ever expands).
 - Apprentice bothy + tool shed (the Depot can live here) at the back.
-- A painted wooden sign at the entrance gate: *Goose End Farm — Animal Rescue Centre*.
+- A painted wooden sign at the entrance gate: *[A.R.C. name TBD] — Animal Rescue Centre*.
 
 ##### Viking / Danish heritage in the street names
 
 Marcus's note (2026-04-24): *"ARC will then be placed between Viking, Canute and Dane-named roads, which is perfect as Lily and I are Viking descendants — we are literally Danish nationals."*
 
-The residential cluster around Goose End Farm is themed on Anglo-Saxon / Viking heritage — **Dane Road**, **Canute Road** (named for Cnut the Great, Danish king of England), **Viking Road**, and **Horsa Road** (the legendary Saxon-Norse leader). **Ingoldsby** is also Old Norse in origin.
+The residential cluster wrapping around the A.R.C. plot is themed on Anglo-Saxon / Viking heritage — **Dane Road**, **Canute Road** (named for Cnut the Great, Danish king of England), **Viking Road**, and **Horsa Road** (the legendary Saxon-Norse leader). **Ingoldsby** is also Old Norse in origin. The A.R.C. sits **between Canute, Viking, and Dane roads** specifically — per Marcus's map pin.
 
 Design implications:
 
 - This is a **lovely personal coherent-world detail** — Lily is Danish, her family walks streets named after her own heritage, and the A.R.C. is planted right in the middle of that cluster. Keep all these street names verbatim; they're both authentic to real Birchie and personally resonant.
-- An occasional flavour line on the map or in narrator copy can nod to it — *"Goose End sits where the Viking lanes meet the sea"* — without being a lecture.
+- An occasional flavour line on the map or in narrator copy can nod to it — *"The Centre sits where the Viking lanes meet the sea"* — without being a lecture.
 - **Future animal storyline hook**: a Viking-themed rescue arc is now naturally available. A dog named Canute or Ragnar who washes up on Minnis Bay. Horsa-the-horse if the roster expands. Earned, not forced.
 - Optional badge set: "Viking Descendants" — awarded for completing rehomings to households along Dane/Viking/Canute/Horsa roads.
 
@@ -502,7 +538,7 @@ Design implications:
 
 | Real place | In-game |
 |---|---|
-| The green south of The Dip | **A.R.C. / Goose End Farm** plot |
+| The green south of The Dip (between Canute / Viking / Dane roads) | **A.R.C.** plot — name TBD |
 | The Dip | **The Dip** — kept (descriptive, affectionate name) |
 | Minnis Bay + paddling pool | **Bay beach + paddling pool** (Minnis → Bay to match Minnis-Road → Bay-Road rule) |
 | The Parade | **The Parade** — kept (generic, descriptive) |
@@ -517,13 +553,21 @@ Design implications:
 
 **Vet-and-garage pairing is still a gameplay gift.** The vet + garage are on Bay Road (the real Thanet Vets / Birchington Auto Repairs stretch). A broken-down van with a sick animal onboard still lands both problems on the same strip; the difference now is the A.R.C. is a short drive north of them, not west of them.
 
-##### Goose End Farm's working-farm functions
+##### Goose End Farm — a separate collection-source location (Marcus, 2026-04-24)
 
-Marcus's note (2026-04-24): the A.R.C. is a **working farm** as well as a rescue centre. Specific functions beyond the obvious rescue loop:
+**Goose End Farm is NOT the A.R.C.** It's a **separate working farm** (the real Gore End Farm plot out west on Bay Road), with its own in-game functions:
 
-- **Hay production** — the rear fields grow hay for the rabbits, fed straight from the Centre. Small self-sufficiency loop: if the hay stores run low, drive out to **Bramble Farm** (supply run) for a top-up; otherwise the Centre's own fields cover normal use. A seasonal beat — a hay-cutting day in late summer, the kids helping bale.
-- **Border-collie herding training** — the paddocks support on-site working-dog training. Border collies arriving at the Centre can be assessed and trained here rather than driven to Wyx Park. Opens a quiet "working dog" career arc without making drives mandatory. Likely uses the same skill-training predicates as the Wyx Park paths (confidence + calm + focus thresholds).
-- **Stray drop-off point** — the front gate is where locals bring strays they've found. Farmers call; the gate bell rings; Lily answers. This is the low-pressure onboarding arrival mechanic.
+- **Hay supply** — fields grow hay; the A.R.C. drives out to collect when stores run low. Seasonal hay-cutting day in late summer.
+- **Border-collie training ground** — the farm's paddocks and livestock (sheep / ducks) support working-dog herding training. Border collies arriving at the A.R.C. can be driven out to Goose End for assessment and training sessions. Opens the "working dog" career arc.
+- **Stray collection source** — farmers find strays on their own land; the farm becomes a **call-in location** where the PTV is dispatched to collect. The farmer's voice line on the phone might be a recurring character: kind, practical, slightly gruff.
+
+Positioned at the west tip of Bay Road — the old-Gore-End plot — so every supply-run drive west also passes it as a familiar landmark. Its own visible map pin, its own small cameo cast member.
+
+##### A.R.C. drop-off (separate from Goose End)
+
+At the A.R.C. itself, a smaller low-friction arrival channel continues:
+
+- **Front-gate stray drop-off** — locals bring strays they've found in the village directly to the Centre gate. Low-pressure onboarding arrival mechanic. Gate bell rings, Lily answers. Phase-1 arrivals (before PTV collection drives unlock) all happen this way.
 
 #### Collection drives — PTV goes out to fetch animals
 
@@ -538,13 +582,19 @@ Marcus's note (2026-04-24): *"we also need the PTV to go collect animals later o
 - Player picks a vehicle, drives to the pickup location, crate-stacks (if multiple animals), drives back.
 - The drive back becomes the "arrival ceremony" — animal visible in the van, narrator introduces them, then the arrival popup on return to the Centre.
 
-Good source locations for collection calls:
+Good source locations for collection calls (per Marcus's 2026-04-24 additions):
 
-- **Farms around Birchie + inland** (real Gore End Farm plot is a prime example — farmers find strays; see §"Other A.R.C. candidates").
-- **Roadside pickups** (a hedgehog saved at a crossing sign becomes a resident).
+- **Goose End Farm** — the real working farm out west on Bay Road (see naming note below). Farmer rings about a found stray; the PTV goes out to fetch.
+- **Westbeach Golf Club** (real: Westgate & Birchington Golf Club, top-right of the wider map — renamed **Westbeach** per Marcus). Injured wildlife found on the fairways (a hedgehog with a golf-ball-sized bruise, a trapped rabbit, birds flown into netting). Good source for both wild and lost-domestic pickups.
+- **Other farms around Birchie + inland** — farmers find strays; rural collection runs.
+- **Roadside pickups** — a hedgehog saved at a crossing sign becomes a resident.
 - **Coastline finds** — injured seabirds, oiled gannets after a storm, a seal pup at Epple Bay.
 - **Hedgehog rescue near Herne Bay** — sister-centre transfer when their space runs out.
 - **Garden reports** — householders in Birchie phone about a fox cub under a shed, bunnies dumped in a park.
+
+##### Naming resolved (Marcus, 2026-04-24)
+
+**Goose End Farm = the separate working farm out west**, NOT the A.R.C. See the shortlist of A.R.C. name candidates at the top of this section.
 
 **Design beats:**
 
@@ -554,7 +604,7 @@ Good source locations for collection calls:
 - **Failed collections** — if a call is ignored too long, the narrator mentions it later ("someone else took her in, she's safe") — no shaming. The world doesn't punish missed calls; it just carries on.
 - **Onboarding the mechanic** — the very first collection call is the **border-collie training-assessment dog**: a local farmer rings saying a young collie has shown up, needs assessment. Player drives out, collects her, brings her home, and the border-collie training arc begins. Gentle, purposeful, and demonstrates the new mechanic.
 
-This mechanic ties the PTV into the *beginning* of the care loop, not just the end. Previously PTV only handled outbound (adoption, rewilding, delivery); now it also handles inbound (collection). The full loop: **call-in → PTV collection → care at Goose End → PTV outbound (adoption / rewilding)**. Completely closed.
+This mechanic ties the PTV into the *beginning* of the care loop, not just the end. Previously PTV only handled outbound (adoption, rewilding, delivery); now it also handles inbound (collection). The full loop: **call-in → PTV collection → care at A.R.C. → PTV outbound (adoption / rewilding)**. Completely closed.
 
 #### Other A.R.C. candidates (archived)
 

@@ -1,8 +1,8 @@
 # Birchie / Minnis Bay area reference
 
-Real map of the Minnis Bay area of Birchington-on-Sea, shared by Marcus 2026-04-24. This is the **neighbourhood around the A.R.C.** — Goose End Farm is placed on the open green space immediately south of The Dip visible on this map.
+Real map of the Minnis Bay area of Birchington-on-Sea, shared by Marcus 2026-04-24. This is the **neighbourhood around the A.R.C.** — the A.R.C. is placed on the open green space immediately south of The Dip, between **Canute Road, Viking Road, and Dane Road**. A.R.C. name: TBD (shortlist in the PTV doc). **NOT "Goose End Farm"** — that's a separate working farm out west on Bay Road.
 
-See `docs/ptv-pet-transport-vehicle.md` §"A.R.C. location — Goose End Farm" for the full transcription.
+See `docs/ptv-pet-transport-vehicle.md` §"A.R.C. location — coastal green south of The Dip" for the full transcription.
 
 ## Drop-in spot for the screenshot
 
