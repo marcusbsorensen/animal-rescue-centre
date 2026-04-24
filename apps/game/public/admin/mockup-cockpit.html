@@ -214,33 +214,52 @@
       color-mix(in srgb, var(--pastel-hill) 60%, #000 5%) 0%,
       color-mix(in srgb, var(--pastel-hill) 40%, var(--cream-wash)) 100%);
   }
+  /* Two-lane UK road (Marcus 2026-04-24). Wider trapezoid so both
+     lanes sit in the viewport; vanishing point stays top-centre but
+     the painted centre line is offset right-of-centre at the bottom
+     so our lane (left) is the "close" lane we're driving in.
+     Implied driver position: LEFT half of the road.                */
   .road {
     position: absolute;
     left: 50%; bottom: 0; top: 55%;
-    width: 140%;
+    width: 170%;
     transform: translateX(-50%);
-    clip-path: polygon(46% 0%, 54% 0%, 98% 100%, 2% 100%);
+    /* Wider at the base (both lanes), meets the vanishing point at top */
+    clip-path: polygon(46% 0%, 54% 0%, 100% 100%, 0% 100%);
     background: var(--road);
     overflow: hidden;
     transition: transform 0.25s;
   }
-  .road-dash {
+  /* Solid white painted centre line — separates our left lane from
+     the oncoming (right) lane. Diagonal: meets vanishing point at
+     top-centre, lands at ~62% of viewport width at the bottom so our
+     lane feels like the wider near-lane. */
+  .road-centre-line {
     position: absolute;
-    left: 50%; top: 0; bottom: 0;
-    width: 2%;
-    transform: translateX(-50%);
-    background: repeating-linear-gradient(180deg,
-      var(--road-dash) 0 18%,
-      transparent 18% 32%);
+    left: 0; right: 0; top: 0; bottom: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .road-centre-line svg { width: 100%; height: 100%; display: block; }
+  /* Thin dashed guide down the middle of OUR lane (optional visual
+     anchor — helps the driver read lane position). */
+  .road-lane-guide {
+    position: absolute;
+    left: 0; right: 0; top: 0; bottom: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .road-lane-guide svg { width: 100%; height: 100%; display: block; }
+  .road-lane-guide .dash {
+    stroke-dasharray: 14 18;
     animation: roadDash 0.7s linear infinite;
-    opacity: 0.95;
   }
   @keyframes roadDash {
-    0%   { background-position: 0 -60px; }
-    100% { background-position: 0 60px; }
+    0%   { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: -64; }
   }
-  body.speed-0 .road-dash { animation-play-state: paused; }
-  body.mode-supply .road-dash { animation-duration: 0.35s; }
+  body.speed-0 .road-lane-guide .dash { animation-play-state: paused; }
+  body.mode-supply .road-lane-guide .dash { animation-duration: 0.35s; }
   /* ── Scrolling hedgerow strips (placeholder SVG — Marcus 2026-04-24) ──
      Repeating SVG hedge-blob tile tiles horizontally and scrolls past
      the camera to fake forward motion. Perspective-skewed toward the
@@ -1104,7 +1123,24 @@
     <div class="hills"></div>
     <div class="ground"></div>
     <div class="road" id="road">
-      <div class="road-dash"></div>
+      <!-- Painted centre line — solid white, diagonal from vanishing
+           point to bottom-right-of-centre (UK drive-on-left cue). -->
+      <div class="road-centre-line" aria-hidden="true">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <line x1="50" y1="0" x2="62" y2="100"
+                stroke="#fbf0cf" stroke-width="0.9"
+                stroke-linecap="round"/>
+        </svg>
+      </div>
+      <!-- Thin dashed guide running down the middle of our (left) lane. -->
+      <div class="road-lane-guide" aria-hidden="true">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <line class="dash" x1="50" y1="0" x2="30" y2="100"
+                stroke="#fbf0cf" stroke-width="0.45"
+                stroke-linecap="round"
+                opacity="0.55"/>
+        </svg>
+      </div>
     </div>
     <div class="hedgerow left" id="hedgerow-left"></div>
     <div class="hedgerow right" id="hedgerow-right"></div>
@@ -1113,6 +1149,9 @@
       <div>sprites: <b id="diag-count">0</b></div>
       <div>speed: <b id="diag-speed">0</b></div>
       <div>spawn/min: <b id="diag-rate">0</b></div>
+      <div>oncoming: <b id="diag-oncoming">0</b></div>
+      <div>slow-lane: <b id="diag-slow">0</b></div>
+      <div id="diag-stuck-row" style="display:none">stuck behind: <b id="diag-stuck">—</b></div>
     </div>
 
     <div class="hedgehog-sign" id="hedgehog-sign" aria-hidden="true">
@@ -1805,9 +1844,323 @@
     }
     diagRate.textContent = rate;
 
+    // Traffic tick runs in the same frame so oncoming+slow sprites
+    // advance in lockstep with scenery.
+    trafficFrame(now, dt);
+
     requestAnimationFrame(sceneryFrame);
   }
   requestAnimationFrame(sceneryFrame);
+
+  // ── Traffic: oncoming + slow-same-direction vehicles ──────────────
+  // Marcus 2026-04-24: "stick to the left, have other vehicles coming
+  // the other way occasionally, and slow vehicles like tractors to
+  // get stuck behind". All SVG placeholders; final art comes later.
+  var diagOncoming = document.getElementById('diag-oncoming');
+  var diagSlow = document.getElementById('diag-slow');
+  var diagStuckRow = document.getElementById('diag-stuck-row');
+  var diagStuck = document.getElementById('diag-stuck');
+
+  // Lane geometry at the bottom of the viewport (as fractions of
+  // layer width). Our lane centre ≈ 0.30, oncoming lane centre ≈ 0.82.
+  // Both lanes converge at 0.50 at the horizon (vanishing point).
+  var LANE_OURS_BOTTOM = 0.30;
+  var LANE_ONCOMING_BOTTOM = 0.82;
+
+  function laneX(lane, p) {
+    // p=0 at horizon (centre), p=1 at the bottom of the viewport.
+    var target = (lane === 'ours') ? LANE_OURS_BOTTOM : LANE_ONCOMING_BOTTOM;
+    return 0.5 + (target - 0.5) * Math.pow(p, 1.15);
+  }
+
+  // Oncoming-traffic sprite pool (silhouettes, viewBox 80x100).
+  // Silhouettes are drawn "nose toward camera" — as they scale up
+  // we see the front of the vehicle coming at us.
+  var ONCOMING_POOL = [
+    { key:'car',     label:'ONCOMING CAR',     svg:
+      "<rect x='18' y='46' width='44' height='34' rx='6' fill='%23c84a3a' stroke='%23222' stroke-width='2'/>" +
+      "<rect x='22' y='52' width='36' height='16' rx='2' fill='%23f9efcf'/>" +
+      "<circle cx='26' cy='82' r='5' fill='%23222'/><circle cx='54' cy='82' r='5' fill='%23222'/>" +
+      "<rect x='20' y='68' width='6' height='5' fill='%23ffe27a'/>" +
+      "<rect x='54' y='68' width='6' height='5' fill='%23ffe27a'/>" },
+    { key:'van',     label:'ONCOMING VAN',     svg:
+      "<rect x='14' y='38' width='52' height='44' rx='4' fill='%233aa0d4' stroke='%23222' stroke-width='2'/>" +
+      "<rect x='20' y='44' width='40' height='16' rx='2' fill='%23f9efcf'/>" +
+      "<circle cx='24' cy='84' r='5' fill='%23222'/><circle cx='56' cy='84' r='5' fill='%23222'/>" +
+      "<rect x='16' y='70' width='6' height='5' fill='%23ffe27a'/>" +
+      "<rect x='58' y='70' width='6' height='5' fill='%23ffe27a'/>" },
+    { key:'lorry',   label:'ONCOMING LORRY',   svg:
+      "<rect x='8' y='24' width='64' height='58' rx='3' fill='%234a4a4a' stroke='%23111' stroke-width='2'/>" +
+      "<rect x='14' y='32' width='52' height='22' rx='2' fill='%23c0d6de'/>" +
+      "<rect x='10' y='56' width='60' height='12' fill='%23333'/>" +
+      "<circle cx='22' cy='86' r='6' fill='%23111'/><circle cx='58' cy='86' r='6' fill='%23111'/>" +
+      "<rect x='10' y='70' width='7' height='6' fill='%23ffd84a'/>" +
+      "<rect x='63' y='70' width='7' height='6' fill='%23ffd84a'/>" },
+    { key:'bike',    label:'ONCOMING BIKE',    svg:
+      "<circle cx='40' cy='82' r='10' fill='none' stroke='%23222' stroke-width='3'/>" +
+      "<rect x='32' y='52' width='16' height='24' fill='%23111'/>" +
+      "<circle cx='40' cy='40' r='8' fill='%23f0c89a' stroke='%23222' stroke-width='2'/>" +
+      "<rect x='34' y='30' width='12' height='8' rx='3' fill='%23222'/>" +
+      "<circle cx='40' cy='48' r='3' fill='%23ffe27a'/>" },
+    { key:'cyclist', label:'ONCOMING CYCLIST', svg:
+      "<circle cx='40' cy='84' r='8' fill='none' stroke='%23222' stroke-width='2'/>" +
+      "<line x1='40' y1='84' x2='40' y2='60' stroke='%23222' stroke-width='2'/>" +
+      "<circle cx='40' cy='34' r='7' fill='%23f0c89a'/>" +
+      "<rect x='32' y='40' width='16' height='18' fill='%23e04a4a'/>" +
+      "<rect x='34' y='28' width='12' height='5' rx='2' fill='%2322aa66'/>" }
+  ];
+
+  // Slow same-direction sprite pool (silhouettes, viewBox 80x100).
+  // Drawn "rear toward camera" — we're approaching from behind.
+  var SLOW_POOL = [
+    { key:'tractor',    label:'TRACTOR',    svg:
+      "<rect x='20' y='36' width='40' height='30' rx='3' fill='%23e8a820' stroke='%23222' stroke-width='2'/>" +
+      "<rect x='26' y='42' width='28' height='14' fill='%23402a10'/>" +
+      "<circle cx='22' cy='84' r='11' fill='%23222'/>" +
+      "<circle cx='58' cy='84' r='11' fill='%23222'/>" +
+      "<circle cx='14' cy='70' r='6' fill='%23222'/>" +
+      "<rect x='54' y='66' width='10' height='6' fill='%23c0180a'/>" },
+    { key:'horsebox',   label:'HORSE BOX',  svg:
+      "<rect x='8' y='34' width='22' height='46' rx='3' fill='%232a5aaa' stroke='%23222' stroke-width='2'/>" +
+      "<rect x='30' y='40' width='42' height='42' rx='3' fill='%23f4e4c8' stroke='%23222' stroke-width='2'/>" +
+      "<rect x='36' y='48' width='30' height='18' fill='%235a3a1a'/>" +
+      "<circle cx='16' cy='84' r='5' fill='%23111'/>" +
+      "<circle cx='40' cy='86' r='6' fill='%23111'/>" +
+      "<circle cx='62' cy='86' r='6' fill='%23111'/>" },
+    { key:'postievan',  label:'POSTIE VAN', svg:
+      "<rect x='14' y='34' width='52' height='48' rx='4' fill='%23d43030' stroke='%23222' stroke-width='2'/>" +
+      "<rect x='22' y='42' width='36' height='18' rx='2' fill='%23f9efcf'/>" +
+      "<rect x='30' y='62' width='20' height='18' fill='%23a42020'/>" +
+      "<circle cx='24' cy='86' r='5' fill='%23111'/>" +
+      "<circle cx='56' cy='86' r='5' fill='%23111'/>" +
+      "<rect x='36' y='70' width='8' height='3' fill='%23fff'/>" },
+    { key:'milkfloat',  label:'MILK FLOAT', svg:
+      "<rect x='16' y='40' width='48' height='42' rx='2' fill='%23eff4f7' stroke='%23222' stroke-width='2'/>" +
+      "<rect x='22' y='46' width='36' height='16' fill='%23b8d4de'/>" +
+      "<rect x='26' y='66' width='28' height='14' fill='%23cfdce2' stroke='%23999' stroke-width='1'/>" +
+      "<circle cx='24' cy='86' r='5' fill='%23111'/>" +
+      "<circle cx='56' cy='86' r='5' fill='%23111'/>" +
+      "<rect x='30' y='70' width='6' height='8' fill='%23fff'/>" +
+      "<rect x='44' y='70' width='6' height='8' fill='%23fff'/>" },
+    { key:'jogger',     label:'JOGGER',     svg:
+      "<circle cx='40' cy='30' r='7' fill='%23f0c89a'/>" +
+      "<rect x='34' y='38' width='12' height='22' fill='%23ff8ac0'/>" +
+      "<rect x='36' y='60' width='4' height='18' fill='%232a2a2a'/>" +
+      "<rect x='42' y='60' width='4' height='18' fill='%232a2a2a'/>" +
+      "<line x1='34' y1='44' x2='28' y2='56' stroke='%23f0c89a' stroke-width='3'/>" +
+      "<line x1='46' y1='44' x2='52' y2='54' stroke='%23f0c89a' stroke-width='3'/>" +
+      "<ellipse cx='36' cy='82' rx='5' ry='2' fill='%23111'/>" +
+      "<ellipse cx='46' cy='82' rx='5' ry='2' fill='%23111'/>" }
+  ];
+
+  function buildTrafficSprite(pool, labelOverride) {
+    var chosen = pool[Math.floor(Math.random() * pool.length)];
+    var el = document.createElement('div');
+    el.className = 'sprite traffic';
+    var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 100'>" + chosen.svg + "</svg>";
+    var img = document.createElement('img');
+    img.src = 'data:image/svg+xml;utf8,' + svg;
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.display = 'block';
+    el.appendChild(img);
+    var lab = document.createElement('div');
+    lab.className = 'label';
+    lab.textContent = labelOverride || chosen.label;
+    el.appendChild(lab);
+    el._key = chosen.key;
+    el._label = chosen.label;
+    return el;
+  }
+
+  // ── Oncoming sprites (right lane, moving toward camera fast) ──
+  var oncomingSprites = [];
+  var MAX_ONCOMING = 4;
+  var lastOncomingSpawn = performance.now();
+  var nextOncomingDelay = 3500;
+
+  function maybeSpawnOncoming(now) {
+    if (speed < 3) return;
+    if (oncomingSprites.length >= MAX_ONCOMING) return;
+    if (now - lastOncomingSpawn < nextOncomingDelay) return;
+    // Avoid visual pile-ups — skip if any current oncoming is still
+    // near the horizon (p < 0.22).
+    for (var i = 0; i < oncomingSprites.length; i++) {
+      if (oncomingSprites[i]._progress < 0.22) return;
+    }
+    var el = buildTrafficSprite(ONCOMING_POOL);
+    el._progress = 0;
+    // Oncoming approaches ~2× faster than scenery because we're
+    // adding their speed to ours.
+    el._duration = 2200 + Math.random() * 900;
+    sceneryLayer.appendChild(el);
+    oncomingSprites.push(el);
+    lastOncomingSpawn = now;
+    // Spawn every 3–6 s, faster when player is going fast.
+    var base = 3000 + Math.random() * 3000;
+    nextOncomingDelay = speed > 40 ? base * 0.6 : base;
+  }
+
+  function advanceOncoming(dt) {
+    var layerH = sceneryLayer.clientHeight;
+    var layerW = sceneryLayer.clientWidth;
+    var speedFactor = Math.max(0.25, speed / 40);
+    for (var i = oncomingSprites.length - 1; i >= 0; i--) {
+      var s = oncomingSprites[i];
+      // Their apparent progress is scaled by our speed too (they
+      // close faster the faster we drive).
+      s._progress += (dt / s._duration) * (0.6 + speedFactor * 0.8);
+      if (s._progress >= 1) {
+        if (s.parentNode) s.parentNode.removeChild(s);
+        oncomingSprites.splice(i, 1);
+        continue;
+      }
+      var p = s._progress;
+      var scale = 0.08 + Math.pow(p, 1.8) * 1.7; // bigger than scenery
+      var y = Math.pow(p, 1.35) * layerH;
+      var x = laneX('oncoming', p) * layerW;
+      s.style.left = x + 'px';
+      s.style.top = y + 'px';
+      s.style.transform = 'translate(-50%, -100%) scale(' + scale.toFixed(3) + ')';
+      s.style.opacity = p < 0.12 ? (p / 0.12).toFixed(2) : '1';
+      s.style.zIndex = String(10 + Math.floor(p * 10));
+    }
+  }
+
+  // ── Slow same-direction sprites (our lane, we catch up) ──
+  // Each slow sprite has a lifecycle:
+  //   approach  — we close on it (progress rises from 0 → ~0.55)
+  //   stuck     — progress hovers at ~0.55 ± wobble for a few seconds
+  //   drift     — drifts to left verge and off-screen (simulating
+  //               they took a turning OR we finally overtook)
+  var slowSprites = [];
+  var MAX_SLOW = 2;
+  var lastSlowSpawn = performance.now();
+  var nextSlowDelay = 8000; // first one comes reasonably soon
+  var stuckSprite = null; // currently-in-front slow vehicle, if any
+
+  function maybeSpawnSlow(now) {
+    if (speed < 3) return;
+    if (slowSprites.length >= MAX_SLOW) return;
+    if (now - lastSlowSpawn < nextSlowDelay) return;
+    var el = buildTrafficSprite(SLOW_POOL);
+    el._progress = 0;
+    el._phase = 'approach';
+    el._stuckUntil = 0;
+    el._driftX = 0;
+    sceneryLayer.appendChild(el);
+    slowSprites.push(el);
+    lastSlowSpawn = now;
+    nextSlowDelay = 15000 + Math.random() * 15000; // 15–30 s
+  }
+
+  function advanceSlow(now, dt) {
+    var layerH = sceneryLayer.clientHeight;
+    var layerW = sceneryLayer.clientWidth;
+    var speedFactor = Math.max(0, speed / 40);
+    stuckSprite = null;
+    for (var i = slowSprites.length - 1; i >= 0; i--) {
+      var s = slowSprites[i];
+      if (s._phase === 'approach') {
+        // Relative closing speed = ours - theirs. Their "speed" is
+        // modest so we do catch up.
+        var relClose = Math.max(0, speedFactor - 0.35);
+        s._progress += (dt / 6000) * (0.3 + relClose * 1.3);
+        if (s._progress >= 0.55) {
+          s._progress = 0.55;
+          s._phase = 'stuck';
+          s._stuckUntil = now + 4500 + Math.random() * 3500;
+        }
+      } else if (s._phase === 'stuck') {
+        // Hover — small wobble so it feels alive. We sit behind it.
+        var wobble = 0.02 * Math.sin(now / 380);
+        s._progress = 0.55 + wobble;
+        stuckSprite = s;
+        if (now >= s._stuckUntil) {
+          s._phase = 'drift';
+          s._driftStart = now;
+        }
+      } else if (s._phase === 'drift') {
+        // Drifts left to the verge and off-screen.
+        var dp = (now - s._driftStart) / 1400;
+        s._driftX = -dp * 0.55; // leftward offset in layer-widths
+        s._progress += dt / 2200;
+        if (dp >= 1 || s._progress >= 1) {
+          if (s.parentNode) s.parentNode.removeChild(s);
+          slowSprites.splice(i, 1);
+          continue;
+        }
+      }
+      var p = Math.min(0.98, s._progress);
+      var scale = 0.08 + Math.pow(p, 1.55) * 1.35;
+      var y = Math.pow(p, 1.35) * layerH;
+      var xFrac = laneX('ours', p) + (s._driftX || 0);
+      var x = xFrac * layerW;
+      s.style.left = x + 'px';
+      s.style.top = y + 'px';
+      s.style.transform = 'translate(-50%, -100%) scale(' + scale.toFixed(3) + ')';
+      s.style.opacity = p < 0.12 ? (p / 0.12).toFixed(2) :
+                        (s._phase === 'drift' ? Math.max(0, 1 - (now - s._driftStart)/1400).toFixed(2) : '1');
+      s.style.zIndex = String(8 + Math.floor(p * 8));
+    }
+  }
+
+  // Overtake placeholder mechanic — right-arrow held for ~1.5 s while
+  // stuck behind a slow vehicle AND no oncoming visible.
+  var rightHeldSince = 0;
+  var overtakeArmed = false;
+  window.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' && !rightHeldSince) {
+      rightHeldSince = performance.now();
+    }
+  });
+  window.addEventListener('keyup', function(e){
+    if (e.key === 'ArrowRight') {
+      rightHeldSince = 0;
+      overtakeArmed = false;
+    }
+  });
+
+  function checkOvertake(now) {
+    if (!rightHeldSince) return;
+    if (overtakeArmed) return;
+    if (!stuckSprite) return;
+    if (now - rightHeldSince < 1500) return;
+    // Oncoming visibility check — block overtake if any oncoming
+    // sprite is in view with progress < 0.85 (still coming at us).
+    for (var i = 0; i < oncomingSprites.length; i++) {
+      if (oncomingSprites[i]._progress < 0.85) return;
+    }
+    overtakeArmed = true;
+    // Kick the slow sprite into drift phase immediately.
+    stuckSprite._phase = 'drift';
+    stuckSprite._driftStart = now;
+    flash('Clean overtake!');
+    // Tiny coin-bonus pulse in HUD (comfort meter flash) — mockup only.
+    var fill = document.getElementById('comfort-fill');
+    if (fill) {
+      var old = fill.style.filter;
+      fill.style.filter = 'drop-shadow(0 0 10px #ffde2f) brightness(1.3)';
+      setTimeout(function(){ fill.style.filter = old || ''; }, 900);
+    }
+  }
+
+  function trafficFrame(now, dt) {
+    maybeSpawnOncoming(now);
+    maybeSpawnSlow(now);
+    advanceOncoming(dt);
+    advanceSlow(now, dt);
+    checkOvertake(now);
+
+    diagOncoming.textContent = oncomingSprites.length;
+    diagSlow.textContent = slowSprites.length;
+    if (stuckSprite) {
+      diagStuckRow.style.display = '';
+      diagStuck.textContent = stuckSprite._label;
+    } else {
+      diagStuckRow.style.display = 'none';
+    }
+  }
 
   function unlock() {
     ['audio-horn','audio-horn-soft','audio-horn-deep','audio-horn-elec','audio-spark'].forEach(function(id){
