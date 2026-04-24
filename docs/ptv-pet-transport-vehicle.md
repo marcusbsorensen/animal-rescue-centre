@@ -257,6 +257,61 @@ Marcus's note (2026-04-24): the PTV world map needs destinations beyond the thre
 - Rewards: coins + unique trophies / rosettes (decorative, display in Centre), prestige points, occasionally adopter-interest spikes (families saw the animal on TV).
 - Win conditions feed off bond level, skill-training progress, happiness, and specific trained tricks — so pet shows are a *consequence* of good care, not a separate grind.
 
+### Visual references + art direction
+
+Moving from mechanic-spec into visual-spec. Marcus's note (2026-04-24): *"visualising helps to make it real and then we can see the gaps."* This section carries specific art references for iconic world-objects — use these directly when briefing Manus / GPT-Image.
+
+#### West-entrance car-wash — Wavy-arm guy
+
+- **Placement**: left side of the road on the **west entrance to Birchie** (the main road approach from the Herne Bay direction).
+- **Exact reference**: the **blue-dungarees + red-shirt + blue cap** inflatable from the three-tube-man reference set (AliExpress listing Marcus shared). **Right arm is the one that flaps**, waving drivers in. Left arm stays low.
+- **Visual**: a classic fan-powered inflatable tube-man. Big painted smile. Eyes full of cheer. Red "CAR WASH" letters running down the tube vertically. Anchored on a black fan base.
+- **Motion**: the right arm flaps rhythmically — big flap, flop, big flap, flop. Head and body sway slightly. Not a smooth animation — that janky, over-inflated floppy motion is the whole charm.
+- **Use in game**:
+  - **Supply Runs**: drive past him to trigger a mild steering jitter + visual laugh beat.
+  - **PTV drives**: pull in for a wash (cosmetic cleaner-van sprite + small on-board happiness bump). Cost a coin.
+- **Reference photo**: saved to `apps/game/public/admin/mockup-assets/reference/birchie-west-entrance/` (see §"Reference image library" below).
+
+#### Petrol station — east of the car wash, right side
+
+- **Placement**: right side of the road, **shortly after the car wash** when entering Birchie from the west. The two landmarks pair as a "you're arriving in Birchie" beat.
+- **Function in game**: integral to the driving dynamics.
+  - **Refuelling**: each vehicle burns fuel per drive (already in `VEHICLE_DEFS.fuelCost`). The petrol station is where that fuel is physically paid for — not an abstract menu cost. Pulling up to the pump plays a small mini-beat: pick a pump, tap-and-hold to fill, release when the gauge is full, pay the attendant.
+  - **Pay-at-pump vs pay-inside shop**: pay at pump is quick; going into the shop lets you pick up snacks (small consumables — an energy treat for the driver, a tin of travel biscuits for the onboard pet).
+  - **Running out of fuel**: if you skipped a fuel-up and the tank empties mid-drive, the vehicle coasts to a stop. Trigger a **breakdown rescue** mini-event (a local mechanic tows you in for a coin penalty — the kind of small crisis that teaches planning without being punishing).
+  - **Fuel economy differs per vehicle**: Trikey is free (pedal), Spark is half-cost (electric), Big Tilly burns 4× the base rate. Makes vehicle choice matter beyond just slot count.
+- **Visual cues**: small forecourt, two pumps, a little kiosk shop with bunting across the window. Classic British-petrol-station proportions — low overhang, fluorescent lit at night.
+- **Naming**: generic (no Shell / BP / Esso). Maybe a made-up brand sign: "BIRCHIE FUEL" in painted wood or "THE PUMP" as a village nickname.
+
+#### Reference image library
+
+Set up a persistent reference folder for visual anchors Marcus shares during brainstorming. This becomes Manus's source of truth for Birchie art.
+
+```
+apps/game/public/admin/mockup-assets/reference/
+  birchie-west-entrance/
+    wavy-arm-car-wash-guy.jpg   ← reference from AliExpress listing
+    petrol-station-*.jpg         ← to come
+  birchie-coast/
+    minnis-bay-*.jpg
+    beach-huts-*.jpg
+    chalk-cliffs-*.jpg
+  wyx-park/
+    gnarled-oak-reference.jpg
+    alpaca-reference.jpg
+    folk-fair-reference.jpg
+  all-saints-church/
+    ...
+  cast-facsimiles/
+    ...
+```
+
+Rules:
+- Reference images live in `apps/game/public/admin/` so they're browsable from the admin UI.
+- Each subfolder gets a `README.md` quoting the Marcus-context for why the ref was added and linking to relevant sections in `ptv-pet-transport-vehicle.md`.
+- Never ship these to production bundles (they're admin-only, not game-runtime assets).
+- Accept that we can't ship copyrighted images. Each ref is a **target for Manus to re-illustrate** in the A.R.C. storybook style, not a direct asset.
+
 ### Hedgehog crossings — stop the vehicle
 
 Marcus's note (2026-04-24): **hedgehogs occasionally cross the roads and the vehicle must stop for them.**
