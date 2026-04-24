@@ -561,12 +561,15 @@
     border-top: 6px solid rgba(0,0,0,0.45);
     box-shadow: inset 0 12px 30px rgba(0,0,0,0.35);
     display: grid;
-    grid-template-columns: 120px 180px 1fr 220px;
-    grid-template-rows: auto 1fr auto;
+    /* Speedometer moved LEFT of the wheel (Marcus 2026-04-24) so
+       the road view + wheel aren't blocked from above. Speedo sits
+       between ignition and wheel; wheel sits dead-centre beneath
+       the windscreen opening. Five columns. */
+    grid-template-columns: 100px 140px 160px 1fr 220px;
+    grid-template-rows: 1fr auto;
     grid-template-areas:
-      "hazard   ignition  speedo   gps"
-      "hazard   ignition  wheel    gps"
-      "hazard   ignition  pedals   comfort";
+      "hazard   ignition  speedo   wheel   gps"
+      "hazard   ignition  pedals   pedals  comfort";
     gap: 8px;
     padding: 14px 22px 20px 22px;
     color: var(--dash-ink);
@@ -762,11 +765,15 @@
     gap: 4px;
     box-shadow: 0 3px 6px rgba(0,0,0,0.4), inset 0 -2px 0 rgba(0,0,0,0.2);
   }
+  /* Hazard symbol: the ISO 2575 universal hazard-warning-flasher
+     — a hollow red equilateral triangle (apex up), rendered as
+     two nested triangles with the red ring as the visible form.
+     Replaces the earlier solid triangle that read as a lane-change
+     chevron. */
   .hazard-btn .triangle {
-    width: 0; height: 0;
-    border-left: 11px solid transparent;
-    border-right: 11px solid transparent;
-    border-bottom: 18px solid #e8253a;
+    width: 30px;
+    height: 28px;
+    display: block;
   }
   .hazard-btn:active { transform: translateY(1px); }
   .cockpit.hazards .hazard-btn {
@@ -1083,7 +1090,7 @@
 
   @media (max-width: 900px) {
     .dashboard {
-      grid-template-columns: 90px 130px 1fr 160px;
+      grid-template-columns: 80px 110px 120px 1fr 160px;
       padding: 10px 10px 14px 10px;
     }
     .wheel { width: 180px; height: 180px; }
@@ -1218,7 +1225,16 @@
 
     <div class="hazard-panel">
       <button class="hazard-btn" id="hazard-btn" aria-label="Hazard lights">
-        <div class="triangle"></div>
+        <!-- ISO 2575 universal hazard-warning symbol:
+             red equilateral triangle (apex up) with a hollow centre
+             — rendered as two nested triangles so the red ring is
+             the visible form. -->
+        <svg class="triangle" viewBox="0 0 40 36" aria-hidden="true">
+          <path d="M 20 2 L 38 34 L 2 34 Z
+                   M 20 10 L 30 30 L 10 30 Z"
+                fill="#dc1e1e"
+                fill-rule="evenodd"/>
+        </svg>
         <span>HAZARD</span>
       </button>
       <div class="hazard-indicator" id="hazard-indicator">OFF</div>

@@ -918,7 +918,7 @@ The v1 cockpit mockup had elements scattered around the screen (pedals bottom-le
 
 - **Steering wheel** — front-and-centre (unchanged).
 - **Horn** — **in the centre of the steering wheel**, like a real car. You *slam the middle of the wheel* to honk. (No more separate bell button off to the side.)
-- **Speedometer** — **above or directly beside the wheel**, in the dashboard area the driver naturally looks at. **Goes red when the player is speeding** (over a configurable limit per road — important for care-driving teaching).
+- **Speedometer** — **to the LEFT of the steering wheel** (Marcus, 2026-04-24 refinement). Positioning it above the wheel clipped the road view and hid too much of the steering wheel; offsetting it to the left lets the driver see more road + more wheel while keeping the speedo at easy glance-distance. **Goes red when the player is speeding** (over a configurable limit per road — important for care-driving teaching).
 - **Accelerator + brake pedals** — **below the steering wheel**, not off to the side. Left pedal = brake, right pedal = accelerator (real-car layout). Player presses down to engage.
 - **Ignition** — **to the LEFT of the steering wheel**, like a real car (keyed ignition sits there on most right-hand-drive cars). Interaction varies by vehicle (Marcus, 2026-04-24):
   - **Spark (electric)** → a **button**. Press-and-release once. Lamp lights immediately.
