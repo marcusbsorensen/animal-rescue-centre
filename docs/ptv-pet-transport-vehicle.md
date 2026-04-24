@@ -731,15 +731,23 @@ The fake-3D road (see above) renders city blocks, outskirts, and countryside as 
 
 Drive lengths scale with destination distance in [`destinations.ts`](../packages/game-logic/src/destinations.ts) — short trips (~30–60 s) for in-city runs, longer (~90–180 s) for moorland / deep-forest / sea-cliffs rewilding. Kid-appropriate; no 10-minute drives.
 
-#### Onboarding: first drive is a driving lesson
+#### Onboarding: first drive is a VET RUN (Marcus, 2026-04-24 correction)
 
-The player's **very first PTV drive** is a one-pet lesson, deliberately simple:
+The player's **very first PTV drive** is a **vet run**, not an adoption delivery. Adoption happens much later in the game (after full bonding), so it can't be the first-drive trigger.
 
-- One animal, one crate, one destination.
-- No crate-stacking puzzle (nothing to stack against — single pet, single slot).
-- The UI spotlights the cockpit piece by piece: ignition → accelerator → steering → brake → horn. Each element has a tiny tutorial beat.
-- Destination is close and safe (e.g. adoption delivery to a local household in town).
-- Success is the payoff, not a score.
+A vet run fits onboarding perfectly:
+
+- An early animal at The Arc gets sick or needs a check-up (illness is common in the early game by design).
+- Only one animal onboard — single pet, single slot, no crate-stacking yet.
+- Short destination: A.R.C. gate → south through the residential streets → east along Bay Road to **Bay Road Vets** (paired with Bay Road Garage). Two minutes, kid-appropriate.
+- Gentle carefulness matters — a poorly animal + careful drive is exactly the empathy beat the game is about. Teaches *"we go slow because they're not feeling good."*
+- The UI spotlights the cockpit piece by piece during the drive: ignition → accelerator → steering → brake → horn. Each element gets a small tutorial beat.
+- Success is the payoff: arriving at the vet, the pet gets treatment, player gets a small "safe delivery" happiness bonus.
+- **Economic loop hooks in immediately**: vet treatment costs coins → player's motivation to do Supply Runs is established from day one. The chaos-outlet and the vet-bill pressure are introduced in the same play session.
+
+The **second drive** adds the crate-stacking mechanic (see below) by putting a second pet in the vehicle.
+
+**Adoption delivery drives** start MUCH later — once a pet has reached full bond level and an adopter has been committed. By then the player has done plenty of vet runs and understands driving.
 
 #### Crate-stacking introduced on the second drive
 
