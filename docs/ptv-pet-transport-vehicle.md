@@ -224,6 +224,39 @@ This is the core tonal mechanic tying the two systems together — **PTV is the 
 
 This framing matters for UI copy, reward tuning, and art direction. Supply Runs should feel **cathartic**, not penance. The vet-bill pressure is a gentle nudge, never a guilt-trip.
 
+### PTV destinations — the full set
+
+Marcus's note (2026-04-24): the PTV world map needs destinations beyond the three supply-run sites and five rewilding habitats already in [`destinations.ts`](../packages/game-logic/src/destinations.ts). Full category list:
+
+#### 1. Normal vet
+- General-practice vet clinic for routine illness, injury recovery, vaccinations.
+- Aligns with the "vet trip" flow already in game — this makes it a proper map destination instead of an abstract menu action.
+- Suggested naming: **Greystone Veterinary** or **Haven Vets** (both names appeared in the original Depot spec).
+- Driving stress matters: if the animal arrives stressed the stay is longer (more expensive) — direct feed into the Supply-Run economic loop.
+
+#### 2. Specialist prosthetics vet
+- Higher-tier vet for disabled animals: prosthetic legs, wheeled carts, hearing aids, custom mobility gear.
+- Level-gated (mid-to-late unlock).
+- Turns disability into a visible storyline — animals returning with new prosthetics/wheels are a *proud* outcome, not a sad one.
+- Generates its own cast of "happy regulars" — a three-legged cat who runs faster on a cart, a parrot with a prosthetic beak etc.
+
+#### 3. Skill-training assessment centres
+- Multiple sub-venues for different training pathways, visited as a PTV drive. Each is its own destination on the map; some unlock later:
+  - **Guide-dog potential testing** — labrador / retriever / poodle temperament assessment. Passing opens a "guide-dog-in-training" storyline, special adopter households (vision-impaired families).
+  - **Police / sniffer dog academy** — scent-work assessment, agility. Passing → working-dog career arc.
+  - **Parrot intelligence testing** — African Greys especially. Counting, problem-solving, vocabulary challenges. Passing → "therapy parrot" or "university research partner" outcomes.
+  - **Pre-rewilding specialist training** — food-foraging, hunting, weather survival, flock / pack dynamics. Gates whether a wild-rescue can safely be released. A failed assessment means longer rehab; re-attempt after more bond + wellness.
+- Framing: assessment is a *gentle gate*, not a pass/fail verdict. Failed animals aren't rejected — they just get different storylines (therapy pet, sanctuary resident).
+
+#### 4. Rewilding locations
+- Already captured in [`destinations.ts`](../packages/game-logic/src/destinations.ts): Moorland (fox), Woodland (bunny / hedgehog / squirrel), Sea Cliffs (parrot / seabird), Deep Forest (bat), Wetlands (snake). ✓
+
+#### 5. Pet shows
+- Competition venues where animals win prizes for **skills** (agility, obedience, tricks, scent-work, dressage-style routines) and **looks** (coat, confirmation, "best rescue story" — rescue-specific category is important).
+- Multiple pet-show venues around the map: village fête (easy, starter), county show (mid-tier), national championship (end-game).
+- Rewards: coins + unique trophies / rosettes (decorative, display in Centre), prestige points, occasionally adopter-interest spikes (families saw the animal on TV).
+- Win conditions feed off bond level, skill-training progress, happiness, and specific trained tricks — so pet shows are a *consequence* of good care, not a separate grind.
+
 ### Supply Run music: heavy metal
 
 Marcus's note (2026-04-24): *"supply run music probably needs to be more in the heavy metal genre (Lily loves Metallica!) and that works well for pulse-raising chaos-creating motor madness"*.

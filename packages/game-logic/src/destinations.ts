@@ -15,7 +15,17 @@ export type DestinationKind =
   | 'supply-run'
   | 'rewilding-habitat'
   | 'adoption-home'
-  | 'visit-home';
+  | 'visit-home'
+  // ── Added 2026-04-24 per Marcus's brainstorm. See
+  // ── docs/ptv-pet-transport-vehicle.md §"PTV destinations"
+  // ── for the full design. Not yet wired to map UI.
+  | 'vet-general'           // normal vet (Greystone / Haven)
+  | 'vet-prosthetics'       // specialist prosthetics / mobility
+  | 'training-guide-dog'
+  | 'training-sniffer'
+  | 'training-parrot'
+  | 'training-rewilding-prep'
+  | 'pet-show';             // village fête → national championship
 
 export type RewildingHabitat =
   | 'moorland'
