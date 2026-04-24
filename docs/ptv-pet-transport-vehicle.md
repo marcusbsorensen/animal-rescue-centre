@@ -400,6 +400,59 @@ Lily being able to recognise her home town in the game is part of the point. Nam
   - Crowd density: "tonnes of dog walkers" — real social scene; good for cast-walk-by cameos.
 - **Kids' playground next to The Dip** — a sunken multifunctional sports ground (below ground level to keep balls, wind, and waves out). Visible landmark from the coast road. Possible enclosed **pet-show venue** (the sunk bowl shape is natural seating).
 
+#### Confirmed Bay Road (Minnis Road) geography (Marcus, 2026-04-24)
+
+Marcus shared a zoomed map of Birchie centre. Transcribing faithfully so the in-game arterial can mirror the real layout — which means every drive through town passes a familiar sequence of landmarks in the same order Lily knows them.
+
+**Bay Road (real: Minnis Road), west → east:**
+
+1. **West entrance** (off-map, further west) — wavy-arm inflatable car-wash + petrol station (already specified).
+2. **Gore End Farm** (real, western end of Minnis Road) — working farm plot, open fields to the south. **Strong A.R.C. candidate — see below.**
+3. **Birchington Medical Centre** (south side, set back from the road, adjacent to open green / farmland) — our GP+pharmacy errand destination.
+4. **Parish of the Holy Family** (church, south side) — possible quiet-moment landmark / adoption route marker.
+5. **Birchington-on-Sea train station** (north side, where the rail line crosses Minnis Road) — cast-walk-by cluster point (commuters, apprentices arriving).
+6. **Thanet Vets Birchington** (south side, just east of the rail crossing) — real vet. Use the location but rename generically (e.g. "Bay Road Vets"). **This is our normal-vet destination**, no need to invent one.
+7. **Birchington Auto Repairs** (right next to the vets, south side) — real garage. In-game: **vehicle repair destination**, physically paired with the vet. Lovely accidental gameplay gift: a PTV drive that goes wrong → animal to the vet AND van to the garage, both on the same short side of the street.
+8. **Christies Wine Bar** (north side, opposite the vets) — already canonical adult-flavour beat. The chippy across from Christies is just off-map here.
+9. **FitUnion gym** (south side, by the vet) — minor landmark, optional cameo.
+10. **Eastfield Road retail cluster** (further east) — Sainsbury's Local, Co-op, Mandy's Deli, Maria's Kitchen, Wimpy, The Bottle Shop. Cast errands and pet-shop foot traffic happen here.
+
+**Side streets visible on the real map** (lift verbatim or fictionalise; most are fine to keep as-is):
+- Side-streets south off Minnis Road: **Gordon Square, Rutland Gardens, Sussex Gardens, Kent Gardens, Prospect Road, Westfield Road**.
+- Going north off Minnis near the station: **Beach Road, Lyell Road, Rossetti Road** (Rossetti Road is named after the poet buried at All Saints — real historical link, worth preserving).
+- Further north: **Cunningham Crescent, Hunting Gate**.
+
+**Game convention for the transcription:**
+- Minnis Road → **Bay Road** (already decided).
+- Other streets: keep real names — they're generic enough and add authenticity for Lily.
+- Real businesses: rename where we have specific in-game use (vet, auto repairs, chippy, pharmacy, pet supplies) per the "keep generic" rule; leave peripheral/background shops as loose references.
+
+**Reference:** Marcus's zoomed Birchie-centre screenshot (shared in chat 2026-04-24). If saved, goes into `apps/game/public/admin/mockup-assets/reference/birchie-centre/` with a README caption.
+
+#### Revised A.R.C. location — Gorse End Farm (west end of Bay Road)
+
+The real **Gore End Farm** on the west end of Minnis Road is the obvious A.R.C. plot. Every requirement fits:
+
+- **Outdoor space** ✓ — working farm with fields.
+- **Several room types** ✓ — barns + farmhouse + outbuildings naturally decompose into corridor / vet / play / sleep / kitchen / garden / outhouse / pond.
+- **Car access** ✓ — straight out onto Bay Road.
+- **Slightly out of the main village** ✓ — westernmost plot, quiet end; drives east into town feel meaningful.
+- **Walking distance to coast, chippy, pet shop** ✓ — Minnis Bay is a short walk north; village retail a modest drive east.
+
+The drive arterial becomes a **scripted procession of familiar landmarks** every time the player heads into town:
+
+> A.R.C. gate → Medical Centre (pharmacy pickup) → Parish of the Holy Family → train station → Bay Road Vets + Bay Road Garage → Christies + chippy → retail cluster.
+
+Kids who live in Birchie will recognise the sequence *instantly*.
+
+**Naming — "Gore" sounds macabre for a kids' game.** Two options:
+- **Gorse End Farm** — gorse is a plant common around Kent coastal land, keeps the "-end" rhythm, phonetically almost identical, much softer feel. Claude's recommendation.
+- **Gore End Farm** kept as-is — if Lily already knows the real name and it doesn't feel dark to her, preserve the recognition.
+
+Marcus to call which. Other A.R.C. candidates (coast plot, coastguard station, Victorian villa) kept in the doc for reference but Gorse End Farm is now the top pick.
+
+**Vet-and-garage pairing is a gameplay gift.** Vehicle breaks down on a PTV drive → animal goes to the vet (Bay Road Vets) AND van goes to the garage (Bay Road Garage) on the same short strip of Bay Road. Depot parts fix the van; prescriptions from the vet get filled at the Medical Centre pharmacy further down the same road. All three errands naturally cluster along the same arterial — keeps the driving loop tight and the geography memorable.
+
 #### Village errands — GP pharmacy + pet supplies shop (Marcus, 2026-04-24)
 
 Two real Birchie shops pinned as in-game destinations. Both are **short-hop village errands** — the kind of drive that suits the first-drive lesson and daily routine.
