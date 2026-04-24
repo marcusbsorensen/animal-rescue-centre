@@ -257,6 +257,40 @@ Marcus's note (2026-04-24): the PTV world map needs destinations beyond the thre
 - Rewards: coins + unique trophies / rosettes (decorative, display in Centre), prestige points, occasionally adopter-interest spikes (families saw the animal on TV).
 - Win conditions feed off bond level, skill-training progress, happiness, and specific trained tricks — so pet shows are a *consequence* of good care, not a separate grind.
 
+### Driving UX — Lily's spec
+
+Marcus's note (2026-04-24), carrying Lily's direct design requests. Applies to both PTV drives and Supply Runs (it's the shared driving interface).
+
+**Road view — fake 3D.** The driving viewport shows the road rushing *towards* the player (classic Pole Position / OutRun pseudo-3D), not top-down. Painted storybook hedgerows, trees, houses sweep past on either side. Distant hills parallax at the horizon line. Road bends are rendered by shifting the centre-line horizontally. Fake-3D is explicitly fine — no real 3D renderer needed; sprite-scaling and painted depth layers are the target.
+
+**Cockpit view.** The drive scene wraps the fake-3D road viewport inside a chunky, painted-storybook cockpit, not a pure arcade HUD. Elements on screen:
+
+- **GPS map** — the navigation surface. Re-uses the painted world map (existing `mockup-map.html`). Player picks the destination on the GPS before / during the drive; route draws as a painted dotted line across the map. During the drive a "you are here" marker creeps along the route. The GPS stays visible in a corner / dashboard panel while driving.
+- **Steering wheel** — physically turns when the player steers. Drag / swipe on mobile, arrow keys on desktop. The angle of the wheel is visible feedback that reinforces the physicality. Wooden painted wheel with painted-leather grip dots for the aesthetic.
+- **Ignition button** — explicit "start the engine" beat before the drive begins. Tactile: press and hold for a beat, engine note, vibration (on mobile), then the ignition lamp glows. Teaches the kid the ritual of starting a vehicle.
+- **Accelerator & brake pedals** — two on-screen pedal icons. Tap-and-hold accelerator to go faster; tap brake to slow. PTV cargo-comfort drains faster under heavy accelerator use; Supply Runs reward it.
+- **Horn** — a tappable button that plays a **funny little tune** rather than a real car horn. Kid-facing design reason: *"so it doesn't scare the animals."* Non-scary horn is a first-class design principle here, not a cosmetic choice.
+
+**Horn tune notes:**
+- Short (<1.5 s), cheerful, a five-note glockenspiel or ukulele lick. Never harsh. Never blaring.
+- Multiple unlockable horn tunes over time (bicycle bell, kazoo, steel drum, little trumpet fanfare). Swap from a Centre menu.
+- Using the horn on PTV drives → passing animals on the roadside react cutely (bunny pops up, bird chirps back). Never stresses the cargo.
+- Using the horn on Supply Runs → bystanders cheer, small score boost per unique use.
+
+**Layout intent (not final):**
+- Top: GPS mini-map.
+- Middle: the fake-3D road viewport (road receding to horizon, hedgerows sweeping past).
+- Bottom centre: steering wheel.
+- Bottom left: accelerator + brake stacked.
+- Bottom right: horn button + ignition lamp.
+- Tonal swap applies: PTV dashboard is warm wood + painted pastels; Supply Run dashboard flips to neon + metal-chrome for the tonal shift (see music note below).
+
+**Audio hooks** (already in the Manus pack, re-usable here):
+- `ui-paw-tap.ogg` — button presses on pedals / ignition.
+- `ui-sign-drop.ogg` — GPS destination committed.
+- `ui-bell.ogg` — horn default tune (first candidate; regen a proper horn-tune set when ready).
+- `music-corridor.ogg` / `music-play.ogg` — PTV ambient (gentle). Supply Run music replaces with the heavy-metal brief below.
+
 ### Supply Run music: heavy metal
 
 Marcus's note (2026-04-24): *"supply run music probably needs to be more in the heavy metal genre (Lily loves Metallica!) and that works well for pulse-raising chaos-creating motor madness"*.
