@@ -809,6 +809,83 @@ Marcus's note (2026-04-24), carrying Lily's direct design requests. Applies to b
 - `ui-bell.ogg` — horn default tune (first candidate; regen a proper horn-tune set when ready).
 - `music-corridor.ogg` / `music-play.ogg` — PTV ambient (gentle). Supply Run music replaces with the heavy-metal brief below.
 
+### Cockpit layout — emulate a real car (Marcus, 2026-04-24)
+
+The v1 cockpit mockup had elements scattered around the screen (pedals bottom-left, ignition bottom-centre, horn bottom-right, wheel centre). That's **wrong**. The layout should actually emulate how a car is laid out so the kid intuits where things are:
+
+- **Steering wheel** — front-and-centre (unchanged).
+- **Horn** — **in the centre of the steering wheel**, like a real car. You *slam the middle of the wheel* to honk. (No more separate bell button off to the side.)
+- **Speedometer** — **above or directly beside the wheel**, in the dashboard area the driver naturally looks at. **Goes red when the player is speeding** (over a configurable limit per road — important for care-driving teaching).
+- **Accelerator + brake pedals** — **below the steering wheel**, not off to the side. Left pedal = brake, right pedal = accelerator (real-car layout). Player presses down to engage.
+- **Ignition** — **to the LEFT of the steering wheel**, like a real car (keyed ignition sits there on most right-hand-drive cars). Turn/hold to start.
+- **Hazard button** — **new element**, to be added. Player presses to switch on hazard lights when pulled over at the roadside, at the petrol station, at the vet door, or when stopped for a hedgehog. Visible orange hazard-lamp indicator on the dashboard while on.
+- **GPS** — top area, unchanged.
+- **Cargo-comfort meter** (PTV only) — dashboard corner, unchanged.
+- **Mode toggle** — dashboard side panel or menu, not driver-facing during a live drive.
+
+The v1 mockup is superseded. Rebuild needed.
+
+### Dashboard varies per vehicle (Marcus, 2026-04-24)
+
+Each vehicle has its own **cockpit dashboard** — the driving UI you see depends on which vehicle the player picked. Same functional elements (steering, pedals, horn, ignition, GPS, speed) but completely different **tone, materials, proportions, and typography**. First-pass vibes:
+
+| Vehicle | Era / feel | Dashboard materials | Type + readouts | Horn |
+|---|---|---|---|---|
+| **Trikey** (pedal trike) | Kid-on-a-bike, simplest rig | Painted wooden handlebar + wicker basket bolted to the front. No real dash — just a bell, a simple cloth-map holder | Mostly handwritten labels (Kalam) — this rig doesn't need car fonts. Speed "readout" is a painted arrow on a cloth strip | Bicycle bell — literal |
+| **Henry** (small van) | 1970s cosy delivery van, the workhorse | Cream-and-chrome painted metal dashboard, wooden steering wheel, bakelite knobs | Condensed sans (Barlow Condensed / Roboto Condensed) for labels; analogue needle gauge with painted numerals; "Henry" in a handwritten glove-box flourish | Classic parp-parp horn |
+| **Bea** (long van) | Slightly refined, deco flourishes, more heart | Walnut panelling, brass trim, painted floral decal on the glove box | Same condensed sans as Henry + a small Art-Deco title font for "BEA" across the dash | Two-tone horn |
+| **Big Tilly** (animal lorry) | Heavy-duty lorry cabin, trucker-cosy, curtains on the windscreen | Chunky black-painted steel with big rubber-grip switches, chrome rivets, leather seat visible | Bold industrial condensed sans (Oswald), **LED-style numerals** (DSEG7 / Orbitron) on the big central gauge, a warning-lamp row | Deep air-horn (but still friendly) |
+| **Spark** (electric minibus) | Modern premium, clean, quiet | Matte-grey painted panel, a single flat screen for info, minimal physical controls | Modern geometric sans-serif (Inter / DM Sans) for labels; digital readouts; everything in low-contrast cool tones | Soft electronic chime |
+
+Shared rule: all dashboards are still **painted-storybook**, just in different subgenres. No vehicle goes into sci-fi territory.
+
+### Cockpit typography — not cartoon (Marcus, 2026-04-24)
+
+The painted-storybook handwritten fonts (Kalam / Caveat / Chalkboard SE) belong to **narrator copy, tutorial callouts, and wooden sign-labels outside the car**. Inside the cockpit, "technical" UI elements need fonts that read as **car dashboard**, not kids'-book cartoon:
+
+- **Speed gauges / numeric readouts** — digital / LED-style numerals (e.g. `Orbitron`, `DSEG7`, or a condensed monospace numeral). Looks like a real speedo.
+- **Dashboard labels** ("VEHICLE", "MODE", "GPS — Birchie-on-Sea", "CARGO COMFORT") — a **condensed sans-serif** (e.g. `Barlow Condensed`, `Oswald`, `Roboto Condensed`). Mechanical, no-nonsense.
+- **Buttons** ("IGNITION", "ACC", "BRK") — same condensed sans, uppercase, engraved/embossed feel.
+- **Narrator lines / tutorial banners / "Nearly there, good driving!"** — keep the handwritten storybook fonts (Kalam). These live *outside* the car's mechanical UI.
+
+The mix creates the right tone: the **car feels real**, but the game around it is still painted-storybook.
+
+### Map layout — workable, not overlapping (Marcus, 2026-04-24)
+
+The v1 map mockup has pins overlapping in the village centre and roads not clearly visible. For the real map:
+
+- **Roads must be clearly drawn** — painted road-ribbons with visible names (Bay Road, Station Road, The Parade) at readable size. The road network is the visual skeleton that organises everything else.
+- **Pins must not overlap**. Resolve by:
+  - **Zoom-based rendering** — start zoomed out with only major landmarks (A.R.C., Wyx Park, Minnis Bay, Goose End Farm, supply destinations, rewilding habitats); zoom in to reveal minor pins (shops, adopter houses, cameos).
+  - **Declutter** the village centre — cluster shops into a single "Village centre" pin that opens a detail panel, rather than six overlapping signs on the same crossroads.
+  - **Longer-stem signs** for pins that would otherwise collide — the stem points precisely at the map spot; the label sits offset.
+  - **Pin size hierarchy** — hero pins (A.R.C., Wyx Park, Minnis Bay) larger; supporting pins smaller; cameo pins a dot with a hover reveal only.
+- **Painted landscape background**, not CSS shapes — the real map needs a Manus-painted backdrop showing sea, cliffs, village grid, farmland, Wyx Park woods. Pins sit on top of the painting.
+
+### Supply Run visual tone — "fun, not Blade Runner" (Marcus, 2026-04-24)
+
+Earlier specs said "neon cyberpunk" for Supply Runs. Marcus's correction: that reads as **sci-fi-shooter / Blade Runner**, which is wrong. Supply Runs are the **fun** version of the serious driving, not a cyberpunk mode.
+
+**Right references:**
+- Wacky Races, Top Gear playfulness, Mario Kart painted-arcade, vintage-pinball-machine energy, comic-book speed lines.
+- Think *cheeky* painted-storybook-dialled-to-11, not *intimidating* sci-fi HUD.
+
+**Wrong references to avoid:**
+- Neon pink + cyan dashboards.
+- Cyberpunk / Blade Runner / Tron aesthetics.
+- Dark roads with glowing accents.
+- Anything that looks like an arcade shooter or vaporwave music video.
+
+**Palette cues:**
+- Bright saturated **racing colours** — hot orange, racing yellow, bright red, royal blue — not neon pink/cyan.
+- **Sunny daylight** on the road, not dark neon-lit night.
+- **Comic-book speed-stripes, sparkles, POW/ZOOM decals** as dashboard accents.
+- Painted wooden dashboard still present — maybe with cheeky painted racing stripes across the plank.
+- Horn icon might swap for a painted **bicycle-bell-with-tassels** or **pinball-flipper** style element.
+- Cargo-comfort meter is hidden in Supply Run mode (no cargo) and replaced with a **smash counter** or **speed streak meter**.
+
+**Consistency rule:** Supply Run should still be recognisably the same painted-storybook universe as PTV. It's the same vehicle on the same road in the same town, just with the volume turned up — kid-fun loud, not sci-fi loud.
+
 ### Supply Run music: heavy metal
 
 Marcus's note (2026-04-24): *"supply run music probably needs to be more in the heavy metal genre (Lily loves Metallica!) and that works well for pulse-raising chaos-creating motor madness"*.

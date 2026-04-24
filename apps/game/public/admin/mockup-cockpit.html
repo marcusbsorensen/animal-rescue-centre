@@ -6,7 +6,7 @@
 <title>A.R.C. — Cockpit Mockup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Orbitron:wght@500;700&family=Fredoka:wght@500;600&family=Kalam:wght@400;700&family=Caveat:wght@700&display=swap" rel="stylesheet">
 <style>
   /* ============================================================
      A.R.C. Cockpit mockup (slice B)
@@ -20,10 +20,20 @@
      ============================================================ */
 
   :root {
-    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Fredoka', sans-serif;
-    --sign-title-font: 'Chalkboard SE', 'Gochi Hand', 'Kalam', 'Fredoka', sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
-    --hand-font: 'Caveat', 'Kalam', cursive;
+    /* Cockpit typography (Marcus 2026-04-24): NOT cartoon.
+       - Dashboard labels + buttons: condensed sans (car-feel).
+       - Numeric gauges: LED / dashboard-display feel.
+       - Narrator lines + tutorial callouts: painted handwritten.
+       This is a Henry-ish (small van) dashboard for now — per the
+       doc, Trikey / Big Tilly / Spark each get their own typography
+       mix. */
+    --dash-label-font: 'Barlow Condensed', 'Oswald', sans-serif;
+    --dash-numeric-font: 'Orbitron', 'DSEG7', 'Courier New', monospace;
+    --hand-font: 'Kalam', 'Caveat', 'Chalkboard SE', cursive;
+    --body-font: 'Fredoka', system-ui, sans-serif;
+    /* Back-compat aliases used by a few selectors further down */
+    --sign-font: var(--hand-font);
+    --sign-title-font: var(--hand-font);
   }
 
   /* PTV (default) — warm woods + pastels */
@@ -55,32 +65,44 @@
     --speed-max: 80;
   }
 
-  /* Supply Run — neon + chrome */
+  /* Supply Run — sunny racing-fun mode. Kid-fun loud, NOT sci-fi loud.
+     Bright saturated racing palette (hot orange / racing yellow / bright red /
+     royal blue), painted wood still present with cheeky racing stripes. Think
+     Wacky Races / Mario Kart / pinball-machine energy — never Blade Runner.
+     Keeps the painted-storybook universe intact. */
   body.mode-supply {
-    --cream-wash: #08080d;
-    --wood-light: #2a2b38;
-    --wood-mid:   #1a1b24;
-    --wood-dark:  #0f1018;
-    --wood-deep:  #05060a;
-    --ink:        #f2f7ff;
-    --ink-soft:   #9ba3b3;
-    --pastel-sky: #1a0a30;
-    --pastel-hill:#2a0f42;
-    --pastel-hill2:#150825;
-    --road:       #1c1d28;
-    --road-dash:  #ff27d4;
-    --hedge:      #191924;
-    --hedge-dark: #0b0b15;
-    --accent:     #ff27d4;
-    --accent-warm:#00ffe5;
-    --lamp-off:   #1a1420;
-    --lamp-on:    #ff27d4;
-    --dash-panel: linear-gradient(180deg,#2a2b38 0%,#15161e 50%,#05060a 100%);
-    --dash-inner: #0b0b12;
-    --hud-shadow: rgba(0,255,229,0.55);
-    --hud-text:   #00ffe5;
-    --banner-bg:  linear-gradient(180deg,#ff27d4 0%,#8a0cc2 60%,#00ffe5 100%);
-    --banner-label: 'SUPPLY RUN';
+    --cream-wash: #fff2cc;          /* sunny-warm backdrop */
+    --wood-light: #d58a3a;          /* hotter painted wood — racing warmth */
+    --wood-mid:   #b26420;
+    --wood-dark:  #7d4310;
+    --wood-deep:  #4f2b08;
+    --ink:        #2a1705;
+    --ink-soft:   #7a4a1e;
+    --pastel-sky: #9fd8ff;          /* big bright summer sky */
+    --pastel-hill:#9bc676;          /* rolling green hills, saturated */
+    --pastel-hill2:#6faa52;
+    --road:       #484030;          /* sun-warm tarmac, not black */
+    --road-dash:  #ffde2f;          /* racing yellow dashes */
+    --hedge:      #4a8a3a;          /* vibrant hedge-green */
+    --hedge-dark: #2f6122;
+    --accent:     #ff6a00;          /* hot racing orange — the flagship */
+    --accent-warm:#ffde2f;          /* racing yellow — secondary */
+    --accent-cool:#e8253a;          /* bright red — tertiary */
+    --accent-blue:#1e62d4;          /* royal blue — for contrast pops */
+    --lamp-off:   #8a5420;
+    --lamp-on:    #ff9420;
+    --dash-panel: linear-gradient(180deg,#d58a3a 0%,#b26420 55%,#7d4310 100%);
+    --dash-inner: #6a3c0a;
+    --hud-shadow: rgba(120,60,10,0.4);
+    --hud-text:   #fff2cc;
+    /* Banner: comic-book racing stripes, bright saturated, still storybook.
+       No sci-fi glow — hand-painted feel. */
+    --banner-bg:  repeating-linear-gradient(135deg,
+                    #ff6a00 0 14px,
+                    #ffde2f 14px 28px,
+                    #e8253a 28px 42px,
+                    #1e62d4 42px 56px);
+    --banner-label: 'SUPPLY RUN!';
     --speed-max: 140;
   }
 
@@ -131,12 +153,17 @@
     transition: background 0.4s;
   }
   body.mode-supply .sky::after {
-    /* neon grid horizon */
+    /* Comic-book speed-lines streaking from the horizon — painted feel,
+       NOT a neon cyberpunk grid. */
     content: '';
-    position: absolute; inset: 60% 0 0 0;
+    position: absolute; inset: 0 0 60% 0;
     background:
-      linear-gradient(90deg, transparent 49%, rgba(255,39,212,0.5) 50%, transparent 51%) 0 0/10% 100%,
-      linear-gradient(180deg, transparent 70%, rgba(0,255,229,0.35) 100%);
+      repeating-linear-gradient(100deg,
+        transparent 0 40px,
+        rgba(255,222,47,0.22) 40px 44px,
+        transparent 44px 80px);
+    mix-blend-mode: multiply;
+    pointer-events: none;
   }
   .hills {
     position: absolute;
@@ -160,8 +187,10 @@
     transition: transform 0.3s;
   }
   body.mode-supply .sun {
-    background: radial-gradient(circle, #ff27d4 0%, #8a0cc2 55%, transparent 100%);
-    box-shadow: 0 0 60px rgba(255,39,212,0.7);
+    /* Bigger, brighter, warm-racing-yellow sun — not a purple neon disc. */
+    background: radial-gradient(circle, #fff2b0 0%, #ffc20a 55%, #ff6a00 95%, transparent 100%);
+    box-shadow: 0 0 40px rgba(255,194,10,0.55);
+    width: 120px; height: 120px;
   }
 
   /* Ground (the strip under the road) */
@@ -636,8 +665,8 @@
   }
   .pedal.acc   { background: linear-gradient(180deg,#7cb15c 0%,#4c7f33 100%); }
   .pedal.brake { background: linear-gradient(180deg,#d95f4b 0%,#a13425 100%); }
-  body.mode-supply .pedal.acc   { background: linear-gradient(180deg,#00ffe5 0%,#007a6e 100%); color: #0a0112; text-shadow: none; border-color: #00ffe5; box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), 0 0 14px rgba(0,255,229,0.6), 0 6px 0 #002a26; }
-  body.mode-supply .pedal.brake { background: linear-gradient(180deg,#ff27d4 0%,#7a0c60 100%); color: #fff; border-color: #ff27d4; box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), 0 0 14px rgba(255,39,212,0.6), 0 6px 0 #2a0026; }
+  body.mode-supply .pedal.acc   { background: linear-gradient(180deg,#ffde2f 0%,#d49c00 100%); color: #3a1d00; text-shadow: none; border-color: #8a5a00; box-shadow: inset 0 2px 0 rgba(255,255,255,0.5), 0 6px 0 #7a4f00; }
+  body.mode-supply .pedal.brake { background: linear-gradient(180deg,#e8253a 0%,#9a0c1c 100%); color: #fff; border-color: #6e0812; box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), 0 6px 0 #4a0810; }
   .pedal.pressed {
     transform: translateY(5px);
     box-shadow: inset 0 2px 0 rgba(255,240,210,0.25), 0 1px 0 rgba(0,0,0,0.5);
