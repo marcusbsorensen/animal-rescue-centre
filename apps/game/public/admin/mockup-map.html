@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>A.R.C. — World Map</title>
+<title>A.R.C. — Birchie-on-Sea World Map</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -11,13 +11,37 @@
   :root {
     --cream-wash: #fef9ef;
     --parchment: #f3e5c0;
+    --parchment-deep: #eacf95;
+    --sea: #bfe1ec;
+    --sea-deep: #8fc0d0;
+    --surf: #eaf5f7;
+    --sand: #efddb4;
+    --sand-shadow: #c9a86a;
+    --grass: #cfe3ad;
+    --grass-deep: #a3c585;
+    --farm: #e7e1b2;
+    --forest: #8fa875;
+    --moor: #b8a67a;
+    --road: #c7a270;
+    --road-dash: #8b6a3c;
+    --railway: #7b5c3a;
     --garden-green: #2E8B57;
     --sage: #8faa82;
     --honey-amber: #e3b04b;
     --honey-shadow: #b88a37;
     --trellis-brown: #7b5c3a;
+    --wood-warm: #c58a4b;
+    --wood-deep: #8b5a2b;
+    --arc-red: #b94c3a;
+    --arc-red-deep: #8a3429;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
+    --neon-teal: #2bb3a0;
+    --neon-orange: #e6742b;
+    --pastel-blue: #bcd4e6;
+    --pastel-peach: #f2c8a8;
+    --pastel-mint: #c9e6c9;
+    --earthy-green: #6e8c4f;
     --headline-font: 'Fredoka', system-ui, sans-serif;
     --body-font: 'Quicksand', system-ui, sans-serif;
     --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
@@ -67,57 +91,48 @@
   .device[data-size="ipad-l"]  { width: 1024px; height: 768px; }
   .device[data-size="desktop"] { width: 1280px; height: 800px; }
 
+  /* ---- Map canvas ---- */
   .map {
     width: 100%; height: 100%;
     position: relative; overflow: hidden;
     background:
-      radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.4), transparent 60%),
-      radial-gradient(ellipse at center, var(--cream-wash), var(--parchment));
+      radial-gradient(ellipse at 30% 60%, rgba(255,255,255,0.35), transparent 55%),
+      linear-gradient(180deg,
+        var(--sea-deep) 0%, var(--sea) 6%, var(--surf) 12%,
+        var(--sand) 14%, var(--parchment) 18%,
+        var(--parchment) 70%, var(--parchment-deep) 100%);
   }
+  /* Painted parchment freckles */
   .map::before {
     content: ''; position: absolute; inset: 0;
     background-image:
-      radial-gradient(circle at 12% 18%, rgba(139,95,40,0.06), transparent 8%),
-      radial-gradient(circle at 82% 24%, rgba(139,95,40,0.05), transparent 6%),
-      radial-gradient(circle at 28% 72%, rgba(139,95,40,0.05), transparent 7%),
-      radial-gradient(circle at 68% 84%, rgba(139,95,40,0.04), transparent 8%),
-      radial-gradient(circle at 92% 58%, rgba(139,95,40,0.05), transparent 5%);
+      radial-gradient(circle at 12% 38%, rgba(139,95,40,0.05), transparent 6%),
+      radial-gradient(circle at 82% 44%, rgba(139,95,40,0.05), transparent 5%),
+      radial-gradient(circle at 28% 72%, rgba(139,95,40,0.05), transparent 6%),
+      radial-gradient(circle at 68% 84%, rgba(139,95,40,0.04), transparent 7%),
+      radial-gradient(circle at 52% 56%, rgba(139,95,40,0.04), transparent 5%);
     pointer-events: none;
     z-index: 0;
   }
 
-  .roads {
+  /* Painted-landscape SVG stack sits above parchment, below pins. */
+  .landscape {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
-    pointer-events: none;
     z-index: 1;
-  }
-  .road {
-    fill: none;
-    stroke: #b08b5c;
-    stroke-width: 2.4;
-    stroke-linecap: round;
-    stroke-dasharray: 3 7;
-    opacity: 0.78;
-  }
-  .road.locked { stroke: #b7b7b7; opacity: 0.45; }
-
-  .compass {
-    position: absolute; top: 14px; right: 14px;
-    width: 64px; height: 64px;
-    z-index: 4;
-    opacity: 0.85;
-    filter: drop-shadow(0 1px 0 rgba(0,0,0,0.1));
+    pointer-events: none;
   }
 
+  /* ---- Title + compass + legend ---- */
   .map-title {
-    position: absolute; top: 16px; left: 20px;
-    z-index: 4;
+    position: absolute; top: 14px; left: 18px;
+    z-index: 5;
     font-family: var(--sign-title-font);
     font-size: 22px;
     color: var(--trellis-brown);
     letter-spacing: 0.5px;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.7);
+    pointer-events: none;
   }
   .map-title small {
     display: block;
@@ -126,169 +141,313 @@
     font-size: 15px;
     color: var(--ink-soft);
     font-weight: 500;
-    margin-top: 2px;
-  }
-
-  .arc-pin {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    z-index: 3;
-    text-align: center;
-    cursor: pointer;
-  }
-  .arc-pin img {
-    width: 160px; height: auto;
-    filter: drop-shadow(0 6px 10px rgba(0,0,0,0.22));
-  }
-  .arc-pin .arc-label {
-    font-family: var(--sign-title-font);
-    font-size: 20px;
-    color: var(--trellis-brown);
-    margin-top: -6px;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.7);
-  }
-
-  .pin {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    z-index: 3;
-    cursor: pointer;
-    text-align: center;
-    user-select: none;
-  }
-  .pin .disc {
-    position: relative;
-    width: 58px; height: 58px;
-    margin: 0 auto;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #fff8e7, var(--cream-wash) 60%, #e9d9b3);
-    border: 2px solid var(--trellis-brown);
-    box-shadow:
-      0 3px 0 rgba(0,0,0,0.08),
-      0 6px 14px rgba(0,0,0,0.18),
-      inset 0 -3px 0 rgba(139,95,40,0.18);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 28px;
-    transition: transform 0.15s;
-  }
-  .pin:hover .disc { transform: scale(1.08); }
-  .pin.active .disc {
-    transform: scale(1.12);
-    border-color: var(--honey-amber);
-    box-shadow:
-      0 0 0 3px rgba(227,176,75,0.35),
-      0 6px 14px rgba(0,0,0,0.22);
-  }
-  .pin .pin-label {
-    font-family: var(--caveat-font);
-    font-style: italic;
-    font-weight: 700;
-    font-size: 18px;
-    color: var(--ink);
-    margin-top: 4px;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.8);
-    white-space: nowrap;
-  }
-
-  .pin.locked .disc { filter: grayscale(1) brightness(0.95); opacity: 0.75; }
-  .pin.locked .pin-label { color: var(--ink-soft); }
-  .lock-badge {
-    position: absolute; top: -6px; right: -6px;
-    background: #6b6b6b; color: #fff;
-    border-radius: 50%;
-    width: 22px; height: 22px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px;
-    border: 2px solid var(--cream-wash);
-  }
-  .lock-hint {
-    display: block;
-    font-family: var(--body-font);
-    font-style: normal;
-    font-weight: 500;
-    font-size: 11px;
-    color: var(--ink-soft);
     margin-top: 1px;
   }
 
-  .pin-flag {
-    position: absolute;
-    top: -20px; left: 50%; transform: translateX(-50%);
-    padding: 2px 9px;
-    border-radius: 999px;
-    font-family: var(--headline-font);
-    font-weight: 600;
-    font-size: 11px;
-    letter-spacing: 0.4px;
-    white-space: nowrap;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  .compass {
+    position: absolute; top: 12px; right: 12px;
+    width: 64px; height: 64px;
+    z-index: 5;
+    opacity: 0.9;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.18));
+    pointer-events: none;
   }
-  .pin-flag.new  { background: var(--honey-amber); color: #2a2010; border: 1px solid var(--honey-shadow); }
-  .pin-flag.visit{ background: #e8f5e4; color: #2a5a1f; border: 1px solid var(--garden-green); }
-  .pin-flag.mail { background: #fff4d6; color: #7a5a1a; border: 1px solid var(--honey-shadow); }
 
-  .plaque {
+  .legend {
+    position: absolute; bottom: 10px; left: 10px;
+    z-index: 5;
+    background:
+      linear-gradient(180deg, #f6e2b8 0%, #e7c885 100%);
+    border: 2px solid var(--wood-deep);
+    border-radius: 10px;
+    padding: 8px 12px 10px;
+    box-shadow:
+      0 4px 10px rgba(0,0,0,0.2),
+      inset 0 1px 0 rgba(255,255,255,0.4),
+      inset 0 -2px 0 rgba(0,0,0,0.12);
+    max-width: 240px;
+    font-family: var(--body-font);
+  }
+  .legend h4 {
+    font-family: var(--sign-title-font);
+    font-size: 14px;
+    color: #3a2510;
+    margin-bottom: 6px;
+    letter-spacing: 0.3px;
+  }
+  .legend ul { list-style: none; display: grid; grid-template-columns: 1fr; gap: 3px; }
+  .legend li {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11.5px;
+    color: #3a2510;
+    font-weight: 500;
+  }
+  .legend .swatch {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 5px;
+    font-size: 13px;
+    flex-shrink: 0;
+    border: 1.5px solid var(--wood-deep);
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12);
+  }
+  .legend .sw-arc      { background: var(--arc-red); color: #fff8e0; }
+  .legend .sw-supply   { background: var(--neon-teal); color: #fff; }
+  .legend .sw-ptv      { background: var(--pastel-peach); color: #5a3a1a; }
+  .legend .sw-rewild   { background: var(--earthy-green); color: #ecf6d9; }
+  .legend .sw-collect  { background: #f5d97a; color: #5a3a1a; }
+  .legend .sw-house    { background: var(--pastel-mint); color: #2a4a2a; }
+  .legend .sw-show     { background: var(--honey-amber); color: #3a2510; }
+
+  /* ---- Off-edge tag (Herne Bay) ---- */
+  .offedge {
     position: absolute;
     z-index: 5;
-    width: 230px;
-    padding: 14px 16px 14px;
-    background: linear-gradient(180deg, #e8b858 0%, #d19b3d 100%);
-    color: #2a1f0a;
-    border-radius: 10px;
-    border: 2px solid var(--honey-shadow);
+    font-family: var(--caveat-font);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink-soft);
+    padding: 3px 9px 3px 16px;
+    background: rgba(255,249,231,0.85);
+    border: 1.5px dashed var(--trellis-brown);
+    border-radius: 20px 4px 4px 20px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .offedge.left { left: 0; border-left: none; border-radius: 0 20px 20px 0; padding: 3px 12px 3px 10px; }
+  .offedge .arrow { display: inline-block; margin-right: 4px; }
+
+  /* ---- Pins ---- */
+  .pin {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    text-align: center;
+    user-select: none;
+    z-index: 3;
+    transition: transform 0.15s ease-out;
+  }
+  .pin:hover { transform: translate(-50%, -55%); z-index: 6; }
+  .pin.active { z-index: 7; }
+
+  /* Base painted "wooden sign" pin */
+  .pin .sign {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 10px 5px;
+    background: linear-gradient(180deg, #e7b97a 0%, #c58a4b 55%, #a06b30 100%);
+    border: 1.5px solid var(--wood-deep);
+    border-radius: 7px;
+    font-family: var(--sign-title-font);
+    font-size: 13px;
+    color: #3a1f07;
+    white-space: nowrap;
     box-shadow:
-      0 6px 16px rgba(0,0,0,0.3),
+      0 3px 0 rgba(0,0,0,0.15),
+      0 5px 10px rgba(0,0,0,0.22),
+      inset 0 1px 0 rgba(255,255,255,0.35),
+      inset 0 -2px 0 rgba(0,0,0,0.14);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .pin .sign .ico {
+    font-size: 15px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,0.5));
+  }
+  .pin .sign .sub {
+    display: block;
+    font-family: var(--caveat-font);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 11px;
+    color: #4a2a0a;
+    margin-top: -2px;
+  }
+  /* The little nail/peg under the sign */
+  .pin .sign::after {
+    content: '';
+    position: absolute;
+    bottom: -7px; left: 50%;
+    transform: translateX(-50%);
+    width: 3px; height: 8px;
+    background: var(--wood-deep);
+    border-radius: 0 0 2px 2px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.2);
+  }
+
+  /* A.R.C. — biggest painted red sign */
+  .pin.arc { z-index: 5; }
+  .pin.arc .sign {
+    padding: 8px 18px 10px;
+    font-size: 22px;
+    background: linear-gradient(180deg, #d45c48 0%, var(--arc-red) 55%, var(--arc-red-deep) 100%);
+    color: #fff8e0;
+    letter-spacing: 2px;
+    border: 2px solid #5a2419;
+    border-radius: 10px;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.35);
+    box-shadow:
+      0 5px 0 rgba(0,0,0,0.2),
+      0 10px 18px rgba(0,0,0,0.3),
+      inset 0 2px 0 rgba(255,255,255,0.25),
+      inset 0 -3px 0 rgba(0,0,0,0.2);
+  }
+  .pin.arc .sign::before {
+    content: '';
+    position: absolute;
+    top: -10px; left: 50%; transform: translateX(-50%);
+    width: 10px; height: 10px;
+    background: #5a2419;
+    border-radius: 50%;
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,0.2);
+  }
+  .pin.arc .sign .sub {
+    font-size: 13px;
+    color: #ffe9c2;
+    margin-top: 0;
+    letter-spacing: 0.3px;
+    font-weight: 700;
+    font-style: italic;
+    font-family: var(--caveat-font);
+  }
+
+  /* Supply-run pins — neon accent */
+  .pin.supply .sign {
+    background: linear-gradient(180deg, #4dd4c0 0%, var(--neon-teal) 55%, #1a8877 100%);
+    color: #042a24;
+    border-color: #1a5a4f;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+  }
+  .pin.supply.orange .sign {
+    background: linear-gradient(180deg, #f09255 0%, var(--neon-orange) 55%, #b64f17 100%);
+    color: #3a1700;
+    border-color: #7a3a10;
+  }
+
+  /* PTV destinations — soft pastel wooden pins */
+  .pin.ptv .sign {
+    background: linear-gradient(180deg, #f7dcc2 0%, var(--pastel-peach) 55%, #c9936b 100%);
+    color: #3a1f07;
+    border-color: var(--wood-deep);
+  }
+
+  /* Rewilding — earthy green */
+  .pin.rewild .sign {
+    background: linear-gradient(180deg, #9ab878 0%, var(--earthy-green) 55%, #4a6a32 100%);
+    color: #ecf6d9;
+    border-color: #3a4a20;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+  }
+
+  /* Collection-source pins — little "incoming" yellow paw-phone */
+  .pin.collect .sign {
+    background: linear-gradient(180deg, #fbe6a1 0%, #f5d97a 55%, #c4a035 100%);
+    color: #4a3510;
+    border-color: #6a4a10;
+  }
+
+  /* Apprentice / visitor households */
+  .pin.house .sign {
+    padding: 3px 8px 4px;
+    background: linear-gradient(180deg, #e4f3dc 0%, var(--pastel-mint) 55%, #8fb88c 100%);
+    color: #243a22;
+    border-color: #3e6a3a;
+    font-size: 11px;
+    border-radius: 6px 6px 10px 10px;
+  }
+
+  /* Pet-show venues — honey amber */
+  .pin.show .sign {
+    background: linear-gradient(180deg, #f0cb6b 0%, var(--honey-amber) 55%, #9a6a20 100%);
+    color: #2a1a00;
+    border-color: #6a4410;
+  }
+
+  /* Small dot-only variant for cluster sub-pins */
+  .pin.tiny .sign {
+    padding: 2px 7px 3px;
+    font-size: 10px;
+    border-radius: 5px;
+  }
+  .pin.tiny .sign::after { height: 5px; }
+
+  /* Span label — Wyx Park's soft rounded region tag */
+  .span-label {
+    position: absolute;
+    z-index: 2;
+    font-family: var(--caveat-font);
+    font-weight: 700;
+    font-style: italic;
+    font-size: 22px;
+    color: #4a5a30;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+    transform: translate(-50%, -50%) rotate(-8deg);
+    pointer-events: none;
+    letter-spacing: 1px;
+  }
+  .region-label {
+    position: absolute; z-index: 2;
+    font-family: var(--caveat-font);
+    font-weight: 700;
+    font-style: italic;
+    font-size: 16px;
+    color: var(--ink-soft);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.65);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    opacity: 0.75;
+  }
+
+  /* Tooltip plaque (wooden signboard) */
+  .plaque {
+    position: absolute;
+    z-index: 9;
+    width: 220px;
+    padding: 12px 14px 12px;
+    background: linear-gradient(180deg, #eac181 0%, #cd9a4a 100%);
+    color: #2a1a06;
+    border-radius: 10px;
+    border: 2px solid var(--wood-deep);
+    box-shadow:
+      0 6px 16px rgba(0,0,0,0.28),
       inset 0 2px 0 rgba(255,255,255,0.35),
-      inset 0 -3px 0 rgba(0,0,0,0.15);
+      inset 0 -3px 0 rgba(0,0,0,0.18);
     transform: translate(-50%, 0);
     animation: plaque-in 0.18s ease-out;
+    pointer-events: auto;
   }
   @keyframes plaque-in {
     from { opacity: 0; transform: translate(-50%, 6px); }
     to   { opacity: 1; transform: translate(-50%, 0); }
   }
-  .plaque .plaque-title {
+  .plaque .pl-title {
     font-family: var(--sign-title-font);
-    font-size: 20px;
+    font-size: 17px;
     line-height: 1.1;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
-  .plaque .plaque-desc {
+  .plaque .pl-kind {
+    font-family: var(--body-font);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #5a3a14;
+    opacity: 0.8;
+    margin-bottom: 6px;
+  }
+  .plaque .pl-desc {
     font-family: var(--caveat-font);
     font-style: italic;
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.25;
     color: #3a2810;
-    margin-bottom: 8px;
   }
-  .plaque .plaque-distance {
-    font-family: var(--body-font);
-    font-size: 12px;
-    font-weight: 600;
-    color: #4a3414;
-    margin-bottom: 10px;
-    opacity: 0.85;
-  }
-  .plaque .plaque-btn {
-    display: inline-block;
-    padding: 7px 16px;
-    border-radius: 999px;
-    background: var(--honey-amber);
-    border: 2px solid var(--honey-shadow);
-    color: #2a1f0a;
-    font-family: var(--headline-font);
-    font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-    box-shadow: 0 2px 0 var(--honey-shadow);
-  }
-  .plaque .plaque-btn:hover { transform: translateY(-1px); }
-  .plaque .plaque-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--honey-shadow); }
-  .plaque .plaque-btn.locked {
-    background: var(--sage); border-color: #6e8666; color: #2a3a24; cursor: not-allowed;
-    box-shadow: 0 2px 0 #6e8666;
-  }
-
   .plaque::before {
     content: '';
     position: absolute;
@@ -296,38 +455,312 @@
     width: 0; height: 0;
     border-left: 8px solid transparent;
     border-right: 8px solid transparent;
-    border-bottom: 8px solid var(--honey-shadow);
+    border-bottom: 8px solid var(--wood-deep);
   }
+
+  /* Mobile tweaks — shrink pins + hide a few cluster labels on very narrow screens */
+  .device[data-size="iphone"] .pin .sign { font-size: 11px; padding: 3px 7px 4px; }
+  .device[data-size="iphone"] .pin.arc .sign { font-size: 17px; padding: 6px 12px 8px; }
+  .device[data-size="iphone"] .pin.tiny { display: none; }
+  .device[data-size="iphone"] .span-label { font-size: 16px; }
+  .device[data-size="iphone"] .legend { max-width: 160px; font-size: 10px; }
 </style>
 </head>
 <body>
   <div class="vp-bar">
-    <strong>A.R.C. World Map</strong>
+    <strong>A.R.C. World Map — Birchie-on-Sea</strong>
     <button data-size="iphone">iPhone</button>
     <button data-size="ipad-p">iPad P</button>
     <button data-size="ipad-l" class="on">iPad L</button>
     <button data-size="desktop">Desktop</button>
-    <span class="hint">Tap a pin to open the drive plaque</span>
+    <span class="hint">Tap a pin for its signboard</span>
   </div>
 
   <div class="device-frame">
     <div class="device" data-size="ipad-l">
       <div class="map" id="map">
+
+        <!-- Painted landscape: sea, sand, village, farmland, forest, cliffs, roads, railway -->
+        <svg class="landscape" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
+          <!-- Sea gradient + North-Sea wave flourishes (top band) -->
+          <defs>
+            <linearGradient id="seaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#7fb3c6"/>
+              <stop offset="60%" stop-color="#a8d0dd"/>
+              <stop offset="100%" stop-color="#d9ecf1"/>
+            </linearGradient>
+            <linearGradient id="sandGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f0dcaf"/>
+              <stop offset="100%" stop-color="#d7b97a"/>
+            </linearGradient>
+            <linearGradient id="grassGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#d8ebb4"/>
+              <stop offset="100%" stop-color="#a9c888"/>
+            </linearGradient>
+            <pattern id="farmFurrow" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(22)">
+              <rect width="28" height="28" fill="#ead985"/>
+              <line x1="0" y1="0" x2="28" y2="0" stroke="#c4a648" stroke-width="1.2" opacity="0.55"/>
+            </pattern>
+            <pattern id="woodDots" width="18" height="18" patternUnits="userSpaceOnUse">
+              <rect width="18" height="18" fill="#a8bf82"/>
+              <circle cx="5" cy="5" r="2.4" fill="#6c8a4a" opacity="0.8"/>
+              <circle cx="13" cy="12" r="2" fill="#4a6a2a" opacity="0.7"/>
+            </pattern>
+          </defs>
+
+          <!-- SEA (top ~12%) -->
+          <rect x="0" y="0" width="1000" height="90" fill="url(#seaGrad)"/>
+          <!-- wave squiggles -->
+          <g stroke="#fff" stroke-width="1.6" fill="none" opacity="0.75" stroke-linecap="round">
+            <path d="M 40 30 q 10 -6 20 0 t 20 0 t 20 0"/>
+            <path d="M 180 20 q 10 -6 20 0 t 20 0 t 20 0"/>
+            <path d="M 360 45 q 10 -6 20 0 t 20 0 t 20 0"/>
+            <path d="M 560 30 q 10 -6 20 0 t 20 0 t 20 0"/>
+            <path d="M 740 22 q 10 -6 20 0 t 20 0 t 20 0"/>
+            <path d="M 880 44 q 10 -6 20 0 t 20 0 t 20 0"/>
+          </g>
+
+          <!-- BEACH / CHALK CLIFF EDGE -->
+          <path d="M 0 95
+                   Q 60 88 120 98
+                   Q 170 108 240 92
+                   Q 310 78 400 96
+                   Q 480 112 560 96
+                   Q 650 82 720 100
+                   Q 790 116 860 96
+                   Q 920 82 1000 100
+                   L 1000 140
+                   L 0 140 Z"
+                fill="url(#sandGrad)" stroke="#b48b48" stroke-width="1.2" opacity="0.95"/>
+
+          <!-- CHALK CLIFFS east stretch (near Sea Cliffs pin) -->
+          <g opacity="0.9">
+            <path d="M 820 96 L 870 104 L 880 122 L 900 106 L 930 120 L 970 102 L 1000 115 L 1000 140 L 820 140 Z"
+                  fill="#fdf5e3" stroke="#c6b07c" stroke-width="1.2"/>
+            <path d="M 835 115 l 6 -8 m 14 2 l 4 -10 m 18 10 l 5 -6 m 20 4 l 7 -8"
+                  stroke="#c6b07c" stroke-width="1" fill="none"/>
+          </g>
+
+          <!-- COAST ROAD / THE PARADE  (painted dashed line above the village) -->
+          <path d="M 20 158 Q 250 150 500 160 T 980 158"
+                fill="none" stroke="#b08b5c" stroke-width="3"
+                stroke-dasharray="6 9" stroke-linecap="round" opacity="0.8"/>
+
+          <!-- RAINBOW BEACH-HUT STRIP (The Parade) — tiny painted blocks -->
+          <g>
+            <rect x="125" y="135" width="10" height="16" fill="#e97b76" rx="2"/>
+            <rect x="138" y="135" width="10" height="16" fill="#f2b36a" rx="2"/>
+            <rect x="151" y="135" width="10" height="16" fill="#f0de6c" rx="2"/>
+            <rect x="164" y="135" width="10" height="16" fill="#a8d58f" rx="2"/>
+            <rect x="177" y="135" width="10" height="16" fill="#85c1da" rx="2"/>
+            <rect x="190" y="135" width="10" height="16" fill="#b39ad6" rx="2"/>
+            <rect x="203" y="135" width="10" height="16" fill="#e97b76" rx="2"/>
+            <rect x="216" y="135" width="10" height="16" fill="#f2b36a" rx="2"/>
+            <rect x="229" y="135" width="10" height="16" fill="#a8d58f" rx="2"/>
+          </g>
+
+          <!-- TIDAL POOL marker near Minnis Bay -->
+          <ellipse cx="95" cy="118" rx="22" ry="7" fill="#bde2ea" stroke="#6ba5b3" stroke-width="1" opacity="0.9"/>
+
+          <!-- VILLAGE / FIELDS band (18%–62%) — already parchment; just add soft green patches -->
+          <!-- central village green -->
+          <path d="M 340 225 Q 420 200 520 215 Q 600 228 620 280 Q 600 330 520 340 Q 430 348 360 320 Q 310 285 340 225 Z"
+                fill="url(#grassGrad)" opacity="0.7"/>
+
+          <!-- The Dip — small sunken bowl -->
+          <ellipse cx="440" cy="210" rx="38" ry="15" fill="#9ec079" stroke="#6b8a4a" stroke-width="1.5" opacity="0.95"/>
+          <ellipse cx="440" cy="210" rx="28" ry="10" fill="#b8d68f" opacity="0.9"/>
+
+          <!-- Coastal green (A.R.C. plot) — between The Dip and Viking roads -->
+          <path d="M 395 250 Q 435 238 480 250 Q 500 275 480 300 Q 440 312 400 300 Q 385 275 395 250 Z"
+                fill="#c7e09a" stroke="#7a9a58" stroke-width="1.3" opacity="0.95"/>
+
+          <!-- RAILWAY line (east-west through village) -->
+          <g>
+            <line x1="80" y1="310" x2="950" y2="310" stroke="#7b5c3a" stroke-width="2.2"/>
+            <g stroke="#7b5c3a" stroke-width="2.2">
+              <line x1="100" y1="305" x2="100" y2="315"/>
+              <line x1="140" y1="305" x2="140" y2="315"/>
+              <line x1="180" y1="305" x2="180" y2="315"/>
+              <line x1="220" y1="305" x2="220" y2="315"/>
+              <line x1="260" y1="305" x2="260" y2="315"/>
+              <line x1="300" y1="305" x2="300" y2="315"/>
+              <line x1="340" y1="305" x2="340" y2="315"/>
+              <line x1="380" y1="305" x2="380" y2="315"/>
+              <line x1="420" y1="305" x2="420" y2="315"/>
+              <line x1="460" y1="305" x2="460" y2="315"/>
+              <line x1="500" y1="305" x2="500" y2="315"/>
+              <line x1="540" y1="305" x2="540" y2="315"/>
+              <line x1="580" y1="305" x2="580" y2="315"/>
+              <line x1="620" y1="305" x2="620" y2="315"/>
+              <line x1="660" y1="305" x2="660" y2="315"/>
+              <line x1="700" y1="305" x2="700" y2="315"/>
+              <line x1="740" y1="305" x2="740" y2="315"/>
+              <line x1="780" y1="305" x2="780" y2="315"/>
+              <line x1="820" y1="305" x2="820" y2="315"/>
+              <line x1="860" y1="305" x2="860" y2="315"/>
+              <line x1="900" y1="305" x2="900" y2="315"/>
+            </g>
+          </g>
+
+          <!-- BAY ROAD (east-west, central, below the village green) — the main painted road -->
+          <path d="M 40 360 Q 250 348 500 362 T 970 358"
+                fill="none" stroke="#c28a4d" stroke-width="9" stroke-linecap="round"/>
+          <path d="M 40 360 Q 250 348 500 362 T 970 358"
+                fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="10 12" opacity="0.65"/>
+
+          <!-- STATION ROAD — vertical link between Bay Road and the coast -->
+          <path d="M 430 160 L 430 358"
+                fill="none" stroke="#b08b5c" stroke-width="3.5" stroke-dasharray="4 8" opacity="0.85"/>
+
+          <!-- Residential streets — Canute / Viking / Dane / Horsa (wrapping south of A.R.C.) -->
+          <g stroke="#b08b5c" stroke-width="1.8" fill="none" stroke-dasharray="3 6" opacity="0.65">
+            <path d="M 360 310 Q 420 324 520 314"/>
+            <path d="M 350 330 Q 420 340 530 332"/>
+            <path d="M 395 260 L 395 340"/>
+            <path d="M 485 258 L 485 338"/>
+            <path d="M 440 262 L 440 340"/>
+          </g>
+
+          <!-- FARMLAND belt south of Bay Road (furrowed patches) -->
+          <path d="M 40 380 Q 200 372 360 388 L 360 470 Q 220 478 40 470 Z"
+                fill="url(#farmFurrow)" opacity="0.82"/>
+          <path d="M 80 500 Q 220 490 360 502 L 360 560 Q 220 568 80 558 Z"
+                fill="url(#farmFurrow)" opacity="0.75"/>
+
+          <!-- MOOR patch (south-west, distant) -->
+          <path d="M 30 520 Q 80 508 140 520 Q 180 540 150 576 Q 110 592 60 584 Q 20 568 30 520 Z"
+                fill="#c8b685" stroke="#8a7545" stroke-width="1" opacity="0.88"/>
+          <g fill="#a88f4f" opacity="0.7">
+            <circle cx="60" cy="548" r="3"/>
+            <circle cx="85" cy="560" r="2.4"/>
+            <circle cx="110" cy="542" r="3"/>
+            <circle cx="125" cy="560" r="2"/>
+          </g>
+
+          <!-- WOODLAND patch (central-north, between cliffs and village) -->
+          <path d="M 600 190 Q 680 175 740 200 Q 770 225 740 250 Q 680 262 620 248 Q 580 225 600 190 Z"
+                fill="url(#woodDots)" opacity="0.9"/>
+
+          <!-- DEEP FOREST (far south-east, below Wyx Park) -->
+          <path d="M 700 560 Q 780 548 860 570 Q 900 598 870 634 Q 800 650 720 638 Q 680 610 700 560 Z"
+                fill="#6b8a4a" opacity="0.92"/>
+          <g fill="#4a6a32" opacity="0.85">
+            <circle cx="740" cy="590" r="6"/>
+            <circle cx="770" cy="612" r="7"/>
+            <circle cx="810" cy="598" r="6"/>
+            <circle cx="830" cy="622" r="5"/>
+            <circle cx="860" cy="600" r="6"/>
+          </g>
+
+          <!-- WETLANDS (south-central) -->
+          <path d="M 380 580 Q 450 570 520 584 Q 560 608 520 632 Q 450 642 390 628 Q 360 608 380 580 Z"
+                fill="#bed3c7" stroke="#6e9a8a" stroke-width="1.2" opacity="0.92"/>
+          <g stroke="#6e9a8a" stroke-width="1.2" fill="none" opacity="0.7">
+            <path d="M 410 600 l 0 -8 M 425 604 l 0 -10 M 445 598 l 0 -9 M 470 608 l 0 -11 M 495 602 l 0 -8"/>
+          </g>
+
+          <!-- WYX PARK estate span (bottom-right) — big soft-edge sage region -->
+          <path d="M 640 400 Q 740 378 870 390 Q 940 420 950 510 Q 925 600 830 612 Q 720 620 650 590 Q 605 520 640 400 Z"
+                fill="#b3c690" stroke="#7a9458" stroke-width="1.5" opacity="0.72"/>
+          <!-- Gnarled-oak flavour dots -->
+          <g fill="#6a8a42" opacity="0.85">
+            <circle cx="700" cy="430" r="7"/>
+            <circle cx="760" cy="450" r="6"/>
+            <circle cx="820" cy="440" r="8"/>
+            <circle cx="880" cy="470" r="6"/>
+            <circle cx="720" cy="500" r="6"/>
+            <circle cx="790" cy="520" r="7"/>
+            <circle cx="860" cy="540" r="6"/>
+          </g>
+
+          <!-- SEA CLIFFS rewilding patch (east coast, below cliffs) -->
+          <path d="M 870 150 Q 930 142 980 160 L 980 210 Q 920 220 870 205 Z"
+                fill="#d6c288" stroke="#a38a48" stroke-width="1.2" opacity="0.9"/>
+
+          <!-- Roads fan — painted pathways from A.R.C. to key drives (subtle dashed) -->
+          <g stroke="#a87a3c" stroke-width="1.4" fill="none" stroke-dasharray="2 6" opacity="0.55">
+            <!-- to Goose End Farm (west) -->
+            <path d="M 440 295 Q 300 335 150 400"/>
+            <!-- to Bramble Farm (south-west inland) -->
+            <path d="M 440 300 Q 330 420 200 520"/>
+            <!-- to Wyx Park -->
+            <path d="M 445 300 Q 600 380 760 470"/>
+            <!-- to Sea Cliffs -->
+            <path d="M 450 280 Q 680 225 910 180"/>
+            <!-- to Deep Forest -->
+            <path d="M 455 295 Q 630 420 780 600"/>
+            <!-- to Cove Harbour (far west, implied via Herne Bay) -->
+            <path d="M 435 300 Q 230 390 40 478"/>
+          </g>
+
+          <!-- Little painted boats out on the sea -->
+          <g opacity="0.85">
+            <g transform="translate(260 52)">
+              <path d="M -10 0 l 20 0 l -4 6 l -12 0 Z" fill="#c8795a" stroke="#7a3f26" stroke-width="0.8"/>
+              <line x1="0" y1="0" x2="0" y2="-10" stroke="#7a3f26" stroke-width="1"/>
+              <path d="M 0 -10 l 8 10 l -8 0 Z" fill="#fef6e1" stroke="#a67b44" stroke-width="0.8"/>
+            </g>
+            <g transform="translate(690 38)">
+              <path d="M -8 0 l 16 0 l -3 5 l -10 0 Z" fill="#7a9cb5" stroke="#3b556d" stroke-width="0.8"/>
+              <line x1="0" y1="0" x2="0" y2="-9" stroke="#3b556d" stroke-width="1"/>
+              <path d="M 0 -9 l 6 9 l -6 0 Z" fill="#fef6e1" stroke="#a67b44" stroke-width="0.8"/>
+            </g>
+          </g>
+
+          <!-- Little painted seagulls -->
+          <g stroke="#3a3a3a" stroke-width="1.4" fill="none" stroke-linecap="round">
+            <path d="M 180 50 q 4 -5 8 0 q 4 -5 8 0"/>
+            <path d="M 420 30 q 3 -4 6 0 q 3 -4 6 0"/>
+            <path d="M 830 60 q 4 -5 8 0 q 4 -5 8 0"/>
+          </g>
+        </svg>
+
+        <!-- Title -->
+        <div class="map-title">
+          A.R.C. World — Birchie-on-Sea
+          <small>where shall we drive today?</small>
+        </div>
+
+        <!-- Compass rose -->
         <svg class="compass" viewBox="0 0 64 64" aria-hidden="true">
-          <circle cx="32" cy="32" r="28" fill="rgba(255,248,231,0.9)" stroke="#7b5c3a" stroke-width="1.5"/>
+          <circle cx="32" cy="32" r="28" fill="rgba(255,248,231,0.92)" stroke="#7b5c3a" stroke-width="1.6"/>
+          <circle cx="32" cy="32" r="22" fill="none" stroke="#7b5c3a" stroke-width="0.8" stroke-dasharray="2 3" opacity="0.6"/>
           <polygon points="32,8 36,32 32,30 28,32" fill="#b94c3a"/>
           <polygon points="32,56 28,32 32,34 36,32" fill="#3a3a3a"/>
           <polygon points="8,32 32,28 30,32 32,36" fill="#7b5c3a"/>
           <polygon points="56,32 32,36 34,32 32,28" fill="#7b5c3a"/>
-          <text x="32" y="14" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="8" font-weight="700" fill="#3a3a3a">N</text>
+          <text x="32" y="13" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="8" font-weight="700" fill="#3a3a3a">N</text>
+          <text x="32" y="59" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="7" fill="#3a3a3a">S</text>
+          <text x="7" y="35" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="7" fill="#3a3a3a">W</text>
+          <text x="57" y="35" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="7" fill="#3a3a3a">E</text>
         </svg>
 
-        <div class="map-title">
-          A.R.C. World
-          <small>where shall we drive today?</small>
+        <!-- Legend -->
+        <div class="legend">
+          <h4>Map Legend</h4>
+          <ul>
+            <li><span class="swatch sw-arc">A</span> A.R.C. — home base</li>
+            <li><span class="swatch sw-ptv">🐾</span> PTV destination (vet, pharmacy, groomer)</li>
+            <li><span class="swatch sw-supply">⚡</span> Supply Run site</li>
+            <li><span class="swatch sw-rewild">🌿</span> Rewilding habitat</li>
+            <li><span class="swatch sw-collect">📞</span> Collection source (incoming)</li>
+            <li><span class="swatch sw-show">🏆</span> Pet-show venue</li>
+            <li><span class="swatch sw-house">🏡</span> Adopter / apprentice house</li>
+          </ul>
         </div>
 
-        <svg class="roads" viewBox="0 0 100 100" preserveAspectRatio="none" id="roads"></svg>
+        <!-- Off-edge tag — hedgehog rescue, Herne Bay -->
+        <div class="offedge left" style="top: 478px;">
+          <span class="arrow">←</span> Hedgehog Rescue <small style="font-family:var(--body-font);font-size:10px;">(Herne Bay)</small>
+        </div>
+
+        <!-- Region labels (subtle) -->
+        <div class="region-label" style="left: 55%; top: 4%;">North Sea</div>
+        <div class="region-label" style="left: 16%; top: 82%;">Farmland</div>
+        <div class="span-label" style="left: 80%; top: 60%;">Wyx Park</div>
+
+        <!-- ============ PINS ============ -->
         <div id="pins"></div>
         <div id="plaque-layer"></div>
       </div>
@@ -348,37 +781,131 @@
     });
   });
 
-  // Destination data — mirrors packages/game-logic/src/destinations.ts.
-  // Inlined for the admin preview rather than bundling the TS module.
-  const DESTINATIONS = [
-    { id: 'arc', label: 'A.R.C.', emoji: '', kind: 'arc', description: 'Your rescue centre.', distance: 0, unlockLevel: 0, mapX: 50, mapY: 68 },
-    { id: 'bramble-farm', label: 'Bramble Farm', emoji: '🌾', kind: 'supply-run', description: 'Hay, straw, feed and bedding for the animals.', distance: 12, unlockLevel: 0, mapX: 22, mapY: 52 },
-    { id: 'cove-harbour', label: 'Cove Harbour', emoji: '🐟', kind: 'supply-run', description: 'Fresh fish from the dockside market.', distance: 18, unlockLevel: 5, mapX: 14, mapY: 82 },
-    { id: 'pinebark-medical', label: 'Pinebark Medical', emoji: '💊', kind: 'supply-run', description: 'Bandages, medicines and vet supplies.', distance: 24, unlockLevel: 10, mapX: 78, mapY: 46 },
-    { id: 'moorland', label: 'Moorland', emoji: '🦊', kind: 'rewilding-habitat', description: 'Open heather moors — home for foxes.', distance: 28, unlockLevel: 3, mapX: 32, mapY: 22 },
-    { id: 'woodland', label: 'Woodland', emoji: '🐿️', kind: 'rewilding-habitat', description: 'Dappled woods for hedgehogs, squirrels and wild bunnies.', distance: 16, unlockLevel: 3, mapX: 58, mapY: 30 },
-    { id: 'sea-cliffs', label: 'Sea Cliffs', emoji: '🐦', kind: 'rewilding-habitat', description: 'Windy cliffs where seabirds nest.', distance: 34, unlockLevel: 7, mapX: 88, mapY: 76 },
-    { id: 'deep-forest', label: 'Deep Forest', emoji: '🦇', kind: 'rewilding-habitat', description: 'Ancient trees and quiet caves — bat country.', distance: 40, unlockLevel: 8, mapX: 70, mapY: 14 },
-    { id: 'wetlands', label: 'Wetlands', emoji: '🐍', kind: 'rewilding-habitat', description: 'Reed beds and slow water — perfect for snakes.', distance: 22, unlockLevel: 9, mapX: 44, mapY: 88 },
+  /*
+   * All pin positions use % coords relative to the map (0–100).
+   * Geography follows the real Birchington-on-Sea layout
+   * (see docs/ptv-pet-transport-vehicle.md "Setting — modelled on Birchington-on-Sea"):
+   *
+   *   - Sea across the very top (y < 14)
+   *   - Coast / The Parade / bays at y ~18–22
+   *   - A.R.C. coastal green south of The Dip, y ~40, middle
+   *   - Village heart + Bay Road + train station at y ~45–55
+   *   - Farmland belt south at y ~60–80
+   *   - Wyx Park spread bottom-right
+   *   - Sea Cliffs east edge
+   */
+  const PINS = [
+    // --------- COASTAL TOP EDGE (north) ----------
+    { x: 10.5, y: 18,  kind: 'ptv',    icon: '🏖️', label: 'Minnis Bay', sub: 'beach + paddling pool',
+      desc: 'Tidal dog beach with a gentle paddling pool. Huge at low tide — check before you drive!' },
+    { x: 19,   y: 21.5,kind: 'ptv',    icon: '🏠', label: 'The Parade', sub: 'rainbow beach huts',
+      desc: 'Painted rainbow beach huts. Daily dog-walk route for A.R.C. apprentices.' },
+    { x: 32,   y: 18,  kind: 'ptv',    icon: '🌊', label: 'Grenham Bay',
+      desc: 'Quieter sandy cove with chalk cliffs at the end of the path.' },
+    { x: 55,   y: 19,  kind: 'ptv',    icon: '🌊', label: 'Epple Bay',
+      desc: 'Chalk cliffs and sea caves. Seal pups sometimes come ashore after a storm.' },
+    { x: 89,   y: 26,  kind: 'rewild', icon: '🐦', label: 'Sea Cliffs', sub: 'seabirds / parrot',
+      desc: 'Windy white cliffs where seabirds nest. Rewilding destination for parrots & gulls.' },
+    { x: 96,   y: 14,  kind: 'collect',icon: '📞', label: 'Westbeach Golf Club', sub: 'injured wildlife call-ins',
+      desc: 'Injured wildlife found on the fairways — hedgehogs, rabbits, birds in netting.' },
+
+    // --------- VILLAGE HEART (central) ----------
+    { x: 44.5, y: 40,  kind: 'arc',    icon: '',   label: 'A.R.C.',    sub: '"The Arc"',
+      desc: 'Your rescue centre — on the coastal green between Canute, Viking and Dane roads.' },
+    { x: 44.5, y: 30,  kind: 'show',   icon: '🏟️', label: 'The Dip', sub: 'pet-show venue',
+      desc: 'The sunken multifunctional sports ground — a natural bowl for fête-tier pet shows.' },
+    { x: 35,   y: 35,  kind: 'ptv',    icon: '✂️', label: 'Dapper Dogs', sub: 'grooming',
+      desc: 'Drop-off groomer just up the road. Bath + blow-dry + bow.' },
+    { x: 53,   y: 35,  kind: 'ptv',    icon: '☕', label: 'Wagtails Café & Bar', sub: 'cast hangout',
+      desc: 'Where apprentices and adopters meet between shifts. Dog-friendly.' },
+    { x: 38,   y: 46,  kind: 'show',   icon: '⛪', label: 'Kearns Hall', sub: 'low-tier shows',
+      desc: 'Community hall. Hosts village-fête-tier adoption days and small pet shows.' },
+    { x: 50,   y: 48,  kind: 'collect',icon: '⛪', label: 'Bay Chapel', sub: 'occasional strays',
+      desc: 'Parish of the Holy Family. Strays often turn up on church grounds.' },
+    { x: 29,   y: 50,  kind: 'house',  icon: '🏡', label: 'Bay Lodge',
+      desc: 'Apprentice lodging — three rooms above the old coach house.' },
+    { x: 43,   y: 53,  kind: 'ptv',    icon: '🚉', label: 'Birchie Station', sub: 'Birchington-on-Sea',
+      desc: 'Village railway stop. The Depot shed is tucked behind it.' },
+    { x: 33,   y: 51.5,kind: 'ptv',    icon: '💊', label: 'Medical Centre', sub: 'GP + pharmacy',
+      desc: 'People GP with an attached pharmacy that fills vet prescriptions.' },
+    { x: 55,   y: 51,  kind: 'ptv',    icon: '🐾', label: 'Bay Road Vets',
+      desc: 'Your general-practice vet. Paired with the garage — a handy coincidence.' },
+    { x: 60,   y: 51,  kind: 'ptv',    icon: '🔧', label: 'Bay Road Garage', sub: 'PTV repairs',
+      desc: 'Fixes the PTV after a bad drive. Same row as the vet.' },
+    { x: 55,   y: 44,  kind: 'ptv',    icon: '🍟', label: 'The Chippy',
+      desc: 'The best chippy in Birchie. Opposite the wine bar.' },
+    { x: 60,   y: 44,  kind: 'ptv',    icon: '🍷', label: 'Christies Wine Bar',
+      desc: 'Adults-only beat. Off-duty apprentices drop in after a long shift.' },
+    { x: 68,   y: 50,  kind: 'ptv',    icon: '🛒', label: 'Retail Cluster', sub: 'supermarket + co-op',
+      desc: 'Village shops — a supermarket, a mini-market, a grocers. Everyday errands.' },
+    { x: 47,   y: 22,  kind: 'ptv',    icon: '🪀', label: 'Pet Supplies', sub: 'Station Road',
+      desc: 'Toys, food, bedding, grooming odds and ends.' },
+
+    // --------- WEST ENTRANCE ----------
+    { x: 7,    y: 52,  kind: 'ptv',    icon: '🎈', label: 'Fishbone Grill', sub: 'wavy-arm car-wash',
+      desc: 'Left side on the Herne Bay approach. Cosmetic van-wash + a laugh.' },
+    { x: 13,   y: 54,  kind: 'ptv',    icon: '⛽', label: 'Birchie Fuel', sub: 'petrol station',
+      desc: 'Refuel the PTV — pay-at-pump or pop into the kiosk for road snacks.' },
+
+    // --------- INLAND FARMLAND (south / west) ----------
+    { x: 10,   y: 67,  kind: 'collect',icon: '🌾', label: 'Goose End Farm', sub: 'hay + BC training + strays',
+      desc: 'Working farm at the west tip of Bay Road. Hay supply + border-collie training ground.' },
+    { x: 18,   y: 78,  kind: 'supply', icon: '🌾', label: 'Bramble Farm', sub: 'L0 · hay + feed',
+      desc: 'Supply run for hay, straw, bedding and feed. The opening drive.' },
+    { x: 55,   y: 82,  kind: 'ptv',    icon: '⚙️', label: 'Steampunk Barn', sub: 'prosthetics vet',
+      desc: 'Specialist vet in a converted countryside barn — wheels, braces, custom mobility gear.' },
+
+    // --------- WYX PARK SPREAD (south-east) ----------
+    { x: 73,   y: 65,  kind: 'show',   icon: '🏆', label: 'Wyx Park Main', sub: 'pet-show + skill-training',
+      desc: 'Witchy-woodland estate: pet shows, skill assessments, seasonal treks.' },
+    { x: 67,   y: 58,  kind: 'tiny ptv', icon: '🌾', label: 'Quex Barn',
+      desc: 'Farm shop & events barn at the north edge of the estate.' },
+    { x: 85,   y: 72,  kind: 'tiny ptv', icon: '🐴', label: 'Tilleys Livery',
+      desc: 'Carriage livery + glamping, deep on the estate.' },
+    { x: 78,   y: 78,  kind: 'tiny ptv', icon: '⛺', label: 'Quex Glamping',
+      desc: 'Glamping pods — visitor households sometimes rent here.' },
+    { x: 90,   y: 84,  kind: 'tiny ptv', icon: '🌳', label: 'Crape Park',
+      desc: 'South-east corner of the estate — ancient oaks and quiet lanes.' },
+
+    // --------- OTHER INLAND ----------
+    { x: 82,   y: 58,  kind: 'supply orange', icon: '🎸', label: 'Rock On Academy', sub: "Rhubarb's music",
+      desc: 'Heavy-metal music school. A supply run here plays the full metal track.' },
+    { x: 88,   y: 58,  kind: 'ptv',    icon: '🎪', label: "Jungle Jim's", sub: 'softplay',
+      desc: 'Kid softplay next door. Low-stakes cast walk-by flavour.' },
+
+    // --------- SUPPLY RUNS ----------
+    { x: 7,    y: 72,  kind: 'supply', icon: '🐟', label: 'Cove Harbour', sub: 'L5 · fish market',
+      desc: 'Dockside fish for recovering seabirds, cats and the otter we don\'t have yet.' },
+    { x: 80,   y: 40,  kind: 'supply', icon: '💊', label: 'Pinebark Medical', sub: 'L10 · vet wholesale',
+      desc: 'Bandages, medicines, IV kits. The long-range supply run.' },
+
+    // --------- REWILDING HABITATS ----------
+    { x: 9.5,  y: 80,  kind: 'rewild', icon: '🦊', label: 'Moorland', sub: 'fox',
+      desc: 'Open heather moors. Home again for rewilded foxes.' },
+    { x: 67,   y: 30,  kind: 'rewild', icon: '🐿️', label: 'Woodland', sub: 'bunny / squirrel',
+      desc: 'Dappled woods for hedgehogs, squirrels and wild bunnies.' },
+    { x: 78,   y: 87,  kind: 'rewild', icon: '🦇', label: 'Deep Forest', sub: 'bat',
+      desc: 'Ancient trees and quiet caves — bat country.' },
+    { x: 46,   y: 87,  kind: 'rewild', icon: '🐍', label: 'Wetlands', sub: 'snake',
+      desc: 'Reed beds and slow water — perfect for grass snakes.' },
+
+    // --------- APPRENTICE / ADOPTER HOUSES (scattered flavour) ----------
+    { x: 24,   y: 43,  kind: 'house',  icon: '🏡', label: 'Horsa Rd',
+      desc: 'Apprentice Rhubarb\'s flatshare. Walking distance to A.R.C.' },
+    { x: 62,   y: 38,  kind: 'house',  icon: '🏡', label: 'Rossetti Rd',
+      desc: 'Adopter household — the Kumar-Ishii family, newly-adopted dachshund Luna.' },
+    { x: 40,   y: 62,  kind: 'house',  icon: '🏡', label: 'Alfred Rd',
+      desc: 'Adopter household off Bay Road.' },
+    { x: 72,   y: 49,  kind: 'house',  icon: '🏡', label: 'Reculver Ave',
+      desc: 'Repeat-visitor household — two cats already adopted.' },
+    { x: 28,   y: 60,  kind: 'house',  icon: '🏡', label: 'Ingoldsby Rd',
+      desc: 'New-adopter household, awaiting first home visit.' },
   ];
 
-  // Mockup player state
-  const PLAYER_LEVEL = 6;
-  const RECENTLY_UNLOCKED = new Set(['cove-harbour']);
-  const VISIT_READY       = new Set(['moorland']);
-  const HAS_MAIL          = new Set(['bramble-farm']);
+  // ---- Render pins ----
+  const pinsLayer = document.getElementById('pins');
+  const plaqueLayer = document.getElementById('plaque-layer');
 
-  // Build a gentle curved SVG path between two % points on the 100x100 map.
-  function wavyPath(x1, y1, x2, y2, wave) {
-    const dx = x2 - x1, dy = y2 - y1;
-    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-    const len = Math.hypot(dx, dy);
-    const nx = -dy / len, ny = dx / len;
-    const offset = len * wave;
-    return `M ${x1} ${y1} Q ${mx + nx * offset} ${my + ny * offset} ${x2} ${y2}`;
-  }
-
-  // Small helper: build an element with class and optional text content.
   function el(tag, className, text) {
     const e = document.createElement(tag);
     if (className) e.className = className;
@@ -386,104 +913,65 @@
     return e;
   }
 
-  const roadsSvg = document.getElementById('roads');
-  const arc = DESTINATIONS.find(d => d.id === 'arc');
+  PINS.forEach((p, i) => {
+    const pin = el('div', 'pin ' + p.kind);
+    pin.style.left = p.x + '%';
+    pin.style.top  = p.y + '%';
+    pin.dataset.idx = i;
 
-  // Roads: one dashed path from A.R.C. to each destination, alternating
-  // curve direction so they fan out.
-  DESTINATIONS.filter(d => d.id !== 'arc').forEach((d, i) => {
-    const wave = (i % 2 === 0 ? 1 : -1) * (0.12 + (i % 3) * 0.04);
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', wavyPath(arc.mapX, arc.mapY, d.mapX, d.mapY, wave));
-    path.setAttribute('class', d.unlockLevel > PLAYER_LEVEL ? 'road locked' : 'road');
-    roadsSvg.appendChild(path);
-  });
-
-  const pinsLayer = document.getElementById('pins');
-
-  // A.R.C. centre pin
-  const arcPin = el('div', 'arc-pin');
-  arcPin.style.left = arc.mapX + '%';
-  arcPin.style.top  = arc.mapY + '%';
-  const arcImg = document.createElement('img');
-  arcImg.src = '/admin/mockup-assets/arc-exterior.png';
-  arcImg.alt = 'A.R.C.';
-  arcPin.appendChild(arcImg);
-  arcPin.appendChild(el('div', 'arc-label', 'A.R.C.'));
-  pinsLayer.appendChild(arcPin);
-
-  // Destination pins
-  DESTINATIONS.filter(d => d.id !== 'arc').forEach(d => {
-    const locked = d.unlockLevel > PLAYER_LEVEL;
-    const pin = el('div', 'pin' + (locked ? ' locked' : ''));
-    pin.dataset.id = d.id;
-    pin.style.left = d.mapX + '%';
-    pin.style.top  = d.mapY + '%';
-
-    if (!locked && RECENTLY_UNLOCKED.has(d.id)) pin.appendChild(el('div', 'pin-flag new', 'NEW!'));
-    if (!locked && VISIT_READY.has(d.id))       pin.appendChild(el('div', 'pin-flag visit', '💚 Visit'));
-    if (!locked && HAS_MAIL.has(d.id))          pin.appendChild(el('div', 'pin-flag mail', '📮'));
-
-    const disc = el('div', 'disc', d.emoji);
-    if (locked) disc.appendChild(el('div', 'lock-badge', '🔒'));
-    pin.appendChild(disc);
-
-    const label = el('div', 'pin-label', d.label);
-    if (locked) label.appendChild(el('span', 'lock-hint', `Unlock at level ${d.unlockLevel}`));
-    pin.appendChild(label);
+    const sign = el('div', 'sign');
+    if (p.icon) {
+      const ic = el('span', 'ico', p.icon);
+      sign.appendChild(ic);
+    }
+    const lbl = document.createElement('span');
+    lbl.innerHTML = p.label + (p.sub ? `<span class="sub">${p.sub}</span>` : '');
+    sign.appendChild(lbl);
+    pin.appendChild(sign);
 
     pin.addEventListener('click', (e) => {
       e.stopPropagation();
-      openPlaque(d, pin);
+      openPlaque(p, pin);
     });
     pinsLayer.appendChild(pin);
   });
 
-  // Plaque — painted wooden sign shown on tap.
-  const plaqueLayer = document.getElementById('plaque-layer');
-  let activePinEl = null;
-
+  // ---- Tooltip plaque ----
+  let activePin = null;
   function closePlaque() {
     while (plaqueLayer.firstChild) plaqueLayer.removeChild(plaqueLayer.firstChild);
-    if (activePinEl) activePinEl.classList.remove('active');
-    activePinEl = null;
+    if (activePin) activePin.classList.remove('active');
+    activePin = null;
   }
-
-  function openPlaque(d, pinEl) {
+  function kindName(kind) {
+    if (kind.includes('arc'))    return 'Home base';
+    if (kind.includes('supply')) return 'Supply Run';
+    if (kind.includes('rewild')) return 'Rewilding';
+    if (kind.includes('collect'))return 'Collection call';
+    if (kind.includes('show'))   return 'Pet-show venue';
+    if (kind.includes('house'))  return 'Household';
+    if (kind.includes('ptv'))    return 'PTV destination';
+    return '';
+  }
+  function openPlaque(p, pinEl) {
     closePlaque();
     pinEl.classList.add('active');
-    activePinEl = pinEl;
+    activePin = pinEl;
 
-    const locked = d.unlockLevel > PLAYER_LEVEL;
-    const below = d.mapY < 70; // plaque below pin unless pin is already low
-
+    const below = p.y < 60;
     const plaque = el('div', 'plaque');
-    plaque.style.left = d.mapX + '%';
-    plaque.style.top = below ? `calc(${d.mapY}% + 48px)` : `calc(${d.mapY}% - 170px)`;
-    plaque.appendChild(el('div', 'plaque-title', d.label));
-    plaque.appendChild(el('div', 'plaque-desc', d.description));
-    plaque.appendChild(el('div', 'plaque-distance', `📍 ${d.distance} km from A.R.C.`));
-
-    const btn = el('button', 'plaque-btn' + (locked ? ' locked' : ''),
-                   locked ? `Locked — level ${d.unlockLevel}` : '🚗 Drive here!');
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (locked) return;
-      window.parent?.postMessage({
-        source: 'arc-map',
-        type: 'drive-to',
-        payload: { destinationId: d.id, context: 'default' },
-      }, '*');
-      closePlaque();
-    });
-    plaque.appendChild(btn);
+    plaque.style.left = p.x + '%';
+    plaque.style.top = below ? `calc(${p.y}% + 40px)` : `calc(${p.y}% - 130px)`;
+    plaque.appendChild(el('div', 'pl-title', p.label));
+    plaque.appendChild(el('div', 'pl-kind', kindName(p.kind)));
+    plaque.appendChild(el('div', 'pl-desc', p.desc));
     plaque.addEventListener('click', (e) => e.stopPropagation());
     plaqueLayer.appendChild(plaque);
   }
 
   document.getElementById('map').addEventListener('click', closePlaque);
 
-  // Host handshake — future: payload.context === 'visit-rewilded' filters pins.
+  // Host handshake — future: filter pins by context.
   window.addEventListener('message', (e) => {
     const msg = e.data;
     if (!msg || msg.source !== 'arc-game-host') return;
