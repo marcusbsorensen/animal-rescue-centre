@@ -433,24 +433,39 @@
      mode (no cargo). Pulses when cargo-comfort drops. Tap to
      expand into a full cargo-check panel (stub only in this
      mockup). */
+  /* Rear-view mirror hangs from the top of the screen — bigger and
+     clearly visible above the road (not squashed). Hung from a
+     short painted stem so it reads as ceiling-mounted. */
   .mirror {
     position: absolute;
     left: 50%;
-    top: 0.5%;
+    top: 14px;
     transform: translateX(-50%);
-    width: 160px;
-    height: 110px;
-    z-index: 6;
+    width: 260px;
+    height: 160px;
+    z-index: 12;
     cursor: pointer;
     transition: transform 0.2s;
+    filter: drop-shadow(0 8px 18px rgba(0,0,0,0.35));
   }
   .mirror .stem {
     position: absolute;
-    top: -6px; left: 50%;
-    width: 8px; height: 14px;
-    background: linear-gradient(180deg,#8a5a2a,#5d3a18);
+    top: -14px; left: 50%;
+    width: 10px; height: 18px;
+    background: linear-gradient(180deg,#a87438,#5d3a18);
     border-radius: 4px 4px 0 0;
     transform: translateX(-50%);
+  }
+  .mirror::before {
+    /* tiny painted ceiling plate where the stem hangs from */
+    content: '';
+    position: absolute;
+    top: -20px; left: 50%;
+    width: 50px; height: 6px;
+    background: linear-gradient(180deg,#c88436 0%,#7d4310 100%);
+    border-radius: 3px;
+    transform: translateX(-50%);
+    box-shadow: 0 3px 5px rgba(0,0,0,0.3);
   }
   .mirror .frame {
     position: absolute; inset: 0;
@@ -569,11 +584,10 @@
   .cockpit.has-painted-dash .speedo-tick,
   .cockpit.has-painted-dash .speedo-num { display: none; }
   .cockpit.has-painted-dash .dash-label { display: none; }
-  .cockpit.has-painted-dash .mirror .frame,
-  .cockpit.has-painted-dash .mirror .stem { background: transparent; border: none; box-shadow: none; }
-  .cockpit.has-painted-dash .mirror .frame::after { border: none; }
-  .cockpit.has-painted-dash .mirror .reflection { background: transparent; }
-  .cockpit.has-painted-dash .mirror .toy { display: none; }
+  /* CSS mirror stays visible on painted dashboards — it hangs from
+     the top of the screen and shows the live cargo view. The
+     painted dashboard's decorative mirror (behind the speedo) is
+     just painted art, not interactive. */
 
   body.mode-supply .dashboard::before {
     content: '';

@@ -810,6 +810,19 @@ Marcus's note (2026-04-24), carrying Lily's direct design requests. Applies to b
 - `ui-bell.ogg` — horn default tune (first candidate; regen a proper horn-tune set when ready).
 - `music-corridor.ogg` / `music-play.ogg` — PTV ambient (gentle). Supply Run music replaces with the heavy-metal brief below.
 
+### Road orientation — UK left-hand drive, oncoming traffic, slow vehicles (Marcus, 2026-04-24)
+
+A single-lane road down the middle of the viewport doesn't read as a real road to Lily. The game is set in the UK, so:
+
+- **Drive on the LEFT.** The player's vehicle hugs the left half of the road.
+- **Road has two lanes** separated by a painted centre line (solid white lines on country lanes; solid-plus-dashed on A-roads; double-white in built-up areas). First pass: simple solid centre line.
+- **Oncoming traffic** occasionally passes on the RIGHT lane — spawned at the vanishing point moving toward the camera at high relative speed (= our speed + their speed), swooshing past. Sprite variety: car, small van, lorry, motorbike, pedal cyclist, delivery van.
+- **Slow vehicles in our lane** that we catch up on and (maybe) overtake — **tractor** is the canonical one, add a **horse-box trailer**, a **postie van**, a **milk float**, occasionally a **jogging runner**. These appear in our lane moving slowly; the player either patiently stays behind, or — on supply runs with good visibility — gets a chance to overtake into the right lane when oncoming is clear.
+- **Overtake rules (future):** for PTV drives, overtaking is available but the cargo-comfort meter drops during the manoeuvre (animals get jolted). For Supply Runs, overtaking is encouraged and earns a small bonus. When not safe (oncoming visible), the game blocks the manoeuvre with a painted "wait" prompt.
+- **Hedgehog-crossing rule still holds** — regardless of lane or overtaking state, the player brakes when a small creature is on the road.
+
+For the v1 placeholder road prototype: add oncoming-traffic sprites spawning at the vanishing point in the right lane, and slow-same-direction sprites spawning in the left lane. Use simple SVG silhouettes; final painted versions come later.
+
 ### Rear-view mirror — live cargo check (Marcus, 2026-04-24)
 
 The v1 cockpit had no visible connection between the driver and the animals they're transporting. Fix: a **painted rear-view mirror** mounted at the top of the windscreen area, showing a **live view of the cargo** inside the vehicle.
