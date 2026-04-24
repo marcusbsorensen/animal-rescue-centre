@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Cockpit Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     A.R.C. Cockpit mockup (slice B)
+     -----------------------------------------------------------
+     Static HTML + inline CSS + minimal JS so Marcus and Lily can
+     get a visceral feel for what driving will look like. No game
+     logic, no real 3D, no build step. Two tonal palettes:
+       • PTV mode — warm wood + pastels, gentle.
+       • Supply Run mode — neon + chrome, heavy metal (placeholder
+         music-play.ogg — the real metal track isn't made yet).
+     ============================================================ */
+
+  :root {
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Fredoka', sans-serif;
+    --sign-title-font: 'Chalkboard SE', 'Gochi Hand', 'Kalam', 'Fredoka', sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    --hand-font: 'Caveat', 'Kalam', cursive;
+  }
+
+  /* PTV (default) — warm woods + pastels */
+  body.mode-ptv {
+    --cream-wash: #fef9ef;
+    --wood-light: #e7a84a;
+    --wood-mid:   #c88436;
+    --wood-dark:  #8a5a2a;
+    --wood-deep:  #5d3a18;
+    --ink:        #3a2a18;
+    --ink-soft:   #6b5840;
+    --pastel-sky: #c5deec;
+    --pastel-hill:#9bc38c;
+    --pastel-hill2:#7da96f;
+    --road:       #6a6159;
+    --road-dash:  #fbf0cf;
+    --hedge:      #4f7a3a;
+    --hedge-dark: #355724;
+    --accent:     #e3b04b;
+    --accent-warm:#d67a3c;
+    --lamp-off:   #4a3020;
+    --lamp-on:    #ffc260;
+    --dash-panel: linear-gradient(180deg,#c49464 0%,#a8723a 45%,#8b5822 100%);
+    --dash-inner: #fffbe8;
+    --hud-shadow: rgba(0,0,0,0.45);
+    --hud-text:   #fffbe8;
+    --banner-bg:  linear-gradient(180deg,#e7a84a 0%,#c88436 55%,#a2651c 100%);
+    --banner-label: 'PET TRANSPORT';
+    --speed-max: 80;
+  }
+
+  /* Supply Run — neon + chrome */
+  body.mode-supply {
+    --cream-wash: #08080d;
+    --wood-light: #2a2b38;
+    --wood-mid:   #1a1b24;
+    --wood-dark:  #0f1018;
+    --wood-deep:  #05060a;
+    --ink:        #f2f7ff;
+    --ink-soft:   #9ba3b3;
+    --pastel-sky: #1a0a30;
+    --pastel-hill:#2a0f42;
+    --pastel-hill2:#150825;
+    --road:       #1c1d28;
+    --road-dash:  #ff27d4;
+    --hedge:      #191924;
+    --hedge-dark: #0b0b15;
+    --accent:     #ff27d4;
+    --accent-warm:#00ffe5;
+    --lamp-off:   #1a1420;
+    --lamp-on:    #ff27d4;
+    --dash-panel: linear-gradient(180deg,#2a2b38 0%,#15161e 50%,#05060a 100%);
+    --dash-inner: #0b0b12;
+    --hud-shadow: rgba(0,255,229,0.55);
+    --hud-text:   #00ffe5;
+    --banner-bg:  linear-gradient(180deg,#ff27d4 0%,#8a0cc2 60%,#00ffe5 100%);
+    --banner-label: 'SUPPLY RUN';
+    --speed-max: 140;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--body-font);
+    color: var(--ink);
+    background: #222;
+    display: flex; flex-direction: column;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Tiny mock toolbar so the page is browsable like the other mockups */
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+    flex: 0 0 auto;
+  }
+  .vp-bar a { color: #8fd3ff; }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+
+  /* ─── Cockpit root ─── */
+  .cockpit {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--cream-wash);
+    transition: background 0.4s;
+  }
+
+  /* ─── SKY + fake-3D road viewport ─── */
+  .viewport {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  .sky {
+    position: absolute; inset: 0 0 50% 0;
+    background: linear-gradient(180deg,
+      var(--pastel-sky) 0%,
+      color-mix(in srgb, var(--pastel-sky) 60%, var(--pastel-hill)) 100%);
+    transition: background 0.4s;
+  }
+  body.mode-supply .sky::after {
+    /* neon grid horizon */
+    content: '';
+    position: absolute; inset: 60% 0 0 0;
+    background:
+      linear-gradient(90deg, transparent 49%, rgba(255,39,212,0.5) 50%, transparent 51%) 0 0/10% 100%,
+      linear-gradient(180deg, transparent 70%, rgba(0,255,229,0.35) 100%);
+  }
+  .hills {
+    position: absolute;
+    left: -5%; right: -5%;
+    top: 38%;
+    height: 20%;
+    background:
+      radial-gradient(ellipse 40% 100% at 20% 100%, var(--pastel-hill2) 0 60%, transparent 61%),
+      radial-gradient(ellipse 55% 100% at 55% 100%, var(--pastel-hill) 0 60%, transparent 61%),
+      radial-gradient(ellipse 40% 100% at 85% 100%, var(--pastel-hill2) 0 60%, transparent 61%);
+    transition: background 0.4s;
+  }
+  .sun {
+    position: absolute;
+    top: 18%; left: 50%;
+    transform: translateX(-50%);
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #ffe6a8 0%, #f6c26a 60%, transparent 100%);
+    filter: blur(1px);
+    transition: transform 0.3s;
+  }
+  body.mode-supply .sun {
+    background: radial-gradient(circle, #ff27d4 0%, #8a0cc2 55%, transparent 100%);
+    box-shadow: 0 0 60px rgba(255,39,212,0.7);
+  }
+
+  /* Ground (the strip under the road) */
+  .ground {
+    position: absolute; inset: 50% 0 0 0;
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--pastel-hill) 70%, #000 0%) 0%,
+      color-mix(in srgb, var(--pastel-hill) 40%, var(--cream-wash)) 100%);
+    transition: background 0.4s;
+  }
+
+  /* Road — trapezoidal, perspective fake */
+  .road {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    bottom: 0;
+    width: 100%;
+    transform: translateX(-50%);
+    /* clip-path creates the trapezoid from a narrow top to a wide bottom */
+    clip-path: polygon(46% 0%, 54% 0%, 98% 100%, 2% 100%);
+    background: var(--road);
+    overflow: hidden;
+    transition: background 0.4s, transform 0.2s;
+  }
+  /* Dashed centre line animated to sell motion */
+  .road-dash {
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 2.5%;
+    transform: translateX(-50%);
+    background: repeating-linear-gradient(
+      180deg,
+      var(--road-dash) 0 18%,
+      transparent 18% 32%);
+    animation: roadDash 0.7s linear infinite;
+    opacity: 0.95;
+  }
+  @keyframes roadDash {
+    0%   { background-position: 0 -60px; }
+    100% { background-position: 0 60px; }
+  }
+  body.speed-0 .road-dash { animation-play-state: paused; }
+
+  /* Hedgerows flanking the road */
+  .hedge-left, .hedge-right {
+    position: absolute;
+    top: 50%; bottom: 0;
+    width: 46%;
+    background:
+      repeating-linear-gradient(90deg,
+        var(--hedge) 0 14px,
+        var(--hedge-dark) 14px 22px),
+      linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.35) 100%);
+    background-blend-mode: multiply, normal;
+    transition: background 0.4s;
+  }
+  .hedge-left  {
+    left: 0;
+    clip-path: polygon(0 0, 46% 0, 2% 100%, 0 100%);
+  }
+  .hedge-right {
+    right: 0;
+    clip-path: polygon(54% 0, 100% 0, 100% 100%, 98% 100%);
+  }
+
+  /* Hedgehog crossing sign (right side) — painted warning triangle */
+  .hedgehog-sign {
+    position: absolute;
+    right: 12%;
+    top: 54%;
+    width: 46px; height: 46px;
+    transition: opacity 0.2s, transform 0.2s, filter 0.2s;
+    filter: drop-shadow(2px 3px 3px rgba(0,0,0,0.35));
+    z-index: 3;
+  }
+  .hedgehog-sign.lit {
+    animation: signPulse 0.6s ease-in-out infinite alternate;
+  }
+  @keyframes signPulse {
+    from { filter: drop-shadow(0 0 6px #ffe27a) drop-shadow(2px 3px 3px rgba(0,0,0,0.35)); }
+    to   { filter: drop-shadow(0 0 18px #ffc24a) drop-shadow(2px 3px 3px rgba(0,0,0,0.35)); }
+  }
+  .hedgehog-sign svg { width: 100%; height: 100%; }
+
+  .hedgehog-prompt {
+    position: absolute;
+    left: 50%;
+    top: 28%;
+    transform: translateX(-50%) scale(0.6);
+    padding: 10px 22px;
+    font-family: var(--sign-title-font);
+    font-size: 30px;
+    color: #fff;
+    background: rgba(200,40,40,0.88);
+    border: 3px solid #fff7cc;
+    border-radius: 14px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.3s;
+    z-index: 10;
+  }
+  .hedgehog-prompt.show {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  .flash-msg {
+    position: absolute;
+    left: 50%; top: 42%;
+    transform: translateX(-50%);
+    padding: 12px 26px;
+    font-family: var(--sign-title-font);
+    font-size: 26px;
+    color: var(--hud-text);
+    background: rgba(0,0,0,0.6);
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    z-index: 10;
+  }
+  .flash-msg.show { opacity: 1; }
+
+  /* Pedestrian walk-by (PTV only) */
+  .passerby {
+    position: absolute;
+    bottom: 8%;
+    left: 100%;
+    width: 64px;
+    font-size: 54px;
+    line-height: 1;
+    filter: drop-shadow(2px 3px 3px rgba(0,0,0,0.35));
+    animation: passerbyWalk 26s linear infinite;
+    z-index: 3;
+    pointer-events: none;
+  }
+  body.mode-supply .passerby { display: none; }
+  @keyframes passerbyWalk {
+    0%   { left: 100%; }
+    95%  { left: -10%; }
+    100% { left: -10%; }
+  }
+
+  /* ─── Dashboard — the painted wooden frame at the bottom ─── */
+  .dashboard {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 46%;
+    background: var(--dash-panel);
+    border-top: 6px solid var(--wood-deep);
+    box-shadow:
+      inset 0 6px 0 rgba(255,240,210,0.15),
+      inset 0 -20px 40px rgba(0,0,0,0.35),
+      0 -6px 18px rgba(0,0,0,0.4);
+    transition: background 0.4s, border-color 0.4s;
+    z-index: 5;
+  }
+  body.mode-supply .dashboard {
+    border-top-color: var(--accent);
+    box-shadow:
+      inset 0 0 40px rgba(255,39,212,0.35),
+      inset 0 2px 0 rgba(0,255,229,0.4),
+      0 -6px 24px rgba(255,39,212,0.35);
+  }
+  /* Fake plank grooves */
+  body.mode-ptv .dashboard::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(180deg,
+        transparent 0 calc(100%/4 - 2px),
+        rgba(0,0,0,0.3) calc(100%/4 - 2px) calc(100%/4),
+        rgba(255,240,210,0.15) calc(100%/4) calc(100%/4 + 1px),
+        transparent calc(100%/4 + 1px) calc(100%/4 + 10px));
+    pointer-events: none;
+  }
+
+  /* Top HUD row — GPS + vehicle select + mode toggle */
+  .top-hud {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    padding: 12px 16px;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 12px;
+    z-index: 8;
+    pointer-events: none;
+  }
+  .top-hud > * { pointer-events: auto; }
+
+  /* ── Vehicle select (top-left) ── */
+  .vehicle-picker {
+    display: flex; flex-direction: column; gap: 6px;
+    background: var(--dash-panel);
+    padding: 10px 14px;
+    border: 2px solid var(--wood-dark);
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,240,210,0.2);
+    min-width: 180px;
+  }
+  body.mode-supply .vehicle-picker {
+    border-color: var(--accent);
+    box-shadow: 0 0 14px rgba(255,39,212,0.5), inset 0 1px 0 rgba(0,255,229,0.4);
+  }
+  .vehicle-picker label {
+    font-family: var(--sign-font);
+    font-size: 12px;
+    color: var(--hud-text);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
+    letter-spacing: 0.05em;
+  }
+  .vehicle-picker select {
+    font-family: var(--sign-font);
+    font-size: 15px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--wood-deep);
+    background: var(--dash-inner);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .vehicle-sprite {
+    margin-top: 4px;
+    height: 54px;
+    border-radius: 8px;
+    border: 2px dashed rgba(255,255,255,0.35);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--sign-title-font);
+    font-size: 16px;
+    color: #fff;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    transition: background 0.3s;
+  }
+
+  /* ── GPS panel (top centre) ── */
+  .gps {
+    flex: 0 0 auto;
+    width: min(300px, 32%);
+    background: var(--dash-panel);
+    border: 3px solid var(--wood-dark);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,240,210,0.2);
+    transform: rotate(-0.6deg);
+  }
+  body.mode-supply .gps {
+    border-color: var(--accent-warm);
+    box-shadow: 0 0 18px rgba(0,255,229,0.5);
+  }
+  .gps-label {
+    font-family: var(--sign-title-font);
+    font-size: 14px;
+    color: var(--hud-text);
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    text-align: center;
+    padding-bottom: 4px;
+    letter-spacing: 0.03em;
+  }
+  .gps-screen {
+    height: 84px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #b7d8aa 0%, #e3ead0 70%, #c0d8b0 100%);
+    position: relative;
+    overflow: hidden;
+    border: 2px inset rgba(0,0,0,0.3);
+  }
+  body.mode-supply .gps-screen {
+    background: linear-gradient(135deg,#0c0220 0%, #180545 60%, #2a0b5e 100%);
+  }
+  .gps-screen svg { width: 100%; height: 100%; display: block; }
+
+  /* ── Tonal mode toggle (top-right) ── */
+  .mode-toggle {
+    background: var(--dash-panel);
+    padding: 8px 12px;
+    border: 2px solid var(--wood-dark);
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,240,210,0.2);
+    display: flex; flex-direction: column; gap: 4px;
+    min-width: 170px;
+  }
+  body.mode-supply .mode-toggle {
+    border-color: var(--accent);
+    box-shadow: 0 0 14px rgba(255,39,212,0.5);
+  }
+  .mode-toggle label {
+    font-family: var(--sign-font);
+    font-size: 11px;
+    color: var(--hud-text);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+  .toggle-switch {
+    position: relative;
+    display: flex;
+    background: rgba(0,0,0,0.4);
+    border-radius: 999px;
+    padding: 3px;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .toggle-switch span {
+    flex: 1;
+    padding: 6px 10px;
+    font-family: var(--sign-title-font);
+    font-size: 13px;
+    text-align: center;
+    color: rgba(255,255,255,0.6);
+    border-radius: 999px;
+    transition: all 0.25s;
+    z-index: 2;
+    position: relative;
+  }
+  body.mode-ptv    .toggle-switch span[data-mode="ptv"]    { background: var(--accent); color: #3a2a18; }
+  body.mode-supply .toggle-switch span[data-mode="supply"] { background: var(--accent); color: #08080d; box-shadow: 0 0 10px var(--accent); }
+
+  /* ── Mode banner (centre-top of dashboard in Supply Run mode) ── */
+  .mode-banner {
+    position: absolute;
+    left: 50%;
+    /* Sit just above the dashboard (which starts at bottom: 46%) so
+       the banner reads as a neon sign on top of the dash, not buried
+       under the GPS in the sky. */
+    bottom: calc(46% + 8px);
+    transform: translateX(-50%);
+    padding: 6px 26px;
+    font-family: var(--sign-title-font);
+    font-size: 22px;
+    letter-spacing: 0.15em;
+    color: #fff;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.6);
+    background: var(--banner-bg);
+    border-radius: 8px;
+    border: 2px solid rgba(255,255,255,0.2);
+    z-index: 6;
+    display: none;
+  }
+  body.mode-supply .mode-banner {
+    display: block;
+    animation: neonFlicker 3s steps(1) infinite;
+    box-shadow: 0 0 20px var(--accent);
+  }
+  @keyframes neonFlicker {
+    0%,72%,76%,100% { opacity: 1; }
+    74%             { opacity: 0.65; }
+  }
+  .mode-banner::after { content: var(--banner-label); }
+
+  /* ── Steering wheel (bottom centre) ── */
+  .wheel-wrap {
+    position: absolute;
+    left: 50%; bottom: 2%;
+    transform: translateX(-50%);
+    width: 220px; height: 220px;
+    z-index: 7;
+  }
+  .wheel {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 50%, var(--wood-light) 0 14%, transparent 14.5%),
+      radial-gradient(circle at 50% 50%, var(--wood-mid) 14% 22%, transparent 22.5%),
+      radial-gradient(circle at 50% 50%, var(--wood-dark) 22% 38%, transparent 38.5%),
+      conic-gradient(from 0deg,
+        var(--wood-mid) 0deg 40deg,
+        var(--wood-dark) 40deg 50deg,
+        var(--wood-mid) 50deg 90deg,
+        var(--wood-dark) 90deg 100deg,
+        var(--wood-mid) 100deg 140deg,
+        var(--wood-dark) 140deg 150deg,
+        var(--wood-mid) 150deg 190deg,
+        var(--wood-dark) 190deg 200deg,
+        var(--wood-mid) 200deg 240deg,
+        var(--wood-dark) 240deg 250deg,
+        var(--wood-mid) 250deg 290deg,
+        var(--wood-dark) 290deg 300deg,
+        var(--wood-mid) 300deg 340deg,
+        var(--wood-dark) 340deg 350deg,
+        var(--wood-mid) 350deg 360deg);
+    box-shadow:
+      inset 0 0 22px rgba(0,0,0,0.55),
+      inset 0 4px 0 rgba(255,240,210,0.25),
+      0 10px 22px rgba(0,0,0,0.55);
+    position: relative;
+    transition: transform 0.18s ease-out;
+    transform: rotate(0deg);
+  }
+  body.mode-supply .wheel {
+    background:
+      radial-gradient(circle at 50% 50%, #222 0 18%, transparent 18.5%),
+      radial-gradient(circle at 50% 50%, #333 18% 26%, transparent 26.5%),
+      conic-gradient(from 0deg,
+        #1a1a26 0deg 40deg, var(--accent) 40deg 50deg,
+        #1a1a26 50deg 130deg, var(--accent-warm) 130deg 140deg,
+        #1a1a26 140deg 220deg, var(--accent) 220deg 230deg,
+        #1a1a26 230deg 310deg, var(--accent-warm) 310deg 320deg,
+        #1a1a26 320deg 360deg);
+    box-shadow: inset 0 0 22px #000, 0 0 24px rgba(255,39,212,0.6);
+  }
+  .wheel::before {
+    /* central hub */
+    content: 'A.R.C.';
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%,-50%);
+    width: 28%; height: 28%;
+    background: radial-gradient(circle at 35% 30%, var(--wood-light) 0%, var(--wood-dark) 80%);
+    border: 3px solid var(--wood-deep);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--sign-title-font);
+    font-size: 14px;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    box-shadow: inset 0 2px 4px rgba(255,240,210,0.3), 0 2px 4px rgba(0,0,0,0.5);
+  }
+  body.mode-supply .wheel::before {
+    background: radial-gradient(circle at 35% 30%, var(--accent) 0%, #0a0112 85%);
+    border-color: var(--accent-warm);
+    color: var(--accent-warm);
+    text-shadow: 0 0 6px var(--accent-warm);
+  }
+  /* Leather grip dots around the rim */
+  .wheel .dot {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #f2c084 0%, #6c3b11 75%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    top: 50%; left: 50%;
+  }
+  /* Cartoon hands on the wheel */
+  .wheel-hands {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    font-size: 34px;
+  }
+  .wheel-hands .hand {
+    position: absolute;
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.3));
+  }
+  .wheel-hands .hand.left  { top: 42%; left: -6%;  transform: rotate(-20deg); }
+  .wheel-hands .hand.right { top: 42%; right: -6%; transform: rotate(20deg) scaleX(-1); }
+
+  /* ── Pedals (bottom-left) ── */
+  .pedals {
+    position: absolute;
+    left: 3%; bottom: 4%;
+    display: flex; gap: 14px; align-items: flex-end;
+    z-index: 7;
+  }
+  .pedal {
+    width: 52px; height: 92px;
+    border-radius: 10px 10px 8px 8px;
+    border: 2px solid var(--wood-deep);
+    font-family: var(--sign-title-font);
+    font-size: 13px;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.55);
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 6px;
+    cursor: pointer;
+    box-shadow:
+      inset 0 2px 0 rgba(255,240,210,0.25),
+      0 6px 0 rgba(0,0,0,0.5);
+    transition: transform 0.08s, box-shadow 0.08s, background 0.3s;
+    position: relative;
+    user-select: none;
+  }
+  .pedal.acc   { background: linear-gradient(180deg,#7cb15c 0%,#4c7f33 100%); }
+  .pedal.brake { background: linear-gradient(180deg,#d95f4b 0%,#a13425 100%); }
+  body.mode-supply .pedal.acc   { background: linear-gradient(180deg,#00ffe5 0%,#007a6e 100%); color: #0a0112; text-shadow: none; border-color: #00ffe5; box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), 0 0 14px rgba(0,255,229,0.6), 0 6px 0 #002a26; }
+  body.mode-supply .pedal.brake { background: linear-gradient(180deg,#ff27d4 0%,#7a0c60 100%); color: #fff; border-color: #ff27d4; box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), 0 0 14px rgba(255,39,212,0.6), 0 6px 0 #2a0026; }
+  .pedal.pressed {
+    transform: translateY(5px);
+    box-shadow: inset 0 2px 0 rgba(255,240,210,0.25), 0 1px 0 rgba(0,0,0,0.5);
+  }
+
+  .speed-gauge {
+    background: var(--dash-inner);
+    border: 2px solid var(--wood-deep);
+    border-radius: 10px;
+    padding: 6px 10px;
+    min-width: 78px;
+    text-align: center;
+    box-shadow: inset 0 2px 3px rgba(0,0,0,0.4);
+  }
+  body.mode-supply .speed-gauge {
+    background: #05060a;
+    border-color: var(--accent);
+    box-shadow: inset 0 0 12px rgba(255,39,212,0.5);
+  }
+  .speed-gauge .label {
+    font-family: var(--sign-font);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  body.mode-supply .speed-gauge .label { color: var(--accent-warm); }
+  .speed-gauge .value {
+    font-family: var(--sign-title-font);
+    font-size: 28px;
+    color: var(--ink);
+    line-height: 1;
+  }
+  body.mode-supply .speed-gauge .value { color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+
+  /* ── Horn + ignition (bottom-right) ── */
+  .right-cluster {
+    position: absolute;
+    right: 3%; bottom: 4%;
+    display: flex; gap: 14px; align-items: flex-end;
+    z-index: 7;
+  }
+  .horn-btn {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    font-size: 42px;
+    border: 4px solid var(--wood-deep);
+    background: radial-gradient(circle at 35% 30%, #ffd86a 0%, var(--wood-light) 45%, var(--wood-mid) 100%);
+    cursor: pointer;
+    box-shadow:
+      inset 0 3px 0 rgba(255,240,210,0.4),
+      0 6px 0 rgba(0,0,0,0.5);
+    transition: transform 0.08s, box-shadow 0.08s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  body.mode-supply .horn-btn {
+    background: radial-gradient(circle at 35% 30%, var(--accent) 0%, #5a0a48 70%);
+    border-color: var(--accent);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,0.3), 0 0 22px rgba(255,39,212,0.7), 0 6px 0 #1a0218;
+  }
+  .horn-btn:active {
+    transform: translateY(4px);
+    box-shadow: inset 0 3px 0 rgba(255,240,210,0.4), 0 2px 0 rgba(0,0,0,0.5);
+  }
+
+  .ignition-col {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .lamp {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--lamp-off) 0%, #1a0d05 100%);
+    border: 3px solid var(--wood-deep);
+    box-shadow: inset 0 2px 3px rgba(0,0,0,0.6);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .lamp.on {
+    background: radial-gradient(circle at 35% 30%, #ffe9a0 0%, var(--lamp-on) 60%, #b87118 100%);
+    box-shadow: 0 0 16px var(--lamp-on), inset 0 1px 2px rgba(255,255,255,0.4);
+  }
+  .ignition-btn {
+    font-family: var(--sign-title-font);
+    font-size: 13px;
+    padding: 8px 14px;
+    background: var(--dash-panel);
+    color: #fffbe8;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+    border: 2px solid var(--wood-deep);
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: inset 0 2px 0 rgba(255,240,210,0.2), 0 3px 0 rgba(0,0,0,0.4);
+    letter-spacing: 0.08em;
+    user-select: none;
+  }
+  body.mode-supply .ignition-btn {
+    background: #0a0112;
+    border-color: var(--accent);
+    color: var(--accent-warm);
+    text-shadow: 0 0 6px var(--accent-warm);
+  }
+  .ignition-btn.held {
+    transform: translateY(2px);
+    box-shadow: inset 0 2px 3px rgba(0,0,0,0.5), 0 1px 0 rgba(0,0,0,0.4);
+  }
+
+  /* ── Cargo-comfort meter (dashboard centre) ── */
+  .comfort-meter {
+    position: absolute;
+    left: 50%; bottom: 58%;
+    transform: translateX(-50%);
+    width: 180px;
+    z-index: 6;
+  }
+  body.mode-supply .comfort-meter { bottom: 62%; }  /* clear of the SUPPLY RUN banner */
+  .comfort-meter .label {
+    font-family: var(--sign-font);
+    font-size: 11px;
+    color: var(--hud-text);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
+    text-align: center;
+    letter-spacing: 0.08em;
+  }
+  .comfort-bar {
+    height: 10px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 6px;
+    border: 1px solid var(--wood-deep);
+    overflow: hidden;
+    margin-top: 2px;
+  }
+  .comfort-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #6fbf4a 0%, #e6c04a 70%, #d65c3f 100%);
+    transition: width 0.3s;
+  }
+  body.mode-supply .comfort-meter .label { color: var(--accent-warm); }
+  body.mode-supply .comfort-fill { background: linear-gradient(90deg,var(--accent-warm) 0%, var(--accent) 100%); }
+
+  /* hide prompts when driving off screen */
+  @media (max-width: 720px) {
+    .wheel-wrap { width: 160px; height: 160px; }
+    .pedal { width: 42px; height: 76px; }
+    .horn-btn { width: 78px; height: 78px; font-size: 32px; }
+    .gps { width: 44%; }
+    .vehicle-picker, .mode-toggle { min-width: 0; font-size: 10px; }
+    .vehicle-picker label, .mode-toggle label { font-size: 10px; }
+  }
+</style>
+</head>
+<body class="mode-ptv speed-0">
+
+<div class="vp-bar">
+  <strong>Cockpit mockup (slice B)</strong>
+  <span>·</span>
+  <span>Arrow keys steer · Space = horn · Hold IGNITION · Click pedals</span>
+  <a href="/admin/mockup-welcome.html">← welcome</a>
+  <span class="hint">(static mockup — no game logic)</span>
+</div>
+
+<div class="cockpit" id="cockpit">
+
+  <!-- Fake-3D road viewport -->
+  <div class="viewport">
+    <div class="sky"></div>
+    <div class="sun"></div>
+    <div class="hills"></div>
+    <div class="ground"></div>
+    <div class="road" id="road">
+      <div class="road-dash"></div>
+    </div>
+    <div class="hedge-left"></div>
+    <div class="hedge-right"></div>
+
+    <!-- Painted hedgehog-crossing sign -->
+    <div class="hedgehog-sign" id="hedgehog-sign" aria-hidden="true">
+      <svg viewBox="0 0 100 100">
+        <polygon points="50,6 94,90 6,90" fill="#f5d24a" stroke="#3a2a18" stroke-width="5" stroke-linejoin="round"/>
+        <!-- tiny hedgehog silhouette -->
+        <ellipse cx="50" cy="66" rx="22" ry="13" fill="#6b4a2a"/>
+        <path d="M28 64 L22 54 M34 58 L30 46 M42 54 L40 42 M50 52 L50 40 M58 54 L60 42 M66 58 L70 46 M72 64 L78 54"
+              stroke="#3a2a18" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <circle cx="66" cy="66" r="2.5" fill="#1a0f05"/>
+        <path d="M72 70 q4 -1 6 1" stroke="#1a0f05" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <div class="hedgehog-prompt" id="hedgehog-prompt">🦔 Stop!</div>
+    <div class="flash-msg" id="flash-msg"></div>
+
+    <!-- Pedestrian walk-by (PTV only) -->
+    <div class="passerby" aria-hidden="true">🚶‍♀️🐕</div>
+  </div>
+
+  <!-- Top HUD: vehicle picker · GPS · mode toggle -->
+  <div class="top-hud">
+    <div class="vehicle-picker">
+      <label for="vehicle-select">VEHICLE</label>
+      <select id="vehicle-select">
+        <option value="trikey">Trikey (pedal trike)</option>
+        <option value="henry" selected>Henry (small van)</option>
+        <option value="bea">Bea (long van)</option>
+        <option value="tilly">Big Tilly (lorry)</option>
+        <option value="spark">Spark (electric)</option>
+      </select>
+      <div class="vehicle-sprite" id="vehicle-sprite">Henry</div>
+    </div>
+
+    <div class="gps">
+      <div class="gps-label">GPS — Birchie-on-Sea</div>
+      <div class="gps-screen">
+        <!-- Stylised cartoon mini-map -->
+        <svg viewBox="0 0 300 84" preserveAspectRatio="none">
+          <!-- Sea -->
+          <rect x="0" y="0" width="300" height="20" fill="#8ec5e8" opacity="0.7"/>
+          <path d="M0 20 Q40 18 80 22 T160 20 T240 22 T300 20" stroke="#5a99c2" stroke-width="1.5" fill="none"/>
+          <!-- Land blocks -->
+          <rect x="12" y="24" width="64" height="28" fill="#b5c97f" rx="3"/>
+          <rect x="92" y="28" width="90" height="30" fill="#c9d98e" rx="3"/>
+          <rect x="200" y="24" width="86" height="32" fill="#b5c97f" rx="3"/>
+          <!-- Woodland -->
+          <circle cx="42" cy="70" r="10" fill="#4f7a3a"/>
+          <circle cx="60" cy="74" r="8" fill="#355724"/>
+          <circle cx="262" cy="68" r="9" fill="#4f7a3a"/>
+          <!-- Roads -->
+          <path d="M0 46 L300 46" stroke="#fbf0cf" stroke-width="3" fill="none"/>
+          <path d="M140 46 L150 80" stroke="#fbf0cf" stroke-width="2" fill="none"/>
+          <!-- Dotted route -->
+          <path d="M20 46 L150 46 L150 80"
+                stroke="#d64a2a" stroke-width="2.5" fill="none"
+                stroke-dasharray="5 4" stroke-linecap="round"/>
+          <!-- You are here -->
+          <circle cx="82" cy="46" r="5" fill="#d64a2a" stroke="#fff" stroke-width="1.8">
+            <animate attributeName="cx" from="20" to="148" dur="18s" repeatCount="indefinite"/>
+          </circle>
+          <!-- Destination pin -->
+          <circle cx="150" cy="80" r="4" fill="#2e8b57" stroke="#fff" stroke-width="1.5"/>
+          <text x="156" y="80" font-family="Kalam, cursive" font-size="8" fill="#2a2a2a">Home</text>
+          <text x="4" y="10" font-family="Kalam, cursive" font-size="8" fill="#2a4a6a">N. Sea</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="mode-toggle">
+      <label>MODE</label>
+      <div class="toggle-switch" id="mode-toggle">
+        <span data-mode="ptv">PTV</span>
+        <span data-mode="supply">Supply Run</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard wood frame + mode banner + cargo comfort -->
+  <div class="dashboard"></div>
+  <div class="mode-banner"></div>
+
+  <div class="comfort-meter">
+    <div class="label" id="comfort-label">CARGO COMFORT</div>
+    <div class="comfort-bar"><div class="comfort-fill" id="comfort-fill"></div></div>
+  </div>
+
+  <!-- Pedals (bottom left) -->
+  <div class="pedals">
+    <div class="pedal acc"   id="pedal-acc">ACC</div>
+    <div class="pedal brake" id="pedal-brake">BRK</div>
+    <div class="speed-gauge">
+      <div class="label">MPH</div>
+      <div class="value" id="speed-value">0</div>
+    </div>
+  </div>
+
+  <!-- Steering wheel (bottom centre) -->
+  <div class="wheel-wrap">
+    <div class="wheel" id="wheel"></div>
+    <div class="wheel-hands">
+      <span class="hand left">✋</span>
+      <span class="hand right">✋</span>
+    </div>
+  </div>
+
+  <!-- Horn + ignition (bottom right) -->
+  <div class="right-cluster">
+    <div class="ignition-col">
+      <div class="lamp" id="ignition-lamp" title="Ignition"></div>
+      <button class="ignition-btn" id="ignition-btn">IGNITION</button>
+    </div>
+    <button class="horn-btn" id="horn-btn" aria-label="Horn">🔔</button>
+  </div>
+
+  <!-- Audio elements — placeholder sounds -->
+  <!-- NOTE: heavy-metal Supply Run track doesn't exist yet; using music-play.ogg as placeholder. -->
+  <audio id="audio-horn"    src="/assets/audio/ui/ui-bell.ogg" preload="auto"></audio>
+  <audio id="audio-ambient" src="/assets/audio/music/music-corridor.ogg" preload="auto" loop></audio>
+  <audio id="audio-metal"   src="/assets/audio/music/music-play.ogg" preload="auto" loop></audio>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const body        = document.body;
+  const wheel       = document.getElementById('wheel');
+  const pedalAcc    = document.getElementById('pedal-acc');
+  const pedalBrake  = document.getElementById('pedal-brake');
+  const speedValue  = document.getElementById('speed-value');
+  const hornBtn     = document.getElementById('horn-btn');
+  const ignitionBtn = document.getElementById('ignition-btn');
+  const lamp        = document.getElementById('ignition-lamp');
+  const modeToggle  = document.getElementById('mode-toggle');
+  const vehicleSel  = document.getElementById('vehicle-select');
+  const vehicleSp   = document.getElementById('vehicle-sprite');
+  const road        = document.getElementById('road');
+  const hhSign      = document.getElementById('hedgehog-sign');
+  const hhPrompt    = document.getElementById('hedgehog-prompt');
+  const flashMsg    = document.getElementById('flash-msg');
+  const comfortFill = document.getElementById('comfort-fill');
+  const audioHorn   = document.getElementById('audio-horn');
+  const audioAmb    = document.getElementById('audio-ambient');
+  const audioMetal  = document.getElementById('audio-metal');
+
+  // -----------------------------------------------
+  // STATE
+  // -----------------------------------------------
+  const state = {
+    wheelAngle: 0,    // visual angle
+    targetAngle: 0,   // driven by keys
+    speed: 0,
+    targetSpeed: 0,
+    idleSpeed: 0,     // set to 15 once ignition is on
+    accelerating: false,
+    braking: false,
+    ignited: false,
+    mode: 'ptv',
+    comfort: 100,
+    hhPending: false,
+    hhStartAt: 0,
+  };
+
+  // -----------------------------------------------
+  // WHEEL — arrow keys + pointer drag
+  // -----------------------------------------------
+  function setWheelAngle(a) {
+    state.targetAngle = Math.max(-140, Math.min(140, a));
+  }
+
+  // Sprinkle grip dots around the wheel rim
+  (function addDots() {
+    const N = 8;
+    for (let i = 0; i < N; i++) {
+      const ang = (i / N) * Math.PI * 2;
+      const d = document.createElement('span');
+      d.className = 'dot';
+      d.style.transform =
+        `translate(-50%,-50%) rotate(${ang}rad) translate(80px) rotate(${-ang}rad)`;
+      wheel.appendChild(d);
+    }
+  })();
+
+  // Keyboard
+  const keys = { left:false, right:false };
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft')  keys.left = true;
+    if (e.key === 'ArrowRight') keys.right = true;
+    if (e.key === 'ArrowUp')    { state.accelerating = true; pedalAcc.classList.add('pressed'); }
+    if (e.key === 'ArrowDown')  { state.braking = true; pedalBrake.classList.add('pressed'); }
+    if (e.code === 'Space')     { e.preventDefault(); honk(); }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowLeft')  keys.left = false;
+    if (e.key === 'ArrowRight') keys.right = false;
+    if (e.key === 'ArrowUp')    { state.accelerating = false; pedalAcc.classList.remove('pressed'); }
+    if (e.key === 'ArrowDown')  { state.braking = false; pedalBrake.classList.remove('pressed'); }
+  });
+
+  // Pointer drag on wheel
+  let dragging = false;
+  let dragStartAngle = 0;
+  let dragStartWheel = 0;
+  function pointerAngle(e, el) {
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - cx;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY) - cy;
+    return Math.atan2(y, x) * 180 / Math.PI;
+  }
+  wheel.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    dragStartAngle = pointerAngle(e, wheel);
+    dragStartWheel = state.targetAngle;
+    wheel.setPointerCapture?.(e.pointerId);
+  });
+  wheel.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const delta = pointerAngle(e, wheel) - dragStartAngle;
+    setWheelAngle(dragStartWheel + delta);
+  });
+  wheel.addEventListener('pointerup', () => dragging = false);
+  wheel.addEventListener('pointercancel', () => dragging = false);
+
+  // -----------------------------------------------
+  // PEDALS — hold to press
+  // -----------------------------------------------
+  function bindPedal(el, setFlag) {
+    const press   = () => { setFlag(true);  el.classList.add('pressed'); };
+    const release = () => { setFlag(false); el.classList.remove('pressed'); };
+    el.addEventListener('pointerdown', press);
+    el.addEventListener('pointerup',   release);
+    el.addEventListener('pointerleave',release);
+    el.addEventListener('pointercancel', release);
+  }
+  bindPedal(pedalAcc,   v => state.accelerating = v);
+  bindPedal(pedalBrake, v => state.braking = v);
+
+  // -----------------------------------------------
+  // HORN
+  // -----------------------------------------------
+  function honk() {
+    try {
+      audioHorn.currentTime = 0;
+      audioHorn.play().catch(()=>{});
+    } catch (_) {}
+    hornBtn.style.transform = 'translateY(4px)';
+    setTimeout(() => hornBtn.style.transform = '', 150);
+  }
+  hornBtn.addEventListener('click', honk);
+
+  // -----------------------------------------------
+  // IGNITION — press & hold ~1s
+  // -----------------------------------------------
+  let ignitionHoldTimer = null;
+  function startIgnitionHold() {
+    ignitionBtn.classList.add('held');
+    ignitionHoldTimer = setTimeout(() => {
+      state.ignited = true;
+      state.idleSpeed = 15;
+      lamp.classList.add('on');
+      playAmbient();
+    }, 900);
+  }
+  function cancelIgnitionHold() {
+    ignitionBtn.classList.remove('held');
+    if (ignitionHoldTimer) { clearTimeout(ignitionHoldTimer); ignitionHoldTimer = null; }
+  }
+  ignitionBtn.addEventListener('pointerdown', startIgnitionHold);
+  ignitionBtn.addEventListener('pointerup',   cancelIgnitionHold);
+  ignitionBtn.addEventListener('pointerleave',cancelIgnitionHold);
+
+  // -----------------------------------------------
+  // MODE TOGGLE (PTV ↔ Supply Run)
+  // -----------------------------------------------
+  modeToggle.addEventListener('click', (e) => {
+    const tgt = e.target.closest('span[data-mode]');
+    if (!tgt) return;
+    setMode(tgt.dataset.mode);
+  });
+  function setMode(mode) {
+    if (mode === state.mode) return;
+    state.mode = mode;
+    body.classList.remove('mode-ptv','mode-supply');
+    body.classList.add('mode-' + mode);
+    // Swap ambient music if ignition is on
+    if (state.ignited) playAmbient();
+  }
+
+  function playAmbient() {
+    try {
+      // stop everything, start the right track
+      audioAmb.pause(); audioMetal.pause();
+      if (state.mode === 'ptv') {
+        audioAmb.volume = 0.35;
+        audioAmb.play().catch(()=>{});
+      } else {
+        audioMetal.volume = 0.5;
+        audioMetal.play().catch(()=>{});
+      }
+    } catch (_) {}
+  }
+
+  // -----------------------------------------------
+  // VEHICLE SELECT (cosmetic)
+  // -----------------------------------------------
+  const vehicleColors = {
+    trikey: { bg: '#e3a8ff', label: 'Trikey' },
+    henry:  { bg: '#f4c97a', label: 'Henry' },
+    bea:    { bg: '#a8d8f0', label: 'Bea' },
+    tilly:  { bg: '#d6a680', label: 'Big Tilly' },
+    spark:  { bg: '#8ce8b8', label: 'Spark' },
+  };
+  vehicleSel.addEventListener('change', () => {
+    const v = vehicleColors[vehicleSel.value];
+    vehicleSp.style.background = v.bg;
+    vehicleSp.textContent = v.label;
+  });
+  // initialise
+  (() => {
+    const v = vehicleColors[vehicleSel.value];
+    vehicleSp.style.background = v.bg;
+    vehicleSp.textContent = v.label;
+  })();
+
+  // -----------------------------------------------
+  // HEDGEHOG CROSSING DRILL
+  // -----------------------------------------------
+  function scheduleHedgehog() {
+    const wait = 7000 + Math.random() * 11000;
+    setTimeout(triggerHedgehog, wait);
+  }
+  function triggerHedgehog() {
+    if (!state.ignited) { scheduleHedgehog(); return; }
+    state.hhPending = true;
+    state.hhStartAt = performance.now();
+    hhSign.classList.add('lit');
+    hhPrompt.classList.add('show');
+    try { audioHorn.currentTime = 0; audioHorn.volume = 0.3; audioHorn.play().catch(()=>{}); } catch(_){}
+    // 3s window to release acc + brake
+    let resolved = false;
+    const checkInterval = setInterval(() => {
+      if (!state.hhPending) { clearInterval(checkInterval); return; }
+      if (!state.accelerating && state.braking) {
+        resolved = true;
+        clearInterval(checkInterval);
+        resolveHedgehog(true);
+      }
+    }, 100);
+    setTimeout(() => {
+      if (!resolved && state.hhPending) {
+        clearInterval(checkInterval);
+        resolveHedgehog(false);
+      }
+    }, 3000);
+  }
+  function resolveHedgehog(success) {
+    state.hhPending = false;
+    hhSign.classList.remove('lit');
+    hhPrompt.classList.remove('show');
+    flashMsg.textContent = success
+      ? '✓ Kindness bonus! The hedgehog trundles safely across.'
+      : 'Oopsie! We need to watch out for hedgehogs!';
+    flashMsg.style.borderColor = success ? '#7cb15c' : '#d64a2a';
+    flashMsg.classList.add('show');
+    if (!success) state.comfort = Math.max(0, state.comfort - 18);
+    setTimeout(() => flashMsg.classList.remove('show'), 2600);
+    scheduleHedgehog();
+  }
+  scheduleHedgehog();
+
+  // -----------------------------------------------
+  // MAIN TICK — smooths wheel, speed, road offset
+  // -----------------------------------------------
+  function tick() {
+    // Key-driven wheel target
+    if (keys.left)  setWheelAngle(state.targetAngle - 4);
+    if (keys.right) setWheelAngle(state.targetAngle + 4);
+    // Self-centre gently when neither key nor drag is active
+    if (!keys.left && !keys.right && !dragging) {
+      state.targetAngle *= 0.94;
+      if (Math.abs(state.targetAngle) < 0.5) state.targetAngle = 0;
+    }
+    // Ease visual angle toward target
+    state.wheelAngle += (state.targetAngle - state.wheelAngle) * 0.25;
+    wheel.style.transform = `rotate(${state.wheelAngle}deg)`;
+
+    // Road vanishing-point drift based on wheel angle
+    const drift = state.wheelAngle * 0.6; // px
+    road.style.transform = `translateX(calc(-50% + ${drift}px))`;
+
+    // Speed dynamics
+    const maxSpeed = state.mode === 'supply' ? 140 : 80;
+    if (state.ignited) {
+      if (state.accelerating) state.targetSpeed = Math.min(maxSpeed, state.targetSpeed + 0.8);
+      else if (state.braking) state.targetSpeed = Math.max(0, state.targetSpeed - 1.6);
+      else                    state.targetSpeed = Math.max(state.idleSpeed, state.targetSpeed - 0.25);
+    } else {
+      state.targetSpeed = Math.max(0, state.targetSpeed - 2);
+    }
+    state.speed += (state.targetSpeed - state.speed) * 0.15;
+    const displaySpeed = Math.round(state.speed);
+    speedValue.textContent = displaySpeed;
+
+    // Speed → road dash animation speed
+    const dur = displaySpeed < 1 ? 99 : Math.max(0.08, 1.2 - (displaySpeed / maxSpeed) * 1.1);
+    document.querySelector('.road-dash').style.animationDuration = dur + 's';
+    body.classList.toggle('speed-0', displaySpeed < 1);
+
+    // Gentle comfort recovery when mindful (PTV only drains on rough driving;
+    // here the mockup just lets it drift back up between incidents)
+    state.comfort = Math.min(100, state.comfort + 0.05);
+    comfortFill.style.width = state.comfort + '%';
+
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // -----------------------------------------------
+  // First-interaction music unlock (browser gate)
+  // -----------------------------------------------
+  const unlock = () => {
+    // Touch the audio elements so subsequent play() calls aren't blocked
+    [audioHorn, audioAmb, audioMetal].forEach(a => {
+      try { a.volume = 0; a.play().then(() => { a.pause(); a.currentTime = 0; a.volume = 1; }).catch(()=>{}); } catch(_){}
+    });
+    window.removeEventListener('pointerdown', unlock);
+    window.removeEventListener('keydown', unlock);
+  };
+  window.addEventListener('pointerdown', unlock, { once: true });
+  window.addEventListener('keydown', unlock, { once: true });
+})();
+</script>
+</body>
+</html>
