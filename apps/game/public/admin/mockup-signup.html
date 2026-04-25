@@ -899,42 +899,43 @@
      .ground-bunny) so its ground-level matches the grass on every
      viewport — no more drifting below.
 
-     Sits BEHIND the grass-clump (z:3 < clump z:4). Fox is sized roughly
-     to match grass height; at rest it's translated DOWN a bit so the
-     head stays hidden behind blades; on peek it bobs UP and tilts left
-     so head + ears clearly emerge above the grass top. */
+     Sits BEHIND the grass-clump (z:3 < clump z:4). At rest the body is
+     translated DOWN ~35% so the whole sprite tucks behind the grass
+     blade band. On peek the body bobs UP ~25% and tilts slightly left,
+     so the head + ears clearly emerge above the grass top. */
   .foreground-fox {
     position: absolute;
     /* Anchor in .signs-on-stake's coord system (sign max-width 480px),
-       same units as .ground-bunny. Bunny sits at 50% - clamp(72,14cqw,
-       130). Fox tucked further left, behind the leftmost tall blades. */
+       same units as .ground-bunny. Fox tucked further left than bunny,
+       behind the leftmost tall blades. */
     left: calc(50% - clamp(110px, 24cqw, 200px));
     /* Match grass-clump bottom so feet line up on the ground. */
     bottom: clamp(-8px, -1.5cqh, -2px);
-    /* Tall enough that head + ears clearly emerge above the grass top
-       when bobbed up during a peek. */
-    height: clamp(110px, 17cqh, 160px);
+    /* Sized to roughly match the painted grass-blade band. Tail won't
+       dangle past the bottom of the blade strip at rest. */
+    height: clamp(95px, 14cqh, 135px);
     width: auto;
     z-index: 3;   /* BEHIND the grass-clump (z:4) */
     pointer-events: none;
     filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
-    /* Pivot bottom-centre — body rises and tilts naturally. */
+    /* Pivot bottom-centre — body translates + rotates around its feet. */
     transform-origin: 50% 100%;
     animation: foxPeek 8s ease-in-out infinite;
     will-change: transform;
   }
   @keyframes foxPeek {
-    /* Hidden — body translated down 22% so head sits behind grass top. */
-    0%   { transform: translateY(22%) rotate(0deg); }
-    /* Slow bob UP and slight left-tilt so head emerges above the grass.
-       Translates -8% (head pops above) and rotates 8deg toward bunny. */
-    45%  { transform: translateY(-8%) rotate(-8deg); }
+    /* Hidden — body translated down 35% so the whole sprite (including
+       the head) sits behind the grass blade strip. */
+    0%   { transform: translateY(40%) rotate(0deg); }
+    /* Peek UP ~45% with a slight left-tilt so head + ears clearly
+       emerge above the grass top, tilted toward the bunny. */
+    45%  { transform: translateY(-45%) rotate(-10deg); }
     /* Hold the peek briefly. */
-    55%  { transform: translateY(-8%) rotate(-8deg); }
+    55%  { transform: translateY(-45%) rotate(-10deg); }
     /* Quick duck back. */
-    60%  { transform: translateY(22%) rotate(0deg); }
+    60%  { transform: translateY(40%) rotate(0deg); }
     /* Stay hidden until next cycle. */
-    100% { transform: translateY(22%) rotate(0deg); }
+    100% { transform: translateY(40%) rotate(0deg); }
   }
 
   .credits {
