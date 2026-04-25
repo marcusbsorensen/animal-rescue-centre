@@ -69,6 +69,67 @@ export function isUsernameSafe(username: string): { safe: boolean; reason?: stri
 }
 
 /**
+ * Animal-name validator. Used when the kid names their first pet
+ * (and any subsequent pet). Three jobs:
+ *   1) length sanity (2-16 chars)
+ *   2) letters-only-with-internal-spaces (no digits, no punctuation soup)
+ *   3) blocklist of toilet humour + mild swears + slurs — kid-friendly
+ *      rejection message ("Let's pick something nicer for Pet's tag")
+ *
+ * The blocklist deliberately covers the obvious 8-year-old attempts
+ * (Lily WILL try "Poop") plus the standard adult swear set. Substring
+ * match against a normalised lower-case form, so "Poopy", "Poopface",
+ * "PoopMcPoop" all reject.
+ */
+const ANIMAL_NAME_BLOCKLIST: readonly string[] = [
+  // Toilet humour (the Lily list)
+  'poo', 'poop', 'pee', 'wee', 'fart', 'butt', 'bum',
+  'turd', 'snot', 'bogey', 'bogie', 'booger', 'crap',
+  // Standard adult swears (substring match)
+  'shit', 'fuck', 'cunt', 'bitch', 'arse', 'ass',
+  'damn', 'dick', 'cock', 'piss', 'twat', 'bollock',
+  'wank', 'bastard', 'prick', 'slut',
+  // Slurs / hateful — short list, expand in production
+  'nazi', 'retard',
+  // Reserved system words — same family as username blocklist
+  'admin', 'system', 'null', 'undefined',
+];
+
+export function validateAnimalName(
+  name: string,
+): { valid: boolean; error?: string } {
+  if (!name || typeof name !== 'string') {
+    return { valid: false, error: 'Please give your pet a name' };
+  }
+  const trimmed = name.trim();
+  if (trimmed.length < 2) {
+    return { valid: false, error: 'That name is a bit short — try a longer one' };
+  }
+  if (trimmed.length > 16) {
+    return { valid: false, error: 'That name is too long — keep it short' };
+  }
+  // Letters + internal spaces only. Apostrophes + hyphens allowed for
+  // names like "O'Malley" or "Mary-Anne".
+  if (!/^[A-Za-z][A-Za-z\s'\-]*[A-Za-z]$/.test(trimmed)) {
+    return {
+      valid: false,
+      error: 'Names use letters only — no numbers or symbols',
+    };
+  }
+  // Blocklist substring check on a stripped lower-case form.
+  const stripped = trimmed.toLowerCase().replace(/[^a-z]/g, '');
+  for (const bad of ANIMAL_NAME_BLOCKLIST) {
+    if (stripped.includes(bad)) {
+      return {
+        valid: false,
+        error: "Hmm, let's pick a nicer name for your pet",
+      };
+    }
+  }
+  return { valid: true };
+}
+
+/**
  * PIN-hint validator — used at signup to prevent kids from accidentally
  * leaking their PIN inside their hint.
  *

@@ -8,6 +8,7 @@ import {
   isUsernameSafe,
   validatePinHint,
   getHintIdeas,
+  validateAnimalName,
 } from '../auth-validation';
 
 describe('validatePin', () => {
@@ -172,6 +173,49 @@ describe('validatePinHint', () => {
   it('accepts hints that mention small numbers as words but not the PIN', () => {
     expect(validatePinHint('my favourite is two', '5678')).toEqual({ valid: true });
     expect(validatePinHint('three little pigs', '5678')).toEqual({ valid: true });
+  });
+});
+
+describe('validateAnimalName', () => {
+  it('accepts ordinary kid-chosen names', () => {
+    expect(validateAnimalName('Marmalade')).toEqual({ valid: true });
+    expect(validateAnimalName('Pumpkin')).toEqual({ valid: true });
+    expect(validateAnimalName('Pip')).toEqual({ valid: true });
+    expect(validateAnimalName("O'Malley")).toEqual({ valid: true });
+    expect(validateAnimalName('Mary-Anne')).toEqual({ valid: true });
+    expect(validateAnimalName('Sir Whiskers')).toEqual({ valid: true });
+  });
+
+  it('rejects empty / too short / too long', () => {
+    expect(validateAnimalName('')).toMatchObject({ valid: false });
+    expect(validateAnimalName('A')).toMatchObject({ valid: false });
+    expect(validateAnimalName('A'.repeat(20))).toMatchObject({ valid: false });
+  });
+
+  it('rejects digits and special characters', () => {
+    expect(validateAnimalName('Cat42')).toMatchObject({ valid: false });
+    expect(validateAnimalName('Mr. Whiskers')).toMatchObject({ valid: false });
+    expect(validateAnimalName('@@@')).toMatchObject({ valid: false });
+  });
+
+  it('rejects toilet humour (the Lily list)', () => {
+    expect(validateAnimalName('Poop')).toMatchObject({ valid: false });
+    expect(validateAnimalName('Poopy')).toMatchObject({ valid: false });
+    expect(validateAnimalName('Mr Poopface')).toMatchObject({ valid: false });
+    expect(validateAnimalName('Fart')).toMatchObject({ valid: false });
+    expect(validateAnimalName('Bumface')).toMatchObject({ valid: false });
+    expect(validateAnimalName('Wee Wee')).toMatchObject({ valid: false });
+  });
+
+  it('rejects swears and slurs', () => {
+    expect(validateAnimalName('Shitcat')).toMatchObject({ valid: false });
+    expect(validateAnimalName('Fucky')).toMatchObject({ valid: false });
+    expect(validateAnimalName('Bastardo')).toMatchObject({ valid: false });
+  });
+
+  it('rejects system reserved words', () => {
+    expect(validateAnimalName('Admin')).toMatchObject({ valid: false });
+    expect(validateAnimalName('SystemCat')).toMatchObject({ valid: false });
   });
 });
 

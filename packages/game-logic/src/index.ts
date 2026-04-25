@@ -59,6 +59,7 @@ export {
   isUsernameSafe,
   validatePinHint,
   getHintIdeas,
+  validateAnimalName,
 } from './auth-validation';
 export {
   buildRecoveryQuestions,
