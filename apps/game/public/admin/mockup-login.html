@@ -336,12 +336,14 @@
   }
   .chip-last {
     display: block;
-    font-size: clamp(11px, 1.5cqh, 13px);
-    font-weight: 400;
-    opacity: 0.85;
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
-    font-family: 'Caveat', var(--sign-font);
-    font-style: italic;
+    /* Quicksand 500 — humanist sans, much more legible at small size
+       than Caveat handwriting which gets unreadable below ~14px. */
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-size: clamp(13px, 1.7cqh, 15px);
+    font-weight: 500;
+    letter-spacing: 0.2px;
+    opacity: 0.92;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.35);
   }
   .chip-name::after {
     /* Small line break between name and last-seen in the chip */
@@ -421,7 +423,7 @@
      The avatar grid is the primary CTA in that case; this becomes a
      bright-yellow plank nailed to the stake (a third sibling alongside
      the honey-amber Back plank and sage-green New? plank), reading
-     "Don't see your face? Type your name". When no chips exist we drop
+     "Not here? Type your name". When no chips exist we drop
      the .demoted class and the giant wooden sign comes back. */
   .name-input-sign.demoted {
     /* Mirror the .link-btn shared style so it nails onto the stake the
@@ -1080,7 +1082,7 @@
   // Adaptive TYPE-YOUR-NAME demotion. If there's at least one recent
   // user on this device (chip in the grid), the avatar grid is the
   // primary CTA — demote the type-name sign to a small text link
-  // 'Don't see your face? Type your name'. When the grid is empty
+  // 'Not here? Type your name'. When the grid is empty
   // (first-time-on-device) the giant sign stays as the primary path.
   (function adaptTypeNameButton() {
     const btn = document.getElementById('type-name-btn');
@@ -1089,7 +1091,7 @@
     const chipCount = stageSelect?.querySelectorAll('.chips .chip').length || 0;
     if (chipCount > 0) {
       btn.classList.add('demoted');
-      if (label) label.textContent = "Don't see your face? Type your name";
+      if (label) label.textContent = "Not here? Type your name";
     } else {
       btn.classList.remove('demoted');
       if (label) label.textContent = 'TYPE YOUR NAME';
