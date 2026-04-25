@@ -67,3 +67,194 @@ export function isUsernameSafe(username: string): { safe: boolean; reason?: stri
 
   return { safe: true };
 }
+
+/**
+ * PIN-hint validator — used at signup to prevent kids from accidentally
+ * leaking their PIN inside their hint.
+ *
+ * Reject if the hint contains:
+ *   1) the literal PIN as a substring
+ *   2) any 3+ consecutive digits of the PIN
+ *   3) the PIN spelled out in words ("one two three four", "twelve
+ *      thirty four", "one thousand two hundred thirty four")
+ *   4) any 3+ digit numeric run anywhere (defensive — even unrelated
+ *      numeric strings are a leak risk)
+ *   5) only digits / no letters at all
+ *
+ * Also rejects empty hints + length > 60.
+ *
+ * See `docs/forgot-pin-recovery.md` for the full design.
+ */
+export function validatePinHint(
+  hint: string,
+  pin: string,
+): { valid: boolean; error?: string } {
+  if (!hint || typeof hint !== 'string') {
+    return { valid: false, error: 'Hint is required' };
+  }
+  const trimmed = hint.trim();
+  if (trimmed.length < 4) {
+    return { valid: false, error: 'Hint is too short — write a few words' };
+  }
+  if (trimmed.length > 60) {
+    return { valid: false, error: 'Hint is too long — keep it short' };
+  }
+
+  const digitsOnly = /^[0-9\s\-_,.]+$/.test(trimmed);
+  if (digitsOnly) {
+    return {
+      valid: false,
+      error: 'Your hint should be words, not numbers',
+    };
+  }
+
+  // Must contain at least one letter to count as a hint.
+  if (!/[a-zA-Z]/.test(trimmed)) {
+    return {
+      valid: false,
+      error: 'Your hint should include some words',
+    };
+  }
+
+  // 1) Literal PIN substring
+  if (pin && pin.length >= 4 && trimmed.includes(pin)) {
+    return {
+      valid: false,
+      error: 'That hint gives away your secret number — try again',
+    };
+  }
+
+  // 2) Any 3+ consecutive digits of the PIN appearing in the hint
+  if (pin && pin.length >= 4) {
+    for (let i = 0; i + 3 <= pin.length; i++) {
+      const run = pin.slice(i, i + 3);
+      if (trimmed.includes(run)) {
+        return {
+          valid: false,
+          error: 'That hint gives away part of your secret number',
+        };
+      }
+    }
+  }
+
+  // 4) Any 3+ digit numeric run in the hint (defensive)
+  if (/\d{3,}/.test(trimmed)) {
+    return {
+      valid: false,
+      error: 'Your hint should not contain a number — write a clue in words',
+    };
+  }
+
+  // 3) Spelled-out PIN digits — check every reasonable English wording
+  const lower = trimmed.toLowerCase().replace(/[^a-z\s-]/g, ' ');
+  const tokens = lower.split(/[\s-]+/).filter(Boolean);
+  const digitWords: Record<string, string> = {
+    zero: '0', oh: '0', nought: '0', nil: '0',
+    one: '1', two: '2', three: '3', four: '4',
+    five: '5', six: '6', seven: '7', eight: '8', nine: '9',
+  };
+  // Build a digit-string from sequential digit-word tokens (ignoring
+  // any non-digit-word tokens between them — being generous to the
+  // attacker so we catch "one and two and three and four" etc.)
+  let digitsFromWords = '';
+  for (const tok of tokens) {
+    if (digitWords[tok]) {
+      digitsFromWords += digitWords[tok];
+    }
+  }
+  if (pin && digitsFromWords.includes(pin)) {
+    return {
+      valid: false,
+      error: 'That hint spells out your secret number — try again',
+    };
+  }
+
+  // Compound forms: "twelve thirty four" → 12 34, "twelve thirty-four"
+  // already covered via tokenisation; "one thousand two hundred thirty
+  // four" → 1234. Catch the 12-34 pattern by mapping common 11-19 +
+  // tens prefixes.
+  const teens: Record<string, string> = {
+    ten: '10', eleven: '11', twelve: '12', thirteen: '13',
+    fourteen: '14', fifteen: '15', sixteen: '16',
+    seventeen: '17', eighteen: '18', nineteen: '19',
+  };
+  const tens: Record<string, string> = {
+    twenty: '2', thirty: '3', forty: '4', fifty: '5',
+    sixty: '6', seventy: '7', eighty: '8', ninety: '9',
+  };
+  let compound = '';
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (teens[t]) {
+      compound += teens[t];
+    } else if (tens[t]) {
+      const next = tokens[i + 1];
+      if (next && digitWords[next]) {
+        compound += tens[t] + digitWords[next];
+        i++;
+      } else {
+        compound += tens[t] + '0';
+      }
+    } else if (digitWords[t]) {
+      compound += digitWords[t];
+    }
+  }
+  if (pin && compound.includes(pin)) {
+    return {
+      valid: false,
+      error: 'That hint spells out your secret number — try again',
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Per-kid hint-idea generator. Used in the signup flow when the kid
+ * answers "Can someone else guess your secret code using your hint?
+ * → Yes, want help?" — we hand them a few starter ideas so they don't
+ * stare at a blank box.
+ *
+ * Different kids must see DIFFERENT ideas, otherwise a sibling who
+ * read this list could reverse-engineer their friend's PIN by knowing
+ * which prompts were on offer. We hash the seed (typically the kid's
+ * username) and use it to pick a deterministic-but-varied subset.
+ *
+ * Returns 4 ideas drawn from the full pool, keyed by the seed.
+ */
+export function getHintIdeas(seed: string): string[] {
+  const pool = [
+    "something only you and your pet know",
+    "your favourite colour, but mixed up",
+    "what you'd shout if you saw a dragon",
+    "the silliest word you can think of",
+    "the smell of your favourite breakfast",
+    "where you hide when you don't want to be found",
+    "the magic word from your favourite book",
+    "the noise your happiest pet makes",
+    "the rule you wish grown-ups would follow",
+    "the song stuck in your head right now",
+    "your made-up word for being super cosy",
+    "a thing you can see from your bedroom window",
+    "what your toy would say if it could talk",
+    "the bravest thing you've ever done",
+    "the recipe for your perfect sandwich",
+    "the place you go in your daydreams",
+    "the worst flavour of ice cream",
+    "what colour Wednesday feels like",
+    "your secret code-name for grown-ups",
+    "the silliest thing you nearly said out loud today",
+  ];
+  // Tiny hash → deterministic shuffle. Same seed → same 4 ideas.
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = (h * 16777619) >>> 0;
+  }
+  const indexed = pool.map((idea, i) => ({
+    idea,
+    sort: ((h ^ (i * 2654435761)) >>> 0),
+  }));
+  indexed.sort((a, b) => a.sort - b.sort);
+  return indexed.slice(0, 4).map((x) => x.idea);
+}
