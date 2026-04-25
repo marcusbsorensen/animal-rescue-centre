@@ -306,7 +306,7 @@
   .choice-cream .choice-hint { color: #6b4820; }
 
   /* Don't render any of the welcome-screen chrome on this modal. */
-  .welcome-content, .credits, .foreground-dog, .foreground-fox { display: none !important; }
+  .welcome-content, .credits, .foreground-dog, .foreground-fox-LEGACY-IGNORED { display: none !important; }
 
   .welcome-inner {
     position: relative; z-index: 5;
@@ -783,7 +783,11 @@
      of the frame. The fox is slightly behind/right of the dog — they're
      a pair hanging out. Size them proportionally (dog > fox). */
   .foreground-dog {
-    right: clamp(86px, 16cqw, 190px);
+    /* Anchor near the right edge of the painted grass-clump (which caps
+       at the sign's 480px max-width). Ceiling lowered from 190 → 110
+       so the dog stays beside the grass on iPad-L / desktop instead of
+       drifting into the empty backdrop. */
+    right: clamp(86px, 16cqw, 110px);
     /* Golden retriever ~ 60cm tall in real life */
     height: clamp(110px, 20cqh, 240px);
     /* Flip horizontally so the dog faces the fox on its right.
@@ -791,44 +795,47 @@
        same visual tilt direction. */
     transform: scaleX(-1) rotate(3deg);
   }
-  /* Fox peeking out from behind the leftmost tall grass clump (further
-     left than the bunny). Sits BEHIND the grass-clump (z:3 < clump z:4).
+  /* Fox peeking out from behind the leftmost tall grass blades. The fox
+     is a child of .signs-on-stake (same coord space as .grass-clump and
+     .ground-bunny) so its ground-level matches the grass on every
+     viewport — no more drifting below.
 
-     Motion: pivot at bottom-RIGHT — body stays planted behind the
-     grass, head leans LEFTWARD (out the left side) over ~3.5s, holds
-     briefly, snaps back ~0.4s, then waits ~3s. The body never
-     translates — only the head/upper body rotates out and back, so the
-     fox visually stays anchored across viewport sizes.
-
-     Source sprite faces left naturally, so no scaleX flip — the fox
-     emerges leftward facing further left (peeking out the left edge). */
+     Sits BEHIND the grass-clump (z:3 < clump z:4). Fox is sized roughly
+     to match grass height; at rest it's translated DOWN a bit so the
+     head stays hidden behind blades; on peek it bobs UP and tilts left
+     so head + ears clearly emerge above the grass top. */
   .foreground-fox {
-    /* Anchor purely in container-width units so the fox tracks the
-       bunny stably across iPhone / iPad / desktop. The bunny sits at
-       calc(50% - 14cqw) and the fox sits further left at 50% - 26cqw. */
-    left: calc(50% - 26cqw) !important;
-    right: auto !important;
-    bottom: clamp(-4px, -0.8cqh, 2px) !important;
-    /* 1.5x bigger than before (was 56-110, now 84-165). */
-    height: clamp(84px, 15cqh, 165px);
-    z-index: 3 !important;   /* BEHIND the grass-clump (z:4) */
-    /* Pivot at bottom-RIGHT — the body stays planted behind the right
-       side of the leftmost grass clump while the head leans leftward. */
-    transform-origin: 100% 100%;
+    position: absolute;
+    /* Anchor in .signs-on-stake's coord system (sign max-width 480px),
+       same units as .ground-bunny. Bunny sits at 50% - clamp(72,14cqw,
+       130). Fox tucked further left, behind the leftmost tall blades. */
+    left: calc(50% - clamp(110px, 24cqw, 200px));
+    /* Match grass-clump bottom so feet line up on the ground. */
+    bottom: clamp(-8px, -1.5cqh, -2px);
+    /* Tall enough that head + ears clearly emerge above the grass top
+       when bobbed up during a peek. */
+    height: clamp(110px, 17cqh, 160px);
+    width: auto;
+    z-index: 3;   /* BEHIND the grass-clump (z:4) */
+    pointer-events: none;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+    /* Pivot bottom-centre — body rises and tilts naturally. */
+    transform-origin: 50% 100%;
     animation: foxPeek 8s ease-in-out infinite;
     will-change: transform;
   }
   @keyframes foxPeek {
-    /* Hidden — tucked fully behind the tuft, slight inward tilt. */
-    0%   { transform: rotate(-6deg); }
-    /* Slow lean OUT to the left over ~45% of cycle. */
-    45%  { transform: rotate(22deg); }
+    /* Hidden — body translated down 22% so head sits behind grass top. */
+    0%   { transform: translateY(22%) rotate(0deg); }
+    /* Slow bob UP and slight left-tilt so head emerges above the grass.
+       Translates -8% (head pops above) and rotates 8deg toward bunny. */
+    45%  { transform: translateY(-8%) rotate(-8deg); }
     /* Hold the peek briefly. */
-    55%  { transform: rotate(22deg); }
-    /* Quick snap back in. */
-    60%  { transform: rotate(-6deg); }
-    /* Stay hidden until the next cycle. */
-    100% { transform: rotate(-6deg); }
+    55%  { transform: translateY(-8%) rotate(-8deg); }
+    /* Quick duck back. */
+    60%  { transform: translateY(22%) rotate(0deg); }
+    /* Stay hidden until next cycle. */
+    100% { transform: translateY(22%) rotate(0deg); }
   }
 
   .credits {
@@ -926,8 +933,8 @@
 
   /* Narrow / iPhone: simplify — hide extras to avoid clutter */
   @container welcome (max-width: 420px) {
-    .foreground-dog { height: clamp(62px, 12cqh, 110px); left: 0; }
-    .foreground-fox { height: clamp(72px, 13.5cqh, 135px); left: calc(50% - 24cqw) !important; right: auto !important; }
+    .foreground-dog { height: clamp(62px, 12cqh, 110px); right: 4px; left: auto; }
+    .foreground-fox { height: clamp(60px, 10cqh, 95px); left: calc(50% - clamp(95px, 22cqw, 170px)); }
     .logo-bunny { display: none; }
     .intro-cat { height: clamp(50px, 8cqh, 80px); right: -4%; bottom: -24%; }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
