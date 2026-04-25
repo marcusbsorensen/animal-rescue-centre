@@ -500,6 +500,39 @@
     z-index: 3;
   }
 
+  /* Sleeping-cat ZZZ animation — three Z's rise from the head area
+     (top-right of the sprite), increasing in size and drifting up + away.
+     Continuous loop with staggered start so they sequence nicely. */
+  .zzz-stack {
+    position: absolute;
+    /* Anchor to where the cat's head sits (top-right of the intro) */
+    right: clamp(-2px, 0cqw, 6px);
+    top: clamp(-86px, -13cqh, -64px);
+    width: 70px;
+    height: 70px;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .zzz-stack .zz {
+    position: absolute;
+    font-family: 'Kalam', 'Caveat', cursive;
+    font-weight: 700;
+    color: #c88436;
+    text-shadow: 1px 2px 0 rgba(255,255,255,0.7), 2px 3px 4px rgba(0,0,0,0.18);
+    opacity: 0;
+    animation: zzzRise 3s ease-in-out infinite;
+  }
+  .zzz-stack .zz1 { font-size: 12px; left: 4px;  bottom: 4px;  animation-delay: 0s;   }
+  .zzz-stack .zz2 { font-size: 18px; left: 16px; bottom: 18px; animation-delay: 1s;   }
+  .zzz-stack .zz3 { font-size: 26px; left: 32px; bottom: 36px; animation-delay: 2s;   }
+
+  @keyframes zzzRise {
+    0%   { opacity: 0; transform: translate(0, 4px)   rotate(-8deg); }
+    20%  { opacity: 1; transform: translate(4px, -2px)  rotate(-4deg); }
+    60%  { opacity: 1; transform: translate(14px, -16px) rotate(2deg); }
+    100% { opacity: 0; transform: translate(24px, -32px) rotate(8deg); }
+  }
+
   /* ─── Sign-on-stake wrapper: holds intro + play, with a central
      wooden post running behind both, planted into the ground ─── */
   .signs-on-stake {
@@ -939,6 +972,11 @@
               <div class="intro stage-select" id="stage-select">
                 <div class="error-sticker" id="error-sticker-select"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <div class="zzz-stack" aria-hidden="true">
+                  <span class="zz zz1">Z</span>
+                  <span class="zz zz2">Z</span>
+                  <span class="zz zz3">Z</span>
+                </div>
                 <div class="sign-title">Let's get started!</div>
                 <div class="sign-subtitle">What's your name, and which animal is you?</div>
                 <div class="name-field-wrap">
@@ -958,6 +996,11 @@
               <div class="intro stage-pin hidden" id="stage-pin">
                 <div class="error-sticker" id="error-sticker-pin"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <div class="zzz-stack" aria-hidden="true">
+                  <span class="zz zz1">Z</span>
+                  <span class="zz zz2">Z</span>
+                  <span class="zz zz3">Z</span>
+                </div>
                 <div class="sign-title">Nice, Lily!</div>
                 <div class="sign-subtitle">Pick a secret 4-number code no-one else will know</div>
                 <div class="pin-dots">
