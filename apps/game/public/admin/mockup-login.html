@@ -1027,8 +1027,8 @@
                 </div>
                 <div class="sign-subtitle">What's your secret number?</div>
                 <div class="pin-dots">
-                  <span class="pin-dot filled"></span>
-                  <span class="pin-dot filled"></span>
+                  <span class="pin-dot"></span>
+                  <span class="pin-dot"></span>
                   <span class="pin-dot"></span>
                   <span class="pin-dot"></span>
                 </div>
@@ -1224,6 +1224,28 @@
         renderPinDots();
         if (pinBuffer.length === 4) setTimeout(submitPin, 150);
       });
+    });
+    // Hardware-keyboard PIN entry — only active while on the PIN stage.
+    // 0–9 append, Backspace removes the last digit, Delete/Escape clear all.
+    document.addEventListener('keydown', (e) => {
+      const onPinStage = stagePin && stagePin.classList.contains('on');
+      if (!onPinStage) return;
+      // Don't hijack keys while the user is typing into another input.
+      if (e.target && e.target.tagName === 'INPUT') return;
+      if (/^[0-9]$/.test(e.key)) {
+        if (pinBuffer.length >= 4) return;
+        pinBuffer += e.key;
+        renderPinDots();
+        if (pinBuffer.length === 4) setTimeout(submitPin, 150);
+        e.preventDefault();
+      } else if (e.key === 'Backspace') {
+        pinBuffer = pinBuffer.slice(0, -1);
+        renderPinDots();
+        e.preventDefault();
+      } else if (e.key === 'Delete' || e.key === 'Escape') {
+        clearPin();
+        e.preventDefault();
+      }
     });
   }
   // Outside embed mode: tap a chip → jump straight to PIN stage for design review.
