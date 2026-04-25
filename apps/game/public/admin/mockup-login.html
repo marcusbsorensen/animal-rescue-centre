@@ -417,6 +417,33 @@
     font-size: clamp(24px, 4.2cqh, 38px) !important;
   }
 
+  /* DEMOTED variant — used when there are recent users on this device.
+     The avatar grid is the primary CTA in that case; this becomes a
+     small handwritten text link beneath the grid: "Don't see your face?
+     Type your name". When no chips exist we drop the .demoted class
+     and the giant wooden sign comes back as the only entry path. */
+  .name-input-sign.demoted {
+    font-family: 'Caveat', 'Kalam', cursive !important;
+    font-size: clamp(15px, 2.4cqh, 19px) !important;
+    font-weight: 700 !important;
+    padding: clamp(4px, 0.6cqh, 6px) clamp(10px, 1.5cqw, 14px) !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #6b4820 !important;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .name-input-sign.demoted::before,
+  .name-input-sign.demoted::after { display: none !important; }
+  .name-input-sign.demoted .paw { display: none !important; }
+  .name-input-sign.demoted:hover { color: #c54838 !important; text-decoration: underline; }
+  /* Hide the stylised parrot perch when the button is demoted. */
+  .btn-primary-wrap:has(.name-input-sign.demoted) .play-parrot { display: none; }
+
   /* ── Animal: cat sleeping ON TOP of the intro panel ── */
   .intro-cat {
     position: absolute;
@@ -1011,6 +1038,25 @@
   const stagePin = document.getElementById('stage-pin');
   const stageToggle = document.getElementById('stage-toggle');
   let showing = 'select';
+
+  // Adaptive TYPE-YOUR-NAME demotion. If there's at least one recent
+  // user on this device (chip in the grid), the avatar grid is the
+  // primary CTA — demote the type-name sign to a small text link
+  // 'Don't see your face? Type your name'. When the grid is empty
+  // (first-time-on-device) the giant sign stays as the primary path.
+  (function adaptTypeNameButton() {
+    const btn = document.getElementById('type-name-btn');
+    if (!btn) return;
+    const label = btn.querySelector('.play-label');
+    const chipCount = stageSelect?.querySelectorAll('.chips .chip').length || 0;
+    if (chipCount > 0) {
+      btn.classList.add('demoted');
+      if (label) label.textContent = "Don't see your face? Type your name";
+    } else {
+      btn.classList.remove('demoted');
+      if (label) label.textContent = 'TYPE YOUR NAME';
+    }
+  })();
   function setStage(s) {
     showing = s;
     const typeNameBtn = document.getElementById('type-name-btn');

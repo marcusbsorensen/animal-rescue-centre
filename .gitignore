@@ -33,3 +33,6 @@ apps/game/e2e/__screenshots__/**/*-diff.png
 # Rear-view mirror mood sprites are composited from existing animal art
 # by tools/build-mirror-mood-sprites.ts. Index is tracked; PNGs are not.
 apps/game/public/assets/driving/mirror-moods/*.png
+
+# Scratch from Claude Preview MCP sessions
+.playwright-mcp/
