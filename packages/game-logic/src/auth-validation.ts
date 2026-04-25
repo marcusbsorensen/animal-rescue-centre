@@ -12,7 +12,8 @@ export function validatePin(pin: string): { valid: boolean; error?: string } {
 
 export function validateUsername(username: string): { valid: boolean; error?: string } {
   if (!username || typeof username !== 'string') return { valid: false, error: 'Username is required' };
-  if (username.length < 6) return { valid: false, error: 'Username too short' };
+  // Min 2 characters — short kid names like Lily / Ben / Eve / Sam / Max all valid.
+  if (username.length < 2) return { valid: false, error: 'Username too short' };
   if (username.length > 18) return { valid: false, error: 'Username too long' };
   return { valid: true };
 }

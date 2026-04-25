@@ -259,6 +259,51 @@
   .hidden { display: none !important; }
   .intro.shake { animation: signShake 0.5s cubic-bezier(.36,.07,.19,.97); }
   .intro.shake .pin-dot { border-color: #c54838; background: rgba(197,72,56,0.3); }
+
+  /* Painted red wooden-sticker error message — pops in when validation
+     fails. Tilts slightly, drop-shadow, Kalam handwritten font for
+     warmth. Auto-hides after a few seconds. */
+  .error-sticker {
+    position: absolute;
+    left: 50%;
+    top: 36%;
+    transform: translate(-50%, -50%) rotate(-3deg) scale(0.7);
+    background: linear-gradient(180deg, #d8453a 0%, #b13228 70%, #8c2a22 100%);
+    color: #fffbe8;
+    padding: 14px 28px;
+    border: 3px solid #6e1c14;
+    border-radius: 10px;
+    box-shadow:
+      0 6px 16px rgba(0,0,0,0.35),
+      inset 0 2px 0 rgba(255,255,255,0.25),
+      inset 0 -2px 0 rgba(0,0,0,0.3);
+    font-family: 'Kalam', 'Caveat', cursive;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.2;
+    text-align: center;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
+    max-width: 80%;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 30;
+    transition: opacity 0.2s, transform 0.3s cubic-bezier(.34,1.56,.64,1);
+  }
+  .error-sticker::before {
+    /* Painted nail / drawing-pin in the top corner — sells the sticker feel */
+    content: '';
+    position: absolute;
+    top: -7px; left: 12px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #f8e8a0 0%, #c79b45 60%, #6a4a10 100%);
+    border: 1px solid rgba(0,0,0,0.45);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .error-sticker.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-3deg) scale(1);
+  }
   @keyframes signShake {
     10%, 90% { transform: translateX(-2px) rotate(-1.2deg); }
     20%, 80% { transform: translateX(4px)  rotate(-1.2deg); }
@@ -892,6 +937,7 @@
             <div class="signs-on-stake">
               <!-- Stage A: pick name + avatar -->
               <div class="intro stage-select" id="stage-select">
+                <div class="error-sticker" id="error-sticker-select"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
                 <div class="sign-title">Let's get started!</div>
                 <div class="sign-subtitle">What's your name, and which animal is you?</div>
@@ -910,12 +956,13 @@
 
               <!-- Stage B: pick secret PIN -->
               <div class="intro stage-pin hidden" id="stage-pin">
+                <div class="error-sticker" id="error-sticker-pin"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
                 <div class="sign-title">Nice, Lily!</div>
                 <div class="sign-subtitle">Pick a secret 4-number code no-one else will know</div>
                 <div class="pin-dots">
-                  <span class="pin-dot filled"></span>
-                  <span class="pin-dot filled"></span>
+                  <span class="pin-dot"></span>
+                  <span class="pin-dot"></span>
                   <span class="pin-dot"></span>
                   <span class="pin-dot"></span>
                 </div>
@@ -1036,12 +1083,25 @@
       });
     }
     function clearPin() { pinBuffer = ''; renderPinDots(); }
-    function shakeError() {
-      const stage = document.getElementById('stage-pin');
+    // Painted red error sticker — shows beneath the sign-title with the
+    // reason. Auto-hides after 4s. Pairs with the panel-shake.
+    let errorTimer = null;
+    function showError(message, stageId = 'stage-pin') {
+      const stage = document.getElementById(stageId);
       if (!stage) return;
+      const sticker = stage.querySelector('.error-sticker');
+      if (sticker) {
+        sticker.textContent = message;
+        sticker.classList.add('show');
+        clearTimeout(errorTimer);
+        errorTimer = setTimeout(() => sticker.classList.remove('show'), 4000);
+      }
       stage.classList.remove('shake'); void stage.offsetWidth;
       stage.classList.add('shake');
       setTimeout(() => stage.classList.remove('shake'), 500);
+    }
+    function shakeError(message = 'Hmm — try again!') {
+      showError(message, 'stage-pin');
       clearPin();
     }
     function currentAvatar() {
@@ -1054,13 +1114,22 @@
     }
     function submitSignup() {
       const name = (document.querySelector('.name-field')?.value || '').trim();
-      if (!name || pinBuffer.length !== 4) return;
+      // Local validation first — show specific error stickers BEFORE
+      // posting to the parent. Min 2 chars, max 18.
+      if (!name) { showError('Pop your name in first!', 'stage-pin'); clearPin(); return; }
+      if (name.length < 2) { showError('Need a longer name — try at least 2 letters!', 'stage-pin'); clearPin(); return; }
+      if (name.length > 18) { showError('That name is a bit long — try shorter!', 'stage-pin'); clearPin(); return; }
+      if (pinBuffer.length !== 4) { showError('Type all 4 numbers!', 'stage-pin'); return; }
       const { emoji, bg } = currentAvatar();
       send('signup-submit', { username: name, pin: pinBuffer, avatarEmoji: emoji, avatarBgColour: bg });
     }
     window.addEventListener('message', (e) => {
       const m = e.data;
-      if (m?.source === 'arc-auth-host' && m.type === 'auth-error') shakeError();
+      if (m?.source === 'arc-auth-host' && m.type === 'auth-error') {
+        // Use the parent's error message if it sent one, otherwise a friendly fallback.
+        const msg = m?.payload?.error || 'Couldn\'t sign you up — try again!';
+        shakeError(msg);
+      }
     });
     document.querySelectorAll('.keypad .key').forEach((key) => {
       key.addEventListener('click', () => {
@@ -1073,6 +1142,32 @@
         renderPinDots();
         if (pinBuffer.length === 4) setTimeout(submitSignup, 150);
       });
+    });
+
+    // Keyboard PIN input (Marcus 2026-04-24): typing digits 0-9 enters
+    // the PIN; Backspace removes the last digit; Delete or Esc clears
+    // all 4. Only active when the PIN stage is showing.
+    document.addEventListener('keydown', (e) => {
+      const stage = document.getElementById('stage-pin');
+      const onPinStage = stage && stage.classList.contains('on');
+      if (!onPinStage) return;
+      // Don't hijack typing inside the name field
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+
+      if (/^[0-9]$/.test(e.key)) {
+        if (pinBuffer.length >= 4) return;
+        pinBuffer += e.key;
+        renderPinDots();
+        if (pinBuffer.length === 4) setTimeout(submitSignup, 150);
+        e.preventDefault();
+      } else if (e.key === 'Backspace') {
+        pinBuffer = pinBuffer.slice(0, -1);
+        renderPinDots();
+        e.preventDefault();
+      } else if (e.key === 'Delete' || e.key === 'Escape') {
+        clearPin();
+        e.preventDefault();
+      }
     });
   }
 </script>

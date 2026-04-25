@@ -35,10 +35,14 @@ describe('validateUsername', () => {
   it('accepts valid usernames', () => {
     expect(validateUsername('BrambleFox')).toEqual({ valid: true });
     expect(validateUsername('CloverPaws')).toEqual({ valid: true });
+    // Short kid names allowed (min 2 chars)
+    expect(validateUsername('Lily')).toEqual({ valid: true });
+    expect(validateUsername('Ben')).toEqual({ valid: true });
+    expect(validateUsername('Hi')).toEqual({ valid: true });
   });
 
-  it('rejects short names', () => {
-    expect(validateUsername('Hi')).toMatchObject({ valid: false });
+  it('rejects too-short names', () => {
+    expect(validateUsername('A')).toMatchObject({ valid: false });
   });
 
   it('rejects long names', () => {
