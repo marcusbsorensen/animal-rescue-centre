@@ -566,6 +566,75 @@
   .mirror:hover { transform: translateX(-50%) scale(1.04); }
   body.mode-supply .mirror { display: none; }
 
+  /* Painted Manus-delivered mirror replaces the CSS frame.
+     The painted PNG sits behind the reflection grid; the CSS frame's
+     decorative gradient/border/brass-rim are hidden when active. */
+  .mirror .painted-frame {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .mirror.has-painted-frame .frame {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0;
+  }
+  .mirror.has-painted-frame .frame::after { display: none; }
+  .mirror.has-painted-frame .reflection {
+    /* sit inside the painted oval — slightly inset so the painted
+       wooden rim shows around the live cargo grid. */
+    position: absolute;
+    top: 14%; left: 14%;
+    width: 72%; height: 72%;
+    background: linear-gradient(180deg, rgba(233,220,184,0.55) 0%, rgba(138,149,118,0.45) 100%);
+    border-radius: 50% / 45%;
+    z-index: 2;
+  }
+
+  /* Painted charm hanging from the corner of the mirror. */
+  .mirror .charm-hanger {
+    position: absolute;
+    top: 4px; right: 18px;
+    width: 36px;
+    z-index: 5;
+    pointer-events: none;
+    transform-origin: 50% 0%;
+    animation: charmWobble 0.8s ease-in-out infinite alternate;
+  }
+  .mirror .charm-string {
+    position: absolute;
+    top: 0; left: 50%;
+    width: 1px; height: 14px;
+    background: linear-gradient(180deg, rgba(60,40,20,0.85), rgba(60,40,20,0.45));
+    transform: translateX(-50%);
+  }
+  .mirror .charm-img {
+    display: block;
+    width: 36px; height: auto;
+    margin-top: 12px;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35));
+    image-rendering: -webkit-optimize-contrast;
+  }
+  @keyframes charmWobble {
+    from { transform: rotate(-6deg); }
+    to   { transform: rotate(6deg); }
+  }
+  /* Stronger wobble when speed rises. body.speed-3+ gets the faster
+     swing — bound to the speed-N classes already toggled by the
+     speed gauge. */
+  body.speed-3 .mirror .charm-hanger,
+  body.speed-4 .mirror .charm-hanger,
+  body.speed-5 .mirror .charm-hanger {
+    animation: charmWobbleFast 0.4s ease-in-out infinite alternate;
+  }
+  @keyframes charmWobbleFast {
+    from { transform: rotate(-15deg); }
+    to   { transform: rotate(15deg); }
+  }
+
   /* ── DASHBOARD BAND (bottom half) ── */
   .dashboard {
     position: absolute;
@@ -1292,6 +1361,7 @@
          comfort drops. Hidden in Supply Run mode. -->
     <div class="mirror" id="mirror" title="Peek at the cargo">
       <div class="stem"></div>
+      <img class="painted-frame" id="mirror-painted-frame" alt="" aria-hidden="true" />
       <div class="frame">
         <div class="reflection">
           <div class="cargo-grid" id="cargo-grid" data-demo='[
@@ -1307,8 +1377,11 @@
             <div class="crate-cell"></div>
             <div class="crate-cell"></div>
           </div>
-          <span class="toy" aria-hidden="true">🧸</span>
         </div>
+      </div>
+      <div class="charm-hanger" aria-hidden="true">
+        <div class="charm-string"></div>
+        <img class="charm-img" id="mirror-charm" alt="" />
       </div>
     </div>
   </div>
@@ -1426,6 +1499,30 @@
   body.classList.add('mode-' + mode);
   cockpit.classList.remove('v-trikey','v-henry','v-bea','v-big-tilly','v-spark');
   cockpit.classList.add('v-' + vehicle);
+
+  // Wire the painted Manus-delivered mirror frame for this vehicle.
+  // Each vehicle has its own painted oval; the live cargo grid sits
+  // inside the painted reflection area.
+  var mirrorEl = document.getElementById('mirror');
+  var paintedFrame = document.getElementById('mirror-painted-frame');
+  if (mirrorEl && paintedFrame) {
+    paintedFrame.src = '/assets/driving/mirrors/mirror-' + vehicle + '.png';
+    mirrorEl.classList.add('has-painted-frame');
+  }
+
+  // Default charm per vehicle. Henry's bone, Trikey's bicycle bell,
+  // others get the lucky teddy until per-vehicle defaults are set.
+  var CHARM_DEFAULTS = {
+    'trikey':    'bicycle-bell',
+    'henry':     'bone',
+    'bea':       'lucky-teddy',
+    'big-tilly': 'lucky-teddy',
+    'spark':     'lucky-teddy',
+  };
+  var charmEl = document.getElementById('mirror-charm');
+  if (charmEl) {
+    charmEl.src = '/assets/driving/charms/charm-' + (CHARM_DEFAULTS[vehicle] || 'lucky-teddy') + '.png';
+  }
 
   // Use painted Henry dashboard asset (Manus-delivered) when vehicle
   // is Henry in PTV mode. Other vehicles keep the CSS-drawn dashboard
