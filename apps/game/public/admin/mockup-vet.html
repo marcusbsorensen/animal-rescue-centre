@@ -808,11 +808,34 @@
        same visual tilt direction. */
     transform: scaleX(-1) rotate(3deg);
   }
+  /* Fox peeking out from behind the grass tuft on the right side of the
+     central stake (opposite the bunny+bee on the left). Flipped to face
+     inward toward the stake. Bottom z-stack: fox sits BEHIND the grass-
+     clump (z:4) so only its head/upper body emerges over the blades.
+     The peek animation hides it most of the cycle and pops it up briefly. */
   .foreground-fox {
-    right: clamp(6px, 2cqw, 30px);
-    /* Red fox ~ 40cm — smaller than dog */
-    height: clamp(80px, 15cqh, 180px);
-    transform: rotate(3deg);
+    /* Override the shared .foreground-dog,.foreground-fox bottom anchor
+       (which sat the fox on the floor in the corner) with a position
+       that tucks behind the central grass-clump. */
+    right: calc(50% - clamp(72px, 14cqw, 130px)) !important;
+    bottom: clamp(-4px, -0.8cqh, 2px) !important;
+    height: clamp(56px, 10cqh, 110px);
+    z-index: 3 !important;   /* BEHIND the grass-clump (z:4) */
+    transform-origin: bottom center;
+    /* Default state — hidden behind the grass tuft. The peek keyframes
+       cycle this up and back down. */
+    animation: foxPeek 7.5s ease-in-out infinite;
+    will-change: transform;
+  }
+  @keyframes foxPeek {
+    /* Hidden behind the tuft most of the cycle. Translate up briefly so
+       the head emerges over the blades, then settle back down. ScaleX(-1)
+       flips the source sprite so the fox faces left (inward). */
+    0%, 28%   { transform: scaleX(-1) rotate(-2deg) translateY(38%); }
+    36%       { transform: scaleX(-1) rotate(-3deg) translateY(-2%); }
+    52%       { transform: scaleX(-1) rotate(-1deg) translateY(-4%); }
+    68%       { transform: scaleX(-1) rotate(-3deg) translateY(-2%); }
+    80%, 100% { transform: scaleX(-1) rotate(-2deg) translateY(38%); }
   }
 
   .credits {
@@ -911,7 +934,7 @@
   /* Narrow / iPhone: simplify — hide extras to avoid clutter */
   @container welcome (max-width: 420px) {
     .foreground-dog { height: clamp(62px, 12cqh, 110px); left: 0; }
-    .foreground-fox { height: clamp(64px, 12cqh, 115px); right: 0; }
+    .foreground-fox { height: clamp(48px, 9cqh, 90px); right: calc(50% - clamp(60px, 12cqw, 110px)) !important; }
     .logo-bunny { display: none; }
     .intro-cat { height: clamp(50px, 8cqh, 80px); right: -4%; bottom: -24%; }
   }
