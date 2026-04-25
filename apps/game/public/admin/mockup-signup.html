@@ -483,6 +483,116 @@
   }
   .name-field::placeholder { color: rgba(58,38,24,0.4); }
   .name-field:focus { border-color: #9a6528; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(231,168,74,0.4); }
+
+  /* ── Stage C: PIN-hint capture ── */
+  /* Hint input — bigger painted-paper-tag (Caveat handwriting), 44px+
+     min-height for finger-friendly tapping. */
+  .hint-field {
+    width: 100%;
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(22px, 3.4cqh, 30px);
+    min-height: 56px;
+    padding: clamp(12px, 1.8cqh, 16px) clamp(14px, 2.4cqw, 20px);
+    color: #3a2618;
+    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
+    border: 2px solid #7a4b15;
+    border-radius: 10px;
+    box-shadow:
+      inset 0 2px 4px rgba(0,0,0,0.15),
+      0 2px 3px rgba(0,0,0,0.2);
+    outline: none;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .hint-field::placeholder { color: rgba(58,38,24,0.35); font-style: italic; }
+  .hint-field:focus { border-color: #9a6528; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(231,168,74,0.4); }
+
+  /* Gut-check sub-stage — big question + the typed hint shown back as a
+     small painted callout. */
+  .hint-callout {
+    margin-top: clamp(10px, 1.6cqh, 16px);
+    padding: clamp(10px, 1.6cqh, 14px) clamp(14px, 2.2cqw, 18px);
+    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
+    border: 2px solid #7a4b15;
+    border-radius: 10px;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.2), inset 0 2px 3px rgba(0,0,0,0.08);
+    transform: rotate(-1.2deg);
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(18px, 2.8cqh, 24px);
+    color: #3a2618;
+    text-align: center;
+    word-break: break-word;
+  }
+  .hint-callout::before {
+    content: '\201C'; font-size: 1.3em; color: #9a6528; margin-right: 4px;
+  }
+  .hint-callout::after {
+    content: '\201D'; font-size: 1.3em; color: #9a6528; margin-left: 4px;
+  }
+
+  /* Two big plank buttons stacked vertically for the gut-check answer. */
+  .gut-check-actions {
+    display: flex; flex-direction: column;
+    gap: clamp(10px, 1.6cqh, 14px);
+    margin-top: clamp(14px, 2.2cqh, 20px);
+    align-items: stretch;
+  }
+  .gut-check-actions .link-btn {
+    text-align: center;
+    font-size: clamp(15px, 2.1cqh, 19px);
+    padding: clamp(12px, 1.8cqh, 16px) clamp(22px, 3.4cqw, 30px);
+  }
+
+  /* Idea cards — vertical list of tappable cream notes with rotation. */
+  .idea-list {
+    display: flex; flex-direction: column;
+    gap: clamp(10px, 1.6cqh, 14px);
+    margin-top: clamp(8px, 1.2cqh, 12px);
+  }
+  .idea-card {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
+    border: 2px solid #7a4b15;
+    border-radius: 8px;
+    padding: clamp(10px, 1.5cqh, 14px) clamp(14px, 2.2cqw, 18px);
+    font-family: var(--body-font);
+    font-weight: 500;
+    font-size: clamp(15px, 2.2cqh, 18px);
+    color: #3a2618;
+    cursor: pointer;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.22), inset 0 2px 0 rgba(255,255,255,0.5);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .idea-card:nth-child(1) { transform: rotate(-1.4deg); }
+  .idea-card:nth-child(2) { transform: rotate(0.9deg); }
+  .idea-card:nth-child(3) { transform: rotate(-0.6deg); }
+  .idea-card:nth-child(4) { transform: rotate(1.3deg); }
+  .idea-card:hover { box-shadow: 0 5px 9px rgba(0,0,0,0.28), inset 0 2px 0 rgba(255,255,255,0.5); }
+  .idea-card:active { transform: translateY(1px) rotate(0deg); }
+
+  .hint-back-link {
+    display: inline-block;
+    margin-top: clamp(10px, 1.6cqh, 14px);
+    background: transparent;
+    border: 0;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(13px, 1.8cqh, 16px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  /* sub-stage swap inside stage C — only one of (input | gut | help) shown */
+  .substage { display: block; }
+  .substage.hidden { display: none; }
+
   /* Avatar picker chips — emoji-only circles in a 4-column grid (8
      animals total in 2 rows). Marcus 2026-04-24. */
   .chips.avatar-picker {
@@ -1135,7 +1245,7 @@
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
   <a href="/admin/mockup-welcome.html">→ Welcome mockup</a>
-  <button id="stage-toggle" style="margin-left:12px;">Switch to PIN stage ↓</button>
+  <button id="stage-toggle" style="margin-left:12px;">Stage: A · Name+animal</button>
 </div>
 
 <div class="device-frame">
@@ -1217,6 +1327,53 @@
                 </div>
               </div>
 
+              <!-- Stage C: PIN-hint capture (with gut-check + idea-help substages) -->
+              <div class="intro stage-hint hidden" id="stage-hint">
+                <div class="error-sticker" id="error-sticker-hint"></div>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <div class="zzz-stack" aria-hidden="true">
+                  <span class="zz zz1">Z</span>
+                  <span class="zz zz2">Z</span>
+                  <span class="zz zz3">Z</span>
+                </div>
+
+                <!-- C1: capture the hint -->
+                <div class="substage" id="substage-hint-input">
+                  <div class="sign-title-row">
+                    <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+                    <div class="sign-title">Help future-you remember</div>
+                  </div>
+                  <div class="sign-subtitle">Type a clue that helps YOU remember your secret code — but won't help anyone else guess it.</div>
+                  <div class="name-field-wrap">
+                    <input type="text" class="hint-field" id="hint-input" placeholder="my favourite breakfast..." maxlength="60" />
+                  </div>
+                </div>
+
+                <!-- C2: gut-check -->
+                <div class="substage hidden" id="substage-gut-check">
+                  <div class="sign-title-row">
+                    <div class="sign-title">Could someone else guess your secret code using this hint?</div>
+                  </div>
+                  <div class="hint-callout" id="hint-callout-text"></div>
+                  <div class="gut-check-actions">
+                    <button class="link-btn plank-sage" id="hint-safe-btn">I'm sure it's safe →</button>
+                    <button class="link-btn outlined" id="hint-help-btn">Help me think →</button>
+                  </div>
+                </div>
+
+                <!-- C3: idea-help -->
+                <div class="substage hidden" id="substage-idea-help">
+                  <div class="sign-title-row">
+                    <div class="sign-title">Pick an idea</div>
+                  </div>
+                  <div class="sign-subtitle">Tap one — you can edit it after.</div>
+                  <div class="idea-list" id="idea-list"></div>
+                  <div style="text-align:center;">
+                    <button class="hint-back-link" id="hint-back-btn">← Back</button>
+                  </div>
+                </div>
+              </div>
+
               <div class="cta-stack">
                 <div class="btn-primary-wrap">
                   <button class="btn-primary" id="next-btn">
@@ -1270,32 +1427,113 @@
       device.dataset.size = btn.dataset.size;
     });
   }
-  // Stage toggle: swap between player-select and PIN entry.
+  // ─── Inlined from packages/game-logic/src/auth-validation.ts ───
+  // Mockups are static HTML with no module loader; keep these in sync
+  // with the canonical implementation. See docs/forgot-pin-recovery.md.
+  function validatePinHint(hint, pin) {
+    if (!hint || typeof hint !== 'string') return { valid: false, error: 'Hint is required' };
+    const trimmed = hint.trim();
+    if (trimmed.length < 4) return { valid: false, error: 'Hint is too short — write a few words' };
+    if (trimmed.length > 60) return { valid: false, error: 'Hint is too long — keep it short' };
+    if (/^[0-9\s\-_,.]+$/.test(trimmed)) return { valid: false, error: 'Your hint should be words, not numbers' };
+    if (!/[a-zA-Z]/.test(trimmed)) return { valid: false, error: 'Your hint should include some words' };
+    if (pin && pin.length >= 4 && trimmed.includes(pin)) {
+      return { valid: false, error: 'That hint gives away your secret number — try again' };
+    }
+    if (pin && pin.length >= 4) {
+      for (let i = 0; i + 3 <= pin.length; i++) {
+        const run = pin.slice(i, i + 3);
+        if (trimmed.includes(run)) return { valid: false, error: 'That hint gives away part of your secret number' };
+      }
+    }
+    if (/\d{3,}/.test(trimmed)) {
+      return { valid: false, error: 'Your hint should not contain a number — write a clue in words' };
+    }
+    const lower = trimmed.toLowerCase().replace(/[^a-z\s-]/g, ' ');
+    const tokens = lower.split(/[\s-]+/).filter(Boolean);
+    const digitWords = { zero:'0', oh:'0', nought:'0', nil:'0', one:'1', two:'2', three:'3', four:'4', five:'5', six:'6', seven:'7', eight:'8', nine:'9' };
+    let digitsFromWords = '';
+    for (const tok of tokens) if (digitWords[tok]) digitsFromWords += digitWords[tok];
+    if (pin && digitsFromWords.includes(pin)) {
+      return { valid: false, error: 'That hint spells out your secret number — try again' };
+    }
+    const teens = { ten:'10', eleven:'11', twelve:'12', thirteen:'13', fourteen:'14', fifteen:'15', sixteen:'16', seventeen:'17', eighteen:'18', nineteen:'19' };
+    const tens = { twenty:'2', thirty:'3', forty:'4', fifty:'5', sixty:'6', seventy:'7', eighty:'8', ninety:'9' };
+    let compound = '';
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      if (teens[t]) compound += teens[t];
+      else if (tens[t]) {
+        const next = tokens[i + 1];
+        if (next && digitWords[next]) { compound += tens[t] + digitWords[next]; i++; }
+        else compound += tens[t] + '0';
+      } else if (digitWords[t]) compound += digitWords[t];
+    }
+    if (pin && compound.includes(pin)) {
+      return { valid: false, error: 'That hint spells out your secret number — try again' };
+    }
+    return { valid: true };
+  }
+  function getHintIdeas(seed) {
+    const pool = [
+      "something only you and your pet know",
+      "your favourite colour, but mixed up",
+      "what you'd shout if you saw a dragon",
+      "the silliest word you can think of",
+      "the smell of your favourite breakfast",
+      "where you hide when you don't want to be found",
+      "the magic word from your favourite book",
+      "the noise your happiest pet makes",
+      "the rule you wish grown-ups would follow",
+      "the song stuck in your head right now",
+      "your made-up word for being super cosy",
+      "a thing you can see from your bedroom window",
+      "what your toy would say if it could talk",
+      "the bravest thing you've ever done",
+      "the recipe for your perfect sandwich",
+      "the place you go in your daydreams",
+      "the worst flavour of ice cream",
+      "what colour Wednesday feels like",
+      "your secret code-name for grown-ups",
+      "the silliest thing you nearly said out loud today",
+    ];
+    let h = 2166136261;
+    for (let i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h = (h * 16777619) >>> 0;
+    }
+    const indexed = pool.map((idea, i) => ({ idea, sort: ((h ^ (i * 2654435761)) >>> 0) }));
+    indexed.sort((a, b) => a.sort - b.sort);
+    return indexed.slice(0, 4).map((x) => x.idea);
+  }
+
+  // ─── Stage management ───
   const stageSelect = document.getElementById('stage-select');
   const stagePin = document.getElementById('stage-pin');
+  const stageHint = document.getElementById('stage-hint');
   const stageToggle = document.getElementById('stage-toggle');
+  const STAGE_LABELS = { select: 'Stage: A · Name+animal', pin: 'Stage: B · PIN', hint: 'Stage: C · Hint' };
   let showing = 'select';
   function setStage(s) {
     showing = s;
-    if (s === 'pin') {
-      stageSelect.classList.add('hidden');
-      stagePin.classList.remove('hidden');
-      stageToggle.textContent = 'Switch to player-select ↑';
-    } else {
-      stageSelect.classList.remove('hidden');
-      stagePin.classList.add('hidden');
-      stageToggle.textContent = 'Switch to PIN stage ↓';
+    stageSelect.classList.toggle('hidden', s !== 'select');
+    stagePin.classList.toggle('hidden', s !== 'pin');
+    stageHint.classList.toggle('hidden', s !== 'hint');
+    if (stageToggle) stageToggle.textContent = STAGE_LABELS[s] || 'Stage';
+    const primary = document.getElementById('primary-label');
+    if (primary) {
+      primary.textContent = s === 'select' ? 'NEXT!' : s === 'pin' ? 'TYPE PIN' : 'CREATE MY ACCOUNT!';
     }
+    document.querySelector('.btn-primary-wrap')?.classList.toggle('hidden', s === 'hint');
   }
-  stageToggle?.addEventListener('click', () => setStage(showing === 'select' ? 'pin' : 'select'));
-  // NEXT! button advances through the signup flow
-  document.getElementById('next-btn')?.addEventListener('click', () => {
-    if (showing === 'select') {
-      setStage('pin');
-      document.getElementById('primary-label').textContent = 'CREATE MY ACCOUNT!';
-    }
+  stageToggle?.addEventListener('click', () => {
+    const order = ['select', 'pin', 'hint'];
+    setStage(order[(order.indexOf(showing) + 1) % order.length]);
   });
-  // Avatar picker — toggle .selected on tap, don't jump stages
+
+  document.getElementById('next-btn')?.addEventListener('click', () => {
+    if (showing === 'select') setStage('pin');
+  });
   for (const chip of document.querySelectorAll('.chip.avatar-pick')) {
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1303,110 +1541,189 @@
       chip.classList.add('selected');
     });
   }
-  // Embed-mode wiring + real signup flow.
+
+  // ─── Mode-aware messaging ───
   const params = new URLSearchParams(location.search);
-  if (params.has('embed')) {
-    document.body.classList.add('embed');
-    const send = (type, payload) => {
+  const isEmbed = params.has('embed');
+  if (isEmbed) document.body.classList.add('embed');
+  const send = (type, payload) => {
+    if (isEmbed) {
       try { parent.postMessage({ source: 'arc-auth', type, payload }, '*'); } catch (_) {}
-    };
-    document.querySelector('.link-btn.outlined')?.addEventListener('click', () => send('back-to-welcome'));
-    document.querySelector('.link-btn.plank-sage')?.addEventListener('click', () => send('login'));
+    } else {
+      console.log('[arc-auth →]', type, payload);
+    }
+  };
+  document.querySelector('.link-btn.outlined')?.addEventListener('click', (e) => {
+    if (e.currentTarget.id === 'hint-help-btn') return;
+    send('back-to-welcome');
+  });
+  document.querySelector('.link-btn.plank-sage')?.addEventListener('click', (e) => {
+    if (e.currentTarget.id === 'hint-safe-btn') return;
+    send('login');
+  });
 
-    let pinBuffer = '';
-    function renderPinDots() {
-      document.querySelectorAll('.pin-dots .pin-dot').forEach((d, i) => {
-        d.classList.toggle('filled', i < pinBuffer.length);
-      });
-    }
-    function clearPin() { pinBuffer = ''; renderPinDots(); }
-    // Painted red error sticker — shows beneath the sign-title with the
-    // reason. Auto-hides after 4s. Pairs with the panel-shake.
-    let errorTimer = null;
-    function showError(message, stageId = 'stage-pin') {
-      const stage = document.getElementById(stageId);
-      if (!stage) return;
-      const sticker = stage.querySelector('.error-sticker');
-      if (sticker) {
-        sticker.textContent = message;
-        sticker.classList.add('show');
-        clearTimeout(errorTimer);
-        errorTimer = setTimeout(() => sticker.classList.remove('show'), 4000);
-      }
-      stage.classList.remove('shake'); void stage.offsetWidth;
-      stage.classList.add('shake');
-      setTimeout(() => stage.classList.remove('shake'), 500);
-    }
-    function shakeError(message = 'Hmm — try again!') {
-      showError(message, 'stage-pin');
-      clearPin();
-    }
-    function currentAvatar() {
-      const sel = document.querySelector('.chip.avatar-pick.selected');
-      if (!sel) return { emoji: '🦊', bg: '#ffd0a0' };
-      return {
-        emoji: sel.querySelector('.chip-avatar')?.textContent.trim() || '🦊',
-        bg: sel.querySelector('.chip-avatar')?.style.background || '#ffd0a0',
-      };
-    }
-    function submitSignup() {
-      const name = (document.querySelector('.name-field')?.value || '').trim();
-      // Local validation first — show specific error stickers BEFORE
-      // posting to the parent. Min 2 chars, max 18.
-      if (!name) { showError('Pop your name in first!', 'stage-pin'); clearPin(); return; }
-      if (name.length < 2) { showError('Need a longer name — try at least 2 letters!', 'stage-pin'); clearPin(); return; }
-      if (name.length > 18) { showError('That name is a bit long — try shorter!', 'stage-pin'); clearPin(); return; }
-      if (pinBuffer.length !== 4) { showError('Type all 4 numbers!', 'stage-pin'); return; }
-      const { emoji, bg } = currentAvatar();
-      send('signup-submit', { username: name, pin: pinBuffer, avatarEmoji: emoji, avatarBgColour: bg });
-    }
-    window.addEventListener('message', (e) => {
-      const m = e.data;
-      if (m?.source === 'arc-auth-host' && m.type === 'auth-error') {
-        // Use the parent's error message if it sent one, otherwise a friendly fallback.
-        const msg = m?.payload?.error || 'Couldn\'t sign you up — try again!';
-        shakeError(msg);
-      }
-    });
-    document.querySelectorAll('.keypad .key').forEach((key) => {
-      key.addEventListener('click', () => {
-        if (key.classList.contains('key-clear')) { clearPin(); return; }
-        if (key.classList.contains('key-back')) {
-          pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); return;
-        }
-        if (pinBuffer.length >= 4) return;
-        pinBuffer += (key.textContent || '').trim();
-        renderPinDots();
-        if (pinBuffer.length === 4) setTimeout(submitSignup, 150);
-      });
-    });
-
-    // Keyboard PIN input (Marcus 2026-04-24): typing digits 0-9 enters
-    // the PIN; Backspace removes the last digit; Delete or Esc clears
-    // all 4. Only active when the PIN stage is showing.
-    document.addEventListener('keydown', (e) => {
-      const stage = document.getElementById('stage-pin');
-      const onPinStage = stage && stage.classList.contains('on');
-      if (!onPinStage) return;
-      // Don't hijack typing inside the name field
-      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
-
-      if (/^[0-9]$/.test(e.key)) {
-        if (pinBuffer.length >= 4) return;
-        pinBuffer += e.key;
-        renderPinDots();
-        if (pinBuffer.length === 4) setTimeout(submitSignup, 150);
-        e.preventDefault();
-      } else if (e.key === 'Backspace') {
-        pinBuffer = pinBuffer.slice(0, -1);
-        renderPinDots();
-        e.preventDefault();
-      } else if (e.key === 'Delete' || e.key === 'Escape') {
-        clearPin();
-        e.preventDefault();
-      }
+  // ─── PIN entry ───
+  let pinBuffer = '';
+  let capturedPin = '';
+  function renderPinDots() {
+    document.querySelectorAll('.pin-dots .pin-dot').forEach((d, i) => {
+      d.classList.toggle('filled', i < pinBuffer.length);
     });
   }
+  function clearPin() { pinBuffer = ''; renderPinDots(); }
+  let errorTimer = null;
+  function showError(message, stageId) {
+    const stage = document.getElementById(stageId);
+    if (!stage) return;
+    const sticker = stage.querySelector('.error-sticker');
+    if (sticker) {
+      sticker.textContent = message;
+      sticker.classList.add('show');
+      clearTimeout(errorTimer);
+      errorTimer = setTimeout(() => sticker.classList.remove('show'), 4000);
+    }
+    stage.classList.remove('shake'); void stage.offsetWidth;
+    stage.classList.add('shake');
+    setTimeout(() => stage.classList.remove('shake'), 500);
+  }
+  function currentAvatar() {
+    const sel = document.querySelector('.chip.avatar-pick.selected');
+    if (!sel) return { emoji: '🦊', bg: '#ffd0a0' };
+    return {
+      emoji: sel.querySelector('.chip-avatar')?.textContent.trim() || '🦊',
+      bg: sel.querySelector('.chip-avatar')?.style.background || '#ffd0a0',
+    };
+  }
+  function currentName() {
+    return (document.querySelector('.name-field')?.value || '').trim();
+  }
+
+  function onPinComplete() {
+    const name = currentName();
+    if (!name) { showError('Pop your name in first!', 'stage-pin'); clearPin(); return; }
+    if (name.length < 2) { showError('Need a longer name — try at least 2 letters!', 'stage-pin'); clearPin(); return; }
+    if (name.length > 18) { showError('That name is a bit long — try shorter!', 'stage-pin'); clearPin(); return; }
+    if (pinBuffer.length !== 4) { showError('Type all 4 numbers!', 'stage-pin'); return; }
+    capturedPin = pinBuffer;
+    setTimeout(() => {
+      enterHintStage();
+      clearPin();
+    }, 200);
+  }
+  document.querySelectorAll('.keypad .key').forEach((key) => {
+    key.addEventListener('click', () => {
+      if (key.classList.contains('key-clear')) { clearPin(); return; }
+      if (key.classList.contains('key-back')) {
+        pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); return;
+      }
+      if (pinBuffer.length >= 4) return;
+      pinBuffer += (key.textContent || '').trim();
+      renderPinDots();
+      if (pinBuffer.length === 4) setTimeout(onPinComplete, 150);
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (showing !== 'pin') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (/^[0-9]$/.test(e.key)) {
+      if (pinBuffer.length >= 4) return;
+      pinBuffer += e.key; renderPinDots();
+      if (pinBuffer.length === 4) setTimeout(onPinComplete, 150);
+      e.preventDefault();
+    } else if (e.key === 'Backspace') {
+      pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); e.preventDefault();
+    } else if (e.key === 'Delete' || e.key === 'Escape') {
+      clearPin(); e.preventDefault();
+    }
+  });
+
+  window.addEventListener('message', (e) => {
+    const m = e.data;
+    if (m?.source === 'arc-auth-host' && m.type === 'auth-error') {
+      const msg = m?.payload?.error || 'Couldn\'t sign you up — try again!';
+      showError(msg, showing === 'hint' ? 'stage-hint' : 'stage-pin');
+      if (showing === 'pin') clearPin();
+    }
+  });
+
+  // ─── Stage C: PIN-hint capture ───
+  const subInput = document.getElementById('substage-hint-input');
+  const subGut   = document.getElementById('substage-gut-check');
+  const subHelp  = document.getElementById('substage-idea-help');
+  const hintInput = document.getElementById('hint-input');
+  const hintCalloutText = document.getElementById('hint-callout-text');
+  const ideaList = document.getElementById('idea-list');
+
+  function setSubstage(which) {
+    subInput.classList.toggle('hidden', which !== 'input');
+    subGut.classList.toggle('hidden', which !== 'gut');
+    subHelp.classList.toggle('hidden', which !== 'help');
+    if (which === 'input') setTimeout(() => hintInput?.focus(), 50);
+  }
+
+  function enterHintStage() {
+    setStage('hint');
+    setSubstage('input');
+  }
+
+  function submitHint() {
+    const hint = hintInput.value;
+    const result = validatePinHint(hint, capturedPin);
+    if (!result.valid) {
+      showError(result.error || 'Try a different hint', 'stage-hint');
+      return;
+    }
+    hintCalloutText.textContent = hint.trim();
+    setSubstage('gut');
+  }
+
+  hintInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submitHint(); }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (showing !== 'hint') return;
+    if (e.key === 'Escape') {
+      if (!subGut.classList.contains('hidden') || !subHelp.classList.contains('hidden')) {
+        e.preventDefault();
+        setSubstage('input');
+      }
+    }
+  });
+
+  document.getElementById('hint-safe-btn')?.addEventListener('click', () => {
+    const name = currentName();
+    const { emoji, bg } = currentAvatar();
+    send('signup-complete', {
+      username: name,
+      animal: emoji,
+      pin: capturedPin,
+      hint: hintInput.value.trim(),
+      avatarEmoji: emoji,
+      avatarBgColour: bg,
+    });
+  });
+
+  document.getElementById('hint-help-btn')?.addEventListener('click', () => {
+    const seed = currentName() || 'anon';
+    const ideas = getHintIdeas(seed);
+    while (ideaList.firstChild) ideaList.removeChild(ideaList.firstChild);
+    for (const idea of ideas) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'idea-card';
+      card.textContent = idea;
+      card.addEventListener('click', () => {
+        hintInput.value = idea;
+        setSubstage('input');
+      });
+      ideaList.appendChild(card);
+    }
+    setSubstage('help');
+  });
+
+  document.getElementById('hint-back-btn')?.addEventListener('click', () => setSubstage('input'));
 </script>
 </body>
 </html>
