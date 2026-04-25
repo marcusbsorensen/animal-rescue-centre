@@ -419,28 +419,66 @@
 
   /* DEMOTED variant — used when there are recent users on this device.
      The avatar grid is the primary CTA in that case; this becomes a
-     small handwritten text link beneath the grid: "Don't see your face?
-     Type your name". When no chips exist we drop the .demoted class
-     and the giant wooden sign comes back as the only entry path. */
+     bright-yellow plank nailed to the stake (a third sibling alongside
+     the honey-amber Back plank and sage-green New? plank), reading
+     "Don't see your face? Type your name". When no chips exist we drop
+     the .demoted class and the giant wooden sign comes back. */
   .name-input-sign.demoted {
-    font-family: 'Caveat', 'Kalam', cursive !important;
-    font-size: clamp(15px, 2.4cqh, 19px) !important;
+    /* Mirror the .link-btn shared style so it nails onto the stake the
+       same way the secondary-row planks do. */
+    position: relative !important;
+    font-family: var(--sign-font) !important;
     font-weight: 700 !important;
-    padding: clamp(4px, 0.6cqh, 6px) clamp(10px, 1.5cqw, 14px) !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    color: #6b4820 !important;
-    text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
+    font-size: clamp(13px, 1.7cqh, 17px) !important;
+    line-height: 1 !important;
+    color: #4a2e0a !important;
+    text-shadow: 1px 1px 0 rgba(255,250,220,0.55) !important;
     text-transform: none !important;
     letter-spacing: 0 !important;
+    border-radius: 999px !important;
+    padding: clamp(8px, 1.4cqh, 12px) clamp(18px, 3cqw, 28px) !important;
+    border: clamp(2px, 0.35cqh, 3px) solid #9a7320 !important;
+    background:
+      /* Subtle vertical grain streaks */
+      linear-gradient(90deg,
+        transparent 0%, transparent 32%,
+        rgba(0,0,0,0.07) 33%, transparent 34%, transparent 64%,
+        rgba(0,0,0,0.07) 65%, transparent 66%),
+      /* Paint chip near the right end — base wood peeking through */
+      radial-gradient(ellipse 12px 7px at 78% 65%, rgba(110,76,28,0.55) 0%, transparent 70%),
+      linear-gradient(180deg, #ffe066 0%, #f4c628 55%, #c79110 100%) !important;
+    box-shadow:
+      inset 0 0 clamp(8px, 1.4cqh, 14px) rgba(0,0,0,0.18),
+      inset 0 clamp(1px, 0.3cqh, 2px) 0 rgba(255,250,210,0.55),
+      0 clamp(3px, 0.6cqh, 6px) clamp(6px, 1.2cqh, 10px) rgba(0,0,0,0.28) !important;
     white-space: nowrap;
     cursor: pointer;
   }
+  /* Iron nails at each end — same as .link-btn::before/::after */
   .name-input-sign.demoted::before,
-  .name-input-sign.demoted::after { display: none !important; }
+  .name-input-sign.demoted::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    width: clamp(5px, 0.9cqw, 7px);
+    height: clamp(5px, 0.9cqw, 7px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #6b6b6b 0%, #2a2a2a 70%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15), inset -1px -1px 1px rgba(0,0,0,0.4);
+    transform: translateY(-50%);
+    display: block !important;
+  }
+  .name-input-sign.demoted::before { left: clamp(8px, 1.4cqw, 12px); }
+  .name-input-sign.demoted::after  { right: clamp(8px, 1.4cqw, 12px); }
   .name-input-sign.demoted .paw { display: none !important; }
-  .name-input-sign.demoted:hover { color: #c54838 !important; text-decoration: underline; }
+  .name-input-sign.demoted:hover { transform: translateY(-1px); }
+  /* Slim the wrapper down so the yellow plank sits inline on the stake
+     rather than the full primary-CTA gutter. */
+  .btn-primary-wrap:has(.name-input-sign.demoted) {
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: auto !important;
+  }
   /* Hide the stylised parrot perch when the button is demoted. */
   .btn-primary-wrap:has(.name-input-sign.demoted) .play-parrot { display: none; }
 

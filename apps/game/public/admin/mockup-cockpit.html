@@ -584,20 +584,41 @@
   }
   .mirror.has-painted-frame .frame::after { display: none; }
   .mirror.has-painted-frame .reflection {
-    /* sit inside the painted oval — slightly inset so the painted
-       wooden rim shows around the live cargo grid. */
+    /* Sit inside the painted oval. Per-vehicle insets are auto-detected
+       from each painted PNG's reflective region (see comment block on
+       body[data-vehicle] selectors below). Defaults match Henry. */
     position: absolute;
-    top: 14%; left: 14%;
-    width: 72%; height: 72%;
+    top: var(--refl-top, 14%);
+    left: var(--refl-left, 14%);
+    width: var(--refl-w, 72%);
+    height: var(--refl-h, 72%);
     background: linear-gradient(180deg, rgba(233,220,184,0.55) 0%, rgba(138,149,118,0.45) 100%);
     border-radius: 50% / 45%;
     z-index: 2;
   }
+  /* Per-vehicle reflection insets + charm hook coords. Tuned from the
+     painted PNG content bbox + reflective-pixel detection so each painted
+     mirror shape gets its own interior. Charm hangs from the corner of
+     the painted frame, not a fixed cockpit-relative coord. */
+  body[data-vehicle="henry"]    { --refl-top: 14%; --refl-left: 14%; --refl-w: 72%; --refl-h: 64%;
+                                  --charm-top: 10%;  --charm-right: 14%; }
+  body[data-vehicle="trikey"]   { --refl-top: 8%;  --refl-left: 28%; --refl-w: 48%; --refl-h: 78%;
+                                  --charm-top: 4%;   --charm-right: 26%; }
+  body[data-vehicle="bea"]      { --refl-top: 10%; --refl-left: 14%; --refl-w: 74%; --refl-h: 80%;
+                                  --charm-top: 6%;   --charm-right: 12%; }
+  body[data-vehicle="big-tilly"]{ --refl-top: 6%;  --refl-left: 8%;  --refl-w: 84%; --refl-h: 84%;
+                                  --charm-top: 2%;   --charm-right: 8%; }
+  body[data-vehicle="spark"]    { --refl-top: 9%;  --refl-left: 22%; --refl-w: 56%; --refl-h: 60%;
+                                  --charm-top: 5%;   --charm-right: 22%; }
 
-  /* Painted charm hanging from the corner of the mirror. */
+  /* Painted charm hanging from the corner of the mirror. Per-vehicle
+     anchor coords come from --charm-top / --charm-right above so the
+     charm tucks into the corner of each painted frame, not a fixed
+     cockpit-relative coord. */
   .mirror .charm-hanger {
     position: absolute;
-    top: 4px; right: 18px;
+    top: var(--charm-top, 4px);
+    right: var(--charm-right, 18px);
     width: 36px;
     z-index: 5;
     pointer-events: none;
@@ -1499,6 +1520,9 @@
   body.classList.add('mode-' + mode);
   cockpit.classList.remove('v-trikey','v-henry','v-bea','v-big-tilly','v-spark');
   cockpit.classList.add('v-' + vehicle);
+  // Expose vehicle on <body> so the per-vehicle reflection-inset and
+  // charm-hook custom properties (body[data-vehicle="..."]) apply.
+  body.setAttribute('data-vehicle', vehicle);
 
   // Wire the painted Manus-delivered mirror frame for this vehicle.
   // Each vehicle has its own painted oval; the live cargo grid sits
