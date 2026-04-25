@@ -346,6 +346,300 @@
     overflow-y: auto !important;
   }
 
+  /* ── First-arrival onboarding flow ──────────────────────────────────
+     Activated when host sends { firstArrival: true } in init payload,
+     or when the `?first=1` URL param / vp-bar "First arrival" button is
+     used. Replaces the 3-pill choice with a name-the-pet → recovery
+     anchor → snap-a-photo sequence. */
+
+  /* When first-arrival mode is active, hide the standard 3-choice pills
+     and the "Did you know?" card; show our step container instead. */
+  .arrival-plaque.first-arrival .arrival-choices,
+  .arrival-plaque.first-arrival .fact-card { display: none !important; }
+
+  .first-arrival-step {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: clamp(8px, 1.4cqh, 12px);
+  }
+  .arrival-plaque.first-arrival .first-arrival-step.active { display: flex; }
+
+  /* Painted name-tag input — cream wash, painted brown border, Caveat,
+     big hit target. Sits on the wood like a cardboard label nailed on. */
+  .nametag-input-wrap {
+    position: relative;
+    width: 100%;
+    padding: clamp(10px, 1.6cqh, 14px) clamp(12px, 2cqw, 16px);
+    background:
+      linear-gradient(180deg, #fff8e5 0%, #f5e8c2 100%);
+    border: 3px solid #8a5a2a;
+    border-radius: 14px;
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,0.6),
+      inset 0 -2px 0 rgba(0,0,0,0.1),
+      0 4px 8px rgba(0,0,0,0.3);
+    transform: rotate(-0.6deg);
+  }
+  .nametag-input-wrap::before, .nametag-input-wrap::after {
+    content: '';
+    position: absolute; top: 6px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .nametag-input-wrap::before { left: 8px; }
+  .nametag-input-wrap::after  { right: 8px; }
+  .nametag-input {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(26px, 4.4cqh, 38px);
+    color: #4a3416;
+    text-align: center;
+    line-height: 1.1;
+    padding: 4px 8px;
+  }
+  .nametag-input::placeholder {
+    color: #b3956b;
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  /* Smaller btn-primary variant — fits inside the plaque without
+     dwarfing it. Same painted-wood base as the welcome PLAY sign. */
+  .btn-primary-sm {
+    width: 100%;
+    padding: clamp(10px, 1.8cqh, 14px) clamp(18px, 3cqw, 24px);
+    font-family: var(--sign-title-font);
+    font-size: clamp(18px, 2.8cqh, 22px); font-weight: 700;
+    color: #fffbe8;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 28%,
+        rgba(0,0,0,0.28) 28.5%, rgba(0,0,0,0.28) 29%,
+        rgba(255,240,210,0.18) 29.3%, transparent 29.9%,
+        transparent 70%,
+        rgba(0,0,0,0.28) 70.5%, rgba(0,0,0,0.28) 71%,
+        rgba(255,240,210,0.18) 71.3%, transparent 71.9%,
+        transparent 100%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 50%, #a2651c 100%);
+    border: 3px solid #7a4b15;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow:
+      inset 0 0 16px rgba(0,0,0,0.25),
+      inset 0 2px 0 rgba(255,240,210,0.25),
+      0 6px 10px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+    transform: rotate(0.6deg);
+    position: relative;
+  }
+  .btn-primary-sm::before, .btn-primary-sm::after {
+    content: '';
+    position: absolute; top: 7px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .btn-primary-sm::before { left: 10px; }
+  .btn-primary-sm::after  { right: 10px; }
+  .btn-primary-sm:active { transform: rotate(0.6deg) translateY(2px); }
+
+  /* Painted-green confirm tone — used for the "Snap!" + final CTA */
+  .btn-primary-sm.green {
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 28%,
+        rgba(0,0,0,0.28) 28.5%, rgba(0,0,0,0.28) 29%,
+        rgba(255,240,210,0.16) 29.3%, transparent 29.9%,
+        transparent 70%,
+        rgba(0,0,0,0.28) 70.5%, rgba(0,0,0,0.28) 71%,
+        rgba(255,240,210,0.16) 71.3%, transparent 71.9%,
+        transparent 100%),
+      linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
+    border-color: #2e4426;
+  }
+
+  /* Recovery-anchor message — same wooden plaque feel, with the chosen
+     name in painted cream-on-wood (bigger, Caveat). */
+  .anchor-message {
+    font-family: var(--sign-font);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    font-size: clamp(15px, 2.3cqh, 19px);
+    line-height: 1.35;
+    text-align: center;
+    padding: 0 clamp(4px, 1cqw, 10px);
+  }
+  .anchor-message .anchor-name {
+    display: inline-block;
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(24px, 4cqh, 34px);
+    color: #fff5d4;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.55), 0 0 10px rgba(255,224,138,0.4);
+    transform: rotate(-2deg);
+    margin: 0 4px;
+  }
+
+  /* Step-3 photo scene — animal sprite + painted name tag below */
+  .photo-scene {
+    position: relative;
+    width: 100%;
+    display: flex; flex-direction: column;
+    align-items: center;
+    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.4cqh, 14px);
+    /* The captured photo flies from here to the memory wall */
+  }
+  .photo-anim-wrap {
+    position: relative;
+    display: inline-flex; flex-direction: column;
+    align-items: center;
+    transition: transform 0.7s cubic-bezier(.55,0,.55,1.4),
+                opacity 0.7s ease,
+                filter 0.4s ease;
+    transform-origin: center center;
+  }
+  .photo-anim {
+    height: clamp(110px, 18cqh, 160px);
+    width: auto;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));
+  }
+  /* Painted name-tag attached below the animal */
+  .photo-nametag {
+    margin-top: clamp(-6px, -0.8cqh, -4px);
+    padding: clamp(4px, 0.8cqh, 7px) clamp(14px, 2.4cqw, 20px);
+    background: linear-gradient(180deg, #fff8e5 0%, #f0d99a 100%);
+    border: 2.5px solid #8a5a2a;
+    border-radius: 999px;
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(18px, 2.8cqh, 24px);
+    color: #4a3416;
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,0.6),
+      0 3px 6px rgba(0,0,0,0.35);
+    transform: rotate(-3deg);
+    position: relative;
+    /* String tying tag to animal — small painted twine line */
+  }
+  .photo-nametag::before {
+    content: '';
+    position: absolute;
+    top: -10px; left: 50%;
+    width: 2px; height: 10px;
+    background: #6b4820;
+    transform: translateX(-50%);
+  }
+
+  /* Captured-photo frame state — switches on after Snap. The
+     animal+tag freeze inside a painted frame with tilt + drop-shadow. */
+  .photo-anim-wrap.captured {
+    padding: clamp(8px, 1.2cqh, 12px) clamp(8px, 1.2cqw, 12px) clamp(20px, 3cqh, 28px);
+    background: #fffaf0;
+    border: 4px solid #fff;
+    box-shadow:
+      0 0 0 2px #8a5a2a,
+      0 8px 20px rgba(0,0,0,0.5),
+      inset 0 0 14px rgba(0,0,0,0.05);
+    border-radius: 4px;
+    transform: rotate(-3deg) scale(0.92);
+  }
+
+  /* Flashbulb white-flash */
+  .flash-overlay {
+    position: absolute; inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 50;
+    border-radius: inherit;
+  }
+  .flash-overlay.flashing {
+    animation: flashBulb 0.55s ease-out;
+  }
+  @keyframes flashBulb {
+    0%   { opacity: 0; }
+    15%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* Memory wall — small painted picture frame in the corner of the
+     plaque. The captured photo flies here on Snap. */
+  .memory-wall {
+    position: absolute;
+    bottom: clamp(8px, 1.4cqh, 12px);
+    right: clamp(8px, 1.4cqw, 12px);
+    width: clamp(54px, 8cqh, 72px);
+    height: clamp(64px, 9.5cqh, 86px);
+    background: linear-gradient(180deg, #b88748 0%, #8a5a2a 100%);
+    border: 2px solid #5a3a18;
+    border-radius: 4px;
+    box-shadow:
+      inset 0 2px 0 rgba(255,240,210,0.25),
+      inset 0 -2px 0 rgba(0,0,0,0.3),
+      0 4px 8px rgba(0,0,0,0.4);
+    padding: 4px;
+    z-index: 22;
+    transform: rotate(2deg);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .memory-wall::before {
+    /* Nail holding the frame on the wall */
+    content: '';
+    position: absolute;
+    top: -4px; left: 50%;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    transform: translateX(-50%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .memory-wall-inner {
+    width: 100%; height: 100%;
+    background: #fffaf0;
+    border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .memory-wall-photo {
+    max-width: 92%;
+    max-height: 92%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .memory-wall-photo.visible { opacity: 1; }
+  .memory-wall-empty {
+    font-family: var(--sign-font);
+    font-size: clamp(9px, 1.4cqh, 11px);
+    color: #b89860;
+    text-align: center;
+    line-height: 1.1;
+    padding: 0 2px;
+  }
+  .memory-wall-photo + .memory-wall-empty { display: none; }
+  .memory-wall.has-photo .memory-wall-empty { display: none; }
+
+  /* Step-1 sprite (smaller, no name yet) */
+  .first-arrival-step .arrival-anim-mini {
+    height: clamp(96px, 15cqh, 130px);
+    width: auto;
+    align-self: center;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));
+    animation: arrivalWobble 2.2s ease-in-out infinite;
+    transform-origin: bottom center;
+    margin-bottom: clamp(4px, 0.8cqh, 8px);
+  }
+
 </style>
 </head>
 <body>
@@ -357,6 +651,8 @@
   <button data-size="ipad-p" class="on">📱 iPad P</button>
   <button data-size="ipad-l">📱 iPad L</button>
   <button data-size="desktop">🖥 Desktop</button>
+  <span>·</span>
+  <button id="toggleFirst">🐣 First arrival</button>
   <span class="hint">(delivery-box flag · single arrival sprite)</span>
 </div>
 
@@ -401,6 +697,63 @@
             <span class="fact-header">Did you know?</span>
             <span class="fact-text" id="factText"></span>
           </div>
+
+          <!-- ── First-arrival flow ────────────────────────────────
+               Hidden by default. The .first-arrival class on the
+               plaque switches on the steps + hides the choice pills. -->
+          <div class="first-arrival-step" id="step-name">
+            <img class="arrival-anim-mini" id="firstArrivalAnimMini"
+                 src="/assets/animals/cat-ginger-arriving.png" alt="">
+            <div class="nametag-input-wrap">
+              <input type="text"
+                     class="nametag-input"
+                     id="petNameInput"
+                     placeholder="Type a name…"
+                     maxlength="16"
+                     autocomplete="off"
+                     spellcheck="false"
+                     aria-label="Pet name">
+            </div>
+            <button class="btn-primary-sm" id="saveNameBtn">Save name</button>
+          </div>
+
+          <div class="first-arrival-step" id="step-anchor">
+            <div class="anchor-message">
+              Lovely! Remember
+              <span class="anchor-name" id="anchorNameSpan"></span>
+              — if you ever forget your secret code,
+              <span class="anchor-name" id="anchorNameSpan2"></span>
+              will help you get back in!
+            </div>
+            <button class="btn-primary-sm green" id="goPhotoBtn">
+              Let's take a photo →
+            </button>
+          </div>
+
+          <div class="first-arrival-step" id="step-photo">
+            <div class="photo-scene">
+              <div class="photo-anim-wrap" id="photoAnimWrap">
+                <img class="photo-anim" id="photoAnim"
+                     src="/assets/animals/cat-ginger-arriving.png" alt="">
+                <div class="photo-nametag" id="photoNametag">Pet</div>
+                <div class="flash-overlay" id="flashOverlay"></div>
+              </div>
+            </div>
+            <button class="btn-primary-sm green" id="snapBtn">
+              <span style="font-size:1.3em;line-height:1">📸</span> Snap!
+            </button>
+            <button class="btn-primary-sm" id="finishBtn" style="display:none">
+              <span id="finishLabel">Take care of Pet</span>
+            </button>
+          </div>
+
+          <!-- Memory wall — small painted picture frame in the corner -->
+          <div class="memory-wall" id="memoryWall" style="display:none">
+            <div class="memory-wall-inner">
+              <span class="memory-wall-empty">Memory wall</span>
+              <img class="memory-wall-photo" id="memoryWallPhoto" alt="">
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -414,6 +767,199 @@
       for (const b of document.querySelectorAll('.vp-bar button[data-size]')) b.classList.remove('on');
       btn.classList.add('on');
       device.dataset.size = btn.dataset.size;
+    });
+  }
+
+  // ── First-arrival flow ────────────────────────────────────────────
+  // Inline copy of validateAnimalName (mirror of
+  // packages/game-logic/src/auth-validation.ts). Mockup pages have no
+  // build step, so we cannot import the package directly. Keep this in
+  // sync if the validator changes.
+  const ANIMAL_NAME_BLOCKLIST = [
+    'poo','poop','pee','wee','fart','butt','bum',
+    'turd','snot','bogey','bogie','booger','crap',
+    'shit','fuck','cunt','bitch','arse','ass',
+    'damn','dick','cock','piss','twat','bollock',
+    'wank','bastard','prick','slut',
+    'nazi','retard',
+    'admin','system','null','undefined',
+  ];
+  function validateAnimalName(name) {
+    if (!name || typeof name !== 'string') {
+      return { valid: false, error: 'Please give your pet a name' };
+    }
+    const trimmed = name.trim();
+    if (trimmed.length < 2) return { valid: false, error: 'That name is a bit short — try a longer one' };
+    if (trimmed.length > 16) return { valid: false, error: 'That name is too long — keep it short' };
+    if (!/^[A-Za-z][A-Za-z\s'\-]*[A-Za-z]$/.test(trimmed)) {
+      return { valid: false, error: 'Names use letters only — no numbers or symbols' };
+    }
+    const stripped = trimmed.toLowerCase().replace(/[^a-z]/g, '');
+    for (const bad of ANIMAL_NAME_BLOCKLIST) {
+      if (stripped.includes(bad)) {
+        return { valid: false, error: "Hmm, let's pick a nicer name for your pet" };
+      }
+    }
+    return { valid: true };
+  }
+
+  let chosenName = '';
+  let petSpecies = 'cat';
+  let petSpriteSrc = '/assets/animals/cat-ginger-arriving.png';
+
+  const plaque = document.querySelector('.arrival-plaque');
+  const stepName = document.getElementById('step-name');
+  const stepAnchor = document.getElementById('step-anchor');
+  const stepPhoto = document.getElementById('step-photo');
+  const memoryWall = document.getElementById('memoryWall');
+  const memoryPhoto = document.getElementById('memoryWallPhoto');
+
+  function showStep(el) {
+    [stepName, stepAnchor, stepPhoto].forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function showError(message) {
+    // Reuse the .error-sticker pattern from mockup-signup.html — paint
+    // a fresh sticker, drop it into the plaque, auto-remove after 2.6s.
+    const old = plaque.querySelector('.error-sticker');
+    if (old) old.remove();
+    const sticker = document.createElement('div');
+    sticker.className = 'error-sticker';
+    sticker.textContent = message;
+    plaque.appendChild(sticker);
+    // Force reflow so the transition plays
+    void sticker.offsetWidth;
+    sticker.classList.add('show');
+    setTimeout(() => {
+      sticker.classList.remove('show');
+      setTimeout(() => sticker.remove(), 350);
+    }, 2600);
+  }
+
+  function enterFirstArrivalMode(opts = {}) {
+    plaque.classList.add('first-arrival');
+    document.querySelector('.arrival-title').textContent = 'A new arrival!';
+    document.getElementById('arrivalSubtitle').textContent =
+      'Your first rescue is here! What should we call them?';
+    // Hide the big arrival-scene sprite — step-name has its own mini sprite
+    document.querySelector('.arrival-scene').style.display = 'none';
+    showStep(stepName);
+    memoryWall.style.display = 'flex';
+    // Sync the mini + photo sprites to whatever sprite the host gave us
+    const mini = document.getElementById('firstArrivalAnimMini');
+    const photoImg = document.getElementById('photoAnim');
+    if (opts.spriteSrc) {
+      mini.src = opts.spriteSrc;
+      photoImg.src = opts.spriteSrc;
+      petSpriteSrc = opts.spriteSrc;
+    }
+    if (opts.species) petSpecies = opts.species;
+  }
+
+  // Step 1 — Save name
+  document.getElementById('saveNameBtn').addEventListener('click', () => {
+    const input = document.getElementById('petNameInput');
+    const raw = input.value;
+    const result = validateAnimalName(raw);
+    if (!result.valid) {
+      showError(result.error || 'That name does not work');
+      return;
+    }
+    chosenName = raw.trim();
+    document.getElementById('anchorNameSpan').textContent = chosenName;
+    document.getElementById('anchorNameSpan2').textContent = chosenName;
+    document.getElementById('photoNametag').textContent = chosenName;
+    document.getElementById('finishLabel').textContent = `Take care of ${chosenName}`;
+    showStep(stepAnchor);
+  });
+  // Submit on Enter
+  document.getElementById('petNameInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('saveNameBtn').click();
+    }
+  });
+
+  // Step 2 → Step 3
+  document.getElementById('goPhotoBtn').addEventListener('click', () => {
+    showStep(stepPhoto);
+  });
+
+  // Step 3 — Snap! (flash → freeze → fly to memory wall)
+  document.getElementById('snapBtn').addEventListener('click', () => {
+    const wrap = document.getElementById('photoAnimWrap');
+    const flash = document.getElementById('flashOverlay');
+    const snapBtn = document.getElementById('snapBtn');
+    const finishBtn = document.getElementById('finishBtn');
+    snapBtn.disabled = true;
+
+    // 1) White flashbulb
+    flash.classList.remove('flashing');
+    void flash.offsetWidth;
+    flash.classList.add('flashing');
+
+    // 2) After flash peak, freeze into a painted-photo-frame
+    setTimeout(() => {
+      wrap.classList.add('captured');
+    }, 200);
+
+    // 3) Compute flight target (center of memory-wall) and fly there
+    setTimeout(() => {
+      const wrapRect = wrap.getBoundingClientRect();
+      const wallRect = memoryWall.getBoundingClientRect();
+      const dx = (wallRect.left + wallRect.width / 2) - (wrapRect.left + wrapRect.width / 2);
+      const dy = (wallRect.top + wallRect.height / 2) - (wrapRect.top + wrapRect.height / 2);
+      const scale = Math.min(wallRect.width / wrapRect.width, wallRect.height / wrapRect.height) * 0.85;
+      wrap.style.transform = `translate(${dx}px, ${dy}px) rotate(2deg) scale(${scale})`;
+      wrap.style.opacity = '0.0';
+    }, 700);
+
+    // 4) Drop the photo into the memory wall + show finish CTA
+    setTimeout(() => {
+      memoryPhoto.src = petSpriteSrc;
+      memoryPhoto.classList.add('visible');
+      memoryWall.classList.add('has-photo');
+      snapBtn.style.display = 'none';
+      finishBtn.style.display = '';
+    }, 1500);
+  });
+
+  // Step 3 — Finish (postMessage → host)
+  document.getElementById('finishBtn').addEventListener('click', () => {
+    const payload = {
+      petName: chosenName,
+      petSpecies: petSpecies,
+      petSpriteSrc: petSpriteSrc,
+      photoTakenAt: Date.now(),
+    };
+    try {
+      parent.postMessage({
+        source: 'arc-game',
+        type: 'first-arrival-complete',
+        payload: payload,
+      }, '*');
+    } catch (_) {}
+    // For the mockup (non-embed), surface what we sent so the dev can
+    // see it without needing devtools.
+    if (!document.body.classList.contains('embed')) {
+      console.log('[mockup-arrival] first-arrival-complete →', payload);
+    }
+  });
+
+  // vp-bar toggle: jump straight into first-arrival mode for testing
+  document.getElementById('toggleFirst').addEventListener('click', () => {
+    enterFirstArrivalMode({
+      species: 'cat',
+      spriteSrc: '/assets/animals/cat-ginger-arriving.png',
+    });
+  });
+
+  // URL ?first=1 also enables it for sharable preview links
+  if (new URLSearchParams(location.search).has('first')) {
+    enterFirstArrivalMode({
+      species: 'cat',
+      spriteSrc: '/assets/animals/cat-ginger-arriving.png',
     });
   }
 
@@ -434,14 +980,24 @@
     window.addEventListener('message', (e) => {
       const msg = e.data;
       if (!msg || msg.source !== 'arc-game-host' || msg.type !== 'init') return;
-      const { species, variant, fact, factIcon } = msg.payload || {};
-      if (species && variant) {
-        const img = document.getElementById('arrivalAnim');
-        img.src = `/assets/animals/${species}-${variant}-arriving.png`;
+      const { species, variant, fact, factIcon, firstArrival } = msg.payload || {};
+      const spriteSrc = (species && variant)
+        ? `/assets/animals/${species}-${variant}-arriving.png`
+        : null;
+      if (spriteSrc) {
+        document.getElementById('arrivalAnim').src = spriteSrc;
       }
       if (species) {
         document.getElementById('arrivalSubtitle').textContent =
           `Someone just dropped off a little ${species}. They look a bit scared…`;
+      }
+      // First-arrival onboarding — replaces the 3 choice pills with the
+      // name → recovery-anchor → photo flow defined further down.
+      if (firstArrival) {
+        enterFirstArrivalMode({
+          species: species || 'cat',
+          spriteSrc: spriteSrc || '/assets/animals/cat-ginger-arriving.png',
+        });
       }
       // "Did you know?" plaque — shown only when the host supplies a
       // fact via the init payload. Hidden otherwise so the card never
