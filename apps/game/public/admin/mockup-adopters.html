@@ -1001,43 +1001,43 @@
     transform: scaleX(-1) rotate(3deg);
   }
   /* Fox peeking out from behind the leftmost tall grass clump (further
-     left than the bunny). Sits BEHIND the grass-clump (z:3 < clump z:4)
-     so only the head/upper body emerges when it leans out toward the
-     bunny.
+     left than the bunny). Sits BEHIND the grass-clump (z:3 < clump z:4).
 
-     Motion: a slow sideways lean — pivot at bottom-LEFT (planted body
-     stays behind the grass), tilt the upper body rightward toward the
-     bunny over ~3.5s, hold the peek briefly, then snap back in quickly
-     (~0.4s) and stay hidden ~3s before the next cycle.
+     Motion: pivot at bottom-RIGHT — body stays planted behind the
+     grass, head leans LEFTWARD (out the left side) over ~3.5s, holds
+     briefly, snaps back ~0.4s, then waits ~3s. The body never
+     translates — only the head/upper body rotates out and back, so the
+     fox visually stays anchored across viewport sizes.
 
-     The fox-red-sheltered source sprite faces left by default, so we
-     scaleX(-1) the static state to flip it right (toward the bunny). */
+     Source sprite faces left naturally, so no scaleX flip — the fox
+     emerges leftward facing further left (peeking out the left edge). */
   .foreground-fox {
-    /* Anchor to the left of the central stake — further left than the
-       bunny (which sits at 50% - 72-130px). The fox tucks behind the
-       leftmost tall blades of the painted grass-clump strip. */
-    left: calc(50% - clamp(120px, 22cqw, 200px)) !important;
+    /* Anchor purely in container-width units so the fox tracks the
+       bunny stably across iPhone / iPad / desktop. The bunny sits at
+       calc(50% - 14cqw) and the fox sits further left at 50% - 26cqw. */
+    left: calc(50% - 26cqw) !important;
     right: auto !important;
     bottom: clamp(-4px, -0.8cqh, 2px) !important;
-    height: clamp(56px, 10cqh, 110px);
+    /* 1.5x bigger than before (was 56-110, now 84-165). */
+    height: clamp(84px, 15cqh, 165px);
     z-index: 3 !important;   /* BEHIND the grass-clump (z:4) */
-    /* Pivot at bottom-LEFT — the planted foot/body stays hidden behind
-       the leftmost grass blades while the head leans rightward. */
-    transform-origin: 0% 100%;
+    /* Pivot at bottom-RIGHT — the body stays planted behind the right
+       side of the leftmost grass clump while the head leans leftward. */
+    transform-origin: 100% 100%;
     animation: foxPeek 8s ease-in-out infinite;
     will-change: transform;
   }
   @keyframes foxPeek {
     /* Hidden — tucked fully behind the tuft, slight inward tilt. */
-    0%   { transform: scaleX(-1) rotate(8deg)   translateX(-8%); }
-    /* Slow lean OUT to the right (toward the bunny) over ~45% of cycle. */
-    45%  { transform: scaleX(-1) rotate(-22deg) translateX(0%); }
+    0%   { transform: rotate(-6deg); }
+    /* Slow lean OUT to the left over ~45% of cycle. */
+    45%  { transform: rotate(22deg); }
     /* Hold the peek briefly. */
-    55%  { transform: scaleX(-1) rotate(-22deg) translateX(0%); }
+    55%  { transform: rotate(22deg); }
     /* Quick snap back in. */
-    60%  { transform: scaleX(-1) rotate(8deg)   translateX(-8%); }
+    60%  { transform: rotate(-6deg); }
     /* Stay hidden until the next cycle. */
-    100% { transform: scaleX(-1) rotate(8deg)   translateX(-8%); }
+    100% { transform: rotate(-6deg); }
   }
 
   .credits {
@@ -1136,7 +1136,7 @@
   /* Narrow / iPhone: simplify — hide extras to avoid clutter */
   @container welcome (max-width: 420px) {
     .foreground-dog { height: clamp(62px, 12cqh, 110px); left: 0; }
-    .foreground-fox { height: clamp(48px, 9cqh, 90px); left: calc(50% - clamp(100px, 20cqw, 170px)) !important; right: auto !important; }
+    .foreground-fox { height: clamp(72px, 13.5cqh, 135px); left: calc(50% - 24cqw) !important; right: auto !important; }
     .logo-bunny { display: none; }
     .intro-cat { height: clamp(50px, 8cqh, 80px); right: -4%; bottom: -24%; }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
