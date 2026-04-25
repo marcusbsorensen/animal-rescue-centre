@@ -27,7 +27,9 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
-  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+  /* Body allows scroll on signup so the grass-tuft top + lower sign don't
+     clip on small viewports (Marcus 2026-04-24). */
+  body { font-family: var(--body-font); color: var(--ink); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
   body.embed { background: #fef9ef; }
   body.embed .vp-bar { display: none; }
   body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
@@ -353,6 +355,12 @@
     display: flex; flex-direction: column; gap: 2px;
     flex: 1 1 0; min-width: 0;
   }
+  /* Hide the animal-name labels on the avatar-picker chips — keep
+     just the emoji for a more compact picker grid (Marcus 2026-04-24).
+     Login-screen chips that show the user's username + last-seen
+     keep their text — only avatar-pick chips lose the subtitle. */
+  .chip.avatar-pick .chip-text { display: none; }
+  .chip.avatar-pick { padding: clamp(8px, 1.6cqh, 14px); }
   .chip-name {
     font-weight: 700;
     font-size: clamp(15px, 2.2cqh, 19px);
@@ -982,7 +990,7 @@
                   <span class="zz zz3">Z</span>
                 </div>
                 <div class="sign-title">Let's get started!</div>
-                <div class="sign-subtitle">What's your name, and which animal is you?</div>
+                <div class="sign-subtitle">What's your name and animal?</div>
                 <div class="name-field-wrap">
                   <input type="text" class="name-field" placeholder="Type your name..." value="Lily" />
                 </div>
