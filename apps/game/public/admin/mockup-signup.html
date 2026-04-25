@@ -522,9 +522,13 @@
     opacity: 0;
     animation: zzzRise 3s ease-in-out infinite;
   }
-  .zzz-stack .zz1 { font-size: 12px; left: 4px;  bottom: 4px;  animation-delay: 0s;   }
-  .zzz-stack .zz2 { font-size: 18px; left: 16px; bottom: 18px; animation-delay: 1s;   }
-  .zzz-stack .zz3 { font-size: 26px; left: 32px; bottom: 36px; animation-delay: 2s;   }
+  /* zz1 + zz2 are both "small" — same starting position by the cat's
+     head, staggered 1s so a second tiny Z spawns just as the first
+     has cleared the head. zz3 (medium 18px) is now the LARGEST and
+     drifts furthest. The old 26px far-Z was too big + too distant. */
+  .zzz-stack .zz1 { font-size: 12px; left: 4px;  bottom: 4px;  animation-delay: 0s; }
+  .zzz-stack .zz2 { font-size: 14px; left: 6px;  bottom: 4px;  animation-delay: 1s; }
+  .zzz-stack .zz3 { font-size: 18px; left: 16px; bottom: 18px; animation-delay: 2s; }
 
   @keyframes zzzRise {
     0%   { opacity: 0; transform: translate(0, 4px)   rotate(-8deg); }
