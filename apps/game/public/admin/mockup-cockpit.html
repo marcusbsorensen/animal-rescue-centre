@@ -1271,7 +1271,36 @@
     font-size: 11px;
     cursor: pointer;
   }
-  .vp-bar button.reload-layout:hover { background: #4a4a4a; }
+  .vp-bar button.reload-layout:hover { background: #4a4a4a; }  /* Vertical scroll on desktop + iPad L — content stack is taller than
+     the device's viewport on these landscape sizes; allow the user to
+     scroll to see the bottom (grass tuft, bunny, fox, credits). */
+  .device[data-size="desktop"] .welcome,
+  .device[data-size="desktop"] .adopt,
+  .device[data-size="desktop"] .conflict,
+  .device[data-size="desktop"] .arrival,
+  .device[data-size="desktop"] .vet,
+  .device[data-size="desktop"] .menu,
+  .device[data-size="desktop"] .news,
+  .device[data-size="desktop"] .friends,
+  .device[data-size="desktop"] .paths,
+  .device[data-size="desktop"] .rewilding,
+  .device[data-size="desktop"] .badge,
+  .device[data-size="desktop"] .visitor,
+  .device[data-size="ipad-l"] .welcome,
+  .device[data-size="ipad-l"] .adopt,
+  .device[data-size="ipad-l"] .conflict,
+  .device[data-size="ipad-l"] .arrival,
+  .device[data-size="ipad-l"] .vet,
+  .device[data-size="ipad-l"] .menu,
+  .device[data-size="ipad-l"] .news,
+  .device[data-size="ipad-l"] .friends,
+  .device[data-size="ipad-l"] .paths,
+  .device[data-size="ipad-l"] .rewilding,
+  .device[data-size="ipad-l"] .badge,
+  .device[data-size="ipad-l"] .visitor {
+    overflow-y: auto !important;
+  }
+
 </style>
 </head>
 <body class="mode-ptv speed-0">
