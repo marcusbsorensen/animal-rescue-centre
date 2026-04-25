@@ -141,6 +141,23 @@
   }
   .logo-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8cqh, 8px); }
 
+  /* Title row — paw-heart icon on the left, sign title on the right
+     (Marcus 2026-04-24). Tethers the brand to the sign on every
+     sub-page. */
+  .sign-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px, 2cqw, 16px);
+  }
+  .sign-logo {
+    height: clamp(36px, 6.5cqh, 64px);
+    width: auto;
+    flex: 0 0 auto;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
+  }
+
   /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
   .sign-title {
     font-family: var(--sign-title-font);
@@ -973,10 +990,6 @@
         </div>
 
         <div class="welcome-content">
-          <div class="logo-wrap">
-            <img class="logo-img" src="/assets/logo/arc-logo-portrait.png" alt="A.R.C. — Animal Rescue Centre">
-            <img class="logo-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
-          </div>
 
           <div class="text-block">
             <div class="signs-on-stake">
