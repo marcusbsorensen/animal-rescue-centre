@@ -724,6 +724,8 @@
     display: flex; flex-direction: column; align-items: center;
     gap: clamp(2px, 0.4cqh, 4px);
     position: relative; z-index: 5;
+    /* Decorative — never block clicks to the underlying buttons. */
+    pointer-events: none;
   }
   /* Handwritten-scrawl credits — cursive green, designed to look like
      a blade of grass at first glance and read as a signature on closer look. */
@@ -811,12 +813,66 @@
     }
   }
 
-  /* Narrow / iPhone: simplify — hide extras to avoid clutter */
+  /* ── iPhone: compress the stack so cat sits ON sign + grass + animals
+        + credits all fit inside the viewport. Also enables vertical
+        scroll as a safety net for shorter devices. ── */
   @container welcome (max-width: 420px) {
-    .foreground-dog { height: clamp(62px, 12cqh, 110px); right: 4px; left: auto; }
-    .foreground-fox { height: clamp(60px, 10cqh, 95px); left: calc(50% - clamp(95px, 22cqw, 170px)); }
+    /* Scroll if anything still overflows. */
+    overflow-y: auto;
+
+    /* Sign moves UP: smaller top padding so the cat is reachable. */
+    .welcome-content {
+      padding-top: clamp(28px, 5cqh, 44px);
+    }
+    /* Cat sits ON the sign (overlapping its top edge), not floating
+       above it. Smaller cat + less negative top = cat overlaps sign. */
+    .intro-cat {
+      height: clamp(54px, 9cqh, 70px);
+      top: clamp(-40px, -6cqh, -30px) !important;
+      bottom: auto !important;
+      right: clamp(8px, 2.5cqw, 14px) !important;
+    }
+    /* Less stake length below the secondary planks so the grass tuft +
+       animals + credits all fit. */
+    .signs-on-stake {
+      padding-bottom: clamp(70px, 12cqh, 110px);
+    }
+    /* Foreground dog: slightly smaller, anchored to the right edge of
+       the central stake (matches the grass tuft right edge) rather than
+       the device corner. */
+    .foreground-dog {
+      height: clamp(72px, 14cqh, 110px);
+      right: clamp(4px, 1cqw, 10px);
+      left: auto;
+    }
+    /* Fox: bigger (head clearly emerges), still anchored behind the
+       leftmost grass blades (signs-on-stake coord space). */
+    .foreground-fox {
+      height: clamp(80px, 14cqh, 115px);
+      left: calc(50% - clamp(95px, 22cqw, 130px));
+    }
     .logo-bunny { display: none; }
-    .intro-cat { height: clamp(50px, 8cqh, 80px); right: -4%; bottom: -24%; }
+
+    /* Credits: absolutely positioned below the grass tuft so they don't
+       take a grid row that pushes everything else off-screen. Single-
+       line "Designed by · Built by" centred at the very bottom. */
+    .credits {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: clamp(2px, 0.5cqh, 6px);
+      height: auto;
+      padding: 0;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      gap: clamp(8px, 2cqw, 14px);
+      z-index: 8;
+    }
+    .credit-scrawl {
+      font-size: clamp(10px, 1.5cqh, 12px);
+      white-space: nowrap;
+      opacity: 0.7;
+    }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
      the device's viewport on these landscape sizes; allow the user to
      scroll to see the bottom (grass tuft, bunny, fox, credits). */
