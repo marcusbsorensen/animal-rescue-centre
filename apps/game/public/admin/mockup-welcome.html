@@ -143,17 +143,76 @@
   }
   .logo-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8cqh, 8px); }
 
+  /* Title row — paw-heart logo on the left, sign title on the right.
+     Tethers the brand directly to the sign instead of floating
+     separately above it. (Marcus 2026-04-24) */
+  .sign-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px, 2cqw, 18px);
+    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
+  }
+  .sign-logo {
+    height: clamp(48px, 9cqh, 92px);
+    width: auto;
+    flex: 0 0 auto;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
+  }
+  /* Full logo (paw-heart + A.R.C. + Animal Rescue Centre tagline)
+     used as the SOLE title on the welcome sign. Sized to span most
+     of the sign width — no separate sign-title text needed. */
+  .sign-logo-full {
+    height: auto;
+    width: clamp(180px, 60cqw, 380px);
+    max-width: 92%;
+  }
+
+  /* ZZZ animation for the sleeping cat — three painted Z's drift up
+     and right of the cat's head. Same as signup. */
+  .zzz-stack {
+    position: absolute;
+    right: clamp(-2px, 0cqw, 6px);
+    top: clamp(-86px, -13cqh, -64px);
+    width: 70px;
+    height: 70px;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .zzz-stack .zz {
+    position: absolute;
+    font-family: 'Kalam', 'Caveat', cursive;
+    font-weight: 700;
+    color: #c88436;
+    text-shadow: 1px 2px 0 rgba(255,255,255,0.7), 2px 3px 4px rgba(0,0,0,0.18);
+    opacity: 0;
+    animation: zzzRise 3s ease-in-out infinite;
+  }
+  .zzz-stack .zz1 { font-size: 12px; left: 4px;  bottom: 4px;  animation-delay: 0s; }
+  .zzz-stack .zz2 { font-size: 14px; left: 6px;  bottom: 4px;  animation-delay: 1s; }
+  .zzz-stack .zz3 { font-size: 18px; left: 16px; bottom: 18px; animation-delay: 2s; }
+  @keyframes zzzRise {
+    0%   { opacity: 0; transform: translate(0, 4px)   rotate(-8deg); }
+    20%  { opacity: 1; transform: translate(4px, -2px)  rotate(-4deg); }
+    60%  { opacity: 1; transform: translate(14px, -16px) rotate(2deg); }
+    100% { opacity: 0; transform: translate(24px, -32px) rotate(8deg); }
+  }
+
   /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
   .sign-title {
     font-family: var(--sign-title-font);
     font-weight: 700;
     letter-spacing: 0.03em;
-    font-size: clamp(20px, 3.8cqh, 34px);
+    /* Smaller now that the logo sits beside it (was 20-34, now 16-26) */
+    font-size: clamp(16px, 2.8cqh, 26px);
     line-height: 1.05;
-    text-align: center;
-    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
-    margin-bottom: clamp(6px, 1.2cqh, 12px);
+    text-align: left;
+    padding: 0;
+    margin-bottom: 0;
     position: relative;
+    flex: 0 1 auto;
     /* Logo-matched green gradient: bright leaf → rich grass → deep pine */
     background: linear-gradient(180deg,
       #8cc63f 0%,
@@ -738,16 +797,20 @@
         </div>
 
         <div class="welcome-content">
-          <div class="logo-wrap">
-            <img class="logo-img" src="/assets/logo/arc-logo-portrait.png" alt="A.R.C. — Animal Rescue Centre">
-            <img class="logo-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
-          </div>
 
           <div class="text-block">
             <div class="signs-on-stake">
               <div class="intro">
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
-                <div class="sign-title">Animal Rescue Centre</div>
+                <div class="zzz-stack" aria-hidden="true">
+                  <span class="zz zz1">Z</span>
+                  <span class="zz zz2">Z</span>
+                  <span class="zz zz3">Z</span>
+                </div>
+                <div class="sign-title-row">
+                  <img class="sign-logo sign-logo-full" src="/assets/logo/arc-logo-full.png"
+                       alt="A.R.C. — Animal Rescue Centre">
+                </div>
                 <ol>
                   <li>Rescue scared animals</li>
                   <li>Feed, heal &amp; walk them</li>
