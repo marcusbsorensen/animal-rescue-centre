@@ -11,15 +11,59 @@ Returning player taps their chip → enters wrong PIN twice → on the third
 attempt the shake-error screen offers **"I forgot my secret number"**.
 
 Tapping it shows 3 multiple-choice questions drawn from the player's own
-game state, e.g.:
+game state. Pool is split into **early-game** (work from session 1) and
+**mid-/late-game** (need progress).
+
+### Early-game pool (work from the very first session)
 
 | Question | Source |
 |---|---|
-| "Which animal did you adopt out most recently?" | `adopters.recentlyPlaced[0]` + 3 distractors from other animals never met |
-| "What's your apprentice called?" | `apprentices.bondedTo` (Rhubarb / Amara / Kofi) — pick 1 of 3 |
-| "Which of these have you NOT unlocked yet?" | `charms.locked[0]` + 3 unlocked distractors |
+| "Which animal did you pick when you signed up?" | `early.signupAvatar` (one of the 8 emoji on the picker) + 3 emoji distractors |
+| "Which one is your first pet?" (visual cards) | 3 identical sprite cards of the first pet, each with a different painted name tag. Kid taps the card whose tag matches the name they chose. Correct = `early.firstAnimalName`, distractors from a 20-name pool. Sprite from `early.firstAnimalSpriteSrc`. |
+| "What kind of animal was the FIRST one to arrive?" | `early.firstAnimalSpecies` (cat / dog / fox / bunny / bat / parrot / snake) + 3 species distractors |
 
-Question pool grows with progress. Pick 3 at random per attempt.
+**The first animal arrives WITHOUT a name tag** — the kid has to name
+it themselves before the arrival popup closes. That makes the
+"first-animal-name" question much stronger as a recovery anchor than
+a system-assigned name would be: the kid genuinely chose those
+letters, so they remember them. Wire into the arrival flow as: name
+field on the arrival popup, save to `early.firstAnimalName` +
+`early.firstAnimalSpriteSrc`, fall back to a random name only if the
+kid hard-skips.
+
+**Recovery anchor + photo-feature onboarding (one moment, two jobs):**
+Right after the kid names the pet, the game says something like:
+> *"Remember [Pet Name]'s name — if you ever forget your secret code,
+> [Pet Name] will help you get back in!"*
+
+That makes the recovery flow feel friendly and gives the kid a
+mnemonic instead of a security mechanism.
+
+Then we introduce the **photo feature** in the same beat: the kid
+takes a photo of [Pet Name] (with the painted name tag in frame), and
+the photo lands on the **memory wall** in their room. Two wins:
+1. The photo + name tag is a permanent visual memory aid for the
+   recovery question — even if the kid forgets the name, the photo
+   has it.
+2. The kid learns the photo mechanic (which is also used elsewhere:
+   adopter scrapbook, garden moments, etc.) at the natural moment
+   when they have a reason to use it.
+
+The photo isn't a recovery secret — it's not used to log them in. The
+recovery flow still uses the visual-card MCQ. The photo just helps
+them remember the answer if they ever need to.
+
+### Mid-/late-game pool (need progress)
+
+| Question | Source |
+|---|---|
+| "Who did you most recently send your animal home with?" | `adopters.recentlyPlacedIds[0]` + 3 distractors from `adopters.householdLabels` |
+| "Which apprentice did you most recently welcome to the centre?" | `apprentices.apprentices` (most-recent recruit) — distractors are the other 2 canonical apprentices |
+| "Which of these charms have you NOT unlocked yet?" | A locked charm from `charms.unlockedCharms` complement + 3 unlocked distractors |
+
+Pool is checked in order; we pick up to 3 with deterministic shuffle
+seeded by `(username, attemptIndex)` so reloading the same attempt
+doesn't re-roll the dice but a fresh attempt does.
 
 **Pass thresholds:**
 

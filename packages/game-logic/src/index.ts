@@ -57,7 +57,19 @@ export {
   validateAvatarEmoji,
   validateAvatarBgColour,
   isUsernameSafe,
+  validatePinHint,
+  getHintIdeas,
 } from './auth-validation';
+export {
+  buildRecoveryQuestions,
+  scoreRecovery,
+} from './forgot-pin';
+export type {
+  RecoverySnapshot,
+  RecoveryQuestion,
+  RecoveryVerdict,
+  AdopterSnapshot,
+} from './forgot-pin';
 export {
   spawnAnimal,
   spawnSiblingPair,
