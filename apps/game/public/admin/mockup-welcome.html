@@ -122,11 +122,12 @@
   .welcome-content {
     grid-area: content;
     display: flex; flex-direction: column; align-items: center;
-    /* Flex-start + padding keeps the logo visible at the top even when
-       the content is taller than the row on iPad P / iPhone. */
     justify-content: flex-start;
     gap: clamp(10px, 2cqh, 22px);
-    padding: clamp(8px, 1.5cqh, 18px) clamp(16px, 4cqw, 32px) 0;
+    /* Top padding generous enough that the cat overhanging the sign
+       (top: -76px on .intro-cat) stays inside the visible viewport on
+       iPad P / iPhone. Was 8-18px; now 64-100px so the cat fits. */
+    padding: clamp(64px, 11cqh, 100px) clamp(16px, 4cqw, 32px) 0;
     text-align: center;
     min-height: 0;
     position: relative;

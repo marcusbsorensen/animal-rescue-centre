@@ -122,7 +122,9 @@
     display: flex; flex-direction: column; align-items: center;
     justify-content: flex-start;
     gap: clamp(10px, 2cqh, 22px);
-    padding: clamp(8px, 1.5cqh, 18px) clamp(16px, 4cqw, 32px) 0;
+    /* Top padding so the cat overhanging the sign stays inside the
+       visible viewport on iPad P. */
+    padding: clamp(64px, 11cqh, 100px) clamp(16px, 4cqw, 32px) 0;
     text-align: center;
     min-height: 0;
     position: relative;
@@ -138,6 +140,22 @@
     margin: 0 auto;
   }
   .logo-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8cqh, 8px); }
+
+  /* Title row — paw-heart icon on the left, sign title on the right.
+     Tethers the brand to the sign on every sub-page. */
+  .sign-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px, 2cqw, 16px);
+  }
+  .sign-logo {
+    height: clamp(36px, 6.5cqh, 64px);
+    width: auto;
+    flex: 0 0 auto;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
+  }
 
   /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
   .sign-title {
@@ -700,12 +718,57 @@
      a pair hanging out. Size them proportionally (dog > fox). */
   .foreground-dog {
     right: clamp(86px, 16cqw, 190px);
-    /* Golden retriever ~ 60cm tall in real life */
     height: clamp(110px, 20cqh, 240px);
-    /* Flip horizontally so the dog faces the fox on its right.
-       Flipped rotation: negate the original angle to preserve the
-       same visual tilt direction. */
+    aspect-ratio: 1 / 1;
     transform: scaleX(-1) rotate(3deg);
+  }
+  .foreground-dog-body {
+    width: 100%; height: 100%;
+    display: block;
+    position: relative;
+    z-index: 2;
+  }
+  .foreground-dog-tail {
+    position: absolute;
+    left: 12.3%; top: 60.4%;
+    width: 20.1%; height: 25.2%;
+    z-index: 1;
+    transform-origin: 100% 67%;
+    animation: tailWag 0.55s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  @keyframes tailWag {
+    0%   { transform: rotate(-12deg); }
+    100% { transform: rotate(14deg); }
+  }
+
+  /* ZZZ animation for the sleeping cat — three painted Z's. */
+  .zzz-stack {
+    position: absolute;
+    right: clamp(-2px, 0cqw, 6px);
+    top: clamp(-86px, -13cqh, -64px);
+    width: 70px;
+    height: 70px;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .zzz-stack .zz {
+    position: absolute;
+    font-family: 'Kalam', 'Caveat', cursive;
+    font-weight: 700;
+    color: #c88436;
+    text-shadow: 1px 2px 0 rgba(255,255,255,0.7), 2px 3px 4px rgba(0,0,0,0.18);
+    opacity: 0;
+    animation: zzzRise 3s ease-in-out infinite;
+  }
+  .zzz-stack .zz1 { font-size: 12px; left: 4px;  bottom: 4px;  animation-delay: 0s; }
+  .zzz-stack .zz2 { font-size: 14px; left: 6px;  bottom: 4px;  animation-delay: 1s; }
+  .zzz-stack .zz3 { font-size: 18px; left: 16px; bottom: 18px; animation-delay: 2s; }
+  @keyframes zzzRise {
+    0%   { opacity: 0; transform: translate(0, 4px)   rotate(-8deg); }
+    20%  { opacity: 1; transform: translate(4px, -2px)  rotate(-4deg); }
+    60%  { opacity: 1; transform: translate(14px, -16px) rotate(2deg); }
+    100% { opacity: 0; transform: translate(24px, -32px) rotate(8deg); }
   }
   .foreground-fox {
     right: clamp(6px, 2cqw, 30px);
@@ -840,17 +903,16 @@
         </div>
 
         <div class="welcome-content">
-          <div class="logo-wrap">
-            <img class="logo-img" src="/assets/logo/arc-logo-portrait.png" alt="A.R.C. — Animal Rescue Centre">
-            <img class="logo-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
-          </div>
 
           <div class="text-block">
             <div class="signs-on-stake">
               <!-- Stage A: pick your player -->
               <div class="intro stage-select" id="stage-select">
-                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
-                <div class="sign-title">Welcome back!</div>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt=""><div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
+                <div class="sign-title-row">
+                  <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+                  <div class="sign-title">Welcome back!</div>
+                </div>
                 <div class="sign-subtitle">Tap your picture to start caring for your animals</div>
                 <div class="chips">
                   <button class="chip"><span class="chip-avatar" style="background:#ffd0a0;">🦊</span><span class="chip-text"><span class="chip-name">Lily</span><span class="chip-last">2 hours ago</span></span></button>
@@ -862,8 +924,11 @@
 
               <!-- Stage B: PIN entry -->
               <div class="intro stage-pin hidden" id="stage-pin">
-                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
-                <div class="sign-title">Hi, Lily!</div>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt=""><div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
+                <div class="sign-title-row">
+                  <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+                  <div class="sign-title">Hi, Lily!</div>
+                </div>
                 <div class="sign-subtitle">What's your secret number?</div>
                 <div class="pin-dots">
                   <span class="pin-dot filled"></span>
@@ -922,7 +987,10 @@
       </div>
 
       <!-- Foreground corner animals — the 'cast' welcoming the player -->
-      <img class="foreground-dog" src="/assets/animals/dog-golden-sheltered.png" alt="">
+      <div class="foreground-dog" aria-hidden="true">
+        <img class="foreground-dog-body" src="/assets/animals/dog-golden-sheltered-body.png" alt="">
+        <img class="foreground-dog-tail" src="/assets/animals/dog-golden-sheltered-tail.png" alt="">
+      </div>
       <img class="foreground-fox" src="/assets/animals/fox-red-sheltered.png" alt="">
 
     </div>

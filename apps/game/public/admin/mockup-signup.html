@@ -855,10 +855,35 @@
     right: clamp(86px, 16cqw, 190px);
     /* Golden retriever ~ 60cm tall in real life */
     height: clamp(110px, 20cqh, 240px);
+    aspect-ratio: 1 / 1;
     /* Flip horizontally so the dog faces the fox on its right.
        Flipped rotation: negate the original angle to preserve the
        same visual tilt direction. */
     transform: scaleX(-1) rotate(3deg);
+  }
+  .foreground-dog-body {
+    width: 100%; height: 100%;
+    display: block;
+    position: relative;
+    z-index: 2; /* body in front so the tail emerges from behind */
+  }
+  /* Tail wag — separate sprite, layered BEHIND the body. The original
+     512×512 sheltered sprite had its tail at bbox (63, 309)–(146, 432);
+     the tail PNG is 103×129. Pivot at left edge of the tail in display
+     coords, ~1/3 up from the bottom (transform-origin x flipped to
+     compensate for the parent scaleX(-1)). */
+  .foreground-dog-tail {
+    position: absolute;
+    left: 12.3%; top: 60.4%;
+    width: 20.1%; height: 25.2%;
+    z-index: 1;
+    transform-origin: 100% 67%;
+    animation: tailWag 0.55s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  @keyframes tailWag {
+    0%   { transform: rotate(-12deg); }
+    100% { transform: rotate(14deg); }
   }
   .foreground-fox {
     right: clamp(6px, 2cqw, 30px);
@@ -1096,7 +1121,10 @@
       </div>
 
       <!-- Foreground corner animals — the 'cast' welcoming the player -->
-      <img class="foreground-dog" src="/assets/animals/dog-golden-sheltered.png" alt="">
+      <div class="foreground-dog" aria-hidden="true">
+        <img class="foreground-dog-body" src="/assets/animals/dog-golden-sheltered-body.png" alt="">
+        <img class="foreground-dog-tail" src="/assets/animals/dog-golden-sheltered-tail.png" alt="">
+      </div>
       <img class="foreground-fox" src="/assets/animals/fox-red-sheltered.png" alt="">
 
     </div>
