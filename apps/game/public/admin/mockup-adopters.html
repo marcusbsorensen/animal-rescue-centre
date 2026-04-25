@@ -945,6 +945,11 @@
   }
   .link-btn::before { left: clamp(8px, 1.4cqw, 12px); }
   .link-btn::after  { right: clamp(8px, 1.4cqw, 12px); }
+  /* Hover lift + slight tilt — gives every plank a subtle interactive
+     wobble matching the painted-storybook feel. */
+  .link-btn { transition: transform 0.2s ease; }
+  .link-btn:hover { transform: translateY(-2px) rotate(-1.5deg); }
+  .link-btn.plank-sage:hover { transform: translateY(-2px) rotate(1.5deg); }
   /* Variant A — honey-amber plank, same family as the Play sign. */
   .link-btn.outlined {
     border-color: #7a4b15;
