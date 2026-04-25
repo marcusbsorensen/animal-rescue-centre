@@ -607,41 +607,44 @@
        same visual tilt direction. */
     transform: scaleX(-1) rotate(3deg);
   }
-  /* Fox peeking out from behind the grass tuft on the right side of the
-     central stake (opposite the bunny+bee on the left). Sits BEHIND the
-     grass-clump (z:3 < clump z:4) so only the head/upper body emerges
-     when it leans out.
+  /* Fox peeking out from behind the leftmost tall grass clump (further
+     left than the bunny). Sits BEHIND the grass-clump (z:3 < clump z:4)
+     so only the head/upper body emerges when it leans out toward the
+     bunny.
 
-     Motion: a slow sideways lean — pivot at bottom-right (where the body
-     stays planted behind the grass), tilt the upper body out to the
-     right over ~3.5s, hold for a beat, then snap back in quickly
-     (~0.4s) and stay hidden ~3s before the next peek. Reads as
-     'curious fox cautiously poking its head out, then ducking back'. */
+     Motion: a slow sideways lean — pivot at bottom-LEFT (planted body
+     stays behind the grass), tilt the upper body rightward toward the
+     bunny over ~3.5s, hold the peek briefly, then snap back in quickly
+     (~0.4s) and stay hidden ~3s before the next cycle.
+
+     The fox-red-sheltered source sprite faces left by default, so we
+     scaleX(-1) the static state to flip it right (toward the bunny). */
   .foreground-fox {
-    /* Override the shared .foreground-dog,.foreground-fox bottom anchor
-       (which sat the fox in the corner) with a position tucked behind
-       the central grass-clump on the right. */
-    right: calc(50% - clamp(72px, 14cqw, 130px)) !important;
+    /* Anchor to the left of the central stake — further left than the
+       bunny (which sits at 50% - 72-130px). The fox tucks behind the
+       leftmost tall blades of the painted grass-clump strip. */
+    left: calc(50% - clamp(120px, 22cqw, 200px)) !important;
+    right: auto !important;
     bottom: clamp(-4px, -0.8cqh, 2px) !important;
     height: clamp(56px, 10cqh, 110px);
     z-index: 3 !important;   /* BEHIND the grass-clump (z:4) */
-    /* Pivot at bottom-right — the planted foot/body that stays hidden
-       behind the grass while the head leans out. */
-    transform-origin: 100% 100%;
+    /* Pivot at bottom-LEFT — the planted foot/body stays hidden behind
+       the leftmost grass blades while the head leans rightward. */
+    transform-origin: 0% 100%;
     animation: foxPeek 8s ease-in-out infinite;
     will-change: transform;
   }
   @keyframes foxPeek {
-    /* Hidden: tucked fully behind the tuft, slight inward tilt. */
-    0%   { transform: rotate(8deg)  translateX(8%); }
-    /* Slow lean OUT to the right — head emerging over ~45% of cycle. */
-    45%  { transform: rotate(-22deg) translateX(0%); }
+    /* Hidden — tucked fully behind the tuft, slight inward tilt. */
+    0%   { transform: scaleX(-1) rotate(8deg)   translateX(-8%); }
+    /* Slow lean OUT to the right (toward the bunny) over ~45% of cycle. */
+    45%  { transform: scaleX(-1) rotate(-22deg) translateX(0%); }
     /* Hold the peek briefly. */
-    55%  { transform: rotate(-22deg) translateX(0%); }
-    /* Quick snap back in (≈0.4s of an 8s cycle). */
-    60%  { transform: rotate(8deg)  translateX(8%); }
+    55%  { transform: scaleX(-1) rotate(-22deg) translateX(0%); }
+    /* Quick snap back in. */
+    60%  { transform: scaleX(-1) rotate(8deg)   translateX(-8%); }
     /* Stay hidden until the next cycle. */
-    100% { transform: rotate(8deg)  translateX(8%); }
+    100% { transform: scaleX(-1) rotate(8deg)   translateX(-8%); }
   }
 
   .credits {
@@ -740,7 +743,7 @@
   /* Narrow / iPhone: simplify — hide extras to avoid clutter */
   @container welcome (max-width: 420px) {
     .foreground-dog { height: clamp(62px, 12cqh, 110px); left: 0; }
-    .foreground-fox { height: clamp(48px, 9cqh, 90px); right: calc(50% - clamp(60px, 12cqw, 110px)) !important; }
+    .foreground-fox { height: clamp(48px, 9cqh, 90px); left: calc(50% - clamp(100px, 20cqw, 170px)) !important; right: auto !important; }
     .logo-bunny { display: none; }
     .intro-cat { height: clamp(50px, 8cqh, 80px); right: -4%; bottom: -24%; }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
