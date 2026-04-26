@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Forgot-PIN Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  /* Visual chrome mirrors mockup-login.html — same painted-storybook
+     conventions (welcome bg, sign on stake, intro-cat with ZZZ, dog on
+     the right, fox peeking from the grass, painted grass clump, credit
+     scrawls). The recovery flow lives entirely inside the wooden sign. */
+  :root {
+    --cream-wash: #fef9ef;
+    --garden-green: #2E8B57;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
+    --ink: #3a3a3a;
+    --ink-soft: #6b6b6b;
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
+    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #222; }
+  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+  body.embed { background: #fef9ef; }
+  body.embed .vp-bar { display: none; }
+  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
+  body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
+  /* mock toolbar */
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .vp-bar button {
+    background: #444; color: #fff; border: 1px solid #555;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+  }
+  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+  .vp-bar a { color: #8fd3ff; margin-left: 12px; }
+
+  .device-frame {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: auto;
+  }
+  .device {
+    background: var(--cream-wash);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s, height 0.3s;
+    flex-shrink: 0;
+  }
+  .device[data-size="iphone"]    { width: 390px;  height: 844px; }
+  .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
+  .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
+  .device[data-size="desktop"]   { width: 1280px; height: 800px; }
+
+  .welcome {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+    container-type: size;
+    container-name: welcome;
+  }
+  .welcome::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+    background-size: cover; background-position: center;
+    z-index: 0;
+  }
+  .welcome::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg,
+      rgba(254,249,239,0.75) 0%,
+      rgba(254,249,239,0.50) 45%,
+      rgba(254,249,239,0.68) 85%,
+      rgba(254,249,239,0.90) 100%);
+    z-index: 1;
+  }
+
+  .welcome-inner {
+    position: relative; z-index: 5;
+    width: 100%; height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "top" "content" "credits";
+    padding: clamp(10px, 2cqh, 18px) 0 0;
+  }
+
+  .top-strip {
+    grid-area: top;
+    display: flex; justify-content: flex-end;
+    padding: 0 clamp(12px, 3cqw, 24px);
+  }
+  .audio-btn {
+    width: clamp(36px, 5.5cqh, 44px); height: clamp(36px, 5.5cqh, 44px);
+    background: rgba(255,255,255,0.85);
+    border: 2px solid rgba(46,139,87,0.3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: clamp(16px, 2.4cqh, 20px);
+  }
+
+  .welcome-content {
+    grid-area: content;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-start;
+    gap: clamp(10px, 2cqh, 22px);
+    padding: clamp(64px, 11cqh, 100px) clamp(16px, 4cqw, 32px) 0;
+    text-align: center;
+    min-height: 0;
+    position: relative;
+  }
+
+  .sign-title-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(8px, 2cqw, 16px);
+    position: relative;
+  }
+  .sign-logo {
+    height: clamp(36px, 6.5cqh, 64px);
+    width: auto; flex: 0 0 auto;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
+  }
+  .sign-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    font-size: clamp(20px, 3.8cqh, 34px);
+    line-height: 1.05;
+    text-align: center;
+    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
+    background: linear-gradient(180deg,
+      #8cc63f 0%, #5faa3a 28%, #3d8c31 62%, #2a6e26 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(8, 38, 11, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(8,38,11,0.55));
+  }
+
+  /* Wooden sign with horizontal plank gradient — same as login. */
+  .intro {
+    position: relative;
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 39%,
+        rgba(0,0,0,0.32) 39.5%, rgba(0,0,0,0.32) 40%,
+        rgba(255,240,210,0.18) 40.3%, transparent 40.8%,
+        transparent 59%,
+        rgba(0,0,0,0.32) 59.5%, rgba(0,0,0,0.32) 60%,
+        rgba(255,240,210,0.18) 60.3%, transparent 60.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: clamp(2px, 0.3cqh, 3px) solid #8a5a2a;
+    border-radius: clamp(6px, 0.8cqh, 10px);
+    padding: clamp(14px, 2.4cqh, 22px) clamp(18px, 3.5cqw, 28px);
+    max-width: min(94%, 520px);
+    box-shadow:
+      inset 0 0 clamp(16px, 3cqh, 28px) rgba(0,0,0,0.25),
+      inset 0 clamp(2px, 0.5cqh, 4px) 0 rgba(255,240,210,0.15),
+      0 clamp(6px, 1.2cqh, 12px) clamp(14px, 2.6cqh, 22px) rgba(0,0,0,0.35);
+    transform: rotate(-1.2deg);
+    z-index: 2;
+  }
+  .intro::before, .intro::after {
+    content: '';
+    position: absolute;
+    width: clamp(7px, 1.2cqh, 10px);
+    height: clamp(7px, 1.2cqh, 10px);
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .intro::before { top: clamp(6px, 1cqh, 9px); left: clamp(6px, 1cqh, 9px); }
+  .intro::after  { top: clamp(6px, 1cqh, 9px); right: clamp(6px, 1cqh, 9px); }
+
+  .sign-subtitle {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 500;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
+    font-size: clamp(13px, 1.9cqh, 17px);
+    text-align: center;
+    opacity: 0.95;
+    margin-bottom: clamp(10px, 1.6cqh, 16px);
+    line-height: 1.35;
+  }
+
+  /* Progress chip top-right of the sign — "1 of 3" etc. */
+  .progress-chip {
+    position: absolute;
+    top: clamp(-10px, -1.4cqh, -8px);
+    right: clamp(20px, 4cqw, 32px);
+    background: linear-gradient(180deg, #ffe066 0%, #f4c628 55%, #c79110 100%);
+    border: 2px solid #9a7320;
+    color: #4a2e0a;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(11px, 1.6cqh, 14px);
+    padding: clamp(3px, 0.5cqh, 5px) clamp(8px, 1.4cqw, 12px);
+    border-radius: 999px;
+    text-shadow: 1px 1px 0 rgba(255,250,220,0.55);
+    transform: rotate(4deg);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+    z-index: 4;
+  }
+
+  /* Question prompt */
+  .q-prompt {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    font-size: clamp(16px, 2.6cqh, 22px);
+    line-height: 1.3;
+    text-align: center;
+    margin-bottom: clamp(12px, 2cqh, 18px);
+  }
+
+  /* Plank-style option list (text mode). Mix outlined + plank-sage so the
+     options don't read as colour-coded right/wrong cues. */
+  .opts {
+    display: flex; flex-direction: column;
+    gap: clamp(8px, 1.4cqh, 14px);
+    align-items: stretch;
+  }
+  .opt-btn {
+    position: relative;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(15px, 2.1cqh, 19px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    text-decoration: none;
+    border-radius: 999px;
+    padding: clamp(10px, 1.7cqh, 16px) clamp(22px, 3.5cqw, 32px);
+    box-shadow:
+      inset 0 0 clamp(8px, 1.4cqh, 14px) rgba(0,0,0,0.22),
+      inset 0 clamp(1px, 0.3cqh, 2px) 0 rgba(255,240,210,0.22),
+      0 clamp(3px, 0.6cqh, 6px) clamp(6px, 1.2cqh, 10px) rgba(0,0,0,0.28);
+    border: clamp(2px, 0.35cqh, 3px) solid;
+    transition: transform 0.15s ease;
+    text-align: center;
+  }
+  .opt-btn::before, .opt-btn::after {
+    content: '';
+    position: absolute; top: 50%;
+    width: clamp(5px, 0.9cqw, 7px); height: clamp(5px, 0.9cqw, 7px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #6b6b6b 0%, #2a2a2a 70%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15), inset -1px -1px 1px rgba(0,0,0,0.4);
+    transform: translateY(-50%);
+  }
+  .opt-btn::before { left: clamp(8px, 1.4cqw, 12px); }
+  .opt-btn::after  { right: clamp(8px, 1.4cqw, 12px); }
+  .opt-btn:hover { transform: translateY(-2px) rotate(-0.8deg); }
+  .opt-btn.opt-amber {
+    border-color: #7a4b15;
+    background:
+      linear-gradient(90deg,
+        transparent 0%, transparent 40%,
+        rgba(0,0,0,0.06) 41%, transparent 42%, transparent 68%,
+        rgba(0,0,0,0.06) 69%, transparent 70%),
+      radial-gradient(ellipse 14px 8px at 22% 70%, rgba(92,60,22,0.55) 0%, transparent 70%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+  }
+  .opt-btn.opt-sage {
+    border-color: #3c5238;
+    background:
+      linear-gradient(90deg,
+        transparent 0%, transparent 28%,
+        rgba(0,0,0,0.08) 29%, transparent 30%, transparent 57%,
+        rgba(0,0,0,0.07) 58%, transparent 59%, transparent 82%,
+        rgba(0,0,0,0.08) 83%, transparent 84%),
+      radial-gradient(ellipse 12px 7px at 72% 30%, rgba(145,100,55,0.75) 0%, transparent 70%),
+      radial-gradient(ellipse 10px 6px at 30% 78%, rgba(145,100,55,0.7) 0%, transparent 70%),
+      linear-gradient(180deg, #7ea063 0%, #5d7f4a 50%, #3f5d32 100%);
+  }
+  .opt-btn:hover.opt-sage { transform: translateY(-2px) rotate(0.8deg); }
+
+  /* Polaroid card mode (visual cards for the first-animal-name question). */
+  .opts-cards {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: clamp(10px, 1.8cqw, 18px);
+    padding: clamp(4px, 0.8cqh, 8px) 0;
+  }
+  .opt-card {
+    cursor: pointer;
+    background: #fffbe8;
+    border-radius: 6px;
+    padding: clamp(8px, 1.2cqh, 12px) clamp(8px, 1.2cqw, 12px) clamp(12px, 1.8cqh, 16px);
+    box-shadow:
+      0 4px 8px rgba(0,0,0,0.3),
+      inset 0 0 0 1px rgba(0,0,0,0.05);
+    width: clamp(120px, 22cqw, 150px);
+    display: flex; flex-direction: column;
+    align-items: center;
+    gap: clamp(6px, 1cqh, 10px);
+    transition: transform 0.18s ease;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+  .opt-card:nth-child(1) { transform: rotate(-3deg); }
+  .opt-card:nth-child(2) { transform: rotate(1.2deg); }
+  .opt-card:nth-child(3) { transform: rotate(2.8deg); }
+  .opt-card:hover { transform: translateY(-4px) rotate(0deg); }
+  .opt-card-sprite {
+    width: 100%; aspect-ratio: 1 / 1;
+    object-fit: contain;
+    background: linear-gradient(180deg, #f3ecd6 0%, #e6dcbe 100%);
+    border-radius: 4px;
+  }
+  .opt-card-tag {
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(15px, 2.2cqh, 19px);
+    color: #4a2e0a;
+    background: linear-gradient(180deg, #ffe066 0%, #f4c628 55%, #c79110 100%);
+    border: 2px solid #9a7320;
+    border-radius: 4px;
+    padding: clamp(3px, 0.5cqh, 5px) clamp(8px, 1.2cqw, 12px);
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    transform: rotate(-1.5deg);
+  }
+
+  /* Outcome stages — celebration / hint / parent help */
+  .outcome-emoji {
+    font-size: clamp(40px, 6.5cqh, 60px);
+    line-height: 1;
+    text-align: center;
+    margin-bottom: clamp(6px, 1cqh, 10px);
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.2));
+  }
+  .hint-card {
+    background: #fffbe8;
+    border-radius: 6px;
+    padding: clamp(14px, 2.2cqh, 20px) clamp(16px, 2.5cqw, 22px);
+    margin: clamp(8px, 1.4cqh, 14px) 0 clamp(14px, 2.2cqh, 18px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    transform: rotate(-1.5deg);
+    border: 1px solid rgba(0,0,0,0.08);
+    color: #4a2e0a;
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(20px, 3cqh, 26px);
+    line-height: 1.3;
+    text-align: center;
+  }
+  .hint-card::before {
+    content: '"';
+    display: inline-block;
+    margin-right: 4px;
+    color: #9a7320;
+  }
+  .hint-card::after {
+    content: '"';
+    display: inline-block;
+    margin-left: 4px;
+    color: #9a7320;
+  }
+
+  /* Action plank — single big amber CTA used on outcome screens. */
+  .action-plank {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    gap: clamp(8px, 1.5cqw, 12px);
+    cursor: pointer;
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(17px, 2.6cqh, 22px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    border-radius: clamp(6px, 0.8cqh, 10px);
+    padding: clamp(12px, 2cqh, 18px) clamp(22px, 3.5cqw, 32px);
+    border: clamp(2px, 0.3cqh, 3px) solid #9a6528;
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 40%,
+        rgba(0,0,0,0.18) 40.5%, transparent 41.5%, transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 32%,
+        rgba(0,0,0,0.07) 33%, transparent 34%, transparent 65%,
+        rgba(0,0,0,0.07) 66%, transparent 67%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 50%, #a2651c 100%);
+    box-shadow:
+      inset 0 0 clamp(14px, 2.5cqh, 24px) rgba(0,0,0,0.25),
+      inset 0 clamp(2px, 0.4cqh, 3px) 0 rgba(255,240,210,0.25),
+      0 clamp(5px, 1cqh, 10px) clamp(10px, 2cqh, 16px) rgba(0,0,0,0.35);
+    transition: transform 0.1s;
+    transform: rotate(0.6deg);
+    margin: 0 auto;
+  }
+  .action-plank:active { transform: rotate(0.6deg) translateY(2px); }
+
+  /* Stage transition */
+  .stage-fade {
+    animation: stageFadeIn 320ms ease both;
+  }
+  @keyframes stageFadeIn {
+    0%   { opacity: 0; transform: translateX(20px) rotate(-1.2deg); }
+    100% { opacity: 1; transform: translateX(0)   rotate(-1.2deg); }
+  }
+  .stage-leaving {
+    animation: stageFadeOut 280ms ease both;
+  }
+  @keyframes stageFadeOut {
+    0%   { opacity: 1; transform: translateX(0)    rotate(-1.2deg); }
+    100% { opacity: 0; transform: translateX(-20px) rotate(-1.2deg); }
+  }
+
+  .hidden { display: none !important; }
+
+  /* ── Animal: cat sleeping ON TOP of the intro panel ── */
+  .intro-cat {
+    position: absolute;
+    right: clamp(10px, 2.5cqw, 24px);
+    top: clamp(-76px, -11cqh, -56px);
+    height: clamp(80px, 13cqh, 130px);
+    transform: rotate(8deg);
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.2));
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* signs-on-stake wrapper */
+  .signs-on-stake {
+    position: relative;
+    width: 100%;
+    max-width: min(94%, 520px);
+    display: flex; flex-direction: column;
+    align-items: center;
+    gap: clamp(12px, 2.2cqh, 22px);
+    padding-bottom: clamp(70px, 12cqh, 130px);
+  }
+  .signs-on-stake::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: clamp(8px, 1.5cqh, 16px); bottom: clamp(-6px, -1cqh, -4px);
+    transform: translateX(-50%);
+    width: clamp(12px, 2cqw, 18px);
+    background:
+      linear-gradient(90deg,
+        #5d3a18 0%, #7a5023 18%, #a07038 50%, #7a5023 82%, #5d3a18 100%),
+      linear-gradient(180deg, #7a5023 0%, #6b4820 100%);
+    background-blend-mode: multiply;
+    border-radius: 3px 3px 2px 2px;
+    box-shadow:
+      inset 0 2px 0 rgba(255,240,210,0.18),
+      2px 3px 5px rgba(0,0,0,0.35);
+    z-index: 0;
+  }
+  .signs-on-stake::after {
+    content: '';
+    position: absolute;
+    left: 50%; bottom: clamp(6px, 1cqh, 10px);
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: clamp(6px, 1cqw, 9px) solid transparent;
+    border-right: clamp(6px, 1cqw, 9px) solid transparent;
+    border-top: clamp(10px, 1.6cqh, 16px) solid #5d3a18;
+    filter: drop-shadow(2px 3px 3px rgba(0,0,0,0.4));
+    z-index: 0;
+  }
+
+  .cta-stack {
+    display: flex; flex-direction: column;
+    gap: clamp(10px, 1.8cqh, 18px);
+    width: 100%;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  .secondary-row {
+    display: flex; gap: clamp(8px, 2cqw, 20px);
+    align-items: center; justify-content: center;
+    flex-wrap: wrap;
+    position: relative;
+  }
+
+  /* Re-use login plank styling for the small "Back to PIN screen" link. */
+  .link-btn {
+    position: relative;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(13px, 1.7cqh, 17px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    text-decoration: none;
+    border-radius: 999px;
+    padding: clamp(8px, 1.4cqh, 12px) clamp(18px, 3cqw, 28px);
+    box-shadow:
+      inset 0 0 clamp(8px, 1.4cqh, 14px) rgba(0,0,0,0.22),
+      inset 0 clamp(1px, 0.3cqh, 2px) 0 rgba(255,240,210,0.22),
+      0 clamp(3px, 0.6cqh, 6px) clamp(6px, 1.2cqh, 10px) rgba(0,0,0,0.28);
+    border: clamp(2px, 0.35cqh, 3px) solid;
+    transition: transform 0.2s ease;
+  }
+  .link-btn::before, .link-btn::after {
+    content: '';
+    position: absolute; top: 50%;
+    width: clamp(5px, 0.9cqw, 7px); height: clamp(5px, 0.9cqw, 7px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #6b6b6b 0%, #2a2a2a 70%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15), inset -1px -1px 1px rgba(0,0,0,0.4);
+    transform: translateY(-50%);
+  }
+  .link-btn::before { left: clamp(8px, 1.4cqw, 12px); }
+  .link-btn::after  { right: clamp(8px, 1.4cqw, 12px); }
+  .link-btn:hover { transform: translateY(-2px) rotate(-1.5deg); }
+  .link-btn.outlined {
+    border-color: #7a4b15;
+    background:
+      linear-gradient(90deg,
+        transparent 0%, transparent 40%,
+        rgba(0,0,0,0.06) 41%, transparent 42%, transparent 68%,
+        rgba(0,0,0,0.06) 69%, transparent 70%),
+      radial-gradient(ellipse 14px 8px at 22% 70%, rgba(92,60,22,0.55) 0%, transparent 70%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+  }
+  .link-btn.plank-sage {
+    border-color: #3c5238;
+    background:
+      linear-gradient(90deg,
+        transparent 0%, transparent 28%,
+        rgba(0,0,0,0.08) 29%, transparent 30%, transparent 57%,
+        rgba(0,0,0,0.07) 58%, transparent 59%, transparent 82%,
+        rgba(0,0,0,0.08) 83%, transparent 84%),
+      radial-gradient(ellipse 12px 7px at 72% 30%, rgba(145,100,55,0.75) 0%, transparent 70%),
+      radial-gradient(ellipse 10px 6px at 30% 78%, rgba(145,100,55,0.7) 0%, transparent 70%),
+      linear-gradient(180deg, #7ea063 0%, #5d7f4a 50%, #3f5d32 100%);
+  }
+  .link-btn.plank-sage:hover { transform: translateY(-2px) rotate(1.5deg); }
+
+  /* Foreground decorations — same as login. */
+  .foreground-dog {
+    position: absolute;
+    bottom: clamp(22px, 4cqh, 50px);
+    right: clamp(86px, 16cqw, 110px);
+    height: clamp(110px, 20cqh, 240px);
+    aspect-ratio: 1 / 1;
+    transform: scaleX(-1) rotate(3deg);
+    z-index: 6;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+    pointer-events: none;
+  }
+  .foreground-dog-body {
+    width: 100%; height: 100%;
+    display: block; position: relative; z-index: 2;
+  }
+  .foreground-dog-tail {
+    position: absolute;
+    left: 12.3%; top: 60.4%;
+    width: 20.1%; height: 25.2%;
+    z-index: 1;
+    transform-origin: 100% 67%;
+    animation: tailWag 0.55s ease-in-out infinite alternate;
+  }
+  @keyframes tailWag {
+    0%   { transform: rotate(-12deg); }
+    100% { transform: rotate(14deg); }
+  }
+
+  .zzz-stack {
+    position: absolute;
+    right: clamp(-2px, 0cqw, 6px);
+    top: clamp(-86px, -13cqh, -64px);
+    width: 70px; height: 70px;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .zzz-stack .zz {
+    position: absolute;
+    font-family: 'Kalam', 'Caveat', cursive;
+    font-weight: 700;
+    color: #c88436;
+    text-shadow: 1px 2px 0 rgba(255,255,255,0.7), 2px 3px 4px rgba(0,0,0,0.18);
+    opacity: 0;
+    animation: zzzRise 3s ease-in-out infinite;
+  }
+  .zzz-stack .zz1 { font-size: 12px; left: 4px;  bottom: 4px;  animation-delay: 0s; }
+  .zzz-stack .zz2 { font-size: 14px; left: 6px;  bottom: 4px;  animation-delay: 1s; }
+  .zzz-stack .zz3 { font-size: 18px; left: 16px; bottom: 18px; animation-delay: 2s; }
+  @keyframes zzzRise {
+    0%   { opacity: 0; transform: translate(0, 4px)   rotate(-8deg); }
+    20%  { opacity: 1; transform: translate(4px, -2px)  rotate(-4deg); }
+    60%  { opacity: 1; transform: translate(14px, -16px) rotate(2deg); }
+    100% { opacity: 0; transform: translate(24px, -32px) rotate(8deg); }
+  }
+
+  .foreground-fox {
+    position: absolute;
+    left: calc(50% - clamp(110px, 24cqw, 200px));
+    bottom: clamp(-8px, -1.5cqh, -2px);
+    height: clamp(95px, 14cqh, 135px);
+    width: auto;
+    z-index: 3;
+    pointer-events: none;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+    transform-origin: 50% 100%;
+    animation: foxPeek 8s ease-in-out infinite;
+  }
+  @keyframes foxPeek {
+    0%   { transform: translateY(40%) rotate(0deg); }
+    45%  { transform: translateY(-45%) rotate(-10deg); }
+    55%  { transform: translateY(-45%) rotate(-10deg); }
+    60%  { transform: translateY(40%) rotate(0deg); }
+    100% { transform: translateY(40%) rotate(0deg); }
+  }
+
+  .grass-clump {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(-8px, -1.5cqh, -2px);
+    transform: translateX(-50%);
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 4;
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.2));
+  }
+
+  .credits {
+    grid-area: credits;
+    padding: clamp(60px, 11cqh, 120px) 0 clamp(10px, 1.5cqh, 16px);
+    display: flex; flex-direction: column; align-items: center;
+    gap: clamp(2px, 0.4cqh, 4px);
+    position: relative; z-index: 5;
+    pointer-events: none;
+  }
+  .credit-scrawl {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(13px, 1.9cqh, 17px);
+    color: #2f6a32;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    opacity: 0.88;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+  }
+
+  /* Wide layout */
+  @container welcome (min-width: 900px) {
+    .welcome-content {
+      align-items: center;
+      justify-content: center;
+      padding-top: clamp(18px, 3cqh, 36px);
+    }
+    .signs-on-stake { padding-bottom: clamp(130px, 22cqh, 210px); }
+    .credits {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 0; height: 0;
+      display: block; pointer-events: none;
+      padding: 0;
+    }
+    .credit-scrawl {
+      position: absolute;
+      bottom: clamp(6px, 1.2cqh, 16px);
+      font-size: clamp(15px, 2.2cqh, 19px);
+      white-space: nowrap;
+      transform: rotate(-3deg);
+    }
+    .credit-left {
+      right: calc(50% + clamp(110px, 20cqw, 220px));
+      text-align: right;
+    }
+    .credit-right {
+      left: calc(50% + clamp(110px, 20cqw, 220px));
+      text-align: left;
+      transform: rotate(2deg);
+    }
+  }
+
+  /* iPhone — stack the polaroid cards vertically + shrink the cat. */
+  @container welcome (max-width: 420px) {
+    overflow-y: auto;
+    .welcome-content { padding-top: clamp(28px, 5cqh, 44px); }
+    .intro-cat {
+      height: clamp(54px, 9cqh, 70px);
+      top: clamp(-40px, -6cqh, -30px) !important;
+      bottom: auto !important;
+      right: clamp(8px, 2.5cqw, 14px) !important;
+    }
+    .signs-on-stake { padding-bottom: clamp(70px, 12cqh, 110px); }
+    .foreground-dog {
+      height: clamp(72px, 14cqh, 110px);
+      right: clamp(4px, 1cqw, 10px);
+      left: auto;
+    }
+    .foreground-fox {
+      height: clamp(80px, 14cqh, 115px);
+      left: calc(50% - clamp(95px, 22cqw, 130px));
+    }
+    /* Stack polaroid cards vertically — three side-by-side don't fit at
+       390px without cropping. */
+    .opts-cards {
+      flex-direction: column;
+      align-items: center;
+    }
+    .opt-card {
+      width: clamp(140px, 60cqw, 200px);
+      flex-direction: row;
+      align-items: center;
+      gap: clamp(10px, 2cqw, 14px);
+      padding: clamp(8px, 1.2cqh, 10px);
+    }
+    .opt-card-sprite { width: clamp(60px, 18cqw, 80px); aspect-ratio: 1/1; flex: 0 0 auto; }
+    .opt-card-tag { flex: 1; }
+
+    .credits {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: clamp(2px, 0.5cqh, 6px);
+      height: auto; padding: 0;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      gap: clamp(8px, 2cqw, 14px);
+      z-index: 8;
+    }
+    .credit-scrawl {
+      font-size: clamp(10px, 1.5cqh, 12px);
+      white-space: nowrap;
+      opacity: 0.7;
+    }
+  }
+
+  .device[data-size="desktop"] .welcome,
+  .device[data-size="ipad-l"] .welcome {
+    overflow-y: auto !important;
+  }
+</style>
+</head>
+<body>
+
+<div class="vp-bar">
+  <strong>Forgot-PIN mockup</strong>
+  <span>·</span>
+  <button data-size="iphone">📱 iPhone (390×844)</button>
+  <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
+  <button data-size="ipad-l">📱 iPad L (1024×768)</button>
+  <button data-size="desktop">🖥 Desktop (1280×800)</button>
+  <a href="/admin/mockup-login.html">→ Login mockup</a>
+  <span class="hint" id="stage-hint">stage A — answer 3 questions</span>
+</div>
+
+<div class="device-frame">
+  <div class="device" id="device" data-size="ipad-p">
+    <div class="welcome">
+      <div class="welcome-inner">
+
+        <div class="top-strip">
+          <button class="audio-btn" aria-label="Toggle sound">🔊</button>
+        </div>
+
+        <div class="welcome-content">
+          <div class="signs-on-stake">
+
+            <!-- Single sign — the contents swap by stage. The sign tilt
+                 + decoration stay constant; only the inner content
+                 fades + slides between questions / outcomes. -->
+            <div class="intro" id="sign">
+              <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+              <div class="zzz-stack" aria-hidden="true">
+                <span class="zz zz1">Z</span>
+                <span class="zz zz2">Z</span>
+                <span class="zz zz3">Z</span>
+              </div>
+              <div class="progress-chip hidden" id="progress-chip">1 of 3</div>
+              <div class="sign-content stage-fade" id="sign-content">
+                <!-- Filled in by JS depending on stage. -->
+              </div>
+            </div>
+
+            <div class="cta-stack">
+              <div class="secondary-row">
+                <button class="link-btn outlined" id="back-to-pin">← Back to PIN screen</button>
+              </div>
+            </div>
+
+            <img class="foreground-fox" src="/assets/animals/fox-red-sheltered.png" alt="">
+            <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
+          </div>
+        </div>
+
+        <div class="credits">
+          <span class="credit-scrawl credit-left">Designed by Lily age 8</span>
+          <span class="credit-scrawl credit-right">Built by Dad and Claude Code</span>
+        </div>
+      </div>
+
+      <div class="foreground-dog" aria-hidden="true">
+        <img class="foreground-dog-body" src="/assets/animals/dog-golden-sheltered-body.png" alt="">
+        <img class="foreground-dog-tail" src="/assets/animals/dog-golden-sheltered-tail.png" alt="">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Device-size toolbar ──
+  const device = document.getElementById('device');
+  for (const btn of document.querySelectorAll('.vp-bar button[data-size]')) {
+    btn.addEventListener('click', () => {
+      for (const b of document.querySelectorAll('.vp-bar button[data-size]')) b.classList.remove('on');
+      btn.classList.add('on');
+      device.dataset.size = btn.dataset.size;
+    });
+  }
+
+  // ── URL params ──
+  const params = new URLSearchParams(location.search);
+  const isEmbed = params.has('embed');
+  if (isEmbed) document.body.classList.add('embed');
+  const send = (type, payload) => {
+    if (!isEmbed) return;
+    try { parent.postMessage({ source: 'arc-auth', type, payload }, '*'); } catch (_) {}
+  };
+
+  const initialStage      = params.get('stage') || 'A';     // A | pass | hint | parent
+  const forceCorrect      = params.get('force-correct');     // '0' .. '3' or null
+  const usernameParam     = params.get('username') || 'Lily';
+  const attemptIndexParam = parseInt(params.get('attempt') || '0', 10);
+  const hintParam         = params.get('hint') || "the day my puppy was born";
+
+  // ── Default RecoverySnapshot (covers all 6 question kinds) ──
+  let snapshot = {
+    username: usernameParam,
+    attemptIndex: attemptIndexParam,
+    early: {
+      signupAvatar: '🦊',
+      firstAnimalName: 'Marmalade',
+      firstAnimalSpecies: 'cat',
+      firstAnimalSpriteSrc: '/assets/animals/cat-ginger-sheltered.png',
+    },
+    adopters: {
+      recentlyPlacedIds: ['hh-baker-family'],
+      householdLabels: {
+        'hh-baker-family': 'The Baker family',
+        'hh-glen-flat': 'Glen at flat 4',
+        'hh-pickle-farm': 'Pickle Farm',
+        'hh-mrs-iqbal': 'Mrs Iqbal next door',
+        'hh-tomascos': 'The Tomasco twins',
+      },
+    },
+    apprentices: {
+      apprentices: [
+        { id: 'rhubarb', recruitedAt: 1700000000 },
+      ],
+      // The slice has more shape than this in real game-state; the
+      // builder only reads .apprentices for our purposes.
+    },
+    charms: {
+      // 3 unlocked + plenty of locked → the "which have you NOT
+      // unlocked" question can be built.
+      unlockedCharms: ['bone', 'lucky-teddy', 'bicycle-bell'],
+    },
+  };
+
+  let pinHint = hintParam;
+
+  // ─────────────────────────────────────────────────────────────
+  // Inlined from packages/game-logic/src/forgot-pin.ts buildRecoveryQuestions — keep in sync.
+  // (Admin pages are static HTML — no module loader.)
+
+  const SIGNUP_AVATAR_POOL = ['🦊', '🐱', '🐰', '🐶', '🦇', '🦜', '🐍', '🦔'];
+  const SPECIES_POOL = ['cat', 'dog', 'fox', 'bunny', 'bat', 'parrot', 'snake'];
+  const FIRST_ANIMAL_NAME_DISTRACTORS = [
+    'Pip', 'Scout', 'Marbles', 'Biscuit', 'Pickle', 'Honey', 'Daisy',
+    'Sprout', 'Tilly', 'Rufus', 'Nutmeg', 'Coco', 'Smudge', 'Bumble',
+    'Willow', 'Ziggy', 'Pepper', 'Mochi', 'Fern', 'Toffee',
+  ];
+
+  // Mirror of APPRENTICE_DEFS (id → name) so the apprentice question
+  // can resolve names without importing the full def. Keep in sync
+  // with packages/game-logic/src/apprentices.ts.
+  const APPRENTICE_DEFS = {
+    rhubarb: { name: 'Rhubarb' },
+    amara:   { name: 'Amara' },
+    kofi:    { name: 'Kofi' },
+  };
+
+  // Mirror of CHARMS (id → label) — keep in sync with charms.ts. We
+  // only need .label for the question prompt.
+  const CHARMS = {
+    'bone':                       { label: 'Bone' },
+    'lucky-teddy':                { label: 'Lucky Teddy' },
+    'bicycle-bell':               { label: 'Bicycle Bell' },
+    'hedgehog-plushie':           { label: 'Hedgehog Plushie' },
+    'arc-pawprint-medal':         { label: 'A.R.C. Pawprint Medal' },
+    'silver-horseshoe':           { label: 'Silver Horseshoe' },
+    'viking-longship':            { label: 'Viking Longship' },
+    'goose-end-farm-feather':     { label: 'Goose-End-Farm Feather' },
+    'fox-tail':                   { label: 'Fox Tail' },
+    'treble-clef':                { label: 'Treble Clef' },
+    'miniature-alpaca':           { label: 'Miniature Alpaca' },
+    'painted-pickle-the-cat':     { label: 'Painted Pickle the Cat' },
+    'chequered-flag-pin':         { label: 'Chequered Flag Pin' },
+    'carrot':                     { label: 'Carrot' },
+    'reflective-safety-star':     { label: 'Reflective Safety Star' },
+    'golden-driving-medal':       { label: 'Golden Driving Medal' },
+    'smiley-poop':                { label: 'Smiley Poop' },
+  };
+
+  function hashSeed(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = (h * 16777619) >>> 0;
+    }
+    return h >>> 0;
+  }
+  function mulberry32(seed) {
+    let t = seed >>> 0;
+    return () => {
+      t = (t + 0x6d2b79f5) >>> 0;
+      let r = t;
+      r = Math.imul(r ^ (r >>> 15), r | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function shuffleSeeded(arr, rng) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function takeRandom(arr, n, rng) { return shuffleSeeded(arr, rng).slice(0, n); }
+
+  function canAskSignupAvatar(s) {
+    const e = s.early?.signupAvatar; return !!e && SIGNUP_AVATAR_POOL.includes(e);
+  }
+  function canAskFirstAnimalName(s) {
+    const name = s.early?.firstAnimalName?.trim(); if (!name) return false;
+    const d = FIRST_ANIMAL_NAME_DISTRACTORS.filter((n) => n.toLowerCase() !== name.toLowerCase());
+    return d.length >= 3;
+  }
+  function canAskFirstAnimalSpecies(s) {
+    const sp = s.early?.firstAnimalSpecies; return !!sp && SPECIES_POOL.includes(sp);
+  }
+  function canAskAdopter(s) {
+    if (!s.adopters) return false;
+    const recent = s.adopters.recentlyPlacedIds;
+    if (!recent || recent.length < 1) return false;
+    const labels = s.adopters.householdLabels;
+    return Object.keys(labels).filter((id) => id !== recent[0]).length >= 3;
+  }
+  function canAskApprentice(s) {
+    return (s.apprentices?.apprentices ?? []).length >= 1;
+  }
+  function canAskCharm(s) {
+    if (!s.charms) return false;
+    const all = Object.keys(CHARMS);
+    const unlocked = new Set(s.charms.unlockedCharms);
+    const locked = all.filter((c) => !unlocked.has(c));
+    return locked.length >= 1 && all.length - locked.length >= 3;
+  }
+
+  function buildSignupAvatarQ(s, rng) {
+    const correct = s.early.signupAvatar;
+    const distractors = takeRandom(SIGNUP_AVATAR_POOL.filter((e) => e !== correct), 3, rng);
+    if (distractors.length < 3) return null;
+    const options = shuffleSeeded([correct, ...distractors], rng);
+    return { id: 'q-signup-avatar', prompt: 'Which animal did you pick when you signed up?', options, correct: options.indexOf(correct) };
+  }
+  function buildFirstAnimalNameQ(s, rng) {
+    const correct = s.early.firstAnimalName.trim();
+    const pool = FIRST_ANIMAL_NAME_DISTRACTORS.filter((n) => n.toLowerCase() !== correct.toLowerCase());
+    const distractors = takeRandom(pool, 2, rng);
+    if (distractors.length < 2) return null;
+    const options = shuffleSeeded([correct, ...distractors], rng);
+    const sprite = s.early?.firstAnimalSpriteSrc;
+    return {
+      id: 'q-first-animal-name',
+      prompt: sprite ? 'Which one is your first pet? (Tap the right name tag.)' : "What was your very first animal's name?",
+      options,
+      correct: options.indexOf(correct),
+      display: sprite ? 'cards' : 'text',
+      sharedSprite: sprite,
+    };
+  }
+  function buildFirstAnimalSpeciesQ(s, rng) {
+    const correct = s.early.firstAnimalSpecies;
+    const distractors = takeRandom(SPECIES_POOL.filter((sp) => sp !== correct), 3, rng);
+    if (distractors.length < 3) return null;
+    const cap = (sp) => sp.charAt(0).toUpperCase() + sp.slice(1);
+    const options = shuffleSeeded([correct, ...distractors], rng).map(cap);
+    return { id: 'q-first-animal-species', prompt: 'What kind of animal was the FIRST one to arrive?', options, correct: options.indexOf(cap(correct)) };
+  }
+  function buildAdopterQ(s, rng) {
+    const a = s.adopters;
+    const correctId = a.recentlyPlacedIds[0];
+    const correctLabel = a.householdLabels[correctId];
+    if (!correctLabel) return null;
+    const pool = Object.entries(a.householdLabels).filter(([id]) => id !== correctId).map(([, l]) => l);
+    const distractors = takeRandom(pool, 3, rng);
+    if (distractors.length < 3) return null;
+    const options = shuffleSeeded([correctLabel, ...distractors], rng);
+    return { id: 'q-recently-placed-adopter', prompt: 'Who did you most recently send your animal home with?', options, correct: options.indexOf(correctLabel) };
+  }
+  function buildApprenticeQ(s, rng) {
+    const recruited = s.apprentices.apprentices;
+    if (recruited.length < 1) return null;
+    const sorted = [...recruited].sort((a, b) => b.recruitedAt - a.recruitedAt);
+    const correctId = sorted[0].id;
+    const correctName = APPRENTICE_DEFS[correctId]?.name;
+    if (!correctName) return null;
+    const distractorNames = Object.keys(APPRENTICE_DEFS).filter((id) => id !== correctId).map((id) => APPRENTICE_DEFS[id].name);
+    const options = shuffleSeeded([correctName, ...distractorNames], rng);
+    return { id: 'q-bonded-apprentice', prompt: 'Which apprentice did you most recently welcome to the centre?', options, correct: options.indexOf(correctName) };
+  }
+  function buildCharmQ(s, rng) {
+    const unlocked = new Set(s.charms.unlockedCharms);
+    const all = Object.keys(CHARMS);
+    const lockedIds = all.filter((id) => !unlocked.has(id));
+    const unlockedIds = all.filter((id) => unlocked.has(id));
+    if (lockedIds.length < 1 || unlockedIds.length < 3) return null;
+    const correctId = takeRandom(lockedIds, 1, rng)[0];
+    const distractorIds = takeRandom(unlockedIds, 3, rng);
+    const correctLabel = CHARMS[correctId].label;
+    const distractorLabels = distractorIds.map((id) => CHARMS[id].label);
+    const options = shuffleSeeded([correctLabel, ...distractorLabels], rng);
+    return { id: 'q-locked-charm', prompt: 'Which of these charms have you NOT unlocked yet?', options, correct: options.indexOf(correctLabel) };
+  }
+
+  function buildOne(kind, s, rng) {
+    if (kind === 'signup-avatar')           return buildSignupAvatarQ(s, rng);
+    if (kind === 'first-animal-name')       return buildFirstAnimalNameQ(s, rng);
+    if (kind === 'first-animal-species')    return buildFirstAnimalSpeciesQ(s, rng);
+    if (kind === 'recently-placed-adopter') return buildAdopterQ(s, rng);
+    if (kind === 'bonded-apprentice')       return buildApprenticeQ(s, rng);
+    if (kind === 'locked-charm')            return buildCharmQ(s, rng);
+    return null;
+  }
+
+  function buildRecoveryQuestions(snap) {
+    const seed = hashSeed(`${snap.username}::${snap.attemptIndex}`);
+    const rng = mulberry32(seed);
+    const candidates = [];
+    if (canAskSignupAvatar(snap))        candidates.push('signup-avatar');
+    if (canAskFirstAnimalName(snap))     candidates.push('first-animal-name');
+    if (canAskFirstAnimalSpecies(snap))  candidates.push('first-animal-species');
+    if (canAskAdopter(snap))             candidates.push('recently-placed-adopter');
+    if (canAskApprentice(snap))          candidates.push('bonded-apprentice');
+    if (canAskCharm(snap))               candidates.push('locked-charm');
+    const order = shuffleSeeded(candidates, rng);
+    const picks = order.slice(0, 3);
+    const out = [];
+    for (const kind of picks) {
+      const q = buildOne(kind, snap, rng);
+      if (q) out.push(q);
+    }
+    return out;
+  }
+
+  function scoreRecovery(questions, answers) {
+    let correct = 0;
+    for (let i = 0; i < questions.length; i++) {
+      if (answers[i] === questions[i].correct) correct++;
+    }
+    if (questions.length === 0) return { kind: 'fall-through-to-hint', correctCount: 0 };
+    if (correct === questions.length) return { kind: 'pass', correctCount: correct };
+    if (correct >= Math.ceil(questions.length * 0.5)) return { kind: 'fall-through-to-hint', correctCount: correct };
+    return { kind: 'parent-help', correctCount: correct };
+  }
+  // ─────────────────────────────────────────────────────────────
+
+  // ── State ──
+  let questions = buildRecoveryQuestions(snapshot);
+  let qIndex = 0;
+  let answers = []; // index per question, -1 if skipped
+
+  // ── Render helpers ──
+  const signEl = document.getElementById('sign');
+  const contentEl = document.getElementById('sign-content');
+  const progressChip = document.getElementById('progress-chip');
+  const stageHint = document.getElementById('stage-hint');
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  function transitionTo(html, opts = {}) {
+    contentEl.classList.remove('stage-fade');
+    contentEl.classList.add('stage-leaving');
+    setTimeout(() => {
+      contentEl.innerHTML = html;
+      contentEl.classList.remove('stage-leaving');
+      // Force reflow so the fade-in plays again.
+      void contentEl.offsetWidth;
+      contentEl.classList.add('stage-fade');
+      if (typeof opts.afterMount === 'function') opts.afterMount();
+    }, 280);
+  }
+
+  function renderQuestion(idx) {
+    const q = questions[idx];
+    if (!q) {
+      // No questions → straight to hint flow.
+      finishWithVerdict({ kind: 'fall-through-to-hint', correctCount: 0 });
+      return;
+    }
+    progressChip.classList.remove('hidden');
+    progressChip.textContent = `${idx + 1} of ${questions.length}`;
+    stageHint.textContent = `stage A — question ${idx + 1} of ${questions.length}`;
+
+    const isFirst = idx === 0;
+    let header = '';
+    if (isFirst) {
+      header = `
+        <div class="sign-title-row">
+          <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+          <div class="sign-title">Help me remember!</div>
+        </div>
+        <div class="sign-subtitle">Answer these about you and your animals — they'll help us let you back in.</div>
+      `;
+    }
+
+    let body = `<div class="q-prompt">${escapeHtml(q.prompt)}</div>`;
+    if (q.display === 'cards' && q.sharedSprite) {
+      body += `<div class="opts-cards">`;
+      for (let i = 0; i < q.options.length; i++) {
+        const opt = q.options[i];
+        body += `
+          <button class="opt-card" data-i="${i}">
+            <img class="opt-card-sprite" src="${escapeHtml(q.sharedSprite)}" alt="">
+            <span class="opt-card-tag">${escapeHtml(opt)}</span>
+          </button>
+        `;
+      }
+      body += `</div>`;
+    } else {
+      body += `<div class="opts">`;
+      for (let i = 0; i < q.options.length; i++) {
+        const opt = q.options[i];
+        const variant = i % 2 === 0 ? 'opt-amber' : 'opt-sage';
+        body += `<button class="opt-btn ${variant}" data-i="${i}">${escapeHtml(opt)}</button>`;
+      }
+      body += `</div>`;
+    }
+
+    transitionTo(header + body, {
+      afterMount: () => {
+        contentEl.querySelectorAll('[data-i]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const picked = parseInt(btn.dataset.i, 10);
+            answers[idx] = picked;
+            qIndex = idx + 1;
+            if (qIndex < questions.length) {
+              renderQuestion(qIndex);
+            } else {
+              // 400ms suspense pause before scoring.
+              setTimeout(() => {
+                let verdict;
+                if (forceCorrect != null) {
+                  // Override scoring for design-review previews.
+                  const n = parseInt(forceCorrect, 10);
+                  if (questions.length === 0) {
+                    verdict = { kind: 'fall-through-to-hint', correctCount: 0 };
+                  } else if (n >= questions.length) {
+                    verdict = { kind: 'pass', correctCount: questions.length };
+                  } else if (n >= Math.ceil(questions.length * 0.5)) {
+                    verdict = { kind: 'fall-through-to-hint', correctCount: n };
+                  } else {
+                    verdict = { kind: 'parent-help', correctCount: n };
+                  }
+                } else {
+                  verdict = scoreRecovery(questions, answers);
+                }
+                finishWithVerdict(verdict);
+              }, 400);
+            }
+          });
+        });
+      },
+    });
+  }
+
+  function finishWithVerdict(verdict) {
+    if (verdict.kind === 'pass') renderPass();
+    else if (verdict.kind === 'fall-through-to-hint') renderHint();
+    else renderParentHelp();
+  }
+
+  function renderPass() {
+    progressChip.classList.add('hidden');
+    stageHint.textContent = 'stage B-pass — celebration + new PIN';
+    const html = `
+      <div class="sign-title-row">
+        <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+        <div class="sign-title">You did it! 🌿</div>
+      </div>
+      <div class="sign-subtitle">Let's pick a new secret code.</div>
+      <button class="action-plank" id="pick-new-code">
+        <span>Pick a new code →</span>
+      </button>
+    `;
+    transitionTo(html, {
+      afterMount: () => {
+        document.getElementById('pick-new-code')?.addEventListener('click', () => {
+          send('recovery-pass', { username: snapshot.username });
+        });
+      },
+    });
+  }
+
+  function renderHint() {
+    progressChip.classList.add('hidden');
+    stageHint.textContent = 'stage B-hint — show the PIN hint';
+    const html = `
+      <div class="sign-title-row">
+        <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+        <div class="sign-title">Almost! Need a clue?</div>
+      </div>
+      <div class="sign-subtitle">Here's the hint you wrote when you set your secret code.</div>
+      <div class="hint-card" id="hint-card">${escapeHtml(pinHint)}</div>
+      <div class="opts">
+        <button class="opt-btn opt-amber" id="i-remember">I remember now! →</button>
+        <button class="opt-btn opt-sage" id="ask-grownup">Still don't know — ask a grown-up</button>
+      </div>
+    `;
+    transitionTo(html, {
+      afterMount: () => {
+        document.getElementById('i-remember')?.addEventListener('click', () => {
+          send('recovery-hint-resolved', { username: snapshot.username });
+        });
+        document.getElementById('ask-grownup')?.addEventListener('click', () => {
+          renderParentHelp();
+        });
+      },
+    });
+  }
+
+  function renderParentHelp() {
+    progressChip.classList.add('hidden');
+    stageHint.textContent = 'stage B-parent — ask a grown-up';
+    const html = `
+      <div class="sign-title-row">
+        <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+        <div class="sign-title">Let's ask a grown-up to help you in.</div>
+      </div>
+      <div class="sign-subtitle">They can help you make a new secret code.</div>
+      <button class="action-plank" id="show-parent">
+        <span>Show grown-up screen</span>
+      </button>
+    `;
+    transitionTo(html, {
+      afterMount: () => {
+        document.getElementById('show-parent')?.addEventListener('click', () => {
+          send('recovery-parent-help', { username: snapshot.username });
+        });
+      },
+    });
+  }
+
+  // ── Boot — pick the initial stage from URL params. ──
+  function startStage(stage) {
+    if (stage === 'pass')   { renderPass(); return; }
+    if (stage === 'hint')   { renderHint(); return; }
+    if (stage === 'parent') { renderParentHelp(); return; }
+    // Default: stage A from question 0.
+    qIndex = 0;
+    answers = [];
+    if (questions.length === 0) {
+      // No game state → fallthrough to hint immediately.
+      renderHint();
+      return;
+    }
+    renderQuestion(0);
+  }
+  startStage(initialStage);
+
+  // ── Back to PIN ──
+  document.getElementById('back-to-pin')?.addEventListener('click', () => {
+    send('recovery-cancel', { username: snapshot.username });
+  });
+
+  // ── Embed-mode handshake ──
+  function rebuildWithSnapshot(s) {
+    snapshot = s;
+    questions = buildRecoveryQuestions(snapshot);
+    startStage(initialStage);
+  }
+  function setHint(h) {
+    pinHint = h;
+    const card = document.getElementById('hint-card');
+    if (card) card.textContent = h;
+  }
+  window.addEventListener('message', (e) => {
+    if (e.data?.source !== 'arc-auth-host') return;
+    if (e.data.type === 'init' && e.data.payload?.snapshot) rebuildWithSnapshot(e.data.payload.snapshot);
+    if (e.data.type === 'init' && e.data.payload?.hint) setHint(e.data.payload.hint);
+  });
+</script>
+</body>
+</html>
