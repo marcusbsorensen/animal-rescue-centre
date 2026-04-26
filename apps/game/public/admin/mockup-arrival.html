@@ -640,6 +640,105 @@
     margin-bottom: clamp(4px, 0.8cqh, 8px);
   }
 
+  /* Painted red drawing-pin sticker — borrowed from mockup-signup.html.
+     Used to show validateAnimalName errors over the plaque. */
+  .error-sticker {
+    position: absolute;
+    left: 50%;
+    top: 36%;
+    transform: translate(-50%, -50%) rotate(-3deg) scale(0.7);
+    background: linear-gradient(180deg, #d8453a 0%, #b13228 70%, #8c2a22 100%);
+    color: #fffbe8;
+    padding: 14px 28px;
+    border: 3px solid #6e1c14;
+    border-radius: 10px;
+    box-shadow:
+      0 6px 16px rgba(0,0,0,0.35),
+      inset 0 2px 0 rgba(255,255,255,0.25),
+      inset 0 -2px 0 rgba(0,0,0,0.3);
+    font-family: 'Kalam', 'Caveat', cursive;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.2;
+    text-align: center;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
+    max-width: 80%;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 30;
+    transition: opacity 0.2s, transform 0.3s cubic-bezier(.34,1.56,.64,1);
+  }
+  .error-sticker::before {
+    content: '';
+    position: absolute;
+    top: -7px; left: 12px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #f8e8a0 0%, #c79b45 60%, #6a4a10 100%);
+    border: 1px solid rgba(0,0,0,0.45);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .error-sticker.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-3deg) scale(1);
+  }
+
+  /* Brief shake on the name-tag input when validation fails */
+  @keyframes nametagShake {
+    10%, 90% { transform: rotate(-0.6deg) translateX(-2px); }
+    20%, 80% { transform: rotate(-0.6deg) translateX(3px); }
+    30%, 50%, 70% { transform: rotate(-0.6deg) translateX(-6px); }
+    40%, 60% { transform: rotate(-0.6deg) translateX(6px); }
+  }
+  .nametag-input-wrap.shake { animation: nametagShake 0.45s cubic-bezier(.36,.07,.19,.97); }
+
+  /* Step-3 polaroid frame — painted cream border with photo + name tag inside */
+  .photo-title {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    font-size: clamp(16px, 2.4cqh, 20px);
+    text-align: center;
+    line-height: 1.25;
+    margin-bottom: clamp(4px, 0.8cqh, 8px);
+  }
+  /* Wrap the animal+tag in a permanent painted polaroid frame in step 3 */
+  .photo-anim-wrap.polaroid {
+    padding: clamp(8px, 1.2cqh, 12px) clamp(8px, 1.2cqw, 12px) clamp(20px, 3cqh, 28px);
+    background: #fffaf0;
+    border: 4px solid #fff;
+    box-shadow:
+      0 0 0 2px #8a5a2a,
+      0 8px 20px rgba(0,0,0,0.5),
+      inset 0 0 14px rgba(0,0,0,0.05);
+    border-radius: 4px;
+    transform: rotate(-1.5deg);
+  }
+
+  /* Second polaroid that bounces in centre after the first flies to the wall */
+  @keyframes polaroidBounce {
+    0%   { transform: rotate(-1.5deg) scale(0.4); opacity: 0; }
+    60%  { transform: rotate(-1.5deg) scale(1.08); opacity: 1; }
+    80%  { transform: rotate(-1.5deg) scale(0.96); }
+    100% { transform: rotate(-1.5deg) scale(1); opacity: 1; }
+  }
+  .photo-anim-wrap.bounce-in { animation: polaroidBounce 0.65s cubic-bezier(.34,1.56,.64,1); }
+
+  .pinned-label {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(15px, 2.2cqh, 19px);
+    color: #fff5d4;
+    text-align: center;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    line-height: 1.25;
+    margin-top: clamp(6px, 1cqh, 10px);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .pinned-label.visible { opacity: 1; }
+
 </style>
 </head>
 <body>
@@ -652,7 +751,7 @@
   <button data-size="ipad-l">📱 iPad L</button>
   <button data-size="desktop">🖥 Desktop</button>
   <span>·</span>
-  <button id="toggleFirst">🐣 First arrival</button>
+  <button id="toggleFirst">🐣 First-arrival mode</button>
   <span class="hint">(delivery-box flag · single arrival sprite)</span>
 </div>
 
@@ -704,7 +803,7 @@
           <div class="first-arrival-step" id="step-name">
             <img class="arrival-anim-mini" id="firstArrivalAnimMini"
                  src="/assets/animals/cat-ginger-arriving.png" alt="">
-            <div class="nametag-input-wrap">
+            <div class="nametag-input-wrap" id="nametagWrap">
               <input type="text"
                      class="nametag-input"
                      id="petNameInput"
@@ -714,36 +813,41 @@
                      spellcheck="false"
                      aria-label="Pet name">
             </div>
-            <button class="btn-primary-sm" id="saveNameBtn">Save name</button>
+            <button class="btn-primary-sm" id="saveNameBtn">That's their name! →</button>
           </div>
 
           <div class="first-arrival-step" id="step-anchor">
             <div class="anchor-message">
-              Lovely! Remember
-              <span class="anchor-name" id="anchorNameSpan"></span>
-              — if you ever forget your secret code,
-              <span class="anchor-name" id="anchorNameSpan2"></span>
-              will help you get back in!
+              Remember
+              <span class="anchor-name" id="anchorNameSpan"></span>'s name!
+              <br>
+              <span style="font-size:0.85em;opacity:0.95;display:inline-block;margin-top:6px">
+                If you ever forget your secret code,
+                <span class="anchor-name" id="anchorNameSpan2" style="font-size:1em"></span>
+                will help you get back in.
+              </span>
             </div>
-            <button class="btn-primary-sm green" id="goPhotoBtn">
-              Let's take a photo →
-            </button>
+            <button class="btn-primary-sm green" id="goPhotoBtn">Got it →</button>
           </div>
 
           <div class="first-arrival-step" id="step-photo">
+            <div class="photo-title" id="photoTitle">Let's take a photo of Pet for your wall!</div>
             <div class="photo-scene">
-              <div class="photo-anim-wrap" id="photoAnimWrap">
+              <div class="photo-anim-wrap polaroid" id="photoAnimWrap">
                 <img class="photo-anim" id="photoAnim"
                      src="/assets/animals/cat-ginger-arriving.png" alt="">
                 <div class="photo-nametag" id="photoNametag">Pet</div>
                 <div class="flash-overlay" id="flashOverlay"></div>
               </div>
             </div>
+            <div class="pinned-label" id="pinnedLabel">
+              Pinned to your wall — you can take more photos any time!
+            </div>
             <button class="btn-primary-sm green" id="snapBtn">
-              <span style="font-size:1.3em;line-height:1">📸</span> Snap!
+              <span style="font-size:1.3em;line-height:1">📷</span> SNAP!
             </button>
             <button class="btn-primary-sm" id="finishBtn" style="display:none">
-              <span id="finishLabel">Take care of Pet</span>
+              Continue →
             </button>
           </div>
 
@@ -821,7 +925,7 @@
 
   function showError(message) {
     // Reuse the .error-sticker pattern from mockup-signup.html — paint
-    // a fresh sticker, drop it into the plaque, auto-remove after 2.6s.
+    // a fresh sticker, drop it into the plaque, auto-remove after 4s.
     const old = plaque.querySelector('.error-sticker');
     if (old) old.remove();
     const sticker = document.createElement('div');
@@ -831,17 +935,24 @@
     // Force reflow so the transition plays
     void sticker.offsetWidth;
     sticker.classList.add('show');
+    // Shake the name-tag input to draw the eye to the field that failed
+    const wrap = document.getElementById('nametagWrap');
+    if (wrap) {
+      wrap.classList.remove('shake');
+      void wrap.offsetWidth;
+      wrap.classList.add('shake');
+    }
     setTimeout(() => {
       sticker.classList.remove('show');
       setTimeout(() => sticker.remove(), 350);
-    }, 2600);
+    }, 4000);
   }
 
   function enterFirstArrivalMode(opts = {}) {
     plaque.classList.add('first-arrival');
-    document.querySelector('.arrival-title').textContent = 'A new arrival!';
+    document.querySelector('.arrival-title').textContent = 'A new friend!';
     document.getElementById('arrivalSubtitle').textContent =
-      'Your first rescue is here! What should we call them?';
+      "This little one doesn't have a name yet. Let's give them one!";
     // Hide the big arrival-scene sprite — step-name has its own mini sprite
     document.querySelector('.arrival-scene').style.display = 'none';
     showStep(stepName);
@@ -870,7 +981,8 @@
     document.getElementById('anchorNameSpan').textContent = chosenName;
     document.getElementById('anchorNameSpan2').textContent = chosenName;
     document.getElementById('photoNametag').textContent = chosenName;
-    document.getElementById('finishLabel').textContent = `Take care of ${chosenName}`;
+    document.getElementById('photoTitle').textContent =
+      `Let's take a photo of ${chosenName} for your wall!`;
     showStep(stepAnchor);
   });
   // Submit on Enter
@@ -886,12 +998,15 @@
     showStep(stepPhoto);
   });
 
-  // Step 3 — Snap! (flash → freeze → fly to memory wall)
+  // Step 3 — Snap! (flash → fly polaroid to wall → bounce a second
+  // polaroid into centre to represent "the new photo on the wall")
   document.getElementById('snapBtn').addEventListener('click', () => {
     const wrap = document.getElementById('photoAnimWrap');
     const flash = document.getElementById('flashOverlay');
     const snapBtn = document.getElementById('snapBtn');
     const finishBtn = document.getElementById('finishBtn');
+    const photoScene = document.querySelector('.photo-scene');
+    const pinnedLabel = document.getElementById('pinnedLabel');
     snapBtn.disabled = true;
 
     // 1) White flashbulb
@@ -899,60 +1014,104 @@
     void flash.offsetWidth;
     flash.classList.add('flashing');
 
-    // 2) After flash peak, freeze into a painted-photo-frame
+    // 2) Press feedback: tiny scale-down on the snap btn
+    snapBtn.style.transition = 'transform 0.1s';
+    snapBtn.style.transform = 'rotate(0.6deg) scale(0.95)';
     setTimeout(() => {
-      wrap.classList.add('captured');
-    }, 200);
+      snapBtn.style.transform = 'rotate(0.6deg) scale(1)';
+    }, 150);
 
-    // 3) Compute flight target (center of memory-wall) and fly there
+    // 3) Polaroid lifts and flies up + right to the implied wall corner.
+    //    Spring easing, -8deg tilt, scale 0.6, ~120px up + right.
     setTimeout(() => {
-      const wrapRect = wrap.getBoundingClientRect();
-      const wallRect = memoryWall.getBoundingClientRect();
-      const dx = (wallRect.left + wallRect.width / 2) - (wrapRect.left + wrapRect.width / 2);
-      const dy = (wallRect.top + wallRect.height / 2) - (wrapRect.top + wrapRect.height / 2);
-      const scale = Math.min(wallRect.width / wrapRect.width, wallRect.height / wrapRect.height) * 0.85;
-      wrap.style.transform = `translate(${dx}px, ${dy}px) rotate(2deg) scale(${scale})`;
-      wrap.style.opacity = '0.0';
-    }, 700);
+      wrap.style.transition =
+        'transform 0.7s cubic-bezier(.34,1.56,.64,1), opacity 0.6s ease';
+      wrap.style.transform = 'translate(120px, -120px) rotate(-8deg) scale(0.6)';
+    }, 300);
 
-    // 4) Drop the photo into the memory wall + show finish CTA
+    // 4) Drop into the memory wall (corner frame) + spawn the second
+    //    polaroid that "represents" the now-pinned photo, bouncing in
+    //    centre. Show the pinned label + Continue CTA.
     setTimeout(() => {
       memoryPhoto.src = petSpriteSrc;
       memoryPhoto.classList.add('visible');
       memoryWall.classList.add('has-photo');
+
+      // Hide the original (it has "settled" on the wall)
+      wrap.style.opacity = '0';
+
+      // Build the second polaroid in the centre
+      const second = document.createElement('div');
+      second.className = 'photo-anim-wrap polaroid bounce-in';
+      second.id = 'photoAnimWrap2';
+      const img = document.createElement('img');
+      img.className = 'photo-anim';
+      img.src = petSpriteSrc;
+      img.alt = '';
+      const tag = document.createElement('div');
+      tag.className = 'photo-nametag';
+      tag.textContent = chosenName;
+      second.appendChild(img);
+      second.appendChild(tag);
+      photoScene.appendChild(second);
+
+      pinnedLabel.classList.add('visible');
       snapBtn.style.display = 'none';
       finishBtn.style.display = '';
-    }, 1500);
+    }, 1100);
   });
 
-  // Step 3 — Finish (postMessage → host)
+  // Step 3 — Continue (postMessage → host using spec'd shape)
   document.getElementById('finishBtn').addEventListener('click', () => {
     const payload = {
       petName: chosenName,
-      petSpecies: petSpecies,
-      petSpriteSrc: petSpriteSrc,
-      photoTakenAt: Date.now(),
+      animalSpecies: petSpecies,
+      photoTakenAt: new Date().toISOString(),
     };
-    try {
-      parent.postMessage({
-        source: 'arc-game',
-        type: 'first-arrival-complete',
-        payload: payload,
-      }, '*');
-    } catch (_) {}
-    // For the mockup (non-embed), surface what we sent so the dev can
-    // see it without needing devtools.
-    if (!document.body.classList.contains('embed')) {
+    if (document.body.classList.contains('embed')) {
+      try {
+        parent.postMessage({
+          source: 'arc-arrival',
+          type: 'first-arrival-complete',
+          payload: payload,
+        }, '*');
+      } catch (_) {}
+    } else {
+      // Design-review without ?embed=1 — log so dev can see the payload
       console.log('[mockup-arrival] first-arrival-complete →', payload);
     }
   });
 
-  // vp-bar toggle: jump straight into first-arrival mode for testing
+  // Forced-flow guard: Esc on beat 2 / 3 should not close — first
+  // arrival is non-skippable. Warn instead.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!plaque.classList.contains('first-arrival')) return;
+    if (stepAnchor.classList.contains('active') ||
+        stepPhoto.classList.contains('active')) {
+      e.preventDefault();
+      console.warn('first-arrival cannot be skipped');
+    }
+  });
+
+  // vp-bar toggle: flip ?first=1 on the URL and reload so the design
+  // review can preview both arrival modes without manually editing the
+  // address bar.
+  (function syncToggleState() {
+    const btn = document.getElementById('toggleFirst');
+    if (new URLSearchParams(location.search).has('first')) {
+      btn.classList.add('on');
+    }
+  })();
   document.getElementById('toggleFirst').addEventListener('click', () => {
-    enterFirstArrivalMode({
-      species: 'cat',
-      spriteSrc: '/assets/animals/cat-ginger-arriving.png',
-    });
+    const params = new URLSearchParams(location.search);
+    if (params.has('first')) {
+      params.delete('first');
+    } else {
+      params.set('first', '1');
+    }
+    const qs = params.toString();
+    location.search = qs ? '?' + qs : '';
   });
 
   // URL ?first=1 also enables it for sharable preview links
