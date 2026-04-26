@@ -284,27 +284,31 @@ export function validatePinHint(
  * Returns 4 ideas drawn from the full pool, keyed by the seed.
  */
 export function getHintIdeas(seed: string): string[] {
+  // Hints must map to FOUR DIGITS — the PIN is numeric, so the kid's
+  // hint needs to point at a number they'll remember, not a feeling
+  // or a word. Each prompt below resolves to digits via dates, ages,
+  // counts, addresses, jersey numbers, doubled-up numbers, etc.
   const pool = [
-    "something only you and your pet know",
-    "your favourite colour, but mixed up",
-    "what you'd shout if you saw a dragon",
-    "the silliest word you can think of",
-    "the smell of your favourite breakfast",
-    "where you hide when you don't want to be found",
-    "the magic word from your favourite book",
-    "the noise your happiest pet makes",
-    "the rule you wish grown-ups would follow",
-    "the song stuck in your head right now",
-    "your made-up word for being super cosy",
-    "a thing you can see from your bedroom window",
-    "what your toy would say if it could talk",
-    "the bravest thing you've ever done",
-    "the recipe for your perfect sandwich",
-    "the place you go in your daydreams",
-    "the worst flavour of ice cream",
-    "what colour Wednesday feels like",
-    "your secret code-name for grown-ups",
-    "the silliest thing you nearly said out loud today",
+    "the day and month your pet was born",
+    "the year mum was born",
+    "the year dad was born",
+    "the year you started school",
+    "your house number, twice",
+    "your age and your sibling's age together",
+    "the number on your favourite team shirt",
+    "your phone's last four numbers",
+    "your birthday backwards",
+    "two of your favourite numbers, then again",
+    "the day you got your first pet",
+    "your house number plus your age",
+    "your age, four times",
+    "the year your best friend was born",
+    "your favourite player's shirt number, twice",
+    "your school year and your age, mixed",
+    "your birthday day, twice",
+    "your bus or class number, twice",
+    "your age now and when you started school",
+    "the number of pets you wish you had, four times",
   ];
   // Tiny hash → deterministic shuffle. Same seed → same 4 ideas.
   let h = 2166136261;
