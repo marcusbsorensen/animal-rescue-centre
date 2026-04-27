@@ -159,6 +159,14 @@
     image-rendering: -webkit-optimize-contrast;
     filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
   }
+  /* Selected-animal emoji used on the PIN stage in place of the
+     paw-heart logo — reinforces the animal the kid picked. */
+  .sign-animal-emoji {
+    font-size: clamp(36px, 6.5cqh, 60px);
+    line-height: 1;
+    flex: 0 0 auto;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
+  }
 
   /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
   .sign-title {
@@ -445,21 +453,36 @@
     transition: transform 0.08s;
   }
   .key:active { transform: translateY(2px); }
-  .key.key-back {
-    background:
-      linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
-    border-color: #3c5238;
-    font-size: clamp(18px, 3cqh, 26px);
-  }
-  /* Full-clear/reset key — unmissable red with a bolder, bigger X so
-     children can see at a glance "this wipes the whole PIN". */
-  .key.key-clear {
+  /* Bottom-left RED delete key — taps backspace one digit at a time. */
+  .key.key-delete {
     background:
       linear-gradient(180deg, #e76a5a 0%, #c54838 55%, #8f2e20 100%);
     border-color: #6b2418;
-    font-size: clamp(30px, 4.8cqh, 42px);
+    font-size: clamp(28px, 4.6cqh, 40px);
     font-weight: 900;
     line-height: 1;
+  }
+  /* Bottom-right GREEN confirm key — kid taps this to submit when 4
+     digits are filled. Replaces the separate "OK!" plank below the
+     keypad — fewer planks, less vertical space. */
+  .key.key-confirm {
+    background:
+      linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
+    border-color: #3c5238;
+    font-size: clamp(28px, 4.6cqh, 40px);
+    font-weight: 900;
+    line-height: 1;
+    color: #fffbe8;
+  }
+  /* Disabled state — until 4 digits are entered, the tick is greyed
+     out so kids understand they need to fill the dots first. */
+  .key.key-confirm:disabled,
+  .key.key-confirm[aria-disabled="true"] {
+    background:
+      linear-gradient(180deg, #b8c4ad 0%, #8f9d85 55%, #65755e 100%);
+    border-color: #5e6b58;
+    opacity: 0.7;
+    cursor: not-allowed;
   }
   /* Name input — painted cream paper taped onto the sign. */
   .name-field-wrap {
@@ -1178,6 +1201,46 @@
       right: clamp(4px, 1cqw, 10px);
       left: auto;
     }
+    /* On iPhone, the PIN keypad takes most of the screen — the dog +
+       grass tuft + fox would overlap the OK button at the bottom of
+       the sign. Hide them on PIN + hint stages so the controls stay
+       legible; they stay visible on the name+animal stage above. */
+    body:has(#stage-pin:not(.hidden)) .foreground-dog,
+    body:has(#stage-pin:not(.hidden)) .foreground-fox,
+    body:has(#stage-pin:not(.hidden)) .grass-clump,
+    body:has(#stage-pin:not(.hidden)) .ground-bunny,
+    body:has(#stage-pin:not(.hidden)) .bee-flyer,
+    body:has(#stage-hint:not(.hidden)) .foreground-dog,
+    body:has(#stage-hint:not(.hidden)) .foreground-fox,
+    body:has(#stage-hint:not(.hidden)) .grass-clump,
+    body:has(#stage-hint:not(.hidden)) .ground-bunny,
+    body:has(#stage-hint:not(.hidden)) .bee-flyer {
+      display: none !important;
+    }
+    /* Compress the PIN sign on iPhone — keypad keys + pin dots all
+       smaller so the whole sign fits without overflowing into the
+       OK button below. */
+    #stage-pin .sign-title { font-size: clamp(20px, 3.4cqh, 26px); }
+    #stage-pin .sign-subtitle {
+      font-size: clamp(13px, 2cqh, 16px);
+      margin-bottom: clamp(4px, 0.8cqh, 8px);
+    }
+    #stage-pin .pin-dots {
+      gap: clamp(8px, 1.6cqw, 12px);
+      padding: clamp(2px, 0.5cqh, 6px) 0 clamp(6px, 1.2cqh, 10px);
+    }
+    #stage-pin .pin-dot {
+      width: clamp(11px, 2cqh, 16px);
+      height: clamp(11px, 2cqh, 16px);
+    }
+    #stage-pin .keypad {
+      gap: clamp(6px, 1.4cqw, 10px);
+      padding: clamp(4px, 0.8cqh, 8px) clamp(6px, 1.5cqw, 10px) clamp(6px, 1.2cqh, 10px);
+    }
+    #stage-pin .key {
+      font-size: clamp(20px, 3.6cqh, 26px);
+      padding: clamp(6px, 1.2cqh, 10px) 0;
+    }
     /* Fox: bigger (head clearly emerges), still anchored behind the
        leftmost grass blades (signs-on-stake coord space). */
     .foreground-fox {
@@ -1304,10 +1367,10 @@
                   <span class="zz zz3">Z</span>
                 </div>
                 <div class="sign-title-row">
-                  <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
-                  <div class="sign-title">Nice, Lily!</div>
+                  <span class="sign-animal-emoji" id="pin-animal-emoji" aria-hidden="true">🦊</span>
+                  <div class="sign-title" id="pin-greeting">Nice, Lily!</div>
                 </div>
-                <div class="sign-subtitle">Pick a secret 4-number code no-one else will know</div>
+                <div class="sign-subtitle">Pick a secret 4-number code</div>
                 <div class="pin-dots">
                   <span class="pin-dot"></span>
                   <span class="pin-dot"></span>
@@ -1324,9 +1387,9 @@
                   <button class="key">7</button>
                   <button class="key">8</button>
                   <button class="key">9</button>
-                  <button class="key key-back" aria-label="Delete last digit">←</button>
+                  <button class="key key-delete" aria-label="Delete last digit">✕</button>
                   <button class="key">0</button>
-                  <button class="key key-clear" aria-label="Clear PIN">✕</button>
+                  <button class="key key-confirm" id="pin-confirm" aria-label="Confirm PIN" aria-disabled="true">✓</button>
                 </div>
               </div>
 
@@ -1529,9 +1592,23 @@
     if (stageToggle) stageToggle.textContent = STAGE_LABELS[s] || 'Stage';
     const primary = document.getElementById('primary-label');
     if (primary) {
-      primary.textContent = s === 'select' ? 'NEXT!' : s === 'pin' ? 'TYPE PIN' : 'CREATE MY ACCOUNT!';
+      primary.textContent = s === 'select' ? 'NEXT!' : s === 'pin' ? 'OK!' : 'CREATE MY ACCOUNT!';
     }
-    document.querySelector('.btn-primary-wrap')?.classList.toggle('hidden', s === 'hint');
+    // The big primary plank below the sign is hidden on PIN stage too
+    // — the green ✓ keypad button is the confirm action there, so the
+    // extra OK! plank just steals vertical space.
+    document.querySelector('.btn-primary-wrap')?.classList.toggle('hidden', s === 'hint' || s === 'pin');
+    // Carry the typed name + selected animal emoji from stage A into
+    // stage B's title so the greeting matches what the kid actually
+    // picked. (Was hardcoded "Nice, Lily!" + paw-heart logo before.)
+    if (s === 'pin') {
+      const typedName = (document.querySelector('.name-field')?.value || '').trim();
+      const titleEl = document.getElementById('pin-greeting');
+      if (titleEl && typedName) titleEl.textContent = `Nice, ${typedName}!`;
+      const emojiEl = document.getElementById('pin-animal-emoji');
+      const selectedChip = document.querySelector('.chip.avatar-pick.selected .chip-avatar');
+      if (emojiEl && selectedChip) emojiEl.textContent = (selectedChip.textContent || '').trim();
+    }
   }
   stageToggle?.addEventListener('click', () => {
     const order = ['select', 'pin', 'hint'];
@@ -1577,7 +1654,7 @@
       d.classList.toggle('filled', i < pinBuffer.length);
     });
   }
-  function clearPin() { pinBuffer = ''; renderPinDots(); }
+  function clearPin() { pinBuffer = ''; renderPinDots(); updateConfirmEnabled(); }
   let errorTimer = null;
   function showError(message, stageId) {
     const stage = document.getElementById(stageId);
@@ -1617,16 +1694,28 @@
       clearPin();
     }, 200);
   }
+  function updateConfirmEnabled() {
+    const btn = document.getElementById('pin-confirm');
+    if (!btn) return;
+    const ok = pinBuffer.length === 4;
+    btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+    if (ok) btn.removeAttribute('disabled');
+    else btn.setAttribute('disabled', 'true');
+  }
   document.querySelectorAll('.keypad .key').forEach((key) => {
     key.addEventListener('click', () => {
-      if (key.classList.contains('key-clear')) { clearPin(); return; }
-      if (key.classList.contains('key-back')) {
-        pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); return;
+      if (key.classList.contains('key-delete')) {
+        pinBuffer = pinBuffer.slice(0, -1);
+        renderPinDots(); updateConfirmEnabled();
+        return;
+      }
+      if (key.classList.contains('key-confirm')) {
+        if (pinBuffer.length === 4) onPinComplete();
+        return;
       }
       if (pinBuffer.length >= 4) return;
       pinBuffer += (key.textContent || '').trim();
-      renderPinDots();
-      if (pinBuffer.length === 4) setTimeout(onPinComplete, 150);
+      renderPinDots(); updateConfirmEnabled();
     });
   });
 
@@ -1635,13 +1724,15 @@
     if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
     if (/^[0-9]$/.test(e.key)) {
       if (pinBuffer.length >= 4) return;
-      pinBuffer += e.key; renderPinDots();
-      if (pinBuffer.length === 4) setTimeout(onPinComplete, 150);
+      pinBuffer += e.key; renderPinDots(); updateConfirmEnabled();
       e.preventDefault();
     } else if (e.key === 'Backspace') {
-      pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); e.preventDefault();
+      pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); updateConfirmEnabled(); e.preventDefault();
     } else if (e.key === 'Delete' || e.key === 'Escape') {
       clearPin(); e.preventDefault();
+    } else if (e.key === 'Enter') {
+      if (pinBuffer.length === 4) onPinComplete();
+      e.preventDefault();
     }
   });
 
