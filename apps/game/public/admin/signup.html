@@ -2158,7 +2158,13 @@
       card.className = 'idea-card';
       card.textContent = idea;
       card.addEventListener('click', () => {
+        // Pre-fill the input with the idea so the kid can see what
+        // they picked. The marker (data-idea-seed) tells the focus/
+        // click handler below to BLANK the field when the kid taps in
+        // to type their actual answer — otherwise they'd have to
+        // manually clear "the year mum was born" before typing.
         hintInput.value = idea;
+        hintInput.dataset.ideaSeed = idea;
         saveDraft();
         updateHintNextEnabled();
         setSubstage('input');
@@ -2167,6 +2173,22 @@
     }
     setSubstage('help');
   }
+  // When the kid taps the input AFTER picking an idea card, blank the
+  // field so they can just type the number/word — no manual clearing
+  // of the prompt text needed. Only clears if the value still equals
+  // the picked idea (so once they've typed something else, taps stop
+  // wiping it).
+  function clearIfStillIdeaSeed() {
+    const seed = hintInput?.dataset?.ideaSeed;
+    if (seed && hintInput.value === seed) {
+      hintInput.value = '';
+      delete hintInput.dataset.ideaSeed;
+      updateHintNextEnabled();
+      saveDraft();
+    }
+  }
+  hintInput?.addEventListener('focus', clearIfStillIdeaSeed);
+  hintInput?.addEventListener('click', clearIfStillIdeaSeed);
   // "Need ideas?" on the input substage AND "Help me think →" on the
   // gut-check substage both surface the same idea pool.
   document.getElementById('hint-help-btn')?.addEventListener('click', showIdeaCards);
