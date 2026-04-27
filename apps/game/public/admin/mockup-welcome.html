@@ -674,18 +674,19 @@
     0%   { transform: rotate(-12deg); }
     100% { transform: rotate(14deg); }
   }
-  /* Fox peeking out from behind the leftmost tall grass blades. The fox
-     is a child of .signs-on-stake (same coord space as .grass-clump and
-     .ground-bunny) so its ground-level matches the grass on every
-     viewport.
+  /* Fox tentatively walking out from behind the leftmost grass blade,
+     then rapidly retreating back behind it. Anchored at the grass
+     baseline (bottom: matches grass-clump). The fox-cross-walking
+     sprite faces right by default, so we scaleX(-1) it to face LEFT —
+     toward the open area, away from the bunny.
 
-     Pivot is bottom-LEFT — bottom-left corner stays planted on the
-     grass baseline. Anticlockwise rotation tips the body to the left,
-     swinging the head out past the leftmost blade. No part ever dips
-     below the baseline; bottom-right swings UP only.
+     Because of scaleX(-1), positive translateX in the keyframes moves
+     the fox LEFT in screen coordinates (the local X axis is flipped).
 
-     Long hidden delay (~78% of cycle at rest) so the peek is a small
-     visual reward when you spot it, not a constant interruption. */
+     Reward delay: ~70% of the cycle is spent at rest behind the
+     grass. The walk-out is tentative (small steps, paw bobs) and
+     spans ~2.5s. The retreat is a rapid snap (~0.4s) so the fox
+     visibly darts back behind the grass when it senses something. */
   .foreground-fox {
     position: absolute;
     left: calc(50% - clamp(140px, 32cqw, 280px));
@@ -696,24 +697,28 @@
     z-index: 3;   /* BEHIND the grass-clump (z:4) */
     pointer-events: none;
     filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
-    /* Pivot bottom-LEFT: foot-anchor stays on the baseline; rotation
-       tips the body to the left without pushing anything below. */
-    transform-origin: 0% 100%;
+    transform-origin: 50% 100%;
     animation: foxPeek 14s ease-in-out infinite;
     will-change: transform;
   }
   @keyframes foxPeek {
-    /* Hidden behind the grass for ~78% of the cycle (~11s of 14s). */
-    0%, 78%   { transform: rotate(0deg); }
-    /* Peek: anticlockwise tilt. Head swings left + slightly down past
-       the leftmost grass blade. No vertical translation so the body
-       stays anchored. */
-    84%       { transform: rotate(-30deg); }
-    /* Brief hold. */
-    90%       { transform: rotate(-30deg); }
-    /* Quick duck back. */
-    94%       { transform: rotate(0deg); }
-    100%      { transform: rotate(0deg); }
+    /* Hidden behind grass for ~70% of cycle. */
+    0%, 70%   { transform: scaleX(-1) translateX(0)    translateY(0); }
+    /* Tentative first step out (small + paw lift). */
+    74%       { transform: scaleX(-1) translateX(6px)  translateY(-1px); }
+    77%       { transform: scaleX(-1) translateX(8px)  translateY(0); }
+    /* Brief pause — sniffing the air. */
+    79%       { transform: scaleX(-1) translateX(8px)  translateY(0); }
+    /* Second step. */
+    82%       { transform: scaleX(-1) translateX(20px) translateY(-1px); }
+    85%       { transform: scaleX(-1) translateX(22px) translateY(0); }
+    /* Bold final step + held peek. */
+    88%       { transform: scaleX(-1) translateX(36px) translateY(-1px); }
+    90%       { transform: scaleX(-1) translateX(36px) translateY(0); }
+    /* RAPID retreat (3% of cycle ≈ 0.4s) — fox darts back. */
+    93%       { transform: scaleX(-1) translateX(0)    translateY(0); }
+    /* Settle and stay hidden. */
+    100%      { transform: scaleX(-1) translateX(0)    translateY(0); }
   }
 
   .credits {
