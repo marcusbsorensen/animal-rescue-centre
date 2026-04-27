@@ -789,6 +789,22 @@
       radial-gradient(ellipse 10px 6px at 30% 78%, rgba(145,100,55,0.7) 0%, transparent 70%),
       linear-gradient(180deg, #7ea063 0%, #5d7f4a 50%, #3f5d32 100%);
   }
+  /* Variant C — bright orange plank for the "I forgot my secret code"
+     route on the welcome-back screen. Reads as a friendly help-flag,
+     distinct from the honey-amber Back / sage New? planks. */
+  .link-btn.plank-orange {
+    border-color: #8a3c0e;
+    background:
+      /* Vertical grain — third spacing pattern, distinct from sage. */
+      linear-gradient(90deg,
+        transparent 0%, transparent 36%,
+        rgba(0,0,0,0.07) 37%, transparent 38%, transparent 64%,
+        rgba(0,0,0,0.07) 65%, transparent 66%),
+      /* Single paint chip near top-right for character. */
+      radial-gradient(ellipse 11px 6px at 68% 26%, rgba(110,45,16,0.7) 0%, transparent 70%),
+      linear-gradient(180deg, #f08b3a 0%, #d76b25 55%, #a64512 100%);
+  }
+  .link-btn.plank-orange:hover { transform: translateY(-2px) rotate(-1.5deg); }
 
   /* ── Animals in the foreground at the bottom corners ── */
   .foreground-dog, .foreground-fox-LEGACY-IGNORED {
@@ -1025,19 +1041,39 @@
     .signs-on-stake {
       padding-bottom: clamp(70px, 12cqh, 110px);
     }
-    /* Foreground dog: slightly smaller, anchored to the right edge of
-       the central stake (matches the grass tuft right edge) rather than
-       the device corner. */
-    .foreground-dog {
-      height: clamp(72px, 14cqh, 110px);
-      right: clamp(4px, 1cqw, 10px);
-      left: auto;
+    /* Login sign on iPhone is taller than the welcome sign (Welcome
+       back! + subtitle + 4 user chips + secondary planks). The grass
+       tuft + animals get cut off below the viewport, leaving the dog
+       floating mid-air with nothing under it. Hide all foreground
+       decorations on iPhone for login (same as signup). They come
+       back on the welcome screen where the layout has room. */
+    .foreground-dog,
+    .foreground-fox,
+    .grass-clump,
+    .ground-bunny,
+    .bee-flyer {
+      display: none !important;
     }
-    /* Fox: bigger (head clearly emerges), still anchored behind the
-       leftmost grass blades (signs-on-stake coord space). */
-    .foreground-fox {
-      height: clamp(80px, 14cqh, 115px);
-      left: calc(50% - clamp(95px, 22cqw, 130px));
+    /* Three planks below the sign on iPhone (Type-Your-Name + Forgot
+       + New?) — tighten gap, padding, and the stake's bottom run so
+       all three fit cleanly above the credits. */
+    .secondary-row {
+      gap: clamp(4px, 1cqh, 8px);
+    }
+    .secondary-row .link-btn,
+    .secondary-row .name-input-sign.demoted {
+      padding: clamp(6px, 1cqh, 10px) clamp(14px, 2.6cqw, 22px) !important;
+      font-size: clamp(12px, 1.6cqh, 15px) !important;
+    }
+    .signs-on-stake {
+      padding-bottom: clamp(20px, 4cqh, 36px);
+    }
+    /* Welcome-back sign: tighten the title + subtitle so the chips
+       start higher and the planks have room below. */
+    #stage-select .sign-title { font-size: clamp(22px, 3.6cqh, 28px); }
+    #stage-select .sign-subtitle {
+      font-size: clamp(13px, 2cqh, 16px);
+      margin-bottom: clamp(4px, 0.8cqh, 8px);
     }
     /* Login chips drop to 1 column on iPhone so 'Lily / 2 hours ago'
        fits on a single line per chip and the second-column chips don't
@@ -1190,6 +1226,7 @@
                 <div class="secondary-row">
                   <!-- "Back to welcome" removed: this IS the welcome-back screen,
                        so the action was redundant + non-functional. -->
+                  <button class="link-btn plank-orange" id="forgot-pin-btn">Forgot your secret code?</button>
                   <button class="link-btn plank-sage">New? Make an account</button>
                 </div>
               </div>
@@ -1286,6 +1323,13 @@
     try { parent.postMessage({ source: 'arc-auth', type, payload }, '*'); } catch (_) {}
   };
   document.querySelector('.link-btn.plank-sage')?.addEventListener('click', () => send('signup'));
+  // Orange plank — opens the forgot-PIN recovery flow. In design-
+  // review (no embed) we navigate to the standalone mockup so Marcus
+  // can preview the screen without rigging up a host.
+  document.getElementById('forgot-pin-btn')?.addEventListener('click', () => {
+    if (params.has('embed')) send('forgot-pin');
+    else location.href = '/admin/mockup-forgot-pin.html';
+  });
   // Type-your-name plank — both as primary CTA (no chips on device) and
   // as the demoted "Not here? Type your name" yellow plank under the
   // chip grid. Both routes through the same handler.
