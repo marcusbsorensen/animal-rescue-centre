@@ -809,7 +809,7 @@
      visual reward when you spot it, not a constant interruption. */
   .foreground-fox {
     position: absolute;
-    left: calc(50% - clamp(110px, 24cqw, 200px));
+    left: calc(50% - clamp(140px, 32cqw, 280px));
     /* Match grass-clump bottom so feet line up on the same baseline. */
     bottom: clamp(-8px, -1.5cqh, -2px);
     height: clamp(110px, 17cqh, 160px);
@@ -933,7 +933,7 @@
   /* Narrow / iPhone: simplify — hide extras to avoid clutter */
   @container welcome (max-width: 420px) {
     .foreground-dog { height: clamp(62px, 12cqh, 110px); right: 4px; left: auto; }
-    .foreground-fox { height: clamp(60px, 10cqh, 95px); left: calc(50% - clamp(95px, 22cqw, 170px)); }
+    .foreground-fox { height: clamp(60px, 10cqh, 95px); left: calc(50% - clamp(125px, 30cqw, 200px)); }
     .logo-bunny { display: none; }
     .intro-cat { height: clamp(50px, 8cqh, 80px); right: -4%; bottom: -24%; }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
