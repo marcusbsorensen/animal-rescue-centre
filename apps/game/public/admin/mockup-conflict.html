@@ -798,45 +798,43 @@
   /* Fox peeking out from behind the leftmost tall grass blades. The fox
      is a child of .signs-on-stake (same coord space as .grass-clump and
      .ground-bunny) so its ground-level matches the grass on every
-     viewport — no more drifting below.
+     viewport.
 
-     Sits BEHIND the grass-clump (z:3 < clump z:4). At rest the body is
-     translated DOWN ~35% so the whole sprite tucks behind the grass
-     blade band. On peek the body bobs UP ~25% and tilts slightly left,
-     so the head + ears clearly emerge above the grass top. */
+     Pivot is bottom-LEFT — bottom-left corner stays planted on the
+     grass baseline. Anticlockwise rotation tips the body to the left,
+     swinging the head out past the leftmost blade. No part ever dips
+     below the baseline; bottom-right swings UP only.
+
+     Long hidden delay (~78% of cycle at rest) so the peek is a small
+     visual reward when you spot it, not a constant interruption. */
   .foreground-fox {
     position: absolute;
-    /* Anchor in .signs-on-stake's coord system (sign max-width 480px),
-       same units as .ground-bunny. Fox tucked further left than bunny,
-       behind the leftmost tall blades. */
     left: calc(50% - clamp(110px, 24cqw, 200px));
-    /* Match grass-clump bottom so feet line up on the ground. */
+    /* Match grass-clump bottom so feet line up on the same baseline. */
     bottom: clamp(-8px, -1.5cqh, -2px);
-    /* Sized to roughly match the painted grass-blade band. Tail won't
-       dangle past the bottom of the blade strip at rest. */
-    height: clamp(95px, 14cqh, 135px);
+    height: clamp(110px, 17cqh, 160px);
     width: auto;
     z-index: 3;   /* BEHIND the grass-clump (z:4) */
     pointer-events: none;
     filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
-    /* Pivot bottom-centre — body translates + rotates around its feet. */
-    transform-origin: 50% 100%;
-    animation: foxPeek 8s ease-in-out infinite;
+    /* Pivot bottom-LEFT: foot-anchor stays on the baseline; rotation
+       tips the body to the left without pushing anything below. */
+    transform-origin: 0% 100%;
+    animation: foxPeek 14s ease-in-out infinite;
     will-change: transform;
   }
   @keyframes foxPeek {
-    /* Hidden — body translated down 35% so the whole sprite (including
-       the head) sits behind the grass blade strip. */
-    0%   { transform: translateY(40%) rotate(0deg); }
-    /* Peek UP ~45% with a slight left-tilt so head + ears clearly
-       emerge above the grass top, tilted toward the bunny. */
-    45%  { transform: translateY(-45%) rotate(-10deg); }
-    /* Hold the peek briefly. */
-    55%  { transform: translateY(-45%) rotate(-10deg); }
+    /* Hidden behind the grass for ~78% of the cycle (~11s of 14s). */
+    0%, 78%   { transform: rotate(0deg); }
+    /* Peek: anticlockwise tilt. Head swings left + slightly down past
+       the leftmost grass blade. No vertical translation so the body
+       stays anchored. */
+    84%       { transform: rotate(-30deg); }
+    /* Brief hold. */
+    90%       { transform: rotate(-30deg); }
     /* Quick duck back. */
-    60%  { transform: translateY(40%) rotate(0deg); }
-    /* Stay hidden until next cycle. */
-    100% { transform: translateY(40%) rotate(0deg); }
+    94%       { transform: rotate(0deg); }
+    100%      { transform: rotate(0deg); }
   }
 
   .credits {
