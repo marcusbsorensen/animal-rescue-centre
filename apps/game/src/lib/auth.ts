@@ -64,6 +64,25 @@ export async function login(data: LoginData): Promise<AuthSession> {
 }
 
 /**
+ * Fetch the saved PIN-hint for a username. Used by the forgot-PIN
+ * recovery flow when the kid passes 2/3 of the challenge questions
+ * (see docs/forgot-pin-recovery.md). Returns `null` if the account
+ * has no hint or is unknown.
+ *
+ * The endpoint is rate-limited server-side (5 lookups per username
+ * per 30 minutes) and returns a uniform shape whether the account
+ * exists or not so it can't be used to enumerate usernames.
+ */
+export async function getPinHint(username: string): Promise<string | null> {
+  const { data: result, error } = await supabase.functions.invoke('get-pin-hint', {
+    body: { username },
+  });
+  if (error) throw new Error(error.message ?? 'Failed to load hint');
+  if (!result?.found) return null;
+  return typeof result.hint === 'string' ? result.hint : null;
+}
+
+/**
  * Log out the current player.
  */
 export function logout(): void {

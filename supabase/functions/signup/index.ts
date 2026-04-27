@@ -7,17 +7,49 @@ Deno.serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
-    const { username, pin, avatarEmoji, avatarBgColour, parentEmail } = await req.json();
+    const { username, pin, avatarEmoji, avatarBgColour, parentEmail, pinHint } = await req.json();
 
     // Validate inputs
     if (!username || typeof username !== 'string') {
       return jsonResponse({ error: 'Username is required' }, 400);
+    }
+    const trimmedUsername = username.trim();
+    if (trimmedUsername.length < 2 || trimmedUsername.length > 18) {
+      return jsonResponse({ error: 'Name must be 2–18 characters' }, 400);
+    }
+    if (!/^[A-Za-z][A-Za-z\s'\-]*[A-Za-z]$|^[A-Za-z]$/.test(trimmedUsername)) {
+      return jsonResponse({ error: 'Names use letters only — no numbers or symbols' }, 400);
+    }
+    // Light profanity blocklist — same family as packages/game-logic
+    // isUsernameSafe(). Server-side enforcement so the pool isn't the
+    // only line of defence.
+    const usernameLower = trimmedUsername.toLowerCase().replace(/[^a-z]/g, '');
+    const blocklist = [
+      'admin', 'system', 'support', 'official', 'password', 'login',
+      'signup', 'delete', 'null', 'undefined', 'fuck', 'shit', 'cunt',
+      'bitch', 'arse', 'damn', 'dick', 'cock', 'piss', 'twat', 'wank',
+      'bastard', 'prick', 'slut', 'nazi', 'retard',
+    ];
+    if (blocklist.some((w) => usernameLower.includes(w))) {
+      return jsonResponse({ error: 'Try a different name' }, 400);
     }
     if (!pin || typeof pin !== 'string' || !/^\d{4}$/.test(pin)) {
       return jsonResponse({ error: 'PIN must be exactly 4 digits' }, 400);
     }
     if (!avatarEmoji || !avatarBgColour) {
       return jsonResponse({ error: 'Avatar emoji and background colour are required' }, 400);
+    }
+    // Hint is optional (back-compat with older signup payloads). If
+    // present, it must be a string of reasonable length; we don't
+    // re-run the leak-detection rules server-side because that runs
+    // client-side already and the kid has already gut-checked it.
+    let cleanHint: string | null = null;
+    if (typeof pinHint === 'string') {
+      const t = pinHint.trim();
+      if (t.length > 60) {
+        return jsonResponse({ error: 'Hint is too long' }, 400);
+      }
+      if (t.length >= 4) cleanHint = t;
     }
 
     // Service role client for writes
@@ -26,16 +58,16 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Check username is in the pool and unclaimed
-    const { data: poolEntry, error: poolErr } = await supabase
-      .from('username_pool')
-      .select('username')
-      .eq('username', username)
-      .is('claimed_at', null)
-      .single();
-
-    if (poolErr || !poolEntry) {
-      return jsonResponse({ error: 'Username is not available' }, 400);
+    // Pre-check: is this username already claimed by another user?
+    // The unique constraint on users.username handles the race, but
+    // we surface a friendlier error early.
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', trimmedUsername)
+      .maybeSingle();
+    if (existingUser) {
+      return jsonResponse({ error: 'That name is taken — try another' }, 400);
     }
 
     // Hash PIN
@@ -63,8 +95,9 @@ Deno.serve(async (req) => {
     const { data: user, error: userErr } = await supabase
       .from('users')
       .insert({
-        username,
+        username: trimmedUsername,
         pin_hash: pinHash,
+        pin_hint: cleanHint,
         avatar_emoji: avatarEmoji,
         avatar_bg_colour: avatarBgColour,
         parent_email_hash: parentEmailHash,
@@ -76,14 +109,20 @@ Deno.serve(async (req) => {
 
     if (userErr) {
       console.error('User creation failed:', userErr);
+      // Surface unique-violation as a friendly error.
+      if ((userErr as { code?: string }).code === '23505') {
+        return jsonResponse({ error: 'That name is taken — try another' }, 400);
+      }
       return jsonResponse({ error: 'Failed to create account' }, 500);
     }
 
-    // Claim the username in the pool
+    // Best-effort: if this username is in the legacy pool, mark it
+    // claimed. The pool is no longer required for signup — kids can
+    // choose any safe name — but pool-claim keeps old data consistent.
     await supabase
       .from('username_pool')
       .update({ claimed_at: new Date().toISOString(), claimed_by: user.id })
-      .eq('username', username);
+      .eq('username', trimmedUsername);
 
     // Create initial game state
     await supabase.from('game_states').insert({

@@ -33,7 +33,12 @@ export class LoginScene extends Phaser.Scene {
             this.scene.start('SignupScene', { reason: (payload as Record<string, unknown> | undefined)?.reason ?? 'not-in-chips' });
             return;
           }
-          if (action === 'forgot-pin')            { unmount(); this.scene.start('ForgotPinScene'); return; }
+          if (action === 'forgot-pin')            {
+            unmount();
+            const username = (payload as Record<string, unknown> | undefined)?.username;
+            this.scene.start('ForgotPinScene', { username: typeof username === 'string' ? username : undefined });
+            return;
+          }
           if (action === 'auth-success-existing') {
             unmount();
             // Existing players land straight in the game.

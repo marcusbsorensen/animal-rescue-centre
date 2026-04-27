@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
+import { mountAuth, unmountAuth, postToActiveFrame } from '../auth-overlay/AuthOverlay';
+import { getPinHint } from '../lib/auth';
 
 /**
  * ForgotPinScene — mounts the forgot-PIN recovery overlay over Phaser.
@@ -9,13 +10,23 @@ import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
  *   recovery-parent-help     → fall through to parent-help (parked)
  *   recovery-cancel          → back to login
  *
- * Most of those just route back to LoginScene for now; the actual
- * PIN-reset and parent-help screens are TBD per
+ * If the kid arrived here from a tapped chip on login, we get the
+ * username via init data and pre-fetch their saved PIN-hint via the
+ * get-pin-hint edge function so it's ready when the iframe asks.
+ *
+ * Most outcomes route back to LoginScene for now; the dedicated
+ * PIN-reset + parent-help screens are TBD per
  * docs/forgot-pin-recovery.md.
  */
 export class ForgotPinScene extends Phaser.Scene {
+  private initData: { username?: string } = {};
+
   constructor() {
     super({ key: 'ForgotPinScene' });
+  }
+
+  init(data?: { username?: string }): void {
+    this.initData = data ?? {};
   }
 
   create(): void {
@@ -24,6 +35,19 @@ export class ForgotPinScene extends Phaser.Scene {
         if (action === 'back-to-welcome') { unmount(); this.scene.start('MainMenuScene'); return; }
       },
     });
+
+    // Pre-fetch the saved PIN-hint and post it to the iframe so it's
+    // available the moment the kid lands on the "fall-through-to-hint"
+    // verdict. Failures are silent — the iframe falls back to a
+    // neutral message if no hint is available.
+    const username = this.initData.username;
+    if (username) {
+      getPinHint(username)
+        .then((hint) => {
+          if (hint) postToActiveFrame('init', { username, hint });
+        })
+        .catch(() => { /* silent — hint stays empty */ });
+    }
     // Custom message listener — the forgot-pin iframe posts custom
     // recovery-* events that aren't part of the AuthAction union.
     const listener = (e: MessageEvent): void => {

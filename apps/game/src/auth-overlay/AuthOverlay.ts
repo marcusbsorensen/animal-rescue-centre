@@ -60,6 +60,13 @@ function postToFrame(type: string, payload?: unknown): void {
   activeFrame.contentWindow.postMessage({ source: 'arc-auth-host', type, payload }, '*');
 }
 
+/** Public version — host scenes can post to whichever auth iframe is
+ *  currently mounted. Used by ForgotPinScene to push the kid's
+ *  freshly-fetched PIN-hint after the iframe is up. */
+export function postToActiveFrame(type: string, payload?: unknown): void {
+  postToFrame(type, payload);
+}
+
 export function mountAuth(
   page: AuthPage,
   handlers: AuthOverlayHandlers,

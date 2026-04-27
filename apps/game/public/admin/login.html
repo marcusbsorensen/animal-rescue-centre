@@ -1468,7 +1468,11 @@
   // review (no embed) we navigate to the standalone screen so Marcus
   // can preview the screen without rigging up a host.
   document.getElementById('forgot-pin-btn')?.addEventListener('click', () => {
-    if (params.has('embed')) send('forgot-pin');
+    // Pass the username so the host can pre-fetch the saved PIN-hint
+    // (Tier 2 of the recovery flow). selectedUsername is set when the
+    // kid tapped their chip; if no chip was selected, it's null and
+    // the host can prompt for a username.
+    if (params.has('embed')) send('forgot-pin', { username: selectedUsername || null });
     else location.href = '/admin/forgot-pin.html';
   });
   // Yellow back-sticker — context-aware. On the chip-pick stage (A)
