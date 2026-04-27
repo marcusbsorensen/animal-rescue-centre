@@ -1201,21 +1201,47 @@
       right: clamp(4px, 1cqw, 10px);
       left: auto;
     }
-    /* On iPhone, the PIN keypad takes most of the screen — the dog +
-       grass tuft + fox would overlap the OK button at the bottom of
-       the sign. Hide them on PIN + hint stages so the controls stay
-       legible; they stay visible on the name+animal stage above. */
-    body:has(#stage-pin:not(.hidden)) .foreground-dog,
-    body:has(#stage-pin:not(.hidden)) .foreground-fox,
-    body:has(#stage-pin:not(.hidden)) .grass-clump,
-    body:has(#stage-pin:not(.hidden)) .ground-bunny,
-    body:has(#stage-pin:not(.hidden)) .bee-flyer,
-    body:has(#stage-hint:not(.hidden)) .foreground-dog,
-    body:has(#stage-hint:not(.hidden)) .foreground-fox,
-    body:has(#stage-hint:not(.hidden)) .grass-clump,
-    body:has(#stage-hint:not(.hidden)) .ground-bunny,
-    body:has(#stage-hint:not(.hidden)) .bee-flyer {
+    /* On iPhone, the signup sign is much taller than the welcome sign
+       (8-emoji grid + name field + secondary planks). The grass tuft
+       and the foreground animals end up either cut off below the
+       device, or the dog floats orphaned in the gap above them.
+       Hide all foreground decorations across every signup stage on
+       iPhone so the form has clear vertical space. They come back on
+       the welcome and login screens where the layout is shorter. */
+    .foreground-dog,
+    .foreground-fox,
+    .grass-clump,
+    .ground-bunny,
+    .bee-flyer {
       display: none !important;
+    }
+    /* Stage A: shrink the 8-emoji avatar picker so all 4 columns fit
+       inside the sign on iPhone — chips were overflowing the right
+       edge before. Smaller circles + tighter gaps. */
+    .chips.avatar-picker {
+      gap: clamp(4px, 1cqh, 8px) clamp(4px, 1cqw, 8px);
+    }
+    .chip.avatar-pick {
+      padding: clamp(3px, 0.6cqh, 6px);
+    }
+    .chip.avatar-pick .chip-avatar {
+      width: clamp(40px, 9cqw, 56px);
+      height: clamp(40px, 9cqw, 56px);
+      font-size: clamp(22px, 5cqw, 30px);
+    }
+    /* Stage A: compress remaining elements so the secondary planks
+       reach the bottom of the device without orphaning anything. */
+    #stage-select .sign-title { font-size: clamp(20px, 3.4cqh, 26px); }
+    #stage-select .sign-subtitle {
+      font-size: clamp(13px, 2cqh, 16px);
+      margin-bottom: clamp(4px, 0.8cqh, 8px);
+    }
+    .name-field-wrap {
+      padding: clamp(2px, 0.5cqh, 5px) 0 clamp(6px, 1.2cqh, 10px);
+    }
+    .name-field {
+      font-size: clamp(18px, 2.8cqh, 22px);
+      padding: clamp(8px, 1.3cqh, 12px) clamp(12px, 2.5cqw, 16px);
     }
     /* Compress the PIN sign on iPhone — keypad keys + pin dots all
        smaller so the whole sign fits without overflowing into the
