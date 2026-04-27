@@ -365,62 +365,128 @@
     box-shadow: 0 2px 3px rgba(0,0,0,0.3);
   }
   .pin-dot.filled { background: #fffbe8; }
-  /* Keypad — 3x4 grid of little wooden tile buttons nailed to the sign */
+  /* ── Keypad: collection of assorted stickers ─────────────────────
+     Same sticker treatment as signup — visual + spatial cues to
+     help kids recall their PIN as a sequence of stickers rather
+     than abstract digits. */
   .keypad {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: clamp(8px, 1.3cqh, 14px) clamp(10px, 1.8cqw, 16px);
+    gap: clamp(10px, 1.8cqh, 18px) clamp(12px, 2cqw, 18px);
+    padding: clamp(4px, 0.8cqh, 8px) clamp(2px, 0.4cqw, 6px);
   }
   .key {
+    position: relative;
     font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(22px, 3.6cqh, 32px);
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
-    padding: clamp(8px, 1.4cqh, 14px) 0;
+    font-weight: 900;
+    font-size: clamp(26px, 4.4cqh, 38px);
+    color: #2a1a08;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.65);
+    padding: clamp(10px, 1.6cqh, 16px) 0;
     cursor: pointer;
-    border: 2px solid #7a4b15;
-    border-radius: clamp(8px, 1.1cqh, 12px);
-    background:
-      linear-gradient(90deg,
-        transparent 0%, transparent 40%,
-        rgba(0,0,0,0.05) 41%, transparent 42%, transparent 65%,
-        rgba(0,0,0,0.05) 66%, transparent 67%),
-      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+    border: 2px solid rgba(120,80,40,0.35);
+    background: linear-gradient(180deg, #fffbe8 0%, #f3e5c0 100%);
     box-shadow:
-      inset 0 0 clamp(6px, 1.2cqh, 12px) rgba(0,0,0,0.22),
-      inset 0 2px 0 rgba(255,240,210,0.25),
-      0 3px 6px rgba(0,0,0,0.25);
-    transition: transform 0.08s;
+      0 3px 0 rgba(120,80,40,0.18),
+      0 4px 8px rgba(0,0,0,0.28),
+      inset 0 1px 0 rgba(255,255,255,0.6);
+    transition: transform 0.1s, box-shadow 0.1s;
+    line-height: 1;
   }
-  .key:active { transform: translateY(2px); }
-  /* Bottom-left RED delete key — taps backspace one digit at a time. */
+  .key::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: clamp(8px, 1.4cqw, 12px);
+    height: clamp(8px, 1.4cqw, 12px);
+    background:
+      linear-gradient(225deg,
+        rgba(120,80,40,0.55) 0%,
+        rgba(120,80,40,0.55) 45%,
+        rgba(255,255,255,0.7) 55%,
+        rgba(255,255,255,0.7) 100%);
+    clip-path: polygon(100% 0, 100% 100%, 0 0);
+    filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.2));
+    border-top-right-radius: inherit;
+  }
+  .key:active {
+    transform: translateY(2px) rotate(0deg) !important;
+    box-shadow:
+      0 1px 0 rgba(120,80,40,0.18),
+      0 2px 3px rgba(0,0,0,0.28),
+      inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+  /* Per-digit sticker variants 0-9 — match signup so a kid sees the
+     same sticker palette across both screens (recall consistency). */
+  .keypad .key:nth-child(1) {
+    background: linear-gradient(180deg, #ffd2d2 0%, #f7a3a3 100%);
+    border-radius: 14px; transform: rotate(-2.5deg);
+  }
+  .keypad .key:nth-child(2) {
+    background: linear-gradient(180deg, #fff0a8 0%, #f3d050 100%);
+    border-radius: 50% 30% 50% 30%; transform: rotate(2deg);
+  }
+  .keypad .key:nth-child(3) {
+    background: linear-gradient(180deg, #d2f3e0 0%, #8ed4a8 100%);
+    border-radius: 50%; transform: rotate(-1deg);
+  }
+  .keypad .key:nth-child(4) {
+    background: linear-gradient(180deg, #d0e8ff 0%, #8db8e8 100%);
+    border-radius: 18px; transform: rotate(3deg);
+  }
+  .keypad .key:nth-child(5) {
+    background: linear-gradient(180deg, #ffd0a8 0%, #ff9f6b 100%);
+    border-radius: 50% / 35%; transform: rotate(-1.5deg);
+  }
+  .keypad .key:nth-child(6) {
+    background: linear-gradient(180deg, #e3d4f5 0%, #b39bd5 100%);
+    border-radius: 10px 22px 10px 22px; transform: rotate(2.5deg);
+  }
+  .keypad .key:nth-child(7) {
+    background: linear-gradient(180deg, #ffe0c2 0%, #f4ad7a 100%);
+    border-radius: 24px 12px 24px 12px; transform: rotate(-2deg);
+  }
+  .keypad .key:nth-child(8) {
+    background: linear-gradient(180deg, #d5e9c8 0%, #a3c98a 100%);
+    border-radius: 50%; transform: rotate(1.5deg);
+  }
+  .keypad .key:nth-child(9) {
+    background: linear-gradient(180deg, #f4d2d8 0%, #d895a3 100%);
+    border-radius: 14px 14px 30px 30px; transform: rotate(-3deg);
+  }
+  .keypad .key:nth-child(11) {
+    background: linear-gradient(180deg, #fff5e0 0%, #e9d5a0 100%);
+    border-radius: 16px; transform: rotate(1.8deg);
+  }
+  /* Bottom-left RED delete sticker. */
   .key.key-delete {
-    background:
-      linear-gradient(180deg, #e76a5a 0%, #c54838 55%, #8f2e20 100%);
-    border-color: #6b2418;
+    background: linear-gradient(180deg, #ff9c8a 0%, #e0584a 100%) !important;
+    border-color: rgba(140, 30, 20, 0.4);
+    color: #fff;
+    text-shadow: 0 1px 0 rgba(120,20,10,0.5);
+    border-radius: 50%;
     font-size: clamp(28px, 4.6cqh, 40px);
-    font-weight: 900;
-    line-height: 1;
+    transform: rotate(-3deg);
   }
-  /* Bottom-right GREEN confirm key — kid taps to submit the PIN. */
+  /* Bottom-right GREEN confirm sticker. */
   .key.key-confirm {
-    background:
-      linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
-    border-color: #3c5238;
+    background: linear-gradient(180deg, #aaddaa 0%, #5fae6a 100%) !important;
+    border-color: rgba(40, 90, 40, 0.4);
+    color: #fff;
+    text-shadow: 0 1px 0 rgba(20,60,20,0.5);
+    border-radius: 22px;
     font-size: clamp(28px, 4.6cqh, 40px);
-    font-weight: 900;
-    line-height: 1;
-    color: #fffbe8;
+    transform: rotate(2.5deg);
   }
-  /* Disabled — until 4 digits are typed, the tick is greyed out. */
+  /* Disabled — greyed out until 4 digits are typed. */
   .key.key-confirm:disabled,
   .key.key-confirm[aria-disabled="true"] {
     background:
-      linear-gradient(180deg, #b8c4ad 0%, #8f9d85 55%, #65755e 100%);
+      linear-gradient(180deg, #b8c4ad 0%, #8f9d85 55%, #65755e 100%) !important;
     border-color: #5e6b58;
-    opacity: 0.7;
+    opacity: 0.55;
     cursor: not-allowed;
+    filter: saturate(0.5);
   }
   /* A smaller "type your name" CTA — same wooden sign as Play but shorter. */
   .name-input-sign {
