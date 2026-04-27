@@ -884,13 +884,18 @@
      of the frame. The fox is slightly behind/right of the dog — they're
      a pair hanging out. Size them proportionally (dog > fox). */
   .foreground-dog {
-    /* Anchor near the right edge of the painted grass-clump (which caps
-       at the sign's 480px max-width). Ceiling lowered from 190 → 110
-       so the dog stays beside the grass on iPad-L / desktop instead of
-       drifting into the empty backdrop. */
-    right: clamp(86px, 16cqw, 110px);
-    height: clamp(110px, 20cqh, 240px);
+    /* Now a child of .signs-on-stake (same coord space as the grass-
+       clump and the bunny+fox), so its anchor uses the SIGN's bounds
+       instead of the device viewport. Sits at the right edge of the
+       grass tuft on every viewport. */
+    position: absolute;
+    right: clamp(-12px, 1cqw, 8px);
+    bottom: clamp(-8px, -1.5cqh, -2px);
+    height: clamp(110px, 17cqh, 160px);
     aspect-ratio: 1 / 1;
+    z-index: 6;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+    pointer-events: none;
     transform: scaleX(-1) rotate(3deg);
   }
   .foreground-dog-body {
@@ -1302,6 +1307,10 @@
 
               <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
               <img class="foreground-fox" src="/assets/animals/fox-cross-walking.png" alt="">
+              <div class="foreground-dog" aria-hidden="true">
+                <img class="foreground-dog-body" src="/assets/animals/dog-golden-sheltered-body.png" alt="">
+                <img class="foreground-dog-tail" src="/assets/animals/dog-golden-sheltered-tail.png" alt="">
+              </div>
               <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
 
               <!-- Flying bee on its own animated layer above the grass -->
@@ -1318,10 +1327,6 @@
       </div>
 
       <!-- Foreground corner animals — the 'cast' welcoming the player -->
-      <div class="foreground-dog" aria-hidden="true">
-        <img class="foreground-dog-body" src="/assets/animals/dog-golden-sheltered-body.png" alt="">
-        <img class="foreground-dog-tail" src="/assets/animals/dog-golden-sheltered-tail.png" alt="">
-      </div>
     </div>
   </div>
 </div>
