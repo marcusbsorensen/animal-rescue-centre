@@ -23,6 +23,8 @@ export type AuthAction =
   | 'logout'
   | 'back-to-menu'
   | 'back-to-welcome'
+  | 'type-name'                   // login → "Not here? Type your name" → signup with context
+  | 'forgot-pin'                  // login → "Forgot your secret code?" → recovery flow
   | 'recruit-apprentice'
   | 'auth-success-existing'      // login() resolved
   | 'auth-success-new';           // signup() resolved — route to welcome-new
@@ -37,7 +39,7 @@ export interface MenuStats {
   needFeeding?: number;
 }
 
-export type AuthPage = 'welcome' | 'login' | 'signup' | 'welcome-new' | 'menu' | 'friends';
+export type AuthPage = 'welcome' | 'login' | 'signup' | 'welcome-new' | 'menu' | 'friends' | 'forgot-pin';
 
 const PAGE_URLS: Record<AuthPage, string> = {
   welcome:      '/admin/mockup-welcome.html?embed=1',
@@ -46,6 +48,7 @@ const PAGE_URLS: Record<AuthPage, string> = {
   'welcome-new': '/admin/mockup-welcome-new.html?embed=1',
   menu:         '/admin/mockup-menu.html?embed=1',
   friends:      '/admin/mockup-friends.html?embed=1',
+  'forgot-pin': '/admin/mockup-forgot-pin.html?embed=1',
 };
 
 let activeFrame: HTMLIFrameElement | null = null;
@@ -60,7 +63,7 @@ function postToFrame(type: string, payload?: unknown): void {
 export function mountAuth(
   page: AuthPage,
   handlers: AuthOverlayHandlers,
-  context?: { name?: string; session?: AuthSession; stats?: MenuStats; recruited?: string[] },
+  context?: { name?: string; session?: AuthSession; stats?: MenuStats; recruited?: string[]; reason?: string },
 ): () => void {
   unmountAuth();
 
@@ -86,6 +89,13 @@ export function mountAuth(
       const usernames = getRememberedUsernames();
       postToFrame('init', { usernames });
     }
+    if (page === 'signup' && context?.reason) {
+      // Pass the "why we're here" reason to the signup iframe so it can
+      // show contextual greeting (e.g. "Couldn't find you in the list —
+      // let's make a new account!" when a kid taps "Not here? Type
+      // your name" on login).
+      postToFrame('init', { reason: context.reason });
+    }
     if (page === 'menu' && context?.session) {
       postToFrame('init', { ...context.session, stats: context.stats });
     }
@@ -109,8 +119,9 @@ export function mountAuth(
     if (msg.type === 'play' || msg.type === 'login' ||
         msg.type === 'signup' || msg.type === 'back-to-welcome' ||
         msg.type === 'friends' || msg.type === 'logout' ||
-        msg.type === 'back-to-menu') {
-      handlers.onAction(msg.type as AuthAction);
+        msg.type === 'back-to-menu' ||
+        msg.type === 'type-name' || msg.type === 'forgot-pin') {
+      handlers.onAction(msg.type as AuthAction, undefined, msg.payload);
       return;
     }
     // Friends-page: recruit-apprentice carries a {id} payload up to

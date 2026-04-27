@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>A.R.C. — Signup Mockup v3</title>
+<title>A.R.C. — Create account</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -1487,13 +1487,13 @@
 <body>
 
 <div class="vp-bar">
-  <strong>Signup mockup v3</strong>
+  <strong>Create account</strong>
   <span>·</span>
   <button data-size="iphone">📱 iPhone (390×844)</button>
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-welcome.html">→ Welcome mockup</a>
+  <a href="/admin/mockup-welcome.html">→ Welcome</a>
   <button id="stage-toggle" style="margin-left:12px;">Stage: A · Name+animal</button>
 </div>
 
@@ -2017,12 +2017,41 @@
 
   window.addEventListener('message', (e) => {
     const m = e.data;
-    if (m?.source === 'arc-auth-host' && m.type === 'auth-error') {
+    if (m?.source !== 'arc-auth-host') return;
+    if (m.type === 'auth-error') {
       const msg = m?.payload?.error || 'Couldn\'t sign you up — try again!';
       showError(msg, showing === 'hint' ? 'stage-hint' : 'stage-pin');
       if (showing === 'pin') clearPin();
     }
+    // Contextual greeting — when the kid arrives here from login's
+    // "Not here? Type your name" plank, show a friendly note above
+    // the title so they know the journey makes sense.
+    if (m.type === 'init' && m.payload?.reason === 'not-in-chips') {
+      showContextNote("Couldn't find you in the list — let's make a new account!");
+    }
   });
+  function showContextNote(text) {
+    const titleRow = document.querySelector('#stage-select .sign-title-row');
+    if (!titleRow) return;
+    let note = document.getElementById('signup-context-note');
+    if (!note) {
+      note = document.createElement('div');
+      note.id = 'signup-context-note';
+      note.style.cssText = [
+        'font-family: \'Caveat\', \'Kalam\', cursive',
+        'font-size: clamp(14px, 2.2cqh, 18px)',
+        'color: #fffbe8',
+        'opacity: 0.92',
+        'text-shadow: 1px 1px 0 rgba(0,0,0,0.4)',
+        'text-align: center',
+        'padding: 0 clamp(8px, 2cqw, 16px)',
+        'margin: clamp(2px, 0.6cqh, 6px) 0 clamp(6px, 1cqh, 10px)',
+        'line-height: 1.2',
+      ].join(';');
+      titleRow.parentElement.insertBefore(note, titleRow.nextSibling);
+    }
+    note.textContent = text;
+  }
 
   // ─── Stage C: PIN-hint capture ───
   const subInput = document.getElementById('substage-hint-input');

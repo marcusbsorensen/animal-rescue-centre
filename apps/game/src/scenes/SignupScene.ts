@@ -21,8 +21,18 @@ export class SignupScene extends Phaser.Scene {
   private container!: Phaser.GameObjects.Container;
   private errorText!: Phaser.GameObjects.Text;
 
+  /** Optional context from the previous scene — used to pass through
+   *  reasons like "not-in-chips" when the kid arrives here from the
+   *  login screen's "Not here? Type your name" plank, so the signup
+   *  iframe can show a contextual greeting. */
+  private initData: { reason?: string } = {};
+
   constructor() {
     super({ key: 'SignupScene' });
+  }
+
+  init(data?: { reason?: string }): void {
+    this.initData = data ?? {};
   }
 
   create(): void {
@@ -48,7 +58,7 @@ export class SignupScene extends Phaser.Scene {
             return;
           }
         },
-      });
+      }, { reason: this.initData.reason });
       this.events.once('shutdown', unmountAuth);
       this.events.once('destroy', unmountAuth);
       return;

@@ -23,9 +23,17 @@ export class LoginScene extends Phaser.Scene {
     const USE_OVERLAY = true as boolean;
     if (USE_OVERLAY) {
       const unmount = mountAuth('login', {
-        onAction: (action) => {
+        onAction: (action, _session, payload) => {
           if (action === 'back-to-welcome')       { unmount(); this.scene.start('MainMenuScene'); return; }
           if (action === 'signup')                { unmount(); this.scene.start('SignupScene'); return; }
+          // "Not here? Type your name" → signup with the reason flag
+          // forwarded so signup can greet the kid contextually.
+          if (action === 'type-name')             {
+            unmount();
+            this.scene.start('SignupScene', { reason: (payload as Record<string, unknown> | undefined)?.reason ?? 'not-in-chips' });
+            return;
+          }
+          if (action === 'forgot-pin')            { unmount(); this.scene.start('ForgotPinScene'); return; }
           if (action === 'auth-success-existing') {
             unmount();
             // Existing players land straight in the game.
