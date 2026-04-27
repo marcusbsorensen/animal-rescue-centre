@@ -743,6 +743,64 @@
     font-size: clamp(24px, 4.2cqh, 38px) !important;
   }
 
+  /* ── Back sticker — bright yellow circle in the top-left of the
+        sign, painted as a hand-stuck sticker. SVG inside is a curved
+        return arrow (universal "back" affordance — no text needed).
+        Replaces the "Back to welcome" / "Back to PIN screen" planks
+        that previously took up whole row of vertical space. ── */
+  .back-sticker {
+    position: absolute;
+    top: clamp(-14px, -2.4cqh, -10px);
+    left: clamp(-14px, -2.4cqh, -10px);
+    width: clamp(40px, 6.5cqh, 56px);
+    height: clamp(40px, 6.5cqh, 56px);
+    background: linear-gradient(180deg, #ffe066 0%, #f4c628 100%);
+    border: 2px solid rgba(120, 80, 40, 0.45);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 12;
+    display: flex; align-items: center; justify-content: center;
+    transform: rotate(-7deg);
+    box-shadow:
+      0 3px 0 rgba(120, 80, 40, 0.2),
+      0 5px 10px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    transition: transform 0.15s, box-shadow 0.15s;
+    padding: 0;
+    font: inherit;
+    appearance: none;
+  }
+  .back-sticker::after {
+    /* Tiny corner-peel — top-right of the sticker, like the keypad. */
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 9px; height: 9px;
+    background: linear-gradient(225deg, rgba(120,80,40,0.5) 0%, rgba(120,80,40,0.5) 45%, rgba(255,255,255,0.7) 55%);
+    clip-path: polygon(100% 0, 100% 100%, 0 0);
+    border-top-right-radius: inherit;
+    pointer-events: none;
+  }
+  .back-sticker:hover {
+    transform: rotate(-7deg) translateY(-2px) scale(1.05);
+  }
+  .back-sticker:active {
+    transform: rotate(-7deg) translateY(2px);
+    box-shadow:
+      0 1px 0 rgba(120, 80, 40, 0.2),
+      0 2px 4px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  }
+  .back-sticker svg {
+    width: 64%; height: 64%;
+    stroke: #5a3614;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,0.5));
+  }
+
   /* ── Animal: cat sleeping ON TOP of the intro panel ── */
   .intro-cat {
     position: absolute;
@@ -1455,6 +1513,12 @@
             <div class="signs-on-stake">
               <!-- Stage A: pick name + avatar -->
               <div class="intro stage-select" id="stage-select">
+                <button class="back-sticker" data-back-sticker aria-label="Go back">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="9,16 4,11 9,6"/>
+                    <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
+                  </svg>
+                </button>
                 <div class="error-sticker" id="error-sticker-select"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
                 <div class="zzz-stack" aria-hidden="true">
@@ -1484,6 +1548,12 @@
 
               <!-- Stage B: pick secret PIN -->
               <div class="intro stage-pin hidden" id="stage-pin">
+                <button class="back-sticker" data-back-sticker aria-label="Go back">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="9,16 4,11 9,6"/>
+                    <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
+                  </svg>
+                </button>
                 <div class="error-sticker" id="error-sticker-pin"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
                 <div class="zzz-stack" aria-hidden="true">
@@ -1520,6 +1590,12 @@
 
               <!-- Stage C: PIN-hint capture (with gut-check + idea-help substages) -->
               <div class="intro stage-hint hidden" id="stage-hint">
+                <button class="back-sticker" data-back-sticker aria-label="Go back">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="9,16 4,11 9,6"/>
+                    <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
+                  </svg>
+                </button>
                 <div class="error-sticker" id="error-sticker-hint"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
                 <div class="zzz-stack" aria-hidden="true">
@@ -1575,7 +1651,6 @@
                   <img class="play-parrot" src="/admin/mockup-assets/parrot-macaw-nobranch.png" alt="">
                 </div>
                 <div class="secondary-row">
-                  <button class="link-btn outlined">← Back to welcome</button>
                   <button class="link-btn plank-sage">I already have an account</button>
                 </div>
               </div>
@@ -1762,13 +1837,20 @@
       console.log('[arc-auth →]', type, payload);
     }
   };
-  document.querySelector('.link-btn.outlined')?.addEventListener('click', (e) => {
-    if (e.currentTarget.id === 'hint-help-btn') return;
-    send('back-to-welcome');
-  });
   document.querySelector('.link-btn.plank-sage')?.addEventListener('click', (e) => {
     if (e.currentTarget.id === 'hint-safe-btn') return;
     send('login');
+  });
+  // Yellow back-sticker — context-aware: goes back ONE step in the
+  // signup flow. From stage A there's nothing before, so we postMessage
+  // 'back-to-welcome' to the host (the host swaps to the welcome scene).
+  // From B back to A, from C back to B.
+  document.querySelectorAll('[data-back-sticker]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (showing === 'pin') { setStage('select'); return; }
+      if (showing === 'hint') { setStage('pin'); return; }
+      send('back-to-welcome');
+    });
   });
 
   // ─── PIN entry ───
