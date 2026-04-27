@@ -12,7 +12,7 @@
  *   - parent → iframe: {type:'auth-error', payload:{message}}   (on failure, iframe shakes+clears)
  */
 
-import { login, signup, getRememberedUsernames, type AuthSession } from '../lib/auth';
+import { login, signup, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
 
 export type AuthAction =
@@ -176,7 +176,9 @@ export function mountAuth(
         const session = await signup(data);
         handlers.onAction('auth-success-new', session);
       } catch (err) {
-        postToFrame('auth-error', { message: err instanceof Error ? err.message : 'Signup failed' });
+        const message = err instanceof Error ? err.message : 'Signup failed';
+        const suggestions = err instanceof SignupError ? err.suggestions : undefined;
+        postToFrame('auth-error', { message, suggestions });
       }
       return;
     }

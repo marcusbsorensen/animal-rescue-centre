@@ -30,6 +30,19 @@ const SESSION_KEY = 'arc_session';
 const REMEMBERED_USERNAMES_KEY = 'arc_remembered_usernames';
 
 /**
+ * Custom error from signup() that may carry a list of available
+ * username suggestions (when a collision is rejected).
+ */
+export class SignupError extends Error {
+  suggestions?: string[];
+  constructor(message: string, suggestions?: string[]) {
+    super(message);
+    this.name = 'SignupError';
+    if (suggestions && suggestions.length > 0) this.suggestions = suggestions;
+  }
+}
+
+/**
  * Sign up a new player via the Edge Function.
  */
 export async function signup(data: SignupData): Promise<AuthSession> {
@@ -37,8 +50,8 @@ export async function signup(data: SignupData): Promise<AuthSession> {
     body: data,
   });
 
-  if (error) throw new Error(error.message ?? 'Signup failed');
-  if (result.error) throw new Error(result.error);
+  if (error) throw new SignupError(error.message ?? 'Signup failed');
+  if (result.error) throw new SignupError(result.error, result.suggestions);
 
   const session: AuthSession = result.session;
   saveSession(session);

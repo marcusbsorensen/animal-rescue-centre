@@ -60,14 +60,23 @@ Deno.serve(async (req) => {
 
     // Pre-check: is this username already claimed by another user?
     // The unique constraint on users.username handles the race, but
-    // we surface a friendlier error early.
+    // we surface a friendlier error early — and offer 3 quick
+    // alternatives so the kid doesn't have to think of a new name
+    // from scratch.
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
       .eq('username', trimmedUsername)
       .maybeSingle();
     if (existingUser) {
-      return jsonResponse({ error: 'That name is taken — try another' }, 400);
+      const suggestions = await suggestAvailableUsernames(supabase, trimmedUsername);
+      return jsonResponse(
+        {
+          error: 'That name is taken — try another',
+          suggestions,
+        },
+        400,
+      );
     }
 
     // Hash PIN
@@ -159,6 +168,54 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Internal server error' }, 500);
   }
 });
+
+/**
+ * Generate up to 3 username suggestions similar to the requested one
+ * that are confirmed-available. Variants:
+ *   - <name><n> for small numbers (Lily1, Lily2, Lily3, …)
+ *   - <name><name> repeated (LilyLily)
+ *   - <name><suffix> with a kid-friendly word (LilyFox, LilyBunny, …)
+ *   - <prefix><name> (BraveLily, SunnyLily)
+ *
+ * We bulk-check candidates in one query, return the first 3 that are
+ * free. Keeps the candidate set bounded so we never fan out forever
+ * even on a wildly-collided name.
+ */
+async function suggestAvailableUsernames(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  base: string,
+): Promise<string[]> {
+  const SUFFIX_WORDS = ['Fox', 'Bunny', 'Bear', 'Star', 'Cat', 'Dog', 'Owl', 'Pup'];
+  const PREFIX_WORDS = ['Brave', 'Sunny', 'Cosy', 'Tiny', 'Happy', 'Wild'];
+  const candidates: string[] = [];
+  // Numeric suffixes — try 1..9 first, then 10..29 randomised.
+  for (let n = 1; n <= 9; n++) candidates.push(`${base}${n}`);
+  const teens = Array.from({ length: 20 }, (_, i) => i + 10).sort(() => Math.random() - 0.5);
+  for (const n of teens) candidates.push(`${base}${n}`);
+  // Word variants — randomised so different kids don't all see the
+  // same first 3 options.
+  const shuffledSuffix = [...SUFFIX_WORDS].sort(() => Math.random() - 0.5);
+  for (const w of shuffledSuffix) candidates.push(`${base}${w}`);
+  const shuffledPrefix = [...PREFIX_WORDS].sort(() => Math.random() - 0.5);
+  for (const w of shuffledPrefix) candidates.push(`${w}${base}`);
+  // Doubled name (LilyLily) — sweet for short names, redundant for long ones.
+  if (base.length <= 6) candidates.push(`${base}${base}`);
+
+  // Cap at the first 18 unique candidates and length 18.
+  const uniq = Array.from(new Set(candidates)).filter((c) => c.length <= 18).slice(0, 18);
+
+  // Bulk check which ones already exist in users.
+  const { data: claimed } = await supabase
+    .from('users')
+    .select('username')
+    .in('username', uniq);
+  const claimedSet = new Set(((claimed ?? []) as Array<{ username: string }>).map((r) => r.username));
+
+  // Return the first 3 that aren't claimed.
+  const free = uniq.filter((c) => !claimedSet.has(c)).slice(0, 3);
+  return free;
+}
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
