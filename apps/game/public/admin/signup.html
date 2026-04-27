@@ -662,6 +662,32 @@
     font-size: clamp(15px, 2.1cqh, 19px);
     padding: clamp(12px, 1.8cqh, 16px) clamp(22px, 3.4cqw, 30px);
   }
+  /* Hint-input action row — Need-ideas (amber) + NEXT (sage). NEXT
+     gets the bigger weight so kids know what to tap to advance. */
+  .hint-actions-row {
+    display: flex;
+    gap: clamp(8px, 1.6cqw, 14px);
+    margin-top: clamp(12px, 2cqh, 18px);
+    align-items: stretch;
+    justify-content: center;
+  }
+  .hint-actions-row .link-btn {
+    text-align: center;
+    font-size: clamp(14px, 2cqh, 17px);
+    padding: clamp(10px, 1.6cqh, 14px) clamp(16px, 2.6cqw, 24px);
+    flex: 1 1 0; min-width: 0;
+  }
+  .hint-actions-row .link-btn.plank-sage {
+    flex: 1.4 1 0;   /* NEXT slightly bigger — primary action. */
+    font-size: clamp(15px, 2.2cqh, 19px);
+    font-weight: 700;
+  }
+  .hint-actions-row .link-btn:disabled,
+  .hint-actions-row .link-btn[aria-disabled="true"] {
+    opacity: 0.55;
+    filter: saturate(0.5);
+    cursor: not-allowed;
+  }
 
   /* Idea cards — vertical list of tappable cream notes with rotation. */
   .idea-list {
@@ -1610,9 +1636,17 @@
                     <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
                     <div class="sign-title">Help future-you remember</div>
                   </div>
-                  <div class="sign-subtitle">Type a clue that helps YOU remember your secret code — but won't help anyone else guess it.</div>
+                  <div class="sign-subtitle">Type a clue that helps YOU remember your secret code, but won't help anyone else guess it.</div>
                   <div class="name-field-wrap">
-                    <input type="text" class="hint-field" id="hint-input" placeholder="my favourite breakfast..." maxlength="60" />
+                    <input type="text" class="hint-field" id="hint-input" placeholder="Type a clue here…" maxlength="60" />
+                  </div>
+                  <!-- NEXT button + ideas helper. Kids might not know
+                       to press Return; the green plank makes "advance"
+                       obvious. The amber plank surfaces the idea pool
+                       early for kids who can't get started. -->
+                  <div class="hint-actions-row">
+                    <button class="link-btn outlined" id="hint-help-input-btn">Need ideas?</button>
+                    <button class="link-btn plank-sage" id="hint-next-btn">NEXT →</button>
                   </div>
                 </div>
 
@@ -2114,7 +2148,7 @@
     clearDraft();
   });
 
-  document.getElementById('hint-help-btn')?.addEventListener('click', () => {
+  function showIdeaCards() {
     const seed = currentName() || 'anon';
     const ideas = getHintIdeas(seed);
     while (ideaList.firstChild) ideaList.removeChild(ideaList.firstChild);
@@ -2125,12 +2159,36 @@
       card.textContent = idea;
       card.addEventListener('click', () => {
         hintInput.value = idea;
+        saveDraft();
+        updateHintNextEnabled();
         setSubstage('input');
       });
       ideaList.appendChild(card);
     }
     setSubstage('help');
+  }
+  // "Need ideas?" on the input substage AND "Help me think →" on the
+  // gut-check substage both surface the same idea pool.
+  document.getElementById('hint-help-btn')?.addEventListener('click', showIdeaCards);
+  document.getElementById('hint-help-input-btn')?.addEventListener('click', showIdeaCards);
+
+  // Big sage NEXT button on the input substage — kids might not know
+  // they can press Return. Disabled until they've typed something.
+  function updateHintNextEnabled() {
+    const btn = document.getElementById('hint-next-btn');
+    if (!btn) return;
+    const ok = (hintInput.value || '').trim().length > 0;
+    btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+    if (ok) btn.removeAttribute('disabled');
+    else btn.setAttribute('disabled', 'true');
+  }
+  hintInput?.addEventListener('input', updateHintNextEnabled);
+  document.getElementById('hint-next-btn')?.addEventListener('click', () => {
+    if ((hintInput.value || '').trim().length === 0) return;
+    submitHint();
   });
+  // Initial state on load (also runs after loadDraft restores the input).
+  updateHintNextEnabled();
 
   document.getElementById('hint-back-btn')?.addEventListener('click', () => setSubstage('input'));
 
