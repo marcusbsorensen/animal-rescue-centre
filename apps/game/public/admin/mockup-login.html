@@ -1485,7 +1485,14 @@
   // Type-your-name plank — both as primary CTA (no chips on device) and
   // as the demoted "Not here? Type your name" yellow plank under the
   // chip grid. Both routes through the same handler.
-  document.getElementById('type-name-btn')?.addEventListener('click', () => send('type-name'));
+  // The "Not here? Type your name" demoted-yellow plank routes to
+  // signup with a reason flag, so the host can show a contextual
+  // greeting like "Couldn't find you in the list — let's make a
+  // new account!" on the signup screen rather than dropping the
+  // kid into a blank form with no context.
+  document.getElementById('type-name-btn')?.addEventListener('click', () => {
+    send('type-name', { reason: 'not-in-chips' });
+  });
 
   // ── Login flow (works in both embed + design-review modes) ──
   let selectedUsername = null;

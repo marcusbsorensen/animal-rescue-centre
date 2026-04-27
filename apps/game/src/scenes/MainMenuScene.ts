@@ -35,7 +35,11 @@ export class MainMenuScene extends Phaser.Scene {
     if (!session) {
       const unmount = mountAuth('welcome', {
         onAction: (action) => {
-          if (action === 'play')   { unmount(); this.startGame(); return; }
+          // PLAY without a session → assume the player is new and route
+          // to signup. Returning users would tap "I already have an
+          // account" instead. Without this, PLAY would call startGame()
+          // and fail because there's no user to attach progress to.
+          if (action === 'play')   { unmount(); this.scene.start('SignupScene'); return; }
           if (action === 'login')  { unmount(); this.scene.start('LoginScene'); return; }
           if (action === 'signup') { unmount(); this.scene.start('SignupScene'); return; }
         },

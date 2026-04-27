@@ -1798,6 +1798,11 @@
     // — the green ✓ keypad button is the confirm action there, so the
     // extra OK! plank just steals vertical space.
     document.querySelector('.btn-primary-wrap')?.classList.toggle('hidden', s === 'hint' || s === 'pin');
+    // Hide the "I already have an account" secondary-row on stages B
+    // and C — by then the kid has already typed their name + PIN
+    // (and possibly a hint). Tapping that plank silently abandons
+    // their progress. The yellow back-sticker covers stepping back.
+    document.querySelector('.secondary-row')?.classList.toggle('hidden', s === 'pin' || s === 'hint');
     // Carry the typed name + selected animal emoji from stage A into
     // stage B's title so the greeting matches what the kid actually
     // picked. (Was hardcoded "Nice, Lily!" + paw-heart logo before.)
@@ -1809,6 +1814,9 @@
       const selectedChip = document.querySelector('.chip.avatar-pick.selected .chip-avatar');
       if (emojiEl && selectedChip) emojiEl.textContent = (selectedChip.textContent || '').trim();
     }
+    // Persist the new stage as part of the draft so a reload mid-flow
+    // resumes on the right step.
+    saveDraft();
   }
   stageToggle?.addEventListener('click', () => {
     const order = ['select', 'pin', 'hint'];
@@ -1823,8 +1831,12 @@
       e.stopPropagation();
       for (const c of document.querySelectorAll('.chip.avatar-pick')) c.classList.remove('selected');
       chip.classList.add('selected');
+      saveDraft();
     });
   }
+  // Persist name + hint changes as the kid types.
+  document.querySelector('.name-field')?.addEventListener('input', saveDraft);
+  document.getElementById('hint-input')?.addEventListener('input', saveDraft);
 
   // ─── Mode-aware messaging ───
   const params = new URLSearchParams(location.search);
@@ -1861,7 +1873,67 @@
       d.classList.toggle('filled', i < pinBuffer.length);
     });
   }
-  function clearPin() { pinBuffer = ''; renderPinDots(); updateConfirmEnabled(); }
+  function clearPin() { pinBuffer = ''; renderPinDots(); updateConfirmEnabled(); saveDraft(); }
+
+  // ─── Draft persistence ───────────────────────────────────────
+  // Stash partial signup state in localStorage on every input + stage
+  // change. Survives reloads, accidental closes, and lets a kid
+  // resume where they left off. Cleared once the kid completes
+  // signup successfully — abandonment leaves the draft so coming
+  // back later picks up smoothly.
+  const DRAFT_KEY = 'arc-signup-draft';
+  function saveDraft() {
+    try {
+      const sel = document.querySelector('.chip.avatar-pick.selected');
+      const draft = {
+        version: 1,
+        savedAt: Date.now(),
+        name: (document.querySelector('.name-field')?.value || '').trim(),
+        animal: sel ? (sel.querySelector('.chip-avatar')?.textContent || '').trim() : '',
+        pin: pinBuffer,
+        capturedPin,
+        hint: (document.getElementById('hint-input')?.value || '').trim(),
+        stage: showing,
+      };
+      // Don't bother persisting an empty draft.
+      if (!draft.name && !draft.animal && !draft.pin && !draft.hint) return;
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch (_) { /* private mode / storage full */ }
+  }
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+  }
+  function loadDraft() {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (!draft || draft.version !== 1) return;
+      // Drafts older than 7 days are stale — clear silently and start fresh.
+      if (Date.now() - (draft.savedAt || 0) > 7 * 24 * 60 * 60 * 1000) {
+        clearDraft(); return;
+      }
+      const nameInput = document.querySelector('.name-field');
+      if (nameInput && draft.name) nameInput.value = draft.name;
+      if (draft.animal) {
+        document.querySelectorAll('.chip.avatar-pick').forEach((c) => {
+          const emoji = (c.querySelector('.chip-avatar')?.textContent || '').trim();
+          c.classList.toggle('selected', emoji === draft.animal);
+        });
+      }
+      if (typeof draft.pin === 'string') {
+        pinBuffer = draft.pin.slice(0, 4);
+        renderPinDots(); updateConfirmEnabled();
+      }
+      if (typeof draft.capturedPin === 'string') capturedPin = draft.capturedPin;
+      const hintInput = document.getElementById('hint-input');
+      if (hintInput && draft.hint) hintInput.value = draft.hint;
+      // Restore the stage the kid was on.
+      if (draft.stage && ['select', 'pin', 'hint'].includes(draft.stage)) {
+        setStage(draft.stage);
+      }
+    } catch (_) { /* corrupt draft — ignore */ }
+  }
   let errorTimer = null;
   function showError(message, stageId) {
     const stage = document.getElementById(stageId);
@@ -1913,7 +1985,7 @@
     key.addEventListener('click', () => {
       if (key.classList.contains('key-delete')) {
         pinBuffer = pinBuffer.slice(0, -1);
-        renderPinDots(); updateConfirmEnabled();
+        renderPinDots(); updateConfirmEnabled(); saveDraft();
         return;
       }
       if (key.classList.contains('key-confirm')) {
@@ -1922,7 +1994,7 @@
       }
       if (pinBuffer.length >= 4) return;
       pinBuffer += (key.textContent || '').trim();
-      renderPinDots(); updateConfirmEnabled();
+      renderPinDots(); updateConfirmEnabled(); saveDraft();
     });
   });
 
@@ -1931,10 +2003,10 @@
     if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
     if (/^[0-9]$/.test(e.key)) {
       if (pinBuffer.length >= 4) return;
-      pinBuffer += e.key; renderPinDots(); updateConfirmEnabled();
+      pinBuffer += e.key; renderPinDots(); updateConfirmEnabled(); saveDraft();
       e.preventDefault();
     } else if (e.key === 'Backspace') {
-      pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); updateConfirmEnabled(); e.preventDefault();
+      pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); updateConfirmEnabled(); saveDraft(); e.preventDefault();
     } else if (e.key === 'Delete' || e.key === 'Escape') {
       clearPin(); e.preventDefault();
     } else if (e.key === 'Enter') {
@@ -2008,6 +2080,9 @@
       avatarEmoji: emoji,
       avatarBgColour: bg,
     });
+    // Successful submission — clear the draft so it doesn't come
+    // back the next time the kid hits signup.
+    clearDraft();
   });
 
   document.getElementById('hint-help-btn')?.addEventListener('click', () => {
@@ -2029,6 +2104,11 @@
   });
 
   document.getElementById('hint-back-btn')?.addEventListener('click', () => setSubstage('input'));
+
+  // Restore any in-progress signup draft from localStorage. Last because
+  // it triggers setStage which depends on every other handler being
+  // registered first.
+  loadDraft();
 </script>
 </body>
 </html>
