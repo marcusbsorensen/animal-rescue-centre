@@ -8,7 +8,7 @@
  *   - parent → iframe: {type:'init', payload:{usernames:string[]}}  (once loaded)
  *   - iframe → parent: {type:'play'|'login'|'signup'|'back-to-welcome'}
  *   - iframe → parent: {type:'login-submit', payload:{username,pin}}
- *   - iframe → parent: {type:'signup-submit', payload:{username,pin,avatarEmoji,avatarBgColour}}
+ *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,pinHint?}}
  *   - parent → iframe: {type:'auth-error', payload:{message}}   (on failure, iframe shakes+clears)
  */
 
@@ -150,9 +150,23 @@ export function mountAuth(
       }
       return;
     }
-    if (msg.type === 'signup-submit') {
+    // Signup completion — the iframe now sends 'signup-complete' once
+    // the whole multi-stage flow (name+animal → PIN → hint) is done.
+    // Older 'signup-submit' kept as an alias for back-compat with any
+    // external callers still using the original event name. The
+    // payload from the iframe carries `hint`; we map it to `pinHint`
+    // so it lines up with SignupData on the lib/auth side.
+    if (msg.type === 'signup-complete' || msg.type === 'signup-submit') {
       try {
-        const session = await signup(msg.payload);
+        const raw = (msg.payload ?? {}) as Record<string, unknown>;
+        const data = {
+          username: String(raw.username ?? ''),
+          pin: String(raw.pin ?? ''),
+          avatarEmoji: String(raw.avatarEmoji ?? raw.animal ?? ''),
+          avatarBgColour: String(raw.avatarBgColour ?? '#ffd0a0'),
+          pinHint: typeof raw.hint === 'string' ? raw.hint : (typeof raw.pinHint === 'string' ? raw.pinHint : undefined),
+        };
+        const session = await signup(data);
         handlers.onAction('auth-success-new', session);
       } catch (err) {
         postToFrame('auth-error', { message: err instanceof Error ? err.message : 'Signup failed' });

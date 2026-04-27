@@ -5,6 +5,10 @@ export interface SignupData {
   pin: string;
   avatarEmoji: string;
   avatarBgColour: string;
+  /** PIN-recovery hint set during signup (Tier 2 of the forgot-PIN flow).
+   *  Stored on the user row; surfaced when the kid passes 2/3 of the
+   *  recovery questions. See docs/forgot-pin-recovery.md. */
+  pinHint?: string;
   parentEmailHash?: string;
 }
 
