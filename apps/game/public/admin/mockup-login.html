@@ -394,21 +394,33 @@
     transition: transform 0.08s;
   }
   .key:active { transform: translateY(2px); }
-  .key.key-back {
-    background:
-      linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
-    border-color: #3c5238;
-    font-size: clamp(18px, 3cqh, 26px);
-  }
-  /* Full-clear/reset key — unmissable red with a bolder, bigger X so
-     children can see at a glance "this wipes the whole PIN". */
-  .key.key-clear {
+  /* Bottom-left RED delete key — taps backspace one digit at a time. */
+  .key.key-delete {
     background:
       linear-gradient(180deg, #e76a5a 0%, #c54838 55%, #8f2e20 100%);
     border-color: #6b2418;
-    font-size: clamp(30px, 4.8cqh, 42px);
+    font-size: clamp(28px, 4.6cqh, 40px);
     font-weight: 900;
     line-height: 1;
+  }
+  /* Bottom-right GREEN confirm key — kid taps to submit the PIN. */
+  .key.key-confirm {
+    background:
+      linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
+    border-color: #3c5238;
+    font-size: clamp(28px, 4.6cqh, 40px);
+    font-weight: 900;
+    line-height: 1;
+    color: #fffbe8;
+  }
+  /* Disabled — until 4 digits are typed, the tick is greyed out. */
+  .key.key-confirm:disabled,
+  .key.key-confirm[aria-disabled="true"] {
+    background:
+      linear-gradient(180deg, #b8c4ad 0%, #8f9d85 55%, #65755e 100%);
+    border-color: #5e6b58;
+    opacity: 0.7;
+    cursor: not-allowed;
   }
   /* A smaller "type your name" CTA — same wooden sign as Play but shorter. */
   .name-input-sign {
@@ -1160,9 +1172,9 @@
                   <button class="key">7</button>
                   <button class="key">8</button>
                   <button class="key">9</button>
-                  <button class="key key-back" aria-label="Delete last digit">←</button>
+                  <button class="key key-delete" aria-label="Delete last digit">✕</button>
                   <button class="key">0</button>
-                  <button class="key key-clear" aria-label="Clear PIN">✕</button>
+                  <button class="key key-confirm" id="pin-confirm" aria-label="Confirm PIN" aria-disabled="true">✓</button>
                 </div>
               </div>
 
@@ -1287,7 +1299,11 @@
       d.classList.toggle('filled', i < pinBuffer.length);
     });
   }
-  function clearPin() { pinBuffer = ''; renderPinDots(); }
+  function clearPin() {
+    pinBuffer = '';
+    renderPinDots();
+    if (typeof updateConfirmEnabled === 'function') updateConfirmEnabled();
+  }
   function shakeError() {
     const stage = document.getElementById('stage-pin');
     if (!stage) return;
@@ -1337,17 +1353,30 @@
   });
   // Hard-coded mockup chips still function (when no 'init' or for design review).
   document.querySelectorAll('.chips .chip').forEach((chip) => chip.addEventListener('click', () => selectChip(chip)));
-  // Keypad wiring: digits append, ← deletes, ✕ clears, auto-submit at 4.
+  // Sync the green ✓ confirm button's enabled state with PIN-buffer length.
+  function updateConfirmEnabled() {
+    const btn = document.getElementById('pin-confirm');
+    if (!btn) return;
+    const ok = pinBuffer.length === 4;
+    btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+    if (ok) btn.removeAttribute('disabled');
+    else btn.setAttribute('disabled', 'true');
+  }
+  // Keypad wiring: digits append, red ✕ deletes one, green ✓ submits.
   document.querySelectorAll('.keypad .key').forEach((key) => {
     key.addEventListener('click', () => {
-      if (key.classList.contains('key-clear')) { clearPin(); return; }
-      if (key.classList.contains('key-back')) {
-        pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); return;
+      if (key.classList.contains('key-delete')) {
+        pinBuffer = pinBuffer.slice(0, -1);
+        renderPinDots(); updateConfirmEnabled();
+        return;
+      }
+      if (key.classList.contains('key-confirm')) {
+        if (pinBuffer.length === 4) submitPin();
+        return;
       }
       if (pinBuffer.length >= 4) return;
       pinBuffer += (key.textContent || '').trim();
-      renderPinDots();
-      if (pinBuffer.length === 4) setTimeout(submitPin, 150);
+      renderPinDots(); updateConfirmEnabled();
     });
   });
   // Hardware-keyboard PIN entry — only active while on the PIN stage.
@@ -1361,15 +1390,17 @@
     if (/^[0-9]$/.test(e.key)) {
       if (pinBuffer.length >= 4) return;
       pinBuffer += e.key;
-      renderPinDots();
-      if (pinBuffer.length === 4) setTimeout(submitPin, 150);
+      renderPinDots(); updateConfirmEnabled();
       e.preventDefault();
     } else if (e.key === 'Backspace') {
       pinBuffer = pinBuffer.slice(0, -1);
-      renderPinDots();
+      renderPinDots(); updateConfirmEnabled();
       e.preventDefault();
     } else if (e.key === 'Delete' || e.key === 'Escape') {
       clearPin();
+      e.preventDefault();
+    } else if (e.key === 'Enter') {
+      if (pinBuffer.length === 4) submitPin();
       e.preventDefault();
     }
   });
