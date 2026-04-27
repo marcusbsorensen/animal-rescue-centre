@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>A.R.C. — Vet popup v1</title>
+<title>A.R.C. — New Player Welcome</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -79,251 +79,21 @@
     container-type: size;     /* enables @container queries on size */
     container-name: welcome;
   }
-  /* Background scene — a room the conflict is happening in, blurred so the
-     modal plaque in front is the reading priority. Dark wash dims the room
-     so the plaque pops. */
   .welcome::before {
     content: ''; position: absolute; inset: 0;
-    background-image: url('/assets/bg/bg-room-dog.png');
+    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
     background-size: cover; background-position: center;
-    filter: blur(3px) saturate(0.85) brightness(0.85);
-    transform: scale(1.05);   /* hide blur edge */
     z-index: 0;
   }
   .welcome::after {
     content: ''; position: absolute; inset: 0;
-    background: rgba(26, 18, 10, 0.42);
+    background: linear-gradient(180deg,
+      rgba(254,249,239,0.75) 0%,
+      rgba(254,249,239,0.50) 45%,
+      rgba(254,249,239,0.68) 85%,
+      rgba(254,249,239,0.90) 100%);
     z-index: 1;
   }
-
-  /* ── Conflict modal plaque ── */
-  .conflict-plaque {
-    position: absolute; inset: 0;
-    margin: auto;
-    width: min(92%, 440px);
-    max-height: 90%;
-    align-self: center;
-    padding: clamp(18px, 3cqh, 28px) clamp(18px, 3cqw, 28px) clamp(20px, 3.2cqh, 30px);
-    /* Honey-amber wooden sign with plank grooves — same family as welcome sign */
-    background:
-      linear-gradient(180deg,
-        transparent 0%, transparent 19%,
-        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
-        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
-        transparent 79%,
-        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
-        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
-        transparent 100%),
-      linear-gradient(90deg,
-        transparent 0%, transparent 24%,
-        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
-        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
-        rgba(0,0,0,0.05) 75%, transparent 76%),
-      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
-    border: 3px solid #8a5a2a;
-    border-radius: 12px;
-    box-shadow:
-      0 12px 28px rgba(0,0,0,0.5),
-      inset 0 0 24px rgba(0,0,0,0.25),
-      inset 0 3px 0 rgba(255,240,210,0.2);
-    transform: rotate(-0.8deg);
-    z-index: 20;
-    display: flex; flex-direction: column; align-items: center;
-    animation: plaqueDrop 0.5s cubic-bezier(.34,1.56,.64,1);
-  }
-  @keyframes plaqueDrop {
-    0%   { transform: translateY(-60px) rotate(-4deg); opacity: 0; }
-    60%  { transform: translateY(4px)   rotate(0.5deg); opacity: 1; }
-    100% { transform: translateY(0)     rotate(-0.8deg); opacity: 1; }
-  }
-  /* Iron nails at the top corners — same device we use on link-btns */
-  .conflict-plaque::before, .conflict-plaque::after {
-    content: '';
-    position: absolute; top: 10px;
-    width: 9px; height: 9px; border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
-  }
-  .conflict-plaque::before { left: 12px; }
-  .conflict-plaque::after  { right: 12px; }
-
-  /* Green circular "+" medical flag tilted top-right, stamped-on-plaque feel */
-  .conflict-flag {
-    position: absolute;
-    top: -22px; right: -14px;
-    width: clamp(42px, 6.5cqh, 56px);
-    height: clamp(42px, 6.5cqh, 56px);
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #a8e6a3 0%, #5cbb6a 50%, #1f6a2a 100%);
-    border: 3px solid #1c5424;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--sign-title-font);
-    font-weight: 900;
-    font-size: clamp(34px, 5.2cqh, 46px);
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
-    transform: rotate(14deg);
-    animation: flagPulse 1.4s ease-in-out infinite;
-  }
-  @keyframes flagPulse {
-    0%, 100% { transform: rotate(14deg) scale(1); }
-    50%      { transform: rotate(14deg) scale(1.08); }
-  }
-
-  /* The two-animals-and-toy staging area */
-  .conflict-scene {
-    position: relative;
-    width: 100%;
-    display: flex; align-items: center; justify-content: center;
-    gap: clamp(0px, 1cqw, 4px);
-    padding: clamp(4px, 0.8cqh, 10px) 0 clamp(10px, 1.6cqh, 16px);
-  }
-  .conflict-anim {
-    height: clamp(110px, 18cqh, 160px);
-    width: auto;
-    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.35));
-  }
-  /* Sick animal — droops gently, slight sway like feeling unwell */
-  .vet-sick-anim {
-    animation: sickSway 2.4s ease-in-out alternate infinite;
-    transform-origin: bottom center;
-  }
-  @keyframes sickSway {
-    from { transform: rotate(-3deg) translateY(0); }
-    to   { transform: rotate(3deg)  translateY(-2px); }
-  }
-
-  /* Floating thermometer / germ emoji above the sick animal to signal "unwell" */
-  .vet-scene-wrap {
-    position: relative;
-    display: flex; align-items: center; justify-content: center;
-    width: 100%;
-  }
-  .vet-scene-wrap::before {
-    content: '🤒';
-    position: absolute;
-    top: -6px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: clamp(30px, 4.8cqh, 42px);
-    line-height: 1;
-    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.35));
-    animation: thermometerFloat 2s ease-in-out alternate infinite;
-    z-index: 2;
-    pointer-events: none;
-  }
-  @keyframes thermometerFloat {
-    from { transform: translateX(-50%) translateY(0)    rotate(-6deg); }
-    to   { transform: translateX(-50%) translateY(-6px) rotate(6deg); }
-  }
-
-  /* Plaque typography — same chalkboard painted style as welcome sign */
-  .conflict-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(22px, 3.6cqh, 30px);
-    letter-spacing: 0.02em;
-    text-align: center;
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
-    line-height: 1.1;
-  }
-  .conflict-subtitle {
-    font-family: var(--sign-font);
-    color: #fffbe8;
-    font-size: clamp(15px, 2.2cqh, 19px);
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
-    text-align: center;
-    margin-top: clamp(4px, 0.8cqh, 8px);
-    margin-bottom: clamp(12px, 2.2cqh, 20px);
-    opacity: 0.95;
-    line-height: 1.25;
-  }
-
-  /* Three resolution pills stacked on the plaque */
-  .conflict-choices {
-    display: flex; flex-direction: column; width: 100%;
-    gap: clamp(8px, 1.4cqh, 12px);
-  }
-  .choice-pill {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
-    column-gap: clamp(10px, 2cqw, 14px);
-    align-items: center;
-    padding: clamp(8px, 1.3cqh, 12px) clamp(14px, 2.6cqw, 20px);
-    border-radius: 14px;
-    cursor: pointer;
-    font-family: var(--sign-font);
-    text-align: left;
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
-    border: 2px solid;
-    box-shadow:
-      inset 0 0 10px rgba(0,0,0,0.2),
-      inset 0 2px 0 rgba(255,240,210,0.2),
-      0 3px 6px rgba(0,0,0,0.3);
-    transition: transform 0.1s;
-  }
-  .choice-pill:hover { transform: translateY(-2px); }
-  .choice-emoji {
-    font-size: clamp(24px, 3.8cqh, 32px);
-    grid-row: 1 / span 2;
-    line-height: 1;
-    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.25));
-  }
-  /* Two-toy cluster — reads as a pile of toys to pick another from, so
-     kids don't misread "Fetch another toy" as "chop the toy up". */
-  .toy-pile {
-    position: relative;
-    display: inline-block;
-    width: clamp(36px, 5.5cqh, 48px);
-    height: clamp(32px, 5cqh, 42px);
-    filter: none;
-  }
-  .toy-pile .toy-pile-a,
-  .toy-pile .toy-pile-b {
-    position: absolute;
-    font-size: clamp(20px, 3.2cqh, 28px);
-    line-height: 1;
-    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.25));
-  }
-  .toy-pile .toy-pile-a { left: 0;    bottom: 0; transform: rotate(-8deg); }
-  .toy-pile .toy-pile-b { right: -2px; top: 0;   transform: rotate(10deg); }
-  .choice-label {
-    font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 18px);
-    line-height: 1.15;
-  }
-  .choice-hint {
-    font-size: clamp(12px, 1.6cqh, 14px);
-    font-family: 'Caveat', 'Kalam', cursive;
-    opacity: 0.9;
-    line-height: 1.1;
-  }
-  .choice-amber {
-    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
-    border-color: #7a4b15;
-  }
-  .choice-sage {
-    background: linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
-    border-color: #3c5238;
-  }
-  .choice-cream {
-    background: linear-gradient(180deg, #fff0cc 0%, #e7c97a 55%, #b89246 100%);
-    border-color: #7a5a22;
-    color: #3a2618;
-    text-shadow: 1px 1px 0 rgba(255,240,210,0.6);
-  }
-  .choice-cream .choice-hint { color: #6b4820; }
-
-  /* Don't render any of the welcome-screen chrome on this modal. */
-  .welcome-content, .credits, .foreground-dog, .foreground-fox-LEGACY-IGNORED { display: none !important; }
 
   .welcome-inner {
     position: relative; z-index: 5;
@@ -572,6 +342,35 @@
     z-index: 5;  /* above the grass blades */
   }
 
+  /* Subtitle for the new-player welcome */
+  .sign-subtitle {
+    font-family: var(--sign-font);
+    font-weight: 700;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    font-size: clamp(15px, 2.2cqh, 19px);
+    text-align: center;
+    margin-top: clamp(6px, 1.2cqh, 12px);
+    margin-bottom: clamp(6px, 1.2cqh, 10px);
+    opacity: 0.95;
+  }
+  /* ARC exterior snapshot — painted panel pinned inside the sign so new
+     players can orient themselves (where am I heading?). Dual-use asset:
+     also shows up on the in-game News screen when updates drop. */
+  .arc-snapshot-wrap {
+    display: flex; justify-content: center;
+    padding: clamp(6px, 1.2cqh, 12px) 0 clamp(2px, 0.6cqh, 6px);
+  }
+  .arc-snapshot {
+    width: 100%;
+    max-width: clamp(220px, 50cqw, 360px);
+    height: auto;
+    border-radius: clamp(6px, 1cqh, 10px);
+    border: clamp(2px, 0.3cqh, 3px) solid #7a4b15;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    display: block;
+  }
+
   /* Flying bee — animated on its own layer above the grass, tracing a wavy
      figure-8-ish path so it reads as a real bee doing a lazy circle over the
      flowers at the stake's base rather than a static decal. */
@@ -789,7 +588,7 @@
   }
 
   /* ── Animals in the foreground at the bottom corners ── */
-  .foreground-dog, .foreground-fox {
+  .foreground-dog, .foreground-fox-LEGACY-IGNORED {
     position: absolute;
     bottom: clamp(22px, 4cqh, 50px);
     z-index: 6;
@@ -865,6 +664,8 @@
     display: flex; flex-direction: column; align-items: center;
     gap: clamp(2px, 0.4cqh, 4px);
     position: relative; z-index: 5;
+    /* Decorative — never block clicks to the underlying buttons. */
+    pointer-events: none;
   }
   /* Handwritten-scrawl credits — cursive green, designed to look like
      a blade of grass at first glance and read as a signature on closer look. */
@@ -952,12 +753,66 @@
     }
   }
 
-  /* Narrow / iPhone: simplify — hide extras to avoid clutter */
+  /* ── iPhone: compress the stack so cat sits ON sign + grass + animals
+        + credits all fit inside the viewport. Also enables vertical
+        scroll as a safety net for shorter devices. ── */
   @container welcome (max-width: 420px) {
-    .foreground-dog { height: clamp(62px, 12cqh, 110px); right: 4px; left: auto; }
-    .foreground-fox { height: clamp(60px, 10cqh, 95px); left: calc(50% - clamp(125px, 30cqw, 200px)); }
+    /* Scroll if anything still overflows. */
+    overflow-y: auto;
+
+    /* Sign moves UP: smaller top padding so the cat is reachable. */
+    .welcome-content {
+      padding-top: clamp(28px, 5cqh, 44px);
+    }
+    /* Cat sits ON the sign (overlapping its top edge), not floating
+       above it. Smaller cat + less negative top = cat overlaps sign. */
+    .intro-cat {
+      height: clamp(54px, 9cqh, 70px);
+      top: clamp(-40px, -6cqh, -30px) !important;
+      bottom: auto !important;
+      right: clamp(8px, 2.5cqw, 14px) !important;
+    }
+    /* Less stake length below the secondary planks so the grass tuft +
+       animals + credits all fit. */
+    .signs-on-stake {
+      padding-bottom: clamp(70px, 12cqh, 110px);
+    }
+    /* Foreground dog: slightly smaller, anchored to the right edge of
+       the central stake (matches the grass tuft right edge) rather than
+       the device corner. */
+    .foreground-dog {
+      height: clamp(72px, 14cqh, 110px);
+      right: clamp(4px, 1cqw, 10px);
+      left: auto;
+    }
+    /* Fox: bigger (head clearly emerges), still anchored behind the
+       leftmost grass blades (signs-on-stake coord space). */
+    .foreground-fox {
+      height: clamp(80px, 14cqh, 115px);
+      left: calc(50% - clamp(95px, 22cqw, 130px));
+    }
     .logo-bunny { display: none; }
-    .intro-cat { height: clamp(50px, 8cqh, 80px); right: -4%; bottom: -24%; }
+
+    /* Credits: absolutely positioned below the grass tuft so they don't
+       take a grid row that pushes everything else off-screen. Single-
+       line "Designed by · Built by" centred at the very bottom. */
+    .credits {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: clamp(2px, 0.5cqh, 6px);
+      height: auto;
+      padding: 0;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      gap: clamp(8px, 2cqw, 14px);
+      z-index: 8;
+    }
+    .credit-scrawl {
+      font-size: clamp(10px, 1.5cqh, 12px);
+      white-space: nowrap;
+      opacity: 0.7;
+    }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
      the device's viewport on these landscape sizes; allow the user to
      scroll to see the bottom (grass tuft, bunny, fox, credits). */
@@ -993,13 +848,13 @@
 <body>
 
 <div class="vp-bar">
-  <strong>Vet popup v1</strong>
+  <strong>New-player welcome v1</strong>
   <span>·</span>
   <button data-size="iphone">📱 iPhone (390×844)</button>
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-login.html">→ Login mockup</a>
+  <a href="/admin/login.html">→ Sign in</a>
   <span class="hint">(real logo + contextual animals)</span>
 </div>
 
@@ -1013,38 +868,61 @@
           <button class="audio-btn" aria-label="Toggle sound">🔊</button>
         </div>
 
-        <!-- Conflict plaque floats in the middle of the (blurred) room scene.
-             Large painted wooden sign with exclamation flag overlaid on top,
-             two animals facing off with a toy between them, then a headline,
-             subtitle, and three resolution choice pills. -->
-        <div class="conflict-plaque">
-          <div class="conflict-flag">+</div>
-          <div class="conflict-scene">
-            <div class="vet-scene-wrap">
-              <img id="vet-sick-sprite" class="conflict-anim vet-sick-anim" src="/assets/animals/cat-ginger-sick.png" alt="">
+        <div class="welcome-content">
+          <div class="logo-wrap">
+            <img class="logo-img" src="/assets/logo/arc-logo-portrait.png" alt="A.R.C. — Animal Rescue Centre">
+            <img class="logo-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
+          </div>
+
+          <div class="text-block">
+            <div class="signs-on-stake">
+              <div class="intro">
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <div class="sign-title" id="welcome-title">Welcome, friend!</div>
+                <div class="arc-snapshot-wrap">
+                  <img class="arc-snapshot" src="/admin/scene-assets/arc-exterior.png" alt="The Animal Rescue Centre from the outside — cottage with garden">
+                </div>
+                <div class="sign-subtitle">Here's how A.R.C. works:</div>
+                <ol>
+                  <li>Rescue scared animals</li>
+                  <li>Feed, heal &amp; walk them</li>
+                  <li>Find forever homes</li>
+                </ol>
+              </div>
+
+              <div class="cta-stack">
+                <div class="btn-primary-wrap">
+                  <button class="btn-primary">
+                    <span class="paw paw-left">🐾</span>
+                    <span class="play-label">START PLAYING!</span>
+                    <span class="paw paw-right">🐾</span>
+                  </button>
+                  <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
+                </div>
+              </div>
+
+              <!-- Bunny sitting on the ground at the foot of the garden post -->
+              <img class="ground-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
+
+              <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
+              <img class="foreground-fox" src="/assets/animals/fox-cross-walking.png" alt="">
+              <img class="grass-clump" src="/admin/scene-assets/grass-clump.png" alt="" aria-hidden="true">
+
+              <!-- Flying bee on its own animated layer above the grass -->
+              <img class="bee-flyer" src="/admin/scene-assets/bee-flying.png" alt="" aria-hidden="true">
             </div>
           </div>
-          <div class="conflict-title" id="vet-title">Oh dear — Luna isn't feeling well</div>
-          <div class="conflict-subtitle" id="vet-subtitle">Looks like a tummy bug. Here's what you can do.</div>
-          <div class="conflict-choices">
-            <button class="choice-pill choice-amber" data-action="treatment-rest">
-              <span class="choice-emoji">🌿</span>
-              <span class="choice-label">Herbal tea rest</span>
-              <span class="choice-hint">Cozy recovery, free</span>
-            </button>
-            <button class="choice-pill choice-sage" data-action="treatment-vet">
-              <span class="choice-emoji">🩺</span>
-              <span class="choice-label">Visit the vet</span>
-              <span class="choice-hint">Quick check-up, 20 coins</span>
-            </button>
-            <button class="choice-pill choice-cream" data-action="treatment-home">
-              <span class="choice-emoji">💊</span>
-              <span class="choice-label">Home remedy</span>
-              <span class="choice-hint">Try natural care, small chance of not working</span>
-            </button>
-          </div>
         </div>
+
+        <div class="credits">
+          <span class="credit-scrawl credit-left">Designed by Lily age 8</span>
+          <span class="credit-scrawl credit-right">Built by Dad and Claude Code</span>
+        </div>
+
       </div>
+
+      <!-- Foreground corner animals — the 'cast' welcoming the player -->
+      <img class="foreground-dog" src="/assets/animals/dog-golden-sheltered.png" alt="">
     </div>
   </div>
 </div>
@@ -1059,40 +937,22 @@
     });
   }
   // Embed mode — when loaded inside the game as an overlay, drop the
-  // simulator chrome and have the device fill the viewport. Each treatment
-  // choice postMessages a treatment-* action up to the host scene.
+  // simulator chrome and have the device fill the viewport. Clicks on the
+  // primary CTAs postMessage up to the host scene instead of being dead.
   const params = new URLSearchParams(location.search);
   if (params.has('embed')) {
     document.body.classList.add('embed');
     const send = (type) => {
-      try { parent.postMessage({ source: 'arc-vet', type }, '*'); } catch (_) {}
+      try { parent.postMessage({ source: 'arc-auth', type }, '*'); } catch (_) {}
     };
-    for (const btn of document.querySelectorAll('.choice-pill')) {
-      btn.addEventListener('click', () => send(btn.dataset.action));
+    // Personalize the title from ?name=…  (parent passes this when routing
+    // the newly-signed-up player here after a successful signup call).
+    const name = params.get('name');
+    if (name) {
+      const titleEl = document.getElementById('welcome-title');
+      if (titleEl) titleEl.textContent = `Welcome, ${name}!`;
     }
-
-    // init handshake — host sends {animalName, animalSpecies, animalVariant, illnessName}
-    // to personalise the title, subtitle, and sprite.
-    window.addEventListener('message', (e) => {
-      const msg = e.data;
-      if (!msg || msg.source !== 'arc-game-host' || msg.type !== 'init') return;
-      const p = msg.payload || {};
-      const name = p.animalName || 'your friend';
-      const illness = p.illnessName || 'tummy bug';
-      const titleEl = document.getElementById('vet-title');
-      const subEl = document.getElementById('vet-subtitle');
-      const spriteEl = document.getElementById('vet-sick-sprite');
-      if (titleEl) titleEl.textContent = `Oh dear — ${name} isn't feeling well`;
-      if (subEl) subEl.textContent = `Looks like ${illness === 'a' || /^[aeiou]/i.test(illness) ? 'an' : 'a'} ${illness}. Here's what you can do.`;
-      if (spriteEl && p.animalSpecies && p.animalVariant) {
-        spriteEl.src = `/assets/animals/${p.animalSpecies}-${p.animalVariant}-sick.png`;
-        spriteEl.onerror = () => {
-          // Fallback to grumpy/sheltered when no -sick sprite exists for this variant
-          spriteEl.onerror = null;
-          spriteEl.src = `/assets/animals/${p.animalSpecies}-${p.animalVariant}-grumpy.png`;
-        };
-      }
-    });
+    document.querySelector('.btn-primary')?.addEventListener('click', () => send('play'));
   }
 </script>
 </body>

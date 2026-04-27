@@ -1,6 +1,6 @@
 /**
- * AuthOverlay — mounts the HTML welcome/login/signup mockups as a full-
- * viewport iframe over the Phaser canvas. The mockup pages postMessage
+ * AuthOverlay — mounts the HTML welcome/login/signup screens as a full-
+ * viewport iframe over the Phaser canvas. The screen pages postMessage
  * primary actions (PLAY!, submit, nav) back to us; we bridge into the
  * real auth API (lib/auth.ts) and route the host Phaser scene.
  *
@@ -42,13 +42,13 @@ export interface MenuStats {
 export type AuthPage = 'welcome' | 'login' | 'signup' | 'welcome-new' | 'menu' | 'friends' | 'forgot-pin';
 
 const PAGE_URLS: Record<AuthPage, string> = {
-  welcome:      '/admin/mockup-welcome.html?embed=1',
-  login:        '/admin/mockup-login.html?embed=1',
-  signup:       '/admin/mockup-signup.html?embed=1',
-  'welcome-new': '/admin/mockup-welcome-new.html?embed=1',
-  menu:         '/admin/mockup-menu.html?embed=1',
-  friends:      '/admin/mockup-friends.html?embed=1',
-  'forgot-pin': '/admin/mockup-forgot-pin.html?embed=1',
+  welcome:      '/admin/welcome.html?embed=1',
+  login:        '/admin/login.html?embed=1',
+  signup:       '/admin/signup.html?embed=1',
+  'welcome-new': '/admin/welcome-new.html?embed=1',
+  menu:         '/admin/menu.html?embed=1',
+  friends:      '/admin/friends.html?embed=1',
+  'forgot-pin': '/admin/forgot-pin.html?embed=1',
 };
 
 let activeFrame: HTMLIFrameElement | null = null;
@@ -130,7 +130,7 @@ export function mountAuth(
       handlers.onAction('recruit-apprentice', undefined, msg.payload);
       return;
     }
-    // Speaker icon in the mockup — toggle music, then echo the state
+    // Speaker icon in the screen — toggle music, then echo the state
     // back so the icon flips between 🔊 and 🔇. This runs inside the
     // user-activation bubble of the click, so the AudioContext is
     // allowed to start (browsers block autoplay without a gesture).

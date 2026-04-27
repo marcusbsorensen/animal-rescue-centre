@@ -15,7 +15,7 @@ import { showToast } from '../ui/ErrorOverlay';
  *                 login/signup → their respective scenes).
  * Logged in     → menu overlay (CONTINUE → startGame, Friends, Log out).
  *
- * The actual painted UI lives in the iframe mockups — this scene just
+ * The actual painted UI lives in the iframe screens — this scene just
  * mounts one and forwards its postMessage actions.
  */
 export class MainMenuScene extends Phaser.Scene {
@@ -77,7 +77,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   /**
-   * Open the HTML Friends mockup as an iframe overlay. The page sends
+   * Open the HTML Friends screen as an iframe overlay. The page sends
    * back 'back-to-menu' and 'recruit-apprentice' postMessages; we bridge
    * the recruit one into game-logic, persist, then re-render the overlay
    * on success so the apprentice-able badges update in place.
@@ -107,7 +107,7 @@ export class MainMenuScene extends Phaser.Scene {
             const def = APPRENTICE_DEFS[id as keyof typeof APPRENTICE_DEFS];
             showToast(this, `⭐ ${def?.name ?? 'Apprentice'} is now a volunteer apprentice!`);
             saveGameState(this, store);
-            // Re-mount so the mockup re-renders with the new state.
+            // Re-mount so the screen re-renders with the new state.
             friendsUnmount();
             mount();
           }

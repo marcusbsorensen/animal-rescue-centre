@@ -1009,7 +1009,7 @@
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-menu.html">← Back to Menu mockup</a>
+  <a href="/admin/menu.html">← Back to Menu</a>
   <span class="hint">(painted notice board)</span>
 </div>
 
@@ -1036,7 +1036,7 @@
                 <button class="back-pill" id="back-pill" type="button">← Menu</button>
                 <div class="sign-title news-title">What's New at A.R.C.</div>
                 <div class="arc-snapshot-wrap">
-                  <img class="arc-snapshot news-hero" src="/admin/mockup-assets/arc-exterior.png" alt="The Animal Rescue Centre from the outside — cottage with garden">
+                  <img class="arc-snapshot news-hero" src="/admin/scene-assets/arc-exterior.png" alt="The Animal Rescue Centre from the outside — cottage with garden">
                 </div>
                 <div class="news-list" id="news-list"></div>
               </div>
@@ -1057,10 +1057,10 @@
 
               <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
               <img class="foreground-fox" src="/assets/animals/fox-cross-walking.png" alt="">
-              <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
+              <img class="grass-clump" src="/admin/scene-assets/grass-clump.png" alt="" aria-hidden="true">
 
               <!-- Flying bee on its own animated layer above the grass -->
-              <img class="bee-flyer" src="/admin/mockup-assets/bee-flying.png" alt="" aria-hidden="true">
+              <img class="bee-flyer" src="/admin/scene-assets/bee-flying.png" alt="" aria-hidden="true">
             </div>
           </div>
         </div>
@@ -1089,7 +1089,7 @@
       device.dataset.size = btn.dataset.size;
     });
   }
-  // News items — static for the mockup. In the game these would come
+  // News items — static for the screen. In the game these would come
   // from an authored feed. Built via createElement + textContent to keep
   // the DOM construction XSS-safe even if content becomes dynamic later.
   const NEWS_ITEMS = [

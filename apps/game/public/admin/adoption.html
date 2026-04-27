@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>A.R.C. — Rewilding</title>
+<title>A.R.C. — Adoption</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -65,35 +65,33 @@
   .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
   .device[data-size="desktop"]   { width: 1280px; height: 800px; }
 
-  /* ── Rewilding cinematic takeover ── */
-  .rewild {
+  /* ── Adoption cinematic takeover ── */
+  .adopt {
     width: 100%; height: 100%;
     position: relative;
     overflow: hidden;
     container-type: size;
-    container-name: rewild;
+    container-name: adopt;
   }
-  /* Wilderness background — warm saturation bump, not a dim wash. The new
-     home should look inviting and luminous, not melancholy. */
-  .rewild::before {
+  .adopt::before {
     content: ''; position: absolute; inset: 0;
-    background-image: url('/assets/bg/garden-lawn-summer-evening.png');
+    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
     background-size: cover; background-position: center;
-    filter: saturate(1.25) brightness(1.05) contrast(1.03);
+    filter: saturate(1.35) brightness(1.1) contrast(1.04);
     transform: scale(1.04);
     z-index: 0;
   }
-  /* Soft golden-hour haze — adds depth without dimming. */
-  .rewild::after {
+  .adopt::after {
     content: ''; position: absolute; inset: 0;
     background:
-      radial-gradient(ellipse at 50% 30%, rgba(255, 220, 140, 0.25) 0%, transparent 60%),
-      linear-gradient(180deg, rgba(255, 200, 120, 0.10) 0%, transparent 40%, rgba(80, 50, 20, 0.12) 100%);
+      radial-gradient(ellipse at 50% 25%, rgba(255, 230, 240, 0.30) 0%, transparent 60%),
+      radial-gradient(ellipse at 20% 80%, rgba(255, 220, 200, 0.22) 0%, transparent 55%),
+      linear-gradient(180deg, rgba(255, 240, 220, 0.12) 0%, transparent 40%, rgba(60, 40, 70, 0.08) 100%);
     z-index: 1;
     pointer-events: none;
   }
 
-  .rewild-inner {
+  .adopt-inner {
     position: relative; z-index: 5;
     width: 100%; height: 100%;
     display: flex; flex-direction: column; align-items: center;
@@ -103,56 +101,54 @@
     overflow: hidden;
   }
 
-  /* ── Ambient: drifting leaves across the viewport ── */
-  .leaf {
+  /* ── Ambient: drifting petals + sparkles ── */
+  .petal, .sparkle {
     position: absolute;
-    font-size: clamp(18px, 2.6cqh, 28px);
     line-height: 1;
-    opacity: 0.85;
     pointer-events: none;
     z-index: 3;
-    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.2));
     will-change: transform;
   }
-  @keyframes leafDrift {
-    0%   { transform: translate(-6cqw, -10cqh) rotate(-20deg); opacity: 0; }
+  .petal {
+    font-size: clamp(18px, 2.6cqh, 28px);
+    opacity: 0.85;
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.15));
+  }
+  .sparkle {
+    font-size: clamp(14px, 2.2cqh, 22px);
+    opacity: 0.9;
+    filter: drop-shadow(0 0 6px rgba(255,220,140,0.6));
+  }
+  @keyframes petalDrift {
+    0%   { transform: translate(-4cqw, -10cqh) rotate(-20deg); opacity: 0; }
     8%   { opacity: 0.9; }
-    50%  { transform: translate(40cqw, 50cqh) rotate(140deg); opacity: 0.85; }
-    92%  { opacity: 0.7; }
-    100% { transform: translate(110cqw, 110cqh) rotate(320deg); opacity: 0; }
+    50%  { transform: translate(30cqw, 55cqh) rotate(120deg); opacity: 0.85; }
+    92%  { opacity: 0.6; }
+    100% { transform: translate(95cqw, 115cqh) rotate(280deg); opacity: 0; }
   }
-  .leaf-1 { top: -5%;  left: 10%; animation: leafDrift 16s linear infinite; animation-delay: 0s; }
-  .leaf-2 { top: -8%;  left: 35%; animation: leafDrift 22s linear infinite; animation-delay: -4s; font-size: clamp(14px, 2cqh, 22px); }
-  .leaf-3 { top: -10%; left: 60%; animation: leafDrift 19s linear infinite; animation-delay: -8s; }
-  .leaf-4 { top: -6%;  left: 82%; animation: leafDrift 24s linear infinite; animation-delay: -2s; font-size: clamp(16px, 2.3cqh, 24px); }
-  .leaf-5 { top: -12%; left: 5%;  animation: leafDrift 21s linear infinite; animation-delay: -11s; font-size: clamp(12px, 1.8cqh, 20px); }
-  .leaf-6 { top: -7%;  left: 48%; animation: leafDrift 26s linear infinite; animation-delay: -14s; }
+  @keyframes sparkleFloat {
+    0%   { transform: translate(0, 0) scale(0.7); opacity: 0; }
+    15%  { opacity: 1; transform: translate(2cqw, -4cqh) scale(1); }
+    50%  { opacity: 0.95; transform: translate(-3cqw, -20cqh) scale(1.15); }
+    85%  { opacity: 0.8; }
+    100% { transform: translate(4cqw, -40cqh) scale(0.6); opacity: 0; }
+  }
+  .petal-1 { top: -6%;  left: 14%; animation: petalDrift 18s linear infinite; animation-delay: 0s; }
+  .petal-2 { top: -9%;  left: 42%; animation: petalDrift 23s linear infinite; animation-delay: -5s; font-size: clamp(14px, 2cqh, 22px); }
+  .petal-3 { top: -11%; left: 66%; animation: petalDrift 20s linear infinite; animation-delay: -10s; }
+  .petal-4 { top: -7%;  left: 85%; animation: petalDrift 26s linear infinite; animation-delay: -3s; font-size: clamp(16px, 2.3cqh, 24px); }
 
-  /* Distant bird silhouettes */
-  .bird {
-    position: absolute;
-    top: 18%;
-    color: rgba(40, 28, 18, 0.55);
-    font-family: var(--headline-font);
-    font-size: clamp(10px, 1.4cqh, 14px);
-    letter-spacing: -2px;
-    z-index: 2;
-    pointer-events: none;
-    animation: birdGlide 30s linear infinite;
-  }
-  .bird-1 { left: 12%; top: 16%; animation-delay: 0s; }
-  .bird-2 { left: 28%; top: 12%; animation-delay: -10s; opacity: 0.7; }
-  .bird-3 { left: 46%; top: 18%; animation-delay: -20s; opacity: 0.6; }
-  @keyframes birdGlide {
-    0%   { transform: translateX(0) translateY(0); }
-    50%  { transform: translateX(40cqw) translateY(-1cqh); }
-    100% { transform: translateX(85cqw) translateY(0); }
-  }
+  .sparkle-1 { top: 78%; left: 12%; animation: sparkleFloat 6s ease-in-out infinite; animation-delay: 0s; }
+  .sparkle-2 { top: 82%; left: 32%; animation: sparkleFloat 7.5s ease-in-out infinite; animation-delay: -1.2s; }
+  .sparkle-3 { top: 74%; left: 55%; animation: sparkleFloat 5.5s ease-in-out infinite; animation-delay: -2.4s; }
+  .sparkle-4 { top: 80%; left: 72%; animation: sparkleFloat 8s ease-in-out infinite; animation-delay: -3.5s; }
+  .sparkle-5 { top: 86%; left: 88%; animation: sparkleFloat 6.5s ease-in-out infinite; animation-delay: -4.8s; }
+  .sparkle-6 { top: 70%; left: 44%; animation: sparkleFloat 7s ease-in-out infinite; animation-delay: -0.6s; }
 
-  /* ── Farewell plaque ── */
-  .farewell-plaque {
+  /* ── Adoption plaque ── */
+  .adopt-plaque {
     position: relative;
-    width: min(92%, 480px);
+    width: min(94%, 540px);
     padding: clamp(18px, 3cqh, 28px) clamp(18px, 3cqw, 28px) clamp(22px, 3.4cqh, 32px);
     background:
       linear-gradient(180deg,
@@ -185,17 +181,17 @@
     60%  { transform: translateY(4px)   rotate(0.5deg); opacity: 1; }
     100% { transform: translateY(0)     rotate(-0.6deg); opacity: 1; }
   }
-  .farewell-plaque::before, .farewell-plaque::after {
+  .adopt-plaque::before, .adopt-plaque::after {
     content: '';
     position: absolute; top: 10px;
     width: 9px; height: 9px; border-radius: 50%;
     background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
     box-shadow: 0 1px 2px rgba(0,0,0,0.4);
   }
-  .farewell-plaque::before { left: 12px; }
-  .farewell-plaque::after  { right: 12px; }
+  .adopt-plaque::before { left: 12px; }
+  .adopt-plaque::after  { right: 12px; }
 
-  .farewell-title {
+  .adopt-title {
     font-family: var(--sign-title-font);
     font-weight: 700;
     font-size: clamp(26px, 4.4cqh, 38px);
@@ -210,7 +206,7 @@
     line-height: 1.1;
     margin-bottom: clamp(4px, 0.8cqh, 8px);
   }
-  .farewell-subtitle {
+  .adopt-subtitle {
     font-family: 'Caveat', 'Kalam', cursive;
     font-style: italic;
     font-weight: 700;
@@ -222,15 +218,19 @@
     line-height: 1.2;
   }
 
-  /* Portrait frame — wooden border + drop shadow, same family as arc-snapshot */
-  .portrait-wrap {
-    display: flex; justify-content: center;
+  /* Side-by-side portrait row */
+  .portrait-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 1.4cqw, 14px);
+    width: 100%;
     padding: clamp(2px, 0.6cqh, 6px) 0 clamp(4px, 0.8cqh, 10px);
   }
   .portrait-frame {
     position: relative;
-    width: 100%;
-    max-width: clamp(200px, 48cqw, 320px);
+    flex: 1 1 0;
+    max-width: clamp(140px, 34cqw, 220px);
     aspect-ratio: 4 / 3;
     border-radius: clamp(6px, 1cqh, 10px);
     border: clamp(3px, 0.5cqh, 5px) solid #7a4b15;
@@ -251,27 +251,85 @@
     left: 0; right: 0; bottom: 0;
     height: 28%;
     background:
-      linear-gradient(180deg, rgba(120,170,80,0.0) 0%, rgba(95,150,70,0.55) 70%, rgba(70,120,50,0.7) 100%);
+      linear-gradient(180deg, rgba(180,210,150,0.0) 0%, rgba(140,190,120,0.5) 70%, rgba(100,160,90,0.65) 100%);
   }
   .portrait-animal {
     position: relative;
-    height: 78%;
+    height: 82%;
     width: auto;
     filter: drop-shadow(2px 4px 5px rgba(0,0,0,0.35));
     z-index: 2;
-    animation: trotAway 3.2s ease-in-out infinite;
+    animation: bounceHappy 2.4s ease-in-out infinite;
     transform-origin: bottom center;
   }
-  @keyframes trotAway {
-    0%, 100% { transform: translateY(0) rotate(-1deg); }
-    50%      { transform: translateY(-3px) rotate(1deg); }
+  @keyframes bounceHappy {
+    0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+    50%      { transform: translateY(-4px) rotate(1.5deg); }
+  }
+  .portrait-family { padding: 0; }
+  .portrait-family .portrait-animal {
+    animation: sway 3.6s ease-in-out infinite;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+  }
+  @keyframes sway {
+    0%, 100% { transform: translateY(0) rotate(0.6deg); }
+    50%      { transform: translateY(-2px) rotate(-0.6deg); }
+  }
+  .family-fallback {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.15px;
+    color: #4a2e14;
+    font-size: clamp(13px, 1.7cqh, 16px);
+    line-height: 1.25;
+    padding: 8% 10%;
+  }
+  .family-fallback .ff-emoji { font-size: clamp(24px, 3.6cqh, 34px); display: block; margin-bottom: 4px; }
+
+  /* Meet-in-the-middle connector */
+  .meet-connector {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px;
+    flex: 0 0 auto;
+    min-width: clamp(60px, 14cqw, 110px);
+  }
+  .meet-spark {
+    font-size: clamp(22px, 3.4cqh, 32px);
+    line-height: 1;
+    filter: drop-shadow(0 0 8px rgba(255,220,140,0.8));
+    animation: sparkPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes sparkPulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50%      { transform: scale(1.25); opacity: 1; }
+  }
+  .meet-label {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #fffbe8;
+    font-size: clamp(13px, 1.7cqh, 15px);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    text-align: center;
+    line-height: 1.2;
   }
 
-  /* Scroll card — cream paper, rotated, handwritten Caveat text */
+  /* Scroll card */
   .scroll-card {
     position: relative;
     margin-top: clamp(8px, 1.4cqh, 14px);
-    width: min(100%, 380px);
+    width: min(100%, 420px);
     padding: clamp(14px, 2.2cqh, 20px) clamp(18px, 3cqw, 26px) clamp(28px, 3.8cqh, 38px);
     background:
       radial-gradient(ellipse 30px 10px at 10% 96%, rgba(160,110,60,0.25) 0%, transparent 70%),
@@ -310,9 +368,9 @@
     filter: sepia(0.6);
   }
 
-  /* ── Bond panel ── */
-  .bond-panel {
-    width: min(92%, 420px);
+  /* ── Thank-you gifts panel ── */
+  .gifts-panel {
+    width: min(92%, 480px);
     margin-top: 0;
     padding: clamp(10px, 1.8cqh, 16px) clamp(14px, 2.6cqw, 22px);
     background: linear-gradient(180deg, #fff2d0 0%, #f4dba0 60%, #d9b874 100%);
@@ -324,45 +382,56 @@
       inset 0 -2px 0 rgba(120, 80, 30, 0.2);
     transform: rotate(0.5deg);
     display: flex; flex-direction: column; align-items: center;
-    gap: clamp(4px, 0.7cqh, 8px);
+    gap: clamp(6px, 1cqh, 10px);
     z-index: 18;
     position: relative;
   }
-  .bond-row {
-    display: flex; align-items: center; justify-content: center;
-    gap: clamp(8px, 1.4cqw, 12px);
-    flex-wrap: wrap;
-  }
-  .bond-medal {
-    font-size: clamp(28px, 4.2cqh, 38px);
-    line-height: 1;
-    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.3));
-  }
-  .bond-label {
+  .gifts-title {
     font-family: var(--sign-title-font);
     font-weight: 700;
-    font-size: clamp(18px, 2.6cqh, 22px);
+    font-size: clamp(15px, 2.2cqh, 19px);
     color: #3a2618;
     text-shadow: 1px 1px 0 rgba(255,240,210,0.5);
   }
-  .bond-remember {
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(14px, 2cqh, 17px);
-    color: #2f6a32;
-    display: inline-flex; align-items: center; gap: 6px;
-    text-shadow: 1px 1px 0 rgba(255,240,210,0.6);
+  .gifts-row {
+    display: flex; align-items: flex-start; justify-content: center;
+    gap: clamp(10px, 2cqw, 20px);
+    flex-wrap: nowrap;
   }
-  .bond-visit {
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-style: italic;
-    font-size: clamp(13px, 1.8cqh, 16px);
-    color: #6b4820;
-    opacity: 0.92;
+  .gift {
+    display: flex; flex-direction: column; align-items: center;
+    gap: clamp(4px, 0.6cqh, 6px);
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .gift-disc {
+    width: clamp(44px, 6.4cqh, 58px);
+    height: clamp(44px, 6.4cqh, 58px);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 30%, #fff8e3 0%, #f4dba0 70%, #d9b874 100%);
+    border: clamp(2px, 0.35cqh, 3px) solid #8a5a2a;
+    box-shadow:
+      0 3px 6px rgba(0,0,0,0.3),
+      inset 0 2px 0 rgba(255,255,230,0.5),
+      inset 0 -2px 0 rgba(120, 80, 30, 0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(22px, 3.4cqh, 30px);
+    line-height: 1;
+  }
+  .gift-label {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.15px;
+    font-size: clamp(13px, 1.7cqh, 15px);
+    color: #4a2e14;
+    text-align: center;
+    line-height: 1.2;
+    max-width: clamp(80px, 16cqw, 120px);
   }
 
-  /* ── Primary release button ── */
-  .release-wrap {
+  /* ── Primary wave-off button ── */
+  .wave-wrap {
     width: min(92%, 480px);
     margin-top: 0;
     position: relative;
@@ -415,7 +484,7 @@
   }
   .btn-primary::before { top: clamp(6px, 1cqh, 9px); left: clamp(8px, 1.2cqw, 12px); }
   .btn-primary::after  { top: clamp(6px, 1cqh, 9px); right: clamp(8px, 1.2cqw, 12px); }
-  .btn-primary .leaf-flank {
+  .btn-primary .flower-flank {
     font-size: clamp(28px, 4.6cqh, 40px);
     line-height: 1;
     text-shadow: none;
@@ -423,19 +492,25 @@
     display: inline-block;
     transform-origin: bottom center;
   }
-  .btn-primary .leaf-left  { transform: rotate(-14deg); }
-  .btn-primary .leaf-right { transform: rotate(14deg) scaleX(-1); }
-  .btn-primary:hover .leaf-left,
-  .btn-primary.fluttering .leaf-left  { animation: leafFlutterL 0.45s ease-in-out infinite alternate; }
-  .btn-primary:hover .leaf-right,
-  .btn-primary.fluttering .leaf-right { animation: leafFlutterR 0.45s ease-in-out infinite alternate; }
-  @keyframes leafFlutterL {
-    0%   { transform: rotate(-14deg) translateY(0); }
-    100% { transform: rotate(-4deg)  translateY(-6px); }
+  .btn-primary .flower-left  { transform: rotate(-10deg); }
+  .btn-primary .flower-right { transform: rotate(10deg); }
+  .btn-primary:hover .flower-left,
+  .btn-primary.wobbling .flower-left  { animation: flowerWobbleL 0.5s ease-in-out infinite alternate; }
+  .btn-primary:hover .flower-right,
+  .btn-primary.wobbling .flower-right { animation: flowerWobbleR 0.5s ease-in-out infinite alternate; }
+  .btn-primary:hover,
+  .btn-primary.wobbling { animation: btnWobble 0.42s ease-in-out infinite alternate; }
+  @keyframes flowerWobbleL {
+    0%   { transform: rotate(-10deg) translateY(0) scale(1); }
+    100% { transform: rotate(6deg)   translateY(-5px) scale(1.1); }
   }
-  @keyframes leafFlutterR {
-    0%   { transform: rotate(14deg)  scaleX(-1) translateY(0); }
-    100% { transform: rotate(4deg)   scaleX(-1) translateY(-6px); }
+  @keyframes flowerWobbleR {
+    0%   { transform: rotate(10deg)  translateY(0) scale(1); }
+    100% { transform: rotate(-6deg)  translateY(-5px) scale(1.1); }
+  }
+  @keyframes btnWobble {
+    0%   { transform: rotate(0.6deg) translateY(0); }
+    100% { transform: rotate(-0.4deg) translateY(-2px); }
   }
   .btn-primary:active { transform: rotate(0.6deg) translateY(2px); }
 
@@ -492,17 +567,20 @@
   .link-btn:hover { transform: translateY(-2px) rotate(-1.5deg); }
   .link-btn.plank-sage:hover { transform: translateY(-2px) rotate(1.5deg); }
   /* Wide layout — desktop / iPad L */
-  @container rewild (min-width: 900px) {
-    .farewell-plaque { width: min(620px, 80%); }
-    .bond-panel { width: min(520px, 70%); }
-    .release-wrap { width: min(520px, 70%); }
+  @container adopt (min-width: 900px) {
+    .adopt-plaque { width: min(680px, 80%); }
+    .gifts-panel { width: min(560px, 72%); }
+    .wave-wrap { width: min(560px, 72%); }
+    .portrait-frame { max-width: clamp(180px, 28cqw, 260px); }
   }
 
   /* Narrow layout — iPhone */
-  @container rewild (max-width: 420px) {
-    .rewild-inner { gap: clamp(6px, 1.2cqh, 10px); padding: 10px; }
-    .farewell-title { font-size: clamp(22px, 3.8cqh, 28px); }
-    .portrait-frame { max-width: clamp(180px, 56cqw, 240px); }
+  @container adopt (max-width: 420px) {
+    .adopt-inner { gap: clamp(6px, 1.2cqh, 10px); padding: 10px; }
+    .adopt-title { font-size: clamp(22px, 3.8cqh, 28px); }
+    .portrait-frame { max-width: clamp(110px, 32cqw, 160px); }
+    .meet-connector { min-width: clamp(44px, 12cqw, 70px); }
+    .gift-label { font-size: clamp(11px, 1.6cqh, 14px); }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
      the device's viewport on these landscape sizes; allow the user to
      scroll to see the bottom (grass tuft, bunny, fox, credits). */
@@ -538,42 +616,55 @@
 <body>
 
 <div class="vp-bar">
-  <strong>Rewilding ceremony v1</strong>
+  <strong>Adoption ceremony v1</strong>
   <span>·</span>
   <button data-size="iphone">📱 iPhone (390×844)</button>
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-conflict.html">→ Conflict popup</a>
-  <span class="hint">(cinematic release — love means letting go)</span>
+  <a href="/admin/rewilding.html">→ Rewilding ceremony</a>
+  <span class="hint">(cinematic adoption — a forever home)</span>
 </div>
 
 <div class="device-frame">
   <div class="device" id="device" data-size="ipad-p">
-    <div class="rewild">
+    <div class="adopt">
 
-      <!-- Distant birds -->
-      <span class="bird bird-1" aria-hidden="true">✦ ✦</span>
-      <span class="bird bird-2" aria-hidden="true">✦ ✦</span>
-      <span class="bird bird-3" aria-hidden="true">✦</span>
+      <!-- Drifting cherry-blossom petals -->
+      <span class="petal petal-1" aria-hidden="true">🌸</span>
+      <span class="petal petal-2" aria-hidden="true">🌸</span>
+      <span class="petal petal-3" aria-hidden="true">🌸</span>
+      <span class="petal petal-4" aria-hidden="true">🌸</span>
 
-      <!-- Drifting leaves -->
-      <span class="leaf leaf-1" aria-hidden="true">🍃</span>
-      <span class="leaf leaf-2" aria-hidden="true">🍃</span>
-      <span class="leaf leaf-3" aria-hidden="true">🍃</span>
-      <span class="leaf leaf-4" aria-hidden="true">🍃</span>
-      <span class="leaf leaf-5" aria-hidden="true">🍃</span>
-      <span class="leaf leaf-6" aria-hidden="true">🍃</span>
+      <!-- Sparkles rising from below -->
+      <span class="sparkle sparkle-1" aria-hidden="true">✨</span>
+      <span class="sparkle sparkle-2" aria-hidden="true">✨</span>
+      <span class="sparkle sparkle-3" aria-hidden="true">✨</span>
+      <span class="sparkle sparkle-4" aria-hidden="true">✨</span>
+      <span class="sparkle sparkle-5" aria-hidden="true">✨</span>
+      <span class="sparkle sparkle-6" aria-hidden="true">✨</span>
 
-      <div class="rewild-inner">
+      <div class="adopt-inner">
 
-        <div class="farewell-plaque" role="dialog" aria-labelledby="farewell-title">
-          <div class="farewell-title" id="farewell-title">Farewell, Luna</div>
-          <div class="farewell-subtitle">A wild heart ready for wild skies</div>
+        <div class="adopt-plaque" role="dialog" aria-labelledby="adopt-title">
+          <div class="adopt-title" id="adopt-title">A forever home for Luna</div>
+          <div class="adopt-subtitle">Grandpa Theo, Kofi and Zuri are here to take her home</div>
 
-          <div class="portrait-wrap">
+          <div class="portrait-row">
             <div class="portrait-frame">
-              <img class="portrait-animal" src="/assets/animals/fox-red-walking.png" alt="Luna the red fox trotting off into the wild">
+              <img class="portrait-animal" src="/assets/animals/dog-collie-sheltered.png" alt="Luna the collie, tail wagging">
+            </div>
+
+            <div class="meet-connector" aria-hidden="true">
+              <span class="meet-spark">✨</span>
+              <span class="meet-label">going home<br>together</span>
+              <span class="meet-spark">✨</span>
+            </div>
+
+            <div class="portrait-frame portrait-family">
+              <img class="portrait-animal" id="family-portrait"
+                   src="/admin/scene-assets/cast/14-theo-grandkids.png"
+                   alt="Grandpa Theo with grandkids Kofi and Zuri">
             </div>
           </div>
 
@@ -584,28 +675,34 @@
           </div>
         </div>
 
-        <div class="bond-panel">
-          <div class="bond-row">
-            <span class="bond-medal" aria-hidden="true">🏆</span>
-            <span class="bond-label">Bond: Champion</span>
+        <div class="gifts-panel">
+          <div class="gifts-title">Thank-you gifts from the family</div>
+          <div class="gifts-row">
+            <div class="gift">
+              <div class="gift-disc" aria-hidden="true">🧸</div>
+              <div class="gift-label">Toys for the next rescue</div>
+            </div>
+            <div class="gift">
+              <div class="gift-disc" aria-hidden="true">🥫</div>
+              <div class="gift-label">A bag of food</div>
+            </div>
+            <div class="gift">
+              <div class="gift-disc" aria-hidden="true">💚</div>
+              <div class="gift-label">Kind words</div>
+            </div>
           </div>
-          <div class="bond-remember">
-            Luna will remember you
-            <span aria-hidden="true">💚</span>
-          </div>
-          <div class="bond-visit">Visit her wild home any time</div>
         </div>
 
-        <div class="release-wrap">
-          <button class="btn-primary" id="release-btn" type="button">
-            <span class="leaf-flank leaf-left" aria-hidden="true">🌿</span>
-            <span>RELEASE HER TO THE WILD</span>
-            <span class="leaf-flank leaf-right" aria-hidden="true">🌿</span>
+        <div class="wave-wrap">
+          <button class="btn-primary" id="wave-btn" type="button">
+            <span class="flower-flank flower-left" aria-hidden="true">🌸</span>
+            <span>WAVE THEM OFF!</span>
+            <span class="flower-flank flower-right" aria-hidden="true">🌸</span>
           </button>
         </div>
 
         <div class="secondary-row">
-          <button class="link-btn" id="not-yet-btn" type="button">← Not yet</button>
+          <button class="link-btn" id="not-yet-btn" type="button">← Not yet, let me hug her first</button>
         </div>
 
       </div>
@@ -620,12 +717,38 @@
     const sign = document.getElementById('scroll-sign');
     if (body) {
       body.textContent =
-        "Dear Lily, thank you for teaching me to trust people again. " +
-        "I'll come running if you visit my meadow.";
+        "Dear Lily, thank you for loving Luna so much while she waited. " +
+        "She's going to be so happy with us — lots of walks, a cosy bed by the fire, " +
+        "and the kids have been practising gentle hands. " +
+        "We'll send you photos every week so you can see her grow.";
     }
     if (sign) {
-      sign.textContent = "Your friend always — Luna";
+      sign.textContent = "With love, Theo, Kofi and Zuri (+ Luna 🐾)";
     }
+  })();
+
+  // Family-portrait fallback — if the image file isn't present, swap in a
+  // hand-lettered description. Built with createElement + textContent.
+  (function familyFallback() {
+    const img = document.getElementById('family-portrait');
+    if (!img) return;
+    const swap = () => {
+      const parent = img.parentElement;
+      if (!parent) return;
+      img.remove();
+      const card = document.createElement('div');
+      card.className = 'family-fallback';
+      const emoji = document.createElement('span');
+      emoji.className = 'ff-emoji';
+      emoji.textContent = '👴🏾👦🏾👧🏾';
+      card.appendChild(emoji);
+      const line = document.createElement('span');
+      line.textContent = 'Grandpa Theo in his corduroy jacket, Kofi (10, glasses) and Zuri (7, butterfly-wings backpack)';
+      card.appendChild(line);
+      parent.appendChild(card);
+    };
+    img.addEventListener('error', swap, { once: true });
+    if (img.complete && img.naturalWidth === 0) swap();
   })();
 
   // Viewport size switcher
@@ -646,23 +769,23 @@
   const send = (type, payload) => {
     try {
       parent.postMessage(
-        Object.assign({ source: 'arc-rewild', type }, payload || {}),
+        Object.assign({ source: 'arc-adoption', type }, payload || {}),
         '*'
       );
     } catch (_) {}
   };
 
-  const releaseBtn = document.getElementById('release-btn');
-  const notYetBtn  = document.getElementById('not-yet-btn');
+  const waveBtn   = document.getElementById('wave-btn');
+  const notYetBtn = document.getElementById('not-yet-btn');
 
-  releaseBtn?.addEventListener('click', () => {
-    releaseBtn.classList.add('fluttering');
-    setTimeout(() => releaseBtn.classList.remove('fluttering'), 1400);
-    if (isEmbed) send('rewild-confirm', { animalId: 'luna-1' });
+  waveBtn?.addEventListener('click', () => {
+    waveBtn.classList.add('wobbling');
+    setTimeout(() => waveBtn.classList.remove('wobbling'), 1400);
+    if (isEmbed) send('adoption-confirm', { animalId: 'luna-1', householdId: '14-theo-grandkids' });
   });
 
   notYetBtn?.addEventListener('click', () => {
-    if (isEmbed) send('rewild-cancel');
+    if (isEmbed) send('adoption-cancel');
   });
 </script>
 </body>

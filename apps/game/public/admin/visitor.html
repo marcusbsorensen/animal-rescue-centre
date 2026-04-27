@@ -315,7 +315,7 @@
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-conflict.html" style="color:#8fd3ff; margin-left:12px;">→ Conflict mockup</a>
+  <a href="/admin/conflict.html" style="color:#8fd3ff; margin-left:12px;">→ Conflict</a>
   <span class="hint">(painted postcard — return-visit rhythm)</span>
 </div>
 
@@ -331,7 +331,7 @@
 
         <div class="visit-portraits" id="visit-portraits">
           <div class="portrait-disc household" id="portrait-household">
-            <img id="household-img" src="/admin/mockup-assets/cast/14-theo-grandkids.png" alt="">
+            <img id="household-img" src="/admin/scene-assets/cast/14-theo-grandkids.png" alt="">
           </div>
           <div class="heart" id="heart">💚</div>
           <div class="portrait-disc pet" id="portrait-pet">
@@ -414,7 +414,7 @@
     const householdImg = document.getElementById('household-img');
     const householdBlock = document.getElementById('portrait-household');
     if (p.cast && p.cast.id) {
-      householdImg.src = `/admin/mockup-assets/cast/${p.cast.id}.png`;
+      householdImg.src = `/admin/scene-assets/cast/${p.cast.id}.png`;
       householdImg.alt = p.cast.name || '';
       householdBlock.title = p.cast.name || '';
     }

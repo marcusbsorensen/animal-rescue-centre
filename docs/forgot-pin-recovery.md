@@ -154,7 +154,7 @@ Returns 3 questions if there's enough progress, or `[]` if not.
   against the just-set PIN. Doesn't advance until hint is valid.
 - **Login**: after 3 wrong PIN attempts, "I forgot my secret number"
   link appears under the keypad.
-- **Forgot-PIN screen** (`mockup-forgot-pin.html`): 3 MCQ → pass / try
+- **Forgot-PIN screen** (`forgot-pin.html`): 3 MCQ → pass / try
   hint / parent help.
 
 ### Database

@@ -18,7 +18,7 @@ export class LoginScene extends Phaser.Scene {
   }
 
   create(): void {
-    // HTML overlay — mounts the painted-sign login mockup over Phaser. The
+    // HTML overlay — mounts the painted-sign login screen over Phaser. The
     // Phaser fallback path below still exists for when we wire real auth.
     const USE_OVERLAY = true as boolean;
     if (USE_OVERLAY) {

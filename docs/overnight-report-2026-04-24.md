@@ -19,19 +19,19 @@ Eight commits pushed to `main`, in order:
 
 ### Feature-level detail
 
-**1. Vet/illness popup** (`/admin/mockup-vet.html`)
+**1. Vet/illness popup** (`/admin/vet.html`)
 - Pulsing green medical-cross flag
 - Sick animal sprite
 - 3 treatment choices: amber "Herbal tea rest" (slow + free), sage "Visit the vet" (fast + 20 coins), cream "Home remedy" (70% chance)
 - `onHeal` in AnimalDetailsPopup routes to it
 - "Rest" ticks down across heal-actions and clears sickness at 0
 
-**2. Arrival popup** (`/admin/mockup-arrival.html`)
+**2. Arrival popup** (`/admin/arrival.html`)
 - Fires when `spawnNewAnimal` runs
 - Pulsing 📮 delivery flag
 - 3 welcome choices: "Give them space" (neutral), "Say hi gently" (+2 bond), "Offer a treat" (+3 bond, -5 hunger)
 
-**3. Badge-earned popup** (`/admin/mockup-badge.html`)
+**3. Badge-earned popup** (`/admin/badge.html`)
 - Replaces the old `showBadgeNotification` toast
 - Giant 🏆 with orbiting sparkles, bright garden background, ~18 ambient confetti drifting
 - Single "HURRAY!" button flanked by ✨
@@ -60,7 +60,7 @@ Eight commits pushed to `main`, in order:
 **7. Phase 2 cast art** (41 new sprites)
 - **Greeting pose** for every one of the 31 households (arms out, waving hello)
 - **Departing-with-pet** poses for 10 families who are most likely to actually adopt during a playthrough: Babcia with a cat, Finn with a running dog, Dani & Rex with a golden, Kumar-Ishii with Amara carrying a calico in a carrier, Theo's grandkids with a beagle on a lead, Lei with a cockatiel, Mara with a macaw, Wenna with a sheepdog, Two-Houses with Rhubarb holding a tuxedo cat, Estrada Train with a snake vivarium + parrot
-- All at `/admin/mockup-assets/cast/variants/` (1024 masters archived in `variants/original/`)
+- All at `/admin/scene-assets/cast/variants/` (1024 masters archived in `variants/original/`)
 
 **8. Login PIN-stage cleanup** — the stray "TYPE YOUR NAME" sign now hides once the player picks an avatar and moves to PIN entry.
 
@@ -144,7 +144,7 @@ Here's the second batch:
   bonuses, capped 50) + 3 monthly charity grants unlocked by milestones
 - **`game-logic/species-facts.ts`** — ≥3 kid-friendly facts per species,
   variant-aware picker
-- **`mockup-map.html`** — painted GPS-style world map with 9 destination
+- **`map.html`** — painted GPS-style world map with 9 destination
   pins, unlock gating, status flags (NEW! / 💚 Visit / 📮)
 - **Arrival popup** gains a "Did you know?" card below the choice pills
 - **In-game plumbing** for all of the above — InGameOverlay gains the
@@ -156,7 +156,7 @@ Here's the second batch:
   with-bat-toys). Simeon's grey-flecked hair and big-toothy grin are
   a touch subtle; if you want them louder, easy iteration:
   ```
-  tools/gpt-image-regen.sh apps/game/public/admin/mockup-assets/cast/32-simeon-karo.png \
+  tools/gpt-image-regen.sh apps/game/public/admin/scene-assets/cast/32-simeon-karo.png \
     "<STYLE> ... grey flecks MORE PROMINENT, GRIN showing more teeth ..." \
     <refs>
   ```
@@ -184,11 +184,11 @@ Here's the second batch:
 ## 🗺 Map of today's touchpoints
 
 Gallery: https://animal-rescue-centre.vercel.app/admin/cast-gallery.html
-World map: https://animal-rescue-centre.vercel.app/admin/mockup-map.html
-Vet popup: https://animal-rescue-centre.vercel.app/admin/mockup-vet.html
-Arrival popup (with fact card): https://animal-rescue-centre.vercel.app/admin/mockup-arrival.html
-Badge popup: https://animal-rescue-centre.vercel.app/admin/mockup-badge.html
-Visitor popup: https://animal-rescue-centre.vercel.app/admin/mockup-visitor.html
+World map: https://animal-rescue-centre.vercel.app/admin/map.html
+Vet popup: https://animal-rescue-centre.vercel.app/admin/vet.html
+Arrival popup (with fact card): https://animal-rescue-centre.vercel.app/admin/arrival.html
+Badge popup: https://animal-rescue-centre.vercel.app/admin/badge.html
+Visitor popup: https://animal-rescue-centre.vercel.app/admin/visitor.html
 Design docs:
 - `docs/driving-systems.md` (overview: PTV / Supply Runs / Depot)
 - `docs/ptv-pet-transport-vehicle.md` (the animal-transport system)

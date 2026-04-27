@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>A.R.C. — Welcome</title>
+<title>A.R.C. — Adopter list v1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -79,21 +79,443 @@
     container-type: size;     /* enables @container queries on size */
     container-name: welcome;
   }
+  /* Background scene — a room the conflict is happening in, blurred so the
+     modal plaque in front is the reading priority. Dark wash dims the room
+     so the plaque pops. */
   .welcome::before {
     content: ''; position: absolute; inset: 0;
-    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+    background-image: url('/assets/bg/bg-room-dog.png');
     background-size: cover; background-position: center;
+    filter: blur(3px) saturate(0.85) brightness(0.85);
+    transform: scale(1.05);   /* hide blur edge */
     z-index: 0;
   }
   .welcome::after {
     content: ''; position: absolute; inset: 0;
-    background: linear-gradient(180deg,
-      rgba(254,249,239,0.75) 0%,
-      rgba(254,249,239,0.50) 45%,
-      rgba(254,249,239,0.68) 85%,
-      rgba(254,249,239,0.90) 100%);
+    background: rgba(26, 18, 10, 0.42);
     z-index: 1;
   }
+
+  /* ── Adopter list page ── */
+  .adopters-page {
+    position: absolute; inset: 0;
+    padding: clamp(16px, 2.8cqh, 28px) clamp(16px, 3cqw, 32px);
+    overflow-y: auto;
+    z-index: 20;
+  }
+  .adopters-header {
+    display: flex; align-items: flex-start; gap: clamp(12px, 2cqw, 18px);
+    padding-bottom: clamp(10px, 1.8cqh, 16px);
+    position: relative;
+    flex-wrap: wrap;
+  }
+  .back-tab {
+    background:
+      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+    border: 2px solid #7a4b15;
+    color: #fffbe8;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(13px, 1.9cqh, 16px);
+    padding: clamp(4px, 0.8cqh, 8px) clamp(10px, 1.6cqw, 14px);
+    border-radius: 999px;
+    cursor: pointer;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    flex: 0 0 auto;
+    align-self: center;
+  }
+  .adopters-title-wrap { flex: 1 1 200px; min-width: 0; }
+  .adopters-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(22px, 3.6cqh, 32px);
+    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
+    line-height: 1.1;
+  }
+  .adopters-subtitle {
+    font-family: var(--sign-font);
+    color: #fffbe8;
+    font-size: clamp(12px, 1.8cqh, 15px);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    opacity: 0.9;
+    margin-top: 4px;
+    line-height: 1.25;
+  }
+  /* Luna-profile pill on the right of the header */
+  .luna-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(254,249,239,0.18);
+    border: 2px solid rgba(255,240,210,0.4);
+    border-radius: 999px;
+    padding: 4px 14px 4px 4px;
+    flex: 0 0 auto;
+  }
+  .luna-portrait {
+    width: clamp(40px, 5.5cqh, 54px);
+    height: clamp(40px, 5.5cqh, 54px);
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center 30%;
+    border: 2px solid #fffbe8;
+    background: radial-gradient(circle, #b88a37, #7a5023);
+  }
+  .luna-name {
+    font-family: var(--sign-title-font);
+    font-size: clamp(14px, 2cqh, 18px);
+    color: #fffbe8;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    line-height: 1;
+  }
+  .luna-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+  .luna-tag {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+    font-size: clamp(13px, 1.7cqh, 15px);
+    color: #fffbe8;
+    opacity: 0.92;
+    line-height: 1;
+  }
+
+  /* Filter chips row */
+  .filter-row {
+    display: flex; gap: 8px; align-items: center;
+    padding: clamp(8px, 1.4cqh, 14px) 0;
+    flex-wrap: wrap;
+    border-bottom: 1px dashed rgba(255,240,210,0.3);
+    margin-bottom: clamp(10px, 1.8cqh, 16px);
+  }
+  .filter-chip {
+    background: rgba(254,249,239,0.14);
+    border: 2px solid rgba(255,240,210,0.35);
+    color: #fffbe8;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(12px, 1.7cqh, 14px);
+    padding: 5px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    transition: transform 0.1s, background 0.15s;
+  }
+  .filter-chip:hover { background: rgba(254,249,239,0.25); transform: translateY(-1px); }
+  .filter-chip.filter-active {
+    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+    border-color: #7a4b15;
+    box-shadow: inset 0 2px 0 rgba(255,240,210,0.3), 0 2px 4px rgba(0,0,0,0.3);
+  }
+  .filter-divider {
+    width: 1px; height: 20px;
+    background: rgba(255,240,210,0.3);
+    margin: 0 4px;
+  }
+
+  /* Adopter card grid — 2 cols narrow, 3 cols iPad, 4 cols desktop */
+  .adopter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: clamp(10px, 1.6cqw, 16px);
+    padding-bottom: 40px;
+  }
+  .adopter-card {
+    background: linear-gradient(180deg, #fffbe8 0%, #f3e5c0 100%);
+    border: 2px solid #8a5a2a;
+    border-radius: 14px;
+    padding: 10px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+    transition: transform 0.12s;
+    position: relative;
+  }
+  .adopter-card:hover { transform: translateY(-3px); }
+  /* Highlight "best match" with sparkling glow */
+  .adopter-card.best-match {
+    box-shadow:
+      0 0 0 3px rgba(255,240,210,0.7),
+      0 0 20px rgba(255,220,130,0.55),
+      0 4px 10px rgba(0,0,0,0.3);
+    animation: matchGlow 2.4s ease-in-out infinite;
+  }
+  @keyframes matchGlow {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(255,240,210,0.6), 0 0 16px rgba(255,220,130,0.4), 0 4px 10px rgba(0,0,0,0.3); }
+    50%      { box-shadow: 0 0 0 4px rgba(255,240,210,0.85), 0 0 26px rgba(255,220,130,0.7), 0 4px 10px rgba(0,0,0,0.3); }
+  }
+  .adopter-card.best-match::before {
+    content: '✨ Best match';
+    position: absolute;
+    top: -11px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 100%);
+    color: #3a2618;
+    font-family: 'Quicksand', system-ui, sans-serif; font-weight: 600;
+    letter-spacing: 0.2px;
+    font-size: clamp(13px, 1.7cqh, 15px);
+    padding: 2px 10px;
+    border: 1.5px solid #7a5a22;
+    border-radius: 999px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    white-space: nowrap;
+  }
+  .adopter-portrait {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    background: linear-gradient(180deg, #fef9ef 0%, #e9d9a8 100%);
+    border-radius: 10px;
+    border: 1.5px solid #b88a37;
+  }
+  .adopter-name {
+    font-weight: 700;
+    font-size: clamp(13px, 1.9cqh, 15px);
+    color: #3a2618;
+    text-align: center;
+    line-height: 1.15;
+  }
+  .adopter-blurb {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.15px;
+    font-size: clamp(13px, 1.7cqh, 15px);
+    color: #6b4820;
+    text-align: center;
+    line-height: 1.25;
+  }
+  .adopter-species {
+    display: flex; gap: 3px; justify-content: center; flex-wrap: wrap;
+    margin-top: auto;
+  }
+  .adopter-species-chip {
+    font-size: clamp(13px, 2cqh, 16px);
+    line-height: 1;
+  }
+
+  /* Don't render welcome-screen chrome */
+  .welcome-content, .credits, .foreground-dog, .foreground-fox-LEGACY-IGNORED { display: none !important; }
+
+  /* Reduce conflict-plaque opacity fallback (kept below for compatibility) */
+  .conflict-plaque { display: none !important; }
+
+  /* ── Conflict modal plaque (legacy, hidden on this page) ── */
+  .conflict-plaque {
+    position: absolute; inset: 0;
+    margin: auto;
+    width: min(92%, 440px);
+    max-height: 90%;
+    align-self: center;
+    padding: clamp(18px, 3cqh, 28px) clamp(18px, 3cqw, 28px) clamp(20px, 3.2cqh, 30px);
+    /* Honey-amber wooden sign with plank grooves — same family as welcome sign */
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: 3px solid #8a5a2a;
+    border-radius: 12px;
+    box-shadow:
+      0 12px 28px rgba(0,0,0,0.5),
+      inset 0 0 24px rgba(0,0,0,0.25),
+      inset 0 3px 0 rgba(255,240,210,0.2);
+    transform: rotate(-0.8deg);
+    z-index: 20;
+    display: flex; flex-direction: column; align-items: center;
+    animation: plaqueDrop 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes plaqueDrop {
+    0%   { transform: translateY(-60px) rotate(-4deg); opacity: 0; }
+    60%  { transform: translateY(4px)   rotate(0.5deg); opacity: 1; }
+    100% { transform: translateY(0)     rotate(-0.8deg); opacity: 1; }
+  }
+  /* Iron nails at the top corners — same device we use on link-btns */
+  .conflict-plaque::before, .conflict-plaque::after {
+    content: '';
+    position: absolute; top: 10px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .conflict-plaque::before { left: 12px; }
+  .conflict-plaque::after  { right: 12px; }
+
+  /* Red circular "!" flag tilted top-right, stamped-on-plaque feel */
+  .conflict-flag {
+    position: absolute;
+    top: -22px; right: -14px;
+    width: clamp(42px, 6.5cqh, 56px);
+    height: clamp(42px, 6.5cqh, 56px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ff8a70 0%, #e76a5a 50%, #8f2e20 100%);
+    border: 3px solid #6b2418;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--sign-title-font);
+    font-weight: 900;
+    font-size: clamp(28px, 4.2cqh, 38px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    transform: rotate(14deg);
+    animation: flagPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes flagPulse {
+    0%, 100% { transform: rotate(14deg) scale(1); }
+    50%      { transform: rotate(14deg) scale(1.08); }
+  }
+
+  /* The two-animals-and-toy staging area */
+  .conflict-scene {
+    position: relative;
+    width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(0px, 1cqw, 4px);
+    padding: clamp(4px, 0.8cqh, 10px) 0 clamp(10px, 1.6cqh, 16px);
+  }
+  .conflict-anim {
+    height: clamp(100px, 16cqh, 150px);
+    width: auto;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.35));
+  }
+  .conflict-anim-left  { transform: rotate(-6deg); animation: lean 0.6s ease-in-out alternate infinite; }
+  .conflict-anim-right { transform: rotate(6deg) scaleX(-1); animation: leanR 0.6s ease-in-out alternate infinite; }
+  @keyframes lean  { to { transform: rotate(-8deg) translateX(-2px); } }
+  @keyframes leanR { to { transform: rotate(8deg)  translateX(2px) scaleX(-1); } }
+
+  .conflict-toy {
+    font-size: clamp(38px, 6cqh, 56px);
+    line-height: 1;
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.3));
+    animation: toyShake 0.3s ease-in-out alternate infinite;
+    z-index: 1;
+  }
+  @keyframes toyShake {
+    from { transform: rotate(-12deg) translateY(-2px); }
+    to   { transform: rotate(12deg)  translateY(2px); }
+  }
+
+  /* Plaque typography — same chalkboard painted style as welcome sign */
+  .conflict-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(22px, 3.6cqh, 30px);
+    letter-spacing: 0.02em;
+    text-align: center;
+    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
+    line-height: 1.1;
+  }
+  .conflict-subtitle {
+    font-family: var(--sign-font);
+    color: #fffbe8;
+    font-size: clamp(15px, 2.2cqh, 19px);
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    text-align: center;
+    margin-top: clamp(4px, 0.8cqh, 8px);
+    margin-bottom: clamp(12px, 2.2cqh, 20px);
+    opacity: 0.95;
+    line-height: 1.25;
+  }
+
+  /* Three resolution pills stacked on the plaque */
+  .conflict-choices {
+    display: flex; flex-direction: column; width: 100%;
+    gap: clamp(8px, 1.4cqh, 12px);
+  }
+  .choice-pill {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: clamp(10px, 2cqw, 14px);
+    align-items: center;
+    padding: clamp(8px, 1.3cqh, 12px) clamp(14px, 2.6cqw, 20px);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    text-align: left;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    border: 2px solid;
+    box-shadow:
+      inset 0 0 10px rgba(0,0,0,0.2),
+      inset 0 2px 0 rgba(255,240,210,0.2),
+      0 3px 6px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+  }
+  .choice-pill:hover { transform: translateY(-2px); }
+  .choice-emoji {
+    font-size: clamp(24px, 3.8cqh, 32px);
+    grid-row: 1 / span 2;
+    line-height: 1;
+    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.25));
+  }
+  /* Two-toy cluster — reads as a pile of toys to pick another from, so
+     kids don't misread "Fetch another toy" as "chop the toy up". */
+  .toy-pile {
+    position: relative;
+    display: inline-block;
+    width: clamp(36px, 5.5cqh, 48px);
+    height: clamp(32px, 5cqh, 42px);
+    filter: none;
+  }
+  .toy-pile .toy-pile-a,
+  .toy-pile .toy-pile-b {
+    position: absolute;
+    font-size: clamp(20px, 3.2cqh, 28px);
+    line-height: 1;
+    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.25));
+  }
+  .toy-pile .toy-pile-a { left: 0;    bottom: 0; transform: rotate(-8deg); }
+  .toy-pile .toy-pile-b { right: -2px; top: 0;   transform: rotate(10deg); }
+  .choice-label {
+    font-weight: 700;
+    font-size: clamp(15px, 2.2cqh, 18px);
+    line-height: 1.15;
+  }
+  .choice-hint {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.15px;
+    font-size: clamp(13px, 1.7cqh, 15px);
+    opacity: 0.95;
+    line-height: 1.2;
+  }
+  .choice-amber {
+    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+    border-color: #7a4b15;
+  }
+  .choice-sage {
+    background: linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
+    border-color: #3c5238;
+  }
+  .choice-cream {
+    background: linear-gradient(180deg, #fff0cc 0%, #e7c97a 55%, #b89246 100%);
+    border-color: #7a5a22;
+    color: #3a2618;
+    text-shadow: 1px 1px 0 rgba(255,240,210,0.6);
+  }
+  .choice-cream .choice-hint { color: #6b4820; }
+
+  /* Don't render any of the welcome-screen chrome on this modal. */
+  .welcome-content, .credits, .foreground-dog, .foreground-fox { display: none !important; }
 
   .welcome-inner {
     position: relative; z-index: 5;
@@ -122,12 +544,11 @@
   .welcome-content {
     grid-area: content;
     display: flex; flex-direction: column; align-items: center;
+    /* Flex-start + padding keeps the logo visible at the top even when
+       the content is taller than the row on iPad P / iPhone. */
     justify-content: flex-start;
     gap: clamp(10px, 2cqh, 22px);
-    /* Top padding generous enough that the cat overhanging the sign
-       (top: -76px on .intro-cat) stays inside the visible viewport on
-       iPad P / iPhone. Was 8-18px; now 64-100px so the cat fits. */
-    padding: clamp(64px, 11cqh, 100px) clamp(16px, 4cqw, 32px) 0;
+    padding: clamp(8px, 1.5cqh, 18px) clamp(16px, 4cqw, 32px) 0;
     text-align: center;
     min-height: 0;
     position: relative;
@@ -144,76 +565,17 @@
   }
   .logo-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8cqh, 8px); }
 
-  /* Title row — paw-heart logo on the left, sign title on the right.
-     Tethers the brand directly to the sign instead of floating
-     separately above it. (Marcus 2026-04-24) */
-  .sign-title-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(8px, 2cqw, 18px);
-    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
-    margin-bottom: clamp(6px, 1.2cqh, 12px);
-  }
-  .sign-logo {
-    height: clamp(48px, 9cqh, 92px);
-    width: auto;
-    flex: 0 0 auto;
-    image-rendering: -webkit-optimize-contrast;
-    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
-  }
-  /* Full logo (paw-heart + A.R.C. + Animal Rescue Centre tagline)
-     used as the SOLE title on the welcome sign. Sized to span most
-     of the sign width — no separate sign-title text needed. */
-  .sign-logo-full {
-    height: auto;
-    width: clamp(180px, 60cqw, 380px);
-    max-width: 92%;
-  }
-
-  /* ZZZ animation for the sleeping cat — three painted Z's drift up
-     and right of the cat's head. Same as signup. */
-  .zzz-stack {
-    position: absolute;
-    right: clamp(-2px, 0cqw, 6px);
-    top: clamp(-86px, -13cqh, -64px);
-    width: 70px;
-    height: 70px;
-    pointer-events: none;
-    z-index: 4;
-  }
-  .zzz-stack .zz {
-    position: absolute;
-    font-family: 'Kalam', 'Caveat', cursive;
-    font-weight: 700;
-    color: #c88436;
-    text-shadow: 1px 2px 0 rgba(255,255,255,0.7), 2px 3px 4px rgba(0,0,0,0.18);
-    opacity: 0;
-    animation: zzzRise 3s ease-in-out infinite;
-  }
-  .zzz-stack .zz1 { font-size: 12px; left: 4px;  bottom: 4px;  animation-delay: 0s; }
-  .zzz-stack .zz2 { font-size: 14px; left: 6px;  bottom: 4px;  animation-delay: 1s; }
-  .zzz-stack .zz3 { font-size: 18px; left: 16px; bottom: 18px; animation-delay: 2s; }
-  @keyframes zzzRise {
-    0%   { opacity: 0; transform: translate(0, 4px)   rotate(-8deg); }
-    20%  { opacity: 1; transform: translate(4px, -2px)  rotate(-4deg); }
-    60%  { opacity: 1; transform: translate(14px, -16px) rotate(2deg); }
-    100% { opacity: 0; transform: translate(24px, -32px) rotate(8deg); }
-  }
-
   /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
   .sign-title {
     font-family: var(--sign-title-font);
     font-weight: 700;
     letter-spacing: 0.03em;
-    /* Smaller now that the logo sits beside it (was 20-34, now 16-26) */
-    font-size: clamp(16px, 2.8cqh, 26px);
+    font-size: clamp(20px, 3.8cqh, 34px);
     line-height: 1.05;
-    text-align: left;
-    padding: 0;
-    margin-bottom: 0;
+    text-align: center;
+    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
     position: relative;
-    flex: 0 1 auto;
     /* Logo-matched green gradient: bright leaf → rich grass → deep pine */
     background: linear-gradient(180deg,
       #8cc63f 0%,
@@ -619,7 +981,7 @@
   }
 
   /* ── Animals in the foreground at the bottom corners ── */
-  .foreground-dog, .foreground-fox-LEGACY-IGNORED {
+  .foreground-dog, .foreground-fox {
     position: absolute;
     bottom: clamp(22px, 4cqh, 50px);
     z-index: 6;
@@ -630,53 +992,17 @@
      of the frame. The fox is slightly behind/right of the dog — they're
      a pair hanging out. Size them proportionally (dog > fox). */
   .foreground-dog {
-    /* Now a child of .signs-on-stake (same coord space as the grass-
-       clump and the bunny+fox), so its anchor uses the SIGN's bounds
-       instead of the device viewport. Sits at the right edge of the
-       grass tuft on every viewport — no more floating in the desktop
-       corner with the grass strip ending well to its left. */
-    position: absolute;
-    right: clamp(-12px, 1cqw, 8px);
-    bottom: clamp(-8px, -1.5cqh, -2px);
-    height: clamp(110px, 17cqh, 160px);
-    aspect-ratio: 1 / 1;
-    z-index: 6;
-    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
-    pointer-events: none;
-    /* Flip horizontally so the dog faces inward toward the bunny.
-       Negate the rotation to preserve the visual tilt direction. */
+    /* Anchor near the right edge of the painted grass-clump (which caps
+       at the sign's 480px max-width). Ceiling lowered from 190 → 110
+       so the dog stays beside the grass on iPad-L / desktop instead of
+       drifting into the empty backdrop. */
+    right: clamp(86px, 16cqw, 110px);
+    /* Golden retriever ~ 60cm tall in real life */
+    height: clamp(110px, 20cqh, 240px);
+    /* Flip horizontally so the dog faces the fox on its right.
+       Flipped rotation: negate the original angle to preserve the
+       same visual tilt direction. */
     transform: scaleX(-1) rotate(3deg);
-  }
-  .foreground-dog-body {
-    width: 100%;
-    height: 100%;
-    display: block;
-    position: relative;
-    z-index: 2; /* body in front so the tail emerges from behind it */
-  }
-  /* Tail wag — separate sprite layered BEHIND the body. The original
-     512×512 sheltered sprite had its tail at bbox (63, 309)–(146, 432);
-     the tail PNG is 103×129. We position it at that bbox in the wrapper.
-     Pivot point: left edge of the tail PNG, ~1/3 up from its bottom
-     (Marcus 2026-04-24). */
-  .foreground-dog-tail {
-    position: absolute;
-    left: 12.3%;   /* 63/512  */
-    top: 60.4%;    /* 309/512 */
-    width: 20.1%;  /* 103/512 */
-    height: 25.2%; /* 129/512 */
-    z-index: 1;    /* behind the body */
-    /* Pivot at the tail's base — left edge of the tail in DISPLAY coords,
-       1/3 up from the bottom. Because the parent has scaleX(-1), we set
-       100% in the unflipped child frame so it renders as the left edge
-       after the mirror. */
-    transform-origin: 100% 67%;
-    animation: tailWag 0.55s ease-in-out infinite alternate;
-    pointer-events: none;
-  }
-  @keyframes tailWag {
-    0%   { transform: rotate(-12deg); }
-    100% { transform: rotate(14deg); }
   }
   /* Fox tentatively walking out from behind the leftmost grass blade,
      then rapidly retreating back behind it. Anchored at the grass
@@ -731,8 +1057,6 @@
     display: flex; flex-direction: column; align-items: center;
     gap: clamp(2px, 0.4cqh, 4px);
     position: relative; z-index: 5;
-    /* Decorative — never block clicks to the underlying buttons. */
-    pointer-events: none;
   }
   /* Handwritten-scrawl credits — cursive green, designed to look like
      a blade of grass at first glance and read as a signature on closer look. */
@@ -820,66 +1144,12 @@
     }
   }
 
-  /* ── iPhone: compress the stack so cat sits ON sign + grass + animals
-        + credits all fit inside the viewport. Also enables vertical
-        scroll as a safety net for shorter devices. ── */
+  /* Narrow / iPhone: simplify — hide extras to avoid clutter */
   @container welcome (max-width: 420px) {
-    /* Scroll if anything still overflows. */
-    overflow-y: auto;
-
-    /* Sign moves UP: smaller top padding so the cat is reachable. */
-    .welcome-content {
-      padding-top: clamp(28px, 5cqh, 44px);
-    }
-    /* Cat sits ON the sign (overlapping its top edge), not floating
-       above it. Smaller cat + less negative top = cat overlaps sign. */
-    .intro-cat {
-      height: clamp(54px, 9cqh, 70px);
-      top: clamp(-40px, -6cqh, -30px) !important;
-      bottom: auto !important;
-      right: clamp(8px, 2.5cqw, 14px) !important;
-    }
-    /* Less stake length below the secondary planks so the grass tuft +
-       animals + credits all fit. */
-    .signs-on-stake {
-      padding-bottom: clamp(70px, 12cqh, 110px);
-    }
-    /* Foreground dog: slightly smaller, anchored to the right edge of
-       the central stake (matches the grass tuft right edge) rather than
-       the device corner. */
-    .foreground-dog {
-      height: clamp(72px, 14cqh, 110px);
-      right: clamp(4px, 1cqw, 10px);
-      left: auto;
-    }
-    /* Fox: bigger (head clearly emerges), still anchored behind the
-       leftmost grass blades (signs-on-stake coord space). */
-    .foreground-fox {
-      height: clamp(80px, 14cqh, 115px);
-      left: calc(50% - clamp(95px, 22cqw, 130px));
-    }
+    .foreground-dog { height: clamp(62px, 12cqh, 110px); right: 4px; left: auto; }
+    .foreground-fox { height: clamp(60px, 10cqh, 95px); left: calc(50% - clamp(125px, 30cqw, 200px)); }
     .logo-bunny { display: none; }
-
-    /* Credits: absolutely positioned below the grass tuft so they don't
-       take a grid row that pushes everything else off-screen. Single-
-       line "Designed by · Built by" centred at the very bottom. */
-    .credits {
-      position: absolute;
-      left: 0; right: 0;
-      bottom: clamp(2px, 0.5cqh, 6px);
-      height: auto;
-      padding: 0;
-      display: flex;
-      flex-direction: row;
-      justify-content: center;
-      gap: clamp(8px, 2cqw, 14px);
-      z-index: 8;
-    }
-    .credit-scrawl {
-      font-size: clamp(10px, 1.5cqh, 12px);
-      white-space: nowrap;
-      opacity: 0.7;
-    }
+    .intro-cat { height: clamp(50px, 8cqh, 80px); right: -4%; bottom: -24%; }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
      the device's viewport on these landscape sizes; allow the user to
      scroll to see the bottom (grass tuft, bunny, fox, credits). */
@@ -915,13 +1185,13 @@
 <body>
 
 <div class="vp-bar">
-  <strong>Welcome</strong>
+  <strong>Adopter list v1</strong>
   <span>·</span>
   <button data-size="iphone">📱 iPhone (390×844)</button>
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-login.html">→ Sign in</a>
+  <a href="/admin/login.html">→ Login</a>
   <span class="hint">(real logo + contextual animals)</span>
 </div>
 
@@ -932,71 +1202,44 @@
       <div class="welcome-inner">
 
         <div class="top-strip">
-          <button class="audio-btn" id="audio-btn" aria-label="Toggle sound">🔊</button>
+          <button class="audio-btn" aria-label="Toggle sound">🔊</button>
         </div>
 
-        <div class="welcome-content">
-
-          <div class="text-block">
-            <div class="signs-on-stake">
-              <div class="intro">
-                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
-                <div class="zzz-stack" aria-hidden="true">
-                  <span class="zz zz1">Z</span>
-                  <span class="zz zz2">Z</span>
-                  <span class="zz zz3">Z</span>
-                </div>
-                <div class="sign-title-row">
-                  <img class="sign-logo sign-logo-full" src="/assets/logo/arc-logo-full.png"
-                       alt="A.R.C. — Animal Rescue Centre">
-                </div>
-                <ol>
-                  <li>Rescue scared animals</li>
-                  <li>Feed, heal &amp; walk them</li>
-                  <li>Find forever homes</li>
-                </ol>
-              </div>
-
-              <div class="cta-stack">
-                <div class="btn-primary-wrap">
-                  <button class="btn-primary">
-                    <span class="paw paw-left">🐾</span>
-                    <span class="play-label">PLAY!</span>
-                    <span class="paw paw-right">🐾</span>
-                  </button>
-                  <img class="play-parrot" src="/admin/mockup-assets/parrot-macaw-nobranch.png" alt="">
-                </div>
-                <div class="secondary-row">
-                  <button class="link-btn outlined">I already have an account</button>
-                  <button class="link-btn plank-sage">New? Create account</button>
+        <div class="adopters-page">
+          <div class="adopters-header">
+            <button class="back-tab" data-action="back">← Back</button>
+            <div class="adopters-title-wrap">
+              <div class="adopters-title">Meet Luna's future family</div>
+              <div class="adopters-subtitle">Tap a family to meet them properly — Luna will love some more than others</div>
+            </div>
+            <div class="luna-chip">
+              <img class="luna-portrait" src="/assets/animals/dog-collie-sheltered.png" alt="">
+              <div class="luna-meta">
+                <div class="luna-name">Luna</div>
+                <div class="luna-tags">
+                  <span class="luna-tag">🐕 Dog · Collie</span>
+                  <span class="luna-tag">✨ Calm, loyal</span>
                 </div>
               </div>
-
-              <!-- Bunny sitting on the ground at the foot of the garden post -->
-              <img class="ground-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
-
-              <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
-              <img class="foreground-fox" src="/assets/animals/fox-cross-walking.png" alt="">
-              <div class="foreground-dog" aria-hidden="true">
-                <img class="foreground-dog-body" src="/assets/animals/dog-golden-sheltered-body.png" alt="">
-                <img class="foreground-dog-tail" src="/assets/animals/dog-golden-sheltered-tail.png" alt="">
-              </div>
-              <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
-
-              <!-- Flying bee on its own animated layer above the grass -->
-              <img class="bee-flyer" src="/admin/mockup-assets/bee-flying.png" alt="" aria-hidden="true">
             </div>
           </div>
-        </div>
 
-        <div class="credits">
-          <span class="credit-scrawl credit-left">Designed by Lily age 8</span>
-          <span class="credit-scrawl credit-right">Built by Dad and Claude Code</span>
-        </div>
+          <div class="filter-row">
+            <button class="filter-chip filter-active" data-filter="match">Best match</button>
+            <button class="filter-chip" data-filter="all">All families</button>
+            <span class="filter-divider"></span>
+            <button class="filter-chip" data-species="dog">🐕 Dog</button>
+            <button class="filter-chip" data-species="cat">🐈 Cat</button>
+            <button class="filter-chip" data-species="bunny">🐰 Bunny</button>
+            <button class="filter-chip" data-species="parrot">🦜 Parrot</button>
+            <button class="filter-chip" data-species="snake">🐍 Snake</button>
+            <button class="filter-chip" data-species="bat">🦇 Bat</button>
+            <button class="filter-chip" data-species="fox">🦊 Fox</button>
+          </div>
 
+          <div class="adopter-grid" id="adopter-grid"></div>
+        </div>
       </div>
-
-      <!-- Foreground corner animals — the 'cast' welcoming the player -->
     </div>
   </div>
 </div>
@@ -1010,28 +1253,93 @@
       device.dataset.size = btn.dataset.size;
     });
   }
-  // Embed mode — when loaded inside the game as an overlay, drop the
-  // simulator chrome and have the device fill the viewport. Clicks on the
-  // primary CTAs postMessage up to the host scene instead of being dead.
   const params = new URLSearchParams(location.search);
-  if (params.has('embed')) {
-    document.body.classList.add('embed');
-    const send = (type, payload) => {
-      try { parent.postMessage({ source: 'arc-auth', type, payload }, '*'); } catch (_) {}
-    };
-    document.querySelector('.btn-primary')?.addEventListener('click', () => send('play'));
-    document.querySelector('.link-btn.outlined')?.addEventListener('click', () => send('login'));
-    document.querySelector('.link-btn.plank-sage')?.addEventListener('click', () => send('signup'));
-    // Speaker icon → tell host to toggle music. Host echoes the new state
-    // back as {type:'music-state', payload:{enabled}} so we can flip the emoji.
-    const audioBtn = document.getElementById('audio-btn');
-    audioBtn?.addEventListener('click', () => send('toggle-music'));
-    window.addEventListener('message', (e) => {
-      const m = e.data;
-      if (m?.source !== 'arc-auth-host' || m.type !== 'music-state' || !audioBtn) return;
-      audioBtn.textContent = m.payload?.enabled ? '🔊' : '🔇';
-    });
+  if (params.has('embed')) document.body.classList.add('embed');
+  const send = (type, payload) => {
+    try { parent.postMessage({ source: 'arc-adopters', type, payload }, '*'); } catch (_) {}
+  };
+
+  // ── Render the adopter cards from cast.json ──
+  const grid = document.getElementById('adopter-grid');
+  const LUNA = { species: 'dog', traits: ['quiet-patient', 'experienced-handler', 'kids-family'] };
+  let activeSpeciesFilter = null;
+  let activeModeFilter = 'match';
+  let cast = [];
+
+  function matchScore(household) {
+    // A household fits if they accept Luna's species AND their household traits
+    // overlap with what Luna needs. Higher overlap = stronger match.
+    const speciesOK = (household.species || []).includes(LUNA.species);
+    if (!speciesOK) return 0;
+    const traitHits = (household.traits || []).filter(t => LUNA.traits.includes(t)).length;
+    return 1 + traitHits; // 1 for species fit, +1 per trait overlap
   }
+
+  function render() {
+    grid.replaceChildren();
+    const scored = cast.map(h => ({ h, score: matchScore(h) }));
+    const filtered = scored.filter(({ h, score }) => {
+      if (activeSpeciesFilter) return (h.species || []).includes(activeSpeciesFilter);
+      if (activeModeFilter === 'match') return score >= 2;
+      return true;
+    }).sort((a, b) => b.score - a.score);
+    for (const { h, score } of filtered) {
+      const card = document.createElement('button');
+      card.className = 'adopter-card';
+      if (score >= 3) card.classList.add('best-match');
+      card.addEventListener('click', () => send('meet-adopter', { id: h.id }));
+
+      const img = document.createElement('img');
+      img.className = 'adopter-portrait';
+      img.src = `/admin/scene-assets/cast/${h.id}.png`;
+      img.alt = h.name;
+      img.loading = 'lazy';
+      card.appendChild(img);
+
+      const name = document.createElement('div');
+      name.className = 'adopter-name';
+      name.textContent = h.name;
+      card.appendChild(name);
+
+      const blurb = document.createElement('div');
+      blurb.className = 'adopter-blurb';
+      blurb.textContent = (h.traits || []).slice(0, 2).join(' · ');
+      card.appendChild(blurb);
+
+      const chips = document.createElement('div');
+      chips.className = 'adopter-species';
+      const emoji = { cat: '🐈', dog: '🐕', bunny: '🐰', parrot: '🦜', snake: '🐍', bat: '🦇', fox: '🦊' };
+      for (const s of h.species || []) {
+        const c = document.createElement('span');
+        c.className = 'adopter-species-chip';
+        c.textContent = emoji[s] || s;
+        chips.appendChild(c);
+      }
+      card.appendChild(chips);
+      grid.appendChild(card);
+    }
+  }
+
+  fetch('/data/cast.json').then(r => r.json()).then(data => {
+    cast = data.cast || [];
+    render();
+  });
+
+  // Filter chips wiring
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const filter = chip.dataset.filter;
+      const species = chip.dataset.species;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('filter-active'));
+      chip.classList.add('filter-active');
+      if (filter) { activeModeFilter = filter; activeSpeciesFilter = null; }
+      if (species) { activeSpeciesFilter = species; activeModeFilter = null; }
+      render();
+    });
+  });
+
+  // Back button
+  document.querySelector('[data-action="back"]')?.addEventListener('click', () => send('back-to-menu'));
 </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>A.R.C. — Friends</title>
+<title>A.R.C. — Vet popup v1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -79,21 +79,251 @@
     container-type: size;     /* enables @container queries on size */
     container-name: welcome;
   }
+  /* Background scene — a room the conflict is happening in, blurred so the
+     modal plaque in front is the reading priority. Dark wash dims the room
+     so the plaque pops. */
   .welcome::before {
     content: ''; position: absolute; inset: 0;
-    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+    background-image: url('/assets/bg/bg-room-dog.png');
     background-size: cover; background-position: center;
+    filter: blur(3px) saturate(0.85) brightness(0.85);
+    transform: scale(1.05);   /* hide blur edge */
     z-index: 0;
   }
   .welcome::after {
     content: ''; position: absolute; inset: 0;
-    background: linear-gradient(180deg,
-      rgba(254,249,239,0.75) 0%,
-      rgba(254,249,239,0.50) 45%,
-      rgba(254,249,239,0.68) 85%,
-      rgba(254,249,239,0.90) 100%);
+    background: rgba(26, 18, 10, 0.42);
     z-index: 1;
   }
+
+  /* ── Conflict modal plaque ── */
+  .conflict-plaque {
+    position: absolute; inset: 0;
+    margin: auto;
+    width: min(92%, 440px);
+    max-height: 90%;
+    align-self: center;
+    padding: clamp(18px, 3cqh, 28px) clamp(18px, 3cqw, 28px) clamp(20px, 3.2cqh, 30px);
+    /* Honey-amber wooden sign with plank grooves — same family as welcome sign */
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: 3px solid #8a5a2a;
+    border-radius: 12px;
+    box-shadow:
+      0 12px 28px rgba(0,0,0,0.5),
+      inset 0 0 24px rgba(0,0,0,0.25),
+      inset 0 3px 0 rgba(255,240,210,0.2);
+    transform: rotate(-0.8deg);
+    z-index: 20;
+    display: flex; flex-direction: column; align-items: center;
+    animation: plaqueDrop 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes plaqueDrop {
+    0%   { transform: translateY(-60px) rotate(-4deg); opacity: 0; }
+    60%  { transform: translateY(4px)   rotate(0.5deg); opacity: 1; }
+    100% { transform: translateY(0)     rotate(-0.8deg); opacity: 1; }
+  }
+  /* Iron nails at the top corners — same device we use on link-btns */
+  .conflict-plaque::before, .conflict-plaque::after {
+    content: '';
+    position: absolute; top: 10px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .conflict-plaque::before { left: 12px; }
+  .conflict-plaque::after  { right: 12px; }
+
+  /* Green circular "+" medical flag tilted top-right, stamped-on-plaque feel */
+  .conflict-flag {
+    position: absolute;
+    top: -22px; right: -14px;
+    width: clamp(42px, 6.5cqh, 56px);
+    height: clamp(42px, 6.5cqh, 56px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #a8e6a3 0%, #5cbb6a 50%, #1f6a2a 100%);
+    border: 3px solid #1c5424;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--sign-title-font);
+    font-weight: 900;
+    font-size: clamp(34px, 5.2cqh, 46px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    transform: rotate(14deg);
+    animation: flagPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes flagPulse {
+    0%, 100% { transform: rotate(14deg) scale(1); }
+    50%      { transform: rotate(14deg) scale(1.08); }
+  }
+
+  /* The two-animals-and-toy staging area */
+  .conflict-scene {
+    position: relative;
+    width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(0px, 1cqw, 4px);
+    padding: clamp(4px, 0.8cqh, 10px) 0 clamp(10px, 1.6cqh, 16px);
+  }
+  .conflict-anim {
+    height: clamp(110px, 18cqh, 160px);
+    width: auto;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.35));
+  }
+  /* Sick animal — droops gently, slight sway like feeling unwell */
+  .vet-sick-anim {
+    animation: sickSway 2.4s ease-in-out alternate infinite;
+    transform-origin: bottom center;
+  }
+  @keyframes sickSway {
+    from { transform: rotate(-3deg) translateY(0); }
+    to   { transform: rotate(3deg)  translateY(-2px); }
+  }
+
+  /* Floating thermometer / germ emoji above the sick animal to signal "unwell" */
+  .vet-scene-wrap {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    width: 100%;
+  }
+  .vet-scene-wrap::before {
+    content: '🤒';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(30px, 4.8cqh, 42px);
+    line-height: 1;
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.35));
+    animation: thermometerFloat 2s ease-in-out alternate infinite;
+    z-index: 2;
+    pointer-events: none;
+  }
+  @keyframes thermometerFloat {
+    from { transform: translateX(-50%) translateY(0)    rotate(-6deg); }
+    to   { transform: translateX(-50%) translateY(-6px) rotate(6deg); }
+  }
+
+  /* Plaque typography — same chalkboard painted style as welcome sign */
+  .conflict-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(22px, 3.6cqh, 30px);
+    letter-spacing: 0.02em;
+    text-align: center;
+    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
+    line-height: 1.1;
+  }
+  .conflict-subtitle {
+    font-family: var(--sign-font);
+    color: #fffbe8;
+    font-size: clamp(15px, 2.2cqh, 19px);
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    text-align: center;
+    margin-top: clamp(4px, 0.8cqh, 8px);
+    margin-bottom: clamp(12px, 2.2cqh, 20px);
+    opacity: 0.95;
+    line-height: 1.25;
+  }
+
+  /* Three resolution pills stacked on the plaque */
+  .conflict-choices {
+    display: flex; flex-direction: column; width: 100%;
+    gap: clamp(8px, 1.4cqh, 12px);
+  }
+  .choice-pill {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: clamp(10px, 2cqw, 14px);
+    align-items: center;
+    padding: clamp(8px, 1.3cqh, 12px) clamp(14px, 2.6cqw, 20px);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    text-align: left;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    border: 2px solid;
+    box-shadow:
+      inset 0 0 10px rgba(0,0,0,0.2),
+      inset 0 2px 0 rgba(255,240,210,0.2),
+      0 3px 6px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+  }
+  .choice-pill:hover { transform: translateY(-2px); }
+  .choice-emoji {
+    font-size: clamp(24px, 3.8cqh, 32px);
+    grid-row: 1 / span 2;
+    line-height: 1;
+    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.25));
+  }
+  /* Two-toy cluster — reads as a pile of toys to pick another from, so
+     kids don't misread "Fetch another toy" as "chop the toy up". */
+  .toy-pile {
+    position: relative;
+    display: inline-block;
+    width: clamp(36px, 5.5cqh, 48px);
+    height: clamp(32px, 5cqh, 42px);
+    filter: none;
+  }
+  .toy-pile .toy-pile-a,
+  .toy-pile .toy-pile-b {
+    position: absolute;
+    font-size: clamp(20px, 3.2cqh, 28px);
+    line-height: 1;
+    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.25));
+  }
+  .toy-pile .toy-pile-a { left: 0;    bottom: 0; transform: rotate(-8deg); }
+  .toy-pile .toy-pile-b { right: -2px; top: 0;   transform: rotate(10deg); }
+  .choice-label {
+    font-weight: 700;
+    font-size: clamp(15px, 2.2cqh, 18px);
+    line-height: 1.15;
+  }
+  .choice-hint {
+    font-size: clamp(12px, 1.6cqh, 14px);
+    font-family: 'Caveat', 'Kalam', cursive;
+    opacity: 0.9;
+    line-height: 1.1;
+  }
+  .choice-amber {
+    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+    border-color: #7a4b15;
+  }
+  .choice-sage {
+    background: linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
+    border-color: #3c5238;
+  }
+  .choice-cream {
+    background: linear-gradient(180deg, #fff0cc 0%, #e7c97a 55%, #b89246 100%);
+    border-color: #7a5a22;
+    color: #3a2618;
+    text-shadow: 1px 1px 0 rgba(255,240,210,0.6);
+  }
+  .choice-cream .choice-hint { color: #6b4820; }
+
+  /* Don't render any of the welcome-screen chrome on this modal. */
+  .welcome-content, .credits, .foreground-dog, .foreground-fox-LEGACY-IGNORED { display: none !important; }
 
   .welcome-inner {
     position: relative; z-index: 5;
@@ -342,132 +572,6 @@
     z-index: 5;  /* above the grass blades */
   }
 
-  /* ── Main-menu (logged in) specific elements ── */
-  .player-badge {
-    display: flex; align-items: center; gap: clamp(10px, 2cqw, 16px);
-    padding: clamp(4px, 0.8cqh, 8px) 0 clamp(10px, 1.6cqh, 14px);
-  }
-  .player-avatar {
-    width: clamp(56px, 8.5cqh, 82px);
-    height: clamp(56px, 8.5cqh, 82px);
-    display: flex; align-items: center; justify-content: center;
-    font-size: clamp(32px, 5cqh, 50px);
-    background: radial-gradient(circle at 35% 30%, #ffd07a 0%, #e7a84a 60%, #b06e28 100%);
-    border: 3px solid #fffbe8;
-    border-radius: 50%;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.3);
-    flex: 0 0 auto;
-  }
-  .player-greeting { flex: 1 1 0; text-align: left; }
-  .player-hello {
-    font-family: var(--sign-font);
-    font-size: clamp(15px, 2.2cqh, 19px);
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
-    opacity: 0.9;
-  }
-  .player-greeting .sign-title {
-    text-align: left;
-    padding: 0;
-    margin: 0;
-    font-size: clamp(28px, 4.6cqh, 42px);
-  }
-  /* Activity card — "your animals are waiting" inset panel on the sign */
-  .menu-card {
-    background: rgba(254,249,239,0.15);
-    border: 2px solid rgba(255,240,210,0.3);
-    border-radius: clamp(8px, 1.2cqh, 12px);
-    padding: clamp(10px, 1.8cqh, 16px) clamp(12px, 2.4cqw, 20px);
-    margin-bottom: clamp(10px, 1.6cqh, 14px);
-  }
-  .menu-card-title {
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 19px);
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
-    text-align: center;
-    margin-bottom: clamp(8px, 1.4cqh, 12px);
-  }
-  .menu-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: clamp(6px, 1.2cqw, 12px);
-  }
-  .menu-stat {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 2px;
-    color: #fffbe8;
-  }
-  .menu-stat-num {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(24px, 3.8cqh, 34px);
-    line-height: 1;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
-  }
-  .menu-stat-label {
-    font-family: var(--sign-font);
-    font-size: clamp(11px, 1.5cqh, 13px);
-    line-height: 1.15;
-    opacity: 0.9;
-    text-align: center;
-  }
-  /* Friend-code cream-paper strip pinned to the sign */
-  .friend-code-pill {
-    display: flex; align-items: center; justify-content: center;
-    gap: clamp(6px, 1cqw, 10px);
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
-    border: 2px solid #7a4b15;
-    border-radius: 999px;
-    padding: clamp(4px, 0.8cqh, 8px) clamp(12px, 2.4cqw, 20px);
-    box-shadow: 0 2px 3px rgba(0,0,0,0.2), inset 0 1px 2px rgba(0,0,0,0.1);
-    margin-top: clamp(2px, 0.4cqh, 4px);
-  }
-  .friend-code-label {
-    font-family: var(--sign-font);
-    font-size: clamp(11px, 1.5cqh, 13px);
-    color: #6b4820;
-    font-weight: 600;
-    opacity: 0.85;
-  }
-  .friend-code-value {
-    font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
-    font-size: clamp(12px, 1.7cqh, 15px);
-    font-weight: 700;
-    color: #3a2618;
-    letter-spacing: 0.03em;
-  }
-
-  /* Subtitle for the new-player welcome */
-  .sign-subtitle {
-    font-family: var(--sign-font);
-    font-weight: 700;
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
-    font-size: clamp(15px, 2.2cqh, 19px);
-    text-align: center;
-    margin-top: clamp(6px, 1.2cqh, 12px);
-    margin-bottom: clamp(6px, 1.2cqh, 10px);
-    opacity: 0.95;
-  }
-  /* ARC exterior snapshot — painted panel pinned inside the sign so new
-     players can orient themselves (where am I heading?). Dual-use asset:
-     also shows up on the in-game News screen when updates drop. */
-  .arc-snapshot-wrap {
-    display: flex; justify-content: center;
-    padding: clamp(6px, 1.2cqh, 12px) 0 clamp(2px, 0.6cqh, 6px);
-  }
-  .arc-snapshot {
-    width: 100%;
-    max-width: clamp(220px, 50cqw, 360px);
-    height: auto;
-    border-radius: clamp(6px, 1cqh, 10px);
-    border: clamp(2px, 0.3cqh, 3px) solid #7a4b15;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-    display: block;
-  }
-
   /* Flying bee — animated on its own layer above the grass, tracing a wavy
      figure-8-ish path so it reads as a real bee doing a lazy circle over the
      flowers at the stake's base rather than a static decal. */
@@ -685,7 +789,7 @@
   }
 
   /* ── Animals in the foreground at the bottom corners ── */
-  .foreground-dog, .foreground-fox-LEGACY-IGNORED {
+  .foreground-dog, .foreground-fox {
     position: absolute;
     bottom: clamp(22px, 4cqh, 50px);
     z-index: 6;
@@ -773,240 +877,6 @@
     line-height: 1.1;
     opacity: 0.88;
     text-shadow: 0 1px 0 rgba(255,255,255,0.35);
-  }
-
-  /* ── Friends page: back-to-menu tab nailed to the TOP-LEFT of the sign ──
-     Styled as a small honey-amber wooden plank that looks like someone
-     hammered it on later — sticks up and to the left past the sign edge,
-     with a single iron nail head holding it in place. */
-  .back-tab {
-    position: absolute;
-    top: clamp(-18px, -2.6cqh, -14px);
-    left: clamp(-14px, -2cqw, -10px);
-    z-index: 4;   /* above the intro sign body */
-    display: inline-flex; align-items: center;
-    gap: clamp(4px, 0.8cqw, 6px);
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(11px, 1.5cqh, 14px);
-    color: #fffbe8;
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
-    /* Same honey-amber wooden palette as the main sign, slightly lighter
-       so it reads as a separate plank rather than a cutout. */
-    background:
-      linear-gradient(90deg,
-        transparent 0%, transparent 30%,
-        rgba(0,0,0,0.06) 31%, transparent 32%, transparent 62%,
-        rgba(0,0,0,0.06) 63%, transparent 64%),
-      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
-    border: 2px solid #7a4b15;
-    border-radius: clamp(4px, 0.6cqh, 6px);
-    padding: clamp(4px, 0.8cqh, 7px) clamp(12px, 2cqw, 16px) clamp(4px, 0.8cqh, 7px) clamp(16px, 2.8cqw, 22px);
-    cursor: pointer;
-    box-shadow:
-      inset 0 0 clamp(6px, 1.2cqh, 12px) rgba(0,0,0,0.22),
-      inset 0 1px 0 rgba(255,240,210,0.22),
-      0 3px 5px rgba(0,0,0,0.35);
-    transform: rotate(-2.5deg);
-  }
-  /* Single iron nail head at the left end of the tab */
-  .back-tab::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: clamp(5px, 0.9cqw, 8px);
-    width: clamp(6px, 1cqw, 8px);
-    height: clamp(6px, 1cqw, 8px);
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #6b6b6b 0%, #2a2a2a 70%);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.15), inset -1px -1px 1px rgba(0,0,0,0.4);
-    transform: translateY(-50%);
-  }
-  /* Friends list — stacked cards inside the sign. Compact: one row
-     = avatar-disc + (name / last-visit) + single bond medal. Row height
-     is clamped so the sign doesn't balloon when lots of friends are added. */
-  .friends-list {
-    display: flex; flex-direction: column;
-    gap: clamp(5px, 0.9cqh, 8px);
-    margin: clamp(6px, 1.2cqh, 10px) 0 clamp(4px, 0.8cqh, 8px);
-  }
-  .friend-card {
-    display: flex; align-items: center;
-    gap: clamp(8px, 1.6cqw, 14px);
-    background: rgba(254,249,239,0.15);
-    border: 2px solid rgba(255,240,210,0.3);
-    border-radius: clamp(8px, 1.2cqh, 12px);
-    padding: clamp(4px, 0.8cqh, 7px) clamp(10px, 2cqw, 14px);
-    min-height: clamp(56px, 9cqh, 64px);
-    cursor: pointer;
-    text-align: left;
-    width: 100%;
-    font-family: inherit;
-    transition: transform 0.1s, background 0.15s;
-  }
-  .friend-card:hover { background: rgba(254,249,239,0.25); }
-  .friend-card:active { transform: translateY(1px); }
-  .friend-avatar-wrap {
-    position: relative;
-    flex: 0 0 auto;
-  }
-  .friend-avatar {
-    width: clamp(38px, 5.5cqh, 48px);
-    height: clamp(38px, 5.5cqh, 48px);
-    display: flex; align-items: center; justify-content: center;
-    font-size: clamp(20px, 3cqh, 28px);
-    border: 2px solid #fffbe8;
-    border-radius: 50%;
-    box-shadow: 0 2px 3px rgba(0,0,0,0.25), inset 0 2px 3px rgba(255,255,255,0.2);
-  }
-  .online-dot {
-    position: absolute;
-    right: -2px; bottom: -2px;
-    width: clamp(10px, 1.5cqh, 14px);
-    height: clamp(10px, 1.5cqh, 14px);
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #7ec24a 0%, #3d8c31 80%);
-    border: 2px solid #fffbe8;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-  }
-  .friend-info {
-    flex: 1 1 0; min-width: 0;
-    display: flex; flex-direction: column; justify-content: center;
-    gap: 1px;
-  }
-  .friend-name {
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(14px, 2cqh, 18px);
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
-    line-height: 1.1;
-  }
-  .friend-visit {
-    font-family: 'Quicksand', system-ui, sans-serif;
-    font-weight: 500;
-    letter-spacing: 0.15px;
-    font-size: clamp(13px, 1.7cqh, 15px);
-    color: #fffbe8;
-    opacity: 0.92;
-    line-height: 1.2;
-  }
-  /* Bond medal — single cream-painted disc with the level emoji on it.
-     Replaces the old multi-paw rendering; one progressive icon per friend. */
-  .friend-medal-wrap {
-    flex: 0 0 auto;
-    display: flex; flex-direction: column; align-items: center;
-    gap: 1px;
-  }
-  .friend-medal {
-    width: clamp(36px, 5.4cqh, 44px);
-    height: clamp(36px, 5.4cqh, 44px);
-    display: flex; align-items: center; justify-content: center;
-    font-size: clamp(20px, 2.8cqh, 26px);
-    line-height: 1;
-    background: radial-gradient(circle at 35% 30%, #fffbe8 0%, #f5ecd0 70%, #ead9a6 100%);
-    border: 2px solid #8a5a2a;
-    border-radius: 50%;
-    box-shadow: 0 2px 3px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.4);
-  }
-  .friend-medal-label {
-    font-family: 'Quicksand', system-ui, sans-serif;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    font-size: clamp(12px, 1.5cqh, 13px);
-    color: #fffbe8;
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
-    opacity: 0.95;
-    line-height: 1;
-  }
-  /* Apprentice-able hint + recruit button on a friend card. Compact so
-     it slots in between the name/visit lines and the bond medal on the
-     right. The hint is quiet star text; the button is a small honey-wood
-     pill consistent with the rest of the sign's palette. */
-  .apprentice-chip {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-family: 'Quicksand', system-ui, sans-serif;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    font-size: clamp(13px, 1.6cqh, 14px);
-    color: #fffbe8;
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
-    opacity: 0.95;
-    line-height: 1.2;
-    margin-top: 1px;
-  }
-  .apprentice-chip .star { filter: drop-shadow(0 1px 0 rgba(0,0,0,0.4)); }
-  .recruit-btn {
-    flex: 0 0 auto;
-    margin-right: clamp(4px, 0.8cqw, 8px);
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(10px, 1.4cqh, 12px);
-    color: #fffbe8;
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
-    border: 2px solid #7a4b15;
-    border-radius: 999px;
-    padding: clamp(4px, 0.7cqh, 6px) clamp(8px, 1.4cqw, 12px);
-    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
-    cursor: pointer;
-    box-shadow: 0 2px 3px rgba(0,0,0,0.28);
-    white-space: nowrap;
-  }
-  .recruit-btn:active { transform: translateY(1px); }
-  .recruit-btn[disabled] {
-    opacity: 0.55; cursor: default;
-    background: linear-gradient(180deg, #bdb3a2 0%, #8f8676 100%);
-    border-color: #6b6254;
-  }
-
-  /* Invite CTA uses .btn-primary, but we swap the paws for post emojis */
-  .btn-primary .postmark {
-    font-size: clamp(30px, 5.2cqh, 46px);
-    line-height: 1;
-    text-shadow: none;
-    filter: none;
-    transform: translateY(2px);
-  }
-  .btn-primary .postmark-left  { transform: translateY(2px) rotate(-10deg); }
-  .btn-primary .postmark-right { transform: translateY(2px) rotate(10deg); }
-  /* Invite code pill — cream paper strip showing the player's own code */
-  .invite-code-pill {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: clamp(6px, 1cqw, 10px);
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
-    border: 2px solid #7a4b15;
-    border-radius: 999px;
-    padding: clamp(6px, 1cqh, 10px) clamp(14px, 2.6cqw, 22px);
-    box-shadow: 0 2px 3px rgba(0,0,0,0.2), inset 0 1px 2px rgba(0,0,0,0.1);
-    margin-top: clamp(4px, 0.8cqh, 8px);
-    width: 100%;
-  }
-  .invite-code-left {
-    display: flex; align-items: baseline;
-    gap: clamp(6px, 1cqw, 10px);
-    flex-wrap: wrap;
-  }
-  .invite-code-label {
-    font-family: var(--sign-font);
-    font-size: clamp(12px, 1.6cqh, 14px);
-    color: #6b4820;
-    font-weight: 600;
-    opacity: 0.85;
-  }
-  .invite-code-value {
-    font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
-    font-size: clamp(13px, 1.8cqh, 16px);
-    font-weight: 700;
-    color: #3a2618;
-    letter-spacing: 0.03em;
-  }
-  .invite-copy-btn {
-    font-size: clamp(14px, 2cqh, 18px);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 2px 4px;
-    line-height: 1;
   }
 
   /* ── Wide layout: 2+ columns of breathing room, so the logo floats to
@@ -1123,13 +993,13 @@
 <body>
 
 <div class="vp-bar">
-  <strong>Friends v1</strong>
+  <strong>Vet popup v1</strong>
   <span>·</span>
   <button data-size="iphone">📱 iPhone (390×844)</button>
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-menu.html">→ Main menu mockup</a>
+  <a href="/admin/login.html">→ Login</a>
   <span class="hint">(real logo + contextual animals)</span>
 </div>
 
@@ -1143,63 +1013,38 @@
           <button class="audio-btn" aria-label="Toggle sound">🔊</button>
         </div>
 
-        <div class="welcome-content">
-          <div class="logo-wrap">
-            <img class="logo-img" src="/assets/logo/arc-logo-portrait.png" alt="A.R.C. — Animal Rescue Centre">
-            <img class="logo-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
-          </div>
-
-          <div class="text-block">
-            <div class="signs-on-stake">
-              <div class="intro">
-                <img class="intro-cat" src="/assets/animals/cat-black-sleeping.png" alt="">
-                <button class="back-tab" id="back-btn">← Menu</button>
-                <div class="sign-title">Your A.R.C. Friends</div>
-                <div class="friends-list" id="friends-list"><!-- friend cards injected by JS --></div>
-              </div>
-
-              <div class="cta-stack">
-                <div class="btn-primary-wrap">
-                  <button class="btn-primary" id="invite-btn">
-                    <span class="postmark postmark-left">📮</span>
-                    <span class="play-label">INVITE A FRIEND!</span>
-                    <span class="postmark postmark-right">📮</span>
-                  </button>
-                  <img class="play-parrot" src="/assets/animals/parrot-grey-sheltered.png" alt="">
-                </div>
-                <div class="invite-code-pill">
-                  <div class="invite-code-left">
-                    <span class="invite-code-label">Share your code:</span>
-                    <span class="invite-code-value" id="friend-code">SUNNY-FOX-2026</span>
-                  </div>
-                  <button class="invite-copy-btn" id="copy-code-btn" aria-label="Copy friend code">📋</button>
-                </div>
-              </div>
-
-              <!-- Bunny sitting on the ground at the foot of the garden post -->
-              <img class="ground-bunny" src="/assets/animals/bunny-lop-sheltered.png" alt="">
-
-              <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
-              <img class="foreground-fox" src="/assets/animals/fox-cross-walking.png" alt="">
-              <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
-
-              <!-- Flying bee on its own animated layer above the grass -->
-              <img class="bee-flyer" src="/admin/mockup-assets/bee-flying.png" alt="" aria-hidden="true">
+        <!-- Conflict plaque floats in the middle of the (blurred) room scene.
+             Large painted wooden sign with exclamation flag overlaid on top,
+             two animals facing off with a toy between them, then a headline,
+             subtitle, and three resolution choice pills. -->
+        <div class="conflict-plaque">
+          <div class="conflict-flag">+</div>
+          <div class="conflict-scene">
+            <div class="vet-scene-wrap">
+              <img id="vet-sick-sprite" class="conflict-anim vet-sick-anim" src="/assets/animals/cat-ginger-sick.png" alt="">
             </div>
           </div>
+          <div class="conflict-title" id="vet-title">Oh dear — Luna isn't feeling well</div>
+          <div class="conflict-subtitle" id="vet-subtitle">Looks like a tummy bug. Here's what you can do.</div>
+          <div class="conflict-choices">
+            <button class="choice-pill choice-amber" data-action="treatment-rest">
+              <span class="choice-emoji">🌿</span>
+              <span class="choice-label">Herbal tea rest</span>
+              <span class="choice-hint">Cozy recovery, free</span>
+            </button>
+            <button class="choice-pill choice-sage" data-action="treatment-vet">
+              <span class="choice-emoji">🩺</span>
+              <span class="choice-label">Visit the vet</span>
+              <span class="choice-hint">Quick check-up, 20 coins</span>
+            </button>
+            <button class="choice-pill choice-cream" data-action="treatment-home">
+              <span class="choice-emoji">💊</span>
+              <span class="choice-label">Home remedy</span>
+              <span class="choice-hint">Try natural care, small chance of not working</span>
+            </button>
+          </div>
         </div>
-
-        <div class="credits">
-          <span class="credit-scrawl credit-left">Designed by Lily age 8</span>
-          <span class="credit-scrawl credit-right">Built by Dad and Claude Code</span>
-        </div>
-
       </div>
-
-      <!-- Foreground corner animals — the 'cast' welcoming the player -->
-      <img class="foreground-dog" src="/assets/animals/dog-husky-sheltered.png" alt="">
-      <img class="foreground-fox" src="/assets/animals/fox-arctic-sheltered.png" alt="">
-
     </div>
   </div>
 </div>
@@ -1213,174 +1058,40 @@
       device.dataset.size = btn.dataset.size;
     });
   }
-  // Sample friends data — shown in the mockup preview AND as the default
-  // when the host hasn't sent an 'init' payload yet. Three of these are
-  // apprentice-eligible (Rhubarb, Amara, Kofi) so the design review can
-  // see the "⭐ Apprentice-able" chip + Recruit! button inline.
-  const SAMPLE_FRIENDS = [
-    { username: 'Sam',     emoji: '🐾', bg: '#6ea8d8', lastVisit: 'yesterday',   bond: 5, online: true  },
-    { username: 'Rhubarb', emoji: '🥕', bg: '#d86a4a', lastVisit: 'today',       bond: 4, online: true,
-      apprenticeId: 'rhubarb', householdId: '30-two-houses' },
-    { username: 'Amara',   emoji: '🐱', bg: '#e89bb8', lastVisit: 'yesterday',   bond: 3, online: false,
-      apprenticeId: 'amara',   householdId: '13-kumar-ishii' },
-    { username: 'Kofi',    emoji: '🦜', bg: '#e7a84a', lastVisit: '2 hours ago', bond: 4, online: true,
-      apprenticeId: 'kofi',    householdId: '14-theo-grandkids' },
-  ];
-
-  // Set of apprentice ids already recruited — populated from host init.
-  let RECRUITED = new Set();
-
-  // Progressive bond levels — 1=Sprout (just starting) through 5=Champion.
-  // Single medal on the right of each row replaces the old 5-paw meter.
-  const BOND_LEVELS = [
-    { emoji: '🌱', label: 'Sprout' },     // 1
-    { emoji: '🌿', label: 'Bud' },        // 2
-    { emoji: '🌸', label: 'Bloom' },      // 3
-    { emoji: '🌺', label: 'Flourish' },   // 4
-    { emoji: '🏆', label: 'Champion' },   // 5
-  ];
-
-  // Render friend cards with document.createElement + textContent only —
-  // every string field comes from untrusted host payloads, so we never
-  // touch innerHTML. Click handler only fires in embed mode (closure).
-  function renderFriends(friends, onOpen, onRecruit) {
-    const list = document.getElementById('friends-list');
-    if (!list) return;
-    list.textContent = '';  // clear
-    for (const f of friends) {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'friend-card';
-
-      const avatarWrap = document.createElement('div');
-      avatarWrap.className = 'friend-avatar-wrap';
-      const avatar = document.createElement('span');
-      avatar.className = 'friend-avatar';
-      avatar.textContent = typeof f.emoji === 'string' ? f.emoji : '🐾';
-      if (typeof f.bg === 'string') avatar.style.background = f.bg;
-      avatarWrap.appendChild(avatar);
-      if (f.online) {
-        const dot = document.createElement('span');
-        dot.className = 'online-dot';
-        dot.setAttribute('aria-label', 'online');
-        avatarWrap.appendChild(dot);
-      }
-      card.appendChild(avatarWrap);
-
-      const info = document.createElement('div');
-      info.className = 'friend-info';
-      const nameEl = document.createElement('div');
-      nameEl.className = 'friend-name';
-      nameEl.textContent = typeof f.username === 'string' ? f.username : '';
-      info.appendChild(nameEl);
-
-      const visitEl = document.createElement('div');
-      visitEl.className = 'friend-visit';
-      visitEl.textContent = 'Last visit: ' + (typeof f.lastVisit === 'string' ? f.lastVisit : '—');
-      info.appendChild(visitEl);
-
-      // Apprentice-able hint — shown only on the three recruitable kids
-      // (Rhubarb / Amara / Kofi). Once they're recruited, we swap the
-      // chip copy to a quiet "⭐ Apprentice" confirmation instead.
-      if (typeof f.apprenticeId === 'string') {
-        const recruited = RECRUITED.has(f.apprenticeId);
-        const chip = document.createElement('div');
-        chip.className = 'apprentice-chip';
-        const star = document.createElement('span');
-        star.className = 'star';
-        star.textContent = '⭐';
-        chip.appendChild(star);
-        const chipText = document.createElement('span');
-        chipText.textContent = recruited ? 'Apprentice' : 'Apprentice-able';
-        chip.appendChild(chipText);
-        info.appendChild(chip);
-      }
-      card.appendChild(info);
-
-      // Recruit button — right-aligned, only for apprentice-able friends
-      // who haven't been recruited yet. Stops card click from also firing.
-      if (typeof f.apprenticeId === 'string' && !RECRUITED.has(f.apprenticeId)) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'recruit-btn';
-        btn.textContent = 'Recruit!';
-        btn.setAttribute('aria-label', 'Recruit ' + (f.username || '') + ' as an apprentice');
-        btn.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          if (typeof onRecruit === 'function') onRecruit(f.apprenticeId);
-        });
-        card.appendChild(btn);
-      }
-
-      // Single progressive bond medal on the right — 1..5 → Sprout..Champion.
-      const bondIdx = Math.max(1, Math.min(5, Number(f.bond) | 0)) - 1;
-      const level = BOND_LEVELS[bondIdx];
-      const medalWrap = document.createElement('div');
-      medalWrap.className = 'friend-medal-wrap';
-      const medal = document.createElement('span');
-      medal.className = 'friend-medal';
-      medal.setAttribute('aria-label', 'Bond: ' + level.label);
-      medal.textContent = level.emoji;
-      medalWrap.appendChild(medal);
-      const medalLabel = document.createElement('span');
-      medalLabel.className = 'friend-medal-label';
-      medalLabel.textContent = level.label;
-      medalWrap.appendChild(medalLabel);
-      card.appendChild(medalWrap);
-
-      if (typeof onOpen === 'function') {
-        card.addEventListener('click', () => onOpen(f.username));
-      }
-      list.appendChild(card);
-    }
-  }
-
-  // Always paint sample friends for the design-review preview.
-  renderFriends(SAMPLE_FRIENDS);
-
   // Embed mode — when loaded inside the game as an overlay, drop the
-  // simulator chrome and have the device fill the viewport. Clicks on the
-  // primary CTAs postMessage up to the host scene instead of being dead.
+  // simulator chrome and have the device fill the viewport. Each treatment
+  // choice postMessages a treatment-* action up to the host scene.
   const params = new URLSearchParams(location.search);
   if (params.has('embed')) {
     document.body.classList.add('embed');
-    const send = (type, payload) => {
-      try { parent.postMessage({ source: 'arc-auth', type, payload }, '*'); } catch (_) {}
+    const send = (type) => {
+      try { parent.postMessage({ source: 'arc-vet', type }, '*'); } catch (_) {}
     };
-    // Handshake — parent sends the current friends payload. We only render
-    // safe fields via textContent so no sanitisation needed.
-    window.addEventListener('message', (e) => {
-      const m = e.data;
-      if (m?.source !== 'arc-auth-host') return;
-      if (m.type === 'init' && m.payload) {
-        const p = m.payload;
-        const codeEl = document.getElementById('friend-code');
-        if (codeEl && typeof p.joinCode === 'string') codeEl.textContent = p.joinCode;
-        if (Array.isArray(p.recruited)) {
-          RECRUITED = new Set(p.recruited.filter((x) => typeof x === 'string'));
-        }
-        const list = Array.isArray(p.friends) ? p.friends : SAMPLE_FRIENDS;
-        renderFriends(
-          list,
-          (username) => send('open-friend', { username }),
-          (id) => send('recruit-apprentice', { id }),
-        );
-      }
-    });
-    // Wire sample-data clicks immediately so embed-mode preview is interactive
-    // even before the host posts an init payload.
-    renderFriends(
-      SAMPLE_FRIENDS,
-      (username) => send('open-friend', { username }),
-      (id) => send('recruit-apprentice', { id }),
-    );
+    for (const btn of document.querySelectorAll('.choice-pill')) {
+      btn.addEventListener('click', () => send(btn.dataset.action));
+    }
 
-    document.getElementById('back-btn')?.addEventListener('click', () => send('back-to-menu'));
-    document.getElementById('invite-btn')?.addEventListener('click', () => send('invite-friend'));
-    document.getElementById('copy-code-btn')?.addEventListener('click', () => {
-      const code = document.getElementById('friend-code')?.textContent || '';
-      try { navigator.clipboard?.writeText(code); } catch (_) {}
-      send('copy-code', { code });
+    // init handshake — host sends {animalName, animalSpecies, animalVariant, illnessName}
+    // to personalise the title, subtitle, and sprite.
+    window.addEventListener('message', (e) => {
+      const msg = e.data;
+      if (!msg || msg.source !== 'arc-game-host' || msg.type !== 'init') return;
+      const p = msg.payload || {};
+      const name = p.animalName || 'your friend';
+      const illness = p.illnessName || 'tummy bug';
+      const titleEl = document.getElementById('vet-title');
+      const subEl = document.getElementById('vet-subtitle');
+      const spriteEl = document.getElementById('vet-sick-sprite');
+      if (titleEl) titleEl.textContent = `Oh dear — ${name} isn't feeling well`;
+      if (subEl) subEl.textContent = `Looks like ${illness === 'a' || /^[aeiou]/i.test(illness) ? 'an' : 'a'} ${illness}. Here's what you can do.`;
+      if (spriteEl && p.animalSpecies && p.animalVariant) {
+        spriteEl.src = `/assets/animals/${p.animalSpecies}-${p.animalVariant}-sick.png`;
+        spriteEl.onerror = () => {
+          // Fallback to grumpy/sheltered when no -sick sprite exists for this variant
+          spriteEl.onerror = null;
+          spriteEl.src = `/assets/animals/${p.animalSpecies}-${p.animalVariant}-grumpy.png`;
+        };
+      }
     });
   }
 </script>

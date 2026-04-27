@@ -6,12 +6,12 @@
 set -uo pipefail
 
 ROOT="/Users/marcus/Projects/animal-rescue-centre"
-OUT_DIR="$ROOT/apps/game/public/admin/mockup-assets/cast"
+OUT_DIR="$ROOT/apps/game/public/admin/scene-assets/cast"
 mkdir -p "$OUT_DIR"
 export GPT_IMAGE_QUALITY=medium
 export GPT_IMAGE_MODEL=gpt-image-1.5
 
-STYLE="Painterly storybook children's-book illustration in warm chibi style (Aardman / Raymond Briggs aesthetic). Soft rounded proportions with slightly oversized head (~40%), gentle brush outlines, hand-painted textures, warm saturated palette. Transparent PNG background, NO floor, NO scene background, NO shadows on ground. Friendly neutral knees-up portrait, figure(s) standing facing camera with a small friendly smile. Match the painted chibi brushwork, warmth, and character depth of the reference animal sprites exactly — these are humans drawn in the same children's-book world as those animals."
+STYLE="Painterly storybook children's-book illustration in warm chibi style (Aardman / Raymond Briggs aesthetic). Soft rounded proportions with slightly oversized head (~40%), gentle brush outlines, hand-painted textures, warm saturated palette. Transparent PNG background, NO floor, NO scene background, NO shadows on ground. FULL-BODY portrait — render the figure(s) from head to feet on a single shared ground line. CRITICAL FRAMING: all figures must be rendered ENTIRELY within the canvas — heads fully visible with at least 10% empty space ABOVE the tallest head, feet fully visible with at least 10% empty space BELOW the feet. Do NOT crop tops of heads or bottoms of feet. Zoom out if needed. Figure(s) standing facing camera with a small friendly smile. Match the painted chibi brushwork, warmth, and character depth of the reference animal sprites exactly — these are humans drawn in the same children's-book world as those animals."
 
 REFS=(
   "$ROOT/apps/game/public/assets/animals/dog-golden-sheltered.png"

@@ -47,7 +47,7 @@ export class BootScene extends Phaser.Scene {
       // Queue apprentice action-pose sprites. Small painted chibi
       // decorations shown in the rescue centre when an apprentice
       // has been recruited. They live outside the asset-manifest
-      // pipeline (served straight from /admin/mockup-assets/) so we
+      // pipeline (served straight from /admin/scene-assets/) so we
       // register them by URL here, once, up front.
       const APPRENTICE_POSES: string[] = [
         'rhubarb-feeding',
@@ -63,7 +63,7 @@ export class BootScene extends Phaser.Scene {
       for (const pose of APPRENTICE_POSES) {
         const key = `apprentice-${pose}`;
         if (!this.textures.exists(key)) {
-          this.load.image(key, `/admin/mockup-assets/cast/apprentices/${pose}.png`);
+          this.load.image(key, `/admin/scene-assets/cast/apprentices/${pose}.png`);
         }
       }
 

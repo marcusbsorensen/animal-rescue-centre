@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Sign in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --garden-green: #2E8B57;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
+    --ink: #3a3a3a;
+    --ink-soft: #6b6b6b;
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    /* Chalkboard-style stack for sign text — matches the painted crayon logo.
+       On Mac/iOS the native 'Chalkboard SE' wins; elsewhere Kalam (Google
+       Font) provides the closest hand-drawn crayon feel. Gochi Hand is a
+       chunkier fallback for the sign titles. */
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
+    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #222; }
+  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+  body.embed { background: #fef9ef; }
+  body.embed .vp-bar { display: none; }
+  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
+  body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
+  /* mock toolbar */
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .vp-bar button {
+    background: #444; color: #fff; border: 1px solid #555;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+  }
+  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+  .vp-bar a { color: #8fd3ff; margin-left: 12px; }
+
+  .device-frame {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: auto;
+  }
+  .device {
+    background: var(--cream-wash);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s, height 0.3s;
+    flex-shrink: 0;  /* don't let flex parent squeeze the simulated device */
+  }
+  .device[data-size="iphone"]    { width: 390px;  height: 844px; }
+  .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
+  .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
+  .device[data-size="desktop"]   { width: 1280px; height: 800px; }
+
+  /* ── welcome design ── */
+  .welcome {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+    container-type: size;     /* enables @container queries on size */
+    container-name: welcome;
+  }
+  .welcome::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+    background-size: cover; background-position: center;
+    z-index: 0;
+  }
+  .welcome::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg,
+      rgba(254,249,239,0.75) 0%,
+      rgba(254,249,239,0.50) 45%,
+      rgba(254,249,239,0.68) 85%,
+      rgba(254,249,239,0.90) 100%);
+    z-index: 1;
+  }
+
+  .welcome-inner {
+    position: relative; z-index: 5;
+    width: 100%; height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "top" "content" "credits";
+    padding: clamp(10px, 2cqh, 18px) 0 0;
+  }
+
+  .top-strip {
+    grid-area: top;
+    display: flex; justify-content: flex-end;
+    padding: 0 clamp(12px, 3cqw, 24px);
+  }
+  .audio-btn {
+    width: clamp(36px, 5.5cqh, 44px); height: clamp(36px, 5.5cqh, 44px);
+    background: rgba(255,255,255,0.85);
+    border: 2px solid rgba(46,139,87,0.3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: clamp(16px, 2.4cqh, 20px);
+  }
+
+  .welcome-content {
+    grid-area: content;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-start;
+    gap: clamp(10px, 2cqh, 22px);
+    /* Top padding so the cat overhanging the sign stays inside the
+       visible viewport on iPad P. */
+    padding: clamp(64px, 11cqh, 100px) clamp(16px, 4cqw, 32px) 0;
+    text-align: center;
+    min-height: 0;
+    position: relative;
+  }
+
+  .logo-img {
+    height: clamp(96px, 18cqh, 180px);
+    width: auto; max-width: 92%;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.12));
+    position: relative;
+    display: block;
+    margin: 0 auto;
+  }
+  .logo-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8cqh, 8px); }
+
+  /* Title row — paw-heart icon on the left, sign title on the right.
+     Tethers the brand to the sign on every sub-page. */
+  .sign-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px, 2cqw, 16px);
+  }
+  .sign-logo {
+    height: clamp(36px, 6.5cqh, 64px);
+    width: auto;
+    flex: 0 0 auto;
+    image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
+  }
+
+  /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
+  .sign-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    font-size: clamp(20px, 3.8cqh, 34px);
+    line-height: 1.05;
+    text-align: center;
+    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
+    position: relative;
+    /* Logo-matched green gradient: bright leaf → rich grass → deep pine */
+    background: linear-gradient(180deg,
+      #8cc63f 0%,
+      #5faa3a 28%,
+      #3d8c31 62%,
+      #2a6e26 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(8, 38, 11, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(8,38,11,0.55));
+  }
+
+  /* ── No more logo-bunny; bunny now sits at the base of the wooden stake ── */
+  .logo-bunny { display: none; }
+
+  .intro {
+    position: relative;
+    /* Weathered wooden garden-sign look — horizontal plank gradient with
+       subtle grain streaks. Cream-on-wood paint for readability. */
+    background:
+      /* Horizontal plank separator lines — dark groove + highlight pair.
+         4 grooves split the sign into 5 planks, running top-to-bottom. */
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 39%,
+        rgba(0,0,0,0.32) 39.5%, rgba(0,0,0,0.32) 40%,
+        rgba(255,240,210,0.18) 40.3%, transparent 40.8%,
+        transparent 59%,
+        rgba(0,0,0,0.32) 59.5%, rgba(0,0,0,0.32) 60%,
+        rgba(255,240,210,0.18) 60.3%, transparent 60.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      /* Vertical grain streaks (subtle) */
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      /* Base wood colour — warm medium oak */
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: clamp(2px, 0.3cqh, 3px) solid #8a5a2a;
+    border-radius: clamp(6px, 0.8cqh, 10px);
+    padding: clamp(14px, 2.4cqh, 22px) clamp(18px, 3.5cqw, 28px);
+    max-width: min(92%, 480px);
+    box-shadow:
+      inset 0 0 clamp(16px, 3cqh, 28px) rgba(0,0,0,0.25),
+      inset 0 clamp(2px, 0.5cqh, 4px) 0 rgba(255,240,210,0.15),
+      0 clamp(6px, 1.2cqh, 12px) clamp(14px, 2.6cqh, 22px) rgba(0,0,0,0.35);
+    transform: rotate(-1.2deg);
+  }
+  /* Tiny painted "nails" at the corners to anchor the sign visually */
+  .intro::before, .intro::after {
+    content: '';
+    position: absolute;
+    width: clamp(7px, 1.2cqh, 10px);
+    height: clamp(7px, 1.2cqh, 10px);
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .intro::before { top: clamp(6px, 1cqh, 9px); left: clamp(6px, 1cqh, 9px); }
+  .intro::after  { top: clamp(6px, 1cqh, 9px); right: clamp(6px, 1cqh, 9px); }
+  .intro ol {
+    list-style: none; counter-reset: step;
+    display: flex; flex-direction: column;
+    gap: clamp(8px, 1.3cqh, 14px);
+    position: relative;
+  }
+  .intro li {
+    counter-increment: step;
+    font-family: var(--sign-font);
+    font-size: clamp(15px, 2.2cqh, 21px);
+    /* Cream hand-painted chalk-style text on the wooden sign */
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    font-weight: 700; line-height: 1.35;
+    display: flex; align-items: center; gap: clamp(8px, 1.4cqw, 14px);
+    text-align: left;
+    white-space: nowrap;   /* each point must fit one line */
+  }
+  .intro li::before {
+    content: counter(step);
+    flex: 0 0 auto;
+    width: clamp(26px, 4cqh, 34px); height: clamp(26px, 4cqh, 34px);
+    /* Painted green number disk on the sign, matching logo green */
+    background: radial-gradient(circle at 35% 30%, #7ec24a 0%, #3d8c31 75%, #2a6e26 100%);
+    color: #fffbe8;
+    border: 2px solid #1d5c2a;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--headline-font); font-weight: 700;
+    font-size: clamp(14px, 2.2cqh, 20px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.35),
+                inset 0 2px 3px rgba(255,255,255,0.2);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    margin-right: 0;
+    margin-top: clamp(-2px, -0.3cqh, 0px);
+  }
+
+  /* ── Login-specific additions: subtitle, avatar chips, PIN keypad ── */
+  .hidden { display: none !important; }
+  /* Wrong-PIN feedback — the sign shudders + the dots flash red before clearing. */
+  .intro.shake { animation: signShake 0.5s cubic-bezier(.36,.07,.19,.97); }
+  .intro.shake .pin-dot { border-color: #c54838; background: rgba(197,72,56,0.3); }
+  @keyframes signShake {
+    10%, 90% { transform: translateX(-2px) rotate(-1.2deg); }
+    20%, 80% { transform: translateX(4px)  rotate(-1.2deg); }
+    30%, 50%, 70% { transform: translateX(-8px) rotate(-1.2deg); }
+    40%, 60% { transform: translateX(8px)  rotate(-1.2deg); }
+  }
+  .sign-subtitle {
+    font-family: var(--sign-font);
+    font-weight: 400;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
+    font-size: clamp(14px, 2.1cqh, 19px);
+    text-align: center;
+    opacity: 0.95;
+    margin-bottom: clamp(10px, 1.6cqh, 16px);
+  }
+  .chips {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(10px, 1.6cqh, 18px) clamp(12px, 2cqw, 20px);
+    padding: clamp(2px, 0.4cqh, 4px) 0;
+  }
+  .chip {
+    display: flex; align-items: center; gap: clamp(10px, 1.8cqw, 14px);
+    background: rgba(254,249,239,0.12);
+    border: 2px solid rgba(255,240,210,0.25);
+    border-radius: 14px;
+    padding: clamp(6px, 1cqh, 10px) clamp(8px, 1.5cqw, 14px);
+    color: #fffbe8;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    text-align: left;
+    transition: transform 0.12s, background 0.15s;
+  }
+  .chip:hover { background: rgba(254,249,239,0.22); transform: translateY(-2px); }
+  .chip-avatar {
+    width: clamp(38px, 5.8cqh, 52px);
+    height: clamp(38px, 5.8cqh, 52px);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(22px, 3.2cqh, 30px);
+    border: 2px solid #fffbe8;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+    flex: 0 0 auto;
+  }
+  .chip-text {
+    display: flex; flex-direction: column; gap: 2px;
+    flex: 1 1 0; min-width: 0;
+  }
+  .chip-name {
+    font-weight: 700;
+    font-size: clamp(15px, 2.2cqh, 19px);
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
+    line-height: 1.1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .chip-last {
+    display: block;
+    /* Quicksand 500 — humanist sans, much more legible at small size
+       than Caveat handwriting which gets unreadable below ~14px. */
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-size: clamp(13px, 1.7cqh, 15px);
+    font-weight: 500;
+    letter-spacing: 0.2px;
+    opacity: 0.92;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.35);
+  }
+  .chip-name::after {
+    /* Small line break between name and last-seen in the chip */
+    content: '';
+  }
+  .chip .chip-last { display: block; margin-top: 2px; }
+  /* PIN dots — cream-painted dots above the keypad, fill as PIN typed. */
+  .pin-dots {
+    display: flex; justify-content: center;
+    gap: clamp(10px, 1.8cqw, 16px);
+    padding: clamp(4px, 0.8cqh, 8px) 0 clamp(10px, 1.8cqh, 16px);
+  }
+  .pin-dot {
+    width: clamp(14px, 2.2cqh, 22px);
+    height: clamp(14px, 2.2cqh, 22px);
+    border-radius: 50%;
+    border: 2px solid #fffbe8;
+    background: transparent;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.3);
+  }
+  .pin-dot.filled { background: #fffbe8; }
+  /* ── Keypad: collection of assorted stickers ─────────────────────
+     Same sticker treatment as signup — visual + spatial cues to
+     help kids recall their PIN as a sequence of stickers rather
+     than abstract digits. */
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(10px, 1.8cqh, 18px) clamp(12px, 2cqw, 18px);
+    padding: clamp(4px, 0.8cqh, 8px) clamp(2px, 0.4cqw, 6px);
+  }
+  .key {
+    position: relative;
+    font-family: var(--sign-title-font);
+    font-weight: 900;
+    font-size: clamp(26px, 4.4cqh, 38px);
+    color: #2a1a08;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.65);
+    padding: clamp(10px, 1.6cqh, 16px) 0;
+    cursor: pointer;
+    border: 2px solid rgba(120,80,40,0.35);
+    background: linear-gradient(180deg, #fffbe8 0%, #f3e5c0 100%);
+    box-shadow:
+      0 3px 0 rgba(120,80,40,0.18),
+      0 4px 8px rgba(0,0,0,0.28),
+      inset 0 1px 0 rgba(255,255,255,0.6);
+    transition: transform 0.1s, box-shadow 0.1s;
+    line-height: 1;
+  }
+  .key::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: clamp(8px, 1.4cqw, 12px);
+    height: clamp(8px, 1.4cqw, 12px);
+    background:
+      linear-gradient(225deg,
+        rgba(120,80,40,0.55) 0%,
+        rgba(120,80,40,0.55) 45%,
+        rgba(255,255,255,0.7) 55%,
+        rgba(255,255,255,0.7) 100%);
+    clip-path: polygon(100% 0, 100% 100%, 0 0);
+    filter: drop-shadow(-1px 1px 1px rgba(0,0,0,0.2));
+    border-top-right-radius: inherit;
+  }
+  .key:active {
+    transform: translateY(2px) rotate(0deg) !important;
+    box-shadow:
+      0 1px 0 rgba(120,80,40,0.18),
+      0 2px 3px rgba(0,0,0,0.28),
+      inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+  /* Per-digit sticker variants 0-9 — match signup so a kid sees the
+     same sticker palette across both screens (recall consistency). */
+  .keypad .key:nth-child(1) {
+    background: linear-gradient(180deg, #ffd2d2 0%, #f7a3a3 100%);
+    border-radius: 14px; transform: rotate(-2.5deg);
+  }
+  .keypad .key:nth-child(2) {
+    background: linear-gradient(180deg, #fff0a8 0%, #f3d050 100%);
+    border-radius: 50% 30% 50% 30%; transform: rotate(2deg);
+  }
+  .keypad .key:nth-child(3) {
+    background: linear-gradient(180deg, #d2f3e0 0%, #8ed4a8 100%);
+    border-radius: 50%; transform: rotate(-1deg);
+  }
+  .keypad .key:nth-child(4) {
+    background: linear-gradient(180deg, #d0e8ff 0%, #8db8e8 100%);
+    border-radius: 18px; transform: rotate(3deg);
+  }
+  .keypad .key:nth-child(5) {
+    background: linear-gradient(180deg, #ffd0a8 0%, #ff9f6b 100%);
+    border-radius: 50% / 35%; transform: rotate(-1.5deg);
+  }
+  .keypad .key:nth-child(6) {
+    background: linear-gradient(180deg, #e3d4f5 0%, #b39bd5 100%);
+    border-radius: 10px 22px 10px 22px; transform: rotate(2.5deg);
+  }
+  .keypad .key:nth-child(7) {
+    background: linear-gradient(180deg, #ffe0c2 0%, #f4ad7a 100%);
+    border-radius: 24px 12px 24px 12px; transform: rotate(-2deg);
+  }
+  .keypad .key:nth-child(8) {
+    background: linear-gradient(180deg, #d5e9c8 0%, #a3c98a 100%);
+    border-radius: 50%; transform: rotate(1.5deg);
+  }
+  .keypad .key:nth-child(9) {
+    background: linear-gradient(180deg, #f4d2d8 0%, #d895a3 100%);
+    border-radius: 14px 14px 30px 30px; transform: rotate(-3deg);
+  }
+  .keypad .key:nth-child(11) {
+    background: linear-gradient(180deg, #fff5e0 0%, #e9d5a0 100%);
+    border-radius: 16px; transform: rotate(1.8deg);
+  }
+  /* Bottom-left RED delete sticker. */
+  .key.key-delete {
+    background: linear-gradient(180deg, #ff9c8a 0%, #e0584a 100%) !important;
+    border-color: rgba(140, 30, 20, 0.4);
+    color: #fff;
+    text-shadow: 0 1px 0 rgba(120,20,10,0.5);
+    border-radius: 50%;
+    font-size: clamp(28px, 4.6cqh, 40px);
+    transform: rotate(-3deg);
+  }
+  /* Bottom-right GREEN confirm sticker. */
+  .key.key-confirm {
+    background: linear-gradient(180deg, #aaddaa 0%, #5fae6a 100%) !important;
+    border-color: rgba(40, 90, 40, 0.4);
+    color: #fff;
+    text-shadow: 0 1px 0 rgba(20,60,20,0.5);
+    border-radius: 22px;
+    font-size: clamp(28px, 4.6cqh, 40px);
+    transform: rotate(2.5deg);
+  }
+  /* Disabled — greyed out until 4 digits are typed. */
+  .key.key-confirm:disabled,
+  .key.key-confirm[aria-disabled="true"] {
+    background:
+      linear-gradient(180deg, #b8c4ad 0%, #8f9d85 55%, #65755e 100%) !important;
+    border-color: #5e6b58;
+    opacity: 0.55;
+    cursor: not-allowed;
+    filter: saturate(0.5);
+  }
+  /* A smaller "type your name" CTA — same wooden sign as Play but shorter. */
+  .name-input-sign {
+    font-size: clamp(18px, 3cqh, 26px) !important;
+    padding: clamp(10px, 1.8cqh, 16px) clamp(20px, 3.5cqw, 28px) !important;
+  }
+  .name-input-sign .paw {
+    font-size: clamp(24px, 4.2cqh, 38px) !important;
+  }
+
+  /* DEMOTED variant — used when there are recent users on this device.
+     The avatar grid is the primary CTA in that case; this becomes a
+     bright-yellow plank nailed to the stake (a third sibling alongside
+     the honey-amber Back plank and sage-green New? plank), reading
+     "Not here? Type your name". When no chips exist we drop
+     the .demoted class and the giant wooden sign comes back. */
+  .name-input-sign.demoted {
+    /* Mirror the .link-btn shared style so it nails onto the stake the
+       same way the secondary-row planks do. */
+    position: relative !important;
+    font-family: var(--sign-font) !important;
+    font-weight: 700 !important;
+    font-size: clamp(13px, 1.7cqh, 17px) !important;
+    line-height: 1 !important;
+    color: #4a2e0a !important;
+    text-shadow: 1px 1px 0 rgba(255,250,220,0.55) !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    border-radius: 999px !important;
+    padding: clamp(8px, 1.4cqh, 12px) clamp(18px, 3cqw, 28px) !important;
+    border: clamp(2px, 0.35cqh, 3px) solid #9a7320 !important;
+    background:
+      /* Subtle vertical grain streaks */
+      linear-gradient(90deg,
+        transparent 0%, transparent 32%,
+        rgba(0,0,0,0.07) 33%, transparent 34%, transparent 64%,
+        rgba(0,0,0,0.07) 65%, transparent 66%),
+      /* Paint chip near the right end — base wood peeking through */
+      radial-gradient(ellipse 12px 7px at 78% 65%, rgba(110,76,28,0.55) 0%, transparent 70%),
+      linear-gradient(180deg, #ffe066 0%, #f4c628 55%, #c79110 100%) !important;
+    box-shadow:
+      inset 0 0 clamp(8px, 1.4cqh, 14px) rgba(0,0,0,0.18),
+      inset 0 clamp(1px, 0.3cqh, 2px) 0 rgba(255,250,210,0.55),
+      0 clamp(3px, 0.6cqh, 6px) clamp(6px, 1.2cqh, 10px) rgba(0,0,0,0.28) !important;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  /* Iron nails at each end — same as .link-btn::before/::after */
+  .name-input-sign.demoted::before,
+  .name-input-sign.demoted::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    width: clamp(5px, 0.9cqw, 7px);
+    height: clamp(5px, 0.9cqw, 7px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #6b6b6b 0%, #2a2a2a 70%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15), inset -1px -1px 1px rgba(0,0,0,0.4);
+    transform: translateY(-50%);
+    display: block !important;
+  }
+  .name-input-sign.demoted::before { left: clamp(8px, 1.4cqw, 12px); }
+  .name-input-sign.demoted::after  { right: clamp(8px, 1.4cqw, 12px); }
+  .name-input-sign.demoted .paw { display: none !important; }
+  .name-input-sign.demoted { transition: transform 0.2s ease; }
+  .name-input-sign.demoted:hover { transform: translateY(-2px) rotate(-1.5deg); }
+  /* Slim the wrapper down so the yellow plank sits inline on the stake
+     rather than the full primary-CTA gutter. */
+  .btn-primary-wrap:has(.name-input-sign.demoted) {
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: auto !important;
+  }
+  /* Hide the stylised parrot perch when the button is demoted. */
+  .btn-primary-wrap:has(.name-input-sign.demoted) .play-parrot { display: none; }
+
+  /* ── Back sticker — bright yellow circle in the top-left of the
+        sign, painted as a hand-stuck sticker. SVG inside is a curved
+        return arrow (universal "back" affordance — no text needed).
+        Replaces the "Back to welcome" / "Back to PIN screen" planks
+        that previously took up whole row of vertical space. ── */
+  .back-sticker {
+    position: absolute;
+    top: clamp(-14px, -2.4cqh, -10px);
+    left: clamp(-14px, -2.4cqh, -10px);
+    width: clamp(40px, 6.5cqh, 56px);
+    height: clamp(40px, 6.5cqh, 56px);
+    background: linear-gradient(180deg, #ffe066 0%, #f4c628 100%);
+    border: 2px solid rgba(120, 80, 40, 0.45);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 12;
+    display: flex; align-items: center; justify-content: center;
+    transform: rotate(-7deg);
+    box-shadow:
+      0 3px 0 rgba(120, 80, 40, 0.2),
+      0 5px 10px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    transition: transform 0.15s, box-shadow 0.15s;
+    padding: 0;
+    font: inherit;
+    appearance: none;
+  }
+  .back-sticker::after {
+    /* Tiny corner-peel — top-right of the sticker, like the keypad. */
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 9px; height: 9px;
+    background: linear-gradient(225deg, rgba(120,80,40,0.5) 0%, rgba(120,80,40,0.5) 45%, rgba(255,255,255,0.7) 55%);
+    clip-path: polygon(100% 0, 100% 100%, 0 0);
+    border-top-right-radius: inherit;
+    pointer-events: none;
+  }
+  .back-sticker:hover {
+    transform: rotate(-7deg) translateY(-2px) scale(1.05);
+  }
+  .back-sticker:active {
+    transform: rotate(-7deg) translateY(2px);
+    box-shadow:
+      0 1px 0 rgba(120, 80, 40, 0.2),
+      0 2px 4px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  }
+  .back-sticker svg {
+    width: 64%; height: 64%;
+    stroke: #5a3614;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,0.5));
+  }
+
+  /* ── Animal: cat sleeping ON TOP of the intro panel ── */
+  .intro-cat {
+    position: absolute;
+    right: clamp(10px, 2.5cqw, 24px);
+    /* Sit ON the top of the sign — half overlapping the sign, half above */
+    top: clamp(-76px, -11cqh, -56px);
+    height: clamp(80px, 13cqh, 130px);
+    transform: rotate(8deg);
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.2));
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* ─── Sign-on-stake wrapper: holds intro + play, with a central
+     wooden post running behind both, planted into the ground ─── */
+  .signs-on-stake {
+    position: relative;
+    width: 100%;
+    max-width: min(92%, 480px);
+    display: flex; flex-direction: column;
+    align-items: center;
+    gap: clamp(12px, 2.2cqh, 22px);
+    padding-bottom: clamp(70px, 12cqh, 130px);  /* extra stake length below secondary buttons before meeting the grass */
+  }
+  /* The central wooden post */
+  .signs-on-stake::before {
+    content: '';
+    position: absolute;
+    left: 50%; top: clamp(8px, 1.5cqh, 16px); bottom: clamp(-6px, -1cqh, -4px);
+    transform: translateX(-50%);
+    width: clamp(12px, 2cqw, 18px);
+    background:
+      linear-gradient(90deg,
+        #5d3a18 0%, #7a5023 18%, #a07038 50%, #7a5023 82%, #5d3a18 100%),
+      linear-gradient(180deg, #7a5023 0%, #6b4820 100%);
+    background-blend-mode: multiply;
+    border-radius: 3px 3px 2px 2px;
+    box-shadow:
+      inset 0 2px 0 rgba(255,240,210,0.18),
+      2px 3px 5px rgba(0,0,0,0.35);
+    z-index: 0;
+  }
+  /* Pointed bottom tip of the stake going into the ground */
+  .signs-on-stake::after {
+    content: '';
+    position: absolute;
+    left: 50%; bottom: clamp(6px, 1cqh, 10px);
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: clamp(6px, 1cqw, 9px) solid transparent;
+    border-right: clamp(6px, 1cqw, 9px) solid transparent;
+    border-top: clamp(10px, 1.6cqh, 16px) solid #5d3a18;
+    filter: drop-shadow(2px 3px 3px rgba(0,0,0,0.4));
+    z-index: 0;
+  }
+
+  .cta-stack {
+    display: flex; flex-direction: column;
+    gap: clamp(10px, 1.8cqh, 18px);
+    width: 100%;
+    max-width: 100%;
+    align-items: center;
+    position: relative;
+    z-index: 2;   /* above the post */
+  }
+  .intro { z-index: 2; }   /* also above the post */
+
+  /* Ground-level bunny sitting right next to the grass tuft at the base */
+  .ground-bunny {
+    position: absolute;
+    /* Sit just left of the grass clump, within the stake's footprint */
+    left: calc(50% - clamp(72px, 14cqw, 130px));
+    bottom: clamp(-4px, -0.8cqh, 2px);
+    height: clamp(54px, 10cqh, 105px);
+    transform: rotate(-4deg);
+    transform-origin: bottom center;
+    /* Occasional hops — sit still most of the cycle, hop twice, sit still again. */
+    animation: bunnyHop 5.2s ease-in-out infinite;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.25));
+    pointer-events: none;
+    z-index: 5;  /* above the grass blades */
+  }
+
+  /* Flying bee — animated on its own layer above the grass, tracing a wavy
+     figure-eight path so it reads as a real bee doing a lazy circle. */
+  .bee-flyer {
+    position: absolute;
+    left: calc(50% - clamp(80px, 16cqw, 160px));
+    bottom: clamp(14px, 3cqh, 40px);
+    width: clamp(28px, 5cqh, 46px);
+    height: auto;
+    pointer-events: none;
+    z-index: 6;
+    filter: drop-shadow(2px 3px 3px rgba(0,0,0,0.25));
+    animation: beeBuzz 8s ease-in-out infinite;
+    transform-origin: center;
+    will-change: transform;
+  }
+  @keyframes beeBuzz {
+    0%   { transform: translate(0,     -40px) rotate(-4deg); }
+    15%  { transform: translate(10px,  10px)  rotate(14deg); }
+    25%  { transform: translate(25px,  -20px) rotate(-8deg); }
+    40%  { transform: translate(55px,  -50px) rotate(4deg); }
+    55%  { transform: translate(80px,  15px)  rotate(-16deg); }
+    65%  { transform: translate(95px,  -25px) rotate(8deg); }
+    80%  { transform: translate(50px,  -55px) rotate(-6deg); }
+    92%  { transform: translate(-10px, -30px) rotate(6deg); }
+    100% { transform: translate(0,     -40px) rotate(-4deg); }
+  }
+
+  /* Grass clump at the base of the stake — hand-painted tuft of blades */
+  .grass-clump {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(-8px, -1.5cqh, -2px);
+    transform: translateX(-50%);
+    width: 100%;    /* match sign width — tuft reads as ground, not detail */
+    height: auto;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 4;   /* above the stake tip but visually part of the ground */
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.2));
+  }
+  .btn-primary-wrap {
+    position: relative;
+    width: 100%;
+  }
+  .btn-primary {
+    width: 100%;
+    padding: clamp(14px, 2.6cqh, 22px) clamp(24px, 4cqw, 32px);
+    font-family: var(--sign-title-font);
+    font-size: clamp(24px, 4cqh, 36px); font-weight: 700;
+    /* Cream paint text on weathered wood, with a dark shadow for depth */
+    color: #fffbe8;
+    text-shadow: 2px 3px 0 rgba(0,0,0,0.5);
+    /* Weathered amber/honey-wood sign */
+    background:
+      /* Horizontal plank grooves — single pair top + bottom since Play sign is shallower */
+      linear-gradient(180deg,
+        transparent 0%, transparent 32%,
+        rgba(0,0,0,0.32) 32.5%, rgba(0,0,0,0.32) 33%,
+        rgba(255,240,210,0.2) 33.3%, transparent 33.9%,
+        transparent 66%,
+        rgba(0,0,0,0.32) 66.5%, rgba(0,0,0,0.32) 67%,
+        rgba(255,240,210,0.2) 67.3%, transparent 67.9%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 32%,
+        rgba(0,0,0,0.07) 33%, transparent 34%, transparent 65%,
+        rgba(0,0,0,0.07) 66%, transparent 67%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 50%, #a2651c 100%);
+    border: clamp(2px, 0.3cqh, 3px) solid #9a6528;
+    border-radius: clamp(6px, 0.8cqh, 10px);
+    cursor: pointer;
+    box-shadow:
+      inset 0 0 clamp(14px, 2.5cqh, 24px) rgba(0,0,0,0.25),
+      inset 0 clamp(2px, 0.4cqh, 3px) 0 rgba(255,240,210,0.25),
+      0 clamp(5px, 1cqh, 10px) clamp(10px, 2cqh, 16px) rgba(0,0,0,0.35);
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(8px, 1.5cqw, 12px);
+    transition: transform 0.1s;
+    transform: rotate(0.8deg);
+    position: relative;
+  }
+  /* Nail heads at the Play-sign corners too */
+  .btn-primary::before, .btn-primary::after {
+    content: '';
+    position: absolute;
+    width: clamp(7px, 1.2cqh, 10px);
+    height: clamp(7px, 1.2cqh, 10px);
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    pointer-events: none;
+  }
+  .btn-primary::before { top: clamp(6px, 1cqh, 9px); left: clamp(8px, 1.2cqw, 12px); }
+  .btn-primary::after  { top: clamp(6px, 1cqh, 9px); right: clamp(8px, 1.2cqw, 12px); }
+  /* Pawprint decoration on each side of PLAY! — larger than the text,
+     crisp (no drop-shadow, which was distorting the glyph). */
+  .btn-primary .paw {
+    font-size: clamp(34px, 6cqh, 52px);
+    line-height: 1;
+    text-shadow: none;
+    filter: none;
+    transform: translateY(2px);
+  }
+  .btn-primary .paw-left  { transform: translateY(2px) rotate(-12deg); }
+  .btn-primary .paw-right { transform: translateY(2px) rotate(12deg); }
+  .btn-primary:active { transform: rotate(0.8deg) translateY(2px); }
+  /* ── Animal: parrot perched on TOP of the Play button ── */
+  /* Small lovebird (real-world size relative to a dog) — deliberately tiny */
+  .play-parrot {
+    position: absolute;
+    right: 10%;
+    top: -32%;
+    height: clamp(56px, 8cqh, 100px);
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
+    pointer-events: none;
+    /* Feet stay planted on the sign; top wobbles from side to side. */
+    transform-origin: bottom center;
+    animation: parrotSway 3.6s ease-in-out infinite;
+  }
+  @keyframes parrotSway {
+    0%, 100% { transform: rotate(-8deg); }
+    50%      { transform: rotate(2deg); }
+  }
+  /* Bunny hops: sit still, hop-hop, sit still again. Two quick hops in the
+     middle of the cycle, rest of the time sitting peacefully. */
+  @keyframes bunnyHop {
+    0%, 55%, 100% { transform: rotate(-4deg) translateY(0); }
+    62%           { transform: rotate(-6deg) translateY(-14px); }
+    69%           { transform: rotate(-4deg) translateY(0); }
+    76%           { transform: rotate(-6deg) translateY(-14px); }
+    83%           { transform: rotate(-4deg) translateY(0); }
+  }
+
+  .secondary-row {
+    display: flex; gap: clamp(8px, 2cqw, 20px);
+    align-items: center; justify-content: center;
+    flex-wrap: wrap;
+    position: relative;
+    /* No z-index — let the grass clump cover the base for an integrated look. */
+  }
+  /* Shared wooden-pill — both secondary buttons read as little reclaimed
+     planks nailed to the stake. Colour variants below make each look like
+     a different bit of salvaged wood with its own imperfect paintwork. */
+  .link-btn {
+    position: relative;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(13px, 1.7cqh, 17px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    text-decoration: none;
+    border-radius: 999px;
+    padding: clamp(8px, 1.4cqh, 12px) clamp(18px, 3cqw, 28px);
+    box-shadow:
+      inset 0 0 clamp(8px, 1.4cqh, 14px) rgba(0,0,0,0.22),
+      inset 0 clamp(1px, 0.3cqh, 2px) 0 rgba(255,240,210,0.22),
+      0 clamp(3px, 0.6cqh, 6px) clamp(6px, 1.2cqh, 10px) rgba(0,0,0,0.28);
+    border: clamp(2px, 0.35cqh, 3px) solid;
+  }
+  /* Iron nails at each end — planks are hammered to the stake */
+  .link-btn::before,
+  .link-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: clamp(5px, 0.9cqw, 7px);
+    height: clamp(5px, 0.9cqw, 7px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #6b6b6b 0%, #2a2a2a 70%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15), inset -1px -1px 1px rgba(0,0,0,0.4);
+    transform: translateY(-50%);
+  }
+  .link-btn::before { left: clamp(8px, 1.4cqw, 12px); }
+  .link-btn::after  { right: clamp(8px, 1.4cqw, 12px); }
+  /* Hover lift + slight tilt — gives every plank a subtle interactive
+     wobble matching the painted-storybook feel. */
+  .link-btn { transition: transform 0.2s ease; }
+  .link-btn:hover { transform: translateY(-2px) rotate(-1.5deg); }
+  .link-btn.plank-sage:hover { transform: translateY(-2px) rotate(1.5deg); }
+  /* Variant A — honey-amber plank, same family as the Play sign. */
+  .link-btn.outlined {
+    border-color: #7a4b15;
+    background:
+      /* Subtle vertical grain streaks */
+      linear-gradient(90deg,
+        transparent 0%, transparent 40%,
+        rgba(0,0,0,0.06) 41%, transparent 42%, transparent 68%,
+        rgba(0,0,0,0.06) 69%, transparent 70%),
+      /* Paint chip near the left end — base wood peeking through */
+      radial-gradient(ellipse 14px 8px at 22% 70%, rgba(92,60,22,0.55) 0%, transparent 70%),
+      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+  }
+  /* Variant B — weathered sage-green paint over driftwood, with chipping.
+     Reads like a different plank salvaged from an old barn door. */
+  .link-btn.plank-sage {
+    border-color: #3c5238;
+    background:
+      /* Vertical grain — slightly different spacing for variety */
+      linear-gradient(90deg,
+        transparent 0%, transparent 28%,
+        rgba(0,0,0,0.08) 29%, transparent 30%, transparent 57%,
+        rgba(0,0,0,0.07) 58%, transparent 59%, transparent 82%,
+        rgba(0,0,0,0.08) 83%, transparent 84%),
+      /* Two paint chips showing bare wood beneath the sage paint */
+      radial-gradient(ellipse 12px 7px at 72% 30%, rgba(145,100,55,0.75) 0%, transparent 70%),
+      radial-gradient(ellipse 10px 6px at 30% 78%, rgba(145,100,55,0.7) 0%, transparent 70%),
+      linear-gradient(180deg, #7ea063 0%, #5d7f4a 50%, #3f5d32 100%);
+  }
+  /* Variant C — bright orange plank for the "I forgot my secret code"
+     route on the welcome-back screen. Reads as a friendly help-flag,
+     distinct from the honey-amber Back / sage New? planks. */
+  .link-btn.plank-orange {
+    border-color: #8a3c0e;
+    background:
+      /* Vertical grain — third spacing pattern, distinct from sage. */
+      linear-gradient(90deg,
+        transparent 0%, transparent 36%,
+        rgba(0,0,0,0.07) 37%, transparent 38%, transparent 64%,
+        rgba(0,0,0,0.07) 65%, transparent 66%),
+      /* Single paint chip near top-right for character. */
+      radial-gradient(ellipse 11px 6px at 68% 26%, rgba(110,45,16,0.7) 0%, transparent 70%),
+      linear-gradient(180deg, #f08b3a 0%, #d76b25 55%, #a64512 100%);
+  }
+  .link-btn.plank-orange:hover { transform: translateY(-2px) rotate(-1.5deg); }
+
+  /* ── Animals in the foreground at the bottom corners ── */
+  .foreground-dog, .foreground-fox-LEGACY-IGNORED {
+    position: absolute;
+    bottom: clamp(22px, 4cqh, 50px);
+    z-index: 6;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+    pointer-events: none;
+  }
+  /* Dog and fox standing together like friends, at the bottom-right corner
+     of the frame. The fox is slightly behind/right of the dog — they're
+     a pair hanging out. Size them proportionally (dog > fox). */
+  .foreground-dog {
+    /* Now a child of .signs-on-stake (same coord space as the grass-
+       clump and the bunny+fox), so its anchor uses the SIGN's bounds
+       instead of the device viewport. Sits at the right edge of the
+       grass tuft on every viewport. */
+    position: absolute;
+    right: clamp(-12px, 1cqw, 8px);
+    bottom: clamp(-8px, -1.5cqh, -2px);
+    height: clamp(110px, 17cqh, 160px);
+    aspect-ratio: 1 / 1;
+    z-index: 6;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+    pointer-events: none;
+    transform: scaleX(-1) rotate(3deg);
+  }
+  .foreground-dog-body {
+    width: 100%; height: 100%;
+    display: block;
+    position: relative;
+    z-index: 2;
+  }
+  .foreground-dog-tail {
+    position: absolute;
+    left: 12.3%; top: 60.4%;
+    width: 20.1%; height: 25.2%;
+    z-index: 1;
+    transform-origin: 100% 67%;
+    animation: tailWag 0.55s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  @keyframes tailWag {
+    0%   { transform: rotate(-12deg); }
+    100% { transform: rotate(14deg); }
+  }
+
+  /* ZZZ animation for the sleeping cat — three painted Z's. */
+  .zzz-stack {
+    position: absolute;
+    right: clamp(-2px, 0cqw, 6px);
+    top: clamp(-86px, -13cqh, -64px);
+    width: 70px;
+    height: 70px;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .zzz-stack .zz {
+    position: absolute;
+    font-family: 'Kalam', 'Caveat', cursive;
+    font-weight: 700;
+    color: #c88436;
+    text-shadow: 1px 2px 0 rgba(255,255,255,0.7), 2px 3px 4px rgba(0,0,0,0.18);
+    opacity: 0;
+    animation: zzzRise 3s ease-in-out infinite;
+  }
+  .zzz-stack .zz1 { font-size: 12px; left: 4px;  bottom: 4px;  animation-delay: 0s; }
+  .zzz-stack .zz2 { font-size: 14px; left: 6px;  bottom: 4px;  animation-delay: 1s; }
+  .zzz-stack .zz3 { font-size: 18px; left: 16px; bottom: 18px; animation-delay: 2s; }
+  @keyframes zzzRise {
+    0%   { opacity: 0; transform: translate(0, 4px)   rotate(-8deg); }
+    20%  { opacity: 1; transform: translate(4px, -2px)  rotate(-4deg); }
+    60%  { opacity: 1; transform: translate(14px, -16px) rotate(2deg); }
+    100% { opacity: 0; transform: translate(24px, -32px) rotate(8deg); }
+  }
+  /* Fox tentatively walking out from behind the leftmost grass blade,
+     then rapidly retreating back behind it. Anchored at the grass
+     baseline (bottom: matches grass-clump). The fox-cross-walking
+     sprite faces right by default, so we scaleX(-1) it to face LEFT —
+     toward the open area, away from the bunny.
+
+     Because of scaleX(-1), positive translateX in the keyframes moves
+     the fox LEFT in screen coordinates (the local X axis is flipped).
+
+     Reward delay: ~70% of the cycle is spent at rest behind the
+     grass. The walk-out is tentative (small steps, paw bobs) and
+     spans ~2.5s. The retreat is a rapid snap (~0.4s) so the fox
+     visibly darts back behind the grass when it senses something. */
+  .foreground-fox {
+    position: absolute;
+    left: calc(50% - clamp(140px, 32cqw, 280px));
+    /* Match grass-clump bottom so feet line up on the same baseline. */
+    bottom: clamp(-8px, -1.5cqh, -2px);
+    height: clamp(110px, 17cqh, 160px);
+    width: auto;
+    z-index: 3;   /* BEHIND the grass-clump (z:4) */
+    pointer-events: none;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.2));
+    transform-origin: 50% 100%;
+    animation: foxPeek 14s ease-in-out infinite;
+    will-change: transform;
+  }
+  @keyframes foxPeek {
+    /* Hidden behind grass for ~70% of cycle. */
+    0%, 70%   { transform: scaleX(-1) translateX(0)    translateY(0); }
+    /* Tentative first step out (small + paw lift). */
+    74%       { transform: scaleX(-1) translateX(6px)  translateY(-1px); }
+    77%       { transform: scaleX(-1) translateX(8px)  translateY(0); }
+    /* Brief pause — sniffing the air. */
+    79%       { transform: scaleX(-1) translateX(8px)  translateY(0); }
+    /* Second step. */
+    82%       { transform: scaleX(-1) translateX(20px) translateY(-1px); }
+    85%       { transform: scaleX(-1) translateX(22px) translateY(0); }
+    /* Bold final step + held peek. */
+    88%       { transform: scaleX(-1) translateX(36px) translateY(-1px); }
+    90%       { transform: scaleX(-1) translateX(36px) translateY(0); }
+    /* RAPID retreat (3% of cycle ≈ 0.4s) — fox darts back. */
+    93%       { transform: scaleX(-1) translateX(0)    translateY(0); }
+    /* Settle and stay hidden. */
+    100%      { transform: scaleX(-1) translateX(0)    translateY(0); }
+  }
+
+  .credits {
+    grid-area: credits;
+    padding: clamp(60px, 11cqh, 120px) 0 clamp(10px, 1.5cqh, 16px);
+    display: flex; flex-direction: column; align-items: center;
+    gap: clamp(2px, 0.4cqh, 4px);
+    position: relative; z-index: 5;
+    /* Decorative — never block clicks to the underlying buttons. */
+    pointer-events: none;
+  }
+  /* Handwritten-scrawl credits — cursive green, designed to look like
+     a blade of grass at first glance and read as a signature on closer look. */
+  .credit-scrawl {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(13px, 1.9cqh, 17px);
+    color: #2f6a32;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    opacity: 0.88;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+  }
+
+  /* ── Wide layout: 2+ columns of breathing room, so the logo floats to
+        the top-left corner and the signs sit centred on the stake down
+        the middle of the viewport. ── */
+  @container welcome (min-width: 900px) {
+    .welcome-content {
+      align-items: center;
+      justify-content: center;
+      padding-top: clamp(18px, 3cqh, 36px);
+    }
+    .welcome-content > .logo-wrap {
+      position: absolute;
+      top: clamp(14px, 2.4cqh, 28px);
+      left: clamp(18px, 3cqw, 36px);
+      align-items: flex-start;
+      z-index: 10;
+    }
+    .logo-img {
+      height: clamp(110px, 18cqh, 170px);
+      margin: 0;
+    }
+    .text-block {
+      display: flex; flex-direction: column; align-items: center;
+      gap: clamp(14px, 2cqh, 22px);
+      width: 100%;
+      max-width: 520px;
+    }
+    /* Stack secondary pills vertically on wide screens too — each pill
+       is nailed to the single vertical stake, so they must run down its
+       centre line rather than floating side by side. */
+    .secondary-row {
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(10px, 1.6cqh, 16px);
+    }
+    /* Extra breathing room between the secondary pills and the grass so
+       the painted blades don't obscure the pill text. */
+    .signs-on-stake {
+      padding-bottom: clamp(130px, 22cqh, 210px);
+    }
+    /* Credit scrawls sit at grass-tuft level and extend outward from the
+       left and right edges of the clump — at first glance they look like
+       scribbled blades; on closer inspection, signatures. */
+    .credits {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 0;
+      height: 0;
+      display: block;
+      pointer-events: none;
+      padding: 0;
+    }
+    .credit-scrawl {
+      position: absolute;
+      /* Sit below the foreground dog/fox so the handwriting is never
+         eclipsed by them. Dog/fox bottom ≈ 22–50px; scrawls clear at ≤18px. */
+      bottom: clamp(6px, 1.2cqh, 16px);
+      font-size: clamp(15px, 2.2cqh, 19px);
+      white-space: nowrap;
+      transform: rotate(-3deg);
+    }
+    /* Left scrawl: ends where the grass tuft begins, extends leftward. */
+    .credit-left {
+      right: calc(50% + clamp(110px, 20cqw, 220px));
+      text-align: right;
+    }
+    /* Right scrawl: starts where the grass tuft ends, extends rightward. */
+    .credit-right {
+      left: calc(50% + clamp(110px, 20cqw, 220px));
+      text-align: left;
+      transform: rotate(2deg);
+    }
+  }
+
+  /* ── iPhone: compress the stack so cat sits ON sign + grass + animals
+        + credits all fit inside the viewport. Also enables vertical
+        scroll as a safety net for shorter devices. ── */
+  @container welcome (max-width: 420px) {
+    /* Scroll if anything still overflows. */
+    overflow-y: auto;
+
+    /* Sign moves UP: smaller top padding so the cat is reachable. */
+    .welcome-content {
+      padding-top: clamp(28px, 5cqh, 44px);
+    }
+    /* Cat sits ON the sign (overlapping its top edge), not floating
+       above it. Smaller cat + less negative top = cat overlaps sign. */
+    .intro-cat {
+      height: clamp(54px, 9cqh, 70px);
+      top: clamp(-40px, -6cqh, -30px) !important;
+      bottom: auto !important;
+      right: clamp(8px, 2.5cqw, 14px) !important;
+    }
+    /* Less stake length below the secondary planks so the grass tuft +
+       animals + credits all fit. */
+    .signs-on-stake {
+      padding-bottom: clamp(70px, 12cqh, 110px);
+    }
+    /* Login sign on iPhone is taller than the welcome sign (Welcome
+       back! + subtitle + 4 user chips + secondary planks). The grass
+       tuft + animals get cut off below the viewport, leaving the dog
+       floating mid-air with nothing under it. Hide all foreground
+       decorations on iPhone for login (same as signup). They come
+       back on the welcome screen where the layout has room. */
+    .foreground-dog,
+    .foreground-fox,
+    .grass-clump,
+    .ground-bunny,
+    .bee-flyer {
+      display: none !important;
+    }
+    /* Three planks below the sign on iPhone (Type-Your-Name + Forgot
+       + New?) — tighten gap, padding, and the stake's bottom run so
+       all three fit cleanly above the credits. */
+    .secondary-row {
+      gap: clamp(4px, 1cqh, 8px);
+    }
+    .secondary-row .link-btn,
+    .secondary-row .name-input-sign.demoted {
+      padding: clamp(6px, 1cqh, 10px) clamp(14px, 2.6cqw, 22px) !important;
+      font-size: clamp(12px, 1.6cqh, 15px) !important;
+    }
+    .signs-on-stake {
+      padding-bottom: clamp(20px, 4cqh, 36px);
+    }
+    /* Welcome-back sign: tighten the title + subtitle so the chips
+       start higher and the planks have room below. */
+    #stage-select .sign-title { font-size: clamp(22px, 3.6cqh, 28px); }
+    #stage-select .sign-subtitle {
+      font-size: clamp(13px, 2cqh, 16px);
+      margin-bottom: clamp(4px, 0.8cqh, 8px);
+    }
+    /* Login chips drop to 1 column on iPhone so 'Lily / 2 hours ago'
+       fits on a single line per chip and the second-column chips don't
+       overhang the sign's right edge. */
+    .chips {
+      grid-template-columns: 1fr !important;
+      gap: clamp(6px, 1.2cqh, 10px);
+    }
+    .chip {
+      padding: clamp(6px, 1.2cqh, 10px) clamp(10px, 2.4cqw, 14px);
+    }
+    .chip-name { font-size: clamp(15px, 2.4cqh, 17px); }
+    .chip-last { white-space: nowrap; }
+    .logo-bunny { display: none; }
+
+    /* Credits: absolutely positioned below the grass tuft so they don't
+       take a grid row that pushes everything else off-screen. Single-
+       line "Designed by · Built by" centred at the very bottom. */
+    .credits {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: clamp(2px, 0.5cqh, 6px);
+      height: auto;
+      padding: 0;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      gap: clamp(8px, 2cqw, 14px);
+      z-index: 8;
+    }
+    .credit-scrawl {
+      font-size: clamp(10px, 1.5cqh, 12px);
+      white-space: nowrap;
+      opacity: 0.7;
+    }
+  }  /* Vertical scroll on desktop + iPad L — content stack is taller than
+     the device's viewport on these landscape sizes; allow the user to
+     scroll to see the bottom (grass tuft, bunny, fox, credits). */
+  .device[data-size="desktop"] .welcome,
+  .device[data-size="desktop"] .adopt,
+  .device[data-size="desktop"] .conflict,
+  .device[data-size="desktop"] .arrival,
+  .device[data-size="desktop"] .vet,
+  .device[data-size="desktop"] .menu,
+  .device[data-size="desktop"] .news,
+  .device[data-size="desktop"] .friends,
+  .device[data-size="desktop"] .paths,
+  .device[data-size="desktop"] .rewilding,
+  .device[data-size="desktop"] .badge,
+  .device[data-size="desktop"] .visitor,
+  .device[data-size="ipad-l"] .welcome,
+  .device[data-size="ipad-l"] .adopt,
+  .device[data-size="ipad-l"] .conflict,
+  .device[data-size="ipad-l"] .arrival,
+  .device[data-size="ipad-l"] .vet,
+  .device[data-size="ipad-l"] .menu,
+  .device[data-size="ipad-l"] .news,
+  .device[data-size="ipad-l"] .friends,
+  .device[data-size="ipad-l"] .paths,
+  .device[data-size="ipad-l"] .rewilding,
+  .device[data-size="ipad-l"] .badge,
+  .device[data-size="ipad-l"] .visitor {
+    overflow-y: auto !important;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="vp-bar">
+  <strong>Sign in</strong>
+  <span>·</span>
+  <button data-size="iphone">📱 iPhone (390×844)</button>
+  <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
+  <button data-size="ipad-l">📱 iPad L (1024×768)</button>
+  <button data-size="desktop">🖥 Desktop (1280×800)</button>
+  <a href="/admin/welcome.html">→ Welcome</a>
+  <button id="stage-toggle" style="margin-left:12px;">Switch to PIN stage ↓</button>
+</div>
+
+<div class="device-frame">
+  <div class="device" id="device" data-size="ipad-p">
+    <div class="welcome">
+
+      <div class="welcome-inner">
+
+        <div class="top-strip">
+          <button class="audio-btn" aria-label="Toggle sound">🔊</button>
+        </div>
+
+        <div class="welcome-content">
+
+          <div class="text-block">
+            <div class="signs-on-stake">
+              <!-- Stage A: pick your player -->
+              <div class="intro stage-select" id="stage-select">
+                <button class="back-sticker" data-back-sticker aria-label="Go back">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="9,16 4,11 9,6"/>
+                    <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
+                  </svg>
+                </button>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt=""><div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
+                <div class="sign-title-row">
+                  <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+                  <div class="sign-title">Welcome back!</div>
+                </div>
+                <div class="sign-subtitle">Tap your picture to start caring for your animals</div>
+                <div class="chips">
+                  <button class="chip"><span class="chip-avatar" style="background:#ffd0a0;">🦊</span><span class="chip-text"><span class="chip-name">Lily</span><span class="chip-last">2 hours ago</span></span></button>
+                  <button class="chip"><span class="chip-avatar" style="background:#a0cfff;">🐾</span><span class="chip-text"><span class="chip-name">Sam</span><span class="chip-last">yesterday</span></span></button>
+                  <button class="chip"><span class="chip-avatar" style="background:#d0f0c0;">🐰</span><span class="chip-text"><span class="chip-name">Rosie</span><span class="chip-last">3 days ago</span></span></button>
+                  <button class="chip"><span class="chip-avatar" style="background:#ffe0e0;">🐱</span><span class="chip-text"><span class="chip-name">Mia</span><span class="chip-last">last week</span></span></button>
+                </div>
+              </div>
+
+              <!-- Stage B: PIN entry -->
+              <div class="intro stage-pin hidden" id="stage-pin">
+                <button class="back-sticker" data-back-sticker aria-label="Go back">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="9,16 4,11 9,6"/>
+                    <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
+                  </svg>
+                </button>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt=""><div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
+                <div class="sign-title-row">
+                  <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+                  <div class="sign-title">Hi, Lily!</div>
+                </div>
+                <div class="sign-subtitle">What's your secret number?</div>
+                <div class="pin-dots">
+                  <span class="pin-dot"></span>
+                  <span class="pin-dot"></span>
+                  <span class="pin-dot"></span>
+                  <span class="pin-dot"></span>
+                </div>
+                <div class="keypad">
+                  <button class="key">1</button>
+                  <button class="key">2</button>
+                  <button class="key">3</button>
+                  <button class="key">4</button>
+                  <button class="key">5</button>
+                  <button class="key">6</button>
+                  <button class="key">7</button>
+                  <button class="key">8</button>
+                  <button class="key">9</button>
+                  <button class="key key-delete" aria-label="Delete last digit">✕</button>
+                  <button class="key">0</button>
+                  <button class="key key-confirm" id="pin-confirm" aria-label="Confirm PIN" aria-disabled="true">✓</button>
+                </div>
+              </div>
+
+              <div class="cta-stack">
+                <div class="btn-primary-wrap">
+                  <button class="btn-primary name-input-sign" id="type-name-btn">
+                    <span class="paw paw-left">✏️</span>
+                    <span class="play-label name-prompt" id="name-prompt-label">TYPE YOUR NAME</span>
+                    <span class="paw paw-right">✏️</span>
+                  </button>
+                  <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
+                </div>
+                <div class="secondary-row">
+                  <!-- "Back to welcome" removed: this IS the welcome-back screen,
+                       so the action was redundant + non-functional. -->
+                  <button class="link-btn plank-orange" id="forgot-pin-btn">Forgot your secret code?</button>
+                  <button class="link-btn plank-sage">New? Make an account</button>
+                </div>
+              </div>
+
+              <!-- Bunny sitting on the ground at the foot of the garden post -->
+              <img class="ground-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
+
+              <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
+              <img class="foreground-fox" src="/assets/animals/fox-cross-walking.png" alt="">
+              <div class="foreground-dog" aria-hidden="true">
+                <img class="foreground-dog-body" src="/assets/animals/dog-golden-sheltered-body.png" alt="">
+                <img class="foreground-dog-tail" src="/assets/animals/dog-golden-sheltered-tail.png" alt="">
+              </div>
+              <img class="grass-clump" src="/admin/scene-assets/grass-clump.png" alt="" aria-hidden="true">
+
+              <!-- Flying bee on its own animated layer above the grass -->
+              <img class="bee-flyer" src="/admin/scene-assets/bee-flying.png" alt="" aria-hidden="true">
+            </div>
+          </div>
+        </div>
+
+        <div class="credits">
+          <span class="credit-scrawl credit-left">Designed by Lily age 8</span>
+          <span class="credit-scrawl credit-right">Built by Dad and Claude Code</span>
+        </div>
+
+      </div>
+
+      <!-- Foreground corner animals — the 'cast' welcoming the player -->
+    </div>
+  </div>
+</div>
+
+<script>
+  const device = document.getElementById('device');
+  for (const btn of document.querySelectorAll('.vp-bar button[data-size]')) {
+    btn.addEventListener('click', () => {
+      for (const b of document.querySelectorAll('.vp-bar button[data-size]')) b.classList.remove('on');
+      btn.classList.add('on');
+      device.dataset.size = btn.dataset.size;
+    });
+  }
+  // Stage toggle: swap between player-select and PIN entry.
+  const stageSelect = document.getElementById('stage-select');
+  const stagePin = document.getElementById('stage-pin');
+  const stageToggle = document.getElementById('stage-toggle');
+  let showing = 'select';
+
+  // Adaptive TYPE-YOUR-NAME demotion. If there's at least one recent
+  // user on this device (chip in the grid), the avatar grid is the
+  // primary CTA — demote the type-name sign to a small text link
+  // 'Not here? Type your name'. When the grid is empty
+  // (first-time-on-device) the giant sign stays as the primary path.
+  (function adaptTypeNameButton() {
+    const btn = document.getElementById('type-name-btn');
+    if (!btn) return;
+    const label = btn.querySelector('.play-label');
+    const chipCount = stageSelect?.querySelectorAll('.chips .chip').length || 0;
+    if (chipCount > 0) {
+      btn.classList.add('demoted');
+      if (label) label.textContent = "Not here? Type your name";
+    } else {
+      btn.classList.remove('demoted');
+      if (label) label.textContent = 'TYPE YOUR NAME';
+    }
+  })();
+  function setStage(s) {
+    showing = s;
+    const typeNameBtn = document.getElementById('type-name-btn');
+    if (s === 'pin') {
+      stageSelect.classList.add('hidden');
+      stagePin.classList.remove('hidden');
+      stageToggle.textContent = 'Switch to player-select ↑';
+      // The "TYPE YOUR NAME" sign only makes sense on stage-select.
+      // On PIN stage, hide it — the player has already picked their chip.
+      if (typeNameBtn) typeNameBtn.style.display = 'none';
+    } else {
+      stageSelect.classList.remove('hidden');
+      stagePin.classList.add('hidden');
+      stageToggle.textContent = 'Switch to PIN stage ↓';
+      if (typeNameBtn) typeNameBtn.style.display = '';
+    }
+  }
+  stageToggle?.addEventListener('click', () => setStage(showing === 'select' ? 'pin' : 'select'));
+  // Mode detection: embed mode strips the design-review chrome and posts
+  // results to the host. In design-review (admin) mode the keypad must
+  // still work locally so the flow can be eyeballed end-to-end without
+  // needing to wire up the iframe host.
+  const params = new URLSearchParams(location.search);
+  const isEmbed = params.has('embed');
+  if (isEmbed) document.body.classList.add('embed');
+  const send = (type, payload) => {
+    if (!isEmbed) return;
+    try { parent.postMessage({ source: 'arc-auth', type, payload }, '*'); } catch (_) {}
+  };
+  document.querySelector('.link-btn.plank-sage')?.addEventListener('click', () => send('signup'));
+  // Orange plank — opens the forgot-PIN recovery flow. In design-
+  // review (no embed) we navigate to the standalone screen so Marcus
+  // can preview the screen without rigging up a host.
+  document.getElementById('forgot-pin-btn')?.addEventListener('click', () => {
+    if (params.has('embed')) send('forgot-pin');
+    else location.href = '/admin/forgot-pin.html';
+  });
+  // Yellow back-sticker — context-aware. On the chip-pick stage (A)
+  // there's nothing before login except welcome, so we postMessage
+  // 'back-to-welcome' to the host. On the PIN stage (B) we go back
+  // to the chip grid so the kid can pick a different account.
+  document.querySelectorAll('[data-back-sticker]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (showing === 'pin') { setStage('select'); return; }
+      if (params.has('embed')) send('back-to-welcome');
+      else location.href = '/admin/welcome.html';
+    });
+  });
+  // Type-your-name plank — both as primary CTA (no chips on device) and
+  // as the demoted "Not here? Type your name" yellow plank under the
+  // chip grid. Both routes through the same handler.
+  // The "Not here? Type your name" demoted-yellow plank routes to
+  // signup with a reason flag, so the host can show a contextual
+  // greeting like "Couldn't find you in the list — let's make a
+  // new account!" on the signup screen rather than dropping the
+  // kid into a blank form with no context.
+  document.getElementById('type-name-btn')?.addEventListener('click', () => {
+    send('type-name', { reason: 'not-in-chips' });
+  });
+
+  // ── Login flow (works in both embed + design-review modes) ──
+  let selectedUsername = null;
+  let pinBuffer = '';
+  function renderPinDots() {
+    document.querySelectorAll('.pin-dots .pin-dot').forEach((d, i) => {
+      d.classList.toggle('filled', i < pinBuffer.length);
+    });
+  }
+  function clearPin() {
+    pinBuffer = '';
+    renderPinDots();
+    if (typeof updateConfirmEnabled === 'function') updateConfirmEnabled();
+  }
+  function shakeError() {
+    const stage = document.getElementById('stage-pin');
+    if (!stage) return;
+    stage.classList.remove('shake'); void stage.offsetWidth;
+    stage.classList.add('shake');
+    setTimeout(() => stage.classList.remove('shake'), 500);
+    clearPin();
+  }
+  function submitPin() {
+    if (!selectedUsername || pinBuffer.length !== 4) return;
+    send('login-submit', { username: selectedUsername, pin: pinBuffer });
+  }
+  function selectChip(el) {
+    selectedUsername = el.dataset.username || el.querySelector('.chip-name')?.textContent.trim();
+    const nameEl = document.querySelector('#stage-pin .sign-title');
+    if (nameEl && selectedUsername) nameEl.textContent = `Hi, ${selectedUsername}!`;
+    setStage('pin');
+    clearPin();
+  }
+  function buildChip(name, avatar, bg, last) {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.dataset.username = name;
+    const av = document.createElement('span'); av.className = 'chip-avatar'; av.style.background = bg; av.textContent = avatar; btn.appendChild(av);
+    const txt = document.createElement('span'); txt.className = 'chip-text';
+    const nm = document.createElement('span'); nm.className = 'chip-name'; nm.textContent = name; txt.appendChild(nm);
+    const lt = document.createElement('span'); lt.className = 'chip-last'; lt.textContent = last; txt.appendChild(lt);
+    btn.appendChild(txt);
+    btn.addEventListener('click', () => selectChip(btn));
+    return btn;
+  }
+  // Handshake: parent sends remembered usernames; repopulate chips safely.
+  window.addEventListener('message', (e) => {
+    const m = e.data;
+    if (!m || m.source !== 'arc-auth-host') return;
+    if (m.type === 'init' && Array.isArray(m.payload?.usernames) && m.payload.usernames.length) {
+      const chipsEl = document.querySelector('.chips');
+      if (!chipsEl) return;
+      chipsEl.replaceChildren();
+      const palette = [['🦊','#ffd0a0'], ['🐾','#a0cfff'], ['🐰','#d0f0c0'], ['🐱','#ffe0e0']];
+      m.payload.usernames.slice(0, 4).forEach((name, i) => {
+        const [em, bg] = palette[i % palette.length];
+        chipsEl.appendChild(buildChip(String(name), em, bg, 'tap to sign in'));
+      });
+    }
+    if (m.type === 'auth-error') shakeError();
+  });
+  // Hard-coded screen chips still function (when no 'init' or for design review).
+  document.querySelectorAll('.chips .chip').forEach((chip) => chip.addEventListener('click', () => selectChip(chip)));
+  // Sync the green ✓ confirm button's enabled state with PIN-buffer length.
+  function updateConfirmEnabled() {
+    const btn = document.getElementById('pin-confirm');
+    if (!btn) return;
+    const ok = pinBuffer.length === 4;
+    btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+    if (ok) btn.removeAttribute('disabled');
+    else btn.setAttribute('disabled', 'true');
+  }
+  // Keypad wiring: digits append, red ✕ deletes one, green ✓ submits.
+  document.querySelectorAll('.keypad .key').forEach((key) => {
+    key.addEventListener('click', () => {
+      if (key.classList.contains('key-delete')) {
+        pinBuffer = pinBuffer.slice(0, -1);
+        renderPinDots(); updateConfirmEnabled();
+        return;
+      }
+      if (key.classList.contains('key-confirm')) {
+        if (pinBuffer.length === 4) submitPin();
+        return;
+      }
+      if (pinBuffer.length >= 4) return;
+      pinBuffer += (key.textContent || '').trim();
+      renderPinDots(); updateConfirmEnabled();
+    });
+  });
+  // Hardware-keyboard PIN entry — only active while on the PIN stage.
+  // 0–9 append, Backspace removes the last digit, Delete/Escape clear all.
+  document.addEventListener('keydown', (e) => {
+    // Stages toggle via the .hidden class — stage-pin is the active
+    // stage when it doesn't have .hidden.
+    const onPinStage = stagePin && !stagePin.classList.contains('hidden');
+    if (!onPinStage) return;
+    if (e.target && e.target.tagName === 'INPUT') return;
+    if (/^[0-9]$/.test(e.key)) {
+      if (pinBuffer.length >= 4) return;
+      pinBuffer += e.key;
+      renderPinDots(); updateConfirmEnabled();
+      e.preventDefault();
+    } else if (e.key === 'Backspace') {
+      pinBuffer = pinBuffer.slice(0, -1);
+      renderPinDots(); updateConfirmEnabled();
+      e.preventDefault();
+    } else if (e.key === 'Delete' || e.key === 'Escape') {
+      clearPin();
+      e.preventDefault();
+    } else if (e.key === 'Enter') {
+      if (pinBuffer.length === 4) submitPin();
+      e.preventDefault();
+    }
+  });
+</script>
+</body>
+</html>

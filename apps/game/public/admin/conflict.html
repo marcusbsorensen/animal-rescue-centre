@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>A.R.C. — Adopter list v1</title>
+<title>A.R.C. — Conflict popup v1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -96,214 +96,7 @@
     z-index: 1;
   }
 
-  /* ── Adopter list page ── */
-  .adopters-page {
-    position: absolute; inset: 0;
-    padding: clamp(16px, 2.8cqh, 28px) clamp(16px, 3cqw, 32px);
-    overflow-y: auto;
-    z-index: 20;
-  }
-  .adopters-header {
-    display: flex; align-items: flex-start; gap: clamp(12px, 2cqw, 18px);
-    padding-bottom: clamp(10px, 1.8cqh, 16px);
-    position: relative;
-    flex-wrap: wrap;
-  }
-  .back-tab {
-    background:
-      linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
-    border: 2px solid #7a4b15;
-    color: #fffbe8;
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(13px, 1.9cqh, 16px);
-    padding: clamp(4px, 0.8cqh, 8px) clamp(10px, 1.6cqw, 14px);
-    border-radius: 999px;
-    cursor: pointer;
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    flex: 0 0 auto;
-    align-self: center;
-  }
-  .adopters-title-wrap { flex: 1 1 200px; min-width: 0; }
-  .adopters-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(22px, 3.6cqh, 32px);
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
-    line-height: 1.1;
-  }
-  .adopters-subtitle {
-    font-family: var(--sign-font);
-    color: #fffbe8;
-    font-size: clamp(12px, 1.8cqh, 15px);
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
-    opacity: 0.9;
-    margin-top: 4px;
-    line-height: 1.25;
-  }
-  /* Luna-profile pill on the right of the header */
-  .luna-chip {
-    display: flex; align-items: center; gap: 8px;
-    background: rgba(254,249,239,0.18);
-    border: 2px solid rgba(255,240,210,0.4);
-    border-radius: 999px;
-    padding: 4px 14px 4px 4px;
-    flex: 0 0 auto;
-  }
-  .luna-portrait {
-    width: clamp(40px, 5.5cqh, 54px);
-    height: clamp(40px, 5.5cqh, 54px);
-    border-radius: 50%;
-    object-fit: cover;
-    object-position: center 30%;
-    border: 2px solid #fffbe8;
-    background: radial-gradient(circle, #b88a37, #7a5023);
-  }
-  .luna-name {
-    font-family: var(--sign-title-font);
-    font-size: clamp(14px, 2cqh, 18px);
-    color: #fffbe8;
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
-    line-height: 1;
-  }
-  .luna-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
-  .luna-tag {
-    font-family: 'Quicksand', system-ui, sans-serif;
-    font-weight: 500;
-    letter-spacing: 0.2px;
-    font-size: clamp(13px, 1.7cqh, 15px);
-    color: #fffbe8;
-    opacity: 0.92;
-    line-height: 1;
-  }
-
-  /* Filter chips row */
-  .filter-row {
-    display: flex; gap: 8px; align-items: center;
-    padding: clamp(8px, 1.4cqh, 14px) 0;
-    flex-wrap: wrap;
-    border-bottom: 1px dashed rgba(255,240,210,0.3);
-    margin-bottom: clamp(10px, 1.8cqh, 16px);
-  }
-  .filter-chip {
-    background: rgba(254,249,239,0.14);
-    border: 2px solid rgba(255,240,210,0.35);
-    color: #fffbe8;
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(12px, 1.7cqh, 14px);
-    padding: 5px 12px;
-    border-radius: 999px;
-    cursor: pointer;
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
-    transition: transform 0.1s, background 0.15s;
-  }
-  .filter-chip:hover { background: rgba(254,249,239,0.25); transform: translateY(-1px); }
-  .filter-chip.filter-active {
-    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
-    border-color: #7a4b15;
-    box-shadow: inset 0 2px 0 rgba(255,240,210,0.3), 0 2px 4px rgba(0,0,0,0.3);
-  }
-  .filter-divider {
-    width: 1px; height: 20px;
-    background: rgba(255,240,210,0.3);
-    margin: 0 4px;
-  }
-
-  /* Adopter card grid — 2 cols narrow, 3 cols iPad, 4 cols desktop */
-  .adopter-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: clamp(10px, 1.6cqw, 16px);
-    padding-bottom: 40px;
-  }
-  .adopter-card {
-    background: linear-gradient(180deg, #fffbe8 0%, #f3e5c0 100%);
-    border: 2px solid #8a5a2a;
-    border-radius: 14px;
-    padding: 10px;
-    display: flex; flex-direction: column; align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    font-family: var(--sign-font);
-    box-shadow: 0 3px 8px rgba(0,0,0,0.25);
-    transition: transform 0.12s;
-    position: relative;
-  }
-  .adopter-card:hover { transform: translateY(-3px); }
-  /* Highlight "best match" with sparkling glow */
-  .adopter-card.best-match {
-    box-shadow:
-      0 0 0 3px rgba(255,240,210,0.7),
-      0 0 20px rgba(255,220,130,0.55),
-      0 4px 10px rgba(0,0,0,0.3);
-    animation: matchGlow 2.4s ease-in-out infinite;
-  }
-  @keyframes matchGlow {
-    0%, 100% { box-shadow: 0 0 0 3px rgba(255,240,210,0.6), 0 0 16px rgba(255,220,130,0.4), 0 4px 10px rgba(0,0,0,0.3); }
-    50%      { box-shadow: 0 0 0 4px rgba(255,240,210,0.85), 0 0 26px rgba(255,220,130,0.7), 0 4px 10px rgba(0,0,0,0.3); }
-  }
-  .adopter-card.best-match::before {
-    content: '✨ Best match';
-    position: absolute;
-    top: -11px; left: 50%; transform: translateX(-50%);
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 100%);
-    color: #3a2618;
-    font-family: 'Quicksand', system-ui, sans-serif; font-weight: 600;
-    letter-spacing: 0.2px;
-    font-size: clamp(13px, 1.7cqh, 15px);
-    padding: 2px 10px;
-    border: 1.5px solid #7a5a22;
-    border-radius: 999px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    white-space: nowrap;
-  }
-  .adopter-portrait {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: contain;
-    background: linear-gradient(180deg, #fef9ef 0%, #e9d9a8 100%);
-    border-radius: 10px;
-    border: 1.5px solid #b88a37;
-  }
-  .adopter-name {
-    font-weight: 700;
-    font-size: clamp(13px, 1.9cqh, 15px);
-    color: #3a2618;
-    text-align: center;
-    line-height: 1.15;
-  }
-  .adopter-blurb {
-    font-family: 'Quicksand', system-ui, sans-serif;
-    font-weight: 500;
-    letter-spacing: 0.15px;
-    font-size: clamp(13px, 1.7cqh, 15px);
-    color: #6b4820;
-    text-align: center;
-    line-height: 1.25;
-  }
-  .adopter-species {
-    display: flex; gap: 3px; justify-content: center; flex-wrap: wrap;
-    margin-top: auto;
-  }
-  .adopter-species-chip {
-    font-size: clamp(13px, 2cqh, 16px);
-    line-height: 1;
-  }
-
-  /* Don't render welcome-screen chrome */
-  .welcome-content, .credits, .foreground-dog, .foreground-fox-LEGACY-IGNORED { display: none !important; }
-
-  /* Reduce conflict-plaque opacity fallback (kept below for compatibility) */
-  .conflict-plaque { display: none !important; }
-
-  /* ── Conflict modal plaque (legacy, hidden on this page) ── */
+  /* ── Conflict modal plaque ── */
   .conflict-plaque {
     position: absolute; inset: 0;
     margin: auto;
@@ -491,12 +284,10 @@
     line-height: 1.15;
   }
   .choice-hint {
-    font-family: 'Quicksand', system-ui, sans-serif;
-    font-weight: 500;
-    letter-spacing: 0.15px;
-    font-size: clamp(13px, 1.7cqh, 15px);
-    opacity: 0.95;
-    line-height: 1.2;
+    font-size: clamp(12px, 1.6cqh, 14px);
+    font-family: 'Caveat', 'Kalam', cursive;
+    opacity: 0.9;
+    line-height: 1.1;
   }
   .choice-amber {
     background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
@@ -515,7 +306,7 @@
   .choice-cream .choice-hint { color: #6b4820; }
 
   /* Don't render any of the welcome-screen chrome on this modal. */
-  .welcome-content, .credits, .foreground-dog, .foreground-fox { display: none !important; }
+  .welcome-content, .credits, .foreground-dog, .foreground-fox-LEGACY-IGNORED { display: none !important; }
 
   .welcome-inner {
     position: relative; z-index: 5;
@@ -1185,13 +976,13 @@
 <body>
 
 <div class="vp-bar">
-  <strong>Adopter list v1</strong>
+  <strong>Conflict popup v1</strong>
   <span>·</span>
   <button data-size="iphone">📱 iPhone (390×844)</button>
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-login.html">→ Login mockup</a>
+  <a href="/admin/login.html">→ Login</a>
   <span class="hint">(real logo + contextual animals)</span>
 </div>
 
@@ -1205,39 +996,39 @@
           <button class="audio-btn" aria-label="Toggle sound">🔊</button>
         </div>
 
-        <div class="adopters-page">
-          <div class="adopters-header">
-            <button class="back-tab" data-action="back">← Back</button>
-            <div class="adopters-title-wrap">
-              <div class="adopters-title">Meet Luna's future family</div>
-              <div class="adopters-subtitle">Tap a family to meet them properly — Luna will love some more than others</div>
-            </div>
-            <div class="luna-chip">
-              <img class="luna-portrait" src="/assets/animals/dog-collie-sheltered.png" alt="">
-              <div class="luna-meta">
-                <div class="luna-name">Luna</div>
-                <div class="luna-tags">
-                  <span class="luna-tag">🐕 Dog · Collie</span>
-                  <span class="luna-tag">✨ Calm, loyal</span>
-                </div>
-              </div>
-            </div>
+        <!-- Conflict plaque floats in the middle of the (blurred) room scene.
+             Large painted wooden sign with exclamation flag overlaid on top,
+             two animals facing off with a toy between them, then a headline,
+             subtitle, and three resolution choice pills. -->
+        <div class="conflict-plaque">
+          <div class="conflict-flag">!</div>
+          <div class="conflict-scene">
+            <img class="conflict-anim conflict-anim-left"  src="/assets/animals/dog-golden-growling.png" alt="">
+            <div class="conflict-toy">🎾</div>
+            <img class="conflict-anim conflict-anim-right" src="/assets/animals/cat-ginger-growling.png" alt="">
           </div>
-
-          <div class="filter-row">
-            <button class="filter-chip filter-active" data-filter="match">Best match</button>
-            <button class="filter-chip" data-filter="all">All families</button>
-            <span class="filter-divider"></span>
-            <button class="filter-chip" data-species="dog">🐕 Dog</button>
-            <button class="filter-chip" data-species="cat">🐈 Cat</button>
-            <button class="filter-chip" data-species="bunny">🐰 Bunny</button>
-            <button class="filter-chip" data-species="parrot">🦜 Parrot</button>
-            <button class="filter-chip" data-species="snake">🐍 Snake</button>
-            <button class="filter-chip" data-species="bat">🦇 Bat</button>
-            <button class="filter-chip" data-species="fox">🦊 Fox</button>
+          <div class="conflict-title">Uh oh — a little quarrel!</div>
+          <div class="conflict-subtitle">Biscuit and Luna both want the tennis ball.</div>
+          <div class="conflict-choices">
+            <button class="choice-pill choice-amber" data-action="give-space">
+              <span class="choice-emoji">🌿</span>
+              <span class="choice-label">Give them space</span>
+              <span class="choice-hint">They'll sort it out on their own</span>
+            </button>
+            <button class="choice-pill choice-sage" data-action="split-toy">
+              <span class="choice-emoji toy-pile">
+                <span class="toy-pile-a">🧸</span>
+                <span class="toy-pile-b">🎾</span>
+              </span>
+              <span class="choice-label">Fetch another toy</span>
+              <span class="choice-hint">One each — fair share!</span>
+            </button>
+            <button class="choice-pill choice-cream" data-action="treat">
+              <span class="choice-emoji">🍪</span>
+              <span class="choice-label">Offer a treat</span>
+              <span class="choice-hint">Gentle reset, happy tummies</span>
+            </button>
           </div>
-
-          <div class="adopter-grid" id="adopter-grid"></div>
         </div>
       </div>
     </div>
@@ -1253,93 +1044,19 @@
       device.dataset.size = btn.dataset.size;
     });
   }
+  // Embed mode — when loaded inside the game as an overlay, drop the
+  // simulator chrome and have the device fill the viewport. Clicks on the
+  // primary CTAs postMessage up to the host scene instead of being dead.
   const params = new URLSearchParams(location.search);
-  if (params.has('embed')) document.body.classList.add('embed');
-  const send = (type, payload) => {
-    try { parent.postMessage({ source: 'arc-adopters', type, payload }, '*'); } catch (_) {}
-  };
-
-  // ── Render the adopter cards from cast.json ──
-  const grid = document.getElementById('adopter-grid');
-  const LUNA = { species: 'dog', traits: ['quiet-patient', 'experienced-handler', 'kids-family'] };
-  let activeSpeciesFilter = null;
-  let activeModeFilter = 'match';
-  let cast = [];
-
-  function matchScore(household) {
-    // A household fits if they accept Luna's species AND their household traits
-    // overlap with what Luna needs. Higher overlap = stronger match.
-    const speciesOK = (household.species || []).includes(LUNA.species);
-    if (!speciesOK) return 0;
-    const traitHits = (household.traits || []).filter(t => LUNA.traits.includes(t)).length;
-    return 1 + traitHits; // 1 for species fit, +1 per trait overlap
+  if (params.has('embed')) {
+    document.body.classList.add('embed');
+    const send = (type) => {
+      try { parent.postMessage({ source: 'arc-auth', type }, '*'); } catch (_) {}
+    };
+    document.querySelector('.btn-primary')?.addEventListener('click', () => send('play'));
+    document.querySelector('.link-btn.outlined')?.addEventListener('click', () => send('login'));
+    document.querySelector('.link-btn.plank-sage')?.addEventListener('click', () => send('signup'));
   }
-
-  function render() {
-    grid.replaceChildren();
-    const scored = cast.map(h => ({ h, score: matchScore(h) }));
-    const filtered = scored.filter(({ h, score }) => {
-      if (activeSpeciesFilter) return (h.species || []).includes(activeSpeciesFilter);
-      if (activeModeFilter === 'match') return score >= 2;
-      return true;
-    }).sort((a, b) => b.score - a.score);
-    for (const { h, score } of filtered) {
-      const card = document.createElement('button');
-      card.className = 'adopter-card';
-      if (score >= 3) card.classList.add('best-match');
-      card.addEventListener('click', () => send('meet-adopter', { id: h.id }));
-
-      const img = document.createElement('img');
-      img.className = 'adopter-portrait';
-      img.src = `/admin/mockup-assets/cast/${h.id}.png`;
-      img.alt = h.name;
-      img.loading = 'lazy';
-      card.appendChild(img);
-
-      const name = document.createElement('div');
-      name.className = 'adopter-name';
-      name.textContent = h.name;
-      card.appendChild(name);
-
-      const blurb = document.createElement('div');
-      blurb.className = 'adopter-blurb';
-      blurb.textContent = (h.traits || []).slice(0, 2).join(' · ');
-      card.appendChild(blurb);
-
-      const chips = document.createElement('div');
-      chips.className = 'adopter-species';
-      const emoji = { cat: '🐈', dog: '🐕', bunny: '🐰', parrot: '🦜', snake: '🐍', bat: '🦇', fox: '🦊' };
-      for (const s of h.species || []) {
-        const c = document.createElement('span');
-        c.className = 'adopter-species-chip';
-        c.textContent = emoji[s] || s;
-        chips.appendChild(c);
-      }
-      card.appendChild(chips);
-      grid.appendChild(card);
-    }
-  }
-
-  fetch('/data/cast.json').then(r => r.json()).then(data => {
-    cast = data.cast || [];
-    render();
-  });
-
-  // Filter chips wiring
-  document.querySelectorAll('.filter-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const filter = chip.dataset.filter;
-      const species = chip.dataset.species;
-      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('filter-active'));
-      chip.classList.add('filter-active');
-      if (filter) { activeModeFilter = filter; activeSpeciesFilter = null; }
-      if (species) { activeSpeciesFilter = species; activeModeFilter = null; }
-      render();
-    });
-  });
-
-  // Back button
-  document.querySelector('[data-action="back"]')?.addEventListener('click', () => send('back-to-menu'));
 </script>
 </body>
 </html>

@@ -6,7 +6,7 @@ import type { GameStateStore } from '../game-state';
  * apprentices placed around the rescue centre to show them "helping".
  *
  * The sprites are static PNGs served from
- *   /admin/mockup-assets/cast/apprentices/<pose>.png
+ *   /admin/scene-assets/cast/apprentices/<pose>.png
  * and are preloaded by BootScene under texture keys of the form
  *   apprentice-<pose>        (e.g. apprentice-rhubarb-feeding)
  *

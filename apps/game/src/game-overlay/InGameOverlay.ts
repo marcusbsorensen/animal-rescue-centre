@@ -1,5 +1,5 @@
 /**
- * InGameOverlay — mounts the HTML in-game mockups (paths, adopters,
+ * InGameOverlay — mounts the HTML in-game screens (paths, adopters,
  * adoption, rewilding) as a full-viewport iframe over the running Phaser
  * scene. Unlike AuthOverlay (which is for scene-switching moments like
  * welcome/login), these are modal over the live game and the scene keeps
@@ -10,7 +10,7 @@
  *   - iframe → parent: {source:'arc-game' | 'arc-adopters' | 'arc-adoption' |
  *                       'arc-rewild' | 'arc-auth', type:'...', payload:{...}}
  *
- * All in-game mockups postMessage up when their primary actions fire.
+ * All in-game screens postMessage up when their primary actions fire.
  * This bridge accepts the union of those sources and forwards them to
  * the host scene's onAction handler.
  */
@@ -50,16 +50,16 @@ export interface InGameOverlayHandlers {
 }
 
 const PAGE_URLS: Record<InGamePage, string> = {
-  paths:     '/admin/mockup-paths.html?embed=1',
-  adopters:  '/admin/mockup-adopters.html?embed=1',
-  adoption:  '/admin/mockup-adoption.html?embed=1',
-  rewilding: '/admin/mockup-rewilding.html?embed=1',
-  conflict:  '/admin/mockup-conflict.html?embed=1',
-  visitor:   '/admin/mockup-visitor.html?embed=1',
-  vet:       '/admin/mockup-vet.html?embed=1',
-  arrival:   '/admin/mockup-arrival.html?embed=1',
-  badge:     '/admin/mockup-badge.html?embed=1',
-  map:       '/admin/mockup-map.html?embed=1',
+  paths:     '/admin/paths.html?embed=1',
+  adopters:  '/admin/adopters.html?embed=1',
+  adoption:  '/admin/adoption.html?embed=1',
+  rewilding: '/admin/rewilding.html?embed=1',
+  conflict:  '/admin/conflict.html?embed=1',
+  visitor:   '/admin/visitor.html?embed=1',
+  vet:       '/admin/vet.html?embed=1',
+  arrival:   '/admin/arrival.html?embed=1',
+  badge:     '/admin/badge.html?embed=1',
+  map:       '/admin/map.html?embed=1',
   drive:     '/admin/drive-overlay.html?embed=1',
 };
 

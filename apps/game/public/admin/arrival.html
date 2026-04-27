@@ -640,7 +640,7 @@
     margin-bottom: clamp(4px, 0.8cqh, 8px);
   }
 
-  /* Painted red drawing-pin sticker — borrowed from mockup-signup.html.
+  /* Painted red drawing-pin sticker — borrowed from signup.html.
      Used to show validateAnimalName errors over the plaque. */
   .error-sticker {
     position: absolute;
@@ -924,7 +924,7 @@
   }
 
   function showError(message) {
-    // Reuse the .error-sticker pattern from mockup-signup.html — paint
+    // Reuse the .error-sticker pattern from signup.html — paint
     // a fresh sticker, drop it into the plaque, auto-remove after 4s.
     const old = plaque.querySelector('.error-sticker');
     if (old) old.remove();
@@ -1078,7 +1078,7 @@
       } catch (_) {}
     } else {
       // Design-review without ?embed=1 — log so dev can see the payload
-      console.log('[mockup-arrival] first-arrival-complete →', payload);
+      console.log("[arrival] first-arrival-complete →', payload);
     }
   });
 

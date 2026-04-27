@@ -100,7 +100,7 @@
   for (const c of CAST) {
     const card = document.createElement('div'); card.className = 'card';
     const img = document.createElement('img');
-    img.src = `/admin/mockup-assets/cast/${c.id}.png`;
+    img.src = `/admin/scene-assets/cast/${c.id}.png`;
     img.alt = c.name;
     img.loading = 'lazy';
     card.appendChild(img);
@@ -111,7 +111,7 @@
     const blurb = document.createElement('div'); blurb.className = 'blurb'; blurb.textContent = c.blurb;
     card.appendChild(blurb);
     const orig = document.createElement('a');
-    orig.href = `/admin/mockup-assets/cast/original/${c.id}.png`;
+    orig.href = `/admin/scene-assets/cast/original/${c.id}.png`;
     orig.target = '_blank';
     orig.textContent = 'view 1024 original →';
     card.appendChild(orig);

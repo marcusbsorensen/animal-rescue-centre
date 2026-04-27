@@ -9,7 +9,7 @@ FAILED=()
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REGEN="$ROOT/tools/gpt-image-regen.sh"
-CAST="$ROOT/apps/game/public/admin/mockup-assets/cast"
+CAST="$ROOT/apps/game/public/admin/scene-assets/cast"
 VAR="$CAST/variants"
 WORKDIR="$ROOT/manus-output/cast-walking-poses/adopters-wave-1-gpt"
 STAGE="$CAST/adopters-walking"

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>A.R.C. — Main Menu</title>
+<title>A.R.C. — Paths panel v1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -79,21 +79,442 @@
     container-type: size;     /* enables @container queries on size */
     container-name: welcome;
   }
+  /* Background scene — a room the conflict is happening in, blurred so the
+     modal plaque in front is the reading priority. Dark wash dims the room
+     so the plaque pops. */
   .welcome::before {
     content: ''; position: absolute; inset: 0;
-    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+    background-image: url('/assets/bg/bg-room-dog.png');
     background-size: cover; background-position: center;
+    filter: blur(3px) saturate(0.85) brightness(0.85);
+    transform: scale(1.05);   /* hide blur edge */
     z-index: 0;
   }
   .welcome::after {
     content: ''; position: absolute; inset: 0;
-    background: linear-gradient(180deg,
-      rgba(254,249,239,0.75) 0%,
-      rgba(254,249,239,0.50) 45%,
-      rgba(254,249,239,0.68) 85%,
-      rgba(254,249,239,0.90) 100%);
+    background: rgba(26, 18, 10, 0.42);
     z-index: 1;
   }
+
+  /* ── Paths panel plaque ── */
+  .paths-plaque {
+    position: absolute; inset: 0;
+    margin: auto;
+    width: min(94%, 760px);
+    max-height: 94%;
+    overflow-y: auto;
+    align-self: center;
+    padding: clamp(16px, 2.8cqh, 24px) clamp(18px, 3cqw, 28px) clamp(16px, 2.6cqh, 22px);
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: 3px solid #8a5a2a;
+    border-radius: 12px;
+    box-shadow:
+      0 12px 28px rgba(0,0,0,0.5),
+      inset 0 0 24px rgba(0,0,0,0.25),
+      inset 0 3px 0 rgba(255,240,210,0.2);
+    transform: rotate(-0.4deg);
+    z-index: 20;
+    animation: plaqueDrop 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+  .paths-plaque::before, .paths-plaque::after {
+    content: '';
+    position: absolute; top: 10px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .paths-plaque::before { left: 12px; }
+  .paths-plaque::after  { right: 12px; }
+  /* Header: portrait + title/subtitle */
+  .paths-header {
+    display: flex; align-items: center; gap: clamp(12px, 2.4cqw, 18px);
+    padding-bottom: clamp(10px, 1.8cqh, 16px);
+    border-bottom: 1px dashed rgba(255,240,210,0.3);
+  }
+  .paths-portrait {
+    width: clamp(58px, 9cqh, 86px);
+    height: clamp(58px, 9cqh, 86px);
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center 30%;
+    background: radial-gradient(circle at 35% 30%, #e7c97a 0%, #b88a37 100%);
+    border: 3px solid #fffbe8;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+    flex: 0 0 auto;
+  }
+  .paths-header-text { flex: 1 1 0; min-width: 0; }
+  .paths-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(20px, 3.4cqh, 28px);
+    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
+    line-height: 1.1;
+  }
+  .paths-subtitle {
+    font-family: var(--sign-font);
+    font-size: clamp(13px, 1.9cqh, 16px);
+    color: #fffbe8;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    margin-top: 4px;
+    opacity: 0.9;
+    line-height: 1.25;
+  }
+  /* 3-card grid — stacks on narrow screens */
+  .paths-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(10px, 1.8cqw, 16px);
+    padding: clamp(10px, 1.8cqh, 16px) 0;
+  }
+  @container welcome (max-width: 700px) {
+    .paths-grid { grid-template-columns: 1fr; }
+  }
+  .path-card {
+    text-align: left;
+    cursor: pointer;
+    padding: clamp(12px, 2cqh, 18px) clamp(12px, 2cqw, 16px);
+    border-radius: 14px;
+    border: 2px solid;
+    color: #fffbe8;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+    font-family: var(--sign-font);
+    box-shadow:
+      inset 0 0 10px rgba(0,0,0,0.2),
+      inset 0 2px 0 rgba(255,240,210,0.2),
+      0 3px 6px rgba(0,0,0,0.3);
+    transition: transform 0.12s;
+    display: flex; flex-direction: column; gap: clamp(6px, 1cqh, 10px);
+    position: relative;
+  }
+  .path-card:hover { transform: translateY(-2px); }
+  .path-rehome {
+    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+    border-color: #7a4b15;
+  }
+  .path-rewild {
+    background: linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
+    border-color: #3c5238;
+  }
+  .path-work {
+    background: linear-gradient(180deg, #b89ad5 0%, #8a6eb2 55%, #5f4780 100%);
+    border-color: #3e2e58;
+  }
+  /* The "aspiring" card gets a soft pulsing glow */
+  .path-card.aspiring {
+    box-shadow:
+      inset 0 0 10px rgba(0,0,0,0.2),
+      inset 0 2px 0 rgba(255,240,210,0.3),
+      0 0 0 3px rgba(255,240,210,0.6),
+      0 0 20px rgba(255,220,130,0.5),
+      0 4px 10px rgba(0,0,0,0.4);
+    animation: aspireGlow 2.2s ease-in-out infinite;
+  }
+  @keyframes aspireGlow {
+    0%, 100% { box-shadow: inset 0 0 10px rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,240,210,0.3), 0 0 0 3px rgba(255,240,210,0.6), 0 0 20px rgba(255,220,130,0.5), 0 4px 10px rgba(0,0,0,0.4); }
+    50%      { box-shadow: inset 0 0 10px rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,240,210,0.3), 0 0 0 4px rgba(255,240,210,0.8), 0 0 28px rgba(255,220,130,0.7), 0 4px 10px rgba(0,0,0,0.4); }
+  }
+  /* Path icon disc */
+  .path-badge {
+    width: clamp(38px, 5.5cqh, 50px);
+    height: clamp(38px, 5.5cqh, 50px);
+    border-radius: 50%;
+    background: rgba(255,251,232,0.92);
+    border: 2px solid rgba(0,0,0,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(22px, 3.4cqh, 30px);
+    line-height: 1;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+  }
+  .path-name {
+    font-family: var(--sign-title-font);
+    font-size: clamp(18px, 2.6cqh, 22px);
+    font-weight: 700;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+  }
+  .path-blurb {
+    font-size: clamp(12px, 1.7cqh, 14px);
+    font-family: 'Caveat', 'Kalam', cursive;
+    opacity: 0.92;
+    line-height: 1.2;
+  }
+  .path-criteria {
+    list-style: none;
+    display: flex; flex-direction: column;
+    gap: clamp(3px, 0.6cqh, 5px);
+    font-size: clamp(12px, 1.7cqh, 14px);
+    margin-top: clamp(4px, 0.6cqh, 6px);
+  }
+  .path-criteria li {
+    padding-left: 22px;
+    position: relative;
+    line-height: 1.25;
+  }
+  .path-criteria li::before {
+    position: absolute; left: 0; top: 0;
+    width: 16px; text-align: center;
+    font-weight: 700;
+  }
+  .path-criteria li.met::before    { content: '✓'; color: #b7f58e; }
+  .path-criteria li.unmet::before  { content: '○'; color: rgba(255,251,232,0.6); }
+  .path-criteria li.locked::before { content: '✕'; color: #ffb0b0; }
+  .path-criteria li.locked { opacity: 0.65; text-decoration: line-through; }
+  /* State pill at bottom of each card */
+  .path-state {
+    margin-top: auto;
+    padding: clamp(4px, 0.7cqh, 6px) clamp(8px, 1.4cqw, 12px);
+    border-radius: 999px;
+    background: rgba(255,251,232,0.25);
+    border: 1px solid rgba(255,251,232,0.5);
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    font-size: clamp(13px, 1.9cqh, 16px);
+    text-align: center;
+    align-self: flex-start;
+  }
+  .path-state-locked {
+    background: rgba(0,0,0,0.25);
+    border-color: rgba(0,0,0,0.3);
+    color: #ffdada;
+  }
+  .path-state-aspire { background: rgba(255,220,130,0.35); border-color: rgba(255,220,130,0.6); }
+  .paths-footer {
+    display: flex; justify-content: center;
+    padding-top: clamp(4px, 0.8cqh, 8px);
+  }
+
+  /* Don't render any of the welcome-screen chrome on this modal. */
+  .welcome-content, .credits, .foreground-dog, .foreground-fox-LEGACY-IGNORED { display: none !important; }
+
+  /* Old conflict CSS kept below for any shared keyframes; not rendered */
+  .conflict-plaque {
+    position: absolute; inset: 0;
+    margin: auto;
+    width: min(92%, 440px);
+    max-height: 90%;
+    align-self: center;
+    padding: clamp(18px, 3cqh, 28px) clamp(18px, 3cqw, 28px) clamp(20px, 3.2cqh, 30px);
+    /* Honey-amber wooden sign with plank grooves — same family as welcome sign */
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: 3px solid #8a5a2a;
+    border-radius: 12px;
+    box-shadow:
+      0 12px 28px rgba(0,0,0,0.5),
+      inset 0 0 24px rgba(0,0,0,0.25),
+      inset 0 3px 0 rgba(255,240,210,0.2);
+    transform: rotate(-0.8deg);
+    z-index: 20;
+    display: flex; flex-direction: column; align-items: center;
+    animation: plaqueDrop 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes plaqueDrop {
+    0%   { transform: translateY(-60px) rotate(-4deg); opacity: 0; }
+    60%  { transform: translateY(4px)   rotate(0.5deg); opacity: 1; }
+    100% { transform: translateY(0)     rotate(-0.8deg); opacity: 1; }
+  }
+  /* Iron nails at the top corners — same device we use on link-btns */
+  .conflict-plaque::before, .conflict-plaque::after {
+    content: '';
+    position: absolute; top: 10px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .conflict-plaque::before { left: 12px; }
+  .conflict-plaque::after  { right: 12px; }
+
+  /* Red circular "!" flag tilted top-right, stamped-on-plaque feel */
+  .conflict-flag {
+    position: absolute;
+    top: -22px; right: -14px;
+    width: clamp(42px, 6.5cqh, 56px);
+    height: clamp(42px, 6.5cqh, 56px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ff8a70 0%, #e76a5a 50%, #8f2e20 100%);
+    border: 3px solid #6b2418;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--sign-title-font);
+    font-weight: 900;
+    font-size: clamp(28px, 4.2cqh, 38px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    transform: rotate(14deg);
+    animation: flagPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes flagPulse {
+    0%, 100% { transform: rotate(14deg) scale(1); }
+    50%      { transform: rotate(14deg) scale(1.08); }
+  }
+
+  /* The two-animals-and-toy staging area */
+  .conflict-scene {
+    position: relative;
+    width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(0px, 1cqw, 4px);
+    padding: clamp(4px, 0.8cqh, 10px) 0 clamp(10px, 1.6cqh, 16px);
+  }
+  .conflict-anim {
+    height: clamp(100px, 16cqh, 150px);
+    width: auto;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.35));
+  }
+  .conflict-anim-left  { transform: rotate(-6deg); animation: lean 0.6s ease-in-out alternate infinite; }
+  .conflict-anim-right { transform: rotate(6deg) scaleX(-1); animation: leanR 0.6s ease-in-out alternate infinite; }
+  @keyframes lean  { to { transform: rotate(-8deg) translateX(-2px); } }
+  @keyframes leanR { to { transform: rotate(8deg)  translateX(2px) scaleX(-1); } }
+
+  .conflict-toy {
+    font-size: clamp(38px, 6cqh, 56px);
+    line-height: 1;
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.3));
+    animation: toyShake 0.3s ease-in-out alternate infinite;
+    z-index: 1;
+  }
+  @keyframes toyShake {
+    from { transform: rotate(-12deg) translateY(-2px); }
+    to   { transform: rotate(12deg)  translateY(2px); }
+  }
+
+  /* Plaque typography — same chalkboard painted style as welcome sign */
+  .conflict-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(22px, 3.6cqh, 30px);
+    letter-spacing: 0.02em;
+    text-align: center;
+    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
+    line-height: 1.1;
+  }
+  .conflict-subtitle {
+    font-family: var(--sign-font);
+    color: #fffbe8;
+    font-size: clamp(15px, 2.2cqh, 19px);
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    text-align: center;
+    margin-top: clamp(4px, 0.8cqh, 8px);
+    margin-bottom: clamp(12px, 2.2cqh, 20px);
+    opacity: 0.95;
+    line-height: 1.25;
+  }
+
+  /* Three resolution pills stacked on the plaque */
+  .conflict-choices {
+    display: flex; flex-direction: column; width: 100%;
+    gap: clamp(8px, 1.4cqh, 12px);
+  }
+  .choice-pill {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: clamp(10px, 2cqw, 14px);
+    align-items: center;
+    padding: clamp(8px, 1.3cqh, 12px) clamp(14px, 2.6cqw, 20px);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    text-align: left;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    border: 2px solid;
+    box-shadow:
+      inset 0 0 10px rgba(0,0,0,0.2),
+      inset 0 2px 0 rgba(255,240,210,0.2),
+      0 3px 6px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+  }
+  .choice-pill:hover { transform: translateY(-2px); }
+  .choice-emoji {
+    font-size: clamp(24px, 3.8cqh, 32px);
+    grid-row: 1 / span 2;
+    line-height: 1;
+    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.25));
+  }
+  /* Two-toy cluster — reads as a pile of toys to pick another from, so
+     kids don't misread "Fetch another toy" as "chop the toy up". */
+  .toy-pile {
+    position: relative;
+    display: inline-block;
+    width: clamp(36px, 5.5cqh, 48px);
+    height: clamp(32px, 5cqh, 42px);
+    filter: none;
+  }
+  .toy-pile .toy-pile-a,
+  .toy-pile .toy-pile-b {
+    position: absolute;
+    font-size: clamp(20px, 3.2cqh, 28px);
+    line-height: 1;
+    filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.25));
+  }
+  .toy-pile .toy-pile-a { left: 0;    bottom: 0; transform: rotate(-8deg); }
+  .toy-pile .toy-pile-b { right: -2px; top: 0;   transform: rotate(10deg); }
+  .choice-label {
+    font-weight: 700;
+    font-size: clamp(15px, 2.2cqh, 18px);
+    line-height: 1.15;
+  }
+  .choice-hint {
+    font-size: clamp(12px, 1.6cqh, 14px);
+    font-family: 'Caveat', 'Kalam', cursive;
+    opacity: 0.9;
+    line-height: 1.1;
+  }
+  .choice-amber {
+    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+    border-color: #7a4b15;
+  }
+  .choice-sage {
+    background: linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
+    border-color: #3c5238;
+  }
+  .choice-cream {
+    background: linear-gradient(180deg, #fff0cc 0%, #e7c97a 55%, #b89246 100%);
+    border-color: #7a5a22;
+    color: #3a2618;
+    text-shadow: 1px 1px 0 rgba(255,240,210,0.6);
+  }
+  .choice-cream .choice-hint { color: #6b4820; }
+
+  /* Don't render any of the welcome-screen chrome on this modal. */
+  .welcome-content, .credits, .foreground-dog, .foreground-fox { display: none !important; }
 
   .welcome-inner {
     position: relative; z-index: 5;
@@ -342,132 +763,6 @@
     z-index: 5;  /* above the grass blades */
   }
 
-  /* ── Main-menu (logged in) specific elements ── */
-  .player-badge {
-    display: flex; align-items: center; gap: clamp(10px, 2cqw, 16px);
-    padding: clamp(4px, 0.8cqh, 8px) 0 clamp(10px, 1.6cqh, 14px);
-  }
-  .player-avatar {
-    width: clamp(56px, 8.5cqh, 82px);
-    height: clamp(56px, 8.5cqh, 82px);
-    display: flex; align-items: center; justify-content: center;
-    font-size: clamp(32px, 5cqh, 50px);
-    background: radial-gradient(circle at 35% 30%, #ffd07a 0%, #e7a84a 60%, #b06e28 100%);
-    border: 3px solid #fffbe8;
-    border-radius: 50%;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.3);
-    flex: 0 0 auto;
-  }
-  .player-greeting { flex: 1 1 0; text-align: left; }
-  .player-hello {
-    font-family: var(--sign-font);
-    font-size: clamp(15px, 2.2cqh, 19px);
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
-    opacity: 0.9;
-  }
-  .player-greeting .sign-title {
-    text-align: left;
-    padding: 0;
-    margin: 0;
-    font-size: clamp(28px, 4.6cqh, 42px);
-  }
-  /* Activity card — "your animals are waiting" inset panel on the sign */
-  .menu-card {
-    background: rgba(254,249,239,0.15);
-    border: 2px solid rgba(255,240,210,0.3);
-    border-radius: clamp(8px, 1.2cqh, 12px);
-    padding: clamp(10px, 1.8cqh, 16px) clamp(12px, 2.4cqw, 20px);
-    margin-bottom: clamp(10px, 1.6cqh, 14px);
-  }
-  .menu-card-title {
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 19px);
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
-    text-align: center;
-    margin-bottom: clamp(8px, 1.4cqh, 12px);
-  }
-  .menu-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: clamp(6px, 1.2cqw, 12px);
-  }
-  .menu-stat {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 2px;
-    color: #fffbe8;
-  }
-  .menu-stat-num {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(24px, 3.8cqh, 34px);
-    line-height: 1;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
-  }
-  .menu-stat-label {
-    font-family: var(--sign-font);
-    font-size: clamp(11px, 1.5cqh, 13px);
-    line-height: 1.15;
-    opacity: 0.9;
-    text-align: center;
-  }
-  /* Friend-code cream-paper strip pinned to the sign */
-  .friend-code-pill {
-    display: flex; align-items: center; justify-content: center;
-    gap: clamp(6px, 1cqw, 10px);
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
-    border: 2px solid #7a4b15;
-    border-radius: 999px;
-    padding: clamp(4px, 0.8cqh, 8px) clamp(12px, 2.4cqw, 20px);
-    box-shadow: 0 2px 3px rgba(0,0,0,0.2), inset 0 1px 2px rgba(0,0,0,0.1);
-    margin-top: clamp(2px, 0.4cqh, 4px);
-  }
-  .friend-code-label {
-    font-family: var(--sign-font);
-    font-size: clamp(11px, 1.5cqh, 13px);
-    color: #6b4820;
-    font-weight: 600;
-    opacity: 0.85;
-  }
-  .friend-code-value {
-    font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
-    font-size: clamp(12px, 1.7cqh, 15px);
-    font-weight: 700;
-    color: #3a2618;
-    letter-spacing: 0.03em;
-  }
-
-  /* Subtitle for the new-player welcome */
-  .sign-subtitle {
-    font-family: var(--sign-font);
-    font-weight: 700;
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
-    font-size: clamp(15px, 2.2cqh, 19px);
-    text-align: center;
-    margin-top: clamp(6px, 1.2cqh, 12px);
-    margin-bottom: clamp(6px, 1.2cqh, 10px);
-    opacity: 0.95;
-  }
-  /* ARC exterior snapshot — painted panel pinned inside the sign so new
-     players can orient themselves (where am I heading?). Dual-use asset:
-     also shows up on the in-game News screen when updates drop. */
-  .arc-snapshot-wrap {
-    display: flex; justify-content: center;
-    padding: clamp(6px, 1.2cqh, 12px) 0 clamp(2px, 0.6cqh, 6px);
-  }
-  .arc-snapshot {
-    width: 100%;
-    max-width: clamp(220px, 50cqw, 360px);
-    height: auto;
-    border-radius: clamp(6px, 1cqh, 10px);
-    border: clamp(2px, 0.3cqh, 3px) solid #7a4b15;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-    display: block;
-  }
-
   /* Flying bee — animated on its own layer above the grass, tracing a wavy
      figure-8-ish path so it reads as a real bee doing a lazy circle over the
      flowers at the stake's base rather than a static decal. */
@@ -685,7 +980,7 @@
   }
 
   /* ── Animals in the foreground at the bottom corners ── */
-  .foreground-dog, .foreground-fox-LEGACY-IGNORED {
+  .foreground-dog, .foreground-fox {
     position: absolute;
     bottom: clamp(22px, 4cqh, 50px);
     z-index: 6;
@@ -889,13 +1184,13 @@
 <body>
 
 <div class="vp-bar">
-  <strong>Main menu v1 (logged-in)</strong>
+  <strong>Paths panel v1</strong>
   <span>·</span>
   <button data-size="iphone">📱 iPhone (390×844)</button>
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-login.html">→ Login mockup</a>
+  <a href="/admin/login.html">→ Login</a>
   <span class="hint">(real logo + contextual animals)</span>
 </div>
 
@@ -906,77 +1201,64 @@
       <div class="welcome-inner">
 
         <div class="top-strip">
-          <button class="audio-btn" id="audio-btn" aria-label="Toggle sound">🔊</button>
+          <button class="audio-btn" aria-label="Toggle sound">🔊</button>
         </div>
 
-        <div class="welcome-content">
-          <div class="logo-wrap">
-            <img class="logo-img" src="/assets/logo/arc-logo-portrait.png" alt="A.R.C. — Animal Rescue Centre">
-            <img class="logo-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
-          </div>
-
-          <div class="text-block">
-            <div class="signs-on-stake">
-              <div class="intro">
-                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
-                <div class="player-badge">
-                  <span class="player-avatar" id="player-avatar">🦊</span>
-                  <div class="player-greeting">
-                    <div class="player-hello">Welcome back,</div>
-                    <div class="sign-title" id="player-name">Lily</div>
-                  </div>
-                </div>
-                <div class="menu-card" id="menu-card">
-                  <div class="menu-card-title">Your animals are waiting!</div>
-                  <div class="menu-stats">
-                    <div class="menu-stat"><span class="menu-stat-num" id="stat-animals">5</span><span class="menu-stat-label">in the centre</span></div>
-                    <div class="menu-stat"><span class="menu-stat-num" id="stat-happy">3</span><span class="menu-stat-label">happy today</span></div>
-                    <div class="menu-stat"><span class="menu-stat-num" id="stat-hungry">2</span><span class="menu-stat-label">need feeding</span></div>
-                  </div>
-                </div>
-                <div class="friend-code-pill">
-                  <span class="friend-code-label">Your friend code:</span>
-                  <span class="friend-code-value" id="friend-code">SUNNY-FOX-2026</span>
-                </div>
-              </div>
-
-              <div class="cta-stack">
-                <div class="btn-primary-wrap">
-                  <button class="btn-primary" id="continue-btn">
-                    <span class="paw paw-left">🐾</span>
-                    <span class="play-label">CONTINUE!</span>
-                    <span class="paw paw-right">🐾</span>
-                  </button>
-                  <img class="play-parrot" src="/admin/mockup-assets/parrot-macaw-nobranch.png" alt="">
-                </div>
-                <div class="secondary-row">
-                  <button class="link-btn outlined" id="friends-btn">👋 Friends</button>
-                  <button class="link-btn plank-sage" id="logout-btn">Log out</button>
-                </div>
-              </div>
-
-              <!-- Bunny sitting on the ground at the foot of the garden post -->
-              <img class="ground-bunny" src="/assets/animals/bunny-dutch-sheltered.png" alt="">
-
-              <!-- Painted grass clump with ladybird, daisies, clover (from Manus) -->
-              <img class="foreground-fox" src="/assets/animals/fox-cross-walking.png" alt="">
-              <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
-
-              <!-- Flying bee on its own animated layer above the grass -->
-              <img class="bee-flyer" src="/admin/mockup-assets/bee-flying.png" alt="" aria-hidden="true">
+        <!-- Paths panel — the player aspires for a future for this animal.
+             Shows 3 cards, each with its own criteria checklist. The player
+             can tap to aspire to a path; criteria light up as gameplay
+             fulfils them. Path aspiration can be changed at any time. -->
+        <div class="paths-plaque">
+          <div class="paths-header">
+            <img class="paths-portrait" src="/assets/animals/dog-collie-sheltered.png" alt="">
+            <div class="paths-header-text">
+              <div class="paths-title">What will Luna become?</div>
+              <div class="paths-subtitle">Aspire to a path — change your mind any time. Each animal needs different things to thrive.</div>
             </div>
           </div>
+          <div class="paths-grid">
+            <button class="path-card path-rehome aspiring" data-path="rehome">
+              <div class="path-badge">🏡</div>
+              <div class="path-name">Forever family</div>
+              <div class="path-blurb">Find Luna a loving home with a human family</div>
+              <ul class="path-criteria">
+                <li class="met">Bond 3+</li>
+                <li class="met">Fully well</li>
+                <li class="unmet">Walked 5× (3/5)</li>
+                <li class="met">Groomed recently</li>
+              </ul>
+              <div class="path-state">✨ Aspiring</div>
+            </button>
+            <button class="path-card path-rewild" data-path="rewild">
+              <div class="path-badge">🌲</div>
+              <div class="path-name">Back to the wild</div>
+              <div class="path-blurb">Release Luna to her wild home once she's ready</div>
+              <ul class="path-criteria">
+                <li class="locked">Wild species</li>
+                <li class="met">Fit &amp; healthy</li>
+                <li class="unmet">Garden time</li>
+                <li class="unmet">Wild instincts</li>
+              </ul>
+              <div class="path-state path-state-locked">🔒 Not for collies</div>
+            </button>
+            <button class="path-card path-work" data-path="work">
+              <div class="path-badge">🎖️</div>
+              <div class="path-name">Stay at A.R.C.</div>
+              <div class="path-blurb">Luna becomes a working animal at the centre</div>
+              <ul class="path-criteria">
+                <li class="unmet">Bond 5 (3/5)</li>
+                <li class="met">Trait: Alert</li>
+                <li class="met">Trait: Loyal</li>
+                <li class="unmet">A role opens</li>
+              </ul>
+              <div class="path-state path-state-aspire">Tap to aspire</div>
+            </button>
+          </div>
+          <div class="paths-footer">
+            <button class="link-btn outlined" data-action="close">← Back to Luna</button>
+          </div>
         </div>
-
-        <div class="credits">
-          <span class="credit-scrawl credit-left">Designed by Lily age 8</span>
-          <span class="credit-scrawl credit-right">Built by Dad and Claude Code</span>
-        </div>
-
       </div>
-
-      <!-- Foreground corner animals — the 'cast' welcoming the player -->
-      <img class="foreground-dog" src="/assets/animals/dog-golden-sheltered.png" alt="">
     </div>
   </div>
 </div>
@@ -996,42 +1278,35 @@
   const params = new URLSearchParams(location.search);
   if (params.has('embed')) {
     document.body.classList.add('embed');
-    const send = (type) => {
-      try { parent.postMessage({ source: 'arc-auth', type }, '*'); } catch (_) {}
+    const send = (type, payload) => {
+      try { parent.postMessage({ source: 'arc-game', type, payload }, '*'); } catch (_) {}
     };
-    // Handshake — parent sends the current session payload. We only render
-    // safe fields via textContent so no sanitisation needed.
-    const audioBtn = document.getElementById('audio-btn');
-    audioBtn?.addEventListener('click', () => send('toggle-music'));
+    // Path-card click — map each card to an aspire-* action.
+    const pathToAction = { rehome: 'aspire-rehome', rewild: 'aspire-rewild', work: 'aspire-stay' };
+    for (const card of document.querySelectorAll('.path-card')) {
+      card.addEventListener('click', () => {
+        const path = card.dataset.path;
+        const stateEl = card.querySelector('.path-state');
+        // Block locked cards from firing (e.g. "Not for collies").
+        if (stateEl && stateEl.classList.contains('path-state-locked')) return;
+        const type = pathToAction[path];
+        if (type) send(type, { path });
+      });
+    }
+    // "← Back to Luna" button
+    document.querySelector('[data-action="close"]')?.addEventListener('click', () => send('close'));
+    // Personalise the title from ?animalName=… if the host sent an init payload
     window.addEventListener('message', (e) => {
       const m = e.data;
-      if (m?.source !== 'arc-auth-host') return;
-      if (m.type === 'music-state' && audioBtn) {
-        audioBtn.textContent = m.payload?.enabled ? '🔊' : '🔇';
-        return;
-      }
-      if (m.type === 'init' && m.payload) {
-        const p = m.payload;
-        const nameEl = document.getElementById('player-name');
-        if (nameEl && typeof p.username === 'string') nameEl.textContent = p.username;
-        const avEl = document.getElementById('player-avatar');
-        if (avEl) {
-          if (typeof p.avatarEmoji === 'string') avEl.textContent = p.avatarEmoji;
-          if (typeof p.avatarBgColour === 'string') avEl.style.background = p.avatarBgColour;
-        }
-        const codeEl = document.getElementById('friend-code');
-        if (codeEl && typeof p.joinCode === 'string') codeEl.textContent = p.joinCode;
-        if (typeof p.stats === 'object' && p.stats) {
-          const setNum = (id, v) => { const n = document.getElementById(id); if (n && typeof v === 'number') n.textContent = String(v); };
-          setNum('stat-animals', p.stats.totalAnimals);
-          setNum('stat-happy',   p.stats.happyToday);
-          setNum('stat-hungry',  p.stats.needFeeding);
-        }
+      if (m?.source !== 'arc-game-host' || m.type !== 'init' || !m.payload) return;
+      const name = typeof m.payload.animalName === 'string' ? m.payload.animalName : null;
+      if (name) {
+        const titleEl = document.querySelector('.paths-title');
+        if (titleEl) titleEl.textContent = `What will ${name} become?`;
+        const backBtn = document.querySelector('[data-action="close"]');
+        if (backBtn) backBtn.textContent = `← Back to ${name}`;
       }
     });
-    document.getElementById('continue-btn')?.addEventListener('click', () => send('play'));
-    document.getElementById('friends-btn')?.addEventListener('click', () => send('friends'));
-    document.getElementById('logout-btn')?.addEventListener('click', () => send('logout'));
   }
 </script>
 </body>

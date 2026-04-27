@@ -266,11 +266,11 @@ Moving from mechanic-spec into visual-spec. Marcus's note (2026-04-24): *"visual
 - **Placement**: left side of the road on the **west entrance to Birchie** (the main road approach from the Herne Bay direction).
 - **Exact reference**: the **blue-dungarees + red-shirt + blue cap** inflatable from the three-tube-man reference set (AliExpress listing Marcus shared). **Right arm is the one that flaps**, waving drivers in. Left arm stays low.
 - **Visual**: a classic fan-powered inflatable tube-man. Big painted smile. Eyes full of cheer. Red "CAR WASH" letters running down the tube vertically. Anchored on a black fan base.
-- **Motion**: the right arm flaps rhythmically — big flap, flop, big flap, flop — while the whole tube body whips side-to-side in a drunken, rhythmic sway. Head sways with the body. Left arm stays low on Birchie's unit even though the demo video shows it moving on other units. Deliberately janky — no smooth curves, no easing; the over-inflated floppy jerk is the whole charm. **Video reference** saved locally at `apps/game/public/admin/mockup-assets/reference/birchie-west-entrance/wavy-arm-motion-demo.mp4`, plus 8 extracted stills in `motion-frames/` for quick browsing. Use the video for animation timing + real-light colour pulls, not the static photo alone.
+- **Motion**: the right arm flaps rhythmically — big flap, flop, big flap, flop — while the whole tube body whips side-to-side in a drunken, rhythmic sway. Head sways with the body. Left arm stays low on Birchie's unit even though the demo video shows it moving on other units. Deliberately janky — no smooth curves, no easing; the over-inflated floppy jerk is the whole charm. **Video reference** saved locally at `apps/game/public/admin/scene-assets/reference/birchie-west-entrance/wavy-arm-motion-demo.mp4`, plus 8 extracted stills in `motion-frames/` for quick browsing. Use the video for animation timing + real-light colour pulls, not the static photo alone.
 - **Use in game**:
   - **Supply Runs**: drive past him to trigger a mild steering jitter + visual laugh beat.
   - **PTV drives**: pull in for a wash (cosmetic cleaner-van sprite + small on-board happiness bump). Cost a coin.
-- **Reference photo**: saved to `apps/game/public/admin/mockup-assets/reference/birchie-west-entrance/` (see §"Reference image library" below).
+- **Reference photo**: saved to `apps/game/public/admin/scene-assets/reference/birchie-west-entrance/` (see §"Reference image library" below).
 
 #### Petrol station — east of the car wash, right side
 
@@ -288,7 +288,7 @@ Moving from mechanic-spec into visual-spec. Marcus's note (2026-04-24): *"visual
 Set up a persistent reference folder for visual anchors Marcus shares during brainstorming. This becomes Manus's source of truth for Birchie art.
 
 ```
-apps/game/public/admin/mockup-assets/reference/
+apps/game/public/admin/scene-assets/reference/
   birchie-west-entrance/
     wavy-arm-car-wash-guy.jpg   ← reference from AliExpress listing
     petrol-station-*.jpg         ← to come
@@ -403,7 +403,7 @@ Lily being able to recognise her home town in the game is part of the point. Nam
 
 #### Whole-town layout + west-entrance + Wyx Park span + Rock On Academy (Marcus, 2026-04-24)
 
-Marcus shared the wider-area map (saved at `apps/game/public/admin/mockup-assets/reference/birchie-area/birchie-area-map.png`). Extra pins and corrections from the new view:
+Marcus shared the wider-area map (saved at `apps/game/public/admin/scene-assets/reference/birchie-area/birchie-area-map.png`). Extra pins and corrections from the new view:
 
 **West-entrance confirmed:**
 - **Fishbone Grill** (real restaurant, south-west edge of town on the main road out) → the **wavy-arm car-wash location**. Approach from Herne Bay direction hits Fishbone Grill first, then the Esso.
@@ -452,11 +452,11 @@ Marcus shared a zoomed map of Birchie centre. Transcribing faithfully so the in-
 - Other streets: keep real names — they're generic enough and add authenticity for Lily.
 - Real businesses: rename where we have specific in-game use (vet, auto repairs, chippy, pharmacy, pet supplies) per the "keep generic" rule; leave peripheral/background shops as loose references.
 
-**Reference:** Marcus's zoomed Birchie-centre screenshot (shared in chat 2026-04-24). If saved, goes into `apps/game/public/admin/mockup-assets/reference/birchie-centre/` with a README caption.
+**Reference:** Marcus's zoomed Birchie-centre screenshot (shared in chat 2026-04-24). If saved, goes into `apps/game/public/admin/scene-assets/reference/birchie-centre/` with a README caption.
 
 #### A.R.C. location — coastal green south of The Dip, between Canute / Viking / Dane roads (Marcus, 2026-04-24)
 
-**Location: the open green space immediately south of The Dip**, bounded to the south/east by **Canute Road, Viking Road, and Dane Road** (the Viking-heritage cluster). A minute's walk north to Minnis Bay. Marcus pinned it from a zoomed map of the Minnis Bay / Dip area. Reference folder: `apps/game/public/admin/mockup-assets/reference/birchie-minnis-bay/`.
+**Location: the open green space immediately south of The Dip**, bounded to the south/east by **Canute Road, Viking Road, and Dane Road** (the Viking-heritage cluster). A minute's walk north to Minnis Bay. Marcus pinned it from a zoomed map of the Minnis Bay / Dip area. Reference folder: `apps/game/public/admin/scene-assets/reference/birchie-minnis-bay/`.
 
 This is a **coastal** A.R.C., not a west-end-of-Bay-Road A.R.C. as previously sketched.
 
@@ -784,7 +784,7 @@ Marcus's note (2026-04-24), carrying Lily's direct design requests. Applies to b
 
 **Cockpit view.** The drive scene wraps the fake-3D road viewport inside a chunky, painted-storybook cockpit, not a pure arcade HUD. Elements on screen:
 
-- **GPS map** — the navigation surface. Re-uses the painted world map (existing `mockup-map.html`). Player picks the destination on the GPS before / during the drive; route draws as a painted dotted line across the map. During the drive a "you are here" marker creeps along the route. The GPS stays visible in a corner / dashboard panel while driving.
+- **GPS map** — the navigation surface. Re-uses the painted world map (existing `map.html`). Player picks the destination on the GPS before / during the drive; route draws as a painted dotted line across the map. During the drive a "you are here" marker creeps along the route. The GPS stays visible in a corner / dashboard panel while driving.
 - **Steering wheel** — physically turns when the player steers. Drag / swipe on mobile, arrow keys on desktop. The angle of the wheel is visible feedback that reinforces the physicality. Wooden painted wheel with painted-leather grip dots for the aesthetic.
 - **Ignition button** — explicit "start the engine" beat before the drive begins. Tactile: press and hold for a beat, engine note, vibration (on mobile), then the ignition lamp glows. Teaches the kid the ritual of starting a vehicle.
 - **Accelerator & brake pedals** — two on-screen pedal icons. Tap-and-hold accelerator to go faster; tap brake to slow. PTV cargo-comfort drains faster under heavy accelerator use; Supply Runs reward it.
@@ -1019,7 +1019,7 @@ fills the space **around** those slots.
    `apps/game/public/assets/driving/cockpit-slots-<vehicle>.json`.
    This file is the source of truth for that vehicle's cockpit.
 
-3. **Live cockpit reads from there** — `/admin/mockup-cockpit.html`
+3. **Live cockpit reads from there** — `/admin/cockpit.html`
    fetches `cockpit-slots-<vehicle>.json` on load when the vehicle is
    Henry, switches `.dashboard` to `.absolute-layout`, and positions
    every interactive control from the JSON. Other vehicles still use

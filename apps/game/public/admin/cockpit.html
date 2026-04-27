@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Oswald:wght@500;700&family=Orbitron:wght@500;700&family=Inter:wght@400;500;600&family=DM+Sans:wght@400;500;700&family=Kalam:wght@400;700&family=Limelight&display=swap" rel="stylesheet">
 <style>
   /* ============================================================
-     A.R.C. Cockpit mockup v2 (2026-04-24 rebuild)
+     A.R.C. Cockpit screen v2 (2026-04-24 rebuild)
      Real-car layout, per-vehicle painted-storybook dashboards.
      URL params:
        ?vehicle=trikey|henry|bea|big-tilly|spark   (default henry)
@@ -451,7 +451,7 @@
      brass rim; interior renders live sprites. Hidden in Supply Run
      mode (no cargo). Pulses when cargo-comfort drops. Tap to
      expand into a full cargo-check panel (stub only in this
-     mockup). */
+     stub). */
   /* Rear-view mirror hangs from the top of the screen — bigger and
      clearly visible above the road (not squashed). Hung from a
      short painted stem so it reads as ceiling-mounted. */
@@ -1308,9 +1308,9 @@
 <div class="vp-bar">
   <strong>Cockpit v2</strong>
   <span class="sep">·</span>
-  <a href="/admin/mockup-welcome.html">welcome</a>
-  <a href="/admin/mockup-pre-drive.html">pre-drive</a>
-  <a href="/admin/mockup-map.html">map</a>
+  <a href="/admin/welcome.html">welcome</a>
+  <a href="/admin/pre-drive.html">pre-drive</a>
+  <a href="/admin/map.html">map</a>
   <span class="sep">·</span>
   <span>vehicle:</span>
   <a href="?vehicle=trikey">trikey</a>
@@ -2514,7 +2514,7 @@
     stuckSprite._phase = 'drift';
     stuckSprite._driftStart = now;
     flash('Clean overtake!');
-    // Tiny coin-bonus pulse in HUD (comfort meter flash) — mockup only.
+    // Tiny coin-bonus pulse in HUD (comfort meter flash) — screen only.
     var fill = document.getElementById('comfort-fill');
     if (fill) {
       var old = fill.style.filter;

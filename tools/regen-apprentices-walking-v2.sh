@@ -5,9 +5,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REGEN="$ROOT/tools/gpt-image-regen.sh"
-REFDIR="$ROOT/apps/game/public/admin/mockup-assets/cast/apprentices"
+REFDIR="$ROOT/apps/game/public/admin/scene-assets/cast/apprentices"
 WORKDIR="$ROOT/manus-output/cast-walking-poses/apprentices-gpt-v2"
-STAGE="$ROOT/apps/game/public/admin/mockup-assets/cast/apprentices-walking"
+STAGE="$ROOT/apps/game/public/admin/scene-assets/cast/apprentices-walking"
 
 mkdir -p "$WORKDIR" "$STAGE"
 

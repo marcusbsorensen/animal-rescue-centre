@@ -1283,7 +1283,7 @@ export class GameScene extends Phaser.Scene {
   // ── Visitors ────────────────────────────────────────────────
   // MVP: schedule once per real-world day on scene create, poll every
   // 15s for due visits, surface one toast at a time. The painted
-  // postcard/"visitor at the door" popup is a follow-up (mockup-visitor).
+  // postcard/"visitor at the door" popup is a follow-up (visitor).
 
   private scheduleDailyVisitors(): void {
     const now = Date.now();

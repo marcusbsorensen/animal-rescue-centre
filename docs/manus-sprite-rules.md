@@ -8,9 +8,9 @@ Manus's sandbox has no access to the Mac. "Match the portrait at `apps/game/publ
 
 **Fix:** for any character-continuity work, embed **publicly reachable reference URLs** in the brief. We have a live Vercel deployment serving admin assets:
 
-- Cast portraits: `https://animal-rescue-centre.vercel.app/admin/mockup-assets/cast/<id>.png`
-- Apprentice poses: `https://animal-rescue-centre.vercel.app/admin/mockup-assets/cast/apprentices/<name>-<pose>.png`
-- Cast variants: `https://animal-rescue-centre.vercel.app/admin/mockup-assets/cast/variants/<id>-<variant>.png`
+- Cast portraits: `https://animal-rescue-centre.vercel.app/admin/scene-assets/cast/<id>.png`
+- Apprentice poses: `https://animal-rescue-centre.vercel.app/admin/scene-assets/cast/apprentices/<name>-<pose>.png`
+- Cast variants: `https://animal-rescue-centre.vercel.app/admin/scene-assets/cast/variants/<id>-<variant>.png`
 - Animal sprites: `https://animal-rescue-centre.vercel.app/assets/animals/<species>-<variant>-<state>.png`
 - Driving art (mirrors / charms / etc.): `https://animal-rescue-centre.vercel.app/assets/driving/...`
 
@@ -107,9 +107,9 @@ Copy-paste and fill in:
 ## References (fetch before drawing — publicly reachable)
 
 [Character Name] ([short ID description]):
-- https://animal-rescue-centre.vercel.app/admin/mockup-assets/...
-- https://animal-rescue-centre.vercel.app/admin/mockup-assets/...
-- https://animal-rescue-centre.vercel.app/admin/mockup-assets/...
+- https://animal-rescue-centre.vercel.app/admin/scene-assets/...
+- https://animal-rescue-centre.vercel.app/admin/scene-assets/...
+- https://animal-rescue-centre.vercel.app/admin/scene-assets/...
 
 If you cannot fetch these URLs, STOP and report back — do not generate sprites from description alone.
 

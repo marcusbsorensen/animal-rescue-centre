@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  /* Visual chrome mirrors mockup-login.html — same painted-storybook
+  /* Visual chrome mirrors login.html — same painted-storybook
      conventions (welcome bg, sign on stake, intro-cat with ZZZ, dog on
      the right, fox peeking from the grass, painted grass clump, credit
      scrawls). The recovery flow lives entirely inside the wooden sign. */
@@ -835,7 +835,7 @@
   <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
   <button data-size="ipad-l">📱 iPad L (1024×768)</button>
   <button data-size="desktop">🖥 Desktop (1280×800)</button>
-  <a href="/admin/mockup-login.html">→ Sign in</a>
+  <a href="/admin/login.html">→ Sign in</a>
   <span class="hint" id="stage-hint">stage A — answer 3 questions</span>
 </div>
 
@@ -879,7 +879,7 @@
             </div>
 
             <img class="foreground-fox" src="/assets/animals/fox-red-sheltered.png" alt="">
-            <img class="grass-clump" src="/admin/mockup-assets/grass-clump.png" alt="" aria-hidden="true">
+            <img class="grass-clump" src="/admin/scene-assets/grass-clump.png" alt="" aria-hidden="true">
           </div>
         </div>
 
@@ -1377,13 +1377,13 @@
 
   // ── Back: yellow sticker top-left of the sign. Always means "back
   //         to login PIN screen". In embed mode we postMessage so the
-  //         host swaps; in design review we navigate to the mockup. ──
+  //         host swaps; in design review we navigate to the screen. ──
   document.querySelectorAll('[data-back-sticker]').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (params.has('embed')) {
         send('recovery-cancel', { username: snapshot.username });
       } else {
-        location.href = '/admin/mockup-login.html';
+        location.href = '/admin/login.html';
       }
     });
   });
