@@ -66,6 +66,51 @@
     z-index: 2;
     pointer-events: none;
   }
+  /* Variant thumbnail strip — small painted polaroids under the main
+     image showing alt poses (greeting / with-cat / etc.). */
+  .variants-strip {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .variant-thumb {
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(180deg, #fef9ef 0%, #f3e8cc 100%);
+    border: 1.5px solid #c8a75c;
+    border-radius: 8px;
+    padding: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s;
+    text-decoration: none;
+    color: inherit;
+  }
+  .variant-thumb img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
+    background: transparent;
+    border-radius: 0;
+  }
+  .variant-thumb .vlabel {
+    font-size: 9px;
+    font-family: ui-monospace, Menlo, monospace;
+    color: #6b4820;
+    letter-spacing: 0.02em;
+    margin-top: 2px;
+    text-align: center;
+    line-height: 1;
+  }
+  .variant-thumb:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.18);
+  }
 </style>
 </head>
 <body>
@@ -127,6 +172,44 @@
   // regenerated so browsers don't keep showing stale versions.
   const CAST_VERSION = '2026-04-28-openai';
 
+  // Variant inventory — alt poses of each cast member, indexed by the
+  // 2-digit cast prefix. Built by scanning cast/ + cast/variants/ for
+  // anything matching <NN-name>-{greeting,with-X,donation,return,wild-visit}.
+  const VARIANTS = {
+    '01': [{ folder: 'cast/variants', suffix: 'greeting', file: '01-priya-greeting.png' }],
+    '02': [{ folder: 'cast/variants', suffix: 'greeting', file: '02-jan-greeting.png' }],
+    '03': [{ folder: 'cast/variants', suffix: 'greeting', file: '03-nova-greeting.png' }],
+    '04': [{ folder: 'cast/variants', suffix: 'greeting', file: '04-babcia-greeting.png' }, { folder: 'cast/variants', suffix: 'with-cat', file: '04-babcia-with-cat.png' }],
+    '05': [{ folder: 'cast/variants', suffix: 'greeting', file: '05-finn-greeting.png' }, { folder: 'cast/variants', suffix: 'with-dog', file: '05-finn-with-dog.png' }],
+    '06': [{ folder: 'cast/variants', suffix: 'greeting', file: '06-hiro-greeting.png' }],
+    '07': [{ folder: 'cast/variants', suffix: 'greeting', file: '07-patel-greens-greeting.png' }],
+    '08': [{ folder: 'cast/variants', suffix: 'greeting', file: '08-walkers-greeting.png' }],
+    '09': [{ folder: 'cast/variants', suffix: 'greeting', file: '09-okonkwo-harts-greeting.png' }],
+    '10': [{ folder: 'cast/variants', suffix: 'greeting', file: '10-dani-rex-greeting.png' }, { folder: 'cast/variants', suffix: 'with-dog', file: '10-dani-rex-with-dog.png' }],
+    '11': [{ folder: 'cast/variants', suffix: 'greeting', file: '11-vargas-chen-greeting.png' }],
+    '12': [{ folder: 'cast/variants', suffix: 'greeting', file: '12-odenkirks-greeting.png' }],
+    '13': [{ folder: 'cast/variants', suffix: 'greeting', file: '13-kumar-ishii-greeting.png' }, { folder: 'cast/variants', suffix: 'with-cat', file: '13-kumar-ishii-with-cat.png' }],
+    '14': [{ folder: 'cast/variants', suffix: 'greeting', file: '14-theo-grandkids-greeting.png' }, { folder: 'cast/variants', suffix: 'with-dog', file: '14-theo-with-dog.png' }],
+    '15': [{ folder: 'cast/variants', suffix: 'greeting', file: '15-khans-greeting.png' }, { folder: 'cast/variants', suffix: 'donation', file: '15-khans-donation.png' }],
+    '16': [{ folder: 'cast/variants', suffix: 'greeting', file: '16-tata-greeting.png' }, { folder: 'cast/variants', suffix: 'return', file: '16-tata-return.png' }],
+    '17': [{ folder: 'cast/variants', suffix: 'greeting', file: '17-benji-greeting.png' }, { folder: 'cast/variants', suffix: 'wild-visit', file: '17-benji-wild-visit.png' }],
+    '18': [{ folder: 'cast/variants', suffix: 'greeting', file: '18-tali-greeting.png' }],
+    '19': [{ folder: 'cast/variants', suffix: 'greeting', file: '19-linny-greeting.png' }],
+    '20': [{ folder: 'cast/variants', suffix: 'greeting', file: '20-lei-greeting.png' }, { folder: 'cast/variants', suffix: 'with-parrot', file: '20-lei-with-parrot.png' }],
+    '21': [{ folder: 'cast/variants', suffix: 'greeting', file: '21-mara-greeting.png' }, { folder: 'cast/variants', suffix: 'with-parrot', file: '21-mara-with-parrot.png' }],
+    '22': [{ folder: 'cast/variants', suffix: 'greeting', file: '22-yilmaz-greeting.png' }],
+    '23': [{ folder: 'cast/variants', suffix: 'greeting', file: '23-wiri-harper-greeting.png' }],
+    '24': [{ folder: 'cast/variants', suffix: 'greeting', file: '24-perera-fernando-greeting.png' }],
+    '25': [{ folder: 'cast/variants', suffix: 'greeting', file: '25-bramble-house-greeting.png' }],
+    '26': [{ folder: 'cast/variants', suffix: 'greeting', file: '26-aisha-greeting.png' }],
+    '27': [{ folder: 'cast/variants', suffix: 'greeting', file: '27-tomas-greeting.png' }],
+    '28': [{ folder: 'cast/variants', suffix: 'greeting', file: '28-iris-greeting.png' }],
+    '29': [{ folder: 'cast/variants', suffix: 'greeting', file: '29-wenna-greeting.png' }, { folder: 'cast/variants', suffix: 'with-dog', file: '29-wenna-with-dog.png' }],
+    '30': [{ folder: 'cast/variants', suffix: 'greeting', file: '30-two-houses-greeting.png' }, { folder: 'cast/variants', suffix: 'with-cat', file: '30-two-houses-with-cat.png' }],
+    '31': [{ folder: 'cast/variants', suffix: 'greeting', file: '31-estrada-train-greeting.png' }, { folder: 'cast/variants', suffix: 'with-parrot-snake', file: '31-estrada-with-parrot-snake.png' }],
+    '32': [{ folder: 'cast', suffix: 'greeting', file: '32-simeon-karo-greeting.png' }, { folder: 'cast', suffix: 'with-bat-toys', file: '32-simeon-karo-with-bat-toys.png' }],
+  };
+
   const grid = document.getElementById('grid');
   for (const c of CAST) {
     const card = document.createElement('div'); card.className = 'card';
@@ -147,6 +230,34 @@
     card.appendChild(name);
     const blurb = document.createElement('div'); blurb.className = 'blurb'; blurb.textContent = c.blurb;
     card.appendChild(blurb);
+
+    // Variant strip — small thumbnails of alt poses for this cast member,
+    // each linking to the full-size file in a new tab.
+    const num = c.id.split('-')[0];
+    const vars = VARIANTS[num] || [];
+    if (vars.length > 0) {
+      const strip = document.createElement('div');
+      strip.className = 'variants-strip';
+      for (const v of vars) {
+        const a = document.createElement('a');
+        a.className = 'variant-thumb';
+        a.href = `/admin/scene-assets/${v.folder}/${v.file}?v=${CAST_VERSION}`;
+        a.target = '_blank';
+        a.title = v.suffix;
+        const vimg = document.createElement('img');
+        vimg.src = `/admin/scene-assets/${v.folder}/${v.file}?v=${CAST_VERSION}`;
+        vimg.alt = `${c.name} — ${v.suffix}`;
+        vimg.loading = 'lazy';
+        a.appendChild(vimg);
+        const lbl = document.createElement('span');
+        lbl.className = 'vlabel';
+        lbl.textContent = v.suffix;
+        a.appendChild(lbl);
+        strip.appendChild(a);
+      }
+      card.appendChild(strip);
+    }
+
     const orig = document.createElement('a');
     orig.href = `/admin/scene-assets/cast/original/${c.id}.png`;
     orig.target = '_blank';
