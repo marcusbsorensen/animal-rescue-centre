@@ -99,8 +99,8 @@
 </div>
 
 <div class="arc-plan-overlay" style="max-width: 720px;">
-  <h2>A.R.C. master site plan v2 — vertical integration</h2>
-  <p>Long NNW-oriented plot between Viking Close + Canute Road. Vertical and underground integration adds character: the parrot aviary sits on the rescue-centre roof, snakes have a wall hatch to a sunny outdoor patch, foxes use a tunnel under the gardens to emerge in the rewilding pen, and hedgehogs nest around the existing on-site trees.</p>
+  <h2>A.R.C. master site plan v3 — viewing-dome path</h2>
+  <p>Long NNW-oriented plot between Viking Close + Canute Road. Hedgehog + raccoon zones now run parallel down the plot, with a central path between them. Low Art-Deco viewing domes punctuate the path at 3 points — walkers peep through to watch foxes running through the tunnel below. The aviary sits on the main-building roof; snakes have a wall hatch to a sunny basking patch.</p>
   <svg viewBox="0 0 360 700" width="360" xmlns="http://www.w3.org/2000/svg" style="background:#dec98a">
     <!-- Plot boundary (slight rotation to suggest NNW orientation) -->
     <g transform="rotate(-8 180 350)">
@@ -157,35 +157,63 @@
     <text x="240" y="291" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef">archway · log seat</text>
     <text x="240" y="302" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef" font-weight="700">(Tier 1)</text>
 
-    <!-- Hedgehog area incorporating EXISTING TREES on the green -->
-    <rect x="80" y="320" width="200" height="70" fill="#b8d090" stroke="#7b5c3a" stroke-width="1.2" stroke-dasharray="3 2" fill-opacity="0.4"/>
-    <!-- Tree symbols (the actual mature trees on site) -->
-    <circle cx="105" cy="350" r="14" fill="#5a7a4f" stroke="#3e5a35" stroke-width="1.5"/>
-    <circle cx="170" cy="345" r="16" fill="#5a7a4f" stroke="#3e5a35" stroke-width="1.5"/>
-    <circle cx="245" cy="355" r="13" fill="#5a7a4f" stroke="#3e5a35" stroke-width="1.5"/>
-    <text x="180" y="376" text-anchor="middle" font-family="Quicksand" font-size="10" fill="#3a3a3a" font-weight="600">🦔 Hedgehog hibernacula (T2)</text>
-    <text x="180" y="386" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">around the existing trees on the green · leaf piles · log corners</text>
+    <!-- Small mammal zone — hedgehog (LEFT) and raccoon (RIGHT) parallel,
+         with a central path between them, fox tunnel underneath, viewing
+         domes punctuating the path. -->
 
-    <!-- Raccoon enclosure (LARGER now that aviary is on roof) -->
-    <rect x="80" y="400" width="200" height="90" fill="#d8b488" stroke="#7b5c3a" stroke-width="1.5" stroke-dasharray="3 2"/>
-    <text x="180" y="430" text-anchor="middle" font-family="Quicksand" font-size="11" fill="#3a3a3a" font-weight="600">🦝 Raccoon enclosure (T3)</text>
-    <text x="180" y="445" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#6b6b6b">larger area now — climbing structures</text>
-    <text x="180" y="458" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#6b6b6b">water bath · branches · dens</text>
-    <text x="180" y="475" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b" font-style="italic">aviary moved to main-building roof → freed this space</text>
+    <!-- Hedgehog half (LEFT) — incorporating the existing trees on the green -->
+    <rect x="80" y="320" width="92" height="170" fill="#b8d090" stroke="#7b5c3a" stroke-width="1.2" stroke-dasharray="3 2" fill-opacity="0.55"/>
+    <!-- Tree symbols (the actual mature trees on site, now on left half) -->
+    <circle cx="100" cy="350" r="13" fill="#5a7a4f" stroke="#3e5a35" stroke-width="1.5"/>
+    <circle cx="135" cy="395" r="15" fill="#5a7a4f" stroke="#3e5a35" stroke-width="1.5"/>
+    <circle cx="105" cy="450" r="12" fill="#5a7a4f" stroke="#3e5a35" stroke-width="1.5"/>
+    <text x="126" y="335" text-anchor="middle" font-family="Quicksand" font-size="10" fill="#3a3a3a" font-weight="700">🦔 Hedgehog (T2)</text>
+    <text x="126" y="475" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">hibernacula around</text>
+    <text x="126" y="486" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">existing trees</text>
 
-    <!-- Fox tunnel (under gardens + raccoon area) -->
-    <path d="M 180 200 L 180 500" stroke="#7b5c3a" stroke-width="2" stroke-dasharray="6 4" opacity="0.5" fill="none"/>
-    <text x="180" y="500" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#7b5c3a" font-style="italic">⤓ underground fox tunnel ⤓</text>
+    <!-- Raccoon half (RIGHT) -->
+    <rect x="195" y="320" width="92" height="170" fill="#d8b488" stroke="#7b5c3a" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <text x="241" y="335" text-anchor="middle" font-family="Quicksand" font-size="10" fill="#3a3a3a" font-weight="700">🦝 Raccoon (T3)</text>
+    <text x="241" y="370" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">climbing</text>
+    <text x="241" y="381" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">structures</text>
+    <text x="241" y="402" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">water bath</text>
+    <text x="241" y="424" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">branches</text>
+    <text x="241" y="446" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">dens</text>
+
+    <!-- Central path between the two zones -->
+    <rect x="172" y="320" width="23" height="170" fill="#cdb888" stroke="#7b5c3a" stroke-width="1"/>
+
+    <!-- Fox tunnel — runs underground UNDER the central path -->
+    <line x1="183" y1="320" x2="183" y2="510" stroke="#7b5c3a" stroke-width="3" stroke-dasharray="8 4" opacity="0.6"/>
+
+    <!-- Viewing domes — Art Deco glass canopies along the path -->
+    <!-- Dome 1 -->
+    <circle cx="183" cy="355" r="9" fill="#aedef0" stroke="#5a7894" stroke-width="2" opacity="0.85"/>
+    <ellipse cx="183" cy="352" rx="6" ry="2" fill="#fff" opacity="0.7"/>
+    <!-- Dome 2 -->
+    <circle cx="183" cy="405" r="9" fill="#aedef0" stroke="#5a7894" stroke-width="2" opacity="0.85"/>
+    <ellipse cx="183" cy="402" rx="6" ry="2" fill="#fff" opacity="0.7"/>
+    <!-- Dome 3 -->
+    <circle cx="183" cy="455" r="9" fill="#aedef0" stroke="#5a7894" stroke-width="2" opacity="0.85"/>
+    <ellipse cx="183" cy="452" rx="6" ry="2" fill="#fff" opacity="0.7"/>
+
+    <!-- Path label below domes -->
+    <text x="305" y="380" font-family="Quicksand" font-size="8" fill="#3a3a3a" font-weight="600">walking path</text>
+    <text x="305" y="392" font-family="Quicksand" font-size="7" fill="#6b6b6b">+ 3 Art Deco</text>
+    <text x="305" y="402" font-family="Quicksand" font-size="7" fill="#6b6b6b">viewing domes</text>
+    <text x="305" y="414" font-family="Quicksand" font-size="7" fill="#6b6b6b">peep down to see</text>
+    <text x="305" y="424" font-family="Quicksand" font-size="7" fill="#6b6b6b">foxes running in</text>
+    <text x="305" y="434" font-family="Quicksand" font-size="7" fill="#6b6b6b">the tunnel below</text>
 
     <!-- Fox rewilding pen -->
-    <rect x="80" y="510" width="200" height="120" fill="#7da06b" stroke="#5a7a4a" stroke-width="1.5" stroke-dasharray="3 2"/>
-    <!-- Tunnel emergence point -->
-    <circle cx="180" cy="525" r="8" fill="#3a3a3a" stroke="#7b5c3a" stroke-width="2"/>
-    <text x="180" y="528" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef" font-weight="700">🦊</text>
-    <text x="180" y="555" text-anchor="middle" font-family="Quicksand" font-size="11" fill="#3a3a3a" font-weight="600">Fox rewilding pen (T6)</text>
-    <text x="180" y="570" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#fef9ef">tunnel emerges here · scrub habitat</text>
-    <text x="180" y="585" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#fef9ef">larger ground-cover · burrows</text>
-    <text x="180" y="600" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef" font-style="italic">(future expansion southwards)</text>
+    <rect x="80" y="510" width="207" height="120" fill="#7da06b" stroke="#5a7a4a" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <!-- Tunnel emergence point at top of pen -->
+    <circle cx="183" cy="520" r="8" fill="#3a3a3a" stroke="#7b5c3a" stroke-width="2"/>
+    <text x="183" y="523" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#fef9ef" font-weight="700">🦊</text>
+    <text x="183" y="555" text-anchor="middle" font-family="Quicksand" font-size="11" fill="#3a3a3a" font-weight="600">Fox rewilding pen (T6)</text>
+    <text x="183" y="570" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#fef9ef">tunnel emerges at top · scrub habitat</text>
+    <text x="183" y="585" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#fef9ef">larger ground-cover · burrows</text>
+    <text x="183" y="600" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef" font-style="italic">(future expansion southwards)</text>
 
     <!-- South gate -->
     <text x="180" y="650" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="10" fill="#3a3a3a" font-weight="700">↓ Dane Road service gate</text>
@@ -196,13 +224,14 @@
     </g>
   </svg>
   <p style="font-size:12px; color:#3a3a3a; line-height:1.5;">
-    <strong>Tier 1 paints:</strong> the entire scene, but only with parking + main building + lawn + quiet garden visible. Empty painted ground sits where T2-T6 land.<br>
-    <strong>Tier 2 (hedgehog):</strong> adds painted leaf piles + log corners around the three trees in the middle-third. No new building footprint.<br>
-    <strong>Tier 3 (raccoon):</strong> paints the climbing-structure enclosure into its planned plot.<br>
-    <strong>Tier 4 (parrot):</strong> aviary mesh-dome appears on the main building roof + a parrot visible flying through the open ceiling hatch.<br>
+    <strong>Tier 1 paints:</strong> the entire scene, but only with parking + main building + lawn + quiet garden + the central path with viewing domes visible. Empty painted ground sits where T2-T6 land.<br>
+    <strong>Tier 2 (hedgehog):</strong> adds painted leaf piles + log corners around the three trees in the LEFT half of the small-mammal zone. No new building footprint.<br>
+    <strong>Tier 3 (raccoon):</strong> paints the climbing-structure enclosure into the RIGHT half of the small-mammal zone.<br>
+    <strong>Tier 4 (parrot):</strong> aviary mesh-dome appears on the main-building roof + a parrot visible flying through the open ceiling hatch.<br>
     <strong>Tier 5 (snake):</strong> wall hatch visible on east face of main building + small basking patch beside.<br>
-    <strong>Tier 6 (fox):</strong> tunnel entrance + fox emerging in the southern pen.<br>
-    Plot rotated -8° to match real-world NNW orientation of the Birchington grid.
+    <strong>Tier 6 (fox):</strong> a fox visible through one of the path's viewing domes (running in the tunnel below) + tunnel-exit emergence + fox in the southern pen.<br>
+    <strong>Viewing-dome design:</strong> low Art Deco aircraft-canopy aesthetic — polished metal frame, glass top, ~1.2m diameter, set flush into the path so kids stop and crouch over them. Runs the full length of the small-mammal zone (3 domes) over the fox tunnel below.<br>
+    Plot rotated -8° in the diagram to suggest real-world NNW orientation of the Birchington grid.
   </p>
 </div>
 
