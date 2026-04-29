@@ -64,9 +64,9 @@ generate from description alone.
 **1. `arc-main-building.png` — 768 × 768 px**
 
 The painted Art Deco rescue centre. **One painted scene** (not multiple
-small stamps), because the main building, parking forecourt, entrance
-gate, and rooftop aviary are visually integrated — paint them as one
-piece for stylistic coherence.
+small stamps), because the main building, entrance canopy, and rooftop
+aviary are visually integrated — paint them as one piece for stylistic
+coherence.
 
 Composition (front-elevation view, as if standing on Canute Road
 looking at the front of the building):
@@ -75,44 +75,67 @@ looking at the front of the building):
   ROUNDED CORNER on one side (signature feature). Horizontal banding
   detail at floor levels. Curved metal-frame windows arranged as
   Art-Deco horizontal strips. Flat roof. A tall thin chimney or
-  vent-pipe somewhere as a decorative vertical accent. A small painted
-  hand-lettered sign on the front: "A.R.C." or
-  "ANIMAL RESCUE CENTRE" — a subtle kid-readable label.
+  vent-pipe somewhere as a decorative vertical accent.
+- **Front facade signage**: a large painted **A.R.C. paw-print emblem**
+  prominently on the front wall (centred between/above the canopy and
+  the upper windows). Soft brown/charcoal paw, painted not vector,
+  generous size — visible from across the road, this is the building's
+  identity mark.
+- **Front entrance canopy**: small streamline-moderne curved canopy
+  over the double doors, with hand-lettered text on the canopy fascia
+  reading **"ANIMAL RESCUE CENTRE"** — full title spelled out, painted
+  storybook hand-lettering (not vector typography). The canopy fascia
+  is a natural sign band — the lettering should sit on it like a
+  painted shop sign.
 - **Rooftop aviary** (Tier-4 feature, painted now even though parrots
   unlock later): a curved mesh-dome cage on top of the flat roof,
   large enough to be a striking silhouette feature. Empty for now (we
   add a parrot stamp later when T4 unlocks). Match the Art Deco curve
   language — the dome should look like the building's continuation,
   not a bolted-on greenhouse.
-- **Front entrance**: a small canopied entrance porch, double doors,
-  with a hand-painted sign or A.R.C. paw-print emblem above.
+- **Flagpole** beside or in front of the building flying a small
+  **A.R.C. paw-print flag** (cream or pale-amber background with the
+  same brown paw-print on it — matching the front facade emblem).
+- **No painted PTV / vehicle in the commission** — the forecourt
+  stays empty of vehicles. The existing
+  `/assets/driving/vehicle-henry.png` sprite gets dropped over the
+  top via SVG positioning later. Paint the parking bays + gravel
+  forecourt only.
 - **Front forecourt** painted in front of the building: gravel/asphalt
-  parking with 3-4 painted parking bay lines and the PTV (a small
-  painted yellow van with A.R.C. logo on the side) parked in one bay.
-  This portion is **slightly tilted top-down** to suggest the ground in
-  front of the building — the building stands behind it.
-- **Ambient touches**: a small painted sign near the entrance, a
-  flag-pole flying a small A.R.C. paw-print flag (or a Union Jack,
-  since this is a British rescue centre — your call), a pot plant or
-  two beside the door.
+  parking with 3-4 painted parking bay lines (no vehicles), painted
+  pavement leading to the canopied entrance. This portion is
+  **slightly tilted top-down** to suggest the ground in front of the
+  building — the building stands behind it.
+- **Ambient touches**: a small painted "Welcome" sandwich-board sign
+  near the entrance, a couple of pot plants or planters beside the
+  door.
 
 The whole thing on transparent background, comfortable margin around
 the painting, painted-watercolour brushwork matching reference #1.
 
-**2. `arc-tree-stamp-1.png` — 256 × 384 px**
-**3. `arc-tree-stamp-2.png` — 256 × 384 px**
-**4. `arc-tree-stamp-3.png` — 256 × 384 px**
+**2. `arc-tree-oak.png` — 256 × 384 px**
+**3. `arc-tree-ash.png` — 256 × 384 px**
+**4. `arc-tree-horse-chestnut.png` — 256 × 384 px**
 
-Three painted mature deciduous trees, each different (slightly
-different shapes / canopy colours so the on-site trees look like a
-real grove rather than three identical clones). British native species:
-oak, lime, ash, sycamore, horse chestnut — pick three. Front-elevation:
-trunk + full canopy visible. Transparent background, no ground.
-Painted style matching reference #1.
+Three painted mature British native deciduous trees, each a different
+species so the on-site grove reads as natural rather than three clones:
+
+- **Oak** (`Quercus robur`) — wide spreading rounded crown,
+  characteristic deeply-lobed leaves, sturdy gnarly trunk
+- **Ash** (`Fraxinus excelsior`) — taller more upright crown, finer
+  pinnate leaves, smoother grey trunk
+- **Horse chestnut** (`Aesculus hippocastanum`) — domed dense crown,
+  large palmate leaves, occasional white "candle" flower spikes
+  (paint a few flowering for early-summer character)
+
+Front-elevation: trunk + full canopy visible. Transparent background,
+no ground. Painted style matching reference #1. Each tree centred in
+its 256×384 canvas with comfortable margin.
 
 These are the three real trees on the green plot (visible from
-satellite — Marcus pointed them out). They become hedgehog
-hibernacula sites when Tier 2 unlocks; for now they're just trees.
+satellite). They become hedgehog hibernacula + squirrel boxes when
+Tier 2 (and the squirrel future tier) unlocks; for now they're just
+trees.
 
 **5. `viewing-dome-stamp.png` — 192 × 192 px**
 
@@ -215,23 +238,16 @@ it doesn't exist. Use the exact filenames listed above.
 - Reserved-list items (T2-T6 + future species) come as smaller
   follow-up commissions when each tier unlocks.
 
-**Open questions for Marcus before sending:**
+**Decisions locked (Marcus, 2026-04-29):**
 
-1. **Flag on the flagpole** — A.R.C. paw-print emblem flag, or Union
-   Jack, or both (the building has more than one)? The Veterans Hall
-   already has a Union Jack so we have stylistic precedent for a
-   British flag.
-2. **PTV sprite on the forecourt** — paint a small PTV in the
-   commission, or leave the forecourt empty and we drop the existing
-   PTV vehicle sprite on top via SVG positioning later? (Leaning towards
-   the latter — the PTV sprite already exists at
-   `/assets/driving/vehicle-henry.png` and we don't want a painted
-   duplicate.)
-3. **Building flag on the building itself** — should the front of the
-   main building carry an "A.R.C." sign, a paw-print emblem, or both?
-   The reception canopy is a natural place for the sign.
-4. **Tree species** — pick any three of: oak, lime, ash, sycamore,
-   horse chestnut. Native British, all suit Kent. Lily preference?
-5. **Texture-tile dimensions** — 512×512 is the proposal. Could be
-   smaller (256×256) if Manus over-textures at 512. Easy to scale
-   down later.
+1. **Flagpole flag**: A.R.C. paw-print emblem (cream/amber background,
+   brown paw matching the facade emblem). No Union Jack — keeps the
+   identity unified.
+2. **PTV**: not painted into the scene. Forecourt left empty of
+   vehicles; existing `/assets/driving/vehicle-henry.png` sprite
+   layers on top via SVG positioning.
+3. **Building signage**: paw-print emblem prominently on front facade
+   AND "ANIMAL RESCUE CENTRE" hand-lettered in full on the entrance
+   canopy fascia.
+4. **Tree species**: oak, ash, horse chestnut.
+5. **Texture-tile size**: 512×512.
