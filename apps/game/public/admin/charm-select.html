@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Pick a charm for your mirror</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
+    --paper-tan: #f1e3c5;
+    --paper-edge: #d3bf94;
+    --ink: #3a3a3a;
+    --ink-soft: #6b6b6b;
+    --pink-sticker: #f7c8c8;
+    --mint-sticker: #c8e6cf;
+    --blue-sticker: #cbe1f7;
+    --headline: 'Fredoka', system-ui, sans-serif;
+    --body: 'Quicksand', system-ui, sans-serif;
+    --hand: 'Kalam', 'Gochi Hand', cursive;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--body); color: var(--ink);
+    background: var(--cream-wash);
+    background-image:
+      radial-gradient(ellipse at top, rgba(46,139,87,0.07), transparent 60%),
+      radial-gradient(ellipse at bottom, rgba(227,176,75,0.08), transparent 60%);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 18px;
+    border-bottom: 2px dashed rgba(123,92,58,0.25);
+    background: rgba(255,255,255,0.55);
+    flex-shrink: 0;
+  }
+  .back-sticker {
+    background: var(--honey-amber);
+    border: 2px solid var(--honey-shadow);
+    border-radius: 22px;
+    padding: 6px 14px 6px 8px;
+    cursor: pointer; user-select: none;
+    font-family: var(--hand); font-weight: 700; font-size: 16px;
+    color: var(--ink);
+    box-shadow: 2px 3px 0 rgba(0,0,0,0.08);
+    transform: rotate(-3deg);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .back-sticker:hover { transform: rotate(-3deg) translateY(-1px); }
+  .back-sticker svg { width: 18px; height: 18px; }
+  h1 {
+    font-family: var(--headline); font-weight: 700; font-size: 20px;
+    color: var(--trellis-brown); letter-spacing: 0.5px;
+  }
+  .vehicle-tabs { margin-left: auto; display: flex; gap: 6px; }
+  .vehicle-tab {
+    background: var(--paper-tan);
+    border: 2px solid var(--paper-edge);
+    border-radius: 14px;
+    padding: 6px 14px;
+    cursor: pointer; user-select: none;
+    font-family: var(--headline); font-weight: 500; font-size: 14px;
+    color: var(--ink-soft);
+  }
+  .vehicle-tab.active {
+    background: var(--honey-amber);
+    border-color: var(--honey-shadow);
+    color: var(--ink);
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1);
+  }
+  .stage {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) 1fr;
+    overflow: hidden;
+  }
+  @media (max-width: 720px) {
+    .stage { grid-template-columns: 1fr; grid-template-rows: 280px 1fr; }
+  }
+  .mirror-panel {
+    background: linear-gradient(180deg, #f9efd8, #f1e3c5);
+    border-right: 2px dashed rgba(123,92,58,0.25);
+    padding: 24px;
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+    overflow: hidden;
+  }
+  .mirror-stage {
+    position: relative;
+    width: 100%; max-width: 280px; aspect-ratio: 1 / 1;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 8px;
+  }
+  .mirror-img { width: 100%; height: auto; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.18)); }
+  .charm-dangle {
+    position: absolute; width: 80px; height: 80px;
+    bottom: -8px; left: 50%;
+    transform: translateX(-50%);
+    transform-origin: top center;
+    animation: dangle 3.6s ease-in-out infinite;
+    pointer-events: none; object-fit: contain;
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.25));
+  }
+  @keyframes dangle {
+    0%,100% { transform: translateX(-50%) rotate(-4deg); }
+    50%     { transform: translateX(-50%) rotate(4deg); }
+  }
+  .equipped-label {
+    font-family: var(--hand); font-size: 18px; color: var(--trellis-brown);
+    text-align: center;
+  }
+  .equipped-label .name { font-weight: 700; color: var(--ink); display: block; font-size: 22px; margin-top: 2px; }
+  .unequip-btn {
+    background: transparent;
+    border: 2px dashed var(--ink-soft);
+    color: var(--ink-soft);
+    border-radius: 14px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: var(--body); font-weight: 600; font-size: 13px;
+  }
+  .unequip-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .grid-panel { padding: 18px 22px 22px; overflow-y: auto; background: var(--cream-wash); }
+  .grid-header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px; }
+  .grid-header h2 {
+    font-family: var(--headline); font-weight: 600; font-size: 17px;
+    color: var(--trellis-brown);
+  }
+  .progress-pill {
+    background: var(--mint-sticker);
+    border: 1.5px solid #94c8a3;
+    border-radius: 16px;
+    padding: 3px 12px;
+    font-family: var(--hand); font-weight: 700; font-size: 14px;
+    color: var(--ink);
+    transform: rotate(-2deg);
+  }
+  .charm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px;
+  }
+  .charm-card {
+    position: relative;
+    background: #fff;
+    border: 1.5px solid var(--paper-edge);
+    border-radius: 14px;
+    padding: 10px 8px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+    box-shadow: 1px 2px 0 rgba(0,0,0,0.05);
+    user-select: none;
+  }
+  .charm-card:hover { transform: translateY(-2px); box-shadow: 1px 4px 0 rgba(0,0,0,0.08); }
+  .charm-card.equipped {
+    border-color: var(--honey-amber); border-width: 3px;
+    background: #fff7e0;
+    box-shadow: 0 0 0 3px rgba(227,176,75,0.25);
+  }
+  .charm-card.locked { cursor: default; background: #f4ecdc; }
+  .charm-card.locked:hover { transform: none; box-shadow: 1px 2px 0 rgba(0,0,0,0.05); }
+  .charm-card.locked .charm-img { filter: grayscale(0.85) brightness(0.95) opacity(0.55); }
+  .charm-img {
+    width: 90px; height: 90px;
+    object-fit: contain;
+    margin: 0 auto 6px;
+    display: block;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.12));
+  }
+  .charm-name {
+    font-family: var(--headline); font-weight: 600; font-size: 13px;
+    color: var(--ink); line-height: 1.15;
+  }
+  .charm-card.locked .charm-name { color: var(--ink-soft); }
+  .lock-sticker {
+    position: absolute; top: -8px; right: -6px;
+    background: var(--pink-sticker);
+    border: 1.5px solid #d99e9e;
+    border-radius: 14px;
+    padding: 2px 8px;
+    font-family: var(--hand); font-weight: 700; font-size: 11px;
+    color: var(--ink);
+    transform: rotate(8deg);
+    box-shadow: 1px 1px 0 rgba(0,0,0,0.08);
+  }
+  .default-sticker {
+    position: absolute; top: -8px; left: -6px;
+    background: var(--blue-sticker);
+    border: 1.5px solid #8eb5dc;
+    border-radius: 14px;
+    padding: 2px 8px;
+    font-family: var(--hand); font-weight: 700; font-size: 11px;
+    color: var(--ink);
+    transform: rotate(-8deg);
+    box-shadow: 1px 1px 0 rgba(0,0,0,0.08);
+  }
+  .equipped-sticker {
+    position: absolute; bottom: -8px; right: -6px;
+    background: var(--honey-amber);
+    border: 1.5px solid var(--honey-shadow);
+    border-radius: 14px;
+    padding: 2px 8px;
+    font-family: var(--hand); font-weight: 700; font-size: 11px;
+    color: var(--ink);
+    transform: rotate(-4deg);
+    box-shadow: 1px 1px 0 rgba(0,0,0,0.08);
+  }
+  .unlock-hint {
+    margin-top: 6px;
+    font-family: var(--body); font-size: 11px; color: var(--ink-soft);
+    line-height: 1.3;
+    min-height: 28px;
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px;
+    transform: translateX(-50%) translateY(40px);
+    background: var(--ink); color: #fff;
+    padding: 10px 18px; border-radius: 22px;
+    font-family: var(--body); font-weight: 600; font-size: 14px;
+    opacity: 0; transition: opacity 200ms, transform 200ms;
+    pointer-events: none;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="back-sticker" id="back-btn" title="Back to cockpit">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5"/>
+      <path d="M12 19l-7-7 7-7"/>
+    </svg>
+    Back
+  </button>
+  <h1>Pick a charm for your mirror</h1>
+  <div class="vehicle-tabs" id="vehicle-tabs">
+    <button class="vehicle-tab" data-v="trikey">Trikey</button>
+    <button class="vehicle-tab active" data-v="henry">Henry</button>
+    <button class="vehicle-tab" data-v="bea">Bea</button>
+    <button class="vehicle-tab" data-v="big-tilly">Big Tilly</button>
+    <button class="vehicle-tab" data-v="spark">Spark</button>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="mirror-panel">
+    <div class="mirror-stage">
+      <img class="mirror-img" id="mirror-img" src="/assets/driving/mirrors/mirror-henry.png" alt="rear-view mirror">
+      <img class="charm-dangle" id="charm-dangle" src="" alt="" hidden>
+    </div>
+    <div class="equipped-label" id="equipped-label">
+      Hanging on the mirror:
+      <span class="name" id="equipped-name">- nothing -</span>
+    </div>
+    <button class="unequip-btn" id="unequip-btn" hidden>Take it off</button>
+  </div>
+
+  <div class="grid-panel">
+    <div class="grid-header">
+      <h2>Your charms</h2>
+      <div class="progress-pill" id="progress-pill">0 of 17 unlocked</div>
+    </div>
+    <div class="charm-grid" id="charm-grid"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  // 17-charm catalogue — mirrors packages/game-logic/src/charms.ts.
+  // Kept as a flat array here so the mockup runs without a build step.
+  const CHARMS = [
+    { id: 'bone',                    label: 'Bone',                  file: 'charm-bone.png',                  unlock: 'always', defaultOn: 'henry', hint: 'Always available.' },
+    { id: 'lucky-teddy',             label: 'Lucky Teddy',           file: 'charm-lucky-teddy.png',           unlock: 'always',                       hint: 'Always available.' },
+    { id: 'bicycle-bell',            label: 'Bicycle Bell',          file: 'charm-bicycle-bell.png',          unlock: 'always', defaultOn: 'trikey', hint: 'Always available.' },
+    { id: 'hedgehog-plushie',        label: 'Hedgehog Plushie',      file: 'charm-hedgehog-plushie.png',      unlock: 'event', hint: 'Brake cleanly for your first hedgehog.' },
+    { id: 'arc-pawprint-medal',      label: "A.R.C. Pawprint Medal", file: 'charm-arc-pawprint-medal.png',    unlock: 'event', hint: 'Finish your first vet run.' },
+    { id: 'silver-horseshoe',        label: 'Silver Horseshoe',      file: 'charm-silver-horseshoe.png',      unlock: 'count', hint: '10 drives without a comfort drop.' },
+    { id: 'viking-longship',         label: 'Viking Longship',       file: 'charm-viking-longship.png',       unlock: 'event', hint: 'First adoption to a Viking-Road home.' },
+    { id: 'goose-end-feather',       label: 'Goose-End Feather',     file: 'charm-goose-end-feather.png',     unlock: 'event', hint: 'First collection from Goose End.' },
+    { id: 'fox-tail',                label: 'Fox Tail',              file: 'charm-fox-tail.png',              unlock: 'event', hint: 'First rewilding drive.' },
+    { id: 'treble-clef',             label: 'Treble Clef',           file: 'charm-treble-clef.png',           unlock: 'event', hint: 'First Rock On Music Academy supply run.' },
+    { id: 'miniature-alpaca',        label: 'Mini Alpaca',           file: 'charm-miniature-alpaca.png',      unlock: 'event', hint: 'First Wyx Park pet show visit.' },
+    { id: 'painted-pickle-cat',      label: 'Pickle the Cat',        file: 'charm-painted-pickle-cat.png',    unlock: 'event', hint: 'First cat adoption.' },
+    { id: 'chequered-flag-pin',      label: 'Chequered Flag Pin',    file: 'charm-chequered-flag-pin.png',    unlock: 'event', hint: 'First clean overtake.' },
+    { id: 'carrot',                  label: 'Carrot',                file: 'charm-carrot.png',                unlock: 'event', hint: 'First bunny adopted.' },
+    { id: 'reflective-safety-star',  label: 'Safety Star',           file: 'charm-reflective-safety-star.png',unlock: 'count', hint: '5 clean hedgehog brakes.' },
+    { id: 'golden-driving-medal',    label: 'Golden Driving Medal',  file: 'charm-golden-driving-medal.png',  unlock: 'count', hint: '100 drives total.' },
+    { id: 'smiley-poop',             label: 'Smiley Poop',           file: 'charm-poop-smiley.png',           unlock: 'event', hint: 'Cleaned up after a crate accident.' },
+  ];
+
+  const state = {
+    vehicle: 'henry',
+    unlocked: new Set([
+      'bone', 'lucky-teddy', 'bicycle-bell',
+      'arc-pawprint-medal', 'hedgehog-plushie', 'painted-pickle-cat', 'fox-tail',
+    ]),
+    equipped: 'bone',
+  };
+
+  const grid = document.getElementById('charm-grid');
+  const progressPill = document.getElementById('progress-pill');
+  const mirrorImg = document.getElementById('mirror-img');
+  const charmDangle = document.getElementById('charm-dangle');
+  const equippedName = document.getElementById('equipped-name');
+  const unequipBtn = document.getElementById('unequip-btn');
+  const toastEl = document.getElementById('toast');
+  const tabsEl = document.getElementById('vehicle-tabs');
+
+  function findCharm(id) { return CHARMS.find(c => c.id === id) || null; }
+  function defaultCharmFor(vehicle) {
+    const c = CHARMS.find(c => c.defaultOn === vehicle);
+    return c ? c.id : null;
+  }
+
+  function clearChildren(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function render() {
+    clearChildren(grid);
+    let unlockedCount = 0;
+    for (const charm of CHARMS) {
+      const isUnlocked = state.unlocked.has(charm.id);
+      if (isUnlocked) unlockedCount++;
+      const isEquipped = state.equipped === charm.id;
+      const isDefaultOnVehicle = charm.defaultOn === state.vehicle;
+
+      const card = document.createElement('div');
+      card.className = 'charm-card' + (isUnlocked ? '' : ' locked') + (isEquipped ? ' equipped' : '');
+      card.dataset.id = charm.id;
+
+      if (isDefaultOnVehicle) {
+        const def = document.createElement('div');
+        def.className = 'default-sticker';
+        def.textContent = 'Default';
+        card.appendChild(def);
+      }
+      if (!isUnlocked) {
+        const lock = document.createElement('div');
+        lock.className = 'lock-sticker';
+        lock.textContent = '🔒 Locked';
+        card.appendChild(lock);
+      } else if (isEquipped) {
+        const eq = document.createElement('div');
+        eq.className = 'equipped-sticker';
+        eq.textContent = 'On mirror';
+        card.appendChild(eq);
+      }
+
+      const img = document.createElement('img');
+      img.className = 'charm-img';
+      img.src = `/assets/driving/charms/${charm.file}`;
+      img.alt = charm.label;
+      card.appendChild(img);
+
+      const name = document.createElement('div');
+      name.className = 'charm-name';
+      name.textContent = charm.label;
+      card.appendChild(name);
+
+      const hint = document.createElement('div');
+      hint.className = 'unlock-hint';
+      hint.textContent = isUnlocked ? '' : charm.hint;
+      card.appendChild(hint);
+
+      card.addEventListener('click', () => onCardClick(charm.id));
+      grid.appendChild(card);
+    }
+    progressPill.textContent = `${unlockedCount} of ${CHARMS.length} unlocked`;
+    renderMirror();
+  }
+
+  function renderMirror() {
+    mirrorImg.src = `/assets/driving/mirrors/mirror-${state.vehicle}.png`;
+    if (state.equipped) {
+      const c = findCharm(state.equipped);
+      charmDangle.src = `/assets/driving/charms/${c.file}`;
+      charmDangle.alt = c.label;
+      charmDangle.hidden = false;
+      equippedName.textContent = c.label;
+      unequipBtn.hidden = false;
+    } else {
+      charmDangle.hidden = true;
+      equippedName.textContent = '- nothing -';
+      unequipBtn.hidden = true;
+    }
+  }
+
+  function onCardClick(id) {
+    const charm = findCharm(id);
+    if (!charm) return;
+    if (!state.unlocked.has(id)) {
+      showToast(`Locked - ${charm.hint}`);
+      return;
+    }
+    state.equipped = state.equipped === id ? null : id;
+    render();
+    postParent('charm-equipped', { charmId: state.equipped, vehicle: state.vehicle });
+  }
+
+  unequipBtn.addEventListener('click', () => {
+    state.equipped = null;
+    render();
+    postParent('charm-equipped', { charmId: null, vehicle: state.vehicle });
+  });
+
+  tabsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.vehicle-tab');
+    if (!btn) return;
+    state.vehicle = btn.dataset.v;
+    const def = defaultCharmFor(state.vehicle);
+    if (state.equipped === null && def && state.unlocked.has(def)) {
+      state.equipped = def;
+    }
+    for (const t of tabsEl.querySelectorAll('.vehicle-tab')) {
+      t.classList.toggle('active', t === btn);
+    }
+    render();
+  });
+
+  document.getElementById('back-btn').addEventListener('click', () => {
+    postParent('back-to-cockpit');
+  });
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toastEl.classList.remove('show'), 2400);
+  }
+
+  function postParent(type, payload) {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ source: 'arc-charm-select', type, payload }, '*');
+    }
+  }
+
+  render();
+</script>
+
+</body>
+</html>
