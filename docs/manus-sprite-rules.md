@@ -99,6 +99,23 @@ Every OpenAI brief for continuity work must include: "if you cannot load the ref
 
 ---
 
+## Rule 7: Map-art uses TWO projections, never one (Marcus, 2026-04-29)
+
+When commissioning anything that lands on the in-game world map, **the painted-storybook convention is hybrid**:
+
+- **Ground features = top-down / bird's-eye.** Roads, gardens, lawns, paths, gravel forecourts, beaches, fields, sea, scrub. Painted as if the camera is straight up.
+- **Buildings, trees, props, characters = front-elevation.** Each one is its own little stage facing the reader. Windows + doors face the kid like a face. Trees stand upright with their full canopy + trunk visible. Viewing domes, flagpoles, benches, signs all rendered as elevations.
+
+Reference: Adobe Stock #1248673531 (fantasy kingdom map) and #286944577 (modular hand-drawn icons) — both use this exact hybrid. Same convention you'll see in every painted children's storybook map (Beatrix Potter, Julia Donaldson, the Hundred-Acre-Wood).
+
+**Do not ask Manus for "consistent perspective" or "isometric" on map art.** That produces billboard-vs-3/4-vs-top-down chaos because the model invents perspective per element. Instead, lock the brief like this:
+
+> Render the GROUND in soft top-down view (roads + gardens + paths painted as if seen from directly above). Render every BUILDING and TREE and PROP as a front-elevation stamp on a transparent background — front facade visible, like a sticker-book figure. Do not attempt to make the buildings sit perspectivally on the ground; treat each as its own little painting.
+
+**Map art = ground tiles + elevation stamps composited in HTML/CSS at landmark coordinates.** Don't ask Manus to paint the whole map as a single integrated scene — that's where v1's perspective-mixing came from. Brief each piece in isolation.
+
+---
+
 ## Quick template
 
 Copy-paste and fill in:

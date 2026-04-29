@@ -130,11 +130,16 @@
     <text x="180" y="188" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">staff · arrival</text>
 
     <!-- Snake outdoor wall hatch (east of building, sunny side) -->
-    <rect x="270" y="130" width="22" height="40" fill="#cd9b88" stroke="#7b5c3a" stroke-width="1.5" stroke-dasharray="2 2"/>
-    <text x="305" y="148" font-family="Quicksand" font-size="8" fill="#3a3a3a" font-weight="600">🐍 Snake</text>
-    <text x="305" y="159" font-family="Quicksand" font-size="7" fill="#6b6b6b">wall hatch (T5)</text>
-    <text x="305" y="168" font-family="Quicksand" font-size="7" fill="#6b6b6b">→ basking patch</text>
+    <rect x="270" y="130" width="22" height="32" fill="#cd9b88" stroke="#7b5c3a" stroke-width="1.5" stroke-dasharray="2 2"/>
+    <text x="306" y="142" font-family="Quicksand" font-size="8" fill="#3a3a3a" font-weight="600">🐍 Snake hatch</text>
+    <text x="306" y="152" font-family="Quicksand" font-size="7" fill="#6b6b6b">+ basking (T5)</text>
     <line x1="265" y1="135" x2="270" y2="140" stroke="#7b5c3a" stroke-width="1" stroke-dasharray="2 2"/>
+
+    <!-- Lizard heated annexe (separate from snakes — snakes eat lizards) -->
+    <rect x="270" y="170" width="22" height="22" fill="#e8d49a" stroke="#7b5c3a" stroke-width="1.5" stroke-dasharray="2 2"/>
+    <text x="306" y="180" font-family="Quicksand" font-size="8" fill="#3a3a3a" font-weight="600">🦎 Lizard</text>
+    <text x="306" y="190" font-family="Quicksand" font-size="7" fill="#6b6b6b">heated annexe (future)</text>
+    <text x="306" y="199" font-family="Quicksand" font-size="7" fill="#6b6b6b">separate room — predator gap</text>
 
     <!-- Path spine -->
     <rect x="175" y="200" width="10" height="430" fill="#cdb888"/>
@@ -161,15 +166,19 @@
          with a central path between them, fox tunnel underneath, viewing
          domes punctuating the path. -->
 
-    <!-- Hedgehog half (LEFT) — incorporating the existing trees on the green -->
+    <!-- Hedgehog + squirrel SHARED zone (LEFT) — around the existing trees -->
     <rect x="80" y="320" width="92" height="170" fill="#b8d090" stroke="#7b5c3a" stroke-width="1.2" stroke-dasharray="3 2" fill-opacity="0.55"/>
     <!-- Tree symbols (the actual mature trees on site, now on left half) -->
     <circle cx="100" cy="350" r="13" fill="#5a7a4f" stroke="#3e5a35" stroke-width="1.5"/>
     <circle cx="135" cy="395" r="15" fill="#5a7a4f" stroke="#3e5a35" stroke-width="1.5"/>
     <circle cx="105" cy="450" r="12" fill="#5a7a4f" stroke="#3e5a35" stroke-width="1.5"/>
-    <text x="126" y="335" text-anchor="middle" font-family="Quicksand" font-size="10" fill="#3a3a3a" font-weight="700">🦔 Hedgehog (T2)</text>
-    <text x="126" y="475" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">hibernacula around</text>
-    <text x="126" y="486" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">existing trees</text>
+    <!-- Squirrel boxes attached to trees (small painted boxes) -->
+    <rect x="96" y="362" width="6" height="6" fill="#a8845a" stroke="#7b5c3a" stroke-width="0.8"/>
+    <rect x="142" y="383" width="6" height="6" fill="#a8845a" stroke="#7b5c3a" stroke-width="0.8"/>
+    <text x="126" y="335" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#3a3a3a" font-weight="700">🦔 Hedgehog (T2)</text>
+    <text x="126" y="346" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#3a3a3a" font-weight="700">+ 🐿️ Squirrel (future)</text>
+    <text x="126" y="475" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">shared tree habitat:</text>
+    <text x="126" y="486" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#6b6b6b">hedgehog at base, squirrel up</text>
 
     <!-- Raccoon half (RIGHT) -->
     <rect x="195" y="320" width="92" height="170" fill="#d8b488" stroke="#7b5c3a" stroke-width="1.5" stroke-dasharray="3 2"/>
@@ -205,15 +214,24 @@
     <text x="305" y="424" font-family="Quicksand" font-size="7" fill="#6b6b6b">foxes running in</text>
     <text x="305" y="434" font-family="Quicksand" font-size="7" fill="#6b6b6b">the tunnel below</text>
 
-    <!-- Fox rewilding pen -->
-    <rect x="80" y="510" width="207" height="120" fill="#7da06b" stroke="#5a7a4a" stroke-width="1.5" stroke-dasharray="3 2"/>
-    <!-- Tunnel emergence point at top of pen -->
-    <circle cx="183" cy="520" r="8" fill="#3a3a3a" stroke="#7b5c3a" stroke-width="2"/>
-    <text x="183" y="523" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#fef9ef" font-weight="700">🦊</text>
-    <text x="183" y="555" text-anchor="middle" font-family="Quicksand" font-size="11" fill="#3a3a3a" font-weight="600">Fox rewilding pen (T6)</text>
-    <text x="183" y="570" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#fef9ef">tunnel emerges at top · scrub habitat</text>
-    <text x="183" y="585" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#fef9ef">larger ground-cover · burrows</text>
-    <text x="183" y="600" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef" font-style="italic">(future expansion southwards)</text>
+    <!-- Fox rewilding pen (left) + Skunk enclosure (right) — adjacent scrub habitats -->
+    <rect x="80" y="510" width="100" height="120" fill="#7da06b" stroke="#5a7a4a" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <!-- Tunnel emergence point at top of fox pen -->
+    <circle cx="130" cy="520" r="8" fill="#3a3a3a" stroke="#7b5c3a" stroke-width="2"/>
+    <text x="130" y="523" text-anchor="middle" font-family="Quicksand" font-size="9" fill="#fef9ef" font-weight="700">🦊</text>
+    <text x="130" y="552" text-anchor="middle" font-family="Quicksand" font-size="10" fill="#3a3a3a" font-weight="600">Fox pen (T6)</text>
+    <text x="130" y="567" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef">tunnel exit</text>
+    <text x="130" y="578" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef">scrub habitat</text>
+    <text x="130" y="589" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef">burrows</text>
+
+    <!-- Skunk enclosure — south end, adjacent to foxes, far from main building -->
+    <rect x="187" y="510" width="100" height="120" fill="#9b7e6a" stroke="#5a4a35" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <text x="237" y="552" text-anchor="middle" font-family="Quicksand" font-size="10" fill="#fef9ef" font-weight="600">🦨 Skunk (future)</text>
+    <text x="237" y="567" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef">scrub habitat</text>
+    <text x="237" y="578" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef">far from main bldg</text>
+    <text x="237" y="589" text-anchor="middle" font-family="Quicksand" font-size="8" fill="#fef9ef">(adjacent to fox)</text>
+    <!-- Solid divider between the two -->
+    <line x1="183" y1="510" x2="183" y2="630" stroke="#3a3a3a" stroke-width="2"/>
 
     <!-- South gate -->
     <text x="180" y="650" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="10" fill="#3a3a3a" font-weight="700">↓ Dane Road service gate</text>
@@ -224,13 +242,16 @@
     </g>
   </svg>
   <p style="font-size:12px; color:#3a3a3a; line-height:1.5;">
-    <strong>Tier 1 paints:</strong> the entire scene, but only with parking + main building + lawn + quiet garden + the central path with viewing domes visible. Empty painted ground sits where T2-T6 land.<br>
-    <strong>Tier 2 (hedgehog):</strong> adds painted leaf piles + log corners around the three trees in the LEFT half of the small-mammal zone. No new building footprint.<br>
-    <strong>Tier 3 (raccoon):</strong> paints the climbing-structure enclosure into the RIGHT half of the small-mammal zone.<br>
-    <strong>Tier 4 (parrot):</strong> aviary mesh-dome appears on the main-building roof + a parrot visible flying through the open ceiling hatch.<br>
-    <strong>Tier 5 (snake):</strong> wall hatch visible on east face of main building + small basking patch beside.<br>
-    <strong>Tier 6 (fox):</strong> a fox visible through one of the path's viewing domes (running in the tunnel below) + tunnel-exit emergence + fox in the southern pen.<br>
-    <strong>Viewing-dome design:</strong> low Art Deco aircraft-canopy aesthetic — polished metal frame, glass top, ~1.2m diameter, set flush into the path so kids stop and crouch over them. Runs the full length of the small-mammal zone (3 domes) over the fox tunnel below.<br>
+    <strong>Tier 1 paints:</strong> parking + Art Deco main building (with rooftop aviary cage already visible) + lawn garden + quiet garden + central path with 3 viewing domes. Empty painted ground sits where future tiers will land.<br>
+    <strong>Tier 2 (hedgehog) + future squirrel:</strong> shared zone around the three real on-site trees. Hedgehog hibernacula at the bases (leaf piles, log corners), squirrel boxes attached to the trunks. Same habitat — no overlap.<br>
+    <strong>Tier 3 (raccoon):</strong> climbing-structure enclosure in the right half of small-mammal zone.<br>
+    <strong>Tier 4 (parrot):</strong> parrot visible flying through the open ceiling hatch into the rooftop aviary.<br>
+    <strong>Tier 5 (snake):</strong> wall hatch + small basking patch on east face of main building.<br>
+    <strong>Future (lizard):</strong> small heated annexe just south of the snake hatch — separate room/glass conservatory because snakes predate lizards in the wild.<br>
+    <strong>Tier 6 (fox):</strong> fox visible through one of the path's viewing domes + tunnel-exit emergence + fox in the southern pen.<br>
+    <strong>Future (skunk):</strong> south-end enclosure adjacent to fox pen — similar nocturnal-omnivore scrub habitat, solid divider between, FURTHEST from main building (smell + visitor flow).<br>
+    <strong>Viewing-dome design:</strong> low Art Deco aircraft-canopy aesthetic — polished metal frame, glass top, ~1.2m diameter, set flush into the path. 3 domes run the full length of the small-mammal zone over the fox tunnel below.<br>
+    <strong>Projection convention (Rule 7, manus-sprite-rules.md):</strong> ground = top-down painted texture, every building/tree/prop = front-elevation stamp. No isometric. Each piece briefed in isolation; Manus paints them in one sitting for unified brushwork.<br>
     Plot rotated -8° in the diagram to suggest real-world NNW orientation of the Birchington grid.
   </p>
 </div>
