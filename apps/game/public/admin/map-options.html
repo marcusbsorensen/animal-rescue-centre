@@ -675,15 +675,19 @@
       <h2>GPS · Dashboard view</h2>
       <div class="tag">As Lily would see it while driving Henry to Wyx Park</div>
     </div>
-    <div class="map-stage" style="aspect-ratio: 4 / 3; background: #1f2722;">
+    <div class="map-stage" style="aspect-ratio: 4 / 3; background: #050a14;">
       <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+        <!-- Sat-nav classic palette: deep navy land, deeper navy sea,
+             white/grey roads, bright cyan active route, amber vehicle
+             pin, red hazard, off-white labels. -->
         <!-- Dashboard bezel -->
-        <rect width="800" height="600" fill="#1f2722"/>
-        <rect x="20" y="20" width="760" height="560" rx="14" fill="#2a3530" stroke="#0f1411" stroke-width="3"/>
-        <rect x="32" y="32" width="736" height="536" rx="8" fill="#0c2614" stroke="#3a5944" stroke-width="1.5"/>
+        <rect width="800" height="600" fill="#050a14"/>
+        <rect x="20" y="20" width="760" height="560" rx="14" fill="#0e1c30" stroke="#000" stroke-width="3"/>
+        <!-- Land panel -->
+        <rect x="32" y="32" width="736" height="536" rx="8" fill="#1a2c47" stroke="#2a4570" stroke-width="1.5"/>
 
         <!-- Subtle grid -->
-        <g stroke="#1d4a2a" stroke-width="0.5" opacity="0.5">
+        <g stroke="#2a4570" stroke-width="0.5" opacity="0.45">
           <line x1="32" y1="100" x2="768" y2="100"/>
           <line x1="32" y1="200" x2="768" y2="200"/>
           <line x1="32" y1="300" x2="768" y2="300"/>
@@ -696,67 +700,95 @@
         </g>
 
         <!-- Sea band (north) -->
-        <rect x="32" y="32" width="736" height="80" fill="#0d3450" opacity="0.6"/>
-        <text x="60" y="68" font-family="Fredoka, sans-serif" font-size="11" fill="#5a8aa0">SEA</text>
+        <rect x="32" y="32" width="736" height="80" fill="#0a1a30"/>
+        <text x="60" y="68" font-family="Fredoka, sans-serif" font-size="11" fill="#5680ad" letter-spacing="2">SEA</text>
 
-        <!-- Bay Road simplified -->
-        <path d="M60 340 Q 250 300 420 320 T 740 360" fill="none" stroke="#3a5944" stroke-width="22" stroke-linecap="round"/>
-        <path d="M60 340 Q 250 300 420 320 T 740 360" fill="none" stroke="#5a8a64" stroke-width="14" stroke-linecap="round"/>
-        <path d="M60 340 Q 250 300 420 320 T 740 360" fill="none" stroke="#a8d4a0" stroke-width="1.5" stroke-dasharray="8 8"/>
+        <!-- Bay Road — classic GPS off-white -->
+        <path d="M60 340 Q 250 300 420 320 T 740 360" fill="none" stroke="#f0e9d2" stroke-width="14" stroke-linecap="round"/>
+        <path d="M60 340 Q 250 300 420 320 T 740 360" fill="none" stroke="#cfc7ad" stroke-width="1.5"/>
+        <text x="100" y="332" font-family="Fredoka, sans-serif" font-size="9" fill="#8a9bb5" letter-spacing="1">BAY ROAD</text>
 
-        <!-- Active route (highlighted) -->
+        <!-- Minor side roads -->
+        <path d="M310 320 L 290 540" fill="none" stroke="#3e5d88" stroke-width="6" stroke-linecap="round"/>
+        <path d="M520 326 L 540 540" fill="none" stroke="#3e5d88" stroke-width="6" stroke-linecap="round"/>
+        <path d="M180 305 L 170 200" fill="none" stroke="#3e5d88" stroke-width="6" stroke-linecap="round"/>
+        <path d="M450 325 L 470 200" fill="none" stroke="#3e5d88" stroke-width="6" stroke-linecap="round"/>
+
+        <!-- Active route — bright cyan, glowing -->
+        <path d="M220 305 Q 350 360 520 430 T 600 480" fill="none"
+              stroke="#3ba9ff" stroke-width="14" stroke-linecap="round" opacity="0.35"/>
         <g class="route">
           <path d="M220 305 Q 350 360 520 430 T 600 480" fill="none"
-                stroke="#e3b04b" stroke-width="6" stroke-dasharray="14 8" stroke-linecap="round"/>
+                stroke="#3ba9ff" stroke-width="7" stroke-dasharray="14 8" stroke-linecap="round"/>
         </g>
+        <!-- Already-driven trailing segment (faded) -->
+        <path d="M220 305 Q 280 340 350 365" fill="none" stroke="#3ba9ff" stroke-width="5" opacity="0.35" stroke-linecap="round"/>
 
-        <!-- Origin (faded — already left) -->
+        <!-- Origin (already left, faded) -->
         <g transform="translate(220 305)" opacity="0.5">
-          <circle r="12" fill="#3a5944" stroke="#a8d4a0" stroke-width="2"/>
-          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#a8d4a0">A</text>
+          <circle r="11" fill="#1a2c47" stroke="#7aa3d0" stroke-width="2"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#7aa3d0">A</text>
         </g>
-        <text x="220" y="338" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" fill="#a8d4a0" opacity="0.7">A.R.C.</text>
+        <text x="220" y="282" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="10" fill="#7aa3d0" opacity="0.8" letter-spacing="0.5">A.R.C.</text>
 
-        <!-- Vehicle pin (currently moving) -->
-        <g transform="translate(390 388)" class="attention">
-          <circle r="20" fill="#e3b04b" stroke="#fff" stroke-width="3"/>
-          <text y="5" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="16" font-weight="700" fill="#1f2722">▲</text>
-        </g>
-        <g transform="translate(390 360)">
-          <rect x="-32" y="-12" width="64" height="22" rx="11" fill="#e3b04b"/>
-          <text y="3" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="12" font-weight="700" fill="#1f2722">YOU</text>
+        <!-- Vehicle pin (currently moving) — amber arrow chevron -->
+        <g transform="translate(390 388)">
+          <circle r="22" fill="#3ba9ff" opacity="0.25" class="attention"/>
+          <circle r="14" fill="#ffb648" stroke="#fff" stroke-width="2.5"/>
+          <polygon points="0,-7 6,5 0,2 -6,5" fill="#1a2c47"/>
         </g>
 
-        <!-- Hedgehog crossing AHEAD on this leg only -->
-        <g class="attention" style="transform-origin: 470px 425px;">
-          <circle cx="470" cy="425" r="22" fill="#a64a4a" stroke="#fff" stroke-width="3"/>
-          <text x="470" y="432" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="20" font-weight="700" fill="#fff">!</text>
+        <!-- Hedgehog hazard ahead — amber GPS warning triangle -->
+        <g class="attention" style="transform-origin: 470px 422px;">
+          <polygon points="470,400 487,432 453,432" fill="#ff5560" stroke="#fff" stroke-width="2.5"/>
+          <text x="470" y="429" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="18" font-weight="700" fill="#fff">!</text>
         </g>
-        <text x="470" y="468" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#ffd0d0">HEDGEHOGS</text>
+        <text x="470" y="460" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="10" font-weight="700" fill="#ff8a92" letter-spacing="0.5">HEDGEHOGS</text>
 
-        <!-- Destination -->
+        <!-- Destination — checkered flag pin -->
         <g transform="translate(600 480)">
-          <polygon points="0,-18 5,-6 18,-4 8,5 11,18 0,11 -11,18 -8,5 -18,-4 -5,-6" fill="#e3b04b" stroke="#fff" stroke-width="2.5"/>
+          <circle r="18" fill="#1a2c47" stroke="#3ba9ff" stroke-width="2.5"/>
+          <g transform="translate(-7 -7)">
+            <rect width="6" height="6" fill="#fff"/>
+            <rect x="6" width="6" height="6" fill="#1a2c47"/>
+            <rect y="6" width="6" height="6" fill="#1a2c47"/>
+            <rect x="6" y="6" width="6" height="6" fill="#fff"/>
+          </g>
         </g>
-        <g transform="translate(600 510)">
-          <rect x="-40" y="-12" width="80" height="22" rx="11" fill="#e3b04b"/>
-          <text y="3" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="12" font-weight="700" fill="#1f2722">WYX PARK</text>
+        <g transform="translate(600 514)">
+          <rect x="-44" y="-11" width="88" height="22" rx="11" fill="#3ba9ff"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="12" font-weight="700" fill="#0e1c30" letter-spacing="0.5">WYX PARK</text>
         </g>
 
         <!-- North arrow -->
         <g transform="translate(720 80)">
-          <circle r="22" fill="#0c2614" stroke="#5a8a64" stroke-width="1.5"/>
-          <polygon points="0,-14 4,4 0,0 -4,4" fill="#a8d4a0"/>
-          <text y="-26" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#a8d4a0">N</text>
+          <circle r="22" fill="#0e1c30" stroke="#3e5d88" stroke-width="1.5"/>
+          <polygon points="0,-14 4,4 0,0 -4,4" fill="#3ba9ff"/>
+          <polygon points="0,14 4,-4 0,0 -4,-4" fill="#7aa3d0"/>
+          <text y="-26" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#3ba9ff">N</text>
         </g>
 
-        <!-- ETA strip -->
-        <g transform="translate(80 80)">
-          <rect x="0" y="-18" width="170" height="36" rx="6" fill="#0c2614" stroke="#5a8a64" stroke-width="1.5"/>
-          <text x="14" y="-2" font-family="Fredoka, sans-serif" font-size="10" fill="#a8d4a0">ETA</text>
-          <text x="14" y="14" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fff">42 sec</text>
-          <text x="80" y="-2" font-family="Fredoka, sans-serif" font-size="10" fill="#a8d4a0">CARGO</text>
-          <text x="80" y="14" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fff">😼 calm</text>
+        <!-- Top-left ETA strip — sat-nav HUD -->
+        <g transform="translate(60 80)">
+          <rect x="0" y="-18" width="200" height="40" rx="6" fill="#0e1c30" stroke="#3e5d88" stroke-width="1.5"/>
+          <text x="14" y="-2" font-family="Fredoka, sans-serif" font-size="10" fill="#7aa3d0" letter-spacing="1">ETA</text>
+          <text x="14" y="16" font-family="Fredoka, sans-serif" font-size="16" font-weight="700" fill="#3ba9ff">42 SEC</text>
+          <text x="100" y="-2" font-family="Fredoka, sans-serif" font-size="10" fill="#7aa3d0" letter-spacing="1">DIST</text>
+          <text x="100" y="16" font-family="Fredoka, sans-serif" font-size="16" font-weight="700" fill="#fff">0.4 MI</text>
+        </g>
+
+        <!-- Cargo strip — separate sat-nav-style readout -->
+        <g transform="translate(540 80)">
+          <rect x="0" y="-18" width="160" height="40" rx="6" fill="#0e1c30" stroke="#3e5d88" stroke-width="1.5"/>
+          <text x="14" y="-2" font-family="Fredoka, sans-serif" font-size="10" fill="#7aa3d0" letter-spacing="1">CARGO</text>
+          <text x="14" y="16" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#a8e0a0">CALM ✓</text>
+        </g>
+
+        <!-- Speed gauge (small, lower-left) -->
+        <g transform="translate(80 530)">
+          <rect x="-30" y="-18" width="120" height="36" rx="6" fill="#0e1c30" stroke="#3e5d88" stroke-width="1.5"/>
+          <text x="-20" y="-3" font-family="Fredoka, sans-serif" font-size="9" fill="#7aa3d0" letter-spacing="1">SPEED</text>
+          <text x="-20" y="14" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fff">22 mph</text>
         </g>
       </svg>
     </div>

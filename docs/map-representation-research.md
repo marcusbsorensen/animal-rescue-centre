@@ -1,11 +1,38 @@
-# Map representation — research task (parked, blocking)
+# Map representation — research + chosen direction
 
-**Status:** Open. The current `apps/game/public/admin/map.html` has serious
-visual issues. Before we wire the map into `InGameOverlay` (status doc
-follow-up #8) we need to settle on a representational style that works
-for kids and matches A.R.C.'s painted-storybook treatment.
+**Status (2026-04-29):** Direction picked.
+- **Main world map: Treatment A — Painted Storybook** (Stardew /
+  Sneaky Sasquatch direction). Soft watercolour wash, hand-drawn
+  cottage icons, hand-lettered town name. Closest match to the
+  rest of A.R.C.'s painted treatment.
+- **In-vehicle GPS: classic sat-nav palette** — deep navy land,
+  darker navy sea, off-white roads, bright cyan active route with
+  subtle glow, amber vehicle arrow, red triangle hazards. High
+  contrast for at-speed glanceability, deliberately *not* painted.
+  Same coordinate system as the main map; different render.
 
-This file is the brief for the research itself — not the design.
+See `apps/game/public/admin/map-options.html` for the live
+comparison and the GPS panel that anchored the decision.
+
+## Open follow-ups before we commission art
+
+1. **Veterans Association on Minnis Road** — Marcus wants this added
+   to the landmark set. Not visible on any of the three reference
+   maps in `scene-assets/reference/birchie-*` — Marcus to point out
+   the building / cross-street, or share a fresh map screenshot.
+2. **Discovery system spec** — fog-of-war reveal pattern, "?"-icon
+   undiscovered landmarks, unlock triggers (level-gating, first-visit
+   badges, etc.). Worth its own design pass before commissioning the
+   painted base.
+3. **Painted base commission** — once landmark set + discovery system
+   land, brief Manus / OpenAI for the painted Birchie base.
+4. **Pin / route overlay primitives** — port the SVG props from
+   `map-options.html` (cottage pin, treetop blob, dashed route line,
+   pulsing attention circle, sat-nav vehicle arrow, etc.) into the
+   live `map.html` overlay layer.
+
+This file remains the canonical research brief — sections below
+captured the comparison work.
 
 ## Two artefacts, not one
 
