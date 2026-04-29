@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Manus map test review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    background: #2a2622;
+    color: #f6efe1;
+    padding: 22px;
+    min-height: 100vh;
+  }
+  header { text-align: center; margin-bottom: 22px; }
+  header h1 { font-family: 'Fredoka', sans-serif; font-size: 26px; font-weight: 700; }
+  header p { font-size: 13px; opacity: 0.8; margin-top: 6px; max-width: 760px; margin-left: auto; margin-right: auto; }
+  .layout { max-width: 1700px; margin: 0 auto; display: grid; gap: 22px; }
+  section.panel {
+    background: #fef9ef;
+    color: #3a3a3a;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  }
+  .panel-head { padding: 14px 18px; border-bottom: 1.5px dashed rgba(123,92,58,0.3); background: rgba(255,255,255,0.5); }
+  .panel-head h2 { font-family: 'Fredoka', sans-serif; font-size: 18px; font-weight: 700; color: #7b5c3a; }
+  .panel-head .tag { font-family: 'Quicksand', sans-serif; font-size: 12px; color: #6b6b6b; margin-top: 2px; }
+  .stamps-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 18px;
+  }
+  .stamp-card {
+    background: #faf2df; border-radius: 12px; overflow: hidden; border: 1.5px solid #d3bf94;
+    display: flex; flex-direction: column;
+  }
+  .stamp-frame {
+    aspect-ratio: 1 / 1;
+    background: repeating-conic-gradient(#eee 0% 25%, #fff 25% 50%) 50% / 16px 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stamp-frame img { width: 80%; height: 80%; object-fit: contain; }
+  .stamp-meta { padding: 10px 12px 12px; }
+  .stamp-meta h3 { font-family: 'Fredoka', sans-serif; font-size: 14px; font-weight: 700; color: #3a3a3a; }
+  .stamp-meta p { font-size: 12px; line-height: 1.4; color: #444; margin-top: 4px; }
+  .basemap-frame {
+    width: 100%; aspect-ratio: 16 / 10; overflow: hidden; background: #d8c994;
+  }
+  .basemap-frame img { width: 100%; height: 100%; object-fit: cover; }
+  .composite-stage {
+    position: relative; width: 100%; aspect-ratio: 16 / 10; overflow: hidden;
+  }
+  .composite-stage img.base { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .composite-stage img.pin {
+    position: absolute;
+    width: 8%;
+    height: auto;
+    filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.25));
+    transition: transform 200ms ease;
+  }
+  .composite-stage img.pin:hover { transform: scale(1.12); }
+  .composite-stage .pin-label {
+    position: absolute;
+    background: #fef9ef;
+    border: 1.5px solid #7b5c3a;
+    border-radius: 14px;
+    padding: 3px 12px;
+    font-family: 'Kalam', cursive;
+    font-weight: 700; font-size: 13px;
+    color: #3a3a3a;
+    transform: translateX(-50%);
+    box-shadow: 1px 2px 0 rgba(0,0,0,0.1);
+    white-space: nowrap;
+  }
+  .panel-notes {
+    padding: 14px 18px 16px;
+    font-size: 13px; line-height: 1.5;
+    background: #faf2df;
+    border-top: 1px dashed rgba(123,92,58,0.25);
+  }
+  .panel-notes strong { color: #7b5c3a; }
+  .panel-notes ul { margin: 6px 0 0 18px; }
+  .panel-notes li { margin-bottom: 3px; }
+  .panel-notes .pros { color: #2c6741; }
+  .panel-notes .cons { color: #a64a4a; }
+  footer { text-align: center; margin-top: 22px; font-size: 12px; opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Manus map test — first pass review</h1>
+  <p>Task <code style="color:#e3b04b;">njxAPwinP4VyueywXvd6Qu</code> · 303 credits · 4 files. Painted base + 3 cottage stamps composited together so you can judge the stamps-on-base pairing.</p>
+</header>
+
+<div class="layout">
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>1. Painted base map · standalone</h2>
+      <div class="tag">birchie-base-map.png · 1600×1000 · 2.3 MB</div>
+    </div>
+    <div class="basemap-frame">
+      <img src="scene-assets/reference/manus-test-2026-04-29/birchie-base-map.png" alt="painted Birchie base map"/>
+    </div>
+    <div class="panel-notes">
+      <strong>Verdict: strong direction.</strong> Composition matches brief — sea + beach huts strip + Bay Road spine + cottages + residential lanes south + hedgerow patches. Style matches the cast portraits (warm cream + sage + dusky blue + ochre, painted not vector). East end deliberately clean for landmark pins to layer over.
+      <ul>
+        <li class="pros">+ Beach hut rainbow strip reads instantly as Minnis Bay.</li>
+        <li class="pros">+ Bay Road continues off both edges — natural for outpaint extension.</li>
+        <li class="pros">+ Residential lanes branching south have small painted gardens — feels lived in.</li>
+        <li class="cons">– Slight perspective inconsistency (some cottages near-elevation, some near-top-down). Could fix in v2 if it bothers us; for kid readability it works.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>2. Three cottage stamps · standalone</h2>
+      <div class="tag">256×256 transparent PNG each · checkerboard shows transparency</div>
+    </div>
+    <div class="stamps-row">
+      <div class="stamp-card">
+        <div class="stamp-frame"><img src="scene-assets/reference/manus-test-2026-04-29/cottage-arc.png" alt="A.R.C. cottage stamp"/></div>
+        <div class="stamp-meta"><h3>cottage-arc.png</h3><p>Red roof + cream walls + wooden door + paw above. The A.R.C. — player's home pin.</p></div>
+      </div>
+      <div class="stamp-card">
+        <div class="stamp-frame"><img src="scene-assets/reference/manus-test-2026-04-29/cottage-veterans-hall.png" alt="Veterans Hall stamp"/></div>
+        <div class="stamp-meta"><h3>cottage-veterans-hall.png</h3><p>Grey slate roof + cream walls + red poppy on the wall. Veterans Hall.</p></div>
+      </div>
+      <div class="stamp-card">
+        <div class="stamp-frame"><img src="scene-assets/reference/manus-test-2026-04-29/cottage-generic.png" alt="generic cottage stamp"/></div>
+        <div class="stamp-meta"><h3>cottage-generic.png</h3><p>Ochre walls + dusky roof + bush by the door. Reusable default for unnamed adopter homes.</p></div>
+      </div>
+    </div>
+    <div class="panel-notes">
+      <strong>Verdict: strong, with one observation.</strong> Each stamp matches its brief — paw above the A.R.C., poppy on the Veterans Hall wall, plain default cottage. Painted in transparent PNG cleanly, ready to layer.
+      <ul>
+        <li class="pros">+ Paw above the A.R.C. reads as a "this is the rescue centre" emblem at any zoom.</li>
+        <li class="pros">+ Poppy on the wall reads instantly as Royal British Legion to UK kids.</li>
+        <li class="cons">– Stamps are rendered at noticeably more detail than the cottages painted on the base map — see composite below to judge.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>3. Composite · stamps overlaid on the base at landmark positions</h2>
+      <div class="tag">approximate positions — final coords to be tuned in code</div>
+    </div>
+    <div class="composite-stage">
+      <img class="base" src="scene-assets/reference/manus-test-2026-04-29/birchie-base-map.png" alt="base"/>
+      <!-- A.R.C. — far west, on Bay Road -->
+      <img class="pin" src="scene-assets/reference/manus-test-2026-04-29/cottage-arc.png" style="left: 8%; top: 32%;" alt="A.R.C."/>
+      <div class="pin-label" style="left: 12%; top: 56%;">The A.R.C.</div>
+      <!-- Veterans Hall — middle, south side of Bay Road -->
+      <img class="pin" src="scene-assets/reference/manus-test-2026-04-29/cottage-veterans-hall.png" style="left: 50%; top: 40%;" alt="Veterans Hall"/>
+      <div class="pin-label" style="left: 54%; top: 64%;">Veterans Hall</div>
+      <!-- Generic cottage — east, as a placeholder for an adopter household -->
+      <img class="pin" src="scene-assets/reference/manus-test-2026-04-29/cottage-generic.png" style="left: 78%; top: 32%;" alt="generic"/>
+      <div class="pin-label" style="left: 82%; top: 56%;">Adopter home</div>
+    </div>
+    <div class="panel-notes">
+      <strong>The pairing test.</strong> Three pins layered at approximate landmark positions. This is the question to answer:
+      <ul>
+        <li><strong>Does the detail-register difference matter?</strong> The stamps are tighter / more finished than the ambient cottages on the base. Two reads:
+          <ul>
+            <li class="pros">+ <em>Yes good</em> — POI pins SHOULD stand out from ambient buildings, this is correct hierarchy.</li>
+            <li class="cons">– <em>No bad</em> — visual register mismatch breaks the painted-storybook unity. Re-roll the stamps with a looser brush.</li>
+          </ul>
+        </li>
+        <li><strong>Pin scale</strong> — currently 8% of canvas width; might want 6–7% for a more "set into the village" feel.</li>
+        <li><strong>Style consistency overall</strong> — the four files DO read as painted by the same hand (palette, ink-line weight, colour saturation, brush-edge feel are all aligned). Manus passed the "one sitting" test.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<footer>Source files: <code style="color:#e3b04b;">manus-output/birchie-map-test-2026-04-29/</code> · 303 credits used · review locally before committing into the project tree.</footer>
+
+</body>
+</html>
