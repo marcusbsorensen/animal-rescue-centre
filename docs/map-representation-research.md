@@ -7,10 +7,63 @@ for kids and matches A.R.C.'s painted-storybook treatment.
 
 This file is the brief for the research itself — not the design.
 
-## The map's job in A.R.C.
+## Two artefacts, not one
 
-The world map shows Birchington / "Birchie" — a real coastal Kent
-village we've fictionalised. Things that need to live on it:
+Marcus's clarification (2026-04-29): there are **two** map renderings,
+and they have different jobs. They share data (same coordinates, same
+landmark IDs, same route lines) but render very differently:
+
+### 1. The main world map — discovered over time
+
+A storybook artefact. Lily opens it from the rescue-centre HUD or
+menu. It's where she:
+
+- **Sees the world she's in** — Birchie as a coherent place, not a
+  list of menu options.
+- **Discovers landmarks** — fog-of-war / undrawn / "?"-icon zones
+  reveal as she earns access (first vet run unlocks Bay Road Vets,
+  first rewilding unlocks the moorland, etc.).
+- **Browses past trips** — recent route trails as faint paint marks.
+- **Reads status** — pulsing pins for sick animals, full depots,
+  pending adoption applications.
+- **Earns a sense of progress** — "look how much of Birchie I know
+  now" as the discovered area grows.
+
+Tonally rich: hand-lettering, painted watercolour, illustrated
+landmarks, decorative ornament. Worth dwelling on. Discoverable.
+
+### 2. The in-vehicle GPS — utilitarian, derivable
+
+A dashboard satnav. Shown live during a PTV / Supply Run drive. Its
+job is decision-support while the kid is "driving":
+
+- **Where am I right now** — vehicle pin advancing along the route.
+- **Where am I going** — destination highlighted, ETA in seconds.
+- **What's coming up** — hedgehog crossings ahead, fuel stops,
+  speeding zones, the car-wash inflatable on this leg.
+- **Quick re-route** — tap a different destination to swap.
+
+Should be readable from a glance while the dashboard owns the rest of
+the screen. Heavy decoration is a *negative* here — it competes with
+the cockpit. Should feel like the same world as the main map, but
+flattened, simplified, and high-contrast for at-speed glanceability.
+
+**Important: the GPS is a derivative of the main map**, not a
+standalone artefact. We pick the main-map treatment first; the GPS
+variant is then a stripped-down render of the same data — same
+coordinate system, same landmark IDs, same route line, but with
+fewer landmarks visible (only those on or adjacent to the current
+route), simplified label chrome, and a vehicle pin layered on top.
+
+This means the design work fans out:
+
+1. Pick the **main-map treatment** (one of the three options below).
+2. Define the **discovery system** for the main map (fog reveal,
+   "?"-icons, unlock triggers).
+3. Derive the **GPS variant** as a simplified render of the chosen
+   main-map treatment.
+
+## What needs to live on the world map
 
 - **The Rescue Centre** itself — primary anchor
 - **Bay Road Vets** — first vet destination
@@ -21,6 +74,8 @@ village we've fictionalised. Things that need to live on it:
 - **Player-route lines** — current PTV route, recent trips
 - **Status pins** — sick animal awaiting vet run, supply low at depot,
   adoption application pending
+- **Discovery state** — undiscovered landmarks shown as fog / "?"
+  icons / undrawn until unlocked.
 
 Constraints:
 

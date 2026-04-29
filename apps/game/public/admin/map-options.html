@@ -131,7 +131,7 @@
 
 <header>
   <h1>Birchie map — three treatment options</h1>
-  <p>Same landmarks, same route, three visual languages. Pick a direction and we'll commission the painted base.</p>
+  <p>This is for the <strong style="color:#e3b04b;">main world map</strong> — the storybook artefact Lily opens from the menu and discovers over time. The in-vehicle GPS is a separate, simplified render derived from whichever treatment we pick (preview at the bottom).</p>
 </header>
 
 <div class="grid">
@@ -654,6 +654,216 @@
     </div>
   </section>
 
+</div>
+
+<!-- ────────────────────────────────────────────────────────────
+     GPS variant strip — derivative, simplified render of whichever
+     main-map treatment we pick. Shown here for the painted-storybook
+     direction; the same simplification rules apply to B and C.
+     ──────────────────────────────────────────────────────────── -->
+<div style="max-width: 1800px; margin: 26px auto 0; color: #f6efe1; text-align: center;">
+  <h2 style="font-family: var(--headline); font-weight: 700; font-size: 20px; margin-bottom: 4px;">In-vehicle GPS — derivative, not standalone</h2>
+  <p style="font-size: 13px; opacity: 0.75; max-width: 720px; margin: 0 auto 16px;">
+    Whichever main-map treatment you pick, the dashboard GPS is a stripped-down render of the same data: same coordinates, same landmark IDs, same route line, but cut to only what's relevant on this leg and styled for at-speed glanceability.
+  </p>
+</div>
+
+<div style="max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 18px;">
+  <!-- GPS view (cockpit-mounted) -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>GPS · Dashboard view</h2>
+      <div class="tag">As Lily would see it while driving Henry to Wyx Park</div>
+    </div>
+    <div class="map-stage" style="aspect-ratio: 4 / 3; background: #1f2722;">
+      <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+        <!-- Dashboard bezel -->
+        <rect width="800" height="600" fill="#1f2722"/>
+        <rect x="20" y="20" width="760" height="560" rx="14" fill="#2a3530" stroke="#0f1411" stroke-width="3"/>
+        <rect x="32" y="32" width="736" height="536" rx="8" fill="#0c2614" stroke="#3a5944" stroke-width="1.5"/>
+
+        <!-- Subtle grid -->
+        <g stroke="#1d4a2a" stroke-width="0.5" opacity="0.5">
+          <line x1="32" y1="100" x2="768" y2="100"/>
+          <line x1="32" y1="200" x2="768" y2="200"/>
+          <line x1="32" y1="300" x2="768" y2="300"/>
+          <line x1="32" y1="400" x2="768" y2="400"/>
+          <line x1="32" y1="500" x2="768" y2="500"/>
+          <line x1="150" y1="32" x2="150" y2="568"/>
+          <line x1="300" y1="32" x2="300" y2="568"/>
+          <line x1="450" y1="32" x2="450" y2="568"/>
+          <line x1="600" y1="32" x2="600" y2="568"/>
+        </g>
+
+        <!-- Sea band (north) -->
+        <rect x="32" y="32" width="736" height="80" fill="#0d3450" opacity="0.6"/>
+        <text x="60" y="68" font-family="Fredoka, sans-serif" font-size="11" fill="#5a8aa0">SEA</text>
+
+        <!-- Bay Road simplified -->
+        <path d="M60 340 Q 250 300 420 320 T 740 360" fill="none" stroke="#3a5944" stroke-width="22" stroke-linecap="round"/>
+        <path d="M60 340 Q 250 300 420 320 T 740 360" fill="none" stroke="#5a8a64" stroke-width="14" stroke-linecap="round"/>
+        <path d="M60 340 Q 250 300 420 320 T 740 360" fill="none" stroke="#a8d4a0" stroke-width="1.5" stroke-dasharray="8 8"/>
+
+        <!-- Active route (highlighted) -->
+        <g class="route">
+          <path d="M220 305 Q 350 360 520 430 T 600 480" fill="none"
+                stroke="#e3b04b" stroke-width="6" stroke-dasharray="14 8" stroke-linecap="round"/>
+        </g>
+
+        <!-- Origin (faded — already left) -->
+        <g transform="translate(220 305)" opacity="0.5">
+          <circle r="12" fill="#3a5944" stroke="#a8d4a0" stroke-width="2"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#a8d4a0">A</text>
+        </g>
+        <text x="220" y="338" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" fill="#a8d4a0" opacity="0.7">A.R.C.</text>
+
+        <!-- Vehicle pin (currently moving) -->
+        <g transform="translate(390 388)" class="attention">
+          <circle r="20" fill="#e3b04b" stroke="#fff" stroke-width="3"/>
+          <text y="5" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="16" font-weight="700" fill="#1f2722">▲</text>
+        </g>
+        <g transform="translate(390 360)">
+          <rect x="-32" y="-12" width="64" height="22" rx="11" fill="#e3b04b"/>
+          <text y="3" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="12" font-weight="700" fill="#1f2722">YOU</text>
+        </g>
+
+        <!-- Hedgehog crossing AHEAD on this leg only -->
+        <g class="attention" style="transform-origin: 470px 425px;">
+          <circle cx="470" cy="425" r="22" fill="#a64a4a" stroke="#fff" stroke-width="3"/>
+          <text x="470" y="432" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="20" font-weight="700" fill="#fff">!</text>
+        </g>
+        <text x="470" y="468" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#ffd0d0">HEDGEHOGS</text>
+
+        <!-- Destination -->
+        <g transform="translate(600 480)">
+          <polygon points="0,-18 5,-6 18,-4 8,5 11,18 0,11 -11,18 -8,5 -18,-4 -5,-6" fill="#e3b04b" stroke="#fff" stroke-width="2.5"/>
+        </g>
+        <g transform="translate(600 510)">
+          <rect x="-40" y="-12" width="80" height="22" rx="11" fill="#e3b04b"/>
+          <text y="3" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="12" font-weight="700" fill="#1f2722">WYX PARK</text>
+        </g>
+
+        <!-- North arrow -->
+        <g transform="translate(720 80)">
+          <circle r="22" fill="#0c2614" stroke="#5a8a64" stroke-width="1.5"/>
+          <polygon points="0,-14 4,4 0,0 -4,4" fill="#a8d4a0"/>
+          <text y="-26" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#a8d4a0">N</text>
+        </g>
+
+        <!-- ETA strip -->
+        <g transform="translate(80 80)">
+          <rect x="0" y="-18" width="170" height="36" rx="6" fill="#0c2614" stroke="#5a8a64" stroke-width="1.5"/>
+          <text x="14" y="-2" font-family="Fredoka, sans-serif" font-size="10" fill="#a8d4a0">ETA</text>
+          <text x="14" y="14" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fff">42 sec</text>
+          <text x="80" y="-2" font-family="Fredoka, sans-serif" font-size="10" fill="#a8d4a0">CARGO</text>
+          <text x="80" y="14" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fff">😼 calm</text>
+        </g>
+      </svg>
+    </div>
+    <div class="panel-notes">
+      <strong>Simplified, glanceable, sat-nav style — derived from whichever main-map treatment we pick.</strong>
+      <ul>
+        <li class="pros">+ Cuts to ~3 visible landmarks: origin (faded), destination, and any hazards on the leg.</li>
+        <li class="pros">+ High-contrast palette readable while the rest of the dashboard is busy.</li>
+        <li class="pros">+ Vehicle pin pulses; hedgehog hazards pulse red. Reuses the same animation vocabulary as the main map.</li>
+        <li class="cons">– Loses the storybook charm — that's the point. Charm lives on the main map.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Comparison: same scene on the main-map treatment -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Main map · same moment, full painting</h2>
+      <div class="tag">Treatment A reference, for comparison</div>
+    </div>
+    <div class="map-stage" style="aspect-ratio: 4 / 3; background: linear-gradient(180deg, #cfe5e9 0%, #cfe5e9 22%, #e7d6a8 26%, #d5c184 60%, #b9a86a 100%);">
+      <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="paper-d" width="6" height="6" patternUnits="userSpaceOnUse">
+            <rect width="6" height="6" fill="transparent"/>
+            <circle cx="2" cy="2" r="0.4" fill="#7b5c3a" opacity="0.06"/>
+          </pattern>
+        </defs>
+        <rect width="800" height="600" fill="url(#paper-d)"/>
+        <rect x="0" y="0" width="800" height="135" fill="#bfdde3"/>
+        <path d="M0 135 Q 200 145 400 138 T 800 140 L 800 165 Q 600 175 400 168 T 0 170 Z" fill="#f1deb0" opacity="0.85"/>
+        <path d="M0 165 Q 200 175 400 168 T 800 170 L 800 600 L 0 600 Z" fill="#dec98a"/>
+
+        <path d="M40 320 Q 270 290 440 310 T 770 340" fill="none" stroke="#a8865e" stroke-width="14" stroke-linecap="round"/>
+        <path d="M40 320 Q 270 290 440 310 T 770 340" fill="none" stroke="#f0e3b0" stroke-width="2" stroke-dasharray="6 6"/>
+
+        <g opacity="0.95">
+          <ellipse cx="630" cy="470" rx="100" ry="60" fill="#5d7e51"/>
+          <circle cx="590" cy="450" r="22" fill="#4f7048"/>
+          <circle cx="630" cy="440" r="26" fill="#5b8554"/>
+          <circle cx="670" cy="460" r="22" fill="#4f7048"/>
+          <circle cx="610" cy="490" r="20" fill="#6b9460"/>
+          <circle cx="660" cy="495" r="22" fill="#5b8554"/>
+        </g>
+
+        <g class="attention" style="transform-origin: 340px 350px;">
+          <circle cx="340" cy="350" r="42" fill="rgba(217, 75, 75, 0.18)" stroke="#d94b4b" stroke-width="1.5" stroke-dasharray="4 3"/>
+        </g>
+
+        <path d="M240 305 Q 360 360 520 430 T 630 470" fill="none"
+              stroke="#7b5c3a" stroke-width="3" stroke-dasharray="6 5" stroke-linecap="round" class="route"/>
+
+        <!-- Same A.R.C., Vets, Wyx, Rock On, Goose End, Old Town, Minnis Bay, etc. -->
+        <g transform="translate(240 290)">
+          <rect x="-22" y="-18" width="44" height="28" rx="3" fill="#f7eccb" stroke="#7b5c3a" stroke-width="1.5"/>
+          <polygon points="-25,-18 0,-32 25,-18" fill="#b75353" stroke="#7b5c3a" stroke-width="1.5"/>
+          <rect x="-5" y="-10" width="10" height="16" fill="#7b5c3a"/>
+          <text y="28" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">The A.R.C.</text>
+        </g>
+        <g transform="translate(670 320)">
+          <rect x="-18" y="-14" width="36" height="20" rx="2" fill="#dde9f0" stroke="#5a7894" stroke-width="1.4"/>
+          <rect x="-3" y="-10" width="6" height="6" fill="#b75353"/>
+          <text y="22" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Bay Road Vets</text>
+        </g>
+        <g transform="translate(630 470)">
+          <circle r="14" fill="#7b5c3a" stroke="#fef9ef" stroke-width="2"/>
+          <text font-size="14" text-anchor="middle" y="5" fill="#fef9ef" font-family="Fredoka, sans-serif" font-weight="700">W</text>
+          <text y="32" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Wyx Park</text>
+        </g>
+        <g transform="translate(490 480)">
+          <rect x="-18" y="-14" width="36" height="22" rx="2" fill="#e9d3a4" stroke="#7b5c3a" stroke-width="1.4"/>
+          <text y="0" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#3a3a3a">♪</text>
+          <text y="26" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Rock On</text>
+        </g>
+        <g transform="translate(115 340)">
+          <polygon points="-18,5 -18,-5 0,-15 18,-5 18,5" fill="#c98a4e" stroke="#7b5c3a" stroke-width="1.4"/>
+          <rect x="-12" y="5" width="24" height="14" fill="#e6c98a" stroke="#7b5c3a" stroke-width="1.4"/>
+          <text y="34" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Goose End Farm</text>
+        </g>
+        <g transform="translate(410 110)">
+          <circle r="9" fill="#5a8aa0" stroke="#fef9ef" stroke-width="2"/>
+          <text y="-15" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Minnis Bay</text>
+        </g>
+        <g transform="translate(400 285)">
+          <circle r="6" fill="#b88abc" stroke="#fef9ef" stroke-width="1.5"/>
+          <text y="-12" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Old Town</text>
+        </g>
+        <g transform="translate(70 380)">
+          <rect x="-12" y="-10" width="24" height="20" rx="2" fill="#cce0e9" stroke="#5a7894" stroke-width="1.4"/>
+          <text y="-1" font-size="9" font-family="Fredoka, sans-serif" text-anchor="middle" fill="#3a3a3a">CAR</text>
+          <text y="9" font-size="8" font-family="Fredoka, sans-serif" text-anchor="middle" fill="#3a3a3a">WASH</text>
+        </g>
+        <g transform="translate(150 380)">
+          <rect x="-10" y="-8" width="20" height="16" fill="#e9d3a4" stroke="#7b5c3a" stroke-width="1.4"/>
+          <rect x="-3" y="0" width="6" height="8" fill="#b75353"/>
+        </g>
+        <text x="340" y="354" font-size="10" text-anchor="middle" fill="#a64a4a" font-family="Kalam, cursive" font-weight="700">⚠ Hedgehogs!</text>
+      </svg>
+    </div>
+    <div class="panel-notes">
+      <strong>The same drive seen on the main map — full painting, all 10+ landmarks visible, decorative ornament intact.</strong>
+      <ul>
+        <li>Lily can dwell here. She sees where the trip sits in Birchie's wider geography. Full landmark set, not just the route. No urgency.</li>
+        <li>Once she taps "Drive!", the cockpit opens and the GPS panel above is what she sees during the drive — same data, simplified for at-speed reading.</li>
+      </ul>
+    </div>
+  </section>
 </div>
 
 <footer style="color: #f6efe1; opacity: 0.7; text-align: center; margin-top: 18px; font-size: 12px;">
