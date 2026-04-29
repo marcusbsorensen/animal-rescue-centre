@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Map treatment options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=IM+Fell+English:wght@400&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  /* Three side-by-side map treatments for Birchie. Each panel renders
+     the SAME 10-landmark layout, the SAME route from A.R.C. to Wyx
+     Park, and the SAME hedgehog-warning. The treatment is what changes:
+       A — painted storybook (Stardew / Sneaky Sasquatch direction)
+       B — pictorial treasure map (folk-tale / older-storybook direction)
+       C — faux-3D diorama (Toca / Animal Crossing direction)
+     This page is a design preview only. Each panel uses inline SVG so
+     we can show the treatment without commissioning art. Final art for
+     the chosen treatment will be a painted base image + this same pin
+     and route layer.
+  */
+  :root {
+    --cream-wash: #fef9ef;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --garden-green: #2E8B57;
+    --trellis-brown: #7b5c3a;
+    --ink: #3a3a3a;
+    --ink-soft: #6b6b6b;
+    --headline: 'Fredoka', system-ui, sans-serif;
+    --body: 'Quicksand', system-ui, sans-serif;
+    --hand: 'Kalam', 'Gochi Hand', cursive;
+    --story: 'Caveat', cursive;
+    --treasure: 'IM Fell English', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--body); color: var(--ink);
+    background: #2a2622;
+    padding: 18px;
+    min-height: 100vh;
+  }
+  header {
+    color: #f6efe1;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  header h1 {
+    font-family: var(--headline); font-size: 24px; font-weight: 700;
+  }
+  header p {
+    font-family: var(--body); font-size: 14px;
+    color: rgba(255,255,255,0.7); margin-top: 4px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+  @media (max-width: 1200px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--cream-wash);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .panel-head {
+    padding: 14px 18px;
+    border-bottom: 1.5px dashed rgba(123,92,58,0.3);
+    background: rgba(255,255,255,0.55);
+  }
+  .panel-head h2 {
+    font-family: var(--headline); font-size: 18px; font-weight: 700;
+    color: var(--trellis-brown);
+  }
+  .panel-head .tag {
+    font-family: var(--body); font-size: 12px;
+    color: var(--ink-soft); margin-top: 2px;
+  }
+  .map-stage {
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+  .map-stage svg {
+    display: block; width: 100%; height: 100%;
+  }
+  .panel-notes {
+    padding: 12px 16px 14px;
+    font-family: var(--body); font-size: 12px; line-height: 1.45;
+    color: var(--ink);
+    background: #faf2df;
+    border-top: 1px dashed rgba(123,92,58,0.25);
+  }
+  .panel-notes strong { color: var(--trellis-brown); }
+  .panel-notes ul { margin: 6px 0 0 18px; }
+  .panel-notes li { margin-bottom: 3px; }
+  .panel-notes .pros { color: #2c6741; }
+  .panel-notes .cons { color: #a64a4a; }
+
+  /* Shared SVG sub-styles */
+  .pin-label {
+    font-size: 11px; font-weight: 600;
+    paint-order: stroke; stroke-width: 3px; stroke-linejoin: round;
+  }
+  .pin-circle {
+    cursor: pointer;
+  }
+  @keyframes pulse {
+    0%,100% { transform: scale(1);   opacity: 0.85; }
+    50%     { transform: scale(1.15); opacity: 1; }
+  }
+  .attention {
+    animation: pulse 1.6s ease-in-out infinite;
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+  @keyframes dash {
+    to { stroke-dashoffset: -28; }
+  }
+  .route { animation: dash 2.4s linear infinite; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Birchie map — three treatment options</h1>
+  <p>Same landmarks, same route, three visual languages. Pick a direction and we'll commission the painted base.</p>
+</header>
+
+<div class="grid">
+
+  <!-- ────────────────────────────────────────────────────────────
+       TREATMENT A — Painted Storybook
+       Soft watercolour, painted cottage icons, hand-lettering.
+       Reference: Stardew Valley community map, Sneaky Sasquatch.
+       ──────────────────────────────────────────────────────────── -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>A · Painted Storybook</h2>
+      <div class="tag">Stardew / Sneaky Sasquatch direction</div>
+    </div>
+    <div class="map-stage" style="background: linear-gradient(180deg, #cfe5e9 0%, #cfe5e9 22%, #e7d6a8 26%, #d5c184 60%, #b9a86a 100%);">
+      <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+        <!-- Sea band (top) -->
+        <defs>
+          <pattern id="paper-a" width="6" height="6" patternUnits="userSpaceOnUse">
+            <rect width="6" height="6" fill="transparent"/>
+            <circle cx="2" cy="2" r="0.4" fill="#7b5c3a" opacity="0.06"/>
+          </pattern>
+          <pattern id="waves-a" width="20" height="10" patternUnits="userSpaceOnUse">
+            <path d="M0 5 Q 5 0 10 5 T 20 5" fill="none" stroke="#5a8aa0" stroke-width="1" opacity="0.45"/>
+          </pattern>
+        </defs>
+        <rect width="600" height="600" fill="url(#paper-a)"/>
+        <!-- Sea -->
+        <rect x="0" y="0" width="600" height="135" fill="#bfdde3"/>
+        <rect x="0" y="0" width="600" height="135" fill="url(#waves-a)"/>
+        <!-- Beach band -->
+        <path d="M0 135 Q 150 145 300 138 T 600 140 L 600 165 Q 450 175 300 168 T 0 170 Z"
+              fill="#f1deb0" opacity="0.85"/>
+        <!-- Beach huts (rainbow strip) -->
+        <g transform="translate(80 152)">
+          <rect width="14" height="12" fill="#e07b7b"/><rect x="14" width="14" height="12" fill="#e9b34d"/>
+          <rect x="28" width="14" height="12" fill="#7fb37f"/><rect x="42" width="14" height="12" fill="#5e8fb6"/>
+          <rect x="56" width="14" height="12" fill="#b88abc"/><rect x="70" width="14" height="12" fill="#e07b7b"/>
+        </g>
+        <!-- Land texture -->
+        <path d="M0 165 Q 150 175 300 168 T 600 170 L 600 600 L 0 600 Z" fill="#dec98a"/>
+        <!-- Bay Road (curved spine) -->
+        <path d="M30 320 Q 200 290 330 310 T 580 340" fill="none" stroke="#a8865e" stroke-width="14" stroke-linecap="round"/>
+        <path d="M30 320 Q 200 290 330 310 T 580 340" fill="none" stroke="#f0e3b0" stroke-width="2" stroke-dasharray="6 6"/>
+        <!-- Painted forest patch (Wyx Park area) -->
+        <g opacity="0.95">
+          <ellipse cx="470" cy="470" rx="100" ry="60" fill="#5d7e51"/>
+          <circle cx="430" cy="450" r="22" fill="#4f7048"/>
+          <circle cx="470" cy="440" r="26" fill="#5b8554"/>
+          <circle cx="510" cy="460" r="22" fill="#4f7048"/>
+          <circle cx="450" cy="490" r="20" fill="#6b9460"/>
+          <circle cx="500" cy="495" r="22" fill="#5b8554"/>
+        </g>
+        <!-- Hedgehog crossing zone (residential) -->
+        <g class="attention" style="transform-origin: 250px 350px;">
+          <circle cx="250" cy="350" r="42" fill="rgba(217, 75, 75, 0.18)" stroke="#d94b4b" stroke-width="1.5" stroke-dasharray="4 3"/>
+        </g>
+
+        <!-- Route from A.R.C. to Wyx Park -->
+        <path d="M180 305 Q 280 360 400 430 T 470 470" fill="none"
+              stroke="#7b5c3a" stroke-width="3" stroke-dasharray="6 5" stroke-linecap="round" class="route"/>
+
+        <!-- Landmark pins -->
+        <!-- A.R.C. -->
+        <g transform="translate(180 290)">
+          <rect x="-22" y="-18" width="44" height="28" rx="3" fill="#f7eccb" stroke="#7b5c3a" stroke-width="1.5"/>
+          <polygon points="-25,-18 0,-32 25,-18" fill="#b75353" stroke="#7b5c3a" stroke-width="1.5"/>
+          <rect x="-5" y="-10" width="10" height="16" fill="#7b5c3a"/>
+          <text y="28" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">The A.R.C.</text>
+        </g>
+        <!-- Bay Road Vets (east) -->
+        <g transform="translate(490 320)">
+          <rect x="-18" y="-14" width="36" height="20" rx="2" fill="#dde9f0" stroke="#5a7894" stroke-width="1.4"/>
+          <rect x="-3" y="-10" width="6" height="6" fill="#b75353"/>
+          <text y="22" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Bay Road Vets</text>
+        </g>
+        <!-- Wyx Park -->
+        <g transform="translate(470 470)">
+          <circle r="14" fill="#7b5c3a" stroke="#fef9ef" stroke-width="2"/>
+          <text font-size="14" text-anchor="middle" y="5" fill="#fef9ef" font-family="Fredoka, sans-serif" font-weight="700">W</text>
+          <text y="32" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Wyx Park</text>
+        </g>
+        <!-- Rock On Academy -->
+        <g transform="translate(360 480)">
+          <rect x="-18" y="-14" width="36" height="22" rx="2" fill="#e9d3a4" stroke="#7b5c3a" stroke-width="1.4"/>
+          <text y="0" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#3a3a3a">♪</text>
+          <text y="26" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Rock On</text>
+        </g>
+        <!-- Goose End Farm (west) -->
+        <g transform="translate(85 340)">
+          <polygon points="-18,5 -18,-5 0,-15 18,-5 18,5" fill="#c98a4e" stroke="#7b5c3a" stroke-width="1.4"/>
+          <rect x="-12" y="5" width="24" height="14" fill="#e6c98a" stroke="#7b5c3a" stroke-width="1.4"/>
+          <text y="34" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Goose End Farm</text>
+        </g>
+        <!-- Minnis Bay (beach pin) -->
+        <g transform="translate(310 110)">
+          <circle r="9" fill="#5a8aa0" stroke="#fef9ef" stroke-width="2"/>
+          <text y="-15" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Minnis Bay</text>
+        </g>
+        <!-- West entrance car wash -->
+        <g transform="translate(50 380)">
+          <rect x="-12" y="-10" width="24" height="20" rx="2" fill="#cce0e9" stroke="#5a7894" stroke-width="1.4"/>
+          <text y="-1" font-size="9" font-family="Fredoka, sans-serif" text-anchor="middle" fill="#3a3a3a">CAR</text>
+          <text y="9" font-size="8" font-family="Fredoka, sans-serif" text-anchor="middle" fill="#3a3a3a">WASH</text>
+          <text y="28" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Wavy-Arm</text>
+        </g>
+        <!-- Petrol station -->
+        <g transform="translate(115 380)">
+          <rect x="-10" y="-8" width="20" height="16" fill="#e9d3a4" stroke="#7b5c3a" stroke-width="1.4"/>
+          <rect x="-3" y="0" width="6" height="8" fill="#b75353"/>
+          <text y="22" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Pumps</text>
+        </g>
+        <!-- Old Town -->
+        <g transform="translate(300 285)">
+          <circle r="6" fill="#b88abc" stroke="#fef9ef" stroke-width="1.5"/>
+          <text y="-12" text-anchor="middle" fill="#3a3a3a" stroke="#fef9ef" class="pin-label" font-family="Kalam, cursive">Old Town</text>
+        </g>
+        <!-- Hedgehog crossing label -->
+        <text x="250" y="350" font-size="10" text-anchor="middle" fill="#a64a4a" font-family="Kalam, cursive" font-weight="700">⚠ Hedgehogs!</text>
+
+        <!-- Hand-lettered title -->
+        <text x="300" y="58" text-anchor="middle" font-family="Caveat, cursive" font-size="34" fill="#3a3a3a" stroke="#fef9ef" stroke-width="3" paint-order="stroke" font-weight="700">~ Birchie ~</text>
+      </svg>
+    </div>
+    <div class="panel-notes">
+      <strong>Painted watercolour wash, hand-drawn cottage icons, hand-lettered town name.</strong>
+      <ul>
+        <li class="pros">+ Already matches every other A.R.C. screen — same style language as the cast portraits, the welcome scene, the auth chrome.</li>
+        <li class="pros">+ Pins read as "places" not abstract markers — kids understand the cottage = the rescue centre, the trees = the woods.</li>
+        <li class="cons">– Fewer landmarks before it gets cluttered (~12 cap). Larger map needs zoom levels.</li>
+        <li class="cons">– Painted base is the most expensive to commission and re-edit when geography changes.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────
+       TREATMENT B — Pictorial Treasure Map
+       Aged paper, hand-drawn icons, sea-monster compass-rose feel.
+       Reference: classic kids' picture-book maps, Pooh's Hundred-Acre.
+       ──────────────────────────────────────────────────────────── -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>B · Pictorial Treasure Map</h2>
+      <div class="tag">Hundred-Acre-Wood / folk-tale direction</div>
+    </div>
+    <div class="map-stage" style="background: #ead7a5;">
+      <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="paper-b" width="8" height="8" patternUnits="userSpaceOnUse">
+            <rect width="8" height="8" fill="transparent"/>
+            <circle cx="2" cy="3" r="0.5" fill="#7b5c3a" opacity="0.18"/>
+            <circle cx="6" cy="6" r="0.4" fill="#7b5c3a" opacity="0.12"/>
+          </pattern>
+          <radialGradient id="vignette-b" cx="50%" cy="50%" r="65%">
+            <stop offset="60%" stop-color="transparent"/>
+            <stop offset="100%" stop-color="#7b5c3a" stop-opacity="0.45"/>
+          </radialGradient>
+        </defs>
+        <rect width="600" height="600" fill="#ead7a5"/>
+        <rect width="600" height="600" fill="url(#paper-b)"/>
+        <!-- torn-paper edge -->
+        <path d="M8 8 Q 16 3 24 8 T 40 8 T 56 8 T 72 8 T 88 8 T 104 8 T 120 8 T 136 8 T 152 8 T 168 8 T 184 8 T 200 8 T 216 8 T 232 8 T 248 8 T 264 8 T 280 8 T 296 8 T 312 8 T 328 8 T 344 8 T 360 8 T 376 8 T 392 8 T 408 8 T 424 8 T 440 8 T 456 8 T 472 8 T 488 8 T 504 8 T 520 8 T 536 8 T 552 8 T 568 8 T 584 8 L 592 8 L 592 592 L 8 592 Z"
+              fill="none" stroke="#7b5c3a" stroke-width="1.5" opacity="0.55"/>
+        <!-- Sea (stylised, with hatching) -->
+        <path d="M0 0 L 600 0 L 600 130 Q 450 145 300 132 T 0 138 Z" fill="#c5d8d5" opacity="0.85"/>
+        <g stroke="#5a7894" stroke-width="0.7" opacity="0.55" fill="none">
+          <path d="M30 50 Q 50 45 70 50 T 110 50"/>
+          <path d="M180 70 Q 200 65 220 70 T 260 70"/>
+          <path d="M340 55 Q 360 50 380 55 T 420 55"/>
+          <path d="M460 90 Q 480 85 500 90 T 540 90"/>
+          <path d="M80 100 Q 100 95 120 100 T 160 100"/>
+          <path d="M280 105 Q 300 100 320 105 T 360 105"/>
+          <path d="M450 30 Q 470 25 490 30 T 530 30"/>
+        </g>
+        <!-- Sea creature -->
+        <g transform="translate(490 75)" stroke="#7b5c3a" stroke-width="1.5" fill="none" opacity="0.65">
+          <path d="M0 0 Q -6 -8 -12 0 Q -18 8 -24 0"/>
+          <circle cx="-2" cy="-2" r="1" fill="#7b5c3a"/>
+        </g>
+        <!-- Ship -->
+        <g transform="translate(120 75)" stroke="#7b5c3a" stroke-width="1.5" fill="none" opacity="0.6">
+          <path d="M-12 0 L 12 0 L 8 6 L -8 6 Z"/>
+          <line x1="0" y1="0" x2="0" y2="-14"/>
+          <path d="M0 -14 L 8 -10 L 0 -6 Z" fill="#7b5c3a"/>
+        </g>
+        <!-- Compass rose -->
+        <g transform="translate(540 540)">
+          <circle r="32" fill="none" stroke="#7b5c3a" stroke-width="1.5"/>
+          <circle r="22" fill="none" stroke="#7b5c3a" stroke-width="1"/>
+          <polygon points="0,-30 4,0 0,30 -4,0" fill="#7b5c3a" opacity="0.85"/>
+          <polygon points="-30,0 0,4 30,0 0,-4" fill="#7b5c3a" opacity="0.5"/>
+          <text y="-36" text-anchor="middle" font-family="IM Fell English, serif" font-size="12" fill="#7b5c3a" font-weight="700">N</text>
+        </g>
+        <!-- Bay Road dashed footpath -->
+        <path d="M30 320 Q 200 290 330 310 T 580 340" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-dasharray="3 4"/>
+        <!-- Pictorial woods (Wyx Park) -->
+        <g transform="translate(470 470)" stroke="#7b5c3a" stroke-width="1.4" fill="#c8a45c" opacity="0.9">
+          <path d="M-30 10 L -30 -2 L -36 -2 L -22 -16 L -8 -2 L -14 -2 L -14 10 Z"/>
+          <path d="M-5 14 L -5 0 L -11 0 L 5 -18 L 21 0 L 15 0 L 15 14 Z"/>
+          <path d="M22 12 L 22 0 L 16 0 L 30 -14 L 44 0 L 38 0 L 38 12 Z"/>
+        </g>
+        <!-- Beach -->
+        <path d="M0 135 Q 150 145 300 138 T 600 140 L 600 158 Q 450 168 300 161 T 0 162 Z" fill="#e8d49a" stroke="#7b5c3a" stroke-width="0.8"/>
+        <!-- Hatching wash on the land -->
+        <g stroke="#7b5c3a" stroke-width="0.4" opacity="0.18">
+          <line x1="40" y1="200" x2="60" y2="220"/>
+          <line x1="100" y1="220" x2="120" y2="240"/>
+          <line x1="170" y1="200" x2="190" y2="220"/>
+          <line x1="250" y1="220" x2="270" y2="240"/>
+          <line x1="350" y1="200" x2="370" y2="220"/>
+          <line x1="430" y1="220" x2="450" y2="240"/>
+          <line x1="50" y1="450" x2="70" y2="470"/>
+          <line x1="180" y1="500" x2="200" y2="520"/>
+          <line x1="280" y1="450" x2="300" y2="470"/>
+          <line x1="350" y1="540" x2="370" y2="560"/>
+        </g>
+
+        <!-- Hedgehog warning circle -->
+        <g class="attention" style="transform-origin: 250px 350px;">
+          <circle cx="250" cy="350" r="36" fill="none" stroke="#a64a4a" stroke-width="2" stroke-dasharray="3 3"/>
+        </g>
+
+        <!-- Route — dashed dotted breadcrumb -->
+        <g class="route">
+          <path d="M180 305 Q 280 360 400 430 T 470 470" fill="none"
+                stroke="#a64a4a" stroke-width="2.2" stroke-dasharray="2 6" stroke-linecap="round"/>
+        </g>
+
+        <!-- Landmark pictograms -->
+        <!-- A.R.C. = a little house with paw above -->
+        <g transform="translate(180 290)" stroke="#7b5c3a" stroke-width="1.4" fill="#f4e3b4">
+          <rect x="-12" y="-8" width="24" height="14"/>
+          <polygon points="-14,-8 0,-22 14,-8" fill="#b75353"/>
+          <rect x="-3" y="-2" width="6" height="8" fill="#7b5c3a"/>
+          <circle cx="0" cy="-30" r="4" fill="#7b5c3a"/>
+          <circle cx="-4" cy="-34" r="1.8" fill="#7b5c3a"/>
+          <circle cx="4" cy="-34" r="1.8" fill="#7b5c3a"/>
+          <circle cx="-3" cy="-37" r="1.4" fill="#7b5c3a"/>
+          <circle cx="3" cy="-37" r="1.4" fill="#7b5c3a"/>
+        </g>
+        <text x="180" y="320" text-anchor="middle" font-family="IM Fell English, serif" font-size="14" fill="#3a3a3a" font-weight="700">The A.R.C.</text>
+
+        <!-- Bay Road Vets = cross -->
+        <g transform="translate(490 318)" stroke="#7b5c3a" stroke-width="1.4">
+          <rect x="-12" y="-12" width="24" height="24" fill="#f4e3b4"/>
+          <rect x="-3" y="-9" width="6" height="18" fill="#b75353"/>
+          <rect x="-9" y="-3" width="18" height="6" fill="#b75353"/>
+        </g>
+        <text x="490" y="345" text-anchor="middle" font-family="IM Fell English, serif" font-size="12" fill="#3a3a3a">Bay Road Vets</text>
+
+        <!-- Wyx Park: hand-lettered overlay on the woods -->
+        <text x="470" y="500" text-anchor="middle" font-family="IM Fell English, serif" font-size="15" fill="#3a3a3a" font-weight="700">Wyx Park</text>
+
+        <!-- Rock On = lute/note in scroll -->
+        <g transform="translate(360 478)" stroke="#7b5c3a" stroke-width="1.4">
+          <rect x="-14" y="-10" width="28" height="20" rx="3" fill="#f4e3b4"/>
+          <text y="3" font-family="IM Fell English, serif" font-size="14" font-weight="700" text-anchor="middle" fill="#7b5c3a">♪</text>
+        </g>
+        <text x="360" y="504" text-anchor="middle" font-family="IM Fell English, serif" font-size="12" fill="#3a3a3a">Rock On Academy</text>
+
+        <!-- Goose End -->
+        <g transform="translate(85 338)" stroke="#7b5c3a" stroke-width="1.4" fill="#f4e3b4">
+          <ellipse cx="0" cy="0" rx="8" ry="6"/>
+          <ellipse cx="-3" cy="-6" rx="3" ry="4"/>
+          <line x1="-3" y1="-9" x2="-7" y2="-9"/>
+        </g>
+        <text x="85" y="362" text-anchor="middle" font-family="IM Fell English, serif" font-size="12" fill="#3a3a3a">Goose End Farm</text>
+
+        <!-- Minnis Bay -->
+        <g transform="translate(310 100)" stroke="#7b5c3a" stroke-width="1.4">
+          <path d="M-10 0 Q 0 -8 10 0" fill="none"/>
+          <path d="M-10 4 Q 0 -4 10 4" fill="none"/>
+        </g>
+        <text x="310" y="125" text-anchor="middle" font-family="IM Fell English, serif" font-size="13" fill="#3a3a3a" font-weight="700">Minnis Bay</text>
+
+        <!-- Wavy-Arm car wash -->
+        <g transform="translate(50 380)" stroke="#7b5c3a" stroke-width="1.4" fill="#f4e3b4">
+          <rect x="-10" y="-8" width="20" height="16"/>
+          <line x1="-2" y1="-12" x2="-6" y2="-18"/>
+          <circle cx="-7" cy="-19" r="2" fill="#b75353" stroke="none"/>
+        </g>
+        <text x="50" y="406" text-anchor="middle" font-family="IM Fell English, serif" font-size="11" fill="#3a3a3a">Wavy-Arm</text>
+
+        <!-- Petrol -->
+        <g transform="translate(115 380)" stroke="#7b5c3a" stroke-width="1.4" fill="#f4e3b4">
+          <rect x="-8" y="-8" width="16" height="16"/>
+          <text y="3" font-family="IM Fell English, serif" font-size="10" text-anchor="middle" fill="#7b5c3a">P</text>
+        </g>
+        <text x="115" y="406" text-anchor="middle" font-family="IM Fell English, serif" font-size="11" fill="#3a3a3a">The Pump</text>
+
+        <!-- Old Town -->
+        <g transform="translate(300 285)" stroke="#7b5c3a" stroke-width="1.4" fill="#f4e3b4">
+          <rect x="-6" y="-8" width="12" height="14"/>
+          <polygon points="-7,-8 0,-14 7,-8" fill="#b75353"/>
+        </g>
+        <text x="300" y="316" text-anchor="middle" font-family="IM Fell English, serif" font-size="12" fill="#3a3a3a">Old Town</text>
+
+        <!-- Hedgehog warning -->
+        <text x="250" y="354" text-anchor="middle" font-family="IM Fell English, serif" font-size="10" fill="#a64a4a" font-weight="700">Hedgehogs! ⚠</text>
+
+        <!-- Title scroll -->
+        <g transform="translate(300 50)">
+          <rect x="-110" y="-22" width="220" height="44" fill="#f4e3b4" stroke="#7b5c3a" stroke-width="1.4" rx="4"/>
+          <text y="6" text-anchor="middle" font-family="IM Fell English, serif" font-size="22" font-weight="700" fill="#3a3a3a">Map of Birchie</text>
+        </g>
+
+        <!-- Vignette -->
+        <rect width="600" height="600" fill="url(#vignette-b)"/>
+      </svg>
+    </div>
+    <div class="panel-notes">
+      <strong>Aged paper, brown-ink linework, sea-creatures + compass rose, scroll labels.</strong>
+      <ul>
+        <li class="pros">+ Strongest "story object" feel — feels like Lily found a treasure map, not a UI screen.</li>
+        <li class="pros">+ Cheap to extend — new landmarks are just brown-ink stamps, no painting.</li>
+        <li class="pros">+ Reads at every zoom level since linework stays crisp.</li>
+        <li class="cons">– Departs from the painted-watercolour treatment used everywhere else.</li>
+        <li class="cons">– Lots of small text and ornament — needs careful sizing for 6-year-olds.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────
+       TREATMENT C — Faux-3D Diorama
+       Soft cartoon, slight 3/4 perspective, bright icons.
+       Reference: Animal Crossing, Toca Life World, Cats & Soup.
+       ──────────────────────────────────────────────────────────── -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>C · Faux-3D Diorama</h2>
+      <div class="tag">Animal Crossing / Toca direction</div>
+    </div>
+    <div class="map-stage" style="background: #b8e0ad;">
+      <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grass-c" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#c8e6b8"/>
+            <stop offset="1" stop-color="#94c489"/>
+          </linearGradient>
+          <linearGradient id="sea-c" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#aedef0"/>
+            <stop offset="1" stop-color="#7fc4dd"/>
+          </linearGradient>
+          <linearGradient id="wood-c" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#7da16c"/>
+            <stop offset="1" stop-color="#587544"/>
+          </linearGradient>
+          <filter id="shadow-c" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25"/>
+          </filter>
+        </defs>
+        <rect width="600" height="600" fill="url(#grass-c)"/>
+        <!-- Sea -->
+        <rect x="0" y="0" width="600" height="125" fill="url(#sea-c)"/>
+        <g fill="#fff" opacity="0.6">
+          <ellipse cx="80" cy="60" rx="22" ry="3"/>
+          <ellipse cx="220" cy="80" rx="18" ry="2.5"/>
+          <ellipse cx="400" cy="55" rx="24" ry="3"/>
+          <ellipse cx="520" cy="95" rx="20" ry="2.5"/>
+        </g>
+        <!-- Beach -->
+        <path d="M0 125 Q 150 138 300 128 T 600 132 L 600 152 Q 450 162 300 154 T 0 158 Z" fill="#f3dfae"/>
+        <!-- Beach huts colourful -->
+        <g transform="translate(80 138)" filter="url(#shadow-c)">
+          <rect width="14" height="14" fill="#ee8585"/><polygon points="0,0 7,-5 14,0" fill="#bb5e5e"/>
+          <rect x="14" width="14" height="14" fill="#f5be63"/><polygon points="14,0 21,-5 28,0" fill="#c2933f"/>
+          <rect x="28" width="14" height="14" fill="#7dc486"/><polygon points="28,0 35,-5 42,0" fill="#5b9962"/>
+          <rect x="42" width="14" height="14" fill="#73a8d5"/><polygon points="42,0 49,-5 56,0" fill="#4f7fa8"/>
+          <rect x="56" width="14" height="14" fill="#c294d0"/><polygon points="56,0 63,-5 70,0" fill="#9669a4"/>
+        </g>
+        <!-- Wyx Park: 3/4 trees -->
+        <g transform="translate(470 470)" filter="url(#shadow-c)">
+          <ellipse cx="0" cy="20" rx="100" ry="20" fill="rgba(0,0,0,0.18)"/>
+          <g>
+            <rect x="-44" y="-2" width="6" height="14" fill="#7b5c3a"/>
+            <ellipse cx="-41" cy="-10" rx="14" ry="16" fill="url(#wood-c)"/>
+            <rect x="-12" y="-6" width="7" height="18" fill="#7b5c3a"/>
+            <ellipse cx="-8" cy="-18" rx="18" ry="20" fill="url(#wood-c)"/>
+            <rect x="20" y="-2" width="6" height="14" fill="#7b5c3a"/>
+            <ellipse cx="23" cy="-10" rx="14" ry="16" fill="url(#wood-c)"/>
+            <rect x="44" y="0" width="6" height="12" fill="#7b5c3a"/>
+            <ellipse cx="47" cy="-8" rx="12" ry="14" fill="url(#wood-c)"/>
+          </g>
+        </g>
+        <!-- Bay Road -->
+        <path d="M30 320 Q 200 290 330 310 T 580 340" fill="none" stroke="#3a3a3a" stroke-width="18" stroke-linecap="round" opacity="0.18"/>
+        <path d="M30 320 Q 200 290 330 310 T 580 340" fill="none" stroke="#cfcfcf" stroke-width="14" stroke-linecap="round"/>
+        <path d="M30 320 Q 200 290 330 310 T 580 340" fill="none" stroke="#fff" stroke-width="1.5" stroke-dasharray="8 8"/>
+
+        <!-- Hedgehog crossing -->
+        <g class="attention" style="transform-origin: 250px 350px;">
+          <circle cx="250" cy="350" r="30" fill="rgba(217, 75, 75, 0.18)" stroke="#d94b4b" stroke-width="2"/>
+          <circle cx="250" cy="350" r="14" fill="#d94b4b" filter="url(#shadow-c)"/>
+          <text x="250" y="354" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" font-family="Fredoka, sans-serif">!</text>
+        </g>
+
+        <!-- Route (bright animated) -->
+        <g class="route">
+          <path d="M180 305 Q 280 360 400 430 T 470 470" fill="none"
+                stroke="#e3b04b" stroke-width="5" stroke-dasharray="10 6" stroke-linecap="round" filter="url(#shadow-c)"/>
+        </g>
+
+        <!-- A.R.C. — 3/4 cottage -->
+        <g transform="translate(180 290)" filter="url(#shadow-c)">
+          <ellipse cx="0" cy="20" rx="30" ry="6" fill="rgba(0,0,0,0.2)"/>
+          <rect x="-22" y="-6" width="44" height="22" fill="#fff5dc" stroke="#7b5c3a" stroke-width="1.5"/>
+          <polygon points="-25,-6 0,-26 25,-6" fill="#cf6868"/>
+          <polygon points="0,-26 25,-6 22,-3 0,-22" fill="#b75353"/>
+          <rect x="-4" y="-1" width="8" height="14" fill="#7b5c3a"/>
+          <circle cx="-12" cy="2" r="3" fill="#aed4ec" stroke="#7b5c3a" stroke-width="1.2"/>
+          <circle cx="12" cy="2" r="3" fill="#aed4ec" stroke="#7b5c3a" stroke-width="1.2"/>
+        </g>
+        <g transform="translate(180 332)">
+          <rect x="-32" y="-9" width="64" height="18" rx="9" fill="#fff" stroke="#7b5c3a" stroke-width="1.5" filter="url(#shadow-c)"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#3a3a3a">The A.R.C.</text>
+        </g>
+
+        <!-- Bay Road Vets -->
+        <g transform="translate(490 318)" filter="url(#shadow-c)">
+          <ellipse cx="0" cy="14" rx="22" ry="5" fill="rgba(0,0,0,0.2)"/>
+          <rect x="-16" y="-6" width="32" height="20" fill="#dfeef6" stroke="#5a7894" stroke-width="1.5"/>
+          <polygon points="-18,-6 0,-22 18,-6" fill="#dfeef6" stroke="#5a7894" stroke-width="1.5"/>
+          <rect x="-3" y="-3" width="6" height="14" fill="#cf6868"/>
+          <rect x="-7" y="2" width="14" height="4" fill="#cf6868"/>
+        </g>
+        <g transform="translate(490 350)">
+          <rect x="-38" y="-9" width="76" height="18" rx="9" fill="#fff" stroke="#7b5c3a" stroke-width="1.5" filter="url(#shadow-c)"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#3a3a3a">Bay Road Vets</text>
+        </g>
+
+        <!-- Wyx Park label -->
+        <g transform="translate(470 510)">
+          <rect x="-32" y="-9" width="64" height="18" rx="9" fill="#fff" stroke="#7b5c3a" stroke-width="1.5" filter="url(#shadow-c)"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#3a3a3a">Wyx Park</text>
+        </g>
+
+        <!-- Rock On -->
+        <g transform="translate(360 478)" filter="url(#shadow-c)">
+          <ellipse cx="0" cy="14" rx="20" ry="5" fill="rgba(0,0,0,0.2)"/>
+          <rect x="-16" y="-6" width="32" height="20" fill="#f5d99c" stroke="#7b5c3a" stroke-width="1.5"/>
+          <polygon points="-18,-6 0,-22 18,-6" fill="#7b5c3a"/>
+          <text y="6" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#3a3a3a">♪</text>
+        </g>
+        <g transform="translate(360 510)">
+          <rect x="-30" y="-9" width="60" height="18" rx="9" fill="#fff" stroke="#7b5c3a" stroke-width="1.5" filter="url(#shadow-c)"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#3a3a3a">Rock On</text>
+        </g>
+
+        <!-- Goose End -->
+        <g transform="translate(85 338)" filter="url(#shadow-c)">
+          <ellipse cx="0" cy="14" rx="22" ry="5" fill="rgba(0,0,0,0.2)"/>
+          <rect x="-16" y="-2" width="32" height="16" fill="#cf6868" stroke="#7b5c3a" stroke-width="1.5"/>
+          <polygon points="-18,-2 0,-18 18,-2" fill="#7b5c3a"/>
+          <rect x="-12" y="2" width="6" height="6" fill="#fff5dc"/>
+          <rect x="6" y="2" width="6" height="6" fill="#fff5dc"/>
+        </g>
+        <g transform="translate(85 370)">
+          <rect x="-40" y="-9" width="80" height="18" rx="9" fill="#fff" stroke="#7b5c3a" stroke-width="1.5" filter="url(#shadow-c)"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#3a3a3a">Goose End Farm</text>
+        </g>
+
+        <!-- Minnis Bay -->
+        <g transform="translate(310 95)" filter="url(#shadow-c)">
+          <circle r="14" fill="#fff" stroke="#5a7894" stroke-width="2"/>
+          <path d="M-7 -1 Q -3 -5 0 -1 Q 3 3 7 -1" fill="none" stroke="#5a7894" stroke-width="1.5"/>
+          <path d="M-7 4 Q -3 0 0 4 Q 3 8 7 4" fill="none" stroke="#5a7894" stroke-width="1.5"/>
+        </g>
+        <g transform="translate(310 122)">
+          <rect x="-32" y="-9" width="64" height="18" rx="9" fill="#fff" stroke="#7b5c3a" stroke-width="1.5" filter="url(#shadow-c)"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#3a3a3a">Minnis Bay</text>
+        </g>
+
+        <!-- Wavy-Arm -->
+        <g transform="translate(50 380)" filter="url(#shadow-c)">
+          <ellipse cx="0" cy="10" rx="14" ry="4" fill="rgba(0,0,0,0.2)"/>
+          <rect x="-10" y="-6" width="20" height="14" fill="#aed4ec" stroke="#5a7894" stroke-width="1.5"/>
+          <circle cx="-1" cy="-12" r="3" fill="#cf6868"/>
+        </g>
+        <g transform="translate(50 408)">
+          <rect x="-28" y="-9" width="56" height="18" rx="9" fill="#fff" stroke="#7b5c3a" stroke-width="1.5" filter="url(#shadow-c)"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="10" font-weight="700" fill="#3a3a3a">Wavy-Arm</text>
+        </g>
+
+        <!-- Petrol -->
+        <g transform="translate(115 380)" filter="url(#shadow-c)">
+          <ellipse cx="0" cy="10" rx="13" ry="4" fill="rgba(0,0,0,0.2)"/>
+          <rect x="-9" y="-6" width="18" height="14" fill="#f5d99c" stroke="#7b5c3a" stroke-width="1.5"/>
+          <text y="3" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="10" font-weight="700" fill="#3a3a3a">P</text>
+        </g>
+        <g transform="translate(115 408)">
+          <rect x="-26" y="-9" width="52" height="18" rx="9" fill="#fff" stroke="#7b5c3a" stroke-width="1.5" filter="url(#shadow-c)"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="10" font-weight="700" fill="#3a3a3a">The Pump</text>
+        </g>
+
+        <!-- Old Town -->
+        <g transform="translate(300 285)" filter="url(#shadow-c)">
+          <circle r="9" fill="#c294d0" stroke="#7b5c3a" stroke-width="1.5"/>
+        </g>
+        <g transform="translate(300 314)">
+          <rect x="-28" y="-9" width="56" height="18" rx="9" fill="#fff" stroke="#7b5c3a" stroke-width="1.5" filter="url(#shadow-c)"/>
+          <text y="4" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#3a3a3a">Old Town</text>
+        </g>
+
+        <!-- Title bunting -->
+        <g transform="translate(300 38)">
+          <rect x="-90" y="-18" width="180" height="36" rx="18" fill="#fff" stroke="#7b5c3a" stroke-width="2" filter="url(#shadow-c)"/>
+          <text y="6" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="20" font-weight="700" fill="#3a3a3a">Birchie</text>
+        </g>
+      </svg>
+    </div>
+    <div class="panel-notes">
+      <strong>Bright cartoon, soft 3/4 perspective, drop-shadows, pill labels.</strong>
+      <ul>
+        <li class="pros">+ Highest readability for the youngest end of our age band — every landmark is a little 3D thing.</li>
+        <li class="pros">+ Easy to extend — add a new landmark by dropping in a new little prop.</li>
+        <li class="pros">+ Plays well with animated pulses + bouncing pins — fits the friendly motion vocabulary.</li>
+        <li class="cons">– Most "game-y" of the three — could feel tonally off next to the painted watercolour rest of A.R.C.</li>
+        <li class="cons">– 3/4 perspective fights truthful Birchie geography (real coastal layout reads less clearly).</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<footer style="color: #f6efe1; opacity: 0.7; text-align: center; margin-top: 18px; font-size: 12px;">
+  Same 10 landmarks · same A.R.C.→Wyx Park route · same hedgehog warning · only the visual treatment changes.<br/>
+  See <code style="color: #e3b04b;">docs/map-representation-research.md</code> for the full research brief.
+</footer>
+
+</body>
+</html>
