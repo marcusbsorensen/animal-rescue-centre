@@ -15,6 +15,15 @@ If Marcus re-shares the map screenshot as a file, save it here as `birchie-centr
 - **Christies Wine Bar** → canonical adult-flavour landmark.
 - **Parish of the Holy Family**, **Birchington-on-Sea station**, **Rossetti Road** (Rossetti buried at All Saints) → flavour landmarks.
 - **Eastfield Road retail cluster** → cast-errand foot traffic.
+- **The Veterans Association** (Minnis Road, south side, just east of
+  Surrey Gardens, between the centre and Birchington-on-Sea station)
+  → in-game **Veterans Hall**. Painted as a small hall with a red
+  poppy emblem on the front (Royal British Legion poppy is well-known
+  to UK kids from Remembrance Day). Pinned at ~(390, 332) in the
+  Treatment-A coordinate system in `map-options.html`. Marcus added
+  this 2026-04-29 via Google Maps screenshot. Gameplay role TBD —
+  natural fits: an older-veteran adopter household nearby, a
+  dog-walking elderly buddy, a Remembrance-Day seasonal beat.
 
 ## Conventions
 
