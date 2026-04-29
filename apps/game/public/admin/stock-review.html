@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Adobe Stock map references</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    background: #2a2622;
+    color: #f6efe1;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  header { text-align: center; margin-bottom: 22px; }
+  header h1 { font-family: 'Fredoka', sans-serif; font-size: 24px; font-weight: 700; }
+  header p { font-size: 13px; opacity: 0.8; margin-top: 6px; max-width: 760px; margin-left: auto; margin-right: auto; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 18px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+  .card {
+    background: #fef9ef;
+    color: #3a3a3a;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    display: flex; flex-direction: column;
+  }
+  .card .frame {
+    background: #fff;
+    aspect-ratio: 4 / 3;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .card .frame img {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+  }
+  .card.verdict-strong { border: 3px solid #2c8a4f; }
+  .card.verdict-bonus  { border: 3px solid #c8a045; }
+  .card.verdict-weak   { border: 3px solid #8a8a8a; opacity: 0.85; }
+  .meta { padding: 14px 16px 16px; }
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .badge.strong { background: #d6efde; color: #1e5a37; }
+  .badge.bonus  { background: #f6e4be; color: #6b4f15; }
+  .badge.weak   { background: #e0e0e0; color: #555; }
+  h2 { font-family: 'Fredoka', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .stock-id { font-size: 11px; color: #6b6b6b; margin-bottom: 8px; font-family: ui-monospace, Menlo, monospace; }
+  .verdict { font-size: 13px; line-height: 1.45; }
+  .verdict strong { color: #1f1f1f; }
+  footer { text-align: center; margin-top: 22px; font-size: 12px; opacity: 0.7; }
+  footer code { color: #e3b04b; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Adobe Stock map references for Birchie</h1>
+  <p>240px low-res thumbnails. License-and-download only happens for the ones we actually want to use; right now these are <strong>style anchors</strong> for briefing Manus.</p>
+</header>
+
+<div class="grid">
+
+  <article class="card verdict-strong">
+    <div class="frame"><img src="scene-assets/reference/birchie-style-direction/fantasy-kingdom.jpg" alt="fantasy kingdom map"/></div>
+    <div class="meta">
+      <span class="badge strong">★ STRONG · Treatment A direction</span>
+      <h2>Fantasy kingdom map</h2>
+      <div class="stock-id">Adobe Stock #1248673531 · 4800×3840 · GenTech AI</div>
+      <p class="verdict"><strong>Best composition reference.</strong> Top-down, all-landmarks-visible, river + forest + beach + buildings rendered as one cohesive painted scene rather than icons floating on flat ground. Style is more video-game-y than our painted-storybook target — Manus would brief towards Julia-Donaldson watercolour, not this — but the <em>composition language</em> is gold.</p>
+    </div>
+  </article>
+
+  <article class="card verdict-strong">
+    <div class="frame"><img src="scene-assets/reference/birchie-style-direction/map-builder.jpg" alt="map builder modular icons"/></div>
+    <div class="meta">
+      <span class="badge strong">★ STRONG · Treatment A direction</span>
+      <h2>Modular hand-drawn map icons</h2>
+      <div class="stock-id">Adobe Stock #286944577 · 3873×3873 · Vector</div>
+      <p class="verdict"><strong>Matches our pin-on-painted-base architecture exactly.</strong> Cottages, mountains, trees, traveller as discrete painted stamps. Shows the painted-icon vocabulary for individual landmarks. The brown-roofed cottage stamp is a near-perfect direction for our A.R.C. cottage pin.</p>
+    </div>
+  </article>
+
+  <article class="card verdict-bonus">
+    <div class="frame"><img src="scene-assets/reference/birchie-style-direction/vintage-treasure.jpg" alt="vintage sepia treasure map"/></div>
+    <div class="meta">
+      <span class="badge bonus">◆ BONUS · GPS overlay direction</span>
+      <h2>Vintage sepia treasure map</h2>
+      <div class="stock-id">Adobe Stock #1437359085 · 5078×2954 · Vector</div>
+      <p class="verdict">Wrong style for Treatment A (we parked treasure-map / Treatment B). But <strong>useful as ornamental overlay reference</strong> — compass rose, dashed routes, hot-air-balloon flourish, ship illustrations. If we want the GPS panel or future seasonal overlays to gain decorative chrome, this is the vocabulary.</p>
+    </div>
+  </article>
+
+  <article class="card verdict-bonus">
+    <div class="frame"><img src="scene-assets/reference/birchie-style-direction/pirate-treasure.jpg" alt="pirate treasure map with compass"/></div>
+    <div class="meta">
+      <span class="badge bonus">◆ BONUS · ornament reference</span>
+      <h2>Pirate treasure map (parchment)</h2>
+      <div class="stock-id">Adobe Stock #276494388 · 4472×3354 · Vector</div>
+      <p class="verdict">Same as above — wrong main-map direction (Treatment B parked) but a strong <strong>compass-rose + sun + monster pictogram</strong> reference for ornamental decoration if we want it.</p>
+    </div>
+  </article>
+
+  <article class="card verdict-weak">
+    <div class="frame"><img src="scene-assets/reference/birchie-style-direction/fantasy-world-hand-drawn.jpg" alt="hand-drawn line map"/></div>
+    <div class="meta">
+      <span class="badge weak">— WEAK · skip</span>
+      <h2>Hand-drawn line island</h2>
+      <div class="stock-id">Adobe Stock #582136114 · 3873×3873 · Vector</div>
+      <p class="verdict">Light line-art with dotted seas. Tonally too sparse for Treatment A — we want painted, not ink-only. Skip.</p>
+    </div>
+  </article>
+
+  <article class="card verdict-weak">
+    <div class="frame"><img src="scene-assets/reference/birchie-style-direction/cartoon-treasure.jpg" alt="generic parchment scroll"/></div>
+    <div class="meta">
+      <span class="badge weak">— WEAK · skip</span>
+      <h2>Generic parchment scroll</h2>
+      <div class="stock-id">Adobe Stock #435424472 · 4743×3162 · Vector</div>
+      <p class="verdict">Too generic — empty parchment with vague terrain blobs. No useful direction.</p>
+    </div>
+  </article>
+
+</div>
+
+<footer>
+  240px JPEGs from <code>asset_search</code>. Stored at <code>apps/game/public/admin/scene-assets/reference/birchie-style-direction/</code>. License the high-res only if we want to ingest one.
+</footer>
+
+</body>
+</html>
