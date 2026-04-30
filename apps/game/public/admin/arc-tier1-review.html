@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. Tier 1 — Manus output review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Quicksand', system-ui, sans-serif; background: #2a2622; color: #f6efe1; padding: 22px; min-height: 100vh; }
+  header { text-align: center; margin-bottom: 22px; }
+  header h1 { font-family: 'Fredoka', sans-serif; font-size: 24px; font-weight: 700; }
+  header p { font-size: 13px; opacity: 0.8; margin-top: 6px; max-width: 760px; margin-left: auto; margin-right: auto; }
+  .layout { max-width: 1700px; margin: 0 auto; display: grid; gap: 22px; }
+  section.panel {
+    background: #fef9ef; color: #3a3a3a;
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  }
+  .panel-head { padding: 14px 18px; border-bottom: 1.5px dashed rgba(123,92,58,0.3); background: rgba(255,255,255,0.5); }
+  .panel-head h2 { font-family: 'Fredoka', sans-serif; font-size: 18px; font-weight: 700; color: #7b5c3a; }
+  .panel-head .tag { font-family: 'Quicksand', sans-serif; font-size: 12px; color: #6b6b6b; margin-top: 2px; }
+  .stamps-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; padding: 18px;
+  }
+  .stamp-card {
+    background: #faf2df; border-radius: 12px; overflow: hidden; border: 1.5px solid #d3bf94;
+    display: flex; flex-direction: column;
+  }
+  .stamp-frame {
+    aspect-ratio: 1 / 1;
+    background: repeating-conic-gradient(#eee 0% 25%, #fff 25% 50%) 50% / 16px 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stamp-frame img { width: 88%; height: 88%; object-fit: contain; }
+  .stamp-meta { padding: 10px 12px 12px; }
+  .stamp-meta h3 { font-family: 'Fredoka', sans-serif; font-size: 14px; font-weight: 700; color: #3a3a3a; }
+  .stamp-meta p { font-size: 12px; line-height: 1.4; color: #444; margin-top: 4px; }
+
+  .texture-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; padding: 18px;
+  }
+  .texture-card { background: #faf2df; border-radius: 12px; overflow: hidden; border: 1.5px solid #d3bf94; }
+  .texture-singletile {
+    aspect-ratio: 1 / 1; width: 100%; display: block;
+  }
+  .texture-tiled {
+    width: 100%; aspect-ratio: 2/1; background-size: 50% 100%; background-repeat: repeat;
+  }
+  .texture-meta { padding: 8px 12px 10px; }
+  .texture-meta h3 { font-family: 'Fredoka', sans-serif; font-size: 13px; font-weight: 700; color: #3a3a3a; }
+  .texture-meta p { font-size: 11px; line-height: 1.35; color: #444; margin-top: 3px; }
+
+  /* Composite mockup */
+  .composite-stage {
+    position: relative; width: 100%; aspect-ratio: 2/3; max-height: 1200px;
+    margin: 18px auto 0; max-width: 700px;
+    background: #dec98a;
+    border-radius: 12px; overflow: hidden;
+    border: 2px solid #7b5c3a;
+  }
+  .composite-stage .layer {
+    position: absolute;
+  }
+  .composite-stage .building {
+    width: 65%; left: 17.5%; top: 8%;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.18));
+  }
+  .composite-stage .tree {
+    width: 14%;
+    filter: drop-shadow(1px 3px 3px rgba(0,0,0,0.2));
+  }
+  .composite-stage .dome {
+    width: 7%;
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.25));
+  }
+  .composite-stage .ground-region {
+    background-size: 33% 33%;
+    background-repeat: repeat;
+  }
+
+  .panel-notes {
+    padding: 14px 18px 16px;
+    font-size: 13px; line-height: 1.5;
+    background: #faf2df;
+    border-top: 1px dashed rgba(123,92,58,0.25);
+  }
+  .panel-notes strong { color: #7b5c3a; }
+  .panel-notes ul { margin: 6px 0 0 18px; }
+  .panel-notes li { margin-bottom: 3px; }
+  .panel-notes .pros { color: #2c6741; }
+  .panel-notes .cons { color: #a64a4a; }
+
+  footer { text-align: center; margin-top: 22px; font-size: 12px; opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>A.R.C. site Tier 1 — Manus output review</h1>
+  <p>Task <code style="color:#e3b04b;">nw8Wwtk6SNZMgx7AYJDZWP</code> · 296 credits · 10 files. Front-elevation stamps + tileable ground textures + a layered composite mockup showing how Tier 1 will land on the live map.</p>
+</header>
+
+<div class="layout">
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Section A · Front-elevation stamps</h2>
+      <div class="tag">5 transparent PNGs · checkerboard shows transparency</div>
+    </div>
+    <div class="stamps-row">
+      <div class="stamp-card">
+        <div class="stamp-frame"><img src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="Main building"/></div>
+        <div class="stamp-meta">
+          <h3>arc-main-building.png · 768×768</h3>
+          <p>Art Deco rescue centre. Rounded corner ✓ · paw-print emblem on facade ✓ · "ANIMAL RESCUE CENTRE" canopy lettering ✓ · rooftop aviary dome ✓ · paw-print flag ✓ · pot plants ✓ · forecourt empty (PTV sprite layers later) ✓.</p>
+        </div>
+      </div>
+      <div class="stamp-card">
+        <div class="stamp-frame"><img src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" alt="Oak"/></div>
+        <div class="stamp-meta">
+          <h3>arc-tree-oak.png · 256×384</h3>
+          <p>Oak (Quercus robur). Wide spreading rounded crown · gnarly trunk · lobed leaves visible.</p>
+        </div>
+      </div>
+      <div class="stamp-card">
+        <div class="stamp-frame"><img src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" alt="Ash"/></div>
+        <div class="stamp-meta">
+          <h3>arc-tree-ash.png · 256×384</h3>
+          <p>Ash (Fraxinus excelsior). Taller upright crown · pinnate leaves · smoother grey trunk.</p>
+        </div>
+      </div>
+      <div class="stamp-card">
+        <div class="stamp-frame"><img src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" alt="Horse chestnut"/></div>
+        <div class="stamp-meta">
+          <h3>arc-tree-horse-chestnut.png · 256×384</h3>
+          <p>Horse chestnut (Aesculus). White candle flowers prominent — early summer character. Note: the flowers dominate the visual at this scale.</p>
+        </div>
+      </div>
+      <div class="stamp-card">
+        <div class="stamp-frame"><img src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" alt="Viewing dome"/></div>
+        <div class="stamp-meta">
+          <h3>viewing-dome-stamp.png · 192×192</h3>
+          <p>Art Deco glass canopy — polished metal frame · curved glass · aircraft-canopy aesthetic. Reused 3× along the path.</p>
+        </div>
+      </div>
+    </div>
+    <div class="panel-notes">
+      <strong>Verdict on stamps: strong.</strong> Style matches reference cast portraits well — soft watercolour, ink outlines, painted brushwork. The main building's Art Deco language is intact and the rounded corner reads instantly. Paw-print emblem is generously sized and visible at any zoom. Trees are species-distinct.
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Section B · Top-down ground textures</h2>
+      <div class="tag">Each shown as single tile (left) + 2×2 repeat (right) to test seamless tiling</div>
+    </div>
+    <div class="texture-row">
+      <div class="texture-card">
+        <img class="texture-singletile" src="scene-assets/reference/arc-site-tier1-2026-04-29/texture-grass.png" alt="Grass single tile"/>
+        <div class="texture-tiled" style="background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-grass.png)"></div>
+        <div class="texture-meta"><h3>texture-grass.png</h3><p>Sage green · daisies + yellow flower scatter. <strong>Tile test:</strong> directional brushwork creates visible seams.</p></div>
+      </div>
+      <div class="texture-card">
+        <img class="texture-singletile" src="scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel.png" alt="Gravel single tile"/>
+        <div class="texture-tiled" style="background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel.png)"></div>
+        <div class="texture-meta"><h3>texture-gravel.png</h3><p>Warm tan · stones suggested as dots. <strong>Tile test:</strong> swirling brushwork pattern shows when repeated.</p></div>
+      </div>
+      <div class="texture-card">
+        <img class="texture-singletile" src="scene-assets/reference/arc-site-tier1-2026-04-29/texture-lawn-garden.png" alt="Lawn garden single tile"/>
+        <div class="texture-tiled" style="background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-lawn-garden.png)"></div>
+        <div class="texture-meta"><h3>texture-lawn-garden.png</h3><p>Brighter lawn · flower borders. <strong>Tile test:</strong> flowers concentrate at edges = obvious seams when tiled.</p></div>
+      </div>
+      <div class="texture-card">
+        <img class="texture-singletile" src="scene-assets/reference/arc-site-tier1-2026-04-29/texture-quiet-garden.png" alt="Quiet garden single tile"/>
+        <div class="texture-tiled" style="background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-quiet-garden.png)"></div>
+        <div class="texture-meta"><h3>texture-quiet-garden.png</h3><p>Mossier dappled shade · ferns at corners. <strong>Tile test:</strong> ferns at corners create obvious repeats.</p></div>
+      </div>
+      <div class="texture-card">
+        <img class="texture-singletile" src="scene-assets/reference/arc-site-tier1-2026-04-29/texture-scrub.png" alt="Scrub single tile"/>
+        <div class="texture-tiled" style="background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-scrub.png)"></div>
+        <div class="texture-meta"><h3>texture-scrub.png</h3><p>Tussocks + low shrubs. <strong>Tile test:</strong> distinctive shrub motifs repeat visibly.</p></div>
+      </div>
+    </div>
+    <div class="panel-notes">
+      <strong>Verdict on textures: beautiful as single fills, NOT properly tileable.</strong>
+      <ul>
+        <li class="pros">+ Each tile read as a standalone image is gorgeous — the painted brushwork is exactly the watercolour-storybook treatment we wanted.</li>
+        <li class="pros">+ Palette and brushwork unified across all 5 tiles — same hand, same sitting.</li>
+        <li class="cons">– Tile-repeat test (right column) shows visible seams. The textures have directional gradients, edge-concentrated motifs (flowers/ferns), and strong central features that don't loop.</li>
+        <li>→ <strong>Workaround:</strong> use each as a SINGLE STRETCHED FILL of its target SVG region instead of a tiled pattern. Garden zones are small enough that one tile-per-zone reads fine. We don't need infinite tiling.</li>
+        <li>→ <strong>Or:</strong> run each through Adobe <code>image_generative_expand</code> with seam-fix prompts to make them properly tileable. Worth doing if we want full freedom of region size later.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Composite mockup · Tier 1 layered onto the A.R.C. plot</h2>
+      <div class="tag">Single-fill textures (no tiling) + layered stamps at approximate landmark positions</div>
+    </div>
+    <div class="composite-stage">
+      <!-- Background gravel -->
+      <div class="layer ground-region" style="left:0; top:0; width:100%; height:14%; background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel.png); background-size: 100% 100%;"></div>
+      <!-- Lawn garden left -->
+      <div class="layer ground-region" style="left:5%; top:35%; width:42%; height:18%; background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-lawn-garden.png); background-size: 100% 100%; border:1.5px solid #5a8a4f; border-radius:6px;"></div>
+      <!-- Quiet garden right -->
+      <div class="layer ground-region" style="left:53%; top:35%; width:42%; height:18%; background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-quiet-garden.png); background-size: 100% 100%; border:1.5px solid #5a7a4a; border-radius:6px;"></div>
+      <!-- Hedgehog/squirrel zone left -->
+      <div class="layer ground-region" style="left:5%; top:55%; width:42%; height:22%; background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-grass.png); background-size: 100% 100%; border:1.5px dashed #7b5c3a; border-radius:6px;"></div>
+      <!-- Raccoon zone right (placeholder grass) -->
+      <div class="layer ground-region" style="left:53%; top:55%; width:42%; height:22%; background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-grass.png); background-size: 100% 100%; border:1.5px dashed #7b5c3a; border-radius:6px;"></div>
+      <!-- Central path -->
+      <div class="layer ground-region" style="left:47%; top:35%; width:6%; height:42%; background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel.png); background-size: 100% 100%; border:1px solid #7b5c3a;"></div>
+      <!-- Fox/scrub bottom -->
+      <div class="layer ground-region" style="left:5%; top:80%; width:90%; height:18%; background-image: url(scene-assets/reference/arc-site-tier1-2026-04-29/texture-scrub.png); background-size: 100% 100%; border:1.5px dashed #5a7a4a; border-radius:6px;"></div>
+
+      <!-- Trees (3 in the small-mammal zone left half) -->
+      <img class="layer tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" style="left:8%; top:54%;"/>
+      <img class="layer tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" style="left:25%; top:60%;"/>
+      <img class="layer tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left:8%; top:67%;"/>
+
+      <!-- Viewing domes along central path -->
+      <img class="layer dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left:46.5%; top:60%;"/>
+      <img class="layer dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left:46.5%; top:66%;"/>
+      <img class="layer dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left:46.5%; top:72%;"/>
+
+      <!-- Main building -->
+      <img class="layer building" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" style="top:5%;"/>
+    </div>
+    <div class="panel-notes">
+      <strong>The pairing test.</strong> All 10 Tier 1 files layered onto an A.R.C.-plot-shaped canvas at approximate landmark positions. This is the question to answer:
+      <ul>
+        <li><strong>Does it read as one painted scene?</strong> The stamps and textures should look like they were painted by the same hand for the same map.</li>
+        <li><strong>Does the building scale work?</strong> 65% canvas width is rough — final coords will tune in code.</li>
+        <li><strong>Are the trees too big / too small / right?</strong> Currently 14% canvas width each.</li>
+        <li><strong>Anything obviously off</strong> that needs a re-roll (Adobe gen-expand, OpenAI single-piece fix, or full Manus redo)?</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<footer>Source files in <code style="color:#e3b04b;">manus-output/arc-site-tier1-2026-04-29/</code>. Mirrored to <code>scene-assets/reference/arc-site-tier1-2026-04-29/</code> for review.</footer>
+
+</body>
+</html>
