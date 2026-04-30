@@ -3,1151 +3,378 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>A.R.C. — Birchie-on-Sea World Map v2</title>
+<title>A.R.C. — Birchie world map</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Caveat:wght@500;600;700&family=Gochi+Hand&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
 <!--
-  A.R.C. world map — v2 rebuild (Marcus, 2026-04-24)
+  A.R.C. world map - v3 renderer.
 
-  This is a LAYOUT MOCKUP. The final in-game map will use a Manus-painted
-  backdrop (sea / cliffs / village / farmland / Wyx Park woods) dropped in
-  behind the pin + road layers. Every shape here is a placeholder to prove
-  the geography + pin hierarchy work.
+  Two views, switchable by tab:
+    1. World - OSM-derived Birchie geography (real road network) +
+       stylised east extension (Wyx Park, Westgate Golf Club). The
+       A.R.C. plot has the painted main-building stamp dropped in at
+       its real OSM position, plus a clickable label.
+    2. A.R.C. site - zoom into the plot, painted ground tiles fill
+       the gardens / scrub / forecourt zones, painted main building +
+       trees + viewing domes layered on top per the master site plan.
 
-  Canonical spec: docs/ptv-pet-transport-vehicle.md §"Map layout — workable,
-  not overlapping", §"Setting — modelled on Birchington-on-Sea", §"Confirmed
-  Bay Road (Minnis Road) geography", §"A.R.C. location — coastal green
-  south of The Dip", §"Whole-town layout + west-entrance + Wyx Park span +
-  Rock On Academy", §"Viking / Danish heritage in the street names",
-  §"Collection drives".
-
-  Fixes over v1:
-    1. Roads are painted as visible labelled ribbons (Bay Road, Station
-       Road, The Parade, A-road west, road south to Wyx Park, the Viking
-       cluster). Railway is a visible hatched line.
-    2. Three zoom levels — Area / Village / Close-up. Pins fade in/out as
-       the zoom crosses their threshold.
-    3. Long-stem signposts with angled ropes so labels never overlap.
-    4. Pin-size hierarchy — hero / supporting / cameo.
-    5. Warmer painted-parchment + saturated sea + olive-farm + sage-Wyx
-       colour pass with SVG texture.
+  Architecture (Rule 7 in docs/manus-sprite-rules.md):
+    - Ground = top-down painted texture tiles (single-fill per region).
+    - Stamps = front-elevation painted PNGs positioned by percentage.
+    - All composited in HTML/CSS over the OSM SVG base.
 -->
 <style>
   :root {
     --cream-wash: #fef9ef;
-    --parchment: #f6e8bd;
-    --parchment-deep: #e7cf94;
-    --parchment-shadow: #c8a865;
-    --sea: #89b8d0;
-    --sea-deep: #4f86a3;
-    --sea-foam: #d9ecf2;
-    --sand: #ecd5a2;
-    --sand-shadow: #b88a4d;
-    --grass: #b9cf8a;
-    --grass-deep: #88a85e;
-    --farm: #d9d387;
-    --farm-shadow: #a89c55;
-    --wyx: #7a9169;
-    --wyx-deep: #5c7852;
-    --forest: #5b7d4b;
-    --moor: #a89273;
-    --road: #e8c98a;
-    --road-edge: #8a6a3a;
-    --road-dash: #7b5a2d;
-    --railway: #5b3a1e;
-    --arc-red: #b94c3a;
-    --arc-red-deep: #8a3429;
-    --wood-warm: #b67c40;
-    --wood-deep: #7d5124;
-    --wood-sign: #d8ab68;
     --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
-    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
-    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
-    --hand-font: 'Caveat', 'Chalkboard SE', cursive;
+    --paper-tan: #f1e3c5;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: #222; }
-  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
-
-  /* Embed mode — when loaded via ?embed=1 we strip the review chrome. */
-  body.embed { background: var(--cream-wash); }
-  body.embed .vp-bar { display: none; }
-  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
-  body.embed .device {
-    width: 100% !important; height: 100% !important;
-    border-radius: 0 !important; box-shadow: none !important;
-  }
-
-  /* --- Review toolbar --- */
-  .vp-bar {
-    background: #2a2a2a; color: #fff;
-    padding: 6px 12px; font-size: 11px;
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-    font-family: ui-monospace, Menlo, monospace;
-  }
-  .vp-bar button {
-    background: #444; color: #fff; border: 1px solid #555;
-    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
-  }
-  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
-  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
-
-  .device-frame {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    padding: 20px; overflow: auto;
-  }
-  .device {
-    background: var(--cream-wash);
-    border-radius: 24px;
-    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+  html, body { height: 100%; }
+  body {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    background: #2a2622;
+    color: var(--cream-wash);
     overflow: hidden;
-    position: relative;
-    transition: width 0.3s, height 0.3s;
+    display: flex; flex-direction: column;
+    height: 100vh;
+  }
+
+  .tabs {
+    display: flex; gap: 8px;
+    padding: 12px 18px;
+    background: rgba(0,0,0,0.25);
+    border-bottom: 2px dashed rgba(123,92,58,0.35);
     flex-shrink: 0;
   }
-  .device[data-size="iphone"]  { width: 390px;  height: 844px; }
-  .device[data-size="ipad-p"]  { width: 768px;  height: 1024px; }
-  .device[data-size="ipad-l"]  { width: 1024px; height: 768px; }
-  .device[data-size="desktop"] { width: 1280px; height: 800px; }
+  .tab {
+    background: var(--paper-tan);
+    border: 2px solid #d3bf94;
+    border-radius: 14px;
+    padding: 6px 18px;
+    cursor: pointer; user-select: none;
+    font-family: 'Fredoka', sans-serif; font-weight: 500; font-size: 14px;
+    color: var(--ink-soft);
+  }
+  .tab.active {
+    background: var(--honey-amber);
+    border-color: var(--honey-shadow);
+    color: var(--ink);
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1);
+  }
+  .tabs .right { margin-left: auto; font-size: 12px; opacity: 0.6; align-self: center; }
 
-  /* ---- Map canvas ---- */
-  .map {
-    width: 100%; height: 100%;
-    position: relative; overflow: hidden;
-    background:
-      radial-gradient(ellipse at 30% 55%, rgba(255,255,255,0.22), transparent 60%),
-      linear-gradient(180deg,
-        var(--sea-deep) 0%, var(--sea) 7%, var(--sea-foam) 12%,
-        var(--sand) 14%, var(--parchment) 18%,
-        var(--parchment) 70%, var(--parchment-deep) 100%);
+  .stage {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #1a1612;
   }
-  /* Parchment grain via layered radial spots */
-  .map::before {
-    content: ''; position: absolute; inset: 0;
-    background-image:
-      radial-gradient(circle at 12% 38%, rgba(125,81,36,0.08), transparent 5%),
-      radial-gradient(circle at 82% 44%, rgba(125,81,36,0.07), transparent 4%),
-      radial-gradient(circle at 28% 72%, rgba(125,81,36,0.07), transparent 5%),
-      radial-gradient(circle at 68% 84%, rgba(125,81,36,0.06), transparent 6%),
-      radial-gradient(circle at 52% 56%, rgba(125,81,36,0.05), transparent 4%),
-      radial-gradient(circle at 38% 28%, rgba(125,81,36,0.05), transparent 3%);
-    pointer-events: none;
-    z-index: 0;
-  }
-  /* Painted-parchment fibre texture (subtle SVG hatch) */
-  .map::after {
-    content: ''; position: absolute; inset: 0;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'><g stroke='%238a6a3a' stroke-width='0.4' opacity='0.12'><line x1='0' y1='12' x2='80' y2='16'/><line x1='0' y1='34' x2='80' y2='30'/><line x1='0' y1='58' x2='80' y2='62'/><line x1='0' y1='72' x2='80' y2='70'/></g></svg>");
-    opacity: 0.8;
-    pointer-events: none;
-    z-index: 1;
-  }
+  .stage:not(.active) { display: none; }
 
-  /* Painted landscape SVG layer — regions (farmland, Wyx woods etc) */
-  .landscape {
+  /* World view */
+  #world-stage .map-canvas {
     position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #world-stage .osm-svg {
     width: 100%; height: 100%;
-    pointer-events: none;
-    z-index: 2;
-  }
-  /* Road ribbons SVG layer — above landscape, below pins */
-  .roads { position: absolute; inset: 0; width: 100%; height: 100%;
-    pointer-events: none; z-index: 3; }
-
-  /* Pin container — the .pin-stage holds pin + signpost, and fades by zoom */
-  .pins-layer, .plaque-layer {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    z-index: 4;
-  }
-  .plaque-layer { z-index: 8; pointer-events: none; }
-
-  /* ---- PIN STAGE (positioned by %) ----
-     A pin has a peg (tiny round marker at the exact map spot) + a
-     signpost-stem (rope) that reaches out to a signboard in any direction.
-     Every pin defines --sx and --sy as the stem-end offset (in pixels).
-  */
-  .pin {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    z-index: 5;
-    transition: opacity 0.25s ease, transform 0.25s ease;
-  }
-  .pin.hidden { opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.85); }
-
-  .pin .peg {
-    position: absolute;
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #fff, #f2d68a 50%, #a8751e 100%);
-    border: 1.5px solid var(--wood-deep);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.35);
-    left: 0; top: 0;
-    transform: translate(-50%, -50%);
-    z-index: 2;
-  }
-  /* Signpost rope — a painted line from the peg to the signboard */
-  .pin .rope {
-    position: absolute;
-    height: 3px;
-    background: repeating-linear-gradient(90deg,
-      var(--wood-deep) 0 4px,
-      var(--wood-warm) 4px 8px);
-    border-radius: 2px;
-    transform-origin: 0 50%;
-    left: 0; top: 0;
-    z-index: 1;
-    box-shadow: 0 1px 1px rgba(0,0,0,0.18);
-  }
-  /* The signboard itself, positioned at the rope's endpoint */
-  .pin .sign {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    background:
-      linear-gradient(180deg, #f4d9a4 0%, var(--wood-sign) 55%, #b7874b 100%);
-    color: var(--ink);
-    border: 2px solid var(--wood-deep);
-    border-radius: 8px;
-    padding: 5px 10px 6px;
-    font-family: var(--sign-font);
-    font-weight: 600;
-    font-size: 12px;
-    line-height: 1.1;
-    white-space: nowrap;
-    box-shadow:
-      0 2px 3px rgba(0,0,0,0.22),
-      inset 0 1px 0 rgba(255,255,255,0.35),
-      inset 0 -2px 0 rgba(0,0,0,0.15);
-    cursor: pointer;
-    z-index: 3;
-    text-align: center;
-  }
-  .pin .sign .ico { margin-right: 4px; }
-  .pin .sign .sub {
     display: block;
-    font-size: 9.5px;
-    font-weight: 400;
-    color: var(--ink-soft);
-    font-family: var(--hand-font);
-    margin-top: 1px;
   }
-  .pin.active .sign { outline: 2px dashed var(--arc-red); outline-offset: 3px; }
-  .pin:hover .sign { transform: translate(-50%, -50%) scale(1.05); }
-
-  /* --- Hero pins (A.R.C., Wyx Park, Minnis Bay, rewilding habitats) --- */
-  .pin.hero .sign {
-    font-size: 14px;
-    padding: 7px 14px 8px;
-    border-width: 3px;
-    border-radius: 10px;
-    background: linear-gradient(180deg, #f7deaa 0%, #d9a75e 55%, #9e6a2e 100%);
-  }
-  .pin.hero .peg { width: 18px; height: 18px; }
-
-  /* The Arc — hero of heroes */
-  .pin.arc .sign {
-    background: linear-gradient(180deg, #e06851 0%, var(--arc-red) 55%, var(--arc-red-deep) 100%);
-    color: #fff8e8;
-    border-color: #5c2219;
-    font-size: 17px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    padding: 10px 18px 11px;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.35);
-    border-radius: 12px;
-  }
-  .pin.arc .sign .sub {
-    color: #ffeac6;
-    font-family: var(--hand-font);
-    font-size: 13px;
-    font-weight: 600;
-    font-style: italic;
-    margin-top: 2px;
-  }
-  .pin.arc .peg { width: 22px; height: 22px;
-    background: radial-gradient(circle at 35% 30%, #ffe9d2, #e06851 55%, #5c2219 100%); }
-
-  /* Supporting pins — default styling already covers these */
-  .pin.supporting .sign {
-    background: linear-gradient(180deg, #f4d9a4 0%, var(--wood-sign) 55%, #9e6f3a 100%);
-  }
-
-  /* Cameo (adopter houses / sub-Wyx pins) — tiny dots + hover-only label */
-  .pin.cameo .peg {
-    width: 10px; height: 10px;
-    background: radial-gradient(circle at 35% 30%, #fff, #e8c888 50%, #8a5d20 100%);
-  }
-  .pin.cameo .sign {
-    font-size: 10px;
-    padding: 3px 7px;
-    opacity: 0;
-    transition: opacity 0.2s;
+  #world-stage .pin-layer {
+    position: absolute; inset: 0;
     pointer-events: none;
   }
-  .pin.cameo:hover .sign,
-  .pin.cameo.active .sign { opacity: 1; pointer-events: auto; }
-  .pin.cameo .rope { opacity: 0; }
-  .pin.cameo:hover .rope, .pin.cameo.active .rope { opacity: 0.6; }
-
-  /* Region label — big hand-written labels for open land */
-  .region-label {
+  #world-stage .pin {
     position: absolute;
-    font-family: var(--hand-font);
-    color: rgba(90, 60, 25, 0.55);
-    font-size: 22px;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    pointer-events: none;
-    z-index: 2;
-    text-shadow: 0 1px 0 rgba(255,250,230,0.6);
-  }
-  .region-label.big { font-size: 28px; }
-
-  /* Road labels — along the ribbon */
-  .road-label {
-    position: absolute;
-    font-family: var(--hand-font);
-    color: #4a2e10;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    pointer-events: none;
-    z-index: 3;
-    text-shadow: 0 1px 0 rgba(255,250,230,0.8);
-    transform: translate(-50%, -50%) rotate(var(--r, 0deg));
-    white-space: nowrap;
-  }
-
-  /* Compass rose */
-  .compass {
-    position: absolute;
-    top: 14px; right: 14px;
-    width: 64px; height: 64px;
-    z-index: 7;
-  }
-
-  /* Zoom control top-right under compass */
-  .zoom-control {
-    position: absolute;
-    top: 88px; right: 14px;
-    background: rgba(254,246,225,0.94);
-    border: 2px solid var(--wood-deep);
-    border-radius: 10px;
-    padding: 6px;
-    display: flex; flex-direction: column; gap: 4px;
-    z-index: 7;
-    font-family: var(--sign-font);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
-  }
-  .zoom-control button {
-    background: linear-gradient(180deg, #f4d9a4 0%, var(--wood-sign) 100%);
-    color: var(--ink);
-    border: 1.5px solid var(--wood-deep);
-    border-radius: 6px;
-    padding: 5px 9px;
-    font-size: 11px;
-    font-family: var(--sign-font);
-    font-weight: 700;
-    cursor: pointer;
-    min-width: 78px;
-    text-align: left;
-  }
-  .zoom-control button.on {
-    background: linear-gradient(180deg, #e06851, var(--arc-red));
-    color: #fff8e8;
-    border-color: var(--arc-red-deep);
-  }
-
-  /* Legend */
-  .legend {
-    position: absolute;
-    left: 14px; bottom: 14px;
-    background: rgba(254,246,225,0.94);
-    border: 2px solid var(--wood-deep);
-    border-radius: 10px;
-    padding: 8px 11px 9px;
-    z-index: 7;
-    max-width: 220px;
-    font-family: var(--body-font);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
-  }
-  .legend h4 {
-    font-family: var(--sign-title-font);
-    font-size: 13px;
-    margin-bottom: 5px;
-    color: var(--ink);
-  }
-  .legend ul { list-style: none; display: grid; gap: 3px; font-size: 11px; color: var(--ink); }
-  .legend li { display: flex; align-items: center; gap: 6px; }
-  .legend .sw {
-    width: 16px; height: 16px; border-radius: 4px;
-    display: inline-flex; align-items: center; justify-content: center;
-    border: 1.5px solid var(--wood-deep);
-    font-size: 9px; flex-shrink: 0;
-  }
-  .legend .sw.arc { background: var(--arc-red); color: #fff8e8; font-weight: 700; }
-  .legend .sw.hero { background: #d9a75e; }
-  .legend .sw.supp { background: var(--wood-sign); }
-  .legend .sw.cameo {
-    background: radial-gradient(circle, #e8c888 20%, transparent 60%);
-    border: none; width: 14px; height: 14px;
-  }
-  .legend .sw.rewild { background: var(--wyx); color: #fff; }
-
-  /* Off-edge tag — hedgehog rescue near Herne Bay */
-  .offedge {
-    position: absolute;
-    background: linear-gradient(180deg, #f4d9a4, var(--wood-sign));
-    border: 2px solid var(--wood-deep);
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-family: var(--sign-font);
-    font-size: 11px;
-    font-weight: 700;
-    z-index: 6;
-    box-shadow: 0 2px 3px rgba(0,0,0,0.22);
-    display: flex; align-items: center; gap: 6px;
-  }
-  .offedge.left { left: -6px; top: 70%; }
-  .offedge small { font-weight: 400; color: var(--ink-soft); font-family: var(--body-font); font-size: 9.5px; }
-  .offedge .arrow { font-size: 14px; color: var(--arc-red); }
-
-  /* Title plate */
-  .map-title {
-    position: absolute;
-    top: 14px; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(254,246,225,0.92);
-    border: 2px solid var(--wood-deep);
-    border-radius: 12px;
-    padding: 7px 18px 8px;
-    text-align: center;
-    font-family: var(--sign-title-font);
-    color: var(--ink);
-    font-size: 17px;
-    font-weight: 700;
-    z-index: 7;
-    letter-spacing: 0.02em;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.18);
-  }
-  .map-title small {
-    display: block;
-    font-family: var(--hand-font);
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--ink-soft);
-    margin-top: 1px;
-  }
-
-  /* Plaque (detail pop-out when a pin is clicked) */
-  .plaque {
-    position: absolute;
-    width: 200px;
-    background:
-      linear-gradient(180deg, #fffdf4 0%, #f8ebc9 100%);
-    border: 2.5px solid var(--wood-deep);
-    border-radius: 10px;
-    padding: 10px 13px 12px;
-    font-family: var(--body-font);
-    color: var(--ink);
     pointer-events: auto;
-    z-index: 9;
-    box-shadow: 0 6px 14px rgba(0,0,0,0.22);
+    cursor: pointer;
+  }
+  #world-stage .pin-arc-building {
+    width: 6%;
+    transform: translate(-50%, -85%);
+    filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.3));
+    transition: transform 200ms ease;
+  }
+  #world-stage .pin-arc-building:hover {
+    transform: translate(-50%, -90%) scale(1.06);
+  }
+  #world-stage .pin-arc-label {
+    position: absolute;
+    background: var(--honey-amber);
+    border: 2px solid var(--honey-shadow);
+    border-radius: 14px;
+    padding: 3px 12px;
+    font-family: 'Kalam', cursive;
+    font-weight: 700; font-size: 14px;
+    color: var(--ink);
+    transform: translate(-50%, 0);
+    box-shadow: 1px 2px 0 rgba(0,0,0,0.15);
+    cursor: pointer;
+    pointer-events: auto;
+    white-space: nowrap;
+  }
+  #world-stage .pin-arc-label:hover { transform: translate(-50%, -1px); }
+
+  /* A.R.C. detail view */
+  #arc-stage .arc-frame {
+    position: relative;
+    width: min(100%, 600px);
+    height: 100%;
+    margin: 0 auto;
+    background-color: #c9b884;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-grass.png');
+    background-size: 200px 200px;
+    background-repeat: repeat;
+  }
+  #arc-stage .arc-region {
+    position: absolute;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+  }
+  #arc-stage .region-parking {
+    left: 6%; top: 1.5%; width: 88%; height: 11%;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
+    border: 1.5px solid rgba(123,92,58,0.45);
+  }
+  #arc-stage .region-lawn {
+    left: 6%; top: 33%; width: 41%; height: 14%;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-lawn-garden.png');
+    border: 1.5px solid #5a8a4f;
+    border-radius: 4px;
+  }
+  #arc-stage .region-quiet {
+    right: 6%; top: 33%; width: 41%; height: 14%;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-quiet-garden.png');
+    border: 1.5px solid #5a7a4a;
+    border-radius: 4px;
+  }
+  #arc-stage .region-path {
+    left: 47%; top: 50%; width: 6%; height: 28%;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
+    border-left: 1px solid rgba(123,92,58,0.5);
+    border-right: 1px solid rgba(123,92,58,0.5);
+  }
+  #arc-stage .region-hedgehog {
+    left: 6%; top: 50%; width: 41%; height: 28%;
+    border: 1.5px dashed rgba(123,92,58,0.5);
+    border-radius: 4px;
+  }
+  #arc-stage .region-raccoon {
+    right: 6%; top: 50%; width: 41%; height: 28%;
+    border: 1.5px dashed rgba(123,92,58,0.5);
+    border-radius: 4px;
+  }
+  #arc-stage .region-fox-skunk {
+    left: 6%; top: 81%; width: 88%; height: 17%;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-scrub.png');
+    border: 1.5px dashed #5a7a4a;
+    border-radius: 4px;
+  }
+
+  #arc-stage .stamp {
+    position: absolute;
+    pointer-events: none;
+  }
+  #arc-stage .stamp-building {
+    left: 18%; top: 0;
+    width: 64%;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.18));
+  }
+  #arc-stage .stamp-tree {
+    width: 13%;
+    filter: drop-shadow(1px 3px 3px rgba(0,0,0,0.2));
+  }
+  #arc-stage .stamp-dome {
+    width: 5%;
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.25));
     transform: translate(-50%, -50%);
   }
-  .plaque .pl-title {
-    font-family: var(--sign-title-font);
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 2px;
-  }
-  .plaque .pl-kind {
-    font-family: var(--hand-font);
-    font-size: 13px;
-    color: var(--arc-red);
-    font-weight: 600;
-    margin-bottom: 5px;
-  }
-  .plaque .pl-desc {
-    font-size: 11.5px;
-    line-height: 1.35;
+
+  #arc-stage .region-label {
+    position: absolute;
+    background: rgba(255,255,255,0.85);
+    border: 1px solid rgba(123,92,58,0.4);
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-family: 'Kalam', cursive; font-weight: 700; font-size: 11px;
     color: var(--ink);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+  }
+  #arc-stage .region-label.tier-future {
+    background: rgba(255,255,255,0.6);
+    color: var(--ink-soft);
+    font-style: italic;
   }
 
-  /* Railway hatching */
-  .railway-line {
-    stroke: var(--railway);
-    stroke-width: 2.2;
-    stroke-dasharray: 3 4;
-    fill: none;
-  }
-  .railway-ties {
-    stroke: var(--railway);
-    stroke-width: 5;
-    stroke-dasharray: 2 7;
-    fill: none;
-    opacity: 0.6;
-  }
-
-  /* Iphone scales down — shrink title + legend */
-  .device[data-size="iphone"] .map-title { font-size: 13px; padding: 5px 10px; }
-  .device[data-size="iphone"] .legend { font-size: 10px; max-width: 160px; padding: 6px 8px; }
-  .device[data-size="iphone"] .legend h4 { font-size: 11px; }
-  .device[data-size="iphone"] .zoom-control button { min-width: 62px; font-size: 10px; padding: 3px 6px; }  /* Vertical scroll on desktop + iPad L — content stack is taller than
-     the device's viewport on these landscape sizes; allow the user to
-     scroll to see the bottom (grass tuft, bunny, fox, credits). */
-  .device[data-size="desktop"] .welcome,
-  .device[data-size="desktop"] .adopt,
-  .device[data-size="desktop"] .conflict,
-  .device[data-size="desktop"] .arrival,
-  .device[data-size="desktop"] .vet,
-  .device[data-size="desktop"] .menu,
-  .device[data-size="desktop"] .news,
-  .device[data-size="desktop"] .friends,
-  .device[data-size="desktop"] .paths,
-  .device[data-size="desktop"] .rewilding,
-  .device[data-size="desktop"] .badge,
-  .device[data-size="desktop"] .visitor,
-  .device[data-size="ipad-l"] .welcome,
-  .device[data-size="ipad-l"] .adopt,
-  .device[data-size="ipad-l"] .conflict,
-  .device[data-size="ipad-l"] .arrival,
-  .device[data-size="ipad-l"] .vet,
-  .device[data-size="ipad-l"] .menu,
-  .device[data-size="ipad-l"] .news,
-  .device[data-size="ipad-l"] .friends,
-  .device[data-size="ipad-l"] .paths,
-  .device[data-size="ipad-l"] .rewilding,
-  .device[data-size="ipad-l"] .badge,
-  .device[data-size="ipad-l"] .visitor {
-    overflow-y: auto !important;
+  #arc-stage .arc-title {
+    position: absolute;
+    top: 12px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--honey-amber);
+    border: 2px solid var(--honey-shadow);
+    border-radius: 18px;
+    padding: 4px 16px;
+    font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 16px;
+    color: var(--ink);
+    box-shadow: 2px 3px 0 rgba(0,0,0,0.15);
+    z-index: 10;
   }
 
+  #arc-stage .back-button {
+    position: absolute;
+    top: 14px; left: 14px;
+    background: var(--honey-amber);
+    border: 2px solid var(--honey-shadow);
+    border-radius: 22px;
+    padding: 6px 14px 6px 8px;
+    cursor: pointer; user-select: none;
+    font-family: 'Kalam', cursive; font-weight: 700; font-size: 14px;
+    color: var(--ink);
+    box-shadow: 2px 3px 0 rgba(0,0,0,0.12);
+    transform: rotate(-3deg);
+    display: inline-flex; align-items: center; gap: 6px;
+    z-index: 10;
+  }
+  .back-button svg { width: 16px; height: 16px; }
 </style>
 </head>
 <body>
 
-<div class="vp-bar">
-  <strong>Viewport:</strong>
-  <button data-size="iphone">iPhone 390</button>
-  <button data-size="ipad-p">iPad P 768</button>
-  <button data-size="ipad-l" class="on">iPad L 1024</button>
-  <button data-size="desktop">Desktop 1280</button>
-  <span class="hint">GPS world map v2 — layout screen (Manus backdrop TBD)</span>
+<div class="tabs">
+  <button class="tab active" data-stage="world">World map</button>
+  <button class="tab" data-stage="arc">A.R.C. site</button>
+  <span class="right">v3 renderer · Tier 1 assets · OSM ground truth</span>
 </div>
 
-<div class="device-frame">
-  <div class="device" data-size="ipad-l">
-    <div class="map" id="map">
-
-      <!-- ============ PAINTED LANDSCAPE LAYER ============ -->
-      <svg class="landscape" viewBox="0 0 1000 720" preserveAspectRatio="none">
-        <defs>
-          <pattern id="farmrows" x="0" y="0" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(-20)">
-            <line x1="0" y1="0" x2="0" y2="26" stroke="#a89c55" stroke-width="1" opacity="0.35"/>
-          </pattern>
-          <pattern id="woodland" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
-            <circle cx="6" cy="8" r="3" fill="#5c7852" opacity="0.55"/>
-            <circle cx="16" cy="16" r="2.2" fill="#4a6342" opacity="0.45"/>
-          </pattern>
-          <pattern id="waves" x="0" y="0" width="40" height="8" patternUnits="userSpaceOnUse">
-            <path d="M0 4 q 10 -4 20 0 t 20 0" stroke="#fff" stroke-width="0.8" fill="none" opacity="0.45"/>
-          </pattern>
-          <pattern id="sand-dots" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
-            <circle cx="4" cy="4" r="0.8" fill="#a77838" opacity="0.5"/>
-            <circle cx="10" cy="10" r="0.6" fill="#a77838" opacity="0.4"/>
-          </pattern>
-        </defs>
-
-        <!-- Sea wave pattern over the top band -->
-        <rect x="0" y="0" width="1000" height="90" fill="url(#waves)"/>
-
-        <!-- Sandy beach band (whole north coast) -->
-        <path d="M 0 95 Q 200 108 400 100 T 820 105 T 1000 102 L 1000 130 L 0 132 Z"
-              fill="#ecd5a2" opacity="0.95"/>
-        <path d="M 0 95 Q 200 108 400 100 T 820 105 T 1000 102 L 1000 132 L 0 132 Z"
-              fill="url(#sand-dots)"/>
-
-        <!-- Chalk cliff headlands -->
-        <path d="M 620 100 q 30 4 50 18 q 10 12 -6 18 q -24 4 -44 -8 z" fill="#f6ecd7" stroke="#b8a67a" stroke-width="1"/>
-        <path d="M 860 120 q 28 6 46 22 q 10 12 -8 16 q -26 2 -40 -10 z" fill="#f6ecd7" stroke="#b8a67a" stroke-width="1"/>
-
-        <!-- Farmland belts (olive with painted furrows) south-west + south -->
-        <path d="M 0 440 Q 220 420 400 445 L 420 720 L 0 720 Z" fill="#d9d387"/>
-        <path d="M 0 440 Q 220 420 400 445 L 420 720 L 0 720 Z" fill="url(#farmrows)"/>
-        <path d="M 300 560 Q 500 540 700 570 L 680 720 L 280 720 Z" fill="#d9d387" opacity="0.85"/>
-        <path d="M 300 560 Q 500 540 700 570 L 680 720 L 280 720 Z" fill="url(#farmrows)"/>
-
-        <!-- Wyx Park woodland (big sage-green blob south-east) -->
-        <path d="M 640 380 Q 780 340 920 380 Q 985 440 970 560 Q 920 680 800 700 Q 680 700 620 620 Q 580 500 640 380 Z"
-              fill="#7a9169" opacity="0.9"/>
-        <path d="M 640 380 Q 780 340 920 380 Q 985 440 970 560 Q 920 680 800 700 Q 680 700 620 620 Q 580 500 640 380 Z"
-              fill="url(#woodland)"/>
-        <!-- A few painted trees on the woodland edge -->
-        <g fill="#4a6342" opacity="0.75">
-          <circle cx="660" cy="405" r="10"/>
-          <circle cx="700" cy="385" r="11"/>
-          <circle cx="760" cy="370" r="13"/>
-          <circle cx="820" cy="375" r="12"/>
-          <circle cx="890" cy="410" r="11"/>
-          <circle cx="940" cy="470" r="14"/>
-          <circle cx="910" cy="620" r="12"/>
-        </g>
-
-        <!-- Built-up village patch (warm cream) around the centre -->
-        <path d="M 300 280 Q 520 255 700 290 Q 720 360 680 420 Q 500 440 300 420 Q 270 360 300 280 Z"
-              fill="#f7ecc8" opacity="0.8"/>
-
-        <!-- The Dip — small sunken bowl -->
-        <ellipse cx="446" cy="220" rx="34" ry="18" fill="#c9d9a8" stroke="#7e8c52" stroke-width="1.5"/>
-        <ellipse cx="446" cy="218" rx="22" ry="10" fill="#b0c488" opacity="0.8"/>
-
-        <!-- A.R.C. coastal green (between Viking / Canute / Dane roads) -->
-        <path d="M 410 270 Q 450 255 490 275 Q 500 320 475 340 Q 430 345 405 320 Q 395 295 410 270 Z"
-              fill="#bfd59c" stroke="#7a9458" stroke-width="1.5"/>
-
-        <!-- Paddling pool near Minnis Bay -->
-        <ellipse cx="108" cy="108" rx="18" ry="8" fill="#89b8d0" stroke="#4f86a3" stroke-width="1"/>
-
-        <!-- Rainbow beach-hut strip along The Parade -->
-        <g>
-          <rect x="160" y="118" width="6" height="8" fill="#e06851"/>
-          <rect x="168" y="118" width="6" height="8" fill="#e3b04b"/>
-          <rect x="176" y="118" width="6" height="8" fill="#7dba68"/>
-          <rect x="184" y="118" width="6" height="8" fill="#5b8dbe"/>
-          <rect x="192" y="118" width="6" height="8" fill="#b76cc2"/>
-          <rect x="200" y="118" width="6" height="8" fill="#e06851"/>
-          <rect x="208" y="118" width="6" height="8" fill="#e3b04b"/>
-          <rect x="216" y="118" width="6" height="8" fill="#7dba68"/>
-        </g>
-
-        <!-- Painted seagulls over the sea -->
-        <g stroke="#3a3a3a" stroke-width="1.4" fill="none" stroke-linecap="round">
-          <path d="M 180 42 q 4 -5 8 0 q 4 -5 8 0"/>
-          <path d="M 450 30 q 3 -4 6 0 q 3 -4 6 0"/>
-          <path d="M 730 40 q 4 -5 8 0 q 4 -5 8 0"/>
-          <path d="M 870 58 q 3 -4 6 0 q 3 -4 6 0"/>
-        </g>
-      </svg>
-
-      <!-- ============ ROAD NETWORK LAYER ============ -->
-      <!--
-        Roads are painted ribbons over the landscape. All coordinates use a
-        1000 x 720 viewBox. Names and rough geometry follow the real
-        Birchington layout:
-          - The Parade runs along the coast just south of the beach huts.
-          - Bay Road (Minnis Road) runs west→east through the village centre.
-          - Station Road links Bay Road north to the train station + Pet Supplies.
-          - A-road west is the continuation of Bay Road out past Goose End +
-            Fishbone Grill + Esso toward Herne Bay.
-          - The Viking-heritage cluster (Canute / Viking / Dane) wraps the
-            A.R.C. plot.
-          - A quieter road south leads from Bay Road down to Wyx Park.
-      -->
-      <svg class="roads" viewBox="0 0 1000 720" preserveAspectRatio="none">
-        <!-- Road edge shadows first, then road bodies, then dashed centre lines -->
-
-        <!-- The Parade (coast road) -->
-        <path d="M 40 140 Q 200 128 380 140 Q 540 150 720 145 Q 860 142 960 158" fill="none"
-              stroke="#8a6a3a" stroke-width="14" stroke-linecap="round"/>
-        <path d="M 40 140 Q 200 128 380 140 Q 540 150 720 145 Q 860 142 960 158" fill="none"
-              stroke="#e8c98a" stroke-width="10" stroke-linecap="round"/>
-        <path d="M 40 140 Q 200 128 380 140 Q 540 150 720 145 Q 860 142 960 158" fill="none"
-              stroke="#fff5d6" stroke-width="1.2" stroke-dasharray="6 9" opacity="0.8"/>
-
-        <!-- Bay Road (main east-west artery through the village centre) -->
-        <path d="M 20 370 Q 180 362 320 366 Q 460 372 600 370 Q 760 368 920 376 L 980 382" fill="none"
-              stroke="#8a6a3a" stroke-width="18" stroke-linecap="round"/>
-        <path d="M 20 370 Q 180 362 320 366 Q 460 372 600 370 Q 760 368 920 376 L 980 382" fill="none"
-              stroke="#e8c98a" stroke-width="13" stroke-linecap="round"/>
-        <path d="M 20 370 Q 180 362 320 366 Q 460 372 600 370 Q 760 368 920 376 L 980 382" fill="none"
-              stroke="#fff5d6" stroke-width="1.5" stroke-dasharray="8 10" opacity="0.85"/>
-
-        <!-- Station Road (north-south link from Bay Road up to the station + Pet Supplies) -->
-        <path d="M 486 368 Q 480 280 476 170" fill="none"
-              stroke="#8a6a3a" stroke-width="12" stroke-linecap="round"/>
-        <path d="M 486 368 Q 480 280 476 170" fill="none"
-              stroke="#e8c98a" stroke-width="8" stroke-linecap="round"/>
-
-        <!-- A-road west: out past Fishbone Grill + Esso toward Herne Bay -->
-        <!-- This is a continuation of Bay Road past Goose End. Already drawn. -->
-
-        <!-- Road south to Wyx Park -->
-        <path d="M 650 375 Q 700 450 740 520 Q 780 580 800 640" fill="none"
-              stroke="#8a6a3a" stroke-width="13" stroke-linecap="round"/>
-        <path d="M 650 375 Q 700 450 740 520 Q 780 580 800 640" fill="none"
-              stroke="#e8c98a" stroke-width="9" stroke-linecap="round"/>
-
-        <!-- Minor road to Bramble Farm (further south-west) -->
-        <path d="M 200 378 Q 190 460 170 540 Q 160 610 180 680" fill="none"
-              stroke="#8a6a3a" stroke-width="9" stroke-linecap="round"/>
-        <path d="M 200 378 Q 190 460 170 540 Q 160 610 180 680" fill="none"
-              stroke="#ecd5a2" stroke-width="6" stroke-linecap="round"/>
-
-        <!-- Viking / Canute / Dane residential loops around the A.R.C. plot -->
-        <!-- Dane Road: north edge of cluster -->
-        <path d="M 360 250 Q 420 248 520 258 Q 560 266 580 300" fill="none"
-              stroke="#8a6a3a" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
-        <path d="M 360 250 Q 420 248 520 258 Q 560 266 580 300" fill="none"
-              stroke="#ecd5a2" stroke-width="4.5" stroke-linecap="round" opacity="0.95"/>
-
-        <!-- Canute Road: west side -->
-        <path d="M 380 250 Q 370 290 372 340 L 378 370" fill="none"
-              stroke="#8a6a3a" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
-        <path d="M 380 250 Q 370 290 372 340 L 378 370" fill="none"
-              stroke="#ecd5a2" stroke-width="4.5" stroke-linecap="round" opacity="0.95"/>
-
-        <!-- Viking Road: east side of cluster -->
-        <path d="M 560 260 Q 565 305 558 350 L 556 370" fill="none"
-              stroke="#8a6a3a" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
-        <path d="M 560 260 Q 565 305 558 350 L 556 370" fill="none"
-              stroke="#ecd5a2" stroke-width="4.5" stroke-linecap="round" opacity="0.95"/>
-
-        <!-- Link from the Parade down through the cluster to The Dip -->
-        <path d="M 446 148 L 446 200" fill="none"
-              stroke="#8a6a3a" stroke-width="8" stroke-linecap="round"/>
-        <path d="M 446 148 L 446 200" fill="none"
-              stroke="#e8c98a" stroke-width="5.5" stroke-linecap="round"/>
-
-        <!-- Rossetti Road loop (north of Bay Road, near station) -->
-        <path d="M 520 310 Q 590 300 650 315" fill="none"
-              stroke="#8a6a3a" stroke-width="6" stroke-linecap="round" opacity="0.8"/>
-        <path d="M 520 310 Q 590 300 650 315" fill="none"
-              stroke="#ecd5a2" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
-
-        <!-- ============ RAILWAY LINE ============ -->
-        <!-- Runs east-west through the village, crossing Bay Road near the station -->
-        <path class="railway-line" d="M 0 330 Q 180 322 360 328 Q 500 334 680 326 Q 840 322 1000 330"/>
-        <path class="railway-ties"  d="M 0 330 Q 180 322 360 328 Q 500 334 680 326 Q 840 322 1000 330"/>
-      </svg>
-
-      <!-- Road labels -->
-      <div class="road-label" style="left:16%;top:18.5%;--r:-2deg;">The Parade</div>
-      <div class="road-label" style="left:72%;top:20%;--r:1deg;">The Parade</div>
-      <div class="road-label" style="left:27%;top:51.5%;--r:-1deg;">Bay Road</div>
-      <div class="road-label" style="left:82%;top:52%;--r:1deg;">Bay Road</div>
-      <div class="road-label" style="left:46%;top:35%;--r:-88deg;">Station Rd</div>
-      <div class="road-label" style="left:75%;top:65%;--r:55deg;">To Wyx Park</div>
-      <div class="road-label" style="left:18%;top:76%;--r:80deg;">To Bramble</div>
-      <div class="road-label" style="left:5.5%;top:52%;--r:-2deg;font-size:11px;">A‑road → Herne Bay</div>
-      <div class="road-label close-up-only" style="left:39%;top:35.5%;font-size:10px;--r:-1deg;">Dane Rd</div>
-      <div class="road-label close-up-only" style="left:36%;top:44%;font-size:10px;--r:-85deg;">Canute Rd</div>
-      <div class="road-label close-up-only" style="left:57%;top:44%;font-size:10px;--r:-85deg;">Viking Rd</div>
-      <div class="road-label close-up-only" style="left:58%;top:43.5%;font-size:10px;--r:-3deg;opacity:0.8;">Rossetti Rd</div>
-      <div class="road-label" style="left:48%;top:47%;font-size:9.5px;color:#5b3a1e;--r:-1deg;">🚆 railway</div>
-
-      <!-- Region labels -->
-      <div class="region-label big" style="left:40%;top:3%;">North Sea</div>
-      <div class="region-label" style="left:10%;top:85%;">Farmland</div>
-      <div class="region-label" style="left:72%;top:72%;color:rgba(60,80,40,0.7);">Wyx Park Woods</div>
-
-      <!-- Title -->
-      <div class="map-title">
-        A.R.C. World — Birchie-on-Sea
-        <small>where shall we drive today?</small>
-      </div>
-
-      <!-- Compass rose -->
-      <svg class="compass" viewBox="0 0 64 64" aria-hidden="true">
-        <circle cx="32" cy="32" r="28" fill="rgba(255,248,231,0.94)" stroke="#7b5c3a" stroke-width="1.6"/>
-        <circle cx="32" cy="32" r="22" fill="none" stroke="#7b5c3a" stroke-width="0.8" stroke-dasharray="2 3" opacity="0.6"/>
-        <polygon points="32,8 36,32 32,30 28,32" fill="#b94c3a"/>
-        <polygon points="32,56 28,32 32,34 36,32" fill="#3a3a3a"/>
-        <polygon points="8,32 32,28 30,32 32,36" fill="#7b5c3a"/>
-        <polygon points="56,32 32,36 34,32 32,28" fill="#7b5c3a"/>
-        <text x="32" y="13" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="8" font-weight="700" fill="#3a3a3a">N</text>
-        <text x="32" y="59" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="7" fill="#3a3a3a">S</text>
-        <text x="7" y="35" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="7" fill="#3a3a3a">W</text>
-        <text x="57" y="35" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="7" fill="#3a3a3a">E</text>
-      </svg>
-
-      <!-- Zoom control -->
-      <div class="zoom-control" role="tablist" aria-label="Map zoom level">
-        <button data-zoom="area">Area</button>
-        <button data-zoom="village" class="on">Village</button>
-        <button data-zoom="closeup">Close-up</button>
-      </div>
-
-      <!-- Legend -->
-      <div class="legend">
-        <h4>Map Legend</h4>
-        <ul>
-          <li><span class="sw arc">A</span> A.R.C. — home base</li>
-          <li><span class="sw hero"></span> Hero pin (park, bay, rewilding)</li>
-          <li><span class="sw supp"></span> Supporting (vet, shop, collect)</li>
-          <li><span class="sw cameo"></span> Cameo (adopter / sub-pin)</li>
-          <li><span class="sw rewild">🌿</span> Rewilding habitat</li>
-        </ul>
-      </div>
-
-      <!-- Off-edge tag — hedgehog rescue, Herne Bay direction -->
-      <div class="offedge left" style="top:68%;">
-        <span class="arrow">←</span> Hedgehog Rescue
-        <small>(Herne Bay)</small>
-      </div>
-
-      <!-- ============ PINS ============ -->
-      <div id="pins" class="pins-layer"></div>
-      <div id="plaques" class="plaque-layer"></div>
-
-    </div>
+<div class="stage active" id="world-stage">
+  <div class="map-canvas">
+    <object class="osm-svg" id="osm-svg" data="scene-assets/birchie-map/birchie-roads.svg" type="image/svg+xml"></object>
+    <div class="pin-layer" id="pin-layer"></div>
   </div>
 </div>
 
-<script>
-  // --------- Embed mode -----------
-  const params = new URLSearchParams(location.search);
-  if (params.get('embed') === '1') document.body.classList.add('embed');
+<div class="stage" id="arc-stage">
+  <button class="back-button" data-back="world">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
+    </svg>
+    Back to map
+  </button>
+  <div class="arc-title">A.R.C. — Animal Rescue Centre</div>
 
-  // --------- Viewport switcher -----------
-  document.querySelectorAll('.vp-bar button[data-size]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.vp-bar button[data-size]').forEach(b => b.classList.remove('on'));
-      btn.classList.add('on');
-      document.querySelector('.device').dataset.size = btn.dataset.size;
-    });
-  });
+  <div class="arc-frame">
+    <div class="arc-region region-parking"></div>
+    <div class="arc-region region-lawn"></div>
+    <div class="arc-region region-quiet"></div>
+    <div class="arc-region region-path"></div>
+    <div class="arc-region region-hedgehog"></div>
+    <div class="arc-region region-raccoon"></div>
+    <div class="arc-region region-fox-skunk"></div>
 
-  // --------- PIN DATA ---------
-  // All coords are %-relative to the map area (0–100).
-  // `s` is the signpost stem vector in pixels from the peg, defining the
-  // direction & length of the painted rope ending at the signboard. Keeping
-  // labels in different directions is how we prevent them from overlapping
-  // in the centre cluster — see spec §"Map layout — workable, not
-  // overlapping".
-  //
-  //   tier:   hero | supporting | cameo   — visual weight
-  //   zoom:   area | village | closeup    — the minimum zoom at which it appears
-  //
-  const PINS = [
-    // ----------- HERO pins visible from Area zoom -----------
-    { x: 45,   y: 42,  tier: 'arc',    zoom: 'area',    s: [-70, 60],
-      icon: '', label: 'A.R.C.', sub: 'The Arc',
-      kind: 'Home base',
-      desc: 'Your rescue centre on the coastal green between Canute, Viking & Dane roads. One minute to Minnis Bay.' },
+    <div class="region-label" style="left: 27%; top: 40%;">Lawn garden</div>
+    <div class="region-label" style="left: 73%; top: 40%;">Quiet garden</div>
+    <div class="region-label tier-future" style="left: 27%; top: 64%;">Hedgehog + Squirrel zone (T2)</div>
+    <div class="region-label tier-future" style="left: 73%; top: 64%;">Raccoon (T3)</div>
+    <div class="region-label tier-future" style="left: 27%; top: 89%;">Fox (T6)</div>
+    <div class="region-label tier-future" style="left: 73%; top: 89%;">Skunk (future)</div>
 
-    { x: 10.5, y: 15.5,tier: 'hero',   zoom: 'area',    s: [-44, -30],
-      icon: '🏖️', label: 'Minnis Bay', sub: 'beach + paddling pool',
-      kind: 'Hero destination',
-      desc: 'Tidal dog beach with gentle paddling pool. Huge at low tide — check before you drive!' },
+    <img class="stamp stamp-building" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="A.R.C. main building"/>
 
-    { x: 82,   y: 70,  tier: 'hero',   zoom: 'area',    s: [60, 10],
-      icon: '🌳', label: 'Wyx Park', sub: 'witchy-woodland estate',
-      kind: 'Hero destination',
-      desc: 'Witchy-woodland estate — pet shows, skill assessments, seasonal treks. Spans from Recreation Ground to Quex Glamping.' },
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" style="left: 9%; top: 47%;" alt="Oak"/>
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" style="left: 28%; top: 51%;" alt="Ash"/>
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left: 13%; top: 65%;" alt="Horse chestnut"/>
 
-    { x: 9,    y: 72,  tier: 'hero',   zoom: 'area',    s: [-46, 34],
-      icon: '🌾', label: 'Goose End Farm', sub: 'hay + BC training + strays',
-      kind: 'Collection source',
-      desc: 'Working farm at the west tip of Bay Road. Hay supply + border-collie training ground + found-stray call-ins.' },
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 56%;" alt="Viewing dome"/>
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 64%;" alt="Viewing dome"/>
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 72%;" alt="Viewing dome"/>
+  </div>
+</div>
 
-    { x: 18,   y: 90,  tier: 'hero',   zoom: 'area',    s: [-40, 30],
-      icon: '🌾', label: 'Bramble Farm', sub: 'L0 · hay + feed',
-      kind: 'Supply Run',
-      desc: 'Supply run for hay, straw, bedding and feed. The opening drive.' },
+<script type="module">
+  // Tab switching
+  const tabs = document.querySelectorAll('.tab');
+  const stages = document.querySelectorAll('.stage');
+  function showStage(name) {
+    stages.forEach(s => s.classList.toggle('active', s.id === name + '-stage'));
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.stage === name));
+    if (name === 'world') setTimeout(placePins, 30);
+  }
+  tabs.forEach(t => t.addEventListener('click', () => showStage(t.dataset.stage)));
+  document.querySelectorAll('[data-back]').forEach(b =>
+    b.addEventListener('click', () => showStage(b.dataset.back))
+  );
 
-    { x: 6,    y: 76,  tier: 'hero',   zoom: 'area',    s: [-38, -24],
-      icon: '🐟', label: 'Cove Harbour', sub: 'L5 · fish market',
-      kind: 'Supply Run',
-      desc: 'Dockside fish for recovering seabirds and cats.' },
+  // World-view: position pins relative to OSM SVG canvas
+  const SVG_VIEW_W = 2400;
+  const SVG_VIEW_H = 721;
+  const ARC_PLOT_SVG_X = 524;
+  const ARC_PLOT_SVG_Y = 348;
 
-    { x: 85,   y: 35,  tier: 'hero',   zoom: 'area',    s: [60, -16],
-      icon: '💊', label: 'Pinebark Medical', sub: 'L10 · vet wholesale',
-      kind: 'Supply Run',
-      desc: 'Bandages, medicines, IV kits. The long-range supply run.' },
-
-    { x: 94,   y: 12,  tier: 'hero',   zoom: 'area',    s: [22, -32],
-      icon: '📞', label: 'Westbeach Golf', sub: 'wildlife call-ins',
-      kind: 'Collection source',
-      desc: 'Injured wildlife found on the fairways — hedgehogs, rabbits, birds in netting.' },
-
-    // Rewilding habitats (all hero / area-zoom)
-    { x: 9.5,  y: 88,  tier: 'hero',   zoom: 'area',    s: [32, 36],
-      icon: '🦊', label: 'Moorland', sub: 'fox rewilding',
-      kind: 'Rewilding habitat',
-      desc: 'Open heather moors. Home again for rewilded foxes.' },
-
-    { x: 68,   y: 30,  tier: 'hero',   zoom: 'area',    s: [46, -36],
-      icon: '🐿️', label: 'Woodland', sub: 'bunny / squirrel',
-      kind: 'Rewilding habitat',
-      desc: 'Dappled woods for hedgehogs, squirrels and wild bunnies.' },
-
-    { x: 92,   y: 88,  tier: 'hero',   zoom: 'area',    s: [22, 40],
-      icon: '🦇', label: 'Deep Forest', sub: 'bat rewilding',
-      kind: 'Rewilding habitat',
-      desc: 'Ancient trees and quiet caves — bat country.' },
-
-    { x: 48,   y: 92,  tier: 'hero',   zoom: 'area',    s: [0, 40],
-      icon: '🐍', label: 'Wetlands', sub: 'snake rewilding',
-      kind: 'Rewilding habitat',
-      desc: 'Reed beds and slow water — perfect for grass snakes.' },
-
-    { x: 89,   y: 24,  tier: 'hero',   zoom: 'area',    s: [48, -26],
-      icon: '🐦', label: 'Sea Cliffs', sub: 'seabirds / parrot',
-      kind: 'Rewilding habitat',
-      desc: 'Windy white cliffs where seabirds nest. Rewilding destination for parrots & gulls.' },
-
-    // ----------- VILLAGE zoom additions -----------
-    { x: 44.5, y: 30,  tier: 'supporting', zoom: 'village', s: [-60, -18],
-      icon: '🏟️', label: 'The Dip', sub: 'pet-show venue',
-      kind: 'Pet-show venue',
-      desc: 'Sunken multifunctional sports ground — a natural bowl for fête-tier pet shows. Literally next door to A.R.C.' },
-
-    { x: 32,   y: 32,  tier: 'supporting', zoom: 'village', s: [-58, 18],
-      icon: '✂️', label: 'Dapper Dogs', sub: 'grooming',
-      kind: 'PTV destination',
-      desc: 'Drop-off groomer just up the road. Bath + blow-dry + bow.' },
-
-    { x: 58,   y: 33,  tier: 'supporting', zoom: 'village', s: [70, -10],
-      icon: '☕', label: 'Wagtails Café', sub: 'cast hangout',
-      kind: 'PTV destination',
-      desc: 'Where apprentices and adopters meet between shifts. Dog-friendly.' },
-
-    { x: 33,   y: 49,  tier: 'supporting', zoom: 'village', s: [-68, 12],
-      icon: '⛪', label: 'Kearns Hall', sub: 'low-tier shows',
-      kind: 'Pet-show venue',
-      desc: 'Community hall. Hosts village-fête-tier adoption days.' },
-
-    { x: 52,   y: 52,  tier: 'supporting', zoom: 'village', s: [60, 24],
-      icon: '⛪', label: 'Bay Chapel', sub: 'occasional strays',
-      kind: 'Collection source',
-      desc: 'Parish of the Holy Family. Strays often turn up on church grounds.' },
-
-    { x: 30,   y: 55,  tier: 'supporting', zoom: 'village', s: [-56, 24],
-      icon: '🏠', label: 'Bay Lodge', sub: 'apprentice lodging',
-      kind: 'Household',
-      desc: 'Apprentice lodging — three rooms above the old coach house.' },
-
-    { x: 48,   y: 23,  tier: 'supporting', zoom: 'village', s: [72, -14],
-      icon: '🪀', label: 'Pet Supplies', sub: 'Station Rd',
-      kind: 'PTV destination',
-      desc: 'Toys, food, bedding, grooming odds and ends.' },
-
-    { x: 48.5, y: 45,  tier: 'supporting', zoom: 'village', s: [62, -6],
-      icon: '🚉', label: 'Birchie Station',
-      kind: 'PTV destination',
-      desc: 'Village railway stop. The Depot shed is tucked behind it.' },
-
-    { x: 33,   y: 56,  tier: 'supporting', zoom: 'village', s: [-74, 8],
-      icon: '💊', label: 'Medical Centre', sub: 'GP + pharmacy',
-      kind: 'PTV destination',
-      desc: 'People GP with attached pharmacy that fills vet prescriptions.' },
-
-    // Bay Road Vets + Garage — paired (close together; offset their ropes in
-    // opposite directions so the signs land in totally different places)
-    { x: 60,   y: 52,  tier: 'supporting', zoom: 'village', s: [72, 30],
-      icon: '🐾', label: 'Bay Road Vets',
-      kind: 'PTV destination',
-      desc: 'General-practice vet. Paired with the garage — a handy coincidence.' },
-    { x: 60.5, y: 52.5,tier: 'supporting', zoom: 'village', s: [76, 58],
-      icon: '🔧', label: 'Bay Road Garage', sub: 'PTV repairs',
-      kind: 'PTV destination',
-      desc: 'Fixes the PTV after a bad drive. Same row as the vet.' },
-
-    { x: 62,   y: 44,  tier: 'supporting', zoom: 'village', s: [66, -30],
-      icon: '🍟', label: 'Christies + Chippy',
-      kind: 'PTV destination',
-      desc: 'Best chippy in Birchie, with the wine bar across the road.' },
-
-    { x: 72,   y: 53,  tier: 'supporting', zoom: 'village', s: [64, 34],
-      icon: '🛒', label: 'Retail Cluster', sub: 'supermarket + co-op',
-      kind: 'PTV destination',
-      desc: 'Village shops — supermarket, mini-market, grocers.' },
-
-    { x: 82,   y: 60,  tier: 'supporting', zoom: 'village', s: [74, -20],
-      icon: '🎸', label: 'Rock On Academy', sub: "Rhubarb's music",
-      kind: 'Supply Run',
-      desc: 'Heavy-metal music school next to Jungle Jim\'s softplay.' },
-
-    { x: 7,    y: 53,  tier: 'supporting', zoom: 'village', s: [-30, -32],
-      icon: '🎈', label: 'Fishbone Grill', sub: 'wavy-arm car-wash',
-      kind: 'PTV destination',
-      desc: 'Left side on the Herne Bay approach. Cosmetic van-wash + a laugh.' },
-
-    { x: 13,   y: 56,  tier: 'supporting', zoom: 'village', s: [-24, 34],
-      icon: '⛽', label: 'Birchie Fuel', sub: 'petrol station',
-      kind: 'PTV destination',
-      desc: 'Refuel the PTV — pay-at-pump or pop into the kiosk.' },
-
-    { x: 55,   y: 85,  tier: 'supporting', zoom: 'village', s: [-60, 24],
-      icon: '⚙️', label: 'Steampunk Barn', sub: 'prosthetics vet',
-      kind: 'PTV destination',
-      desc: 'Specialist vet in a converted countryside barn — wheels, braces, custom mobility gear.' },
-
-    // ----------- CLOSE-UP zoom additions (adopter / Wyx internals) -----------
-    // Viking-heritage adopter cluster (Canute / Viking / Dane roads)
-    { x: 41,   y: 36,  tier: 'cameo', zoom: 'closeup', s: [24, -14],
-      icon: '🏡', label: 'Dane Rd', kind: 'Household',
-      desc: 'Adopter household on Dane Road.' },
-    { x: 50,   y: 37,  tier: 'cameo', zoom: 'closeup', s: [24, -14],
-      icon: '🏡', label: 'Dane Rd', kind: 'Household',
-      desc: 'Adopter household on Dane Road.' },
-    { x: 40,   y: 46,  tier: 'cameo', zoom: 'closeup', s: [-22, 14],
-      icon: '🏡', label: 'Canute Rd', kind: 'Household',
-      desc: 'Viking-heritage cluster — adopter household.' },
-    { x: 52,   y: 45,  tier: 'cameo', zoom: 'closeup', s: [22, 14],
-      icon: '🏡', label: 'Viking Rd', kind: 'Household',
-      desc: 'Viking-heritage cluster — adopter household.' },
-    { x: 48,   y: 48,  tier: 'cameo', zoom: 'closeup', s: [0, 20],
-      icon: '🏡', label: 'Horsa Rd', kind: 'Household',
-      desc: 'Apprentice Rhubarb\'s flatshare.' },
-
-    // Rossetti Road (north of Bay Road, near station)
-    { x: 55,   y: 43,  tier: 'cameo', zoom: 'closeup', s: [20, -10],
-      icon: '🏡', label: 'Rossetti Rd', kind: 'Household',
-      desc: 'Adopter household — the Kumar-Ishii family, newly-adopted dachshund Luna.' },
-    { x: 62,   y: 42,  tier: 'cameo', zoom: 'closeup', s: [22, -10],
-      icon: '🏡', label: 'Rossetti Rd', kind: 'Household',
-      desc: 'Adopter household on Rossetti Road.' },
-
-    // Reculver & Ingoldsby outliers
-    { x: 72,   y: 46,  tier: 'cameo', zoom: 'closeup', s: [22, -10],
-      icon: '🏡', label: 'Reculver Ave', kind: 'Household',
-      desc: 'Repeat-visitor household — two cats already adopted.' },
-    { x: 26,   y: 60,  tier: 'cameo', zoom: 'closeup', s: [-22, 14],
-      icon: '🏡', label: 'Ingoldsby Rd', kind: 'Household',
-      desc: 'New-adopter household, awaiting first home visit.' },
-
-    // Wyx Park internal pins
-    { x: 74,   y: 60,  tier: 'cameo', zoom: 'closeup', s: [-26, -10],
-      icon: '🌾', label: 'Quex Barn', kind: 'Wyx sub-pin',
-      desc: 'Farm shop & events barn at the north edge of the estate.' },
-    { x: 90,   y: 75,  tier: 'cameo', zoom: 'closeup', s: [22, -6],
-      icon: '🐴', label: 'Tilleys Livery', kind: 'Wyx sub-pin',
-      desc: 'Carriage livery + glamping, deep on the estate.' },
-    { x: 82,   y: 82,  tier: 'cameo', zoom: 'closeup', s: [20, 14],
-      icon: '⛺', label: 'Quex Glamping', kind: 'Wyx sub-pin',
-      desc: 'Glamping pods — visitor households sometimes rent here.' },
-    { x: 93,   y: 84,  tier: 'cameo', zoom: 'closeup', s: [18, 16],
-      icon: '🌳', label: 'Crape Park', kind: 'Wyx sub-pin',
-      desc: 'South-east corner of the estate — ancient oaks and quiet lanes.' },
-
-    // Jungle Jim's softplay right next to Rock On (closeup only)
-    { x: 87,   y: 62,  tier: 'cameo', zoom: 'closeup', s: [22, 12],
-      icon: '🎪', label: "Jungle Jim's", kind: 'Cameo',
-      desc: 'Kid softplay next door to Rock On. Low-stakes cast walk-by flavour.' },
-  ];
-
-  // --------- Render pins ---------
-  const pinsLayer = document.getElementById('pins');
-  const plaquesLayer = document.getElementById('plaques');
-  const mapEl = document.getElementById('map');
-
-  // Track the live zoom level so pin visibility updates on change.
-  const ZOOM_LEVELS = ['area', 'village', 'closeup'];
-  let currentZoom = 'village';
-
-  function zoomAllows(pinZoom) {
-    // Pin appears if the current zoom is >= the pin's threshold.
-    return ZOOM_LEVELS.indexOf(currentZoom) >= ZOOM_LEVELS.indexOf(pinZoom);
+  function clearChildren(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
   }
 
-  function el(tag, cls, text) {
-    const e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (text != null) e.textContent = text;
-    return e;
+  function computeSvgRect() {
+    const obj = document.getElementById('osm-svg');
+    const r = obj.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return null;
+    const scale = Math.min(r.width / SVG_VIEW_W, r.height / SVG_VIEW_H);
+    const renderedW = SVG_VIEW_W * scale;
+    const renderedH = SVG_VIEW_H * scale;
+    const stageRect = document.getElementById('world-stage').getBoundingClientRect();
+    const offsetX = (r.left - stageRect.left) + (r.width - renderedW) / 2;
+    const offsetY = (r.top - stageRect.top) + (r.height - renderedH) / 2;
+    return { offsetX, offsetY, scale };
   }
 
-  PINS.forEach((p, i) => {
-    const pin = el('div', `pin ${p.tier}`);
-    pin.dataset.idx = i;
-    pin.dataset.zoom = p.zoom;
-    pin.style.left = p.x + '%';
-    pin.style.top  = p.y + '%';
-
-    // The peg (round dot at the exact map spot)
-    const peg = el('div', 'peg');
-    pin.appendChild(peg);
-
-    // Painted signpost rope — length + angle derived from (sx, sy)
-    const sx = p.s ? p.s[0] : 0;
-    const sy = p.s ? p.s[1] : -28;
-    const len = Math.sqrt(sx*sx + sy*sy);
-    const ang = Math.atan2(sy, sx) * 180 / Math.PI;
-    const rope = el('div', 'rope');
-    rope.style.width = len + 'px';
-    rope.style.transform = `translate(0, -1.5px) rotate(${ang}deg)`;
-    pin.appendChild(rope);
-
-    // Signboard at the rope's endpoint
-    const sign = el('div', 'sign');
-    sign.style.left = sx + 'px';
-    sign.style.top = sy + 'px';
-    if (p.icon) {
-      const ic = el('span', 'ico', p.icon);
-      sign.appendChild(ic);
-    }
-    const lbl = document.createElement('span');
-    lbl.innerHTML = p.label + (p.sub ? `<span class="sub">${p.sub}</span>` : '');
-    sign.appendChild(lbl);
-    sign.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openPlaque(p, pin);
-    });
-    pin.appendChild(sign);
-
-    pinsLayer.appendChild(pin);
-  });
-
-  // --------- Zoom control ---------
-  function applyZoom(lvl) {
-    currentZoom = lvl;
-    document.querySelectorAll('.zoom-control button').forEach(b => {
-      b.classList.toggle('on', b.dataset.zoom === lvl);
-    });
-    document.querySelectorAll('.pin').forEach(pinEl => {
-      const z = pinEl.dataset.zoom;
-      pinEl.classList.toggle('hidden', !zoomAllows(z));
-    });
-    // Close-up-only road labels (Dane/Canute/Viking/Rossetti)
-    document.querySelectorAll('.road-label.close-up-only').forEach(el => {
-      el.style.opacity = (lvl === 'closeup') ? '1' : '0';
-      el.style.transition = 'opacity 0.25s';
-    });
-    closePlaque();
+  function svgToScreen(svgX, svgY) {
+    const rect = computeSvgRect();
+    if (!rect) return null;
+    return {
+      x: rect.offsetX + svgX * rect.scale,
+      y: rect.offsetY + svgY * rect.scale,
+    };
   }
-  document.querySelectorAll('.zoom-control button').forEach(btn => {
-    btn.addEventListener('click', () => applyZoom(btn.dataset.zoom));
-  });
-  applyZoom('village'); // default
 
-  // --------- Plaque pop-out ---------
-  let activePin = null;
-  function closePlaque() {
-    while (plaquesLayer.firstChild) plaquesLayer.removeChild(plaquesLayer.firstChild);
-    if (activePin) activePin.classList.remove('active');
-    activePin = null;
+  function placePins() {
+    const layer = document.getElementById('pin-layer');
+    if (!layer) return;
+    clearChildren(layer);
+    const pos = svgToScreen(ARC_PLOT_SVG_X, ARC_PLOT_SVG_Y);
+    if (!pos) return;
+
+    const img = document.createElement('img');
+    img.className = 'pin pin-arc-building';
+    img.src = 'scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png';
+    img.alt = 'A.R.C.';
+    img.title = 'Click to open the rescue centre';
+    img.style.left = pos.x + 'px';
+    img.style.top = pos.y + 'px';
+    img.addEventListener('click', () => showStage('arc'));
+    layer.appendChild(img);
+
+    const label = document.createElement('div');
+    label.className = 'pin-arc-label';
+    label.textContent = 'A.R.C.';
+    label.style.left = pos.x + 'px';
+    label.style.top = (pos.y + 10) + 'px';
+    label.addEventListener('click', () => showStage('arc'));
+    layer.appendChild(label);
   }
-  function openPlaque(p, pinEl) {
-    closePlaque();
-    pinEl.classList.add('active');
-    activePin = pinEl;
 
-    const below = p.y < 55;
-    const plaque = el('div', 'plaque');
-    plaque.style.left = p.x + '%';
-    plaque.style.top = below ? `calc(${p.y}% + 90px)` : `calc(${p.y}% - 90px)`;
-    plaque.appendChild(el('div', 'pl-title', p.label));
-    plaque.appendChild(el('div', 'pl-kind', p.kind || ''));
-    plaque.appendChild(el('div', 'pl-desc', p.desc || ''));
-    plaque.addEventListener('click', (e) => e.stopPropagation());
-    plaquesLayer.appendChild(plaque);
-  }
-  mapEl.addEventListener('click', closePlaque);
-
-  // --------- Host handshake (for InGameOverlay iframe embed) ---------
-  window.addEventListener('message', (e) => {
-    const msg = e.data;
-    if (!msg || msg.source !== 'arc-game-host') return;
-    if (msg.type === 'init') console.log('[arc-map] init', msg.payload);
-    if (msg.type === 'zoom' && ZOOM_LEVELS.includes(msg.payload)) applyZoom(msg.payload);
-  });
+  document.getElementById('osm-svg').addEventListener('load', placePins);
+  window.addEventListener('resize', placePins);
+  setTimeout(placePins, 200);
+  setTimeout(placePins, 600);
 </script>
+
 </body>
 </html>

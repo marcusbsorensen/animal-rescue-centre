@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tier 1 textures — tile test</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background:#222; color:#eee; margin:0; padding:24px; }
+  h1 { margin-top: 0; }
+  section { margin-bottom: 36px; }
+  h2 { font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; color:#bbb; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  figure { margin: 0; }
+  figcaption { font-size: 12px; color:#999; margin-bottom: 6px; }
+  .tile {
+    width: 512px; height: 512px;
+    background-size: 256px 256px;   /* 2x2 of the 512 source */
+    background-repeat: repeat;
+    image-rendering: -webkit-optimize-contrast;
+    border: 1px solid #000;
+  }
+  .tile-3 { background-size: 170.66px 170.66px; }  /* 3x3 in 512 viewport */
+</style>
+</head>
+<body>
+  <h1>Tier 1 textures — seamless tile test</h1>
+  <p style="color:#aaa;max-width:720px">
+    Each tile box is 512×512 with the source set to 256×256 background-size,
+    so you see a 2×2 repeat of the texture. Look at the centre cross —
+    if the texture is seamless, no horizontal or vertical seam should be visible.
+  </p>
+  
+        <section>
+          <h2>texture-grass.png</h2>
+          <div class="row">
+            <figure>
+              <figcaption>Original (2x2)</figcaption>
+              <div class="tile" style="background-image:url('../texture-grass.png')"></div>
+            </figure>
+            <figure>
+              <figcaption>Seamless (2x2)</figcaption>
+              <div class="tile" style="background-image:url('./texture-grass.png')"></div>
+            </figure>
+            <figure>
+              <figcaption>Seamless (3x3, smaller)</figcaption>
+              <div class="tile tile-3" style="background-image:url('./texture-grass.png')"></div>
+            </figure>
+          </div>
+        </section>
+        <section>
+          <h2>texture-gravel.png</h2>
+          <div class="row">
+            <figure>
+              <figcaption>Original (2x2)</figcaption>
+              <div class="tile" style="background-image:url('../texture-gravel.png')"></div>
+            </figure>
+            <figure>
+              <figcaption>Seamless (2x2)</figcaption>
+              <div class="tile" style="background-image:url('./texture-gravel.png')"></div>
+            </figure>
+            <figure>
+              <figcaption>Seamless (3x3, smaller)</figcaption>
+              <div class="tile tile-3" style="background-image:url('./texture-gravel.png')"></div>
+            </figure>
+          </div>
+        </section>
+        <section>
+          <h2>texture-lawn-garden.png</h2>
+          <div class="row">
+            <figure>
+              <figcaption>Original (2x2)</figcaption>
+              <div class="tile" style="background-image:url('../texture-lawn-garden.png')"></div>
+            </figure>
+            <figure>
+              <figcaption>Seamless (2x2)</figcaption>
+              <div class="tile" style="background-image:url('./texture-lawn-garden.png')"></div>
+            </figure>
+            <figure>
+              <figcaption>Seamless (3x3, smaller)</figcaption>
+              <div class="tile tile-3" style="background-image:url('./texture-lawn-garden.png')"></div>
+            </figure>
+          </div>
+        </section>
+        <section>
+          <h2>texture-quiet-garden.png</h2>
+          <div class="row">
+            <figure>
+              <figcaption>Original (2x2)</figcaption>
+              <div class="tile" style="background-image:url('../texture-quiet-garden.png')"></div>
+            </figure>
+            <figure>
+              <figcaption>Seamless (2x2)</figcaption>
+              <div class="tile" style="background-image:url('./texture-quiet-garden.png')"></div>
+            </figure>
+            <figure>
+              <figcaption>Seamless (3x3, smaller)</figcaption>
+              <div class="tile tile-3" style="background-image:url('./texture-quiet-garden.png')"></div>
+            </figure>
+          </div>
+        </section>
+        <section>
+          <h2>texture-scrub.png</h2>
+          <div class="row">
+            <figure>
+              <figcaption>Original (2x2)</figcaption>
+              <div class="tile" style="background-image:url('../texture-scrub.png')"></div>
+            </figure>
+            <figure>
+              <figcaption>Seamless (2x2)</figcaption>
+              <div class="tile" style="background-image:url('./texture-scrub.png')"></div>
+            </figure>
+            <figure>
+              <figcaption>Seamless (3x3, smaller)</figcaption>
+              <div class="tile tile-3" style="background-image:url('./texture-scrub.png')"></div>
+            </figure>
+          </div>
+        </section>
+</body>
+</html>
