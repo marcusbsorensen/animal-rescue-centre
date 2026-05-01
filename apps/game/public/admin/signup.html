@@ -2051,9 +2051,23 @@
       if (typeof draft.capturedPin === 'string') capturedPin = draft.capturedPin;
       const hintInput = document.getElementById('hint-input');
       if (hintInput && draft.hint) hintInput.value = draft.hint;
-      // Restore the stage the kid was on.
+      // Restore the stage the kid was on — but ONLY if its prerequisites
+      // are present in the draft. Otherwise fall back to the earliest
+      // viable stage. Without this guard, a stale draft with
+      // stage:'hint' (or 'pin') jumps the user past stages they haven't
+      // actually completed and they can never finish signup.
       if (draft.stage && ['select', 'pin', 'hint'].includes(draft.stage)) {
-        setStage(draft.stage);
+        const hasName = !!(nameInput && nameInput.value && nameInput.value.trim());
+        const hasAnimal = !!document.querySelector('.chip.avatar-pick.selected');
+        const hasPin = typeof capturedPin === 'string' && capturedPin.length === 4;
+        let restoreTo = draft.stage;
+        if (restoreTo === 'hint' && !(hasName && hasAnimal && hasPin)) {
+          restoreTo = (hasName && hasAnimal) ? 'pin' : 'select';
+        }
+        if (restoreTo === 'pin' && !(hasName && hasAnimal)) {
+          restoreTo = 'select';
+        }
+        setStage(restoreTo);
       }
     } catch (_) { /* corrupt draft — ignore */ }
   }
