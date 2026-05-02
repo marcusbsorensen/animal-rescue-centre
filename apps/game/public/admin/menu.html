@@ -79,19 +79,26 @@
     container-type: size;     /* enables @container queries on size */
     container-name: welcome;
   }
+  /* Background — painted A.R.C. facade so the menu reads as
+     "you're about to walk in to the rescue centre" instead of
+     "you're standing in some random garden". The painted Art Deco
+     building (Tier 1 commission) sits centred on a soft cream wash
+     with the same white overlay we use on the welcome screen so it
+     doesn't overwhelm the menu sign. Marcus 2026-05-02. */
   .welcome::before {
     content: ''; position: absolute; inset: 0;
-    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
-    background-size: cover; background-position: center;
+    background:
+      url('/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png') center bottom / contain no-repeat,
+      linear-gradient(180deg, #e8d8b6 0%, #d4be8e 100%);
     z-index: 0;
   }
   .welcome::after {
     content: ''; position: absolute; inset: 0;
     background: linear-gradient(180deg,
-      rgba(254,249,239,0.75) 0%,
-      rgba(254,249,239,0.50) 45%,
-      rgba(254,249,239,0.68) 85%,
-      rgba(254,249,239,0.90) 100%);
+      rgba(254,249,239,0.65) 0%,
+      rgba(254,249,239,0.40) 45%,
+      rgba(254,249,239,0.55) 85%,
+      rgba(254,249,239,0.85) 100%);
     z-index: 1;
   }
 
