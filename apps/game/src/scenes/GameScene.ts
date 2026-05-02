@@ -137,6 +137,20 @@ export class GameScene extends Phaser.Scene {
   private scrollDragStartOffset = 0;
   private isDragging = false;
 
+  /**
+   * Optional pre-pick passed by IntroScene so panel-4's revealed
+   * animal matches the species we then spawn. Cleared after the
+   * first spawnNewAnimal() call so subsequent spawns are random
+   * as before.
+   */
+  private preSelectedSpecies: Species | null = null;
+  private preSelectedVariant: string | undefined = undefined;
+
+  init(data?: { preSelectedSpecies?: Species; preSelectedVariant?: string }): void {
+    this.preSelectedSpecies = data?.preSelectedSpecies ?? null;
+    this.preSelectedVariant = data?.preSelectedVariant;
+  }
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -309,15 +323,22 @@ export class GameScene extends Phaser.Scene {
     // Pick a species not already in the arrival queue (variety for the player).
     // Apply Kofi's apprentice peek: extraSpeciesSlots unlocks the next
     // species in the canonical order early (parrot, then snake).
-    const unlockedWithApprentice = getSpeciesUnlocksForLevel(
-      this.store.level,
-      this.store.apprenticeUnlocks.extraSpeciesSlots,
-    );
-    const arrivingSpecies = new Set(arriving.map((a) => a.species));
-    const availableSpecies = unlockedWithApprentice.filter((s) => !arrivingSpecies.has(s));
-    if (availableSpecies.length === 0) return;
-
-    const species = pickRandomSpecies(availableSpecies);
+    // If IntroScene pre-picked a species, use it for THIS spawn and
+    // clear so subsequent spawns return to the normal random selection.
+    let species: Species;
+    if (this.preSelectedSpecies !== null) {
+      species = this.preSelectedSpecies;
+      this.preSelectedSpecies = null;
+    } else {
+      const unlockedWithApprentice = getSpeciesUnlocksForLevel(
+        this.store.level,
+        this.store.apprenticeUnlocks.extraSpeciesSlots,
+      );
+      const arrivingSpecies = new Set(arriving.map((a) => a.species));
+      const availableSpecies = unlockedWithApprentice.filter((s) => !arrivingSpecies.has(s));
+      if (availableSpecies.length === 0) return;
+      species = pickRandomSpecies(availableSpecies);
+    }
 
     let firstNew: Animal;
     if (shouldSpawnSiblings() && sheltered + 2 <= maxShelter) {
@@ -325,7 +346,8 @@ export class GameScene extends Phaser.Scene {
       this.store.animals.push(a, b);
       firstNew = a;
     } else {
-      const animal = spawnAnimal(species, undefined, this.store.animals.map(a => a.name));
+      const animal = spawnAnimal(species, this.preSelectedVariant ?? undefined, this.store.animals.map(a => a.name));
+      this.preSelectedVariant = undefined;
       this.store.animals.push(animal);
       firstNew = animal;
     }

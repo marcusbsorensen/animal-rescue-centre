@@ -123,21 +123,19 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   /**
-   * Route to game — fade out, then go to GameScene or LoadingScene.
+   * Route to game — fade out, then go to IntroScene which plays the
+   * 4-panel walk-in (or only panel 4 if skip is on) before passing
+   * to GameScene/LoadingScene. The asset-loading gate moves into
+   * IntroScene's startGameWithPreselect.
    */
   private startGame(): void {
-    const loader = AssetLoader.getInstance();
     this.tweens.add({
       targets: this.cameras.main,
       alpha: 0,
       duration: 300,
       ease: 'Sine.easeIn',
       onComplete: () => {
-        if (loader.isFullyLoaded) {
-          this.scene.start('GameScene');
-        } else {
-          this.scene.start('LoadingScene');
-        }
+        this.scene.start('IntroScene');
       },
     });
   }
