@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Welcome</title>
+<script>
+  // Iframe-context detection — flips html.iframed before first paint
+  // so any design-preview chrome is hidden when the page is mounted
+  // in-game. Same pattern used by arrival.html etc.
+  if (window.top !== window.self) document.documentElement.classList.add('iframed');
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Quicksand:wght@500;600&family=Kalam:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --ink: #3a3a3a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--cream-wash);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    height: 100vh;
+    user-select: none;
+  }
+  html.iframed body { background: var(--cream-wash) !important; }
+
+  .stage {
+    flex: 1; position: relative;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .panel {
+    position: absolute; inset: 0;
+    opacity: 0;
+    transition: opacity 400ms ease;
+    pointer-events: none;
+  }
+  .panel.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Panels 1 + 2 — painted welcome-bg sky/garden */
+  .panel-bg {
+    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+    background-size: cover;
+    background-position: center;
+  }
+
+  /* Building stamp at three sizes — distant, mid, close-up */
+  .building-distant {
+    position: absolute;
+    bottom: 35%; left: 50%;
+    transform: translateX(-50%);
+    width: 18%;
+    filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.18));
+    animation: zoom-drift 2.6s ease-in-out forwards;
+  }
+  .building-mid {
+    position: absolute;
+    bottom: 22%; left: 50%;
+    transform: translateX(-50%);
+    width: 42%;
+    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.22));
+    animation: zoom-drift 2.6s ease-in-out forwards;
+  }
+  .building-close {
+    position: absolute;
+    bottom: -4%; left: 50%;
+    transform: translateX(-50%);
+    width: 92%;
+    height: auto;
+    /* Crop to roughly the lower half — the entrance + canopy + facade */
+    clip-path: inset(35% 0% 0% 0%);
+    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.18));
+  }
+
+  /* Trees framing panels 1 + 2 */
+  .tree-side {
+    position: absolute;
+    bottom: 12%;
+    width: 16%;
+    filter: drop-shadow(1px 3px 3px rgba(0,0,0,0.2));
+  }
+  .tree-side.tree-left  { left: 4%; }
+  .tree-side.tree-right { right: 4%; }
+  .tree-edge {
+    position: absolute;
+    bottom: 8%;
+    width: 22%;
+    filter: drop-shadow(1px 3px 3px rgba(0,0,0,0.2));
+  }
+  .tree-edge.tree-left  { left: -3%; }
+  .tree-edge.tree-right { right: -3%; }
+
+  /* Panel 1: gate-y crop of the welcome-bg picket fence in the foreground */
+  .gate-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 22%;
+    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+    background-size: 200% auto;
+    background-position: 8% 100%;
+    border-top: 3px solid rgba(0,0,0,0.05);
+  }
+
+  /* Panel 2: receding gravel path via CSS perspective */
+  .path-overlay {
+    position: absolute;
+    bottom: 0; left: 30%; right: 30%;
+    height: 50%;
+    background-image: url('/admin/scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
+    background-size: 200px 200px;
+    background-repeat: repeat;
+    transform: perspective(600px) rotateX(60deg);
+    transform-origin: bottom;
+    clip-path: polygon(20% 100%, 80% 100%, 60% 0%, 40% 0%);
+    opacity: 0.85;
+  }
+
+  /* Panel 4: dark opening behind the doors + bobbing arrival sprite + tap prompt */
+  .door-opening {
+    position: absolute;
+    bottom: 14%; left: 50%;
+    transform: translateX(-50%);
+    width: 12%;
+    height: 30%;
+    background: linear-gradient(180deg, #2a1a0c 0%, #4a2e16 100%);
+    border-radius: 4px 4px 0 0;
+    box-shadow: inset 0 4px 8px rgba(0,0,0,0.5);
+  }
+  .arrival-sprite {
+    position: absolute;
+    bottom: 6%;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 32%;
+    width: auto;
+    filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.25));
+    animation: bob 1.4s ease-in-out infinite;
+  }
+  .tap-prompt {
+    position: absolute;
+    bottom: 4%; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 249, 239, 0.9);
+    border: 2px solid var(--honey-shadow);
+    border-radius: 22px;
+    padding: 6px 18px;
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  /* Corner controls — speaker + skip-future toggle */
+  .corner {
+    position: absolute;
+    top: 14px; right: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 10;
+  }
+  .corner-btn {
+    background: rgba(255, 255, 255, 0.85);
+    border: 2px solid var(--honey-shadow);
+    border-radius: 50%;
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    box-shadow: 1px 2px 3px rgba(0,0,0,0.15);
+  }
+  .corner-btn.active {
+    background: var(--honey-amber);
+  }
+  .skip-row {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 2px solid var(--honey-shadow);
+    border-radius: 22px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .skip-row input { cursor: pointer; }
+
+  @keyframes zoom-drift {
+    from { transform: translateX(-50%) scale(1); }
+    to   { transform: translateX(-50%) scale(1.05); }
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50%      { transform: translateX(-50%) translateY(-4px); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.85; }
+    50%      { opacity: 1; transform: translateX(-50%) scale(1.04); }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+
+  <!-- Panel 1: Gate. Painted welcome-bg + small distant building + framing trees + gate-strip foreground -->
+  <div class="panel panel-bg" id="panel-1">
+    <img class="building-distant" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="">
+    <img class="tree-side tree-left" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" alt="">
+    <img class="tree-side tree-right" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" alt="">
+    <div class="gate-overlay" aria-hidden="true"></div>
+  </div>
+
+  <!-- Panel 2: Garden path. Larger building + receding path + flanking trees -->
+  <div class="panel panel-bg" id="panel-2">
+    <div class="path-overlay" aria-hidden="true"></div>
+    <img class="building-mid" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="">
+    <img class="tree-edge tree-left" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" alt="">
+    <img class="tree-edge tree-right" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" alt="">
+  </div>
+
+  <!-- Panel 3: Door close-up. Building filling canvas, cropped to entrance via CSS clip-path -->
+  <div class="panel" id="panel-3" style="background: var(--cream-wash);">
+    <img class="building-close" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="A.R.C. front door">
+  </div>
+
+  <!-- Panel 4: Door open + animal -->
+  <div class="panel" id="panel-4" style="background: var(--cream-wash);">
+    <img class="building-close" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="A.R.C. front door">
+    <div class="door-opening" aria-hidden="true"></div>
+    <img class="arrival-sprite" id="arrival-sprite" src="" alt="">
+    <div class="tap-prompt" id="tap-prompt">Tap to open the door</div>
+  </div>
+
+  <div class="corner">
+    <button class="corner-btn active" id="speaker-btn" aria-label="Toggle sound">🔊</button>
+    <label class="skip-row">
+      <input type="checkbox" id="skip-checkbox">
+      <span>Skip next time</span>
+    </label>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const stage = document.getElementById('stage');
+    const panels = [
+      document.getElementById('panel-1'),
+      document.getElementById('panel-2'),
+      document.getElementById('panel-3'),
+      document.getElementById('panel-4'),
+    ];
+    const speakerBtn = document.getElementById('speaker-btn');
+    const skipCheckbox = document.getElementById('skip-checkbox');
+
+    let current = 0;
+    let autoTimer = null;
+    let skipIntro = false;
+    let musicOn = true;
+    let species = 'cat';
+
+    function send(type, payload) {
+      try { parent.postMessage({ source: 'arc-auth', type: type, payload: payload }, '*'); } catch (_) {}
+    }
+
+    function showPanel(idx) {
+      panels.forEach(function (p, i) { p.classList.toggle('active', i === idx); });
+      current = idx;
+      clearTimeout(autoTimer);
+      // Auto-advance for panels 0..2; panel 3 (the 4th) waits for tap.
+      if (idx < 3) {
+        autoTimer = setTimeout(function () { showPanel(idx + 1); }, 2500);
+      }
+    }
+
+    function start() {
+      if (skipIntro) {
+        showPanel(3);
+      } else {
+        showPanel(0);
+      }
+    }
+
+    // Tap on panel body advances early (or completes on panel 4).
+    stage.addEventListener('click', function (e) {
+      // Ignore taps on corner controls.
+      if (e.target.closest('.corner')) return;
+      if (current === 3) {
+        // Panel 4 tap — request the climactic SFX from the host
+        // (host respects AudioManager state and plays sfx-arrive +
+        // species sound + voice-hello-friend if music is on).
+        send('intro-climactic-sfx', { species: species });
+        // Then complete after a short delay so the SFX has time to start.
+        setTimeout(function () { send('intro-complete'); }, 100);
+        return;
+      }
+      if (current < 3) {
+        showPanel(current + 1);
+      }
+    });
+
+    // Speaker toggle — bubble out to the host AudioManager.
+    speakerBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      send('toggle-music');
+    });
+
+    // Skip-future toggle — bubble out to IntroScene which writes localStorage.
+    skipCheckbox.addEventListener('change', function (e) {
+      e.stopPropagation();
+      send('set-skip-intro', { value: skipCheckbox.checked });
+    });
+
+    // Receive init payload + music-state updates from parent.
+    window.addEventListener('message', function (e) {
+      const m = e.data;
+      if (!m || m.source !== 'arc-auth-host') return;
+      if (m.type === 'init' && m.payload) {
+        skipIntro = !!m.payload.skipIntro;
+        musicOn = !!m.payload.musicOn;
+        species = (typeof m.payload.speciesForArrival === 'string') ? m.payload.speciesForArrival : 'cat';
+        skipCheckbox.checked = skipIntro;
+        speakerBtn.textContent = musicOn ? '🔊' : '🔇';
+        speakerBtn.classList.toggle('active', musicOn);
+        // Update panel-4 sprite to match the species GameScene will spawn.
+        const arrivalImg = document.getElementById('arrival-sprite');
+        if (arrivalImg) {
+          arrivalImg.src = (typeof m.payload.arrivingSpriteSrc === 'string' && m.payload.arrivingSpriteSrc.length > 0)
+            ? m.payload.arrivingSpriteSrc
+            : '/assets/animals/cat-ginger-arriving.png';
+        }
+        start();
+      }
+      if (m.type === 'music-state' && m.payload) {
+        musicOn = !!m.payload.enabled;
+        speakerBtn.textContent = musicOn ? '🔊' : '🔇';
+        speakerBtn.classList.toggle('active', musicOn);
+      }
+    });
+
+    // Standalone preview (no parent window) — start immediately for design review.
+    if (window.top === window.self) {
+      const arrivalImg = document.getElementById('arrival-sprite');
+      if (arrivalImg) arrivalImg.src = '/assets/animals/cat-ginger-arriving.png';
+      start();
+    }
+  })();
+</script>
+
+</body>
+</html>
