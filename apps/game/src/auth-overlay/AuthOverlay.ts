@@ -27,7 +27,10 @@ export type AuthAction =
   | 'forgot-pin'                  // login → "Forgot your secret code?" → recovery flow
   | 'recruit-apprentice'
   | 'auth-success-existing'      // login() resolved
-  | 'auth-success-new';           // signup() resolved — route to welcome-new
+  | 'auth-success-new'            // signup() resolved — route to welcome-new
+  | 'intro-complete'              // panel 4 tapped — IntroScene starts GameScene
+  | 'set-skip-intro'              // skip-future toggle changed — IntroScene writes localStorage
+  | 'intro-climactic-sfx';        // panel 4 tapped — IntroScene plays sfx-arrive + species + voice
 
 export interface AuthOverlayHandlers {
   onAction: (action: AuthAction, session?: AuthSession, payload?: Record<string, unknown>) => void;
@@ -39,7 +42,7 @@ export interface MenuStats {
   needFeeding?: number;
 }
 
-export type AuthPage = 'welcome' | 'login' | 'signup' | 'welcome-new' | 'menu' | 'friends' | 'forgot-pin';
+export type AuthPage = 'welcome' | 'login' | 'signup' | 'welcome-new' | 'menu' | 'friends' | 'forgot-pin' | 'intro';
 
 const PAGE_URLS: Record<AuthPage, string> = {
   welcome:      '/admin/welcome.html?embed=1',
@@ -49,6 +52,7 @@ const PAGE_URLS: Record<AuthPage, string> = {
   menu:         '/admin/menu.html?embed=1',
   friends:      '/admin/friends.html?embed=1',
   'forgot-pin': '/admin/forgot-pin.html?embed=1',
+  intro:        '/admin/intro.html?embed=1',
 };
 
 let activeFrame: HTMLIFrameElement | null = null;
@@ -70,7 +74,8 @@ export function postToActiveFrame(type: string, payload?: unknown): void {
 export function mountAuth(
   page: AuthPage,
   handlers: AuthOverlayHandlers,
-  context?: { name?: string; session?: AuthSession; stats?: MenuStats; recruited?: string[]; reason?: string },
+  context?: { name?: string; session?: AuthSession; stats?: MenuStats; recruited?: string[]; reason?: string;
+              skipIntro?: boolean; speciesForArrival?: string; arrivingSpriteSrc?: string; musicOn?: boolean },
 ): () => void {
   unmountAuth();
 
@@ -112,6 +117,14 @@ export function mountAuth(
         recruited: context?.recruited ?? [],
       });
     }
+    if (page === 'intro' && context) {
+      postToFrame('init', {
+        skipIntro: context.skipIntro ?? false,
+        speciesForArrival: context.speciesForArrival,
+        arrivingSpriteSrc: context.arrivingSpriteSrc,
+        musicOn: context.musicOn ?? AudioManager.getInstance().isMusicOn(),
+      });
+    }
     // Always sync the current music-on state so the speaker emoji
     // starts in the right 🔊/🔇 position regardless of page.
     postToFrame('music-state', { enabled: AudioManager.getInstance().isMusicOn() });
@@ -127,7 +140,9 @@ export function mountAuth(
         msg.type === 'signup' || msg.type === 'back-to-welcome' ||
         msg.type === 'friends' || msg.type === 'logout' ||
         msg.type === 'back-to-menu' ||
-        msg.type === 'type-name' || msg.type === 'forgot-pin') {
+        msg.type === 'type-name' || msg.type === 'forgot-pin' ||
+        msg.type === 'intro-complete' || msg.type === 'set-skip-intro' ||
+        msg.type === 'intro-climactic-sfx') {
       handlers.onAction(msg.type as AuthAction, undefined, msg.payload);
       return;
     }
