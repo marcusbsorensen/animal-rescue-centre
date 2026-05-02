@@ -1972,10 +1972,15 @@
       console.log('[arc-auth →]', type, payload);
     }
   };
-  document.querySelector('.link-btn.plank-sage')?.addEventListener('click', (e) => {
-    if (e.currentTarget.id === 'hint-safe-btn') return;
-    send('login');
-  });
+  // "I already have an account" plank on stage A. Sends 'login' to the
+  // host so it can swap to LoginScene. We MUST scope this strictly to
+  // that specific button — there are other .link-btn.plank-sage buttons
+  // (hint-next-btn, hint-safe-btn) on later stages with their own
+  // specific handlers, and a catch-all selector here would hijack their
+  // clicks and send 'login' instead of letting their handlers run.
+  // Use the parent .secondary-row scope to disambiguate.
+  document.querySelector('#stage-select .secondary-row .link-btn.plank-sage')
+    ?.addEventListener('click', () => send('login'));
   // Yellow back-sticker — context-aware: goes back ONE step in the
   // signup flow. From stage A there's nothing before, so we postMessage
   // 'back-to-welcome' to the host (the host swaps to the welcome scene).
