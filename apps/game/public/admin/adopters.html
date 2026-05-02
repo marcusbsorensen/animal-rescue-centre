@@ -4,6 +4,12 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>A.R.C. — Adopter list v1</title>
+<script>
+  // Iframe-context detection — flips html.iframed before first paint
+  // so the design-preview chrome (vp-bar) is hidden in-game even if
+  // the embed-mode JS toggle hasn't run yet.
+  if (window.top !== window.self) document.documentElement.classList.add('iframed');
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -37,6 +43,16 @@
     width: 100% !important; height: 100% !important;
     border-radius: 0 !important; box-shadow: none !important;
   }
+  /* Belt-and-braces: when iframed, hide design-preview chrome
+     unconditionally regardless of script readiness. */
+  html.iframed body .vp-bar { display: none !important; }
+  html.iframed body { background: #fef9ef !important; }
+  html.iframed body .device-frame { padding: 0 !important; overflow: hidden !important; flex: 1 !important; }
+  html.iframed body .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
 
   /* mock toolbar */
   .vp-bar {

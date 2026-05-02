@@ -4,6 +4,12 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>A.R.C. — A new arrival</title>
+<script>
+  // Detect iframe context BEFORE any rendering — flips html.iframed,
+  // which the CSS uses to hide the design-preview vp-bar + chrome.
+  // Runs synchronously in <head> so it beats first paint.
+  if (window.top !== window.self) document.documentElement.classList.add('iframed');
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -24,6 +30,21 @@
   body.embed .vp-bar { display: none; }
   body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
   body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+  /* Belt-and-braces — when this page is loaded inside an iframe (i.e.
+     by the live game via InGameOverlay), HIDE the design-preview chrome
+     unconditionally regardless of whether the JS embed-mode toggle has
+     run yet. Without this, a slow or partially-failed script left
+     kids staring at the dev viewport switcher + "First-arrival mode"
+     debug button (Marcus 2026-05-02). The :is(html, body) trick uses
+     html.iframed to flip on the iframe-time CSS without depending on
+     the script reaching document.body.classList.add('embed'). */
+  html.iframed body .vp-bar { display: none !important; }
+  html.iframed body { background: #fef9ef !important; }
+  html.iframed body .device-frame { padding: 0 !important; overflow: hidden !important; flex: 1 !important; }
+  html.iframed body .device {
     width: 100% !important; height: 100% !important;
     border-radius: 0 !important; box-shadow: none !important;
   }
