@@ -38,23 +38,17 @@ export class SignupScene extends Phaser.Scene {
   create(): void {
     const USE_OVERLAY = true as boolean;
     if (USE_OVERLAY) {
-      // Two-step flow: signup → welcome-new (orientation) → play.
-      const routeAfterSignup = (session: { username?: string } | undefined) => {
-        const name = session?.username;
-        const unmount2 = mountAuth('welcome-new', {
-          onAction: (a2) => {
-            if (a2 === 'play') { unmount2(); this.scene.start('MainMenuScene'); }
-          },
-        }, { name });
-        this.events.once('shutdown', unmountAuth);
-      };
+      // Signup → straight to MainMenuScene. The old orientation screen
+      // (welcome-new.html) was redundant per Marcus 2026-05-02 — kid
+      // already saw the painted scene during signup, doesn't need a
+      // second "Welcome, X!" screen with a stale building picture.
       const unmount = mountAuth('signup', {
-        onAction: (action, session) => {
+        onAction: (action, _session) => {
           if (action === 'back-to-welcome') { unmount(); this.scene.start('MainMenuScene'); return; }
           if (action === 'login')           { unmount(); this.scene.start('LoginScene'); return; }
           if (action === 'auth-success-new') {
             unmount();
-            routeAfterSignup(session);
+            this.scene.start('MainMenuScene');
             return;
           }
         },

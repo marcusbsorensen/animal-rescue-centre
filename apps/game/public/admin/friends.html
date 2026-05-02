@@ -132,16 +132,26 @@
     position: relative;
   }
 
-  .logo-img {
-    height: clamp(96px, 18cqh, 180px);
-    width: auto; max-width: 92%;
-    image-rendering: -webkit-optimize-contrast;
-    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.12));
-    position: relative;
+  /* Floating ARC logo at the top of the screen — used on the welcome /
+     login / signup screens but NOT here. On Friends (an interior screen)
+     it broke the visual metaphor by floating in the top-left corner
+     while the sign sits below it. We use a SMALL logo on the sign
+     itself instead (.sign-logo). Hidden via display:none so the rest
+     of the welcome-content layout stays valid. */
+  .logo-img,
+  .logo-wrap { display: none; }
+
+  /* Small painted A.R.C. paw-heart sitting ON the sign at the top —
+     replaces the floating one. Sized to feel like a hand-stuck logo
+     on the sign, not a full identity mark. */
+  .sign-logo {
     display: block;
-    margin: 0 auto;
+    height: clamp(36px, 5.5cqh, 56px);
+    width: auto;
+    margin: 0 auto clamp(2px, 0.6cqh, 6px);
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.18));
+    image-rendering: -webkit-optimize-contrast;
   }
-  .logo-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8cqh, 8px); }
 
   /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
   .sign-title {
@@ -959,6 +969,91 @@
     border-color: #6b6254;
   }
 
+  /* Friends-list empty state — shown when the kid has no friends yet. */
+  .friends-empty {
+    text-align: center;
+    padding: clamp(20px, 4cqh, 36px) clamp(12px, 3cqw, 24px);
+    color: var(--ink-soft);
+  }
+  .friends-empty-line1 {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(15px, 2.6cqh, 20px);
+    color: var(--ink);
+    margin-bottom: clamp(4px, 0.8cqh, 8px);
+  }
+  .friends-empty-line2 {
+    font-family: var(--body-font);
+    font-size: clamp(12px, 1.8cqh, 14px);
+    line-height: 1.4;
+  }
+
+  /* Combined invite + share-code panel — single tappable element.
+     Replaces the old separate INVITE A FRIEND button + share-code pill.
+     Tapping copies the friend code to clipboard. */
+  .invite-share-panel {
+    display: flex; align-items: center;
+    gap: clamp(8px, 1.5cqw, 14px);
+    width: 100%;
+    background: linear-gradient(180deg, #fff5dc 0%, #f5e3b0 100%);
+    border: 2px solid #d3bf94;
+    border-radius: clamp(14px, 2cqh, 18px);
+    padding: clamp(8px, 1.6cqh, 14px) clamp(12px, 2.5cqw, 18px);
+    cursor: pointer;
+    box-shadow:
+      inset 0 -3px 0 rgba(123,92,58,0.18),
+      2px 4px 6px rgba(0,0,0,0.18);
+    font-family: var(--sign-title-font);
+    color: var(--ink);
+    text-align: left;
+    position: relative;
+  }
+  .invite-share-panel:hover { transform: translateY(-1px); }
+  .invite-share-panel:active { transform: translateY(1px); box-shadow: inset 0 -1px 0 rgba(123,92,58,0.18), 1px 2px 3px rgba(0,0,0,0.15); }
+  .invite-share-stamp {
+    font-size: clamp(22px, 3.4cqh, 32px);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .invite-share-text {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    gap: clamp(2px, 0.4cqh, 4px);
+  }
+  .invite-share-line1 {
+    font-weight: 700;
+    font-size: clamp(14px, 2.4cqh, 20px);
+    white-space: nowrap;
+    color: var(--garden-green, #2E8B57);
+  }
+  .invite-share-line2 {
+    display: flex; align-items: baseline; gap: clamp(4px, 0.8cqw, 8px);
+    white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .invite-share-prefix {
+    font-family: var(--body-font);
+    font-weight: 500;
+    font-size: clamp(11px, 1.6cqh, 14px);
+    color: var(--ink-soft);
+  }
+  .invite-share-code {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(13px, 2cqh, 17px);
+    color: var(--trellis-brown);
+    letter-spacing: 0.02em;
+  }
+  .invite-share-icon {
+    font-size: clamp(18px, 2.8cqh, 24px);
+    line-height: 1;
+    opacity: 0.65;
+    flex-shrink: 0;
+  }
+  .invite-share-panel:active .invite-share-icon { opacity: 1; }
+
+  /* (Old separate invite-btn / invite-code-pill styles below remain for
+     any non-embed preview use — they no longer render in embed mode.) */
   /* Invite CTA uses .btn-primary, but we swap the paws for post emojis */
   .btn-primary .postmark {
     font-size: clamp(30px, 5.2cqh, 46px);
@@ -1154,26 +1249,31 @@
               <div class="intro">
                 <img class="intro-cat" src="/assets/animals/cat-black-sleeping.png" alt="">
                 <button class="back-tab" id="back-btn">← Menu</button>
+                <img class="sign-logo" src="/assets/logo/arc-logo-portrait.png" alt="A.R.C.">
                 <div class="sign-title">Your A.R.C. Friends</div>
                 <div class="friends-list" id="friends-list"><!-- friend cards injected by JS --></div>
               </div>
 
               <div class="cta-stack">
-                <div class="btn-primary-wrap">
-                  <button class="btn-primary" id="invite-btn">
-                    <span class="postmark postmark-left">📮</span>
-                    <span class="play-label">INVITE A FRIEND!</span>
-                    <span class="postmark postmark-right">📮</span>
-                  </button>
-                  <img class="play-parrot" src="/assets/animals/parrot-grey-sheltered.png" alt="">
-                </div>
-                <div class="invite-code-pill">
-                  <div class="invite-code-left">
-                    <span class="invite-code-label">Share your code:</span>
-                    <span class="invite-code-value" id="friend-code">SUNNY-FOX-2026</span>
-                  </div>
-                  <button class="invite-copy-btn" id="copy-code-btn" aria-label="Copy friend code">📋</button>
-                </div>
+                <!-- Single combined invite panel — the old separate
+                     INVITE A FRIEND button did nothing useful (no
+                     handler beyond posting an unused 'invite-friend'
+                     event), so we fold it into the share-your-code
+                     pill so the kid sees ONE clear action: "share
+                     this code with a friend so they can play with
+                     you". Tap to copy. -->
+                <button class="invite-share-panel" id="copy-code-btn" type="button" aria-label="Tap to copy your friend code">
+                  <span class="invite-share-stamp">📮</span>
+                  <span class="invite-share-text">
+                    <span class="invite-share-line1">Invite a friend!</span>
+                    <span class="invite-share-line2">
+                      <span class="invite-share-prefix">Your code:</span>
+                      <span class="invite-share-code" id="friend-code">SUNNY-FOX-2026</span>
+                    </span>
+                  </span>
+                  <span class="invite-share-icon" aria-hidden="true">📋</span>
+                </button>
+                <img class="play-parrot" src="/assets/animals/parrot-grey-sheltered.png" alt="">
               </div>
 
               <!-- Bunny sitting on the ground at the foot of the garden post -->
@@ -1215,17 +1315,12 @@
   }
   // Sample friends data — shown in the screen preview AND as the default
   // when the host hasn't sent an 'init' payload yet. Three of these are
-  // apprentice-eligible (Rhubarb, Amara, Kofi) so the design review can
-  // see the "⭐ Apprentice-able" chip + Recruit! button inline.
-  const SAMPLE_FRIENDS = [
-    { username: 'Sam',     emoji: '🐾', bg: '#6ea8d8', lastVisit: 'yesterday',   bond: 5, online: true  },
-    { username: 'Rhubarb', emoji: '🥕', bg: '#d86a4a', lastVisit: 'today',       bond: 4, online: true,
-      apprenticeId: 'rhubarb', householdId: '30-two-houses' },
-    { username: 'Amara',   emoji: '🐱', bg: '#e89bb8', lastVisit: 'yesterday',   bond: 3, online: false,
-      apprenticeId: 'amara',   householdId: '13-kumar-ishii' },
-    { username: 'Kofi',    emoji: '🦜', bg: '#e7a84a', lastVisit: '2 hours ago', bond: 4, online: true,
-      apprenticeId: 'kofi',    householdId: '14-theo-grandkids' },
-  ];
+  // SAMPLE_FRIENDS for design preview ONLY — never render apprentices
+  // here because they're a separate recruitment flow, not real player
+  // friends. Real friends come from the host init payload (p.friends).
+  // Empty by default so live test players don't see fake friends or
+  // misleading "Recruit!" buttons.
+  const SAMPLE_FRIENDS = [];
 
   // Set of apprentice ids already recruited — populated from host init.
   let RECRUITED = new Set();
@@ -1247,6 +1342,21 @@
     const list = document.getElementById('friends-list');
     if (!list) return;
     list.textContent = '';  // clear
+    // Empty state — no friends yet.
+    if (!friends || friends.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'friends-empty';
+      const line1 = document.createElement('div');
+      line1.className = 'friends-empty-line1';
+      line1.textContent = 'No friends here yet!';
+      const line2 = document.createElement('div');
+      line2.className = 'friends-empty-line2';
+      line2.textContent = 'Share your code below so a friend can join you.';
+      empty.appendChild(line1);
+      empty.appendChild(line2);
+      list.appendChild(empty);
+      return;
+    }
     for (const f of friends) {
       const card = document.createElement('button');
       card.type = 'button';
