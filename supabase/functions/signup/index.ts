@@ -43,10 +43,15 @@ Deno.serve(async (req) => {
     // present, it must be a string of reasonable length; we don't
     // re-run the leak-detection rules server-side because that runs
     // client-side already and the kid has already gut-checked it.
+    //
+    // Cap bumped 60 → 100 chars 2026-05-02 — Lily's "Danish numbers
+    // (the language no-one speaks here)" was 73 chars and had to be
+    // truncated to 49 on her account. 100 gives room for one full
+    // sentence of context + parenthesis without feeling cramped.
     let cleanHint: string | null = null;
     if (typeof pinHint === 'string') {
       const t = pinHint.trim();
-      if (t.length > 60) {
+      if (t.length > 100) {
         return jsonResponse({ error: 'Hint is too long' }, 400);
       }
       if (t.length >= 4) cleanHint = t;
