@@ -631,8 +631,8 @@
   <path id="wood" d="M469.2,1081.6L468.5,1091.7L496.1,1097.4L497.2,1085.3L469.2,1081.6 Z"/>
 </g>
 <g id="destinations">
-  <path id="dest-quex-park" data-name="Quex Park" d="M1184.2,780.2L1187.5,727.7L1132.7,711.9L1134.8,698.2L1132.9,690.2L1129.7,684.2L1127.5,680.6L1130.9,664.1L1134.9,657.3L1133.4,656.0L1132.0,655.6L1084.2,638.0L1043.6,622.1L1017.2,615.7L954.1,611.0L939.2,609.9L935.7,609.6L926.7,605.2L926.1,599.9L907.1,592.9L906.0,592.6L895.0,587.8L871.7,621.3L867.1,619.1L840.1,652.9L834.5,659.8L825.6,671.0L809.4,686.2L804.7,688.5L807.3,696.8L801.6,733.9L798.6,744.7L794.4,775.2L788.6,826.8L789.4,831.8L828.3,842.8L848.0,847.9L979.3,865.8L1041.1,879.4L1046.4,878.2L1103.5,835.2L1112.3,828.5L1147.0,801.7L1184.2,780.2 Z" fill="#7ea366" stroke="#5a7a4f" stroke-width="3"/>
-  <path id="dest-westgate-golf-club" data-name="Westgate Golf Club" d="M1153.3,325.7L1079.8,342.2L1083.0,374.2L1101.0,373.9L1130.3,372.1L1134.0,370.0L1139.2,335.5L1153.3,325.7 Z" fill="#9bc28b" stroke="#6a8f5d" stroke-width="3"/>
+  <path id="dest-quex-park" data-name="Wyx Park" d="M1184.2,780.2L1187.5,727.7L1132.7,711.9L1134.8,698.2L1132.9,690.2L1129.7,684.2L1127.5,680.6L1130.9,664.1L1134.9,657.3L1133.4,656.0L1132.0,655.6L1084.2,638.0L1043.6,622.1L1017.2,615.7L954.1,611.0L939.2,609.9L935.7,609.6L926.7,605.2L926.1,599.9L907.1,592.9L906.0,592.6L895.0,587.8L871.7,621.3L867.1,619.1L840.1,652.9L834.5,659.8L825.6,671.0L809.4,686.2L804.7,688.5L807.3,696.8L801.6,733.9L798.6,744.7L794.4,775.2L788.6,826.8L789.4,831.8L828.3,842.8L848.0,847.9L979.3,865.8L1041.1,879.4L1046.4,878.2L1103.5,835.2L1112.3,828.5L1147.0,801.7L1184.2,780.2 Z" fill="#7ea366" stroke="#5a7a4f" stroke-width="3"/>
+  <path id="dest-westgate-golf-club" data-name="Westbeach Golf Club" d="M1153.3,325.7L1079.8,342.2L1083.0,374.2L1101.0,373.9L1130.3,372.1L1134.0,370.0L1139.2,335.5L1153.3,325.7 Z" fill="#9bc28b" stroke="#6a8f5d" stroke-width="3"/>
 </g>
 <g id="pools" fill="#7cc6e0" stroke="#4d97b3" stroke-width="1.5">
   <path d="M879.3,1043.2L878.5,1046.8L880.2,1047.2L880.9,1043.5L879.3,1043.2 Z"/>
@@ -648,64 +648,6 @@
   <path d="M782.8,298.5L783.0,301.6L784.6,301.6L784.3,298.4L784.0,298.5L783.9,298.3L783.6,298.2L783.4,298.2L783.2,298.2L783.1,298.5L782.8,298.5 Z"/>
   <path d="M880.4,358.6L880.3,360.9L881.8,361.0L881.8,360.2L881.5,360.2L881.4,358.8L881.2,358.6L880.4,358.6 Z"/>
   <path d="M879.3,364.8L879.5,366.2L882.3,365.9L882.1,364.5L879.3,364.8 Z"/>
-</g>
-<g id="roads-trunk" stroke="#f0c870" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1234.8,364.6L1243.5,362.3L1255.8,359.9L1270.0,357.8L1288.6,354.8L1305.9,351.6L1317.8,349.0L1352.2,341.0L1361.5,338.8L1366.4,337.7"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1704.5,328.1L1700.9,328.2L1697.8,328.0L1683.2,326.6L1677.2,324.9"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1780.9,290.0L1786.3,287.9L1799.1,281.8L1801.5,280.6L1817.6,272.1L1822.8,269.5"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1677.2,324.9L1686.4,324.9L1695.0,325.4"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1615.3,324.3L1623.3,325.2L1628.6,325.4L1633.6,325.5L1653.3,324.9L1661.7,324.9L1669.1,324.6L1674.0,324.7L1677.2,324.9"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M599.1,660.3L613.6,643.3L617.8,639.0L639.7,616.4L644.4,611.6L645.2,610.9L646.9,609.3L660.9,595.7L666.5,589.5L669.1,586.9L676.7,579.4L696.6,554.1L703.8,546.0L704.8,545.0L710.5,540.5L717.5,536.0L725.9,531.2L731.2,528.0L735.0,525.7L736.5,524.4"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M754.1,515.7L759.5,515.1L767.7,513.9L769.6,513.6L773.0,513.1L776.2,512.4L781.3,511.0L788.6,507.9L789.3,507.6L795.0,504.6L800.4,501.0L804.8,497.4L810.3,492.1L815.0,487.5L817.9,484.2L821.5,480.9L824.6,478.3L830.3,474.2L836.9,469.6L839.2,467.6L844.5,462.7L855.5,451.8L856.7,450.8L859.4,448.5L865.3,443.4L873.0,437.3"/>
-  <path id="the-square" data-name="The Square" data-cls="trunk" data-ref="A28" d="M743.9,515.5L740.8,515.7"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M978.4,394.7L983.8,392.8L991.1,391.8L994.9,391.2L996.9,390.8"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M996.9,390.8L1016.5,386.9L1035.9,383.1L1042.5,381.8L1047.6,380.8L1059.3,378.8L1073.3,377.7L1084.7,377.3L1101.6,377.1L1110.0,376.6L1118.4,375.9L1127.0,375.3L1133.0,375.2L1135.5,375.0L1136.7,374.9L1153.5,375.3L1155.2,375.4L1160.7,375.9L1173.5,376.5L1179.9,376.4L1184.8,376.4L1194.8,375.2L1207.3,372.9L1228.1,366.6L1229.7,366.0L1234.8,364.6"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M993.8,394.4L991.4,394.8L983.9,395.6L978.4,394.7"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M967.4,395.7L960.1,396.5L952.8,397.4L945.1,399.0L937.2,400.9L930.3,403.2L924.7,405.3L919.1,407.9L914.8,410.0L904.8,415.6L895.0,421.8L884.4,429.1L878.5,433.5"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M371.3,885.6L363.8,887.0L357.8,887.5L352.0,887.9L318.1,890.0L310.0,890.5L300.5,891.2L281.5,892.3L269.5,893.0L262.0,893.7L255.0,894.8L244.5,897.5L236.7,900.3L232.3,902.2L225.9,905.4L215.1,912.3L175.3,942.9L155.6,957.8L135.0,972.9L100.9,998.5L78.3,1015.1L67.8,1022.8L57.3,1031.0L50.7,1036.0L42.6,1041.4L35.4,1045.6L27.9,1049.2L13.6,1055.4L2.2,1060.2L-13.6,1066.7L-22.8,1070.4L-30.4,1072.7L-39.1,1074.8"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M435.9,846.7L431.7,850.0"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M370.7,882.2L373.6,881.6L383.3,878.5L392.2,874.7L396.8,872.3L400.3,870.4L410.9,863.2L417.1,858.0L422.5,853.6L423.2,853.0"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M430.8,848.6L435.9,846.7"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M426.0,854.5L422.9,857.3L420.3,860.0L414.2,864.8L408.6,869.1L401.2,873.9L400.4,874.4L393.6,877.9L384.0,881.9L374.3,885.0L371.3,885.6"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M467.9,828.2L472.0,824.5"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M467.9,828.2L466.0,829.6"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1468.9,308.6L1462.4,308.5L1453.5,309.0L1442.9,311.0L1437.1,312.9L1419.5,320.1L1404.9,326.6L1393.3,331.5L1382.3,335.7L1373.3,338.5L1367.2,339.8"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1232.5,367.9L1229.3,368.9L1225.3,370.2L1208.0,375.3L1200.2,377.0L1195.2,377.9L1190.9,378.4L1185.0,379.0L1175.4,379.2L1155.2,378.1L1153.5,378.1L1135.8,377.7L1134.3,377.9L1131.4,377.9L1124.0,378.4L1112.1,379.9L1101.0,381.5L1092.5,382.1L1084.9,382.3L1073.4,382.3L1060.8,383.0L1054.7,383.7L1049.0,384.6L1046.9,384.9L1043.3,385.5"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1539.6,312.3L1559.8,313.7L1575.6,315.3L1583.9,316.1L1591.5,317.5L1594.9,318.3L1604.8,321.6L1609.7,323.0L1615.3,324.3"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M-39.8,1070.7L-31.7,1068.8L-24.5,1066.4L-15.8,1062.7L0.1,1056.2L12.1,1051.1L25.8,1045.4L33.2,1041.8L40.6,1037.8L48.4,1032.8L55.1,1028.0L65.8,1020.0L76.2,1012.3L98.5,995.4L132.5,970.0L152.5,955.0L173.2,939.4L213.5,909.3L224.4,902.5L230.8,899.3L235.6,897.3L242.9,894.6L254.3,891.5L261.5,890.3L269.3,889.4L281.3,888.7L300.2,887.6L310.3,887.1L317.9,886.6L352.0,884.6L357.5,884.2L363.5,883.6L370.7,882.2"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M431.7,850.0L426.0,854.5"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M423.2,853.0L425.0,851.9L427.6,850.1L430.8,848.6"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1367.2,339.8L1363.6,341.0L1352.8,343.6L1336.3,347.4L1318.3,351.6L1304.4,354.5L1289.3,357.4L1270.4,360.4L1256.2,362.5L1244.3,364.7L1235.8,366.9L1232.5,367.9"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1366.4,337.7L1371.3,336.2L1381.3,333.3L1391.6,329.3L1402.0,325.0L1407.0,322.8L1428.0,313.7L1438.6,309.6L1445.2,307.7L1453.3,306.3L1460.0,305.9L1469.1,306.2L1483.7,307.1"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1740.9,308.8L1745.2,306.5L1749.1,304.2"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1539.6,312.3L1537.8,313.1L1536.5,313.3L1523.8,312.5L1513.7,311.8L1511.4,311.7L1490.6,310.2L1483.7,309.7L1468.9,308.6"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1483.7,307.1L1511.5,309.0L1536.7,310.8L1537.9,311.2L1539.6,312.3"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M978.4,394.7L967.4,395.7"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M878.5,433.5L873.0,437.3"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1769.8,294.5L1773.6,293.1L1780.9,290.0"/>
-  <path id="the-square" data-name="The Square" data-cls="trunk" data-ref="A28" d="M746.6,515.8L743.9,515.5"/>
-  <path id="the-square" data-name="The Square" data-cls="trunk" data-ref="A28" d="M746.6,515.8L747.2,516.0L751.0,515.8L754.1,515.7"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M739.3,519.7L740.8,515.7"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M736.5,524.4L738.0,522.8L739.3,519.7"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1715.5,323.2L1712.6,326.5"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1759.3,299.1L1761.4,298.1L1769.8,294.5"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1754.0,301.6L1754.7,301.3L1759.3,299.1"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1749.1,304.2L1754.0,301.6"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1729.3,315.6L1737.7,310.7L1740.9,308.8"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1725.9,317.7L1729.3,315.6"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1715.5,323.2L1725.9,317.7"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1704.5,325.5L1708.8,324.0L1712.4,322.9L1715.5,323.2"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1695.0,325.4L1701.1,325.7L1704.5,325.5"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1712.6,326.5L1707.1,328.0L1704.5,328.1"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M443.0,843.2L435.9,846.7"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M466.0,829.6L463.6,831.3"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M472.0,824.5L476.7,819.5L481.7,813.6L486.4,808.8L491.2,804.7L501.7,796.0L506.2,791.8L509.9,787.8L512.9,784.1L515.8,779.7L519.5,773.7L526.1,761.1L529.3,755.6L534.1,748.0L550.9,724.4"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M463.6,831.3L462.0,832.4L457.9,834.9L453.3,837.5L443.0,843.2"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M550.9,724.4L558.2,713.8L561.9,708.8"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M561.9,708.8L563.5,706.7L568.9,699.4L586.0,676.6L590.1,671.3L593.7,666.9L599.1,660.3"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1004.6,392.2L997.4,393.4"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1043.3,385.5L1020.6,389.8L1004.6,392.2"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M997.4,393.4L994.9,393.8L993.8,394.4"/>
 </g>
 <g id="roads-secondary" stroke="#f0d894" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round">
   <path id="park-lane" data-name="Park Lane" data-cls="secondary" data-ref="B2048" d="M736.5,524.4L737.8,525.6L740.1,527.6L741.7,530.6L745.2,538.3L745.8,540.9L747.1,544.0L747.6,545.1L773.5,594.3L773.9,595.0L779.7,605.0L781.7,613.5L782.2,615.4L783.3,620.0L784.6,625.4L785.0,627.2L787.9,637.9L794.9,665.9L795.6,667.6L801.9,689.2"/>
@@ -1419,6 +1361,122 @@
   <path id="edward-drive" data-name="Edward Drive" data-cls="residential" data-ref="" d="M914.8,410.0L915.9,411.8L916.7,413.1"/>
   <path id="r-1370931750" data-name="" data-cls="residential" data-ref="" d="M1271.8,208.6L1269.2,207.4"/>
 </g>
+<g id="roads-trunk-outline" stroke="#7b4f1a" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.85">
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1234.8,364.6L1243.5,362.3L1255.8,359.9L1270.0,357.8L1288.6,354.8L1305.9,351.6L1317.8,349.0L1352.2,341.0L1361.5,338.8L1366.4,337.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1704.5,328.1L1700.9,328.2L1697.8,328.0L1683.2,326.6L1677.2,324.9"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1780.9,290.0L1786.3,287.9L1799.1,281.8L1801.5,280.6L1817.6,272.1L1822.8,269.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1677.2,324.9L1686.4,324.9L1695.0,325.4"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1615.3,324.3L1623.3,325.2L1628.6,325.4L1633.6,325.5L1653.3,324.9L1661.7,324.9L1669.1,324.6L1674.0,324.7L1677.2,324.9"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M599.1,660.3L613.6,643.3L617.8,639.0L639.7,616.4L644.4,611.6L645.2,610.9L646.9,609.3L660.9,595.7L666.5,589.5L669.1,586.9L676.7,579.4L696.6,554.1L703.8,546.0L704.8,545.0L710.5,540.5L717.5,536.0L725.9,531.2L731.2,528.0L735.0,525.7L736.5,524.4"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M754.1,515.7L759.5,515.1L767.7,513.9L769.6,513.6L773.0,513.1L776.2,512.4L781.3,511.0L788.6,507.9L789.3,507.6L795.0,504.6L800.4,501.0L804.8,497.4L810.3,492.1L815.0,487.5L817.9,484.2L821.5,480.9L824.6,478.3L830.3,474.2L836.9,469.6L839.2,467.6L844.5,462.7L855.5,451.8L856.7,450.8L859.4,448.5L865.3,443.4L873.0,437.3"/>
+  <path id="the-square" data-name="The Square" data-cls="trunk" data-ref="A28" d="M743.9,515.5L740.8,515.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M978.4,394.7L983.8,392.8L991.1,391.8L994.9,391.2L996.9,390.8"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M996.9,390.8L1016.5,386.9L1035.9,383.1L1042.5,381.8L1047.6,380.8L1059.3,378.8L1073.3,377.7L1084.7,377.3L1101.6,377.1L1110.0,376.6L1118.4,375.9L1127.0,375.3L1133.0,375.2L1135.5,375.0L1136.7,374.9L1153.5,375.3L1155.2,375.4L1160.7,375.9L1173.5,376.5L1179.9,376.4L1184.8,376.4L1194.8,375.2L1207.3,372.9L1228.1,366.6L1229.7,366.0L1234.8,364.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M993.8,394.4L991.4,394.8L983.9,395.6L978.4,394.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M967.4,395.7L960.1,396.5L952.8,397.4L945.1,399.0L937.2,400.9L930.3,403.2L924.7,405.3L919.1,407.9L914.8,410.0L904.8,415.6L895.0,421.8L884.4,429.1L878.5,433.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M371.3,885.6L363.8,887.0L357.8,887.5L352.0,887.9L318.1,890.0L310.0,890.5L300.5,891.2L281.5,892.3L269.5,893.0L262.0,893.7L255.0,894.8L244.5,897.5L236.7,900.3L232.3,902.2L225.9,905.4L215.1,912.3L175.3,942.9L155.6,957.8L135.0,972.9L100.9,998.5L78.3,1015.1L67.8,1022.8L57.3,1031.0L50.7,1036.0L42.6,1041.4L35.4,1045.6L27.9,1049.2L13.6,1055.4L2.2,1060.2L-13.6,1066.7L-22.8,1070.4L-30.4,1072.7L-39.1,1074.8"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M435.9,846.7L431.7,850.0"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M370.7,882.2L373.6,881.6L383.3,878.5L392.2,874.7L396.8,872.3L400.3,870.4L410.9,863.2L417.1,858.0L422.5,853.6L423.2,853.0"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M430.8,848.6L435.9,846.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M426.0,854.5L422.9,857.3L420.3,860.0L414.2,864.8L408.6,869.1L401.2,873.9L400.4,874.4L393.6,877.9L384.0,881.9L374.3,885.0L371.3,885.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M467.9,828.2L472.0,824.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M467.9,828.2L466.0,829.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1468.9,308.6L1462.4,308.5L1453.5,309.0L1442.9,311.0L1437.1,312.9L1419.5,320.1L1404.9,326.6L1393.3,331.5L1382.3,335.7L1373.3,338.5L1367.2,339.8"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1232.5,367.9L1229.3,368.9L1225.3,370.2L1208.0,375.3L1200.2,377.0L1195.2,377.9L1190.9,378.4L1185.0,379.0L1175.4,379.2L1155.2,378.1L1153.5,378.1L1135.8,377.7L1134.3,377.9L1131.4,377.9L1124.0,378.4L1112.1,379.9L1101.0,381.5L1092.5,382.1L1084.9,382.3L1073.4,382.3L1060.8,383.0L1054.7,383.7L1049.0,384.6L1046.9,384.9L1043.3,385.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1539.6,312.3L1559.8,313.7L1575.6,315.3L1583.9,316.1L1591.5,317.5L1594.9,318.3L1604.8,321.6L1609.7,323.0L1615.3,324.3"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M-39.8,1070.7L-31.7,1068.8L-24.5,1066.4L-15.8,1062.7L0.1,1056.2L12.1,1051.1L25.8,1045.4L33.2,1041.8L40.6,1037.8L48.4,1032.8L55.1,1028.0L65.8,1020.0L76.2,1012.3L98.5,995.4L132.5,970.0L152.5,955.0L173.2,939.4L213.5,909.3L224.4,902.5L230.8,899.3L235.6,897.3L242.9,894.6L254.3,891.5L261.5,890.3L269.3,889.4L281.3,888.7L300.2,887.6L310.3,887.1L317.9,886.6L352.0,884.6L357.5,884.2L363.5,883.6L370.7,882.2"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M431.7,850.0L426.0,854.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M423.2,853.0L425.0,851.9L427.6,850.1L430.8,848.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1367.2,339.8L1363.6,341.0L1352.8,343.6L1336.3,347.4L1318.3,351.6L1304.4,354.5L1289.3,357.4L1270.4,360.4L1256.2,362.5L1244.3,364.7L1235.8,366.9L1232.5,367.9"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1366.4,337.7L1371.3,336.2L1381.3,333.3L1391.6,329.3L1402.0,325.0L1407.0,322.8L1428.0,313.7L1438.6,309.6L1445.2,307.7L1453.3,306.3L1460.0,305.9L1469.1,306.2L1483.7,307.1"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1740.9,308.8L1745.2,306.5L1749.1,304.2"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1539.6,312.3L1537.8,313.1L1536.5,313.3L1523.8,312.5L1513.7,311.8L1511.4,311.7L1490.6,310.2L1483.7,309.7L1468.9,308.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1483.7,307.1L1511.5,309.0L1536.7,310.8L1537.9,311.2L1539.6,312.3"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M978.4,394.7L967.4,395.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M878.5,433.5L873.0,437.3"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1769.8,294.5L1773.6,293.1L1780.9,290.0"/>
+  <path id="the-square" data-name="The Square" data-cls="trunk" data-ref="A28" d="M746.6,515.8L743.9,515.5"/>
+  <path id="the-square" data-name="The Square" data-cls="trunk" data-ref="A28" d="M746.6,515.8L747.2,516.0L751.0,515.8L754.1,515.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M739.3,519.7L740.8,515.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M736.5,524.4L738.0,522.8L739.3,519.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1715.5,323.2L1712.6,326.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1759.3,299.1L1761.4,298.1L1769.8,294.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1754.0,301.6L1754.7,301.3L1759.3,299.1"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1749.1,304.2L1754.0,301.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1729.3,315.6L1737.7,310.7L1740.9,308.8"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1725.9,317.7L1729.3,315.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1715.5,323.2L1725.9,317.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1704.5,325.5L1708.8,324.0L1712.4,322.9L1715.5,323.2"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1695.0,325.4L1701.1,325.7L1704.5,325.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1712.6,326.5L1707.1,328.0L1704.5,328.1"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M443.0,843.2L435.9,846.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M466.0,829.6L463.6,831.3"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M472.0,824.5L476.7,819.5L481.7,813.6L486.4,808.8L491.2,804.7L501.7,796.0L506.2,791.8L509.9,787.8L512.9,784.1L515.8,779.7L519.5,773.7L526.1,761.1L529.3,755.6L534.1,748.0L550.9,724.4"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M463.6,831.3L462.0,832.4L457.9,834.9L453.3,837.5L443.0,843.2"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M550.9,724.4L558.2,713.8L561.9,708.8"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M561.9,708.8L563.5,706.7L568.9,699.4L586.0,676.6L590.1,671.3L593.7,666.9L599.1,660.3"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1004.6,392.2L997.4,393.4"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1043.3,385.5L1020.6,389.8L1004.6,392.2"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M997.4,393.4L994.9,393.8L993.8,394.4"/>
+</g>
+<g id="roads-trunk" stroke="#f5b74a" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1234.8,364.6L1243.5,362.3L1255.8,359.9L1270.0,357.8L1288.6,354.8L1305.9,351.6L1317.8,349.0L1352.2,341.0L1361.5,338.8L1366.4,337.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1704.5,328.1L1700.9,328.2L1697.8,328.0L1683.2,326.6L1677.2,324.9"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1780.9,290.0L1786.3,287.9L1799.1,281.8L1801.5,280.6L1817.6,272.1L1822.8,269.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1677.2,324.9L1686.4,324.9L1695.0,325.4"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1615.3,324.3L1623.3,325.2L1628.6,325.4L1633.6,325.5L1653.3,324.9L1661.7,324.9L1669.1,324.6L1674.0,324.7L1677.2,324.9"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M599.1,660.3L613.6,643.3L617.8,639.0L639.7,616.4L644.4,611.6L645.2,610.9L646.9,609.3L660.9,595.7L666.5,589.5L669.1,586.9L676.7,579.4L696.6,554.1L703.8,546.0L704.8,545.0L710.5,540.5L717.5,536.0L725.9,531.2L731.2,528.0L735.0,525.7L736.5,524.4"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M754.1,515.7L759.5,515.1L767.7,513.9L769.6,513.6L773.0,513.1L776.2,512.4L781.3,511.0L788.6,507.9L789.3,507.6L795.0,504.6L800.4,501.0L804.8,497.4L810.3,492.1L815.0,487.5L817.9,484.2L821.5,480.9L824.6,478.3L830.3,474.2L836.9,469.6L839.2,467.6L844.5,462.7L855.5,451.8L856.7,450.8L859.4,448.5L865.3,443.4L873.0,437.3"/>
+  <path id="the-square" data-name="The Square" data-cls="trunk" data-ref="A28" d="M743.9,515.5L740.8,515.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M978.4,394.7L983.8,392.8L991.1,391.8L994.9,391.2L996.9,390.8"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M996.9,390.8L1016.5,386.9L1035.9,383.1L1042.5,381.8L1047.6,380.8L1059.3,378.8L1073.3,377.7L1084.7,377.3L1101.6,377.1L1110.0,376.6L1118.4,375.9L1127.0,375.3L1133.0,375.2L1135.5,375.0L1136.7,374.9L1153.5,375.3L1155.2,375.4L1160.7,375.9L1173.5,376.5L1179.9,376.4L1184.8,376.4L1194.8,375.2L1207.3,372.9L1228.1,366.6L1229.7,366.0L1234.8,364.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M993.8,394.4L991.4,394.8L983.9,395.6L978.4,394.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M967.4,395.7L960.1,396.5L952.8,397.4L945.1,399.0L937.2,400.9L930.3,403.2L924.7,405.3L919.1,407.9L914.8,410.0L904.8,415.6L895.0,421.8L884.4,429.1L878.5,433.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M371.3,885.6L363.8,887.0L357.8,887.5L352.0,887.9L318.1,890.0L310.0,890.5L300.5,891.2L281.5,892.3L269.5,893.0L262.0,893.7L255.0,894.8L244.5,897.5L236.7,900.3L232.3,902.2L225.9,905.4L215.1,912.3L175.3,942.9L155.6,957.8L135.0,972.9L100.9,998.5L78.3,1015.1L67.8,1022.8L57.3,1031.0L50.7,1036.0L42.6,1041.4L35.4,1045.6L27.9,1049.2L13.6,1055.4L2.2,1060.2L-13.6,1066.7L-22.8,1070.4L-30.4,1072.7L-39.1,1074.8"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M435.9,846.7L431.7,850.0"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M370.7,882.2L373.6,881.6L383.3,878.5L392.2,874.7L396.8,872.3L400.3,870.4L410.9,863.2L417.1,858.0L422.5,853.6L423.2,853.0"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M430.8,848.6L435.9,846.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M426.0,854.5L422.9,857.3L420.3,860.0L414.2,864.8L408.6,869.1L401.2,873.9L400.4,874.4L393.6,877.9L384.0,881.9L374.3,885.0L371.3,885.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M467.9,828.2L472.0,824.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M467.9,828.2L466.0,829.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1468.9,308.6L1462.4,308.5L1453.5,309.0L1442.9,311.0L1437.1,312.9L1419.5,320.1L1404.9,326.6L1393.3,331.5L1382.3,335.7L1373.3,338.5L1367.2,339.8"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1232.5,367.9L1229.3,368.9L1225.3,370.2L1208.0,375.3L1200.2,377.0L1195.2,377.9L1190.9,378.4L1185.0,379.0L1175.4,379.2L1155.2,378.1L1153.5,378.1L1135.8,377.7L1134.3,377.9L1131.4,377.9L1124.0,378.4L1112.1,379.9L1101.0,381.5L1092.5,382.1L1084.9,382.3L1073.4,382.3L1060.8,383.0L1054.7,383.7L1049.0,384.6L1046.9,384.9L1043.3,385.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1539.6,312.3L1559.8,313.7L1575.6,315.3L1583.9,316.1L1591.5,317.5L1594.9,318.3L1604.8,321.6L1609.7,323.0L1615.3,324.3"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M-39.8,1070.7L-31.7,1068.8L-24.5,1066.4L-15.8,1062.7L0.1,1056.2L12.1,1051.1L25.8,1045.4L33.2,1041.8L40.6,1037.8L48.4,1032.8L55.1,1028.0L65.8,1020.0L76.2,1012.3L98.5,995.4L132.5,970.0L152.5,955.0L173.2,939.4L213.5,909.3L224.4,902.5L230.8,899.3L235.6,897.3L242.9,894.6L254.3,891.5L261.5,890.3L269.3,889.4L281.3,888.7L300.2,887.6L310.3,887.1L317.9,886.6L352.0,884.6L357.5,884.2L363.5,883.6L370.7,882.2"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M431.7,850.0L426.0,854.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M423.2,853.0L425.0,851.9L427.6,850.1L430.8,848.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1367.2,339.8L1363.6,341.0L1352.8,343.6L1336.3,347.4L1318.3,351.6L1304.4,354.5L1289.3,357.4L1270.4,360.4L1256.2,362.5L1244.3,364.7L1235.8,366.9L1232.5,367.9"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1366.4,337.7L1371.3,336.2L1381.3,333.3L1391.6,329.3L1402.0,325.0L1407.0,322.8L1428.0,313.7L1438.6,309.6L1445.2,307.7L1453.3,306.3L1460.0,305.9L1469.1,306.2L1483.7,307.1"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1740.9,308.8L1745.2,306.5L1749.1,304.2"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1539.6,312.3L1537.8,313.1L1536.5,313.3L1523.8,312.5L1513.7,311.8L1511.4,311.7L1490.6,310.2L1483.7,309.7L1468.9,308.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1483.7,307.1L1511.5,309.0L1536.7,310.8L1537.9,311.2L1539.6,312.3"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M978.4,394.7L967.4,395.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M878.5,433.5L873.0,437.3"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1769.8,294.5L1773.6,293.1L1780.9,290.0"/>
+  <path id="the-square" data-name="The Square" data-cls="trunk" data-ref="A28" d="M746.6,515.8L743.9,515.5"/>
+  <path id="the-square" data-name="The Square" data-cls="trunk" data-ref="A28" d="M746.6,515.8L747.2,516.0L751.0,515.8L754.1,515.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M739.3,519.7L740.8,515.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M736.5,524.4L738.0,522.8L739.3,519.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1715.5,323.2L1712.6,326.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1759.3,299.1L1761.4,298.1L1769.8,294.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1754.0,301.6L1754.7,301.3L1759.3,299.1"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1749.1,304.2L1754.0,301.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1729.3,315.6L1737.7,310.7L1740.9,308.8"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1725.9,317.7L1729.3,315.6"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1715.5,323.2L1725.9,317.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1704.5,325.5L1708.8,324.0L1712.4,322.9L1715.5,323.2"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1695.0,325.4L1701.1,325.7L1704.5,325.5"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1712.6,326.5L1707.1,328.0L1704.5,328.1"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M443.0,843.2L435.9,846.7"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M466.0,829.6L463.6,831.3"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M472.0,824.5L476.7,819.5L481.7,813.6L486.4,808.8L491.2,804.7L501.7,796.0L506.2,791.8L509.9,787.8L512.9,784.1L515.8,779.7L519.5,773.7L526.1,761.1L529.3,755.6L534.1,748.0L550.9,724.4"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M463.6,831.3L462.0,832.4L457.9,834.9L453.3,837.5L443.0,843.2"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M550.9,724.4L558.2,713.8L561.9,708.8"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M561.9,708.8L563.5,706.7L568.9,699.4L586.0,676.6L590.1,671.3L593.7,666.9L599.1,660.3"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1004.6,392.2L997.4,393.4"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1043.3,385.5L1020.6,389.8L1004.6,392.2"/>
+  <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M997.4,393.4L994.9,393.8L993.8,394.4"/>
+</g>
 <g id="roads-pedestrian" stroke="#f0e3b0" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round">
   <path id="r-1133293108" data-name="" data-cls="pedestrian" data-ref="" d="M733.3,514.5L736.2,515.8L737.0,516.9L735.6,520.7L733.2,519.6L732.8,519.5L732.3,519.3L733.8,517.3L733.3,514.5"/>
   <path id="r-1135016515" data-name="" data-cls="pedestrian" data-ref="" d="M675.5,416.4L673.3,416.5L673.0,412.5L673.6,412.5L673.6,412.9L674.4,412.8L674.5,414.0L675.3,413.9L675.5,416.4"/>
@@ -1996,13 +2054,13 @@
   <path id="r-1089858502" data-name="" data-cls="cycleway" data-ref="" d="M1552.3,143.7L1551.5,141.2L1558.6,139.1L1567.8,137.4L1574.8,135.3L1577.5,131.3"/>
   <path id="northern-sea-wall" data-name="Northern Sea Wall" data-cls="cycleway" data-ref="" d="M144.3,401.2L146.2,401.2L155.1,406.2L158.2,406.3"/>
 </g>
-<text x="978" y="706" font-family="Fredoka, sans-serif" font-size="26" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3.5">Quex Park</text>
-<text x="1122" y="352" font-family="Fredoka, sans-serif" font-size="26" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3.5">Westgate Golf Club</text>
+<text x="978" y="706" font-family="Fredoka, sans-serif" font-size="26" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3.5">Wyx Park</text>
+<text x="1122" y="352" font-family="Fredoka, sans-serif" font-size="26" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3.5">Westbeach Golf Club</text>
 <g id="petrol-stations">
-  <g transform="translate(1663,332)"><rect x="-14" y="-14" width="28" height="28" rx="5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><text x="0" y="5" font-family="Fredoka, sans-serif" font-size="18" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2">P</text><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">BP</text></g>
-  <g transform="translate(594,678)"><rect x="-14" y="-14" width="28" height="28" rx="5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><text x="0" y="5" font-family="Fredoka, sans-serif" font-size="18" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2">P</text><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Esso</text></g>
+  <g class="fuel-marker" transform="translate(1663,332)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Fuel Station</text></g>
+  <g class="fuel-marker" transform="translate(594,678)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Fuel Station</text></g>
 </g>
-<g id="wash-bandits" transform="translate(500,673)"><circle cx="0" cy="0" r="14" fill="#ff6b9a" stroke="#7b5c3a" stroke-width="2"/><text x="0" y="5" font-family="Fredoka, sans-serif" font-size="16" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2">W</text><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Wash Bandits</text></g>
+<g id="wash-bandits" transform="translate(500,673)"><ellipse cx="0" cy="18" rx="11" ry="3" fill="#3a3a3a" stroke="#1a1612" stroke-width="0.6"/><path d="M-5,-3 L-5,15 L5,15 L5,-3 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.8"/><rect x="-2.5" y="-1" width="5" height="14" fill="#d63838"/><path d="M-6,-8 L-6,-3 L6,-3 L6,-8 Z" fill="#f0c870" stroke="#9a7c30" stroke-width="0.6"/><path d="M5,-5 Q 9,-9 11,-15" fill="none" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><path d="M-5,-5 L-7,3" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><circle cx="0" cy="-12" r="5" fill="#f5d4a8" stroke="#7b5c3a" stroke-width="0.8"/><path d="M-5,-13 A5,5 0 0,1 5,-13 L5,-15 L-5,-15 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.6"/><rect x="-5" y="-13" width="10" height="1" fill="#1f4d8a"/><path d="M-1.5,-10.5 Q 0,-9.5 1.5,-10.5" fill="none" stroke="#3a3a3a" stroke-width="0.6" stroke-linecap="round"/><circle cx="-1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><circle cx="1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><text x="0" y="32" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Car Wash</text></g>
 <polygon id="arc-plot" data-name="A.R.C. site" points="340.4,388.7 328.2,397.2 303.4,359.6 315.3,351.7 325.1,366.0 332.6,377.1 340.4,388.7" fill="#e3b04b" fill-opacity="0.55" stroke="#7b5c3a" stroke-width="3" stroke-dasharray="6 4"/>
 <text x="326" y="376" font-family="Fredoka, sans-serif" font-size="22" font-weight="700" fill="#3a3a3a" text-anchor="middle" paint-order="stroke" stroke="#fef9ef" stroke-width="3">A.R.C.</text>
 </svg>
