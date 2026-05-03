@@ -2061,6 +2061,40 @@
   <g class="fuel-marker" transform="translate(594,678)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Fuel Station</text></g>
 </g>
 <g id="wash-bandits" transform="translate(500,673)"><ellipse cx="0" cy="18" rx="11" ry="3" fill="#3a3a3a" stroke="#1a1612" stroke-width="0.6"/><path d="M-5,-3 L-5,15 L5,15 L5,-3 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.8"/><rect x="-2.5" y="-1" width="5" height="14" fill="#d63838"/><path d="M-6,-8 L-6,-3 L6,-3 L6,-8 Z" fill="#f0c870" stroke="#9a7c30" stroke-width="0.6"/><path d="M5,-5 Q 9,-9 11,-15" fill="none" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><path d="M-5,-5 L-7,3" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><circle cx="0" cy="-12" r="5" fill="#f5d4a8" stroke="#7b5c3a" stroke-width="0.8"/><path d="M-5,-13 A5,5 0 0,1 5,-13 L5,-15 L-5,-15 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.6"/><rect x="-5" y="-13" width="10" height="1" fill="#1f4d8a"/><path d="M-1.5,-10.5 Q 0,-9.5 1.5,-10.5" fill="none" stroke="#3a3a3a" stroke-width="0.6" stroke-linecap="round"/><circle cx="-1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><circle cx="1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><text x="0" y="32" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Car Wash</text></g>
+<!-- Glasshouse Acres — fake stand-in for the real Thanet Earth
+     greenhouses (which are just outside the OSM bbox to the
+     south-west). Placed in the open farmland south of the A28
+     west of central Birchie. Future-supply-run destination —
+     veg + flower-grower at scale. -->
+<g id="glasshouse-acres" transform="translate(560,720)">
+  <!-- Boundary fence -->
+  <rect x="-110" y="-55" width="220" height="100" fill="#eef0d8" stroke="#7b8a4a" stroke-width="2.5" rx="8"/>
+  <!-- 6 glasshouse roof strips (long thin rectangles, light glass-blue) -->
+  <g fill="#cee5e0" stroke="#7ba8a4" stroke-width="1">
+    <rect x="-100" y="-46" width="200" height="11" rx="2"/>
+    <rect x="-100" y="-32" width="200" height="11" rx="2"/>
+    <rect x="-100" y="-18" width="200" height="11" rx="2"/>
+    <rect x="-100" y="-4"  width="200" height="11" rx="2"/>
+    <rect x="-100" y="10"  width="200" height="11" rx="2"/>
+    <rect x="-100" y="24"  width="200" height="11" rx="2"/>
+  </g>
+  <!-- Roof ridges (slightly darker line down the centre of each) -->
+  <g stroke="#7ba8a4" stroke-width="0.6" opacity="0.6">
+    <line x1="-100" y1="-40.5" x2="100" y2="-40.5"/>
+    <line x1="-100" y1="-26.5" x2="100" y2="-26.5"/>
+    <line x1="-100" y1="-12.5" x2="100" y2="-12.5"/>
+    <line x1="-100" y1="1.5"   x2="100" y2="1.5"/>
+    <line x1="-100" y1="15.5"  x2="100" y2="15.5"/>
+    <line x1="-100" y1="29.5"  x2="100" y2="29.5"/>
+  </g>
+  <!-- Service road / loading bay along the bottom -->
+  <rect x="-100" y="38" width="200" height="6" fill="#d3c490" stroke="#a89860" stroke-width="0.6"/>
+  <!-- Label -->
+  <text x="0" y="-65" font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+        fill="#fef9ef" text-anchor="middle" paint-order="stroke"
+        stroke="#3a3a3a" stroke-width="3">Glasshouse Acres</text>
+</g>
+
 <polygon id="arc-plot" data-name="A.R.C. site" points="340.4,388.7 328.2,397.2 303.4,359.6 315.3,351.7 325.1,366.0 332.6,377.1 340.4,388.7" fill="#e3b04b" fill-opacity="0.55" stroke="#7b5c3a" stroke-width="3" stroke-dasharray="6 4"/>
 <text x="326" y="376" font-family="Fredoka, sans-serif" font-size="22" font-weight="700" fill="#3a3a3a" text-anchor="middle" paint-order="stroke" stroke="#fef9ef" stroke-width="3">A.R.C.</text>
 
