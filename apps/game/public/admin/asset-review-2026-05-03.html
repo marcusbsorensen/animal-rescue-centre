@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Asset review 2026-05-03</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Quicksand:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { font-family: 'Quicksand', system-ui, sans-serif; color: #3a3a3a; background: #2a2622; min-height: 100vh; }
+  body { padding: 22px; }
+  header { color: #fef9ef; text-align: center; margin-bottom: 22px; }
+  header h1 { font-family: 'Fredoka', sans-serif; font-size: 24px; font-weight: 700; }
+  header p { font-size: 13px; opacity: 0.8; margin-top: 6px; max-width: 760px; margin-left: auto; margin-right: auto; }
+
+  .grid { max-width: 1700px; margin: 0 auto; display: grid; gap: 22px; }
+  section.panel {
+    background: #fef9ef;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  }
+  .panel-head { padding: 14px 18px; border-bottom: 1.5px dashed rgba(123,92,58,0.3); background: rgba(255,255,255,0.5); }
+  .panel-head h2 { font-family: 'Fredoka', sans-serif; font-size: 18px; font-weight: 700; color: #7b5c3a; }
+  .panel-head .tag { font-size: 12px; color: #6b6b6b; margin-top: 2px; }
+
+  .building-compare {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+    padding: 18px;
+  }
+  .compare-card {
+    border-radius: 12px;
+    padding: 14px;
+    border: 2px solid #d3bf94;
+    background: #fff;
+  }
+  .compare-card h3 { font-family: 'Fredoka', sans-serif; font-size: 14px; margin-bottom: 8px; }
+  .compare-card .label-bad { color: #a64a4a; }
+  .compare-card .label-good { color: #2c6741; }
+  .compare-card .frame {
+    background: repeating-conic-gradient(#eee 0% 25%, #fff 25% 50%) 50% / 16px 16px;
+    border-radius: 6px;
+    aspect-ratio: 1 / 1;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .compare-card .frame img { width: 100%; height: 100%; object-fit: contain; }
+  .compare-card .notes { font-size: 12px; line-height: 1.4; margin-top: 8px; color: #555; }
+
+  .seasons-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 18px;
+  }
+  .season-card {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #d3bf94;
+    background: #fff;
+  }
+  .season-card .label {
+    font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 13px;
+    padding: 8px 12px;
+    background: #f1e3c5;
+    border-bottom: 1px solid #d3bf94;
+    text-align: center;
+  }
+  .season-card.spring .label { background: #d8e8c4; }
+  .season-card.summer .label { background: #f5e0a4; }
+  .season-card.autumn .label { background: #d8b890; }
+  .season-card.winter .label { background: #cdd5dc; }
+  .season-card .frame {
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+  }
+  .season-card .frame img { width: 100%; height: 100%; object-fit: cover; }
+  .season-card .notes { font-size: 11px; padding: 8px 12px; color: #555; line-height: 1.35; min-height: 40px; }
+
+  .panel-notes {
+    padding: 14px 18px;
+    background: #faf2df;
+    border-top: 1px dashed rgba(123,92,58,0.25);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .panel-notes strong { color: #7b5c3a; }
+  .panel-notes ul { margin: 6px 0 0 18px; }
+  .panel-notes li { margin-bottom: 3px; }
+
+  .credits {
+    text-align: center; color: #fef9ef; opacity: 0.6; font-size: 12px; margin-top: 22px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>A.R.C. — Asset review 2026-05-03</h1>
+  <p>Front-elevation building re-commission + 4 seasonal undeveloped tiles. Both Manus tasks completed this morning. The new building has been installed at the existing path so it propagates to <code>map.html</code>, <code>intro.html</code>, and <code>menu.html</code> automatically.</p>
+</header>
+
+<div class="grid">
+
+  <!-- Building before/after -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>1. A.R.C. main building — front-elevation re-commission</h2>
+      <div class="tag">Manus task <code>aivHHfkk5AQgHGXpopZc2V</code> · 120 credits · 768×768 transparent PNG</div>
+    </div>
+    <div class="building-compare">
+      <div class="compare-card">
+        <h3 class="label-bad">✗ v1 (isometric — wrong)</h3>
+        <div class="frame">
+          <img src="scene-assets/reference/manus-test-2026-04-29/arc-main-building.png" alt="v1 isometric building">
+        </div>
+        <div class="notes">3/4 oblique view — two faces visible. Violated Rule 7 of <code>docs/manus-sprite-rules.md</code> (front-elevation convention).</div>
+      </div>
+      <div class="compare-card">
+        <h3 class="label-good">✓ v2 (front-elevation — correct)</h3>
+        <div class="frame">
+          <img src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="v2 front-elevation building">
+        </div>
+        <div class="notes">Strict head-on view. Side wings visible but face-on (no oblique angle). Paw-print emblem prominent on the front wall. "ANIMAL RESCUE CENTRE" hand-lettered on the entrance canopy. Streamline-moderne curved arch above the entrance. Rooftop dome aviary. Paw-print flag on the corner pole. Two pot plants flanking the door. Reads as a sticker-book figure facing the kid.</div>
+      </div>
+    </div>
+    <div class="panel-notes">
+      <strong>Installation:</strong> the v2 file replaces the v1 file at the existing path <code>scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png</code> — every page that references it (map.html, intro.html, menu.html) now picks up the new front-elevation version automatically.
+    </div>
+  </section>
+
+  <!-- Seasonal tiles -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>2. Seasonal undeveloped tiles — 4-piece commission</h2>
+      <div class="tag">Manus task <code>6W9djkyne6eMjn4SUdbXYp</code> · 213 credits · 4 × 512×512 PNG</div>
+    </div>
+    <div class="seasons-row">
+      <div class="season-card spring">
+        <div class="label">🌱 Spring</div>
+        <div class="frame"><img src="scene-assets/reference/undeveloped-tiles-2026-05-03/texture-undeveloped-spring.png" alt=""></div>
+        <div class="notes">Lush green with yellow dandelions, purple thistles, plantain leaves, nettle clumps.</div>
+      </div>
+      <div class="season-card summer">
+        <div class="label">☀️ Summer</div>
+        <div class="frame"><img src="scene-assets/reference/undeveloped-tiles-2026-05-03/texture-undeveloped-summer.png" alt=""></div>
+        <div class="notes">Yellowed dry turf, sand drifts blown in from the beach, parched scrubby tussocks.</div>
+      </div>
+      <div class="season-card autumn">
+        <div class="label">🍂 Autumn</div>
+        <div class="frame"><img src="scene-assets/reference/undeveloped-tiles-2026-05-03/texture-undeveloped-autumn.png" alt=""></div>
+        <div class="notes">Clusters of oak / sycamore / horse-chestnut leaves + mud puddles on damp green ground.</div>
+      </div>
+      <div class="season-card winter">
+        <div class="label">❄️ Winter</div>
+        <div class="frame"><img src="scene-assets/reference/undeveloped-tiles-2026-05-03/texture-undeveloped-winter.png" alt=""></div>
+        <div class="notes">Bare sparsely-tufted grass with white frost patches. Washed-out muted palette.</div>
+      </div>
+    </div>
+    <div class="panel-notes">
+      <strong>Wiring next:</strong> render undeveloped zones in the master plan + intro panels using the texture for the current in-game season (read from <code>gardenWeather</code> or <code>timeProgress</code>). Each zone gets a faint dashed "future development" outline around the seasonal tile so it reads as reserved land. Zone boundaries are bounded so the tiles don't need to repeat seamlessly.<br><br>
+      <strong>Stylistic match:</strong> brushwork + warmth align with the existing <code>texture-grass</code> and <code>texture-scrub</code> Tier 1 tiles. Painted by the same hand.
+    </div>
+  </section>
+
+</div>
+
+<div class="credits">Manus credits today: 120 (building) + 213 (4 tiles) = 333. Files at <code>apps/game/public/admin/scene-assets/reference/...</code>.</div>
+
+</body>
+</html>
