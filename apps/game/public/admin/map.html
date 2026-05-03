@@ -137,52 +137,62 @@
     background-size: 100% 100%;
     background-repeat: no-repeat;
   }
-  #arc-stage .region-parking {
-    left: 6%; top: 1.5%; width: 88%; height: 11%;
+  /* Plot orientation FLIPPED 2026-05-03 — building at SOUTH (bottom)
+     so kid arrives from Bay Road (south) facing the entrance; gardens
+     + small-mammal zone + fox/skunk pens stretch NORTH behind toward
+     the sea. Region positions reordered top→bottom:
+       fox/skunk (top, north)
+       hedgehog/raccoon + path (middle)
+       lawn/quiet gardens (lower-middle)
+       building (bottom, south)
+       parking (bottommost, south of building) */
+  #arc-stage .region-fox-skunk {
+    left: 6%; top: 1.5%; width: 88%; height: 17%;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-scrub.png');
+    border: 1.5px dashed #5a7a4a;
+    border-radius: 4px;
+  }
+  #arc-stage .region-hedgehog {
+    left: 6%; top: 22%; width: 41%; height: 28%;
+    border: 1.5px dashed rgba(123,92,58,0.5);
+    border-radius: 4px;
+  }
+  #arc-stage .region-raccoon {
+    right: 6%; top: 22%; width: 41%; height: 28%;
+    border: 1.5px dashed rgba(123,92,58,0.5);
+    border-radius: 4px;
+  }
+  #arc-stage .region-path {
+    left: 47%; top: 22%; width: 6%; height: 28%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
-    border: 1.5px solid rgba(123,92,58,0.45);
+    border-left: 1px solid rgba(123,92,58,0.5);
+    border-right: 1px solid rgba(123,92,58,0.5);
   }
   #arc-stage .region-lawn {
-    left: 6%; top: 33%; width: 41%; height: 14%;
+    left: 6%; top: 53%; width: 41%; height: 14%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-lawn-garden.png');
     border: 1.5px solid #5a8a4f;
     border-radius: 4px;
   }
   #arc-stage .region-quiet {
-    right: 6%; top: 33%; width: 41%; height: 14%;
+    right: 6%; top: 53%; width: 41%; height: 14%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-quiet-garden.png');
     border: 1.5px solid #5a7a4a;
     border-radius: 4px;
   }
-  #arc-stage .region-path {
-    left: 47%; top: 50%; width: 6%; height: 28%;
+  #arc-stage .region-parking {
+    left: 6%; top: 87%; width: 88%; height: 11%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
-    border-left: 1px solid rgba(123,92,58,0.5);
-    border-right: 1px solid rgba(123,92,58,0.5);
+    border: 1.5px solid rgba(123,92,58,0.45);
   }
-  #arc-stage .region-hedgehog {
-    left: 6%; top: 50%; width: 41%; height: 28%;
-    border: 1.5px dashed rgba(123,92,58,0.5);
-    border-radius: 4px;
-  }
-  #arc-stage .region-raccoon {
-    right: 6%; top: 50%; width: 41%; height: 28%;
-    border: 1.5px dashed rgba(123,92,58,0.5);
-    border-radius: 4px;
-  }
-  #arc-stage .region-fox-skunk {
-    left: 6%; top: 81%; width: 88%; height: 17%;
-    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-scrub.png');
-    border: 1.5px dashed #5a7a4a;
-    border-radius: 4px;
-  }
-
   #arc-stage .stamp {
     position: absolute;
     pointer-events: none;
   }
+  /* Building stamp at the BOTTOM (south end, facing kid arriving from
+     Bay Road). Plot orientation flipped 2026-05-03. */
   #arc-stage .stamp-building {
-    left: 18%; top: 0;
+    left: 18%; bottom: 11%;
     width: 64%;
     filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.18));
   }
@@ -279,22 +289,28 @@
     <div class="arc-region region-raccoon"></div>
     <div class="arc-region region-fox-skunk"></div>
 
-    <div class="region-label" style="left: 27%; top: 40%;">Lawn garden</div>
-    <div class="region-label" style="left: 73%; top: 40%;">Quiet garden</div>
-    <div class="region-label tier-future" style="left: 27%; top: 64%;">Hedgehog + Squirrel zone (T2)</div>
-    <div class="region-label tier-future" style="left: 73%; top: 64%;">Raccoon (T3)</div>
-    <div class="region-label tier-future" style="left: 27%; top: 89%;">Fox (T6)</div>
-    <div class="region-label tier-future" style="left: 73%; top: 89%;">Skunk (future)</div>
+    <!-- Region labels — positions match the FLIPPED orientation
+         (fox/skunk at top, gardens lower-middle, building at bottom). -->
+    <div class="region-label tier-future" style="left: 27%; top: 10%;">Fox (T6)</div>
+    <div class="region-label tier-future" style="left: 73%; top: 10%;">Skunk (future)</div>
+    <div class="region-label tier-future" style="left: 27%; top: 36%;">Hedgehog + Squirrel (T2)</div>
+    <div class="region-label tier-future" style="left: 73%; top: 36%;">Raccoon (T3)</div>
+    <div class="region-label" style="left: 27%; top: 60%;">Lawn garden</div>
+    <div class="region-label" style="left: 73%; top: 60%;">Quiet garden</div>
 
-    <img class="stamp stamp-building" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="A.R.C. main building"/>
+    <!-- Building at the SOUTH end (bottom — entrance facing kid arriving from Bay Road) -->
+    <img class="stamp stamp-building" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="A.R.C. main building"/>
 
-    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" style="left: 9%; top: 47%;" alt="Oak"/>
-    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" style="left: 28%; top: 51%;" alt="Ash"/>
-    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left: 13%; top: 65%;" alt="Horse chestnut"/>
+    <!-- Trees in the hedgehog/squirrel left zone (now upper-middle of canvas
+         since fox/skunk moved to the top). -->
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" style="left: 9%; top: 22%;" alt="Oak"/>
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" style="left: 28%; top: 26%;" alt="Ash"/>
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left: 13%; top: 42%;" alt="Horse chestnut"/>
 
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 56%;" alt="Viewing dome"/>
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 64%;" alt="Viewing dome"/>
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 72%;" alt="Viewing dome"/>
+    <!-- Viewing domes along the central path (top:22%-50% of canvas, the small-mammal zone). -->
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 28%;" alt="Viewing dome"/>
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 36%;" alt="Viewing dome"/>
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 44%;" alt="Viewing dome"/>
   </div>
 </div>
 
