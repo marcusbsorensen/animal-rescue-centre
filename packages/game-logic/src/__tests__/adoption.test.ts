@@ -160,9 +160,20 @@ describe('commitAdoption', () => {
     expect(store.rehomed).toBe(ref);
   });
 
-  it('a single rehoming is below the rescue-charity grant threshold (>=5)', () => {
-    commitAdoption(animal, '03-nova-adebayo', store, 1000);
-    expect(store.rehomed.length).toBe(1);
-    expect(store.rehomed.length).toBeLessThan(5);
+  it('throws if capacity is already exhausted at commit time (race-tap guard)', () => {
+    // Simulate two UI taps racing: a prior commit for the same household
+    // already used its only capacity slot. The second commit must refuse
+    // rather than over-fill.
+    store.rehomed.push({
+      animalId: 'old-1',
+      animalName: 'Mittens',
+      species: 'cat',
+      householdId: '03-nova-adebayo',
+      date: 1,
+    });
+    expect(() => commitAdoption(animal, '03-nova-adebayo', store, 1000)).toThrow();
+    // And the store must be untouched — animal still present, no new entry.
+    expect(store.animals).toHaveLength(1);
+    expect(store.rehomed).toHaveLength(1);
   });
 });

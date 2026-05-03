@@ -35,14 +35,7 @@ export interface RehomedEntry {
 /** Narrow shape of GameStateStore that this module needs. */
 export interface AdoptionStoreLike {
   animals: Animal[];
-  rehomed: Array<{
-    animalId: string;
-    animalName: string;
-    species: Species;
-    variant?: string;
-    householdId: string;
-    date: number;
-  }>;
+  rehomed: RehomedEntry[];
 }
 
 /**
@@ -153,8 +146,6 @@ export function commitAdoption(
     );
   }
 
-  store.animals.splice(idx, 1);
-
   const entry: RehomedEntry = {
     animalId: animal.id,
     animalName: animal.name,
@@ -164,6 +155,9 @@ export function commitAdoption(
   };
   if (animal.variant !== undefined) entry.variant = animal.variant;
 
+  // All guards passed and the entry is fully built — only now mutate
+  // the store, so a future guard added above can't leave us half-committed.
+  store.animals.splice(idx, 1);
   store.rehomed.push(entry);
   return entry;
 }
