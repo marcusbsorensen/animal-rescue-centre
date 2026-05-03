@@ -162,30 +162,56 @@ once. Reinforces, doesn't contradict, the spatial mental model.
 - Sound: hollow underground rumble + scurrying sounds + a happy
   pop-up when each animal reaches its destination.
 
-## Open questions
+## Decisions LOCKED 2026-05-03 (Marcus)
 
-1. **Where do the animals actually GO when they use the tunnel?**
-   Just visual flavour ("they popped out in the wild and came
-   back!") or does it have a real gameplay effect (e.g., the fox
-   gains 5 happiness per successful tunnel run; the hedgehog
-   gains foraging income)?
-2. **Should the puzzle reset on each play or be persistent?**
-   A persistent "you laid pipe yesterday, here's how it works
-   today" is more grown-up; a daily fresh puzzle is more friendly
-   for repeat dipping in.
-3. **Multi-player friend interaction?** Friends could send you
-   "puzzle of the day" challenges over the friends system.
-4. **Special tile types** — bridges (one tunnel goes OVER another
-   without connecting), one-way valves, diggable-by-the-player
-   blank tiles?
-5. **Scoring** — par moves (Marcus liked golf-like par scoring
-   in the design discussions). Min rotations to solve?
-6. **Entry point UX** — locked via spatial-layout decision: the
-   tunnel mouth lives on the A.R.C. site map at the bottom of
-   the central path (south end, where the building's staff area
-   meets the path). Tap that hatch → tunnel grid overlay. May
-   ALSO be discoverable via in-habitat hatches at higher tiers
-   for variety.
+### 1. Gameplay effect — REAL — the animals get out to play
+
+A successful tunnel run = the kid has let the animals out to play.
+That feeds back into the existing "let outside" / happiness loop:
+each animal whose path completes correctly gets the same kind of
+happiness/bond bump they'd get from being let out into the garden.
+A failed routing means the animals don't get out that day —
+nothing destructive, just a missed-opportunity nudge.
+
+### 2. Daily randomisation + override button
+
+Tiles randomise once per in-game day at dawn and stay put the rest
+of that day (the kid can replay/iterate on the same puzzle within
+the day). At the next dawn, fresh tile rotations.
+
+Kid can override at any point with a **"Make the tunnels" button**
+that re-randomises early. This is a small reward-loop button: the
+override gives a small bonus to the centre (NOT the animals) —
+e.g. extra coins, supplies, or a charm-progress nudge. The exact
+reward is TBD but the principle is "centre infrastructure benefits,
+animals don't get extra happiness from the override".
+
+### 3. No multi-player on this mini-game
+
+Tunnel game stays solo. Friends system not wired in. (Future
+revisit if it ever feels under-used.)
+
+### 4. Special tile types — YES, sub-agent to spec
+
+Bridges, one-way valves, diggable-by-player blank tiles all sound
+good. A sub-agent will (a) design the full tile inventory across
+all 5 tiers, (b) stress-test that each tier's puzzles are solvable
+and interesting with the inventory available, (c) confirm we have
+what we need without over-stuffing the set.
+
+### 5. No par moves / no scoring
+
+Kids should click freely and experiment without perfectionism
+breathing down their neck. Saves us calculating par scores too.
+Win-state is binary: all animals reached the right destination =
+celebration. Otherwise: gentle retry.
+
+### 6. Entry point UX
+
+Tunnel mouth lives on the A.R.C. site map at the bottom of the
+central path (south end, where the building's staff area meets
+the path). Tap that painted hatch → tunnel grid overlay. May also
+be discoverable via in-habitat hatches at higher tiers for variety.
 
 ## Implementation backlog (high level)
 
