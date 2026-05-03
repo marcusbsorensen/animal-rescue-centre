@@ -202,8 +202,61 @@
   }
   #arc-stage .region-parking {
     left: 6%; top: 87%; width: 88%; height: 11%;
-    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
-    border: 1.5px solid rgba(123,92,58,0.45);
+    /* Painted-tarmac feel: dark warm grey with a faint sheen so it
+       reads as asphalt rather than slate. Subtle directional gradient
+       gives the strip a hint of depth without looking glossy. */
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.10)),
+      #3b3a37;
+    border: 1.5px solid rgba(35,32,28,0.6);
+    overflow: hidden;
+  }
+  /* Painted parking-bay markings.
+     Geometry: building stamp spans 18%–82% of the stage, parking strip
+     spans 6%–94%. Building edges therefore sit at 13.6%–86.4% of the
+     PARKING strip's inner width. Divide that 72.8% range into 8 equal
+     slots: 3 bays · 2-slot walkway · 3 bays. Each slot is 9.1% of the
+     parking strip. The walkway sits dead-centre under the front door. */
+  #arc-stage .region-parking .bay {
+    position: absolute;
+    top: 12%;
+    height: 76%;
+    border: 2px solid rgba(255,247,224,0.78);   /* warm chalky white */
+    border-radius: 2px;
+    box-sizing: border-box;
+    /* Subtle painted shadow to suggest the line was brushed on. */
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.20);
+  }
+  #arc-stage .region-parking .bay-1 { left: 13.6%; width: 9.1%; }
+  #arc-stage .region-parking .bay-2 { left: 22.7%; width: 9.1%; }
+  #arc-stage .region-parking .bay-3 { left: 31.8%; width: 9.1%; }
+  /* 2-slot gap (40.9%–59.1%) — pedestrian path to the front door. */
+  #arc-stage .region-parking .bay-4 { left: 59.1%; width: 9.1%; }
+  #arc-stage .region-parking .bay-5 { left: 68.2%; width: 9.1%; }
+  #arc-stage .region-parking .bay-6 { left: 77.3%; width: 9.1%; }
+  /* Walkway: a faint chalky stripe down the middle two slots so the
+     route from kerb to door reads as intentional, not "missing bays". */
+  #arc-stage .region-parking .walkway {
+    position: absolute;
+    left: 40.9%; top: 0; width: 18.2%; height: 100%;
+    background: repeating-linear-gradient(
+      180deg,
+      rgba(255,247,224,0.45) 0,
+      rgba(255,247,224,0.45) 6px,
+      transparent 6px,
+      transparent 14px
+    );
+    /* Centre-strip only — flank with darker tarmac on each side via
+       the parent. The repeating-gradient already covers full width;
+       trim it visually with side masks. */
+    -webkit-mask-image: linear-gradient(90deg,
+      transparent 0%, transparent 38%,
+      #000 44%, #000 56%,
+      transparent 62%, transparent 100%);
+            mask-image: linear-gradient(90deg,
+      transparent 0%, transparent 38%,
+      #000 44%, #000 56%,
+      transparent 62%, transparent 100%);
   }
   #arc-stage .stamp {
     position: absolute;
@@ -337,7 +390,15 @@
   </div>
 
   <div class="arc-frame">
-    <div class="arc-region region-parking"></div>
+    <div class="arc-region region-parking">
+      <div class="bay bay-1"></div>
+      <div class="bay bay-2"></div>
+      <div class="bay bay-3"></div>
+      <div class="walkway" aria-hidden="true"></div>
+      <div class="bay bay-4"></div>
+      <div class="bay bay-5"></div>
+      <div class="bay bay-6"></div>
+    </div>
     <div class="arc-region region-lawn"></div>
     <div class="arc-region region-quiet"></div>
     <div class="arc-region region-path"></div>
