@@ -132,7 +132,8 @@ export const DESTINATIONS: DestinationDef[] = [
     kind: 'rewilding-habitat',
     description: 'Windy cliffs where seabirds nest.',
     distance: 34,
-    unlockLevel: 7,
+    // Pulled L7 → L6 (Marcus pacing review 2026-05-03) — fills the previously empty L6.
+    unlockLevel: 6,
     mapX: 88,
     mapY: 76,
     suitableSpecies: ['parrot', 'seabird'],

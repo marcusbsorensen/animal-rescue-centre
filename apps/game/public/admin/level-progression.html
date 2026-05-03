@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Level Progression Grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
+    --ink: #3a3a3a;
+    --ink-soft: #6b6b6b;
+    --paper-tan: #f1e3c5;
+    --species-bg: #ffe4c4;
+    --species-bd: #d8a563;
+    --centre-bg: #d6efde;
+    --centre-bd: #6fa680;
+    --skill-bg: #d4d8f5;
+    --skill-bd: #6e76b4;
+    --map-bg: #f5d4d4;
+    --map-bd: #b46e6e;
+    --futur-bg: #ece6db;
+    --futur-bd: #b8a888;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { font-family: 'Quicksand', system-ui, sans-serif; color: var(--ink); background: #2a2622; min-height: 100vh; }
+  body { padding: 18px; }
+  header { color: var(--cream-wash); text-align: center; margin-bottom: 22px; }
+  header h1 { font-family: 'Fredoka', sans-serif; font-size: 26px; font-weight: 700; }
+  header p { font-size: 13px; opacity: 0.8; margin-top: 6px; max-width: 1000px; margin-left: auto; margin-right: auto; }
+  header .src { font-size: 11px; opacity: 0.5; margin-top: 8px; font-family: ui-monospace, Menlo, monospace; }
+
+  .grid-wrap {
+    background: var(--cream-wash);
+    border-radius: 14px;
+    padding: 18px;
+    overflow-x: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    max-width: 1900px;
+    margin: 0 auto;
+  }
+  table.grid {
+    border-collapse: separate;
+    border-spacing: 4px;
+    width: 100%;
+    table-layout: fixed;
+    min-width: 1400px;
+  }
+  table.grid th {
+    background: var(--paper-tan);
+    border: 1.5px solid #d3bf94;
+    border-radius: 8px;
+    padding: 8px 6px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--trellis-brown);
+    text-align: center;
+    vertical-align: middle;
+  }
+  table.grid th.cat-header {
+    background: var(--honey-amber);
+    color: var(--ink);
+    text-align: left;
+    padding-left: 12px;
+    font-size: 14px;
+    width: 180px;
+    min-width: 180px;
+  }
+  table.grid th.lv-header { width: 110px; min-width: 110px; }
+  table.grid th.lv-header .lv-num { font-size: 18px; font-weight: 700; display: block; }
+  table.grid th.lv-header .lv-cum { font-size: 10px; opacity: 0.6; display: block; margin-top: 2px; font-family: ui-monospace, Menlo, monospace; }
+  table.grid td {
+    background: #faf2df;
+    border: 1px solid #e3d3a0;
+    border-radius: 8px;
+    padding: 6px 7px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--ink);
+    vertical-align: top;
+    min-height: 56px;
+    height: 60px;
+  }
+  table.grid td.empty {
+    background: rgba(0,0,0,0.04);
+    border-style: dashed;
+    color: var(--ink-soft);
+    font-style: italic;
+    text-align: center;
+    font-size: 10px;
+  }
+  table.grid tr.cat-species td       { background: var(--species-bg); border-color: var(--species-bd); }
+  table.grid tr.cat-centre td        { background: var(--centre-bg);  border-color: var(--centre-bd); }
+  table.grid tr.cat-skill td         { background: var(--skill-bg);   border-color: var(--skill-bd); }
+  table.grid tr.cat-map td           { background: var(--map-bg);     border-color: var(--map-bd); }
+  table.grid tr.cat-future td        { background: var(--futur-bg);   border-color: var(--futur-bd); color: var(--ink-soft); font-style: italic; }
+  table.grid tr.cat-species td.empty,
+  table.grid tr.cat-centre td.empty,
+  table.grid tr.cat-skill td.empty,
+  table.grid tr.cat-map td.empty,
+  table.grid tr.cat-future td.empty { background: rgba(0,0,0,0.04); }
+
+  table.grid td .new {
+    display: inline-block;
+    background: var(--honey-amber);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    margin-bottom: 3px;
+    color: var(--ink);
+  }
+  table.grid td .item { display: block; margin-bottom: 1px; }
+  table.grid td .num { font-family: ui-monospace, Menlo, monospace; opacity: 0.7; }
+
+  .legend {
+    margin-top: 14px;
+    display: flex; flex-wrap: wrap; gap: 14px;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--cream-wash);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.2); }
+  .legend-swatch.species { background: var(--species-bg); border-color: var(--species-bd); }
+  .legend-swatch.centre  { background: var(--centre-bg);  border-color: var(--centre-bd); }
+  .legend-swatch.skill   { background: var(--skill-bg);   border-color: var(--skill-bd); }
+  .legend-swatch.map     { background: var(--map-bg);     border-color: var(--map-bd); }
+  .legend-swatch.future  { background: var(--futur-bg);   border-color: var(--futur-bd); }
+
+  .gaps {
+    margin-top: 22px;
+    background: #2a2622;
+    color: var(--cream-wash);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 1900px;
+    margin-left: auto; margin-right: auto;
+  }
+  .gaps h3 { font-family: 'Fredoka', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--honey-amber); }
+  .gaps ul { margin: 6px 0 0 22px; }
+  .gaps li { margin-bottom: 4px; }
+  .gaps strong { color: var(--honey-amber); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>A.R.C. — Level Progression Grid</h1>
+  <p>Live unlocks across every category, side by side. ★ markers show what's NEW at each level. Empty cells mean nothing fires at that level for that category. Pulled from the live source files; pacing tweaks Marcus signed off on are reflected here.</p>
+  <div class="src">Source: progression.ts · destinations.ts · supply-runs.ts · apprentices.ts · time.ts · charity.ts · charms.ts · crate-stacking.ts</div>
+</header>
+
+<div class="grid-wrap">
+<table class="grid">
+  <thead>
+    <tr>
+      <th class="cat-header">Category</th>
+      <th class="lv-header"><span class="lv-num">L1</span><span class="lv-cum">0 rescues</span></th>
+      <th class="lv-header"><span class="lv-num">L2</span><span class="lv-cum">5</span></th>
+      <th class="lv-header"><span class="lv-num">L3</span><span class="lv-cum">15</span></th>
+      <th class="lv-header"><span class="lv-num">L4</span><span class="lv-cum">30</span></th>
+      <th class="lv-header"><span class="lv-num">L5</span><span class="lv-cum">50</span></th>
+      <th class="lv-header"><span class="lv-num">L6</span><span class="lv-cum">75</span></th>
+      <th class="lv-header"><span class="lv-num">L7</span><span class="lv-cum">105</span></th>
+      <th class="lv-header"><span class="lv-num">L8</span><span class="lv-cum">140</span></th>
+      <th class="lv-header"><span class="lv-num">L9</span><span class="lv-cum">180</span></th>
+      <th class="lv-header"><span class="lv-num">L10</span><span class="lv-cum">225</span></th>
+      <th class="lv-header"><span class="lv-num">L11</span><span class="lv-cum">275</span></th>
+      <th class="lv-header"><span class="lv-num">L12</span><span class="lv-cum">330</span></th>
+      <th class="lv-header"><span class="lv-num">L15+</span><span class="lv-cum">525+</span></th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- ANIMALS -->
+    <tr class="cat-species">
+      <th class="cat-header">🐾 Animal species</th>
+      <td><span class="new">★</span><span class="item">cat</span><span class="item">dog</span></td>
+      <td><span class="new">★</span><span class="item">fox</span><span class="item">bunny</span></td>
+      <td><span class="new">★</span><span class="item">bat</span><span class="item">parrot</span></td>
+      <td><span class="new">★</span><span class="item">snake</span></td>
+      <td class="empty">all 7</td>
+      <td class="empty">all 7</td>
+      <td class="empty">all 7</td>
+      <td class="empty">all 7</td>
+      <td class="empty">all 7</td>
+      <td class="empty">all 7</td>
+      <td class="empty">future: hedgehog?</td>
+      <td class="empty">future: squirrel?</td>
+      <td class="empty">future: skunk, raccoon, lizard</td>
+    </tr>
+
+    <!-- CENTRE — capacity + features -->
+    <tr class="cat-centre">
+      <th class="cat-header">🏠 Shelter capacity</th>
+      <td><span class="item">2 max</span></td>
+      <td><span class="new">★</span><span class="item">4 max</span></td>
+      <td><span class="new">★</span><span class="item">6 max</span></td>
+      <td><span class="new">★</span><span class="item">8 max</span></td>
+      <td><span class="new">★</span><span class="item">10 max</span></td>
+      <td><span class="new">★</span><span class="item">12 max</span><span class="item"><span class="num">(cap)</span></span></td>
+      <td class="empty">12 cap</td>
+      <td class="empty">12 cap</td>
+      <td class="empty">12 cap</td>
+      <td class="empty">12 cap</td>
+      <td class="empty">12 cap</td>
+      <td class="empty">12 cap</td>
+      <td class="empty">12 cap</td>
+    </tr>
+    <tr class="cat-centre">
+      <th class="cat-header">📥 Arrivals queue</th>
+      <td><span class="item">1 at a time</span></td>
+      <td class="empty">1</td>
+      <td><span class="new">★</span><span class="item">2 at a time</span></td>
+      <td class="empty">2</td>
+      <td class="empty">2</td>
+      <td><span class="new">★</span><span class="item">3 at a time</span></td>
+      <td class="empty">3</td>
+      <td class="empty">3</td>
+      <td class="empty">3</td>
+      <td class="empty">3</td>
+      <td class="empty">3</td>
+      <td class="empty">3</td>
+      <td class="empty">3</td>
+    </tr>
+    <tr class="cat-centre">
+      <th class="cat-header">⏱️ Tasks per phase</th>
+      <td><span class="item">12 tasks</span></td>
+      <td class="empty">12</td>
+      <td><span class="new">★</span><span class="item">10 tasks</span></td>
+      <td class="empty">10</td>
+      <td class="empty">10</td>
+      <td><span class="new">★</span><span class="item">8 tasks</span></td>
+      <td class="empty">8</td>
+      <td class="empty">8</td>
+      <td><span class="new">★</span><span class="item">6 tasks</span></td>
+      <td class="empty">6</td>
+      <td class="empty">6</td>
+      <td class="empty">6</td>
+      <td class="empty">6</td>
+    </tr>
+    <tr class="cat-centre">
+      <th class="cat-header">👥 Apprentice system</th>
+      <td class="empty">locked</td>
+      <td><span class="new">★</span><span class="item">unlocked</span><span class="item"><span class="num">Rhubarb / Amara / Kofi recruitable when their household is met</span></span></td>
+      <td class="empty">available</td>
+      <td class="empty">available</td>
+      <td class="empty">available</td>
+      <td class="empty">available</td>
+      <td class="empty">available</td>
+      <td class="empty">available</td>
+      <td class="empty">available</td>
+      <td class="empty">available</td>
+      <td class="empty">available</td>
+      <td class="empty">available</td>
+      <td class="empty">available</td>
+    </tr>
+    <tr class="cat-centre">
+      <th class="cat-header">🚐 Vehicles (PTV)</th>
+      <td><span class="new">★</span><span class="item">Trikey</span><span class="item"><span class="num">2 slots, no fuel</span></span></td>
+      <td><span class="new">★</span><span class="item">Henry van</span><span class="item"><span class="num">4 slots</span></span></td>
+      <td class="empty">Trikey + Henry</td>
+      <td class="empty">Trikey + Henry</td>
+      <td><span class="new">★</span><span class="item">Bea long-van</span><span class="item"><span class="num">6 slots</span></span></td>
+      <td class="empty">+ Bea</td>
+      <td class="empty">+ Bea</td>
+      <td class="empty">+ Bea</td>
+      <td class="empty">+ Bea</td>
+      <td><span class="new">★</span><span class="item">Big Tilly lorry</span><span class="item"><span class="num">9 slots</span></span></td>
+      <td class="empty">+ Big Tilly</td>
+      <td><span class="new">★</span><span class="item">Spark e-minibus</span><span class="item"><span class="num">6 slots, smoother</span></span></td>
+      <td class="empty">all 5 vehicles</td>
+    </tr>
+
+    <!-- SKILLS -->
+    <tr class="cat-skill">
+      <th class="cat-header">🐝 Rewilding skill</th>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td><span class="new">★</span><span class="item">First habitats</span><span class="item"><span class="num">(via Moorland / Woodland)</span></span></td>
+      <td class="empty">unlocked</td>
+      <td class="empty">unlocked</td>
+      <td><span class="new">★</span><span class="item">Sea-cliff seabirds</span></td>
+      <td class="empty">unlocked</td>
+      <td><span class="new">★</span><span class="item">Bat caves</span><span class="item"><span class="num">(Deep Forest)</span></span></td>
+      <td><span class="new">★</span><span class="item">Snake wetlands</span></td>
+      <td class="empty">all habitats</td>
+      <td class="empty">all habitats</td>
+      <td class="empty">all habitats</td>
+      <td class="empty">all habitats</td>
+    </tr>
+    <tr class="cat-skill">
+      <th class="cat-header">💷 Fundraising</th>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">passive donations possible</td>
+      <td class="empty">—</td>
+      <td><span class="item">Community Foundation</span><span class="item"><span class="num">(qualifies @5 rehomings)</span></span></td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td><span class="new">★</span><span class="item">Rescue Charity grant</span><span class="item"><span class="num">£40 / month if L≥10</span></span></td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">future: shop merch?</td>
+    </tr>
+    <tr class="cat-skill">
+      <th class="cat-header">🚗 Advanced driving</th>
+      <td class="empty">basic Trikey</td>
+      <td class="empty">+ Henry intro</td>
+      <td class="empty">multi-stop</td>
+      <td class="empty">—</td>
+      <td class="empty">+ Bea</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">+ Big Tilly</td>
+      <td class="empty">—</td>
+      <td class="empty">+ Spark</td>
+      <td class="empty">all 5</td>
+    </tr>
+    <tr class="cat-skill">
+      <th class="cat-header">💕 Adoption matching</th>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">spec'd, gate?</td>
+      <td class="empty">spec'd, gate?</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+    </tr>
+
+    <!-- MAP -->
+    <tr class="cat-map">
+      <th class="cat-header">🗺️ PTV destinations</th>
+      <td><span class="new">★</span><span class="item">A.R.C.</span><span class="item">Bramble Farm</span></td>
+      <td class="empty">—</td>
+      <td><span class="new">★</span><span class="item">Moorland</span><span class="item">Woodland</span></td>
+      <td class="empty">—</td>
+      <td><span class="new">★</span><span class="item">Cove Harbour</span></td>
+      <td><span class="new">★</span><span class="item">Sea Cliffs</span><span class="item"><span class="num">(was L7, pulled fwd)</span></span></td>
+      <td class="empty">—</td>
+      <td><span class="new">★</span><span class="item">Deep Forest</span></td>
+      <td><span class="new">★</span><span class="item">Wetlands</span></td>
+      <td><span class="new">★</span><span class="item">Pinebark Medical</span></td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+    </tr>
+    <tr class="cat-map">
+      <th class="cat-header">📦 Supply Run depots</th>
+      <td><span class="new">★</span><span class="item">Bramble Farm</span><span class="item"><span class="num">hay, feed, bedding</span></span></td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td><span class="new">★</span><span class="item">Cove Harbour</span><span class="item"><span class="num">fish for cats / foxes / bats</span></span></td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td><span class="new">★</span><span class="item">Pinebark Medical</span><span class="item"><span class="num">bandages, meds</span></span></td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+    </tr>
+
+    <!-- FUTURE / NOT YET DESIGNED -->
+    <tr class="cat-future">
+      <th class="cat-header">🌱 Future content</th>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">—</td>
+      <td class="empty">hedgehog</td>
+      <td class="empty">squirrel</td>
+      <td class="empty">skunk · raccoon · lizard · pet shows · merch</td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-swatch species"></span>Species</div>
+  <div class="legend-item"><span class="legend-swatch centre"></span>Centre features</div>
+  <div class="legend-item"><span class="legend-swatch skill"></span>Skills</div>
+  <div class="legend-item"><span class="legend-swatch map"></span>Map destinations</div>
+  <div class="legend-item"><span class="legend-swatch future"></span>Future / unplanned</div>
+</div>
+
+<div class="gaps">
+  <h3>🚨 Pacing gaps after the L7→L6 tweak (still need design)</h3>
+  <ul>
+    <li><strong>L4</strong> — only adds snake species. No vehicle, no destination, no skill. Suggested: snake-specific feature (Wetlands Edge sub-destination?) OR pull Cove Harbour from L5 to L4.</li>
+    <li><strong>L7</strong> — now empty (was Sea Cliffs). Suggested: add a NEW destination (Reculver Towers walk for dogs?), or unlock a new fundraising tier here.</li>
+    <li><strong>L11</strong> — empty. Sits between Big Tilly (L10) + Spark (L12). Suggested: hedgehog species unlock (per Lily's wishlist).</li>
+    <li><strong>L13–L14</strong> — completely undesigned. Suggested: ramp into L15 pet-show events with smaller intermediate unlocks.</li>
+  </ul>
+  <h3>✅ Healthy levels</h3>
+  <ul>
+    <li><strong>L1</strong> — 2 species + Trikey + A.R.C. + Bramble Farm. Right amount.</li>
+    <li><strong>L2</strong> — apprentice unlock + Henry van + foxes/bunnies. Big "more I can do" jump.</li>
+    <li><strong>L3</strong> — bats + parrots + first rewilding habitats + arrivals queue grows + tasks/phase eases.</li>
+    <li><strong>L5</strong> — Bea van + Cove Harbour + Community Foundation grant qualifier.</li>
+    <li><strong>L6</strong> — Sea Cliffs + shelter cap to 12 + arrivals queue to 3 + tasks/phase to 8. <em>NEW</em>: rich after the pull-forward.</li>
+    <li><strong>L10</strong> — Big Tilly + Pinebark + Rescue Charity grant. Climactic milestone.</li>
+    <li><strong>L12</strong> — Spark electric minibus.</li>
+  </ul>
+  <h3>🟡 Systems with NO level gate (intentional or gap?)</h3>
+  <ul>
+    <li>Garden lawn + quiet garden — both available from L1. Could gate quiet garden behind L2 for a "your centre is growing" beat.</li>
+    <li>Conflict mechanic — fires from L1 regardless. Could ease in.</li>
+    <li>Decorations + toys — placeable from L1.</li>
+    <li>Walks, vet, sick animals — all from L1.</li>
+    <li>Adoption-matching — spec'd in <code>docs/adoption-matching.md</code>; suggested gate at L4 (kid has had time to bond).</li>
+  </ul>
+</div>
+
+</body>
+</html>
