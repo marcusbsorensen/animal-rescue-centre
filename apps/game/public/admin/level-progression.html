@@ -208,14 +208,14 @@
       <td><span class="new">★</span><span class="item">6 max</span></td>
       <td><span class="new">★</span><span class="item">8 max</span></td>
       <td><span class="new">★</span><span class="item">10 max</span></td>
-      <td><span class="new">★</span><span class="item">12 max</span><span class="item"><span class="num">(cap)</span></span></td>
-      <td class="empty">12 cap</td>
-      <td class="empty">12 cap</td>
-      <td class="empty">12 cap</td>
-      <td class="empty">12 cap</td>
-      <td class="empty">12 cap</td>
-      <td class="empty">12 cap</td>
-      <td class="empty">12 cap</td>
+      <td><span class="new">★</span><span class="item">12 max</span></td>
+      <td><span class="new">★</span><span class="item">14 max</span></td>
+      <td><span class="new">★</span><span class="item">15 max</span></td>
+      <td><span class="new">★</span><span class="item">17 max</span></td>
+      <td><span class="new">★</span><span class="item">18 max</span></td>
+      <td><span class="new">★</span><span class="item">20 max</span></td>
+      <td><span class="new">★</span><span class="item">22 max</span></td>
+      <td><span class="new">★</span><span class="item">28-30</span><span class="item"><span class="num">cap @ 30</span></span></td>
     </tr>
     <tr class="cat-centre">
       <th class="cat-header">📥 Arrivals queue</th>
@@ -250,20 +250,20 @@
       <td class="empty">6</td>
     </tr>
     <tr class="cat-centre">
-      <th class="cat-header">👥 Apprentice system</th>
+      <th class="cat-header">👥 Apprentice unlock</th>
       <td class="empty">locked</td>
-      <td><span class="new">★</span><span class="item">unlocked</span><span class="item"><span class="num">Rhubarb / Amara / Kofi recruitable when their household is met</span></span></td>
-      <td class="empty">available</td>
-      <td class="empty">available</td>
-      <td class="empty">available</td>
-      <td class="empty">available</td>
-      <td class="empty">available</td>
-      <td class="empty">available</td>
-      <td class="empty">available</td>
-      <td class="empty">available</td>
-      <td class="empty">available</td>
-      <td class="empty">available</td>
-      <td class="empty">available</td>
+      <td><span class="new">★</span><span class="item">Rhubarb</span><span class="item"><span class="num">+1 care task</span></span></td>
+      <td class="empty">— Rhubarb only</td>
+      <td><span class="new">★</span><span class="item">Amara</span><span class="item"><span class="num">+1 cat slot</span></span></td>
+      <td class="empty">— + Amara</td>
+      <td><span class="new">★</span><span class="item">Kofi</span><span class="item"><span class="num">+1 species slot</span></span></td>
+      <td class="empty">all 3 recruited</td>
+      <td class="empty">all 3</td>
+      <td class="empty">all 3</td>
+      <td class="empty">all 3</td>
+      <td class="empty">future: more</td>
+      <td class="empty">future: more</td>
+      <td class="empty">future: more</td>
     </tr>
     <tr class="cat-centre">
       <th class="cat-header">🚐 Vehicles (PTV)</th>
@@ -413,11 +413,18 @@
 </div>
 
 <div class="gaps">
-  <h3>🚨 Pacing gaps after the L7→L6 tweak (still need design)</h3>
+  <h3>🆕 Changes 2026-05-03</h3>
   <ul>
-    <li><strong>L4</strong> — only adds snake species. No vehicle, no destination, no skill. Suggested: snake-specific feature (Wetlands Edge sub-destination?) OR pull Cove Harbour from L5 to L4.</li>
-    <li><strong>L7</strong> — now empty (was Sea Cliffs). Suggested: add a NEW destination (Reculver Towers walk for dogs?), or unlock a new fundraising tier here.</li>
-    <li><strong>L11</strong> — empty. Sits between Big Tilly (L10) + Spark (L12). Suggested: hedgehog species unlock (per Lily's wishlist).</li>
+    <li><strong>Apprentices spread</strong> — was all 3 recruitable from L2. Now: Rhubarb L2, Amara L4, Kofi L6. Steady "more help has arrived" beats instead of a single dump.</li>
+    <li><strong>Shelter cap extended past L10</strong> — was hard cap of 12 from L6 onwards. Now: gentler ramp 12→14→15→17→18 across L6–10, then +2/level past L10 up to a hard ceiling of 30. The garden + apprentice support justifies more capacity at higher levels.</li>
+    <li><strong>4th animal exit added (DESIGN)</strong> — "permanent vet care" for old / chronically sick animals. Spec at <code>docs/animal-exits.md</code>. Implementation backlog listed there.</li>
+    <li><strong>Sea Cliffs PTV destination</strong> pulled L7 → L6.</li>
+  </ul>
+  <h3>🚨 Pacing gaps still to address</h3>
+  <ul>
+    <li><strong>L4</strong> — adds snake species AND Amara apprentice now. Better but still no destination / vehicle here. Suggested: snake-specific feature (Wetlands Edge sub-destination?) OR pull Cove Harbour from L5 to L4.</li>
+    <li><strong>L7</strong> — empty after Sea Cliffs moved. Suggested: add a NEW destination (Reculver Towers walk for dogs?), or unlock a new fundraising tier here.</li>
+    <li><strong>L11</strong> — empty (between Big Tilly L10 + Spark L12). Suggested: hedgehog species unlock (per Lily's wishlist), or open the permanent-vet-care exit option here as a new milestone.</li>
     <li><strong>L13–L14</strong> — completely undesigned. Suggested: ramp into L15 pet-show events with smaller intermediate unlocks.</li>
   </ul>
   <h3>✅ Healthy levels</h3>

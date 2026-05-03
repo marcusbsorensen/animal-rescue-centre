@@ -42,9 +42,18 @@ export function getRequiredRescuesForLevel(level: number): number {
 }
 
 /**
- * Maximum number of shelter animals (non-pet) allowed at the player's current level.
- * Starts small so young players aren't overwhelmed and can properly care for each animal.
- * L1: 2, L2: 4, L3: 6, L4: 8, L5: 10, L6+: 12 (hard cap)
+ * Maximum number of shelter animals (non-pet) allowed at the player's
+ * current level.
+ *
+ * Pacing curve (Marcus 2026-05-03 — extended past L10):
+ *   L1=2, L2=4, L3=6, L4=8, L5=10        ← learning + bonding
+ *   L6=12, L7=14, L8=15, L9=17, L10=18   ← busy mid-game
+ *   L11=20, L12=22, L13=24, ...          ← +2 per level
+ *   Hard ceiling at 30                   ← gameplay still manageable
+ *
+ * The garden + tile system supports more space at higher levels and
+ * the kid often has 3 arrivals queued at once by L6, so the old
+ * hard cap of 12 was too tight for higher-level play.
  *
  * When `species` is 'cat' and an `apprenticeUnlocks` bag is supplied,
  * the cap grows by `extraCatSlots` — Amara's apprentice unlock bumps
@@ -55,7 +64,25 @@ export function getMaxShelterAnimals(
   species?: Species,
   apprenticeUnlocks?: { extraCatSlots?: number },
 ): number {
-  const base = level <= 0 ? 2 : Math.min(2 * level, 12);
+  let base: number;
+  if (level <= 0) {
+    base = 2;
+  } else if (level <= 5) {
+    base = 2 * level;            // L1=2, L2=4, L3=6, L4=8, L5=10
+  } else if (level === 6) {
+    base = 12;
+  } else if (level === 7) {
+    base = 14;
+  } else if (level === 8) {
+    base = 15;
+  } else if (level === 9) {
+    base = 17;
+  } else if (level === 10) {
+    base = 18;
+  } else {
+    // L11+: +2 per level above 10, capped at 30
+    base = Math.min(18 + (level - 10) * 2, 30);
+  }
   if (species === 'cat' && apprenticeUnlocks?.extraCatSlots) {
     return base + apprenticeUnlocks.extraCatSlots;
   }

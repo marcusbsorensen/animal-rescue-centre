@@ -44,6 +44,19 @@ interface ApprenticeDef {
   householdId: string;
   name: string;
   role: string;
+  /**
+   * Per-apprentice min level (Marcus 2026-05-03). Spreading
+   * apprentice unlocks across many levels gives the kid steady
+   * "more help has arrived" beats rather than dumping all three
+   * available at L2. Pacing rationale:
+   *   - Rhubarb L2 — first real help, cat/dog focus matches the
+   *     starting species.
+   *   - Amara L4 — extra cat slot kicks in when shelter cap reaches
+   *     8 and cats start to crowd.
+   *   - Kofi L6 — exotic-species slot becomes useful once parrot,
+   *     bat and snake are all unlocked and the centre's juggling them.
+   */
+  minLevel: number;
   unlockDescription: string;
   applyUnlock: (u: ApprenticeUnlocks) => ApprenticeUnlocks;
 }
@@ -58,6 +71,7 @@ export const APPRENTICE_DEFS: Record<ApprenticeId, ApprenticeDef> = {
     householdId: '30-two-houses',
     name: 'Rhubarb',
     role: 'feeder',
+    minLevel: 2,
     unlockDescription: 'Unlocks an extra daily care task',
     applyUnlock: (u) => ({ ...u, extraCareTasksPerDay: u.extraCareTasksPerDay + 1 }),
   },
@@ -66,6 +80,7 @@ export const APPRENTICE_DEFS: Record<ApprenticeId, ApprenticeDef> = {
     householdId: '13-kumar-ishii',
     name: 'Amara',
     role: 'cat-whisperer',
+    minLevel: 4,
     unlockDescription: 'Unlocks an extra cat rescue slot',
     applyUnlock: (u) => ({ ...u, extraCatSlots: u.extraCatSlots + 1 }),
   },
@@ -74,12 +89,18 @@ export const APPRENTICE_DEFS: Record<ApprenticeId, ApprenticeDef> = {
     householdId: '14-theo-grandkids',
     name: 'Kofi',
     role: 'bookworm',
+    minLevel: 6,
     unlockDescription: 'Unlocks a new species slot',
     applyUnlock: (u) => ({ ...u, extraSpeciesSlots: u.extraSpeciesSlots + 1 }),
   },
 };
 
-/** Minimum level required before the apprentice system opens up. */
+/**
+ * Minimum level for the EARLIEST apprentice (Rhubarb at L2). Used by
+ * UI to decide whether to even show the apprentice section. Per-
+ * apprentice gates live on the def's `minLevel` and are checked
+ * inside `canRecruit`.
+ */
 export const APPRENTICE_MIN_LEVEL = 2;
 
 /** Which cast household IDs the player must have encountered for an
@@ -114,8 +135,12 @@ export function canRecruit(
   if (isApprenticeRecruited(apprenticeId, store)) {
     return { ok: false, reason: `${def.name} is already an apprentice.` };
   }
-  if ((store.level ?? 1) < APPRENTICE_MIN_LEVEL) {
-    return { ok: false, reason: `Reach level ${APPRENTICE_MIN_LEVEL} first.` };
+  // Per-apprentice level gate (Marcus 2026-05-03 — spread across
+  // many levels). Falls back to the global APPRENTICE_MIN_LEVEL if
+  // a def has no minLevel declared, for back-compat.
+  const requiredLevel = def.minLevel ?? APPRENTICE_MIN_LEVEL;
+  if ((store.level ?? 1) < requiredLevel) {
+    return { ok: false, reason: `Reach level ${requiredLevel} first.` };
   }
   return { ok: true };
 }

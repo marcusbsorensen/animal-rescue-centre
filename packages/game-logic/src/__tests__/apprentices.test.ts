@@ -59,6 +59,24 @@ describe('canRecruit', () => {
     expect(res.ok).toBe(false);
     expect(res.reason).toMatch(/already/i);
   });
+
+  // Per-apprentice level gates (Marcus 2026-05-03)
+  it('Amara is locked at L2 but unlocks at L4', () => {
+    expect(canRecruit('amara', makeStore(2)).ok).toBe(false);
+    expect(canRecruit('amara', makeStore(3)).ok).toBe(false);
+    expect(canRecruit('amara', makeStore(4)).ok).toBe(true);
+  });
+
+  it('Kofi is locked at L4 but unlocks at L6', () => {
+    expect(canRecruit('kofi', makeStore(4)).ok).toBe(false);
+    expect(canRecruit('kofi', makeStore(5)).ok).toBe(false);
+    expect(canRecruit('kofi', makeStore(6)).ok).toBe(true);
+  });
+
+  it('error messages quote the per-apprentice required level', () => {
+    expect(canRecruit('amara', makeStore(2)).reason).toMatch(/level 4/i);
+    expect(canRecruit('kofi', makeStore(2)).reason).toMatch(/level 6/i);
+  });
 });
 
 describe('recruitApprentice', () => {
@@ -77,7 +95,9 @@ describe('recruitApprentice', () => {
   });
 
   it('recomputes unlocks on each recruit', () => {
-    const store = makeStore();
+    // Use L6 so all three apprentices (Rhubarb L2, Amara L4, Kofi L6)
+    // are recruitable — they're spread across levels per Marcus 2026-05-03.
+    const store = makeStore(6);
     recruitApprentice('rhubarb', store);
     expect(store.apprenticeUnlocks.extraCareTasksPerDay).toBe(1);
     expect(store.apprenticeUnlocks.extraCatSlots).toBe(0);
@@ -153,5 +173,20 @@ describe('getMaxShelterAnimals with apprentice unlocks', () => {
   it('is a no-op when extraCatSlots is zero or missing', () => {
     expect(getMaxShelterAnimals(2, 'cat', { extraCatSlots: 0 })).toBe(4);
     expect(getMaxShelterAnimals(2, 'cat')).toBe(4);
+  });
+
+  // Extended cap past L10 (Marcus 2026-05-03)
+  it('keeps growing past L10 with the new gentle ramp', () => {
+    expect(getMaxShelterAnimals(5)).toBe(10);
+    expect(getMaxShelterAnimals(6)).toBe(12);
+    expect(getMaxShelterAnimals(7)).toBe(14);
+    expect(getMaxShelterAnimals(8)).toBe(15);
+    expect(getMaxShelterAnimals(9)).toBe(17);
+    expect(getMaxShelterAnimals(10)).toBe(18);
+    expect(getMaxShelterAnimals(11)).toBe(20);
+    expect(getMaxShelterAnimals(15)).toBe(28);
+    expect(getMaxShelterAnimals(16)).toBe(30);
+    expect(getMaxShelterAnimals(20)).toBe(30);   // hard ceiling
+    expect(getMaxShelterAnimals(99)).toBe(30);
   });
 });
