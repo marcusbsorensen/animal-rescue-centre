@@ -319,6 +319,13 @@ export {
 } from './species-facts';
 export type { SpeciesFact } from './species-facts';
 
+export {
+  L1_CURTAILED_HOUSEHOLD_DEFS,
+  getEligibleApplicants,
+  commitAdoption,
+} from './adoption';
+export type { Applicant, RehomedEntry, AdoptionStoreLike } from './adoption';
+
 export * from './crate-stacking';
 export {
   CHARMS,
