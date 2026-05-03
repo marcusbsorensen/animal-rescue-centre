@@ -345,3 +345,26 @@ export type {
   CharmVehicle,
   CharmsStoreSlice,
 } from './charms';
+
+// ── Garden tunnel mini-game ──────────────────────────────────
+// Re-exported under namespaced names to avoid clashes with other
+// modules' `Animal`, `Rotation`, `tileSides`, `solveTunnels`, etc.
+export {
+  rotateTile as rotateTunnelTile,
+  toggleGate as toggleTunnelGate,
+  tileSides as tunnelTileSides,
+  solveTunnels,
+  isPuzzleSolved as isTunnelPuzzleSolved,
+  generateTier1Puzzle as generateTier1TunnelPuzzle,
+  applyTier1Solution as applyTier1TunnelSolution,
+} from './tunnel';
+export type {
+  TileType as TunnelTileType,
+  TunnelTile,
+  TunnelPuzzle,
+  Animal as TunnelAnimal,
+  Rotation as TunnelRotation,
+  Sides as TunnelSides,
+  SolveReason as TunnelSolveReason,
+  SolveResult as TunnelSolveResult,
+} from './tunnel';
