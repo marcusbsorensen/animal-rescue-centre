@@ -11,12 +11,37 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Quicksand:wght@500;600&family=Kalam:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Quicksand:wght@500;600&family=Kalam:wght@700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<!--
+  A.R.C. intro — town-map zoom-in sequence.
+
+  4 panels, each a progressive CSS-transform zoom of the live Birchie
+  OSM map SVG (the same one used by /admin/map.html). The kid sees
+  the whole town first, then we push the camera in toward the A.R.C.
+  plot, ending on a tap-to-enter close-up of the building.
+
+  The SVG is embedded with <object> so its baked-in CSS animations
+  (Thames cargo ships, southern-field tractors) keep playing through
+  the zoom. Zoom mechanics: a single .zoom-stage wrapper holds the
+  SVG and we set CSS variables --scale + --origin-x/y per panel,
+  with a 1500ms ease transition for smooth pushes.
+
+  Plot centre in the SVG viewBox (1800x1121) is (326, 376) → 18.1%
+  from left, 33.5% from top → that's the transform-origin we zoom
+  toward.
+
+  Iframe handshake (unchanged from previous intro):
+    - parent posts {source: 'arc-auth-host', type: 'init', payload}
+    - this page posts {source: 'arc-auth', type: <action>, payload}
+      with actions: intro-complete, intro-climactic-sfx,
+      set-skip-intro, toggle-music.
+-->
 <style>
   :root {
     --cream-wash: #fef9ef;
     --honey-amber: #e3b04b;
     --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --map-bg: #dec98a;
     --sea-bg: #bfdde3;
@@ -35,148 +60,123 @@
   html.iframed body { background: var(--cream-wash) !important; }
 
   .stage {
-    flex: 1; position: relative;
+    flex: 1;
+    position: relative;
     cursor: pointer;
     overflow: hidden;
-    background: var(--map-bg);
+    /* The SVG letterboxes (preserveAspectRatio="meet"); show the
+       SVG's own sea-blue / land-tan split underneath so bands read
+       as 'more sea above / more countryside below'. */
+    background: linear-gradient(to bottom,
+      var(--sea-bg) 0%, var(--sea-bg) 50%,
+      var(--map-bg) 50%, var(--map-bg) 100%);
   }
-  .panel {
+
+  /* ─── Zoom stage — one wrapper, transform-driven push-in ───────── */
+  .zoom-stage {
     position: absolute; inset: 0;
+    /* Origin = A.R.C. plot in viewBox %: 326/1800, 397/1121 */
+    transform-origin: var(--origin-x, 18.1%) var(--origin-y, 35.4%);
+    transform: scale(var(--scale, 1));
+    transition: transform 1500ms cubic-bezier(0.45, 0.05, 0.55, 0.95);
+    will-change: transform;
+  }
+  .zoom-stage .osm-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+  }
+  /* Painted main-building stamp dropped on the A.R.C. plot — sits
+     inside .zoom-stage so the CSS scale magnifies it along with the
+     SVG. Position is computed on SVG load (same maths as map.html)
+     so it follows the SVG's letterboxed render across aspect ratios. */
+  .zoom-stage .building-stamp {
+    position: absolute;
+    transform: translate(-50%, -82%);
+    width: 5%;          /* relative to .zoom-stage (= viewport at scale 1) */
+    min-width: 38px;
+    pointer-events: none;
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.3));
     opacity: 0;
-    transition: opacity 500ms ease;
-    pointer-events: none;
-    overflow: hidden;
+    transition: opacity 400ms ease;
   }
-  .panel.active {
-    opacity: 1;
-    pointer-events: auto;
-  }
+  .zoom-stage .building-stamp.placed { opacity: 1; }
 
-  /* ─── Map-zoom panels (1, 2, 3) ─────────────────────────────────────────
-     Each uses the SAME OSM-derived Birchie map SVG as background, but at
-     a different CSS scale + transform-origin so we get a smooth "camera
-     pushing in" effect. The OSM SVG already includes the painted A.R.C.
-     plot polygon at the right real-world position, so we just zoom toward
-     its centre.
+  /* Per-panel zoom levels. transform-origin stays locked on the
+     A.R.C. plot so all zooms push toward the same point. */
+  body[data-panel="1"] .zoom-stage { --scale: 1;   }
+  body[data-panel="2"] .zoom-stage { --scale: 2;   }
+  body[data-panel="3"] .zoom-stage { --scale: 3.5; }
+  body[data-panel="4"] .zoom-stage { --scale: 5;   }
 
-     Plot centre in the SVG is roughly (524, 348) of the 2400×721 canvas
-     (= 21.8% from left, 48.3% from top of the canvas viewBox).
-  */
-  .panel.map-panel {
-    background-image: url('/admin/scene-assets/birchie-map/birchie-roads.svg');
-    background-size: cover;
-    background-position: 21.8% 48.3%;  /* centred on A.R.C. plot */
-  }
-  .panel-1.active { animation: zoom-1 2.6s ease-in-out forwards; }
-  .panel-2.active { animation: zoom-2 2.6s ease-in-out forwards; }
-  .panel-3.active { animation: zoom-3 2.6s ease-in-out forwards; }
-
-  @keyframes zoom-1 {
-    /* Panel 1: zoomed-out — see Birchie + the sea + the plot pinned */
-    from { background-size: 200%; }
-    to   { background-size: 220%; }
-  }
-  @keyframes zoom-2 {
-    /* Panel 2: zoom into the plot — building visible */
-    from { background-size: 360%; }
-    to   { background-size: 400%; }
-  }
-  @keyframes zoom-3 {
-    /* Panel 3: even closer — life on the site, Henry van etc. */
-    from { background-size: 600%; }
-    to   { background-size: 660%; }
-  }
-
-  /* ─── Pin overlay on panel 1 ────────────────────────────────────────── */
-  .panel .arc-pin {
+  /* ─── Caption (painted speech bubble) ──────────────────────────── */
+  .caption {
     position: absolute;
-    left: 50%; top: 50%;
-    transform: translate(-50%, -100%);
-    width: 7%;
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.35));
-    pointer-events: none;
-  }
-  .panel .pin-bubble {
-    position: absolute;
-    left: 50%; top: 38%;
-    transform: translate(-50%, 0);
-    background: var(--honey-amber);
-    border: 2.5px solid var(--honey-shadow);
+    left: 50%;
+    bottom: 12%;
+    transform: translateX(-50%);
+    background: var(--cream-wash);
+    border: 3px solid var(--honey-amber);
     border-radius: 22px;
-    padding: 6px 18px;
+    padding: 10px 22px;
+    font-family: 'Kalam', 'Patrick Hand', cursive;
+    font-weight: 700;
+    font-size: clamp(15px, 3.4vw, 24px);
+    color: var(--ink);
+    box-shadow: 2px 4px 0 rgba(184,138,55,0.35), 0 6px 18px rgba(0,0,0,0.18);
+    max-width: 86%;
+    text-align: center;
+    line-height: 1.25;
+    opacity: 0;
+    transition: opacity 600ms ease 200ms;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .caption.show { opacity: 1; }
+  /* Painted "tail" pointing up toward the map */
+  .caption::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -14px;
+    transform: translateX(-50%) rotate(45deg);
+    width: 18px; height: 18px;
+    background: var(--cream-wash);
+    border-left: 3px solid var(--honey-amber);
+    border-top: 3px solid var(--honey-amber);
+    border-top-left-radius: 4px;
+  }
+
+  /* ─── Tap-to-enter prompt (panel 4 only) ──────────────────────── */
+  .tap-prompt {
+    position: absolute;
+    left: 50%;
+    bottom: 6%;
+    transform: translateX(-50%);
+    background: var(--honey-amber);
+    border: 3px solid var(--honey-shadow);
+    border-radius: 26px;
+    padding: 12px 28px;
     font-family: 'Fredoka', sans-serif;
     font-weight: 700;
-    font-size: clamp(15px, 3vw, 24px);
+    font-size: clamp(16px, 3.8vw, 22px);
     color: var(--ink);
-    box-shadow: 2px 4px 0 rgba(0,0,0,0.18);
-    white-space: nowrap;
-  }
-
-  /* ─── Painted building stamp on panels 2, 3 + 4 ─────────────────────── */
-  .panel .building-stamp {
-    position: absolute;
-    left: 50%; top: 50%;
-    transform: translate(-50%, -50%);
-    filter: drop-shadow(2px 4px 8px rgba(0,0,0,0.25));
+    box-shadow: 2px 4px 0 rgba(0,0,0,0.18), 0 6px 18px rgba(0,0,0,0.22);
+    opacity: 0;
     pointer-events: none;
+    z-index: 11;
   }
-  .panel-2 .building-stamp { width: 22%; }
-  .panel-3 .building-stamp { width: 36%; }
-  .panel-4 .building-stamp {
-    width: 60%;
-    top: 52%;
-    animation: bldg-bob 2.6s ease-in-out infinite;
-  }
-  @keyframes bldg-bob {
-    0%, 100% { transform: translate(-50%, -50%); }
-    50%      { transform: translate(-50%, calc(-50% - 4px)); }
-  }
-
-  /* ─── "Life on site" overlay on panel 3 ─────────────────────────────── */
-  .panel-3 .henry-van {
-    position: absolute;
-    left: 38%; top: 64%;
-    width: 8%;
-    filter: drop-shadow(1px 3px 4px rgba(0,0,0,0.3));
-    pointer-events: none;
-  }
-  .panel-3 .site-anim {
-    position: absolute;
-    width: 5%;
-    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.3));
-    pointer-events: none;
-    animation: anim-bob 1.2s ease-in-out infinite;
-  }
-  @keyframes anim-bob {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-2px); }
-  }
-
-  /* ─── Panel 4 — final close-up + tap prompt ─────────────────────────── */
-  .panel-4 {
-    background: linear-gradient(180deg, #f6e8c2 0%, #e0c8a0 100%);
-  }
-  .panel-4 .tap-prompt {
-    position: absolute;
-    bottom: 6%; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255, 249, 239, 0.92);
-    border: 2.5px solid var(--honey-shadow);
-    border-radius: 24px;
-    padding: 10px 24px;
-    font-family: 'Kalam', cursive;
-    font-weight: 700;
-    font-size: clamp(16px, 3.6vw, 22px);
-    color: var(--ink);
-    animation: tap-pulse 1.6s ease-in-out infinite;
-    pointer-events: none;
+  body[data-panel="4"] .tap-prompt {
+    opacity: 1;
+    animation: tap-pulse 1.4s ease-in-out infinite;
   }
   @keyframes tap-pulse {
-    0%, 100% { opacity: 0.88; transform: translateX(-50%) scale(1); }
-    50%      { opacity: 1;    transform: translateX(-50%) scale(1.05); }
+    0%, 100% { transform: translateX(-50%) scale(1);    opacity: 0.95; }
+    50%      { transform: translateX(-50%) scale(1.07); opacity: 1;    }
   }
 
-  /* ─── Corner controls (speaker + skip) ──────────────────────────────── */
+  /* ─── Corner controls (speaker + skip) ─────────────────────────── */
   .corner {
     position: absolute;
     top: 14px; right: 14px;
@@ -184,21 +184,19 @@
     z-index: 20;
   }
   .corner-btn {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.9);
     border: 2px solid var(--honey-shadow);
     border-radius: 50%;
     width: 44px; height: 44px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     font-size: 18px;
-    box-shadow: 1px 2px 3px rgba(0,0,0,0.15);
+    box-shadow: 1px 2px 3px rgba(0,0,0,0.18);
   }
-  .corner-btn.active {
-    background: var(--honey-amber);
-  }
+  .corner-btn.active { background: var(--honey-amber); }
   .skip-row {
     display: flex; align-items: center; gap: 6px;
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.9);
     border: 2px solid var(--honey-shadow);
     border-radius: 22px;
     padding: 4px 10px;
@@ -209,55 +207,28 @@
     color: var(--ink);
   }
   .skip-row input { cursor: pointer; }
-
-  /* Subtitle band at the bottom of map panels — labels what we're looking at */
-  .panel .subtitle {
-    position: absolute;
-    bottom: 4%; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(58, 58, 58, 0.78);
-    color: #fef9ef;
-    padding: 5px 14px;
-    border-radius: 14px;
-    font-family: 'Fredoka', sans-serif;
-    font-weight: 500;
-    font-size: clamp(11px, 2vw, 14px);
-    white-space: nowrap;
-    pointer-events: none;
-  }
 </style>
 </head>
-<body>
+<body data-panel="1">
 
 <div class="stage" id="stage">
 
-  <!-- Panel 1: zoomed-out Birchie map with A.R.C. pinned -->
-  <div class="panel map-panel panel-1" id="panel-1">
-    <img class="arc-pin" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="">
-    <div class="pin-bubble">A.R.C. — that's your place!</div>
-    <div class="subtitle">Birchie-on-Sea</div>
+  <!-- Single zoom wrapper — its CSS scale drives all 4 "panels". -->
+  <div class="zoom-stage" id="zoom-stage">
+    <object class="osm-svg" id="osm-svg"
+            data="scene-assets/birchie-map/birchie-roads.svg"
+            type="image/svg+xml"
+            aria-label="Birchington-on-Sea town map"></object>
+    <img class="building-stamp" id="building-stamp"
+         src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2"
+         alt="A.R.C. main building">
   </div>
 
-  <!-- Panel 2: zoom into the plot, see the building stamp at its real position -->
-  <div class="panel map-panel panel-2" id="panel-2">
-    <img class="building-stamp" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="">
-    <div class="subtitle">Your A.R.C. plot, just south of The Dip</div>
-  </div>
+  <!-- Caption swaps text per panel; fades in 200ms after each zoom step. -->
+  <div class="caption" id="caption">Welcome to Birchie-on-Sea!</div>
 
-  <!-- Panel 3: closer in, life on the site (Henry van + a couple of animals) -->
-  <div class="panel map-panel panel-3" id="panel-3">
-    <img class="building-stamp" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="">
-    <img class="henry-van" src="/assets/driving/vehicle-henry.png" alt="" onerror="this.style.display='none'">
-    <img class="site-anim" id="site-anim-1" src="" alt="" style="left: 28%; top: 70%;" onerror="this.style.display='none'">
-    <img class="site-anim" id="site-anim-2" src="" alt="" style="left: 60%; top: 72%;" onerror="this.style.display='none'">
-    <div class="subtitle">A quiet morning at the centre</div>
-  </div>
-
-  <!-- Panel 4: building close-up + tap to enter -->
-  <div class="panel panel-4" id="panel-4">
-    <img class="building-stamp" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="A.R.C. main building">
-    <div class="tap-prompt" id="tap-prompt">Tap to go inside →</div>
-  </div>
+  <!-- Tap-to-enter prompt (only visible on panel 4). -->
+  <div class="tap-prompt" id="tap-prompt">Tap to go inside →</div>
 
   <div class="corner">
     <button class="corner-btn active" id="speaker-btn" aria-label="Toggle sound">🔊</button>
@@ -270,33 +241,101 @@
 
 <script>
   (function () {
-    const stage = document.getElementById('stage');
-    const panels = [
-      document.getElementById('panel-1'),
-      document.getElementById('panel-2'),
-      document.getElementById('panel-3'),
-      document.getElementById('panel-4'),
-    ];
-    const speakerBtn = document.getElementById('speaker-btn');
+    const body         = document.body;
+    const stage        = document.getElementById('stage');
+    const captionEl    = document.getElementById('caption');
+    const speakerBtn   = document.getElementById('speaker-btn');
     const skipCheckbox = document.getElementById('skip-checkbox');
 
-    let current = 0;
+    // Panel definitions — captions only; zoom levels live in CSS.
+    const PANELS = [
+      { caption: 'Welcome to Birchie-on-Sea!' },
+      { caption: 'Out here on the cliffs near Minnis Bay…' },
+      { caption: '…is the Animal Rescue Centre!' },
+      { caption: '' }   // panel 4 — building close-up; tap prompt instead
+    ];
+    const AUTO_MS = 2500;
+
+    let current   = 0;       // 0..3 internal index → data-panel="1..4"
     let autoTimer = null;
     let skipIntro = false;
-    let musicOn = true;
-    let species = 'cat';
+    let musicOn   = true;
+    let species   = 'cat';
+
+    // ─── Building stamp placement ───────────────────────────────────
+    // The painted main-building PNG isn't part of the SVG — we drop
+    // it on top, anchored to the A.R.C. plot's SVG coordinates,
+    // following the same letterbox maths as /admin/map.html so it
+    // stays glued to the plot as the viewport reflows.
+    const SVG_VIEW_W = 1800;
+    const SVG_VIEW_H = 1121;
+    const ARC_PLOT_SVG_X = 326;
+    const ARC_PLOT_SVG_Y = 397;
+
+    function placeBuildingStamp() {
+      const stage    = document.getElementById('zoom-stage');
+      const obj      = document.getElementById('osm-svg');
+      const stamp    = document.getElementById('building-stamp');
+      if (!stage || !obj || !stamp) return;
+      const stageR = stage.getBoundingClientRect();
+      // The object's rect already includes the parent's transform —
+      // back out to the unscaled box by dividing by the current scale.
+      const cs     = getComputedStyle(stage);
+      const m      = new DOMMatrixReadOnly(cs.transform);
+      const scale  = m.a || 1;
+      const objR   = obj.getBoundingClientRect();
+      const baseW  = objR.width  / scale;
+      const baseH  = objR.height / scale;
+      if (baseW === 0 || baseH === 0) return;
+      // SVG uses preserveAspectRatio="xMidYMid meet" → contain.
+      const svgScale = Math.min(baseW / SVG_VIEW_W, baseH / SVG_VIEW_H);
+      const renderedW = SVG_VIEW_W * svgScale;
+      const renderedH = SVG_VIEW_H * svgScale;
+      const offX = (baseW - renderedW) / 2;
+      const offY = (baseH - renderedH) / 2;
+      const px = offX + ARC_PLOT_SVG_X * svgScale;
+      const py = offY + ARC_PLOT_SVG_Y * svgScale;
+      // Express as % of stage box so the stamp scales smoothly.
+      const leftPct = px / baseW * 100;
+      const topPct  = py / baseH * 100;
+      stamp.style.left = leftPct.toFixed(3) + '%';
+      stamp.style.top  = topPct.toFixed(3) + '%';
+      stamp.classList.add('placed');
+      // Keep the zoom transform-origin glued to the same plot point so
+      // every scale step pushes toward the building, not the viewport
+      // centre.  CSS vars override the static fallback in the stylesheet.
+      stage.style.setProperty('--origin-x', leftPct.toFixed(3) + '%');
+      stage.style.setProperty('--origin-y', topPct.toFixed(3) + '%');
+    }
+
+    document.getElementById('osm-svg').addEventListener('load', placeBuildingStamp);
+    window.addEventListener('resize', placeBuildingStamp);
+    // Belt-and-braces: SVG load can fire before this listener attaches.
+    setTimeout(placeBuildingStamp, 600);
 
     function send(type, payload) {
-      try { parent.postMessage({ source: 'arc-auth', type: type, payload: payload }, '*'); } catch (_) {}
+      try {
+        parent.postMessage({ source: 'arc-auth', type: type, payload: payload }, '*');
+      } catch (_) {}
     }
 
     function showPanel(idx) {
-      panels.forEach(function (p, i) { p.classList.toggle('active', i === idx); });
+      if (idx < 0 || idx > 3) return;
       current = idx;
+      body.setAttribute('data-panel', String(idx + 1));
+
+      // Fade caption out, swap text, fade back in (handled by .show toggle).
+      captionEl.classList.remove('show');
+      const text = PANELS[idx].caption;
+      if (text) {
+        captionEl.textContent = text;
+        // Re-trigger fade-in after the zoom transition starts.
+        setTimeout(function () { captionEl.classList.add('show'); }, 50);
+      }
+
       clearTimeout(autoTimer);
-      // Auto-advance for panels 0..2; panel 3 (the 4th) waits for tap.
       if (idx < 3) {
-        autoTimer = setTimeout(function () { showPanel(idx + 1); }, 2500);
+        autoTimer = setTimeout(function () { showPanel(idx + 1); }, AUTO_MS);
       }
     }
 
@@ -308,17 +347,17 @@
       }
     }
 
-    // Tap on panel body advances early (or completes on panel 4).
+    // Tap on the stage:
+    //  - panels 0..2: skip ahead (advance early)
+    //  - panel 3: fire climactic SFX, then complete after 400ms
     stage.addEventListener('click', function (e) {
       if (e.target.closest('.corner')) return;
       if (current === 3) {
         send('intro-climactic-sfx', { species: species });
-        setTimeout(function () { send('intro-complete'); }, 100);
+        setTimeout(function () { send('intro-complete'); }, 400);
         return;
       }
-      if (current < 3) {
-        showPanel(current + 1);
-      }
+      showPanel(current + 1);
     });
 
     speakerBtn.addEventListener('click', function (e) {
@@ -337,27 +376,12 @@
       if (!m || m.source !== 'arc-auth-host') return;
       if (m.type === 'init' && m.payload) {
         skipIntro = !!m.payload.skipIntro;
-        musicOn = !!m.payload.musicOn;
-        species = (typeof m.payload.speciesForArrival === 'string') ? m.payload.speciesForArrival : 'cat';
+        musicOn   = !!m.payload.musicOn;
+        species   = (typeof m.payload.speciesForArrival === 'string')
+                    ? m.payload.speciesForArrival : 'cat';
         skipCheckbox.checked = skipIntro;
         speakerBtn.textContent = musicOn ? '🔊' : '🔇';
         speakerBtn.classList.toggle('active', musicOn);
-
-        // Panel 3 "life on site" sprites — one is the species the kid will
-        // welcome at arrival; the second is a friendly cat (or dog if the
-        // kid's first species is cat, just for variety) sleeping in the garden.
-        const a1 = document.getElementById('site-anim-1');
-        const a2 = document.getElementById('site-anim-2');
-        if (a1 && m.payload.arrivingSpriteSrc) {
-          a1.src = m.payload.arrivingSpriteSrc;
-        } else if (a1) {
-          a1.src = '/assets/animals/cat-ginger-arriving.png';
-        }
-        if (a2) {
-          a2.src = species === 'dog'
-            ? '/assets/animals/cat-ginger-sleeping.png'
-            : '/assets/animals/dog-golden-sleeping.png';
-        }
         start();
       }
       if (m.type === 'music-state' && m.payload) {
@@ -367,12 +391,9 @@
       }
     });
 
-    // Standalone preview (no parent window) — start immediately for design review
+    // Standalone preview (no parent window) — start immediately for
+    // design review at /admin/intro.html.
     if (window.top === window.self) {
-      const a1 = document.getElementById('site-anim-1');
-      const a2 = document.getElementById('site-anim-2');
-      if (a1) a1.src = '/assets/animals/cat-ginger-arriving.png';
-      if (a2) a2.src = '/assets/animals/dog-golden-sleeping.png';
       start();
     }
   })();
