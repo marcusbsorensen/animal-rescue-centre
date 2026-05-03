@@ -169,7 +169,10 @@ def main():
     out.append(
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'viewBox="0 0 {SVG_W} {SVG_H}" width="{SVG_W}" height="{SVG_H}" '
-        f'preserveAspectRatio="xMidYMid slice">'
+        # 'meet' (contain/letterbox) so the A.R.C. plot is always
+        # visible regardless of viewport aspect — slice/cover crops
+        # the left ~18% on portrait viewports, hiding the plot.
+        f'preserveAspectRatio="xMidYMid meet">'
     )
     out.append("<!-- Birchie geography: real OSM, wider bounds (2026-05-03 overhaul).")
     out.append(f"     bbox lat {LAT_MIN}..{LAT_MAX}, lon {LON_MIN}..{LON_MAX}")
