@@ -247,9 +247,13 @@
      border on the extension to avoid a double line at the join. */
   #arc-stage .region-parking-deep {
     position: absolute;
-    /* Stage 68.5%–82% wide, y 70%–87% (height 17%). Right edge
-       lines up with the building's right wall (stage 82%). */
-    left: 68.5%; top: 70%; width: 13.5%; height: 17%;
+    /* Stage 68.5%–82% wide, y 78%–87% (height 9%). Right edge
+       lines up with the building's right wall (stage 82%). A modest
+       awning that sticks up just enough above the strip to read as
+       "these bays are deeper than the others" without dominating
+       the building's south façade. The cab pulls in to y~78% which
+       still puts it alongside the lower part of the right wall. */
+    left: 68.5%; top: 78%; width: 13.5%; height: 9%;
     background:
       linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.10)),
       #3b3a37;
@@ -340,22 +344,25 @@
   .bay-divider.dep-5 { left: 77.86%; }  /* Bea/BigTilly (LONG) */
   .bay-divider.dep-6 { left: 86.4%; }   /* BigTilly/wall (LONG) */
 
-  /* Vehicle name labels — all 5 in the front strip, rotated -90°
-     (anticlockwise) so they read kerb-upward. Anchored close to
-     the south kerb so a driver pulling up the road sees the
-     names lined up at the curb edge of each bay. */
+  /* Vehicle name labels — all 5 in the front strip, written
+     bottom-to-top via writing-mode:sideways-lr (modern Chrome /
+     Firefox / Safari native vertical text). First character sits
+     at the south kerb; text reads upward into the bay so a driver
+     pulling up the road sees the names lined up at the curb edge.
+     Falls back to default horizontal in legacy browsers — graceful. */
   #arc-stage .region-parking .bay-glyph.kerb {
     position: absolute;
-    bottom: 6%;                         /* close to the south kerb */
-    transform: translate(-50%, 0) rotate(-90deg);
-    transform-origin: center bottom;
+    bottom: 8%;                          /* base sits near the kerb */
+    writing-mode: sideways-lr;           /* bottom-to-top, upright chars */
+    transform: translateX(-50%);         /* horizontally centre on bay */
     font-family: 'Kalam', cursive;
     font-weight: 700;
-    font-size: 10px;
+    font-size: 11px;
     color: var(--bay-line);
     text-shadow: 0 0 4px rgba(0,0,0,0.55);
     pointer-events: none;
     white-space: nowrap;
+    line-height: 1;
   }
   /* Per-bay horizontal anchor: each label's pre-rotation centre
      sits at the bay's mid-x. After rotate(-90deg) the text reads
