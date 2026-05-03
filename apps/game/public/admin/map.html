@@ -129,14 +129,18 @@
   }
   #world-stage .pin-arc-label:hover { transform: translate(-50%, -1px); }
 
-  /* A.R.C. detail view */
+  /* A.R.C. detail view.
+     Background: warm beige gravel (sampled from the painted-gravel
+     forecourt at the front door of the A.R.C. building stamp).
+     Replaces the previous grass+daisies texture which was visually
+     competing with the seasonal patches. */
   #arc-stage .arc-frame {
     position: relative;
     width: min(100%, 600px);
     height: 100%;
     margin: 0 auto;
-    background-color: #c9b884;
-    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-grass.png');
+    background-color: #c8b58a;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
     background-size: 200px 200px;
     background-repeat: repeat;
   }
@@ -199,6 +203,11 @@
        - Raccoon pen (T3):   mid-right, ~30% × 22%
      Central path strip remains, narrower and shorter so it
      connects the lawn/quiet gardens to the small-mammal zone. */
+  /* Master-plan revision (Marcus 2026-05-03): A.R.C. building moved
+     to the LEFT side of the plot (left:6% width:50%, was 18%/64%)
+     so the eastern half opens up for wider Bea/Big Tilly bays AND
+     the gardens become fully visible instead of hidden behind the
+     building. Vertical zones reshuffled to fit. */
   #arc-stage .region-fox {
     left: 14%; top: 4%; width: 26%; height: 12%;
   }
@@ -206,25 +215,48 @@
     right: 14%; top: 4%; width: 26%; height: 12%;
   }
   #arc-stage .region-hedgehog {
-    left: 11%; top: 24%; width: 30%; height: 22%;
+    left: 11%; top: 22%; width: 30%; height: 14%;
   }
   #arc-stage .region-raccoon {
-    right: 11%; top: 24%; width: 30%; height: 22%;
+    right: 11%; top: 22%; width: 30%; height: 14%;
   }
   #arc-stage .region-path {
-    left: 47%; top: 24%; width: 6%; height: 22%;
+    left: 47%; top: 22%; width: 6%; height: 14%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
+    background-size: 80px 80px;             /* finer grain than the
+       page background so the path reads as a separate, more
+       worn surface rather than blending invisibly. */
     border-left: 1px solid rgba(123,92,58,0.5);
     border-right: 1px solid rgba(123,92,58,0.5);
   }
+  /* Horizontal "grid" paths between rows of patches. Subtle —
+     just thin gravel strips with edge lines so the layout reads
+     as 'patches + paths' rather than patches floating in space.
+     Same finer gravel grain as the central vertical path. */
+  #arc-stage .region-path-h {
+    left: 6%; width: 88%;
+    height: 2%;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
+    background-size: 80px 80px;
+    border-top: 1px solid rgba(123,92,58,0.5);
+    border-bottom: 1px solid rgba(123,92,58,0.5);
+    position: absolute;
+  }
+  .region-path-h.path-h-1 { top: 18%; }    /* between fox/skunk and hedgehog/raccoon */
+  .region-path-h.path-h-2 { top: 36%; }    /* between hedgehog/raccoon and gardens   */
+  .region-path-h.path-h-3 { top: 50%; }    /* between gardens and building forecourt */
+  /* Gardens pushed up above the (smaller) building's top edge so
+     they're no longer hidden. Building (50% × 50% square at
+     bottom:11%) tops out at ~y=49%. Gardens span y 38-50% with a
+     1% sliver of overlap at most. */
   #arc-stage .region-lawn {
-    left: 6%; top: 53%; width: 41%; height: 14%;
+    left: 6%; top: 38%; width: 42%; height: 12%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-lawn-garden.png');
     border: 1.5px solid #5a8a4f;
     border-radius: 4px;
   }
   #arc-stage .region-quiet {
-    right: 6%; top: 53%; width: 41%; height: 14%;
+    right: 6%; top: 38%; width: 42%; height: 12%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-quiet-garden.png');
     border: 1.5px solid #5a7a4a;
     border-radius: 4px;
@@ -244,16 +276,17 @@
        - Visitor bays (3) fill the western half (stage 6%–45%).
        - Bay markings = thick painted line dividers, NOT rectangles.
 
-     Geometry breakdown (stage-X percentages):
-        6  – 19   visitor 1     (13%)
-       19  – 32   visitor 2     (13%)
-       32  – 45   visitor 3     (13%)
-       45  – 55   walkway       (10%, under door @ 50%)
-       55  – 60.4 Trikey ½      (5.4%)
-       60.4– 71.2 Henry         (10.8%)
-       71.2– 82   Spark         (10.8%)
-       82  – 87.33 Bea LONG     (5.33% — first bay east of building)
-       87.33–94   Big Tilly LONG (6.67% — flush against strip's right edge)
+     Geometry breakdown (stage-X percentages — building moved to
+     left:6% width:50%, door at stage 31%):
+        6  – 12.67 visitor 1   (6.67%)
+       12.67–19.33 visitor 2   (6.67%)
+       19.33–26   visitor 3    (6.67%)
+       26  – 36   walkway      (10%, under door @ 31%)
+       36  – 42.8 Trikey ½     (6.8%)
+       42.8– 56.4 Henry        (13.6%)
+       56.4– 70   Spark        (13.6%)
+       70  – 80.66 Bea LONG    (10.66% — 2× previous width)
+       80.66–94   Big Tilly LONG (13.34% — 2× previous, flush right edge)
      Strip-relative percentages = (stage − 6) ÷ 88 × 100. */
 
   #arc-stage .region-parking {
@@ -275,12 +308,11 @@
      border on the extension to avoid a double line at the join. */
   #arc-stage .region-parking-deep {
     position: absolute;
-    /* Stage 82%–94% wide (entirely east of the building's right
-       wall — no overlap), y 78%–87% (height 9%). The cabs of Bea
-       + Big Tilly pull up to y~78%, level with the lower part of
-       the building's east wall. Modest awning that reads as a
-       depot-canopy attached to the building's south-east corner. */
-    left: 82%; top: 78%; width: 12%; height: 9%;
+    /* Stage 70%–94% wide (entirely east of the building's new
+       right wall at stage 56% — plenty of clearance), y 78%–87%
+       (height 9%). 24% wide canopy holds Bea (10.66%) + Big
+       Tilly (13.34%), each twice as wide as the previous layout. */
+    left: 70%; top: 78%; width: 24%; height: 9%;
     background:
       linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.10)),
       #3b3a37;
@@ -321,19 +353,18 @@
     box-shadow: 0 0 5px rgba(0,0,0,0.22);
   }
 
-  /* Visitor side — 3 bays from strip 0%–44.32% (stage 6%–45%).
-     The strip's own left border draws the V1 west edge, so we
-     only need 3 internal dividers. */
-  .bay-divider.vis-2 { left: 14.77%; }   /* V1 ↔ V2  (stage 19) */
-  .bay-divider.vis-3 { left: 29.55%; }   /* V2 ↔ V3  (stage 32) */
-  .bay-divider.vis-4 { left: 44.32%; }   /* V3 ↔ walkway (stage 45) */
+  /* Visitor side — 3 narrow bays from strip 0%–22.73% (stage
+     6%–26%). Each bay is 6.67% of stage = 7.58% strip-relative.
+     The strip's own left border draws the V1 west edge. */
+  .bay-divider.vis-2 { left:  7.58%; }   /* V1 ↔ V2  (stage 12.67) */
+  .bay-divider.vis-3 { left: 15.15%; }   /* V2 ↔ V3  (stage 19.33) */
+  .bay-divider.vis-4 { left: 22.73%; }   /* V3 ↔ walkway (stage 26) */
 
-  /* Walkway — strip 44.32%–55.68% (stage 45%–55%) under the
-     front door. Faint zebra pedestrian markings, masked to a
-     centre band. */
+  /* Walkway — strip 22.73%–34.09% (stage 26%–36%) under the
+     front door of the building (door at stage 31%). */
   #arc-stage .region-parking .walkway {
     position: absolute;
-    left: 44.32%; top: 0; width: 11.36%; height: 100%;
+    left: 22.73%; top: 0; width: 11.36%; height: 100%;
     background: repeating-linear-gradient(
       180deg,
       rgba(255,247,224,0.55) 0,
@@ -351,18 +382,21 @@
 
   /* ── Depot bays (right of walkway) ──────────────────────────
      5 vehicles, 5 internal dividers (strip's right border
-     serves as Big Tilly's east wall, no dep-6 needed):
-       Trikey   ½u    stage 55–60.4
-       Henry    1u    stage 60.4–71.2
-       Spark    1u    stage 71.2–82
-       Bea      1.2u  stage 82–87.33   (LONG — east of building)
-       BigTilly 1.5u  stage 87.33–94   (LONG — flush right edge)
+     serves as Big Tilly's east wall, no dep-6 needed). With the
+     building moved to the left, the depot now spans stage
+     36%–94% (was 55%–94%) — much more space, allowing Bea +
+     Big Tilly to be twice as wide as before:
+       Trikey   ½u    stage 36–42.8     (6.8%)
+       Henry    1u    stage 42.8–56.4   (13.6%)
+       Spark    1u    stage 56.4–70     (13.6%)
+       Bea      2.4u  stage 70–80.66    (10.66%, 2× previous, LONG)
+       BigTilly 3u    stage 80.66–94    (13.34%, 2× previous, LONG)
      Strip-relative positions: */
-  .bay-divider.dep-1 { left: 55.68%; }  /* walkway / Trikey  (stage 55)    */
-  .bay-divider.dep-2 { left: 61.82%; }  /* Trikey / Henry    (stage 60.4)  */
-  .bay-divider.dep-3 { left: 74.09%; }  /* Henry / Spark     (stage 71.2)  */
-  .bay-divider.dep-4 { left: 86.36%; }  /* Spark / Bea       (stage 82)    */
-  .bay-divider.dep-5 { left: 92.42%; }  /* Bea / Big Tilly   (stage 87.33) */
+  .bay-divider.dep-1 { left: 34.09%; }  /* walkway / Trikey  (stage 36)    */
+  .bay-divider.dep-2 { left: 41.82%; }  /* Trikey / Henry    (stage 42.8)  */
+  .bay-divider.dep-3 { left: 57.27%; }  /* Henry / Spark     (stage 56.4)  */
+  .bay-divider.dep-4 { left: 72.73%; }  /* Spark / Bea       (stage 70)    */
+  .bay-divider.dep-5 { left: 84.85%; }  /* Bea / Big Tilly   (stage 80.66) */
 
   /* Vehicle name labels — all 5 in the front strip, written
      bottom-to-top via writing-mode:sideways-lr (modern Chrome /
@@ -386,20 +420,23 @@
   }
   /* Per-bay horizontal anchor: each label sits at the bay's
      mid-x (strip-relative). */
-  .bay-glyph.gly-trikey   { left: 58.75%; }   /* mid Trikey  (stage 57.7) */
-  .bay-glyph.gly-henry    { left: 67.95%; }   /* mid Henry   (stage 65.8) */
-  .bay-glyph.gly-spark    { left: 80.23%; }   /* mid Spark   (stage 76.6) */
-  .bay-glyph.gly-bea      { left: 89.39%; }   /* mid Bea     (stage 84.7) */
-  .bay-glyph.gly-big-tilly{ left: 96.21%; }   /* mid Big Tilly (stage 90.7) */
+  .bay-glyph.gly-trikey   { left: 37.95%; }   /* mid Trikey  (stage 39.4) */
+  .bay-glyph.gly-henry    { left: 49.55%; }   /* mid Henry   (stage 49.6) */
+  .bay-glyph.gly-spark    { left: 65.00%; }   /* mid Spark   (stage 63.2) */
+  .bay-glyph.gly-bea      { left: 78.79%; }   /* mid Bea     (stage 75.3) */
+  .bay-glyph.gly-big-tilly{ left: 92.42%; }   /* mid Big Tilly (stage 87.3) */
   #arc-stage .stamp {
     position: absolute;
     pointer-events: none;
   }
-  /* Building stamp at the BOTTOM (south end, facing kid arriving from
-     Bay Road). Plot orientation flipped 2026-05-03. */
+  /* Building stamp at the BOTTOM-LEFT of the plot. Master-plan
+     revision 2026-05-03 (Marcus): moved from centred (left:18%
+     width:64%) to LEFT-aligned (left:6% width:50%) so the eastern
+     half of the plot opens up for wider Bea + Big Tilly bays AND
+     the gardens become visible instead of hiding behind it. */
   #arc-stage .stamp-building {
-    left: 18%; bottom: 11%;
-    width: 64%;
+    left: 6%; bottom: 11%;
+    width: 50%;
     filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.18));
   }
   #arc-stage .stamp-tree {
@@ -555,6 +592,10 @@
     <div class="arc-region region-lawn"></div>
     <div class="arc-region region-quiet"></div>
     <div class="arc-region region-path"></div>
+    <!-- Horizontal grid paths between rows of patches -->
+    <div class="region-path-h path-h-1" aria-hidden="true"></div>
+    <div class="region-path-h path-h-2" aria-hidden="true"></div>
+    <div class="region-path-h path-h-3" aria-hidden="true"></div>
     <div class="arc-region region-undeveloped region-hedgehog" data-future="future: T2 hedgehog/squirrel"></div>
     <div class="arc-region region-undeveloped region-raccoon" data-future="future: T3 raccoon"></div>
     <!-- Fox + skunk now have separate tile patches at the north end
@@ -566,10 +607,10 @@
          footprints rather than over generic strip positions. -->
     <div class="region-label tier-future" style="left: 27%; top: 10%;">Fox (T6)</div>
     <div class="region-label tier-future" style="left: 73%; top: 10%;">Skunk (future)</div>
-    <div class="region-label tier-future" style="left: 26%; top: 35%;">Hedgehog + Squirrel (T2)</div>
-    <div class="region-label tier-future" style="left: 74%; top: 35%;">Raccoon (T3)</div>
-    <div class="region-label" style="left: 26%; top: 60%;">Lawn garden</div>
-    <div class="region-label" style="left: 74%; top: 60%;">Quiet garden</div>
+    <div class="region-label tier-future" style="left: 26%; top: 29%;">Hedgehog + Squirrel (T2)</div>
+    <div class="region-label tier-future" style="left: 74%; top: 29%;">Raccoon (T3)</div>
+    <div class="region-label" style="left: 27%; top: 44%;">Lawn garden</div>
+    <div class="region-label" style="left: 73%; top: 44%;">Quiet garden</div>
 
     <!-- Building at the SOUTH end (bottom — entrance facing kid arriving from Bay Road) -->
     <img class="stamp stamp-building" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="A.R.C. main building"/>
@@ -581,10 +622,10 @@
     <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left: 13%; top: 42%;" alt="Horse chestnut"/>
 
     <!-- Viewing domes along the central path between the small-mammal
-         pens (path is now top:24%-46% of canvas, narrower). -->
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 28%;" alt="Viewing dome"/>
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 35%;" alt="Viewing dome"/>
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 42%;" alt="Viewing dome"/>
+         pens (path now spans top:22%-36% of canvas, height 14%). -->
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 26%;" alt="Viewing dome"/>
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 30%;" alt="Viewing dome"/>
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 34%;" alt="Viewing dome"/>
 
     <!-- Long-bay deep extension — placed AFTER the building stamp
          so the painted-canopy tarmac visibly extends UPWARD past
