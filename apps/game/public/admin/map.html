@@ -146,21 +146,41 @@
        lawn/quiet gardens (lower-middle)
        building (bottom, south)
        parking (bottommost, south of building) */
+  /* Undeveloped zones use a SEASONAL painted texture (set via the
+     CSS variable --undeveloped-tile, which JS swaps based on the
+     current in-game season — spring/summer/autumn/winter). The
+     dashed outline communicates "this is reserved for future
+     development". When the player unlocks a tier (T2 hedgehog,
+     T3 raccoon, T6 fox, etc), the zone swaps to its developed
+     style + adds the painted enclosure / habitat stamp. */
+  #arc-stage .region-undeveloped {
+    background-image: var(--undeveloped-tile);
+    background-size: cover;
+    background-position: center;
+    border: 1.5px dashed rgba(123,92,58,0.55);
+    border-radius: 4px;
+    position: relative;
+  }
+  #arc-stage .region-undeveloped::after {
+    content: attr(data-future);
+    position: absolute;
+    bottom: 4px; right: 6px;
+    font-family: 'Kalam', cursive;
+    font-size: 9px;
+    color: rgba(58,58,58,0.55);
+    background: rgba(255,249,239,0.7);
+    padding: 1px 6px;
+    border-radius: 8px;
+    pointer-events: none;
+  }
   #arc-stage .region-fox-skunk {
     left: 6%; top: 1.5%; width: 88%; height: 17%;
-    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-scrub.png');
-    border: 1.5px dashed #5a7a4a;
-    border-radius: 4px;
   }
   #arc-stage .region-hedgehog {
     left: 6%; top: 22%; width: 41%; height: 28%;
-    border: 1.5px dashed rgba(123,92,58,0.5);
-    border-radius: 4px;
   }
   #arc-stage .region-raccoon {
     right: 6%; top: 22%; width: 41%; height: 28%;
-    border: 1.5px dashed rgba(123,92,58,0.5);
-    border-radius: 4px;
   }
   #arc-stage .region-path {
     left: 47%; top: 22%; width: 6%; height: 28%;
@@ -254,6 +274,36 @@
     z-index: 10;
   }
   .back-button svg { width: 16px; height: 16px; }
+
+  /* Season selector — admin design preview. In the live in-game view,
+     the season is set automatically from store.calendar.currentSeason
+     and these buttons are hidden (driven by ?embed=1 + a host-message). */
+  #arc-stage .season-strip {
+    position: absolute;
+    top: 14px; right: 14px;
+    display: flex; gap: 4px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.85);
+    border: 2px solid var(--honey-shadow);
+    border-radius: 18px;
+    padding: 3px;
+    font-family: 'Quicksand', sans-serif;
+    font-size: 11px;
+  }
+  #arc-stage .season-strip button {
+    background: transparent;
+    border: 0;
+    border-radius: 14px;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  #arc-stage .season-strip button.active {
+    background: var(--honey-amber);
+    color: var(--ink);
+  }
+  html.iframed #arc-stage .season-strip { display: none; }
 </style>
 </head>
 <body>
@@ -279,22 +329,28 @@
     Back to map
   </button>
   <div class="arc-title">A.R.C. — Animal Rescue Centre</div>
+  <div class="season-strip" id="season-strip">
+    <button data-season="spring">🌱 Spring</button>
+    <button data-season="summer">☀️ Summer</button>
+    <button data-season="autumn">🍂 Autumn</button>
+    <button data-season="winter">❄️ Winter</button>
+  </div>
 
   <div class="arc-frame">
     <div class="arc-region region-parking"></div>
     <div class="arc-region region-lawn"></div>
     <div class="arc-region region-quiet"></div>
     <div class="arc-region region-path"></div>
-    <div class="arc-region region-hedgehog"></div>
-    <div class="arc-region region-raccoon"></div>
-    <div class="arc-region region-fox-skunk"></div>
+    <div class="arc-region region-undeveloped region-hedgehog" data-future="future: T2 hedgehog/squirrel"></div>
+    <div class="arc-region region-undeveloped region-raccoon" data-future="future: T3 raccoon"></div>
+    <div class="arc-region region-undeveloped region-fox-skunk" data-future="future: T6 fox + skunk"></div>
 
     <!-- Region labels — positions match the FLIPPED orientation
          (fox/skunk at top, gardens lower-middle, building at bottom). -->
     <div class="region-label tier-future" style="left: 27%; top: 10%;">Fox (T6)</div>
     <div class="region-label tier-future" style="left: 73%; top: 10%;">Skunk (future)</div>
-    <div class="region-label tier-future" style="left: 27%; top: 36%;">Hedgehog + Squirrel (T2)</div>
-    <div class="region-label tier-future" style="left: 73%; top: 36%;">Raccoon (T3)</div>
+    <div class="region-label tier-future" style="left: 27%; top: 28%;">Hedgehog + Squirrel (T2)</div>
+    <div class="region-label tier-future" style="left: 73%; top: 28%;">Raccoon (T3)</div>
     <div class="region-label" style="left: 27%; top: 60%;">Lawn garden</div>
     <div class="region-label" style="left: 73%; top: 60%;">Quiet garden</div>
 
@@ -327,6 +383,77 @@
   document.querySelectorAll('[data-back]').forEach(b =>
     b.addEventListener('click', () => showStage(b.dataset.back))
   );
+
+  // ── Seasonal undeveloped-tile renderer ───────────────────────────────
+  // Picks the right painted texture for the future-development zones
+  // based on the current in-game season. Sources:
+  //   - Live game: parent posts {type:'season', payload:{season}} on init
+  //   - URL param: ?season=summer for design preview
+  //   - Default:   inferred from real-world calendar month (UK)
+  // Designers can also click the season-strip buttons to preview each.
+
+  const SEASON_TEXTURES = {
+    spring: 'scene-assets/reference/undeveloped-tiles-2026-05-03/texture-undeveloped-spring.png',
+    summer: 'scene-assets/reference/undeveloped-tiles-2026-05-03/texture-undeveloped-summer.png',
+    autumn: 'scene-assets/reference/undeveloped-tiles-2026-05-03/texture-undeveloped-autumn.png',
+    winter: 'scene-assets/reference/undeveloped-tiles-2026-05-03/texture-undeveloped-winter.png',
+  };
+
+  function inferSeasonFromRealMonth() {
+    // Northern-hemisphere meteorological seasons (UK convention)
+    const m = new Date().getMonth() + 1; // 1..12
+    if (m >= 3 && m <= 5)  return 'spring';
+    if (m >= 6 && m <= 8)  return 'summer';
+    if (m >= 9 && m <= 11) return 'autumn';
+    return 'winter';
+  }
+
+  // Map the in-game Season enum (from packages/game-logic/src/calendar.ts)
+  // to our 4 simple season keys. The in-game ones have the same names
+  // with a flavour-suffix; this normaliser strips the suffix.
+  function normaliseSeason(s) {
+    if (typeof s !== 'string') return null;
+    const lower = s.toLowerCase();
+    if (lower.startsWith('spring')) return 'spring';
+    if (lower.startsWith('summer')) return 'summer';
+    if (lower.startsWith('autumn') || lower.startsWith('fall')) return 'autumn';
+    if (lower.startsWith('winter')) return 'winter';
+    return null;
+  }
+
+  function applySeason(season) {
+    if (!SEASON_TEXTURES[season]) return;
+    document.documentElement.style.setProperty(
+      '--undeveloped-tile',
+      `url('${SEASON_TEXTURES[season]}')`,
+    );
+    // Update season-strip active state
+    document.querySelectorAll('.season-strip button').forEach((b) => {
+      b.classList.toggle('active', b.dataset.season === season);
+    });
+  }
+
+  // Initial season: URL param > inferred from real-world month
+  const params = new URLSearchParams(location.search);
+  const initialSeason = normaliseSeason(params.get('season')) || inferSeasonFromRealMonth();
+  applySeason(initialSeason);
+
+  // Wire season-strip buttons (admin design preview)
+  document.querySelectorAll('.season-strip button').forEach((btn) => {
+    btn.addEventListener('click', () => applySeason(btn.dataset.season));
+  });
+
+  // Live-game integration: when iframed by InGameOverlay, the host
+  // posts {source:'arc-game-host', type:'season', payload:{season}}
+  // to update the rendered season as the in-game calendar ticks.
+  window.addEventListener('message', (e) => {
+    const m = e.data;
+    if (!m || m.source !== 'arc-game-host') return;
+    if (m.type === 'season' && m.payload) {
+      const s = normaliseSeason(m.payload.season);
+      if (s) applySeason(s);
+    }
+  });
 
   // World-view: position pins relative to OSM SVG canvas
   const SVG_VIEW_W = 2400;
