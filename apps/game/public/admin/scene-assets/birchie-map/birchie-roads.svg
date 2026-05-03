@@ -2063,4 +2063,27 @@
 <g id="wash-bandits" transform="translate(500,673)"><ellipse cx="0" cy="18" rx="11" ry="3" fill="#3a3a3a" stroke="#1a1612" stroke-width="0.6"/><path d="M-5,-3 L-5,15 L5,15 L5,-3 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.8"/><rect x="-2.5" y="-1" width="5" height="14" fill="#d63838"/><path d="M-6,-8 L-6,-3 L6,-3 L6,-8 Z" fill="#f0c870" stroke="#9a7c30" stroke-width="0.6"/><path d="M5,-5 Q 9,-9 11,-15" fill="none" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><path d="M-5,-5 L-7,3" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><circle cx="0" cy="-12" r="5" fill="#f5d4a8" stroke="#7b5c3a" stroke-width="0.8"/><path d="M-5,-13 A5,5 0 0,1 5,-13 L5,-15 L-5,-15 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.6"/><rect x="-5" y="-13" width="10" height="1" fill="#1f4d8a"/><path d="M-1.5,-10.5 Q 0,-9.5 1.5,-10.5" fill="none" stroke="#3a3a3a" stroke-width="0.6" stroke-linecap="round"/><circle cx="-1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><circle cx="1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><text x="0" y="32" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Car Wash</text></g>
 <polygon id="arc-plot" data-name="A.R.C. site" points="340.4,388.7 328.2,397.2 303.4,359.6 315.3,351.7 325.1,366.0 332.6,377.1 340.4,388.7" fill="#e3b04b" fill-opacity="0.55" stroke="#7b5c3a" stroke-width="3" stroke-dasharray="6 4"/>
 <text x="326" y="376" font-family="Fredoka, sans-serif" font-size="22" font-weight="700" fill="#3a3a3a" text-anchor="middle" paint-order="stroke" stroke="#fef9ef" stroke-width="3">A.R.C.</text>
+
+<!-- Animated decorations 2026-05-03 (Marcus): emoji placeholders
+     for cargo ships drifting east-to-west across the Thames
+     Estuary at the top, tractors trundling across the southern
+     farmland. Painted PNG replacements commissioned from Manus
+     in parallel; CSS animation classes will keep working when
+     the emoji <text> elements get swapped for <image> tags. -->
+<style>
+  .ship-anim      { animation: drift-east-to-west 260s linear infinite; }
+  .ship-anim-2    { animation: drift-east-to-west 340s linear infinite; animation-delay: -90s; }
+  .tractor-anim   { animation: drift-east-to-west 180s linear infinite; animation-delay: -45s; }
+  .tractor-anim-2 { animation: drift-west-to-east 220s linear infinite; }
+  @keyframes drift-east-to-west { from { transform: translateX(1900px); } to { transform: translateX(-200px); } }
+  @keyframes drift-west-to-east { from { transform: translateX(-200px); } to { transform: translateX(1900px); } }
+</style>
+
+<!-- Ships in the Thames Estuary (sea band, y ~70-150) -->
+<text class="ship-anim"   x="0" y="80"  font-size="42" text-anchor="middle">🚢</text>
+<text class="ship-anim-2" x="0" y="130" font-size="36" text-anchor="middle">🛳️</text>
+
+<!-- Tractors on the southern farmland (y ~880-960) -->
+<text class="tractor-anim"   x="0" y="880" font-size="38" text-anchor="middle">🚜</text>
+<text class="tractor-anim-2" x="0" y="950" font-size="34" text-anchor="middle">🚜</text>
 </svg>
