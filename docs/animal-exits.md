@@ -32,20 +32,23 @@ their `playerFavourites` list and stops counting against shelter
 capacity. Capped at a small number of pets per kid (suggested: 3) so
 the kid can't simply hoard every animal as a pet and never adopt.
 
-### 4. Permanent vet care **(NEW — to be built)**
+### 4. Pet Retirement Home **(NEW — to be built)**
 
 Some animals can't be adopted, rewilded, or kept. Old animals.
 Chronically sick animals. Animals whose temperament makes any
 home placement impossible. For these animals, the kindest option is
-**permanent care at the vet's** — they get a dedicated, calm space
-with full medical attention for the rest of their lives.
+the **Pet Retirement Home** — a warm, caring building staffed by
+vets and nurses, with special diets, gentle music, soft beds and
+massages. Not clinical. Not a hospice. A place where well-loved
+old animals go to be properly looked after for the rest of their
+lives.
 
 #### Why this matters
 
 Without a fourth exit, every animal MUST end up adopted / rewilded /
 kept. That breaks the realism for older + sicker animals and quietly
-rewards the kid for ignoring difficult cases. With permanent vet care
-as an option:
+rewards the kid for ignoring difficult cases. With the Pet Retirement
+Home as an option:
 
 - The kid learns that "happy ending" can mean different things for
   different animals
@@ -57,7 +60,7 @@ as an option:
 
 #### Trigger conditions
 
-Permanent vet care is OFFERED (not forced) when:
+The Pet Retirement Home is OFFERED (not forced) when:
 
 - Animal age ≥ "elderly" (species-dependent — e.g. dog ≥ 12 yrs, cat
   ≥ 14 yrs)
@@ -69,41 +72,45 @@ Permanent vet care is OFFERED (not forced) when:
 When all three are met, the next time the kid visits the vet for that
 animal, an additional option appears alongside "treat" and "discharge":
 
-> **"Stay here for full-time care"** — explanation: "{Name} is older
-> and needs more help than we can give at home. The vets have a quiet
-> sunlit room and people who'll look after them every day. They'll be
-> safe and loved here."
+> **"Move to the Pet Retirement Home"** — explanation: "{Name} has
+> earned a quieter life. At the Pet Retirement Home there are vets
+> and nurses, soft beds, special meals, gentle music and someone to
+> stroke them every day. They'll be looked after properly, for as
+> long as they need."
 
 The kid taps it. Animation: gentle painted scene of the animal being
-settled into a soft vet bed, sun on the window. No text about death.
-Quiet music. Then back to the corridor, with the animal removed from
-the shelter and added to a new `permanentVetCare` count.
+settled into a sunlit room with a soft cushion, a bowl of nice food,
+and a nurse stroking them. Quiet music. No text about death. Then
+back to the corridor, with the animal removed from the shelter and
+added to a new `petRetirementHome` count.
 
 #### Mechanical effects
 
 - Animal removed from `store.animals` (no longer in shelter or
   arrival queue)
-- Counts toward a new `permanentVetCare` total (separate from
+- Counts toward a new `petRetirementHome` total (separate from
   `rehomed` and `rewilded`)
 - Counts as a successful rescue (still adds to `totalRescued` — the
-  rescue itself was successful even if the outcome was permanent care)
-- Generates a small painted "memorial" entry on the kid's wall: a
-  small painted polaroid of the animal with the vet building
-  silhouetted behind, dated, and a kind sentence like "{Name} found
-  a home with the vets."
+  rescue itself was successful even if the outcome was retirement)
+- Generates a small painted "retirement polaroid" on the kid's wall:
+  the animal curled on a soft cushion with the Pet Retirement Home
+  silhouetted behind, dated, with a kind sentence like "{Name}
+  retired in comfort."
 - Triggers a charm unlock condition: "Compassionate Carer" charm —
-  unlocks at first permanent-vet-care decision
+  unlocks at first Pet Retirement Home decision
 
 #### What this is NOT
 
-- NOT euthanasia. The animal is alive, looked after, in a sunlit
-  room.
+- NOT euthanasia. The animal is alive, comfortable, well-fed, looked
+  after every day.
+- NOT clinical or grim. It's a warm caring building, not a hospice.
 - NOT a punishment. The kid is making the kind choice for an animal
   who needs more than home care can offer.
 - NOT a way to dump animals. Trigger conditions ensure it only
   applies to animals genuinely past the realistic placement threshold.
 - NOT permanent UI clutter. The animal is gone from the shelter; the
-  memorial sits on the photo wall like other rehoming polaroids.
+  retirement polaroid sits on the photo wall like other rehoming
+  polaroids.
 
 ## Implementation backlog
 
@@ -113,14 +120,15 @@ needs:
 - [ ] `Animal.chronicIllness?: boolean` field (or similar) on the
       Animal type
 - [ ] Age threshold per species (`isElderly(species, ageDays)` helper)
-- [ ] Vet popup — new "Stay here for full-time care" option (gated by
-      the three conditions above)
-- [ ] `store.permanentVetCare: PermanentCareEntry[]` array
-- [ ] Painted scene for the "settled into the vet's room" moment (one
-      Manus task — small painted scene + a memorial polaroid template)
+- [ ] Vet popup — new "Move to the Pet Retirement Home" option
+      (gated by the three conditions above)
+- [ ] `store.petRetirementHome: PetRetirementEntry[]` array
+- [ ] Painted scene for the "settled into a soft cushion" moment
+      (one Manus task — small painted scene + a retirement polaroid
+      template)
 - [ ] Charm unlock condition + sprite: Compassionate Carer
 - [ ] Photo wall surface — extend the existing photo-to-wall
-      arrival-flow rendering to also include vet-care memorials
+      arrival-flow rendering to also include retirement polaroids
 
 ## Open questions
 
@@ -131,9 +139,9 @@ needs:
    "Stay here for full-time care" option HIDE in favour of "make
    them your pet"? Suggested: bond ≥ 0.9 hides the vet option
    (kid is clearly attached, let them keep).
-3. **Charity grant tie-in** — does permanent vet care qualify for
-   the Wildlife Trust or a new charity (e.g. "Senior Animal Care
-   Foundation" — donates £50/month if `permanentVetCare.length >= 3`)?
+3. **Charity grant tie-in** — does the Pet Retirement Home qualify
+   for the Wildlife Trust or a new charity (e.g. "Senior Animal Care
+   Foundation" — donates £50/month if `petRetirementHome.length >= 3`)?
 4. **Should the vet itself have a level gate for offering this
    option?** Suggested: L4+ (kid has had time to bond with multiple
    animals + understand the full range of outcomes before being

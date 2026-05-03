@@ -418,19 +418,137 @@ to one-shot):
 >
 > ~250 lines + ~150 lines tests. Half a day.
 
-## Open decisions Marcus needs to make before starting
+## Decisions LOCKED 2026-05-03 (Marcus)
 
-1. **L1 curtailed-roster confirmation** — agent suggested Babcia, Pri,
-   Hiro, Nova, Anjali+Sam. Cross-check against `docs/rehoming-cast.md`
-   to confirm these are the right 5 starter households.
-2. **Pet cap value at L1-L9** — agent recommended 3. Sound right or
-   too tight?
-3. **Sister A.R.C. names** — 3 painted "other rescue centres" for
-   the on-loan pet system. Suggested: "Beachside Animal Sanctuary",
-   "Reculver Wildlife Trust", "Margate Pet Refuge". Other names?
-4. **Institutional household names** — Sunnybrook Sanctuary, Oak
-   Lodge Senior Care, Mrs Popescu's Year 3 Class. Approve?
-5. **Vet-care painted scene** — commission Manus or composite from
-   existing vet assets?
-6. **Household refresh cooldown duration** — agent suggested 14-30
-   days. Pick a value (suggest: 21 in-game days = 3 in-game months).
+### 1. L1 curtailed roster — CONFIRMED ✅
+
+5 hand-picked safe starter households (per `docs/rehoming-cast.md`):
+
+| ID | Household | Their starter slot |
+|---|---|---|
+| `01-pri-kaur` | **Priya "Pri" Kaur** | calm cat for a single adult |
+| `03-nova-adebayo` | **Nova Adebayo** | playful dog for an active home |
+| `04-babcia-kowalska` | **Babcia Basia Kowalska** | gentle senior cat for a quiet home |
+| `06-hiro-nakamura` | **Hiroshi "Hiro" Nakamura** | first dog for a careful adult |
+| `07-anjali-sam-patel-green` | **Anjali & Sam Patel-Green** | senior cat for a peaceful retirement home |
+
+### 2. Pet cap — RADICALLY REFRAMED
+
+**Per-species cap of 2** (not a single global cap). With 7 species
+unlocked at L4+, that's **up to 14 pets total**. Lily's whole hope
+is to have LOADS of pets — this respects that AND the agent's
+sustainability concern, because:
+
+- 14 pets fills the entire shelter cap (which tops out at 30 by
+  L16+). Kid sees the centre fill up with their own pets and the
+  rescue side stops working.
+- Solution: kid is INCENTIVISED to **loan out trained pets** to
+  sister A.R.C.s, where they help train other A.R.C.s' incoming
+  animals.
+- **On-loan pets earn INCOME** for the player's A.R.C. — supplies,
+  coins, occasional gift-pack postcards from the sister centre.
+- Loan duration scales with pet's training/experience — high-bond
+  pets earn more per loan.
+- Higher-level friend players' A.R.C.s are PRIMO loan destinations:
+  pet trains FASTER there, comes back with MORE skills.
+
+Implements:
+- `getMaxPetsPerSpecies(level)` returns 2 (could grow to 3 at very
+  high levels).
+- `tryAddFavourite()` checks per-species count, suggests on-loan
+  if at cap.
+- `sendOnLoan(petId, sisterArcId, store)` mutates state, schedules
+  income drips.
+- `recallFromLoan(petId, store)` brings them home.
+
+### 3. Sister A.R.C. names — FRIENDS + 3 HARDCODED
+
+Sister A.R.C.s come in two flavours:
+
+**a) Real friend-player A.R.C.s.** When a friend has a higher level
+than you, your loaned-pet trains faster there. This ties the
+existing friends system into the pet-loan economy — gives a real
+gameplay reason to make friends. Friend's pet visit shows their
+painted A.R.C. with the kid's pet sprite added to a garden
+scene + a postcard arriving back periodically.
+
+**b) Three hardcoded "always available" sister A.R.C.s** for kids
+without enough friends to host their pets. Suggested names (Kent
+coastal feel, named for real local landmarks):
+
+- **Reculver Wildlife Sanctuary** (real Reculver Towers, just east
+  of Birchie — flagship destination for Margate-area animal lovers)
+- **Pegwell Bay Animal Trust** (real Pegwell Bay nature reserve, slightly
+  further east — coastal habitat focus)
+- **Stourmouth Rescue Centre** (real Stourmouth village inland —
+  rural-rescue focus, takes country dogs and rehab animals)
+
+Each has a small painted facade we'll commission later (~150 credits
+each for 3 painted scenes, deferred to Phase 5+).
+
+### 4. Institutional household names — USE EXISTING CAST
+
+All 3 institutional households already exist in `docs/rehoming-cast.md`
+— no new inventions needed. They become the "always-open safety
+valve" households:
+
+- **#26 Sunnybrook Children's Home** (Ms. Aisha Hassan, Somali-British
+  care-worker, 6 children aged 7-15) — accepts calm medium dogs
+- **#27 Oak Lodge Care Home** (Nurse Tomás Rivera, 12 elderly
+  residents) — accepts therapy cats / small dogs
+- **#28 Ms Popescu's Year 3 Class** (Iris Popescu, 26 seven-year-
+  olds at Birchcroft Primary) — accepts a calm corn snake or parrot
+  as the class pet
+
+No new commissions needed; their cast portraits already exist.
+
+### 5. Vet permanent care — REFRAMED as "Pet Retirement Home"
+
+Original concept ("permanent vet care") read too clinical even with
+the kind framing. **Renamed to "The Pet Retirement Home"** — a warm,
+caring place specifically for older or chronically-ill animals who've
+earned a quiet ending.
+
+Design:
+- Vets and nurses on staff (so the medical care is real)
+- Special easy-to-digest food
+- Daily massages
+- Gentle music playing
+- Sun-warmed beds, soft blankets, comfortable cushions
+- Visiting volunteers who read aloud to the residents
+- Painted scene shows a sleeping cat in a sunbeam + a kind nurse
+  with a tea mug + soft lighting
+
+The exit-trigger conditions stay the same (elderly + chronically
+ill + low bond), but the COPY is different:
+
+> **"Take them to the Pet Retirement Home"** — "{Name} is older
+> now and could really use the special care at the Pet Retirement
+> Home. They have soft beds, gentle music, and people who'll look
+> after them every day. They'll be happy and safe."
+
+`docs/animal-exits.md` updated to use this naming throughout.
+
+### 6. Household refresh cooldown — 21 IN-GAME DAYS + APPRENTICE LOOP
+
+21-day base cooldown (3 in-game months). When households try to
+**break the cooldown** because they want another pet too soon, this
+triggers a new mechanic:
+
+- **The apprentice households (#13 Amara, #14 Kofi, #30 Rhubarb)
+  are the ones who try to break it.** They're so eager for more
+  pets that their home would be overrun if they kept adopting.
+- Instead of letting them adopt past the cooldown, the GAME shows:
+  "Rhubarb really wants another animal — but their home would get
+  too crowded! Maybe Rhubarb could come help YOU look after some
+  instead?" → triggers apprentice arrival at A.R.C.
+- This is **why apprentices come to A.R.C.** — they get their "pet
+  fix" without their home being overrun, AND it teaches the kid
+  the responsibility lesson: **animals need real care, not just
+  someone wanting them.**
+- Replaces the previous "minLevel" gate semantics — apprentice
+  unlock now happens when their family hits the cooldown for the
+  N-th time (where N varies per apprentice). Per-apprentice
+  minLevel stays as a fallback.
+
+### 7. (Marcus left blank — no decision needed)
