@@ -167,7 +167,11 @@
     background-position: center;
     border: 1.5px dashed rgba(123,92,58,0.55);
     border-radius: 4px;
-    position: relative;
+    /* NB: do NOT set position:relative here — it would override the
+       position:absolute inherited from .arc-region, dropping the
+       region back into document flow and stacking all undeveloped
+       patches in a column. The ::after badge below positions
+       correctly against absolute parents too. */
   }
   #arc-stage .region-undeveloped::after {
     content: attr(data-future);
