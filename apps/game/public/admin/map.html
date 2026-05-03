@@ -206,18 +206,25 @@
     border: 1.5px solid #5a7a4a;
     border-radius: 4px;
   }
-  /* ── Parking + depot apron + side driveway ──────────────────────
-     Layout (Marcus 2026-05-03):
-       - Front parking strip = visitor (left of door) + depot front row
-         (right of door). Bay markings = thick painted line dividers
-         only, NOT full rectangles.
-       - Walkway sits dead-centre under the building's front door (50%).
-       - Depot apron extends UP the right side of the building as an
-         L-shape; 2 back-row bays (Bea + Big Tilly) live there.
-       - Side driveway curves in from the EAST edge so long vehicles
-         enter the depot without crossing visitor parking.
+  /* ── Parking + depot ──────────────────────────────────────────
+     Layout (Marcus 2026-05-03, revision):
+       - All vehicles enter from the FRONT (south).
+       - Front strip = full-width: visitor (left of walkway) +
+         standard-depth depot bays (right of walkway).
+       - 2 LONG-vehicle bays (Bea + Big Tilly) at the right end have
+         a deep extension that pushes UP into the building forecourt
+         so the cab can pull alongside the building's right wall.
+       - Bay markings = thick painted line dividers only, NOT full
+         rectangles.
 
-     All tarmac surfaces share the same painted-asphalt fill. */
+     Geometry:
+       Stage spans 0–100% horizontally. Building stamp left:18%
+       width:64% → spans 18–82%. Door at 50% (stage). Front strip
+       sits at top:87% height:11% → y 87–98%. Deep extension at
+       top:70% covers the right two bays vertically up to ~y 70%
+       (overlaps with the building stamp area; building stamp comes
+       later in DOM so it overpaints).
+  */
 
   #arc-stage .region-parking {
     left: 6%; top: 87%; width: 88%; height: 11%;
@@ -225,33 +232,48 @@
       linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.10)),
       #3b3a37;
     border: 1.5px solid rgba(35,32,28,0.6);
-    overflow: visible;     /* allow apron + driveway to overflow upward + east */
+    overflow: visible;     /* allow long-bay dividers to extend upward */
   }
 
-  /* Bay dividers — thick brushed-on lines BETWEEN bays only.
-     Each divider is a tall narrow rectangle. Positions are in
-     percent of the parking strip's inner width.
-     Strip spans stage-x 6%–94% (88% wide). Building spans 18%–82%
-     (= parking-strip-relative 13.6%–86.4%). Door at stage 50% =
-     parking-strip-relative 50%. Walkway = central 12% of strip
-     under the door (stage 44%–56% → strip 43.2%–56.8%). */
+  /* The deep extension under the 2 long bays. Same tarmac fill
+     as the front strip; sits above the strip so they read as one
+     continuous L-shape. The extension's bottom edge meets the
+     strip's top edge cleanly because both have a 1.5px border —
+     we suppress the bottom border on the extension to avoid a
+     double line at the join. */
+  #arc-stage .region-parking-deep {
+    position: absolute;
+    /* Stage 68.5%–82% wide, y 70%–87% (height 17%). Right edge
+       lines up with the building's right wall (stage 82%). */
+    left: 68.5%; top: 70%; width: 13.5%; height: 17%;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.10)),
+      #3b3a37;
+    border: 1.5px solid rgba(35,32,28,0.6);
+    border-bottom: 0;            /* meet front strip cleanly */
+    border-radius: 4px 4px 0 0;  /* round only the top corners */
+    overflow: visible;
+  }
+
+  /* ── Standard bay dividers (front strip) ────────────────────
+     Thick brushed-on lines BETWEEN bays only. Positions are in
+     % of the parking strip's inner width (88% of stage). */
   #arc-stage .region-parking .bay-divider {
     position: absolute;
     top: 8%; height: 84%;
-    width: 0;            /* render as a chunky border instead of a fill */
+    width: 0;
     border-left: 4px solid var(--bay-line);
     border-radius: 3px;
     box-shadow: 0 0 5px rgba(0,0,0,0.22);
   }
 
-  /* Visitor side — 3 bays from strip 13.6% to 43.2%
-     (4 dividers ⇒ 3 bays of 9.85% each). */
+  /* Visitor side — 3 bays from strip 13.6%–43.2% (each 9.87%). */
   .bay-divider.vis-1 { left: 13.6%; }
   .bay-divider.vis-2 { left: 23.5%; }
   .bay-divider.vis-3 { left: 33.3%; }
   .bay-divider.vis-4 { left: 43.2%; }
 
-  /* Walkway — strip 43.2% to 56.8% under the door. Faint zebra
+  /* Walkway — strip 43.2%–56.8% under the door. Faint zebra
      pedestrian markings, masked to a centre band. */
   #arc-stage .region-parking .walkway {
     position: absolute;
@@ -271,20 +293,37 @@
       #000 22%, #000 78%, transparent 88%, transparent 100%);
   }
 
-  /* Depot front row — strip 56.8% to 86.4% (29.6% wide).
-     3 vehicles totalling 2.5 units (Trikey 0.5×, Henry 1×, Spark 1×)
-     ⇒ 1 unit = 11.84% strip-relative. Dividers at:
-        56.8%  (strip→walkway boundary, doubles as 1st depot divider)
-        62.7%  (Trikey/Henry — Trikey is half-width so this comes after 5.92%)
-        74.6%  (Henry/Spark)
-        86.4%  (Spark/strip end) */
-  .bay-divider.dep-1 { left: 56.8%; }
-  .bay-divider.dep-2 { left: 62.7%; }
-  .bay-divider.dep-3 { left: 74.6%; }
-  .bay-divider.dep-4 { left: 86.4%; }
+  /* ── Depot bays (right of walkway) ──────────────────────────
+     5 vehicles fit between strip 56.8% and 86.4% (29.6% wide):
+       Trikey  0.5 unit  → 2.85%
+       Henry   1   unit  → 5.69%
+       Spark   1   unit  → 5.69%
+       Bea     1.2 unit  → 6.83%   (DEEP — back wall pushed up)
+       BigTilly 1.5 unit → 8.54%   (DEEP — back wall pushed up)
+     Total ~5.2 units; 1 unit ≈ 5.69% strip-relative.
+     Divider positions (strip-relative): */
+  .bay-divider.dep-1 { left: 56.8%; }   /* walkway/Trikey   */
+  .bay-divider.dep-2 { left: 59.65%; }  /* Trikey/Henry     */
+  .bay-divider.dep-3 { left: 65.34%; }  /* Henry/Spark      */
+  /* Beyond this point the bays are LONG — their dividers extend
+     up out of the front strip into the deep extension. */
+  .bay-divider.dep-4 { left: 71.03%; }  /* Spark/Bea (LONG) */
+  .bay-divider.dep-5 { left: 77.86%; }  /* Bea/BigTilly (LONG) */
+  .bay-divider.dep-6 { left: 86.4%; }   /* BigTilly/wall (LONG) */
 
-  /* Tiny painted glyphs in front-row depot bays so the role reads
-     even before the kid unlocks the vehicle. */
+  /* Long-bay dividers extend UPWARD past the front strip into
+     the deep extension. Standard divider spans strip-local 8%–92%
+     (= y 87.9%–97.1% of stage). Long dividers must reach up to
+     the deep extension's top (stage y = 70%) which is strip-local
+     (70−87)/11 × 100 = −154.5%. Height = 92 − (−154.5) = 246.5%. */
+  .bay-divider.long {
+    top: -154.5%;
+    height: 246.5%;
+  }
+
+  /* Tiny painted glyphs in each depot bay so the role reads even
+     before the kid unlocks the vehicle. Standard bays sit mid-
+     strip; LONG bays' glyphs sit higher in the deep extension. */
   #arc-stage .region-parking .bay-glyph {
     position: absolute;
     top: 50%; transform: translate(-50%, -50%);
@@ -292,90 +331,38 @@
     font-size: 9px;
     color: var(--bay-line);
     text-align: center;
-    line-height: 1;
+    line-height: 1.05;
     text-shadow: 0 0 4px rgba(0,0,0,0.55);
     pointer-events: none;
     white-space: nowrap;
   }
-  .bay-glyph.gly-trikey { left: 59.75%; }   /* mid of Trikey bay */
-  .bay-glyph.gly-henry  { left: 68.65%; }
-  .bay-glyph.gly-spark  { left: 80.5%; }
+  .bay-glyph.gly-trikey { left: 58.22%; }   /* mid Trikey */
+  .bay-glyph.gly-henry  { left: 62.50%; }   /* mid Henry  */
+  .bay-glyph.gly-spark  { left: 68.18%; }   /* mid Spark  */
 
-  /* ── Depot back-row apron — L-shape extending UP the right side
-        of the building. Sits behind / east-of the front strip and
-        joins the side driveway on its east edge. ─────────────────── */
-  #arc-stage .region-depot-apron {
+  /* Long-bay glyphs live in the deep extension, anchored to its
+     top half so the cab area reads as occupied. Positions in the
+     deep extension's local coord system. */
+  #arc-stage .region-parking-deep .deep-glyph {
     position: absolute;
-    /* Right of building (building right edge = stage 82%). Park apron
-       runs from stage 76% to 94% wide, vertical 70% to 87%. The 76%
-       overlap with the building wall is intentional — the building
-       stamp sits ON TOP of this layer (lower z-index here), so the
-       apron only shows where the building doesn't. */
-    left: 76%; top: 70%; width: 18%; height: 17%;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.10)),
-      #3b3a37;
-    border: 1.5px solid rgba(35,32,28,0.6);
-    border-radius: 4px 4px 0 0;
-    /* No explicit z-index — relies on DOM order. Apron sits BEFORE
-       stamps in markup so the building stamp will always overpaint it. */
-    overflow: visible;
-  }
-  /* Back-row bay dividers — 2 long bays (Bea + Big Tilly) parked
-     parallel to the side driveway. Painted as horizontal divider
-     lines splitting the apron into 2 stacked rectangles. */
-  #arc-stage .region-depot-apron .apron-divider {
-    position: absolute;
-    left: 6%; right: 6%; height: 0;
-    border-top: 4px solid var(--bay-line);
-    border-radius: 3px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.22);
-  }
-  .apron-divider.bot { top: 50%; }       /* between Bea (top) and Big Tilly (bottom) */
-  /* Top + bottom edges of apron act as the outer dividers
-     (the apron's own border draws those — no extra elements needed). */
-
-  #arc-stage .region-depot-apron .apron-glyph {
-    position: absolute;
-    left: 50%; transform: translate(-50%, -50%);
+    top: 22%;
+    transform: translate(-50%, -50%);
     font-family: 'Kalam', cursive;
     font-size: 9px;
     color: var(--bay-line);
+    text-align: center;
+    line-height: 1.05;
     text-shadow: 0 0 4px rgba(0,0,0,0.55);
     pointer-events: none;
     white-space: nowrap;
   }
-  .apron-glyph.gly-bea       { top: 25%; }
-  .apron-glyph.gly-big-tilly { top: 75%; }
-
-  /* ── Side driveway — curved tarmac patch joining the east edge
-        of the stage to the depot apron. SVG path so the curve
-        reads as a real drive-in. ──────────────────────────────── */
-  #arc-stage .side-driveway {
-    position: absolute;
-    /* Spans from east edge (right: 0%) inward to the apron's east edge
-       (stage x = 94%). Vertical span chosen so the curve is gentle
-       enough for a lorry to enter. */
-    right: 0; top: 75%; width: 14%; height: 12%;
-    pointer-events: none;
-    /* No explicit z-index — DOM order keeps stamps on top. */
-  }
-  #arc-stage .side-driveway svg { width: 100%; height: 100%; display: block; }
-  /* Small "ENTRY" label so the role reads at-a-glance. */
-  #arc-stage .driveway-label {
-    position: absolute;
-    right: 0.5%; top: 86.5%;
-    font-family: 'Kalam', cursive;
-    font-size: 9px;
-    color: rgba(58,58,58,0.85);
-    background: rgba(255,249,239,0.85);
-    padding: 1px 6px;
-    border-radius: 8px;
-    border: 1px solid rgba(123,92,58,0.4);
-    z-index: 4;
-    pointer-events: none;
-    white-space: nowrap;
-  }
+  /* Bea bay = stage 71.03%–77.86% → deep-extension-relative (the
+     extension spans stage 68.5%–82% = 13.5% wide):
+       Bea mid = (74.45% − 68.5%) ÷ 13.5% = 44%
+       BigTilly mid = (82.13% − 68.5%) ÷ 13.5% = 101% — clamp to 84%
+     Adjusted to keep both inside the extension. */
+  .deep-glyph.gly-bea       { left: 28%; }
+  .deep-glyph.gly-big-tilly { left: 71%; }
   #arc-stage .stamp {
     position: absolute;
     pointer-events: none;
@@ -508,6 +495,16 @@
   </div>
 
   <div class="arc-frame">
+    <!-- Deep extension for the 2 long bays. Sits ABOVE the front
+         strip in DOM order so the long-bay dividers (which extend
+         up out of the strip) get the same tarmac fill behind them.
+         The building stamp comes later in DOM and overpaints any
+         overlap with the building's south face. -->
+    <div class="arc-region region-parking-deep" aria-hidden="true">
+      <div class="deep-glyph gly-bea">Bea</div>
+      <div class="deep-glyph gly-big-tilly">Big Tilly</div>
+    </div>
+
     <div class="arc-region region-parking">
       <!-- Visitor side: 3 bays defined by 4 dividers -->
       <div class="bay-divider vis-1"></div>
@@ -516,44 +513,21 @@
       <div class="bay-divider vis-4"></div>
       <!-- Pedestrian walkway under the front door -->
       <div class="walkway" aria-hidden="true"></div>
-      <!-- Depot front row: Trikey (½), Henry, Spark+⚡ — 4 dividers -->
+      <!-- Depot bays — 5 vehicles, 6 dividers.
+           Standard depth: Trikey ½, Henry, Spark.
+           Deep (long): Bea, Big Tilly — dividers carry the .long
+           class so they extend up into the deep extension. -->
       <div class="bay-divider dep-1"></div>
       <div class="bay-divider dep-2"></div>
       <div class="bay-divider dep-3"></div>
-      <div class="bay-divider dep-4"></div>
-      <!-- Painted glyphs naming the depot bays -->
+      <div class="bay-divider dep-4 long"></div>
+      <div class="bay-divider dep-5 long"></div>
+      <div class="bay-divider dep-6 long"></div>
+      <!-- Painted glyphs naming the standard-depth depot bays -->
       <div class="bay-glyph gly-trikey">🚲<br>Trikey</div>
       <div class="bay-glyph gly-henry">Henry</div>
       <div class="bay-glyph gly-spark">⚡ Spark</div>
     </div>
-
-    <!-- Depot back-row apron (L-shape, right of building) -->
-    <div class="arc-region region-depot-apron">
-      <div class="apron-divider bot"></div>
-      <div class="apron-glyph gly-bea">Bea</div>
-      <div class="apron-glyph gly-big-tilly">Big Tilly</div>
-    </div>
-
-    <!-- Side driveway curving in from the east edge -->
-    <div class="side-driveway" aria-hidden="true">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-        <!-- Tarmac fill: gentle curve from east edge into the apron.
-             Path is a wedge: enters at the east (x=100), curves left
-             and down into the apron's east edge (x=0 at top). -->
-        <path d="M 100 0 L 100 100 Q 60 100 30 60 Q 10 30 0 10 L 0 0 Z"
-              fill="#3b3a37" stroke="rgba(35,32,28,0.6)" stroke-width="0.8"/>
-        <!-- Faint sheen overlay -->
-        <path d="M 100 0 L 100 100 Q 60 100 30 60 Q 10 30 0 10 L 0 0 Z"
-              fill="url(#drv-sheen)" />
-        <defs>
-          <linearGradient id="drv-sheen" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.04"/>
-            <stop offset="100%" stop-color="#000000" stop-opacity="0.10"/>
-          </linearGradient>
-        </defs>
-      </svg>
-    </div>
-    <div class="driveway-label">↘ depot entry</div>
     <div class="arc-region region-lawn"></div>
     <div class="arc-region region-quiet"></div>
     <div class="arc-region region-path"></div>
