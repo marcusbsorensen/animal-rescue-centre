@@ -230,24 +230,31 @@
     border-radius: 4px;
   }
   /* ── Parking + depot ──────────────────────────────────────────
-     Layout (Marcus 2026-05-03, revision):
+     Layout (Marcus 2026-05-03, third revision):
        - All vehicles enter from the FRONT (south).
-       - Front strip = full-width: visitor (left of walkway) +
-         standard-depth depot bays (right of walkway).
-       - 2 LONG-vehicle bays (Bea + Big Tilly) at the right end have
-         a deep extension that pushes UP into the building forecourt
-         so the cab can pull alongside the building's right wall.
-       - Bay markings = thick painted line dividers only, NOT full
-         rectangles.
+       - Front strip is full-width: stage 6%–94%.
+       - Big Tilly is FLUSH RIGHT against the strip's right edge.
+       - Bea sits immediately to its left.
+       - Bea + Big Tilly together fit EAST of the building's right
+         wall (stage 82%–94%) so the long-bay canopy doesn't
+         overlap the building at all.
+       - The other three depot bays (Trikey, Henry, Spark) fill
+         the area between the walkway and Bea (stage 55%–82%).
+       - Walkway is centred under the front door (stage 45%–55%).
+       - Visitor bays (3) fill the western half (stage 6%–45%).
+       - Bay markings = thick painted line dividers, NOT rectangles.
 
-     Geometry:
-       Stage spans 0–100% horizontally. Building stamp left:18%
-       width:64% → spans 18–82%. Door at 50% (stage). Front strip
-       sits at top:87% height:11% → y 87–98%. Deep extension at
-       top:70% covers the right two bays vertically up to ~y 70%
-       (overlaps with the building stamp area; building stamp comes
-       later in DOM so it overpaints).
-  */
+     Geometry breakdown (stage-X percentages):
+        6  – 19   visitor 1     (13%)
+       19  – 32   visitor 2     (13%)
+       32  – 45   visitor 3     (13%)
+       45  – 55   walkway       (10%, under door @ 50%)
+       55  – 60.4 Trikey ½      (5.4%)
+       60.4– 71.2 Henry         (10.8%)
+       71.2– 82   Spark         (10.8%)
+       82  – 87.33 Bea LONG     (5.33% — first bay east of building)
+       87.33–94   Big Tilly LONG (6.67% — flush against strip's right edge)
+     Strip-relative percentages = (stage − 6) ÷ 88 × 100. */
 
   #arc-stage .region-parking {
     left: 6%; top: 87%; width: 88%; height: 11%;
@@ -268,13 +275,12 @@
      border on the extension to avoid a double line at the join. */
   #arc-stage .region-parking-deep {
     position: absolute;
-    /* Stage 68.5%–82% wide, y 78%–87% (height 9%). Right edge
-       lines up with the building's right wall (stage 82%). A modest
-       awning that sticks up just enough above the strip to read as
-       "these bays are deeper than the others" without dominating
-       the building's south façade. The cab pulls in to y~78% which
-       still puts it alongside the lower part of the right wall. */
-    left: 68.5%; top: 78%; width: 13.5%; height: 9%;
+    /* Stage 82%–94% wide (entirely east of the building's right
+       wall — no overlap), y 78%–87% (height 9%). The cabs of Bea
+       + Big Tilly pull up to y~78%, level with the lower part of
+       the building's east wall. Modest awning that reads as a
+       depot-canopy attached to the building's south-east corner. */
+    left: 82%; top: 78%; width: 12%; height: 9%;
     background:
       linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.10)),
       #3b3a37;
@@ -287,12 +293,12 @@
        building" read. */
     box-shadow: 0 -2px 8px rgba(0,0,0,0.18);
   }
-  /* Three vertical dividers carving the deep extension into 2
-     bays. The deep extension is 13.5% of stage wide; bays are
-     6.83% (Bea) + 8.54% (Big Tilly) ÷ scaled to extension width:
-     Bea = 44% of extension, Big Tilly = 56%. Dividers at 0%,
-     44%, 100% — left + right edges already drawn by the
-     extension's own border, so we only need the middle one. */
+  /* Internal divider in the deep extension splitting Bea from
+     Big Tilly. Canopy is 12% of stage wide; Bea (1.2u) + BT
+     (1.5u) = 2.7u total, so the split sits at 1.2/2.7 = 44.4%
+     of the canopy's width. The canopy's left + right edges are
+     drawn by its own 1.5px border so we only need the middle
+     divider. */
   #arc-stage .region-parking-deep .deep-divider {
     position: absolute;
     top: 6%; height: 88%;
@@ -301,13 +307,7 @@
     border-radius: 3px;
     box-shadow: 0 0 5px rgba(0,0,0,0.22);
   }
-  /* Internal bays: only one needed (Bea/BigTilly split at 44%
-     of extension). The two outer dividers (0% + 100%) line up
-     with the front strip's dep-4 + dep-6 dividers underneath
-     so the L-corner reads cleanly. */
-  .deep-d1 { left: -1px; }      /* aligns with strip dep-4   */
-  .deep-d2 { left: 44%; }       /* Bea ↔ Big Tilly split     */
-  .deep-d3 { left: calc(100% - 3px); }  /* aligns with dep-6 */
+  .deep-d1 { left: 44.4%; }    /* Bea ↔ Big Tilly split */
 
   /* ── Standard bay dividers (front strip) ────────────────────
      Thick brushed-on lines BETWEEN bays only. Positions are in
@@ -321,17 +321,19 @@
     box-shadow: 0 0 5px rgba(0,0,0,0.22);
   }
 
-  /* Visitor side — 3 bays from strip 13.6%–43.2% (each 9.87%). */
-  .bay-divider.vis-1 { left: 13.6%; }
-  .bay-divider.vis-2 { left: 23.5%; }
-  .bay-divider.vis-3 { left: 33.3%; }
-  .bay-divider.vis-4 { left: 43.2%; }
+  /* Visitor side — 3 bays from strip 0%–44.32% (stage 6%–45%).
+     The strip's own left border draws the V1 west edge, so we
+     only need 3 internal dividers. */
+  .bay-divider.vis-2 { left: 14.77%; }   /* V1 ↔ V2  (stage 19) */
+  .bay-divider.vis-3 { left: 29.55%; }   /* V2 ↔ V3  (stage 32) */
+  .bay-divider.vis-4 { left: 44.32%; }   /* V3 ↔ walkway (stage 45) */
 
-  /* Walkway — strip 43.2%–56.8% under the door. Faint zebra
-     pedestrian markings, masked to a centre band. */
+  /* Walkway — strip 44.32%–55.68% (stage 45%–55%) under the
+     front door. Faint zebra pedestrian markings, masked to a
+     centre band. */
   #arc-stage .region-parking .walkway {
     position: absolute;
-    left: 43.2%; top: 0; width: 13.6%; height: 100%;
+    left: 44.32%; top: 0; width: 11.36%; height: 100%;
     background: repeating-linear-gradient(
       180deg,
       rgba(255,247,224,0.55) 0,
@@ -348,22 +350,19 @@
   }
 
   /* ── Depot bays (right of walkway) ──────────────────────────
-     5 vehicles fit between strip 56.8% and 86.4% (29.6% wide):
-       Trikey  0.5 unit  → 2.85%
-       Henry   1   unit  → 5.69%
-       Spark   1   unit  → 5.69%
-       Bea     1.2 unit  → 6.83%   (DEEP — back wall pushed up)
-       BigTilly 1.5 unit → 8.54%   (DEEP — back wall pushed up)
-     Total ~5.2 units; 1 unit ≈ 5.69% strip-relative.
-     Divider positions (strip-relative): */
-  .bay-divider.dep-1 { left: 56.8%; }   /* walkway/Trikey   */
-  .bay-divider.dep-2 { left: 59.65%; }  /* Trikey/Henry     */
-  .bay-divider.dep-3 { left: 65.34%; }  /* Henry/Spark      */
-  /* Beyond this point the bays are LONG — their dividers extend
-     up out of the front strip into the deep extension. */
-  .bay-divider.dep-4 { left: 71.03%; }  /* Spark/Bea (LONG) */
-  .bay-divider.dep-5 { left: 77.86%; }  /* Bea/BigTilly (LONG) */
-  .bay-divider.dep-6 { left: 86.4%; }   /* BigTilly/wall (LONG) */
+     5 vehicles, 5 internal dividers (strip's right border
+     serves as Big Tilly's east wall, no dep-6 needed):
+       Trikey   ½u    stage 55–60.4
+       Henry    1u    stage 60.4–71.2
+       Spark    1u    stage 71.2–82
+       Bea      1.2u  stage 82–87.33   (LONG — east of building)
+       BigTilly 1.5u  stage 87.33–94   (LONG — flush right edge)
+     Strip-relative positions: */
+  .bay-divider.dep-1 { left: 55.68%; }  /* walkway / Trikey  (stage 55)    */
+  .bay-divider.dep-2 { left: 61.82%; }  /* Trikey / Henry    (stage 60.4)  */
+  .bay-divider.dep-3 { left: 74.09%; }  /* Henry / Spark     (stage 71.2)  */
+  .bay-divider.dep-4 { left: 86.36%; }  /* Spark / Bea       (stage 82)    */
+  .bay-divider.dep-5 { left: 92.42%; }  /* Bea / Big Tilly   (stage 87.33) */
 
   /* Vehicle name labels — all 5 in the front strip, written
      bottom-to-top via writing-mode:sideways-lr (modern Chrome /
@@ -385,14 +384,13 @@
     white-space: nowrap;
     line-height: 1;
   }
-  /* Per-bay horizontal anchor: each label's pre-rotation centre
-     sits at the bay's mid-x. After rotate(-90deg) the text reads
-     bottom-to-top within that bay's column. */
-  .bay-glyph.gly-trikey   { left: 58.22%; }   /* mid Trikey   */
-  .bay-glyph.gly-henry    { left: 62.50%; }   /* mid Henry    */
-  .bay-glyph.gly-spark    { left: 68.18%; }   /* mid Spark    */
-  .bay-glyph.gly-bea      { left: 74.45%; }   /* mid Bea      */
-  .bay-glyph.gly-big-tilly{ left: 82.13%; }   /* mid Big Tilly*/
+  /* Per-bay horizontal anchor: each label sits at the bay's
+     mid-x (strip-relative). */
+  .bay-glyph.gly-trikey   { left: 58.75%; }   /* mid Trikey  (stage 57.7) */
+  .bay-glyph.gly-henry    { left: 67.95%; }   /* mid Henry   (stage 65.8) */
+  .bay-glyph.gly-spark    { left: 80.23%; }   /* mid Spark   (stage 76.6) */
+  .bay-glyph.gly-bea      { left: 89.39%; }   /* mid Bea     (stage 84.7) */
+  .bay-glyph.gly-big-tilly{ left: 96.21%; }   /* mid Big Tilly (stage 90.7) */
   #arc-stage .stamp {
     position: absolute;
     pointer-events: none;
@@ -526,24 +524,23 @@
 
   <div class="arc-frame">
     <div class="arc-region region-parking">
-      <!-- Visitor side: 3 bays defined by 4 dividers -->
-      <div class="bay-divider vis-1"></div>
+      <!-- Visitor side: 3 bays separated by 3 internal dividers
+           (strip's own west border draws the V1 left edge). -->
       <div class="bay-divider vis-2"></div>
       <div class="bay-divider vis-3"></div>
       <div class="bay-divider vis-4"></div>
       <!-- Pedestrian walkway under the front door -->
       <div class="walkway" aria-hidden="true"></div>
-      <!-- Depot bays — 5 vehicles, 6 dividers (standard depth).
-           Long-bay extensions (for Bea + Big Tilly) live in
-           region-parking-deep, drawn AFTER the building stamp so
-           the painted-canopy tarmac is visible OVER the building's
-           south-east corner. -->
+      <!-- Depot bays — 5 vehicles separated by 5 internal dividers
+           (strip's own east border draws Big Tilly's right edge).
+           Long-bay canopy for Bea + Big Tilly lives in
+           region-parking-deep, sited east of the building so it
+           never overlaps the building's south wall. -->
       <div class="bay-divider dep-1"></div>
       <div class="bay-divider dep-2"></div>
       <div class="bay-divider dep-3"></div>
       <div class="bay-divider dep-4"></div>
       <div class="bay-divider dep-5"></div>
-      <div class="bay-divider dep-6"></div>
       <!-- Vehicle name labels — all 5 in the front strip, rotated
            -90° and anchored close to the kerb so the driver can
            read each from the road. Long-bay labels (Bea, BigTilly)
@@ -596,8 +593,6 @@
          rescue centre, where Bea + Big Tilly tuck in nose-first. -->
     <div class="region-parking-deep" aria-hidden="true">
       <div class="deep-divider deep-d1"></div>
-      <div class="deep-divider deep-d2"></div>
-      <div class="deep-divider deep-d3"></div>
     </div>
   </div>
 </div>
