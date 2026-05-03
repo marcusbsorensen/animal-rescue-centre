@@ -181,17 +181,34 @@
     border-radius: 8px;
     pointer-events: none;
   }
-  #arc-stage .region-fox-skunk {
-    left: 6%; top: 1.5%; width: 88%; height: 17%;
+  /* Future-habitat undeveloped tiles — sized to the actual pen
+     footprints (Marcus 2026-05-03), not full-width strips. The
+     grass background of arc-frame shows through around each pen
+     so the unbuilt zones look like "patches of unkempt land within
+     a wider grass paddock", not a wall-to-wall placeholder.
+
+     Pen footprints (rough painted-storybook scale, will be refined
+     when each habitat lands):
+       - Fox pen (T6):       upper-left,  ~26% × 12%
+       - Skunk pen (future): upper-right, ~26% × 12%
+       - Hedgehog/Squirrel zone (T2): mid-left, ~30% × 22%
+       - Raccoon pen (T3):   mid-right, ~30% × 22%
+     Central path strip remains, narrower and shorter so it
+     connects the lawn/quiet gardens to the small-mammal zone. */
+  #arc-stage .region-fox {
+    left: 14%; top: 4%; width: 26%; height: 12%;
+  }
+  #arc-stage .region-skunk {
+    right: 14%; top: 4%; width: 26%; height: 12%;
   }
   #arc-stage .region-hedgehog {
-    left: 6%; top: 22%; width: 41%; height: 28%;
+    left: 11%; top: 24%; width: 30%; height: 22%;
   }
   #arc-stage .region-raccoon {
-    right: 6%; top: 22%; width: 41%; height: 28%;
+    right: 11%; top: 24%; width: 30%; height: 22%;
   }
   #arc-stage .region-path {
-    left: 47%; top: 22%; width: 6%; height: 28%;
+    left: 47%; top: 24%; width: 6%; height: 22%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
     border-left: 1px solid rgba(123,92,58,0.5);
     border-right: 1px solid rgba(123,92,58,0.5);
@@ -539,16 +556,19 @@
     <div class="arc-region region-path"></div>
     <div class="arc-region region-undeveloped region-hedgehog" data-future="future: T2 hedgehog/squirrel"></div>
     <div class="arc-region region-undeveloped region-raccoon" data-future="future: T3 raccoon"></div>
-    <div class="arc-region region-undeveloped region-fox-skunk" data-future="future: T6 fox + skunk"></div>
+    <!-- Fox + skunk now have separate tile patches at the north end
+         so they sit roughly where the actual pens will be built. -->
+    <div class="arc-region region-undeveloped region-fox" data-future="future: T6 fox"></div>
+    <div class="arc-region region-undeveloped region-skunk" data-future="future: skunk"></div>
 
-    <!-- Region labels — positions match the FLIPPED orientation
-         (fox/skunk at top, gardens lower-middle, building at bottom). -->
+    <!-- Region labels — sit centred over their respective pen
+         footprints rather than over generic strip positions. -->
     <div class="region-label tier-future" style="left: 27%; top: 10%;">Fox (T6)</div>
     <div class="region-label tier-future" style="left: 73%; top: 10%;">Skunk (future)</div>
-    <div class="region-label tier-future" style="left: 27%; top: 28%;">Hedgehog + Squirrel (T2)</div>
-    <div class="region-label tier-future" style="left: 73%; top: 28%;">Raccoon (T3)</div>
-    <div class="region-label" style="left: 27%; top: 60%;">Lawn garden</div>
-    <div class="region-label" style="left: 73%; top: 60%;">Quiet garden</div>
+    <div class="region-label tier-future" style="left: 26%; top: 35%;">Hedgehog + Squirrel (T2)</div>
+    <div class="region-label tier-future" style="left: 74%; top: 35%;">Raccoon (T3)</div>
+    <div class="region-label" style="left: 26%; top: 60%;">Lawn garden</div>
+    <div class="region-label" style="left: 74%; top: 60%;">Quiet garden</div>
 
     <!-- Building at the SOUTH end (bottom — entrance facing kid arriving from Bay Road) -->
     <img class="stamp stamp-building" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="A.R.C. main building"/>
@@ -559,10 +579,11 @@
     <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" style="left: 28%; top: 26%;" alt="Ash"/>
     <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left: 13%; top: 42%;" alt="Horse chestnut"/>
 
-    <!-- Viewing domes along the central path (top:22%-50% of canvas, the small-mammal zone). -->
+    <!-- Viewing domes along the central path between the small-mammal
+         pens (path is now top:24%-46% of canvas, narrower). -->
     <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 28%;" alt="Viewing dome"/>
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 36%;" alt="Viewing dome"/>
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 44%;" alt="Viewing dome"/>
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 35%;" alt="Viewing dome"/>
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 42%;" alt="Viewing dome"/>
 
     <!-- Long-bay deep extension — placed AFTER the building stamp
          so the painted-canopy tarmac visibly extends UPWARD past
