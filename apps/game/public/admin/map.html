@@ -263,20 +263,28 @@
   /* Quiet garden — HORIZONTAL strip behind the building. Doubled
      in height (h:14%, was h:7%) per Marcus 2026-05-03. Top moved
      down to y:39% to leave room for path-h-2 between the
-     hedgehog row and the garden row. Bottom at y:53%. */
+     hedgehog row and the garden row. Bottom at y:53%.
+     Background swaps with the season via --quiet-bg CSS var
+     (set by JS in applySeason). 8 painted variants — 4 seasons. */
   #arc-stage .region-quiet {
     left: 6%; top: 39%; width: 54.67%; height: 14%;
-    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-quiet-garden.png');
+    background-image: var(--quiet-bg);
+    background-size: 100% 100%;             /* fill the patch exactly */
+    background-repeat: no-repeat;
     border: 1.5px solid #5a7a4a;
     border-radius: 4px;
   }
   /* Lawn garden — tall VERTICAL strip on the right, aligned in
      the same column as Skunk + Raccoon + Bea + Big Tilly
      (stage 66.67%-94%). Establishes a continuous vertical grid
-     line through the whole site. */
+     line through the whole site.
+     Background swaps with the season via --lawn-bg CSS var
+     (set by JS in applySeason). 4 painted variants. */
   #arc-stage .region-lawn {
     left: 66.67%; top: 39%; width: 27.33%; height: 37%;
-    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-lawn-garden.png');
+    background-image: var(--lawn-bg);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
     border: 1.5px solid #5a8a4f;
     border-radius: 4px;
   }
@@ -731,12 +739,19 @@
     return `${TREE_BASE}/arc-tree-${species}-${season}.png`;
   }
 
+  // Garden backgrounds: 8 painted variants (2 gardens × 4 seasons),
+  // each at the patch's exact aspect ratio (no tiling, no stretch).
+  const GARDEN_BG_BASE = 'scene-assets/reference/garden-bgs-2026-05-03';
+  function gardenBg(garden, season) {
+    return `url('${GARDEN_BG_BASE}/${garden}-garden-${season}.png')`;
+  }
+
   function applySeason(season) {
     if (!SEASON_TEXTURES[season]) return;
-    document.documentElement.style.setProperty(
-      '--undeveloped-tile',
-      `url('${SEASON_TEXTURES[season]}')`,
-    );
+    const root = document.documentElement.style;
+    root.setProperty('--undeveloped-tile', `url('${SEASON_TEXTURES[season]}')`);
+    root.setProperty('--lawn-bg',  gardenBg('lawn',  season));
+    root.setProperty('--quiet-bg', gardenBg('quiet', season));
     // Swap each tree sprite to its seasonal variant.
     document.querySelectorAll('img.stamp-tree[data-tree-species]').forEach((img) => {
       img.src = treeSrc(img.dataset.treeSpecies, season);
