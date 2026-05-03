@@ -78,6 +78,12 @@
   }
   .stage:not(.active) { display: none; }
 
+  /* World stage: when the SVG letterboxes vertically (its 2400×721
+     aspect rarely matches the viewport), the gaps need to look like
+     more sea/land, not a black void. Use the same sea blue as the
+     SVG's sea-bg rect so the letterbox blends seamlessly. */
+  #world-stage { background: #bfdde3; }
+
   /* World view */
   #world-stage .map-canvas {
     position: absolute; inset: 0;
@@ -669,8 +675,13 @@
   // World-view: position pins relative to OSM SVG canvas
   const SVG_VIEW_W = 2400;
   const SVG_VIEW_H = 721;
-  const ARC_PLOT_SVG_X = 524;
-  const ARC_PLOT_SVG_Y = 348;
+  // Plot polygon is at ~(339-427, 491-599); we anchor the building
+  // pin to the SOUTH end of the plot so its rendered bottom edge
+  // (translate -50%, -85%) sits on the plot. Earlier (524, 348) was
+  // way north of the actual plot — that's why the building was floating
+  // up by the cliff edge with the dashed plot stranded south of it.
+  const ARC_PLOT_SVG_X = 383;
+  const ARC_PLOT_SVG_Y = 580;
 
   function clearChildren(node) {
     while (node.firstChild) node.removeChild(node.firstChild);

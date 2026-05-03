@@ -679,5 +679,9 @@
   <text x="2190" y="238" font-family="Fredoka, sans-serif" font-size="22" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Westgate Golf Club</text>
 </g>
 <polygon id="arc-plot" data-name="A.R.C. site" points="427.3,579.6 398.3,599.6 339.7,510.7 367.8,491.8 390.9,525.9 408.7,552.1 427.3,579.6" fill="#e3b04b" fill-opacity="0.55" stroke="#7b5c3a" stroke-width="3" stroke-dasharray="6 4"/>
-<text x="394" y="548" font-family="Fredoka, sans-serif" font-size="22" font-weight="700" fill="#3a3a3a" text-anchor="middle" paint-order="stroke" stroke="#fef9ef" stroke-width="3">A.R.C.</text>
+<!-- A.R.C. text label removed 2026-05-03 — the HTML pin layer in
+     map.html draws a clickable building stamp + orange honey-amber
+     pill on top, so a second SVG-baked text label was duplicating
+     the marker. Keep just the dashed plot polygon as the footprint
+     hint underneath the pin. -->
 </svg>
