@@ -310,56 +310,39 @@
        78.81– 94    Big Tilly LONG (15.19%, flush right edge)
      Strip-relative percentages = (stage − 6) ÷ 88 × 100. */
 
+  /* Front parking strip — visitor + walkway + Trikey/Henry/Spark.
+     Stops at stage 66.67% (the site's vertical grid line) so
+     the long-vehicle piece can sit as its own SEPARATE,
+     square-ish tarmac block to its right. Avoids the 'chopped
+     in the middle' look of an L-shape. */
   #arc-stage .region-parking {
-    left: 6%; top: 87%; width: 88%; height: 11%;
+    left: 6%; top: 87%; width: 60.67%; height: 11%;
     background:
       linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.10)),
       #3b3a37;
     border: 1.5px solid rgba(35,32,28,0.6);
-    overflow: visible;     /* allow long-bay dividers to extend upward */
+    border-radius: 4px;
+    overflow: visible;
   }
 
-  /* The deep extension under the 2 long bays. Same tarmac fill
-     as the front strip; sits above the strip so they read as one
-     continuous L-shape. Markup placed AFTER the building stamp
-     so the canopy is visible OVER the building's south-east
-     corner (reads as an attached covered carport).
-     The extension's bottom edge meets the strip's top edge cleanly
-     because both have a 1.5px border — we suppress the bottom
-     border on the extension to avoid a double line at the join. */
+  /* Long parking piece — Bea + Big Tilly, rendered as a SEPARATE
+     square-ish block of tarmac (stage 66.67-94% × y 76-98%).
+     Adjoins the front strip on its left edge, shares the same
+     south kerb at y:98%, but is its own visually-distinct piece
+     so neither looks chopped. Holds 2 long-vehicle bays. */
   #arc-stage .region-parking-deep {
     position: absolute;
-    /* Stage 66.67%-94% — same column as Skunk + Raccoon + Lawn
-       above, so a vertical grid line runs through the whole site.
-       Bea (12.14%) + Big Tilly (15.19%) sit beneath. */
-    left: 66.67%; top: 78%; width: 27.33%; height: 9%;
+    left: 66.67%; top: 76%; width: 27.33%; height: 22%;
     background:
       linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.10)),
       #3b3a37;
     border: 1.5px solid rgba(35,32,28,0.6);
-    border-bottom: 0;            /* meet front strip cleanly */
-    border-radius: 4px 4px 0 0;  /* round only the top corners */
+    border-radius: 4px;
     overflow: visible;
-    /* A faint shadow underneath suggests the canopy hangs over the
-       front strip — sells the "covered awning attached to the
-       building" read. */
-    box-shadow: 0 -2px 8px rgba(0,0,0,0.18);
+    box-shadow: 1px 2px 6px rgba(0,0,0,0.18);
   }
-  /* Internal divider in the deep extension splitting Bea from
-     Big Tilly. Canopy is 12% of stage wide; Bea (1.2u) + BT
-     (1.5u) = 2.7u total, so the split sits at 1.2/2.7 = 44.4%
-     of the canopy's width. The canopy's left + right edges are
-     drawn by its own 1.5px border so we only need the middle
-     divider. */
-  #arc-stage .region-parking-deep .deep-divider {
-    position: absolute;
-    top: 6%; height: 88%;
-    width: 0;
-    border-left: 4px solid var(--bay-line);
-    border-radius: 3px;
-    box-shadow: 0 0 5px rgba(0,0,0,0.22);
-  }
-  .deep-d1 { left: 44.4%; }    /* Bea ↔ Big Tilly split */
+  /* Long-parking-piece divider styled below alongside the bay
+     glyphs (search for .region-parking-deep .bay-divider). */
 
   /* ── Standard bay dividers (front strip) ────────────────────
      Thick brushed-on lines BETWEEN bays only. Positions are in
@@ -373,17 +356,18 @@
     box-shadow: 0 0 5px rgba(0,0,0,0.22);
   }
 
-  /* Visitor side — 3 bays from strip 0%–26.33% (stage 6%–29.17%).
-     Each bay is 7.72% of stage = 8.77% strip-relative. */
-  .bay-divider.vis-2 { left:  8.77%; }   /* V1 ↔ V2  (stage 13.72) */
-  .bay-divider.vis-3 { left: 17.55%; }   /* V2 ↔ V3  (stage 21.45) */
-  .bay-divider.vis-4 { left: 26.33%; }   /* V3 ↔ walkway (stage 29.17)*/
+  /* Visitor side — 3 bays from strip 0%–38.19% (stage 6%–29.17%).
+     Strip-relative widths re-anchored to the strip's new 60.67%
+     stage width (= (stage−6)÷60.67×100). */
+  .bay-divider.vis-2 { left: 12.73%; }   /* V1 ↔ V2  (stage 13.72) */
+  .bay-divider.vis-3 { left: 25.46%; }   /* V2 ↔ V3  (stage 21.45) */
+  .bay-divider.vis-4 { left: 38.19%; }   /* V3 ↔ walkway (stage 29.17)*/
 
-  /* Walkway — strip 26.33%–37.69% (stage 29.17%–39.17%) under
+  /* Walkway — strip 38.19%–54.67% (stage 29.17%–39.17%) under
      the front door of the building (door at stage 34.17%). */
   #arc-stage .region-parking .walkway {
     position: absolute;
-    left: 26.33%; top: 0; width: 11.36%; height: 100%;
+    left: 38.19%; top: 0; width: 16.48%; height: 100%;
     background: repeating-linear-gradient(
       180deg,
       rgba(255,247,224,0.55) 0,
@@ -399,24 +383,18 @@
       #000 22%, #000 78%, transparent 88%, transparent 100%);
   }
 
-  /* ── Depot bays (right of walkway) ──────────────────────────
-     Standard-depot zone: stage 39.17–66.67% = 27.5% wide for
-     Trikey + Henry + Spark (2.5u total) → 11% per unit. Long-
-     bay zone: stage 66.67–94% = 27.33% wide, matching the
-     Skunk/Raccoon/Lawn column above so a continuous vertical
-     grid runs through the whole site. Bea (1.2u) + BT (1.5u)
-     = 2.7u → 10.12% per unit:
+  /* ── Depot bays (right of walkway, INSIDE the front strip) ──
+     Strip now ends at stage 66.67% (Spark's east edge IS the
+     strip's east border, no dep-4 dividing line needed).
+     Bea + Big Tilly are in the SEPARATE long-parking piece.
        Trikey   ½u    stage 39.17–44.67   (5.5%)
        Henry    1u    stage 44.67–55.67   (11%)
        Spark    1u    stage 55.67–66.67   (11%)
-       Bea      1.2u  stage 66.67–78.81   (12.14%, LONG)
-       BigTilly 1.5u  stage 78.81–94      (15.19%, LONG, flush right)
-     Strip-relative positions: */
-  .bay-divider.dep-1 { left: 37.69%; }  /* walkway / Trikey  (stage 39.17) */
-  .bay-divider.dep-2 { left: 43.94%; }  /* Trikey / Henry    (stage 44.67) */
-  .bay-divider.dep-3 { left: 56.44%; }  /* Henry / Spark     (stage 55.67) */
-  .bay-divider.dep-4 { left: 68.94%; }  /* Spark / Bea       (stage 66.67) */
-  .bay-divider.dep-5 { left: 82.74%; }  /* Bea / Big Tilly   (stage 78.81) */
+     Strip-relative widths re-anchored to the strip's new width
+     (60.67% of stage). Strip-relative = (stage − 6) ÷ 60.67 × 100. */
+  .bay-divider.dep-1 { left: 54.67%; }  /* walkway / Trikey  (stage 39.17) */
+  .bay-divider.dep-2 { left: 63.74%; }  /* Trikey / Henry    (stage 44.67) */
+  .bay-divider.dep-3 { left: 81.87%; }  /* Henry / Spark     (stage 55.67) */
 
   /* Vehicle name labels — all 5 in the front strip, written
      bottom-to-top via writing-mode:sideways-lr. First character
@@ -435,13 +413,40 @@
     white-space: nowrap;
     line-height: 1;
   }
-  /* Per-bay horizontal anchor: each label sits at the bay's
-     mid-x (strip-relative). */
-  .bay-glyph.gly-trikey   { left: 40.82%; }   /* mid Trikey  (stage 41.92) */
-  .bay-glyph.gly-henry    { left: 50.19%; }   /* mid Henry   (stage 50.17) */
-  .bay-glyph.gly-spark    { left: 62.69%; }   /* mid Spark   (stage 61.17) */
-  .bay-glyph.gly-bea      { left: 75.84%; }   /* mid Bea     (stage 72.74) */
-  .bay-glyph.gly-big-tilly{ left: 91.36%; }   /* mid Big Tilly (stage 86.4) */
+  /* Per-bay horizontal anchor for FRONT STRIP bays (Trikey,
+     Henry, Spark — strip-relative to the new 60.67%-wide strip). */
+  .bay-glyph.gly-trikey   { left: 59.21%; }   /* mid Trikey  (stage 41.92) */
+  .bay-glyph.gly-henry    { left: 72.81%; }   /* mid Henry   (stage 50.17) */
+  .bay-glyph.gly-spark    { left: 90.94%; }   /* mid Spark   (stage 61.17) */
+  /* Bea + Big Tilly glyphs live INSIDE the long-parking piece —
+     positions are relative to that piece (27.33% wide). */
+  #arc-stage .region-parking-deep .bay-glyph.kerb {
+    position: absolute;
+    bottom: 4%;
+    writing-mode: sideways-lr;
+    transform: translateX(-50%);
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--bay-line);
+    text-shadow: 0 0 4px rgba(0,0,0,0.55);
+    pointer-events: none;
+    white-space: nowrap;
+    line-height: 1;
+  }
+  #arc-stage .region-parking-deep .bay-glyph.gly-bea       { left: 22.21%; }
+  #arc-stage .region-parking-deep .bay-glyph.gly-big-tilly { left: 72.20%; }
+  /* Single internal divider in the long-parking piece, splitting
+     Bea from Big Tilly at 44.42% of the piece's width. */
+  #arc-stage .region-parking-deep .bay-divider {
+    position: absolute;
+    top: 6%; height: 88%;
+    width: 0;
+    border-left: 4px solid var(--bay-line);
+    border-radius: 3px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.22);
+  }
+  #arc-stage .region-parking-deep .bay-divider.long-1 { left: 44.42%; }
   #arc-stage .stamp {
     position: absolute;
     pointer-events: none;
@@ -579,33 +584,22 @@
 
   <div class="arc-frame">
     <div class="arc-region region-parking">
-      <!-- Visitor side: 3 bays separated by 3 internal dividers
-           (strip's own west border draws the V1 left edge). -->
+      <!-- Visitor side: 3 bays separated by 3 internal dividers -->
       <div class="bay-divider vis-2"></div>
       <div class="bay-divider vis-3"></div>
       <div class="bay-divider vis-4"></div>
       <!-- Pedestrian walkway under the front door -->
       <div class="walkway" aria-hidden="true"></div>
-      <!-- Depot bays — 5 vehicles separated by 5 internal dividers
-           (strip's own east border draws Big Tilly's right edge).
-           Long-bay canopy for Bea + Big Tilly lives in
-           region-parking-deep, sited east of the building so it
-           never overlaps the building's south wall. -->
+      <!-- Standard depot bays — Trikey ½, Henry, Spark.
+           Bea + Big Tilly are now in the SEPARATE long-parking
+           piece (region-parking-deep) that adjoins the strip's
+           east edge. -->
       <div class="bay-divider dep-1"></div>
       <div class="bay-divider dep-2"></div>
       <div class="bay-divider dep-3"></div>
-      <div class="bay-divider dep-4"></div>
-      <div class="bay-divider dep-5"></div>
-      <!-- Vehicle name labels — all 5 in the front strip, rotated
-           -90° and anchored close to the kerb so the driver can
-           read each from the road. Long-bay labels (Bea, BigTilly)
-           sit in the same position as standard ones — the bay's
-           identity is fixed at the kerb end. -->
       <div class="bay-glyph kerb gly-trikey">Trikey</div>
       <div class="bay-glyph kerb gly-henry">Henry</div>
       <div class="bay-glyph kerb gly-spark">Spark ⚡</div>
-      <div class="bay-glyph kerb gly-bea">Bea</div>
-      <div class="bay-glyph kerb gly-big-tilly">Big Tilly</div>
     </div>
     <div class="arc-region region-lawn"></div>
     <div class="arc-region region-quiet"></div>
@@ -633,16 +627,25 @@
     <img class="stamp stamp-building" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="A.R.C. main building"/>
 
     <!-- Trees rooted in the gardens. Tree stamps are 13% wide ×
-         13% tall (square aspect). The painted base sits in the
-         patch; canopy spills out for a 3D 'pop' effect. -->
-    <!-- Oak rooted in the QUIET garden — base in quiet, canopy
-         reaches UP past the top of the strip (3D pop effect). -->
-    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" style="left: 12%; top: 33%;" alt="Oak"/>
-    <!-- Ash + horse chestnut rooted in the LAWN garden, far
-         right so their canopies overhang the lawn's RIGHT edge
-         (mirroring the oak's top-overhang for a 3D pop on the
-         right side too). -->
-    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" style="left: 86%; top: 44%;" alt="Ash"/>
+         13% tall (square aspect). Marcus 2026-05-03: duplicate
+         sprites at multiple locations so each garden looks more
+         richly planted (in-game garden views show many trees). -->
+
+    <!-- QUIET garden trees (3 of them, left → right across the
+         horizontal strip). Bases anchored in the strip, canopies
+         overhanging the top for the 3D 'pop'. -->
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png"            style="left: 9%;  top: 33%;" alt="Oak"/>
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png"            style="left: 27%; top: 32%;" alt="Ash"/>
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left: 45%; top: 32%;" alt="Horse chestnut"/>
+
+    <!-- LAWN garden trees (5 of them, scattered through the
+         vertical strip). Right-edge trees overhang to the right
+         for the 3D 'pop' on that side; left-edge trees fill the
+         rest of the strip with painted greenery. -->
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png"            style="left: 67%; top: 42%;" alt="Oak"/>
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png"            style="left: 86%; top: 44%;" alt="Ash"/>
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left: 75%; top: 53%;" alt="Horse chestnut"/>
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png"            style="left: 67%; top: 60%;" alt="Ash"/>
     <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left: 88%; top: 62%;" alt="Horse chestnut"/>
 
     <!-- Viewing domes on the central axis (x:63.67%) — one per
@@ -658,8 +661,12 @@
          the front strip's top edge into the building's south-east
          corner. Reads as a covered carport awning attached to the
          rescue centre, where Bea + Big Tilly tuck in nose-first. -->
-    <div class="region-parking-deep" aria-hidden="true">
-      <div class="deep-divider deep-d1"></div>
+    <!-- Long-parking piece — Bea + Big Tilly. Separate square-ish
+         tarmac block adjoining the front strip's east edge. -->
+    <div class="region-parking-deep">
+      <div class="bay-divider long-1"></div>
+      <div class="bay-glyph kerb gly-bea">Bea</div>
+      <div class="bay-glyph kerb gly-big-tilly">Big Tilly</div>
     </div>
   </div>
 </div>
