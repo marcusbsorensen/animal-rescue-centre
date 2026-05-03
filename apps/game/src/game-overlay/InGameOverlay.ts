@@ -21,7 +21,8 @@
 export type InGamePage =
   | 'paths' | 'adopters' | 'adoption' | 'adoption-office' | 'rewilding'
   | 'conflict' | 'visitor' | 'vet'
-  | 'arrival' | 'badge' | 'map' | 'drive';
+  | 'arrival' | 'badge' | 'map' | 'drive'
+  | 'tunnel';
 
 export type InGameAction =
   | 'close'
@@ -49,7 +50,10 @@ export type InGameAction =
   | 'badge-seen'
   | 'drive-to'
   | 'drive-complete'
-  | 'drive-skipped';
+  | 'drive-skipped'
+  | 'tunnel-complete'
+  | 'tunnel-cancel'
+  | 'tunnel-override-reroll';
 
 export interface InGameOverlayHandlers {
   onAction: (action: InGameAction, payload?: Record<string, unknown>) => void;
@@ -68,13 +72,14 @@ const PAGE_URLS: Record<InGamePage, string> = {
   badge:             '/admin/badge.html?embed=1',
   map:               '/admin/map.html?embed=1',
   drive:             '/admin/drive-overlay.html?embed=1',
+  tunnel:            '/admin/tunnel.html?embed=1',
 };
 
 /** Valid postMessage source names we'll forward. */
 const VALID_SOURCES = new Set([
   'arc-game', 'arc-auth', 'arc-adopters', 'arc-adoption', 'arc-adoption-office',
   'arc-rewild', 'arc-visitor', 'arc-vet',
-  'arc-arrival', 'arc-badge', 'arc-map', 'arc-drive',
+  'arc-arrival', 'arc-badge', 'arc-map', 'arc-drive', 'arc-tunnel',
 ]);
 
 let activeFrame: HTMLIFrameElement | null = null;

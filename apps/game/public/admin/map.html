@@ -482,6 +482,22 @@
     transform: translate(-50%, -50%);
   }
 
+  /* Garden-tunnel mouth — small painted hatch on the central path. */
+  #arc-stage .tunnel-mouth {
+    position: absolute;
+    width: 4%; aspect-ratio: 1 / 1;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 3;
+    transition: transform 0.15s ease, filter 0.15s ease;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+  }
+  #arc-stage .tunnel-mouth:hover {
+    transform: translate(-50%, -50%) scale(1.15);
+    filter: drop-shadow(0 3px 5px rgba(0,0,0,0.5));
+  }
+  #arc-stage .tunnel-mouth svg { width: 100%; height: 100%; display: block; }
+
   #arc-stage .region-label {
     position: absolute;
     background: rgba(255,255,255,0.85);
@@ -663,6 +679,29 @@
     <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 63.67%; top: 13%;" alt="Viewing dome"/>
     <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 63.67%; top: 31%;" alt="Viewing dome"/>
     <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 63.67%; top: 46%;" alt="Viewing dome"/>
+
+    <!-- Garden-tunnel mouth — small painted hatch at the south end of
+         the central path, where the building's south wall meets the
+         path. Tap → opens the tunnel mini-game.
+         Coordinates per docs/garden-tunnel-tile-inventory-2026-05-03.md
+         §0 (entry hatch ~63.67%, ~95% — placed slightly above at 87%
+         so it sits visibly above the parking strip). -->
+    <div class="tunnel-mouth" id="tunnel-mouth" role="button"
+         aria-label="Garden tunnel entrance"
+         style="left: 63.67%; top: 87%;">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <!-- Soil ring -->
+        <ellipse cx="50" cy="55" rx="42" ry="38" fill="#5a3a1c" stroke="#2a1a08" stroke-width="3"/>
+        <!-- Dark hole -->
+        <ellipse cx="50" cy="58" rx="32" ry="26" fill="#1a0d04"/>
+        <!-- Highlight -->
+        <ellipse cx="42" cy="44" rx="10" ry="5" fill="rgba(255,255,255,0.18)"/>
+        <!-- Paw print walking in -->
+        <text x="50" y="62" text-anchor="middle"
+              font-family="Fredoka, sans-serif" font-size="18"
+              fill="#d8b87a">🐾</text>
+      </svg>
+    </div>
 
     <!-- Long-bay deep extension — placed AFTER the building stamp
          so the painted-canopy tarmac visibly extends UPWARD past
@@ -854,6 +893,18 @@
   window.addEventListener('resize', placePins);
   setTimeout(placePins, 200);
   setTimeout(placePins, 600);
+
+  // Garden-tunnel mouth — tap to open the tunnel mini-game.
+  // The host (GameScene) watches for { source: 'arc-map', type: 'open-tunnel' }
+  // and unmounts the map before mounting the tunnel overlay.
+  const tunnelMouth = document.getElementById('tunnel-mouth');
+  if (tunnelMouth) {
+    tunnelMouth.addEventListener('click', () => {
+      try {
+        window.parent?.postMessage({ source: 'arc-map', type: 'open-tunnel' }, '*');
+      } catch (_) { /* iframe-less preview — ignore */ }
+    });
+  }
 </script>
 
 </body>

@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Garden Tunnels</title>
+<script>
+  // Iframe-context detection — flips html.iframed before first paint
+  // so the design-preview chrome (vp-bar) is hidden in-game even if
+  // the embed-mode JS toggle hasn't run yet.
+  if (window.top !== window.self) document.documentElement.classList.add('iframed');
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --garden-green: #2E8B57;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
+    --earth-dark: #4a2e14;
+    --earth-mid:  #7b4a1e;
+    --earth-light:#a87038;
+    --soil-floor: #d8b87a;
+    --tunnel-stroke: #3a2410;
+    --ink: #3a3a3a;
+    --ink-soft: #6b6b6b;
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', var(--headline-font);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #222; }
+  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+  body.embed { background: var(--cream-wash); }
+  body.embed .vp-bar { display: none; }
+  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
+  body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+  html.iframed body .vp-bar { display: none !important; }
+  html.iframed body { background: var(--cream-wash) !important; }
+  html.iframed body .device-frame { padding: 0 !important; overflow: hidden !important; flex: 1 !important; }
+  html.iframed body .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .vp-bar button {
+    background: #444; color: #fff; border: 1px solid #555;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+  }
+  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+
+  .device-frame {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: auto;
+  }
+  .device {
+    background: var(--cream-wash);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s, height 0.3s;
+    flex-shrink: 0;
+  }
+  .device[data-size="iphone"]    { width: 390px;  height: 844px; }
+  .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
+  .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
+  .device[data-size="desktop"]   { width: 1280px; height: 800px; }
+
+  .tunnel-scene {
+    width: 100%; height: 100%;
+    position: relative;
+    container-type: size;
+    container-name: tunnel;
+    background:
+      radial-gradient(ellipse at 50% 30%, #fff5d8 0%, transparent 70%),
+      linear-gradient(180deg, #f7e8c5 0%, #e6cfa1 60%, #c9a76a 100%);
+    display: flex; flex-direction: column;
+    padding: clamp(8px, 1.6cqh, 16px);
+    overflow: hidden;
+  }
+  .tunnel-scene::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 12% 18%, rgba(80,50,20,0.05) 0 18%, transparent 19%),
+      radial-gradient(circle at 88% 24%, rgba(80,50,20,0.05) 0 14%, transparent 15%),
+      radial-gradient(circle at 64% 80%, rgba(80,50,20,0.06) 0 22%, transparent 23%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .tunnel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 4px 6px 8px;
+    z-index: 2;
+  }
+  .tunnel-title {
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(18px, 2.8cqh, 26px);
+    color: var(--earth-dark);
+    text-shadow: 1px 1px 0 rgba(255,240,210,0.7);
+    line-height: 1.1;
+  }
+  .tunnel-subtitle {
+    font-family: 'Caveat', cursive;
+    font-style: italic;
+    color: var(--earth-mid);
+    font-size: clamp(13px, 1.9cqh, 17px);
+  }
+  .header-buttons { display: flex; gap: 6px; }
+  .icon-btn {
+    background: linear-gradient(180deg, #fff8e3 0%, #f4dba0 100%);
+    border: 2px solid #8a5a2a; border-radius: 10px;
+    color: var(--earth-dark);
+    font-family: var(--sign-font); font-weight: 700;
+    font-size: clamp(11px, 1.6cqh, 13px);
+    padding: clamp(4px, 0.6cqh, 6px) clamp(8px, 1.4cqw, 12px);
+    cursor: pointer;
+    box-shadow: 0 2px 0 rgba(120, 80, 30, 0.4);
+    transition: transform 0.08s;
+  }
+  .icon-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(120,80,30,0.4); }
+
+  .grid-wrap {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px;
+    z-index: 1;
+    min-height: 0;
+  }
+  .tunnel-grid {
+    display: grid;
+    gap: 0;
+    background: linear-gradient(180deg, #6b4a26 0%, #4a2e14 100%);
+    padding: 6px;
+    border-radius: 12px;
+    box-shadow:
+      inset 0 4px 12px rgba(0,0,0,0.4),
+      0 4px 12px rgba(0,0,0,0.3);
+  }
+  .tile {
+    position: relative;
+    width: 100%; height: 100%;
+    background: var(--earth-mid);
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.12s ease;
+  }
+  .tile.empty { cursor: default; }
+  .tile.fixed { cursor: default; }
+  .tile-svg { display: block; width: 100%; height: 100%; }
+
+  .pawprint-trail {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .pawprint {
+    position: absolute;
+    font-size: 18px;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    color: #2a1a08;
+  }
+
+  .tunnel-footer {
+    display: flex; gap: 8px; justify-content: center;
+    padding: 8px 4px 4px;
+    z-index: 2;
+    flex-wrap: wrap;
+  }
+  .btn-big {
+    flex: 1 1 120px;
+    max-width: 220px;
+    padding: clamp(10px, 1.8cqh, 14px) clamp(14px, 2.4cqw, 22px);
+    font-family: var(--sign-font); font-weight: 700;
+    font-size: clamp(14px, 2.2cqh, 18px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
+    background: linear-gradient(180deg, #4a8e3f 0%, #2f6a32 100%);
+    border: 2px solid #234e22;
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #234e22, 0 5px 10px rgba(0,0,0,0.25);
+    transition: transform 0.08s;
+  }
+  .btn-big:active { transform: translateY(2px); box-shadow: 0 1px 0 #234e22, 0 3px 6px rgba(0,0,0,0.25); }
+  .btn-big.secondary {
+    background: linear-gradient(180deg, #d8a04a 0%, #a87028 100%);
+    border-color: #6b4a18;
+    box-shadow: 0 3px 0 #6b4a18, 0 5px 10px rgba(0,0,0,0.25);
+  }
+  .btn-big.secondary:active { box-shadow: 0 1px 0 #6b4a18, 0 3px 6px rgba(0,0,0,0.25); }
+  .btn-big.tertiary {
+    background: linear-gradient(180deg, #b8a890 0%, #8a7560 100%);
+    border-color: #5c4a38;
+    box-shadow: 0 3px 0 #5c4a38, 0 5px 10px rgba(0,0,0,0.25);
+  }
+  .btn-big.tertiary:active { box-shadow: 0 1px 0 #5c4a38, 0 3px 6px rgba(0,0,0,0.25); }
+
+  .result-overlay {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.7) 100%);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 50;
+  }
+  .result-overlay.show { display: flex; }
+  .result-card {
+    background: linear-gradient(180deg, #fff5d8 0%, #f4dba0 100%);
+    border: 3px solid #8a5a2a;
+    border-radius: 16px;
+    padding: clamp(18px, 3cqh, 28px) clamp(20px, 4cqw, 36px);
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transform: rotate(-1deg);
+    max-width: 80%;
+  }
+  .result-title {
+    font-family: var(--sign-font); font-weight: 700;
+    color: var(--earth-dark);
+    font-size: clamp(22px, 3.5cqh, 32px);
+    margin-bottom: 8px;
+  }
+  .result-msg {
+    font-family: 'Caveat', cursive;
+    color: var(--earth-mid);
+    font-size: clamp(16px, 2.4cqh, 20px);
+    margin-bottom: 14px;
+  }
+  .result-buttons { display: flex; gap: 8px; justify-content: center; }
+
+  .placeholder {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--earth-mid);
+    font-family: 'Caveat', cursive;
+    font-size: clamp(14px, 2cqh, 18px);
+  }
+</style>
+</head>
+<body>
+
+<div class="vp-bar">
+  <span>device:</span>
+  <button data-size="iphone">iPhone</button>
+  <button data-size="ipad-p" class="on">iPad P</button>
+  <button data-size="ipad-l">iPad L</button>
+  <button data-size="desktop">Desktop</button>
+  <span class="hint">tunnel.html — tier-1 fox tunnel</span>
+</div>
+
+<div class="device-frame">
+  <div class="device" data-size="ipad-p">
+    <div class="tunnel-scene" id="scene">
+      <div class="tunnel-header">
+        <div>
+          <div class="tunnel-title">Garden tunnels</div>
+          <div class="tunnel-subtitle">rotate the tiles so the fox can find his way home</div>
+        </div>
+        <div class="header-buttons">
+          <button class="icon-btn" id="btn-close">Close ×</button>
+        </div>
+      </div>
+
+      <div class="grid-wrap" id="grid-wrap">
+        <div class="placeholder">Building the tunnels…</div>
+      </div>
+
+      <div class="tunnel-footer">
+        <button class="btn-big" id="btn-submit">Send the fox!</button>
+        <button class="btn-big secondary" id="btn-reset">Reset</button>
+        <button class="btn-big tertiary" id="btn-reroll">Make the tunnels</button>
+      </div>
+
+      <div class="result-overlay" id="result-overlay">
+        <div class="result-card">
+          <div class="result-title" id="result-title">Hooray!</div>
+          <div class="result-msg" id="result-msg">The fox got home!</div>
+          <div class="result-buttons">
+            <button class="btn-big" id="result-continue">Continue</button>
+            <button class="btn-big secondary" id="result-retry" style="display:none">Try again</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="bg-music" src="/assets/audio/music/tunnel-minigame-loop.mp3" loop preload="auto"></audio>
+
+<script type="module">
+  // Embed-mode toggle (matches the other admin pages).
+  const usp = new URLSearchParams(location.search);
+  if (usp.get('embed') === '1') document.body.classList.add('embed');
+
+  // Device-frame switcher.
+  const device = document.querySelector('.device');
+  document.querySelectorAll('.vp-bar [data-size]').forEach((b) => {
+    b.addEventListener('click', () => {
+      device.dataset.size = b.dataset.size;
+      document.querySelectorAll('.vp-bar [data-size]').forEach((x) => x.classList.toggle('on', x === b));
+      requestAnimationFrame(renderGrid);
+    });
+  });
+
+  // ── Embedded tunnel logic (mirror of packages/game-logic/src/tunnel.ts) ──
+  // Just enough to render + win-check client-side. The host re-checks via
+  // the canonical TS module before granting rewards.
+  function baseSides(type) {
+    switch (type) {
+      case 'empty':            return { n: false, e: false, s: false, w: false };
+      case 'straight':         return { n: true,  e: false, s: true,  w: false };
+      case 'corner':           return { n: true,  e: false, s: false, w: true  };
+      case 't-junction':       return { n: true,  e: true,  s: false, w: true  };
+      case 'cross':            return { n: true,  e: true,  s: true,  w: true  };
+      case 'bridge':           return { n: true,  e: true,  s: true,  w: true  };
+      case 'gate':             return { n: true,  e: false, s: true,  w: false };
+      case 'habitat-endpoint': return { n: false, e: false, s: true,  w: false };
+      case 'viewing-dome':     return { n: true,  e: false, s: true,  w: false };
+      default:                 return { n: false, e: false, s: false, w: false };
+    }
+  }
+  function rotateSides(s, r) {
+    let { n, e, s: south, w } = s;
+    for (let i = 0; i < r; i++) { const nn = w, ee = n, ss = e, ww = south; n = nn; e = ee; south = ss; w = ww; }
+    return { n, e, s: south, w };
+  }
+  function tileSides(tile) {
+    if (tile.type === 'empty') return { n: false, e: false, s: false, w: false };
+    if (tile.type === 'gate' && tile.open === false) return { n: false, e: false, s: false, w: false };
+    return rotateSides(baseSides(tile.type), tile.rotation);
+  }
+  function rotateTile(tile) {
+    if (tile.fixed) return { ...tile };
+    if (tile.type === 'cross' || tile.type === 'empty') return { ...tile };
+    return { ...tile, rotation: (tile.rotation + 1) % 4 };
+  }
+  function toggleGate(tile) {
+    if (tile.type !== 'gate') return { ...tile };
+    return { ...tile, open: tile.open === false ? true : false };
+  }
+
+  const OPP = { n: 's', s: 'n', e: 'w', w: 'e' };
+  const DXY = { n: { dx: 0, dy: -1 }, s: { dx: 0, dy: 1 }, e: { dx: 1, dy: 0 }, w: { dx: -1, dy: 0 } };
+
+  function tileAt(p, x, y) {
+    if (x < 0 || y < 0 || x >= p.width || y >= p.height) return undefined;
+    return p.tiles[y * p.width + x];
+  }
+  function findEndpoints(p, animal) {
+    let start, end;
+    for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) {
+      const t = tileAt(p, x, y);
+      if (!t || t.type !== 'habitat-endpoint' || t.endpointFor !== animal) continue;
+      if (t.endpointRole === 'start') start = { x, y };
+      else if (t.endpointRole === 'end') end = { x, y };
+    }
+    return { start, end };
+  }
+  function solveOne(p, animal) {
+    const { start, end } = findEndpoints(p, animal);
+    if (!start || !end) return { reached: false, reason: 'no-start' };
+    const startTile = tileAt(p, start.x, start.y);
+    const startSides = tileSides(startTile);
+    const exitSide = ['n', 'e', 's', 'w'].find((d) => startSides[d]);
+    if (!exitSide) return { reached: false, reason: 'dead-end' };
+    const path = [{ x: start.x, y: start.y }];
+    let x = start.x + DXY[exitSide].dx, y = start.y + DXY[exitSide].dy;
+    let enter = OPP[exitSide];
+    const visited = new Set();
+    const guard = p.width * p.height * 4 + 4;
+    for (let step = 0; step < guard; step++) {
+      const tile = tileAt(p, x, y);
+      if (!tile) return { reached: false, path, reason: 'dead-end' };
+      if (tile.type === 'habitat-endpoint') {
+        path.push({ x, y });
+        const sides = tileSides(tile);
+        if (!sides[enter]) return { reached: false, path, reason: 'dead-end' };
+        if (tile.endpointFor === animal && tile.endpointRole === 'end') return { reached: true, path };
+        return { reached: false, path, reason: 'wrong-destination' };
+      }
+      if (tile.type === 'gate' && tile.open === false) return { reached: false, path, reason: 'gate-closed' };
+      const sides = tileSides(tile);
+      if (!sides[enter]) return { reached: false, path, reason: 'dead-end' };
+      const key = `${x},${y},${enter}`;
+      if (visited.has(key)) return { reached: false, path, reason: 'dead-end' };
+      visited.add(key);
+      path.push({ x, y });
+      let nextExit;
+      if (tile.type === 'bridge') {
+        nextExit = OPP[enter];
+        if (!sides[nextExit]) return { reached: false, path, reason: 'dead-end' };
+      } else {
+        const cands = ['n', 'e', 's', 'w'].filter((d) => sides[d] && d !== enter);
+        if (cands.length === 0) return { reached: false, path, reason: 'dead-end' };
+        nextExit = cands[0];
+      }
+      x += DXY[nextExit].dx; y += DXY[nextExit].dy;
+      enter = OPP[nextExit];
+    }
+    return { reached: false, path, reason: 'dead-end' };
+  }
+  function solvePuzzle(p) {
+    const out = {};
+    for (const a of p.animals) out[a] = solveOne(p, a);
+    return out;
+  }
+
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function generateTier1(seed) {
+    const W = 9, H = 9;
+    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
+    const set = (x, y, t) => { tiles[y * W + x] = t; };
+    const rng = mulberry32(seed);
+    const randR = () => Math.floor(rng() * 4);
+    set(6, 8, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
+    for (let y = 2; y <= 7; y++) set(6, y, { type: 'straight', rotation: randR() });
+    set(6, 3, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 1, { type: 'corner', rotation: 3, fixed: true });
+    for (let x = 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
+    set(0, 1, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
+    return { width: W, height: H, tiles, animals: ['fox'] };
+  }
+
+  // ── State ─────────────────────────────────────────────────────
+  let puzzle = null;
+  let originalPuzzle = null;
+
+  // ── SVG rendering of one tile ─────────────────────────────────
+  const NS = 'http://www.w3.org/2000/svg';
+
+  function svgEl(name, attrs = {}) {
+    const el = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  }
+
+  function tileSvg(tile) {
+    const svg = svgEl('svg', { class: 'tile-svg', viewBox: '0 0 100 100' });
+    const bg = svgEl('rect', {
+      x: 0, y: 0, width: 100, height: 100,
+      fill: tile.type === 'empty' ? '#5a3a1c' : '#7a5430',
+    });
+    svg.appendChild(bg);
+
+    if (tile.type === 'empty') {
+      for (let i = 0; i < 3; i++) {
+        svg.appendChild(svgEl('circle', {
+          cx: 20 + i * 30, cy: 30 + (i % 2) * 40, r: 3,
+          fill: '#3a2410', opacity: 0.4,
+        }));
+      }
+      return svg;
+    }
+
+    const r = tile.rotation;
+    const g = svgEl('g', { transform: `rotate(${r * 90} 50 50)` });
+    svg.appendChild(g);
+
+    const drawCorridor = (d) => {
+      g.appendChild(svgEl('path', {
+        d, fill: '#d8b87a', stroke: '#3a2410',
+        'stroke-width': 4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+      }));
+    };
+
+    if (tile.type === 'straight') {
+      drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
+    } else if (tile.type === 'corner') {
+      // ┘ — N+W open: corridor turns from top to left
+      drawCorridor('M 35 0 L 65 0 L 65 35 Q 65 65, 35 65 L 0 65 L 0 35 Q 35 35, 35 0 Z');
+    } else if (tile.type === 't-junction') {
+      // ┴ — N+E+W open
+      drawCorridor('M 0 35 L 35 35 L 35 0 L 65 0 L 65 35 L 100 35 L 100 65 L 0 65 Z');
+    } else if (tile.type === 'cross') {
+      drawCorridor('M 35 0 L 65 0 L 65 35 L 100 35 L 100 65 L 65 65 L 65 100 L 35 100 L 35 65 L 0 65 L 0 35 L 35 35 Z');
+    } else if (tile.type === 'bridge') {
+      drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
+      drawCorridor('M 0 35 L 100 35 L 100 65 L 0 65 Z');
+    } else if (tile.type === 'gate') {
+      drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
+      g.appendChild(svgEl('rect', {
+        x: 28, y: 42, width: 44, height: 16, rx: 3,
+        fill: tile.open === false ? '#8b5a2a' : '#c89860',
+        stroke: '#3a2410', 'stroke-width': 2,
+      }));
+      g.appendChild(svgEl('circle', { cx: 35, cy: 46, r: 1.6, fill: '#1a0d04' }));
+      g.appendChild(svgEl('circle', { cx: 35, cy: 54, r: 1.6, fill: '#1a0d04' }));
+    } else if (tile.type === 'habitat-endpoint') {
+      // South-opening den (corridor exits south at rotation 0)
+      drawCorridor('M 35 50 L 65 50 L 65 100 L 35 100 Z');
+      g.appendChild(svgEl('circle', {
+        cx: 50, cy: 38, r: 28, fill: '#c89860',
+        stroke: '#3a2410', 'stroke-width': 4,
+      }));
+      const txt = svgEl('text', {
+        x: 50, y: 47, 'text-anchor': 'middle',
+        'font-family': 'Fredoka, sans-serif', 'font-size': 26, 'font-weight': 700,
+        fill: '#3a2410',
+        // un-rotate the label so it stays upright regardless of tile rotation
+        transform: `rotate(${-r * 90} 50 38)`,
+      });
+      const initial = (tile.endpointFor || '?')[0].toUpperCase();
+      txt.textContent = initial + (tile.endpointRole === 'start' ? '↓' : '');
+      g.appendChild(txt);
+    } else if (tile.type === 'viewing-dome') {
+      drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
+      g.appendChild(svgEl('circle', {
+        cx: 50, cy: 50, r: 18,
+        fill: 'rgba(180,220,255,0.45)',
+        stroke: '#3a2410', 'stroke-width': 2.5,
+      }));
+      g.appendChild(svgEl('ellipse', {
+        cx: 44, cy: 44, rx: 6, ry: 4, fill: 'rgba(255,255,255,0.6)',
+      }));
+    }
+
+    return svg;
+  }
+
+  function renderGrid() {
+    if (!puzzle) return;
+    const wrap = document.getElementById('grid-wrap');
+    wrap.replaceChildren();
+    const grid = document.createElement('div');
+    grid.className = 'tunnel-grid';
+    const wrapRect = wrap.getBoundingClientRect();
+    const maxSide = Math.min(wrapRect.width, wrapRect.height) - 12;
+    const tileSize = Math.max(28, Math.floor(maxSide / puzzle.width));
+    grid.style.gridTemplateColumns = `repeat(${puzzle.width}, ${tileSize}px)`;
+    grid.style.gridTemplateRows    = `repeat(${puzzle.height}, ${tileSize}px)`;
+
+    for (let y = 0; y < puzzle.height; y++) {
+      for (let x = 0; x < puzzle.width; x++) {
+        const tile = puzzle.tiles[y * puzzle.width + x];
+        const cell = document.createElement('div');
+        cell.className = 'tile';
+        if (tile.type === 'empty') cell.classList.add('empty');
+        if (tile.fixed) cell.classList.add('fixed');
+        cell.dataset.x = String(x);
+        cell.dataset.y = String(y);
+        cell.appendChild(tileSvg(tile));
+        cell.addEventListener('click', () => onTileClick(x, y));
+        grid.appendChild(cell);
+      }
+    }
+    wrap.appendChild(grid);
+  }
+
+  function onTileClick(x, y) {
+    const i = y * puzzle.width + x;
+    const t = puzzle.tiles[i];
+    if (t.type === 'empty' || t.fixed) return;
+    tryStartMusic();
+    if (t.type === 'gate') puzzle.tiles[i] = toggleGate(t);
+    else puzzle.tiles[i] = rotateTile(t);
+    renderGrid();
+  }
+
+  function onSubmit() {
+    tryStartMusic();
+    const result = solvePuzzle(puzzle);
+    const allReached = puzzle.animals.every((a) => result[a]?.reached);
+    if (allReached) animatePawprintsAndWin(result);
+    else showResult(false);
+  }
+
+  function animatePawprintsAndWin(result) {
+    const wrap = document.getElementById('grid-wrap');
+    const grid = wrap.querySelector('.tunnel-grid');
+    if (!grid) return showResult(true);
+    const trail = document.createElement('div');
+    trail.className = 'pawprint-trail';
+    grid.appendChild(trail);
+    const cellPx = grid.getBoundingClientRect().width / puzzle.width;
+    const path = result.fox?.path || [];
+    path.forEach((cell, idx) => {
+      const paw = document.createElement('div');
+      paw.className = 'pawprint';
+      paw.textContent = '🐾';
+      paw.style.left = `${(cell.x + 0.5) * cellPx}px`;
+      paw.style.top  = `${(cell.y + 0.5) * cellPx}px`;
+      trail.appendChild(paw);
+      setTimeout(() => {
+        paw.style.transition = 'opacity 0.4s ease';
+        paw.style.opacity = '1';
+      }, idx * 150);
+    });
+    setTimeout(() => showResult(true), path.length * 150 + 600);
+  }
+
+  function showResult(win) {
+    const overlay = document.getElementById('result-overlay');
+    const title = document.getElementById('result-title');
+    const msg = document.getElementById('result-msg');
+    const cont = document.getElementById('result-continue');
+    const retry = document.getElementById('result-retry');
+    if (win) {
+      title.textContent = 'Hooray!';
+      msg.textContent = 'The fox is out playing in the garden — happiness +!';
+      cont.style.display = '';
+      retry.style.display = 'none';
+    } else {
+      title.textContent = 'So close!';
+      msg.textContent = 'The fox got a bit lost — try again?';
+      cont.style.display = 'none';
+      retry.style.display = '';
+    }
+    overlay.classList.add('show');
+    if (win) {
+      window.parent?.postMessage({
+        source: 'arc-tunnel',
+        type: 'tunnel-complete',
+        payload: { animalsRescued: ['fox'] },
+      }, '*');
+    }
+  }
+
+  function loadFromSeed(seed) {
+    puzzle = generateTier1(seed);
+    originalPuzzle = JSON.parse(JSON.stringify(puzzle));
+    renderGrid();
+  }
+  function reset() {
+    if (originalPuzzle) {
+      puzzle = JSON.parse(JSON.stringify(originalPuzzle));
+      renderGrid();
+    }
+  }
+  function reroll() {
+    const newSeed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+    loadFromSeed(newSeed);
+    window.parent?.postMessage({
+      source: 'arc-tunnel',
+      type: 'tunnel-override-reroll',
+      payload: { reward: 'coins' },
+    }, '*');
+  }
+
+  document.getElementById('btn-submit').addEventListener('click', onSubmit);
+  document.getElementById('btn-reset').addEventListener('click', reset);
+  document.getElementById('btn-reroll').addEventListener('click', reroll);
+  document.getElementById('btn-close').addEventListener('click', () => {
+    window.parent?.postMessage({ source: 'arc-tunnel', type: 'tunnel-cancel' }, '*');
+  });
+  document.getElementById('result-continue').addEventListener('click', () => {
+    document.getElementById('result-overlay').classList.remove('show');
+    window.parent?.postMessage({ source: 'arc-tunnel', type: 'tunnel-cancel' }, '*');
+  });
+  document.getElementById('result-retry').addEventListener('click', () => {
+    document.getElementById('result-overlay').classList.remove('show');
+  });
+
+  // Background music — first-gesture autoplay (browser autoplay policies).
+  const music = document.getElementById('bg-music');
+  let musicStarted = false;
+  function tryStartMusic() {
+    if (musicStarted || !music) return;
+    music.volume = 0.4;
+    const p = music.play();
+    if (p && typeof p.then === 'function') {
+      p.then(() => { musicStarted = true; }).catch(() => {/* ignore */});
+    } else {
+      musicStarted = true;
+    }
+  }
+
+  // postMessage init handshake — host can either send a fully-formed
+  // puzzle object or just a seed.
+  window.addEventListener('message', (e) => {
+    const m = e.data;
+    if (!m || typeof m !== 'object') return;
+    if (m.source !== 'arc-game-host' && m.source !== 'arc-tunnel-host') return;
+    if (m.type === 'init') {
+      const payload = m.payload || {};
+      if (payload.puzzle) {
+        puzzle = payload.puzzle;
+        originalPuzzle = JSON.parse(JSON.stringify(puzzle));
+        renderGrid();
+      } else {
+        const seed = typeof payload.seed === 'number' ? payload.seed : (Date.now() >>> 0);
+        loadFromSeed(seed);
+      }
+    }
+  });
+
+  // Standalone fallback (no host) — seed from today.
+  if (!puzzle) {
+    const today = new Date();
+    const seed = (today.getUTCFullYear() * 10000 + (today.getUTCMonth() + 1) * 100 + today.getUTCDate()) >>> 0;
+    loadFromSeed(seed);
+  }
+
+  window.addEventListener('resize', () => requestAnimationFrame(renderGrid));
+</script>
+
+</body>
+</html>
