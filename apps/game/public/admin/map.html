@@ -206,29 +206,31 @@
        - Raccoon pen (T3):   mid-right, ~30% × 22%
      Central path strip remains, narrower and shorter so it
      connects the lawn/quiet gardens to the small-mammal zone. */
-  /* Master-plan revision 2 (Marcus 2026-05-03):
-       - Building enlarged back to width:60% (was 50%), still
-         left-anchored at left:6%. Door now at stage 36%.
-       - Central path runs ALL the way from the north edge of the
-         plot down to the back of the building, with the patches
-         on either side. Path lands at fox/skunk 2/3-1/3 boundary
-         so the (planned) fox tunnel exits at the fox habitat's
-         east edge for swift access.
-       - Fox occupies 2/3 of the rear row (left of path), skunk
-         1/3 (right of path). Hedgehog/raccoon and lawn/quiet
-         inherit the same off-centre split for visual consistency
-         with the path geometry. */
+  /* Master-plan revision 3 (Marcus 2026-05-03):
+       - Lawn garden moved to a tall VERTICAL strip on the right
+         (y:44%-78%, between quiet's bottom and the canopy's top).
+       - Quiet garden moved to a thin HORIZONTAL strip just above
+         the building, ending level with lawn's top edge.
+       - That frees vertical space on the upper-left → fox + skunk
+         habitats extended significantly (h:10% → h:18%).
+       - A small empty buffer is preserved at the very top of the
+         plot ("back") for future animals.
+       - Hedgehog + raccoon row tightened slightly to make room. */
+
+  /* Top buffer (y:0%-4%) intentionally empty — reserved for future
+     "back of the plot" animals beyond fox + skunk. */
+
   #arc-stage .region-fox {
-    left: 6%; top: 2%; width: 54.67%; height: 10%;
+    left: 6%; top: 4%; width: 54.67%; height: 18%;
   }
   #arc-stage .region-skunk {
-    left: 66.67%; top: 2%; width: 27.33%; height: 10%;
+    left: 66.67%; top: 4%; width: 27.33%; height: 18%;
   }
   #arc-stage .region-hedgehog {
-    left: 6%; top: 14%; width: 54.67%; height: 14%;
+    left: 6%; top: 25%; width: 54.67%; height: 12%;
   }
   #arc-stage .region-raccoon {
-    left: 66.67%; top: 14%; width: 27.33%; height: 14%;
+    left: 66.67%; top: 25%; width: 27.33%; height: 12%;
   }
   /* Central vertical path: from north edge (y:0) down to the back
      of the building (y:~44%). Path lands at the fox/skunk
@@ -252,22 +254,28 @@
     border-bottom: 1px solid rgba(123,92,58,0.5);
     position: absolute;
   }
-  .region-path-h.path-h-1 { top: 12%; }    /* between fox/skunk and hedgehog/raccoon */
-  .region-path-h.path-h-2 { top: 28%; }    /* between hedgehog/raccoon and gardens   */
-  .region-path-h.path-h-3 { top: 43%; }    /* between gardens and building forecourt */
-  /* Gardens follow the same off-centre split as fox/skunk (lawn
-     2/3 left, quiet 1/3 right). Sit at y=30-43%, just above the
-     building's top edge (~y=44% with width:60%). */
-  #arc-stage .region-lawn {
-    left: 6%; top: 30%; width: 54.67%; height: 13%;
-    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-lawn-garden.png');
-    border: 1.5px solid #5a8a4f;
-    border-radius: 4px;
-  }
+  /* Only one horizontal grid path now — between fox/skunk and
+     hedgehog/raccoon. Quiet garden itself acts as the horizontal
+     divider above the building, so we don't need explicit grid
+     paths around it. */
+  .region-path-h.path-h-1 { top: 23%; }    /* between fox/skunk and hedgehog/raccoon */
+  /* Quiet garden — thin HORIZONTAL strip just above the building,
+     stops at the central path's left edge so the path runs through
+     uninterrupted. Right edge ends level with the LAWN garden's top. */
   #arc-stage .region-quiet {
-    left: 66.67%; top: 30%; width: 27.33%; height: 13%;
+    left: 6%; top: 38%; width: 54.67%; height: 5%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-quiet-garden.png');
     border: 1.5px solid #5a7a4a;
+    border-radius: 4px;
+  }
+  /* Lawn garden — tall VERTICAL strip on the right, from the
+     central path's east edge (x:66.67%) to the strip's right
+     edge (x:94%), running from quiet's bottom level (y:44%)
+     down to the long-bay canopy's top (y:78%). */
+  #arc-stage .region-lawn {
+    left: 66.67%; top: 44%; width: 27.33%; height: 34%;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-lawn-garden.png');
+    border: 1.5px solid #5a8a4f;
     border-radius: 4px;
   }
   /* ── Parking + depot ──────────────────────────────────────────
@@ -598,10 +606,10 @@
     <div class="arc-region region-lawn"></div>
     <div class="arc-region region-quiet"></div>
     <div class="arc-region region-path"></div>
-    <!-- Horizontal grid paths between rows of patches -->
+    <!-- Horizontal grid path between fox/skunk and hedgehog/raccoon
+         rows. (The quiet garden itself acts as the horizontal
+         divider further down, so no other horizontal paths needed.) -->
     <div class="region-path-h path-h-1" aria-hidden="true"></div>
-    <div class="region-path-h path-h-2" aria-hidden="true"></div>
-    <div class="region-path-h path-h-3" aria-hidden="true"></div>
     <div class="arc-region region-undeveloped region-hedgehog" data-future="future: T2 hedgehog/squirrel"></div>
     <div class="arc-region region-undeveloped region-raccoon" data-future="future: T3 raccoon"></div>
     <!-- Fox + skunk now have separate tile patches at the north end
@@ -611,29 +619,34 @@
 
     <!-- Region labels — sit centred over their respective pen
          footprints rather than over generic strip positions. -->
-    <div class="region-label tier-future" style="left: 33%; top: 7%;">Fox (T6)</div>
-    <div class="region-label tier-future" style="left: 80.33%; top: 7%;">Skunk (future)</div>
-    <div class="region-label tier-future" style="left: 33%; top: 21%;">Hedgehog + Squirrel (T2)</div>
-    <div class="region-label tier-future" style="left: 80.33%; top: 21%;">Raccoon (T3)</div>
-    <div class="region-label" style="left: 33%; top: 36.5%;">Lawn garden</div>
-    <div class="region-label" style="left: 80.33%; top: 36.5%;">Quiet garden</div>
+    <div class="region-label tier-future" style="left: 33%; top: 13%;">Fox (T6)</div>
+    <div class="region-label tier-future" style="left: 80.33%; top: 13%;">Skunk (future)</div>
+    <div class="region-label tier-future" style="left: 33%; top: 31%;">Hedgehog + Squirrel (T2)</div>
+    <div class="region-label tier-future" style="left: 80.33%; top: 31%;">Raccoon (T3)</div>
+    <div class="region-label" style="left: 33%; top: 40.5%;">Quiet garden</div>
+    <div class="region-label" style="left: 80.33%; top: 60%;">Lawn garden</div>
 
     <!-- Building at the SOUTH end (bottom — entrance facing kid arriving from Bay Road) -->
     <img class="stamp stamp-building" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="A.R.C. main building"/>
 
-    <!-- Trees in the hedgehog/squirrel left zone (now upper-middle of canvas
-         since fox/skunk moved to the top). -->
-    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" style="left: 9%; top: 22%;" alt="Oak"/>
-    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" style="left: 28%; top: 26%;" alt="Ash"/>
-    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left: 13%; top: 42%;" alt="Horse chestnut"/>
+    <!-- Trees rooted in the gardens. Tree stamps are 13% wide ×
+         13% tall (square aspect). The painted base of each tree
+         sits in its garden patch; the canopy may extend above. -->
+    <!-- Oak rooted in the QUIET garden (thin horizontal strip
+         at y:38%-43%). Tree base at y~43%, canopy reaches up. -->
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" style="left: 12%; top: 31%;" alt="Oak"/>
+    <!-- Ash + horse chestnut rooted in the LAWN garden (vertical
+         strip on the right at y:44%-78%). Stagger them down the
+         strip so each tree's canopy gets visible space. -->
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" style="left: 70%; top: 48%;" alt="Ash"/>
+    <img class="stamp stamp-tree" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" style="left: 78%; top: 64%;" alt="Horse chestnut"/>
 
-    <!-- Viewing domes spaced along the central path which now
-         runs y:0-44% at x:60.67%-66.67%. Domes anchored to the
-         path's mid-x (63.67%). One dome roughly centred in each
-         row's path segment. -->
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 63.67%; top: 7%;"  alt="Viewing dome"/>
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 63.67%; top: 21%;" alt="Viewing dome"/>
-    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 63.67%; top: 36.5%;" alt="Viewing dome"/>
+    <!-- Viewing domes spaced along the central path (y:0-44% at
+         x:60.67%-66.67%). One dome per row segment: top in
+         fox/skunk, middle in hedgehog/raccoon, bottom in quiet. -->
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 63.67%; top: 13%;" alt="Viewing dome"/>
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 63.67%; top: 31%;" alt="Viewing dome"/>
+    <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 63.67%; top: 41%;" alt="Viewing dome"/>
 
     <!-- Long-bay deep extension — placed AFTER the building stamp
          so the painted-canopy tarmac visibly extends UPWARD past
