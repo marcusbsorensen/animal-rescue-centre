@@ -239,10 +239,12 @@
 
   /* The deep extension under the 2 long bays. Same tarmac fill
      as the front strip; sits above the strip so they read as one
-     continuous L-shape. The extension's bottom edge meets the
-     strip's top edge cleanly because both have a 1.5px border —
-     we suppress the bottom border on the extension to avoid a
-     double line at the join. */
+     continuous L-shape. Markup placed AFTER the building stamp
+     so the canopy is visible OVER the building's south-east
+     corner (reads as an attached covered carport).
+     The extension's bottom edge meets the strip's top edge cleanly
+     because both have a 1.5px border — we suppress the bottom
+     border on the extension to avoid a double line at the join. */
   #arc-stage .region-parking-deep {
     position: absolute;
     /* Stage 68.5%–82% wide, y 70%–87% (height 17%). Right edge
@@ -255,7 +257,32 @@
     border-bottom: 0;            /* meet front strip cleanly */
     border-radius: 4px 4px 0 0;  /* round only the top corners */
     overflow: visible;
+    /* A faint shadow underneath suggests the canopy hangs over the
+       front strip — sells the "covered awning attached to the
+       building" read. */
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.18);
   }
+  /* Three vertical dividers carving the deep extension into 2
+     bays. The deep extension is 13.5% of stage wide; bays are
+     6.83% (Bea) + 8.54% (Big Tilly) ÷ scaled to extension width:
+     Bea = 44% of extension, Big Tilly = 56%. Dividers at 0%,
+     44%, 100% — left + right edges already drawn by the
+     extension's own border, so we only need the middle one. */
+  #arc-stage .region-parking-deep .deep-divider {
+    position: absolute;
+    top: 6%; height: 88%;
+    width: 0;
+    border-left: 4px solid var(--bay-line);
+    border-radius: 3px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.22);
+  }
+  /* Internal bays: only one needed (Bea/BigTilly split at 44%
+     of extension). The two outer dividers (0% + 100%) line up
+     with the front strip's dep-4 + dep-6 dividers underneath
+     so the L-corner reads cleanly. */
+  .deep-d1 { left: -1px; }      /* aligns with strip dep-4   */
+  .deep-d2 { left: 44%; }       /* Bea ↔ Big Tilly split     */
+  .deep-d3 { left: calc(100% - 3px); }  /* aligns with dep-6 */
 
   /* ── Standard bay dividers (front strip) ────────────────────
      Thick brushed-on lines BETWEEN bays only. Positions are in
@@ -313,58 +340,31 @@
   .bay-divider.dep-5 { left: 77.86%; }  /* Bea/BigTilly (LONG) */
   .bay-divider.dep-6 { left: 86.4%; }   /* BigTilly/wall (LONG) */
 
-  /* Long-bay dividers extend UPWARD past the front strip into
-     the deep extension. Standard divider spans strip-local 8%–92%
-     (= y 87.9%–97.1% of stage). Long dividers must reach up to
-     the deep extension's top (stage y = 70%) which is strip-local
-     (70−87)/11 × 100 = −154.5%. Height = 92 − (−154.5) = 246.5%. */
-  .bay-divider.long {
-    top: -154.5%;
-    height: 246.5%;
-  }
-
-  /* Tiny painted glyphs in each depot bay so the role reads even
-     before the kid unlocks the vehicle. Standard bays sit mid-
-     strip; LONG bays' glyphs sit higher in the deep extension. */
-  #arc-stage .region-parking .bay-glyph {
+  /* Vehicle name labels — all 5 in the front strip, rotated -90°
+     (anticlockwise) so they read kerb-upward. Anchored close to
+     the south kerb so a driver pulling up the road sees the
+     names lined up at the curb edge of each bay. */
+  #arc-stage .region-parking .bay-glyph.kerb {
     position: absolute;
-    top: 50%; transform: translate(-50%, -50%);
+    bottom: 6%;                         /* close to the south kerb */
+    transform: translate(-50%, 0) rotate(-90deg);
+    transform-origin: center bottom;
     font-family: 'Kalam', cursive;
-    font-size: 9px;
+    font-weight: 700;
+    font-size: 10px;
     color: var(--bay-line);
-    text-align: center;
-    line-height: 1.05;
     text-shadow: 0 0 4px rgba(0,0,0,0.55);
     pointer-events: none;
     white-space: nowrap;
   }
-  .bay-glyph.gly-trikey { left: 58.22%; }   /* mid Trikey */
-  .bay-glyph.gly-henry  { left: 62.50%; }   /* mid Henry  */
-  .bay-glyph.gly-spark  { left: 68.18%; }   /* mid Spark  */
-
-  /* Long-bay glyphs live in the deep extension, anchored to its
-     top half so the cab area reads as occupied. Positions in the
-     deep extension's local coord system. */
-  #arc-stage .region-parking-deep .deep-glyph {
-    position: absolute;
-    top: 22%;
-    transform: translate(-50%, -50%);
-    font-family: 'Kalam', cursive;
-    font-size: 9px;
-    color: var(--bay-line);
-    text-align: center;
-    line-height: 1.05;
-    text-shadow: 0 0 4px rgba(0,0,0,0.55);
-    pointer-events: none;
-    white-space: nowrap;
-  }
-  /* Bea bay = stage 71.03%–77.86% → deep-extension-relative (the
-     extension spans stage 68.5%–82% = 13.5% wide):
-       Bea mid = (74.45% − 68.5%) ÷ 13.5% = 44%
-       BigTilly mid = (82.13% − 68.5%) ÷ 13.5% = 101% — clamp to 84%
-     Adjusted to keep both inside the extension. */
-  .deep-glyph.gly-bea       { left: 28%; }
-  .deep-glyph.gly-big-tilly { left: 71%; }
+  /* Per-bay horizontal anchor: each label's pre-rotation centre
+     sits at the bay's mid-x. After rotate(-90deg) the text reads
+     bottom-to-top within that bay's column. */
+  .bay-glyph.gly-trikey   { left: 58.22%; }   /* mid Trikey   */
+  .bay-glyph.gly-henry    { left: 62.50%; }   /* mid Henry    */
+  .bay-glyph.gly-spark    { left: 68.18%; }   /* mid Spark    */
+  .bay-glyph.gly-bea      { left: 74.45%; }   /* mid Bea      */
+  .bay-glyph.gly-big-tilly{ left: 82.13%; }   /* mid Big Tilly*/
   #arc-stage .stamp {
     position: absolute;
     pointer-events: none;
@@ -497,16 +497,6 @@
   </div>
 
   <div class="arc-frame">
-    <!-- Deep extension for the 2 long bays. Sits ABOVE the front
-         strip in DOM order so the long-bay dividers (which extend
-         up out of the strip) get the same tarmac fill behind them.
-         The building stamp comes later in DOM and overpaints any
-         overlap with the building's south face. -->
-    <div class="arc-region region-parking-deep" aria-hidden="true">
-      <div class="deep-glyph gly-bea">Bea</div>
-      <div class="deep-glyph gly-big-tilly">Big Tilly</div>
-    </div>
-
     <div class="arc-region region-parking">
       <!-- Visitor side: 3 bays defined by 4 dividers -->
       <div class="bay-divider vis-1"></div>
@@ -515,20 +505,27 @@
       <div class="bay-divider vis-4"></div>
       <!-- Pedestrian walkway under the front door -->
       <div class="walkway" aria-hidden="true"></div>
-      <!-- Depot bays — 5 vehicles, 6 dividers.
-           Standard depth: Trikey ½, Henry, Spark.
-           Deep (long): Bea, Big Tilly — dividers carry the .long
-           class so they extend up into the deep extension. -->
+      <!-- Depot bays — 5 vehicles, 6 dividers (standard depth).
+           Long-bay extensions (for Bea + Big Tilly) live in
+           region-parking-deep, drawn AFTER the building stamp so
+           the painted-canopy tarmac is visible OVER the building's
+           south-east corner. -->
       <div class="bay-divider dep-1"></div>
       <div class="bay-divider dep-2"></div>
       <div class="bay-divider dep-3"></div>
-      <div class="bay-divider dep-4 long"></div>
-      <div class="bay-divider dep-5 long"></div>
-      <div class="bay-divider dep-6 long"></div>
-      <!-- Painted glyphs naming the standard-depth depot bays -->
-      <div class="bay-glyph gly-trikey">🚲<br>Trikey</div>
-      <div class="bay-glyph gly-henry">Henry</div>
-      <div class="bay-glyph gly-spark">⚡ Spark</div>
+      <div class="bay-divider dep-4"></div>
+      <div class="bay-divider dep-5"></div>
+      <div class="bay-divider dep-6"></div>
+      <!-- Vehicle name labels — all 5 in the front strip, rotated
+           -90° and anchored close to the kerb so the driver can
+           read each from the road. Long-bay labels (Bea, BigTilly)
+           sit in the same position as standard ones — the bay's
+           identity is fixed at the kerb end. -->
+      <div class="bay-glyph kerb gly-trikey">Trikey</div>
+      <div class="bay-glyph kerb gly-henry">Henry</div>
+      <div class="bay-glyph kerb gly-spark">Spark ⚡</div>
+      <div class="bay-glyph kerb gly-bea">Bea</div>
+      <div class="bay-glyph kerb gly-big-tilly">Big Tilly</div>
     </div>
     <div class="arc-region region-lawn"></div>
     <div class="arc-region region-quiet"></div>
@@ -559,6 +556,17 @@
     <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 28%;" alt="Viewing dome"/>
     <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 36%;" alt="Viewing dome"/>
     <img class="stamp stamp-dome" src="scene-assets/reference/arc-site-tier1-2026-04-29/viewing-dome-stamp.png" style="left: 50%; top: 44%;" alt="Viewing dome"/>
+
+    <!-- Long-bay deep extension — placed AFTER the building stamp
+         so the painted-canopy tarmac visibly extends UPWARD past
+         the front strip's top edge into the building's south-east
+         corner. Reads as a covered carport awning attached to the
+         rescue centre, where Bea + Big Tilly tuck in nose-first. -->
+    <div class="region-parking-deep" aria-hidden="true">
+      <div class="deep-divider deep-d1"></div>
+      <div class="deep-divider deep-d2"></div>
+      <div class="deep-divider deep-d3"></div>
+    </div>
   </div>
 </div>
 
