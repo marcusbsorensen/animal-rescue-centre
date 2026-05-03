@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Adoption Office</title>
+<script>
+  // Iframe-context detection — flips html.iframed before first paint
+  // so the design-preview chrome (vp-bar) is hidden in-game even if
+  // the embed-mode JS toggle hasn't run yet.
+  if (window.top !== window.self) document.documentElement.classList.add('iframed');
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@400;500;600&family=Kalam:wght@400;700&family=Gochi+Hand&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream-wash: #fef9ef;
+    --garden-green: #2E8B57;
+    --honey-amber: #e3b04b;
+    --honey-shadow: #b88a37;
+    --trellis-brown: #7b5c3a;
+    --ink: #3a3a3a;
+    --ink-soft: #6b6b6b;
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Quicksand', system-ui, sans-serif;
+    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
+    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #222; }
+  body { font-family: var(--body-font); color: var(--ink); overflow: hidden; display: flex; flex-direction: column; }
+  body.embed { background: #fef9ef; }
+  body.embed .vp-bar { display: none; }
+  body.embed .device-frame { padding: 0; overflow: hidden; flex: 1; }
+  body.embed .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+  /* Belt-and-braces: when iframed, hide design-preview chrome
+     unconditionally regardless of script readiness. */
+  html.iframed body .vp-bar { display: none !important; }
+  html.iframed body { background: #fef9ef !important; }
+  html.iframed body .device-frame { padding: 0 !important; overflow: hidden !important; flex: 1 !important; }
+  html.iframed body .device {
+    width: 100% !important; height: 100% !important;
+    border-radius: 0 !important; box-shadow: none !important;
+  }
+
+  /* mock toolbar */
+  .vp-bar {
+    background: #2a2a2a; color: #fff;
+    padding: 6px 12px; font-size: 11px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+  .vp-bar button {
+    background: #444; color: #fff; border: 1px solid #555;
+    padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+  }
+  .vp-bar button.on { background: var(--honey-amber); color: var(--ink); border-color: var(--honey-amber); }
+  .vp-bar .hint { color: #aaa; margin-left: auto; font-style: italic; }
+  .vp-bar a { color: #8fd3ff; margin-left: 12px; }
+
+  .device-frame {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow: auto;
+  }
+  .device {
+    background: var(--cream-wash);
+    border-radius: 24px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.4);
+    overflow: hidden;
+    position: relative;
+    transition: width 0.3s, height 0.3s;
+    flex-shrink: 0;
+  }
+  .device[data-size="iphone"]    { width: 390px;  height: 844px; }
+  .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
+  .device[data-size="ipad-l"]    { width: 1024px; height: 768px; }
+  .device[data-size="desktop"]   { width: 1280px; height: 800px; }
+
+  /* ── Adoption office painted desk scene ── */
+  .office {
+    width: 100%; height: 100%;
+    position: relative;
+    overflow: hidden;
+    container-type: size;
+    container-name: office;
+  }
+  /* Painted desk background — warm amber wash with soft vignette so the
+     household cards float on top like portrait photographs laid out. */
+  .office::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 30%, rgba(255, 230, 180, 0.35) 0%, transparent 65%),
+      radial-gradient(ellipse at 20% 90%, rgba(255, 215, 160, 0.25) 0%, transparent 55%),
+      linear-gradient(180deg, #f8e3b8 0%, #e8c990 50%, #c89758 100%);
+    z-index: 0;
+  }
+  /* Subtle wood-grain streaks on the desk */
+  .office::after {
+    content: ''; position: absolute; inset: 0;
+    background:
+      linear-gradient(90deg,
+        transparent 0%, transparent 18%,
+        rgba(120, 80, 30, 0.05) 19%, transparent 20%, transparent 38%,
+        rgba(120, 80, 30, 0.06) 39%, transparent 40%, transparent 60%,
+        rgba(120, 80, 30, 0.05) 61%, transparent 62%, transparent 82%,
+        rgba(120, 80, 30, 0.06) 83%, transparent 84%);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .office-inner {
+    position: relative; z-index: 5;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    gap: clamp(10px, 1.8cqh, 18px);
+    padding: clamp(12px, 2.4cqh, 22px) clamp(14px, 3cqw, 28px);
+    overflow-y: auto;
+  }
+
+  /* ── Banner plaque at the top: WHO WILL TAKE {NAME} HOME? ── */
+  .banner-plaque {
+    position: relative;
+    width: min(96%, 620px);
+    flex: 0 0 auto;
+    padding: clamp(14px, 2.4cqh, 22px) clamp(16px, 3cqw, 26px);
+    background:
+      linear-gradient(180deg,
+        transparent 0%, transparent 19%,
+        rgba(0,0,0,0.32) 19.5%, rgba(0,0,0,0.32) 20%,
+        rgba(255,240,210,0.18) 20.3%, transparent 20.8%,
+        transparent 79%,
+        rgba(0,0,0,0.32) 79.5%, rgba(0,0,0,0.32) 80%,
+        rgba(255,240,210,0.18) 80.3%, transparent 80.8%,
+        transparent 100%),
+      linear-gradient(90deg,
+        transparent 0%, transparent 24%,
+        rgba(0,0,0,0.05) 25%, transparent 26%, transparent 49%,
+        rgba(0,0,0,0.06) 50%, transparent 51%, transparent 74%,
+        rgba(0,0,0,0.05) 75%, transparent 76%),
+      linear-gradient(180deg, #c49464 0%, #a8723a 45%, #8b5822 100%);
+    border: 3px solid #8a5a2a;
+    border-radius: 12px;
+    box-shadow:
+      0 10px 22px rgba(0,0,0,0.4),
+      inset 0 0 22px rgba(0,0,0,0.22),
+      inset 0 3px 0 rgba(255,240,210,0.2);
+    transform: rotate(-0.5deg);
+    z-index: 12;
+    display: flex; align-items: center; gap: clamp(10px, 2cqw, 18px);
+    animation: plaqueDrop 0.55s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes plaqueDrop {
+    0%   { transform: translateY(-30px) rotate(-2.5deg); opacity: 0; }
+    60%  { transform: translateY(3px)   rotate(0.4deg); opacity: 1; }
+    100% { transform: translateY(0)     rotate(-0.5deg); opacity: 1; }
+  }
+  .banner-plaque::before, .banner-plaque::after {
+    content: '';
+    position: absolute; top: 8px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #7b604a 0%, #3c2a18 70%, #1f140a 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .banner-plaque::before { left: 12px; }
+  .banner-plaque::after  { right: 12px; }
+
+  /* Animal-sprite mini-plaque tucked into the banner */
+  .banner-animal {
+    flex: 0 0 auto;
+    width: clamp(56px, 9cqh, 84px);
+    height: clamp(56px, 9cqh, 84px);
+    border-radius: 12px;
+    border: 3px solid #7a4b15;
+    background:
+      radial-gradient(ellipse at 50% 100%, rgba(255,210,140,0.4) 0%, transparent 65%),
+      linear-gradient(180deg, #f8e9c8 0%, #e6c893 55%, #c9a369 100%);
+    box-shadow:
+      0 4px 10px rgba(0,0,0,0.35),
+      inset 0 2px 0 rgba(255,240,210,0.4);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    padding: 4px;
+  }
+  .banner-animal img {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.3));
+  }
+  .banner-animal-fallback {
+    font-size: clamp(28px, 5cqh, 44px);
+    line-height: 1;
+  }
+  .banner-text {
+    flex: 1 1 auto;
+    display: flex; flex-direction: column;
+    gap: clamp(2px, 0.4cqh, 4px);
+    min-width: 0;
+  }
+  .banner-title {
+    font-family: var(--sign-title-font);
+    font-weight: 700;
+    font-size: clamp(20px, 3.6cqh, 30px);
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
+    paint-order: stroke fill;
+    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
+  }
+  .banner-subtitle {
+    font-family: 'Caveat', 'Kalam', cursive;
+    font-style: italic;
+    font-weight: 700;
+    color: #fffbe8;
+    font-size: clamp(14px, 2.2cqh, 20px);
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    line-height: 1.2;
+  }
+
+  /* ── Cards grid ── */
+  .cards-wrap {
+    width: 100%;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .cards-grid {
+    width: min(96%, 880px);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(12px, 2cqh, 18px);
+    padding: clamp(4px, 0.8cqh, 10px) 0;
+  }
+  @container office (min-width: 600px) {
+    .cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* Painted-storybook household card */
+  .h-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: clamp(6px, 1cqh, 10px);
+    padding: clamp(10px, 1.6cqh, 14px) clamp(12px, 2cqw, 16px) clamp(12px, 1.8cqh, 16px);
+    background: linear-gradient(180deg, #fff8e3 0%, #fbecc2 100%);
+    border: 3px solid var(--honey-amber);
+    border-radius: 16px;
+    box-shadow:
+      0 5px 12px rgba(0,0,0,0.25),
+      inset 0 2px 0 rgba(255,255,230,0.5),
+      inset 0 -2px 0 rgba(184, 138, 55, 0.3);
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    transform: rotate(-0.4deg);
+    text-align: left;
+    font-family: inherit;
+    color: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .h-card:nth-child(even) { transform: rotate(0.5deg); }
+  .h-card:nth-child(3n)   { transform: rotate(-0.7deg); }
+  .h-card:hover, .h-card:focus-visible {
+    transform: translateY(-4px) rotate(0deg) scale(1.02);
+    box-shadow:
+      0 12px 22px rgba(0,0,0,0.35),
+      inset 0 2px 0 rgba(255,255,230,0.55),
+      inset 0 -2px 0 rgba(184, 138, 55, 0.35);
+    outline: none;
+  }
+  .h-card:active {
+    transform: translateY(-1px) scale(0.99);
+  }
+
+  .h-portrait {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 10px;
+    border: 3px solid #7a4b15;
+    background:
+      radial-gradient(ellipse at 50% 100%, rgba(255,210,140,0.35) 0%, transparent 65%),
+      linear-gradient(180deg, #f8e9c8 0%, #e6c893 55%, #c9a369 100%);
+    box-shadow:
+      inset 0 2px 0 rgba(255,240,210,0.45),
+      inset 0 0 0 2px rgba(120, 80, 30, 0.2);
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .h-portrait img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .h-portrait-fallback {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 8% 10%;
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 600;
+    color: #4a2e14;
+    font-size: clamp(12px, 1.6cqh, 15px);
+    line-height: 1.25;
+  }
+  .h-portrait-fallback .ff-emoji {
+    font-size: clamp(28px, 4.2cqh, 40px);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .h-name {
+    font-family: var(--headline-font);
+    font-weight: 600;
+    font-size: clamp(16px, 2.4cqh, 20px);
+    color: #4a2e14;
+    line-height: 1.15;
+    margin-top: clamp(2px, 0.4cqh, 4px);
+  }
+  .h-blurb {
+    font-family: var(--body-font);
+    font-weight: 500;
+    font-size: clamp(13px, 1.8cqh, 15px);
+    color: var(--ink-soft);
+    line-height: 1.35;
+  }
+
+  /* Decorative little paw stamp in corner */
+  .h-card::after {
+    content: '🐾';
+    position: absolute;
+    top: 6px; right: 8px;
+    font-size: clamp(14px, 2cqh, 18px);
+    opacity: 0.4;
+    transform: rotate(18deg);
+    pointer-events: none;
+  }
+
+  /* Empty state — no eligible applicants */
+  .empty-state {
+    width: min(94%, 460px);
+    margin: clamp(20px, 3cqh, 30px) auto;
+    text-align: center;
+    padding: clamp(18px, 2.8cqh, 26px);
+    background: linear-gradient(180deg, #fff8e3 0%, #fbecc2 100%);
+    border: 2px dashed #b88a37;
+    border-radius: 14px;
+    color: #4a2e14;
+    font-family: var(--body-font);
+    font-weight: 500;
+    font-size: clamp(14px, 2cqh, 16px);
+    line-height: 1.4;
+  }
+  .empty-state .ff-emoji {
+    font-size: clamp(32px, 5cqh, 44px);
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  /* ── Bottom: cancel link ── */
+  .footer-row {
+    width: 100%;
+    flex: 0 0 auto;
+    display: flex; justify-content: center;
+    padding-top: clamp(4px, 0.8cqh, 8px);
+    padding-bottom: clamp(4px, 0.8cqh, 8px);
+  }
+  .link-btn {
+    position: relative;
+    cursor: pointer;
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(13px, 1.8cqh, 17px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    text-decoration: none;
+    border-radius: 999px;
+    padding: clamp(8px, 1.4cqh, 12px) clamp(20px, 3.4cqw, 30px);
+    box-shadow:
+      inset 0 0 clamp(8px, 1.4cqh, 14px) rgba(0,0,0,0.22),
+      inset 0 clamp(1px, 0.3cqh, 2px) 0 rgba(255,240,210,0.22),
+      0 clamp(3px, 0.6cqh, 6px) clamp(6px, 1.2cqh, 10px) rgba(0,0,0,0.28);
+    border: clamp(2px, 0.35cqh, 3px) solid #3c5238;
+    background:
+      linear-gradient(90deg,
+        transparent 0%, transparent 28%,
+        rgba(0,0,0,0.08) 29%, transparent 30%, transparent 57%,
+        rgba(0,0,0,0.07) 58%, transparent 59%, transparent 82%,
+        rgba(0,0,0,0.08) 83%, transparent 84%),
+      radial-gradient(ellipse 12px 7px at 72% 30%, rgba(145,100,55,0.75) 0%, transparent 70%),
+      radial-gradient(ellipse 10px 6px at 30% 78%, rgba(145,100,55,0.7) 0%, transparent 70%),
+      linear-gradient(180deg, #7ea063 0%, #5d7f4a 50%, #3f5d32 100%);
+    transition: transform 0.2s ease;
+  }
+  .link-btn::before,
+  .link-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: clamp(5px, 0.9cqw, 7px);
+    height: clamp(5px, 0.9cqw, 7px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #6b6b6b 0%, #2a2a2a 70%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15), inset -1px -1px 1px rgba(0,0,0,0.4);
+    transform: translateY(-50%);
+  }
+  .link-btn::before { left: clamp(8px, 1.4cqw, 12px); }
+  .link-btn::after  { right: clamp(8px, 1.4cqw, 12px); }
+  .link-btn:hover { transform: translateY(-2px) rotate(-1.5deg); }
+
+  /* Narrow layout — iPhone */
+  @container office (max-width: 420px) {
+    .office-inner { gap: clamp(8px, 1.4cqh, 12px); padding: 10px; }
+    .banner-title { font-size: clamp(18px, 3cqh, 22px); }
+    .h-name { font-size: clamp(15px, 2.2cqh, 17px); }
+  }
+
+  /* Vertical scroll on landscape sizes — desk content can exceed viewport. */
+  .device[data-size="desktop"] .office,
+  .device[data-size="ipad-l"] .office {
+    overflow-y: auto !important;
+  }
+</style>
+</head>
+<body>
+
+<div class="vp-bar">
+  <strong>Adoption Office v1</strong>
+  <span>·</span>
+  <button data-size="iphone">📱 iPhone (390×844)</button>
+  <button data-size="ipad-p" class="on">📱 iPad P (768×1024)</button>
+  <button data-size="ipad-l">📱 iPad L (1024×768)</button>
+  <button data-size="desktop">🖥 Desktop (1280×800)</button>
+  <a href="/admin/adoption.html">→ Adoption ceremony</a>
+  <span class="hint">(household picker — pick a forever home)</span>
+</div>
+
+<div class="device-frame">
+  <div class="device" id="device" data-size="ipad-p">
+    <div class="office">
+      <div class="office-inner">
+
+        <div class="banner-plaque" role="banner">
+          <div class="banner-animal" id="banner-animal" aria-hidden="true">
+            <span class="banner-animal-fallback">🐾</span>
+          </div>
+          <div class="banner-text">
+            <div class="banner-title" id="banner-title">Who will take this little one home?</div>
+            <div class="banner-subtitle">tap a family to begin the goodbye</div>
+          </div>
+        </div>
+
+        <div class="cards-wrap">
+          <div class="cards-grid" id="cards-grid" role="list">
+            <!-- Cards injected by script -->
+          </div>
+        </div>
+
+        <div class="footer-row">
+          <button class="link-btn" id="cancel-btn" type="button">← Not yet, let me think about it</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Viewport size switcher ───────────────────────────────────────────
+  const device = document.getElementById('device');
+  for (const btn of document.querySelectorAll('.vp-bar button[data-size]')) {
+    btn.addEventListener('click', () => {
+      for (const b of document.querySelectorAll('.vp-bar button[data-size]')) b.classList.remove('on');
+      btn.classList.add('on');
+      device.dataset.size = btn.dataset.size;
+    });
+  }
+
+  // ── Embed-mode + URL params ─────────────────────────────────────────
+  const params = new URLSearchParams(location.search);
+  const isEmbed = params.get('embed') === '1' || params.has('embed') && params.get('embed') !== '0';
+  if (isEmbed) document.body.classList.add('embed');
+
+  const animalId         = params.get('animalId') || '';
+  const animalName       = params.get('animalName') || 'this little one';
+  const animalSpecies    = params.get('species') || '';
+  const animalVariant    = params.get('variant') || '';
+  const animalSpriteSrc  = params.get('animalSpriteSrc') || '';
+
+  // ── Outgoing postMessage helper ──────────────────────────────────────
+  const send = (type, payload) => {
+    try {
+      parent.postMessage(
+        Object.assign({ source: 'arc-adoption-office', type }, payload || {}),
+        '*'
+      );
+    } catch (_) {}
+  };
+
+  // ── Banner: animal sprite + title ───────────────────────────────────
+  (function fillBanner() {
+    const titleEl = document.getElementById('banner-title');
+    if (titleEl) titleEl.textContent = `Who will take ${animalName} home?`;
+
+    const wrap = document.getElementById('banner-animal');
+    if (!wrap) return;
+    if (!animalSpriteSrc) return; // leave fallback paw
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = animalSpriteSrc;
+    img.addEventListener('error', () => {
+      // Restore the fallback paw if the sprite 404s.
+      while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
+      const span = document.createElement('span');
+      span.className = 'banner-animal-fallback';
+      span.textContent = '🐾';
+      wrap.appendChild(span);
+    }, { once: true });
+    while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
+    wrap.appendChild(img);
+  })();
+
+  // ── Mock L1 roster (mirrors L1_CURTAILED_HOUSEHOLD_DEFS in
+  //    packages/game-logic/src/adoption.ts). Used only in design-preview
+  //    mode; in-game the host scene posts the real eligible list. ───
+  const L1_MOCK_APPLICANTS = [
+    {
+      householdId: '01-pri-kaur',
+      name: 'Priya "Pri" Kaur',
+      avatarSrc: '/admin/scene-assets/cast/01-pri-kaur.png',
+      blurb:
+        "A quiet flat with a sunny laptop spot — Pri would love a calm cat or a small dog who's happy indoors.",
+    },
+    {
+      householdId: '03-nova-adebayo',
+      name: 'Nova Adebayo',
+      avatarSrc: '/admin/scene-assets/cast/03-nova-adebayo.png',
+      blurb:
+        'An attic art studio full of paint pots and music — Nova would love a playful cat for company.',
+    },
+    {
+      householdId: '04-babcia-kowalska',
+      name: 'Babcia Basia Kowalska',
+      avatarSrc: '/admin/scene-assets/cast/04-babcia-kowalska.png',
+      blurb:
+        'A cosy lap, a biscuit-crumbed pocket, and a cane by the door — Babcia would love a senior cat or tiny dog.',
+    },
+    {
+      householdId: '06-hiro-nakamura',
+      name: 'Hiroshi "Hiro" Nakamura',
+      avatarSrc: '/admin/scene-assets/cast/06-hiro-nakamura.png',
+      blurb:
+        'A very quiet home with library books stacked by the chair — Hiro would love a sweet older cat for a gentle forever.',
+    },
+    {
+      householdId: '07-anjali-sam-patel-green',
+      name: 'Anjali & Sam Patel-Green',
+      avatarSrc: '/admin/scene-assets/cast/07-anjali-sam-patel-green.png',
+      blurb:
+        "A peaceful retirement home with two patient adults — they'd love a senior cat who needs a calm sunset chapter.",
+    },
+  ];
+
+  // ── Friendly fallback descriptors when an avatar PNG is missing.
+  //    Mirrors the spirit of adoption.html's familyFallback() pattern:
+  //    swap the image for emoji + a short hand-lettered description so
+  //    designers iterating without art assets still see something
+  //    legible. Built with createElement + textContent (no innerHTML). ─
+  const FALLBACK_DESCRIPTORS = {
+    '01-pri-kaur':
+      { emoji: '👩🏽‍💻', desc: 'Pri at her sunny laptop, mug of chai, tidy plants on the sill' },
+    '03-nova-adebayo':
+      { emoji: '🎨', desc: 'Nova in paint-splattered overalls under the attic skylight' },
+    '04-babcia-kowalska':
+      { emoji: '👵🏼', desc: 'Babcia in her armchair with a knitted shawl and biscuit tin' },
+    '06-hiro-nakamura':
+      { emoji: '👨🏻‍🦳', desc: 'Hiro reading by the window, library books stacked beside him' },
+    '07-anjali-sam-patel-green':
+      { emoji: '👩🏽‍🦳👨🏼‍🦳', desc: 'Anjali and Sam side by side in their bright retirement lounge' },
+  };
+
+  // ── Card builder ────────────────────────────────────────────────────
+  function makeFallbackCard(applicant) {
+    const fb = FALLBACK_DESCRIPTORS[applicant.householdId] ||
+      { emoji: '🏡', desc: 'A welcoming home waiting to meet a new friend' };
+    const card = document.createElement('div');
+    card.className = 'h-portrait-fallback';
+    const emoji = document.createElement('span');
+    emoji.className = 'ff-emoji';
+    emoji.textContent = fb.emoji;
+    card.appendChild(emoji);
+    const line = document.createElement('span');
+    line.textContent = fb.desc;
+    card.appendChild(line);
+    return card;
+  }
+
+  function makeCard(applicant) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'h-card';
+    card.setAttribute('role', 'listitem');
+    card.setAttribute('aria-label',
+      `Choose ${applicant.name} as ${animalName}'s new family`);
+
+    // Portrait
+    const portrait = document.createElement('div');
+    portrait.className = 'h-portrait';
+    if (applicant.avatarSrc) {
+      const img = document.createElement('img');
+      img.alt = '';
+      img.src = applicant.avatarSrc;
+      img.addEventListener('error', () => {
+        while (portrait.firstChild) portrait.removeChild(portrait.firstChild);
+        portrait.appendChild(makeFallbackCard(applicant));
+      }, { once: true });
+      portrait.appendChild(img);
+    } else {
+      portrait.appendChild(makeFallbackCard(applicant));
+    }
+    card.appendChild(portrait);
+
+    // Name
+    const name = document.createElement('div');
+    name.className = 'h-name';
+    name.textContent = applicant.name || 'A waiting family';
+    card.appendChild(name);
+
+    // Blurb
+    const blurb = document.createElement('div');
+    blurb.className = 'h-blurb';
+    blurb.textContent = applicant.blurb || '';
+    card.appendChild(blurb);
+
+    // Tap target
+    card.addEventListener('click', () => {
+      send('adoption-pick', {
+        animalId,
+        householdId: applicant.householdId,
+      });
+    });
+
+    return card;
+  }
+
+  function renderCards(applicants) {
+    const grid = document.getElementById('cards-grid');
+    if (!grid) return;
+    while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+    if (!applicants || applicants.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      const emoji = document.createElement('span');
+      emoji.className = 'ff-emoji';
+      emoji.textContent = '🪑';
+      empty.appendChild(emoji);
+      const line = document.createElement('div');
+      line.textContent =
+        'The adoption office is quiet today — no families are waiting just yet. Try again soon.';
+      empty.appendChild(line);
+      grid.appendChild(empty);
+      return;
+    }
+
+    for (const a of applicants) {
+      grid.appendChild(makeCard(a));
+    }
+  }
+
+  // ── Cancel link ────────────────────────────────────────────────────
+  document.getElementById('cancel-btn')?.addEventListener('click', () => {
+    send('adoption-office-cancel', { animalId });
+  });
+
+  // ── Wire up data source ────────────────────────────────────────────
+  if (isEmbed) {
+    // In-game: wait for host to post the eligible applicants list.
+    window.addEventListener('message', (e) => {
+      const msg = e && e.data;
+      if (!msg || msg.source !== 'arc-adoption-office-host') return;
+      if (msg.type !== 'applicants') return;
+      const payload = msg.payload || {};
+      const applicants = Array.isArray(payload.applicants) ? payload.applicants : [];
+      renderCards(applicants);
+    });
+    // Render an empty grid up-front so the layout settles before the
+    // host's message arrives. Cleared as soon as 'applicants' lands.
+    renderCards([]);
+  } else {
+    // Design-preview: render the hardcoded L1 roster.
+    renderCards(L1_MOCK_APPLICANTS);
+  }
+</script>
+</body>
+</html>
