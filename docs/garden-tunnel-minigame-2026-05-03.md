@@ -159,8 +159,54 @@ once. Reinforces, doesn't contradict, the spatial mental model.
 - Animals as small painted pawprints flowing through, NOT realistic
   animals — that keeps the rendering performant and reads cleanly
   at small grid scales.
-- Sound: hollow underground rumble + scurrying sounds + a happy
-  pop-up when each animal reaches its destination.
+
+## Audio
+
+### Background music — "joyfully mechanical gnome tinkering" (Marcus 2026-05-03)
+
+Bespoke loop for the tunnel mini-game. Vibe brief:
+
+- **Underground feel** — woody, earthy, slightly muffled / damp,
+  like you're under a few feet of soil. Nothing brassy or open.
+- **Pieces-being-put-together** — the rhythm should evoke
+  construction / tinkering. Small mechanical clicks and clinks
+  woven into the melody, like watching a gnome assemble a clockwork
+  trinket.
+- **Not scary at all** — no minor-key tension, no horror tropes,
+  no "deep dark dungeon" stuff. Bright and warm despite being
+  underground.
+- **Joyfully mechanical** — playful, maybe a bit jaunty, with a
+  sense that the player is solving a delightful little contraption.
+- **Gnome-with-magic-tools** flavour — a touch of whimsy / sparkle
+  in the high frequencies (tiny bell-like ornaments, soft chimes)
+  hinting at the magic.
+
+Reference moods to draw from (NOT to copy):
+- The toymaker scenes in old animations (think Disney's Geppetto
+  workshop, or Pixar's robotic-but-warm soundtracks).
+- Early Zelda secret-room jingles for the chime quality.
+- Studio Ghibli underground scenes (e.g. Castle in the Sky's
+  laputa interior music) for the warmth-while-buried feel.
+
+### SFX
+
+- **Tile rotation:** subtle wooden creak / small mechanical click
+  when a tile is rotated.
+- **Gate toggle:** soft wooden door swing + latch click.
+- **Animal flow:** scurrying-pads sound while pawprints travel
+  the tunnel.
+- **Animal arrives at correct destination:** happy pop-up chime
+  (warm, not shrill).
+- **"Make the tunnels" override button:** crisp small-shovel
+  digging sound (re-randomising = the gnome is rebuilding the
+  contraption from scratch).
+- **Win state:** all animals arrived = a brief jaunty fanfare,
+  same gnome-tinkering palette but a touch more triumphant.
+
+### Asset commissioning
+
+To be commissioned later via Manus or a human composer when the
+mini-game ships. For now this section is the brief.
 
 ## Decisions LOCKED 2026-05-03 (Marcus)
 
