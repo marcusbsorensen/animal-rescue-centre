@@ -5,19 +5,21 @@ Convert Birchington OSM (Overpass JSON) -> game-coordinate SVG.
 Reads:  manus-output/birchie-osm/birchington.json
 Writes: apps/game/public/admin/scene-assets/birchie-map/birchie-roads.svg
 
-Output layout:
-  - Real OSM (Birchington centre + Minnis Bay) — coast, roads, green
-  - Stylised destination zones drawn programmatically:
-      Wyx Park: south-east extension panel (off-OSM, game-world geography)
-      Westgate Golf Club: east extension panel
-  - A.R.C. plot drawn from real OSM polygon (NNW-rotated naturally)
+Output layout (2026-05-03 overhaul):
+  - Wider OSM bounds (51.355..51.390 N, 1.270..1.360 E) covering:
+      Birchington-on-Sea + Minnis Bay (north-west)
+      Westgate-on-Sea + Westgate & Birchington Golf Club (east)
+      Quex Park (south-east)
+      open countryside south of the town
+  - All features rendered from REAL OSM data at true geographic positions.
+  - A.R.C. plot drawn from real OSM polygon (id 4598299).
+  - Two stylised painted markers (no real OSM equivalent):
+      Petrol station at the real MFG Birchington (Esso) on Canterbury Rd.
+      Wash Bandits inflatable car-wash man — placeholder location west of
+      the petrol station, on the A28; Marcus will refine.
 
 Lat/lng -> canvas via simple linear projection with latitude correction
-so 1px W-E ~= 1px N-S in real metres for the OSM portion.
-
-Stylised zones are placed in the right-hand part of the canvas
-(beyond the OSM bbox) and labelled, with simplified roads connecting
-them to Birchington proper.
+so 1px W-E ~= 1px N-S in real metres.
 """
 import json
 import math
@@ -28,26 +30,24 @@ ROOT = Path(__file__).parent.parent
 OSM = ROOT / "manus-output/birchie-osm/birchington.json"
 OUT = ROOT / "apps/game/public/admin/scene-assets/birchie-map/birchie-roads.svg"
 
-# OSM bbox: Minnis Bay -> Birchington centre. Stylised zones added east of this.
-LAT_MIN, LAT_MAX = 51.3760, 51.3855
-LON_MIN, LON_MAX = 1.2780, 1.3160
+# OSM bbox: extends south to capture Quex Park countryside, east to
+# Westgate Golf Club, west of Birchington town limits, north into the sea.
+LAT_MIN, LAT_MAX = 51.355, 51.390
+LON_MIN, LON_MAX = 1.270, 1.360
 
 LAT_M_PER_DEG = 111000
-LON_M_PER_DEG = 111000 * math.cos(math.radians(51.4))
+LON_M_PER_DEG = 111000 * math.cos(math.radians(51.37))
 REAL_W_M = (LON_MAX - LON_MIN) * LON_M_PER_DEG
 REAL_H_M = (LAT_MAX - LAT_MIN) * LAT_M_PER_DEG
 
-# Canvas — width covers OSM + stylised east extension.
-# OSM portion = 0..1800px (real-aspect); stylised east strip = 1800..2400px.
-OSM_W = 1800
-EXTENSION_W = 600
-SVG_W = OSM_W + EXTENSION_W
-SVG_H = int(OSM_W * REAL_H_M / REAL_W_M)
+# Canvas — aspect-correct to real metres (W-E vs N-S).
+SVG_W = 1800
+SVG_H = int(SVG_W * REAL_H_M / REAL_W_M)
 
 
 def project(lat, lon):
     """Lat/lon -> canvas px (north up, west left), aspect-correct."""
-    x = (lon - LON_MIN) / (LON_MAX - LON_MIN) * OSM_W
+    x = (lon - LON_MIN) / (LON_MAX - LON_MIN) * SVG_W
     y = (LAT_MAX - lat) / (LAT_MAX - LAT_MIN) * SVG_H
     return x, y
 
@@ -76,14 +76,19 @@ def way_to_polygon_points(pts):
     return " ".join(f"{project(lat, lon)[0]:.1f},{project(lat, lon)[1]:.1f}" for lat, lon in pts)
 
 
-# Road simplification — what to keep
 KEEP_ROAD_CLASSES = {
-    "trunk", "primary", "secondary", "tertiary", "unclassified",
+    "motorway", "trunk", "primary", "secondary", "tertiary", "unclassified",
     "residential", "service", "footway", "track", "pedestrian", "path",
+    "living_street", "cycleway",
 }
 
-# Roads we want to drop unless they're named or have a class we care about
 DROP_UNNAMED_CLASSES = {"service"}
+
+# Real OSM polygons we want to specially label as destination zones.
+SPECIAL_LABELS = {
+    547934584: ("Quex Park", "park"),
+    1135354687: ("Westgate Golf Club", "golf"),
+}
 
 
 def main():
@@ -92,35 +97,63 @@ def main():
     roads = {cls: [] for cls in KEEP_ROAD_CLASSES}
     coastline = []
     green = []
+    woodland = []
     pools = []
+    farmland = []
     arc_plot_polygon = None
+    special_polygons = []  # (label, kind, pts)
+    petrol_stations = []   # (name, lat, lon)
 
     for el in src["elements"]:
         if el.get("type") != "way" or "geometry" not in el:
             continue
         tags = el.get("tags", {})
         pts = [(g["lat"], g["lon"]) for g in el["geometry"]]
+        if not pts:
+            continue
+        # bbox cull (keep anything that has at least one vertex inside)
         if not any(LAT_MIN <= la <= LAT_MAX and LON_MIN <= lo <= LON_MAX for la, lo in pts):
             continue
         name = tags.get("name", "")
+        eid = el["id"]
+
+        if eid in SPECIAL_LABELS:
+            label, kind = SPECIAL_LABELS[eid]
+            special_polygons.append({"label": label, "kind": kind, "pts": pts, "id": eid})
+            # Don't also render as plain green — but note Quex Park IS leisure=park
+            # so we let it render twice for now (same fill) — actually skip:
+            continue
 
         if "highway" in tags:
             cls = tags["highway"]
             if cls not in roads:
                 cls = "residential"
-            # Drop unnamed minor-class roads to reduce clutter
             if cls in DROP_UNNAMED_CLASSES and not name:
                 continue
-            roads[cls].append({"name": name, "pts": pts, "id": el["id"]})
+            roads[cls].append({"name": name, "pts": pts, "id": eid, "ref": tags.get("ref", "")})
         elif tags.get("natural") == "coastline":
             coastline.append({"pts": pts})
-        elif tags.get("leisure") in ("park", "garden", "recreation_ground", "playground", "sports_centre", "pitch", "common"):
+        elif tags.get("natural") == "wood" or tags.get("landuse") == "forest":
+            woodland.append({"name": name, "pts": pts})
+        elif tags.get("leisure") in ("park", "garden", "recreation_ground", "playground", "sports_centre", "pitch", "common", "golf_course", "nature_reserve"):
             green.append({"name": name, "kind": tags["leisure"], "pts": pts})
-        elif tags.get("landuse") in ("grass", "meadow", "recreation_ground"):
+        elif tags.get("landuse") in ("grass", "meadow", "recreation_ground", "village_green", "allotments", "cemetery"):
             green.append({"name": name, "kind": tags["landuse"], "pts": pts})
+        elif tags.get("landuse") in ("farmland", "farmyard", "orchard"):
+            farmland.append({"name": name, "kind": tags["landuse"], "pts": pts})
         elif tags.get("leisure") == "swimming_pool":
             pools.append({"pts": pts})
 
+        if tags.get("amenity") == "fuel":
+            clat = sum(p[0] for p in pts) / len(pts)
+            clon = sum(p[1] for p in pts) / len(pts)
+            petrol_stations.append({
+                "name": name or tags.get("brand", "Petrol"),
+                "brand": tags.get("brand", ""),
+                "lat": clat, "lon": clon,
+            })
+
+        # ARC plot detection — same as before
         if (
             tags.get("landuse") == "grass"
             and not name
@@ -133,15 +166,22 @@ def main():
 
     out = []
     out.append('<?xml version="1.0" encoding="UTF-8"?>')
-    out.append(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {SVG_W} {SVG_H}" width="{SVG_W}" height="{SVG_H}">')
-    out.append("<!-- Birchie geography: real OSM (Minnis Bay -> Birchington centre)")
-    out.append("     + stylised game-world destination zones (Wyx Park, Westgate Golf Club).")
-    out.append(f"     OSM portion: lat {LAT_MIN}..{LAT_MAX}, lon {LON_MIN}..{LON_MAX}")
+    out.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" '
+        f'viewBox="0 0 {SVG_W} {SVG_H}" width="{SVG_W}" height="{SVG_H}" '
+        f'preserveAspectRatio="xMidYMid slice">'
+    )
+    out.append("<!-- Birchie geography: real OSM, wider bounds (2026-05-03 overhaul).")
+    out.append(f"     bbox lat {LAT_MIN}..{LAT_MAX}, lon {LON_MIN}..{LON_MAX}")
     out.append(f"     ({REAL_W_M:.0f}m W-E x {REAL_H_M:.0f}m N-S real). -->")
 
+    # Sea base — entire canvas. The land path painted on top covers
+    # everything south of the coastline, leaving sea only at the top.
     out.append(f'<rect id="sea-bg" width="{SVG_W}" height="{SVG_H}" fill="#bfdde3"/>')
 
-    # Land
+    # Land — derived from the coastline ways. Stitch them by longitude
+    # then close down the south + sides so the south of the canvas is
+    # land (not sea).
     if coastline:
         all_coast = []
         for c in coastline:
@@ -151,23 +191,29 @@ def main():
         for i, (lat, lon) in enumerate(all_coast):
             x, y = project(lat, lon)
             d_parts.append(f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}")
-        # Extend land east across the stylised zone, wrapping around bottom
-        d = "".join(d_parts) + f"L{SVG_W},{all_coast[-1][1] and 50}L{SVG_W},{SVG_H}L0,{SVG_H}Z"
-        # Better: just continue the last coastline point to the right edge at same height
-        last_lat, last_lon = all_coast[-1]
-        last_x, last_y = project(last_lat, last_lon)
-        d = "".join(d_parts) + f"L{SVG_W},{last_y:.0f}L{SVG_W},{SVG_H}L0,{SVG_H}Z"
+        last_x, last_y = project(*all_coast[-1])
+        first_x, first_y = project(*all_coast[0])
+        d = (
+            "".join(d_parts)
+            + f"L{SVG_W},{last_y:.1f}"
+            + f"L{SVG_W},{SVG_H}"
+            + f"L0,{SVG_H}"
+            + f"L0,{first_y:.1f}Z"
+        )
         out.append(f'<path id="land" d="{d}" fill="#dec98a"/>')
     else:
         out.append(f'<rect id="land" width="{SVG_W}" height="{SVG_H}" fill="#dec98a"/>')
 
-    # Vertical divider between OSM and stylised extension (subtle)
-    out.append(
-        f'<line x1="{OSM_W}" y1="0" x2="{OSM_W}" y2="{SVG_H}" '
-        f'stroke="#c8b58a" stroke-width="0.5" stroke-dasharray="2 4" opacity="0.5"/>'
-    )
+    # Farmland — soft warm wash so the south doesn't read as void
+    out.append('<g id="farmland" fill="#e8d6a3" stroke="#c8b07a" stroke-width="1" opacity="0.85">')
+    for f in farmland:
+        d = way_to_path_d(f["pts"])
+        if not d:
+            continue
+        out.append(f'  <path d="{d} Z"/>')
+    out.append("</g>")
 
-    # Green areas (real OSM)
+    # Green areas (real OSM) — parks, gardens, recreation, allotments
     out.append('<g id="green-areas" fill="#a8c890" stroke="#78a06a" stroke-width="1.5">')
     for g in green:
         d = way_to_path_d(g["pts"])
@@ -180,6 +226,32 @@ def main():
         )
     out.append("</g>")
 
+    # Woodland — darker green
+    out.append('<g id="woodland" fill="#7ea366" stroke="#5a7a4f" stroke-width="1.5">')
+    for w in woodland:
+        d = way_to_path_d(w["pts"])
+        if not d:
+            continue
+        sl = slug(w["name"]) or "wood"
+        out.append(f'  <path id="{sl}" d="{d} Z"/>')
+    out.append("</g>")
+
+    # Special destination polygons (Quex Park, Westgate Golf Club) —
+    # real OSM polygons styled as the "named destinations" of the map.
+    out.append('<g id="destinations">')
+    for sp in special_polygons:
+        d = way_to_path_d(sp["pts"]) + " Z"
+        sl = slug(sp["label"])
+        if sp["kind"] == "golf":
+            fill, stroke = "#9bc28b", "#6a8f5d"
+        else:
+            fill, stroke = "#7ea366", "#5a7a4f"
+        out.append(
+            f'  <path id="dest-{sl}" data-name="{xml_attr(sp["label"])}" '
+            f'd="{d}" fill="{fill}" stroke="{stroke}" stroke-width="3"/>'
+        )
+    out.append("</g>")
+
     # Pools
     out.append('<g id="pools" fill="#7cc6e0" stroke="#4d97b3" stroke-width="1.5">')
     for p in pools:
@@ -187,22 +259,32 @@ def main():
         out.append(f"  <path d=\"{d}\"/>")
     out.append("</g>")
 
-    # Roads
+    # Roads — main A-roads first (drawn under), residential on top
     road_styles = {
+        "motorway":     ('#f0a850', 18, ''),
         "trunk":        ('#f0c870', 16, ''),
         "primary":      ('#f0c870', 14, ''),
         "secondary":    ('#f0d894', 12, ''),
         "tertiary":     ('#f0e3b0', 10, ''),
         "unclassified": ('#f6ecc7', 8, ''),
         "residential":  ('#fdf6dc', 8, ''),
+        "living_street":('#fdf6dc', 7, ''),
         "service":      ('#fdf6dc', 5, ''),
         "footway":      ('#e8d49a', 3, ' stroke-dasharray="4 3"'),
         "track":        ('#e8d49a', 4, ' stroke-dasharray="4 3"'),
         "pedestrian":   ('#f0e3b0', 8, ''),
         "path":         ('#e8d49a', 3, ' stroke-dasharray="4 3"'),
+        "cycleway":     ('#d8e6c0', 3, ' stroke-dasharray="3 3"'),
     }
 
-    for cls, ways in roads.items():
+    # Render in this order so trunks sit visually under residentials
+    road_render_order = [
+        "motorway", "trunk", "primary", "secondary", "tertiary",
+        "unclassified", "residential", "living_street", "pedestrian",
+        "service", "track", "footway", "path", "cycleway",
+    ]
+    for cls in road_render_order:
+        ways = roads.get(cls, [])
         if not ways:
             continue
         fill, width, dash = road_styles[cls]
@@ -217,110 +299,62 @@ def main():
             sl = slug(w["name"]) or f"r-{w['id']}"
             out.append(
                 f'  <path id="{sl}" data-name="{xml_attr(w["name"])}" '
-                f'data-cls="{cls}" d="{d}"/>'
+                f'data-cls="{cls}" data-ref="{xml_attr(w["ref"])}" d="{d}"/>'
             )
         out.append("</g>")
 
-    # ---- Stylised destination zones (game-world geography) ----
-    # Background pad for the east extension strip
-    out.append(
-        f'<rect x="{OSM_W}" y="0" width="{EXTENSION_W}" height="{SVG_H}" '
-        f'fill="#dec98a"/>'
-    )
-
-    # Buffer zone: open countryside between Birchington and Wyx/Westgate
-    # (a few hedgerow strips + a long winding country road)
-    out.append('<g id="buffer-zone" stroke="#9ab07a" stroke-width="2" fill="none" stroke-dasharray="6 4" opacity="0.7">')
-    bx = OSM_W + 30
-    for y in range(80, SVG_H - 80, 60):
-        out.append(f'  <path d="M{bx},{y} q 80 -10, 160 0 t 160 0 t 160 0"/>')
-    out.append("</g>")
-
-    # The country lane (B2049-style) winding east from Birchington to Wyx and Westgate
-    lane_d = (
-        f"M{OSM_W - 40},{SVG_H * 0.55:.0f} "
-        f"Q {OSM_W + 80},{SVG_H * 0.6:.0f} "
-        f"{OSM_W + 220},{SVG_H * 0.65:.0f} "
-        f"T {OSM_W + EXTENSION_W - 80},{SVG_H * 0.7:.0f}"
-    )
-    out.append(
-        '<g id="east-lane" stroke="#fdf6dc" stroke-width="9" stroke-linecap="round" '
-        'fill="none">'
-    )
-    out.append(f'  <path id="east-lane-trunk" data-name="Quex Road" d="{lane_d}"/>')
-    out.append("</g>")
-
-    # Branch up to Westgate (north-east)
-    westgate_lane = (
-        f"M{OSM_W + 250},{SVG_H * 0.62:.0f} "
-        f"Q {OSM_W + 350},{SVG_H * 0.5:.0f} "
-        f"{OSM_W + EXTENSION_W - 60},{SVG_H * 0.4:.0f}"
-    )
-    out.append(
-        f'<path id="westgate-lane" data-name="Westgate Lane" d="{westgate_lane}" '
-        f'stroke="#fdf6dc" stroke-width="9" stroke-linecap="round" fill="none"/>'
-    )
-
-    # Wyx Park — stylised SE zone
-    wyx_x = OSM_W + 80
-    wyx_y = SVG_H * 0.72
-    wyx_w = 380
-    wyx_h = SVG_H * 0.27
-    out.append('<g id="wyx-park">')
-    out.append(
-        f'  <rect x="{wyx_x}" y="{wyx_y}" width="{wyx_w}" height="{wyx_h}" '
-        f'fill="#7ea366" stroke="#5a7a4f" stroke-width="3" rx="14"/>'
-    )
-    # Tree clusters inside
-    import random
-    rnd = random.Random(42)
-    for _ in range(28):
-        tx = wyx_x + 20 + rnd.random() * (wyx_w - 40)
-        ty = wyx_y + 20 + rnd.random() * (wyx_h - 40)
-        r = 9 + rnd.random() * 7
+    # ── Labels for the destination polygons ───────────────────────────
+    for sp in special_polygons:
+        clat = sum(p[0] for p in sp["pts"]) / len(sp["pts"])
+        clon = sum(p[1] for p in sp["pts"]) / len(sp["pts"])
+        cx, cy = project(clat, clon)
         out.append(
-            f'  <circle cx="{tx:.0f}" cy="{ty:.0f}" r="{r:.0f}" '
-            f'fill="#5a7a4f" stroke="#3e5a35" stroke-width="1"/>'
+            f'<text x="{cx:.0f}" y="{cy:.0f}" '
+            f'font-family="Fredoka, sans-serif" font-size="26" font-weight="700" '
+            f'fill="#fef9ef" text-anchor="middle" paint-order="stroke" '
+            f'stroke="#3a3a3a" stroke-width="3.5">{xml_attr(sp["label"])}</text>'
         )
-    # Label
-    out.append(
-        f'  <text x="{wyx_x + wyx_w/2:.0f}" y="{wyx_y + 36:.0f}" '
-        f'font-family="Fredoka, sans-serif" font-size="26" font-weight="700" '
-        f'fill="#fef9ef" text-anchor="middle" paint-order="stroke" '
-        f'stroke="#3a3a3a" stroke-width="3">Wyx Park</text>'
-    )
+
+    # ── Petrol station markers (real OSM amenity=fuel) ────────────────
+    out.append('<g id="petrol-stations">')
+    for ps in petrol_stations:
+        cx, cy = project(ps["lat"], ps["lon"])
+        # Only render if inside canvas
+        if cx < 0 or cx > SVG_W or cy < 0 or cy > SVG_H:
+            continue
+        # Painted marker: rounded square + cream pump glyph
+        out.append(
+            f'  <g transform="translate({cx:.0f},{cy:.0f})">'
+            f'<rect x="-14" y="-14" width="28" height="28" rx="5" '
+            f'fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/>'
+            f'<text x="0" y="5" font-family="Fredoka, sans-serif" font-size="18" '
+            f'font-weight="700" fill="#fef9ef" text-anchor="middle" '
+            f'paint-order="stroke" stroke="#3a3a3a" stroke-width="2">P</text>'
+            f'<text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="13" '
+            f'font-weight="600" fill="#fef9ef" text-anchor="middle" '
+            f'paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">'
+            f'{xml_attr(ps["brand"] or "Petrol")}</text></g>'
+        )
     out.append("</g>")
 
-    # Westgate Golf Club — east zone
-    wgc_x = OSM_W + 220
-    wgc_y = SVG_H * 0.18
-    wgc_w = 340
-    wgc_h = SVG_H * 0.30
-    out.append('<g id="westgate-golf">')
-    out.append(
-        f'  <rect x="{wgc_x}" y="{wgc_y}" width="{wgc_w}" height="{wgc_h}" '
-        f'fill="#9bc28b" stroke="#6a8f5d" stroke-width="3" rx="14"/>'
-    )
-    # Fairway suggestions
-    for fy in range(int(wgc_y) + 30, int(wgc_y + wgc_h) - 10, 36):
+    # ── Wash Bandits — placeholder inflatable car-wash man.
+    # No OSM equivalent. Marcus will refine the position later. Place
+    # it just west of the MFG Birchington petrol station (Canterbury
+    # Rd / A28 west exit), at roughly 51.3690 N, 1.2950 E.
+    wb_lat, wb_lon = 51.3690, 1.2950
+    wbx, wby = project(wb_lat, wb_lon)
+    if 0 <= wbx <= SVG_W and 0 <= wby <= SVG_H:
         out.append(
-            f'  <ellipse cx="{wgc_x + wgc_w/2:.0f}" cy="{fy}" '
-            f'rx="{wgc_w/2 - 30:.0f}" ry="10" fill="#a8d49d" opacity="0.6"/>'
+            f'<g id="wash-bandits" transform="translate({wbx:.0f},{wby:.0f})">'
+            f'<circle cx="0" cy="0" r="14" fill="#ff6b9a" stroke="#7b5c3a" stroke-width="2"/>'
+            f'<text x="0" y="5" font-family="Fredoka, sans-serif" font-size="16" '
+            f'font-weight="700" fill="#fef9ef" text-anchor="middle" '
+            f'paint-order="stroke" stroke="#3a3a3a" stroke-width="2">W</text>'
+            f'<text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="13" '
+            f'font-weight="600" fill="#fef9ef" text-anchor="middle" '
+            f'paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">'
+            f'Wash Bandits</text></g>'
         )
-    # A few sand bunkers
-    for bx_i, by_i in [(wgc_x + 60, wgc_y + 50), (wgc_x + wgc_w - 80, wgc_y + 110), (wgc_x + wgc_w/2, wgc_y + wgc_h - 40)]:
-        out.append(
-            f'  <ellipse cx="{bx_i:.0f}" cy="{by_i:.0f}" rx="22" ry="14" '
-            f'fill="#f0e3b0" stroke="#c8a85c" stroke-width="1.5"/>'
-        )
-    # Label
-    out.append(
-        f'  <text x="{wgc_x + wgc_w/2:.0f}" y="{wgc_y + wgc_h/2:.0f}" '
-        f'font-family="Fredoka, sans-serif" font-size="22" font-weight="700" '
-        f'fill="#fef9ef" text-anchor="middle" paint-order="stroke" '
-        f'stroke="#3a3a3a" stroke-width="3">Westgate Golf Club</text>'
-    )
-    out.append("</g>")
 
     # A.R.C. plot — real OSM polygon
     if arc_plot_polygon:
@@ -342,13 +376,30 @@ def main():
     out.append("</svg>")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(out))
+    n_roads = sum(len(v) for v in roads.values())
     print(f"Wrote {OUT.relative_to(ROOT)} ({OUT.stat().st_size} bytes)")
-    print(f"  canvas: {SVG_W}x{SVG_H}px (OSM 0..{OSM_W}, extension {OSM_W}..{SVG_W})")
+    print(f"  canvas: {SVG_W}x{SVG_H}px")
     print(
-        f"  {sum(len(v) for v in roads.values())} OSM roads, {len(green)} OSM green, "
-        f"{len(pools)} pools, {1 if arc_plot_polygon else 0} A.R.C. plot polygon, "
-        f"+ stylised Wyx Park + Westgate Golf Club"
+        f"  {n_roads} roads, {len(green)} green, {len(woodland)} woodland, "
+        f"{len(farmland)} farmland, {len(special_polygons)} destinations, "
+        f"{len(pools)} pools, {len(petrol_stations)} petrol, "
+        f"{1 if arc_plot_polygon else 0} A.R.C. plot"
     )
+
+    # Useful for updating map.html constants:
+    if arc_plot_polygon:
+        clat = sum(p[0] for p in arc_plot_polygon) / len(arc_plot_polygon)
+        clon = sum(p[1] for p in arc_plot_polygon) / len(arc_plot_polygon)
+        cx, cy = project(clat, clon)
+        # Anchor at south end of plot for the building stamp
+        max_lat = max(p[0] for p in arc_plot_polygon)
+        min_lat = min(p[0] for p in arc_plot_polygon)
+        # South = lower lat
+        south_x, south_y = project(min_lat, clon)
+        print(f"  ARC centre svg: ({cx:.0f}, {cy:.0f})")
+        print(f"  ARC south-edge svg: ({south_x:.0f}, {south_y:.0f})")
+        print(f"  Suggested map.html constants: SVG_VIEW_W={SVG_W} SVG_VIEW_H={SVG_H}")
+        print(f"  ARC_PLOT_SVG_X={south_x:.0f} ARC_PLOT_SVG_Y={south_y:.0f}")
 
 
 if __name__ == "__main__":

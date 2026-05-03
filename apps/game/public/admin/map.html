@@ -78,16 +78,15 @@
   }
   .stage:not(.active) { display: none; }
 
-  /* World stage: when the SVG letterboxes vertically (its 2400×721
-     aspect rarely matches the viewport), the gaps need to look like
-     more sea/land, not a black void. Use the same sea blue as the
-     SVG's sea-bg rect so the letterbox blends seamlessly. */
-  #world-stage { background: #bfdde3; }
+  /* World stage: SVG fills the viewport via preserveAspectRatio="slice"
+     so there's no letterbox. The dark stage colour only shows behind
+     transient layout (e.g. before the SVG loads). */
+  #world-stage { background: #1a1612; }
 
   /* World view */
   #world-stage .map-canvas {
     position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
+    display: block;
   }
   #world-stage .osm-svg {
     width: 100%; height: 100%;
@@ -672,16 +671,16 @@
     }
   });
 
-  // World-view: position pins relative to OSM SVG canvas
-  const SVG_VIEW_W = 2400;
-  const SVG_VIEW_H = 721;
-  // Plot polygon is at ~(339-427, 491-599); we anchor the building
-  // pin to the SOUTH end of the plot so its rendered bottom edge
-  // (translate -50%, -85%) sits on the plot. Earlier (524, 348) was
-  // way north of the actual plot — that's why the building was floating
-  // up by the cliff edge with the dashed plot stranded south of it.
-  const ARC_PLOT_SVG_X = 383;
-  const ARC_PLOT_SVG_Y = 580;
+  // World-view: position pins relative to OSM SVG canvas.
+  // 2026-05-03: bounds widened to (51.355..51.390, 1.270..1.360) so
+  // the canvas now covers Birchington + Westgate + Quex Park + south
+  // countryside. Aspect is ~1.6:1 (1800×1121) — much more square.
+  const SVG_VIEW_W = 1800;
+  const SVG_VIEW_H = 1121;
+  // ARC plot south-edge anchor (so the building stamp's -85% y-translate
+  // lands on the plot). Computed from the real OSM plot polygon centre.
+  const ARC_PLOT_SVG_X = 326;
+  const ARC_PLOT_SVG_Y = 397;
 
   function clearChildren(node) {
     while (node.firstChild) node.removeChild(node.firstChild);
@@ -691,7 +690,9 @@
     const obj = document.getElementById('osm-svg');
     const r = obj.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) return null;
-    const scale = Math.min(r.width / SVG_VIEW_W, r.height / SVG_VIEW_H);
+    // Match the SVG's own preserveAspectRatio="xMidYMid slice" — cover,
+    // not contain. Use max so pins follow the slice-cropped rendering.
+    const scale = Math.max(r.width / SVG_VIEW_W, r.height / SVG_VIEW_H);
     const renderedW = SVG_VIEW_W * scale;
     const renderedH = SVG_VIEW_H * scale;
     const stageRect = document.getElementById('world-stage').getBoundingClientRect();
