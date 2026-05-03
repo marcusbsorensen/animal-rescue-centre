@@ -466,6 +466,8 @@
     width: 20.8%;            /* Marcus 2026-05-03: 13% × 1.6 */
     filter: drop-shadow(1px 3px 3px rgba(0,0,0,0.2));
   }
+  /* Mirror a tree horizontally for variety (e.g. lawn oak flipped). */
+  #arc-stage .stamp-tree.flip-x { transform: scaleX(-1); }
   #arc-stage .stamp-dome {
     width: 5%;
     filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.25));
@@ -631,22 +633,20 @@
          sprites at multiple locations so each garden looks more
          richly planted (in-game garden views show many trees). -->
 
-    <!-- QUIET garden trees (3 of them, left → right across the
-         horizontal strip). Bases anchored in the strip, canopies
-         overhanging the top for the 3D 'pop'. -->
-    <img class="stamp stamp-tree" data-tree-species="oak"            style="left: 9%;  top: 33%;" alt="Oak"/>
-    <img class="stamp stamp-tree" data-tree-species="ash"            style="left: 27%; top: 32%;" alt="Ash"/>
-    <img class="stamp stamp-tree" data-tree-species="horse-chestnut" style="left: 45%; top: 32%;" alt="Horse chestnut"/>
+    <!-- QUIET garden trees (3): oak shifted left+down, ash (the
+         only kite tree allowed to stay) centred, horse-chestnut
+         shifted down. -->
+    <img class="stamp stamp-tree" data-tree-species="oak"            style="left: -1.4%; top: 39.93%;" alt="Oak"/>
+    <img class="stamp stamp-tree" data-tree-species="ash"            style="left: 27%;   top: 32%;"    alt="Ash"/>
+    <img class="stamp stamp-tree" data-tree-species="horse-chestnut" style="left: 45%;   top: 38.93%;" alt="Horse chestnut"/>
 
-    <!-- LAWN garden trees (5 of them, scattered through the
-         vertical strip). Right-edge trees overhang to the right
-         for the 3D 'pop' on that side; left-edge trees fill the
-         rest of the strip with painted greenery. -->
-    <img class="stamp stamp-tree" data-tree-species="oak"            style="left: 67%; top: 42%;" alt="Oak"/>
-    <img class="stamp stamp-tree" data-tree-species="ash"            style="left: 86%; top: 44%;" alt="Ash"/>
-    <img class="stamp stamp-tree" data-tree-species="horse-chestnut" style="left: 75%; top: 53%;" alt="Horse chestnut"/>
-    <img class="stamp stamp-tree" data-tree-species="ash"            style="left: 67%; top: 60%;" alt="Ash"/>
-    <img class="stamp stamp-tree" data-tree-species="horse-chestnut" style="left: 88%; top: 62%;" alt="Horse chestnut"/>
+    <!-- LAWN garden trees (3): the 2 ash kite trees here have
+         been REMOVED (only the quiet's kite stays, per Marcus
+         2026-05-03). Oak FLIPPED + moved up half its height;
+         lower horse-chestnut moved left by its own width. -->
+    <img class="stamp stamp-tree flip-x" data-tree-species="oak"     style="left: 67%;   top: 31.6%;"  alt="Oak (flipped)"/>
+    <img class="stamp stamp-tree" data-tree-species="horse-chestnut" style="left: 75%;   top: 53%;"    alt="Horse chestnut"/>
+    <img class="stamp stamp-tree" data-tree-species="horse-chestnut" style="left: 67.2%; top: 62%;"    alt="Horse chestnut"/>
 
     <!-- Viewing domes on the central axis (x:63.67%) — one per
          row. The lowest dome sits HALFWAY DOWN the quiet garden
