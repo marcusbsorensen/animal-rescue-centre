@@ -259,22 +259,26 @@
      divider above the building, so we don't need explicit grid
      paths around it. */
   .region-path-h.path-h-1 { top: 23%; }    /* between fox/skunk and hedgehog/raccoon */
-  /* Quiet garden — thin HORIZONTAL strip just above the building,
-     stops at the central path's left edge so the path runs through
-     uninterrupted. Bumped down so its BOTTOM (y:44%) sits flush
-     with the LAWN garden's top — no gap between the two gardens. */
+  /* Quiet garden — HORIZONTAL strip just above the building,
+     stops at the central path's left edge. Top edge (y:37%)
+     sits flush with the bottom of the hedgehog/raccoon row AND
+     aligned with the LAWN garden's top — no blank gravel area
+     behind the building. Extends down to y:44% (visible
+     building top). */
   #arc-stage .region-quiet {
-    left: 6%; top: 39%; width: 54.67%; height: 5%;
+    left: 6%; top: 37%; width: 54.67%; height: 7%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-quiet-garden.png');
     border: 1.5px solid #5a7a4a;
     border-radius: 4px;
   }
   /* Lawn garden — tall VERTICAL strip on the right, from the
      central path's east edge (x:66.67%) to the strip's right
-     edge (x:94%), running from quiet's bottom level (y:44%)
-     down to the long-bay canopy's top (y:78%). */
+     edge (x:94%). Top edge (y:37%) aligned with quiet's top
+     and just below the raccoon row, eliminating the previous
+     gravel gap between raccoon and lawn. Extends down to the
+     long-bay canopy's top (y:78%). */
   #arc-stage .region-lawn {
-    left: 66.67%; top: 44%; width: 27.33%; height: 34%;
+    left: 66.67%; top: 37%; width: 27.33%; height: 41%;
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-lawn-garden.png');
     border: 1.5px solid #5a8a4f;
     border-radius: 4px;
@@ -625,7 +629,7 @@
     <div class="region-label tier-future" style="left: 33%; top: 31%;">Hedgehog + Squirrel (T2)</div>
     <div class="region-label tier-future" style="left: 80.33%; top: 31%;">Raccoon (T3)</div>
     <div class="region-label" style="left: 33%; top: 40.5%;">Quiet garden</div>
-    <div class="region-label" style="left: 80.33%; top: 60%;">Lawn garden</div>
+    <div class="region-label" style="left: 80.33%; top: 57.5%;">Lawn garden</div>
 
     <!-- Building at the SOUTH end (bottom — entrance facing kid arriving from Bay Road) -->
     <img class="stamp stamp-building" src="scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="A.R.C. main building"/>
