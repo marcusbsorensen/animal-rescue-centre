@@ -6,8 +6,7 @@
 <title>A.R.C. — Welcome</title>
 <script>
   // Iframe-context detection — flips html.iframed before first paint
-  // so any design-preview chrome is hidden when the page is mounted
-  // in-game. Same pattern used by arrival.html etc.
+  // so design-preview chrome stays hidden when the page is mounted in-game.
   if (window.top !== window.self) document.documentElement.classList.add('iframed');
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,6 +18,8 @@
     --honey-amber: #e3b04b;
     --honey-shadow: #b88a37;
     --ink: #3a3a3a;
+    --map-bg: #dec98a;
+    --sea-bg: #bfdde3;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
@@ -37,138 +38,150 @@
     flex: 1; position: relative;
     cursor: pointer;
     overflow: hidden;
+    background: var(--map-bg);
   }
   .panel {
     position: absolute; inset: 0;
     opacity: 0;
-    transition: opacity 400ms ease;
+    transition: opacity 500ms ease;
     pointer-events: none;
+    overflow: hidden;
   }
   .panel.active {
     opacity: 1;
     pointer-events: auto;
   }
 
-  /* Panels 1 + 2 — painted welcome-bg sky/garden */
-  .panel-bg {
-    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
+  /* ─── Map-zoom panels (1, 2, 3) ─────────────────────────────────────────
+     Each uses the SAME OSM-derived Birchie map SVG as background, but at
+     a different CSS scale + transform-origin so we get a smooth "camera
+     pushing in" effect. The OSM SVG already includes the painted A.R.C.
+     plot polygon at the right real-world position, so we just zoom toward
+     its centre.
+
+     Plot centre in the SVG is roughly (524, 348) of the 2400×721 canvas
+     (= 21.8% from left, 48.3% from top of the canvas viewBox).
+  */
+  .panel.map-panel {
+    background-image: url('/admin/scene-assets/birchie-map/birchie-roads.svg');
     background-size: cover;
-    background-position: center;
+    background-position: 21.8% 48.3%;  /* centred on A.R.C. plot */
+  }
+  .panel-1.active { animation: zoom-1 2.6s ease-in-out forwards; }
+  .panel-2.active { animation: zoom-2 2.6s ease-in-out forwards; }
+  .panel-3.active { animation: zoom-3 2.6s ease-in-out forwards; }
+
+  @keyframes zoom-1 {
+    /* Panel 1: zoomed-out — see Birchie + the sea + the plot pinned */
+    from { background-size: 200%; }
+    to   { background-size: 220%; }
+  }
+  @keyframes zoom-2 {
+    /* Panel 2: zoom into the plot — building visible */
+    from { background-size: 360%; }
+    to   { background-size: 400%; }
+  }
+  @keyframes zoom-3 {
+    /* Panel 3: even closer — life on the site, Henry van etc. */
+    from { background-size: 600%; }
+    to   { background-size: 660%; }
   }
 
-  /* Building stamp at three sizes — distant, mid, close-up */
-  .building-distant {
+  /* ─── Pin overlay on panel 1 ────────────────────────────────────────── */
+  .panel .arc-pin {
     position: absolute;
-    bottom: 35%; left: 50%;
-    transform: translateX(-50%);
-    width: 18%;
-    filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.18));
-    animation: zoom-drift 2.6s ease-in-out forwards;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -100%);
+    width: 7%;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.35));
+    pointer-events: none;
   }
-  .building-mid {
+  .panel .pin-bubble {
     position: absolute;
-    bottom: 22%; left: 50%;
-    transform: translateX(-50%);
-    width: 42%;
-    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.22));
-    animation: zoom-drift 2.6s ease-in-out forwards;
-  }
-  .building-close {
-    position: absolute;
-    bottom: -4%; left: 50%;
-    transform: translateX(-50%);
-    width: 92%;
-    height: auto;
-    /* Crop to roughly the lower half — the entrance + canopy + facade */
-    clip-path: inset(35% 0% 0% 0%);
-    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.18));
-  }
-
-  /* Trees framing panels 1 + 2 */
-  .tree-side {
-    position: absolute;
-    bottom: 12%;
-    width: 16%;
-    filter: drop-shadow(1px 3px 3px rgba(0,0,0,0.2));
-  }
-  .tree-side.tree-left  { left: 4%; }
-  .tree-side.tree-right { right: 4%; }
-  .tree-edge {
-    position: absolute;
-    bottom: 8%;
-    width: 22%;
-    filter: drop-shadow(1px 3px 3px rgba(0,0,0,0.2));
-  }
-  .tree-edge.tree-left  { left: -3%; }
-  .tree-edge.tree-right { right: -3%; }
-
-  /* Panel 1: gate-y crop of the welcome-bg picket fence in the foreground */
-  .gate-overlay {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 22%;
-    background-image: url('/assets/bg/garden-lawn-summer-morning.png');
-    background-size: 200% auto;
-    background-position: 8% 100%;
-    border-top: 3px solid rgba(0,0,0,0.05);
-  }
-
-  /* Panel 2: receding gravel path via CSS perspective */
-  .path-overlay {
-    position: absolute;
-    bottom: 0; left: 30%; right: 30%;
-    height: 50%;
-    background-image: url('/admin/scene-assets/reference/arc-site-tier1-2026-04-29/seamless/texture-gravel.png');
-    background-size: 200px 200px;
-    background-repeat: repeat;
-    transform: perspective(600px) rotateX(60deg);
-    transform-origin: bottom;
-    clip-path: polygon(20% 100%, 80% 100%, 60% 0%, 40% 0%);
-    opacity: 0.85;
-  }
-
-  /* Panel 4: dark opening behind the doors + bobbing arrival sprite + tap prompt */
-  .door-opening {
-    position: absolute;
-    bottom: 14%; left: 50%;
-    transform: translateX(-50%);
-    width: 12%;
-    height: 30%;
-    background: linear-gradient(180deg, #2a1a0c 0%, #4a2e16 100%);
-    border-radius: 4px 4px 0 0;
-    box-shadow: inset 0 4px 8px rgba(0,0,0,0.5);
-  }
-  .arrival-sprite {
-    position: absolute;
-    bottom: 6%;
-    left: 50%;
-    transform: translateX(-50%);
-    height: 32%;
-    width: auto;
-    filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.25));
-    animation: bob 1.4s ease-in-out infinite;
-  }
-  .tap-prompt {
-    position: absolute;
-    bottom: 4%; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255, 249, 239, 0.9);
-    border: 2px solid var(--honey-shadow);
+    left: 50%; top: 38%;
+    transform: translate(-50%, 0);
+    background: var(--honey-amber);
+    border: 2.5px solid var(--honey-shadow);
     border-radius: 22px;
     padding: 6px 18px;
-    font-family: 'Kalam', cursive;
+    font-family: 'Fredoka', sans-serif;
     font-weight: 700;
-    font-size: 16px;
+    font-size: clamp(15px, 3vw, 24px);
     color: var(--ink);
-    animation: pulse 1.6s ease-in-out infinite;
+    box-shadow: 2px 4px 0 rgba(0,0,0,0.18);
+    white-space: nowrap;
   }
 
-  /* Corner controls — speaker + skip-future toggle */
+  /* ─── Painted building stamp on panels 2, 3 + 4 ─────────────────────── */
+  .panel .building-stamp {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(2px 4px 8px rgba(0,0,0,0.25));
+    pointer-events: none;
+  }
+  .panel-2 .building-stamp { width: 22%; }
+  .panel-3 .building-stamp { width: 36%; }
+  .panel-4 .building-stamp {
+    width: 60%;
+    top: 52%;
+    animation: bldg-bob 2.6s ease-in-out infinite;
+  }
+  @keyframes bldg-bob {
+    0%, 100% { transform: translate(-50%, -50%); }
+    50%      { transform: translate(-50%, calc(-50% - 4px)); }
+  }
+
+  /* ─── "Life on site" overlay on panel 3 ─────────────────────────────── */
+  .panel-3 .henry-van {
+    position: absolute;
+    left: 38%; top: 64%;
+    width: 8%;
+    filter: drop-shadow(1px 3px 4px rgba(0,0,0,0.3));
+    pointer-events: none;
+  }
+  .panel-3 .site-anim {
+    position: absolute;
+    width: 5%;
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.3));
+    pointer-events: none;
+    animation: anim-bob 1.2s ease-in-out infinite;
+  }
+  @keyframes anim-bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-2px); }
+  }
+
+  /* ─── Panel 4 — final close-up + tap prompt ─────────────────────────── */
+  .panel-4 {
+    background: linear-gradient(180deg, #f6e8c2 0%, #e0c8a0 100%);
+  }
+  .panel-4 .tap-prompt {
+    position: absolute;
+    bottom: 6%; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 249, 239, 0.92);
+    border: 2.5px solid var(--honey-shadow);
+    border-radius: 24px;
+    padding: 10px 24px;
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(16px, 3.6vw, 22px);
+    color: var(--ink);
+    animation: tap-pulse 1.6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes tap-pulse {
+    0%, 100% { opacity: 0.88; transform: translateX(-50%) scale(1); }
+    50%      { opacity: 1;    transform: translateX(-50%) scale(1.05); }
+  }
+
+  /* ─── Corner controls (speaker + skip) ──────────────────────────────── */
   .corner {
     position: absolute;
     top: 14px; right: 14px;
     display: flex; flex-direction: column; gap: 8px;
-    z-index: 10;
+    z-index: 20;
   }
   .corner-btn {
     background: rgba(255, 255, 255, 0.85);
@@ -197,17 +210,20 @@
   }
   .skip-row input { cursor: pointer; }
 
-  @keyframes zoom-drift {
-    from { transform: translateX(-50%) scale(1); }
-    to   { transform: translateX(-50%) scale(1.05); }
-  }
-  @keyframes bob {
-    0%, 100% { transform: translateX(-50%) translateY(0); }
-    50%      { transform: translateX(-50%) translateY(-4px); }
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 0.85; }
-    50%      { opacity: 1; transform: translateX(-50%) scale(1.04); }
+  /* Subtitle band at the bottom of map panels — labels what we're looking at */
+  .panel .subtitle {
+    position: absolute;
+    bottom: 4%; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(58, 58, 58, 0.78);
+    color: #fef9ef;
+    padding: 5px 14px;
+    border-radius: 14px;
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 500;
+    font-size: clamp(11px, 2vw, 14px);
+    white-space: nowrap;
+    pointer-events: none;
   }
 </style>
 </head>
@@ -215,33 +231,32 @@
 
 <div class="stage" id="stage">
 
-  <!-- Panel 1: Gate. Painted welcome-bg + small distant building + framing trees + gate-strip foreground -->
-  <div class="panel panel-bg" id="panel-1">
-    <img class="building-distant" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="">
-    <img class="tree-side tree-left" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" alt="">
-    <img class="tree-side tree-right" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-ash.png" alt="">
-    <div class="gate-overlay" aria-hidden="true"></div>
+  <!-- Panel 1: zoomed-out Birchie map with A.R.C. pinned -->
+  <div class="panel map-panel panel-1" id="panel-1">
+    <img class="arc-pin" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="">
+    <div class="pin-bubble">A.R.C. — that's your place!</div>
+    <div class="subtitle">Birchie-on-Sea</div>
   </div>
 
-  <!-- Panel 2: Garden path. Larger building + receding path + flanking trees -->
-  <div class="panel panel-bg" id="panel-2">
-    <div class="path-overlay" aria-hidden="true"></div>
-    <img class="building-mid" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="">
-    <img class="tree-edge tree-left" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-oak.png" alt="">
-    <img class="tree-edge tree-right" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-tree-horse-chestnut.png" alt="">
+  <!-- Panel 2: zoom into the plot, see the building stamp at its real position -->
+  <div class="panel map-panel panel-2" id="panel-2">
+    <img class="building-stamp" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="">
+    <div class="subtitle">Your A.R.C. plot, just south of The Dip</div>
   </div>
 
-  <!-- Panel 3: Door close-up. Building filling canvas, cropped to entrance via CSS clip-path -->
-  <div class="panel" id="panel-3" style="background: var(--cream-wash);">
-    <img class="building-close" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="A.R.C. front door">
+  <!-- Panel 3: closer in, life on the site (Henry van + a couple of animals) -->
+  <div class="panel map-panel panel-3" id="panel-3">
+    <img class="building-stamp" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="">
+    <img class="henry-van" src="/assets/driving/vehicle-henry.png" alt="" onerror="this.style.display='none'">
+    <img class="site-anim" id="site-anim-1" src="" alt="" style="left: 28%; top: 70%;" onerror="this.style.display='none'">
+    <img class="site-anim" id="site-anim-2" src="" alt="" style="left: 60%; top: 72%;" onerror="this.style.display='none'">
+    <div class="subtitle">A quiet morning at the centre</div>
   </div>
 
-  <!-- Panel 4: Door open + animal -->
-  <div class="panel" id="panel-4" style="background: var(--cream-wash);">
-    <img class="building-close" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png" alt="A.R.C. front door">
-    <div class="door-opening" aria-hidden="true"></div>
-    <img class="arrival-sprite" id="arrival-sprite" src="" alt="">
-    <div class="tap-prompt" id="tap-prompt">Tap to open the door</div>
+  <!-- Panel 4: building close-up + tap to enter -->
+  <div class="panel panel-4" id="panel-4">
+    <img class="building-stamp" src="/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png?v=2" alt="A.R.C. main building">
+    <div class="tap-prompt" id="tap-prompt">Tap to go inside →</div>
   </div>
 
   <div class="corner">
@@ -295,14 +310,9 @@
 
     // Tap on panel body advances early (or completes on panel 4).
     stage.addEventListener('click', function (e) {
-      // Ignore taps on corner controls.
       if (e.target.closest('.corner')) return;
       if (current === 3) {
-        // Panel 4 tap — request the climactic SFX from the host
-        // (host respects AudioManager state and plays sfx-arrive +
-        // species sound + voice-hello-friend if music is on).
         send('intro-climactic-sfx', { species: species });
-        // Then complete after a short delay so the SFX has time to start.
         setTimeout(function () { send('intro-complete'); }, 100);
         return;
       }
@@ -311,13 +321,11 @@
       }
     });
 
-    // Speaker toggle — bubble out to the host AudioManager.
     speakerBtn.addEventListener('click', function (e) {
       e.stopPropagation();
       send('toggle-music');
     });
 
-    // Skip-future toggle — bubble out to IntroScene which writes localStorage.
     skipCheckbox.addEventListener('change', function (e) {
       e.stopPropagation();
       send('set-skip-intro', { value: skipCheckbox.checked });
@@ -334,12 +342,21 @@
         skipCheckbox.checked = skipIntro;
         speakerBtn.textContent = musicOn ? '🔊' : '🔇';
         speakerBtn.classList.toggle('active', musicOn);
-        // Update panel-4 sprite to match the species GameScene will spawn.
-        const arrivalImg = document.getElementById('arrival-sprite');
-        if (arrivalImg) {
-          arrivalImg.src = (typeof m.payload.arrivingSpriteSrc === 'string' && m.payload.arrivingSpriteSrc.length > 0)
-            ? m.payload.arrivingSpriteSrc
-            : '/assets/animals/cat-ginger-arriving.png';
+
+        // Panel 3 "life on site" sprites — one is the species the kid will
+        // welcome at arrival; the second is a friendly cat (or dog if the
+        // kid's first species is cat, just for variety) sleeping in the garden.
+        const a1 = document.getElementById('site-anim-1');
+        const a2 = document.getElementById('site-anim-2');
+        if (a1 && m.payload.arrivingSpriteSrc) {
+          a1.src = m.payload.arrivingSpriteSrc;
+        } else if (a1) {
+          a1.src = '/assets/animals/cat-ginger-arriving.png';
+        }
+        if (a2) {
+          a2.src = species === 'dog'
+            ? '/assets/animals/cat-ginger-sleeping.png'
+            : '/assets/animals/dog-golden-sleeping.png';
         }
         start();
       }
@@ -350,10 +367,12 @@
       }
     });
 
-    // Standalone preview (no parent window) — start immediately for design review.
+    // Standalone preview (no parent window) — start immediately for design review
     if (window.top === window.self) {
-      const arrivalImg = document.getElementById('arrival-sprite');
-      if (arrivalImg) arrivalImg.src = '/assets/animals/cat-ginger-arriving.png';
+      const a1 = document.getElementById('site-anim-1');
+      const a2 = document.getElementById('site-anim-2');
+      if (a1) a1.src = '/assets/animals/cat-ginger-arriving.png';
+      if (a2) a2.src = '/assets/animals/dog-golden-sleeping.png';
       start();
     }
   })();
