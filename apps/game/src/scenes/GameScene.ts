@@ -46,6 +46,8 @@ import {
   markAllDueGardenReturnsSeen,
   getAvailableToys,
   calculateAdoptionFee,
+  getEligibleApplicants,
+  commitAdoption as commitAdoptionLogic,
   checkCharityGrants,
   getGrantDef,
   pickRandomFact,
@@ -949,7 +951,7 @@ export class GameScene extends Phaser.Scene {
         if (action === 'aspire-rehome') {
           this.setAspiration(animal, 'rehome');
           unmount();
-          this.openAdoptersOverlay(animal);
+          this.openAdoptionOfficeOverlay(animal);
           return;
         }
         if (action === 'aspire-rewild') {
@@ -970,17 +972,59 @@ export class GameScene extends Phaser.Scene {
     this.events.once('shutdown', unmountInGame);
   }
 
-  private openAdoptersOverlay(animal: Animal): void {
-    const unmount = mountInGame('adopters', {
-      onAction: (action, payload) => {
-        if (action === 'back-to-menu') { unmount(); return; }
-        if (action === 'meet-adopter') {
-          unmount();
-          this.openAdoptionOverlay(animal, (payload?.id as string) ?? '');
-          return;
-        }
+  /**
+   * Mount the new adoption-office iframe (L1 curtailed roster).
+   *
+   * Architecture note: the office iframe reads the animal banner info
+   * from URL query params (`animalName`, `species`, `variant`,
+   * `animalSpriteSrc`), and listens for a follow-up postMessage of
+   * shape `{source:'arc-adoption-office-host', type:'applicants',
+   * payload:{applicants}}` to populate its picker. We compute the
+   * eligible list here via game-logic and post it after the iframe
+   * loads.
+   */
+  private openAdoptionOfficeOverlay(animal: Animal): void {
+    const applicants = getEligibleApplicants(animal, this.store);
+    const spriteSrc = animal.variant
+      ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
+      : `/assets/animals/${animal.species}-sheltered.png`;
+
+    const unmount = mountInGame(
+      'adoption-office',
+      {
+        onAction: (action, payload) => {
+          if (action === 'adoption-office-cancel' || action === 'close' || action === 'back-to-menu') {
+            unmount();
+            return;
+          }
+          if (action === 'adoption-pick') {
+            const householdId = typeof payload?.householdId === 'string' ? payload.householdId : '';
+            unmount();
+            this.openAdoptionOverlay(animal, householdId);
+            return;
+          }
+        },
       },
-    }, { animalName: animal.name, animalSpecies: animal.species });
+      {
+        animalId: animal.id,
+        animalName: animal.name,
+        species: animal.species,
+        variant: animal.variant ?? '',
+      },
+      {
+        hostSource: 'arc-adoption-office-host',
+        query: {
+          animalId: animal.id,
+          animalName: animal.name,
+          species: animal.species,
+          variant: animal.variant ?? '',
+          animalSpriteSrc: spriteSrc,
+        },
+        extraInits: [
+          { type: 'applicants', payload: { applicants } },
+        ],
+      },
+    );
     this.events.once('shutdown', unmountInGame);
   }
 
@@ -1173,19 +1217,17 @@ export class GameScene extends Phaser.Scene {
 
   /** Commit: remove animal from centre, record in rehomed history, save. */
   private commitAdoption(animal: Animal, householdId: string): void {
-    const idx = this.store.animals.findIndex((a) => a.id === animal.id);
-    if (idx < 0) return;
-    const a = this.store.animals[idx];
-    this.store.rehomed.push({
-      animalId: a.id,
-      animalName: a.name,
-      species: a.species,
-      variant: a.variant,
-      householdId,
-      date: Date.now(),
-    });
-    this.store.animals.splice(idx, 1);
-    this.store.sickAnimals.delete(a.id);
+    // Snapshot the animal before delegating — game-logic mutates
+    // store.animals so we need the pre-removal record for fee +
+    // toast copy below.
+    const a = animal;
+    try {
+      const entry = commitAdoptionLogic(a, householdId, this.store);
+      this.store.sickAnimals.delete(entry.animalId);
+    } catch {
+      showToast(this, "Couldn't complete the adoption — try again?");
+      return;
+    }
 
     // Adoption-fee donation — base 20 + bond/species bonuses, capped
     // at 50. The household entry might not be loaded yet (cast.json
