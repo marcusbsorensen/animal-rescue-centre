@@ -265,10 +265,10 @@ describe('generateTier1Puzzle', () => {
     }
   });
 
-  it('places fox start at the tunnel mouth (6, 8) and fox end at (0, 1)', () => {
+  it('places fox start at the centred tunnel mouth (4, 8) and fox end at (0, 1)', () => {
     const p = generateTier1Puzzle(7);
     const idx = (x: number, y: number) => y * p.width + x;
-    const startTile = p.tiles[idx(6, 8)];
+    const startTile = p.tiles[idx(4, 8)];
     const endTile = p.tiles[idx(0, 1)];
     expect(startTile.type).toBe('habitat-endpoint');
     expect(startTile.endpointFor).toBe('fox');

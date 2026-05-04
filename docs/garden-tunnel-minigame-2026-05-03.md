@@ -121,6 +121,51 @@ comes from:
 3. **Simultaneous gate opening** at tier 5 — the toughest level
    because all animals leave AT ONCE when the player submits.
 
+## Tree roots as natural obstacles (Marcus 2026-05-04)
+
+The 6 painted trees rooted in the gardens above (3 in quiet, 3
+in lawn) cast TREE-ROOT obstacles below ground. Each tree's roots
+become a small irregular blob of "sealed earth" tiles in the grid
+beneath it that the tunnel network can't pass through. This
+gives natural obstacles the player has to route AROUND, perfectly
+aligned with the spatial overlay so the kid sees WHY they can't
+dig a tunnel right there.
+
+Mechanics:
+- Each tree contributes 1-3 root-blocked tiles, centred on the
+  tile beneath the tree's painted trunk position.
+- Roots render as a different fill (mossy-brown earth with painted
+  root tendrils) — visually distinct from regular sealed earth
+  tiles so the kid sees "this is a tree's roots".
+- Kid can't rotate or modify root tiles (they're like FIXED empty
+  tiles — permanent obstacles).
+- In the spatial overlay, the tree's painted canopy + trunk shows
+  ABOVE the root-blocked tiles below — direct visual link.
+
+Tier introduction:
+- Tier 1 (fox only) — no roots (keep the intro mechanic-pure).
+- Tier 2+ — roots appear under the trees in lawn + quiet gardens
+  as the tunnel network grows past those gardens. Forces detours
+  + rewards the player for reading the aboveground overlay.
+
+## Aboveground overlay (Marcus 2026-05-04)
+
+The puzzle grid is rendered with a SEMI-OPAQUE GHOST of the
+A.R.C. site map drawn ON TOP of the tunnel grid (~30% opacity).
+The kid sees both layers at once: their tunnels below + the
+buildings, paths, gardens and habitats above. Kids who find
+the dual-layer confusing can hide it via a toggle button in
+the header (default: ON).
+
+REWARD: when all animals successfully complete their routes,
+the overlay fades to fully transparent for ~3 seconds, revealing
+the kid's tunnel network in full glory. A small celebration of
+the spatial reasoning the kid just did.
+
+(Future polish: when an animal arrives at its destination on
+an OUTbound run, swap to the WALKING-sprite version of that
+animal so the kid sees them strolling into their enclosure.)
+
 ## Spatial layout — match the aboveground site
 
 The tunnel network's geometry on screen mirrors the A.R.C. site

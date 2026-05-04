@@ -138,10 +138,59 @@
 
   .grid-wrap {
     flex: 1;
+    position: relative;
     display: flex; align-items: center; justify-content: center;
     padding: 4px;
     z-index: 1;
     min-height: 0;
+  }
+  /* Aboveground overlay — semi-opaque ghost of the A.R.C. site map
+     drawn ON TOP of the tunnel grid so kids can see how the
+     underground tunnel relates to the buildings + habitats above.
+     Opacity defaults to 30% (visible but not dominant). Toggle
+     button in the header lets kids hide it if it's confusing.
+     On a successful win the overlay fades to fully transparent so
+     the kid sees the tunnel layout in full glory. */
+  .overground-overlay {
+    position: absolute;
+    /* Sized + positioned in JS to exactly cover the tunnel-grid
+       square (which itself is centred inside grid-wrap with padding). */
+    pointer-events: none;
+    z-index: 4;
+    transition: opacity 800ms ease;
+    opacity: 0.30;
+  }
+  .overground-overlay.hidden { opacity: 0 !important; }
+  .overground-overlay svg {
+    width: 100%; height: 100%;
+    display: block;
+    overflow: visible;
+  }
+  /* Aboveground ghost shapes — faint outlines + cream fills */
+  .og-shape {
+    fill: rgba(255, 247, 224, 0.35);
+    stroke: rgba(58, 58, 58, 0.55);
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+  }
+  .og-shape.solid {
+    stroke-dasharray: none;
+    stroke-width: 2.5;
+  }
+  .og-label {
+    fill: rgba(58, 58, 58, 0.85);
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    font-size: 14px;
+    paint-order: stroke;
+    stroke: rgba(255, 247, 224, 0.85);
+    stroke-width: 3;
+    text-anchor: middle;
+  }
+  /* Toggle button styling */
+  .icon-btn.overlay-toggle.is-on {
+    background: linear-gradient(180deg, #d8a04a 0%, #a87028 100%);
+    color: #fffbe8;
   }
   .tunnel-grid {
     display: grid;
@@ -275,12 +324,52 @@
           <div class="tunnel-subtitle">rotate the tiles so the fox can find his way home</div>
         </div>
         <div class="header-buttons">
+          <button class="icon-btn overlay-toggle is-on" id="btn-overlay" title="Show / hide the buildings overlay">🏠 above</button>
           <button class="icon-btn" id="btn-close">Close ×</button>
         </div>
       </div>
 
       <div class="grid-wrap" id="grid-wrap">
         <div class="placeholder">Building the tunnels…</div>
+        <!-- Aboveground overlay rendered on top of the tunnel grid.
+             Shows where the building, paths, gardens, and habitats
+             sit ABOVE the underground tunnel network — kids see the
+             spatial relationship between the two layers. -->
+        <div class="overground-overlay" id="overground-overlay" aria-hidden="true">
+          <svg viewBox="0 0 900 900" preserveAspectRatio="xMidYMid meet">
+            <!-- Grid is 9×9 tunnel cells (each cell ≈ 100×100 svg-units).
+                 Aboveground positions mapped to the same grid cells:
+                 - ARC building dominates the bottom (rows 6-8, cols 0-7)
+                 - Quiet garden: cols 0-5, row 4-5 (above building)
+                 - Lawn garden: cols 6-8, rows 4-7 (right of building)
+                 - Hedgehog/Squirrel: cols 0-5, row 2-3
+                 - Raccoon: cols 6-8, row 2-3
+                 - Fox pen: cols 0-5, row 0-1
+                 - Skunk pen: cols 6-8, row 0-1
+                 (Fox + skunk separate because Fox pen IS the destination
+                 in the puzzle — drawn as the patch the trunk arrives at) -->
+            <!-- ARC building (south end, dominates the bottom) -->
+            <rect class="og-shape solid" x="20" y="600" width="780" height="280" rx="12"/>
+            <text class="og-label" x="240" y="760">A.R.C. building</text>
+            <!-- Quiet garden (horizontal strip above building) -->
+            <rect class="og-shape" x="20" y="450" width="540" height="130" rx="8"/>
+            <text class="og-label" x="290" y="525">Quiet garden</text>
+            <!-- Lawn garden (vertical strip on the right) -->
+            <rect class="og-shape" x="600" y="450" width="280" height="350" rx="8"/>
+            <text class="og-label" x="740" y="630">Lawn garden</text>
+            <!-- Hedgehog/Squirrel (mid-left) + Raccoon (mid-right) -->
+            <rect class="og-shape" x="20" y="220" width="540" height="200" rx="8"/>
+            <text class="og-label" x="290" y="330">Hedgehog + Squirrel</text>
+            <rect class="og-shape" x="600" y="220" width="280" height="200" rx="8"/>
+            <text class="og-label" x="740" y="330">Raccoon</text>
+            <!-- Fox pen (top-left, 2/3 wide) - the destination tile is here -->
+            <rect class="og-shape" x="20" y="20" width="540" height="170" rx="8"/>
+            <text class="og-label" x="290" y="115">🦊 Fox pen</text>
+            <!-- Skunk pen (top-right, 1/3 wide) -->
+            <rect class="og-shape" x="600" y="20" width="280" height="170" rx="8"/>
+            <text class="og-label" x="740" y="115">Skunk</text>
+          </svg>
+        </div>
       </div>
 
       <div class="tunnel-footer">
@@ -433,17 +522,29 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
+  // MIRROR of game-logic/src/tunnel.ts generateTier1Puzzle. Layout
+  // matches the aboveground geometry (Marcus 2026-05-04): central
+  // trunk up the middle (col 4), 3 viewing domes along it, branch
+  // west at the top into the fox pen.
   function generateTier1(seed) {
     const W = 9, H = 9;
     const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
     const set = (x, y, t) => { tiles[y * W + x] = t; };
     const rng = mulberry32(seed);
     const randR = () => Math.floor(rng() * 4);
-    set(6, 8, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-    for (let y = 2; y <= 7; y++) set(6, y, { type: 'straight', rotation: randR() });
-    set(6, 3, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-    for (let x = 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
+    // Building tunnel mouth (south end of trunk)
+    set(4, 8, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
+    // Trunk straights (player rotates to vertical)
+    for (let y = 2; y <= 7; y++) set(4, y, { type: 'straight', rotation: randR() });
+    // 3 viewing domes along the trunk
+    set(4, 6, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(4, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(4, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+    // Top of trunk: corner turning west into the fox branch
+    set(4, 1, { type: 'corner', rotation: 3, fixed: true });
+    // Fox branch straights
+    for (let x = 1; x <= 3; x++) set(x, 1, { type: 'straight', rotation: randR() });
+    // Fox pen entry (west end of branch)
     set(0, 1, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
@@ -547,6 +648,8 @@
   function renderGrid() {
     if (!puzzle) return;
     const wrap = document.getElementById('grid-wrap');
+    // Preserve the overground overlay across re-renders (wipes destroy it).
+    const overlay = document.getElementById('overground-overlay');
     wrap.replaceChildren();
     const grid = document.createElement('div');
     grid.className = 'tunnel-grid';
@@ -571,6 +674,16 @@
       }
     }
     wrap.appendChild(grid);
+
+    // Re-attach + size the overground overlay to match the tunnel grid.
+    if (overlay) {
+      wrap.appendChild(overlay);
+      const totalSide = tileSize * puzzle.width + 12;  // +12 for grid padding
+      overlay.style.width = totalSide + 'px';
+      overlay.style.height = totalSide + 'px';
+      overlay.style.left = ((wrapRect.width  - totalSide) / 2) + 'px';
+      overlay.style.top  = ((wrapRect.height - totalSide) / 2) + 'px';
+    }
   }
 
   function onTileClick(x, y) {
@@ -634,6 +747,13 @@
     }
     overlay.classList.add('show');
     if (win) {
+      // SUCCESS REVEAL: fade the aboveground overlay to fully
+      // transparent so the kid sees the tunnel layout in full glory
+      // (rewards getting it right with a clean view of their work).
+      const og = document.getElementById('overground-overlay');
+      if (og && !og.classList.contains('hidden')) {
+        og.style.opacity = '0';
+      }
       window.parent?.postMessage({
         source: 'arc-tunnel',
         type: 'tunnel-complete',
@@ -652,6 +772,9 @@
       puzzle = JSON.parse(JSON.stringify(originalPuzzle));
       renderGrid();
     }
+    // Restore overlay opacity (cleared by win reveal).
+    const og = document.getElementById('overground-overlay');
+    if (og) og.style.opacity = '';
   }
   function reroll() {
     const newSeed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
@@ -662,6 +785,18 @@
       payload: { reward: 'coins' },
     }, '*');
   }
+
+  // Aboveground overlay toggle — kids who find the dual-layer
+  // confusing can hide the buildings ghost. Default is ON.
+  document.getElementById('btn-overlay').addEventListener('click', (e) => {
+    const og = document.getElementById('overground-overlay');
+    const btn = e.currentTarget;
+    const willShow = og.classList.contains('hidden');
+    og.classList.toggle('hidden', !willShow);
+    og.style.opacity = '';        // clear any inline opacity (e.g. from win reveal)
+    btn.classList.toggle('is-on', willShow);
+    btn.textContent = willShow ? '🏠 above' : '🏠 hidden';
+  });
 
   document.getElementById('btn-submit').addEventListener('click', onSubmit);
   document.getElementById('btn-reset').addEventListener('click', reset);
