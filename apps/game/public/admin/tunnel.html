@@ -214,6 +214,11 @@
   .tile.empty { cursor: default; }
   .tile.fixed { cursor: default; }
   .tile-svg { display: block; width: 100%; height: 100%; }
+  /* When the aboveground overlay is showing, hide the puzzle-grid
+     viewing-dome glyph (the overlay shows the real domes underneath
+     so duplicating them is visual clutter). The tunnel pipe through
+     the dome tile stays visible — only the dome icon is suppressed. */
+  body.overlay-on .tile.tile-viewing-dome .dome-glyph { display: none; }
 
   .pawprint-trail {
     position: absolute; top: 0; left: 0;
@@ -560,13 +565,13 @@
     const set = (x, y, t) => { tiles[y * W + x] = t; };
     const rng = mulberry32(seed);
     const randR = () => Math.floor(rng() * 4);
-    set(6, 10, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-    for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
-    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-    for (let x = 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
+    set(5, 10, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
+    for (let y = 2; y <= 9; y++) set(5, y, { type: 'straight', rotation: randR() });
+    set(5, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(5, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(5, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(5, 1, { type: 'corner', rotation: 3, fixed: true });
+    for (let x = 1; x <= 4; x++) set(x, 1, { type: 'straight', rotation: randR() });
     set(0, 1, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
@@ -654,14 +659,19 @@
       g.appendChild(txt);
     } else if (tile.type === 'viewing-dome') {
       drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
-      g.appendChild(svgEl('circle', {
+      // Wrap the dome glyph in a group with a class so CSS can hide
+      // it when the aboveground overlay is showing (the overlay
+      // already shows the real domes, so duplicating reads as clutter).
+      const domeGroup = svgEl('g', { class: 'dome-glyph' });
+      domeGroup.appendChild(svgEl('circle', {
         cx: 50, cy: 50, r: 18,
         fill: 'rgba(180,220,255,0.45)',
         stroke: '#3a2410', 'stroke-width': 2.5,
       }));
-      g.appendChild(svgEl('ellipse', {
+      domeGroup.appendChild(svgEl('ellipse', {
         cx: 44, cy: 44, rx: 6, ry: 4, fill: 'rgba(255,255,255,0.6)',
       }));
+      g.appendChild(domeGroup);
     }
 
     return svg;
@@ -689,6 +699,7 @@
         const tile = puzzle.tiles[y * puzzle.width + x];
         const cell = document.createElement('div');
         cell.className = 'tile';
+        cell.classList.add(`tile-${tile.type}`);
         if (tile.type === 'empty') cell.classList.add('empty');
         if (tile.fixed) cell.classList.add('fixed');
         cell.dataset.x = String(x);
@@ -866,6 +877,10 @@
 
   // Aboveground overlay toggle — kids who find the dual-layer
   // confusing can hide the buildings ghost. Default is ON.
+  // body.overlay-on class controls whether the puzzle-grid viewing
+  // domes are visible (hidden when overlay is on, since the real
+  // domes show through the overlay).
+  document.body.classList.add('overlay-on');
   document.getElementById('btn-overlay').addEventListener('click', (e) => {
     const og = document.getElementById('overground-overlay');
     const btn = e.currentTarget;
@@ -874,6 +889,7 @@
     og.style.opacity = '';        // clear any inline opacity (e.g. from win reveal)
     btn.classList.toggle('is-on', willShow);
     btn.textContent = willShow ? '🏠 above' : '🏠 hidden';
+    document.body.classList.toggle('overlay-on', willShow);
   });
 
   document.getElementById('btn-submit').addEventListener('click', onSubmit);

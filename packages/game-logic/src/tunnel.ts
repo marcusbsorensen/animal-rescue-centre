@@ -367,26 +367,26 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   // fox branch. 3 viewing domes evenly spaced down the trunk.
 
   // Building tunnel mouth at (6, 10) — south edge of grid. r=2 = N-open.
-  set(6, 10, {
+  set(5, 10, {
     type: 'habitat-endpoint', rotation: 2, fixed: true,
     endpointFor: 'fox', endpointRole: 'start',
   });
 
-  // Trunk straights at (6, y) for y=2..9 — player rotates to vertical.
+  // Trunk straights at (5, y) for y=2..9 — player rotates to vertical.
   for (let y = 2; y <= 9; y++) {
-    set(6, y, { type: 'straight', rotation: randR() });
+    set(5, y, { type: 'straight', rotation: randR() });
   }
 
   // Three viewing domes along the trunk, evenly spaced (rows 2, 5, 8).
-  set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(5, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(5, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(5, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
 
-  // Top of trunk: corner at (6, 1) turning S+W. r=3 = ┐ (S+W).
-  set(6, 1, { type: 'corner', rotation: 3, fixed: true });
+  // Top of trunk: corner at (5, 1) turning S+W. r=3 = ┐ (S+W).
+  set(5, 1, { type: 'corner', rotation: 3, fixed: true });
 
-  // Fox branch — horizontal straights at (x, 1) for x=1..5.
-  for (let x = 1; x <= 5; x++) {
+  // Fox branch — horizontal straights at (x, 1) for x=1..4.
+  for (let x = 1; x <= 4; x++) {
     set(x, 1, { type: 'straight', rotation: randR() });
   }
 
@@ -408,10 +408,10 @@ export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
   const idx = (x: number, y: number) => y * puzzle.width + x;
   for (let y = 2; y <= 9; y++) {
-    const t = tiles[idx(6, y)];
+    const t = tiles[idx(5, y)];
     if (t.type === 'straight') t.rotation = 0;
   }
-  for (let x = 1; x <= 5; x++) {
+  for (let x = 1; x <= 4; x++) {
     const t = tiles[idx(x, 1)];
     if (t.type === 'straight') t.rotation = 1;
   }
