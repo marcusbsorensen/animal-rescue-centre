@@ -207,14 +207,12 @@
     opacity: 0.5;
   }
   html.overlay-mode #arc-stage .region-path-h.path-h-1 {
-    /* boundary between fox/skunk (rows 0-3) and hedgehog/raccoon
-       (rows 3.5-5.5) — shifted down 0.5T to match hedgehog row. */
-    top: calc(var(--site-tile, 1px) * 3.5 - var(--site-tile, 1px) * 0.25);
+    /* sits just above row 3.5 (bottom edge on the boundary) */
+    top: calc(var(--site-tile, 1px) * 3.5 - var(--site-tile, 1px) * 0.5);
   }
   html.overlay-mode #arc-stage .region-path-h.path-h-2 {
-    /* boundary between hedgehog/raccoon (rows 3.5-5.5) and quiet+
-       lawn (rows 6-8/11) — shifted down 1T to match garden row. */
-    top: calc(var(--site-tile, 1px) * 6 - var(--site-tile, 1px) * 0.25);
+    /* sits just above row 6 (bottom edge on the boundary) */
+    top: calc(var(--site-tile, 1px) * 6 - var(--site-tile, 1px) * 0.5);
   }
   /* path-h-3 was the lawn/parking boundary in the regular site map.
      In overlay-mode the building replaces parking, so this strip

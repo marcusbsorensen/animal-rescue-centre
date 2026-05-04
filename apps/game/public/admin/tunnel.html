@@ -755,9 +755,14 @@
       wrap.appendChild(overlay);
       const gridW = tileSize * puzzle.width + 12;
       const gridH = tileSize * puzzle.height + 12;
+      // Nudge the entire painted overlay right by 1/12 of a tile
+      // (about 3 × the tunnel-pipe outline width) so the gardens
+      // and paths align with the kid's preferred trunk position
+      // (Marcus 2026-05-04).
+      const overlayShiftX = tileSize / 12;
       overlay.style.width = gridW + 'px';
       overlay.style.height = gridH + 'px';
-      overlay.style.left = ((wrapRect.width  - gridW) / 2) + 'px';
+      overlay.style.left = ((wrapRect.width  - gridW) / 2 + overlayShiftX) + 'px';
       overlay.style.top  = ((wrapRect.height - gridH) / 2) + 'px';
 
       // Push the tile size into the iframe so its overlay-mode CSS
