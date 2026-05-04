@@ -98,7 +98,12 @@
      dims to 30% — kid sees the painted ARC building underneath the
      tunnel start tile clearly (Marcus 2026-05-04). */
   html.overlay-mode #arc-stage .stamp-building {
-    bottom: 0;
+    /* Push the building DOWN past the overlay's bottom edge so its
+       roof clears the tunnel start tile. The overlay overscans the
+       grid by 30% (extra width + height); we use a negative bottom
+       to seat the building further down than the painted-site
+       default (Marcus 2026-05-04). */
+    bottom: -8%;
     opacity: 1 !important;
     z-index: 5;
   }
