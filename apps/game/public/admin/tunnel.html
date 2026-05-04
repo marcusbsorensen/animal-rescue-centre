@@ -210,7 +210,19 @@
     box-shadow:
       inset 0 4px 12px rgba(0,0,0,0.4),
       0 4px 12px rgba(0,0,0,0.3);
+    transition: opacity 800ms ease;
   }
+  /* Intro sequence — kids see the painted site map first
+     ("here's the rescue centre!"), then the tunnel network fades
+     in beneath ("we're going underground!"), then the site map
+     fades out ("now route the foxes!"). After the intro, the
+     overlay can be toggled back on for spatial reference.
+     - intro-stage-1 (first 1.5s): tunnels invisible, only painted
+       site map shows
+     - intro-stage-2 (1.5-3s): tunnels fade in alongside site map
+     - intro-done (3s+): site map fades out via .hidden on overlay */
+  body.intro-stage-1 .tunnel-grid { opacity: 0; }
+  body.intro-stage-1 .tile { pointer-events: none; }
   .tile {
     position: relative;
     width: 100%; height: 100%;
@@ -916,11 +928,31 @@
   }
 
   // Aboveground overlay toggle — kids who find the dual-layer
-  // confusing can hide the buildings ghost. Default is ON.
-  // body.overlay-on class controls whether the puzzle-grid viewing
-  // domes are visible (hidden when overlay is on, since the real
-  // domes show through the overlay).
-  document.body.classList.add('overlay-on');
+  // confusing can hide the buildings ghost. body.overlay-on class
+  // controls whether the puzzle-grid viewing domes are visible
+  // (hidden when overlay is on, since the real domes show through
+  // the overlay).
+  //
+  // Intro sequence (Marcus 2026-05-04):
+  //   t=0      site map only (tunnels hidden)
+  //   t=1500ms tunnels fade in (both layers visible)
+  //   t=3000ms site map fades out → tunnels alone
+  // After the intro, the kid can toggle the overlay back on for
+  // spatial reference.
+  document.body.classList.add('overlay-on', 'intro-stage-1');
+  setTimeout(() => {
+    document.body.classList.remove('intro-stage-1');
+  }, 1500);
+  setTimeout(() => {
+    const og = document.getElementById('overground-overlay');
+    if (og) og.classList.add('hidden');
+    document.body.classList.remove('overlay-on');
+    const btn = document.getElementById('btn-overlay');
+    if (btn) {
+      btn.classList.remove('is-on');
+      btn.textContent = '🏠 hidden';
+    }
+  }, 3000);
   document.getElementById('btn-overlay').addEventListener('click', (e) => {
     const og = document.getElementById('overground-overlay');
     const btn = e.currentTarget;
