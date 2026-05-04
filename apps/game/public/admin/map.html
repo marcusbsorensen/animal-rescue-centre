@@ -116,18 +116,23 @@
      fox + skunk + central path to the puzzle's tile coords so they
      line up exactly with the tunnel topology (branch row 0, trunk
      col 6) instead of drifting with % coords (Marcus 2026-05-04). */
+  /* Fox + skunk enclosures sized to MEET the hedgehog/raccoon row
+     below them (which still sits at the painted top:24%, height:12%
+     ≈ rows 3-5 of the 13-row grid). Height 3 tiles bridges the gap
+     so the kid sees a continuous garden zone, not a detached strip
+     with empty soil between (Marcus 2026-05-04). */
   html.overlay-mode #arc-stage .region-fox {
     left: 0;
     top: 0;
     width: calc(var(--site-tile, 1px) * 6);
-    height: calc(var(--site-tile, 1px) * 1);
+    height: calc(var(--site-tile, 1px) * 3);
     opacity: 0.45;
   }
   html.overlay-mode #arc-stage .region-skunk {
     left: calc(var(--site-tile, 1px) * 7);
     top: 0;
     width: calc(var(--site-tile, 1px) * 2);
-    height: calc(var(--site-tile, 1px) * 1);
+    height: calc(var(--site-tile, 1px) * 3);
     opacity: 0.45;
   }
   html.overlay-mode #arc-stage .region-path {
