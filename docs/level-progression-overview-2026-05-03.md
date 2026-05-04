@@ -38,6 +38,7 @@ Everything that's level-gated, side-by-side. Read down the column for what a pla
 | **PTV destinations** | A.R.C., Bramble Farm | (same) | ★ Moorland, Woodland | (same) | ★ Cove Harbour | (same) | ★ Sea Cliffs | ★ Deep Forest | ★ Wetlands | ★ Pinebark Medical |
 | **Supply Run depots** | Bramble Farm | (same) | (same) | (same) | ★ Cove Harbour | (same) | (same) | (same) | (same) | ★ Pinebark Medical |
 | **Charity grant: Wildlife Trust** | — | — | — | — | — | — | — | — | — | ★ qualifies (£40 if 5+ rewildings) |
+| **Tunnel mini-game** | — | ★ tier 1 (fox only — intro mechanic) | tier 1 | ★ tier 2 (+ hedgehog/squirrel branch + gates) | tier 2 | ★ tier 3 (+ raccoon, timing windows) | tier 3 | ★ tier 4 (+ skunk, all 4 branches) | tier 4 | ★ tier 5 (rush-hour: all 4 entry gates open simultaneously, must stagger paths to avoid clashes) |
 
 ## Per-system detail
 
@@ -116,6 +117,44 @@ L9+:   6 tasks
 ### Charity grants (passive income)
 
 The Wildlife Trust grant qualifies at **L10 if the player has done ≥5 rewildings** (`charity.ts`). No other charities have level gates currently — they qualify on activity alone (donations from happy adopters, etc.).
+
+### Tunnel mini-game (5-tier pipe-rotation puzzle)
+
+A pipe-rotation puzzle where the kid rebuilds the underground
+tunnel network so animals can be let out to play. Tiers unlock
+TIGHTLY PEGGED to habitat unlocks — the kid only routes animals
+whose outdoor habitats are actually available.
+
+| Tier | Unlocks at | Animals | Branches | Distinguishing mechanic |
+|---|---|---|---|---|
+| **1 — Intro** | L2 (fox arrival) | fox only | trunk + 1 branch | Rebuild straights to make a single path. Teaches rotate + connect. ~1-2 min for a 7-yo. |
+| **2 — Add hedgehog** | L4 (T2 zone) | fox + hedgehog/squirrel | trunk + 2 branches | First gates introduced — kid stages opens. ~2-3 min. |
+| **3 — Add raccoon** | L6 (T3 zone) | + raccoon | trunk + 3 branches | Timing windows — animal A must be back in pen before animal B leaves. ~3-5 min. |
+| **4 — Add skunk** | L8 (skunk zone) | + skunk | trunk + 4 branches | All 4 garden-habitat animals routing through one network. ~4-6 min. |
+| **5 — Rush hour** | L10+ | all 4 | trunk + 4 branches + bridges + one-ways | All 4 entry gates open SIMULTANEOUSLY when the kid submits. They have to arrange paths so no animals clash or end up in the wrong destination. ~5-8 min. |
+
+Layout MIRRORS the aboveground site geometry — central trunk
+runs UP from the building's tunnel-mouth at the south end (col 5
+of 9, inside the building's footprint), 3 viewing domes spaced
+along it, branches turn west/east at the top to fox/skunk pens.
+Tier 2+ adds branches to hedgehog/raccoon mid-rows.
+
+Each successful run = animals let out to play (feeds the existing
+happiness/bond loop). Failed routes = "fox got lost — try again?"
+gentle retry, no destructive consequence.
+
+Daily randomisation: tile rotations re-roll at dawn, persist all
+day. Kid override via "Re-dig tunnels" button gives a small
+centre-infrastructure reward (+10 coins currently).
+
+Design specs:
+- `docs/garden-tunnel-minigame-2026-05-03.md` — full design doc
+- `docs/garden-tunnel-tile-inventory-2026-05-03.md` — tile inventory + level pack stress-test
+
+Source files:
+- `packages/game-logic/src/tunnel.ts` — pure logic (TDD'd)
+- `apps/game/public/admin/tunnel.html` — painted iframe page
+- `apps/game/src/scenes/TunnelScene.ts` + `GameScene.openTunnelOverlay()` — scene wiring
 
 ### Charm system (PTV mirror customisation)
 
