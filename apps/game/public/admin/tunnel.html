@@ -158,7 +158,10 @@
     pointer-events: none;
     z-index: 4;
     transition: opacity 800ms ease;
-    opacity: 0.30;
+    /* Wrapper at full opacity — per-element dimming happens INSIDE
+       the iframe so the building can stay fully opaque while patches
+       and domes ghost back. */
+    opacity: 1;
   }
   .overground-overlay.hidden { opacity: 0 !important; }
   .overground-overlay iframe {
@@ -556,23 +559,24 @@
     };
   }
   // MIRROR of game-logic/src/tunnel.ts generateTier1Puzzle.
-  // 9 cols × 11 rows (taller-than-wide, matching the plot's
-  // 0.82 aspect ratio). Trunk col 6, 3 evenly-spaced viewing
-  // domes, branch west at the top into the fox pen.
+  // 9 cols × 13 rows. Bottom 11 rows correspond to the
+  // aboveground site map; top 2 rows are extra soil that wraps
+  // above the site. Tunnel network shifted up 3 rows so 3 rows
+  // of building footprint sit below the start tile.
   function generateTier1(seed) {
-    const W = 9, H = 11;
+    const W = 9, H = 13;
     const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
     const set = (x, y, t) => { tiles[y * W + x] = t; };
     const rng = mulberry32(seed);
     const randR = () => Math.floor(rng() * 4);
-    set(5, 10, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-    for (let y = 2; y <= 9; y++) set(5, y, { type: 'straight', rotation: randR() });
-    set(5, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(5, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(5, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(5, 1, { type: 'corner', rotation: 3, fixed: true });
-    for (let x = 1; x <= 4; x++) set(x, 1, { type: 'straight', rotation: randR() });
-    set(0, 1, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
+    set(5, 9, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
+    for (let y = 1; y <= 8; y++) set(5, y, { type: 'straight', rotation: randR() });
+    set(5, 1, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(5, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(5, 7, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(5, 0, { type: 'corner', rotation: 3, fixed: true });
+    for (let x = 1; x <= 4; x++) set(x, 0, { type: 'straight', rotation: randR() });
+    set(0, 0, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
 
@@ -715,22 +719,25 @@
     }
     wrap.appendChild(grid);
 
-    // Re-attach + size the overground overlay LARGER than the tunnel
-    // grid so the brown soil patch reads as being CONTAINED WITHIN the
-    // site map (not the other way around). We expand the overlay in
-    // every direction and let the wrap clip any spill.
+    // Size the overground overlay to the bottom 11 rows of the grid
+    // (the aboveground site-map portion). The top 2 rows of the 13-row
+    // grid extend ABOVE the site map as plain brown soil — visually
+    // showing that the underground network wraps around / above the
+    // visible site (Marcus 2026-05-04).
     if (overlay) {
       wrap.appendChild(overlay);
+      const SITE_ROWS = 11; // overlay covers bottom 11 of 13 rows
       const gridW = tileSize * puzzle.width + 12;
       const gridH = tileSize * puzzle.height + 12;
-      // Expand 30% in each dimension, but never larger than the wrap.
-      const OVERSCAN = 1.30;
-      const totalW = Math.min(wrapRect.width,  gridW * OVERSCAN);
-      const totalH = Math.min(wrapRect.height, gridH * OVERSCAN);
+      const overlayH = tileSize * SITE_ROWS + 12;
+      const totalW = gridW;
+      const totalH = overlayH;
       overlay.style.width = totalW + 'px';
       overlay.style.height = totalH + 'px';
       overlay.style.left = ((wrapRect.width  - totalW) / 2) + 'px';
-      overlay.style.top  = ((wrapRect.height - totalH) / 2) + 'px';
+      // Bottom-align: top of overlay = top of grid + (gridH - overlayH).
+      const gridTop = (wrapRect.height - gridH) / 2;
+      overlay.style.top = (gridTop + (gridH - overlayH)) + 'px';
     }
   }
 

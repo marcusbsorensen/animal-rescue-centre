@@ -349,9 +349,16 @@ function emptyTile(): TunnelTile {
  * they connect. The corner at (6,1) is fixed.
  */
 export function generateTier1Puzzle(seed: number): TunnelPuzzle {
-  // Grid is 9 cols × 11 rows (aspect 0.82, matching the plot's
-  // taller-than-wide proportions per Marcus 2026-05-04).
-  const W = 9, H = 11;
+  // Grid is 9 cols × 13 rows. The bottom 11 rows correspond to the
+  // aboveground site map (anchored bottom). Top 2 rows are EXTRA
+  // soil that extends ABOVE the site map — kid sees the soil
+  // "wrap around" the site, reinforcing that the tunnels are
+  // contained underground (Marcus 2026-05-04).
+  //
+  // Tunnel network shifts up by 3 rows from the previous layout so
+  // 3 rows of building footprint sit BELOW the start tile, allowing
+  // the painted ARC building to render fully opaque underneath.
+  const W = 9, H = 13;
   const tiles: TunnelTile[] = [];
   for (let i = 0; i < W * H; i++) tiles.push(emptyTile());
 
@@ -362,36 +369,36 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   const rng = mulberry32(seed);
   const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
 
-  // Trunk runs UP col 6 (= 2/3 across) from the building tunnel-mouth
-  // at the south edge to a corner at the top that turns west into the
-  // fox branch. 3 viewing domes evenly spaced down the trunk.
+  // Trunk runs UP col 5 (centre) from the building tunnel-mouth at
+  // (5, 9) — 3 rows above the soil bottom so the building art shows
+  // beneath. Corner at the top (5, 0) turns west into the fox branch.
 
-  // Building tunnel mouth at (6, 10) — south edge of grid. r=2 = N-open.
-  set(5, 10, {
+  // Building tunnel mouth at (5, 9). r=2 = N-open.
+  set(5, 9, {
     type: 'habitat-endpoint', rotation: 2, fixed: true,
     endpointFor: 'fox', endpointRole: 'start',
   });
 
-  // Trunk straights at (5, y) for y=2..9 — player rotates to vertical.
-  for (let y = 2; y <= 9; y++) {
+  // Trunk straights at (5, y) for y=1..8 — player rotates to vertical.
+  for (let y = 1; y <= 8; y++) {
     set(5, y, { type: 'straight', rotation: randR() });
   }
 
-  // Three viewing domes along the trunk, evenly spaced (rows 2, 5, 8).
-  set(5, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(5, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(5, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+  // Three viewing domes along the trunk, evenly spaced (rows 1, 4, 7).
+  set(5, 1, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(5, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(5, 7, { type: 'viewing-dome', rotation: 0, fixed: true });
 
-  // Top of trunk: corner at (5, 1) turning S+W. r=3 = ┐ (S+W).
-  set(5, 1, { type: 'corner', rotation: 3, fixed: true });
+  // Top of trunk: corner at (5, 0) turning S+W. r=3 = ┐ (S+W).
+  set(5, 0, { type: 'corner', rotation: 3, fixed: true });
 
-  // Fox branch — horizontal straights at (x, 1) for x=1..4.
+  // Fox branch — horizontal straights at (x, 0) for x=1..4.
   for (let x = 1; x <= 4; x++) {
-    set(x, 1, { type: 'straight', rotation: randR() });
+    set(x, 0, { type: 'straight', rotation: randR() });
   }
 
-  // Fox pen entry at (0, 1) — west end of branch. r=3 = E-open.
-  set(0, 1, {
+  // Fox pen entry at (0, 0) — west end of branch. r=3 = E-open.
+  set(0, 0, {
     type: 'habitat-endpoint', rotation: 3, fixed: true,
     endpointFor: 'fox', endpointRole: 'end',
   });
@@ -407,12 +414,12 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
 export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
   const idx = (x: number, y: number) => y * puzzle.width + x;
-  for (let y = 2; y <= 9; y++) {
+  for (let y = 1; y <= 8; y++) {
     const t = tiles[idx(5, y)];
     if (t.type === 'straight') t.rotation = 0;
   }
   for (let x = 1; x <= 4; x++) {
-    const t = tiles[idx(x, 1)];
+    const t = tiles[idx(x, 0)];
     if (t.type === 'straight') t.rotation = 1;
   }
   return { ...puzzle, tiles };

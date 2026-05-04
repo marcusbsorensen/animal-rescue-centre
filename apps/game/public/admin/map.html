@@ -93,9 +93,17 @@
   }
   /* Slide the building down so it sits flush at the BOTTOM of the
      frame (since parking is hidden). Default bottom:11% is the
-     parking-strip gap; in overlay mode we want bottom:0. */
+     parking-strip gap; in overlay mode we want bottom:0. The
+     building stays FULLY OPAQUE while everything else in the frame
+     dims to 30% — kid sees the painted ARC building underneath the
+     tunnel start tile clearly (Marcus 2026-05-04). */
   html.overlay-mode #arc-stage .stamp-building {
     bottom: 0;
+    opacity: 1 !important;
+    z-index: 5;
+  }
+  html.overlay-mode #arc-stage .arc-frame > *:not(.stamp-building):not(.tree-root) {
+    opacity: 0.30;
   }
   /* Tree-root indicators — hidden by default, only visible when
      this map is iframed into the tunnel mini-game (overlay-mode).

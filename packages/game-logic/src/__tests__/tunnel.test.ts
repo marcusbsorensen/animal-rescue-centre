@@ -250,10 +250,10 @@ describe('generateTier1Puzzle', () => {
     expect(a.tiles.map((t) => t.rotation)).toEqual(b.tiles.map((t) => t.rotation));
   });
 
-  it('produces a 9×9 fox-only puzzle', () => {
+  it('produces a 9×13 fox-only puzzle', () => {
     const p = generateTier1Puzzle(1);
     expect(p.width).toBe(9);
-    expect(p.height).toBe(11);
+    expect(p.height).toBe(13);
     expect(p.animals).toEqual(['fox']);
   });
 
@@ -265,11 +265,11 @@ describe('generateTier1Puzzle', () => {
     }
   });
 
-  it('places fox start at trunk mouth (5, 10) and fox end at (0, 1)', () => {
+  it('places fox start at trunk mouth (5, 9) and fox end at (0, 0)', () => {
     const p = generateTier1Puzzle(7);
     const idx = (x: number, y: number) => y * p.width + x;
-    const startTile = p.tiles[idx(5, 10)];
-    const endTile = p.tiles[idx(0, 1)];
+    const startTile = p.tiles[idx(5, 9)];
+    const endTile = p.tiles[idx(0, 0)];
     expect(startTile.type).toBe('habitat-endpoint');
     expect(startTile.endpointFor).toBe('fox');
     expect(startTile.endpointRole).toBe('start');
