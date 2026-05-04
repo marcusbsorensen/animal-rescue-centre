@@ -634,8 +634,11 @@
     set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
     set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
     set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-    for (let x = 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
-    set(0, 1, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
+    // Fox exit catalogue (mirrors HABITAT_EXITS.fox in game-logic).
+    const FOX_EXITS = [{x:1,y:1}, {x:2,y:1}, {x:3,y:1}, {x:4,y:1}];
+    const exit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
+    for (let x = exit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
+    set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
 

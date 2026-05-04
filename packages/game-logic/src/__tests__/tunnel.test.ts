@@ -7,6 +7,7 @@ import {
   isPuzzleSolved,
   generateTier1Puzzle,
   applyTier1Solution,
+  HABITAT_EXITS,
   type TunnelTile,
   type TunnelPuzzle,
 } from '../tunnel';
@@ -265,16 +266,33 @@ describe('generateTier1Puzzle', () => {
     }
   });
 
-  it('places fox start inside building (5, 10) and fox end at (0, 1)', () => {
+  it('places fox start inside building (5, 10) and fox end at one of the catalogue exits', () => {
     const p = generateTier1Puzzle(7);
     const idx = (x: number, y: number) => y * p.width + x;
     const startTile = p.tiles[idx(5, 10)];
-    const endTile = p.tiles[idx(0, 1)];
     expect(startTile.type).toBe('habitat-endpoint');
     expect(startTile.endpointFor).toBe('fox');
     expect(startTile.endpointRole).toBe('start');
-    expect(endTile.type).toBe('habitat-endpoint');
-    expect(endTile.endpointFor).toBe('fox');
-    expect(endTile.endpointRole).toBe('end');
+    // Fox end must land on one of the HABITAT_EXITS.fox positions
+    const endHits = HABITAT_EXITS.fox.filter((c) => {
+      const t = p.tiles[idx(c.x, c.y)];
+      return t.type === 'habitat-endpoint' && t.endpointFor === 'fox' && t.endpointRole === 'end';
+    });
+    expect(endHits.length).toBe(1);
+  });
+
+  it('chooses different fox exits across seeds', () => {
+    const exitsSeen = new Set<string>();
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 9999]) {
+      const p = generateTier1Puzzle(seed);
+      const idx = (x: number, y: number) => y * p.width + x;
+      for (const c of HABITAT_EXITS.fox) {
+        const t = p.tiles[idx(c.x, c.y)];
+        if (t.type === 'habitat-endpoint' && t.endpointFor === 'fox' && t.endpointRole === 'end') {
+          exitsSeen.add(`${c.x},${c.y}`);
+        }
+      }
+    }
+    expect(exitsSeen.size).toBeGreaterThanOrEqual(2); // sanity: not always the same exit
   });
 });

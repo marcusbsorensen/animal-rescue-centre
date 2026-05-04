@@ -312,6 +312,40 @@ export function isPuzzleSolved(puzzle: TunnelPuzzle): boolean {
   return puzzle.animals.every((a) => r[a]?.reached === true);
 }
 
+// ── Habitat exit-point catalogue ──────────────────────────────
+
+/**
+ * Each habitat enclosure has a SET of valid tile coords where the
+ * tunnel can break the surface (the habitat-endpoint cell). The
+ * puzzle generator picks one per seed → different daily layouts
+ * use different exit points, so the tunnel grid stays varied as
+ * the kid replays.
+ *
+ * Constraints honoured by every exit position:
+ *  - sits INSIDE the painted habitat region (so the fox doesn't
+ *    "exit into the street" beyond the ARC site boundary)
+ *  - leaves at least one tile of straight tunnel between itself
+ *    and the trunk corner (so the puzzle has rotation choices)
+ *  - sits on the row that the trunk's branch turns onto
+ *
+ * Tier 1 only uses fox; skunk/hedgehog/raccoon entries become
+ * live in tiers 2-4. All coords reference the 9×13 grid.
+ */
+export const HABITAT_EXITS: Record<Animal, ReadonlyArray<{ x: number; y: number }>> = {
+  fox: [
+    { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 },
+  ],
+  skunk: [
+    { x: 8, y: 1 }, { x: 8, y: 2 },
+  ],
+  hedgehog: [
+    { x: 1, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 4 },
+  ],
+  raccoon: [
+    { x: 8, y: 4 }, { x: 8, y: 5 },
+  ],
+};
+
 // ── Tier 1 puzzle generator ───────────────────────────────────
 
 /**
@@ -406,13 +440,23 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   // Top of trunk: corner at (6, 1) turning S+W. r=3 = ┐ (S+W).
   set(6, 1, { type: 'corner', rotation: 3, fixed: true });
 
-  // Fox branch — horizontal straights at (x, 1) for x=1..5.
-  for (let x = 1; x <= 5; x++) {
+  // Pick the fox exit position from the catalogue (4 valid tiles
+  // along row 1 inside the painted fox enclosure). Seed-driven so
+  // each day's puzzle uses a slightly different branch length.
+  const foxExits = HABITAT_EXITS.fox;
+  const foxExit = foxExits[Math.floor(rng() * foxExits.length)];
+
+  // Fox branch — horizontal straights from (foxExit.x + 1) up to
+  // (5) inclusive (filling the row between the chosen exit and
+  // the corner at col 6). At the most-eastern exit (x=4) there's
+  // just 1 straight; at the most-western (x=1) there are 4.
+  for (let x = foxExit.x + 1; x <= 5; x++) {
     set(x, 1, { type: 'straight', rotation: randR() });
   }
 
-  // Fox pen entry at (0, 1) — west end of branch. r=3 = E-open.
-  set(0, 1, {
+  // Fox pen entry at the chosen exit cell. r=3 = E-open (faces the
+  // tunnel coming from the east).
+  set(foxExit.x, foxExit.y, {
     type: 'habitat-endpoint', rotation: 3, fixed: true,
     endpointFor: 'fox', endpointRole: 'end',
   });
