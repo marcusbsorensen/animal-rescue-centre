@@ -129,7 +129,10 @@
     pointer-events: none;
     opacity: 0.85;
   }
-  html.overlay-mode #arc-stage .tree-root { display: block; }
+  /* Tree-roots disabled 2026-05-04 — the SVG fan looked creepy.
+     Will be replaced with painted root-tile assets once Manus
+     renders the full underground tile set (tunnels, roots, dens). */
+  html.overlay-mode #arc-stage .tree-root { display: none; }
 
   .stage {
     flex: 1;

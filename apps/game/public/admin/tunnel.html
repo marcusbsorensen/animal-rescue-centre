@@ -728,37 +728,32 @@
     }
     wrap.appendChild(grid);
 
-    // Size the overground overlay LARGER than the soil grid in every
-    // direction so the site map's edges sit OUTSIDE the brown soil
-    // (the soil reads as contained within the site, not the other way
-    // around). We also push the overlay slightly DOWNWARD past the
-    // grid bottom so the painted ARC building (which is anchored at
-    // the overlay's bottom) clears the tunnel start tile and sits
-    // below it without overlapping. Wrap has overflow:hidden so any
-    // spill is cleanly clipped (Marcus 2026-05-04).
+    // Size the overground overlay at the painted site's NATURAL
+    // aspect (9 cols × 11 rows = 0.818 W/H — the original plot
+    // proportions the painted patches were designed against). The
+    // soil grid is 9×13 (taller) — so the overlay sits as a narrower,
+    // taller frame than the grid would naturally suggest, extending
+    // below the grid to let the painted ARC building seat down
+    // outside the tunnel start tile (Marcus 2026-05-04).
     if (overlay) {
       wrap.appendChild(overlay);
       const gridW = tileSize * puzzle.width + 12;
       const gridH = tileSize * puzzle.height + 12;
-      // Horizontal overscan: 30% wider than grid (15% spill each side).
-      const HSCAN = 1.30;
-      // Vertical overscan: 30% taller than grid, biased downward so
-      // most of the extra height pushes the building below grid bottom.
-      const VSCAN = 1.30;
-      const totalW = gridW * HSCAN;
-      const totalH = gridH * VSCAN;
+      // Width matches the grid width exactly (no horizontal spill).
+      const totalW = gridW;
+      // Height = totalW / SITE_ASPECT (9/11 ≈ 0.818). This makes the
+      // overlay taller than the soil grid, so it has natural room
+      // to extend down past the grid bottom.
+      const SITE_ASPECT = 9 / 11;
+      const totalH = totalW / SITE_ASPECT;
       overlay.style.width = totalW + 'px';
       overlay.style.height = totalH + 'px';
       overlay.style.left = ((wrapRect.width  - totalW) / 2) + 'px';
-      // Bias vertical overscan UPWARD so the tree-root indicators
-      // (positioned at top:76% of overlay = lower garden zone) stay
-      // INSIDE the grid bounds. 65% of the extra height goes above,
-      // 35% below. The building gets pushed down independently via
-      // a tile-pegged `bottom` rule in map.html overlay-mode CSS —
-      // that way root visibility doesn't fight building positioning.
+      // Top edge of overlay aligned with top of grid (overlay then
+      // extends past grid bottom by the difference). Wrap has
+      // overflow:hidden so spillover is cleanly clipped.
       const gridTop = (wrapRect.height - gridH) / 2;
-      const verticalSpill = totalH - gridH;
-      overlay.style.top = (gridTop - verticalSpill * 0.65) + 'px';
+      overlay.style.top = gridTop + 'px';
 
       // Push the tile size into the iframe so its overlay-mode CSS
       // can position building + tree-roots in TILE-PIXEL units
