@@ -251,8 +251,15 @@
   }
   /* When locked (after the GO button), every tile takes the same
      darker tint as the fixed pieces — kid sees the puzzle is set
-     and clicks won't rotate anything. */
-  body.locked .tile:not(.empty) { background: var(--earth-dark); cursor: default; }
+     and clicks won't rotate anything. pointer-events:none is the
+     load-bearing bit: cursor:default alone still let click handlers
+     fire, so a kid mid-animation could rotate a tile and break the
+     run (Marcus 2026-05-04). */
+  body.locked .tile:not(.empty) {
+    background: var(--earth-dark);
+    cursor: default;
+    pointer-events: none;
+  }
   .tile-svg { display: block; width: 100%; height: 100%; }
   /* In-tile dome glyphs are always hidden — the dome markers
      render on a SEPARATE layer (.dome-layer) sitting on top of
