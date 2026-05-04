@@ -211,6 +211,10 @@
       inset 0 4px 12px rgba(0,0,0,0.4),
       0 4px 12px rgba(0,0,0,0.3);
     transition: opacity 800ms ease;
+    /* position:relative so the .pawprint-trail (absolute) places
+       sprites in grid-coords, not wrap-coords (Marcus 2026-05-04
+       sprite-alignment fix). */
+    position: relative;
   }
   /* Intro sequence — kids see the painted site map first
      ("here's the rescue centre!"), then the tunnel network fades
@@ -876,8 +880,10 @@
     document.body.classList.add('locked');
     const result = solvePuzzle(puzzle);
     const allReached = puzzle.animals.every((a) => result[a]?.reached);
-    if (allReached) animatePawprintsAndWin(result);
-    else showResult(false);
+    // Drive the same animation pipeline either way — on success
+    // animals run through to their habitats; on stuck they walk
+    // partway, wait, and backtrack so the kid sees what happened.
+    runAnimalAnimations(result, allReached);
   }
 
   // Animal sprite paths per species. Each animal gets its own
@@ -900,60 +906,153 @@
     return { rotateDeg: 0, flipX: 1 };
   }
 
+  // Habitat regions in TILE coords (matches map.html overlay-mode CSS).
+  // After a successful run the animal hops around inside its habitat
+  // so the kid sees it "playing in the garden". For higher tiers add
+  // skunk/hedgehog/raccoon entries.
+  const HABITAT_REGION = {
+    fox:      { x0: 0.5, y0: 0.5, x1: 5.5, y1: 2.5 }, // cols 0-6, rows 0-3
+    skunk:    { x0: 7.3, y0: 0.5, x1: 8.7, y1: 2.5 }, // cols 7-9
+    hedgehog: { x0: 0.5, y0: 4.0, x1: 5.5, y1: 5.0 }, // cols 0-6, rows 3.5-5.5
+    raccoon:  { x0: 7.3, y0: 4.0, x1: 8.7, y1: 5.0 }, // cols 7-9, rows 3.5-5.5
+  };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Make the overground overlay visible again at the semi-opaque
+  // state — used on a successful run so the kid sees the animal
+  // arrive in its habitat above ground.
+  function fadeOverlayBackIn() {
+    const og = document.getElementById('overground-overlay');
+    if (og) {
+      og.classList.remove('hidden');
+      og.style.opacity = '';     // clear any inline opacity
+    }
+    document.body.classList.add('overlay-on');
+    const btn = document.getElementById('btn-overlay');
+    if (btn) {
+      btn.classList.add('is-on');
+      btn.textContent = '🏠 above';
+    }
+  }
+
   function animatePawprintsAndWin(result) {
+    return runAnimalAnimations(result, true);
+  }
+
+  // Drive sprite animation for ALL animals in the puzzle (tier 1
+  // is fox-only; higher tiers will iterate over multiple animals).
+  // Each animal:
+  //   - walks along its REAL solveTunnels-computed path (no
+  //     hardcoded coords so this stays correct as level layouts
+  //     change and on multi-animal puzzles)
+  //   - on success: arrives at endpoint, overlay fades back in,
+  //     animal wanders inside its habitat region for a few hops
+  //   - on stuck: walks to the dead-end tile, hops in place 3
+  //     times (waiting), then backtracks to start
+  async function runAnimalAnimations(result, allReached) {
     const wrap = document.getElementById('grid-wrap');
     const grid = wrap.querySelector('.tunnel-grid');
-    if (!grid) return showResult(true);
-    const trail = document.createElement('div');
-    trail.className = 'pawprint-trail';
-    grid.appendChild(trail);
-    const cellPx = grid.getBoundingClientRect().width / puzzle.width;
-    const path = result.fox?.path || [];
-    if (path.length === 0) return showResult(true);
+    if (!grid) return showResult(allReached);
 
-    // Spawn ONE sprite that hops along the path — a real walking
-    // animal sprite, head facing the direction of travel, with a
-    // hop-hop-hop bounce per cell rather than a slide.
-    const sprite = document.createElement('div');
-    sprite.className = 'animal-sprite';
-    sprite.style.setProperty('--sprite-size', `${Math.max(28, cellPx * 0.7)}px`);
-    const img = document.createElement('img');
-    img.src = ANIMAL_SPRITE.fox;
-    img.alt = 'fox';
-    sprite.appendChild(img);
-    trail.appendChild(sprite);
+    let trail = grid.querySelector('.pawprint-trail');
+    if (!trail) {
+      trail = document.createElement('div');
+      trail.className = 'pawprint-trail';
+      grid.appendChild(trail);
+    }
+    trail.replaceChildren();
 
-    // Place at start cell immediately (no transition for first placement)
-    const start = path[0];
-    sprite.style.transition = 'none';
-    sprite.style.left = `${(start.x + 0.5) * cellPx}px`;
-    sprite.style.top  = `${(start.y + 0.5) * cellPx}px`;
-    // Force layout flush before re-enabling transition + first hop
-    void sprite.offsetWidth;
-    sprite.style.transition = '';
-
-    // Step through the path one cell at a time, rotating + hopping.
+    const tileSize = lastTileSize || (grid.getBoundingClientRect().width / puzzle.width);
+    const PAD = 6; // grid padding
     const HOP_MS = 260;
-    path.slice(1).forEach((cell, i) => {
-      const prev = path[i];
-      const dx = cell.x - prev.x;
-      const dy = cell.y - prev.y;
-      const { rotateDeg, flipX } = spriteOrientation(dx, dy);
-      setTimeout(() => {
+    const tilePx = (n) => PAD + (n + 0.5) * tileSize;
+
+    const animateOne = async (animal) => {
+      const r = result[animal];
+      if (!r || !r.path || r.path.length === 0) return;
+      const path = r.path;
+
+      const sprite = document.createElement('div');
+      sprite.className = 'animal-sprite';
+      sprite.style.setProperty('--sprite-size', `${Math.max(28, tileSize * 0.7)}px`);
+      const img = document.createElement('img');
+      img.src = ANIMAL_SPRITE[animal] || ANIMAL_SPRITE.fox;
+      img.alt = animal;
+      sprite.appendChild(img);
+      trail.appendChild(sprite);
+
+      // Initial placement: no transition so sprite snaps to start
+      sprite.style.transition = 'none';
+      sprite.style.left = tilePx(path[0].x) + 'px';
+      sprite.style.top  = tilePx(path[0].y) + 'px';
+      void sprite.offsetWidth;
+      sprite.style.transition = '';
+
+      const stepTo = (toX, toY, fromX, fromY) => {
+        const { rotateDeg, flipX } = spriteOrientation(toX - fromX, toY - fromY);
         sprite.style.setProperty('--sprite-rotate', `${rotateDeg}deg`);
         sprite.style.setProperty('--sprite-flip', flipX);
-        sprite.style.left = `${(cell.x + 0.5) * cellPx}px`;
-        sprite.style.top  = `${(cell.y + 0.5) * cellPx}px`;
-        // Re-trigger the hop animation on each step
+        sprite.style.left = tilePx(toX) + 'px';
+        sprite.style.top  = tilePx(toY) + 'px';
         sprite.style.animation = 'none';
         img.style.animation = 'none';
         void sprite.offsetWidth;
         sprite.style.animation = '';
         img.style.animation = '';
-      }, i * HOP_MS);
-    });
+      };
 
-    setTimeout(() => showResult(true), path.length * HOP_MS + 700);
+      // Walk forward along the computed tunnel path
+      for (let i = 1; i < path.length; i++) {
+        const prev = path[i - 1];
+        const cur  = path[i];
+        stepTo(cur.x, cur.y, prev.x, prev.y);
+        await sleep(HOP_MS);
+      }
+
+      if (r.reached) {
+        // SUCCESS — fade the painted overlay back in so kids see
+        // the garden, then have the animal hop around inside its
+        // habitat for a few cycles.
+        fadeOverlayBackIn();
+        await sleep(500); // let the overlay fade before wandering
+        const region = HABITAT_REGION[animal];
+        if (region) {
+          let lastX = path[path.length - 1].x;
+          let lastY = path[path.length - 1].y;
+          for (let i = 0; i < 4; i++) {
+            const tx = region.x0 + Math.random() * (region.x1 - region.x0);
+            const ty = region.y0 + Math.random() * (region.y1 - region.y0);
+            stepTo(tx, ty, lastX, lastY);
+            lastX = tx; lastY = ty;
+            await sleep(HOP_MS * 1.6);
+          }
+        }
+      } else {
+        // STUCK — wait in place a few hops, then backtrack to
+        // the start tile. Same sprite, no extra DOM.
+        for (let i = 0; i < 3; i++) {
+          sprite.style.animation = 'none';
+          img.style.animation = 'none';
+          void sprite.offsetWidth;
+          sprite.style.animation = '';
+          img.style.animation = '';
+          await sleep(HOP_MS);
+        }
+        for (let i = path.length - 2; i >= 0; i--) {
+          const prev = path[i + 1];
+          const cur  = path[i];
+          stepTo(cur.x, cur.y, prev.x, prev.y);
+          await sleep(HOP_MS);
+        }
+      }
+    };
+
+    // Animate every animal. Run sequentially so kid focuses on one
+    // at a time. (Could parallelise on higher tiers if too slow.)
+    for (const animal of puzzle.animals) {
+      await animateOne(animal);
+    }
+    showResult(allReached);
   }
 
   function showResult(win) {
@@ -964,28 +1063,24 @@
     const retry = document.getElementById('result-retry');
     if (win) {
       title.textContent = 'Hooray!';
-      msg.textContent = 'The fox is out playing in the garden — happiness +!';
+      msg.textContent = 'The animals are out playing in the garden — happiness +!';
       cont.style.display = '';
       retry.style.display = 'none';
     } else {
       title.textContent = 'So close!';
-      msg.textContent = 'The fox got a bit lost — try again?';
+      msg.textContent = 'One of the animals got a bit lost — try again?';
       cont.style.display = 'none';
       retry.style.display = '';
     }
     overlay.classList.add('show');
     if (win) {
-      // SUCCESS REVEAL: fade the aboveground overlay to fully
-      // transparent so the kid sees the tunnel layout in full glory
-      // (rewards getting it right with a clean view of their work).
-      const og = document.getElementById('overground-overlay');
-      if (og && !og.classList.contains('hidden')) {
-        og.style.opacity = '0';
-      }
+      // The painted overlay was already faded BACK IN during the
+      // animation (so the kid sees the animal arrive in its
+      // habitat above ground). Just notify the host.
       window.parent?.postMessage({
         source: 'arc-tunnel',
         type: 'tunnel-complete',
-        payload: { animalsRescued: ['fox'] },
+        payload: { animalsRescued: puzzle.animals.slice() },
       }, '*');
     }
   }
