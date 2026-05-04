@@ -377,14 +377,21 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   // the soil (cols -0.5 to 4.5), clear of the trunk column
   // (Marcus 2026-05-04).
 
-  // Building tunnel mouth at (6, 10). r=2 = N-open.
-  // (Whole tunnel network shifted down by 1 row 2026-05-04 so the
-  // branch sits inside the fox enclosure rather than on its top
-  // edge, and the start tile doesn't overlap the building roof.)
-  set(6, 10, {
-    type: 'habitat-endpoint', rotation: 2, fixed: true,
+  // Building tunnel mouth at (5, 10) — INSIDE the building footprint
+  // (cols 0-5). Opens east (r=3) so the fox emerges from the house
+  // going east into the trunk. A fixed corner just outside the
+  // building at (6, 10) turns the path from west to north,
+  // visually anchoring the tunnel as "coming out of the house".
+  // Same pattern will apply to every habitat in higher tiers
+  // (Marcus 2026-05-04).
+  set(5, 10, {
+    type: 'habitat-endpoint', rotation: 3, fixed: true,
     endpointFor: 'fox', endpointRole: 'start',
   });
+
+  // Building-side corner at (6, 10) — fixed ┘ shape (N+W open).
+  // Receives fox from west (from building), redirects north up trunk.
+  set(6, 10, { type: 'corner', rotation: 0, fixed: true });
 
   // Trunk straights at (6, y) for y=2..9 — player rotates to vertical.
   for (let y = 2; y <= 9; y++) {

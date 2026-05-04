@@ -399,7 +399,7 @@
       <div class="tunnel-header">
         <div>
           <div class="tunnel-title">Garden tunnels</div>
-          <div class="tunnel-subtitle">rotate the tiles so the fox can find his way home</div>
+          <div class="tunnel-subtitle">rotate the tiles so the animals can get out to play and back home safely</div>
         </div>
         <div class="header-buttons">
           <button class="icon-btn overlay-toggle is-on" id="btn-overlay" title="Show / hide the buildings overlay">🏠 above</button>
@@ -586,7 +586,8 @@
     const set = (x, y, t) => { tiles[y * W + x] = t; };
     const rng = mulberry32(seed);
     const randR = () => Math.floor(rng() * 4);
-    set(6, 10, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
+    set(5, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
+    set(6, 10, { type: 'corner', rotation: 0, fixed: true });
     for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
     set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
     set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
