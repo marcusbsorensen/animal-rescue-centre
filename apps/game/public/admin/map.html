@@ -145,25 +145,25 @@
     opacity: 0.45;
   }
   html.overlay-mode #arc-stage .region-hedgehog {
-    left: 0; top: calc(var(--site-tile, 1px) * 3.5);
+    left: 0; top: calc(var(--site-tile, 1px) * 4);
     width: calc(var(--site-tile, 1px) * 6);
     height: calc(var(--site-tile, 1px) * 2);
     opacity: 0.45;
   }
   html.overlay-mode #arc-stage .region-raccoon {
-    left: calc(var(--site-tile, 1px) * 7); top: calc(var(--site-tile, 1px) * 3.5);
+    left: calc(var(--site-tile, 1px) * 7); top: calc(var(--site-tile, 1px) * 4);
     width: calc(var(--site-tile, 1px) * 2);
     height: calc(var(--site-tile, 1px) * 2);
     opacity: 0.45;
   }
   html.overlay-mode #arc-stage .region-quiet {
-    left: 0; top: calc(var(--site-tile, 1px) * 6);
+    left: 0; top: calc(var(--site-tile, 1px) * 7);
     width: calc(var(--site-tile, 1px) * 6);
     height: calc(var(--site-tile, 1px) * 2);
     opacity: 0.45;
   }
   html.overlay-mode #arc-stage .region-lawn {
-    left: calc(var(--site-tile, 1px) * 7); top: calc(var(--site-tile, 1px) * 6);
+    left: calc(var(--site-tile, 1px) * 7); top: calc(var(--site-tile, 1px) * 7);
     width: calc(var(--site-tile, 1px) * 2);
     height: calc(var(--site-tile, 1px) * 5);
     opacity: 0.45;
@@ -173,7 +173,10 @@
     position: absolute;
     left: calc(var(--site-tile, 1px) * 6); top: 0;
     width: calc(var(--site-tile, 1px) * 1);
-    height: calc(var(--site-tile, 1px) * 10);
+    /* Extends to row 12 — level with the bottom of the lawn garden
+       so the central path doesn't visually stop short of the
+       garden it serves (Marcus 2026-05-04). */
+    height: calc(var(--site-tile, 1px) * 12);
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel-fine.png');
     background-size: 60px 60px;
     border-left: 1px solid rgba(123,92,58,0.5);
@@ -215,12 +218,14 @@
     width: calc(var(--site-tile, 1px) * 2);
   }
   html.overlay-mode #arc-stage .region-path-h.path-h-1 {
-    /* sits just above row 3.5 (bottom edge on the boundary) */
-    top: calc(var(--site-tile, 1px) * 3.5 - var(--site-tile, 1px) * 0.5);
+    /* sits just above row 4 (bottom edge on the boundary between
+       fox/skunk and hedgehog/raccoon) */
+    top: calc(var(--site-tile, 1px) * 4 - var(--site-tile, 1px) * 0.5);
   }
   html.overlay-mode #arc-stage .region-path-h.path-h-2 {
-    /* sits just above row 6 (bottom edge on the boundary) */
-    top: calc(var(--site-tile, 1px) * 6 - var(--site-tile, 1px) * 0.5);
+    /* sits just above row 7 (bottom edge on the boundary between
+       hedgehog/raccoon and quiet/lawn) */
+    top: calc(var(--site-tile, 1px) * 7 - var(--site-tile, 1px) * 0.5);
   }
   /* path-h-3 was the lawn/parking boundary in the regular site map.
      In overlay-mode the building replaces parking, so this strip

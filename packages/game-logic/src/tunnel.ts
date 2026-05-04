@@ -345,16 +345,15 @@ export const HABITAT_EXITS: Record<Animal, ReadonlyArray<{ x: number; y: number 
   skunk: [
     { x: 7, y: 1 }, { x: 7, y: 2 },
   ],
-  // Hedgehog enclosure — 4×2 exits in rows 3-4 (above the previous
-  // row 4 only). Mirrors the fox catalogue size.
+  // Hedgehog enclosure — 4×2 exits in rows 4-5 (matches the
+  // hedgehog patch which sits at rows 4-6 in overlay-mode).
   hedgehog: [
-    { x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 3 }, { x: 4, y: 3 },
     { x: 1, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 4 },
+    { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
   ],
-  // Raccoon enclosure — col 7, rows 3-4 (shifted left+up from
-  // the previous 8-col positions).
+  // Raccoon enclosure — col 7, rows 4-5.
   raccoon: [
-    { x: 7, y: 3 }, { x: 7, y: 4 },
+    { x: 7, y: 4 }, { x: 7, y: 5 },
   ],
 };
 
