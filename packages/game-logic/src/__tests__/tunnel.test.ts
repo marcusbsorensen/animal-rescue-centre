@@ -9,6 +9,8 @@ import {
   applyTier1Solution,
   generateTier2Puzzle,
   applyTier2Solution,
+  generateTier3Puzzle,
+  applyTier3Solution,
   HABITAT_EXITS,
   type TunnelTile,
   type TunnelPuzzle,
@@ -342,6 +344,15 @@ describe('generateTier2Puzzle', () => {
       const solved = applyTier2Solution(p);
       expect(isPuzzleSolved(solved)).toBe(true);
     }
+  });
+
+  it('tier-3 generates fox+hedgehog+raccoon and is solvable', () => {
+    const p = generateTier3Puzzle(42);
+    expect(p.animals).toEqual(['fox', 'hedgehog', 'raccoon']);
+    // Three gates total (one per trunk)
+    expect(p.tiles.filter((t) => t.type === 'gate').length).toBe(3);
+    // Solvable when canonical solution applied
+    expect(isPuzzleSolved(applyTier3Solution(p))).toBe(true);
   });
 
   it('is NOT solvable if gates left closed (even with straights aligned)', () => {

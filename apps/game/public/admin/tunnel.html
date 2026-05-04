@@ -714,10 +714,32 @@
     return { width: W, height: H, tiles, animals: ['fox', 'hedgehog'] };
   }
 
+  // MIRROR of generateTier3Puzzle. Adds the raccoon network: start
+  // inside building at (5, 11), connector through (6, 11) + (7, 11),
+  // trunk straights up col 7, gate at row 7, endpoint at row 4 or 5.
+  function generateTier3(seed) {
+    const base = generateTier2(seed);
+    const tiles = base.tiles.map((t) => ({ ...t }));
+    const set = (x, y, t) => { tiles[y * base.width + x] = t; };
+    const rng = mulberry32((seed * 31 + 17) >>> 0);
+    const randR = () => Math.floor(rng() * 4);
+    set(5, 11, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'raccoon', endpointRole: 'start' });
+    set(6, 11, { type: 'straight', rotation: 1, fixed: true });
+    set(7, 11, { type: 'corner', rotation: 0, fixed: true });
+    const RACCOON_EXITS = [{x:7,y:4},{x:7,y:5}];
+    const rexit = RACCOON_EXITS[Math.floor(rng() * RACCOON_EXITS.length)];
+    for (let y = rexit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
+    set(7, 7, { type: 'gate', rotation: 0, open: false });
+    set(7, rexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'raccoon', endpointRole: 'end' });
+    return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon'] };
+  }
+
   // Tier picker — read ?tier=N from URL (default 1).
   const urlTier = parseInt(new URLSearchParams(location.search).get('tier') || '1', 10);
   function generatePuzzle(seed) {
-    return urlTier === 2 ? generateTier2(seed) : generateTier1(seed);
+    if (urlTier === 3) return generateTier3(seed);
+    if (urlTier === 2) return generateTier2(seed);
+    return generateTier1(seed);
   }
 
   // ── State ─────────────────────────────────────────────────────

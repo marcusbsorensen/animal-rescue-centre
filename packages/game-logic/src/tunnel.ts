@@ -590,6 +590,80 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
   return { width: W, height: H, tiles, animals: ['fox', 'hedgehog'] };
 }
 
+// ── Tier 3 puzzle generator ───────────────────────────────────
+
+/**
+ * Tier 3 — adds the RACCOON network to tier 2's fox + hedgehog.
+ *
+ * Raccoon enters the trunk system from the south of the building:
+ *   - Start at (5, 11) inside building, opens east
+ *   - Fixed horizontal straight at (6, 11) crossing east of building
+ *   - Fixed ┘ corner at (7, 11) turning the path north
+ *   - Trunk straights up col 7 from row (raccExit.y + 1) to row 10
+ *   - Gate at (7, 7) (default closed) — kid stages opens
+ *   - Endpoint at (7, raccExit.y) — y=4 or 5
+ *
+ * Animation runs animals SEQUENTIALLY (fox → hedgehog → raccoon),
+ * giving kids the timing-window experience the design doc spec'd.
+ */
+export function generateTier3Puzzle(seed: number): TunnelPuzzle {
+  const base = generateTier2Puzzle(seed);
+  const tiles = base.tiles.map((t) => ({ ...t }));
+  const set = (x: number, y: number, t: TunnelTile) => { tiles[y * base.width + x] = t; };
+  // Use a different RNG sequence from tier 2 so raccoon's exit
+  // pick + straight rotations aren't correlated with the others.
+  const rng = mulberry32((seed * 31 + 17) >>> 0);
+  const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
+
+  set(5, 11, {
+    type: 'habitat-endpoint', rotation: 3, fixed: true,
+    endpointFor: 'raccoon', endpointRole: 'start',
+  });
+  // Horizontal connector + corner — both fixed (puzzle givens) so
+  // the kid only rotates the trunk straights up col 7.
+  set(6, 11, { type: 'straight', rotation: 1, fixed: true });
+  set(7, 11, { type: 'corner', rotation: 0, fixed: true });
+
+  const raccoonExits = HABITAT_EXITS.raccoon;
+  const raccoonExit = raccoonExits[Math.floor(rng() * raccoonExits.length)];
+
+  for (let y = raccoonExit.y + 1; y <= 10; y++) {
+    set(7, y, { type: 'straight', rotation: randR() });
+  }
+  // Raccoon-trunk gate at row 7 (matches the row chosen for fox
+  // and hedgehog gates so all three sit on the same horizontal
+  // level — kid sees a 'row of gates' to open).
+  set(7, 7, { type: 'gate', rotation: 0, open: false });
+  set(7, raccoonExit.y, {
+    type: 'habitat-endpoint', rotation: 0, fixed: false,
+    endpointFor: 'raccoon', endpointRole: 'end',
+  });
+
+  return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon'] };
+}
+
+/**
+ * Apply the canonical tier-3 solution.
+ */
+export function applyTier3Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
+  const t2 = applyTier2Solution(puzzle);
+  const tiles = t2.tiles.map((t) => ({ ...t }));
+  const idx = (x: number, y: number) => y * puzzle.width + x;
+  // Raccoon trunk straights vertical
+  for (let y = 1; y <= 10; y++) {
+    const t = tiles[idx(7, y)];
+    if (t.type === 'straight') t.rotation = 0;
+  }
+  // (Open-every-gate already handled by applyTier2Solution.)
+  // But the new raccoon-trunk gate needs to be opened too — the
+  // tier 2 helper covered tiles already in the puzzle, but tier 3
+  // added a NEW gate after that pass. Open every gate here.
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
+  }
+  return { ...puzzle, tiles };
+}
+
 /**
  * Apply the canonical tier-2 solution: straighten every straight and
  * open every gate. Useful for tests.
