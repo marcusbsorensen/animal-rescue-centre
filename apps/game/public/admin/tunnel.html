@@ -523,27 +523,27 @@
     };
   }
   // MIRROR of game-logic/src/tunnel.ts generateTier1Puzzle. Layout
-  // matches the aboveground geometry (Marcus 2026-05-04): central
-  // trunk up the middle (col 4), 3 viewing domes along it, branch
-  // west at the top into the fox pen.
+  // matches the aboveground geometry: trunk runs UP col 6 (= 2/3
+  // across, matching the central path's actual position), 3
+  // viewing domes along it, branch west at the top into the fox pen.
   function generateTier1(seed) {
     const W = 9, H = 9;
     const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
     const set = (x, y, t) => { tiles[y * W + x] = t; };
     const rng = mulberry32(seed);
     const randR = () => Math.floor(rng() * 4);
-    // Building tunnel mouth (south end of trunk)
-    set(4, 8, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
+    // Building tunnel mouth (south end of trunk, 2/3 across)
+    set(6, 8, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
     // Trunk straights (player rotates to vertical)
-    for (let y = 2; y <= 7; y++) set(4, y, { type: 'straight', rotation: randR() });
+    for (let y = 2; y <= 7; y++) set(6, y, { type: 'straight', rotation: randR() });
     // 3 viewing domes along the trunk
-    set(4, 6, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(4, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(4, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 6, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
     // Top of trunk: corner turning west into the fox branch
-    set(4, 1, { type: 'corner', rotation: 3, fixed: true });
+    set(6, 1, { type: 'corner', rotation: 3, fixed: true });
     // Fox branch straights
-    for (let x = 1; x <= 3; x++) set(x, 1, { type: 'straight', rotation: randR() });
+    for (let x = 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
     // Fox pen entry (west end of branch)
     set(0, 1, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     return { width: W, height: H, tiles, animals: ['fox'] };

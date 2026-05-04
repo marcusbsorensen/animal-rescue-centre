@@ -360,37 +360,36 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   const rng = mulberry32(seed);
   const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
 
-  // Layout (Marcus 2026-05-04): match the aboveground geometry —
-  // building tunnel-mouth at SOUTH end, central trunk runs NORTH up
-  // the middle of the grid (col 4), 3 viewing domes along the way,
-  // then a 90° elbow at the top turning WEST into the fox branch
+  // Layout (Marcus 2026-05-04 v2): trunk runs UP the column at 2/3
+  // across the grid (col 6 of 9 = 67%), matching the aboveground
+  // central path's actual position at stage x=60-67%. Building
+  // tunnel-mouth at the SOUTH end of trunk; 3 viewing domes along
+  // the way; 90° elbow at the top turning WEST into the fox branch
   // (because fox pen occupies the LEFT 2/3 of the rear row).
 
-  // Building tunnel mouth at (4, 8) — south end of trunk. r=2 = N-open.
-  set(4, 8, {
+  // Building tunnel mouth at (6, 8) — south end of trunk. r=2 = N-open.
+  set(6, 8, {
     type: 'habitat-endpoint', rotation: 2, fixed: true,
     endpointFor: 'fox', endpointRole: 'start',
   });
 
-  // Trunk straights at (4, y) for y=2..7 — player rotates to vertical.
+  // Trunk straights at (6, y) for y=2..7 — player rotates to vertical.
   for (let y = 2; y <= 7; y++) {
-    set(4, y, { type: 'straight', rotation: randR() });
+    set(6, y, { type: 'straight', rotation: randR() });
   }
 
   // Three viewing domes along the trunk (replace the straights).
-  // Domes' connectivity is straight-vertical at r=0 so they don't
-  // break the trunk.
-  set(4, 6, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(4, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(4, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 6, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
 
-  // Top of trunk: corner at (4, 1) turning S+W (i.e. path enters from
-  // south, exits west into the fox branch). Base corner is ┘ (N+W) at
-  // r=0; rotate to ┐ (S+W) = r=3.
-  set(4, 1, { type: 'corner', rotation: 3, fixed: true });
+  // Top of trunk: corner at (6, 1) turning S+W (path enters from south,
+  // exits west into the fox branch). Base corner is ┘ (N+W) at r=0;
+  // rotate to ┐ (S+W) = r=3.
+  set(6, 1, { type: 'corner', rotation: 3, fixed: true });
 
-  // Fox branch — horizontal straights at (x, 1) for x=1..3.
-  for (let x = 1; x <= 3; x++) {
+  // Fox branch — horizontal straights at (x, 1) for x=1..5.
+  for (let x = 1; x <= 5; x++) {
     set(x, 1, { type: 'straight', rotation: randR() });
   }
 
@@ -411,13 +410,13 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
 export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
   const idx = (x: number, y: number) => y * puzzle.width + x;
-  // Trunk straights at (4, y) y=2..7 → vertical (rotation 0)
+  // Trunk straights at (6, y) y=2..7 → vertical (rotation 0)
   for (let y = 2; y <= 7; y++) {
-    const t = tiles[idx(4, y)];
+    const t = tiles[idx(6, y)];
     if (t.type === 'straight') t.rotation = 0;
   }
-  // Fox-branch straights at (x, 1) x=1..3 → horizontal (rotation 1)
-  for (let x = 1; x <= 3; x++) {
+  // Fox-branch straights at (x, 1) x=1..5 → horizontal (rotation 1)
+  for (let x = 1; x <= 5; x++) {
     const t = tiles[idx(x, 1)];
     if (t.type === 'straight') t.rotation = 1;
   }
