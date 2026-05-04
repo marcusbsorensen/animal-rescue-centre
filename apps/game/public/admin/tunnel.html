@@ -408,7 +408,7 @@
       <div class="tunnel-footer">
         <button class="btn-big" id="btn-submit">Send the fox!</button>
         <button class="btn-big secondary" id="btn-reset">Reset</button>
-        <button class="btn-big tertiary" id="btn-reroll">Make the tunnels</button>
+        <button class="btn-big tertiary" id="btn-reroll">Re-dig tunnels</button>
       </div>
 
       <div class="result-overlay" id="result-overlay">
@@ -686,8 +686,12 @@
     const grid = document.createElement('div');
     grid.className = 'tunnel-grid';
     const wrapRect = wrap.getBoundingClientRect();
-    const maxSide = Math.min(wrapRect.width, wrapRect.height) - 12;
-    const tileSize = Math.max(28, Math.floor(maxSide / puzzle.width));
+    // Constrain by BOTH width and height — previously the calc used
+    // min(wrap.width, wrap.height) which produced grids taller than
+    // the wrap on narrow viewports (overflowing into header + footer).
+    const maxByWidth  = Math.floor((wrapRect.width  - 12) / puzzle.width);
+    const maxByHeight = Math.floor((wrapRect.height - 12) / puzzle.height);
+    const tileSize = Math.max(28, Math.min(maxByWidth, maxByHeight));
     grid.style.gridTemplateColumns = `repeat(${puzzle.width}, ${tileSize}px)`;
     grid.style.gridTemplateRows    = `repeat(${puzzle.height}, ${tileSize}px)`;
     // (translateX shift removed 2026-05-04 — caused clipping on
