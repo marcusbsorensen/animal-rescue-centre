@@ -196,8 +196,6 @@
   html.overlay-mode #arc-stage .region-path-h {
     display: block;
     position: absolute;
-    left: 0;
-    width: calc(var(--site-tile, 1px) * 9);
     height: calc(var(--site-tile, 1px) * 0.5);
     z-index: 3; /* sits above patches, below tunnel grid */
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel-fine.png');
@@ -205,6 +203,16 @@
     border-top: 1px solid rgba(123,92,58,0.5);
     border-bottom: 1px solid rgba(123,92,58,0.5);
     opacity: 0.5;
+  }
+  /* Left half: cols 0-6 (stops at the trunk's west edge). */
+  html.overlay-mode #arc-stage .region-path-h.path-h-l {
+    left: 0;
+    width: calc(var(--site-tile, 1px) * 6);
+  }
+  /* Right half: cols 7-9 (resumes at the trunk's east edge). */
+  html.overlay-mode #arc-stage .region-path-h.path-h-r {
+    left: calc(var(--site-tile, 1px) * 7);
+    width: calc(var(--site-tile, 1px) * 2);
   }
   html.overlay-mode #arc-stage .region-path-h.path-h-1 {
     /* sits just above row 3.5 (bottom edge on the boundary) */
@@ -799,11 +807,16 @@
     <!-- Path strips reinstated 2026-05-04 for overlay-mode only —
          in the tunnel mini-game the kid needs visible separators
          between the patch rows so the layout reads as a real
-         garden site. They're hidden by default (display:none), shown
-         in overlay-mode via the html.overlay-mode rules below. -->
-    <div class="region-path-h path-h-1"></div>
-    <div class="region-path-h path-h-2"></div>
-    <div class="region-path-h path-h-3"></div>
+         garden site. Each horizontal path is split into LEFT and
+         RIGHT halves so they don't double-up at the trunk crossing
+         (semi-opaque overlap looks like a darker intersection
+         patch). They're hidden by default, shown in overlay-mode. -->
+    <div class="region-path-h path-h-1 path-h-l"></div>
+    <div class="region-path-h path-h-1 path-h-r"></div>
+    <div class="region-path-h path-h-2 path-h-l"></div>
+    <div class="region-path-h path-h-2 path-h-r"></div>
+    <div class="region-path-h path-h-3 path-h-l"></div>
+    <div class="region-path-h path-h-3 path-h-r"></div>
     <div class="region-path"></div>
     <div class="arc-region region-undeveloped region-hedgehog" data-future="future: T2 hedgehog/squirrel"></div>
     <div class="arc-region region-undeveloped region-raccoon" data-future="future: T3 raccoon"></div>
