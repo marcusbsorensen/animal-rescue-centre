@@ -853,6 +853,15 @@
   }
 
   window.addEventListener('resize', () => requestAnimationFrame(renderGrid));
+
+  // ResizeObserver picks up grid-wrap size changes that AREN'T window
+  // resizes — e.g. when the design-preview viewport switches between
+  // iPhone / iPad-P / iPad-L / Desktop sizes via CSS class swap.
+  // Without this, the overlay stayed sized to the previous device.
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => requestAnimationFrame(renderGrid));
+    ro.observe(document.getElementById('grid-wrap'));
+  }
 </script>
 
 </body>
