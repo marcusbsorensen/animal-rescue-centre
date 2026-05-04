@@ -715,11 +715,18 @@
     }
     wrap.appendChild(grid);
 
-    // Re-attach + size the overground overlay to match the tunnel grid.
+    // Re-attach + size the overground overlay LARGER than the tunnel
+    // grid so the brown soil patch reads as being CONTAINED WITHIN the
+    // site map (not the other way around). We expand the overlay in
+    // every direction and let the wrap clip any spill.
     if (overlay) {
       wrap.appendChild(overlay);
-      const totalW = tileSize * puzzle.width + 12;
-      const totalH = tileSize * puzzle.height + 12;
+      const gridW = tileSize * puzzle.width + 12;
+      const gridH = tileSize * puzzle.height + 12;
+      // Expand 30% in each dimension, but never larger than the wrap.
+      const OVERSCAN = 1.30;
+      const totalW = Math.min(wrapRect.width,  gridW * OVERSCAN);
+      const totalH = Math.min(wrapRect.height, gridH * OVERSCAN);
       overlay.style.width = totalW + 'px';
       overlay.style.height = totalH + 'px';
       overlay.style.left = ((wrapRect.width  - totalW) / 2) + 'px';
