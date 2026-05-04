@@ -11,6 +11,10 @@ import {
   applyTier2Solution,
   generateTier3Puzzle,
   applyTier3Solution,
+  generateTier4Puzzle,
+  applyTier4Solution,
+  generateTier5Puzzle,
+  applyTier5Solution,
   HABITAT_EXITS,
   type TunnelTile,
   type TunnelPuzzle,
@@ -353,6 +357,22 @@ describe('generateTier2Puzzle', () => {
     expect(p.tiles.filter((t) => t.type === 'gate').length).toBe(3);
     // Solvable when canonical solution applied
     expect(isPuzzleSolved(applyTier3Solution(p))).toBe(true);
+  });
+
+  it('tier-4 adds skunk → all 4 garden animals, 4 gates, solvable', () => {
+    const p = generateTier4Puzzle(42);
+    expect(p.animals).toEqual(['fox', 'hedgehog', 'raccoon', 'skunk']);
+    expect(p.tiles.filter((t) => t.type === 'gate').length).toBe(4);
+    expect(isPuzzleSolved(applyTier4Solution(p))).toBe(true);
+  });
+
+  it('tier-5 rush-hour: gates default OPEN, still solvable', () => {
+    const p = generateTier5Puzzle(42);
+    expect(p.animals).toEqual(['fox', 'hedgehog', 'raccoon', 'skunk']);
+    const gates = p.tiles.filter((t) => t.type === 'gate');
+    expect(gates.length).toBe(4);
+    expect(gates.every((g) => g.open === true)).toBe(true);
+    expect(isPuzzleSolved(applyTier5Solution(p))).toBe(true);
   });
 
   it('is NOT solvable if gates left closed (even with straights aligned)', () => {

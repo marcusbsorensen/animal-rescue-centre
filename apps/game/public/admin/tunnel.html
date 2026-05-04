@@ -734,9 +734,39 @@
     return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon'] };
   }
 
+  // MIRROR of generateTier4Puzzle — adds skunk on col 8 trunk.
+  function generateTier4(seed) {
+    const base = generateTier3(seed);
+    const tiles = base.tiles.map((t) => ({ ...t }));
+    const set = (x, y, t) => { tiles[y * base.width + x] = t; };
+    const rng = mulberry32((seed * 53 + 31) >>> 0);
+    const randR = () => Math.floor(rng() * 4);
+    set(5, 12, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'skunk', endpointRole: 'start' });
+    set(6, 12, { type: 'straight', rotation: 1, fixed: true });
+    set(7, 12, { type: 'straight', rotation: 1, fixed: true });
+    set(8, 12, { type: 'corner', rotation: 0, fixed: true });
+    const SKUNK_EXITS = [{x:8,y:1},{x:8,y:2}];
+    const sexit = SKUNK_EXITS[Math.floor(rng() * SKUNK_EXITS.length)];
+    for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
+    set(8, 7, { type: 'gate', rotation: 0, open: false });
+    set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'skunk', endpointRole: 'end' });
+    return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon', 'skunk'] };
+  }
+
+  // MIRROR of generateTier5Puzzle — rush-hour: tier 4 layout but
+  // gates default OPEN (no staging, kid focuses on routing).
+  function generateTier5(seed) {
+    const base = generateTier4(seed);
+    const tiles = base.tiles.map((t) =>
+      t.type === 'gate' ? { ...t, open: true } : { ...t });
+    return { ...base, tiles };
+  }
+
   // Tier picker — read ?tier=N from URL (default 1).
   const urlTier = parseInt(new URLSearchParams(location.search).get('tier') || '1', 10);
   function generatePuzzle(seed) {
+    if (urlTier === 5) return generateTier5(seed);
+    if (urlTier === 4) return generateTier4(seed);
     if (urlTier === 3) return generateTier3(seed);
     if (urlTier === 2) return generateTier2(seed);
     return generateTier1(seed);

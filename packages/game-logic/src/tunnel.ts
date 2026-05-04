@@ -340,10 +340,12 @@ export const HABITAT_EXITS: Record<Animal, ReadonlyArray<{ x: number; y: number 
     { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 },
     { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 },
   ],
-  // Skunk enclosure (cols 7-9) — col 7 keeps the exit inside the
-  // painted region instead of pushing past col 8 into the edge.
+  // Skunk enclosure (cols 7-9) — cols 7 + 8 inside the painted
+  // region. Tier 4 uses the col-8 entries so the skunk trunk can
+  // sit east of the raccoon trunk (col 7).
   skunk: [
     { x: 7, y: 1 }, { x: 7, y: 2 },
+    { x: 8, y: 1 }, { x: 8, y: 2 },
   ],
   // Hedgehog enclosure — 4×2 exits in rows 4-5 (matches the
   // hedgehog patch which sits at rows 4-6 in overlay-mode).
@@ -640,6 +642,95 @@ export function generateTier3Puzzle(seed: number): TunnelPuzzle {
   });
 
   return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon'] };
+}
+
+// ── Tier 4 puzzle generator ───────────────────────────────────
+
+/**
+ * Tier 4 — adds the SKUNK network. All four garden-habitat animals
+ * (fox, hedgehog, raccoon, skunk) routing through their own trunks.
+ *
+ * Skunk layout:
+ *  - Start at (5, 12) inside building bottom row, opens east
+ *  - Three fixed horizontal connectors east at row 12 across to col 8
+ *  - Fixed ┘ corner at (8, 12) turning north
+ *  - Trunk straights up col 8 from (skunkExit.y + 1) to row 11
+ *  - Gate at (8, 7) — same row as the other gates
+ *  - Endpoint at (8, skunkExit.y) — y=1 or 2
+ */
+export function generateTier4Puzzle(seed: number): TunnelPuzzle {
+  const base = generateTier3Puzzle(seed);
+  const tiles = base.tiles.map((t) => ({ ...t }));
+  const set = (x: number, y: number, t: TunnelTile) => { tiles[y * base.width + x] = t; };
+  const rng = mulberry32((seed * 53 + 31) >>> 0);
+  const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
+
+  set(5, 12, {
+    type: 'habitat-endpoint', rotation: 3, fixed: true,
+    endpointFor: 'skunk', endpointRole: 'start',
+  });
+  // Three horizontal connectors (fixed) heading east along row 12.
+  set(6, 12, { type: 'straight', rotation: 1, fixed: true });
+  set(7, 12, { type: 'straight', rotation: 1, fixed: true });
+  set(8, 12, { type: 'corner', rotation: 0, fixed: true });
+
+  const skunkCol8 = HABITAT_EXITS.skunk.filter((e) => e.x === 8);
+  const skunkExit = skunkCol8[Math.floor(rng() * skunkCol8.length)];
+
+  for (let y = skunkExit.y + 1; y <= 11; y++) {
+    set(8, y, { type: 'straight', rotation: randR() });
+  }
+  set(8, 7, { type: 'gate', rotation: 0, open: false });
+  set(8, skunkExit.y, {
+    type: 'habitat-endpoint', rotation: 0, fixed: false,
+    endpointFor: 'skunk', endpointRole: 'end',
+  });
+
+  return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon', 'skunk'] };
+}
+
+/**
+ * Apply the canonical tier-4 solution.
+ */
+export function applyTier4Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
+  const t3 = applyTier3Solution(puzzle);
+  const tiles = t3.tiles.map((t) => ({ ...t }));
+  const idx = (x: number, y: number) => y * puzzle.width + x;
+  for (let y = 1; y <= 11; y++) {
+    const t = tiles[idx(8, y)];
+    if (t.type === 'straight') t.rotation = 0;
+  }
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
+  }
+  return { ...puzzle, tiles };
+}
+
+// ── Tier 5 puzzle generator ───────────────────────────────────
+
+/**
+ * Tier 5 — RUSH HOUR. Same topology as tier 4 (all 4 animals) but
+ * gates default OPEN (no staging needed) and animations run
+ * SIMULTANEOUSLY rather than sequentially. Future enhancements:
+ *  - Path-crossing penalties (animals can't share a tile at the
+ *    same time → use bridges)
+ *  - One-way tiles, more complex obstacle routing
+ *
+ * For now tier 5 = tier 4 with gates pre-open. The simultaneous
+ * animation lives in the UI (tunnel.html runAnimalAnimations).
+ */
+export function generateTier5Puzzle(seed: number): TunnelPuzzle {
+  const base = generateTier4Puzzle(seed);
+  const tiles = base.tiles.map((t) => ({ ...t }));
+  // Gates pre-open — kid focuses on routing, not staging
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
+  }
+  return { ...base, tiles };
+}
+
+export function applyTier5Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
+  return applyTier4Solution(puzzle);
 }
 
 /**

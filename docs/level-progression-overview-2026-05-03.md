@@ -156,6 +156,21 @@ Source files:
 - `apps/game/public/admin/tunnel.html` — painted iframe page
 - `apps/game/src/scenes/TunnelScene.ts` + `GameScene.openTunnelOverlay()` — scene wiring
 
+Implementation status (2026-05-04):
+- All 5 tier generators are LIVE in `tunnel.ts` and the iframe
+  mirror. Test the layout via URL param: `?tier=1` … `?tier=5`.
+- `generateTier1Puzzle` — fox only, branch on row 1 (8 valid exits)
+- `generateTier2Puzzle` — adds hedgehog (col 1 trunk + gates per trunk)
+- `generateTier3Puzzle` — adds raccoon (col 7 trunk via row-12 connector)
+- `generateTier4Puzzle` — adds skunk (col 8 trunk via row-12 connector,
+  3 fixed horizontal connectors east of the building)
+- `generateTier5Puzzle` — same topology as tier 4 but gates default
+  OPEN (rush hour: kid focuses on routing, not staging). Future:
+  bridges + one-ways + simultaneous-animation collision detection.
+- The animation pipeline (`runAnimalAnimations` in `tunnel.html`)
+  iterates `puzzle.animals` sequentially in tiers 1-4. Tier 5 will
+  switch to parallel firing once collision logic lands.
+
 ### Charm system (PTV mirror customisation)
 
 Charms have NO level gate — they unlock on event triggers (first vet run, first hedgehog brake, first cat adoption, etc.) which are themselves level-gated indirectly via species unlocks. Three charm-counts have specific thresholds:
