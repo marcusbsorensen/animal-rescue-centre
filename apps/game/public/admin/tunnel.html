@@ -281,6 +281,30 @@
   }
   .dome-marker svg { width: 100%; height: 100%; display: block; }
 
+  /* Diagnostic exit-point overlay (?show-exits=1) — coloured rings
+     at every HABITAT_EXITS position so designer can verify the
+     catalogue lines up with painted habitat regions. */
+  .exit-debug-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 8;
+  }
+  .exit-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    border: 3px dashed currentColor;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    background: rgba(255, 255, 255, 0.18);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+
   .pawprint-trail {
     position: absolute; top: 0; left: 0;
     width: 100%; height: 100%;
@@ -825,6 +849,49 @@
       }
     }
     wrap.appendChild(domeLayer);
+
+    // Debug exit-point overlay — enable with ?show-exits=1 in the
+    // URL. Renders a coloured ring at every HABITAT_EXITS position
+    // so the kid (or designer) can check the catalogue lines up
+    // with the painted habitat regions. Temporary diagnostic.
+    if (new URLSearchParams(location.search).get('show-exits') === '1') {
+      let exitLayer = document.getElementById('exit-debug-layer');
+      if (!exitLayer) {
+        exitLayer = document.createElement('div');
+        exitLayer.id = 'exit-debug-layer';
+        exitLayer.className = 'exit-debug-layer';
+      }
+      exitLayer.replaceChildren();
+      const EXIT_COLOURS = {
+        fox:      '#d96a2c',
+        skunk:    '#3a3a3a',
+        hedgehog: '#a87038',
+        raccoon:  '#5a5a5a',
+      };
+      const HABITAT_EXITS_DEBUG = {
+        fox:      [{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1}],
+        skunk:    [{x:8,y:1},{x:8,y:2}],
+        hedgehog: [{x:1,y:4},{x:2,y:4},{x:3,y:4},{x:4,y:4}],
+        raccoon:  [{x:8,y:4},{x:8,y:5}],
+      };
+      for (const [animal, points] of Object.entries(HABITAT_EXITS_DEBUG)) {
+        for (const p of points) {
+          const m = document.createElement('div');
+          m.className = 'exit-marker';
+          const sz = Math.round(tileSize * 0.8);
+          m.style.width  = sz + 'px';
+          m.style.height = sz + 'px';
+          m.style.left = (gridLeft + 6 + p.x * tileSize + tileSize / 2) + 'px';
+          m.style.top  = (gridTop  + 6 + p.y * tileSize + tileSize / 2) + 'px';
+          m.style.borderColor = EXIT_COLOURS[animal] || '#fff';
+          m.dataset.animal = animal;
+          m.textContent = animal[0].toUpperCase();
+          m.style.color = EXIT_COLOURS[animal];
+          exitLayer.appendChild(m);
+        }
+      }
+      wrap.appendChild(exitLayer);
+    }
 
     // Size the overground overlay to MATCH the soil grid exactly.
     // This means the iframe coord (0,0) lines up with the grid's
