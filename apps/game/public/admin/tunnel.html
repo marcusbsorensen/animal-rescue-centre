@@ -227,6 +227,58 @@
     opacity: 0;
     color: #2a1a08;
   }
+  /* Animated animal sprite that hops along the tunnel route. The
+     sprite is anchored at its centre (translate -50%, -50%) and
+     positioned at the cell centre. JS sets:
+     - --sprite-rotate: 0 / 90 / 180 / 270 (degrees) so the head
+       always faces the direction of travel. The sprite PNG is
+       drawn facing east/right by default, so:
+         east → 0deg
+         south → 90deg
+         west → 180deg
+         north → 270deg
+     - --sprite-flip: 1 / -1 (X-axis flip when moving west, so the
+       fox doesn't appear upside-down — we mirror instead of rotate
+       180). Applied as scaleX(var(--sprite-flip)).
+     The hop is a CSS keyframes vertical bounce — runs once per
+     position-set. */
+  .animal-sprite {
+    position: absolute;
+    width: var(--sprite-size, 48px);
+    height: var(--sprite-size, 48px);
+    pointer-events: none;
+    transform-origin: center center;
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--sprite-rotate, 0deg))
+      scaleX(var(--sprite-flip, 1));
+    transition: left 220ms cubic-bezier(0.45, 0, 0.55, 1),
+                top  220ms cubic-bezier(0.45, 0, 0.55, 1);
+    z-index: 6;
+    animation: sprite-hop 240ms ease-out;
+    filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.45));
+  }
+  @keyframes sprite-hop {
+    /* Vertical bounce IN ADDITION to the linear translate that's
+       set inline. We multiply the existing translate(-50%, -50%)
+       with a translateY tweak via a scale-axis trick — but the
+       cleanest approach is a separate scale + tweak via filter. */
+    0%   { filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.45)) translateY(0); }
+    50%  { filter: drop-shadow(2px 6px 5px rgba(0,0,0,0.30)) translateY(-6px); }
+    100% { filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.45)) translateY(0); }
+  }
+  /* Browser-supported approach for hop: pseudo-element wrapper.
+     The inner <img> hops; the outer <div> handles position + rotation. */
+  .animal-sprite img {
+    width: 100%; height: 100%;
+    display: block;
+    animation: sprite-hop-inner 240ms ease-out;
+  }
+  @keyframes sprite-hop-inner {
+    0%   { transform: translateY(0); }
+    50%  { transform: translateY(-25%); }
+    100% { transform: translateY(0); }
+  }
 
   .tunnel-footer {
     display: flex; gap: 8px; justify-content: center;
@@ -658,6 +710,11 @@
     const tileSize = Math.max(28, Math.floor(maxSide / puzzle.width));
     grid.style.gridTemplateColumns = `repeat(${puzzle.width}, ${tileSize}px)`;
     grid.style.gridTemplateRows    = `repeat(${puzzle.height}, ${tileSize}px)`;
+    // Marcus 2026-05-04: shift the trunk visually LEFT by 2/3 of a
+    // tile-width so it sits closer to where the aboveground building's
+    // door is (rather than at the path's right-edge boundary). Applied
+    // as a transform so the puzzle data stays at integer cols 0..8.
+    grid.style.transform = `translateX(${-tileSize * 2 / 3}px)`;
 
     for (let y = 0; y < puzzle.height; y++) {
       for (let x = 0; x < puzzle.width; x++) {
@@ -676,12 +733,14 @@
     wrap.appendChild(grid);
 
     // Re-attach + size the overground overlay to match the tunnel grid.
+    // Apply the SAME 2/3-tile leftward shift so they stay aligned.
     if (overlay) {
       wrap.appendChild(overlay);
-      const totalSide = tileSize * puzzle.width + 12;  // +12 for grid padding
+      const totalSide = tileSize * puzzle.width + 12;
+      const trunkShift = -tileSize * 2 / 3;
       overlay.style.width = totalSide + 'px';
       overlay.style.height = totalSide + 'px';
-      overlay.style.left = ((wrapRect.width  - totalSide) / 2) + 'px';
+      overlay.style.left = ((wrapRect.width  - totalSide) / 2 + trunkShift) + 'px';
       overlay.style.top  = ((wrapRect.height - totalSide) / 2) + 'px';
     }
   }
@@ -704,6 +763,26 @@
     else showResult(false);
   }
 
+  // Animal sprite paths per species. Each animal gets its own
+  // walking PNG (drawn facing east/right by default).
+  const ANIMAL_SPRITE = {
+    fox:      '/assets/animals/fox-red-walking.png',
+    skunk:    '/assets/animals/fox-red-walking.png',  // TODO when skunk lands
+    hedgehog: '/assets/animals/fox-red-walking.png',  // TODO
+    raccoon:  '/assets/animals/fox-red-walking.png',  // TODO
+  };
+
+  // Compute the rotation + flip needed for the sprite to face the
+  // direction of travel. Sprite PNG faces east by default.
+  // Returns { rotateDeg, flipX } based on dx, dy.
+  function spriteOrientation(dx, dy) {
+    if (dx > 0 && dy === 0) return { rotateDeg: 0,   flipX:  1 }; // east
+    if (dx < 0 && dy === 0) return { rotateDeg: 0,   flipX: -1 }; // west — mirror
+    if (dx === 0 && dy > 0) return { rotateDeg: 90,  flipX:  1 }; // south
+    if (dx === 0 && dy < 0) return { rotateDeg: -90, flipX:  1 }; // north
+    return { rotateDeg: 0, flipX: 1 };
+  }
+
   function animatePawprintsAndWin(result) {
     const wrap = document.getElementById('grid-wrap');
     const grid = wrap.querySelector('.tunnel-grid');
@@ -713,19 +792,51 @@
     grid.appendChild(trail);
     const cellPx = grid.getBoundingClientRect().width / puzzle.width;
     const path = result.fox?.path || [];
-    path.forEach((cell, idx) => {
-      const paw = document.createElement('div');
-      paw.className = 'pawprint';
-      paw.textContent = '🐾';
-      paw.style.left = `${(cell.x + 0.5) * cellPx}px`;
-      paw.style.top  = `${(cell.y + 0.5) * cellPx}px`;
-      trail.appendChild(paw);
+    if (path.length === 0) return showResult(true);
+
+    // Spawn ONE sprite that hops along the path — a real walking
+    // animal sprite, head facing the direction of travel, with a
+    // hop-hop-hop bounce per cell rather than a slide.
+    const sprite = document.createElement('div');
+    sprite.className = 'animal-sprite';
+    sprite.style.setProperty('--sprite-size', `${Math.max(28, cellPx * 0.7)}px`);
+    const img = document.createElement('img');
+    img.src = ANIMAL_SPRITE.fox;
+    img.alt = 'fox';
+    sprite.appendChild(img);
+    trail.appendChild(sprite);
+
+    // Place at start cell immediately (no transition for first placement)
+    const start = path[0];
+    sprite.style.transition = 'none';
+    sprite.style.left = `${(start.x + 0.5) * cellPx}px`;
+    sprite.style.top  = `${(start.y + 0.5) * cellPx}px`;
+    // Force layout flush before re-enabling transition + first hop
+    void sprite.offsetWidth;
+    sprite.style.transition = '';
+
+    // Step through the path one cell at a time, rotating + hopping.
+    const HOP_MS = 260;
+    path.slice(1).forEach((cell, i) => {
+      const prev = path[i];
+      const dx = cell.x - prev.x;
+      const dy = cell.y - prev.y;
+      const { rotateDeg, flipX } = spriteOrientation(dx, dy);
       setTimeout(() => {
-        paw.style.transition = 'opacity 0.4s ease';
-        paw.style.opacity = '1';
-      }, idx * 150);
+        sprite.style.setProperty('--sprite-rotate', `${rotateDeg}deg`);
+        sprite.style.setProperty('--sprite-flip', flipX);
+        sprite.style.left = `${(cell.x + 0.5) * cellPx}px`;
+        sprite.style.top  = `${(cell.y + 0.5) * cellPx}px`;
+        // Re-trigger the hop animation on each step
+        sprite.style.animation = 'none';
+        img.style.animation = 'none';
+        void sprite.offsetWidth;
+        sprite.style.animation = '';
+        img.style.animation = '';
+      }, i * HOP_MS);
     });
-    setTimeout(() => showResult(true), path.length * 150 + 600);
+
+    setTimeout(() => showResult(true), path.length * HOP_MS + 700);
   }
 
   function showResult(win) {
