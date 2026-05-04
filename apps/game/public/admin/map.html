@@ -109,39 +109,75 @@
     opacity: 1 !important;
     z-index: 5;
   }
-  html.overlay-mode #arc-stage .arc-frame > *:not(.stamp-building):not(.tree-root):not(.region-fox):not(.region-skunk):not(.region-path) {
+  html.overlay-mode #arc-stage .arc-frame > *:not(.stamp-building):not(.tree-root):not(.arc-region):not(.region-path) {
     opacity: 0.30;
   }
   /* Tile-pegged painted regions (overlay-mode only) — anchor the
      fox + skunk + central path to the puzzle's tile coords so they
      line up exactly with the tunnel topology (branch row 0, trunk
      col 6) instead of drifting with % coords (Marcus 2026-05-04). */
-  /* Fox + skunk enclosures sized to MEET the hedgehog/raccoon row
-     below them (which still sits at the painted top:24%, height:12%
-     ≈ rows 3-5 of the 13-row grid). Height 3 tiles bridges the gap
-     so the kid sees a continuous garden zone, not a detached strip
-     with empty soil between (Marcus 2026-05-04). */
+  /* ALL painted patches tile-pegged in overlay-mode so the
+     aboveground layout maps coherently to puzzle tiles. Without
+     pegging every patch, mixing % and tile coords lets some patches
+     drift relative to others and breaks the kid's mental map of
+     "this underground space sits beneath that aboveground space"
+     (Marcus 2026-05-04).
+
+     Layout (9 cols × 13 rows soil grid):
+       rows 0-3, cols 0-6   = fox enclosure (top-left)
+       rows 0-3, cols 7-9   = skunk enclosure (top-right)
+       rows 3-5, cols 0-6   = hedgehog enclosure (mid-left)
+       rows 3-5, cols 7-9   = raccoon enclosure (mid-right)
+       rows 5-7, cols 0-6   = quiet garden (mid horizontal)
+       rows 5-10, cols 7-9  = lawn garden (right vertical)
+       rows 0-10, col 6     = central path (above the trunk tunnel)
+       rows 9-13, cols 0-5  = ARC building footprint */
   html.overlay-mode #arc-stage .region-fox {
-    left: 0;
-    top: 0;
+    left: 0; top: 0;
     width: calc(var(--site-tile, 1px) * 6);
     height: calc(var(--site-tile, 1px) * 3);
     opacity: 0.45;
   }
   html.overlay-mode #arc-stage .region-skunk {
-    left: calc(var(--site-tile, 1px) * 7);
-    top: 0;
+    left: calc(var(--site-tile, 1px) * 7); top: 0;
     width: calc(var(--site-tile, 1px) * 2);
     height: calc(var(--site-tile, 1px) * 3);
     opacity: 0.45;
   }
+  html.overlay-mode #arc-stage .region-hedgehog {
+    left: 0; top: calc(var(--site-tile, 1px) * 3);
+    width: calc(var(--site-tile, 1px) * 6);
+    height: calc(var(--site-tile, 1px) * 2);
+    opacity: 0.45;
+  }
+  html.overlay-mode #arc-stage .region-raccoon {
+    left: calc(var(--site-tile, 1px) * 7); top: calc(var(--site-tile, 1px) * 3);
+    width: calc(var(--site-tile, 1px) * 2);
+    height: calc(var(--site-tile, 1px) * 2);
+    opacity: 0.45;
+  }
+  html.overlay-mode #arc-stage .region-quiet {
+    left: 0; top: calc(var(--site-tile, 1px) * 5);
+    width: calc(var(--site-tile, 1px) * 6);
+    height: calc(var(--site-tile, 1px) * 2);
+    opacity: 0.45;
+  }
+  html.overlay-mode #arc-stage .region-lawn {
+    left: calc(var(--site-tile, 1px) * 7); top: calc(var(--site-tile, 1px) * 5);
+    width: calc(var(--site-tile, 1px) * 2);
+    height: calc(var(--site-tile, 1px) * 5);
+    opacity: 0.45;
+  }
   html.overlay-mode #arc-stage .region-path {
-    left: calc(var(--site-tile, 1px) * 6);
-    top: calc(var(--site-tile, 1px) * 1);
+    left: calc(var(--site-tile, 1px) * 6); top: 0;
     width: calc(var(--site-tile, 1px) * 1);
-    height: calc(var(--site-tile, 1px) * 8);
+    height: calc(var(--site-tile, 1px) * 10);
     opacity: 0.40;
   }
+  /* Horizontal gravel paths between patch rows — hidden in
+     overlay-mode since the tile-pegged patches now touch directly
+     (no gravel separator needed). */
+  html.overlay-mode #arc-stage .region-path-h { display: none; }
   /* Tree-root indicators — hidden by default, only visible when
      this map is iframed into the tunnel mini-game (overlay-mode).
      Sized in TILE units (Marcus 2026-05-04: was 6% × 14% which
