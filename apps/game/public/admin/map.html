@@ -104,11 +104,13 @@
        wide centred on tunnel column 5; sits 1 tile below the grid
        bottom so its roof clears the tunnel start tile at row 9. */
     width: calc(var(--site-tile, 1px) * 5);
-    /* Centre on grid column 5 (= 0-indexed col 5 of 9). Painted
-       building image has door at ~52% from left; offset so the door
-       lands roughly on the trunk axis. */
-    left: calc(var(--site-tile, 1px) * 2.7);
-    bottom: calc(var(--site-tile, 1px) * -1);
+    /* Anchored to the bottom-left of the soil patch so it occupies
+       the empty quadrant and doesn't reach into the trunk column
+       (col 5) or the top branch row. left: -0.5 lets the building
+       hug the left edge cleanly; bottom: -2 pushes it down enough
+       that the roof clears the tunnel start tile (Marcus 2026-05-04). */
+    left: calc(var(--site-tile, 1px) * -0.5);
+    bottom: calc(var(--site-tile, 1px) * -2);
     opacity: 1 !important;
     z-index: 5;
   }
