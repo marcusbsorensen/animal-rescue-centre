@@ -749,19 +749,48 @@
         // by tile.rotation to match the building-side direction).
         drawCorridor('M 35 50 L 65 50 L 65 100 L 35 100 Z');
       }
+      // Den circle centred on the tile so it stays put regardless
+      // of tile rotation (was at cy:38, which rotated off-centre
+      // for non-zero rotations — Marcus 2026-05-04).
       g.appendChild(svgEl('circle', {
-        cx: 50, cy: 38, r: 28, fill: '#c89860',
+        cx: 50, cy: 50, r: 28, fill: '#c89860',
         stroke: '#3a2410', 'stroke-width': 4,
       }));
+      // Letter + directional arrow showing the way the animal is
+      // travelling at this point. START: arrow points along the
+      // open-side direction (where the animal exits the building).
+      // END: arrow points opposite of the trunk approach (further
+      // INTO the habitat away from the tunnel network).
+      const initial = (tile.endpointFor || '?')[0].toUpperCase();
+      // Arrow direction in BASE coords (pre-rotation). The whole
+      // text is counter-rotated so the glyph stays upright; the
+      // arrow's BASE direction picks out which side it points to
+      // after the tile's CW rotation maps it.
+      // baseSides for habitat-endpoint = S only; rotation maps:
+      //   r=0:S(↓)  r=1:W(←)  r=2:N(↑)  r=3:E(→)
+      // We want START arrow = open-side direction, so render the
+      // glyph that — after un-rotation — visually points along the
+      // open side. Easiest: pick the glyph from the tile rotation.
+      const ROT_ARROW = ['↓', '←', '↑', '→'];
+      let arrow = '';
+      if (tile.endpointRole === 'start') {
+        arrow = ROT_ARROW[r];
+      } else {
+        // END: pick the arrow that points AWAY from the trunk col.
+        // Tier 1: trunk at col 6, fox enclosure cols 0-5 → arrow
+        // points west (←) into the habitat. For higher tiers per-
+        // animal logic can override.
+        arrow = '←';
+      }
       const txt = svgEl('text', {
-        x: 50, y: 47, 'text-anchor': 'middle',
+        x: 50, y: 58, 'text-anchor': 'middle',
         'font-family': 'Fredoka, sans-serif', 'font-size': 26, 'font-weight': 700,
         fill: '#3a2410',
-        // un-rotate the label so it stays upright regardless of tile rotation
-        transform: `rotate(${-r * 90} 50 38)`,
+        // Counter-rotate around the new centre so the label stays
+        // upright regardless of tile rotation.
+        transform: `rotate(${-r * 90} 50 50)`,
       });
-      const initial = (tile.endpointFor || '?')[0].toUpperCase();
-      txt.textContent = initial + (tile.endpointRole === 'start' ? '↓' : '');
+      txt.textContent = initial + arrow;
       g.appendChild(txt);
     } else if (tile.type === 'viewing-dome') {
       drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');

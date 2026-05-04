@@ -112,6 +112,10 @@
   html.overlay-mode #arc-stage .arc-frame > *:not(.stamp-building):not(.tree-root):not(.arc-region):not(.region-path):not(.region-path-h) {
     opacity: 0.30;
   }
+  /* Hide the hand-drawn (painted PNG) dome stamps in overlay-mode —
+     the puzzle SVG dome layer in tunnel.html now provides the only
+     dome markers, properly tile-aligned (Marcus 2026-05-04). */
+  html.overlay-mode #arc-stage .stamp-dome { display: none !important; }
   /* Tile-pegged painted regions (overlay-mode only) — anchor the
      fox + skunk + central path to the puzzle's tile coords so they
      line up exactly with the tunnel topology (branch row 0, trunk
@@ -199,7 +203,10 @@
   html.overlay-mode #arc-stage .region-path-h {
     display: block;
     position: absolute;
-    height: calc(var(--site-tile, 1px) * 0.5);
+    /* 1 tile tall — doubled from 0.5T (Marcus 2026-05-04). The
+       extra height extends UPWARD; the bottom edge still sits on
+       the row boundary it serves. */
+    height: calc(var(--site-tile, 1px) * 1);
     z-index: 3; /* sits above patches, below tunnel grid */
     background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel-fine.png');
     background-size: 60px 60px;
@@ -218,14 +225,14 @@
     width: calc(var(--site-tile, 1px) * 2);
   }
   html.overlay-mode #arc-stage .region-path-h.path-h-1 {
-    /* sits just above row 4 (bottom edge on the boundary between
-       fox/skunk and hedgehog/raccoon) */
-    top: calc(var(--site-tile, 1px) * 4 - var(--site-tile, 1px) * 0.5);
+    /* bottom edge on row-4 boundary (fox/skunk ↔ hedgehog/raccoon),
+       extends 1T upward */
+    top: calc(var(--site-tile, 1px) * 4 - var(--site-tile, 1px) * 1);
   }
   html.overlay-mode #arc-stage .region-path-h.path-h-2 {
-    /* sits just above row 7 (bottom edge on the boundary between
-       hedgehog/raccoon and quiet/lawn) */
-    top: calc(var(--site-tile, 1px) * 7 - var(--site-tile, 1px) * 0.5);
+    /* bottom edge on row-7 boundary (hedgehog/raccoon ↔ quiet/lawn),
+       extends 1T upward */
+    top: calc(var(--site-tile, 1px) * 7 - var(--site-tile, 1px) * 1);
   }
   /* path-h-3 was the lawn/parking boundary in the regular site map.
      In overlay-mode the building replaces parking, so this strip
