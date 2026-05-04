@@ -666,7 +666,7 @@
     const exit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
     for (let x = exit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
     if (exit.y === 2) set(exit.x, 1, { type: 'corner', rotation: 2, fixed: true });
-    set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
+    set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: 3, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
 
@@ -738,60 +738,43 @@
       g.appendChild(svgEl('circle', { cx: 35, cy: 46, r: 1.6, fill: '#1a0d04' }));
       g.appendChild(svgEl('circle', { cx: 35, cy: 54, r: 1.6, fill: '#1a0d04' }));
     } else if (tile.type === 'habitat-endpoint') {
-      if (tile.endpointRole === 'end') {
-        // END endpoints accept arrival from any side — draw all 4
-        // corridor stubs so the kid sees this is a flexible
-        // destination (a tunnel can curl in from any direction).
-        drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
-        drawCorridor('M 0 35 L 100 35 L 100 65 L 0 65 Z');
-      } else {
-        // START endpoint: single south stub at rotation 0 (rotated
-        // by tile.rotation to match the building-side direction).
-        drawCorridor('M 35 50 L 65 50 L 65 100 L 35 100 Z');
-      }
+      // Single south corridor stub (rotated by tile.rotation to
+      // match the chosen direction). Same shape for START + END
+      // so the kid sees a familiar 'tunnel-into-circle' on both.
+      drawCorridor('M 35 50 L 65 50 L 65 100 L 35 100 Z');
       // Den circle centred on the tile so it stays put regardless
-      // of tile rotation (was at cy:38, which rotated off-centre
-      // for non-zero rotations — Marcus 2026-05-04).
+      // of rotation (parent <g> rotates around (50,50) — moving
+      // the circle to (50,50) cancels any drift).
       g.appendChild(svgEl('circle', {
         cx: 50, cy: 50, r: 28, fill: '#c89860',
         stroke: '#3a2410', 'stroke-width': 4,
       }));
-      // Letter + directional arrow showing the way the animal is
-      // travelling at this point. START: arrow points along the
-      // open-side direction (where the animal exits the building).
-      // END: arrow points opposite of the trunk approach (further
-      // INTO the habitat away from the tunnel network).
+      // Letter at the centre — counter-rotated so it stays upright.
       const initial = (tile.endpointFor || '?')[0].toUpperCase();
-      // Arrow direction in BASE coords (pre-rotation). The whole
-      // text is counter-rotated so the glyph stays upright; the
-      // arrow's BASE direction picks out which side it points to
-      // after the tile's CW rotation maps it.
-      // baseSides for habitat-endpoint = S only; rotation maps:
-      //   r=0:S(↓)  r=1:W(←)  r=2:N(↑)  r=3:E(→)
-      // We want START arrow = open-side direction, so render the
-      // glyph that — after un-rotation — visually points along the
-      // open side. Easiest: pick the glyph from the tile rotation.
-      const ROT_ARROW = ['↓', '←', '↑', '→'];
-      let arrow = '';
-      if (tile.endpointRole === 'start') {
-        arrow = ROT_ARROW[r];
-      } else {
-        // END: pick the arrow that points AWAY from the trunk col.
-        // Tier 1: trunk at col 6, fox enclosure cols 0-5 → arrow
-        // points west (←) into the habitat. For higher tiers per-
-        // animal logic can override.
-        arrow = '←';
-      }
-      const txt = svgEl('text', {
+      const letter = svgEl('text', {
         x: 50, y: 58, 'text-anchor': 'middle',
-        'font-family': 'Fredoka, sans-serif', 'font-size': 26, 'font-weight': 700,
+        'font-family': 'Fredoka, sans-serif', 'font-size': 28, 'font-weight': 700,
         fill: '#3a2410',
-        // Counter-rotate around the new centre so the label stays
-        // upright regardless of tile rotation.
         transform: `rotate(${-r * 90} 50 50)`,
       });
-      txt.textContent = initial + arrow;
-      g.appendChild(txt);
+      letter.textContent = initial;
+      g.appendChild(letter);
+      // Arrow ON THE STUB. Drawn in BASE coords (south-pointing
+      // stub) — parent <g> rotation aligns the arrow with the stub
+      // direction automatically. We pick the BASE glyph so that:
+      //   START → glyph '↓' (rotates with parent to point ALONG
+      //          the stub, i.e. AWAY from the circle = OUT)
+      //   END   → glyph '↑' (rotates with parent to point AGAINST
+      //          the stub, i.e. TOWARD the circle = IN)
+      const arrowGlyph = tile.endpointRole === 'start' ? '↓' : '↑';
+      const arrow = svgEl('text', {
+        x: 50, y: 86, 'text-anchor': 'middle',
+        'font-family': 'Fredoka, sans-serif', 'font-size': 22, 'font-weight': 700,
+        fill: '#3a2410',
+        // No counter-rotation — let parent rotation orient it.
+      });
+      arrow.textContent = arrowGlyph;
+      g.appendChild(arrow);
     } else if (tile.type === 'viewing-dome') {
       drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
       // Wrap the dome glyph in a group with a class so CSS can hide

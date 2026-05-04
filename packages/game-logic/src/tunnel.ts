@@ -472,11 +472,13 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
     set(foxExit.x, 1, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
   }
 
-  // Fox pen entry at the chosen exit cell. Rotation is cosmetic
-  // (END endpoints accept arrival from any side) — pick whichever
-  // matches the natural arrival direction so the visual reads well.
+  // Fox pen entry at the chosen exit cell. END endpoints are now
+  // ROTATABLE by the player (fixed:false) so the kid can spin the
+  // visual stub to match whichever direction their tunnel approaches
+  // — the solver still accepts arrival from any side, so rotation
+  // is cosmetic but lets the kid 'finish' their tunnel cleanly.
   set(foxExit.x, foxExit.y, {
-    type: 'habitat-endpoint', rotation: 3, fixed: true,
+    type: 'habitat-endpoint', rotation: 3, fixed: false,
     endpointFor: 'fox', endpointRole: 'end',
   });
 
