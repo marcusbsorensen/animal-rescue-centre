@@ -232,7 +232,23 @@
     transition: transform 0.12s ease;
   }
   .tile.empty { cursor: default; }
-  .tile.fixed { cursor: default; }
+  .tile.fixed {
+    cursor: default;
+    /* Darker tint so the kid sees these are puzzle-given pieces
+       (not rotatable). Rotatable tiles render at full brightness. */
+    background: var(--earth-dark);
+  }
+  .tile.fixed::after,
+  body.locked .tile:not(.empty)::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+  }
+  /* When locked (after the GO button), every tile takes the same
+     darker tint as the fixed pieces — kid sees the puzzle is set
+     and clicks won't rotate anything. */
+  body.locked .tile:not(.empty) { background: var(--earth-dark); cursor: default; }
   .tile-svg { display: block; width: 100%; height: 100%; }
   /* In-tile dome glyphs are always hidden — the dome markers
      render on a SEPARATE layer (.dome-layer) sitting on top of
@@ -447,7 +463,7 @@
       </div>
 
       <div class="tunnel-footer">
-        <button class="btn-big" id="btn-submit">Send the fox!</button>
+        <button class="btn-big" id="btn-submit">Send the animals!</button>
         <button class="btn-big secondary" id="btn-reset">Reset</button>
         <button class="btn-big tertiary" id="btn-reroll">Re-dig tunnels</button>
       </div>
@@ -753,6 +769,12 @@
         cell.classList.add(`tile-${tile.type}`);
         if (tile.type === 'empty') cell.classList.add('empty');
         if (tile.fixed) cell.classList.add('fixed');
+        // Mark tiles the player can actually interact with — used
+        // for the soft "click me" hint ring (CSS .rotatable::after).
+        const isRotatable =
+          !tile.fixed && tile.type !== 'empty' && tile.type !== 'cross' &&
+          tile.type !== 'viewing-dome' && tile.type !== 'habitat-endpoint';
+        if (isRotatable) cell.classList.add('rotatable');
         cell.dataset.x = String(x);
         cell.dataset.y = String(y);
         cell.appendChild(tileSvg(tile));
@@ -849,6 +871,9 @@
 
   function onSubmit() {
     tryStartMusic();
+    // Lock the board — every tile picks up the same darker tint
+    // that fixed tiles wear, signalling the puzzle is set.
+    document.body.classList.add('locked');
     const result = solvePuzzle(puzzle);
     const allReached = puzzle.animals.every((a) => result[a]?.reached);
     if (allReached) animatePawprintsAndWin(result);
@@ -978,8 +1003,11 @@
     // Restore overlay opacity (cleared by win reveal).
     const og = document.getElementById('overground-overlay');
     if (og) og.style.opacity = '';
+    // Unlock the board so the kid can rotate again.
+    document.body.classList.remove('locked');
   }
   function reroll() {
+    document.body.classList.remove('locked');
     const newSeed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
     loadFromSeed(newSeed);
     window.parent?.postMessage({
@@ -1051,6 +1079,8 @@
   });
   document.getElementById('result-retry').addEventListener('click', () => {
     document.getElementById('result-overlay').classList.remove('show');
+    // Unlock so the kid can rotate again on retry.
+    document.body.classList.remove('locked');
   });
 
   // Background music — first-gesture autoplay (browser autoplay policies).
