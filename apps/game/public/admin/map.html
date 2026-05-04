@@ -109,7 +109,7 @@
     opacity: 1 !important;
     z-index: 5;
   }
-  html.overlay-mode #arc-stage .arc-frame > *:not(.stamp-building):not(.tree-root):not(.arc-region):not(.region-path) {
+  html.overlay-mode #arc-stage .arc-frame > *:not(.stamp-building):not(.tree-root):not(.arc-region):not(.region-path):not(.region-path-h) {
     opacity: 0.30;
   }
   /* Tile-pegged painted regions (overlay-mode only) — anchor the
@@ -169,15 +169,51 @@
     opacity: 0.45;
   }
   html.overlay-mode #arc-stage .region-path {
+    display: block;
+    position: absolute;
     left: calc(var(--site-tile, 1px) * 6); top: 0;
     width: calc(var(--site-tile, 1px) * 1);
     height: calc(var(--site-tile, 1px) * 10);
-    opacity: 0.40;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel-fine.png');
+    background-size: 60px 60px;
+    border-left: 1px solid rgba(123,92,58,0.5);
+    border-right: 1px solid rgba(123,92,58,0.5);
+    opacity: 0.50;
+    z-index: 3;
   }
-  /* Horizontal gravel paths between patch rows — hidden in
-     overlay-mode since the tile-pegged patches now touch directly
-     (no gravel separator needed). */
-  html.overlay-mode #arc-stage .region-path-h { display: none; }
+  /* Horizontal gravel paths between patch rows — sit on top of
+     the patch boundaries as thin separator strips. Tile-pegged
+     so they land exactly on row boundaries regardless of viewport.
+     0.3 tiles tall = ~visible gravel strip without dominating. */
+  /* Path strips hidden by default — they're DOM elements only
+     for the tunnel mini-game's overlay view, not the regular
+     admin site map. */
+  #arc-stage .region-path-h,
+  html:not(.overlay-mode) #arc-stage .region-path { display: none; }
+  html.overlay-mode #arc-stage .region-path-h {
+    display: block;
+    position: absolute;
+    left: 0;
+    width: calc(var(--site-tile, 1px) * 9);
+    height: calc(var(--site-tile, 1px) * 0.5);
+    z-index: 3; /* sits above patches, below tunnel grid */
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel-fine.png');
+    background-size: 60px 60px;
+    border-top: 1px solid rgba(123,92,58,0.5);
+    border-bottom: 1px solid rgba(123,92,58,0.5);
+  }
+  html.overlay-mode #arc-stage .region-path-h.path-h-1 {
+    /* boundary between fox/skunk (rows 0-3) and hedgehog/raccoon (rows 3-5) */
+    top: calc(var(--site-tile, 1px) * 3 - var(--site-tile, 1px) * 0.25);
+  }
+  html.overlay-mode #arc-stage .region-path-h.path-h-2 {
+    /* boundary between hedgehog/raccoon (rows 3-5) and quiet+lawn (rows 5-7/10) */
+    top: calc(var(--site-tile, 1px) * 5 - var(--site-tile, 1px) * 0.25);
+  }
+  /* path-h-3 was the lawn/parking boundary in the regular site map.
+     In overlay-mode the building replaces parking, so this strip
+     would cut across the building's roof — hidden. */
+  html.overlay-mode #arc-stage .region-path-h.path-h-3 { display: none; }
   /* Tree-root indicators — hidden by default, only visible when
      this map is iframed into the tunnel mini-game (overlay-mode).
      Sized in TILE units (Marcus 2026-05-04: was 6% × 14% which
@@ -756,10 +792,15 @@
     </div>
     <div class="arc-region region-lawn"></div>
     <div class="arc-region region-quiet"></div>
-    <!-- Path strips removed 2026-05-03: gravel background between
-         patches reads naturally as paths; explicit outlines were
-         visual clutter (Marcus). Viewing domes still stand on the
-         central axis but no painted path underneath. -->
+    <!-- Path strips reinstated 2026-05-04 for overlay-mode only —
+         in the tunnel mini-game the kid needs visible separators
+         between the patch rows so the layout reads as a real
+         garden site. They're hidden by default (display:none), shown
+         in overlay-mode via the html.overlay-mode rules below. -->
+    <div class="region-path-h path-h-1"></div>
+    <div class="region-path-h path-h-2"></div>
+    <div class="region-path-h path-h-3"></div>
+    <div class="region-path"></div>
     <div class="arc-region region-undeveloped region-hedgehog" data-future="future: T2 hedgehog/squirrel"></div>
     <div class="arc-region region-undeveloped region-raccoon" data-future="future: T3 raccoon"></div>
     <!-- Fox + skunk now have separate tile patches at the north end
