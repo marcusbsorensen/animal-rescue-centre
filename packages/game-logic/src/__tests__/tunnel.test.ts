@@ -7,6 +7,8 @@ import {
   isPuzzleSolved,
   generateTier1Puzzle,
   applyTier1Solution,
+  generateTier2Puzzle,
+  applyTier2Solution,
   HABITAT_EXITS,
   type TunnelTile,
   type TunnelPuzzle,
@@ -294,5 +296,72 @@ describe('generateTier1Puzzle', () => {
       }
     }
     expect(exitsSeen.size).toBeGreaterThanOrEqual(2); // sanity: not always the same exit
+  });
+});
+
+describe('generateTier2Puzzle', () => {
+  it('produces a 9×13 fox+hedgehog puzzle', () => {
+    const p = generateTier2Puzzle(1);
+    expect(p.width).toBe(9);
+    expect(p.height).toBe(13);
+    expect(p.animals).toEqual(['fox', 'hedgehog']);
+  });
+
+  it('is deterministic for the same seed', () => {
+    const a = generateTier2Puzzle(99);
+    const b = generateTier2Puzzle(99);
+    expect(a.tiles.map((t) => `${t.type}:${t.rotation}:${t.open ?? ''}`))
+      .toEqual(b.tiles.map((t) => `${t.type}:${t.rotation}:${t.open ?? ''}`));
+  });
+
+  it('places hedgehog start at (0, 10) and end on col 1', () => {
+    const p = generateTier2Puzzle(7);
+    const idx = (x: number, y: number) => y * p.width + x;
+    const start = p.tiles[idx(0, 10)];
+    expect(start.type).toBe('habitat-endpoint');
+    expect(start.endpointFor).toBe('hedgehog');
+    expect(start.endpointRole).toBe('start');
+    // End on col 1 (rows 4 or 5)
+    const endHits = [{x:1,y:4},{x:1,y:5}].filter((c) => {
+      const t = p.tiles[idx(c.x, c.y)];
+      return t.type === 'habitat-endpoint' && t.endpointFor === 'hedgehog' && t.endpointRole === 'end';
+    });
+    expect(endHits.length).toBe(1);
+  });
+
+  it('includes gates on both trunks (default closed)', () => {
+    const p = generateTier2Puzzle(1);
+    const gates = p.tiles.filter((t) => t.type === 'gate');
+    expect(gates.length).toBe(2);
+    expect(gates.every((g) => g.open === false)).toBe(true);
+  });
+
+  it('is solvable when the canonical solution is applied', () => {
+    for (const seed of [1, 2, 3, 42, 9999, 20260503]) {
+      const p = generateTier2Puzzle(seed);
+      const solved = applyTier2Solution(p);
+      expect(isPuzzleSolved(solved)).toBe(true);
+    }
+  });
+
+  it('is NOT solvable if gates left closed (even with straights aligned)', () => {
+    const p = generateTier2Puzzle(1);
+    // Apply only straight rotations, leave gates closed
+    const tiles = p.tiles.map((t) => ({ ...t }));
+    const idx = (x: number, y: number) => y * p.width + x;
+    for (let y = 2; y <= 9; y++) {
+      const t = tiles[idx(6, y)];
+      if (t.type === 'straight') t.rotation = 0;
+    }
+    for (let x = 1; x <= 5; x++) {
+      const t = tiles[idx(x, 1)];
+      if (t.type === 'straight') t.rotation = 1;
+    }
+    for (let y = 1; y <= 9; y++) {
+      const t = tiles[idx(1, y)];
+      if (t.type === 'straight') t.rotation = 0;
+    }
+    const partial = { ...p, tiles };
+    expect(isPuzzleSolved(partial)).toBe(false);
   });
 });

@@ -503,3 +503,118 @@ export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   }
   return { ...puzzle, tiles };
 }
+
+// ── Tier 2 puzzle generator ───────────────────────────────────
+
+/**
+ * Tier 2 — adds the HEDGEHOG branch and introduces GATES.
+ *
+ * Layout (9×13):
+ *  - Fox network: identical to tier 1 (col-6 trunk, branch on row 1)
+ *  - Hedgehog network: NEW second trunk on col 1
+ *      - Hedgehog start (0, 10) inside building, opens east
+ *      - Building corner (1, 10) ┘ N+W (fixed) — turns north
+ *      - Trunk straights (1, hedgeExit.y+1)..(1, 9)
+ *      - Hedgehog endpoint at (1, hedgeExit.y) — y=4 or 5
+ *  - Gates: ONE gate per trunk (default closed). Kid must:
+ *      a) rotate every straight along both trunks
+ *      b) toggle BOTH gates open before submitting
+ *
+ * Gates are placed at trunk row 7 (between mid-dome and bottom area)
+ * for the fox trunk and at row 7 of the hedgehog trunk.
+ */
+export function generateTier2Puzzle(seed: number): TunnelPuzzle {
+  const W = 9, H = 13;
+  const tiles: TunnelTile[] = [];
+  for (let i = 0; i < W * H; i++) tiles.push(emptyTile());
+  const set = (x: number, y: number, t: TunnelTile) => { tiles[y * W + x] = t; };
+  const rng = mulberry32(seed);
+  const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
+
+  // ── FOX NETWORK (mirrors tier 1) ────────────────────────────
+  set(5, 10, {
+    type: 'habitat-endpoint', rotation: 3, fixed: true,
+    endpointFor: 'fox', endpointRole: 'start',
+  });
+  set(6, 10, { type: 'corner', rotation: 0, fixed: true });
+  for (let y = 2; y <= 9; y++) {
+    set(6, y, { type: 'straight', rotation: randR() });
+  }
+  set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+  // Fox-trunk gate at row 7 (replaces a straight at that position).
+  // Default closed — kid clicks to open. Vertical orientation
+  // (rotation 0) so it gates the trunk's NS flow.
+  set(6, 7, { type: 'gate', rotation: 0, open: false });
+  set(6, 1, { type: 'corner', rotation: 3, fixed: true });
+  const foxExits = HABITAT_EXITS.fox;
+  const foxExit = foxExits[Math.floor(rng() * foxExits.length)];
+  for (let x = foxExit.x + 1; x <= 5; x++) {
+    set(x, 1, { type: 'straight', rotation: randR() });
+  }
+  if (foxExit.y === 2) {
+    set(foxExit.x, 1, { type: 'corner', rotation: 2, fixed: true });
+  }
+  set(foxExit.x, foxExit.y, {
+    type: 'habitat-endpoint', rotation: 3, fixed: false,
+    endpointFor: 'fox', endpointRole: 'end',
+  });
+
+  // ── HEDGEHOG NETWORK (new) ──────────────────────────────────
+  // Start inside the building's west edge at (0, 10), opens east.
+  set(0, 10, {
+    type: 'habitat-endpoint', rotation: 3, fixed: true,
+    endpointFor: 'hedgehog', endpointRole: 'start',
+  });
+  // Building-side corner ┘ N+W just east of the start tile.
+  set(1, 10, { type: 'corner', rotation: 0, fixed: true });
+
+  // Pick hedgehog exit from col-1 entries (rows 4 + 5) — keeps the
+  // tier 2 trunk straight without needing extra connectors. Higher
+  // tiers will use the full 8-exit catalogue.
+  const hedgeCol1Exits = HABITAT_EXITS.hedgehog.filter((e) => e.x === 1);
+  const hedgeExit = hedgeCol1Exits[Math.floor(rng() * hedgeCol1Exits.length)];
+
+  // Trunk straights from (hedgeExit.y + 1) to row 9.
+  for (let y = hedgeExit.y + 1; y <= 9; y++) {
+    set(1, y, { type: 'straight', rotation: randR() });
+  }
+  // Hedgehog-trunk gate at row 7 (default closed).
+  set(1, 7, { type: 'gate', rotation: 0, open: false });
+  // Endpoint at (1, hedgeExit.y) — opens south by default (rotatable).
+  set(1, hedgeExit.y, {
+    type: 'habitat-endpoint', rotation: 0, fixed: false,
+    endpointFor: 'hedgehog', endpointRole: 'end',
+  });
+
+  return { width: W, height: H, tiles, animals: ['fox', 'hedgehog'] };
+}
+
+/**
+ * Apply the canonical tier-2 solution: straighten every straight and
+ * open every gate. Useful for tests.
+ */
+export function applyTier2Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
+  const tiles = puzzle.tiles.map((t) => ({ ...t }));
+  const idx = (x: number, y: number) => y * puzzle.width + x;
+  // Fox trunk straights vertical
+  for (let y = 2; y <= 9; y++) {
+    const t = tiles[idx(6, y)];
+    if (t.type === 'straight') t.rotation = 0;
+  }
+  // Fox branch straights horizontal
+  for (let x = 1; x <= 5; x++) {
+    const t = tiles[idx(x, 1)];
+    if (t.type === 'straight') t.rotation = 1;
+  }
+  // Hedgehog trunk straights vertical
+  for (let y = 1; y <= 9; y++) {
+    const t = tiles[idx(1, y)];
+    if (t.type === 'straight') t.rotation = 0;
+  }
+  // Open every gate
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
+  }
+  return { ...puzzle, tiles };
+}
