@@ -574,14 +574,14 @@
     const set = (x, y, t) => { tiles[y * W + x] = t; };
     const rng = mulberry32(seed);
     const randR = () => Math.floor(rng() * 4);
-    set(6, 9, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-    for (let y = 1; y <= 8; y++) set(6, y, { type: 'straight', rotation: randR() });
-    set(6, 1, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 7, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 0, { type: 'corner', rotation: 3, fixed: true });
-    for (let x = 1; x <= 5; x++) set(x, 0, { type: 'straight', rotation: randR() });
-    set(0, 0, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
+    set(6, 10, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
+    for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
+    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 1, { type: 'corner', rotation: 3, fixed: true });
+    for (let x = 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
+    set(0, 1, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
 

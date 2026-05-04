@@ -377,32 +377,35 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   // the soil (cols -0.5 to 4.5), clear of the trunk column
   // (Marcus 2026-05-04).
 
-  // Building tunnel mouth at (6, 9). r=2 = N-open.
-  set(6, 9, {
+  // Building tunnel mouth at (6, 10). r=2 = N-open.
+  // (Whole tunnel network shifted down by 1 row 2026-05-04 so the
+  // branch sits inside the fox enclosure rather than on its top
+  // edge, and the start tile doesn't overlap the building roof.)
+  set(6, 10, {
     type: 'habitat-endpoint', rotation: 2, fixed: true,
     endpointFor: 'fox', endpointRole: 'start',
   });
 
-  // Trunk straights at (6, y) for y=1..8 — player rotates to vertical.
-  for (let y = 1; y <= 8; y++) {
+  // Trunk straights at (6, y) for y=2..9 — player rotates to vertical.
+  for (let y = 2; y <= 9; y++) {
     set(6, y, { type: 'straight', rotation: randR() });
   }
 
-  // Three viewing domes along the trunk, evenly spaced (rows 1, 4, 7).
-  set(6, 1, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(6, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(6, 7, { type: 'viewing-dome', rotation: 0, fixed: true });
+  // Three viewing domes along the trunk, evenly spaced (rows 2, 5, 8).
+  set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
 
-  // Top of trunk: corner at (6, 0) turning S+W. r=3 = ┐ (S+W).
-  set(6, 0, { type: 'corner', rotation: 3, fixed: true });
+  // Top of trunk: corner at (6, 1) turning S+W. r=3 = ┐ (S+W).
+  set(6, 1, { type: 'corner', rotation: 3, fixed: true });
 
-  // Fox branch — horizontal straights at (x, 0) for x=1..5.
+  // Fox branch — horizontal straights at (x, 1) for x=1..5.
   for (let x = 1; x <= 5; x++) {
-    set(x, 0, { type: 'straight', rotation: randR() });
+    set(x, 1, { type: 'straight', rotation: randR() });
   }
 
-  // Fox pen entry at (0, 0) — west end of branch. r=3 = E-open.
-  set(0, 0, {
+  // Fox pen entry at (0, 1) — west end of branch. r=3 = E-open.
+  set(0, 1, {
     type: 'habitat-endpoint', rotation: 3, fixed: true,
     endpointFor: 'fox', endpointRole: 'end',
   });
@@ -418,12 +421,12 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
 export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
   const idx = (x: number, y: number) => y * puzzle.width + x;
-  for (let y = 1; y <= 8; y++) {
+  for (let y = 2; y <= 9; y++) {
     const t = tiles[idx(6, y)];
     if (t.type === 'straight') t.rotation = 0;
   }
   for (let x = 1; x <= 5; x++) {
-    const t = tiles[idx(x, 0)];
+    const t = tiles[idx(x, 1)];
     if (t.type === 'straight') t.rotation = 1;
   }
   return { ...puzzle, tiles };

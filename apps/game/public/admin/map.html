@@ -179,8 +179,9 @@
     border-left: 1px solid rgba(123,92,58,0.5);
     border-right: 1px solid rgba(123,92,58,0.5);
     /* Same opacity as the horizontal path strips so they read
-       as one continuous gravel network. */
-    opacity: 1;
+       as one continuous gravel network — semi-transparent so the
+       puzzle tunnels show through. */
+    opacity: 0.5;
     z-index: 3;
   }
   /* Horizontal gravel paths between patch rows — sit on top of
@@ -203,6 +204,7 @@
     background-size: 60px 60px;
     border-top: 1px solid rgba(123,92,58,0.5);
     border-bottom: 1px solid rgba(123,92,58,0.5);
+    opacity: 0.5;
   }
   html.overlay-mode #arc-stage .region-path-h.path-h-1 {
     /* boundary between fox/skunk (rows 0-3) and hedgehog/raccoon (rows 3-5) */
