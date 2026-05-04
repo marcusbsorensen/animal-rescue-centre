@@ -234,11 +234,32 @@
   .tile.empty { cursor: default; }
   .tile.fixed { cursor: default; }
   .tile-svg { display: block; width: 100%; height: 100%; }
-  /* When the aboveground overlay is showing, hide the puzzle-grid
-     viewing-dome glyph (the overlay shows the real domes underneath
-     so duplicating them is visual clutter). The tunnel pipe through
-     the dome tile stays visible — only the dome icon is suppressed. */
-  body.overlay-on .tile.tile-viewing-dome .dome-glyph { display: none; }
+  /* In-tile dome glyphs are always hidden — the dome markers
+     render on a SEPARATE layer (.dome-layer) sitting on top of
+     the overground overlay so they're visible above gardens +
+     paths regardless of the overlay state (Marcus 2026-05-04). */
+  .tile.tile-viewing-dome .dome-glyph { display: none; }
+
+  /* Dedicated dome layer — sits ABOVE the overground-overlay
+     (z-index 4) so domes pop on top of gardens + paths. Opacity
+     dimmed to 0.6 when the overlay is on (matches the gravel
+     paths' visual weight); full opacity when the overlay is off
+     (tunnels-only mode, domes need to read clearly). */
+  .dome-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 6;
+    transition: opacity 400ms ease;
+  }
+  body.overlay-on .dome-layer { opacity: 0.6; }
+  body:not(.overlay-on) .dome-layer { opacity: 1; }
+  .dome-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    /* size set in JS from tileSize */
+  }
+  .dome-marker svg { width: 100%; height: 100%; display: block; }
 
   .pawprint-trail {
     position: absolute; top: 0; left: 0;
@@ -740,6 +761,41 @@
       }
     }
     wrap.appendChild(grid);
+
+    // Dome layer — separate stacking layer above the overground
+    // overlay so glass-dome markers always pop on top of gardens
+    // and paths. Opacity is driven by body.overlay-on (60% when
+    // overlay shows, 100% when tunnels alone).
+    let domeLayer = document.getElementById('dome-layer');
+    if (!domeLayer) {
+      domeLayer = document.createElement('div');
+      domeLayer.id = 'dome-layer';
+      domeLayer.className = 'dome-layer';
+    }
+    domeLayer.replaceChildren();
+    const gridLeft = (wrapRect.width  - (tileSize * puzzle.width  + 12)) / 2;
+    const gridTop  = (wrapRect.height - (tileSize * puzzle.height + 12)) / 2;
+    for (let y = 0; y < puzzle.height; y++) {
+      for (let x = 0; x < puzzle.width; x++) {
+        const t = puzzle.tiles[y * puzzle.width + x];
+        if (t.type !== 'viewing-dome') continue;
+        const m = document.createElement('div');
+        m.className = 'dome-marker';
+        const sz = Math.round(tileSize * 0.7);
+        m.style.width  = sz + 'px';
+        m.style.height = sz + 'px';
+        m.style.left = (gridLeft + 6 + x * tileSize + tileSize / 2) + 'px';
+        m.style.top  = (gridTop  + 6 + y * tileSize + tileSize / 2) + 'px';
+        m.innerHTML =
+          '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' +
+            '<circle cx="50" cy="50" r="42" fill="rgba(180,220,255,0.55)" ' +
+              'stroke="#3a2410" stroke-width="3.5"/>' +
+            '<ellipse cx="38" cy="38" rx="14" ry="9" fill="rgba(255,255,255,0.7)"/>' +
+          '</svg>';
+        domeLayer.appendChild(m);
+      }
+    }
+    wrap.appendChild(domeLayer);
 
     // Size the overground overlay to MATCH the soil grid exactly.
     // This means the iframe coord (0,0) lines up with the grid's
