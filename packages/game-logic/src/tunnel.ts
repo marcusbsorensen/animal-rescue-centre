@@ -255,13 +255,16 @@ function solveOne(puzzle: TunnelPuzzle, animal: Animal): SolveResult {
     // Endpoint check before any traversal logic — we've arrived.
     if (tile.type === 'habitat-endpoint') {
       path.push({ x, y });
-      // Endpoint must be reachable on the side we came in on.
-      const sides = tileSides(tile);
-      if (!sides[enterSide]) return { reached: false, path, reason: 'dead-end' };
-      // Right destination?
+      // END endpoints accept arrival from ANY side — kids can route
+      // crazy tunnels that approach the exit from any direction
+      // (90+90° around-the-back loops are encouraged). START
+      // endpoints + wrong-animal endpoints still require the side
+      // to face the incoming tunnel.
       if (tile.endpointFor === animal && tile.endpointRole === 'end') {
         return { reached: true, path };
       }
+      const sides = tileSides(tile);
+      if (!sides[enterSide]) return { reached: false, path, reason: 'dead-end' };
       return { reached: false, path, reason: 'wrong-destination' };
     }
 
@@ -332,17 +335,26 @@ export function isPuzzleSolved(puzzle: TunnelPuzzle): boolean {
  * live in tiers 2-4. All coords reference the 9×13 grid.
  */
 export const HABITAT_EXITS: Record<Animal, ReadonlyArray<{ x: number; y: number }>> = {
+  // Fox enclosure (cols 0-6, rows 0-3) — 4×2 exits in rows 1-2.
   fox: [
     { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 },
+    { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 },
   ],
+  // Skunk enclosure (cols 7-9) — col 7 keeps the exit inside the
+  // painted region instead of pushing past col 8 into the edge.
   skunk: [
-    { x: 8, y: 1 }, { x: 8, y: 2 },
+    { x: 7, y: 1 }, { x: 7, y: 2 },
   ],
+  // Hedgehog enclosure — 4×2 exits in rows 3-4 (above the previous
+  // row 4 only). Mirrors the fox catalogue size.
   hedgehog: [
+    { x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 3 }, { x: 4, y: 3 },
     { x: 1, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 4 },
   ],
+  // Raccoon enclosure — col 7, rows 3-4 (shifted left+up from
+  // the previous 8-col positions).
   raccoon: [
-    { x: 8, y: 4 }, { x: 8, y: 5 },
+    { x: 7, y: 3 }, { x: 7, y: 4 },
   ],
 };
 
@@ -440,22 +452,30 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   // Top of trunk: corner at (6, 1) turning S+W. r=3 = ┐ (S+W).
   set(6, 1, { type: 'corner', rotation: 3, fixed: true });
 
-  // Pick the fox exit position from the catalogue (4 valid tiles
-  // along row 1 inside the painted fox enclosure). Seed-driven so
-  // each day's puzzle uses a slightly different branch length.
+  // Pick the fox exit position from the catalogue (8 valid tiles
+  // across rows 1-2 inside the painted fox enclosure). Seed-driven
+  // so each day's puzzle uses a slightly different branch shape.
   const foxExits = HABITAT_EXITS.fox;
   const foxExit = foxExits[Math.floor(rng() * foxExits.length)];
 
-  // Fox branch — horizontal straights from (foxExit.x + 1) up to
-  // (5) inclusive (filling the row between the chosen exit and
-  // the corner at col 6). At the most-eastern exit (x=4) there's
-  // just 1 straight; at the most-western (x=1) there are 4.
+  // Fox branch — horizontal straights along row 1 from (foxExit.x + 1)
+  // up to col 5 inclusive, filling between the chosen-exit column and
+  // the trunk corner at col 6.
   for (let x = foxExit.x + 1; x <= 5; x++) {
     set(x, 1, { type: 'straight', rotation: randR() });
   }
 
-  // Fox pen entry at the chosen exit cell. r=3 = E-open (faces the
-  // tunnel coming from the east).
+  // If the chosen exit is on row 2, drop a fixed ┌ corner at
+  // (foxExit.x, 1) that turns the branch south to reach it.
+  // (Endpoint accepts arrival from any side, but we still need
+  // a connecting tile so the path actually reaches it.)
+  if (foxExit.y === 2) {
+    set(foxExit.x, 1, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+  }
+
+  // Fox pen entry at the chosen exit cell. Rotation is cosmetic
+  // (END endpoints accept arrival from any side) — pick whichever
+  // matches the natural arrival direction so the visual reads well.
   set(foxExit.x, foxExit.y, {
     type: 'habitat-endpoint', rotation: 3, fixed: true,
     endpointFor: 'fox', endpointRole: 'end',

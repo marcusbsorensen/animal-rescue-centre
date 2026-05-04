@@ -659,9 +659,13 @@
     set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
     set(6, 1, { type: 'corner', rotation: 3, fixed: true });
     // Fox exit catalogue (mirrors HABITAT_EXITS.fox in game-logic).
-    const FOX_EXITS = [{x:1,y:1}, {x:2,y:1}, {x:3,y:1}, {x:4,y:1}];
+    const FOX_EXITS = [
+      {x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},
+      {x:1,y:2},{x:2,y:2},{x:3,y:2},{x:4,y:2},
+    ];
     const exit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
     for (let x = exit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
+    if (exit.y === 2) set(exit.x, 1, { type: 'corner', rotation: 2, fixed: true });
     set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
@@ -734,8 +738,17 @@
       g.appendChild(svgEl('circle', { cx: 35, cy: 46, r: 1.6, fill: '#1a0d04' }));
       g.appendChild(svgEl('circle', { cx: 35, cy: 54, r: 1.6, fill: '#1a0d04' }));
     } else if (tile.type === 'habitat-endpoint') {
-      // South-opening den (corridor exits south at rotation 0)
-      drawCorridor('M 35 50 L 65 50 L 65 100 L 35 100 Z');
+      if (tile.endpointRole === 'end') {
+        // END endpoints accept arrival from any side — draw all 4
+        // corridor stubs so the kid sees this is a flexible
+        // destination (a tunnel can curl in from any direction).
+        drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
+        drawCorridor('M 0 35 L 100 35 L 100 65 L 0 65 Z');
+      } else {
+        // START endpoint: single south stub at rotation 0 (rotated
+        // by tile.rotation to match the building-side direction).
+        drawCorridor('M 35 50 L 65 50 L 65 100 L 35 100 Z');
+      }
       g.appendChild(svgEl('circle', {
         cx: 50, cy: 38, r: 28, fill: '#c89860',
         stroke: '#3a2410', 'stroke-width': 4,
@@ -869,10 +882,16 @@
         raccoon:  '#5a5a5a',
       };
       const HABITAT_EXITS_DEBUG = {
-        fox:      [{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1}],
-        skunk:    [{x:8,y:1},{x:8,y:2}],
-        hedgehog: [{x:1,y:4},{x:2,y:4},{x:3,y:4},{x:4,y:4}],
-        raccoon:  [{x:8,y:4},{x:8,y:5}],
+        fox: [
+          {x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},
+          {x:1,y:2},{x:2,y:2},{x:3,y:2},{x:4,y:2},
+        ],
+        skunk:    [{x:7,y:1},{x:7,y:2}],
+        hedgehog: [
+          {x:1,y:3},{x:2,y:3},{x:3,y:3},{x:4,y:3},
+          {x:1,y:4},{x:2,y:4},{x:3,y:4},{x:4,y:4},
+        ],
+        raccoon:  [{x:7,y:3},{x:7,y:4}],
       };
       for (const [animal, points] of Object.entries(HABITAT_EXITS_DEBUG)) {
         for (const p of points) {
