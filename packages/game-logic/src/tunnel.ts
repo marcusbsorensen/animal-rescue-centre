@@ -369,31 +369,35 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   const rng = mulberry32(seed);
   const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
 
-  // Trunk runs UP col 5 (centre) from the building tunnel-mouth at
-  // (5, 9) — 3 rows above the soil bottom so the building art shows
-  // beneath. Corner at the top (5, 0) turns west into the fox branch.
+  // Trunk runs UP col 6 (= 2/3 across) from the building tunnel-mouth
+  // at (6, 9), aligning with the painted central gravel path on the
+  // overlay (which sits at 60-66% of overlay width = col 5.5-6 of
+  // the 9-col grid). Corner at the top (6, 0) turns west into the
+  // fox branch. The painted ARC building sits in the bottom-LEFT of
+  // the soil (cols -0.5 to 4.5), clear of the trunk column
+  // (Marcus 2026-05-04).
 
-  // Building tunnel mouth at (5, 9). r=2 = N-open.
-  set(5, 9, {
+  // Building tunnel mouth at (6, 9). r=2 = N-open.
+  set(6, 9, {
     type: 'habitat-endpoint', rotation: 2, fixed: true,
     endpointFor: 'fox', endpointRole: 'start',
   });
 
-  // Trunk straights at (5, y) for y=1..8 — player rotates to vertical.
+  // Trunk straights at (6, y) for y=1..8 — player rotates to vertical.
   for (let y = 1; y <= 8; y++) {
-    set(5, y, { type: 'straight', rotation: randR() });
+    set(6, y, { type: 'straight', rotation: randR() });
   }
 
   // Three viewing domes along the trunk, evenly spaced (rows 1, 4, 7).
-  set(5, 1, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(5, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(5, 7, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 1, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 7, { type: 'viewing-dome', rotation: 0, fixed: true });
 
-  // Top of trunk: corner at (5, 0) turning S+W. r=3 = ┐ (S+W).
-  set(5, 0, { type: 'corner', rotation: 3, fixed: true });
+  // Top of trunk: corner at (6, 0) turning S+W. r=3 = ┐ (S+W).
+  set(6, 0, { type: 'corner', rotation: 3, fixed: true });
 
-  // Fox branch — horizontal straights at (x, 0) for x=1..4.
-  for (let x = 1; x <= 4; x++) {
+  // Fox branch — horizontal straights at (x, 0) for x=1..5.
+  for (let x = 1; x <= 5; x++) {
     set(x, 0, { type: 'straight', rotation: randR() });
   }
 
@@ -415,10 +419,10 @@ export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
   const idx = (x: number, y: number) => y * puzzle.width + x;
   for (let y = 1; y <= 8; y++) {
-    const t = tiles[idx(5, y)];
+    const t = tiles[idx(6, y)];
     if (t.type === 'straight') t.rotation = 0;
   }
-  for (let x = 1; x <= 4; x++) {
+  for (let x = 1; x <= 5; x++) {
     const t = tiles[idx(x, 0)];
     if (t.type === 'straight') t.rotation = 1;
   }

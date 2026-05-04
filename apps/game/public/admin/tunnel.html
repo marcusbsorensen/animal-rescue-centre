@@ -574,13 +574,13 @@
     const set = (x, y, t) => { tiles[y * W + x] = t; };
     const rng = mulberry32(seed);
     const randR = () => Math.floor(rng() * 4);
-    set(5, 9, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-    for (let y = 1; y <= 8; y++) set(5, y, { type: 'straight', rotation: randR() });
-    set(5, 1, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(5, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(5, 7, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(5, 0, { type: 'corner', rotation: 3, fixed: true });
-    for (let x = 1; x <= 4; x++) set(x, 0, { type: 'straight', rotation: randR() });
+    set(6, 9, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
+    for (let y = 1; y <= 8; y++) set(6, y, { type: 'straight', rotation: randR() });
+    set(6, 1, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 7, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 0, { type: 'corner', rotation: 3, fixed: true });
+    for (let x = 1; x <= 5; x++) set(x, 0, { type: 'straight', rotation: randR() });
     set(0, 0, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
@@ -728,32 +728,25 @@
     }
     wrap.appendChild(grid);
 
-    // Size the overground overlay at the painted site's NATURAL
-    // aspect (9 cols × 11 rows = 0.818 W/H — the original plot
-    // proportions the painted patches were designed against). The
-    // soil grid is 9×13 (taller) — so the overlay sits as a narrower,
-    // taller frame than the grid would naturally suggest, extending
-    // below the grid to let the painted ARC building seat down
-    // outside the tunnel start tile (Marcus 2026-05-04).
+    // Size the overground overlay to MATCH the soil grid exactly.
+    // This means the iframe coord (0,0) lines up with the grid's
+    // (0,0) tile, letting overlay-mode CSS in map.html position
+    // patches/building/regions in TILE-PIXEL units that align
+    // perfectly with the puzzle (Marcus 2026-05-04).
+    //
+    // Garden patches inside the iframe still use % coords from the
+    // painted-site design — they'll stretch slightly to the soil
+    // aspect (9:13 vs natural 9:11) but the high-stakes alignment
+    // elements (building, fox/skunk regions) are tile-pegged via
+    // --site-tile and stay perfectly in sync with puzzle cells.
     if (overlay) {
       wrap.appendChild(overlay);
       const gridW = tileSize * puzzle.width + 12;
       const gridH = tileSize * puzzle.height + 12;
-      // Width matches the grid width exactly (no horizontal spill).
-      const totalW = gridW;
-      // Height = totalW / SITE_ASPECT (9/11 ≈ 0.818). This makes the
-      // overlay taller than the soil grid, so it has natural room
-      // to extend down past the grid bottom.
-      const SITE_ASPECT = 9 / 11;
-      const totalH = totalW / SITE_ASPECT;
-      overlay.style.width = totalW + 'px';
-      overlay.style.height = totalH + 'px';
-      overlay.style.left = ((wrapRect.width  - totalW) / 2) + 'px';
-      // Top edge of overlay aligned with top of grid (overlay then
-      // extends past grid bottom by the difference). Wrap has
-      // overflow:hidden so spillover is cleanly clipped.
-      const gridTop = (wrapRect.height - gridH) / 2;
-      overlay.style.top = gridTop + 'px';
+      overlay.style.width = gridW + 'px';
+      overlay.style.height = gridH + 'px';
+      overlay.style.left = ((wrapRect.width  - gridW) / 2) + 'px';
+      overlay.style.top  = ((wrapRect.height - gridH) / 2) + 'px';
 
       // Push the tile size into the iframe so its overlay-mode CSS
       // can position building + tree-roots in TILE-PIXEL units

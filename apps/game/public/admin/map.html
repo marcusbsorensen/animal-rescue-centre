@@ -98,24 +98,44 @@
      dims to 30% — kid sees the painted ARC building underneath the
      tunnel start tile clearly (Marcus 2026-05-04). */
   html.overlay-mode #arc-stage .stamp-building {
-    /* Tile-pegged size + position (Marcus 2026-05-04 alignment fix).
-       --site-tile is set by tunnel.html via postMessage and matches
-       the puzzle grid's tileSize exactly. Building spans 5 tiles
-       wide centred on tunnel column 5; sits 1 tile below the grid
-       bottom so its roof clears the tunnel start tile at row 9. */
+    /* Tile-pegged: 5 tiles wide, sits in the bottom-left quadrant
+       of the soil grid clear of the trunk column (col 6). Bottom: 0
+       (no negative offset → no cropping). Trunk at col 6 means
+       building cleanly occupies cols 0-5 with the start tile
+       directly above its right edge (Marcus 2026-05-04). */
     width: calc(var(--site-tile, 1px) * 5);
-    /* Anchored to the bottom-left of the soil patch so it occupies
-       the empty quadrant and doesn't reach into the trunk column
-       (col 5) or the top branch row. left: -0.5 lets the building
-       hug the left edge cleanly; bottom: -2 pushes it down enough
-       that the roof clears the tunnel start tile (Marcus 2026-05-04). */
-    left: calc(var(--site-tile, 1px) * -0.5);
-    bottom: calc(var(--site-tile, 1px) * -2);
+    left: 0;
+    bottom: 0;
     opacity: 1 !important;
     z-index: 5;
   }
-  html.overlay-mode #arc-stage .arc-frame > *:not(.stamp-building):not(.tree-root) {
+  html.overlay-mode #arc-stage .arc-frame > *:not(.stamp-building):not(.tree-root):not(.region-fox):not(.region-skunk):not(.region-path) {
     opacity: 0.30;
+  }
+  /* Tile-pegged painted regions (overlay-mode only) — anchor the
+     fox + skunk + central path to the puzzle's tile coords so they
+     line up exactly with the tunnel topology (branch row 0, trunk
+     col 6) instead of drifting with % coords (Marcus 2026-05-04). */
+  html.overlay-mode #arc-stage .region-fox {
+    left: 0;
+    top: 0;
+    width: calc(var(--site-tile, 1px) * 6);
+    height: calc(var(--site-tile, 1px) * 1);
+    opacity: 0.45;
+  }
+  html.overlay-mode #arc-stage .region-skunk {
+    left: calc(var(--site-tile, 1px) * 7);
+    top: 0;
+    width: calc(var(--site-tile, 1px) * 2);
+    height: calc(var(--site-tile, 1px) * 1);
+    opacity: 0.45;
+  }
+  html.overlay-mode #arc-stage .region-path {
+    left: calc(var(--site-tile, 1px) * 6);
+    top: calc(var(--site-tile, 1px) * 1);
+    width: calc(var(--site-tile, 1px) * 1);
+    height: calc(var(--site-tile, 1px) * 8);
+    opacity: 0.40;
   }
   /* Tree-root indicators — hidden by default, only visible when
      this map is iframed into the tunnel mini-game (overlay-mode).
