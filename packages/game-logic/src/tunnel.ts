@@ -349,7 +349,9 @@ function emptyTile(): TunnelTile {
  * they connect. The corner at (6,1) is fixed.
  */
 export function generateTier1Puzzle(seed: number): TunnelPuzzle {
-  const W = 9, H = 9;
+  // Grid is 9 cols × 11 rows (aspect 0.82, matching the plot's
+  // taller-than-wide proportions per Marcus 2026-05-04).
+  const W = 9, H = 11;
   const tiles: TunnelTile[] = [];
   for (let i = 0; i < W * H; i++) tiles.push(emptyTile());
 
@@ -360,28 +362,25 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   const rng = mulberry32(seed);
   const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
 
-  // Layout: trunk runs UP col 6 (= 2/3 across) matching the
-  // aboveground central path's actual position. Marcus 2026-05-04
-  // asked for a small visual shift LEFT by ~2/3 tile-width — that's
-  // applied as a CSS translate on the grid in tunnel.html, NOT as
-  // a column change in the puzzle data (avoids breaking pathfinding
-  // grid-cell math).
+  // Trunk runs UP col 6 (= 2/3 across) from the building tunnel-mouth
+  // at the south edge to a corner at the top that turns west into the
+  // fox branch. 3 viewing domes evenly spaced down the trunk.
 
-  // Building tunnel mouth at (6, 8) — south end of trunk. r=2 = N-open.
-  set(6, 8, {
+  // Building tunnel mouth at (6, 10) — south edge of grid. r=2 = N-open.
+  set(6, 10, {
     type: 'habitat-endpoint', rotation: 2, fixed: true,
     endpointFor: 'fox', endpointRole: 'start',
   });
 
-  // Trunk straights at (6, y) for y=2..7 — player rotates to vertical.
-  for (let y = 2; y <= 7; y++) {
+  // Trunk straights at (6, y) for y=2..9 — player rotates to vertical.
+  for (let y = 2; y <= 9; y++) {
     set(6, y, { type: 'straight', rotation: randR() });
   }
 
-  // Three viewing domes along the trunk (replace the straights).
-  set(6, 6, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(6, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
+  // Three viewing domes along the trunk, evenly spaced (rows 2, 5, 8).
   set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+  set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
 
   // Top of trunk: corner at (6, 1) turning S+W. r=3 = ┐ (S+W).
   set(6, 1, { type: 'corner', rotation: 3, fixed: true });
@@ -408,7 +407,7 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
 export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
   const idx = (x: number, y: number) => y * puzzle.width + x;
-  for (let y = 2; y <= 7; y++) {
+  for (let y = 2; y <= 9; y++) {
     const t = tiles[idx(6, y)];
     if (t.type === 'straight') t.rotation = 0;
   }

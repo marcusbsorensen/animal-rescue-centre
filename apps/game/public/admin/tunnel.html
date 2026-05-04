@@ -574,29 +574,23 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  // MIRROR of game-logic/src/tunnel.ts generateTier1Puzzle. Layout
-  // matches the aboveground geometry: trunk runs UP col 6 (= 2/3
-  // across, matching the central path's actual position), 3
-  // viewing domes along it, branch west at the top into the fox pen.
+  // MIRROR of game-logic/src/tunnel.ts generateTier1Puzzle.
+  // 9 cols × 11 rows (taller-than-wide, matching the plot's
+  // 0.82 aspect ratio). Trunk col 6, 3 evenly-spaced viewing
+  // domes, branch west at the top into the fox pen.
   function generateTier1(seed) {
-    const W = 9, H = 9;
+    const W = 9, H = 11;
     const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
     const set = (x, y, t) => { tiles[y * W + x] = t; };
     const rng = mulberry32(seed);
     const randR = () => Math.floor(rng() * 4);
-    // Building tunnel mouth (south end of trunk, 2/3 across)
-    set(6, 8, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-    // Trunk straights (player rotates to vertical)
-    for (let y = 2; y <= 7; y++) set(6, y, { type: 'straight', rotation: randR() });
-    // 3 viewing domes along the trunk
-    set(6, 6, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 4, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 10, { type: 'habitat-endpoint', rotation: 2, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
+    for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
     set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    // Top of trunk: corner turning west into the fox branch
+    set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
     set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-    // Fox branch straights
     for (let x = 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
-    // Fox pen entry (west end of branch)
     set(0, 1, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
@@ -710,11 +704,9 @@
     const tileSize = Math.max(28, Math.floor(maxSide / puzzle.width));
     grid.style.gridTemplateColumns = `repeat(${puzzle.width}, ${tileSize}px)`;
     grid.style.gridTemplateRows    = `repeat(${puzzle.height}, ${tileSize}px)`;
-    // Marcus 2026-05-04: shift the trunk visually LEFT by 2/3 of a
-    // tile-width so it sits closer to where the aboveground building's
-    // door is (rather than at the path's right-edge boundary). Applied
-    // as a transform so the puzzle data stays at integer cols 0..8.
-    grid.style.transform = `translateX(${-tileSize * 2 / 3}px)`;
+    // (translateX shift removed 2026-05-04 — caused clipping on
+    // smaller screens. Trunk position is now driven by the embedded
+    // arc-frame overlay structure rather than a CSS shift.)
 
     for (let y = 0; y < puzzle.height; y++) {
       for (let x = 0; x < puzzle.width; x++) {
@@ -733,15 +725,14 @@
     wrap.appendChild(grid);
 
     // Re-attach + size the overground overlay to match the tunnel grid.
-    // Apply the SAME 2/3-tile leftward shift so they stay aligned.
     if (overlay) {
       wrap.appendChild(overlay);
-      const totalSide = tileSize * puzzle.width + 12;
-      const trunkShift = -tileSize * 2 / 3;
-      overlay.style.width = totalSide + 'px';
-      overlay.style.height = totalSide + 'px';
-      overlay.style.left = ((wrapRect.width  - totalSide) / 2 + trunkShift) + 'px';
-      overlay.style.top  = ((wrapRect.height - totalSide) / 2) + 'px';
+      const totalW = tileSize * puzzle.width + 12;
+      const totalH = tileSize * puzzle.height + 12;
+      overlay.style.width = totalW + 'px';
+      overlay.style.height = totalH + 'px';
+      overlay.style.left = ((wrapRect.width  - totalW) / 2) + 'px';
+      overlay.style.top  = ((wrapRect.height - totalH) / 2) + 'px';
     }
   }
 
