@@ -98,12 +98,17 @@
      dims to 30% — kid sees the painted ARC building underneath the
      tunnel start tile clearly (Marcus 2026-05-04). */
   html.overlay-mode #arc-stage .stamp-building {
-    /* Push the building DOWN past the overlay's bottom edge so its
-       roof clears the tunnel start tile. The overlay overscans the
-       grid by 30% (extra width + height); we use a negative bottom
-       to seat the building further down than the painted-site
-       default (Marcus 2026-05-04). */
-    bottom: -8%;
+    /* Tile-pegged size + position (Marcus 2026-05-04 alignment fix).
+       --site-tile is set by tunnel.html via postMessage and matches
+       the puzzle grid's tileSize exactly. Building spans 5 tiles
+       wide centred on tunnel column 5; sits 1 tile below the grid
+       bottom so its roof clears the tunnel start tile at row 9. */
+    width: calc(var(--site-tile, 1px) * 5);
+    /* Centre on grid column 5 (= 0-indexed col 5 of 9). Painted
+       building image has door at ~52% from left; offset so the door
+       lands roughly on the trunk axis. */
+    left: calc(var(--site-tile, 1px) * 2.7);
+    bottom: calc(var(--site-tile, 1px) * -1);
     opacity: 1 !important;
     z-index: 5;
   }
@@ -112,15 +117,17 @@
   }
   /* Tree-root indicators — hidden by default, only visible when
      this map is iframed into the tunnel mini-game (overlay-mode).
-     Each is a small SVG with brown root tendrils descending from
-     the tree's trunk position downward. */
+     Sized in TILE units (Marcus 2026-05-04: was 6% × 14% which
+     looked weed-like — narrow vertical wisps. Now: dense
+     horizontally-spreading mass, ~2.5 tiles wide × 1 tile tall). */
   #arc-stage .tree-root {
     display: none;
     position: absolute;
-    width: 6%; height: 14%;
+    width: calc(var(--site-tile, 1px) * 2.5);
+    height: calc(var(--site-tile, 1px) * 1);
     transform: translate(-50%, 0);
     pointer-events: none;
-    opacity: 0.9;
+    opacity: 0.85;
   }
   html.overlay-mode #arc-stage .tree-root { display: block; }
 
@@ -732,12 +739,12 @@
          sees roots descending into the underground tunnel grid.
          In tier 2+ these will become actual obstacle tiles that
          tunnels must route around (Marcus 2026-05-04). -->
-    <svg class="tree-root" data-for="quiet-oak"    style="left: 9%;    top: 53%;" viewBox="0 0 60 80" preserveAspectRatio="none"><path d="M30,0 Q30,30 20,50 T15,80 M30,0 Q30,25 35,45 T45,80 M30,0 Q30,15 25,35 T28,75" stroke="#5a3a18" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
-    <svg class="tree-root" data-for="quiet-ash"    style="left: 37%;   top: 53%;" viewBox="0 0 60 80" preserveAspectRatio="none"><path d="M30,0 Q30,30 20,50 T15,80 M30,0 Q30,25 35,45 T45,80 M30,0 Q30,15 25,35 T28,75" stroke="#5a3a18" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
-    <svg class="tree-root" data-for="quiet-hc"     style="left: 55%;   top: 53%;" viewBox="0 0 60 80" preserveAspectRatio="none"><path d="M30,0 Q30,30 20,50 T15,80 M30,0 Q30,25 35,45 T45,80 M30,0 Q30,15 25,35 T28,75" stroke="#5a3a18" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
-    <svg class="tree-root" data-for="lawn-oak"     style="left: 77%;   top: 76%;" viewBox="0 0 60 80" preserveAspectRatio="none"><path d="M30,0 Q30,30 20,50 T15,80 M30,0 Q30,25 35,45 T45,80 M30,0 Q30,15 25,35 T28,75" stroke="#5a3a18" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
-    <svg class="tree-root" data-for="lawn-hc1"     style="left: 85%;   top: 76%;" viewBox="0 0 60 80" preserveAspectRatio="none"><path d="M30,0 Q30,30 20,50 T15,80 M30,0 Q30,25 35,45 T45,80 M30,0 Q30,15 25,35 T28,75" stroke="#5a3a18" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
-    <svg class="tree-root" data-for="lawn-hc2"     style="left: 77.6%; top: 76%;" viewBox="0 0 60 80" preserveAspectRatio="none"><path d="M30,0 Q30,30 20,50 T15,80 M30,0 Q30,25 35,45 T45,80 M30,0 Q30,15 25,35 T28,75" stroke="#5a3a18" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
+    <svg class="tree-root" data-for="quiet-oak"    style="left: 9%;    top: 53%;" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M50,0 Q42,6 28,14 Q16,18 4,24 M50,0 Q46,10 38,20 Q30,28 22,36 M50,0 Q49,12 47,22 Q45,30 44,38 M50,0 Q51,12 53,22 Q55,30 56,38 M50,0 Q54,10 62,20 Q70,28 78,36 M50,0 Q58,6 72,14 Q84,18 96,24 M50,0 Q40,4 22,8 M50,0 Q60,4 78,8" stroke="#5a3a18" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.95"/></svg>
+    <svg class="tree-root" data-for="quiet-ash"    style="left: 37%;   top: 53%;" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M50,0 Q42,6 28,14 Q16,18 4,24 M50,0 Q46,10 38,20 Q30,28 22,36 M50,0 Q49,12 47,22 Q45,30 44,38 M50,0 Q51,12 53,22 Q55,30 56,38 M50,0 Q54,10 62,20 Q70,28 78,36 M50,0 Q58,6 72,14 Q84,18 96,24 M50,0 Q40,4 22,8 M50,0 Q60,4 78,8" stroke="#5a3a18" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.95"/></svg>
+    <svg class="tree-root" data-for="quiet-hc"     style="left: 55%;   top: 53%;" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M50,0 Q42,6 28,14 Q16,18 4,24 M50,0 Q46,10 38,20 Q30,28 22,36 M50,0 Q49,12 47,22 Q45,30 44,38 M50,0 Q51,12 53,22 Q55,30 56,38 M50,0 Q54,10 62,20 Q70,28 78,36 M50,0 Q58,6 72,14 Q84,18 96,24 M50,0 Q40,4 22,8 M50,0 Q60,4 78,8" stroke="#5a3a18" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.95"/></svg>
+    <svg class="tree-root" data-for="lawn-oak"     style="left: 77%;   top: 76%;" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M50,0 Q42,6 28,14 Q16,18 4,24 M50,0 Q46,10 38,20 Q30,28 22,36 M50,0 Q49,12 47,22 Q45,30 44,38 M50,0 Q51,12 53,22 Q55,30 56,38 M50,0 Q54,10 62,20 Q70,28 78,36 M50,0 Q58,6 72,14 Q84,18 96,24 M50,0 Q40,4 22,8 M50,0 Q60,4 78,8" stroke="#5a3a18" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.95"/></svg>
+    <svg class="tree-root" data-for="lawn-hc1"     style="left: 85%;   top: 76%;" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M50,0 Q42,6 28,14 Q16,18 4,24 M50,0 Q46,10 38,20 Q30,28 22,36 M50,0 Q49,12 47,22 Q45,30 44,38 M50,0 Q51,12 53,22 Q55,30 56,38 M50,0 Q54,10 62,20 Q70,28 78,36 M50,0 Q58,6 72,14 Q84,18 96,24 M50,0 Q40,4 22,8 M50,0 Q60,4 78,8" stroke="#5a3a18" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.95"/></svg>
+    <svg class="tree-root" data-for="lawn-hc2"     style="left: 77.6%; top: 76%;" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M50,0 Q42,6 28,14 Q16,18 4,24 M50,0 Q46,10 38,20 Q30,28 22,36 M50,0 Q49,12 47,22 Q45,30 44,38 M50,0 Q51,12 53,22 Q55,30 56,38 M50,0 Q54,10 62,20 Q70,28 78,36 M50,0 Q58,6 72,14 Q84,18 96,24 M50,0 Q40,4 22,8 M50,0 Q60,4 78,8" stroke="#5a3a18" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.95"/></svg>
 
     <!-- Viewing domes on the central axis (x:63.67%) — one per
          row. The lowest dome sits HALFWAY DOWN the quiet garden
@@ -804,12 +811,23 @@
   // Auto-jumps to arc-stage, hides chrome (tabs, season strip,
   // back button, building stamp, tree stamps, dome stamps) so
   // only the patches + paths + parking show through.
+  //
+  // Receives `--site-tile` (px) from the parent tunnel.html via
+  // postMessage so building + tree-roots can be sized in TILE units
+  // (matching the puzzle grid exactly), giving stable cross-screen
+  // alignment instead of % drift.
   (() => {
     const p = new URLSearchParams(location.search);
     if (p.get('stage') === 'arc') showStage('arc');
     if (p.get('overlay') === '1') {
       document.documentElement.classList.add('overlay-mode');
     }
+    window.addEventListener('message', (e) => {
+      const d = e.data || {};
+      if (d.source === 'arc-tunnel-host' && d.type === 'tile-size' && Number.isFinite(d.size)) {
+        document.documentElement.style.setProperty('--site-tile', d.size + 'px');
+      }
+    });
   })();
 
   // ── Seasonal undeveloped-tile renderer ───────────────────────────────

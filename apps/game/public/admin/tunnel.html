@@ -588,6 +588,9 @@
   // ── State ─────────────────────────────────────────────────────
   let puzzle = null;
   let originalPuzzle = null;
+  // Last computed tile size in px — pushed into the iframe so its
+  // overlay-mode CSS positions building + tree-roots in tile units.
+  let lastTileSize = 0;
 
   // ── SVG rendering of one tile ─────────────────────────────────
   const NS = 'http://www.w3.org/2000/svg';
@@ -701,6 +704,7 @@
     const maxByWidth  = Math.floor((wrapRect.width  - 12) / puzzle.width);
     const maxByHeight = Math.floor((wrapRect.height - 12) / puzzle.height);
     const tileSize = Math.max(28, Math.min(maxByWidth, maxByHeight));
+    lastTileSize = tileSize;
     grid.style.gridTemplateColumns = `repeat(${puzzle.width}, ${tileSize}px)`;
     grid.style.gridTemplateRows    = `repeat(${puzzle.height}, ${tileSize}px)`;
     // (translateX shift removed 2026-05-04 — caused clipping on
@@ -750,11 +754,24 @@
       // (positioned at top:76% of overlay = lower garden zone) stay
       // INSIDE the grid bounds. 65% of the extra height goes above,
       // 35% below. The building gets pushed down independently via
-      // a negative `bottom` rule in map.html overlay-mode CSS — that
-      // way root visibility doesn't fight building positioning.
+      // a tile-pegged `bottom` rule in map.html overlay-mode CSS —
+      // that way root visibility doesn't fight building positioning.
       const gridTop = (wrapRect.height - gridH) / 2;
       const verticalSpill = totalH - gridH;
       overlay.style.top = (gridTop - verticalSpill * 0.65) + 'px';
+
+      // Push the tile size into the iframe so its overlay-mode CSS
+      // can position building + tree-roots in TILE-PIXEL units
+      // (matching the puzzle grid exactly), eliminating the % drift
+      // that caused different relative positions on different
+      // viewport sizes (Marcus 2026-05-04).
+      const iframe = document.getElementById('overground-iframe');
+      try {
+        iframe?.contentWindow?.postMessage(
+          { source: 'arc-tunnel-host', type: 'tile-size', size: tileSize },
+          '*',
+        );
+      } catch (_) { /* iframe not loaded yet — fires again on next render */ }
     }
   }
 
@@ -925,6 +942,19 @@
     btn.classList.toggle('is-on', willShow);
     btn.textContent = willShow ? '🏠 above' : '🏠 hidden';
     document.body.classList.toggle('overlay-on', willShow);
+  });
+
+  // When the overground iframe finishes loading, push the current
+  // tile size so its overlay-mode CSS can size the building + roots
+  // in tile-pixel units. Without this, an iframe load that completes
+  // AFTER the first renderGrid() call would have no --site-tile var.
+  document.getElementById('overground-iframe').addEventListener('load', () => {
+    if (lastTileSize > 0) {
+      document.getElementById('overground-iframe').contentWindow?.postMessage(
+        { source: 'arc-tunnel-host', type: 'tile-size', size: lastTileSize },
+        '*',
+      );
+    }
   });
 
   document.getElementById('btn-submit').addEventListener('click', onSubmit);
