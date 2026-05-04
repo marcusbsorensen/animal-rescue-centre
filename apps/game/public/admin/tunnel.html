@@ -143,6 +143,11 @@
     padding: 4px;
     z-index: 1;
     min-height: 0;
+    /* Clip the aboveground overlay where it overscans beyond the
+       soil grid (the overlay is intentionally sized larger than the
+       grid so the site map's edges sit OUTSIDE the brown soil — but
+       we don't want it spilling into header / footer). */
+    overflow: hidden;
   }
   /* Aboveground overlay — semi-opaque ghost of the A.R.C. site map
      drawn ON TOP of the tunnel grid so kids can see how the
@@ -719,25 +724,33 @@
     }
     wrap.appendChild(grid);
 
-    // Size the overground overlay to the bottom 11 rows of the grid
-    // (the aboveground site-map portion). The top 2 rows of the 13-row
-    // grid extend ABOVE the site map as plain brown soil — visually
-    // showing that the underground network wraps around / above the
-    // visible site (Marcus 2026-05-04).
+    // Size the overground overlay LARGER than the soil grid in every
+    // direction so the site map's edges sit OUTSIDE the brown soil
+    // (the soil reads as contained within the site, not the other way
+    // around). We also push the overlay slightly DOWNWARD past the
+    // grid bottom so the painted ARC building (which is anchored at
+    // the overlay's bottom) clears the tunnel start tile and sits
+    // below it without overlapping. Wrap has overflow:hidden so any
+    // spill is cleanly clipped (Marcus 2026-05-04).
     if (overlay) {
       wrap.appendChild(overlay);
-      const SITE_ROWS = 11; // overlay covers bottom 11 of 13 rows
       const gridW = tileSize * puzzle.width + 12;
       const gridH = tileSize * puzzle.height + 12;
-      const overlayH = tileSize * SITE_ROWS + 12;
-      const totalW = gridW;
-      const totalH = overlayH;
+      // Horizontal overscan: 30% wider than grid (15% spill each side).
+      const HSCAN = 1.30;
+      // Vertical overscan: 30% taller than grid, biased downward so
+      // most of the extra height pushes the building below grid bottom.
+      const VSCAN = 1.30;
+      const totalW = gridW * HSCAN;
+      const totalH = gridH * VSCAN;
       overlay.style.width = totalW + 'px';
       overlay.style.height = totalH + 'px';
       overlay.style.left = ((wrapRect.width  - totalW) / 2) + 'px';
-      // Bottom-align: top of overlay = top of grid + (gridH - overlayH).
+      // Bias overlay vertically so 80% of the vertical overscan goes
+      // BELOW the grid (pushing the building down) and 20% above.
       const gridTop = (wrapRect.height - gridH) / 2;
-      overlay.style.top = (gridTop + (gridH - overlayH)) + 'px';
+      const verticalSpill = totalH - gridH;
+      overlay.style.top = (gridTop - verticalSpill * 0.20) + 'px';
     }
   }
 
