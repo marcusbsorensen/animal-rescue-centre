@@ -161,10 +161,11 @@
     opacity: 0.30;
   }
   .overground-overlay.hidden { opacity: 0 !important; }
-  .overground-overlay svg {
+  .overground-overlay iframe {
     width: 100%; height: 100%;
     display: block;
-    overflow: visible;
+    border: 0;
+    background: transparent;
   }
   /* Aboveground ghost shapes — faint outlines + cream fills */
   .og-shape {
@@ -383,44 +384,19 @@
 
       <div class="grid-wrap" id="grid-wrap">
         <div class="placeholder">Building the tunnels…</div>
-        <!-- Aboveground overlay rendered on top of the tunnel grid.
-             Shows where the building, paths, gardens, and habitats
-             sit ABOVE the underground tunnel network — kids see the
-             spatial relationship between the two layers. -->
+        <!-- Aboveground overlay — embeds the LIVE arc-frame from
+             map.html (with overlay-mode chrome stripped). Same
+             plot, same regions, same seasonal swap as the actual
+             A.R.C. site map — kids see the spatial relationship
+             between underground tunnels and aboveground buildings
+             with full fidelity. Season is forwarded from this
+             page's applySeason() via postMessage to the iframe. -->
         <div class="overground-overlay" id="overground-overlay" aria-hidden="true">
-          <svg viewBox="0 0 900 900" preserveAspectRatio="xMidYMid meet">
-            <!-- Grid is 9×9 tunnel cells (each cell ≈ 100×100 svg-units).
-                 Aboveground positions mapped to the same grid cells:
-                 - ARC building dominates the bottom (rows 6-8, cols 0-7)
-                 - Quiet garden: cols 0-5, row 4-5 (above building)
-                 - Lawn garden: cols 6-8, rows 4-7 (right of building)
-                 - Hedgehog/Squirrel: cols 0-5, row 2-3
-                 - Raccoon: cols 6-8, row 2-3
-                 - Fox pen: cols 0-5, row 0-1
-                 - Skunk pen: cols 6-8, row 0-1
-                 (Fox + skunk separate because Fox pen IS the destination
-                 in the puzzle — drawn as the patch the trunk arrives at) -->
-            <!-- ARC building (south end, dominates the bottom) -->
-            <rect class="og-shape solid" x="20" y="600" width="780" height="280" rx="12"/>
-            <text class="og-label" x="240" y="760">A.R.C. building</text>
-            <!-- Quiet garden (horizontal strip above building) -->
-            <rect class="og-shape" x="20" y="450" width="540" height="130" rx="8"/>
-            <text class="og-label" x="290" y="525">Quiet garden</text>
-            <!-- Lawn garden (vertical strip on the right) -->
-            <rect class="og-shape" x="600" y="450" width="280" height="350" rx="8"/>
-            <text class="og-label" x="740" y="630">Lawn garden</text>
-            <!-- Hedgehog/Squirrel (mid-left) + Raccoon (mid-right) -->
-            <rect class="og-shape" x="20" y="220" width="540" height="200" rx="8"/>
-            <text class="og-label" x="290" y="330">Hedgehog + Squirrel</text>
-            <rect class="og-shape" x="600" y="220" width="280" height="200" rx="8"/>
-            <text class="og-label" x="740" y="330">Raccoon</text>
-            <!-- Fox pen (top-left, 2/3 wide) - the destination tile is here -->
-            <rect class="og-shape" x="20" y="20" width="540" height="170" rx="8"/>
-            <text class="og-label" x="290" y="115">🦊 Fox pen</text>
-            <!-- Skunk pen (top-right, 1/3 wide) -->
-            <rect class="og-shape" x="600" y="20" width="280" height="170" rx="8"/>
-            <text class="og-label" x="740" y="115">Skunk</text>
-          </svg>
+          <iframe id="overground-iframe"
+                  src="map.html?stage=arc&overlay=1"
+                  title="A.R.C. site overlay"
+                  frameborder="0"
+                  scrolling="no"></iframe>
         </div>
       </div>
 

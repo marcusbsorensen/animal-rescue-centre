@@ -70,6 +70,34 @@
   }
   .tabs .right { margin-left: auto; font-size: 12px; opacity: 0.6; align-self: center; }
 
+  /* Overlay mode (URL param ?overlay=1) — used when this map is
+     iframed into the tunnel mini-game as the spatial overlay.
+     Hide all chrome + tree stamps + parking (so the kid sees
+     only the patches + building + viewing domes ghosted, with
+     the building aligned to the bottom of the overlay frame). */
+  html.overlay-mode .tabs,
+  html.overlay-mode #arc-stage .season-strip,
+  html.overlay-mode #arc-stage .arc-title,
+  html.overlay-mode #arc-stage .back-button,
+  html.overlay-mode #arc-stage .stamp-tree,
+  html.overlay-mode #arc-stage .region-label,
+  html.overlay-mode #arc-stage .region-parking,
+  html.overlay-mode #arc-stage .region-parking-deep {
+    display: none !important;
+  }
+  html.overlay-mode body { background: transparent; }
+  html.overlay-mode .stage { background: transparent; }
+  html.overlay-mode #arc-stage .arc-frame {
+    background-color: transparent;
+    background-image: none;
+  }
+  /* Slide the building down so it sits flush at the BOTTOM of the
+     frame (since parking is hidden). Default bottom:11% is the
+     parking-strip gap; in overlay mode we want bottom:0. */
+  html.overlay-mode #arc-stage .stamp-building {
+    bottom: 0;
+  }
+
   .stage {
     flex: 1;
     position: relative;
@@ -731,6 +759,19 @@
   document.querySelectorAll('[data-back]').forEach(b =>
     b.addEventListener('click', () => showStage(b.dataset.back))
   );
+
+  // Overlay mode (?stage=arc&overlay=1) — used by tunnel.html to
+  // embed the actual arc-frame as the spatial-overlay layer.
+  // Auto-jumps to arc-stage, hides chrome (tabs, season strip,
+  // back button, building stamp, tree stamps, dome stamps) so
+  // only the patches + paths + parking show through.
+  (() => {
+    const p = new URLSearchParams(location.search);
+    if (p.get('stage') === 'arc') showStage('arc');
+    if (p.get('overlay') === '1') {
+      document.documentElement.classList.add('overlay-mode');
+    }
+  })();
 
   // ── Seasonal undeveloped-tile renderer ───────────────────────────────
   // Picks the right painted texture for the future-development zones
