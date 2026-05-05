@@ -972,12 +972,13 @@
         cell.classList.add(`tile-${tile.type}`);
         if (tile.type === 'empty') cell.classList.add('empty');
         if (tile.fixed) cell.classList.add('fixed');
-        // Per-tile soil texture (Manus-painted) — deterministic from
-        // (x, y) so the same cell always wears the same texture but
-        // adjacent cells vary. 4 variants × per-tile bg-position
-        // jitter + brightness/hue jitter breaks the repeated grid
-        // and gives each cell its own little patch of earth.
-        const soilN = ((x * 7 + y * 13 + 1) % 4) + 1;
+        // Per-tile soil texture (Manus-painted) — 10 painterly
+        // variants (loamy, sandy, clayey, rooty, rocky, mossy,
+        // leafy, ashy, wormy, deep). Deterministic from (x, y)
+        // so adjacent cells vary but each cell stays the same
+        // across re-renders. Per-tile bg-position + filter jitter
+        // breaks the repeat further.
+        const soilN = ((x * 7 + y * 13 + 1) % 10) + 1;
         // Cheap deterministic hash → 0..1 for jitter values
         const hash01 = (a, b, salt) => {
           let h = (a * 2654435761 + b * 40503 + salt * 2246822519) >>> 0;
