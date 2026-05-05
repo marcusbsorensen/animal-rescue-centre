@@ -678,6 +678,23 @@
   // aboveground site map; top 2 rows are extra soil that wraps
   // above the site. Tunnel network shifted up 3 rows so 3 rows
   // of building footprint sit below the start tile.
+  // Mirror of fillWithDecoyTiles in game-logic. Pads empty cells in
+  // a zone with random rotatable pieces (incl. bridges) so the kid
+  // sees more pieces than they strictly need on the path.
+  function fillWithDecoyTiles(tiles, W, zone, rng, density) {
+    const decoyTypes = ['straight','straight','straight','corner','corner','corner','t-junction','t-junction','bridge'];
+    const randR = () => Math.floor(rng() * 4);
+    for (let y = zone.y0; y <= zone.y1; y++) {
+      for (let x = zone.x0; x <= zone.x1; x++) {
+        const i = y * W + x;
+        if (tiles[i].type !== 'empty') continue;
+        if (rng() > density) continue;
+        const type = decoyTypes[Math.floor(rng() * decoyTypes.length)];
+        tiles[i] = { type, rotation: randR() };
+      }
+    }
+  }
+
   function generateTier1(seed) {
     const W = 9, H = 13;
     const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
@@ -700,6 +717,7 @@
     for (let x = exit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
     if (exit.y === 2) set(exit.x, 1, { type: 'corner', rotation: 2, fixed: true });
     set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: 3, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
+    fillWithDecoyTiles(tiles, W, { x0: 1, y0: 2, x1: 7, y1: 9 }, rng, 0.5);
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
 
@@ -735,6 +753,7 @@
     for (let y = hexit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
     set(1, 7, { type: 'gate', rotation: 0, open: false });
     set(1, hexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'hedgehog', endpointRole: 'end' });
+    fillWithDecoyTiles(tiles, W, { x0: 2, y0: 1, x1: 7, y1: 9 }, rng, 0.45);
     return { width: W, height: H, tiles, animals: ['fox', 'hedgehog'] };
   }
 
@@ -755,6 +774,7 @@
     for (let y = rexit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
     set(7, 7, { type: 'gate', rotation: 0, open: false });
     set(7, rexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'raccoon', endpointRole: 'end' });
+    fillWithDecoyTiles(tiles, base.width, { x0: 2, y0: 1, x1: 8, y1: 10 }, rng, 0.4);
     return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon'] };
   }
 
@@ -774,6 +794,7 @@
     for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
     set(8, 7, { type: 'gate', rotation: 0, open: false });
     set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'skunk', endpointRole: 'end' });
+    fillWithDecoyTiles(tiles, base.width, { x0: 2, y0: 1, x1: 8, y1: 10 }, rng, 0.3);
     return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon', 'skunk'] };
   }
 

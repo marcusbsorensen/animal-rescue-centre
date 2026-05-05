@@ -380,6 +380,48 @@ function emptyTile(): TunnelTile {
 }
 
 /**
+ * Pad EMPTY cells in a rectangular zone with random rotatable
+ * pieces ("decoys") so the kid sees more tunnel pieces on the
+ * board than the required path strictly needs. Adds proper puzzle
+ * to the rotation work — kid has to figure out which pieces matter
+ * and which are red herrings, AND can rotate decoys to create
+ * alternative routes if they want to (Marcus 2026-05-05).
+ *
+ * Won't overwrite non-empty cells (so existing trunk + endpoints
+ * are preserved).
+ *
+ * `density` 0..1 — fraction of empty cells in the zone that get
+ * a decoy. 0.55 leaves visible breathing room.
+ */
+function fillWithDecoyTiles(
+  tiles: TunnelTile[],
+  W: number,
+  zone: { x0: number; y0: number; x1: number; y1: number },
+  rng: () => number,
+  density = 0.55,
+): void {
+  // Weighted bag: more straights and corners than fancy pieces so
+  // the puzzle stays approachable. Bridges add the over/under
+  // 'crossing' choice the kid uses for advanced routing.
+  const decoyTypes: TileType[] = [
+    'straight', 'straight', 'straight',
+    'corner',   'corner',   'corner',
+    't-junction', 't-junction',
+    'bridge',
+  ];
+  const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
+  for (let y = zone.y0; y <= zone.y1; y++) {
+    for (let x = zone.x0; x <= zone.x1; x++) {
+      const i = y * W + x;
+      if (tiles[i].type !== 'empty') continue;
+      if (rng() > density) continue;
+      const type = decoyTypes[Math.floor(rng() * decoyTypes.length)];
+      tiles[i] = { type, rotation: randR() };
+    }
+  }
+}
+
+/**
  * Build the canonical tier-1 9×9 puzzle, then randomise each player-
  * rotatable tile's rotation using `seed`. Layout (per tile-inventory
  * doc §3 tier 1):
@@ -483,6 +525,11 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
     type: 'habitat-endpoint', rotation: 3, fixed: false,
     endpointFor: 'fox', endpointRole: 'end',
   });
+
+  // Pad with decoy tiles so the puzzle isn't just "rotate every
+  // straight to vertical". Decoy zone covers the area around the
+  // fox network (cols 1-7, rows 2-9).
+  fillWithDecoyTiles(tiles, W, { x0: 1, y0: 2, x1: 7, y1: 9 }, rng, 0.5);
 
   return { width: W, height: H, tiles, animals: ['fox'] };
 }
@@ -589,6 +636,10 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
     endpointFor: 'hedgehog', endpointRole: 'end',
   });
 
+  // Decoy fill — covers the central span between hedgehog (col 1)
+  // and fox (col 6) trunks plus a strip east of fox.
+  fillWithDecoyTiles(tiles, W, { x0: 2, y0: 1, x1: 7, y1: 9 }, rng, 0.45);
+
   return { width: W, height: H, tiles, animals: ['fox', 'hedgehog'] };
 }
 
@@ -641,6 +692,9 @@ export function generateTier3Puzzle(seed: number): TunnelPuzzle {
     endpointFor: 'raccoon', endpointRole: 'end',
   });
 
+  // Decoy fill — fills gaps between the now-three trunks.
+  fillWithDecoyTiles(tiles, base.width, { x0: 2, y0: 1, x1: 8, y1: 10 }, rng, 0.4);
+
   return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon'] };
 }
 
@@ -685,6 +739,11 @@ export function generateTier4Puzzle(seed: number): TunnelPuzzle {
     type: 'habitat-endpoint', rotation: 0, fixed: false,
     endpointFor: 'skunk', endpointRole: 'end',
   });
+
+  // Decoy fill — at tier 4 the puzzle area is busy already; only
+  // sparse decoys to give kids a few extra rotation choices
+  // without overwhelming.
+  fillWithDecoyTiles(tiles, base.width, { x0: 2, y0: 1, x1: 8, y1: 10 }, rng, 0.3);
 
   return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon', 'skunk'] };
 }
