@@ -230,7 +230,12 @@
   .tile {
     position: relative;
     width: 100%; height: 100%;
-    background: var(--earth-mid);
+    /* Soil background — Manus-painted texture. Per-tile variant
+       set inline in JS (deterministic by x,y). Falls back to a
+       flat earth tone if the image fails to load. */
+    background-color: var(--earth-mid);
+    background-size: cover;
+    background-position: center;
     cursor: pointer;
     overflow: hidden;
     transition: transform 0.12s ease;
@@ -238,25 +243,21 @@
   .tile.empty { cursor: default; }
   .tile.fixed {
     cursor: default;
-    /* Darker tint so the kid sees these are puzzle-given pieces
-       (not rotatable). Rotatable tiles render at full brightness. */
-    background: var(--earth-dark);
+    /* Darker tint via overlay (::after below) — keeps the soil
+       texture visible underneath. */
   }
   .tile.fixed::after,
   body.locked .tile:not(.empty)::after {
     content: '';
     position: absolute; inset: 0;
-    background: rgba(0, 0, 0, 0.18);
+    background: rgba(0, 0, 0, 0.22);
     pointer-events: none;
   }
-  /* When locked (after the GO button), every tile takes the same
-     darker tint as the fixed pieces — kid sees the puzzle is set
-     and clicks won't rotate anything. pointer-events:none is the
-     load-bearing bit: cursor:default alone still let click handlers
-     fire, so a kid mid-animation could rotate a tile and break the
-     run (Marcus 2026-05-04). */
+  /* When locked (after the GO button), every tile takes a darker
+     tint via the same overlay — soil texture still visible
+     underneath. pointer-events:none stops mid-animation clicks
+     (Marcus 2026-05-04). */
   body.locked .tile:not(.empty) {
-    background: var(--earth-dark);
     cursor: default;
     pointer-events: none;
   }
@@ -266,6 +267,25 @@
      the overground overlay so they're visible above gardens +
      paths regardless of the overlay state (Marcus 2026-05-04). */
   .tile.tile-viewing-dome .dome-glyph { display: none; }
+
+  /* Underground decorations layer — sparse painted easter-eggs
+     (bones, worm, rock, boot, treasure) sitting INSIDE empty soil
+     tiles. Sits BELOW the tunnel pieces so corridors render on top,
+     but above the soil texture itself (Marcus 2026-05-05). */
+  .deco-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .deco-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    opacity: 0.85;
+    /* Subtle blend so it reads as 'in' the soil rather than 'on' it */
+    mix-blend-mode: multiply;
+  }
+  .deco-marker img { width: 100%; height: 100%; display: block; }
 
   /* Dedicated dome layer — sits ABOVE the overground-overlay
      (z-index 4) so domes pop on top of gardens + paths. Opacity
@@ -927,6 +947,12 @@
         cell.classList.add(`tile-${tile.type}`);
         if (tile.type === 'empty') cell.classList.add('empty');
         if (tile.fixed) cell.classList.add('fixed');
+        // Per-tile soil texture (Manus-painted) — deterministic from
+        // (x, y) so the same cell always wears the same texture but
+        // adjacent cells vary. 4 variants make a grid feel non-tiled.
+        const soilN = ((x * 7 + y * 13 + 1) % 4) + 1;
+        cell.style.backgroundImage =
+          `url('scene-assets/tunnel-soil/soil-tile-${soilN}.png')`;
         // Mark tiles the player can actually interact with — used
         // for the soft "click me" hint ring (CSS .rotatable::after).
         const isRotatable =
@@ -942,6 +968,67 @@
     }
     wrap.appendChild(grid);
 
+    // Decoration layer — sparse Manus-painted easter-eggs (bones,
+    // worm, rock, boot, treasure) on a few empty tiles. At most ONE
+    // of each per puzzle. Seed-driven so the same daily puzzle has
+    // the same decorations (kid spots them and giggles).
+    // Shared grid offsets (used by deco + dome layers).
+    const gridLeft = (wrapRect.width  - (tileSize * puzzle.width  + 12)) / 2;
+    const gridTop  = (wrapRect.height - (tileSize * puzzle.height + 12)) / 2;
+
+    let decoLayer = document.getElementById('deco-layer');
+    if (!decoLayer) {
+      decoLayer = document.createElement('div');
+      decoLayer.id = 'deco-layer';
+      decoLayer.className = 'deco-layer';
+    }
+    decoLayer.replaceChildren();
+    const DECO_NAMES = ['bones', 'worm', 'rock', 'old-boot', 'treasure'];
+    // Collect empty tile coords
+    const emptyCells = [];
+    for (let y = 0; y < puzzle.height; y++) {
+      for (let x = 0; x < puzzle.width; x++) {
+        if (puzzle.tiles[y * puzzle.width + x].type === 'empty') {
+          emptyCells.push({ x, y });
+        }
+      }
+    }
+    // Deterministic pick: hash a seed value derived from the puzzle
+    // for stable decoration placement per puzzle render.
+    const hash = puzzle.tiles.reduce(
+      (h, t, i) => (h * 31 + (t.type.charCodeAt(0) + i)) >>> 0,
+      0x9e3779b9,
+    );
+    const decoRng = mulberry32(hash);
+    // Pick 3-5 decorations per puzzle (some empty tiles stay bare)
+    const decoCount = Math.min(DECO_NAMES.length, Math.max(3, Math.floor(decoRng() * 3) + 3));
+    const shuffled = DECO_NAMES.slice().sort(() => decoRng() - 0.5);
+    const usedCells = new Set();
+    for (let i = 0; i < decoCount && emptyCells.length > 0; i++) {
+      // Pick an unused empty cell
+      let pick, idx;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        idx = Math.floor(decoRng() * emptyCells.length);
+        const c = emptyCells[idx];
+        const key = `${c.x},${c.y}`;
+        if (!usedCells.has(key)) { pick = c; usedCells.add(key); break; }
+      }
+      if (!pick) break;
+      const m = document.createElement('div');
+      m.className = 'deco-marker';
+      const sz = Math.round(tileSize * 0.85);
+      m.style.width  = sz + 'px';
+      m.style.height = sz + 'px';
+      m.style.left = (gridLeft + 6 + pick.x * tileSize + tileSize / 2) + 'px';
+      m.style.top  = (gridTop  + 6 + pick.y * tileSize + tileSize / 2) + 'px';
+      const img = document.createElement('img');
+      img.src = `scene-assets/tunnel-soil/deco-${shuffled[i]}.png`;
+      img.alt = shuffled[i];
+      m.appendChild(img);
+      decoLayer.appendChild(m);
+    }
+    wrap.appendChild(decoLayer);
+
     // Dome layer — separate stacking layer above the overground
     // overlay so glass-dome markers always pop on top of gardens
     // and paths. Opacity is driven by body.overlay-on (60% when
@@ -953,8 +1040,6 @@
       domeLayer.className = 'dome-layer';
     }
     domeLayer.replaceChildren();
-    const gridLeft = (wrapRect.width  - (tileSize * puzzle.width  + 12)) / 2;
-    const gridTop  = (wrapRect.height - (tileSize * puzzle.height + 12)) / 2;
     for (let y = 0; y < puzzle.height; y++) {
       for (let x = 0; x < puzzle.width; x++) {
         const t = puzzle.tiles[y * puzzle.width + x];
