@@ -230,16 +230,20 @@
   .tile {
     position: relative;
     width: 100%; height: 100%;
-    /* Soil background — Manus-painted texture. Per-tile variant
-       set inline in JS (deterministic by x,y). Falls back to a
-       flat earth tone if the image fails to load. */
     background-color: var(--earth-mid);
-    background-size: cover;
-    background-position: center;
     cursor: pointer;
     overflow: hidden;
     transition: transform 0.12s ease;
   }
+  /* Painted soil layer — sits BEHIND the tunnel SVG so the per-tile
+     filter (brightness/sat/hue) doesn't tint the cream corridor. */
+  .tile-soil {
+    position: absolute; inset: 0;
+    background-size: 180%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .tile > .tile-svg { position: relative; z-index: 1; }
   .tile.empty { cursor: default; }
   .tile.fixed {
     cursor: default;
@@ -949,10 +953,29 @@
         if (tile.fixed) cell.classList.add('fixed');
         // Per-tile soil texture (Manus-painted) — deterministic from
         // (x, y) so the same cell always wears the same texture but
-        // adjacent cells vary. 4 variants make a grid feel non-tiled.
+        // adjacent cells vary. 4 variants × per-tile bg-position
+        // jitter + brightness/hue jitter breaks the repeated grid
+        // and gives each cell its own little patch of earth.
         const soilN = ((x * 7 + y * 13 + 1) % 4) + 1;
-        cell.style.backgroundImage =
+        // Cheap deterministic hash → 0..1 for jitter values
+        const hash01 = (a, b, salt) => {
+          let h = (a * 2654435761 + b * 40503 + salt * 2246822519) >>> 0;
+          h ^= h >>> 13; h = Math.imul(h, 1274126177); h ^= h >>> 16;
+          return (h >>> 0) / 4294967296;
+        };
+        const posX = (hash01(x, y, 1) * 80 - 40).toFixed(1); // -40..+40 %
+        const posY = (hash01(x, y, 2) * 80 - 40).toFixed(1);
+        const bri  = (0.92 + hash01(x, y, 3) * 0.16).toFixed(3); // 0.92..1.08
+        const sat  = (0.85 + hash01(x, y, 4) * 0.30).toFixed(3); // 0.85..1.15
+        const hue  = (hash01(x, y, 5) * 16 - 8).toFixed(1);      // -8..+8 deg
+        const soilLayer = document.createElement('div');
+        soilLayer.className = 'tile-soil';
+        soilLayer.style.backgroundImage =
           `url('scene-assets/tunnel-soil/soil-tile-${soilN}.png')`;
+        soilLayer.style.backgroundPosition = `${posX}% ${posY}%`;
+        soilLayer.style.filter =
+          `brightness(${bri}) saturate(${sat}) hue-rotate(${hue}deg)`;
+        cell.appendChild(soilLayer);
         // Mark tiles the player can actually interact with — used
         // for the soft "click me" hint ring (CSS .rotatable::after).
         const isRotatable =
