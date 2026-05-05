@@ -244,6 +244,18 @@
     z-index: 0;
   }
   .tile > .tile-svg { position: relative; z-index: 1; }
+
+  /* Closed-gate pulse — soft glow that invites the kid to tap.
+     Stops once the gate is open. Helps avoid the 'why doesn't
+     Send the Animals open these for me?' confusion. */
+  @keyframes gate-pulse {
+    0%, 100% { box-shadow: inset 0 0 0 0 rgba(255, 220, 140, 0); }
+    50%      { box-shadow: inset 0 0 12px 4px rgba(255, 220, 140, 0.55); }
+  }
+  .tile.tile-gate.shut {
+    animation: gate-pulse 1600ms ease-in-out infinite;
+  }
+  body.locked .tile.tile-gate { animation: none; }
   .tile.empty { cursor: default; }
   .tile.fixed {
     cursor: default;
@@ -972,6 +984,7 @@
         cell.classList.add(`tile-${tile.type}`);
         if (tile.type === 'empty') cell.classList.add('empty');
         if (tile.fixed) cell.classList.add('fixed');
+        if (tile.type === 'gate' && tile.open === false) cell.classList.add('shut');
         // Per-tile soil texture (Manus-painted) — 10 painterly
         // variants (loamy, sandy, clayey, rooty, rocky, mossy,
         // leafy, ashy, wormy, deep). Deterministic from (x, y)
@@ -993,7 +1006,7 @@
         const soilLayer = document.createElement('div');
         soilLayer.className = 'tile-soil';
         soilLayer.style.backgroundImage =
-          `url('scene-assets/tunnel-soil/soil-tile-${soilN}.png')`;
+          `url('scene-assets/tunnel-soil/soil-rich-${soilN}.png')`;
         soilLayer.style.backgroundPosition = `${posX}% ${posY}%`;
         soilLayer.style.filter =
           `brightness(${bri}) saturate(${sat}) hue-rotate(${hue}deg)`;
@@ -1311,6 +1324,16 @@
       const img = document.createElement('img');
       img.src = ANIMAL_SPRITE[animal] || ANIMAL_SPRITE.fox;
       img.alt = animal;
+      // TEMP visual differentiation until painted hedgehog/raccoon/
+      // skunk walk sprites land — recolour the fox PNG via filter
+      // so the kid can tell which animal is which on the board.
+      const SPRITE_TINT = {
+        fox:      '',
+        hedgehog: 'hue-rotate(140deg) saturate(0.6) brightness(0.85)',
+        raccoon:  'grayscale(0.85) brightness(0.7) contrast(1.2)',
+        skunk:    'grayscale(1) brightness(0.55) contrast(1.4)',
+      };
+      img.style.filter = SPRITE_TINT[animal] || '';
       sprite.appendChild(img);
       trail.appendChild(sprite);
 
