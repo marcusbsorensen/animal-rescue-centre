@@ -1236,9 +1236,9 @@
   // walking PNG (drawn facing east/right by default).
   const ANIMAL_SPRITE = {
     fox:      '/assets/animals/fox-red-walking.png',
-    skunk:    '/assets/animals/fox-red-walking.png',  // TODO when skunk lands
-    hedgehog: '/assets/animals/fox-red-walking.png',  // TODO
-    raccoon:  '/assets/animals/fox-red-walking.png',  // TODO
+    hedgehog: '/assets/animals/hedgehog-walking.png',
+    raccoon:  '/assets/animals/raccoon-walking.png',
+    skunk:    '/assets/animals/skunk-walking.png',
   };
 
   // Compute the rotation + flip needed for the sprite to face the
@@ -1324,16 +1324,6 @@
       const img = document.createElement('img');
       img.src = ANIMAL_SPRITE[animal] || ANIMAL_SPRITE.fox;
       img.alt = animal;
-      // TEMP visual differentiation until painted hedgehog/raccoon/
-      // skunk walk sprites land — recolour the fox PNG via filter
-      // so the kid can tell which animal is which on the board.
-      const SPRITE_TINT = {
-        fox:      '',
-        hedgehog: 'hue-rotate(140deg) saturate(0.6) brightness(0.85)',
-        raccoon:  'grayscale(0.85) brightness(0.7) contrast(1.2)',
-        skunk:    'grayscale(1) brightness(0.55) contrast(1.4)',
-      };
-      img.style.filter = SPRITE_TINT[animal] || '';
       sprite.appendChild(img);
       trail.appendChild(sprite);
 
