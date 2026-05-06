@@ -38,7 +38,7 @@ Everything that's level-gated, side-by-side. Read down the column for what a pla
 | **PTV destinations** | A.R.C., Bramble Farm | (same) | ★ Moorland, Woodland | (same) | ★ Cove Harbour | (same) | ★ Sea Cliffs | ★ Deep Forest | ★ Wetlands | ★ Pinebark Medical |
 | **Supply Run depots** | Bramble Farm | (same) | (same) | (same) | ★ Cove Harbour | (same) | (same) | (same) | (same) | ★ Pinebark Medical |
 | **Charity grant: Wildlife Trust** | — | — | — | — | — | — | — | — | — | ★ qualifies (£40 if 5+ rewildings) |
-| **Tunnel mini-game** | — | ★ tier 1 (fox only — intro mechanic) | tier 1 | ★ tier 2 (+ hedgehog/squirrel branch + gates) | tier 2 | ★ tier 3 (+ raccoon, timing windows) | tier 3 | ★ tier 4 (+ skunk, all 4 branches) | tier 4 | ★ tier 5 (rush-hour: all 4 entry gates open simultaneously, must stagger paths to avoid clashes) |
+| **Tunnel mini-game** | ★ tier 1 (fox only) | tier 1 | tier 1 | ★ tier 2 (hedgehog only) | tier 2 | ★ tier 3 (raccoon only) | tier 3 | ★ tier 4 (skunk only) | tier 4 | ★ tier 5 (all 4 animals side-by-side) |
 
 ## Per-system detail
 
@@ -121,23 +121,29 @@ The Wildlife Trust grant qualifies at **L10 if the player has done ≥5 rewildin
 ### Tunnel mini-game (5-tier pipe-rotation puzzle)
 
 A pipe-rotation puzzle where the kid rebuilds the underground
-tunnel network so animals can be let out to play. Tiers unlock
-TIGHTLY PEGGED to habitat unlocks — the kid only routes animals
-whose outdoor habitats are actually available.
+tunnel network so animals can be let out to play. Tiers 1–4 are
+each a SINGLE-animal puzzle that gradually introduces new path
+shapes; tier 5 is the multi-animal coordination tier where all
+four trunks are placed side-by-side at simpler topologies.
 
-| Tier | Unlocks at | Animals | Branches | Distinguishing mechanic |
-|---|---|---|---|---|
-| **1 — Intro** | L2 (fox arrival) | fox only | trunk + 1 branch | Rebuild straights to make a single path. Teaches rotate + connect. ~1-2 min for a 7-yo. |
-| **2 — Add hedgehog** | L4 (T2 zone) | fox + hedgehog/squirrel | trunk + 2 branches | First gates introduced — kid stages opens. ~2-3 min. |
-| **3 — Add raccoon** | L6 (T3 zone) | + raccoon | trunk + 3 branches | Timing windows — animal A must be back in pen before animal B leaves. ~3-5 min. |
-| **4 — Add skunk** | L8 (skunk zone) | + skunk | trunk + 4 branches | All 4 garden-habitat animals routing through one network. ~4-6 min. |
-| **5 — Rush hour** | L10+ | all 4 | trunk + 4 branches + bridges + one-ways | All 4 entry gates open SIMULTANEOUSLY when the kid submits. They have to arrange paths so no animals clash or end up in the wrong destination. ~5-8 min. |
+| Tier | Levels | Animal | Templates |
+|---|---|---|---|
+| **1** | L1–3 | fox | straight, z-east, z-west, approach-north (4) |
+| **2** | L4–5 | hedgehog | straight, z-east, approach-north, over-the-top (4) |
+| **3** | L6–7 | raccoon | straight, z-west, approach-north (3) |
+| **4** | L8–9 | skunk | straight, z-west (2) |
+| **5** | L10+ | fox + hedgehog + raccoon + skunk | all four trunks side-by-side at simpler topologies |
 
-Layout MIRRORS the aboveground site geometry — central trunk
-runs UP from the building's tunnel-mouth at the south end (col 5
-of 9, inside the building's footprint), 3 viewing domes spaced
-along it, branches turn west/east at the top to fox/skunk pens.
-Tier 2+ adds branches to hedgehog/raccoon mid-rows.
+`openTunnelOverlay` in `GameScene.ts` picks the tier from the
+player's current level (L1–3 → 1, L4–5 → 2, L6–7 → 3, L8–9 → 4,
+L10+ → 5) and passes it via `?tier=N` to the iframe, whose
+`urlTier` parser routes to the matching `generateTierN` function.
+
+Layout MIRRORS the aboveground site geometry — each animal's
+trunk runs UP from the building's tunnel-mouth at the south end,
+turning west/east at the top to its pen. Single-animal tiers
+re-use one trunk slot with template variation; tier 5 lights up
+all four trunks at once.
 
 Each successful run = animals let out to play (feeds the existing
 happiness/bond loop). Failed routes = "fox got lost — try again?"
@@ -156,20 +162,18 @@ Source files:
 - `apps/game/public/admin/tunnel.html` — painted iframe page
 - `apps/game/src/scenes/TunnelScene.ts` + `GameScene.openTunnelOverlay()` — scene wiring
 
-Implementation status (2026-05-04):
+Implementation status (2026-05-06):
 - All 5 tier generators are LIVE in `tunnel.ts` and the iframe
   mirror. Test the layout via URL param: `?tier=1` … `?tier=5`.
-- `generateTier1Puzzle` — fox only, branch on row 1 (8 valid exits)
-- `generateTier2Puzzle` — adds hedgehog (col 1 trunk + gates per trunk)
-- `generateTier3Puzzle` — adds raccoon (col 7 trunk via row-12 connector)
-- `generateTier4Puzzle` — adds skunk (col 8 trunk via row-12 connector,
-  3 fixed horizontal connectors east of the building)
-- `generateTier5Puzzle` — same topology as tier 4 but gates default
-  OPEN (rush hour: kid focuses on routing, not staging). Future:
-  bridges + one-ways + simultaneous-animation collision detection.
+- Tiers 1–4 are single-animal: each picks one of its templates per
+  daily seed and renders just that animal's trunk + decoy padding
+  (so the puzzle reads as a real puzzle, not a single line).
+- Tier 5 places all four trunks side-by-side at simpler topologies
+  for the multi-animal coordination beat.
 - The animation pipeline (`runAnimalAnimations` in `tunnel.html`)
-  iterates `puzzle.animals` sequentially in tiers 1-4. Tier 5 will
-  switch to parallel firing once collision logic lands.
+  iterates `puzzle.animals` sequentially in tiers 1–4 (one animal)
+  and across all four in tier 5. Future: parallel firing + collision
+  detection for the rush-hour feel.
 
 ### Charm system (PTV mirror customisation)
 
