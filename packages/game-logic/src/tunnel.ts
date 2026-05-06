@@ -700,11 +700,28 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
   });
   set(1, 10, { type: 'corner', rotation: 0, fixed: true });
 
-  const hedgeCol1Exits = HABITAT_EXITS.hedgehog.filter((e) => e.x === 1);
-  const hedgeExit = hedgeCol1Exits[Math.floor(rng() * hedgeCol1Exits.length)];
-
-  const HEDGE_TEMPLATES = ['straight', 'z-east'] as const;
+  // Template + exit chosen jointly — some templates only work with
+  // one of the two exit rows.
+  //   'straight'        — direct vertical trunk (either row 4 or 5)
+  //   'z-east'          — east jog mid-trunk (either row)
+  //   'approach-north'  — trunk climbs past the endpoint, east jog,
+  //                       comes back DOWN col 1 into endpoint from N
+  //                       (only y=5 — needs row 4 free for re-entry)
+  //   'over-the-top'    — wide loop up to rows 1-3, east to col 3,
+  //                       back down col 1 (only y=4 — endpoint sits
+  //                       further down, more room for the loop)
+  const HEDGE_TEMPLATES = ['straight', 'z-east', 'approach-north', 'over-the-top'] as const;
   const hedgeTemplate = HEDGE_TEMPLATES[Math.floor(rng() * HEDGE_TEMPLATES.length)];
+
+  const hedgeCol1Exits = HABITAT_EXITS.hedgehog.filter((e) => e.x === 1);
+  let hedgeExit: { x: number; y: number };
+  if (hedgeTemplate === 'approach-north') {
+    hedgeExit = { x: 1, y: 5 };
+  } else if (hedgeTemplate === 'over-the-top') {
+    hedgeExit = { x: 1, y: 4 };
+  } else {
+    hedgeExit = hedgeCol1Exits[Math.floor(rng() * hedgeCol1Exits.length)];
+  }
   let hedgeEndRotation: Rotation;
 
   if (hedgeTemplate === 'straight') {
@@ -713,7 +730,7 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
     }
     set(1, 7, { type: 'gate', rotation: 0, open: false });
     hedgeEndRotation = 0;
-  } else {
+  } else if (hedgeTemplate === 'z-east') {
     set(1, 9, { type: 'straight', rotation: randR() });
     set(1, 8, { type: 'gate', rotation: 0, open: false });
     set(1, 7, { type: 'corner', rotation: 2, fixed: true });
@@ -728,6 +745,44 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
     } else {
       hedgeEndRotation = 3;
     }
+  } else if (hedgeTemplate === 'approach-north') {
+    // approach-north: trunk climbs col 1 from row 9 to row 6, jogs
+    // east to col 3, climbs col 3 to row 4, jogs back west on row 4
+    // to col 1, then enters the endpoint at (1, 5) from above (N).
+    // Endpoint is fixed at y=5 for this template.
+    set(1, 9, { type: 'straight', rotation: randR() });
+    set(1, 8, { type: 'gate', rotation: 0, open: false });
+    set(1, 7, { type: 'straight', rotation: randR() });
+    set(1, 6, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    set(2, 6, { type: 'straight', rotation: randR() });
+    set(3, 6, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
+    set(3, 5, { type: 'straight', rotation: randR() });
+    set(3, 4, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
+    set(2, 4, { type: 'straight', rotation: randR() });
+    set(1, 4, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    hedgeEndRotation = 2; // endpoint opens N
+  } else {
+    // over-the-top: wide loop, endpoint fixed at (1, 4).
+    // Trunk climbs col 1 from row 9 to row 6, turns east at row 6
+    // (avoiding endpoint at row 4), climbs col 3 from row 6 to row 1,
+    // jogs west on row 1 from col 3 to col 1, descends col 1 row 1
+    // back down to row 3, enters (1, 4) endpoint from N.
+    set(1, 9, { type: 'straight', rotation: randR() });
+    set(1, 8, { type: 'gate', rotation: 0, open: false });
+    set(1, 7, { type: 'straight', rotation: randR() });
+    set(1, 6, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    set(2, 6, { type: 'straight', rotation: randR() });
+    set(3, 6, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
+    set(3, 5, { type: 'straight', rotation: randR() });
+    set(3, 4, { type: 'straight', rotation: randR() });
+    set(3, 3, { type: 'straight', rotation: randR() });
+    set(3, 2, { type: 'straight', rotation: randR() });
+    set(3, 1, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
+    set(2, 1, { type: 'straight', rotation: randR() });
+    set(1, 1, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    set(1, 2, { type: 'straight', rotation: randR() });
+    set(1, 3, { type: 'straight', rotation: randR() });
+    hedgeEndRotation = 2; // endpoint opens N
   }
 
   set(1, hedgeExit.y, {
@@ -776,12 +831,19 @@ export function generateTier3Puzzle(seed: number): TunnelPuzzle {
   set(7, 11, { type: 'corner', rotation: 0, fixed: true });
 
   const raccoonExits = HABITAT_EXITS.raccoon;
-  const raccoonExit = raccoonExits[Math.floor(rng() * raccoonExits.length)];
 
-  // Trunk template — 'straight' (direct vertical col 7) or
-  // 'z-west' (jogs west via col 5-6 mid-trunk for variety).
-  const RACCOON_TEMPLATES = ['straight', 'z-west'] as const;
+  // Trunk template — 'straight' (direct vertical col 7),
+  // 'z-west' (jogs west via col 5-6 mid-trunk), or 'approach-north'
+  // (climbs past endpoint, west jog, descends col 7 into endpoint
+  // from above — only y=5 since y=4 leaves no headroom for the loop).
+  const RACCOON_TEMPLATES = ['straight', 'z-west', 'approach-north'] as const;
   const raccoonTemplate = RACCOON_TEMPLATES[Math.floor(rng() * RACCOON_TEMPLATES.length)];
+  let raccoonExit: { x: number; y: number };
+  if (raccoonTemplate === 'approach-north') {
+    raccoonExit = { x: 7, y: 5 };
+  } else {
+    raccoonExit = raccoonExits[Math.floor(rng() * raccoonExits.length)];
+  }
   let raccoonEndRotation: Rotation;
 
   if (raccoonTemplate === 'straight') {
@@ -790,6 +852,22 @@ export function generateTier3Puzzle(seed: number): TunnelPuzzle {
     }
     set(7, 7, { type: 'gate', rotation: 0, open: false });
     raccoonEndRotation = 0; // S-open
+  } else if (raccoonTemplate === 'approach-north') {
+    // Climb col 7 from row 10 to row 6, jog west to col 5, climb to
+    // row 4, jog east back to col 7, descend into endpoint at (7, 5)
+    // from N. Endpoint fixed at (7, 5).
+    set(7, 10, { type: 'straight', rotation: randR() });
+    set(7, 9, { type: 'straight', rotation: randR() });
+    set(7, 8, { type: 'straight', rotation: randR() });
+    set(7, 7, { type: 'gate', rotation: 0, open: false });
+    set(7, 6, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
+    set(6, 6, { type: 'straight', rotation: randR() });
+    set(5, 6, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
+    set(5, 5, { type: 'straight', rotation: randR() });
+    set(5, 4, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    set(6, 4, { type: 'straight', rotation: randR() });
+    set(7, 4, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
+    raccoonEndRotation = 2; // endpoint opens N
   } else {
     // z-west jog at row 8 over to col 5, climbs to row 6, east back.
     set(7, 10, { type: 'straight', rotation: randR() });
@@ -853,15 +931,39 @@ export function generateTier4Puzzle(seed: number): TunnelPuzzle {
   const skunkCol8 = HABITAT_EXITS.skunk.filter((e) => e.x === 8);
   const skunkExit = skunkCol8[Math.floor(rng() * skunkCol8.length)];
 
-  // Trunk straights up col 8 + 2 gates spaced apart for difficulty
-  // (single-animal tier 4 keeps a longer trunk to compensate for
-  // the simpler topology vs multi-animal coordination).
-  for (let y = skunkExit.y + 1; y <= 11; y++) {
-    set(8, y, { type: 'straight', rotation: randR() });
-  }
-  set(8, 7, { type: 'gate', rotation: 0, open: false });
-  if (tiles[10 * W + 8]?.type === 'straight') {
-    set(8, 10, { type: 'gate', rotation: 0, open: false });
+  // Trunk template — 'straight' (direct vertical col 8) or
+  // 'z-west' (jogs west via col 6 mid-trunk for variety).
+  const SKUNK_TEMPLATES = ['straight', 'z-west'] as const;
+  const skunkTemplate = SKUNK_TEMPLATES[Math.floor(rng() * SKUNK_TEMPLATES.length)];
+
+  if (skunkTemplate === 'straight') {
+    // Trunk straights up col 8 + 2 gates spaced apart for difficulty
+    // (single-animal tier 4 keeps a longer trunk to compensate for
+    // the simpler topology vs multi-animal coordination).
+    for (let y = skunkExit.y + 1; y <= 11; y++) {
+      set(8, y, { type: 'straight', rotation: randR() });
+    }
+    set(8, 7, { type: 'gate', rotation: 0, open: false });
+    if (tiles[10 * W + 8]?.type === 'straight') {
+      set(8, 10, { type: 'gate', rotation: 0, open: false });
+    }
+  } else {
+    // z-west: trunk climbs col 8 from row 11 to row 10, jogs west
+    // via col 7→col 6, climbs col 6 to row 6, jogs east back to col
+    // 8, then climbs col 8 from row 5 to skunkExit.y.
+    set(8, 11, { type: 'straight', rotation: randR() });
+    set(8, 10, { type: 'straight', rotation: randR() });
+    set(8, 9, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
+    set(7, 9, { type: 'straight', rotation: randR() });
+    set(6, 9, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
+    set(6, 8, { type: 'gate', rotation: 0, open: false });
+    set(6, 7, { type: 'straight', rotation: randR() });
+    set(6, 6, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    set(7, 6, { type: 'straight', rotation: randR() });
+    set(8, 6, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
+    for (let y = skunkExit.y + 1; y <= 5; y++) {
+      set(8, y, { type: 'straight', rotation: randR() });
+    }
   }
   set(8, skunkExit.y, {
     type: 'habitat-endpoint', rotation: 0, fixed: false,
@@ -879,10 +981,32 @@ export function generateTier4Puzzle(seed: number): TunnelPuzzle {
 export function applyTier4Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
   const idx = (x: number, y: number) => y * puzzle.width + x;
-  // Skunk trunk on col 8 — vertical straights all the way up.
-  for (let y = 1; y <= 11; y++) {
-    const t = tiles[idx(8, y)];
-    if (t.type === 'straight') t.rotation = 0;
+  // Detect template via fixed corner at (8, 9): z-west places one
+  // there; straight does not.
+  const at89 = tiles[idx(8, 9)];
+  const isZwest = at89.type === 'corner' && at89.fixed === true;
+  if (isZwest) {
+    // Verticals: col 8 rows 10, 11 + rows 1..5; col 6 rows 7, 8.
+    for (let y = 1; y <= 5; y++) {
+      const t = tiles[idx(8, y)];
+      if (t.type === 'straight') t.rotation = 0;
+    }
+    for (const c of [{ x: 8, y: 10 }, { x: 8, y: 11 }, { x: 6, y: 7 }, { x: 6, y: 8 }]) {
+      const t = tiles[idx(c.x, c.y)];
+      if (t.type === 'straight') t.rotation = 0;
+      if (t.type === 'gate') t.rotation = 0;
+    }
+    // Horizontals at (7, 9) and (7, 6).
+    for (const c of [{ x: 7, y: 9 }, { x: 7, y: 6 }]) {
+      const t = tiles[idx(c.x, c.y)];
+      if (t.type === 'straight') t.rotation = 1;
+    }
+  } else {
+    // Skunk trunk on col 8 — vertical straights all the way up.
+    for (let y = 1; y <= 11; y++) {
+      const t = tiles[idx(8, y)];
+      if (t.type === 'straight') t.rotation = 0;
+    }
   }
   for (let i = 0; i < tiles.length; i++) {
     if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
@@ -1007,7 +1131,29 @@ export function applyTier5Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
 export function applyTier3Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
   const idx = (x: number, y: number) => y * puzzle.width + x;
-  const isZwest = tiles[idx(7, 8)].type === 'corner';
+  // Detect template via fixed corners (decoy-proof).
+  const at78 = tiles[idx(7, 8)];
+  const at76 = tiles[idx(7, 6)];
+  const isZwest = at78.type === 'corner' && at78.fixed === true;
+  const isApproachNorth = !isZwest && at76.type === 'corner' && at76.fixed === true;
+  if (isApproachNorth) {
+    // Verticals: col 7 rows 8, 9, 10; col 5 row 5.
+    for (const c of [
+      { x: 7, y: 10 }, { x: 7, y: 9 }, { x: 7, y: 8 }, { x: 5, y: 5 },
+    ]) {
+      const t = tiles[idx(c.x, c.y)];
+      if (t.type === 'straight') t.rotation = 0;
+    }
+    // Horizontals at (6, 6) and (6, 4).
+    for (const c of [{ x: 6, y: 6 }, { x: 6, y: 4 }]) {
+      const t = tiles[idx(c.x, c.y)];
+      if (t.type === 'straight') t.rotation = 1;
+    }
+    for (let i = 0; i < tiles.length; i++) {
+      if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
+    }
+    return { ...puzzle, tiles };
+  }
   if (isZwest) {
     // Verticals: col 7 rows 9, 10, 5; col 5 rows 7. Horizontals at
     // (6, 8) and (6, 6).
@@ -1040,20 +1186,24 @@ export function applyTier3Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
 export function applyTier2Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
   const idx = (x: number, y: number) => y * puzzle.width + x;
-  // Hedgehog templates — handle both 'straight' and 'z-east'.
-  // Detect template by checking (1, 7): if it's a corner, this is
-  // the z-east template; if it's a straight or gate, it's the
-  // straight template.
-  const hedgeAtRow7 = tiles[idx(1, 7)];
-  const isHedgeStraight = hedgeAtRow7.type !== 'corner';
-  if (isHedgeStraight) {
-    // All col 1 trunk straights → vertical (rotation 0)
-    for (let y = 1; y <= 9; y++) {
-      const t = tiles[idx(1, y)];
-      if (t.type === 'straight') t.rotation = 0;
-    }
-  } else {
-    // z-east hedgehog: col 1 + col 3 vertical, col 2 horizontal jogs.
+  // Detect template:
+  //   (1, 7) corner          → z-east
+  //   (1, 6) corner + (1, 1) corner → over-the-top
+  //   (1, 6) corner          → approach-north
+  //   else                   → straight
+  // Detection uses `fixed` to avoid false-positives from decoy tiles
+  // (decoys never have fixed:true).
+  const at17 = tiles[idx(1, 7)];
+  const at16 = tiles[idx(1, 6)];
+  const at11 = tiles[idx(1, 1)];
+  const isZeast = at17.type === 'corner' && at17.fixed === true;
+  const isOverTop = !isZeast
+    && at16.type === 'corner' && at16.fixed === true
+    && at11.type === 'corner' && at11.fixed === true;
+  const isApproachNorth = !isZeast && !isOverTop
+    && at16.type === 'corner' && at16.fixed === true;
+  if (isZeast) {
+    // z-east: col 1 + col 3 vertical, col 2 horizontal jogs.
     for (const c of [{ x: 1, y: 9 }, { x: 3, y: 6 }]) {
       const t = tiles[idx(c.x, c.y)];
       if (t.type === 'straight') t.rotation = 0;
@@ -1061,6 +1211,39 @@ export function applyTier2Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
     for (const c of [{ x: 2, y: 7 }, { x: 2, y: 5 }]) {
       const t = tiles[idx(c.x, c.y)];
       if (t.type === 'straight') t.rotation = 1;
+    }
+  } else if (isApproachNorth) {
+    // Verticals on col 1 (rows 7, 9) and col 3 (row 5).
+    for (const c of [
+      { x: 1, y: 9 }, { x: 1, y: 7 }, { x: 3, y: 5 },
+    ]) {
+      const t = tiles[idx(c.x, c.y)];
+      if (t.type === 'straight') t.rotation = 0;
+    }
+    // Horizontals at (2, 6) and (2, 4).
+    for (const c of [{ x: 2, y: 6 }, { x: 2, y: 4 }]) {
+      const t = tiles[idx(c.x, c.y)];
+      if (t.type === 'straight') t.rotation = 1;
+    }
+  } else if (isOverTop) {
+    // Verticals: col 1 rows 9, 7, 2, 3; col 3 rows 5, 4, 3, 2.
+    for (const c of [
+      { x: 1, y: 9 }, { x: 1, y: 7 }, { x: 1, y: 2 }, { x: 1, y: 3 },
+      { x: 3, y: 5 }, { x: 3, y: 4 }, { x: 3, y: 3 }, { x: 3, y: 2 },
+    ]) {
+      const t = tiles[idx(c.x, c.y)];
+      if (t.type === 'straight') t.rotation = 0;
+    }
+    // Horizontals: (2, 6) and (2, 1).
+    for (const c of [{ x: 2, y: 6 }, { x: 2, y: 1 }]) {
+      const t = tiles[idx(c.x, c.y)];
+      if (t.type === 'straight') t.rotation = 1;
+    }
+  } else {
+    // straight: all col-1 trunk straights → vertical.
+    for (let y = 1; y <= 9; y++) {
+      const t = tiles[idx(1, y)];
+      if (t.type === 'straight') t.rotation = 0;
     }
   }
   // Open every gate

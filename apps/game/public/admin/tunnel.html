@@ -931,16 +931,19 @@
     const randR = () => Math.floor(rng() * 4);
     set(0, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'hedgehog', endpointRole: 'start' });
     set(1, 10, { type: 'corner', rotation: 0, fixed: true });
-    const HEDGE_EXITS = [{x:1,y:4},{x:1,y:5}];
-    const hexit = HEDGE_EXITS[Math.floor(rng() * HEDGE_EXITS.length)];
-    const HEDGE_TEMPLATES = ['straight', 'z-east'];
+    const HEDGE_TEMPLATES = ['straight', 'z-east', 'approach-north', 'over-the-top'];
     const hedgeTemplate = HEDGE_TEMPLATES[Math.floor(rng() * HEDGE_TEMPLATES.length)];
+    const HEDGE_EXITS = [{x:1,y:4},{x:1,y:5}];
+    let hexit;
+    if (hedgeTemplate === 'approach-north') hexit = {x:1, y:5};
+    else if (hedgeTemplate === 'over-the-top') hexit = {x:1, y:4};
+    else hexit = HEDGE_EXITS[Math.floor(rng() * HEDGE_EXITS.length)];
     let hRot;
     if (hedgeTemplate === 'straight') {
       for (let y = hexit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
       set(1, 7, { type: 'gate', rotation: 0, open: false });
       hRot = 0;
-    } else {
+    } else if (hedgeTemplate === 'z-east') {
       set(1, 9, { type: 'straight', rotation: randR() });
       set(1, 8, { type: 'gate', rotation: 0, open: false });
       set(1, 7, { type: 'corner', rotation: 2, fixed: true });
@@ -955,6 +958,38 @@
       } else {
         hRot = 3;
       }
+    } else if (hedgeTemplate === 'approach-north') {
+      // climbs col 1 to row 6, east jog to col 3, climbs col 3 to row
+      // 4, west jog back to col 1, into endpoint at (1, 5) from N.
+      set(1, 9, { type: 'straight', rotation: randR() });
+      set(1, 8, { type: 'gate', rotation: 0, open: false });
+      set(1, 7, { type: 'straight', rotation: randR() });
+      set(1, 6, { type: 'corner', rotation: 2, fixed: true });
+      set(2, 6, { type: 'straight', rotation: randR() });
+      set(3, 6, { type: 'corner', rotation: 0, fixed: true });
+      set(3, 5, { type: 'straight', rotation: randR() });
+      set(3, 4, { type: 'corner', rotation: 3, fixed: true });
+      set(2, 4, { type: 'straight', rotation: randR() });
+      set(1, 4, { type: 'corner', rotation: 2, fixed: true });
+      hRot = 2;
+    } else {
+      // over-the-top: wide loop through rows 1-3 around to (1, 4) endpoint.
+      set(1, 9, { type: 'straight', rotation: randR() });
+      set(1, 8, { type: 'gate', rotation: 0, open: false });
+      set(1, 7, { type: 'straight', rotation: randR() });
+      set(1, 6, { type: 'corner', rotation: 2, fixed: true });
+      set(2, 6, { type: 'straight', rotation: randR() });
+      set(3, 6, { type: 'corner', rotation: 0, fixed: true });
+      set(3, 5, { type: 'straight', rotation: randR() });
+      set(3, 4, { type: 'straight', rotation: randR() });
+      set(3, 3, { type: 'straight', rotation: randR() });
+      set(3, 2, { type: 'straight', rotation: randR() });
+      set(3, 1, { type: 'corner', rotation: 3, fixed: true });
+      set(2, 1, { type: 'straight', rotation: randR() });
+      set(1, 1, { type: 'corner', rotation: 2, fixed: true });
+      set(1, 2, { type: 'straight', rotation: randR() });
+      set(1, 3, { type: 'straight', rotation: randR() });
+      hRot = 2;
     }
     set(1, hexit.y, { type: 'habitat-endpoint', rotation: hRot, fixed: false, endpointFor: 'hedgehog', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
@@ -972,12 +1007,30 @@
     set(6, 11, { type: 'straight', rotation: 1, fixed: true });
     set(7, 11, { type: 'corner', rotation: 0, fixed: true });
     const RACCOON_EXITS = [{x:7,y:4},{x:7,y:5}];
-    const rexit = RACCOON_EXITS[Math.floor(rng() * RACCOON_EXITS.length)];
-    const RACCOON_TEMPLATES = ['straight', 'z-west'];
+    const RACCOON_TEMPLATES = ['straight', 'z-west', 'approach-north'];
     const raccoonTemplate = RACCOON_TEMPLATES[Math.floor(rng() * RACCOON_TEMPLATES.length)];
+    let rexit;
+    if (raccoonTemplate === 'approach-north') rexit = {x:7, y:5};
+    else rexit = RACCOON_EXITS[Math.floor(rng() * RACCOON_EXITS.length)];
+    let rEndR = 0;
     if (raccoonTemplate === 'straight') {
       for (let y = rexit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
       set(7, 7, { type: 'gate', rotation: 0, open: false });
+    } else if (raccoonTemplate === 'approach-north') {
+      // climb col 7 to row 6, west jog to col 5, climb to row 4, east
+      // jog back, into endpoint at (7, 5) from N.
+      set(7, 10, { type: 'straight', rotation: randR() });
+      set(7, 9, { type: 'straight', rotation: randR() });
+      set(7, 8, { type: 'straight', rotation: randR() });
+      set(7, 7, { type: 'gate', rotation: 0, open: false });
+      set(7, 6, { type: 'corner', rotation: 3, fixed: true });
+      set(6, 6, { type: 'straight', rotation: randR() });
+      set(5, 6, { type: 'corner', rotation: 1, fixed: true });
+      set(5, 5, { type: 'straight', rotation: randR() });
+      set(5, 4, { type: 'corner', rotation: 2, fixed: true });
+      set(6, 4, { type: 'straight', rotation: randR() });
+      set(7, 4, { type: 'corner', rotation: 3, fixed: true });
+      rEndR = 2;
     } else {
       set(7, 10, { type: 'straight', rotation: randR() });
       set(7, 9, { type: 'straight', rotation: randR() });
@@ -990,7 +1043,7 @@
       set(7, 6, { type: 'corner', rotation: 0, fixed: true });
       if (rexit.y === 4) set(7, 5, { type: 'straight', rotation: randR() });
     }
-    set(7, rexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'raccoon', endpointRole: 'end' });
+    set(7, rexit.y, { type: 'habitat-endpoint', rotation: rEndR, fixed: false, endpointFor: 'raccoon', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['raccoon'] };
   }
@@ -1008,10 +1061,27 @@
     set(8, 12, { type: 'corner', rotation: 0, fixed: true });
     const SKUNK_EXITS = [{x:8,y:1},{x:8,y:2}];
     const sexit = SKUNK_EXITS[Math.floor(rng() * SKUNK_EXITS.length)];
-    for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
-    set(8, 7, { type: 'gate', rotation: 0, open: false });
-    if (tiles[10 * W + 8]?.type === 'straight') {
-      set(8, 10, { type: 'gate', rotation: 0, open: false });
+    const SKUNK_TEMPLATES = ['straight', 'z-west'];
+    const skunkTemplate = SKUNK_TEMPLATES[Math.floor(rng() * SKUNK_TEMPLATES.length)];
+    if (skunkTemplate === 'straight') {
+      for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
+      set(8, 7, { type: 'gate', rotation: 0, open: false });
+      if (tiles[10 * W + 8]?.type === 'straight') {
+        set(8, 10, { type: 'gate', rotation: 0, open: false });
+      }
+    } else {
+      // z-west: trunk col 8 jogs west via col 6 mid-trunk.
+      set(8, 11, { type: 'straight', rotation: randR() });
+      set(8, 10, { type: 'straight', rotation: randR() });
+      set(8, 9, { type: 'corner', rotation: 3, fixed: true });
+      set(7, 9, { type: 'straight', rotation: randR() });
+      set(6, 9, { type: 'corner', rotation: 1, fixed: true });
+      set(6, 8, { type: 'gate', rotation: 0, open: false });
+      set(6, 7, { type: 'straight', rotation: randR() });
+      set(6, 6, { type: 'corner', rotation: 2, fixed: true });
+      set(7, 6, { type: 'straight', rotation: randR() });
+      set(8, 6, { type: 'corner', rotation: 0, fixed: true });
+      for (let y = sexit.y + 1; y <= 5; y++) set(8, y, { type: 'straight', rotation: randR() });
     }
     set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'skunk', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.9);
