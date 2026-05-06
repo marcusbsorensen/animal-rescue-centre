@@ -688,7 +688,8 @@
           <div class="result-title" id="result-title">Hooray!</div>
           <div class="result-msg" id="result-msg">The fox got home!</div>
           <div class="result-buttons">
-            <button class="btn-big" id="result-continue">Continue</button>
+            <button class="btn-big" id="result-done">Done — back to centre</button>
+            <button class="btn-big secondary" id="result-again">Play again</button>
             <button class="btn-big secondary" id="result-retry" style="display:none">Try again</button>
           </div>
         </div>
@@ -1875,17 +1876,22 @@
     const overlay = document.getElementById('result-overlay');
     const title = document.getElementById('result-title');
     const msg = document.getElementById('result-msg');
-    const cont = document.getElementById('result-continue');
+    const done  = document.getElementById('result-done');
+    const again = document.getElementById('result-again');
     const retry = document.getElementById('result-retry');
     if (win) {
       title.textContent = 'Hooray!';
       msg.textContent = 'The animals are out playing in the garden — happiness +!';
-      cont.style.display = '';
+      done.style.display = '';
+      again.style.display = '';
       retry.style.display = 'none';
+      // Soften the music so kid clearly hears the run is over.
+      if (music && !musicMuted) music.volume = 0.15;
     } else {
       title.textContent = 'So close!';
       msg.textContent = 'One of the animals got a bit lost — try again?';
-      cont.style.display = 'none';
+      done.style.display = '';
+      again.style.display = 'none';
       retry.style.display = '';
     }
     overlay.classList.add('show');
@@ -1993,13 +1999,20 @@
   document.getElementById('btn-close').addEventListener('click', () => {
     window.parent?.postMessage({ source: 'arc-tunnel', type: 'tunnel-cancel' }, '*');
   });
-  document.getElementById('result-continue').addEventListener('click', () => {
+  // 'Done — back to centre' on a win OR fail (kid wants to leave).
+  document.getElementById('result-done').addEventListener('click', () => {
     document.getElementById('result-overlay').classList.remove('show');
     window.parent?.postMessage({ source: 'arc-tunnel', type: 'tunnel-cancel' }, '*');
   });
+  // 'Play again' on a win — re-roll a fresh puzzle and keep the kid here.
+  document.getElementById('result-again').addEventListener('click', () => {
+    document.getElementById('result-overlay').classList.remove('show');
+    if (music && !musicMuted) music.volume = 0.4; // restore music volume
+    reroll();
+  });
+  // 'Try again' on a fail — same puzzle, unlocked for editing.
   document.getElementById('result-retry').addEventListener('click', () => {
     document.getElementById('result-overlay').classList.remove('show');
-    // Unlock so the kid can rotate again on retry.
     document.body.classList.remove('locked');
   });
 
@@ -2069,8 +2082,16 @@
   // resizes — e.g. when the design-preview viewport switches between
   // iPhone / iPad-P / iPad-L / Desktop sizes via CSS class swap.
   // Without this, the overlay stayed sized to the previous device.
+  //
+  // Skip re-render while an animation is running (body.animating) —
+  // otherwise the QUICK button appearing/disappearing changes footer
+  // height, triggers a wrap resize, and renderGrid wipes the trail
+  // mid-run, destroying the sprite (Marcus 2026-05-06 bug).
   if (typeof ResizeObserver !== 'undefined') {
-    const ro = new ResizeObserver(() => requestAnimationFrame(renderGrid));
+    const ro = new ResizeObserver(() => {
+      if (document.body.classList.contains('animating')) return;
+      requestAnimationFrame(renderGrid);
+    });
     ro.observe(document.getElementById('grid-wrap'));
   }
 </script>
