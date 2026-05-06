@@ -88,8 +88,17 @@
   html.overlay-mode body { background: transparent; }
   html.overlay-mode .stage { background: transparent; }
   html.overlay-mode #arc-stage .arc-frame {
-    background-color: transparent;
-    background-image: none;
+    /* Calm cream gravel base across the WHOLE frame so the area
+       behind the ARC building + the south parking strip don't show
+       through to the bare soil. Painted regions sit on top at full
+       opacity (per the dimmer rule below) (Marcus 2026-05-06). */
+    background-color: #d8c89a;
+    background-image: url('scene-assets/reference/arc-site-tier1-2026-04-29/texture-gravel-fine.png');
+    background-size: 60px 60px;
+    background-repeat: repeat;
+    /* Half-strength so the gravel reads as 'aboveground reference'
+       without dominating the puzzle layer beneath. */
+    opacity: 0.55;
   }
   /* Slide the building down so it sits flush at the BOTTOM of the
      frame (since parking is hidden). Default bottom:11% is the

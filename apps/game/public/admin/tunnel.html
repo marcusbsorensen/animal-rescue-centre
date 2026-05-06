@@ -204,7 +204,10 @@
   .tunnel-grid {
     display: grid;
     gap: 0;
-    background: linear-gradient(180deg, #6b4a26 0%, #4a2e14 100%);
+    /* Calm dark behind the tiles — sub-pixel hairline gaps between
+       cells used to reveal the brown gradient and look 'cracked'
+       (Marcus 2026-05-06 bug). Solid near-black blends invisibly. */
+    background: #1a120a;
     padding: 6px;
     border-radius: 12px;
     box-shadow:
@@ -1312,13 +1315,14 @@
         if (tile.type === 'empty') cell.classList.add('empty');
         if (tile.fixed) cell.classList.add('fixed');
         if (tile.type === 'gate' && tile.open === false) cell.classList.add('shut');
-        // Per-tile soil texture (Manus-painted) — 6 cohesive earth-
-        // toned variants picked from the original 10 (sandy, clayey,
-        // mossy + ashy excluded — too distinct, made the grid look
-        // like a quilt of biomes). Loamy/rooty/rocky/leafy/wormy/deep
-        // all sit in the same warm-brown family.
-        const SOIL_POOL = [1, 4, 5, 7, 9, 10];
-        const soilN = SOIL_POOL[(x * 7 + y * 13 + 1) % SOIL_POOL.length];
+        // Per-tile soil texture — single uniform tile so the grid
+        // reads as ONE continuous earth surface (Marcus 2026-05-06:
+        // 'we just need a couple of soil tiles with the same
+        // background colour and different textures so they sit
+        // next to each other seamlessly'). Manus has been
+        // dispatched for proper seamless-edge variants; until they
+        // land we use the most uniform of the existing tiles.
+        const soilN = 1; // soil-rich-1: dark loamy brown, even tone
         // Cheap deterministic hash → 0..1 for jitter values
         const hash01 = (a, b, salt) => {
           let h = (a * 2654435761 + b * 40503 + salt * 2246822519) >>> 0;
