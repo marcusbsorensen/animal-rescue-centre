@@ -1293,6 +1293,21 @@
     }
   }
 
+  // Inverse of fadeOverlayBackIn — hide the painted overlay so the
+  // tunnels are clearly visible while an animal is finding its way
+  // through. Used between animals so each one's run starts with the
+  // overlay off (Marcus 2026-05-06).
+  function fadeOverlayOut() {
+    const og = document.getElementById('overground-overlay');
+    if (og) og.classList.add('hidden');
+    document.body.classList.remove('overlay-on');
+    const btn = document.getElementById('btn-overlay');
+    if (btn) {
+      btn.classList.remove('is-on');
+      btn.textContent = '🏠 hidden';
+    }
+  }
+
   function animatePawprintsAndWin(result) {
     return runAnimalAnimations(result, true);
   }
@@ -1329,6 +1344,12 @@
       const r = result[animal];
       if (!r || !r.path || r.path.length === 0) return;
       const path = r.path;
+
+      // Hide the painted overlay so this animal's tunnel run is
+      // clearly visible. The overlay fades back IN once the animal
+      // arrives at its endpoint (Marcus 2026-05-06).
+      fadeOverlayOut();
+      await sleep(300); // brief gap so the fade is perceptible
 
       const sprite = document.createElement('div');
       sprite.className = 'animal-sprite';
