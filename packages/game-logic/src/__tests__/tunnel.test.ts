@@ -305,12 +305,12 @@ describe('generateTier1Puzzle', () => {
   });
 });
 
-describe('generateTier2Puzzle', () => {
-  it('produces a 9×13 fox+hedgehog puzzle', () => {
+describe('generateTier2Puzzle (single hedgehog)', () => {
+  it('produces a 9×13 hedgehog-only puzzle', () => {
     const p = generateTier2Puzzle(1);
     expect(p.width).toBe(9);
     expect(p.height).toBe(13);
-    expect(p.animals).toEqual(['fox', 'hedgehog']);
+    expect(p.animals).toEqual(['hedgehog']);
   });
 
   it('is deterministic for the same seed', () => {
@@ -327,7 +327,6 @@ describe('generateTier2Puzzle', () => {
     expect(start.type).toBe('habitat-endpoint');
     expect(start.endpointFor).toBe('hedgehog');
     expect(start.endpointRole).toBe('start');
-    // End on col 1 (rows 4 or 5)
     const endHits = [{x:1,y:4},{x:1,y:5}].filter((c) => {
       const t = p.tiles[idx(c.x, c.y)];
       return t.type === 'habitat-endpoint' && t.endpointFor === 'hedgehog' && t.endpointRole === 'end';
@@ -335,11 +334,11 @@ describe('generateTier2Puzzle', () => {
     expect(endHits.length).toBe(1);
   });
 
-  it('includes gates on both trunks (default closed)', () => {
+  it('includes one gate on the hedgehog trunk (default closed)', () => {
     const p = generateTier2Puzzle(1);
     const gates = p.tiles.filter((t) => t.type === 'gate');
-    expect(gates.length).toBe(2);
-    expect(gates.every((g) => g.open === false)).toBe(true);
+    expect(gates.length).toBe(1);
+    expect(gates[0].open).toBe(false);
   });
 
   it('is solvable when the canonical solution is applied', () => {
@@ -349,54 +348,36 @@ describe('generateTier2Puzzle', () => {
       expect(isPuzzleSolved(solved)).toBe(true);
     }
   });
+});
 
-  it('tier-3 generates fox+hedgehog+raccoon and is solvable', () => {
-    const p = generateTier3Puzzle(42);
-    expect(p.animals).toEqual(['fox', 'hedgehog', 'raccoon']);
-    // Three gates total (one per trunk)
-    expect(p.tiles.filter((t) => t.type === 'gate').length).toBe(3);
-    // Solvable when canonical solution applied
-    expect(isPuzzleSolved(applyTier3Solution(p))).toBe(true);
-  });
-
-  it('tier-4 adds skunk → all 4 garden animals, 8 gates (2 per trunk), solvable', () => {
-    const p = generateTier4Puzzle(42);
-    expect(p.animals).toEqual(['fox', 'hedgehog', 'raccoon', 'skunk']);
-    // Tier 3 added 4 gates (1 per trunk at row 7), tier 4 doubles to
-    // 2 per trunk by adding row-9 gates → 8 total.
-    expect(p.tiles.filter((t) => t.type === 'gate').length).toBe(8);
-    expect(isPuzzleSolved(applyTier4Solution(p))).toBe(true);
-  });
-
-  it('tier-5: hardest puzzle — 12 gates default closed, still solvable', () => {
-    const p = generateTier5Puzzle(42);
-    expect(p.animals).toEqual(['fox', 'hedgehog', 'raccoon', 'skunk']);
-    const gates = p.tiles.filter((t) => t.type === 'gate');
-    // Tier 4 already adds 8 gates (2 per trunk); tier 5 adds another
-    // gate at row 9 of every applicable trunk. Most seeds produce 12.
-    expect(gates.length).toBeGreaterThanOrEqual(8);
-    expect(gates.every((g) => g.open === false)).toBe(true);
-    expect(isPuzzleSolved(applyTier5Solution(p))).toBe(true);
-  });
-
-  it('is NOT solvable if gates left closed (even with straights aligned)', () => {
-    const p = generateTier2Puzzle(1);
-    // Apply only straight rotations, leave gates closed
-    const tiles = p.tiles.map((t) => ({ ...t }));
-    const idx = (x: number, y: number) => y * p.width + x;
-    for (let y = 2; y <= 9; y++) {
-      const t = tiles[idx(6, y)];
-      if (t.type === 'straight') t.rotation = 0;
+describe('generateTier3Puzzle (single raccoon)', () => {
+  it('produces a 9×13 raccoon-only puzzle, solvable', () => {
+    for (const seed of [1, 2, 3, 42, 9999, 20260503]) {
+      const p = generateTier3Puzzle(seed);
+      expect(p.animals).toEqual(['raccoon']);
+      expect(isPuzzleSolved(applyTier3Solution(p))).toBe(true);
     }
-    for (let x = 1; x <= 5; x++) {
-      const t = tiles[idx(x, 1)];
-      if (t.type === 'straight') t.rotation = 1;
+  });
+});
+
+describe('generateTier4Puzzle (single skunk)', () => {
+  it('produces a 9×13 skunk-only puzzle, solvable', () => {
+    for (const seed of [1, 2, 3, 42, 9999, 20260503]) {
+      const p = generateTier4Puzzle(seed);
+      expect(p.animals).toEqual(['skunk']);
+      expect(isPuzzleSolved(applyTier4Solution(p))).toBe(true);
     }
-    for (let y = 1; y <= 9; y++) {
-      const t = tiles[idx(1, y)];
-      if (t.type === 'straight') t.rotation = 0;
+  });
+});
+
+describe('generateTier5Puzzle (multi-animal)', () => {
+  it('produces a 4-animal puzzle with 4 gates, solvable', () => {
+    for (const seed of [1, 2, 3, 42, 9999, 20260503]) {
+      const p = generateTier5Puzzle(seed);
+      expect(p.animals).toEqual(['fox', 'hedgehog', 'raccoon', 'skunk']);
+      const gates = p.tiles.filter((t) => t.type === 'gate');
+      expect(gates.length).toBe(4);
+      expect(isPuzzleSolved(applyTier5Solution(p))).toBe(true);
     }
-    const partial = { ...p, tiles };
-    expect(isPuzzleSolved(partial)).toBe(false);
   });
 });
