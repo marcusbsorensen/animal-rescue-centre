@@ -490,8 +490,15 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   //   'z-east'   — trunk jogs east via col 7-8 mid-way
   // More templates (z-west, big-u, bridge-cross, approach-north)
   // will land in subsequent passes.
-  const TIER1_TEMPLATES = ['straight', 'z-east', 'z-west'] as const;
+  const TIER1_TEMPLATES = ['straight', 'z-east', 'z-west', 'approach-north'] as const;
   const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
+
+  // Pick fox exit FIRST so we can constrain by template if needed.
+  // approach-north only supports row-1 exits (the path comes south
+  // into the endpoint via row 0, so a row-2 exit needs an extra
+  // straight at (foxExit.x, 1) — handled below).
+  const foxExits = HABITAT_EXITS.fox;
+  const foxExit = foxExits[Math.floor(rng() * foxExits.length)];
 
   if (trunkTemplate === 'straight') {
     for (let y = 2; y <= 9; y++) {
@@ -516,7 +523,7 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
     set(6, 4, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
     set(6, 3, { type: 'straight', rotation: randR() });
     set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-  } else {
+  } else if (trunkTemplate === 'z-west') {
     // z-west: mirror of z-east — trunk jogs WEST at row 7 over to
     // col 4, climbs col 4 to row 4, then jogs back east to col 6.
     set(6, 9, { type: 'straight', rotation: randR() });
@@ -531,37 +538,54 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
     set(6, 4, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
     set(6, 3, { type: 'straight', rotation: randR() });
     set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+  } else {
+    // approach-north: trunk continues UP past row 1 to row 0, west
+    // along row 0 to (foxExit.x, 0), then south into the endpoint
+    // from above. Row 1 is just a vertical pass-through (no top
+    // corner, no west-bound branch).
+    for (let y = 1; y <= 9; y++) {
+      set(6, y, { type: 'straight', rotation: randR() });
+    }
+    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
   }
 
-  // Top of trunk: corner at (6, 1) turning S+W. r=3 = ┐ (S+W).
-  set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-
-  // Pick the fox exit position from the catalogue (8 valid tiles
-  // across rows 1-2 inside the painted fox enclosure). Seed-driven
-  // so each day's puzzle uses a slightly different branch shape.
-  const foxExits = HABITAT_EXITS.fox;
-  const foxExit = foxExits[Math.floor(rng() * foxExits.length)];
-
-  // Fox branch — horizontal straights along row 1 from (foxExit.x + 1)
-  // up to col 5 inclusive, filling between the chosen-exit column and
-  // the trunk corner at col 6.
-  for (let x = foxExit.x + 1; x <= 5; x++) {
-    set(x, 1, { type: 'straight', rotation: randR() });
-  }
-
-  // If the chosen exit is on row 2, drop a fixed ┌ corner at
-  // (foxExit.x, 1) that turns the branch south to reach it.
-  // (Endpoint accepts arrival from any side, but we still need
-  // a connecting tile so the path actually reaches it.)
-  if (foxExit.y === 2) {
-    set(foxExit.x, 1, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+  // Top corner + branch — only for non-approach-north templates.
+  if (trunkTemplate !== 'approach-north') {
+    set(6, 1, { type: 'corner', rotation: 3, fixed: true });
+    // Branch — horizontal straights along row 1 from (foxExit.x+1)
+    // to col 5 inclusive.
+    for (let x = foxExit.x + 1; x <= 5; x++) {
+      set(x, 1, { type: 'straight', rotation: randR() });
+    }
+    if (foxExit.y === 2) {
+      set(foxExit.x, 1, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    }
+  } else {
+    // approach-north top: trunk col 6 climbs to row 0 via a fixed
+    // ┐ S+W corner that turns west; row 0 horizontals westward;
+    // ┌ S+E corner at (foxExit.x, 0) turns south into the endpoint.
+    set(6, 0, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
+    for (let x = foxExit.x + 1; x <= 5; x++) {
+      set(x, 0, { type: 'straight', rotation: randR() });
+    }
+    set(foxExit.x, 0, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    if (foxExit.y === 2) {
+      // Path enters endpoint from north past row 1 — need a vertical
+      // straight at (foxExit.x, 1) to bridge.
+      set(foxExit.x, 1, { type: 'straight', rotation: randR() });
+    }
   }
 
   // Fox pen entry — ROTATABLE so kid can spin to match their
-  // approach. Default rotation matches the canonical solution:
-  //   y=1 exit: branch row 1 westward, approach from E → r=3 (E)
-  //   y=2 exit: branch turns south at the ┌ corner, approach from N → r=2 (N)
-  const foxEndRotation = foxExit.y === 1 ? 3 : 2;
+  // approach. Default rotation matches the canonical approach side:
+  //   y=1 + non-approach-north: from E → r=3 (E-open)
+  //   y=2 + non-approach-north: from N → r=2 (N-open)
+  //   approach-north (any y):   from N → r=2 (N-open)
+  let foxEndRotation: Rotation;
+  if (trunkTemplate === 'approach-north') foxEndRotation = 2;
+  else foxEndRotation = (foxExit.y === 1 ? 3 : 2) as Rotation;
   set(foxExit.x, foxExit.y, {
     type: 'habitat-endpoint', rotation: foxEndRotation, fixed: false,
     endpointFor: 'fox', endpointRole: 'end',
@@ -607,10 +631,35 @@ export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
     const t = tiles[idx(c.x, c.y)];
     if (t.type === 'straight') t.rotation = 1;
   }
-  // Branch row 1 horizontal.
-  for (let x = 1; x <= 5; x++) {
-    const t = tiles[idx(x, 1)];
-    if (t.type === 'straight') t.rotation = 1;
+  // Detect template by checking (6, 1) — for non-approach-north it's
+  // the top corner; for approach-north it's a vertical straight.
+  // approach-north never places the row-1 west branch.
+  const isApproachNorth = tiles[idx(6, 1)].type !== 'corner';
+  if (isApproachNorth) {
+    // Row 0 horizontal jog (only the connector straights, not decoys).
+    // Connector straights live BETWEEN the (6, 0) ┐ corner and the
+    // (foxExit.x, 0) ┌ corner. Find both corners, rotate everything
+    // between them to horizontal.
+    let cornerWestX = -1;
+    for (let x = 5; x >= 0; x--) {
+      const t = tiles[idx(x, 0)];
+      if (t.type === 'corner' && t.fixed) { cornerWestX = x; break; }
+    }
+    if (cornerWestX >= 0) {
+      for (let x = cornerWestX + 1; x <= 5; x++) {
+        const t = tiles[idx(x, 0)];
+        if (t.type === 'straight') t.rotation = 1;
+      }
+      // y=2 bridge: vertical straight at (cornerWestX, 1).
+      const bridge = tiles[idx(cornerWestX, 1)];
+      if (bridge.type === 'straight') bridge.rotation = 0;
+    }
+  } else {
+    // Branch row 1 horizontal — the regular west-bound branch.
+    for (let x = 1; x <= 5; x++) {
+      const t = tiles[idx(x, 1)];
+      if (t.type === 'straight') t.rotation = 1;
+    }
   }
   return { ...puzzle, tiles };
 }

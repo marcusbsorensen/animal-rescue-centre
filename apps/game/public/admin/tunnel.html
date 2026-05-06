@@ -838,9 +838,15 @@
     const randR = () => Math.floor(rng() * 4);
     set(5, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
     set(6, 10, { type: 'corner', rotation: 0, fixed: true });
-    // Pick trunk topology — straight, z-east, or z-west.
-    const TIER1_TEMPLATES = ['straight', 'z-east', 'z-west'];
+    // Pick trunk topology — straight, z-east, z-west, or approach-north.
+    const TIER1_TEMPLATES = ['straight', 'z-east', 'z-west', 'approach-north'];
     const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
+    // Pick fox exit FIRST so we can place the approach-north corner.
+    const FOX_EXITS = [
+      {x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},
+      {x:1,y:2},{x:2,y:2},{x:3,y:2},{x:4,y:2},
+    ];
+    const exit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
     if (trunkTemplate === 'straight') {
       for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
       set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
@@ -859,8 +865,7 @@
       set(6, 4, { type: 'corner', rotation: 1, fixed: true });
       set(6, 3, { type: 'straight', rotation: randR() });
       set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    } else {
-      // z-west — mirror of z-east, jogs west via col 4.
+    } else if (trunkTemplate === 'z-west') {
       set(6, 9, { type: 'straight', rotation: randR() });
       set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
       set(6, 7, { type: 'corner', rotation: 3, fixed: true });
@@ -873,17 +878,25 @@
       set(6, 4, { type: 'corner', rotation: 0, fixed: true });
       set(6, 3, { type: 'straight', rotation: randR() });
       set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+    } else {
+      // approach-north — trunk runs all the way up col 6, west on row 0.
+      for (let y = 1; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
+      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+      set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
     }
-    set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-    // Fox exit catalogue (mirrors HABITAT_EXITS.fox in game-logic).
-    const FOX_EXITS = [
-      {x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},
-      {x:1,y:2},{x:2,y:2},{x:3,y:2},{x:4,y:2},
-    ];
-    const exit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
-    for (let x = exit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
-    if (exit.y === 2) set(exit.x, 1, { type: 'corner', rotation: 2, fixed: true });
-    const fEndR = exit.y === 1 ? 3 : 2; set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: fEndR, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
+    if (trunkTemplate !== 'approach-north') {
+      set(6, 1, { type: 'corner', rotation: 3, fixed: true });
+      for (let x = exit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
+      if (exit.y === 2) set(exit.x, 1, { type: 'corner', rotation: 2, fixed: true });
+    } else {
+      set(6, 0, { type: 'corner', rotation: 3, fixed: true });
+      for (let x = exit.x + 1; x <= 5; x++) set(x, 0, { type: 'straight', rotation: randR() });
+      set(exit.x, 0, { type: 'corner', rotation: 2, fixed: true });
+      if (exit.y === 2) set(exit.x, 1, { type: 'straight', rotation: randR() });
+    }
+    const fEndR = trunkTemplate === 'approach-north' ? 2 : (exit.y === 1 ? 3 : 2);
+    set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: fEndR, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
