@@ -1176,6 +1176,26 @@
 
   // Tier picker — read ?tier=N from URL (default 1).
   const urlTier = parseInt(new URLSearchParams(location.search).get('tier') || '1', 10);
+
+  // Map a season string from URL or postMessage to one of our
+  // soil pool keys. Accepts both short forms (spring/summer/autumn/
+  // winter) and the in-game long forms (spring_bloom etc.). Returns
+  // undefined when no recognised season is provided so the renderer
+  // falls back to the default loamy pool.
+  let _currentSeason; // set by URL on load + by postMessage init
+  function soilSeasonForUrl() {
+    if (_currentSeason) return _currentSeason;
+    const raw = new URLSearchParams(location.search).get('season') || '';
+    return _seasonKeyFromRaw(raw);
+  }
+  function _seasonKeyFromRaw(raw) {
+    const s = (raw || '').toLowerCase();
+    if (s.startsWith('spring')) return 'spring';
+    if (s.startsWith('summer')) return 'summer';
+    if (s.startsWith('autumn') || s.startsWith('fall')) return 'autumn';
+    if (s.startsWith('winter')) return 'winter';
+    return undefined;
+  }
   function generatePuzzle(seed) {
     if (urlTier === 5) return generateTier5(seed);
     if (urlTier === 4) return generateTier4(seed);
@@ -1315,14 +1335,26 @@
         if (tile.type === 'empty') cell.classList.add('empty');
         if (tile.fixed) cell.classList.add('fixed');
         if (tile.type === 'gate' && tile.open === false) cell.classList.add('shut');
-        // Per-tile soil texture — single uniform tile so the grid
-        // reads as ONE continuous earth surface (Marcus 2026-05-06:
-        // 'we just need a couple of soil tiles with the same
-        // background colour and different textures so they sit
-        // next to each other seamlessly'). Manus has been
-        // dispatched for proper seamless-edge variants; until they
-        // land we use the most uniform of the existing tiles.
-        const soilN = 1; // soil-rich-1: dark loamy brown, even tone
+        // Per-tile soil texture — SEASONAL pool (Marcus 2026-05-06:
+        // 'different types of earth depending on the season, the
+        // tiles just need to look relatively consistent on the
+        // screen for that season'). Each season picks 1-2 tiles
+        // that look similar to each other so the grid reads as a
+        // single bed of seasonal earth, not a quilt.
+        //   spring  → mossy + loamy (greens + dark brown)
+        //   summer  → sandy + rocky (warm dry tones)
+        //   autumn  → clayey + leafy (orange-brown + leaf scatter)
+        //   winter  → rooty + ashy (cold dark + pale frost)
+        //   default → loamy only (no season passed)
+        const SEASONAL_SOIL = {
+          spring:  [6, 1],
+          summer:  [2, 5],
+          autumn:  [3, 7],
+          winter:  [4, 8],
+        };
+        const seasonKey = soilSeasonForUrl();
+        const SOIL_POOL = SEASONAL_SOIL[seasonKey] || [1];
+        const soilN = SOIL_POOL[(x * 7 + y * 13 + 1) % SOIL_POOL.length];
         // Cheap deterministic hash → 0..1 for jitter values
         const hash01 = (a, b, salt) => {
           let h = (a * 2654435761 + b * 40503 + salt * 2246822519) >>> 0;
@@ -2084,6 +2116,13 @@
     if (m.source !== 'arc-game-host' && m.source !== 'arc-tunnel-host') return;
     if (m.type === 'init') {
       const payload = m.payload || {};
+      // Season override (host can pass current in-game season so the
+      // soil pool matches). Accepts short (spring) or long
+      // (spring_bloom) forms.
+      if (typeof payload.season === 'string') {
+        const k = _seasonKeyFromRaw(payload.season);
+        if (k) _currentSeason = k;
+      }
       if (payload.puzzle) {
         puzzle = payload.puzzle;
         originalPuzzle = JSON.parse(JSON.stringify(puzzle));
@@ -2091,6 +2130,15 @@
       } else {
         const seed = typeof payload.seed === 'number' ? payload.seed : (Date.now() >>> 0);
         loadFromSeed(seed);
+      }
+    }
+    // Forward subsequent season updates from the host (long-running
+    // session crossing a season boundary). Triggers a re-render.
+    if (m.type === 'season' && m.payload && typeof m.payload.season === 'string') {
+      const k = _seasonKeyFromRaw(m.payload.season);
+      if (k) {
+        _currentSeason = k;
+        renderGrid();
       }
     }
   });

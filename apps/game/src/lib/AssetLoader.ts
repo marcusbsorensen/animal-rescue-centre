@@ -265,11 +265,16 @@ export class AssetLoader {
     }
 
     // Tier assignment
-    //   - logo + icons → boot (BootScene loads these eagerly)
+    //   - logo → boot (BootScene loads these eagerly; ~5 files)
+    //   - icons → essential (was boot, but the icons folder grew to 64
+    //     files which when combined with apprentice poses pushed the
+    //     boot queue over Phaser 3.90's maxParallelDownloads (32). Files
+    //     beyond the 32-cap got marked LOADING but never queued for XHR
+    //     and BootScene hung forever on the bouncing-paw splash.)
     //   - animals: split fallback vs variant by filename-token count
     //   - everything else → essential
     let tier: AssetTier = 'essential';
-    if (category === 'logo' || category === 'icons') {
+    if (category === 'logo') {
       tier = 'boot';
     } else if (category === 'animals') {
       // {species}-{state}.png → 2 tokens → fallback (essential)

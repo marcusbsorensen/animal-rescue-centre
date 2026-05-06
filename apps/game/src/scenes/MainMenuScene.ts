@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { getSession, logout } from '../lib/auth';
+import { getSession, logout, getRememberedUsernames } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
 import { AssetLoader } from '../lib/AssetLoader';
 import { GameStateStore } from '../game-state/GameStateStore';
@@ -23,6 +23,12 @@ export class MainMenuScene extends Phaser.Scene {
     super({ key: 'MainMenuScene' });
   }
 
+  /** Cached store for the logged-in session. We load it once and reuse it
+   *  across overlay swaps (menu ↔ friends) so we don't have to scene.restart
+   *  the entire scene — restart-during-iframe-handoff was causing blank
+   *  screens / stuck loaders. */
+  private store: GameStateStore | null = null;
+
   create(): void {
     const session = getSession();
 
@@ -33,47 +39,69 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Not logged in → welcome overlay.
     if (!session) {
-      const unmount = mountAuth('welcome', {
-        onAction: (action) => {
-          // PLAY without a session → assume the player is new and route
-          // to signup. Returning users would tap "I already have an
-          // account" instead. Without this, PLAY would call startGame()
-          // and fail because there's no user to attach progress to.
-          if (action === 'play')   { unmount(); this.scene.start('SignupScene'); return; }
-          if (action === 'login')  { unmount(); this.scene.start('LoginScene'); return; }
-          if (action === 'signup') { unmount(); this.scene.start('SignupScene'); return; }
-        },
-      });
+      this.showWelcome();
       this.events.once('shutdown', unmountAuth);
       this.events.once('destroy', unmountAuth);
       return;
     }
 
-    // Logged in → painted main-menu overlay with stats loaded from the store.
+    // Logged in → load store once, then show menu overlay.
     const store = new GameStateStore();
+    this.store = store;
     loadGameState(this, store).then(() => {
-      const stats = computeMenuStats(store);
-      const menuUnmount = mountAuth('menu', {
-        onAction: (action) => {
-          if (action === 'play')    { menuUnmount(); this.startGame(); return; }
-          if (action === 'friends') { menuUnmount(); this.openFriendsOverlay(store, session); return; }
-          if (action === 'logout')  {
-            menuUnmount();
-            logout();
-            this.scene.start('MainMenuScene');
-            return;
-          }
-        },
-      }, { session, stats });
-      this.events.once('shutdown', unmountAuth);
-      this.events.once('destroy', unmountAuth);
+      this.showMenu(session);
       // Hand the freshly-loaded store to GameScene via the registry so
       // CONTINUE doesn't pay the load cost twice.
       this.registry.set('gameStore', store);
     });
+    this.events.once('shutdown', unmountAuth);
+    this.events.once('destroy', unmountAuth);
 
     // Kick off asset prefetch in parallel so CONTINUE is instant.
     AssetLoader.getInstance().startBackgroundLoad(this);
+  }
+
+  /** Mount the welcome (logged-out) overlay. */
+  private showWelcome(): void {
+    mountAuth('welcome', {
+      onAction: (action) => {
+        // PLAY without a session → if this device has previously-used
+        // accounts, route to login (kid is almost certainly returning).
+        // Only assume "new player → signup" when no remembered username
+        // exists. Without this, returning kids whose session has expired
+        // get dumped into the PIN-creation flow and can't get back in.
+        if (action === 'play')   {
+          unmountAuth();
+          const remembered = getRememberedUsernames();
+          this.scene.start(remembered.length > 0 ? 'LoginScene' : 'SignupScene');
+          return;
+        }
+        if (action === 'login')  { unmountAuth(); this.scene.start('LoginScene'); return; }
+        if (action === 'signup') { unmountAuth(); this.scene.start('SignupScene'); return; }
+      },
+    });
+  }
+
+  /** Mount the main-menu overlay (logged-in). Uses this.store. */
+  private showMenu(session: NonNullable<ReturnType<typeof getSession>>): void {
+    if (!this.store) return;
+    const stats = computeMenuStats(this.store);
+    mountAuth('menu', {
+      onAction: (action) => {
+        if (action === 'play')    { unmountAuth(); this.startGame(); return; }
+        if (action === 'friends') { unmountAuth(); this.openFriendsOverlay(session); return; }
+        if (action === 'logout')  {
+          // Don't scene.start('MainMenuScene') — that races with the
+          // iframe unmount and leaves the kid staring at a half-torn-down
+          // screen. Just clear the session, swap overlays in place.
+          unmountAuth();
+          logout();
+          this.store = null;
+          this.showWelcome();
+          return;
+        }
+      },
+    }, { session, stats });
   }
 
   /**
@@ -82,13 +110,18 @@ export class MainMenuScene extends Phaser.Scene {
    * the recruit one into game-logic, persist, then re-render the overlay
    * on success so the apprentice-able badges update in place.
    */
-  private openFriendsOverlay(store: GameStateStore, session: ReturnType<typeof getSession>): void {
+  private openFriendsOverlay(session: NonNullable<ReturnType<typeof getSession>>): void {
+    if (!this.store) return;
+    const store = this.store;
     const mount = (): void => {
-      const friendsUnmount = mountAuth('friends', {
+      mountAuth('friends', {
         onAction: (action, _session, payload) => {
           if (action === 'back-to-menu') {
-            friendsUnmount();
-            this.scene.restart();
+            // Swap overlays in place — DO NOT scene.restart() here. Restart
+            // re-runs loadGameState and momentarily unmounts the iframe,
+            // which on slower connections leaves a blank canvas.
+            unmountAuth();
+            this.showMenu(session);
             return;
           }
           if (action === 'recruit-apprentice') {
@@ -108,16 +141,13 @@ export class MainMenuScene extends Phaser.Scene {
             showToast(this, `⭐ ${def?.name ?? 'Apprentice'} is now a volunteer apprentice!`);
             saveGameState(this, store);
             // Re-mount so the screen re-renders with the new state.
-            friendsUnmount();
             mount();
           }
         },
       }, {
-        session: session ?? undefined,
+        session,
         recruited: store.apprentices.map((a) => a.id),
       });
-      this.events.once('shutdown', unmountAuth);
-      this.events.once('destroy', unmountAuth);
     };
     mount();
   }

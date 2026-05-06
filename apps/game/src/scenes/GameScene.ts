@@ -1159,6 +1159,11 @@ export class GameScene extends Phaser.Scene {
     const today = new Date();
     const dailySeed = (today.getUTCFullYear() * 10000 + (today.getUTCMonth() + 1) * 100 + today.getUTCDate()) >>> 0;
 
+    // Pass current season so the iframe picks the matching seasonal soil
+    // pool (spring/summer/autumn/winter). Without this, the tunnel falls
+    // back to a single soil tile.
+    const season = this.store.calendar?.currentSeason ?? 'spring_bloom';
+
     const unmount = mountInGame('tunnel', {
       onAction: (action, payload) => {
         if (action === 'tunnel-cancel' || action === 'close') {
@@ -1216,7 +1221,7 @@ export class GameScene extends Phaser.Scene {
           return;
         }
       },
-    }, { seed: dailySeed }, { query: { tier: String(tier) } });
+    }, { seed: dailySeed, season }, { query: { tier: String(tier), season } });
     this.events.once('shutdown', unmountInGame);
   }
 

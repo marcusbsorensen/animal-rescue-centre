@@ -199,15 +199,24 @@ export class LoadingScene extends Phaser.Scene {
 
     loader.onComplete(() => {
       this.drawBarFill(1);
-      // Celebration flash then go
+      // Celebration flash, then fade out and start GameScene.
+      // BUG HISTORY (2026-05-06): previously used
+      //   `this.tweens.add({ targets: cameras.main, alpha: 0,
+      //                      onComplete: scene.start })`
+      // The tween's onComplete never fired in the brand-new-signup
+      // flow (kid stuck on a blank loading screen after the intro).
+      // Same root cause + same fix as MainMenuScene.startGame: own the
+      // delay via the scene's timer (`time.delayedCall`) and use the
+      // built-in `cameras.main.fadeOut` rather than a generic alpha
+      // tween. The scene's timer is robust to whatever side-effects
+      // (iframe unmount, audio context, asset loader) confuse the
+      // tween manager during the handoff.
       this.time.delayedCall(300, () => {
         loader.clearCallbacks();
         this.escapeHatchTimer?.remove();
-        this.tweens.add({
-          targets: this.cameras.main,
-          alpha: 0,
-          duration: 300,
-          onComplete: () => this.scene.start('GameScene'),
+        this.cameras.main.fadeOut(300);
+        this.time.delayedCall(320, () => {
+          this.scene.start('GameScene');
         });
       });
     });
@@ -320,11 +329,12 @@ export class LoadingScene extends Phaser.Scene {
       // Kill tweens + loader callbacks before leaving so they don't
       // run against a destroyed scene.
       AssetLoader.getInstance().clearCallbacks();
-      this.tweens.add({
-        targets: this.cameras.main,
-        alpha: 0,
-        duration: 250,
-        onComplete: () => this.scene.start('GameScene'),
+      // Same pattern + reasoning as the loader.onComplete path: the
+      // built-in fadeOut + delayedCall fires reliably; the alpha tween
+      // pattern would intermittently leave the kid on a black screen.
+      this.cameras.main.fadeOut(250);
+      this.time.delayedCall(270, () => {
+        this.scene.start('GameScene');
       });
     });
     container.add(hit);

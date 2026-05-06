@@ -41,24 +41,22 @@ export class BootScene extends Phaser.Scene {
     // Fetch manifest, then load logo, then transition
     const loader = AssetLoader.getInstance();
     loader.fetchManifest().then(() => {
-      // Queue logo files
+      // Queue boot-tier files (logo only — see AssetLoader.parseEntry).
+      // Boot MUST stay under Phaser 3.90's maxParallelDownloads (32) or
+      // the loader leaves overflow files in state=LOADING but never
+      // queues them for XHR, freezing the boot splash forever. Icons
+      // were removed from boot tier for this reason; apprentice poses
+      // (9 files) stay because logo (5) + poses (9) = 14, well under 32.
       loader.loadBootAssets(this);
 
-      // Queue apprentice action-pose sprites. Small painted chibi
-      // decorations shown in the rescue centre when an apprentice
-      // has been recruited. They live outside the asset-manifest
-      // pipeline (served straight from /admin/scene-assets/) so we
-      // register them by URL here, once, up front.
+      // Apprentice action-pose sprites — small painted chibi decorations
+      // shown in the rescue centre when an apprentice has been recruited.
+      // They live outside the asset-manifest pipeline (served straight
+      // from /admin/scene-assets/) so we register them by URL here.
       const APPRENTICE_POSES: string[] = [
-        'rhubarb-feeding',
-        'rhubarb-cat-lap',
-        'rhubarb-skateboarding-garden',
-        'amara-cat-shoulder',
-        'amara-treat',
-        'amara-climbing',
-        'kofi-reading-aloud',
-        'kofi-parrot-arm',
-        'kofi-snake-nose',
+        'rhubarb-feeding', 'rhubarb-cat-lap', 'rhubarb-skateboarding-garden',
+        'amara-cat-shoulder', 'amara-treat', 'amara-climbing',
+        'kofi-reading-aloud', 'kofi-parrot-arm', 'kofi-snake-nose',
       ];
       for (const pose of APPRENTICE_POSES) {
         const key = `apprentice-${pose}`;
@@ -67,11 +65,9 @@ export class BootScene extends Phaser.Scene {
         }
       }
 
-      // Don't fail the whole boot if an apprentice pose 404s.
+      // Don't fail the whole boot if any file 404s — skip + continue.
       this.load.on('loaderror', (file: Phaser.Loader.File) => {
-        if (file.key.startsWith('apprentice-')) {
-          console.debug(`[BootScene] apprentice pose missing: ${file.key}`);
-        }
+        if (file?.key) console.debug(`[BootScene] missing: ${file.key}`);
       });
 
       // Always start the loader — listen for complete event.

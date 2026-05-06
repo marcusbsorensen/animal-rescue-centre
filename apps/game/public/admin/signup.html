@@ -1680,7 +1680,7 @@
                   <span class="sign-animal-emoji" id="pin-animal-emoji" aria-hidden="true">🦊</span>
                   <div class="sign-title" id="pin-greeting">Nice, Lily!</div>
                 </div>
-                <div class="sign-subtitle">Pick a secret 4-number code</div>
+                <div class="sign-subtitle" id="pin-subtitle">Pick a secret 4-number code</div>
                 <div class="pin-dots">
                   <span class="pin-dot"></span>
                   <span class="pin-dot"></span>
@@ -1987,15 +1987,39 @@
   // From B back to A, from C back to B.
   document.querySelectorAll('[data-back-sticker]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      if (showing === 'pin') { setStage('select'); return; }
+      if (showing === 'pin') {
+        // If on the confirm pass, back goes to the first pass (still on
+        // the PIN stage) rather than all the way to name+animal.
+        if (pinConfirmMode) {
+          pinConfirmMode = false;
+          capturedPin = '';
+          setPinSubtitle(PIN_SUBTITLE_FIRST);
+          clearPin();
+          saveDraft();
+          return;
+        }
+        setStage('select');
+        return;
+      }
       if (showing === 'hint') { setStage('pin'); return; }
       send('back-to-welcome');
     });
   });
 
   // ─── PIN entry ───
+  // Two-pass capture: first the kid types the PIN, then we ask for it
+  // again to catch typos. Without this confirm pass, a single mis-tap
+  // creates an account whose PIN nobody alive knows. (Marcus learned this
+  // the hard way 2026-05-06 with the "Daddy" account.)
   let pinBuffer = '';
   let capturedPin = '';
+  let pinConfirmMode = false;
+  const PIN_SUBTITLE_FIRST = 'Pick a secret 4-number code';
+  const PIN_SUBTITLE_CONFIRM = 'Now type those 4 numbers again';
+  function setPinSubtitle(text) {
+    const el = document.getElementById('pin-subtitle');
+    if (el) el.textContent = text;
+  }
   function renderPinDots() {
     document.querySelectorAll('.pin-dots .pin-dot').forEach((d, i) => {
       d.classList.toggle('filled', i < pinBuffer.length);
@@ -2109,7 +2133,31 @@
     if (name.length < 2) { showError('Need a longer name — try at least 2 letters!', 'stage-pin'); clearPin(); return; }
     if (name.length > 18) { showError('That name is a bit long — try shorter!', 'stage-pin'); clearPin(); return; }
     if (pinBuffer.length !== 4) { showError('Type all 4 numbers!', 'stage-pin'); return; }
-    capturedPin = pinBuffer;
+
+    if (!pinConfirmMode) {
+      // First pass — stash the PIN, then ask for it again.
+      capturedPin = pinBuffer;
+      pinConfirmMode = true;
+      setPinSubtitle(PIN_SUBTITLE_CONFIRM);
+      setTimeout(() => { clearPin(); }, 200);
+      saveDraft();
+      return;
+    }
+
+    // Second pass — must match the first. If not, reset and try again.
+    if (pinBuffer !== capturedPin) {
+      showError("Those numbers don't match — let's try again!", 'stage-pin');
+      capturedPin = '';
+      pinConfirmMode = false;
+      setPinSubtitle(PIN_SUBTITLE_FIRST);
+      clearPin();
+      saveDraft();
+      return;
+    }
+
+    // Match — leave confirm mode and advance to hint stage.
+    pinConfirmMode = false;
+    setPinSubtitle(PIN_SUBTITLE_FIRST);
     setTimeout(() => {
       enterHintStage();
       clearPin();
