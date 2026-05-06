@@ -757,13 +757,20 @@
     for (let x = fexit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
     if (fexit.y === 2) set(fexit.x, 1, { type: 'corner', rotation: 2, fixed: true });
     set(fexit.x, fexit.y, { type: 'habitat-endpoint', rotation: 3, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
-    // HEDGEHOG
+    // HEDGEHOG with Z-jog (4 fixed corners + 5 rotatable straights)
     set(0, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'hedgehog', endpointRole: 'start' });
     set(1, 10, { type: 'corner', rotation: 0, fixed: true });
     const HEDGE_EXITS = [{x:1,y:4},{x:1,y:5}];
     const hexit = HEDGE_EXITS[Math.floor(rng() * HEDGE_EXITS.length)];
-    for (let y = hexit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
-    set(1, 7, { type: 'gate', rotation: 0, open: false });
+    set(1, 9, { type: 'straight', rotation: randR() });
+    set(1, 8, { type: 'gate', rotation: 0, open: false });
+    set(1, 7, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    set(2, 7, { type: 'straight', rotation: randR() });
+    set(3, 7, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
+    set(3, 6, { type: 'straight', rotation: randR() });
+    set(3, 5, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
+    set(2, 5, { type: 'straight', rotation: randR() });
+    if (hexit.y === 4) set(1, 5, { type: 'corner', rotation: 1, fixed: true });
     set(1, hexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'hedgehog', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['fox', 'hedgehog'] };
