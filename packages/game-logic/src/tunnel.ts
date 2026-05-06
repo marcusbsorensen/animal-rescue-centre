@@ -735,38 +735,37 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
   const hedgeCol1Exits = HABITAT_EXITS.hedgehog.filter((e) => e.x === 1);
   const hedgeExit = hedgeCol1Exits[Math.floor(rng() * hedgeCol1Exits.length)];
 
-  // Hedgehog trunk with a forced Z-JOG (Marcus 2026-05-06 — paths
-  // need real bends, not just a straight line). Path:
-  //   col 1 down rows 9 + 8 → gate at 8 → ┌ at (1,7) jog east →
-  //   straight at (2,7) → ┘ at (3,7) turn north → straight (3,6) →
-  //   ┐ at (3,5) turn west → straight (2,5) → endpoint at col 1.
-  // Player rotates 5 straights + opens 1 gate; 4 fixed corners
-  // shape the Z so the kid can SEE the required path geometry.
-  set(1, 9, { type: 'straight', rotation: randR() });
-  set(1, 8, { type: 'gate', rotation: 0, open: false });
-  set(1, 7, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-  set(2, 7, { type: 'straight', rotation: randR() });
-  set(3, 7, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
-  set(3, 6, { type: 'straight', rotation: randR() });
-  set(3, 5, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
-  set(2, 5, { type: 'straight', rotation: randR() });
-  // If endpoint is at row 4 we need a fixed ┘ corner at (1, 5) so
-  // the path coming in from the east turns north into (1, 4). If
-  // endpoint is row 5, (1, 5) IS the endpoint and accepts the east
-  // arrival directly.
-  if (hedgeExit.y === 4) {
-    // Need to receive from E (the (2,5) horizontal) and exit N (to
-    // the endpoint at (1,4)). Base ┘ N+W rotated 1 = N+E open (└).
-    set(1, 5, { type: 'corner', rotation: 1, fixed: true });
+  // Hedgehog trunk template — pick straight or z-east per seed.
+  const HEDGE_TEMPLATES = ['straight', 'z-east'] as const;
+  const hedgeTemplate = HEDGE_TEMPLATES[Math.floor(rng() * HEDGE_TEMPLATES.length)];
+  let hedgeEndRotation: Rotation;
+
+  if (hedgeTemplate === 'straight') {
+    // Direct vertical trunk col 1 from (1, hedgeExit.y+1) to (1, 9).
+    for (let y = hedgeExit.y + 1; y <= 9; y++) {
+      set(1, y, { type: 'straight', rotation: randR() });
+    }
+    set(1, 7, { type: 'gate', rotation: 0, open: false });
+    hedgeEndRotation = 0; // S-open (approach from below)
+  } else {
+    // z-east jog at row 7 over to col 3, climbs to row 5, west back.
+    set(1, 9, { type: 'straight', rotation: randR() });
+    set(1, 8, { type: 'gate', rotation: 0, open: false });
+    set(1, 7, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    set(2, 7, { type: 'straight', rotation: randR() });
+    set(3, 7, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
+    set(3, 6, { type: 'straight', rotation: randR() });
+    set(3, 5, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
+    set(2, 5, { type: 'straight', rotation: randR() });
+    if (hedgeExit.y === 4) {
+      // └ corner at (1, 5) turning E→N into endpoint at (1, 4).
+      set(1, 5, { type: 'corner', rotation: 1, fixed: true });
+      hedgeEndRotation = 0; // S-open (approach from below)
+    } else {
+      hedgeEndRotation = 3; // E-open (path arrives from east)
+    }
   }
-  // Endpoint rotation matches the canonical approach side so the
-  // kid CAN solve at default; they may also spin the endpoint to
-  // any orientation if they route around (any-side approach still
-  // reaches the endpoint, but the END's open side must match the
-  // approach for the path to count).
-  // hexit.y=5 → approach from E (the horizontal at (2,5)) → r=3 (E-open)
-  // hexit.y=4 → approach from S (the └ at (1,5) exits N into endpoint) → r=0 (S-open)
-  const hedgeEndRotation = hedgeExit.y === 5 ? 3 : 0;
+
   set(1, hedgeExit.y, {
     type: 'habitat-endpoint', rotation: hedgeEndRotation, fixed: false,
     endpointFor: 'hedgehog', endpointRole: 'end',
@@ -982,17 +981,28 @@ export function applyTier2Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
     const t = tiles[idx(x, 1)];
     if (t.type === 'straight') t.rotation = 1;
   }
-  // Hedgehog Z-jog: col 1 + col 3 vertical straights (rotation 0),
-  // horizontal jog straights at (2, 7) + (2, 5) (rotation 1).
-  // (1, 5) is either the endpoint or a fixed corner — never a
-  // straight — so no rotation needed there.
-  for (const c of [{ x: 1, y: 9 }, { x: 3, y: 6 }]) {
-    const t = tiles[idx(c.x, c.y)];
-    if (t.type === 'straight') t.rotation = 0;
-  }
-  for (const c of [{ x: 2, y: 7 }, { x: 2, y: 5 }]) {
-    const t = tiles[idx(c.x, c.y)];
-    if (t.type === 'straight') t.rotation = 1;
+  // Hedgehog templates — handle both 'straight' and 'z-east'.
+  // Detect template by checking (1, 7): if it's a corner, this is
+  // the z-east template; if it's a straight or gate, it's the
+  // straight template.
+  const hedgeAtRow7 = tiles[idx(1, 7)];
+  const isHedgeStraight = hedgeAtRow7.type !== 'corner';
+  if (isHedgeStraight) {
+    // All col 1 trunk straights → vertical (rotation 0)
+    for (let y = 1; y <= 9; y++) {
+      const t = tiles[idx(1, y)];
+      if (t.type === 'straight') t.rotation = 0;
+    }
+  } else {
+    // z-east hedgehog: col 1 + col 3 vertical, col 2 horizontal jogs.
+    for (const c of [{ x: 1, y: 9 }, { x: 3, y: 6 }]) {
+      const t = tiles[idx(c.x, c.y)];
+      if (t.type === 'straight') t.rotation = 0;
+    }
+    for (const c of [{ x: 2, y: 7 }, { x: 2, y: 5 }]) {
+      const t = tiles[idx(c.x, c.y)];
+      if (t.type === 'straight') t.rotation = 1;
+    }
   }
   // Open every gate
   for (let i = 0; i < tiles.length; i++) {
