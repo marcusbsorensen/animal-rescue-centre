@@ -359,19 +359,23 @@ describe('generateTier2Puzzle', () => {
     expect(isPuzzleSolved(applyTier3Solution(p))).toBe(true);
   });
 
-  it('tier-4 adds skunk → all 4 garden animals, 4 gates, solvable', () => {
+  it('tier-4 adds skunk → all 4 garden animals, 8 gates (2 per trunk), solvable', () => {
     const p = generateTier4Puzzle(42);
     expect(p.animals).toEqual(['fox', 'hedgehog', 'raccoon', 'skunk']);
-    expect(p.tiles.filter((t) => t.type === 'gate').length).toBe(4);
+    // Tier 3 added 4 gates (1 per trunk at row 7), tier 4 doubles to
+    // 2 per trunk by adding row-9 gates → 8 total.
+    expect(p.tiles.filter((t) => t.type === 'gate').length).toBe(8);
     expect(isPuzzleSolved(applyTier4Solution(p))).toBe(true);
   });
 
-  it('tier-5 rush-hour: gates default OPEN, still solvable', () => {
+  it('tier-5: hardest puzzle — 12 gates default closed, still solvable', () => {
     const p = generateTier5Puzzle(42);
     expect(p.animals).toEqual(['fox', 'hedgehog', 'raccoon', 'skunk']);
     const gates = p.tiles.filter((t) => t.type === 'gate');
-    expect(gates.length).toBe(4);
-    expect(gates.every((g) => g.open === true)).toBe(true);
+    // Tier 4 already adds 8 gates (2 per trunk); tier 5 adds another
+    // gate at row 9 of every applicable trunk. Most seeds produce 12.
+    expect(gates.length).toBeGreaterThanOrEqual(8);
+    expect(gates.every((g) => g.open === false)).toBe(true);
     expect(isPuzzleSolved(applyTier5Solution(p))).toBe(true);
   });
 

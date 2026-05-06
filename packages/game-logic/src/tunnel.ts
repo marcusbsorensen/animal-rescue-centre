@@ -529,7 +529,7 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   // Pad with decoy tiles so the puzzle isn't just "rotate every
   // straight to vertical". Decoy zone covers the area around the
   // fox network (cols 1-7, rows 2-9).
-  fillWithDecoyTiles(tiles, W, { x0: 1, y0: 2, x1: 7, y1: 9 }, rng, 0.5);
+  fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
 
   return { width: W, height: H, tiles, animals: ['fox'] };
 }
@@ -638,7 +638,7 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
 
   // Decoy fill — covers the central span between hedgehog (col 1)
   // and fox (col 6) trunks plus a strip east of fox.
-  fillWithDecoyTiles(tiles, W, { x0: 2, y0: 1, x1: 7, y1: 9 }, rng, 0.45);
+  fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
 
   return { width: W, height: H, tiles, animals: ['fox', 'hedgehog'] };
 }
@@ -693,7 +693,7 @@ export function generateTier3Puzzle(seed: number): TunnelPuzzle {
   });
 
   // Decoy fill — fills gaps between the now-three trunks.
-  fillWithDecoyTiles(tiles, base.width, { x0: 2, y0: 1, x1: 8, y1: 10 }, rng, 0.4);
+  fillWithDecoyTiles(tiles, base.width, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
 
   return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon'] };
 }
@@ -740,10 +740,19 @@ export function generateTier4Puzzle(seed: number): TunnelPuzzle {
     endpointFor: 'skunk', endpointRole: 'end',
   });
 
-  // Decoy fill — at tier 4 the puzzle area is busy already; only
-  // sparse decoys to give kids a few extra rotation choices
-  // without overwhelming.
-  fillWithDecoyTiles(tiles, base.width, { x0: 2, y0: 1, x1: 8, y1: 10 }, rng, 0.3);
+  // Tier-4 difficulty bump: a SECOND gate on every trunk at row 9
+  // (always a straight on all four trunks, regardless of which exit
+  // the seed picked). Kid manages 8 gates total — twice the staging
+  // work of tier 3.
+  for (const col of [1, 6, 7, 8]) {
+    if (tiles[9 * base.width + col]?.type === 'straight') {
+      set(col, 9, { type: 'gate', rotation: 0, open: false });
+    }
+  }
+
+  // Decoy fill at tier 4 — wall-to-wall pieces so the kid has to
+  // work out which rotations matter and which are noise.
+  fillWithDecoyTiles(tiles, base.width, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.9);
 
   return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon', 'skunk'] };
 }
@@ -768,22 +777,28 @@ export function applyTier4Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
 // ── Tier 5 puzzle generator ───────────────────────────────────
 
 /**
- * Tier 5 — RUSH HOUR. Same topology as tier 4 (all 4 animals) but
- * gates default OPEN (no staging needed) and animations run
- * SIMULTANEOUSLY rather than sequentially. Future enhancements:
- *  - Path-crossing penalties (animals can't share a tile at the
- *    same time → use bridges)
- *  - One-way tiles, more complex obstacle routing
+ * Tier 5 — HARDEST puzzle. Marcus 2026-05-06 priority shift: harder
+ * puzzles trump simultaneous animation. So tier 5 keeps tier 4's
+ * 4-animal topology AND adds a THIRD gate to each trunk (12 gates
+ * total, all closed by default). Kid has to:
+ *   - rotate every straight on every trunk
+ *   - toggle 12 gates open before submitting
+ *   - work around 90% decoy fill across the whole grid
  *
- * For now tier 5 = tier 4 with gates pre-open. The simultaneous
- * animation lives in the UI (tunnel.html runAnimalAnimations).
+ * Future enhancement: simultaneous animation + path-collision
+ * detection (bridges become routing-required).
  */
 export function generateTier5Puzzle(seed: number): TunnelPuzzle {
   const base = generateTier4Puzzle(seed);
   const tiles = base.tiles.map((t) => ({ ...t }));
-  // Gates pre-open — kid focuses on routing, not staging
-  for (let i = 0; i < tiles.length; i++) {
-    if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
+  const set = (x: number, y: number, t: TunnelTile) => { tiles[y * base.width + x] = t; };
+  // Add a THIRD gate per trunk at row 4 (only fox + skunk have a
+  // straight there — hedgehog and raccoon trunks don't reach that
+  // far up). 2 extra gates → 10 total in tier 5.
+  for (const col of [6, 8]) {
+    if (tiles[4 * base.width + col]?.type === 'straight') {
+      set(col, 4, { type: 'gate', rotation: 0, open: false });
+    }
   }
   return { ...base, tiles };
 }

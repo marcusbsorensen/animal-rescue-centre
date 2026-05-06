@@ -729,7 +729,7 @@
     for (let x = exit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
     if (exit.y === 2) set(exit.x, 1, { type: 'corner', rotation: 2, fixed: true });
     set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: 3, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 1, y0: 2, x1: 7, y1: 9 }, rng, 0.5);
+    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
 
@@ -765,7 +765,7 @@
     for (let y = hexit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
     set(1, 7, { type: 'gate', rotation: 0, open: false });
     set(1, hexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'hedgehog', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 2, y0: 1, x1: 7, y1: 9 }, rng, 0.45);
+    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['fox', 'hedgehog'] };
   }
 
@@ -786,7 +786,7 @@
     for (let y = rexit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
     set(7, 7, { type: 'gate', rotation: 0, open: false });
     set(7, rexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'raccoon', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, base.width, { x0: 2, y0: 1, x1: 8, y1: 10 }, rng, 0.4);
+    fillWithDecoyTiles(tiles, base.width, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon'] };
   }
 
@@ -806,16 +806,28 @@
     for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
     set(8, 7, { type: 'gate', rotation: 0, open: false });
     set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'skunk', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, base.width, { x0: 2, y0: 1, x1: 8, y1: 10 }, rng, 0.3);
+    // Tier-4 difficulty bump: SECOND gate per trunk at row 9.
+    for (const col of [1, 6, 7, 8]) {
+      if (tiles[9 * base.width + col]?.type === 'straight') {
+        set(col, 9, { type: 'gate', rotation: 0, open: false });
+      }
+    }
+    fillWithDecoyTiles(tiles, base.width, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.9);
     return { ...base, tiles, animals: ['fox', 'hedgehog', 'raccoon', 'skunk'] };
   }
 
-  // MIRROR of generateTier5Puzzle — rush-hour: tier 4 layout but
-  // gates default OPEN (no staging, kid focuses on routing).
+  // MIRROR of generateTier5Puzzle — HARDEST puzzle (Marcus 2026-05-06):
+  // tier 4 + a THIRD gate per trunk where row 4 is straight (fox + skunk).
+  // All gates closed by default — kid manages 10 gates plus 90% decoy fill.
   function generateTier5(seed) {
     const base = generateTier4(seed);
-    const tiles = base.tiles.map((t) =>
-      t.type === 'gate' ? { ...t, open: true } : { ...t });
+    const tiles = base.tiles.map((t) => ({ ...t }));
+    const set = (x, y, t) => { tiles[y * base.width + x] = t; };
+    for (const col of [6, 8]) {
+      if (tiles[4 * base.width + col]?.type === 'straight') {
+        set(col, 4, { type: 'gate', rotation: 0, open: false });
+      }
+    }
     return { ...base, tiles };
   }
 
