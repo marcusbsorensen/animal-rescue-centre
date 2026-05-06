@@ -294,6 +294,72 @@
     display: none;
   }
   body.quick-paused .quick-banner { display: block; }
+
+  /* Music toggle — same icon-btn style as overlay toggle. Off
+     state grays out. */
+  .icon-btn.music-toggle.is-on {
+    background: linear-gradient(180deg, #d8a04a 0%, #a87028 100%);
+    color: #fffbe8;
+  }
+
+  /* Ready? startup overlay — full-screen white scrim with funny
+     oversized deco art + Ready! button. Hidden once dismissed. */
+  .ready-overlay {
+    position: fixed; inset: 0;
+    background: rgba(255, 251, 232, 0.96);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 400ms ease;
+  }
+  .ready-overlay.gone { opacity: 0; pointer-events: none; }
+  .ready-card {
+    text-align: center;
+    max-width: 90%;
+    padding: 24px;
+    font-family: 'Fredoka', sans-serif;
+  }
+  .ready-art {
+    position: relative;
+    width: min(420px, 80vw);
+    height: min(260px, 50vw);
+    margin: 0 auto 16px;
+  }
+  .ready-art-deco {
+    position: absolute;
+    width: 50%;
+    filter: drop-shadow(0 8px 16px rgba(58, 36, 16, 0.3));
+  }
+  .ready-art-deco.big-treasure {
+    left: 0; top: 5%;
+    transform: rotate(-8deg);
+  }
+  .ready-art-deco.big-bones {
+    right: 0; top: 30%;
+    transform: rotate(12deg);
+  }
+  .ready-title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #5a3a1c;
+    margin-bottom: 8px;
+  }
+  .ready-sub {
+    font-size: 16px;
+    color: #7a5430;
+    margin-bottom: 20px;
+    max-width: 360px;
+    margin-left: auto; margin-right: auto;
+    line-height: 1.4;
+  }
+  .btn-big.ready-go {
+    background: linear-gradient(180deg, #6db84a 0%, #3a8528 100%);
+    color: #fffbe8;
+    font-size: 22px;
+    padding: 12px 36px;
+    box-shadow: 0 4px 0 #1f4d12, 0 8px 16px rgba(58, 133, 40, 0.35);
+  }
   .tile.empty { cursor: default; }
   .tile.fixed {
     cursor: default;
@@ -549,6 +615,7 @@
           <div class="tunnel-subtitle">rotate the tiles so the animals can get out to play and back home safely</div>
         </div>
         <div class="header-buttons">
+          <button class="icon-btn music-toggle is-on" id="btn-music" title="Music on / off">🔊</button>
           <button class="icon-btn overlay-toggle is-on" id="btn-overlay" title="Show / hide the buildings overlay">🏠 above</button>
           <button class="icon-btn" id="btn-close">Close ×</button>
         </div>
@@ -578,6 +645,23 @@
         <button class="btn-big secondary" id="btn-reset">Reset</button>
         <button class="btn-big tertiary" id="btn-reroll">Re-dig tunnels</button>
         <button class="btn-big quick-fix" id="btn-quick" disabled>QUICK! ⏸ fix the tunnel</button>
+      </div>
+
+      <!-- Ready? startup overlay — shown on every page load. Music
+           starts here (browser autoplay policy needs the click) and
+           the kid taps Ready! to enter the puzzle. Big silly artwork
+           of the treasure chest + bones to set a 'curious dig'
+           vibe (Marcus 2026-05-06). -->
+      <div class="ready-overlay" id="ready-overlay">
+        <div class="ready-card">
+          <div class="ready-art">
+            <img class="ready-art-deco big-treasure" src="scene-assets/tunnel-soil/deco-treasure.png" alt="treasure"/>
+            <img class="ready-art-deco big-bones" src="scene-assets/tunnel-soil/deco-bones.png" alt="bones"/>
+          </div>
+          <div class="ready-title">Ready to dig?</div>
+          <div class="ready-sub">Rotate the soil tiles so the animals can find their way out to play — and home again safely.</div>
+          <button class="btn-big ready-go" id="btn-ready">Ready!</button>
+        </div>
       </div>
 
       <div class="result-overlay" id="result-overlay">
@@ -1730,9 +1814,11 @@
   // Background music — first-gesture autoplay (browser autoplay policies).
   const music = document.getElementById('bg-music');
   let musicStarted = false;
+  let musicMuted = false;
   function tryStartMusic() {
     if (musicStarted || !music) return;
     music.volume = 0.4;
+    music.muted = musicMuted;
     const p = music.play();
     if (p && typeof p.then === 'function') {
       p.then(() => { musicStarted = true; }).catch(() => {/* ignore */});
@@ -1740,6 +1826,24 @@
       musicStarted = true;
     }
   }
+  // Music on/off button — flips the muted flag and updates the icon.
+  const btnMusic = document.getElementById('btn-music');
+  btnMusic?.addEventListener('click', () => {
+    musicMuted = !musicMuted;
+    if (music) music.muted = musicMuted;
+    btnMusic.textContent = musicMuted ? '🔇' : '🔊';
+    btnMusic.classList.toggle('is-on', !musicMuted);
+  });
+
+  // Ready? startup overlay — clicking Ready! starts the music
+  // (browser autoplay policy needs the gesture) and dismisses
+  // the scrim. The puzzle's intro-stage-1/2 sequence then runs.
+  const readyOverlay = document.getElementById('ready-overlay');
+  document.getElementById('btn-ready')?.addEventListener('click', () => {
+    tryStartMusic();
+    readyOverlay?.classList.add('gone');
+    setTimeout(() => readyOverlay?.remove(), 500);
+  });
 
   // postMessage init handshake — host can either send a fully-formed
   // puzzle object or just a seed.
