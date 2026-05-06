@@ -490,7 +490,7 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   //   'z-east'   — trunk jogs east via col 7-8 mid-way
   // More templates (z-west, big-u, bridge-cross, approach-north)
   // will land in subsequent passes.
-  const TIER1_TEMPLATES = ['straight', 'z-east', 'z-west', 'approach-north'] as const;
+  const TIER1_TEMPLATES = ['straight', 'z-east', 'z-east', 'z-west', 'z-west', 'approach-north', 'approach-north'] as const;
   const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
 
   // Pick fox exit FIRST so we can constrain by template if needed.
@@ -613,7 +613,7 @@ export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   // horizontal. The z-east template adds straights on col 7+8 +
   // horizontal jog cells at (7, 4) + (7, 7); we cover them all.
   const verticalSets = [
-    { x: 6, y0: 2, y1: 9 }, // straight col 6 (all templates)
+    { x: 6, y0: 1, y1: 9 }, // col 6 trunk — y=1 included for approach-north template
     { x: 8, y0: 6, y1: 6 }, // z-east col 8 vertical run
     { x: 4, y0: 6, y1: 6 }, // z-west col 4 vertical run
   ];
@@ -710,7 +710,7 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
   //   'over-the-top'    — wide loop up to rows 1-3, east to col 3,
   //                       back down col 1 (only y=4 — endpoint sits
   //                       further down, more room for the loop)
-  const HEDGE_TEMPLATES = ['straight', 'z-east', 'approach-north', 'over-the-top'] as const;
+  const HEDGE_TEMPLATES = ['straight', 'z-east', 'z-east', 'approach-north', 'approach-north', 'over-the-top', 'over-the-top'] as const;
   const hedgeTemplate = HEDGE_TEMPLATES[Math.floor(rng() * HEDGE_TEMPLATES.length)];
 
   const hedgeCol1Exits = HABITAT_EXITS.hedgehog.filter((e) => e.x === 1);
@@ -836,7 +836,7 @@ export function generateTier3Puzzle(seed: number): TunnelPuzzle {
   // 'z-west' (jogs west via col 5-6 mid-trunk), or 'approach-north'
   // (climbs past endpoint, west jog, descends col 7 into endpoint
   // from above — only y=5 since y=4 leaves no headroom for the loop).
-  const RACCOON_TEMPLATES = ['straight', 'z-west', 'approach-north'] as const;
+  const RACCOON_TEMPLATES = ['straight', 'z-west', 'z-west', 'approach-north', 'approach-north'] as const;
   const raccoonTemplate = RACCOON_TEMPLATES[Math.floor(rng() * RACCOON_TEMPLATES.length)];
   let raccoonExit: { x: number; y: number };
   if (raccoonTemplate === 'approach-north') {
@@ -933,7 +933,7 @@ export function generateTier4Puzzle(seed: number): TunnelPuzzle {
 
   // Trunk template — 'straight' (direct vertical col 8) or
   // 'z-west' (jogs west via col 6 mid-trunk for variety).
-  const SKUNK_TEMPLATES = ['straight', 'z-west'] as const;
+  const SKUNK_TEMPLATES = ['straight', 'z-west', 'z-west'] as const;
   const skunkTemplate = SKUNK_TEMPLATES[Math.floor(rng() * SKUNK_TEMPLATES.length)];
 
   if (skunkTemplate === 'straight') {

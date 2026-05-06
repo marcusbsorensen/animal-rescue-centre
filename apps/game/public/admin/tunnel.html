@@ -245,17 +245,47 @@
   }
   .tile > .tile-svg { position: relative; z-index: 1; }
 
-  /* Closed-gate pulse — soft glow that invites the kid to tap.
-     Stops once the gate is open. Helps avoid the 'why doesn't
-     Send the Animals open these for me?' confusion. */
-  @keyframes gate-pulse {
-    0%, 100% { box-shadow: inset 0 0 0 0 rgba(255, 220, 140, 0); }
-    50%      { box-shadow: inset 0 0 12px 4px rgba(255, 220, 140, 0.55); }
+  /* Closed-gate pulse — much louder than before. The previous soft
+     amber glow wasn't reading as clickable; kids ignored gates and
+     wondered why Send-the-animals didn't open them automatically.
+     Now: bright orange ring that pulses + a 'tap' label above the
+     gate (Marcus 2026-05-06). */
+  @keyframes gate-pulse-ring {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 138, 61, 0.0),
+                          inset 0 0 0 0 rgba(255, 200, 100, 0.0); }
+    50%      { box-shadow: 0 0 0 4px rgba(255, 138, 61, 0.85),
+                          inset 0 0 14px 4px rgba(255, 220, 140, 0.6); }
+  }
+  @keyframes gate-tap-bob {
+    0%, 100% { transform: translate(-50%, 0); opacity: 1; }
+    50%      { transform: translate(-50%, -3px); opacity: 0.85; }
   }
   .tile.tile-gate.shut {
-    animation: gate-pulse 1600ms ease-in-out infinite;
+    animation: gate-pulse-ring 1200ms ease-in-out infinite;
+    z-index: 4; /* lift the ring above neighbouring tile edges */
+  }
+  /* Tap-me label above each closed gate. Painted-feel sticker
+     style. Disappears once the gate is open or the board is locked. */
+  .tile.tile-gate.shut::before {
+    content: '👆 tap';
+    position: absolute;
+    left: 50%; top: -22px;
+    transform: translate(-50%, 0);
+    background: #ff8a3d;
+    color: #fffbe8;
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    white-space: nowrap;
+    animation: gate-tap-bob 900ms ease-in-out infinite;
+    z-index: 5;
   }
   body.locked .tile.tile-gate { animation: none; }
+  body.locked .tile.tile-gate.shut::before { display: none; }
 
   /* QUICK! pause-time bonus button — bright orange, only one use
      per game. Disabled by default; enabled while an animal is mid-
@@ -859,7 +889,7 @@
     set(5, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
     set(6, 10, { type: 'corner', rotation: 0, fixed: true });
     // Pick trunk topology — straight, z-east, z-west, or approach-north.
-    const TIER1_TEMPLATES = ['straight', 'z-east', 'z-west', 'approach-north'];
+    const TIER1_TEMPLATES = ['straight', 'z-east', 'z-east', 'z-west', 'z-west', 'approach-north', 'approach-north'];
     const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
     // Pick fox exit FIRST so we can place the approach-north corner.
     const FOX_EXITS = [
@@ -932,7 +962,7 @@
     const randR = () => Math.floor(rng() * 4);
     set(0, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'hedgehog', endpointRole: 'start' });
     set(1, 10, { type: 'corner', rotation: 0, fixed: true });
-    const HEDGE_TEMPLATES = ['straight', 'z-east', 'approach-north', 'over-the-top'];
+    const HEDGE_TEMPLATES = ['straight', 'z-east', 'z-east', 'approach-north', 'approach-north', 'over-the-top', 'over-the-top'];
     const hedgeTemplate = HEDGE_TEMPLATES[Math.floor(rng() * HEDGE_TEMPLATES.length)];
     const HEDGE_EXITS = [{x:1,y:4},{x:1,y:5}];
     let hexit;
@@ -1008,7 +1038,7 @@
     set(6, 11, { type: 'straight', rotation: 1, fixed: true });
     set(7, 11, { type: 'corner', rotation: 0, fixed: true });
     const RACCOON_EXITS = [{x:7,y:4},{x:7,y:5}];
-    const RACCOON_TEMPLATES = ['straight', 'z-west', 'approach-north'];
+    const RACCOON_TEMPLATES = ['straight', 'z-west', 'z-west', 'approach-north', 'approach-north'];
     const raccoonTemplate = RACCOON_TEMPLATES[Math.floor(rng() * RACCOON_TEMPLATES.length)];
     let rexit;
     if (raccoonTemplate === 'approach-north') rexit = {x:7, y:5};
@@ -1062,7 +1092,7 @@
     set(8, 12, { type: 'corner', rotation: 0, fixed: true });
     const SKUNK_EXITS = [{x:8,y:1},{x:8,y:2}];
     const sexit = SKUNK_EXITS[Math.floor(rng() * SKUNK_EXITS.length)];
-    const SKUNK_TEMPLATES = ['straight', 'z-west'];
+    const SKUNK_TEMPLATES = ['straight', 'z-west', 'z-west'];
     const skunkTemplate = SKUNK_TEMPLATES[Math.floor(rng() * SKUNK_TEMPLATES.length)];
     if (skunkTemplate === 'straight') {
       for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
@@ -1169,19 +1199,11 @@
 
   function tileSvg(tile) {
     const svg = svgEl('svg', { class: 'tile-svg', viewBox: '0 0 100 100' });
-    const bg = svgEl('rect', {
-      x: 0, y: 0, width: 100, height: 100,
-      fill: tile.type === 'empty' ? '#5a3a1c' : '#7a5430',
-    });
-    svg.appendChild(bg);
-
+    // No background rect — the painted Manus soil tile (set on the
+    // .tile div via background-image) shows through. Empty tiles
+    // render an empty SVG; tunnel tiles draw the corridor stub on
+    // top of the painted earth (Marcus 2026-05-06 bug fix).
     if (tile.type === 'empty') {
-      for (let i = 0; i < 3; i++) {
-        svg.appendChild(svgEl('circle', {
-          cx: 20 + i * 30, cy: 30 + (i % 2) * 40, r: 3,
-          fill: '#3a2410', opacity: 0.4,
-        }));
-      }
       return svg;
     }
 
