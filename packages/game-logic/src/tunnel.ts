@@ -490,7 +490,7 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   //   'z-east'   — trunk jogs east via col 7-8 mid-way
   // More templates (z-west, big-u, bridge-cross, approach-north)
   // will land in subsequent passes.
-  const TIER1_TEMPLATES = ['straight', 'z-east'] as const;
+  const TIER1_TEMPLATES = ['straight', 'z-east', 'z-west'] as const;
   const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
 
   if (trunkTemplate === 'straight') {
@@ -501,7 +501,7 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
     set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
     set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
     set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-  } else {
+  } else if (trunkTemplate === 'z-east') {
     // z-east: trunk jogs east at row 7 over to col 8, climbs col 8
     // to row 4, then jogs back west to col 6 to reach the top corner.
     set(6, 9, { type: 'straight', rotation: randR() });
@@ -514,6 +514,21 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
     set(8, 4, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
     set(7, 4, { type: 'straight', rotation: randR() });
     set(6, 4, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
+    set(6, 3, { type: 'straight', rotation: randR() });
+    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+  } else {
+    // z-west: mirror of z-east — trunk jogs WEST at row 7 over to
+    // col 4, climbs col 4 to row 4, then jogs back east to col 6.
+    set(6, 9, { type: 'straight', rotation: randR() });
+    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 7, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
+    set(5, 7, { type: 'straight', rotation: randR() });
+    set(4, 7, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
+    set(4, 6, { type: 'straight', rotation: randR() });
+    set(4, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(4, 4, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    set(5, 4, { type: 'straight', rotation: randR() });
+    set(6, 4, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
     set(6, 3, { type: 'straight', rotation: randR() });
     set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
   }
@@ -574,8 +589,9 @@ export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   // horizontal. The z-east template adds straights on col 7+8 +
   // horizontal jog cells at (7, 4) + (7, 7); we cover them all.
   const verticalSets = [
-    { x: 6, y0: 2, y1: 9 }, // straight col 6 (covers either template)
+    { x: 6, y0: 2, y1: 9 }, // straight col 6 (all templates)
     { x: 8, y0: 6, y1: 6 }, // z-east col 8 vertical run
+    { x: 4, y0: 6, y1: 6 }, // z-west col 4 vertical run
   ];
   for (const v of verticalSets) {
     for (let y = v.y0; y <= v.y1; y++) {
@@ -583,8 +599,11 @@ export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
       if (t.type === 'straight') t.rotation = 0;
     }
   }
-  // Horizontal jog straights (z-east template): (7, 4) + (7, 7).
-  for (const c of [{ x: 7, y: 4 }, { x: 7, y: 7 }]) {
+  // Horizontal jog straights — z-east at col 7, z-west at col 5.
+  for (const c of [
+    { x: 7, y: 4 }, { x: 7, y: 7 }, // z-east jogs
+    { x: 5, y: 4 }, { x: 5, y: 7 }, // z-west jogs
+  ]) {
     const t = tiles[idx(c.x, c.y)];
     if (t.type === 'straight') t.rotation = 1;
   }

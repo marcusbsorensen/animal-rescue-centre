@@ -838,15 +838,15 @@
     const randR = () => Math.floor(rng() * 4);
     set(5, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
     set(6, 10, { type: 'corner', rotation: 0, fixed: true });
-    // Pick trunk topology — straight or z-east jog (mirrors game-logic).
-    const TIER1_TEMPLATES = ['straight', 'z-east'];
+    // Pick trunk topology — straight, z-east, or z-west.
+    const TIER1_TEMPLATES = ['straight', 'z-east', 'z-west'];
     const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
     if (trunkTemplate === 'straight') {
       for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
       set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
       set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
       set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-    } else {
+    } else if (trunkTemplate === 'z-east') {
       set(6, 9, { type: 'straight', rotation: randR() });
       set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
       set(6, 7, { type: 'corner', rotation: 2, fixed: true });
@@ -857,6 +857,20 @@
       set(8, 4, { type: 'corner', rotation: 3, fixed: true });
       set(7, 4, { type: 'straight', rotation: randR() });
       set(6, 4, { type: 'corner', rotation: 1, fixed: true });
+      set(6, 3, { type: 'straight', rotation: randR() });
+      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+    } else {
+      // z-west — mirror of z-east, jogs west via col 4.
+      set(6, 9, { type: 'straight', rotation: randR() });
+      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+      set(6, 7, { type: 'corner', rotation: 3, fixed: true });
+      set(5, 7, { type: 'straight', rotation: randR() });
+      set(4, 7, { type: 'corner', rotation: 1, fixed: true });
+      set(4, 6, { type: 'straight', rotation: randR() });
+      set(4, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+      set(4, 4, { type: 'corner', rotation: 2, fixed: true });
+      set(5, 4, { type: 'straight', rotation: randR() });
+      set(6, 4, { type: 'corner', rotation: 0, fixed: true });
       set(6, 3, { type: 'straight', rotation: randR() });
       set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
     }
