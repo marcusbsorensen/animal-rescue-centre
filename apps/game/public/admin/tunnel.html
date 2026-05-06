@@ -389,6 +389,25 @@
      paths regardless of the overlay state (Marcus 2026-05-04). */
   .tile.tile-viewing-dome .dome-glyph { display: none; }
 
+  /* Endpoint sticker layer — Manus-painted endpoint badges
+     (red octagon F for fox, mossy H for hedgehog, slate shield R
+     for raccoon, black/white circle S for skunk). Sits ABOVE the
+     overground overlay so kids see the friendly sticker even when
+     the painted gardens are showing through. Always upright (no
+     rotation with the underlying tile). */
+  .sticker-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 7;
+  }
+  .endpoint-sticker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(2px 4px 4px rgba(0, 0, 0, 0.35));
+  }
+  .endpoint-sticker img { width: 100%; height: 100%; display: block; }
+
   /* Underground decorations layer — sparse painted easter-eggs
      (bones, worm, rock, boot, treasure) sitting INSIDE empty soil
      tiles. Sits BELOW the tunnel pieces so corridors render on top,
@@ -1100,39 +1119,22 @@
       g.appendChild(svgEl('circle', { cx: 35, cy: 54, r: 1.6, fill: '#1a0d04' }));
     } else if (tile.type === 'habitat-endpoint') {
       // Single south corridor stub (rotated by tile.rotation to
-      // match the chosen direction). Same shape for START + END
-      // so the kid sees a familiar 'tunnel-into-circle' on both.
+      // match the chosen direction). The painted sticker (red
+      // octagon for fox, etc.) lands as an HTML <img> on a separate
+      // .sticker-layer so it stays upright regardless of tile
+      // rotation — see renderGrid.
       drawCorridor('M 35 50 L 65 50 L 65 100 L 35 100 Z');
-      // Den circle centred on the tile so it stays put regardless
-      // of rotation (parent <g> rotates around (50,50) — moving
-      // the circle to (50,50) cancels any drift).
-      g.appendChild(svgEl('circle', {
-        cx: 50, cy: 50, r: 28, fill: '#c89860',
-        stroke: '#3a2410', 'stroke-width': 4,
-      }));
-      // Letter at the centre — counter-rotated so it stays upright.
-      const initial = (tile.endpointFor || '?')[0].toUpperCase();
-      const letter = svgEl('text', {
-        x: 50, y: 58, 'text-anchor': 'middle',
-        'font-family': 'Fredoka, sans-serif', 'font-size': 28, 'font-weight': 700,
-        fill: '#3a2410',
-        transform: `rotate(${-r * 90} 50 50)`,
-      });
-      letter.textContent = initial;
-      g.appendChild(letter);
       // Arrow ON THE STUB. Drawn in BASE coords (south-pointing
       // stub) — parent <g> rotation aligns the arrow with the stub
-      // direction automatically. We pick the BASE glyph so that:
-      //   START → glyph '↓' (rotates with parent to point ALONG
-      //          the stub, i.e. AWAY from the circle = OUT)
-      //   END   → glyph '↑' (rotates with parent to point AGAINST
-      //          the stub, i.e. TOWARD the circle = IN)
+      // direction automatically. START arrow points ALONG the stub
+      // (out from the circle), END arrow points AGAINST it (toward
+      // the circle). The arrow needs to be visible UNDER the
+      // sticker so it sits low on the stub at y=92 not 86.
       const arrowGlyph = tile.endpointRole === 'start' ? '↓' : '↑';
       const arrow = svgEl('text', {
-        x: 50, y: 86, 'text-anchor': 'middle',
-        'font-family': 'Fredoka, sans-serif', 'font-size': 22, 'font-weight': 700,
+        x: 50, y: 92, 'text-anchor': 'middle',
+        'font-family': 'Fredoka, sans-serif', 'font-size': 18, 'font-weight': 700,
         fill: '#3a2410',
-        // No counter-rotation — let parent rotation orient it.
       });
       arrow.textContent = arrowGlyph;
       g.appendChild(arrow);
@@ -1321,6 +1323,38 @@
       }
     }
     wrap.appendChild(domeLayer);
+
+    // Endpoint sticker layer — painted badges per animal type,
+    // always upright above the rotated tile + overlay. Sits at
+    // every habitat-endpoint cell.
+    let stickerLayer = document.getElementById('sticker-layer');
+    if (!stickerLayer) {
+      stickerLayer = document.createElement('div');
+      stickerLayer.id = 'sticker-layer';
+      stickerLayer.className = 'sticker-layer';
+    }
+    stickerLayer.replaceChildren();
+    for (let y = 0; y < puzzle.height; y++) {
+      for (let x = 0; x < puzzle.width; x++) {
+        const t = puzzle.tiles[y * puzzle.width + x];
+        if (t.type !== 'habitat-endpoint') continue;
+        const m = document.createElement('div');
+        m.className = 'endpoint-sticker';
+        // Sticker fills ~60% of the tile centred — leaves the
+        // corridor stub visible underneath.
+        const sz = Math.round(tileSize * 0.6);
+        m.style.width  = sz + 'px';
+        m.style.height = sz + 'px';
+        m.style.left = (gridLeft + 6 + x * tileSize + tileSize / 2) + 'px';
+        m.style.top  = (gridTop  + 6 + y * tileSize + tileSize / 2) + 'px';
+        const img = document.createElement('img');
+        img.src = `scene-assets/tunnel-soil/endpoint-${t.endpointFor}.png`;
+        img.alt = `${t.endpointFor} ${t.endpointRole}`;
+        m.appendChild(img);
+        stickerLayer.appendChild(m);
+      }
+    }
+    wrap.appendChild(stickerLayer);
 
     // Debug exit-point overlay — enable with ?show-exits=1 in the
     // URL. Renders a coloured ring at every HABITAT_EXITS position
