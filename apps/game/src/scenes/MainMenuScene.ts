@@ -127,16 +127,20 @@ export class MainMenuScene extends Phaser.Scene {
    * 4-panel walk-in (or only panel 4 if skip is on) before passing
    * to GameScene/LoadingScene. The asset-loading gate moves into
    * IntroScene's startGameWithPreselect.
+   *
+   * Bug history: previously used a `tweens.add({ targets:
+   * cameras.main, alpha: 0, onComplete: scene.start })` pattern.
+   * In some flows (notably brand-new signup) the tween's onComplete
+   * never fired, leaving the kid stuck on the menu screen. The
+   * built-in `cameras.main.fadeOut` + `time.delayedCall` is more
+   * robust because the delayed call is owned by the scene's own
+   * timer rather than the tween manager (which can be paused or
+   * confused by iframe-unmount side-effects).
    */
   private startGame(): void {
-    this.tweens.add({
-      targets: this.cameras.main,
-      alpha: 0,
-      duration: 300,
-      ease: 'Sine.easeIn',
-      onComplete: () => {
-        this.scene.start('IntroScene');
-      },
+    this.cameras.main.fadeOut(300);
+    this.time.delayedCall(320, () => {
+      this.scene.start('IntroScene');
     });
   }
 
