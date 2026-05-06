@@ -266,8 +266,9 @@
   body.locked .tile:not(.empty)::after {
     content: '';
     position: absolute; inset: 0;
-    background: rgba(0, 0, 0, 0.22);
+    background: rgba(0, 0, 0, 0.30);
     pointer-events: none;
+    z-index: 2;     /* above .tile-svg which is z-index 1 */
   }
   /* When locked (after the GO button), every tile takes a darker
      tint via the same overlay — soil texture still visible
@@ -641,11 +642,9 @@
       if (!tile) return { reached: false, path, reason: 'dead-end' };
       if (tile.type === 'habitat-endpoint') {
         path.push({ x, y });
-        // END endpoints accept arrival from any side (matches
-        // solveTunnels in game-logic — see HABITAT_EXITS comment).
-        if (tile.endpointFor === animal && tile.endpointRole === 'end') return { reached: true, path };
         const sides = tileSides(tile);
         if (!sides[enter]) return { reached: false, path, reason: 'dead-end' };
+        if (tile.endpointFor === animal && tile.endpointRole === 'end') return { reached: true, path };
         return { reached: false, path, reason: 'wrong-destination' };
       }
       if (tile.type === 'gate' && tile.open === false) return { reached: false, path, reason: 'gate-closed' };
@@ -728,7 +727,7 @@
     const exit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
     for (let x = exit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
     if (exit.y === 2) set(exit.x, 1, { type: 'corner', rotation: 2, fixed: true });
-    set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: 3, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
+    const fEndR = exit.y === 1 ? 3 : 2; set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: fEndR, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
@@ -756,7 +755,7 @@
     const fexit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
     for (let x = fexit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
     if (fexit.y === 2) set(fexit.x, 1, { type: 'corner', rotation: 2, fixed: true });
-    set(fexit.x, fexit.y, { type: 'habitat-endpoint', rotation: 3, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
+    const fxER = fexit.y === 1 ? 3 : 2; set(fexit.x, fexit.y, { type: 'habitat-endpoint', rotation: fxER, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
     // HEDGEHOG with Z-jog (4 fixed corners + 5 rotatable straights)
     set(0, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'hedgehog', endpointRole: 'start' });
     set(1, 10, { type: 'corner', rotation: 0, fixed: true });
@@ -771,7 +770,8 @@
     set(3, 5, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
     set(2, 5, { type: 'straight', rotation: randR() });
     if (hexit.y === 4) set(1, 5, { type: 'corner', rotation: 1, fixed: true });
-    set(1, hexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'hedgehog', endpointRole: 'end' });
+    const hRot = hexit.y === 5 ? 3 : 0;
+    set(1, hexit.y, { type: 'habitat-endpoint', rotation: hRot, fixed: false, endpointFor: 'hedgehog', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['fox', 'hedgehog'] };
   }

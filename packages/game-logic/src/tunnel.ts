@@ -252,19 +252,18 @@ function solveOne(puzzle: TunnelPuzzle, animal: Animal): SolveResult {
     const tile = tileAt(puzzle, x, y);
     if (!tile) return { reached: false, path, reason: 'dead-end' };
 
-    // Endpoint check before any traversal logic — we've arrived.
+    // Endpoint check — we've arrived. Endpoint must be open on the
+    // side we entered from (kid spins the END tile to face their
+    // approach). This means a wrongly-rotated final tile breaks
+    // the path — fixes the 'fox got there anyway' bug where a happy
+    // accident through decoys would otherwise let it through.
     if (tile.type === 'habitat-endpoint') {
       path.push({ x, y });
-      // END endpoints accept arrival from ANY side — kids can route
-      // crazy tunnels that approach the exit from any direction
-      // (90+90° around-the-back loops are encouraged). START
-      // endpoints + wrong-animal endpoints still require the side
-      // to face the incoming tunnel.
+      const sides = tileSides(tile);
+      if (!sides[enterSide]) return { reached: false, path, reason: 'dead-end' };
       if (tile.endpointFor === animal && tile.endpointRole === 'end') {
         return { reached: true, path };
       }
-      const sides = tileSides(tile);
-      if (!sides[enterSide]) return { reached: false, path, reason: 'dead-end' };
       return { reached: false, path, reason: 'wrong-destination' };
     }
 
@@ -516,13 +515,13 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
     set(foxExit.x, 1, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
   }
 
-  // Fox pen entry at the chosen exit cell. END endpoints are now
-  // ROTATABLE by the player (fixed:false) so the kid can spin the
-  // visual stub to match whichever direction their tunnel approaches
-  // — the solver still accepts arrival from any side, so rotation
-  // is cosmetic but lets the kid 'finish' their tunnel cleanly.
+  // Fox pen entry — ROTATABLE so kid can spin to match their
+  // approach. Default rotation matches the canonical solution:
+  //   y=1 exit: branch row 1 westward, approach from E → r=3 (E)
+  //   y=2 exit: branch turns south at the ┌ corner, approach from N → r=2 (N)
+  const foxEndRotation = foxExit.y === 1 ? 3 : 2;
   set(foxExit.x, foxExit.y, {
-    type: 'habitat-endpoint', rotation: 3, fixed: false,
+    type: 'habitat-endpoint', rotation: foxEndRotation, fixed: false,
     endpointFor: 'fox', endpointRole: 'end',
   });
 
@@ -604,8 +603,10 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
   if (foxExit.y === 2) {
     set(foxExit.x, 1, { type: 'corner', rotation: 2, fixed: true });
   }
+  // Tier-2 fox endpoint mirrors tier-1 logic.
+  const t2FoxRot = foxExit.y === 1 ? 3 : 2;
   set(foxExit.x, foxExit.y, {
-    type: 'habitat-endpoint', rotation: 3, fixed: false,
+    type: 'habitat-endpoint', rotation: t2FoxRot, fixed: false,
     endpointFor: 'fox', endpointRole: 'end',
   });
 
@@ -646,8 +647,16 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
     // the endpoint at (1,4)). Base ┘ N+W rotated 1 = N+E open (└).
     set(1, 5, { type: 'corner', rotation: 1, fixed: true });
   }
+  // Endpoint rotation matches the canonical approach side so the
+  // kid CAN solve at default; they may also spin the endpoint to
+  // any orientation if they route around (any-side approach still
+  // reaches the endpoint, but the END's open side must match the
+  // approach for the path to count).
+  // hexit.y=5 → approach from E (the horizontal at (2,5)) → r=3 (E-open)
+  // hexit.y=4 → approach from S (the └ at (1,5) exits N into endpoint) → r=0 (S-open)
+  const hedgeEndRotation = hedgeExit.y === 5 ? 3 : 0;
   set(1, hedgeExit.y, {
-    type: 'habitat-endpoint', rotation: 0, fixed: false,
+    type: 'habitat-endpoint', rotation: hedgeEndRotation, fixed: false,
     endpointFor: 'hedgehog', endpointRole: 'end',
   });
 
