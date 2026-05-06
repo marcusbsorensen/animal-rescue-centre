@@ -1527,6 +1527,37 @@
     skunk:    '/assets/animals/skunk-walking.png',
   };
 
+  // Per-animal sprite override map. Populated from URL params
+  // (?sprite_<species>=...) or from a postMessage init payload's
+  // `animals` array. Values may be:
+  //   - absolute /assets/... or /admin/... path → used as-is
+  //   - relative path (e.g. "cast/bramble.png") → resolved against
+  //     /admin/scene-assets/ (i.e. prefixed with "scene-assets/")
+  // resolveAnimalSprite(species) does the actual lookup, falling
+  // back to ANIMAL_SPRITE when no override is set.
+  const OVERRIDE_SPRITE = {};
+
+  function resolveSpriteOverride(raw) {
+    if (typeof raw !== 'string' || !raw) return null;
+    if (raw.startsWith('/')) return raw;
+    return 'scene-assets/' + raw.replace(/^\.?\//, '');
+  }
+  function resolveAnimalSprite(species) {
+    return OVERRIDE_SPRITE[species] || ANIMAL_SPRITE[species] || ANIMAL_SPRITE.fox;
+  }
+
+  // Seed OVERRIDE_SPRITE from URL params at load time:
+  // ?sprite_fox=cast/bramble.png&sprite_hedgehog=cast/spike.png
+  (function readSpriteParamsFromUrl() {
+    const params = new URLSearchParams(location.search);
+    for (const [key, value] of params.entries()) {
+      if (!key.startsWith('sprite_')) continue;
+      const species = key.slice('sprite_'.length);
+      const resolved = resolveSpriteOverride(value);
+      if (species && resolved) OVERRIDE_SPRITE[species] = resolved;
+    }
+  })();
+
   // Compute the rotation + flip needed for the sprite to face the
   // direction of travel. Sprite PNG faces east by default.
   // Returns { rotateDeg, flipX } based on dx, dy.
@@ -1687,7 +1718,7 @@
       sprite.className = 'animal-sprite';
       sprite.style.setProperty('--sprite-size', `${Math.max(28, tileSize * 0.7)}px`);
       const img = document.createElement('img');
-      img.src = ANIMAL_SPRITE[animal] || ANIMAL_SPRITE.fox;
+      img.src = resolveAnimalSprite(animal);
       img.alt = animal;
       sprite.appendChild(img);
       trail.appendChild(sprite);
@@ -1967,14 +1998,47 @@
     setTimeout(() => readyOverlay?.remove(), 500);
   });
 
-  // postMessage init handshake — host can either send a fully-formed
-  // puzzle object or just a seed.
+  // ── postMessage init handshake ────────────────────────────────
+  // The host page (parent game) drives this iframe via two channels.
+  // Sprite overrides let the parent inject the actual cast member's
+  // portrait (e.g. "Bramble the fox") instead of the species-generic
+  // walking sprite hard-coded in ANIMAL_SPRITE.
+  //
+  // CHANNEL 1 — URL params (read at load time, see above):
+  //   ?tier=2&sprite_fox=cast/bramble.png&sprite_hedgehog=cast/spike.png
+  //   Path rules: leading "/" → absolute (used as-is); otherwise the
+  //   value is resolved against /admin/scene-assets/ — so the value
+  //   "cast/bramble.png" becomes "scene-assets/cast/bramble.png".
+  //
+  // CHANNEL 2 — postMessage init payload (this handler):
+  //   parent.postMessage({
+  //     source: 'arc-game-host',
+  //     type:   'init',
+  //     payload: {
+  //       seed: 12345,                       // or `puzzle: {...}`
+  //       animals: [
+  //         { species: 'fox',      sprite: 'cast/bramble.png', name: 'Bramble' },
+  //         { species: 'hedgehog', sprite: 'cast/spike.png',   name: 'Spike'   },
+  //       ],
+  //     },
+  //   }, '*');
+  //
+  // Both channels populate OVERRIDE_SPRITE; resolveAnimalSprite()
+  // falls back to ANIMAL_SPRITE when no override is set, so existing
+  // standalone behaviour (?tier=N with no sprite params) is unchanged.
   window.addEventListener('message', (e) => {
     const m = e.data;
     if (!m || typeof m !== 'object') return;
     if (m.source !== 'arc-game-host' && m.source !== 'arc-tunnel-host') return;
     if (m.type === 'init') {
       const payload = m.payload || {};
+      if (Array.isArray(payload.animals)) {
+        for (const a of payload.animals) {
+          if (!a || typeof a !== 'object') continue;
+          const resolved = resolveSpriteOverride(a.sprite);
+          if (a.species && resolved) OVERRIDE_SPRITE[a.species] = resolved;
+        }
+      }
       if (payload.puzzle) {
         puzzle = payload.puzzle;
         originalPuzzle = JSON.parse(JSON.stringify(puzzle));
