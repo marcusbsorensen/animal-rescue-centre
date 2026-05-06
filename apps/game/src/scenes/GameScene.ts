@@ -52,7 +52,6 @@ import {
   getGrantDef,
   pickRandomFact,
   getDestination,
-  generateTier1TunnelPuzzle,
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
@@ -1093,56 +1092,85 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Garden-tunnel mini-game (Phase 1: tier-1 fox tunnel only).
+   * Garden-tunnel mini-game.
    *
-   * The puzzle is generated host-side via `generateTier1TunnelPuzzle`
-   * so the same daily seed produces the same board across the host
-   * and any future server-validation. The iframe re-runs an embedded
-   * mirror of the logic for client-side win-checking; the host re-
-   * authoritatively verifies before applying happiness/bond bumps.
+   * Tier picked from player level per docs/level-progression-overview:
+   *   L1-3   → tier 1 (fox)
+   *   L4-5   → tier 2 (hedgehog)
+   *   L6-7   → tier 3 (raccoon)
+   *   L8-9   → tier 4 (skunk)
+   *   L10+   → tier 5 (multi-animal coordination)
+   *
+   * Daily-seed puzzle (host UTC date) so the same board persists
+   * across same-day reloads. The iframe runs its own generator using
+   * `?tier=N` URL param + the seed from the init handshake.
    *
    * Routing of iframe → host messages:
-   *   - tunnel-complete → bump fox's happiness/bond, save state, dismiss
+   *   - tunnel-complete → bump every rescued animal's happiness/bond
+   *     (payload.animalsRescued is an array of species strings)
    *   - tunnel-cancel   → dismiss with no side effects
    *   - tunnel-override-reroll → grant +10 coins (centre-infrastructure
    *     reward; intentionally NOT a happiness boost — the kid only
    *     earns animal-care rewards by completing the tunnel).
    */
   public openTunnelOverlay(): void {
+    // Pick tier from player level (per level-progression doc).
+    const level = this.store.level;
+    const tier =
+      level >= 10 ? 5 :
+      level >= 8  ? 4 :
+      level >= 6  ? 3 :
+      level >= 4  ? 2 : 1;
+
     // Daily seed (UTC) so the puzzle stays put across same-day reloads.
     const today = new Date();
     const dailySeed = (today.getUTCFullYear() * 10000 + (today.getUTCMonth() + 1) * 100 + today.getUTCDate()) >>> 0;
-    const puzzle = generateTier1TunnelPuzzle(dailySeed);
 
     const unmount = mountInGame('tunnel', {
-      onAction: (action) => {
+      onAction: (action, payload) => {
         if (action === 'tunnel-cancel' || action === 'close') {
           unmount();
           return;
         }
         if (action === 'tunnel-complete') {
-          // Bump the fox's happiness — pick the first fox in the
-          // shelter; if none yet (Tier-1 unlocks fox at L6) just toast
-          // the win without mutating state.
-          const fox = this.store.animals.find((a) => a.species === ('fox' as Species));
-          if (fox) {
-            const idx = this.store.animals.findIndex((a) => a.id === fox.id);
-            const current = typeof fox.happiness === 'number' ? fox.happiness : 0;
+          // Bump each rescued animal's happiness/bond. payload.animalsRescued
+          // is an array of species strings (e.g. ['fox'] for tier 1,
+          // ['fox','hedgehog','raccoon','skunk'] for tier 5). For each
+          // species, find the FIRST animal of that species in the shelter
+          // and bump it. If a species hasn't arrived yet (e.g. kid is at
+          // L4 but no hedgehog yet), silently skip it.
+          const rescued = (payload as { animalsRescued?: string[] } | undefined)?.animalsRescued
+            ?? ['fox'];
+          const namesBumped: string[] = [];
+          for (const species of rescued) {
+            const animal = this.store.animals.find((a) => a.species === (species as Species));
+            if (!animal) continue;
+            const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+            const current = typeof animal.happiness === 'number' ? animal.happiness : 0;
             this.store.animals[idx] = {
-              ...fox,
+              ...animal,
               happiness: Math.min(100, current + 8),
-              bondLevel: Math.min(100, fox.bondLevel + 3),
+              bondLevel: Math.min(100, animal.bondLevel + 3),
             };
+            namesBumped.push(animal.name);
+          }
+          if (namesBumped.length === 1) {
             this.saveState();
-            showToast(this, `${fox.name} had a great run through the tunnel! +happiness`);
+            showToast(this, `${namesBumped[0]} had a great run through the tunnel! +happiness`);
+          } else if (namesBumped.length > 1) {
+            this.saveState();
+            const list = namesBumped.length === 2
+              ? namesBumped.join(' and ')
+              : `${namesBumped.slice(0, -1).join(', ')} and ${namesBumped[namesBumped.length - 1]}`;
+            showToast(this, `${list} all had a great run! +happiness for all`);
           } else {
-            showToast(this, 'You built the tunnels — fox arrives soon!');
+            showToast(this, 'You built the tunnels — animals arrive soon!');
           }
           unmount();
           return;
         }
         if (action === 'tunnel-override-reroll') {
-          // "Make the tunnels" override: small centre-infrastructure
+          // "Re-dig tunnels" override: small centre-infrastructure
           // reward (NOT animal happiness — that only comes from
           // completion). +10 coins as per design doc decision #2.
           const econ = this.store.economy as Economy | undefined;
@@ -1155,7 +1183,7 @@ export class GameScene extends Phaser.Scene {
           return;
         }
       },
-    }, { puzzle, seed: dailySeed });
+    }, { seed: dailySeed }, { query: { tier: String(tier) } });
     this.events.once('shutdown', unmountInGame);
   }
 
