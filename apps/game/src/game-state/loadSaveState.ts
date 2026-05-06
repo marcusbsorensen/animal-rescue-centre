@@ -24,7 +24,7 @@ import {
   isWeekend,
   recomputeApprenticeUnlocks,
 } from '@arc/game-logic';
-import type { IllnessDef, ApprenticeEntry } from '@arc/game-logic';
+import type { IllnessDef, ApprenticeEntry, CharmId, CharmUnlockEvent } from '@arc/game-logic';
 import { getSession } from '../lib/auth';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { showToast, showBlocking } from '../ui/ErrorOverlay';
@@ -168,6 +168,20 @@ export async function loadGameState(
       if (Array.isArray(saved.grantsReceived)) {
         store.grantsReceived = saved.grantsReceived as GameStateStore['grantsReceived'];
       }
+
+      // Charms — back-compat: older saves predate the slice. Default
+      // unlockedCharms covers the three `kind: 'always'` charms; the
+      // GameStateStore initialiser sets that already, so we only
+      // override when the save has the field.
+      if (Array.isArray(saved.unlockedCharms)) {
+        store.unlockedCharms = saved.unlockedCharms as CharmId[];
+      }
+      if (typeof saved.equippedCharm === 'string' || saved.equippedCharm === null) {
+        store.equippedCharm = saved.equippedCharm as CharmId | null;
+      }
+      if (saved.eventCounters && typeof saved.eventCounters === 'object') {
+        store.eventCounters = saved.eventCounters as Partial<Record<CharmUnlockEvent, number>>;
+      }
     }
     return true;
   };
@@ -298,6 +312,9 @@ export async function saveGameState(
           gardenReturns: store.gardenReturns,
           lastGrantCheckAt: store.lastGrantCheckAt,
           grantsReceived: store.grantsReceived,
+          unlockedCharms: store.unlockedCharms,
+          equippedCharm: store.equippedCharm,
+          eventCounters: store.eventCounters,
         },
         level: store.level,
         updated_at: new Date().toISOString(),

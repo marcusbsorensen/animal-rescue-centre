@@ -52,8 +52,12 @@ import {
   getGrantDef,
   pickRandomFact,
   getDestination,
+  recordCharmEvent,
+  CHARMS,
+  equipCharm,
+  unequipCharm,
 } from '@arc/game-logic';
-import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef } from '@arc/game-logic';
+import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
@@ -564,6 +568,13 @@ export class GameScene extends Phaser.Scene {
           level: this.store.level,
           economy: this.store.economy,
         });
+      },
+      onCharms: () => {
+        // Dismiss the popup THEN open the charm-select overlay; the
+        // overlay is an HTML iframe over the live scene, so we don't
+        // need a scene transition.
+        this.renderView();
+        this.openCharmSelectOverlay();
       },
       onDismiss: () => this.renderView(),
     });
@@ -1210,6 +1221,52 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Mount the HTML charm-select overlay so the player can pick a
+   * dangly charm for the PTV's rear-view mirror. The overlay reads
+   * the player's unlocked + equipped state from the init handshake
+   * and posts back two actions:
+   *
+   *   - charm-equipped: { charmId: CharmId | null, vehicle }
+   *     Persist the new equipped value (null = unequipped).
+   *   - back-to-cockpit / close: dismiss the overlay.
+   *
+   * Cosmetic-only: equipping never affects gameplay outcomes.
+   */
+  public openCharmSelectOverlay(): void {
+    const initPayload = {
+      unlocked: this.store.unlockedCharms,
+      equipped: this.store.equippedCharm,
+      // No vehicle picker yet in-game (single PTV) — admin mockup
+      // shows tabs across the fleet but the live game just defaults
+      // to 'henry' until vehicle-switching ships.
+      vehicle: 'henry',
+    };
+    const unmount = mountInGame('charm-select', {
+      onAction: (action, payload) => {
+        if (action === 'close' || (action as string) === 'back-to-cockpit') {
+          unmount();
+          return;
+        }
+        if ((action as string) === 'charm-equipped') {
+          const next = (payload as { charmId?: CharmId | null } | undefined)?.charmId ?? null;
+          if (next === null) {
+            unequipCharm(this.store);
+          } else {
+            try {
+              equipCharm(this.store, next);
+            } catch (err) {
+              console.warn('[charm-select] equip failed:', err);
+            }
+          }
+          this.saveState();
+          return;
+        }
+      },
+    }, initPayload);
+    this.events.once('shutdown', unmountInGame);
+  }
+
+  /**
    * Mount the HTML Vet popup over Phaser and wire the three treatment
    * choices back onto the game state.
    *
@@ -1258,7 +1315,18 @@ export class GameScene extends Phaser.Scene {
             const current = typeof a.happiness === 'number' ? a.happiness : 0;
             this.store.animals[idx] = { ...a, happiness: Math.min(100, current + 1) };
           }
+          const wasFirstDrive = !this.store.hasCompletedFirstDrive;
           this.store.hasCompletedFirstDrive = true;
+          // Charms — every PTV drive counts toward the 100-drive
+          // Golden Driving Medal and the 10-drive Silver Horseshoe
+          // (vet runs are by definition no-comfort-drop drives —
+          // there's no cargo crate to wobble). The first vet run
+          // also unlocks the A.R.C. Pawprint Medal.
+          this.fireCharmEvent('drive-completed');
+          this.fireCharmEvent('drive-completed-with-comfort');
+          if (wasFirstDrive) {
+            this.fireCharmEvent('first-vet-run');
+          }
           this.saveState();
           unmount();
           onArrive();
@@ -1374,6 +1442,9 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(900, () => {
       showToast(this, `💰 ${householdName} donated ${fee} coins, thank you!`);
     });
+    // Charms — species-specific first-adoption unlocks.
+    if (a.species === 'cat') this.fireCharmEvent('first-cat-adoption');
+    if (a.species === 'bunny') this.fireCharmEvent('first-bunny-adoption');
     this.saveState();
     this.renderView();
   }
@@ -1394,6 +1465,8 @@ export class GameScene extends Phaser.Scene {
     this.store.sickAnimals.delete(a.id);
     AudioManager.getInstance().playSfx('animal_happy');
     showToast(this, `🌲 ${a.name} is running free in the wild — they'll come to visit!`);
+    // Charms — first rewilding drive unlocks the Fox Tail.
+    this.fireCharmEvent('first-rewilding-drive');
     this.saveState();
     this.renderView();
   }
@@ -1428,6 +1501,35 @@ export class GameScene extends Phaser.Scene {
     showToast(this, `⭐ ${name} is now a volunteer apprentice!`);
     this.saveState();
     this.renderHUD();
+  }
+
+  /**
+   * Record a charm-unlock-relevant gameplay event and surface a
+   * celebratory toast for any charm whose threshold was crossed by
+   * this call. Charm bookkeeping is non-blocking — we never throw
+   * out of here, so callers can fire-and-forget alongside their own
+   * gameplay work.
+   *
+   * Wired into the small set of clearly-mapped gameplay choke points:
+   *   - PTV vet-run drive completion (`drive-completed`,
+   *     `drive-completed-with-comfort`, `first-vet-run`)
+   *   - Adoption commit (`first-cat-adoption`, `first-bunny-adoption`)
+   *   - Rewilding commit (`first-rewilding-drive`)
+   *
+   * Other events in the catalogue (`first-clean-overtake`,
+   * `crate-accident-cleanup`, etc.) live in mini-games that don't
+   * have a clean hook yet — they'll be wired in their own commits.
+   */
+  private fireCharmEvent(event: CharmUnlockEvent): void {
+    try {
+      const { newlyUnlocked } = recordCharmEvent(this.store, event);
+      for (const id of newlyUnlocked) {
+        const def = CHARMS[id];
+        showToast(this, `New charm unlocked: ${def.label}`);
+      }
+    } catch (err) {
+      console.warn('[fireCharmEvent] failed:', err);
+    }
   }
 
   /**

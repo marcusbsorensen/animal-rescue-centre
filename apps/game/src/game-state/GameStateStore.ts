@@ -9,7 +9,7 @@ import type {
   TimeProgress,
   GardenWeather,
 } from '@arc/shared-types';
-import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward } from '@arc/game-logic';
+import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward, CharmId, CharmUnlockEvent } from '@arc/game-logic';
 
 /**
  * GameStateStore — a plain container holding all mutable game state.
@@ -193,4 +193,20 @@ export class GameStateStore {
    * × many years the footprint stays tiny.
    */
   grantsReceived: GrantAward[] = [];
+
+  /**
+   * Charms — dangly mirror customisation for the PTV. The three
+   * `unlockRule.kind === 'always'` charms (Bone, Lucky Teddy,
+   * Bicycle Bell) are unlocked from the start; the rest unlock on
+   * gameplay events (see packages/game-logic/src/charms.ts).
+   *
+   * Flattened onto the store rather than wrapped in a sub-object so
+   * the slice matches the rest of GameStateStore's shape. Pass the
+   * store directly to `recordCharmEvent`/`equipCharm` — they read
+   * and mutate these three fields by name, matching the
+   * `CharmsStoreSlice` contract from game-logic.
+   */
+  unlockedCharms: CharmId[] = ['bone', 'lucky-teddy', 'bicycle-bell'];
+  equippedCharm: CharmId | null = null;
+  eventCounters: Partial<Record<CharmUnlockEvent, number>> = {};
 }

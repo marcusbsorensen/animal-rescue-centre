@@ -196,6 +196,7 @@ export function renderNavBar(
 export interface GamesPopupCallbacks {
   onDepot: () => void;
   onSupplyRun: () => void;
+  onCharms?: () => void;
   onDismiss: () => void;
 }
 
@@ -212,7 +213,7 @@ export function renderGamesPopup(
   container.add(overlay);
 
   const popupW = Math.min(300, width - 40);
-  const popupH = 200;
+  const popupH = callbacks.onCharms ? 264 : 200;
   const popupX = width / 2;
   const popupY = height / 2 - 40;
 
@@ -243,6 +244,13 @@ export function renderGamesPopup(
       () => callbacks.onSupplyRun(),
       { width: btnW, fontSize: '20px', bgColour: '#d46020', icon: 'icon-supply-run' }),
   );
+  if (callbacks.onCharms) {
+    container.add(
+      createButton(scene, popupX, popupY + 114, 'Charms',
+        () => callbacks.onCharms!(),
+        { width: btnW, fontSize: '20px', bgColour: '#b88a37' }),
+    );
+  }
 
   overlay.on('pointerdown', () => callbacks.onDismiss());
 }

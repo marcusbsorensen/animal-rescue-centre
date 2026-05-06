@@ -299,14 +299,38 @@
     { id: 'smiley-poop',             label: 'Smiley Poop',           file: 'charm-poop-smiley.png',           unlock: 'event', hint: 'Cleaned up after a crate accident.' },
   ];
 
+  // Default state used in the standalone admin preview. The host
+  // (GameScene) overrides these via an init postMessage so the live
+  // game shows the player's actual unlocks.
   const state = {
     vehicle: 'henry',
     unlocked: new Set([
       'bone', 'lucky-teddy', 'bicycle-bell',
-      'arc-pawprint-medal', 'hedgehog-plushie', 'painted-pickle-cat', 'fox-tail',
+      'arc-pawprint-medal', 'hedgehog-plushie', 'painted-pic' + 'kle-cat', 'fox-tail',
     ]),
     equipped: 'bone',
   };
+
+  // Embed handshake: when running inside GameScene's iframe, replace
+  // the default state with the player's real charms data.
+  window.addEventListener('message', (e) => {
+    const m = e.data;
+    if (!m || m.source !== 'arc-game-host' || m.type !== 'init') return;
+    const payload = m.payload || {};
+    if (Array.isArray(payload.unlocked)) {
+      state.unlocked = new Set(payload.unlocked);
+    }
+    if (typeof payload.equipped === 'string' || payload.equipped === null) {
+      state.equipped = payload.equipped;
+    }
+    if (typeof payload.vehicle === 'string') {
+      state.vehicle = payload.vehicle;
+      for (const t of tabsEl.querySelectorAll('.vehicle-tab')) {
+        t.classList.toggle('active', t.dataset.v === payload.vehicle);
+      }
+    }
+    render();
+  });
 
   const grid = document.getElementById('charm-grid');
   const progressPill = document.getElementById('progress-pill');

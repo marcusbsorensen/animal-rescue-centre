@@ -14,6 +14,7 @@ import { WalkScene } from './scenes/WalkScene';
 import { VetScene } from './scenes/VetScene';
 import { TunnelScene } from './scenes/TunnelScene';
 import { AdoptionMatchScene } from './scenes/AdoptionMatchScene';
+import { CharmSelectScene } from './scenes/CharmSelectScene';
 import { GroomingScene } from './scenes/GroomingScene';
 import { PlayScene } from './scenes/PlayScene';
 import { DepotScene } from './scenes/DepotScene';
@@ -44,7 +45,7 @@ const config: Phaser.Types.Core.GameConfig = {
     autoRound: false,
   },
   backgroundColor: '#fef9ef',
-  scene: [BootScene, LoadingScene, MainMenuScene, SignupScene, LoginScene, ForgotPinScene, FriendsScene, IntroScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, GroomingScene, PlayScene, DepotScene, SupplyRunScene, AccountScene, TunnelScene, AdoptionMatchScene],
+  scene: [BootScene, LoadingScene, MainMenuScene, SignupScene, LoginScene, ForgotPinScene, FriendsScene, IntroScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, GroomingScene, PlayScene, DepotScene, SupplyRunScene, AccountScene, TunnelScene, AdoptionMatchScene, CharmSelectScene],
   // Render config: antialias is ON by default but we set it explicitly so
   // downsampled icons (256-px source → 36-px display) stay smooth instead
   // of aliased. mipmapFilter enables trilinear-ish downscaling in WebGL
