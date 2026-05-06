@@ -482,14 +482,41 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   set(6, 10, { type: 'corner', rotation: 0, fixed: true });
 
   // Trunk straights at (6, y) for y=2..9 — player rotates to vertical.
-  for (let y = 2; y <= 9; y++) {
-    set(6, y, { type: 'straight', rotation: randR() });
-  }
+  // Trunk topology — pick from a small library of shapes per seed
+  // so each daily puzzle has a different solution path geometry
+  // (Marcus 2026-05-06: 'we can have a whole host of simple to
+  // intricate tunnel solutions with detours, bends').
+  //   'straight' — direct vertical trunk (the historical default)
+  //   'z-east'   — trunk jogs east via col 7-8 mid-way
+  // More templates (z-west, big-u, bridge-cross, approach-north)
+  // will land in subsequent passes.
+  const TIER1_TEMPLATES = ['straight', 'z-east'] as const;
+  const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
 
-  // Three viewing domes along the trunk, evenly spaced (rows 2, 5, 8).
-  set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+  if (trunkTemplate === 'straight') {
+    for (let y = 2; y <= 9; y++) {
+      set(6, y, { type: 'straight', rotation: randR() });
+    }
+    // Three viewing domes along the trunk, evenly spaced.
+    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+  } else {
+    // z-east: trunk jogs east at row 7 over to col 8, climbs col 8
+    // to row 4, then jogs back west to col 6 to reach the top corner.
+    set(6, 9, { type: 'straight', rotation: randR() });
+    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(6, 7, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
+    set(7, 7, { type: 'straight', rotation: randR() });
+    set(8, 7, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
+    set(8, 6, { type: 'straight', rotation: randR() });
+    set(8, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+    set(8, 4, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
+    set(7, 4, { type: 'straight', rotation: randR() });
+    set(6, 4, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
+    set(6, 3, { type: 'straight', rotation: randR() });
+    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+  }
 
   // Top of trunk: corner at (6, 1) turning S+W. r=3 = ┐ (S+W).
   set(6, 1, { type: 'corner', rotation: 3, fixed: true });
@@ -541,10 +568,27 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
 export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
   const idx = (x: number, y: number) => y * puzzle.width + x;
-  for (let y = 2; y <= 9; y++) {
-    const t = tiles[idx(6, y)];
-    if (t.type === 'straight') t.rotation = 0;
+  // Vertical-straight rotation 0; horizontal rotation 1. The solver
+  // is rotation-agnostic across templates — we just rotate every
+  // straight on the trunk col(s) to vertical and the branch row to
+  // horizontal. The z-east template adds straights on col 7+8 +
+  // horizontal jog cells at (7, 4) + (7, 7); we cover them all.
+  const verticalSets = [
+    { x: 6, y0: 2, y1: 9 }, // straight col 6 (covers either template)
+    { x: 8, y0: 6, y1: 6 }, // z-east col 8 vertical run
+  ];
+  for (const v of verticalSets) {
+    for (let y = v.y0; y <= v.y1; y++) {
+      const t = tiles[idx(v.x, y)];
+      if (t.type === 'straight') t.rotation = 0;
+    }
   }
+  // Horizontal jog straights (z-east template): (7, 4) + (7, 7).
+  for (const c of [{ x: 7, y: 4 }, { x: 7, y: 7 }]) {
+    const t = tiles[idx(c.x, c.y)];
+    if (t.type === 'straight') t.rotation = 1;
+  }
+  // Branch row 1 horizontal.
   for (let x = 1; x <= 5; x++) {
     const t = tiles[idx(x, 1)];
     if (t.type === 'straight') t.rotation = 1;

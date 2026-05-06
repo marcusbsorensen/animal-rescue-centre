@@ -838,10 +838,28 @@
     const randR = () => Math.floor(rng() * 4);
     set(5, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
     set(6, 10, { type: 'corner', rotation: 0, fixed: true });
-    for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
-    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+    // Pick trunk topology — straight or z-east jog (mirrors game-logic).
+    const TIER1_TEMPLATES = ['straight', 'z-east'];
+    const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
+    if (trunkTemplate === 'straight') {
+      for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
+      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+      set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+    } else {
+      set(6, 9, { type: 'straight', rotation: randR() });
+      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
+      set(6, 7, { type: 'corner', rotation: 2, fixed: true });
+      set(7, 7, { type: 'straight', rotation: randR() });
+      set(8, 7, { type: 'corner', rotation: 0, fixed: true });
+      set(8, 6, { type: 'straight', rotation: randR() });
+      set(8, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
+      set(8, 4, { type: 'corner', rotation: 3, fixed: true });
+      set(7, 4, { type: 'straight', rotation: randR() });
+      set(6, 4, { type: 'corner', rotation: 1, fixed: true });
+      set(6, 3, { type: 'straight', rotation: randR() });
+      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
+    }
     set(6, 1, { type: 'corner', rotation: 3, fixed: true });
     // Fox exit catalogue (mirrors HABITAT_EXITS.fox in game-logic).
     const FOX_EXITS = [
