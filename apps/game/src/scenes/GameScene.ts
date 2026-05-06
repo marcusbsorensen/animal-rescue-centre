@@ -951,7 +951,7 @@ export class GameScene extends Phaser.Scene {
         if (action === 'aspire-rehome') {
           this.setAspiration(animal, 'rehome');
           unmount();
-          this.openAdoptionOfficeOverlay(animal);
+          this.openAdoptionMatchOverlay(animal);
           return;
         }
         if (action === 'aspire-rewild') {
@@ -1026,6 +1026,28 @@ export class GameScene extends Phaser.Scene {
       },
     );
     this.events.once('shutdown', unmountInGame);
+  }
+
+  /**
+   * New native-Phaser adoption-match picker. Replaces the old
+   * `adoption-office.html` iframe with a painted Phaser scene that
+   * shares the texture cache, audio manager, and registry. Pauses
+   * GameScene while the picker is on screen and resumes it on
+   * confirm/cancel; on confirm we chain into the existing painted
+   * adoption-ceremony iframe (`openAdoptionOverlay`) so the downstream
+   * `commitAdoption` path is unchanged.
+   */
+  public openAdoptionMatchOverlay(animal: Animal): void {
+    this.scene.pause();
+    this.scene.launch('AdoptionMatchScene', {
+      animal,
+      store: this.store,
+      onComplete: (householdId: string | null) => {
+        this.scene.resume();
+        if (!householdId) return;
+        this.openAdoptionOverlay(animal, householdId);
+      },
+    });
   }
 
   private openAdoptionOverlay(animal: Animal, householdId: string): void {
