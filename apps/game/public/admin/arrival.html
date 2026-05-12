@@ -150,10 +150,12 @@
   .arrival-plaque::before { left: 12px; }
   .arrival-plaque::after  { right: 12px; }
 
-  /* Delivery-box flag stamped top-right */
+  /* Delivery-box flag stamped top-LEFT. (Was top-right, but the audio
+     button is anchored to the viewport's top-right and they collided —
+     the speaker sat on top of the red mailbox flag.) */
   .arrival-flag {
     position: absolute;
-    top: -24px; right: -16px;
+    top: -24px; left: -16px;
     width: clamp(52px, 8cqh, 72px);
     height: clamp(52px, 8cqh, 72px);
     border-radius: 50%;
@@ -162,13 +164,13 @@
     box-shadow: 0 4px 10px rgba(0,0,0,0.4);
     display: flex; align-items: center; justify-content: center;
     font-size: clamp(28px, 4.4cqh, 40px);
-    transform: rotate(-10deg);
+    transform: rotate(10deg);
     animation: flagPulse 1.6s ease-in-out infinite;
     filter: drop-shadow(1px 2px 0 rgba(0,0,0,0.3));
   }
   @keyframes flagPulse {
-    0%, 100% { transform: rotate(-10deg) scale(1); }
-    50%      { transform: rotate(-10deg) scale(1.1); }
+    0%, 100% { transform: rotate(10deg) scale(1); }
+    50%      { transform: rotate(10deg) scale(1.1); }
   }
 
   /* Single new-arrival animal, centred, larger than conflict sprites */
