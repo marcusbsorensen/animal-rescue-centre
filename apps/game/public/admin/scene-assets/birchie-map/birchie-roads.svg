@@ -2065,21 +2065,50 @@
      greenhouses (which are just outside the OSM bbox to the
      south-west). Placed in the open farmland south of the A28
      west of central Birchie. Future-supply-run destination —
-     veg + flower-grower at scale. -->
+     veg + flower-grower at scale.
+
+     Visual: each glasshouse is a pitched-roof bay with a darker
+     gable line down the ridge + a soft light/shadow gradient
+     either side, so the strips read as 3D roofs rather than
+     flat blue bars. A short access road stub connects the south
+     loading bay to the nearest road. -->
+<defs>
+  <linearGradient id="glasshouse-roof" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"  stop-color="#dff0ec"/>
+    <stop offset="48%" stop-color="#bdd9d4"/>
+    <stop offset="52%" stop-color="#a8c9c3"/>
+    <stop offset="100%" stop-color="#cde3de"/>
+  </linearGradient>
+</defs>
 <g id="glasshouse-acres" transform="translate(560,720)">
+  <!-- Short tarmac access road stub running south to meet Crispe Road -->
+  <path d="M0,44 L0,128" stroke="#d3c490" stroke-width="6" stroke-linecap="round"/>
+  <path d="M0,44 L0,128" stroke="#a89860" stroke-width="6.6" fill="none" opacity="0.35"/>
+  <!-- Yard / hardstanding pad in front of the loading bay -->
+  <rect x="-40" y="40" width="80" height="14" rx="2" fill="#cdb98a" stroke="#a89860" stroke-width="0.6"/>
   <!-- Boundary fence -->
   <rect x="-110" y="-55" width="220" height="100" fill="#eef0d8" stroke="#7b8a4a" stroke-width="2.5" rx="8"/>
-  <!-- 6 glasshouse roof strips (long thin rectangles, light glass-blue) -->
-  <g fill="#cee5e0" stroke="#7ba8a4" stroke-width="1">
-    <rect x="-100" y="-46" width="200" height="11" rx="2"/>
-    <rect x="-100" y="-32" width="200" height="11" rx="2"/>
-    <rect x="-100" y="-18" width="200" height="11" rx="2"/>
-    <rect x="-100" y="-4"  width="200" height="11" rx="2"/>
-    <rect x="-100" y="10"  width="200" height="11" rx="2"/>
-    <rect x="-100" y="24"  width="200" height="11" rx="2"/>
+  <!-- 6 pitched glasshouse bays. Each bay = gradient-filled strip +
+       a darker gable ridge down the centre. -->
+  <g stroke="#6f9c97" stroke-width="0.8">
+    <rect x="-100" y="-46" width="200" height="11" rx="2" fill="url(#glasshouse-roof)"/>
+    <rect x="-100" y="-32" width="200" height="11" rx="2" fill="url(#glasshouse-roof)"/>
+    <rect x="-100" y="-18" width="200" height="11" rx="2" fill="url(#glasshouse-roof)"/>
+    <rect x="-100" y="-4"  width="200" height="11" rx="2" fill="url(#glasshouse-roof)"/>
+    <rect x="-100" y="10"  width="200" height="11" rx="2" fill="url(#glasshouse-roof)"/>
+    <rect x="-100" y="24"  width="200" height="11" rx="2" fill="url(#glasshouse-roof)"/>
   </g>
-  <!-- Roof ridges (slightly darker line down the centre of each) -->
-  <g stroke="#7ba8a4" stroke-width="0.6" opacity="0.6">
+  <!-- Ridge highlights (just above each gable line — sunlit side) -->
+  <g stroke="#f3faf8" stroke-width="0.6" opacity="0.85">
+    <line x1="-100" y1="-41"   x2="100" y2="-41"/>
+    <line x1="-100" y1="-27"   x2="100" y2="-27"/>
+    <line x1="-100" y1="-13"   x2="100" y2="-13"/>
+    <line x1="-100" y1="1"     x2="100" y2="1"/>
+    <line x1="-100" y1="15"    x2="100" y2="15"/>
+    <line x1="-100" y1="29"    x2="100" y2="29"/>
+  </g>
+  <!-- Gable ridges (centre line, darker — the pitch peak) -->
+  <g stroke="#5a7e7a" stroke-width="0.7">
     <line x1="-100" y1="-40.5" x2="100" y2="-40.5"/>
     <line x1="-100" y1="-26.5" x2="100" y2="-26.5"/>
     <line x1="-100" y1="-12.5" x2="100" y2="-12.5"/>
@@ -2109,10 +2138,32 @@
   .ship-anim      { animation: drift-east-to-west 260s linear infinite; }
   .ship-anim-2    { animation: drift-east-to-west 340s linear infinite; animation-delay: -90s; }
   .ship-anim-3    { animation: drift-east-to-west 300s linear infinite; animation-delay: -180s; }
-  .tractor-anim   { animation: drift-east-to-west 180s linear infinite; animation-delay: -45s; }
-  .tractor-anim-2 { animation: drift-west-to-east 220s linear infinite; }
+  /* Tractors used to drift the full SVG width (-700 → 1900) which sent
+     them ploughing through roads and houses. Now each tractor stays
+     inside ONE specific field. Opacity fades in/out at the field edges
+     so the loop reset is invisible.
+       .tractor-west → field 22 (western farmland, x:354-848)
+       .tractor-east → field 17 (eastern farmland, x:1178-1554) */
+  .tractor-west { animation: tractor-cross-west 80s linear infinite; }
+  .tractor-east { animation: tractor-cross-east 95s linear infinite; animation-delay: -30s; }
   @keyframes drift-east-to-west { from { transform: translateX(1900px); } to { transform: translateX(-700px); } }
   @keyframes drift-west-to-east { from { transform: translateX(-700px); } to { transform: translateX(1900px); } }
+  /* Tractor 1 (classic, east-to-west) within the western field.
+     Image x is placed at field-east-edge - 80; translateX walks it
+     leftward to field-west-edge then loops, with fade at edges. */
+  @keyframes tractor-cross-west {
+    0%   { transform: translateX(0);     opacity: 0; }
+    7%   { transform: translateX(-40px); opacity: 1; }
+    93%  { transform: translateX(-380px); opacity: 1; }
+    100% { transform: translateX(-420px); opacity: 0; }
+  }
+  /* Tractor 2 (with trailer, west-to-east) within the eastern field. */
+  @keyframes tractor-cross-east {
+    0%   { transform: translateX(0);     opacity: 0; }
+    7%   { transform: translateX(40px);  opacity: 1; }
+    93%  { transform: translateX(290px); opacity: 1; }
+    100% { transform: translateX(330px); opacity: 0; }
+  }
   /* Tractors that travel west are flipped horizontally so they
      "face the way they're going." Apply scale to the inner image. */
   .face-west { transform: scaleX(-1); transform-origin: center; transform-box: fill-box; }
@@ -2130,13 +2181,16 @@
   <image href="cargo-ship-small.png" x="0" y="185" width="135" height="48"/>
 </g>
 
-<!-- Tractors on the southern farmland (y ~860-980). One travels
-     east-to-west (right-facing as painted), one west-to-east
-     (flipped via .face-west). -->
-<g class="tractor-anim">
-  <image href="tractor-classic.png" x="0" y="860" width="80" height="44"/>
+<!-- Tractors on the southern farmland. Each one ploughs across ONE
+     field only (not the full map width) — see keyframes above.
+     Tractor 1 starts at the east edge of the western field (x≈760)
+     and walks west to ≈340 (translateX(-420)).
+     Tractor 2 starts at the west edge of the eastern field (x≈1190)
+     and walks east to ≈1520 (translateX(+330)). -->
+<g class="tractor-west">
+  <image href="tractor-classic.png" x="760" y="920" width="80" height="44"/>
 </g>
-<g class="tractor-anim-2">
-  <image class="face-west" href="tractor-with-trailer.png" x="0" y="950" width="100" height="42"/>
+<g class="tractor-east">
+  <image class="face-west" href="tractor-with-trailer.png" x="1190" y="900" width="100" height="42"/>
 </g>
 </svg>
