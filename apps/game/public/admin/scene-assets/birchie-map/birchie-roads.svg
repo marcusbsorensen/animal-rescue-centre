@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1121" width="1800" height="1121" preserveAspectRatio="xMidYMid meet">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1121" width="1800" height="1121" preserveAspectRatio="xMidYMid slice">
 <!-- Birchie geography: real OSM, wider bounds (2026-05-03 overhaul).
      bbox lat 51.355..51.39, lon 1.27..1.36
      (6237m W-E x 3885m N-S real). -->
@@ -2099,7 +2099,7 @@
         stroke="#3a3a3a" stroke-width="3.5">Westbeach Golf Club</text>
 </g>
 <g id="petrol-stations">
-  <g class="fuel-marker" transform="translate(1663,332)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Fuel Station</text></g>
+  <g class="fuel-marker" transform="translate(560,720)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Fuel Station</text></g>
   <g class="fuel-marker" transform="translate(594,678)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Fuel Station</text></g>
 </g>
 <g id="wash-bandits" transform="translate(500,673)"><ellipse cx="0" cy="18" rx="11" ry="3" fill="#3a3a3a" stroke="#1a1612" stroke-width="0.6"/><path d="M-5,-3 L-5,15 L5,15 L5,-3 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.8"/><rect x="-2.5" y="-1" width="5" height="14" fill="#d63838"/><path d="M-6,-8 L-6,-3 L6,-3 L6,-8 Z" fill="#f0c870" stroke="#9a7c30" stroke-width="0.6"/><path d="M5,-5 Q 9,-9 11,-15" fill="none" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><path d="M-5,-5 L-7,3" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><circle cx="0" cy="-12" r="5" fill="#f5d4a8" stroke="#7b5c3a" stroke-width="0.8"/><path d="M-5,-13 A5,5 0 0,1 5,-13 L5,-15 L-5,-15 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.6"/><rect x="-5" y="-13" width="10" height="1" fill="#1f4d8a"/><path d="M-1.5,-10.5 Q 0,-9.5 1.5,-10.5" fill="none" stroke="#3a3a3a" stroke-width="0.6" stroke-linecap="round"/><circle cx="-1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><circle cx="1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><text x="0" y="32" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Car Wash</text></g>
@@ -2122,16 +2122,27 @@
     <stop offset="100%" stop-color="#cde3de"/>
   </linearGradient>
 </defs>
-<g id="glasshouse-acres" transform="translate(560,720)">
-  <!-- Short tarmac access road stub running south to meet Crispe Road -->
-  <path d="M0,44 L0,128" stroke="#d3c490" stroke-width="6" stroke-linecap="round"/>
-  <path d="M0,44 L0,128" stroke="#a89860" stroke-width="6.6" fill="none" opacity="0.35"/>
-  <!-- Yard / hardstanding pad in front of the loading bay -->
-  <rect x="-40" y="40" width="80" height="14" rx="2" fill="#cdb98a" stroke="#a89860" stroke-width="0.6"/>
+<!-- Access road first (rendered BEFORE the building so building sits
+     on top of it). Goes from the secondary road (Manston Road) at
+     ~(1000, 880) down to the greenhouse's NE corner at ~(920, 940).
+     A gentle curve so it reads as a slip road rather than a ruler. -->
+<path d="M1000,880 Q 980,905 920,940" stroke="#a89860" stroke-width="9" fill="none" stroke-linecap="round" opacity="0.55"/>
+<path d="M1000,880 Q 980,905 920,940" stroke="#d3c490" stroke-width="7" fill="none" stroke-linecap="round"/>
+
+<!-- Glasshouse Acres — repositioned south of Manston Road, rotated
+     35° clockwise to suggest a real-world Thanet glasshouse aligned
+     with the field boundaries (not the road grid). 70% scale of the
+     original drawing so it sits comfortably in the open farmland
+     without crowding nearby plots. Loading bay now on the NE corner,
+     wired up to Manston Road via the access curve above. -->
+<g id="glasshouse-acres" transform="translate(840,1000) rotate(35) scale(0.7)">
+  <!-- Yard / hardstanding pad on the NE corner (was the south loading
+       bay before the rotation rebuild). Sits OUTSIDE the boundary
+       fence, where the access road meets the complex. -->
+  <rect x="80" y="-55" width="36" height="40" rx="2" fill="#cdb98a" stroke="#a89860" stroke-width="0.8"/>
   <!-- Boundary fence -->
   <rect x="-110" y="-55" width="220" height="100" fill="#eef0d8" stroke="#7b8a4a" stroke-width="2.5" rx="8"/>
-  <!-- 6 pitched glasshouse bays. Each bay = gradient-filled strip +
-       a darker gable ridge down the centre. -->
+  <!-- 6 pitched glasshouse bays. -->
   <g stroke="#6f9c97" stroke-width="0.8">
     <rect x="-100" y="-46" width="200" height="11" rx="2" fill="url(#glasshouse-roof)"/>
     <rect x="-100" y="-32" width="200" height="11" rx="2" fill="url(#glasshouse-roof)"/>
@@ -2140,7 +2151,7 @@
     <rect x="-100" y="10"  width="200" height="11" rx="2" fill="url(#glasshouse-roof)"/>
     <rect x="-100" y="24"  width="200" height="11" rx="2" fill="url(#glasshouse-roof)"/>
   </g>
-  <!-- Ridge highlights (just above each gable line — sunlit side) -->
+  <!-- Ridge highlights (sunlit) -->
   <g stroke="#f3faf8" stroke-width="0.6" opacity="0.85">
     <line x1="-100" y1="-41"   x2="100" y2="-41"/>
     <line x1="-100" y1="-27"   x2="100" y2="-27"/>
@@ -2149,7 +2160,7 @@
     <line x1="-100" y1="15"    x2="100" y2="15"/>
     <line x1="-100" y1="29"    x2="100" y2="29"/>
   </g>
-  <!-- Gable ridges (centre line, darker — the pitch peak) -->
+  <!-- Gable ridges -->
   <g stroke="#5a7e7a" stroke-width="0.7">
     <line x1="-100" y1="-40.5" x2="100" y2="-40.5"/>
     <line x1="-100" y1="-26.5" x2="100" y2="-26.5"/>
@@ -2158,42 +2169,22 @@
     <line x1="-100" y1="15.5"  x2="100" y2="15.5"/>
     <line x1="-100" y1="29.5"  x2="100" y2="29.5"/>
   </g>
-  <!-- Service road / loading bay along the bottom -->
-  <rect x="-100" y="38" width="200" height="6" fill="#d3c490" stroke="#a89860" stroke-width="0.6"/>
-  <!-- Label (major-tier, 22px to match other primary destinations).
-       The glasshouse drawing itself acts as the illustration so no
-       separate icon is needed above the text. -->
-  <text x="0" y="-65" font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
-        fill="#fef9ef" text-anchor="middle" paint-order="stroke"
-        stroke="#3a3a3a" stroke-width="3.5">Glasshouse Acres</text>
 </g>
 
-<!-- A.R.C. — the kid's HOME. Marker uses the same icon+label pattern
-     as other POIs but with the largest font (30px vs 22px for major
-     destinations) so the eye lands here first. The dashed yellow
-     polygon below still shows the actual site outline; the marker
-     sits just above it. Icon = cream house with a red roof and a
-     little white heart, echoing the ARC logo. -->
+<!-- Glasshouse Acres label — kept OUT of the rotated group so the
+     text stays horizontal and readable. Positioned just above the
+     rotated complex. -->
+<text x="840" y="945" font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+      fill="#fef9ef" text-anchor="middle" paint-order="stroke"
+      stroke="#3a3a3a" stroke-width="3.5">Glasshouse Acres</text>
+
+<!-- A.R.C. site outline only. The painted Art Deco building image and
+     the "A.R.C." rounded pill label are overlaid by map.html as HTML
+     pins (#pin-layer .pin-arc-building / .pin-arc-label) so they can
+     scale with the viewport and trigger click → showStage('arc').
+     Don't draw a second SVG-side marker here — it duplicates the
+     pin and looks like there are two centres. -->
 <polygon id="arc-plot" data-name="A.R.C. site" points="340.4,388.7 328.2,397.2 303.4,359.6 315.3,351.7 325.1,366.0 332.6,377.1 340.4,388.7" fill="#e3b04b" fill-opacity="0.55" stroke="#7b5c3a" stroke-width="3" stroke-dasharray="6 4"/>
-<g class="poi-marker poi-home" transform="translate(322,332)">
-  <g class="poi-icon" transform="translate(0,-44)">
-    <!-- Sloping red roof -->
-    <path d="M-22,-6 L0,-24 L22,-6 Z" fill="#d63838" stroke="#7a1f1f" stroke-width="1.6" stroke-linejoin="round"/>
-    <!-- Cream house body -->
-    <rect x="-18" y="-6" width="36" height="22" fill="#fef9ef" stroke="#3a3a3a" stroke-width="1.8"/>
-    <!-- Brown door -->
-    <rect x="-6" y="4" width="12" height="14" fill="#7b5c3a" stroke="#3a2613" stroke-width="0.9"/>
-    <!-- Twin windows flanking the door -->
-    <rect x="-14" y="-2" width="6" height="6" fill="#a0cfff" stroke="#3a3a3a" stroke-width="0.6"/>
-    <rect x="8"   y="-2" width="6" height="6" fill="#a0cfff" stroke="#3a3a3a" stroke-width="0.6"/>
-    <!-- White heart on roof (matches the ARC paw-heart logo) -->
-    <path d="M-5,-13 C-5,-16 -1,-17 0,-15 C1,-17 5,-16 5,-13 C5,-10 0,-7 0,-7 C0,-7 -5,-10 -5,-13 Z"
-          fill="#fef9ef" stroke="#7a1f1f" stroke-width="0.7"/>
-  </g>
-  <text font-family="Fredoka, sans-serif" font-size="30" font-weight="800"
-        fill="#fef9ef" text-anchor="middle" paint-order="stroke"
-        stroke="#3a3a3a" stroke-width="4.5">A.R.C.</text>
-</g>
 
 <!-- Animated decorations 2026-05-03: painted-watercolour cargo
      ships drifting east-to-west across the Thames Estuary at the
@@ -2214,8 +2205,14 @@
        .tractor-east → field 17 (eastern farmland, x:1178-1554) */
   .tractor-west { animation: tractor-cross-west 80s linear infinite; }
   .tractor-east { animation: tractor-cross-east 95s linear infinite; animation-delay: -30s; }
-  @keyframes drift-east-to-west { from { transform: translateX(1900px); } to { transform: translateX(-700px); } }
-  @keyframes drift-west-to-east { from { transform: translateX(-700px); } to { transform: translateX(1900px); } }
+  /* Ships drift from x=1300 (east edge of sea band) to x=-700 (off
+     the west edge). Capped at 1300 (was 1900) because the coast on
+     the right side of the map cuts up to y~150, and ships drawn at
+     y=50..235 used to keep rendering all the way over land —
+     "tanker on the high street" effect with painted-mid-ship
+     transparency holes revealing roads through the hull. */
+  @keyframes drift-east-to-west { from { transform: translateX(1300px); } to { transform: translateX(-700px); } }
+  @keyframes drift-west-to-east { from { transform: translateX(-700px); } to { transform: translateX(1300px); } }
   /* Tractor 1 (classic, east-to-west) within the western field.
      Image x is placed at field-east-edge - 80; translateX walks it
      leftward to field-west-edge then loops, with fade at edges. */

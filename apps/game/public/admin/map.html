@@ -274,21 +274,13 @@
   }
   .stage:not(.active) { display: none; }
 
-  /* Town stage: SVG uses preserveAspectRatio="meet" (contain) so the
-     A.R.C. plot is always visible regardless of viewport aspect.
-     Where the SVG letterboxes, we show a sharp split — the top band
-     in the SVG's own sea blue, the rest in its land tan — so the
-     left/right letterbox bars read as 'more coastline of the same
-     kind' rather than a void.
-
-     The split is at 24% (was 50%), which matches the actual coast
-     position in the SVG (sea covers y:0..~270 of viewBox y:0..1121,
-     so 270/1121 ≈ 0.24). At 50% the bars showed blue all the way
-     down to mid-viewport while the rendered map next to them showed
-     tan from ~24% downward — a visible blue gap on the right edge
-     of the map at wide aspect ratios (e.g. 21:9 monitors). */
+  /* Town stage: the SVG now uses preserveAspectRatio="slice" so it
+     always fills the viewport completely (cropping a little of the
+     opposite axis as needed). That means there are no letterbox
+     bars to fill — the stage background is only visible momentarily
+     during SVG load. Keep a neutral sea blue as the load colour. */
   #world-stage {
-    background: linear-gradient(to bottom, #bfdde3 0%, #bfdde3 24%, #dec98a 24%, #dec98a 100%);
+    background: #bfdde3;
   }
 
   /* World view */
