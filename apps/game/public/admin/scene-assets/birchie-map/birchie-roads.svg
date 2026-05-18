@@ -2063,17 +2063,19 @@
        - Service POIs .... 14px  (Fuel stations, Car Wash)
      so the player's eye lands on A.R.C. first. -->
 
-<!-- Wyx Park — country estate / future events venue. Icon: tree. -->
+<!-- Wyx Park — country estate / future events venue. Icon: tree.
+     (Icon ~50px tall — sized so the player can ID it from the
+     fully-zoomed-out world map without needing to zoom in.) -->
 <g class="poi-marker poi-major" transform="translate(978,706)">
-  <g class="poi-icon" transform="translate(0,-28)">
+  <g class="poi-icon" transform="translate(0,-44)">
     <!-- Tree trunk -->
-    <rect x="-2.5" y="-2" width="5" height="14" fill="#6b4625" stroke="#3a2613" stroke-width="0.8"/>
+    <rect x="-4" y="-2" width="8" height="22" fill="#6b4625" stroke="#3a2613" stroke-width="1.2"/>
     <!-- Canopy: three overlapping leaf circles -->
-    <circle cx="0"   cy="-12" r="11" fill="#5a8a48" stroke="#3a5e2e" stroke-width="1.2"/>
-    <circle cx="-7"  cy="-7"  r="8"  fill="#6b9c54" stroke="#3a5e2e" stroke-width="1.2"/>
-    <circle cx="7"   cy="-7"  r="8"  fill="#4f7e3f" stroke="#3a5e2e" stroke-width="1.2"/>
+    <circle cx="0"   cy="-18" r="17" fill="#5a8a48" stroke="#3a5e2e" stroke-width="1.8"/>
+    <circle cx="-11" cy="-11" r="13" fill="#6b9c54" stroke="#3a5e2e" stroke-width="1.8"/>
+    <circle cx="11"  cy="-11" r="13" fill="#4f7e3f" stroke="#3a5e2e" stroke-width="1.8"/>
     <!-- Highlight on top-left of canopy -->
-    <circle cx="-3" cy="-14" r="3" fill="#8bb56e" opacity="0.7"/>
+    <circle cx="-5" cy="-22" r="5" fill="#8bb56e" opacity="0.7"/>
   </g>
   <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke"
@@ -2082,15 +2084,15 @@
 
 <!-- Westbeach Golf Club — coastal links. Icon: flag in hole. -->
 <g class="poi-marker poi-major" transform="translate(1122,352)">
-  <g class="poi-icon" transform="translate(0,-28)">
+  <g class="poi-icon" transform="translate(0,-44)">
     <!-- Green (lighter putting surface) -->
-    <ellipse cx="0" cy="6" rx="16" ry="5" fill="#7ec25a" stroke="#3a5e2e" stroke-width="1"/>
+    <ellipse cx="0" cy="10" rx="26" ry="8" fill="#7ec25a" stroke="#3a5e2e" stroke-width="1.4"/>
     <!-- Hole (dark circle on the green) -->
-    <ellipse cx="-2" cy="6" rx="3" ry="1.5" fill="#1a1a1a"/>
+    <ellipse cx="-3" cy="10" rx="5" ry="2.5" fill="#1a1a1a"/>
     <!-- Flagpole -->
-    <line x1="-2" y1="6" x2="-2" y2="-16" stroke="#3a3a3a" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="-3" y1="10" x2="-3" y2="-26" stroke="#3a3a3a" stroke-width="2.4" stroke-linecap="round"/>
     <!-- Red triangular flag -->
-    <path d="M-2,-16 L10,-13 L-2,-10 Z" fill="#d63838" stroke="#7a1f1f" stroke-width="0.8" stroke-linejoin="round"/>
+    <path d="M-3,-26 L17,-21 L-3,-16 Z" fill="#d63838" stroke="#7a1f1f" stroke-width="1.2" stroke-linejoin="round"/>
   </g>
   <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke"
@@ -2173,17 +2175,20 @@
      sits just above it. Icon = cream house with a red roof and a
      little white heart, echoing the ARC logo. -->
 <polygon id="arc-plot" data-name="A.R.C. site" points="340.4,388.7 328.2,397.2 303.4,359.6 315.3,351.7 325.1,366.0 332.6,377.1 340.4,388.7" fill="#e3b04b" fill-opacity="0.55" stroke="#7b5c3a" stroke-width="3" stroke-dasharray="6 4"/>
-<g class="poi-marker poi-home" transform="translate(322,340)">
-  <g class="poi-icon" transform="translate(0,-32)">
+<g class="poi-marker poi-home" transform="translate(322,332)">
+  <g class="poi-icon" transform="translate(0,-44)">
     <!-- Sloping red roof -->
-    <path d="M-15,-4 L0,-16 L15,-4 Z" fill="#d63838" stroke="#7a1f1f" stroke-width="1.2" stroke-linejoin="round"/>
+    <path d="M-22,-6 L0,-24 L22,-6 Z" fill="#d63838" stroke="#7a1f1f" stroke-width="1.6" stroke-linejoin="round"/>
     <!-- Cream house body -->
-    <rect x="-12" y="-4" width="24" height="16" fill="#fef9ef" stroke="#3a3a3a" stroke-width="1.4"/>
+    <rect x="-18" y="-6" width="36" height="22" fill="#fef9ef" stroke="#3a3a3a" stroke-width="1.8"/>
     <!-- Brown door -->
-    <rect x="-4" y="2" width="8" height="10" fill="#7b5c3a" stroke="#3a2613" stroke-width="0.6"/>
-    <!-- White heart on roof -->
-    <path d="M-3,-9 C-3,-11 -1,-12 0,-10 C1,-12 3,-11 3,-9 C3,-7 0,-5 0,-5 C0,-5 -3,-7 -3,-9 Z"
-          fill="#fef9ef" stroke="#7a1f1f" stroke-width="0.5"/>
+    <rect x="-6" y="4" width="12" height="14" fill="#7b5c3a" stroke="#3a2613" stroke-width="0.9"/>
+    <!-- Twin windows flanking the door -->
+    <rect x="-14" y="-2" width="6" height="6" fill="#a0cfff" stroke="#3a3a3a" stroke-width="0.6"/>
+    <rect x="8"   y="-2" width="6" height="6" fill="#a0cfff" stroke="#3a3a3a" stroke-width="0.6"/>
+    <!-- White heart on roof (matches the ARC paw-heart logo) -->
+    <path d="M-5,-13 C-5,-16 -1,-17 0,-15 C1,-17 5,-16 5,-13 C5,-10 0,-7 0,-7 C0,-7 -5,-10 -5,-13 Z"
+          fill="#fef9ef" stroke="#7a1f1f" stroke-width="0.7"/>
   </g>
   <text font-family="Fredoka, sans-serif" font-size="30" font-weight="800"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke"
