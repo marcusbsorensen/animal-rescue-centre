@@ -2054,13 +2054,53 @@
   <path id="r-1089858502" data-name="" data-cls="cycleway" data-ref="" d="M1552.3,143.7L1551.5,141.2L1558.6,139.1L1567.8,137.4L1574.8,135.3L1577.5,131.3"/>
   <path id="northern-sea-wall" data-name="Northern Sea Wall" data-cls="cycleway" data-ref="" d="M144.3,401.2L146.2,401.2L155.1,406.2L158.2,406.3"/>
 </g>
-<text x="978" y="706" font-family="Fredoka, sans-serif" font-size="26" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3.5">Wyx Park</text>
-<text x="1122" y="352" font-family="Fredoka, sans-serif" font-size="26" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3.5">Westbeach Golf Club</text>
-<g id="petrol-stations">
-  <g class="fuel-marker" transform="translate(1663,332)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Fuel Station</text></g>
-  <g class="fuel-marker" transform="translate(594,678)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Fuel Station</text></g>
+<!-- ── Standardised POI markers ─────────────────────────────────
+     Pattern: small painted icon centred above the place name. All
+     names use the ARC sign typography (Fredoka 700, cream fill,
+     dark stroke via paint-order). Size hierarchy:
+       - ARC ............. 30px  (the kid's HOME / primary landmark)
+       - Major places .... 22px  (Wyx Park, Golf, Glasshouse Acres)
+       - Service POIs .... 14px  (Fuel stations, Car Wash)
+     so the player's eye lands on A.R.C. first. -->
+
+<!-- Wyx Park — country estate / future events venue. Icon: tree. -->
+<g class="poi-marker poi-major" transform="translate(978,706)">
+  <g class="poi-icon" transform="translate(0,-28)">
+    <!-- Tree trunk -->
+    <rect x="-2.5" y="-2" width="5" height="14" fill="#6b4625" stroke="#3a2613" stroke-width="0.8"/>
+    <!-- Canopy: three overlapping leaf circles -->
+    <circle cx="0"   cy="-12" r="11" fill="#5a8a48" stroke="#3a5e2e" stroke-width="1.2"/>
+    <circle cx="-7"  cy="-7"  r="8"  fill="#6b9c54" stroke="#3a5e2e" stroke-width="1.2"/>
+    <circle cx="7"   cy="-7"  r="8"  fill="#4f7e3f" stroke="#3a5e2e" stroke-width="1.2"/>
+    <!-- Highlight on top-left of canopy -->
+    <circle cx="-3" cy="-14" r="3" fill="#8bb56e" opacity="0.7"/>
+  </g>
+  <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+        fill="#fef9ef" text-anchor="middle" paint-order="stroke"
+        stroke="#3a3a3a" stroke-width="3.5">Wyx Park</text>
 </g>
-<g id="wash-bandits" transform="translate(500,673)"><ellipse cx="0" cy="18" rx="11" ry="3" fill="#3a3a3a" stroke="#1a1612" stroke-width="0.6"/><path d="M-5,-3 L-5,15 L5,15 L5,-3 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.8"/><rect x="-2.5" y="-1" width="5" height="14" fill="#d63838"/><path d="M-6,-8 L-6,-3 L6,-3 L6,-8 Z" fill="#f0c870" stroke="#9a7c30" stroke-width="0.6"/><path d="M5,-5 Q 9,-9 11,-15" fill="none" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><path d="M-5,-5 L-7,3" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><circle cx="0" cy="-12" r="5" fill="#f5d4a8" stroke="#7b5c3a" stroke-width="0.8"/><path d="M-5,-13 A5,5 0 0,1 5,-13 L5,-15 L-5,-15 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.6"/><rect x="-5" y="-13" width="10" height="1" fill="#1f4d8a"/><path d="M-1.5,-10.5 Q 0,-9.5 1.5,-10.5" fill="none" stroke="#3a3a3a" stroke-width="0.6" stroke-linecap="round"/><circle cx="-1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><circle cx="1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><text x="0" y="32" font-family="Fredoka, sans-serif" font-size="13" font-weight="600" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="2.5">Car Wash</text></g>
+
+<!-- Westbeach Golf Club — coastal links. Icon: flag in hole. -->
+<g class="poi-marker poi-major" transform="translate(1122,352)">
+  <g class="poi-icon" transform="translate(0,-28)">
+    <!-- Green (lighter putting surface) -->
+    <ellipse cx="0" cy="6" rx="16" ry="5" fill="#7ec25a" stroke="#3a5e2e" stroke-width="1"/>
+    <!-- Hole (dark circle on the green) -->
+    <ellipse cx="-2" cy="6" rx="3" ry="1.5" fill="#1a1a1a"/>
+    <!-- Flagpole -->
+    <line x1="-2" y1="6" x2="-2" y2="-16" stroke="#3a3a3a" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- Red triangular flag -->
+    <path d="M-2,-16 L10,-13 L-2,-10 Z" fill="#d63838" stroke="#7a1f1f" stroke-width="0.8" stroke-linejoin="round"/>
+  </g>
+  <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+        fill="#fef9ef" text-anchor="middle" paint-order="stroke"
+        stroke="#3a3a3a" stroke-width="3.5">Westbeach Golf Club</text>
+</g>
+<g id="petrol-stations">
+  <g class="fuel-marker" transform="translate(1663,332)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Fuel Station</text></g>
+  <g class="fuel-marker" transform="translate(594,678)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Fuel Station</text></g>
+</g>
+<g id="wash-bandits" transform="translate(500,673)"><ellipse cx="0" cy="18" rx="11" ry="3" fill="#3a3a3a" stroke="#1a1612" stroke-width="0.6"/><path d="M-5,-3 L-5,15 L5,15 L5,-3 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.8"/><rect x="-2.5" y="-1" width="5" height="14" fill="#d63838"/><path d="M-6,-8 L-6,-3 L6,-3 L6,-8 Z" fill="#f0c870" stroke="#9a7c30" stroke-width="0.6"/><path d="M5,-5 Q 9,-9 11,-15" fill="none" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><path d="M-5,-5 L-7,3" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/><circle cx="0" cy="-12" r="5" fill="#f5d4a8" stroke="#7b5c3a" stroke-width="0.8"/><path d="M-5,-13 A5,5 0 0,1 5,-13 L5,-15 L-5,-15 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.6"/><rect x="-5" y="-13" width="10" height="1" fill="#1f4d8a"/><path d="M-1.5,-10.5 Q 0,-9.5 1.5,-10.5" fill="none" stroke="#3a3a3a" stroke-width="0.6" stroke-linecap="round"/><circle cx="-1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><circle cx="1.5" cy="-12.5" r="0.4" fill="#3a3a3a"/><text x="0" y="32" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Car Wash</text></g>
 <!-- Glasshouse Acres — fake stand-in for the real Thanet Earth
      greenhouses (which are just outside the OSM bbox to the
      south-west). Placed in the open farmland south of the A28
@@ -2118,14 +2158,37 @@
   </g>
   <!-- Service road / loading bay along the bottom -->
   <rect x="-100" y="38" width="200" height="6" fill="#d3c490" stroke="#a89860" stroke-width="0.6"/>
-  <!-- Label -->
+  <!-- Label (major-tier, 22px to match other primary destinations).
+       The glasshouse drawing itself acts as the illustration so no
+       separate icon is needed above the text. -->
   <text x="0" y="-65" font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke"
-        stroke="#3a3a3a" stroke-width="3">Glasshouse Acres</text>
+        stroke="#3a3a3a" stroke-width="3.5">Glasshouse Acres</text>
 </g>
 
+<!-- A.R.C. — the kid's HOME. Marker uses the same icon+label pattern
+     as other POIs but with the largest font (30px vs 22px for major
+     destinations) so the eye lands here first. The dashed yellow
+     polygon below still shows the actual site outline; the marker
+     sits just above it. Icon = cream house with a red roof and a
+     little white heart, echoing the ARC logo. -->
 <polygon id="arc-plot" data-name="A.R.C. site" points="340.4,388.7 328.2,397.2 303.4,359.6 315.3,351.7 325.1,366.0 332.6,377.1 340.4,388.7" fill="#e3b04b" fill-opacity="0.55" stroke="#7b5c3a" stroke-width="3" stroke-dasharray="6 4"/>
-<text x="326" y="376" font-family="Fredoka, sans-serif" font-size="22" font-weight="700" fill="#3a3a3a" text-anchor="middle" paint-order="stroke" stroke="#fef9ef" stroke-width="3">A.R.C.</text>
+<g class="poi-marker poi-home" transform="translate(322,340)">
+  <g class="poi-icon" transform="translate(0,-32)">
+    <!-- Sloping red roof -->
+    <path d="M-15,-4 L0,-16 L15,-4 Z" fill="#d63838" stroke="#7a1f1f" stroke-width="1.2" stroke-linejoin="round"/>
+    <!-- Cream house body -->
+    <rect x="-12" y="-4" width="24" height="16" fill="#fef9ef" stroke="#3a3a3a" stroke-width="1.4"/>
+    <!-- Brown door -->
+    <rect x="-4" y="2" width="8" height="10" fill="#7b5c3a" stroke="#3a2613" stroke-width="0.6"/>
+    <!-- White heart on roof -->
+    <path d="M-3,-9 C-3,-11 -1,-12 0,-10 C1,-12 3,-11 3,-9 C3,-7 0,-5 0,-5 C0,-5 -3,-7 -3,-9 Z"
+          fill="#fef9ef" stroke="#7a1f1f" stroke-width="0.5"/>
+  </g>
+  <text font-family="Fredoka, sans-serif" font-size="30" font-weight="800"
+        fill="#fef9ef" text-anchor="middle" paint-order="stroke"
+        stroke="#3a3a3a" stroke-width="4.5">A.R.C.</text>
+</g>
 
 <!-- Animated decorations 2026-05-03: painted-watercolour cargo
      ships drifting east-to-west across the Thames Estuary at the
