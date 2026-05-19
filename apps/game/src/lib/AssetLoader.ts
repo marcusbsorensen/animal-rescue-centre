@@ -169,6 +169,14 @@ export class AssetLoader {
    * back to the species-level sprite (via sprites.ts getAnimalTextureKey),
    * so this is purely progressive enhancement.
    *
+   * Batched to stay under Phaser 3.x's maxParallelDownloads (32). The
+   * variant tier has ~440 files; queueing them all at once leaves the
+   * overflow in state=LOADING but never queued for XHR — so most
+   * variant sprites would never land and CorridorView would forever
+   * fall back to the generic species art (e.g. two dogs both rendering
+   * as `dog-arriving` regardless of breed). Same class of bug that
+   * froze BootScene before the icons split — see parseEntry comment.
+   *
    * Idempotent. First call after essentials complete kicks it off; any
    * later call is a no-op.
    */
@@ -189,23 +197,37 @@ export class AssetLoader {
       console.debug(`[AssetLoader] Variant skip: ${file.key}`);
     });
 
-    scene.load.on('complete', () => {
-      // Phaser fires this for every load.start() batch; only flag
-      // complete once our variant queue is empty.
-      const stillPending = this.parsedEntries.filter(
-        (e) => e.tier === 'variant' && !this.isLoaded(e.key, e.type, scene),
-      );
-      if (stillPending.length === 0) this._variantComplete = true;
-    });
+    // Batch size kept well under Phaser's 32-file parallel cap, leaving
+    // headroom for any concurrent essential-tier stragglers also using
+    // the same loader.
+    const BATCH_SIZE = 24;
+    let cursor = 0;
 
-    for (const entry of toLoad) {
-      // All variants are images — no per-variant audio — but keep the
-      // branch for future-proofing.
-      if (entry.type === 'image') scene.load.image(entry.key, entry.path);
-      else if (entry.type === 'audio') scene.load.audio(entry.key, entry.path);
-    }
+    const loadNextBatch = () => {
+      if (cursor >= toLoad.length) {
+        this._variantComplete = true;
+        return;
+      }
+      const batch = toLoad.slice(cursor, cursor + BATCH_SIZE);
+      cursor += BATCH_SIZE;
 
-    scene.load.start();
+      // One-shot listener for this batch's completion — re-arms on the
+      // next batch so we don't pile up handlers.
+      scene.load.once('complete', () => {
+        loadNextBatch();
+      });
+
+      for (const entry of batch) {
+        // All variants are images — no per-variant audio — but keep the
+        // branch for future-proofing.
+        if (entry.type === 'image') scene.load.image(entry.key, entry.path);
+        else if (entry.type === 'audio') scene.load.audio(entry.key, entry.path);
+      }
+
+      scene.load.start();
+    };
+
+    loadNextBatch();
   }
 
   /** Register a progress callback (for the fun loading screen). */
