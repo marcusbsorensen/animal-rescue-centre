@@ -632,9 +632,53 @@
 </g>
 <g id="destinations">
   <path id="dest-quex-park" data-name="Wyx Park" d="M1184.2,780.2L1187.5,727.7L1132.7,711.9L1134.8,698.2L1132.9,690.2L1129.7,684.2L1127.5,680.6L1130.9,664.1L1134.9,657.3L1133.4,656.0L1132.0,655.6L1084.2,638.0L1043.6,622.1L1017.2,615.7L954.1,611.0L939.2,609.9L935.7,609.6L926.7,605.2L926.1,599.9L907.1,592.9L906.0,592.6L895.0,587.8L871.7,621.3L867.1,619.1L840.1,652.9L834.5,659.8L825.6,671.0L809.4,686.2L804.7,688.5L807.3,696.8L801.6,733.9L798.6,744.7L794.4,775.2L788.6,826.8L789.4,831.8L828.3,842.8L848.0,847.9L979.3,865.8L1041.1,879.4L1046.4,878.2L1103.5,835.2L1112.3,828.5L1147.0,801.7L1184.2,780.2 Z" fill="#7ea366" stroke="#5a7a4f" stroke-width="3"/>
-  <path id="dest-westgate-golf-club" data-name="Westbeach Golf Club" d="M1153.3,325.7L1079.8,342.2L1083.0,374.2L1101.0,373.9L1130.3,372.1L1134.0,370.0L1139.2,335.5L1153.3,325.7 Z" fill="#9bc28b" stroke="#6a8f5d" stroke-width="3"/>
+  <path id="dest-westgate-golf-club" data-name="Westbeach Golf Club" d="M1480,290 L1520,272 L1580,265 L1640,272 L1720,290 L1760,310 L1780,340 L1790,380 L1780,420 L1750,440 L1700,450 L1640,448 L1580,440 L1520,420 L1490,390 L1480,360 Z" fill="#9bc28b" stroke="#6a8f5d" stroke-width="3"/>
+  <!-- A handful of darker fairway/rough patches on the golf course
+       so it doesn't read as one flat green slab. -->
+  <g fill="#7ea671" stroke="#5a7a4f" stroke-width="0.6" opacity="0.7">
+    <ellipse cx="1560" cy="330" rx="40" ry="22"/>
+    <ellipse cx="1680" cy="370" rx="50" ry="18"/>
+    <ellipse cx="1620" cy="410" rx="35" ry="14"/>
+  </g>
+  <!-- Small sand bunkers (creamy circles) for character -->
+  <g fill="#f0e0a8" stroke="#a89860" stroke-width="0.6">
+    <ellipse cx="1600" cy="345" rx="6" ry="4"/>
+    <ellipse cx="1700" cy="395" rx="5" ry="3"/>
+    <ellipse cx="1545" cy="390" rx="5" ry="3.5"/>
+  </g>
 </g>
+<!-- Hand-added farmland tinting overlays — a few darker green and
+     warmer pink-tan patches over the cream farmland so the southern
+     fields read as a patchwork of crops (matches the satellite
+     mosaic) rather than one flat slab of tan. Drawn BEFORE pools so
+     pools render on top. -->
+<g id="farmland-tints" opacity="0.45" pointer-events="none">
+  <!-- Darker green crops (winter cereals, brassicas) -->
+  <g fill="#8aa468" stroke="none">
+    <path d="M180,820 L280,810 L320,860 L260,920 L160,900 Z"/>
+    <path d="M380,900 L480,890 L500,960 L420,990 L350,950 Z"/>
+    <path d="M900,1020 L1020,1010 L1040,1080 L960,1100 L880,1070 Z"/>
+    <path d="M1320,860 L1420,850 L1440,920 L1360,940 L1300,890 Z"/>
+  </g>
+  <!-- Warmer pink-tan (ploughed / fallow) -->
+  <g fill="#e2b58a" stroke="none">
+    <path d="M280,1000 L380,1020 L400,1080 L300,1080 L240,1040 Z"/>
+    <path d="M620,900 L720,910 L720,970 L640,990 L600,950 Z"/>
+    <path d="M1140,920 L1240,920 L1260,980 L1160,1000 L1120,960 Z"/>
+    <path d="M1500,950 L1600,945 L1620,1010 L1540,1030 Z"/>
+  </g>
+  <!-- Lighter sandy beige (just-harvested) -->
+  <g fill="#efddb4" stroke="none">
+    <path d="M460,820 L560,815 L580,870 L500,890 L440,850 Z"/>
+    <path d="M1240,840 L1320,840 L1330,900 L1260,910 L1230,870 Z"/>
+  </g>
+</g>
+
 <g id="pools" fill="#7cc6e0" stroke="#4d97b3" stroke-width="1.5">
+  <!-- SW farmland pond — small kidney shape -->
+  <ellipse cx="240" cy="880" rx="38" ry="22" fill="#7cc6e0" stroke="#4d97b3" stroke-width="2"/>
+  <!-- Reed reflections (lighter blue) on the south rim -->
+  <ellipse cx="240" cy="895" rx="28" ry="6" fill="#a8d8e8" stroke="none" opacity="0.7"/>
   <path d="M879.3,1043.2L878.5,1046.8L880.2,1047.2L880.9,1043.5L879.3,1043.2 Z"/>
   <path d="M1601.4,156.0L1603.5,156.0L1603.4,157.1L1601.4,157.0L1601.4,156.0 Z"/>
   <path d="M715.7,425.5L716.1,428.7L718.0,428.4L717.6,425.3L715.7,425.5 Z"/>
@@ -765,6 +809,7 @@
   <path id="sandle-s-road" data-name="Sandle's Road" data-cls="unclassified" data-ref="" d="M638.0,415.0L639.2,410.9"/>
 </g>
 <g id="roads-residential" stroke="#fdf6dc" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round">
+
   <path id="maynard-avenue" data-name="Maynard Avenue" data-cls="residential" data-ref="" d="M1779.4,383.1L1778.3,381.5L1778.0,380.5L1778.6,344.1L1781.6,296.6"/>
   <path id="garrard-avenue" data-name="Garrard Avenue" data-cls="residential" data-ref="" d="M1804.5,294.9L1806.7,345.7L1778.6,344.1"/>
   <path id="brooke-avenue" data-name="Brooke Avenue" data-cls="residential" data-ref="" d="M1777.6,386.2L1777.4,388.7L1776.9,393.8L1776.1,400.0L1773.0,423.4L1771.1,440.3L1769.6,450.1L1767.8,458.2L1765.6,466.1L1763.0,473.0L1761.1,478.1L1758.8,484.0"/>
@@ -773,9 +818,7 @@
   <path id="r-4590608" data-name="" data-cls="residential" data-ref="" d="M1594.6,917.8L1613.1,901.8L1639.2,883.6L1642.2,881.3L1657.9,869.0L1659.5,867.7L1680.8,841.4L1682.1,839.8L1700.5,826.9L1703.0,825.1L1729.6,803.9L1740.2,791.2L1740.6,790.7L1746.8,779.1L1758.2,750.6L1758.4,750.1L1768.7,732.2L1768.8,732.1L1800.4,691.2L1803.6,688.1L1820.5,669.6L1821.1,669.1L1849.0,642.0L1850.0,640.9L1872.1,620.1L1877.8,615.9L1881.1,612.8L1882.5,611.6L1885.7,607.1L1891.8,600.1L1904.3,585.8L1922.2,566.8L1922.6,566.3L1927.8,561.5L1934.2,555.8L1946.7,545.4L1952.3,541.6L1955.6,539.5L1956.3,539.1L1956.7,537.8L1956.7,536.1"/>
   <path id="leslie-avenue" data-name="Leslie Avenue" data-cls="residential" data-ref="" d="M1773.0,423.4L1754.3,420.9L1746.9,429.8L1728.6,451.7"/>
   <path id="balmoral-road" data-name="Balmoral Road" data-cls="residential" data-ref="" d="M1730.9,382.7L1729.5,381.3L1726.4,378.0L1721.1,375.1L1719.3,374.7L1716.5,374.1L1711.3,373.5L1700.4,372.8"/>
-  <path id="lenham-gardens" data-name="Lenham Gardens" data-cls="residential" data-ref="" d="M1708.2,424.9L1724.4,426.7"/>
   <path id="glebe-road" data-name="Glebe Road" data-cls="residential" data-ref="" d="M1751.2,403.6L1729.0,402.6L1718.7,402.1"/>
-  <path id="glebe-gardens" data-name="Glebe Gardens" data-cls="residential" data-ref="" d="M1729.0,402.6L1728.4,416.6"/>
   <path id="kingfisher-close" data-name="Kingfisher Close" data-cls="residential" data-ref="" d="M1708.3,432.9L1686.6,429.2"/>
   <path id="ellington-avenue" data-name="Ellington Avenue" data-cls="residential" data-ref="" d="M1753.1,386.3L1752.9,388.2L1751.2,403.6L1749.5,406.5L1747.6,418.9L1747.2,421.8L1746.9,429.8"/>
   <path id="stephens-close" data-name="Stephens Close" data-cls="residential" data-ref="" d="M1702.9,478.3L1693.6,478.5L1688.8,480.1L1686.4,480.7L1685.0,480.2L1683.9,479.1L1683.1,477.8L1682.9,476.5L1684.8,455.6L1685.1,451.6"/>
@@ -797,18 +840,14 @@
   <path id="the-courts" data-name="The Courts" data-cls="residential" data-ref="" d="M1557.7,227.3L1557.3,253.0L1544.9,253.2L1545.6,227.2"/>
   <path id="seymour-avenue" data-name="Seymour Avenue" data-cls="residential" data-ref="" d="M1521.2,225.5L1517.1,258.1L1514.8,258.5"/>
   <path id="mutrix-gardens" data-name="Mutrix Gardens" data-cls="residential" data-ref="" d="M1665.2,229.2L1661.5,256.5"/>
-  <path id="norman-road" data-name="Norman Road" data-cls="residential" data-ref="" d="M1494.5,267.0L1494.0,257.5L1493.6,253.8"/>
   <path id="roxburgh-road" data-name="Roxburgh Road" data-cls="residential" data-ref="" d="M1434.5,211.5L1436.4,264.2L1436.2,265.1L1435.4,265.8"/>
   <path id="station-road" data-name="Station Road" data-cls="residential" data-ref="" d="M1495.1,252.6L1494.3,253.3L1493.6,253.8L1474.2,255.7L1463.3,257.3L1449.9,260.7L1438.3,263.9L1436.4,264.2"/>
   <path id="edith-road" data-name="Edith Road" data-cls="residential" data-ref="" d="M1447.7,213.1L1448.2,228.1L1449.9,260.7"/>
-  <path id="conifer-court" data-name="Conifer Court" data-cls="residential" data-ref="" d="M1448.2,228.1L1453.0,228.1L1457.3,229.1L1457.3,230.2"/>
   <path id="sussex-gardens" data-name="Sussex Gardens" data-cls="residential" data-ref="" d="M1454.1,214.0L1454.5,195.7L1454.5,190.9L1454.5,172.4"/>
   <path id="beach-road" data-name="Beach Road" data-cls="residential" data-ref="" d="M1481.5,169.8L1481.6,184.0L1481.6,189.5L1481.5,218.5"/>
-  <path id="waterside-drive" data-name="Waterside Drive" data-cls="residential" data-ref="" d="M1454.5,195.7L1462.1,194.9L1465.0,195.1L1467.4,195.4L1470.2,195.9"/>
   <path id="st-mildred-s-gardens" data-name="St Mildred's Gardens" data-cls="residential" data-ref="" d="M1454.5,172.4L1469.9,170.3L1475.1,169.9L1481.5,169.8"/>
   <path id="saxon-road" data-name="Saxon Road" data-cls="residential" data-ref="" d="M1472.0,217.2L1474.2,255.7"/>
   <path id="norman-road" data-name="Norman Road" data-cls="residential" data-ref="" d="M1498.2,221.7L1495.1,252.6"/>
-  <path id="gordon-grove" data-name="Gordon Grove" data-cls="residential" data-ref="" d="M1314.2,274.3L1312.2,265.1"/>
   <path id="dent-de-lion-road" data-name="Dent-de-Lion Road" data-cls="residential" data-ref="" d="M1291.3,243.2L1295.9,262.5L1296.6,265.6L1297.2,268.3L1299.2,277.5"/>
   <path id="thanet-road" data-name="Thanet Road" data-cls="residential" data-ref="" d="M1244.7,253.5L1252.6,288.0"/>
   <path id="cedric-road" data-name="Cedric Road" data-cls="residential" data-ref="" d="M1259.3,229.9L1269.1,248.2"/>
@@ -822,7 +861,6 @@
   <path id="grenham-road" data-name="Grenham Road" data-cls="residential" data-ref="" d="M607.7,369.2L605.5,368.3L600.8,369.3L587.6,360.6L586.8,360.0L574.2,351.3L561.4,343.3L561.0,343.0L556.0,339.7L552.4,337.9L531.2,329.5L511.4,321.5L502.2,317.8L483.8,310.4"/>
   <path id="duncan-drive" data-name="Duncan Drive" data-cls="residential" data-ref="" d="M531.2,329.5L522.5,351.8L520.1,356.5L518.5,358.0L515.4,359.1L510.8,359.2L504.9,358.7L500.0,357.8"/>
   <path id="cunningham-crescent" data-name="Cunningham Crescent" data-cls="residential" data-ref="" d="M522.5,351.8L528.5,354.6L530.0,355.9L531.4,357.8L532.1,360.8L531.2,364.2L520.0,386.8L518.1,389.0L515.9,390.7L513.7,391.9L510.3,392.9L507.1,393.0L502.0,393.0L497.9,392.4L495.1,391.2L493.8,389.9L492.2,388.2L491.1,385.4L490.6,383.1L490.9,380.1L492.0,376.9L499.2,361.5L500.0,357.8L503.9,341.1L511.4,321.5"/>
-  <path id="conway-close" data-name="Conway Close" data-cls="residential" data-ref="" d="M492.2,388.2L479.2,395.9"/>
   <path id="nelson-court" data-name="Nelson Court" data-cls="residential" data-ref="" d="M503.9,341.1L489.8,335.5L488.5,335.2L486.7,336.0L485.5,337.4L482.1,344.8"/>
   <path id="st-mildred-s-avenue" data-name="St. Mildred's Avenue" data-cls="residential" data-ref="" d="M475.3,306.3L434.4,389.3L433.0,392.5"/>
   <path id="ethelbert-road" data-name="Ethelbert Road" data-cls="residential" data-ref="" d="M363.5,376.2L368.0,368.2L372.4,358.4L373.0,356.8L365.2,345.0L351.8,325.4L343.4,312.7L341.9,310.5L337.0,304.5L335.4,302.1L332.9,300.8"/>
@@ -833,24 +871,19 @@
   <path id="dane-road" data-name="Dane Road" data-cls="residential" data-ref="" d="M154.1,446.7L168.7,444.2L178.6,442.3L182.8,441.9L186.0,442.2L190.5,442.8L195.7,444.0L202.4,444.4L207.6,443.2L214.9,440.3L221.0,438.4L229.1,437.0L249.5,434.3L263.3,432.7L275.7,431.1L280.2,430.0L286.4,427.1L295.3,422.1L309.7,412.7L320.2,405.2L328.4,399.5"/>
   <path id="king-s-avenue" data-name="King's Avenue" data-cls="residential" data-ref="" d="M266.2,349.6L272.8,359.3L309.7,412.7L321.4,429.7"/>
   <path id="queens-avenue" data-name="Queens Avenue" data-cls="residential" data-ref="" d="M247.1,362.2L252.0,369.7L284.8,417.7L287.1,420.0L293.9,421.8L295.3,422.1"/>
-  <path id="queens-avenue" data-name="Queens Avenue" data-cls="residential" data-ref="" d="M286.4,427.1L286.5,425.8L286.7,423.6L287.0,421.1L287.1,420.0"/>
   <path id="daryngton-avenue" data-name="Daryngton Avenue" data-cls="residential" data-ref="" d="M249.5,434.3L249.5,433.4L249.2,432.6L248.5,432.2L244.2,431.1L243.7,431.0L231.4,427.7L213.9,423.0L191.8,416.9L181.1,414.1L173.7,412.1L158.7,408.3"/>
   <path id="horsa-road" data-name="Horsa Road" data-cls="residential" data-ref="" d="M321.4,429.7L345.8,425.0L348.7,424.9"/>
   <path id="old-farm-road" data-name="Old Farm Road" data-cls="residential" data-ref="" d="M349.6,385.1L352.7,390.1L351.8,398.7L351.5,401.4L348.9,422.5L348.7,424.9"/>
   <path id="ingoldsby-road" data-name="Ingoldsby Road" data-cls="residential" data-ref="" d="M352.0,425.3L360.8,425.8L375.3,424.4L385.5,423.2L395.1,421.5L415.1,417.2L426.9,414.2"/>
   <path id="barn-crescent" data-name="Barn Crescent" data-cls="residential" data-ref="" d="M1716.5,244.9L1742.1,242.5L1740.9,226.5"/>
-  <path id="kingfisher-close" data-name="Kingfisher Close" data-cls="residential" data-ref="" d="M1689.2,425.0L1686.6,425.1L1683.1,425.3"/>
   <path id="ethelbert-square" data-name="Ethelbert Square" data-cls="residential" data-ref="" d="M1355.5,228.4L1360.1,249.8L1362.1,258.8L1362.7,261.5L1365.2,272.9"/>
   <path id="adrian-square" data-name="Adrian Square" data-cls="residential" data-ref="" d="M1396.6,250.7L1411.7,247.3L1405.3,217.6"/>
-  <path id="the-school-close" data-name="The School Close" data-cls="residential" data-ref="" d="M1308.0,173.0L1307.5,175.7L1307.0,179.1"/>
   <path id="hunting-gate" data-name="Hunting Gate" data-cls="residential" data-ref="" d="M586.8,360.0L581.8,369.6L580.3,372.1L577.0,373.4L573.7,374.1L569.7,373.1L563.3,368.2L558.9,366.3L554.2,364.1"/>
   <path id="hunting-gate" data-name="Hunting Gate" data-cls="residential" data-ref="" d="M555.4,360.5L554.7,363.2L554.2,364.1L552.4,368.2L549.8,373.4L548.4,376.5L547.4,379.8L544.0,386.6L541.6,391.1L541.4,392.5L542.2,394.1L539.2,396.4L536.4,397.5L532.4,398.1L530.6,398.1L529.0,397.4"/>
   <path id="crow-hill-road" data-name="Crow Hill Road" data-cls="residential" data-ref="" d="M1777.6,386.2L1775.1,385.7L1774.3,385.5L1764.3,386.5L1753.1,386.3L1751.4,386.1L1745.5,386.0L1738.6,385.7L1737.1,385.3L1734.6,384.5L1730.9,382.7"/>
   <path id="michelle-gardens" data-name="Michelle Gardens" data-cls="residential" data-ref="" d="M1601.7,370.9L1578.8,371.7L1576.3,371.3L1574.3,370.3L1573.7,369.1L1573.4,367.5L1573.3,346.1"/>
-  <path id="noble-court" data-name="Noble Court" data-cls="residential" data-ref="" d="M1666.0,351.0L1666.2,345.9"/>
   <path id="cliff-road" data-name="Cliff Road" data-cls="residential" data-ref="" d="M619.9,297.9L619.9,296.7L621.1,289.1L621.6,285.6L621.8,284.0L621.8,283.7L621.9,282.5L621.9,282.0L621.8,280.8L621.8,280.0L621.8,279.2L621.7,278.9L621.7,278.5L621.4,277.2L621.3,276.3L621.1,275.6L620.7,274.3L620.4,273.1L620.2,272.4L619.9,271.6L619.7,271.1L619.4,270.2L619.1,269.4L619.0,269.2L618.9,268.9L618.6,268.3L618.3,267.8L617.8,266.9L617.4,266.2L616.8,265.4L616.5,265.0L615.8,263.9L614.7,262.6L613.9,261.7L612.9,260.7L612.0,259.7L611.3,259.1L610.5,258.5L609.3,257.6L608.5,257.0L607.6,256.5L606.1,255.6L605.2,255.2L603.9,254.5L602.5,253.9L600.4,253.0L598.7,252.4L595.7,251.3L593.9,250.8L591.5,250.1L589.7,249.6L587.8,249.2L586.0,248.9L584.2,248.6L580.9,248.3L576.9,248.1L572.6,247.9L569.3,247.8L566.9,247.8L565.8,247.8L564.6,247.9L563.7,248.0L562.4,248.2L561.8,248.4L560.8,248.6L560.0,248.9L559.1,249.3L558.3,249.7L556.9,250.3L554.3,251.9L549.1,255.0L547.0,256.2L545.5,257.0L543.8,257.8L534.7,261.9L531.3,263.1L527.7,264.0L521.0,265.3L514.0,266.3L507.3,266.8L500.6,267.3L499.4,267.4L497.5,267.5L491.8,267.6L487.5,267.7L482.8,267.3L481.9,267.2L477.9,266.5L453.2,259.6L452.1,259.2"/>
   <path id="spencer-road" data-name="Spencer Road" data-cls="residential" data-ref="" d="M756.9,312.9L742.8,312.3L733.7,311.8L728.3,310.7L726.1,310.2L711.3,307.2L710.8,307.1L707.9,306.5L699.8,304.7L687.9,302.2L684.3,301.6L681.8,302.1L679.7,303.3L676.5,304.8L673.4,306.0L666.6,306.2L656.7,304.6L638.5,300.4"/>
-  <path id="station-approach" data-name="Station Approach" data-cls="residential" data-ref="" d="M645.9,416.9L652.5,420.0L657.9,419.8L659.2,419.8"/>
   <path id="gresham-avenue" data-name="Gresham Avenue" data-cls="residential" data-ref="" d="M1670.1,147.6L1664.7,223.1L1664.1,228.9"/>
   <path id="lymington-road" data-name="Lymington Road" data-cls="residential" data-ref="" d="M1392.6,395.8L1389.1,397.1L1368.2,402.0L1358.2,404.3L1356.8,404.7L1338.9,408.8L1335.0,409.8L1332.8,410.2L1322.7,412.5L1314.5,414.4L1313.7,414.6L1302.6,417.2L1296.8,418.5L1286.6,420.6L1277.7,421.7L1276.3,421.9L1275.0,422.2L1252.5,425.4L1243.5,426.4L1235.8,427.2L1227.1,428.5"/>
   <path id="cambourne-avenue" data-name="Cambourne Avenue" data-cls="residential" data-ref="" d="M1226.0,374.3L1227.3,382.0L1227.4,389.8L1227.1,428.5"/>
@@ -870,41 +903,23 @@
   <path id="edmanson-avenue" data-name="Edmanson Avenue" data-cls="residential" data-ref="" d="M1611.3,145.5L1606.2,224.4"/>
   <path id="tyson-avenue" data-name="Tyson Avenue" data-cls="residential" data-ref="" d="M1582.5,170.0L1570.8,169.9L1566.3,170.2L1562.3,170.7L1558.5,172.3L1555.2,174.5L1552.4,177.3L1549.8,182.2L1548.1,185.9L1546.5,191.9L1540.7,226.9"/>
   <path id="bowes-avenue" data-name="Bowes Avenue" data-cls="residential" data-ref="" d="M1583.3,144.5L1582.5,170.0L1571.4,224.0L1571.3,226.2"/>
-  <path id="dane-road" data-name="Dane Road" data-cls="residential" data-ref="" d="M168.7,444.2L167.3,438.2"/>
-  <path id="dane-road" data-name="Dane Road" data-cls="residential" data-ref="" d="M164.8,438.7L167.3,438.2L169.6,437.7"/>
-  <path id="dane-road" data-name="Dane Road" data-cls="residential" data-ref="" d="M182.8,441.9L183.4,447.7"/>
-  <path id="dane-road" data-name="Dane Road" data-cls="residential" data-ref="" d="M186.0,447.4L183.4,447.7L180.2,448.0"/>
   <path id="hengist-road" data-name="Hengist Road" data-cls="residential" data-ref="" d="M227.1,375.0L233.2,385.3L242.1,400.4L244.1,402.7L246.4,404.1L249.8,404.5"/>
-  <path id="the-parade" data-name="The Parade" data-cls="residential" data-ref="" d="M322.1,309.4L315.3,314.2"/>
   <path id="grenham-bay-avenue" data-name="Grenham Bay Avenue" data-cls="residential" data-ref="" d="M386.6,385.8L395.9,368.3L401.8,357.4L414.2,334.1L426.5,310.9L437.9,289.3"/>
   <path id="lyell-road" data-name="Lyell Road" data-cls="residential" data-ref="" d="M624.9,387.4L619.5,381.2L610.3,372.1L607.7,369.2"/>
-  <path id="beach-avenue" data-name="Beach Avenue" data-cls="residential" data-ref="" d="M626.3,379.5L619.5,381.2"/>
   <path id="old-crossing-road" data-name="Old Crossing Road" data-cls="residential" data-ref="" d="M1715.5,323.2L1714.7,320.3L1714.9,316.5L1714.7,297.0L1715.5,271.6L1715.9,259.0"/>
   <path id="meadow-road" data-name="Meadow Road" data-cls="residential" data-ref="" d="M1715.5,271.6L1691.4,272.0"/>
   <path id="mutrix-road" data-name="Mutrix Road" data-cls="residential" data-ref="" d="M1676.6,295.8L1678.4,295.8L1714.7,297.0"/>
-  <path id="camellia-close" data-name="Camellia Close" data-cls="residential" data-ref="" d="M1737.7,310.7L1741.6,318.0"/>
-  <path id="camellia-close" data-name="Camellia Close" data-cls="residential" data-ref="" d="M1743.5,317.1L1741.6,318.0L1739.6,319.1"/>
   <path id="langham-close" data-name="Langham Close" data-cls="residential" data-ref="" d="M1745.2,306.5L1744.0,304.2L1742.5,279.4L1740.7,276.7"/>
   <path id="briary-close" data-name="Briary Close" data-cls="residential" data-ref="" d="M1575.6,315.3L1575.4,316.8L1575.2,318.5L1574.4,321.4L1573.0,326.5L1570.1,327.4L1557.1,335.2L1554.6,336.0L1551.9,336.2L1527.3,333.4"/>
-  <path id="briary-close" data-name="Briary Close" data-cls="residential" data-ref="" d="M1573.0,326.5L1575.8,327.1"/>
-  <path id="briary-close" data-name="Briary Close" data-cls="residential" data-ref="" d="M1527.3,333.4L1527.5,331.3"/>
-  <path id="linton-court" data-name="Linton Court" data-cls="residential" data-ref="" d="M1523.8,312.5L1522.9,321.4L1521.5,321.7"/>
-  <path id="queens-road" data-name="Queens Road" data-cls="residential" data-ref="" d="M1483.7,309.7L1483.7,307.1"/>
   <path id="queens-road" data-name="Queens Road" data-cls="residential" data-ref="" d="M1483.7,307.1L1483.7,304.8L1483.8,301.5L1483.1,284.9L1482.9,280.6"/>
-  <path id="sanders-court" data-name="Sanders Court" data-cls="residential" data-ref="" d="M1481.1,301.4L1477.8,301.3"/>
   <path id="hockeredge-gardens" data-name="Hockeredge Gardens" data-cls="residential" data-ref="" d="M1483.1,284.9L1498.0,285.2L1513.3,285.3L1526.9,285.2L1526.9,282.9"/>
-  <path id="hockeredge-gardens" data-name="Hockeredge Gardens" data-cls="residential" data-ref="" d="M1513.3,282.9L1513.3,285.3L1513.3,287.5"/>
   <path id="essex-road" data-name="Essex Road" data-cls="residential" data-ref="" d="M1482.9,280.6L1463.1,281.4L1463.0,285.7"/>
   <path id="chester-road" data-name="Chester Road" data-cls="residential" data-ref="" d="M1463.0,285.7L1463.6,303.3"/>
   <path id="essex-road" data-name="Essex Road" data-cls="residential" data-ref="" d="M1463.0,285.7L1437.4,286.0"/>
   <path id="streete-court" data-name="Streete Court" data-cls="residential" data-ref="" d="M1437.1,312.9L1437.7,314.6L1437.9,316.0L1436.9,329.9L1434.0,332.9L1433.5,340.8"/>
-  <path id="read-court" data-name="Read Court" data-cls="residential" data-ref="" d="M1437.6,294.1L1452.0,293.7"/>
-  <path id="quex-road" data-name="Quex Road" data-cls="residential" data-ref="" d="M1469.1,306.2L1468.9,308.6"/>
   <path id="quex-road" data-name="Quex Road" data-cls="residential" data-ref="" d="M1468.9,308.6L1468.8,310.3L1468.2,318.0L1467.7,323.9L1466.1,341.1L1465.7,347.7L1465.2,369.2"/>
-  <path id="victoria-avenue" data-name="Victoria Avenue" data-cls="residential" data-ref="" d="M1453.3,306.3L1453.5,309.0"/>
   <path id="victoria-avenue" data-name="Victoria Avenue" data-cls="residential" data-ref="" d="M1453.5,309.0L1453.4,310.1L1453.3,311.9L1453.1,315.9L1452.7,323.4L1450.6,347.4L1449.6,369.2L1448.3,397.9L1447.0,425.6L1445.7,453.5L1445.0,467.3"/>
   <path id="streete-court-road" data-name="Streete Court Road" data-cls="residential" data-ref="" d="M1390.4,368.6L1407.0,368.6L1433.2,368.8L1449.6,369.2L1465.2,369.2"/>
-  <path id="streete-court" data-name="Streete Court" data-cls="residential" data-ref="" d="M1407.0,368.6L1407.1,362.0L1408.0,360.5L1412.1,358.8L1414.4,358.9"/>
   <path id="belmont-road" data-name="Belmont Road" data-cls="residential" data-ref="" d="M1477.8,468.3L1475.6,453.9L1468.6,398.2L1467.2,385.7L1465.2,369.2"/>
   <path id="st-benet-s-road" data-name="St. Benet's Road" data-cls="residential" data-ref="" d="M1407.8,478.4L1382.3,478.5L1371.4,478.1L1358.4,478.3L1340.7,478.3"/>
   <path id="linden-road" data-name="Linden Road" data-cls="residential" data-ref="" d="M1393.4,397.1L1436.1,397.7L1448.3,397.9L1457.3,398.0L1460.2,398.1L1468.6,398.2"/>
@@ -912,126 +927,70 @@
   <path id="richborough-road" data-name="Richborough Road" data-cls="residential" data-ref="" d="M1475.6,453.9L1465.1,453.8L1445.7,453.5L1433.6,453.3L1408.0,453.0"/>
   <path id="wellesley-road" data-name="Wellesley Road" data-cls="residential" data-ref="" d="M1382.3,478.5L1382.2,504.5"/>
   <path id="wellington-road" data-name="Wellington Road" data-cls="residential" data-ref="" d="M1382.3,478.5L1382.6,453.6L1382.6,452.5"/>
-  <path id="wellesley-close" data-name="Wellesley Close" data-cls="residential" data-ref="" d="M1382.2,504.5L1367.2,504.5"/>
   <path id="crofton-road" data-name="Crofton Road" data-cls="residential" data-ref="" d="M1358.4,478.3L1358.0,499.9"/>
   <path id="st-jean-s-road" data-name="St. Jean's Road" data-cls="residential" data-ref="" d="M1324.7,485.1L1329.3,484.7L1334.1,483.6L1336.8,482.1L1340.7,478.3"/>
-  <path id="st-jean-s-road" data-name="St. Jean's Road" data-cls="residential" data-ref="" d="M1324.7,483.5L1324.7,485.1L1324.8,487.8"/>
   <path id="st-crispins-road" data-name="St. Crispins Road" data-cls="residential" data-ref="" d="M1340.7,478.3L1339.7,469.6L1338.3,456.9L1337.4,447.2L1335.0,409.8"/>
-  <path id="prospect-close" data-name="Prospect Close" data-cls="residential" data-ref="" d="M1339.7,469.6L1334.6,469.9L1331.4,469.2L1328.6,468.3L1326.5,468.1L1324.4,468.2"/>
-  <path id="prospect-close" data-name="Prospect Close" data-cls="residential" data-ref="" d="M1323.9,470.4L1324.4,468.2L1324.0,465.8"/>
   <path id="st-margaret-s-road" data-name="St. Margaret's Road" data-cls="residential" data-ref="" d="M1338.3,456.9L1371.3,455.8"/>
   <path id="linden-close" data-name="Linden Close" data-cls="residential" data-ref="" d="M1356.8,404.7L1358.3,432.6"/>
-  <path id="linden-close" data-name="Linden Close" data-cls="residential" data-ref="" d="M1359.9,432.4L1358.3,432.6L1356.2,432.8"/>
-  <path id="lymington-road" data-name="Lymington Road" data-cls="residential" data-ref="" d="M1358.2,404.3L1354.9,393.0L1354.5,391.3"/>
   <path id="st-lukes-close" data-name="St. Lukes Close" data-cls="residential" data-ref="" d="M1368.2,402.0L1366.7,395.6L1366.3,389.3L1365.6,386.2L1364.8,382.0"/>
   <path id="college-gardens" data-name="College Gardens" data-cls="residential" data-ref="" d="M1338.9,408.8L1337.2,402.6L1336.0,400.4L1333.0,398.9L1332.0,397.3L1329.8,385.3L1329.1,382.9"/>
-  <path id="college-gardens" data-name="College Gardens" data-cls="residential" data-ref="" d="M1329.8,385.3L1341.7,383.3"/>
   <path id="st-clements-road" data-name="St. Clements Road" data-cls="residential" data-ref="" d="M1342.4,172.4L1323.6,168.8L1311.3,166.5"/>
   <path id="wellington-close" data-name="Wellington Close" data-cls="residential" data-ref="" d="M1334.5,216.2L1320.7,214.8L1319.3,215.3L1318.1,216.2L1317.3,217.4L1317.0,218.7L1316.1,225.4"/>
-  <path id="wellington-close" data-name="Wellington Close" data-cls="residential" data-ref="" d="M1318.3,225.1L1316.1,225.4L1313.3,225.7"/>
   <path id="r-30738605" data-name="" data-cls="residential" data-ref="" d="M1425.0,270.7L1419.9,271.0"/>
   <path id="r-30738607" data-name="" data-cls="residential" data-ref="" d="M1425.3,275.4L1435.9,274.7"/>
   <path id="r-30738610" data-name="" data-cls="residential" data-ref="" d="M1420.0,271.8L1425.1,271.4"/>
   <path id="westbury-road" data-name="Westbury Road" data-cls="residential" data-ref="" d="M1435.7,280.5L1432.5,278.9L1418.7,279.0L1403.1,278.9L1387.8,279.4L1382.5,279.9L1371.4,281.6L1364.1,282.9L1359.5,283.7L1354.0,285.0L1348.8,288.7"/>
   <path id="harold-avenue" data-name="Harold Avenue" data-cls="residential" data-ref="" d="M1387.8,279.4L1390.8,299.3L1385.8,300.0L1357.5,304.2L1354.5,305.0"/>
   <path id="ascot-gardens" data-name="Ascot Gardens" data-cls="residential" data-ref="" d="M1314.5,414.4L1314.8,416.8L1314.8,419.0L1314.3,425.6L1314.2,426.9L1314.6,429.2L1315.5,430.3L1317.0,430.8L1326.1,430.5"/>
-  <path id="ascot-gardens" data-name="Ascot Gardens" data-cls="residential" data-ref="" d="M1325.9,428.1L1326.1,430.5L1326.2,432.7"/>
   <path id="st-augustines-park" data-name="St. Augustines Park" data-cls="residential" data-ref="" d="M1322.7,412.5L1320.2,401.6L1311.3,403.4L1310.3,403.5L1303.3,405.0L1293.6,407.1L1291.4,396.0L1289.7,388.0L1290.1,386.8L1290.9,386.2L1292.1,385.9L1295.2,385.9L1302.5,384.2"/>
   <path id="the-boulevard" data-name="The Boulevard" data-cls="residential" data-ref="" d="M1320.2,401.6L1319.6,398.8L1316.4,382.8"/>
-  <path id="the-boulevard" data-name="The Boulevard" data-cls="residential" data-ref="" d="M1320.8,381.9L1316.4,382.8L1312.2,383.8"/>
   <path id="redhill-road" data-name="Redhill Road" data-cls="residential" data-ref="" d="M1247.3,386.3L1248.5,396.4L1249.4,405.0L1250.3,413.5L1252.5,425.4"/>
   <path id="osbourn-avenue" data-name="Osbourn Avenue" data-cls="residential" data-ref="" d="M1270.4,360.4L1270.6,361.7L1270.7,362.7L1272.1,368.8L1274.4,378.9"/>
-  <path id="osbourn-avenue" data-name="Osbourn Avenue" data-cls="residential" data-ref="" d="M1270.0,357.8L1270.4,360.4"/>
   <path id="canterbury-road" data-name="Canterbury Road" data-cls="residential" data-ref="" d="M1270.7,362.7L1251.0,365.4L1236.9,368.8L1236.4,367.9L1235.8,366.9"/>
   <path id="elm-grove" data-name="Elm Grove" data-cls="residential" data-ref="" d="M1229.3,329.9L1237.7,328.2L1285.5,318.3L1298.2,315.4L1298.6,315.3L1327.2,309.2L1330.1,308.6L1353.9,303.4"/>
   <path id="st-saviours-court" data-name="St. Saviours Court" data-cls="residential" data-ref="" d="M1330.1,308.6L1327.5,296.8L1326.9,294.2L1329.9,293.4"/>
   <path id="mordaunt-avenue" data-name="Mordaunt Avenue" data-cls="residential" data-ref="" d="M1298.2,315.4L1305.4,349.1"/>
-  <path id="elm-court" data-name="Elm Court" data-cls="residential" data-ref="" d="M1282.5,303.6L1285.5,318.3"/>
   <path id="hengist-road" data-name="Hengist Road" data-cls="residential" data-ref="" d="M1157.7,264.1L1163.5,293.8L1167.0,307.7L1166.6,310.0L1165.8,312.8"/>
   <path id="ryder-s-avenue" data-name="Ryder's Avenue" data-cls="residential" data-ref="" d="M1167.0,307.7L1192.7,301.5L1227.9,293.5"/>
   <path id="dane-end-road" data-name="Dane End Road" data-cls="residential" data-ref="" d="M1183.6,259.6L1189.7,287.4L1192.7,301.5"/>
   <path id="carlton-road-east" data-name="Carlton Road East" data-cls="residential" data-ref="" d="M1189.7,287.4L1227.3,278.9"/>
-  <path id="hundreds-close" data-name="Hundreds Close" data-cls="residential" data-ref="" d="M1184.7,421.4L1180.2,417.2L1172.2,409.6"/>
-  <path id="hundreds-close" data-name="Hundreds Close" data-cls="residential" data-ref="" d="M1168.2,414.2L1172.2,409.6L1175.5,405.8L1176.2,405.0"/>
-  <path id="r-30740956" data-name="" data-cls="residential" data-ref="" d="M1172.8,460.0L1172.2,457.2"/>
   <path id="linksfield-road" data-name="Linksfield Road" data-cls="residential" data-ref="" d="M1207.0,431.5L1207.3,442.2L1207.2,453.9L1207.3,454.6L1208.5,478.3"/>
   <path id="linksfield-road" data-name="Linksfield Road" data-cls="residential" data-ref="" d="M1208.5,478.3L1176.6,482.4L1160.6,484.5L1150.7,486.8"/>
   <path id="golden-acre-lane" data-name="Golden Acre Lane" data-cls="residential" data-ref="" d="M1207.2,453.9L1197.3,455.4L1185.0,457.8"/>
   <path id="golden-close" data-name="Golden Close" data-cls="residential" data-ref="" d="M1176.6,482.4L1173.4,462.9L1172.8,460.0"/>
-  <path id="golden-close" data-name="Golden Close" data-cls="residential" data-ref="" d="M1173.4,462.9L1175.8,462.3"/>
   <path id="linksfield-road" data-name="Linksfield Road" data-cls="residential" data-ref="" d="M1150.7,486.8L1158.9,509.8L1163.3,521.8"/>
   <path id="suffolk-avenue" data-name="Suffolk Avenue" data-cls="residential" data-ref="" d="M1235.8,427.2L1235.8,428.2L1236.0,434.4L1236.4,447.5L1236.7,453.3L1237.4,470.6L1238.1,483.5"/>
   <path id="sudbury-place" data-name="Sudbury Place" data-cls="residential" data-ref="" d="M1236.4,447.5L1254.8,445.9"/>
-  <path id="sudbury-place" data-name="Sudbury Place" data-cls="residential" data-ref="" d="M1254.7,442.4L1254.8,445.9L1255.1,450.0"/>
   <path id="southwold-place" data-name="Southwold Place" data-cls="residential" data-ref="" d="M1237.4,470.6L1256.2,469.5"/>
-  <path id="southwold-place" data-name="Southwold Place" data-cls="residential" data-ref="" d="M1256.1,465.8L1256.1,467.1L1256.2,469.5L1256.4,473.5"/>
   <path id="linksfield-road" data-name="Linksfield Road" data-cls="residential" data-ref="" d="M1208.0,380.5L1207.9,383.1L1207.8,392.8L1207.7,395.4L1207.5,407.4L1207.0,431.5"/>
-  <path id="linksfield-road" data-name="Linksfield Road" data-cls="residential" data-ref="" d="M1206.6,383.1L1207.9,383.1"/>
   <path id="st-james-terrace" data-name="St. James Terrace" data-cls="residential" data-ref="" d="M925.6,329.6L926.8,332.1L927.7,334.8L933.3,366.2"/>
   <path id="carlton-road-west" data-name="Carlton Road West" data-cls="residential" data-ref="" d="M1163.5,293.8L1133.1,300.2L1056.9,315.4"/>
-  <path id="cliff-field" data-name="Cliff Field" data-cls="residential" data-ref="" d="M1077.9,288.3L1075.7,288.8L1073.2,289.2"/>
-  <path id="cliff-field" data-name="Cliff Field" data-cls="residential" data-ref="" d="M1074.2,278.9L1082.3,277.9"/>
-  <path id="cliff-field" data-name="Cliff Field" data-cls="residential" data-ref="" d="M1082.0,276.0L1082.3,277.9L1082.7,280.1"/>
   <path id="carlton-rise" data-name="Carlton Rise" data-cls="residential" data-ref="" d="M1100.5,254.1L1107.4,290.1"/>
-  <path id="carlton-rise" data-name="Carlton Rise" data-cls="residential" data-ref="" d="M1108.6,289.7L1107.4,290.1L1106.2,290.5"/>
   <path id="westleigh-road" data-name="Westleigh Road" data-cls="residential" data-ref="" d="M1125.5,263.5L1133.1,300.2"/>
   <path id="ocean-close" data-name="Ocean Close" data-cls="residential" data-ref="" d="M904.6,335.2L907.3,358.2"/>
-  <path id="ocean-close" data-name="Ocean Close" data-cls="residential" data-ref="" d="M920.9,355.0L921.1,356.5L921.3,357.9"/>
-  <path id="ocean-close" data-name="Ocean Close" data-cls="residential" data-ref="" d="M892.5,358.7L892.5,359.7L892.4,360.9"/>
   <path id="ocean-close" data-name="Ocean Close" data-cls="residential" data-ref="" d="M921.1,356.5L907.3,358.2L892.5,359.7"/>
   <path id="queen-bertha-s-avenue" data-name="Queen Bertha's Avenue" data-cls="residential" data-ref="" d="M994.9,393.8L994.9,391.2L994.3,386.0L993.1,377.8L992.5,370.0L1003.0,367.7L1008.4,367.2L1012.6,367.2L1016.3,367.2L1019.8,366.8L1026.3,365.6L1031.7,364.5L1036.8,363.5L1044.7,361.8L1050.4,360.0L1054.3,358.0L1057.8,356.5L1067.6,354.3L1069.9,355.1L1071.1,356.8L1073.2,376.1L1073.3,377.7"/>
-  <path id="queen-bertha-s-avenue" data-name="Queen Bertha's Avenue" data-cls="residential" data-ref="" d="M993.1,377.8L991.0,378.2L989.3,377.2L987.5,374.1L986.9,372.9L986.8,371.6L987.4,370.6L988.9,370.1L992.5,370.0"/>
-  <path id="queen-bertha-s-avenue" data-name="Queen Bertha's Avenue" data-cls="residential" data-ref="" d="M1012.6,367.2L1013.7,374.2L1014.7,378.5"/>
-  <path id="queen-bertha-s-avenue" data-name="Queen Bertha's Avenue" data-cls="residential" data-ref="" d="M1015.9,378.3L1014.7,378.5L1013.4,378.8"/>
-  <path id="queen-bertha-s-avenue" data-name="Queen Bertha's Avenue" data-cls="residential" data-ref="" d="M1026.3,365.6L1026.0,363.8L1026.4,362.6L1027.6,361.8L1034.6,360.5L1035.9,360.8L1036.5,361.7L1036.8,363.5"/>
-  <path id="queen-bertha-s-avenue" data-name="Queen Bertha's Avenue" data-cls="residential" data-ref="" d="M1031.7,364.5L1034.3,373.7"/>
-  <path id="queen-bertha-s-avenue" data-name="Queen Bertha's Avenue" data-cls="residential" data-ref="" d="M1035.5,373.4L1034.3,373.7L1033.1,373.9"/>
-  <path id="queen-bertha-s-avenue" data-name="Queen Bertha's Avenue" data-cls="residential" data-ref="" d="M1050.4,360.0L1051.4,362.4L1053.1,366.9L1053.5,371.2"/>
-  <path id="queen-bertha-s-avenue" data-name="Queen Bertha's Avenue" data-cls="residential" data-ref="" d="M1054.7,371.0L1053.5,371.2L1052.3,371.4"/>
-  <path id="queen-bertha-s-avenue" data-name="Queen Bertha's Avenue" data-cls="residential" data-ref="" d="M1073.4,382.3L1073.3,377.7"/>
   <path id="the-warren-drive" data-name="The Warren Drive" data-cls="residential" data-ref="" d="M1150.7,486.8L1125.4,490.2L1101.2,493.6"/>
   <path id="collingwood-close" data-name="Collingwood Close" data-cls="residential" data-ref="" d="M1125.4,490.2L1127.6,508.3"/>
-  <path id="collingwood-close" data-name="Collingwood Close" data-cls="residential" data-ref="" d="M1132.4,507.9L1127.6,508.3L1123.4,508.7"/>
   <path id="ursuline-drive" data-name="Ursuline Drive" data-cls="residential" data-ref="" d="M1126.0,469.6L1098.9,473.3L1097.9,475.0"/>
   <path id="allen-avenue" data-name="Allen Avenue" data-cls="residential" data-ref="" d="M1101.2,493.6L1103.1,515.9L1103.6,522.1"/>
-  <path id="allen-avenue" data-name="Allen Avenue" data-cls="residential" data-ref="" d="M1103.1,515.9L1105.0,515.6"/>
-  <path id="abbey-court" data-name="Abbey Court" data-cls="residential" data-ref="" d="M1170.6,542.2L1158.4,545.4L1154.9,545.9"/>
-  <path id="abbey-court" data-name="Abbey Court" data-cls="residential" data-ref="" d="M1158.4,545.4L1158.9,549.7"/>
-  <path id="mountfield-mews" data-name="Mountfield Mews" data-cls="residential" data-ref="" d="M1116.0,544.4L1127.3,542.1L1127.9,541.9"/>
-  <path id="mountfield-mews" data-name="Mountfield Mews" data-cls="residential" data-ref="" d="M1127.3,542.1L1127.6,544.6"/>
   <path id="dunstan-avenue" data-name="Dunstan Avenue" data-cls="residential" data-ref="" d="M1163.3,521.8L1141.9,526.0L1113.2,531.8"/>
   <path id="mountfield-way" data-name="Mountfield Way" data-cls="residential" data-ref="" d="M1120.5,563.5L1139.5,558.8L1143.1,558.1"/>
-  <path id="mountfield-way" data-name="Mountfield Way" data-cls="residential" data-ref="" d="M1137.7,549.9L1139.5,558.8"/>
-  <path id="dunstan-avenue" data-name="Dunstan Avenue" data-cls="residential" data-ref="" d="M1113.2,531.8L1110.6,521.7"/>
   <path id="st-james-terrace" data-name="St. James' Terrace" data-cls="residential" data-ref="" d="M933.6,374.6L934.5,380.9L937.2,400.9"/>
   <path id="st-david-s-close" data-name="St. David's Close" data-cls="residential" data-ref="" d="M934.5,380.9L970.1,375.9L974.1,375.3"/>
-  <path id="st-david-s-close" data-name="St. David's Close" data-cls="residential" data-ref="" d="M969.8,374.0L970.1,375.9L970.3,377.4"/>
   <path id="tudor-close" data-name="Tudor Close" data-cls="residential" data-ref="" d="M919.1,407.9L916.6,402.5L915.5,399.7L914.3,387.0"/>
-  <path id="tudor-close" data-name="Tudor Close" data-cls="residential" data-ref="" d="M911.8,387.1L914.3,387.0L916.9,386.8"/>
-  <path id="melsetter-close" data-name="Melsetter Close" data-cls="residential" data-ref="" d="M869.9,421.8L861.6,421.1"/>
-  <path id="melsetter-close" data-name="Melsetter Close" data-cls="residential" data-ref="" d="M861.9,418.5L861.6,421.1L861.4,422.7"/>
   <path id="york-terrace" data-name="York Terrace" data-cls="residential" data-ref="" d="M869.1,394.4L893.4,397.7L902.6,399.1"/>
-  <path id="beverley-close" data-name="Beverley Close" data-cls="residential" data-ref="" d="M893.4,397.7L894.3,390.5L893.4,388.5"/>
-  <path id="beverley-close" data-name="Beverley Close" data-cls="residential" data-ref="" d="M892.3,389.2L893.4,388.5L895.3,387.7"/>
-  <path id="alison-close" data-name="Alison Close" data-cls="residential" data-ref="" d="M870.2,349.1L854.0,348.0"/>
   <path id="cross-road" data-name="Cross Road" data-cls="residential" data-ref="" d="M870.7,362.3L816.6,366.8L786.8,369.6L777.7,370.5L769.3,372.8"/>
   <path id="coleman-s-stairs-road" data-name="Coleman's Stairs Road" data-cls="residential" data-ref="" d="M769.3,372.8L768.6,370.5L768.3,365.9L768.0,350.9L767.9,349.1L767.7,346.1L767.4,335.8L765.9,313.5"/>
   <path id="epple-bay-avenue" data-name="Epple Bay Avenue" data-cls="residential" data-ref="" d="M870.3,335.8L867.5,331.6L866.0,328.9L865.0,325.5L864.5,322.0L864.3,315.9L863.5,312.6L861.9,310.4L858.0,308.0L853.9,307.0L852.2,306.6L847.4,305.6L834.9,303.4L818.6,303.4L803.1,304.6L792.4,305.6L791.8,305.7"/>
   <path id="wigwam-paddocks" data-name="Wigwam Paddocks" data-cls="residential" data-ref="" d="M776.7,307.1L777.3,310.0L777.2,314.1L777.5,315.4L778.3,316.6L780.1,318.1L780.8,319.2L781.2,321.0L781.9,325.0L782.6,326.4L783.5,327.3L792.1,327.9"/>
   <path id="epple-bay-avenue" data-name="Epple Bay Avenue" data-cls="residential" data-ref="" d="M791.8,305.7L791.3,305.8L776.7,307.1L773.0,307.4"/>
-  <path id="the-retreat" data-name="The Retreat" data-cls="residential" data-ref="" d="M847.4,305.6L845.4,321.4"/>
-  <path id="the-retreat" data-name="The Retreat" data-cls="residential" data-ref="" d="M848.1,321.8L845.4,321.4L839.1,320.6"/>
   <path id="smugglers-way" data-name="Smugglers Way" data-cls="residential" data-ref="" d="M818.6,303.4L819.4,319.4L819.5,322.8L818.9,325.6L816.7,330.6L815.4,334.1L814.8,336.0L814.6,338.2L814.9,343.0L816.6,366.8"/>
   <path id="hawkhurst-close" data-name="Hawkhurst Close" data-cls="residential" data-ref="" d="M816.7,330.6L820.9,331.2L823.5,332.0L825.0,333.1L826.9,334.3L828.3,334.8L831.3,335.3L836.5,336.0L842.2,336.6L850.5,337.5L853.5,337.9"/>
-  <path id="hawkhurst-close" data-name="Hawkhurst Close" data-cls="residential" data-ref="" d="M850.5,337.5L850.2,341.0"/>
-  <path id="laming-road" data-name="Laming Road" data-cls="residential" data-ref="" d="M808.6,576.3L817.0,590.9"/>
   <path id="ingoldsby-road" data-name="Ingoldsby Road" data-cls="residential" data-ref="" d="M415.1,417.2L412.6,403.2L412.4,400.9L412.8,398.2L413.8,394.9"/>
   <path id="ingoldsby-road" data-name="Ingoldsby Road" data-cls="residential" data-ref="" d="M395.1,421.5L392.1,401.6"/>
-  <path id="ingoldsby-road" data-name="Ingoldsby Road" data-cls="residential" data-ref="" d="M393.2,400.8L392.1,401.6L390.4,401.1"/>
   <path id="ingoldsby-road" data-name="Ingoldsby Road" data-cls="residential" data-ref="" d="M375.3,424.4L372.7,409.2L372.3,407.0"/>
-  <path id="ingoldsby-road" data-name="Ingoldsby Road" data-cls="residential" data-ref="" d="M372.7,409.2L370.0,409.4"/>
   <path id="the-parade" data-name="The Parade" data-cls="residential" data-ref="" d="M412.9,242.8L406.4,243.8L400.9,245.2L393.7,247.7L385.4,251.0L375.3,256.3L365.2,262.1L358.7,266.2L352.8,270.4L345.9,275.8L342.0,279.1L339.0,282.4L336.3,285.6L334.6,287.8L333.7,289.7L333.1,291.8L332.8,294.1L332.9,296.5L333.0,298.8L332.9,300.8L332.1,302.0L331.0,303.0L328.5,305.1L326.7,306.4L322.1,309.4"/>
-  <path id="miles-court" data-name="Miles Court" data-cls="residential" data-ref="" d="M368.0,368.2L375.7,371.5"/>
   <path id="egbert-road" data-name="Egbert Road" data-cls="residential" data-ref="" d="M345.7,358.5L365.2,345.0L374.7,338.3L384.4,331.6"/>
   <path id="harold-road" data-name="Harold Road" data-cls="residential" data-ref="" d="M365.2,262.1L372.0,272.4L389.9,298.6L414.2,334.1"/>
   <path id="viking-close" data-name="Viking Close" data-cls="residential" data-ref="" d="M315.1,350.4L315.6,351.2L325.0,364.5"/>
@@ -1040,32 +999,19 @@
   <path id="sea-view-road" data-name="Sea View Road" data-cls="residential" data-ref="" d="M437.9,289.3L456.8,298.0L475.3,306.3L483.8,310.4"/>
   <path id="reculver-avenue" data-name="Reculver Avenue" data-cls="residential" data-ref="" d="M456.8,298.0L409.4,390.0"/>
   <path id="gallwey-avenue" data-name="Gallwey Avenue" data-cls="residential" data-ref="" d="M455.4,398.0L472.8,362.4"/>
-  <path id="nelson-court" data-name="Nelson Court" data-cls="residential" data-ref="" d="M484.0,345.7L482.1,344.8L479.6,343.4"/>
-  <path id="conway-close" data-name="Conway Close" data-cls="residential" data-ref="" d="M480.3,397.6L479.2,395.9L478.2,394.1"/>
   <path id="gore-end-close" data-name="Gore End Close" data-cls="residential" data-ref="" d="M534.5,429.9L535.2,423.7L535.0,422.8L534.5,421.5L532.4,419.8L529.5,418.4L524.8,417.5"/>
-  <path id="gore-end-close" data-name="Gore End Close" data-cls="residential" data-ref="" d="M524.8,415.1L524.8,417.5L523.7,419.8"/>
-  <path id="gore-end-close" data-name="Gore End Close" data-cls="residential" data-ref="" d="M535.0,422.8L539.4,420.0L542.0,418.5"/>
-  <path id="gore-end-close" data-name="Gore End Close" data-cls="residential" data-ref="" d="M539.4,420.0L537.1,416.7"/>
-  <path id="miles-way" data-name="Miles Way" data-cls="residential" data-ref="" d="M553.7,429.9L554.7,425.3L556.6,422.1"/>
-  <path id="hunting-gate" data-name="Hunting Gate" data-cls="residential" data-ref="" d="M577.7,392.5L579.2,393.9"/>
   <path id="hunting-gate" data-name="Hunting Gate" data-cls="residential" data-ref="" d="M580.3,372.1L585.3,377.0L586.0,378.6L585.8,380.8L583.3,384.3L581.0,387.1L579.4,389.7L578.5,391.2L577.7,392.5L575.1,393.6"/>
-  <path id="hunting-gate" data-name="Hunting Gate" data-cls="residential" data-ref="" d="M542.2,394.1L544.3,394.8L548.9,395.1"/>
   <path id="hunting-gate" data-name="Hunting Gate" data-cls="residential" data-ref="" d="M558.6,391.8L560.7,386.8L563.2,382.4L566.2,377.7L569.7,373.1"/>
   <path id="semaphore-road" data-name="Semaphore Road" data-cls="residential" data-ref="" d="M587.6,360.6L598.9,328.8"/>
   <path id="grenville-gardens" data-name="Grenville Gardens" data-cls="residential" data-ref="" d="M502.2,317.8L507.8,304.4L508.8,302.4L510.8,300.6L514.2,299.0L522.1,296.8L537.8,292.1L542.7,291.1L548.5,290.6L554.9,291.1L560.5,291.8"/>
   <path id="grenville-gardens" data-name="Grenville Gardens" data-cls="residential" data-ref="" d="M537.8,292.1L538.2,294.5L537.0,302.0L534.7,304.3L532.1,304.5L529.9,303.9L523.6,300.2L523.0,299.4L522.5,297.9L522.1,296.8"/>
   <path id="green-road" data-name="Green Road" data-cls="residential" data-ref="" d="M552.4,337.9L554.7,330.1L559.1,301.4L560.5,291.8L562.0,280.2L564.6,262.6L563.7,248.0"/>
   <path id="anna-park" data-name="Anna Park" data-cls="residential" data-ref="" d="M602.5,253.9L601.0,257.2L599.2,261.7L598.6,263.2L598.3,263.8L598.2,264.2L598.1,264.6L597.9,265.3L597.9,265.8L597.8,266.3L597.8,266.7L597.8,267.0L597.8,267.2L597.8,267.5L598.0,268.2L598.1,268.8L598.4,269.6L598.5,270.1L598.6,270.4L598.7,270.8L598.7,271.2L598.8,271.6L598.8,271.9L598.8,272.2L598.8,272.4L598.8,272.7L598.7,273.0L598.6,273.3L598.5,273.6L598.3,273.9L598.1,274.1L597.9,274.3L597.7,274.5L597.5,274.7L597.2,274.9L596.8,275.0L596.4,275.1L596.1,275.2L595.7,275.2L595.4,275.1L595.2,275.1L594.8,275.0L594.2,274.9L593.4,274.8L591.9,274.6L590.9,274.5L589.9,274.5L589.2,274.4L588.7,274.4L588.4,274.4L587.9,274.5L587.5,274.6L585.7,275.0"/>
-  <path id="anna-park" data-name="Anna Park" data-cls="residential" data-ref="" d="M591.9,274.6L591.6,277.9"/>
   <path id="bierce-court" data-name="Bierce Court" data-cls="residential" data-ref="" d="M610.3,372.1L608.5,373.2L605.6,373.1L603.3,373.2L601.3,374.2L599.7,376.4L597.7,379.3L596.9,382.0L596.6,384.8"/>
   <path id="shakespeare-road" data-name="Shakespeare Road" data-cls="residential" data-ref="" d="M759.2,343.6L730.9,341.0L704.9,338.5L677.9,336.0L652.3,334.0L649.5,333.7L633.7,332.2"/>
   <path id="dallinger-road" data-name="Dallinger Road" data-cls="residential" data-ref="" d="M638.5,300.4L637.0,300.1L628.0,299.3L621.7,298.8L619.9,297.9"/>
   <path id="moray-avenue" data-name="Moray Avenue" data-cls="residential" data-ref="" d="M666.6,306.2L668.2,297.9L669.7,291.5L669.8,289.4L669.5,287.8L668.5,286.5L667.8,285.9L665.8,284.6L663.8,284.2L661.4,284.2L658.3,284.3L655.0,283.9L653.5,282.7L652.8,280.7L653.0,278.9L656.1,266.4"/>
-  <path id="moray-avenue" data-name="Moray Avenue" data-cls="residential" data-ref="" d="M654.5,266.2L656.1,266.4L658.8,266.9"/>
   <path id="st-magnus-close" data-name="St. Magnus Close" data-cls="residential" data-ref="" d="M667.8,285.9L670.7,280.9L672.2,279.6L673.7,278.9L675.3,279.1L677.2,279.8L680.4,282.4L682.3,283.2L686.0,283.4L687.6,283.2L695.7,284.4"/>
-  <path id="st-magnus-close" data-name="St. Magnus Close" data-cls="residential" data-ref="" d="M687.6,283.2L687.9,281.0"/>
-  <path id="st-magnus-court" data-name="St. Magnus Court" data-cls="residential" data-ref="" d="M699.2,284.9L697.2,284.6L695.7,284.4"/>
-  <path id="st-magnus-court" data-name="St. Magnus Court" data-cls="residential" data-ref="" d="M697.4,283.1L697.2,284.6"/>
   <path id="berkeley-road" data-name="Berkeley Road" data-cls="residential" data-ref="" d="M633.7,332.2L627.5,331.6L614.5,330.7L598.9,328.8L593.0,326.5L590.7,324.4L590.0,321.7L590.7,318.9L595.1,301.0L593.0,300.5"/>
   <path id="gainsborough-road" data-name="Gainsborough Road" data-cls="residential" data-ref="" d="M652.3,334.0L656.7,304.6"/>
   <path id="constable-road" data-name="Constable Road" data-cls="residential" data-ref="" d="M677.9,336.0L680.3,306.7L680.3,304.6L679.7,303.3"/>
@@ -1073,20 +1019,13 @@
   <path id="leslie-road" data-name="Leslie Road" data-cls="residential" data-ref="" d="M730.9,341.0L733.7,311.8"/>
   <path id="nasmyth-road" data-name="Nasmyth Road" data-cls="residential" data-ref="" d="M759.2,343.6L756.9,312.9"/>
   <path id="winston-court" data-name="Winston Court" data-cls="residential" data-ref="" d="M726.1,310.2L726.6,304.3L726.6,302.0L726.4,289.5L726.8,285.8L725.9,283.2L725.9,279.5"/>
-  <path id="winston-court" data-name="Winston Court" data-cls="residential" data-ref="" d="M725.9,283.2L717.4,282.5"/>
-  <path id="winston-court" data-name="Winston Court" data-cls="residential" data-ref="" d="M717.8,278.2L717.4,282.5L716.8,288.2"/>
   <path id="r-30859411" data-name="" data-cls="residential" data-ref="" d="M713.6,287.8L714.1,278.5"/>
   <path id="rossetti-road" data-name="Rossetti Road" data-cls="residential" data-ref="" d="M649.5,333.7L642.4,376.3L640.9,382.6L638.5,390.3L637.5,392.5L634.1,395.3"/>
   <path id="epple-bay-road" data-name="Epple Bay Road" data-cls="residential" data-ref="" d="M642.4,376.3L760.6,374.4L769.3,372.8"/>
-  <path id="r-30860129" data-name="" data-cls="residential" data-ref="" d="M765.5,385.7L764.0,385.9"/>
-  <path id="r-30860132" data-name="" data-cls="residential" data-ref="" d="M764.1,389.6L765.9,389.5"/>
-  <path id="wanstall-court" data-name="Wanstall Court" data-cls="residential" data-ref="" d="M698.6,438.3L706.3,437.6L706.7,440.4"/>
   <path id="albion-road" data-name="Albion Road" data-cls="residential" data-ref="" d="M728.7,506.8L735.8,496.0L737.1,493.5L739.2,489.7L746.8,473.4L748.2,469.9L751.2,461.9L756.2,446.3L757.3,442.6L760.8,426.8L764.0,412.5"/>
-  <path id="taplin-court" data-name="Taplin Court" data-cls="residential" data-ref="" d="M735.8,496.0L728.6,492.1L730.3,489.0"/>
   <path id="crescent-road" data-name="Crescent Road" data-cls="residential" data-ref="" d="M700.1,471.9L700.8,471.4L706.2,468.5L713.0,464.9L717.2,463.5L720.4,463.2L723.8,463.8L746.8,473.4"/>
   <path id="woodford-court" data-name="Woodford Court" data-cls="residential" data-ref="" d="M751.2,461.9L734.1,454.8L732.9,452.2L732.8,450.0L734.5,434.3"/>
   <path id="woodford-court" data-name="Woodford Court" data-cls="residential" data-ref="" d="M732.8,450.0L703.3,454.1L700.7,454.5"/>
-  <path id="woodford-court" data-name="Woodford Court" data-cls="residential" data-ref="" d="M743.8,434.3L734.5,434.3L733.3,434.3"/>
   <path id="crispe-park-close" data-name="Crispe Park Close" data-cls="residential" data-ref="" d="M856.7,450.8L854.0,447.6L865.9,436.9"/>
   <path id="surrey-gardens" data-name="Surrey Gardens" data-cls="residential" data-ref="" d="M630.3,424.0L628.4,432.9L607.7,463.4"/>
   <path id="sussex-gardens" data-name="Sussex Gardens" data-cls="residential" data-ref="" d="M608.2,463.7L590.7,494.1"/>
@@ -1094,7 +1033,6 @@
   <path id="rutland-gardens" data-name="Rutland Gardens" data-cls="residential" data-ref="" d="M590.0,453.8L574.5,479.1L573.8,481.3"/>
   <path id="kent-gardens" data-name="Kent Gardens" data-cls="residential" data-ref="" d="M703.8,546.0L696.0,541.6L690.4,537.3L685.4,532.7L682.8,530.6L663.5,511.7L649.7,498.2L649.1,497.7L631.8,481.0L625.5,475.2L624.2,473.8L615.4,468.1L608.2,463.7L607.7,463.4L597.7,458.0L590.0,453.8L581.1,448.4L568.0,441.3L568.0,438.8"/>
   <path id="gordon-square" data-name="Gordon Square" data-cls="residential" data-ref="" d="M568.0,441.3L564.1,447.9L556.4,461.2"/>
-  <path id="walnut-mews" data-name="Walnut Mews" data-cls="residential" data-ref="" d="M556.4,461.2L551.4,469.1"/>
   <path id="gordon-square" data-name="Gordon Square" data-cls="residential" data-ref="" d="M564.1,447.9L569.9,451.4L570.2,451.9L570.1,453.2L566.0,461.2"/>
   <path id="devon-gardens" data-name="Devon Gardens" data-cls="residential" data-ref="" d="M625.5,475.2L607.0,505.7L605.0,509.1L574.1,553.9"/>
   <path id="essex-gardens" data-name="Essex Gardens" data-cls="residential" data-ref="" d="M574.1,553.9L597.7,571.4L615.3,585.4L646.9,609.3"/>
@@ -1105,17 +1043,11 @@
   <path id="hereford-gardens" data-name="Hereford Gardens" data-cls="residential" data-ref="" d="M635.7,517.5L665.6,543.7L667.7,545.1L669.3,544.9L671.5,542.8L682.8,530.6"/>
   <path id="mill-row" data-name="Mill Row" data-cls="residential" data-ref="" d="M641.1,610.8L621.8,617.7L590.3,628.8"/>
   <path id="mill-lane" data-name="Mill Lane" data-cls="residential" data-ref="" d="M621.8,617.7L615.4,613.1L601.4,603.4L598.5,601.2"/>
-  <path id="mill-lane" data-name="Mill Lane" data-cls="residential" data-ref="" d="M601.4,603.4L598.8,606.3L596.5,610.0L596.7,612.1L598.2,613.6"/>
   <path id="prospect-road" data-name="Prospect Road" data-cls="residential" data-ref="" d="M624.2,473.8L634.3,460.6L644.6,448.4"/>
   <path id="prospect-road" data-name="Prospect Road" data-cls="residential" data-ref="" d="M665.5,426.1L655.5,436.9L644.6,448.4"/>
   <path id="westfield-road" data-name="Westfield Road" data-cls="residential" data-ref="" d="M644.6,448.4L650.0,454.1L665.9,472.0L672.6,479.0L679.1,486.0"/>
-  <path id="oxney-close" data-name="Oxney Close" data-cls="residential" data-ref="" d="M660.9,485.6L649.1,497.7"/>
-  <path id="oxney-close" data-name="Oxney Close" data-cls="residential" data-ref="" d="M659.8,484.5L660.9,485.6L662.4,487.0"/>
-  <path id="sheppey-close" data-name="Sheppey Close" data-cls="residential" data-ref="" d="M663.5,511.7L674.4,499.6"/>
-  <path id="sheppey-close" data-name="Sheppey Close" data-cls="residential" data-ref="" d="M673.3,498.4L674.4,499.6L675.8,500.8"/>
   <path id="eastfield-road" data-name="Eastfield Road" data-cls="residential" data-ref="" d="M699.5,471.1L697.0,473.0L690.2,477.9L688.4,479.2L679.1,486.0"/>
   <path id="paddock-road" data-name="Paddock Road" data-cls="residential" data-ref="" d="M711.8,487.7L710.0,489.2L705.9,492.6L702.8,495.2L702.4,495.6L694.7,502.7"/>
-  <path id="westfield-road" data-name="Westfield Road" data-cls="residential" data-ref="" d="M702.8,511.9L694.7,502.7"/>
   <path id="romney-close" data-name="Romney Close" data-cls="residential" data-ref="" d="M685.4,532.7L695.9,520.1L694.6,519.0"/>
   <path id="westfield-road" data-name="Westfield Road" data-cls="residential" data-ref="" d="M694.7,502.7L686.0,493.9L684.7,492.5L679.1,486.0"/>
   <path id="broadley-avenue" data-name="Broadley Avenue" data-cls="residential" data-ref="" d="M568.9,699.4L575.5,705.2L592.1,722.1L600.0,730.6"/>
@@ -1123,76 +1055,40 @@
   <path id="king-edward-road" data-name="King Edward Road" data-cls="residential" data-ref="" d="M599.1,660.3L618.4,673.8L671.3,708.3L678.4,713.1L749.0,760.7"/>
   <path id="sherwood-road" data-name="Sherwood Road" data-cls="residential" data-ref="" d="M618.4,673.8L608.1,690.3L606.6,692.9L606.1,695.4L606.1,698.2L606.9,701.2L608.4,703.2L610.7,706.2L613.7,710.0L624.4,723.3"/>
   <path id="nottingham-road" data-name="Nottingham Road" data-cls="residential" data-ref="" d="M608.1,690.3L622.5,699.9L624.5,701.2L637.3,709.7"/>
-  <path id="king-edward-road" data-name="King Edward Road" data-cls="residential" data-ref="" d="M671.3,708.3L665.3,717.5"/>
   <path id="alexandra-road" data-name="Alexandra Road" data-cls="residential" data-ref="" d="M678.4,713.1L690.4,694.5"/>
   <path id="alexandra-road" data-name="Alexandra Road" data-cls="residential" data-ref="" d="M690.4,694.5L707.3,668.8"/>
   <path id="brunswick-road" data-name="Brunswick Road" data-cls="residential" data-ref="" d="M749.0,760.7L761.3,741.5L779.9,714.1L792.9,694.5L794.9,692.3L801.9,689.2"/>
   <path id="quex-view-road" data-name="Quex View Road" data-cls="residential" data-ref="" d="M761.3,741.5L753.0,736.0L690.4,694.5L634.9,657.6L613.6,643.3"/>
   <path id="rose-gardens" data-name="Rose Gardens" data-cls="residential" data-ref="" d="M634.9,657.6L648.4,638.1"/>
-  <path id="rose-gardens" data-name="Rose Gardens" data-cls="residential" data-ref="" d="M649.7,638.9L648.4,638.1L646.5,636.9"/>
   <path id="ransome-way" data-name="Ransome Way" data-cls="residential" data-ref="" d="M664.6,635.5L662.8,637.6L653.2,648.9L655.0,650.7"/>
-  <path id="park-avenue" data-name="Park Avenue" data-cls="residential" data-ref="" d="M688.7,656.9L680.9,665.8"/>
   <path id="kings-road" data-name="Kings Road" data-cls="residential" data-ref="" d="M792.9,694.5L745.9,664.7L727.0,651.7"/>
-  <path id="kings-road" data-name="Kings Road" data-cls="residential" data-ref="" d="M724.7,653.9L725.3,652.8L726.0,652.3L727.0,651.7L727.4,650.3L728.1,649.3"/>
   <path id="stringer-drive" data-name="Stringer Drive" data-cls="residential" data-ref="" d="M794.9,665.9L788.5,667.5L786.3,667.5L784.6,666.7L783.0,664.2L781.4,662.7L779.9,662.3L777.6,662.6L775.9,663.2"/>
-  <path id="stringer-drive" data-name="Stringer Drive" data-cls="residential" data-ref="" d="M777.6,662.6L777.5,660.8"/>
   <path id="holton-close" data-name="Holton Close" data-cls="residential" data-ref="" d="M787.9,637.9L784.9,638.6L781.9,639.7L779.4,642.6L777.1,644.1L774.1,644.5L771.9,645.2L769.9,646.7L765.4,650.5L762.7,652.4"/>
-  <path id="holton-close" data-name="Holton Close" data-cls="residential" data-ref="" d="M765.4,650.5L766.5,654.3"/>
   <path id="woodland-avenue" data-name="Woodland Avenue" data-cls="residential" data-ref="" d="M784.6,625.4L796.8,621.6L803.5,620.5L806.3,621.3L825.6,639.5L826.6,642.7L826.3,645.3L822.7,650.0L811.4,663.3L795.6,667.6"/>
   <path id="norrie-road" data-name="Norrie Road" data-cls="residential" data-ref="" d="M649.8,616.8L655.0,612.5L656.6,609.5L657.6,605.7L660.3,601.3L665.1,597.3L669.7,595.4L672.8,593.2L673.9,591.4L674.4,590.6L677.6,588.2L681.2,586.6L684.0,586.5L686.5,587.6L689.9,589.7L691.8,592.8L693.7,596.4L696.4,600.2L698.1,602.2L700.2,604.5L705.9,609.7L708.7,613.5"/>
   <path id="mellanby-close" data-name="Mellanby Close" data-cls="residential" data-ref="" d="M705.9,609.7L707.8,608.0L713.2,602.0L719.2,597.3L727.6,592.8"/>
-  <path id="mellanby-close" data-name="Mellanby Close" data-cls="residential" data-ref="" d="M730.7,596.7L727.6,592.8L726.6,591.0"/>
   <path id="phillips-road" data-name="Phillips Road" data-cls="residential" data-ref="" d="M693.7,596.4L697.5,594.2L700.2,592.1L702.6,588.2L705.9,585.3L708.1,582.3L709.8,580.7L713.0,579.0L720.5,575.4L736.9,565.2L745.3,558.9"/>
   <path id="sewell-close" data-name="Sewell Close" data-cls="residential" data-ref="" d="M736.9,565.2L746.9,582.7L748.9,588.2L750.5,593.7L756.6,605.1L760.9,613.2L758.6,614.6"/>
-  <path id="barrows-close" data-name="Barrows Close" data-cls="residential" data-ref="" d="M709.8,580.7L704.2,572.1L703.6,570.1"/>
-  <path id="barrows-close" data-name="Barrows Close" data-cls="residential" data-ref="" d="M704.2,572.1L702.5,573.0"/>
-  <path id="ferndale-court" data-name="Ferndale Court" data-cls="residential" data-ref="" d="M703.6,570.1L703.2,567.1L703.6,565.2L704.9,561.9"/>
-  <path id="ferndale-court" data-name="Ferndale Court" data-cls="residential" data-ref="" d="M703.2,567.1L704.9,565.7L707.5,564.6"/>
-  <path id="phillips-road" data-name="Phillips Road" data-cls="residential" data-ref="" d="M720.5,575.4L722.2,578.3"/>
   <path id="court-mount" data-name="Court Mount" data-cls="residential" data-ref="" d="M672.8,593.2L675.4,594.8L677.4,596.6L680.3,602.0L684.0,607.1L694.4,615.4L709.2,630.4L710.2,633.3L712.0,635.1L716.9,637.1L718.5,638.4L719.0,640.6L713.1,649.6L712.1,650.0L710.4,649.7L705.8,646.3L696.8,638.5L695.6,637.7L694.6,636.6L692.0,634.2L689.7,633.2L683.5,627.9L676.2,621.2L670.6,617.6L668.7,617.5L666.3,618.8L664.9,620.0L661.2,622.2L658.9,624.5"/>
-  <path id="court-mount" data-name="Court Mount" data-cls="residential" data-ref="" d="M676.2,621.2L678.5,619.0L680.8,616.1L681.4,613.3L681.8,612.5L684.0,607.1"/>
   <path id="r-30891741" data-name="" data-cls="residential" data-ref="" d="M725.9,531.2L734.4,544.4"/>
   <path id="anvil-close" data-name="Anvil Close" data-cls="residential" data-ref="" d="M747.6,545.1L745.3,546.2L741.2,548.9L739.7,549.0L737.4,549.0L735.6,549.3L730.7,552.2"/>
-  <path id="anvil-close" data-name="Anvil Close" data-cls="residential" data-ref="" d="M729.8,550.6L730.7,552.2L732.4,555.4"/>
-  <path id="anvil-close" data-name="Anvil Close" data-cls="residential" data-ref="" d="M739.7,549.0L740.7,552.1"/>
   <path id="wilbrough-road" data-name="Wilbrough Road" data-cls="residential" data-ref="" d="M800.1,406.7L799.5,409.7L797.0,424.7L792.1,453.6"/>
   <path id="neame-road" data-name="Neame Road" data-cls="residential" data-ref="" d="M792.1,453.6L780.3,449.7L775.8,448.3L771.6,447.0L768.9,446.2L758.1,442.9L757.3,442.6"/>
   <path id="hoser-gardens" data-name="Hoser Gardens" data-cls="residential" data-ref="" d="M797.0,424.7L806.8,426.4L808.1,426.6L810.9,427.1L811.9,427.3L814.1,427.7"/>
-  <path id="hoser-gardens" data-name="Hoser Gardens" data-cls="residential" data-ref="" d="M810.9,427.1L811.7,423.1"/>
   <path id="ingle-close" data-name="Ingle Close" data-cls="residential" data-ref="" d="M840.7,399.9L840.8,401.4L841.6,414.8L841.8,417.2L841.6,419.6L839.3,431.1"/>
-  <path id="ingle-close" data-name="Ingle Close" data-cls="residential" data-ref="" d="M840.3,431.2L839.3,431.1L838.2,430.9"/>
   <path id="charlesworth-drive" data-name="Charlesworth Drive" data-cls="residential" data-ref="" d="M830.3,474.2L832.2,476.2L834.7,479.2L836.5,480.6L839.0,481.5L844.2,483.3L851.0,486.3L858.0,489.7L869.1,493.5L878.1,495.6L884.8,497.6L887.7,497.4"/>
-  <path id="ash-tree-close" data-name="Ash Tree Close" data-cls="residential" data-ref="" d="M839.0,481.5L838.8,482.6L838.3,484.4"/>
-  <path id="ash-tree-close" data-name="Ash Tree Close" data-cls="residential" data-ref="" d="M835.7,483.9L838.3,484.4L845.3,486.0"/>
-  <path id="barrington-crescent" data-name="Barrington Crescent" data-cls="residential" data-ref="" d="M887.7,497.4L890.2,497.7L897.1,500.4L899.4,502.3"/>
   <path id="barrington-crescent" data-name="Barrington Crescent" data-cls="residential" data-ref="" d="M897.1,500.4L898.6,497.1L899.6,494.5L898.9,491.3L899.0,488.7L900.3,486.3L901.8,482.9L902.1,480.1L901.2,477.9L900.1,476.2L898.1,475.1L894.9,474.9L890.8,475.3L884.7,474.8L880.2,474.4L876.1,473.7"/>
   <path id="barrington-crescent" data-name="Barrington Crescent" data-cls="residential" data-ref="" d="M880.2,474.4L879.8,477.5L880.8,483.6L879.7,488.9L878.1,495.6"/>
   <path id="edenfield" data-name="Edenfield" data-cls="residential" data-ref="" d="M858.0,489.7L859.4,486.6L860.3,483.8L860.9,480.4L861.2,475.9L863.6,471.3"/>
-  <path id="edenfield" data-name="Edenfield" data-cls="residential" data-ref="" d="M866.7,472.4L863.6,471.3L861.0,469.3L858.3,467.8L853.4,465.7"/>
   <path id="sutherland-drive" data-name="Sutherland Drive" data-cls="residential" data-ref="" d="M884.8,497.6L883.2,512.7L882.3,515.1L876.4,520.8L872.1,526.4L871.1,530.0L870.2,538.3L868.7,544.9L864.1,548.2L859.6,547.0L847.5,543.0L841.7,539.4L839.1,536.3L837.1,532.4L835.4,526.1L835.8,521.6L836.1,518.6L835.9,516.2L834.0,511.2"/>
   <path id="dovedale" data-name="Dovedale" data-cls="residential" data-ref="" d="M882.3,515.1L886.4,518.0L895.3,519.9L899.5,520.5L900.9,519.1"/>
-  <path id="dovedale-court" data-name="Dovedale Court" data-cls="residential" data-ref="" d="M895.3,519.9L893.8,526.6L893.2,529.2"/>
-  <path id="birch-hill-court" data-name="Birch Hill Court" data-cls="residential" data-ref="" d="M872.1,526.4L868.1,524.8L866.8,523.3L865.4,520.5L864.4,518.0L863.5,516.5L861.3,514.1"/>
-  <path id="birch-hill-court" data-name="Birch Hill Court" data-cls="residential" data-ref="" d="M863.0,511.7L861.3,514.1L857.6,517.8L855.7,518.6L852.8,519.4L849.0,520.1"/>
   <path id="brandon-way" data-name="Brandon Way" data-cls="residential" data-ref="" d="M868.7,544.9L870.4,546.3L872.5,547.0L879.9,546.6L884.6,547.0L888.8,547.6L891.2,546.8L893.8,545.4L897.1,543.0L898.1,541.7L898.7,540.9"/>
-  <path id="brandon-way" data-name="Brandon Way" data-cls="residential" data-ref="" d="M897.1,543.0L898.9,544.5"/>
   <path id="newbury-close" data-name="Newbury Close" data-cls="residential" data-ref="" d="M888.8,547.6L890.1,551.0L889.9,553.2L889.4,555.4L888.4,558.3L887.7,559.8L886.5,561.7L884.2,561.7L880.8,561.2L876.0,560.6L873.8,560.1"/>
-  <path id="newbury-close" data-name="Newbury Close" data-cls="residential" data-ref="" d="M876.0,560.6L876.3,558.4"/>
-  <path id="newbury-close" data-name="Newbury Close" data-cls="residential" data-ref="" d="M886.5,561.7L888.2,566.3"/>
   <path id="the-parkway" data-name="The Parkway" data-cls="residential" data-ref="" d="M813.8,523.1L816.1,520.5L820.5,516.5L822.2,514.9L824.6,513.7L829.9,512.2L834.0,511.2L836.8,509.4L838.3,507.7L839.6,505.6L840.8,501.7L842.7,498.8L845.0,496.4L848.0,492.8L849.3,490.5L851.0,486.3"/>
   <path id="yew-tree-gardens" data-name="Yew Tree Gardens" data-cls="residential" data-ref="" d="M789.3,507.6L786.2,501.0L785.5,499.0L785.9,497.4L788.2,495.3L790.2,493.3L791.0,492.0L791.3,490.5L791.1,489.9L790.5,488.4L783.8,483.7L780.3,481.2L773.0,476.8L771.4,474.2L761.4,469.3"/>
-  <path id="yew-tree-gardens" data-name="Yew Tree Gardens" data-cls="residential" data-ref="" d="M773.0,476.8L766.5,489.4"/>
-  <path id="yew-tree-gardens" data-name="Yew Tree Gardens" data-cls="residential" data-ref="" d="M771.1,491.5L766.5,489.4L761.2,486.9"/>
   <path id="cedar-close" data-name="Cedar Close" data-cls="residential" data-ref="" d="M839.6,505.6L833.4,503.3L832.5,502.4L832.0,501.0L831.2,499.5L829.6,497.9L828.0,496.5L827.2,495.4L826.3,492.2"/>
-  <path id="cambridge-close" data-name="Cambridge Close" data-cls="residential" data-ref="" d="M842.7,498.8L848.1,501.9L850.0,503.0"/>
-  <path id="cambridge-close" data-name="Cambridge Close" data-cls="residential" data-ref="" d="M848.1,501.9L847.8,503.0"/>
   <path id="powell-cotton-drive" data-name="Powell Cotton Drive" data-cls="residential" data-ref="" d="M817.0,571.3L822.5,568.2L825.7,568.2L827.2,567.4L829.1,566.4L834.4,563.6"/>
-  <path id="walnut-tree-close" data-name="Walnut Tree Close" data-cls="residential" data-ref="" d="M759.5,515.1L760.5,518.2L761.1,519.7L761.6,520.7L762.7,521.3L762.9,522.0"/>
-  <path id="east-end-villas" data-name="East End Villas" data-cls="residential" data-ref="" d="M859.4,448.5L862.2,451.8L865.7,455.5"/>
   <path id="anne-close" data-name="Anne Close" data-cls="residential" data-ref="" d="M933.0,456.9L929.8,458.4L926.5,459.5L923.5,460.2L919.6,460.0L899.2,457.4L878.3,454.8"/>
-  <path id="anne-close" data-name="Anne Close" data-cls="residential" data-ref="" d="M878.5,453.0L878.3,454.8L878.1,456.9"/>
-  <path id="rosewood-way" data-name="Rosewood Way" data-cls="residential" data-ref="" d="M899.2,457.4L900.6,443.9"/>
-  <path id="rosewood-way" data-name="Rosewood Way" data-cls="residential" data-ref="" d="M894.8,440.6L895.9,441.0L897.2,441.4L899.0,442.4L900.6,443.9L902.4,443.4L905.7,442.0"/>
   <path id="edward-drive" data-name="Edward Drive" data-cls="residential" data-ref="" d="M916.7,413.1L924.6,428.4L927.0,434.1L930.1,448.5L931.4,452.4L933.0,456.9L935.6,460.1L939.5,463.6L943.2,466.1"/>
   <path id="marilyn-crescent" data-name="Marilyn Crescent" data-cls="residential" data-ref="" d="M924.6,428.4L928.1,425.7L932.1,424.0L935.8,423.1L939.4,422.4L942.8,422.4L947.9,422.5"/>
   <path id="minnis-road" data-name="Minnis Road" data-cls="residential" data-ref="" d="M635.5,423.7L630.3,424.0L615.6,424.3L604.6,424.9L592.9,426.1L589.3,426.5L586.9,426.9L572.1,428.6L570.1,428.9L560.9,429.6L553.7,429.9L534.5,429.9L530.1,429.6L523.9,429.0L518.5,427.6"/>
@@ -1200,166 +1096,54 @@
   <path id="ursuline-drive" data-name="Ursuline Drive" data-cls="residential" data-ref="" d="M1097.9,475.0L1099.5,491.3L1101.2,493.6"/>
   <path id="dunstan-avenue" data-name="Dunstan Avenue" data-cls="residential" data-ref="" d="M1113.2,531.8L1116.0,544.4L1120.5,563.5"/>
   <path id="lymington-road" data-name="Lymington Road" data-cls="residential" data-ref="" d="M1227.1,428.5L1207.0,431.5"/>
-  <path id="linksfield-road" data-name="Linksfield Road" data-cls="residential" data-ref="" d="M1208.5,478.3L1209.0,485.3"/>
   <path id="dent-de-lion-court" data-name="Dent-de-Lion Court" data-cls="residential" data-ref="" d="M1592.4,413.8L1587.8,413.8L1583.1,412.6L1582.4,411.6L1581.8,408.0L1580.8,404.8L1578.3,401.8L1577.1,400.4L1576.6,398.2L1576.3,389.3L1576.2,387.1"/>
-  <path id="high-street" data-name="High Street" data-cls="residential" data-ref="" d="M1700.4,382.5L1700.1,380.1L1700.4,372.8"/>
   <path id="high-street" data-name="High Street" data-cls="residential" data-ref="" d="M1700.4,372.8L1700.7,369.4L1703.5,343.4L1704.2,338.3L1704.9,333.1"/>
   <path id="the-grove" data-name="The Grove" data-cls="residential" data-ref="" d="M1438.6,309.6L1437.7,307.2L1437.7,305.6L1437.6,294.1L1437.4,286.0L1436.9,282.6L1435.9,280.7L1435.7,280.5"/>
-  <path id="oak-tree-grove" data-name="Oak Tree Grove" data-cls="residential" data-ref="" d="M1648.1,370.0L1645.9,370.3L1643.6,370.6"/>
   <path id="ethelred-road" data-name="Ethelred Road" data-cls="residential" data-ref="" d="M1385.5,209.0L1356.8,203.9L1337.6,200.4"/>
-  <path id="vestey-court" data-name="Vestey Court" data-cls="residential" data-ref="" d="M1356.8,203.9L1358.4,194.7L1357.7,192.9L1357.9,191.1"/>
   <path id="egbert-road" data-name="Egbert Road" data-cls="residential" data-ref="" d="M1387.6,221.6L1385.3,210.5L1385.5,209.0L1387.8,195.9L1389.9,187.3L1392.5,175.2"/>
   <path id="nursery-fields" data-name="Nursery Fields" data-cls="residential" data-ref="" d="M867.0,1011.8L859.3,1010.4L857.6,1010.9L855.2,1011.9L853.4,1011.8L851.4,1010.6L850.2,1009.4L849.1,1008.2L848.1,1005.3L848.9,1000.9"/>
-  <path id="nursery-fields" data-name="Nursery Fields" data-cls="residential" data-ref="" d="M844.5,1014.1L850.2,1009.4"/>
   <path id="dilnot-lane" data-name="Dilnot Lane" data-cls="residential" data-ref="" d="M855.2,1083.1L849.5,1086.1L847.6,1089.0L846.6,1093.1L847.6,1103.9L851.1,1103.9"/>
   <path id="princes-close" data-name="Princes Close" data-cls="residential" data-ref="" d="M352.7,390.1L359.7,388.1L361.5,388.4L369.1,391.7"/>
   <path id="courtlands-way" data-name="Courtlands Way" data-cls="residential" data-ref="" d="M1408.0,205.0L1402.2,205.2L1400.1,207.0L1402.7,218.2"/>
   <path id="college-square" data-name="College Square" data-cls="residential" data-ref="" d="M1295.2,385.9L1292.2,371.3L1290.9,365.1L1289.9,360.5"/>
-  <path id="college-square" data-name="College Square" data-cls="residential" data-ref="" d="M1287.3,366.0L1290.9,365.1"/>
   <path id="park-avenue" data-name="Park Avenue" data-cls="residential" data-ref="" d="M645.2,610.9L649.8,616.8L657.1,627.4L664.6,635.5L670.2,640.5L674.4,644.2L688.7,656.9L707.3,668.8L732.4,684.1L779.9,714.1"/>
-  <path id="park-avenue" data-name="Park Avenue" data-cls="residential" data-ref="" d="M674.4,644.2L667.0,652.5L668.0,653.6"/>
-  <path id="r-107300339" data-name="" data-cls="residential" data-ref="" d="M1768.2,141.1L1771.2,141.7"/>
-  <path id="r-107300343" data-name="" data-cls="residential" data-ref="" d="M1770.5,142.2L1768.1,141.6"/>
-  <path id="princes-close" data-name="Princes Close" data-cls="residential" data-ref="" d="M368.6,393.2L369.1,391.7L370.0,389.0"/>
   <path id="bramble-lane" data-name="Bramble Lane" data-cls="residential" data-ref="" d="M1801.2,842.5L1766.3,803.4L1751.0,785.7L1746.8,779.1"/>
   <path id="r-117367462" data-name="" data-cls="residential" data-ref="" d="M1802.5,581.9L1802.3,577.3L1793.5,568.9L1774.1,543.9L1765.0,532.7L1763.9,530.6L1763.3,529.5L1746.3,508.7L1713.7,472.5"/>
   <path id="r-117367467" data-name="" data-cls="residential" data-ref="" d="M1827.3,971.8L1818.4,968.7L1805.1,961.6L1800.3,959.1L1793.7,955.1L1790.9,953.6L1782.7,948.2L1782.6,948.1L1765.1,938.6L1741.6,925.2L1740.8,924.6L1723.2,912.4L1716.0,907.2L1690.1,888.1L1667.4,871.4L1665.9,870.3L1663.4,868.9L1661.8,867.9L1659.5,867.7"/>
-  <path id="kingfisher-close" data-name="Kingfisher Close" data-cls="residential" data-ref="" d="M1687.2,437.6L1685.5,436.5L1683.2,437.1"/>
-  <path id="kingfisher-close" data-name="Kingfisher Close" data-cls="residential" data-ref="" d="M1686.6,425.1L1686.6,427.5L1686.6,429.2L1685.5,436.5"/>
-  <path id="stephens-close" data-name="Stephens Close" data-cls="residential" data-ref="" d="M1684.8,455.6L1681.0,455.5"/>
   <path id="oak-tree-grove" data-name="Oak Tree Grove" data-cls="residential" data-ref="" d="M1645.9,370.3L1646.3,372.7L1644.6,376.7L1644.2,378.2L1644.1,379.3L1646.1,388.6"/>
-  <path id="alicia-avenue" data-name="Alicia Avenue" data-cls="residential" data-ref="" d="M1593.8,335.5L1594.4,333.0L1594.9,330.9"/>
-  <path id="high-street" data-name="High Street" data-cls="residential" data-ref="" d="M1706.6,451.1L1703.8,450.7L1701.8,449.8L1697.5,449.4L1694.0,449.1L1693.5,449.4"/>
-  <path id="michelle-gardens" data-name="Michelle Gardens" data-cls="residential" data-ref="" d="M1570.6,346.1L1573.3,346.1L1575.4,346.0"/>
-  <path id="streete-court" data-name="Streete Court" data-cls="residential" data-ref="" d="M1408.0,360.5L1407.6,359.3L1406.6,358.2"/>
   <path id="r-120184049" data-name="" data-cls="residential" data-ref="" d="M29.1,850.2L28.2,850.1L18.2,851.6L8.6,853.2L-3.7,855.7L-9.1,855.8L-19.7,856.5L-31.2,854.9L-37.5,853.4L-63.7,842.4L-75.4,838.7L-82.9,836.3L-88.7,832.6L-95.8,827.4L-99.9,824.4L-117.5,818.4L-143.5,815.9L-172.8,817.0L-209.2,826.6L-226.5,832.1L-232.8,833.2L-239.9,838.9"/>
   <path id="r-120184058" data-name="" data-cls="residential" data-ref="" d="M265.8,807.3L280.5,803.4L302.1,797.3L330.2,789.4L363.1,779.8L364.5,780.9L365.9,782.1L370.7,785.4L376.8,789.3L385.0,793.3L397.3,801.8L404.3,808.5L406.8,812.4L409.8,817.1L412.3,827.4L414.3,833.6"/>
   <path id="r-120784011" data-name="" data-cls="residential" data-ref="" d="M922.0,300.9L915.3,302.2L915.7,305.6"/>
   <path id="minnis-road" data-name="Minnis Road" data-cls="residential" data-ref="" d="M518.5,427.6L511.2,424.1L504.2,420.2L494.5,414.0"/>
   <path id="minnis-road" data-name="Minnis Road" data-cls="residential" data-ref="" d="M482.2,407.8L477.3,406.8L473.1,405.7L468.9,404.1L455.4,398.0L446.1,394.8L439.1,393.3L433.0,392.5L415.2,390.7L409.4,390.0L405.4,389.3L396.2,387.7L386.6,385.8L382.4,384.3L372.9,380.5L363.5,376.2L362.5,375.6"/>
-  <path id="r-137871877" data-name="" data-cls="residential" data-ref="" d="M1413.5,164.2L1412.0,163.9"/>
-  <path id="r-137878081" data-name="" data-cls="residential" data-ref="" d="M1065.1,245.8L1065.1,248.4"/>
-  <path id="r-137878082" data-name="" data-cls="residential" data-ref="" d="M317.2,305.0L316.1,306.1L317.3,307.4"/>
-  <path id="r-137878083" data-name="" data-cls="residential" data-ref="" d="M616.8,235.9L615.9,236.7L615.1,237.4"/>
-  <path id="r-137878084" data-name="" data-cls="residential" data-ref="" d="M1270.9,131.5L1273.1,133.6"/>
-  <path id="r-137878088" data-name="" data-cls="residential" data-ref="" d="M1314.3,117.6L1313.3,120.5"/>
-  <path id="r-137878092" data-name="" data-cls="residential" data-ref="" d="M1263.1,169.3L1265.0,168.9"/>
-  <path id="r-137878096" data-name="" data-cls="residential" data-ref="" d="M1225.1,241.0L1224.6,239.9"/>
-  <path id="r-137878103" data-name="" data-cls="residential" data-ref="" d="M587.2,217.8L586.8,218.9L586.5,219.9"/>
-  <path id="r-137878107" data-name="" data-cls="residential" data-ref="" d="M1015.8,254.9L1016.3,257.9"/>
-  <path id="r-137878110" data-name="" data-cls="residential" data-ref="" d="M426.9,233.0L426.5,233.9L426.0,235.2"/>
-  <path id="r-137878111" data-name="" data-cls="residential" data-ref="" d="M256.9,347.6L255.4,348.5L256.3,349.9"/>
-  <path id="r-137878916" data-name="" data-cls="residential" data-ref="" d="M85.1,397.8L85.1,398.6"/>
-  <path id="r-137878917" data-name="" data-cls="residential" data-ref="" d="M119.1,395.5L119.2,396.4"/>
-  <path id="r-137878921" data-name="" data-cls="residential" data-ref="" d="M16.6,401.4L16.6,402.1L16.7,403.1"/>
-  <path id="r-137878928" data-name="" data-cls="residential" data-ref="" d="M145.9,392.0L146.2,393.0"/>
-  <path id="r-137878945" data-name="" data-cls="residential" data-ref="" d="M49.3,399.9L49.3,400.7L49.4,401.6"/>
-  <path id="linington-road" data-name="Linington Road" data-cls="residential" data-ref="" d="M771.3,530.5L767.5,532.0"/>
-  <path id="powell-cotton-drive" data-name="Powell Cotton Drive" data-cls="residential" data-ref="" d="M833.1,561.5L834.4,563.6L835.6,565.4"/>
-  <path id="pine-tree-close" data-name="Pine Tree Close" data-cls="residential" data-ref="" d="M822.2,514.9L816.6,506.9L813.9,504.1"/>
-  <path id="seamark-road" data-name="Seamark Road" data-cls="residential" data-ref="" d="M472.0,824.5L470.2,827.8L468.7,831.0L468.2,833.6"/>
   <path id="cedric-road" data-name="Cedric Road" data-cls="residential" data-ref="" d="M1268.3,248.3L1275.7,283.0"/>
   <path id="rowena-road" data-name="Rowena Road" data-cls="residential" data-ref="" d="M1337.7,199.7L1314.5,194.9L1301.2,192.6L1286.4,190.1"/>
-  <path id="waterside-drive" data-name="Waterside Drive" data-cls="residential" data-ref="" d="M1470.2,195.9L1470.2,197.6"/>
-  <path id="r-147963797" data-name="" data-cls="residential" data-ref="" d="M1413.7,167.2L1412.5,167.2"/>
-  <path id="r-147963800" data-name="" data-cls="residential" data-ref="" d="M1433.9,171.4L1434.3,169.1"/>
-  <path id="r-147963801" data-name="" data-cls="residential" data-ref="" d="M1391.3,161.8L1390.1,161.2"/>
-  <path id="r-147963844" data-name="" data-cls="residential" data-ref="" d="M1354.5,142.0L1355.9,142.5L1356.1,141.6L1354.0,141.1"/>
-  <path id="the-malthouses" data-name="The Malthouses" data-cls="residential" data-ref="" d="M604.6,424.9L603.6,419.6L602.3,412.2"/>
-  <path id="upper-maltings-place" data-name="Upper Maltings Place" data-cls="residential" data-ref="" d="M585.3,415.3L587.6,415.1L590.5,414.8"/>
-  <path id="upper-maltings-place" data-name="Upper Maltings Place" data-cls="residential" data-ref="" d="M586.9,426.9L586.4,421.7L587.8,417.3L587.6,415.1"/>
-  <path id="barn-crescent" data-name="Barn Crescent" data-cls="residential" data-ref="" d="M1718.5,229.2L1718.8,232.5L1718.2,236.5L1716.9,240.0"/>
-  <path id="rose-lawn-gardens" data-name="Rose Lawn Gardens" data-cls="residential" data-ref="" d="M1722.8,339.6L1720.3,338.5"/>
-  <path id="the-school-close" data-name="The School Close" data-cls="residential" data-ref="" d="M1318.1,177.5L1307.5,175.7"/>
   <path id="waterside-drive" data-name="Waterside Drive" data-cls="residential" data-ref="" d="M1470.2,195.9L1471.6,193.7L1472.3,183.7L1471.6,178.9L1469.6,175.3"/>
-  <path id="lymington-road" data-name="Lymington Road" data-cls="residential" data-ref="" d="M1354.9,393.0L1351.4,393.7"/>
   <path id="minster-road" data-name="Minster Road" data-cls="residential" data-ref="" d="M1385.0,504.6L1407.5,504.7"/>
-  <path id="crow-hill-road" data-name="Crow Hill Road" data-cls="residential" data-ref="" d="M1718.3,385.6L1727.1,386.0L1729.3,384.6L1730.9,382.7"/>
-  <path id="dent-de-lion-court" data-name="Dent-de-Lion Court" data-cls="residential" data-ref="" d="M1579.2,389.2L1576.3,389.3"/>
   <path id="high-street" data-name="High Street" data-cls="residential" data-ref="" d="M1704.4,494.8L1703.8,485.5L1702.9,478.3L1703.4,470.9L1705.8,456.1L1706.6,451.1L1707.1,448.0L1707.7,440.9L1708.2,435.0L1708.3,432.9L1708.2,424.9L1707.9,407.6L1707.4,404.7L1705.8,395.2L1704.2,389.3L1701.9,385.1"/>
   <path id="westfield-road" data-name="Westfield Road" data-cls="residential" data-ref="" d="M1930.5,325.5L1918.3,329.7L1897.5,337.4L1890.5,339.9L1856.1,352.8L1831.1,362.4L1786.5,380.0"/>
-  <path id="tidewell-mews" data-name="Tidewell Mews" data-cls="residential" data-ref="" d="M1385.8,300.0L1385.5,298.4L1384.5,291.3"/>
-  <path id="r-196120521" data-name="" data-cls="residential" data-ref="" d="M1199.1,250.6L1198.6,249.3"/>
-  <path id="st-augustine-s-close" data-name="St. Augustine's Close" data-cls="residential" data-ref="" d="M1279.4,378.0L1284.1,377.1L1285.8,383.1L1290.1,386.8"/>
   <path id="r-322192598" data-name="" data-cls="residential" data-ref="" d="M882.7,529.1L876.9,537.0L870.2,538.3"/>
-  <path id="minnis-road" data-name="Minnis Road" data-cls="residential" data-ref="" d="M490.5,411.1L488.4,409.7L485.8,408.7L482.2,407.8"/>
   <path id="r-444644165" data-name="" data-cls="residential" data-ref="" d="M1346.5,748.7L1344.0,753.0L1338.4,761.2L1331.1,773.7L1331.0,773.9L1328.2,779.2L1325.8,784.7L1325.5,785.4L1320.1,797.9L1314.8,807.7L1314.5,808.2L1305.7,821.5L1300.3,828.1L1298.0,831.0L1286.0,844.3L1274.8,853.0L1274.6,853.2L1267.0,860.4L1265.0,862.8L1256.2,873.2L1255.5,874.2L1248.0,884.5L1240.3,897.6L1236.4,903.8L1234.9,906.1L1223.4,921.2L1221.9,922.8L1212.7,932.7L1209.5,936.7L1209.0,937.4L1201.4,948.9L1199.9,951.1L1192.2,963.4"/>
-  <path id="r-482774853" data-name="" data-cls="residential" data-ref="" d="M1277.2,185.4L1276.5,186.6"/>
   <path id="r-487218641" data-name="" data-cls="residential" data-ref="" d="M1301.8,136.2L1297.0,135.7L1294.3,133.4L1292.5,129.7L1291.8,128.4"/>
-  <path id="r-548987017" data-name="" data-cls="residential" data-ref="" d="M620.2,398.0L618.2,398.1"/>
-  <path id="r-588088819" data-name="" data-cls="residential" data-ref="" d="M1779.4,383.1L1777.6,386.2"/>
-  <path id="brooke-avenue" data-name="Brooke Avenue" data-cls="residential" data-ref="" d="M1758.8,484.0L1755.7,492.3"/>
   <path id="kingston-avenue" data-name="Kingston Avenue" data-cls="residential" data-ref="" d="M1785.9,487.3L1809.3,487.5L1814.6,486.7L1819.8,485.6L1827.0,483.3L1837.8,477.0L1880.0,452.7L1883.6,450.3L1885.8,448.3"/>
   <path id="minnis-road" data-name="Minnis Road" data-cls="residential" data-ref="" d="M332.4,338.9L323.9,326.2L315.3,314.2"/>
   <path id="arthur-road" data-name="Arthur Road" data-cls="residential" data-ref="" d="M332.4,338.9L315.1,350.4L301.4,360.1"/>
   <path id="canute-road" data-name="Canute Road" data-cls="residential" data-ref="" d="M301.4,360.1L328.4,399.5"/>
-  <path id="dunstan-avenue" data-name="Dunstan Avenue" data-cls="residential" data-ref="" d="M1120.5,563.5L1121.2,566.8"/>
   <path id="linksfield-road" data-name="Linksfield Road" data-cls="residential" data-ref="" d="M1163.3,521.8L1167.7,534.0L1170.6,542.2L1176.3,559.4"/>
-  <path id="r-718120150" data-name="" data-cls="residential" data-ref="" d="M618.6,402.2L620.8,402.1"/>
-  <path id="claremont-mews" data-name="Claremont Mews" data-cls="residential" data-ref="" d="M664.5,399.9L651.2,401.5"/>
-  <path id="r-747140102" data-name="" data-cls="residential" data-ref="" d="M1360.8,278.1L1358.9,278.5L1359.0,279.0"/>
-  <path id="r-750330302" data-name="" data-cls="residential" data-ref="" d="M1363.8,280.9L1362.5,281.1"/>
   <path id="r-858868117" data-name="" data-cls="residential" data-ref="" d="M621.4,277.2L634.8,275.8"/>
-  <path id="r-882972887" data-name="" data-cls="residential" data-ref="" d="M1433.3,167.2L1432.1,167.2"/>
-  <path id="ethelbert-square" data-name="Ethelbert Square" data-cls="residential" data-ref="" d="M1362.1,258.8L1376.3,255.5"/>
   <path id="adrian-square" data-name="Adrian Square" data-cls="residential" data-ref="" d="M1400.8,269.2L1398.5,258.6L1396.6,250.7"/>
-  <path id="r-889383049" data-name="" data-cls="residential" data-ref="" d="M1059.0,409.6L1058.1,411.4"/>
-  <path id="r-889383052" data-name="" data-cls="residential" data-ref="" d="M1057.8,403.0L1056.7,403.0"/>
-  <path id="r-889383053" data-name="" data-cls="residential" data-ref="" d="M1056.7,403.0L1055.3,403.0"/>
-  <path id="r-889383055" data-name="" data-cls="residential" data-ref="" d="M1057.1,395.6L1055.1,395.8"/>
-  <path id="r-889383057" data-name="" data-cls="residential" data-ref="" d="M1070.2,399.9L1069.5,399.9"/>
-  <path id="station-approach" data-name="Station Approach" data-cls="residential" data-ref="" d="M659.2,419.8L662.0,420.9L663.4,421.8"/>
   <path id="r-903994091" data-name="" data-cls="residential" data-ref="" d="M1192.2,963.4L1185.5,975.5L1183.9,977.9L1180.3,981.6L1177.8,984.2L1176.9,986.1"/>
-  <path id="high-street" data-name="High Street" data-cls="residential" data-ref="" d="M1704.5,328.1L1704.5,325.5"/>
-  <path id="high-street" data-name="High Street" data-cls="residential" data-ref="" d="M1704.9,333.1L1704.9,330.6L1704.5,328.1"/>
-  <path id="high-street" data-name="High Street" data-cls="residential" data-ref="" d="M1712.6,326.5L1710.3,327.9L1708.1,329.7L1706.4,331.3L1704.9,333.1"/>
-  <path id="r-942970218" data-name="" data-cls="residential" data-ref="" d="M85.4,402.1L85.5,403.8"/>
-  <path id="r-942970222" data-name="" data-cls="residential" data-ref="" d="M146.8,396.5L147.1,398.0"/>
-  <path id="r-942974544" data-name="" data-cls="residential" data-ref="" d="M1361.5,281.3L1359.5,281.7L1359.4,281.4"/>
-  <path id="r-942976789" data-name="" data-cls="residential" data-ref="" d="M1276.4,187.0L1275.4,187.0L1275.0,188.3"/>
-  <path id="r-967535603" data-name="" data-cls="residential" data-ref="" d="M1442.6,221.4L1440.9,221.4"/>
   <path id="the-parade" data-name="The Parade" data-cls="residential" data-ref="" d="M452.1,259.2L444.4,257.1L437.7,255.0L433.9,253.6L428.8,249.3L425.7,246.2L422.8,243.7L419.1,242.7L412.9,242.8"/>
-  <path id="minnis-road" data-name="Minnis Road" data-cls="residential" data-ref="" d="M494.5,414.0L490.5,411.1"/>
-  <path id="hengist-road" data-name="Hengist Road" data-cls="residential" data-ref="" d="M1165.8,312.8L1162.0,319.7"/>
-  <path id="r-1100873097" data-name="" data-cls="residential" data-ref="" d="M1131.9,260.4L1132.2,257.7"/>
-  <path id="yew-tree-gardens" data-name="Yew Tree Gardens" data-cls="residential" data-ref="" d="M791.3,490.5L793.9,489.9L796.6,492.4"/>
-  <path id="r-1134418761" data-name="" data-cls="residential" data-ref="" d="M620.9,403.4L620.2,403.5"/>
-  <path id="mill-row" data-name="Mill Row" data-cls="residential" data-ref="" d="M641.1,610.8L644.4,611.6"/>
-  <path id="roman-way" data-name="Roman Way" data-cls="residential" data-ref="" d="M1769.6,515.5L1769.7,518.2L1772.3,520.8"/>
-  <path id="brook-close" data-name="Brook Close" data-cls="residential" data-ref="" d="M1785.2,500.8L1785.6,502.4L1785.9,503.9"/>
   <path id="brook-close" data-name="Brook Close" data-cls="residential" data-ref="" d="M1755.7,492.3L1755.8,493.0L1755.8,494.2L1755.8,496.8L1757.0,499.1L1760.9,500.6L1764.3,502.8L1766.6,503.5L1768.9,504.1L1771.2,504.4L1773.6,504.5L1776.1,504.5L1778.6,504.2L1781.1,503.7L1785.6,502.4"/>
   <path id="roman-way" data-name="Roman Way" data-cls="residential" data-ref="" d="M1757.0,499.1L1756.7,500.9L1756.1,503.3L1754.8,507.4L1753.4,510.9L1753.2,511.6L1753.1,512.3L1753.1,513.0L1753.4,513.9L1753.9,514.7L1760.4,522.0L1761.1,522.5L1761.8,522.9L1762.6,523.1L1763.4,523.1L1764.1,522.9L1764.9,522.6L1765.5,522.1L1768.4,519.1L1769.7,518.2"/>
-  <path id="barn-crescent" data-name="Barn Crescent" data-cls="residential" data-ref="" d="M1716.9,240.0L1716.5,244.9L1715.9,253.6"/>
-  <path id="maynard-avenue" data-name="Maynard Avenue" data-cls="residential" data-ref="" d="M1781.6,296.6L1781.7,294.0L1782.9,291.8"/>
-  <path id="crow-hill-road" data-name="Crow Hill Road" data-cls="residential" data-ref="" d="M1701.9,385.1L1713.6,385.4L1718.3,385.6"/>
-  <path id="high-street" data-name="High Street" data-cls="residential" data-ref="" d="M1701.9,385.1L1700.4,382.5"/>
-  <path id="westfield-road" data-name="Westfield Road" data-cls="residential" data-ref="" d="M1786.5,380.0L1780.9,382.1L1779.4,383.1"/>
-  <path id="caxton-road" data-name="Caxton Road" data-cls="residential" data-ref="" d="M1792.8,384.7L1790.9,384.3L1789.2,383.5L1788.2,382.4L1786.5,380.0"/>
   <path id="caxton-road" data-name="Caxton Road" data-cls="residential" data-ref="" d="M1834.4,394.5L1830.6,392.6L1792.8,384.7"/>
-  <path id="sanders-court" data-name="Sanders Court" data-cls="residential" data-ref="" d="M1483.8,301.5L1481.1,301.4"/>
-  <path id="sanders-court" data-name="Sanders Court" data-cls="residential" data-ref="" d="M1477.8,301.3L1475.7,301.3"/>
   <path id="r-1188911674" data-name="" data-cls="residential" data-ref="" d="M1523.9,354.5L1524.0,350.5L1524.0,348.4L1523.5,346.3L1522.8,344.2"/>
   <path id="r-1188911675" data-name="" data-cls="residential" data-ref="" d="M1527.3,333.4L1526.7,334.5L1526.1,335.4L1525.6,336.3L1525.3,337.1L1525.1,337.9L1524.4,341.9L1524.2,342.7L1523.7,343.5L1523.0,344.1L1522.8,344.2L1522.2,344.4L1521.4,344.6L1512.8,344.2"/>
-  <path id="briary-close" data-name="Briary Close" data-cls="residential" data-ref="" d="M1527.3,333.4L1525.2,333.1"/>
   <path id="r-1197272190" data-name="" data-cls="residential" data-ref="" d="M1513.0,338.6L1512.8,344.2L1512.4,351.9"/>
   <path id="r-1228460477" data-name="" data-cls="residential" data-ref="" d="M465.5,846.6L455.2,842.3L454.7,839.8L440.5,846.8L456.2,854.5L457.6,850.2L459.3,849.8L464.0,851.0L465.5,846.6"/>
-  <path id="r-1230705653" data-name="" data-cls="residential" data-ref="" d="M618.2,398.1L618.3,398.9"/>
-  <path id="r-1230705654" data-name="" data-cls="residential" data-ref="" d="M618.5,401.5L618.6,402.2"/>
-  <path id="r-1230705657" data-name="" data-cls="residential" data-ref="" d="M620.7,397.1L620.8,397.5"/>
-  <path id="coleman-s-stairs-road" data-name="Coleman's Stairs Road" data-cls="residential" data-ref="" d="M765.9,313.5L773.0,307.4"/>
   <path id="minnis-road" data-name="Minnis Road" data-cls="residential" data-ref="" d="M362.5,375.6L356.7,371.8L353.0,368.6L349.3,363.8L345.7,358.5L332.4,338.9"/>
   <path id="dane-road" data-name="Dane Road" data-cls="residential" data-ref="" d="M328.4,399.5L343.1,389.0L349.6,385.1L362.5,375.6"/>
   <path id="canute-road" data-name="Canute Road" data-cls="residential" data-ref="" d="M328.4,399.5L345.8,425.0"/>
-  <path id="canute-road" data-name="Canute Road" data-cls="residential" data-ref="" d="M285.2,336.2L289.0,341.9"/>
-  <path id="brunswick-road" data-name="Brunswick Road" data-cls="residential" data-ref="" d="M743.2,770.3L749.0,760.7"/>
-  <path id="ingoldsby-road" data-name="Ingoldsby Road" data-cls="residential" data-ref="" d="M413.8,394.9L415.2,390.7"/>
-  <path id="ingoldsby-road" data-name="Ingoldsby Road" data-cls="residential" data-ref="" d="M426.9,414.2L429.5,413.5"/>
-  <path id="ingoldsby-road" data-name="Ingoldsby Road" data-cls="residential" data-ref="" d="M348.7,424.9L352.0,425.3"/>
-  <path id="r-1302595886" data-name="" data-cls="residential" data-ref="" d="M1675.0,275.5L1676.4,275.6"/>
-  <path id="r-1302596976" data-name="" data-cls="residential" data-ref="" d="M1438.6,309.6L1437.1,312.9"/>
-  <path id="cambourne-avenue" data-name="Cambourne Avenue" data-cls="residential" data-ref="" d="M1225.3,370.2L1225.7,372.0L1226.0,374.3"/>
-  <path id="edward-drive" data-name="Edward Drive" data-cls="residential" data-ref="" d="M914.8,410.0L915.9,411.8L916.7,413.1"/>
-  <path id="r-1370931750" data-name="" data-cls="residential" data-ref="" d="M1271.8,208.6L1269.2,207.4"/>
 </g>
 <g id="roads-trunk-outline" stroke="#7b4f1a" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.85">
   <path id="canterbury-road" data-name="Canterbury Road" data-cls="trunk" data-ref="A28" d="M1234.8,364.6L1243.5,362.3L1255.8,359.9L1270.0,357.8L1288.6,354.8L1305.9,351.6L1317.8,349.0L1352.2,341.0L1361.5,338.8L1366.4,337.7"/>
@@ -1492,13 +1276,9 @@
   <path id="r-1139702226" data-name="" data-cls="pedestrian" data-ref="" d="M771.0,490.2L769.9,492.7L770.7,493.1L771.1,492.4L783.4,498.6L783.6,497.6L782.3,496.8L788.3,488.4L787.9,488.0L781.4,497.0L778.5,495.3L779.0,494.5L777.6,493.5L783.3,485.3L782.9,484.6L776.3,494.0L775.0,493.3L780.3,482.7L779.8,482.5L774.7,492.7L771.6,491.2L771.8,490.6L771.0,490.2"/>
 </g>
 <g id="roads-service" stroke="#fdf6dc" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+
   <path id="beresford-gap" data-name="Beresford Gap" data-cls="service" data-ref="" d="M640.0,292.6L640.7,289.0L644.1,265.3"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="service" data-ref="" d="M1693.2,309.3L1695.6,309.4L1697.9,309.5"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="service" data-ref="" d="M1695.6,309.4L1695.0,325.4"/>
   <path id="dudley-avenue" data-name="Dudley Avenue" data-cls="service" data-ref="" d="M1046.4,277.8L1055.6,314.7L1056.3,315.2L1056.9,315.4"/>
-  <path id="wanstall-court" data-name="Wanstall Court" data-cls="service" data-ref="" d="M680.8,417.8L682.1,426.9L683.2,430.4L685.2,433.0"/>
-  <path id="alma-cottages" data-name="Alma Cottages" data-cls="service" data-ref="" d="M723.0,500.8L716.9,505.7L715.3,503.8"/>
-  <path id="chapel-place" data-name="Chapel Place" data-cls="service" data-ref="" d="M767.7,513.9L769.3,520.2"/>
   <path id="barrow-man-road" data-name="Barrow Man Road" data-cls="service" data-ref="" d="M318.9,1044.7L317.4,1051.6L316.4,1057.0L315.7,1061.8L315.2,1067.0L314.6,1074.2"/>
   <path id="barrow-man-road" data-name="Barrow Man Road" data-cls="service" data-ref="" d="M242.0,1415.9L240.7,1415.4L239.5,1414.3L238.2,1413.1L237.5,1411.9L237.2,1411.0L237.2,1409.7L237.6,1408.6L240.5,1405.5L250.3,1397.2L259.1,1388.4L263.7,1384.6L274.7,1375.9L276.7,1374.4L287.2,1366.1L295.2,1359.0L298.3,1355.7L305.3,1348.2L313.6,1339.5L319.0,1333.8L330.2,1321.0L335.6,1315.3L340.4,1309.6L345.1,1304.0L349.8,1298.5L356.2,1290.9L362.4,1283.4L369.3,1275.3L375.7,1267.7L380.6,1261.7L385.2,1255.5L388.9,1250.0L392.3,1244.5L394.8,1240.0L398.3,1234.6L401.1,1227.3L401.8,1225.1L402.9,1221.0L408.3,1194.0L414.5,1162.4L418.6,1142.7L418.8,1140.5L418.7,1139.0L418.2,1137.4L417.0,1135.9L415.7,1134.7L413.9,1133.8L394.9,1130.5L393.4,1130.1L392.0,1129.6L390.6,1128.8L389.4,1127.7L388.2,1126.2L387.7,1124.8L387.1,1122.5L387.3,1120.6L388.2,1113.0L389.2,1105.0L391.2,1089.2L394.2,1066.2L394.4,1063.8L394.6,1061.4L394.4,1059.6L393.9,1058.4L392.7,1056.3L391.3,1055.0L389.7,1053.9L374.0,1049.7L368.6,1049.4L363.5,1049.5L358.1,1050.2L350.6,1050.6L341.7,1050.1L338.1,1049.7L337.2,1049.6L330.4,1048.0L318.9,1044.7L307.9,1041.3L306.6,1040.9L302.6,1039.9L298.9,1039.0L295.1,1038.1L286.9,1036.5L279.4,1036.7L258.2,1035.9"/>
   <path id="westgate-avenue" data-name="Westgate Avenue" data-cls="service" data-ref="" d="M1553.5,949.5L1558.2,954.3L1580.1,971.6L1604.5,992.3"/>
@@ -1507,35 +1287,22 @@
   <path id="poplar-row" data-name="Poplar Row" data-cls="service" data-ref="" d="M1298.8,797.2L1270.0,776.9"/>
   <path id="bramble-lane" data-name="Bramble Lane" data-cls="service" data-ref="" d="M1801.2,842.5L1785.3,868.6"/>
   <path id="great-brooksend-farm" data-name="Great Brooksend Farm" data-cls="service" data-ref="" d="M403.0,745.1L403.4,747.4L405.3,751.5L417.3,763.4L430.0,777.6L440.9,790.0L451.7,801.4L456.2,806.8L459.2,810.5L462.9,816.8L467.9,828.2"/>
-  <path id="alfred-deller-court" data-name="Alfred Deller Court" data-cls="service" data-ref="" d="M589.3,426.5L589.9,431.1"/>
   <path id="alfred-deller-court" data-name="Alfred Deller Court" data-cls="service" data-ref="" d="M589.9,431.1L590.8,439.5L591.8,440.0L593.0,440.0L593.6,439.2L593.8,438.1L593.1,433.2L589.9,431.1"/>
-  <path id="rowena-court" data-name="Rowena Court" data-cls="service" data-ref="" d="M1454.5,190.9L1445.8,190.7"/>
-  <path id="rowena-court" data-name="Rowena Court" data-cls="service" data-ref="" d="M1445.7,180.4L1445.8,190.7L1445.7,193.7"/>
-  <path id="sherwood-court" data-name="Sherwood Court" data-cls="service" data-ref="" d="M1296.6,265.6L1308.8,263.1"/>
   <path id="willow-walk" data-name="Willow Walk" data-cls="service" data-ref="" d="M1279.3,769.7L1316.3,796.1"/>
   <path id="hawthorns" data-name="Hawthorns" data-cls="service" data-ref="" d="M1289.0,762.2L1314.9,780.4L1316.9,780.9L1317.3,779.7L1316.9,778.4L1315.3,776.8L1291.7,760.1"/>
   <path id="barley-fields" data-name="Barley Fields" data-cls="service" data-ref="" d="M1248.5,797.3L1244.5,801.1L1239.8,807.1L1260.0,822.2"/>
   <path id="st-mildreds-walk" data-name="St Mildreds Walk" data-cls="service" data-ref="" d="M1349.0,241.4L1354.0,263.4L1362.7,261.5"/>
   <path id="laburnham-grove" data-name="Laburnham Grove" data-cls="service" data-ref="" d="M1232.4,817.3L1234.2,818.9L1237.7,821.2L1239.3,822.2L1243.3,824.9L1249.4,828.7L1255.5,832.8L1262.9,837.7L1267.4,841.3L1268.9,842.7L1269.3,843.8L1269.1,844.9L1266.0,848.3L1263.5,850.9L1262.0,851.8L1260.2,852.2L1257.8,851.2L1252.0,847.2L1242.1,840.7L1237.5,837.4L1237.0,836.4L1237.0,834.8L1239.6,825.6L1239.6,824.1L1239.3,822.2"/>
   <path id="laburnham-grove" data-name="Laburnham Grove" data-cls="service" data-ref="" d="M1232.4,817.3L1232.3,820.3L1232.3,823.0L1231.8,826.1L1230.0,831.7L1228.8,835.5L1227.9,837.5L1225.4,842.4L1222.1,840.9"/>
-  <path id="laburnham-grove" data-name="Laburnham Grove" data-cls="service" data-ref="" d="M1216.7,803.2L1214.7,805.0L1213.5,806.9L1207.5,815.9"/>
-  <path id="laburnham-grove" data-name="Laburnham Grove" data-cls="service" data-ref="" d="M1216.7,803.2L1224.9,809.0L1228.6,811.9L1230.5,814.4L1231.7,816.6L1232.4,817.3"/>
   <path id="barrow-man-road" data-name="Barrow Man Road" data-cls="service" data-ref="" d="M314.6,1074.2L314.0,1080.5L312.2,1087.3L306.9,1122.9L305.0,1127.7L303.9,1133.7L302.9,1140.3L302.0,1143.8L300.1,1146.7L298.3,1149.4L296.5,1154.1L295.3,1162.1L294.5,1163.9L293.5,1165.1L292.5,1167.3L291.5,1172.7"/>
   <path id="laburnham-grove" data-name="Laburnham Grove" data-cls="service" data-ref="" d="M1214.7,805.0L1210.7,802.4L1207.1,800.0L1196.9,792.7L1196.2,792.1L1195.4,791.7L1194.5,791.4L1193.7,791.4L1192.9,791.6L1192.1,791.9L1184.9,795.0L1182.7,796.2L1181.6,797.4"/>
   <path id="the-robins" data-name="The Robins" data-cls="service" data-ref="" d="M1294.3,758.1L1298.9,754.5L1305.1,749.7L1311.8,744.5L1311.0,743.3L1303.2,739.6L1283.6,730.3L1282.1,729.9"/>
   <path id="the-robins" data-name="The Robins" data-cls="service" data-ref="" d="M1294.3,758.1L1279.5,738.9L1278.8,738.7"/>
   <path id="laburnham-grove" data-name="Laburnham Grove" data-cls="service" data-ref="" d="M1181.6,797.4L1186.5,800.9L1197.1,808.4L1207.5,815.9L1208.4,817.0L1212.8,820.0L1223.0,826.9L1230.0,831.7"/>
   <path id="the-robins" data-name="The Robins" data-cls="service" data-ref="" d="M1278.1,756.7L1259.1,769.7"/>
-  <path id="the-robins" data-name="The Robins" data-cls="service" data-ref="" d="M1271.0,747.5L1270.7,746.6L1271.0,745.6L1278.2,739.0L1278.8,738.7"/>
-  <path id="laburnham-grove" data-name="Laburnham Grove" data-cls="service" data-ref="" d="M1174.5,792.7L1181.6,797.4"/>
   <path id="the-robins" data-name="The Robins" data-cls="service" data-ref="" d="M1284.6,765.6L1278.1,756.7L1271.0,747.5"/>
   <path id="the-pines" data-name="The Pines" data-cls="service" data-ref="" d="M1246.3,785.4L1243.4,790.6L1239.8,794.4L1237.0,797.3L1233.6,800.2L1232.4,801.3L1228.7,804.6L1226.7,806.5L1224.9,809.0"/>
-  <path id="westgate-avenue" data-name="Westgate Avenue" data-cls="service" data-ref="" d="M1604.5,992.3L1598.7,999.9L1601.4,1004.5"/>
-  <path id="canterbury-road" data-name="Canterbury Road" data-cls="service" data-ref="" d="M761.7,503.9L768.7,506.5L769.6,513.6"/>
   <path id="barley-fields" data-name="Barley Fields" data-cls="service" data-ref="" d="M1272.6,814.0L1266.0,823.0L1265.4,824.0L1265.3,824.8L1265.3,825.4L1265.6,826.2L1266.4,827.0L1267.3,827.4L1268.3,827.2L1269.0,826.6L1269.6,825.8L1276.4,816.7"/>
-  <path id="beresford-gap" data-name="Beresford Gap" data-cls="service" data-ref="" d="M638.5,300.4L640.0,292.6"/>
-  <path id="beresford-gap" data-name="Beresford Gap" data-cls="service" data-ref="" d="M644.1,265.3L645.1,258.4"/>
-  <path id="streete-court" data-name="Streete Court" data-cls="service" data-ref="" d="M1433.5,340.8L1433.3,343.9L1432.8,351.1"/>
 </g>
 <g id="roads-track" stroke="#e8d49a" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3">
   <path id="darwin-road" data-name="Darwin Road" data-cls="track" data-ref="" d="M627.5,331.6L607.8,364.7L605.5,368.3"/>
@@ -1582,477 +1349,114 @@
   <path id="r-1151596798" data-name="" data-cls="track" data-ref="" d="M318.6,657.6L326.1,670.6L332.3,676.8L339.3,682.6L346.3,689.3L352.7,696.0L356.2,699.4L364.5,709.6L371.4,715.3L375.2,720.6"/>
 </g>
 <g id="roads-footway" stroke="#e8d49a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3">
-  <path id="r-4590637" data-name="" data-cls="footway" data-ref="" d="M1676.4,275.6L1678.5,275.8"/>
-  <path id="r-4590662" data-name="" data-cls="footway" data-ref="" d="M1501.6,189.3L1521.0,189.7"/>
-  <path id="r-4592709" data-name="" data-cls="footway" data-ref="" d="M1312.2,265.1L1304.8,266.7L1297.2,268.3"/>
-  <path id="r-4596683" data-name="" data-cls="footway" data-ref="" d="M348.7,424.9L346.6,437.9"/>
-  <path id="r-30722749" data-name="" data-cls="footway" data-ref="" d="M1678.4,295.8L1680.7,280.4L1691.2,273.6L1691.4,272.0"/>
-  <path id="r-30722756" data-name="" data-cls="footway" data-ref="" d="M1701.1,325.7L1701.0,326.9L1697.9,326.7L1697.8,328.0"/>
-  <path id="r-30727248" data-name="" data-cls="footway" data-ref="" d="M1463.6,303.3L1467.8,303.8L1471.5,304.1L1472.1,304.8"/>
-  <path id="r-30727254" data-name="" data-cls="footway" data-ref="" d="M1459.9,304.5L1464.3,304.4L1472.1,304.8L1480.2,305.3L1481.5,304.9L1483.7,304.8"/>
   <path id="r-30727272" data-name="" data-cls="footway" data-ref="" d="M1382.6,453.6L1371.3,454.0L1371.3,455.8L1371.4,478.1"/>
-  <path id="r-30738604" data-name="" data-cls="footway" data-ref="" d="M1424.7,266.7L1425.0,270.7"/>
-  <path id="r-30738606" data-name="" data-cls="footway" data-ref="" d="M1425.1,271.4L1425.3,275.4"/>
-  <path id="r-30738608" data-name="" data-cls="footway" data-ref="" d="M1435.9,274.7L1435.7,280.5"/>
-  <path id="r-30738609" data-name="" data-cls="footway" data-ref="" d="M1419.9,271.0L1420.0,271.8"/>
-  <path id="r-30738914" data-name="" data-cls="footway" data-ref="" d="M1313.7,414.6L1311.3,403.4"/>
-  <path id="r-30738927" data-name="" data-cls="footway" data-ref="" d="M1269.2,383.4L1269.4,380.1L1274.4,378.9"/>
-  <path id="r-30738935" data-name="" data-cls="footway" data-ref="" d="M1229.3,368.9L1229.1,367.7L1228.3,367.9L1228.1,366.6"/>
-  <path id="r-30740410" data-name="" data-cls="footway" data-ref="" d="M1308.0,349.4L1307.1,348.8L1305.4,349.1L1303.3,349.5L1302.5,350.6"/>
-  <path id="r-30740952" data-name="" data-cls="footway" data-ref="" d="M1168.2,414.2L1180.2,417.2L1175.5,405.8"/>
-  <path id="r-30741087" data-name="" data-cls="footway" data-ref="" d="M1208.1,378.3L1208.0,380.5"/>
-  <path id="r-30744153" data-name="" data-cls="footway" data-ref="" d="M1034.3,373.7L1035.8,381.2"/>
-  <path id="r-30744174" data-name="" data-cls="footway" data-ref="" d="M1110.6,521.7L1105.1,523.2L1103.6,522.1"/>
   <path id="r-30744175" data-name="" data-cls="footway" data-ref="" d="M1097.9,475.0L1096.0,473.5L1094.7,472.3L1087.4,411.2"/>
   <path id="r-30744178" data-name="" data-cls="footway" data-ref="" d="M1176.3,559.4L1175.2,559.8L1175.3,560.6L1175.2,561.0L1174.4,561.4L1170.6,562.6L1169.4,563.9L1169.7,565.2L1183.9,604.6L1186.4,612.6L1186.5,614.3L1186.3,615.6L1184.8,621.9"/>
-  <path id="r-30744184" data-name="" data-cls="footway" data-ref="" d="M1131.3,541.3L1127.9,541.9"/>
   <path id="coleman-stairs" data-name="Coleman Stairs" data-cls="footway" data-ref="" d="M764.8,311.3L764.6,309.8L763.3,287.5L763.2,279.1"/>
-  <path id="r-30745964" data-name="" data-cls="footway" data-ref="" d="M791.3,305.8L791.9,305.1L792.4,305.6"/>
-  <path id="r-30852201" data-name="" data-cls="footway" data-ref="" d="M351.5,401.4L363.1,403.1L372.7,409.2"/>
-  <path id="r-30857555" data-name="" data-cls="footway" data-ref="" d="M452.1,259.2L453.5,255.1"/>
   <path id="coast-guard-cottages" data-name="Coast Guard Cottages" data-cls="footway" data-ref="" d="M372.4,358.4L395.1,368.0"/>
   <path id="r-30857980" data-name="" data-cls="footway" data-ref="" d="M436.9,288.7L439.2,284.6L452.1,259.2"/>
-  <path id="r-30858591" data-name="" data-cls="footway" data-ref="" d="M529.9,364.0L519.8,358.7"/>
-  <path id="r-30858594" data-name="" data-cls="footway" data-ref="" d="M468.9,404.1L470.2,401.6L479.2,395.9"/>
-  <path id="r-30858614" data-name="" data-cls="footway" data-ref="" d="M566.9,247.8L566.9,246.4L566.8,242.4"/>
-  <path id="r-30859364" data-name="" data-cls="footway" data-ref="" d="M767.7,346.1L760.1,345.6L759.2,343.6"/>
-  <path id="r-30859366" data-name="" data-cls="footway" data-ref="" d="M756.9,312.9L759.0,311.5L764.8,311.3"/>
-  <path id="winston-court" data-name="Winston Court" data-cls="footway" data-ref="" d="M726.6,302.0L719.1,300.0L713.0,298.6"/>
-  <path id="winston-court" data-name="Winston Court" data-cls="footway" data-ref="" d="M726.4,289.5L721.0,288.9L717.6,288.4L716.8,288.2"/>
-  <path id="winston-court" data-name="Winston Court" data-cls="footway" data-ref="" d="M711.3,307.2L713.0,298.6L715.1,288.1L715.7,288.1L716.8,288.2"/>
-  <path id="winston-court" data-name="Winston Court" data-cls="footway" data-ref="" d="M721.0,288.9L719.9,293.6L720.2,295.1L719.1,300.0"/>
-  <path id="r-30859410" data-name="" data-cls="footway" data-ref="" d="M710.8,307.1L713.1,295.4"/>
-  <path id="r-30859412" data-name="" data-cls="footway" data-ref="" d="M714.1,278.5L714.4,275.0"/>
-  <path id="r-30859456" data-name="" data-cls="footway" data-ref="" d="M713.1,295.4L713.2,294.1L713.5,291.1L713.6,287.8"/>
-  <path id="r-30859461" data-name="" data-cls="footway" data-ref="" d="M566.8,242.4L566.7,234.7L566.6,226.6L565.8,221.6"/>
-  <path id="r-30859462" data-name="" data-cls="footway" data-ref="" d="M453.5,255.1L456.6,249.2"/>
-  <path id="r-30859463" data-name="" data-cls="footway" data-ref="" d="M456.6,249.2L456.8,248.6L456.7,248.0L456.5,247.6L456.2,247.3L455.9,247.0L451.4,246.5L451.7,244.9"/>
-  <path id="r-30860128" data-name="" data-cls="footway" data-ref="" d="M769.3,372.8L767.8,375.4L767.5,379.7L767.0,381.8L766.3,383.8L765.5,385.7"/>
-  <path id="r-30860130" data-name="" data-cls="footway" data-ref="" d="M765.9,389.5L765.3,393.9L762.5,411.4L762.2,412.7"/>
-  <path id="r-30860131" data-name="" data-cls="footway" data-ref="" d="M764.0,385.9L764.1,389.6"/>
-  <path id="r-30860133" data-name="" data-cls="footway" data-ref="" d="M628.9,395.2L624.2,395.7L620.7,397.1L617.9,398.0"/>
-  <path id="r-30860180" data-name="" data-cls="footway" data-ref="" d="M800.4,501.0L801.4,502.6L801.5,504.1"/>
-  <path id="r-30860463" data-name="" data-cls="footway" data-ref="" d="M772.6,533.1L758.9,538.9"/>
   <path id="gordon-square" data-name="Gordon Square" data-cls="footway" data-ref="" d="M581.1,448.4L570.2,467.2"/>
-  <path id="r-30880460" data-name="" data-cls="footway" data-ref="" d="M666.5,589.5L656.4,581.5L654.1,581.7"/>
-  <path id="r-30889386" data-name="" data-cls="footway" data-ref="" d="M672.6,479.0L662.4,487.0"/>
-  <path id="r-30889397" data-name="" data-cls="footway" data-ref="" d="M675.8,500.8L676.7,500.0L677.2,499.5"/>
-  <path id="r-30889400" data-name="" data-cls="footway" data-ref="" d="M695.9,520.1L702.8,511.9"/>
-  <path id="r-30890505" data-name="" data-cls="footway" data-ref="" d="M613.7,710.0L616.1,708.1L618.3,706.3L620.6,704.1L621.7,702.1L622.5,699.9"/>
-  <path id="r-30890524" data-name="" data-cls="footway" data-ref="" d="M732.4,684.1L745.9,664.7"/>
-  <path id="r-30890744" data-name="" data-cls="footway" data-ref="" d="M822.7,650.0L830.8,656.4"/>
-  <path id="r-30890930" data-name="" data-cls="footway" data-ref="" d="M704.8,545.0L705.8,546.7L713.2,556.2L714.3,557.7"/>
-  <path id="r-30890931" data-name="" data-cls="footway" data-ref="" d="M713.2,556.2L711.9,557.9L708.9,560.1L707.4,560.5L706.3,560.7L705.5,561.4L704.9,561.9"/>
-  <path id="r-30891742" data-name="" data-cls="footway" data-ref="" d="M737.4,549.0L735.8,546.1L734.8,545.4L734.4,544.4"/>
-  <path id="r-30891750" data-name="" data-cls="footway" data-ref="" d="M740.7,552.1L745.3,558.9"/>
-  <path id="yew-tree-gardens" data-name="Yew Tree Gardens" data-cls="footway" data-ref="" d="M785.5,499.0L784.5,498.9L781.6,497.3L778.7,495.8L776.3,494.6L774.5,493.6L774.7,493.2L771.1,491.5"/>
-  <path id="yew-tree-gardens" data-name="Yew Tree Gardens" data-cls="footway" data-ref="" d="M774.7,493.2L780.2,482.2L774.1,478.5L772.8,478.8"/>
-  <path id="r-30894593" data-name="" data-cls="footway" data-ref="" d="M878.1,456.9L874.7,456.6L869.7,456.2L866.6,456.0L865.7,455.5"/>
   <path id="r-52500691" data-name="" data-cls="footway" data-ref="" d="M879.4,434.7L885.8,430.8L888.1,429.5L899.7,421.7L907.7,416.3L915.9,411.8L918.6,410.6L931.2,405.6L938.9,402.6L942.3,400.9L949.8,399.6L951.2,400.3L967.6,398.7L982.1,397.7L991.7,396.6L997.7,395.6L1027.5,390.2L1036.2,388.3L1043.3,387.1L1045.9,386.7L1047.3,386.4L1053.7,385.4L1063.7,384.6L1073.6,384.6L1085.0,384.1L1089.2,383.8L1090.9,383.0L1093.9,383.2L1095.3,383.9L1103.3,384.3L1109.7,383.8L1121.5,381.5L1131.2,379.1L1134.2,379.0L1135.8,378.9L1153.5,379.3L1155.1,379.4L1163.2,379.7L1174.3,380.3L1184.8,380.2L1192.3,379.3L1199.1,378.3L1206.0,376.6L1208.2,376.1L1221.1,372.6L1222.4,372.7"/>
   <path id="r-52500692" data-name="" data-cls="footway" data-ref="" d="M1436.4,305.9L1435.7,307.8L1427.7,310.2L1406.5,320.8L1401.7,323.1L1380.8,331.6L1371.0,334.9L1368.8,335.2L1366.6,334.5"/>
   <path id="r-52500693" data-name="" data-cls="footway" data-ref="" d="M982.7,391.6L990.6,390.2L993.5,386.2L994.3,386.0L994.3,386.3L998.6,388.7L1035.8,381.2L1047.3,379.2L1053.8,378.2L1065.0,376.7L1073.2,376.1L1084.6,375.6L1101.3,374.9L1133.0,373.5L1135.8,372.9L1137.8,373.3L1162.3,374.6L1172.6,374.9L1182.0,374.7L1194.8,373.5L1205.3,371.5L1227.5,365.3L1229.0,363.9L1229.8,362.2"/>
-  <path id="r-52500694" data-name="" data-cls="footway" data-ref="" d="M967.6,398.7L967.4,395.7L967.3,393.7"/>
-  <path id="r-52500695" data-name="" data-cls="footway" data-ref="" d="M1047.3,386.4L1046.9,384.9L1046.5,383.1L1048.0,382.8L1047.6,380.8L1047.3,379.2"/>
   <path id="r-52500697" data-name="" data-cls="footway" data-ref="" d="M1366.2,342.8L1364.8,342.3L1364.0,342.1L1362.5,342.3L1336.6,348.4L1318.3,353.1L1308.5,355.0L1304.7,355.8L1289.5,358.4L1273.6,361.2L1270.6,361.7L1262.2,362.7L1248.8,364.9L1241.7,366.6L1237.6,367.6L1236.4,367.9L1232.4,369.0L1229.6,370.0L1227.6,370.6L1226.7,371.6"/>
-  <path id="r-52500698" data-name="" data-cls="footway" data-ref="" d="M1227.5,365.3L1228.1,366.6"/>
-  <path id="r-52500699" data-name="" data-cls="footway" data-ref="" d="M1229.6,370.0L1229.3,368.9"/>
-  <path id="r-52500701" data-name="" data-cls="footway" data-ref="" d="M1360.9,337.2L1361.5,338.8L1361.9,340.2L1363.1,339.8L1363.6,341.0L1364.0,342.1"/>
-  <path id="r-60686974" data-name="" data-cls="footway" data-ref="" d="M1507.9,158.5L1505.0,158.4L1501.6,158.3L1498.8,158.3"/>
   <path id="r-107300175" data-name="" data-cls="footway" data-ref="" d="M1707.3,129.9L1712.1,129.5L1715.1,129.7L1718.8,130.5L1722.2,131.2L1726.1,131.5L1729.5,132.5L1734.6,134.6L1742.9,137.3L1753.7,141.2L1755.3,141.8L1759.5,142.1L1762.0,142.2L1765.4,143.4L1768.1,144.1L1772.2,145.2L1772.2,151.5"/>
   <path id="r-107300177" data-name="" data-cls="footway" data-ref="" d="M1707.3,129.9L1705.0,129.5L1702.0,127.7L1696.4,124.8L1690.0,121.9L1683.1,119.2L1681.7,118.6L1677.1,115.6L1674.4,114.4L1671.2,113.4L1667.7,112.7L1664.2,112.5L1655.5,112.9L1650.9,113.1L1646.9,112.6L1642.1,111.8L1633.2,110.2L1627.8,109.3L1624.7,108.8L1622.3,109.1L1620.1,109.9L1618.3,111.4L1616.9,113.4L1614.9,115.9L1613.4,117.1L1611.0,119.1L1605.0,122.2L1602.5,123.9L1600.6,126.1L1598.9,128.5L1597.6,129.8L1591.9,133.2L1585.3,136.4L1579.0,138.4L1571.9,139.7L1563.5,141.3L1557.8,142.7L1552.6,144.2"/>
-  <path id="r-107300190" data-name="" data-cls="footway" data-ref="" d="M1509.7,156.1L1515.9,153.9L1521.1,152.0"/>
-  <path id="r-107300292" data-name="" data-cls="footway" data-ref="" d="M1613.4,117.1L1613.6,114.2L1614.7,110.9L1615.9,108.5L1617.5,106.5L1619.5,105.5L1623.4,104.2L1617.7,97.3"/>
-  <path id="r-107300340" data-name="" data-cls="footway" data-ref="" d="M1768.1,141.6L1768.2,141.1"/>
-  <path id="r-107300341" data-name="" data-cls="footway" data-ref="" d="M1772.2,145.2L1771.5,143.0L1770.5,142.2"/>
-  <path id="r-107300342" data-name="" data-cls="footway" data-ref="" d="M1771.2,141.7L1771.7,139.6"/>
-  <path id="r-107300446" data-name="" data-cls="footway" data-ref="" d="M1683.8,250.4L1682.5,246.9L1684.4,243.5L1678.8,244.0L1679.3,234.7L1679.4,231.9"/>
-  <path id="r-117058156" data-name="" data-cls="footway" data-ref="" d="M158.7,408.3L158.4,407.1L158.2,406.3"/>
-  <path id="r-117058158" data-name="" data-cls="footway" data-ref="" d="M225.3,397.2L224.7,395.3L223.3,389.7L221.6,387.2L221.9,383.0L224.8,380.3L226.5,376.6"/>
-  <path id="r-117058161" data-name="" data-cls="footway" data-ref="" d="M226.5,376.6L224.4,377.6L214.6,380.8L214.4,381.7"/>
   <path id="r-117058544" data-name="" data-cls="footway" data-ref="" d="M-60.9,394.8L-51.8,397.1L-44.8,398.3L-36.4,399.9L-23.2,401.3L-16.4,401.8L-5.2,402.6L6.9,403.1L16.7,403.1L19.6,403.0L42.6,402.0L49.4,401.6L59.7,401.0L74.7,400.0L85.2,399.4L96.0,398.9L116.7,397.3L119.2,397.0L136.4,395.4L146.3,394.0L147.7,393.8L167.7,389.8L191.4,384.2L210.3,378.0L214.8,375.6"/>
-  <path id="r-117367455" data-name="" data-cls="footway" data-ref="" d="M1746.3,508.7L1748.3,502.0L1751.8,493.9L1753.2,492.5L1755.7,492.3"/>
-  <path id="r-118443264" data-name="" data-cls="footway" data-ref="" d="M1763.0,473.0L1764.6,472.8L1788.5,473.7L1789.5,473.9"/>
   <path id="r-118447647" data-name="" data-cls="footway" data-ref="" d="M1589.0,424.5L1591.4,423.2L1598.4,418.5L1611.5,410.7L1632.6,397.7L1642.0,391.2L1644.2,388.9"/>
-  <path id="r-118447654" data-name="" data-cls="footway" data-ref="" d="M1601.7,334.7L1603.3,325.3L1603.8,323.9L1604.8,321.6"/>
   <path id="r-118447660" data-name="" data-cls="footway" data-ref="" d="M1503.6,500.4L1500.2,495.8L1478.5,470.0L1477.8,468.3"/>
-  <path id="r-120184052" data-name="" data-cls="footway" data-ref="" d="M365.9,782.1L368.2,779.7L371.0,777.4L376.1,773.3L380.9,769.4"/>
-  <path id="r-120184055" data-name="" data-cls="footway" data-ref="" d="M380.9,769.4L382.9,766.9"/>
-  <path id="r-120784009" data-name="" data-cls="footway" data-ref="" d="M888.7,311.2L892.0,311.3L898.0,311.0L905.6,310.3L910.9,309.7L912.9,309.5L914.2,308.4L915.7,305.6"/>
-  <path id="r-120784014" data-name="" data-cls="footway" data-ref="" d="M870.1,348.2L851.6,346.4L852.0,341.4L850.2,341.0"/>
   <path id="r-134068768" data-name="" data-cls="footway" data-ref="" d="M89.9,405.8L86.8,412.8L73.3,456.7"/>
-  <path id="r-137871876" data-name="" data-cls="footway" data-ref="" d="M1433.4,169.0L1433.3,167.2"/>
-  <path id="r-137878091" data-name="" data-cls="footway" data-ref="" d="M1197.9,247.3L1198.6,249.3"/>
   <path id="r-137878098" data-name="" data-cls="footway" data-ref="" d="M988.5,256.4L996.3,257.9L1005.2,258.3L1016.3,257.9L1024.5,256.3L1031.3,254.0L1041.8,250.5L1053.7,248.7L1065.1,248.4L1075.8,248.7L1082.5,248.0L1090.8,245.9L1098.9,245.8L1108.4,247.8L1114.8,248.4L1123.8,247.6L1125.0,254.6L1126.6,256.4L1129.4,257.2L1132.2,257.7L1140.8,259.0L1152.4,259.2L1160.8,259.0L1170.0,258.0"/>
-  <path id="r-140108945" data-name="" data-cls="footway" data-ref="" d="M762.2,615.4L760.9,613.2"/>
-  <path id="r-140108946" data-name="" data-cls="footway" data-ref="" d="M785.0,627.2L783.6,628.4"/>
-  <path id="r-140108948" data-name="" data-cls="footway" data-ref="" d="M768.8,622.1L765.7,620.6L762.2,615.4"/>
-  <path id="r-140108951" data-name="" data-cls="footway" data-ref="" d="M783.6,628.4L776.8,632.7L772.7,631.6"/>
-  <path id="r-140108953" data-name="" data-cls="footway" data-ref="" d="M756.6,605.1L763.8,601.4L763.2,600.2L773.5,594.3"/>
-  <path id="r-140108954" data-name="" data-cls="footway" data-ref="" d="M853.4,581.8L840.7,573.1L837.8,570.5L835.4,565.9L835.6,565.4"/>
-  <path id="r-140402357" data-name="" data-cls="footway" data-ref="" d="M898.1,541.7L893.7,538.0L893.7,537.5L893.1,535.8L892.5,535.7"/>
   <path id="r-147963774" data-name="" data-cls="footway" data-ref="" d="M1371.5,155.5L1377.3,158.3L1384.4,161.2L1388.0,162.5L1392.9,164.3L1396.8,165.0L1400.9,166.2L1404.3,166.8L1408.2,167.7L1415.4,169.1"/>
   <path id="r-147963775" data-name="" data-cls="footway" data-ref="" d="M1340.5,148.7L1342.8,146.2L1346.1,140.7L1349.9,141.3L1354.0,143.9L1357.0,145.0L1360.4,146.1L1361.9,147.1L1366.8,151.9L1369.6,154.4"/>
-  <path id="r-147963777" data-name="" data-cls="footway" data-ref="" d="M1412.5,167.2L1404.3,166.8L1403.6,167.8L1402.9,168.7L1402.5,169.6L1402.3,171.3L1402.4,172.5L1402.8,173.9L1402.9,174.5L1402.8,176.3"/>
-  <path id="r-147963781" data-name="" data-cls="footway" data-ref="" d="M1361.2,142.6L1361.2,143.6L1369.8,151.7L1370.4,153.0L1370.5,153.8L1370.4,155.6L1369.6,156.2L1368.2,156.5L1366.8,155.6L1365.4,154.4L1364.1,153.2L1363.0,152.1"/>
-  <path id="r-147963782" data-name="" data-cls="footway" data-ref="" d="M1427.9,174.7L1428.0,175.7L1428.5,177.2L1428.8,178.7L1428.6,180.6L1428.5,181.9L1428.4,183.9L1428.6,185.4L1429.3,187.3L1429.7,189.2L1430.2,191.5L1429.7,196.1"/>
-  <path id="r-147963783" data-name="" data-cls="footway" data-ref="" d="M1420.8,173.9L1418.3,173.4L1417.2,172.9L1416.4,172.2L1415.9,171.1L1416.0,170.1L1417.4,168.3L1418.6,167.8L1423.1,168.8L1425.3,169.1L1428.3,169.5L1429.7,169.6L1429.9,168.6"/>
-  <path id="r-147963789" data-name="" data-cls="footway" data-ref="" d="M1369.6,154.4L1371.5,155.5"/>
-  <path id="r-147963790" data-name="" data-cls="footway" data-ref="" d="M1354.0,141.1L1355.4,138.8"/>
   <path id="r-147963793" data-name="" data-cls="footway" data-ref="" d="M1275.0,422.2L1266.8,383.3"/>
-  <path id="r-147963794" data-name="" data-cls="footway" data-ref="" d="M1306.8,275.9L1304.8,266.7"/>
-  <path id="r-147963795" data-name="" data-cls="footway" data-ref="" d="M1391.9,167.6L1391.3,169.1"/>
-  <path id="r-147963805" data-name="" data-cls="footway" data-ref="" d="M1414.2,165.9L1413.7,167.2"/>
-  <path id="r-147963806" data-name="" data-cls="footway" data-ref="" d="M1436.1,397.7L1434.9,425.3"/>
-  <path id="r-147963807" data-name="" data-cls="footway" data-ref="" d="M1415.4,169.1L1417.7,169.6"/>
-  <path id="r-147963814" data-name="" data-cls="footway" data-ref="" d="M1405.5,170.1L1405.3,171.6"/>
-  <path id="r-147963820" data-name="" data-cls="footway" data-ref="" d="M1350.8,147.8L1346.5,146.8L1342.8,146.2"/>
-  <path id="r-147963822" data-name="" data-cls="footway" data-ref="" d="M1473.0,207.1L1463.5,206.1L1463.4,207.6"/>
-  <path id="r-147963826" data-name="" data-cls="footway" data-ref="" d="M1433.6,453.3L1434.3,439.5L1435.1,425.4"/>
-  <path id="r-147963829" data-name="" data-cls="footway" data-ref="" d="M1390.1,161.2L1389.4,160.9L1389.9,159.2"/>
-  <path id="r-147963831" data-name="" data-cls="footway" data-ref="" d="M1433.9,171.4L1433.7,177.6L1432.6,180.5"/>
-  <path id="r-147963832" data-name="" data-cls="footway" data-ref="" d="M1245.9,405.3L1249.4,405.0L1252.7,404.6"/>
-  <path id="r-147963834" data-name="" data-cls="footway" data-ref="" d="M1421.9,425.2L1421.2,439.2L1434.3,439.5"/>
-  <path id="r-147963837" data-name="" data-cls="footway" data-ref="" d="M1346.1,140.7L1349.6,139.9L1354.5,142.0"/>
-  <path id="r-147963838" data-name="" data-cls="footway" data-ref="" d="M1261.2,463.2L1259.6,465.1L1260.1,473.2L1256.4,473.5"/>
-  <path id="r-147963841" data-name="" data-cls="footway" data-ref="" d="M1260.9,451.6L1258.9,449.9L1255.7,450.1L1255.1,450.0"/>
-  <path id="r-147963846" data-name="" data-cls="footway" data-ref="" d="M1471.6,193.7L1472.2,196.0L1473.0,207.1L1473.2,212.9L1472.9,217.3"/>
-  <path id="r-147963850" data-name="" data-cls="footway" data-ref="" d="M1457.3,398.0L1457.7,386.9L1460.9,386.6L1467.2,385.7"/>
   <path id="r-147963856" data-name="" data-cls="footway" data-ref="" d="M1432.8,171.3L1432.4,172.3L1431.2,173.2L1430.3,173.8L1429.1,174.4L1427.9,174.7L1425.8,173.9L1424.1,173.5L1422.5,173.3L1420.8,173.9L1419.3,174.3L1418.0,174.3L1416.7,173.7L1415.2,172.8L1413.9,172.1L1412.7,171.7L1411.5,171.7L1410.4,171.5L1409.2,171.1L1408.0,170.7L1406.7,170.2L1405.5,170.1L1402.5,169.6L1400.4,169.3L1397.7,168.6L1395.6,168.5L1391.9,167.6L1388.7,166.1L1385.7,165.5L1383.3,164.3L1380.5,163.1L1374.9,161.6L1372.5,160.5L1368.9,158.2L1366.8,157.0L1364.4,155.4L1363.7,154.2L1363.0,152.1L1360.3,150.4L1357.8,148.9L1354.4,147.1L1351.3,144.9L1348.3,141.6L1346.1,140.7L1342.0,140.4L1331.5,138.7L1323.2,136.7L1317.3,135.9L1312.1,135.6L1308.9,135.7L1305.3,136.6L1303.4,137.1"/>
   <path id="r-147963860" data-name="" data-cls="footway" data-ref="" d="M1460.2,398.1L1459.5,417.3L1458.4,437.6L1458.3,440.7L1465.6,440.9L1465.1,453.8"/>
   <path id="r-147963861" data-name="" data-cls="footway" data-ref="" d="M1430.2,191.5L1428.5,189.4L1427.4,187.5L1426.4,185.0L1426.4,183.2L1425.9,181.6L1425.8,179.9L1425.8,178.6L1426.0,177.3L1425.7,176.7L1424.9,176.3L1423.4,175.9L1421.6,175.7L1420.1,176.4L1418.9,176.5L1417.6,176.0L1415.8,175.0L1414.2,174.5L1412.4,174.3L1410.9,174.3L1408.9,173.8L1407.4,173.4L1406.2,173.7L1404.7,173.8L1402.8,173.9L1395.8,173.1L1391.1,171.8L1389.5,171.1L1388.4,169.7L1387.6,168.6L1386.8,168.1L1385.3,168.0L1383.1,169.0L1380.9,169.2L1379.8,169.0L1378.8,168.5L1377.2,167.4L1375.6,166.1L1374.9,165.1L1373.7,163.8L1371.9,163.0L1369.9,162.6L1368.4,162.8L1366.8,163.1L1365.4,163.1L1363.3,162.5L1361.8,161.6L1359.2,160.0L1358.3,158.8L1357.8,157.5L1357.1,155.6L1356.8,153.7L1356.3,152.3L1355.6,151.1L1353.4,149.3L1350.8,147.8L1349.4,146.0L1347.6,144.1L1346.1,140.7"/>
   <path id="r-147963864" data-name="" data-cls="footway" data-ref="" d="M1417.7,169.6L1424.9,170.7L1432.8,171.3L1433.9,171.4L1440.4,171.6L1446.5,171.5L1452.2,171.1L1454.5,172.4"/>
-  <path id="r-147963866" data-name="" data-cls="footway" data-ref="" d="M1395.0,175.5L1395.8,173.1L1397.0,171.5L1397.7,168.6L1397.5,166.9L1396.8,165.0L1393.4,162.7L1391.3,161.8"/>
   <path id="r-147963867" data-name="" data-cls="footway" data-ref="" d="M1248.5,396.4L1252.1,398.0L1252.7,404.6L1253.4,411.0L1250.3,413.5L1246.6,412.6L1245.9,405.3L1245.3,399.0L1248.5,396.4"/>
-  <path id="r-147963869" data-name="" data-cls="footway" data-ref="" d="M1302.5,384.2L1302.9,385.1L1303.7,385.3L1305.3,386.1L1306.4,386.5L1307.3,386.4L1307.8,385.6L1307.7,384.7L1312.2,383.8"/>
   <path id="r-147963870" data-name="" data-cls="footway" data-ref="" d="M1827.3,295.6L1819.5,294.0L1814.2,293.1L1807.7,292.6L1805.5,292.7L1788.2,291.4L1787.0,291.0L1786.5,290.5L1786.8,289.8"/>
-  <path id="r-158652949" data-name="" data-cls="footway" data-ref="" d="M885.8,430.8L886.1,431.4L886.7,432.4L887.0,432.9L886.8,433.3L886.3,434.6L886.2,435.1L885.9,436.9L886.2,437.7L886.8,438.2L889.6,439.1L895.7,439.8L895.9,441.0"/>
-  <path id="r-158666429" data-name="" data-cls="footway" data-ref="" d="M1640.8,134.0L1643.3,134.1L1644.5,134.2L1645.2,134.8L1645.1,135.8L1644.7,136.0L1640.7,135.9L1637.6,135.8L1636.7,135.7L1636.3,135.3L1636.4,134.7L1636.7,134.1L1637.4,133.9L1640.8,134.0"/>
-  <path id="r-158666435" data-name="" data-cls="footway" data-ref="" d="M1378.8,168.5L1377.6,172.2"/>
-  <path id="r-158666438" data-name="" data-cls="footway" data-ref="" d="M1365.4,163.1L1364.1,166.5"/>
   <path id="r-160026657" data-name="" data-cls="footway" data-ref="" d="M1332.8,410.2L1330.8,402.2L1329.8,397.7L1327.4,385.1L1326.5,383.2L1325.4,382.2L1324.0,381.6L1322.9,381.6L1320.8,381.9"/>
   <path id="edinburgh-walk" data-name="Edinburgh Walk" data-cls="footway" data-ref="" d="M1739.4,363.0L1739.0,376.6L1737.6,383.1L1737.1,385.3"/>
-  <path id="r-163699956" data-name="" data-cls="footway" data-ref="" d="M1729.5,381.3L1731.0,379.6L1731.2,379.3L1732.0,378.3L1732.3,373.5L1732.5,370.8L1733.0,368.6L1733.4,363.0"/>
-  <path id="r-163699957" data-name="" data-cls="footway" data-ref="" d="M1718.3,385.6L1718.4,384.9L1719.2,376.0L1719.3,374.7"/>
-  <path id="r-178663858" data-name="" data-cls="footway" data-ref="" d="M1636.3,135.3L1632.1,135.2L1631.0,135.0L1630.2,134.4L1629.7,133.5L1630.0,128.1L1630.2,123.3L1630.5,122.3L1631.3,121.3L1633.4,120.1L1636.8,119.0"/>
-  <path id="r-178663860" data-name="" data-cls="footway" data-ref="" d="M1649.1,118.7L1648.7,119.3L1648.0,119.2L1646.6,118.9L1645.8,118.8L1645.6,119.4L1645.6,120.3L1646.0,121.2L1645.9,121.9L1645.4,122.7L1644.8,123.3"/>
-  <path id="r-178663861" data-name="" data-cls="footway" data-ref="" d="M1637.0,122.8L1636.5,121.7L1636.4,121.0L1636.8,120.3L1636.9,119.5L1636.8,119.0L1636.7,118.7L1636.4,118.3L1635.6,118.3L1634.6,118.7L1634.0,118.6L1633.7,118.4L1633.5,118.0"/>
   <path id="r-178663862" data-name="" data-cls="footway" data-ref="" d="M1650.2,134.4L1650.4,129.1L1650.5,124.8L1650.3,124.0L1650.0,123.6L1646.1,123.1L1644.8,123.3L1642.4,123.5L1641.3,123.6L1639.0,123.3L1637.0,122.8L1635.5,122.7L1631.8,123.0L1631.6,123.6L1631.5,128.2L1631.4,133.7"/>
   <path id="r-178663863" data-name="" data-cls="footway" data-ref="" d="M1645.1,135.8L1649.3,135.7L1650.6,135.4L1651.4,134.8L1651.7,132.6L1651.9,129.2L1652.1,124.4L1651.8,122.9L1650.7,121.7L1649.6,121.0L1647.8,120.1L1645.6,119.4L1643.3,119.1L1641.5,118.8L1639.6,119.0L1639.1,117.7"/>
-  <path id="r-178663864" data-name="" data-cls="footway" data-ref="" d="M1640.7,135.9L1640.3,146.5"/>
-  <path id="r-178663865" data-name="" data-cls="footway" data-ref="" d="M1643.6,128.8L1641.0,128.7L1638.4,128.6"/>
-  <path id="r-178663866" data-name="" data-cls="footway" data-ref="" d="M1641.3,123.6L1641.0,128.7L1640.8,134.0"/>
-  <path id="r-178663867" data-name="" data-cls="footway" data-ref="" d="M1648.2,129.0L1650.4,129.1L1651.9,129.2L1652.8,129.2"/>
-  <path id="r-178663868" data-name="" data-cls="footway" data-ref="" d="M1633.7,128.3L1631.5,128.2L1630.0,128.1L1628.8,128.1"/>
   <path id="r-179632119" data-name="" data-cls="footway" data-ref="" d="M566.9,246.4L568.2,245.7L569.0,234.9L569.0,234.6L569.3,229.5L571.0,226.1L572.9,225.1L576.0,224.9L578.6,225.1L585.7,227.7L592.9,231.2L597.5,231.5L602.0,233.3L606.2,236.5L610.9,241.1L618.1,245.5L619.5,246.7L621.3,249.0L626.7,258.6L629.3,261.1L633.3,263.8L635.7,265.2L637.8,271.7L638.9,280.5L637.9,293.8L637.3,298.4L637.0,300.1"/>
-  <path id="r-179632120" data-name="" data-cls="footway" data-ref="" d="M457.9,252.6L454.8,255.7L453.7,258.1L453.2,259.6"/>
-  <path id="r-179632121" data-name="" data-cls="footway" data-ref="" d="M334.9,276.1L330.5,281.8L328.8,282.9L328.4,284.6L327.7,287.5L327.3,289.3L327.7,290.8L330.9,296.8"/>
-  <path id="r-318400238" data-name="" data-cls="footway" data-ref="" d="M792.1,453.6L790.8,458.3"/>
-  <path id="r-318400510" data-name="" data-cls="footway" data-ref="" d="M850.8,450.9L854.2,451.4L855.5,451.8"/>
-  <path id="r-318401421" data-name="" data-cls="footway" data-ref="" d="M805.4,606.2L805.5,606.7L801.5,607.5L798.7,608.6L795.8,611.1L782.2,615.4"/>
-  <path id="r-319069404" data-name="" data-cls="footway" data-ref="" d="M1339.1,256.5L1320.3,262.1"/>
-  <path id="st-mildreds-walk" data-name="St. Mildreds Walk" data-cls="footway" data-ref="" d="M1335.8,245.1L1340.1,243.9L1341.1,243.6L1349.0,241.4"/>
-  <path id="r-319390538" data-name="" data-cls="footway" data-ref="" d="M778.5,454.2L777.0,450.7"/>
   <path id="r-319390539" data-name="" data-cls="footway" data-ref="" d="M808.7,463.7L805.6,463.1L790.8,458.3L778.5,454.2L775.1,464.2L798.4,475.5L805.6,463.1"/>
-  <path id="r-322192657" data-name="" data-cls="footway" data-ref="" d="M876.4,520.8L882.6,526.6L882.7,529.1"/>
-  <path id="high-street" data-name="High Street" data-cls="footway" data-ref="" d="M1693.5,449.4L1687.7,449.2"/>
-  <path id="r-417469531" data-name="" data-cls="footway" data-ref="" d="M1757.2,144.7L1757.4,151.1"/>
-  <path id="r-417469533" data-name="" data-cls="footway" data-ref="" d="M1755.3,141.8L1755.3,144.6L1757.2,144.7L1759.4,144.8L1759.5,142.1"/>
-  <path id="r-462147205" data-name="" data-cls="footway" data-ref="" d="M346.6,437.9L346.7,439.6L346.8,440.9L347.1,442.6"/>
   <path id="r-482774852" data-name="" data-cls="footway" data-ref="" d="M1251.5,227.3L1256.7,227.1L1264.0,219.5L1267.9,214.8L1271.8,208.6L1275.5,201.3L1276.4,198.7L1277.0,197.0L1278.2,192.5L1278.7,189.8L1278.4,186.9L1277.6,185.7L1277.2,185.4"/>
-  <path id="r-482774854" data-name="" data-cls="footway" data-ref="" d="M1275.0,188.3L1275.4,189.7L1275.3,191.1L1272.9,191.7"/>
-  <path id="r-517767532" data-name="" data-cls="footway" data-ref="" d="M669.1,586.9L673.9,591.4"/>
-  <path id="r-548987018" data-name="" data-cls="footway" data-ref="" d="M620.8,402.1L620.9,402.8L620.9,403.4"/>
   <path id="r-585984700" data-name="" data-cls="footway" data-ref="" d="M1755.7,492.3L1758.3,490.2L1763.1,487.4L1765.8,488.1L1770.3,488.5L1809.8,489.3L1820.5,489.6L1835.0,481.1L1842.3,484.5L1843.0,476.0L1884.2,452.0L1885.8,451.8L1886.9,452.2L1891.3,456.8L1893.0,455.9"/>
   <path id="r-588088810" data-name="" data-cls="footway" data-ref="" d="M1866.3,434.3L1854.0,441.7L1852.4,442.2L1851.5,441.8L1850.7,441.1L1849.9,441.6L1849.2,442.0L1849.5,443.0L1849.3,443.6L1848.9,444.4L1848.0,445.2L1826.2,458.2L1823.9,459.3L1821.8,460.1L1819.6,460.7L1816.9,460.7L1799.2,460.0L1797.6,460.1L1795.7,460.3L1794.8,460.8L1793.3,461.7L1792.5,462.9L1791.7,464.0L1790.8,466.2L1788.5,473.7L1785.7,482.5L1785.1,483.7"/>
   <path id="r-588088813" data-name="" data-cls="footway" data-ref="" d="M1787.9,484.2L1787.8,483.0L1793.1,466.3L1794.0,465.0L1795.2,463.6L1796.6,462.9L1798.8,462.4L1813.5,462.9L1818.3,462.9L1820.3,462.7L1822.6,462.1L1824.2,461.5L1826.7,460.1L1836.3,454.7L1867.8,436.3"/>
   <path id="r-588088814" data-name="" data-cls="footway" data-ref="" d="M1882.4,447.7L1882.1,449.2L1880.9,450.5L1849.4,469.4L1830.4,480.6L1827.8,482.0L1824.5,483.5L1821.7,484.3L1817.8,485.4L1815.1,486.0L1809.2,486.7L1789.4,486.3L1788.3,485.3L1787.9,484.2L1786.5,483.9L1785.1,483.7L1784.8,484.5L1783.8,485.6L1782.9,486.1L1776.5,486.0L1771.0,485.9L1767.3,485.7L1765.2,485.3L1764.2,484.9L1762.0,479.7L1761.1,478.1"/>
   <path id="r-588088815" data-name="" data-cls="footway" data-ref="" d="M1882.4,447.7L1881.7,446.2L1871.5,435.7L1870.4,435.3L1869.5,435.4L1867.8,436.3L1867.3,435.6L1866.3,434.3L1867.4,433.6L1867.7,433.2L1867.6,432.0L1867.5,431.0L1866.9,430.3L1832.0,394.7L1830.2,393.7L1828.2,393.1L1789.6,385.0L1786.0,384.1L1785.6,384.0L1788.2,382.4"/>
-  <path id="r-588088816" data-name="" data-cls="footway" data-ref="" d="M1790.4,457.8L1791.0,457.1L1791.7,456.6L1792.5,456.4L1793.4,456.5L1794.2,456.9L1794.8,457.5L1795.2,458.3L1795.4,459.1L1795.2,460.0L1794.8,460.8"/>
-  <path id="r-588088817" data-name="" data-cls="footway" data-ref="" d="M1793.3,461.7L1792.4,461.7L1791.6,461.5L1790.9,461.0L1790.3,460.3L1790.1,459.5L1790.1,458.6L1790.4,457.8"/>
   <path id="r-588088820" data-name="" data-cls="footway" data-ref="" d="M1785.6,384.0L1783.8,383.8L1781.2,384.6L1779.5,387.2L1778.9,389.0L1778.8,389.5L1777.6,400.1L1773.3,436.0L1772.1,444.7L1771.4,449.9L1769.5,458.5L1767.6,464.9L1764.6,472.8L1762.0,479.7"/>
-  <path id="r-588088822" data-name="" data-cls="footway" data-ref="" d="M1777.4,388.7L1778.9,389.0"/>
   <path id="r-588095292" data-name="" data-cls="footway" data-ref="" d="M1700.7,369.4L1701.7,369.6L1702.2,371.1L1703.1,371.9L1704.8,372.2L1712.5,372.6L1717.9,373.3L1719.5,373.6L1720.1,373.5L1721.3,372.6L1722.4,369.4L1722.9,367.2L1724.4,365.1L1725.8,363.6L1726.0,363.6L1729.3,362.7L1733.4,362.5L1734.9,362.2L1735.8,362.2L1737.8,362.3L1738.6,362.5L1754.4,362.4L1755.5,362.1L1755.4,363.1"/>
-  <path id="r-588095293" data-name="" data-cls="footway" data-ref="" d="M1719.5,373.6L1720.6,362.6L1721.0,362.0L1721.7,361.6L1722.6,361.6L1722.8,361.6L1725.9,361.9L1728.8,362.2L1729.3,362.7L1729.7,363.0"/>
   <path id="r-588095294" data-name="" data-cls="footway" data-ref="" d="M1721.3,372.6L1721.8,372.9L1722.9,373.4L1725.4,374.6L1727.8,376.7L1730.6,379.2L1731.0,379.6L1733.3,381.4L1736.2,382.7L1737.6,383.1L1740.6,383.5L1744.1,383.8L1751.4,384.0L1762.4,384.3L1769.1,384.0L1772.7,383.5L1775.6,382.7L1776.1,382.6L1778.3,381.5"/>
   <path id="r-588095295" data-name="" data-cls="footway" data-ref="" d="M1775.1,385.7L1775.6,382.7L1775.6,379.9L1779.0,296.5L1781.6,296.6"/>
   <path id="r-588095296" data-name="" data-cls="footway" data-ref="" d="M1701.6,374.7L1702.1,374.4L1713.5,375.3L1718.3,375.8L1719.2,376.0L1721.7,376.7L1723.2,377.5L1728.3,381.9L1729.0,382.6L1729.1,383.2L1729.1,383.7L1728.7,384.3L1727.9,384.8L1726.6,385.2L1718.4,384.9L1709.4,384.8L1706.2,384.9L1704.4,384.5L1703.5,383.8L1702.4,383.3L1702.0,382.9L1701.8,382.3L1701.6,379.9L1701.6,374.7"/>
-  <path id="r-588095297" data-name="" data-cls="footway" data-ref="" d="M1718.3,385.6L1718.3,386.7L1718.1,393.6L1717.9,402.0"/>
   <path id="r-588095298" data-name="" data-cls="footway" data-ref="" d="M1718.1,393.6L1745.5,395.1L1745.5,387.9L1745.5,386.0"/>
   <path id="r-588095299" data-name="" data-cls="footway" data-ref="" d="M1718.3,386.7L1727.3,387.1L1740.5,387.7L1745.5,387.9L1751.7,388.1L1752.9,388.2L1754.5,387.7L1757.8,387.7L1760.2,387.8L1764.5,387.8L1769.1,387.6L1773.1,387.0L1774.5,386.6L1775.1,385.7"/>
-  <path id="r-588095300" data-name="" data-cls="footway" data-ref="" d="M1727.3,387.1L1729.1,386.3L1730.2,385.6L1731.0,384.8L1732.2,384.6L1733.7,385.5L1734.5,385.9L1737.6,386.9L1740.5,387.7"/>
-  <path id="r-589094657" data-name="" data-cls="footway" data-ref="" d="M1459.9,304.5L1460.0,305.9L1460.0,307.2L1462.4,307.1L1462.4,308.5L1462.5,310.0"/>
-  <path id="r-718120151" data-name="" data-cls="footway" data-ref="" d="M618.3,398.9L618.5,401.5"/>
-  <path id="r-718120152" data-name="" data-cls="footway" data-ref="" d="M617.9,398.0L617.9,398.6"/>
-  <path id="r-747140105" data-name="" data-cls="footway" data-ref="" d="M1363.8,280.9L1363.9,281.2L1364.0,282.1L1364.1,282.9"/>
-  <path id="r-750197590" data-name="" data-cls="footway" data-ref="" d="M1365.8,272.9L1366.0,274.5L1366.5,277.2L1366.5,277.5"/>
-  <path id="r-750330303" data-name="" data-cls="footway" data-ref="" d="M1359.0,279.0L1359.4,281.4"/>
-  <path id="r-754626844" data-name="" data-cls="footway" data-ref="" d="M1380.2,272.5L1380.3,273.0L1380.4,273.1L1380.6,273.2L1386.8,272.6"/>
-  <path id="r-755012219" data-name="" data-cls="footway" data-ref="" d="M1362.6,214.7L1365.2,226.2"/>
   <path id="r-785783252" data-name="" data-cls="footway" data-ref="" d="M478.5,496.8L392.9,461.3L347.1,442.6"/>
-  <path id="r-882972888" data-name="" data-cls="footway" data-ref="" d="M1413.2,165.7L1413.5,164.2"/>
-  <path id="r-882972889" data-name="" data-cls="footway" data-ref="" d="M1265.0,168.9L1267.0,168.5"/>
-  <path id="r-882972890" data-name="" data-cls="footway" data-ref="" d="M1379.7,271.2L1380.2,272.5"/>
-  <path id="r-889383027" data-name="" data-cls="footway" data-ref="" d="M1374.4,345.1L1374.0,344.7L1372.9,343.1L1372.6,342.1L1372.8,341.0L1373.1,340.4L1373.2,340.2L1373.8,339.7L1374.6,339.4L1375.3,339.3L1382.6,339.6"/>
-  <path id="r-889383028" data-name="" data-cls="footway" data-ref="" d="M1366.2,342.8L1369.1,342.0L1372.8,341.0"/>
-  <path id="r-889383029" data-name="" data-cls="footway" data-ref="" d="M1371.0,334.9L1371.3,336.2L1371.8,337.6L1372.7,337.3L1373.3,338.5L1373.8,339.7"/>
   <path id="r-889383030" data-name="" data-cls="footway" data-ref="" d="M1374.4,343.3L1382.6,339.6L1386.0,337.8L1424.4,320.3L1429.9,317.8L1436.7,315.0"/>
-  <path id="r-889383031" data-name="" data-cls="footway" data-ref="" d="M1459.9,304.5L1454.2,304.6L1450.5,305.1L1445.7,305.9L1442.6,306.7L1439.6,305.1"/>
-  <path id="r-889383032" data-name="" data-cls="footway" data-ref="" d="M1439.6,305.1L1437.7,305.6L1436.4,305.9"/>
-  <path id="r-889383033" data-name="" data-cls="footway" data-ref="" d="M1454.5,311.9L1455.8,310.3L1458.4,309.9L1462.5,310.0L1466.8,310.1L1468.8,310.3"/>
-  <path id="r-889383034" data-name="" data-cls="footway" data-ref="" d="M1451.6,312.0L1453.3,311.9L1454.5,311.9"/>
-  <path id="r-889383035" data-name="" data-cls="footway" data-ref="" d="M1438.6,314.4L1448.3,311.1L1451.6,312.0"/>
-  <path id="r-889383036" data-name="" data-cls="footway" data-ref="" d="M1436.7,315.0L1437.7,314.6L1438.6,314.4"/>
-  <path id="r-889383037" data-name="" data-cls="footway" data-ref="" d="M1373.8,339.7L1374.2,341.6L1374.4,343.3L1374.4,345.1L1373.4,347.2"/>
   <path id="r-889383038" data-name="" data-cls="footway" data-ref="" d="M1366.2,342.8L1367.1,343.6L1368.6,346.1L1370.9,348.8L1376.4,353.1L1380.8,355.7L1384.4,357.9L1386.1,359.4L1386.6,360.3L1386.7,361.2L1387.2,372.2L1388.4,395.0"/>
-  <path id="r-889383039" data-name="" data-cls="footway" data-ref="" d="M1388.4,395.0L1389.1,397.1L1389.7,398.4"/>
-  <path id="r-889383040" data-name="" data-cls="footway" data-ref="" d="M1387.2,372.2L1390.6,372.0"/>
-  <path id="r-889383041" data-name="" data-cls="footway" data-ref="" d="M1362.7,335.6L1365.3,334.9L1366.6,334.5"/>
-  <path id="r-889383042" data-name="" data-cls="footway" data-ref="" d="M1273.6,361.2L1275.1,368.2L1276.6,374.8"/>
-  <path id="r-889383044" data-name="" data-cls="footway" data-ref="" d="M1222.4,372.7L1225.7,372.0L1226.7,371.6"/>
-  <path id="r-889383045" data-name="" data-cls="footway" data-ref="" d="M967.3,393.7L981.9,392.0L982.7,391.6"/>
-  <path id="r-889383046" data-name="" data-cls="footway" data-ref="" d="M879.4,434.7L878.8,433.8L878.5,433.5"/>
-  <path id="r-889383048" data-name="" data-cls="footway" data-ref="" d="M1057.1,395.6L1056.7,403.0L1056.1,413.8"/>
-  <path id="r-889383050" data-name="" data-cls="footway" data-ref="" d="M1058.1,411.4L1056.1,413.8"/>
-  <path id="r-889383051" data-name="" data-cls="footway" data-ref="" d="M1059.3,408.5L1059.0,409.6"/>
   <path id="r-889383054" data-name="" data-cls="footway" data-ref="" d="M1056.1,413.8L1055.3,403.0L1055.1,395.8L1054.1,396.0L1053.9,391.7L1046.9,392.2L1043.6,392.2"/>
-  <path id="r-889383056" data-name="" data-cls="footway" data-ref="" d="M1046.9,392.2L1045.9,386.7"/>
-  <path id="r-889383058" data-name="" data-cls="footway" data-ref="" d="M1070.2,399.9L1085.0,398.9L1086.3,398.8"/>
-  <path id="r-889383059" data-name="" data-cls="footway" data-ref="" d="M1069.5,399.9L1068.6,399.9L1068.7,400.5L1064.2,400.7L1058.6,401.0"/>
-  <path id="r-889383060" data-name="" data-cls="footway" data-ref="" d="M1057.1,395.6L1058.3,394.7L1058.6,401.0L1058.8,403.0L1059.3,408.5"/>
-  <path id="r-889383061" data-name="" data-cls="footway" data-ref="" d="M1057.8,403.0L1058.8,403.0"/>
-  <path id="r-889383062" data-name="" data-cls="footway" data-ref="" d="M1069.4,407.9L1068.7,400.5"/>
-  <path id="r-889383063" data-name="" data-cls="footway" data-ref="" d="M1064.7,414.7L1064.5,408.2L1064.2,400.7"/>
-  <path id="r-889383064" data-name="" data-cls="footway" data-ref="" d="M1069.2,414.5L1065.5,408.9L1064.5,408.2"/>
-  <path id="r-889383065" data-name="" data-cls="footway" data-ref="" d="M1057.4,415.1L1064.7,414.7L1065.2,414.7L1069.2,414.5L1071.7,414.4L1072.6,414.4"/>
-  <path id="r-889383066" data-name="" data-cls="footway" data-ref="" d="M1065.7,422.6L1065.2,414.7"/>
-  <path id="r-889383067" data-name="" data-cls="footway" data-ref="" d="M1065.7,422.6L1067.9,422.1L1069.6,419.8L1069.2,414.5"/>
-  <path id="r-889383068" data-name="" data-cls="footway" data-ref="" d="M1072.2,430.1L1071.7,414.4"/>
-  <path id="r-889383069" data-name="" data-cls="footway" data-ref="" d="M1056.1,413.8L1055.9,415.1L1056.1,418.5"/>
   <path id="r-889398341" data-name="" data-cls="footway" data-ref="" d="M1233.4,361.1L1235.1,362.5L1269.5,355.6L1302.5,350.6L1308.0,349.4L1360.9,337.2L1361.9,336.7L1362.7,335.6"/>
-  <path id="r-889398342" data-name="" data-cls="footway" data-ref="" d="M1229.8,362.2L1230.3,362.0L1231.9,361.6L1233.4,361.1"/>
-  <path id="r-889398355" data-name="" data-cls="footway" data-ref="" d="M637.4,400.4L637.1,395.2"/>
-  <path id="r-889398356" data-name="" data-cls="footway" data-ref="" d="M637.1,395.2L637.1,394.6L638.1,393.2L637.5,392.5"/>
-  <path id="r-889398357" data-name="" data-cls="footway" data-ref="" d="M639.0,404.8L640.5,408.6L641.7,410.5"/>
-  <path id="r-890503647" data-name="" data-cls="footway" data-ref="" d="M1786.9,293.5L1787.0,291.0"/>
   <path id="r-890503648" data-name="" data-cls="footway" data-ref="" d="M1786.8,289.8L1799.9,283.4L1808.0,279.5L1818.5,274.0L1823.4,271.5L1824.4,271.2L1826.3,270.2"/>
-  <path id="r-893112894" data-name="" data-cls="footway" data-ref="" d="M1466.1,341.1L1472.0,341.4L1472.7,332.0"/>
   <path id="r-893361244" data-name="" data-cls="footway" data-ref="" d="M1176.9,986.1L1175.3,988.2L1171.2,993.5L1166.4,1001.3L1162.6,1007.9L1157.6,1014.7L1145.4,1029.9L1138.5,1037.6L1132.4,1046.2L1127.5,1052.4L1116.2,1065.0L1109.0,1072.3L1101.7,1080.4L1094.6,1088.1L1087.7,1095.5L1073.5,1109.5L1073.2,1112.3L1074.3,1115.9"/>
-  <path id="r-896136482" data-name="" data-cls="footway" data-ref="" d="M321.1,307.4L328.0,302.6L328.9,301.8L329.7,300.9L330.3,299.8L330.7,298.8L330.8,297.7L330.9,296.8L331.1,294.1L331.3,292.4L331.7,290.6L332.3,288.9L333.0,287.4L333.9,285.9L335.0,284.4"/>
-  <path id="r-896136483" data-name="" data-cls="footway" data-ref="" d="M330.5,281.8L334.5,284.0L335.0,284.4L336.3,285.6"/>
-  <path id="r-896149773" data-name="" data-cls="footway" data-ref="" d="M1232.4,801.3L1224.5,795.9"/>
-  <path id="r-897346789" data-name="" data-cls="footway" data-ref="" d="M1705.8,456.1L1714.5,457.5L1716.4,465.0"/>
-  <path id="r-897346795" data-name="" data-cls="footway" data-ref="" d="M1754.3,420.9L1753.5,419.6L1747.6,418.9"/>
   <path id="r-903994089" data-name="" data-cls="footway" data-ref="" d="M1026.7,1104.4L1022.1,1106.1L996.3,1212.6L976.1,1288.3"/>
   <path id="r-903994090" data-name="" data-cls="footway" data-ref="" d="M1387.4,666.1L1374.0,693.9L1367.3,707.3L1347.1,746.7L1346.5,748.7"/>
   <path id="r-904318268" data-name="" data-cls="footway" data-ref="" d="M923.9,310.3L920.5,310.7L914.0,310.9L912.5,312.4L904.8,312.9L903.4,311.4L890.1,312.5L889.2,313.6L888.3,316.1L888.1,317.5L887.2,335.1L886.6,335.0"/>
   <path id="r-904318481" data-name="" data-cls="footway" data-ref="" d="M470.2,827.8L478.0,827.9L633.9,827.0L638.0,826.8L643.6,827.0L645.2,826.7"/>
   <path id="r-904328954" data-name="" data-cls="footway" data-ref="" d="M-48.2,1082.8L50.0,1117.9L156.6,1137.3L161.6,1140.1L188.3,1156.6L213.6,1172.2L215.0,1173.8L242.6,1203.8L280.9,1216.3"/>
-  <path id="r-905990791" data-name="" data-cls="footway" data-ref="" d="M1717.9,402.0L1718.7,402.1"/>
-  <path id="r-905990792" data-name="" data-cls="footway" data-ref="" d="M1707.4,404.7L1708.9,404.6L1710.7,404.5L1716.2,404.9L1717.4,404.9L1717.9,402.0"/>
-  <path id="r-905990793" data-name="" data-cls="footway" data-ref="" d="M1603.4,344.7L1576.3,345.6L1575.4,346.0"/>
   <path id="r-905994210" data-name="" data-cls="footway" data-ref="" d="M802.4,517.1L802.2,519.0L798.8,520.7L795.7,521.7L783.5,527.8L772.6,533.1"/>
   <path id="r-911995732" data-name="" data-cls="footway" data-ref="" d="M1773.2,282.5L1773.4,281.4L1773.7,278.1L1772.4,271.1L1771.5,266.0L1771.1,263.0L1771.3,261.1L1771.6,259.8L1771.7,259.4L1771.6,258.9L1771.4,258.5L1770.9,258.1L1770.4,257.9L1769.9,257.9L1763.0,259.1L1762.4,259.3L1761.9,259.7L1761.5,260.2L1761.3,260.9L1761.4,261.5L1761.7,262.1L1762.4,262.5"/>
-  <path id="yew-tree-gardens" data-name="Yew Tree Gardens" data-cls="footway" data-ref="" d="M783.2,484.9L777.2,493.2L776.3,494.6"/>
-  <path id="r-942970219" data-name="" data-cls="footway" data-ref="" d="M85.5,403.8L85.5,406.0"/>
-  <path id="r-942970220" data-name="" data-cls="footway" data-ref="" d="M85.1,398.6L85.2,399.4L85.4,402.1"/>
-  <path id="r-942970224" data-name="" data-cls="footway" data-ref="" d="M146.2,393.0L146.3,394.0L146.8,396.5"/>
-  <path id="r-942970225" data-name="" data-cls="footway" data-ref="" d="M119.2,396.4L119.2,397.0"/>
-  <path id="r-942970227" data-name="" data-cls="footway" data-ref="" d="M147.2,399.7L146.0,400.0L145.4,400.9L144.3,401.2"/>
-  <path id="r-942974545" data-name="" data-cls="footway" data-ref="" d="M1362.5,281.1L1361.5,281.3"/>
-  <path id="r-942974546" data-name="" data-cls="footway" data-ref="" d="M1360.8,278.1L1366.5,277.2"/>
-  <path id="r-942976787" data-name="" data-cls="footway" data-ref="" d="M1276.4,198.7L1276.1,195.0"/>
-  <path id="r-942976788" data-name="" data-cls="footway" data-ref="" d="M1276.1,195.0L1277.1,188.8L1276.9,187.7L1276.4,187.0"/>
-  <path id="r-942976790" data-name="" data-cls="footway" data-ref="" d="M1276.5,186.6L1275.9,186.0L1274.3,186.3"/>
-  <path id="r-967535602" data-name="" data-cls="footway" data-ref="" d="M1440.9,221.4L1440.3,221.4"/>
-  <path id="r-967535604" data-name="" data-cls="footway" data-ref="" d="M1441.3,218.1L1441.5,218.1L1442.6,221.4"/>
-  <path id="r-1089845943" data-name="" data-cls="footway" data-ref="" d="M1335.8,245.1L1333.0,245.9L1330.1,246.8L1328.2,247.1L1324.3,248.0L1321.3,248.8L1319.7,248.3L1319.3,246.6L1318.2,246.4"/>
-  <path id="r-1089858503" data-name="" data-cls="footway" data-ref="" d="M1530.9,139.8L1527.6,138.7L1525.6,138.5L1524.0,139.8L1523.9,141.4L1524.8,142.3L1526.2,142.8"/>
-  <path id="r-1089858505" data-name="" data-cls="footway" data-ref="" d="M1542.2,141.7L1538.0,139.3L1534.0,138.8L1530.9,139.8L1528.6,141.4L1526.2,142.8"/>
   <path id="r-1097776225" data-name="" data-cls="footway" data-ref="" d="M318.6,657.6L419.7,723.1"/>
-  <path id="r-1100873096" data-name="" data-cls="footway" data-ref="" d="M1131.7,264.0L1131.9,260.4"/>
-  <path id="r-1119163412" data-name="" data-cls="footway" data-ref="" d="M1133.0,373.5L1133.0,375.2L1133.0,376.4L1135.8,376.4L1135.8,377.7L1135.8,378.9"/>
   <path id="r-1124630328" data-name="" data-cls="footway" data-ref="" d="M800.6,424.2L805.8,425.0L807.0,425.2L808.4,425.4L808.8,425.5L809.9,425.2L810.2,422.8L811.7,423.1L812.5,423.3L812.3,425.1L812.6,426.0L813.4,426.8L814.2,426.9L814.1,427.7L813.9,428.7L813.2,428.6L811.7,428.3L810.0,428.0L807.9,427.6L806.0,427.3L800.0,426.2"/>
-  <path id="r-1124633693" data-name="" data-cls="footway" data-ref="" d="M800.6,424.2L799.5,423.9L798.9,423.1L798.7,422.4L800.9,409.9L801.2,407.9"/>
-  <path id="r-1124633694" data-name="" data-cls="footway" data-ref="" d="M800.0,426.2L799.0,426.2L797.8,426.8L792.7,454.8"/>
-  <path id="r-1124710378" data-name="" data-cls="footway" data-ref="" d="M801.2,407.9L808.7,406.6L820.0,404.8L826.0,403.7L826.9,403.5"/>
-  <path id="r-1124811109" data-name="" data-cls="footway" data-ref="" d="M840.8,401.4L826.9,403.5"/>
   <path id="r-1124916446" data-name="" data-cls="footway" data-ref="" d="M797.8,409.1L794.5,428.8L792.1,444.2L790.8,451.5"/>
-  <path id="r-1125421229" data-name="" data-cls="footway" data-ref="" d="M767.0,446.8L762.7,445.5L760.3,449.4L755.6,452.3L758.1,442.9"/>
   <path id="r-1125553850" data-name="" data-cls="footway" data-ref="" d="M758.1,442.9L764.4,415.1L764.5,414.4L765.6,413.4L769.8,412.8L797.0,408.4L797.8,409.1"/>
-  <path id="r-1126116439" data-name="" data-cls="footway" data-ref="" d="M772.5,464.1L776.8,450.7"/>
   <path id="yew-tree-gardens" data-name="Yew Tree Gardens" data-cls="footway" data-ref="" d="M801.4,483.9L797.1,480.2L797.4,479.1L784.1,471.7"/>
-  <path id="yew-tree-gardens" data-name="Yew Tree Gardens" data-cls="footway" data-ref="" d="M794.8,503.1L800.6,497.8"/>
-  <path id="r-1126404776" data-name="" data-cls="footway" data-ref="" d="M776.4,467.5L773.3,465.9L770.2,472.6"/>
   <path id="r-1126404777" data-name="" data-cls="footway" data-ref="" d="M763.5,466.6L763.0,467.7L763.2,469.1L770.2,472.6L775.9,475.7L775.3,476.4L790.6,487.5L792.2,489.3L793.9,487.7L798.4,491.5"/>
-  <path id="r-1126429133" data-name="" data-cls="footway" data-ref="" d="M798.4,491.5L796.8,493.1L796.2,493.7"/>
-  <path id="r-1126429134" data-name="" data-cls="footway" data-ref="" d="M796.2,493.7L793.8,491.7"/>
-  <path id="r-1126429144" data-name="" data-cls="footway" data-ref="" d="M783.2,484.9L787.9,488.3L781.6,497.3"/>
-  <path id="r-1126429145" data-name="" data-cls="footway" data-ref="" d="M772.8,478.8L768.1,488.0L768.6,489.6L771.3,490.8L771.1,491.5L770.6,492.4L760.3,487.5"/>
-  <path id="r-1126850359" data-name="" data-cls="footway" data-ref="" d="M760.9,496.0L757.0,494.2L741.1,487.5"/>
   <path id="r-1126850360" data-name="" data-cls="footway" data-ref="" d="M740.5,488.7L741.1,487.5L743.5,482.4L751.0,465.7L752.1,462.3L755.6,452.3"/>
-  <path id="r-1127932879" data-name="" data-cls="footway" data-ref="" d="M800.6,497.8L796.2,493.7"/>
   <path id="r-1130815360" data-name="" data-cls="footway" data-ref="" d="M702.1,453.3L700.5,453.6L700.7,454.5L700.8,455.3L729.1,451.1L730.6,451.4L732.8,454.3"/>
   <path id="r-1130815361" data-name="" data-cls="footway" data-ref="" d="M732.8,454.3L733.3,454.6L733.1,455.5L749.2,462.4L749.6,463.4L746.2,471.9L722.5,461.5"/>
-  <path id="r-1130815362" data-name="" data-cls="footway" data-ref="" d="M722.5,461.5L720.2,461.7L717.6,462.1L715.0,462.9L712.7,463.9L710.8,464.9"/>
   <path id="r-1130815363" data-name="" data-cls="footway" data-ref="" d="M710.8,464.9L701.0,470.3L690.9,456.6L686.4,449.9L686.0,449.3"/>
   <path id="church-path" data-name="Church Path" data-cls="footway" data-ref="" d="M706.2,539.8L711.8,536.6L717.3,531.0L718.6,526.9L724.5,528.3L726.1,524.2L732.1,520.1L732.8,519.5"/>
-  <path id="r-1131075013" data-name="" data-cls="footway" data-ref="" d="M718.6,526.9L718.8,526.1"/>
-  <path id="r-1131075014" data-name="" data-cls="footway" data-ref="" d="M718.6,526.9L717.1,525.2L714.8,524.6L712.1,530.9"/>
-  <path id="r-1131075015" data-name="" data-cls="footway" data-ref="" d="M714.8,524.6L716.6,519.2L725.2,521.3L727.6,519.6L732.1,520.1"/>
-  <path id="r-1131076073" data-name="" data-cls="footway" data-ref="" d="M760.3,487.5L757.2,493.8L757.0,494.2"/>
-  <path id="r-1132388987" data-name="" data-cls="footway" data-ref="" d="M704.1,449.7L704.1,453.0L706.9,452.6L709.7,452.3L712.6,451.9L715.5,451.5L718.4,451.2L721.4,450.8L724.3,450.4L727.0,450.1"/>
-  <path id="r-1132388989" data-name="" data-cls="footway" data-ref="" d="M727.0,450.1L727.1,446.3L727.2,445.6L728.1,445.7L732.3,446.0"/>
-  <path id="r-1132388990" data-name="" data-cls="footway" data-ref="" d="M727.0,450.1L730.2,449.6L732.1,448.1L732.3,446.0"/>
-  <path id="r-1132388991" data-name="" data-cls="footway" data-ref="" d="M724.3,450.4L724.3,448.5"/>
-  <path id="r-1132388992" data-name="" data-cls="footway" data-ref="" d="M721.3,447.2L721.4,450.8"/>
-  <path id="r-1132388993" data-name="" data-cls="footway" data-ref="" d="M718.4,451.2L718.4,449.2"/>
-  <path id="r-1132388994" data-name="" data-cls="footway" data-ref="" d="M715.4,447.5L715.5,451.5"/>
-  <path id="r-1132388995" data-name="" data-cls="footway" data-ref="" d="M712.6,451.9L712.7,449.9"/>
-  <path id="r-1132388996" data-name="" data-cls="footway" data-ref="" d="M709.7,452.3L709.5,448.4"/>
-  <path id="r-1132388997" data-name="" data-cls="footway" data-ref="" d="M706.8,450.7L706.9,452.6"/>
-  <path id="r-1132464110" data-name="" data-cls="footway" data-ref="" d="M732.3,446.0L732.6,443.1L732.9,440.4L733.2,437.3L733.4,435.8L733.1,435.4L732.0,435.3L732.1,434.2L732.1,433.1L732.1,432.6L732.4,432.6L735.5,432.6L736.1,433.5L741.0,433.5L742.1,429.6"/>
-  <path id="r-1132464112" data-name="" data-cls="footway" data-ref="" d="M731.8,427.8L732.4,432.6"/>
-  <path id="r-1132464113" data-name="" data-cls="footway" data-ref="" d="M732.1,433.1L727.8,432.8L727.3,430.3"/>
-  <path id="r-1132464114" data-name="" data-cls="footway" data-ref="" d="M732.1,434.2L728.2,434.0"/>
-  <path id="r-1132464115" data-name="" data-cls="footway" data-ref="" d="M733.2,437.3L730.3,437.0"/>
-  <path id="r-1132464116" data-name="" data-cls="footway" data-ref="" d="M732.9,440.4L728.3,439.9"/>
-  <path id="r-1132464117" data-name="" data-cls="footway" data-ref="" d="M732.6,443.1L730.6,442.9"/>
   <path id="r-1132464118" data-name="" data-cls="footway" data-ref="" d="M742.3,434.9L736.7,435.0L735.5,435.9L735.4,437.1L735.0,441.8L734.5,446.7L733.8,453.6L749.8,460.4L751.0,459.8"/>
-  <path id="r-1132464119" data-name="" data-cls="footway" data-ref="" d="M735.4,437.1L739.0,436.9"/>
-  <path id="r-1132464120" data-name="" data-cls="footway" data-ref="" d="M735.0,441.8L739.9,441.6"/>
-  <path id="r-1132464121" data-name="" data-cls="footway" data-ref="" d="M734.5,446.7L739.1,446.5"/>
   <path id="r-1132579763" data-name="" data-cls="footway" data-ref="" d="M751.0,459.8L756.0,443.2L762.0,416.3L762.0,414.9"/>
-  <path id="r-1132586478" data-name="" data-cls="footway" data-ref="" d="M681.5,426.9L679.5,418.9L674.9,419.0"/>
-  <path id="r-1132586479" data-name="" data-cls="footway" data-ref="" d="M681.5,426.9L682.7,430.4"/>
   <path id="r-1132688972" data-name="" data-cls="footway" data-ref="" d="M664.8,427.7L670.1,432.8L674.9,439.4L674.3,441.2L683.1,453.2L684.7,452.1L687.9,456.6L688.4,457.3L687.4,458.0L690.3,461.8L692.2,464.4L697.3,471.1L689.6,477.0L679.1,484.7L670.2,474.5L645.9,448.0L664.8,427.7"/>
-  <path id="r-1133376778" data-name="" data-cls="footway" data-ref="" d="M743.4,517.6L742.5,518.1L741.8,518.6L741.6,518.9L741.5,519.3L741.5,519.7L741.8,520.0L742.2,520.2L742.5,520.2L745.1,518.9L745.3,518.7L745.4,518.4L745.4,518.0L745.2,517.6L744.7,517.4L744.0,517.4L743.4,517.6"/>
-  <path id="r-1133376796" data-name="" data-cls="footway" data-ref="" d="M745.9,531.0L746.1,531.3L747.0,530.7L747.9,531.2L750.1,530.9"/>
-  <path id="r-1133978300" data-name="" data-cls="footway" data-ref="" d="M778.0,517.5L774.9,518.3"/>
-  <path id="r-1134385317" data-name="" data-cls="footway" data-ref="" d="M659.3,615.1L664.9,620.0"/>
-  <path id="r-1134385319" data-name="" data-cls="footway" data-ref="" d="M674.5,603.7L671.5,606.1L670.3,606.8L670.9,608.2L671.3,609.6L670.1,611.1L668.4,612.5L670.8,616.8L670.6,617.6"/>
-  <path id="r-1134385321" data-name="" data-cls="footway" data-ref="" d="M681.8,612.5L678.0,609.3L675.2,606.9L674.5,603.7L673.8,601.6L671.2,598.6"/>
-  <path id="r-1134385377" data-name="" data-cls="footway" data-ref="" d="M683.5,627.9L676.0,634.2"/>
-  <path id="r-1134385378" data-name="" data-cls="footway" data-ref="" d="M695.2,650.8L691.5,647.9"/>
-  <path id="r-1134385379" data-name="" data-cls="footway" data-ref="" d="M670.2,640.5L674.6,635.6L676.0,634.2L688.5,645.5"/>
-  <path id="r-1134385382" data-name="" data-cls="footway" data-ref="" d="M680.8,616.1L694.0,628.3L694.3,629.5L695.6,630.0L702.0,635.7"/>
   <path id="r-1134418751" data-name="" data-cls="footway" data-ref="" d="M681.9,418.9L737.5,413.7L760.9,413.9L762.0,414.9"/>
   <path id="r-1134418752" data-name="" data-cls="footway" data-ref="" d="M762.5,411.4L737.0,411.2L683.1,416.4L674.4,417.1L654.8,418.7"/>
-  <path id="r-1134418756" data-name="" data-cls="footway" data-ref="" d="M640.1,414.1L643.4,416.7L648.4,420.8L647.8,421.8L637.8,422.5L637.2,421.8L637.8,419.8L639.3,414.4L640.1,414.1"/>
-  <path id="r-1134418758" data-name="" data-cls="footway" data-ref="" d="M637.8,419.8L643.4,416.7"/>
-  <path id="r-1134418762" data-name="" data-cls="footway" data-ref="" d="M620.2,403.5L619.7,403.5L617.2,403.7L617.2,403.1L620.9,402.8"/>
-  <path id="r-1134714475" data-name="" data-cls="footway" data-ref="" d="M700.1,443.2L700.4,445.1L700.5,445.4L701.6,446.4L704.4,446.0L705.8,443.5L705.8,442.9L705.8,442.6L704.5,442.8L704.4,441.9L704.2,442.0L704.0,441.3L703.6,438.8"/>
-  <path id="r-1134714481" data-name="" data-cls="footway" data-ref="" d="M705.8,442.6L709.0,442.3L708.9,441.6L709.5,441.5L708.8,436.2L707.4,436.3L704.7,436.7L702.0,437.1L700.9,437.2L699.6,437.4"/>
-  <path id="r-1134714485" data-name="" data-cls="footway" data-ref="" d="M708.8,436.2L708.9,436.1L709.3,436.1L709.2,435.1L709.1,434.7"/>
-  <path id="r-1134714486" data-name="" data-cls="footway" data-ref="" d="M709.2,435.1L711.1,434.8L711.0,434.3"/>
-  <path id="r-1134714487" data-name="" data-cls="footway" data-ref="" d="M702.0,437.1L702.0,436.7L701.8,435.3L700.7,435.4L700.0,435.5"/>
-  <path id="r-1134714488" data-name="" data-cls="footway" data-ref="" d="M700.7,435.4L700.9,436.8L700.9,437.2"/>
-  <path id="r-1134714489" data-name="" data-cls="footway" data-ref="" d="M704.7,436.7L704.5,435.9L704.5,435.4L703.6,435.6"/>
-  <path id="r-1134714490" data-name="" data-cls="footway" data-ref="" d="M704.5,435.9L704.9,435.8L705.6,435.7"/>
-  <path id="r-1134714491" data-name="" data-cls="footway" data-ref="" d="M707.3,435.4L707.4,436.3"/>
-  <path id="r-1134714509" data-name="" data-cls="footway" data-ref="" d="M704.0,441.3L705.6,441.1L705.8,442.6"/>
-  <path id="r-1135016521" data-name="" data-cls="footway" data-ref="" d="M674.1,413.3L674.4,417.1"/>
   <path id="r-1135016522" data-name="" data-cls="footway" data-ref="" d="M674.9,419.0L665.9,419.9L664.7,421.6L665.4,423.7L672.2,429.9L674.0,432.4L685.5,448.6L686.0,449.3"/>
   <path id="r-1135016532" data-name="" data-cls="footway" data-ref="" d="M736.2,523.2L737.9,517.0L737.6,515.5L736.1,514.4L734.3,514.5L729.6,510.1L717.2,496.1L711.4,489.2L696.0,503.0L703.7,511.3"/>
-  <path id="r-1135786781" data-name="" data-cls="footway" data-ref="" d="M324.1,316.5L324.9,317.7L326.4,320.0L324.8,320.9"/>
-  <path id="r-1135786782" data-name="" data-cls="footway" data-ref="" d="M323.0,322.1L324.5,324.3L329.3,321.1"/>
-  <path id="r-1135786784" data-name="" data-cls="footway" data-ref="" d="M330.3,320.5L333.5,318.4"/>
-  <path id="r-1135786787" data-name="" data-cls="footway" data-ref="" d="M324.9,317.7L326.3,316.7L325.5,315.6"/>
-  <path id="r-1135786788" data-name="" data-cls="footway" data-ref="" d="M326.3,316.7L324.1,316.5"/>
-  <path id="r-1135786797" data-name="" data-cls="footway" data-ref="" d="M323.0,322.1L318.6,315.7L318.7,314.6L324.4,310.7L328.0,308.2"/>
-  <path id="r-1135908911" data-name="" data-cls="footway" data-ref="" d="M324.4,310.7L325.3,312.1"/>
-  <path id="r-1135908912" data-name="" data-cls="footway" data-ref="" d="M325.6,312.5L327.0,314.5L325.5,315.6L324.1,316.5"/>
-  <path id="r-1135908913" data-name="" data-cls="footway" data-ref="" d="M325.3,312.1L325.6,312.5"/>
-  <path id="r-1135908914" data-name="" data-cls="footway" data-ref="" d="M323.0,322.1L324.3,321.2"/>
-  <path id="r-1135908915" data-name="" data-cls="footway" data-ref="" d="M324.3,321.2L324.8,320.9"/>
-  <path id="r-1135908918" data-name="" data-cls="footway" data-ref="" d="M335.2,317.3L341.1,313.1L334.5,303.7L331.1,306.0L328.0,308.2"/>
-  <path id="r-1135908926" data-name="" data-cls="footway" data-ref="" d="M331.1,306.0L333.0,308.9"/>
-  <path id="r-1135908927" data-name="" data-cls="footway" data-ref="" d="M336.0,313.4L334.5,311.4"/>
   <path id="r-1136274774" data-name="" data-cls="footway" data-ref="" d="M529.9,364.0L519.2,386.1L517.1,388.6L514.3,390.5L511.6,391.6L509.3,392.0L503.4,392.2L501.1,392.0L497.6,391.0L495.5,389.9L494.3,388.9L493.0,387.0L492.2,385.0L492.0,383.4L491.9,381.2L492.5,378.7L494.9,373.0L500.4,360.9L503.1,359.4L510.5,360.4L513.7,360.6L516.6,360.3L519.8,358.7"/>
-  <path id="r-1136380924" data-name="" data-cls="footway" data-ref="" d="M776.8,450.7L769.8,448.7"/>
   <path id="r-1137242985" data-name="" data-cls="footway" data-ref="" d="M838.8,482.6L835.8,481.7L833.6,480.2L831.3,478.5L825.2,482.8L822.6,484.5L818.1,488.9L817.1,489.8L812.2,494.5L806.5,498.4L801.4,502.6"/>
-  <path id="r-1137242988" data-name="" data-cls="footway" data-ref="" d="M820.8,491.7L818.1,488.9"/>
-  <path id="r-1137242989" data-name="" data-cls="footway" data-ref="" d="M825.9,483.1L825.2,482.8"/>
-  <path id="r-1138188121" data-name="" data-cls="footway" data-ref="" d="M647.1,424.3L641.7,424.6"/>
-  <path id="r-1138188122" data-name="" data-cls="footway" data-ref="" d="M649.0,423.9L652.7,423.8"/>
-  <path id="r-1138188123" data-name="" data-cls="footway" data-ref="" d="M657.6,424.1L661.3,425.3L663.9,426.6"/>
-  <path id="r-1138246371" data-name="" data-cls="footway" data-ref="" d="M654.8,418.7L650.8,417.9L648.5,416.3L647.4,416.8L643.0,412.9L641.7,410.5"/>
   <path id="r-1138471024" data-name="" data-cls="footway" data-ref="" d="M694.5,501.1L680.9,486.9L681.1,486.2L698.2,472.9L699.2,472.8L709.9,487.1L709.8,487.6L694.5,501.1"/>
   <path id="r-1138471025" data-name="" data-cls="footway" data-ref="" d="M702.7,471.8L702.7,472.8L719.7,495.6L721.1,497.4L728.1,504.5L729.5,504.6L734.8,496.1"/>
   <path id="r-1138471026" data-name="" data-cls="footway" data-ref="" d="M702.7,471.8L710.8,467.5L713.2,466.3L720.7,464.2L722.8,464.0L745.2,474.0L745.6,474.6"/>
-  <path id="r-1138471027" data-name="" data-cls="footway" data-ref="" d="M745.6,474.6L739.2,487.4L735.6,494.2"/>
   <path id="r-1138571034" data-name="" data-cls="footway" data-ref="" d="M761.2,502.9L738.7,492.5L730.7,506.2L734.6,508.4L739.1,510.7L744.1,512.7"/>
-  <path id="r-1138571035" data-name="" data-cls="footway" data-ref="" d="M757.2,493.8L764.3,496.9L763.8,498.3L767.2,499.7L770.6,492.4"/>
   <path id="r-1139098486" data-name="" data-cls="footway" data-ref="" d="M762.6,485.9L765.3,487.1L766.5,486.5L771.6,475.9L771.1,474.5L764.6,471.6L763.4,472.2L758.3,483.9L762.6,485.9"/>
-  <path id="r-1197272932" data-name="" data-cls="footway" data-ref="" d="M1239.1,431.1L1235.8,428.2"/>
-  <path id="r-1197272933" data-name="" data-cls="footway" data-ref="" d="M1243.5,426.4L1239.1,431.1L1236.0,434.4"/>
-  <path id="r-1218311247" data-name="" data-cls="footway" data-ref="" d="M1526.2,142.8L1524.8,145.6L1522.5,148.4"/>
-  <path id="r-1218311417" data-name="" data-cls="footway" data-ref="" d="M1522.5,148.4L1517.7,151.8L1515.9,153.9"/>
-  <path id="r-1226535961" data-name="" data-cls="footway" data-ref="" d="M557.4,226.5L557.7,228.0L557.0,231.0"/>
-  <path id="r-1226535965" data-name="" data-cls="footway" data-ref="" d="M569.0,234.6L566.7,234.7L565.0,234.8"/>
-  <path id="r-1226952745" data-name="" data-cls="footway" data-ref="" d="M1291.8,128.4L1288.8,121.8"/>
-  <path id="r-1226952746" data-name="" data-cls="footway" data-ref="" d="M1303.4,137.1L1301.8,136.2"/>
-  <path id="r-1230705655" data-name="" data-cls="footway" data-ref="" d="M619.7,403.5L619.9,405.8"/>
-  <path id="r-1230705656" data-name="" data-cls="footway" data-ref="" d="M631.1,393.0L628.9,395.2"/>
-  <path id="r-1230705658" data-name="" data-cls="footway" data-ref="" d="M639.0,404.8L637.4,400.4"/>
-  <path id="coleman-stairs" data-name="Coleman Stairs" data-cls="footway" data-ref="" d="M765.9,313.5L764.8,311.3"/>
-  <path id="r-1251553522" data-name="" data-cls="footway" data-ref="" d="M147.1,398.0L147.2,399.7"/>
   <path id="r-1251553523" data-name="" data-cls="footway" data-ref="" d="M147.2,399.7L149.6,398.7L161.5,396.3L173.4,393.9L182.8,391.4L191.1,388.7L214.4,381.7"/>
-  <path id="r-1251553524" data-name="" data-cls="footway" data-ref="" d="M214.4,381.7L213.8,385.8L212.7,388.3"/>
-  <path id="r-1296377705" data-name="" data-cls="footway" data-ref="" d="M1224.6,239.9L1223.5,237.5"/>
-  <path id="r-1299883595" data-name="" data-cls="footway" data-ref="" d="M231.4,427.7L232.2,430.5L232.4,432.2L232.3,432.4L231.6,433.6L229.1,437.0"/>
   <path id="r-1302362343" data-name="" data-cls="footway" data-ref="" d="M406.3,1050.0L390.0,1047.2L384.5,1046.9L377.2,1045.7L368.5,1045.3"/>
-  <path id="r-1302595376" data-name="" data-cls="footway" data-ref="" d="M1799.1,281.8L1799.9,283.4"/>
-  <path id="r-1302595887" data-name="" data-cls="footway" data-ref="" d="M1673.7,275.4L1675.0,275.5"/>
-  <path id="r-1302597871" data-name="" data-cls="footway" data-ref="" d="M930.3,403.2L931.2,405.6"/>
-  <path id="r-1302598079" data-name="" data-cls="footway" data-ref="" d="M831.3,478.5L832.2,476.2"/>
-  <path id="r-1302598080" data-name="" data-cls="footway" data-ref="" d="M817.1,489.8L815.0,487.5"/>
-  <path id="r-1366050608" data-name="" data-cls="footway" data-ref="" d="M884.7,753.5L885.3,750.0"/>
-  <path id="r-1366050609" data-name="" data-cls="footway" data-ref="" d="M884.7,753.5L888.5,756.2L892.5,757.0L892.4,757.4"/>
   <path id="r-1366050610" data-name="" data-cls="footway" data-ref="" d="M814.8,727.6L815.1,726.7L819.9,727.0L825.9,727.2L829.6,726.8L832.2,726.6L834.9,726.7L837.1,727.3L838.0,727.8L839.1,728.7L840.8,730.3L842.7,732.7L844.0,734.1L846.2,736.0L846.8,736.5L847.9,737.2L850.1,738.1L851.8,738.6L853.9,739.2L857.7,740.2L859.1,740.2L860.4,740.0L861.4,739.6L862.8,738.7L863.8,737.7L864.8,736.3L865.6,734.8L866.5,732.8L868.4,728.3L871.6,721.5L874.5,715.9L875.0,714.8L877.4,709.8L879.0,707.1L880.3,705.0L884.2,697.8"/>
-  <path id="r-1366050615" data-name="" data-cls="footway" data-ref="" d="M847.6,724.6L849.5,721.2L849.6,720.5L850.5,718.7"/>
-  <path id="r-1370931506" data-name="" data-cls="footway" data-ref="" d="M1276.5,186.6L1276.4,187.0"/>
 </g>
 <g id="roads-path" stroke="#e8d49a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3">
+
   <path id="r-117367457" data-name="" data-cls="path" data-ref="" d="M1800.4,691.2L1800.5,685.9L1800.7,680.3L1800.8,678.4L1799.7,671.0L1798.6,664.8L1794.6,643.4L1794.1,636.6L1792.1,625.7"/>
   <path id="r-118969550" data-name="" data-cls="path" data-ref="" d="M1389.7,398.4L1382.6,452.5"/>
-  <path id="r-120184060" data-name="" data-cls="path" data-ref="" d="M382.9,766.9L388.9,759.7L397.7,749.8L401.1,746.5L403.0,745.1"/>
   <path id="r-120184061" data-name="" data-cls="path" data-ref="" d="M404.3,741.6L419.7,723.1L423.6,718.5L435.7,705.2L453.4,687.2L468.4,673.2L497.6,663.5L587.8,630.6L589.1,629.3L590.3,628.8"/>
   <path id="r-120184063" data-name="" data-cls="path" data-ref="" d="M-138.3,1009.8L-131.0,1007.3L-97.8,987.3L-35.0,947.7L-20.6,940.2L16.7,923.7L38.5,914.3"/>
   <path id="r-120184071" data-name="" data-cls="path" data-ref="" d="M38.5,914.3L36.3,900.4L35.8,897.3L32.8,882.4L29.5,866.5L29.1,850.2"/>
-  <path id="r-895387607" data-name="" data-cls="path" data-ref="" d="M816.1,592.7L815.5,591.7L817.0,590.9"/>
-  <path id="r-903994081" data-name="" data-cls="path" data-ref="" d="M1028.6,1092.2L1026.6,1091.0L1025.9,1087.9L1031.7,1063.3L1034.5,1054.2L1037.1,1042.8"/>
   <path id="r-903994082" data-name="" data-cls="path" data-ref="" d="M1029.9,1105.2L1034.4,1103.2L1036.4,1100.6L1040.3,1098.6L1044.8,1094.8L1047.2,1090.7L1047.5,1088.6L1047.8,1083.1L1044.6,1074.9L1041.3,1063.9L1036.1,1055.6L1034.5,1054.2"/>
-  <path id="r-1124752657" data-name="" data-cls="path" data-ref="" d="M810.0,428.0L809.7,429.6"/>
-  <path id="r-1124752658" data-name="" data-cls="path" data-ref="" d="M813.2,428.6L813.0,430.5"/>
-  <path id="r-1124752659" data-name="" data-cls="path" data-ref="" d="M813.6,421.8L812.9,422.4L812.5,423.3"/>
-  <path id="r-1124752660" data-name="" data-cls="path" data-ref="" d="M810.3,422.1L810.2,422.8"/>
-  <path id="r-1124752663" data-name="" data-cls="path" data-ref="" d="M806.3,422.4L805.8,425.0"/>
-  <path id="r-1124752664" data-name="" data-cls="path" data-ref="" d="M805.8,428.8L806.0,427.3"/>
-  <path id="r-1124811077" data-name="" data-cls="path" data-ref="" d="M809.2,409.9L808.7,406.6"/>
-  <path id="r-1124811097" data-name="" data-cls="path" data-ref="" d="M819.7,407.5L820.0,404.8"/>
-  <path id="r-1126116444" data-name="" data-cls="path" data-ref="" d="M777.0,450.7L776.8,450.7"/>
-  <path id="r-1129009445" data-name="" data-cls="path" data-ref="" d="M674.9,419.0L674.0,424.6L673.0,427.5L672.2,429.9"/>
-  <path id="r-1129009446" data-name="" data-cls="path" data-ref="" d="M681.5,426.9L674.0,432.4"/>
-  <path id="r-1135559334" data-name="" data-cls="path" data-ref="" d="M826.2,406.7L824.3,407.9L824.3,408.4"/>
 </g>
 <g id="roads-cycleway" stroke="#d8e6c0" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 3">
-  <path id="r-4596653" data-name="" data-cls="cycleway" data-ref="" d="M158.2,406.3L173.3,403.1L189.3,400.2L198.4,401.4"/>
-  <path id="r-4687770" data-name="" data-cls="cycleway" data-ref="" d="M226.5,376.6L225.0,375.8L223.1,376.3L215.9,378.6L214.8,375.6"/>
   <path id="r-4687771" data-name="" data-cls="cycleway" data-ref="" d="M214.8,375.6L218.5,373.5L221.7,371.8L232.8,364.4L256.3,349.9L256.8,349.5L279.2,334.5L280.7,333.5L304.0,316.8L316.2,308.3L317.3,307.4L320.2,303.8L323.0,298.8L323.7,294.0L323.3,289.4L322.2,285.8L322.9,282.0L325.0,277.3L329.1,270.8L330.7,268.4L332.7,266.1L337.9,261.7L344.7,256.5L356.6,250.2L371.6,243.0L384.1,237.8L392.9,234.6L401.4,232.8L417.3,233.1L426.0,235.2L427.4,235.6L438.0,241.0L447.9,244.2L451.7,244.9L460.1,246.2L486.7,246.1L510.6,244.9L525.0,242.7L537.6,238.3L549.8,231.6L555.5,227.7L557.4,226.5L559.5,225.0L565.8,221.6L572.7,219.9L579.3,219.3L586.5,219.9L594.4,222.8L604.7,228.0L615.1,237.4L626.0,249.1L630.6,253.6L635.7,256.8L639.7,258.0L645.1,258.4L648.9,257.8L652.8,257.7L655.0,258.0L658.4,260.0L661.2,262.4L665.6,265.1L669.6,266.8L681.4,270.1L688.5,271.2L698.9,272.7L714.4,275.0L724.6,275.9L753.7,278.8L763.2,279.1L782.0,279.7L800.4,277.3L808.1,275.0L814.8,272.8L825.2,269.4L831.4,270.1L839.8,274.0L855.3,290.4L859.7,295.2L864.5,300.3L867.6,302.7L870.8,305.2L875.6,307.7L879.9,309.3L885.0,310.7L888.7,311.2"/>
-  <path id="r-4687772" data-name="" data-cls="cycleway" data-ref="" d="M888.7,311.2L887.9,313.1L887.1,316.9L886.6,335.0L886.6,336.4"/>
-  <path id="r-9509872" data-name="" data-cls="cycleway" data-ref="" d="M1519.5,135.6L1518.8,139.3L1517.4,145.9L1509.7,156.1L1507.9,158.5"/>
   <path id="r-27990164" data-name="" data-cls="cycleway" data-ref="" d="M-51.2,1073.5L-50.5,1072.0L-48.1,1071.0L-33.4,1067.5L-24.9,1064.7L-0.8,1054.6L26.9,1043.2L34.6,1039.7L42.5,1035.0L48.0,1031.2L58.0,1023.9L64.9,1018.8L72.3,1013.0L86.8,1002.2L106.2,987.8L113.9,981.9L119.8,977.6L137.1,964.6L153.4,952.4L170.4,940.1L183.7,929.9L198.0,919.5L212.8,908.0L217.9,904.6L226.2,899.8L237.1,895.1L242.3,893.4L254.0,889.5L270.1,887.1L287.9,886.2L307.6,885.4L310.5,885.2L336.9,883.6L351.9,883.0L360.5,882.2L369.5,880.6L379.4,878.1L393.3,873.1L402.1,868.2L410.4,862.4L420.9,853.4L422.5,853.6"/>
-  <path id="r-30195359" data-name="" data-cls="cycleway" data-ref="" d="M322.1,309.4L321.1,307.4L320.7,306.7L321.7,306.0L322.6,304.5L321.8,304.3L321.1,305.6L320.1,306.6L319.5,307.6L318.1,308.4L317.3,307.4"/>
   <path id="r-60686971" data-name="" data-cls="cycleway" data-ref="" d="M1498.8,158.3L1497.1,157.9L1481.7,163.2L1473.6,165.4L1465.1,167.4L1454.6,169.4L1453.2,169.7L1443.8,169.9L1434.3,169.1L1433.4,169.0L1429.9,168.6L1414.2,165.9L1413.2,165.7L1411.4,165.3L1394.0,160.4L1389.9,159.2L1387.7,158.6L1373.5,152.6L1361.2,142.6L1355.7,139.0L1355.4,138.8L1350.6,134.3L1326.0,124.7L1313.3,120.5L1306.8,118.4L1299.2,117.0L1292.9,119.2L1288.8,121.8L1284.0,124.8L1274.6,132.2L1273.1,133.6L1268.7,137.8L1265.8,142.8L1264.6,149.2L1264.8,156.8L1267.0,168.5L1267.6,171.8L1271.0,185.8L1272.9,191.7L1273.1,192.5L1273.3,198.4L1269.2,207.4L1267.8,210.5L1261.9,218.1L1251.5,227.3L1244.9,230.9L1233.4,237.0L1225.1,241.0L1218.9,243.9L1203.9,249.0L1199.1,250.6L1184.0,255.3L1170.0,258.0L1171.1,262.2"/>
   <path id="r-72150666" data-name="" data-cls="cycleway" data-ref="" d="M279.4,1037.9L282.2,1037.7L287.8,1038.1L295.2,1039.2L311.4,1043.8L313.4,1044.6L314.8,1045.7L315.9,1048.3L316.2,1049.6L316.0,1051.3L314.4,1061.4L313.7,1071.5"/>
   <path id="r-85385698" data-name="" data-cls="cycleway" data-ref="" d="M1678.3,101.0L1665.4,93.9L1654.4,90.9L1641.4,90.2L1628.2,92.2L1617.7,97.3L1604.1,107.6L1590.9,120.5L1580.0,130.4L1577.5,131.3L1568.2,134.7L1553.7,135.9L1540.1,134.8L1528.9,133.9L1522.6,133.9L1519.5,135.6"/>
   <path id="r-113224985" data-name="" data-cls="cycleway" data-ref="" d="M316.0,1051.3L317.4,1051.6L318.7,1051.8L319.1,1050.6L320.1,1049.2L321.4,1048.2L323.5,1047.6L326.6,1048.3L337.4,1051.0L343.9,1051.8L348.5,1052.1L352.6,1052.1L357.1,1051.8L366.4,1050.9L368.7,1050.8L370.1,1050.9L373.9,1051.2L384.9,1054.2L388.7,1055.5L390.2,1056.2L391.9,1057.8L392.8,1059.7L393.2,1061.5L393.0,1064.2L392.4,1069.7L390.7,1082.9L388.9,1097.4L387.9,1105.3L386.8,1113.3L385.9,1119.2L385.6,1121.5L385.7,1123.7L386.5,1126.2L388.1,1128.8L389.6,1130.1L391.1,1131.1L392.2,1131.5L394.3,1131.9L412.5,1135.0L414.6,1136.2L415.8,1137.5L416.2,1139.5L415.8,1143.0L413.9,1153.6L410.3,1172.3L406.2,1193.6L403.8,1206.0L401.5,1217.7L400.4,1222.6L398.9,1228.0L397.1,1234.2L394.5,1237.8L390.9,1244.4L386.8,1250.9L380.6,1259.7L377.9,1263.1L362.5,1281.4L357.8,1287.0L350.6,1295.6L343.4,1304.2L336.8,1312.2L325.8,1323.9L318.2,1332.0L312.4,1338.3L309.5,1341.4L302.6,1348.5L297.2,1354.3L291.9,1359.7L286.2,1364.6L281.3,1368.5L271.2,1376.4L260.8,1384.5L256.3,1388.5L252.0,1392.6L249.2,1395.5L242.0,1401.8L236.7,1405.8L235.2,1407.1L234.5,1408.3L234.0,1409.8L234.3,1411.9L235.5,1413.6L237.0,1415.4L237.4,1416.6L237.9,1418.2L237.4,1420.0L236.2,1422.9L234.5,1426.4L232.3,1433.0L230.6,1439.0L228.9,1445.2L227.6,1451.4L226.4,1458.1L223.0,1471.3L222.5,1473.7L221.7,1476.8L221.0,1477.7L219.6,1478.5L218.0,1478.7L216.2,1478.1L214.5,1479.8L210.1,1482.2L207.8,1483.3"/>
   <path id="northern-sea-wall" data-name="Northern Sea Wall" data-cls="cycleway" data-ref="" d="M-68.1,394.7L-61.5,398.5L-52.8,404.0L-50.1,404.6L-44.7,405.3L-22.0,407.9L-9.4,409.1L3.8,409.8L27.9,409.3L61.9,407.4L85.5,406.0L89.9,405.8L105.2,404.9L140.6,401.3L144.3,401.2"/>
-  <path id="r-168550404" data-name="" data-cls="cycleway" data-ref="" d="M1481.7,163.2L1482.0,165.7L1482.0,167.8L1481.5,169.8"/>
   <path id="r-178155123" data-name="" data-cls="cycleway" data-ref="" d="M422.9,857.3L420.8,861.5L411.9,868.9L401.3,876.2L392.5,880.4L384.5,883.7L375.1,886.5L363.5,888.5L355.3,889.4L330.5,890.9L309.9,892.3L298.0,893.1L268.4,895.1L258.8,896.3L249.6,898.0L242.6,900.4L232.0,904.4L224.8,908.0L216.3,913.5L199.8,926.5L194.2,930.8L178.8,942.3L149.0,965.5L120.0,987.0L75.4,1020.2L69.3,1024.8L56.5,1034.0L44.9,1042.1L34.7,1047.8L28.6,1050.8L-6.8,1065.8L-27.8,1074.1L-34.5,1075.7L-48.1,1078.9"/>
   <path id="westbrook-promenade" data-name="Westbrook Promenade" data-cls="cycleway" data-ref="" d="M1832.8,146.4L1819.3,145.7L1803.6,144.9L1799.5,144.7L1798.4,144.5L1771.7,139.6L1766.2,138.6L1755.9,135.4L1739.6,130.8L1716.9,121.9L1712.3,119.5L1695.1,110.1L1678.3,101.0"/>
-  <path id="r-1089858502" data-name="" data-cls="cycleway" data-ref="" d="M1552.3,143.7L1551.5,141.2L1558.6,139.1L1567.8,137.4L1574.8,135.3L1577.5,131.3"/>
-  <path id="northern-sea-wall" data-name="Northern Sea Wall" data-cls="cycleway" data-ref="" d="M144.3,401.2L146.2,401.2L155.1,406.2L158.2,406.3"/>
 </g>
 <!-- ── Standardised POI markers ─────────────────────────────────
      Pattern: small painted icon centred above the place name. All
@@ -2082,22 +1486,117 @@
         stroke="#3a3a3a" stroke-width="3.5">Wyx Park</text>
 </g>
 
-<!-- Westbeach Golf Club — coastal links. Icon: flag in hole. -->
-<g class="poi-marker poi-major" transform="translate(1122,352)">
+<!-- Westbeach Golf Club — coastal links on the FAR EAST coast (was
+     mid-map; moved to match the real Westgate & Birchington Golf
+     Club position). Icon: flag in hole. -->
+<g class="poi-marker poi-major" transform="translate(1630,350)">
   <g class="poi-icon" transform="translate(0,-44)">
-    <!-- Green (lighter putting surface) -->
     <ellipse cx="0" cy="10" rx="26" ry="8" fill="#7ec25a" stroke="#3a5e2e" stroke-width="1.4"/>
-    <!-- Hole (dark circle on the green) -->
     <ellipse cx="-3" cy="10" rx="5" ry="2.5" fill="#1a1a1a"/>
-    <!-- Flagpole -->
     <line x1="-3" y1="10" x2="-3" y2="-26" stroke="#3a3a3a" stroke-width="2.4" stroke-linecap="round"/>
-    <!-- Red triangular flag -->
     <path d="M-3,-26 L17,-21 L-3,-16 Z" fill="#d63838" stroke="#7a1f1f" stroke-width="1.2" stroke-linejoin="round"/>
   </g>
   <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke"
         stroke="#3a3a3a" stroke-width="3.5">Westbeach Golf Club</text>
 </g>
+
+<!-- Birchington-on-Sea station — the real Birchington-on-Sea railway
+     station sits in the middle of town. Icon: front of a stylised
+     train carriage with a yellow cab. -->
+<g class="poi-marker poi-major" transform="translate(770,470)">
+  <g class="poi-icon" transform="translate(0,-44)">
+    <!-- Rails: two parallel grey lines under the train -->
+    <line x1="-30" y1="18" x2="30" y2="18" stroke="#7a7a7a" stroke-width="1.6"/>
+    <line x1="-30" y1="22" x2="30" y2="22" stroke="#7a7a7a" stroke-width="1.6"/>
+    <!-- Train body: red carriage with yellow cab front -->
+    <rect x="-22" y="-12" width="44" height="28" rx="4" fill="#c83838" stroke="#7a1f1f" stroke-width="1.4"/>
+    <!-- Yellow safety nose -->
+    <path d="M-22,-12 L-30,4 L-30,12 L-22,16 Z" fill="#f4c84a" stroke="#7a5c1f" stroke-width="1.2"/>
+    <!-- Windscreen -->
+    <rect x="-26" y="-6" width="10" height="8" rx="1" fill="#a0cfff" stroke="#3a3a3a" stroke-width="0.8"/>
+    <!-- Passenger windows -->
+    <g fill="#a0cfff" stroke="#3a3a3a" stroke-width="0.6">
+      <rect x="-12" y="-4" width="9" height="8" rx="1"/>
+      <rect x="0"   y="-4" width="9" height="8" rx="1"/>
+      <rect x="12"  y="-4" width="9" height="8" rx="1"/>
+    </g>
+    <!-- Wheels -->
+    <g fill="#222" stroke="#000" stroke-width="0.4">
+      <circle cx="-14" cy="18" r="3.5"/>
+      <circle cx="14"  cy="18" r="3.5"/>
+    </g>
+  </g>
+  <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+        fill="#fef9ef" text-anchor="middle" paint-order="stroke"
+        stroke="#3a3a3a" stroke-width="3.5">Birchie Station</text>
+</g>
+
+<!-- Jolly Jim's — soft-play barn for kids (alliterative J-J echo
+     of the real Jungle Jims Ltd south-east of Birchington town).
+     Icon: bouncy castle / bright dome with stars. -->
+<g class="poi-marker poi-major" transform="translate(1200,615)">
+  <g class="poi-icon" transform="translate(0,-44)">
+    <!-- Ground baseline (light shadow) -->
+    <ellipse cx="0" cy="18" rx="28" ry="3" fill="#3a3a3a" opacity="0.25"/>
+    <!-- Bouncy castle dome — red-yellow-blue stripes -->
+    <path d="M-26,16 Q -28,-22 0,-24 Q 28,-22 26,16 Z" fill="#fef9ef" stroke="#3a3a3a" stroke-width="1.4"/>
+    <path d="M-19,15 Q -20,-20 -10,-23" fill="none" stroke="#d63838" stroke-width="4"/>
+    <path d="M-2,15 Q -2,-24 2,-24"  fill="none" stroke="#f4c84a" stroke-width="4"/>
+    <path d="M14,15 Q 16,-22 22,-19" fill="none" stroke="#3a73c2" stroke-width="4"/>
+    <!-- Star on top -->
+    <path d="M0,-30 L2,-25 L7,-25 L3,-22 L5,-17 L0,-20 L-5,-17 L-3,-22 L-7,-25 L-2,-25 Z" fill="#f4c84a" stroke="#7a5c1f" stroke-width="0.8"/>
+    <!-- Entry archway -->
+    <rect x="-5" y="6" width="10" height="11" rx="5" fill="#7b5c3a" stroke="#3a2613" stroke-width="0.8"/>
+  </g>
+  <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+        fill="#fef9ef" text-anchor="middle" paint-order="stroke"
+        stroke="#3a3a3a" stroke-width="3.5">Jolly Jim's</text>
+</g>
+
+<!-- Wyx Farm Shop — farm-shop / café at the southern edge of Wyx
+     Park (matches the real Quex Barn). Icon: pitched-roof barn with
+     a red door and a wooden shop sign. -->
+<g class="poi-marker poi-major" transform="translate(1060,900)">
+  <g class="poi-icon" transform="translate(0,-44)">
+    <!-- Barn body (warm cream weatherboard) -->
+    <rect x="-22" y="-4" width="44" height="20" fill="#f4e3b4" stroke="#7b5c3a" stroke-width="1.4"/>
+    <!-- Vertical plank lines for weatherboard texture -->
+    <g stroke="#c9a464" stroke-width="0.5" opacity="0.7">
+      <line x1="-14" y1="-4" x2="-14" y2="16"/>
+      <line x1="-6"  y1="-4" x2="-6"  y2="16"/>
+      <line x1="2"   y1="-4" x2="2"   y2="16"/>
+      <line x1="10"  y1="-4" x2="10"  y2="16"/>
+    </g>
+    <!-- Pitched roof (dark red corrugated) -->
+    <path d="M-26,-4 L0,-22 L26,-4 Z" fill="#a14a32" stroke="#5e2a1c" stroke-width="1.4" stroke-linejoin="round"/>
+    <!-- Red barn door -->
+    <rect x="-6" y="4" width="12" height="12" fill="#c83838" stroke="#7a1f1f" stroke-width="0.8"/>
+    <!-- Crossed X on the door -->
+    <line x1="-6" y1="4"  x2="6" y2="16" stroke="#fef9ef" stroke-width="0.8"/>
+    <line x1="6"  y1="4"  x2="-6" y2="16" stroke="#fef9ef" stroke-width="0.8"/>
+    <!-- Hanging shop sign -->
+    <rect x="14" y="-2" width="10" height="6" rx="0.5" fill="#7b5c3a" stroke="#3a2613" stroke-width="0.6"/>
+    <line x1="14" y1="0" x2="22" y2="0" stroke="#fef9ef" stroke-width="0.4"/>
+  </g>
+  <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+        fill="#fef9ef" text-anchor="middle" paint-order="stroke"
+        stroke="#3a3a3a" stroke-width="3.5">Wyx Farm Shop</text>
+</g>
+
+<!-- Named bay labels along the coast. The OSM-derived coast already
+     has the natural scoops; the labels just name them so players can
+     orient. Smaller font (16px) so they read as 'feature' rather than
+     'destination'. -->
+<text x="380" y="200" font-family="Fredoka, sans-serif" font-size="16" font-weight="600"
+      fill="#3a3a3a" text-anchor="middle" paint-order="stroke"
+      stroke="#cfe5ea" stroke-width="3" font-style="italic">Grenham Bay</text>
+<text x="1150" y="160" font-family="Fredoka, sans-serif" font-size="16" font-weight="600"
+      fill="#3a3a3a" text-anchor="middle" paint-order="stroke"
+      stroke="#cfe5ea" stroke-width="3" font-style="italic">Epple Bay</text>
+<text x="60" y="270" font-family="Fredoka, sans-serif" font-size="16" font-weight="600"
+      fill="#3a3a3a" text-anchor="middle" paint-order="stroke"
+      stroke="#cfe5ea" stroke-width="3" font-style="italic">Minnis Bay</text>
 <g id="petrol-stations">
   <g class="fuel-marker" transform="translate(560,720)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Fuel Station</text></g>
   <g class="fuel-marker" transform="translate(594,678)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Fuel Station</text></g>
