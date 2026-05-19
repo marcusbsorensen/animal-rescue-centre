@@ -139,35 +139,12 @@ export function renderHUD(
   orbHit.on('pointerdown', () => callbacks.onLevelOrbTap());
   uiContainer.add(orbHit);
 
-  // ── Red alert: animals waiting in the lobby ──────────────
-  if (arrivingCount > 0) {
-    drawAlertBadge(scene, uiContainer, {
-      cx: leftX + leftOrbW + 14,
-      cy: orbY,
-      radius: 13,
-      fillColour: 0xe74c3c,
-      count: arrivingCount,
-      pulseScale: 1.18,
-      pulseDuration: 550,
-      onTap: callbacks.onArrivalAlertTap,
-    });
-  }
-
-  // ── Amber badge: animals in rooms that need attention ────
-  // Shown right of the red alert (or where it would be if none). Lets
-  // kids spot "someone needs me" without popping into every room.
-  if (needsCareCount > 0) {
-    drawAlertBadge(scene, uiContainer, {
-      cx: leftX + leftOrbW + 14 + (arrivingCount > 0 ? 32 : 0),
-      cy: orbY,
-      radius: 13,
-      fillColour: 0xe3b04b,
-      count: needsCareCount,
-      pulseScale: 1.14,
-      pulseDuration: 700,
-      onTap: callbacks.onCareAlertTap,
-    });
-  }
+  // PROTOTYPE: the red "X arrivals waiting" and amber "needs care"
+  // badges used to live here. They've moved into LeftRailView so all
+  // pet-status / pet-action UI is in one column. The top strip is now
+  // just brand-orbs (level, coins, shelter, audio) + the time/weather
+  // pill below.
+  void arrivingCount; void needsCareCount;
 
   // ── RIGHT SIDE: stack orbs from right edge leftward ─────
   let rx = rightEdge;

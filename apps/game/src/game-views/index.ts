@@ -25,6 +25,8 @@ export { renderCorridor } from './CorridorView';
 export type { CorridorCallbacks } from './CorridorView';
 export { renderRoom } from './RoomView';
 export type { RoomCallbacks, RoomRenderContext } from './RoomView';
+export { renderLeftRail, getRailBounds, RAIL_WIDTH, RAIL_DRAWER_BREAKPOINT } from './LeftRailView';
+export type { LeftRailCallbacks } from './LeftRailView';
 export { renderApprenticeDecorations } from './ApprenticeDecorations';
 export type {
   ApprenticeDecorationOptions,
