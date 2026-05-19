@@ -76,6 +76,7 @@ import {
   renderWardrobePicker,
   renderToyPicker,
   renderHUD,
+  renderLeftRail,
   renderNavBar,
   renderGamesPopup,
   showQuickToast,
@@ -114,6 +115,9 @@ export class GameScene extends Phaser.Scene {
   private gameContainer!: Phaser.GameObjects.Container;
   private navContainer!: Phaser.GameObjects.Container;
   private uiContainer!: Phaser.GameObjects.Container;
+  /** Left-side (or bottom-drawer) "pet management" rail — counts,
+   *  arrivals, Welcome buttons. See LeftRailView. */
+  private railContainer!: Phaser.GameObjects.Container;
   // Persistent layer for cross-fading sprites during state transitions.
   // NOT cleared by gameContainer.removeAll() so ghost sprites can outlive
   // a re-render while fading out.
@@ -179,6 +183,10 @@ export class GameScene extends Phaser.Scene {
     this.transitionLayer = this.add.container(0, 0).setDepth(500);
     this.navContainer = this.add.container(0, 0);  // fixed above scrollable content
     this.uiContainer = this.add.container(0, 0);
+    // Rail sits ABOVE the scrollable game container but BELOW transitions
+    // and HUD orbs, so floating overlays still land on top. Anchored at
+    // depth 50.
+    this.railContainer = this.add.container(0, 0).setDepth(50);
 
     // ── Scroll support (drag + mouse wheel) ──
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -293,6 +301,7 @@ export class GameScene extends Phaser.Scene {
 
     this.renderView();
     this.renderHUD();
+    this.renderRail();
 
     // Re-ensure the essential tier in case the player tapped the
     // LoadingScene's "Play now" escape hatch with essentials still
@@ -361,6 +370,7 @@ export class GameScene extends Phaser.Scene {
     this.saveState();
     if (this.viewMode === 'corridor') this.renderView();
     this.renderHUD();
+    this.renderRail();
 
     // Celebrate the new arrival with the painted modal. Fires the arrival
     // overlay over the running scene — the player picks a welcome gesture
@@ -486,6 +496,45 @@ export class GameScene extends Phaser.Scene {
       case 'kitchen': this.renderKitchen(); break;
       case 'garden': this.renderGarden(); break;
     }
+    // Rail is shown on every view (it's the always-on "pet management"
+    // dock). Re-render after the view so its container can read the
+    // latest store state.
+    this.renderRail();
+  }
+
+  /** Left rail (or bottom drawer on iPhone) — counts + arrivals +
+   *  Welcome buttons + future per-pet status cards. Re-rendered on
+   *  every renderView() pass so the arrivals list stays in sync. */
+  private renderRail(): void {
+    renderLeftRail(this, this.store, this.railContainer, {
+      onWelcomeOne: (animal) => {
+        animal.state = 'sheltered';
+        this.store.totalRescued += 1;
+        this.checkLevelProgression();
+        AudioManager.getInstance().playSfx('animal_arrive');
+        this.saveState();
+        this.renderView();
+      },
+      onWelcomeAll: (arriving) => {
+        arriving.forEach((a) => { a.state = 'sheltered'; });
+        this.store.totalRescued += arriving.length;
+        this.checkLevelProgression();
+        AudioManager.getInstance().playSfx('animal_arrive');
+        this.saveState();
+        this.renderView();
+      },
+      onCareAlertTap: () => {
+        this.viewMode = 'corridor';
+        this.renderView();
+      },
+      onShowAnimalDetails: (animal) => {
+        // Fire the existing detail popup centred on screen since we
+        // don't have a sprite anchor in the rail.
+        this.showAnimalDetails(animal, {
+          x: this.scale.width / 2, y: this.scale.height / 2, size: 100,
+        });
+      },
+    });
   }
 
   /** Thin wrapper — delegates to HUDView.renderHUD. */

@@ -2,12 +2,10 @@ import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS } from '@arc/game-logic';
 import {
-  createButton,
   createPillTitle,
   createAmbientParticles,
 } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
-import { createSpeechBubble } from '../ui/SpeechBubble';
 import { RoomAnchors } from '../lib/RoomAnchors';
 import { FONTS, TEXT_RESOLUTION, pluralSpecies } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
@@ -269,13 +267,12 @@ export function renderCorridor(
   const floorY = Math.max(height * 0.68, navDockTopEst);
 
   if (arriving.length > 0) {
-    // Banner pill between doors and floor
-    const bannerY = Math.min(height * 0.62, floorY - 80);
-    container.add(
-      createPillTitle(scene, width / 2, bannerY,
-        `${arriving.length} new arrival${arriving.length > 1 ? 's' : ''}!`,
-        { bgColour: 0xE67E22, fontSize: '17px', icon: 'icon-inbox' }),
-    );
+    // PROTOTYPE: the arrival pill banner, the speech-bubble Welcome
+    // buttons, and the "Welcome them all" CTA have all moved into
+    // LeftRailView. The corridor canvas now ONLY shows the painted
+    // sprites + their floor shadows so the scenery never gets covered
+    // by interactive UI. The rail (rendered separately by GameScene)
+    // is the single place to act on arrivals.
 
     const floorGfx = scene.add.graphics();
     floorGfx.fillStyle(0x000000, 0.08);
@@ -358,44 +355,14 @@ export function renderCorridor(
         ease: 'Sine.easeInOut', delay: i * 200,
       });
 
-      // Speech bubble sits above the sprite, following its actual height
-      const bubbleAnchorY = spriteCy - drawH / 2 - 4;
-      const speciesLabel = animal.variant
-        ? `${animal.variant} ${animal.species}`
-        : animal.species;
-      const title = `${animal.name} the ${speciesLabel}`;
-      const bubbleW = Math.min(260, slotW - 20);
-      const bubble = createSpeechBubble(scene, ax, bubbleAnchorY, {
-        title,
-        body: animal.arrivalStory,
-        actionLabel: 'Welcome',
-        // Green: welcoming is positive & safe. Red used to read as
-        // "delete" / warning and scared kids off tapping it.
-        actionBgHex: '#3D8A2E',
-        actionIcon: 'icon-accept',
-        accentColour: SPECIES_COLOURS[animal.species],
-        maxWidth: bubbleW,
-        onAction: () => {
-          if (processing.isProcessing()) return;
-          processing.setProcessing(true);
-          callbacks.onWelcomeOne(animal);
-          processing.setProcessing(false);
-        },
-      });
-      container.add(bubble);
+      // PROTOTYPE: the per-sprite Welcome speech-bubble used to live
+      // here. Moved into LeftRailView so it can't overlap painted
+      // scenery or other sprites. The sprite is still interactive via
+      // onShowAnimalDetails — players can tap it to see who the
+      // arrival is, but the action button lives in the rail.
     });
 
-    // "Welcome them all" shortcut if more than one
-    if (arriving.length > 1) {
-      container.add(
-        createButton(scene, width / 2, bannerY - 34, 'Welcome them all', () => {
-          if (processing.isProcessing()) return;
-          processing.setProcessing(true);
-          callbacks.onWelcomeAll(arriving);
-          processing.setProcessing(false);
-        }, { width: 240, fontSize: '14px', icon: 'icon-accept', bgColour: '#3D8A2E' }),
-      );
-    }
+    // PROTOTYPE: "Welcome them all" button moved to the rail too.
   }
 
   // Apprentice decorations — recruited apprentices make cameo
