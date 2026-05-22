@@ -1037,10 +1037,26 @@
     document.querySelectorAll('img.stamp-tree[data-tree-species]').forEach((img) => {
       img.src = treeSrc(img.dataset.treeSpecies, season);
     });
+    // Drive the world-map SVG's seasonal look. The SVG carries a
+    // <style> block keyed on [data-season]; setting the attribute
+    // cross-fades the land/sea fills + toggles the decoration and
+    // winter-only layers. The <object>'s document may not be ready
+    // on first call, so retry on its load event too.
+    applySeasonToWorldSvg(season);
     // Update season-strip active state
     document.querySelectorAll('.season-strip button').forEach((b) => {
       b.classList.toggle('active', b.dataset.season === season);
     });
+  }
+
+  // Remember the last season so the SVG's own load event can re-apply
+  // it once its document is parsed.
+  let _lastSeason = null;
+  function applySeasonToWorldSvg(season) {
+    _lastSeason = season;
+    const obj = document.getElementById('osm-svg');
+    const svg = obj && obj.contentDocument && obj.contentDocument.querySelector('svg');
+    if (svg) svg.setAttribute('data-season', season);
   }
 
   // Initial season: URL param > inferred from real-world month
@@ -1132,9 +1148,19 @@
   }
 
   document.getElementById('osm-svg').addEventListener('load', placePins);
+  // Re-apply the season once the SVG's own document is parsed — on the
+  // first applySeason() call the <object> may not have a contentDocument
+  // yet, so the data-season attribute wouldn't have stuck.
+  document.getElementById('osm-svg').addEventListener('load', () => {
+    if (_lastSeason) applySeasonToWorldSvg(_lastSeason);
+  });
   window.addEventListener('resize', placePins);
   setTimeout(placePins, 200);
   setTimeout(placePins, 600);
+  // Belt-and-braces: also retry the season a couple of times in case
+  // the load event already fired before the listener was attached.
+  setTimeout(() => { if (_lastSeason) applySeasonToWorldSvg(_lastSeason); }, 300);
+  setTimeout(() => { if (_lastSeason) applySeasonToWorldSvg(_lastSeason); }, 800);
 
   // Garden-tunnel mouth — tap to open the tunnel mini-game.
   // The host (GameScene) watches for { source: 'arc-map', type: 'open-tunnel' }

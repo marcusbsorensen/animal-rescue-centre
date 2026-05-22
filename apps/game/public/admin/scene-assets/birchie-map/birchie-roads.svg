@@ -1813,10 +1813,191 @@
      and walks west to ≈340 (translateX(-420)).
      Tractor 2 starts at the west edge of the eastern field (x≈1190)
      and walks east to ≈1520 (translateX(+330)). -->
-<g class="tractor-west">
-  <image href="tractor-classic.png" x="760" y="920" width="80" height="44"/>
+<!-- Tractors wrapped in .tractor-wrap so the seasonal cross-fade
+     (opacity) doesn't fight the inner driving animation, whose
+     keyframes already animate opacity at the field edges. -->
+<g class="tractor-wrap">
+  <g class="tractor-west">
+    <image href="tractor-classic.png" x="760" y="920" width="80" height="44"/>
+  </g>
 </g>
-<g class="tractor-east">
-  <image class="face-west" href="tractor-with-trailer.png" x="1190" y="900" width="100" height="42"/>
+<g class="tractor-wrap">
+  <g class="tractor-east">
+    <image class="face-west" href="tractor-with-trailer.png" x="1190" y="900" width="100" height="42"/>
+  </g>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SEASONAL LAYER — the world map changes with the in-game season.
+     map.html sets data-season="spring|summer|autumn|winter" on the
+     <svg> root; the CSS below cross-fades fills + toggles the
+     decoration / winter-only layers. See
+     docs/map-seasonal-changes-2026-05-19.md
+     ════════════════════════════════════════════════════════════════ -->
+<style>
+  /* Cross-fade timing — fills and opacities ease over ~1.1s. */
+  #sea-bg, #land,
+  #farmland path, #green-areas path, #woodland path {
+    transition: fill 1.1s ease;
+  }
+  .season-layer, .tractor-wrap, .ship-anim-2, #beach-huts {
+    transition: opacity 1.1s ease;
+  }
+
+  /* ── Retinting per season ──────────────────────────────────── */
+  /* SPRING — fresh + bright */
+  svg[data-season="spring"] #sea-bg          { fill: #aedae6; }
+  svg[data-season="spring"] #land            { fill: #e2cf95; }
+  svg[data-season="spring"] #farmland path   { fill: #cfe0a0; }
+  svg[data-season="spring"] #green-areas path{ fill: #9ccf86; }
+  svg[data-season="spring"] #woodland path   { fill: #7bbf6a; }
+  /* SUMMER — lush + warm (close to the base fills) */
+  svg[data-season="summer"] #sea-bg          { fill: #b6dbe0; }
+  svg[data-season="summer"] #land            { fill: #dec98a; }
+  svg[data-season="summer"] #farmland path   { fill: #e8d6a3; }
+  svg[data-season="summer"] #green-areas path{ fill: #a8c890; }
+  svg[data-season="summer"] #woodland path   { fill: #7ea366; }
+  /* AUTUMN — ochre + rust */
+  svg[data-season="autumn"] #sea-bg          { fill: #aecdd4; }
+  svg[data-season="autumn"] #land            { fill: #d8bf86; }
+  svg[data-season="autumn"] #farmland path   { fill: #dcc488; }
+  svg[data-season="autumn"] #green-areas path{ fill: #b9b072; }
+  svg[data-season="autumn"] #woodland path   { fill: #c07e3e; }
+  /* WINTER — desaturated + frosted */
+  svg[data-season="winter"] #sea-bg          { fill: #a9c0cc; }
+  svg[data-season="winter"] #land            { fill: #e4ddc8; }
+  svg[data-season="winter"] #farmland path   { fill: #dcd6c2; }
+  svg[data-season="winter"] #green-areas path{ fill: #bcc4b2; }
+  svg[data-season="winter"] #woodland path   { fill: #9a8f78; }
+
+  /* ── Decoration layers — shown only for their season ───────── */
+  .season-layer { opacity: 0; pointer-events: none; }
+  svg[data-season="spring"] #deco-blossom    { opacity: 1; }
+  svg[data-season="autumn"] #deco-leaves     { opacity: 1; }
+  svg[data-season="winter"] #deco-snow       { opacity: 1; }
+  svg[data-season="winter"] #winter-snowcaps { opacity: 1; }
+  svg[data-season="winter"] #winter-ice      { opacity: 1; }
+  svg[data-season="winter"] #winter-grotto   { opacity: 1; }
+  svg[data-season="winter"] #winter-snowmen  { opacity: 1; }
+
+  /* ── Vehicles + beach huts ─────────────────────────────────── */
+  /* Tractors don't work in winter; the cruise ferry doesn't sail;
+     beach huts come down for the season. Cargo ships run all year. */
+  svg[data-season="winter"] .tractor-wrap { opacity: 0; }
+  svg[data-season="winter"] .ship-anim-2  { opacity: 0; }
+  svg[data-season="winter"] #beach-huts   { opacity: 0; }
+
+  /* Drifting-decoration float animations */
+  @keyframes deco-fall {
+    0%   { transform: translateY(-20px); }
+    100% { transform: translateY(60px); }
+  }
+  .deco-bit { animation: deco-fall 9s linear infinite; }
+</style>
+
+<!-- ── Beach huts on the Minnis Bay sands (NW coast) ──
+     A row of six colourful painted huts. Hidden in winter. -->
+<g id="beach-huts">
+  <g transform="translate(298,316)"><rect x="-9" y="-2" width="18" height="14" fill="#d95b5b" stroke="#7a2e2e" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#7a2e2e" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+  <g transform="translate(326,318)"><rect x="-9" y="-2" width="18" height="14" fill="#4d97c4" stroke="#27506a" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#27506a" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+  <g transform="translate(354,321)"><rect x="-9" y="-2" width="18" height="14" fill="#e8b14a" stroke="#8a6420" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#8a6420" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+  <g transform="translate(382,324)"><rect x="-9" y="-2" width="18" height="14" fill="#5fae62" stroke="#2f6a32" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#2f6a32" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+  <g transform="translate(410,327)"><rect x="-9" y="-2" width="18" height="14" fill="#c971ac" stroke="#6f3257" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#6f3257" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+  <g transform="translate(438,330)"><rect x="-9" y="-2" width="18" height="14" fill="#d97f3d" stroke="#7a481c" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#7a481c" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+</g>
+
+<!-- ── Spring blossom drift ── -->
+<g id="deco-blossom" class="season-layer">
+  <circle class="deco-bit" cx="280" cy="500" r="4" fill="#f6c6d8" style="animation-delay:-1s"/>
+  <circle class="deco-bit" cx="640" cy="430" r="3.5" fill="#f8d3e0" style="animation-delay:-4s"/>
+  <circle class="deco-bit" cx="980" cy="560" r="4" fill="#f6c6d8" style="animation-delay:-2s"/>
+  <circle class="deco-bit" cx="1240" cy="470" r="3.5" fill="#f8d3e0" style="animation-delay:-6s"/>
+  <circle class="deco-bit" cx="500" cy="640" r="3" fill="#f6c6d8" style="animation-delay:-7s"/>
+  <circle class="deco-bit" cx="1450" cy="600" r="4" fill="#f8d3e0" style="animation-delay:-3s"/>
+  <circle class="deco-bit" cx="820" cy="700" r="3.5" fill="#f6c6d8" style="animation-delay:-5s"/>
+</g>
+
+<!-- ── Autumn leaf drift ── -->
+<g id="deco-leaves" class="season-layer">
+  <ellipse class="deco-bit" cx="300" cy="520" rx="5" ry="3" fill="#d9802f" style="animation-delay:-2s"/>
+  <ellipse class="deco-bit" cx="660" cy="440" rx="4.5" ry="3" fill="#c75a2a" style="animation-delay:-5s"/>
+  <ellipse class="deco-bit" cx="1000" cy="580" rx="5" ry="3" fill="#e6a93f" style="animation-delay:-1s"/>
+  <ellipse class="deco-bit" cx="1280" cy="480" rx="4.5" ry="3" fill="#d9802f" style="animation-delay:-7s"/>
+  <ellipse class="deco-bit" cx="520" cy="660" rx="4" ry="2.5" fill="#c75a2a" style="animation-delay:-3s"/>
+  <ellipse class="deco-bit" cx="1470" cy="620" rx="5" ry="3" fill="#e6a93f" style="animation-delay:-6s"/>
+  <ellipse class="deco-bit" cx="840" cy="720" rx="4.5" ry="3" fill="#d9802f" style="animation-delay:-4s"/>
+</g>
+
+<!-- ── Winter snow drift ── -->
+<g id="deco-snow" class="season-layer">
+  <circle class="deco-bit" cx="290" cy="500" r="3" fill="#ffffff" style="animation-delay:-1s"/>
+  <circle class="deco-bit" cx="650" cy="430" r="2.6" fill="#ffffff" style="animation-delay:-4s"/>
+  <circle class="deco-bit" cx="990" cy="560" r="3" fill="#ffffff" style="animation-delay:-2s"/>
+  <circle class="deco-bit" cx="1260" cy="470" r="2.6" fill="#ffffff" style="animation-delay:-6s"/>
+  <circle class="deco-bit" cx="510" cy="640" r="2.4" fill="#ffffff" style="animation-delay:-7s"/>
+  <circle class="deco-bit" cx="1460" cy="600" r="3" fill="#ffffff" style="animation-delay:-3s"/>
+  <circle class="deco-bit" cx="830" cy="700" r="2.8" fill="#ffffff" style="animation-delay:-5s"/>
+  <circle class="deco-bit" cx="1130" cy="650" r="2.6" fill="#ffffff" style="animation-delay:-8s"/>
+  <circle class="deco-bit" cx="380" cy="760" r="3" fill="#ffffff" style="animation-delay:-2.5s"/>
+</g>
+
+<!-- ── Winter: snow caps on the painted-roof landmarks ── -->
+<g id="winter-snowcaps" class="season-layer">
+  <!-- Glasshouse Acres (rotated complex ~840,1000) -->
+  <ellipse cx="840" cy="958" rx="78" ry="14" fill="#ffffff" opacity="0.85" transform="rotate(35 840 958)"/>
+  <!-- Birchie Station (~770,470) -->
+  <path d="M742,452 L770,438 L798,452 Z" fill="#ffffff" opacity="0.9"/>
+  <!-- Jolly Jim's (~1200,615) -->
+  <path d="M1178,598 L1200,584 L1222,598 Z" fill="#ffffff" opacity="0.9"/>
+  <!-- Wyx Farm Shop (~1060,900) -->
+  <path d="M1036,884 L1060,870 L1084,884 Z" fill="#ffffff" opacity="0.9"/>
+</g>
+
+<!-- ── Winter: ice over the SW farmland pond ── -->
+<g id="winter-ice" class="season-layer">
+  <ellipse cx="240" cy="880" rx="36" ry="20" fill="#dceaf0" opacity="0.92" stroke="#b6cfd9" stroke-width="1.5"/>
+  <line x1="218" y1="872" x2="256" y2="890" stroke="#ffffff" stroke-width="1.2" opacity="0.7"/>
+  <line x1="232" y1="866" x2="250" y2="896" stroke="#ffffff" stroke-width="1" opacity="0.6"/>
+</g>
+
+<!-- ── Winter: Santa's grotto at Wyx Park ── -->
+<g id="winter-grotto" class="season-layer" transform="translate(1040,690)">
+  <!-- Snowy ground patch -->
+  <ellipse cx="0" cy="20" rx="26" ry="7" fill="#ffffff" opacity="0.8"/>
+  <!-- Grotto hut body -->
+  <rect x="-16" y="-2" width="32" height="22" fill="#c0392b" stroke="#7a1f1f" stroke-width="1.4"/>
+  <!-- Snow-laden roof -->
+  <path d="M-20,-2 L0,-18 L20,-2 Z" fill="#3a5e2e" stroke="#24401d" stroke-width="1.4" stroke-linejoin="round"/>
+  <path d="M-20,-2 L0,-13 L20,-2 Z" fill="#ffffff" opacity="0.92"/>
+  <!-- Doorway -->
+  <rect x="-6" y="7" width="12" height="13" rx="5" fill="#3a2613"/>
+  <!-- Gold star on top -->
+  <path d="M0,-26 L2,-21 L7,-21 L3,-18 L5,-13 L0,-16 L-5,-13 L-3,-18 L-7,-21 L-2,-21 Z" fill="#f4c84a" stroke="#9a7c30" stroke-width="0.6"/>
+  <!-- Label -->
+  <text x="0" y="-30" font-family="Fredoka, sans-serif" font-size="13" font-weight="700"
+        fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a"
+        stroke-width="3">Santa's Grotto</text>
+</g>
+
+<!-- ── Winter: snowmen out in the fields ── -->
+<g id="winter-snowmen" class="season-layer">
+  <g transform="translate(560,1010)">
+    <ellipse cx="0" cy="14" rx="12" ry="3" fill="#3a3a3a" opacity="0.2"/>
+    <circle cx="0" cy="6" r="9" fill="#ffffff" stroke="#cdd9de" stroke-width="0.8"/>
+    <circle cx="0" cy="-6" r="6.5" fill="#ffffff" stroke="#cdd9de" stroke-width="0.8"/>
+    <circle cx="-2" cy="-7" r="0.9" fill="#3a3a3a"/><circle cx="2" cy="-7" r="0.9" fill="#3a3a3a"/>
+    <path d="M0,-5 L6,-4 Z" stroke="#e8862f" stroke-width="2" stroke-linecap="round"/>
+    <path d="M-13,-11 L13,-11 L13,-13 L-13,-13 Z" fill="#3a3a3a"/>
+    <rect x="-5" y="-19" width="10" height="7" fill="#3a3a3a"/>
+  </g>
+  <g transform="translate(1320,940)">
+    <ellipse cx="0" cy="14" rx="12" ry="3" fill="#3a3a3a" opacity="0.2"/>
+    <circle cx="0" cy="6" r="9" fill="#ffffff" stroke="#cdd9de" stroke-width="0.8"/>
+    <circle cx="0" cy="-6" r="6.5" fill="#ffffff" stroke="#cdd9de" stroke-width="0.8"/>
+    <circle cx="-2" cy="-7" r="0.9" fill="#3a3a3a"/><circle cx="2" cy="-7" r="0.9" fill="#3a3a3a"/>
+    <path d="M0,-5 L6,-4 Z" stroke="#e8862f" stroke-width="2" stroke-linecap="round"/>
+    <path d="M-13,-11 L13,-11 L13,-13 L-13,-13 Z" fill="#7a1f1f"/>
+    <rect x="-5" y="-19" width="10" height="7" fill="#7a1f1f"/>
+  </g>
 </g>
 </svg>
