@@ -1837,12 +1837,17 @@
 <style>
   /* Cross-fade timing — fills and opacities ease over ~1.1s. */
   #sea-bg, #land,
-  #farmland path, #green-areas path, #woodland path {
+  #farmland path, #green-areas path, #woodland path,
+  #destinations > path {
     transition: fill 1.1s ease;
   }
-  .season-layer, .tractor-wrap, .ship-anim-2, #beach-huts {
+  .season-layer, .tractor-wrap, .ship-anim-2, #beach-huts,
+  #farmland-tints {
     transition: opacity 1.1s ease;
   }
+  /* The crop-patchwork tints read as summery greens/pinks — dim them
+     right down under snow so winter farmland stays frost-pale. */
+  svg[data-season="winter"] #farmland-tints { opacity: 0.12; }
 
   /* ── Retinting per season ──────────────────────────────────── */
   /* SPRING — fresh + bright */
@@ -1869,6 +1874,14 @@
   svg[data-season="winter"] #farmland path   { fill: #dcd6c2; }
   svg[data-season="winter"] #green-areas path{ fill: #bcc4b2; }
   svg[data-season="winter"] #woodland path   { fill: #9a8f78; }
+
+  /* Destination polygons (Wyx Park + golf course) carry their own
+     fills in the #destinations group, so they need their own retint
+     rules or they'd stay summer-green year-round. */
+  svg[data-season="spring"] #destinations > path { fill: #9ccf86; }
+  svg[data-season="summer"] #destinations > path { fill: #7ea366; }
+  svg[data-season="autumn"] #destinations > path { fill: #b8973f; }
+  svg[data-season="winter"] #destinations > path { fill: #aebaa6; }
 
   /* ── Decoration layers — shown only for their season ───────── */
   .season-layer { opacity: 0; pointer-events: none; }
