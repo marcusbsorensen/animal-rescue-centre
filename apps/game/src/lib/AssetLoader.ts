@@ -37,6 +37,19 @@ interface ManifestEntry {
   tier: AssetTier;
 }
 
+// File extensions Phaser can load as a texture or sound. Anything else
+// in the manifest (JSON data files etc.) is filtered out before load.
+const LOADABLE_EXT = new Set([
+  'png', 'jpg', 'jpeg', 'webp', 'gif',   // images
+  'mp3', 'ogg', 'wav', 'webm',           // audio
+]);
+
+/** Lower-cased file extension of a path, or '' if none. */
+function extOf(filePath: string): string {
+  const dot = filePath.lastIndexOf('.');
+  return dot === -1 ? '' : filePath.slice(dot + 1).toLowerCase();
+}
+
 // Used to classify animal filenames: a 2-token name like `cat-sheltered`
 // is a species-level fallback; a 3-token name like `cat-ginger-sleeping`
 // is a per-variant sprite.
@@ -86,7 +99,15 @@ export class AssetLoader {
   async fetchManifest(): Promise<void> {
     try {
       const resp = await fetch('/asset-manifest.json');
-      this.manifest = await resp.json();
+      const raw: string[] = await resp.json();
+      // Keep only files Phaser can actually load as a texture or sound.
+      // The manifest also lists data files (sound-manifest.json,
+      // cockpit-slots-henry.json, l1-pack index.json, arc-l1-assets.json
+      // …) — without this filter parseEntry classified every non-audio
+      // file as an image, so Phaser tried to decode JSON as a PNG and
+      // logged "Failed to process file: image <key>" four times on
+      // every page load.
+      this.manifest = raw.filter((filePath) => LOADABLE_EXT.has(extOf(filePath)));
       this.parsedEntries = this.manifest.map((filePath) => this.parseEntry(filePath));
     } catch {
       console.warn('[AssetLoader] Could not load asset manifest — falling back to empty');

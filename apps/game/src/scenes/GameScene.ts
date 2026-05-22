@@ -311,6 +311,39 @@ export class GameScene extends Phaser.Scene {
     loader.clearCallbacks();  // no UI to notify now
     loader.startBackgroundLoad(this);
     loader.startVariantLoad(this);
+
+    // When a per-variant animal texture lands in the background, the
+    // sprite currently on screen may still be showing the generic
+    // species fallback (e.g. the first arrival of a fresh session,
+    // rendered before its breed PNG downloaded). Re-render the current
+    // view once the texture is in cache so the kid sees the right
+    // breed appear. Debounced — variant textures land in bursts.
+    this.load.on('filecomplete', this.onVariantTextureLanded, this);
+  }
+
+  /**
+   * Loader hook — fires for every file the background variant-load
+   * completes. If it's an animal texture, schedule a single debounced
+   * re-render so the on-screen sprite swaps from the species fallback
+   * to the freshly-arrived breed art.
+   */
+  private _variantRerenderQueued = false;
+  private onVariantTextureLanded(key: string): void {
+    // Animal texture keys look like `dog-beagle-arriving`,
+    // `cat-tabby-sleeping`, etc. Cheap prefix check against the
+    // species list to avoid re-rendering for UI / bg / audio files.
+    if (!isAnimalTextureKey(key)) return;
+    if (this._variantRerenderQueued) return;
+    this._variantRerenderQueued = true;
+    // Coalesce a burst of texture completions into one re-render.
+    this.time.delayedCall(400, () => {
+      this._variantRerenderQueued = false;
+      // Only the painted-scene views show animal sprites worth
+      // refreshing; overlays / minigames manage their own art.
+      if (this.viewMode === 'corridor' || this.viewMode === 'room') {
+        this.renderView();
+      }
+    });
   }
 
   // ── State Management ────────────────────────────────────────
@@ -2226,6 +2259,17 @@ export class GameScene extends Phaser.Scene {
   shutdown(): void {
     this.needsTimer?.destroy();
     this.spawnTimer?.destroy();
+    this.load.off('filecomplete', this.onVariantTextureLanded, this);
     this.saveState();
   }
+}
+
+// Texture keys for animal sprites are `<species>-<state>` (fallback) or
+// `<species>-<variant>-<state>` (per-breed). Used by the variant-load
+// re-render hook to ignore non-animal files (UI, bg, audio).
+const ANIMAL_SPECIES_PREFIXES = ['cat', 'dog', 'fox', 'bunny', 'parrot', 'bat', 'snake'];
+function isAnimalTextureKey(key: string): boolean {
+  return ANIMAL_SPECIES_PREFIXES.some(
+    (sp) => key === sp || key.startsWith(sp + '-'),
+  );
 }

@@ -43,6 +43,32 @@ export class SignupError extends Error {
 }
 
 /**
+ * Read the JSON body of a failed Edge Function call.
+ *
+ * When an Edge Function returns a non-2xx status, supabase-js sets
+ * `error` to a `FunctionsHttpError` whose `.message` is the generic
+ * "Edge Function returned a non-2xx status code" — NOT the `{ error }`
+ * payload our functions actually send. The real message ("Wrong PIN",
+ * "Too many attempts. Try again in 12 minutes.", "That name is taken")
+ * lives in the response body, reachable via the error's `.context`
+ * (the raw `Response`). Without this, the login/signup screens only
+ * ever saw the generic string and fell back to "Something went wrong".
+ */
+async function readFunctionErrorBody(
+  error: unknown,
+): Promise<{ error?: string; suggestions?: string[] } | null> {
+  const ctx = (error as { context?: Response } | null)?.context;
+  if (ctx && typeof ctx.json === 'function') {
+    try {
+      return await ctx.json();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
  * Sign up a new player via the Edge Function.
  */
 export async function signup(data: SignupData): Promise<AuthSession> {
@@ -50,7 +76,13 @@ export async function signup(data: SignupData): Promise<AuthSession> {
     body: data,
   });
 
-  if (error) throw new SignupError(error.message ?? 'Signup failed');
+  if (error) {
+    const body = await readFunctionErrorBody(error);
+    throw new SignupError(
+      body?.error ?? (error instanceof Error ? error.message : 'Signup failed'),
+      body?.suggestions,
+    );
+  }
   if (result.error) throw new SignupError(result.error, result.suggestions);
 
   const session: AuthSession = result.session;
@@ -67,7 +99,12 @@ export async function login(data: LoginData): Promise<AuthSession> {
     body: data,
   });
 
-  if (error) throw new Error(error.message ?? 'Login failed');
+  if (error) {
+    const body = await readFunctionErrorBody(error);
+    throw new Error(
+      body?.error ?? (error instanceof Error ? error.message : 'Login failed'),
+    );
+  }
   if (result.error) throw new Error(result.error);
 
   const session: AuthSession = result.session;

@@ -55,8 +55,28 @@ export class LoadingScene extends Phaser.Scene {
   private barY = 0;
   private lastProgressAt = 0;
 
+  // IntroScene pre-picks which species/variant arrives first and passes
+  // it through. LoadingScene is a pass-through stop on the way to
+  // GameScene — it must forward this data, or the first arrival comes
+  // out random instead of matching the one panel 4 of the intro teased.
+  private preSelectedSpecies?: string;
+  private preSelectedVariant?: string;
+
   constructor() {
     super({ key: 'LoadingScene' });
+  }
+
+  init(data?: { preSelectedSpecies?: string; preSelectedVariant?: string }): void {
+    this.preSelectedSpecies = data?.preSelectedSpecies;
+    this.preSelectedVariant = data?.preSelectedVariant;
+  }
+
+  /** Scene data forwarded to GameScene on every hand-off path. */
+  private gameSceneData(): { preSelectedSpecies?: string; preSelectedVariant?: string } {
+    return {
+      preSelectedSpecies: this.preSelectedSpecies,
+      preSelectedVariant: this.preSelectedVariant,
+    };
   }
 
   create(): void {
@@ -65,7 +85,7 @@ export class LoadingScene extends Phaser.Scene {
 
     // If already loaded, skip straight to game
     if (loader.isFullyLoaded) {
-      this.scene.start('GameScene');
+      this.scene.start('GameScene', this.gameSceneData());
       return;
     }
 
@@ -216,7 +236,7 @@ export class LoadingScene extends Phaser.Scene {
         this.escapeHatchTimer?.remove();
         this.cameras.main.fadeOut(300);
         this.time.delayedCall(320, () => {
-          this.scene.start('GameScene');
+          this.scene.start('GameScene', this.gameSceneData());
         });
       });
     });
@@ -334,7 +354,7 @@ export class LoadingScene extends Phaser.Scene {
       // pattern would intermittently leave the kid on a black screen.
       this.cameras.main.fadeOut(250);
       this.time.delayedCall(270, () => {
-        this.scene.start('GameScene');
+        this.scene.start('GameScene', this.gameSceneData());
       });
     });
     container.add(hit);
