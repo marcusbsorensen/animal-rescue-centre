@@ -50,7 +50,7 @@ export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
   {
     householdId: '01-pri-kaur',
     name: 'Priya "Pri" Kaur',
-    avatarSrc: '/admin/scene-assets/cast/01-pri-kaur.png',
+    avatarSrc: '/admin/scene-assets/cast/01-priya.png',
     blurb:
       "A quiet flat with a sunny laptop spot — Pri would love a calm cat or a small dog who's happy indoors.",
     speciesPreferences: ['cat', 'dog'],
@@ -59,7 +59,7 @@ export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
   {
     householdId: '03-nova-adebayo',
     name: 'Nova Adebayo',
-    avatarSrc: '/admin/scene-assets/cast/03-nova-adebayo.png',
+    avatarSrc: '/admin/scene-assets/cast/03-nova.png',
     blurb:
       'An attic art studio full of paint pots and music — Nova would love a playful cat for company.',
     speciesPreferences: ['cat'],
@@ -68,7 +68,7 @@ export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
   {
     householdId: '04-babcia-kowalska',
     name: 'Babcia Basia Kowalska',
-    avatarSrc: '/admin/scene-assets/cast/04-babcia-kowalska.png',
+    avatarSrc: '/admin/scene-assets/cast/04-babcia.png',
     blurb:
       'A cosy lap, a biscuit-crumbed pocket, and a cane by the door — Babcia would love a senior cat or tiny dog.',
     speciesPreferences: ['cat', 'dog'],
@@ -77,7 +77,7 @@ export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
   {
     householdId: '06-hiro-nakamura',
     name: 'Hiroshi "Hiro" Nakamura',
-    avatarSrc: '/admin/scene-assets/cast/06-hiro-nakamura.png',
+    avatarSrc: '/admin/scene-assets/cast/06-hiro.png',
     blurb:
       'A very quiet home with library books stacked by the chair — Hiro would love a sweet older cat for a gentle forever.',
     speciesPreferences: ['cat'],
@@ -86,7 +86,7 @@ export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
   {
     householdId: '07-anjali-sam-patel-green',
     name: 'Anjali & Sam Patel-Green',
-    avatarSrc: '/admin/scene-assets/cast/07-anjali-sam-patel-green.png',
+    avatarSrc: '/admin/scene-assets/cast/07-patel-greens.png',
     blurb:
       "A peaceful retirement home with two patient adults — they'd love a senior cat who needs a calm sunset chapter.",
     speciesPreferences: ['cat'],

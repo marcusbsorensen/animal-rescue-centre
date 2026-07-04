@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import type { Animal, Species } from '@arc/shared-types';
 import {
   L1_CURTAILED_HOUSEHOLD_DEFS,
@@ -46,9 +49,20 @@ describe('L1_CURTAILED_HOUSEHOLD_DEFS', () => {
     ]);
   });
 
-  it('points each avatar at /admin/scene-assets/cast/<id>.png', () => {
+  it('points each avatar at a portrait that exists on disk', () => {
+    // Regression guard: avatarSrc filenames do NOT follow the householdId
+    // (e.g. household '01-pri-kaur' → file '01-priya.png'). This asserts the
+    // path resolves to a real asset under apps/game/public rather than a
+    // guessed convention, so a bad path fails here instead of silently
+    // dropping to the painted-initials fallback in-game.
+    const publicRoot = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      '../../../../apps/game/public',
+    );
     for (const h of L1_CURTAILED_HOUSEHOLD_DEFS) {
-      expect(h.avatarSrc).toBe(`/admin/scene-assets/cast/${h.householdId}.png`);
+      expect(h.avatarSrc.startsWith('/admin/scene-assets/cast/')).toBe(true);
+      const onDisk = resolve(publicRoot, `.${h.avatarSrc}`);
+      expect(existsSync(onDisk), `${h.householdId}: missing ${h.avatarSrc}`).toBe(true);
     }
   });
 });
