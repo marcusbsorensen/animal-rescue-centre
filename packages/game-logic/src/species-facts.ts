@@ -60,6 +60,13 @@ export const SPECIES_FACTS: SpeciesFact[] = [
   { species: 'snake', fact: 'Snakes "smell" by flicking their tongue to catch tiny scent clues.', icon: '👅' },
   { species: 'snake', fact: 'A snake\'s jaw isn\'t really hinged — it stretches super stretchy.', icon: '🦴' },
   { species: 'snake', fact: 'Some snakes can go a whole year between big meals.', icon: '🍽️' },
+
+  // ── Hedgehogs ──
+  { species: 'hedgehog', fact: 'A hedgehog has around 5,000 spines — and can raise every one!', icon: '🦔' },
+  { species: 'hedgehog', fact: 'Hedgehogs roll into a tight ball to keep safe when scared.', icon: '⚽' },
+  { species: 'hedgehog', fact: 'They snooze all winter in a big sleep called hibernation.', icon: '😴' },
+  { species: 'hedgehog', fact: 'A group of hedgehogs is called an "array".', icon: '🔢' },
+  { species: 'hedgehog', fact: 'They gobble slugs and beetles — a gardener\'s best friend!', icon: '🐛' },
 ];
 
 /**

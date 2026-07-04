@@ -22,8 +22,8 @@ export interface ToyDef {
 export const TOY_DEFS: Record<string, ToyDef> = {
   'tennis-ball': { id: 'tennis-ball', label: 'Tennis ball', emoji: '🎾', species: ['dog', 'fox'], bondBonus: 1 },
   'feather':     { id: 'feather',     label: 'Feather',          emoji: '🪶', species: ['cat'], bondBonus: 1 },
-  'leaf-pile':   { id: 'leaf-pile',   label: 'Leaf pile',        emoji: '🍂', species: ['bunny', 'fox'], bondBonus: 1 },
-  'mealworm':    { id: 'mealworm',    label: 'Live mealworm',    emoji: '🐛', species: ['bat'], bondBonus: 1 },
+  'leaf-pile':   { id: 'leaf-pile',   label: 'Leaf pile',        emoji: '🍂', species: ['bunny', 'fox', 'hedgehog'], bondBonus: 1 },
+  'mealworm':    { id: 'mealworm',    label: 'Live mealworm',    emoji: '🐛', species: ['bat', 'hedgehog'], bondBonus: 1 },
   'bell':        { id: 'bell',        label: 'Bell',             emoji: '🔔', species: ['parrot'], bondBonus: 1 },
   'warm-rock':   { id: 'warm-rock',   label: 'Warm rock',        emoji: '🪨', species: ['snake'], bondBonus: 1 },
   'treat':       { id: 'treat',       label: 'Pawsome treat',    emoji: '🍖', species: ['dog', 'cat', 'fox'], bondBonus: 1 },
@@ -46,6 +46,7 @@ export const DEFAULT_TOY_FOR_SPECIES: Record<Species, string> = {
   bat:    'mealworm',
   parrot: 'bell',
   snake:  'warm-rock',
+  hedgehog: 'leaf-pile',   // snuffling through leaves for bugs
 };
 
 /** Probability an animal arrives with a toy. Tweakable. */

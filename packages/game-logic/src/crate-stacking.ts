@@ -31,31 +31,37 @@ export type CompatibilityLevel = 'happy' | 'stressed' | 'blocked';
 const MATRIX: Record<Species, Record<Species, CompatibilityLevel>> = {
   cat: {
     cat: 'happy', dog: 'stressed', bunny: 'blocked', fox: 'stressed',
-    bat: 'stressed', parrot: 'blocked', snake: 'blocked',
+    bat: 'stressed', parrot: 'blocked', snake: 'blocked', hedgehog: 'stressed',
   },
   dog: {
     cat: 'stressed', dog: 'happy', bunny: 'blocked', fox: 'stressed',
-    bat: 'blocked', parrot: 'stressed', snake: 'blocked',
+    bat: 'blocked', parrot: 'stressed', snake: 'blocked', hedgehog: 'stressed',
   },
   bunny: {
     cat: 'blocked', dog: 'blocked', bunny: 'happy', fox: 'blocked',
-    bat: 'stressed', parrot: 'stressed', snake: 'blocked',
+    bat: 'stressed', parrot: 'stressed', snake: 'blocked', hedgehog: 'happy',
   },
   fox: {
     cat: 'stressed', dog: 'stressed', bunny: 'blocked', fox: 'happy',
-    bat: 'stressed', parrot: 'blocked', snake: 'blocked',
+    bat: 'stressed', parrot: 'blocked', snake: 'blocked', hedgehog: 'blocked',
   },
   bat: {
     cat: 'stressed', dog: 'blocked', bunny: 'stressed', fox: 'stressed',
-    bat: 'happy', parrot: 'stressed', snake: 'happy',
+    bat: 'happy', parrot: 'stressed', snake: 'happy', hedgehog: 'stressed',
   },
   parrot: {
     cat: 'blocked', dog: 'stressed', bunny: 'stressed', fox: 'blocked',
-    bat: 'stressed', parrot: 'happy', snake: 'blocked',
+    bat: 'stressed', parrot: 'happy', snake: 'blocked', hedgehog: 'stressed',
   },
   snake: {
     cat: 'blocked', dog: 'blocked', bunny: 'blocked', fox: 'blocked',
-    bat: 'happy', parrot: 'blocked', snake: 'happy',
+    bat: 'happy', parrot: 'blocked', snake: 'happy', hedgehog: 'blocked',
+  },
+  // Prickly, solitary and small. Foxes and snakes predate them (blocked);
+  // fellow-gentle bunnies are fine (happy); everyone else merely tense.
+  hedgehog: {
+    cat: 'stressed', dog: 'stressed', bunny: 'happy', fox: 'blocked',
+    bat: 'stressed', parrot: 'stressed', snake: 'blocked', hedgehog: 'happy',
   },
 };
 
@@ -106,6 +112,7 @@ const CRATE_PREFERENCE: Record<Species, CrateType[]> = {
   bat:    ['quiet'],                // required
   parrot: ['perch-carrier'],        // required
   snake:  ['warm-vivarium'],        // required
+  hedgehog: ['ventilated-basket', 'quiet', 'standard'],
 };
 
 export function getPreferredCrates(species: Species): CrateType[] {

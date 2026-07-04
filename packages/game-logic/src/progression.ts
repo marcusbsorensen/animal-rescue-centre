@@ -19,6 +19,7 @@ export function getSpeciesUnlocksForLevel(
   if (level >= 2) unlocks.push('fox', 'bunny');
   if (level >= 3) unlocks.push('bat', 'parrot');
   if (level >= 4) unlocks.push('snake');
+  if (level >= 7) unlocks.push('hedgehog');
 
   // Apprentice early-peek: follows the normal progression order so
   // level-driven unlocks and apprentice-driven unlocks stay consistent.

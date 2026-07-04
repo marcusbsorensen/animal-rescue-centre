@@ -43,6 +43,7 @@ const SPECIES_TEMPERAMENT: Record<Species, Temperament> = {
   fox:    'cautious',   // wild but recoverable — mid range
   bat:    'cautious',
   snake:  'solitary',   // prefers quiet corner; doesn't love crowds
+  hedgehog: 'cautious', // shy wild mammal — settles with patience, like fox/bat
 };
 
 export function getSpeciesTemperament(species: Species): Temperament {
