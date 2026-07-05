@@ -1180,11 +1180,19 @@ export class GameScene extends Phaser.Scene {
     );
     const resolvePortrait = (beat: { speakerId: string; expression: string }): DialoguePortrait => {
       if (beat.speakerId === WARDEN_SPEAKER.id) {
-        return {
-          key: 'cast:warden',
-          url: '/admin/scene-assets/cast/warden-marnie.png',
-          fallbackName: WARDEN_SPEAKER.name,
-        };
+        const wardenHappy = beat.expression === 'happy' || beat.expression === 'greeting';
+        return wardenHappy
+          ? {
+              key: 'cast:warden:happy',
+              url: '/admin/scene-assets/cast/warden-marnie-happy.png',
+              altKey: 'cast:warden',
+              fallbackName: WARDEN_SPEAKER.name,
+            }
+          : {
+              key: 'cast:warden',
+              url: '/admin/scene-assets/cast/warden-marnie.png',
+              fallbackName: WARDEN_SPEAKER.name,
+            };
       }
       const wantsGreeting = beat.expression === 'greeting' || beat.expression === 'happy';
       return wantsGreeting

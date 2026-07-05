@@ -20,6 +20,7 @@ export class DialogueDemoScene extends Phaser.Scene {
     this.load.image('demo-priya', '/admin/scene-assets/cast/01-priya.png');
     this.load.image('demo-priya-greeting', '/admin/scene-assets/cast/variants/01-priya-greeting.png');
     this.load.image('demo-warden', '/admin/scene-assets/cast/warden-marnie.png');
+    this.load.image('demo-warden-happy', '/admin/scene-assets/cast/warden-marnie-happy.png');
   }
 
   create(): void {
@@ -68,7 +69,10 @@ export class DialogueDemoScene extends Phaser.Scene {
 
     const resolvePortrait = (beat: DialogueBeat): DialoguePortrait => {
       if (beat.speakerId === 'warden') {
-        return { key: 'demo-warden', fallbackName: 'Marnie' };
+        const happy = beat.expression === 'happy' || beat.expression === 'greeting';
+        return happy
+          ? { key: 'demo-warden-happy', altKey: 'demo-warden', fallbackName: 'Marnie' }
+          : { key: 'demo-warden', fallbackName: 'Marnie' };
       }
       const wantsGreeting = beat.expression === 'greeting' || beat.expression === 'happy';
       return wantsGreeting
