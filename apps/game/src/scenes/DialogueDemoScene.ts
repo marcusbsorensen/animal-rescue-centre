@@ -19,6 +19,7 @@ export class DialogueDemoScene extends Phaser.Scene {
   preload(): void {
     this.load.image('demo-priya', '/admin/scene-assets/cast/01-priya.png');
     this.load.image('demo-priya-greeting', '/admin/scene-assets/cast/variants/01-priya-greeting.png');
+    this.load.image('demo-warden', '/admin/scene-assets/cast/warden-marnie.png');
   }
 
   create(): void {
@@ -34,34 +35,45 @@ export class DialogueDemoScene extends Phaser.Scene {
       id: 'demo',
       beats: [
         {
-          speaker: 'Priya "Pri" Kaur', speakerId: 'priya', side: 'right',
+          speaker: 'Marnie', speakerId: 'warden', side: 'left',
           expression: 'neutral',
-          text: "Hello little Pumpkin! I've come all this way to meet you.",
+          text: 'This is Pumpkin. Pumpkin has been hoping for the perfect home.',
           highlights: ['Pumpkin'],
         },
         {
-          speaker: 'Warden', speakerId: 'warden', side: 'left',
+          speaker: 'Priya "Pri" Kaur', speakerId: 'priya', side: 'right',
+          expression: 'neutral',
+          text: "Hello little Pumpkin! We've come all this way to meet you.",
+          highlights: ['Pumpkin'],
+        },
+        // A choice beat — showcases the choice-pill UI (Marcus, 2026-07-05).
+        {
+          speaker: 'Marnie', speakerId: 'warden', side: 'left',
           expression: 'happy',
-          text: "She's been waiting for a home just like yours.",
+          text: 'Ready to take Pumpkin home?',
+          highlights: ['Pumpkin'],
+          choices: [
+            { id: 'yes', label: 'Yes — off you go, together!' },
+            { id: 'cuddle', label: 'One last cuddle first' },
+          ],
         },
         {
           speaker: 'Priya "Pri" Kaur', speakerId: 'priya', side: 'right',
           expression: 'greeting',
-          text: "Come on then, Pumpkin — let's go home. I'll love you forever.",
+          text: "We'll love Pumpkin forever. Promise!",
           highlights: ['Pumpkin'],
         },
       ],
     };
 
     const resolvePortrait = (beat: DialogueBeat): DialoguePortrait => {
-      if (beat.speakerId === 'priya') {
-        const wantsGreeting = beat.expression === 'greeting' || beat.expression === 'happy';
-        return wantsGreeting
-          ? { key: 'demo-priya-greeting', altKey: 'demo-priya', fallbackName: 'Priya Kaur' }
-          : { key: 'demo-priya', fallbackName: 'Priya Kaur' };
+      if (beat.speakerId === 'warden') {
+        return { key: 'demo-warden', fallbackName: 'Marnie' };
       }
-      // Warden has no portrait → painted-initials chip.
-      return { key: 'demo-warden-missing', fallbackName: 'Warden' };
+      const wantsGreeting = beat.expression === 'greeting' || beat.expression === 'happy';
+      return wantsGreeting
+        ? { key: 'demo-priya-greeting', altKey: 'demo-priya', fallbackName: 'Priya Kaur' }
+        : { key: 'demo-priya', fallbackName: 'Priya Kaur' };
     };
 
     const replay = () => runDialogue(this, sequence, {
@@ -75,6 +87,7 @@ export class DialogueDemoScene extends Phaser.Scene {
           .once('pointerdown', () => { this.scene.restart(); });
       },
       resolvePortrait,
+      onChoice: (choiceId) => { console.log('[dialogue demo] choice picked:', choiceId); },
     });
     replay();
   }

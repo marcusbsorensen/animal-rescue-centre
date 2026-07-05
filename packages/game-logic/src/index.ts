@@ -326,7 +326,7 @@ export {
 } from './adoption';
 export type { Applicant, RehomedEntry, AdoptionStoreLike } from './adoption';
 
-export { buildHandoverDialogue } from './adoption-dialogue';
+export { buildHandoverDialogue, WARDEN_SPEAKER } from './adoption-dialogue';
 export type {
   DialogueBeat,
   DialogueSequence,

@@ -55,7 +55,15 @@ export interface DialogueSequence {
 }
 
 /**
- * Build the hand-over conversation for a matched (animal, applicant).
+ * The A.R.C. shelter warden — the fixed "us" side of every hand-over
+ * conversation (Marcus's decision, 2026-07-05). The portrait is resolved in
+ * the app layer; game-logic only needs the id + display name.
+ */
+export const WARDEN_SPEAKER = { id: 'warden', name: 'Marnie' } as const;
+
+/**
+ * Build the hand-over conversation for a matched (animal, applicant): a short
+ * back-and-forth between the warden (left) and the adopting family (right).
  *
  * Returns an EMPTY sequence when the applicant is missing, so a caller can
  * safely fall through to the ceremony without a dialogue if anything is off
@@ -70,10 +78,15 @@ export function buildHandoverDialogue(
   }
 
   const name = animal.name;
-  const beat = (
-    expression: DialogueExpression,
-    text: string,
-  ): DialogueBeat => ({
+  const warden = (expression: DialogueExpression, text: string): DialogueBeat => ({
+    speaker: WARDEN_SPEAKER.name,
+    speakerId: WARDEN_SPEAKER.id,
+    side: 'left',
+    expression,
+    text,
+    highlights: [name],
+  });
+  const adopter = (expression: DialogueExpression, text: string): DialogueBeat => ({
     speaker: applicant.name,
     speakerId: applicant.householdId,
     side: 'right',
@@ -85,9 +98,10 @@ export function buildHandoverDialogue(
   return {
     id: `handover-${animal.id}-${applicant.householdId}`,
     beats: [
-      beat('neutral', `Hello little ${name}! I've come all this way to meet you.`),
-      beat('greeting', `${name}, you're just what our home was missing!`),
-      beat('greeting', `Come on then, ${name} — let's go home. I'll love you forever.`),
+      warden('neutral', `This is ${name}. ${name} has been hoping for the perfect home.`),
+      adopter('neutral', `Hello little ${name}! We've come all this way to meet you.`),
+      warden('happy', `Look after ${name} for us, won't you?`),
+      adopter('greeting', `We'll love ${name} forever. Promise!`),
     ],
   };
 }

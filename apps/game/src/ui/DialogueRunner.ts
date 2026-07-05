@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { DialogueBeat, DialogueSequence } from '@arc/game-logic';
+import type { DialogueBeat, DialogueSequence, DialogueChoice } from '@arc/game-logic';
 import { COLOURS, FONTS, TEXT_RESOLUTION } from './constants';
 
 /**
@@ -45,6 +45,8 @@ export interface RunDialogueOptions {
   resolvePortrait: (beat: DialogueBeat) => DialoguePortrait;
   /** Optional: resolve a Phaser audio-cache key to play on a beat. */
   resolveVoice?: (beat: DialogueBeat) => string | undefined;
+  /** Optional: called with the chosen id when the player picks a choice pill. */
+  onChoice?: (choiceId: string, beat: DialogueBeat) => void;
 }
 
 /**
@@ -128,6 +130,8 @@ export function runDialogue(
     const portraitBottom = boxY + 26; // slight overlap behind the box
     drawPortrait(scene, root, p, portraitCx, portraitBottom, portraitH);
 
+    const hasChoices = !!beat.choices && beat.choices.length > 0;
+
     // ── Box ──
     const g = scene.add.graphics();
     g.fillStyle(0x000000, 0.16);
@@ -137,11 +141,15 @@ export function runDialogue(
     g.lineStyle(2, BOX_STROKE, 1);
     g.strokeRoundedRect(boxX, boxY, boxW, boxH, 18);
     root.add(g);
-    g.setInteractive(
-      new Phaser.Geom.Rectangle(boxX, boxY, boxW, boxH),
-      Phaser.Geom.Rectangle.Contains,
-    );
-    g.on('pointerdown', advance);
+    // A choice beat must be answered by picking a pill — the box itself only
+    // advances on linear beats.
+    if (!hasChoices) {
+      g.setInteractive(
+        new Phaser.Geom.Rectangle(boxX, boxY, boxW, boxH),
+        Phaser.Geom.Rectangle.Contains,
+      );
+      g.on('pointerdown', advance);
+    }
 
     // ── Name pill (dashed inner border, on the box top edge, speaker's side) ──
     drawNamePill(scene, root, beat.speaker, beat.side, boxX, boxY, boxW);
@@ -155,13 +163,21 @@ export function runDialogue(
       highlights: beat.highlights ?? [],
     });
 
-    // ── Down-chevron (centre, box bottom edge) ──
-    const chevron = scene.add.graphics();
-    const ccx = boxX + boxW / 2;
-    const ccy = boxY + boxH - 2;
-    chevron.fillStyle(CHEVRON, 1);
-    chevron.fillTriangle(ccx - 9, ccy - 5, ccx + 9, ccy - 5, ccx, ccy + 6);
-    root.add(chevron);
+    if (hasChoices) {
+      // ── Choice pills, stacked above the box (same visual language) ──
+      drawChoices(scene, root, beat.choices!, boxX, boxY, boxW, (choiceId) => {
+        opts.onChoice?.(choiceId, beat);
+        advance();
+      });
+    } else {
+      // ── Down-chevron (centre, box bottom edge) ──
+      const chevron = scene.add.graphics();
+      const ccx = boxX + boxW / 2;
+      const ccy = boxY + boxH - 2;
+      chevron.fillStyle(CHEVRON, 1);
+      chevron.fillTriangle(ccx - 9, ccy - 5, ccx + 9, ccy - 5, ccx, ccy + 6);
+      root.add(chevron);
+    }
 
     // ── SKIP pill (bottom-right of the box) ──
     drawSkip(scene, root, boxX + boxW - 78, boxY + boxH - 26, finish);
@@ -305,6 +321,62 @@ function drawSkip(
   g.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => {
     ev?.stopPropagation?.();
     onSkip();
+  });
+}
+
+/**
+ * Choice pills — a vertical stack of tappable option buttons above the box,
+ * in the same rounded pale-blue language as the rest of the overlay. Picking
+ * one calls `onPick(choiceId)`.
+ */
+function drawChoices(
+  scene: Phaser.Scene,
+  root: Phaser.GameObjects.Container,
+  choices: DialogueChoice[],
+  boxX: number,
+  boxY: number,
+  boxW: number,
+  onPick: (choiceId: string) => void,
+): void {
+  const pillH = 46;
+  const gap = 9;
+  const total = choices.length * pillH + (choices.length - 1) * gap;
+  const topY = boxY - 12 - total;
+
+  choices.forEach((choice, i) => {
+    const y = topY + i * (pillH + gap);
+    const g = scene.add.graphics();
+    g.fillStyle(0x000000, 0.15);
+    g.fillRoundedRect(boxX + 1, y + 3, boxW, pillH, pillH / 2);
+    g.fillStyle(0xffffff, 1);
+    g.fillRoundedRect(boxX, y, boxW, pillH, pillH / 2);
+    g.lineStyle(2, BOX_STROKE, 1);
+    g.strokeRoundedRect(boxX, y, boxW, pillH, pillH / 2);
+    root.add(g);
+
+    const label = scene.add
+      .text(boxX + boxW / 2, y + pillH / 2, choice.label, {
+        fontSize: '18px',
+        fontFamily: FONTS.title,
+        fontStyle: 'bold',
+        color: NAVY,
+        resolution: TEXT_RESOLUTION,
+        wordWrap: { width: boxW - 40 },
+        align: 'center',
+      })
+      .setOrigin(0.5);
+    root.add(label);
+
+    g.setInteractive(
+      new Phaser.Geom.Rectangle(boxX, y, boxW, pillH),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    g.on('pointerover', () => g.setAlpha(0.85));
+    g.on('pointerout', () => g.setAlpha(1));
+    g.on('pointerdown', (_p: unknown, _x: unknown, _y: unknown, ev: Phaser.Types.Input.EventData) => {
+      ev?.stopPropagation?.();
+      onPick(choice.id);
+    });
   });
 }
 

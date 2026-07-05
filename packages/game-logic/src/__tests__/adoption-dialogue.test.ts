@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Animal } from '@arc/shared-types';
 import { L1_CURTAILED_HOUSEHOLD_DEFS } from '../adoption';
-import { buildHandoverDialogue } from '../adoption-dialogue';
+import { buildHandoverDialogue, WARDEN_SPEAKER } from '../adoption-dialogue';
 
 function makeAnimal(overrides: Partial<Animal> = {}): Animal {
   return {
@@ -20,18 +20,22 @@ function makeAnimal(overrides: Partial<Animal> = {}): Animal {
 const priya = L1_CURTAILED_HOUSEHOLD_DEFS[0]; // Priya "Pri" Kaur, cat/dog
 
 describe('buildHandoverDialogue', () => {
-  it('produces a short 3-beat hand-over sequence', () => {
+  it('produces a short 4-beat hand-over conversation', () => {
     const seq = buildHandoverDialogue(makeAnimal(), priya);
-    expect(seq.beats).toHaveLength(3);
+    expect(seq.beats).toHaveLength(4);
     expect(seq.id).toContain('animal-7');
   });
 
-  it('every beat is spoken by the adopting household', () => {
+  it('alternates the warden (left) and the adopter (right)', () => {
     const seq = buildHandoverDialogue(makeAnimal(), priya);
-    for (const beat of seq.beats) {
-      expect(beat.speakerId).toBe(priya.householdId);
-      expect(beat.speaker).toBe(priya.name);
-    }
+    expect(seq.beats.map((b) => b.side)).toEqual(['left', 'right', 'left', 'right']);
+    // Odd beats are the warden; even beats are the adopting household.
+    expect(seq.beats[0].speakerId).toBe(WARDEN_SPEAKER.id);
+    expect(seq.beats[0].speaker).toBe(WARDEN_SPEAKER.name);
+    expect(seq.beats[1].speakerId).toBe(priya.householdId);
+    expect(seq.beats[1].speaker).toBe(priya.name);
+    expect(seq.beats[2].speakerId).toBe(WARDEN_SPEAKER.id);
+    expect(seq.beats[3].speakerId).toBe(priya.householdId);
   });
 
   it('names the animal in every beat and highlights it', () => {

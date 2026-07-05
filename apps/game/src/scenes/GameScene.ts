@@ -48,6 +48,7 @@ import {
   calculateAdoptionFee,
   getEligibleApplicants,
   buildHandoverDialogue,
+  WARDEN_SPEAKER,
   commitAdoption as commitAdoptionLogic,
   checkCharityGrants,
   getGrantDef,
@@ -1167,15 +1168,24 @@ export class GameScene extends Phaser.Scene {
     const sequence = buildHandoverDialogue(animal, applicant);
     if (!applicant || sequence.beats.length === 0) { then(); return; }
 
-    // Resolve a beat's portrait: greeting variant → neutral (already cached
-    // by AdoptionMatchScene) → painted-initials chip. The greeting file lives
-    // under variants/ and is derived from the (corrected) neutral avatarSrc.
+    // Resolve a beat's portrait. The warden (left) is a fixed character;
+    // the adopter (right) uses the greeting variant when warm, else the
+    // neutral portrait (already cached by AdoptionMatchScene), else a
+    // painted-initials chip. The greeting file lives under variants/ and is
+    // derived from the (corrected) neutral avatarSrc.
     const neutralKey = `cast:${householdId}`;
     const greetingUrl = applicant.avatarSrc.replace(
       /\/([^/]+)\.png$/,
       '/variants/$1-greeting.png',
     );
-    const resolvePortrait = (beat: { expression: string }): DialoguePortrait => {
+    const resolvePortrait = (beat: { speakerId: string; expression: string }): DialoguePortrait => {
+      if (beat.speakerId === WARDEN_SPEAKER.id) {
+        return {
+          key: 'cast:warden',
+          url: '/admin/scene-assets/cast/warden-marnie.png',
+          fallbackName: WARDEN_SPEAKER.name,
+        };
+      }
       const wantsGreeting = beat.expression === 'greeting' || beat.expression === 'happy';
       return wantsGreeting
         ? { key: `${neutralKey}:greeting`, url: greetingUrl, altKey: neutralKey, fallbackName: applicant.name }
