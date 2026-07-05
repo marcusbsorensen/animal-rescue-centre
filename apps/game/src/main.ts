@@ -21,6 +21,7 @@ import { DepotScene } from './scenes/DepotScene';
 import { SupplyRunScene } from './scenes/SupplyRunScene';
 import { AccountScene } from './scenes/AccountScene';
 import { DialogueDemoScene } from './scenes/DialogueDemoScene';
+import { PtvDriveScene } from './scenes/PtvDriveScene';
 import { showUpdateBanner } from './ui/UpdateBanner';
 import { registerSW } from 'virtual:pwa-register';
 
@@ -38,6 +39,12 @@ const DIALOGUE_DEMO =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).has('dialogueDemo');
 
+// Dev-only: `?ptvDemo=1` boots straight into the PTV driving scene (Slice 1
+// travel mode) in isolation — no login/asset flow needed for testing.
+const PTV_DEMO =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).has('ptvDemo');
+
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'game-container',
@@ -53,7 +60,9 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: '#fef9ef',
   scene: DIALOGUE_DEMO
     ? [DialogueDemoScene]
-    : [BootScene, LoadingScene, MainMenuScene, SignupScene, LoginScene, ForgotPinScene, FriendsScene, IntroScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, GroomingScene, PlayScene, DepotScene, SupplyRunScene, AccountScene, TunnelScene, AdoptionMatchScene, CharmSelectScene],
+    : PTV_DEMO
+    ? [PtvDriveScene]
+    : [BootScene, LoadingScene, MainMenuScene, SignupScene, LoginScene, ForgotPinScene, FriendsScene, IntroScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, GroomingScene, PlayScene, DepotScene, SupplyRunScene, AccountScene, TunnelScene, AdoptionMatchScene, CharmSelectScene, PtvDriveScene],
   // Render config: antialias is ON by default but we set it explicitly so
   // downsampled icons (256-px source → 36-px display) stay smooth instead
   // of aliased. mipmapFilter enables trilinear-ish downscaling in WebGL
