@@ -33,7 +33,11 @@ export const FOOD_CATALOGUE: FoodDefinition[] = [
 
   // Bat foods
   { type: 'fruit',    emoji: '🍎', label: 'Fruit',      forSpecies: ['bat', 'parrot'] },
-  { type: 'insects',  emoji: '🦗', label: 'Insects',    forSpecies: ['bat'] },
+  { type: 'insects',  emoji: '🦗', label: 'Insects',    forSpecies: ['bat', 'hedgehog'] },
+
+  // Hedgehog foods (meaty — NOT bread and milk, which makes them poorly)
+  { type: 'mealworms', emoji: '🐛', label: 'Mealworms', forSpecies: ['hedgehog'] },
+  { type: 'catfood',   emoji: '🍲', label: 'Meaty cat food', forSpecies: ['hedgehog'] },
 
   // Parrot foods
   { type: 'seeds',    emoji: '🌻', label: 'Seeds',      forSpecies: ['parrot'] },

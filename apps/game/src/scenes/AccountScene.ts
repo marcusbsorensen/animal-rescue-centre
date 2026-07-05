@@ -203,10 +203,10 @@ export class AccountScene extends Phaser.Scene {
     }
 
     // Species collected — one little disc per species with the animal emoji
-    const speciesOrder: Species[] = ['cat', 'dog', 'bunny', 'fox', 'bat', 'parrot', 'snake'];
+    const speciesOrder: Species[] = ['cat', 'dog', 'bunny', 'fox', 'bat', 'parrot', 'snake', 'hedgehog'];
     const speciesEmoji: Record<Species, string> = {
       cat: '🐱', dog: '🐶', bunny: '🐰', fox: '🦊',
-      bat: '🦇', parrot: '🦜', snake: '🐍',
+      bat: '🦇', parrot: '🦜', snake: '🐍', hedgehog: '🦔',
     };
     const collectedSpecies = new Set(this.payload.animals.map(a => a.species));
     const chipY = 265;

@@ -1,7 +1,7 @@
 // A.R.C. Shared Types
 // Core domain types used across client and server
 
-export type Species = 'cat' | 'dog' | 'fox' | 'bunny' | 'bat' | 'parrot' | 'snake';
+export type Species = 'cat' | 'dog' | 'fox' | 'bunny' | 'bat' | 'parrot' | 'snake' | 'hedgehog';
 
 export type AnimalState = 'arriving' | 'sheltered' | 'bonding' | 'pet';
 

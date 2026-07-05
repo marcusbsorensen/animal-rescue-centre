@@ -20,6 +20,7 @@ import { PlayScene } from './scenes/PlayScene';
 import { DepotScene } from './scenes/DepotScene';
 import { SupplyRunScene } from './scenes/SupplyRunScene';
 import { AccountScene } from './scenes/AccountScene';
+import { DialogueDemoScene } from './scenes/DialogueDemoScene';
 import { showUpdateBanner } from './ui/UpdateBanner';
 import { registerSW } from 'virtual:pwa-register';
 
@@ -31,6 +32,11 @@ const updateSW = registerSW({
     showUpdateBanner(() => updateSW(true));
   },
 });
+
+// Dev-only: `?dialogueDemo=1` boots straight into the DialogueRunner harness.
+const DIALOGUE_DEMO =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).has('dialogueDemo');
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -45,7 +51,9 @@ const config: Phaser.Types.Core.GameConfig = {
     autoRound: false,
   },
   backgroundColor: '#fef9ef',
-  scene: [BootScene, LoadingScene, MainMenuScene, SignupScene, LoginScene, ForgotPinScene, FriendsScene, IntroScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, GroomingScene, PlayScene, DepotScene, SupplyRunScene, AccountScene, TunnelScene, AdoptionMatchScene, CharmSelectScene],
+  scene: DIALOGUE_DEMO
+    ? [DialogueDemoScene]
+    : [BootScene, LoadingScene, MainMenuScene, SignupScene, LoginScene, ForgotPinScene, FriendsScene, IntroScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, GroomingScene, PlayScene, DepotScene, SupplyRunScene, AccountScene, TunnelScene, AdoptionMatchScene, CharmSelectScene],
   // Render config: antialias is ON by default but we set it explicitly so
   // downsampled icons (256-px source → 36-px display) stay smooth instead
   // of aliased. mipmapFilter enables trilinear-ish downscaling in WebGL

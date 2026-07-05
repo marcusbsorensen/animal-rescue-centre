@@ -40,6 +40,7 @@ const SPECIES_GARMENT: Record<Species, Garment> = {
   bat:    'scarf',
   parrot: 'hat',
   snake:  'hat',
+  hedgehog: 'scarf',   // neck-only — a coat would flatten the spines
 };
 
 /** The garment type for a species. */
@@ -93,6 +94,7 @@ const DEFAULT_WARDROBE_ANCHORS: Record<Species, WardrobeAnchor> = {
   bat:    { dx: 0.00, dy: -0.08, widthFrac: 0.40, heightFrac: 0.20, rotation: 0 },
   parrot: { dx: 0.00, dy: -0.30, widthFrac: 0.35, heightFrac: 0.30, rotation: 0 },
   snake:  { dx: 0.05, dy: -0.25, widthFrac: 0.25, heightFrac: 0.25, rotation: 0 },
+  hedgehog: { dx: 0.00, dy: 0.00, widthFrac: 0.38, heightFrac: 0.20, rotation: 4 },
 };
 
 /**

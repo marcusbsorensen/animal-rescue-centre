@@ -23,10 +23,22 @@ describe('getSpeciesUnlocksForLevel', () => {
     expect(species).toHaveLength(6);
   });
 
-  it('level 4 adds snakes (all species)', () => {
+  it('level 4 adds snakes', () => {
     const species = getSpeciesUnlocksForLevel(4);
     expect(species).toContain('snake');
     expect(species).toHaveLength(7);
+  });
+
+  it('level 6 has not unlocked hedgehog yet', () => {
+    const species = getSpeciesUnlocksForLevel(6);
+    expect(species).not.toContain('hedgehog');
+    expect(species).toHaveLength(7);
+  });
+
+  it('level 7 adds hedgehog (fills the previously empty level)', () => {
+    const species = getSpeciesUnlocksForLevel(7);
+    expect(species).toContain('hedgehog');
+    expect(species).toHaveLength(8);
   });
 
   it('defaults to zero extra slots when not specified', () => {

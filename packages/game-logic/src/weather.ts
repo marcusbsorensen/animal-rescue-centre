@@ -167,6 +167,7 @@ const RAIN_TOLERANCE: Record<Species, RainTolerance> = {
   fox:    'tolerant',
   bat:    'hates',
   snake:  'hates',
+  hedgehog: 'dislikes',
 };
 
 export type ColdTolerance = 'very_low' | 'low' | 'medium' | 'high' | 'very_high';
@@ -183,6 +184,7 @@ const COLD_TOLERANCE: Record<Species, ColdTolerance> = {
   fox:    'high',
   bat:    'medium',
   snake:  'very_low',
+  hedgehog: 'low',    // active hedgehogs are cold-sensitive (they hibernate)
 };
 
 /** Variants that bump their species' cold tolerance to 'very_high'. */
@@ -327,6 +329,7 @@ export function applyShakeOff(
     fox:     0,
     bat:     0,
     snake:   0,
+    hedgehog: 0,
   };
   const splashed: Animal[] = [];
   const splashes: Array<{ id: string; delta: number }> = [];

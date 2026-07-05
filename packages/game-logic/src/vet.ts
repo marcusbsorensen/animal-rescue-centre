@@ -5,7 +5,7 @@ import type { Animal, Species } from '@arc/shared-types';
 // transport to the vet for serious ones. House upgrades unlock
 // at milestones (every 50 pets).
 
-export type Illness = 'cold' | 'tummy_ache' | 'sore_paw' | 'sniffles' | 'tired_wings' | 'scale_itch';
+export type Illness = 'cold' | 'tummy_ache' | 'sore_paw' | 'sniffles' | 'tired_wings' | 'scale_itch' | 'tick_trouble';
 export type Severity = 'minor' | 'moderate' | 'serious';
 
 export interface IllnessDef {
@@ -73,6 +73,15 @@ export const ILLNESSES: IllnessDef[] = [
     healSteps: 3,
     description: 'Scales are itchy from shedding. Needs a warm bath.',
   },
+  {
+    illness: 'tick_trouble',
+    emoji: '🐛',
+    label: 'Tick Trouble',
+    severity: 'moderate',
+    species: ['hedgehog'],
+    healSteps: 3,
+    description: 'Picked up ticks out foraging. Needs a warm bath and rest.',
+  },
 ];
 
 export type HealAction = 'blanket' | 'water' | 'bandage' | 'rest' | 'warm_bath';
@@ -100,6 +109,7 @@ const EFFECTIVE_ACTIONS: Record<Illness, HealAction[]> = {
   sniffles:    ['blanket', 'water'],
   tired_wings: ['rest', 'blanket'],
   scale_itch:  ['warm_bath', 'rest'],
+  tick_trouble: ['warm_bath', 'rest'],
 };
 
 /**

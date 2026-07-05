@@ -20,6 +20,7 @@ const GROOMING_TOOL: Record<Species, { emoji: string; label: string; verb: strin
   bat:    { emoji: '🪮', label: 'Brush',    verb: 'Brush brush!' },
   snake:  { emoji: '🧽', label: 'Cloth',    verb: 'Wipe wipe!' },
   parrot: { emoji: '💧', label: 'Mist',     verb: 'Spritz spritz!' },
+  hedgehog: { emoji: '🪥', label: 'Soft brush', verb: 'Gentle brush!' },
 };
 
 interface DirtSpot {
@@ -143,6 +144,7 @@ export class GroomingScene extends Phaser.Scene {
       bat:    `${this.animal.name} needs a good brush!`,
       snake:  `${this.animal.name} needs a gentle wipe down!`,
       parrot: `${this.animal.name} needs a light mist!`,
+      hedgehog: `${this.animal.name} needs a gentle soft-brush!`,
     };
     this.container.add(
       this.add.text(width / 2, cy + 110, introMsg[this.animal.species], {
@@ -159,6 +161,7 @@ export class GroomingScene extends Phaser.Scene {
       bat:    'Start brushing!',
       snake:  'Start wiping!',
       parrot: 'Start misting!',
+      hedgehog: 'Start brushing!',
     };
     this.container.add(
       createButton(this, width / 2, cy + 170, startLabel[this.animal.species], () => {

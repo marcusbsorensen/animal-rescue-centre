@@ -47,6 +47,8 @@ import {
   getAvailableToys,
   calculateAdoptionFee,
   getEligibleApplicants,
+  buildHandoverDialogue,
+  WARDEN_SPEAKER,
   commitAdoption as commitAdoptionLogic,
   checkCharityGrants,
   getGrantDef,
@@ -61,6 +63,7 @@ import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEven
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
+import { runDialogue, type DialoguePortrait } from '../ui/DialogueRunner';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
 import { GameStateStore, loadGameState, saveGameState } from '../game-state';
 import {
@@ -85,6 +88,13 @@ import {
 } from '../game-views';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
+
+/**
+ * Feature flag: play the staged adopter hand-over conversation before the
+ * adoption ceremony. Off instantly reverts to today's picker → ceremony flow
+ * if the dialogue misbehaves in front of a child.
+ */
+const ADOPTION_DIALOGUE_ENABLED = true;
 
 export class GameScene extends Phaser.Scene {
   private _lastWidth = 0;
@@ -1138,9 +1148,63 @@ export class GameScene extends Phaser.Scene {
       onComplete: (householdId: string | null) => {
         this.scene.resume();
         if (!householdId) return;
-        this.openAdoptionOverlay(animal, householdId);
+        this.playAdoptionHandover(animal, householdId, () =>
+          this.openAdoptionOverlay(animal, householdId),
+        );
       },
     });
+  }
+
+  /**
+   * Play the little staged hand-over conversation before the adoption
+   * ceremony. Gated behind ADOPTION_DIALOGUE_ENABLED and wrapped so any
+   * failure (feature off, missing applicant, empty sequence) falls straight
+   * through to `then()` — a dialogue bug must never strand an adoption.
+   */
+  private playAdoptionHandover(animal: Animal, householdId: string, then: () => void): void {
+    if (!ADOPTION_DIALOGUE_ENABLED) { then(); return; }
+    const applicant = getEligibleApplicants(animal, this.store)
+      .find((a) => a.householdId === householdId);
+    const sequence = buildHandoverDialogue(animal, applicant);
+    if (!applicant || sequence.beats.length === 0) { then(); return; }
+
+    // Resolve a beat's portrait. The warden (left) is a fixed character;
+    // the adopter (right) uses the greeting variant when warm, else the
+    // neutral portrait (already cached by AdoptionMatchScene), else a
+    // painted-initials chip. The greeting file lives under variants/ and is
+    // derived from the (corrected) neutral avatarSrc.
+    const neutralKey = `cast:${householdId}`;
+    const greetingUrl = applicant.avatarSrc.replace(
+      /\/([^/]+)\.png$/,
+      '/variants/$1-greeting.png',
+    );
+    const resolvePortrait = (beat: { speakerId: string; expression: string }): DialoguePortrait => {
+      if (beat.speakerId === WARDEN_SPEAKER.id) {
+        const wardenHappy = beat.expression === 'happy' || beat.expression === 'greeting';
+        return wardenHappy
+          ? {
+              key: 'cast:warden:happy',
+              url: '/admin/scene-assets/cast/warden-marnie-happy.png',
+              altKey: 'cast:warden',
+              fallbackName: WARDEN_SPEAKER.name,
+            }
+          : {
+              key: 'cast:warden',
+              url: '/admin/scene-assets/cast/warden-marnie.png',
+              fallbackName: WARDEN_SPEAKER.name,
+            };
+      }
+      const wantsGreeting = beat.expression === 'greeting' || beat.expression === 'happy';
+      return wantsGreeting
+        ? { key: `${neutralKey}:greeting`, url: greetingUrl, altKey: neutralKey, fallbackName: applicant.name }
+        : { key: neutralKey, url: applicant.avatarSrc, fallbackName: applicant.name };
+    };
+
+    try {
+      runDialogue(this, sequence, { onComplete: then, resolvePortrait });
+    } catch {
+      then();
+    }
   }
 
   private openAdoptionOverlay(animal: Animal, householdId: string): void {

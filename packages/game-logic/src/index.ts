@@ -326,6 +326,15 @@ export {
 } from './adoption';
 export type { Applicant, RehomedEntry, AdoptionStoreLike } from './adoption';
 
+export { buildHandoverDialogue, WARDEN_SPEAKER } from './adoption-dialogue';
+export type {
+  DialogueBeat,
+  DialogueSequence,
+  DialogueExpression,
+  DialogueSide,
+  DialogueChoice,
+} from './adoption-dialogue';
+
 export * from './crate-stacking';
 export {
   CHARMS,

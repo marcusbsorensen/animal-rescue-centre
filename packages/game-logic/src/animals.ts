@@ -54,6 +54,13 @@ const ARRIVAL_STORIES: Record<Species, string[]> = {
     'Found hiding under a garden shed.',
     'Brought in after being spotted near a school.',
   ],
+  hedgehog: [
+    'Found curled in a tight ball beside a busy road.',
+    'Out wandering in daytime — hedgehogs should sleep till dusk!',
+    'Rescued from a bonfire pile just before it was lit.',
+    'A tiny hoglet found all alone, far too small for winter.',
+    'Caught in some garden netting, prickly and frightened.',
+  ],
 };
 
 /**
@@ -74,6 +81,8 @@ const ANIMAL_NAMES: Record<Species, string[]> = {
            'Tango', 'Papaya', 'Bluebell', 'Tutti', 'Skittles', 'Rainbow', 'Dazzle', 'Samba', 'Pico', 'Calypso'],
   snake: ['Noodle', 'Pretzel', 'Zigzag', 'Scales', 'Slither', 'Ribbon', 'Copper', 'Marble', 'Ivy', 'Basil',
           'Coil', 'Twizzle', 'Bramble', 'Mossy', 'Pebble', 'Russet', 'Juniper', 'Fern', 'Flint', 'Thistle'],
+  hedgehog: ['Spike', 'Prickle', 'Bramble', 'Thistle', 'Quill', 'Nettle', 'Bristle', 'Conker', 'Snuffle', 'Pin',
+             'Rosehip', 'Hawthorn', 'Truffle', 'Nutmeg', 'Pip', 'Sniffles', 'Hedgy', 'Bracken', 'Sloe', 'Widget'],
 };
 
 /**
@@ -89,6 +98,7 @@ export const SPECIES_VARIANTS: Record<Species, string[]> = {
   bat: ['brown', 'fruit', 'longeared', 'pipistrelle', 'white'],
   parrot: ['budgie', 'cockatiel', 'grey', 'macaw', 'lovebird'],
   snake: ['corn', 'python', 'king', 'garter', 'hognose'],
+  hedgehog: ['brown', 'albino', 'blonde', 'salt-and-pepper', 'pinto', 'chocolate'],
 };
 
 /**
@@ -108,8 +118,9 @@ export const SPECIES_COLOURS: Record<Species, number> = {
   fox: 0xd45500,    // orange-red
   bunny: 0xd3d3d3,  // light grey
   bat: 0x4a4a4a,    // dark grey
-  parrot: 0x2ecc71, // green
-  snake: 0x6b8e23,  // olive
+  parrot: 0x2ecc71,   // green
+  snake: 0x6b8e23,    // olive
+  hedgehog: 0x8b7d6b, // taupe brown (spines)
 };
 
 let nextId = 1;

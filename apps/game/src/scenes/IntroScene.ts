@@ -134,6 +134,7 @@ export class IntroScene extends Phaser.Scene {
       parrot: 'parrot-squawk',
       bat: 'bat-chitter',
       snake: 'snake-hiss',
+      hedgehog: 'hedgehog-snuffle',
     };
     const speciesKey = speciesSoundMap[species];
     if (speciesKey && this.cache.audio.exists(speciesKey)) {

@@ -36,3 +36,9 @@ apps/game/public/assets/driving/mirror-moods/*.png
 
 # Scratch from Claude Preview MCP sessions
 .playwright-mcp/
+
+# Loose QA/dev screenshots dropped in the repo root (qa-*, map-*, pass-*,
+# final-*, verify-* etc.). Root-only rule — real assets live under
+# apps/game/public/ and asset-drafts/ and are unaffected. Files stay on
+# disk; this just stops them polluting `git status`.
+/*.png
