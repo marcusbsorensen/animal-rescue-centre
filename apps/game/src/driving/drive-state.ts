@@ -5,26 +5,29 @@
  * Phaser imports — this is the data + rules layer that carries across the
  * hybrid-camera drive's two modes (top-down travel and cab events), so it
  * can be handed between scenes via the registry and unit-tested in isolation.
- *
- * Slice 1 (this file's first cut) only needs the travel-mode essentials:
- * vehicle, lane, discrete speed, and route progress. Later slices layer in
- * `events`, `cargoComfort` deltas and weather without changing this shape.
  */
-
-/** Discrete speed steps. Kids pick a gear, not an analogue throttle. */
-export type SpeedStep = 0 | 1 | 2; // 0 = crawl, 1 = steady, 2 = brisk
-
-/** Number of lanes on the PTV road. A gentle 3-lane UK two-way-feel road. */
-export const NUM_LANES = 3;
-
-/** Highest speed step. `SpeedStep` runs 0..MAX_SPEED_STEP inclusive. */
-export const MAX_SPEED_STEP = 2;
 
 /**
- * Why the player is driving. Kept a loose string for MVP so `drive-state`
- * doesn't couple to `destinations.ts`; Slice 6 maps real destination kinds
- * onto these when GameScene launches the scene.
+ * Gear selection. Reverse (-1) for negotiating an obstacle/crash; three
+ * forward gears (1..3) selected from the gear stick. No neutral — a caring
+ * transport is always gently rolling, never stalled mid-road.
  */
+export type Gear = -1 | 1 | 2 | 3;
+
+/** Reverse gear constant. */
+export const REVERSE: Gear = -1;
+
+/** Forward gears, low → high. */
+export const FORWARD_GEARS: readonly Gear[] = [1, 2, 3];
+
+/** Gear stick order, bottom (R) → top (3), for cycling with the arrows. */
+export const GEAR_ORDER: readonly Gear[] = [-1, 1, 2, 3];
+
+/** Number of lanes on the (placeholder) 3-lane PTV road. The road-system
+ *  slice makes this per-route (single vs dual carriageway); until then it's
+ *  a shared constant. */
+export const NUM_LANES = 3;
+
 export type DriveType = 'vet' | 'adoption' | 'rewilding' | 'delivery' | 'demo';
 
 export interface DriveState {
@@ -35,8 +38,8 @@ export interface DriveState {
   destinationId: string;
   /** Current lane, 0 (left) .. NUM_LANES-1 (right). */
   lane: number;
-  /** Discrete speed step, 0..MAX_SPEED_STEP. */
-  speedStep: SpeedStep;
+  /** Selected gear (-1 reverse, 1..3 forward). */
+  gear: Gear;
   /** Cargo comfort 0..100 (unused in Slice 1; carried for later slices). */
   cargoComfort: number;
   /** Weather token; 'clear' until a dedicated weather slice applies effects. */
@@ -59,7 +62,7 @@ export function createDriveState(opts: CreateDriveStateOptions = {}): DriveState
     driveType: opts.driveType ?? 'demo',
     destinationId: opts.destinationId ?? '',
     lane: Math.floor(NUM_LANES / 2), // start in the middle lane
-    speedStep: 1, // start at a steady cruise
+    gear: 1, // pull away in first gear
     cargoComfort: 100,
     weather: opts.weather ?? 'clear',
     progress: 0,
@@ -78,32 +81,28 @@ export function shiftLane(lane: number, dir: -1 | 1): number {
   return clampLane(lane + dir);
 }
 
-/** Step the speed up (+1) or down (-1), clamped to 0..MAX_SPEED_STEP. */
-export function changeSpeed(step: SpeedStep, dir: -1 | 1): SpeedStep {
-  const next = step + dir;
-  if (next < 0) return 0;
-  if (next > MAX_SPEED_STEP) return MAX_SPEED_STEP;
-  return next as SpeedStep;
+/** Move the gear stick up (+1, toward 3) or down (-1, toward R), clamped. */
+export function cycleGear(gear: Gear, dir: -1 | 1): Gear {
+  const idx = GEAR_ORDER.indexOf(gear);
+  const next = Math.max(0, Math.min(GEAR_ORDER.length - 1, idx + dir));
+  return GEAR_ORDER[next];
 }
 
-/** Human-friendly label for a speed step (Lily-facing HUD copy). */
-export function speedLabel(step: SpeedStep): string {
-  switch (step) {
-    case 0: return 'Slow';
-    case 1: return 'Steady';
-    case 2: return 'Brisk';
-  }
+/** Human-friendly gear label for the stick / HUD ('R', '1', '2', '3'). */
+export function gearLabel(gear: Gear): string {
+  return gear === REVERSE ? 'R' : String(gear);
 }
 
 /**
- * Road-scroll rate (pixels per drive tick) for a speed step. Step 0 still
- * creeps forward so the world never feels frozen; the ramp is gentle — this
- * is a caring transport, not a race.
+ * Road-scroll rate (pixels per drive tick) for a gear. Forward gears ramp
+ * *exponentially* — third gear is a lot quicker than first, per Marcus's
+ * eyeball. Reverse creeps backward (negative), slower than any forward gear.
  */
-export function speedScrollRate(step: SpeedStep): number {
-  switch (step) {
-    case 0: return 1.4;
+export function gearScrollRate(gear: Gear): number {
+  switch (gear) {
+    case -1: return -2.6; // reverse — negative scroll, gentle
     case 1: return 3.2;
-    case 2: return 5.4;
+    case 2: return 7.2;
+    case 3: return 15;
   }
 }

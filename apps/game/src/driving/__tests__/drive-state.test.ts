@@ -3,20 +3,21 @@ import {
   createDriveState,
   clampLane,
   shiftLane,
-  changeSpeed,
-  speedLabel,
-  speedScrollRate,
+  cycleGear,
+  gearLabel,
+  gearScrollRate,
   NUM_LANES,
-  MAX_SPEED_STEP,
-  type SpeedStep,
+  GEAR_ORDER,
+  REVERSE,
+  type Gear,
 } from '../drive-state';
 
 describe('drive-state', () => {
   describe('createDriveState', () => {
-    it('starts in the middle lane at a steady cruise', () => {
+    it('starts in the middle lane, first gear, full comfort', () => {
       const s = createDriveState();
       expect(s.lane).toBe(Math.floor(NUM_LANES / 2));
-      expect(s.speedStep).toBe(1);
+      expect(s.gear).toBe(1);
       expect(s.progress).toBe(0);
       expect(s.cargoComfort).toBe(100);
     });
@@ -68,34 +69,52 @@ describe('drive-state', () => {
     });
   });
 
-  describe('changeSpeed', () => {
-    it('steps up and down', () => {
-      expect(changeSpeed(0, 1)).toBe(1);
-      expect(changeSpeed(1, 1)).toBe(2);
-      expect(changeSpeed(2, -1)).toBe(1);
+  describe('cycleGear', () => {
+    it('steps up through the forward gears', () => {
+      expect(cycleGear(1, 1)).toBe(2);
+      expect(cycleGear(2, 1)).toBe(3);
     });
-    it('clamps at the floor and ceiling', () => {
-      expect(changeSpeed(0, -1)).toBe(0);
-      expect(changeSpeed(MAX_SPEED_STEP as SpeedStep, 1)).toBe(MAX_SPEED_STEP);
+    it('steps down and into reverse', () => {
+      expect(cycleGear(2, -1)).toBe(1);
+      expect(cycleGear(1, -1)).toBe(REVERSE);
+    });
+    it('clamps at reverse and top gear', () => {
+      expect(cycleGear(REVERSE, -1)).toBe(REVERSE);
+      expect(cycleGear(3, 1)).toBe(3);
+    });
+    it('only ever yields a gear in GEAR_ORDER', () => {
+      for (const g of GEAR_ORDER) {
+        expect(GEAR_ORDER).toContain(cycleGear(g, 1));
+        expect(GEAR_ORDER).toContain(cycleGear(g, -1));
+      }
     });
   });
 
-  describe('speedLabel', () => {
-    it('labels every step', () => {
-      expect(speedLabel(0)).toBe('Slow');
-      expect(speedLabel(1)).toBe('Steady');
-      expect(speedLabel(2)).toBe('Brisk');
+  describe('gearLabel', () => {
+    it('labels reverse as R and forward gears numerically', () => {
+      expect(gearLabel(REVERSE)).toBe('R');
+      expect(gearLabel(1)).toBe('1');
+      expect(gearLabel(2)).toBe('2');
+      expect(gearLabel(3)).toBe('3');
     });
   });
 
-  describe('speedScrollRate', () => {
-    it('never freezes, and increases monotonically with speed', () => {
-      const r0 = speedScrollRate(0);
-      const r1 = speedScrollRate(1);
-      const r2 = speedScrollRate(2);
-      expect(r0).toBeGreaterThan(0);
-      expect(r1).toBeGreaterThan(r0);
-      expect(r2).toBeGreaterThan(r1);
+  describe('gearScrollRate', () => {
+    it('reverses with a negative rate', () => {
+      expect(gearScrollRate(REVERSE)).toBeLessThan(0);
+    });
+    it('ramps forward gears exponentially (each gap bigger than the last)', () => {
+      const g1 = gearScrollRate(1);
+      const g2 = gearScrollRate(2);
+      const g3 = gearScrollRate(3);
+      expect(g1).toBeGreaterThan(0);
+      expect(g2).toBeGreaterThan(g1);
+      expect(g3).toBeGreaterThan(g2);
+      // Exponential, not linear: the 2→3 jump exceeds the 1→2 jump.
+      expect(g3 - g2).toBeGreaterThan(g2 - g1);
+    });
+    it('reverse is gentler than first gear', () => {
+      expect(Math.abs(gearScrollRate(REVERSE))).toBeLessThan(gearScrollRate(1));
     });
   });
 });
