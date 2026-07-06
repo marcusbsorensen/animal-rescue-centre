@@ -8,20 +8,32 @@
  */
 
 /**
- * Gear selection. Reverse (-1) for negotiating an obstacle/crash; three
- * forward gears (1..3) selected from the gear stick. No neutral — a caring
- * transport is always gently rolling, never stalled mid-road.
+ * Gear selection, like an automatic stick: Park and Neutral both hold the
+ * vehicle still (e.g. stopped for a hedgehog crossing), Reverse for negotiating
+ * an obstacle, and three forward gears (1..3).
  */
-export type Gear = -1 | 1 | 2 | 3;
+export type Gear = 'P' | 'R' | 'N' | 1 | 2 | 3;
 
-/** Reverse gear constant. */
-export const REVERSE: Gear = -1;
+/** Park — fully stopped. */
+export const PARK: Gear = 'P';
+/** Reverse. */
+export const REVERSE: Gear = 'R';
+/** Neutral — stopped but ready to pull away. */
+export const NEUTRAL: Gear = 'N';
 
 /** Forward gears, low → high. */
 export const FORWARD_GEARS: readonly Gear[] = [1, 2, 3];
 
-/** Gear stick order, bottom (R) → top (3), for cycling with the arrows. */
-export const GEAR_ORDER: readonly Gear[] = [-1, 1, 2, 3];
+/**
+ * Gear stick order, bottom (P) → top (3), for cycling with the arrows.
+ * Mirrors a real P-R-N-D auto stick (P, R, N, then the forward gears).
+ */
+export const GEAR_ORDER: readonly Gear[] = ['P', 'R', 'N', 1, 2, 3];
+
+/** Whether a gear holds the vehicle stationary. */
+export function isStopped(gear: Gear): boolean {
+  return gear === PARK || gear === NEUTRAL;
+}
 
 /** Number of lanes on the (placeholder) 3-lane PTV road. The road-system
  *  slice makes this per-route (single vs dual carriageway); until then it's
@@ -81,26 +93,36 @@ export function shiftLane(lane: number, dir: -1 | 1): number {
   return clampLane(lane + dir);
 }
 
-/** Move the gear stick up (+1, toward 3) or down (-1, toward R), clamped. */
+/** Move the gear stick up (+1, toward 3) or down (-1, toward P), clamped. */
 export function cycleGear(gear: Gear, dir: -1 | 1): Gear {
   const idx = GEAR_ORDER.indexOf(gear);
   const next = Math.max(0, Math.min(GEAR_ORDER.length - 1, idx + dir));
   return GEAR_ORDER[next];
 }
 
-/** Human-friendly gear label for the stick / HUD ('R', '1', '2', '3'). */
+/**
+ * Apply a jostle to cargo comfort (e.g. slamming the handbrake), clamped to
+ * 0..100. `severity` is the comfort hit — bigger = more chaos in the cages.
+ */
+export function jostleComfort(comfort: number, severity: number): number {
+  return Math.max(0, Math.min(100, comfort - severity));
+}
+
+/** Human-friendly gear label for the stick / HUD ('P','R','N','1','2','3'). */
 export function gearLabel(gear: Gear): string {
-  return gear === REVERSE ? 'R' : String(gear);
+  return String(gear);
 }
 
 /**
- * Road-scroll rate (pixels per drive tick) for a gear. Forward gears ramp
- * *exponentially* — third gear is a lot quicker than first, per Marcus's
- * eyeball. Reverse creeps backward (negative), slower than any forward gear.
+ * Road-scroll rate (pixels per drive tick) for a gear. Park and Neutral hold
+ * still (0). Forward gears ramp *exponentially* — third is a lot quicker than
+ * first, per Marcus's eyeball. Reverse creeps backward (negative).
  */
 export function gearScrollRate(gear: Gear): number {
   switch (gear) {
-    case -1: return -2.6; // reverse — negative scroll, gentle
+    case 'P': return 0;   // park — stopped
+    case 'R': return -2.6; // reverse — gentle backward creep
+    case 'N': return 0;   // neutral — stopped
     case 1: return 3.2;
     case 2: return 7.2;
     case 3: return 15;

@@ -9,8 +9,10 @@ import {
   cycleGear,
   gearLabel,
   gearScrollRate,
-  GEAR_ORDER,
+  jostleComfort,
+  PARK,
   REVERSE,
+  NEUTRAL,
   NUM_LANES,
   type DriveState,
   type DriveType,
@@ -26,6 +28,13 @@ import {
   vanSizeForLane,
 } from '../driving/drive-render';
 import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile } from '../driving/traffic';
+
+/**
+ * Reference cruising rate (px/tick) that traffic `relSpeed` is measured
+ * against, so other vehicles have an *absolute* speed independent of ours —
+ * they keep flowing past even when we're stopped (Park/Neutral) at a crossing.
+ */
+const TRAFFIC_REF_SPEED = gearScrollRate(2);
 
 /** Decorative (non-consequential) other road user. */
 interface TrafficCar {
@@ -93,6 +102,7 @@ export class PtvDriveScene extends Phaser.Scene {
     a: Phaser.Input.Keyboard.Key;
     d: Phaser.Input.Keyboard.Key;
     r: Phaser.Input.Keyboard.Key;
+    space: Phaser.Input.Keyboard.Key;
   };
 
   constructor() {
@@ -261,18 +271,63 @@ export class PtvDriveScene extends Phaser.Scene {
 
     // Gentle hint.
     this.container.add(
-      this.add.text(width / 2, height - 14, 'Tap left or right to change lane', {
+      this.add.text(width / 2, height - 14, 'Tap left or right to change lane   ·   Spacebar = emergency stop!', {
         fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5).setDepth(40)
     );
   }
 
-  /** Vertical gear stick on the right: 3 / 2 / 1 / R top-to-bottom. */
+  /**
+   * Handbrake — slam to a halt. Better than an RTA, but it jostles the animals
+   * in their cages: comfort drops, the van judders, the screen shakes. Drops
+   * the stick into Neutral so the vehicle actually stops.
+   */
+  private emergencyBrake(): void {
+    this.setGear(NEUTRAL);
+    this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 15);
+    AudioManager.getInstance().playSfx('food_wrong'); // wobble/chaos cue (placeholder)
+
+    // Screen shake + a quick van judder.
+    this.cameras.main.shake(320, 0.012);
+    if (this.vanGfx) {
+      this.tweens.add({
+        targets: this.vanGfx,
+        angle: { from: -6, to: 6 },
+        duration: 70,
+        yoyo: true,
+        repeat: 3,
+        ease: 'Sine.easeInOut',
+        onComplete: () => this.vanGfx?.setAngle(0),
+      });
+    }
+
+    // "Hold on!" popup.
+    const { width, height } = this.scale;
+    const popup = this.add.text(width / 2, height * 0.5, 'Hold on!', {
+      fontSize: '30px', fontFamily: FONTS.title, fontStyle: 'bold',
+      color: '#ffffff',
+      backgroundColor: 'rgba(168,32,32,0.85)',
+      padding: { x: 16, y: 8 },
+    }).setOrigin(0.5).setDepth(60).setAlpha(0);
+    this.container.add(popup);
+    this.tweens.add({
+      targets: popup,
+      alpha: 1,
+      scale: { from: 0.7, to: 1.1 },
+      duration: 150,
+      yoyo: true,
+      hold: 350,
+      ease: 'Back.easeOut',
+      onComplete: () => popup.destroy(),
+    });
+  }
+
+  /** Vertical gear stick on the right: 3 / 2 / 1 / N / R / P top-to-bottom. */
   private renderGearStick(width: number, height: number): void {
     const stickX = width - 46;
-    const topY = height * 0.30;
-    const botY = height * 0.74;
-    const slots: Gear[] = [3, 2, 1, REVERSE]; // visual top → bottom
+    const topY = height * 0.24;
+    const botY = height * 0.80;
+    const slots: Gear[] = [3, 2, 1, NEUTRAL, REVERSE, PARK]; // visual top → bottom
     const slotY = (i: number) => topY + (botY - topY) * (i / (slots.length - 1));
 
     // Track.
@@ -295,10 +350,15 @@ export class PtvDriveScene extends Phaser.Scene {
       const y = slotY(i);
       this.gearSlotY[String(gear)] = y;
       const label = gearLabel(gear);
+      const labelColour =
+        gear === PARK ? '#a9c7e0' :
+        gear === REVERSE ? '#ffc9c9' :
+        gear === NEUTRAL ? '#d8d8d8' :
+        '#e8dcc8';
       this.container.add(
         this.add.text(stickX, y, label, {
           fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
-          color: gear === REVERSE ? '#ffd0d0' : '#e8dcc8',
+          color: labelColour,
         }).setOrigin(0.5).setDepth(39)
       );
       const zone = this.add.rectangle(stickX, y, 52, 40, 0xffffff, 0)
@@ -332,6 +392,7 @@ export class PtvDriveScene extends Phaser.Scene {
         a: kb.addKey('A'),
         d: kb.addKey('D'),
         r: kb.addKey('R'),
+        space: kb.addKey('SPACE'),
       };
       this.keys.left.on('down', () => this.moveLane(-1));
       this.keys.a.on('down', () => this.moveLane(-1));
@@ -340,6 +401,7 @@ export class PtvDriveScene extends Phaser.Scene {
       this.keys.up.on('down', () => this.setGear(cycleGear(this.drive.gear, 1)));
       this.keys.down.on('down', () => this.setGear(cycleGear(this.drive.gear, -1)));
       this.keys.r.on('down', () => this.setGear(REVERSE));
+      this.keys.space.on('down', () => this.emergencyBrake());
     }
 
     // Lane tap zones — left / right halves of the upper driving area, clear of
@@ -422,9 +484,11 @@ export class PtvDriveScene extends Phaser.Scene {
           s.gfx.setY(s.y);
         }
 
-        // Traffic drifts by the difference between our pace and theirs.
+        // Traffic drifts by the difference between our pace and their own
+        // absolute pace — so they keep flowing past even when we're stopped.
         for (const car of this.traffic) {
-          const dy = rate * (1 - car.profile.relSpeed);
+          const carAbs = car.profile.relSpeed * TRAFFIC_REF_SPEED;
+          const dy = rate - carAbs;
           car.y += dy;
 
           // Weavers hop lanes now and then.

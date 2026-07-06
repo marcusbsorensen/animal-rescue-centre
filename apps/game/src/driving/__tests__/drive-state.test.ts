@@ -6,10 +6,13 @@ import {
   cycleGear,
   gearLabel,
   gearScrollRate,
+  isStopped,
+  jostleComfort,
   NUM_LANES,
   GEAR_ORDER,
+  PARK,
   REVERSE,
-  type Gear,
+  NEUTRAL,
 } from '../drive-state';
 
 describe('drive-state', () => {
@@ -74,12 +77,14 @@ describe('drive-state', () => {
       expect(cycleGear(1, 1)).toBe(2);
       expect(cycleGear(2, 1)).toBe(3);
     });
-    it('steps down and into reverse', () => {
+    it('steps down through N, R to P (auto P-R-N-D order)', () => {
       expect(cycleGear(2, -1)).toBe(1);
-      expect(cycleGear(1, -1)).toBe(REVERSE);
+      expect(cycleGear(1, -1)).toBe(NEUTRAL);
+      expect(cycleGear(NEUTRAL, -1)).toBe(REVERSE);
+      expect(cycleGear(REVERSE, -1)).toBe(PARK);
     });
-    it('clamps at reverse and top gear', () => {
-      expect(cycleGear(REVERSE, -1)).toBe(REVERSE);
+    it('clamps at park and top gear', () => {
+      expect(cycleGear(PARK, -1)).toBe(PARK);
       expect(cycleGear(3, 1)).toBe(3);
     });
     it('only ever yields a gear in GEAR_ORDER', () => {
@@ -91,15 +96,30 @@ describe('drive-state', () => {
   });
 
   describe('gearLabel', () => {
-    it('labels reverse as R and forward gears numerically', () => {
+    it('labels every gear', () => {
+      expect(gearLabel(PARK)).toBe('P');
       expect(gearLabel(REVERSE)).toBe('R');
+      expect(gearLabel(NEUTRAL)).toBe('N');
       expect(gearLabel(1)).toBe('1');
-      expect(gearLabel(2)).toBe('2');
       expect(gearLabel(3)).toBe('3');
     });
   });
 
+  describe('isStopped', () => {
+    it('is true for Park and Neutral only', () => {
+      expect(isStopped(PARK)).toBe(true);
+      expect(isStopped(NEUTRAL)).toBe(true);
+      expect(isStopped(REVERSE)).toBe(false);
+      expect(isStopped(1)).toBe(false);
+      expect(isStopped(3)).toBe(false);
+    });
+  });
+
   describe('gearScrollRate', () => {
+    it('holds still in Park and Neutral', () => {
+      expect(gearScrollRate(PARK)).toBe(0);
+      expect(gearScrollRate(NEUTRAL)).toBe(0);
+    });
     it('reverses with a negative rate', () => {
       expect(gearScrollRate(REVERSE)).toBeLessThan(0);
     });
@@ -110,11 +130,20 @@ describe('drive-state', () => {
       expect(g1).toBeGreaterThan(0);
       expect(g2).toBeGreaterThan(g1);
       expect(g3).toBeGreaterThan(g2);
-      // Exponential, not linear: the 2→3 jump exceeds the 1→2 jump.
       expect(g3 - g2).toBeGreaterThan(g2 - g1);
     });
     it('reverse is gentler than first gear', () => {
       expect(Math.abs(gearScrollRate(REVERSE))).toBeLessThan(gearScrollRate(1));
+    });
+  });
+
+  describe('jostleComfort', () => {
+    it('drops comfort by the severity', () => {
+      expect(jostleComfort(100, 15)).toBe(85);
+    });
+    it('never falls below 0 or above 100', () => {
+      expect(jostleComfort(10, 40)).toBe(0);
+      expect(jostleComfort(100, -50)).toBe(100);
     });
   });
 });

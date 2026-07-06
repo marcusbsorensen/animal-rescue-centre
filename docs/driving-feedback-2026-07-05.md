@@ -44,6 +44,16 @@ Structural work, best done when Marcus can re-test:
 
 ---
 
+## Round 2 (Lily loving it — 2026-07-05 later)
+
+| Feedback | Disposition |
+|---|---|
+| Need **N** (neutral) and **P** (park) gears so the vehicle comes to a full stop — e.g. for a hedgehog crossing. | **Done.** Gear stick is now a proper auto layout: **3 / 2 / 1 / N / R / P**. P and N both hold still. |
+| **Emergency brake / handbrake** on **spacebar** — slams to a stop; jostles the animals in the cages (chaos), but better than an actual RTA. | **Done.** Spacebar drops to Neutral, shakes the screen, judders the van, drops cargo comfort (−15), and pops a "Hold on!". Proper cage-bounce visuals land with the cargo/mirror slice; a screech SFX is a future audio commission (placeholder wobble for now). |
+| *(side-fix)* Traffic used to freeze when we stopped. | **Fixed.** Traffic now has its own absolute speed, so cars keep flowing past while you wait at N/P for the hedgehog. |
+
+---
+
 ## This pass — what's shipping now
 
 Speed curve, longer lane lines, bigger vehicles, gentle banked lane change,
