@@ -428,26 +428,28 @@ export class PtvDriveScene extends Phaser.Scene {
 
     const geo = roadGeometry(this.scale.width);
     const targetX = laneCentreX(geo, next);
+    const van = this.vanGfx;
+    // Stopping the old tween fires its onStop, which straightens the van, so a
+    // rapid second lane change can't leave it stuck mid-bank.
     if (this.laneTween) this.laneTween.stop();
-    if (this.vanGfx) {
-      // Gentle glide so the animals aren't flung around the back.
-      this.laneTween = this.tweens.add({
-        targets: this.vanGfx,
-        x: targetX,
-        duration: 380,
-        ease: 'Sine.easeInOut',
-      });
-      // Bank toward the turn, then straighten up once settled.
-      this.vanGfx.setAngle(0);
-      this.tweens.add({
-        targets: this.vanGfx,
-        angle: dir * 10,
-        duration: 170,
-        ease: 'Sine.easeOut',
-        yoyo: true,
-        hold: 60,
-      });
-    }
+    if (!van) return;
+    van.setAngle(0);
+
+    // One tween drives both the glide and the bank: the tilt is derived from
+    // the tween's own progress (0 → peak → 0), and is force-reset to 0 on
+    // completion or interruption — so the van can never get stuck leaning,
+    // including at the far lanes where a further tap early-returns.
+    this.laneTween = this.tweens.add({
+      targets: van,
+      x: targetX,
+      duration: 380,
+      ease: 'Sine.easeInOut',
+      onUpdate: (tw: Phaser.Tweens.Tween) => {
+        van.setAngle(dir * 10 * Math.sin(tw.progress * Math.PI));
+      },
+      onComplete: () => van.setAngle(0),
+      onStop: () => van.setAngle(0),
+    });
   }
 
   private setGear(gear: Gear): void {
