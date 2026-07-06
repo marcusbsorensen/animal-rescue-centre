@@ -63,6 +63,18 @@ interface SceneryProp {
   size: number;
 }
 
+/** A roadside decoration (cone, sign, bollard, barrier, speed camera). */
+interface DecorProp {
+  obj: Phaser.GameObjects.Image;
+  y: number;
+  size: number;
+  isCamera: boolean;
+  triggered: boolean;
+}
+
+/** Decor kinds that are purely decorative (the speed camera is special). */
+const DECOR_KINDS = ['cone', 'cones-three', 'sign-warning', 'sign-speed', 'bollard', 'barrier'];
+
 export interface PtvDriveInit {
   driveType?: DriveType;
   destinationId?: string;
@@ -95,6 +107,7 @@ export class PtvDriveScene extends Phaser.Scene {
   private vanGfx?: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
   private traffic: TrafficCar[] = [];
   private scenery: SceneryProp[] = [];
+  private decor: DecorProp[] = [];
   private scrollY = 0;
   private driveTimer?: Phaser.Time.TimerEvent;
   private laneTween?: Phaser.Tweens.Tween;
@@ -140,6 +153,9 @@ export class PtvDriveScene extends Phaser.Scene {
     for (const n of ['car-red', 'car-blue', 'car-yellow', 'pickup', 'truck', 'tractor', 'motorbike', 'ambulance']) {
       tryImg(`vehicle-topdown-${n}`, `vehicle-topdown-${n}.png`);
     }
+    for (const n of [...DECOR_KINDS, 'speed-camera']) {
+      tryImg(`decor-${n}`, `decor/decor-${n}.png`);
+    }
     this.load.on('loaderror', () => { /* tolerate not-yet-generated sprites */ });
   }
 
@@ -154,6 +170,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.scrollY = 0;
     this.traffic = [];
     this.scenery = [];
+    this.decor = [];
     this.roadGfx = undefined;
     this.vanGfx = undefined;
     this.laneTween = undefined;
@@ -189,6 +206,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.removeAll(true);
     this.traffic = [];
     this.scenery = [];
+    this.decor = [];
 
     const { width, height } = this.scale;
     const geo = roadGeometry(width);
@@ -223,6 +241,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.add(this.roadGfx);
 
     this.spawnScenery(width, height);
+    this.spawnDecor(width, height);
     this.spawnInitialTraffic(width, height);
 
     // The van — fixed near the lower third, pointing up.
@@ -412,6 +431,38 @@ export class PtvDriveScene extends Phaser.Scene {
       this.container.add(gfx);
       this.scenery.push({ gfx, y, size });
     }
+  }
+
+  // ── Roadside decorations ───────────────────────────────────
+
+  private spawnDecor(width: number, height: number): void {
+    const count = 5;
+    for (let i = 0; i < count; i++) {
+      const isCamera = Math.random() < 0.28; // roughly one camera among the props
+      const kind = isCamera ? 'speed-camera' : DECOR_KINDS[Math.floor(Math.random() * DECOR_KINDS.length)];
+      const key = `decor-${kind}`;
+      if (!this.textures.exists(key)) continue;
+      const side: -1 | 1 = Math.random() < 0.5 ? -1 : 1;
+      const obj = this.makeDecorObj(key, width, side);
+      const y = (i / count) * height + Math.random() * 80 - height * 0.2;
+      obj.setY(y);
+      this.decor.push({ obj, y, size: obj.displayHeight, isCamera, triggered: false });
+    }
+  }
+
+  private makeDecorObj(key: string, width: number, side: -1 | 1): Phaser.GameObjects.Image {
+    const geo = roadGeometry(width);
+    const img = this.add.image(0, 0, key);
+    const targetW = Math.min(geo.laneWidth * 0.72, 72);
+    img.setScale(targetW / img.width);
+    const half = img.displayWidth * 0.5;
+    const x = side < 0
+      ? geo.roadLeft - 10 - half - Math.random() * 26
+      : geo.roadLeft + geo.roadWidth + 10 + half + Math.random() * 26;
+    img.setX(Math.max(half, Math.min(width - half, x)));
+    img.setDepth(6);
+    this.container.add(img);
+    return img;
   }
 
   // ── Decorative traffic ─────────────────────────────────────
@@ -704,6 +755,21 @@ export class PtvDriveScene extends Phaser.Scene {
           s.gfx.setY(s.y);
         }
 
+        // Roadside decorations scroll with the road. A speed camera flashes if
+        // we pass it in top gear — the gentle "consequence" that pairs with the
+        // handbrake, never a crash.
+        for (const d of this.decor) {
+          const prevY = d.y;
+          d.y += rate;
+          if (d.isCamera && !d.triggered && prevY < this.vanY && d.y >= this.vanY && this.drive.gear === 3) {
+            this.flashSpeedCamera(d);
+            d.triggered = true;
+          }
+          if (d.y > height + d.size + 30) { d.y = -d.size - Math.random() * 80; d.triggered = false; }
+          else if (d.y < -d.size - 100) { d.y = height + d.size + Math.random() * 80; d.triggered = false; }
+          d.obj.setY(d.y);
+        }
+
         // Traffic drifts by the difference between our pace and their own
         // absolute pace — so they keep flowing past even when we're stopped.
         for (const car of this.traffic) {
@@ -748,6 +814,28 @@ export class PtvDriveScene extends Phaser.Scene {
     car.gfx.setDepth(15);
     this.container.add(car.gfx);
     car.nextZigAt = car.profile.zigzag ? this.time.now + 700 + Math.random() * 900 : 0;
+  }
+
+  /** Speed camera caught us going too fast — a white blitz, a little camera
+   *  pop, a jostle to the cargo and a "Slow down!". No crash, just a nudge. */
+  private flashSpeedCamera(d: DecorProp): void {
+    const { width, height } = this.scale;
+    AudioManager.getInstance().playSfx('food_wrong');
+
+    const flash = this.add.rectangle(width / 2, height / 2, width, height, 0xffffff, 0.85).setDepth(70);
+    this.container.add(flash);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 320, onComplete: () => flash.destroy() });
+
+    this.tweens.add({ targets: d.obj, scale: d.obj.scale * 1.18, duration: 110, yoyo: true });
+
+    this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 6);
+
+    const msg = this.add.text(width / 2, height * 0.34, 'Slow down!', {
+      fontSize: '26px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      backgroundColor: 'rgba(168,32,32,0.85)', padding: { x: 14, y: 6 },
+    }).setOrigin(0.5).setDepth(71).setAlpha(0);
+    this.container.add(msg);
+    this.tweens.add({ targets: msg, alpha: 1, duration: 150, yoyo: true, hold: 550, onComplete: () => msg.destroy() });
   }
 
   // ── Exit ───────────────────────────────────────────────────
