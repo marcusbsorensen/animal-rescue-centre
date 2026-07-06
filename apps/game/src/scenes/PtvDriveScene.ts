@@ -12,7 +12,6 @@ import {
   jostleComfort,
   PARK,
   REVERSE,
-  NEUTRAL,
   NUM_LANES,
   type DriveState,
   type DriveType,
@@ -280,10 +279,10 @@ export class PtvDriveScene extends Phaser.Scene {
   /**
    * Handbrake — slam to a halt. Better than an RTA, but it jostles the animals
    * in their cages: comfort drops, the van judders, the screen shakes. Drops
-   * the stick into Neutral so the vehicle actually stops.
+   * the stick straight into Park so the vehicle actually stops.
    */
   private emergencyBrake(): void {
-    this.setGear(NEUTRAL);
+    this.setGear(PARK);
     this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 15);
     AudioManager.getInstance().playSfx('food_wrong'); // wobble/chaos cue (placeholder)
 
@@ -322,12 +321,12 @@ export class PtvDriveScene extends Phaser.Scene {
     });
   }
 
-  /** Vertical gear stick on the right: 3 / 2 / 1 / N / R / P top-to-bottom. */
+  /** Vertical gear stick on the right: 3 / 2 / 1 / P / R top-to-bottom. */
   private renderGearStick(width: number, height: number): void {
     const stickX = width - 46;
-    const topY = height * 0.24;
-    const botY = height * 0.80;
-    const slots: Gear[] = [3, 2, 1, NEUTRAL, REVERSE, PARK]; // visual top → bottom
+    const topY = height * 0.28;
+    const botY = height * 0.78;
+    const slots: Gear[] = [3, 2, 1, PARK, REVERSE]; // visual top → bottom
     const slotY = (i: number) => topY + (botY - topY) * (i / (slots.length - 1));
 
     // Track.
@@ -353,7 +352,6 @@ export class PtvDriveScene extends Phaser.Scene {
       const labelColour =
         gear === PARK ? '#a9c7e0' :
         gear === REVERSE ? '#ffc9c9' :
-        gear === NEUTRAL ? '#d8d8d8' :
         '#e8dcc8';
       this.container.add(
         this.add.text(stickX, y, label, {

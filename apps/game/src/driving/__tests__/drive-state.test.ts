@@ -12,7 +12,6 @@ import {
   GEAR_ORDER,
   PARK,
   REVERSE,
-  NEUTRAL,
 } from '../drive-state';
 
 describe('drive-state', () => {
@@ -77,15 +76,22 @@ describe('drive-state', () => {
       expect(cycleGear(1, 1)).toBe(2);
       expect(cycleGear(2, 1)).toBe(3);
     });
-    it('steps down through N, R to P (auto P-R-N-D order)', () => {
+    it('drops from first gear straight to Park, then Reverse below it', () => {
       expect(cycleGear(2, -1)).toBe(1);
-      expect(cycleGear(1, -1)).toBe(NEUTRAL);
-      expect(cycleGear(NEUTRAL, -1)).toBe(REVERSE);
-      expect(cycleGear(REVERSE, -1)).toBe(PARK);
+      expect(cycleGear(1, -1)).toBe(PARK);
+      expect(cycleGear(PARK, -1)).toBe(REVERSE);
     });
-    it('clamps at park and top gear', () => {
-      expect(cycleGear(PARK, -1)).toBe(PARK);
+    it('does not pass through Reverse to reach Park', () => {
+      // Park sits between 1st and Reverse — reachable without touching R.
+      expect(cycleGear(1, -1)).not.toBe(REVERSE);
+    });
+    it('clamps at Reverse (bottom) and top gear', () => {
+      expect(cycleGear(REVERSE, -1)).toBe(REVERSE);
       expect(cycleGear(3, 1)).toBe(3);
+    });
+    it('rises from Reverse up through Park to first gear', () => {
+      expect(cycleGear(REVERSE, 1)).toBe(PARK);
+      expect(cycleGear(PARK, 1)).toBe(1);
     });
     it('only ever yields a gear in GEAR_ORDER', () => {
       for (const g of GEAR_ORDER) {
@@ -99,16 +105,14 @@ describe('drive-state', () => {
     it('labels every gear', () => {
       expect(gearLabel(PARK)).toBe('P');
       expect(gearLabel(REVERSE)).toBe('R');
-      expect(gearLabel(NEUTRAL)).toBe('N');
       expect(gearLabel(1)).toBe('1');
       expect(gearLabel(3)).toBe('3');
     });
   });
 
   describe('isStopped', () => {
-    it('is true for Park and Neutral only', () => {
+    it('is true for Park only', () => {
       expect(isStopped(PARK)).toBe(true);
-      expect(isStopped(NEUTRAL)).toBe(true);
       expect(isStopped(REVERSE)).toBe(false);
       expect(isStopped(1)).toBe(false);
       expect(isStopped(3)).toBe(false);
@@ -116,9 +120,8 @@ describe('drive-state', () => {
   });
 
   describe('gearScrollRate', () => {
-    it('holds still in Park and Neutral', () => {
+    it('holds still in Park', () => {
       expect(gearScrollRate(PARK)).toBe(0);
-      expect(gearScrollRate(NEUTRAL)).toBe(0);
     });
     it('reverses with a negative rate', () => {
       expect(gearScrollRate(REVERSE)).toBeLessThan(0);

@@ -8,31 +8,30 @@
  */
 
 /**
- * Gear selection, like an automatic stick: Park and Neutral both hold the
- * vehicle still (e.g. stopped for a hedgehog crossing), Reverse for negotiating
- * an obstacle, and three forward gears (1..3).
+ * Gear selection: Park holds the vehicle still (e.g. stopped for a hedgehog
+ * crossing), Reverse for negotiating an obstacle, and three forward gears
+ * (1..3).
  */
-export type Gear = 'P' | 'R' | 'N' | 1 | 2 | 3;
+export type Gear = 'P' | 'R' | 1 | 2 | 3;
 
 /** Park — fully stopped. */
 export const PARK: Gear = 'P';
 /** Reverse. */
 export const REVERSE: Gear = 'R';
-/** Neutral — stopped but ready to pull away. */
-export const NEUTRAL: Gear = 'N';
 
 /** Forward gears, low → high. */
 export const FORWARD_GEARS: readonly Gear[] = [1, 2, 3];
 
 /**
- * Gear stick order, bottom (P) → top (3), for cycling with the arrows.
- * Mirrors a real P-R-N-D auto stick (P, R, N, then the forward gears).
+ * Gear stick order, bottom → top: Reverse, Park, then the forward gears. Park
+ * sits between Reverse and 1st, so you drop into it straight from first gear
+ * without passing through Reverse.
  */
-export const GEAR_ORDER: readonly Gear[] = ['P', 'R', 'N', 1, 2, 3];
+export const GEAR_ORDER: readonly Gear[] = ['R', 'P', 1, 2, 3];
 
 /** Whether a gear holds the vehicle stationary. */
 export function isStopped(gear: Gear): boolean {
-  return gear === PARK || gear === NEUTRAL;
+  return gear === PARK;
 }
 
 /** Number of lanes on the (placeholder) 3-lane PTV road. The road-system
@@ -108,7 +107,7 @@ export function jostleComfort(comfort: number, severity: number): number {
   return Math.max(0, Math.min(100, comfort - severity));
 }
 
-/** Human-friendly gear label for the stick / HUD ('P','R','N','1','2','3'). */
+/** Human-friendly gear label for the stick / HUD ('P','R','1','2','3'). */
 export function gearLabel(gear: Gear): string {
   return String(gear);
 }
@@ -122,7 +121,6 @@ export function gearScrollRate(gear: Gear): number {
   switch (gear) {
     case 'P': return 0;   // park — stopped
     case 'R': return -2.6; // reverse — gentle backward creep
-    case 'N': return 0;   // neutral — stopped
     case 1: return 3.2;
     case 2: return 7.2;
     case 3: return 15;
