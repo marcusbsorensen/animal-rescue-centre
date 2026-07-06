@@ -5,20 +5,18 @@ import { AudioManager } from '../audio/AudioManager';
 import type { Economy } from '@arc/shared-types';
 import {
   createDriveState,
-  shiftLane,
   cycleGear,
   gearLabel,
   gearScrollRate,
   jostleComfort,
   PARK,
   REVERSE,
-  NUM_LANES,
   type DriveState,
   type DriveType,
   type Gear,
 } from '../driving/drive-state';
 import {
-  drawTopDownRoad,
+  drawRoadForConfig,
   drawTopDownVan,
   drawTrafficVehicle,
   drawSceneryItem,
@@ -28,6 +26,7 @@ import {
 } from '../driving/drive-render';
 import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed } from '../driving/traffic-sim';
+import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
 /**
  * Reference cruising rate (px/tick) that traffic `relSpeed` is measured
@@ -78,6 +77,18 @@ interface DecorProp {
 /** Decor kinds that are purely decorative (the speed camera is special). */
 const DECOR_KINDS = ['cone', 'cones-three', 'sign-warning', 'sign-speed', 'bollard', 'barrier'];
 
+/** An oncoming vehicle in the opposite carriageway, sweeping up toward us. It's
+ *  across the divide so it never collides with the player — just atmosphere. */
+interface OncomingCar {
+  gfx: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
+  lane: number;
+  y: number;
+  speed: number;
+}
+
+/** The order the demo cycles road types in. */
+const ROAD_CYCLE: RoadId[] = ['country-lane', 'thanet-way', 'rural-track', 'coast-road'];
+
 export interface PtvDriveInit {
   driveType?: DriveType;
   destinationId?: string;
@@ -109,8 +120,10 @@ export class PtvDriveScene extends Phaser.Scene {
   private roadGfx?: Phaser.GameObjects.Graphics;
   private vanGfx?: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
   private traffic: TrafficCar[] = [];
+  private oncoming: OncomingCar[] = [];
   private scenery: SceneryProp[] = [];
   private decor: DecorProp[] = [];
+  private roadConfig: RoadConfig = ROADS['country-lane'];
   private scrollY = 0;
   private driveTimer?: Phaser.Time.TimerEvent;
   private laneTween?: Phaser.Tweens.Tween;
@@ -204,15 +217,26 @@ export class PtvDriveScene extends Phaser.Scene {
     }
   }
 
+  /** Road geometry for the current road config. */
+  private geo(): ReturnType<typeof roadGeometry> {
+    return roadGeometry(this.scale.width, this.roadConfig);
+  }
+
+  /** Number of lanes on the player's side of the current road. */
+  private pl(): number {
+    return this.roadConfig.playerLanes;
+  }
+
   private renderView(): void {
     this.cleanup();
     this.container.removeAll(true);
     this.traffic = [];
+    this.oncoming = [];
     this.scenery = [];
     this.decor = [];
 
     const { width, height } = this.scale;
-    const geo = roadGeometry(width);
+    const geo = this.geo();
     const size = vanSizeForLane(geo.laneWidth);
     this.vanW = size.w;
     this.vanH = size.h;
@@ -239,6 +263,9 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   private renderTravel(width: number, height: number, geo: ReturnType<typeof roadGeometry>): void {
+    // Keep the van within the player's lanes (a country lane has just one).
+    this.drive.lane = Math.max(0, Math.min(this.pl() - 1, this.drive.lane));
+
     // Road (redrawn every tick).
     this.roadGfx = this.add.graphics();
     this.container.add(this.roadGfx);
@@ -246,6 +273,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.spawnScenery(width, height);
     this.spawnDecor(width, height);
     this.spawnInitialTraffic(width, height);
+    this.spawnOncoming(width, height);
 
     // The van — fixed near the lower third, pointing up.
     this.vanY = height * 0.72;
@@ -258,7 +286,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.setupInput(width, height);
     this.startDriveLoop();
 
-    drawTopDownRoad(this.roadGfx, width, height, this.scrollY);
+    drawRoadForConfig(this.roadGfx, width, height, this.scrollY, geo, this.roadConfig);
   }
 
   // ── Parking-lot start ──────────────────────────────────────
@@ -415,7 +443,7 @@ export class PtvDriveScene extends Phaser.Scene {
   // ── Scenery ────────────────────────────────────────────────
 
   private spawnScenery(width: number, height: number): void {
-    const geo = roadGeometry(width);
+    const geo = this.geo();
     const leftVergeMax = geo.roadLeft - 16;
     const rightVergeMin = geo.roadLeft + geo.roadWidth + 16;
     const count = 8;
@@ -454,7 +482,7 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   private makeDecorObj(key: string, width: number, side: -1 | 1): Phaser.GameObjects.Image {
-    const geo = roadGeometry(width);
+    const geo = this.geo();
     const img = this.add.image(0, 0, key);
     const targetW = Math.min(geo.laneWidth * 0.72, 72);
     img.setScale(targetW / img.width);
@@ -477,13 +505,57 @@ export class PtvDriveScene extends Phaser.Scene {
     }
   }
 
+  // ── Oncoming traffic (opposite carriageway) ────────────────
+
+  private spawnOncoming(width: number, height: number): void {
+    if (this.roadConfig.oncomingLanes <= 0) return;
+    const count = this.roadConfig.oncomingLanes * 2 + 1;
+    for (let i = 0; i < count; i++) {
+      this.addOncomingCar((i / count) * height * 1.4 - height * 0.2);
+    }
+  }
+
+  private oncomingLane(): number {
+    return this.roadConfig.playerLanes + Math.floor(Math.random() * this.roadConfig.oncomingLanes);
+  }
+
+  private addOncomingCar(y: number): void {
+    const geo = this.geo();
+    const lane = this.oncomingLane();
+    const profile = TRAFFIC_PROFILES[pickTrafficKind(Math.random())];
+    const w = Math.round(this.vanW * profile.widthFactor);
+    const h = Math.round(this.vanH * profile.lengthFactor);
+    const gfx = this.makeTrafficObj(profile, w, h);
+    gfx.setPosition(laneCentreX(geo, lane), y);
+    gfx.setAngle(180); // facing down, toward us
+    gfx.setDepth(15);
+    this.container.add(gfx);
+    this.oncoming.push({ gfx, lane, y, speed: 4 + Math.random() * 3 });
+  }
+
+  private recycleOncoming(o: OncomingCar, y: number): void {
+    const geo = this.geo();
+    o.lane = this.oncomingLane();
+    o.y = y;
+    const profile = TRAFFIC_PROFILES[pickTrafficKind(Math.random())];
+    const w = Math.round(this.vanW * profile.widthFactor);
+    const h = Math.round(this.vanH * profile.lengthFactor);
+    o.gfx.destroy();
+    o.gfx = this.makeTrafficObj(profile, w, h);
+    o.gfx.setPosition(laneCentreX(geo, o.lane), y);
+    o.gfx.setAngle(180);
+    o.gfx.setDepth(15);
+    this.container.add(o.gfx);
+    o.speed = 4 + Math.random() * 3;
+  }
+
   /** Choose a lane for a vehicle: mostly its preferred (slow vehicles slow
    *  lane, fast vehicles fast lane), with an occasional neighbour for variety. */
   private assignLane(profile: TrafficProfile): number {
-    const base = preferredLane(profile, NUM_LANES);
+    const base = preferredLane(profile, this.pl());
     if (Math.random() < 0.62) return base;
     const j = Math.random() < 0.5 ? -1 : 1;
-    return Math.max(0, Math.min(NUM_LANES - 1, base + j));
+    return Math.max(0, Math.min(this.pl() - 1, base + j));
   }
 
   /** A traffic vehicle object — painted sprite if one is loaded for the kind,
@@ -503,7 +575,7 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   private addTrafficCar(width: number, y: number, kind: keyof typeof TRAFFIC_PROFILES): void {
-    const geo = roadGeometry(width);
+    const geo = this.geo();
     const profile = TRAFFIC_PROFILES[kind];
     const lane = this.assignLane(profile);
     const w = Math.round(this.vanW * profile.widthFactor);
@@ -517,7 +589,7 @@ export class PtvDriveScene extends Phaser.Scene {
       profile,
       lane,
       y,
-      absSpeed: carAbsoluteSpeed(profile, lane, TRAFFIC_REF_SPEED, NUM_LANES),
+      absSpeed: carAbsoluteSpeed(profile, lane, TRAFFIC_REF_SPEED, this.pl()),
       nextZigAt: profile.zigzag ? this.time.now + 800 + Math.random() * 900 : 0,
     });
   }
@@ -542,6 +614,13 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.add(
       createButton(this, 54, 34, 'Back', () => this.exit(), {
         width: 88, bgColour: COLOURS.warm,
+      }).setDepth(40)
+    );
+
+    // Road-type toggle (demo): cycle country lane / Thanet Way / gravel / sand.
+    this.container.add(
+      createButton(this, width - 96, 34, this.roadConfig.label, () => this.cycleRoad(), {
+        width: 168, bgColour: COLOURS.info, fontSize: '14px',
       }).setDepth(40)
     );
 
@@ -698,7 +777,7 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   private moveLane(dir: -1 | 1): void {
-    const next = shiftLane(this.drive.lane, dir);
+    const next = Math.max(0, Math.min(this.pl() - 1, this.drive.lane + dir));
     if (next === this.drive.lane) return;
     // Safety first: with animals aboard we NEVER swerve into another vehicle.
     // If the target lane is occupied beside us, refuse and give a little nudge.
@@ -709,7 +788,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.drive.lane = next;
     AudioManager.getInstance().playSfx('button_click');
 
-    const geo = roadGeometry(this.scale.width);
+    const geo = this.geo();
     const targetX = laneCentreX(geo, next);
     const van = this.vanGfx;
     // Stopping the old tween fires its onStop, which straightens the van, so a
@@ -751,6 +830,14 @@ export class PtvDriveScene extends Phaser.Scene {
     this.tweens.add({ targets: van, x: x0 + dir * 12, duration: 95, yoyo: true, ease: 'Sine.easeOut' });
   }
 
+  /** Demo: cycle to the next road type and rebuild the travel view. */
+  private cycleRoad(): void {
+    const idx = ROAD_CYCLE.indexOf(this.roadConfig.id as RoadId);
+    this.roadConfig = ROADS[ROAD_CYCLE[(idx + 1) % ROAD_CYCLE.length]];
+    this.scrollY = 0;
+    this.renderView();
+  }
+
   private setGear(gear: Gear): void {
     if (gear === this.drive.gear) return;
     this.drive.gear = gear;
@@ -778,7 +865,7 @@ export class PtvDriveScene extends Phaser.Scene {
         const rate = this.effectivePlayerRate(gearRate);
         this.scrollY += rate;
 
-        if (this.roadGfx) drawTopDownRoad(this.roadGfx, width, height, this.scrollY);
+        if (this.roadGfx) drawRoadForConfig(this.roadGfx, width, height, this.scrollY, this.geo(), this.roadConfig);
 
         // Scenery scrolls exactly with the road.
         for (const s of this.scenery) {
@@ -811,7 +898,7 @@ export class PtvDriveScene extends Phaser.Scene {
 
           // Weavers hop lanes now and then.
           if (car.nextZigAt && this.time.now >= car.nextZigAt) {
-            const dir = car.lane === 0 ? 1 : car.lane === NUM_LANES - 1 ? -1 : (Math.random() < 0.5 ? -1 : 1);
+            const dir = car.lane === 0 ? 1 : car.lane === this.pl() - 1 ? -1 : (Math.random() < 0.5 ? -1 : 1);
             this.moveCarToLane(car, car.lane + dir);
             car.nextZigAt = this.time.now + 700 + Math.random() * 900;
           }
@@ -829,17 +916,27 @@ export class PtvDriveScene extends Phaser.Scene {
         this.resolveTraffic(width);
         for (const car of this.traffic) car.gfx.setY(car.y);
 
+        // Oncoming traffic sweeps up the screen toward us (closing = our pace +
+        // theirs). It's across the divide, so it never touches us — atmosphere.
+        for (const o of this.oncoming) {
+          o.y -= o.speed + Math.max(rate, 0) * 0.6;
+          if (o.y < -this.vanH * 2.2) {
+            this.recycleOncoming(o, height + this.vanH * 2 + Math.random() * height * 0.3);
+          }
+          o.gfx.setY(o.y);
+        }
+
         this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + rate * 0.0004));
       },
     });
   }
 
   private recycleCar(car: TrafficCar, width: number, y: number): void {
-    const geo = roadGeometry(width);
+    const geo = this.geo();
     const kind = pickTrafficKind(Math.random());
     car.profile = TRAFFIC_PROFILES[kind];
     car.lane = this.assignLane(car.profile);
-    car.absSpeed = carAbsoluteSpeed(car.profile, car.lane, TRAFFIC_REF_SPEED, NUM_LANES);
+    car.absSpeed = carAbsoluteSpeed(car.profile, car.lane, TRAFFIC_REF_SPEED, this.pl());
     car.y = y;
     const w = Math.round(this.vanW * car.profile.widthFactor);
     const h = Math.round(this.vanH * car.profile.lengthFactor);
@@ -855,11 +952,11 @@ export class PtvDriveScene extends Phaser.Scene {
   /** Move a traffic car to a lane: clamps, recomputes its lane-aware speed, and
    *  slides it across. */
   private moveCarToLane(car: TrafficCar, lane: number): void {
-    const clamped = Math.max(0, Math.min(NUM_LANES - 1, lane));
+    const clamped = Math.max(0, Math.min(this.pl() - 1, lane));
     if (clamped === car.lane) return;
     car.lane = clamped;
-    car.absSpeed = carAbsoluteSpeed(car.profile, clamped, TRAFFIC_REF_SPEED, NUM_LANES);
-    const geo = roadGeometry(this.scale.width);
+    car.absSpeed = carAbsoluteSpeed(car.profile, clamped, TRAFFIC_REF_SPEED, this.pl());
+    const geo = this.geo();
     this.tweens.add({ targets: car.gfx, x: laneCentreX(geo, clamped), duration: 260, ease: 'Sine.easeInOut' });
   }
 
@@ -889,7 +986,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const minGap = this.vanH * 1.05;
     const follow = this.vanH * 2.4;
 
-    for (let lane = 0; lane < NUM_LANES; lane++) {
+    for (let lane = 0; lane < this.pl(); lane++) {
       const cars = this.traffic.filter((c) => c.lane === lane);
       if (this.drive.lane === lane) {
         // Cars ahead of the van (closest first) held a gap in front.
@@ -943,7 +1040,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const dirs: number[] = car.absSpeed > TRAFFIC_REF_SPEED * 0.8 ? [1, -1] : [-1, 1];
     for (const dir of dirs) {
       const target = car.lane + dir;
-      if (target < 0 || target > NUM_LANES - 1) continue;
+      if (target < 0 || target > this.pl() - 1) continue;
       let clear = true;
       for (const o of this.traffic) {
         if (o === car || o.lane !== target) continue;

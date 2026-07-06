@@ -12,6 +12,7 @@
 import Phaser from 'phaser';
 import { NUM_LANES } from './drive-state';
 import type { TrafficKind } from './traffic';
+import { totalLanes, medianUnits, type RoadConfig, type RoadSurface } from './road-config';
 
 /** Top-down palette — soft daylight, tuned to the ARC brand cream/green. */
 export const DRIVE_COLOURS = {
@@ -20,31 +21,51 @@ export const DRIVE_COLOURS = {
   tarmac: 0x6b6f76,       // road surface
   laneDash: 0xfdf6e3,     // warm off-white lane markings
   roadEdgeLine: 0xf2e9d0, // solid edge line
+  reservation: 0x7ec06a,  // grass central reservation
   treeCanopy: 0x4f9a43,
   treeCanopyLight: 0x63b455,
   treeTrunk: 0x6b4a2e,
   hedge: 0x5a8f42,
 } as const;
 
+/** Surface fills per road type: tarmac, rural gravel, coastal sand. */
+export const SURFACE_COLOURS: Record<RoadSurface, { road: number; edge: number; dash: number }> = {
+  tarmac: { road: 0x6b6f76, edge: 0xf2e9d0, dash: 0xfdf6e3 },
+  gravel: { road: 0xa89a7e, edge: 0x8a7d62, dash: 0xe8ddc2 },
+  sand:   { road: 0xd6c79c, edge: 0xbfae84, dash: 0xf0e6cc },
+};
+
 export interface RoadGeometry {
   roadLeft: number;
   roadWidth: number;
   laneWidth: number;
+  totalLanes: number;
+  playerLanes: number;
+  medianUnits: number;
 }
 
 /**
- * Compute the road box for a given canvas. The road occupies the central
- * ~72% of the width; the rest is grass verge on either side.
+ * Compute the road box for a given canvas. Width scales with the number of
+ * lanes (a country lane is narrow, the Thanet Way dual carriageway is wide).
+ * Called without a config it falls back to the legacy NUM_LANES road.
  */
-export function roadGeometry(width: number): RoadGeometry {
-  const roadWidth = Math.min(width * 0.72, 620);
+export function roadGeometry(width: number, config?: RoadConfig): RoadGeometry {
+  const total = config ? totalLanes(config) : NUM_LANES;
+  const median = config ? medianUnits(config) : 0;
+  const playerLanes = config ? config.playerLanes : NUM_LANES;
+  const units = total + median;
+  const roadWidth = config
+    ? Math.min(width * (0.40 + 0.12 * units), 760)
+    : Math.min(width * 0.72, 620);
   const roadLeft = (width - roadWidth) / 2;
-  return { roadLeft, roadWidth, laneWidth: roadWidth / NUM_LANES };
+  return { roadLeft, roadWidth, laneWidth: roadWidth / units, totalLanes: total, playerLanes, medianUnits: median };
 }
 
-/** Centre x of a given lane (0..NUM_LANES-1). */
+/** Centre x of a lane index (0..total-1, left→right), accounting for a central
+ *  reservation gap before the oncoming lanes. */
 export function laneCentreX(geo: RoadGeometry, lane: number): number {
-  return geo.roadLeft + geo.laneWidth * (lane + 0.5);
+  const unitsBefore = lane + (lane >= geo.playerLanes ? geo.medianUnits : 0);
+  return geo.roadLeft + geo.laneWidth * (unitsBefore + 0.5);
 }
 
 /** Van footprint sized to the lane it sits in (~58% of lane width). Vehicles
@@ -99,6 +120,67 @@ export function drawTopDownRoad(
     const x = geo.roadLeft + geo.laneWidth * divider - dashW / 2;
     for (let y = offset - pitch; y < height; y += pitch) {
       gfx.fillRect(x, y, dashW, dashLen);
+    }
+  }
+}
+
+/**
+ * Draw a road for a given config: the surface (tarmac / gravel / sand),
+ * same-direction dashed lane dividers (scrolling), and the divide between the
+ * two directions — a solid centre line, or a grass central reservation on a
+ * dual carriageway. The player's lanes are the leftmost `geo.playerLanes`.
+ */
+export function drawRoadForConfig(
+  gfx: Phaser.GameObjects.Graphics,
+  width: number,
+  height: number,
+  scrollY: number,
+  geo: RoadGeometry,
+  config: RoadConfig,
+): void {
+  gfx.clear();
+  const surf = SURFACE_COLOURS[config.surface];
+  const lw = geo.laneWidth;
+
+  // Grass verges.
+  gfx.fillStyle(DRIVE_COLOURS.skyGrass, 1);
+  gfx.fillRect(0, 0, width, height);
+  gfx.fillStyle(DRIVE_COLOURS.vergeEdge, 1);
+  gfx.fillRect(geo.roadLeft - 10, 0, 10, height);
+  gfx.fillRect(geo.roadLeft + geo.roadWidth, 0, 10, height);
+
+  // Road surface + edge lines.
+  gfx.fillStyle(surf.road, 1);
+  gfx.fillRect(geo.roadLeft, 0, geo.roadWidth, height);
+  gfx.fillStyle(surf.edge, 0.9);
+  gfx.fillRect(geo.roadLeft + 3, 0, 3, height);
+  gfx.fillRect(geo.roadLeft + geo.roadWidth - 6, 0, 3, height);
+
+  // Same-direction dashed dividers (scroll with the drive).
+  const dashLen = 64, dashGap = 34, pitch = dashLen + dashGap, dashW = 6;
+  const offset = ((scrollY % pitch) + pitch) % pitch;
+  gfx.fillStyle(surf.dash, 0.95);
+  const drawDashes = (x: number) => {
+    for (let y = offset - pitch; y < height; y += pitch) gfx.fillRect(x - dashW / 2, y, dashW, dashLen);
+  };
+  for (let i = 1; i < geo.playerLanes; i++) drawDashes(geo.roadLeft + lw * i);
+  const oncomingStart = geo.playerLanes + geo.medianUnits;
+  for (let j = 1; j < config.oncomingLanes; j++) drawDashes(geo.roadLeft + lw * (oncomingStart + j));
+
+  // The divide between the two directions.
+  if (config.oncomingLanes > 0) {
+    const boundary = geo.roadLeft + lw * geo.playerLanes;
+    if (config.divider === 'reservation') {
+      gfx.fillStyle(DRIVE_COLOURS.reservation, 1);
+      gfx.fillRect(boundary, 0, lw * geo.medianUnits, height);
+      gfx.fillStyle(surf.edge, 0.85);
+      gfx.fillRect(boundary - 2, 0, 3, height);
+      gfx.fillRect(boundary + lw * geo.medianUnits - 1, 0, 3, height);
+    } else {
+      // Solid centre line — the "don't cross" divide (kept unbroken vs the
+      // dashed same-direction dividers a kid may cross).
+      gfx.fillStyle(surf.dash, 0.95);
+      gfx.fillRect(boundary - 2, 0, 4, height);
     }
   }
 }
