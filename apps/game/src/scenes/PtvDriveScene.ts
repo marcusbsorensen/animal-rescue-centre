@@ -76,9 +76,12 @@ export class PtvDriveScene extends Phaser.Scene {
   private drive!: DriveState;
   private returnTo?: string;
 
+  // Phase: the drive opens in the A.R.C. car park, then joins the road.
+  private phase: 'parking' | 'travel' = 'parking';
+
   // Render state
   private roadGfx?: Phaser.GameObjects.Graphics;
-  private vanGfx?: Phaser.GameObjects.Graphics;
+  private vanGfx?: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
   private traffic: TrafficCar[] = [];
   private scenery: SceneryProp[] = [];
   private scrollY = 0;
@@ -108,6 +111,27 @@ export class PtvDriveScene extends Phaser.Scene {
     super({ key: 'PtvDriveScene' });
   }
 
+  /**
+   * Self-load the top-down driving art. In the full game these keys are
+   * already loaded from the asset manifest (the exists-check skips them); in
+   * the isolated ?ptvDemo=1 boot there's no asset pipeline, so we fetch them
+   * here. Missing files (fleet sprites still rendering) fail softly and the
+   * scene falls back to the procedural draws.
+   */
+  preload(): void {
+    const base = '/assets/driving/topdown/';
+    const tryImg = (key: string, file: string) => {
+      if (!this.textures.exists(key)) this.load.image(key, base + file);
+    };
+    tryImg('vehicle-topdown-henry', 'vehicle-topdown-henry.png');
+    tryImg('site-arc-building', 'site-arc-building.png');
+    tryImg('site-gravel', 'site-gravel.png');
+    for (const n of ['car-red', 'car-blue', 'car-yellow', 'pickup', 'truck', 'tractor', 'motorbike', 'ambulance']) {
+      tryImg(`vehicle-topdown-${n}`, `vehicle-topdown-${n}.png`);
+    }
+    this.load.on('loaderror', () => { /* tolerate not-yet-generated sprites */ });
+  }
+
   init(data?: PtvDriveInit): void {
     this.drive = createDriveState({
       driveType: data?.driveType,
@@ -115,6 +139,7 @@ export class PtvDriveScene extends Phaser.Scene {
       weather: data?.weather,
     });
     this.returnTo = data?.returnTo;
+    this.phase = 'parking';
     this.scrollY = 0;
     this.traffic = [];
     this.scenery = [];
@@ -160,20 +185,38 @@ export class PtvDriveScene extends Phaser.Scene {
     this.vanW = size.w;
     this.vanH = size.h;
 
+    if (this.phase === 'parking') {
+      this.renderParking(width, height);
+    } else {
+      this.renderTravel(width, height, geo);
+    }
+  }
+
+  /** Build the van object — the painted Henry sprite if loaded, else the
+   *  procedural top-down van. Both are Transform game objects, so lane tweens,
+   *  banking and the handbrake judder work either way. */
+  private makeVan(): Phaser.GameObjects.Image | Phaser.GameObjects.Graphics {
+    if (this.textures.exists('vehicle-topdown-henry')) {
+      const img = this.add.image(0, 0, 'vehicle-topdown-henry');
+      img.setScale(this.vanW / img.width);
+      return img;
+    }
+    const gfx = this.add.graphics();
+    drawTopDownVan(gfx, this.vanW, this.vanH, 0xf3ede0);
+    return gfx;
+  }
+
+  private renderTravel(width: number, height: number, geo: ReturnType<typeof roadGeometry>): void {
     // Road (redrawn every tick).
     this.roadGfx = this.add.graphics();
     this.container.add(this.roadGfx);
 
-    // Roadside scenery (behind traffic and van).
     this.spawnScenery(width, height);
-
-    // Decorative traffic.
     this.spawnInitialTraffic(width, height);
 
-    // The van — fixed near the lower third, warm ARC cream, pointing up.
+    // The van — fixed near the lower third, pointing up.
     this.vanY = height * 0.72;
-    this.vanGfx = this.add.graphics();
-    drawTopDownVan(this.vanGfx, this.vanW, this.vanH, 0xf3ede0);
+    this.vanGfx = this.makeVan();
     this.vanGfx.setPosition(laneCentreX(geo, this.drive.lane), this.vanY);
     this.vanGfx.setDepth(20);
     this.container.add(this.vanGfx);
@@ -183,6 +226,157 @@ export class PtvDriveScene extends Phaser.Scene {
     this.startDriveLoop();
 
     drawTopDownRoad(this.roadGfx, width, height, this.scrollY);
+  }
+
+  // ── Parking-lot start ──────────────────────────────────────
+
+  /**
+   * The drive opens on the A.R.C. gravel forecourt: the top of the Art Deco
+   * building sits behind (above), Henry is in his labelled bay, and the player
+   * pulls out and turns left or right onto the road — matching the tunnel-game
+   * site view. Then it hands off to travel mode.
+   */
+  private renderParking(width: number, height: number): void {
+    // Gravel forecourt (tiled).
+    if (this.textures.exists('site-gravel')) {
+      this.container.add(this.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
+    } else {
+      this.container.add(this.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
+    }
+
+    // The A.R.C. building across the top — a hint of the top behind the car park.
+    if (this.textures.exists('site-arc-building')) {
+      const b = this.add.image(width / 2, 6, 'site-arc-building').setOrigin(0.5, 0);
+      const target = Math.min(width * 0.5, height * 0.52);
+      b.setDisplaySize(target, target);
+      this.container.add(b);
+    } else {
+      const sign = this.add.text(width / 2, height * 0.16, 'A.R.C.', {
+        fontSize: '40px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.primary,
+      }).setOrigin(0.5);
+      this.container.add(sign);
+    }
+
+    // Parking bays (dark tarmac with white line dividers), like the site map.
+    const bayTop = height * 0.60;
+    const bayH = height * 0.20;
+    const bayCount = 4;
+    const bayAreaW = Math.min(width * 0.62, 520);
+    const bayLeft = (width - bayAreaW) / 2;
+    const bayW = bayAreaW / bayCount;
+    const bays = this.add.graphics();
+    bays.fillStyle(0x39383a, 1);
+    bays.fillRoundedRect(bayLeft, bayTop, bayAreaW, bayH, 10);
+    bays.fillStyle(0xf2ead6, 0.85);
+    for (let i = 1; i < bayCount; i++) {
+      bays.fillRect(bayLeft + bayW * i - 2, bayTop + 8, 4, bayH - 16);
+    }
+    this.container.add(bays);
+
+    // Henry's bay label.
+    const henryBay = 1; // second bay from the left
+    const henryX = bayLeft + bayW * (henryBay + 0.5);
+    this.container.add(
+      this.add.text(henryX, bayTop + bayH - 12, 'Henry', {
+        fontSize: '13px', fontFamily: FONTS.title, color: '#e8dcc8',
+      }).setOrigin(0.5)
+    );
+
+    // The exit road along the bottom (runs left–right).
+    const roadY = height * 0.88;
+    const road = this.add.graphics();
+    road.fillStyle(0x6b6f76, 1);
+    road.fillRect(0, roadY, width, height - roadY);
+    road.fillStyle(0xfdf6e3, 0.9);
+    for (let x = 10; x < width; x += 54) {
+      road.fillRect(x, roadY + (height - roadY) / 2 - 2, 30, 4);
+    }
+    this.container.add(road);
+
+    // Henry, parked nose-down toward the exit.
+    this.vanY = bayTop + bayH * 0.42;
+    this.vanGfx = this.makeVan();
+    this.vanGfx.setPosition(henryX, this.vanY);
+    this.vanGfx.setAngle(180); // nose pointing down toward the forecourt exit
+    this.vanGfx.setDepth(20);
+    this.container.add(this.vanGfx);
+
+    // Title + "Let's go!" prompt.
+    this.container.add(
+      this.add.text(width / 2, height * 0.55, 'Time for a drive!', {
+        fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        backgroundColor: 'rgba(255,249,239,0.7)', padding: { x: 12, y: 4 },
+      }).setOrigin(0.5).setDepth(45)
+    );
+    const go = createButton(this, width / 2, roadY - 34, "Let's go!", () => this.pullOutOfBay(width, height, roadY), {
+      width: 180, bgColour: COLOURS.primary,
+    }).setDepth(45);
+    this.container.add(go);
+
+    this.container.add(
+      createButton(this, 54, 34, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
+    );
+  }
+
+  /** Henry rolls forward out of the bay to the exit road, then asks which way. */
+  private pullOutOfBay(width: number, height: number, roadY: number): void {
+    // Hide the start-prompt layer (title + Let's go! + Back all sit at depth 45+).
+    for (const o of this.container.list) {
+      const go = o as Phaser.GameObjects.GameObject & { depth?: number; setVisible?: (v: boolean) => unknown };
+      if (typeof go.depth === 'number' && go.depth >= 45 && go.setVisible) go.setVisible(false);
+    }
+
+    AudioManager.getInstance().playSfx('button_click');
+    const van = this.vanGfx;
+    if (!van) { this.beginTravel(1); return; }
+    this.tweens.add({
+      targets: van,
+      y: roadY - 4,
+      duration: 750,
+      ease: 'Sine.easeInOut',
+      onComplete: () => this.showTurnChoice(width, height),
+    });
+  }
+
+  /** Offer the left/right turn onto the road. */
+  private showTurnChoice(width: number, height: number): void {
+    this.container.add(
+      this.add.text(width / 2, height * 0.5, 'Which way?', {
+        fontSize: '24px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        backgroundColor: 'rgba(255,249,239,0.85)', padding: { x: 14, y: 6 },
+      }).setOrigin(0.5).setDepth(50)
+    );
+    this.container.add(
+      createButton(this, width * 0.32, height * 0.62, '◀ Left', () => this.turnAndGo(-1), {
+        width: 150, bgColour: COLOURS.info,
+      }).setDepth(50)
+    );
+    this.container.add(
+      createButton(this, width * 0.68, height * 0.62, 'Right ▶', () => this.turnAndGo(1), {
+        width: 150, bgColour: COLOURS.info,
+      }).setDepth(50)
+    );
+  }
+
+  /** Swing Henry onto the road in the chosen direction, then start travelling. */
+  private turnAndGo(dir: -1 | 1): void {
+    AudioManager.getInstance().playSfx('button_click');
+    const van = this.vanGfx;
+    if (!van) { this.beginTravel(dir); return; }
+    const { width } = this.scale;
+    this.tweens.add({
+      targets: van,
+      angle: 0,                                   // swing from nose-down to nose-up
+      x: van.x + dir * width * 0.12,
+      duration: 620,
+      ease: 'Sine.easeInOut',
+      onComplete: () => this.beginTravel(dir),
+    });
+  }
+
+  private beginTravel(_dir: -1 | 1): void {
+    this.phase = 'travel';
+    this.renderView();
   }
 
   // ── Scenery ────────────────────────────────────────────────
