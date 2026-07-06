@@ -26,7 +26,7 @@ import {
   laneCentreX,
   vanSizeForLane,
 } from '../driving/drive-render';
-import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile } from '../driving/traffic';
+import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 
 /**
  * Reference cruising rate (px/tick) that traffic `relSpeed` is measured
@@ -35,9 +35,20 @@ import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile } from '../drivi
  */
 const TRAFFIC_REF_SPEED = gearScrollRate(2);
 
+/** Painted top-down sprite key(s) per traffic kind. Cars pick a random colour;
+ *  a kind with no loaded sprite falls back to the procedural draw. */
+const TRAFFIC_SPRITE_KEYS: Record<TrafficKind, string[]> = {
+  car: ['vehicle-topdown-car-red', 'vehicle-topdown-car-blue', 'vehicle-topdown-car-yellow'],
+  pickup: ['vehicle-topdown-pickup'],
+  truck: ['vehicle-topdown-truck'],
+  tractor: ['vehicle-topdown-tractor'],
+  motorbike: ['vehicle-topdown-motorbike'],
+  emergency: ['vehicle-topdown-ambulance'],
+};
+
 /** Decorative (non-consequential) other road user. */
 interface TrafficCar {
-  gfx: Phaser.GameObjects.Graphics;
+  gfx: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
   profile: TrafficProfile;
   lane: number;
   y: number;
@@ -418,13 +429,28 @@ export class PtvDriveScene extends Phaser.Scene {
     }
   }
 
+  /** A traffic vehicle object — painted sprite if one is loaded for the kind,
+   *  else the procedural draw. Sprites scale to the target width, keeping their
+   *  own aspect. */
+  private makeTrafficObj(profile: TrafficProfile, w: number, h: number): Phaser.GameObjects.Image | Phaser.GameObjects.Graphics {
+    const existing = TRAFFIC_SPRITE_KEYS[profile.kind].filter((k) => this.textures.exists(k));
+    if (existing.length) {
+      const key = existing[Math.floor(Math.random() * existing.length)];
+      const img = this.add.image(0, 0, key);
+      img.setScale(w / img.width);
+      return img;
+    }
+    const gfx = this.add.graphics();
+    drawTrafficVehicle(gfx, profile.kind, w, h, profile.colour);
+    return gfx;
+  }
+
   private addTrafficCar(width: number, lane: number, y: number, kind: keyof typeof TRAFFIC_PROFILES): void {
     const geo = roadGeometry(width);
     const profile = TRAFFIC_PROFILES[kind];
     const w = Math.round(this.vanW * profile.widthFactor);
     const h = Math.round(this.vanH * profile.lengthFactor);
-    const gfx = this.add.graphics();
-    drawTrafficVehicle(gfx, profile.kind, w, h, profile.colour);
+    const gfx = this.makeTrafficObj(profile, w, h);
     gfx.setPosition(laneCentreX(geo, lane), y);
     gfx.setDepth(15);
     this.container.add(gfx);
@@ -715,8 +741,12 @@ export class PtvDriveScene extends Phaser.Scene {
     car.y = y;
     const w = Math.round(this.vanW * car.profile.widthFactor);
     const h = Math.round(this.vanH * car.profile.lengthFactor);
-    drawTrafficVehicle(car.gfx, car.profile.kind, w, h, car.profile.colour);
+    // Kind (and image↔graphics) may change on recycle, so swap the object out.
+    car.gfx.destroy();
+    car.gfx = this.makeTrafficObj(car.profile, w, h);
     car.gfx.setPosition(laneCentreX(geo, car.lane), y);
+    car.gfx.setDepth(15);
+    this.container.add(car.gfx);
     car.nextZigAt = car.profile.zigzag ? this.time.now + 700 + Math.random() * 900 : 0;
   }
 
