@@ -700,6 +700,12 @@ export class PtvDriveScene extends Phaser.Scene {
   private moveLane(dir: -1 | 1): void {
     const next = shiftLane(this.drive.lane, dir);
     if (next === this.drive.lane) return;
+    // Safety first: with animals aboard we NEVER swerve into another vehicle.
+    // If the target lane is occupied beside us, refuse and give a little nudge.
+    if (this.drive.carriesAnimals && this.laneBlockedAt(next, this.vanY)) {
+      this.bumpBlocked(dir);
+      return;
+    }
     this.drive.lane = next;
     AudioManager.getInstance().playSfx('button_click');
 
@@ -727,6 +733,22 @@ export class PtvDriveScene extends Phaser.Scene {
       onComplete: () => van.setAngle(0),
       onStop: () => van.setAngle(0),
     });
+  }
+
+  /** Is there a vehicle in `lane` beside us (within a safe gap of `y`)? */
+  private laneBlockedAt(lane: number, y: number): boolean {
+    const safe = this.vanH * 1.15;
+    return this.traffic.some((c) => c.lane === lane && Math.abs(c.y - y) < safe);
+  }
+
+  /** "Can't go there" feedback — a small lean toward the blocked lane and back,
+   *  plus a soft wobble cue. No lane change, no collision. */
+  private bumpBlocked(dir: -1 | 1): void {
+    AudioManager.getInstance().playSfx('food_wrong');
+    const van = this.vanGfx;
+    if (!van || (this.laneTween && this.laneTween.isPlaying())) return;
+    const x0 = van.x;
+    this.tweens.add({ targets: van, x: x0 + dir * 12, duration: 95, yoyo: true, ease: 'Sine.easeOut' });
   }
 
   private setGear(gear: Gear): void {

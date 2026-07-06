@@ -57,6 +57,13 @@ export interface DriveState {
   weather: string;
   /** Route progress 0..1. Reaches 1 at the destination. */
   progress: number;
+  /**
+   * Whether animals are aboard. When true the drive is COLLISION-SAFE: the game
+   * never lets the van actually hit another vehicle (you slow and tuck in
+   * behind, you can't swerve into a car). Only animal-free supply runs allow
+   * real crashes/chaos.
+   */
+  carriesAnimals: boolean;
 }
 
 export interface CreateDriveStateOptions {
@@ -64,6 +71,8 @@ export interface CreateDriveStateOptions {
   driveType?: DriveType;
   destinationId?: string;
   weather?: string;
+  /** Defaults to true — the PTV carries animals, so the drive is collision-safe. */
+  carriesAnimals?: boolean;
 }
 
 /** Build a fresh drive state with sensible MVP defaults. */
@@ -77,6 +86,7 @@ export function createDriveState(opts: CreateDriveStateOptions = {}): DriveState
     cargoComfort: 100,
     weather: opts.weather ?? 'clear',
     progress: 0,
+    carriesAnimals: opts.carriesAnimals ?? true,
   };
 }
 
