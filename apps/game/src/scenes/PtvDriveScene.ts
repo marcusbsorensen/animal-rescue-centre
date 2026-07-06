@@ -27,6 +27,7 @@ import {
   vanSizeForLane,
 } from '../driving/drive-render';
 import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile, type TrafficKind } from '../driving/traffic';
+import { preferredLane, carAbsoluteSpeed } from '../driving/traffic-sim';
 
 /**
  * Reference cruising rate (px/tick) that traffic `relSpeed` is measured
@@ -52,6 +53,8 @@ interface TrafficCar {
   profile: TrafficProfile;
   lane: number;
   y: number;
+  /** Absolute pace (px/tick), lane-aware — faster in the fast lane. */
+  absSpeed: number;
   /** When (scene time) this weaver may next change lane; 0 = never. */
   nextZigAt: number;
 }
@@ -468,16 +471,19 @@ export class PtvDriveScene extends Phaser.Scene {
   // ── Decorative traffic ─────────────────────────────────────
 
   private spawnInitialTraffic(width: number, height: number): void {
-    const placements = [
-      { lane: 0, yFrac: 0.12 },
-      { lane: 2, yFrac: 0.30 },
-      { lane: 1, yFrac: 0.02 },
-      { lane: 0, yFrac: -0.18 },
-      { lane: 2, yFrac: -0.35 },
-    ];
-    for (const p of placements) {
-      this.addTrafficCar(width, p.lane, height * p.yFrac, pickTrafficKind(Math.random()));
+    const yFracs = [0.12, 0.30, 0.02, -0.18, -0.35];
+    for (const yFrac of yFracs) {
+      this.addTrafficCar(width, height * yFrac, pickTrafficKind(Math.random()));
     }
+  }
+
+  /** Choose a lane for a vehicle: mostly its preferred (slow vehicles slow
+   *  lane, fast vehicles fast lane), with an occasional neighbour for variety. */
+  private assignLane(profile: TrafficProfile): number {
+    const base = preferredLane(profile, NUM_LANES);
+    if (Math.random() < 0.62) return base;
+    const j = Math.random() < 0.5 ? -1 : 1;
+    return Math.max(0, Math.min(NUM_LANES - 1, base + j));
   }
 
   /** A traffic vehicle object — painted sprite if one is loaded for the kind,
@@ -496,9 +502,10 @@ export class PtvDriveScene extends Phaser.Scene {
     return gfx;
   }
 
-  private addTrafficCar(width: number, lane: number, y: number, kind: keyof typeof TRAFFIC_PROFILES): void {
+  private addTrafficCar(width: number, y: number, kind: keyof typeof TRAFFIC_PROFILES): void {
     const geo = roadGeometry(width);
     const profile = TRAFFIC_PROFILES[kind];
+    const lane = this.assignLane(profile);
     const w = Math.round(this.vanW * profile.widthFactor);
     const h = Math.round(this.vanH * profile.lengthFactor);
     const gfx = this.makeTrafficObj(profile, w, h);
@@ -510,6 +517,7 @@ export class PtvDriveScene extends Phaser.Scene {
       profile,
       lane,
       y,
+      absSpeed: carAbsoluteSpeed(profile, lane, TRAFFIC_REF_SPEED, NUM_LANES),
       nextZigAt: profile.zigzag ? this.time.now + 800 + Math.random() * 900 : 0,
     });
   }
@@ -735,14 +743,17 @@ export class PtvDriveScene extends Phaser.Scene {
 
   private startDriveLoop(): void {
     const { width, height } = this.scale;
-    const geo = roadGeometry(width);
     const margin = this.vanH * 1.4;
 
     this.driveTimer = this.time.addEvent({
       delay: 50,
       loop: true,
       callback: () => {
-        const rate = gearScrollRate(this.drive.gear);
+        // Our forward pace is the gear's rate, but capped so we can't drive
+        // through a slower vehicle ahead in our lane — we tuck in behind until
+        // we pull out to overtake.
+        const gearRate = gearScrollRate(this.drive.gear);
+        const rate = this.effectivePlayerRate(gearRate);
         this.scrollY += rate;
 
         if (this.roadGfx) drawTopDownRoad(this.roadGfx, width, height, this.scrollY);
@@ -771,17 +782,15 @@ export class PtvDriveScene extends Phaser.Scene {
         }
 
         // Traffic drifts by the difference between our pace and their own
-        // absolute pace — so they keep flowing past even when we're stopped.
+        // lane-aware absolute pace — so they keep flowing past even when we're
+        // stopped, and the fast lane genuinely moves faster.
         for (const car of this.traffic) {
-          const carAbs = car.profile.relSpeed * TRAFFIC_REF_SPEED;
-          const dy = rate - carAbs;
-          car.y += dy;
+          car.y += rate - car.absSpeed;
 
           // Weavers hop lanes now and then.
           if (car.nextZigAt && this.time.now >= car.nextZigAt) {
             const dir = car.lane === 0 ? 1 : car.lane === NUM_LANES - 1 ? -1 : (Math.random() < 0.5 ? -1 : 1);
-            car.lane = Math.max(0, Math.min(NUM_LANES - 1, car.lane + dir));
-            this.tweens.add({ targets: car.gfx, x: laneCentreX(geo, car.lane), duration: 260, ease: 'Sine.easeInOut' });
+            this.moveCarToLane(car, car.lane + dir);
             car.nextZigAt = this.time.now + 700 + Math.random() * 900;
           }
 
@@ -791,8 +800,12 @@ export class PtvDriveScene extends Phaser.Scene {
           } else if (car.y < -margin) {
             this.recycleCar(car, width, height + margin);
           }
-          car.gfx.setY(car.y);
         }
+
+        // Keep vehicles from overlapping each other or the van, and let blocked
+        // cars overtake into a clear lane.
+        this.resolveTraffic(width);
+        for (const car of this.traffic) car.gfx.setY(car.y);
 
         this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + rate * 0.0004));
       },
@@ -803,7 +816,8 @@ export class PtvDriveScene extends Phaser.Scene {
     const geo = roadGeometry(width);
     const kind = pickTrafficKind(Math.random());
     car.profile = TRAFFIC_PROFILES[kind];
-    car.lane = Math.floor(Math.random() * NUM_LANES);
+    car.lane = this.assignLane(car.profile);
+    car.absSpeed = carAbsoluteSpeed(car.profile, car.lane, TRAFFIC_REF_SPEED, NUM_LANES);
     car.y = y;
     const w = Math.round(this.vanW * car.profile.widthFactor);
     const h = Math.round(this.vanH * car.profile.lengthFactor);
@@ -814,6 +828,108 @@ export class PtvDriveScene extends Phaser.Scene {
     car.gfx.setDepth(15);
     this.container.add(car.gfx);
     car.nextZigAt = car.profile.zigzag ? this.time.now + 700 + Math.random() * 900 : 0;
+  }
+
+  /** Move a traffic car to a lane: clamps, recomputes its lane-aware speed, and
+   *  slides it across. */
+  private moveCarToLane(car: TrafficCar, lane: number): void {
+    const clamped = Math.max(0, Math.min(NUM_LANES - 1, lane));
+    if (clamped === car.lane) return;
+    car.lane = clamped;
+    car.absSpeed = carAbsoluteSpeed(car.profile, clamped, TRAFFIC_REF_SPEED, NUM_LANES);
+    const geo = roadGeometry(this.scale.width);
+    this.tweens.add({ targets: car.gfx, x: laneCentreX(geo, clamped), duration: 260, ease: 'Sine.easeInOut' });
+  }
+
+  /** Our forward pace, capped by the nearest slower vehicle ahead in our lane
+   *  so the van can't drive through it. Not capped when stopped/reversing. */
+  private effectivePlayerRate(gearRate: number): number {
+    if (gearRate <= 0) return gearRate;
+    const minGap = this.vanH * 1.05;
+    const follow = this.vanH * 2.4;
+    let cap = gearRate;
+    for (const c of this.traffic) {
+      if (c.lane !== this.drive.lane || c.y >= this.vanY) continue; // must be ahead
+      const gap = this.vanY - c.y;
+      if (gap <= follow && c.absSpeed < cap) {
+        cap = Math.max(0, gap < minGap ? c.absSpeed - 0.6 : c.absSpeed);
+      }
+    }
+    return cap;
+  }
+
+  /**
+   * Stop vehicles overlapping. Within each lane, keep a minimum nose-to-tail
+   * gap (the van is an immovable anchor in its lane); then let a car that's
+   * stuck behind something slower peel off into a clear lane to overtake.
+   */
+  private resolveTraffic(width: number): void {
+    const minGap = this.vanH * 1.05;
+    const follow = this.vanH * 2.4;
+
+    for (let lane = 0; lane < NUM_LANES; lane++) {
+      const cars = this.traffic.filter((c) => c.lane === lane);
+      if (this.drive.lane === lane) {
+        // Cars ahead of the van (closest first) held a gap in front.
+        let anchor = this.vanY;
+        for (const c of cars.filter((c) => c.y < this.vanY).sort((a, b) => b.y - a.y)) {
+          const maxY = anchor - minGap;
+          if (c.y > maxY) c.y = maxY;
+          anchor = c.y;
+        }
+        // Cars behind the van (closest first) held a gap behind.
+        anchor = this.vanY;
+        for (const c of cars.filter((c) => c.y >= this.vanY).sort((a, b) => a.y - b.y)) {
+          const minY = anchor + minGap;
+          if (c.y < minY) c.y = minY;
+          anchor = c.y;
+        }
+      } else {
+        let anchor = -Infinity;
+        for (const c of cars.slice().sort((a, b) => a.y - b.y)) {
+          const minY = anchor + minGap;
+          if (c.y < minY) c.y = minY;
+          anchor = c.y;
+        }
+      }
+    }
+
+    // Overtaking: a car blocked by something slower ahead (or by the slow van)
+    // occasionally pulls into a clear lane.
+    for (const c of this.traffic) {
+      let aheadGap = Infinity;
+      let aheadSpeed = Infinity;
+      for (const o of this.traffic) {
+        if (o === c || o.lane !== c.lane || o.y >= c.y) continue;
+        const g = c.y - o.y;
+        if (g < aheadGap) { aheadGap = g; aheadSpeed = o.absSpeed; }
+      }
+      if (c.lane === this.drive.lane && this.vanY < c.y) {
+        const g = c.y - this.vanY;
+        if (g < aheadGap) { aheadGap = g; aheadSpeed = 0; } // van as a slow obstacle
+      }
+      if (aheadGap < follow && aheadSpeed < c.absSpeed * 0.9 && Math.random() < 0.03) {
+        this.tryOvertake(c);
+      }
+    }
+  }
+
+  /** Try to move a blocked car one lane over into clear space (fast vehicles
+   *  favour the fast lane). */
+  private tryOvertake(car: TrafficCar): void {
+    const minGap = this.vanH * 1.6;
+    const dirs: number[] = car.absSpeed > TRAFFIC_REF_SPEED * 0.8 ? [1, -1] : [-1, 1];
+    for (const dir of dirs) {
+      const target = car.lane + dir;
+      if (target < 0 || target > NUM_LANES - 1) continue;
+      let clear = true;
+      for (const o of this.traffic) {
+        if (o === car || o.lane !== target) continue;
+        if (Math.abs(o.y - car.y) < minGap) { clear = false; break; }
+      }
+      if (clear && target === this.drive.lane && Math.abs(this.vanY - car.y) < minGap) clear = false;
+      if (clear) { this.moveCarToLane(car, target); return; }
+    }
   }
 
   /** Speed camera caught us going too fast — a white blitz, a little camera
