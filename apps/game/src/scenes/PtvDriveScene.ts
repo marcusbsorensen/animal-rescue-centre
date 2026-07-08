@@ -27,7 +27,7 @@ import {
 import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
-import { buildAdjacency, routePolyline, type RoadGraph, type Adjacency, type RoutePoint } from '../driving/road-router';
+import { buildAdjacency, routePolyline, routeProfile, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
 import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, projectToRoute, type Maneuver } from '../driving/route-instructions';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
@@ -99,6 +99,17 @@ const ROAD_CYCLE: RoadId[] = ['country-lane', 'thanet-way', 'rural-track', 'coas
  *  their spacing and never overlap. */
 const ONCOMING_SPEED = 5.5;
 
+/** OSM road class → the road type we render. Only the trunk road (the A28 /
+ *  Thanet Way) is a dual carriageway; farm tracks go to gravel; everything else
+ *  is a single-carriageway country lane. */
+const CLASS_TO_ROAD: Record<string, RoadId> = {
+  trunk: 'thanet-way',
+  track: 'rural-track',
+};
+function roadIdForClass(cls: string): RoadId {
+  return CLASS_TO_ROAD[cls] ?? 'country-lane';
+}
+
 export interface PtvDriveInit {
   driveType?: DriveType;
   destinationId?: string;
@@ -134,6 +145,12 @@ export class PtvDriveScene extends Phaser.Scene {
   private scenery: SceneryProp[] = [];
   private decor: DecorProp[] = [];
   private roadConfig: RoadConfig = ROADS['thanet-way'];
+  /** Road-class runs along the route; the road type follows the map. */
+  private roadProfile: RoadClassRun[] = [];
+  /** False once Marcus manually toggles a road type — stops map auto-following. */
+  private autoRoad = true;
+  /** True during a road-type change so the loop doesn't re-trigger it. */
+  private roadSwitching = false;
   private scrollY = 0;
   private driveTimer?: Phaser.Time.TimerEvent;
   private laneTween?: Phaser.Tweens.Tween;
@@ -236,6 +253,9 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gpsDot = undefined;
     this.gpsManeuvers = [];
     this.cameraTriggers = [];
+    this.roadProfile = [];
+    this.autoRoad = true;
+    this.roadSwitching = false;
     this.gpsInstrText = undefined;
     this.gpsInstrArrow = undefined;
     this.gpsInstrBg = undefined;
@@ -374,11 +394,8 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gpsDest = toPanel(placeFor(this.destinationId));
 
     // Road-following route A.R.C. → destination (Dijkstra on the road graph,
-    // straight-line fallback if the network can't connect). Cache the graph.
-    if (!this.gpsGraph && this.cache.json.exists('birchie-graph')) {
-      this.gpsGraph = this.cache.json.get('birchie-graph') as RoadGraph;
-      this.gpsAdj = buildAdjacency(this.gpsGraph);
-    }
+    // straight-line fallback if the network can't connect).
+    this.ensureGraph();
     const polyFrac: RoutePoint[] = this.gpsGraph && this.gpsAdj
       ? routePolyline(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
       : [ARC_PLACE, placeFor(this.destinationId)];
@@ -619,8 +636,93 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   private beginTravel(_dir: -1 | 1): void {
+    // Work out the road-class profile for this route, and open on the road type
+    // the route starts on, so the drive matches the map from the off.
+    this.computeRouteProfile();
+    if (this.autoRoad && this.roadProfile.length) {
+      this.roadConfig = ROADS[this.profileRoadId(0)];
+    }
     this.phase = 'travel';
     this.renderView();
+  }
+
+  /** Load the road graph from the cached JSON once. */
+  private ensureGraph(): void {
+    if (!this.gpsGraph && this.cache.json.exists('birchie-graph')) {
+      this.gpsGraph = this.cache.json.get('birchie-graph') as RoadGraph;
+      this.gpsAdj = buildAdjacency(this.gpsGraph);
+    }
+  }
+
+  private computeRouteProfile(): void {
+    this.ensureGraph();
+    this.roadProfile = this.gpsGraph && this.gpsAdj
+      ? routeProfile(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
+      : [];
+  }
+
+  /** The road type at a progress fraction, from the route's class profile. */
+  private profileRoadId(progress: number): RoadId {
+    for (const run of this.roadProfile) {
+      if (progress <= run.untilProgress + 1e-6) return roadIdForClass(run.roadClass);
+    }
+    const last = this.roadProfile[this.roadProfile.length - 1];
+    return last ? roadIdForClass(last.roadClass) : 'country-lane';
+  }
+
+  /**
+   * Change road type mid-drive with a soft flash so the re-layout of lanes and
+   * traffic is masked — reads as "joining a new road", not a glitch. Preserves
+   * progress, the GPS route and the cameras.
+   */
+  private switchRoad(id: RoadId): void {
+    if (id === this.roadConfig.id || this.roadSwitching) return;
+    this.roadSwitching = true;
+    const { width, height } = this.scale;
+    const cover = this.add.rectangle(width / 2, height / 2, width, height, 0xf4efe6, 0).setDepth(80);
+    this.container.add(cover);
+    this.showRoadBanner(ROADS[id].label);
+    this.tweens.add({
+      targets: cover, alpha: 0.75, duration: 200, yoyo: true, hold: 70,
+      onYoyo: () => this.applyRoadSwitch(id),
+      onComplete: () => { cover.destroy(); this.roadSwitching = false; },
+    });
+  }
+
+  /** The actual re-layout, run while the flash covers the screen. */
+  private applyRoadSwitch(id: RoadId): void {
+    this.roadConfig = ROADS[id];
+    const { width, height } = this.scale;
+    const geo = this.geo();
+    const size = vanSizeForLane(geo.laneWidth);
+    this.vanW = size.w; this.vanH = size.h;
+    this.drive.lane = Math.max(0, Math.min(this.pl() - 1, this.drive.lane));
+
+    if (this.vanGfx) this.vanGfx.destroy();
+    this.vanGfx = this.makeVan();
+    this.vanGfx.setPosition(laneCentreX(geo, this.drive.lane), this.vanY);
+    this.vanGfx.setDepth(20);
+    this.container.add(this.vanGfx);
+
+    for (const c of this.traffic) c.gfx.destroy();
+    for (const o of this.oncoming) o.gfx.destroy();
+    for (const d of this.decor) d.obj.destroy();
+    for (const s of this.scenery) s.gfx.destroy();
+    this.traffic = []; this.oncoming = []; this.decor = []; this.scenery = [];
+    this.spawnScenery(width, height);
+    this.spawnDecor(width, height);
+    this.spawnInitialTraffic(width, height);
+    this.spawnOncoming(width, height);
+  }
+
+  private showRoadBanner(label: string): void {
+    const { width, height } = this.scale;
+    const t = this.add.text(width / 2, height * 0.2, label, {
+      fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      backgroundColor: 'rgba(46,107,138,0.92)', padding: { x: 16, y: 7 },
+    }).setOrigin(0.5).setDepth(82).setAlpha(0);
+    this.container.add(t);
+    this.tweens.add({ targets: t, alpha: 1, duration: 200, yoyo: true, hold: 900, onComplete: () => t.destroy() });
   }
 
   // ── Scenery ────────────────────────────────────────────────
@@ -1039,6 +1141,8 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /** Demo: cycle to the next road type and rebuild the travel view. */
   private cycleRoad(): void {
+    // Manual override: stop the map auto-following so Marcus can inspect a type.
+    this.autoRoad = false;
     const idx = ROAD_CYCLE.indexOf(this.roadConfig.id as RoadId);
     this.roadConfig = ROADS[ROAD_CYCLE[(idx + 1) % ROAD_CYCLE.length]];
     this.scrollY = 0;
@@ -1107,6 +1211,12 @@ export class PtvDriveScene extends Phaser.Scene {
             this.spawnCameraProp(width);
             t.done = true;
           }
+        }
+
+        // Follow the map: change road type where the route's road class changes.
+        if (this.autoRoad && !this.roadSwitching && this.roadProfile.length) {
+          const id = this.profileRoadId(this.drive.progress);
+          if (id !== this.roadConfig.id) this.switchRoad(id);
         }
 
         // Traffic drifts by the difference between our pace and their own

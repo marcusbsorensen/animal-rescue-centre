@@ -179,10 +179,31 @@ export function drawRoadForConfig(
       gfx.fillRect(boundary - 2, 0, 3, height);
       gfx.fillRect(boundary + lw * geo.medianUnits - 1, 0, 3, height);
     } else {
-      // Solid centre line — the "don't cross" divide (kept unbroken vs the
-      // dashed same-direction dividers a kid may cross).
+      // Single-carriageway centre line, in alternating stretches that scroll
+      // with the road: DOUBLE SOLID = no overtaking, DASHED = overtaking
+      // permitted. Teaches the real markings.
       gfx.fillStyle(surf.dash, 0.95);
-      gfx.fillRect(boundary - 2, 0, 4, height);
+      const zoneLen = 440;
+      let y = 0;
+      while (y < height) {
+        const zoneVal = Math.floor((y - scrollY) / zoneLen);
+        const bandTop = scrollY + zoneVal * zoneLen;
+        const top = Math.max(0, bandTop);
+        const bot = Math.min(height, bandTop + zoneLen);
+        const dashedZone = ((zoneVal % 2) + 2) % 2 === 0; // alternate
+        if (dashedZone) {
+          let dy = Math.floor((top - offset) / pitch) * pitch + offset;
+          for (; dy < bot; dy += pitch) {
+            const sy = Math.max(dy, top), ey = Math.min(dy + dashLen, bot);
+            if (ey > sy) gfx.fillRect(boundary - 2, sy, 4, ey - sy);
+          }
+        } else {
+          // Double solid — two unbroken lines.
+          gfx.fillRect(boundary - 7, top, 3, bot - top);
+          gfx.fillRect(boundary + 4, top, 3, bot - top);
+        }
+        y = bandTop + zoneLen;
+      }
     }
   }
 }

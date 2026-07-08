@@ -92,6 +92,87 @@ export function shortestPath(adj: Adjacency, s: number, t: number): number[] | n
   return path.reverse();
 }
 
+export interface RoadClassRun {
+  roadClass: string;
+  /** Progress fraction (0..1) at which this run of road ends. */
+  untilProgress: number;
+}
+
+/**
+ * The road-class profile along a route: consecutive runs of the same OSM road
+ * class (trunk / residential / track …), each ending at a progress fraction.
+ * Lets the drive switch road *type* where the map changes (e.g. joining the
+ * A-road becomes a dual carriageway). Progress is by aspect-corrected length,
+ * matching the drive's own progress.
+ */
+export function routeProfile(g: RoadGraph, adj: Adjacency, from: RoutePoint, to: RoutePoint): RoadClassRun[] {
+  if (g.nodes.length === 0) return [];
+  const s = nearestNode(g, from.fx, from.fy);
+  const t = nearestNode(g, to.fx, to.fy);
+  const path = shortestPath(adj, s, t);
+  if (!path || path.length < 2) return [];
+
+  const ec = new Map<string, string>();
+  for (const [a, b, cls] of g.edges) ec.set(a < b ? `${a}-${b}` : `${b}-${a}`, cls);
+  const classOf = (a: number, b: number) => ec.get(a < b ? `${a}-${b}` : `${b}-${a}`) ?? 'unclassified';
+
+  const pts: RoutePoint[] = [from, ...path.map((i) => ({ fx: g.nodes[i][0], fy: g.nodes[i][1] })), to];
+  // Class per segment of `pts` (path.length+1 segments). The two stub segments
+  // (from→firstNode, lastNode→to) inherit the adjacent edge's class.
+  const segClass: string[] = [classOf(path[0], path[1])];
+  for (let i = 0; i < path.length - 1; i++) segClass.push(classOf(path[i], path[i + 1]));
+  segClass.push(classOf(path[path.length - 2], path[path.length - 1]));
+
+  const lens: number[] = [];
+  for (let i = 1; i < pts.length; i++) lens.push(segLen([pts[i - 1].fx, pts[i - 1].fy], [pts[i].fx, pts[i].fy]));
+  const total = lens.reduce((a, b) => a + b, 0) || 1;
+
+  const runs: RoadClassRun[] = [];
+  let cum = 0;
+  for (let i = 0; i < segClass.length; i++) {
+    cum += lens[i];
+    if (runs.length && runs[runs.length - 1].roadClass === segClass[i]) runs[runs.length - 1].untilProgress = cum / total;
+    else runs.push({ roadClass: segClass[i], untilProgress: cum / total });
+  }
+  return smoothRuns(runs, 0.08);
+}
+
+/**
+ * Dissolve short road-class runs so the drive doesn't flip road types every few
+ * seconds where a route briefly touches an A-road. Runs shorter than `minSpan`
+ * (progress fraction) are absorbed into a neighbour; adjacent same-class runs
+ * then coalesce. Exported for testing.
+ */
+export function smoothRuns(input: RoadClassRun[], minSpan: number): RoadClassRun[] {
+  const runs = input.map((r) => ({ ...r }));
+  const startOf = (i: number) => (i === 0 ? 0 : runs[i - 1].untilProgress);
+  const coalesce = () => {
+    for (let i = 1; i < runs.length; ) {
+      if (runs[i].roadClass === runs[i - 1].roadClass) { runs[i - 1].untilProgress = runs[i].untilProgress; runs.splice(i, 1); }
+      else i++;
+    }
+  };
+  let guard = 0;
+  while (runs.length > 1 && guard++ < 100) {
+    let si = 0, sspan = Infinity;
+    for (let i = 0; i < runs.length; i++) {
+      const span = runs[i].untilProgress - startOf(i);
+      if (span < sspan) { sspan = span; si = i; }
+    }
+    if (sspan >= minSpan) break;
+    if (si === 0) { runs.splice(0, 1); }
+    else if (si === runs.length - 1) { runs[si - 1].untilProgress = runs[si].untilProgress; runs.splice(si, 1); }
+    else {
+      const prevSpan = runs[si - 1].untilProgress - startOf(si - 1);
+      const nextSpan = runs[si + 1].untilProgress - runs[si].untilProgress;
+      if (prevSpan >= nextSpan) runs[si - 1].untilProgress = runs[si].untilProgress;
+      runs.splice(si, 1);
+    }
+    coalesce();
+  }
+  return runs;
+}
+
 /**
  * A road-following route between two map points as a polyline of map fractions.
  * The actual endpoints are included so the line reaches the pins; if the

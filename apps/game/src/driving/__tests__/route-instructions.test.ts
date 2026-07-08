@@ -105,3 +105,27 @@ describe('route-instructions', () => {
     });
   });
 });
+
+import { smoothRuns } from '../road-router';
+describe('smoothRuns', () => {
+  it('dissolves short runs and coalesces neighbours', () => {
+    // trunk(0.4) - country(0.44 tiny) - trunk(0.9) - country(1)
+    const runs = [
+      { roadClass: 'trunk', untilProgress: 0.40 },
+      { roadClass: 'residential', untilProgress: 0.44 }, // 0.04 span, under 0.08
+      { roadClass: 'trunk', untilProgress: 0.90 },
+      { roadClass: 'residential', untilProgress: 1.0 },
+    ];
+    const s = smoothRuns(runs, 0.08);
+    // the tiny residential blip is gone; the two trunk runs merge
+    expect(s.map((r) => r.roadClass)).toEqual(['trunk', 'residential']);
+    expect(s[0].untilProgress).toBeCloseTo(0.90, 5);
+  });
+  it('leaves already-long runs alone', () => {
+    const runs = [
+      { roadClass: 'trunk', untilProgress: 0.5 },
+      { roadClass: 'residential', untilProgress: 1.0 },
+    ];
+    expect(smoothRuns(runs, 0.08)).toHaveLength(2);
+  });
+});
