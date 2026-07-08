@@ -15,7 +15,7 @@ def dist(a, b):
 for a, b, cls in edges:
     w = dist(a, b)
     # gently prefer bigger roads (trunk cheapest per unit) like real sat-nav
-    mult = {'trunk': 0.6, 'secondary': 0.75, 'tertiary': 0.85}.get(cls, 1.0)
+    mult = {'trunk': 0.6, 'secondary': 0.75, 'tertiary': 0.85, 'track': 2.2}.get(cls, 1.0)
     adj[a].append((b, w * mult)); adj[b].append((a, w * mult))
 
 def nearest(fx, fy):
@@ -40,7 +40,7 @@ def route(s, t):
     while u != -1: path.append(u); u = prev[u]
     return path[::-1]
 
-places = {'arc': (0.28, 0.31), 'bramble-farm': (0.16, 0.56), 'cove-harbour': (0.14, 0.24),
+places = {'arc': (0.28, 0.31), 'bramble-farm': (0.24, 0.50), 'cove-harbour': (0.14, 0.24),
     'pinebark-medical': (0.66, 0.44), 'moorland': (0.10, 0.44), 'woodland': (0.86, 0.60),
     'sea-cliffs': (0.68, 0.19), 'deep-forest': (0.84, 0.68), 'wetlands': (0.40, 0.86)}
 

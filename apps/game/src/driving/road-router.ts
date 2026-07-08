@@ -23,7 +23,7 @@ export type Adjacency = { to: number; w: number }[][];
 
 // The map is wider than tall (1800x1121); scale fx so distances are real.
 const ASPECT = 1800 / 1121;
-const CLASS_MULT: Record<string, number> = { trunk: 0.6, secondary: 0.75, tertiary: 0.85 };
+const CLASS_MULT: Record<string, number> = { trunk: 0.6, secondary: 0.75, tertiary: 0.85, track: 2.2 };
 
 function segLen(a: [number, number], b: [number, number]): number {
   return Math.hypot((a[0] - b[0]) * ASPECT, a[1] - b[1]);

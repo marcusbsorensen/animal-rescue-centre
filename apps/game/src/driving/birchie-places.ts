@@ -27,7 +27,7 @@ export const ARC_PLACE: MapPoint = { fx: 0.28, fy: 0.31 };
 /** Destination id → map position. Provisional; see file header. */
 export const BIRCHIE_PLACES: Record<string, MapPoint> = {
   arc: ARC_PLACE,
-  'bramble-farm': { fx: 0.16, fy: 0.56 }, // farmland to the south-west
+  'bramble-farm': { fx: 0.24, fy: 0.50 }, // farmland to the south-west (on a lane)
   'cove-harbour': { fx: 0.14, fy: 0.24 }, // harbour on the west coast (Minnis Bay)
   'pinebark-medical': { fx: 0.66, fy: 0.44 }, // near Birchie Station / town
   moorland: { fx: 0.10, fy: 0.44 }, // open land to the west

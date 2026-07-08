@@ -18,9 +18,10 @@ SVG = 'apps/game/public/admin/scene-assets/birchie-map/birchie-roads.svg'
 OUT = 'apps/game/public/assets/driving/birchie-graph.json'
 VIEW_W, VIEW_H = 1800.0, 1121.0
 DRIVABLE = {'trunk', 'primary', 'secondary', 'tertiary', 'unclassified',
-            'residential', 'service', 'track', 'living_street'}
-SAMPLE_STEP = 16.0   # viewBox units between sampled points along a road
-SNAP = 9.0           # junction snap tolerance (viewBox units)
+            'residential', 'living_street', 'track'}
+SAMPLE_STEP = 14.0   # viewBox units between sampled points along a road
+SNAP = 13.0          # junction snap tolerance (viewBox units) — heals gaps
+BRIDGE = 18.0        # connect near-but-unmerged endpoints (junction healing)
 
 svg = open(SVG).read()
 
@@ -89,6 +90,33 @@ for cls, d in paths:
                 edge_seen.add(key)
                 edges.append((prev, nid, cls))
         prev = nid
+
+# Junction healing: a road that dead-ends near another road almost always
+# meets it at a junction the sampling missed. Bridge each dangling endpoint
+# (degree 1) to the nearest node within BRIDGE units.
+from math import hypot
+deg = [0] * len(nodes)
+for a, b, _ in edges:
+    deg[a] += 1; deg[b] += 1
+dangling = [i for i in range(len(nodes)) if deg[i] == 1]
+bridged = 0
+for i in dangling:
+    xi, yi = nodes[i]
+    best, bd = -1, BRIDGE
+    for j in range(len(nodes)):
+        if j == i:
+            continue
+        d = hypot(xi - nodes[j][0], yi - nodes[j][1])
+        if d < bd:
+            key = (min(i, j), max(i, j))
+            if key not in edge_seen:
+                bd, best = d, j
+    if best >= 0:
+        key = (min(i, best), max(i, best))
+        edge_seen.add(key)
+        edges.append((i, best, 'unclassified'))
+        bridged += 1
+print(f'bridged {bridged} dangling endpoints')
 
 # Emit fractions of the viewBox so the graph matches birchie-places.
 frac_nodes = [[round(x / VIEW_W, 5), round(y / VIEW_H, 5)] for (x, y) in nodes]
