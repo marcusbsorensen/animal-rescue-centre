@@ -28,6 +28,7 @@ import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile, type TrafficKin
 import { preferredLane, carAbsoluteSpeed } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor } from '../driving/birchie-places';
 import { buildAdjacency, routePolyline, type RoadGraph, type Adjacency, type RoutePoint } from '../driving/road-router';
+import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, type Maneuver } from '../driving/route-instructions';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
 /**
@@ -141,6 +142,10 @@ export class PtvDriveScene extends Phaser.Scene {
   private gpsRoutePts: { x: number; y: number }[] = [];
   private gpsRouteCum: number[] = [];
   private gpsRouteTotal = 0;
+  private gpsManeuvers: Maneuver[] = [];
+  private gpsInstrBg?: Phaser.GameObjects.Graphics;
+  private gpsInstrText?: Phaser.GameObjects.Text;
+  private gpsInstrArrow?: Phaser.GameObjects.Text;
 
   private vanY = 0;
   private vanW = 46;
@@ -216,6 +221,10 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gearKnob = undefined;
     this.gearSlotY = {};
     this.gpsDot = undefined;
+    this.gpsManeuvers = [];
+    this.gpsInstrText = undefined;
+    this.gpsInstrArrow = undefined;
+    this.gpsInstrBg = undefined;
   }
 
   create(): void {
@@ -366,6 +375,7 @@ export class PtvDriveScene extends Phaser.Scene {
       this.gpsRouteCum.push(this.gpsRouteCum[i - 1] + Math.hypot(b.x - a.x, b.y - a.y));
     }
     this.gpsRouteTotal = this.gpsRouteCum[this.gpsRouteCum.length - 1] || 1;
+    this.gpsManeuvers = buildManeuvers(polyFrac);
 
     const route = this.add.graphics().setDepth(47);
     route.lineStyle(3.5, 0x3d8a2e, 0.95);
@@ -387,6 +397,43 @@ export class PtvDriveScene extends Phaser.Scene {
         fontSize: '12px', fontFamily: FONTS.body, color: '#ffffff',
       }).setOrigin(0.5, 0).setDepth(48)
     );
+
+    // Turn-by-turn instruction banner, just below the GPS panel.
+    const by = py + ph + 26, bh = 40;
+    this.gpsInstrBg = this.add.graphics().setDepth(47);
+    this.gpsInstrBg.fillStyle(0x3d8a2e, 0.95);
+    this.gpsInstrBg.fillRoundedRect(px - 5, by, pw + 10, bh, 9);
+    this.container.add(this.gpsInstrBg);
+    this.gpsInstrArrow = this.add.text(px + 12, by + bh / 2, '▲', {
+      fontSize: '24px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+    }).setOrigin(0.5).setDepth(48);
+    this.container.add(this.gpsInstrArrow);
+    this.gpsInstrText = this.add.text(px + 30, by + bh / 2, 'Off we go!', {
+      fontSize: '15px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+    }).setOrigin(0, 0.5).setDepth(48);
+    this.container.add(this.gpsInstrText);
+    this.updateGpsInstruction();
+  }
+
+  /** Refresh the GPS turn banner from the current progress: the next turn (or
+   *  arrival), with a "soon / now" cue as we close on it. */
+  private updateGpsInstruction(): void {
+    if (!this.gpsInstrText || !this.gpsInstrArrow || !this.gpsInstrBg) return;
+    const m = nextManeuver(this.gpsManeuvers, this.drive.progress);
+    if (!m) { this.gpsInstrText.setText('Keep going'); this.gpsInstrArrow.setText('▲'); return; }
+    const gap = m.atProgress - this.drive.progress;
+    let text = maneuverText(m);
+    let urgent = false;
+    if (m.kind === 'turn') {
+      if (gap <= 0.05) { text += ' now!'; urgent = true; }
+      else if (gap <= 0.14) { text += ' soon'; }
+    }
+    this.gpsInstrArrow.setText(maneuverArrow(m));
+    this.gpsInstrText.setText(text);
+    // Amber flash when a turn is imminent, ARC green otherwise.
+    this.gpsInstrBg.clear();
+    this.gpsInstrBg.fillStyle(urgent ? 0xd4783c : 0x3d8a2e, 0.95);
+    this.gpsInstrBg.fillRoundedRect(7, 208, 186, 40, 9); // matches renderGps banner box
   }
 
   /** Point (panel px) at fraction `p` (0..1) along the GPS route polyline. */
@@ -1044,10 +1091,11 @@ export class PtvDriveScene extends Phaser.Scene {
 
         this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + rate * 0.0004));
 
-        // Advance the GPS position dot along the road route.
+        // Advance the GPS position dot along the road route + refresh the turn.
         if (this.gpsDot) {
           const q = this.routePointAt(this.drive.progress);
           this.gpsDot.setPosition(q.x, q.y);
+          this.updateGpsInstruction();
         }
       },
     });
