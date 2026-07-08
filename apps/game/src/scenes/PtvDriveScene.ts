@@ -682,10 +682,19 @@ export class PtvDriveScene extends Phaser.Scene {
     const cover = this.add.rectangle(width / 2, height / 2, width, height, 0xf4efe6, 0).setDepth(80);
     this.container.add(cover);
     this.showRoadBanner(ROADS[id].label);
-    this.tweens.add({
-      targets: cover, alpha: 0.75, duration: 200, yoyo: true, hold: 70,
-      onYoyo: () => this.applyRoadSwitch(id),
-      onComplete: () => { cover.destroy(); this.roadSwitching = false; },
+    // Timing-driven (not tween-callback-driven) so the cover ALWAYS clears and
+    // roadSwitching always resets — a road switch can never freeze the drive,
+    // even if the re-layout throws.
+    this.tweens.add({ targets: cover, alpha: 0.72, duration: 170, ease: 'Sine.easeInOut' });
+    this.time.delayedCall(180, () => {
+      try {
+        this.applyRoadSwitch(id);
+      } catch (e) {
+        // Don't let a re-layout error strand the cover / freeze the game.
+        console.error('[ptv] road switch failed', e);
+      }
+      this.tweens.add({ targets: cover, alpha: 0, duration: 200, ease: 'Sine.easeInOut', onComplete: () => cover.destroy() });
+      this.time.delayedCall(230, () => { this.roadSwitching = false; });
     });
   }
 
