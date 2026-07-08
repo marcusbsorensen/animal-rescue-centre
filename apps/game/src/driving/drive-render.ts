@@ -54,11 +54,13 @@ export function roadGeometry(width: number, config?: RoadConfig): RoadGeometry {
   const median = config ? medianUnits(config) : 0;
   const playerLanes = config ? config.playerLanes : NUM_LANES;
   const units = total + median;
-  const roadWidth = config
-    ? Math.min(width * (0.40 + 0.12 * units), 760)
-    : Math.min(width * 0.72, 620);
+  // Target a consistent, compact lane width so vehicles stay a sensible size on
+  // screen (they fill the lane, but the lane isn't huge) and plenty of road
+  // shows ahead for steering decisions.
+  const laneWidth = Math.min(width * 0.072, 84);
+  const roadWidth = laneWidth * units;
   const roadLeft = (width - roadWidth) / 2;
-  return { roadLeft, roadWidth, laneWidth: roadWidth / units, totalLanes: total, playerLanes, medianUnits: median };
+  return { roadLeft, roadWidth, laneWidth, totalLanes: total, playerLanes, medianUnits: median };
 }
 
 /** Centre x of a lane index (0..total-1, left→right), accounting for a central

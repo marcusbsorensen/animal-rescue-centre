@@ -4,6 +4,7 @@ import {
   simplifyRoute,
   nextManeuver,
   maneuverText,
+  projectToRoute,
   type RoutePoint,
 } from '../route-instructions';
 
@@ -74,6 +75,24 @@ describe('route-instructions', () => {
     });
     it('returns arrive once all turns are behind us', () => {
       expect(nextManeuver(m, 0.999)?.kind).toBe('arrive');
+    });
+  });
+
+  describe('projectToRoute', () => {
+    const route = [P(0.1, 0.5), P(0.9, 0.5)]; // straight west→east
+    it('finds the progress fraction of the nearest point', () => {
+      const r = projectToRoute(route, 0.5, 0.5);
+      expect(r.atProgress).toBeCloseTo(0.5, 1);
+      expect(r.dist).toBeCloseTo(0, 3);
+    });
+    it('reports the perpendicular distance for an off-route point', () => {
+      const r = projectToRoute(route, 0.5, 0.62);
+      expect(r.atProgress).toBeCloseTo(0.5, 1);
+      expect(r.dist).toBeCloseTo(0.12, 2);
+    });
+    it('clamps to the ends', () => {
+      expect(projectToRoute(route, 0.0, 0.5).atProgress).toBe(0);
+      expect(projectToRoute(route, 1.0, 0.5).atProgress).toBeCloseTo(1, 2);
     });
   });
 

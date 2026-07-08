@@ -115,6 +115,43 @@ export function nextManeuver(maneuvers: Maneuver[], progress: number): Maneuver 
   return maneuvers.find((m) => m.kind !== 'depart' && m.atProgress >= progress - 1e-6);
 }
 
+/**
+ * Project a target map point onto the route: the progress fraction (0..1) of
+ * the nearest point on the polyline, and the distance to it (aspect-corrected
+ * fractional units). Used to place fixed-location props (speed cameras) at the
+ * point where the route passes them, and to decide if the route passes near
+ * enough to show them at all.
+ */
+export function projectToRoute(route: RoutePoint[], fx: number, fy: number): { atProgress: number; dist: number } {
+  if (route.length === 0) return { atProgress: 0, dist: Infinity };
+  if (route.length === 1) {
+    return { atProgress: 0, dist: Math.hypot((route[0].fx - fx) * ASPECT, route[0].fy - fy) };
+  }
+  const pts = route.map(aspectPt);
+  const tx = fx * ASPECT, ty = fy;
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) {
+    cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  }
+  const total = cum[cum.length - 1] || 1;
+
+  let bestDist = Infinity, bestLen = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
+    const dx = bx - ax, dy = by - ay;
+    const segLen2 = dx * dx + dy * dy || 1;
+    let t = ((tx - ax) * dx + (ty - ay) * dy) / segLen2;
+    t = Math.max(0, Math.min(1, t));
+    const projx = ax + dx * t, projy = ay + dy * t;
+    const d = Math.hypot(tx - projx, ty - projy);
+    if (d < bestDist) {
+      bestDist = d;
+      bestLen = cum[i - 1] + Math.hypot(dx, dy) * t;
+    }
+  }
+  return { atProgress: bestLen / total, dist: bestDist };
+}
+
 /** Kid-friendly text for a manoeuvre. */
 export function maneuverText(m: Maneuver): string {
   if (m.kind === 'depart') return 'Off we go!';

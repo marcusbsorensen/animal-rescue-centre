@@ -41,3 +41,18 @@ export const BIRCHIE_PLACES: Record<string, MapPoint> = {
 export function placeFor(destinationId: string): MapPoint {
   return BIRCHIE_PLACES[destinationId] ?? { fx: 0.5, fy: 0.5 };
 }
+
+export interface NamedPlace extends MapPoint {
+  name: string;
+}
+
+/**
+ * Fixed speed-camera locations on the map (provisional, like the places above —
+ * easy to nudge). A camera only appears on a drive when the route actually
+ * passes near it, so you meet the same cameras at the same spots each time.
+ */
+export const CAMERA_PLACES: NamedPlace[] = [
+  { name: 'Birchie entrance', fx: 0.33, fy: 0.36 },
+  { name: 'Town exit (east)', fx: 0.55, fy: 0.34 },
+  { name: 'Minnis Road seafront', fx: 0.20, fy: 0.30 },
+];

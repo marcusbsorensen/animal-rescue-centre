@@ -26,9 +26,9 @@ import {
 } from '../driving/drive-render';
 import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed } from '../driving/traffic-sim';
-import { ARC_PLACE, placeFor } from '../driving/birchie-places';
+import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
 import { buildAdjacency, routePolyline, type RoadGraph, type Adjacency, type RoutePoint } from '../driving/road-router';
-import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, type Maneuver } from '../driving/route-instructions';
+import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, projectToRoute, type Maneuver } from '../driving/route-instructions';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
 /**
@@ -75,6 +75,9 @@ interface DecorProp {
   size: number;
   isCamera: boolean;
   triggered: boolean;
+  /** One-shot props (a placed speed camera) are removed when they pass, not
+   *  recycled — so cameras only appear at their fixed map spots. */
+  oneShot?: boolean;
 }
 
 /** Decor kinds that are purely decorative (the speed camera is special). */
@@ -147,6 +150,8 @@ export class PtvDriveScene extends Phaser.Scene {
   private gpsRouteCum: number[] = [];
   private gpsRouteTotal = 0;
   private gpsManeuvers: Maneuver[] = [];
+  /** Fixed-location speed cameras that this route passes, as progress points. */
+  private cameraTriggers: { atProgress: number; done: boolean }[] = [];
   private gpsInstrBg?: Phaser.GameObjects.Graphics;
   private gpsInstrText?: Phaser.GameObjects.Text;
   private gpsInstrArrow?: Phaser.GameObjects.Text;
@@ -230,6 +235,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gearSlotY = {};
     this.gpsDot = undefined;
     this.gpsManeuvers = [];
+    this.cameraTriggers = [];
     this.gpsInstrText = undefined;
     this.gpsInstrArrow = undefined;
     this.gpsInstrBg = undefined;
@@ -384,6 +390,12 @@ export class PtvDriveScene extends Phaser.Scene {
     }
     this.gpsRouteTotal = this.gpsRouteCum[this.gpsRouteCum.length - 1] || 1;
     this.gpsManeuvers = buildManeuvers(polyFrac);
+    // Fixed speed cameras this route actually passes near (within ~5% of the
+    // map), placed at the progress where the route passes them.
+    this.cameraTriggers = CAMERA_PLACES
+      .map((c) => projectToRoute(polyFrac, c.fx, c.fy))
+      .filter((p) => p.dist < 0.06 && p.atProgress > 0.03 && p.atProgress < 0.97)
+      .map((p) => ({ atProgress: p.atProgress, done: false }));
 
     const route = this.add.graphics().setDepth(47);
     route.lineStyle(3.5, 0x3d8a2e, 0.95);
@@ -638,18 +650,31 @@ export class PtvDriveScene extends Phaser.Scene {
   // ── Roadside decorations ───────────────────────────────────
 
   private spawnDecor(width: number, height: number): void {
+    // Cones / signs / bollards scatter randomly for life. Speed cameras are NOT
+    // random — they're placed at fixed map spots by the route (see cameraTriggers).
     const count = 5;
     for (let i = 0; i < count; i++) {
-      const isCamera = Math.random() < 0.28; // roughly one camera among the props
-      const kind = isCamera ? 'speed-camera' : DECOR_KINDS[Math.floor(Math.random() * DECOR_KINDS.length)];
+      const kind = DECOR_KINDS[Math.floor(Math.random() * DECOR_KINDS.length)];
       const key = `decor-${kind}`;
       if (!this.textures.exists(key)) continue;
       const side: -1 | 1 = Math.random() < 0.5 ? -1 : 1;
       const obj = this.makeDecorObj(key, width, side);
       const y = (i / count) * height + Math.random() * 80 - height * 0.2;
       obj.setY(y);
-      this.decor.push({ obj, y, size: obj.displayHeight, isCamera, triggered: false });
+      this.decor.push({ obj, y, size: obj.displayHeight, isCamera: false, triggered: false });
     }
+  }
+
+  /** Drop a speed camera at the top of the road so it scrolls down to us — fired
+   *  when the drive reaches a fixed camera map-spot on the route. */
+  private spawnCameraProp(width: number): void {
+    const key = 'decor-speed-camera';
+    if (!this.textures.exists(key)) return;
+    const side: -1 | 1 = Math.random() < 0.5 ? -1 : 1;
+    const obj = this.makeDecorObj(key, width, side);
+    const y = -obj.displayHeight - 20;
+    obj.setY(y);
+    this.decor.push({ obj, y, size: obj.displayHeight, isCamera: true, triggered: false, oneShot: true });
   }
 
   private makeDecorObj(key: string, width: number, side: -1 | 1): Phaser.GameObjects.Image {
@@ -1060,16 +1085,28 @@ export class PtvDriveScene extends Phaser.Scene {
         // Roadside decorations scroll with the road. A speed camera flashes if
         // we pass it in top gear — the gentle "consequence" that pairs with the
         // handbrake, never a crash.
-        for (const d of this.decor) {
+        for (let di = this.decor.length - 1; di >= 0; di--) {
+          const d = this.decor[di];
           const prevY = d.y;
           d.y += rate;
           if (d.isCamera && !d.triggered && prevY < this.vanY && d.y >= this.vanY && this.drive.gear === 3) {
             this.flashSpeedCamera(d);
             d.triggered = true;
           }
-          if (d.y > height + d.size + 30) { d.y = -d.size - Math.random() * 80; d.triggered = false; }
+          if (d.oneShot) {
+            // A placed speed camera: remove it once it's driven past, don't recycle.
+            if (d.y > height + d.size + 30) { d.obj.destroy(); this.decor.splice(di, 1); continue; }
+          } else if (d.y > height + d.size + 30) { d.y = -d.size - Math.random() * 80; d.triggered = false; }
           else if (d.y < -d.size - 100) { d.y = height + d.size + Math.random() * 80; d.triggered = false; }
           d.obj.setY(d.y);
+        }
+
+        // Fire fixed-location speed cameras as the route reaches them.
+        for (const t of this.cameraTriggers) {
+          if (!t.done && this.drive.progress >= t.atProgress) {
+            this.spawnCameraProp(width);
+            t.done = true;
+          }
         }
 
         // Traffic drifts by the difference between our pace and their own
