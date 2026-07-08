@@ -26,6 +26,7 @@ import {
 } from '../driving/drive-render';
 import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed } from '../driving/traffic-sim';
+import { ARC_PLACE, placeFor } from '../driving/birchie-places';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
 /**
@@ -128,6 +129,12 @@ export class PtvDriveScene extends Phaser.Scene {
   private driveTimer?: Phaser.Time.TimerEvent;
   private laneTween?: Phaser.Tweens.Tween;
 
+  // GPS mini-map
+  private destinationId = 'woodland';
+  private gpsDot?: Phaser.GameObjects.Arc;
+  private gpsArc = { x: 0, y: 0 };
+  private gpsDest = { x: 0, y: 0 };
+
   private vanY = 0;
   private vanW = 46;
   private vanH = 74;
@@ -172,6 +179,10 @@ export class PtvDriveScene extends Phaser.Scene {
     for (const n of [...DECOR_KINDS, 'speed-camera']) {
       tryImg(`decor-${n}`, `decor/decor-${n}.png`);
     }
+    // The Birchie vector map for the GPS mini-map (rasterised from the SVG).
+    if (!this.textures.exists('gps-map')) {
+      this.load.svg('gps-map', '/admin/scene-assets/birchie-map/birchie-roads.svg', { width: 640, height: 399 });
+    }
     this.load.on('loaderror', () => { /* tolerate not-yet-generated sprites */ });
   }
 
@@ -182,6 +193,7 @@ export class PtvDriveScene extends Phaser.Scene {
       weather: data?.weather,
     });
     this.returnTo = data?.returnTo;
+    this.destinationId = data?.destinationId ?? 'woodland';
     this.phase = 'parking';
     this.scrollY = 0;
     this.traffic = [];
@@ -192,6 +204,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.laneTween = undefined;
     this.gearKnob = undefined;
     this.gearSlotY = {};
+    this.gpsDot = undefined;
   }
 
   create(): void {
@@ -283,10 +296,70 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.add(this.vanGfx);
 
     this.renderHud(width, height);
+    this.renderGps(width, height);
     this.setupInput(width, height);
     this.startDriveLoop();
 
     drawRoadForConfig(this.roadGfx, width, height, this.scrollY, geo, this.roadConfig);
+  }
+
+  /**
+   * GPS mini-map (Slice 1): the Birchie vector map in a corner panel, with
+   * A.R.C. and the destination pinned, a straight route line between them, and
+   * a position dot that advances with `drive.progress`. Real routing +
+   * turn-by-turn come in later slices. Positions come from birchie-places.ts
+   * (provisional — see that file).
+   */
+  private renderGps(width: number, _height: number): void {
+    const pw = 176, ph = 122;
+    const px = 12, py = 60; // top-left, below the Back button
+    const panel = this.add.graphics().setDepth(46);
+    panel.fillStyle(0x2a2a2a, 0.9);
+    panel.fillRoundedRect(px - 5, py - 20, pw + 10, ph + 44, 10);
+    panel.fillStyle(0x9cc0d6, 1); // sea backdrop behind the map
+    panel.fillRoundedRect(px, py, pw, ph, 6);
+    this.container.add(panel);
+    this.container.add(
+      this.add.text(px + pw / 2, py - 11, 'GPS', {
+        fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      }).setOrigin(0.5).setDepth(48)
+    );
+
+    // The map, contained inside the panel.
+    let mapLeft = px, mapTop = py, dispW = pw, dispH = ph;
+    if (this.textures.exists('gps-map')) {
+      const img = this.add.image(0, 0, 'gps-map').setDepth(46);
+      const s = Math.min(pw / img.width, ph / img.height);
+      dispW = img.width * s; dispH = img.height * s;
+      mapLeft = px + (pw - dispW) / 2; mapTop = py + (ph - dispH) / 2;
+      img.setScale(s).setPosition(mapLeft + dispW / 2, mapTop + dispH / 2);
+      this.container.add(img);
+    }
+    const toPanel = (p: { fx: number; fy: number }) => ({ x: mapLeft + p.fx * dispW, y: mapTop + p.fy * dispH });
+    this.gpsArc = toPanel(ARC_PLACE);
+    this.gpsDest = toPanel(placeFor(this.destinationId));
+
+    // Route line A.R.C. → destination (straight for now).
+    const route = this.add.graphics().setDepth(47);
+    route.lineStyle(4, 0x3d8a2e, 0.95);
+    route.beginPath();
+    route.moveTo(this.gpsArc.x, this.gpsArc.y);
+    route.lineTo(this.gpsDest.x, this.gpsDest.y);
+    route.strokePath();
+    this.container.add(route);
+
+    // Pins + moving position dot.
+    this.container.add(this.add.circle(this.gpsDest.x, this.gpsDest.y, 6, 0xa82020).setStrokeStyle(2, 0xffffff).setDepth(48));
+    this.container.add(this.add.circle(this.gpsArc.x, this.gpsArc.y, 5, 0x2e6b8a).setStrokeStyle(2, 0xffffff).setDepth(48));
+    this.gpsDot = this.add.circle(this.gpsArc.x, this.gpsArc.y, 5, 0xffd54a).setStrokeStyle(2, 0x3a2e22).setDepth(49);
+    this.container.add(this.gpsDot);
+
+    const label = this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    this.container.add(
+      this.add.text(px + pw / 2, py + ph + 5, `→ ${label}`, {
+        fontSize: '12px', fontFamily: FONTS.body, color: '#ffffff',
+      }).setOrigin(0.5, 0).setDepth(48)
+    );
   }
 
   // ── Parking-lot start ──────────────────────────────────────
@@ -927,6 +1000,15 @@ export class PtvDriveScene extends Phaser.Scene {
         }
 
         this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + rate * 0.0004));
+
+        // Advance the GPS position dot along the route.
+        if (this.gpsDot) {
+          const p = this.drive.progress;
+          this.gpsDot.setPosition(
+            this.gpsArc.x + (this.gpsDest.x - this.gpsArc.x) * p,
+            this.gpsArc.y + (this.gpsDest.y - this.gpsArc.y) * p,
+          );
+        }
       },
     });
   }
