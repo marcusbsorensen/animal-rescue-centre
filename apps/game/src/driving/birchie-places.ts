@@ -28,12 +28,12 @@ export const ARC_PLACE: MapPoint = { fx: 0.28, fy: 0.31 };
 export const BIRCHIE_PLACES: Record<string, MapPoint> = {
   arc: ARC_PLACE,
   'bramble-farm': { fx: 0.16, fy: 0.56 }, // farmland to the south-west
-  'cove-harbour': { fx: 0.52, fy: 0.10 }, // a harbour on the coast (north)
+  'cove-harbour': { fx: 0.14, fy: 0.24 }, // harbour on the west coast (Minnis Bay)
   'pinebark-medical': { fx: 0.66, fy: 0.44 }, // near Birchie Station / town
   moorland: { fx: 0.10, fy: 0.44 }, // open land to the west
   woodland: { fx: 0.86, fy: 0.60 }, // the Wyx Park greens (east)
-  'sea-cliffs': { fx: 0.72, fy: 0.13 }, // cliffs on the north-east coast
-  'deep-forest': { fx: 0.90, fy: 0.72 }, // far south-east woods
+  'sea-cliffs': { fx: 0.68, fy: 0.19 }, // cliffs on the north-east coast
+  'deep-forest': { fx: 0.84, fy: 0.68 }, // south-east woods (on the road network)
   wetlands: { fx: 0.40, fy: 0.86 }, // low-lying ground to the south
 };
 

@@ -27,6 +27,7 @@ import {
 import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor } from '../driving/birchie-places';
+import { buildAdjacency, routePolyline, type RoadGraph, type Adjacency, type RoutePoint } from '../driving/road-router';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
 /**
@@ -134,6 +135,12 @@ export class PtvDriveScene extends Phaser.Scene {
   private gpsDot?: Phaser.GameObjects.Arc;
   private gpsArc = { x: 0, y: 0 };
   private gpsDest = { x: 0, y: 0 };
+  private gpsGraph?: RoadGraph;
+  private gpsAdj?: Adjacency;
+  /** The route as panel-pixel points, with cumulative lengths for the dot. */
+  private gpsRoutePts: { x: number; y: number }[] = [];
+  private gpsRouteCum: number[] = [];
+  private gpsRouteTotal = 0;
 
   private vanY = 0;
   private vanW = 46;
@@ -182,6 +189,10 @@ export class PtvDriveScene extends Phaser.Scene {
     // The Birchie vector map for the GPS mini-map (rasterised from the SVG).
     if (!this.textures.exists('gps-map')) {
       this.load.svg('gps-map', '/admin/scene-assets/birchie-map/birchie-roads.svg', { width: 640, height: 399 });
+    }
+    // The routable road graph (built offline from the same SVG).
+    if (!this.cache.json.exists('birchie-graph')) {
+      this.load.json('birchie-graph', '/assets/driving/birchie-graph.json');
     }
     this.load.on('loaderror', () => { /* tolerate not-yet-generated sprites */ });
   }
@@ -339,12 +350,28 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gpsArc = toPanel(ARC_PLACE);
     this.gpsDest = toPanel(placeFor(this.destinationId));
 
-    // Route line A.R.C. → destination (straight for now).
+    // Road-following route A.R.C. → destination (Dijkstra on the road graph,
+    // straight-line fallback if the network can't connect). Cache the graph.
+    if (!this.gpsGraph && this.cache.json.exists('birchie-graph')) {
+      this.gpsGraph = this.cache.json.get('birchie-graph') as RoadGraph;
+      this.gpsAdj = buildAdjacency(this.gpsGraph);
+    }
+    const polyFrac: RoutePoint[] = this.gpsGraph && this.gpsAdj
+      ? routePolyline(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
+      : [ARC_PLACE, placeFor(this.destinationId)];
+    this.gpsRoutePts = polyFrac.map(toPanel);
+    this.gpsRouteCum = [0];
+    for (let i = 1; i < this.gpsRoutePts.length; i++) {
+      const a = this.gpsRoutePts[i - 1], b = this.gpsRoutePts[i];
+      this.gpsRouteCum.push(this.gpsRouteCum[i - 1] + Math.hypot(b.x - a.x, b.y - a.y));
+    }
+    this.gpsRouteTotal = this.gpsRouteCum[this.gpsRouteCum.length - 1] || 1;
+
     const route = this.add.graphics().setDepth(47);
-    route.lineStyle(4, 0x3d8a2e, 0.95);
+    route.lineStyle(3.5, 0x3d8a2e, 0.95);
     route.beginPath();
-    route.moveTo(this.gpsArc.x, this.gpsArc.y);
-    route.lineTo(this.gpsDest.x, this.gpsDest.y);
+    route.moveTo(this.gpsRoutePts[0].x, this.gpsRoutePts[0].y);
+    for (let i = 1; i < this.gpsRoutePts.length; i++) route.lineTo(this.gpsRoutePts[i].x, this.gpsRoutePts[i].y);
     route.strokePath();
     this.container.add(route);
 
@@ -360,6 +387,22 @@ export class PtvDriveScene extends Phaser.Scene {
         fontSize: '12px', fontFamily: FONTS.body, color: '#ffffff',
       }).setOrigin(0.5, 0).setDepth(48)
     );
+  }
+
+  /** Point (panel px) at fraction `p` (0..1) along the GPS route polyline. */
+  private routePointAt(p: number): { x: number; y: number } {
+    const pts = this.gpsRoutePts;
+    if (pts.length === 0) return this.gpsArc;
+    if (pts.length === 1) return pts[0];
+    const target = Math.max(0, Math.min(1, p)) * this.gpsRouteTotal;
+    let i = 1;
+    while (i < this.gpsRouteCum.length && this.gpsRouteCum[i] < target) i++;
+    if (i >= pts.length) return pts[pts.length - 1];
+    const segStart = this.gpsRouteCum[i - 1];
+    const segLen = (this.gpsRouteCum[i] - segStart) || 1;
+    const f = (target - segStart) / segLen;
+    const a = pts[i - 1], b = pts[i];
+    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
   }
 
   // ── Parking-lot start ──────────────────────────────────────
@@ -1001,13 +1044,10 @@ export class PtvDriveScene extends Phaser.Scene {
 
         this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + rate * 0.0004));
 
-        // Advance the GPS position dot along the route.
+        // Advance the GPS position dot along the road route.
         if (this.gpsDot) {
-          const p = this.drive.progress;
-          this.gpsDot.setPosition(
-            this.gpsArc.x + (this.gpsDest.x - this.gpsArc.x) * p,
-            this.gpsArc.y + (this.gpsDest.y - this.gpsArc.y) * p,
-          );
+          const q = this.routePointAt(this.drive.progress);
+          this.gpsDot.setPosition(q.x, q.y);
         }
       },
     });
