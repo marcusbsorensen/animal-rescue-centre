@@ -92,6 +92,10 @@ interface OncomingCar {
 /** The order the demo cycles road types in. */
 const ROAD_CYCLE: RoadId[] = ['country-lane', 'thanet-way', 'rural-track', 'coast-road'];
 
+/** Uniform oncoming pace (px/tick). Uniform so same-lane oncoming cars keep
+ *  their spacing and never overlap. */
+const ONCOMING_SPEED = 5.5;
+
 export interface PtvDriveInit {
   driveType?: DriveType;
   destinationId?: string;
@@ -126,7 +130,7 @@ export class PtvDriveScene extends Phaser.Scene {
   private oncoming: OncomingCar[] = [];
   private scenery: SceneryProp[] = [];
   private decor: DecorProp[] = [];
-  private roadConfig: RoadConfig = ROADS['country-lane'];
+  private roadConfig: RoadConfig = ROADS['thanet-way'];
   private scrollY = 0;
   private driveTimer?: Phaser.Time.TimerEvent;
   private laneTween?: Phaser.Tweens.Tween;
@@ -209,7 +213,11 @@ export class PtvDriveScene extends Phaser.Scene {
       weather: data?.weather,
     });
     this.returnTo = data?.returnTo;
-    this.destinationId = data?.destinationId ?? 'woodland';
+    // Dev: ?ptvDemo=1&dest=<id> lets Marcus test any route/turns; else woodland.
+    const urlDest = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('dest') ?? undefined
+      : undefined;
+    this.destinationId = data?.destinationId ?? urlDest ?? 'woodland';
     this.phase = 'parking';
     this.scrollY = 0;
     this.traffic = [];
@@ -662,8 +670,17 @@ export class PtvDriveScene extends Phaser.Scene {
   // ── Decorative traffic ─────────────────────────────────────
 
   private spawnInitialTraffic(width: number, height: number): void {
-    const yFracs = [0.12, 0.30, 0.02, -0.18, -0.35];
-    for (const yFrac of yFracs) {
+    // Scale same-direction traffic to the number of player lanes: a single-lane
+    // country road gets none in the player's lane (so you're never trapped
+    // behind a crawler you can't overtake) — its life comes from oncoming
+    // traffic. Multi-lane roads get plenty, with overtaking.
+    if (this.pl() <= 1) return;
+    const count = this.pl() * 3;
+    for (let i = 0; i < count; i++) {
+      // Spread cars ahead and behind, but never in the van's band (~0.72h) so
+      // nothing spawns on top of Henry.
+      const t = i / Math.max(1, count - 1);
+      const yFrac = t < 0.5 ? -0.35 + t * 1.6 : 0.9 + (t - 0.5) * 0.9; // ahead: -0.35..0.45; behind: 0.9..1.35
       this.addTrafficCar(width, height * yFrac, pickTrafficKind(Math.random()));
     }
   }
@@ -672,19 +689,18 @@ export class PtvDriveScene extends Phaser.Scene {
 
   private spawnOncoming(width: number, height: number): void {
     if (this.roadConfig.oncomingLanes <= 0) return;
-    const count = this.roadConfig.oncomingLanes * 2 + 1;
-    for (let i = 0; i < count; i++) {
-      this.addOncomingCar((i / count) * height * 1.4 - height * 0.2);
+    const perLane = 3;
+    const first = this.roadConfig.playerLanes;
+    for (let lane = first; lane < first + this.roadConfig.oncomingLanes; lane++) {
+      for (let k = 0; k < perLane; k++) {
+        // Even spacing within the lane so they never bunch up.
+        this.addOncomingCar(-height * 0.15 + (k / perLane) * height * 1.35, lane);
+      }
     }
   }
 
-  private oncomingLane(): number {
-    return this.roadConfig.playerLanes + Math.floor(Math.random() * this.roadConfig.oncomingLanes);
-  }
-
-  private addOncomingCar(y: number): void {
+  private addOncomingCar(y: number, lane: number): void {
     const geo = this.geo();
-    const lane = this.oncomingLane();
     const profile = TRAFFIC_PROFILES[pickTrafficKind(Math.random())];
     const w = Math.round(this.vanW * profile.widthFactor);
     const h = Math.round(this.vanH * profile.lengthFactor);
@@ -693,23 +709,26 @@ export class PtvDriveScene extends Phaser.Scene {
     gfx.setAngle(180); // facing down, toward us
     gfx.setDepth(15);
     this.container.add(gfx);
-    this.oncoming.push({ gfx, lane, y, speed: 4 + Math.random() * 3 });
+    this.oncoming.push({ gfx, lane, y, speed: ONCOMING_SPEED });
   }
 
-  private recycleOncoming(o: OncomingCar, y: number): void {
+  /** Recycle an off-top oncoming car to the back of its own lane's queue, a
+   *  clear gap behind the current last car, so nothing overlaps. Lane is kept. */
+  private recycleOncoming(o: OncomingCar): void {
     const geo = this.geo();
-    o.lane = this.oncomingLane();
-    o.y = y;
+    let lowest = this.scale.height + this.vanH * 1.5;
+    for (const c of this.oncoming) if (c !== o && c.lane === o.lane) lowest = Math.max(lowest, c.y);
+    o.y = lowest + this.vanH * 2.4;
     const profile = TRAFFIC_PROFILES[pickTrafficKind(Math.random())];
     const w = Math.round(this.vanW * profile.widthFactor);
     const h = Math.round(this.vanH * profile.lengthFactor);
     o.gfx.destroy();
     o.gfx = this.makeTrafficObj(profile, w, h);
-    o.gfx.setPosition(laneCentreX(geo, o.lane), y);
+    o.gfx.setPosition(laneCentreX(geo, o.lane), o.y);
     o.gfx.setAngle(180);
     o.gfx.setDepth(15);
     this.container.add(o.gfx);
-    o.speed = 4 + Math.random() * 3;
+    o.speed = ONCOMING_SPEED;
   }
 
   /** Choose a lane for a vehicle: mostly its preferred (slow vehicles slow
@@ -1084,7 +1103,7 @@ export class PtvDriveScene extends Phaser.Scene {
         for (const o of this.oncoming) {
           o.y -= o.speed + Math.max(rate, 0) * 0.6;
           if (o.y < -this.vanH * 2.2) {
-            this.recycleOncoming(o, height + this.vanH * 2 + Math.random() * height * 0.3);
+            this.recycleOncoming(o);
           }
           o.gfx.setY(o.y);
         }
