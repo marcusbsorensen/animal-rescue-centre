@@ -2,9 +2,33 @@ import { describe, it, expect } from 'vitest';
 import {
   TRAFFIC_PROFILES,
   pickTrafficKind,
+  pickFrom,
+  isBusSeason,
   overtakesPlayer,
   type TrafficKind,
 } from '../traffic';
+
+describe('road-gated specials', () => {
+  it('pickTrafficKind never returns a special (bus/binlorry/skiptruck)', () => {
+    const specials = new Set(['bus', 'binlorry', 'skiptruck']);
+    for (let i = 0; i <= 100; i++) {
+      expect(specials.has(pickTrafficKind(i / 100))).toBe(false);
+    }
+  });
+
+  it('pickFrom only returns kinds from its pool', () => {
+    const pool: TrafficKind[] = ['tractor', 'binlorry', 'skiptruck'];
+    for (let i = 0; i <= 50; i++) {
+      expect(pool).toContain(pickFrom(pool, i / 50));
+    }
+    expect(pickFrom([], 0.5)).toBe('car'); // empty pool falls back
+  });
+
+  it('isBusSeason is spring/summer only (Mar–Aug)', () => {
+    expect([3, 4, 5, 6, 7, 8].every(isBusSeason)).toBe(true);
+    expect([1, 2, 9, 10, 11, 12].some(isBusSeason)).toBe(false);
+  });
+});
 
 describe('traffic', () => {
   describe('TRAFFIC_PROFILES', () => {

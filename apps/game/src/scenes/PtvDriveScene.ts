@@ -25,7 +25,7 @@ import {
   vanSizeForLane,
   isOvertakingZone,
 } from '../driving/drive-render';
-import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile, type TrafficKind } from '../driving/traffic';
+import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
 import { buildAdjacency, routePolyline, routeProfile, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
@@ -48,6 +48,15 @@ const TRAFFIC_SPRITE_KEYS: Record<TrafficKind, string[]> = {
   tractor: ['vehicle-topdown-tractor'],
   motorbike: ['vehicle-topdown-motorbike'],
   emergency: ['vehicle-topdown-ambulance'],
+  bus: ['vehicle-topdown-bus'],
+  binlorry: ['vehicle-topdown-binlorry'],
+  // Six flatbed loads: one empty + five overflowing skips, picked at random so
+  // the skip varies truck-to-truck and sometimes the bed runs empty.
+  skiptruck: [
+    'vehicle-topdown-skiptruck-empty',
+    'vehicle-topdown-skiptruck-1', 'vehicle-topdown-skiptruck-2', 'vehicle-topdown-skiptruck-3',
+    'vehicle-topdown-skiptruck-4', 'vehicle-topdown-skiptruck-5',
+  ],
 };
 
 /** Decorative (non-consequential) other road user. */
@@ -223,8 +232,11 @@ export class PtvDriveScene extends Phaser.Scene {
     tryImg('vehicle-topdown-henry', 'vehicle-topdown-henry.png');
     tryImg('site-arc-building', 'site-arc-building.png');
     tryImg('site-gravel', 'site-gravel.png');
-    for (const n of ['car-red', 'car-blue', 'car-yellow', 'pickup', 'truck', 'tractor', 'motorbike', 'ambulance']) {
+    for (const n of ['car-red', 'car-blue', 'car-yellow', 'pickup', 'truck', 'tractor', 'motorbike', 'ambulance', 'bus', 'binlorry']) {
       tryImg(`vehicle-topdown-${n}`, `vehicle-topdown-${n}.png`);
+    }
+    for (const n of ['empty', '1', '2', '3', '4', '5']) {
+      tryImg(`vehicle-topdown-skiptruck-${n}`, `vehicle-topdown-skiptruck-${n}.png`);
     }
     for (const n of [...DECOR_KINDS, 'speed-camera']) {
       tryImg(`decor-${n}`, `decor/decor-${n}.png`);
@@ -880,14 +892,33 @@ export class PtvDriveScene extends Phaser.Scene {
 
   // ── Decorative traffic ─────────────────────────────────────
 
+  /** Pick a traffic kind appropriate to the current road, honouring where the
+   *  specials belong:
+   *   - 'leader'  = the slow vehicle you catch on a single carriageway. Inland
+   *                 side roads get a tractor / bin lorry / skip truck; the coast
+   *                 road gets the seaside open-top bus (spring/summer) or a tractor.
+   *   - 'traffic' = ordinary flowing traffic. On the main A-road the seasonal bus
+   *                 turns up now and then; otherwise the everyday weighted pool. */
+  private pickRoadKind(role: 'leader' | 'traffic'): TrafficKind {
+    const id = this.roadConfig.id;
+    const inSeason = isBusSeason(new Date().getMonth() + 1);
+    if (role === 'leader') {
+      if (id === 'coast-road') return pickFrom(inSeason ? ['bus', 'tractor'] : ['tractor'], Math.random());
+      return pickFrom(['tractor', 'binlorry', 'skiptruck'], Math.random());
+    }
+    if (id === 'thanet-way' && inSeason && Math.random() < 0.14) return 'bus';
+    return pickTrafficKind(Math.random());
+  }
+
   private spawnInitialTraffic(width: number, height: number): void {
     // Scale same-direction traffic to the number of player lanes. A single-lane
-    // country road gets ONE slow leader ahead — a tractor to catch up to and
-    // overtake (that's the whole point of the overtaking mechanic here). It
-    // recycles far ahead once passed, so there's always a next one but never a
-    // jam. Multi-lane roads get plenty, with overtaking between lanes.
+    // country road gets ONE slow leader ahead — a tractor / bin lorry / skip
+    // truck (inland) or the seaside bus (coast) to catch up to and overtake
+    // (that's the whole point of the overtaking mechanic here). It recycles far
+    // ahead once passed, so there's always a next one but never a jam. Multi-lane
+    // roads get plenty, with overtaking between lanes.
     if (this.pl() <= 1) {
-      if (this.roadConfig.oncomingLanes >= 1) this.addTrafficCar(width, height * 0.12, 'tractor');
+      if (this.roadConfig.oncomingLanes >= 1) this.addTrafficCar(width, height * 0.12, this.pickRoadKind('leader'));
       return;
     }
     const count = this.pl() * 3;
@@ -896,7 +927,7 @@ export class PtvDriveScene extends Phaser.Scene {
       // nothing spawns on top of Henry.
       const t = i / Math.max(1, count - 1);
       const yFrac = t < 0.5 ? -0.35 + t * 1.6 : 0.9 + (t - 0.5) * 0.9; // ahead: -0.35..0.45; behind: 0.9..1.35
-      this.addTrafficCar(width, height * yFrac, pickTrafficKind(Math.random()));
+      this.addTrafficCar(width, height * yFrac, this.pickRoadKind('traffic'));
     }
   }
 
@@ -916,7 +947,7 @@ export class PtvDriveScene extends Phaser.Scene {
 
   private addOncomingCar(y: number, lane: number): void {
     const geo = this.geo();
-    const profile = TRAFFIC_PROFILES[pickTrafficKind(Math.random())];
+    const profile = TRAFFIC_PROFILES[this.pickRoadKind('traffic')];
     const w = Math.round(this.vanW * profile.widthFactor);
     const h = Math.round(this.vanH * profile.lengthFactor);
     const gfx = this.makeTrafficObj(profile, w, h);
@@ -978,7 +1009,7 @@ export class PtvDriveScene extends Phaser.Scene {
     let highest = -this.vanH * 1.5;
     for (const c of this.oncoming) if (c !== o && c.lane === o.lane) highest = Math.min(highest, c.y);
     o.y = highest - this.vanH * 2.4;
-    const profile = TRAFFIC_PROFILES[pickTrafficKind(Math.random())];
+    const profile = TRAFFIC_PROFILES[this.pickRoadKind('traffic')];
     const w = Math.round(this.vanW * profile.widthFactor);
     const h = Math.round(this.vanH * profile.lengthFactor);
     o.gfx.destroy();
@@ -1457,7 +1488,9 @@ export class PtvDriveScene extends Phaser.Scene {
 
   private recycleCar(car: TrafficCar, width: number, y: number): void {
     const geo = this.geo();
-    const kind = pickTrafficKind(Math.random());
+    // On a single carriageway the only same-direction car is the slow leader, so
+    // recycle it back into a leader; multi-lane roads recycle into ordinary flow.
+    const kind = this.pickRoadKind(this.pl() <= 1 ? 'leader' : 'traffic');
     car.profile = TRAFFIC_PROFILES[kind];
     car.lane = this.assignLane(car.profile);
     car.absSpeed = carAbsoluteSpeed(car.profile, car.lane, TRAFFIC_REF_SPEED, this.pl());
@@ -1484,6 +1517,14 @@ export class PtvDriveScene extends Phaser.Scene {
     this.tweens.add({ targets: car.gfx, x: laneCentreX(geo, clamped), duration: 260, ease: 'Sine.easeInOut' });
   }
 
+  /** Half a vehicle's on-screen length (nose-to-centre). Long vehicles (bus,
+   *  bin lorry, skip truck) are much longer than the van, so gaps must use each
+   *  vehicle's own length or they visibly overlap. */
+  private carHalfLen(o?: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics): number {
+    const h = o ? (o as Phaser.GameObjects.Image).displayHeight : 0;
+    return (h || this.vanH) / 2;
+  }
+
   /** Our forward pace, capped by the nearest slower vehicle ahead in our lane
    *  so the van can't drive through it. Not capped when stopped/reversing. */
   private effectivePlayerRate(gearRate: number): number {
@@ -1491,11 +1532,13 @@ export class PtvDriveScene extends Phaser.Scene {
     // Out overtaking in the clear oncoming lane — don't let the car we're passing
     // in our home lane hold us back; we need to accelerate by and pull in.
     if (this.overtaking) return gearRate;
-    const minGap = this.vanH * 1.05;
-    const follow = this.vanH * 2.4;
+    const vanHalf = this.carHalfLen(this.vanGfx);
     let cap = gearRate;
     for (const c of this.traffic) {
       if (c.lane !== this.drive.lane || c.y >= this.vanY) continue; // must be ahead
+      const contact = this.carHalfLen(c.gfx) + vanHalf; // centres this close = touching
+      const minGap = contact + this.vanH * 0.08;
+      const follow = contact + this.vanH * 1.5;
       const gap = this.vanY - c.y;
       if (gap <= follow && c.absSpeed < cap) {
         cap = Math.max(0, gap < minGap ? c.absSpeed - 0.6 : c.absSpeed);
@@ -1507,11 +1550,14 @@ export class PtvDriveScene extends Phaser.Scene {
   /**
    * Stop vehicles overlapping. Within each lane, keep a minimum nose-to-tail
    * gap (the van is an immovable anchor in its lane); then let a car that's
-   * stuck behind something slower peel off into a clear lane to overtake.
+   * stuck behind something slower peel off into a clear lane to overtake. Gaps
+   * are length-aware so a long bus/lorry doesn't overlap the vehicle ahead.
    */
   private resolveTraffic(width: number): void {
-    const minGap = this.vanH * 1.05;
-    const follow = this.vanH * 2.4;
+    const margin = this.vanH * 0.06;
+    const vanHalf = this.carHalfLen(this.vanGfx);
+    // Centre-to-centre gap needed so two vehicles just touch, plus a margin.
+    const pairGap = (halfA: number, halfB: number) => halfA + halfB + margin;
 
     for (let lane = 0; lane < this.pl(); lane++) {
       const cars = this.traffic.filter((c) => c.lane === lane);
@@ -1519,25 +1565,28 @@ export class PtvDriveScene extends Phaser.Scene {
       // the car we're passing must be able to drift down past our old slot.
       if (this.drive.lane === lane && !this.overtaking) {
         // Cars ahead of the van (closest first) held a gap in front.
-        let anchor = this.vanY;
+        let anchor = this.vanY, anchorHalf = vanHalf;
         for (const c of cars.filter((c) => c.y < this.vanY).sort((a, b) => b.y - a.y)) {
-          const maxY = anchor - minGap;
+          const half = this.carHalfLen(c.gfx);
+          const maxY = anchor - pairGap(anchorHalf, half);
           if (c.y > maxY) c.y = maxY;
-          anchor = c.y;
+          anchor = c.y; anchorHalf = half;
         }
         // Cars behind the van (closest first) held a gap behind.
-        anchor = this.vanY;
+        anchor = this.vanY; anchorHalf = vanHalf;
         for (const c of cars.filter((c) => c.y >= this.vanY).sort((a, b) => a.y - b.y)) {
-          const minY = anchor + minGap;
+          const half = this.carHalfLen(c.gfx);
+          const minY = anchor + pairGap(anchorHalf, half);
           if (c.y < minY) c.y = minY;
-          anchor = c.y;
+          anchor = c.y; anchorHalf = half;
         }
       } else {
-        let anchor = -Infinity;
+        let anchor = -Infinity, anchorHalf = 0;
         for (const c of cars.slice().sort((a, b) => a.y - b.y)) {
-          const minY = anchor + minGap;
+          const half = this.carHalfLen(c.gfx);
+          const minY = anchor === -Infinity ? c.y : anchor + pairGap(anchorHalf, half);
           if (c.y < minY) c.y = minY;
-          anchor = c.y;
+          anchor = c.y; anchorHalf = half;
         }
       }
     }
@@ -1556,7 +1605,8 @@ export class PtvDriveScene extends Phaser.Scene {
         const g = c.y - this.vanY;
         if (g < aheadGap) { aheadGap = g; aheadSpeed = 0; } // van as a slow obstacle
       }
-      if (aheadGap < follow && aheadSpeed < c.absSpeed * 0.9 && Math.random() < 0.03) {
+      // "Stuck behind something slower" threshold, ~2.4 van-lengths.
+      if (aheadGap < this.vanH * 2.4 && aheadSpeed < c.absSpeed * 0.9 && Math.random() < 0.03) {
         this.tryOvertake(c);
       }
     }

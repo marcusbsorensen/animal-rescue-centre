@@ -16,7 +16,10 @@ export type TrafficKind =
   | 'truck'
   | 'tractor'
   | 'motorbike'
-  | 'emergency';
+  | 'emergency'
+  | 'bus'
+  | 'binlorry'
+  | 'skiptruck';
 
 export interface TrafficProfile {
   kind: TrafficKind;
@@ -50,25 +53,53 @@ export const TRAFFIC_PROFILES: Record<TrafficKind, TrafficProfile> = {
   motorbike: { kind: 'motorbike', relSpeed: 1.25, widthFactor: 0.42, lengthFactor: 0.7, colour: 0x333333, zigzag: true, weight: 2 },
   // Emergency vehicles — van-sized, fast, overtaking us.
   emergency: { kind: 'emergency', relSpeed: 1.6, widthFactor: 0.92, lengthFactor: 1.2, colour: 0xe8443a, zigzag: false, weight: 1 },
+  // Open-top double-decker — the biggest, longest vehicle; seasonal seaside bus.
+  bus: { kind: 'bus', relSpeed: 0.5, widthFactor: 1.12, lengthFactor: 2.7, colour: 0xd23c34, zigzag: false, weight: 2 },
+  // Bin lorry — slow side-road refuse truck you catch up to and overtake.
+  binlorry: { kind: 'binlorry', relSpeed: 0.32, widthFactor: 1.06, lengthFactor: 2.0, colour: 0x3f8f83, zigzag: false, weight: 2 },
+  // Skip flatbed — slow side-road lorry carrying a (random) overflowing skip.
+  skiptruck: { kind: 'skiptruck', relSpeed: 0.38, widthFactor: 1.06, lengthFactor: 2.05, colour: 0x8794a2, zigzag: false, weight: 2 },
 };
 
-const ALL_KINDS = Object.keys(TRAFFIC_PROFILES) as TrafficKind[];
+// The everyday traffic that turns up on any road, weighted. The specials
+// (bus / binlorry / skiptruck) are NOT in here — they're spawned deliberately
+// on the roads they belong to (see the scene's road-gated picker).
+const EVERYDAY_KINDS: TrafficKind[] = ['car', 'pickup', 'truck', 'tractor', 'motorbike', 'emergency'];
 
-/** Total pick weight, precomputed. */
-const TOTAL_WEIGHT = ALL_KINDS.reduce((sum, k) => sum + TRAFFIC_PROFILES[k].weight, 0);
+/** Total pick weight across the everyday kinds, precomputed. */
+const TOTAL_WEIGHT = EVERYDAY_KINDS.reduce((sum, k) => sum + TRAFFIC_PROFILES[k].weight, 0);
 
 /**
- * Weighted pick of a traffic kind. `rand` is a 0..1 value (pass a seeded RNG
- * for determinism). Common kinds (cars) come up more often than rare ones
- * (emergency).
+ * Weighted pick of an everyday traffic kind. `rand` is a 0..1 value (pass a
+ * seeded RNG for determinism). Common kinds (cars) come up more often than rare
+ * ones (emergency). Never returns a special (bus / binlorry / skiptruck).
  */
 export function pickTrafficKind(rand: number): TrafficKind {
   let ticket = Math.max(0, Math.min(0.9999999, rand)) * TOTAL_WEIGHT;
-  for (const k of ALL_KINDS) {
+  for (const k of EVERYDAY_KINDS) {
     ticket -= TRAFFIC_PROFILES[k].weight;
     if (ticket < 0) return k;
   }
   return 'car';
+}
+
+/** Weighted pick from an explicit pool of kinds (for road-gated specials like
+ *  the side-road leader). `rand` is 0..1. */
+export function pickFrom(pool: TrafficKind[], rand: number): TrafficKind {
+  if (pool.length === 0) return 'car';
+  const total = pool.reduce((s, k) => s + TRAFFIC_PROFILES[k].weight, 0);
+  let ticket = Math.max(0, Math.min(0.9999999, rand)) * total;
+  for (const k of pool) {
+    ticket -= TRAFFIC_PROFILES[k].weight;
+    if (ticket < 0) return k;
+  }
+  return pool[0];
+}
+
+/** The seaside open-top bus only runs in spring and summer (Mar–Aug). `month`
+ *  is 1–12. */
+export function isBusSeason(month: number): boolean {
+  return month >= 3 && month <= 8;
 }
 
 /** Whether a kind overtakes the player (drifts up the screen) rather than
