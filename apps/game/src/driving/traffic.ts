@@ -34,19 +34,22 @@ export interface TrafficProfile {
   weight: number;
 }
 
+// widthFactor is relative to the player van Henry (= 1.0), which sets the size
+// hierarchy: motorbike < car < van (pickup/ambulance) < tractor < truck. Sprites
+// scale by width and keep their own aspect, so length follows the artwork.
 export const TRAFFIC_PROFILES: Record<TrafficKind, TrafficProfile> = {
-  // Ordinary cars — the bread-and-butter traffic, a touch slower than us.
-  car: { kind: 'car', relSpeed: 0.75, widthFactor: 0.92, lengthFactor: 0.92, colour: 0x6a9fd0, zigzag: false, weight: 5 },
-  // Pick-ups — a bit longer, similar pace.
-  pickup: { kind: 'pickup', relSpeed: 0.7, widthFactor: 0.98, lengthFactor: 1.1, colour: 0x9a7a55, zigzag: false, weight: 3 },
-  // Trucks — big and slow-ish.
-  truck: { kind: 'truck', relSpeed: 0.55, widthFactor: 1.05, lengthFactor: 1.7, colour: 0xcf6b52, zigzag: false, weight: 3 },
-  // Tractors — very slow; we sail past them.
-  tractor: { kind: 'tractor', relSpeed: 0.28, widthFactor: 1.0, lengthFactor: 1.25, colour: 0x4e9f3d, zigzag: false, weight: 2 },
-  // Motorbikes — nippy and weave between lanes.
-  motorbike: { kind: 'motorbike', relSpeed: 1.25, widthFactor: 0.4, lengthFactor: 0.7, colour: 0x333333, zigzag: true, weight: 2 },
-  // Emergency vehicles — fast, overtaking us.
-  emergency: { kind: 'emergency', relSpeed: 1.6, widthFactor: 0.95, lengthFactor: 1.05, colour: 0xe8443a, zigzag: false, weight: 1 },
+  // Ordinary cars — the bread-and-butter traffic, smaller than the van.
+  car: { kind: 'car', relSpeed: 0.75, widthFactor: 0.80, lengthFactor: 0.9, colour: 0x6a9fd0, zigzag: false, weight: 5 },
+  // Pick-ups — van-ish, a bit longer.
+  pickup: { kind: 'pickup', relSpeed: 0.7, widthFactor: 0.90, lengthFactor: 1.15, colour: 0x9a7a55, zigzag: false, weight: 3 },
+  // Trucks — the biggest of the everyday traffic.
+  truck: { kind: 'truck', relSpeed: 0.55, widthFactor: 1.08, lengthFactor: 1.9, colour: 0xcf6b52, zigzag: false, weight: 3 },
+  // Tractors — very slow; we sail past them. Big wheels, so read chunky.
+  tractor: { kind: 'tractor', relSpeed: 0.28, widthFactor: 1.02, lengthFactor: 1.4, colour: 0x4e9f3d, zigzag: false, weight: 2 },
+  // Motorbikes — smallest of all, nippy and weave between lanes.
+  motorbike: { kind: 'motorbike', relSpeed: 1.25, widthFactor: 0.42, lengthFactor: 0.7, colour: 0x333333, zigzag: true, weight: 2 },
+  // Emergency vehicles — van-sized, fast, overtaking us.
+  emergency: { kind: 'emergency', relSpeed: 1.6, widthFactor: 0.92, lengthFactor: 1.2, colour: 0xe8443a, zigzag: false, weight: 1 },
 };
 
 const ALL_KINDS = Object.keys(TRAFFIC_PROFILES) as TrafficKind[];

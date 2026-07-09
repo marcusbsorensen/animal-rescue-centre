@@ -140,6 +140,10 @@ export class PtvDriveScene extends Phaser.Scene {
 
   // Render state
   private roadGfx?: Phaser.GameObjects.Graphics;
+  /** One layer that draws a soft dropshadow under every vehicle each frame, so
+   *  they sit right on any surface (tarmac / gravel / sand) without baked-in art
+   *  shadows that halo on the wrong colour. */
+  private shadowGfx?: Phaser.GameObjects.Graphics;
   private vanGfx?: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
   private traffic: TrafficCar[] = [];
   private oncoming: OncomingCar[] = [];
@@ -313,6 +317,7 @@ export class PtvDriveScene extends Phaser.Scene {
     // A fresh view puts the van back in her own lane, so any overtake ends here
     // (also covers switching onto a reservation road mid-overtake).
     this.overtaking = false;
+    this.shadowGfx = undefined;
     this.traffic = [];
     this.oncoming = [];
     this.scenery = [];
@@ -352,6 +357,12 @@ export class PtvDriveScene extends Phaser.Scene {
     // Road (redrawn every tick).
     this.roadGfx = this.add.graphics();
     this.container.add(this.roadGfx);
+
+    // Vehicle dropshadows — one layer, redrawn each frame, below the vehicles
+    // (depth 13) but above the road, so shadows track every vehicle on any
+    // surface without any baked-in art shadow.
+    this.shadowGfx = this.add.graphics().setDepth(13);
+    this.container.add(this.shadowGfx);
 
     this.spawnScenery(width, height);
     this.spawnDecor(width, height);
@@ -933,6 +944,32 @@ export class PtvDriveScene extends Phaser.Scene {
     }
   }
 
+  /** Redraw the soft dropshadow under every vehicle (van, traffic, oncoming).
+   *  A faint wide ellipse under a slightly stronger inner one reads as a soft
+   *  contact shadow on any road surface. Called each travel tick. */
+  private drawShadows(): void {
+    const g = this.shadowGfx;
+    if (!g) return;
+    g.clear();
+    const shadow = (o?: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics): void => {
+      if (!o) return;
+      // Vehicles are sprites (Image) with a real display size; the procedural
+      // Graphics fallback has none, so use the van footprint for it.
+      const sized = o as Phaser.GameObjects.Image;
+      const w = sized.displayWidth || this.vanW;
+      const h = sized.displayHeight || this.vanH;
+      const cx = o.x;
+      const cy = o.y + h * 0.04; // nudge down so the van sits just above its shadow
+      g.fillStyle(0x14140f, 0.10);
+      g.fillEllipse(cx, cy, w * 0.96, h * 0.88);
+      g.fillStyle(0x14140f, 0.16);
+      g.fillEllipse(cx, cy, w * 0.80, h * 0.70);
+    };
+    shadow(this.vanGfx);
+    for (const c of this.traffic) shadow(c.gfx);
+    for (const o of this.oncoming) shadow(o.gfx);
+  }
+
   /** Recycle an off-top oncoming car to the back of its own lane's queue, a
    *  clear gap behind the current last car, so nothing overlaps. Lane is kept. */
   private recycleOncoming(o: OncomingCar): void {
@@ -1401,6 +1438,9 @@ export class PtvDriveScene extends Phaser.Scene {
           if (o.y > height + this.vanH * 2.2) this.recycleOncoming(o);
           o.gfx.setY(o.y);
         }
+
+        // Soft dropshadow under every vehicle, redrawn now they're all placed.
+        this.drawShadows();
 
         this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + rate * 0.0004));
 
