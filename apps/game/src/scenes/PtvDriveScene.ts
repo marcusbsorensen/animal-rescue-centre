@@ -23,6 +23,7 @@ import {
   roadGeometry,
   laneCentreX,
   vanSizeForLane,
+  isOvertakingZone,
 } from '../driving/drive-render';
 import { TRAFFIC_PROFILES, pickTrafficKind, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed } from '../driving/traffic-sim';
@@ -152,6 +153,9 @@ export class PtvDriveScene extends Phaser.Scene {
   /** True during a road-type change so the loop doesn't re-trigger it. */
   private roadSwitching = false;
   private scrollY = 0;
+  /** True while the van is out in the oncoming lane overtaking on a single
+   *  carriageway. `drive.lane` still holds her own-carriageway lane throughout. */
+  private overtaking = false;
   private driveTimer?: Phaser.Time.TimerEvent;
   private laneTween?: Phaser.Tweens.Tween;
 
@@ -306,6 +310,9 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gpsPanel?.destroy();
     this.gpsPanel = undefined;
     this.gpsDot = undefined;
+    // A fresh view puts the van back in her own lane, so any overtake ends here
+    // (also covers switching onto a reservation road mid-overtake).
+    this.overtaking = false;
     this.traffic = [];
     this.oncoming = [];
     this.scenery = [];
@@ -761,6 +768,8 @@ export class PtvDriveScene extends Phaser.Scene {
     const size = vanSizeForLane(geo.laneWidth);
     this.vanW = size.w; this.vanH = size.h;
     this.drive.lane = Math.max(0, Math.min(this.pl() - 1, this.drive.lane));
+    // The van is rebuilt in her own lane below, so any overtake ends with the switch.
+    this.overtaking = false;
 
     if (this.vanGfx) this.vanGfx.destroy();
     this.vanGfx = this.makeVan();
@@ -861,11 +870,15 @@ export class PtvDriveScene extends Phaser.Scene {
   // ── Decorative traffic ─────────────────────────────────────
 
   private spawnInitialTraffic(width: number, height: number): void {
-    // Scale same-direction traffic to the number of player lanes: a single-lane
-    // country road gets none in the player's lane (so you're never trapped
-    // behind a crawler you can't overtake) — its life comes from oncoming
-    // traffic. Multi-lane roads get plenty, with overtaking.
-    if (this.pl() <= 1) return;
+    // Scale same-direction traffic to the number of player lanes. A single-lane
+    // country road gets ONE slow leader ahead — a tractor to catch up to and
+    // overtake (that's the whole point of the overtaking mechanic here). It
+    // recycles far ahead once passed, so there's always a next one but never a
+    // jam. Multi-lane roads get plenty, with overtaking between lanes.
+    if (this.pl() <= 1) {
+      if (this.roadConfig.oncomingLanes >= 1) this.addTrafficCar(width, height * 0.12, 'tractor');
+      return;
+    }
     const count = this.pl() * 3;
     for (let i = 0; i < count; i++) {
       // Spread cars ahead and behind, but never in the van's band (~0.72h) so
@@ -901,6 +914,23 @@ export class PtvDriveScene extends Phaser.Scene {
     gfx.setDepth(15);
     this.container.add(gfx);
     this.oncoming.push({ gfx, lane, y, speed: ONCOMING_SPEED });
+  }
+
+  /** While overtaking, hold the oncoming cars approaching in our overtake lane
+   *  in a neat queue a safe gap above the van, so none drive through us. They
+   *  resume the instant we pull back in (`overtaking` goes false). */
+  private holdOncomingForOvertake(): void {
+    const lane = this.pl(); // the first oncoming lane — the one we're out in
+    const gap = this.vanH * 1.6; // stop this far above the van
+    const spacing = this.vanH * 1.8; // spacing within the waiting queue
+    const queue = this.oncoming
+      .filter((o) => o.lane === lane && o.y <= this.vanY + this.vanH * 0.5)
+      .sort((a, b) => b.y - a.y); // nearest the van (largest y) first
+    let ceiling = this.vanY - gap;
+    for (const o of queue) {
+      if (o.y > ceiling) o.y = ceiling;
+      ceiling = o.y - spacing;
+    }
   }
 
   /** Recycle an off-top oncoming car to the back of its own lane's queue, a
@@ -1151,30 +1181,71 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   private moveLane(dir: -1 | 1): void {
-    const next = Math.max(0, Math.min(this.pl() - 1, this.drive.lane + dir));
-    if (next === this.drive.lane) return;
-    // Safety first: with animals aboard we NEVER swerve into another vehicle.
-    // If the target lane is occupied beside us, refuse and give a little nudge.
-    if (this.drive.carriesAnimals && this.laneBlockedAt(next, this.vanY)) {
-      this.bumpBlocked(dir);
+    const pl = this.pl();
+
+    // Already out overtaking: the only meaningful move is pulling back home.
+    if (this.overtaking) {
+      if (dir < 0) {
+        const home = pl - 1;
+        // Return only into real space — behaviour 3: if a car is beside us in the
+        // home lane, we can't pull in yet (the oncoming lane is being held for us).
+        if (this.laneBlockedAt(home, this.vanY)) { this.bumpBlocked(-1); return; }
+        this.overtaking = false;
+        this.glideToLane(home, -1);
+      } else {
+        this.bumpBlocked(1); // nowhere further to go — kerbside of the oncoming lane
+      }
       return;
     }
-    this.drive.lane = next;
-    AudioManager.getInstance().playSfx('button_click');
 
+    const next = Math.max(0, Math.min(pl - 1, this.drive.lane + dir));
+    if (next !== this.drive.lane) {
+      // Ordinary lane change within our own carriageway. Safety first: with
+      // animals aboard we NEVER swerve into another vehicle.
+      if (this.drive.carriesAnimals && this.laneBlockedAt(next, this.vanY)) {
+        this.bumpBlocked(dir);
+        return;
+      }
+      this.drive.lane = next;
+      this.glideToLane(next, dir);
+      return;
+    }
+
+    // At the edge of our carriageway. A tap towards the centre from the fast
+    // lane pulls OUT to overtake into the oncoming lane — if the markings and
+    // the oncoming lane both allow it.
+    if (dir > 0 && this.canOvertake()) {
+      const otLane = pl; // first oncoming lane
+      if (!isOvertakingZone(this.scrollY, this.vanY)) { this.bumpBlocked(1); return; } // solid line
+      if (this.oncomingBlockedAt(otLane, this.vanY)) { this.bumpBlocked(1); return; } // car there → bounce
+      this.overtaking = true;
+      this.glideToLane(otLane, 1);
+      return;
+    }
+    this.bumpBlocked(dir);
+  }
+
+  /** Can we overtake into the oncoming lane from here? Only on a single
+   *  carriageway with a painted line (not a reservation) and an oncoming lane,
+   *  and only from the lane nearest the centre. */
+  private canOvertake(): boolean {
+    return (
+      this.roadConfig.oncomingLanes >= 1 &&
+      this.roadConfig.divider === 'line' &&
+      this.drive.lane === this.pl() - 1
+    );
+  }
+
+  /** Glide the van to `lane` with the usual bank, force-straightening on
+   *  completion/interruption so it can never stick mid-lean. */
+  private glideToLane(lane: number, dir: -1 | 1): void {
+    AudioManager.getInstance().playSfx('button_click');
     const geo = this.geo();
-    const targetX = laneCentreX(geo, next);
+    const targetX = laneCentreX(geo, lane);
     const van = this.vanGfx;
-    // Stopping the old tween fires its onStop, which straightens the van, so a
-    // rapid second lane change can't leave it stuck mid-bank.
     if (this.laneTween) this.laneTween.stop();
     if (!van) return;
     van.setAngle(0);
-
-    // One tween drives both the glide and the bank: the tilt is derived from
-    // the tween's own progress (0 → peak → 0), and is force-reset to 0 on
-    // completion or interruption — so the van can never get stuck leaning,
-    // including at the far lanes where a further tap early-returns.
     this.laneTween = this.tweens.add({
       targets: van,
       x: targetX,
@@ -1188,10 +1259,18 @@ export class PtvDriveScene extends Phaser.Scene {
     });
   }
 
-  /** Is there a vehicle in `lane` beside us (within a safe gap of `y`)? */
+  /** Is there a same-direction vehicle in `lane` beside us (within a safe gap)? */
   private laneBlockedAt(lane: number, y: number): boolean {
     const safe = this.vanH * 1.15;
     return this.traffic.some((c) => c.lane === lane && Math.abs(c.y - y) < safe);
+  }
+
+  /** Is an oncoming vehicle in the space we'd pull into? Oncoming closes fast, so
+   *  the danger window reaches well ahead (above) the van as well as beside it. */
+  private oncomingBlockedAt(lane: number, y: number): boolean {
+    const ahead = this.vanH * 4.5; // they're driving down onto us — leave room
+    const beside = this.vanH * 1.3;
+    return this.oncoming.some((o) => o.lane === lane && o.y > y - ahead && o.y < y + beside);
   }
 
   /** "Can't go there" feedback — a small lean toward the blocked lane and back,
@@ -1310,15 +1389,16 @@ export class PtvDriveScene extends Phaser.Scene {
         this.resolveTraffic(width);
         for (const car of this.traffic) car.gfx.setY(car.y);
 
-        // Oncoming traffic sweeps up the screen toward us (closing = our pace +
-        // theirs). It's across the divide, so it never touches us — atmosphere.
+        // Oncoming traffic sweeps DOWN the screen toward and past us (its own
+        // pace + our forward pace). Normally across the divide, so it never
+        // touches us — but while we're out overtaking in its lane, it holds back
+        // and waits above us until we pull in (behaviour 3).
         for (const o of this.oncoming) {
-          // Oncoming drives the other way — it sweeps DOWN the screen toward and
-          // past us (its own pace + our forward pace both push it down).
           o.y += o.speed + Math.max(rate, 0) * 0.6;
-          if (o.y > height + this.vanH * 2.2) {
-            this.recycleOncoming(o);
-          }
+        }
+        if (this.overtaking) this.holdOncomingForOvertake();
+        for (const o of this.oncoming) {
+          if (o.y > height + this.vanH * 2.2) this.recycleOncoming(o);
           o.gfx.setY(o.y);
         }
 
@@ -1368,6 +1448,9 @@ export class PtvDriveScene extends Phaser.Scene {
    *  so the van can't drive through it. Not capped when stopped/reversing. */
   private effectivePlayerRate(gearRate: number): number {
     if (gearRate <= 0) return gearRate;
+    // Out overtaking in the clear oncoming lane — don't let the car we're passing
+    // in our home lane hold us back; we need to accelerate by and pull in.
+    if (this.overtaking) return gearRate;
     const minGap = this.vanH * 1.05;
     const follow = this.vanH * 2.4;
     let cap = gearRate;
@@ -1392,7 +1475,9 @@ export class PtvDriveScene extends Phaser.Scene {
 
     for (let lane = 0; lane < this.pl(); lane++) {
       const cars = this.traffic.filter((c) => c.lane === lane);
-      if (this.drive.lane === lane) {
+      // While overtaking we've vacated our home lane, so we no longer anchor it —
+      // the car we're passing must be able to drift down past our old slot.
+      if (this.drive.lane === lane && !this.overtaking) {
         // Cars ahead of the van (closest first) held a gap in front.
         let anchor = this.vanY;
         for (const c of cars.filter((c) => c.y < this.vanY).sort((a, b) => b.y - a.y)) {
@@ -1427,7 +1512,7 @@ export class PtvDriveScene extends Phaser.Scene {
         const g = c.y - o.y;
         if (g < aheadGap) { aheadGap = g; aheadSpeed = o.absSpeed; }
       }
-      if (c.lane === this.drive.lane && this.vanY < c.y) {
+      if (c.lane === this.drive.lane && !this.overtaking && this.vanY < c.y) {
         const g = c.y - this.vanY;
         if (g < aheadGap) { aheadGap = g; aheadSpeed = 0; } // van as a slow obstacle
       }

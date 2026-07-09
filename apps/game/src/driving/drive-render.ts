@@ -127,6 +127,23 @@ export function drawTopDownRoad(
 }
 
 /**
+ * Length (px) of one centre-line stretch on a single carriageway. The line
+ * alternates DASHED (overtaking permitted) and DOUBLE-SOLID (no overtaking)
+ * every `CENTRE_LINE_ZONE_LEN` down the road, scrolling with the drive.
+ */
+export const CENTRE_LINE_ZONE_LEN = 440;
+
+/**
+ * Whether the centre line is DASHED (overtaking permitted) at screen-y `y` for
+ * the current `scrollY`. Mirrors exactly the band the renderer paints in
+ * `drawRoadForConfig`, so what the player sees is what the drive enforces.
+ */
+export function isOvertakingZone(scrollY: number, y: number): boolean {
+  const k = Math.floor((y - scrollY) / CENTRE_LINE_ZONE_LEN);
+  return ((k % 2) + 2) % 2 === 0;
+}
+
+/**
  * Draw a road for a given config: the surface (tarmac / gravel / sand),
  * same-direction dashed lane dividers (scrolling), and the divide between the
  * two directions — a solid centre line, or a grass central reservation on a
@@ -183,7 +200,7 @@ export function drawRoadForConfig(
       // with the road: DOUBLE SOLID = no overtaking, DASHED = overtaking
       // permitted. Teaches the real markings.
       gfx.fillStyle(surf.dash, 0.95);
-      const zoneLen = 440;
+      const zoneLen = CENTRE_LINE_ZONE_LEN;
       // Iterate band indices as integers — deriving the loop bound from a
       // float floor of the loop variable can stall on rounding and spin forever.
       const firstK = Math.floor((0 - scrollY) / zoneLen);
