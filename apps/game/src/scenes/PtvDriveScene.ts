@@ -169,6 +169,10 @@ export class PtvDriveScene extends Phaser.Scene {
   private gpsManeuvers: Maneuver[] = [];
   /** Fixed-location speed cameras that this route passes, as progress points. */
   private cameraTriggers: { atProgress: number; done: boolean }[] = [];
+  /** The GPS is a draggable panel; this holds it and where the player put it. */
+  private gpsPanel?: Phaser.GameObjects.Container;
+  private gpsOffset = { x: 0, y: 0 };
+  private gpsRouteGfx?: Phaser.GameObjects.Graphics;
   private gpsInstrBg?: Phaser.GameObjects.Graphics;
   private gpsInstrText?: Phaser.GameObjects.Text;
   private gpsInstrArrow?: Phaser.GameObjects.Text;
@@ -297,6 +301,11 @@ export class PtvDriveScene extends Phaser.Scene {
   private renderView(): void {
     this.cleanup();
     this.container.removeAll(true);
+    // The GPS lives at the scene root, so the container clear above won't remove
+    // it — tear it down explicitly (renderGps rebuilds it in the travel phase).
+    this.gpsPanel?.destroy();
+    this.gpsPanel = undefined;
+    this.gpsDot = undefined;
     this.traffic = [];
     this.oncoming = [];
     this.scenery = [];
@@ -364,17 +373,26 @@ export class PtvDriveScene extends Phaser.Scene {
    * turn-by-turn come in later slices. Positions come from birchie-places.ts
    * (provisional — see that file).
    */
-  private renderGps(width: number, _height: number): void {
+  private renderGps(width: number, height: number): void {
     const pw = 176, ph = 122;
-    const px = 12, py = 60; // top-left, below the Back button
+    const px = 12, py = 60; // panel-local origin (below the Back button)
+    // The whole GPS lives in one container built in panel-local coordinates, so
+    // it can be dragged around the screen as a single unit. `gpsOffset` is where
+    // the player last dropped it (0,0 = the default top-left home). It sits at
+    // the SCENE root (not inside this.container) at a high depth, so it wins the
+    // pointer over the full-width lane-tap zones for dragging.
+    this.gpsPanel?.destroy();
+    const gps = this.add.container(this.gpsOffset.x, this.gpsOffset.y).setDepth(60);
+    this.gpsPanel = gps;
+
     const panel = this.add.graphics().setDepth(46);
     panel.fillStyle(0x2a2a2a, 0.9);
     panel.fillRoundedRect(px - 5, py - 20, pw + 10, ph + 44, 10);
     panel.fillStyle(0x9cc0d6, 1); // sea backdrop behind the map
     panel.fillRoundedRect(px, py, pw, ph, 6);
-    this.container.add(panel);
-    this.container.add(
-      this.add.text(px + pw / 2, py - 11, 'GPS', {
+    gps.add(panel);
+    gps.add(
+      this.add.text(px + pw / 2, py - 11, 'GPS  ⠿', {
         fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
       }).setOrigin(0.5).setDepth(48)
     );
@@ -387,7 +405,7 @@ export class PtvDriveScene extends Phaser.Scene {
       dispW = img.width * s; dispH = img.height * s;
       mapLeft = px + (pw - dispW) / 2; mapTop = py + (ph - dispH) / 2;
       img.setScale(s).setPosition(mapLeft + dispW / 2, mapTop + dispH / 2);
-      this.container.add(img);
+      gps.add(img);
     }
     const toPanel = (p: { fx: number; fy: number }) => ({ x: mapLeft + p.fx * dispW, y: mapTop + p.fy * dispH });
     this.gpsArc = toPanel(ARC_PLACE);
@@ -414,22 +432,22 @@ export class PtvDriveScene extends Phaser.Scene {
       .filter((p) => p.dist < 0.06 && p.atProgress > 0.03 && p.atProgress < 0.97)
       .map((p) => ({ atProgress: p.atProgress, done: false }));
 
-    const route = this.add.graphics().setDepth(47);
-    route.lineStyle(3.5, 0x3d8a2e, 0.95);
-    route.beginPath();
-    route.moveTo(this.gpsRoutePts[0].x, this.gpsRoutePts[0].y);
-    for (let i = 1; i < this.gpsRoutePts.length; i++) route.lineTo(this.gpsRoutePts[i].x, this.gpsRoutePts[i].y);
-    route.strokePath();
-    this.container.add(route);
+    // Route line: drawn each tick so the stretch already driven can fade back
+    // (see redrawGpsRoute). Held on the scene so the loop can refresh it.
+    this.gpsRouteGfx = this.add.graphics().setDepth(47);
+    gps.add(this.gpsRouteGfx);
 
-    // Pins + moving position dot.
-    this.container.add(this.add.circle(this.gpsDest.x, this.gpsDest.y, 6, 0xa82020).setStrokeStyle(2, 0xffffff).setDepth(48));
-    this.container.add(this.add.circle(this.gpsArc.x, this.gpsArc.y, 5, 0x2e6b8a).setStrokeStyle(2, 0xffffff).setDepth(48));
-    this.gpsDot = this.add.circle(this.gpsArc.x, this.gpsArc.y, 5, 0xffd54a).setStrokeStyle(2, 0x3a2e22).setDepth(49);
-    this.container.add(this.gpsDot);
+    // Pins + moving position dot. The dot is deliberately bold — a white halo
+    // ring under a bright amber core — so it reads at this small size.
+    gps.add(this.add.circle(this.gpsDest.x, this.gpsDest.y, 6, 0xa82020).setStrokeStyle(2, 0xffffff).setDepth(48));
+    gps.add(this.add.circle(this.gpsArc.x, this.gpsArc.y, 5, 0x2e6b8a).setStrokeStyle(2, 0xffffff).setDepth(48));
+    gps.add(this.add.circle(this.gpsArc.x, this.gpsArc.y, 9, 0xffffff, 0.9).setDepth(48));
+    this.gpsDot = this.add.circle(this.gpsArc.x, this.gpsArc.y, 6, 0xffd54a).setStrokeStyle(2.5, 0x3a2e22).setDepth(49);
+    gps.add(this.gpsDot);
+    this.redrawGpsRoute(0);
 
     const label = this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    this.container.add(
+    gps.add(
       this.add.text(px + pw / 2, py + ph + 5, `→ ${label}`, {
         fontSize: '12px', fontFamily: FONTS.body, color: '#ffffff',
       }).setOrigin(0.5, 0).setDepth(48)
@@ -440,16 +458,53 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gpsInstrBg = this.add.graphics().setDepth(47);
     this.gpsInstrBg.fillStyle(0x3d8a2e, 0.95);
     this.gpsInstrBg.fillRoundedRect(px - 5, by, pw + 10, bh, 9);
-    this.container.add(this.gpsInstrBg);
+    gps.add(this.gpsInstrBg);
     this.gpsInstrArrow = this.add.text(px + 12, by + bh / 2, '▲', {
       fontSize: '24px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
     }).setOrigin(0.5).setDepth(48);
-    this.container.add(this.gpsInstrArrow);
+    gps.add(this.gpsInstrArrow);
     this.gpsInstrText = this.add.text(px + 30, by + bh / 2, 'Off we go!', {
       fontSize: '15px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
     }).setOrigin(0, 0.5).setDepth(48);
-    this.container.add(this.gpsInstrText);
+    gps.add(this.gpsInstrText);
     this.updateGpsInstruction();
+
+    // Drag anywhere on the panel/banner to reposition; clamp so it can't be
+    // dragged off-screen and lost.
+    const hit = new Phaser.Geom.Rectangle(px - 5, py - 20, pw + 10, ph + 68);
+    gps.setInteractive(hit, Phaser.Geom.Rectangle.Contains);
+    this.input.setDraggable(gps);
+    gps.on('drag', (_p: Phaser.Input.Pointer, dragX: number, dragY: number) => {
+      const nx = Phaser.Math.Clamp(dragX, -px - 5, width - pw - px - 20);
+      const ny = Phaser.Math.Clamp(dragY, -py + 24, height - py - ph - 70);
+      gps.setPosition(nx, ny);
+      this.gpsOffset = { x: nx, y: ny };
+    });
+  }
+
+  /** Redraw the GPS route so the stretch already driven fades to grey and the
+   *  road still ahead stays bright green — a clear at-a-glance progress bar. */
+  private redrawGpsRoute(progress: number): void {
+    const g = this.gpsRouteGfx;
+    const pts = this.gpsRoutePts;
+    if (!g || pts.length < 2) return;
+    g.clear();
+    // Faded "already driven" underlay: the whole route in muted grey.
+    g.lineStyle(3.5, 0x9aa6a0, 0.65);
+    g.beginPath();
+    g.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+    g.strokePath();
+    // Bright "still to go" overlay: from the dot to the destination.
+    const here = this.routePointAt(progress);
+    const target = Math.max(0, Math.min(1, progress)) * this.gpsRouteTotal;
+    let seg = 1;
+    while (seg < pts.length && this.gpsRouteCum[seg] < target) seg++;
+    g.lineStyle(4, 0x2fbf3a, 1);
+    g.beginPath();
+    g.moveTo(here.x, here.y);
+    for (let i = seg; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+    g.strokePath();
   }
 
   /** Refresh the GPS turn banner from the current progress: the next turn (or
@@ -852,9 +907,10 @@ export class PtvDriveScene extends Phaser.Scene {
    *  clear gap behind the current last car, so nothing overlaps. Lane is kept. */
   private recycleOncoming(o: OncomingCar): void {
     const geo = this.geo();
-    let lowest = this.scale.height + this.vanH * 1.5;
-    for (const c of this.oncoming) if (c !== o && c.lane === o.lane) lowest = Math.max(lowest, c.y);
-    o.y = lowest + this.vanH * 2.4;
+    // Re-enter at the top, a clear gap above its lane's current topmost car.
+    let highest = -this.vanH * 1.5;
+    for (const c of this.oncoming) if (c !== o && c.lane === o.lane) highest = Math.min(highest, c.y);
+    o.y = highest - this.vanH * 2.4;
     const profile = TRAFFIC_PROFILES[pickTrafficKind(Math.random())];
     const w = Math.round(this.vanW * profile.widthFactor);
     const h = Math.round(this.vanH * profile.lengthFactor);
@@ -1257,8 +1313,10 @@ export class PtvDriveScene extends Phaser.Scene {
         // Oncoming traffic sweeps up the screen toward us (closing = our pace +
         // theirs). It's across the divide, so it never touches us — atmosphere.
         for (const o of this.oncoming) {
-          o.y -= o.speed + Math.max(rate, 0) * 0.6;
-          if (o.y < -this.vanH * 2.2) {
+          // Oncoming drives the other way — it sweeps DOWN the screen toward and
+          // past us (its own pace + our forward pace both push it down).
+          o.y += o.speed + Math.max(rate, 0) * 0.6;
+          if (o.y > height + this.vanH * 2.2) {
             this.recycleOncoming(o);
           }
           o.gfx.setY(o.y);
@@ -1270,6 +1328,7 @@ export class PtvDriveScene extends Phaser.Scene {
         if (this.gpsDot) {
           const q = this.routePointAt(this.drive.progress);
           this.gpsDot.setPosition(q.x, q.y);
+          this.redrawGpsRoute(this.drive.progress);
           this.updateGpsInstruction();
         }
       },
