@@ -184,13 +184,16 @@ export function drawRoadForConfig(
       // permitted. Teaches the real markings.
       gfx.fillStyle(surf.dash, 0.95);
       const zoneLen = 440;
-      let y = 0;
-      while (y < height) {
-        const zoneVal = Math.floor((y - scrollY) / zoneLen);
-        const bandTop = scrollY + zoneVal * zoneLen;
+      // Iterate band indices as integers — deriving the loop bound from a
+      // float floor of the loop variable can stall on rounding and spin forever.
+      const firstK = Math.floor((0 - scrollY) / zoneLen);
+      const lastK = Math.floor((height - scrollY) / zoneLen);
+      for (let k = firstK; k <= lastK; k++) {
+        const bandTop = scrollY + k * zoneLen;
         const top = Math.max(0, bandTop);
         const bot = Math.min(height, bandTop + zoneLen);
-        const dashedZone = ((zoneVal % 2) + 2) % 2 === 0; // alternate
+        if (bot <= top) continue;
+        const dashedZone = ((k % 2) + 2) % 2 === 0; // alternate
         if (dashedZone) {
           let dy = Math.floor((top - offset) / pitch) * pitch + offset;
           for (; dy < bot; dy += pitch) {
@@ -202,7 +205,6 @@ export function drawRoadForConfig(
           gfx.fillRect(boundary - 7, top, 3, bot - top);
           gfx.fillRect(boundary + 4, top, 3, bot - top);
         }
-        y = bandTop + zoneLen;
       }
     }
   }
