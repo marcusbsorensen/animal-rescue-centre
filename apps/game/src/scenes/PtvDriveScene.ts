@@ -639,9 +639,12 @@ export class PtvDriveScene extends Phaser.Scene {
     }
     this.container.add(road);
 
-    // Henry, parked nose-down toward the exit.
+    // Henry, parked nose-down toward the exit. Scaled up to fill his bay so he
+    // reads clearly (the on-road size is much smaller).
     this.vanY = bayTop + bayH * 0.42;
     this.vanGfx = this.makeVan();
+    const parkImg = this.vanGfx as Phaser.GameObjects.Image;
+    if (parkImg.width) parkImg.setScale((bayW * 0.64) / parkImg.width);
     this.vanGfx.setPosition(henryX, this.vanY);
     this.vanGfx.setAngle(180); // nose pointing down toward the forecourt exit
     this.vanGfx.setDepth(20);
@@ -704,7 +707,8 @@ export class PtvDriveScene extends Phaser.Scene {
     );
   }
 
-  /** Swing Henry onto the road in the chosen direction, then start travelling. */
+  /** Henry turns to face the chosen way and drives off that edge of the
+   *  forecourt; then the road screen appears and he drives on from the bottom. */
   private turnAndGo(dir: -1 | 1): void {
     AudioManager.getInstance().playSfx('button_click');
     const van = this.vanGfx;
@@ -712,10 +716,10 @@ export class PtvDriveScene extends Phaser.Scene {
     const { width } = this.scale;
     this.tweens.add({
       targets: van,
-      angle: 0,                                   // swing from nose-down to nose-up
-      x: van.x + dir * width * 0.12,
-      duration: 620,
-      ease: 'Sine.easeInOut',
+      angle: dir > 0 ? 90 : -90,                  // nose points the way we're turning
+      x: dir > 0 ? width + this.vanW * 2 : -this.vanW * 2, // drive off that edge
+      duration: 640,
+      ease: 'Sine.easeIn',
       onComplete: () => this.beginTravel(dir),
     });
   }
@@ -727,8 +731,20 @@ export class PtvDriveScene extends Phaser.Scene {
     if (this.autoRoad && this.roadProfile.length) {
       this.roadConfig = ROADS[this.profileRoadId(0)];
     }
+    this.drive.gear = 1; // pull away in first
     this.phase = 'travel';
     this.renderView();
+    this.animateVanEntry();
+  }
+
+  /** Drive the van on from the bottom of the road into its resting position. */
+  private animateVanEntry(): void {
+    const van = this.vanGfx;
+    if (!van) return;
+    const { height } = this.scale;
+    van.setAngle(0);
+    van.setY(height + this.vanH * 1.6); // start just below the screen
+    this.tweens.add({ targets: van, y: this.vanY, duration: 720, ease: 'Sine.easeOut' });
   }
 
   /** Load the road graph from the cached JSON once. */
@@ -1525,14 +1541,37 @@ export class PtvDriveScene extends Phaser.Scene {
     return (h || this.vanH) / 2;
   }
 
-  /** Our forward pace, capped by the nearest slower vehicle ahead in our lane
-   *  so the van can't drive through it. Not capped when stopped/reversing. */
+  /** Our forward pace, capped so the van never drives through another vehicle. */
   private effectivePlayerRate(gearRate: number): number {
-    if (gearRate <= 0) return gearRate;
-    // Out overtaking in the clear oncoming lane — don't let the car we're passing
-    // in our home lane hold us back; we need to accelerate by and pull in.
-    if (this.overtaking) return gearRate;
     const vanHalf = this.carHalfLen(this.vanGfx);
+
+    // Reversing: stop rather than back into (or drag) a vehicle behind us — they
+    // hold their ground, the van simply can't reverse past them.
+    if (gearRate < 0) {
+      for (const c of this.traffic) {
+        if (c.lane !== this.drive.lane || c.y <= this.vanY) continue; // behind = below us
+        const gap = c.y - this.vanY;
+        if (gap <= this.carHalfLen(c.gfx) + vanHalf + this.vanH * 0.15) return 0;
+      }
+      return gearRate;
+    }
+    if (gearRate === 0) return 0;
+
+    // Out overtaking in the oncoming lane. With animals aboard we must never
+    // crash: if we're closing on the held oncoming queue ahead, STOP and wait
+    // for a gap to pull back in. Empty (fun) runs press on — the oncoming waits.
+    if (this.overtaking) {
+      if (!this.drive.carriesAnimals) return gearRate;
+      const otLane = this.pl();
+      for (const o of this.oncoming) {
+        if (o.lane !== otLane || o.y >= this.vanY) continue; // ahead = above us
+        const gap = this.vanY - o.y;
+        if (gap <= this.carHalfLen(o.gfx) + vanHalf + this.vanH * 0.2) return 0;
+      }
+      return gearRate;
+    }
+
+    // Normal: capped by the nearest slower vehicle ahead in our lane.
     let cap = gearRate;
     for (const c of this.traffic) {
       if (c.lane !== this.drive.lane || c.y >= this.vanY) continue; // must be ahead
