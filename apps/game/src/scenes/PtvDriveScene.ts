@@ -974,23 +974,6 @@ export class PtvDriveScene extends Phaser.Scene {
     this.oncoming.push({ gfx, lane, y, speed: ONCOMING_SPEED });
   }
 
-  /** While overtaking, hold the oncoming cars approaching in our overtake lane
-   *  in a neat queue a safe gap above the van, so none drive through us. They
-   *  resume the instant we pull back in (`overtaking` goes false). */
-  private holdOncomingForOvertake(): void {
-    const lane = this.pl(); // the first oncoming lane — the one we're out in
-    const gap = this.vanH * 1.6; // stop this far above the van
-    const spacing = this.vanH * 1.8; // spacing within the waiting queue
-    const queue = this.oncoming
-      .filter((o) => o.lane === lane && o.y <= this.vanY + this.vanH * 0.5)
-      .sort((a, b) => b.y - a.y); // nearest the van (largest y) first
-    let ceiling = this.vanY - gap;
-    for (const o of queue) {
-      if (o.y > ceiling) o.y = ceiling;
-      ceiling = o.y - spacing;
-    }
-  }
-
   /** Redraw the soft dropshadow under every vehicle (van, traffic, oncoming).
    *  A faint wide ellipse under a slightly stronger inner one reads as a soft
    *  contact shadow on any road surface. Called each travel tick. */
@@ -1474,14 +1457,20 @@ export class PtvDriveScene extends Phaser.Scene {
         for (const car of this.traffic) car.gfx.setY(car.y);
 
         // Oncoming traffic sweeps DOWN the screen toward and past us (its own
-        // pace + our forward pace). Normally across the divide, so it never
-        // touches us — but while we're out overtaking in its lane, it holds back
-        // and waits above us until we pull in (behaviour 3).
+        // pace + our forward pace). While we're out overtaking in its lane, the
+        // cars ahead of us BRAKE — they hold their world position (drifting only
+        // with the road at our pace, engine off) rather than driving into us. So
+        // they gently close on us as we advance, our forward cap stops us before
+        // contact, and when we stop (rate 0) they stop too: a clean nose-to-nose
+        // standstill, no crash, and — because they move WITH the road — they
+        // never appear to reverse. Cars we've already passed drive on normally.
+        const otLane = this.pl();
         for (const o of this.oncoming) {
-          o.y += o.speed + Math.max(rate, 0) * 0.6;
-        }
-        if (this.overtaking) this.holdOncomingForOvertake();
-        for (const o of this.oncoming) {
+          if (this.overtaking && o.lane === otLane && o.y <= this.vanY) {
+            o.y += Math.max(rate, 0); // braked: hold world position
+          } else {
+            o.y += o.speed + Math.max(rate, 0) * 0.6;
+          }
           if (o.y > height + this.vanH * 2.2) this.recycleOncoming(o);
           o.gfx.setY(o.y);
         }
@@ -1557,11 +1546,11 @@ export class PtvDriveScene extends Phaser.Scene {
     }
     if (gearRate === 0) return 0;
 
-    // Out overtaking in the oncoming lane. With animals aboard we must never
-    // crash: if we're closing on the held oncoming queue ahead, STOP and wait
-    // for a gap to pull back in. Empty (fun) runs press on — the oncoming waits.
+    // Out overtaking in the oncoming lane: never drive into an oncoming car head
+    // on. If we're closing on the nearest braked oncoming ahead, STOP — and wait
+    // for a gap to pull back into our own lane. (The oncoming brake to a halt in
+    // the movement loop, so this is a clean nose-to-nose standstill.)
     if (this.overtaking) {
-      if (!this.drive.carriesAnimals) return gearRate;
       const otLane = this.pl();
       for (const o of this.oncoming) {
         if (o.lane !== otLane || o.y >= this.vanY) continue; // ahead = above us
