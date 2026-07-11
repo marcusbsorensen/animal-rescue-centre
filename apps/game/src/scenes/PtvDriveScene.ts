@@ -69,6 +69,19 @@ const VEHICLE_SPRITE: Record<VehicleType, string> = {
   'electric-minibus': 'vehicle-topdown-spark',
 };
 
+/** On-screen size of each fleet vehicle relative to Henry the van (= 1.0), so
+ *  they read proportionately: the pedal trike is tiny, Big Tilly the animal
+ *  lorry is the biggest. Used on the road, in the picker cards and in the bay
+ *  (the A.R.C. forecourt has different-sized spaces for exactly this reason). */
+const VEHICLE_SIZE: Record<VehicleType, number> = {
+  'pedal-trike': 0.55,
+  'small-van': 1.0,
+  'long-van': 1.12,
+  'electric-minibus': 1.18,
+  'animal-lorry': 1.3,
+};
+const VEHICLE_SIZE_MAX = Math.max(...Object.values(VEHICLE_SIZE));
+
 /** Decorative (non-consequential) other road user. */
 interface TrafficCar {
   gfx: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
@@ -385,11 +398,11 @@ export class PtvDriveScene extends Phaser.Scene {
       : this.textures.exists('vehicle-topdown-henry') ? 'vehicle-topdown-henry' : null;
     if (useKey) {
       const img = this.add.image(0, 0, useKey);
-      img.setScale(this.vanW / img.width);
+      img.setScale((this.vanW * VEHICLE_SIZE[this.vehicleId]) / img.width);
       return img;
     }
     const gfx = this.add.graphics();
-    drawTopDownVan(gfx, this.vanW, this.vanH, 0xf3ede0);
+    drawTopDownVan(gfx, this.vanW * VEHICLE_SIZE[this.vehicleId], this.vanH * VEHICLE_SIZE[this.vehicleId], 0xf3ede0);
     return gfx;
   }
 
@@ -682,7 +695,10 @@ export class PtvDriveScene extends Phaser.Scene {
     const key = VEHICLE_SPRITE[v.id];
     if (this.textures.exists(key)) {
       const img = this.add.image(w / 2, h * 0.4, key);
-      img.setScale(Math.min((w * 0.72) / img.width, (h * 0.52) / img.height));
+      // Proportional: the biggest vehicle fills the slot, the rest scale down by
+      // their real relative size so Trikey clearly reads as tiny next to Big Tilly.
+      const fit = Math.min((w * 0.8) / img.width, (h * 0.54) / img.height);
+      img.setScale(fit * (VEHICLE_SIZE[v.id] / VEHICLE_SIZE_MAX));
       card.add(img);
     }
 
@@ -796,8 +812,9 @@ export class PtvDriveScene extends Phaser.Scene {
     // reads clearly (the on-road size is much smaller).
     this.vanY = bayTop + bayH * 0.42;
     this.vanGfx = this.makeVan();
+    // Sized proportionately in the bay too — Trikey sits small, Big Tilly fills it.
     const parkImg = this.vanGfx as Phaser.GameObjects.Image;
-    if (parkImg.width) parkImg.setScale((bayW * 0.64) / parkImg.width);
+    if (parkImg.width) parkImg.setScale((bayW * 0.6 * VEHICLE_SIZE[this.vehicleId]) / parkImg.width);
     this.vanGfx.setPosition(henryX, this.vanY);
     this.vanGfx.setAngle(180); // nose pointing down toward the forecourt exit
     this.vanGfx.setDepth(20);

@@ -31,6 +31,14 @@ drive-off transition → `travel`. The picker's "Let's go!" advances select→pa
   land, missing keys fall back to Henry's sprite (soft-fail in `makeVan`).
 The chosen vehicle's sprite is used on the road (`makeVan`) and in its card.
 
+## Proportional sizing (2026-07-10)
+Fleet vehicles are sized relative to Henry (=1.0) via `VEHICLE_SIZE`: pedal-trike
+0.55, Henry 1.0, Bea 1.12, Spark 1.18, Big Tilly 1.3. Applied on the road
+(`makeVan`), in the picker cards (biggest fills the slot, others scale down), and
+in the forecourt bay. Follow-up: give the A.R.C. forecourt genuinely
+different-sized bays (a graduated row) to match — Marcus noted the car park has
+different space sizes for exactly this reason.
+
 ## Status
 - Art for Trikey/Bea/Big Tilly/Spark: generating (subagent) → keyed sprites into
   `assets/driving/topdown/` when ready.
