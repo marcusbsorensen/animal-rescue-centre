@@ -1,5 +1,15 @@
 # Vehicle view system — storybook 3/4 presentation
 
+> **CORRECTION (2026-07-10): this elaborate 3/4-front/back/side + destination
+> system was an OVER-INTERPRETATION and is NOT the plan.** Marcus clarified: all
+> vehicles are one consistent **flat top-down** view (bird's-eye from straight
+> above) with only a **slight forward bias** so a little more of the front shows
+> than the back — exactly like the existing small cars / Henry / tractor. No
+> isometric/3-quarter angle, no separate front/rear/side sprites, no destination
+> facades in this pass. The strong-3/4 Bea/Spark were rejected for looking like
+> they drive diagonally; re-rendered flat. Flagged nose-down sprites just need a
+> 180° flip to nose-up (front at top). Kept below only for history.
+
 _2026-07-10. Marcus's direction: move the driving game from flat top-down to
 context-appropriate 3/4 / side views, with street-level destinations._
 
