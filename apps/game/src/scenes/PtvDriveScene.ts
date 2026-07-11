@@ -82,6 +82,17 @@ const VEHICLE_SIZE: Record<VehicleType, number> = {
 };
 const VEHICLE_SIZE_MAX = Math.max(...Object.values(VEHICLE_SIZE));
 
+/** Top-speed multiplier per fleet vehicle (× the gear's rate), so the same gear
+ *  means different speeds: the pedal trike is slow flat-out, the electric minibus
+ *  is nippy, the heavy lorry lumbers. */
+const VEHICLE_SPEED: Record<VehicleType, number> = {
+  'pedal-trike': 0.5,      // pedal power — slow even in top gear
+  'small-van': 1.0,        // Henry, the baseline
+  'long-van': 0.95,        // Bea, a touch heavier
+  'electric-minibus': 1.15, // Spark, zippy EV torque
+  'animal-lorry': 0.8,     // Big Tilly, heavy and lumbering
+};
+
 /** Decorative (non-consequential) other road user. */
 interface TrafficCar {
   gfx: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
@@ -1553,7 +1564,8 @@ export class PtvDriveScene extends Phaser.Scene {
         // Our forward pace is the gear's rate, but capped so we can't drive
         // through a slower vehicle ahead in our lane — we tuck in behind until
         // we pull out to overtake.
-        const gearRate = gearScrollRate(this.drive.gear);
+        // Same gear, different speed per vehicle (Trikey crawls, Spark zips).
+        const gearRate = gearScrollRate(this.drive.gear) * VEHICLE_SPEED[this.vehicleId];
         const rate = this.effectivePlayerRate(gearRate);
         this.scrollY += rate;
 

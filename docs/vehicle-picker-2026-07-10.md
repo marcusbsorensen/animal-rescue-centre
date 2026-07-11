@@ -39,6 +39,11 @@ in the forecourt bay. Follow-up: give the A.R.C. forecourt genuinely
 different-sized bays (a graduated row) to match — Marcus noted the car park has
 different space sizes for exactly this reason.
 
+**Speed differentials:** `VEHICLE_SPEED` multiplies the gear's rate per vehicle,
+so the same gear ≠ the same speed — pedal-trike 0.5 (crawls flat-out), Henry 1.0,
+Bea 0.95, Big Tilly 0.8 (lumbers), Spark 1.15 (zippy EV). Applied to the drive
+loop's `gearRate`.
+
 ## Status
 - Art for Trikey/Bea/Big Tilly/Spark: generating (subagent) → keyed sprites into
   `assets/driving/topdown/` when ready.
