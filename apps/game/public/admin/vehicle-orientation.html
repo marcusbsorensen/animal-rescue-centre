@@ -9,27 +9,31 @@
   body { margin: 0; font-family: system-ui, sans-serif; background: #eae4d6; color: #34302a; }
   header { padding: 16px 20px; background: #4a5a3a; color: #fff; position: sticky; top: 0; z-index: 2; }
   header h1 { margin: 0 0 4px; font-size: 18px; }
-  header p { margin: 0; font-size: 13px; opacity: .9; }
+  header p { margin: 0; font-size: 13px; opacity: .92; }
   .legend { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; background: rgba(255,255,255,.15); padding: 2px 10px; border-radius: 999px; }
   .controls { padding: 10px 20px; background: #dcd3c0; font-size: 13px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
   button { font: inherit; padding: 4px 12px; border-radius: 8px; border: 1px solid #9a8f77; background: #fff; cursor: pointer; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; padding: 18px 20px; }
-  .card { background: #fff; border-radius: 12px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-  .stage { position: relative; height: 180px; border-radius: 8px; background-color: #6b6f76; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; padding: 18px 20px; }
+  .card { background: #fff; border-radius: 12px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.12); border: 3px solid transparent; }
+  .card.ok { border-color: #5aa84a; }
+  .card.flip { border-color: #d9843c; }
+  .stage { position: relative; height: 190px; border-radius: 8px; background-color: #6b6f76; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .stage.gravel { background-color: #a89a7e; }
-  .stage.sand   { background-color: #d6c79c; }
-  .stage img { max-height: 150px; max-width: 78%; transition: transform .15s; }
+  .stage.sand { background-color: #d6c79c; }
+  .stage img { max-height: 160px; max-width: 78%; transition: transform .15s; }
   .fwd { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); color: #6ee36e; font-size: 22px; font-weight: 700; text-shadow: 0 0 3px #000; pointer-events: none; }
-  .name { text-align: center; font-size: 13px; margin: 8px 0 2px; font-weight: 600; }
+  .name { text-align: center; font-size: 13px; margin: 8px 0 4px; font-weight: 600; }
+  .ask { text-align: center; font-size: 11px; color: #6a6152; margin-bottom: 4px; }
   .row { display: flex; gap: 6px; justify-content: center; }
-  .row button { padding: 3px 8px; font-size: 12px; }
-  .flagged { outline: 3px solid #d9534f; }
-  .tag { display: block; text-align: center; font-size: 11px; color: #d9534f; min-height: 14px; }
+  .row button { padding: 4px 10px; font-size: 12px; }
+  .row button.sel { background: #4a5a3a; color: #fff; border-color: #4a5a3a; }
+  .tag { display: block; text-align: center; font-size: 11px; min-height: 14px; margin-top: 4px; }
+  pre { padding: 0 20px 40px; font-size: 13px; white-space: pre-wrap; }
 </style>
 </head>
 <body>
 <div id="root"></div>
-<pre id="flagged" style="padding: 0 20px 30px; font-size: 13px;"></pre>
+<pre id="out"></pre>
 <script>
   const BASE = '/assets/driving/topdown/';
   const SPRITES = [
@@ -39,20 +43,27 @@
     'vehicle-topdown-skiptruck-empty','vehicle-topdown-skiptruck-1','vehicle-topdown-skiptruck-2',
     'vehicle-topdown-skiptruck-3','vehicle-topdown-skiptruck-4','vehicle-topdown-skiptruck-5',
   ];
-  const flipped = {}, flagged = {};
-  const out = document.getElementById('flagged');
+  // front[s] = 'top' (nose already points up — correct) | 'bottom' (nose points down — needs a 180° flip)
+  const front = {};
+  const out = document.getElementById('out');
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
   function refresh() {
-    const list = SPRITES.filter(s => flagged[s]);
-    out.textContent = list.length ? 'FLAGGED (wrong way):\n' + list.map(s => '  ' + s).join('\n') : 'No vehicles flagged.';
+    const flip = SPRITES.filter(s => front[s] === 'bottom');
+    const todo = SPRITES.filter(s => !front[s]);
+    let txt = '';
+    txt += 'NEEDS FLIPPING (front is at the bottom — I will rotate these 180°):\n';
+    txt += (flip.length ? flip.map(s => '  ' + s).join('\n') : '  (none yet)') + '\n\n';
+    txt += 'Already correct (front at top): ' + SPRITES.filter(s => front[s] === 'top').length + ' / ' + SPRITES.length + '\n';
+    txt += 'Not yet reviewed:\n' + (todo.length ? todo.map(s => '  ' + s).join('\n') : '  (all reviewed — thanks!)');
+    out.textContent = txt;
   }
 
   const root = document.getElementById('root');
   const header = el('header');
-  header.appendChild(el('h1', null, 'Vehicle orientation check'));
-  const p = el('p', null, 'The game assumes every sprite is drawn nose-UP (it rotates 180° for oncoming traffic). Any vehicle whose nose does NOT point at the green arrow is drawn the wrong way and needs flipping. ');
-  p.appendChild(el('span', 'legend', '▲ = FORWARD (up / north)'));
+  header.appendChild(el('h1', null, 'Vehicle orientation — pick the FRONT of each vehicle'));
+  const p = el('p', null, 'For every vehicle, tell me which end is the FRONT. The game needs every sprite nose-UP (it flips 180° for oncoming). Pick “Front ▼ Bottom” for any drawn the wrong way and it previews the fix; I’ll rotate those. ');
+  p.appendChild(el('span', 'legend', '▲ = the direction of travel (up)'));
   header.appendChild(p);
   root.appendChild(header);
 
@@ -63,7 +74,7 @@
     b.onclick = () => document.querySelectorAll('.stage').forEach(st => { st.className = 'stage ' + surf; });
     controls.appendChild(b);
   });
-  controls.appendChild(el('span', null, 'Flip 180° previews the fix; Flag wrong marks it. Flagged list prints at the bottom.'));
+  controls.appendChild(el('span', null, 'Your picks and the flip-list print at the bottom.'));
   root.appendChild(controls);
 
   const grid = el('div', 'grid');
@@ -77,13 +88,26 @@
     stage.appendChild(img);
     card.appendChild(stage);
     card.appendChild(el('div', 'name', s.replace('vehicle-topdown-', '')));
+    card.appendChild(el('div', 'ask', 'Which end is the front?'));
+
     const row = el('div', 'row');
-    const flip = el('button', null, 'Flip 180°');
+    const top = el('button', null, 'Front ▲ Top');
+    const bot = el('button', null, 'Front ▼ Bottom');
     const tag = el('span', 'tag');
-    flip.onclick = () => { flipped[s] = !flipped[s]; img.style.transform = flipped[s] ? 'rotate(180deg)' : ''; };
-    const flag = el('button', null, 'Flag wrong');
-    flag.onclick = () => { flagged[s] = !flagged[s]; card.classList.toggle('flagged', flagged[s]); tag.textContent = flagged[s] ? 'flagged: nose points wrong way' : ''; refresh(); };
-    row.appendChild(flip); row.appendChild(flag);
+    const apply = () => {
+      // Show the sprite corrected to nose-up: if front is at the bottom, rotate 180.
+      img.style.transform = front[s] === 'bottom' ? 'rotate(180deg)' : '';
+      top.classList.toggle('sel', front[s] === 'top');
+      bot.classList.toggle('sel', front[s] === 'bottom');
+      card.classList.toggle('ok', front[s] === 'top');
+      card.classList.toggle('flip', front[s] === 'bottom');
+      tag.textContent = front[s] === 'top' ? 'correct — leave as is'
+        : front[s] === 'bottom' ? 'will be flipped 180°' : '';
+      refresh();
+    };
+    top.onclick = () => { front[s] = 'top'; apply(); };
+    bot.onclick = () => { front[s] = 'bottom'; apply(); };
+    row.appendChild(top); row.appendChild(bot);
     card.appendChild(row);
     card.appendChild(tag);
     grid.appendChild(card);

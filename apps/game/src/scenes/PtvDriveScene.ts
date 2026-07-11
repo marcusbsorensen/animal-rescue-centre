@@ -3,6 +3,7 @@ import { COLOURS, FONTS } from '../ui/constants';
 import { createButton } from '../ui/UIButton';
 import { AudioManager } from '../audio/AudioManager';
 import type { Economy } from '@arc/shared-types';
+import { VEHICLE_DEFS, type VehicleDef, type VehicleType } from '@arc/game-logic';
 import {
   createDriveState,
   cycleGear,
@@ -57,6 +58,15 @@ const TRAFFIC_SPRITE_KEYS: Record<TrafficKind, string[]> = {
     'vehicle-topdown-skiptruck-1', 'vehicle-topdown-skiptruck-2', 'vehicle-topdown-skiptruck-3',
     'vehicle-topdown-skiptruck-4', 'vehicle-topdown-skiptruck-5',
   ],
+};
+
+/** The top-down sprite the player drives, per picked fleet vehicle. */
+const VEHICLE_SPRITE: Record<VehicleType, string> = {
+  'pedal-trike': 'vehicle-topdown-trikey',
+  'small-van': 'vehicle-topdown-henry',
+  'long-van': 'vehicle-topdown-bea',
+  'animal-lorry': 'vehicle-topdown-big-tilly',
+  'electric-minibus': 'vehicle-topdown-spark',
 };
 
 /** Decorative (non-consequential) other road user. */
@@ -144,8 +154,12 @@ export class PtvDriveScene extends Phaser.Scene {
   private drive!: DriveState;
   private returnTo?: string;
 
-  // Phase: the drive opens in the A.R.C. car park, then joins the road.
-  private phase: 'parking' | 'travel' = 'parking';
+  // Phase: pick the vehicle, then the A.R.C. car park, then join the road.
+  private phase: 'select' | 'parking' | 'travel' = 'select';
+  /** The fleet vehicle the player is driving (chosen on the select screen). */
+  private vehicleId: VehicleType = 'small-van';
+  /** Player level — gates which vehicles are unlocked in the picker. */
+  private playerLevel = 12;
 
   // Render state
   private roadGfx?: Phaser.GameObjects.Graphics;
@@ -232,7 +246,7 @@ export class PtvDriveScene extends Phaser.Scene {
     tryImg('vehicle-topdown-henry', 'vehicle-topdown-henry.png');
     tryImg('site-arc-building', 'site-arc-building.png');
     tryImg('site-gravel', 'site-gravel.png');
-    for (const n of ['car-red', 'car-blue', 'car-yellow', 'pickup', 'truck', 'tractor', 'motorbike', 'ambulance', 'bus', 'binlorry']) {
+    for (const n of ['car-red', 'car-blue', 'car-yellow', 'pickup', 'truck', 'tractor', 'motorbike', 'ambulance', 'bus', 'binlorry', 'trikey', 'bea', 'big-tilly', 'spark']) {
       tryImg(`vehicle-topdown-${n}`, `vehicle-topdown-${n}.png`);
     }
     for (const n of ['empty', '1', '2', '3', '4', '5']) {
@@ -264,7 +278,13 @@ export class PtvDriveScene extends Phaser.Scene {
       ? new URLSearchParams(window.location.search).get('dest') ?? undefined
       : undefined;
     this.destinationId = data?.destinationId ?? urlDest ?? 'woodland';
-    this.phase = 'parking';
+    // Player level gates the vehicle picker. Demo/URL override for testing lock
+    // states; default high so the whole fleet shows.
+    const urlLevel = typeof window !== 'undefined'
+      ? Number(new URLSearchParams(window.location.search).get('level')) : NaN;
+    this.playerLevel = data?.level ?? (Number.isFinite(urlLevel) ? urlLevel : 12);
+    this.vehicleId = 'small-van';
+    this.phase = 'select';
     this.scrollY = 0;
     this.traffic = [];
     this.scenery = [];
@@ -291,7 +311,12 @@ export class PtvDriveScene extends Phaser.Scene {
     audio.playSceneMusic('walk'); // reuse the journey track until a PTV track lands
 
     this.container = this.add.container(0, 0);
-    this.renderView();
+    // A render error should never silently blank the whole drive — log it loudly.
+    try {
+      this.renderView();
+    } catch (e) {
+      console.error('[ptv] renderView failed', e);
+    }
 
     this.events.on('shutdown', () => this.cleanup());
   }
@@ -341,7 +366,9 @@ export class PtvDriveScene extends Phaser.Scene {
     this.vanW = size.w;
     this.vanH = size.h;
 
-    if (this.phase === 'parking') {
+    if (this.phase === 'select') {
+      this.renderSelect(width, height);
+    } else if (this.phase === 'parking') {
       this.renderParking(width, height);
     } else {
       this.renderTravel(width, height, geo);
@@ -352,8 +379,12 @@ export class PtvDriveScene extends Phaser.Scene {
    *  procedural top-down van. Both are Transform game objects, so lane tweens,
    *  banking and the handbrake judder work either way. */
   private makeVan(): Phaser.GameObjects.Image | Phaser.GameObjects.Graphics {
-    if (this.textures.exists('vehicle-topdown-henry')) {
-      const img = this.add.image(0, 0, 'vehicle-topdown-henry');
+    // The picked fleet vehicle's sprite (falls back to Henry, then procedural).
+    const key = VEHICLE_SPRITE[this.vehicleId];
+    const useKey = this.textures.exists(key) ? key
+      : this.textures.exists('vehicle-topdown-henry') ? 'vehicle-topdown-henry' : null;
+    if (useKey) {
+      const img = this.add.image(0, 0, useKey);
       img.setScale(this.vanW / img.width);
       return img;
     }
@@ -574,13 +605,135 @@ export class PtvDriveScene extends Phaser.Scene {
     return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
   }
 
+  // ── Vehicle picker ─────────────────────────────────────────
+
+  /** The pre-drive screen: choose the destination (shown) and pick a fleet
+   *  vehicle. Locked vehicles (unlockLevel > playerLevel) are dimmed. */
+  private renderSelect(width: number, height: number): void {
+    if (this.textures.exists('site-gravel')) {
+      this.container.add(this.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
+    } else {
+      this.container.add(this.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
+    }
+
+    this.container.add(
+      this.add.text(width / 2, height * 0.08, 'Time for a drive!', {
+        fontSize: '26px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        backgroundColor: 'rgba(255,249,239,0.8)', padding: { x: 14, y: 6 },
+      }).setOrigin(0.5)
+    );
+
+    // Where are we going? — a simple destination strip.
+    const destName = this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const dpW = Math.min(width * 0.7, 560), dpX = (width - dpW) / 2, dpY = height * 0.16, dpH = 52;
+    const dp = this.add.graphics();
+    dp.fillStyle(0x4a3f2e, 0.92); dp.fillRoundedRect(dpX, dpY, dpW, dpH, 12);
+    this.container.add(dp);
+    this.container.add(
+      this.add.text(dpX + 18, dpY + dpH / 2, `Off to ${destName}`, {
+        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#fff5e8',
+      }).setOrigin(0, 0.5)
+    );
+
+    this.container.add(
+      this.add.text(width / 2, height * 0.31, 'Which vehicle?', {
+        fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+      }).setOrigin(0.5)
+    );
+
+    // Vehicle cards, one row.
+    const defs = Object.values(VEHICLE_DEFS);
+    const n = defs.length;
+    const gap = 14;
+    const areaW = Math.min(width * 0.94, 1100);
+    const cardW = Math.min(200, (areaW - gap * (n - 1)) / n);
+    const cardH = height * 0.42;
+    const rowW = cardW * n + gap * (n - 1);
+    const startX = (width - rowW) / 2, cardY = height * 0.36;
+    defs.forEach((v, i) => {
+      this.container.add(this.makeVehicleCard(v, startX + i * (cardW + gap), cardY, cardW, cardH));
+    });
+
+    this.container.add(
+      createButton(this, width / 2, height * 0.88, "Let's go!", () => {
+        AudioManager.getInstance().playSfx('button_click');
+        this.phase = 'parking';
+        this.renderView();
+      }, { width: 190, bgColour: COLOURS.primary }).setDepth(45)
+    );
+    this.container.add(
+      createButton(this, 54, 34, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
+    );
+  }
+
+  /** One vehicle card in the picker (top-left origin at x,y). */
+  private makeVehicleCard(v: VehicleDef, x: number, y: number, w: number, h: number): Phaser.GameObjects.Container {
+    const locked = v.unlockLevel > this.playerLevel;
+    const selected = v.id === this.vehicleId;
+    const card = this.add.container(x, y);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(selected ? 0xfff2e0 : 0xfbf6ec, 1);
+    bg.fillRoundedRect(0, 0, w, h, 12);
+    bg.lineStyle(selected ? 4 : 2, selected ? 0xd9534f : 0xcbbfa6, 1);
+    bg.strokeRoundedRect(0, 0, w, h, 12);
+    card.add(bg);
+
+    const key = VEHICLE_SPRITE[v.id];
+    if (this.textures.exists(key)) {
+      const img = this.add.image(w / 2, h * 0.4, key);
+      img.setScale(Math.min((w * 0.72) / img.width, (h * 0.52) / img.height));
+      card.add(img);
+    }
+
+    card.add(
+      this.add.text(w / 2, h * 0.7, v.name, {
+        fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+      }).setOrigin(0.5)
+    );
+    card.add(
+      this.add.text(w / 2, h * 0.82, `Slots ${v.slots}    Fuel ${v.fuelCost}    L${v.unlockLevel}+`, {
+        fontSize: '11px', fontFamily: FONTS.body, color: '#6a6152',
+      }).setOrigin(0.5)
+    );
+
+    if (selected) {
+      card.add(
+        this.add.text(w - 8, 8, 'Selected!', {
+          fontSize: '11px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+          backgroundColor: '#d9534f', padding: { x: 6, y: 3 },
+        }).setOrigin(1, 0)
+      );
+    }
+
+    if (locked) {
+      const ov = this.add.graphics();
+      ov.fillStyle(0x2a2a2a, 0.5); ov.fillRoundedRect(0, 0, w, h, 12);
+      card.add(ov);
+      card.add(
+        this.add.text(w / 2, h / 2, `Unlocks\nL${v.unlockLevel}`, {
+          fontSize: '15px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', align: 'center',
+        }).setOrigin(0.5)
+      );
+    } else {
+      card.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
+      card.on('pointerdown', () => {
+        if (this.vehicleId === v.id) return;
+        this.vehicleId = v.id;
+        AudioManager.getInstance().playSfx('button_click');
+        this.renderView();
+      });
+    }
+    return card;
+  }
+
   // ── Parking-lot start ──────────────────────────────────────
 
   /**
    * The drive opens on the A.R.C. gravel forecourt: the top of the Art Deco
-   * building sits behind (above), Henry is in his labelled bay, and the player
-   * pulls out and turns left or right onto the road — matching the tunnel-game
-   * site view. Then it hands off to travel mode.
+   * building sits behind (above), the chosen vehicle is in its labelled bay, and
+   * the player pulls out and turns left or right onto the road. Then it hands off
+   * to travel mode.
    */
   private renderParking(width: number, height: number): void {
     // Gravel forecourt (tiled).
@@ -619,11 +772,11 @@ export class PtvDriveScene extends Phaser.Scene {
     }
     this.container.add(bays);
 
-    // Henry's bay label.
+    // The chosen vehicle's bay label.
     const henryBay = 1; // second bay from the left
     const henryX = bayLeft + bayW * (henryBay + 0.5);
     this.container.add(
-      this.add.text(henryX, bayTop + bayH - 12, 'Henry', {
+      this.add.text(henryX, bayTop + bayH - 12, VEHICLE_DEFS[this.vehicleId].name, {
         fontSize: '13px', fontFamily: FONTS.title, color: '#e8dcc8',
       }).setOrigin(0.5)
     );
