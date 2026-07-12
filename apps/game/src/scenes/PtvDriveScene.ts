@@ -1156,9 +1156,8 @@ export class PtvDriveScene extends Phaser.Scene {
     const profile = TRAFFIC_PROFILES[this.pickRoadKind('traffic')];
     const w = Math.round(this.vanW * profile.widthFactor);
     const h = Math.round(this.vanH * profile.lengthFactor);
-    const gfx = this.makeTrafficObj(profile, w, h);
+    const gfx = this.makeTrafficObj(profile, w, h, 'oncoming'); // front view, faces us
     gfx.setPosition(laneCentreX(geo, lane), y);
-    gfx.setAngle(180); // facing down, toward us
     gfx.setDepth(15);
     this.container.add(gfx);
     this.oncoming.push({ gfx, lane, y, speed: ONCOMING_SPEED });
@@ -1202,9 +1201,8 @@ export class PtvDriveScene extends Phaser.Scene {
     const w = Math.round(this.vanW * profile.widthFactor);
     const h = Math.round(this.vanH * profile.lengthFactor);
     o.gfx.destroy();
-    o.gfx = this.makeTrafficObj(profile, w, h);
+    o.gfx = this.makeTrafficObj(profile, w, h, 'oncoming'); // front view, faces us
     o.gfx.setPosition(laneCentreX(geo, o.lane), o.y);
-    o.gfx.setAngle(180);
     o.gfx.setDepth(15);
     this.container.add(o.gfx);
     o.speed = ONCOMING_SPEED;
@@ -1222,16 +1220,24 @@ export class PtvDriveScene extends Phaser.Scene {
   /** A traffic vehicle object — painted sprite if one is loaded for the kind,
    *  else the procedural draw. Sprites scale to the target width, keeping their
    *  own aspect. */
-  private makeTrafficObj(profile: TrafficProfile, w: number, h: number): Phaser.GameObjects.Image | Phaser.GameObjects.Graphics {
-    const existing = TRAFFIC_SPRITE_KEYS[profile.kind].filter((k) => this.textures.exists(k));
-    if (existing.length) {
-      const key = existing[Math.floor(Math.random() * existing.length)];
+  private makeTrafficObj(profile: TrafficProfile, w: number, h: number, role: 'same' | 'oncoming'): Phaser.GameObjects.Image | Phaser.GameObjects.Graphics {
+    const fronts = TRAFFIC_SPRITE_KEYS[profile.kind].filter((k) => this.textures.exists(k));
+    if (fronts.length) {
+      const front = fronts[Math.floor(Math.random() * fronts.length)];
+      const rear = `${front}-rear`;
+      const hasRear = this.textures.exists(rear);
+      // Going our way (driving away) → the REAR view; coming at us → the FRONT.
+      const key = role === 'same' && hasRear ? rear : front;
       const img = this.add.image(0, 0, key);
       img.setScale(w / img.width);
+      // A front/rear-paired vehicle already faces correctly per view (no spin).
+      // A plain single top-down sprite is nose-up, so flip 180° when oncoming.
+      img.setAngle(role === 'oncoming' && !hasRear ? 180 : 0);
       return img;
     }
     const gfx = this.add.graphics();
     drawTrafficVehicle(gfx, profile.kind, w, h, profile.colour);
+    gfx.setAngle(role === 'oncoming' ? 180 : 0);
     return gfx;
   }
 
@@ -1241,7 +1247,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const lane = this.assignLane(profile);
     const w = Math.round(this.vanW * profile.widthFactor);
     const h = Math.round(this.vanH * profile.lengthFactor);
-    const gfx = this.makeTrafficObj(profile, w, h);
+    const gfx = this.makeTrafficObj(profile, w, h, 'same'); // rear view, driving away
     gfx.setPosition(laneCentreX(geo, lane), y);
     gfx.setDepth(15);
     this.container.add(gfx);
@@ -1695,7 +1701,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const h = Math.round(this.vanH * car.profile.lengthFactor);
     // Kind (and image↔graphics) may change on recycle, so swap the object out.
     car.gfx.destroy();
-    car.gfx = this.makeTrafficObj(car.profile, w, h);
+    car.gfx = this.makeTrafficObj(car.profile, w, h, 'same'); // rear view, driving away
     car.gfx.setPosition(laneCentreX(geo, car.lane), y);
     car.gfx.setDepth(15);
     this.container.add(car.gfx);
