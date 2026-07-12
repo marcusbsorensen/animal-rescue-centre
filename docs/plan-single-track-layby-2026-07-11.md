@@ -65,17 +65,16 @@ GPS. Do lay-bys the same way, near `isOvertakingZone` in `drive-render.ts`:
 10. (Later slice) wire into the real Birchie route once single-track ways are
     tagged in the graph.
 
-## Open design questions for Marcus
-1. **Give-way tie-break** — always the player gives way (consistent teaching), or
-   alternate by the maths (realistic)? Rec: from the maths, biased toward player
-   early, oncoming more at higher difficulty.
-2. **How is "reverse" signalled?** A pulsing backward arrow at the lay-by behind
-   + a banner? (Reversing is harder to parse than a visible pocket ahead.)
-3. **Difficulty gating** — gate single-track behind player level (it compounds
-   steering+gear+timing), or available from the start as a road to recognise?
-   Rec: gate it.
-4. **Same-direction passing too?** Include a slow leader you lay-by past, or keep
-   slice 1 to oncoming meetings only? Rec: oncoming only first.
-5. **One oncoming car at a time** on single-track — acceptable, or too quiet?
-6. **Demo-only vs real route** — debut via the demo cycle button, real-map
-   routing deferred?
+## Design decisions (Marcus, 2026-07-11) — all settled
+1. **Give-way:** decide from the maths — whoever is nearer a lay-by gives way
+   (pull in ahead, or reverse to one behind). Bias toward the player giving way
+   early on, the oncoming car more at higher difficulty.
+2. **Reverse cue:** a **pulsing backward arrow** drawn at the lay-by behind the
+   van **plus a banner** ("Back up to the lay-by!").
+3. **Difficulty:** **gate single-track behind a player level** (unlocks once
+   ordinary overtaking is mastered).
+4. **Passing scope:** **oncoming meetings only** for slice 1; lay-by-past-a-slow-
+   leader (same-direction) is a later addition.
+5. **Oncoming density:** **one active oncoming vehicle at a time**.
+6. **Where it appears:** **demo road-cycle button first**; wiring single-track
+   into the real Birchie route (map-data tagging) is a separate later slice.
