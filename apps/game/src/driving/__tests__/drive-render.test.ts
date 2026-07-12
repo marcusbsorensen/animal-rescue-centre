@@ -1,5 +1,35 @@
 import { describe, it, expect } from 'vitest';
-import { isOvertakingZone, CENTRE_LINE_ZONE_LEN as Z } from '../drive-render';
+import { isOvertakingZone, blendRoadGeometry, roadGeometry, CENTRE_LINE_ZONE_LEN as Z } from '../drive-render';
+import { ROADS } from '../road-config';
+
+describe('blendRoadGeometry', () => {
+  const W = 900;
+  const dual = roadGeometry(W, ROADS['thanet-way']);   // wide, 4 lanes + median
+  const single = roadGeometry(W, ROADS['country-lane']); // narrow, 2 lanes
+
+  it('returns the endpoints at t=0 and t=1', () => {
+    expect(blendRoadGeometry(dual, single, 0)).toMatchObject({ roadWidth: dual.roadWidth });
+    expect(blendRoadGeometry(dual, single, 1)).toMatchObject({ roadWidth: single.roadWidth });
+  });
+
+  it('narrows monotonically across the merge, keeping lane width fixed', () => {
+    const mid = blendRoadGeometry(dual, single, 0.5);
+    expect(mid.roadWidth).toBeLessThan(dual.roadWidth);
+    expect(mid.roadWidth).toBeGreaterThan(single.roadWidth);
+    expect(mid.laneWidth).toBe(dual.laneWidth); // lanes drop, they don't squeeze
+    expect(mid.medianUnits).toBeCloseTo((dual.medianUnits + single.medianUnits) / 2);
+  });
+
+  it('flips the discrete lane count at the midpoint', () => {
+    expect(blendRoadGeometry(dual, single, 0.49).totalLanes).toBe(dual.totalLanes);
+    expect(blendRoadGeometry(dual, single, 0.51).totalLanes).toBe(single.totalLanes);
+  });
+
+  it('clamps t outside 0..1', () => {
+    expect(blendRoadGeometry(dual, single, -1).roadWidth).toBe(dual.roadWidth);
+    expect(blendRoadGeometry(dual, single, 2).roadWidth).toBe(single.roadWidth);
+  });
+});
 
 describe('isOvertakingZone', () => {
   it('the first band from the road origin is dashed (overtaking permitted)', () => {

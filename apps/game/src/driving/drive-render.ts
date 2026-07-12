@@ -63,6 +63,26 @@ export function roadGeometry(width: number, config?: RoadConfig): RoadGeometry {
   return { roadLeft, roadWidth, laneWidth, totalLanes: total, playerLanes, medianUnits: median };
 }
 
+/**
+ * Interpolate two road geometries for a merge/split band (t: 0 = from, 1 = to).
+ * Only the box edges and the reservation gap move — `laneWidth` is
+ * config-independent (identical for both), so during a dual→single merge lanes
+ * DROP OUT rather than squeeze, which is what a real merge looks like. The
+ * discrete lane counts flip at the midpoint (used for markings, not width).
+ */
+export function blendRoadGeometry(from: RoadGeometry, to: RoadGeometry, t: number): RoadGeometry {
+  const c = Math.max(0, Math.min(1, t));
+  const lerp = (a: number, b: number) => a + (b - a) * c;
+  return {
+    roadLeft: lerp(from.roadLeft, to.roadLeft),
+    roadWidth: lerp(from.roadWidth, to.roadWidth),
+    laneWidth: from.laneWidth,
+    medianUnits: lerp(from.medianUnits, to.medianUnits),
+    totalLanes: c < 0.5 ? from.totalLanes : to.totalLanes,
+    playerLanes: c < 0.5 ? from.playerLanes : to.playerLanes,
+  };
+}
+
 /** Centre x of a lane index (0..total-1, left→right), accounting for a central
  *  reservation gap before the oncoming lanes. */
 export function laneCentreX(geo: RoadGeometry, lane: number): number {
