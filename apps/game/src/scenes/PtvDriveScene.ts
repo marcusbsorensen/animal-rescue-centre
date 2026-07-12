@@ -46,7 +46,7 @@ const TRAFFIC_SPRITE_KEYS: Record<TrafficKind, string[]> = {
   car: ['vehicle-topdown-car-red', 'vehicle-topdown-car-blue', 'vehicle-topdown-car-yellow'],
   pickup: ['vehicle-topdown-pickup'],
   truck: ['vehicle-topdown-truck'],
-  tractor: ['vehicle-topdown-tractor'],
+  tractor: ['vehicle-topdown-tractor', 'vehicle-topdown-tractor-red', 'vehicle-topdown-tractor-blue'],
   motorbike: ['vehicle-topdown-motorbike'],
   emergency: ['vehicle-topdown-ambulance'],
   bus: ['vehicle-topdown-bus'],
@@ -289,7 +289,7 @@ export class PtvDriveScene extends Phaser.Scene {
     tryImg('vehicle-topdown-henry', 'vehicle-topdown-henry.png');
     tryImg('site-arc-building', 'site-arc-building.png');
     tryImg('site-gravel', 'site-gravel.png');
-    for (const n of ['car-red', 'car-blue', 'car-yellow', 'pickup', 'truck', 'tractor', 'motorbike', 'ambulance', 'bus', 'binlorry', 'trikey', 'bea', 'big-tilly', 'spark']) {
+    for (const n of ['car-red', 'car-blue', 'car-yellow', 'pickup', 'truck', 'tractor', 'tractor-red', 'tractor-blue', 'motorbike', 'ambulance', 'bus', 'binlorry', 'trikey', 'bea', 'big-tilly', 'spark']) {
       tryImg(`vehicle-topdown-${n}`, `vehicle-topdown-${n}.png`);
     }
     for (const n of ['empty', '1', '2', '3', '4', '5']) {
@@ -297,7 +297,7 @@ export class PtvDriveScene extends Phaser.Scene {
     }
     // Rear ("driving away") views for the front-heavy vehicles. Missing files
     // fail softly, so this list can run ahead of the art being rendered.
-    for (const n of ['henry', 'car-red', 'car-blue', 'car-yellow', 'tractor', 'ambulance', 'bus', 'trikey', 'big-tilly']) {
+    for (const n of ['henry', 'car-red', 'car-blue', 'car-yellow', 'tractor', 'tractor-red', 'tractor-blue', 'ambulance', 'bus', 'trikey', 'big-tilly', 'pickup', 'truck']) {
       tryImg(`vehicle-topdown-${n}-rear`, `vehicle-topdown-${n}-rear.png`);
     }
     for (const n of [...DECOR_KINDS, 'speed-camera']) {
