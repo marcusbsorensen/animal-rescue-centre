@@ -276,6 +276,11 @@ export class PtvDriveScene extends Phaser.Scene {
     for (const n of ['empty', '1', '2', '3', '4', '5']) {
       tryImg(`vehicle-topdown-skiptruck-${n}`, `vehicle-topdown-skiptruck-${n}.png`);
     }
+    // Rear ("driving away") views for the front-heavy vehicles. Missing files
+    // fail softly, so this list can run ahead of the art being rendered.
+    for (const n of ['henry', 'car-red', 'car-blue', 'car-yellow', 'tractor', 'ambulance', 'bus', 'trikey', 'big-tilly']) {
+      tryImg(`vehicle-topdown-${n}-rear`, `vehicle-topdown-${n}-rear.png`);
+    }
     for (const n of [...DECOR_KINDS, 'speed-camera']) {
       tryImg(`decor-${n}`, `decor/decor-${n}.png`);
     }
@@ -403,8 +408,12 @@ export class PtvDriveScene extends Phaser.Scene {
    *  procedural top-down van. Both are Transform game objects, so lane tweens,
    *  banking and the handbrake judder work either way. */
   private makeVan(): Phaser.GameObjects.Image | Phaser.GameObjects.Graphics {
-    // The picked fleet vehicle's sprite (falls back to Henry, then procedural).
-    const key = VEHICLE_SPRITE[this.vehicleId];
+    // The picked fleet vehicle's sprite. Driving away on the road → its REAR view
+    // (if one exists); parked in the forecourt / picker → its FRONT. Falls back
+    // to Henry, then the procedural draw.
+    const front = VEHICLE_SPRITE[this.vehicleId];
+    const rear = `${front}-rear`;
+    const key = this.phase === 'travel' && this.textures.exists(rear) ? rear : front;
     const useKey = this.textures.exists(key) ? key
       : this.textures.exists('vehicle-topdown-henry') ? 'vehicle-topdown-henry' : null;
     if (useKey) {

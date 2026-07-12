@@ -46,6 +46,22 @@ Trikey, Henry, Bea, Big Tilly, Spark — side-profile and rear-elevation views (
 the picker cards and the future crate-loading loading-door view). Distinct from the
 top-down rear views above. Framing/use to confirm with Marcus.
 
+## Resolution (2026-07-11): Henry's badge on the rear doors
+Henry's heart-paw moved OFF the roof entirely — plain roof on both views — and
+onto the **rear doors**, visible in the rear (driving-away) view. Solves the
+flip problem (the door badge naturally faces us from behind). Free pipeline:
+ComfyUI (flux2-klein-9b, conditioned on the front sprite) → **rembg** cutout
+(installed in `~/.arc-rembg-venv`) → harden.
+
+Player-van wiring done: `makeVan` uses `<key>-rear` in the travel phase (driving
+away), the front `<key>` in select/parking/picker. Rear sprites preloaded (soft-
+fail so the list can run ahead of the art).
+
+Still to do: render the 8 traffic/fleet rears (car ×3, tractor, ambulance, bus,
+Trikey, Big Tilly) and wire the TRAFFIC front/rear split — same-direction traffic
+uses `-rear` at angle 0; oncoming uses the front at angle 0 (no 180° flip);
+plain top-down kinds keep the current single-sprite + 180° behaviour.
+
 ## Notes
 - Applies to the player's chosen fleet vehicle too (we always see its back), so
   flagged fleet vehicles need a rear view for the on-road/bay view; the front view
