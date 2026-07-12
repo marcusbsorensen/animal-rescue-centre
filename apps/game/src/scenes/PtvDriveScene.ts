@@ -27,7 +27,7 @@ import {
   isOvertakingZone,
 } from '../driving/drive-render';
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
-import { preferredLane, carAbsoluteSpeed } from '../driving/traffic-sim';
+import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
 import { buildAdjacency, routePolyline, routeProfile, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
 import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, projectToRoute, type Maneuver } from '../driving/route-instructions';
@@ -252,6 +252,12 @@ export class PtvDriveScene extends Phaser.Scene {
   private gearKnob?: Phaser.GameObjects.Container;
   private gearSlotY: Partial<Record<string, number>> = {};
 
+  /** Handbrake: while engaged the vehicle is held and gear changes are blocked
+   *  (a reminder flashes). Off once the van pulls away; re-engages on Park. */
+  private handbrakeOn = false;
+  private handbrakeLamp?: Phaser.GameObjects.Arc;
+  private handbrakeLabel?: Phaser.GameObjects.Text;
+
   private keys?: {
     left: Phaser.Input.Keyboard.Key;
     right: Phaser.Input.Keyboard.Key;
@@ -261,6 +267,7 @@ export class PtvDriveScene extends Phaser.Scene {
     d: Phaser.Input.Keyboard.Key;
     r: Phaser.Input.Keyboard.Key;
     space: Phaser.Input.Keyboard.Key;
+    h: Phaser.Input.Keyboard.Key;
   };
 
   constructor() {
@@ -1223,10 +1230,11 @@ export class PtvDriveScene extends Phaser.Scene {
   /** Choose a lane for a vehicle: mostly its preferred (slow vehicles slow
    *  lane, fast vehicles fast lane), with an occasional neighbour for variety. */
   private assignLane(profile: TrafficProfile): number {
-    const base = preferredLane(profile, this.pl());
+    const cap = maxLaneFor(profile, this.pl()); // slow vehicles never in the fast lane
+    const base = Math.min(preferredLane(profile, this.pl()), cap);
     if (Math.random() < 0.62) return base;
     const j = Math.random() < 0.5 ? -1 : 1;
-    return Math.max(0, Math.min(this.pl() - 1, base + j));
+    return Math.max(0, Math.min(cap, base + j));
   }
 
   /** A traffic vehicle object — painted sprite if one is loaded for the kind,
@@ -1304,6 +1312,7 @@ export class PtvDriveScene extends Phaser.Scene {
     );
 
     this.renderGearStick(width, height);
+    this.renderHandbrake(width, height);
 
     // Gentle hint.
     this.container.add(
@@ -1428,6 +1437,7 @@ export class PtvDriveScene extends Phaser.Scene {
         d: kb.addKey('D'),
         r: kb.addKey('R'),
         space: kb.addKey('SPACE'),
+        h: kb.addKey('H'),
       };
       this.keys.left.on('down', () => this.moveLane(-1));
       this.keys.a.on('down', () => this.moveLane(-1));
@@ -1437,6 +1447,7 @@ export class PtvDriveScene extends Phaser.Scene {
       this.keys.down.on('down', () => this.setGear(cycleGear(this.drive.gear, -1)));
       this.keys.r.on('down', () => this.setGear(REVERSE));
       this.keys.space.on('down', () => this.emergencyBrake());
+      this.keys.h.on('down', () => this.toggleHandbrake());
     }
 
     // Lane tap zones — left / right halves of the upper driving area, clear of
@@ -1570,12 +1581,97 @@ export class PtvDriveScene extends Phaser.Scene {
 
   private setGear(gear: Gear): void {
     if (gear === this.drive.gear) return;
+    // Can't select a driving gear with the handbrake on — flash a reminder.
+    if (gear !== PARK && this.handbrakeOn) {
+      this.flashHandbrakeReminder();
+      return;
+    }
     this.drive.gear = gear;
+    if (gear === PARK) this.setHandbrake(true); // parking pulls the handbrake on
     AudioManager.getInstance().playSfx('button_click');
     const y = this.gearSlotY[String(gear)];
     if (this.gearKnob && y !== undefined) {
       this.tweens.add({ targets: this.gearKnob, y, duration: 140, ease: 'Sine.easeOut' });
     }
+  }
+
+  /** Engage/release the handbrake. Releasing lets the driver pick a gear;
+   *  pulling it on stops the vehicle (drops to Park). */
+  private toggleHandbrake(): void {
+    if (this.handbrakeOn) {
+      this.setHandbrake(false);
+      AudioManager.getInstance().playSfx('button_click');
+    } else {
+      this.setHandbrake(true);
+      if (this.drive.gear !== PARK) this.setGear(PARK);
+    }
+  }
+
+  private setHandbrake(on: boolean): void {
+    this.handbrakeOn = on;
+    this.updateHandbrakeLamp();
+  }
+
+  private updateHandbrakeLamp(): void {
+    this.handbrakeLamp?.setFillStyle(this.handbrakeOn ? 0xff3b30 : 0x5a2420)
+      .setStrokeStyle(2, this.handbrakeOn ? 0xffd0cc : 0x3a1a17);
+    if (this.handbrakeLabel) {
+      this.handbrakeLabel.setText(this.handbrakeOn ? 'RELEASE' : 'PULL');
+      this.handbrakeLabel.setColor(this.handbrakeOn ? '#ffd0cc' : '#c8b8a4');
+    }
+  }
+
+  /** Flash the lamp + a banner when the driver tries to change gear with the
+   *  handbrake still on. */
+  private flashHandbrakeReminder(): void {
+    AudioManager.getInstance().playSfx('food_wrong');
+    if (this.handbrakeLamp) {
+      this.tweens.add({
+        targets: this.handbrakeLamp, scale: { from: 1, to: 1.6 },
+        duration: 120, yoyo: true, repeat: 2,
+      });
+    }
+    const { width, height } = this.scale;
+    const msg = this.add.text(width / 2, height * 0.42, 'Release the handbrake first!', {
+      fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      backgroundColor: 'rgba(168,32,32,0.9)', padding: { x: 14, y: 7 },
+    }).setOrigin(0.5).setDepth(60).setAlpha(0);
+    this.container.add(msg);
+    this.tweens.add({
+      targets: msg, alpha: 1, duration: 130, yoyo: true, hold: 750,
+      onComplete: () => msg.destroy(),
+    });
+  }
+
+  /** Handbrake control on the left: a red warning lamp + a PULL/RELEASE lever. */
+  private renderHandbrake(width: number, height: number): void {
+    const x = 44;
+    const y = height * 0.66;
+    const panel = this.add.graphics().setDepth(38);
+    panel.fillStyle(0x000000, 0.18); panel.fillRoundedRect(x - 30, y - 42, 60, 104, 14);
+    panel.fillStyle(0x3a2e22, 0.85); panel.fillRoundedRect(x - 26, y - 38, 52, 96, 12);
+    this.container.add(panel);
+    this.container.add(
+      this.add.text(x, y - 50, 'BRAKE', {
+        fontSize: '11px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
+      }).setOrigin(0.5).setDepth(40)
+    );
+    this.handbrakeLamp = this.add.circle(x, y - 14, 12, 0x5a2420).setStrokeStyle(2, 0x3a1a17).setDepth(40);
+    this.container.add(this.handbrakeLamp);
+    this.container.add(
+      this.add.text(x, y - 14, 'P', {
+        fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#2a0f0c',
+      }).setOrigin(0.5).setDepth(41)
+    );
+    this.handbrakeLabel = this.add.text(x, y + 26, 'PULL', {
+      fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#c8b8a4',
+    }).setOrigin(0.5).setDepth(41);
+    this.container.add(this.handbrakeLabel);
+    const zone = this.add.rectangle(x, y + 8, 60, 104, 0xffffff, 0)
+      .setInteractive({ useHandCursor: true }).setDepth(42);
+    zone.on('pointerdown', () => this.toggleHandbrake());
+    this.container.add(zone);
+    this.updateHandbrakeLamp();
   }
 
   // ── Drive loop ─────────────────────────────────────────────
@@ -1856,7 +1952,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const dirs: number[] = car.absSpeed > TRAFFIC_REF_SPEED * 0.8 ? [1, -1] : [-1, 1];
     for (const dir of dirs) {
       const target = car.lane + dir;
-      if (target < 0 || target > this.pl() - 1) continue;
+      if (target < 0 || target > maxLaneFor(car.profile, this.pl())) continue; // slow vehicles can't peel into the fast lane
       let clear = true;
       for (const o of this.traffic) {
         if (o === car || o.lane !== target) continue;

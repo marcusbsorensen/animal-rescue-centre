@@ -34,6 +34,21 @@ export function preferredLane(profile: TrafficProfile, numLanes: number = NUM_LA
 }
 
 /**
+ * The fastest (highest-index) lane a vehicle is allowed to occupy. Only nippy
+ * road users — cars and emergency vehicles — may use the fast (overtaking)
+ * lane; tractors, lorries, buses, bin lorries and the like are held to the
+ * slow lane(s). On a single-lane road everyone shares lane 0.
+ *
+ * The player's own A.R.C. vehicle is NOT decorative traffic, so this never
+ * limits the player — they can try any lane they like.
+ */
+export function maxLaneFor(profile: TrafficProfile, numLanes: number = NUM_LANES): number {
+  if (numLanes <= 1) return 0;
+  const fastEligible = profile.kind === 'car' || profile.kind === 'emergency';
+  return fastEligible ? numLanes - 1 : Math.max(0, numLanes - 2);
+}
+
+/**
  * A vehicle's absolute pace (px/tick) = its own nippiness × the reference
  * cruising speed × its lane's factor. So the same car is quicker when it's in
  * the fast lane than when it's in the slow lane.

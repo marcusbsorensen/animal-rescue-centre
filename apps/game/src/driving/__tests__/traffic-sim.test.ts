@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { laneSpeedFactor, preferredLane, carAbsoluteSpeed } from '../traffic-sim';
+import { laneSpeedFactor, preferredLane, carAbsoluteSpeed, maxLaneFor } from '../traffic-sim';
 import { TRAFFIC_PROFILES } from '../traffic';
 import { NUM_LANES } from '../drive-state';
 
@@ -39,6 +39,22 @@ describe('traffic-sim', () => {
     });
     it('collapses to lane 0 on a single-lane road', () => {
       expect(preferredLane(TRAFFIC_PROFILES.car, 1)).toBe(0);
+    });
+  });
+
+  describe('maxLaneFor', () => {
+    it('lets cars and emergency vehicles reach the fast lane', () => {
+      expect(maxLaneFor(TRAFFIC_PROFILES.car)).toBe(NUM_LANES - 1);
+      expect(maxLaneFor(TRAFFIC_PROFILES.emergency)).toBe(NUM_LANES - 1);
+    });
+    it('keeps tractors, lorries and buses out of the fast lane', () => {
+      for (const kind of ['tractor', 'truck', 'bus', 'binlorry'] as const) {
+        expect(maxLaneFor(TRAFFIC_PROFILES[kind])).toBe(NUM_LANES - 2);
+      }
+    });
+    it('collapses to lane 0 on a single-lane road for everyone', () => {
+      expect(maxLaneFor(TRAFFIC_PROFILES.car, 1)).toBe(0);
+      expect(maxLaneFor(TRAFFIC_PROFILES.tractor, 1)).toBe(0);
     });
   });
 
