@@ -93,6 +93,18 @@ const VEHICLE_SPEED: Record<VehicleType, number> = {
   'animal-lorry': 0.8,     // Big Tilly, heavy and lumbering
 };
 
+/** Bay orientation: the parked vehicle must point its NOSE at the road (down).
+ *  Flagged fleet fronts (Henry, Trikey, Big Tilly) are drawn nose-down already,
+ *  so they sit at 0°; the plain top-down fronts (Bea, Spark) are nose-up and
+ *  need a 180° flip to face the exit. */
+const VEHICLE_PARK_ANGLE: Record<VehicleType, number> = {
+  'pedal-trike': 0,
+  'small-van': 0,
+  'long-van': 180,
+  'electric-minibus': 180,
+  'animal-lorry': 0,
+};
+
 /** Decorative (non-consequential) other road user. */
 interface TrafficCar {
   gfx: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
@@ -836,7 +848,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const parkImg = this.vanGfx as Phaser.GameObjects.Image;
     if (parkImg.width) parkImg.setScale((bayW * 0.6 * VEHICLE_SIZE[this.vehicleId]) / parkImg.width);
     this.vanGfx.setPosition(henryX, this.vanY);
-    this.vanGfx.setAngle(180); // nose pointing down toward the forecourt exit
+    this.vanGfx.setAngle(VEHICLE_PARK_ANGLE[this.vehicleId]); // nose toward the forecourt exit
     this.vanGfx.setDepth(20);
     this.container.add(this.vanGfx);
 
