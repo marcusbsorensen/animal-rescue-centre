@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS } from '../ui/constants';
 import { createButton } from '../ui/UIButton';
-import { AudioManager } from '../audio/AudioManager';
+import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Economy } from '@arc/shared-types';
 import { VEHICLE_DEFS, type VehicleDef, type VehicleType } from '@arc/game-logic';
 import {
@@ -107,6 +107,17 @@ const VEHICLE_PARK_ANGLE: Record<VehicleType, number> = {
   'long-van': 0,
   'electric-minibus': 0,
   'animal-lorry': 0,
+};
+
+/** Each vehicle's horn, shaped to its character: the pedal trike gives a
+ *  playful rising trill, Henry a friendly two-tone beep, Bea a deeper honk,
+ *  Spark a clean electric tone, and Big Tilly a big low fog-horn blast. */
+const VEHICLE_HORN: Record<VehicleType, HornProfile> = {
+  'pedal-trike':      { freqs: [760, 1140], wave: 'triangle', duration: 0.5, pattern: 'trill', gain: 0.4 },
+  'small-van':        { freqs: [440, 554],  wave: 'sawtooth', duration: 0.5, pattern: 'double', gain: 0.5 },
+  'long-van':         { freqs: [330, 415],  wave: 'sawtooth', duration: 0.6, pattern: 'double', gain: 0.52 },
+  'electric-minibus': { freqs: [660, 990],  wave: 'sine',     duration: 0.45, pattern: 'double', gain: 0.45 },
+  'animal-lorry':     { freqs: [118, 155],  wave: 'sawtooth', duration: 1.1, pattern: 'single', gain: 0.62 },
 };
 
 /** Decorative (non-consequential) other road user. */
@@ -288,6 +299,7 @@ export class PtvDriveScene extends Phaser.Scene {
     r: Phaser.Input.Keyboard.Key;
     space: Phaser.Input.Keyboard.Key;
     h: Phaser.Input.Keyboard.Key;
+    b: Phaser.Input.Keyboard.Key;
   };
 
   constructor() {
@@ -1449,6 +1461,7 @@ export class PtvDriveScene extends Phaser.Scene {
 
     this.renderGearStick(width, height);
     this.renderHandbrake(width, height);
+    this.renderHorn(width, height);
 
     // Gentle hint.
     this.container.add(
@@ -1574,6 +1587,7 @@ export class PtvDriveScene extends Phaser.Scene {
         r: kb.addKey('R'),
         space: kb.addKey('SPACE'),
         h: kb.addKey('H'),
+        b: kb.addKey('B'),
       };
       this.keys.left.on('down', () => this.moveLane(-1));
       this.keys.a.on('down', () => this.moveLane(-1));
@@ -1583,7 +1597,8 @@ export class PtvDriveScene extends Phaser.Scene {
       this.keys.down.on('down', () => this.setGear(cycleGear(this.drive.gear, -1)));
       this.keys.r.on('down', () => this.setGear(REVERSE));
       this.keys.space.on('down', () => this.emergencyBrake());
-      this.keys.h.on('down', () => this.toggleHandbrake());
+      this.keys.h.on('down', () => this.playHorn());
+      this.keys.b.on('down', () => this.toggleHandbrake());
     }
 
     // Lane tap zones — left / right halves of the upper driving area, clear of
@@ -1808,6 +1823,40 @@ export class PtvDriveScene extends Phaser.Scene {
     zone.on('pointerdown', () => this.toggleHandbrake());
     this.container.add(zone);
     this.updateHandbrakeLamp();
+  }
+
+  /** Horn button on the left, just above the handbrake. Sounds the current
+   *  vehicle's character horn (also the H key). */
+  private renderHorn(width: number, height: number): void {
+    const x = 44;
+    const y = height * 0.47;
+    const g = this.add.graphics().setDepth(38);
+    g.fillStyle(0x000000, 0.18); g.fillRoundedRect(x - 28, y - 28, 56, 56, 14);
+    g.fillStyle(0xc9772f, 0.95); g.fillRoundedRect(x - 24, y - 24, 48, 48, 12);
+    // A little megaphone + sound waves (no emoji, per house style).
+    g.fillStyle(0xfff3e0, 1);
+    g.fillRect(x - 13, y - 5, 6, 10); // mouthpiece
+    g.beginPath();
+    g.moveTo(x - 7, y - 9); g.lineTo(x + 2, y - 6); g.lineTo(x + 2, y + 6); g.lineTo(x - 7, y + 9);
+    g.closePath(); g.fillPath(); // flared bell
+    g.lineStyle(2, 0xfff3e0, 0.9);
+    g.beginPath(); g.arc(x + 8, y, 6, -0.7, 0.7); g.strokePath();
+    g.beginPath(); g.arc(x + 8, y, 10, -0.7, 0.7); g.strokePath();
+    this.container.add(g);
+    this.container.add(
+      this.add.text(x, y + 20, 'HORN', {
+        fontSize: '10px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
+      }).setOrigin(0.5).setDepth(40)
+    );
+    const zone = this.add.rectangle(x, y, 60, 74, 0xffffff, 0)
+      .setInteractive({ useHandCursor: true }).setDepth(42);
+    zone.on('pointerdown', () => this.playHorn());
+    this.container.add(zone);
+  }
+
+  /** Sound the current vehicle's character horn. */
+  private playHorn(): void {
+    AudioManager.getInstance().playHorn(VEHICLE_HORN[this.vehicleId]);
   }
 
   // ── Drive loop ─────────────────────────────────────────────
