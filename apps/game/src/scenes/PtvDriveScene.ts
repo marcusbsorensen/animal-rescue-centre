@@ -1808,10 +1808,11 @@ export class PtvDriveScene extends Phaser.Scene {
     });
   }
 
-  /** Handbrake control on the left: a red warning lamp + a PULL/RELEASE lever. */
+  /** Handbrake control, grouped with the gear stick on the right: a red warning
+   *  lamp + a PULL/RELEASE lever. */
   private renderHandbrake(width: number, height: number): void {
-    const x = 44;
-    const y = height * 0.66;
+    const x = width - 116;
+    const y = height * 0.6;
     const panel = this.add.graphics().setDepth(38);
     panel.fillStyle(0x000000, 0.18); panel.fillRoundedRect(x - 30, y - 42, 60, 104, 14);
     panel.fillStyle(0x3a2e22, 0.85); panel.fillRoundedRect(x - 26, y - 38, 52, 96, 12);
@@ -1842,27 +1843,29 @@ export class PtvDriveScene extends Phaser.Scene {
   /** Horn button on the left, just above the handbrake. Sounds the current
    *  vehicle's character horn (also the H key). */
   private renderHorn(width: number, height: number): void {
-    const x = 44;
-    const y = height * 0.47;
+    const x = width - 116;
+    const y = height * 0.4;
     const g = this.add.graphics().setDepth(38);
     g.fillStyle(0x000000, 0.18); g.fillRoundedRect(x - 28, y - 28, 56, 56, 14);
-    g.fillStyle(0xc9772f, 0.95); g.fillRoundedRect(x - 24, y - 24, 48, 48, 12);
-    // A little megaphone + sound waves (no emoji, per house style).
-    g.fillStyle(0xfff3e0, 1);
-    g.fillRect(x - 13, y - 5, 6, 10); // mouthpiece
+    g.fillStyle(0x3a2e22, 0.9); g.fillRoundedRect(x - 24, y - 24, 48, 48, 12);
+    // Classic squeeze/klaxon horn: a rubber bulb (left) to squeeze, a coiled
+    // brass tube (the 360 turn) in the middle, and a flared bell opening (right).
+    const brass = 0xd9a441, rubber = 0x2b2b2b;
+    g.lineStyle(3.5, brass, 1);
+    g.strokeCircle(x - 1, y, 6.5);                                   // the 360 coil
+    g.beginPath(); g.moveTo(x - 7, y + 1); g.lineTo(x - 12, y + 3); g.strokePath(); // stem to bulb
+    g.fillStyle(rubber, 1); g.fillCircle(x - 15, y + 3, 6);          // rubber squeeze bulb
+    g.fillStyle(brass, 1);                                           // flared bell (right)
     g.beginPath();
-    g.moveTo(x - 7, y - 9); g.lineTo(x + 2, y - 6); g.lineTo(x + 2, y + 6); g.lineTo(x - 7, y + 9);
-    g.closePath(); g.fillPath(); // flared bell
-    g.lineStyle(2, 0xfff3e0, 0.9);
-    g.beginPath(); g.arc(x + 8, y, 6, -0.7, 0.7); g.strokePath();
-    g.beginPath(); g.arc(x + 8, y, 10, -0.7, 0.7); g.strokePath();
+    g.moveTo(x + 5, y - 3); g.lineTo(x + 18, y - 9); g.lineTo(x + 18, y + 9); g.lineTo(x + 5, y + 3);
+    g.closePath(); g.fillPath();
     this.container.add(g);
     this.container.add(
       this.add.text(x, y + 20, 'HORN', {
         fontSize: '10px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
       }).setOrigin(0.5).setDepth(40)
     );
-    const zone = this.add.rectangle(x, y, 60, 74, 0xffffff, 0)
+    const zone = this.add.rectangle(x, y, 56, 68, 0xffffff, 0)
       .setInteractive({ useHandCursor: true }).setDepth(42);
     zone.on('pointerdown', () => this.playHorn());
     this.container.add(zone);
