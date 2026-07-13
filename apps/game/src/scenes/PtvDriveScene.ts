@@ -100,8 +100,8 @@ const VEHICLE_SPEED: Record<VehicleType, number> = {
 const VEHICLE_PARK_ANGLE: Record<VehicleType, number> = {
   'pedal-trike': 0,
   'small-van': 0,
-  'long-van': 180,
-  'electric-minibus': 180,
+  'long-van': 0,
+  'electric-minibus': 0,
   'animal-lorry': 0,
 };
 
@@ -297,7 +297,7 @@ export class PtvDriveScene extends Phaser.Scene {
     }
     // Rear ("driving away") views for the front-heavy vehicles. Missing files
     // fail softly, so this list can run ahead of the art being rendered.
-    for (const n of ['henry', 'car-red', 'car-blue', 'car-yellow', 'tractor', 'tractor-red', 'tractor-blue', 'ambulance', 'bus', 'trikey', 'big-tilly', 'pickup', 'truck']) {
+    for (const n of ['henry', 'car-red', 'car-blue', 'car-yellow', 'tractor', 'tractor-red', 'tractor-blue', 'ambulance', 'trikey', 'big-tilly', 'pickup', 'truck', 'bea', 'spark']) {
       tryImg(`vehicle-topdown-${n}-rear`, `vehicle-topdown-${n}-rear.png`);
     }
     for (const n of [...DECOR_KINDS, 'speed-camera']) {
