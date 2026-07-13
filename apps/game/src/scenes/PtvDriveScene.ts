@@ -19,6 +19,7 @@ import {
 import {
   drawRoadForConfig,
   drawTransitionRoad,
+  drawJunctionMouth,
   drawTopDownVan,
   drawTrafficVehicle,
   drawSceneryItem,
@@ -28,6 +29,7 @@ import {
   isOvertakingZone,
 } from '../driving/drive-render';
 import { buildRoadTransitions, worldYForRow, type RoadTransition } from '../driving/road-transition';
+import { buildRouteJunctions, nextJunction, type RouteJunction } from '../driving/junctions';
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
@@ -219,6 +221,8 @@ export class PtvDriveScene extends Phaser.Scene {
   private roadProfile: RoadClassRun[] = [];
   /** World-space merge zones for smooth road-type changes (dual↔single). */
   private roadTransitions: RoadTransition[] = [];
+  /** Junctions along the route — real forks (a player choice) and cosmetic bends. */
+  private routeJunctions: RouteJunction[] = [];
   /** False once Marcus manually toggles a road type — stops map auto-following. */
   private autoRoad = true;
   /** True during a road-type change so the loop doesn't re-trigger it. */
@@ -981,6 +985,9 @@ export class PtvDriveScene extends Phaser.Scene {
     // (~3–4s to play out at cruising speed). scrollY and progress are the same
     // signal, so the zone's world-Y lines up with where the boundary scrolls to.
     this.roadTransitions = buildRoadTransitions(this.roadProfile, roadIdForClass, MERGE_ZONE_LEN);
+    this.routeJunctions = this.gpsGraph && this.gpsAdj
+      ? buildRouteJunctions(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
+      : [];
   }
 
   /** The road type at a progress fraction, from the route's class profile. */
@@ -1070,6 +1077,11 @@ export class PtvDriveScene extends Phaser.Scene {
       );
     } else {
       drawRoadForConfig(this.roadGfx, width, height, this.scrollY, this.geo(), this.roadConfig);
+    }
+    // The next junction's side-road opening, drawn over the verge.
+    if (this.routeJunctions.length) {
+      const j = nextJunction(this.routeJunctions, this.drive.progress);
+      if (j && j.side) drawJunctionMouth(this.roadGfx, width, height, this.scrollY, this.vanY, this.geo(), j);
     }
   }
 

@@ -332,6 +332,53 @@ export function drawTransitionRoad(
 }
 
 /**
+ * Draw the mouth of a side road at a junction — a tarmac opening in the verge
+ * on the junction's side, at the world-Y where the fork sits. Additive: call it
+ * after the road is drawn. Straight-through forks (no side) draw nothing yet.
+ * The opening flares (widens toward the main road) so it reads as a real turn-in.
+ */
+export function drawJunctionMouth(
+  gfx: Phaser.GameObjects.Graphics,
+  width: number,
+  height: number,
+  scrollY: number,
+  vanY: number,
+  geo: RoadGeometry,
+  junction: { worldY: number; side: 'left' | 'right' | null },
+): void {
+  if (!junction.side) return;
+  const screenY = scrollY + vanY - junction.worldY; // inverse of worldYForRow
+  const half = geo.laneWidth * 1.15; // mouth width along the main road
+  if (screenY + half < -20 || screenY - half > height + 20) return;
+  const top = screenY - half, mh = half * 2;
+  const left = junction.side === 'left';
+  const x0 = left ? 0 : geo.roadLeft + geo.roadWidth;
+  const w = Math.max(0, left ? geo.roadLeft : width - (geo.roadLeft + geo.roadWidth));
+  if (w <= 0) return;
+
+  // Verge shadow rims above/below the opening.
+  gfx.fillStyle(DRIVE_COLOURS.vergeEdge, 1);
+  gfx.fillRect(x0, top - 7, w, 7);
+  gfx.fillRect(x0, top + mh, w, 7);
+  // Side-road tarmac, flared wider where it meets the main road.
+  const flare = half * 0.5;
+  gfx.fillStyle(DRIVE_COLOURS.tarmac, 1);
+  gfx.fillRect(x0, top, w, mh);
+  const innerX = left ? geo.roadLeft : x0; // the edge nearest the main road
+  gfx.beginPath();
+  if (left) {
+    gfx.moveTo(innerX, top - flare); gfx.lineTo(innerX, top + mh + flare); gfx.lineTo(innerX - flare, top + mh); gfx.lineTo(innerX - flare, top);
+  } else {
+    gfx.moveTo(innerX, top - flare); gfx.lineTo(innerX, top + mh + flare); gfx.lineTo(innerX + flare, top + mh); gfx.lineTo(innerX + flare, top);
+  }
+  gfx.closePath(); gfx.fillPath();
+  // Warm edge lines along the opening's sides.
+  gfx.fillStyle(DRIVE_COLOURS.roadEdgeLine, 0.9);
+  gfx.fillRect(x0, top + 3, w, 3);
+  gfx.fillRect(x0, top + mh - 6, w, 3);
+}
+
+/**
  * Draw a simple top-down van into a Graphics object, centred on (0,0) so the
  * caller can position/rotate/tween it via the object transform. Placeholder
  * art — painted top-down vehicle sprites are later polish. `bodyColour` lets

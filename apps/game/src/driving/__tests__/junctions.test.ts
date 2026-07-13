@@ -52,9 +52,11 @@ describe('buildRouteJunctions', () => {
     expect(fork.isChoice).toBe(true);
     expect(fork.realDegree).toBe(3);
     expect(fork.turn).toBeNull(); // the route goes straight through the crossroads
+    expect(fork.side).toBeNull();
     for (const bend of js.filter((j) => j.nodeIndex !== 3)) {
       expect(bend.isChoice).toBe(false);
       expect(bend.turn).not.toBeNull(); // a real heading change
+      expect(bend.side).toBe(bend.turn!.includes('left') ? 'left' : 'right');
     }
   });
 

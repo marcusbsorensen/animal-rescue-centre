@@ -43,6 +43,9 @@ export interface RouteJunction {
   worldY: number;
   /** The route's own turn through the node, or null if it passes straight. */
   turn: TurnDir | null;
+  /** Which side the route departs toward (the side the mouth opens on), from
+   *  the turn. Null when the route passes straight through (a crossroads). */
+  side: 'left' | 'right' | null;
   /** Real-road edges meeting here (minor stubs excluded). */
   realDegree: number;
   /** A genuine fork the player must steer (realDegree > 2), vs a cosmetic bend. */
@@ -97,8 +100,9 @@ export function buildRouteJunctions(g: RoadGraph, adj: Adjacency, from: RoutePoi
     const realDegree = deg[nodeIndex];
     const isChoice = realDegree > 2;
     if (!isChoice && turn === null) continue; // straight through a non-fork — nothing to do
+    const side: 'left' | 'right' | null = turn ? (turn.includes('left') ? 'left' : 'right') : null;
     const atProgress = cum[k] / total;
-    out.push({ nodeIndex, atProgress, worldY: worldYForProgress(atProgress), turn, realDegree, isChoice });
+    out.push({ nodeIndex, atProgress, worldY: worldYForProgress(atProgress), turn, side, realDegree, isChoice });
   }
   return out;
 }
