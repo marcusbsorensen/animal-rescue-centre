@@ -299,7 +299,6 @@ export class PtvDriveScene extends Phaser.Scene {
     r: Phaser.Input.Keyboard.Key;
     space: Phaser.Input.Keyboard.Key;
     h: Phaser.Input.Keyboard.Key;
-    b: Phaser.Input.Keyboard.Key;
   };
 
   constructor() {
@@ -1465,7 +1464,7 @@ export class PtvDriveScene extends Phaser.Scene {
 
     // Gentle hint.
     this.container.add(
-      this.add.text(width / 2, height - 14, 'Tap left or right to change lane   ·   Spacebar = emergency stop!', {
+      this.add.text(width / 2, height - 14, 'Tap left/right to change lane   ·   Spacebar = handbrake   ·   H = horn', {
         fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5).setDepth(40)
     );
@@ -1587,7 +1586,6 @@ export class PtvDriveScene extends Phaser.Scene {
         r: kb.addKey('R'),
         space: kb.addKey('SPACE'),
         h: kb.addKey('H'),
-        b: kb.addKey('B'),
       };
       this.keys.left.on('down', () => this.moveLane(-1));
       this.keys.a.on('down', () => this.moveLane(-1));
@@ -1596,9 +1594,8 @@ export class PtvDriveScene extends Phaser.Scene {
       this.keys.up.on('down', () => this.setGear(cycleGear(this.drive.gear, 1)));
       this.keys.down.on('down', () => this.setGear(cycleGear(this.drive.gear, -1)));
       this.keys.r.on('down', () => this.setGear(REVERSE));
-      this.keys.space.on('down', () => this.emergencyBrake());
+      this.keys.space.on('down', () => this.toggleHandbrake()); // handbrake: pull/release
       this.keys.h.on('down', () => this.playHorn());
-      this.keys.b.on('down', () => this.toggleHandbrake());
     }
 
     // Lane tap zones — left / right halves of the upper driving area, clear of
@@ -1750,11 +1747,10 @@ export class PtvDriveScene extends Phaser.Scene {
    *  pulling it on stops the vehicle (drops to Park). */
   private toggleHandbrake(): void {
     if (this.handbrakeOn) {
-      this.setHandbrake(false);
+      this.setHandbrake(false); // release — the driver can now select a gear
       AudioManager.getInstance().playSfx('button_click');
     } else {
-      this.setHandbrake(true);
-      if (this.drive.gear !== PARK) this.setGear(PARK);
+      this.emergencyBrake(); // pull the handbrake hard: stop + engage + judder
     }
   }
 
