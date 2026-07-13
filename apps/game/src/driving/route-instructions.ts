@@ -78,6 +78,24 @@ function classify(angleDeg: number, cross: number): TurnDir | null {
 }
 
 /**
+ * The turn direction of a route passing through `cur` (arriving from `prev`,
+ * leaving toward `next`), or null if it's essentially straight. Aspect-
+ * corrected. Shared by the GPS manoeuvres and the junction detector so both
+ * classify a corner identically.
+ */
+export function turnAt(prev: RoutePoint, cur: RoutePoint, next: RoutePoint): TurnDir | null {
+  const [ax, ay] = aspectPt(prev), [bx, by] = aspectPt(cur), [cx, cy] = aspectPt(next);
+  const inx = bx - ax, iny = by - ay;
+  const outx = cx - bx, outy = cy - by;
+  const inLen = Math.hypot(inx, iny), outLen = Math.hypot(outx, outy);
+  if (inLen < 1e-6 || outLen < 1e-6) return null;
+  const dot = (inx * outx + iny * outy) / (inLen * outLen);
+  const cross = inx * outy - iny * outx;
+  const angle = Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
+  return classify(angle, cross);
+}
+
+/**
  * Build the manoeuvre list for a route: depart, the significant turns (with the
  * progress fraction where each happens), and arrive.
  */
@@ -95,15 +113,8 @@ export function buildManeuvers(route: RoutePoint[]): Maneuver[] {
   const total = cum[cum.length - 1] || 1;
 
   const out: Maneuver[] = [{ kind: 'depart', atProgress: 0 }];
-  for (let i = 1; i < pts.length - 1; i++) {
-    const inx = pts[i][0] - pts[i - 1][0], iny = pts[i][1] - pts[i - 1][1];
-    const outx = pts[i + 1][0] - pts[i][0], outy = pts[i + 1][1] - pts[i][1];
-    const inLen = Math.hypot(inx, iny), outLen = Math.hypot(outx, outy);
-    if (inLen < 1e-6 || outLen < 1e-6) continue;
-    const dot = (inx * outx + iny * outy) / (inLen * outLen);
-    const cross = inx * outy - iny * outx;
-    const angle = Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
-    const turn = classify(angle, cross);
+  for (let i = 1; i < simp.length - 1; i++) {
+    const turn = turnAt(simp[i - 1], simp[i], simp[i + 1]);
     if (turn) out.push({ kind: 'turn', turn, atProgress: cum[i] / total });
   }
   out.push({ kind: 'arrive', atProgress: 1 });
