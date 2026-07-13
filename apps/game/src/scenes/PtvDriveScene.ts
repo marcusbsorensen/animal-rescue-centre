@@ -18,6 +18,7 @@ import {
 } from '../driving/drive-state';
 import {
   drawRoadForConfig,
+  drawTransitionRoad,
   drawTopDownVan,
   drawTrafficVehicle,
   drawSceneryItem,
@@ -26,6 +27,7 @@ import {
   vanSizeForLane,
   isOvertakingZone,
 } from '../driving/drive-render';
+import { buildRoadTransitions, worldYForRow, type RoadTransition } from '../driving/road-transition';
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
@@ -166,6 +168,10 @@ function roadIdForClass(cls: string): RoadId {
   return CLASS_TO_ROAD[cls] ?? 'country-lane';
 }
 
+/** Merge-zone length in world-px (~3–4s at cruising speed): the stretch over
+ *  which a dual↔single carriageway change is drawn narrowing/opening. */
+const MERGE_ZONE_LEN = 550;
+
 export interface PtvDriveInit {
   driveType?: DriveType;
   destinationId?: string;
@@ -211,6 +217,8 @@ export class PtvDriveScene extends Phaser.Scene {
   private roadConfig: RoadConfig = ROADS['thanet-way'];
   /** Road-class runs along the route; the road type follows the map. */
   private roadProfile: RoadClassRun[] = [];
+  /** World-space merge zones for smooth road-type changes (dual↔single). */
+  private roadTransitions: RoadTransition[] = [];
   /** False once Marcus manually toggles a road type — stops map auto-following. */
   private autoRoad = true;
   /** True during a road-type change so the loop doesn't re-trigger it. */
@@ -969,6 +977,10 @@ export class PtvDriveScene extends Phaser.Scene {
     this.roadProfile = this.gpsGraph && this.gpsAdj
       ? routeProfile(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
       : [];
+    // One merge zone per road-type change, centred on the class boundary
+    // (~3–4s to play out at cruising speed). scrollY and progress are the same
+    // signal, so the zone's world-Y lines up with where the boundary scrolls to.
+    this.roadTransitions = buildRoadTransitions(this.roadProfile, roadIdForClass, MERGE_ZONE_LEN);
   }
 
   /** The road type at a progress fraction, from the route's class profile. */
@@ -1044,6 +1056,32 @@ export class PtvDriveScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(82).setAlpha(0);
     this.container.add(t);
     this.tweens.add({ targets: t, alpha: 1, duration: 200, yoyo: true, hold: 900, onComplete: () => t.destroy() });
+  }
+
+  /** Draw the road for this frame: banded (narrowing/opening) across a
+   *  road-type merge zone, else the plain static road. */
+  private drawRoad(width: number, height: number): void {
+    if (!this.roadGfx) return;
+    if (this.roadTransitions.length && this.transitionOnScreen(height)) {
+      drawTransitionRoad(
+        this.roadGfx, width, height, this.scrollY, this.vanY, this.roadTransitions,
+        (id) => roadGeometry(width, ROADS[id as RoadId]),
+        (id) => ROADS[id as RoadId],
+      );
+    } else {
+      drawRoadForConfig(this.roadGfx, width, height, this.scrollY, this.geo(), this.roadConfig);
+    }
+  }
+
+  /** Whether any merge zone overlaps the visible rows this frame. */
+  private transitionOnScreen(height: number): boolean {
+    const top = worldYForRow(this.scrollY, this.vanY, 0);      // screen top = highest world-Y
+    const bot = worldYForRow(this.scrollY, this.vanY, height); // screen bottom = lowest world-Y
+    return this.roadTransitions.some((z) => {
+      const start = z.centreWorldY - z.zoneLen / 2;
+      const end = z.centreWorldY + z.zoneLen / 2;
+      return end >= bot && start <= top;
+    });
   }
 
   // ── Scenery ────────────────────────────────────────────────
@@ -1692,7 +1730,7 @@ export class PtvDriveScene extends Phaser.Scene {
         const rate = this.effectivePlayerRate(gearRate);
         this.scrollY += rate;
 
-        if (this.roadGfx) drawRoadForConfig(this.roadGfx, width, height, this.scrollY, this.geo(), this.roadConfig);
+        this.drawRoad(width, height);
 
         // Scenery scrolls exactly with the road.
         for (const s of this.scenery) {
