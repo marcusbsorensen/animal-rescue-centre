@@ -29,7 +29,7 @@ import {
   isOvertakingZone,
 } from '../driving/drive-render';
 import { buildRoadTransitions, worldYForRow, type RoadTransition } from '../driving/road-transition';
-import { buildRouteJunctions, nextJunction, type RouteJunction } from '../driving/junctions';
+import { buildRouteJunctions, nextJunction, nextChoiceJunction, inDecisionWindow, type RouteJunction } from '../driving/junctions';
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
@@ -174,6 +174,10 @@ function roadIdForClass(cls: string): RoadId {
  *  which a dual↔single carriageway change is drawn narrowing/opening. */
 const MERGE_ZONE_LEN = 550;
 
+/** How far either side of a fork (world-px) a turn choice counts — generous, so
+ *  it's never a split-second reflex test for a young player. */
+const JUNCTION_WINDOW_HALF = 220;
+
 export interface PtvDriveInit {
   driveType?: DriveType;
   destinationId?: string;
@@ -223,6 +227,10 @@ export class PtvDriveScene extends Phaser.Scene {
   private roadTransitions: RoadTransition[] = [];
   /** Junctions along the route — real forks (a player choice) and cosmetic bends. */
   private routeJunctions: RouteJunction[] = [];
+  /** Live turn-choice prompt state at a fork. */
+  private junctionPrompt?: Phaser.GameObjects.Container;
+  private promptJunction?: RouteJunction;
+  private resolvedJunctions = new Set<number>();
   /** False once Marcus manually toggles a road type — stops map auto-following. */
   private autoRoad = true;
   /** True during a road-type change so the loop doesn't re-trigger it. */
@@ -358,6 +366,11 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gpsManeuvers = [];
     this.cameraTriggers = [];
     this.roadProfile = [];
+    this.roadTransitions = [];
+    this.routeJunctions = [];
+    this.junctionPrompt = undefined;
+    this.promptJunction = undefined;
+    this.resolvedJunctions = new Set();
     this.autoRoad = true;
     this.roadSwitching = false;
     this.gpsInstrText = undefined;
@@ -1093,6 +1106,79 @@ export class PtvDriveScene extends Phaser.Scene {
       const start = z.centreWorldY - z.zoneLen / 2;
       const end = z.centreWorldY + z.zoneLen / 2;
       return end >= bot && start <= top;
+    });
+  }
+
+  // ── Turning at junctions ───────────────────────────────────
+
+  /** Each tick: offer the next fork's turn choice while the van is in its
+   *  (generous) decision window, and auto-resolve one we've driven past. */
+  private updateJunctionPrompt(): void {
+    // The van sits at vanY, so its world-Y is exactly scrollY.
+    const active = this.promptJunction;
+    if (active && this.scrollY > active.worldY + JUNCTION_WINDOW_HALF && !this.resolvedJunctions.has(active.nodeIndex)) {
+      this.resolveJunction(active, 'straight'); // drove past without choosing → carry on
+    }
+    if (!this.routeJunctions.length) return;
+    const j = nextChoiceJunction(this.routeJunctions, this.drive.progress);
+    if (!j || this.resolvedJunctions.has(j.nodeIndex)) return;
+    if (this.promptJunction?.nodeIndex !== j.nodeIndex && inDecisionWindow(j, this.scrollY, JUNCTION_WINDOW_HALF)) {
+      this.showJunctionChoice(j);
+    }
+  }
+
+  /** Offer left / straight / right at a fork, with the GPS's way highlighted. */
+  private showJunctionChoice(j: RouteJunction): void {
+    this.clearJunctionPrompt();
+    this.promptJunction = j;
+    const { width, height } = this.scale;
+    const want = j.side ?? 'straight'; // the GPS-correct way
+    const c = this.add.container(0, 0).setDepth(55);
+    c.add(this.add.text(width / 2, height * 0.6, 'Which way?', {
+      fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+      backgroundColor: 'rgba(255,249,239,0.9)', padding: { x: 12, y: 5 },
+    }).setOrigin(0.5));
+    const opts: { dir: 'left' | 'straight' | 'right'; label: string; x: number }[] = [
+      { dir: 'left', label: '◀ Left', x: width * 0.26 },
+      { dir: 'straight', label: '▲ On', x: width * 0.5 },
+      { dir: 'right', label: 'Right ▶', x: width * 0.74 },
+    ];
+    for (const o of opts) {
+      c.add(createButton(this, o.x, height * 0.72, o.label, () => this.resolveJunction(j, o.dir), {
+        width: 116, bgColour: o.dir === want ? COLOURS.primary : COLOURS.info,
+      }));
+    }
+    this.container.add(c);
+    this.junctionPrompt = c;
+  }
+
+  private clearJunctionPrompt(): void {
+    this.junctionPrompt?.destroy();
+    this.junctionPrompt = undefined;
+    this.promptJunction = undefined;
+  }
+
+  /** Resolve a fork. The GPS-correct way is cheerful; a wrong way (or a
+   *  drive-past) is gently accepted — for now we always carry on along the
+   *  route (a true wrong-turn reroute is the next slice). */
+  private resolveJunction(j: RouteJunction, dir: 'left' | 'straight' | 'right'): void {
+    if (this.resolvedJunctions.has(j.nodeIndex)) return;
+    this.resolvedJunctions.add(j.nodeIndex);
+    this.clearJunctionPrompt();
+    const correct = dir === (j.side ?? 'straight');
+    AudioManager.getInstance().playSfx(correct ? 'button_click' : 'food_wrong');
+    this.showRoadBanner(correct ? 'Good turn!' : 'This way!');
+    this.junctionSteer(dir);
+  }
+
+  /** A gentle bank as the van steers through the turn. */
+  private junctionSteer(dir: 'left' | 'straight' | 'right'): void {
+    const van = this.vanGfx;
+    if (!van || dir === 'straight') return;
+    const sign = dir === 'left' ? -1 : 1;
+    this.tweens.add({
+      targets: van, angle: sign * 14, duration: 200, yoyo: true,
+      ease: 'Sine.easeInOut', onComplete: () => van.setAngle(0),
     });
   }
 
@@ -1834,6 +1920,7 @@ export class PtvDriveScene extends Phaser.Scene {
         this.drawShadows();
 
         this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + rate * 0.0004));
+        this.updateJunctionPrompt();
 
         // Advance the GPS position dot along the road route + refresh the turn.
         if (this.gpsDot) {
