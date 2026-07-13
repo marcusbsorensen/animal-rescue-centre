@@ -6,6 +6,7 @@ import {
   buildRoadTransitions,
   transitionAt,
   dropWorldY,
+  roadSpanAt,
 } from '../road-transition';
 import type { RoadClassRun } from '../road-router';
 import type { RoadId } from '../road-config';
@@ -81,6 +82,43 @@ describe('road-transition', () => {
       const s = transitionAt(zones, centre)!;
       expect(s.zone.fromRoad).toBe('country-lane');
       expect(s.zone.toRoad).toBe('thanet-way');
+    });
+  });
+
+  describe('roadSpanAt', () => {
+    // country-lane → thanet-way at 0.5.
+    const zones = buildRoadTransitions(
+      [
+        { roadClass: 'residential', untilProgress: 0.5 },
+        { roadClass: 'trunk', untilProgress: 1.0 },
+      ],
+      roadIdForClass,
+      400,
+    );
+    const centre = zones[0].centreWorldY;
+
+    it('is the from-road below the zone and the to-road above it', () => {
+      expect(roadSpanAt(zones, centre - 500)).toMatchObject({ from: 'country-lane', to: 'country-lane', t: 0 });
+      expect(roadSpanAt(zones, centre + 500)).toMatchObject({ from: 'thanet-way', to: 'thanet-way', t: 0 });
+    });
+    it('blends across the zone', () => {
+      const s = roadSpanAt(zones, centre);
+      expect(s).toMatchObject({ from: 'country-lane', to: 'thanet-way' });
+      expect(s.t).toBeCloseTo(0.5);
+    });
+    it('resolves the road between two consecutive zones', () => {
+      const two = buildRoadTransitions(
+        [
+          { roadClass: 'residential', untilProgress: 0.33 }, // country-lane
+          { roadClass: 'trunk', untilProgress: 0.66 },        // thanet-way
+          { roadClass: 'residential', untilProgress: 1.0 },   // country-lane
+        ],
+        roadIdForClass,
+        200,
+      );
+      // A point safely between the two zones is on the thanet-way.
+      const between = (two[0].centreWorldY + two[1].centreWorldY) / 2;
+      expect(roadSpanAt(two, between)).toMatchObject({ from: 'thanet-way', to: 'thanet-way', t: 0 });
     });
   });
 

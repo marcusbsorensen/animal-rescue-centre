@@ -103,3 +103,32 @@ export function transitionAt(zones: RoadTransition[], worldY: number): Transitio
 export function dropWorldY(zone: RoadTransition, dropFraction = 0.7): number {
   return zone.centreWorldY - zone.zoneLen / 2 + zone.zoneLen * dropFraction;
 }
+
+export interface RoadSpan {
+  /** The road at this row (== `to` when not mid-merge). */
+  from: RoadId;
+  /** The road being merged toward (== `from` outside a zone). */
+  to: RoadId;
+  /** 0 = fully `from`, 1 = fully `to`; the per-row geometry blend factor. */
+  t: number;
+}
+
+/**
+ * Which road (or blend) a given world-Y sits on, from the ordered merge zones.
+ * Below the first zone it's that zone's `from`; inside a zone it blends
+ * from→to; between/after zones it's the previous zone's `to`. Zones must be
+ * sorted by `centreWorldY` ascending (as `buildRoadTransitions` produces them).
+ * Only meaningful with at least one zone — callers use the static renderer
+ * when there are none.
+ */
+export function roadSpanAt(zones: RoadTransition[], worldY: number): RoadSpan {
+  let road = zones[0].fromRoad;
+  for (const z of zones) {
+    const start = z.centreWorldY - z.zoneLen / 2;
+    const end = z.centreWorldY + z.zoneLen / 2;
+    if (worldY < start) return { from: road, to: road, t: 0 };
+    if (worldY <= end) return { from: z.fromRoad, to: z.toRoad, t: (worldY - start) / z.zoneLen };
+    road = z.toRoad;
+  }
+  return { from: road, to: road, t: 0 };
+}

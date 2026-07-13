@@ -13,6 +13,7 @@ import Phaser from 'phaser';
 import { NUM_LANES } from './drive-state';
 import type { TrafficKind } from './traffic';
 import { totalLanes, medianUnits, type RoadConfig, type RoadSurface } from './road-config';
+import { worldYForRow, roadSpanAt, type RoadTransition } from './road-transition';
 
 /** Top-down palette — soft daylight, tuned to the ARC brand cream/green. */
 export const DRIVE_COLOURS = {
@@ -241,6 +242,89 @@ export function drawRoadForConfig(
           // Double solid — two unbroken lines.
           gfx.fillRect(boundary - 7, top, 3, bot - top);
           gfx.fillRect(boundary + 4, top, 3, bot - top);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Draw the road across a road-type merge/split, banded. For each ~6px screen
+ * row it resolves which road (or blend) that row sits on from the world-space
+ * merge zones and paints that row at the interpolated geometry — so the tarmac
+ * visibly NARROWS toward the top as a dual carriageway merges to a single lane
+ * (and the central reservation shrinks away), instead of a hard flash-swap.
+ *
+ * `geoFor`/`configFor` map a road id to its geometry/config (the scene passes
+ * `id => roadGeometry(width, ROADS[id])` and `id => ROADS[id]`). Assumes at
+ * least one zone overlaps the screen; the caller uses `drawRoadForConfig` when
+ * there's no active transition.
+ */
+export function drawTransitionRoad(
+  gfx: Phaser.GameObjects.Graphics,
+  width: number,
+  height: number,
+  scrollY: number,
+  vanY: number,
+  zones: RoadTransition[],
+  geoFor: (id: string) => RoadGeometry,
+  configFor: (id: string) => RoadConfig,
+): void {
+  gfx.clear();
+  // Grass fills the whole frame once; road elements paint over it band by band.
+  gfx.fillStyle(DRIVE_COLOURS.skyGrass, 1);
+  gfx.fillRect(0, 0, width, height);
+
+  const BAND = 6;
+  const dashLen = 64, dashGap = 34, pitch = dashLen + dashGap, dashW = 6;
+
+  for (let y = 0; y < height; y += BAND) {
+    const yc = y + BAND / 2;
+    const worldY = worldYForRow(scrollY, vanY, yc);
+    const span = roadSpanAt(zones, worldY);
+    const geo = blendRoadGeometry(geoFor(span.from), geoFor(span.to), span.t);
+    const config = configFor(span.t < 0.5 ? span.from : span.to);
+    const surf = SURFACE_COLOURS[config.surface];
+    const lw = geo.laneWidth;
+    const bh = Math.min(BAND, height - y);
+
+    // Verge shadow just outside the tarmac.
+    gfx.fillStyle(DRIVE_COLOURS.vergeEdge, 1);
+    gfx.fillRect(geo.roadLeft - 10, y, 10, bh);
+    gfx.fillRect(geo.roadLeft + geo.roadWidth, y, 10, bh);
+    // Tarmac + warm edge lines.
+    gfx.fillStyle(surf.road, 1);
+    gfx.fillRect(geo.roadLeft, y, geo.roadWidth, bh);
+    gfx.fillStyle(surf.edge, 0.9);
+    gfx.fillRect(geo.roadLeft + 3, y, 3, bh);
+    gfx.fillRect(geo.roadLeft + geo.roadWidth - 6, y, 3, bh);
+
+    // Same-direction dashed dividers (bend gently through the merge as roadLeft
+    // shifts; a lane's dashes simply stop existing once it drops out).
+    const inDash = (((yc - scrollY) % pitch) + pitch) % pitch < dashLen;
+    if (inDash) {
+      gfx.fillStyle(surf.dash, 0.95);
+      for (let i = 1; i < geo.playerLanes; i++) gfx.fillRect(geo.roadLeft + lw * i - dashW / 2, y, dashW, bh);
+      const oncomingStart = geo.playerLanes + geo.medianUnits;
+      for (let j = 1; j < config.oncomingLanes; j++) gfx.fillRect(geo.roadLeft + lw * (oncomingStart + j) - dashW / 2, y, dashW, bh);
+    }
+
+    // The divide between the two directions.
+    if (config.oncomingLanes > 0) {
+      const boundary = geo.roadLeft + lw * geo.playerLanes;
+      if (geo.medianUnits > 0.02) {
+        // Central reservation, its width shrinking to nothing across the merge.
+        gfx.fillStyle(DRIVE_COLOURS.reservation, 1);
+        gfx.fillRect(boundary, y, lw * geo.medianUnits, bh);
+      } else {
+        // Single-carriageway centre line: solid/dashed alternating stretches.
+        const dashedZone = ((Math.floor((yc - scrollY) / CENTRE_LINE_ZONE_LEN) % 2) + 2) % 2 === 0;
+        gfx.fillStyle(surf.dash, 0.95);
+        if (dashedZone) {
+          if (inDash) gfx.fillRect(boundary - 2, y, 4, bh);
+        } else {
+          gfx.fillRect(boundary - 7, y, 3, bh);
+          gfx.fillRect(boundary + 4, y, 3, bh);
         }
       }
     }
