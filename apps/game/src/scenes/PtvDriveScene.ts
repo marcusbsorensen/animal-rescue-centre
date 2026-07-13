@@ -769,11 +769,17 @@ export class PtvDriveScene extends Phaser.Scene {
 
     const key = VEHICLE_SPRITE[v.id];
     if (this.textures.exists(key)) {
-      const img = this.add.image(w / 2, h * 0.4, key);
-      // Proportional: the biggest vehicle fills the slot, the rest scale down by
-      // their real relative size so Trikey clearly reads as tiny next to Big Tilly.
-      const fit = Math.min((w * 0.8) / img.width, (h * 0.54) / img.height);
-      img.setScale(fit * (VEHICLE_SIZE[v.id] / VEHICLE_SIZE_MAX));
+      const img = this.add.image(w / 2, h * 0.36, key);
+      // Scale by WIDTH proportional to real size (Henry = 1.0), so Trikey reads
+      // tiny and the bigger vehicles are visibly wider — never narrower than
+      // Henry. Cap the height so a long body mostly fits, but a "large" vehicle
+      // (size >= Henry) is floored at Henry's width even if it then runs tall.
+      const henryW = w * 0.52;
+      let scale = (henryW * VEHICLE_SIZE[v.id]) / img.width;
+      const maxH = h * 0.58;
+      if (img.height * scale > maxH) scale = maxH / img.height;
+      if (VEHICLE_SIZE[v.id] >= 1) scale = Math.max(scale, henryW / img.width);
+      img.setScale(scale);
       card.add(img);
     }
 
@@ -1102,10 +1108,10 @@ export class PtvDriveScene extends Phaser.Scene {
     } else {
       drawRoadForConfig(this.roadGfx, width, height, this.scrollY, this.geo(), this.roadConfig);
     }
-    // The next junction's side-road opening, drawn over the verge.
-    if (this.routeJunctions.length) {
-      const j = nextJunction(this.routeJunctions, this.drive.progress);
-      if (j && j.side) drawJunctionMouth(this.roadGfx, width, height, this.scrollY, this.vanY, this.geo(), j);
+    // Side-road openings at every real fork (each scrolls smoothly with the
+    // road at its own fixed world-Y; drawJunctionMouth skips off-screen ones).
+    for (const j of this.routeJunctions) {
+      if (j.isChoice && j.side) drawJunctionMouth(this.roadGfx, width, height, this.scrollY, this.vanY, this.geo(), j);
     }
   }
 
@@ -1138,27 +1144,25 @@ export class PtvDriveScene extends Phaser.Scene {
     }
   }
 
-  /** Offer left / straight / right at a fork, with the GPS's way highlighted. */
+  /** Offer a left/right turn at a fork — buttons sit out on the grass verges,
+   *  clear of the road and van; the GPS-correct way is highlighted green. The
+   *  arrow keys (A/D too) turn while a fork is live. Doing nothing carries on. */
   private showJunctionChoice(j: RouteJunction): void {
     this.clearJunctionPrompt();
     this.promptJunction = j;
     const { width, height } = this.scale;
-    const want = j.side ?? 'straight'; // the GPS-correct way
+    const geo = this.geo();
+    const y = height * 0.5;
+    const leftX = Math.max(60, geo.roadLeft * 0.5);
+    const rightX = Math.min(width - 60, (geo.roadLeft + geo.roadWidth + width) / 2);
+    const want = j.side;
     const c = this.add.container(0, 0).setDepth(55);
-    c.add(this.add.text(width / 2, height * 0.6, 'Which way?', {
-      fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-      backgroundColor: 'rgba(255,249,239,0.9)', padding: { x: 12, y: 5 },
-    }).setOrigin(0.5));
-    const opts: { dir: 'left' | 'straight' | 'right'; label: string; x: number }[] = [
-      { dir: 'left', label: '◀ Left', x: width * 0.26 },
-      { dir: 'straight', label: '▲ On', x: width * 0.5 },
-      { dir: 'right', label: 'Right ▶', x: width * 0.74 },
-    ];
-    for (const o of opts) {
-      c.add(createButton(this, o.x, height * 0.72, o.label, () => this.resolveJunction(j, o.dir), {
-        width: 116, bgColour: o.dir === want ? COLOURS.primary : COLOURS.info,
-      }));
-    }
+    c.add(createButton(this, leftX, y, '◀', () => this.resolveJunction(j, 'left'), {
+      width: 88, height: 78, bgColour: want === 'left' ? COLOURS.primary : COLOURS.info,
+    }));
+    c.add(createButton(this, rightX, y, '▶', () => this.resolveJunction(j, 'right'), {
+      width: 88, height: 78, bgColour: want === 'right' ? COLOURS.primary : COLOURS.info,
+    }));
     this.container.add(c);
     this.junctionPrompt = c;
   }
@@ -1179,17 +1183,25 @@ export class PtvDriveScene extends Phaser.Scene {
     const correct = dir === (j.side ?? 'straight');
     AudioManager.getInstance().playSfx(correct ? 'button_click' : 'food_wrong');
     this.showRoadBanner(correct ? 'Good turn!' : 'This way!');
-    this.junctionSteer(dir);
+    this.junctionTurn(dir);
   }
 
-  /** A gentle bank as the van steers through the turn. */
-  private junctionSteer(dir: 'left' | 'straight' | 'right'): void {
+  /** The van banks hard and swings toward the side-road opening, then
+   *  straightens up on the new road — reads as taking the turn. */
+  private junctionTurn(dir: 'left' | 'straight' | 'right'): void {
     const van = this.vanGfx;
     if (!van || dir === 'straight') return;
+    const geo = this.geo();
     const sign = dir === 'left' ? -1 : 1;
+    const homeX = laneCentreX(geo, this.drive.lane);
     this.tweens.add({
-      targets: van, angle: sign * 14, duration: 200, yoyo: true,
-      ease: 'Sine.easeInOut', onComplete: () => van.setAngle(0),
+      targets: van,
+      x: homeX + sign * geo.laneWidth * 1.6,
+      angle: sign * 40,
+      duration: 420,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      onComplete: () => { van.setAngle(0); van.setX(homeX); },
     });
   }
 
@@ -1587,10 +1599,10 @@ export class PtvDriveScene extends Phaser.Scene {
         space: kb.addKey('SPACE'),
         h: kb.addKey('H'),
       };
-      this.keys.left.on('down', () => this.moveLane(-1));
-      this.keys.a.on('down', () => this.moveLane(-1));
-      this.keys.right.on('down', () => this.moveLane(1));
-      this.keys.d.on('down', () => this.moveLane(1));
+      this.keys.left.on('down', () => this.steer(-1));
+      this.keys.a.on('down', () => this.steer(-1));
+      this.keys.right.on('down', () => this.steer(1));
+      this.keys.d.on('down', () => this.steer(1));
       this.keys.up.on('down', () => this.setGear(cycleGear(this.drive.gear, 1)));
       this.keys.down.on('down', () => this.setGear(cycleGear(this.drive.gear, -1)));
       this.keys.r.on('down', () => this.setGear(REVERSE));
@@ -1612,6 +1624,12 @@ export class PtvDriveScene extends Phaser.Scene {
     rightZone.on('pointerdown', () => this.moveLane(1));
     rightZone.setDepth(1);
     this.container.add(rightZone);
+  }
+
+  /** Left/right input: turns at a live fork, otherwise changes lane. */
+  private steer(dir: -1 | 1): void {
+    if (this.promptJunction) this.resolveJunction(this.promptJunction, dir < 0 ? 'left' : 'right');
+    else this.moveLane(dir);
   }
 
   private moveLane(dir: -1 | 1): void {
