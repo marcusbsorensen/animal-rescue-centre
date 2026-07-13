@@ -210,6 +210,11 @@ export interface PtvDriveInit {
  */
 export class PtvDriveScene extends Phaser.Scene {
   private container!: Phaser.GameObjects.Container;
+  /** Everything that turns at a junction (road, scenery, traffic) — rotated as
+   *  one about the van, which itself only tilts. HUD + van live in `container`. */
+  private worldLayer!: Phaser.GameObjects.Container;
+  /** True while a junction turn animation is playing (freezes the drive loop). */
+  private turning = false;
   private drive!: DriveState;
   private returnTo?: string;
 
@@ -382,6 +387,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.junctionPrompt = undefined;
     this.promptJunction = undefined;
     this.resolvedJunctions = new Set();
+    this.turning = false;
     this.autoRoad = true;
     this.roadSwitching = false;
     this.gpsInstrText = undefined;
@@ -485,15 +491,21 @@ export class PtvDriveScene extends Phaser.Scene {
     // Keep the van within the player's lanes (a country lane has just one).
     this.drive.lane = Math.max(0, Math.min(this.pl() - 1, this.drive.lane));
 
+    // The world layer holds everything that rotates as one at a junction (road,
+    // scenery, traffic); the van and HUD sit above it in `container` and only
+    // the van tilts. At rotation 0 this is visually identical to before.
+    this.worldLayer = this.add.container(0, 0);
+    this.container.add(this.worldLayer);
+
     // Road (redrawn every tick).
     this.roadGfx = this.add.graphics();
-    this.container.add(this.roadGfx);
+    this.worldLayer.add(this.roadGfx);
 
     // Vehicle dropshadows — one layer, redrawn each frame, below the vehicles
     // (depth 13) but above the road, so shadows track every vehicle on any
     // surface without any baked-in art shadow.
     this.shadowGfx = this.add.graphics().setDepth(13);
-    this.container.add(this.shadowGfx);
+    this.worldLayer.add(this.shadowGfx);
 
     this.spawnScenery(width, height);
     this.spawnDecor(width, height);
@@ -1183,26 +1195,59 @@ export class PtvDriveScene extends Phaser.Scene {
     const correct = dir === (j.side ?? 'straight');
     AudioManager.getInstance().playSfx(correct ? 'button_click' : 'food_wrong');
     this.showRoadBanner(correct ? 'Good turn!' : 'This way!');
-    this.junctionTurn(dir);
+    if (dir !== 'straight') this.turnWorld(dir);
   }
 
-  /** The van banks hard and swings toward the side-road opening, then
-   *  straightens up on the new road — reads as taking the turn. */
-  private junctionTurn(dir: 'left' | 'straight' | 'right'): void {
+  /**
+   * Take a junction: the whole world (road, scenery, traffic) rotates 90° about
+   * the van — anticlockwise for a left turn, clockwise for a right — while the
+   * van holds its place and just tilts to show it's steering. When the world
+   * has swung into its new heading it snaps upright and the road ahead is
+   * rebuilt, so the drive continues straight down the new road.
+   */
+  private turnWorld(dir: 'left' | 'right'): void {
+    if (this.turning) return;
+    this.turning = true;
+    const sign = dir === 'left' ? -1 : 1; // left = anticlockwise
+    const px = laneCentreX(this.geo(), this.drive.lane); // van pivot on screen
+    const py = this.vanY;
     const van = this.vanGfx;
-    if (!van || dir === 'straight') return;
-    const geo = this.geo();
-    const sign = dir === 'left' ? -1 : 1;
-    const homeX = laneCentreX(geo, this.drive.lane);
+    if (van) {
+      this.tweens.add({
+        targets: van, angle: sign * 24, duration: 320, ease: 'Sine.easeInOut',
+        yoyo: true, onComplete: () => van.setAngle(0),
+      });
+    }
+    const st = { a: 0 };
     this.tweens.add({
-      targets: van,
-      x: homeX + sign * geo.laneWidth * 1.6,
-      angle: sign * 40,
-      duration: 420,
-      ease: 'Sine.easeInOut',
-      yoyo: true,
-      onComplete: () => { van.setAngle(0); van.setX(homeX); },
+      targets: st, a: (sign * Math.PI) / 2, duration: 640, ease: 'Cubic.easeInOut',
+      onUpdate: () => {
+        const c = Math.cos(st.a), s = Math.sin(st.a);
+        this.worldLayer.setRotation(st.a);
+        this.worldLayer.setPosition(px - (px * c - py * s), py - (px * s + py * c));
+      },
+      onComplete: () => {
+        this.worldLayer.setRotation(0).setPosition(0, 0);
+        this.rebuildWorldForNewHeading();
+        this.turning = false;
+      },
     });
+  }
+
+  /** After a turn, respawn the roadside world so the drive continues cleanly
+   *  down the new road (the road itself keeps scrolling). */
+  private rebuildWorldForNewHeading(): void {
+    const { width, height } = this.scale;
+    for (const c of this.traffic) c.gfx.destroy();
+    for (const o of this.oncoming) o.gfx.destroy();
+    for (const d of this.decor) d.obj.destroy();
+    for (const s of this.scenery) s.gfx.destroy();
+    this.traffic = []; this.oncoming = []; this.decor = []; this.scenery = [];
+    this.overtaking = false;
+    this.spawnScenery(width, height);
+    this.spawnDecor(width, height);
+    this.spawnInitialTraffic(width, height);
+    this.spawnOncoming(width, height);
   }
 
   // ── Scenery ────────────────────────────────────────────────
@@ -1224,7 +1269,7 @@ export class PtvDriveScene extends Phaser.Scene {
       drawSceneryItem(gfx, kind as 'tree' | 'hedge', size);
       gfx.setPosition(x, y);
       gfx.setDepth(5);
-      this.container.add(gfx);
+      this.worldLayer.add(gfx);
       this.scenery.push({ gfx, y, size });
     }
   }
@@ -1270,7 +1315,7 @@ export class PtvDriveScene extends Phaser.Scene {
       : geo.roadLeft + geo.roadWidth + 10 + half + Math.random() * 26;
     img.setX(Math.max(half, Math.min(width - half, x)));
     img.setDepth(6);
-    this.container.add(img);
+    this.worldLayer.add(img);
     return img;
   }
 
@@ -1337,7 +1382,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const gfx = this.makeTrafficObj(profile, w, h, 'oncoming'); // front view, faces us
     gfx.setPosition(laneCentreX(geo, lane), y);
     gfx.setDepth(15);
-    this.container.add(gfx);
+    this.worldLayer.add(gfx);
     this.oncoming.push({ gfx, lane, y, speed: ONCOMING_SPEED });
   }
 
@@ -1382,7 +1427,7 @@ export class PtvDriveScene extends Phaser.Scene {
     o.gfx = this.makeTrafficObj(profile, w, h, 'oncoming'); // front view, faces us
     o.gfx.setPosition(laneCentreX(geo, o.lane), o.y);
     o.gfx.setDepth(15);
-    this.container.add(o.gfx);
+    this.worldLayer.add(o.gfx);
     o.speed = ONCOMING_SPEED;
   }
 
@@ -1429,7 +1474,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const gfx = this.makeTrafficObj(profile, w, h, 'same'); // rear view, driving away
     gfx.setPosition(laneCentreX(geo, lane), y);
     gfx.setDepth(15);
-    this.container.add(gfx);
+    this.worldLayer.add(gfx);
     this.traffic.push({
       gfx,
       profile,
@@ -1886,6 +1931,9 @@ export class PtvDriveScene extends Phaser.Scene {
       delay: 50,
       loop: true,
       callback: () => {
+        // Freeze the world while a junction turn is animating (the world layer
+        // is mid-rotation; resume once it snaps into the new heading).
+        if (this.turning) return;
         // Our forward pace is the gear's rate, but capped so we can't drive
         // through a slower vehicle ahead in our lane — we tuck in behind until
         // we pull out to overtake.
@@ -2015,7 +2063,7 @@ export class PtvDriveScene extends Phaser.Scene {
     car.gfx = this.makeTrafficObj(car.profile, w, h, 'same'); // rear view, driving away
     car.gfx.setPosition(laneCentreX(geo, car.lane), y);
     car.gfx.setDepth(15);
-    this.container.add(car.gfx);
+    this.worldLayer.add(car.gfx);
     car.nextZigAt = car.profile.zigzag ? this.time.now + 700 + Math.random() * 900 : 0;
   }
 
