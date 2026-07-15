@@ -1120,11 +1120,15 @@ export class PtvDriveScene extends Phaser.Scene {
     } else {
       drawRoadForConfig(this.roadGfx, width, height, this.scrollY, this.geo(), this.roadConfig);
     }
-    // Side-road openings at every real fork (each scrolls smoothly with the
-    // road at its own fixed world-Y; drawJunctionMouth skips off-screen ones).
-    for (const j of this.routeJunctions) {
-      if (j.isChoice && j.side) drawJunctionMouth(this.roadGfx, width, height, this.scrollY, this.vanY, this.geo(), j);
-    }
+    // Just the NEXT unresolved fork's side-road opening — one clear turn-in
+    // approaching from the top, not every fork on the route (which stacked into
+    // a clutter of tarmac strips). It scrolls down at road speed via its fixed
+    // world-Y; drawJunctionMouth culls it once off-screen.
+    const mouth = this.routeJunctions.find(
+      (j) => j.isChoice && j.side && !this.resolvedJunctions.has(j.nodeIndex) &&
+        this.scrollY + this.vanY - j.worldY < height + 40,
+    );
+    if (mouth) drawJunctionMouth(this.roadGfx, width, height, this.scrollY, this.vanY, this.geo(), mouth);
   }
 
   /** Whether any merge zone overlaps the visible rows this frame. */
@@ -1208,7 +1212,12 @@ export class PtvDriveScene extends Phaser.Scene {
   private turnWorld(dir: 'left' | 'right'): void {
     if (this.turning) return;
     this.turning = true;
-    const sign = dir === 'left' ? -1 : 1; // left = anticlockwise
+    const sign = dir === 'left' ? -1 : 1; // the van leans this way (nose into the turn)
+    // The world spins the OPPOSITE way, so the chosen side swings up to become
+    // the road ahead: a LEFT turn rotates the world clockwise (+90°), putting
+    // the left-hand road forward. (Rotating the world the same way as the lean
+    // would send you down the road on the other side — the reported inversion.)
+    const worldSpin = (-sign * Math.PI) / 2;
     const px = laneCentreX(this.geo(), this.drive.lane); // van pivot on screen
     const py = this.vanY;
     const van = this.vanGfx;
@@ -1220,7 +1229,7 @@ export class PtvDriveScene extends Phaser.Scene {
     }
     const st = { a: 0 };
     this.tweens.add({
-      targets: st, a: (sign * Math.PI) / 2, duration: 640, ease: 'Cubic.easeInOut',
+      targets: st, a: worldSpin, duration: 640, ease: 'Cubic.easeInOut',
       onUpdate: () => {
         const c = Math.cos(st.a), s = Math.sin(st.a);
         this.worldLayer.setRotation(st.a);
