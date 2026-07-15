@@ -246,6 +246,8 @@ export class PtvDriveScene extends Phaser.Scene {
   /** Live turn-choice prompt state at a fork. */
   private junctionPrompt?: Phaser.GameObjects.Container;
   private promptJunction?: RouteJunction;
+  /** Guards the pick-and-depart transition so a double tap can't launch twice. */
+  private departing = false;
   private resolvedJunctions = new Set<number>();
   /** False once Marcus manually toggles a road type — stops map auto-following. */
   private autoRoad = true;
@@ -457,7 +459,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.vanH = size.h;
 
     if (this.phase === 'select') {
-      this.renderSelect(width, height);
+      this.renderPicker(width, height);
     } else if (this.phase === 'parking') {
       this.renderParking(width, height);
     } else {
@@ -709,6 +711,145 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /** The pre-drive screen: choose the destination (shown) and pick a fleet
    *  vehicle. Locked vehicles (unlockLevel > playerLevel) are dimmed. */
+  /**
+   * The single pre-drive screen: the A.R.C. building above a car park whose bays
+   * are sized to each vehicle. Every fleet vehicle sits parked in its bay; the
+   * ones above the player's level are coned off with an "L10" unlock label.
+   * Clicking an available vehicle picks it and pulls straight out for the drive.
+   */
+  private renderPicker(width: number, height: number): void {
+    this.departing = false;
+
+    // Gravel forecourt.
+    if (this.textures.exists('site-gravel')) {
+      this.container.add(this.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
+    } else {
+      this.container.add(this.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
+    }
+    // A.R.C. building across the top.
+    if (this.textures.exists('site-arc-building')) {
+      const b = this.add.image(width / 2, 2, 'site-arc-building').setOrigin(0.5, 0);
+      const target = Math.min(width * 0.46, height * 0.46);
+      b.setDisplaySize(target, target);
+      this.container.add(b);
+    }
+
+    const destName = this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    this.container.add(
+      this.add.text(width / 2, height * 0.505, `Pick your vehicle  ·  off to ${destName}`, {
+        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        backgroundColor: 'rgba(255,249,239,0.85)', padding: { x: 14, y: 5 },
+      }).setOrigin(0.5)
+    );
+
+    // Car park: bays sized in proportion to each vehicle (Trikey narrow, Big
+    // Tilly wide — the forecourt has different-sized spaces for exactly this).
+    const defs = Object.values(VEHICLE_DEFS);
+    const weights = defs.map((v) => VEHICLE_SIZE[v.id]);
+    const wsum = weights.reduce((a, b) => a + b, 0);
+    const bayTop = height * 0.57;
+    const bayH = height * 0.28;
+    const areaW = Math.min(width * 0.92, 1080);
+    const left = (width - areaW) / 2;
+
+    const slab = this.add.graphics();
+    slab.fillStyle(0x39383a, 1);
+    slab.fillRoundedRect(left - 8, bayTop - 8, areaW + 16, bayH + 16, 12);
+    this.container.add(slab);
+
+    // Exit road along the bottom.
+    const roadY = height * 0.93;
+    const road = this.add.graphics();
+    road.fillStyle(0x6b6f76, 1);
+    road.fillRect(0, roadY, width, height - roadY);
+    road.fillStyle(0xfdf6e3, 0.9);
+    for (let rx = 10; rx < width; rx += 54) road.fillRect(rx, roadY + (height - roadY) / 2 - 2, 30, 4);
+    this.container.add(road);
+
+    let x = left;
+    defs.forEach((v, i) => {
+      const bw = areaW * (weights[i] / wsum);
+      const cx = x + bw / 2;
+      const cy = bayTop + bayH * 0.44;
+      const locked = v.unlockLevel > this.playerLevel;
+
+      if (i > 0) {
+        const d = this.add.graphics();
+        d.fillStyle(0xf2ead6, 0.85);
+        d.fillRect(x - 2, bayTop + 8, 4, bayH - 16);
+        this.container.add(d);
+      }
+
+      const key = VEHICLE_SPRITE[v.id];
+      let img: Phaser.GameObjects.Image | undefined;
+      if (this.textures.exists(key)) {
+        img = this.add.image(cx, cy, key);
+        const targetW = Math.min(bw * 0.72, bayH * 0.62 * (img.width / img.height));
+        img.setScale(targetW / img.width);
+        img.setAngle(VEHICLE_PARK_ANGLE[v.id]);
+        img.setDepth(20);
+        if (locked) img.setTint(0x707070);
+        this.container.add(img);
+      }
+
+      this.container.add(
+        this.add.text(cx, bayTop + bayH - 9, v.name, {
+          fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#e8dcc8',
+        }).setOrigin(0.5)
+      );
+
+      if (locked) {
+        // Coned off, with the unlock level called out.
+        const coneY = bayTop + bayH + 20;
+        if (this.textures.exists('decor-cone')) {
+          this.container.add(this.add.image(cx, coneY, 'decor-cone').setDisplaySize(26, 34).setDepth(22));
+        } else {
+          const cone = this.add.graphics().setDepth(22);
+          cone.fillStyle(0xe8712c, 1); cone.fillTriangle(cx - 11, coneY + 14, cx + 11, coneY + 14, cx, coneY - 14);
+          cone.fillStyle(0xffffff, 0.85); cone.fillRect(cx - 7, coneY + 1, 14, 4);
+          this.container.add(cone);
+        }
+        this.container.add(
+          this.add.text(cx, coneY - 22, `L${v.unlockLevel}`, {
+            fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+            backgroundColor: 'rgba(40,40,40,0.82)', padding: { x: 5, y: 2 },
+          }).setOrigin(0.5)
+        );
+      } else if (img) {
+        const hit = this.add.rectangle(cx, bayTop + bayH / 2, bw - 6, bayH, 0xffffff, 0)
+          .setInteractive({ useHandCursor: true }).setDepth(30);
+        const vimg = img;
+        hit.on('pointerover', () => vimg.setTint(0xfff2c8));
+        hit.on('pointerout', () => vimg.clearTint());
+        hit.on('pointerdown', () => this.pickAndDepart(v.id, vimg, cy, roadY));
+        this.container.add(hit);
+      }
+      x += bw;
+    });
+
+    this.container.add(
+      createButton(this, 54, 30, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
+    );
+  }
+
+  /** Pick a vehicle and pull it out of its bay toward the exit road, then offer
+   *  the left/right turn onto the road (existing departure flow). */
+  private pickAndDepart(id: VehicleType, img: Phaser.GameObjects.Image, cy: number, roadY: number): void {
+    if (this.departing) return;
+    this.departing = true;
+    this.vehicleId = id;
+    AudioManager.getInstance().playSfx('button_click');
+    img.clearTint();
+    img.setDepth(30);
+    this.vanGfx = img;
+    this.vanY = cy;
+    const { width, height } = this.scale;
+    this.tweens.add({
+      targets: img, y: roadY - 6, duration: 700, ease: 'Sine.easeInOut',
+      onComplete: () => this.showTurnChoice(width, height),
+    });
+  }
+
   private renderSelect(width: number, height: number): void {
     if (this.textures.exists('site-gravel')) {
       this.container.add(this.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
