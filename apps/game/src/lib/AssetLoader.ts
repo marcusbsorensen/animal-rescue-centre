@@ -101,9 +101,9 @@ export class AssetLoader {
       const resp = await fetch('/asset-manifest.json');
       const raw: string[] = await resp.json();
       // Keep only files Phaser can actually load as a texture or sound.
-      // The manifest also lists data files (sound-manifest.json,
-      // cockpit-slots-henry.json, l1-pack index.json, arc-l1-assets.json
-      // …) — without this filter parseEntry classified every non-audio
+      // The manifest also lists data files (cockpit-slots-henry.json,
+      // l1-pack index.json, arc-l1-assets.json …) — without this filter
+      // parseEntry classified every non-audio
       // file as an image, so Phaser tried to decode JSON as a PNG and
       // logged "Failed to process file: image <key>" four times on
       // every page load.
