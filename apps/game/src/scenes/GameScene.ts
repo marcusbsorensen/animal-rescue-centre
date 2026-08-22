@@ -63,6 +63,7 @@ import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEven
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
+import { registerSickAnimals } from '../ui/sprites';
 import { runDialogue, type DialoguePortrait } from '../ui/DialogueRunner';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
 import { GameStateStore, loadGameState, saveGameState } from '../game-state';
@@ -188,6 +189,12 @@ export class GameScene extends Phaser.Scene {
     const existingStore = this.registry.get('gameStore') as GameStateStore | undefined;
     this.store = existingStore ?? new GameStateStore();
     this.registry.set('gameStore', this.store);
+
+    // Let the sprite layer see who's poorly, so sick animals render with
+    // their sick art everywhere (corridor, room, garden, details popup)
+    // instead of looking exactly like a well one. We hand over the live
+    // Map, so illness and healing show up without a sync step.
+    registerSickAnimals(this.store.sickAnimals);
 
     this.gameContainer = this.add.container(0, 0);
     this.transitionLayer = this.add.container(0, 0).setDepth(500);

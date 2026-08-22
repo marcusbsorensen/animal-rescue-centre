@@ -3,12 +3,36 @@ import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS } from '@arc/game-logic';
 
 /**
+ * Live view of GameScene's `store.sickAnimals`, registered once at scene
+ * setup. We hold the Map itself rather than a copy, so every add/delete
+ * the illness and vet flows make is visible here immediately — there is
+ * no sync step to forget.
+ *
+ * `health` is not a usable stand-in: animals spawn at 70–99, so any
+ * threshold below 100 would paint healthy new arrivals as sick.
+ */
+let sickAnimalIds: ReadonlyMap<string, unknown> | null = null;
+
+/** Point the sprite layer at the store's sickAnimals map. Call once. */
+export function registerSickAnimals(map: ReadonlyMap<string, unknown>): void {
+  sickAnimalIds = map;
+}
+
+/** True when the illness flow currently has this animal marked sick. */
+function isSick(animal: Animal): boolean {
+  return sickAnimalIds?.has(animal.id) ?? false;
+}
+
+/**
  * Derive a visual sprite state from the animal's needs and game state.
- * Available sprite states: arriving, eating, sleeping, sheltered
+ * Available sprite states: arriving, sick, eating, sleeping, sheltered
  */
 function deriveVisualState(animal: Animal): string {
   // If arriving, always show arriving sprite
   if (animal.state === 'arriving') return 'arriving';
+  // Being unwell outranks the need states — it's the one thing the
+  // player has to act on at the vet, so it should read at a glance.
+  if (isSick(animal)) return 'sick';
   // Very tired → sleeping sprite
   if (animal.tiredness >= 70) return 'sleeping';
   // Very hungry → eating sprite (they need food!)
