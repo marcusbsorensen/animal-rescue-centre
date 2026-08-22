@@ -26,6 +26,8 @@ const ROUTES: Record<string, string> = {
   '/admin/vehicle-restyle/': 'vehicle-restyle',
   '/admin/scene-assets/cast/original/': 'cast-original',
   '/admin/scene-assets/cast/apprentices-walking/': 'cast-apprentices-walking',
+  '/admin/scene-assets/cast/variants/original/': 'cast-variants-original',
+  '/admin/scene-assets/cast/apprentices/original/': 'cast-apprentices-original',
 };
 
 const MIME: Record<string, string> = {

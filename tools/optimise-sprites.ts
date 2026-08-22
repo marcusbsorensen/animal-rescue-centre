@@ -22,16 +22,21 @@
  *   pnpm tsx tools/optimise-sprites.ts --write             # apply
  *   pnpm tsx tools/optimise-sprites.ts bg driving --write  # other folders
  *   pnpm tsx tools/optimise-sprites.ts --max=768 --write   # different cap
+ *
+ * --base= points the run at a different tree. The cast portraits are
+ * runtime art that lives under public/admin/ for historical reasons, so
+ * they need the same pass without being moved:
+ *
+ *   pnpm tsx tools/optimise-sprites.ts --base=apps/game/public/admin/scene-assets cast --write
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 
-const ASSETS = 'apps/game/public/assets';
-
 const args = process.argv.slice(2);
 const WRITE = args.includes('--write');
 const MAX = Number(args.find((a) => a.startsWith('--max='))?.split('=')[1] ?? 512);
+const ASSETS = args.find((a) => a.startsWith('--base='))?.split('=')[1] ?? 'apps/game/public/assets';
 const folders = args.filter((a) => !a.startsWith('--'));
 const TARGETS = folders.length > 0 ? folders : ['animals'];
 
