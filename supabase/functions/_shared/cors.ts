@@ -1,6 +1,9 @@
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  // x-arc-session carries our own session token. It rides in its own header
+  // rather than Authorization so the anon-key JWT stays where the platform
+  // expects it — overriding Authorization with a non-JWT trips verify_jwt.
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-arc-session',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
