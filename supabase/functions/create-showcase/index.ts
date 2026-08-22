@@ -1,20 +1,22 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { requireSession } from '../_shared/session.ts';
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
 
   try {
-    const body = await req.json();
-    const { userId } = body;
-
-    if (!userId) return jsonResponse({ error: 'Not authenticated' }, 401);
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // A showcase is a public, shareable page about a child. Taking the
+    // userId from the body meant anyone could publish one for any child.
+    const session = await requireSession(req, supabase);
+    if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
+    const userId = session.userId;
 
     // Get user profile (only safe fields — no PII beyond username/avatar)
     const { data: user, error: userErr } = await supabase

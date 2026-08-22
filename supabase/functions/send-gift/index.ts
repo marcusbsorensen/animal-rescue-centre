@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
+import { requireSession } from '../_shared/session.ts';
 
 const VALID_GIFT_TYPES = ['treat_bundle', 'toy', 'blanket_pattern', 'decoration'];
 
@@ -10,9 +11,20 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { userId, toUserId, giftType, messagePresetCode } = body;
+    const { toUserId, giftType, messagePresetCode } = body;
 
-    if (!userId) return jsonResponse({ error: 'Not authenticated' }, 401);
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // The sender is whoever holds the session — taking it from the body
+    // meant anyone could send gifts in another child's name, and spend
+    // their rate-limit budget doing it.
+    const session = await requireSession(req, supabase);
+    if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
+    const userId = session.userId;
+
     if (!toUserId) return jsonResponse({ error: 'Recipient required' }, 400);
     if (!giftType || !VALID_GIFT_TYPES.includes(giftType)) {
       return jsonResponse({ error: 'Invalid gift type' }, 400);
@@ -34,11 +46,6 @@ Deno.serve(async (req) => {
         retryAfterMs,
       }, 429);
     }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
 
     // Verify they are friends
     const { data: friendship } = await supabase

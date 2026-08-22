@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { getSession } from './auth';
+import { getSession, sessionHeaders } from './auth';
 
 export interface GiftInbox {
   id: string;
@@ -34,13 +34,12 @@ export async function sendGift(
   const session = getSession();
   if (!session || !isSupabaseConfigured()) throw new Error('Not available');
 
+  // The sender is resolved from the session header — the function no
+  // longer accepts a userId in the body, so nobody can send gifts in
+  // another child's name.
   const { data, error } = await supabase.functions.invoke('send-gift', {
-    body: {
-      userId: session.userId,
-      toUserId,
-      giftType,
-      messagePresetCode,
-    },
+    body: { toUserId, giftType, messagePresetCode },
+    headers: sessionHeaders(),
   });
 
   if (error) throw new Error(error.message ?? 'Failed to send gift');
@@ -93,7 +92,8 @@ export async function claimGift(giftId: string): Promise<{ giftType: string }> {
   if (!session || !isSupabaseConfigured()) throw new Error('Not available');
 
   const { data, error } = await supabase.functions.invoke('claim-gift', {
-    body: { userId: session.userId, giftId },
+    body: { giftId },
+    headers: sessionHeaders(),
   });
 
   if (error) throw new Error(error.message ?? 'Failed to claim gift');
@@ -110,7 +110,8 @@ export async function createShowcase(): Promise<{ token: string; expiresAt: stri
   if (!session || !isSupabaseConfigured()) throw new Error('Not available');
 
   const { data, error } = await supabase.functions.invoke('create-showcase', {
-    body: { userId: session.userId },
+    body: {},
+    headers: sessionHeaders(),
   });
 
   if (error) throw new Error(error.message ?? 'Failed to create showcase');

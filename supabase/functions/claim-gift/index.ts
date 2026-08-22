@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { requireSession } from '../_shared/session.ts';
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -7,15 +8,20 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { userId, giftId } = body;
-
-    if (!userId) return jsonResponse({ error: 'Not authenticated' }, 401);
-    if (!giftId) return jsonResponse({ error: 'Gift ID required' }, 400);
+    const { giftId } = body;
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // Identity from the verified session, never the request body — a
+    // body-supplied userId let anyone claim another child's gifts.
+    const session = await requireSession(req, supabase);
+    if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
+    const userId = session.userId;
+
+    if (!giftId) return jsonResponse({ error: 'Gift ID required' }, 400);
 
     // Fetch the gift — must be for this user and unclaimed
     const { data: gift, error: fetchErr } = await supabase
