@@ -29,9 +29,64 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,jpg,svg,woff2}'],
-        globIgnores: ['**/*-preview/**', '**/*-preview-v2/**', '**/regen-v3-sprites/**', '**/cast/original/**', '**/_backup*/**', '**/reference/**', '**/samples/**'],
+        // PRECACHE = app shell only.
+        //
+        // Globbing the art folders too built a 1124-entry / 454 MB precache
+        // manifest. A service worker installs all-or-nothing, so on iOS —
+        // where the per-origin quota is a small fraction of that — install
+        // failed, the worker never activated, offline never worked, and the
+        // whole download was retried on every visit.
+        //
+        // The art is already tiered by AssetLoader (boot → essential →
+        // variant), so precaching it duplicated that work and fought it.
+        // Now the shell precaches (~2 MB) and art lands in the runtime
+        // caches below as the game actually asks for it — which means
+        // anything the player has already seen still works offline.
+        globPatterns: ['**/*.{js,css,html,woff2}', 'icons/*.png', 'favicon.svg'],
+        globIgnores: ['admin/**', 'mockups/**'],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            // Game art — immutable once shipped, so cache-first.
+            urlPattern: /\/assets\/.*\.(?:png|jpg|jpeg|webp|svg)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'arc-art',
+              expiration: { maxEntries: 1200, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /\/assets\/.*\.(?:mp3|ogg|wav|webm)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'arc-audio',
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Overlay pages and the cast/map art they pull in. Revalidating
+            // keeps an edited overlay fresh without blocking the open.
+            urlPattern: /\/admin\/.*/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'arc-overlays',
+              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Manifest + anchor data — small, and changes with each deploy.
+            urlPattern: /\/(?:asset-manifest\.json|data\/.*\.json)$/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'arc-data',
+              expiration: { maxEntries: 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
         // Don't let the SPA app-shell fallback hijack admin tools, JSON data
         // files, or the 404 page — we want the real file (or Vercel's 404) to
         // win for these routes instead of returning index.html from cache.
