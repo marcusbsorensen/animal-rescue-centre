@@ -13,11 +13,35 @@ import {
   SEASON_THEMES,
   CALENDAR_EVENTS,
 } from '../calendar';
+import type { CalendarState } from '../calendar';
 
 // Helper: add N real days to a start ISO string
 function addRealDays(start: string, days: number): string {
   const ms = new Date(start).getTime() + days * 24 * 60 * 60 * 1000;
   return new Date(ms).toISOString();
+}
+
+/**
+ * A Date at local midday, `dayOffset` days from the local day the state
+ * has recorded in `lastRealDayChecked`.
+ *
+ * isDailyReset compares *local* calendar days — formatDateYMD reads
+ * getFullYear/getMonth/getDate — so fixtures pinned to UTC instants land
+ * on the wrong local day outside UTC and these assertions went red on any
+ * machine east of Greenwich. Deriving the instant from the day the state
+ * actually recorded keeps them true in every timezone.
+ */
+function localDayOffset(state: CalendarState, dayOffset: number): Date {
+  const [y, m, d] = state.lastRealDayChecked.split('-').map(Number);
+  return new Date(y, m - 1, d + dayOffset, 12, 0, 0);
+}
+
+/** The local calendar day of an instant, formatted as calendar.ts formats it. */
+function localYMD(iso: string): string {
+  const date = new Date(iso);
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${m}-${d}`;
 }
 
 const START = '2026-01-01T00:00:00.000Z';
@@ -225,12 +249,13 @@ describe('createCalendarState', () => {
 
   it('sets lastRealDayChecked to the game start date', () => {
     const state = createCalendarState(START);
-    expect(state.lastRealDayChecked).toBe('2026-01-01');
+    expect(state.lastRealDayChecked).toBe(localYMD(START));
   });
 
   it('sets lastRealDayChecked correctly for a different start date', () => {
-    const state = createCalendarState('2025-06-15T14:30:00.000Z');
-    expect(state.lastRealDayChecked).toBe('2025-06-15');
+    const start = '2025-06-15T14:30:00.000Z';
+    const state = createCalendarState(start);
+    expect(state.lastRealDayChecked).toBe(localYMD(start));
   });
 });
 
@@ -275,7 +300,7 @@ describe('advanceCalendar', () => {
     const state = createCalendarState(START);
     const now = addRealDays(START, 5);
     const advanced = advanceCalendar(state, START, now);
-    expect(advanced.lastRealDayChecked).toBe('2026-01-06');
+    expect(advanced.lastRealDayChecked).toBe(localYMD(now));
   });
 });
 
@@ -310,28 +335,31 @@ describe('getSeasonForDate', () => {
 describe('isDailyReset', () => {
   it('returns true when the real day has changed', () => {
     const state = createCalendarState(START);
-    const nextDay = new Date('2026-01-02T08:00:00Z');
-    expect(isDailyReset(state, nextDay)).toBe(true);
+    expect(isDailyReset(state, localDayOffset(state, 1))).toBe(true);
   });
 
   it('returns false when still on the same real day', () => {
     const state = createCalendarState(START);
-    const sameDay = new Date('2026-01-01T23:59:59Z');
-    expect(isDailyReset(state, sameDay)).toBe(false);
+    expect(isDailyReset(state, localDayOffset(state, 0))).toBe(false);
+  });
+
+  it('returns false at the last moment of the same real day', () => {
+    const state = createCalendarState(START);
+    const [y, m, d] = state.lastRealDayChecked.split('-').map(Number);
+    const lastMoment = new Date(y, m - 1, d, 23, 59, 59);
+    expect(isDailyReset(state, lastMoment)).toBe(false);
   });
 
   it('returns true after advanceCalendar moves to a new day', () => {
     const state = createCalendarState(START);
     const advanced = advanceCalendar(state, START, addRealDays(START, 1));
-    // advanced.lastRealDayChecked is 2026-01-02
-    expect(isDailyReset(advanced, new Date('2026-01-03T06:00:00Z'))).toBe(true);
-    expect(isDailyReset(advanced, new Date('2026-01-02T18:00:00Z'))).toBe(false);
+    expect(isDailyReset(advanced, localDayOffset(advanced, 1))).toBe(true);
+    expect(isDailyReset(advanced, localDayOffset(advanced, 0))).toBe(false);
   });
 
   it('detects reset across month boundaries', () => {
     const state = createCalendarState('2026-01-31T12:00:00.000Z');
-    const feb1 = new Date('2026-02-01T00:00:01Z');
-    expect(isDailyReset(state, feb1)).toBe(true);
+    expect(isDailyReset(state, localDayOffset(state, 1))).toBe(true);
   });
 });
 
