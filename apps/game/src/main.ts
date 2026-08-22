@@ -12,7 +12,6 @@ import { KitchenMinigameScene } from './scenes/KitchenMinigameScene';
 import { SocialScene } from './scenes/SocialScene';
 import { WalkScene } from './scenes/WalkScene';
 import { VetScene } from './scenes/VetScene';
-import { TunnelScene } from './scenes/TunnelScene';
 import { AdoptionMatchScene } from './scenes/AdoptionMatchScene';
 import { CharmSelectScene } from './scenes/CharmSelectScene';
 import { GroomingScene } from './scenes/GroomingScene';
@@ -62,7 +61,7 @@ const config: Phaser.Types.Core.GameConfig = {
     ? [DialogueDemoScene]
     : PTV_DEMO
     ? [PtvDriveScene]
-    : [BootScene, LoadingScene, MainMenuScene, SignupScene, LoginScene, ForgotPinScene, FriendsScene, IntroScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, GroomingScene, PlayScene, DepotScene, SupplyRunScene, AccountScene, TunnelScene, AdoptionMatchScene, CharmSelectScene, PtvDriveScene],
+    : [BootScene, LoadingScene, MainMenuScene, SignupScene, LoginScene, ForgotPinScene, FriendsScene, IntroScene, GameScene, KitchenMinigameScene, SocialScene, WalkScene, VetScene, GroomingScene, PlayScene, DepotScene, SupplyRunScene, AccountScene, AdoptionMatchScene, CharmSelectScene, PtvDriveScene],
   // Render config: antialias is ON by default but we set it explicitly so
   // downsampled icons (256-px source → 36-px display) stay smooth instead
   // of aliased. mipmapFilter enables trilinear-ish downscaling in WebGL
