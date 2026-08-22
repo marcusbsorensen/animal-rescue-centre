@@ -25,7 +25,7 @@ import {
   recomputeApprenticeUnlocks,
 } from '@arc/game-logic';
 import type { IllnessDef, ApprenticeEntry, CharmId, CharmUnlockEvent } from '@arc/game-logic';
-import { getSession } from '../lib/auth';
+import { getSession, sessionHeaders } from '../lib/auth';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { showToast, showBlocking } from '../ui/ErrorOverlay';
 import { GameStateStore } from './GameStateStore';
@@ -65,16 +65,21 @@ export async function loadGameState(
   // this logic without re-entering loadGameState (which also initialises
   // subsystems at the end).
   const attempt = async (): Promise<boolean> => {
-    const { data, error } = await supabase
-      .from('game_states')
-      .select('state, level')
-      .eq('user_id', session.userId)
-      .maybeSingle();
+    // Goes through the load-game Edge Function rather than selecting from
+    // game_states directly. The table's RLS policies key on auth.uid(),
+    // and this game never establishes a Supabase auth session — login
+    // mints its own token, not a JWT — so a direct select matched no rows
+    // and quietly presented every returning child as a new player.
+    const { data: payload, error } = await supabase.functions.invoke('load-game', {
+      headers: sessionHeaders(),
+    });
 
-    // maybeSingle returns null (not an error) when the row doesn't
-    // exist yet — that's the first-time-player case. Only genuine
-    // network / server errors should surface the retry UI.
     if (error) throw error;
+
+    // `save: null` is the honest first-time-player answer, and is
+    // deliberately distinct from an error — no retry overlay for someone
+    // who simply hasn't saved yet.
+    const data = (payload as { save: { state: unknown; level: number } | null } | null)?.save ?? null;
 
     if (data?.state && typeof data.state === 'object') {
       const saved = data.state as Record<string, unknown>;
@@ -285,10 +290,11 @@ export async function saveGameState(
   if (!session || !isSupabaseConfigured()) return;
 
   try {
-    const { error } = await supabase
-      .from('game_states')
-      .upsert({
-        user_id: session.userId,
+    // Via the save-game Edge Function — see loadGameState for why the
+    // direct table write could never satisfy the RLS policies.
+    const { error } = await supabase.functions.invoke('save-game', {
+      headers: sessionHeaders(),
+      body: {
         state: {
           animals: store.animals,
           totalRescued: store.totalRescued,
@@ -317,8 +323,8 @@ export async function saveGameState(
           eventCounters: store.eventCounters,
         },
         level: store.level,
-        updated_at: new Date().toISOString(),
-      });
+      },
+    });
     if (error) throw error;
     consecutiveSaveFailures = 0;  // reset on success
   } catch (err) {
