@@ -48,3 +48,4 @@ apps/game/public/admin/vehicle-restyle/
 
 # Scene-walk diagnostic output (screenshots + report), regenerated on demand.
 apps/game/e2e/__walk__/
+apps/game/e2e/__ux__/
