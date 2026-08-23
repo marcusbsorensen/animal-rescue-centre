@@ -70,7 +70,18 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Opt-in escape hatch: `ARC_BROWSER_CHANNEL=chrome pnpm test:visual`
+        // drives the Chrome already installed on the machine instead of
+        // Playwright's bundled Chromium. Useful when `playwright install`
+        // is slow or blocked; CI leaves it unset and keeps the pinned
+        // bundled build, which is what the committed baselines were shot
+        // against.
+        ...(process.env.ARC_BROWSER_CHANNEL
+          ? { channel: process.env.ARC_BROWSER_CHANNEL }
+          : {}),
+      },
     },
   ],
 });

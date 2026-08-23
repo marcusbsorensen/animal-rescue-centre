@@ -45,3 +45,6 @@ apps/game/public/assets/driving/mirror-moods/*.png
 
 # Vehicle-restyle source art (raw renders + review sheets); live keyed sprites are committed under assets/
 apps/game/public/admin/vehicle-restyle/
+
+# Scene-walk diagnostic output (screenshots + report), regenerated on demand.
+apps/game/e2e/__walk__/
