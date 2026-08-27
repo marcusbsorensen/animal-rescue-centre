@@ -129,8 +129,8 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
       // Harvest every interactive element and every text run, from the
       // Phaser scene graph and from any HTML overlay that is mounted.
       const raw = await page.evaluate((key) => {
-        interface Box { w: number; h: number; x: number; y: number; source: string }
-        interface Txt { size: number; family: string; text: string; resolution: number; source: string }
+        interface Box { w: number; h: number; x: number; y: number; source: string; label: string }
+        interface Txt { size: number; family: string; text: string; resolution: number; source: string; label: string }
 
         const boxes: Box[] = [];
         const texts: Txt[] = [];
@@ -152,7 +152,12 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
             try {
               const b = getBounds.call(obj);
               if (b.width > 0 && b.height > 0) {
-                boxes.push({ w: b.width, h: b.height, x: b.x, y: b.y, source: 'phaser' });
+                // Name it however we can, so a failure points at something.
+                const tex = obj.texture as { key?: string } | undefined;
+                const label = String(
+                  obj.name || tex?.key || obj.text || obj.type || 'unnamed',
+                ).slice(0, 32);
+                boxes.push({ w: b.width, h: b.height, x: b.x, y: b.y, source: 'phaser', label });
               }
             } catch { /* some objects refuse bounds */ }
           }
@@ -170,6 +175,7 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
                 // text as failing.
                 resolution: Number(style?.resolution ?? obj.resolution ?? 1),
                 source: 'phaser',
+                label: String(obj.name || obj.text || 'text').slice(0, 32),
               });
             }
           }
@@ -182,14 +188,22 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         // DOM overlays: buttons and text nodes rendered outside the canvas.
         for (const el of Array.from(document.querySelectorAll('button, [role="button"], a[href], input, select'))) {
           const r = el.getBoundingClientRect();
-          if (r.width > 0 && r.height > 0) boxes.push({ w: r.width, h: r.height, x: r.x, y: r.y, source: 'dom' });
+          if (r.width > 0 && r.height > 0) {
+            boxes.push({
+              w: r.width, h: r.height, x: r.x, y: r.y, source: 'dom',
+              label: (el.textContent ?? el.tagName).trim().slice(0, 32) || el.tagName,
+            });
+          }
         }
         for (const el of Array.from(document.querySelectorAll('p, span, label, h1, h2, h3, button, li'))) {
           const cs = getComputedStyle(el);
           const size = parseFloat(cs.fontSize);
           const content = (el.textContent ?? '').trim();
           if (size > 0 && content.length > 0 && el.children.length === 0) {
-            texts.push({ size, family: cs.fontFamily, text: content.slice(0, 60), resolution: 1, source: 'dom' });
+            texts.push({
+              size, family: cs.fontFamily, text: content.slice(0, 60),
+              resolution: 1, source: 'dom', label: content.slice(0, 32),
+            });
           }
         }
 
@@ -227,7 +241,11 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
           id: 'T1-T3',
           rule: 'touch target size',
           verdict: band(shortest, 40, 48),
-          detail: `smallest ${shortest.toFixed(0)}px; ${under40}/${boxes.length} under 40px, ${under48} under 48px`,
+          detail:
+            `smallest ${shortest.toFixed(0)}px; ${under40}/${boxes.length} under 40px, ${under48} under 48px` +
+            (under48 > 0
+              ? ` — ${boxes.filter((b) => Math.min(b.w, b.h) < 48).slice(0, 4).map((b) => `${b.label}:${Math.min(b.w, b.h).toFixed(0)}`).join(', ')}`
+              : ''),
         });
       }
 
@@ -263,7 +281,11 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
           id: 'F1-F5',
           rule: 'font size',
           verdict: band(smallest, 14, 16),
-          detail: `smallest ${smallest}px; ${under14}/${texts.length} under 14px`,
+          detail:
+            `smallest ${smallest}px; ${under14}/${texts.length} under 14px` +
+            (under14 > 0
+              ? ` — ${texts.filter((t) => t.size < 14).slice(0, 5).map((t) => `"${t.text.slice(0, 14)}":${t.size}`).join(', ')}`
+              : ''),
         });
 
         // ── F6: rounded sans-serif ─────────────────────────────────
