@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   generateKitchenRound,
@@ -121,7 +121,9 @@ export class KitchenMinigameScene extends Phaser.Scene {
     this._lastHeight = this.scale.height;
 
     // Back button — proper button, not a floating text link
-    createButton(this, 70, height - 30, 'Back', () => this.exitMinigame(), {
+    // 16px clearance + half the 44px button height. At height - 30 the
+    // button's lower edge sat 8px off the bottom, inside the home-gesture area.
+    createButton(this, SAFE_MARGIN + 59, height - (SAFE_MARGIN + 22), 'Back', () => this.exitMinigame(), {
       width: 110, fontSize: '14px', bgColour: '#888888', icon: 'icon-back',
     });
   }

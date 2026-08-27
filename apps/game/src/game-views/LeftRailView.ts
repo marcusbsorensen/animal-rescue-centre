@@ -24,7 +24,7 @@ import type { GameStateStore } from '../game-state/GameStateStore';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getUrgentNeed } from '@arc/game-logic';
 import { createButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
 
 /** Width of the rail on iPad / desktop. iPhone collapses it. */
 export const RAIL_WIDTH = 280;
@@ -126,7 +126,7 @@ function renderSideRail(
   bounds: { x: number; y: number; w: number; h: number },
   ctx: CountsContext,
 ): void {
-  const padX = 14;
+  const padX = SAFE_MARGIN;
   const innerW = bounds.w - padX * 2;
   let cursorY = bounds.y + 16;
 
@@ -208,7 +208,7 @@ function renderDrawer(
   bounds: { x: number; y: number; w: number; h: number },
   ctx: CountsContext,
 ): void {
-  const padX = 12;
+  const padX = SAFE_MARGIN;
   const innerW = bounds.w - padX * 2;
 
   // Header strip — counts inline + tap-target to expand later (future)
@@ -242,7 +242,9 @@ function renderDrawer(
     if (ctx.arriving.length > 1) {
       const allBtn = createButton(
         scene,
-        bounds.x + bounds.w - padX - 32,
+        // -38, not -32: createButton pads out to about 76px wide, so half of
+        // it is 38. The old guess put the pill 10px from the screen edge.
+        bounds.x + bounds.w - padX - 38,
         bounds.y + 16,
         `All`,
         () => callbacks.onWelcomeAll(ctx.arriving),

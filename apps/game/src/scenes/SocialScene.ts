@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
 import { createButton, createTextButton, createPanel, createAmbientParticles, createPillTitle } from '../ui/UIButton';
 import { getFriends, type Friend } from '../lib/friends';
 import {
@@ -136,7 +136,8 @@ export class SocialScene extends Phaser.Scene {
 
     // Back button
     this.container.add(
-      createTextButton(this, width / 2, height - 25,
+      // 16px clearance + half the 31px button height.
+      createTextButton(this, width / 2, height - (SAFE_MARGIN + 16),
         '← Back to centre', () => {
           this.scene.start('GameScene');
         })

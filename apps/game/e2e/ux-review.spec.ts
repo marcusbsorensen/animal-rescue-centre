@@ -231,6 +231,16 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
           b.y < raw.viewport.h,
       );
       const offScreen = raw.boxes.length - boxes.length;
+      // Full-bleed elements — modal scrims, tap-anywhere-to-dismiss
+      // backdrops, the interactive background of a scene — are *meant* to
+      // reach the edges. Measuring them against a safe margin says the
+      // backdrop is 224px too wide, which is not a defect and not something
+      // to "fix" by shrinking it. Anything covering most of an axis is
+      // chrome, not a control.
+      const isFullBleed = (b: { w: number; h: number }) =>
+        b.w >= raw.viewport.w * 0.9 || b.h >= raw.viewport.h * 0.9;
+      const controls = boxes.filter((b) => !isFullBleed(b));
+      const backdrops = boxes.length - controls.length;
 
       // ── T1-T3, T6: touch target sizes ────────────────────────────
       if (boxes.length > 0) {
@@ -336,15 +346,34 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
       }
 
       // ── L3: safe margins ─────────────────────────────────────────
-      if (boxes.length > 0) {
-        const margin = Math.min(
-          ...boxes.map((b) => Math.min(b.x, b.y, raw.viewport.w - (b.x + b.w), raw.viewport.h - (b.y + b.h))),
-        );
+      if (controls.length > 0) {
+        const withMargin = controls.map((b) => ({
+          b,
+          m: Math.min(b.x, b.y, raw.viewport.w - (b.x + b.w), raw.viewport.h - (b.y + b.h)),
+        }));
+        withMargin.sort((p, q) => p.m - q.m);
+        // Two different things hide in one number. A negative margin means the
+        // element extends past an edge — which is exactly what content inside a
+        // masked scroll container is supposed to do (the badge wall on
+        // AccountScene clips 40-odd tiles that way). A small positive margin
+        // means a control is visible and sitting too close to the edge, which
+        // is the actual L3 defect. Only the second is scored here; overflow is
+        // reported separately so it can be judged on its own.
+        const onScreen = withMargin.filter((w) => w.m >= 0);
+        const overflowing = withMargin.filter((w) => w.m < 0);
+        const margin = onScreen.length > 0 ? onScreen[0].m : 16;
+        const tight = onScreen.filter((w) => w.m < 16);
         findings.push({
           id: 'L3',
           rule: 'safe margin from edges',
           verdict: band(margin, 12, 16),
-          detail: `closest element ${margin.toFixed(0)}px from an edge`,
+          detail:
+            `closest ${margin.toFixed(0)}px` +
+            (backdrops > 0 ? ` (${backdrops} full-bleed ignored)` : '') +
+            (overflowing.length > 0 ? ` [${overflowing.length} clipped/scrolled]` : '') +
+            (tight.length > 0
+              ? ` — ${tight.slice(0, 4).map((w) => `${w.b.label}[${w.b.source}] ${w.m.toFixed(0)}px @ ${w.b.x.toFixed(0)},${w.b.y.toFixed(0)} ${w.b.w.toFixed(0)}x${w.b.h.toFixed(0)}`).join('; ')}`
+              : ''),
         });
       }
 

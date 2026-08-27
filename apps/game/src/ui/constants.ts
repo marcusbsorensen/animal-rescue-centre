@@ -96,6 +96,19 @@ export const TEXT_RESOLUTION = typeof window !== 'undefined'
   : 2;
 
 /**
+ * Minimum clearance between any interactive element and the screen edge.
+ *
+ * 16px is the pass threshold in the children's UX checklist (L3). On a
+ * phone the bottom edge is the home-gesture area and the top may hold a
+ * notch, so a control sitting flush to the edge is either hard to hit or
+ * intercepted by the OS before the game sees it.
+ *
+ * Use it for any row or control positioned relative to `scale.width` /
+ * `scale.height` rather than inventing a local padding number.
+ */
+export const SAFE_MARGIN = 16;
+
+/**
  * Minimum font sizes for children's game UX (ages 7-11).
  * Based on: Hourcade 2015, British Dyslexia Association,
  * Sesame Workshop design guidelines, NNG children's UX studies.

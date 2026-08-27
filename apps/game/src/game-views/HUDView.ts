@@ -6,7 +6,7 @@ import {
   getMaxShelterAnimals,
 } from '@arc/game-logic';
 import { AudioManager } from '../audio/AudioManager';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
 
 // Human-readable names for phases + weathers (shown in HUD pills).
@@ -87,9 +87,14 @@ export function renderHUD(
 
   // Constrain to 600px centred for large screens
   const maxW = Math.min(width, 600);
-  const leftEdge = (width - maxW) / 2 + 10;
-  const rightEdge = width - (width - maxW) / 2 - 10;
-  const orbY = 30;
+  // 10 -> SAFE_MARGIN. The tap circles in this strip are floored at a 24px
+  // radius, so a 10px inset left their outer edge 6px from the screen.
+  const leftEdge = (width - maxW) / 2 + SAFE_MARGIN;
+  const rightEdge = width - (width - maxW) / 2 - SAFE_MARGIN;
+  // 40, not 30. The tap circles in this strip are floored at a 24px radius
+  // for small fingers, so a centre at 30 put their top edge 6px from the
+  // screen — inside the notch/status area on a phone. 16 + 24 clears it.
+  const orbY = SAFE_MARGIN + 24;
   const orbH = 44;
 
   // ── LEFT: Level orb with XP bar ───────────────────────────
@@ -103,7 +108,9 @@ export function renderHUD(
   uiContainer.add(leftGfx);
 
   // Green level circle
-  const lvlCx = leftX + orbH / 2;
+  // The tap circle is floored at a 24px radius while the orb art is 22, so
+  // centring on the orb alone left the hit area poking 2px past the margin.
+  const lvlCx = Math.max(leftX + orbH / 2, SAFE_MARGIN + 24);
   const lvlCircle = scene.add.graphics();
   lvlCircle.fillStyle(0x5AAE4A, 1);
   lvlCircle.fillCircle(lvlCx, orbY, orbH / 2 - 4);
@@ -149,7 +156,9 @@ export function renderHUD(
   void arrivingCount; void needsCareCount;
 
   // ── RIGHT SIDE: stack orbs from right edge leftward ─────
-  let rx = rightEdge;
+  // Pulled in by the 24px tap radius rather than the 20px orb radius, for
+  // the same reason as lvlCx above.
+  let rx = Math.min(rightEdge, width - SAFE_MARGIN - 24 + 20);
   const orbSize = 40;
 
   // Audio toggle orb (right-most)

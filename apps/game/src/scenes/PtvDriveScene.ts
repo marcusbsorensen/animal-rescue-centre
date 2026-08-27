@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS } from '../ui/constants';
+import { COLOURS, FONTS, SAFE_MARGIN } from '../ui/constants';
 import { createButton } from '../ui/UIButton';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Economy } from '@arc/shared-types';
@@ -828,7 +828,7 @@ export class PtvDriveScene extends Phaser.Scene {
     });
 
     this.container.add(
-      createButton(this, 54, 30, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
+      createButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
     );
   }
 
@@ -903,7 +903,7 @@ export class PtvDriveScene extends Phaser.Scene {
       }, { width: 190, bgColour: COLOURS.primary }).setDepth(45)
     );
     this.container.add(
-      createButton(this, 54, 34, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
+      createButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
     );
   }
 
@@ -1067,7 +1067,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.add(go);
 
     this.container.add(
-      createButton(this, 54, 34, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
+      createButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
     );
   }
 
@@ -1653,7 +1653,7 @@ export class PtvDriveScene extends Phaser.Scene {
 
     // Back / exit button (top-left).
     this.container.add(
-      createButton(this, 54, 34, 'Back', () => this.exit(), {
+      createButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), {
         width: 88, bgColour: COLOURS.warm,
       }).setDepth(40)
     );

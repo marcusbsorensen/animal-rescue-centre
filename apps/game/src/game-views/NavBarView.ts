@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { createButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
 
 /**
@@ -79,10 +79,12 @@ export function renderNavBar(
   const fabSize = 68;
   const fabGap = 12;
   const tabsSide = leftTabs.length;
-  const barW = Math.min(width - 20, tabsSide * 2 * tabW + fabSize + fabGap * 2 + 28);
+  // width - 32 rather than - 20, so the outermost tab's tap area clears the
+  // 16px safe margin instead of sitting 13px from the edge.
+  const barW = Math.min(width - SAFE_MARGIN * 2, tabsSide * 2 * tabW + fabSize + fabGap * 2 + 28);
   const barH = tabH + 16;
   const barX = (width - barW) / 2;
-  const barY = height - barH - 16;
+  const barY = height - barH - SAFE_MARGIN;
 
   // Glass bar background
   const bg = scene.add.graphics();
