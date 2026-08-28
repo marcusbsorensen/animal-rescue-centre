@@ -1774,7 +1774,7 @@
                   <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 </div>
                 <div class="secondary-row">
-                  <button class="link-btn plank-sage">I already have an account</button>
+                  <button class="link-btn plank-sage" id="have-account-btn">I already have an account</button>
                 </div>
               </div>
 
@@ -1973,13 +1973,18 @@
     }
   };
   // "I already have an account" plank on stage A. Sends 'login' to the
-  // host so it can swap to LoginScene. We MUST scope this strictly to
-  // that specific button — there are other .link-btn.plank-sage buttons
-  // (hint-next-btn, hint-safe-btn) on later stages with their own
-  // specific handlers, and a catch-all selector here would hijack their
-  // clicks and send 'login' instead of letting their handlers run.
-  // Use the parent .secondary-row scope to disambiguate.
-  document.querySelector('#stage-select .secondary-row .link-btn.plank-sage')
+  // host so it can swap to LoginScene. Match by id, like the other two
+  // .link-btn.plank-sage buttons (hint-next-btn, hint-safe-btn) — a
+  // catch-all class selector here would hijack their clicks and send
+  // 'login' instead of letting their handlers run.
+  //
+  // Do NOT go back to a descendant selector. This button lives in
+  // .cta-stack, a SIBLING of #stage-select, so `#stage-select ...`
+  // matched nothing and the `?.` swallowed it silently — the plank did
+  // nothing at all from first launch until 2026-08-28. An earlier
+  // attempt (e73ecab) picked the wrong element for the same reason.
+  // An id cannot be broken by moving the button in the DOM.
+  document.getElementById('have-account-btn')
     ?.addEventListener('click', () => send('login'));
   // Yellow back-sticker — context-aware: goes back ONE step in the
   // signup flow. From stage A there's nothing before, so we postMessage

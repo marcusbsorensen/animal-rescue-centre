@@ -1480,7 +1480,12 @@
   // primary CTA — demote the type-name sign to a small text link
   // 'Not here? Type your name'. When the grid is empty
   // (first-time-on-device) the giant sign stays as the primary path.
-  (function adaptTypeNameButton() {
+  // Must stay callable, not a run-once IIFE: this runs at parse time
+  // against whatever chips are in the markup, but the real chip list
+  // only arrives later in the async 'init' message. The init handler
+  // calls this again once it has replaced them, or the count here is
+  // always the 4 placeholders and the first-run branch never runs.
+  function adaptTypeNameButton() {
     const btn = document.getElementById('type-name-btn');
     if (!btn) return;
     const label = btn.querySelector('.play-label');
@@ -1492,7 +1497,8 @@
       btn.classList.remove('demoted');
       if (label) label.textContent = 'TYPE YOUR NAME';
     }
-  })();
+  }
+  adaptTypeNameButton();
   function setStage(s) {
     showing = s;
     const typeNameBtn = document.getElementById('type-name-btn');
@@ -1631,7 +1637,13 @@
   window.addEventListener('message', (e) => {
     const m = e.data;
     if (!m || m.source !== 'arc-auth-host') return;
-    if (m.type === 'init' && Array.isArray(m.payload?.usernames) && m.payload.usernames.length) {
+    // No `&& usernames.length` guard here. An EMPTY list is a real
+    // answer — "no accounts saved on this device" — and it must clear
+    // the placeholder chips below. Guarding on length left the
+    // hardcoded Lily/Sam/Rosie/Mia design chips in place on a fresh
+    // install, so a child's first launch showed four accounts that do
+    // not exist, and tapping one ran a real login that could only fail.
+    if (m.type === 'init' && Array.isArray(m.payload?.usernames)) {
       const chipsEl = document.querySelector('.chips');
       if (!chipsEl) return;
       chipsEl.replaceChildren();
@@ -1640,10 +1652,16 @@
         const [em, bg] = palette[i % palette.length];
         chipsEl.appendChild(buildChip(String(name), em, bg, 'tap to sign in'));
       });
+      // The chip count has just changed, so the TYPE YOUR NAME sign
+      // has to be re-evaluated against the real list.
+      adaptTypeNameButton();
     }
     if (m.type === 'auth-error') shakeError(m.payload?.message);
   });
-  // Hard-coded screen chips still function (when no 'init' or for design review).
+  // Hard-coded screen chips still function when 'init' never arrives at
+  // all — i.e. this page opened directly for design review, not embedded
+  // by AuthOverlay. Chips built from a real 'init' wire their own click
+  // in buildChip(), so they do not depend on this line.
   document.querySelectorAll('.chips .chip').forEach((chip) => chip.addEventListener('click', () => selectChip(chip)));
   // Sync the green ✓ confirm button's enabled state with PIN-buffer length.
   function updateConfirmEnabled() {
