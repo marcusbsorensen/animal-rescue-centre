@@ -50,3 +50,6 @@ apps/game/public/admin/vehicle-restyle/
 apps/game/e2e/__walk__/
 apps/game/e2e/__ux__/
 dist-ios/
+
+# UX/audit screenshots, regenerated on demand — 31 MB of them.
+audit/
