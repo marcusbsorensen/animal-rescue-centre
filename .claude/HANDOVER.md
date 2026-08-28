@@ -44,7 +44,37 @@ across all three.
   `game_states` row at version 0 were all created; the app reached the menu with
   the friend code matching the row. Test player then deleted, cascade verified.
 
+**Placeholder-data audit (2026-08-28), all fixed in `c483ecb`.** The login.html
+chips bug was not a one-off. Five more shipping overlays were showing a real
+child hand-written design data. Two failure shapes, and the second is the one to
+watch for:
+1. *A guard that treats "empty" as "no answer"* — login.html. Findable by
+   grepping for guards.
+2. *A payload the host sends correctly to a page with no listener at all* —
+   `adoption.html`, `rewilding.html`. **Grepping for guards will never find
+   these.** The tell is a `mountInGame`/`postToFrame` payload whose keys appear
+   nowhere in the target HTML. `grep -c "addEventListener('message'"` across
+   `public/admin/*.html` is the cheap check; both scored 0.
+
+The worst of it: every adoption ceremony in the game read "A forever home for
+Luna … Dear Lily, thank you for loving Luna", whichever animal a child had
+actually rehomed to whichever family. `forgot-pin.html` ran its whole recovery
+quiz on a demo snapshot nothing ever replaced, so a locked-out child was asked to
+identify a cat called Marmalade and could not pass by construction.
+`paths.html`'s "Not for collies" lock is **load-bearing** — the click handler
+returns early on `.path-state-locked` — so the rewild path was dead for foxes and
+hedgehogs too. It is still locked, because no rewildable-species rule exists in
+game-logic to unlock it against; that rule is unwritten game design, not a bug.
+
 **Still not done:**
+- **Real eligibility logic for `paths.html`.** Its criteria lists are hidden, not
+  deleted — they are the design target. "Bond 3+" / "Bond 5 (3/5)" imply a 1-5
+  scale; bond is 0-100 (`game-logic/bond.ts`). Nothing computes walk counts or
+  traits. And the rewild card needs a real species rule before it can unlock.
+- **`friends.html` never renders friends.** `AuthOverlay` sends `joinCode` and
+  `recruited` but never `friends`, so the list always takes its fallback branch.
+  Harmless only because that fallback array is empty — putting one demo row back
+  in it recreates the login.html bug exactly.
 - Nothing has run on a *physical* device. The simulator needs no signing, so it
   proved the bundle and the network path but not provisioning. `pnpm ios` builds
   and opens Xcode; signing and a device are Marcus's to do.
@@ -105,7 +135,10 @@ and the screen it reaches has no fake chips and the big CTA back.
 - `apps/game/src/game-state/loadSaveState.ts` — `isUnauthorised` / `requireSignIn`, the 401 path.
 - `apps/game/public/admin/signup.html` — `#have-account-btn` (~1777) and its handler (~1982); `hint-safe-btn` at 2348 is what actually fires `signup-complete`.
 - `apps/game/public/admin/login.html` — the `init` handler (~1634) and `adaptTypeNameButton()` (~1483). The four placeholder chips at ~1370 are still there on purpose, for opening the page directly for design review.
-- `supabase/functions/signup/index.ts:21` — the letters-only username rule. Every 400 in that file is currently invisible to the child.
+- `supabase/functions/signup/index.ts:21` — the letters-only username rule. Server-side 400s are still invisible to the child; the signup NEXT button now checks the same rule client-side.
+- `apps/game/public/admin/adoption.html` / `rewilding.html` — `renderCeremony()` / `renderFarewell()`, driven by `init`. Both had no listener at all before `c483ecb`.
+- `apps/game/src/scenes/GameScene.ts` — `openAdoptionOverlay` / `openRewildingOverlay` resolve the household and sprite and pass display data, not just ids.
+- `apps/game/public/admin/forgot-pin.html` — the demo `snapshot` (~927) and the embed guard at the bottom that skips the quiz.
 
 ## Decisions made
 - **Capacitor** for iOS; landscape-locked in `Info.plist`; **Kids Category**, so never a
@@ -126,9 +159,14 @@ and the screen it reaches has no fake chips and the big CTA back.
 ## Next step
 1. **Physical device run** — `pnpm ios`, then signing and a device. Marcus's hands.
    The simulator is already proven, so this is provisioning only.
-2. **Surface signup/login errors.** The silent 400 is the worst remaining
-   first-run bug and it is cheap to fix — `login.html` already has `shakeError`
-   for exactly this.
+2. **Surface the remaining signup/login errors.** `c483ecb` added client-side
+   validation on the signup NEXT button, so the common mistakes now say
+   something — but a 400 that comes back from the *server* is still silent, and
+   so is the "name is taken" case. `login.html` already has `shakeError`; signup
+   needs the same wiring for `auth-error`.
+3. **Verify the two ceremonies on device.** adoption and rewilding are fixed and
+   statically checked, but sit behind rescuing, bonding and rehoming an animal,
+   so neither has actually been seen rendering real data.
 3. **iPhone simulator pass** for the safe-area insets.
 4. **Depot/SupplyRun landscape overflow** — the open design call.
 5. **Regenerate the visual baseline** once the landscape layout settles.
