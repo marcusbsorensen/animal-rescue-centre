@@ -239,8 +239,16 @@
   }
 
   /* Portrait frame — wooden border + drop shadow, same family as arc-snapshot */
+  /* width:100% is load-bearing, not decoration. The plaque above is a
+     column flex container with align-items:center, so without it this
+     wrap is shrink-to-fit — and the frame's `width:100%` then resolves
+     against an indefinite width. Chrome guesses generously; iOS WebKit
+     resolves it to ~0, aspect-ratio turns that into ~0 height, and the
+     whole portrait vanishes. adoption.html's .portrait-row has always
+     declared its width, which is the only reason it never collapsed. */
   .portrait-wrap {
     display: flex; justify-content: center;
+    width: 100%;
     padding: clamp(2px, 0.6cqh, 6px) 0 clamp(4px, 0.8cqh, 10px);
   }
   .portrait-frame {
