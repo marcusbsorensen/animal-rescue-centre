@@ -47,6 +47,7 @@ import {
   getAvailableToys,
   calculateAdoptionFee,
   getEligibleApplicants,
+  L1_CURTAILED_HOUSEHOLD_DEFS,
   buildHandoverDialogue,
   WARDEN_SPEAKER,
   commitAdoption as commitAdoptionLogic,
@@ -61,6 +62,7 @@ import {
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
+import { getSession } from '../lib/auth';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
 import { registerSickAnimals } from '../ui/sprites';
@@ -1215,6 +1217,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openAdoptionOverlay(animal: Animal, householdId: string): void {
+    // The ceremony page needs display data, not just ids. It used to be
+    // sent `{animalId, animalName, householdId}` and had no listener at
+    // all, so every adoption in the game read "A forever home for Luna"
+    // from "Theo, Kofi and Zuri" — the wrong animal and the wrong family,
+    // every time. Resolve the household here, where the roster lives.
+    const household = L1_CURTAILED_HOUSEHOLD_DEFS.find((h) => h.householdId === householdId);
+    const spriteSrc = animal.variant
+      ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
+      : `/assets/animals/${animal.species}-sheltered.png`;
+
     const unmount = mountInGame('adoption', {
       onAction: (action) => {
         if (action === 'adoption-cancel') { unmount(); return; }
@@ -1224,7 +1236,15 @@ export class GameScene extends Phaser.Scene {
           return;
         }
       },
-    }, { animalId: animal.id, animalName: animal.name, householdId });
+    }, {
+      animalId: animal.id,
+      animalName: animal.name,
+      animalSpriteSrc: spriteSrc,
+      householdId,
+      householdName: household?.name,
+      householdAvatarSrc: household?.avatarSrc,
+      playerName: getSession()?.username,
+    });
     this.events.once('shutdown', unmountInGame);
   }
 
@@ -1238,7 +1258,16 @@ export class GameScene extends Phaser.Scene {
           return;
         }
       },
-    }, { animalId: animal.id, animalName: animal.name });
+    }, {
+      animalId: animal.id,
+      animalName: animal.name,
+      // Same story as adoption: the page had no listener, so every
+      // release said "Farewell, Luna" at "Bond: Champion" regardless.
+      animalSpriteSrc: animal.variant
+        ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
+        : `/assets/animals/${animal.species}-sheltered.png`,
+      bond: animal.bondLevel,
+    });
     this.events.once('shutdown', unmountInGame);
   }
 

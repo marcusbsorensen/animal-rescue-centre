@@ -663,12 +663,19 @@
       <div class="adopt-inner">
 
         <div class="adopt-plaque" role="dialog" aria-labelledby="adopt-title">
-          <div class="adopt-title" id="adopt-title">A forever home for Luna</div>
-          <div class="adopt-subtitle">Grandpa Theo, Kofi and Zuri are here to take her home</div>
+          <!-- Defaults here are deliberately GENERIC, not sample data. The
+               real animal, family and player arrive in the 'init' message
+               below. This markup used to name "Luna" and "Theo, Kofi and
+               Zuri", and because the page had no message listener at all,
+               every adoption in the game showed those names whoever the
+               child had actually rehomed. If init is ever missed again, a
+               vague sentence is recoverable; a confident wrong name is not. -->
+          <div class="adopt-title" id="adopt-title">A forever home!</div>
+          <div class="adopt-subtitle" id="adopt-subtitle">Your friend is going home today</div>
 
           <div class="portrait-row">
             <div class="portrait-frame">
-              <img class="portrait-animal" src="/assets/animals/dog-collie-sheltered.png" alt="Luna the collie, tail wagging">
+              <img class="portrait-animal" id="animal-portrait" src="/assets/animals/dog-collie-sheltered.png" alt="">
             </div>
 
             <div class="meet-connector" aria-hidden="true">
@@ -678,9 +685,12 @@
             </div>
 
             <div class="portrait-frame portrait-family">
+              <!-- src is a placeholder until init supplies the real
+                   household portrait; alt is set from the real family name
+                   by renderCeremony, and must not name a family here. -->
               <img class="portrait-animal" id="family-portrait"
                    src="/admin/scene-assets/cast/14-theo-grandkids.png"
-                   alt="Grandpa Theo with grandkids Kofi and Zuri">
+                   alt="">
             </div>
           </div>
 
@@ -728,20 +738,61 @@
 
 <script>
   // Populate scroll text via textContent — no innerHTML with untrusted strings.
-  (function fillScroll() {
+  //
+  // Everything player-specific is rendered from the 'init' payload. Before
+  // it lands (and if it never does) the copy stays generic: "your friend",
+  // "your new family". The previous version hardcoded "Dear Lily … loving
+  // Luna" at parse time and there was no listener to correct it, so the
+  // most emotionally loaded screen in the game named the wrong child and
+  // the wrong animal on every single adoption.
+  function renderCeremony(p) {
+    const animal = (p && typeof p.animalName === 'string' && p.animalName.trim())
+      ? p.animalName.trim() : 'your friend';
+    const family = (p && typeof p.householdName === 'string' && p.householdName.trim())
+      ? p.householdName.trim() : 'your new family';
+    const player = (p && typeof p.playerName === 'string' && p.playerName.trim())
+      ? p.playerName.trim() : null;
+
+    const titleEl = document.getElementById('adopt-title');
+    if (titleEl) titleEl.textContent = `A forever home for ${animal}`;
+
+    const subEl = document.getElementById('adopt-subtitle');
+    if (subEl) subEl.textContent = `${family} are here to take ${animal} home`;
+
+    const animalImg = document.getElementById('animal-portrait');
+    if (animalImg && p && typeof p.animalSpriteSrc === 'string') {
+      animalImg.src = p.animalSpriteSrc;
+      animalImg.alt = animal;
+    }
+
+    const familyImg = document.getElementById('family-portrait');
+    if (familyImg) {
+      // alt is set unconditionally — familyFallback() below reads it to
+      // caption the card when the portrait file is missing.
+      familyImg.alt = family;
+      if (p && typeof p.householdAvatarSrc === 'string') familyImg.src = p.householdAvatarSrc;
+    }
+
     const body = document.getElementById('scroll-body');
-    const sign = document.getElementById('scroll-sign');
     if (body) {
       body.textContent =
-        "Dear Lily, thank you for loving Luna so much while she waited. " +
-        "She's going to be so happy with us — lots of walks, a cosy bed by the fire, " +
-        "and the kids have been practising gentle hands. " +
-        "We'll send you photos every week so you can see her grow.";
+        `${player ? `Dear ${player}, thank you` : 'Thank you'} for loving ${animal} ` +
+        `so much while ${animal} waited. We're going to be so happy together — ` +
+        "lots of walks, a cosy bed, and we've been practising gentle hands. " +
+        "We'll send you photos every week so you can see how it's going.";
     }
-    if (sign) {
-      sign.textContent = "With love, Theo, Kofi and Zuri (+ Luna 🐾)";
-    }
-  })();
+
+    const sign = document.getElementById('scroll-sign');
+    if (sign) sign.textContent = `With love, ${family} (+ ${animal} 🐾)`;
+  }
+
+  renderCeremony(null);
+
+  window.addEventListener('message', (e) => {
+    const msg = e.data;
+    if (!msg || msg.source !== 'arc-game-host' || msg.type !== 'init') return;
+    renderCeremony(msg.payload || {});
+  });
 
   // Family-portrait fallback — if the image file isn't present, swap in a
   // hand-lettered description. Built with createElement + textContent.
@@ -756,10 +807,14 @@
       card.className = 'family-fallback';
       const emoji = document.createElement('span');
       emoji.className = 'ff-emoji';
-      emoji.textContent = '👴🏾👦🏾👧🏾';
+      emoji.textContent = '🏡';
       card.appendChild(emoji);
       const line = document.createElement('span');
-      line.textContent = 'Grandpa Theo in his corduroy jacket, Kofi (10, glasses) and Zuri (7, butterfly-wings backpack)';
+      // Read the real family off alt, which renderCeremony always sets.
+      // This used to describe "Grandpa Theo … Kofi … Zuri" in detail, so a
+      // single missing portrait file put a fictional family into a real
+      // child's adoption.
+      line.textContent = img.alt && img.alt.trim() ? img.alt.trim() : 'Your new family';
       card.appendChild(line);
       parent.appendChild(card);
     };

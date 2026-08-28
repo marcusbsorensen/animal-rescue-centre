@@ -1268,7 +1268,11 @@
                     <span class="invite-share-line1">Invite a friend!</span>
                     <span class="invite-share-line2">
                       <span class="invite-share-prefix">Your code:</span>
-                      <span class="invite-share-code" id="friend-code">SUNNY-FOX-2026</span>
+                      <!-- Was SUNNY-FOX-2026. The copy button below reads
+                           this element's textContent, so a session without a
+                           joinCode had the child sharing a code that belongs
+                           to nobody. See the copy guard in the script. -->
+                      <span class="invite-share-code" id="friend-code">—</span>
                     </span>
                   </span>
                   <span class="invite-share-icon" aria-hidden="true">📋</span>
@@ -1490,7 +1494,11 @@
     document.getElementById('back-btn')?.addEventListener('click', () => send('back-to-menu'));
     document.getElementById('invite-btn')?.addEventListener('click', () => send('invite-friend'));
     document.getElementById('copy-code-btn')?.addEventListener('click', () => {
-      const code = document.getElementById('friend-code')?.textContent || '';
+      const code = (document.getElementById('friend-code')?.textContent || '').trim();
+      // Refuse to copy the em-dash placeholder. Copying whatever happens to
+      // be in the element is how the old hardcoded SUNNY-FOX-2026 could have
+      // reached a real child's clipboard and then a real friend.
+      if (!code || code === '—') return;
       try { navigator.clipboard?.writeText(code); } catch (_) {}
       send('copy-code', { code });
     });

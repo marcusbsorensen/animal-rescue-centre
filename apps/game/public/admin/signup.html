@@ -1647,7 +1647,12 @@
                 </div>
                 <div class="sign-subtitle">What's your name and animal?</div>
                 <div class="name-field-wrap">
-                  <input type="text" class="name-field" placeholder="Type your name..." value="Lily" />
+                  <!-- No `value`. This used to ship value="Lily", which is a
+                       real prefilled value, not a placeholder: a child who
+                       tapped straight through created an account called Lily,
+                       and stage B greeted them as her. The placeholder above
+                       is the only prompt this field should carry. -->
+                  <input type="text" class="name-field" placeholder="Type your name..." />
                 </div>
                 <div class="chips avatar-picker">
                   <button class="chip avatar-pick selected"><span class="chip-avatar" style="background:#ffd0a0;">🦊</span><span class="chip-text"><span class="chip-name">Fox</span></span></button>
@@ -1947,7 +1952,31 @@
   });
 
   document.getElementById('next-btn')?.addEventListener('click', () => {
-    if (showing === 'select') setStage('pin');
+    if (showing !== 'select') return;
+    // Gate on a usable name. The field used to ship value="Lily", so it
+    // was never empty and this never needed checking; now that a child
+    // starts with a blank box, an ungated NEXT walks them all the way to
+    // the end of signup only to be refused by the server — and that
+    // refusal is currently invisible (see signup/index.ts, every 400).
+    // Mirror the server's rule loosely and say something here instead.
+    const name = currentName();
+    if (!name) {
+      showContextNote('Type your name first, then tap NEXT!');
+      return;
+    }
+    if (name.length < 2 || name.length > 18) {
+      showContextNote('Names are between 2 and 18 letters long.');
+      return;
+    }
+    if (!/^[A-Za-z][A-Za-z\s'\-]*[A-Za-z]$|^[A-Za-z]$/.test(name)) {
+      showContextNote('Names use letters only — no numbers or symbols.');
+      return;
+    }
+    if (!document.querySelector('.chip.avatar-pick.selected')) {
+      showContextNote('Pick an animal to be your buddy!');
+      return;
+    }
+    setStage('pin');
   });
   for (const chip of document.querySelectorAll('.chip.avatar-pick')) {
     chip.addEventListener('click', (e) => {

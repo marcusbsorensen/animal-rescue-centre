@@ -1232,36 +1232,54 @@
               <div class="paths-subtitle">Aspire to a path — change your mind any time. Each animal needs different things to thrive.</div>
             </div>
           </div>
+          <!-- The .path-criteria lists below are hidden, not deleted. Every
+               tick, cross and count in them is invented: "Bond 3+" and
+               "Bond 5 (3/5)" imply a 1-5 scale, but bond is 0-100
+               (game-logic/bond.ts), and nothing computes "Walked 5x (3/5)"
+               or the traits. They were showing a child fabricated progress
+               against a decision they cannot undo. They stay in the markup
+               as the design target for when real eligibility logic exists;
+               until then showing nothing beats showing fiction. -->
           <div class="paths-grid">
             <button class="path-card path-rehome aspiring" data-path="rehome">
               <div class="path-badge">🏡</div>
               <div class="path-name">Forever family</div>
               <div class="path-blurb">Find Luna a loving home with a human family</div>
-              <ul class="path-criteria">
+              <ul class="path-criteria" hidden>
                 <li class="met">Bond 3+</li>
                 <li class="met">Fully well</li>
                 <li class="unmet">Walked 5× (3/5)</li>
                 <li class="met">Groomed recently</li>
               </ul>
-              <div class="path-state">✨ Aspiring</div>
+              <!-- Was "✨ Aspiring", which claims the animal already wants
+                   this. Nothing set that; it was mockup dressing. -->
+              <div class="path-state">Tap to aspire</div>
             </button>
             <button class="path-card path-rewild" data-path="rewild">
               <div class="path-badge">🌲</div>
               <div class="path-name">Back to the wild</div>
               <div class="path-blurb">Release Luna to her wild home once she's ready</div>
-              <ul class="path-criteria">
+              <ul class="path-criteria" hidden>
                 <li class="locked">Wild species</li>
                 <li class="met">Fit &amp; healthy</li>
                 <li class="unmet">Garden time</li>
                 <li class="unmet">Wild instincts</li>
               </ul>
-              <div class="path-state path-state-locked">🔒 Not for collies</div>
+              <!-- This lock is load-bearing: the click handler below returns
+                   early on .path-state-locked. It said "Not for collies" on
+                   every animal, so the rewild path was dead for foxes and
+                   hedgehogs too — the species was never checked, because no
+                   rewildable-species rule exists anywhere in game-logic yet.
+                   Kept locked (enabling a path with no eligibility rule is a
+                   design decision, not a bug fix) but no longer blaming the
+                   animal for it. -->
+              <div class="path-state path-state-locked">🔒 Not yet available</div>
             </button>
             <button class="path-card path-work" data-path="work">
               <div class="path-badge">🎖️</div>
               <div class="path-name">Stay at A.R.C.</div>
               <div class="path-blurb">Luna becomes a working animal at the centre</div>
-              <ul class="path-criteria">
+              <ul class="path-criteria" hidden>
                 <li class="unmet">Bond 5 (3/5)</li>
                 <li class="met">Trait: Alert</li>
                 <li class="met">Trait: Loyal</li>
@@ -1321,6 +1339,18 @@
         if (titleEl) titleEl.textContent = `What will ${name} become?`;
         const backBtn = document.querySelector('[data-action="close"]');
         if (backBtn) backBtn.textContent = `← Back to ${name}`;
+        // The three card blurbs also name the animal, and only the title
+        // and back button were ever rewritten — so a child reading about
+        // their hedgehog was told what "Luna" would become.
+        const blurbs = {
+          '.path-rehome': `Find ${name} a loving home with a human family`,
+          '.path-rewild': `Release ${name} to the wild once they're ready`,
+          '.path-work': `${name} becomes a working animal at the centre`,
+        };
+        for (const [sel, text] of Object.entries(blurbs)) {
+          const el = document.querySelector(`${sel} .path-blurb`);
+          if (el) el.textContent = text;
+        }
       }
     });
   }

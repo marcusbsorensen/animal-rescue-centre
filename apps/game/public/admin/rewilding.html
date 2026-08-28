@@ -584,12 +584,17 @@
       <div class="rewild-inner">
 
         <div class="farewell-plaque" role="dialog" aria-labelledby="farewell-title">
-          <div class="farewell-title" id="farewell-title">Farewell, Luna</div>
+          <!-- Generic defaults on purpose — the real animal arrives in the
+               'init' message. This page had no message listener at all, so
+               every release in the game read "Farewell, Luna" over a red-fox
+               sprite at "Bond: Champion", whichever animal the child had
+               actually raised and released. -->
+          <div class="farewell-title" id="farewell-title">Farewell, friend</div>
           <div class="farewell-subtitle">A wild heart ready for wild skies</div>
 
           <div class="portrait-wrap">
             <div class="portrait-frame">
-              <img class="portrait-animal" src="/assets/animals/fox-red-walking.png" alt="Luna the red fox trotting off into the wild">
+              <img class="portrait-animal" id="animal-portrait" src="/assets/animals/fox-red-walking.png" alt="">
             </div>
           </div>
 
@@ -601,15 +606,19 @@
         </div>
 
         <div class="bond-panel">
-          <div class="bond-row">
+          <!-- "Bond: Champion" was invented for the mockup — there is no such
+               rank. Bond is a 0-100 number (see game-logic/bond.ts), so the
+               row is hidden until a real one arrives rather than showing a
+               made-up rank the child never earned. -->
+          <div class="bond-row" id="bond-row" hidden>
             <span class="bond-medal" aria-hidden="true">🏆</span>
-            <span class="bond-label">Bond: Champion</span>
+            <span class="bond-label" id="bond-label"></span>
           </div>
           <div class="bond-remember">
-            Luna will remember you
+            <span id="bond-remember-text">Your friend will remember you</span>
             <span aria-hidden="true">💚</span>
           </div>
-          <div class="bond-visit">Visit her wild home any time</div>
+          <div class="bond-visit">Visit their wild home any time</div>
         </div>
 
         <div class="release-wrap">
@@ -631,18 +640,58 @@
 
 <script>
   // Populate scroll text via textContent — no innerHTML with untrusted strings.
-  (function fillScroll() {
+  //
+  // Driven by the 'init' payload. Before it lands the copy stays generic;
+  // it previously hardcoded "Dear Lily … — Luna" at parse time with no
+  // listener to correct it.
+  function renderFarewell(p) {
+    const animal = (p && typeof p.animalName === 'string' && p.animalName.trim())
+      ? p.animalName.trim() : null;
+    const shown = animal || 'your friend';
+
+    const titleEl = document.getElementById('farewell-title');
+    if (titleEl) titleEl.textContent = animal ? `Farewell, ${animal}` : 'Farewell, friend';
+
+    const img = document.getElementById('animal-portrait');
+    if (img) {
+      img.alt = shown;
+      if (p && typeof p.animalSpriteSrc === 'string') img.src = p.animalSpriteSrc;
+    }
+
+    const rememberEl = document.getElementById('bond-remember-text');
+    if (rememberEl) rememberEl.textContent = `${shown.charAt(0).toUpperCase()}${shown.slice(1)} will remember you`;
+
+    // Bond is 0-100. Show it only when a real number arrives.
+    const bondRow = document.getElementById('bond-row');
+    const bondLabel = document.getElementById('bond-label');
+    const bond = p && typeof p.bond === 'number' && isFinite(p.bond) ? Math.round(p.bond) : null;
+    if (bondRow && bondLabel) {
+      if (bond === null) {
+        bondRow.hidden = true;
+      } else {
+        bondLabel.textContent = `Bond: ${Math.max(0, Math.min(100, bond))}%`;
+        bondRow.hidden = false;
+      }
+    }
+
     const body = document.getElementById('scroll-body');
-    const sign = document.getElementById('scroll-sign');
     if (body) {
       body.textContent =
-        "Dear Lily, thank you for teaching me to trust people again. " +
+        "Thank you for teaching me to trust people again. " +
         "I'll come running if you visit my meadow.";
     }
-    if (sign) {
-      sign.textContent = "Your friend always — Luna";
-    }
-  })();
+
+    const sign = document.getElementById('scroll-sign');
+    if (sign) sign.textContent = animal ? `Your friend always — ${animal}` : 'Your friend always';
+  }
+
+  renderFarewell(null);
+
+  window.addEventListener('message', (e) => {
+    const msg = e.data;
+    if (!msg || msg.source !== 'arc-game-host' || msg.type !== 'init') return;
+    renderFarewell(msg.payload || {});
+  });
 
   // Viewport size switcher
   const device = document.getElementById('device');

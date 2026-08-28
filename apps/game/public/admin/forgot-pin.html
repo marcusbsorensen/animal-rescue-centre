@@ -921,7 +921,11 @@
   const forceCorrect      = params.get('force-correct');     // '0' .. '3' or null
   const usernameParam     = params.get('username') || 'Lily';
   const attemptIndexParam = parseInt(params.get('attempt') || '0', 10);
-  const hintParam         = params.get('hint') || "the day my puppy was born";
+  // No fake hint when embedded. The real one arrives by postMessage from
+  // ForgotPinScene and only if the child actually saved one; the demo
+  // default is kept for opening this page directly for design review.
+  const hintParam         = params.get('hint')
+    || (params.has('embed') ? '' : "the day my puppy was born");
 
   // ── Default RecoverySnapshot (covers all 6 question kinds) ──
   let snapshot = {
@@ -1317,8 +1321,10 @@
         <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
         <div class="sign-title">Almost! Need a clue?</div>
       </div>
-      <div class="sign-subtitle">Here's the hint you wrote when you set your secret code.</div>
-      <div class="hint-card" id="hint-card">${escapeHtml(pinHint)}</div>
+      <div class="sign-subtitle" id="hint-subtitle">${pinHint
+        ? "Here's the hint you wrote when you set your secret code."
+        : "You didn't save a hint for your secret code."}</div>
+      <div class="hint-card" id="hint-card">${escapeHtml(pinHint || 'No hint saved')}</div>
       <div class="opts">
         <button class="opt-btn opt-amber" id="i-remember">I remember now! →</button>
         <button class="opt-btn opt-sage" id="ask-grownup">Still don't know — ask a grown-up</button>
@@ -1397,13 +1403,40 @@
   function setHint(h) {
     pinHint = h;
     const card = document.getElementById('hint-card');
-    if (card) card.textContent = h;
+    if (card) card.textContent = h || 'No hint saved';
+    // The stage may already have rendered with the "you didn't save a hint"
+    // subtitle before this arrived — correct it now that one has.
+    const sub = document.getElementById('hint-subtitle');
+    if (sub && h) sub.textContent = "Here's the hint you wrote when you set your secret code.";
   }
   window.addEventListener('message', (e) => {
     if (e.data?.source !== 'arc-auth-host') return;
     if (e.data.type === 'init' && e.data.payload?.snapshot) rebuildWithSnapshot(e.data.payload.snapshot);
     if (e.data.type === 'init' && e.data.payload?.hint) setHint(e.data.payload.hint);
   });
+
+  // ── Do not run the quiz on demo data ───────────────────────────
+  // The `snapshot` above is a hand-written demo covering all six question
+  // kinds, and NOTHING in the app ever replaces it: ForgotPinScene posts
+  // only {username, hint} (and only when a hint exists), and no code path
+  // anywhere in src/ sends a `snapshot` at all. So a locked-out child was
+  // asked to identify a cat called Marmalade, "The Baker family", and an
+  // apprentice named rhubarb — none of which are theirs. They cannot pass;
+  // every attempt falls through to parent-help by construction.
+  //
+  // Until a real RecoverySnapshot is wired up, skip straight to the stage
+  // they were always going to reach. The outcome is identical; what changes
+  // is that we no longer put a child who is already locked out through an
+  // unwinnable quiz about a stranger's pets.
+  //
+  // Design review (opening this page directly, no ?embed) still gets the
+  // full quiz against the demo snapshot — that is what it is for.
+  // Always the hint stage, never the quiz. The hint may still be in flight
+  // (ForgotPinScene resolves it asynchronously and posts it), so the card
+  // renders "No hint saved" and setHint() fills it in when it lands —
+  // rather than this deciding a stage from a hint it cannot have yet.
+  // Either way "ask a grown-up" is right there.
+  if (isEmbed && !params.get('stage')) startStage('hint');
 </script>
 </body>
 </html>

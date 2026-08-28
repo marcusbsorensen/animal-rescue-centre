@@ -943,7 +943,13 @@
                 </div>
                 <div class="friend-code-pill">
                   <span class="friend-code-label">Your friend code:</span>
-                  <span class="friend-code-value" id="friend-code">SUNNY-FOX-2026</span>
+                  <!-- Was SUNNY-FOX-2026, a made-up code. Replacement is
+                       guarded on the session carrying a joinCode, so any
+                       session missing one (a legacy row, an older save) left
+                       the fake code on screen — and friends.html copies the
+                       same element to the clipboard. An em-dash cannot be
+                       mistaken for a real code, or shared as one. -->
+                  <span class="friend-code-value" id="friend-code">—</span>
                 </div>
               </div>
 
