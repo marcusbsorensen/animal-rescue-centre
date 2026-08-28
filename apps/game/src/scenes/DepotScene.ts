@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
 import { AudioManager } from '../audio/AudioManager';
 import {
@@ -228,7 +228,7 @@ export class DepotScene extends Phaser.Scene {
 
     // Board size preview (shows dims for each mode as subtitle)
     this.container.add(
-      createTextButton(this, width / 2, height - 35,
+      createTextButton(this, width / 2, bottomAnchorY(height),
         '← Back to centre', () => {
           this.scene.start('GameScene');
         })
@@ -352,7 +352,7 @@ export class DepotScene extends Phaser.Scene {
 
     // Quit button
     this.container.add(
-      createTextButton(this, width / 2, height - 22,
+      createTextButton(this, width / 2, bottomAnchorY(height),
         'Leave Depot', () => {
           this.phase = 'results';
           this.renderView();
@@ -368,7 +368,7 @@ export class DepotScene extends Phaser.Scene {
     // "MATCH THESE:" label above the target cards
     this.container.add(
       this.add.text(width / 2, y - 30, 'MATCH THESE:', {
-        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
         color: '#f0c040', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
@@ -416,7 +416,7 @@ export class DepotScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, y + cardH / 2 + 14,
         'Tap a group of 2+ matching tiles to collapse them.', {
-          fontSize: '11px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
           resolution: TEXT_RESOLUTION, fontStyle: 'italic',
         }).setOrigin(0.5)
     );

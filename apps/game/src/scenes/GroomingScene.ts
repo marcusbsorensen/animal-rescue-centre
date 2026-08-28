@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createAmbientParticles } from '../ui/UIButton';
 import { applyGrooming } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
@@ -172,7 +172,7 @@ export class GroomingScene extends Phaser.Scene {
 
     // Back button
     this.container.add(
-      createTextButton(this, width / 2, height - 25, '← Back to centre', () => {
+      createTextButton(this, width / 2, bottomAnchorY(height), '← Back to centre', () => {
         this.exitScene();
       })
     );
@@ -185,7 +185,7 @@ export class GroomingScene extends Phaser.Scene {
     const barX = width / 2 - barW / 2;
     this.container.add(
       this.add.text(width / 2, barY - 14, 'Cleanliness', {
-        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
@@ -198,7 +198,7 @@ export class GroomingScene extends Phaser.Scene {
     this.container.add(this.cleanlinessFill);
 
     this.cleanlinessLabel = this.add.text(barX + barW + 8, barY + 7, '0%', {
-      fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0.5);
     this.container.add(this.cleanlinessLabel);
@@ -257,7 +257,7 @@ export class GroomingScene extends Phaser.Scene {
 
     // Back button
     this.container.add(
-      createTextButton(this, width / 2, height - 25, '← Back to centre', () => {
+      createTextButton(this, width / 2, bottomAnchorY(height), '← Back to centre', () => {
         this.exitScene();
       })
     );

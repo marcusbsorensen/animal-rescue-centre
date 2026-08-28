@@ -41,9 +41,20 @@ import { waitForGameReady, seedFakeSession } from './helpers';
 
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '__ux__');
 
+/**
+ * Landscape, all of them. The iOS build is orientation-locked to landscape
+ * on both phone and iPad (UISupportedInterfaceOrientations in
+ * ios/App/App/Info.plist), so a portrait measurement describes a layout no
+ * child will ever see. The first pass of this harness ran at 375x812 and
+ * 768x1024 and produced a fix list for exactly that layout.
+ *
+ * Sizes are the CSS-pixel viewports of the smallest devices that matter:
+ * iPhone SE/X-class in landscape, and iPad in landscape. Desktop is the web
+ * fallback and was already landscape.
+ */
 const VIEWPORTS = [
-  { name: 'mobile', width: 375, height: 812 },
-  { name: 'tablet', width: 768, height: 1024 },
+  { name: 'mobile', width: 812, height: 375 },
+  { name: 'tablet', width: 1024, height: 768 },
   { name: 'desktop', width: 1280, height: 800 },
 ];
 
@@ -74,6 +85,18 @@ interface SceneReport {
   interactiveCount: number;
   textCount: number;
   findings: Measurement[];
+  /**
+   * The elements that actually failed, with their geometry.
+   *
+   * The findings text names them — "Rectangle:30" — which is enough to know
+   * something is wrong and not enough to find it. Phaser display objects are
+   * mostly anonymous, so a size and a position is what makes a finding
+   * traceable back to the line that drew it.
+   */
+  offenders: {
+    smallTargets: { label: string; w: number; h: number; x: number; y: number; source: string }[];
+    smallText: { text: string; size: number; source: string }[];
+  };
 }
 
 /** Banded check: >= pass → PASS, >= warn → WARN, else FAIL. */
@@ -145,6 +168,13 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         // Phaser: recurse the display list, including into containers.
         const visit = (obj: Record<string, unknown>, depth = 0) => {
           if (!obj || depth > 12) return;
+          // Hidden objects are not a UX problem. Scenes keep pools of
+          // pre-built labels toggled with setVisible — the obstacle markers
+          // in SupplyRunScene are built once and shown on collision — and
+          // measuring those reported font sizes for text nobody can read.
+          // A container that is hidden hides its children too, so this
+          // prunes the whole branch.
+          if (obj.visible === false || obj.alpha === 0) return;
           const input = obj.input as { enabled?: boolean } | undefined;
           const getBounds = obj.getBounds as (() => { width: number; height: number; x: number; y: number }) | undefined;
 
@@ -165,7 +195,12 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
           if (obj.type === 'Text') {
             const style = obj.style as { fontSize?: string; fontFamily?: string; resolution?: number } | undefined;
             const size = parseFloat(String(style?.fontSize ?? '0'));
-            if (size > 0) {
+            // Empty text has no legibility to measure. Scenes create labels
+            // up front and fill them in later, and scoring those reported
+            // font-size failures for strings nobody can read. The DOM branch
+            // below already required non-empty content; this side did not.
+            const content = String(obj.text ?? '').trim();
+            if (size > 0 && content.length > 0) {
               texts.push({
                 size,
                 family: String(style?.fontFamily ?? ''),
@@ -262,6 +297,9 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
       // ── T4: spacing between adjacent targets ─────────────────────
       if (boxes.length > 1) {
         let tightest = Infinity;
+        // Naming the pair, not just the number — "tightest gap 2px" is not
+        // something you can go and fix.
+        let tightestPair = '';
         for (let i = 0; i < boxes.length; i++) {
           for (let j = i + 1; j < boxes.length; j++) {
             const a = boxes[i], b = boxes[j];
@@ -270,7 +308,12 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
             // Only count pairs that actually sit beside each other.
             if (dx === 0 && dy === 0) continue;
             const gap = dx === 0 ? dy : dy === 0 ? dx : Math.hypot(dx, dy);
-            if (gap < tightest) tightest = gap;
+            if (gap < tightest) {
+              tightest = gap;
+              tightestPair =
+                `${a.label} ${a.w.toFixed(0)}x${a.h.toFixed(0)}@${a.x.toFixed(0)},${a.y.toFixed(0)}` +
+                ` ↔ ${b.label} ${b.w.toFixed(0)}x${b.h.toFixed(0)}@${b.x.toFixed(0)},${b.y.toFixed(0)}`;
+            }
           }
         }
         if (Number.isFinite(tightest)) {
@@ -278,7 +321,7 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
             id: 'T4',
             rule: 'spacing between targets',
             verdict: band(tightest, 8, 12),
-            detail: `tightest gap ${tightest.toFixed(0)}px`,
+            detail: `tightest gap ${tightest.toFixed(0)}px — ${tightestPair}`,
           });
         }
       }
@@ -391,6 +434,19 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         interactiveCount: boxes.length,
         textCount: texts.length,
         findings,
+        offenders: {
+          smallTargets: boxes
+            .filter((b) => Math.min(b.w, b.h) < 48)
+            .map((b) => ({
+              label: b.label,
+              w: Math.round(b.w), h: Math.round(b.h),
+              x: Math.round(b.x), y: Math.round(b.y),
+              source: b.source,
+            })),
+          smallText: texts
+            .filter((t) => t.size < 14)
+            .map((t) => ({ text: t.text, size: t.size, source: t.source })),
+        },
       });
     }
   }

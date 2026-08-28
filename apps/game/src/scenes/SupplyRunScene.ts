@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
 import { AudioManager } from '../audio/AudioManager';
 import {
@@ -300,7 +300,7 @@ export class SupplyRunScene extends Phaser.Scene {
     });
 
     this.container.add(
-      createTextButton(this, width / 2, height - 35,
+      createTextButton(this, width / 2, bottomAnchorY(height),
         '← Back to centre', () => {
           this.scene.start('GameScene');
         })
@@ -484,7 +484,7 @@ export class SupplyRunScene extends Phaser.Scene {
     this.container.add(wheelGfx);
     // Repurpose hudSpeedText as the steering position indicator dot
     this.hudSpeedText = this.add.text(width / 2, row3Y + 10, '●', {
-      fontSize: '10px', fontFamily: FONTS.title, color: '#00ffcc',
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, color: '#00ffcc',
     }).setOrigin(0.5);
     this.container.add(this.hudSpeedText);
   }
@@ -911,7 +911,7 @@ export class SupplyRunScene extends Phaser.Scene {
 
     const labelStr = obstacle.smashable ? '!' : 'X';
     const labelText = this.add.text(0, 0, labelStr, {
-      fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
       color: obstacle.smashable ? '#ffd700' : '#ff2244',
     }).setOrigin(0.5).setVisible(false);
     this.container.add(labelText);
@@ -1132,7 +1132,7 @@ export class SupplyRunScene extends Phaser.Scene {
         const worst = matched[matched.length - 1];
         this.container.add(
           this.add.text(width / 2, dmgY + 18, `${worst.emoji} ${worst.label}`, {
-            fontSize: '13px', fontFamily: FONTS.body, color: NEON.textDim,
+            fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: NEON.textDim,
           }).setOrigin(0.5)
         );
       }

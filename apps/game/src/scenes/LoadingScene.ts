@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
 import { AssetLoader } from '../lib/AssetLoader';
 import { createAmbientParticles } from '../ui/UIButton';
 
@@ -205,7 +205,7 @@ export class LoadingScene extends Phaser.Scene {
     // loading is actually progressing. If it stalls, the escape hatch
     // below kicks in.
     this.progressText = this.add.text(width / 2, this.barY + 60, '0%', {
-      fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
     this.lastProgressAt = Date.now();
@@ -361,7 +361,7 @@ export class LoadingScene extends Phaser.Scene {
 
     // Small "loading is slow" hint below
     const hint = this.add.text(0, 34, 'Assets will keep loading in the background', {
-      fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
     container.add(hint);

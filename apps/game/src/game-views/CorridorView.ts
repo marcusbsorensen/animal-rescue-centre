@@ -7,7 +7,7 @@ import {
 } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors } from '../lib/RoomAnchors';
-import { FONTS, TEXT_RESOLUTION, pluralSpecies } from '../ui/constants';
+import { FONTS, TEXT_RESOLUTION, pluralSpecies, SAFE_MARGIN } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
 import { renderApprenticeDecorations } from './ApprenticeDecorations';
 
@@ -343,6 +343,24 @@ export function renderCorridor(
       if (anchorFlipX && 'setFlipX' in sprite) {
         (sprite as Phaser.GameObjects.Image).setFlipX(true);
       }
+
+      // Keep the tappable sprite clear of the bottom safe margin. Anchors
+      // are authored in the editor against a roomier canvas; on a landscape
+      // phone the same fractional y puts a scaled-up arrival's lower edge
+      // inside the bottom inset, which on iOS is the home-gesture strip —
+      // the OS takes the touch and tapping the animal does nothing.
+      //
+      // Measured from the sprite rather than from drawH: createAnimalSprite
+      // renders a few pixels taller than the size it is handed, so clamping
+      // against the requested height leaves the real lower edge inside the
+      // margin. Only moves a sprite that would otherwise sit in it.
+      const overflow = sprite.getBounds().bottom - (height - SAFE_MARGIN);
+      if (overflow > 0) {
+        sprite.y -= overflow;
+        shadow.y -= overflow;
+        spriteCy -= overflow;
+      }
+
       sprite.on('pointerdown', () =>
         callbacks.onShowAnimalDetails(animal, { x: ax, y: spriteCy, size: drawW }),
       );

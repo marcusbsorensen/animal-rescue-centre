@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
+import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY } from '../ui/constants';
 import { createButton, createTextButton, createPanel, createAmbientParticles, createPillTitle } from '../ui/UIButton';
 import { getFriends, type Friend } from '../lib/friends';
 import {
@@ -26,6 +26,8 @@ export class SocialScene extends Phaser.Scene {
   private _lastWidth = 0;
   private _lastHeight = 0;
   private tab: SocialTab = 'inbox';
+  /** Top of the tab content, set from the tab bar's actual position. */
+  private contentTop = 100;
   private container!: Phaser.GameObjects.Container;
   private friends: Friend[] = [];
   private inbox: GiftInbox[] = [];
@@ -115,16 +117,22 @@ export class SocialScene extends Phaser.Scene {
     this.container.add(bgPattern);
 
     // Title
-    this.container.add(
-      createPillTitle(this, width / 2, 30, 'Social', {
-        bgColour: 0x9b59b6,
-        icon: 'icon-social-scene',
-        iconSize: 24,
-      })
-    );
+    const title = createPillTitle(this, width / 2, 30, 'Social', {
+      bgColour: 0x9b59b6,
+      icon: 'icon-social-scene',
+      iconSize: 24,
+    });
+    this.container.add(title);
 
-    // Tab bar
-    this.renderTabBar(width);
+    // Tab bar, and everything below it, measured off the title rather than
+    // hard-coded. The tabs grew from 30px to 48px to clear the tap-target
+    // floor, which is enough to collide with a fixed title above and a
+    // fixed content block below if either stays a magic number.
+    // Measured from the pill's drawn height, not getBounds() — see
+    // createPillTitle for why those differ.
+    const tabY = 30 + title.height / 2 + MIN_TAP_GAP + MIN_TAP / 2;
+    this.renderTabBar(width, tabY);
+    this.contentTop = tabY + MIN_TAP / 2 + MIN_TAP_GAP;
 
     // Tab content
     switch (this.tab) {
@@ -136,15 +144,14 @@ export class SocialScene extends Phaser.Scene {
 
     // Back button
     this.container.add(
-      // 16px clearance + half the 31px button height.
-      createTextButton(this, width / 2, height - (SAFE_MARGIN + 16),
+      createTextButton(this, width / 2, bottomAnchorY(height),
         '← Back to centre', () => {
           this.scene.start('GameScene');
         })
     );
   }
 
-  private renderTabBar(width: number): void {
+  private renderTabBar(width: number, tabY: number): void {
     const tabs: { key: SocialTab; label: string; badge?: number }[] = [
       { key: 'inbox', label: `Inbox${this.inbox.length > 0 ? ` (${this.inbox.length})` : ''}` },
       { key: 'send', label: 'Send' },
@@ -152,16 +159,19 @@ export class SocialScene extends Phaser.Scene {
       { key: 'showcase', label: 'Share' },
     ];
 
+    // Four tabs across the top, and every one of them was a 30px bar with
+    // 4px between it and the next: under the 40px target floor, and close
+    // enough together that a thumb aiming at Inbox could land on Send.
     const tabWidth = (width - 40) / tabs.length;
     tabs.forEach((t, i) => {
       const x = 20 + i * tabWidth + tabWidth / 2;
       const isActive = this.tab === t.key;
 
-      const bg = this.add.rectangle(x, 65, tabWidth - 4, 30,
+      const bg = this.add.rectangle(x, tabY, tabWidth - MIN_TAP_GAP, MIN_TAP,
         isActive ? 0x4a9c5d : 0xe0d6c8
       ).setInteractive({ useHandCursor: true });
 
-      const text = this.add.text(x, 65, t.label, {
+      const text = this.add.text(x, tabY, t.label, {
         fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
         color: isActive ? '#ffffff' : COLOURS.text,
       }).setOrigin(0.5);
@@ -183,7 +193,7 @@ export class SocialScene extends Phaser.Scene {
   // ── Inbox ──────────────────────────────────────────────────
 
   private renderInbox(width: number, height: number): void {
-    const startY = 100;
+    const startY = this.contentTop;
 
     if (this.inbox.length === 0) {
       this.container.add(
@@ -253,7 +263,7 @@ export class SocialScene extends Phaser.Scene {
   // ── Send Gift ──────────────────────────────────────────────
 
   private renderSendGift(width: number, height: number): void {
-    const startY = 100;
+    const startY = this.contentTop;
 
     if (this.friends.length === 0) {
       this.container.add(
@@ -428,7 +438,7 @@ export class SocialScene extends Phaser.Scene {
   }
 
   private renderLeaderboard(width: number, height: number): void {
-    const startY = 100;
+    const startY = this.contentTop;
 
     this.container.add(
       this.add.text(width / 2, startY, 'Friends Leaderboard', {
@@ -491,7 +501,7 @@ export class SocialScene extends Phaser.Scene {
   // ── Showcase ───────────────────────────────────────────────
 
   private renderShowcase(width: number, height: number): void {
-    const startY = 100;
+    const startY = this.contentTop;
 
     this.container.add(
       this.add.text(width / 2, startY, 'Share Your Centre', {

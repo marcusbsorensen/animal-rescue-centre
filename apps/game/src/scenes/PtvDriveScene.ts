@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, SAFE_MARGIN } from '../ui/constants';
+import { COLOURS, FONTS, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
 import { createButton } from '../ui/UIButton';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Economy } from '@arc/shared-types';
@@ -556,7 +556,7 @@ export class PtvDriveScene extends Phaser.Scene {
     gps.add(panel);
     gps.add(
       this.add.text(px + pw / 2, py - 11, 'GPS  ⠿', {
-        fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
       }).setOrigin(0.5).setDepth(48)
     );
 
@@ -612,7 +612,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const label = this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     gps.add(
       this.add.text(px + pw / 2, py + ph + 5, `→ ${label}`, {
-        fontSize: '12px', fontFamily: FONTS.body, color: '#ffffff',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#ffffff',
       }).setOrigin(0.5, 0).setDepth(48)
     );
 
@@ -794,7 +794,7 @@ export class PtvDriveScene extends Phaser.Scene {
 
       this.container.add(
         this.add.text(cx, bayTop + bayH - 9, v.name, {
-          fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#e8dcc8',
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#e8dcc8',
         }).setOrigin(0.5)
       );
 
@@ -809,11 +809,15 @@ export class PtvDriveScene extends Phaser.Scene {
           cone.fillStyle(0xffffff, 0.85); cone.fillRect(cx - 7, coneY + 1, 14, 4);
           this.container.add(cone);
         }
+        // The unlock chip used to sit just above the cone, 7px below the
+        // vehicle name — close enough that the two labels overlapped and
+        // "Big Tilly" read as "B____ly". Moved to the top of the bay, where
+        // there is nothing but slab above the roof of a greyed-out van.
         this.container.add(
-          this.add.text(cx, coneY - 22, `L${v.unlockLevel}`, {
-            fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+          this.add.text(cx, bayTop + 12, `L${v.unlockLevel}`, {
+            fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
             backgroundColor: 'rgba(40,40,40,0.82)', padding: { x: 5, y: 2 },
-          }).setOrigin(0.5)
+          }).setOrigin(0.5).setDepth(22)
         );
       } else if (img) {
         const hit = this.add.rectangle(cx, bayTop + bayH / 2, bw - 6, bayH, 0xffffff, 0)
@@ -943,14 +947,14 @@ export class PtvDriveScene extends Phaser.Scene {
     );
     card.add(
       this.add.text(w / 2, h * 0.82, `Slots ${v.slots}    Fuel ${v.fuelCost}    L${v.unlockLevel}+`, {
-        fontSize: '11px', fontFamily: FONTS.body, color: '#6a6152',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#6a6152',
       }).setOrigin(0.5)
     );
 
     if (selected) {
       card.add(
         this.add.text(w - 8, 8, 'Selected!', {
-          fontSize: '11px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
           backgroundColor: '#d9534f', padding: { x: 6, y: 3 },
         }).setOrigin(1, 0)
       );
@@ -1027,7 +1031,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const henryX = bayLeft + bayW * (henryBay + 0.5);
     this.container.add(
       this.add.text(henryX, bayTop + bayH - 12, VEHICLE_DEFS[this.vehicleId].name, {
-        fontSize: '13px', fontFamily: FONTS.title, color: '#e8dcc8',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, color: '#e8dcc8',
       }).setOrigin(0.5)
     );
 
@@ -1672,7 +1676,7 @@ export class PtvDriveScene extends Phaser.Scene {
     // Gentle hint.
     this.container.add(
       this.add.text(width / 2, height - 14, 'Tap left/right to change lane   ·   Spacebar = handbrake   ·   H = horn', {
-        fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5).setDepth(40)
     );
   }
@@ -1741,7 +1745,7 @@ export class PtvDriveScene extends Phaser.Scene {
     // "GEAR" caption.
     this.container.add(
       this.add.text(stickX, topY - 44, 'GEAR', {
-        fontSize: '12px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
       }).setOrigin(0.5).setDepth(40)
     );
 
@@ -2014,7 +2018,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.add(panel);
     this.container.add(
       this.add.text(x, y - 50, 'BRAKE', {
-        fontSize: '11px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
       }).setOrigin(0.5).setDepth(40)
     );
     this.handbrakeLamp = this.add.circle(x, y - 14, 12, 0x5a2420).setStrokeStyle(2, 0x3a1a17).setDepth(40);
@@ -2025,7 +2029,7 @@ export class PtvDriveScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(41)
     );
     this.handbrakeLabel = this.add.text(x, y + 26, 'PULL', {
-      fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#c8b8a4',
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#c8b8a4',
     }).setOrigin(0.5).setDepth(41);
     this.container.add(this.handbrakeLabel);
     const zone = this.add.rectangle(x, y + 8, 60, 104, 0xffffff, 0)
@@ -2057,7 +2061,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.add(g);
     this.container.add(
       this.add.text(x, y + 20, 'HORN', {
-        fontSize: '10px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
       }).setOrigin(0.5).setDepth(40)
     );
     const zone = this.add.rectangle(x, y, 56, 68, 0xffffff, 0)

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from './constants';
 import { createButton } from './UIButton';
 
 /**
@@ -41,7 +41,7 @@ export function createSpeechBubble(
   let body: Phaser.GameObjects.Text | null = null;
   if (opts.body) {
     body = scene.add.text(0, 0, `"${opts.body}"`, {
-      fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'italic',
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'italic',
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       wordWrap: { width: innerW }, lineSpacing: 2,
     }).setOrigin(0, 0);
@@ -50,7 +50,7 @@ export function createSpeechBubble(
   let action: Phaser.GameObjects.Container | null = null;
   if (opts.actionLabel && opts.onAction) {
     action = createButton(scene, 0, 0, opts.actionLabel, opts.onAction, {
-      width: 120, fontSize: '13px',
+      width: 120, fontSize: `${MIN_FONT.small}px`,
       bgColour: opts.actionBgHex ?? '#27ae60',
       icon: opts.actionIcon,
     });

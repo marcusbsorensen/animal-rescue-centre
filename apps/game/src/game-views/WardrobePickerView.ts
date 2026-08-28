@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { getGarmentForSpecies } from '@arc/game-logic';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
 
 /**
  * WardrobePickerView — a small modal that lets the player pick a
@@ -92,7 +92,7 @@ export function renderWardrobePicker(
     scene.add.text(width / 2, panelY + 48,
       'Tap a colour to equip it',
       {
-        fontSize: '11px', fontFamily: FONTS.body,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       },
     ).setOrigin(0.5),
@@ -142,7 +142,7 @@ export function renderWardrobePicker(
     // Colour name below
     container.add(
       scene.add.text(cx, cy + swatchSize / 2 + 8, name, {
-        fontSize: '10px', fontFamily: FONTS.body,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5, 0),
     );
@@ -161,7 +161,7 @@ export function renderWardrobePicker(
     container.add(removeHit);
     container.add(
       scene.add.text(width / 2, removeY, 'Take off', {
-        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
         color: '#7b5c3a', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );

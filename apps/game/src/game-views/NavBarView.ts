@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { createButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP_GAP } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
 
 /**
@@ -81,7 +81,16 @@ export function renderNavBar(
   const tabsSide = leftTabs.length;
   // width - 32 rather than - 20, so the outermost tab's tap area clears the
   // 16px safe margin instead of sitting 13px from the edge.
-  const barW = Math.min(width - SAFE_MARGIN * 2, tabsSide * 2 * tabW + fabSize + fabGap * 2 + 28);
+  //
+  // Each tab is budgeted tabW *plus* MIN_TAP_GAP. Without the gap the bar
+  // was exactly wide enough to hold four 74px tabs and the tabs ended up
+  // 2px apart — four targets that pass on size and fail on separation,
+  // which for a child aiming at Shelter and hitting Garden is the same
+  // thing as being too small. There is width to spare in landscape.
+  const barW = Math.min(
+    width - SAFE_MARGIN * 2,
+    tabsSide * 2 * (tabW + MIN_TAP_GAP) + fabSize + fabGap * 2 + 28,
+  );
   const barH = tabH + 16;
   const barX = (width - barW) / 2;
   const barY = height - barH - SAFE_MARGIN;

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { getAvailableToys, getPlayToyId, type ToyDef } from '@arc/game-logic';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
 import { createButton } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 
@@ -149,7 +149,7 @@ export function renderToyPicker(
 
       // Label underneath
       const label = scene.add.text(cx, cy + cardRadius + 8, toy.label, {
-        fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
         align: 'center', wordWrap: { width: cardSize + 20 },
       }).setOrigin(0.5, 0);

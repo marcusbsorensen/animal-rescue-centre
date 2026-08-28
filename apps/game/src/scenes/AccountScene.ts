@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species, Economy } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
 import { createButton, createPillTitle, createAmbientParticles } from '../ui/UIButton';
 import { BADGE_DEFINITIONS } from '@arc/badges';
 import { getSession } from '../lib/auth';
@@ -161,7 +161,7 @@ export class AccountScene extends Phaser.Scene {
     const earned = this.payload.earnedBadges.length;
     this.container.add(
       this.add.text(textX, cardY + 28, `${earned} / ${BADGE_DEFINITIONS.length} badges earned`, {
-        fontSize: '12px', fontFamily: FONTS.body,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5)
     );
@@ -252,7 +252,7 @@ export class AccountScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, chipY - 30, 'Animals you\'ve met', {
-        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
@@ -361,7 +361,7 @@ export class AccountScene extends Phaser.Scene {
       const nameStr = earned ? def.name : '???';
       tile.add(
         this.add.text(0, badgeSize / 2 - 18, nameStr, {
-          fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
           color: earned ? COLOURS.text : COLOURS.textLight,
           resolution: TEXT_RESOLUTION,
           align: 'center',
@@ -463,12 +463,12 @@ export class AccountScene extends Phaser.Scene {
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5));
     card.add(this.add.text(0, 28, def.description, {
-      fontSize: '13px', fontFamily: FONTS.body,
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       wordWrap: { width: cw - 40 }, align: 'center',
     }).setOrigin(0.5));
     card.add(this.add.text(0, 72, 'Tap to close', {
-      fontSize: '11px', fontFamily: FONTS.body,
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5));
 

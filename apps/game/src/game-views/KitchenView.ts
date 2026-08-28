@@ -8,7 +8,7 @@ import {
   hasAllyPresent,
 } from '@arc/game-logic';
 import { createButton, createTextButton, createPillTitle, createPanel } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
 
 /**
@@ -104,7 +104,7 @@ export function renderKitchen(
     );
     container.add(
       scene.add.text(width / 2, panelCy + 18, 'Check back when someone gets peckish.', {
-        fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );
