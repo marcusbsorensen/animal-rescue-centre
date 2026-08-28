@@ -23,15 +23,22 @@ import { DialogueDemoScene } from './scenes/DialogueDemoScene';
 import { PtvDriveScene } from './scenes/PtvDriveScene';
 import { showUpdateBanner } from './ui/UpdateBanner';
 import { registerSW } from 'virtual:pwa-register';
+import { shouldRegisterServiceWorker } from './lib/platform';
 
 // Show the painted "new version ready!" banner when vite-plugin-pwa
 // detects a waiting service worker. Refresh clicks skip-waiting the SW
 // and reload so the fresh bundle takes over immediately.
-const updateSW = registerSW({
-  onNeedRefresh() {
-    showUpdateBanner(() => updateSW(true));
-  },
-});
+//
+// Web only — see shouldRegisterServiceWorker(). The native shell serves
+// from capacitor://localhost, where registration cannot succeed and an
+// update banner would be lying about how the app updates.
+if (shouldRegisterServiceWorker()) {
+  const updateSW = registerSW({
+    onNeedRefresh() {
+      showUpdateBanner(() => updateSW(true));
+    },
+  });
+}
 
 // Dev-only: `?dialogueDemo=1` boots straight into the DialogueRunner harness.
 const DIALOGUE_DEMO =
