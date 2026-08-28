@@ -1,0 +1,13 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bay Road Vets">
+  <!-- Friendly veterinary mark: green medical cross (care) + white paw (animal).
+       Two flat colours, bold shapes — stays legible down to ~16px on the map. -->
+  <rect x="46" y="14" width="28" height="92" rx="11" fill="#46a085"/>
+  <rect x="14" y="46" width="92" height="28" rx="11" fill="#46a085"/>
+  <g fill="#ffffff">
+    <ellipse cx="60" cy="67.5" rx="9" ry="7.6"/>
+    <circle cx="51" cy="55" r="3.8"/>
+    <circle cx="57" cy="50.4" r="4.2"/>
+    <circle cx="63" cy="50.4" r="4.2"/>
+    <circle cx="69" cy="55" r="3.8"/>
+  </g>
+</svg>

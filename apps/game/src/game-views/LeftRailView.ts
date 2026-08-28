@@ -24,7 +24,7 @@ import type { GameStateStore } from '../game-state/GameStateStore';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getUrgentNeed } from '@arc/game-logic';
 import { createButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
 
 /** Width of the rail on iPad / desktop. iPhone collapses it. */
 export const RAIL_WIDTH = 280;
@@ -126,14 +126,14 @@ function renderSideRail(
   bounds: { x: number; y: number; w: number; h: number },
   ctx: CountsContext,
 ): void {
-  const padX = 14;
+  const padX = SAFE_MARGIN;
   const innerW = bounds.w - padX * 2;
   let cursorY = bounds.y + 16;
 
   // ── Header: "MY RESCUE" eyebrow ──────────────────────────
   container.add(
     scene.add.text(bounds.x + padX, cursorY, 'MY RESCUE', {
-      fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0),
   );
@@ -177,7 +177,7 @@ function renderSideRail(
         bounds.x + bounds.w / 2, cursorY + 18,
         `Welcome them all (${ctx.arriving.length})`,
         () => callbacks.onWelcomeAll(ctx.arriving),
-        { width: innerW - 6, fontSize: '13px', icon: 'icon-accept', bgColour: COLOURS.primary },
+        { width: innerW - 6, fontSize: '14px', icon: 'icon-accept', bgColour: COLOURS.primary },
       );
       container.add(btn);
       cursorY += 44;
@@ -187,7 +187,7 @@ function renderSideRail(
     container.add(
       scene.add.text(bounds.x + bounds.w / 2, cursorY + 30,
         'No new arrivals\nright now',
-        { fontSize: '12px', fontFamily: FONTS.body,
+        { fontSize: '14px', fontFamily: FONTS.body,
           color: COLOURS.textLight, align: 'center',
           resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5, 0.5),
@@ -208,7 +208,7 @@ function renderDrawer(
   bounds: { x: number; y: number; w: number; h: number },
   ctx: CountsContext,
 ): void {
-  const padX = 12;
+  const padX = SAFE_MARGIN;
   const innerW = bounds.w - padX * 2;
 
   // Header strip — counts inline + tap-target to expand later (future)
@@ -220,7 +220,7 @@ function renderDrawer(
     scene.add.text(bounds.x + padX, headerY,
       headerText,
       {
-        fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
         color: ctx.arriving.length > 0 ? '#A85A28' : COLOURS.textLight,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0),
@@ -242,11 +242,13 @@ function renderDrawer(
     if (ctx.arriving.length > 1) {
       const allBtn = createButton(
         scene,
-        bounds.x + bounds.w - padX - 32,
+        // -38, not -32: createButton pads out to about 76px wide, so half of
+        // it is 38. The old guess put the pill 10px from the screen edge.
+        bounds.x + bounds.w - padX - 38,
         bounds.y + 16,
         `All`,
         () => callbacks.onWelcomeAll(ctx.arriving),
-        { width: 60, fontSize: '11px', bgColour: COLOURS.primary },
+        { width: 60, fontSize: '14px', bgColour: COLOURS.primary },
       );
       container.add(allBtn);
     }
@@ -254,7 +256,7 @@ function renderDrawer(
     container.add(
       scene.add.text(bounds.x + bounds.w / 2, bounds.y + bounds.h / 2 + 6,
         'All quiet at the rescue',
-        { fontSize: '12px', fontFamily: FONTS.body,
+        { fontSize: '14px', fontFamily: FONTS.body,
           color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5, 0.5),
     );
@@ -288,7 +290,7 @@ function drawCountCell(
   );
   container.add(
     scene.add.text(x + w / 2, y + 38, label, {
-      fontSize: '10px', fontFamily: FONTS.body,
+      fontSize: '14px', fontFamily: FONTS.body,
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5, 0.5),
   );
@@ -311,7 +313,7 @@ function drawSectionHeader(
 ): number {
   container.add(
     scene.add.text(x, y, label, {
-      fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#A85A28', resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0.5).setY(y + 8),
   );
@@ -323,7 +325,7 @@ function drawSectionHeader(
   container.add(badge1);
   container.add(
     scene.add.text(badgeX, y + 8, badge, {
-      fontSize: '11px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold',
       color: '#ffffff', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5, 0.5),
   );
@@ -372,7 +374,7 @@ function drawArrivalCard(
   const titleText = `${animal.name} the ${speciesLabel}`;
   container.add(
     scene.add.text(x + 12, y + 8, titleText, {
-      fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold',
       color: '#3a2e22', resolution: TEXT_RESOLUTION,
       wordWrap: { width: w - 24 },
     }).setOrigin(0, 0),
@@ -383,7 +385,7 @@ function drawArrivalCard(
   const truncated = story.length > 88 ? story.slice(0, 86) + '…' : story;
   container.add(
     scene.add.text(x + 12, y + 30, `"${truncated}"`, {
-      fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'italic',
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'italic',
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       wordWrap: { width: w - 24 }, maxLines: 2,
     }).setOrigin(0, 0),
@@ -394,7 +396,7 @@ function drawArrivalCard(
     scene, x + w / 2, y + cardH - 16,
     'Welcome',
     onWelcome,
-    { width: w - 24, fontSize: '12px', icon: 'icon-accept', bgColour: COLOURS.primary },
+    { width: w - 24, fontSize: '14px', icon: 'icon-accept', bgColour: COLOURS.primary },
   );
   container.add(btn);
 
@@ -429,7 +431,7 @@ function drawMiniArrivalCard(
   const title = `${animal.name}`;
   container.add(
     scene.add.text(x + 6, y + 6, title, {
-      fontSize: '11px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold',
       color: '#3a2e22', resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0),
   );
@@ -438,8 +440,8 @@ function drawMiniArrivalCard(
     ? `the ${animal.variant} ${animal.species}`
     : `the ${animal.species}`;
   container.add(
-    scene.add.text(x + 6, y + 22, sub, {
-      fontSize: '9px', fontFamily: FONTS.body, fontStyle: 'italic',
+    scene.add.text(x + 6, y + 23, sub, {
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'italic',
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0),
   );
@@ -449,7 +451,7 @@ function drawMiniArrivalCard(
     scene, x + w / 2, y + h - 14,
     'Welcome',
     onWelcome,
-    { width: w - 14, fontSize: '10px', bgColour: COLOURS.primary },
+    { width: w - 14, fontSize: '14px', bgColour: COLOURS.primary },
   );
   container.add(btn);
 }

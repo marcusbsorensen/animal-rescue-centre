@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species, Economy } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
 import { createButton, createPillTitle, createAmbientParticles } from '../ui/UIButton';
 import { BADGE_DEFINITIONS } from '@arc/badges';
 import { getSession } from '../lib/auth';
@@ -79,9 +79,12 @@ export class AccountScene extends Phaser.Scene {
     const { width } = this.scale;
     this.container.removeAll(true);
 
-    // Title pill
+    // Title pill. On a phone the Back button occupies the top-left, so
+    // centre the title in what is left rather than over the button.
+    const backRight = SAFE_MARGIN + 58 + 58;
+    const titleX = width < 500 ? (backRight + width) / 2 : width / 2;
     this.container.add(
-      createPillTitle(this, width / 2, 52, 'My A.R.C.', {
+      createPillTitle(this, titleX, SAFE_MARGIN + 23, 'My A.R.C.', {
         bgColour: 0xE67E22,
         icon: 'icon-badge',
         iconSize: 22,
@@ -90,22 +93,24 @@ export class AccountScene extends Phaser.Scene {
 
     // Back button (top-left)
     this.container.add(
-      createButton(this, 70, 52, 'Back', () => {
+      createButton(this, SAFE_MARGIN + 58, SAFE_MARGIN + 23, 'Back', () => {
         AudioManager.getInstance().playSfx('button_click');
         this.scene.start('GameScene');
       }, { width: 100, fontSize: '16px', bgColour: '#6b5a4a', icon: 'icon-back', iconSize: 18 })
     );
 
     this.renderProfileCard();
-    this.renderStatsRow();
-    this.renderBadgeWall();
+    // Stats can wrap to more than one row on a narrow screen; renderStatsRow
+    // reports the first y the badge wall may safely start at.
+    const contentTop = this.renderStatsRow();
+    this.renderBadgeWall(contentTop);
   }
 
   private renderProfileCard(): void {
     const { width } = this.scale;
     const session = getSession();
     const cardY = 120;
-    const cardW = Math.min(560, width - 40);
+    const cardW = Math.min(560, width - SAFE_MARGIN * 2);
     const cardH = 110;
     const cardX = width / 2;
 
@@ -156,13 +161,13 @@ export class AccountScene extends Phaser.Scene {
     const earned = this.payload.earnedBadges.length;
     this.container.add(
       this.add.text(textX, cardY + 28, `${earned} / ${BADGE_DEFINITIONS.length} badges earned`, {
-        fontSize: '12px', fontFamily: FONTS.body,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5)
     );
   }
 
-  private renderStatsRow(): void {
+  private renderStatsRow(): number {
     const { width } = this.scale;
     const rowY = 210;
     const pills = [
@@ -176,31 +181,52 @@ export class AccountScene extends Phaser.Scene {
     const pillW = 98;
     const pillH = 54;
     const gap = 8;
-    const totalW = pillW * pills.length + gap * (pills.length - 1);
-    let x = width / 2 - totalW / 2 + pillW / 2;
 
-    for (const p of pills) {
-      const g = this.add.graphics();
-      g.fillStyle(0x000000, 0.12);
-      g.fillRoundedRect(x - pillW / 2 + 2, rowY - pillH / 2 + 3, pillW, pillH, 14);
-      g.fillStyle(0xffffff, 0.98);
-      g.fillRoundedRect(x - pillW / 2, rowY - pillH / 2, pillW, pillH, 14);
-      this.container.add(g);
+    // Five pills at a fixed 98px are 522px wide. On a 375px phone that ran
+    // 73px off both edges — the row was centred with no responsive step at
+    // all. Wrap into as many rows as fit inside the 16px safe margin rather
+    // than scaling the pills down, which would undo the type sizes.
+    const perRow = Math.max(
+      1,
+      Math.floor((width - SAFE_MARGIN * 2 + gap) / (pillW + gap)),
+    );
+    const rows: typeof pills[] = [];
+    for (let i = 0; i < pills.length; i += perRow) rows.push(pills.slice(i, i + perRow));
 
-      this.container.add(
-        this.add.text(x, rowY - 10, p.value, {
-          fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
-          color: COLOURS.text, resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-      this.container.add(
-        this.add.text(x, rowY + 15, p.label, {
-          fontSize: '11px', fontFamily: FONTS.body,
-          color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5)
-      );
-      x += pillW + gap;
-    }
+    rows.forEach((row, rowIndex) => {
+      const rowW = pillW * row.length + gap * (row.length - 1);
+      let x = width / 2 - rowW / 2 + pillW / 2;
+      const y = rowY + rowIndex * (pillH + 10);
+
+      for (const p of row) {
+        const g = this.add.graphics();
+        g.fillStyle(0x000000, 0.12);
+        g.fillRoundedRect(x - pillW / 2 + 2, y - pillH / 2 + 3, pillW, pillH, 14);
+        g.fillStyle(0xffffff, 0.98);
+        g.fillRoundedRect(x - pillW / 2, y - pillH / 2, pillW, pillH, 14);
+        this.container.add(g);
+
+        this.container.add(
+          this.add.text(x, y - 10, p.value, {
+            fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
+            color: COLOURS.text, resolution: TEXT_RESOLUTION,
+          }).setOrigin(0.5)
+        );
+        this.container.add(
+          this.add.text(x, y + 15, p.label, {
+            fontSize: '14px', fontFamily: FONTS.body,
+            color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+          }).setOrigin(0.5)
+        );
+        x += pillW + gap;
+      }
+    });
+
+    // Everything below the pills shifts down by however many extra rows we
+    // needed, so the species chips do not land on top of them.
+    // Where the pill block actually ends, rather than a constant that only
+    // held while the row never wrapped.
+    const pillsBottom = rowY + (rows.length - 1) * (pillH + 10) + pillH / 2;
 
     // Species collected — one little disc per species with the animal emoji
     const speciesOrder: Species[] = ['cat', 'dog', 'bunny', 'fox', 'bat', 'parrot', 'snake', 'hedgehog'];
@@ -209,15 +235,24 @@ export class AccountScene extends Phaser.Scene {
       bat: '🦇', parrot: '🦜', snake: '🐍', hedgehog: '🦔',
     };
     const collectedSpecies = new Set(this.payload.animals.map(a => a.species));
-    const chipY = 265;
+    // 52 below the pills: room for the caption (which sits 30 above the
+    // chip centres) plus the 19px chip radius, with air either side. The
+    // old fixed 265 put the caption 4px inside the pills even before the
+    // row wrapped — wrapping just made it obvious.
+    const chipY = pillsBottom + 52;
     const chipW = 38;
-    const chipGap = 10;
+    // Eight chips at 38 + 10 gap is 374px, one pixel inside a 375px phone
+    // and outside the safe margin. Squeeze the gap before the chip.
+    const chipGap = Math.max(
+      4,
+      Math.min(10, (width - SAFE_MARGIN * 2 - chipW * speciesOrder.length) / (speciesOrder.length - 1)),
+    );
     const chipRowW = chipW * speciesOrder.length + chipGap * (speciesOrder.length - 1);
     let cx = width / 2 - chipRowW / 2 + chipW / 2;
 
     this.container.add(
-      this.add.text(width / 2, chipY - 24, 'Animals you\'ve met', {
-        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+      this.add.text(width / 2, chipY - 30, 'Animals you\'ve met', {
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
@@ -237,12 +272,15 @@ export class AccountScene extends Phaser.Scene {
       );
       cx += chipW + chipGap;
     }
+
+    // Hand the badge wall the first y it may safely use.
+    return chipY + 19 + 22;
   }
 
-  private renderBadgeWall(): void {
+  private renderBadgeWall(contentTop = 310): void {
     const { width, height } = this.scale;
-    const wallY = 310;
-    const availW = Math.min(width - 40, 640);
+    const wallY = Math.max(310, contentTop);
+    const availW = Math.min(width - SAFE_MARGIN * 2, 640);
     const wallX = width / 2;
 
     // Heading
@@ -323,7 +361,7 @@ export class AccountScene extends Phaser.Scene {
       const nameStr = earned ? def.name : '???';
       tile.add(
         this.add.text(0, badgeSize / 2 - 18, nameStr, {
-          fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
           color: earned ? COLOURS.text : COLOURS.textLight,
           resolution: TEXT_RESOLUTION,
           align: 'center',
@@ -386,7 +424,7 @@ export class AccountScene extends Phaser.Scene {
       .setInteractive();
     const card = this.add.container(width / 2, height / 2);
 
-    const cw = Math.min(340, width - 40);
+    const cw = Math.min(340, width - SAFE_MARGIN * 2);
     const ch = 200;
 
     const cardGfx = this.add.graphics();
@@ -425,12 +463,12 @@ export class AccountScene extends Phaser.Scene {
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5));
     card.add(this.add.text(0, 28, def.description, {
-      fontSize: '13px', fontFamily: FONTS.body,
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       wordWrap: { width: cw - 40 }, align: 'center',
     }).setOrigin(0.5));
     card.add(this.add.text(0, 72, 'Tap to close', {
-      fontSize: '11px', fontFamily: FONTS.body,
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5));
 

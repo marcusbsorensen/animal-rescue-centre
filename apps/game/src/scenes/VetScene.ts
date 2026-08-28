@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   applyHealStep,
@@ -145,7 +145,7 @@ export class VetScene extends Phaser.Scene {
     );
     this.container.add(
       this.add.text(textX, spriteY + 24, this.illness.description, {
-        fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
         fontStyle: 'italic', resolution: TEXT_RESOLUTION,
         wordWrap: { width: Math.min(260, width - textX - 20) },
       }).setOrigin(0, 0.5)
@@ -157,7 +157,7 @@ export class VetScene extends Phaser.Scene {
     const barX = width / 2 - barW / 2;
     this.container.add(
       this.add.text(width / 2, barY - 14, 'Health', {
-        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
@@ -178,7 +178,7 @@ export class VetScene extends Phaser.Scene {
     // Percentage on the right
     this.container.add(
       this.add.text(barX + barW + 8, barY + 7, `${Math.round(this.animal.health)}%`, {
-        fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5)
     );
@@ -187,7 +187,7 @@ export class VetScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, 238,
         `Healing progress: ${this.healStep}/${this.illness.healSteps}`, {
-        fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.primary, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
@@ -244,13 +244,13 @@ export class VetScene extends Phaser.Scene {
       );
       this.container.add(
         this.add.text(x, emojiY + 24, action.label, {
-          fontSize: '13px', fontFamily: FONTS.title, fontStyle: 'bold',
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold',
           color: COLOURS.text, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
       this.container.add(
         this.add.text(x, emojiY + 42, action.description, {
-          fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
           resolution: TEXT_RESOLUTION, wordWrap: { width: cardW - 16 }, align: 'center',
         }).setOrigin(0.5)
       );
@@ -270,7 +270,7 @@ export class VetScene extends Phaser.Scene {
 
     // Back button
     this.container.add(
-      createTextButton(this, width / 2, height - 25,
+      createTextButton(this, width / 2, bottomAnchorY(height),
         '← Back to centre (leave sick)', () => {
           this.registry.set('updatedAnimals', this.allAnimals);
           this.registry.set('vetResult', { healed: false });

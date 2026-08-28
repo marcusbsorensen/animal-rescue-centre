@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP } from './constants';
 
 /**
  * Polished rounded button with shadow and 3D bevel effect.
@@ -99,9 +99,16 @@ export function createButton(
   gfx.lineStyle(1.5, 0xffffff, 0.3);
   gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
 
-  // Hit area (invisible rect for pointer events)
-  const hitArea = scene.add.rectangle(0, 0, w, h, 0x000000, 0)
-    .setInteractive({ useHandCursor: true });
+  // Hit area (invisible rect for pointer events), floored at MIN_TAP.
+  //
+  // The drawn button keeps whatever size the caller asked for — the default
+  // height is text.height + 28, which lands at 44-46px for the font sizes in
+  // use, just under the target floor. Growing the art instead would nudge
+  // every layout in the game for the sake of two pixels; growing only the
+  // region that answers a tap costs nothing visible.
+  const hitArea = scene.add.rectangle(
+    0, 0, Math.max(w, MIN_TAP), Math.max(h, MIN_TAP), 0x000000, 0,
+  ).setInteractive({ useHandCursor: true });
 
   const children: Phaser.GameObjects.GameObject[] = [gfx, text];
   if (iconSprite) children.push(iconSprite);
@@ -155,8 +162,17 @@ export function createTextButton(
     Phaser.Display.Color.HexStringToColor(COLOURS.primary).color, 0
   );
 
-  const hitArea = scene.add.rectangle(0, 0, text.width + 20, text.height + 12, 0x000000, 0)
-    .setInteractive({ useHandCursor: true });
+  // The hit area is floored at MIN_TAP, not sized to the label. A 17px
+  // line of text is about 31px tall with its padding, which is under the
+  // 40px WARN band — and this is the "← Back to centre" button on half the
+  // scenes in the game, so the same near-miss showed up everywhere. The
+  // visible text is unchanged; only the region that answers a tap grows.
+  const hitArea = scene.add.rectangle(
+    0, 0,
+    Math.max(text.width + 20, MIN_TAP),
+    Math.max(text.height + 12, MIN_TAP),
+    0x000000, 0,
+  ).setInteractive({ useHandCursor: true });
 
   const container = scene.add.container(x, y, [text, underline, hitArea]);
 
@@ -257,6 +273,12 @@ export function createPillTitle(
   const pillChildren: Phaser.GameObjects.GameObject[] = [gfx, text];
   if (pillIcon) pillChildren.push(pillIcon);
   const container = scene.add.container(x, y, pillChildren);
+  // The pill is drawn into a Graphics object, and Graphics contributes
+  // nothing to getBounds() — so a caller measuring this container to lay
+  // out whatever sits beneath it gets the height of the *text*, about 10px
+  // short, and puts its next row inside the pill. Publish the real drawn
+  // size instead; `title.width` / `title.height` are then meaningful.
+  container.setSize(w, h + (shadow ? 3 : 0));
   return container;
 }
 

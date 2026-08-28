@@ -334,7 +334,7 @@ function renderDirtyOverlay(
     const flyOriginX = x + (fi === 0 ? -size * 0.18 : size * 0.18);
     const flyOriginY = y - size * 0.48;
     const fly = scene.add.text(flyOriginX, flyOriginY, '🐝', {
-      fontSize: '12px', resolution: TEXT_RESOLUTION,
+      fontSize: '14px', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5).setAlpha(0.85);
     container.add(fly);
     const phase = fi * Math.PI;

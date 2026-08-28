@@ -235,7 +235,7 @@ export function renderAnimalDetails(
   );
   container.add(
     scene.add.text(panelLeft + 18, panelTop + 36, `the ${speciesLabel}`, {
-      fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
       resolution: TEXT_RESOLUTION,
     }),
   );
@@ -250,7 +250,7 @@ export function renderAnimalDetails(
   let cursorY = panelTop + 60;
   const storyText = scene.add.text(panelLeft + 18, cursorY,
     `"${animal.arrivalStory}"`, {
-      fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
       fontStyle: 'italic', wordWrap: { width: panelW - 36 },
       resolution: TEXT_RESOLUTION,
     });
@@ -260,7 +260,7 @@ export function renderAnimalDetails(
   // ── Need speech (if animal wants something) ────────────────
   if (speech) {
     const speechText = scene.add.text(panelLeft + 18, cursorY, `"${speech}"`, {
-      fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#c0392b', wordWrap: { width: panelW - 36 },
       resolution: TEXT_RESOLUTION,
     });
@@ -286,7 +286,7 @@ export function renderAnimalDetails(
   statDefs.forEach(([label, value, colour]) => {
     container.add(
       scene.add.text(barX, cursorY, label, {
-        fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
         resolution: TEXT_RESOLUTION,
       }),
     );
@@ -302,7 +302,7 @@ export function renderAnimalDetails(
     container.add(track);
     container.add(
       scene.add.text(barX + barW, cursorY, `${Math.round(value)}%`, {
-        fontSize: '10px', fontFamily: FONTS.body, color: '#888',
+        fontSize: '14px', fontFamily: FONTS.body, color: '#888',
         resolution: TEXT_RESOLUTION,
       }).setOrigin(1, 0),
     );
@@ -377,7 +377,7 @@ export function renderAnimalDetails(
         createButton(scene, panelLeft + panelW / 2, extraY,
           `Get a ${garment} — weather needs it`,
           () => callbacks.onEquipWardrobe(),
-          { width: 250, fontSize: '13px', bgColour: '#8B6914' }),
+          { width: 250, fontSize: '14px', bgColour: '#8B6914' }),
       );
       extraY += 46;
     }
@@ -388,7 +388,7 @@ export function renderAnimalDetails(
         createButton(scene, panelLeft + panelW / 2, extraY,
           `💫 What will ${animal.name} become?`,
           () => callbacks.onOpenPaths!(),
-          { width: 250, fontSize: '13px', bgColour: '#8a6eb2' }),
+          { width: 250, fontSize: '14px', bgColour: '#8a6eb2' }),
       );
       extraY += 46;
     }
@@ -403,7 +403,7 @@ export function renderAnimalDetails(
     );
     container.add(
       scene.add.text(panelLeft + 42, btnRow1Y - 14, `${collarName} Collar`, {
-        fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5),
     );

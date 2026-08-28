@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel } from '../ui/UIButton';
 import {
   startGridWalk,
@@ -259,7 +259,7 @@ export class WalkScene extends Phaser.Scene {
       this.container.add(swatch);
       this.container.add(
         this.add.text(cx, cy + 28, collar.name, {
-          fontSize: '11px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
 
@@ -291,7 +291,7 @@ export class WalkScene extends Phaser.Scene {
     );
 
     this.container.add(
-      createTextButton(this, width / 2, height * 0.94, '← Back to centre', () => {
+      createTextButton(this, width / 2, bottomAnchorY(height), '← Back to centre', () => {
         this.scene.start('GameScene');
       })
     );
@@ -397,7 +397,7 @@ export class WalkScene extends Phaser.Scene {
 
       this.container.add(
         this.add.text(width / 2 - cardW / 2 + 22, y - 4, zone.description, {
-          fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
           wordWrap: { width: cardW * 0.55 },
         }).setOrigin(0, 0.5)
       );
@@ -419,7 +419,7 @@ export class WalkScene extends Phaser.Scene {
     });
 
     this.container.add(
-      createTextButton(this, width / 2, height - 30, '← Back', () => {
+      createTextButton(this, width / 2, bottomAnchorY(height), '← Back', () => {
         this.phase = 'collar';
         this.renderPhase();
       })
@@ -794,13 +794,13 @@ export class WalkScene extends Phaser.Scene {
 
     this.dpadContainer.add(
       this.add.text(interactX, dpadY + 8, 'Sniff', {
-        fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffffff',
       }).setOrigin(0.5)
     );
 
     // Exit button (find exit)
     this.dpadContainer.add(
-      createTextButton(this, width / 2, height - 35, 'Find Exit', () => {
+      createTextButton(this, width / 2, bottomAnchorY(height), 'Find Exit', () => {
         // Show exit direction hint
         if (this.gridState) {
           const dr = this.gridState.map.exitTile.row - this.gridState.playerRow;
@@ -947,7 +947,7 @@ export class WalkScene extends Phaser.Scene {
     if (changes.length > 0) {
       this.overlayContainer.add(
         this.add.text(width / 2, py + 34, changes.join(' | '), {
-          fontSize: '11px', fontFamily: FONTS.body, color: '#2E8B57', resolution: TEXT_RESOLUTION,
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#2E8B57', resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
     }
@@ -1209,7 +1209,7 @@ export class WalkScene extends Phaser.Scene {
     this.roadTimeLeft = 3000;
     const timerText = this.add.text(width / 2 - stripW / 2 + 110, stripY + 12,
       'Look both ways… 3.0s', {
-      fontSize: '12px', fontFamily: FONTS.body, color: '#c0392b',
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#c0392b',
     }).setOrigin(0, 0.5);
     this.overlayContainer.add(timerText);
 
@@ -1289,7 +1289,7 @@ export class WalkScene extends Phaser.Scene {
         success
           ? `${this.animal.name} crossed safely.`
           : `${this.animal.name} needs more practice.`, {
-        fontSize: '12px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
@@ -1427,7 +1427,7 @@ export class WalkScene extends Phaser.Scene {
 
     this.overlayContainer.add(
       this.add.text(width / 2, this.gridOffsetY - 16, message, {
-        fontSize: '13px', fontFamily: FONTS.body, color: '#ffffff', resolution: TEXT_RESOLUTION,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#ffffff', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
 

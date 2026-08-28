@@ -3,7 +3,7 @@ import type { Animal } from '@arc/shared-types';
 import { RESOLUTION_ACTIONS, type Conflict, type ResolutionDef } from '@arc/game-logic';
 import { createButton } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
 
 /**
@@ -157,7 +157,7 @@ export function renderConflictPopup(
     );
     card.add(
       scene.add.text(textX, 12, action.description, {
-        fontSize: '11px', fontFamily: FONTS.body,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         wordWrap: { width: cardW - (textX + cardW / 2 + 10) },
       }).setOrigin(0, 0.5),

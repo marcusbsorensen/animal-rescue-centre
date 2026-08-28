@@ -6,7 +6,7 @@ import {
   getMaxShelterAnimals,
 } from '@arc/game-logic';
 import { AudioManager } from '../audio/AudioManager';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
 
 // Human-readable names for phases + weathers (shown in HUD pills).
@@ -87,9 +87,14 @@ export function renderHUD(
 
   // Constrain to 600px centred for large screens
   const maxW = Math.min(width, 600);
-  const leftEdge = (width - maxW) / 2 + 10;
-  const rightEdge = width - (width - maxW) / 2 - 10;
-  const orbY = 30;
+  // 10 -> SAFE_MARGIN. The tap circles in this strip are floored at a 24px
+  // radius, so a 10px inset left their outer edge 6px from the screen.
+  const leftEdge = (width - maxW) / 2 + SAFE_MARGIN;
+  const rightEdge = width - (width - maxW) / 2 - SAFE_MARGIN;
+  // 40, not 30. The tap circles in this strip are floored at a 24px radius
+  // for small fingers, so a centre at 30 put their top edge 6px from the
+  // screen — inside the notch/status area on a phone. 16 + 24 clears it.
+  const orbY = SAFE_MARGIN + 24;
   const orbH = 44;
 
   // ── LEFT: Level orb with XP bar ───────────────────────────
@@ -103,7 +108,9 @@ export function renderHUD(
   uiContainer.add(leftGfx);
 
   // Green level circle
-  const lvlCx = leftX + orbH / 2;
+  // The tap circle is floored at a 24px radius while the orb art is 22, so
+  // centring on the orb alone left the hit area poking 2px past the margin.
+  const lvlCx = Math.max(leftX + orbH / 2, SAFE_MARGIN + 24);
   const lvlCircle = scene.add.graphics();
   lvlCircle.fillStyle(0x5AAE4A, 1);
   lvlCircle.fillCircle(lvlCx, orbY, orbH / 2 - 4);
@@ -120,7 +127,7 @@ export function renderHUD(
   const xpW = leftOrbW - orbH - 14;
   uiContainer.add(
     scene.add.text(xpX, orbY - 9, `${welcomedCount} in care`, {
-      fontSize: '10px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0.5),
   );
@@ -134,7 +141,9 @@ export function renderHUD(
   uiContainer.add(xpBar);
 
   // Level orb tappable
-  const orbHit = scene.add.circle(lvlCx, orbY, orbH / 2, 0x000000, 0)
+  // Hit radius floored at 24 (48px across) — the orb art is 44, which
+  // sits in the WARN band for a 7-11 year old's targeting accuracy.
+  const orbHit = scene.add.circle(lvlCx, orbY, Math.max(orbH / 2, 24), 0x000000, 0)
     .setInteractive({ useHandCursor: true });
   orbHit.on('pointerdown', () => callbacks.onLevelOrbTap());
   uiContainer.add(orbHit);
@@ -147,7 +156,9 @@ export function renderHUD(
   void arrivingCount; void needsCareCount;
 
   // ── RIGHT SIDE: stack orbs from right edge leftward ─────
-  let rx = rightEdge;
+  // Pulled in by the 24px tap radius rather than the 20px orb radius, for
+  // the same reason as lvlCx above.
+  let rx = Math.min(rightEdge, width - SAFE_MARGIN - 24 + 20);
   const orbSize = 40;
 
   // Audio toggle orb (right-most)
@@ -262,7 +273,7 @@ function drawTimeWeatherStrip(
     const labelX = x0 + pillH + 4;
     container.add(
       scene.add.text(labelX, cy - 5, PHASE_LABELS[currentPhase], {
-        fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5),
     );
@@ -335,7 +346,7 @@ function drawTimeWeatherStrip(
     // Weather label
     container.add(
       scene.add.text(x0 + pillH + 4, cy, WEATHER_LABELS[current], {
-        fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5),
     );
@@ -376,7 +387,7 @@ function drawAlertBadge(
   container.add(gfx);
   container.add(
     scene.add.text(cx, cy, `${count}`, {
-      fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#ffffff', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5),
   );
@@ -397,7 +408,7 @@ function drawAlertBadge(
     },
   });
 
-  const hit = scene.add.circle(cx, cy, radius + 4, 0x000000, 0)
+  const hit = scene.add.circle(cx, cy, Math.max(radius + 4, 24), 0x000000, 0)
     .setInteractive({ useHandCursor: true });
   hit.on('pointerdown', onTap);
   container.add(hit);
@@ -430,13 +441,13 @@ function drawIconOrb(
   } else {
     container.add(
       scene.add.text(cx, cy, fallback, {
-        fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );
   }
 
-  const hit = scene.add.circle(cx, cy, size / 2, 0x000000, 0)
+  const hit = scene.add.circle(cx, cy, Math.max(size / 2, 24), 0x000000, 0)
     .setInteractive({ useHandCursor: true });
   hit.on('pointerdown', onTap);
   container.add(hit);

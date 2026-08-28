@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { createButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP_GAP } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
 
 /**
@@ -72,14 +72,28 @@ export function renderNavBar(
 
   // ── Bar geometry ──────────────────────────────────────
   const tabW = 74;
-  const tabH = 60;
+  // 64, up from 60: the tab labels went from 11px to 15/16px and need the
+  // extra few pixels of vertical room. Costs 4px of bar height — still
+  // under 10% of a 375x812 screen, well inside the HUD budget.
+  const tabH = 64;
   const fabSize = 68;
   const fabGap = 12;
   const tabsSide = leftTabs.length;
-  const barW = Math.min(width - 20, tabsSide * 2 * tabW + fabSize + fabGap * 2 + 28);
+  // width - 32 rather than - 20, so the outermost tab's tap area clears the
+  // 16px safe margin instead of sitting 13px from the edge.
+  //
+  // Each tab is budgeted tabW *plus* MIN_TAP_GAP. Without the gap the bar
+  // was exactly wide enough to hold four 74px tabs and the tabs ended up
+  // 2px apart — four targets that pass on size and fail on separation,
+  // which for a child aiming at Shelter and hitting Garden is the same
+  // thing as being too small. There is width to spare in landscape.
+  const barW = Math.min(
+    width - SAFE_MARGIN * 2,
+    tabsSide * 2 * (tabW + MIN_TAP_GAP) + fabSize + fabGap * 2 + 28,
+  );
   const barH = tabH + 16;
   const barX = (width - barW) / 2;
-  const barY = height - barH - 16;
+  const barY = height - barH - SAFE_MARGIN;
 
   // Glass bar background
   const bg = scene.add.graphics();
@@ -105,7 +119,7 @@ export function renderNavBar(
     // (which is the real cause of the "pixellated" look on retina).
     const iconPx = tab.active ? 52 : 46;
     if (scene.textures.exists(tab.iconKey)) {
-      const img = scene.add.image(tx, ty - 9, tab.iconKey)
+      const img = scene.add.image(tx, ty - 11, tab.iconKey)
         .setDisplaySize(iconPx, iconPx)
         .setOrigin(0.5);
       scene.textures.get(tab.iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
@@ -113,15 +127,20 @@ export function renderNavBar(
       navContainer.add(img);
     } else {
       navContainer.add(
-        scene.add.text(tx, ty - 9, tab.label.slice(0, 2), {
+        scene.add.text(tx, ty - 11, tab.label.slice(0, 2), {
           fontSize: `${iconPx}px`, fontFamily: FONTS.title, fontStyle: 'bold',
           color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
       );
     }
+    // 16/15px, up from 12/11. These label the primary navigation for the
+    // whole game and were the smallest type on the busiest screen — under
+    // the 14px floor for a 7-11 year old reader (ux-review F2/F5). The
+    // longest label is "Social", ~52px bold at 16px, so it still sits
+    // inside the 74px tab.
     navContainer.add(
-      scene.add.text(tx, ty + 18, tab.label, {
-        fontSize: tab.active ? '12px' : '11px',
+      scene.add.text(tx, ty + 19, tab.label, {
+        fontSize: tab.active ? '16px' : '15px',
         fontFamily: FONTS.body, fontStyle: 'bold',
         color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
@@ -179,8 +198,8 @@ export function renderNavBar(
 
   // Caption under the FAB
   navContainer.add(
-    scene.add.text(fabX, fabY + fabSize / 2 - 6, 'Supplies', {
-      fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
+    scene.add.text(fabX, fabY + fabSize / 2 - 4, 'Supplies', {
+      fontSize: '15px', fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#6b5a4a', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5, 0),
   );

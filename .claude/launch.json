@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "game-dev",
+      "name": "arc-game",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@arc/game", "dev"],
+      "runtimeArgs": ["dev"],
       "port": 5173
     }
   ]

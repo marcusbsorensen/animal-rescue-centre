@@ -42,8 +42,14 @@ describe('shouldSpawnConflict', () => {
     const animals = Array.from({ length: 8 }, (_, i) =>
       makeAnimal({ id: `a${i}`, happiness: 10 })
     );
+    // 3000 trials, for the same reason as the two-animal case below.
+    // At 8 animals on 10 happiness the per-call chance is ~0.0092
+    // (0.0025 base + 0.833·0.005 unhappiness + 0.833·0.003 crowding), so
+    // 500 trials missed 1.0% of the time — this test, not the sibling one,
+    // is what failed a full-workspace run on 2026-08-27. 3000 trials takes
+    // the miss probability to ~1e-12 and still runs in single-digit ms.
     let spawned = false;
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < 3000; i++) {
       if (shouldSpawnConflict(animals)) { spawned = true; break; }
     }
     expect(spawned).toBe(true);
@@ -161,7 +167,10 @@ describe('conflict edge cases', () => {
     for (let i = 0; i < 100; i++) {
       ids.add(generateConflict(a1, a2).id);
     }
-    // Date.now() + random should produce unique ids
+    // The assertion was right and the generator was wrong: ids were
+    // Date.now() plus four base-36 characters of Math.random(), and a
+    // hundred of them inside one millisecond collided ~0.3% of the time.
+    // They come from a counter now, so this holds by construction.
     expect(ids.size).toBe(100);
   });
 

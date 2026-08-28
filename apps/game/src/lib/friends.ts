@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { getSession } from './auth';
+import { getSession, sessionHeaders } from './auth';
 
 export interface Friend {
   id: string;
@@ -16,9 +16,12 @@ export async function addFriendByCode(joinCode: string): Promise<Friend> {
   const session = getSession();
   if (!session) throw new Error('Not logged in');
 
+  // The function derives the caller from x-arc-session; it no longer
+  // accepts a userId in the body. Overriding Authorization with our own
+  // non-JWT token would also trip the platform's verify_jwt.
   const { data, error } = await supabase.functions.invoke('add-friend', {
     body: { joinCode },
-    headers: { Authorization: `Bearer ${session.token}` },
+    headers: sessionHeaders(),
   });
 
   if (error) throw new Error(error.message ?? 'Failed to add friend');

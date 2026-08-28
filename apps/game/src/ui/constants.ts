@@ -96,6 +96,58 @@ export const TEXT_RESOLUTION = typeof window !== 'undefined'
   : 2;
 
 /**
+ * Minimum clearance between any interactive element and the screen edge.
+ *
+ * 16px is the pass threshold in the children's UX checklist (L3). On a
+ * phone the bottom edge is the home-gesture area and the top may hold a
+ * notch, so a control sitting flush to the edge is either hard to hit or
+ * intercepted by the OS before the game sees it.
+ *
+ * Use it for any row or control positioned relative to `scale.width` /
+ * `scale.height` rather than inventing a local padding number.
+ */
+export const SAFE_MARGIN = 16;
+
+/**
+ * Minimum size, in px, of anything a child has to hit.
+ *
+ * 48 is the pass threshold in the checklist (T1-T3); 40 is the WARN band.
+ * The evidence for 7-11 year-olds is that targeting accuracy is meaningfully
+ * worse than an adult's, and a miss in this game is not a nuisance — it is
+ * tapping the wrong animal.
+ *
+ * It applies to the *hit area*, not the art. The established pattern is a
+ * transparent rectangle or circle sized to this and added on top, so a 30px
+ * pill can stay 30px and still be comfortably tappable:
+ *
+ *   scene.add.rectangle(x, y, Math.max(w, MIN_TAP), Math.max(h, MIN_TAP), 0, 0)
+ *     .setInteractive({ useHandCursor: true })
+ *
+ * Adjacent targets also need `MIN_TAP_GAP` between them, or two 48px buttons
+ * flush against each other are one 96px button as far as a small hand is
+ * concerned.
+ */
+export const MIN_TAP = 48;
+
+/** Minimum clear space between two adjacent interactive elements (T4). */
+export const MIN_TAP_GAP = 12;
+
+/**
+ * Y for a control anchored to the bottom edge — the "← Back to centre"
+ * button on most scenes.
+ *
+ * These were written as `height - 25`, `height - 30`, `height - 35` and
+ * `height * 0.94`, all of which cleared the old 31px button. Once the hit
+ * area was floored at 48 the bottom half of it ran into the safe margin,
+ * and on a phone that margin is the home-gesture strip: the OS takes the
+ * touch before the game ever sees it. Anchor from the edge instead of
+ * guessing a gap.
+ */
+export function bottomAnchorY(height: number): number {
+  return height - (SAFE_MARGIN + MIN_TAP / 2);
+}
+
+/**
  * Minimum font sizes for children's game UX (ages 7-11).
  * Based on: Hourcade 2015, British Dyslexia Association,
  * Sesame Workshop design guidelines, NNG children's UX studies.

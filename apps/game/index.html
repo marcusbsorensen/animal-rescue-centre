@@ -7,9 +7,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>A.R.C. — Animal Rescue Centre</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+    <!--
+      Self-hosted — see public/fonts/fonts.css. Loading these from
+      fonts.googleapis.com sent the device IP to a third party on every
+      cold launch, which is a review risk for a Kids Category app, and
+      left the game with fallback type whenever it opened offline.
+    -->
+    <link rel="preload" href="/fonts/nunito-700-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/fonts/fonts.css">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 100%; height: 100%; overflow: hidden; background: #fef9ef; }

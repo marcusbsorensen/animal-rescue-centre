@@ -15,6 +15,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
     "@supabase/supabase-js": "^2.103.0",
     "phaser": "^3.80.1"
   },
@@ -22,10 +24,12 @@
     "@arc/badges": "workspace:*",
     "@arc/game-logic": "workspace:*",
     "@arc/shared-types": "workspace:*",
+    "@capacitor/cli": "^8.5.0",
     "@playwright/test": "^1.59.1",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.0.0",
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.0.2",
     "typescript": "^5.5.0",
     "vite": "^6.0.0",

@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { requireSession } from '../_shared/session.ts';
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -7,16 +8,21 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { joinCode, userId: requestUserId } = body;
-    const authHeader = req.headers.get('Authorization');
+    const { joinCode } = body;
 
-    if (!authHeader) {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Who is calling comes from the verified session, never from the
+    // request body — otherwise anyone with the public anon key could add
+    // friends to any child's account.
+    const session = await requireSession(req, supabase);
+    if (!session) {
       return jsonResponse({ error: 'Not authenticated' }, 401);
     }
-
-    if (!requestUserId) {
-      return jsonResponse({ error: 'User ID required' }, 400);
-    }
+    const requestUserId = session.userId;
 
     if (!joinCode || typeof joinCode !== 'string') {
       return jsonResponse({ error: 'Join code is required' }, 400);
@@ -28,11 +34,6 @@ Deno.serve(async (req) => {
     if (!/^[A-Z]{3}-\d{3}$/.test(normalised)) {
       return jsonResponse({ error: 'Invalid join code format' }, 400);
     }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
 
     // Find the friend by join code
     const { data: friend, error: friendErr } = await supabase

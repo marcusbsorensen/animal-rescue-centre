@@ -6,10 +6,13 @@
   "description": "A.R.C. — Animal Rescue Centre",
   "scripts": {
     "dev": "pnpm --filter @arc/game dev",
-    "build": "pnpm -r build",
+    "build": "pnpm -r --filter '!@arc/admin' build",
+    "build:admin-local": "ARC_ADMIN_LOCAL_BUILD=1 pnpm --filter @arc/admin build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "build:ios": "node scripts/build-ios.mjs",
+    "ios": "pnpm build:ios && pnpm --filter @arc/game exec cap open ios"
   },
   "engines": {
     "node": ">=20"

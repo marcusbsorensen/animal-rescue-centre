@@ -5,7 +5,7 @@ import {
   type Applicant,
   type AdoptionStoreLike,
 } from '@arc/game-logic';
-import { FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
 
@@ -287,7 +287,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
     );
     this.container.add(
       this.add.text(cx + 10, cy - 4, this.animal.species, {
-        fontSize: '13px',
+        fontSize: `${MIN_FONT.small}px`,
         fontFamily: FONTS.body,
         color: '#6b3a18',
         fontStyle: 'italic',
@@ -297,7 +297,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
     const bondPct = Math.round(this.animal.bondLevel ?? 0);
     this.container.add(
       this.add.text(cx + 10, cy + 18, `Bond ${bondPct}%`, {
-        fontSize: '12px',
+        fontSize: `${MIN_FONT.small}px`,
         fontFamily: FONTS.body,
         fontStyle: 'bold',
         color: '#2e6b3a',
@@ -358,7 +358,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
     );
     this.container.add(
       this.add.text(cx, cy + 70, 'Try again in a few days.', {
-        fontSize: '13px',
+        fontSize: `${MIN_FONT.small}px`,
         fontFamily: FONTS.body,
         color: '#888',
         resolution: TEXT_RESOLUTION,
@@ -395,7 +395,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
     this.container.add(sticker);
     this.container.add(
       this.add.text(stickerX, stickerY, TIER_LABEL[s.tier], {
-        fontSize: '12px',
+        fontSize: `${MIN_FONT.small}px`,
         fontFamily: FONTS.title,
         fontStyle: 'bold',
         color: tierCol.ink,

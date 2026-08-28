@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   generateKitchenRound,
@@ -121,7 +121,9 @@ export class KitchenMinigameScene extends Phaser.Scene {
     this._lastHeight = this.scale.height;
 
     // Back button — proper button, not a floating text link
-    createButton(this, 70, height - 30, 'Back', () => this.exitMinigame(), {
+    // 16px clearance + half the 44px button height. At height - 30 the
+    // button's lower edge sat 8px off the bottom, inside the home-gesture area.
+    createButton(this, SAFE_MARGIN + 59, height - (SAFE_MARGIN + 22), 'Back', () => this.exitMinigame(), {
       width: 110, fontSize: '14px', bgColour: '#888888', icon: 'icon-back',
     });
   }
@@ -149,7 +151,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
 
     this.add.text(width / 2 + 20, panelCy,
       'Drag food to the bowl in front of each animal', {
-      fontSize: '13px', fontFamily: FONTS.body,
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5, 0.5);
   }
@@ -193,7 +195,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
       const nameY = animalCy - spriteH * 0.5 - 16;
       const speciesHex = SPECIES_COLOURS[animal.species].toString(16).padStart(6, '0');
       const nameText = this.add.text(bowl.x, nameY, animal.name, {
-        fontSize: '12px',
+        fontSize: `${MIN_FONT.small}px`,
         fontFamily: FONTS.body,
         fontStyle: 'bold',
         color: '#ffffff',
@@ -237,7 +239,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
       const left = this.hungryAnimals.length - slots.length;
       this.add.text(width / 2, height * 0.68,
         `+${left} more waiting in the corridor…`, {
-        fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'italic',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'italic',
         color: '#6b4020',
         backgroundColor: '#fff6e8',
         padding: { x: 10, y: 4 },
@@ -276,7 +278,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
 
     // Label sitting ABOVE the tray (not inside — avoids overlap with food)
     this.add.text(width / 2, trayCy - trayH / 2 - 12, 'Prep Surface', {
-      fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#6b4020', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
 
@@ -344,7 +346,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
       .setStrokeStyle(2, 0xd4c8b8, 0.85);
     const foodSprite = createFoodSprite(this, 0, -8, food.type, food.emoji, 50);
     const label = this.add.text(0, 26, food.label, {
-      fontSize: '12px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
 

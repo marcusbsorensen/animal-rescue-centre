@@ -153,6 +153,22 @@ export function getSession(): AuthSession | null {
 }
 
 /**
+ * Headers that identify the signed-in player to an Edge Function.
+ *
+ * The token rides in `x-arc-session` rather than `Authorization` so the
+ * anon-key JWT supabase-js sets stays where the platform's verify_jwt
+ * expects it. Functions resolve the caller from this header alone — they
+ * no longer accept a userId in the request body.
+ *
+ * Returns an empty object when signed out, so callers can spread it
+ * unconditionally and let the function return its own 401.
+ */
+export function sessionHeaders(): Record<string, string> {
+  const session = getSession();
+  return session ? { 'x-arc-session': session.token } : {};
+}
+
+/**
  * Save session to localStorage.
  */
 function saveSession(session: AuthSession): void {

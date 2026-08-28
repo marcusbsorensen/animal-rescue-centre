@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { verifyPin, generateToken } from '../_shared/crypto.ts';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
+import { createSession } from '../_shared/session.ts';
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -59,8 +60,10 @@ Deno.serve(async (req) => {
       .update({ last_seen_at: new Date().toISOString() })
       .eq('id', user.id);
 
-    // Generate session token
+    // Mint a session token and store it, so the authenticated functions
+    // can verify who is calling instead of trusting a userId in the body.
     const token = generateToken();
+    await createSession(supabase, user.id, token);
 
     return jsonResponse({
       session: {

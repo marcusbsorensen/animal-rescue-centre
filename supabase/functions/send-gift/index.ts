@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { checkRateLimit } from '../_shared/rate-limit.ts';
+import { requireSession } from '../_shared/session.ts';
 
 const VALID_GIFT_TYPES = ['treat_bundle', 'toy', 'blanket_pattern', 'decoration'];
 
@@ -10,9 +11,20 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { userId, toUserId, giftType, messagePresetCode } = body;
+    const { toUserId, giftType, messagePresetCode } = body;
 
-    if (!userId) return jsonResponse({ error: 'Not authenticated' }, 401);
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // The sender is whoever holds the session — taking it from the body
+    // meant anyone could send gifts in another child's name, and spend
+    // their rate-limit budget doing it.
+    const session = await requireSession(req, supabase);
+    if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
+    const userId = session.userId;
+
     if (!toUserId) return jsonResponse({ error: 'Recipient required' }, 400);
     if (!giftType || !VALID_GIFT_TYPES.includes(giftType)) {
       return jsonResponse({ error: 'Invalid gift type' }, 400);
@@ -34,11 +46,6 @@ Deno.serve(async (req) => {
         retryAfterMs,
       }, 429);
     }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
 
     // Verify they are friends
     const { data: friendship } = await supabase
@@ -69,19 +76,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Failed to send gift' }, 500);
     }
 
-    // Increment sender's gifts_sent_count
-    await supabase.rpc('increment_stat', {
-      p_user_id: userId,
-      p_field: 'gifts_sent_count',
-    }).catch(() => {
-      // If RPC doesn't exist, do manual update
-      return supabase
-        .from('rescue_stats')
-        .update({ gifts_sent_count: supabase.rpc('', {}) }) // fallback below
-        .eq('user_id', userId);
-    });
-
-    // Manual fallback: increment gifts_sent_count
+    // Increment sender's gifts_sent_count.
+    //
+    // This used to try an `increment_stat` RPC first and fall back to the
+    // read-modify-write below. Two things were wrong with that: no migration
+    // ever defined `increment_stat`, and a PostgREST builder is only
+    // `PromiseLike` — it has `then`, not `catch` — so the `.catch(...)` meant
+    // to absorb the missing RPC threw a TypeError instead. The gift row had
+    // already been inserted by then, so the sender was told the gift failed
+    // while it sat in the recipient's list, and a retry sent a second one.
     const { data: stats } = await supabase
       .from('rescue_stats')
       .select('gifts_sent_count')

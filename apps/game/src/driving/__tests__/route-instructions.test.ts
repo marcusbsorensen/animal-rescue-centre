@@ -1,0 +1,131 @@
+import { describe, it, expect } from 'vitest';
+import {
+  buildManeuvers,
+  simplifyRoute,
+  nextManeuver,
+  maneuverText,
+  projectToRoute,
+  type RoutePoint,
+} from '../route-instructions';
+
+const P = (fx: number, fy: number): RoutePoint => ({ fx, fy });
+
+describe('route-instructions', () => {
+  describe('simplifyRoute', () => {
+    it('collapses a jittery-but-straight run to its endpoints', () => {
+      const route = [P(0.1, 0.5), P(0.2, 0.5), P(0.3, 0.5), P(0.4, 0.5), P(0.5, 0.5)];
+      expect(simplifyRoute(route)).toEqual([P(0.1, 0.5), P(0.5, 0.5)]);
+    });
+    it('keeps a genuine corner', () => {
+      const route = [P(0.1, 0.5), P(0.3, 0.5), P(0.5, 0.5), P(0.5, 0.7), P(0.5, 0.9)];
+      const s = simplifyRoute(route);
+      expect(s).toContainEqual(P(0.5, 0.5)); // the corner is kept
+      expect(s.length).toBeLessThan(route.length);
+    });
+  });
+
+  describe('buildManeuvers', () => {
+    it('a straight route is just depart + arrive', () => {
+      const m = buildManeuvers([P(0.1, 0.5), P(0.5, 0.5), P(0.9, 0.5)]);
+      expect(m.map((x) => x.kind)).toEqual(['depart', 'arrive']);
+    });
+
+    it('east then south (screen-down) is a right turn', () => {
+      // heading east, then turning to head down the screen = turn right
+      const m = buildManeuvers([P(0.2, 0.5), P(0.5, 0.5), P(0.5, 0.8)]);
+      const turns = m.filter((x) => x.kind === 'turn');
+      expect(turns).toHaveLength(1);
+      expect(turns[0].turn).toBe('right');
+      expect(turns[0].atProgress).toBeGreaterThan(0);
+      expect(turns[0].atProgress).toBeLessThan(1);
+    });
+
+    it('east then north (screen-up) is a left turn', () => {
+      const m = buildManeuvers([P(0.2, 0.5), P(0.5, 0.5), P(0.5, 0.2)]);
+      const turns = m.filter((x) => x.kind === 'turn');
+      expect(turns).toHaveLength(1);
+      expect(turns[0].turn).toBe('left');
+    });
+
+    it('distinguishes a bear (slight) from a full turn', () => {
+      // a ~20-30° deviation should be "slight", a 90° a full turn
+      const slight = buildManeuvers([P(0.2, 0.5), P(0.5, 0.5), P(0.8, 0.58)]);
+      const t = slight.filter((x) => x.kind === 'turn');
+      // small deflection: either nothing or a slight turn, never a full 'right'
+      for (const x of t) expect(x.turn).toMatch(/slight/);
+    });
+
+    it('always starts with depart and ends with arrive', () => {
+      const m = buildManeuvers([P(0.1, 0.1), P(0.5, 0.5), P(0.9, 0.2), P(0.9, 0.9)]);
+      expect(m[0].kind).toBe('depart');
+      expect(m[m.length - 1].kind).toBe('arrive');
+      expect(m[m.length - 1].atProgress).toBe(1);
+    });
+
+    it('handles a degenerate 1-point route', () => {
+      expect(buildManeuvers([P(0.5, 0.5)]).map((x) => x.kind)).toEqual(['depart', 'arrive']);
+    });
+  });
+
+  describe('nextManeuver', () => {
+    const m = buildManeuvers([P(0.2, 0.5), P(0.5, 0.5), P(0.5, 0.8), P(0.8, 0.8)]);
+    it('returns the upcoming turn, skipping depart', () => {
+      const n = nextManeuver(m, 0);
+      expect(n?.kind).toBe('turn');
+    });
+    it('returns arrive once all turns are behind us', () => {
+      expect(nextManeuver(m, 0.999)?.kind).toBe('arrive');
+    });
+  });
+
+  describe('projectToRoute', () => {
+    const route = [P(0.1, 0.5), P(0.9, 0.5)]; // straight west→east
+    it('finds the progress fraction of the nearest point', () => {
+      const r = projectToRoute(route, 0.5, 0.5);
+      expect(r.atProgress).toBeCloseTo(0.5, 1);
+      expect(r.dist).toBeCloseTo(0, 3);
+    });
+    it('reports the perpendicular distance for an off-route point', () => {
+      const r = projectToRoute(route, 0.5, 0.62);
+      expect(r.atProgress).toBeCloseTo(0.5, 1);
+      expect(r.dist).toBeCloseTo(0.12, 2);
+    });
+    it('clamps to the ends', () => {
+      expect(projectToRoute(route, 0.0, 0.5).atProgress).toBe(0);
+      expect(projectToRoute(route, 1.0, 0.5).atProgress).toBeCloseTo(1, 2);
+    });
+  });
+
+  describe('maneuverText', () => {
+    it('is kid-friendly', () => {
+      expect(maneuverText({ kind: 'depart', atProgress: 0 })).toBe('Off we go!');
+      expect(maneuverText({ kind: 'arrive', atProgress: 1 })).toBe("You're here!");
+      expect(maneuverText({ kind: 'turn', turn: 'left', atProgress: 0.5 })).toBe('Turn left');
+      expect(maneuverText({ kind: 'turn', turn: 'slight-right', atProgress: 0.5 })).toBe('Bear right');
+    });
+  });
+});
+
+import { smoothRuns } from '../road-router';
+describe('smoothRuns', () => {
+  it('dissolves short runs and coalesces neighbours', () => {
+    // trunk(0.4) - country(0.44 tiny) - trunk(0.9) - country(1)
+    const runs = [
+      { roadClass: 'trunk', untilProgress: 0.40 },
+      { roadClass: 'residential', untilProgress: 0.44 }, // 0.04 span, under 0.08
+      { roadClass: 'trunk', untilProgress: 0.90 },
+      { roadClass: 'residential', untilProgress: 1.0 },
+    ];
+    const s = smoothRuns(runs, 0.08);
+    // the tiny residential blip is gone; the two trunk runs merge
+    expect(s.map((r) => r.roadClass)).toEqual(['trunk', 'residential']);
+    expect(s[0].untilProgress).toBeCloseTo(0.90, 5);
+  });
+  it('leaves already-long runs alone', () => {
+    const runs = [
+      { roadClass: 'trunk', untilProgress: 0.5 },
+      { roadClass: 'residential', untilProgress: 1.0 },
+    ];
+    expect(smoothRuns(runs, 0.08)).toHaveLength(2);
+  });
+});

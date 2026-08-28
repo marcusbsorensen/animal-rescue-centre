@@ -72,7 +72,7 @@ export function showBadgeNotification(scene: Phaser.Scene, badgeCode: string): v
   const textX = iconX + 36;
   toast.add(
     scene.add.text(textX, -14, 'New badge!', {
-      fontSize: '11px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#b88213', resolution: TEXT_RESOLUTION,
     }),
   );
@@ -84,7 +84,7 @@ export function showBadgeNotification(scene: Phaser.Scene, badgeCode: string): v
   );
   toast.add(
     scene.add.text(textX, 22, subtitle, {
-      fontSize: '12px', fontFamily: FONTS.body,
+      fontSize: '14px', fontFamily: FONTS.body,
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       wordWrap: { width: cardW - (textX + cardW / 2 + 14) },
     }),

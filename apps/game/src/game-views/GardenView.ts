@@ -330,7 +330,7 @@ function renderZone(
     } else {
       // Tiny "visitor" pip above the animal
       const pip = scene.add.text(cx, cy - 48, 'visiting', {
-        fontSize: '11px', fontFamily: FONTS.body, color: '#ffffff',
+        fontSize: '14px', fontFamily: FONTS.body, color: '#ffffff',
         backgroundColor: '#555555', padding: { left: 4, right: 4, top: 1, bottom: 1 },
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
@@ -478,7 +478,7 @@ function renderZone(
     const upgradeNames = unlocked.map((u) => u.name).join(', ');
     container.add(
       scene.add.text(width / 2, height - 110, `Upgrades: ${upgradeNames}`, {
-        fontSize: '13px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );

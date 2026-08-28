@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { PlacedDecoration, DepotState } from '@arc/shared-types';
 import { ALL_REWARDS } from '@arc/game-logic';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from './constants';
 
 /**
  * DecoratePanel — room decoration placement UI.
@@ -204,7 +204,7 @@ export function buildDecoratePanel(
 
       const countText = scene.add
         .text(slotX, slotY + 22, '×' + counts[code], {
-          fontSize: '12px',
+          fontSize: `${MIN_FONT.small}px`,
           fontFamily: FONTS.body,
           color: COLOURS.text,
           fontStyle: 'bold',
@@ -230,7 +230,7 @@ export function buildDecoratePanel(
     if (visible.length > 0) {
       const hint = scene.add
         .text(cam.width / 2, paletteY - 20, 'Tap a decoration, then tap in the room to place it', {
-          fontSize: '12px',
+          fontSize: `${MIN_FONT.small}px`,
           fontFamily: FONTS.body,
           color: COLOURS.textLight,
           backgroundColor: '#ffffffdd',

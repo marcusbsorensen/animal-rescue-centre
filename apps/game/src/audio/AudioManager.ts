@@ -9,6 +9,18 @@ import {
 } from '@arc/game-logic';
 import type { AudioState, AudioScene, SoundEffect } from '@arc/game-logic';
 
+/** A synthesised vehicle horn — shaped per vehicle for character. */
+export interface HornProfile {
+  /** Simultaneous tones (Hz). Two-tone horns read as richer/bigger. */
+  freqs: number[];
+  wave: OscillatorType;
+  /** Length of the blast (seconds) — used by 'single'/'double'. */
+  duration: number;
+  pattern: 'single' | 'double' | 'trill';
+  /** Loudness 0..1 relative to the SFX volume (default 0.5). */
+  gain?: number;
+}
+
 /**
  * AudioManager — singleton that handles all game audio.
  *
@@ -143,6 +155,61 @@ export class AudioManager {
       this.scene.sound.play(key, { volume: vol });
     } catch {
       // Audio playback failed
+    }
+  }
+
+  /**
+   * Play a synthesised vehicle horn via Web Audio, so each vehicle can have its
+   * own character (a low fog-horn, a playful trill) with no audio assets. Falls
+   * back to silence on the HTML5 audio backend (no AudioContext) or if SFX are
+   * off.
+   */
+  playHorn(profile: HornProfile): void {
+    if (!this.scene || !this.state.sfxEnabled) return;
+    const mgr = this.scene.sound as unknown as {
+      context?: AudioContext;
+      masterVolumeNode?: AudioNode;
+    };
+    const ctx = mgr.context;
+    if (!ctx) return; // HTML5 audio backend — no synthesis
+    try {
+      if (ctx.state === 'suspended') void ctx.resume();
+      const out = mgr.masterVolumeNode ?? ctx.destination;
+      const peak = this.state.sfxVolume * (profile.gain ?? 0.5);
+      const now = ctx.currentTime;
+
+      // Each "blast" is a note: when it starts, how long, and a frequency
+      // multiplier (so a trill can rise). Envelopes give a soft attack/release.
+      type Blast = { at: number; len: number; mul: number };
+      const d = profile.duration;
+      let blasts: Blast[];
+      if (profile.pattern === 'double') {
+        blasts = [{ at: 0, len: d * 0.4, mul: 1 }, { at: d * 0.55, len: d * 0.4, mul: 1 }];
+      } else if (profile.pattern === 'trill') {
+        blasts = [1, 1.12, 1.26, 1.12, 1.4].map((mul, i) => ({ at: i * 0.11, len: 0.09, mul }));
+      } else {
+        blasts = [{ at: 0, len: d, mul: 1 }];
+      }
+
+      for (const b of blasts) {
+        const g = ctx.createGain();
+        g.connect(out);
+        const start = now + b.at, end = start + b.len;
+        g.gain.setValueAtTime(0.0001, start);
+        g.gain.linearRampToValueAtTime(peak, start + Math.min(0.03, b.len * 0.3));
+        g.gain.setValueAtTime(peak, Math.max(start, end - 0.05));
+        g.gain.linearRampToValueAtTime(0.0001, end);
+        for (const f of profile.freqs) {
+          const osc = ctx.createOscillator();
+          osc.type = profile.wave;
+          osc.frequency.setValueAtTime(f * b.mul, start);
+          osc.connect(g);
+          osc.start(start);
+          osc.stop(end + 0.02);
+        }
+      }
+    } catch {
+      // Audio blocked (e.g. no user gesture yet) — ignore.
     }
   }
 
