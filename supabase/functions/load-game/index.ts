@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
     const { data, error } = await supabase
       .from('game_states')
-      .select('state, level, updated_at')
+      .select('state, level, version, updated_at')
       .eq('user_id', session.userId)
       .maybeSingle();
 
@@ -42,6 +42,8 @@ Deno.serve(async (req) => {
     // No row is the honest answer for a first-time player — the client
     // keeps its defaults. Distinguished from an error so the client does
     // not show a retry overlay to someone who simply has no save yet.
+    // The client records "no row" as a null version, which is what makes
+    // its first save an insert rather than an overwrite.
     if (!data) {
       return jsonResponse({ save: null });
     }
@@ -50,6 +52,10 @@ Deno.serve(async (req) => {
       save: {
         state: data.state ?? {},
         level: data.level ?? 1,
+        // Echoed back on the next save. Without it the client has nothing
+        // to claim it is replacing, and save-game cannot tell a fresh write
+        // from one built on a copy another device has already superseded.
+        version: data.version,
         updatedAt: data.updated_at,
       },
     });

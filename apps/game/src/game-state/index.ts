@@ -2,5 +2,5 @@ export { GameStateStore } from './GameStateStore';
 export {
   loadGameState,
   saveGameState,
-  resetSaveThrottle,
+  resetSaveTracking,
 } from './loadSaveState';
