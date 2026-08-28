@@ -14,9 +14,17 @@
  *      display size — checked side by side on soft-gradient subjects
  *      (sleeping fox, macaw plumage) before it was adopted.
  *
- * Both passes are idempotent: already-small files are left alone, and
- * re-quantising an already-quantised PNG is a no-op in practice. Safe to
- * re-run after any art drop.
+ * Safe to re-run after any art drop: already-small files are left alone,
+ * and a file that is already palette-indexed is skipped outright.
+ *
+ * That skip is load-bearing, not a micro-optimisation. Re-quantising an
+ * already-quantised PNG is NOT a no-op — sharp re-derives the palette
+ * from the previous palette, so every pass loses more. Measured on
+ * `cat-ginger-sheltered.png`: 56 KB → 48 KB → 41 KB → 37 KB over three
+ * runs, about 13% of the image thrown away each time. The old "never let
+ * an optimisation make a file bigger" guard could not catch this, because
+ * each degraded pass genuinely *is* smaller. A single stray re-run used
+ * to take 4 MB off the animal folder and read as a win.
  *
  *   pnpm tsx tools/optimise-sprites.ts                     # dry run, animals
  *   pnpm tsx tools/optimise-sprites.ts --write             # apply
@@ -43,11 +51,11 @@ const TARGETS = folders.length > 0 ? folders : ['animals'];
 const mb = (b: number) => (b / 1048576).toFixed(1);
 const kb = (b: number) => (b / 1024).toFixed(0);
 
-async function optimiseFolder(folder: string): Promise<{ before: number; after: number; resized: number; files: number }> {
+async function optimiseFolder(folder: string): Promise<{ before: number; after: number; resized: number; skipped: number; files: number }> {
   const dir = path.join(ASSETS, folder);
   if (!fs.existsSync(dir)) {
     console.log(`  (no such folder: ${dir})`);
-    return { before: 0, after: 0, resized: 0, files: 0 };
+    return { before: 0, after: 0, resized: 0, skipped: 0, files: 0 };
   }
 
   // Recurse — driving/ keeps vehicles, topdown and destinations in
@@ -64,14 +72,25 @@ async function optimiseFolder(folder: string): Promise<{ before: number; after: 
   let before = 0;
   let after = 0;
   let resized = 0;
+  let skipped = 0;
 
   for (const full of files) {
     const file = path.relative(dir, full);
     const origBytes = fs.statSync(full).size;
     before += origBytes;
 
-    const { width = 0, height = 0 } = await sharp(full).metadata();
+    const { width = 0, height = 0, isPalette = false } = await sharp(full).metadata();
     const needsResize = Math.max(width, height) > MAX;
+
+    // Already quantised and already small enough — leave it completely
+    // alone. Re-encoding here is what degrades the art (see the header).
+    // A palette PNG that still needs resizing does get re-encoded, which
+    // is unavoidable and happens once.
+    if (!needsResize && isPalette) {
+      after += origBytes;
+      skipped += 1;
+      continue;
+    }
 
     // Build into a buffer first — sharp cannot read and write one path in
     // a single pipeline.
@@ -95,7 +114,7 @@ async function optimiseFolder(folder: string): Promise<{ before: number; after: 
     }
   }
 
-  return { before, after, resized, files: files.length };
+  return { before, after, resized, skipped, files: files.length };
 }
 
 async function main(): Promise<void> {
@@ -110,7 +129,7 @@ async function main(): Promise<void> {
     after += r.after;
     const saved = r.before - r.after;
     console.log(
-      `    ${r.files} files, ${r.resized} oversized. ` +
+      `    ${r.files} files, ${r.resized} oversized, ${r.skipped} already quantised. ` +
       `${mb(r.before)} MB → ${mb(r.after)} MB (${saved > 0 ? '−' : '+'}${mb(Math.abs(saved))} MB)`,
     );
   }
