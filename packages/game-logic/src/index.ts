@@ -377,3 +377,6 @@ export type {
   SolveReason as TunnelSolveReason,
   SolveResult as TunnelSolveResult,
 } from './tunnel';
+
+export { mergeSaveState } from './merge-save';
+export type { MergeResult, MergeLevels } from './merge-save';

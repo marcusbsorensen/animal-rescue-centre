@@ -26,8 +26,25 @@ const DB_NAME = 'arc-save';
 const DB_VERSION = 1;
 const STORE = 'saves';
 
-/** Marks the server copy we were told about when a save was rejected. */
-const REJECTED_SUFFIX = '::rejected';
+/**
+ * Three records per player, under one key each.
+ *
+ * - `live` is this device's current snapshot, written before every post.
+ * - `rejected` is the server copy a 409 handed back.
+ * - `base` is the last state this device knew the server held: the common
+ *   ancestor a three-way merge needs. Written whenever a save is confirmed
+ *   or a cloud load lands, which are exactly the moments the two agree.
+ *
+ * Without `base`, "in mine and not in theirs" cannot be read — it means
+ * either *I rescued this* or *they adopted it out*, and the two want
+ * opposite answers. See packages/game-logic/src/merge-save.ts.
+ */
+type SaveVariant = 'live' | 'rejected' | 'base';
+const SUFFIX: Record<SaveVariant, string> = {
+  live: '',
+  rejected: '::rejected',
+  base: '::base',
+};
 
 export interface LocalSave {
   /** Owner. Also the record key — see `keyFor`. */
@@ -51,8 +68,8 @@ export interface LocalSave {
   savedAt: number;
 }
 
-function keyFor(userId: string, rejected = false): string {
-  return rejected ? `${userId}${REJECTED_SUFFIX}` : userId;
+function keyFor(userId: string, variant: SaveVariant = 'live'): string {
+  return `${userId}${SUFFIX[variant]}`;
 }
 
 /** True when this browser will let us store anything at all. */
@@ -166,7 +183,12 @@ export async function getLocalSave(userId: string): Promise<LocalSave | null> {
 export async function markLocalSaveSynced(userId: string, version: number): Promise<void> {
   const existing = await getLocalSave(userId);
   if (!existing) return;
-  await putLocalSave({ ...existing, version, synced: true });
+  const synced = { ...existing, version, synced: true };
+  await putLocalSave(synced);
+  // This is one of the two moments the two copies provably agree, so it is
+  // also the moment to record the ancestor the next merge will need. The
+  // live record cannot serve: the next save overwrites it before posting.
+  await putBaseSave(synced);
 }
 
 /**
@@ -182,7 +204,7 @@ export async function putRejectedSave(save: LocalSave): Promise<boolean> {
   if (!isLocalSaveAvailable()) return false;
   try {
     await withStore('readwrite', (store) =>
-      store.put({ key: keyFor(save.userId, true), ...save }),
+      store.put({ key: keyFor(save.userId, 'rejected'), ...save }),
     );
     return true;
   } catch (err) {
@@ -191,17 +213,52 @@ export async function putRejectedSave(save: LocalSave): Promise<boolean> {
   }
 }
 
+/**
+ * Record the state this device and the server agree on.
+ *
+ * The merge's common ancestor. Written on a confirmed save and on a cloud
+ * load — never on an ordinary local write, which by definition is a change
+ * the server has not seen. A device with no base record merges as a union,
+ * which is a worse answer but not a lost afternoon.
+ */
+export async function putBaseSave(save: LocalSave): Promise<boolean> {
+  if (!isLocalSaveAvailable()) return false;
+  try {
+    await withStore('readwrite', (store) =>
+      store.put({ key: keyFor(save.userId, 'base'), ...save }),
+    );
+    return true;
+  } catch (err) {
+    console.warn('[localSave] could not record the merge base:', err);
+    return false;
+  }
+}
+
+/** The last state this device knew the server held, if any. */
+export async function getBaseSave(userId: string): Promise<LocalSave | null> {
+  return readVariant(userId, 'base', 'merge base');
+}
+
 /** The server copy kept from the last rejected save, if any. */
 export async function getRejectedSave(userId: string): Promise<LocalSave | null> {
+  return readVariant(userId, 'rejected', 'rejected save');
+}
+
+/** Shared read for the two secondary records. */
+async function readVariant(
+  userId: string,
+  variant: SaveVariant,
+  label: string,
+): Promise<LocalSave | null> {
   if (!isLocalSaveAvailable()) return null;
   try {
     const row = await withStore<Record<string, unknown> | undefined>(
       'readonly',
-      (store) => store.get(keyFor(userId, true)) as IDBRequest<Record<string, unknown> | undefined>,
+      (store) => store.get(keyFor(userId, variant)) as IDBRequest<Record<string, unknown> | undefined>,
     );
     return row ? toLocalSave(row) : null;
   } catch (err) {
-    console.warn('[localSave] could not read the rejected save:', err);
+    console.warn(`[localSave] could not read the ${label}:`, err);
     return null;
   }
 }
@@ -211,8 +268,9 @@ export async function getRejectedSave(userId: string): Promise<LocalSave | null>
 export async function clearLocalSave(userId: string): Promise<void> {
   if (!isLocalSaveAvailable()) return;
   try {
-    await withStore('readwrite', (store) => store.delete(keyFor(userId)));
-    await withStore('readwrite', (store) => store.delete(keyFor(userId, true)));
+    for (const variant of ['live', 'rejected', 'base'] as SaveVariant[]) {
+      await withStore('readwrite', (store) => store.delete(keyFor(userId, variant)));
+    }
   } catch (err) {
     console.warn('[localSave] could not clear local save:', err);
   }

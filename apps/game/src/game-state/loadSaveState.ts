@@ -23,6 +23,7 @@ import {
   countFullyBondedPets,
   isWeekend,
   recomputeApprenticeUnlocks,
+  mergeSaveState,
 } from '@arc/game-logic';
 import type { IllnessDef, ApprenticeEntry, CharmId, CharmUnlockEvent } from '@arc/game-logic';
 import { getSession, sessionHeaders } from '../lib/auth';
@@ -33,6 +34,8 @@ import {
   getLocalSave,
   putLocalSave,
   putRejectedSave,
+  putBaseSave,
+  getBaseSave,
   markLocalSaveSynced,
 } from './localSave';
 
@@ -55,11 +58,12 @@ import {
  *    one built on a copy that has since moved on. Two devices on one
  *    account used to overwrite each other in silence.
  *
- * What this file does *not* do is decide which of two divergent shelters is
- * right. On a rejected save it keeps the server's copy, re-sends once so the
- * newest write is the one that stands — the rule that was agreed — and logs
- * it. Merging, and telling a child their two devices disagree, is the next
- * piece of work.
+ * Two divergent shelters are now merged rather than picked between. Both
+ * places that can discover the divergence — a rejected save, and a launch
+ * that finds an unsynced local copy against a cloud one that has moved on —
+ * run the same three-way merge against the ancestor kept by localSave. The
+ * child is not told; if the merge is right there is nothing for them to do.
+ * See packages/game-logic/src/merge-save.ts for the per-field rules.
  *
  * Both functions are no-ops when the player isn't signed in or
  * Supabase isn't configured — the game will still play, just without
@@ -136,8 +140,9 @@ export async function loadGameState(
     rememberVersion(userId, typeof data?.version === 'number' ? data.version : null);
 
     if (data?.state && typeof data.state === 'object') {
-      applySavedState(store, data.state as Record<string, unknown>, data.level);
-      await seedLocalFromCloud(userId, data);
+      const resolved = await reconcileWithLocal(userId, data);
+      applySavedState(store, resolved.state, resolved.level);
+      await seedLocalFromCloud(userId, data, resolved.merged);
     }
     return true;
   };
@@ -188,25 +193,63 @@ interface CloudSave {
 }
 
 /**
- * Put the server's copy on this device, so a later launch without a
- * connection has something to open.
+ * Decide what this launch actually opens, when the cloud copy and an
+ * unsynced local one both exist.
  *
- * Skipped when this device is holding a save the server has not accepted —
- * overwriting that would throw away the one copy of whatever was played
- * offline, which is the failure this whole path exists to prevent. Which of
- * the two should win is the resolution question, and it is not answered
- * here; the local copy is simply left alone for it.
+ * A save left on this device that the server never accepted is an
+ * afternoon played offline. The cloud copy is what another device did in
+ * the meantime. Phase 1 opened the cloud copy and left the local one on
+ * disk unread, which was honest about not having decided and no use to the
+ * child whose afternoon it was.
+ *
+ * It is the same collision as a 409, discovered a moment earlier, so it
+ * gets the same answer: merge both against the ancestor. Returning
+ * `merged: true` tells the caller not to record this cloud copy as the new
+ * ancestor — the merged state has not been accepted by the server yet.
  */
-async function seedLocalFromCloud(userId: string, data: CloudSave): Promise<void> {
+async function reconcileWithLocal(
+  userId: string,
+  data: CloudSave,
+): Promise<{ state: Record<string, unknown>; level: number | undefined; merged: boolean }> {
+  const cloudState = (data.state ?? {}) as Record<string, unknown>;
   const local = await getLocalSave(userId);
-  if (local && !local.synced) {
-    console.warn(
-      '[loadGameState] this device holds an unsynced save; leaving it in place',
-      { localVersion: local.version, cloudVersion: data.version },
-    );
-    return;
+  if (!local || local.synced) {
+    return { state: cloudState, level: data.level, merged: false };
   }
-  await putLocalSave({
+
+  const base = await getBaseSave(userId);
+  const merged = mergeSaveState(base?.state ?? null, local.state, cloudState, {
+    mine: local.level,
+    theirs: data.level ?? 1,
+  });
+  console.warn('[loadGameState] merged an unsynced device save with the cloud copy', {
+    localVersion: local.version,
+    cloudVersion: data.version,
+    base: base?.version ?? 'none',
+    notes: merged.notes,
+  });
+  return { state: merged.state, level: merged.level, merged: true };
+}
+
+/**
+ * Put the server's copy on this device, so a later launch without a
+ * connection has something to open, and record it as the ancestor the next
+ * merge will measure against.
+ *
+ * Skipped after a merge. The state now in play is neither copy, and the
+ * server has not seen it — calling it the ancestor would tell the next
+ * merge that everything in it was already agreed, which is how a merge
+ * quietly undoes itself. The unsynced local record stays as it is and the
+ * next save posts the merged state properly.
+ */
+async function seedLocalFromCloud(
+  userId: string,
+  data: CloudSave,
+  merged: boolean,
+): Promise<void> {
+  if (merged) return;
+
+  const save = {
     userId,
     state: (data.state ?? {}) as Record<string, unknown>,
     level: data.level ?? 1,
@@ -214,7 +257,11 @@ async function seedLocalFromCloud(userId: string, data: CloudSave): Promise<void
     // Synced by definition: this *is* what the server holds.
     synced: true,
     savedAt: Date.now(),
-  });
+  };
+  await putLocalSave(save);
+  // One of the two moments the device and the server provably agree; the
+  // other is a confirmed save. See localSave's `base` record.
+  await putBaseSave(save);
 }
 
 /**
@@ -522,16 +569,20 @@ async function readConflict(error: unknown): Promise<CloudSave | null> {
 /**
  * A save was rejected because another device got there first.
  *
- * Two things have to happen and neither is a merge. The server's copy is
- * written to this device, because the 409 body is the only record of what
- * the other device did that this one will ever hold — dropping it is how
- * the losing half of a conflict disappears. Then the save is re-sent once
- * against the version the server just reported, which makes the newest
- * write the one that stands: the rule that was agreed, applied bluntly.
+ * The server's copy is written to this device first, unconditionally: the
+ * 409 body is the only record of what the other device did that this one
+ * will ever hold, and dropping it is how the losing half of a conflict
+ * disappears. Then the two shelters are merged against their common
+ * ancestor and the merged one is what this device plays and re-sends.
  *
- * Deciding between two divergent shelters properly — merging them, or
- * telling a child their two devices disagree — is the next piece of work.
- * Everything it needs is on the device by the time this returns.
+ * Applying the merge to the live store matters. Leaving it out would mean
+ * the child carries on playing their own copy while the server holds the
+ * merged one — and their next save, built on that unmerged store, would
+ * overwrite the merge and lose the other device all over again.
+ *
+ * The child is told nothing. If the merge is right there is nothing for
+ * them to do, and "your shelter looks different on this iPad" is true and
+ * useless. The notes go to the console for whoever reads the bug report.
  */
 async function handleConflict(
   scene: Phaser.Scene,
@@ -547,10 +598,13 @@ async function handleConflict(
     serverUpdatedAt: serverSave.updatedAt,
   });
 
+  const theirs = (serverSave.state ?? {}) as Record<string, unknown>;
+  const theirLevel = serverSave.level ?? 1;
+
   await putRejectedSave({
     userId,
-    state: (serverSave.state ?? {}) as Record<string, unknown>,
-    level: serverSave.level ?? 1,
+    state: theirs,
+    level: theirLevel,
     version: serverVersion,
     synced: true,
     savedAt: Date.now(),
@@ -558,12 +612,24 @@ async function handleConflict(
 
   rememberVersion(userId, serverVersion);
 
+  const base = await getBaseSave(userId);
+  const merged = mergeSaveState(base?.state ?? null, snapshot(store), theirs, {
+    mine: store.level,
+    theirs: theirLevel,
+  });
+  console.warn('[saveGameState] merged two divergent shelters', {
+    base: base?.version ?? 'none',
+    notes: merged.notes,
+  });
+  applySavedState(store, merged.state, merged.level);
+
   if (retry) {
     await saveGameState(scene, store, false);
   } else {
     // Two collisions in a row means a third device is writing, or the
-    // version we were handed was already stale. Leave it: the snapshot is
-    // on this device, and the next action tries again from a fresh version.
+    // version we were handed was already stale. Leave it: the merged
+    // snapshot is on this device, and the next action tries again from a
+    // fresh version — merging once more against whatever has landed since.
     console.warn('[saveGameState] still stale after one retry; leaving it for the next save');
   }
 }
