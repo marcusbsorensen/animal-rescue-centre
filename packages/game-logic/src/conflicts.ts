@@ -140,6 +140,23 @@ export function pickConflictPair(
 }
 
 /**
+ * Conflict ids only have to be unique within a session — a conflict lives on
+ * `store.activeConflict`, gets resolved, and is never saved.
+ *
+ * The id used to be `Date.now()` plus four base-36 characters of
+ * `Math.random()`. A hundred conflicts minted inside the same millisecond
+ * therefore leaned entirely on a ~1.7 million value space, which by the
+ * birthday bound collides about 0.3% of the time — enough for the
+ * "unique ids for rapid calls" test to fail roughly once every 350 runs.
+ *
+ * A counter cannot collide at all, and is how animal and decoration ids are
+ * minted elsewhere in this package. No `sync` function to go with it, unlike
+ * `syncNextId`: conflicts are not persisted, so nothing can come back from a
+ * save and clash with a fresh counter.
+ */
+let nextConflictId = 1;
+
+/**
  * Generate a conflict between two animals.
  */
 export function generateConflict(animal1: Animal, animal2: Animal): Conflict {
@@ -155,7 +172,7 @@ export function generateConflict(animal1: Animal, animal2: Animal): Conflict {
     .replace('{a2}', animal2.name);
 
   return {
-    id: `conflict-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    id: `conflict-${nextConflictId++}`,
     animal1Id: animal1.id,
     animal2Id: animal2.id,
     type: typeDef.type,
