@@ -764,7 +764,7 @@
     showStage('drive');
 
     // Music (PTV ambient corridor loop — also used for drive ambience).
-    music = tryAudio('/assets/audio/music-corridor.ogg', { loop: true, volume: 0.35 });
+    music = tryAudio('/assets/audio/music-corridor.mp3', { loop: true, volume: 0.35 });
     play(music);
 
     // Animate GPS marker from start (22%,18%) → end (80%,78%).
@@ -787,7 +787,7 @@
     // Mid-drive narrator line.
     driveTimers.push(setTimeout(() => {
       document.getElementById('narrator').classList.add('show');
-      narratorSfx = tryAudio('/assets/audio/voice-almost-there.ogg', { volume: 0.9 });
+      narratorSfx = tryAudio('/assets/audio/voice-almost-there.mp3', { volume: 0.9 });
       play(narratorSfx);
     }, 4200));
     driveTimers.push(setTimeout(() => {
@@ -797,7 +797,7 @@
     // End of drive → show arrival.
     driveTimers.push(setTimeout(() => {
       stop(music);
-      bellSfx = tryAudio('/assets/audio/ui-bell.ogg', { volume: 0.6 });
+      bellSfx = tryAudio('/assets/audio/ui-bell.mp3', { volume: 0.6 });
       play(bellSfx);
       showStage('arrival');
     }, 9000));
