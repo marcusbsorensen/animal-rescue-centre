@@ -1,8 +1,8 @@
 # A.R.C. multi-platform — handover 2026-08-28
 
-> Save sync is finished and real: server deployed, phases 1 and 2 both running
-> against the live project. Everything on this branch is committed. What is left
-> is iOS hardware, which needs Marcus at the keyboard.
+> Save sync is finished and real, and `feat/ptv-driving-engine` is merged to
+> main — which is what closes the anon-key hole in production. What is left is
+> iOS hardware, which needs Marcus at the keyboard.
 
 ## Goal
 Ship A.R.C. as an iPad/iPhone app plus a web fallback: one account, progress synced
@@ -42,11 +42,17 @@ across all three.
 baseline is 438 commits stale (2026-04-18). Regenerate with
 `pnpm --filter @arc/game test:visual:update` once the landscape layout settles.
 
-**Everything is committed.** Eight commits on `feat/ptv-driving-engine`, working tree
-clean. `main` is still the 4 July merge, so whatever Vercel serves is a client that
-writes `game_states` directly with the anon key — the hole the 22 August audit
-closed. **That closes for real only when this branch ships.** Merging it is the next
-decision, not a formality.
+**Merged to main.** `be5699f` brings ninety commits over from
+`feat/ptv-driving-engine`: the driving engine, the 22 August security audit, save
+sync phases 1 and 2, the iOS shell, the landscape UX pass, and the art and audio
+size work. Trees are identical, working tree clean, all four CI steps green on main.
+The branch is left in place and is now two commits behind.
+
+*A 401 used to be indistinguishable from a flaky connection* (`f8ae9b2`). Every
+token minted before the audit has no `sessions` row, so those clients are refused
+from the moment this ships — and the old code told them their wifi was down, then
+failed every save behind a retry toast that could not work. A 401 now clears the
+session and sends the child to sign-in.
 
 ## Files
 - `packages/game-logic/src/merge-save.ts` — `mergeSaveState`; per-field rules in the header.
@@ -55,6 +61,7 @@ decision, not a formality.
 - `supabase/functions/save-game/index.ts:80` — the three `expectedVersion` cases; `conflict()` at the bottom.
 - `supabase/functions/_shared/session.ts` — `requireSession` / `createSession`; token rides in `x-arc-session`.
 - `apps/game/src/ui/constants.ts` — `MIN_TAP`, `MIN_TAP_GAP`, `bottomAnchorY`; `SAFE_MARGIN` still needs `env(safe-area-inset-*)`.
+- `apps/game/src/game-state/loadSaveState.ts` — `isUnauthorised` / `requireSignIn`, the 401 path.
 
 ## Decisions made
 - **Capacitor** for iOS; landscape-locked in `Info.plist`; **Kids Category**, so never a
@@ -73,10 +80,9 @@ decision, not a formality.
 - `MIN_TAP` applies to the **hit area**, not the drawn art.
 
 ## Next step
-Marcus's call between:
-1. **iOS hardware run** — `pnpm ios`, then signing and a device.
-2. **Merge this branch to main** — it is what actually closes the auth hole in production.
-3. **Depot/SupplyRun landscape overflow** — the open design call.
+1. **iOS hardware run** — `pnpm ios`, then signing and a device. Marcus's hands.
+2. **Depot/SupplyRun landscape overflow** — the open design call.
+3. **Regenerate the visual baseline** once the landscape layout settles.
 
 ## Traps
 - **Check `supabase functions list` before assuming anything is deployed.** Committed
