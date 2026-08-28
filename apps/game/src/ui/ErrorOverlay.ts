@@ -93,19 +93,38 @@ function dismissToast(scene: Phaser.Scene): void {
 
 // ── Blocking modal ───────────────────────────────────────────────
 
+/** Wording overrides, for a modal that isn't about the connection. */
+export interface BlockingLabels {
+  /** Heading. Default: 'Connection hiccup'. */
+  title?: string;
+  /** Button. Default: 'Try again'. */
+  action?: string;
+  /** Button while `retryFn` is running. Default: 'Retrying...'. */
+  busy?: string;
+}
+
 /**
- * Show a blocking modal with a message and a Retry button. The modal
+ * Show a blocking modal with a message and an action button. The modal
  * stays up until `retryFn()` returns truthy (or throws — in which case
  * the message is updated and the user can try again).
  *
  * Use this when the game genuinely can't continue without the operation
  * succeeding (e.g. failed to load save on scene entry).
+ *
+ * The labels default to the connection-failure wording this was written
+ * for. A session the server no longer recognises is not a hiccup and must
+ * not be dressed as one — telling a child to "try again" when the only fix
+ * is signing in again is an instruction that cannot work.
  */
 export function showBlocking(
   scene: Phaser.Scene,
   message: string,
   retryFn: () => Promise<boolean>,
+  labels: BlockingLabels = {},
 ): void {
+  const titleText = labels.title ?? 'Connection hiccup';
+  const actionText = labels.action ?? 'Try again';
+  const busyText = labels.busy ?? 'Retrying...';
   // Dismiss any existing modal first
   dismissBlocking(scene);
 
@@ -122,7 +141,7 @@ export function showBlocking(
   const panel = scene.add.rectangle(0, 0, 460, 260, 0xfef9ef)
     .setStrokeStyle(3, 0xd4783c);
 
-  const title = scene.add.text(0, -90, 'Connection hiccup', {
+  const title = scene.add.text(0, -90, titleText, {
     fontSize: '22px',
     fontFamily: FONTS.title,
     color: COLOURS.text,
@@ -141,7 +160,7 @@ export function showBlocking(
     .setStrokeStyle(2, 0x3d8a2e)
     .setInteractive({ useHandCursor: true });
 
-  const btnText = scene.add.text(0, 70, 'Try again', {
+  const btnText = scene.add.text(0, 70, actionText, {
     fontSize: '18px',
     fontFamily: FONTS.title,
     color: '#ffffff',
@@ -154,7 +173,7 @@ export function showBlocking(
   const onRetry = async () => {
     if (retrying) return;
     retrying = true;
-    btnText.setText('Retrying...');
+    btnText.setText(busyText);
     btnBg.disableInteractive();
     try {
       const ok = await retryFn();
@@ -167,7 +186,7 @@ export function showBlocking(
       text.setText(message + '\n\n(' + (e instanceof Error ? e.message : 'Still failing') + ')');
     }
     retrying = false;
-    btnText.setText('Try again');
+    btnText.setText(actionText);
     btnBg.setInteractive({ useHandCursor: true });
   };
 

@@ -26,7 +26,7 @@ import {
   mergeSaveState,
 } from '@arc/game-logic';
 import type { IllnessDef, ApprenticeEntry, CharmId, CharmUnlockEvent } from '@arc/game-logic';
-import { getSession, sessionHeaders } from '../lib/auth';
+import { getSession, sessionHeaders, logout } from '../lib/auth';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { showToast, showBlocking } from '../ui/ErrorOverlay';
 import { GameStateStore } from './GameStateStore';
@@ -150,6 +150,15 @@ export async function loadGameState(
   try {
     await attempt();
   } catch (err) {
+    // Not a connection problem, and not one a retry can reach. Say so and
+    // send them somewhere that can fix it, rather than blaming the wifi.
+    if (isUnauthorised(err)) {
+      console.warn('[loadGameState] the server does not recognise this session');
+      requireSignIn(scene);
+      initialiseSubsystems(store);
+      return;
+    }
+
     const msg = err instanceof Error ? err.message : 'Something went wrong loading your shelter.';
     console.warn('[loadGameState] cloud load failed:', msg);
 
@@ -537,6 +546,14 @@ export async function saveGameState(
     }
     consecutiveSaveFailures = 0;  // reset on success
   } catch (err) {
+    // A refused session would otherwise fail every save from here on, once
+    // per interaction, behind a toast promising a retry that cannot work.
+    if (isUnauthorised(err)) {
+      console.warn('[saveGameState] the server does not recognise this session');
+      requireSignIn(scene);
+      return;
+    }
+
     consecutiveSaveFailures += 1;
     console.warn('[saveGameState] cloud save failed:', err);
     const now = Date.now();
@@ -555,6 +572,45 @@ export async function saveGameState(
  * error's `.context`, which is the raw Response. Returns null for anything
  * that is not a 409, so ordinary failures fall through to the retry path.
  */
+/**
+ * True when a function refused the caller's session rather than failing.
+ *
+ * Worth telling apart from a network error, because they want opposite
+ * responses. A flaky connection is a reason to play on from this device;
+ * an unrecognised session means every future request will be refused too,
+ * and carrying on silently leaves a child playing a shelter that will
+ * never sync again — with an offline toast blaming their wifi for it.
+ *
+ * It is not a hypothetical. Sessions became a stored, verified thing in
+ * the August audit, so every token minted by the login that shipped before
+ * it is a token no `sessions` row was ever written for.
+ */
+function isUnauthorised(error: unknown): boolean {
+  return (error as { context?: Response } | null)?.context?.status === 401;
+}
+
+/**
+ * The session is no longer good. Clear it and put the child in front of
+ * the sign-in screen, which is the one thing that actually fixes it.
+ *
+ * Their shelter is not at risk: every save reaches IndexedDB before it is
+ * posted, and the local record is keyed by user id, so signing back in on
+ * this device finds it exactly where it was left.
+ */
+function requireSignIn(scene: Phaser.Scene): void {
+  logout();
+  resetSaveTracking();
+  showBlocking(
+    scene,
+    'You need to sign in again to keep your shelter saved.\nEverything you have done is safe on this device.',
+    async () => {
+      scene.scene.start('MainMenuScene');
+      return true;
+    },
+    { title: 'Please sign in again', action: 'Sign in', busy: 'One moment...' },
+  );
+}
+
 async function readConflict(error: unknown): Promise<CloudSave | null> {
   const ctx = (error as { context?: Response } | null)?.context;
   if (!ctx || ctx.status !== 409 || typeof ctx.json !== 'function') return null;
