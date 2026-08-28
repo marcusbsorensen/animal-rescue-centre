@@ -76,19 +76,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Failed to send gift' }, 500);
     }
 
-    // Increment sender's gifts_sent_count
-    await supabase.rpc('increment_stat', {
-      p_user_id: userId,
-      p_field: 'gifts_sent_count',
-    }).catch(() => {
-      // If RPC doesn't exist, do manual update
-      return supabase
-        .from('rescue_stats')
-        .update({ gifts_sent_count: supabase.rpc('', {}) }) // fallback below
-        .eq('user_id', userId);
-    });
-
-    // Manual fallback: increment gifts_sent_count
+    // Increment sender's gifts_sent_count.
+    //
+    // This used to try an `increment_stat` RPC first and fall back to the
+    // read-modify-write below. Two things were wrong with that: no migration
+    // ever defined `increment_stat`, and a PostgREST builder is only
+    // `PromiseLike` — it has `then`, not `catch` — so the `.catch(...)` meant
+    // to absorb the missing RPC threw a TypeError instead. The gift row had
+    // already been inserted by then, so the sender was told the gift failed
+    // while it sat in the recipient's list, and a retry sent a second one.
     const { data: stats } = await supabase
       .from('rescue_stats')
       .select('gifts_sent_count')
