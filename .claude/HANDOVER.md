@@ -1,4 +1,4 @@
-# A.R.C. multi-platform — handover 2026-08-28
+# A.R.C. multi-platform — handover 2026-08-29
 
 > Save sync is finished and real, and `feat/ptv-driving-engine` is merged to
 > main — which is what closes the anon-key hole in production. **The app now
@@ -43,6 +43,11 @@ across all three.
   (initial save). The user row, a session expiring exactly 90 days out, and a
   `game_states` row at version 0 were all created; the app reached the menu with
   the friend code matching the row. Test player then deleted, cascade verified.
+- *Both ceremonies verified on device.* Adoption rendered "A forever home for
+  Rosie", Priya "Pri" Kaur, the real dalmatian sprite, Priya's cast portrait and
+  "Dear Ceremonytest". Rewilding rendered "Farewell, Rosie" at "Bond: 60%". The
+  pre-fix build was A/B'd in the same run and produced "Farewell, Luna / Dear
+  Lily / Bond: Champion", so the fix is confirmed rather than assumed.
 
 **Placeholder-data audit (2026-08-28), all fixed in `c483ecb`.** The login.html
 chips bug was not a one-off. Five more shipping overlays were showing a real
@@ -157,21 +162,47 @@ and the screen it reaches has no fake chips and the big CTA back.
 - `MIN_TAP` applies to the **hit area**, not the drawn art.
 
 ## Next step
-1. **Physical device run** — `pnpm ios`, then signing and a device. Marcus's hands.
-   The simulator is already proven, so this is provisioning only.
-2. **Surface the remaining signup/login errors.** `c483ecb` added client-side
-   validation on the signup NEXT button, so the common mistakes now say
-   something — but a 400 that comes back from the *server* is still silent, and
-   so is the "name is taken" case. `login.html` already has `shakeError`; signup
-   needs the same wiring for `auth-error`.
-3. **Verify the two ceremonies on device.** adoption and rewilding are fixed and
-   statically checked, but sit behind rescuing, bonding and rehoming an animal,
-   so neither has actually been seen rendering real data.
-3. **iPhone simulator pass** for the safe-area insets.
-4. **Depot/SupplyRun landscape overflow** — the open design call.
-5. **Regenerate the visual baseline** once the landscape layout settles.
+**Resolve the three issues found while verifying the ceremonies** (branch
+`fix/ceremony-portrait-and-taps` is already cut from `da365cd`, empty):
+
+1. **Rewilding's animal portrait frame collapses to a stub.** Pre-existing —
+   A/B'd against `c483ecb~1` and it collapses there too. `.portrait-frame`
+   (`rewilding.html:246`) is `width:100%; max-width: clamp(200px, 48cqw, 320px);
+   aspect-ratio: 4/3`. Adoption's near-identical frame renders fine, so compare
+   the two containers. Not urgent on its own — nothing can reach this page.
+2. **`dog-dalmatian-sheltered.png` is 128×128**; its siblings
+   (`dog-collie-sheltered`, `fox-red-walking`) are 512×512. Probably lost in the
+   art-size work. Check `asset-drafts/` or `manus-output/` for a full-res source
+   before assuming it must be regenerated. It renders large in the adoption
+   ceremony, so it will look soft.
+3. **The Welcome button and the room doors ignore taps.** The nav bar and animal
+   sprites at the same measured coordinates work fine, so it is not the
+   coordinate mapping. Likely the same landscape hit-area family as the
+   Depot/SupplyRun overflow.
+
+Then, in rough order: physical device run (Marcus's hands, provisioning only);
+surface the *server*-side signup 400s (still silent — `login.html` has
+`shakeError`, signup needs the same `auth-error` wiring); iPhone simulator pass
+for safe-area insets; the Depot/SupplyRun landscape design call; regenerate the
+visual baseline once landscape settles.
 
 ## Traps
+- **`window.__PHASER_GAME__` is exposed and NOT dev-gated** (`src/main.ts:100`),
+  and the store is on the registry as `'gameStore'`. From Safari Web Inspector,
+  `gs.openAdoptionOverlay(a, '01-pri-kaur')` / `gs.openRewildingOverlay(a)` open
+  either ceremony instantly — `private` is TypeScript-only. **There is no other
+  dev shortcut**: no `?debug`/`?cheat`/`?seed`, no dev menu, no keyboard hooks
+  (only `?dialogueDemo` and `?ptvDemo` exist). `cockpit.html` is a driving
+  mockup, not a console. Finding this out cost most of a session.
+- **Rewilding has no gameplay route at all.** `openRewildingOverlay` fires only
+  from `'aspire-rewild'`, and `paths.html`'s rewild card is hard-locked — the
+  click handler returns early on `.path-state-locked`. To see that page you must
+  drive it from the console or a temporary build.
+- **Adoption needs bond ≥ 50 and state ≠ 'pet'** (`AnimalDetailsPopup.ts:78`), and
+  bond hitting 100 flips the animal to `'pet'` and *removes* the Paths button —
+  so the usable window is bond 50–99. Feed is +3 and closes the popup, i.e. two
+  taps per 3 points: roughly 32 taps from a fresh animal. Instrument the build
+  instead.
 - **Check `supabase functions list` before assuming anything is deployed.** Committed
   is not deployed; this branch had five months of divergence.
 - `supabase db push` and `functions deploy` do **not** need Docker. The
