@@ -1,8 +1,10 @@
 # A.R.C. multi-platform — handover 2026-08-28
 
 > Save sync is finished and real, and `feat/ptv-driving-engine` is merged to
-> main — which is what closes the anon-key hole in production. What is left is
-> iOS hardware, which needs Marcus at the keyboard.
+> main — which is what closes the anon-key hole in production. **The app now
+> runs on the iPad simulator and signs up against production for real**, so the
+> app-bound-domains question is settled. What is left is a physical device,
+> which needs Marcus at the keyboard.
 
 ## Goal
 Ship A.R.C. as an iPad/iPhone app plus a web fallback: one account, progress synced
@@ -30,10 +32,32 @@ across all three.
 - Local gates: typecheck, lint (0 errors), **979 unit tests**, production build.
 - Database is back to its one pre-existing row (Marcus), zero sessions. Every test
   player was deleted.
+- *Ran on the iPad simulator (iPad Air 11-inch M4, iOS 26.5, Xcode 26.6).* Clean
+  boot — no 404s, no `NSURLError`, none of the loader failures the `build-ios.mjs`
+  header warns about. Landscape lock confirmed in `Info.plist` for both idioms.
+  The app fills the screen; black bars in `simctl` screenshots are framebuffer
+  padding, not a layout gap.
+- **`limitsNavigationsToAppBoundDomains: true` does NOT block the edge
+  functions.** Measured from the WebKit networking log during a real signup:
+  `OPTIONS` → 200 preflight, `POST` → 200 (signup, 1031 ms), second `POST` → 200
+  (initial save). The user row, a session expiring exactly 90 days out, and a
+  `game_states` row at version 0 were all created; the app reached the menu with
+  the friend code matching the row. Test player then deleted, cascade verified.
 
 **Still not done:**
-- Nothing has run on iOS hardware. `pnpm ios` builds and opens Xcode; signing and a
-  device are Marcus's to do.
+- Nothing has run on a *physical* device. The simulator needs no signing, so it
+  proved the bundle and the network path but not provisioning. `pnpm ios` builds
+  and opens Xcode; signing and a device are Marcus's to do.
+- **A 400 from `signup` is completely silent.** A name containing digits is
+  correctly rejected by `signup/index.ts:21` (letters only), and the child sees
+  nothing at all — no toast, no shake, no text. Three frames captured after the
+  tap were byte-identical. They would tap "I'm sure it's safe" forever. Found
+  while testing; deliberately not fixed, since it is its own piece of work.
+- **The 401 path (`f8ae9b2`) is still unverified on device.** Deleting the user
+  mid-session did not trigger it — entering the game makes no server call, so the
+  stale token is never presented. Needs a save to be provoked.
+- **Safe-area insets untested.** The iPad has no notch, so this run never touched
+  `SAFE_MARGIN` / `env(safe-area-inset-*)`. That needs an iPhone simulator.
 - Depot/SupplyRun overflow in landscape — cards run under the back button. A design
   call: scrolling list or two-column grid.
 - Three UX findings left open on purpose (28px phase pill, T4, L6 counts).
@@ -54,6 +78,23 @@ from the moment this ships — and the old code told them their wifi was down, t
 failed every save behind a retry toast that could not work. A 401 now clears the
 session and sends the child to sign-in.
 
+*The whole returning-player entrance was broken, and had been from the start.*
+Two defects, both found by running the simulator, both fixed here. First, the
+"I already have an account" plank on signup stage A had **never** had a working
+handler: the selector was scoped `#stage-select …`, but the button lives in
+`.cta-stack`, a *sibling* of `#stage-select`, so it matched nothing and the `?.`
+swallowed it. `e73ecab` had already fixed a different wrong selector on the same
+button. It is now bound by `id`, which cannot be broken by moving it in the DOM.
+Second, `login.html` guarded chip repopulation on `usernames.length`, so an empty
+list — the honest answer on a fresh install — skipped the block entirely and left
+the four hardcoded design chips (**Lily, Sam, Rosie, Mia**, "2 hours ago") in the
+page. A child's first launch showed four accounts that do not exist, and tapping
+one ran a real login that could only fail. That guard also meant
+`adaptTypeNameButton()` always counted 4 placeholders, so the first-run "TYPE YOUR
+NAME" CTA was permanently demoted to "Not here? Type your name" and the branch the
+code describes was unreachable. Both verified on device: the plank now navigates,
+and the screen it reaches has no fake chips and the big CTA back.
+
 ## Files
 - `packages/game-logic/src/merge-save.ts` — `mergeSaveState`; per-field rules in the header.
 - `apps/game/src/game-state/localSave.ts` — three IndexedDB records: live, `::rejected`, `::base`.
@@ -62,6 +103,9 @@ session and sends the child to sign-in.
 - `supabase/functions/_shared/session.ts` — `requireSession` / `createSession`; token rides in `x-arc-session`.
 - `apps/game/src/ui/constants.ts` — `MIN_TAP`, `MIN_TAP_GAP`, `bottomAnchorY`; `SAFE_MARGIN` still needs `env(safe-area-inset-*)`.
 - `apps/game/src/game-state/loadSaveState.ts` — `isUnauthorised` / `requireSignIn`, the 401 path.
+- `apps/game/public/admin/signup.html` — `#have-account-btn` (~1777) and its handler (~1982); `hint-safe-btn` at 2348 is what actually fires `signup-complete`.
+- `apps/game/public/admin/login.html` — the `init` handler (~1634) and `adaptTypeNameButton()` (~1483). The four placeholder chips at ~1370 are still there on purpose, for opening the page directly for design review.
+- `supabase/functions/signup/index.ts:21` — the letters-only username rule. Every 400 in that file is currently invisible to the child.
 
 ## Decisions made
 - **Capacitor** for iOS; landscape-locked in `Info.plist`; **Kids Category**, so never a
@@ -80,9 +124,14 @@ session and sends the child to sign-in.
 - `MIN_TAP` applies to the **hit area**, not the drawn art.
 
 ## Next step
-1. **iOS hardware run** — `pnpm ios`, then signing and a device. Marcus's hands.
-2. **Depot/SupplyRun landscape overflow** — the open design call.
-3. **Regenerate the visual baseline** once the landscape layout settles.
+1. **Physical device run** — `pnpm ios`, then signing and a device. Marcus's hands.
+   The simulator is already proven, so this is provisioning only.
+2. **Surface signup/login errors.** The silent 400 is the worst remaining
+   first-run bug and it is cheap to fix — `login.html` already has `shakeError`
+   for exactly this.
+3. **iPhone simulator pass** for the safe-area insets.
+4. **Depot/SupplyRun landscape overflow** — the open design call.
+5. **Regenerate the visual baseline** once the landscape layout settles.
 
 ## Traps
 - **Check `supabase functions list` before assuming anything is deployed.** Committed
@@ -97,6 +146,15 @@ session and sends the child to sign-in.
   showcase_links; `audit_log` keeps its rows with `user_id` nulled, by design.
 - `curl … /rest/v1/<table>?select=<column that does not exist>` returns a 4-key error
   object, and `len()` on it reads as "4 rows". Select a real column before believing a count.
+  **`id` is not a universal column here** — `sessions` keys on `token`, and
+  `friendships` and `showcase_links` have no `id` either. `user_id` is the safe
+  probe for all three. This trap fired three times in one session.
+- **The simulator's landscape content is letterboxed into a portrait framebuffer.**
+  `simctl io … screenshot` returns 1640×2360 for an iPad Air in landscape, with the
+  real screen as a band inside it. Tap coordinates still map as
+  `y_pt = y_px / 2360 * 1180` over the *whole* buffer, bars included. Do not eyeball
+  button positions off a rendered screenshot — measure the pixels and convert, or you
+  will land in the gap between two planks and read a working button as a dead one.
 - Playwright needs `ARC_BROWSER_CHANNEL=chrome`; the bundled Chromium download stalls.
 - WebGL does not initialise in the Claude browser pane. Use Playwright, not `preview_*`.
 - `@arc/game-logic` has `main: src/index.ts` and `noEmit`, so there is no `dist/`.
