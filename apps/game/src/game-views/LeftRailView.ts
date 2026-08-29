@@ -1,6 +1,12 @@
 /**
  * LeftRailView — the "pet management" dock anchored to the left of the
- * corridor canvas (or pulled up as a bottom drawer on iPhone).
+ * corridor canvas.
+ *
+ * On an iPad it stands open. On anything narrower than
+ * RAIL_COLLAPSE_BREAKPOINT it collapses to a 56px pull-tab carrying the
+ * arrivals count, and slides in over the scene when the tab is tapped —
+ * 280px is 24% of a landscape phone, and a badge says the one urgent
+ * thing the rail holds.
  *
  * Lives outside the corridor canvas itself so painted scenery and
  * animated sprites never get covered by floating buttons. Single home
@@ -25,9 +31,9 @@ import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getUrgentNeed } from '@arc/game-logic';
 import { createButton } from '../ui/UIButton';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP } from '../ui/constants';
-import { railBoundsFor, playAreaFor, type RailBounds } from '../ui/layout';
+import { railBoundsFor, playAreaFor, RAIL_TAB_WIDTH, type RailBounds } from '../ui/layout';
 
-export { RAIL_WIDTH, RAIL_DRAWER_BREAKPOINT } from '../ui/layout';
+export { RAIL_WIDTH, RAIL_TAB_WIDTH, RAIL_COLLAPSE_BREAKPOINT, railIsCollapsible } from '../ui/layout';
 
 export interface LeftRailCallbacks {
   /** Welcome a single arriving animal. */
@@ -38,6 +44,11 @@ export interface LeftRailCallbacks {
   onCareAlertTap?: () => void;
   /** Tap an arriving animal's card body — show its details popup. */
   onShowAnimalDetails?: (animal: Animal) => void;
+  /**
+   * Open or close the collapsed rail. Only ever called in tab/overlay
+   * mode; a rail that stands open has nothing to toggle.
+   */
+  onToggleRail?: () => void;
 }
 
 /**
@@ -45,19 +56,19 @@ export interface LeftRailCallbacks {
  * uses this to know how much horizontal space to leave for the corridor
  * canvas and to anchor the rail container.
  */
-export function getRailBounds(scene: Phaser.Scene): RailBounds {
+export function getRailBounds(scene: Phaser.Scene, open = false): RailBounds {
   const { width, height } = scene.scale;
-  return railBoundsFor(width, height);
+  return railBoundsFor(width, height, open);
 }
 
 /**
  * The horizontal slice of the scene that game content may use.
  *
- * The side rail is opaque and mounted at depth 50, over everything the game
+ * The rail is opaque and mounted at depth 50, over everything the game
  * draws at depth 0. Laying content out across the full scene width therefore
- * hides whatever falls in the first RAIL_WIDTH pixels — which was 36 of the
- * 100 hand-authored room anchors on a landscape phone, including the snake
- * and fox door signs a child taps to enter a room.
+ * hides whatever falls in the reserved column — which was 36 of the 100
+ * hand-authored room anchors on a landscape phone, including the snake and
+ * fox door signs a child taps to enter a room.
  *
  * Views must lay out inside this box rather than the full width, and must
  * draw their background into it too: anchors are fractions of the background
@@ -74,32 +85,15 @@ export function renderLeftRail(
   store: GameStateStore,
   container: Phaser.GameObjects.Container,
   callbacks: LeftRailCallbacks,
+  open = false,
 ): void {
   container.removeAll(true);
 
-  const bounds = getRailBounds(scene);
+  const bounds = getRailBounds(scene, open);
   const { x: rx, y: ry, w: rw, h: rh, mode } = bounds;
 
-  // ── Painted-paper panel background ─────────────────────────
-  // Layered shadow + cream paper. Slightly opaque so the corridor
-  // beneath has a hint of warmth showing through. Rail is anchored
-  // to its own bounds, so its (0,0) draws at top-left of the panel.
-  const shadow = scene.add.graphics();
-  shadow.fillStyle(0x000000, 0.18);
-  shadow.fillRoundedRect(rx + 3, ry + 4, rw, rh, mode === 'side' ? 16 : 18);
-  container.add(shadow);
-
-  const paper = scene.add.graphics();
-  paper.fillStyle(0xfef9ef, 0.96);
-  paper.fillRoundedRect(rx, ry, rw, rh, mode === 'side' ? 16 : 18);
-  // Hairline border
-  paper.lineStyle(1.5, 0xd4c8b8, 0.9);
-  paper.strokeRoundedRect(rx, ry, rw, rh, mode === 'side' ? 16 : 18);
-  container.add(paper);
-
-  // Counts derived from the store — same definitions as HUDView used to
-  // compute, so the numbers stay consistent now that the badges have
-  // moved out of the top strip.
+  // Counts derived from the store — the tab needs them before it draws,
+  // so they are computed ahead of the panel art.
   const inCareCount = store.animals.filter(
     (a) => a.state === 'sheltered' || a.state === 'bonding' || a.state === 'pet',
   ).length;
@@ -109,11 +103,137 @@ export function renderLeftRail(
     return getUrgentNeed(a) !== null || store.sickAnimals.has(a.id);
   }).length;
 
-  if (mode === 'drawer') {
-    renderDrawer(scene, store, container, callbacks, bounds, { inCareCount, arriving, needsCareCount });
-  } else {
-    renderSideRail(scene, store, container, callbacks, bounds, { inCareCount, arriving, needsCareCount });
+  if (mode === 'tab') {
+    renderTab(scene, container, callbacks, bounds, { inCareCount, arriving, needsCareCount });
+    return;
   }
+
+  // An open overlay rail is dismissed by tapping the scene beside it.
+  // The catcher goes in first so it sits under the rail's own art, and
+  // covers the whole scene so there is no dead strip a tap falls into.
+  if (mode === 'overlay') {
+    const { width, height } = scene.scale;
+    const catcher = scene.add.rectangle(0, 0, width, height, 0x000000, 0.25)
+      .setOrigin(0, 0)
+      .setInteractive();
+    catcher.on('pointerdown', () => callbacks.onToggleRail?.());
+    container.add(catcher);
+  }
+
+  // ── Painted-paper panel background ─────────────────────────
+  // Layered shadow + cream paper. Slightly opaque so the corridor
+  // beneath has a hint of warmth showing through. Rail is anchored
+  // to its own bounds, so its (0,0) draws at top-left of the panel.
+  const shadow = scene.add.graphics();
+  shadow.fillStyle(0x000000, 0.18);
+  shadow.fillRoundedRect(rx + 3, ry + 4, rw, rh, 16);
+  container.add(shadow);
+
+  const paper = scene.add.graphics();
+  paper.fillStyle(0xfef9ef, 0.96);
+  paper.fillRoundedRect(rx, ry, rw, rh, 16);
+  // Hairline border
+  paper.lineStyle(1.5, 0xd4c8b8, 0.9);
+  paper.strokeRoundedRect(rx, ry, rw, rh, 16);
+  container.add(paper);
+
+  renderSideRail(scene, store, container, callbacks, bounds, {
+    inCareCount, arriving, needsCareCount,
+  });
+}
+
+// ──────────────────────────────────────────────────────────────
+// Collapsed tab (phone) — the pull-tab that brings the rail in
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * A 56px pull-tab at the left edge, vertically centred in the rail band.
+ *
+ * It carries one thing: how many animals are waiting. That is the only
+ * part of the rail a child has to act on promptly, and an orange badge
+ * with a number says it in the space available. Everything else in the
+ * rail is a count she reads when she chooses to.
+ */
+function renderTab(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  callbacks: LeftRailCallbacks,
+  bounds: { x: number; y: number; w: number; h: number },
+  ctx: CountsContext,
+): void {
+  const tabH = 150;
+  const tabY = bounds.y + Math.max(0, (bounds.h - tabH) / 2);
+  const w = RAIL_TAB_WIDTH;
+  const waiting = ctx.arriving.length;
+
+  const shadow = scene.add.graphics();
+  shadow.fillStyle(0x000000, 0.18);
+  shadow.fillRoundedRect(bounds.x + 3, tabY + 4, w, tabH, 16);
+  container.add(shadow);
+
+  const paper = scene.add.graphics();
+  paper.fillStyle(0xfef9ef, 0.96);
+  paper.fillRoundedRect(bounds.x, tabY, w, tabH, 16);
+  paper.lineStyle(1.5, 0xd4c8b8, 0.9);
+  paper.strokeRoundedRect(bounds.x, tabY, w, tabH, 16);
+  container.add(paper);
+
+  const cx = bounds.x + w / 2;
+
+  // ARC paw mark, or a paw glyph where the texture has not loaded yet.
+  if (scene.textures.exists('icon-arc-badge')) {
+    const badge = scene.add.image(cx, tabY + 40, 'icon-arc-badge');
+    const scale = Math.min(32 / badge.width, 32 / badge.height);
+    badge.setScale(scale);
+    container.add(badge);
+  } else {
+    container.add(
+      scene.add.text(cx, tabY + 40, '🐾', {
+        fontSize: '26px', resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5, 0.5),
+    );
+  }
+
+  // Waiting badge — the reason to open the rail at all.
+  if (waiting > 0) {
+    const badgeCy = tabY + 86;
+    const ring = scene.add.graphics();
+    ring.fillStyle(0xE67E22, 1);
+    ring.fillCircle(cx, badgeCy, 16);
+    container.add(ring);
+    container.add(
+      scene.add.text(cx, badgeCy, `${waiting}`, {
+        fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
+        color: '#ffffff', resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5, 0.5),
+    );
+    container.add(
+      scene.add.text(cx, tabY + 114, 'waiting', {
+        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: '#A85A28', resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5, 0.5),
+    );
+  } else {
+    container.add(
+      scene.add.text(cx, tabY + 92, `${ctx.inCareCount}`, {
+        fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
+        color: '#3a2e22', resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5, 0.5),
+    );
+    container.add(
+      scene.add.text(cx, tabY + 114, 'in care', {
+        fontSize: '14px', fontFamily: FONTS.body,
+        color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5, 0.5),
+    );
+  }
+
+  // The whole tab is the target — 56 x 150 clears MIN_TAP in both axes.
+  const hit = scene.add.rectangle(
+    bounds.x, tabY, Math.max(w, MIN_TAP), Math.max(tabH, MIN_TAP), 0x000000, 0,
+  ).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+  hit.on('pointerdown', () => callbacks.onToggleRail?.());
+  container.add(hit);
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -131,12 +251,18 @@ function renderSideRail(
   _store: GameStateStore,
   container: Phaser.GameObjects.Container,
   callbacks: LeftRailCallbacks,
-  bounds: { x: number; y: number; w: number; h: number },
+  bounds: RailBounds,
   ctx: CountsContext,
 ): void {
   const padX = SAFE_MARGIN;
   const innerW = bounds.w - padX * 2;
-  let cursorY = bounds.y + 16;
+  // A rail that slid in needs its own way out — a child should not have
+  // to guess that the scene behind it is tappable. It goes at the top,
+  // beside the eyebrow, where nothing else competes for the space: at the
+  // bottom it landed on the first arrival's Welcome button, which is the
+  // one control in the rail she must not miss.
+  const isOverlay = bounds.mode === 'overlay';
+  let cursorY = bounds.y + (isOverlay ? 30 : 16);
 
   // ── Header: "MY RESCUE" eyebrow ──────────────────────────
   container.add(
@@ -145,6 +271,27 @@ function renderSideRail(
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0),
   );
+
+  if (isOverlay) {
+    const closeCx = bounds.x + bounds.w - padX - 16;
+    const closeCy = cursorY + 4;
+    const ring = scene.add.graphics();
+    ring.fillStyle(0xe8ded0, 1);
+    ring.fillCircle(closeCx, closeCy, 16);
+    container.add(ring);
+    container.add(
+      scene.add.text(closeCx, closeCy, '✕', {
+        fontSize: '18px', fontFamily: FONTS.body, fontStyle: 'bold',
+        color: '#3a2e22', resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5, 0.5),
+    );
+    const closeHit = scene.add.rectangle(
+      closeCx, closeCy, MIN_TAP, MIN_TAP, 0x000000, 0,
+    ).setInteractive({ useHandCursor: true });
+    closeHit.on('pointerdown', () => callbacks.onToggleRail?.());
+    container.add(closeHit);
+  }
+
   cursorY += 16;
 
   // ── Counts row: in-care / waiting / needs-care ────────────
@@ -201,73 +348,6 @@ function renderSideRail(
         }).setOrigin(0.5, 0.5),
     );
     cursorY += 60;
-  }
-}
-
-// ──────────────────────────────────────────────────────────────
-// Bottom drawer (iPhone) — horizontal arrival cards in a peek strip
-// ──────────────────────────────────────────────────────────────
-
-function renderDrawer(
-  scene: Phaser.Scene,
-  _store: GameStateStore,
-  container: Phaser.GameObjects.Container,
-  callbacks: LeftRailCallbacks,
-  bounds: { x: number; y: number; w: number; h: number },
-  ctx: CountsContext,
-): void {
-  const padX = SAFE_MARGIN;
-  const innerW = bounds.w - padX * 2;
-
-  // Header strip — counts inline + tap-target to expand later (future)
-  const headerY = bounds.y + 10;
-  const headerText = ctx.arriving.length > 0
-    ? `★ ${ctx.arriving.length} waiting · ${ctx.inCareCount} in care${ctx.needsCareCount > 0 ? ` · ${ctx.needsCareCount} need care` : ''}`
-    : `${ctx.inCareCount} in care${ctx.needsCareCount > 0 ? ` · ${ctx.needsCareCount} need care` : ''}`;
-  container.add(
-    scene.add.text(bounds.x + padX, headerY,
-      headerText,
-      {
-        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
-        color: ctx.arriving.length > 0 ? '#A85A28' : COLOURS.textLight,
-        resolution: TEXT_RESOLUTION,
-      }).setOrigin(0, 0),
-  );
-
-  // Arrival mini-cards laid out horizontally
-  if (ctx.arriving.length > 0) {
-    const cardsTop = bounds.y + 30;
-    const cardsH = bounds.h - 38;
-    const cardW = Math.min(180, (innerW - (ctx.arriving.length - 1) * 8) / ctx.arriving.length);
-    let cx = bounds.x + padX;
-    for (const animal of ctx.arriving) {
-      drawMiniArrivalCard(scene, container, cx, cardsTop, cardW, cardsH, animal,
-        () => callbacks.onWelcomeOne(animal));
-      cx += cardW + 8;
-    }
-
-    // "All" pill at the right edge if >1
-    if (ctx.arriving.length > 1) {
-      const allBtn = createButton(
-        scene,
-        // -38, not -32: createButton pads out to about 76px wide, so half of
-        // it is 38. The old guess put the pill 10px from the screen edge.
-        bounds.x + bounds.w - padX - 38,
-        bounds.y + 16,
-        `All`,
-        () => callbacks.onWelcomeAll(ctx.arriving),
-        { width: 60, fontSize: '14px', bgColour: COLOURS.primary },
-      );
-      container.add(allBtn);
-    }
-  } else {
-    container.add(
-      scene.add.text(bounds.x + bounds.w / 2, bounds.y + bounds.h / 2 + 6,
-        'All quiet at the rescue',
-        { fontSize: '14px', fontFamily: FONTS.body,
-          color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5, 0.5),
-    );
   }
 }
 
@@ -362,12 +442,37 @@ function drawArrivalCard(
   onTapCard?: () => void,
 ): number {
   const accentInt = SPECIES_COLOURS[animal.species as Species];
-  // 96 was too short for its own contents: the Welcome button overhung the
-  // bottom by 7px, and the "tap for details" rect covered the button's top
-  // 10px — and won, being added after it. Tapping the top of Welcome, where
-  // a 7-year-old aims, opened the info popup instead of accepting the animal.
-  const cardH = 112;
   const welcomeH = MIN_TAP;
+
+  // The card sizes to its own text rather than to a constant.
+  //
+  // It used to be a fixed 112 with the story pinned at y+30 and the button
+  // pinned to the bottom. Two lines of story reach y+68 and the button's
+  // top edge is at y+60, so the second line was printed under the button —
+  // which is where the animal's story ends, and the story is the only
+  // reason a child reads the card at all. A long name wrapping the title
+  // to two lines pushed it further under still. Measuring both and
+  // stacking them means neither can collide with the other again.
+  const speciesLabel = animal.variant
+    ? `${animal.variant} ${animal.species}`
+    : animal.species;
+  const title = scene.add.text(x + 12, y + 8, `${animal.name} the ${speciesLabel}`, {
+    fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold',
+    color: '#3a2e22', resolution: TEXT_RESOLUTION,
+    wordWrap: { width: w - 24 },
+  }).setOrigin(0, 0);
+
+  const rawStory = (animal.arrivalStory || '').trim();
+  const truncated = rawStory.length > 88 ? rawStory.slice(0, 86) + '…' : rawStory;
+  const story = scene.add.text(x + 12, title.y + title.height + 4, `"${truncated}"`, {
+    fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'italic',
+    color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+    wordWrap: { width: w - 24 }, maxLines: 2,
+  }).setOrigin(0, 0);
+
+  // 112 stays the floor so a one-line arrival looks the same as before.
+  const textBottom = story.y + story.height;
+  const cardH = Math.max(112, textBottom - y + 10 + welcomeH + 8);
 
   // Card background — pale paper with a coloured left edge that
   // signals which species the arrival is
@@ -379,33 +484,15 @@ function drawArrivalCard(
   // Coloured species rib down the left side
   bg.fillStyle(accentInt, 1);
   bg.fillRoundedRect(x, y, 5, cardH, { tl: 8, bl: 8, tr: 0, br: 0 });
+
+  // Added in paint order: paper, then the text that sits on it.
   container.add(bg);
+  container.add(title);
+  container.add(story);
 
-  // Title: "Bramble the beagle dog" (variant if any, else species)
-  const speciesLabel = animal.variant
-    ? `${animal.variant} ${animal.species}`
-    : animal.species;
-  const titleText = `${animal.name} the ${speciesLabel}`;
-  container.add(
-    scene.add.text(x + 12, y + 8, titleText, {
-      fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold',
-      color: '#3a2e22', resolution: TEXT_RESOLUTION,
-      wordWrap: { width: w - 24 },
-    }).setOrigin(0, 0),
-  );
-
-  // Body: the arrival story (truncated to 2 lines)
-  const story = (animal.arrivalStory || '').trim();
-  const truncated = story.length > 88 ? story.slice(0, 86) + '…' : story;
-  container.add(
-    scene.add.text(x + 12, y + 30, `"${truncated}"`, {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'italic',
-      color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
-      wordWrap: { width: w - 24 }, maxLines: 2,
-    }).setOrigin(0, 0),
-  );
-
-  // Welcome button — full width of card minus padding, anchored bottom
+  // Welcome button — full width of card minus padding, anchored bottom.
+  // The 8px bottom pad is why cardH reserves welcomeH + 8 above: an
+  // earlier 96px card let this overhang the paper by 7px.
   const btn = createButton(
     scene, x + w / 2, y + cardH - 8 - welcomeH / 2,
     'Welcome',
@@ -427,49 +514,4 @@ function drawArrivalCard(
     container.add(hit);
   }
   return cardH;
-}
-
-function drawMiniArrivalCard(
-  scene: Phaser.Scene,
-  container: Phaser.GameObjects.Container,
-  x: number, y: number, w: number, h: number,
-  animal: Animal,
-  onWelcome: () => void,
-): void {
-  const accentInt = SPECIES_COLOURS[animal.species as Species];
-
-  const bg = scene.add.graphics();
-  bg.fillStyle(0xffffff, 0.92);
-  bg.fillRoundedRect(x, y, w, h, 6);
-  bg.lineStyle(1, accentInt, 0.7);
-  bg.strokeRoundedRect(x, y, w, h, 6);
-  container.add(bg);
-
-  // Name (single line, truncated)
-  const title = `${animal.name}`;
-  container.add(
-    scene.add.text(x + 6, y + 6, title, {
-      fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold',
-      color: '#3a2e22', resolution: TEXT_RESOLUTION,
-    }).setOrigin(0, 0),
-  );
-  // Subtitle: "the beagle dog"
-  const sub = animal.variant
-    ? `the ${animal.variant} ${animal.species}`
-    : `the ${animal.species}`;
-  container.add(
-    scene.add.text(x + 6, y + 23, sub, {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'italic',
-      color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
-    }).setOrigin(0, 0),
-  );
-
-  // Mini welcome pill at the bottom
-  const btn = createButton(
-    scene, x + w / 2, y + h - 14,
-    'Welcome',
-    onWelcome,
-    { width: w - 14, fontSize: '14px', bgColour: COLOURS.primary },
-  );
-  container.add(btn);
 }

@@ -128,9 +128,14 @@ export class GameScene extends Phaser.Scene {
   private gameContainer!: Phaser.GameObjects.Container;
   private navContainer!: Phaser.GameObjects.Container;
   private uiContainer!: Phaser.GameObjects.Container;
-  /** Left-side (or bottom-drawer) "pet management" rail — counts,
-   *  arrivals, Welcome buttons. See LeftRailView. */
+  /** Left-side "pet management" rail — counts, arrivals, Welcome
+   *  buttons. See LeftRailView. */
   private railContainer!: Phaser.GameObjects.Container;
+  /** Whether the collapsed rail is currently slid in. Only meaningful
+   *  below RAIL_COLLAPSE_BREAKPOINT; an iPad's rail always stands open.
+   *  Reset on navigation so the rail never covers a view the child has
+   *  just moved to. */
+  private railOpen = false;
   // Persistent layer for cross-fading sprites during state transitions.
   // NOT cleared by gameContainer.removeAll() so ghost sprites can outlive
   // a re-render while fading out.
@@ -318,9 +323,8 @@ export class GameScene extends Phaser.Scene {
     this._lastWidth = this.scale.width;
     this._lastHeight = this.scale.height;
 
+    // renderView draws the rail and the HUD too.
     this.renderView();
-    this.renderHUD();
-    this.renderRail();
 
     // Re-ensure the essential tier in case the player tapped the
     // LoadingScene's "Play now" escape hatch with essentials still
@@ -420,9 +424,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.saveState();
-    if (this.viewMode === 'corridor') this.renderView();
-    this.renderHUD();
-    this.renderRail();
+    // Only the corridor draws arriving animals, so only it needs the full
+    // view pass; the chrome needs refreshing wherever we are. renderView
+    // already does both, so the else branch is the whole job elsewhere.
+    if (this.viewMode === 'corridor') {
+      this.renderView();
+    } else {
+      this.renderRail();
+      this.renderHUD();
+    }
 
     // Celebrate the new arrival with the painted modal. Fires the arrival
     // overlay over the running scene — the player picks a welcome gesture
@@ -540,6 +550,14 @@ export class GameScene extends Phaser.Scene {
       markAllDueGardenReturnsSeen(this.store, Date.now());
       this.saveState();
     }
+    // Moving to a different view closes an opened rail: it is an overlay
+    // on the scene, and a child who has just tapped a door means to see
+    // the room, not the rail she opened over the corridor. Staying put
+    // leaves it alone, so welcoming two arrivals in a row does not shut
+    // the rail after the first.
+    if (this.lastRenderedView !== undefined && this.lastRenderedView !== this.viewMode) {
+      this.railOpen = false;
+    }
     this.lastRenderedView = this.viewMode;
 
     switch (this.viewMode) {
@@ -548,10 +566,21 @@ export class GameScene extends Phaser.Scene {
       case 'kitchen': this.renderKitchen(); break;
       case 'garden': this.renderGarden(); break;
     }
-    // Rail is shown on every view (it's the always-on "pet management"
-    // dock). Re-render after the view so its container can read the
-    // latest store state.
+    // Rail and HUD are shown on every view (the always-on "pet
+    // management" dock, and the counts strip). Re-render after the view
+    // so their containers read the latest store state.
+    //
+    // The HUD used to be left out of this, and only 4 of the 41 paths
+    // that call renderView() re-rendered it by hand. welcomeArrivals was
+    // one of the misses: a child tapped Welcome, the rail moved the
+    // animal into "In care 2", and the HUD kept saying "1 in care" — two
+    // different numbers for the same thing on one screen, the second of
+    // them wrong. Every count the HUD draws (in care, needs care, the XP
+    // bar, the shelter capacity) comes from store.animals, so it goes
+    // stale on feed, heal, adopt and the rest for the same reason.
+    // Rendering it here fixes all of them at once, and matches the rail.
     this.renderRail();
+    this.renderHUD();
   }
 
   /**
@@ -595,9 +624,11 @@ export class GameScene extends Phaser.Scene {
     this.renderView();
   }
 
-  /** Left rail (or bottom drawer on iPhone) — counts + arrivals +
-   *  Welcome buttons + future per-pet status cards. Re-rendered on
-   *  every renderView() pass so the arrivals list stays in sync. */
+  /** Left rail — counts + arrivals + Welcome buttons + future per-pet
+   *  status cards. Re-rendered on every renderView() pass so the arrivals
+   *  list stays in sync. On a phone it draws as a pull-tab until
+   *  `railOpen` is set; on an iPad it always stands open and `railOpen`
+   *  is ignored. */
   private renderRail(): void {
     renderLeftRail(this, this.store, this.railContainer, {
       onWelcomeOne: (animal) => this.welcomeArrivals([animal]),
@@ -613,7 +644,13 @@ export class GameScene extends Phaser.Scene {
           x: this.scale.width / 2, y: this.scale.height / 2, size: 100,
         });
       },
-    });
+      onToggleRail: () => {
+        this.railOpen = !this.railOpen;
+        // Only the rail changed; the scene behind it does not reflow,
+        // because the play area reserves the tab's width either way.
+        this.renderRail();
+      },
+    }, this.railOpen);
   }
 
   /** Thin wrapper — delegates to HUDView.renderHUD. */

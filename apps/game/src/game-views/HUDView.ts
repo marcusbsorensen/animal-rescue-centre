@@ -7,6 +7,7 @@ import {
 } from '@arc/game-logic';
 import { AudioManager } from '../audio/AudioManager';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
+import { playAreaFor } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
 // Human-readable names for phases + weathers (shown in HUD pills).
@@ -65,7 +66,7 @@ export function renderHUD(
   callbacks: HUDCallbacks,
 ): void {
   uiContainer.removeAll(true);
-  const { width } = scene.scale;
+  const { width, height } = scene.scale;
   const required = getRequiredRescuesForLevel(store.level);
 
   // "in care" is the live count of animals in the shelter or garden,
@@ -85,12 +86,23 @@ export function renderHUD(
   ).length;
   const maxShelter = getMaxShelterAnimals(store.level);
 
-  // Constrain to 600px centred for large screens
-  const maxW = Math.min(width, 600);
+  // Constrain to 600px centred, and centre it on the play area rather
+  // than the whole screen.
+  //
+  // Centring on the screen while the views centre their titles on the
+  // play area meant the two disagreed by half the rail's width, and on an
+  // iPad the shelter pill landed on top of "Cat Room" / "Dog Room" /
+  // "Rescue Centre" — visible on every screen in the game. Sharing one
+  // origin is what stops that recurring: 600px centred in the play area
+  // leaves a gap in the middle that the title sits in, on every viewport
+  // from a landscape phone up.
+  const play = playAreaFor(width, height);
+  const maxW = Math.min(play.w, 600);
+  const slack = (play.w - maxW) / 2;
   // 10 -> SAFE_MARGIN. The tap circles in this strip are floored at a 24px
   // radius, so a 10px inset left their outer edge 6px from the screen.
-  const leftEdge = (width - maxW) / 2 + SAFE_MARGIN;
-  const rightEdge = width - (width - maxW) / 2 - SAFE_MARGIN;
+  const leftEdge = play.x + slack + SAFE_MARGIN;
+  const rightEdge = play.x + play.w - slack - SAFE_MARGIN;
   // 40, not 30. The tap circles in this strip are floored at a 24px radius
   // for small fingers, so a centre at 30 put their top edge 6px from the
   // screen — inside the notch/status area on a phone. 16 + 24 clears it.

@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { playAreaFor, railBoundsFor, RAIL_WIDTH } from '../../ui/layout';
+import {
+  playAreaFor, railBoundsFor, railReservedWidth,
+  RAIL_WIDTH, RAIL_TAB_WIDTH,
+} from '../../ui/layout';
 
 /**
  * The left rail is opaque and mounted at depth 50, over everything the game
@@ -31,26 +34,43 @@ const DEVICES: [string, number, number][] = [
 ];
 
 describe('playAreaFor', () => {
-  it('reserves the rail on a landscape phone, where the side rail still shows', () => {
-    // 812x375 is a landscape iPhone: wide enough to clear the 600px drawer
-    // breakpoint, so it gets the side rail rather than the bottom drawer.
-    expect(railBoundsFor(812, 375).mode).toBe('side');
+  it('reserves only the tab on a landscape phone', () => {
+    // 812x375 is a landscape iPhone. 280px of it is 24% of the screen for
+    // counts a child reads once, so the rail collapses to its tab and
+    // gives the animals the other 224px back.
+    expect(railBoundsFor(812, 375).mode).toBe('tab');
     const play = playAreaFor(812, 375);
-    expect(play.x).toBe(RAIL_WIDTH);
-    expect(play.w).toBe(812 - RAIL_WIDTH);
+    expect(play.x).toBe(RAIL_TAB_WIDTH);
+    expect(play.w).toBe(812 - RAIL_TAB_WIDTH);
   });
 
-  it('reserves the rail on iPad', () => {
+  it('reserves the full rail on iPad', () => {
+    expect(railBoundsFor(1024, 768).mode).toBe('side');
     const play = playAreaFor(1024, 768);
     expect(play.x).toBe(RAIL_WIDTH);
     expect(play.w).toBe(1024 - RAIL_WIDTH);
   });
 
-  it('uses the full width in drawer mode, where the rail is along the bottom', () => {
-    expect(railBoundsFor(375, 812).mode).toBe('drawer');
-    const play = playAreaFor(375, 812);
-    expect(play.x).toBe(0);
-    expect(play.w).toBe(375);
+  it('splits the fleet at the breakpoint: every iPhone tabs, every iPad does not', () => {
+    // Widest iPhone in landscape (17 Pro Max) against the narrowest iPad
+    // (mini). Nothing shipping lands between them.
+    expect(railBoundsFor(956, 440).mode).toBe('tab');
+    expect(railBoundsFor(1133, 744).mode).toBe('side');
+  });
+
+  it('does not reflow the scene when the collapsed rail slides open', () => {
+    // The opened rail is an overlay. If the play area moved with it, the
+    // whole room would shift under the child's finger and the animals
+    // would jump.
+    const open = railBoundsFor(812, 375, true);
+    expect(open.mode).toBe('overlay');
+    expect(open.w).toBe(RAIL_WIDTH);
+    expect(railReservedWidth(812)).toBe(RAIL_TAB_WIDTH);
+    expect(playAreaFor(812, 375).x).toBe(RAIL_TAB_WIDTH);
+  });
+
+  it('ignores the open flag where the rail already stands open', () => {
+    expect(railBoundsFor(1024, 768, true).mode).toBe('side');
   });
 });
 
@@ -64,7 +84,7 @@ describe('content laid out in the play area clears the rail', () => {
       Math.max(play.x + play.w * LEFTMOST_DOOR_FRAC, play.x + SIGN_W / 2),
       play.x + play.w - SIGN_W / 2,
     );
-    expect(cx - SIGN_W / 2).toBeGreaterThanOrEqual(RAIL_WIDTH);
+    expect(cx - SIGN_W / 2).toBeGreaterThanOrEqual(railReservedWidth(w));
   });
 
   it.each(DEVICES)('every hand-authored anchor is clear on %s', (_name, w, h) => {
@@ -78,7 +98,7 @@ describe('content laid out in the play area clears the rail', () => {
     expect(xs.length).toBeGreaterThan(0);
 
     const play = playAreaFor(w, h);
-    const covered = xs.filter((frac) => play.x + play.w * frac < RAIL_WIDTH);
+    const covered = xs.filter((frac) => play.x + play.w * frac < railReservedWidth(w));
     expect(covered).toEqual([]);
   });
 });
