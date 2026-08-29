@@ -102,6 +102,43 @@ checking the claim still holds.
   `node tools/sim-band.mjs <udid> <name> <outdir>`; it prints the offset to
   add back. Rotating to landscape needs Cmd+Left in Simulator.app — there
   is no `simctl` command and `osascript` needs assistive access.
+- **The Phaser views have a play *band*, not just a play column.**
+  `playAreaFor` in `src/ui/layout.ts` returns x/y/w/h; the y/h half is
+  new as of 2026-08-29. Laying content out against `scene.scale.height`
+  puts it under the HUD (drawn into uiContainer) or the nav bar (drawn
+  into navContainer) — both added after gameContainer, so they cover it
+  *and* take the tap. Below 480px of viewport height the nav bar
+  compresses from 96 to 78; `navBarMetrics(height)` is the single source
+  for the bar's geometry and the band is computed from it. Do not
+  hard-code a bar height in NavBarView again — they used to be
+  independent and that is the pair that drifts.
+- **`createAnimalSprite` renders at 2x the box it is handed**
+  (`SPRITE_RENDER_SCALE` in `ui/layout.ts`, used by `ui/sprites.ts`), and
+  an anchor's own `scale` multiplies that again. So RoomView asking for
+  100 produced a 200px sprite, and with a 1.8 anchor a 288px one — on a
+  325px screen. Size animals with `animalBoxFor(play, base)` and read
+  `sprite.displayHeight` for anything positioned off them, never the
+  number you passed in.
+- **A third of the hand-authored anchors resolve below the nav bar, on
+  every device including an iPad.** They are fractions of background art
+  that is drawn behind the bar, so 32 of the 100 put an animal's feet
+  under it at 1024x768 and 59 sit below 0.7. `anchorSpaceFor` narrows
+  this on a short viewport by resolving anchors into the band instead of
+  the art rect, and `clampAnimalIntoBand` closes the rest. The clamp is
+  the guarantee, not the anchor file — there is a test asserting the raw
+  anchors still run under the bar, which will fail if they are ever
+  re-authored.
+- **Three 48px tap targets do not fit a landscape phone's play band.**
+  48*3 plus two MIN_TAP_GAPs is 168px against 137. The kitchen folds
+  sideways instead (message left, controls right); anything else that
+  wants three stacked buttons has the same arithmetic to answer.
+- **Controls hidden under the chrome are not always a phone problem.**
+  Found while measuring: the garden's "New upgrade available" button was
+  at `height - 85` against a bar starting at `height - 96`, and its left
+  zone-arrow at `x = 30` inside the 56px the collapsed rail reserves.
+  Both had been unreachable on every viewport for as long as they had
+  existed. Measure the display list rather than trusting that a tall
+  screen is fine.
 - **`window.__PHASER_GAME__` is exposed and NOT dev-gated**
   (`src/main.ts:100`), store on the registry as `'gameStore'`. From Safari
   Web Inspector, `gs.openAdoptionOverlay(a, '01-pri-kaur')` /
@@ -164,6 +201,15 @@ checking the claim still holds.
   `renderHUD()` beside it. Four call sites used to, 37 did not, and every
   count in the top strip went stale on feed, heal, adopt and welcome.
 - The ux-review harness has a history of false findings. Verify against source first.
+- **To measure the running game, walk the display list, not the pixels.**
+  A throwaway Playwright spec that seeds a session, starts GameScene,
+  writes animals straight into `gs.store.animals`, and recurses
+  `gameContainer`/`navContainer`/`uiContainer` calling `getBounds()`
+  gives exact rects for every drawn object in a couple of seconds. Two
+  things will be on top of the view and have to go first: the in-game
+  overlay is a plain `<iframe>` on `document.body`, and ErrorOverlay's
+  "please sign in" scrim is a Phaser container at depth 10000 — hide
+  anything with `depth >= 9000` in `scene.children.list`.
 - `GameScene` shows an arrival card or the corridor depending on state, so
   its measurements move between runs.
 - `createPillTitle` draws into a Graphics object, which contributes nothing

@@ -1,4 +1,4 @@
-# A.R.C. on a phone — handover 2026-08-29 (evening)
+# A.R.C. on a phone — handover 2026-08-29 (late)
 
 ## Goal
 Ship A.R.C. as an iPad/iPhone app plus web fallback, with an interface that
@@ -6,56 +6,79 @@ works for 7–10 year olds. Current arc: make it usable on a phone, working
 through `docs/ux-review-2026-08-29.md`.
 
 ## State
-Clean tree, 10 commits ahead of this morning. Typecheck clean, lint 0 errors /
-38 warnings, 1013 tests pass.
+Clean tree, 11 commits ahead of this morning. Typecheck clean, lint 0 errors /
+38 warnings, 1030 tests pass.
 
-**Verified** — `tools/measure-screens.mjs` passes clean on all 21 DOM screens
-at five viewport sizes, and the flow welcome → signup → name → animal → PIN →
-hint → menu → intro → corridor → Cat Room → rail was walked on an ARC-13mini
-simulator in the standalone web clip. Before today: `PLAY!` sat 27px below the
-fold, the PIN keypad offered only 1–6 so no account could be created on a
-phone, and arrival showed one of its three choices.
+**Verified** — the play area has a height axis and the four Phaser views
+lay out inside it. Measured against the live display list at 812×325 and
+1024×768: nothing in the corridor, a species room, the kitchen or the
+garden falls under the nav bar, under the rail, or off the screen. Before
+today: an arriving dog rendered y158..306 against a bar starting at 229,
+and the two cats in the Cat Room rendered 256 and 288px tall with their
+name pills at y358 and y370, below the bottom of a 325px screen.
 
-**Unverified** — whether the shipped Capacitor build gets the full 812×375
-(the web clip gives 812×325); `e2e/visual.spec.ts` is still red on a stale
-baseline, untouched today.
+**Unverified** — none of this has been on a device. The measurements are
+from Playwright at the web clip's CSS size, not from the simulator, and
+whether the shipped Capacitor build gets 812×325 or something else is
+still open. `e2e/visual.spec.ts` is still red on a stale baseline,
+untouched for three sessions.
 
 ## Files
-- `.claude/TRAPS.md` — read first; several new entries today.
-- `apps/game/public/admin/_short-landscape.css` — the height branch. Linked
-  from all 21 screens, **after** each page's inline `<style>`.
-- `apps/game/tools/measure-screens.mjs` — the audit. `--boxes <page> <w> <h>`
-  shows where the height goes.
-- `apps/game/src/game-views/LeftRailView.ts` — rail overlay, clipped on phone.
-- `apps/game/src/ui/layout.ts` — `getPlayArea`; the nav band overlap starts here.
-- `apps/game/src/ui/sprites.ts:120` — the `* 2` that Phase 2 removes.
+- `.claude/TRAPS.md` — read first.
+- `apps/game/src/ui/layout.ts` — the whole layout contract: `playAreaFor`
+  (now x/y/w/h), `navBarMetrics`, `anchorSpaceFor`, `animalBoxFor`,
+  `clampAnimalIntoBand`, `SPRITE_RENDER_SCALE`.
+- `apps/game/src/game-views/__tests__/play-area.test.ts` — 28 arithmetic
+  tests over the real anchor file. Where to add the next invariant.
+- `apps/game/src/game-views/KitchenView.ts` — the two-column short layout.
+- `apps/game/src/ui/sprites.ts:130` — the `* 2`, now reading the constant.
 
 ## Decisions made
-- **A height branch, not a rewrite.** The `@container` system was sound; it had
-  no height axis. The query is **unnamed** on purpose — pages use `welcome`,
-  `adopt`, `rewild`, `office`, `scene`, `tunnel`, or none, so
-  `@container welcome` silently missed three of them.
-- **One stylesheet, not 21 inline copies** — they are clones and would drift.
-- **Ceremonies keep their length; their action gets pinned.** 700px of
-  portraits and promises is what the game builds towards; compressing it would
-  gut the moment. Sticky at `z:40`, because the plaques are `z:20`.
-- **Key size beats vertical fit.** The PIN keypad kept its 3×4 shape and
-  full-size keys, and moved beside the prompt instead.
-- **812×325 CSS px is the phone budget**, measured by an on-page probe. The
-  missing 50px is OS-reserved — a `fixed; bottom:0` marker lands at its top.
+- **A height axis on the play area, not per-view fixes.** The `@container`
+  work fixed the DOM screens; this is the Phaser twin of it. Views were
+  already told to respect `play.x`/`play.w`; they now get `y`/`h` too.
+- **480 as the short-viewport breakpoint**, mirroring the rail's 1024.
+  Every iPhone in landscape is shorter (tallest, a 17 Pro Max, is 440),
+  every iPad taller (shortest, an iPad mini, is 744). Nothing above the
+  line moves, so the iPad keeps the layout it has.
+- **The bar loses height; the type does not.** Nav 96 → 78 by trimming the
+  tab box (54 still clears MIN_TAP by 6) and the bottom margin. Labels stay
+  at 15/16px, which is the readability floor for this age.
+- **The anchor space compresses; the art still fills the screen.** So an
+  animal the art puts on the painted floor now stands a little above that
+  floor line on a phone. Deliberate — the alternative is blank strips
+  behind the chrome — but it is the one place this trade is visible.
+- **The clamp is the guarantee, not the anchor data.** 32 of the 100
+  anchors resolve below the band even on an iPad. A test asserts that is
+  still true, so if the anchors are ever re-authored the clamp can go.
+- **The kitchen folds sideways rather than compressing.** Three 48px
+  targets plus MIN_TAP_GAP need 168px against a 137px band. Squeezing them
+  put "Quick feed" and "Garden" 8px apart, which for a child aiming at one
+  and hitting the other is the same as being too small.
 
 ## Next step
-Get the bottom nav band off the animals. In the corridor it covers both cats
-from the chest down; in the Cat Room it covers "No animals here yet." Start at
-`getPlayArea` in `apps/game/src/ui/layout.ts` and the nav band's own height.
-Log in as `Testy` / PIN `1234` — the account is live with two animals waiting.
+Get this on a device. Everything above is Playwright at 812×325, and the
+open question the handover has carried for two sessions — whether the
+Capacitor build gets the same viewport as the web clip — is now the thing
+gating whether any of it is real. Serve with `vite --host 0.0.0.0` and use
+the simulator recipe in TRAPS.md, or build and check `cap sync`. Log in as
+`Testy` / PIN `1234`; the account has two animals waiting.
+
+After that, from the ux-review: the arrival card's "Did you know?" fact
+panel is clipped at the bottom of a 325px viewport (seen in passing, not
+measured), and the garden is crowded on a phone — arrows, zone dots, a
+three-row footer and the animals all inside 137px. Neither is hidden, both
+are tight.
 
 ## Traps
 - **Reload a web clip with `xcrun simctl terminate <udid> com.apple.webapp`.**
-  HOME + tapping the icon *resumes* it stale — you will test the old build and
-  conclude your fix did nothing. This cost the most time today.
-- **Measure at 812×325 CSS px**, not the 780×360 device points the simulator
-  panel reports.
-- Rotating the simulator needs Marcus — `osascript` is refused assistive access.
+  HOME + tapping the icon *resumes* it stale.
+- **Measure at 812×325 CSS px**, not the 780×360 device points the
+  simulator panel reports.
+- Rotating the simulator needs Marcus — `osascript` is refused assistive
+  access.
 - `renderView()` draws the rail **and** the HUD. Do not call `renderHUD()`
   beside it.
+- **The play band and the nav bar must move together.** They are both
+  computed in `ui/layout.ts` now; do not hard-code a bar height in
+  `NavBarView` again.
