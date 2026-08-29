@@ -31,23 +31,53 @@ first arrival card. Everything above works on the phone.
 - `welcome-new` clipped `START PLAYING!` on **iPad Air 11" and iPad mini**.
 - No `apple-touch-icon`, so the Home Screen icon was a grey letter "A".
 
-## Not fixed — the decision waiting for Marcus
-`InGameOverlay` mounts **fourteen more DOM screens** from `public/admin/` —
-arrival, conflict, vet, adoption, adoption-office, rewilding, adopters,
-visitor, badge, map, drive-overlay, tunnel, charm-select (plus paths, which
-is fixed). Same family, same clone structure, same width-only container
-queries, and `_short-landscape.css` is **not linked from any of them**.
+## Fixed since: the fourteen in-game overlays
+`InGameOverlay` mounts arrival, conflict, vet, adoption, adoption-office,
+rewilding, adopters, visitor, badge, map, drive-overlay, tunnel and
+charm-select from the same `public/admin/` family. All now fit, verified at
+five sizes.
 
-At the 312pt a phone actually gets: `adoption` is 716, `rewilding` 720,
-`arrival` 444, `vet` 397, `conflict` 387. Across the whole 21-screen family
-`tools/measure-screens.mjs` reports **99 sub-48px tap targets** and zero
-unreachable controls — but the mocks understate the live screens: on the
-device the live arrival card has a second choice below the fold that the
-static page does not render.
+The one that mattered: on **arrival** — the first decision the game asks a
+child to make, about an animal that has just turned up frightened — only the
+first of three choices was on screen. Same on conflict and vet. Those three
+now put the scene beside the words.
 
-Fixing those fourteen is the obvious next piece of work. It was outside the
-scope agreed this session.
+Two things that fix turned up, both worth remembering:
+- **The pages do not share a `container-name`.** It is `welcome`, `adopt`,
+  `rewild`, `office`, `scene` or `tunnel` by page, and map, charm-select and
+  drive-overlay declare none. `@container welcome (...)` silently missed
+  adoption, rewilding and adoption-office — linked to the sheet, getting
+  nothing from it. The query is now unnamed.
+- **109 controls were under the 48px floor**, because that floor lives in
+  each page's own inline `<style>` and these pages never had one.
 
+The two ceremonies keep their length — 700px of portraits, promises and
+parting gifts is what the whole game builds towards — and their action is
+pinned to the bottom instead, at `z:40` because the plaques are `z:20` with a
+transform. That rule is deliberately outside the height branch: "WAVE THEM
+OFF!" was clipped on an iPad mini too.
+
+## What the phone walk found in the Phaser side — the next job
+Everything below is `GameScene` / `LeftRailView`, untouched by the CSS work,
+and seen on the device rather than measured:
+
+- **The bottom nav band sits on the animals.** In the corridor the two cats
+  are covered from the chest down by Home/Care/Supplies/Walk/Social. In the
+  Cat Room it covers "No animals here yet." This is the review's central
+  point — animals as the visual focus — failing on a phone.
+- **The rail overlay is clipped at the bottom.** It opens, and reads
+  "Biscuit the tortie cat — Found shivering under a car in the rain", but the
+  button that takes her in is off the bottom edge. You can meet the animal
+  and not rescue her.
+- **The HUD contradicts the rail.** HUD says "0 in care" while the rail says
+  "2 waiting" — the morning's known "two quantities in one pill" issue,
+  confirmed on a phone.
+
+Not reached on the device: feeding, healing, the details popup, the conflict
+screen in play. The account `Testy` / PIN 1234 exists on the live Supabase
+with two animals waiting, so the next session can log straight in.
+
+## Files
 ## Files
 - `.claude/TRAPS.md` — gotchas. **Read first.** Six new ones today, including
   the 312pt viewport and how to reload a web clip.
@@ -74,17 +104,23 @@ scope agreed this session.
 - **312, not 360, is the phone budget.** Every measurement is against that.
 
 ## Next step
-Ask Marcus whether to extend `_short-landscape.css` to the fourteen in-game
-overlays. If yes, that is the job: link the sheet, run
-`tools/measure-screens.mjs`, fix per-screen, and walk the game on
-`ARC-13mini` again — feeding, healing, the details popup and the conflict
-screen were never reached. If no, Phase 2 is next: remove the `* 2` from
-`apps/game/src/ui/sprites.ts:120` and re-scale the ~12 call sites.
+The Phaser side on a phone, in the order the walk hit them:
+1. Get the nav band off the animals — `GameScene` / `CorridorView` /
+   `RoomView`, and `getPlayArea` in `apps/game/src/ui/layout.ts`.
+2. Make the rail overlay's arrival card reachable — `LeftRailView.ts`.
+3. Drop the HUD's "N in care" label; the rail already says it.
 
-Still unmeasured on a phone: the Phaser side — the rail tab, the HUD, the
-play area, room animals. The morning's handover records the Cat Room cat
-landing outside the play area and the HUD printing "N in care" beside an XP
-bar measuring `totalRescued`; neither was touched today.
+Then Phase 2: remove the `* 2` from `apps/game/src/ui/sprites.ts:120` and
+re-scale the ~12 call sites (`ConflictView` already halves its boxes and says
+so in a comment).
+
+Still open, not chased: the web clip gives the app **812x325 CSS px** of a
+812x375 landscape screen. A `position:fixed; bottom:0` marker lands at the
+top of the unpainted strip, so the missing 50px is OS-reserved and not
+recoverable by layout. Whether the shipped Capacitor build has the same
+limit is **unverified** — it configures its own WKWebView, so it may get the
+full 375. Worth one native build to find out before designing around 325
+permanently.
 
 ## Traps worth repeating here
 - Reload a web clip with `xcrun simctl terminate <udid> com.apple.webapp`.
