@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { createButton } from '../ui/UIButton';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP_GAP } from '../ui/constants';
+import { viewportIsShort, navBarMetrics } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
 /**
@@ -84,12 +85,20 @@ export function renderNavBar(
   ];
 
   // ── Bar geometry ──────────────────────────────────────
+  //
+  // On a landscape phone the bar is measured against a 325px viewport, so
+  // its full-size 96px was 30% of the screen on its own. The short branch
+  // trims the tab box and the bottom margin — never the type, which is at
+  // its readability floor for a 7-11 year old — and hands the animals the
+  // difference. NAV_HEIGHT_SHORT in ui/layout.ts is this arithmetic; the
+  // play band is computed from it, so the two must move together.
+  const short = viewportIsShort(height);
   const tabW = 74;
   // 64, up from 60: the tab labels went from 11px to 15/16px and need the
   // extra few pixels of vertical room. Costs 4px of bar height — still
-  // under 10% of a 375x812 screen, well inside the HUD budget.
-  const tabH = 64;
-  const fabSize = 68;
+  // under 10% of a 375x812 screen, well inside the HUD budget. 54 on a
+  // short viewport still clears MIN_TAP (48) by 6.
+  const { tabH, fabSize, fabLift, barH, barY } = navBarMetrics(height);
   const fabGap = 12;
   const tabsSide = leftTabs.length;
   // width - 32 rather than - 20, so the outermost tab's tap area clears the
@@ -104,9 +113,7 @@ export function renderNavBar(
     width - SAFE_MARGIN * 2,
     tabsSide * 2 * (tabW + MIN_TAP_GAP) + fabSize + fabGap * 2 + 28,
   );
-  const barH = tabH + 16;
   const barX = (width - barW) / 2;
-  const barY = height - barH - SAFE_MARGIN;
 
   // Glass bar background
   const bg = scene.add.graphics();
@@ -119,6 +126,11 @@ export function renderNavBar(
   navContainer.add(bg);
 
   // ── Tab drawer ────────────────────────────────────────
+  // The icon rides above the label inside the tab box, so both offsets
+  // come in with the box when it shrinks. Only the icon loses size — the
+  // label keeps its 15/16px.
+  const iconDy = short ? -9 : -11;
+  const labelDy = short ? 16 : 19;
   const drawTab = (tab: NavTab, tx: number, ty: number) => {
     if (tab.active) {
       const pill = scene.add.graphics();
@@ -130,9 +142,9 @@ export function renderNavBar(
     // Bumped up from 36/40 → 46/52. The painterly icons are 256-px
     // source art, so a larger display size reduces the downscale factor
     // (which is the real cause of the "pixellated" look on retina).
-    const iconPx = tab.active ? 52 : 46;
+    const iconPx = short ? (tab.active ? 42 : 38) : (tab.active ? 52 : 46);
     if (scene.textures.exists(tab.iconKey)) {
-      const img = scene.add.image(tx, ty - 11, tab.iconKey)
+      const img = scene.add.image(tx, ty + iconDy, tab.iconKey)
         .setDisplaySize(iconPx, iconPx)
         .setOrigin(0.5);
       scene.textures.get(tab.iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
@@ -140,7 +152,7 @@ export function renderNavBar(
       navContainer.add(img);
     } else {
       navContainer.add(
-        scene.add.text(tx, ty - 11, tab.label.slice(0, 2), {
+        scene.add.text(tx, ty + iconDy, tab.label.slice(0, 2), {
           fontSize: `${iconPx}px`, fontFamily: FONTS.title, fontStyle: 'bold',
           color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
@@ -152,7 +164,7 @@ export function renderNavBar(
     // longest label is "Social", ~52px bold at 16px, so it still sits
     // inside the 74px tab.
     navContainer.add(
-      scene.add.text(tx, ty + 19, tab.label, {
+      scene.add.text(tx, ty + labelDy, tab.label, {
         fontSize: tab.active ? '16px' : '15px',
         fontFamily: FONTS.body, fontStyle: 'bold',
         color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
@@ -168,7 +180,7 @@ export function renderNavBar(
   // ── Positions ─────────────────────────────────────────
   const ty = barY + barH / 2;
   const fabX = barX + barW / 2;
-  const fabY = barY + 6;
+  const fabY = barY + fabLift;
 
   const leftStart = barX + 10;
   const leftAvail = (barW / 2) - (fabSize / 2 + fabGap) - 10;

@@ -22,6 +22,7 @@ import { createWeatherParticles, type WeatherParticleHandle } from '../ui/Weathe
 import type { GameStateStore } from '../game-state';
 import { renderApprenticeDecorations } from './ApprenticeDecorations';
 import { getPlayArea } from './LeftRailView';
+import { anchorSpaceFor, animalBoxFor } from '../ui/layout';
 
 /**
  * GardenView — renders the "bonded pets living their best life" area
@@ -210,9 +211,15 @@ function renderZone(
     }),
   );
 
-  // Left arrow → other zone
+  // Left arrow → other zone.
+  //
+  // Was at x=30, inside the 56px the collapsed rail reserves, so on a
+  // landscape phone the control a child taps to reach the quiet nook was
+  // behind an opaque rail at depth 50. Both arrows and the dots below now
+  // sit in the play area, centred on the band like everything else.
   const otherZone: GardenZone = zone === 'lawn' ? 'quiet' : 'lawn';
-  const leftArrow = scene.add.text(30, height / 2, '◀', {
+  const arrowY = play.y + play.h / 2;
+  const leftArrow = scene.add.text(play.x + 30, arrowY, '◀', {
     fontSize: '48px', fontFamily: FONTS.body, color: '#ffffff',
     resolution: TEXT_RESOLUTION,
   }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -220,7 +227,7 @@ function renderZone(
   leftArrow.on('pointerdown', () => renderZone(scene, store, container, callbacks, otherZone));
   container.add(leftArrow);
 
-  const rightArrow = scene.add.text(width - 30, height / 2, '▶', {
+  const rightArrow = scene.add.text(play.x + play.w - 30, arrowY, '▶', {
     fontSize: '48px', fontFamily: FONTS.body, color: '#ffffff',
     resolution: TEXT_RESOLUTION,
   }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -229,13 +236,15 @@ function renderZone(
   container.add(rightArrow);
 
   // Dot indicator — two dots, filled one = current zone
-  const dotY = height - 130;
+  // Above the upgrades/badges footer, which stacks up from the band
+  // bottom at -76, -44 and -12.
+  const dotY = play.y + play.h - 100;
   const dotSpacing = 18;
   const dots: [GardenZone, number][] = [['lawn', -1], ['quiet', 1]];
   for (const [dz, offset] of dots) {
     const filled = dz === zone;
     const dot = scene.add.circle(
-      width / 2 + offset * dotSpacing, dotY,
+      play.x + play.w / 2 + offset * dotSpacing, dotY,
       6,
       filled ? 0xffffff : 0xaaaaaa,
     ).setStrokeStyle(1, 0x333333);
@@ -280,12 +289,18 @@ function renderZone(
 
   // ── Scatter animals in the zone ──────────────────────────
   const anchors = RoomAnchors.getInstance();
-  const bgTopY = 20, bgW = play.w, bgH = height - 40;
+  // The art's own rect on an iPad; the play band on a phone, so an animal
+  // anchored to the grass is not drawn behind the nav bar.
+  const gardenSpace = anchorSpaceFor(play, height);
+  const bgTopY = gardenSpace.top, bgW = play.w, bgH = gardenSpace.h;
+  // Sprites render at SPRITE_RENDER_SCALE times the box asked for, so this
+  // 100 came out 200 tall against a 137px band on a landscape phone.
+  const gardenBox = animalBoxFor(play, 100);
 
   // Render pets first, then outsiders (so visitors sit "in front" visually).
   const ordered = [...pets, ...outsiders];
   ordered.forEach((animal, i) => {
-    const grassTop = height * 0.6;
+    const grassTop = play.y + play.h * 0.6;
     const gardenLeft = play.x + play.w * 0.15;
     const gardenRight = play.x + play.w * 0.85;
     const cols = Math.min(Math.max(ordered.length, 1), 4);
@@ -295,7 +310,7 @@ function renderZone(
     // Zone-specific anchors could be added later; for now reuse the
     // existing 'garden' key which spreads across both zones.
     const anchor = anchors.pick('garden', animal.species, visualState, i);
-    const placed = callbacks.resolveAnchor(anchor, bgTopY, bgW, bgH, 100, 80);
+    const placed = callbacks.resolveAnchor(anchor, bgTopY, bgW, bgH, gardenBox, gardenBox * 0.8);
 
     const cx = placed
       // resolveAnchor maps across bgW only; shift into the play area so the
@@ -443,8 +458,8 @@ function renderZone(
   if (zone === 'lawn') {
     const dueReturns = getDueGardenReturns(store, Date.now());
     dueReturns.forEach((ret, i) => {
-      const cx = width * 0.2 + (i % 3) * (width * 0.22);
-      const cy = height * 0.68 + Math.floor(i / 3) * 70;
+      const cx = play.x + play.w * 0.2 + (i % 3) * (play.w * 0.22);
+      const cy = play.y + play.h * 0.68 + Math.floor(i / 3) * 70;
 
       // Build a minimal Animal-like shape so createAnimalSprite can
       // pick the right texture. Uses the "playing" state since these
@@ -490,12 +505,20 @@ function renderZone(
   }
 
   // ── Upgrades + badges footer (pets only — visitors don't count) ──
+  //
+  // Stacked up from the bottom of the play band rather than down from the
+  // screen edge. `height - 85` and `height - 65` sat inside the nav bar on
+  // every viewport, not just a short one — which meant the "New upgrade
+  // available" button, the one control here a child is meant to press, was
+  // drawn under an opaque bar that is added after this container and takes
+  // the tap.
+  const footerBottom = play.y + play.h;
   const allPets = store.animals.filter((a) => a.state === 'pet');
   const unlocked = getUnlockedUpgrades(store.houseUpgrades);
   if (unlocked.length > 0) {
     const upgradeNames = unlocked.map((u) => u.name).join(', ');
     container.add(
-      scene.add.text(width / 2, height - 110, `Upgrades: ${upgradeNames}`, {
+      scene.add.text(play.x + play.w / 2, footerBottom - 76, `Upgrades: ${upgradeNames}`, {
         fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
@@ -505,7 +528,7 @@ function renderZone(
   const available = getAvailableUpgrades(allPets.length, store.houseUpgrades);
   if (available.length > 0) {
     container.add(
-      createTextButton(scene, width / 2, height - 85,
+      createTextButton(scene, play.x + play.w / 2, footerBottom - 44,
         `New upgrade available: ${available[0].name}!`, () => {
           callbacks.onUpgradeClaimed(available[0].code);
         }),
@@ -514,7 +537,7 @@ function renderZone(
 
   if (store.earnedBadges.length > 0) {
     container.add(
-      scene.add.text(width / 2, height - 65,
+      scene.add.text(play.x + play.w / 2, footerBottom - 12,
         `${store.earnedBadges.length} badge${store.earnedBadges.length > 1 ? 's' : ''} earned`, {
           fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.primary,
           resolution: TEXT_RESOLUTION,

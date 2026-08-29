@@ -31,7 +31,10 @@ import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getUrgentNeed } from '@arc/game-logic';
 import { createButton } from '../ui/UIButton';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP } from '../ui/constants';
-import { railBoundsFor, playAreaFor, RAIL_TAB_WIDTH, type RailBounds } from '../ui/layout';
+import {
+  railBoundsFor, playAreaFor, RAIL_TAB_WIDTH,
+  type RailBounds, type PlayArea,
+} from '../ui/layout';
 
 export { RAIL_WIDTH, RAIL_TAB_WIDTH, RAIL_COLLAPSE_BREAKPOINT, railIsCollapsible } from '../ui/layout';
 
@@ -75,7 +78,7 @@ export function getRailBounds(scene: Phaser.Scene, open = false): RailBounds {
  * art, so if the art and the anchors do not move together, animals stop
  * landing on the marks the art was painted for.
  */
-export function getPlayArea(scene: Phaser.Scene): { x: number; w: number } {
+export function getPlayArea(scene: Phaser.Scene): PlayArea {
   const { width, height } = scene.scale;
   return playAreaFor(width, height);
 }

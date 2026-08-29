@@ -9,6 +9,7 @@ import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors } from '../lib/RoomAnchors';
 import { FONTS, TEXT_RESOLUTION, pluralSpecies, SAFE_MARGIN } from '../ui/constants';
 import { getPlayArea } from './LeftRailView';
+import { anchorSpaceFor, animalBoxFor, navBarMetrics } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 import { renderApprenticeDecorations } from './ApprenticeDecorations';
 
@@ -111,8 +112,13 @@ export function renderCorridor(
     { xFrac: 0.86, yFrac: 0.38, scale: 1.00 }, // 5 parrot — far right
     { xFrac: 0.50, yFrac: 0.38, scale: 1.00 }, // 6 snake — dead centre (fills last)
   ];
-  const doorBodyH = height - 40;
-  const doorBodyTop = 20;
+  // Both the signs and the arriving animals are positioned as fractions of
+  // the background art. On a tall viewport this rect is that art's own; on a
+  // short one it is the play band, so a 0.9 decor override lands above the
+  // nav bar rather than behind it.
+  const anchorSpace = anchorSpaceFor(play, height);
+  const doorBodyH = anchorSpace.h;
+  const doorBodyTop = anchorSpace.top;
 
   // Hand-tuned sign-decor overrides from the anchor editor (if any).
   // Lets signs be repositioned per background art without a code deploy.
@@ -280,9 +286,17 @@ export function renderCorridor(
 
   // ── Arriving animals — stand on corridor floor with speech bubbles ──
   const arriving = store.animals.filter((a) => a.state === 'arriving');
-  // Floor well above the FAB/nav dock so the animal doesn't collide with it.
-  const navDockTopEst = height - 80 - 45; // with FAB lift room
-  const floorY = Math.max(height * 0.68, navDockTopEst);
+  // The floor is the top of the nav dock — the animals stand on it, so it
+  // is the lowest line their feet may reach, and the FAB is lifted proud
+  // of the bar so it, not the bar, sets that line.
+  //
+  // This used to be `Math.max(height * 0.68, height - 125)`, whose second
+  // term was a hand-copy of the FAB top and read as intended on an iPad.
+  // On a 325px screen 68% won instead — 221, against a FAB reaching up to
+  // 201 and a bar starting at 229 — and an arriving dog measured y158..306:
+  // the child saw it from the chest up. `Math.max` was also the wrong
+  // direction for its own comment ("well above the FAB/nav dock").
+  const floorY = navBarMetrics(height).fabTop;
 
   if (arriving.length > 0) {
     // PROTOTYPE: the arrival pill banner, the speech-bubble Welcome
@@ -308,9 +322,9 @@ export function renderCorridor(
     // additional anchors defined for that species (RoomAnchors.pick
     // handles the modulo cycling).
     const corridorAnchors = RoomAnchors.getInstance();
-    const bgTopY = 20;
+    const bgTopY = anchorSpace.top;
     const bgW = play.w;
-    const bgH = height - 40;
+    const bgH = anchorSpace.h;
     const perSpeciesCounter: Record<string, number> = {};
 
     arriving.forEach((animal, i) => {
@@ -320,8 +334,15 @@ export function renderCorridor(
       const anchor = corridorAnchors.pick('corridor', animal.species, 'arriving', speciesIdx);
       // Default procedural position (on the floor, evenly spaced)
       const proceduralAX = startX + i * slotW;
-      const spriteW = 90;
-      const spriteH = 74;
+      // Sized against the band, not a constant: the sprite renders at
+      // SPRITE_RENDER_SCALE times this box, so 74 came out 148 tall on a
+      // 325px screen. `false` — an arrival carries no name pill or bond
+      // bar on the canvas; those live in the rail.
+      // Over half the band, not all of it: the corridor also carries the
+      // door signs a child taps to enter a room, and an arrival sized to
+      // the whole band stands in front of every one of them.
+      const spriteH = animalBoxFor({ ...play, h: play.h * 0.55 }, 74, false);
+      const spriteW = spriteH * (90 / 74);
       const proceduralCY = floorY - spriteH / 2 + 2;
 
       let ax = proceduralAX;
@@ -372,7 +393,11 @@ export function renderCorridor(
       // renders a few pixels taller than the size it is handed, so clamping
       // against the requested height leaves the real lower edge inside the
       // margin. Only moves a sprite that would otherwise sit in it.
-      const overflow = sprite.getBounds().bottom - (height - SAFE_MARGIN);
+      // The band bottom, not the screen's — the nav bar is opaque and drawn
+      // after this container, so a sprite reaching past the band is covered
+      // as surely as one reaching into the OS home strip below the screen.
+      const bandBottom = Math.min(play.y + play.h, height - SAFE_MARGIN);
+      const overflow = sprite.getBounds().bottom - bandBottom;
       if (overflow > 0) {
         sprite.y -= overflow;
         shadow.y -= overflow;

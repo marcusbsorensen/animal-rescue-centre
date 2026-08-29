@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS } from '@arc/game-logic';
+import { SPRITE_RENDER_SCALE } from './layout';
 
 /**
  * Live view of GameScene's `store.sickAnimals`, registered once at scene
@@ -109,15 +110,21 @@ export function createAnimalSprite(
   if (textureKey) {
     const img = scene.add.image(x, y, textureKey);
     // NOTE: `width`/`height` are not the rendered size. The fit scale is
-    // doubled, so an image renders at 2x the box asked for, while the
-    // fallback rectangle below renders at exactly that box. The old comment
-    // here blamed 128px source art, which no longer holds — the animal set
-    // is 512px now and this multiplier is independent of source resolution.
+    // multiplied by SPRITE_RENDER_SCALE, so an image renders at 2x the box
+    // asked for, while the fallback rectangle below renders at exactly that
+    // box. The old comment here blamed 128px source art, which no longer
+    // holds — the animal set is 512px now and this multiplier is
+    // independent of source resolution.
+    //
+    // The multiplier lives in ui/layout.ts because callers have to size
+    // animals against the play band and cannot do that without knowing it:
+    // RoomView asking for 100 produced a 200px sprite, which on a landscape
+    // phone's 137px band ran off the bottom of the screen.
     //
     // Callers that position anything relative to the sprite must read
     // sprite.displayWidth / displayHeight rather than the size they passed,
     // or decorations land inside the animal. See RoomView.
-    const scale = Math.min(w / img.width, h / img.height) * 2;
+    const scale = Math.min(w / img.width, h / img.height) * SPRITE_RENDER_SCALE;
     img.setScale(scale);
 
     if (options?.interactive) {

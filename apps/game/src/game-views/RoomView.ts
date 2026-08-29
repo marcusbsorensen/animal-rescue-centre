@@ -10,7 +10,10 @@ import type { GameStateStore } from '../game-state';
 import type { ResolvedAnchor } from './GardenView';
 import { getPlayArea } from './LeftRailView';
 import { pillFor } from '../ui/contrast';
-import { NAV_HEIGHT } from '../ui/layout';
+import {
+  navHeightFor, anchorSpaceFor, animalBoxFor, clampAnimalIntoBand,
+  type PlayArea,
+} from '../ui/layout';
 import {
   renderApprenticeDecorations,
   type ApprenticeRoomSpecies,
@@ -103,7 +106,7 @@ export function renderRoom(
   );
 
   // ── Placed decorations (under animals) ────────────────────
-  renderPlacedDecorations(scene, store, container, species, play.x, play.w, height);
+  renderPlacedDecorations(scene, store, container, species, play, height);
 
   // ── Decorate button (only if relevant) ────────────────────
   const availableDecorCount = Object.values(
@@ -116,8 +119,11 @@ export function renderRoom(
 
   // ── Empty state or animal grid ────────────────────────────
   if (roomAnimals.length === 0) {
+    // Centred on the play band and the play column, not on the screen: the
+    // screen centre is under the rail on the x and drifts towards the FAB
+    // on the y as the viewport shortens.
     container.add(
-      scene.add.text(width / 2, height / 2, 'No animals here yet.', {
+      scene.add.text(play.x + play.w / 2, play.y + play.h / 2, 'No animals here yet.', {
         fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5),
     );
@@ -125,22 +131,34 @@ export function renderRoom(
     const cols = Math.min(roomAnimals.length, 4);
     const colSpacing = Math.min(140, (play.w - 60) / cols);
     const startX = play.x + play.w / 2 - ((cols - 1) * colSpacing) / 2;
-    const floorY = height * 0.55;
 
     const anchors = RoomAnchors.getInstance();
     const roomKey = `room-${species}`;
-    const bgTopY = 20, bgW = play.w, bgH = height - 40;
+    // On a tall viewport this is the background art's own rect, so the
+    // anchors resolve exactly as before; on a short one it is the play
+    // band. 59 of the 100 hand-authored anchors sit below 0.7, which on a
+    // 325px screen resolved to y >= 219 against a nav bar starting at 229.
+    const anchorSpace = anchorSpaceFor(play, height);
+    const bgTopY = anchorSpace.top, bgW = play.w, bgH = anchorSpace.h;
+    // The row of animals sits in the lower half of the band, leaving the
+    // upper half for the room's painted furniture and the title pill.
+    const floorY = play.y + play.h * 0.55;
 
     roomAnimals.forEach((animal, i) => {
-      const baseSize = animal.state === 'pet' ? 120 : 100;
+      // Sprites render at SPRITE_RENDER_SCALE times the box asked for, so
+      // this 100 came out 200 tall. Measured on a 325px screen the two cats
+      // in the Cat Room were 256 and 288px, with their name pills at y358
+      // and y370 — off the bottom of a 325px screen entirely. The cap is
+      // far above the base size on an iPad, so nothing there moves.
+      const baseSize = animalBoxFor(play, animal.state === 'pet' ? 120 : 100);
       const visualState = callbacks.deriveAnchorState(animal);
       const anchor = anchors.pick(roomKey, animal.species, visualState, i);
       const placed = callbacks.resolveAnchor(anchor, bgTopY, bgW, bgH, baseSize, baseSize * 0.8);
 
       // resolveAnchor maps the anchor fraction across bgW only; shift it into
       // the play area here so it lines up with the background drawn above.
-      const x = placed ? play.x + placed.cx : startX + (i % 4) * colSpacing;
-      const y = placed ? placed.cy : floorY + Math.floor(i / 4) * 150;
+      let x = placed ? play.x + placed.cx : startX + (i % 4) * colSpacing;
+      let y = placed ? placed.cy : floorY + Math.floor(i / 4) * 150;
       const size = placed ? placed.w : baseSize;
 
       // Cross-fade when state changed since last render
@@ -161,6 +179,29 @@ export function renderRoom(
       // feet and all three status chips across its chest.
       const halfW = sprite.displayWidth / 2;
       const halfH = sprite.displayHeight / 2;
+
+      // Pull the animal — and with it every label below, which is placed
+      // off `y` — back inside the band. resolveAnchor puts the *requested*
+      // box's feet on the anchor, but the sprite renders twice that size,
+      // so its real lower edge hangs half a box below the mark; on a short
+      // viewport that is enough to put the name pill under the nav bar
+      // even after the anchors resolve into the band.
+      const clampedY = clampAnimalIntoBand(y, halfH, play);
+      if (clampedY !== y) {
+        y = clampedY;
+        sprite.y = y;
+      }
+
+      // Same story sideways: an anchor at x 0.925 put a cat's right edge at
+      // 824 on an 812px screen. The name pill is drawn centred on `x`, so
+      // moving x here moves it too.
+      const clampedX = Phaser.Math.Clamp(
+        x, play.x + halfW, play.x + play.w - halfW,
+      );
+      if (clampedX !== x) {
+        x = clampedX;
+        sprite.x = x;
+      }
 
       if (stateChanged) {
         // Old-state ghost in the persistent transition layer survives the
@@ -279,18 +320,19 @@ function renderPlacedDecorations(
   store: GameStateStore,
   container: Phaser.GameObjects.Container,
   species: Species,
-  playX: number,
-  playW: number,
+  play: PlayArea,
   height: number,
 ): void {
   const roomId = `room-${species}`;
   const inRoom = getRoomDecorations(store.placedDecorations, roomId);
   if (inRoom.length === 0) return;
 
-  // Room bg area is roughly the top of the screen to the nav bar, inset by
-  // the left rail — decoration coords are fractions of the background art,
-  // so they have to move with it.
-  const roomBounds = { x: playX, y: 20, width: playW, height: height - 40 };
+  // Decoration coords are fractions of the background art, so they resolve
+  // in the same space the animals do — the art's own rect on an iPad, the
+  // play band on a phone. A decoration a child put on the floor otherwise
+  // ends up behind the nav bar, along with the animal standing on it.
+  const space = anchorSpaceFor(play, height);
+  const roomBounds = { x: play.x, y: space.top, width: play.w, height: space.h };
 
   for (const deco of inRoom) {
     const px = roomBounds.x + deco.x * roomBounds.width;
@@ -320,7 +362,7 @@ function renderDecorateButton(
   const w = 140;
   const h = MIN_TAP;
   const cx = playRight - SAFE_MARGIN - w / 2;
-  const cy = height - NAV_HEIGHT - 8 - h / 2;
+  const cy = height - navHeightFor(height) - 8 - h / 2;
   const btnBg = scene.add
     .rectangle(cx, cy, w, h, 0xffffff, 0.96)
     .setStrokeStyle(2, 0xd4783c)
