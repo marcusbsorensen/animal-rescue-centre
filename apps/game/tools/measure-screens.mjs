@@ -42,7 +42,16 @@
 import { chromium } from '@playwright/test';
 
 const BASE = 'http://localhost:5173/admin';
-const PAGES = ['welcome', 'menu', 'login', 'signup', 'welcome-new', 'paths', 'friends', 'intro'];
+// The screens AuthOverlay mounts before play starts.
+const AUTH_PAGES = ['welcome', 'menu', 'login', 'signup', 'welcome-new', 'friends', 'intro'];
+// The screens InGameOverlay mounts during play — same family, same @container
+// vocabulary, same landscape-phone problem. See src/game-overlay/InGameOverlay.ts.
+const GAME_PAGES = [
+  'paths', 'adopters', 'adoption', 'adoption-office', 'rewilding', 'conflict',
+  'visitor', 'vet', 'arrival', 'badge', 'map', 'drive-overlay', 'tunnel',
+  'charm-select',
+];
+const PAGES = [...AUTH_PAGES, ...GAME_PAGES];
 
 /**
  * Screens with more than one stage behind a `hidden` class. Measuring the page
