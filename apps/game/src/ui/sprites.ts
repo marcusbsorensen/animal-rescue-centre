@@ -108,8 +108,16 @@ export function createAnimalSprite(
 
   if (textureKey) {
     const img = scene.add.image(x, y, textureKey);
-    // Scale to fit the target size
-    const scale = Math.min(w / img.width, h / img.height) * 2; // 2x because sprites are 128px
+    // NOTE: `width`/`height` are not the rendered size. The fit scale is
+    // doubled, so an image renders at 2x the box asked for, while the
+    // fallback rectangle below renders at exactly that box. The old comment
+    // here blamed 128px source art, which no longer holds — the animal set
+    // is 512px now and this multiplier is independent of source resolution.
+    //
+    // Callers that position anything relative to the sprite must read
+    // sprite.displayWidth / displayHeight rather than the size they passed,
+    // or decorations land inside the animal. See RoomView.
+    const scale = Math.min(w / img.width, h / img.height) * 2;
     img.setScale(scale);
 
     if (options?.interactive) {

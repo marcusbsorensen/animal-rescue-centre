@@ -8,6 +8,7 @@ import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
 import { getDecorationEmoji } from '../ui/DecoratePanel';
 import type { GameStateStore } from '../game-state';
 import type { ResolvedAnchor } from './GardenView';
+import { getPlayArea } from './LeftRailView';
 import {
   renderApprenticeDecorations,
   type ApprenticeRoomSpecies,
@@ -64,6 +65,10 @@ export function renderRoom(
   callbacks: RoomCallbacks,
 ): void {
   const { width, height } = scene.scale;
+  // The side rail is opaque and sits on top of this container, so the room is
+  // laid out inside the space it leaves. Background and anchors both use it,
+  // so animals keep landing on the marks the art was painted for.
+  const play = getPlayArea(scene);
   const species = ctx.species;
   // Hide outsiders — animals currently let out into the garden
   // shouldn't appear in their indoor room. They render in GardenView.
@@ -76,13 +81,13 @@ export function renderRoom(
     ? `bg-room-${species}`
     : 'bg-room-generic';
   if (scene.textures.exists(roomBgKey)) {
-    const bg = scene.add.image(width / 2, height / 2, roomBgKey);
-    bg.setDisplaySize(width, height - 40);
+    const bg = scene.add.image(play.x + play.w / 2, height / 2, roomBgKey);
+    bg.setDisplaySize(play.w, height - 40);
     container.add(bg);
   } else {
     const colour = SPECIES_COLOURS[species];
     container.add(
-      scene.add.rectangle(width / 2, height / 2, width, height - 40, colour, 0.1),
+      scene.add.rectangle(play.x + play.w / 2, height / 2, play.w, height - 40, colour, 0.1),
     );
   }
 
@@ -93,7 +98,7 @@ export function renderRoom(
   );
 
   // ── Placed decorations (under animals) ────────────────────
-  renderPlacedDecorations(scene, store, container, species, width, height);
+  renderPlacedDecorations(scene, store, container, species, play.x, play.w, height);
 
   // ── Decorate button (only if relevant) ────────────────────
   const availableDecorCount = Object.values(
@@ -113,13 +118,13 @@ export function renderRoom(
     );
   } else {
     const cols = Math.min(roomAnimals.length, 4);
-    const colSpacing = Math.min(140, (width - 60) / cols);
-    const startX = width / 2 - ((cols - 1) * colSpacing) / 2;
+    const colSpacing = Math.min(140, (play.w - 60) / cols);
+    const startX = play.x + play.w / 2 - ((cols - 1) * colSpacing) / 2;
     const floorY = height * 0.55;
 
     const anchors = RoomAnchors.getInstance();
     const roomKey = `room-${species}`;
-    const bgTopY = 20, bgW = width, bgH = height - 40;
+    const bgTopY = 20, bgW = play.w, bgH = height - 40;
 
     roomAnimals.forEach((animal, i) => {
       const baseSize = animal.state === 'pet' ? 120 : 100;
@@ -127,7 +132,9 @@ export function renderRoom(
       const anchor = anchors.pick(roomKey, animal.species, visualState, i);
       const placed = callbacks.resolveAnchor(anchor, bgTopY, bgW, bgH, baseSize, baseSize * 0.8);
 
-      const x = placed ? placed.cx : startX + (i % 4) * colSpacing;
+      // resolveAnchor maps the anchor fraction across bgW only; shift it into
+      // the play area here so it lines up with the background drawn above.
+      const x = placed ? play.x + placed.cx : startX + (i % 4) * colSpacing;
       const y = placed ? placed.cy : floorY + Math.floor(i / 4) * 150;
       const size = placed ? placed.w : baseSize;
 
@@ -141,6 +148,14 @@ export function renderRoom(
       if (placed?.flipX && 'setFlipX' in sprite) {
         (sprite as Phaser.GameObjects.Image).setFlipX(true);
       }
+
+      // Decorations must be placed from what was actually drawn, not from the
+      // box we asked for: createAnimalSprite renders an image larger than the
+      // requested size, and a fallback rectangle at exactly the requested
+      // size. Using `size` here put the name pill 16px inside the animal's
+      // feet and all three status chips across its chest.
+      const halfW = sprite.displayWidth / 2;
+      const halfH = sprite.displayHeight / 2;
 
       if (stateChanged) {
         // Old-state ghost in the persistent transition layer survives the
@@ -182,29 +197,29 @@ export function renderRoom(
       // than a tiny icon.
       const cleanliness = animal.cleanliness ?? 100;
       if (cleanliness < 60 && animal.state !== 'pet') {
-        renderDirtyOverlay(scene, container, animal, x, y, size, cleanliness);
+        renderDirtyOverlay(scene, container, animal, x, y, sprite.displayWidth, cleanliness);
       }
 
       // Name pill badge
       const namePillGfx = scene.add.graphics();
-      const nameText = scene.add.text(x, y + size / 2 + 14, animal.name, {
+      const nameText = scene.add.text(x, y + halfH + 14, animal.name, {
         fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold',
         color: '#ffffff', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       const nw = nameText.width + 20;
       const nh = nameText.height + 8;
       namePillGfx.fillStyle(SPECIES_COLOURS[animal.species], 0.85);
-      namePillGfx.fillRoundedRect(x - nw / 2, y + size / 2 + 14 - nh / 2, nw, nh, 10);
+      namePillGfx.fillRoundedRect(x - nw / 2, y + halfH + 14 - nh / 2, nw, nh, 10);
       container.add(namePillGfx);
       container.add(nameText);
 
       // ── Status chip stack (right of sprite) ─────────────
-      renderStatusChips(scene, store, container, animal, x, y, size);
+      renderStatusChips(scene, store, container, animal, x, y, halfW, halfH);
 
       // Bond bar
       if (animal.bondLevel > 0) {
         const barW = 50;
-        const barY = y + size / 2 + 32;
+        const barY = y + halfH + 32;
         const bondBar = scene.add.rectangle(x, barY, barW, 5, 0xdddddd, 0.6).setOrigin(0.5);
         const bondFill = scene.add.rectangle(
           x - barW / 2 + (animal.bondLevel / 100) * barW / 2, barY,
@@ -218,11 +233,11 @@ export function renderRoom(
       if (animal.siblingId) {
         const sibIconKey = 'icon-friends';
         if (scene.textures.exists(sibIconKey)) {
-          const sibIcon = scene.add.image(x - size / 2 + 6, y - size * 0.4 - 6, sibIconKey)
+          const sibIcon = scene.add.image(x - halfW + 6, y - halfH - 6, sibIconKey)
             .setDisplaySize(18, 18).setOrigin(0.5);
           container.add(sibIcon);
         } else {
-          const sibDot = scene.add.circle(x - size / 2 + 6, y - size * 0.4 - 6, 6, 0x9b59b6)
+          const sibDot = scene.add.circle(x - halfW + 6, y - halfH - 6, 6, 0x9b59b6)
             .setStrokeStyle(1, 0xffffff, 0.8);
           container.add(sibDot);
         }
@@ -254,15 +269,18 @@ function renderPlacedDecorations(
   store: GameStateStore,
   container: Phaser.GameObjects.Container,
   species: Species,
-  width: number,
+  playX: number,
+  playW: number,
   height: number,
 ): void {
   const roomId = `room-${species}`;
   const inRoom = getRoomDecorations(store.placedDecorations, roomId);
   if (inRoom.length === 0) return;
 
-  // Room bg area is roughly the top of the screen to the nav bar.
-  const roomBounds = { x: 0, y: 20, width, height: height - 40 };
+  // Room bg area is roughly the top of the screen to the nav bar, inset by
+  // the left rail — decoration coords are fractions of the background art,
+  // so they have to move with it.
+  const roomBounds = { x: playX, y: 20, width: playW, height: height - 40 };
 
   for (const deco of inRoom) {
     const px = roomBounds.x + deco.x * roomBounds.width;
@@ -361,7 +379,8 @@ function renderStatusChips(
   animal: Animal,
   x: number,
   y: number,
-  size: number,
+  halfW: number,
+  halfH: number,
 ): void {
   const chips: StatusChip[] = [];
   const sickIllness = store.sickAnimals.get(animal.id);
@@ -383,8 +402,8 @@ function renderStatusChips(
   // Cap at 3 — keeps the room uncluttered.
   const visibleChips = chips.slice(0, 3);
   visibleChips.forEach((chip, ci) => {
-    const chipX = x + size / 2 - 4;
-    const chipY = y - size * 0.4 - 4 + ci * 28;
+    const chipX = x + halfW - 4;
+    const chipY = y - halfH - 4 + ci * 28;
     const chipR = 14;
     const bg = scene.add.graphics();
     bg.fillStyle(0x000000, 0.18);
