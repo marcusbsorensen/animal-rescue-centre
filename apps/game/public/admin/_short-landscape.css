@@ -72,7 +72,12 @@
     padding: clamp(1px, 0.4cqh, 3px) 0 clamp(2px, 0.6cqh, 4px);
     margin-bottom: clamp(1px, 0.4cqh, 3px);
   }
-  .intro { padding: clamp(6px, 1.7cqh, 10px) clamp(14px, 3cqw, 22px); }
+  /* The sign is capped at 480px while the stake is now 600 — width the animal
+     picker and the rule text can both use. */
+  .intro {
+    padding: clamp(6px, 1.7cqh, 10px) clamp(14px, 3cqw, 22px);
+    max-width: min(96%, 560px);
+  }
   .intro ol { gap: clamp(2px, 0.7cqh, 5px); }
   .intro li { font-size: clamp(13px, 3.6cqh, 16px); line-height: 1.15; }
   .intro li::before {
@@ -95,6 +100,10 @@
   .chips {
     max-height: clamp(88px, 26cqh, 138px);
     overflow-y: auto;
+    /* overflow-x must be stated. Setting only overflow-y makes overflow-x
+       compute to auto rather than visible, which turned signup's animal
+       picker into a sideways scroller with its fourth column off the edge. */
+    overflow-x: hidden;
     gap: clamp(4px, 1.2cqh, 9px) clamp(8px, 1.6cqw, 14px);
   }
   .chip { padding: clamp(3px, 1cqh, 6px) clamp(8px, 2cqw, 13px); }
@@ -163,7 +172,13 @@
 
   /* signup: the animal picker plus a name field plus a title is more than the
      sign can hold here, so the picker takes the cut — it already scrolls. */
-  .chips.avatar-picker { max-height: clamp(66px, 20cqh, 104px); }
+  /* Fixed at 4 columns, the picker showed four of the animals on a phone and
+     hid the rest behind a scroll a child will not find. There is width going
+     spare here, so let it fit as many across as the sign allows. */
+  .chips.avatar-picker {
+    grid-template-columns: repeat(auto-fit, minmax(clamp(52px, 8cqw, 66px), 1fr));
+    max-height: clamp(56px, 16cqh, 92px);
+  }
   .name-field-wrap { padding: clamp(2px, 0.7cqh, 4px) clamp(6px, 1.4cqw, 10px); }
 
   /* Stake: wide enough for two pills side by side, and short enough below them

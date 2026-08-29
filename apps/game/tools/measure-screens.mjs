@@ -148,11 +148,25 @@ for (const s of SIZES) {
         }
         for (const e of muted) e.style.pointerEvents = '';
 
+        // A control inside its own scrolling list (signup's animal picker,
+        // login's profile chips) is bounded by that list, not by the screen.
+        // Reporting those as "clipped by the viewport" is a false finding.
+        const inOwnScroller = (el) => {
+          for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+            const cs = getComputedStyle(p);
+            if (cs.overflowY !== 'visible' || cs.overflowX !== 'visible') {
+              const pr = p.getBoundingClientRect();
+              if (pr.height > 0 && pr.bottom <= vh + 1) return true;
+            }
+          }
+          return false;
+        };
+
         const strip = ({ el, ...rest }) => rest;
         return {
           vh, sh,
-          belowFold: ctrls.filter((c) => c.top >= vh).map(strip),
-          partly: ctrls.filter((c) => c.top < vh && c.bottom > vh + 1).map(strip),
+          belowFold: ctrls.filter((c) => c.top >= vh && !inOwnScroller(c.el)).map(strip),
+          partly: ctrls.filter((c) => c.top < vh && c.bottom > vh + 1 && !inOwnScroller(c.el)).map(strip),
           tooSmall: ctrls.filter((c) => c.h < 44 || c.w < 44).map(strip),
           overlaps,
         };
