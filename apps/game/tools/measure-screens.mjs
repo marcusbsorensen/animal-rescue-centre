@@ -43,6 +43,17 @@ import { chromium } from '@playwright/test';
 
 const BASE = 'http://localhost:5173/admin';
 const PAGES = ['welcome', 'menu', 'login', 'signup', 'welcome-new', 'paths', 'friends', 'intro'];
+
+/**
+ * Screens with more than one stage behind a `hidden` class. Measuring the page
+ * as it loads only ever sees the first, which is how signup's PIN keypad
+ * shipped offering 1-6 with 7/8/9/0/delete/confirm below the fold on a phone.
+ * Each entry swaps which stage is showing before the measurement runs.
+ */
+const VARIANTS = [
+  { page: 'signup', label: 'signup(pin)', show: '#stage-pin', hide: '#stage-select' },
+  { page: 'login', label: 'login(pin)', show: '#stage-pin', hide: '#stage-select' },
+];
 const SIZES = [
   { name: 'iphone-13mini-land  780x360', w: 780, h: 360 },
   { name: 'iphone-17promax-land 956x440', w: 956, h: 440 },
@@ -100,9 +111,19 @@ for (const s of SIZES) {
   const ctx = await browser.newContext({ viewport: { width: s.w, height: s.h } });
   const p = await ctx.newPage();
   console.log(`\n=== ${s.name} ===`);
-  for (const page of PAGES) {
+  const targets = [
+    ...PAGES.map((page) => ({ page, label: page })),
+    ...VARIANTS,
+  ];
+  for (const { page, label, show, hide } of targets) {
     try {
       await p.goto(`${BASE}/${page}.html?embed=1`, { waitUntil: 'networkidle', timeout: 15000 });
+      if (show) {
+        await p.evaluate(([show, hide]) => {
+          document.querySelector(show)?.classList.remove('hidden');
+          document.querySelector(hide)?.classList.add('hidden');
+        }, [show, hide]);
+      }
       await p.waitForTimeout(350);
       const r = await p.evaluate(() => {
         const scroller = document.querySelector('.device > *') || document.scrollingElement;
@@ -173,14 +194,14 @@ for (const s of SIZES) {
       });
 
       const scrollBy = r.sh - r.vh;
-      console.log(`${page.padEnd(12)} viewport=${r.vh} content=${r.sh}${scrollBy > 0 ? `  scrolls +${scrollBy}` : '  fits'}`);
+      console.log(`${label.padEnd(13)} viewport=${r.vh} content=${r.sh}${scrollBy > 0 ? `  scrolls +${scrollBy}` : '  fits'}`);
       for (const c of r.belowFold) { problems++; console.log(`    BELOW FOLD   "${c.label}"  top=${c.top}`); }
       for (const c of r.partly) { problems++; console.log(`    CLIPPED      "${c.label}"  ${c.top}..${c.bottom} vs ${r.vh}`); }
       for (const c of r.tooSmall) { problems++; console.log(`    SMALL TAP    "${c.label}"  ${c.w}x${c.h}`); }
       for (const o of r.overlaps) console.log(`    ART OVER?    "${o.label}"  ${o.frac}% by ${o.art}`);
     } catch (e) {
       problems++;
-      console.log(`${page.padEnd(12)} ERROR ${e.message.split('\n')[0]}`);
+      console.log(`${label.padEnd(13)} ERROR ${e.message.split('\n')[0]}`);
     }
   }
   await ctx.close();

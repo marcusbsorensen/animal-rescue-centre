@@ -195,6 +195,54 @@
   .chip.avatar-pick { padding: clamp(2px, 0.8cqh, 5px) clamp(2px, 0.5cqw, 5px); }
   .name-field-wrap { padding: clamp(2px, 0.7cqh, 4px) clamp(6px, 1.4cqw, 10px); }
 
+  /* signup's PIN stage. The keypad is 3x4, and four rows of touch-sized keys
+     under a title, a subtitle and the code dots is taller than a 360px screen:
+     walking signup on the 13 mini offered 1-6 and hid 7, 8, 9, 0, delete and
+     confirm below the fold, so the code could not be finished at all.
+
+     Shrinking the keys is the wrong trade — they are what a child aims at.
+     Put the keypad beside the prompt instead, which the width here affords,
+     and keep both the phone-keypad shape and the key size.
+
+     This stage is hidden behind a class until the first one is done, which is
+     why measuring signup.html on load never caught it. */
+  .intro.stage-pin {
+    width: min(98%, 600px);
+    max-width: min(98%, 600px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title pad"
+      "sub   pad"
+      "dots  pad";
+    align-items: center;
+    column-gap: clamp(12px, 3cqw, 26px);
+  }
+  .intro.stage-pin > .sign-title-row { grid-area: title; align-self: end; }
+  .intro.stage-pin > .sign-subtitle  { grid-area: sub; }
+  .intro.stage-pin > .pin-dots       { grid-area: dots; align-self: start; }
+  .intro.stage-pin > .keypad         { grid-area: pad; }
+
+  .intro.stage-pin .keypad {
+    gap: clamp(4px, 1.1cqh, 8px) clamp(5px, 1cqw, 9px);
+    padding: 0;
+  }
+  .intro.stage-pin .key {
+    font-size: clamp(17px, 4.6cqh, 23px);
+    padding: 0;
+    min-width: 52px;
+    min-height: 44px;
+  }
+  /* "Nice, Testy!" broke across two lines in the narrowed left column. */
+  .intro.stage-pin .sign-title {
+    white-space: nowrap;
+    font-size: clamp(14px, 4cqh, 19px);
+  }
+  .intro.stage-pin .pin-dot {
+    width: clamp(11px, 3cqh, 15px);
+    height: clamp(11px, 3cqh, 15px);
+  }
+
   /* Stake: wide enough for two pills side by side, and short enough below them
      that the credit scrawls sit under the buttons rather than across them. */
   .signs-on-stake {
