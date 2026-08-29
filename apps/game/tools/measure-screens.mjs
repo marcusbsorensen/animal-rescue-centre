@@ -64,15 +64,20 @@ const VARIANTS = [
   { page: 'login', label: 'login(pin)', show: '#stage-pin', hide: '#stage-select' },
 ];
 const SIZES = [
-  // 312, not 360: in the standalone web clip the app is only given 312pt of
-  // the 360pt screen — a 48pt strip along the bottom is never painted into.
-  // Measured off a simulator screenshot on 2026-08-29; cause not yet found.
-  // This is the real phone budget, so it is the one that must pass.
-  { name: 'iphone-13mini-clip  780x312', w: 780, h: 312 },
-  { name: 'iphone-13mini-land  780x360', w: 780, h: 360 },
+  // Measured with an on-page probe inside the standalone web clip on
+  // ARC-13mini, 2026-08-29. The CSS viewport is 812x325 — NOT the 780x360
+  // device points the simulator panel reports, and not the full 812x375 of
+  // the landscape screen. iOS keeps a 50px strip below the viewport and
+  // paints the body background into it; a `position:fixed; bottom:0` marker
+  // lands at the TOP of that strip, so it is not addressable by the page.
+  // safe-area insets there: t0 b20 l50 r50.
+  { name: 'iphone-13mini-clip   812x325', w: 812, h: 325 },
+  // What the same phone should give the shipped Capacitor build, whose
+  // WKWebView the app configures itself. UNVERIFIED — needs a native build.
+  { name: 'iphone-13mini-native 812x375', w: 812, h: 375 },
   { name: 'iphone-17promax-land 956x440', w: 956, h: 440 },
-  { name: 'ipad-mini-land     1133x744', w: 1133, h: 744 },
-  { name: 'ipad-air11-land    1194x834', w: 1194, h: 834 },
+  { name: 'ipad-mini-land      1133x744', w: 1133, h: 744 },
+  { name: 'ipad-air11-land     1194x834', w: 1194, h: 834 },
 ];
 
 const argv = process.argv.slice(2);
@@ -186,8 +191,12 @@ for (const s of SIZES) {
         // A control inside its own scrolling list (signup's animal picker,
         // login's profile chips) is bounded by that list, not by the screen.
         // Reporting those as "clipped by the viewport" is a false finding.
+        // NOTE: `scroller` itself must be excluded. It has overflow-y:auto and
+        // its bottom is exactly vh, so counting it here excuses every control
+        // on the page and the whole check silently passes everything.
         const inOwnScroller = (el) => {
           for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+            if (p === scroller) return false;
             const cs = getComputedStyle(p);
             if (cs.overflowY !== 'visible' || cs.overflowX !== 'visible') {
               const pr = p.getBoundingClientRect();

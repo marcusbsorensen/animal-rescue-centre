@@ -16,7 +16,14 @@
  * above the fold on the smallest phone we target.
  *
  * WHY ONE FILE
- * All seven screens are clones: same container-name (welcome), same
+ * The screens are clones of each other: same .welcome-inner / .intro /
+ * .signs-on-stake / .cta-stack vocabulary. But they do NOT share a
+ * container-name — it is welcome, adopt, rewild, office, scene or tunnel
+ * depending on the page, and map/charm-select/drive-overlay declare none.
+ * So the query below is deliberately UNNAMED: it matches whatever the
+ * nearest ancestor container is called. Naming it `welcome` silently
+ * excluded adoption, rewilding and adoption-office.
+ * Same vocabulary,
  * .welcome-inner / .welcome-content / .signs-on-stake / .cta-stack vocabulary.
  * Seven inline copies of this would drift within a month.
  *
@@ -38,19 +45,53 @@
    Extending the floor here rather than editing the same list in seven files.
    ─────────────────────────────────────────────────────────────────────── */
 .back-tab,
-.btn-primary.demoted {
+.btn-primary.demoted,
+/* The in-game overlays (InGameOverlay mounts these) never had a floor rule of
+   their own, so their controls sat between 32 and 37px: adopters' filter chips
+   and species chips, charm-select's vehicle tabs and "Take it off",
+   tunnel's icon buttons, map's view tabs, arrival's speaker. */
+.audio-btn, .icon-btn,
+.filter-chip, .luna-chip,
+.vehicle-tab, .unequip-btn,
+.tabs .tab, .back-link, .menu-link, .link-btn {
   min-width: 48px;
   min-height: 48px;
 }
 
-@container welcome (max-height: 520px) {
-  .welcome-inner { padding-top: 4px; }
+/* ── Actions that must always be reachable ────────────────────────────────
+   The two ceremonies are 700-1000px tall — deliberately so: portraits of the
+   animal and its new family, a scroll of promises, a row of parting gifts.
+   Squeezing that down would gut the one moment the whole game builds towards.
+   So the ceremony keeps its length and scrolls, and the action is pinned to
+   the bottom of whatever screen is showing it.
+
+   Not inside the short-viewport branch below, because this is not a phone
+   problem: on an iPad mini "WAVE THEM OFF!" was clipped at 686..768 against a
+   744px viewport, and "Not yet" was 30px past the bottom.
+
+   Sticky only engages when the element would otherwise be out of view, so on
+   the screens that already fit this changes nothing. .secondary-row is in the
+   list for login and signup, whose bottom links overhang by 4-9px.
+   ─────────────────────────────────────────────────────────────────────── */
+/* z:40 — the ceremony plaques are z:20 and carry a transform, so anything
+   lower than that paints behind them and the pinned button is invisible even
+   though its rect says it is on screen. */
+.wave-wrap, .release-wrap { position: sticky; bottom: 52px; z-index: 40; }
+.secondary-row, .footer-row { position: sticky; bottom: 4px; z-index: 40; }
+/* Room at the end of the scroll so the last of the ceremony can clear the
+   pinned buttons instead of sitting permanently behind them. */
+[class$="-inner"]:has(> .wave-wrap, > .release-wrap, > .footer-row) {
+  padding-bottom: 120px;
+}
+
+@container (max-height: 520px) {
+  .welcome-inner { padding-top: 2px; }
 
   /* The audio button keeps its 48px floor from the touch-target rule in each
      page — do not shrink the top strip to claw back height. */
   .welcome-content {
-    padding-top: clamp(10px, 3.4cqh, 18px);
-    gap: clamp(4px, 1cqh, 8px);
+    padding-top: clamp(5px, 2cqh, 15px);
+    gap: clamp(3px, 0.9cqh, 8px);
   }
 
   /* Cat still overhangs the sign, by enough less that it clears the top strip
@@ -75,7 +116,7 @@
   /* The sign is capped at 480px while the stake is now 600 — width the animal
      picker and the rule text can both use. */
   .intro {
-    padding: clamp(6px, 1.7cqh, 10px) clamp(14px, 3cqw, 22px);
+    padding: clamp(5px, 1.5cqh, 10px) clamp(14px, 3cqw, 22px);
     max-width: min(96%, 560px);
   }
   .intro ol { gap: clamp(2px, 0.7cqh, 5px); }
@@ -98,7 +139,7 @@
      the number of chips is not fixed (one per remembered child), so no amount
      of shrinking makes this safe on its own. */
   .chips {
-    max-height: clamp(88px, 26cqh, 138px);
+    max-height: clamp(70px, 24cqh, 138px);
     overflow-y: auto;
     /* overflow-x must be stated. Setting only overflow-y makes overflow-x
        compute to auto rather than visible, which turned signup's animal
@@ -248,7 +289,11 @@
   .signs-on-stake {
     max-width: min(94%, 600px);
     gap: clamp(5px, 1.4cqh, 9px);
-    padding-bottom: clamp(19px, 5.2cqh, 28px);
+    /* 2.8cqh, not 4.6: login's three bottom links overhang 325 by 6px, and
+       .secondary-row cannot be pinned out of trouble there the way the
+       ceremonies can — sticky is bounded by the parent box and .cta-stack has
+       no slack, so the height has to come from the stake instead. */
+    padding-bottom: clamp(10px, 2.8cqh, 24px);
   }
   /* The grass clump is width:100% of the stake, so widening the stake to fit
      two pills side by side also inflated the grass until it covered half the
@@ -261,7 +306,7 @@
      foreground dog is itself z:6 and, being later in the DOM, won the tie and
      sat on top of the PIN keypad's confirm key. */
   .intro { z-index: 7; }
-  .cta-stack { gap: clamp(3px, 1cqh, 7px); }
+  .cta-stack { gap: clamp(3px, 0.7cqh, 7px); }
 
   /* Side by side. The wide branch stacks these down the stake's centre line,
      which is right when height is plentiful and width is not; here it is the
@@ -309,6 +354,62 @@
   .path-criteria { margin-top: clamp(2px, 0.8cqh, 4px); }
   .path-criteria li { font-size: clamp(11px, 2.9cqh, 13px); line-height: 1.25; }
 
+  /* ── arrival / conflict / vet ─────────────────────────────────────────
+     A scene, a line of story, and two or three choice pills stacked beneath.
+     At 325 the last pill sat 60px past the bottom edge — and on arrival that
+     is the first decision the game ever asks a child to make, about an animal
+     that has just turned up frightened.
+
+     Put the scene beside the words rather than above them. The pills keep
+     their stacked reading order and their height; only the picture moves.
+     vet reuses conflict's classes, so both selectors cover three screens.
+     ──────────────────────────────────────────────────────────────────── */
+  .arrival-plaque, .conflict-plaque {
+    /* These are width:min(92%, 440px) — a portrait-shaped card sitting in the
+       middle of an 812px screen. Beside a scene, 440 leaves the pills so
+       little room that they wrap to three lines and the plaque grows taller
+       than it was stacked. Let it use the width it has. */
+    width: min(94%, 720px);
+    max-width: min(94%, 720px);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "scene title"
+      "scene sub"
+      "scene choices";
+    align-items: center;
+    column-gap: clamp(10px, 2.5cqw, 22px);
+    padding: clamp(8px, 2.4cqh, 14px) clamp(12px, 2.5cqw, 20px);
+  }
+  .arrival-scene,    .conflict-scene    { grid-area: scene; align-self: center; }
+  .arrival-title,    .conflict-title    { grid-area: title; align-self: end; }
+  .arrival-subtitle, .conflict-subtitle { grid-area: sub; }
+  .arrival-choices,  .conflict-choices  { grid-area: choices; align-self: start; }
+
+  .arrival-anim, .conflict-anim { max-height: clamp(88px, 34cqh, 150px); }
+  /* conflict and vet put two animals and a toy side by side, so their scene
+     column is wide enough to squeeze the pills into extra lines and make the
+     screen taller than it was before. Cap it. */
+  .conflict-scene { max-width: 38%; }
+  .choice-pill {
+    padding: clamp(4px, 1.2cqh, 8px) clamp(10px, 2cqw, 16px);
+    min-height: 48px;   /* the compression took these to 40px */
+  }
+  .choice-label { font-size: clamp(12px, 3.4cqh, 15px); }
+  .choice-hint  { font-size: clamp(10px, 2.8cqh, 12px); }
+
+  /* tunnel's "Ready?" startup scrim: 260px of oversized deco art above a
+     36px title above the button, which put "Ready!" past the bottom on every
+     phone size. The art is the joke, so it shrinks rather than goes. */
+  .ready-card { padding: clamp(8px, 2.5cqh, 18px); }
+  .ready-art {
+    height: min(118px, 30cqh);
+    width: min(300px, 46cqw);
+    margin-bottom: clamp(4px, 1.5cqh, 10px);
+  }
+  .ready-title { font-size: clamp(20px, 6.5cqh, 30px); margin-bottom: clamp(2px, 1cqh, 6px); }
+
   /* Credits out of the grid flow so they cannot add a row that pushes the
      buttons down; same trick the <= 420px branch uses. */
   .credits {
@@ -337,7 +438,7 @@
    collide with the short-landscape branch above, which caps the same photo
    far harder.
    ───────────────────────────────────────────────────────────────────────── */
-@container welcome (min-height: 521px) {
+@container (min-height: 521px) {
   .intro:has(.arc-snapshot-wrap) { padding: clamp(10px, 1.6cqh, 14px) clamp(18px, 3.5cqw, 28px); }
   .intro:has(.arc-snapshot-wrap) .arc-snapshot {
     max-height: clamp(150px, 28cqh, 260px);
