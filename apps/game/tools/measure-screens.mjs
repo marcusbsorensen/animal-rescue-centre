@@ -55,6 +55,11 @@ const VARIANTS = [
   { page: 'login', label: 'login(pin)', show: '#stage-pin', hide: '#stage-select' },
 ];
 const SIZES = [
+  // 312, not 360: in the standalone web clip the app is only given 312pt of
+  // the 360pt screen — a 48pt strip along the bottom is never painted into.
+  // Measured off a simulator screenshot on 2026-08-29; cause not yet found.
+  // This is the real phone budget, so it is the one that must pass.
+  { name: 'iphone-13mini-clip  780x312', w: 780, h: 312 },
   { name: 'iphone-13mini-land  780x360', w: 780, h: 360 },
   { name: 'iphone-17promax-land 956x440', w: 956, h: 440 },
   { name: 'ipad-mini-land     1133x744', w: 1133, h: 744 },

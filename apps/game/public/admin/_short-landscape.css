@@ -255,10 +255,12 @@
      sign. Keep it to the middle of the stake, where it reads as ground. */
   .grass-clump { width: clamp(200px, 52%, 330px); }
 
-  /* Sign content above the grass. The grass is meant to hide the base of the
-     stake; with the stack this compressed it reached up over the sign face
-     and buried menu's friend-code line. */
-  .intro { z-index: 6; }
+  /* Sign content above the ground art. The grass is meant to hide the base of
+     the stake; with the stack this compressed it reached up over the sign face
+     and buried menu's friend-code line. 7 rather than 6 because signup's
+     foreground dog is itself z:6 and, being later in the DOM, won the tie and
+     sat on top of the PIN keypad's confirm key. */
+  .intro { z-index: 7; }
   .cta-stack { gap: clamp(3px, 1cqh, 7px); }
 
   /* Side by side. The wide branch stacks these down the stake's centre line,
@@ -269,6 +271,10 @@
   .btn-primary {
     padding: clamp(4px, 1.3cqh, 8px) clamp(20px, 4cqw, 28px);
     font-size: clamp(19px, 5.4cqh, 25px);
+    /* The compression took PLAY! to 43px and START PLAYING! to 42px at the
+       312pt the web clip actually gives us. This is the button the whole
+       screen exists for; it does not go under the floor. */
+    min-height: 48px;
   }
   .btn-primary .paw { font-size: clamp(20px, 5.6cqh, 27px); }
   .play-parrot { height: clamp(34px, 10cqh, 46px); top: -24%; }
