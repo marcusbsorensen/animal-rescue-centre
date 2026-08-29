@@ -32,6 +32,20 @@ checking the claim still holds.
   `welcome`, `adopt`, `rewild`, `office`, `scene` or `tunnel` by page, and
   map/charm-select/drive-overlay declare none), so naming it `welcome`
   silently excluded adoption, rewilding and adoption-office.
+- **The Capacitor app gets 812x375; the Home Screen web clip gets 812x325.**
+  Measured 2026-08-29 with an on-page probe inside the shipped app on
+  ARC-13mini: `inner 812x375`, `visual 812x375`, `client 812x375`,
+  `safe-area-inset-bottom 0px`, `standalone false`, dpr 3, and a
+  `fixed; bottom:0` marker flush on the screen edge. So the 50px the clip
+  loses is a PWA-only reservation, and `contentInset: 'never'` in
+  `capacitor.config.ts` is what buys it back. **Say which one you are
+  measuring.** Both fall under the 480 short-viewport branch in
+  `ui/layout.ts`, so both compress the chrome; the app just has 50px more
+  band (187 against 137).
+  To re-measure: append a fixed-position div to `apps/game/index.html`
+  that prints the numbers, `pnpm build:ios`, rebuild the Xcode project,
+  launch, screenshot, then revert the file. You cannot run JS in the app
+  without Safari Web Inspector, which needs Marcus.
 - **The web clip's CSS viewport is 812x325, not the 780x360 the simulator
   panel reports.** Measured with an on-page probe (a fixed div printing
   `innerHeight` etc., screenshotted — you cannot run JS in a clip):
@@ -218,3 +232,19 @@ checking the claim still holds.
   buffer tail. Assert on length after any such edit.
 - Root `pnpm build` excludes `@arc/admin` on purpose; its build refuses
   without `ARC_ADMIN_LOCAL_BUILD=1`.
+- **`build-ios.mjs` deliberately does not exclude `public/admin/`**, so
+  anything dropped in there ships inside the app. A stray folder of
+  unquantised sprite masters took the staged bundle from 108 MB to 749 MB
+  without a word of complaint — the staging line prints the size, so read
+  it. `1231 files (128.6 MB) -> 1227 files (107.8 MB)` is what healthy
+  looks like.
+- **The pnpm virtual store can vanish mid-session**, leaving
+  `apps/game/node_modules` full of dangling symlinks and vite reported as
+  MODULE_NOT_FOUND when it worked ten minutes earlier. `pnpm install
+  --frozen-lockfile` from the repo root fixes it in seconds. Note the
+  store is at the repo root, not in `apps/game`.
+- **Bash `cd` persists between calls here.** Two separate incidents this
+  session: a `git stash push -- apps/game/src` that resolved to
+  `apps/game/apps/game/src` and silently stashed nothing, and a batch of
+  `ls` checks that read the wrong tree and looked like a broken install.
+  Use absolute paths in anything whose correctness you will act on.
