@@ -381,9 +381,21 @@ function renderZone(
       sprite.on('pointerdown', () => {
         playShakeOff(scene, sprite as Phaser.GameObjects.Image, {
           onPeak: () => {
-            // Find nearby garden animals (anyone in the same zone)
-            const nearby = zoneAnimals.filter((a) => a.id !== animal.id);
-            const result = applyShakeOff(animal, nearby);
+            // Resolve the shaker and its neighbours against the store
+            // before applying anything. `animal` and `zoneAnimals` were
+            // captured when this zone was drawn, and GameScene's needs
+            // tick replaces every Animal object every 2 seconds — so
+            // `applyShakeOff` on the captured copies would produce
+            // objects carrying stale hunger/tiredness/health, and the
+            // writeback below would put them over the live entries,
+            // undoing every tick since the render.
+            const liveShaker = store.animals.find((a) => a.id === animal.id);
+            if (!liveShaker) return;
+            const nearby = zoneAnimals
+              .filter((a) => a.id !== animal.id)
+              .map((a) => store.animals.find((s) => s.id === a.id))
+              .filter((a): a is NonNullable<typeof a> => a !== undefined);
+            const result = applyShakeOff(liveShaker, nearby);
             // Apply the splash happiness deltas to the store
             for (const splashed of result.splashed) {
               const idx = store.animals.findIndex((a) => a.id === splashed.id);
