@@ -24,7 +24,7 @@ import type { GameStateStore } from '../game-state/GameStateStore';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getUrgentNeed } from '@arc/game-logic';
 import { createButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP } from '../ui/constants';
 import { railBoundsFor, playAreaFor, type RailBounds } from '../ui/layout';
 
 export { RAIL_WIDTH, RAIL_DRAWER_BREAKPOINT } from '../ui/layout';
@@ -319,14 +319,15 @@ function drawSectionHeader(
   x: number, y: number,
   label: string, badge: string, badgeColour: number,
 ): number {
-  container.add(
-    scene.add.text(x, y, label, {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
-      color: '#A85A28', resolution: TEXT_RESOLUTION,
-    }).setOrigin(0, 0.5).setY(y + 8),
-  );
-  // Round badge with count
-  const badgeX = x + 110;
+  // "\u2605 ARRIVALS WAITING" measures 154.2px at Nunito bold 14px, so the
+  // badge's old hardcoded x + 110 printed the count circle over the middle of
+  // the word WAITING. Measure the label and sit the badge after it.
+  const labelText = scene.add.text(x, y, label, {
+    fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+    color: '#A85A28', resolution: TEXT_RESOLUTION,
+  }).setOrigin(0, 0.5).setY(y + 8);
+  container.add(labelText);
+  const badgeX = x + labelText.width + 19;
   const badge1 = scene.add.graphics();
   badge1.fillStyle(badgeColour, 1);
   badge1.fillCircle(badgeX, y + 8, 9);
@@ -361,7 +362,12 @@ function drawArrivalCard(
   onTapCard?: () => void,
 ): number {
   const accentInt = SPECIES_COLOURS[animal.species as Species];
-  const cardH = 96;
+  // 96 was too short for its own contents: the Welcome button overhung the
+  // bottom by 7px, and the "tap for details" rect covered the button's top
+  // 10px — and won, being added after it. Tapping the top of Welcome, where
+  // a 7-year-old aims, opened the info popup instead of accepting the animal.
+  const cardH = 112;
+  const welcomeH = MIN_TAP;
 
   // Card background — pale paper with a coloured left edge that
   // signals which species the arrival is
@@ -401,16 +407,20 @@ function drawArrivalCard(
 
   // Welcome button — full width of card minus padding, anchored bottom
   const btn = createButton(
-    scene, x + w / 2, y + cardH - 16,
+    scene, x + w / 2, y + cardH - 8 - welcomeH / 2,
     'Welcome',
     onWelcome,
-    { width: w - 24, fontSize: '14px', icon: 'icon-accept', bgColour: COLOURS.primary },
+    {
+      width: w - 24, height: welcomeH, fontSize: '16px',
+      icon: 'icon-accept', bgColour: COLOURS.primary,
+    },
   );
   container.add(btn);
 
   // Tap card body (above the button) to see details
   if (onTapCard) {
-    const hit = scene.add.rectangle(x, y, w, cardH - 30, 0x000000, 0)
+    // Stops short of the button's top edge so the two never contend.
+    const hit = scene.add.rectangle(x, y, w, cardH - welcomeH - 12, 0x000000, 0)
       .setOrigin(0, 0)
       .setInteractive({ useHandCursor: true });
     hit.on('pointerdown', onTapCard);

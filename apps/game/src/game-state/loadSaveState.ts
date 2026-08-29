@@ -173,10 +173,14 @@ export async function loadGameState(
       showToast(scene, "No internet just now — playing from this device's copy.");
     } else {
       // Nothing here and nothing there: without game state there is
-      // nothing to render, so this one has to block.
+      // nothing to render, so this one has to block. It must still not be a
+      // dead end — the modal used to have a single button that dismissed
+      // only on a successful retry, so a child on a broken connection with
+      // no adult nearby had no way out of it at all. There is no state to
+      // play from here, so the way out is back to the menu.
       showBlocking(
         scene,
-        'We couldn\'t reach the server to load your shelter.\nCheck your internet and try again.',
+        'I could not reach the internet, so I could not open your shelter.\nYour shelter is safe. We can try again in a moment.',
         async () => {
           try {
             await attempt();
@@ -186,6 +190,8 @@ export async function loadGameState(
             return false;
           }
         },
+        { dismiss: 'Back to the menu' },
+        () => scene.scene.start('MainMenuScene'),
       );
     }
   }

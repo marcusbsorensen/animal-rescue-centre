@@ -13,6 +13,38 @@ export const RAIL_WIDTH = 280;
 /** Viewport width below which the rail becomes a bottom drawer. */
 export const RAIL_DRAWER_BREAKPOINT = 600;
 
+/**
+ * NOTE: the drawer path below is currently unreachable, and deliberately
+ * left that way.
+ *
+ * The app is landscape-locked, so the narrowest shipping viewport is 812
+ * (667 on an SE) and always clears 600 — renderDrawer and
+ * drawMiniArrivalCard have never run on a real device.
+ *
+ * Making the breakpoint height-aware would wake them on a landscape phone,
+ * and it was tried: it is worse. Nav (96) plus drawer (130) leaves the game
+ * 812x149 between them, against 532x375 with the side rail. For a game whose
+ * central problem is that the animals are not the focus, a 149px-tall strip
+ * is the wrong trade. The drawer was drawn for a portrait phone, which this
+ * app never shows.
+ *
+ * So: either the app gains a portrait mode and this code becomes live, or
+ * the drawer path should be deleted. It should not be woken as-is.
+ */
+
+/**
+ * Height of the HUD strip along the top. Views must lay their own chrome out
+ * below this: the HUD is drawn into uiContainer, which is added after
+ * gameContainer, so anything a view puts in the top 110px is both covered by
+ * the HUD and loses the tap to it. The room's Decorate button used to overlap
+ * the audio toggle by 48x27px — a child aiming at Decorate turned the music
+ * off, with no model for why.
+ */
+export const HUD_HEIGHT = 110;
+
+/** Height of the nav bar along the bottom, including its safe margin. */
+export const NAV_HEIGHT = 96;
+
 export interface RailBounds {
   x: number;
   y: number;
@@ -25,12 +57,13 @@ export function railBoundsFor(width: number, height: number): RailBounds {
   if (width < RAIL_DRAWER_BREAKPOINT) {
     // Phone: bottom drawer (peek state ~120px above the nav)
     const drawerH = 130;
-    const navH = 84; // matches NavBarView's render height
-    return { x: 0, y: height - navH - drawerH, w: width, h: drawerH, mode: 'drawer' };
+    // Was 84, described as "matches NavBarView's render height" — it does not;
+    // NavBarView renders 96 including its safe margin, so the drawer sat 12px
+    // under the nav.
+    return { x: 0, y: height - NAV_HEIGHT - drawerH, w: width, h: drawerH, mode: 'drawer' };
   }
   // Tablet / desktop: full-height left rail
-  const hudH = 110; // leave room for the slimmer HUD top strip
-  return { x: 0, y: hudH, w: RAIL_WIDTH, h: height - hudH, mode: 'side' };
+  return { x: 0, y: HUD_HEIGHT, w: RAIL_WIDTH, h: height - HUD_HEIGHT, mode: 'side' };
 }
 
 /**

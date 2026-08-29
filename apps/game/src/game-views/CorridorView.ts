@@ -53,6 +53,9 @@ export function renderCorridor(
   // full width. Background and anchors both use it, so animals keep landing
   // on the marks the art was painted for.
   const play = getPlayArea(scene);
+  // Titles sit clear of the HUD's second row (time-of-day and weather pills,
+  // y 78..106), which is drawn after this container and so lands on top.
+  const TITLE_CY = 45;
 
   // ── Background ───────────────────────────────────────────
   if (scene.textures.exists('bg-corridor')) {
@@ -88,7 +91,7 @@ export function renderCorridor(
 
   // Title
   container.add(
-    createPillTitle(scene, width / 2, 55, 'Rescue Centre', {
+    createPillTitle(scene, play.x + play.w / 2, TITLE_CY, 'Rescue Centre', {
       bgColour: 0x8B6914, fontSize: '20px', icon: 'icon-rescue-centre',
     }),
   );

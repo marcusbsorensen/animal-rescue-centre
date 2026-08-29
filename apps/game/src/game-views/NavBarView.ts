@@ -46,14 +46,27 @@ export function renderNavBar(
   const homeKey = scene.textures.exists('nav-home') ? 'nav-home' : 'icon-home';
   const careKey = scene.textures.exists('nav-care') ? 'nav-care' : 'icon-kitchen';
   const socialKey = scene.textures.exists('nav-social') ? 'nav-social' : 'icon-social';
-  const walkKey = scene.textures.exists('nav-walk')
-    ? 'nav-walk'
-    : (scene.textures.exists('icon-walk') ? 'icon-walk' : 'icon-games');
+  // 'nav-walk' has never existed on disk, so this fell through to
+  // icon-walk: a pale grey paw-print at 128px filling ~40% of its canvas,
+  // drawn at 46px on a near-white bar. Next to three saturated 256px
+  // painterly badges it read as disabled rather than as a button.
+  // signs/nav-play.png is 256px, is from that same painterly set, and was
+  // referenced by nothing — the file that was made, unused, while the tab
+  // looked for a filename that was never made.
+  const walkKey = scene.textures.exists('nav-play')
+    ? 'nav-play'
+    : (scene.textures.exists('nav-walk')
+        ? 'nav-walk'
+        : (scene.textures.exists('icon-walk') ? 'icon-walk' : 'icon-games'));
+  // Same story: 'fab-supplies' does not exist, so the most prominent control
+  // on the screen fell back to a flat brown truck on transparency, the only
+  // element on the bar drawn in a different style from everything round it.
+  // fab-arc is the painterly badge that belongs with the rest.
   const fabKey = scene.textures.exists('fab-supplies')
     ? 'fab-supplies'
-    : (scene.textures.exists('icon-supply-run')
-        ? 'icon-supply-run'
-        : (scene.textures.exists('icon-depot') ? 'icon-depot' : 'fab-arc'));
+    : (scene.textures.exists('fab-arc')
+        ? 'fab-arc'
+        : (scene.textures.exists('icon-supply-run') ? 'icon-supply-run' : 'icon-depot'));
 
   const leftTabs: NavTab[] = options.showBack
     ? [

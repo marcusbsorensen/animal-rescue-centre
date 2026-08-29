@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP } from './constants';
 
 /**
  * ErrorOverlay — centralised error UI for the game.
@@ -47,7 +47,7 @@ export function showToast(scene: Phaser.Scene, message: string): void {
     .setResolution(TEXT_RESOLUTION);
 
   const text = scene.add.text(-150, 0, message, {
-    fontSize: '14px',
+    fontSize: '16px',
     fontFamily: FONTS.body,
     color: '#ffffff',
     wordWrap: { width: 320 },
@@ -95,12 +95,17 @@ function dismissToast(scene: Phaser.Scene): void {
 
 /** Wording overrides, for a modal that isn't about the connection. */
 export interface BlockingLabels {
-  /** Heading. Default: 'Connection hiccup'. */
+  /** Heading. Default: "I can't reach the internet". */
   title?: string;
   /** Button. Default: 'Try again'. */
   action?: string;
   /** Button while `retryFn` is running. Default: 'Retrying...'. */
   busy?: string;
+  /**
+   * Label for the escape hatch. Omit `onDismiss` to keep the modal
+   * blocking; pass both for cases the child can safely play through.
+   */
+  dismiss?: string;
 }
 
 /**
@@ -121,8 +126,11 @@ export function showBlocking(
   message: string,
   retryFn: () => Promise<boolean>,
   labels: BlockingLabels = {},
+  onDismiss?: () => void,
 ): void {
-  const titleText = labels.title ?? 'Connection hiccup';
+  // "Connection hiccup" is a figure of speech, and one of the harder ones
+  // for this age. Say the thing plainly instead.
+  const titleText = labels.title ?? "I can't reach the internet";
   const actionText = labels.action ?? 'Try again';
   const busyText = labels.busy ?? 'Retrying...';
   // Dismiss any existing modal first
@@ -138,7 +146,7 @@ export function showBlocking(
   const veil = scene.add.rectangle(0, 0, W, H, 0x000000, 0.55);
   veil.setInteractive();  // swallow clicks beneath
 
-  const panel = scene.add.rectangle(0, 0, 460, 260, 0xfef9ef)
+  const panel = scene.add.rectangle(0, 0, 460, onDismiss ? 300 : 260, 0xfef9ef)
     .setStrokeStyle(3, 0xd4783c);
 
   const title = scene.add.text(0, -90, titleText, {
@@ -149,7 +157,7 @@ export function showBlocking(
   }).setOrigin(0.5).setResolution(TEXT_RESOLUTION);
 
   const text = scene.add.text(0, -20, message, {
-    fontSize: '15px',
+    fontSize: '16px',
     fontFamily: FONTS.body,
     color: COLOURS.text,
     wordWrap: { width: 410 },
@@ -181,9 +189,12 @@ export function showBlocking(
         dismissBlocking(scene);
         return;
       }
-      text.setText(message + '\n\n(Still no luck — try once more?)');
+      text.setText(message + '\n\nStill not working. You can try again.');
     } catch (e) {
-      text.setText(message + '\n\n(' + (e instanceof Error ? e.message : 'Still failing') + ')');
+      // Never render the raw error: a child was being shown strings like
+      // "Failed to fetch" and raw PostgREST messages. Log it for us instead.
+      console.error('[ErrorOverlay] retry failed', e);
+      text.setText(message + '\n\nStill not working. You can try again.');
     }
     retrying = false;
     btnText.setText(actionText);
@@ -191,6 +202,28 @@ export function showBlocking(
   };
 
   btnBg.on('pointerdown', onRetry);
+
+  // Without this the modal has exactly one control and dismisses only when
+  // retryFn() returns truthy, so a genuinely broken connection with no adult
+  // nearby ends the game. Callers that can run from the local save pass
+  // onDismiss and the child gets a way through.
+  if (onDismiss) {
+    const dismissText = labels.dismiss ?? 'Keep playing';
+    const dismissBg = scene.add.rectangle(0, 128, 180, MIN_TAP, 0xfef9ef)
+      .setStrokeStyle(2, 0x8b7d6b)
+      .setInteractive({ useHandCursor: true });
+    const dismissLabel = scene.add.text(0, 128, dismissText, {
+      fontSize: '18px',
+      fontFamily: FONTS.title,
+      color: COLOURS.text,
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setResolution(TEXT_RESOLUTION);
+    dismissBg.on('pointerdown', () => {
+      dismissBlocking(scene);
+      onDismiss();
+    });
+    container.add([dismissBg, dismissLabel]);
+  }
 
   (scene as unknown as Record<string, unknown>)[MODAL_KEY] = { container };
 
