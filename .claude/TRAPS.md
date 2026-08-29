@@ -16,6 +16,18 @@ checking the claim still holds.
   `applySickness` (GameScene ~483) and the Garden/Kitchen views also
   replace elements, so identity is not preservable in general — resolving
   by id is the answer, not trying to keep references stable.
+- **`simctl io screenshot` returns the portrait buffer even when the
+  device is in landscape**, so the whole picture — Safari's chrome
+  included — arrives rotated 90°. Tap coordinates are in that same
+  rotated frame, so a control at image `(u, v)` is tapped at `(u, v)`,
+  not at its on-screen position. To convert a measurement back to screen
+  coordinates on a landscape iPad: `screenX = deviceH - v`,
+  `screenY = u`. Verified against `getPlayArea` maths, which matched to
+  within a few points.
+- **A freshly created simulator needs its own access grant** before
+  screenshot/tap will work, and only Marcus can give it, from the
+  simulator panel. Creating and booting the device is not enough — plan
+  around a device that is already granted, or ask.
 - **Real iOS WebKit is reachable without a build.** Serve the app with
   `vite --host 0.0.0.0`, drop a throwaway page under
   `apps/game/public/admin/` that writes an `arc_session` into
@@ -68,15 +80,37 @@ checking the claim still holds.
   4-key error object, and `len()` on it reads as "4 rows". **`id` is not a
   universal column here** — `sessions` keys on `token`, `friendships` and
   `showcase_links` have no `id`. `user_id` is the safe probe.
+- **Getting a headless browser into GameScene takes three things.**
+  (1) Mint a session: POST the `signup` Edge Function with the anon key
+  from `.env.local` and write the returned `session` object into
+  `localStorage` as `arc_session` (via Playwright's `addInitScript`, so
+  it lands before the app boots). (2) Skip the intro map:
+  `arc_skip_intro = 'true'` and `arc_intro_played = '1'` —
+  `arc_intro_seen` is not a key and setting it does nothing. (3) An
+  injected session still lands on `MainMenuScene`, which waits on a
+  painted CONTINUE tap. Stop every active scene, then
+  `scene.start('GameScene')` — starting it without stopping the others
+  leaves MainMenuScene rendering on top.
 - Playwright needs `ARC_BROWSER_CHANNEL=chrome`; the bundled downloads
-  stall. `playwright install webkit` stalls too — do not wait on it, use
+  stall. Scripts must live **inside `apps/game/`** to resolve
+  `@playwright/test` — one in a scratch directory fails with
+  ERR_MODULE_NOT_FOUND. `playwright install webkit` stalls too — do not wait on it, use
   the simulator's Safari instead.
 - WebGL does not initialise in the Claude browser pane. Use Playwright or
   the simulator, not `preview_*`.
 - `@arc/game-logic` has `main: src/index.ts` and `noEmit`, so there is no
   `dist/`. To run a node script against it, use `apps/game/node_modules/.bin/tsx`.
 - `playwright` is not installed as a bare package — import from
-  `@playwright/test`, and only from inside `apps/game/` where it resolves.
+  `@playwright/test`.
+- **The chrome and the views used to centre on different origins.** The
+  HUD centred 600px on the whole screen; the views centre their titles on
+  `getPlayArea`. On an iPad that put the shelter pill on top of "Cat
+  Room" on every screen in the game. Both now use the play area — add
+  anything to the top strip and centre it the same way, or the collision
+  comes straight back.
+- **`renderView()` draws the rail and the HUD.** Do not call
+  `renderHUD()` beside it. Four call sites used to, 37 did not, and every
+  count in the top strip went stale on feed, heal, adopt and welcome.
 - The ux-review harness has a history of false findings. Verify against source first.
 - `GameScene` shows an arrival card or the corridor depending on state, so
   its measurements move between runs.
