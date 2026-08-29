@@ -172,13 +172,27 @@
 
   /* signup: the animal picker plus a name field plus a title is more than the
      sign can hold here, so the picker takes the cut — it already scrolls. */
-  /* Fixed at 4 columns, the picker showed four of the animals on a phone and
-     hid the rest behind a scroll a child will not find. There is width going
-     spare here, so let it fit as many across as the sign allows. */
-  .chips.avatar-picker {
-    grid-template-columns: repeat(auto-fit, minmax(clamp(52px, 8cqw, 66px), 1fr));
-    max-height: clamp(56px, 16cqh, 92px);
+  /* All eight animals on one row.
+     The sign is a flex item under align-items:center, so it is content-width:
+     max-width alone will not widen it, and auto-fit columns resolving against
+     a shrink-to-fit parent collapsed the picker to two animals. Give the sign
+     an explicit width, then ask for one column per animal. */
+  /* max-width from the .intro rule above caps `width`, so set both. */
+  .intro:has(.avatar-picker) {
+    width: min(98%, 600px);
+    max-width: min(98%, 600px);
   }
+  .chips.avatar-picker {
+    /* minmax(0, ...) — plain 1fr floors at the chip's min-content width, which
+       let the eighth animal overflow the sign by a few pixels and get clipped. */
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    /* The picker is emoji-only by design — signup.html hides .chip-text on
+       .avatar-pick at every size — so this only has to hold one row of
+       circles. */
+    max-height: clamp(56px, 16cqh, 92px);
+    gap: clamp(3px, 0.9cqh, 6px) clamp(3px, 0.7cqw, 6px);
+  }
+  .chip.avatar-pick { padding: clamp(2px, 0.8cqh, 5px) clamp(2px, 0.5cqw, 5px); }
   .name-field-wrap { padding: clamp(2px, 0.7cqh, 4px) clamp(6px, 1.4cqw, 10px); }
 
   /* Stake: wide enough for two pills side by side, and short enough below them

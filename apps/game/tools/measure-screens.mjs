@@ -42,7 +42,7 @@
 import { chromium } from '@playwright/test';
 
 const BASE = 'http://localhost:5173/admin';
-const PAGES = ['welcome', 'menu', 'login', 'signup', 'welcome-new', 'paths', 'friends'];
+const PAGES = ['welcome', 'menu', 'login', 'signup', 'welcome-new', 'paths', 'friends', 'intro'];
 const SIZES = [
   { name: 'iphone-13mini-land  780x360', w: 780, h: 360 },
   { name: 'iphone-17promax-land 956x440', w: 956, h: 440 },
