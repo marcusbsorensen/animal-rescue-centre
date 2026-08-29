@@ -16,6 +16,50 @@ checking the claim still holds.
   `applySickness` (GameScene ~483) and the Garden/Kitchen views also
   replace elements, so identity is not preservable in general — resolving
   by id is the answer, not trying to keep references stable.
+- **The DOM screens are laid out with `@container`, not `@media`.** Grepping
+  for `@media` across `public/admin/` returns nothing and will convince you
+  they have no responsive rules at all. They have plenty — keyed on **width
+  only**: a `>= 900px` branch and a `<= 420px` "iPhone" branch. A landscape
+  phone is 780x360, so it matches neither and falls through to the base
+  rules, whose `clamp()` minimums are sized for a tall viewport. That is one
+  defect with 21 instances: 7 screens mounted by `AuthOverlay` and 14 by
+  `InGameOverlay` (`src/game-overlay/InGameOverlay.ts`), all clones sharing
+  `.welcome-inner` / `.intro` / `.signs-on-stake` / `.cta-stack`.
+  `public/admin/_short-landscape.css` is the height branch; it is linked
+  from the 7 auth screens only, **after** each page's inline `<style>` so it
+  wins on document order. Do not move that `<link>` above the `<style>`.
+- **The standalone web clip only gets 312 of the 13 mini's 360 landscape
+  points.** A 48pt strip along the bottom is left as bare `#fef9ef` and
+  never painted into. Measured off a screenshot on 2026-08-29; cause not
+  found, and `index.html` has no safe-area handling at all, so it is not
+  explicit padding. **Measure the phone at 780x312.** At 360 everything
+  looks 48pt roomier than it is — that is what hid `PLAY!` coming out 43px
+  tall, under the game's own 48px touch floor.
+- **`xcrun simctl terminate <udid> com.apple.webapp` is the only reliable
+  way to reload a Home Screen web clip.** Pressing HOME and tapping the icon
+  *resumes* it: stale CSS, stale DOM, previous stage still showing. You will
+  test the build from twenty minutes ago and conclude your fix did nothing.
+- **Rotating the simulator still needs Marcus.** `osascript` is refused
+  assistive access — confirmed, it answers "osascript is not allowed to send
+  keystrokes (1002)" — and there is no `simctl` verb. Ask him for Cmd+Left.
+- **The mock pages understate the live screens.** `arrival.html` renders one
+  choice standing alone; the live arrival card renders more, and on a phone
+  the second one is below the fold. `signup.html` and `login.html` keep
+  later stages behind a `hidden` class, so measuring them on load never sees
+  the PIN keypad — which shipped offering 1-6 with 7/8/9/0/delete/confirm
+  off-screen. `tools/measure-screens.mjs` now toggles those stages; it still
+  cannot conjure live data.
+- **`overflow-y: auto` alone sets `overflow-x` to `auto` too.** Not
+  `visible` — the spec forbids one axis being visible while the other is
+  not. That turned signup's animal picker into a sideways scroller with its
+  fourth column off the edge. State both axes.
+- **The scroll container for these screens is `.device > *`, not `body`.**
+  `document.body.scrollHeight` reports "content == viewport, no overflow" on
+  a screen whose buttons are 391px below the fold.
+- **On a landscape iPhone the tap frame is the portrait buffer, as on iPad.**
+  Rotate the raw 1080x2340 screenshot with `sips -r 270` to read it, then a
+  control at upright pixel `(X, Y)` is tapped at point
+  `((1080 - Y) / 3, X / 3)`. Verified across a full signup.
 - **`simctl io screenshot` returns the portrait buffer even when the
   device is in landscape**, so the whole picture — Safari's chrome
   included — arrives rotated 90°. Tap coordinates are in that same
