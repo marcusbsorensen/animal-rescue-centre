@@ -25,12 +25,9 @@ import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getUrgentNeed } from '@arc/game-logic';
 import { createButton } from '../ui/UIButton';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
+import { railBoundsFor, playAreaFor, type RailBounds } from '../ui/layout';
 
-/** Width of the rail on iPad / desktop. iPhone collapses it. */
-export const RAIL_WIDTH = 280;
-
-/** Viewport width below which the rail becomes a bottom drawer. */
-export const RAIL_DRAWER_BREAKPOINT = 600;
+export { RAIL_WIDTH, RAIL_DRAWER_BREAKPOINT } from '../ui/layout';
 
 export interface LeftRailCallbacks {
   /** Welcome a single arriving animal. */
@@ -48,17 +45,28 @@ export interface LeftRailCallbacks {
  * uses this to know how much horizontal space to leave for the corridor
  * canvas and to anchor the rail container.
  */
-export function getRailBounds(scene: Phaser.Scene): { x: number; y: number; w: number; h: number; mode: 'side' | 'drawer' } {
+export function getRailBounds(scene: Phaser.Scene): RailBounds {
   const { width, height } = scene.scale;
-  if (width < RAIL_DRAWER_BREAKPOINT) {
-    // Phone: bottom drawer (peek state ~120px above the nav)
-    const drawerH = 130;
-    const navH = 84; // matches NavBarView's render height
-    return { x: 0, y: height - navH - drawerH, w: width, h: drawerH, mode: 'drawer' };
-  }
-  // Tablet / desktop: full-height left rail
-  const hudH = 110; // leave room for the slimmer HUD top strip
-  return { x: 0, y: hudH, w: RAIL_WIDTH, h: height - hudH, mode: 'side' };
+  return railBoundsFor(width, height);
+}
+
+/**
+ * The horizontal slice of the scene that game content may use.
+ *
+ * The side rail is opaque and mounted at depth 50, over everything the game
+ * draws at depth 0. Laying content out across the full scene width therefore
+ * hides whatever falls in the first RAIL_WIDTH pixels — which was 36 of the
+ * 100 hand-authored room anchors on a landscape phone, including the snake
+ * and fox door signs a child taps to enter a room.
+ *
+ * Views must lay out inside this box rather than the full width, and must
+ * draw their background into it too: anchors are fractions of the background
+ * art, so if the art and the anchors do not move together, animals stop
+ * landing on the marks the art was painted for.
+ */
+export function getPlayArea(scene: Phaser.Scene): { x: number; w: number } {
+  const { width, height } = scene.scale;
+  return playAreaFor(width, height);
 }
 
 export function renderLeftRail(

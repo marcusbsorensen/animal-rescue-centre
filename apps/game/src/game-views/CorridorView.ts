@@ -8,6 +8,7 @@ import {
 import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors } from '../lib/RoomAnchors';
 import { FONTS, TEXT_RESOLUTION, pluralSpecies, SAFE_MARGIN } from '../ui/constants';
+import { getPlayArea } from './LeftRailView';
 import type { GameStateStore } from '../game-state';
 import { renderApprenticeDecorations } from './ApprenticeDecorations';
 
@@ -47,17 +48,22 @@ export function renderCorridor(
   processing: { isProcessing: () => boolean; setProcessing: (v: boolean) => void },
 ): void {
   const { width, height } = scene.scale;
+  // The side rail is opaque and sits on top of this container, so the
+  // corridor is laid out inside the space it leaves rather than across the
+  // full width. Background and anchors both use it, so animals keep landing
+  // on the marks the art was painted for.
+  const play = getPlayArea(scene);
 
   // ── Background ───────────────────────────────────────────
   if (scene.textures.exists('bg-corridor')) {
-    const bg = scene.add.image(width / 2, height / 2, 'bg-corridor');
-    bg.setDisplaySize(width, height - 40);
+    const bg = scene.add.image(play.x + play.w / 2, height / 2, 'bg-corridor');
+    bg.setDisplaySize(play.w, height - 40);
     container.add(bg);
   } else {
     container.add(
       scene.add
         .rectangle(
-          width / 2, height / 2, width, height - 40,
+          play.x + play.w / 2, height / 2, play.w, height - 40,
           Phaser.Display.Color.HexStringToColor('#f5efe4').color,
         )
         .setOrigin(0.5),
@@ -113,9 +119,18 @@ export function renderCorridor(
     const fallbackSlot = DOOR_SLOTS[i] ?? DOOR_SLOTS[DOOR_SLOTS.length - 1];
     const placedAnchors = corridorDecor[`sign-${species}`] ?? [];
     const placed = placedAnchors[0];
-    const x = placed ? width * placed.x : width * fallbackSlot.xFrac;
     const y = placed ? doorBodyTop + doorBodyH * placed.y : doorBodyTop + doorBodyH * fallbackSlot.yFrac;
     const s = placed ? placed.scale : fallbackSlot.scale;
+    // Keep the whole sign inside the play area. The outermost slots sit only
+    // ~0.14 of the way in, which is less than half a sign width once the rail
+    // has taken its column — on iPad portrait the bat sign clipped under the
+    // rail by 2px without this.
+    const halfSign = (140 * s) / 2;
+    const x = Phaser.Math.Clamp(
+      play.x + play.w * (placed ? placed.x : fallbackSlot.xFrac),
+      play.x + halfSign,
+      play.x + play.w - halfSign,
+    );
 
     const roomAnimals = store.animals.filter((a) => a.species === species && a.state !== 'arriving');
     const count = roomAnimals.length;
@@ -280,8 +295,8 @@ export function renderCorridor(
     container.add(floorGfx);
 
     const n = arriving.length;
-    const slotW = Math.min(280, (width - 40) / n);
-    const startX = width / 2 - ((n - 1) * slotW) / 2;
+    const slotW = Math.min(280, (play.w - 40) / n);
+    const startX = play.x + play.w / 2 - ((n - 1) * slotW) / 2;
 
     // If the anchor editor has placed corridor.<species>.arriving anchors,
     // use them. Otherwise fall back to procedural even-spacing along the
@@ -291,7 +306,7 @@ export function renderCorridor(
     // handles the modulo cycling).
     const corridorAnchors = RoomAnchors.getInstance();
     const bgTopY = 20;
-    const bgW = width;
+    const bgW = play.w;
     const bgH = height - 40;
     const perSpeciesCounter: Record<string, number> = {};
 
@@ -320,7 +335,7 @@ export function renderCorridor(
         const s = anchor.scale ?? 1;
         anchorW = spriteW * s;
         anchorH = spriteH * s;
-        const feetX = anchor.x * bgW;
+        const feetX = play.x + anchor.x * bgW;
         const feetY = bgTopY + anchor.y * bgH;
         ax = feetX;
         spriteCy = feetY - anchorH / 2;

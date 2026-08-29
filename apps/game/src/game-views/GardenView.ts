@@ -21,6 +21,7 @@ import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
 import { createWeatherParticles, type WeatherParticleHandle } from '../ui/WeatherParticles';
 import type { GameStateStore } from '../game-state';
 import { renderApprenticeDecorations } from './ApprenticeDecorations';
+import { getPlayArea } from './LeftRailView';
 
 /**
  * GardenView — renders the "bonded pets living their best life" area
@@ -160,6 +161,9 @@ function renderZone(
   }
 
   const { width, height } = scene.scale;
+  // The side rail is opaque and sits on top of this container; lay the garden
+  // out inside the space it leaves, background and anchors together.
+  const play = getPlayArea(scene);
 
   // ── Garden occupants for this zone ───────────────────────
   // Pets (permanent residents) + outsiders (animals let out today).
@@ -175,14 +179,14 @@ function renderZone(
     store.timeProgress?.currentPhase,
   );
   if (bgKey) {
-    const bg = scene.add.image(width / 2, height / 2, bgKey);
-    bg.setDisplaySize(width, height - 40);
+    const bg = scene.add.image(play.x + play.w / 2, height / 2, bgKey);
+    bg.setDisplaySize(play.w, height - 40);
     container.add(bg);
   } else {
     // Fallback fill — lawn is warmer green, quiet is cooler
     const fill = zone === 'lawn' ? 0xe8f5e9 : 0xd4e3d7;
     container.add(
-      scene.add.rectangle(width / 2, height / 2, width, height - 40, fill),
+      scene.add.rectangle(play.x + play.w / 2, height / 2, play.w, height - 40, fill),
     );
   }
 
@@ -276,14 +280,14 @@ function renderZone(
 
   // ── Scatter animals in the zone ──────────────────────────
   const anchors = RoomAnchors.getInstance();
-  const bgTopY = 20, bgW = width, bgH = height - 40;
+  const bgTopY = 20, bgW = play.w, bgH = height - 40;
 
   // Render pets first, then outsiders (so visitors sit "in front" visually).
   const ordered = [...pets, ...outsiders];
   ordered.forEach((animal, i) => {
     const grassTop = height * 0.6;
-    const gardenLeft = width * 0.15;
-    const gardenRight = width * 0.85;
+    const gardenLeft = play.x + play.w * 0.15;
+    const gardenRight = play.x + play.w * 0.85;
     const cols = Math.min(Math.max(ordered.length, 1), 4);
     const spacing = (gardenRight - gardenLeft) / (cols + 1);
 
@@ -294,7 +298,9 @@ function renderZone(
     const placed = callbacks.resolveAnchor(anchor, bgTopY, bgW, bgH, 100, 80);
 
     const cx = placed
-      ? placed.cx
+      // resolveAnchor maps across bgW only; shift into the play area so the
+      // anchor lines up with the background drawn above.
+      ? play.x + placed.cx
       : gardenLeft + spacing * ((i % cols) + 1) + (Math.random() - 0.5) * 30;
     const cy = placed
       ? placed.cy
