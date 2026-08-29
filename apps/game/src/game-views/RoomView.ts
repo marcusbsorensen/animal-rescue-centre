@@ -4,11 +4,13 @@ import { SPECIES_COLOURS, getAvailableDecorationCounts, getRoomDecorations } fro
 import { createPillTitle } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, SAFE_MARGIN } from '../ui/constants';
 import { getDecorationEmoji } from '../ui/DecoratePanel';
 import type { GameStateStore } from '../game-state';
 import type { ResolvedAnchor } from './GardenView';
 import { getPlayArea } from './LeftRailView';
+import { pillFor } from '../ui/contrast';
+import { NAV_HEIGHT } from '../ui/layout';
 import {
   renderApprenticeDecorations,
   type ApprenticeRoomSpecies,
@@ -69,6 +71,9 @@ export function renderRoom(
   // laid out inside the space it leaves. Background and anchors both use it,
   // so animals keep landing on the marks the art was painted for.
   const play = getPlayArea(scene);
+  // 45 keeps a 66px-tall pill title's bottom edge at 78 — the top of the
+  // HUD's second row — instead of 88, which crossed it.
+  const TITLE_CY = 45;
   const species = ctx.species;
   // Hide outsiders — animals currently let out into the garden
   // shouldn't appear in their indoor room. They render in GardenView.
@@ -92,7 +97,7 @@ export function renderRoom(
   }
 
   container.add(
-    createPillTitle(scene, width / 2, 55,
+    createPillTitle(scene, play.x + play.w / 2, TITLE_CY,
       `${species.charAt(0).toUpperCase() + species.slice(1)} Room`,
       { bgColour: 0x5AAE4A, fontSize: '28px', padX: 36, padY: 14 }),
   );
@@ -106,7 +111,7 @@ export function renderRoom(
   ).reduce((sum, n) => sum + n, 0);
   const hasPlaced = store.placedDecorations.some((d) => d.roomId === `room-${species}`);
   if (availableDecorCount > 0 || hasPlaced) {
-    renderDecorateButton(scene, container, width, callbacks.onEnterDecorateMode);
+    renderDecorateButton(scene, container, play.x + play.w, height, callbacks.onEnterDecorateMode);
   }
 
   // ── Empty state or animal grid ────────────────────────────
@@ -202,13 +207,18 @@ export function renderRoom(
 
       // Name pill badge
       const namePillGfx = scene.add.graphics();
+      // White on the species colour failed 4.5:1 for six of the eight
+      // species — bunny at 1.50:1 was close to invisible. Pick the ink from
+      // the pill's own luminance instead, and drop the 0.85 alpha, which
+      // was letting painted room art bleed through and make it worse.
+      const pill = pillFor(SPECIES_COLOURS[animal.species]);
       const nameText = scene.add.text(x, y + halfH + 14, animal.name, {
         fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold',
-        color: '#ffffff', resolution: TEXT_RESOLUTION,
+        color: pill.ink, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       const nw = nameText.width + 20;
       const nh = nameText.height + 8;
-      namePillGfx.fillStyle(SPECIES_COLOURS[animal.species], 0.85);
+      namePillGfx.fillStyle(pill.fill, 1);
       namePillGfx.fillRoundedRect(x - nw / 2, y + halfH + 14 - nh / 2, nw, nh, 10);
       container.add(namePillGfx);
       container.add(nameText);
@@ -298,16 +308,26 @@ function renderPlacedDecorations(
 function renderDecorateButton(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
-  width: number,
+  playRight: number,
+  height: number,
   onTap: () => void,
 ): void {
+  // Was (width - 70, 55) at 120x40: inside the HUD strip, overlapping the
+  // audio toggle's hit circle by 48x27px, 10px from the screen edge (inside
+  // SAFE_MARGIN) and under MIN_TAP. The HUD is drawn after gameContainer, so
+  // it took the tap — pressing the right half of Decorate turned the music
+  // off. Moved to the bottom of the play area, between HUD and nav bar.
+  const w = 140;
+  const h = MIN_TAP;
+  const cx = playRight - SAFE_MARGIN - w / 2;
+  const cy = height - NAV_HEIGHT - 8 - h / 2;
   const btnBg = scene.add
-    .rectangle(width - 70, 55, 120, 40, 0xffffff, 0.96)
+    .rectangle(cx, cy, w, h, 0xffffff, 0.96)
     .setStrokeStyle(2, 0xd4783c)
     .setInteractive({ useHandCursor: true });
   const btnText = scene.add
-    .text(width - 70, 55, '🎀 Decorate', {
-      fontSize: '14px',
+    .text(cx, cy, '🎀 Decorate', {
+      fontSize: '16px',
       fontFamily: FONTS.title,
       color: COLOURS.text,
       fontStyle: 'bold',

@@ -10,7 +10,7 @@ import {
   type IllnessDef,
 } from '@arc/game-logic';
 import { createButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_TAP } from '../ui/constants';
 import type { GameStateStore } from '../game-state';
 
 /**
@@ -116,7 +116,8 @@ export function renderAnimalDetails(
     && needsCoat(animal, currentWeather)
     && !animal.wardrobe;
 
-  const panelW = 320;
+  const panelW = 360;
+  const statRowH = 26;   // icon row: taller than the old 18px text-only row
   const speech = getNeedSpeech(animal);
   const speechH = speech ? 30 : 0;
 
@@ -130,10 +131,29 @@ export function renderAnimalDetails(
     (!isPet && canWalk ? 1 : 0) +     // Walk
     (isOutside ? 1 : 0) +             // Bring inside
     (canLetOut ? 1 : 0) +             // Let outside
-    (needsGarment ? 1 : 0);           // Equip wardrobe
+    (needsGarment ? 1 : 0) +          // Equip wardrobe
+    // The Paths button at :386 was missing from this sum, so whenever an
+    // animal reached the bond threshold the panel was 46px shorter than its
+    // own content and the button hung off the bottom of the cream panel.
+    (!isPet && animal.bondLevel >= PATHS_UNLOCK_BOND && callbacks.onOpenPaths ? 1 : 0);
   const baseActionRows = isPet ? 0 : 1;
   const actionRows = baseActionRows + extraActionRows;
-  const panelH = 44 + 44 + speechH + 5 * 18 + actionRows * 46 + 28;
+  // Nothing in GameScene can scroll this — maxScrollY is only ever set to 0
+  // (CorridorView is its sole caller) — so the panel has to fit unaided.
+  //
+  // This cap is a backstop, not a solution. It stops the panel drawing off
+  // the screen, and the common 1-3 action rows now fit on a 375px-tall
+  // landscape phone. The rare maximum — a shelter animal that is sick AND
+  // walkable AND outside AND needs a coat, five action rows — still cannot:
+  // header, stats and five rows want ~500px against 375. Capping harder only
+  // moves the overflow inside the panel, which looks worse.
+  //
+  // That case needs the panel redesign in docs/ux-review-2026-08-29.md, not
+  // more arithmetic here: eight buttons in one popup is the actual problem.
+  const panelH = Math.min(
+    44 + 44 + speechH + 5 * statRowH + actionRows * 46 + 28,
+    height - 32,
+  );
 
   // ── Smart placement ────────────────────────────────────────
   // Default: centre on screen. If anchor given, pop above the sprite;
@@ -235,22 +255,31 @@ export function renderAnimalDetails(
   );
   container.add(
     scene.add.text(panelLeft + 18, panelTop + 36, `the ${speciesLabel}`, {
-      fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
       resolution: TEXT_RESOLUTION,
     }),
   );
 
-  const closeX = scene.add.text(panelLeft + panelW - 20, panelTop + 10, '✕', {
-    fontSize: '18px', color: '#999', resolution: TEXT_RESOLUTION,
-  }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
-  closeX.on('pointerdown', () => callbacks.onClose());
-  container.add(closeX);
+  // A bare interactive text gave Phaser an ~11x18px hit box, a quarter of
+  // MIN_TAP. The glyph keeps its size; an invisible circle behind it carries
+  // the tap.
+  const closeCx = panelLeft + panelW - 24;
+  const closeCy = panelTop + 22;
+  const closeHit = scene.add.circle(closeCx, closeCy, MIN_TAP / 2, 0x000000, 0)
+    .setInteractive({ useHandCursor: true });
+  closeHit.on('pointerdown', () => callbacks.onClose());
+  container.add(closeHit);
+  container.add(
+    scene.add.text(closeCx, closeCy, '✕', {
+      fontSize: '18px', color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+    }).setOrigin(0.5),
+  );
 
   // ── Arrival story (compact, italic) ────────────────────────
   let cursorY = panelTop + 60;
   const storyText = scene.add.text(panelLeft + 18, cursorY,
     `"${animal.arrivalStory}"`, {
-      fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
       fontStyle: 'italic', wordWrap: { width: panelW - 36 },
       resolution: TEXT_RESOLUTION,
     });
@@ -260,7 +289,7 @@ export function renderAnimalDetails(
   // ── Need speech (if animal wants something) ────────────────
   if (speech) {
     const speechText = scene.add.text(panelLeft + 18, cursorY, `"${speech}"`, {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: '18px', fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#c0392b', wordWrap: { width: panelW - 36 },
       resolution: TEXT_RESOLUTION,
     });
@@ -268,44 +297,52 @@ export function renderAnimalDetails(
     cursorY += speechText.height + 6;
   }
 
-  // ── Compact stat bars ──────────────────────────────────────
+  // ── Stat rows ──────────────────────────────────────────────
   //
-  // Hunger and Tired are "problem" stats — bar shows the problem level,
-  // not its inverse. Very hungry animal = full red bar, DROPS as the
-  // player feeds them. Matches how kids expect a problem bar to read.
+  // Every bar reads the same way: fuller is better. Hunger and Tired used
+  // to be drawn as "problem" bars that shrank as the player helped, in the
+  // identical visual form as the three that grew — the only cue being red
+  // against green, the most common colour-vision confusion. A child
+  // scanning five identical bars had no way to tell which direction was
+  // good, so they are shown as Fed and Rested instead.
+  //
+  // Each row is labelled with the shipped icon from assets/ui as well as a
+  // word. The numeric "47%" is gone: percentages are Year 6 maths in the
+  // England curriculum, so for most of this game's audience the number was
+  // decoration that cost 36px of panel width.
   const barX = panelLeft + 18;
   const barW = panelW - 36;
-  const statRowH = 18;
-  const statDefs: Array<[string, number, number]> = [
-    ['Hunger', animal.hunger,    0xe74c3c],
-    ['Tired',  animal.tiredness, 0x3498db],
-    ['Happy',  animal.happiness, 0xf1c40f],
-    ['Health', animal.health,    0x2ecc71],
-    ['Bond',   animal.bondLevel, 0xff6b9d],
+  const statDefs: Array<[string, string, number, number]> = [
+    ['ui-hunger-icon', 'Fed',    100 - animal.hunger,    0xE8A33D],
+    ['ui-sleep-icon',  'Rested', 100 - animal.tiredness, 0x3498db],
+    ['ui-happy-icon',  'Happy',  animal.happiness,       0xf1c40f],
+    ['ui-health-icon', 'Health', animal.health,          0x2ecc71],
+    ['ui-bond-icon',   'Bond',   animal.bondLevel,       0xff6b9d],
   ];
-  statDefs.forEach(([label, value, colour]) => {
+  statDefs.forEach(([iconKey, label, value, colour]) => {
+    const rowCy = cursorY + statRowH / 2 - 3;
+    if (scene.textures.exists(iconKey)) {
+      container.add(
+        scene.add.image(barX + 11, rowCy, iconKey)
+          .setDisplaySize(22, 22).setOrigin(0.5),
+      );
+    }
     container.add(
-      scene.add.text(barX, cursorY, label, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
+      scene.add.text(barX + 28, rowCy, label, {
+        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
         resolution: TEXT_RESOLUTION,
-      }),
+      }).setOrigin(0, 0.5),
     );
-    const trackX = barX + 56;
-    const trackW = barW - 56 - 36;
+    const trackX = barX + 96;
+    const trackW = barW - 96;
     const track = scene.add.graphics();
     track.fillStyle(0xe6e2d8, 1);
-    track.fillRoundedRect(trackX, cursorY + 3, trackW, 8, 4);
+    track.fillRoundedRect(trackX, rowCy - 5, trackW, 10, 5);
     if (value > 0) {
       track.fillStyle(colour, 1);
-      track.fillRoundedRect(trackX, cursorY + 3, Math.max(6, trackW * value / 100), 8, 4);
+      track.fillRoundedRect(trackX, rowCy - 5, Math.max(8, trackW * value / 100), 10, 5);
     }
     container.add(track);
-    container.add(
-      scene.add.text(barX + barW, cursorY, `${Math.round(value)}%`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: '#888',
-        resolution: TEXT_RESOLUTION,
-      }).setOrigin(1, 0),
-    );
     cursorY += statRowH;
   });
   cursorY += 6;
@@ -317,12 +354,12 @@ export function renderAnimalDetails(
     container.add(
       createButton(scene, panelLeft + panelW / 2 - 70, btnRow1Y, 'Feed',
         () => callbacks.onFeed(),
-        { width: 120, fontSize: '14px', icon: 'icon-kitchen' }),
+        { width: 140, fontSize: '18px', icon: 'icon-kitchen' }),
     );
     container.add(
       createButton(scene, panelLeft + panelW / 2 + 70, btnRow1Y, 'Play',
         () => callbacks.onPlay(),
-        { width: 120, fontSize: '14px' }),
+        { width: 140, fontSize: '18px' }),
     );
 
     let extraY = btnRow1Y + 46;
@@ -331,7 +368,7 @@ export function renderAnimalDetails(
       container.add(
         createButton(scene, panelLeft + panelW / 2, extraY, 'Go for a Walk',
           () => callbacks.onWalk(),
-          { width: 250, fontSize: '14px', bgColour: '#27ae60', icon: 'icon-walk' }),
+          { width: 290, fontSize: '18px', bgColour: '#27ae60', icon: 'icon-walk' }),
       );
       extraY += 46;
     }
@@ -339,7 +376,7 @@ export function renderAnimalDetails(
       container.add(
         createButton(scene, panelLeft + panelW / 2, extraY, 'Groom',
           () => callbacks.onGroom(),
-          { width: 250, fontSize: '14px', bgColour: '#5A9CB8' }),
+          { width: 290, fontSize: '18px', bgColour: '#5A9CB8' }),
       );
       extraY += 46;
     }
@@ -348,7 +385,7 @@ export function renderAnimalDetails(
         createButton(scene, panelLeft + panelW / 2, extraY,
           `Heal (${illness.label})`,
           () => callbacks.onHeal(),
-          { width: 250, fontSize: '14px', bgColour: '#e74c3c', icon: 'icon-heal' }),
+          { width: 290, fontSize: '18px', bgColour: '#e74c3c', icon: 'icon-heal' }),
       );
       extraY += 46;
     }
@@ -358,14 +395,14 @@ export function renderAnimalDetails(
       container.add(
         createButton(scene, panelLeft + panelW / 2, extraY, 'Bring inside',
           () => callbacks.onBringInside(),
-          { width: 250, fontSize: '14px', bgColour: '#7b5c3a' }),
+          { width: 290, fontSize: '18px', bgColour: '#7b5c3a' }),
       );
       extraY += 46;
     } else if (canLetOut) {
       container.add(
         createButton(scene, panelLeft + panelW / 2, extraY, 'Let outside',
           () => callbacks.onLetOutside(),
-          { width: 250, fontSize: '14px', bgColour: '#2E8B57' }),
+          { width: 290, fontSize: '18px', bgColour: '#2E8B57' }),
       );
       extraY += 46;
     }
@@ -377,7 +414,7 @@ export function renderAnimalDetails(
         createButton(scene, panelLeft + panelW / 2, extraY,
           `Get a ${garment} — weather needs it`,
           () => callbacks.onEquipWardrobe(),
-          { width: 250, fontSize: '14px', bgColour: '#8B6914' }),
+          { width: 290, fontSize: '18px', bgColour: '#8B6914' }),
       );
       extraY += 46;
     }
@@ -386,9 +423,9 @@ export function renderAnimalDetails(
     if (animal.bondLevel >= PATHS_UNLOCK_BOND && callbacks.onOpenPaths) {
       container.add(
         createButton(scene, panelLeft + panelW / 2, extraY,
-          `💫 What will ${animal.name} become?`,
+          `💫 What happens to ${animal.name} next?`,
           () => callbacks.onOpenPaths!(),
-          { width: 250, fontSize: '14px', bgColour: '#8a6eb2' }),
+          { width: 290, fontSize: '18px', bgColour: '#8a6eb2' }),
       );
       extraY += 46;
     }
@@ -403,7 +440,7 @@ export function renderAnimalDetails(
     );
     container.add(
       scene.add.text(panelLeft + 42, btnRow1Y - 14, `${collarName} Collar`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.text,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5),
     );
@@ -411,7 +448,7 @@ export function renderAnimalDetails(
     container.add(
       createButton(scene, panelLeft + panelW / 2, btnRow1Y + 16, 'Visit in Garden',
         () => callbacks.onVisitGarden(),
-        { width: 250, fontSize: '14px', bgColour: '#2ecc71' }),
+        { width: 290, fontSize: '18px', bgColour: '#2ecc71' }),
     );
 
     if (illness) {
@@ -419,7 +456,7 @@ export function renderAnimalDetails(
         createButton(scene, panelLeft + panelW / 2, btnRow1Y + 62,
           `Take to Vet (${illness.label})`,
           () => callbacks.onTakeToVet(),
-          { width: 250, fontSize: '14px', bgColour: '#e74c3c', icon: 'icon-vet' }),
+          { width: 290, fontSize: '18px', bgColour: '#e74c3c', icon: 'icon-vet' }),
       );
     }
   }
