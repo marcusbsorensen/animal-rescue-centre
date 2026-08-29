@@ -62,6 +62,12 @@ const targets = [
   [192, 0.7, path.join(ICONS, 'icon-192.png')],
   [512, 0.7, path.join(ICONS, 'icon-512.png')],
 
+  // Home-screen icon for the web clip / standalone PWA. Without a
+  // <link rel="apple-touch-icon"> pointing at one of these, iOS falls back to
+  // a grey letter tile — which is what "Add to Home Screen" produced on the
+  // simulator on 2026-08-29. 180px is the size Safari asks for.
+  [180, 0.7, path.join(ICONS, 'apple-touch-icon.png')],
+
   // Maskable: Android and some launchers crop to a circle, so the mark
   // sits inside the inner 80% safe zone with room to be cut.
   [512, 0.52, path.join(ICONS, 'icon-512-maskable.png')],

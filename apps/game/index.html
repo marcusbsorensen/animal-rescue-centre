@@ -8,6 +8,14 @@
     <title>A.R.C. — Animal Rescue Centre</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!--
+      Home-screen icon. Without this, "Add to Home Screen" gives a grey
+      letter tile instead of the paw-heart — the manifest's icons are not
+      consulted for a web clip. apple-mobile-web-app-title keeps the label
+      short; the <title> is too long for a home-screen caption.
+    -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="A.R.C." />
+    <!--
       Self-hosted — see public/fonts/fonts.css. Loading these from
       fonts.googleapis.com sent the device IP to a third party on every
       cold launch, which is a review risk for a Kids Category app, and
