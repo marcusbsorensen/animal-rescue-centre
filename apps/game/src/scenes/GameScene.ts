@@ -859,11 +859,18 @@ export class GameScene extends Phaser.Scene {
       this.openToyPicker(liveAnimal, launchPlayScene);
     };
 
+    // `animal` is whatever the popup captured when it was drawn, and the
+    // needs tick replaces every Animal object every 2 seconds — so by the
+    // time a child taps, it is an orphan. Resolve it, and bail if it has
+    // left the shelter while the popup was open. doPlay and doVetVisit
+    // already did this; these two did not.
     const doWalk = () => {
+      const liveAnimal = this.store.animals.find((a) => a.id === animal.id);
       this.closePopup();
+      if (!liveAnimal) { this.renderView(); return; }
       this.saveState();
       this.scene.start('WalkScene', {
-        animal,
+        animal: liveAnimal,
         allAnimals: this.store.animals,
         onComplete: (updatedAnimals: Animal[], _walkResult: { perfectWalk: boolean }) => {
           this.store.animals = updatedAnimals;
@@ -874,10 +881,12 @@ export class GameScene extends Phaser.Scene {
     };
 
     const doGroom = () => {
+      const liveAnimal = this.store.animals.find((a) => a.id === animal.id);
       this.closePopup();
+      if (!liveAnimal) { this.renderView(); return; }
       this.saveState();
       this.scene.start('GroomingScene', {
-        animal,
+        animal: liveAnimal,
         allAnimals: this.store.animals,
         onComplete: (updatedAnimals: Animal[]) => {
           this.store.animals = updatedAnimals;

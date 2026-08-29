@@ -1,11 +1,12 @@
 # A.R.C. multi-platform — handover 2026-08-29 (late)
 
-> The three issues left behind by the ceremony session are resolved, on
-> branch `fix/ceremony-portrait-and-taps` (5 commits, **not yet merged to
-> main**). The "dead Welcome button" was not a dead button and not a
-> hit-area problem — it was a handler writing into an orphaned copy of the
-> animal, and the same bug class can bite any future callback that
-> captures an `Animal`. See **Traps**.
+> The three issues left behind by the ceremony session are resolved and
+> **merged to main** (`9891849`). The "dead Welcome button" was not a dead
+> button and not a hit-area problem — it was a handler writing into an
+> orphaned copy of the animal. Two follow-ups then came out of that, on
+> branch `fix/stale-animal-captures` (2 commits, **not yet merged**): the
+> rest of the stale-capture sweep, and the silent signup 400s. See
+> **Traps** for the rule that prevents the whole class.
 
 ## Goal
 Ship A.R.C. as an iPad/iPhone app plus a web fallback: one account, progress synced
@@ -37,7 +38,25 @@ Branch `fix/ceremony-portrait-and-taps`, cut from `da365cd`:
   coordinate read off a screenshot converts into a correct tap.
 
 Gates after all five: typecheck, lint (0 errors), **983 tests**, production
-build. Working tree clean.
+build. Merged to main as `9891849`; main re-checked green after the merge.
+
+Then on branch `fix/stale-animal-captures`, cut from main:
+
+- `931adac` **Three more stale-capture sites.** `GroomingScene` applied
+  `applyGrooming` to the captured animal and wrote the result over the
+  live entry, reverting every field that changed while the popup was open
+  — including an illness written by the same tick, which would leave an
+  animal healthy but still in `store.sickAnimals`. `GardenView`'s shake-off
+  did the same, once per splashed animal. `GameScene`'s `doWalk` and
+  `doGroom` passed the captured animal into the sub-scene, where `doPlay`
+  and `doVetVisit` already resolved it. VetScene was checked and is fine.
+- `6a293b0` **Server rejections now land on a screen the child can use.**
+  The whole `auth-error` chain already worked; signup.html just showed the
+  message on the hint screen, because submit fires from there — so a name
+  error appeared on a screen with no name box and no route back. Verified
+  against the real production endpoint on the simulator.
+
+Gates on that branch: typecheck, lint, 983 tests, build — all green.
 
 ## State
 Everything in the previous handover's State section still holds (migrations
@@ -52,8 +71,14 @@ device). Two claims in it were **wrong** and are corrected here:
   letterboxed into an 820x570-point band with 305-point bars. The page
   renders at 1180x820 CSS px scaled by 0.695. Rotating the simulator to
   landscape (Cmd+Left) removes this; there is no `simctl` equivalent, so
-  it needs a human. It is worth doing before trusting any layout
-  measurement taken on that simulator.
+  it needs a human. Marcus rotated it during this session, and in
+  landscape the app fills the screen — but `simctl io … screenshot` then
+  returns a **portrait 1640x2360 buffer with the content rotated 90°**.
+  Usefully, the tap coordinate space stays the device's unrotated
+  820x1180, which is exactly the screenshot's own coordinate space: read a
+  position straight off the rotated image and tap those numbers. Do not
+  try to un-rotate first. (Beware Cmd+L in Simulator.app — that is Lock,
+  not rotate, and it is what kept putting the device to sleep.)
 - **"The Welcome button and the room doors ignore taps."** The **door
   signs respond fine** — verified by tapping the DOG sign and entering the
   Dog Room. Only the Welcome button was affected, and not for any
@@ -72,9 +97,9 @@ device). Two claims in it were **wrong** and are corrected here:
   **Art resolution**.
 - Nothing has run on a *physical* device. `pnpm ios` builds and opens
   Xcode; signing and a device are Marcus's to do.
-- **A 400 from `signup` is completely silent.** Unchanged. A name
-  containing digits is rejected by `signup/index.ts:21` and the child sees
-  nothing — no toast, no shake, no text.
+- ~~**A 400 from `signup` is completely silent.**~~ Fixed in `6a293b0`.
+  Note the sticker auto-hides after 4 s, which is short for a child who
+  has just been bounced back two screens — worth an eye.
 - **The 401 path (`f8ae9b2`) is now partly exercised.** A fake session in
   Safari reached GameScene fine (entering the game makes no server call),
   and the first *save* 401'd and cleared the session back to the menu —
@@ -150,23 +175,16 @@ New this session:
   `--max`, so a stray re-run is a genuine no-op.
 
 ## Next step
-1. **Merge `fix/ceremony-portrait-and-taps` to main** (Marcus's call — the
-   previous session merged `feat/ptv-driving-engine` with `be5699f`).
-2. **Audit for the same stale-capture bug elsewhere.** `welcomeArrivals`
-   fixed the two sites that mutate a captured animal, but any callback that
-   *reads* a captured `Animal` is showing data up to 2 seconds stale, and
-   any future one that writes will fail the same silent way. The candidates
-   are the `onShowAnimalDetails` / popup callbacks and anything in
-   `AnimalDetailsPopup`, `GardenView`, `RoomView` that takes an `Animal`
-   parameter rather than an id.
-3. Commission the 21 remaining sprite poses (dalmatian, beagle,
+1. **Merge `fix/stale-animal-captures`** (2 commits, gates green).
+2. Commission the 21 remaining sprite poses (dalmatian, beagle,
    bunny-spotted, bunny-dutch).
-4. Physical device run (provisioning only, Marcus's hands).
-5. Surface *server*-side signup 400s — `login.html` has `shakeError`,
-   signup needs the same `auth-error` wiring.
-6. iPhone simulator pass for safe-area insets.
-7. The Depot/SupplyRun landscape design call.
-8. Regenerate the visual baseline once landscape settles.
+3. Physical device run (provisioning only, Marcus's hands).
+4. iPhone simulator pass for safe-area insets.
+5. The Depot/SupplyRun landscape design call.
+6. Regenerate the visual baseline once landscape settles.
+7. The stale-capture sweep covered every site that *writes*. Anything that
+   only *reads* a captured `Animal` still shows data up to 2 s stale —
+   cosmetic today, but the same trap for whoever adds a write next.
 
 ## Traps
 - **`tickAllNeeds` replaces every `Animal` object every 2 seconds.**

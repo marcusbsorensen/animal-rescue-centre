@@ -335,10 +335,21 @@ export class GroomingScene extends Phaser.Scene {
   }
 
   private finishBrushing(): void {
-    // Apply grooming
-    const groomed = applyGrooming(this.animal);
+    // Apply grooming to the entry in `allAnimals`, NOT to `this.animal`.
+    //
+    // `this.animal` is the object GameScene captured when it drew the
+    // details popup, and `applyGrooming` spreads whatever it is given —
+    // so grooming the captured copy and writing the result back over the
+    // live entry silently reverts every field that changed while the
+    // popup was open. GameScene's needs tick runs every 2 seconds, and
+    // it is also where `applySickness` writes, so a groom could roll back
+    // an illness the animal had just developed while leaving it in
+    // `store.sickAnimals` — health restored, still listed as sick.
+    //
+    // WalkScene already does it this way (it spreads `allAnimals[idx]`).
+    const idx = this.allAnimals.findIndex((a) => a.id === this.animal.id);
+    const groomed = applyGrooming(idx >= 0 ? this.allAnimals[idx] : this.animal);
     this.animal = groomed;
-    const idx = this.allAnimals.findIndex((a) => a.id === groomed.id);
     if (idx >= 0) {
       this.allAnimals[idx] = groomed;
     }

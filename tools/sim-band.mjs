@@ -57,7 +57,16 @@ let top = 0;
 while (top < height && rowIsBlack(top)) top++;
 let bot = height - 1;
 while (bot > top && rowIsBlack(bot)) bot--;
-const bandH = bot - top + 1;
+let bandH = bot - top + 1;
+
+// Wholly black frame — the device is asleep, or the page has not painted
+// yet. Fall back to the full frame rather than trying to crop nothing,
+// so the caller gets a usable screenshot and can see what happened.
+if (bandH <= 0) {
+  top = 0;
+  bandH = height;
+  console.error('sim-band: frame is entirely black — device asleep, or nothing painted yet.');
+}
 
 await sharp(rawPath)
   .extract({ left: 0, top, width, height: bandH })
