@@ -2253,8 +2253,29 @@
         if (typeof setStage === 'function') setStage('select');
         showError(msg, 'stage-select');
       } else {
-        showError(msg, showing === 'hint' ? 'stage-hint' : 'stage-pin');
-        if (showing === 'pin') clearPin();
+        // Show the error on the stage the child can actually act on.
+        //
+        // Signup submits from stage C (the hint screen), so `showing` is
+        // always 'hint' by the time a server 400 comes back — and every
+        // name rule the server enforces (2–18 characters, letters only,
+        // the profanity blocklist) needs the name field, which only
+        // exists on stage A. The old line put "Names use letters only"
+        // on the hint screen and left the child there: a correct message
+        // about a box they cannot see, with no way to reach it. The
+        // collision branch above already knew to go back to stage A;
+        // every other name error needs the same treatment.
+        //
+        // Routed by what the message is about, defaulting to the name
+        // stage because that is where most of them belong. Landing there
+        // wrongly costs one tap; landing on the hint screen wrongly
+        // costs the account.
+        const lower = String(msg).toLowerCase();
+        const stage = lower.includes('pin') ? 'pin'
+          : lower.includes('hint') ? 'hint'
+          : 'select';
+        if (typeof setStage === 'function' && showing !== stage) setStage(stage);
+        showError(msg, `stage-${stage}`);
+        if (stage === 'pin') clearPin();
       }
     }
     // Contextual greeting — when the kid arrives here from login's
