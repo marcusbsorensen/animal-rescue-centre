@@ -25,16 +25,24 @@ checking the claim still holds.
   defect with 21 instances: 7 screens mounted by `AuthOverlay` and 14 by
   `InGameOverlay` (`src/game-overlay/InGameOverlay.ts`), all clones sharing
   `.welcome-inner` / `.intro` / `.signs-on-stake` / `.cta-stack`.
-  `public/admin/_short-landscape.css` is the height branch; it is linked
-  from the 7 auth screens only, **after** each page's inline `<style>` so it
-  wins on document order. Do not move that `<link>` above the `<style>`.
-- **The standalone web clip only gets 312 of the 13 mini's 360 landscape
-  points.** A 48pt strip along the bottom is left as bare `#fef9ef` and
-  never painted into. Measured off a screenshot on 2026-08-29; cause not
-  found, and `index.html` has no safe-area handling at all, so it is not
-  explicit padding. **Measure the phone at 780x312.** At 360 everything
-  looks 48pt roomier than it is — that is what hid `PLAY!` coming out 43px
-  tall, under the game's own 48px touch floor.
+  `public/admin/_short-landscape.css` is the height branch, linked from all
+  21, **after** each page's inline `<style>` so it wins on document order.
+  Do not move that `<link>` above the `<style>`. **Its `@container` query is
+  deliberately unnamed** — the pages do not share a `container-name` (it is
+  `welcome`, `adopt`, `rewild`, `office`, `scene` or `tunnel` by page, and
+  map/charm-select/drive-overlay declare none), so naming it `welcome`
+  silently excluded adoption, rewilding and adoption-office.
+- **The web clip's CSS viewport is 812x325, not the 780x360 the simulator
+  panel reports.** Measured with an on-page probe (a fixed div printing
+  `innerHeight` etc., screenshotted — you cannot run JS in a clip):
+  `inner 812x325`, `screen 375x812`, safe insets `t0 b20 l50 r50`,
+  `standalone true`, dpr 3. So CSS px and device points differ here, and a
+  50px strip of the landscape screen sits below the viewport. iOS paints the
+  body background into it, which is why it looks like the page's own
+  unused space — but a `position:fixed; bottom:0` marker lands at the *top*
+  of that strip, so it is OS-reserved and **not recoverable by layout**.
+  **Measure the phone at 812x325.** Whether the shipped Capacitor build has
+  the same limit is unverified — it configures its own WKWebView.
 - **`xcrun simctl terminate <udid> com.apple.webapp` is the only reliable
   way to reload a Home Screen web clip.** Pressing HOME and tapping the icon
   *resumes* it: stale CSS, stale DOM, previous stage still showing. You will

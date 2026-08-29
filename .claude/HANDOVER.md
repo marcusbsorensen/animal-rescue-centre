@@ -78,11 +78,11 @@ screen in play. The account `Testy` / PIN 1234 exists on the live Supabase
 with two animals waiting, so the next session can log straight in.
 
 ## Files
-## Files
-- `.claude/TRAPS.md` — gotchas. **Read first.** Six new ones today, including
-  the 312pt viewport and how to reload a web clip.
+- `.claude/TRAPS.md` — gotchas. **Read first.** Several new ones today,
+  including the real viewport size and how to reload a web clip.
 - `apps/game/public/admin/_short-landscape.css` — the height branch. One file,
-  linked from seven pages, after their inline `<style>`.
+  linked from all 21 screens, **after** their inline `<style>` so it wins on
+  document order. The `@container` query is deliberately unnamed.
 - `apps/game/tools/measure-screens.mjs` — the audit. Run it before and after
   any change to these screens; `--boxes <page> <w> <h>` shows where the
   height goes.
@@ -92,16 +92,21 @@ with two animals waiting, so the next session can log straight in.
 
 ## Decisions made
 - **Height branch, not a rewrite.** The screens' responsive system was sound;
-  it just had no height axis. `@container welcome (max-height: 520px)`.
-- **One stylesheet, not seven inline copies.** The screens are clones and
-  seven copies would drift within a month.
+  it just had no height axis. `@container (max-height: 520px)`, unnamed so it
+  matches whatever each page calls its container.
+- **One stylesheet, not 21 inline copies.** The screens are clones and the
+  copies would drift within a month.
 - **Compress, and rearrange where compressing was not enough.** welcome's two
   account pills share a row; welcome-new puts its photo beside the steps;
   menu puts the badge beside the stats; the PIN keypad sits beside its
   prompt. All use width that was going spare on a landscape phone.
 - **Key size beats key layout.** The keypad kept its familiar 3×4 phone shape
   and full-size keys rather than shrinking to fit vertically.
-- **312, not 360, is the phone budget.** Every measurement is against that.
+- **812x325 CSS px is the phone budget**, measured with an on-page probe in
+  the web clip — not the 780x360 device points the simulator panel reports.
+  Every measurement is against that.
+- **A ceremony keeps its length; its action gets pinned.** Compressing the
+  adoption and rewilding screens would have gutted them.
 
 ## Next step
 The Phaser side on a phone, in the order the walk hit them:
@@ -125,7 +130,7 @@ permanently.
 ## Traps worth repeating here
 - Reload a web clip with `xcrun simctl terminate <udid> com.apple.webapp`.
   HOME + tapping the icon resumes it stale, and you will test the old build.
-- Measure the phone at **780x312**, not 780x360.
+- Measure the phone at **812x325 CSS px**, not 780x360.
 - Rotating the simulator needs Marcus — `osascript` is refused.
 - `renderView()` draws the rail **and** the HUD. Do not call `renderHUD()`
   beside it.
