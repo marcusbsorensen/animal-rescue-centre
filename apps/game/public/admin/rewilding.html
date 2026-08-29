@@ -141,7 +141,7 @@
   .leaf-2 { top: -8%;  left: 35%; animation: leafDrift 22s linear infinite; animation-delay: -4s; font-size: clamp(14px, 2cqh, 22px); }
   .leaf-3 { top: -10%; left: 60%; animation: leafDrift 19s linear infinite; animation-delay: -8s; }
   .leaf-4 { top: -6%;  left: 82%; animation: leafDrift 24s linear infinite; animation-delay: -2s; font-size: clamp(16px, 2.3cqh, 24px); }
-  .leaf-5 { top: -12%; left: 5%;  animation: leafDrift 21s linear infinite; animation-delay: -11s; font-size: clamp(12px, 1.8cqh, 20px); }
+  .leaf-5 { top: -12%; left: 5%;  animation: leafDrift 21s linear infinite; animation-delay: -11s; font-size: clamp(14px, 1.8cqh, 20px); }
   .leaf-6 { top: -7%;  left: 48%; animation: leafDrift 26s linear infinite; animation-delay: -14s; }
 
   /* Distant bird silhouettes */
@@ -150,7 +150,7 @@
     top: 18%;
     color: rgba(40, 28, 18, 0.55);
     font-family: var(--headline-font);
-    font-size: clamp(10px, 1.4cqh, 14px);
+    font-size: clamp(14px, 1.4cqh, 14px);
     letter-spacing: -2px;
     z-index: 2;
     pointer-events: none;
@@ -380,7 +380,7 @@
   .bond-visit {
     font-family: 'Caveat', 'Kalam', cursive;
     font-style: italic;
-    font-size: clamp(13px, 1.8cqh, 16px);
+    font-size: clamp(14px, 1.8cqh, 16px);
     color: #6b4820;
     opacity: 0.92;
   }
@@ -474,7 +474,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(13px, 1.8cqh, 17px);
+    font-size: clamp(14px, 1.8cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -576,6 +576,17 @@
     height: auto !important;
     min-height: 100% !important;
     overflow: visible !important;
+  }
+
+  /* Touch targets: 36x36 audio buttons and 32px-tall text links are below
+     the 48px floor the rest of the game uses. Children aim less precisely
+     than adults, and a control that needs three attempts teaches them the
+     game is unreliable. Padding keeps the visual size; only the hit area
+     grows. */
+  .audio-btn, .audio-toggle, .btn-audio,
+  .back-link, .menu-link, .link-btn, .secondary-row button {
+    min-width: 48px;
+    min-height: 48px;
   }
 </style>
 </head>

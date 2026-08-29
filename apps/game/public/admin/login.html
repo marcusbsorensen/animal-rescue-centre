@@ -286,7 +286,7 @@
     background: rgba(197,72,56,0.92);
     border-radius: 10px;
     padding: 4px clamp(10px, 1.6cqw, 16px);
-    font-size: clamp(13px, 2cqh, 17px);
+    font-size: clamp(14px, 2cqh, 17px);
     text-align: center;
     min-height: 0;
     max-width: 88%;
@@ -359,7 +359,7 @@
     /* Quicksand 500 — humanist sans, much more legible at small size
        than Caveat handwriting which gets unreadable below ~14px. */
     font-family: 'Quicksand', system-ui, sans-serif;
-    font-size: clamp(13px, 1.7cqh, 15px);
+    font-size: clamp(14px, 1.7cqh, 15px);
     font-weight: 500;
     letter-spacing: 0.2px;
     opacity: 0.92;
@@ -529,7 +529,7 @@
     position: relative !important;
     font-family: var(--sign-font) !important;
     font-weight: 700 !important;
-    font-size: clamp(13px, 1.7cqh, 17px) !important;
+    font-size: clamp(14px, 1.7cqh, 17px) !important;
     line-height: 1 !important;
     color: #4a2e0a !important;
     text-shadow: 1px 1px 0 rgba(255,250,220,0.55) !important;
@@ -872,7 +872,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(13px, 1.7cqh, 17px);
+    font-size: clamp(14px, 1.7cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -1015,7 +1015,7 @@
     opacity: 0;
     animation: zzzRise 3s ease-in-out infinite;
   }
-  .zzz-stack .zz1 { font-size: 12px; left: 4px;  bottom: 4px;  animation-delay: 0s; }
+  .zzz-stack .zz1 { font-size: 14px; left: 4px;  bottom: 4px;  animation-delay: 0s; }
   .zzz-stack .zz2 { font-size: 14px; left: 6px;  bottom: 4px;  animation-delay: 1s; }
   .zzz-stack .zz3 { font-size: 18px; left: 16px; bottom: 18px; animation-delay: 2s; }
   @keyframes zzzRise {
@@ -1085,7 +1085,7 @@
   .credit-scrawl {
     font-family: 'Caveat', 'Kalam', cursive;
     font-weight: 700;
-    font-size: clamp(13px, 1.9cqh, 17px);
+    font-size: clamp(14px, 1.9cqh, 17px);
     color: #2f6a32;
     letter-spacing: 0.01em;
     line-height: 1.1;
@@ -1212,7 +1212,7 @@
     .secondary-row .link-btn,
     .secondary-row .name-input-sign.demoted {
       padding: clamp(6px, 1cqh, 10px) clamp(14px, 2.6cqw, 22px) !important;
-      font-size: clamp(12px, 1.6cqh, 15px) !important;
+      font-size: clamp(14px, 1.6cqh, 15px) !important;
     }
     .signs-on-stake {
       padding-bottom: clamp(20px, 4cqh, 36px);
@@ -1221,7 +1221,7 @@
        start higher and the planks have room below. */
     #stage-select .sign-title { font-size: clamp(22px, 3.6cqh, 28px); }
     #stage-select .sign-subtitle {
-      font-size: clamp(13px, 2cqh, 16px);
+      font-size: clamp(14px, 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
     }
     /* Login chips drop to 1 column on iPhone so 'Lily / 2 hours ago'
@@ -1254,7 +1254,7 @@
       z-index: 8;
     }
     .credit-scrawl {
-      font-size: clamp(10px, 1.5cqh, 12px);
+      font-size: clamp(14px, 1.5cqh, 12px);
       white-space: nowrap;
       opacity: 0.7;
     }
@@ -1342,6 +1342,17 @@
     height: auto !important;
     min-height: 100% !important;
     overflow: visible !important;
+  }
+
+  /* Touch targets: 36x36 audio buttons and 32px-tall text links are below
+     the 48px floor the rest of the game uses. Children aim less precisely
+     than adults, and a control that needs three attempts teaches them the
+     game is unreliable. Padding keeps the visual size; only the hit area
+     grows. */
+  .audio-btn, .audio-toggle, .btn-audio,
+  .back-link, .menu-link, .link-btn, .secondary-row button {
+    min-width: 48px;
+    min-height: 48px;
   }
 </style>
 </head>

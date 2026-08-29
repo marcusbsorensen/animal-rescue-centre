@@ -310,7 +310,7 @@
     font-family: 'Quicksand', system-ui, sans-serif;
     font-weight: 600;
     color: #4a2e14;
-    font-size: clamp(12px, 1.6cqh, 15px);
+    font-size: clamp(14px, 1.6cqh, 15px);
     line-height: 1.25;
   }
   .h-portrait-fallback .ff-emoji {
@@ -330,7 +330,7 @@
   .h-blurb {
     font-family: var(--body-font);
     font-weight: 500;
-    font-size: clamp(13px, 1.8cqh, 15px);
+    font-size: clamp(14px, 1.8cqh, 15px);
     color: var(--ink-soft);
     line-height: 1.35;
   }
@@ -380,7 +380,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(13px, 1.8cqh, 17px);
+    font-size: clamp(14px, 1.8cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -449,6 +449,17 @@
     height: auto !important;
     min-height: 100% !important;
     overflow: visible !important;
+  }
+
+  /* Touch targets: 36x36 audio buttons and 32px-tall text links are below
+     the 48px floor the rest of the game uses. Children aim less precisely
+     than adults, and a control that needs three attempts teaches them the
+     game is unreliable. Padding keeps the visual size; only the hit area
+     grows. */
+  .audio-btn, .audio-toggle, .btn-audio,
+  .back-link, .menu-link, .link-btn, .secondary-row button {
+    min-width: 48px;
+    min-height: 48px;
   }
 </style>
 </head>

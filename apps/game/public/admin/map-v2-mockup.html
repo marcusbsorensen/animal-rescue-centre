@@ -548,6 +548,17 @@
     min-height: 100% !important;
     overflow: visible !important;
   }
+
+  /* Touch targets: 36x36 audio buttons and 32px-tall text links are below
+     the 48px floor the rest of the game uses. Children aim less precisely
+     than adults, and a control that needs three attempts teaches them the
+     game is unreliable. Padding keeps the visual size; only the hit area
+     grows. */
+  .audio-btn, .audio-toggle, .btn-audio,
+  .back-link, .menu-link, .link-btn, .secondary-row button {
+    min-width: 48px;
+    min-height: 48px;
+  }
 </style>
 </head>
 <body>

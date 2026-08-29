@@ -397,7 +397,7 @@
   }
   .chip-last {
     display: block;
-    font-size: clamp(11px, 1.5cqh, 13px);
+    font-size: clamp(14px, 1.5cqh, 13px);
     font-weight: 400;
     opacity: 0.85;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
@@ -814,7 +814,7 @@
     border: 0;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(13px, 1.8cqh, 16px);
+    font-size: clamp(14px, 1.8cqh, 16px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
     cursor: pointer;
@@ -955,7 +955,7 @@
      head, staggered 1s so a second tiny Z spawns just as the first
      has cleared the head. zz3 (medium 18px) is now the LARGEST and
      drifts furthest. The old 26px far-Z was too big + too distant. */
-  .zzz-stack .zz1 { font-size: 12px; left: 4px;  bottom: 4px;  animation-delay: 0s; }
+  .zzz-stack .zz1 { font-size: 14px; left: 4px;  bottom: 4px;  animation-delay: 0s; }
   .zzz-stack .zz2 { font-size: 14px; left: 6px;  bottom: 4px;  animation-delay: 1s; }
   .zzz-stack .zz3 { font-size: 18px; left: 16px; bottom: 18px; animation-delay: 2s; }
 
@@ -1184,7 +1184,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(13px, 1.7cqh, 17px);
+    font-size: clamp(14px, 1.7cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -1360,7 +1360,7 @@
   .credit-scrawl {
     font-family: 'Caveat', 'Kalam', cursive;
     font-weight: 700;
-    font-size: clamp(13px, 1.9cqh, 17px);
+    font-size: clamp(14px, 1.9cqh, 17px);
     color: #2f6a32;
     letter-spacing: 0.01em;
     line-height: 1.1;
@@ -1505,7 +1505,7 @@
        reach the bottom of the device without orphaning anything. */
     #stage-select .sign-title { font-size: clamp(20px, 3.4cqh, 26px); }
     #stage-select .sign-subtitle {
-      font-size: clamp(13px, 2cqh, 16px);
+      font-size: clamp(14px, 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
     }
     .name-field-wrap {
@@ -1520,7 +1520,7 @@
        OK button below. */
     #stage-pin .sign-title { font-size: clamp(20px, 3.4cqh, 26px); }
     #stage-pin .sign-subtitle {
-      font-size: clamp(13px, 2cqh, 16px);
+      font-size: clamp(14px, 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
     }
     #stage-pin .pin-dots {
@@ -1563,7 +1563,7 @@
       z-index: 8;
     }
     .credit-scrawl {
-      font-size: clamp(10px, 1.5cqh, 12px);
+      font-size: clamp(14px, 1.5cqh, 12px);
       white-space: nowrap;
       opacity: 0.7;
     }
@@ -1616,6 +1616,17 @@
     height: auto !important;
     min-height: 100% !important;
     overflow: visible !important;
+  }
+
+  /* Touch targets: 36x36 audio buttons and 32px-tall text links are below
+     the 48px floor the rest of the game uses. Children aim less precisely
+     than adults, and a control that needs three attempts teaches them the
+     game is unreliable. Padding keeps the visual size; only the hit area
+     grows. */
+  .audio-btn, .audio-toggle, .btn-audio,
+  .back-link, .menu-link, .link-btn, .secondary-row button {
+    min-width: 48px;
+    min-height: 48px;
   }
 </style>
 </head>

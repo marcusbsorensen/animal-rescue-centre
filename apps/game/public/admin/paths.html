@@ -187,7 +187,7 @@
   }
   .paths-subtitle {
     font-family: var(--sign-font);
-    font-size: clamp(13px, 1.9cqh, 16px);
+    font-size: clamp(14px, 1.9cqh, 16px);
     color: #fffbe8;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
     margin-top: 4px;
@@ -267,7 +267,7 @@
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
   }
   .path-blurb {
-    font-size: clamp(12px, 1.7cqh, 14px);
+    font-size: clamp(14px, 1.7cqh, 14px);
     font-family: 'Caveat', 'Kalam', cursive;
     opacity: 0.92;
     line-height: 1.2;
@@ -276,7 +276,7 @@
     list-style: none;
     display: flex; flex-direction: column;
     gap: clamp(3px, 0.6cqh, 5px);
-    font-size: clamp(12px, 1.7cqh, 14px);
+    font-size: clamp(14px, 1.7cqh, 14px);
     margin-top: clamp(4px, 0.6cqh, 6px);
   }
   .path-criteria li {
@@ -302,7 +302,7 @@
     border: 1px solid rgba(255,251,232,0.5);
     font-family: 'Caveat', cursive;
     font-weight: 700;
-    font-size: clamp(13px, 1.9cqh, 16px);
+    font-size: clamp(14px, 1.9cqh, 16px);
     text-align: center;
     align-self: flex-start;
   }
@@ -508,7 +508,7 @@
     line-height: 1.15;
   }
   .choice-hint {
-    font-size: clamp(12px, 1.6cqh, 14px);
+    font-size: clamp(14px, 1.6cqh, 14px);
     font-family: 'Caveat', 'Kalam', cursive;
     opacity: 0.9;
     line-height: 1.1;
@@ -933,7 +933,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(13px, 1.7cqh, 17px);
+    font-size: clamp(14px, 1.7cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -1078,7 +1078,7 @@
   .credit-scrawl {
     font-family: 'Caveat', 'Kalam', cursive;
     font-weight: 700;
-    font-size: clamp(13px, 1.9cqh, 17px);
+    font-size: clamp(14px, 1.9cqh, 17px);
     color: #2f6a32;
     letter-spacing: 0.01em;
     line-height: 1.1;
@@ -1215,6 +1215,17 @@
     min-height: 100% !important;
     overflow: visible !important;
   }
+
+  /* Touch targets: 36x36 audio buttons and 32px-tall text links are below
+     the 48px floor the rest of the game uses. Children aim less precisely
+     than adults, and a control that needs three attempts teaches them the
+     game is unreliable. Padding keeps the visual size; only the hit area
+     grows. */
+  .audio-btn, .audio-toggle, .btn-audio,
+  .back-link, .menu-link, .link-btn, .secondary-row button {
+    min-width: 48px;
+    min-height: 48px;
+  }
 </style>
 </head>
 <body>
@@ -1249,12 +1260,12 @@
             <img class="paths-portrait" src="/assets/animals/dog-collie-sheltered.png" alt="">
             <div class="paths-header-text">
               <div class="paths-title">What will Luna become?</div>
-              <div class="paths-subtitle">Aspire to a path — change your mind any time. Each animal needs different things to thrive.</div>
+              <div class="paths-subtitle">Pick a future for Luna. You can change your mind later. Every animal needs something different to be happy.</div>
             </div>
           </div>
           <!-- The .path-criteria lists below are hidden, not deleted. Every
                tick, cross and count in them is invented: "Bond 3+" and
-               "Bond 5 (3/5)" imply a 1-5 scale, but bond is 0-100
+               "Best friends: 3 of 5 hearts" imply a 1-5 scale, but bond is 0-100
                (game-logic/bond.ts), and nothing computes "Walked 5x (3/5)"
                or the traits. They were showing a child fabricated progress
                against a decision they cannot undo. They stay in the markup
@@ -1273,7 +1284,7 @@
               </ul>
               <!-- Was "✨ Aspiring", which claims the animal already wants
                    this. Nothing set that; it was mockup dressing. -->
-              <div class="path-state">Tap to aspire</div>
+              <div class="path-state">Choose this</div>
             </button>
             <button class="path-card path-rewild" data-path="rewild">
               <div class="path-badge">🌲</div>
@@ -1300,12 +1311,12 @@
               <div class="path-name">Stay at A.R.C.</div>
               <div class="path-blurb">Luna becomes a working animal at the centre</div>
               <ul class="path-criteria" hidden>
-                <li class="unmet">Bond 5 (3/5)</li>
-                <li class="met">Trait: Alert</li>
-                <li class="met">Trait: Loyal</li>
-                <li class="unmet">A role opens</li>
+                <li class="unmet">Best friends: 3 of 5 hearts</li>
+                <li class="met">Luna is alert</li>
+                <li class="met">Luna is loyal</li>
+                <li class="unmet">A job is free</li>
               </ul>
-              <div class="path-state path-state-aspire">Tap to aspire</div>
+              <div class="path-state path-state-aspire">Choose this</div>
             </button>
           </div>
           <div class="paths-footer">

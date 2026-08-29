@@ -307,7 +307,7 @@
     font-weight: 600;
     letter-spacing: 0.15px;
     color: #4a2e14;
-    font-size: clamp(13px, 1.7cqh, 16px);
+    font-size: clamp(14px, 1.7cqh, 16px);
     line-height: 1.25;
     padding: 8% 10%;
   }
@@ -335,7 +335,7 @@
     font-weight: 600;
     letter-spacing: 0.2px;
     color: #fffbe8;
-    font-size: clamp(13px, 1.7cqh, 15px);
+    font-size: clamp(14px, 1.7cqh, 15px);
     text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
     text-align: center;
     line-height: 1.2;
@@ -439,7 +439,7 @@
     font-family: 'Quicksand', system-ui, sans-serif;
     font-weight: 600;
     letter-spacing: 0.15px;
-    font-size: clamp(13px, 1.7cqh, 15px);
+    font-size: clamp(14px, 1.7cqh, 15px);
     color: #4a2e14;
     text-align: center;
     line-height: 1.2;
@@ -541,7 +541,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(13px, 1.8cqh, 17px);
+    font-size: clamp(14px, 1.8cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -596,7 +596,7 @@
     .adopt-title { font-size: clamp(22px, 3.8cqh, 28px); }
     .portrait-frame { max-width: clamp(110px, 32cqw, 160px); }
     .meet-connector { min-width: clamp(44px, 12cqw, 70px); }
-    .gift-label { font-size: clamp(11px, 1.6cqh, 14px); }
+    .gift-label { font-size: clamp(14px, 1.6cqh, 14px); }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
      the device's viewport on these landscape sizes; allow the user to
      scroll to see the bottom (grass tuft, bunny, fox, credits). */
@@ -646,6 +646,17 @@
     height: auto !important;
     min-height: 100% !important;
     overflow: visible !important;
+  }
+
+  /* Touch targets: 36x36 audio buttons and 32px-tall text links are below
+     the 48px floor the rest of the game uses. Children aim less precisely
+     than adults, and a control that needs three attempts teaches them the
+     game is unreliable. Padding keeps the visual size; only the hit area
+     grows. */
+  .audio-btn, .audio-toggle, .btn-audio,
+  .back-link, .menu-link, .link-btn, .secondary-row button {
+    min-width: 48px;
+    min-height: 48px;
   }
 </style>
 </head>

@@ -331,7 +331,7 @@
     z-index: 3;
   }
   .gps-title {
-    font-size: 12px; font-weight: 700;
+    font-size: 14px; font-weight: 700;
     color: #4a2e14;
     text-transform: uppercase; letter-spacing: 1px;
     margin-bottom: 6px;
@@ -383,7 +383,7 @@
     z-index: 3;
   }
   .dest-panel .dest-label {
-    font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #7b5c3a;
+    font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #7b5c3a;
   }
   .dest-panel .dest-name { font-size: 18px; font-weight: 700; color: #4a2e14; }
 
@@ -423,7 +423,7 @@
   .dashboard-hints[hidden] { display: none; }
   .dashboard-hints .hint {
     font-family: var(--sign-font);
-    font-size: 11px;
+    font-size: 14px;
     color: #fff5d0;
     background: rgba(255,255,255,0.14);
     padding: 4px 9px;
@@ -557,6 +557,17 @@
   @media (max-height: 520px) {
     .pet-vignette { width: min(36vh, 36vw, 200px); }
     .cta-sub { display: none; }
+  }
+
+  /* Touch targets: 36x36 audio buttons and 32px-tall text links are below
+     the 48px floor the rest of the game uses. Children aim less precisely
+     than adults, and a control that needs three attempts teaches them the
+     game is unreliable. Padding keeps the visual size; only the hit area
+     grows. */
+  .audio-btn, .audio-toggle, .btn-audio,
+  .back-link, .menu-link, .link-btn, .secondary-row button {
+    min-width: 48px;
+    min-height: 48px;
   }
 </style>
 </head>
