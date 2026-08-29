@@ -554,27 +554,54 @@ export class GameScene extends Phaser.Scene {
     this.renderRail();
   }
 
+  /**
+   * Accept arriving animals into the shelter.
+   *
+   * Resolves every animal against `store.animals` by id before touching
+   * it, and that is the whole point of this method existing. The Welcome
+   * buttons capture an Animal in a closure at render time, but
+   * `tickAllNeeds` runs every 2 seconds and does
+   * `store.animals = store.animals.map(tickNeeds)` — and `tickNeeds`
+   * returns `{ ...animal }`, a new object. Two seconds after the rail is
+   * drawn, every object its buttons are holding is an orphan.
+   *
+   * Both Welcome handlers used to do `animal.state = 'sheltered'` on that
+   * captured object, so the write landed on the orphan and the shelter
+   * never changed — while `totalRescued += 1` landed on the real store.
+   * A child tapping Welcome got no response, no error and no animal, and
+   * the rescue counter went up every time they tried. It read as a dead
+   * button; it was a button writing to a copy.
+   *
+   * The rest of the scene already does this correctly by looking the
+   * animal up in the store first (see the feed path); these two callbacks
+   * were the exception.
+   */
+  private welcomeArrivals(animals: Animal[]): void {
+    let welcomed = 0;
+    for (const captured of animals) {
+      const live = this.store.animals.find((a) => a.id === captured.id);
+      // Gone from the store, or already accepted by another tap — either
+      // way it must not count towards totalRescued.
+      if (!live || live.state !== 'arriving') continue;
+      live.state = 'sheltered';
+      welcomed += 1;
+    }
+    if (welcomed === 0) return;
+
+    this.store.totalRescued += welcomed;
+    this.checkLevelProgression();
+    AudioManager.getInstance().playSfx('animal_arrive');
+    this.saveState();
+    this.renderView();
+  }
+
   /** Left rail (or bottom drawer on iPhone) — counts + arrivals +
    *  Welcome buttons + future per-pet status cards. Re-rendered on
    *  every renderView() pass so the arrivals list stays in sync. */
   private renderRail(): void {
     renderLeftRail(this, this.store, this.railContainer, {
-      onWelcomeOne: (animal) => {
-        animal.state = 'sheltered';
-        this.store.totalRescued += 1;
-        this.checkLevelProgression();
-        AudioManager.getInstance().playSfx('animal_arrive');
-        this.saveState();
-        this.renderView();
-      },
-      onWelcomeAll: (arriving) => {
-        arriving.forEach((a) => { a.state = 'sheltered'; });
-        this.store.totalRescued += arriving.length;
-        this.checkLevelProgression();
-        AudioManager.getInstance().playSfx('animal_arrive');
-        this.saveState();
-        this.renderView();
-      },
+      onWelcomeOne: (animal) => this.welcomeArrivals([animal]),
+      onWelcomeAll: (arriving) => this.welcomeArrivals(arriving),
       onCareAlertTap: () => {
         this.viewMode = 'corridor';
         this.renderView();
@@ -692,22 +719,8 @@ export class GameScene extends Phaser.Scene {
         this.renderView();
       },
       onShowAnimalDetails: (animal, anchor) => this.showAnimalDetails(animal, anchor),
-      onWelcomeOne: (animal) => {
-        animal.state = 'sheltered';
-        this.store.totalRescued += 1;
-        this.checkLevelProgression();
-        AudioManager.getInstance().playSfx('animal_arrive');
-        this.saveState();
-        this.renderView();
-      },
-      onWelcomeAll: (arriving) => {
-        arriving.forEach((a) => { a.state = 'sheltered'; });
-        this.store.totalRescued += arriving.length;
-        this.checkLevelProgression();
-        AudioManager.getInstance().playSfx('animal_arrive');
-        this.saveState();
-        this.renderView();
-      },
+      onWelcomeOne: (animal) => this.welcomeArrivals([animal]),
+      onWelcomeAll: (arriving) => this.welcomeArrivals(arriving),
       renderNavBar: () => this.renderNavBar(),
       setMaxScrollY: (m) => { this.maxScrollY = m; },
     }, {
