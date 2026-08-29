@@ -1004,6 +1004,26 @@
     overflow-y: auto !important;
   }
 
+
+  /* Embed mode stretches .device to the real viewport, so data-size no longer
+     describes the space available and the desktop/ipad-l rule above never
+     matches. Without this, any screen taller than the actual device is
+     unreachable: on a landscape phone that hides the only way out of the
+     adoption ceremony and the Paths screen's only Back button. */
+  body.embed .device > *,
+  html.iframed .device > * {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  /* The screens wrap their content in a fixed-height *-inner flex box that
+     clips with overflow:hidden, so the scroll container above would have
+     nothing to scroll. Let the inner grow to its content instead. */
+  body.embed .device > * > [class$="-inner"],
+  html.iframed .device > * > [class$="-inner"] {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+  }
 </style>
 </head>
 <body>
