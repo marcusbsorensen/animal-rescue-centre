@@ -332,7 +332,14 @@
     max-width: 100%;
     align-items: center;
     position: relative;
-    z-index: 2;   /* above the post */
+    /* Above the post AND above the grass clump (z:4). The grass is meant
+       to cover the base of the stake, not the buttons nailed to it — at 2
+       it painted over the secondary buttons on a landscape phone, where
+       the compressed layout brings pills and grass together.
+       9 rather than 5 so it also clears the ground animals — bunny is
+       z:5, fox and bee are z:6 — which the shortened stake brings up
+       level with the pills on a landscape phone. */
+    z-index: 9;
   }
   .intro { z-index: 2; }   /* also above the post */
 
@@ -1245,6 +1252,7 @@
     min-height: 48px;
   }
 </style>
+<link rel="stylesheet" href="/admin/_short-landscape.css">
 </head>
 <body>
 

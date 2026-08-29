@@ -1,0 +1,265 @@
+/**
+ * _short-landscape.css — the landscape-phone branch for the DOM screens.
+ *
+ * WHY THIS FILE EXISTS
+ * The screens under public/admin/ lay themselves out with @container queries
+ * keyed on WIDTH only: a ">= 900px" wide branch and a "<= 420px" iPhone branch.
+ * A landscape phone is 780x360 — wide and short — so it matches neither and
+ * falls through to the base rules, whose clamp() minimums are sized for a tall
+ * viewport. On a 13 mini that put the stack at 751px in a 360px box: PLAY! sat
+ * 27px below the fold, CONTINUE! 77px, START PLAYING! 332px.
+ *
+ * Those buttons were still *reachable* — the body.embed rule in each page makes
+ * the screen scroll — but a seven-year-old lands on what looks like a finished
+ * picture with no cue that anything is below it. Reachable is not the same as
+ * findable. This file compresses the vertical stack until the primary action is
+ * above the fold on the smallest phone we target.
+ *
+ * WHY ONE FILE
+ * All seven screens are clones: same container-name (welcome), same
+ * .welcome-inner / .welcome-content / .signs-on-stake / .cta-stack vocabulary.
+ * Seven inline copies of this would drift within a month.
+ *
+ * LOADING
+ * Linked AFTER each page's inline <style>, so equal-specificity rules here win
+ * on document order. Do not move the <link> above the <style>.
+ *
+ * Pages add their own extras after this in their inline block where their
+ * content differs (login's profile chips, signup's animal grid, paths' cards,
+ * welcome-new's photo).
+ */
+
+/* ── Touch-target floor, all sizes ────────────────────────────────────────
+   Each page sets min 48x48 on .audio-btn / .back-link / .menu-link /
+   .link-btn / .secondary-row button. Two controls are not in that list and
+   so were still under it at every size: friends' "← Menu" tab (97x38) and
+   login's "Not here? Type your name", which is a .btn-primary the page
+   demotes with a class when there are profile chips to choose from (227x37).
+   Extending the floor here rather than editing the same list in seven files.
+   ─────────────────────────────────────────────────────────────────────── */
+.back-tab,
+.btn-primary.demoted {
+  min-width: 48px;
+  min-height: 48px;
+}
+
+@container welcome (max-height: 520px) {
+  .welcome-inner { padding-top: 4px; }
+
+  /* The audio button keeps its 48px floor from the touch-target rule in each
+     page — do not shrink the top strip to claw back height. */
+  .welcome-content {
+    padding-top: clamp(10px, 3.4cqh, 18px);
+    gap: clamp(4px, 1cqh, 8px);
+  }
+
+  /* Cat still overhangs the sign, by enough less that it clears the top strip
+     instead of colliding with the audio button. */
+  .intro-cat {
+    height: clamp(40px, 12cqh, 52px);
+    top: clamp(-34px, -9cqh, -26px) !important;
+    bottom: auto !important;
+  }
+  .zzz-stack { display: none; }   /* no room above the cat to drift into */
+
+  /* The sign: logo smaller, rules tighter, less plank padding. */
+  /* menu and welcome-new float a full logo ABOVE the sign as its own grid row;
+     at its 96px minimum that row alone is a quarter of the viewport. */
+  .logo-img { height: clamp(46px, 13cqh, 72px); }
+  .sign-logo-full { width: clamp(130px, 26cqw, 215px); }
+  .sign-logo { height: clamp(34px, 9cqh, 52px); }
+  .sign-title-row {
+    padding: clamp(1px, 0.4cqh, 3px) 0 clamp(2px, 0.6cqh, 4px);
+    margin-bottom: clamp(1px, 0.4cqh, 3px);
+  }
+  .intro { padding: clamp(6px, 1.7cqh, 10px) clamp(14px, 3cqw, 22px); }
+  .intro ol { gap: clamp(2px, 0.7cqh, 5px); }
+  .intro li { font-size: clamp(13px, 3.6cqh, 16px); line-height: 1.15; }
+  .intro li::before {
+    width: clamp(20px, 5.6cqh, 26px); height: clamp(20px, 5.6cqh, 26px);
+    font-size: clamp(12px, 3.2cqh, 15px);
+  }
+
+  /* Sign text between the title and the controls. */
+  .sign-title { font-size: clamp(15px, 4.4cqh, 20px); }
+  .sign-subtitle {
+    font-size: clamp(12px, 3.4cqh, 15px);
+    margin-top: clamp(2px, 0.6cqh, 4px);
+    margin-bottom: clamp(3px, 0.9cqh, 6px);
+  }
+
+  /* login's profile chips and signup's animal picker. Cap the list and let it
+     scroll inside the sign rather than pushing the buttons off the screen —
+     the number of chips is not fixed (one per remembered child), so no amount
+     of shrinking makes this safe on its own. */
+  .chips {
+    max-height: clamp(88px, 26cqh, 138px);
+    overflow-y: auto;
+    gap: clamp(4px, 1.2cqh, 9px) clamp(8px, 1.6cqw, 14px);
+  }
+  .chip { padding: clamp(3px, 1cqh, 6px) clamp(8px, 2cqw, 13px); }
+  .chip-avatar { font-size: clamp(19px, 5.6cqh, 26px); }
+  .name-field {
+    padding: clamp(4px, 1.2cqh, 8px) clamp(10px, 2cqw, 15px);
+    font-size: clamp(15px, 4cqh, 19px);
+  }
+
+  /* welcome-new's photo of the centre is 311px of a 360px screen at its own
+     minimum. Cap it by height and let the width follow. */
+  .arc-snapshot {
+    max-height: clamp(78px, 26cqh, 122px);
+    width: auto; max-width: 100%;
+  }
+
+  /* menu and welcome-new float a second, full-size logo above the sign, which
+     already carries the A.R.C. identity in its own title. On a 360px screen
+     that row costs more than it says. The wide branch positions this logo
+     absolutely in the top-left corner, so hiding it here changes nothing
+     anywhere else. */
+  .welcome-content > .logo-wrap { display: none; }
+
+  /* menu's three stat tiles. */
+  .menu-stats { gap: clamp(6px, 1.6cqw, 12px); }
+  .menu-stat {
+    padding: clamp(2px, 0.7cqh, 5px) clamp(7px, 1.4cqw, 11px);
+    font-size: clamp(11px, 2.8cqh, 13px);
+  }
+  .menu-stat .stat-num, .menu-stat strong { font-size: clamp(16px, 4.4cqh, 21px); }
+
+  /* welcome-new: photo beside the steps rather than above them. Stacked, the
+     photo and the three-step list together are 200px of a 360px screen and
+     push START PLAYING! off the bottom; side by side they cost the taller of
+     the two. Keyed on the snapshot so it cannot touch the other screens. */
+  .intro:has(.arc-snapshot-wrap) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "title title"
+      "photo sub"
+      "photo steps";
+    align-items: center;
+    column-gap: clamp(10px, 2.5cqw, 18px);
+  }
+  .intro:has(.arc-snapshot-wrap) > .sign-title { grid-area: title; }
+  .intro:has(.arc-snapshot-wrap) > .arc-snapshot-wrap { grid-area: photo; }
+  .intro:has(.arc-snapshot-wrap) > .sign-subtitle { grid-area: sub; align-self: end; }
+  .intro:has(.arc-snapshot-wrap) > ol { grid-area: steps; align-self: start; }
+
+  /* menu: the player badge beside the stats card, same reasoning as
+     welcome-new above — stacked they are 200px of a 360px screen, side by
+     side they cost the taller of the two and leave CONTINUE! above the fold. */
+  .intro:has(.menu-card) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: clamp(10px, 2.5cqw, 20px);
+  }
+  .intro:has(.menu-card) > .menu-card { margin-bottom: 0; padding: clamp(6px, 1.8cqh, 10px); }
+  .player-avatar { font-size: clamp(24px, 7cqh, 34px); }
+  .player-badge { padding: clamp(3px, 1cqh, 6px) clamp(6px, 1.4cqw, 10px); }
+  .player-hello { font-size: clamp(12px, 3.2cqh, 15px); }
+  .menu-card-title { font-size: clamp(12px, 3.2cqh, 15px); margin-bottom: clamp(2px, 0.8cqh, 5px); }
+
+  /* signup: the animal picker plus a name field plus a title is more than the
+     sign can hold here, so the picker takes the cut — it already scrolls. */
+  .chips.avatar-picker { max-height: clamp(66px, 20cqh, 104px); }
+  .name-field-wrap { padding: clamp(2px, 0.7cqh, 4px) clamp(6px, 1.4cqw, 10px); }
+
+  /* Stake: wide enough for two pills side by side, and short enough below them
+     that the credit scrawls sit under the buttons rather than across them. */
+  .signs-on-stake {
+    max-width: min(94%, 600px);
+    gap: clamp(5px, 1.4cqh, 9px);
+    padding-bottom: clamp(19px, 5.2cqh, 28px);
+  }
+  /* The grass clump is width:100% of the stake, so widening the stake to fit
+     two pills side by side also inflated the grass until it covered half the
+     sign. Keep it to the middle of the stake, where it reads as ground. */
+  .grass-clump { width: clamp(200px, 52%, 330px); }
+
+  /* Sign content above the grass. The grass is meant to hide the base of the
+     stake; with the stack this compressed it reached up over the sign face
+     and buried menu's friend-code line. */
+  .intro { z-index: 6; }
+  .cta-stack { gap: clamp(3px, 1cqh, 7px); }
+
+  /* Side by side. The wide branch stacks these down the stake's centre line,
+     which is right when height is plentiful and width is not; here it is the
+     other way round. */
+  .secondary-row { flex-direction: row; flex-wrap: nowrap; }
+
+  .btn-primary {
+    padding: clamp(4px, 1.3cqh, 8px) clamp(20px, 4cqw, 28px);
+    font-size: clamp(19px, 5.4cqh, 25px);
+  }
+  .btn-primary .paw { font-size: clamp(20px, 5.6cqh, 27px); }
+  .play-parrot { height: clamp(34px, 10cqh, 46px); top: -24%; }
+
+  /* One line each — wrapped to two, the pills grew taller than the space the
+     shortened stake leaves them. */
+  .link-btn {
+    font-size: clamp(12px, 3.2cqh, 15px);
+    padding: 0 clamp(12px, 2.4cqw, 20px);
+    white-space: nowrap;
+  }
+
+  /* ── paths: the one screen that is not a sign on a stake. ──
+     A full-height plaque holding a header and three tall choice cards. At
+     360px the cards ran 278px each inside a 344px plaque, so all three were
+     cut off mid-criteria and "Back to Luna" sat 41px below the fold. The
+     plaque also starts at y=8 and swallows the audio button in the top strip. */
+  .top-strip { position: relative; z-index: 20; }   /* audio button over the plaque */
+
+  .paths-header { gap: clamp(6px, 1.6cqw, 12px); }
+  .paths-portrait { height: clamp(38px, 11cqh, 52px); }
+  .paths-title { font-size: clamp(14px, 4cqh, 18px); }
+  .paths-subtitle { font-size: clamp(11px, 3cqh, 13px); margin-top: clamp(1px, 0.5cqh, 3px); }
+
+  .paths-grid { padding: clamp(5px, 1.6cqh, 9px) 0; gap: clamp(6px, 1.6cqw, 12px); }
+  .path-card { padding: clamp(7px, 2cqh, 11px) clamp(8px, 1.8cqw, 13px); }
+  .path-badge { font-size: clamp(19px, 5.4cqh, 26px); }
+  .path-name { font-size: clamp(13px, 3.6cqh, 16px); }
+  /* The blurb repeats what the criteria list says underneath it; on a screen
+     this short the criteria are what the child needs to read. */
+  .path-blurb { display: none; }
+  .path-criteria { margin-top: clamp(2px, 0.8cqh, 4px); }
+  .path-criteria li { font-size: clamp(11px, 2.9cqh, 13px); line-height: 1.25; }
+
+  /* Credits out of the grid flow so they cannot add a row that pushes the
+     buttons down; same trick the <= 420px branch uses. */
+  .credits {
+    position: absolute;
+    left: 0; right: 0; bottom: clamp(4px, 1.2cqh, 8px);
+    height: auto; padding: 0;
+    flex-direction: row; justify-content: center;
+    gap: clamp(8px, 2cqw, 14px);
+    z-index: 8;
+  }
+  .credit-scrawl {
+    font-size: clamp(11px, 3cqh, 13px);
+    white-space: nowrap;
+    opacity: 0.75;
+  }
+}
+
+/* ── welcome-new on a tall screen ─────────────────────────────────────────
+   The one screen that overflows on the iPads we actually ship on. At
+   1194x834 its stack is 1047px: the snapshot of the centre alone is 367px,
+   and the wide branch adds 183px of decorative stake below the buttons. That
+   put START PLAYING! at 762..866 against an 834px viewport — clipped, and it
+   is the only control on the screen a child has just signed up to reach.
+
+   Scoped to this screen via the snapshot, and to tall viewports so it cannot
+   collide with the short-landscape branch above, which caps the same photo
+   far harder.
+   ───────────────────────────────────────────────────────────────────────── */
+@container welcome (min-height: 521px) {
+  .intro:has(.arc-snapshot-wrap) { padding: clamp(10px, 1.6cqh, 14px) clamp(18px, 3.5cqw, 28px); }
+  .intro:has(.arc-snapshot-wrap) .arc-snapshot {
+    max-height: clamp(150px, 28cqh, 260px);
+    width: auto;
+    max-width: 100%;
+  }
+  .signs-on-stake:has(.arc-snapshot-wrap) { padding-bottom: clamp(70px, 11cqh, 120px); }
+}
