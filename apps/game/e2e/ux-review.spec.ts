@@ -3,6 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { waitForGameReady, seedFakeSession } from './helpers';
+import {
+  reachability, overlappingControls, textCutByControls, type UxRect,
+} from '../src/ui/ux-geometry';
 
 /**
  * UX review — the machine-measurable part of .claude/commands/ux-review.md.
@@ -22,6 +25,16 @@ import { waitForGameReady, seedFakeSession } from './helpers';
  *   F10        text resolution set for retina
  *   L3         safe margins from screen edges
  *   L6         interactive element count per screen
+ *   L7         every control's centre is inside the viewport
+ *   L8         no two controls overlap
+ *   L9         no control is printed across text it does not own
+ *
+ * L7-L9 are review phase 5. The review found seventeen things by hand and
+ * this harness had caught none of them, because it measured every element
+ * against a rule about *itself* and never against the element beside it.
+ * Nine of the seventeen were one element on top of another; two were an
+ * exit off the bottom of the screen. Those are relations, so they need a
+ * pairwise pass.
  *
  * NOT measured — still needs a human:
  *   C1-C3 contrast (canvas pixel sampling is too noisy to trust)
@@ -70,6 +83,36 @@ const SCENES = [
   'PtvDriveScene',
 ];
 
+/**
+ * The states of GameScene that are not the corridor.
+ *
+ * Everything the review found in findings 1, 2 and 4 was behind one of
+ * these, and the harness measured none of them: it started a scene, waited
+ * two seconds and read whatever was on screen. The card is the biggest
+ * piece of UI in the game and the overlays are where a child gets stuck, so
+ * a pass that never opens either is measuring the easy two thirds.
+ *
+ * Each opens through GameScene's own method, so the state is the one the
+ * game actually produces rather than one the harness has posed.
+ */
+const GAME_SCENE_STATES = [
+  'default',
+  'animal-card',
+  'paths',
+  'adoption-office',
+  'rewilding',
+  'tunnel',
+  'map',
+] as const;
+
+/** An animal complete enough for the card and the overlays to render. */
+const MEASURE_ANIMAL = {
+  id: 'ux-1', name: 'Luna', species: 'cat', variant: 'ginger',
+  state: 'bonding', arrivalStory: 'Found under a hedge in the rain.',
+  hunger: 55, tiredness: 30, happiness: 70, health: 85,
+  bondLevel: 60, cleanliness: 80, roomId: 'room-cat',
+};
+
 type Verdict = 'PASS' | 'WARN' | 'FAIL';
 
 interface Measurement {
@@ -81,6 +124,8 @@ interface Measurement {
 
 interface SceneReport {
   scene: string;
+  /** Which state of the scene this is — 'default', or a card/overlay. */
+  state: string;
   viewport: string;
   interactiveCount: number;
   textCount: number;
@@ -96,6 +141,9 @@ interface SceneReport {
   offenders: {
     smallTargets: { label: string; w: number; h: number; x: number; y: number; source: string }[];
     smallText: { text: string; size: number; source: string }[];
+    offCentre: { label: string; cx: number; cy: number; w: number; h: number }[];
+    overlaps: { a: string; b: string; share: number; rect: string }[];
+    coveredText: { text: string; by: string; share: number; rect: string }[];
   };
 }
 
@@ -105,6 +153,8 @@ function band(value: number, warn: number, pass: number): Verdict {
   if (value >= warn) return 'WARN';
   return 'FAIL';
 }
+
+const at = (r: UxRect) => `${r.w.toFixed(0)}x${r.h.toFixed(0)}@${r.x.toFixed(0)},${r.y.toFixed(0)}`;
 
 // Retina, because half of what this measures only means anything on a
 // retina screen — F10 in particular. Scoped to this file so the committed
@@ -128,6 +178,8 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
     await page.waitForTimeout(600);
 
     for (const scene of SCENES) {
+      const states: readonly string[] = scene === 'GameScene' ? GAME_SCENE_STATES : ['default'];
+      for (const state of states) {
       await page.evaluate((key) => {
         const g = (window as unknown as {
           __PHASER_GAME__?: {
@@ -149,11 +201,48 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
 
       await page.waitForTimeout(2000);
 
+      // Put the scene into the state we are measuring. Opened through
+      // GameScene's own methods, so this is the state the game produces
+      // rather than one the harness has posed — if a method is renamed
+      // this reports the error instead of quietly measuring the corridor
+      // and calling it the card.
+      const stateResult = await page.evaluate(([key, st, seed]) => {
+        if (st === 'default') return 'default';
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+        const g = (window as any).__PHASER_GAME__;
+        const gs = g?.scene.scenes.find((s: any) => s.sys.settings.key === key);
+        if (!gs) return 'no scene';
+        try {
+          gs.store.animals = [seed];
+          const a = gs.store.animals[0];
+          if (st === 'animal-card') gs.showAnimalDetails(a);
+          else if (st === 'paths') gs.openPathsOverlay(a);
+          else if (st === 'adoption-office') gs.openAdoptionOfficeOverlay(a);
+          else if (st === 'rewilding') gs.openRewildingOverlay(a);
+          else if (st === 'tunnel') gs.openTunnelOverlay();
+          else if (st === 'map') gs.openMapOverlay();
+          else return `unknown state ${st}`;
+        } catch (e) {
+          return `error: ${String(e).slice(0, 90)}`;
+        }
+        return st;
+      }, [scene, state, MEASURE_ANIMAL] as [string, string, typeof MEASURE_ANIMAL]);
+
+      // An overlay is an iframe; give it time to load and post its init.
+      if (state !== 'default') await page.waitForTimeout(state === 'animal-card' ? 500 : 2500);
+
       // Harvest every interactive element and every text run, from the
       // Phaser scene graph and from any HTML overlay that is mounted.
       const raw = await page.evaluate((key) => {
-        interface Box { w: number; h: number; x: number; y: number; source: string; label: string }
-        interface Txt { size: number; family: string; text: string; resolution: number; source: string; label: string }
+        /**
+         * `clipped`  — the element lives in something that scrolls or is
+         *              masked, so being outside the viewport means "below
+         *              the fold", not "unreachable".
+         * `pinned`   — sticky or fixed, so sitting over scrolling content
+         *              is what it is for, not a collision.
+         */
+        interface Box { w: number; h: number; x: number; y: number; source: string; label: string; layer: number; clipped: boolean; pinned: boolean; path: string }
+        interface Txt { size: number; family: string; text: string; resolution: number; source: string; label: string; layer: number; clipped: boolean; pinned: boolean; path: string; w: number; h: number; x: number; y: number }
 
         const boxes: Box[] = [];
         const texts: Txt[] = [];
@@ -166,7 +255,14 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         const scene = g?.scene.scenes.find((s) => s.sys.settings.key === key);
 
         // Phaser: recurse the display list, including into containers.
-        const visit = (obj: Record<string, unknown>, depth = 0) => {
+        //
+        // `layer` is the depth of the top-level child this object descends
+        // from, carried down the recursion. A modal draws into its own
+        // container at depth 800 over a scene that is still in the display
+        // list, so without it the card's buttons and the corridor's door
+        // signs look like they overlap — and they do, in world coordinates,
+        // with the whole card between them and the child.
+        const visit = (obj: Record<string, unknown>, layer: number, path: string, depth = 0, masked = false) => {
           if (!obj || depth > 12) return;
           // Hidden objects are not a UX problem. Scenes keep pools of
           // pre-built labels toggled with setVisible — the obstacle markers
@@ -175,6 +271,11 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
           // A container that is hidden hides its children too, so this
           // prunes the whole branch.
           if (obj.visible === false || obj.alpha === 0) return;
+          // A mask is how a Phaser scene clips a scrolling region —
+          // AccountScene's badge wall puts 40-odd tiles below the fold that
+          // way. Their centres are off screen and they are perfectly
+          // reachable, so the flag has to travel down to the children.
+          const clipped = masked || obj.mask != null;
           const input = obj.input as { enabled?: boolean } | undefined;
           const getBounds = obj.getBounds as (() => { width: number; height: number; x: number; y: number }) | undefined;
 
@@ -187,7 +288,7 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
                 const label = String(
                   obj.name || tex?.key || obj.text || obj.type || 'unnamed',
                 ).slice(0, 32);
-                boxes.push({ w: b.width, h: b.height, x: b.x, y: b.y, source: 'phaser', label });
+                boxes.push({ w: b.width, h: b.height, x: b.x, y: b.y, source: 'phaser', label, layer, clipped, pinned: false, path });
               }
             } catch { /* some objects refuse bounds */ }
           }
@@ -200,11 +301,14 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
             // font-size failures for strings nobody can read. The DOM branch
             // below already required non-empty content; this side did not.
             const content = String(obj.text ?? '').trim();
+            const tb = typeof getBounds === 'function' ? getBounds.call(obj) : null;
             if (size > 0 && content.length > 0) {
               texts.push({
                 size,
                 family: String(style?.fontFamily ?? ''),
                 text: String(obj.text ?? '').slice(0, 60),
+                layer, clipped, pinned: false, path,
+                w: tb?.width ?? 0, h: tb?.height ?? 0, x: tb?.x ?? 0, y: tb?.y ?? 0,
                 // Phaser keeps this on the TextStyle, not the Text object.
                 // Reading obj.resolution gives undefined and marks every
                 // text as failing.
@@ -216,56 +320,146 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
           }
 
           const list = obj.list as unknown[] | undefined;
-          if (Array.isArray(list)) for (const child of list) visit(child as Record<string, unknown>, depth + 1);
+          if (Array.isArray(list)) {
+            list.forEach((child, i) => visit(child as Record<string, unknown>, layer, `${path}.${i}`, depth + 1, clipped));
+          }
         };
-        for (const child of scene?.children?.list ?? []) visit(child as Record<string, unknown>);
+        (scene?.children?.list ?? []).forEach((child, i) => {
+          const c = child as Record<string, unknown>;
+          visit(c, Number(c.depth ?? 0), `p${i}`);
+        });
 
         // DOM overlays: buttons and text nodes rendered outside the canvas.
-        for (const el of Array.from(document.querySelectorAll('button, [role="button"], a[href], input, select'))) {
-          const r = el.getBoundingClientRect();
-          if (r.width > 0 && r.height > 0) {
-            boxes.push({
-              w: r.width, h: r.height, x: r.x, y: r.y, source: 'dom',
-              label: (el.textContent ?? el.tagName).trim().slice(0, 32) || el.tagName,
+        //
+        // Including inside the in-game overlay iframes. They are same-origin
+        // (/admin/*.html) so their documents are reachable, and they are
+        // where findings 1 and 2 lived — the Paths exit off the bottom of
+        // the screen and the missing "not yet" on adoption. Measuring the
+        // host page alone sees an iframe and nothing in it.
+        const docs: { doc: Document; ox: number; oy: number; full: boolean }[] =
+          [{ doc: document, ox: 0, oy: 0, full: false }];
+        for (const f of Array.from(document.querySelectorAll('iframe'))) {
+          try {
+            const d = f.contentDocument;
+            if (!d || !d.body) continue;
+            const r = f.getBoundingClientRect();
+            docs.push({
+              doc: d, ox: r.x, oy: r.y,
+              full: r.width >= window.innerWidth * 0.9 && r.height >= window.innerHeight * 0.9,
             });
-          }
+          } catch { /* cross-origin — nothing to measure */ }
         }
-        for (const el of Array.from(document.querySelectorAll('p, span, label, h1, h2, h3, button, li'))) {
-          const cs = getComputedStyle(el);
-          const size = parseFloat(cs.fontSize);
-          const content = (el.textContent ?? '').trim();
-          if (size > 0 && content.length > 0 && el.children.length === 0) {
-            texts.push({
-              size, family: cs.fontFamily, text: content.slice(0, 60),
-              resolution: 1, source: 'dom', label: content.slice(0, 32),
-            });
+        // A full-screen overlay is opaque and on top: the canvas behind it
+        // is not something a child can see or tap, so measuring both
+        // together invents overlaps between them.
+        const overlayCovers = docs.some((d) => d.full);
+        if (overlayCovers) { boxes.length = 0; texts.length = 0; }
+
+        /**
+         * Walk up for the two facts a pairwise check needs.
+         *
+         * `clipped` — an ancestor actually scrolls. Not "has overflow:auto":
+         * every one of these pages sets it on a wrapper that never
+         * overflows, and treating those as scrollable excuses a control
+         * that really is off the bottom. That is the mistake
+         * measure-screens.mjs makes, and it is why the Paths exit passed
+         * while hanging 8px off the screen.
+         *
+         * `pinned` — sticky or fixed. The exit rows on paths, adoption and
+         * friends are sticky by design (review phase 0), so they sit over
+         * the scrolling list on purpose and are not a collision.
+         */
+        const domPath = (el: Element) => {
+          const parts: number[] = [];
+          let node: Element | null = el;
+          while (node && node.parentElement) {
+            parts.unshift(Array.prototype.indexOf.call(node.parentElement.children, node));
+            node = node.parentElement;
+          }
+          return `d.${parts.join('.')}`;
+        };
+
+        const ancestry = (el: Element) => {
+          let clipped = false, pinned = false;
+          let node: Element | null = el;
+          for (let i = 0; node && i < 24; i++) {
+            const cs = getComputedStyle(node);
+            if (cs.position === 'sticky' || cs.position === 'fixed') pinned = true;
+            const scrolls = /(auto|scroll)/.test(cs.overflowY) || /(auto|scroll)/.test(cs.overflowX);
+            if (scrolls && (node.scrollHeight > node.clientHeight + 1 || node.scrollWidth > node.clientWidth + 1)) {
+              clipped = true;
+            }
+            node = node.parentElement;
+          }
+          return { clipped, pinned, path: domPath(el) };
+        };
+
+        for (const { doc, ox, oy, full } of docs) {
+          if (overlayCovers && !full) continue;
+          for (const el of Array.from(doc.querySelectorAll('button, [role="button"], a[href], input, select'))) {
+            const r = el.getBoundingClientRect();
+            const cs = getComputedStyle(el);
+            if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+            if (r.width > 0 && r.height > 0) {
+              boxes.push({
+                w: r.width, h: r.height, x: r.x + ox, y: r.y + oy, source: 'dom', layer: 9998,
+                label: (el.textContent ?? el.tagName).trim().slice(0, 32) || el.tagName,
+                ...ancestry(el),
+              });
+            }
+          }
+          for (const el of Array.from(doc.querySelectorAll('p, span, label, h1, h2, h3, button, li'))) {
+            const cs = getComputedStyle(el);
+            const size = parseFloat(cs.fontSize);
+            const content = (el.textContent ?? '').trim();
+            if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+            const r = el.getBoundingClientRect();
+            if (size > 0 && content.length > 0 && el.children.length === 0) {
+              texts.push({
+                size, family: cs.fontFamily, text: content.slice(0, 60),
+                resolution: 1, source: 'dom', label: content.slice(0, 32), layer: 9998,
+                w: r.width, h: r.height, x: r.x + ox, y: r.y + oy,
+                ...ancestry(el),
+              });
+            }
           }
         }
 
         return {
           boxes,
           texts,
+          overlayCovers,
           viewport: { w: window.innerWidth, h: window.innerHeight },
           dpr: window.devicePixelRatio || 1,
         };
       }, scene);
 
-      await page.screenshot({ path: path.join(OUT, `${scene}-${vp.name}.png`) });
+      const shotName = state === 'default' ? `${scene}-${vp.name}` : `${scene}-${state}-${vp.name}`;
+      await page.screenshot({ path: path.join(OUT, `${shotName}.png`) });
 
       const findings: Measurement[] = [];
-      const { texts } = raw;
+      // A modal draws into its own container above the scene, and the scene
+      // stays in the display list underneath it. Keep only the topmost
+      // layer when there is one, so the card's buttons are not compared
+      // against the corridor's door signs with the whole card in between.
+      const topLayer = Math.max(0, ...raw.boxes.map((b) => b.layer), ...raw.texts.map((t) => t.layer));
+      const isModal = topLayer >= 800;
+      const texts = (isModal ? raw.texts.filter((t) => t.layer === topLayer) : raw.texts);
       // Phaser getBounds() reports world coordinates, and scenes park
       // containers off-camera for slide-in animations. Measuring those as
       // "outside the safe margin" produced negative margins and a fix list
       // full of elements no child can see. Keep only what is on screen.
-      const boxes = raw.boxes.filter(
-        (b) =>
-          b.x + b.w > 0 &&
-          b.y + b.h > 0 &&
-          b.x < raw.viewport.w &&
-          b.y < raw.viewport.h,
-      );
-      const offScreen = raw.boxes.length - boxes.length;
+      const boxes = raw.boxes
+        .filter((b) => !isModal || b.layer === topLayer)
+        .filter(
+          (b) =>
+            b.x + b.w > 0 &&
+            b.y + b.h > 0 &&
+            b.x < raw.viewport.w &&
+            b.y < raw.viewport.h,
+        );
+      const onLayer = raw.boxes.filter((b) => !isModal || b.layer === topLayer);
+      const offScreen = onLayer.length - boxes.length;
       // Full-bleed elements — modal scrims, tap-anywhere-to-dismiss
       // backdrops, the interactive background of a scene — are *meant* to
       // reach the edges. Measuring them against a safe margin says the
@@ -420,6 +614,102 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         });
       }
 
+      // ── L7: nothing interactive has its centre off screen ────────
+      //
+      // The Paths "Back to Luna" and adoption's "Not yet" both hung below
+      // the bottom edge, on screens a child cannot leave without them, and
+      // every other rule here passed them: they were the right size, the
+      // right distance apart and in the right font. A control the child
+      // cannot reach is the most serious defect this harness can find, so
+      // it is FAIL on one instance, not banded.
+      // Three different problems, and only one of them is a dead end. A
+      // tile in AccountScene's masked badge wall and a household card in
+      // the adoption office's list are both below the fold and both
+      // reachable by scrolling; the Paths exit was in nothing that
+      // scrolled and hung 8px off the bottom, which is `spilling`.
+      // `controls` has already dropped anything that misses the viewport
+      // entirely, because scenes park containers off-camera for slide-in
+      // animations and scoring those produced a fix list of things nobody
+      // can see. But a control parked off-camera and a control that fell
+      // off the bottom look identical from here, so the second set is
+      // named rather than counted: DepotScene's fourth build-mode card is
+      // in it, at y 412 on a 375px screen, and it is not parked.
+      const strayed = raw.boxes
+        .filter((b) => (!isModal || b.layer === topLayer) && !b.clipped && !isFullBleed(b))
+        .filter((b) => b.x >= raw.viewport.w || b.y >= raw.viewport.h || b.x + b.w <= 0 || b.y + b.h <= 0);
+      const reach = reachability(controls, raw.viewport.w, raw.viewport.h);
+      const broken = [...reach.unreachable, ...reach.spilling];
+      findings.push({
+        id: 'L7',
+        rule: 'control fully on screen',
+        verdict: broken.length === 0 ? 'PASS' : 'FAIL',
+        detail: (broken.length === 0
+          ? `all ${controls.length} reachable`
+          : `${reach.unreachable.length} unreachable, ${reach.spilling.length} part off, of ${controls.length} — ` +
+            broken.slice(0, 4).map((b) => `${b.label} ${at(b)}`).join('; '))
+          + (reach.belowFold.length > 0 ? ` [${reach.belowFold.length} below the fold, in something that scrolls]` : '')
+          + (strayed.length > 0
+            ? ` [${strayed.length} nowhere near the screen — parked for a slide-in, or lost: ${strayed.slice(0, 3).map((b) => `${b.label} ${at(b)}`).join('; ')}]`
+            : ''),
+      });
+
+      // ── L8: two controls sharing a region ────────────────────────
+      //
+      // Findings 3, 7 and 8: the rail over the nav bar, Decorate over the
+      // audio orb, the rail's Welcome over the corridor's. A child aiming
+      // at one gets the other and has no model for why — pressing the
+      // right half of Decorate turned the music off.
+      //
+      // Containment is not the same defect and is not scored: a button
+      // sitting inside a tappable card is how cards work. Partial overlap
+      // is the ambiguous case, and it is the one reported.
+      const allPairs = overlappingControls(controls);
+      const overlaps = allPairs.filter((o) => o.kind === 'partial').map((o) => ({
+        a: `${o.a.label} ${at(o.a)}`, b: `${o.b.label} ${at(o.b)}`,
+        share: Math.round(o.share * 100), rect: '',
+      }));
+      // Stacked pairs are reported and not scored: one control entirely
+      // inside another is sometimes a card carrying a button and
+      // sometimes a Back button that landed on one, and nothing here can
+      // tell them apart. Draw order decides which gets the tap either way.
+      const stacked = allPairs.filter((o) => o.kind === 'stacked');
+      findings.push({
+        id: 'L8',
+        rule: 'controls do not overlap',
+        verdict: overlaps.length === 0 ? 'PASS' : overlaps.length <= 2 ? 'WARN' : 'FAIL',
+        detail: (overlaps.length === 0
+          ? 'no overlapping pairs'
+          : `${overlaps.length} pairs — ` +
+            overlaps.slice(0, 3).map((o) => `${o.a} x ${o.b} (${o.share}%)`).join('; '))
+          + (stacked.length > 0
+            ? ` [${stacked.length} stacked, draw order decides: ${stacked.slice(0, 2).map((o) => `${o.a.label} ${at(o.a)} over ${o.b.label} ${at(o.b)}`).join('; ')}]`
+            : ''),
+      });
+
+      // ── L9: a control printed across text it does not own ────────
+      //
+      // A label inside its own button is contained by it, so it scores
+      // nothing here. What does score: text that a control covers only
+      // part of. That is either the rail card's second story line printed
+      // under its own Welcome button, or a label wider than the button
+      // that grew to hold it — createButton adds 28px of padding a side
+      // and silently widens past the width it was asked for.
+      const coveredText = textCutByControls(
+        texts.map((t) => ({ ...t, label: t.text.slice(0, 30) })), controls,
+      ).map((o) => ({
+        text: o.text.label, by: `${o.by.label} ${at(o.by)}`,
+        share: Math.round(o.share * 100), rect: at(o.text),
+      }));
+      findings.push({
+        id: 'L9',
+        rule: 'text not cut by a control',
+        verdict: coveredText.length === 0 ? 'PASS' : coveredText.length <= 2 ? 'WARN' : 'FAIL',
+        detail: coveredText.length === 0
+          ? `${texts.length} text runs clear`
+          : `${coveredText.length} — ` +
+            coveredText.slice(0, 3).map((o) => `"${o.text}" ${o.share}% under ${o.by}`).join('; '),
+      });
+
       // ── L6: interactive count ────────────────────────────────────
       findings.push({
         id: 'L6',
@@ -428,8 +718,18 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         detail: `${boxes.length} interactive${offScreen > 0 ? ` (+${offScreen} parked off-screen)` : ''}`,
       });
 
+      // A state that failed to open is not a passing state. Say so loudly
+      // rather than reporting the corridor's numbers under the card's name.
+      if (stateResult !== state) {
+        findings.push({
+          id: 'S0', rule: 'state opened', verdict: 'FAIL',
+          detail: `asked for "${state}", got "${stateResult}" — the numbers below are of whatever was on screen`,
+        });
+      }
+
       reports.push({
         scene,
+        state,
         viewport: vp.name,
         interactiveCount: boxes.length,
         textCount: texts.length,
@@ -446,30 +746,52 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
           smallText: texts
             .filter((t) => t.size < 14)
             .map((t) => ({ text: t.text, size: t.size, source: t.source })),
+          offCentre: broken.map((b) => ({
+            label: b.label,
+            cx: Math.round(b.x + b.w / 2), cy: Math.round(b.y + b.h / 2),
+            w: Math.round(b.w), h: Math.round(b.h),
+          })),
+          overlaps,
+          coveredText,
         },
       });
+
+      // Put the scene back before the next state, so an overlay left
+      // mounted is not measured as part of the one after it.
+      if (state !== 'default') {
+        await page.evaluate(() => {
+          /* eslint-disable @typescript-eslint/no-explicit-any */
+          const g = (window as any).__PHASER_GAME__;
+          const gs = g?.scene.scenes.find((s: any) => s.sys.settings.key === 'GameScene');
+          try { gs?.closePopup?.(); } catch { /* not open */ }
+          for (const f of Array.from(document.querySelectorAll('iframe'))) f.remove();
+        });
+        await page.waitForTimeout(300);
+      }
+      }
     }
   }
 
   fs.writeFileSync(path.join(OUT, 'ux-report.json'), JSON.stringify(reports, null, 2));
 
   // ── Report ─────────────────────────────────────────────────────
+  const named = (r: SceneReport) => (r.state === 'default' ? r.scene : `${r.scene}/${r.state}`);
   const fails = reports.flatMap((r) =>
-    r.findings.filter((f) => f.verdict === 'FAIL').map((f) => ({ ...f, scene: r.scene, viewport: r.viewport })),
+    r.findings.filter((f) => f.verdict === 'FAIL').map((f) => ({ ...f, scene: named(r), viewport: r.viewport })),
   );
   const warns = reports.flatMap((r) =>
-    r.findings.filter((f) => f.verdict === 'WARN').map((f) => ({ ...f, scene: r.scene, viewport: r.viewport })),
+    r.findings.filter((f) => f.verdict === 'WARN').map((f) => ({ ...f, scene: named(r), viewport: r.viewport })),
   );
 
   const pad = (s: string, n: number) => s.padEnd(n);
   console.log(`\n${'='.repeat(88)}\nFAIL (${fails.length})\n${'='.repeat(88)}`);
   for (const f of fails) {
-    console.log(`${pad(f.scene, 22)} ${pad(f.viewport, 8)} ${pad(f.id, 7)} ${pad(f.rule, 26)} ${f.detail}`);
+    console.log(`${pad(f.scene, 28)} ${pad(f.viewport, 8)} ${pad(f.id, 7)} ${pad(f.rule, 26)} ${f.detail}`);
   }
 
   console.log(`\n${'='.repeat(88)}\nWARN (${warns.length})\n${'='.repeat(88)}`);
   for (const f of warns) {
-    console.log(`${pad(f.scene, 22)} ${pad(f.viewport, 8)} ${pad(f.id, 7)} ${pad(f.rule, 26)} ${f.detail}`);
+    console.log(`${pad(f.scene, 28)} ${pad(f.viewport, 8)} ${pad(f.id, 7)} ${pad(f.rule, 26)} ${f.detail}`);
   }
 
   // Which rules fail most often — that is the fix order.
