@@ -369,6 +369,28 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
          * friends are sticky by design (review phase 0), so they sit over
          * the scrolling list on purpose and are not a collision.
          */
+        /**
+         * Actually rendered, ancestors included.
+         *
+         * `getComputedStyle(el).display` is the element's *own* display: a
+         * button inside a `display: none` parent still reports
+         * `inline-block`. Every admin mock page carries a design-preview
+         * bar — "📱 iPhone (390×844)", "🖥 Desktop (1280×800)" — which the
+         * page hides in-game with `body.embed .vp-bar { display: none }`,
+         * so checking the button itself let all of it through at 11px and
+         * buried the real font-size findings under 54 of these. The box
+         * branch escaped it only because a hidden element has a zero rect
+         * and boxes were already gated on that.
+         */
+        const rendered = (el: Element) => {
+          const anyEl = el as Element & { checkVisibility?: (o?: unknown) => boolean };
+          if (typeof anyEl.checkVisibility === 'function') {
+            return anyEl.checkVisibility({ contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true });
+          }
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        };
+
         const domPath = (el: Element) => {
           const parts: number[] = [];
           let node: Element | null = el;
@@ -397,9 +419,8 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         for (const { doc, ox, oy, full } of docs) {
           if (overlayCovers && !full) continue;
           for (const el of Array.from(doc.querySelectorAll('button, [role="button"], a[href], input, select'))) {
+            if (!rendered(el)) continue;
             const r = el.getBoundingClientRect();
-            const cs = getComputedStyle(el);
-            if (cs.display === 'none' || cs.visibility === 'hidden') continue;
             if (r.width > 0 && r.height > 0) {
               boxes.push({
                 w: r.width, h: r.height, x: r.x + ox, y: r.y + oy, source: 'dom', layer: 9998,
@@ -409,12 +430,13 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
             }
           }
           for (const el of Array.from(doc.querySelectorAll('p, span, label, h1, h2, h3, button, li'))) {
+            if (!rendered(el)) continue;
             const cs = getComputedStyle(el);
             const size = parseFloat(cs.fontSize);
             const content = (el.textContent ?? '').trim();
-            if (cs.display === 'none' || cs.visibility === 'hidden') continue;
             const r = el.getBoundingClientRect();
-            if (size > 0 && content.length > 0 && el.children.length === 0) {
+            if (size > 0 && content.length > 0 && el.children.length === 0
+                && r.width > 0 && r.height > 0) {
               texts.push({
                 size, family: cs.fontFamily, text: content.slice(0, 60),
                 resolution: 1, source: 'dom', label: content.slice(0, 32), layer: 9998,
