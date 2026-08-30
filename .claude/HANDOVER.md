@@ -6,10 +6,10 @@ works for 7–10 year olds. Current arc: make it usable on a phone, working
 through `docs/ux-review-2026-08-29.md`.
 
 ## State
-Branch `nav-icon-set`, two commits ahead of `main`, not yet merged. Typecheck
-clean, lint 0 errors, 1120 tests pass. e2e 5/5, `visual.spec.ts` green on a
-re-baselined main menu. Harness at **16 FAIL / 91 WARN** across 42
-scene/viewport combinations, down from 27 FAIL — F10 clean, F1-F5 now clean.
+Clean tree on `main`, six commits today, not pushed (37+ ahead of origin).
+Typecheck clean, lint 0 errors, 1120 tests pass. e2e 6/6, `visual.spec.ts`
+green. Harness at **2 FAIL / 95 WARN** across 42 scene/viewport combinations,
+down from 27 FAIL.
 
 **Verified.** Review phases 0–3 and 5 are closed. The sprite contract was
 measured against HEAD in Chrome at three viewports, across the room, corridor,
@@ -74,13 +74,17 @@ because `seedFakeSession` writes a token Supabase rejects. See
   42, not 68). Judge any future badge at 38px.
 
 ## Next step
-Item 14's **reading-age half** — the part deliberately left for Marcus's voice.
-The mechanical half is done (all 30 `offenders.smallText` cleared, F1-F5 at
-0 FAIL), and no wording was touched.
+Two things are left, and **both want Marcus, not a mechanical pass**:
 
-After that, the harness's remaining fix order is `L3 safe margin from edges`
-(8), `T4 spacing between targets` (4), `T1-T3 touch target size` (2) and
-`L6 interactive elements on screen` (2) — 16 FAIL total, down from 27.
+1. **Item 14's reading-age half** — deliberately reserved for his voice. No
+   wording has been touched.
+2. **L6 on AccountScene** — the only failing rule left, on tablet and desktop.
+   21 interactive elements against a limit of 12 (PASS is 8). Fixing it means
+   deciding what to cut, group or paginate on the stats/badges screen. That is
+   an information-architecture call, not a threshold to nudge.
+
+Everything else in the review's fix order is closed: F1-F5, L3, T4 and T1-T3
+are all at 0 FAIL.
 
 ## Traps
 - **Bash `cd` persists between calls** — cost two Playwright runs today. Use
@@ -90,3 +94,20 @@ After that, the harness's remaining fix order is `L3 safe margin from edges`
   whether a check still catches anything.
 - **`e2e/__ux__/*.png` can show a scene other than its filename.** Trust
   `ux-report.json`.
+- **T4 mismeasures any wide control under a rotated ancestor.**
+  `getBoundingClientRect` returns the axis-aligned box of a rotated element, so
+  arrival's pills — 300x48 under `.arrival-plaque`'s 0.8 degree tilt — report
+  52.2px tall and eat 4.2px out of the gap either side. A real 12px gap read as
+  7.8px. Verified live: `cssRowGap` 12px, `layoutGap` 12, `offsetHeight` 48,
+  `rectHeight` 52.2. Do not add whitespace to satisfy it; the fix belongs in
+  the harness. The number also moves with the card's content, because a
+  narrower pill loses less to the tilt.
+- **The in-game overlay screens are mounted in IFRAMES** (`arrival.html?embed=1`
+  and friends), each sized to the viewport and untransformed. Querying the
+  top-level document for `.choice-pill` or any overlay class finds nothing —
+  go through `iframe.contentDocument`.
+- **`_short-landscape.css` is not all short-landscape.** Its first section
+  (the sticky rules pinning `.wave-wrap` / `.release-wrap` / `.secondary-row` /
+  `.footer-row`) sits OUTSIDE the `@container (max-height: 520px)` block on
+  purpose, so it applies at every viewport. A change there is not a phone-only
+  change.
