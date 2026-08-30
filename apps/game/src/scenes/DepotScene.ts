@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
 import { AudioManager } from '../audio/AudioManager';
 import {
@@ -151,8 +151,36 @@ export class DepotScene extends Phaser.Scene {
       }).setOrigin(0.5)
     );
 
-    const cardW = Math.min(width - 80, 500);
-    const cardX = (width - cardW) / 2;
+    // Four cards of 85 at a 105 pitch from y=140 need 500px of height.
+    // A landscape phone has 375, so the third card hung 17px off the
+    // bottom, under the Back button, and the fourth was off the screen
+    // entirely once medical supplies unlocks at level 15. Found by the
+    // pairwise pass in e2e/ux-review.spec.ts (L7), not by a person.
+    //
+    // The band runs from under the subtitle to above the Back button.
+    // Landscape has width to spare and no height to spare, so when four
+    // rows will not fit they go in two columns of two — the same trade
+    // the kitchen makes for its three stacked buttons.
+    const bandTop = 105;
+    const bandBottom = bottomAnchorY(height) - MIN_TAP / 2 - 12;
+    const cardH = 85;
+    const rowsFit = Math.floor((bandBottom - bandTop + 20) / (cardH + 20));
+    const cols = rowsFit >= 4 ? 1 : 2;
+    const rows = Math.ceil(4 / cols);
+    const colGap = 16;
+    const cardW = cols === 1
+      ? Math.min(width - 80, 500)
+      : Math.min((width - 80 - colGap) / 2, 400);
+    const gridW = cardW * cols + colGap * (cols - 1);
+    const gridX = (width - gridW) / 2;
+    // Anchored under the subtitle rather than centred in the band, so a
+    // tall screen keeps the layout it had; the pitch closes up only as
+    // far as it must to land the last row above the Back button. On a
+    // landscape phone that is a 12px gap between two rows of two.
+    const topGap = 12;
+    const availH = bandBottom - bandTop - topGap;
+    const rowPitch = rows > 1 ? Math.min(105, (availH - cardH) / (rows - 1)) : 0;
+    const firstCy = bandTop + topGap + cardH / 2;
 
     // Subtle gear/cog pattern background
     const bgPattern = this.add.graphics();
@@ -179,17 +207,21 @@ export class DepotScene extends Phaser.Scene {
     ];
 
     modes.forEach((m, i) => {
-      const y = 140 + i * 105;
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const cardX = gridX + col * (cardW + colGap);
+      const cx = cardX + cardW / 2;
+      const y = firstCy + row * rowPitch;
       const unlocked = canAccessMode(m.mode, this.playerLevel);
       const alpha = unlocked ? 1 : 0.4;
 
       // Card background
       const card = this.add.graphics();
       card.fillStyle(0xffffff, 0.18);
-      card.fillRoundedRect(cardX, y - 35, cardW, 85, 14);
+      card.fillRoundedRect(cardX, y - cardH / 2, cardW, cardH, 14);
       if (unlocked) {
         card.lineStyle(2, DEPOT_COLOURS.accent, 0.6);
-        card.strokeRoundedRect(cardX, y - 35, cardW, 85, 14);
+        card.strokeRoundedRect(cardX, y - cardH / 2, cardW, cardH, 14);
       }
       card.setAlpha(alpha);
       this.container.add(card);
@@ -217,7 +249,7 @@ export class DepotScene extends Phaser.Scene {
 
       if (unlocked) {
         // Invisible hit area over the card
-        const hitArea = this.add.rectangle(width / 2, y, cardW, 85, 0xffffff, 0)
+        const hitArea = this.add.rectangle(cx, y, cardW, cardH, 0xffffff, 0)
           .setInteractive({ useHandCursor: true });
         hitArea.on('pointerover', () => card.setAlpha(1));
         hitArea.on('pointerout', () => card.setAlpha(alpha));
