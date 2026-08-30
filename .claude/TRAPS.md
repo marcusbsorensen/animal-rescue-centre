@@ -126,6 +126,19 @@ checking the claim still holds.
   for the bar's geometry and the band is computed from it. Do not
   hard-code a bar height in NavBarView again — they used to be
   independent and that is the pair that drifts.
+- **`createButton` grows past the `width` you ask for.** It sizes to
+  `max(text.width + icon + 56, options.width)` — 28px of padding each
+  side — so a label wider than `width - 56` silently widens the button.
+  That is invisible in a centred row and an overlap in a fixed-cell
+  grid: the animal card's More face gives each action a 168px cell, and
+  `Vet (Sniffly Nose)` with an icon wanted 196. Keep grid labels short,
+  put variable-length data in the caption instead of the label, and read
+  the drawn width off the display list rather than trusting the number
+  you passed.
+- **The animal card is not in `gameContainer`.** It has its own
+  container at depth 800, created by `GameScene.animalCard()` and taken
+  down by `closePopup` *and* `clearView`. Removing the `clearView` call
+  would leave a card floating over a view it no longer describes.
 - **`createAnimalSprite` renders at 2x the box it is handed**
   (`SPRITE_RENDER_SCALE` in `ui/layout.ts`, used by `ui/sprites.ts`), and
   an anchor's own `scale` multiplies that again. So RoomView asking for
