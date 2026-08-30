@@ -286,3 +286,14 @@ checking the claim still holds.
   `apps/game/apps/game/src` and silently stashed nothing, and a batch of
   `ls` checks that read the wrong tree and looked like a broken install.
   Use absolute paths in anything whose correctness you will act on.
+- **`manus_download_output` pulls a task's INPUT attachments alongside its
+  outputs, into the same directory.** Reference images uploaded with the brief
+  come back down with the renders, and any that share a filename collide —
+  last write wins, which is ordering luck, not a guarantee. The 2026-08-30 nav
+  icon commission downloaded three files called `nav-home.png` to one path:
+  the uploaded reference, v1 and v2. **Verify by dimension or file size, never
+  by filename.** Renders were 1024x1024 / ~1MB; references 256x256 / ~85KB.
+- **Unquoted URLs containing a query string are glob-expanded by zsh**, so the
+  command dies before the request runs and the failure surfaces downstream as
+  a JSON decode error that looks like an API fault. Quote the URL, or put it in
+  a variable and quote that.

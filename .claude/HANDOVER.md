@@ -21,6 +21,16 @@ animal card on a device — handlers were fired through Phaser's emitter, not re
 touch. `visual.spec.ts` is one screenshot of one screen and covers none of what
 moved.
 
+**Review item 13 (nav icons) is closed.** All five badges were commissioned
+from Manus and installed: `nav-home` (A.R.C. building, the cottage is retired),
+`nav-care` (food bowl), `nav-social` (gift), `nav-play` (paw, now in the badge)
+and the new `fab-supplies` (crate), which replaces `fab-arc`'s lettered plaque.
+Display-list inspection in Chrome confirms all five draw in `GameScene`. **The
+finished bar has never been seen unoccluded** — entering `GameScene` in a test
+raises an arrival card, and dismissing it triggers an in-canvas re-auth panel,
+because `seedFakeSession` writes a token Supabase rejects. See
+`docs/nav-icon-commission-log-2026-08-30.md`.
+
 ## Files
 - `.claude/TRAPS.md` — read first.
 - `apps/game/src/ui/sprites.ts` — the size contract, stated at the top.
@@ -28,7 +38,11 @@ moved.
   `__tests__/ux-geometry.test.ts` holds the review's own geometry.
 - `apps/game/e2e/ux-review.spec.ts` — the harness. Needs
   `ARC_BROWSER_CHANNEL=chrome`; writes `e2e/__ux__/ux-report.json`.
-- `docs/nav-icon-brief-2026-08-30.md` — icon commission, **not sent**.
+- `docs/nav-icon-brief-2026-08-30.md` — icon commission. **Sent, delivered,
+  installed**; outcome in `docs/nav-icon-commission-log-2026-08-30.md`.
+- `tools/badge-postprocess.py` — cuts a Manus render down to the set's badge
+  geometry (238px disc, 9px margin, clean alpha). Handles alpha, magenta or an
+  opaque field.
 
 ## Decisions made
 - **The box you ask for is the box that gets drawn.** The 2x multiplier and
@@ -46,8 +60,17 @@ moved.
   rectangle and its label siblings.
 - **Text resolution is set once per scene** (`ui/retina-text.ts`), not per style.
   Five scenes have it; the rest are one line each.
-- **The icon commission belongs to OpenAI, not Manus** — `manus-sprite-rules.md`
-  Rule 6, because every piece must match an existing set.
+- **The icon commission went to Manus after all**, on Marcus's instruction,
+  overriding `manus-sprite-rules.md` Rule 6. Rule 6's stated failure mode is
+  Manus proceeding from the text when it cannot fetch references, so the
+  references were **uploaded as attachments** rather than passed as URLs, and
+  the brief opened with a STOP check demanding a description of each one first.
+  Manus described details absent from the brief, so it was genuinely looking.
+  **Rule 6 stands** — but for a set-match with uploaded references and a STOP
+  check, Manus cleared it. The one failure was a judgement call, not drift: a
+  faithful, detailed building that did not survive being shrunk to a thumbnail.
+- **Icons are drawn at 38-42px, not the 46-54px the brief assumed** (the FAB is
+  42, not 68). Judge any future badge at 38px.
 
 ## Next step
 Review item 14, mechanical half only: raise the `clamp()` floors in

@@ -47,22 +47,19 @@ export function renderNavBar(
   const homeKey = scene.textures.exists('nav-home') ? 'nav-home' : 'icon-home';
   const careKey = scene.textures.exists('nav-care') ? 'nav-care' : 'icon-kitchen';
   const socialKey = scene.textures.exists('nav-social') ? 'nav-social' : 'icon-social';
-  // 'nav-walk' has never existed on disk, so this fell through to
-  // icon-walk: a pale grey paw-print at 128px filling ~40% of its canvas,
-  // drawn at 46px on a near-white bar. Next to three saturated 256px
-  // painterly badges it read as disabled rather than as a button.
-  // signs/nav-play.png is 256px, is from that same painterly set, and was
-  // referenced by nothing — the file that was made, unused, while the tab
-  // looked for a filename that was never made.
+  // 'nav-walk' has never existed on disk, and still doesn't. Keep reading
+  // 'nav-play' first: signs/nav-play.png is the file that exists, and adding
+  // a nav-walk.png would be dead art — the file made, unused, while the tab
+  // looked for a filename that was never made. Overwrite nav-play.png.
   const walkKey = scene.textures.exists('nav-play')
     ? 'nav-play'
     : (scene.textures.exists('nav-walk')
         ? 'nav-walk'
         : (scene.textures.exists('icon-walk') ? 'icon-walk' : 'icon-games'));
-  // Same story: 'fab-supplies' does not exist, so the most prominent control
-  // on the screen fell back to a flat brown truck on transparency, the only
-  // element on the bar drawn in a different style from everything round it.
-  // fab-arc is the painterly badge that belongs with the rest.
+  // 'fab-supplies' now exists — an open crate, commissioned 2026-08-30 with
+  // the rest of the set, replacing fab-arc's lettered wooden plaque. The
+  // plaque was the only control on the bar carrying words, which a
+  // pre-reader gets nothing from. fab-arc stays on disk as the fallback.
   const fabKey = scene.textures.exists('fab-supplies')
     ? 'fab-supplies'
     : (scene.textures.exists('fab-arc')
