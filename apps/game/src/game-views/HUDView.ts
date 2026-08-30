@@ -303,15 +303,17 @@ function drawTimeWeatherStrip(
     }
     container.add(bar);
 
-    // Hit target — tap to see phase tooltip (future)
-    const hit = scene.add.rectangle(x0 + pillW / 2, cy, pillW, pillH, 0x000000, 0)
-      .setInteractive({ useHandCursor: true });
-    hit.on('pointerdown', () => {
-      // Placeholder: log the remaining-task count. A proper tooltip comes later.
-      const remaining = Math.max(0, tasksPerPhase - tasksThisPhase);
-      console.log(`[HUD] ${remaining} more tasks until ${nextPhaseLabel(currentPhase)}`);
-    });
-    container.add(hit);
+    // No hit target on the phase pill. There was one — 160x28, invisible,
+    // whose handler console.logged the remaining task count and did nothing a
+    // player could see. It was the only control in GameScene under the 48px
+    // touch floor (review T1-T3, failing on tablet and desktop), and the fix
+    // is not to grow it: a 160x48 invisible rectangle that swallows a tap and
+    // answers with nothing teaches a seven-year-old that the screen is
+    // unreliable. When the phase tooltip is actually built, give it a visible
+    // affordance and 48px of height. Its wording wants
+    // `tasksPerPhase - tasksThisPhase` and the next phase's name — the cycle
+    // is morning, afternoon, evening, night, back to morning, and
+    // PHASE_LABELS has the display strings.
   }
 
   // Weather pill (right of centre)
@@ -363,12 +365,6 @@ function drawTimeWeatherStrip(
       }).setOrigin(0, 0.5),
     );
   }
-}
-
-function nextPhaseLabel(phase: TimeOfDay): string {
-  const order: TimeOfDay[] = ['morning', 'afternoon', 'evening', 'night'];
-  const i = order.indexOf(phase);
-  return PHASE_LABELS[order[(i + 1) % 4]];
 }
 
 // ── Helpers ────────────────────────────────────────────────
