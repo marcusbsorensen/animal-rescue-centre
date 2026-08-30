@@ -8,8 +8,8 @@ through `docs/ux-review-2026-08-29.md`.
 ## State
 Clean tree on `main`, six commits today, not pushed (37+ ahead of origin).
 Typecheck clean, lint 0 errors, 1120 tests pass. e2e 6/6, `visual.spec.ts`
-green. Harness at **2-3 FAIL / 95 WARN** across 42 scene/viewport combinations, down
-from 27 FAIL. The wobble is arrival's T4 (see Traps), not a real regression.
+green. Harness at **2 FAIL / 94 WARN** across 42 scene/viewport combinations, down
+from 27 FAIL. 1127 tests (T4's geometry gained 7).
 
 **Verified.** Review phases 0–3 and 5 are closed. The sprite contract was
 measured against HEAD in Chrome at three viewports, across the room, corridor,
@@ -81,18 +81,12 @@ because `seedFakeSession` writes a token Supabase rejects. See
   42, not 68). Judge any future badge at 38px.
 
 ## Next step
-**L6 on AccountScene** — the only substantive rule still failing, on tablet
-and desktop. 21 interactive elements against a limit of 12 (PASS is 8).
-Fixing it means deciding what to cut, group or paginate on the stats/badges
-screen: an information-architecture call, not a threshold to nudge.
+**L6 on AccountScene**, tablet and desktop — the only rule still failing. 21
+interactive elements against a limit of 12 (PASS is 8). Fixing it means
+deciding what to cut, group or paginate on the stats/badges screen: an
+information-architecture call, not a threshold to nudge.
 
-Worth doing alongside it: **fix T4's rotation blindness in the harness**
-(see Traps). It is the difference between a rule that measures separation and
-one that measures bounding boxes, and right now arrival flips between WARN and
-FAIL run to run purely on how wide the animal's name makes the pills.
-
-Item 14 is closed, both halves. Item 15 is closed. F1-F5, L3 and T1-T3 are all
-at 0 FAIL.
+Every other rule is at 0 FAIL. Items 13, 14 and 15 are closed.
 
 ## Traps
 - **Bash `cd` persists between calls** — cost two Playwright runs today. Use
@@ -102,14 +96,17 @@ at 0 FAIL.
   whether a check still catches anything.
 - **`e2e/__ux__/*.png` can show a scene other than its filename.** Trust
   `ux-report.json`.
-- **T4 mismeasures any wide control under a rotated ancestor.**
-  `getBoundingClientRect` returns the axis-aligned box of a rotated element, so
-  arrival's pills — 300x48 under `.arrival-plaque`'s 0.8 degree tilt — report
-  52.2px tall and eat 4.2px out of the gap either side. A real 12px gap read as
-  7.8px. Verified live: `cssRowGap` 12px, `layoutGap` 12, `offsetHeight` 48,
-  `rectHeight` 52.2. Do not add whitespace to satisfy it; the fix belongs in
-  the harness. The number also moves with the card's content, because a
-  narrower pill loses less to the tilt.
+- **Bounding boxes are not shapes, and T4 used to confuse them.** Fixed in
+  25884e7: `gapBetween` measures between the controls themselves. The lesson
+  generalises to any new check — `getBoundingClientRect` on a rotated element
+  returns the box AROUND it, and this codebase tilts things on purpose
+  (`.arrival-plaque` 0.8 degrees, the PLAY! button). The old rule also *skipped*
+  pairs whose boxes overlapped, so a rotated control whose box swallowed its
+  neighbour was exempt from the check — that is how PLAY! sat 3px from "I
+  already have an account" on the main menu while T4 reported 16px and PASS.
+  `getBoxQuads` is not implemented in the Chrome the harness runs; the corners
+  come from the AABB centre plus the accumulated 2x2 linear part applied to
+  `offsetWidth/offsetHeight`.
 - **The in-game overlay screens are mounted in IFRAMES** (`arrival.html?embed=1`
   and friends), each sized to the viewport and untransformed. Querying the
   top-level document for `.choice-pill` or any overlay class finds nothing —
