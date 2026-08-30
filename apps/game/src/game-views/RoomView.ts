@@ -43,7 +43,7 @@ export interface RoomCallbacks {
     baseW: number, baseH: number,
   ) => ResolvedAnchor | null;
   /** Tap an animal sprite — opens its details popup. */
-  onShowAnimalDetails: (animal: Animal, anchor: { x: number; y: number; size: number }) => void;
+  onShowAnimalDetails: (animal: Animal) => void;
   /** Tap the "Decorate" button — scene opens DecoratePanel. */
   onEnterDecorateMode: () => void;
   /** Draw the nav bar with Back. */
@@ -145,12 +145,13 @@ export function renderRoom(
     const floorY = play.y + play.h * 0.55;
 
     roomAnimals.forEach((animal, i) => {
-      // Sprites render at SPRITE_RENDER_SCALE times the box asked for, so
-      // this 100 came out 200 tall. Measured on a 325px screen the two cats
-      // in the Cat Room were 256 and 288px, with their name pills at y358
-      // and y370 — off the bottom of a 325px screen entirely. The cap is
-      // far above the base size on an iPad, so nothing there moves.
-      const baseSize = animalBoxFor(play, animal.state === 'pet' ? 120 : 100);
+      // 200/240 is the drawn size, not half of it — the box handed to
+      // createAnimalSprite is the box it draws in. Measured on a 325px
+      // screen the two cats in the Cat Room were 256 and 288px, with their
+      // name pills at y358 and y370 — off the bottom of the screen
+      // entirely. The cap is far above the base on an iPad, so nothing
+      // there moves.
+      const baseSize = animalBoxFor(play, animal.state === 'pet' ? 240 : 200);
       const visualState = callbacks.deriveAnchorState(animal);
       const anchor = anchors.pick(roomKey, animal.species, visualState, i);
       const placed = callbacks.resolveAnchor(anchor, bgTopY, bgW, bgH, baseSize, baseSize * 0.8);
@@ -172,20 +173,20 @@ export function renderRoom(
         (sprite as Phaser.GameObjects.Image).setFlipX(true);
       }
 
-      // Decorations must be placed from what was actually drawn, not from the
-      // box we asked for: createAnimalSprite renders an image larger than the
-      // requested size, and a fallback rectangle at exactly the requested
-      // size. Using `size` here put the name pill 16px inside the animal's
-      // feet and all three status chips across its chest.
+      // Decorations must be placed from what was actually drawn, not from
+      // the box we asked for. The two agree far more often now the render
+      // scale is gone, but the art is square and this box is 5:4, so the
+      // animal is drawn narrower than `size` — using `size` here put the
+      // name pill 16px inside the animal's feet and all three status chips
+      // across its chest.
       const halfW = sprite.displayWidth / 2;
       const halfH = sprite.displayHeight / 2;
 
       // Pull the animal — and with it every label below, which is placed
-      // off `y` — back inside the band. resolveAnchor puts the *requested*
-      // box's feet on the anchor, but the sprite renders twice that size,
-      // so its real lower edge hangs half a box below the mark; on a short
-      // viewport that is enough to put the name pill under the nav bar
-      // even after the anchors resolve into the band.
+      // off `y` — back inside the band. resolveAnchor now puts the drawn
+      // box's feet on the anchor mark, but a third of the hand-authored
+      // anchors resolve below the band on every device including an iPad,
+      // so the clamp is still the guarantee and the anchor file is not.
       const clampedY = clampAnimalIntoBand(y, halfH, play);
       if (clampedY !== y) {
         y = clampedY;
@@ -295,7 +296,7 @@ export function renderRoom(
       }
 
       sprite.on('pointerdown', () =>
-        callbacks.onShowAnimalDetails(animal, { x, y, size }),
+        callbacks.onShowAnimalDetails(animal),
       );
       container.add(sprite);
     });

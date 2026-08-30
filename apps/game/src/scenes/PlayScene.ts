@@ -356,11 +356,16 @@ export class PlayScene extends Phaser.Scene {
     this.container.add(hint);
   }
 
-  private spawnSprite(width: number, height: number, scaleFactor = 0.55): AnimalSprite {
+  private spawnSprite(width: number, height: number, scaleFactor = 1.1): AnimalSprite {
     const cx = width / 2;
     const cy = height / 2 + 40;
-    const spriteW = Math.min(360, width * scaleFactor);
-    const spriteH = Math.min(320, height * scaleFactor);
+    // 720/640 and a factor above 1 look wrong until you know the sprite is
+    // fitted inside this box and the box is a fraction of the screen: on a
+    // 812x375 phone the height branch binds at 412, which is already more
+    // than the screen is tall. Sizing this scene against the play band is
+    // its own piece of work — this is the size it has always drawn at.
+    const spriteW = Math.min(720, width * scaleFactor);
+    const spriteH = Math.min(640, height * scaleFactor);
     const sprite = createAnimalSprite(this, cx, cy, this.animal, {
       width: spriteW,
       height: spriteH,
@@ -433,8 +438,8 @@ export class PlayScene extends Phaser.Scene {
 
     const dogCX = width / 2;
     const dogCY = height / 2 + 40;
-    const spriteW = Math.min(360, width * 0.55);
-    const spriteH = Math.min(320, height * 0.55);
+    const spriteW = Math.min(720, width * 1.1);
+    const spriteH = Math.min(640, height * 1.1);
     const sprite = createAnimalSprite(this, dogCX, dogCY, this.animal, {
       width: spriteW,
       height: spriteH,
@@ -442,7 +447,12 @@ export class PlayScene extends Phaser.Scene {
     });
     this.container.add(sprite);
     this.animalSprite = sprite;
-    this.dogTarget = { x: dogCX, y: dogCY - spriteH * 0.1 };
+    // Where the thrown ball lands — a little above the dog's centre, so it
+    // reads as caught rather than dropped. Off the drawn height, which is
+    // the smaller of the two box dimensions fitted to square art, not off
+    // `spriteH`: those were the same number until the box stopped meaning
+    // half the sprite, and this offset is the size it has always been.
+    this.dogTarget = { x: dogCX, y: dogCY - sprite.displayHeight * 0.05 };
 
     this.tweens.add({
       targets: sprite,
@@ -1299,7 +1309,7 @@ export class PlayScene extends Phaser.Scene {
 
   private renderPlaceholder(width: number, height: number): void {
     this.renderHud(width, '🎾 Playtime!');
-    this.spawnSprite(width, height, 0.5);
+    this.spawnSprite(width, height, 1.0);
     this.container.add(
       this.add.text(width / 2, 100, 'Coming soon!', {
         fontSize: '32px',

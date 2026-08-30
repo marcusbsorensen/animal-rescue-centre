@@ -129,24 +129,19 @@ export function renderConflictPopup(
     // there is, capped so they stay a pair rather than a mural.
     const drawH = Math.min(220, bandH - 16);
     const drawW = drawH * 1.25;
-    // createAnimalSprite doubles the fit scale, so an image renders at
-    // twice the box it is handed (ui/sprites.ts). Halving the box here is
-    // what makes drawH the size on screen rather than half of it. When
-    // that multiplier goes, this halving goes with it.
-    const boxW = drawW / 2, boxH = drawH / 2;
     const spriteRowY = bandTop + bandH / 2;
     const spread = drawW * 0.6;
     if (animal1) {
       container.add(
         createAnimalSprite(scene, cx - spread, spriteRowY, animal1, {
-          width: boxW, height: boxH, stateOverride: s1State,
+          width: drawW, height: drawH, stateOverride: s1State,
         }),
       );
     }
     if (animal2) {
       container.add(
         createAnimalSprite(scene, cx + spread, spriteRowY, animal2, {
-          width: boxW, height: boxH, stateOverride: s2State,
+          width: drawW, height: drawH, stateOverride: s2State,
         }),
       );
     }

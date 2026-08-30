@@ -5,7 +5,7 @@ import {
   playAreaFor, railBoundsFor, railReservedWidth,
   navHeightFor, navBarMetrics, anchorSpaceFor, animalBoxFor,
   viewportIsShort, clampAnimalIntoBand, RAIL_WIDTH, RAIL_TAB_WIDTH,
-  HUD_HEIGHT, ANIMAL_LABEL_HEIGHT, SPRITE_RENDER_SCALE,
+  HUD_HEIGHT, ANIMAL_LABEL_HEIGHT,
 } from '../../ui/layout';
 
 /**
@@ -180,17 +180,16 @@ describe('animals are sized and placed for the band they are in', () => {
   it('caps a room animal so it and its labels fit a landscape phone', () => {
     const [w, h] = WEB_CLIP;
     const play = playAreaFor(w, h);
-    const box = animalBoxFor(play, 100);
-    expect(box).toBeLessThan(100);
-    expect(box * SPRITE_RENDER_SCALE + ANIMAL_LABEL_HEIGHT)
-      .toBeLessThanOrEqual(play.h);
+    const box = animalBoxFor(play, 200);
+    expect(box).toBeLessThan(200);
+    expect(box + ANIMAL_LABEL_HEIGHT).toBeLessThanOrEqual(play.h);
   });
 
   it('does not shrink anything on an iPad', () => {
     const play = playAreaFor(1024, 768);
-    expect(animalBoxFor(play, 100)).toBe(100);
-    expect(animalBoxFor(play, 120)).toBe(120);
-    expect(animalBoxFor(play, 74, false)).toBe(74);
+    expect(animalBoxFor(play, 200)).toBe(200);
+    expect(animalBoxFor(play, 240)).toBe(240);
+    expect(animalBoxFor(play, 148, false)).toBe(148);
   });
 
   it.each([...DEVICES, ['web clip', ...WEB_CLIP] as [string, number, number]])(
@@ -206,11 +205,11 @@ describe('animals are sized and placed for the band they are in', () => {
 
       const play = playAreaFor(w, h);
       const space = anchorSpaceFor(play, h);
-      const box = animalBoxFor(play, 100);
-      // Mirrors RoomView: the anchor gives a feet position, the sprite
-      // renders SPRITE_RENDER_SCALE times the box around it, and the clamp
-      // pulls whatever still hangs below the band back up.
-      const halfH = (box * 0.8 * SPRITE_RENDER_SCALE) / 2;
+      const box = animalBoxFor(play, 200);
+      // Mirrors RoomView: the anchor gives a feet position, the sprite is
+      // drawn inside the box around it, and the clamp pulls whatever still
+      // hangs below the band back up.
+      const halfH = (box * 0.8) / 2;
       const below = ys.filter((frac) => {
         const feetY = space.top + frac * space.h;
         const y = clampAnimalIntoBand(feetY - halfH, halfH, play);
@@ -241,7 +240,7 @@ describe('animals are sized and placed for the band they are in', () => {
     // to survive the deepest anchor on the shortest viewport.
     const [w, h] = WEB_CLIP;
     const play = playAreaFor(w, h);
-    const halfH = (animalBoxFor(play, 100) * 0.8 * SPRITE_RENDER_SCALE) / 2;
+    const halfH = (animalBoxFor(play, 200) * 0.8) / 2;
     const y = clampAnimalIntoBand(play.y + play.h - halfH, halfH, play);
     expect(y - halfH).toBeGreaterThanOrEqual(play.y);
   });

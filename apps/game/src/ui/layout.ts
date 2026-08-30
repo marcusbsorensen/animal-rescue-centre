@@ -141,14 +141,14 @@ export function navBarMetrics(height: number): NavBarMetrics {
 }
 
 /**
- * How much larger a sprite renders than the box createAnimalSprite is
- * handed — see the `* 2` in ui/sprites.ts, which reads this.
- *
- * It lives here rather than there because it is a layout fact: a caller
- * sizing an animal to fit a band has to know it, and layout.ts is the
- * Phaser-free module the sizing helpers can be unit-tested in.
+ * NOTE: there was a `SPRITE_RENDER_SCALE = 2` here until 2026-08-30 —
+ * createAnimalSprite doubled the fit scale, so every caller had to halve
+ * the box it wanted and the sizing helpers below had to divide by it.
+ * The box a caller asks for is now the box that gets drawn, so the
+ * constant has nothing left to say. Do not reintroduce it: the reason
+ * decorations kept landing inside the animals was that the size a caller
+ * held and the size on screen were two different numbers.
  */
-export const SPRITE_RENDER_SCALE = 2;
 
 /**
  * Vertical room taken under an animal by its name pill and bond bar.
@@ -168,10 +168,10 @@ export const ANIMAL_LABEL_HEIGHT = 42;
  * fractions of the background art and the art runs behind the nav bar.
  * Sizing and the anchor space narrow the problem; this closes it.
  *
- * `halfH` must come from the sprite's rendered height, not the box it was
- * handed: createAnimalSprite renders at SPRITE_RENDER_SCALE times that box
- * and an anchor's own scale multiplies it again, so a clamp computed from
- * the requested size leaves the real lower edge inside the bar.
+ * `halfH` should still come from the sprite's rendered height rather than
+ * the box handed to it. The two now agree on the tall axis of a square
+ * source, but a caller that asks for a wide box gets an animal narrower
+ * than it, and an anchor's own `scale` multiplies the result again.
  *
  * Returns the adjusted centre y. Only ever moves an animal up, so on a
  * viewport with room to spare it returns `y` untouched.
@@ -295,15 +295,14 @@ export function anchorSpaceFor(area: PlayArea, height: number): { top: number; h
  * The box to hand createAnimalSprite so the animal *and* its labels fit
  * the play band.
  *
- * Sprites render at SPRITE_RENDER_SCALE times the box asked for, so
- * RoomView's 100px request came out 200px tall — on a 325px screen the
- * two cats measured 256 and 288px, running off the bottom edge with
- * their name pills and bond bars entirely below y=325. Capping the box
- * against the band is what stops that; on an iPad the cap is far above
- * the base size and nothing changes.
+ * `base` is the size the animal wants to be drawn at where there is room
+ * — the same units createAnimalSprite now takes. On a 325px screen the
+ * two cats in the Cat Room measured 256 and 288px, with their name pills
+ * and bond bars entirely below y=325; capping against the band is what
+ * stops that. On an iPad the cap is far above the base and nothing moves.
  */
 export function animalBoxFor(area: PlayArea, base: number, labelled = true): number {
   const labels = labelled ? ANIMAL_LABEL_HEIGHT : 0;
   const room = Math.max(0, area.h - labels);
-  return Math.min(base, room / SPRITE_RENDER_SCALE);
+  return Math.min(base, room);
 }

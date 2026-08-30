@@ -63,10 +63,7 @@ export interface GardenCallbacks {
     bgTopY: number, bgW: number, bgH: number,
     baseW: number, baseH: number,
   ) => ResolvedAnchor | null;
-  showAnimalDetails: (
-    animal: Animal,
-    pos: { x: number; y: number; size: number },
-  ) => void;
+  showAnimalDetails: (animal: Animal) => void;
   onUpgradeClaimed: (code: string) => void;
   renderNavBar: (opts: { showBack: boolean }) => void;
 }
@@ -293,9 +290,9 @@ function renderZone(
   // anchored to the grass is not drawn behind the nav bar.
   const gardenSpace = anchorSpaceFor(play, height);
   const bgTopY = gardenSpace.top, bgW = play.w, bgH = gardenSpace.h;
-  // Sprites render at SPRITE_RENDER_SCALE times the box asked for, so this
-  // 100 came out 200 tall against a 137px band on a landscape phone.
-  const gardenBox = animalBoxFor(play, 100);
+  // The drawn size, capped against the band — 200 is what this used to
+  // come out at from a 100 that read like the answer.
+  const gardenBox = animalBoxFor(play, 200);
 
   // Render pets first, then outsiders (so visitors sit "in front" visually).
   const ordered = [...pets, ...outsiders];
@@ -320,8 +317,8 @@ function renderZone(
     const cy = placed
       ? placed.cy
       : grassTop + Math.floor(i / cols) * 80 + (Math.random() * 20);
-    const spriteW = placed ? placed.w : 100;
-    const spriteH = placed ? placed.h : 80;
+    const spriteW = placed ? placed.w : 200;
+    const spriteH = placed ? placed.h : 160;
 
     // Collar ring only for pets (permanent residents). Outsiders get
     // a softer ring in a neutral colour to show they're visitors, not
@@ -435,7 +432,7 @@ function renderZone(
       });
     } else {
       sprite.on('pointerdown', () =>
-        callbacks.showAnimalDetails(animal, { x: cx, y: cy, size: spriteW }),
+        callbacks.showAnimalDetails(animal),
       );
     }
     container.add(sprite);
@@ -474,7 +471,7 @@ function renderZone(
       } as unknown as Animal;
 
       const sprite = createAnimalSprite(scene, cx, cy, fakeAnimal, {
-        width: 90, height: 72, interactive: true,
+        width: 180, height: 144, interactive: true,
         stateOverride: 'playing',
       });
 

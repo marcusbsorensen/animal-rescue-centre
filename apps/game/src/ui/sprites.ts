@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS } from '@arc/game-logic';
-import { SPRITE_RENDER_SCALE } from './layout';
 
 /**
  * Live view of GameScene's `store.sickAnimals`, registered once at scene
@@ -92,6 +91,20 @@ function getAnimalTextureKey(scene: Phaser.Scene, species: Species, state: strin
 
 /**
  * Create an animal sprite — uses real art if available, coloured rectangle as fallback.
+ *
+ * **The contract: `width`/`height` are the box the animal is drawn inside.**
+ * `displayWidth <= width` and `displayHeight <= height` hold for both the
+ * image and the rectangle fallback, so a caller can lay decorations out
+ * against the box it asked for and be right.
+ *
+ * It did not used to. The fit scale was multiplied by two, so an image
+ * rendered at twice the box while the fallback rectangle rendered at
+ * exactly the box — and every caller that placed a label off the size it
+ * passed put that label inside the animal. RoomView's name pill sat 16px
+ * inside the animal's feet, its three status chips across the chest.
+ * Nineteen call sites passed a box half the size they wanted, and each one
+ * had to know that. (`ui/__tests__/sprites.test.ts` holds the contract.)
+ *
  * Returns the created game object.
  */
 export function createAnimalSprite(
@@ -109,22 +122,12 @@ export function createAnimalSprite(
 
   if (textureKey) {
     const img = scene.add.image(x, y, textureKey);
-    // NOTE: `width`/`height` are not the rendered size. The fit scale is
-    // multiplied by SPRITE_RENDER_SCALE, so an image renders at 2x the box
-    // asked for, while the fallback rectangle below renders at exactly that
-    // box. The old comment here blamed 128px source art, which no longer
-    // holds — the animal set is 512px now and this multiplier is
-    // independent of source resolution.
-    //
-    // The multiplier lives in ui/layout.ts because callers have to size
-    // animals against the play band and cannot do that without knowing it:
-    // RoomView asking for 100 produced a 200px sprite, which on a landscape
-    // phone's 137px band ran off the bottom of the screen.
-    //
-    // Callers that position anything relative to the sprite must read
-    // sprite.displayWidth / displayHeight rather than the size they passed,
-    // or decorations land inside the animal. See RoomView.
-    const scale = Math.min(w / img.width, h / img.height) * SPRITE_RENDER_SCALE;
+    // Contain, not cover: the smaller ratio, so the whole animal is inside
+    // the box on both axes. The art is square (480 of 523 files are 512²),
+    // so a square box draws the animal at exactly that box and a wider one
+    // leaves slack at the sides — which is why a caller reading back
+    // `displayWidth` gets a different answer from the width it passed.
+    const scale = Math.min(w / img.width, h / img.height);
     img.setScale(scale);
 
     if (options?.interactive) {

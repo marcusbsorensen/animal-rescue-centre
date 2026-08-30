@@ -212,7 +212,7 @@ export class WalkScene extends Phaser.Scene {
     // Animal sprite — positioned so the collar ring sits at the neck
     const spriteCx = width / 2;
     const spriteCy = height * 0.30;
-    const sprite = createAnimalSprite(this, spriteCx, spriteCy, this.animal, { width: 120, height: 96 });
+    const sprite = createAnimalSprite(this, spriteCx, spriteCy, this.animal, { width: 240, height: 192 });
     this.container.add(sprite);
 
     // Collar ring + bow (redrawn whenever colour changes)
@@ -536,7 +536,14 @@ export class WalkScene extends Phaser.Scene {
   private renderPlayer(): void {
     if (!this.gridState) return;
     const { x, y } = this.tileToScreen(this.gridState.playerRow, this.gridState.playerCol);
-    const spriteSize = this.cellSize * 0.85;
+    // `collarBasis` is the number drawWalkCollar's anchor fractions are
+    // authored against, and they were tuned by eye while the sprite was
+    // drawn at twice the box it was handed. So the box below doubles and
+    // this does not — the pet stays exactly the size it was and the collar
+    // stays on its neck. Re-basing the collar on `sprite.displayWidth` is
+    // the right end state, but it means rescaling a table of fractions
+    // that can only be checked by looking at it.
+    const collarBasis = this.cellSize * 0.85;
 
     // Container so the sprite + collar move and flip together. Phaser
     // containers don't flip children with setFlipX, so we mirror via
@@ -548,7 +555,7 @@ export class WalkScene extends Phaser.Scene {
     // createAnimalSprite falls back to 'sheltered' for species that don't
     // yet have a dedicated walking sprite.
     const sprite = createAnimalSprite(this, 0, 0, this.gridState.animal, {
-      width: spriteSize, height: spriteSize * 0.8,
+      width: collarBasis * 2, height: collarBasis * 1.6,
       stateOverride: 'walking',
     });
     container.add(sprite);
@@ -556,7 +563,7 @@ export class WalkScene extends Phaser.Scene {
     // Collar overlay — visible proof that the kid's chosen/earned collar
     // is actually being worn by their pet on the walk. Drawn on top of
     // the walking sprite at an anatomically-reasonable neck position.
-    const collar = this.drawWalkCollar(spriteSize);
+    const collar = this.drawWalkCollar(collarBasis);
     container.add(collar);
 
     this.gridContainer.add(container);
@@ -665,7 +672,7 @@ export class WalkScene extends Phaser.Scene {
           health: 100, bondLevel: 0, arrivalStory: '', roomId: '',
         };
         const sprite = createAnimalSprite(this, x, y, fakeAnimal, {
-          width: this.cellSize * 0.7, height: this.cellSize * 0.6,
+          width: this.cellSize * 1.4, height: this.cellSize * 1.2,
         });
         this.gridContainer.add(sprite);
         this.npcSprites.set(npc.id, sprite);

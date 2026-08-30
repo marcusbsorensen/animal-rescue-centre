@@ -29,8 +29,8 @@ import { renderApprenticeDecorations } from './ApprenticeDecorations';
 export interface CorridorCallbacks {
   /** Tap a door sign — switch to that species room. */
   onEnterRoom: (species: Species) => void;
-  /** Tap an arriving animal's sprite — open its details popup. */
-  onShowAnimalDetails: (animal: Animal, anchor: { x: number; y: number; size: number }) => void;
+  /** Tap an arriving animal's sprite — open its card. */
+  onShowAnimalDetails: (animal: Animal) => void;
   /** Welcome button on an individual speech bubble. */
   onWelcomeOne: (animal: Animal) => void;
   /** "Welcome them all" batch accept. */
@@ -334,14 +334,12 @@ export function renderCorridor(
       const anchor = corridorAnchors.pick('corridor', animal.species, 'arriving', speciesIdx);
       // Default procedural position (on the floor, evenly spaced)
       const proceduralAX = startX + i * slotW;
-      // Sized against the band, not a constant: the sprite renders at
-      // SPRITE_RENDER_SCALE times this box, so 74 came out 148 tall on a
-      // 325px screen. `false` — an arrival carries no name pill or bond
-      // bar on the canvas; those live in the rail.
-      // Over half the band, not all of it: the corridor also carries the
-      // door signs a child taps to enter a room, and an arrival sized to
-      // the whole band stands in front of every one of them.
-      const spriteH = animalBoxFor({ ...play, h: play.h * 0.55 }, 74, false);
+      // Sized against the band, not a constant. `false` — an arrival
+      // carries no name pill or bond bar on the canvas; those live in the
+      // rail. Over half the band, not all of it: the corridor also carries
+      // the door signs a child taps to enter a room, and an arrival sized
+      // to the whole band stands in front of every one of them.
+      const spriteH = animalBoxFor({ ...play, h: play.h * 0.55 }, 148, false);
       const spriteW = spriteH * (90 / 74);
       const proceduralCY = floorY - spriteH / 2 + 2;
 
@@ -370,11 +368,6 @@ export function renderCorridor(
       const drawW = useAnchorScale ? anchorW : spriteW;
       const drawH = useAnchorScale ? anchorH : spriteH;
 
-      // Floor drop shadow — feet sit at sprite centre + half-height
-      const shadowFeetY = spriteCy + drawH / 2;
-      const shadow = scene.add.ellipse(ax, shadowFeetY + 4, drawW * 0.65, drawH * 0.16, 0x000000, 0.28);
-      container.add(shadow);
-
       const sprite = createAnimalSprite(
         scene, ax, spriteCy, animal,
         { width: drawW, height: drawH, interactive: true },
@@ -382,6 +375,19 @@ export function renderCorridor(
       if (anchorFlipX && 'setFlipX' in sprite) {
         (sprite as Phaser.GameObjects.Image).setFlipX(true);
       }
+
+      // Floor drop shadow, under the feet the child can see. Built after
+      // the sprite so it can be measured off it, and added to the
+      // container first so it still draws underneath — the box is 5:4 and
+      // the art is square, so `drawW`/`drawH` would put a shadow four
+      // fifths as wide as the animal 33px up inside its body.
+      const shadowFeetY = spriteCy + sprite.displayHeight / 2;
+      const shadow = scene.add.ellipse(
+        ax, shadowFeetY + 4,
+        sprite.displayWidth * 0.65, sprite.displayHeight * 0.16,
+        0x000000, 0.28,
+      );
+      container.add(shadow);
 
       // Keep the tappable sprite clear of the bottom safe margin. Anchors
       // are authored in the editor against a roomier canvas; on a landscape
@@ -405,7 +411,7 @@ export function renderCorridor(
       }
 
       sprite.on('pointerdown', () =>
-        callbacks.onShowAnimalDetails(animal, { x: ax, y: spriteCy, size: drawW }),
+        callbacks.onShowAnimalDetails(animal),
       );
       container.add(sprite);
 

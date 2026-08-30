@@ -73,7 +73,7 @@ export function renderCollarPicker(
   // Animal sprite in upper area
   const spriteY = height * 0.28;
   const sprite = createAnimalSprite(scene, width / 2, spriteY, animal, {
-    width: 100, height: 80,
+    width: 200, height: 160,
   });
   if (sprite instanceof Phaser.GameObjects.Rectangle) {
     sprite.setStrokeStyle(3, 0xffd700);

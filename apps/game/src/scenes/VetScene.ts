@@ -119,7 +119,7 @@ export class VetScene extends Phaser.Scene {
 
     // ── Patient card: sprite on the left, name + illness on the right ────
     // Sprite sits fully below the title pill (title has ~30px height → bottom ~50).
-    const spriteW = 100, spriteH = 90;
+    const spriteW = 200, spriteH = 180;
     const spriteX = width / 2 - 110;
     const spriteY = 120;
     const animalSprite = createAnimalSprite(this, spriteX, spriteY, this.animal, { width: spriteW, height: spriteH });

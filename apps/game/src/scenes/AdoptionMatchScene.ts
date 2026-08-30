@@ -272,7 +272,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
     card.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, 6);
     this.container.add(card);
 
-    const sprite = createAnimalSprite(this, cx - 50, cy - 4, this.animal, { width: 86, height: 84 });
+    const sprite = createAnimalSprite(this, cx - 50, cy - 4, this.animal, { width: 172, height: 168 });
     this.container.add(sprite);
 
     // Hand-lettered name + species

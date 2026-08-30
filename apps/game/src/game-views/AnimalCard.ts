@@ -255,9 +255,9 @@ function drawMainFace(
  *
  * Drawn from the same texture the room uses, via the same
  * `createAnimalSprite`, so a sick animal looks sick in her own card.
- * Sprites render at SPRITE_RENDER_SCALE times the box they are handed and
- * this one has to land in a fixed square, so the result is measured and
- * refitted rather than trusted.
+ * The sprite is fitted inside the box it is handed, so a square box is
+ * all this needs — it used to draw at twice the box and had to be
+ * measured and refitted afterwards.
  */
 function drawPortrait(
   scene: Phaser.Scene,
@@ -278,10 +278,6 @@ function drawPortrait(
 
   const inner = size - 12;
   const sprite = createAnimalSprite(scene, cx, cy, animal, { width: inner, height: inner });
-  const dw = sprite.displayWidth || inner;
-  const dh = sprite.displayHeight || inner;
-  const k = Math.min(inner / dw, inner / dh);
-  sprite.setDisplaySize(dw * k, dh * k);
   container.add(sprite);
 
   // Tapping the animal turns the card over. The hint is what makes that

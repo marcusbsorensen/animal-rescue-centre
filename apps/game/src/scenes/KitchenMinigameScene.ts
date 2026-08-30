@@ -10,6 +10,7 @@ import {
 } from '@arc/game-logic';
 import type { FoodDefinition } from '@arc/game-logic';
 import { createFoodSprite, createAnimalSprite } from '../ui/sprites';
+import { pillFor } from '../ui/contrast';
 import { AudioManager } from '../audio/AudioManager';
 import { RoomAnchors } from '../lib/RoomAnchors';
 
@@ -168,16 +169,18 @@ export class KitchenMinigameScene extends Phaser.Scene {
     const slots = this.loadBowlSlots(width, height);
     const animals = this.hungryAnimals.slice(0, slots.length);
 
-    const spriteW = 96;
-    const spriteH = 92;
+    const spriteW = 192;
+    const spriteH = 184;
 
     for (let i = 0; i < animals.length; i++) {
       const animal = animals[i];
       const bowl = slots[i];
 
       // Animal sprite sits on the counter just behind/above the bowl — feet
-      // near the back rim so it reads "eating from bowl".
-      const animalCy = bowl.y - spriteH * 0.52;
+      // near the back rim so it reads "eating from bowl". The 0.26 was a
+      // 0.52 of a box that drew at twice its size; the offset on screen is
+      // unchanged.
+      const animalCy = bowl.y - spriteH * 0.26;
       const sprite = createAnimalSprite(this, bowl.x, animalCy, animal, {
         width: spriteW, height: spriteH,
       });
@@ -191,16 +194,23 @@ export class KitchenMinigameScene extends Phaser.Scene {
         delay: i * 180,
       });
 
-      // Name plate above the sprite — coloured species pill
-      const nameY = animalCy - spriteH * 0.5 - 16;
-      const speciesHex = SPECIES_COLOURS[animal.species].toString(16).padStart(6, '0');
+      // Name plate above the sprite. Off the drawn top edge, not off the
+      // box: `animalCy - spriteH * 0.5 - 16` was 30px *inside* the animal's
+      // head, because the sprite drew at twice the box the plate measured
+      // itself against. Clamped so a tall animal near the top of the
+      // counter does not push its own name off the screen.
+      const nameY = Math.max(20, sprite.getBounds().top - 14);
+      // White on the species colour is the same failure as the room's name
+      // pills — 1.50:1 on a bunny. Ink and fill both come from luminance.
+      const pill = pillFor(SPECIES_COLOURS[animal.species]);
+      const pillHex = pill.fill.toString(16).padStart(6, '0');
       const nameText = this.add.text(bowl.x, nameY, animal.name, {
         fontSize: `${MIN_FONT.small}px`,
         fontFamily: FONTS.body,
         fontStyle: 'bold',
-        color: '#ffffff',
+        color: pill.ink,
         padding: { x: 10, y: 3 },
-        backgroundColor: `#${speciesHex}`,
+        backgroundColor: `#${pillHex}`,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       // Subtle shadow behind the pill

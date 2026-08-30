@@ -131,7 +131,7 @@ export class GroomingScene extends Phaser.Scene {
     const cy = height / 2 - 40;
 
     // Big animal sprite
-    const sprite = createAnimalSprite(this, width / 2, cy, this.animal, { width: 180, height: 160 });
+    const sprite = createAnimalSprite(this, width / 2, cy, this.animal, { width: 360, height: 320 });
     this.container.add(sprite);
 
     // Tailor intro copy to the species so brush/cloth/mist reads naturally.
@@ -214,15 +214,16 @@ export class GroomingScene extends Phaser.Scene {
     // Animal sprite centre
     const spriteCX = width / 2;
     const spriteCY = height / 2 + 20;
-    const spriteW = 260;
-    const spriteH = 220;
-    const sprite = createAnimalSprite(this, spriteCX, spriteCY, this.animal, { width: spriteW, height: spriteH });
+    const sprite = createAnimalSprite(this, spriteCX, spriteCY, this.animal, { width: 520, height: 440 });
     this.container.add(sprite);
 
-    // Generate dirt spots inside bounding rect
+    // Dirt spots, scattered over the middle two fifths of the animal that
+    // is actually on screen. Off the drawn size, not the box: the box is
+    // 520 wide and the square art fits to 440, so a spread taken from the
+    // box would put spots on the floor either side of the animal.
     const dirtCount = 10;
-    const halfW = spriteW * 0.35;
-    const halfH = spriteH * 0.35;
+    const halfW = sprite.displayWidth * 0.2;
+    const halfH = sprite.displayHeight * 0.2;
     for (let i = 0; i < dirtCount; i++) {
       const dx = spriteCX + (Math.random() * 2 - 1) * halfW;
       const dy = spriteCY + (Math.random() * 2 - 1) * halfH;

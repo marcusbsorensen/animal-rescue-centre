@@ -93,10 +93,17 @@ export function renderToyPicker(
 
   // ── Animal sprite ──────────────────────────────────────────
   const spriteCY = titleY + 40 + 60;
-  const spriteSize = 120;
+  // 240 is what this panel has always drawn — a 120 box at twice the size.
+  // The row below still measures itself against the 120, so the toy cards
+  // lie over the animal's lower half, and on a landscape phone the animal
+  // is 240px inside a 265px panel. Both are this view's own sizing problem,
+  // not the sprite contract's; keeping the two numbers apart here leaves
+  // the layout exactly as it was rather than pushing the cards off screen.
+  const spriteBox = 240;
+  const rowBasis = 120;
   const sprite = createAnimalSprite(scene, width / 2, spriteCY, animal, {
-    width: spriteSize,
-    height: spriteSize,
+    width: spriteBox,
+    height: spriteBox,
     stateOverride: 'sheltered',
   });
   container.add(sprite);
@@ -105,7 +112,7 @@ export function renderToyPicker(
   // Horizontal row centred on panel. If too many toys to fit in a
   // single row, wrap to a second row. Realistically there are 1-4
   // toys per animal so this is usually a single row.
-  const rowY = spriteCY + spriteSize / 2 + 30;
+  const rowY = spriteCY + rowBasis / 2 + 30;
 
   const cardRadius = cardSize / 2;
   const maxPerRow = Math.max(1, Math.floor((panelW - 32) / (cardSize + cardGap)));
