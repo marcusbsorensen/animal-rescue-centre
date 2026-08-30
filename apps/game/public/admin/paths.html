@@ -1267,7 +1267,7 @@
           <div class="paths-header">
             <img class="paths-portrait" src="/assets/animals/dog-collie-sheltered.png" alt="">
             <div class="paths-header-text">
-              <div class="paths-title">What will Luna become?</div>
+              <div class="paths-title">What happens to Luna next?</div>
               <div class="paths-subtitle">Pick a future for Luna. You can change your mind later. Every animal needs something different to be happy.</div>
             </div>
           </div>
@@ -1312,7 +1312,7 @@
                    Kept locked (enabling a path with no eligibility rule is a
                    design decision, not a bug fix) but no longer blaming the
                    animal for it. -->
-              <div class="path-state path-state-locked">🔒 Not yet available</div>
+              <div class="path-state path-state-locked">🔒 Not yet</div>
             </button>
             <button class="path-card path-work" data-path="work">
               <div class="path-badge">🎖️</div>
@@ -1375,7 +1375,7 @@
       const name = typeof m.payload.animalName === 'string' ? m.payload.animalName : null;
       if (name) {
         const titleEl = document.querySelector('.paths-title');
-        if (titleEl) titleEl.textContent = `What will ${name} become?`;
+        if (titleEl) titleEl.textContent = `What happens to ${name} next?`;
         const backBtn = document.querySelector('[data-action="close"]');
         if (backBtn) backBtn.textContent = `← Back to ${name}`;
         // The three card blurbs also name the animal, and only the title

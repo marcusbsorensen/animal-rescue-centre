@@ -1258,7 +1258,7 @@
             <button class="back-tab" data-action="back">← Back</button>
             <div class="adopters-title-wrap">
               <div class="adopters-title">Meet Luna's future family</div>
-              <div class="adopters-subtitle">Tap a family to meet them properly — Luna will love some more than others</div>
+              <div class="adopters-subtitle">Tap a family to meet them — Luna will like some more than others</div>
             </div>
             <div class="luna-chip">
               <img class="luna-portrait" src="/assets/animals/dog-collie-sheltered.png" alt="">
@@ -1309,6 +1309,39 @@
 
   // ── Render the adopter cards from cast.json ──
   const grid = document.getElementById('adopter-grid');
+  // Household traits are data keys, not English. The family cards were
+  // printing them raw — "quiet-patient · flat-urban", "therapy-household ·
+  // quiet-patient" — which is not a reading-age problem so much as machine
+  // output shown to a child choosing a home for an animal they love.
+  //
+  // The keys stay exactly as they are: cast.json and the match scoring above
+  // both index on them. Only the display changes. Anything unmapped falls
+  // back to the key with its hyphens opened out, so a new trait reads as
+  // words rather than disappearing.
+  const TRAIT_LABELS = {
+    'experienced-handler': 'knows animals well',
+    'quiet-patient': 'calm and gentle',
+    'active-outdoors': 'loves being outside',
+    'kids-family': 'has children',
+    'first-time': 'a first pet',
+    'cozy-lap': 'loves a lap to sit on',
+    'creative-chaos': 'busy and fun',
+    'garden-rural': 'has a big garden',
+    'routine-predictable': 'same time every day',
+    'flat-urban': 'lives in a flat',
+    'shared-care': 'everyone helps',
+    'bird-welcoming': 'loves birds',
+    'specific-interest': 'one special animal',
+    'bat-specialist': 'knows all about bats',
+    'classroom-routine': 'lives at a school',
+    'coastal-remote': 'by the sea',
+    'donation-bringer': 'brings gifts',
+    'dual-home': 'two homes',
+    'therapy-household': 'helps people feel better',
+    'travels-well': 'good at going places',
+  };
+  const traitLabel = (t) => TRAIT_LABELS[t] || String(t).replace(/-/g, ' ');
+
   const LUNA = { species: 'dog', traits: ['quiet-patient', 'experienced-handler', 'kids-family'] };
   let activeSpeciesFilter = null;
   let activeModeFilter = 'match';
@@ -1351,7 +1384,7 @@
 
       const blurb = document.createElement('div');
       blurb.className = 'adopter-blurb';
-      blurb.textContent = (h.traits || []).slice(0, 2).join(' · ');
+      blurb.textContent = (h.traits || []).slice(0, 2).map(traitLabel).join(' · ');
       card.appendChild(blurb);
 
       const chips = document.createElement('div');

@@ -779,7 +779,12 @@
 <div class="tabs">
   <button class="tab active" data-stage="world">Town map</button>
   <button class="tab" data-stage="arc">A.R.C. site</button>
-  <span class="right">v3 renderer · Tier 1 assets · OSM ground truth</span>
+  <!-- Was: <span class="right">v3 renderer · Tier 1 assets · OSM ground
+       truth</span>. That is a build annotation, and unlike every other
+       overlay screen map.html has no body.embed rule to hide its dev
+       chrome with — .tabs is visible in-game (the harness reads "Town
+       map" and "A.R.C. site" as live controls in GameScene), so a child
+       was reading it too. The same note is in the header comment. -->
 </div>
 
 <div class="stage active" id="world-stage">
