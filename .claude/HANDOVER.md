@@ -6,9 +6,9 @@ works for 7–10 year olds. Current arc: make it usable on a phone, working
 through `docs/ux-review-2026-08-29.md`.
 
 ## State
-Clean tree, 10 commits today. Typecheck clean, lint 0 errors, 1114 tests
+Clean tree, 13 commits today. Typecheck clean, lint 0 errors, 1120 tests
 pass (was 1084). e2e smoke 3/3, `visual.spec.ts` green on a re-baselined
-main menu, ux harness 42 scene/viewport combinations.
+main menu, ux harness 42 scene/viewport combinations with F10 clean.
 
 **Verified.** Review phases 0–3 and 5 are closed. The sprite contract
 landed and was measured against HEAD in Chrome at three viewports across
@@ -16,7 +16,9 @@ the room, corridor, garden and five minigame scenes: every animal is the
 size it was, and what moved moved because the old maths was wrong. The
 harness now looks at what is *beside* a thing, and caught a defect on its
 own — DepotScene's third build-mode card hanging off a landscape phone —
-which is fixed and re-measured.
+which is fixed and re-measured. Text renders at device resolution in the
+five scenes that were drawing it at 1x; F10 went from 12 failing
+combinations to none.
 
 **Unverified.** Nothing has run on a physical iPad. Nobody has *tapped* the
 animal card on a device — handlers were fired through Phaser's emitter, not
@@ -58,13 +60,28 @@ one screenshot of one screen and covers none of what moved.
   a Manus brief; `docs/manus-sprite-rules.md` Rule 6 says anything that has
   to sit in an existing set goes through `tools/gpt-image-regen.sh`. The
   brief is written to work either way and says so at the top. His call.
+- **Text resolution is set once per scene, not per style.** `useRetinaText`
+  wraps the scene's own text factory in `create()`. A list of call sites
+  that each have to remember a property grows a new entry every time
+  someone adds a label; this cannot be forgotten because there is nothing
+  to remember. Five scenes have it; the rest are a one-line addition each,
+  left until the mechanism was confirmed in a real browser.
 
 ## Next step
 Phase 4 — icons and words. Item 13 is drafted and waiting on Marcus.
-Item 14 (copy pass on the overlay screens; `clamp()` floors to 14px, button
-labels to 18px) and item 15 (floor the raw-rectangle hit areas at
-`MIN_TAP`) are code and unblocked. The harness's F1-F5 and F10 warnings are
-a ready-made worklist for 14.
+
+Item 14 (type sizes and reading age) now has a real worklist: 30 text runs
+under 14px, all of them game copy, in `e2e/__ux__/ux-report.json` under
+`offenders.smallText`. **It was 54 and half of it was the mock pages' own
+dev chrome** — that is fixed, so the list can be worked straight through.
+The smallest are 10.5px ("Let them settle in their own time"), the Paths
+criteria are all 11px, and the three exits Phase 0 made *reachable* are
+still 12px against an 18px target for button labels. "Designed by Lily age
+8" is 11.25px, the smallest thing on the main menu.
+
+Item 15 is nearly nothing: four unique targets under 48px across all 42
+combinations — one 160x28 rectangle in GameScene and three 220x44 buttons
+in the tunnel overlay.
 
 ## Traps
 - **A `sticky` exit is bounded by its parent box.** Give the parent slack or
