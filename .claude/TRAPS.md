@@ -247,6 +247,18 @@ checking the claim still holds.
   wearing their own labels. The predicates are in `src/ui/ux-geometry.ts`
   with unit tests holding the review's own geometry; change a threshold and
   those tests say whether it still catches anything.
+- **L6 collapses a scrolling grid of identical tiles into one control**, as
+  of 2026-08-31 — `groupRepeatedTiles` in `src/ui/ux-geometry.ts`. The
+  condition doing the work is `clipped`, which for a Phaser object is
+  `masked || obj.mask != null`. That is a proxy for "this is a browsable
+  collection", and it is only as good as the assumption that a mask means
+  scrolling. A *decorative* mask over a fixed grid of four or more
+  same-sized buttons would collapse them too, and that would be a lie.
+  Nothing in the game masks anything decoratively today; if something
+  starts to, the collapse needs a better test than "is it masked".
+  `interactiveCount` and `distinctControlCount` are both in the report, and
+  the finding's detail prints the raw number — compare them before
+  believing a low count.
 - **`e2e/__ux__/*.png` can show a scene other than the one it is named
   for.** Seen on 2026-08-30: `DepotScene-tablet.png` showed the PtvDrive
   vehicle picker while the same run's measurements were unmistakably
