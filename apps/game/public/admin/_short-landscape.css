@@ -425,8 +425,17 @@
      column is wide enough to squeeze the pills into extra lines and make the
      screen taller than it was before. Cap it. */
   .conflict-scene { max-width: 38%; }
+  /* The pills were 3px apart — T4 wants 12 between adjacent touch targets,
+     and on the first decision the game ever asks a child to make, two 55px
+     pills 3px apart are one mis-tap. The separation is paid for out of the
+     pills' own padding rather than the layout: they measured 55px against a
+     48px floor, so tightening the padding lets them shrink toward 48 while
+     the gap grows. Net height of a three-pill stack barely moves, which
+     matters because the last pill sat 60px past the bottom edge before this
+     branch put the scene beside the words. */
+  .arrival-choices, .conflict-choices { gap: clamp(12px, 2.4cqh, 16px); }
   .choice-pill {
-    padding: clamp(4px, 1.2cqh, 8px) clamp(10px, 2cqw, 16px);
+    padding: clamp(2px, 0.6cqh, 6px) clamp(10px, 2cqw, 16px);
     min-height: 48px;   /* the compression took these to 40px */
   }
   .choice-label { font-size: clamp(18px, 3.4cqh, 20px); }

@@ -122,7 +122,11 @@
     color: var(--earth-mid);
     font-size: clamp(14px, 1.9cqh, 17px);
   }
-  .header-buttons { display: flex; gap: 6px; }
+  /* 12px, not 6 — T4 wants 12 between adjacent touch targets, and these three
+     sit shoulder to shoulder at the top right. The group is right-anchored, so
+     the extra width grows leftward into the header rather than pushing
+     "Close ×" toward the edge. */
+  .header-buttons { display: flex; gap: 12px; }
   .icon-btn {
     background: linear-gradient(180deg, #fff8e3 0%, #f4dba0 100%);
     border: 2px solid #8a5a2a; border-radius: 10px;
