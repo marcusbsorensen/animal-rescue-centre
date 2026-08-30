@@ -49,12 +49,34 @@ export const WALK_ZONES: Array<{ zone: WalkZone; emoji: string; label: string; d
 export const WALKABLE_SPECIES: Species[] = ['cat', 'dog', 'fox', 'bunny'];
 
 export function canGoOnWalk(animal: Animal): boolean {
-  return (
-    WALKABLE_SPECIES.includes(animal.species) &&
-    animal.state !== 'arriving' &&
-    animal.hunger < 70 &&
-    animal.tiredness < 70
-  );
+  return walkBlockReason(animal) === null;
+}
+
+/**
+ * Why this animal cannot go for a walk, in words a child can act on —
+ * or null when they can.
+ *
+ * It lives beside the predicate rather than in the UI because the animal
+ * card shows every action all the time, greyed with its reason, instead
+ * of hiding the ones that do not apply. A button that vanishes teaches a
+ * 7-year-old nothing; one that says "Too sleepy for a walk" teaches the
+ * rule. `canGoOnWalk` is defined in terms of this so the two cannot
+ * disagree about what blocks a walk.
+ */
+export function walkBlockReason(animal: Animal): string | null {
+  if (!WALKABLE_SPECIES.includes(animal.species)) {
+    return `${animal.name} is not a going-for-walks sort of animal.`;
+  }
+  if (animal.state === 'arriving') {
+    return 'Welcome them into the shelter first.';
+  }
+  if (animal.hunger >= 70) {
+    return 'Too hungry for a walk — feed them first.';
+  }
+  if (animal.tiredness >= 70) {
+    return 'Too sleepy for a walk — let them rest first.';
+  }
+  return null;
 }
 
 /**

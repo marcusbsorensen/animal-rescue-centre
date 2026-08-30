@@ -93,6 +93,7 @@ export {
 } from './needs';
 export {
   canGoOnWalk,
+  walkBlockReason,
   generateWalkEvents,
   startWalk,
   advanceWalk,

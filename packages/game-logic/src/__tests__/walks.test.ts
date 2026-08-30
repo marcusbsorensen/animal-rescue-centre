@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   canGoOnWalk,
+  walkBlockReason,
   generateWalkEvents,
   startWalk,
   advanceWalk,
@@ -262,5 +263,48 @@ describe('walk edge cases', () => {
     expect(events).toHaveLength(1);
     // With 1 step and the guarantee logic, it should be a road crossing
     expect(events).toContain('road_crossing');
+  });
+});
+
+/**
+ * The animal card shows every action all the time, greyed with the reason
+ * when it cannot be used — so the reason has to say the same thing the
+ * predicate does. Defining `canGoOnWalk` in terms of `walkBlockReason` is
+ * what makes that true; these are the tests that say so out loud.
+ */
+describe('walkBlockReason', () => {
+  it('agrees with canGoOnWalk on every combination that matters', () => {
+    const cases: Partial<Animal>[] = [
+      {},
+      { species: 'snake' },
+      { species: 'parrot' },
+      { state: 'arriving' },
+      { state: 'pet' },
+      { hunger: 69 },
+      { hunger: 70 },
+      { tiredness: 69 },
+      { tiredness: 70 },
+      { species: 'bunny', hunger: 90 },
+      { species: 'fox', tiredness: 95, hunger: 95 },
+    ];
+    for (const overrides of cases) {
+      const animal = makeAnimal(overrides);
+      expect(`${JSON.stringify(overrides)}: ${walkBlockReason(animal) === null}`)
+        .toBe(`${JSON.stringify(overrides)}: ${canGoOnWalk(animal)}`);
+    }
+  });
+
+  it('names the animal when the species is the problem', () => {
+    expect(walkBlockReason(makeAnimal({ species: 'snake', name: 'Hiss' })))
+      .toContain('Hiss');
+  });
+
+  it('says what to do about hunger and tiredness, not just that it is blocked', () => {
+    expect(walkBlockReason(makeAnimal({ hunger: 90 }))).toMatch(/feed/i);
+    expect(walkBlockReason(makeAnimal({ tiredness: 90 }))).toMatch(/rest/i);
+  });
+
+  it('returns null for an animal that can walk', () => {
+    expect(walkBlockReason(makeAnimal())).toBeNull();
   });
 });

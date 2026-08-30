@@ -78,7 +78,7 @@ import {
   renderConflictResult,
   renderCollarPicker,
   renderPetCreated,
-  renderAnimalDetails,
+  renderAnimalCard,
   renderWardrobePicker,
   renderToyPicker,
   renderHUD,
@@ -157,6 +157,14 @@ export class GameScene extends Phaser.Scene {
   private castData?: Array<Record<string, unknown>> | null;
   private castFetchPromise?: Promise<void>;
   private selectedAnimal?: Animal;
+  /**
+   * The animal card's own container, at depth 800 — above the rail (50),
+   * the HUD and the nav bar, below the toy picker (900). It is not part of
+   * gameContainer, so `clearView` has to take it down explicitly; that is
+   * deliberate, and keeps the card's lifetime exactly what it was when it
+   * lived in gameContainer.
+   */
+  private animalCardContainer?: Phaser.GameObjects.Container;
   private processing = false;         // double-click guard
   private showingCollarPicker = false; // bond race guard
   private scrollY = 0;
@@ -530,6 +538,7 @@ export class GameScene extends Phaser.Scene {
   private clearView(): void {
     this.gameContainer.removeAll(true);
     this.navContainer.removeAll(true);
+    this.destroyAnimalCard();
     this.scrollY = 0;
     this.maxScrollY = 0;
     this.gameContainer.y = 0;
@@ -637,13 +646,7 @@ export class GameScene extends Phaser.Scene {
         this.viewMode = 'corridor';
         this.renderView();
       },
-      onShowAnimalDetails: (animal) => {
-        // Fire the existing detail popup centred on screen since we
-        // don't have a sprite anchor in the rail.
-        this.showAnimalDetails(animal, {
-          x: this.scale.width / 2, y: this.scale.height / 2, size: 100,
-        });
-      },
+      onShowAnimalDetails: (animal) => this.showAnimalDetails(animal),
       onToggleRail: () => {
         this.railOpen = !this.railOpen;
         // Only the rail changed; the scene behind it does not reflow,
@@ -755,7 +758,7 @@ export class GameScene extends Phaser.Scene {
         this.viewMode = 'room';
         this.renderView();
       },
-      onShowAnimalDetails: (animal, anchor) => this.showAnimalDetails(animal, anchor),
+      onShowAnimalDetails: (animal) => this.showAnimalDetails(animal),
       onWelcomeOne: (animal) => this.welcomeArrivals([animal]),
       onWelcomeAll: (arriving) => this.welcomeArrivals(arriving),
       renderNavBar: () => this.renderNavBar(),
@@ -812,34 +815,28 @@ export class GameScene extends Phaser.Scene {
       deriveAnchorState: (animal) => this.deriveAnchorState(animal),
       resolveAnchor: (anchor, bgTopY, bgW, bgH, baseW, baseH) =>
         this.resolveAnchor(anchor, bgTopY, bgW, bgH, baseW, baseH),
-      onShowAnimalDetails: (animal, anchor) => this.showAnimalDetails(animal, anchor),
+      onShowAnimalDetails: (animal) => this.showAnimalDetails(animal),
       onEnterDecorateMode: () => this.enterDecorateMode(),
       renderNavBar: (opts) => this.renderNavBar(opts),
     });
   }
 
-  // ── Animal Details Popup ────────────────────────────────────
+  // ── Animal card ─────────────────────────────────────────────
 
   /**
-   * Show the animal details as a speech-bubble style modal anchored near
-   * the tapped sprite. We deliberately avoid redrawing the animal inside
-   * the panel — the player can still see the animal on the room floor,
-   * with the panel "speaking" from it via a little tail. A light overlay
-   * dims the rest of the scene without fully hiding the animal.
+   * Show the card for a tapped animal.
    *
-   * The `anchor` argument is the tapped sprite's world position + size.
-   * It's optional so legacy callers keep working (they get a centered
-   * card as before).
+   * Thin wrapper — delegates rendering to AnimalCard. All action handlers
+   * live here so state mutation and scene transitions remain the scene's
+   * responsibility; the view is purely rendering.
+   *
+   * The card is a modal in its own container at depth 800, not a
+   * speech bubble in gameContainer: it dims and swallows the HUD and the
+   * nav bar rather than leaving them lit and tappable behind itself, and
+   * it draws the animal's portrait rather than pointing at the sprite
+   * with a tail. It takes no anchor for the same reason.
    */
-  /**
-   * Thin wrapper — delegates rendering to AnimalDetailsPopup. All
-   * action handlers live here so state mutation and scene transitions
-   * remain the scene's responsibility; the view is purely rendering.
-   */
-  private showAnimalDetails(
-    animal: Animal,
-    anchor?: { x: number; y: number; size: number },
-  ): void {
+  private showAnimalDetails(animal: Animal): void {
     this.selectedAnimal = animal;
 
     const doFeed = () => {
@@ -1040,7 +1037,7 @@ export class GameScene extends Phaser.Scene {
       });
     };
 
-    renderAnimalDetails(this, this.store, this.gameContainer, animal, anchor, {
+    renderAnimalCard(this, this.store, this.animalCard(), animal, {
       onClose: () => this.closePopup(),
       onFeed: () => { doFeed(); this.tickClock('feed'); },
       onPlay: () => { doPlay(); this.tickClock('play'); },
@@ -2041,7 +2038,20 @@ export class GameScene extends Phaser.Scene {
 
   private closePopup(): void {
     this.selectedAnimal = undefined;
+    this.destroyAnimalCard();
     this.renderView();
+  }
+
+  /** A fresh depth-800 container for the card, replacing any open one. */
+  private animalCard(): Phaser.GameObjects.Container {
+    this.destroyAnimalCard();
+    this.animalCardContainer = this.add.container(0, 0).setDepth(800);
+    return this.animalCardContainer;
+  }
+
+  private destroyAnimalCard(): void {
+    this.animalCardContainer?.destroy(true);
+    this.animalCardContainer = undefined;
   }
 
   // ── Room Decorations ────────────────────────────────────────
@@ -2201,7 +2211,7 @@ export class GameScene extends Phaser.Scene {
       deriveAnchorState: (animal) => this.deriveAnchorState(animal),
       resolveAnchor: (anchor, bgTopY, bgW, bgH, baseW, baseH) =>
         this.resolveAnchor(anchor, bgTopY, bgW, bgH, baseW, baseH),
-      showAnimalDetails: (pet, pos) => this.showAnimalDetails(pet, pos),
+      showAnimalDetails: (pet) => this.showAnimalDetails(pet),
       onUpgradeClaimed: (code) => {
         this.store.houseUpgrades.push(code);
         this.checkBadges();
