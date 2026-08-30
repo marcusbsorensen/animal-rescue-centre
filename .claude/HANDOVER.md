@@ -6,113 +6,64 @@ works for 7–10 year olds. Current arc: make it usable on a phone, working
 through `docs/ux-review-2026-08-29.md`.
 
 ## State
-Clean tree on `main`, six commits today, not pushed (37+ ahead of origin).
-Typecheck clean, lint 0 errors, 1120 tests pass. e2e 6/6, `visual.spec.ts`
-green. Harness at **2 FAIL / 94 WARN** across 42 scene/viewport combinations, down
-from 27 FAIL. 1127 tests (T4's geometry gained 7).
+Clean tree on `main`, pushed, level with origin. Typecheck clean, lint 0
+errors, 1127 tests pass. e2e 6/6, `visual.spec.ts` green. UX harness at
+**2 FAIL / 94 WARN** across 42 scene/viewport combinations, down from 27 FAIL.
 
-**Verified.** Review phases 0–3 and 5 are closed. The sprite contract was
-measured against HEAD in Chrome at three viewports, across the room, corridor,
-garden and five minigame scenes: every animal is the size it was, and what moved
-moved because the old maths was wrong. The harness now checks relations between
-elements, and caught DepotScene's third card hanging off a landscape phone.
+**Verified.** Review items 13, 14 and 15 are closed, and phases 0–3 and 5
+before them. F1-F5, L3, T4, T1-T3, L7, L8, L9 and F10 are all at 0 FAIL. Every
+change was measured against the harness before and after, rule by rule, rather
+than against the summary line.
 
-**Unverified.** Nothing has run on a physical iPad, and nobody has *tapped* the
-animal card on a device — handlers were fired through Phaser's emitter, not real
-touch. `visual.spec.ts` is one screenshot of one screen and covers none of what
-moved.
-
-**Review item 13 (nav icons) is closed.** All five badges were commissioned
-from Manus and installed: `nav-home` (A.R.C. building, the cottage is retired),
-`nav-care` (food bowl), `nav-social` (gift), `nav-play` (paw, now in the badge)
-and the new `fab-supplies` (crate), which replaces `fab-arc`'s lettered plaque.
-Display-list inspection in Chrome confirms all five draw in `GameScene`. **The
-finished bar has never been seen unoccluded** — entering `GameScene` in a test
-raises an arrival card, and dismissing it triggers an in-canvas re-auth panel,
-because `seedFakeSession` writes a token Supabase rejects. See
-`docs/nav-icon-commission-log-2026-08-30.md`.
+**Unverified.** Nothing has run on a physical iPad, and nobody has *tapped*
+anything on a device. **The finished nav bar has never been seen unoccluded** —
+entering `GameScene` in a test raises an arrival card, and dismissing it
+triggers an in-canvas re-auth panel, because `seedFakeSession` writes a token
+Supabase rejects. The icons were confirmed by display-list position instead.
 
 ## Files
-- `.claude/TRAPS.md` — read first.
-- `apps/game/src/ui/sprites.ts` — the size contract, stated at the top.
+- `.claude/TRAPS.md` — read first. Long-lived gotchas live there, not here.
 - `apps/game/src/ui/ux-geometry.ts` — pairwise layout predicates;
-  `__tests__/ux-geometry.test.ts` holds the review's own geometry.
+  `__tests__/ux-geometry.test.ts` holds the review's own geometry and is the
+  only thing that says whether a check still catches anything.
 - `apps/game/e2e/ux-review.spec.ts` — the harness. Needs
   `ARC_BROWSER_CHANNEL=chrome`; writes `e2e/__ux__/ux-report.json`.
-- `docs/nav-icon-brief-2026-08-30.md` — icon commission. **Sent, delivered,
-  installed**; outcome in `docs/nav-icon-commission-log-2026-08-30.md`.
-- `tools/badge-postprocess.py` — cuts a Manus render down to the set's badge
-  geometry (238px disc, 9px margin, clean alpha). Handles alpha, magenta or an
-  opaque field.
-- **To redo the reading-age pass**: render all 21 overlay screens at
-  `/admin/<name>.html?embed=1`, harvest text with `Element.checkVisibility`
-  (embed hides the mock pages' `.vp-bar`, and checkVisibility respects
-  ancestors), then pull every word of 3+ syllables. Scoring whole sentences by
-  Flesch-Kincaid is near-useless here — the copy is mostly fragments, and
-  two-word labels score like postgraduate prose. The syllable list is what
-  finds real problems.
+- `apps/game/public/admin/_short-landscape.css` — one file, all 21 DOM screens.
+- `apps/game/src/ui/sprites.ts` — the size contract, stated at the top.
+- `docs/nav-icon-commission-log-2026-08-30.md` — what the icon set cost, and
+  what Manus got right and wrong.
 
 ## Decisions made
 - **The box you ask for is the box that gets drawn.** The 2x multiplier and
   `SPRITE_RENDER_SCALE` are gone. Still read `displayWidth` for anything placed
-  off an animal: square art in a 5:4 box draws narrower, and an anchor's
-  `scale` multiplies again.
-- **Two call sites keep the old half-size number** — WalkScene's `collarBasis`,
-  ToyPickerView's `rowBasis` — because hand-tuned fraction tables are keyed to
-  them. Both say so in place.
-- **The review's own L7 rule would have missed the defect it was written for.**
-  "Centre outside the viewport" passes an exit hanging 8px off. `reachability`
-  splits unreachable / spilling / below-the-fold; the middle one bites.
-- **Stacked controls are reported, not scored.** Nothing can tell a card
-  carrying a button from a stray overlap — `createButton` makes the hit
-  rectangle and its label siblings.
-- **Text resolution is set once per scene** (`ui/retina-text.ts`), not per style.
-  Five scenes have it; the rest are one line each.
-- **The icon commission went to Manus after all**, on Marcus's instruction,
-  overriding `manus-sprite-rules.md` Rule 6. Rule 6's stated failure mode is
-  Manus proceeding from the text when it cannot fetch references, so the
-  references were **uploaded as attachments** rather than passed as URLs, and
-  the brief opened with a STOP check demanding a description of each one first.
-  Manus described details absent from the brief, so it was genuinely looking.
-  **Rule 6 stands** — but for a set-match with uploaded references and a STOP
-  check, Manus cleared it. The one failure was a judgement call, not drift: a
-  faithful, detailed building that did not survive being shrunk to a thumbnail.
-- **Icons are drawn at 38-42px, not the 46-54px the brief assumed** (the FAB is
-  42, not 68). Judge any future badge at 38px.
+  off an animal. WalkScene's `collarBasis` and ToyPickerView's `rowBasis` keep
+  the old half-size number because hand-tuned fraction tables key to them.
+- **T4 measures shapes, not bounding boxes.** A rotated control's box is bigger
+  than the control, and the old rule also *skipped* pairs whose boxes
+  overlapped — so a tilted control whose box swallowed its neighbour was exempt
+  from the check entirely.
+- **Stacked controls are reported, not scored** — nothing can tell a card
+  carrying a button from a stray overlap.
+- **The icon commission went to Manus**, overriding `manus-sprite-rules.md`
+  Rule 6, with references uploaded as attachments rather than URLs and a STOP
+  check demanding a description before drawing. Rule 6 still stands generally.
+- **Nav icons draw at 38–42px**, not the 46–54 the brief assumed. Judge at 38.
+- **Hidden beats reworded**: paths' `.path-criteria` chips stay hidden rather
+  than take review 15's replacement wording, because every count in them was
+  invented. That supersedes the review.
+- **Flavour words stay** — "Farewell, friend", charm names, accelerator/brake.
 
 ## Next step
-**L6 on AccountScene**, tablet and desktop — the only rule still failing. 21
-interactive elements against a limit of 12 (PASS is 8). Fixing it means
-deciding what to cut, group or paginate on the stats/badges screen: an
-information-architecture call, not a threshold to nudge.
-
-Every other rule is at 0 FAIL. Items 13, 14 and 15 are closed.
+**L6 on AccountScene**, tablet and desktop — the only rule still failing.
+21 interactive elements against a limit of 12 (PASS is 8). It needs a decision
+about what to cut, group or paginate on the stats/badges screen, then the cut
+itself. Not a threshold to nudge. Re-run the harness after and check L7 still
+holds 42/42.
 
 ## Traps
-- **Bash `cd` persists between calls** — cost two Playwright runs today. Use
-  absolute paths.
+- **Bash `cd` persists between calls** — cost a Playwright run again today.
 - **Do not loosen a harness threshold without re-running
-  `src/ui/__tests__/ux-geometry.test.ts`** — it is the only thing that says
-  whether a check still catches anything.
-- **`e2e/__ux__/*.png` can show a scene other than its filename.** Trust
-  `ux-report.json`.
-- **Bounding boxes are not shapes, and T4 used to confuse them.** Fixed in
-  25884e7: `gapBetween` measures between the controls themselves. The lesson
-  generalises to any new check — `getBoundingClientRect` on a rotated element
-  returns the box AROUND it, and this codebase tilts things on purpose
-  (`.arrival-plaque` 0.8 degrees, the PLAY! button). The old rule also *skipped*
-  pairs whose boxes overlapped, so a rotated control whose box swallowed its
-  neighbour was exempt from the check — that is how PLAY! sat 3px from "I
-  already have an account" on the main menu while T4 reported 16px and PASS.
-  `getBoxQuads` is not implemented in the Chrome the harness runs; the corners
-  come from the AABB centre plus the accumulated 2x2 linear part applied to
-  `offsetWidth/offsetHeight`.
-- **The in-game overlay screens are mounted in IFRAMES** (`arrival.html?embed=1`
-  and friends), each sized to the viewport and untransformed. Querying the
-  top-level document for `.choice-pill` or any overlay class finds nothing —
-  go through `iframe.contentDocument`.
-- **`_short-landscape.css` is not all short-landscape.** Its first section
-  (the sticky rules pinning `.wave-wrap` / `.release-wrap` / `.secondary-row` /
-  `.footer-row`) sits OUTSIDE the `@container (max-height: 520px)` block on
-  purpose, so it applies at every viewport. A change there is not a phone-only
-  change.
+  `src/ui/__tests__/ux-geometry.test.ts`.**
+- Everything else that bit this session is in `.claude/TRAPS.md`: the overlay
+  iframes, `_short-landscape.css`'s first section applying at every viewport,
+  `manus_download_output` filename collisions, and bounding boxes vs shapes.
