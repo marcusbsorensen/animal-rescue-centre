@@ -237,7 +237,22 @@ checking the claim still holds.
 - **`renderView()` draws the rail and the HUD.** Do not call
   `renderHUD()` beside it. Four call sites used to, 37 did not, and every
   count in the top strip went stale on feed, heal, adopt and welcome.
-- The ux-review harness has a history of false findings. Verify against source first.
+- The ux-review harness has a history of false findings. Verify against
+  source first. Its pairwise checks (L7/L8/L9, added 2026-08-30) took four
+  passes to stop lying: a masked or scrolling ancestor means below-the-fold
+  rather than unreachable, a sticky exit over a scrolling list is the phase
+  0 fix rather than a collision, and **ancestry does not identify a label**
+  — `createButton` adds the hit rectangle and the text to one container as
+  siblings, so scoring contained text produced 140 findings of buttons
+  wearing their own labels. The predicates are in `src/ui/ux-geometry.ts`
+  with unit tests holding the review's own geometry; change a threshold and
+  those tests say whether it still catches anything.
+- **`e2e/__ux__/*.png` can show a scene other than the one it is named
+  for.** Seen on 2026-08-30: `DepotScene-tablet.png` showed the PtvDrive
+  vehicle picker while the same run's measurements were unmistakably
+  DepotScene's (4 interactive, 11 texts, against PtvDrive's 2 and 11).
+  Cause not established. **Trust `ux-report.json`, not the screenshots** —
+  or re-shoot the one screen you care about on its own.
 - **To measure the running game, walk the display list, not the pixels.**
   A throwaway Playwright spec that seeds a session, starts GameScene,
   writes animals straight into `gs.store.animals`, and recurses
