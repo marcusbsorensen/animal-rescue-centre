@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   intersectionArea, centreOffScreen, reachability,
-  overlappingControls, textCutByControls, type UxRect,
+  overlappingControls, textCutByControls, gapBetween, quadOf, type UxRect,
 } from '../ux-geometry';
 
 /**
@@ -186,5 +186,91 @@ describe('intersectionArea and centreOffScreen', () => {
     // has gone is not, and that is the line the review drew.
     expect(centreOffScreen(r('half', 0, 300, 100, 48), ...CLIP)).toBe(false);
     expect(centreOffScreen(r('gone', 0, 320, 100, 48), ...CLIP)).toBe(true);
+  });
+});
+
+
+/**
+ * gapBetween — the T4 rotation defect, 30 August.
+ *
+ * T4 measured the space between two controls from their axis-aligned
+ * bounding boxes. For anything rotated that box is bigger than the thing
+ * inside it, and the surplus is charged to both neighbours at once.
+ *
+ * arrival's choice pills hang on `.arrival-plaque`, which is tilted 0.8
+ * degrees on purpose. Measured live in the overlay iframe: CSS row-gap
+ * 12px, layout gap 12, offsetHeight 48, getBoundingClientRect height 52.2.
+ * The rule read 7.8px and failed a layout that was correct — and because
+ * the surplus scales with width, the same screen crossed the FAIL boundary
+ * between runs purely on how long the animal's name was.
+ */
+describe('gapBetween — finding T4 and the rotation trap', () => {
+  /** A w x h rect centred on (cx, cy), turned `deg` about that centre. */
+  const tilted = (
+    label: string, cx: number, cy: number, w: number, h: number, deg: number,
+  ): UxRect => {
+    const r = (deg * Math.PI) / 180;
+    const cos = Math.cos(r), sin = Math.sin(r);
+    const corners = ([[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]] as const)
+      .map(([dx, dy]) => [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos] as const);
+    const xs = corners.map((p) => p[0]), ys = corners.map((p) => p[1]);
+    return {
+      label,
+      x: Math.min(...xs), y: Math.min(...ys),
+      w: Math.max(...xs) - Math.min(...xs),
+      h: Math.max(...ys) - Math.min(...ys),
+      quad: corners,
+    };
+  };
+
+  it('reads the real 12px between two tilted pills, not the 7.8px their boxes imply', () => {
+    // 300x48 pills, 12px apart, both on a plaque tilted -0.8 degrees.
+    const top = tilted('Give them space', 450, 137, 300, 48, -0.8);
+    const bottom = tilted('Say hi gently', 450, 197, 300, 48, -0.8);
+
+    expect(gapBetween(top, bottom)).toBeGreaterThan(11.9);
+    expect(gapBetween(top, bottom)).toBeLessThan(12.1);
+
+    // and this is what the old bounding-box arithmetic saw
+    const boxGap = bottom.y - (top.y + top.h);
+    expect(boxGap).toBeLessThan(8);
+  });
+
+  it('still fails pills that really are too close, tilt or no tilt', () => {
+    const top = tilted('Give them space', 450, 137, 300, 48, -0.8);
+    const crowded = tilted('Say hi gently', 450, 188, 300, 48, -0.8);
+    // 3px apart on the plaque — a mis-tap, and the check must say so.
+    expect(gapBetween(top, crowded)).toBeLessThan(4);
+  });
+
+  it('does not excuse a wide control just because it is tilted', () => {
+    // The error grew with width, so a very wide pill was the worst case.
+    // Genuinely touching controls must still read 0 however wide they are.
+    const a = tilted('wide a', 400, 100, 700, 48, -0.8);
+    const b = tilted('wide b', 400, 148, 700, 48, -0.8);
+    expect(gapBetween(a, b)).toBe(0);
+  });
+
+  it('matches plain arithmetic when nothing is rotated', () => {
+    const a: UxRect = { label: 'a', x: 0, y: 0, w: 100, h: 40 };
+    const b: UxRect = { label: 'b', x: 0, y: 52, w: 100, h: 40 };
+    expect(gapBetween(a, b)).toBeCloseTo(12, 6);
+  });
+
+  it('measures corner to corner for controls offset on both axes', () => {
+    const a: UxRect = { label: 'a', x: 0, y: 0, w: 10, h: 10 };
+    const b: UxRect = { label: 'b', x: 13, y: 14, w: 10, h: 10 };
+    expect(gapBetween(a, b)).toBeCloseTo(5, 6); // 3-4-5
+  });
+
+  it('is 0 for overlapping controls — whether that is a defect is L8, not T4', () => {
+    const a: UxRect = { label: 'a', x: 0, y: 0, w: 100, h: 40 };
+    const b: UxRect = { label: 'b', x: 50, y: 20, w: 100, h: 40 };
+    expect(gapBetween(a, b)).toBe(0);
+  });
+
+  it('falls back to the bounding box when a rect carries no quad', () => {
+    const a: UxRect = { label: 'a', x: 0, y: 0, w: 10, h: 10 };
+    expect(quadOf(a)).toEqual([[0, 0], [10, 0], [10, 10], [0, 10]]);
   });
 });

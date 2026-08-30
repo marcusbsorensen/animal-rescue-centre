@@ -48,6 +48,18 @@ export interface UxRect {
    * on a landscape phone.
    */
   path?: string;
+  /**
+   * The element's four real corners, in draw order, when it sits under a
+   * transform. `x/y/w/h` is the axis-aligned bounding box, which for a
+   * rotated element is bigger than the element: a 300x48 pill tilted 0.8
+   * degrees reports 52.2px tall, because the box has to contain the corners.
+   *
+   * That phantom height is charged to both neighbours in a stack, so a real
+   * 12px gap measured 7.8px and T4 failed a layout that was correct.
+   * Undefined when the element is untransformed, in which case the bounding
+   * box IS the element and `quadOf` derives the corners from it.
+   */
+  quad?: readonly (readonly [number, number])[];
 }
 
 /** True when `a` is an ancestor of `b` in the tree they were drawn from. */
@@ -66,6 +78,91 @@ export function intersectionArea(a: UxRect, b: UxRect): number {
 }
 
 export const areaOf = (r: UxRect): number => Math.max(0, r.w) * Math.max(0, r.h);
+
+/** The rect's four corners: its own when it is transformed, else its box. */
+export function quadOf(r: UxRect): readonly (readonly [number, number])[] {
+  if (r.quad && r.quad.length === 4) return r.quad;
+  return [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+}
+
+/** Shortest distance between two line segments, 0 if they cross. */
+function segmentDistance(
+  p1: readonly [number, number], p2: readonly [number, number],
+  q1: readonly [number, number], q2: readonly [number, number],
+): number {
+  const d1x = p2[0] - p1[0], d1y = p2[1] - p1[1];
+  const d2x = q2[0] - q1[0], d2y = q2[1] - q1[1];
+  const denom = d1x * d2y - d1y * d2x;
+  if (Math.abs(denom) > 1e-12) {
+    const t = ((q1[0] - p1[0]) * d2y - (q1[1] - p1[1]) * d2x) / denom;
+    const u = ((q1[0] - p1[0]) * d1y - (q1[1] - p1[1]) * d1x) / denom;
+    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) return 0;
+  }
+  const pointToSegment = (
+    p: readonly [number, number],
+    a: readonly [number, number],
+    b: readonly [number, number],
+  ): number => {
+    const vx = b[0] - a[0], vy = b[1] - a[1];
+    const len2 = vx * vx + vy * vy;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / len2));
+    return Math.hypot(p[0] - (a[0] + t * vx), p[1] - (a[1] + t * vy));
+  };
+  return Math.min(
+    pointToSegment(p1, q1, q2), pointToSegment(p2, q1, q2),
+    pointToSegment(q1, p1, p2), pointToSegment(q2, p1, p2),
+  );
+}
+
+/**
+ * Do two convex polygons overlap? Separating-axis theorem: if any edge
+ * normal separates them, they do not.
+ */
+function convexOverlap(
+  a: readonly (readonly [number, number])[],
+  b: readonly (readonly [number, number])[],
+): boolean {
+  for (const poly of [a, b]) {
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i], q = poly[(i + 1) % poly.length];
+      const nx = -(q[1] - p[1]), ny = q[0] - p[0];
+      let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity;
+      for (const v of a) { const d = v[0] * nx + v[1] * ny; aMin = Math.min(aMin, d); aMax = Math.max(aMax, d); }
+      for (const v of b) { const d = v[0] * nx + v[1] * ny; bMin = Math.min(bMin, d); bMax = Math.max(bMax, d); }
+      if (aMax < bMin || bMax < aMin) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Clear space between two controls — what a finger has to land in.
+ *
+ * Measured between the shapes themselves, not their bounding boxes. Those
+ * are the same thing until something is rotated, and then they are not:
+ * arrival's choice pills hang on a plaque tilted 0.8 degrees, and their
+ * boxes overlap while the pills are a comfortable 12px apart. Scoring the
+ * boxes reported a defect in a layout that was right, and the error grows
+ * with the control's width — a 300px pill loses 4.2px to the tilt where a
+ * 265px one loses 3.7px, which was enough to move the same screen across
+ * the FAIL boundary between runs.
+ *
+ * 0 when they touch or overlap; whether that is a defect is L8's question,
+ * not this one.
+ */
+export function gapBetween(a: UxRect, b: UxRect): number {
+  const pa = quadOf(a), pb = quadOf(b);
+  if (convexOverlap(pa, pb)) return 0;
+  let best = Infinity;
+  for (let i = 0; i < pa.length; i++) {
+    for (let j = 0; j < pb.length; j++) {
+      best = Math.min(best, segmentDistance(
+        pa[i], pa[(i + 1) % pa.length], pb[j], pb[(j + 1) % pb.length],
+      ));
+    }
+  }
+  return best;
+}
 
 /** True when the rect's centre falls outside the viewport. */
 export function centreOffScreen(r: UxRect, vw: number, vh: number): boolean {

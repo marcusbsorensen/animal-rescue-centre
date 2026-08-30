@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { waitForGameReady, seedFakeSession } from './helpers';
 import {
-  reachability, overlappingControls, textCutByControls, type UxRect,
+  reachability, overlappingControls, textCutByControls, gapBetween, type UxRect,
 } from '../src/ui/ux-geometry';
 
 /**
@@ -416,6 +416,44 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
           return { clipped, pinned, path: domPath(el) };
         };
 
+        /**
+         * The element's four real corners.
+         *
+         * `getBoundingClientRect` is the axis-aligned box AROUND a rotated
+         * element, not the element: arrival's 300x48 pills sit on a plaque
+         * tilted 0.8 degrees and report 52.2px tall. T4 charged that surplus
+         * to both neighbours and failed a 12px gap as 7.8px.
+         *
+         * `getBoxQuads` would answer this directly but is not implemented in
+         * the Chrome this runs in (checked). So: under any affine transform
+         * the bounding box's centre IS the element's transformed centre, and
+         * `offsetWidth/offsetHeight` is the untransformed border box. Walk the
+         * ancestors for the accumulated 2x2 linear part, apply it to the half
+         * extents, and the corners fall out exactly — rotation, scale and skew
+         * alike. Undefined when nothing is transformed, so untransformed
+         * elements cost nothing and `quadOf` uses their box.
+         */
+        const quadFor = (el: Element, r: DOMRect, ox: number, oy: number) => {
+          let a = 1, b = 0, c = 0, d = 1;
+          for (let n: Element | null = el; n; n = n.parentElement) {
+            const t = getComputedStyle(n).transform;
+            if (!t || t === 'none') continue;
+            const m = new DOMMatrixReadOnly(t);
+            [a, b, c, d] = [
+              m.a * a + m.c * b, m.b * a + m.d * b,
+              m.a * c + m.c * d, m.b * c + m.d * d,
+            ];
+          }
+          if (a === 1 && b === 0 && c === 0 && d === 1) return undefined;
+          const w0 = (el as HTMLElement).offsetWidth;
+          const h0 = (el as HTMLElement).offsetHeight;
+          if (!w0 || !h0) return undefined;
+          const cx = r.x + r.width / 2 + ox, cy = r.y + r.height / 2 + oy;
+          const hw = w0 / 2, hh = h0 / 2;
+          return ([[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]] as const)
+            .map(([dx, dy]) => [cx + a * dx + c * dy, cy + b * dx + d * dy] as [number, number]);
+        };
+
         for (const { doc, ox, oy, full } of docs) {
           if (overlayCovers && !full) continue;
           for (const el of Array.from(doc.querySelectorAll('button, [role="button"], a[href], input, select'))) {
@@ -425,6 +463,7 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
               boxes.push({
                 w: r.width, h: r.height, x: r.x + ox, y: r.y + oy, source: 'dom', layer: 9998,
                 label: (el.textContent ?? el.tagName).trim().slice(0, 32) || el.tagName,
+                quad: quadFor(el, r, ox, oy),
                 ...ancestry(el),
               });
             }
@@ -519,11 +558,13 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         for (let i = 0; i < boxes.length; i++) {
           for (let j = i + 1; j < boxes.length; j++) {
             const a = boxes[i], b = boxes[j];
-            const dx = Math.max(0, Math.max(a.x - (b.x + b.w), b.x - (a.x + a.w)));
-            const dy = Math.max(0, Math.max(a.y - (b.y + b.h), b.y - (a.y + a.h)));
-            // Only count pairs that actually sit beside each other.
-            if (dx === 0 && dy === 0) continue;
-            const gap = dx === 0 ? dy : dy === 0 ? dx : Math.hypot(dx, dy);
+            // Between the shapes, not their bounding boxes — see gapBetween.
+            // A rotated control's box is bigger than the control, and the
+            // surplus was charged to both neighbours at once.
+            const gap = gapBetween(a, b);
+            // Only count pairs that actually sit beside each other. Touching
+            // or overlapping is L8's question, not this one.
+            if (gap === 0) continue;
             if (gap < tightest) {
               tightest = gap;
               tightestPair =
