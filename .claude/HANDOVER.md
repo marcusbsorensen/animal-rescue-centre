@@ -11,12 +11,11 @@ Clean tree, 4 commits today. Typecheck clean, lint 0 errors / 38 warnings,
 
 **Verified.** The animal card replaces `AnimalDetailsPopup` — measured against
 the live display list at 812×325, 812×375 and 1024×768: nothing on either face
-falls off screen, one container at depth 800, all three faces screenshotted on
-the clip. Review Phase 0 is closed: all three blocking exits are on screen at
-rest at five viewports. Adoption's and rewilding's `← Not yet` were already
-pinned in `7cc0808`; paths' `← Back to Luna` now sits 270..319 with 6px clear.
-`ErrorOverlay.showBlocking` was already child-safe — it logs raw errors and
-offers "Back to the menu".
+falls off screen, one container at depth 800. Review Phase 0 is closed: all
+three blocking exits are on screen at rest at five viewports. Adoption's and
+rewilding's `← Not yet` were already pinned in `7cc0808`; paths' `← Back to
+Luna` now sits 270..319 with 6px clear. `ErrorOverlay.showBlocking` was already
+child-safe.
 
 **Unverified.** `e2e/visual.spec.ts` still red on a stale baseline, four
 sessions old. Nothing has run on a physical iPad. Nobody has *tapped* the card
@@ -29,8 +28,8 @@ card's story face is sparse on an iPad; only checked on the clip.
 - `apps/game/src/game-views/AnimalCard.ts` — the three faces and the action list.
 - `apps/game/src/game-views/__tests__/animal-card.test.ts` — 50 arithmetic
   tests; where the next card invariant goes.
-- `apps/game/public/admin/_short-landscape.css` — the height branch for all 21
-  DOM screens. `:342` is the paths block.
+- `apps/game/public/admin/_short-landscape.css:342` — the paths block of the
+  height branch shared by all 21 DOM screens.
 - `apps/game/tools/measure-screens.mjs` — the DOM-screen harness. Needs
   `ARC_BROWSER_CHANNEL=chrome` and a dev server on :5173.
 
@@ -46,25 +45,22 @@ card's story face is sparse on an iPad; only checked on the clip.
   pinning `.paths-footer` floated it *up* over the cards. Height came out of
   the plaque's padding instead.
 - **`measure-screens.mjs` left as is.** It excuses controls inside a scrolling
-  ancestor, which is why it passed the Paths exit while it hung 8px off.
-  Widening it is review Phase 5 item (c) and lights up every picker item on 23
-  screens, so it needs its own triage budget.
+  ancestor, which is why it passed the Paths exit while it hung 8px off the
+  bottom. Widening it is review Phase 5 item (c) and lights up every picker
+  item on 23 screens, so it needs its own triage budget.
 
 ## Next step
 Phase 2 of the review — the sprite contract. Findings 5 and 6: every label that
 decorates an animal is drawn *inside* the animal, and six of eight animal names
-are illegible. Phase 1 is effectively done; `ui/layout.ts` exists and the views
-use it.
+are illegible. Phase 1 is done; `ui/layout.ts` exists and the views use it.
 
 ## Traps
 - **A `sticky` exit is bounded by its parent box.** Give the parent slack or
   take the height out of the layout instead.
 - **`createButton` grows past the `width` you ask for** — 28px padding each
   side. Fine in a centred row, an overlap in a fixed-cell grid.
-- **Walk is offered to a sick animal.** `canGoOnWalk` never checked illness;
-  the card makes it visible rather than causing it. A game-rules call, left.
-- **The audio button is 53–87% covered by the plaque** on paths, adopters and
-  tunnel, despite `.top-strip { z-index: 20 }`. Not blocking, not fixed.
-- **Truncating a grep and concluding from it** cost a wrong claim in yesterday's
-  handover about ErrorOverlay. Read the whole match before calling something open.
+- **Walk is offered to a sick animal**, and the audio button is 53–87% covered
+  by the plaque on paths, adopters and tunnel. Both pre-existing, both left.
+- **Truncating a grep and concluding from it** produced a wrong claim about
+  ErrorOverlay. Read the whole match before calling something open.
 - **The app is 812×375; the web clip is 812×325.** Say which you mean.
