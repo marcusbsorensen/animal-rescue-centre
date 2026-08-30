@@ -6,9 +6,10 @@ works for 7–10 year olds. Current arc: make it usable on a phone, working
 through `docs/ux-review-2026-08-29.md`.
 
 ## State
-Clean tree, 15 commits today. Typecheck clean, lint 0 errors, 1120 tests pass
-(was 1084). e2e smoke 3/3, `visual.spec.ts` green on a re-baselined main menu,
-ux harness 42 scene/viewport combinations with F10 clean.
+Branch `nav-icon-set`, two commits ahead of `main`, not yet merged. Typecheck
+clean, lint 0 errors, 1120 tests pass. e2e 5/5, `visual.spec.ts` green on a
+re-baselined main menu. Harness at **16 FAIL / 91 WARN** across 42
+scene/viewport combinations, down from 27 FAIL — F10 clean, F1-F5 now clean.
 
 **Verified.** Review phases 0–3 and 5 are closed. The sprite contract was
 measured against HEAD in Chrome at three viewports, across the room, corridor,
@@ -73,10 +74,13 @@ because `seedFakeSession` writes a token Supabase rejects. See
   42, not 68). Judge any future badge at 38px.
 
 ## Next step
-Review item 14, mechanical half only: raise the `clamp()` floors in
-`apps/game/public/admin/*.html` to 14px and button labels to 18px, working the
-30 entries under `offenders.smallText` in `e2e/__ux__/ux-report.json`, smallest
-first. **Leave the wording alone** — the reading-age pass wants Marcus's voice.
+Item 14's **reading-age half** — the part deliberately left for Marcus's voice.
+The mechanical half is done (all 30 `offenders.smallText` cleared, F1-F5 at
+0 FAIL), and no wording was touched.
+
+After that, the harness's remaining fix order is `L3 safe margin from edges`
+(8), `T4 spacing between targets` (4), `T1-T3 touch target size` (2) and
+`L6 interactive elements on screen` (2) — 16 FAIL total, down from 27.
 
 ## Traps
 - **Bash `cd` persists between calls** — cost two Playwright runs today. Use
