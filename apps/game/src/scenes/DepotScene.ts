@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
+import { useRetinaText } from '../ui/retina-text';
 import { AudioManager } from '../audio/AudioManager';
 import {
   createBoard,
@@ -91,6 +92,9 @@ export class DepotScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Most styles here set a resolution; five did not.
+    useRetinaText(this);
+
     const audio = AudioManager.getInstance();
     audio.setScene(this);
     audio.playSceneMusic('depot');

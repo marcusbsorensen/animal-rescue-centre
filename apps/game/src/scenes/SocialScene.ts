@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY } from '../ui/constants';
 import { createButton, createTextButton, createPanel, createAmbientParticles, createPillTitle } from '../ui/UIButton';
+import { useRetinaText } from '../ui/retina-text';
 import { getFriends, type Friend } from '../lib/friends';
 import {
   sendGift,
@@ -48,6 +49,9 @@ export class SocialScene extends Phaser.Scene {
   }
 
   async create(): Promise<void> {
+    // Most styles here set a resolution; two did not.
+    useRetinaText(this);
+
     this.container = this.add.container(0, 0);
     this.friends = [];
     this.inbox = [];

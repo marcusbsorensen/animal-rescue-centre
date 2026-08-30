@@ -11,6 +11,7 @@ import {
 import type { FoodDefinition } from '@arc/game-logic';
 import { createFoodSprite, createAnimalSprite } from '../ui/sprites';
 import { pillFor } from '../ui/contrast';
+import { useRetinaText } from '../ui/retina-text';
 import { AudioManager } from '../audio/AudioManager';
 import { RoomAnchors } from '../lib/RoomAnchors';
 
@@ -75,6 +76,10 @@ export class KitchenMinigameScene extends Phaser.Scene {
   }
 
   create(): void {
+    // One straggler out of ten styles here, which is exactly the shape
+    // this helper exists for — a list of call sites nobody can keep whole.
+    useRetinaText(this);
+
     const { width, height } = this.scale;
     const audio = AudioManager.getInstance();
     audio.setScene(this);

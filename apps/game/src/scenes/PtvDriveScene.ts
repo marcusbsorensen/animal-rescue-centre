@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
 import { createButton } from '../ui/UIButton';
+import { useRetinaText } from '../ui/retina-text';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Economy } from '@arc/shared-types';
 import { VEHICLE_DEFS, type VehicleDef, type VehicleType } from '@arc/game-logic';
@@ -398,6 +399,10 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   create(): void {
+    // 30 add.text calls here, none of which set a resolution, so all of
+    // them rendered at 1x on a retina screen. One line beats thirty.
+    useRetinaText(this);
+
     const audio = AudioManager.getInstance();
     audio.setScene(this);
     audio.playSceneMusic('walk'); // reuse the journey track until a PTV track lands

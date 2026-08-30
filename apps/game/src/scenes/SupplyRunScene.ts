@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
 import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
+import { useRetinaText } from '../ui/retina-text';
 import { AudioManager } from '../audio/AudioManager';
 import {
   canAccessDestination,
@@ -154,6 +155,9 @@ export class SupplyRunScene extends Phaser.Scene {
   }
 
   create(): void {
+    // 19 add.text calls, one of which set a resolution.
+    useRetinaText(this);
+
     const audio = AudioManager.getInstance();
     audio.setScene(this);
     audio.playSceneMusic('supply_run');
