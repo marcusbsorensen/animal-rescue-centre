@@ -4,7 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { waitForGameReady, seedFakeSession } from './helpers';
 import {
-  reachability, overlappingControls, textCutByControls, gapBetween, type UxRect,
+  reachability, overlappingControls, textCutByControls, gapBetween,
+  groupRepeatedTiles, type UxRect,
 } from '../src/ui/ux-geometry';
 
 /**
@@ -24,7 +25,7 @@ import {
  *   F7         ALL-CAPS body text
  *   F10        text resolution set for retina
  *   L3         safe margins from screen edges
- *   L6         interactive element count per screen
+ *   L6         distinct controls per screen (a repeated tile counts once)
  *   L7         every control's centre is inside the viewport
  *   L8         no two controls overlap
  *   L9         no control is printed across text it does not own
@@ -128,6 +129,8 @@ interface SceneReport {
   state: string;
   viewport: string;
   interactiveCount: number;
+  /** What L6 scores — a scrolling grid of identical tiles counted once. */
+  distinctControlCount: number;
   textCount: number;
   findings: Measurement[];
   /**
@@ -773,12 +776,29 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
             coveredText.slice(0, 3).map((o) => `"${o.text}" ${o.share}% under ${o.by}`).join('; '),
       });
 
-      // ── L6: interactive count ────────────────────────────────────
+      // ── L6: how many controls the screen is offering ─────────────
+      //
+      // Counted one interactive object at a time until 31 August, which
+      // made AccountScene 21 and failing: a Back button and twenty
+      // identical badge tiles in a scrolling wall, each tappable for its
+      // description. Twenty instances of one choice is not twenty choices,
+      // and counting them that way meant the rule got angrier the more
+      // badges a child had earned. `groupRepeatedTiles` collapses a
+      // scrolling grid of same-sized tiles and leaves everything else
+      // alone — a nav bar of five tabs is still five. The raw count stays
+      // in the detail so the collapse is visible rather than assumed.
+      const groups = groupRepeatedTiles(boxes);
+      const galleries = groups.filter((g) => g.gallery);
+      const distinct = groups.length;
       findings.push({
         id: 'L6',
-        rule: 'interactive elements on screen',
-        verdict: boxes.length <= 8 ? 'PASS' : boxes.length <= 12 ? 'WARN' : 'FAIL',
-        detail: `${boxes.length} interactive${offScreen > 0 ? ` (+${offScreen} parked off-screen)` : ''}`,
+        rule: 'distinct controls on screen',
+        verdict: distinct <= 8 ? 'PASS' : distinct <= 12 ? 'WARN' : 'FAIL',
+        detail: (galleries.length === 0
+          ? `${boxes.length} interactive`
+          : `${distinct} controls — ${boxes.length} interactive, ` +
+            galleries.map((g) => `${g.members.length} of them one repeated tile`).join('; '))
+          + (offScreen > 0 ? ` (+${offScreen} parked off-screen)` : ''),
       });
 
       // A state that failed to open is not a passing state. Say so loudly
@@ -795,6 +815,9 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         state,
         viewport: vp.name,
         interactiveCount: boxes.length,
+        // What L6 scores: a scrolling grid of identical tiles counted once.
+        // Equal to interactiveCount on every screen that has no such grid.
+        distinctControlCount: distinct,
         textCount: texts.length,
         findings,
         offenders: {

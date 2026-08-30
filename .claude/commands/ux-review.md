@@ -144,7 +144,7 @@ Children need stronger affordance signals than adults to identify interactive el
 | L3 | Safe margins from screen edges (avoid notch/gesture areas) | No margins | < 12px | >= 16px margins |
 | L4 | Content fits within viewport (no unintentional overflow/scrolling) | Content clipped or overflows | Minor overflow at some sizes | Fully contained at all viewports |
 | L5 | Visual hierarchy clear (can identify primary action within 2 seconds) | Primary action unclear | Primary action findable but not obvious | Primary action is the most prominent element |
-| L6 | Interactive element count per screen (cognitive overload) | > 12 interactive elements | 9-12 | <= 8 for core gameplay screens |
+| L6 | Distinct controls per screen (cognitive overload). A scrolling grid of identical tiles — AccountScene's badge wall — is one control repeated, and counts once | > 12 distinct controls | 9-12 | <= 8 for core gameplay screens |
 
 ### H. Driving Game Specific (Supply Run)
 

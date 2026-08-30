@@ -314,3 +314,99 @@ export function textCutByControls(
   }
   return out;
 }
+
+export interface ControlGroup {
+  /** Every control in the group. Exactly one for anything not a gallery. */
+  members: UxRect[];
+  /** True when the members are one tile repeated, not N separate choices. */
+  gallery: boolean;
+}
+
+/** True when two rects are the same size to within `tol` on both axes. */
+function sameSize(a: UxRect, b: UxRect, tol: number): boolean {
+  return Math.abs(a.w - b.w) <= tol && Math.abs(a.h - b.h) <= tol;
+}
+
+/** Distinct values, ascending, merging anything within `tol` of its neighbour. */
+function lanes(values: number[], tol: number): number[] {
+  const out: number[] = [];
+  for (const v of [...values].sort((p, q) => p - q)) {
+    if (out.length === 0 || Math.abs(v - out[out.length - 1]) > tol) out.push(v);
+  }
+  return out;
+}
+
+/** True when the gaps between successive lanes are all the same. */
+function uniformPitch(lane: number[], tol: number): boolean {
+  if (lane.length < 3) return true; // one gap cannot disagree with itself
+  const gaps = lane.slice(1).map((v, i) => v - lane[i]);
+  return Math.max(...gaps) - Math.min(...gaps) <= tol;
+}
+
+/**
+ * Collapse a repeated tile into the one control it reads as.
+ *
+ * L6 asks how many things a screen puts in front of a child at once. It
+ * counted every interactive object, and AccountScene answered 21 — one
+ * Back button and twenty identical badge tiles, each tappable for its own
+ * description. That is one choice ("which badge do I want to read about?")
+ * offered twenty times, not twenty choices, and it fails harder the better
+ * the child is doing: the count is the size of her collection.
+ * `landscape-ux-2026-08-27.md` reached the same conclusion by eye.
+ *
+ * Deleting badges to satisfy an element count would be tuning the game to
+ * the rule. Raising the threshold would stop the rule catching anything.
+ * So count what a person counts — which needs three things true at once
+ * before a run of controls collapses:
+ *
+ *   **They scroll.** `clipped` means the members live in something masked
+ *   or scrolling: a browsable collection whose length is content, not
+ *   chrome. This is the condition doing the real work. A nav bar of five
+ *   tabs is five destinations and is not clipped, so it still counts as
+ *   five; a wall of badges is one wall however many badges are in it.
+ *
+ *   **They are the same size.** A scrolling list of mixed cards and
+ *   buttons is not one tile repeated, and does not collapse.
+ *
+ *   **They sit on a regular grid** — shared columns and rows at an even
+ *   pitch, filled but for at most the last row. Controls that merely
+ *   happen to share a size stay counted one by one.
+ *
+ * Returns every control, grouped; nothing is discarded, so the caller can
+ * report the raw number alongside the count. Hiding it would make the
+ * check unfalsifiable, which is the failure mode this file exists to
+ * avoid.
+ */
+export function groupRepeatedTiles(
+  controls: UxRect[],
+  { minTiles = 4, sizeTolerance = 2, pitchTolerance = 2 } = {},
+): ControlGroup[] {
+  const groups: ControlGroup[] = [];
+  const grouped = new Set<UxRect>();
+
+  const buckets: UxRect[][] = [];
+  for (const c of controls.filter((c) => c.clipped)) {
+    const bucket = buckets.find((b) => sameSize(b[0], c, sizeTolerance));
+    if (bucket) bucket.push(c);
+    else buckets.push([c]);
+  }
+
+  for (const bucket of buckets) {
+    if (bucket.length < minTiles) continue;
+    const cols = lanes(bucket.map((b) => b.x + b.w / 2), sizeTolerance);
+    const rows = lanes(bucket.map((b) => b.y + b.h / 2), sizeTolerance);
+    // The lattice the lanes describe has to be the one the tiles fill.
+    // Two dozen controls dropped at random share no columns, so their
+    // lanes multiply out to hundreds of cells for twenty-odd members, and
+    // that is what turns them away.
+    if (cols.length * rows.length > bucket.length + cols.length) continue;
+    if (!uniformPitch(cols, pitchTolerance) || !uniformPitch(rows, pitchTolerance)) continue;
+    groups.push({ members: bucket, gallery: true });
+    for (const m of bucket) grouped.add(m);
+  }
+
+  for (const c of controls) {
+    if (!grouped.has(c)) groups.push({ members: [c], gallery: false });
+  }
+  return groups;
+}

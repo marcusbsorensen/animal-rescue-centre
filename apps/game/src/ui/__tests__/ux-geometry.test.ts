@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   intersectionArea, centreOffScreen, reachability,
-  overlappingControls, textCutByControls, gapBetween, quadOf, type UxRect,
+  overlappingControls, textCutByControls, gapBetween, quadOf,
+  groupRepeatedTiles, type UxRect,
 } from '../ux-geometry';
 
 /**
@@ -272,5 +273,121 @@ describe('gapBetween — finding T4 and the rotation trap', () => {
   it('falls back to the bounding box when a rect carries no quad', () => {
     const a: UxRect = { label: 'a', x: 0, y: 0, w: 10, h: 10 };
     expect(quadOf(a)).toEqual([[0, 0], [10, 0], [10, 10], [0, 10]]);
+  });
+});
+
+
+/**
+ * groupRepeatedTiles — L6 on AccountScene, 31 August.
+ *
+ * The only rule still failing after the landscape pass, and the reason is
+ * that it counted badge tiles as separate controls. The danger in fixing
+ * that is obvious: a rule that stops counting things is a rule that stops
+ * catching things. So every test below the first two is a crowded screen
+ * that must still be counted one control at a time.
+ */
+describe('groupRepeatedTiles — L6 and the badge wall', () => {
+  /**
+   * AccountScene's wall as the harness measured it on tablet and desktop:
+   * 5 columns of 120px tiles on a 130px pitch, wall top at y=354, four
+   * rows above the fold. Masked and scrollable, so every tile is clipped.
+   */
+  const badgeWall = (rows = 4): UxRect[] => {
+    const tiles: UxRect[] = [];
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < 5; col++) {
+        tiles.push(r(`badge ${row * 5 + col}`, 192 + col * 130, 354 + row * 130, 120, 120, { clipped: true }));
+      }
+    }
+    return tiles;
+  };
+
+  const back = r('Back', 16, 15, 116, 48);
+
+  it('reads the wall as one control, not twenty', () => {
+    const groups = groupRepeatedTiles([back, ...badgeWall()]);
+    expect(groups).toHaveLength(2);
+    const gallery = groups.find((g) => g.gallery);
+    expect(gallery?.members).toHaveLength(20);
+    // and the raw number survives, so the finding can still say 21
+    expect(groups.reduce((n, g) => n + g.members.length, 0)).toBe(21);
+  });
+
+  it('reads the same wall the same way when only one row is above the fold', () => {
+    // The mobile viewport shows 5 of the 25. Same wall, same answer — the
+    // count must not depend on how much of the collection happens to fit.
+    const groups = groupRepeatedTiles([back, ...badgeWall(1)]);
+    expect(groups).toHaveLength(2);
+  });
+
+  it('still counts a nav bar of five tabs as five', () => {
+    // This is the case the whole thing turns on. Five equal buttons on an
+    // even pitch are geometrically indistinguishable from a row of tiles;
+    // what separates them is that a nav bar does not scroll. Collapse it
+    // and the rule would excuse any amount of chrome.
+    const tabs = [0, 1, 2, 3, 4].map((i) => r(`tab ${i}`, 100 + i * 96, 700, 88, 78));
+    expect(groupRepeatedTiles(tabs)).toHaveLength(5);
+  });
+
+  it('still fails a genuinely crowded screen of twelve mismatched controls', () => {
+    const crowd = [
+      r('Feed', 20, 40, 168, 56), r('Play', 200, 40, 140, 56),
+      r('Vet', 350, 40, 120, 56), r('Walk', 480, 44, 150, 48),
+      r('Groom', 640, 40, 168, 56), r('Adopt', 20, 120, 200, 56),
+      r('Rewild', 240, 118, 180, 60), r('Shop', 430, 120, 120, 56),
+      r('Friends', 560, 120, 160, 56), r('Badges', 20, 200, 190, 56),
+      r('Map', 230, 200, 110, 56), r('Back', 360, 202, 150, 48),
+    ];
+    expect(groupRepeatedTiles(crowd)).toHaveLength(12);
+  });
+
+  it('does not collapse same-sized controls that are merely scattered', () => {
+    // Twenty 120px hit areas dropped at arbitrary positions inside a
+    // scrolling container share a size and nothing else. Sharing a size is
+    // not being a grid, and a check that could not tell them apart would
+    // wave through any screen that used one button size throughout.
+    const scattered = Array.from({ length: 20 }, (_, i) =>
+      r(`thing ${i}`, (i * 137) % 900, (i * 211) % 700, 120, 120, { clipped: true }));
+    expect(groupRepeatedTiles(scattered)).toHaveLength(20);
+  });
+
+  it('does not collapse a scrolling list of differently sized cards', () => {
+    const list = [
+      r('Basia', 70, 100, 437, 120, { clipped: true }),
+      r('Kofi', 70, 230, 437, 180, { clipped: true }),
+      r('Amara', 70, 420, 437, 96, { clipped: true }),
+      r('Rhubarb', 70, 526, 437, 210, { clipped: true }),
+      r('Luna', 70, 746, 437, 150, { clipped: true }),
+    ];
+    expect(groupRepeatedTiles(list)).toHaveLength(5);
+  });
+
+  it('does not collapse a run shorter than a gallery', () => {
+    const three = [0, 1, 2].map((i) => r(`tile ${i}`, 192 + i * 130, 354, 120, 120, { clipped: true }));
+    expect(groupRepeatedTiles(three)).toHaveLength(3);
+  });
+
+  it('does not collapse tiles at an uneven pitch', () => {
+    // Even spacing is part of what makes a grid read as one object. A row
+    // whose gaps jump around is a set of separate things that happen to be
+    // the same size.
+    const uneven = [192, 322, 500, 630, 760].map((x, i) =>
+      r(`tile ${i}`, x, 354, 120, 120, { clipped: true }));
+    expect(groupRepeatedTiles(uneven)).toHaveLength(5);
+  });
+
+  it('collapses a grid with a ragged last row', () => {
+    // 23 tiles in 5 columns: four full rows and a row of three. Still one
+    // wall — a collection is not required to divide evenly.
+    const ragged = badgeWall(4).concat(
+      [0, 1, 2].map((col) => r(`badge ${20 + col}`, 192 + col * 130, 874, 120, 120, { clipped: true })),
+    );
+    const groups = groupRepeatedTiles(ragged);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].members).toHaveLength(23);
+  });
+
+  it('leaves a screen with nothing interactive at zero', () => {
+    expect(groupRepeatedTiles([])).toEqual([]);
   });
 });
