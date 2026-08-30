@@ -75,9 +75,16 @@
    ─────────────────────────────────────────────────────────────────────── */
 /* z:40 — the ceremony plaques are z:20 and carry a transform, so anything
    lower than that paints behind them and the pinned button is invisible even
-   though its rect says it is on screen. */
-.wave-wrap, .release-wrap { position: sticky; bottom: 52px; z-index: 40; }
-.secondary-row, .footer-row { position: sticky; bottom: 4px; z-index: 40; }
+   though its rect says it is on screen.
+
+   The two offsets are one number, not two: .secondary-row / .footer-row carry
+   a 48px control (the touch-target floor above), so the ceremony action sits
+   at secondary + 48 and the pair stack flush. Was 4px / 52px, which put
+   rewilding's "Not yet" 4px off the bottom edge on every viewport and
+   adoption-office's cancel link 8-10px off — L3 wants 16. Move one, move
+   both. */
+.wave-wrap, .release-wrap { position: sticky; bottom: 66px; z-index: 40; }
+.secondary-row, .footer-row { position: sticky; bottom: 18px; z-index: 40; }
 /* Room at the end of the scroll so the last of the ceremony can clear the
    pinned buttons instead of sitting permanently behind them. */
 [class$="-inner"]:has(> .wave-wrap, > .release-wrap, > .footer-row) {
@@ -85,12 +92,17 @@
 }
 
 @container (max-height: 520px) {
-  .welcome-inner { padding-top: 2px; }
+  /* Was 2px, which left the audio button 2px off the top edge — the L3
+     failure on welcome and paths. The strip is not shrunk to pay for it (its
+     button keeps the 48px floor from the touch-target rule); the height comes
+     out of .welcome-content's own top padding just below, so the total space
+     above the sign moves by about 9px rather than 16. */
+  .welcome-inner { padding-top: 18px; }
 
   /* The audio button keeps its 48px floor from the touch-target rule in each
      page — do not shrink the top strip to claw back height. */
   .welcome-content {
-    padding-top: clamp(5px, 2cqh, 15px);
+    padding-top: clamp(0px, 0.8cqh, 6px);
     gap: clamp(3px, 0.9cqh, 8px);
   }
 
