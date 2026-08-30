@@ -6,7 +6,7 @@ works for 7–10 year olds. Current arc: make it usable on a phone, working
 through `docs/ux-review-2026-08-29.md`.
 
 ## State
-Clean tree, 14 commits today. Typecheck clean, lint 0 errors, 1120 tests pass
+Clean tree, 15 commits today. Typecheck clean, lint 0 errors, 1120 tests pass
 (was 1084). e2e smoke 3/3, `visual.spec.ts` green on a re-baselined main menu,
 ux harness 42 scene/viewport combinations with F10 clean.
 
@@ -17,10 +17,10 @@ moved because the old maths was wrong. The harness now checks relations between
 elements and caught DepotScene's third build-mode card hanging off a landscape
 phone — fixed and re-measured.
 
-**Unverified.** Nothing has run on a physical iPad. Nobody has *tapped* the
+**Unverified.** Nothing has run on a physical iPad, and nobody has *tapped* the
 animal card on a device — handlers were fired through Phaser's emitter, not real
-touch. The card's story face is sparse on an iPad. `visual.spec.ts` is one
-screenshot of one screen and covers none of what moved.
+touch. `visual.spec.ts` is one screenshot of one screen and covers none of what
+moved.
 
 ## Files
 - `.claude/TRAPS.md` — read first.
@@ -29,8 +29,6 @@ screenshot of one screen and covers none of what moved.
   `__tests__/ux-geometry.test.ts` holds the review's own geometry.
 - `apps/game/e2e/ux-review.spec.ts` — the harness. Needs
   `ARC_BROWSER_CHANNEL=chrome`; writes `e2e/__ux__/ux-report.json`.
-- `apps/game/src/ui/retina-text.ts` — `useRetinaText(scene)`, one line per scene.
-- `apps/game/src/ui/layout.ts` — play band and animal sizing, Phaser-free.
 - `docs/nav-icon-brief-2026-08-30.md` — icon commission, **not sent**.
 
 ## Decisions made
@@ -38,18 +36,17 @@ screenshot of one screen and covers none of what moved.
   `SPRITE_RENDER_SCALE` are gone. Still read `displayWidth` for anything placed
   off an animal: square art in a 5:4 box draws narrower than the box, and an
   anchor's `scale` multiplies again.
-- **Two call sites keep the old half-size number** — WalkScene's `collarBasis`
-  and ToyPickerView's `rowBasis` — because hand-tuned fraction tables are keyed
-  to them. Both say so in place.
+- **Two call sites keep the old half-size number** — WalkScene's `collarBasis`,
+  ToyPickerView's `rowBasis` — because hand-tuned fraction tables are keyed to
+  them. Both say so in place.
 - **The review's own L7 rule would have missed the defect it was written for.**
   "Centre outside the viewport" passes a Paths exit hanging 8px off the bottom.
-  `reachability` splits unreachable / spilling / below-the-fold; the middle one
-  bites.
+  `reachability` splits unreachable / spilling / below-the-fold; the middle bites.
 - **Stacked controls are reported, not scored.** The tree cannot tell a card
   carrying a button from a stray overlap: `createButton` makes the hit rectangle
   and the label siblings.
-- **Text resolution is set once per scene**, not per style. Five scenes have it;
-  the rest are one line each.
+- **Text resolution is set once per scene** (`ui/retina-text.ts`), not per style.
+  Five scenes have it; the rest are one line each.
 - **The icon commission belongs to OpenAI, not Manus** — `manus-sprite-rules.md`
   Rule 6, because every piece must match an existing set.
 
