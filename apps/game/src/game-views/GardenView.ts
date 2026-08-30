@@ -317,8 +317,12 @@ function renderZone(
     const cy = placed
       ? placed.cy
       : grassTop + Math.floor(i / cols) * 80 + (Math.random() * 20);
-    const spriteW = placed ? placed.w : 200;
-    const spriteH = placed ? placed.h : 160;
+    // `gardenBox`, not a constant: an animal with no anchor for its
+    // species and state falls through here, and a hardcoded 200 put it
+    // outside the band on a landscape phone while the animal standing
+    // next to it — the one that did have an anchor — was capped to 95.
+    const spriteW = placed ? placed.w : gardenBox;
+    const spriteH = placed ? placed.h : gardenBox * 0.8;
 
     // Collar ring only for pets (permanent residents). Outsiders get
     // a softer ring in a neutral colour to show they're visitors, not

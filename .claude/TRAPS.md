@@ -139,13 +139,23 @@ checking the claim still holds.
   container at depth 800, created by `GameScene.animalCard()` and taken
   down by `closePopup` *and* `clearView`. Removing the `clearView` call
   would leave a card floating over a view it no longer describes.
-- **`createAnimalSprite` renders at 2x the box it is handed**
-  (`SPRITE_RENDER_SCALE` in `ui/layout.ts`, used by `ui/sprites.ts`), and
-  an anchor's own `scale` multiplies that again. So RoomView asking for
-  100 produced a 200px sprite, and with a 1.8 anchor a 288px one — on a
-  325px screen. Size animals with `animalBoxFor(play, base)` and read
-  `sprite.displayHeight` for anything positioned off them, never the
-  number you passed in.
+- **`createAnimalSprite` draws inside the box it is handed** — as of
+  `9d40b94`. It used to render at 2x it (`SPRITE_RENDER_SCALE`, now
+  deleted), which is where the "ask for half of what you want" numbers in
+  older commits and comments come from. **Still read
+  `sprite.displayWidth/displayHeight` for anything positioned off an
+  animal**: the art is square and most boxes are 5:4, so the animal is
+  drawn narrower than the box, and an anchor's own `scale` multiplies the
+  result. Size animals with `animalBoxFor(play, base)`, where `base` is
+  now the drawn size.
+  Two call sites are deliberately still on the old half-size basis
+  because a table of hand-tuned fractions is keyed to it — WalkScene's
+  `collarBasis` (the collar overlay's anchor fractions) and
+  ToyPickerView's `rowBasis` (the toy row's y). Both say so in place.
+- **`resolveAnchor` puts the *drawn* box's feet on the anchor mark**, so
+  animals in the corridor and garden sit 9–40px higher than they did
+  before `9d40b94`. That is the fix, not a regression: the mark is a feet
+  position and the sprite used to hang half a box below it.
 - **A third of the hand-authored anchors resolve below the nav bar, on
   every device including an iPad.** They are fractions of background art
   that is drawn behind the bar, so 32 of the 100 put an animal's feet
