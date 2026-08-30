@@ -339,7 +339,28 @@
      plaque also starts at y=8 and swallows the audio button in the top strip. */
   .top-strip { position: relative; z-index: 20; }   /* audio button over the plaque */
 
-  .paths-header { gap: clamp(6px, 1.6cqw, 12px); }
+  /* The plaque's own 16/16 was the last 8px. Measured 2026-08-30 at 812x325:
+     content 333 against a 325 viewport, with "← Back to Luna" running
+     284..333 — the one exit of the three the review called blocking that was
+     still loose. Pinning it the way adoption and rewilding are pinned does
+     not work here: .paths-footer is the last child of .paths-plaque, and
+     sticky is bounded by the parent box, so it floats up over the middle
+     card instead of down to the screen edge. The height has to come out of
+     the plaque instead. */
+  .paths-plaque {
+    padding-top: clamp(8px, 2.4cqh, 16px);
+    padding-bottom: clamp(6px, 2cqh, 16px);
+  }
+
+  /* Header padding is whitespace rather than content, so it is the cheapest
+     of the remaining pixels. Without it the exit lands flush on the viewport
+     bottom at 325 — physically fine there, since iOS keeps a 50px strip
+     below that viewport, but a margin of zero is one reflow from being an
+     overhang again. */
+  .paths-header {
+    gap: clamp(6px, 1.6cqw, 12px);
+    padding-bottom: clamp(3px, 1.2cqh, 10px);
+  }
   .paths-portrait { height: clamp(38px, 11cqh, 52px); }
   .paths-title { font-size: clamp(14px, 4cqh, 18px); }
   .paths-subtitle { font-size: clamp(11px, 3cqh, 13px); margin-top: clamp(1px, 0.5cqh, 3px); }
