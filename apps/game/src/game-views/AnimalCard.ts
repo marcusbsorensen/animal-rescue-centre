@@ -292,11 +292,13 @@ function drawPortrait(
   const hintCy = cy + size / 2 - 12;
   const hintPill = scene.add.graphics();
   hintPill.fillStyle(0xfffaf0, 0.86);
-  hintPill.fillRoundedRect(cx - 34, hintCy - 9, 68, 18, 9);
+  // 14px is the floor for body text (review F1-F5); the pill grows with it
+  // rather than letting the label crowd its own ground.
+  hintPill.fillRoundedRect(cx - 37, hintCy - 10, 74, 20, 10);
   container.add(hintPill);
   container.add(
     scene.add.text(cx, hintCy, 'My story', {
-      fontSize: '13px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5),
   );

@@ -120,16 +120,16 @@
     max-width: min(96%, 560px);
   }
   .intro ol { gap: clamp(2px, 0.7cqh, 5px); }
-  .intro li { font-size: clamp(13px, 3.6cqh, 16px); line-height: 1.15; }
+  .intro li { font-size: clamp(14px, 3.6cqh, 16px); line-height: 1.15; }
   .intro li::before {
     width: clamp(20px, 5.6cqh, 26px); height: clamp(20px, 5.6cqh, 26px);
-    font-size: clamp(12px, 3.2cqh, 15px);
+    font-size: clamp(14px, 3.2cqh, 16px);
   }
 
   /* Sign text between the title and the controls. */
   .sign-title { font-size: clamp(15px, 4.4cqh, 20px); }
   .sign-subtitle {
-    font-size: clamp(12px, 3.4cqh, 15px);
+    font-size: clamp(14px, 3.4cqh, 16px);
     margin-top: clamp(2px, 0.6cqh, 4px);
     margin-bottom: clamp(3px, 0.9cqh, 6px);
   }
@@ -172,7 +172,7 @@
   .menu-stats { gap: clamp(6px, 1.6cqw, 12px); }
   .menu-stat {
     padding: clamp(2px, 0.7cqh, 5px) clamp(7px, 1.4cqw, 11px);
-    font-size: clamp(11px, 2.8cqh, 13px);
+    font-size: clamp(14px, 2.8cqh, 16px);
   }
   .menu-stat .stat-num, .menu-stat strong { font-size: clamp(16px, 4.4cqh, 21px); }
 
@@ -208,8 +208,8 @@
   .intro:has(.menu-card) > .menu-card { margin-bottom: 0; padding: clamp(6px, 1.8cqh, 10px); }
   .player-avatar { font-size: clamp(24px, 7cqh, 34px); }
   .player-badge { padding: clamp(3px, 1cqh, 6px) clamp(6px, 1.4cqw, 10px); }
-  .player-hello { font-size: clamp(12px, 3.2cqh, 15px); }
-  .menu-card-title { font-size: clamp(12px, 3.2cqh, 15px); margin-bottom: clamp(2px, 0.8cqh, 5px); }
+  .player-hello { font-size: clamp(14px, 3.2cqh, 16px); }
+  .menu-card-title { font-size: clamp(14px, 3.2cqh, 16px); margin-bottom: clamp(2px, 0.8cqh, 5px); }
 
   /* signup: the animal picker plus a name field plus a title is more than the
      sign can hold here, so the picker takes the cut — it already scrolls. */
@@ -327,7 +327,7 @@
   /* One line each — wrapped to two, the pills grew taller than the space the
      shortened stake leaves them. */
   .link-btn {
-    font-size: clamp(12px, 3.2cqh, 15px);
+    font-size: clamp(18px, 3.2cqh, 20px);
     padding: 0 clamp(12px, 2.4cqw, 20px);
     white-space: nowrap;
   }
@@ -363,17 +363,17 @@
   }
   .paths-portrait { height: clamp(38px, 11cqh, 52px); }
   .paths-title { font-size: clamp(14px, 4cqh, 18px); }
-  .paths-subtitle { font-size: clamp(11px, 3cqh, 13px); margin-top: clamp(1px, 0.5cqh, 3px); }
+  .paths-subtitle { font-size: clamp(14px, 3cqh, 16px); margin-top: clamp(1px, 0.5cqh, 3px); }
 
   .paths-grid { padding: clamp(5px, 1.6cqh, 9px) 0; gap: clamp(6px, 1.6cqw, 12px); }
   .path-card { padding: clamp(7px, 2cqh, 11px) clamp(8px, 1.8cqw, 13px); }
   .path-badge { font-size: clamp(19px, 5.4cqh, 26px); }
-  .path-name { font-size: clamp(13px, 3.6cqh, 16px); }
+  .path-name { font-size: clamp(14px, 3.6cqh, 16px); }
   /* The blurb repeats what the criteria list says underneath it; on a screen
      this short the criteria are what the child needs to read. */
   .path-blurb { display: none; }
   .path-criteria { margin-top: clamp(2px, 0.8cqh, 4px); }
-  .path-criteria li { font-size: clamp(11px, 2.9cqh, 13px); line-height: 1.25; }
+  .path-criteria li { font-size: clamp(14px, 2.9cqh, 16px); line-height: 1.25; }
 
   /* ── arrival / conflict / vet ─────────────────────────────────────────
      A scene, a line of story, and two or three choice pills stacked beneath.
@@ -417,8 +417,8 @@
     padding: clamp(4px, 1.2cqh, 8px) clamp(10px, 2cqw, 16px);
     min-height: 48px;   /* the compression took these to 40px */
   }
-  .choice-label { font-size: clamp(12px, 3.4cqh, 15px); }
-  .choice-hint  { font-size: clamp(10px, 2.8cqh, 12px); }
+  .choice-label { font-size: clamp(18px, 3.4cqh, 20px); }
+  .choice-hint  { font-size: clamp(14px, 2.8cqh, 16px); }
 
   /* tunnel's "Ready?" startup scrim: 260px of oversized deco art above a
      36px title above the button, which put "Ready!" past the bottom on every
@@ -442,7 +442,7 @@
     z-index: 8;
   }
   .credit-scrawl {
-    font-size: clamp(11px, 3cqh, 13px);
+    font-size: clamp(14px, 3cqh, 16px);
     white-space: nowrap;
     opacity: 0.75;
   }
