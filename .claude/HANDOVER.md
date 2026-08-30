@@ -8,8 +8,8 @@ through `docs/ux-review-2026-08-29.md`.
 ## State
 Clean tree on `main`, six commits today, not pushed (37+ ahead of origin).
 Typecheck clean, lint 0 errors, 1120 tests pass. e2e 6/6, `visual.spec.ts`
-green. Harness at **2 FAIL / 95 WARN** across 42 scene/viewport combinations,
-down from 27 FAIL.
+green. Harness at **2-3 FAIL / 95 WARN** across 42 scene/viewport combinations, down
+from 27 FAIL. The wobble is arrival's T4 (see Traps), not a real regression.
 
 **Verified.** Review phases 0–3 and 5 are closed. The sprite contract was
 measured against HEAD in Chrome at three viewports, across the room, corridor,
@@ -44,6 +44,13 @@ because `seedFakeSession` writes a token Supabase rejects. See
 - `tools/badge-postprocess.py` — cuts a Manus render down to the set's badge
   geometry (238px disc, 9px margin, clean alpha). Handles alpha, magenta or an
   opaque field.
+- **To redo the reading-age pass**: render all 21 overlay screens at
+  `/admin/<name>.html?embed=1`, harvest text with `Element.checkVisibility`
+  (embed hides the mock pages' `.vp-bar`, and checkVisibility respects
+  ancestors), then pull every word of 3+ syllables. Scoring whole sentences by
+  Flesch-Kincaid is near-useless here — the copy is mostly fragments, and
+  two-word labels score like postgraduate prose. The syllable list is what
+  finds real problems.
 
 ## Decisions made
 - **The box you ask for is the box that gets drawn.** The 2x multiplier and
@@ -74,17 +81,18 @@ because `seedFakeSession` writes a token Supabase rejects. See
   42, not 68). Judge any future badge at 38px.
 
 ## Next step
-Two things are left, and **both want Marcus, not a mechanical pass**:
+**L6 on AccountScene** — the only substantive rule still failing, on tablet
+and desktop. 21 interactive elements against a limit of 12 (PASS is 8).
+Fixing it means deciding what to cut, group or paginate on the stats/badges
+screen: an information-architecture call, not a threshold to nudge.
 
-1. **Item 14's reading-age half** — deliberately reserved for his voice. No
-   wording has been touched.
-2. **L6 on AccountScene** — the only failing rule left, on tablet and desktop.
-   21 interactive elements against a limit of 12 (PASS is 8). Fixing it means
-   deciding what to cut, group or paginate on the stats/badges screen. That is
-   an information-architecture call, not a threshold to nudge.
+Worth doing alongside it: **fix T4's rotation blindness in the harness**
+(see Traps). It is the difference between a rule that measures separation and
+one that measures bounding boxes, and right now arrival flips between WARN and
+FAIL run to run purely on how wide the animal's name makes the pills.
 
-Everything else in the review's fix order is closed: F1-F5, L3, T4 and T1-T3
-are all at 0 FAIL.
+Item 14 is closed, both halves. Item 15 is closed. F1-F5, L3 and T1-T3 are all
+at 0 FAIL.
 
 ## Traps
 - **Bash `cd` persists between calls** — cost two Playwright runs today. Use
