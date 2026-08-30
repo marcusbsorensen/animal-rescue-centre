@@ -318,7 +318,13 @@
      foreground dog is itself z:6 and, being later in the DOM, won the tie and
      sat on top of the PIN keypad's confirm key. */
   .intro { z-index: 7; }
-  .cta-stack { gap: clamp(3px, 0.7cqh, 7px); }
+  /* Was clamp(3px, ...), which put PLAY! 3px from "I already have an
+     account" on a landscape phone — the two most-tapped controls on the
+     first screen of the game, close enough to mis-hit. T4 scored that pair
+     as PASS until 25884e7, because PLAY! is tilted and the old rule skipped
+     any pair whose bounding boxes overlapped. One gap in this stack, so the
+     floor costs 9px of a 375px viewport. */
+  .cta-stack { gap: clamp(12px, 1.6cqh, 16px); }
 
   /* Side by side. The wide branch stacks these down the stake's centre line,
      which is right when height is plentiful and width is not; here it is the
