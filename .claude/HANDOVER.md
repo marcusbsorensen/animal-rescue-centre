@@ -74,6 +74,13 @@ so the two cannot drift apart.
   counts failures only, which is why `peek_rate_limit` exists alongside
   `check_rate_limit`: the question has to be asked separately from the
   charge.
+- **Gifts are capped per friendship, not only per sender.** The
+  10-per-15-minutes budget is spread across everyone a child knows, so
+  nothing stopped all ten landing on one person all day — from an
+  accepted friend, which is precisely what the friendship check cannot
+  see. Five an hour per pair, counted after the friendship so a
+  stranger's refused attempts never eat a real friend's allowance. An
+  address cap sits alongside it and would not have closed this.
 - **A peek compares with `<`, a check with `<=`.** They count at
   different moments: `check_rate_limit` increments first, so its count
   includes the attempt being judged; a peek runs before the attempt, so
@@ -100,6 +107,12 @@ Then, in the order they cost least:
   build to say something when held upright — Info.plist covers the app,
   the browser has nothing.
 - The fourteen-scene resize-handler leak, still its own task.
+- **A gift refused by the pair cap still spends a sender slot.** The
+  sender budget increments before the pair check runs, so hitting the
+  per-friend wall costs one of the ten. Defensible — hammering one
+  person ought to cost something — but it is an accident of ordering
+  rather than a decision, and undoing it means peek/bump for the sender
+  budget too.
 - **Signup still answers "is this name taken?" to anyone.** The friendly
   error and its three suggestions are a username oracle, and the check
   runs before the PIN is hashed, so probing is cheap. Capped now rather

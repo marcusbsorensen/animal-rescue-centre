@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { checkRateLimit } from '../_shared/rate-limit.ts';
+import { checkRateLimit, clientIp } from '../_shared/rate-limit.ts';
 import { requireSession } from '../_shared/session.ts';
 
 const VALID_GIFT_TYPES = ['treat_bundle', 'toy', 'blanket_pattern', 'decoration'];
@@ -47,6 +47,26 @@ Deno.serve(async (req) => {
       }, 429);
     }
 
+    // And by address: 60 per 15 minutes. The per-sender budget above
+    // counts one account, so somebody running several from one place
+    // gets ten times however many accounts they hold. Set well clear of
+    // a household — six accounts could each spend their full budget
+    // before this is felt.
+    const ip = clientIp(req);
+    if (ip) {
+      const ipRl = await checkRateLimit(
+        supabase, `gift-ip:${ip}`, 60, 15 * 60 * 1000,
+      );
+      if (!ipRl.allowed) {
+        return jsonResponse({
+          error: 'Too many gifts sent! Try again later.',
+          retryAfterMs: ipRl.retryAfterMs,
+        }, 429);
+      }
+    } else {
+      console.error('no client IP header; address limit skipped');
+    }
+
     // Verify they are friends
     const { data: friendship } = await supabase
       .from('friendships')
@@ -57,6 +77,32 @@ Deno.serve(async (req) => {
 
     if (!friendship) {
       return jsonResponse({ error: 'You can only send gifts to friends' }, 403);
+    }
+
+    // And 5 per hour to any one friend.
+    //
+    // The budgets above are spread across everyone a child knows, so
+    // nothing yet stops all ten of them landing on the same person,
+    // every fifteen minutes, all day. Being on the receiving end of that
+    // is the thing worth preventing here, and it arrives from an
+    // accepted friend, so the friendship check is no help against it.
+    //
+    // Five an hour is more than an excited child sends and less than a
+    // pestering one wants. It leaves the wider budget intact: to spend
+    // all ten in a quarter of an hour you now have to think of two
+    // different people.
+    //
+    // Checked after the friendship, so a stranger's rejected attempts
+    // never eat into a real friend's allowance.
+    const pairRl = await checkRateLimit(
+      supabase, `gift-pair:${userId}:${toUserId}`, 5, 60 * 60 * 1000,
+    );
+    if (!pairRl.allowed) {
+      const retryMinutes = Math.ceil(pairRl.retryAfterMs / 60_000);
+      return jsonResponse({
+        error: `That friend has had lots of gifts from you! Try again in ${retryMinutes} minutes.`,
+        retryAfterMs: pairRl.retryAfterMs,
+      }, 429);
     }
 
     // Insert gift
