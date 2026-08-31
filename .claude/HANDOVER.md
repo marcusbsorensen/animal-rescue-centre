@@ -62,6 +62,18 @@ so the two cannot drift apart.
   counters are a table now, and the decision is one atomic statement.
   Only failures count — the old one locked children out for logging in
   successfully six times.
+- **The address is `cf-connecting-ip`, and only that.** Supabase sits
+  behind Cloudflare, which sets it and answers 403 at the edge when a
+  client sends its own; `x-real-ip` is overwritten the same way and
+  `x-forwarded-for` never arrives. Confirmed by spoofing all three at
+  the deployed function and reading the edge logs back — the obvious
+  implementation, trusting the first `x-forwarded-for` entry, would have
+  been spoofable and worth nothing.
+- **An address bucket cannot be cleared on success.** Someone holding
+  one valid account would spray, log in to wipe it, and repeat. So it
+  counts failures only, which is why `peek_rate_limit` exists alongside
+  `check_rate_limit`: the question has to be asked separately from the
+  charge. The peek races by one or two, deliberately.
 - Earlier and still standing: L6 counts controls not instances; the box
   you ask for is the box that gets drawn; T4 measures shapes.
 
@@ -81,12 +93,10 @@ Then, in the order they cost least:
   build to say something when held upright — Info.plist covers the app,
   the browser has nothing.
 - The fourteen-scene resize-handler leak, still its own task.
-- **Rate limit by IP as well as by username.** The limiter counts per
-  username, so one attacker spraying one guess each at a thousand
-  accounts still meets no wall. `x-forwarded-for` is the second key that
-  would close it. Left undone deliberately: it is a different defence
-  from the one that was broken, and it wants its own thinking about
-  families behind one address.
+- **Rate limit `signup` too.** Nothing caps account creation per
+  address, so the username pool can be exhausted and the table filled by
+  one caller. The address plumbing is in place now; this is a budget and
+  two lines.
 
 ## Traps
 - **Bash `cd` persists between calls.**
@@ -99,6 +109,13 @@ Then, in the order they cost least:
 - **Deploy the migration before the functions, never the reverse.** The
   limiter fails closed, so functions calling `check_rate_limit` before
   the table exists refuse every login in the game.
+- **Tripping the address limit locks this house out**, since the tests
+  run from it. 60 failures does it, and the cure is
+  `delete from rate_limits where key like 'login-ip:%'`. Any test that
+  can trip it should clear it in a `finally`.
+- `supabase functions deploy` takes `--use-api`, not `--linked`; `db
+  push` takes `--linked`. The global CLI at `/usr/local/bin/supabase` is
+  logged in, the `npx` one is not.
 - TRAPS' simulator rotation arithmetic was derived on an iPad and does not
   carry to a landscape iPhone 17 Pro. Re-derive before tapping.
 - The token guard rejects bare `cat`, heredocs and unbounded `grep`. It
