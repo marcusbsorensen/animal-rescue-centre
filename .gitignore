@@ -3,6 +3,10 @@ dist/
 .env
 .env.local
 .env.*.local
+# Anything derived from them too — a stray `.env.local.bak` is a live
+# secret sitting in a public repo, one `git add -A` from being committed.
+.env*
+!.env.example
 *.log
 .DS_Store
 .vite/
