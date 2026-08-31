@@ -85,9 +85,10 @@ export async function seedFakeSession(page: Page): Promise<void> {
 // after that. A per-run account would leave a trail of orphans behind,
 // and there is no staging project to point at — `.env.local` names one
 // Supabase and the game reads it through a symlink into `apps/game/`.
-
-const HARNESS_USERNAME = 'HarnessFox';
-const HARNESS_PIN = '4242';
+//
+// Its credentials sit in `.env.local` beside the Supabase keys. This file
+// is public and that one is not, and the account is real: it holds a live
+// session against production.
 
 export interface ArcSession {
   userId: string;
@@ -98,20 +99,32 @@ export interface ArcSession {
   token: string;
 }
 
-/** Read VITE_SUPABASE_* out of `.env.local`; Playwright does not load it. */
+const ENV_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '.env.local',
+);
+
+/** Read one key out of `.env.local`; Playwright does not load it. */
+function envValue(key: string): string {
+  const raw = fs.readFileSync(ENV_PATH, 'utf8');
+  const line = raw.split('\n').find((l) => l.startsWith(`${key}=`));
+  if (!line) throw new Error(`${key} missing from ${ENV_PATH}`);
+  return line.slice(key.length + 1).trim();
+}
+
 function supabaseEnv(): { url: string; anonKey: string } {
-  const envPath = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    '..',
-    '.env.local',
-  );
-  const raw = fs.readFileSync(envPath, 'utf8');
-  const read = (key: string): string => {
-    const line = raw.split('\n').find((l) => l.startsWith(`${key}=`));
-    if (!line) throw new Error(`${key} missing from ${envPath}`);
-    return line.slice(key.length + 1).trim();
+  return {
+    url: envValue('VITE_SUPABASE_URL'),
+    anonKey: envValue('VITE_SUPABASE_ANON_KEY'),
   };
-  return { url: read('VITE_SUPABASE_URL'), anonKey: read('VITE_SUPABASE_ANON_KEY') };
+}
+
+function harnessAccount(): { username: string; pin: string } {
+  return {
+    username: envValue('ARC_HARNESS_USERNAME'),
+    pin: envValue('ARC_HARNESS_PIN'),
+  };
 }
 
 async function callFunction(
@@ -139,15 +152,14 @@ async function callFunction(
  * `installSession` (browser) or to a device page (simulator).
  */
 export async function mintRealSession(): Promise<ArcSession> {
-  const login = await callFunction('login', {
-    username: HARNESS_USERNAME,
-    pin: HARNESS_PIN,
-  });
+  const { username, pin } = harnessAccount();
+
+  const login = await callFunction('login', { username, pin });
   if (login.ok && login.json.session) return login.json.session as ArcSession;
 
   const signup = await callFunction('signup', {
-    username: HARNESS_USERNAME,
-    pin: HARNESS_PIN,
+    username,
+    pin,
     avatarEmoji: '🦊',
     avatarBgColour: '#BAE1FF',
   });

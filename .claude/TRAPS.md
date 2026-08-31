@@ -260,9 +260,11 @@ checking the claim still holds.
   `loadGameState` calls `requireSignIn`, and a full-screen re-auth panel
   at depth 10000 stands over whatever you were trying to look at. Use
   `mintRealSession()` / `installSession()` in `e2e/helpers.ts` for
-  anything that has to be *seen*. They log in as **HarnessFox / 4242** —
+  anything that has to be *seen*. They log in as the harness account —
   one durable row in the live `users` table, reused by every run, created
-  by signup the first time it is asked for. There is no staging project:
+  by signup the first time it is asked for. Its username and PIN live in
+  `.env.local` as `ARC_HARNESS_USERNAME` / `ARC_HARNESS_PIN`, because this
+  repo is public and that file is untracked. There is no staging project:
   `.env.local` names one Supabase and is symlinked into `apps/game/`, so
   the dev server, the harness and the simulator all write to production.
 - **Stopping every scene and starting GameScene by hand races the menu.**
