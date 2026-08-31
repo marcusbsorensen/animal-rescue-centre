@@ -254,6 +254,12 @@ checking the claim still holds.
   `simctl io screenshot` both returned a frozen frame — same clock, same
   pixels, minutes apart — while the app underneath was running fine.
   `xcrun simctl shutdown all`, boot the one, relaunch.
+- **The Dynamic Island eats the left edge in landscape.** It occupies
+  x 14–50pt of an 874x402 screen, so anything drawn at `x=0` narrower
+  than ~56pt is unreachable, and anything wider is partly unreadable.
+  Measured, not inferred: threshold the near-black pixels in the left
+  eighth of a capture. `MIN_TAP` maths on a rectangle will not catch
+  this — the shape is fine, the position is not.
 - **Something else may be in front.** `app.pfish` held the foreground and
   every capture showed it, while A.R.C. ran unseen. A live PID proves the
   app is running, not that it is visible: check with

@@ -24,9 +24,20 @@ per-name and per-address, on `login`, `get-pin-hint`, `signup` and
 `send-gift`, plus 5-per-hour per friendship on gifts — all exercised
 against production.
 
-**Unverified.** Nothing has run on physical hardware, and GameScene has
-never been touched by hand on iOS; everything above stops at the account
-screens. The harness still reports **3 FAIL / 100 WARN**.
+**GameScene reached.** A fresh account was created through the UI and
+played into the corridor. The left rail's harness FAIL is real and
+physical: the **Dynamic Island** occupies x 14–50pt in landscape, and
+the collapsed pull-tab is 56pt wide at `x=0`. Tapping the visible "1
+waiting" badge does nothing; only the ~6pt strip clear of the Island
+opens it. The expanded panel is occluded too — the whole "0 in care"
+stat sits behind the Island, unreadable. `apps/game/src` has **no
+safe-area handling at all**; `LeftRailView.ts:234` reasons that "56 x
+150 clears MIN_TAP in both axes", which is true of the rectangle and
+false on the device. That is the 50px inset the harness reported and a
+previous session wrote off as a web-clip artifact.
+
+**Unverified.** Nothing has run on physical hardware. The other two
+harness FAILs (two rail controls 4px apart) are not yet examined.
 
 ## Files
 - `.claude/TRAPS.md` — read first; the simulator section is load-bearing.
@@ -51,10 +62,13 @@ screens. The harness still reports **3 FAIL / 100 WARN**.
   "no" is worse. Revisit if users exceed one family.
 
 ## Next step
-Get into GameScene on iOS and tap the left rail — where the 3 harness
-FAILs live (two controls 4px apart against a MIN_TAP_GAP of 12; the
-collapsed pull-tab at `x=0` reading as a 50px inset) and where nothing
-has been touched by hand.
+Inset the left rail by the left safe area. Nothing in `src` reads it, so
+this is new: pass `env(safe-area-inset-left)` (or the Capacitor
+equivalent) into `ui/layout.ts` and offset `railBoundsFor` /
+`playAreaFor` by it, so both the 56pt tab and the expanded panel start
+clear of the Dynamic Island. Re-walk it on the simulator afterwards —
+tapping the badge should open the rail, and "0 in care" should be
+readable.
 
 ## Traps
 - All of `.claude/TRAPS.md`, especially: boot one simulator not three;
