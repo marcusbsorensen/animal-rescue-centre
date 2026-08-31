@@ -1,4 +1,7 @@
 import type { Page } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Shared helpers for A.R.C. e2e tests.
@@ -52,8 +55,15 @@ export async function waitForScene(page: Page, key: string, timeoutMs = 15_000):
 
 /**
  * Seed a fake session into localStorage so the game treats us as
- * signed-in. Supabase calls will still fail (no real network), but
- * the UI state machine will advance past the login gate.
+ * signed-in.
+ *
+ * This gets you past the login gate and no further. The token is not one
+ * Supabase minted, so `load-game` answers 401, `loadGameState` calls
+ * `requireSignIn`, and an in-canvas "sign in again" panel goes up over
+ * whatever you were trying to look at. Anything that has to be *seen*
+ * unoccluded — the nav bar, the corridor, an overlay — wants
+ * `mintRealSession` instead. This one is still right for measuring a
+ * scene that never loads a save.
  */
 export async function seedFakeSession(page: Page): Promise<void> {
   await page.evaluate(() => {
@@ -66,6 +76,103 @@ export async function seedFakeSession(page: Page): Promise<void> {
       token: 'playwright-fake-token',
     }));
   });
+}
+
+// ── Real sessions ───────────────────────────────────────────────────────
+//
+// The harness account. One durable row in the live `users` table, reused
+// by every run: signup creates it the first time, login re-mints a token
+// after that. A per-run account would leave a trail of orphans behind,
+// and there is no staging project to point at — `.env.local` names one
+// Supabase and the game reads it through a symlink into `apps/game/`.
+
+const HARNESS_USERNAME = 'HarnessFox';
+const HARNESS_PIN = '4242';
+
+export interface ArcSession {
+  userId: string;
+  username: string;
+  avatarEmoji: string;
+  avatarBgColour: string;
+  joinCode: string;
+  token: string;
+}
+
+/** Read VITE_SUPABASE_* out of `.env.local`; Playwright does not load it. */
+function supabaseEnv(): { url: string; anonKey: string } {
+  const envPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '.env.local',
+  );
+  const raw = fs.readFileSync(envPath, 'utf8');
+  const read = (key: string): string => {
+    const line = raw.split('\n').find((l) => l.startsWith(`${key}=`));
+    if (!line) throw new Error(`${key} missing from ${envPath}`);
+    return line.slice(key.length + 1).trim();
+  };
+  return { url: read('VITE_SUPABASE_URL'), anonKey: read('VITE_SUPABASE_ANON_KEY') };
+}
+
+async function callFunction(
+  name: string,
+  body: Record<string, unknown>,
+): Promise<{ ok: boolean; json: Record<string, unknown> }> {
+  const { url, anonKey } = supabaseEnv();
+  const res = await fetch(`${url}/functions/v1/${name}`, {
+    method: 'POST',
+    headers: {
+      'apikey': anonKey,
+      'Authorization': `Bearer ${anonKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return { ok: res.ok, json: (await res.json()) as Record<string, unknown> };
+}
+
+/**
+ * Mint a session Supabase will actually accept, by logging the harness
+ * account in — or signing it up the first time it is asked for.
+ *
+ * Returns the session rather than writing it, so callers can hand it to
+ * `installSession` (browser) or to a device page (simulator).
+ */
+export async function mintRealSession(): Promise<ArcSession> {
+  const login = await callFunction('login', {
+    username: HARNESS_USERNAME,
+    pin: HARNESS_PIN,
+  });
+  if (login.ok && login.json.session) return login.json.session as ArcSession;
+
+  const signup = await callFunction('signup', {
+    username: HARNESS_USERNAME,
+    pin: HARNESS_PIN,
+    avatarEmoji: '🦊',
+    avatarBgColour: '#BAE1FF',
+  });
+  if (signup.ok && signup.json.session) return signup.json.session as ArcSession;
+
+  throw new Error(
+    `could not mint a session: login said ${JSON.stringify(login.json)}, ` +
+    `signup said ${JSON.stringify(signup.json)}`,
+  );
+}
+
+/**
+ * Write a session into localStorage *before the app boots*, along with
+ * the two keys that skip the intro map.
+ *
+ * Must be called before `page.goto`. Setting these after load and
+ * reloading works too, but costs a boot; `addInitScript` lands them on
+ * the first one. `arc_intro_seen` is not a key — setting it does nothing.
+ */
+export async function installSession(page: Page, session: ArcSession): Promise<void> {
+  await page.addInitScript((s) => {
+    localStorage.setItem('arc_session', JSON.stringify(s));
+    localStorage.setItem('arc_skip_intro', 'true');
+    localStorage.setItem('arc_intro_played', '1');
+  }, session);
 }
 
 /**

@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { waitForGameReady, seedFakeSession } from './helpers';
+import { waitForGameReady, mintRealSession, installSession } from './helpers';
 import {
   reachability, overlappingControls, textCutByControls, gapBetween,
   groupRepeatedTiles, type UxRect,
@@ -168,9 +168,14 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
   test.setTimeout(300_000);
   fs.mkdirSync(OUT, { recursive: true });
 
+  // A real session, not a fake one. The fake token is rejected by
+  // `load-game`, which puts ErrorOverlay's "sign in again" panel — a
+  // full-screen interactive scrim at depth 10000 — over GameScene, and
+  // this harness walks every scene child, scrim included. Every GameScene
+  // measurement taken this way was partly a measurement of the sign-in
+  // panel. See .claude/TRAPS.md.
+  await installSession(page, await mintRealSession());
   await page.goto('/');
-  await seedFakeSession(page);
-  await page.reload();
   await waitForGameReady(page);
   await page.waitForTimeout(1500);
 
