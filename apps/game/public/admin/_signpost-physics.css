@@ -1,0 +1,108 @@
+/**
+ * _signpost-physics.css — gravity for the sign-on-stake screens.
+ *
+ * Twelve screens share the sign-on-stake component, and each carries its
+ * own copy of the decorative-animal rules. Every copy positions those
+ * animals against the *sign*, not against any ground: `.foreground-fox`
+ * is `left: calc(50% - 32cqw)` with a bottom matched to the grass tuft,
+ * `.intro-cat` is lifted off the sign's top edge by a fixed `top`. On a
+ * tall viewport that happens to land somewhere plausible. On a landscape
+ * phone it does not — the fox stands in mid-air beside the sign, the dog
+ * lands under the CONTINUE plank, and the cat leaves the board entirely,
+ * because the short-viewport branch shrinks the cat without reducing the
+ * lift (height 80 → 50 against a top of -56 puts its feet 6px clear of
+ * the wood).
+ *
+ * The rule this file enforces: **nothing appears on screen that could
+ * not be a sketch of something real.** An animal is drawn only where it
+ * is standing on something that is also drawn — the sign's top edge, or
+ * the grass at the foot of the posts. Everything else goes.
+ *
+ * Linked from each screen AFTER its inline <style>, so it wins on
+ * document order — the same arrangement as `_short-landscape.css`. Do
+ * not move the <link> above the <style>.
+ */
+
+/* ── 1. Animals only where there is something to stand on ───────────
+ *
+ * The fox is a child of `.signs-on-stake` and the dog of `.welcome`, so
+ * both are placed against a box rather than against a floor; there is no
+ * offset that makes them land honestly across the viewport range. They
+ * go. What is left is a cat sitting on the sign and a rabbit in the
+ * grass, which is two animals and a scene that holds together.
+ */
+.foreground-fox,
+.foreground-dog,
+.logo-bunny {
+  display: none !important;
+}
+
+/* ── 2. The cat sits ON the board, at any size ──────────────────────
+ *
+ * Anchored by its own bottom edge rather than its top, so the overlap
+ * with the wood is fixed and the cat's height can change without it
+ * taking off. `bottom: 100%` puts its feet exactly on the board's top
+ * edge; subtracting sinks it into the wood by that much, which is what
+ * a cat lying on a plank looks like.
+ */
+.intro-cat {
+  top: auto;
+  bottom: calc(100% - clamp(12px, 2.4cqh, 24px));
+}
+
+/* ── 3. Two posts, because one could not hold the board ─────────────
+ *
+ * The board runs the full width of the wrapper and was carried by a
+ * single central stake — a sign that would pivot and fall the first
+ * windy day. `::before` and `::after` become the left and right posts,
+ * keeping the original plank gradient. The pointed tip `::after` used
+ * to draw is gone with it: every one of these screens has a grass clump
+ * at the same baseline, and the grass is what covers where a post meets
+ * the ground.
+ */
+.signs-on-stake::before,
+.signs-on-stake::after {
+  content: '';
+  position: absolute;
+  top: clamp(8px, 1.5cqh, 16px);
+  bottom: clamp(-6px, -1cqh, -4px);
+  width: clamp(12px, 2cqw, 18px);
+  height: auto;
+  transform: none;
+  border: 0;
+  filter: none;
+  background:
+    linear-gradient(90deg,
+      #5d3a18 0%, #7a5023 18%, #a07038 50%, #7a5023 82%, #5d3a18 100%),
+    linear-gradient(180deg, #7a5023 0%, #6b4820 100%);
+  background-blend-mode: multiply;
+  border-radius: 3px 3px 2px 2px;
+  box-shadow:
+    inset 0 2px 0 rgba(255,240,210,0.18),
+    2px 3px 5px rgba(0,0,0,0.35);
+  z-index: 0;
+}
+.signs-on-stake::before { left: 22%; right: auto; }
+.signs-on-stake::after  { left: auto; right: 22%; }
+
+/* The posts have to land in the grass, because the grass is the only
+ * ground these screens draw — outside the tuft there is nothing but the
+ * cream wash, and a post ending in mid-cream is the same defect as a
+ * floating animal. `_short-landscape.css` narrows the tuft to
+ * `clamp(200px, 52%, 330px)` on a short viewport (at full width the
+ * 3:1 grass art climbs over the sign face and buries the friend-code
+ * line), so the posts come in to match. Unnamed on purpose: these pages
+ * do not share a `container-name`, and naming it excludes most of them.
+ */
+@container (max-height: 520px) {
+  .signs-on-stake::before { left: 32%; }
+  .signs-on-stake::after  { right: 32%; }
+}
+
+/* Why the posts move rather than the grass widening: the tuft is a
+ * single 3:1 painting, so stretching it to the sign's width on a short
+ * viewport means cropping it, and a cropped tuft has a flat cut top at
+ * each end that reads as turf slabs rather than grass. Tried, looked
+ * worse than the problem. The posts come to the grass instead. If the
+ * board ever wants wider support than the tuft allows, the answer is a
+ * tileable grass strip, not a stretched one. */
