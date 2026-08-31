@@ -5,16 +5,18 @@ Ship A.R.C. as an iPad/iPhone app plus web fallback, usable by 7–10 year
 olds. Current arc: make it work on a phone.
 
 ## State
-Clean tree on `main` at `24b5884`, **level with `origin/main`**. Typecheck
-clean, lint 0 errors / 38 pre-existing warnings, 1137 tests pass (7 badges,
-821 game-logic, 309 game) — re-run against this exact tree, not inherited.
-UX harness at **3 FAIL / 100 WARN** across 42 combinations.
+Clean tree on `main`, level with `origin/main`. Typecheck clean, lint 0
+errors / 38 pre-existing warnings, 1137 tests pass (7 badges, 821
+game-logic, 309 game). UX harness at **3 FAIL / 100 WARN** across 42
+combinations.
 
-**CI is not a gate right now.** GitHub Actions refuses to start the job:
-"recent account payments have failed or your spending limit needs to be
-increased". Every run since 2026-08-30 is red for that reason and none of
-them compiled a line. Local `pnpm typecheck && pnpm lint && pnpm test` is
-the whole safety net until the billing settings are sorted.
+**The repo is public and CI runs again.** Actions was refusing to start
+the job — a spending limit on private-repo minutes, not anything in the
+code; every run for two days died in four seconds having compiled
+nothing. Public repos get free standard-runner minutes, so the first run
+after the switch went green. Two consequences worth holding on to:
+anything committed here is now permanently public, and `.env.local` is
+the only place a secret may live.
 
 **Verified.** The nav bar has been seen unoccluded in a real signed-in
 session — five controls, all carrying art, bar inside the viewport at
@@ -51,6 +53,15 @@ so the two cannot drift apart.
   edges — a die-cut outline is a sticker.
 - The grass tuft is one 3:1 painting: stretching it crops it into turf
   slabs. Tried, reverted. Posts move to the grass instead.
+- **A public repo makes rotation the only fix.** Going public turned the
+  committed harness pair into a permanent one, so the PIN was rotated
+  and both halves moved to `.env.local` before the switch was thrown.
+  Reverting a secret does not retract it; changing it does.
+- **Rate limiting belongs in the database, not the isolate.** A
+  module-level Map is per-isolate, and Supabase recycles isolates. The
+  counters are a table now, and the decision is one atomic statement.
+  Only failures count — the old one locked children out for logging in
+  successfully six times.
 - Earlier and still standing: L6 counts controls not instances; the box
   you ask for is the box that gets drawn; T4 measures shapes.
 
@@ -70,11 +81,24 @@ Then, in the order they cost least:
   build to say something when held upright — Info.plist covers the app,
   the browser has nothing.
 - The fourteen-scene resize-handler leak, still its own task.
+- **Rate limit by IP as well as by username.** The limiter counts per
+  username, so one attacker spraying one guess each at a thousand
+  accounts still meets no wall. `x-forwarded-for` is the second key that
+  would close it. Left undone deliberately: it is a different defence
+  from the one that was broken, and it wants its own thinking about
+  families behind one address.
 
 ## Traps
 - **Bash `cd` persists between calls.**
 - **`git add public/admin/*.html` sweeps up scratch pages** — it shipped a
   session-installing page into `9b1c1ba`, removed at `e418453`.
+- **`.gitignore` covers `.env*` now, because a backup is a secret too.**
+  Rotating the PIN left a `.env.local.bak` holding the service-role key,
+  the admin password and an OpenAI key: untracked, but *not* ignored, and
+  one `git add -A` from being permanent in a public repo.
+- **Deploy the migration before the functions, never the reverse.** The
+  limiter fails closed, so functions calling `check_rate_limit` before
+  the table exists refuse every login in the game.
 - TRAPS' simulator rotation arithmetic was derived on an iPad and does not
   carry to a landscape iPhone 17 Pro. Re-derive before tapping.
 - The token guard rejects bare `cat`, heredocs and unbounded `grep`. It
