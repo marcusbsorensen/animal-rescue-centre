@@ -236,6 +236,28 @@ checking the claim still holds.
   Committed is not deployed.
 - `supabase db push` and `functions deploy` do **not** need Docker. The
   `WARNING: Docker is not running` on deploy is noise.
+- **Tapping the simulator: the screen is portrait, the game is not.**
+  Info.plist locks the app to landscape, but the framebuffer stays the
+  device's native portrait — 402x874 points, 1206x2622 pixels — with the
+  game drawn rotated inside it. Two consequences:
+  - To *read* a capture, turn it a quarter turn anticlockwise
+    (`sips -r 90` then `sips -r 180`; there is no single -90).
+  - To *tap*, convert from what you measured on the readable landscape
+    image `(xl, yl)` in points: **`px = 402 - yl`, `py = xl`**. Verified
+    2026-08-31 by tapping every control through the whole signup flow.
+    Points are pixels ÷ 3; if you measured on a downscaled view, scale by
+    `2622 / <view width> / 3` first.
+- **"Input send timed out; the simulator likely rebooted" is a stale
+  connection, not a bad coordinate.** This is what "tap coordinates could
+  not be resolved" was. Re-`attach` and send it again; it works.
+- **Boot one simulator, not three.** With several booted, the panel and
+  `simctl io screenshot` both returned a frozen frame — same clock, same
+  pixels, minutes apart — while the app underneath was running fine.
+  `xcrun simctl shutdown all`, boot the one, relaunch.
+- **Something else may be in front.** `app.pfish` held the foreground and
+  every capture showed it, while A.R.C. ran unseen. A live PID proves the
+  app is running, not that it is visible: check with
+  `xcrun simctl listapps` and terminate the squatter.
 - A malformed JSON body answers **500**, not 400 — `req.json()` throws inside the try.
 - A PostgREST builder is `PromiseLike`: it has `then`, **not** `catch`.
 - Deleting a `users` row cascades sessions, game_states, gifts, friendships

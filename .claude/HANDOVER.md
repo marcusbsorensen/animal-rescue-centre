@@ -23,9 +23,17 @@ session — five controls, all carrying art, bar inside the viewport at
 812x375, 812x325 and 1024x768. The twelve sign-on-stake screens were
 rebuilt to respect gravity and re-shot at all three viewports.
 
-**Unverified.** Nothing has run on a physical device, and nobody has
-*tapped* anything on one. The simulator got as far as the menu in real iOS
-WebKit, signed in, landscape — then tap coordinates could not be resolved.
+**Tapped.** The real iOS build — `pnpm build:ios`, xcodebuild, launched
+on an iPhone 17 Pro simulator — has been driven by hand through the whole
+account flow: welcome, login, name entry, PIN, PIN confirmation, hint,
+hint safety check, rejection. Every control answered. The coordinate
+recipe is in TRAPS; the two things that blocked it before were a stale
+input connection and three simulators booted at once, neither of them
+arithmetic.
+
+**Still unverified.** Nothing has run on *physical* hardware, and the
+game proper — past the account screens, into GameScene — has not been
+touched on iOS.
 
 **Found, not fixed.** The 3 harness FAILs are all GameScene's left rail —
 the collapsed pull-tab at `x=0`, and two stacked controls 4px apart. Those
@@ -91,12 +99,38 @@ so the two cannot drift apart.
 - Earlier and still standing: L6 counts controls not instances; the box
   you ask for is the box that gets drawn; T4 measures shapes.
 
+## Found by tapping, 2026-08-31
+Three things the harness cannot see, because it measures shapes and this
+is about flow. All on the account screens, all facing a 7–10 year old.
+
+1. **A taken name is refused five screens too late.** Type a name that
+   exists and the app says "Nice, HarnessFox!", then asks for a PIN, a
+   PIN confirmation, a hint, and a hint safety check — *then* answers
+   "That name is taken — try another", discarding the PIN and the hint.
+   The check exists and runs server-side at the end; nothing asks earlier.
+   A `signup`-style availability probe on leaving the name field would
+   move it to where the child can act on it. **Worth fixing first.**
+2. **"Tap your picture" with no pictures.** The login screen opens on
+   "Welcome back! Tap your picture to start caring for your animals" —
+   but a device with no saved profile shows none, so the instruction
+   names something that is not there.
+3. **"Couldn't find you in the list" before typing.** Touching the name
+   field on that screen jumps straight to account creation and leads with
+   a failure the child has not had a chance to avoid yet.
+
+Also seen: with the keyboard up in landscape, "I already have an account"
+sits half behind the keyboard toolbar. Landscape iPhone leaves very
+little room above a keyboard, and the account screens are the ones that
+need it.
+
 ## Next step
-Tap something on a real device. Everything else on the list is a known
-shape with a known fix; this is the one unknown, and it guards the goal.
-The simulator reaches the menu in real iOS WebKit signed in and landscape,
-so the remaining piece is resolving tap coordinates there — TRAPS' rotation
-arithmetic came off an iPad and needs re-deriving for a landscape iPhone.
+Fix the late name check — finding 1 above. It is the worst thing a child
+meets in the first two minutes, and now that tapping works it can be
+re-walked to confirm the fix rather than reasoned about.
+
+Then get past the account screens and into GameScene on iOS, which is
+where the harness's 3 FAILs live and where nothing has yet been touched
+by hand.
 
 Then, in the order they cost least:
 - The two rail controls 4px apart, against a MIN_TAP_GAP of 12.
