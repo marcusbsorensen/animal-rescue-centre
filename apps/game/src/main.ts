@@ -24,6 +24,8 @@ import { PtvDriveScene } from './scenes/PtvDriveScene';
 import { showUpdateBanner } from './ui/UpdateBanner';
 import { registerSW } from 'virtual:pwa-register';
 import { shouldRegisterServiceWorker } from './lib/platform';
+import { setSafeAreaLeft, getSafeAreaLeft } from './ui/layout';
+import { readSafeAreaInsets } from './ui/safe-area';
 
 // Show the painted "new version ready!" banner when vite-plugin-pwa
 // detects a waiting service worker. Refresh clicks skip-waiting the SW
@@ -92,6 +94,34 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 const game = new Phaser.Game(config);
+
+// Teach the layout where the notch is. Phaser knows nothing about safe
+// areas, so without this the left rail sits at x=0 — underneath the
+// Dynamic Island on a landscape iPhone, which left about six of its
+// fifty-six points reachable.
+//
+// Measured repeatedly on purpose. Reading it straight after the Phaser
+// constructor gives 0: the probe is in the document but nothing has
+// settled, and `env()` has nothing to report yet. If that first 0 were
+// the only reading the rail would stay under the notch forever, because
+// nothing resizes afterwards on a phone sitting still. The orientation
+// hook matters too — the Island swaps edges between the two landscape
+// orientations, both of which this app allows.
+//
+// When the value does change, scenes have already laid out against the
+// old one, so refresh the scale manager to make them do it again.
+const applySafeArea = (): void => {
+  const next = readSafeAreaInsets().left;
+  if (next === getSafeAreaLeft()) return;
+  setSafeAreaLeft(next);
+  game.scale.refresh();
+};
+applySafeArea();
+requestAnimationFrame(applySafeArea);
+window.addEventListener('load', applySafeArea);
+window.addEventListener('resize', applySafeArea);
+window.addEventListener('orientationchange', () => setTimeout(applySafeArea, 100));
+game.scale.on('resize', applySafeArea);
 
 // Expose for dev-tools inspection and Playwright e2e tests. Harmless
 // to expose in production — kids playing in the browser can already

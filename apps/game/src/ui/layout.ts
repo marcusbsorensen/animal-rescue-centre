@@ -203,6 +203,30 @@ export interface RailBounds {
   mode: RailMode;
 }
 
+/**
+ * How far the left edge is unusable, in pixels.
+ *
+ * Ambient rather than a parameter because it is a property of the
+ * device, not of the call: it is the same for every caller at any given
+ * moment, and threading it through four view signatures would say
+ * otherwise. Defaults to 0, so unit tests and every existing caller keep
+ * the behaviour they had.
+ *
+ * Set from `readSafeAreaInsets().left` at boot and on resize — see
+ * ui/safe-area.ts for why it cannot be read once and kept.
+ */
+let safeAreaLeft = 0;
+
+/** Set the left inset. The only mutation point; call it on resize. */
+export function setSafeAreaLeft(px: number): void {
+  safeAreaLeft = Number.isFinite(px) && px > 0 ? px : 0;
+}
+
+/** The current left inset, for callers that need to reason about it. */
+export function getSafeAreaLeft(): number {
+  return safeAreaLeft;
+}
+
 /** True where the rail collapses to a tab rather than standing open. */
 export function railIsCollapsible(width: number): boolean {
   return width < RAIL_COLLAPSE_BREAKPOINT;
@@ -211,12 +235,16 @@ export function railIsCollapsible(width: number): boolean {
 export function railBoundsFor(width: number, height: number, open = false): RailBounds {
   const y = HUD_HEIGHT;
   const h = height - HUD_HEIGHT;
+  // Start clear of the notch rather than at 0. The tab keeps its full
+  // width and moves right; shrinking it instead would have taken a
+  // 56-wide target down to 6 on the device that needs it most.
+  const x = safeAreaLeft;
   if (!railIsCollapsible(width)) {
-    return { x: 0, y, w: RAIL_WIDTH, h, mode: 'side' };
+    return { x, y, w: RAIL_WIDTH, h, mode: 'side' };
   }
   return open
-    ? { x: 0, y, w: RAIL_WIDTH, h, mode: 'overlay' }
-    : { x: 0, y, w: RAIL_TAB_WIDTH, h, mode: 'tab' };
+    ? { x, y, w: RAIL_WIDTH, h, mode: 'overlay' }
+    : { x, y, w: RAIL_TAB_WIDTH, h, mode: 'tab' };
 }
 
 /**
@@ -228,7 +256,10 @@ export function railBoundsFor(width: number, height: number, open = false): Rail
  * time she checked her arrivals, and the animals would jump.
  */
 export function railReservedWidth(width: number): number {
-  return railIsCollapsible(width) ? RAIL_TAB_WIDTH : RAIL_WIDTH;
+  // The inset is reserved too: the rail now starts after it, so content
+  // laid out from the old figure would slide under the rail rather than
+  // under the notch.
+  return safeAreaLeft + (railIsCollapsible(width) ? RAIL_TAB_WIDTH : RAIL_WIDTH);
 }
 
 /** The box game content may use: clear of the rail, HUD and nav bar. */
