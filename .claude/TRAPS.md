@@ -165,6 +165,34 @@ checking the claim still holds.
   the guarantee, not the anchor file — there is a test asserting the raw
   anchors still run under the bar, which will fail if they are ever
   re-authored.
+- **The sign-on-stake screens each carry their own copy of the
+  decorative-animal rules, and every copy positions the animals against
+  the sign rather than against a ground.** Twelve screens, twelve copies.
+  `apps/game/public/admin/_signpost-physics.css` is the shared correction
+  — linked after each page's inline `<style>`, same arrangement as
+  `_short-landscape.css`, and its `@container` query is unnamed for the
+  same reason. Put sign geometry there, not in a page. What it holds:
+  the fox and dog are gone (nothing to stand on at any size), the cat is
+  anchored by `bottom: calc(100% - X)` so its feet stay on the board
+  whatever height a branch gives it, and `::before`/`::after` are the two
+  posts — the pointed tip `::after` used to draw is gone, because the
+  grass clump at the same baseline is what covers a post meeting ground.
+- **The grass clump is one 3:1 painting, so it cannot be stretched.**
+  `_short-landscape.css` narrows it to `clamp(200px, 52%, 330px)` on a
+  short viewport because at full width it is ~190px tall and climbs over
+  the sign face. Widening it back with `object-fit: cover` crops the
+  blades and leaves a flat cut top at each end that reads as turf slabs.
+  Tried 2026-08-31, reverted. The posts move to the grass instead; a
+  wider ground line needs a tileable strip, not a stretched one.
+- **`.credits` at `z-index: 8` beats `.cta-stack` at `z-index: 9`.** The
+  buttons' z-index is scoped inside `.signs-on-stake`'s stacking context
+  and the credits sit at the outer level, so Lily's signature printed
+  across login's account buttons. They are in the bottom corners now.
+  Any new bottom-pinned element on these screens has the same trap.
+- **`forgot-pin.html` and `news.html` never linked
+  `_short-landscape.css`**, so they have been running the tall-viewport
+  layout on every device. Found 2026-08-31; still not fixed. The other
+  20 screens link it.
 - **The nav bar's four tabs overlap each other below about 460px of
   width.** `barW` is capped at `width - 32`, and each side then shares
   `barW/2 - (fabSize/2 + fabGap) - 10` between two tabs — 60px of spacing
