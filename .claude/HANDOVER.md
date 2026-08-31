@@ -1,179 +1,74 @@
 # A.R.C. on a phone — handover 2026-08-31
 
+This session did three things, not one: took the repo public, hardened
+every abusable endpoint, and got the game tapped on iOS. Only the third
+serves the goal; the first two were forced by the first.
+
 ## Goal
 Ship A.R.C. as an iPad/iPhone app plus web fallback, usable by 7–10 year
 olds. Current arc: make it work on a phone.
 
 ## State
 Clean tree on `main`, level with `origin/main`. Typecheck clean, lint 0
-errors / 38 pre-existing warnings, 1137 tests pass (7 badges, 821
-game-logic, 309 game). UX harness at **3 FAIL / 100 WARN** across 42
-combinations.
+errors / 38 pre-existing warnings, 1137 tests pass. CI green.
 
-**The repo is public and CI runs again.** Actions was refusing to start
-the job — a spending limit on private-repo minutes, not anything in the
-code; every run for two days died in four seconds having compiled
-nothing. Public repos get free standard-runner minutes, so the first run
-after the switch went green. Two consequences worth holding on to:
-anything committed here is now permanently public, and `.env.local` is
-the only place a secret may live.
+**Verified.** The repo is public and Actions runs again (it was a
+spending limit on private-repo minutes, not the code). The real iOS
+build has been driven by hand through the whole account flow on an
+iPhone 17 Pro simulator — coordinate recipe in TRAPS. Four UX fixes
+found by doing that are shipped and each re-walked on the device:
+name-taken now answers on the name screen, "Tap your picture" follows
+the real chip count, "Couldn't find you in the list" is gone on a fresh
+device, and the account plank hides behind the keyboard instead of
+being sliced. Rate limiting is Postgres-backed and durable, per-name and
+per-address, on `login`, `get-pin-hint`, `signup` and `send-gift`, plus
+5-per-hour per friendship on gifts; all exercised against production.
 
-**Verified.** The nav bar has been seen unoccluded in a real signed-in
-session — five controls, all carrying art, bar inside the viewport at
-812x375, 812x325 and 1024x768. The twelve sign-on-stake screens were
-rebuilt to respect gravity and re-shot at all three viewports.
-
-**Tapped.** The real iOS build — `pnpm build:ios`, xcodebuild, launched
-on an iPhone 17 Pro simulator — has been driven by hand through the whole
-account flow: welcome, login, name entry, PIN, PIN confirmation, hint,
-hint safety check, rejection. Every control answered. The coordinate
-recipe is in TRAPS; the two things that blocked it before were a stale
-input connection and three simulators booted at once, neither of them
-arithmetic.
-
-**Still unverified.** Nothing has run on *physical* hardware, and the
-game proper — past the account screens, into GameScene — has not been
-touched on iOS.
-
-**Found, not fixed.** The 3 harness FAILs are all GameScene's left rail —
-the collapsed pull-tab at `x=0`, and two stacked controls 4px apart. Those
-and the rest of the queue are written out under **Next step**, in one list
-so the two cannot drift apart.
+**Unverified.** Nothing has run on physical hardware. GameScene itself
+has never been touched by hand on iOS — everything above stops at the
+account screens. The harness still reports **3 FAIL / 100 WARN**.
 
 ## Files
-- `.claude/TRAPS.md` — read first.
-- `apps/game/e2e/helpers.ts` — `mintRealSession`/`installSession`.
-- `apps/game/e2e/nav-bar.spec.ts` — the nav bar, seen not inferred. 18s.
+- `.claude/TRAPS.md` — read first; the simulator section is new and load-bearing.
+- `supabase/functions/_shared/rate-limit.ts` — check/peek/bump + `clientIp`.
+- `supabase/migrations/00007`–`00009` — the limiter, the peek, its off-by-one.
+- `apps/game/public/admin/signup.html` — name check, keyboard handling.
+- `apps/game/src/lib/auth.ts` — `checkUsername`, fails open.
 - `apps/game/e2e/ux-review.spec.ts` — the harness. Needs `ARC_BROWSER_CHANNEL=chrome`.
-- `apps/game/public/admin/_signpost-physics.css` — sign geometry, all 12 screens.
-- `apps/game/tools/shoot-signposts.mjs` — shoots those 12 at 3 viewports.
 
 ## Decisions made
-- **A fake token is not a session.** `seedFakeSession` 401s `load-game`,
-  raising the re-auth scrim at depth 10000; the harness walks every scene
-  child, so it was measuring the sign-in panel and calling it GameScene
-  (mobile reported 4 interactive, real answer 11). 0 FAIL / 94 WARN was
-  never a baseline. The harness mints a real session now.
-- **Nothing on screen that could not be a sketch of something real**
-  (Marcus, this session). Animals only where they stand on something also
-  drawn. The fox and dog are deleted, not repositioned. Two posts, because
-  one could not hold the board. The menu facade is `cover` with faded
-  edges — a die-cut outline is a sticker.
-- The grass tuft is one 3:1 painting: stretching it crops it into turf
-  slabs. Tried, reverted. Posts move to the grass instead.
-- **A public repo makes rotation the only fix.** Going public turned the
-  committed harness pair into a permanent one, so the PIN was rotated
-  and both halves moved to `.env.local` before the switch was thrown.
-  Reverting a secret does not retract it; changing it does.
-- **Rate limiting belongs in the database, not the isolate.** A
-  module-level Map is per-isolate, and Supabase recycles isolates. The
-  counters are a table now, and the decision is one atomic statement.
-  Only failures count — the old one locked children out for logging in
-  successfully six times.
-- **The address is `cf-connecting-ip`, and only that.** Supabase sits
-  behind Cloudflare, which sets it and answers 403 at the edge when a
-  client sends its own; `x-real-ip` is overwritten the same way and
-  `x-forwarded-for` never arrives. Confirmed by spoofing all three at
-  the deployed function and reading the edge logs back — the obvious
-  implementation, trusting the first `x-forwarded-for` entry, would have
-  been spoofable and worth nothing.
-- **An address bucket cannot be cleared on success.** Someone holding
-  one valid account would spray, log in to wipe it, and repeat. So it
-  counts failures only, which is why `peek_rate_limit` exists alongside
-  `check_rate_limit`: the question has to be asked separately from the
-  charge.
-- **Gifts are capped per friendship, not only per sender.** The
-  10-per-15-minutes budget is spread across everyone a child knows, so
-  nothing stopped all ten landing on one person all day — from an
-  accepted friend, which is precisely what the friendship check cannot
-  see. Five an hour per pair, counted after the friendship so a
-  stranger's refused attempts never eat a real friend's allowance. An
-  address cap sits alongside it and would not have closed this.
-- **A peek compares with `<`, a check with `<=`.** They count at
-  different moments: `check_rate_limit` increments first, so its count
-  includes the attempt being judged; a peek runs before the attempt, so
-  its count is what has already been spent. Copying `<=` into the peek
-  let every address budget run one over, and it read as a race until the
-  spray was counted properly — 64 sequential requests, 61 through.
-  Fixed in `00009`.
-- Earlier and still standing: L6 counts controls not instances; the box
-  you ask for is the box that gets drawn; T4 measures shapes.
-
-## Found by tapping, 2026-08-31
-Three things the harness cannot see, because it measures shapes and this
-is about flow. All on the account screens, all facing a 7–10 year old.
-
-1. **A taken name is refused five screens too late.** Type a name that
-   exists and the app says "Nice, HarnessFox!", then asks for a PIN, a
-   PIN confirmation, a hint, and a hint safety check — *then* answers
-   "That name is taken — try another", discarding the PIN and the hint.
-   The check exists and runs server-side at the end; nothing asks earlier.
-   A `signup`-style availability probe on leaving the name field would
-   move it to where the child can act on it. **Worth fixing first.**
-2. **"Tap your picture" with no pictures.** The login screen opens on
-   "Welcome back! Tap your picture to start caring for your animals" —
-   but a device with no saved profile shows none, so the instruction
-   names something that is not there.
-3. **"Couldn't find you in the list" before typing.** Touching the name
-   field on that screen jumps straight to account creation and leads with
-   a failure the child has not had a chance to avoid yet.
-
-Also seen: with the keyboard up in landscape, "I already have an account"
-sits half behind the keyboard toolbar. Landscape iPhone leaves very
-little room above a keyboard, and the account screens are the ones that
-need it.
+- **Rotation, not reversion, for a leaked secret.** The harness pair was
+  committed; going public made it permanent. PIN rotated, both halves now
+  in `.env.local`.
+- **Rate limiting belongs in the database.** A module-level Map is
+  per-isolate and Supabase recycles isolates. Failures only; a success
+  clears the name key but never an address key — clearing that would let
+  someone with one valid account spray, log in, and repeat.
+- **`revoke execute` is load-bearing.** PostgREST publishes `public`
+  functions as RPCs the shipped anon key can call.
+- **Address budgets are deliberately loose** (60/15min). Addresses are
+  shared; a child behind an attacked address is locked out too, and that
+  cost is accepted.
+- **Signup's name oracle is capped, not closed.** Telling a child only
+  "no" is worse. Revisit if users ever exceed one family.
 
 ## Next step
-Fix the late name check — finding 1 above. It is the worst thing a child
-meets in the first two minutes, and now that tapping works it can be
-re-walked to confirm the fix rather than reasoned about.
-
-Then get past the account screens and into GameScene on iOS, which is
-where the harness's 3 FAILs live and where nothing has yet been touched
-by hand.
-
-Then, in the order they cost least:
-- The two rail controls 4px apart, against a MIN_TAP_GAP of 12.
-- The collapsed pull-tab at `x=0`, which the web clip reads as a 50px
-  left safe-area inset.
-- `forgot-pin.html` and `news.html` link `_short-landscape.css`.
-- The nav tabs' 14px portrait overlap below ~460px, which needs the web
-  build to say something when held upright — Info.plist covers the app,
-  the browser has nothing.
-- The fourteen-scene resize-handler leak, still its own task.
-- **A gift refused by the pair cap still spends a sender slot.** The
-  sender budget increments before the pair check runs, so hitting the
-  per-friend wall costs one of the ten. Defensible — hammering one
-  person ought to cost something — but it is an accident of ordering
-  rather than a decision, and undoing it means peek/bump for the sender
-  budget too.
-- **Signup still answers "is this name taken?" to anyone.** The friendly
-  error and its three suggestions are a username oracle, and the check
-  runs before the PIN is hashed, so probing is cheap. Capped now rather
-  than closed, because the alternative is a child being told only "no".
-  Worth revisiting if the game ever has users outside one family.
+Get past the account screens into GameScene on iOS and tap the left rail
+— that is where the 3 harness FAILs live (two controls 4px apart against
+a MIN_TAP_GAP of 12; the collapsed pull-tab at `x=0` reading as a 50px
+inset) and nothing there has been touched by hand.
 
 ## Traps
-- **Bash `cd` persists between calls.**
-- **`git add public/admin/*.html` sweeps up scratch pages** — it shipped a
-  session-installing page into `9b1c1ba`, removed at `e418453`.
-- **`.gitignore` covers `.env*` now, because a backup is a secret too.**
-  Rotating the PIN left a `.env.local.bak` holding the service-role key,
-  the admin password and an OpenAI key: untracked, but *not* ignored, and
-  one `git add -A` from being permanent in a public repo.
-- **Deploy the migration before the functions, never the reverse.** The
-  limiter fails closed, so functions calling `check_rate_limit` before
-  the table exists refuse every login in the game.
-- **Tripping the address limit locks this house out**, since the tests
-  run from it. 60 failures does it, and the cure is
-  `delete from rate_limits where key like 'login-ip:%'`. Any test that
-  can trip it should clear it in a `finally`.
-- `supabase functions deploy` takes `--use-api`, not `--linked`; `db
-  push` takes `--linked`. The global CLI at `/usr/local/bin/supabase` is
-  logged in, the `npx` one is not.
-- TRAPS' simulator rotation arithmetic was derived on an iPad and does not
-  carry to a landscape iPhone 17 Pro. Re-derive before tapping.
-- The token guard rejects bare `cat`, heredocs and unbounded `grep`. It
-  also rejects `grep -c` and `git diff > file` despite its own message
-  offering both; `rg --max-count N | head -N` gets through, and the Read
-  and Edit tools go around it entirely.
+- Everything in `.claude/TRAPS.md`, especially: one simulator booted, not
+  three; re-`attach` after a reboot; `px = 402 - yl, py = xl`.
+- **Fixing the iframe is not fixing the flow.** `login.html` stopped
+  sending `not-in-chips` and the note still appeared — `LoginScene.ts`
+  was re-supplying it as a default. Re-walk on the device.
+- **Capacitor resizes the web view**, so `innerHeight - visualViewport.height`
+  stays ~0 and keyboard detection by that delta silently does nothing.
+- `visitors.test.ts:53` is flaky — a 10ms wall-clock tolerance that loses
+  under full-suite load. Passes alone. A task chip carries the diagnosis.
+- Queued and untouched: `add-friend` has no limit (it is the gate the gift
+  pair cap leans on); `forgot-pin.html` and `news.html` never linked
+  `_short-landscape.css`; the portrait nav overlap below ~460px; the
+  fourteen-scene resize-handler leak.
