@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { verifyPin, generateToken } from '../_shared/crypto.ts';
-import { checkRateLimit } from '../_shared/rate-limit.ts';
+import { checkRateLimit, clearRateLimit } from '../_shared/rate-limit.ts';
 import { createSession } from '../_shared/session.ts';
 
 Deno.serve(async (req) => {
@@ -18,8 +18,16 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'PIN must be exactly 4 digits' }, 400);
     }
 
-    // Rate limit: 5 attempts per username per 15 minutes
-    const rl = checkRateLimit(`login:${username}`, 5, 15 * 60 * 1000);
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Rate limit: 5 failed attempts per username per 15 minutes. The
+    // counter is cleared once the PIN checks out, so only failures
+    // accumulate — a child who plays a lot is never locked out by it.
+    const rateLimitKey = `login:${username}`;
+    const rl = await checkRateLimit(supabase, rateLimitKey, 5, 15 * 60 * 1000);
     if (!rl.allowed) {
       const retryMinutes = Math.ceil(rl.retryAfterMs / 60_000);
       return jsonResponse(
@@ -27,11 +35,6 @@ Deno.serve(async (req) => {
         429
       );
     }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
 
     // Find user
     const { data: user, error: userErr } = await supabase
@@ -53,6 +56,10 @@ Deno.serve(async (req) => {
     if (!pinValid) {
       return jsonResponse({ error: 'Wrong PIN' }, 401);
     }
+
+    // The PIN was right, so this attempt was not an attack. Forget the
+    // run of attempts that led here.
+    await clearRateLimit(supabase, rateLimitKey);
 
     // Update last seen
     await supabase

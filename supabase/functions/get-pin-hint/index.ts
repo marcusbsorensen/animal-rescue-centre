@@ -33,10 +33,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invalid username' }, 400);
     }
 
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
     // Rate limit: 5 hint lookups per username per 30 minutes. Forgot-PIN
     // is a deliberate flow, not casual — kids shouldn't be hitting this
     // often, and a brute-force enumerator should hit a wall quickly.
-    const rl = checkRateLimit(`hint:${trimmed}`, 5, 30 * 60 * 1000);
+    // Every lookup counts here, unlike login: there is no "correct"
+    // outcome that would prove the caller was the account's owner.
+    const rl = await checkRateLimit(supabase, `hint:${trimmed}`, 5, 30 * 60 * 1000);
     if (!rl.allowed) {
       const retryMinutes = Math.ceil(rl.retryAfterMs / 60_000);
       return jsonResponse(
@@ -44,11 +51,6 @@ Deno.serve(async (req) => {
         429,
       );
     }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
 
     const { data: user, error } = await supabase
       .from('users')

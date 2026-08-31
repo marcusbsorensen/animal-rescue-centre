@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
     }
 
     // Rate limit: 10 gifts per 15 minutes per user
-    const { allowed, retryAfterMs } = checkRateLimit(
-      `gift:${userId}`, 10, 15 * 60 * 1000
+    const { allowed, retryAfterMs } = await checkRateLimit(
+      supabase, `gift:${userId}`, 10, 15 * 60 * 1000
     );
     if (!allowed) {
       return jsonResponse({
