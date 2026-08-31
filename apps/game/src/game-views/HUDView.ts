@@ -7,7 +7,7 @@ import {
 } from '@arc/game-logic';
 import { AudioManager } from '../audio/AudioManager';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
-import { playAreaFor } from '../ui/layout';
+import { playAreaFor, sideNavEnabled } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
 // Human-readable names for phases + weathers (shown in HUD pills).
@@ -97,7 +97,13 @@ export function renderHUD(
   // leaves a gap in the middle that the title sits in, on every viewport
   // from a landscape phone up.
   const play = playAreaFor(width, height);
-  const maxW = Math.min(play.w, 600);
+  // Side-nav spreads the strip to the play area's own edges instead of
+  // boxing it into a centred 600. Two reasons: the room title still needs
+  // the gap in the middle and a wider strip gives it a bigger one, and
+  // the strip is now floating over the art rather than sitting in
+  // reserved space — pushing the pills out to the margins keeps them off
+  // the part of the painting a child is looking at.
+  const maxW = sideNavEnabled() ? play.w : Math.min(play.w, 600);
   const slack = (play.w - maxW) / 2;
   // 10 -> SAFE_MARGIN. The tap circles in this strip are floored at a 24px
   // radius, so a 10px inset left their outer edge 6px from the screen.

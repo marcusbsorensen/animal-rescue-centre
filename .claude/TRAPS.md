@@ -62,8 +62,15 @@ checking the claim still holds.
   *resumes* it: stale CSS, stale DOM, previous stage still showing. You will
   test the build from twenty minutes ago and conclude your fix did nothing.
 - **Rotating the simulator still needs Marcus.** `osascript` is refused
-  assistive access — confirmed, it answers "osascript is not allowed to send
-  keystrokes (1002)" — and there is no `simctl` verb. Ask him for Cmd+Left.
+  assistive access — confirmed twice, from bash and from the Control-your-Mac
+  MCP tool, which answers "osascript is not allowed assistive access (-1719)"
+  — and there is no `simctl` verb. Ask him for Cmd+Left.
+  **The rotation can take the device with it.** On 2026-08-31 the flip left
+  the simulator back at the Home Screen in portrait, so the first capture
+  after it showed the old orientation and looked like the flip had not
+  happened. The panel connection goes stale at the same time. After any
+  rotation: re-`attach`, re-`openurl`, and only then screenshot — do not
+  read the first frame as evidence of anything.
 - **The mock pages understate the live screens.** `arrival.html` renders one
   choice standing alone; the live arrival card renders more, and on a phone
   the second one is below the fold. `signup.html` and `login.html` keep

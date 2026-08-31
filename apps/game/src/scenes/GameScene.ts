@@ -84,11 +84,13 @@ import {
   renderHUD,
   renderLeftRail,
   renderNavBar,
+  renderNavRail,
   renderGamesPopup,
   showQuickToast,
   renderCorridor,
   renderRoom,
 } from '../game-views';
+import { sideNavEnabled } from '../ui/layout';
 
 type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
 
@@ -656,7 +658,16 @@ export class GameScene extends Phaser.Scene {
     }, this.railOpen);
   }
 
-  /** Thin wrapper — delegates to HUDView.renderHUD. */
+  /**
+   * Thin wrapper — delegates to HUDView.renderHUD.
+   *
+   * Under the side-nav layout the HUD still draws, but it no longer
+   * *reserves*: `playAreaFor` hands the room the full height and the
+   * strip floats over the top of the art. That is the whole trick —
+   * HUD_HEIGHT was 110 of a 402pt screen while the ink it protects is
+   * two shallow rows ending at y 106, and nothing but the reservation
+   * was ever costing the room that band.
+   */
   private renderHUD(): void {
     renderHUD(this, this.store, this.uiContainer, {
       onLevelOrbTap: () => {
@@ -687,9 +698,16 @@ export class GameScene extends Phaser.Scene {
 
   // ── Bottom Navigation Bar + helpers (thin wrappers) ─────────
 
-  /** Thin wrapper — delegates to NavBarView.renderNavBar. */
+  /**
+   * Thin wrapper — delegates to NavBarView.renderNavBar, or to
+   * NavRailView.renderNavRail while the side-nav prototype is on.
+   *
+   * Both take the same options and callbacks, so the choice of chrome
+   * lives here and nothing downstream has to know which one is drawn.
+   */
   private renderNavBar(options?: { showBack?: boolean }): void {
-    renderNavBar(this, this.navContainer,
+    const draw = sideNavEnabled() ? renderNavRail : renderNavBar;
+    draw(this, this.navContainer,
       { showBack: options?.showBack, activeMode: this.viewMode },
       {
         onBack: () => { this.viewMode = 'corridor'; this.renderView(); },
@@ -2195,6 +2213,10 @@ export class GameScene extends Phaser.Scene {
       rerender: () => this.renderView(),
       save: () => this.saveState(),
       renderNavBar: (opts) => this.renderNavBar(opts),
+      // Same popup the Supplies FAB opens under the bottom bar — one
+      // route, two doors, so the popup itself has nothing to know about
+      // which layout is running.
+      openSupplies: () => this.showGamesPopup(),
     });
   }
 

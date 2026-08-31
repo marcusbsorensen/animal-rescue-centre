@@ -227,12 +227,66 @@ export function getSafeAreaLeft(): number {
   return safeAreaLeft;
 }
 
+/**
+ * Width of the vertical navigation rail in the side-nav layout.
+ *
+ * 72 carries a 56px icon target — MIN_TAP plus 8 — with 8px of margin
+ * each side. The whole argument for the layout is that width is the
+ * plentiful axis in landscape and height is not: 72 of 874 buys back the
+ * 78px nav bar and the 110px HUD strip, both of which came out of the
+ * 402 we cannot spare.
+ */
+export const NAV_RAIL_WIDTH = 72;
+
+/**
+ * Side-nav layout: navigation down the left edge, arrivals down the
+ * right, the room in between and no horizontal chrome at all.
+ *
+ * Ambient for the same reason the safe-area inset is — a property of the
+ * build rather than of the call — and off by default, so every existing
+ * caller and every test keeps the layout it had. Set from `?sideRail` at
+ * boot; see `docs/landscape-relayout-2026-08-31.md`.
+ *
+ * This is a prototype switch, not a finished second layout. While it is
+ * on the HUD is not drawn at all: its counts are already in the arrivals
+ * rail, but the level orb, XP bar, coins and audio toggle are not, and
+ * they have nowhere to live yet.
+ */
+let sideNav = false;
+
+/** Turn the side-nav layout on or off. The only mutation point. */
+export function setSideNav(on: boolean): void {
+  sideNav = on;
+}
+
+/** True where the side-nav layout is active. */
+export function sideNavEnabled(): boolean {
+  return sideNav;
+}
+
 /** True where the rail collapses to a tab rather than standing open. */
 export function railIsCollapsible(width: number): boolean {
   return width < RAIL_COLLAPSE_BREAKPOINT;
 }
 
 export function railBoundsFor(width: number, height: number, open = false): RailBounds {
+  // Under the side-nav layout the arrivals rail moves to the right edge:
+  // the left belongs to navigation. It spans the full height because
+  // there is no HUD strip above it to start below.
+  //
+  // No right-hand safe-area inset is applied. In the orientation this was
+  // prototyped in the Dynamic Island is on the left, where the nav rail
+  // already clears it; rotated the other way the Island lands on this
+  // edge and `ui/safe-area.ts` has no right reading to give. That is a
+  // known gap, listed in the relayout doc.
+  if (sideNav) {
+    const mode: RailMode = !railIsCollapsible(width)
+      ? 'side'
+      : (open ? 'overlay' : 'tab');
+    const w = mode === 'tab' ? RAIL_TAB_WIDTH : RAIL_WIDTH;
+    return { x: width - w, y: 0, w, h: height, mode };
+  }
+
   const y = HUD_HEIGHT;
   const h = height - HUD_HEIGHT;
   // Start clear of the notch rather than at 0. The tab keeps its full
@@ -292,6 +346,20 @@ export interface PlayArea {
  * have to be sized from this box rather than from a constant.
  */
 export function playAreaFor(width: number, height: number): PlayArea {
+  // Side-nav: both bars are gone, so the band is the whole height. The
+  // nav rail reserves on the left (after the notch) and the arrivals tab
+  // reserves on the right, exactly as it used to reserve on the left —
+  // an opened rail still slides over the scene rather than reflowing it.
+  //
+  // On an iPhone 17 Pro (874x402, 50pt of Island) that is 696x402, an
+  // aspect of 1.77 against room art authored at 1.78. The art fits the
+  // box it is given for the first time.
+  if (sideNav) {
+    const left = safeAreaLeft + NAV_RAIL_WIDTH;
+    const right = railIsCollapsible(width) ? RAIL_TAB_WIDTH : RAIL_WIDTH;
+    return { x: left, y: 0, w: width - left - right, h: height };
+  }
+
   const reserved = railReservedWidth(width);
   return {
     x: reserved,
@@ -318,6 +386,11 @@ export function playAreaFor(width: number, height: number): PlayArea {
  * behind the nav bar — but it is a compromise, not a free win.
  */
 export function anchorSpaceFor(area: PlayArea, height: number): { top: number; h: number } {
+  // Side-nav draws the art into the play box, so the anchor rect and the
+  // art rect are the same rect again and the compromise described above
+  // has nothing left to correct. This is the quieter prize in the
+  // relayout: not the extra height, but art and anchors agreeing.
+  if (sideNav) return { top: area.y, h: area.h };
   if (!viewportIsShort(height)) return { top: 20, h: height - 40 };
   return { top: area.y, h: area.h };
 }

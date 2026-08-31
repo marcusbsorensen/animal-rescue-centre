@@ -1,8 +1,10 @@
 # Landscape relayout — nav down the side
 
-**Status:** proposal, not started. Written 2026-08-31 from Marcus's
+**Status:** prototyped behind `?sideRail=1`, measured in Chrome at
+874x402, not yet seen on a device. Written 2026-08-31 from Marcus's
 suggestion after seeing GameScene on a landscape iPhone for the first
-time.
+time; the art-fitting section was corrected the same day after the
+numbers in it were checked against the files.
 
 ## The idea
 
@@ -35,45 +37,45 @@ With navigation moved to a ~72pt left rail and the HUD absorbed into it:
 That is the largest single gain available to the play area, and it costs
 almost nothing horizontally: 874pt across is plentiful, 402 down is not.
 
-## The catch, and it is a real one
+## The catch that was not one
 
-**Room backgrounds are stretched, not fitted.** `CorridorView.ts:64`:
+**Corrected 2026-08-31, after measuring.** This section used to say room
+art would be squashed ~1.9x by the move and costed a re-paint of all 27
+backgrounds off the back of it. That was wrong, and the error is worth
+recording because it is an easy one to repeat.
 
-```
-bg.setDisplaySize(play.w, height - 40);
-```
+The 3.59 figure is what `playAreaFor(874, 402)` returns — 768x214. It is
+**not** the aspect the art was authored at, and no background is ever
+drawn into that box. `playAreaFor` governs anchors and animal sizing;
+the art is drawn to `play.w x (height - 40)`, deliberately, so it bleeds
+behind the chrome.
 
-No `cover`, no `contain`, no aspect preservation. The painted room is
-squashed to whatever box it is given.
+Measured, from the files and from the running scene:
 
-The play box aspect goes **3.59 → 1.91** — it nearly halves. Every
-room painting is authored for a long, letterbox-shaped space and would
-be vertically stretched by roughly 1.9x. Corridors would look like they had
-been squeezed from the sides; the animals, sized from the same box, would
-stretch with them.
+| | Art drawn into | Aspect | Against art's 1.78 |
+|---|---|---|---|
+| Bottom bar (today) | 768 x 362 | 2.12 | **1.19x stretch** |
+| Side rail | 696 x 402 | 1.73 | **1.03x** |
 
-So this is not a UI move. **It is a change to how room art is fitted**,
-and that has to be decided before any chrome moves.
+All 27 backgrounds on disk are 16:9 — `1280x720` or `800x446`, uniformly.
+So the side rail draws the rooms **closer to their own shape than the
+current layout does**, and the fitting question mostly dissolves: at a 3%
+squash neither `cover` (which crops) nor `contain` (which gives the
+height back) earns its cost. Leave the fit alone.
 
-Three options, in increasing cost:
+Visible room area goes from 768x214 to 696x402 — **1.70x more room on
+screen**.
 
-1. **Fit with `cover` and crop.** Keep the art's aspect, fill the taller
-   box, lose the left and right edges of each painting. Cheap, but the
-   rooms were composed for their full width — door signs sit near the
-   edges and are what a child taps.
-2. **Fit with `contain` and fill the margin.** Keep the whole painting,
-   letterbox it, paint the surround (wall colour, floor continuation).
-   No art re-authoring, but the gained height is partly given back.
-3. **Re-paint the rooms for the new aspect.** Correct, and the largest
-   job by far.
+## The quieter prize
 
-The anchors themselves are **not** the problem, contrary to first
-impressions. `RoomAnchors` stores them as 0..1 fractions of the
-background (`lib/RoomAnchors.ts:21`), so they follow whatever box the art
-is drawn into. The layout.ts warning is about art and anchors using the
-*same* box, which the views already do. Whichever fitting option is
-chosen, anchors come along — provided the background keeps being drawn
-into the play box rather than, as now, `height - 40`.
+`anchorSpaceFor` describes itself as "a compromise, not a free win": on a
+short viewport the art fills the screen while anchors resolve against the
+play band, so an animal the art puts on the painted floor stands a little
+above that floor line. That exists because the art rect and the anchor
+rect are different rects.
+
+Under the side rail they are the same rect, and the compromise has
+nothing left to correct. That is arguably worth more than the height.
 
 ## Second catch: thumb reach
 
@@ -104,18 +106,57 @@ device.
   the other. Whichever edge holds navigation needs the inset applied, and
   `ui/safe-area.ts` currently only feeds the left.
 
-## Suggested sequence
+## What has been built
 
-1. **Decide the art fitting** (the three options above). Nothing else can
-   start until this is settled — everything downstream depends on it.
-2. **Prototype the corridor only**, on a device, with the chosen fitting.
-   One view, no commitment, real thumbs.
-3. Move `navHeightFor` / `HUD_HEIGHT` out of `playAreaFor` and introduce
-   a `navRailWidthFor`, keeping the pure-function-plus-tests shape.
-4. Port the remaining views; each lays out from `playAreaFor` already, so
-   this should be mechanical once step 1 is right.
-5. Re-walk the whole flow on the simulator. The harness measures shapes
-   and will not catch a stretched room.
+A prototype behind `?sideRail=1`, default off. `?sideRail=0` turns it
+back off and the choice is remembered in `localStorage`, because
+retyping a query string into mobile Safari to compare two layouts is the
+friction that stops the comparison being made.
+
+- `ui/layout.ts` — `NAV_RAIL_WIDTH`, the `sideNav` switch, and
+  `playAreaFor` / `railBoundsFor` / `anchorSpaceFor` branching on it.
+- `game-views/NavRailView.ts` — the vertical rail.
+- `game-views/CorridorView.ts` — art drawn into the play box.
+- `e2e/side-rail.spec.ts` — shoots both layouts at 874x402 and measures
+  the display list. `game-views/__tests__/side-nav-layout.test.ts` holds
+  the geometry.
+
+Decisions taken while building it:
+
+- **Four rail items, not five.** A cell is 56 (MIN_TAP + 8) and gaps are
+  MIN_TAP_GAP, so five need 328 of 402: bottom-anchored, the stack still
+  starts 16% down, which is not reachable. Four need 260 and start 33%
+  down — the lower two-thirds this doc asked for. So "bottom-weighted
+  rail" and "five nav items" were never compatible.
+- **Supplies is the item that went**, into Care. The FAB gave the least
+  important of the five the most prominent control in the game.
+- **The labels stayed.** This doc proposed icons only; the bar's 15/16px
+  type is at the readability floor for a 7-11 year old and was
+  explicitly not traded for layout before. 72pt fits "Social" at 15px.
+- **The HUD still draws, but no longer reserves.** Its ink is two shallow
+  rows ending at y 106 while `HUD_HEIGHT` reserved 110 of a 402pt screen.
+  It now floats over the art, spread to the play area's edges rather than
+  boxed into a centred 600.
+
+## Still open
+
+- **The right-hand inset.** The arrivals rail moved to the right edge and
+  `ui/safe-area.ts` only reads `left`. In the other landscape orientation
+  the Dynamic Island lands on that edge.
+- **The bottom inset.** The rail's last control sits 10pt off the bottom;
+  the web clip reports `safe-area-inset-bottom: 20px`. Same missing
+  reading, same fix.
+- **The other views.** Only the corridor draws into the play box so far.
+  Room, Kitchen and Garden still use `height - 40`, and KitchenView draws
+  at full `width` rather than `play.w`, so it runs under the rail.
+- **The kitchen folds when it no longer needs to.** `twoColumn` keys on
+  viewport height, so at 402 it still folds sideways even though the band
+  is now 402 rather than 137.
+- **iPad.** At >=1133 wide the arrivals rail stands open at 280 and
+  vertical is not scarce, so this may be a phone-only layout — two
+  arrangements to maintain.
+- **Real thumbs.** Everything above is measured geometry. Whether a
+  7-year-old can work the rail is not a thing arithmetic answers.
 
 ## Files this touches
 
