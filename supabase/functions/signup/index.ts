@@ -2,6 +2,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { hashPin, hashEmail, generateToken, generateJoinCode } from '../_shared/crypto.ts';
 import { createSession } from '../_shared/session.ts';
+import {
+  checkRateLimit,
+  peekRateLimit,
+  bumpRateLimit,
+  clientIp,
+} from '../_shared/rate-limit.ts';
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -63,6 +69,49 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // Two address limits, because signup is two different things to
+    // abuse and one budget cannot serve both.
+    //
+    // Attempts (60 per 15 minutes) cover enumeration. "That name is
+    // taken" answers a question, and the suggestion list answers it more
+    // fully — so anyone can walk a list of names through here and learn
+    // which accounts exist, then take that list to login. Note the
+    // taken-check below runs before the PIN is hashed, so probing is
+    // cheap for them and worth capping early. Trying a few names is
+    // normal for a child, hence a budget that comfortably clears it.
+    //
+    // Creations (20 per day) cover flooding. Every account writes five
+    // rows and burns a 100k-iteration hash, and the attempts budget
+    // alone would still allow thousands a day. Twenty is far beyond a
+    // household and nowhere near useful to a flood.
+    //
+    // Both come before any database read: the cost starts there.
+    const ip = clientIp(req);
+    const createKey = ip ? `signup-create-ip:${ip}` : null;
+    if (ip && createKey) {
+      const attempts = await checkRateLimit(
+        supabase, `signup-ip:${ip}`, 60, 15 * 60 * 1000,
+      );
+      if (!attempts.allowed) {
+        const retryMinutes = Math.ceil(attempts.retryAfterMs / 60_000);
+        return jsonResponse(
+          { error: `Too many tries. Wait ${retryMinutes} minutes.` },
+          429,
+        );
+      }
+
+      const creations = await peekRateLimit(supabase, createKey, 20);
+      if (!creations.allowed) {
+        const retryHours = Math.max(1, Math.ceil(creations.retryAfterMs / 3_600_000));
+        return jsonResponse(
+          { error: `Too many new accounts from here today. Try again in ${retryHours} hours.` },
+          429,
+        );
+      }
+    } else {
+      console.error('no client IP header; address limits skipped');
+    }
 
     // Pre-check: is this username already claimed by another user?
     // The unique constraint on users.username handles the race, but
@@ -130,6 +179,11 @@ Deno.serve(async (req) => {
       }
       return jsonResponse({ error: 'Failed to create account' }, 500);
     }
+
+    // An account exists now, so charge the daily budget. Only successes
+    // count here — a child working through taken names has not created
+    // anything, and the attempts budget above already covers that.
+    if (createKey) await bumpRateLimit(supabase, createKey, 24 * 60 * 60 * 1000);
 
     // Best-effort: if this username is in the legacy pool, mark it
     // claimed. The pool is no longer required for signup — kids can

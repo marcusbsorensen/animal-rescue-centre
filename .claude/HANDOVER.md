@@ -73,7 +73,14 @@ so the two cannot drift apart.
   one valid account would spray, log in to wipe it, and repeat. So it
   counts failures only, which is why `peek_rate_limit` exists alongside
   `check_rate_limit`: the question has to be asked separately from the
-  charge. The peek races by one or two, deliberately.
+  charge.
+- **A peek compares with `<`, a check with `<=`.** They count at
+  different moments: `check_rate_limit` increments first, so its count
+  includes the attempt being judged; a peek runs before the attempt, so
+  its count is what has already been spent. Copying `<=` into the peek
+  let every address budget run one over, and it read as a race until the
+  spray was counted properly — 64 sequential requests, 61 through.
+  Fixed in `00009`.
 - Earlier and still standing: L6 counts controls not instances; the box
   you ask for is the box that gets drawn; T4 measures shapes.
 
@@ -93,10 +100,11 @@ Then, in the order they cost least:
   build to say something when held upright — Info.plist covers the app,
   the browser has nothing.
 - The fourteen-scene resize-handler leak, still its own task.
-- **Rate limit `signup` too.** Nothing caps account creation per
-  address, so the username pool can be exhausted and the table filled by
-  one caller. The address plumbing is in place now; this is a budget and
-  two lines.
+- **Signup still answers "is this name taken?" to anyone.** The friendly
+  error and its three suggestions are a username oracle, and the check
+  runs before the PIN is hashed, so probing is cheap. Capped now rather
+  than closed, because the alternative is a child being told only "no".
+  Worth revisiting if the game ever has users outside one family.
 
 ## Traps
 - **Bash `cd` persists between calls.**
