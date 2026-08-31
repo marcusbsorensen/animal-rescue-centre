@@ -12,7 +12,7 @@
  *   - parent → iframe: {type:'auth-error', payload:{message}}   (on failure, iframe shakes+clears)
  */
 
-import { login, signup, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
+import { login, signup, checkUsername, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
 
 export type AuthAction =
@@ -159,6 +159,16 @@ export function mountAuth(
     if (msg.type === 'toggle-music') {
       const enabled = AudioManager.getInstance().toggleMusic();
       postToFrame('music-state', { enabled });
+      return;
+    }
+
+    // Name availability, asked from the name screen before it advances.
+    // Always answers — `checkUsername` fails open — so the iframe never
+    // waits forever on a dead network.
+    if (msg.type === 'check-name') {
+      const name = String((msg.payload as { username?: unknown })?.username ?? '');
+      const result = await checkUsername(name);
+      postToFrame('name-checked', { username: name, ...result });
       return;
     }
 

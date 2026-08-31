@@ -1525,17 +1525,29 @@
   // only arrives later in the async 'init' message. The init handler
   // calls this again once it has replaced them, or the count here is
   // always the 4 placeholders and the first-run branch never runs.
+  // How many player chips are really on screen. Read at the moment it
+  // is asked, never cached: the placeholders in the markup are replaced
+  // when the async 'init' message arrives with the real list.
+  function chipCountNow() {
+    return stageSelect?.querySelectorAll('.chips .chip').length || 0;
+  }
   function adaptTypeNameButton() {
     const btn = document.getElementById('type-name-btn');
     if (!btn) return;
     const label = btn.querySelector('.play-label');
-    const chipCount = stageSelect?.querySelectorAll('.chips .chip').length || 0;
+    const chipCount = chipCountNow();
+    // The subtitle moves with the button. "Tap your picture" is the
+    // right instruction only when there are pictures; on a device with
+    // no saved accounts it named something that was not on the screen.
+    const subtitle = stageSelect?.querySelector('.sign-subtitle');
     if (chipCount > 0) {
       btn.classList.add('demoted');
       if (label) label.textContent = "Not here? Type your name";
+      if (subtitle) subtitle.textContent = 'Tap your picture to start caring for your animals';
     } else {
       btn.classList.remove('demoted');
       if (label) label.textContent = 'TYPE YOUR NAME';
+      if (subtitle) subtitle.textContent = 'Type your name to start caring for your animals';
     }
   }
   adaptTypeNameButton();
@@ -1605,7 +1617,11 @@
   // new account!" on the signup screen rather than dropping the
   // kid into a blank form with no context.
   document.getElementById('type-name-btn')?.addEventListener('click', () => {
-    send('type-name', { reason: 'not-in-chips' });
+    // Only claim the child was missing from a list when there was one.
+    // On a fresh device this is the primary CTA, not a fallback, and
+    // leading with "couldn't find you" told them they had failed at
+    // something before they had typed a character.
+    send('type-name', chipCountNow() > 0 ? { reason: 'not-in-chips' } : {});
   });
 
   // ── Login flow (works in both embed + design-review modes) ──

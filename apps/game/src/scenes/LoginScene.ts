@@ -26,11 +26,18 @@ export class LoginScene extends Phaser.Scene {
         onAction: (action, _session, payload) => {
           if (action === 'back-to-welcome')       { unmount(); this.scene.start('MainMenuScene'); return; }
           if (action === 'signup')                { unmount(); this.scene.start('SignupScene'); return; }
-          // "Not here? Type your name" → signup with the reason flag
-          // forwarded so signup can greet the kid contextually.
+          // "Not here? Type your name" → signup, carrying the reason
+          // only when login actually sent one.
+          //
+          // This used to default to 'not-in-chips'. On a device with no
+          // saved accounts there is no list to be missing from, and the
+          // plank is the primary way in rather than a fallback — so the
+          // default greeted a child who had typed nothing with "couldn't
+          // find you in the list". No reason now means no note.
           if (action === 'type-name')             {
             unmount();
-            this.scene.start('SignupScene', { reason: (payload as Record<string, unknown> | undefined)?.reason ?? 'not-in-chips' });
+            const reason = (payload as Record<string, unknown> | undefined)?.reason;
+            this.scene.start('SignupScene', typeof reason === 'string' ? { reason } : {});
             return;
           }
           if (action === 'forgot-pin')            {

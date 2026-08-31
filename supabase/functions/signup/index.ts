@@ -14,7 +14,21 @@ Deno.serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
-    const { username, pin, avatarEmoji, avatarBgColour, parentEmail, pinHint } = await req.json();
+    const { username, pin, avatarEmoji, avatarBgColour, parentEmail, pinHint, checkOnly } =
+      await req.json();
+
+    // `checkOnly` answers "is this name free?" and creates nothing.
+    //
+    // It exists so the name screen can say "that one is taken" while the
+    // child is still standing on it. Without it the refusal arrives five
+    // screens later — after they have chosen a PIN, confirmed it,
+    // written a hint and answered a question about the hint — and all of
+    // that work is thrown away by the check further down this file.
+    //
+    // It gives away nothing this function did not already give away at
+    // the end of the flow, and it spends an attempt from the same
+    // address budget, so it opens no new door.
+    const isCheck = checkOnly === true;
 
     // Validate inputs
     if (!username || typeof username !== 'string') {
@@ -40,10 +54,11 @@ Deno.serve(async (req) => {
     if (blocklist.some((w) => usernameLower.includes(w))) {
       return jsonResponse({ error: 'Try a different name' }, 400);
     }
-    if (!pin || typeof pin !== 'string' || !/^\d{4}$/.test(pin)) {
+    // A name check has no PIN or animal yet — that is the point of it.
+    if (!isCheck && (!pin || typeof pin !== 'string' || !/^\d{4}$/.test(pin))) {
       return jsonResponse({ error: 'PIN must be exactly 4 digits' }, 400);
     }
-    if (!avatarEmoji || !avatarBgColour) {
+    if (!isCheck && (!avatarEmoji || !avatarBgColour)) {
       return jsonResponse({ error: 'Avatar emoji and background colour are required' }, 400);
     }
     // Hint is optional (back-compat with older signup payloads). If
@@ -101,7 +116,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      const creations = await peekRateLimit(supabase, createKey, 20);
+      // A name check creates nothing, so it is not charged the daily
+      // creation budget — only the attempts one above.
+      const creations = isCheck
+        ? { allowed: true, retryAfterMs: 0 }
+        : await peekRateLimit(supabase, createKey, 20);
       if (!creations.allowed) {
         const retryHours = Math.max(1, Math.ceil(creations.retryAfterMs / 3_600_000));
         return jsonResponse(
@@ -123,6 +142,18 @@ Deno.serve(async (req) => {
       .select('id')
       .eq('username', trimmedUsername)
       .maybeSingle();
+    if (isCheck) {
+      // 200 either way: "taken" is an answer, not a failure, and the
+      // name screen wants to draw suggestions beside the field rather
+      // than treat this as an error.
+      return jsonResponse({
+        available: !existingUser,
+        suggestions: existingUser
+          ? await suggestAvailableUsernames(supabase, trimmedUsername)
+          : [],
+      });
+    }
+
     if (existingUser) {
       const suggestions = await suggestAvailableUsernames(supabase, trimmedUsername);
       return jsonResponse(

@@ -1183,6 +1183,14 @@
     position: relative;
     /* No z-index — let the grass clump cover the base for an integrated look. */
   }
+  /* A landscape phone with the keyboard up has almost no room left, and
+     this row is the first thing the keyboard swallows — on an iPhone 17
+     Pro "I already have an account" sat half behind the keyboard
+     toolbar: readable, tappable-looking, and cut in half.
+     Hide it while the keyboard is open, for the same reason it is
+     already hidden on the PIN and hint stages. The yellow back-sticker
+     stays put, so there is always a way out. */
+  body.kb-open .secondary-row { display: none; }
   /* Shared wooden-pill — both secondary buttons read as little reclaimed
      planks nailed to the stake. Colour variants below make each look like
      a different bit of salvaged wood with its own imperfect paintwork. */
@@ -2016,8 +2024,95 @@
       showContextNote('Pick an animal to be your buddy!');
       return;
     }
-    setStage('pin');
+    // Last gate, and the only one this page cannot answer by itself: is
+    // the name still free? Ask the host and wait. Advancing first meant
+    // the child chose a PIN, confirmed it, wrote a hint and answered a
+    // question about it before being told to start again.
+    //
+    // Opened directly for design review there is no host to ask, so the
+    // check is skipped rather than hanging on a reply that never comes.
+    if (!isEmbed) { setStage('pin'); return; }
+    askNameCheck(name);
   });
+
+  // ── On-screen keyboard ───────────────────────────────────────────
+  // Driven by focus, not by viewport size. Comparing innerHeight with
+  // visualViewport.height is the usual trick and it does not work here:
+  // Capacitor resizes the web view itself when the keyboard opens, so
+  // both numbers shrink together and the difference stays near zero.
+  // A focused text field is the thing we actually mean anyway.
+  //
+  // Height-gated so design review in a desktop browser — where focusing
+  // an input opens no keyboard — keeps every control visible. A
+  // landscape phone is about 400pt tall; a laptop window is not.
+  (function trackKeyboard() {
+    const SHORT_VIEWPORT = 560;
+    const isTextField = (el) =>
+      el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+    const apply = () => {
+      const open = isTextField(document.activeElement) && window.innerHeight <= SHORT_VIEWPORT;
+      document.body.classList.toggle('kb-open', open);
+    };
+    document.addEventListener('focusin', apply);
+    document.addEventListener('focusout', () => setTimeout(apply, 0));
+    window.addEventListener('resize', apply);
+    apply();
+  })();
+
+  // ── Name availability ────────────────────────────────────────────
+  // One outstanding question at a time, keyed by the name asked about,
+  // so a slow answer about an earlier name cannot advance a child who
+  // has since typed a different one.
+  let pendingNameCheck = null;
+  let nameCheckTimer = null;
+
+  function setNextBusy(busy) {
+    const btn = document.getElementById('next-btn');
+    if (!btn) return;
+    btn.classList.toggle('checking', busy);
+    btn.disabled = busy;
+    const label = btn.querySelector('.play-label');
+    if (label) {
+      if (busy) {
+        if (!label.dataset.idleText) label.dataset.idleText = label.textContent;
+        label.textContent = 'Checking…';
+      } else if (label.dataset.idleText) {
+        label.textContent = label.dataset.idleText;
+      }
+    }
+  }
+
+  function askNameCheck(name) {
+    pendingNameCheck = name;
+    setNextBusy(true);
+    send('check-name', { username: name });
+    // The host fails open, so an answer should always come. This is the
+    // backstop for the host not being there at all: let the child move
+    // on rather than stranding them on a disabled button.
+    clearTimeout(nameCheckTimer);
+    nameCheckTimer = setTimeout(() => {
+      if (pendingNameCheck === null) return;
+      pendingNameCheck = null;
+      setNextBusy(false);
+      setStage('pin');
+    }, 4000);
+  }
+
+  function onNameChecked(payload) {
+    if (!pendingNameCheck || payload?.username !== pendingNameCheck) return;
+    clearTimeout(nameCheckTimer);
+    pendingNameCheck = null;
+    setNextBusy(false);
+    if (payload.available === false) {
+      showContextNote('Someone already has that name — try another!');
+      if (Array.isArray(payload.suggestions) && payload.suggestions.length) {
+        showNameSuggestions(payload.suggestions);
+      }
+      document.querySelector('.name-field')?.focus();
+      return;
+    }
+    setStage('pin');
+  }
   for (const chip of document.querySelectorAll('.chip.avatar-pick')) {
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2321,6 +2416,11 @@
     // Contextual greeting — when the kid arrives here from login's
     // "Not here? Type your name" plank, show a friendly note above
     // the title so they know the journey makes sense.
+    if (m.type === 'name-checked') onNameChecked(m.payload);
+    // Only sent when there were chips to not be among. A device with no
+    // saved accounts sends no reason at all, because "couldn't find you
+    // in the list" is a strange thing to tell a child who has not typed
+    // anything and never had a list.
     if (m.type === 'init' && m.payload?.reason === 'not-in-chips') {
       showContextNote("Couldn't find you in the list — let's make a new account!");
     }

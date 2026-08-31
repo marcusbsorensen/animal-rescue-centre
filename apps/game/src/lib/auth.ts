@@ -69,6 +69,43 @@ async function readFunctionErrorBody(
 }
 
 /**
+ * Ask whether a name is still free, without creating anything.
+ *
+ * Lets the name screen answer while the child is still on it. The
+ * refusal used to arrive five screens later, after a PIN, a
+ * confirmation, a hint and a safety question, and threw all of it away.
+ *
+ * Fails **open**: a network wobble returns `available: true` and the
+ * child carries on, because the real check still runs at the end. The
+ * cost of being wrong here is the old behaviour; the cost of failing
+ * closed would be a child unable to make an account at all.
+ */
+export async function checkUsername(
+  username: string,
+): Promise<{ available: boolean; suggestions: string[] }> {
+  try {
+    const { data: result, error } = await supabase.functions.invoke('signup', {
+      body: { username, checkOnly: true },
+    });
+    if (error) {
+      const body = await readFunctionErrorBody(error);
+      // A 400 here is a name the server rejects for shape, not for being
+      // taken; the screen has already checked shape, so let it through
+      // and leave the final word to the real submit.
+      if (body?.error) return { available: true, suggestions: [] };
+      return { available: true, suggestions: [] };
+    }
+    if (typeof result?.available !== 'boolean') return { available: true, suggestions: [] };
+    return {
+      available: result.available,
+      suggestions: Array.isArray(result.suggestions) ? result.suggestions : [],
+    };
+  } catch {
+    return { available: true, suggestions: [] };
+  }
+}
+
+/**
  * Sign up a new player via the Edge Function.
  */
 export async function signup(data: SignupData): Promise<AuthSession> {
