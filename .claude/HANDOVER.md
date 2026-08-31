@@ -5,9 +5,16 @@ Ship A.R.C. as an iPad/iPhone app plus web fallback, usable by 7–10 year
 olds. Current arc: make it work on a phone.
 
 ## State
-Clean tree on `main` at `3d94335`, **7 commits unpushed**. Typecheck clean,
-lint 0 errors / 38 pre-existing warnings, 1137 tests pass. UX harness at
-**3 FAIL / 100 WARN** across 42 combinations.
+Clean tree on `main` at `24b5884`, **level with `origin/main`**. Typecheck
+clean, lint 0 errors / 38 pre-existing warnings, 1137 tests pass (7 badges,
+821 game-logic, 309 game) — re-run against this exact tree, not inherited.
+UX harness at **3 FAIL / 100 WARN** across 42 combinations.
+
+**CI is not a gate right now.** GitHub Actions refuses to start the job:
+"recent account payments have failed or your spending limit needs to be
+increased". Every run since 2026-08-30 is red for that reason and none of
+them compiled a line. Local `pnpm typecheck && pnpm lint && pnpm test` is
+the whole safety net until the billing settings are sorted.
 
 **Verified.** The nav bar has been seen unoccluded in a real signed-in
 session — five controls, all carrying art, bar inside the viewport at
@@ -18,14 +25,10 @@ rebuilt to respect gravity and re-shot at all three viewports.
 *tapped* anything on one. The simulator got as far as the menu in real iOS
 WebKit, signed in, landscape — then tap coordinates could not be resolved.
 
-**Found, not fixed.** The 3 harness FAILs, all GameScene's left rail:
-the collapsed pull-tab is 56x150 at `x=0` (deliberate, but the web clip
-reports a 50px left safe-area inset), and two stacked rail controls sit
-4px apart against a MIN_TAP_GAP of 12. Also: nav tabs overlap by 14px
-below ~460px width (portrait only, which Info.plist refuses — but the web
-build has no rotate prompt); `forgot-pin.html` and `news.html` never
-linked `_short-landscape.css`; the fourteen-scene resize-handler leak is
-still its own task.
+**Found, not fixed.** The 3 harness FAILs are all GameScene's left rail —
+the collapsed pull-tab at `x=0`, and two stacked controls 4px apart. Those
+and the rest of the queue are written out under **Next step**, in one list
+so the two cannot drift apart.
 
 ## Files
 - `.claude/TRAPS.md` — read first.
@@ -52,7 +55,21 @@ still its own task.
   you ask for is the box that gets drawn; T4 measures shapes.
 
 ## Next step
-Push the seven commits.
+Tap something on a real device. Everything else on the list is a known
+shape with a known fix; this is the one unknown, and it guards the goal.
+The simulator reaches the menu in real iOS WebKit signed in and landscape,
+so the remaining piece is resolving tap coordinates there — TRAPS' rotation
+arithmetic came off an iPad and needs re-deriving for a landscape iPhone.
+
+Then, in the order they cost least:
+- The two rail controls 4px apart, against a MIN_TAP_GAP of 12.
+- The collapsed pull-tab at `x=0`, which the web clip reads as a 50px
+  left safe-area inset.
+- `forgot-pin.html` and `news.html` link `_short-landscape.css`.
+- The nav tabs' 14px portrait overlap below ~460px, which needs the web
+  build to say something when held upright — Info.plist covers the app,
+  the browser has nothing.
+- The fourteen-scene resize-handler leak, still its own task.
 
 ## Traps
 - **Bash `cd` persists between calls.**
@@ -60,4 +77,7 @@ Push the seven commits.
   session-installing page into `9b1c1ba`, removed at `e418453`.
 - TRAPS' simulator rotation arithmetic was derived on an iPad and does not
   carry to a landscape iPhone 17 Pro. Re-derive before tapping.
-- The token guard rejects bare `cat`, heredocs and unbounded `grep`.
+- The token guard rejects bare `cat`, heredocs and unbounded `grep`. It
+  also rejects `grep -c` and `git diff > file` despite its own message
+  offering both; `rg --max-count N | head -N` gets through, and the Read
+  and Edit tools go around it entirely.
