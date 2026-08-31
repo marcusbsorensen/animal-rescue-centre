@@ -71,3 +71,71 @@ export async function clearRateLimit(
     console.error('clearRateLimit failed', error);
   }
 }
+
+/**
+ * Ask whether `key` is within budget, without spending any of it.
+ *
+ * Pairs with `bumpRateLimit` for buckets that must count failures only —
+ * see supabase/migrations/00008_rate_limit_peek.sql for why an address
+ * bucket cannot simply be cleared on success.
+ *
+ * Fails **closed**, for the same reason `checkRateLimit` does.
+ */
+export async function peekRateLimit(
+  supabase: SupabaseClient,
+  key: string,
+  maxAttempts: number,
+): Promise<RateLimitResult> {
+  const { data, error } = await supabase.rpc('peek_rate_limit', {
+    p_key: key,
+    p_max: maxAttempts,
+  });
+
+  if (error) {
+    console.error('peekRateLimit failed; refusing the attempt', error);
+    return { allowed: false, retryAfterMs: 60_000 };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row.allowed !== 'boolean') {
+    console.error('peekRateLimit returned nothing usable; refusing', data);
+    return { allowed: false, retryAfterMs: 60_000 };
+  }
+
+  return { allowed: row.allowed, retryAfterMs: Number(row.retry_after_ms) || 0 };
+}
+
+/** Charge one attempt to `key`. Never throws; a lost count is not fatal. */
+export async function bumpRateLimit(
+  supabase: SupabaseClient,
+  key: string,
+  windowMs: number,
+): Promise<void> {
+  const { error } = await supabase.rpc('bump_rate_limit', {
+    p_key: key,
+    p_window_ms: windowMs,
+  });
+  if (error) console.error('bumpRateLimit failed', error);
+}
+
+/**
+ * The caller's address, as the edge saw it.
+ *
+ * Supabase sits behind Cloudflare, which sets `cf-connecting-ip` itself
+ * and refuses at the edge — 403, before any function runs — when a
+ * client tries to send its own. `x-real-ip` is overwritten the same way.
+ * `x-forwarded-for` is not forwarded here at all, so nothing reads it.
+ * Verified against this project's own edge logs, 2026-08-31.
+ *
+ * Returns null if neither header is present, which should not happen.
+ * Callers skip the address check in that case rather than refusing: the
+ * per-username limit is the primary defence, and a platform change to
+ * these header names should not take every login in the game down with
+ * it.
+ */
+export function clientIp(req: Request): string | null {
+  const ip =
+    req.headers.get('cf-connecting-ip') ?? req.headers.get('x-real-ip');
+  const trimmed = ip?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+}

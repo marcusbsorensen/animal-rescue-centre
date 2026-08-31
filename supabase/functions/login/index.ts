@@ -1,7 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { verifyPin, generateToken } from '../_shared/crypto.ts';
-import { checkRateLimit, clearRateLimit } from '../_shared/rate-limit.ts';
+import {
+  checkRateLimit,
+  clearRateLimit,
+  peekRateLimit,
+  bumpRateLimit,
+  clientIp,
+} from '../_shared/rate-limit.ts';
 import { createSession } from '../_shared/session.ts';
 
 Deno.serve(async (req) => {
@@ -36,6 +42,34 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Second limit, by address: 60 failures per 15 minutes. The per-name
+    // cap above does nothing against one guess each at a thousand names,
+    // and this is what stops that.
+    //
+    // Deliberately loose, because addresses are shared — a household, a
+    // classroom and a whole mobile network can all arrive as one. Sixty
+    // wrong PINs is far more fumbling than a room of children produces
+    // and far less guessing than an attacker needs: at 240 an hour, one
+    // 4-digit PIN would take about two days.
+    //
+    // Failures only, and never cleared by a success. Clearing it would
+    // let someone holding one valid account spray sixty, log in, and go
+    // again — which is no limit at all.
+    const ip = clientIp(req);
+    const ipKey = ip ? `login-ip:${ip}` : null;
+    if (ipKey) {
+      const ipRl = await peekRateLimit(supabase, ipKey, 60);
+      if (!ipRl.allowed) {
+        const retryMinutes = Math.ceil(ipRl.retryAfterMs / 60_000);
+        return jsonResponse(
+          { error: `Too many attempts. Try again in ${retryMinutes} minutes.` },
+          429
+        );
+      }
+    } else {
+      console.error('no client IP header; address limit skipped');
+    }
+
     // Find user
     const { data: user, error: userErr } = await supabase
       .from('users')
@@ -43,7 +77,15 @@ Deno.serve(async (req) => {
       .eq('username', username)
       .single();
 
+    // A miss counts against the address. Spraying a list of names lands
+    // here far more often than on a wrong PIN, so leaving this uncounted
+    // would leave the hole exactly where it was.
+    const chargeAddress = async () => {
+      if (ipKey) await bumpRateLimit(supabase, ipKey, 15 * 60 * 1000);
+    };
+
     if (userErr || !user) {
+      await chargeAddress();
       return jsonResponse({ error: 'Username not found' }, 404);
     }
 
@@ -54,6 +96,7 @@ Deno.serve(async (req) => {
     // Verify PIN
     const pinValid = await verifyPin(pin, user.pin_hash);
     if (!pinValid) {
+      await chargeAddress();
       return jsonResponse({ error: 'Wrong PIN' }, 401);
     }
 

@@ -17,7 +17,7 @@
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { checkRateLimit } from '../_shared/rate-limit.ts';
+import { checkRateLimit, clientIp } from '../_shared/rate-limit.ts';
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -50,6 +50,26 @@ Deno.serve(async (req) => {
         { error: `Too many tries. Wait ${retryMinutes} minutes.` },
         429,
       );
+    }
+
+    // And by address: 30 lookups per 30 minutes. Walking a list of names
+    // through this endpoint is the enumeration the per-name cap cannot
+    // see. Every lookup counts here, unlike login — there is no correct
+    // answer a caller could give to show they own the account.
+    const ip = clientIp(req);
+    if (ip) {
+      const ipRl = await checkRateLimit(
+        supabase, `hint-ip:${ip}`, 30, 30 * 60 * 1000,
+      );
+      if (!ipRl.allowed) {
+        const retryMinutes = Math.ceil(ipRl.retryAfterMs / 60_000);
+        return jsonResponse(
+          { error: `Too many tries. Wait ${retryMinutes} minutes.` },
+          429,
+        );
+      }
+    } else {
+      console.error('no client IP header; address limit skipped');
     }
 
     const { data: user, error } = await supabase
