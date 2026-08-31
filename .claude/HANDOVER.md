@@ -24,17 +24,14 @@ per-name and per-address, on `login`, `get-pin-hint`, `signup` and
 `send-gift`, plus 5-per-hour per friendship on gifts — all exercised
 against production.
 
-**GameScene reached.** A fresh account was created through the UI and
-played into the corridor. The left rail's harness FAIL is real and
-physical: the **Dynamic Island** occupies x 14–50pt in landscape, and
-the collapsed pull-tab is 56pt wide at `x=0`. Tapping the visible "1
-waiting" badge does nothing; only the ~6pt strip clear of the Island
-opens it. The expanded panel is occluded too — the whole "0 in care"
-stat sits behind the Island, unreadable. `apps/game/src` has **no
-safe-area handling at all**; `LeftRailView.ts:234` reasons that "56 x
-150 clears MIN_TAP in both axes", which is true of the rectangle and
-false on the device. That is the 50px inset the harness reported and a
-previous session wrote off as a web-clip artifact.
+**GameScene reached, and the rail FAIL fixed.** The harness was right
+and a previous session wrote it off: the 50px inset is the **Dynamic
+Island**, which occupies x 14–50pt in landscape, and the collapsed tab
+was 56pt wide at `x=0`. Tapping the visible badge did nothing.
+`ui/safe-area.ts` now measures `env()` through a probe and `layout.ts`
+holds the inset ambiently; the badge spans x 74–105pt, opens the rail,
+and the panel's "0 In care" — previously hidden entirely — is readable.
+Verified on device (`c7a173e`).
 
 **Unverified.** Nothing has run on physical hardware. The other two
 harness FAILs (two rail controls 4px apart) are not yet examined.
@@ -62,13 +59,12 @@ harness FAILs (two rail controls 4px apart) are not yet examined.
   "no" is worse. Revisit if users exceed one family.
 
 ## Next step
-Inset the left rail by the left safe area. Nothing in `src` reads it, so
-this is new: pass `env(safe-area-inset-left)` (or the Capacitor
-equivalent) into `ui/layout.ts` and offset `railBoundsFor` /
-`playAreaFor` by it, so both the 56pt tab and the expanded panel start
-clear of the Dynamic Island. Re-walk it on the simulator afterwards —
-tapping the badge should open the rail, and "0 in care" should be
-readable.
+Decide how room art is fitted — step 1 of
+`docs/landscape-relayout-2026-08-31.md`. Backgrounds are stretched to
+the play box with no aspect preservation, and the proposed side-nav
+layout nearly halves that box's aspect (3.59 → 1.91), so every painted
+room would be squashed by ~1.9x. Nothing else in that plan can start
+until this is settled. Three options are costed in the doc.
 
 ## Traps
 - All of `.claude/TRAPS.md`, especially: boot one simulator not three;
