@@ -85,11 +85,24 @@
      building (Tier 1 commission) sits centred on a soft cream wash
      with the same white overlay we use on the welcome screen so it
      doesn't overwhelm the menu sign. Marcus 2026-05-02. */
+  /* `contain` fitted the whole painting into the frame, cutout and all —
+     the art carries a white sticker halo, so the building read as a decal
+     laid on the cream rather than a place the sign is standing in. `cover`
+     pushes the halo off every edge and puts the facade's base at the
+     bottom of the frame, where the sign's grass meets it. Marcus
+     2026-08-31: nothing on screen that could not be a sketch of something
+     real, and a building with a die-cut outline is a sticker. */
   .welcome::before {
     content: ''; position: absolute; inset: 0;
     background:
-      url('/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png') center bottom / contain no-repeat,
+      url('/admin/scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png') center bottom / cover no-repeat,
       linear-gradient(180deg, #e8d8b6 0%, #d4be8e 100%);
+    /* The painting has transparent margins, so `cover` alone still leaves
+       the die-cut edge visible down each side. Fade the outer eighth into
+       the wash instead: a facade that softens into the light is a thing
+       you can see; a building with a white outline around it is not. */
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
     z-index: 0;
   }
   .welcome::after {
