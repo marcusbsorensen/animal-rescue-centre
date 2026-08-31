@@ -46,11 +46,20 @@ describe('scheduleVisitsForDay — chance gating', () => {
     const store = makeStore({
       rehomed: [rehomed('a'), rehomed('b'), rehomed('c')],
     });
+    // Bracket the call rather than re-reading the clock at assertion
+    // time. `scheduledFor` is `now + random * ONE_DAY_MS` and random is
+    // pinned to 0 here, so it lands exactly on the clock inside the
+    // call — somewhere in [before, after], with no tolerance needed.
+    // It used to compare against `Date.now() - 10`, which lost by 26ms
+    // when the full suite ran the files in parallel under load.
+    const before = Date.now();
     const entries = scheduleVisitsForDay(store);
+    const after = Date.now();
     expect(entries).toHaveLength(3);
     for (const e of entries) {
       expect(e.seen).toBe(false);
-      expect(e.scheduledFor).toBeGreaterThanOrEqual(Date.now() - 10);
+      expect(e.scheduledFor).toBeGreaterThanOrEqual(before);
+      expect(e.scheduledFor).toBeLessThanOrEqual(after);
     }
   });
 
