@@ -49,10 +49,18 @@ export class MainMenuScene extends Phaser.Scene {
     const store = new GameStateStore();
     this.store = store;
     loadGameState(this, store).then(() => {
-      this.showMenu(session);
       // Hand the freshly-loaded store to GameScene via the registry so
-      // CONTINUE doesn't pay the load cost twice.
+      // CONTINUE doesn't pay the load cost twice. Worth doing even if this
+      // scene is on its way out — the store is loaded either way.
       this.registry.set('gameStore', store);
+      // The load can outlive the scene: the resize handler restarts scenes,
+      // and `shutdown` has already run its unmountAuth by the time this
+      // resolves. Mounting the menu from here then puts the overlay over
+      // whatever replaced this scene, with no shutdown left to take it
+      // down — a full-screen iframe over the corridor that only its own
+      // buttons can dismiss.
+      if (!this.scene.isActive()) return;
+      this.showMenu(session);
     });
     this.events.once('shutdown', unmountAuth);
     this.events.once('destroy', unmountAuth);
