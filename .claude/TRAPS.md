@@ -165,6 +165,16 @@ checking the claim still holds.
   the guarantee, not the anchor file — there is a test asserting the raw
   anchors still run under the bar, which will fail if they are ever
   re-authored.
+- **The nav bar's four tabs overlap each other below about 460px of
+  width.** `barW` is capped at `width - 32`, and each side then shares
+  `barW/2 - (fabSize/2 + fabGap) - 10` between two tabs — 60px of spacing
+  for a 74px `tabW` at 393 wide, so Home's right edge is 14px inside
+  Care's left. Two targets that pass on size and fail on separation. This
+  only bites in portrait, which `ios/App/App/Info.plist` refuses (the
+  August audit measured portrait and abandoned it) — but the **web build
+  has no rotate prompt**, so a child on a phone browser can still meet it.
+  The harness does not cover it: `ux-review.spec.ts`'s "mobile" is
+  812x375, landscape only, and there is no portrait row.
 - **Three 48px tap targets do not fit a landscape phone's play band.**
   48*3 plus two MIN_TAP_GAPs is 168px against 137. The kitchen folds
   sideways instead (message left, controls right); anything else that
@@ -217,6 +227,41 @@ checking the claim still holds.
   painted CONTINUE tap. Stop every active scene, then
   `scene.start('GameScene')` — starting it without stopping the others
   leaves MainMenuScene rendering on top.
+- **`seedFakeSession` gets you past the login gate and no further.** Its
+  token is not one Supabase minted, so `load-game` answers 401,
+  `loadGameState` calls `requireSignIn`, and a full-screen re-auth panel
+  at depth 10000 stands over whatever you were trying to look at. Use
+  `mintRealSession()` / `installSession()` in `e2e/helpers.ts` for
+  anything that has to be *seen*. They log in as **HarnessFox / 4242** —
+  one durable row in the live `users` table, reused by every run, created
+  by signup the first time it is asked for. There is no staging project:
+  `.env.local` names one Supabase and is symlinked into `apps/game/`, so
+  the dev server, the harness and the simulator all write to production.
+- **Stopping every scene and starting GameScene by hand races the menu.**
+  `MainMenuScene.create` mounts its overlay from inside
+  `loadGameState(...).then(...)`, and `shutdown`'s `unmountAuth` has
+  already run by the time that resolves — so a scene stopped mid-load
+  mounts the menu iframe a second later, over the game, dismissable only
+  by its own buttons. Guarded with `this.scene.isActive()` as of
+  2026-08-31, but the front door is better: click `#continue-btn` in
+  `iframe[aria-label="A.R.C. menu screen"]`.
+- **CONTINUE goes to `IntroScene`, not `GameScene`, and `arc_skip_intro`
+  does not skip it.** Skip-intro jumps the intro page to panel 3 — the
+  arrival reveal — which waits for a tap on `#stage`. So the session keys
+  alone leave you sitting on the intro. Click
+  `iframe[aria-label="A.R.C. intro screen"] #stage`, then wait for
+  GameScene. There is a 30s safety net that falls through on its own if
+  the iframe never loads, which is long enough to look like a hang.
+- **GameScene ignores a viewport change of 50px or less.**
+  `Math.abs(h - this._lastHeight) > 50` in `create()` gates the
+  `scene.restart()`, and the two shipping phone viewports — 812x375 in the
+  Capacitor app, 812x325 in the Home Screen web clip — are **exactly** 50
+  apart. Resize between those two in a test and the canvas changes while
+  the layout does not: the screenshot shows the new viewport with the old
+  layout cropped, and the measurements describe the viewport you left.
+  Step through an intermediate height so each leg clears the threshold,
+  and assert `game.scale.height` matches the viewport before believing
+  anything. `e2e/nav-bar.spec.ts:resizeTo` does both.
 - Playwright needs `ARC_BROWSER_CHANNEL=chrome`; the bundled downloads
   stall. Scripts must live **inside `apps/game/`** to resolve
   `@playwright/test` — one in a scratch directory fails with
