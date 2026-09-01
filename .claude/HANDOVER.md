@@ -1,79 +1,109 @@
-# A.R.C. on a phone — handover 2026-08-31
+# A.R.C. UI direction — handover 2026-08-31
 
-A long session covering four areas: the repo went public, every abusable
-endpoint was hardened, the game was tapped on iOS for the first time, and
-the landscape relayout was scoped. Only the last two serve the goal.
+The chrome surface exists and the garden is its first consumer. Fifteen
+more views to convert, and the sign-fold sweep is still open.
 
 ## Goal
-Ship A.R.C. as an iPad/iPhone app plus web fallback, usable by 7–10 year
-olds. Current arc: make it work on a phone.
+Ship A.R.C. as an iPad/iPhone app for 7–10 year olds. Current arc: make
+it look like one finished product rather than three stitched together.
 
 ## State
-Clean tree on `main`, level with `origin/main`. Typecheck clean, lint 0
-errors / 38 pre-existing warnings, 1137 tests pass, CI green.
+**Committed.** `72f4647` on branch `side-nav-prototype`, not merged to
+`main`. Side-nav layout behind `?sideRail=1`, default off. Verified in
+the real Capacitor app on an iPhone 17 Pro sim — rail clears the Dynamic
+Island and the home indicator.
 
-**Verified on device.** The real iOS build has been driven by hand
-through account creation, the intro map, an arrival and into GameScene on
-an iPhone 17 Pro simulator. Four account-flow UX fixes shipped and
-re-walked: a taken name is refused on the name screen instead of five
-screens later, "Tap your picture" follows the real chip count, "Couldn't
-find you in the list" is gone on a fresh device, and the account plank
-hides behind the keyboard rather than being sliced. The left rail's
-harness FAIL is fixed — it was the Dynamic Island, not a harness artifact.
+**Uncommitted, and the new work.** The chrome surface — audit §1's answer
+— plus `GardenView` converted onto it. 334 tests, typecheck clean, 38
+lint warnings (unchanged baseline, 0 errors).
+- `ui/constants.ts` — `FONTS.ui` (system-rounded, no webfont), `CHROME`
+  (the one non-diegetic surface, drawn from `COLOURS`), `hexNum`,
+  `EDGE_CONTROL_INSET`.
+- `ui/UIButton.ts` — `createChromePlate`, `createChromeTitle`,
+  `createChromeCircleButton`, beside the pill/panel they replace.
+- `game-views/GardenView.ts` — title off `createPillTitle`, empty state
+  onto a plate, arrows into chrome circles with real hit areas.
+- `ui/__tests__/chrome.test.ts` — 13 tests holding the decisions.
 
-**Verified against production.** Rate limiting is Postgres-backed,
-per-name and per-address, on `login`, `get-pin-hint`, `signup` and
-`send-gift`, plus 5-per-hour per friendship on gifts.
+**Uncommitted, older.** The two-board sign fold in `public/admin/`
+`_short-landscape.css` + `_signpost-physics.css`: landscape splits the
+stake into information-left / actions-right on one central post pair.
+Scoped `:has(> .cta-stack)`, so it lands on **twelve** screens —
+adopters, conflict, friends, forgot-pin, login, menu, news, vet, welcome,
+paths, welcome-new, signup. Only welcome and login looked at; ten unswept.
 
-**Unverified.** Nothing has run on physical hardware. The other two
-harness FAILs — two rail controls 4px apart against a MIN_TAP_GAP of 12 —
-have not been examined.
+**Verified by capture**, at 874x402 through the Chrome channel: both
+garden zones, and the right arrow answering a tap. Before/after sit in
+`e2e/__audit__/08-garden-BEFORE-chrome.jpg` and `08-garden.png`.
+
+**Unverified.** No physical hardware, no simulator run since the chrome
+landed. Menu, the species room, the 14 in-game overlay screens and
+Walk/Depot/Drive/Social/Account are unaudited.
 
 ## Files
-- `.claude/TRAPS.md` — read first; the simulator section is load-bearing.
-- `docs/landscape-relayout-2026-08-31.md` — the scoped proposal and its blocker.
-- `apps/game/src/ui/safe-area.ts` — measures `env()` through a probe.
-- `apps/game/src/ui/layout.ts` — ambient left inset; `playAreaFor`, `railBoundsFor`.
-- `apps/game/src/game-views/CorridorView.ts:64` — the stretch that blocks the relayout.
-- `supabase/functions/_shared/rate-limit.ts` — check/peek/bump, `clientIp`.
+- `docs/ui-audit-2026-08-31.md` — the seven findings, ranked. Read first.
+- `docs/landscape-relayout-2026-08-31.md` — side-nav and its open list.
+- `.claude/TRAPS.md` — the simulator section is load-bearing, and read
+  the Playwright lines before touching the harness.
+- `src/ui/constants.ts` — `CHROME`, `FONTS`, `COLOURS`, `MIN_TAP`,
+  `EDGE_CONTROL_INSET`.
+- `src/ui/UIButton.ts:354` `createChromePlate`, `:402` `createChromeTitle`,
+  `:485` `createChromeCircleButton`.
+- `e2e/ui-audit.spec.ts` — shoots the screens at 874x402.
 
 ## Decisions made
-- **Rotation, not reversion, for a leaked secret.** Going public made the
-  committed harness pair permanent; it was rotated into `.env.local`.
-- **Rate limiting belongs in the database.** A module-level Map is
-  per-isolate and Supabase recycles isolates. Failures only. A success
-  clears the name key but never an address key — clearing that would let
-  someone with one valid account spray, log in, and repeat.
-- **`revoke execute` is load-bearing** — PostgREST publishes `public`
-  functions as RPCs the shipped anon key can call.
-- **A peek compares with `<`, a check with `<=`** — they count at
-  different moments. Getting this wrong let every address budget run one
-  over (fixed in `00009`).
-- **The safe-area inset is ambient, not a parameter** — it is a property
-  of the device, identical for every caller.
-- **Room anchors are not the relayout blocker.** They are 0..1 fractions
-  of the background and follow the box. The blocker is that backgrounds
-  are *stretched* with no aspect preservation.
+- **Painted = diegetic only.** The hand-painted wood language belongs to
+  the sign screens, because those boards are artwork — objects in the
+  world. Everything non-diegetic (HUD, nav, panels, view titles, buttons)
+  is chrome and gets `CHROME`: warm cream paper, hairline border, soft
+  shadow — the surface the left rail was already drawing, promoted from
+  one view's local styling. Cream rather than white glass on purpose:
+  non-diegetic does not have to mean generic.
+- **Chrome type is a friendly *system* font**, not a webfont — `FONTS.ui`
+  starts `ui-rounded` / SF Pro Rounded and reaches for no webfont at all,
+  which is what a test now holds. A stack that starts at a face iOS always
+  has cannot fall through, which is the whole failure mode behind login's
+  system-sans button.
+- **No room art needs re-painting.** All 27 backgrounds are 16:9.
+- **Four rail items, not five.** Supplies moved into Care.
 
 ## Next step
-Decide how room art is fitted — step 1 of the relayout doc. The proposed
-side-nav nearly halves the play box aspect (3.59 → 1.91), so every
-painted room would be squashed ~1.9x. Pick one of the three costed
-options (crop with `cover`, letterbox with `contain` and paint the
-surround, or re-paint). Nothing else in that plan can start first.
+Convert the remaining fifteen `createPillTitle` callers — CorridorView,
+RoomView, KitchenView and twelve scenes. `createChromeTitle` takes the
+same shape of call minus the colour options, so it is mechanical. Do
+CorridorView and RoomView first: they already share `TITLE_CY` and the
+play-area origin with the garden, so the three read as one product the
+moment they match.
+
+Then the two things the garden pass surfaced but did not fix:
+- **The garden's count line** (`GardenView.ts`, "2 pets living their best
+  life") is at y=95, inside the HUD's second row (phase and weather pills,
+  y 78..106), which draws on top of it. Its x is fixed; its y wants
+  deciding with the other titles, not locally.
+- **"Garden — Quiet nook" abuts the "0 in care" pill.** It is the longest
+  title in the game and the HUD's 600px-centred gap barely holds it. The
+  chrome plate is 20px narrower than the pill it replaced, so this is
+  better than it was, not worse — but a longer title anywhere will collide.
 
 ## Traps
-- All of `.claude/TRAPS.md`, especially: boot one simulator not three;
-  re-`attach` after a reboot; `px = 402 - yl, py = xl`.
-- **The safe area reads 0 straight after the Phaser constructor.** Nothing
-  resizes again on a phone sitting still, so a single early reading leaves
-  the rail under the notch and the build looks unchanged.
-- **Reinstalling the app wipes localStorage**, so the whole account flow
-  has to be re-walked to reach GameScene.
-- **Fixing the iframe is not fixing the flow** — `LoginScene.ts` was
-  re-supplying a default that `login.html` had stopped sending.
-- **Capacitor resizes the web view**, so keyboard detection via
-  `innerHeight - visualViewport.height` silently does nothing.
-- Queued, untouched: `add-friend` has no limit; `forgot-pin.html` and
-  `news.html` never linked `_short-landscape.css`; the portrait nav
-  overlap below ~460px; the fourteen-scene resize-handler leak.
+- **Read `.claude/TRAPS.md` before reaching for the harness.** It already
+  records that Playwright's bundled downloads stall and that
+  `ARC_BROWSER_CHANNEL=chrome` is the supported way round it, and that
+  WebGL does not initialise in the Claude browser pane. Both were
+  rediscovered the slow way this session.
+- **`osascript` cannot rotate the simulator** — ask Marcus for Cmd+Left,
+  then re-`attach` and re-`openurl`: the flip can leave the device at the
+  Home Screen in portrait, and the first capture after it lies.
+- **Never judge layout in simulator Safari** — its chrome makes the
+  viewport ~64pt shorter than the shell's 874x402. Build the app
+  (`VITE_SIDE_RAIL=1 pnpm build:ios`).
+- **`e2e/ui-audit.spec.ts` fails at step 09-room**, and did before this
+  work: it sets `viewMode = 'room'` without a species, so `renderRoom`
+  throws on `species.charAt`. Everything up to and including the garden
+  shoots fine.
+- **`_short-landscape.css` pins `.secondary-row` `position: sticky`**,
+  lifting buttons out of any board they are meant to sit on.
+- Text objects with `.setInteractive()` get a glyph-sized hit area. The
+  garden's arrows were the last of those; `createChromeCircleButton`
+  floors the hit area at `MIN_TAP` independently of what is drawn.
+- Bash `cd` does not persist between calls; use absolute paths.
