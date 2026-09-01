@@ -495,3 +495,106 @@
   }
   .signs-on-stake:has(.arc-snapshot-wrap) { padding-bottom: clamp(70px, 11cqh, 120px); }
 }
+
+
+/* ── Two boards, one post pair ──────────────────────────────────────
+ *
+ * Landscape only. The sign screens put everything on one board and hang
+ * the buttons underneath it, which in a 874x402 window makes a very wide,
+ * very shallow plank with its content strung out along it — the shape
+ * reads as a banner rather than as a sign, and the buttons look nailed on
+ * as an afterthought.
+ *
+ * Landscape has width to spend and height it does not. So the board's two
+ * jobs separate onto two boards: what the screen *says* on the left, what
+ * the child can *do* on the right. Same split as the game's side rail —
+ * information one edge, actions the other.
+ *
+ * Why they share one post pair rather than standing separately: there is
+ * exactly one grass tuft, it is a single 3:1 painting, and stretching it
+ * has already been tried and reverted (see _signpost-physics.css). Two
+ * free-standing signs would need two sets of posts landing in ground that
+ * is not drawn, which is the one thing these screens do not do. A pair of
+ * posts in the middle with a board bolted either side is a real object,
+ * needs no new art, and keeps every post in the tuft that already exists.
+ *
+ * Scoped with :has() so it only applies where there is actually a second
+ * board to make — screens whose stake carries only an .intro keep the
+ * single-column layout they have.
+ */
+@container (max-height: 520px) {
+  .signs-on-stake:has(> .cta-stack) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+    align-items: start;
+    column-gap: clamp(26px, 6cqw, 64px);
+    max-width: min(96%, 780px);
+  }
+  .signs-on-stake:has(> .cta-stack) > .intro { grid-column: 1; margin: 0; }
+  .signs-on-stake:has(> .cta-stack) > .cta-stack {
+    grid-column: 2;
+    /* Its own board, rather than loose buttons on the cream. */
+    background:
+      linear-gradient(180deg, rgba(255,244,222,0.10), rgba(0,0,0,0.06)),
+      linear-gradient(174deg, #c98b3f 0%, #b9772f 46%, #a96a28 100%);
+    border: clamp(2px, 0.5cqh, 3px) solid #8a561f;
+    border-radius: clamp(8px, 1.6cqh, 12px);
+    padding: clamp(10px, 2.6cqh, 18px) clamp(10px, 2.2cqw, 18px);
+    box-shadow:
+      inset 0 2px 0 rgba(255,240,210,0.22),
+      inset 0 -3px 0 rgba(0,0,0,0.12),
+      3px 5px 10px rgba(0,0,0,0.28);
+    justify-content: center;
+  }
+  /* The hidden PIN board takes the same column when it swaps in, so the
+     layout does not jump sideways between stages. */
+  .signs-on-stake:has(> .cta-stack) > .intro.stage-pin { grid-column: 1; }
+
+  /* Bolt heads, matching the ones .intro carries at its own top corners,
+     so the right board reads as the same kind of made object. */
+  .signs-on-stake:has(> .cta-stack) > .cta-stack::before,
+  .signs-on-stake:has(> .cta-stack) > .cta-stack::after {
+    content: '';
+    position: absolute;
+    top: clamp(5px, 1cqh, 8px);
+    width: clamp(5px, 1.1cqh, 8px);
+    height: clamp(5px, 1.1cqh, 8px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #f0dcae, #8a6224 62%, #5d3f13);
+    box-shadow: 0 1px 1px rgba(0,0,0,0.4);
+    z-index: 2;
+  }
+  .signs-on-stake:has(> .cta-stack) > .cta-stack::before { left: clamp(5px, 1cqh, 8px); }
+  .signs-on-stake:has(> .cta-stack) > .cta-stack::after  { right: clamp(5px, 1cqh, 8px); }
+
+  /* The secondary buttons are `position: sticky; bottom: 18px` further up
+     this file, which pins them to the viewport — sensible when they were
+     loose controls under a single board, and wrong the moment they are
+     meant to sit *on* one. Sticky lifts them straight out of it, so they
+     land across the post and the grass. Put them back in flow. */
+  .signs-on-stake:has(> .cta-stack) .secondary-row {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: clamp(6px, 1.4cqh, 10px);
+  }
+  .signs-on-stake:has(> .cta-stack) .secondary-row > * { width: 100%; }
+  /* Two full-width pills in a narrow column need their labels to fit
+     rather than to overflow the board they are nailed to. */
+  .signs-on-stake:has(> .cta-stack) .secondary-row .link-btn {
+    font-size: clamp(13px, 2.9cqh, 15px);
+    padding: clamp(5px, 1.4cqh, 9px) clamp(8px, 1.6cqw, 14px);
+    white-space: normal;
+  }
+  .signs-on-stake:has(> .cta-stack) .btn-primary-wrap { width: 100%; }
+
+  /* Centre the pair in the window. The single-column layout grew from the
+     top and let the lawn take the bottom half, which at 402pt tall left
+     the whole composition sitting in the upper third. */
+  .welcome-content:has(.signs-on-stake > .cta-stack) {
+    justify-content: center;
+    align-items: center;
+    min-height: 100%;
+  }
+}

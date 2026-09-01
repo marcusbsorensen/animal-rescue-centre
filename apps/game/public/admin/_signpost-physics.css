@@ -161,3 +161,25 @@
  * worse than the problem. The posts come to the grass instead. If the
  * board ever wants wider support than the tuft allows, the answer is a
  * tileable grass strip, not a stretched one. */
+
+
+/* ── 7. Where the posts go once there are two boards ────────────────
+ *
+ * `_short-landscape.css` folds the stake into two columns on a landscape
+ * viewport — the sign on the left, the controls on their own board on the
+ * right. That leaves the post pair in the wrong place: at 32%/68% they sit
+ * under the middle of each board rather than between them, so each board
+ * looks cantilevered off a post that is not under it.
+ *
+ * Bring them together into a close central pair. Both boards then bolt to
+ * the same uprights, one either side, which is an object anyone has seen
+ * at a park gate — and, more to the point, it is ONE ground contact. The
+ * tuft is a single 3:1 painting that cannot be widened (section 7 below,
+ * and the note at the foot of this file), so every post has to land inside
+ * the span it already covers. At 47%/53% they do, on every viewport in the
+ * fleet.
+ */
+@container (max-height: 520px) {
+  .signs-on-stake:has(> .cta-stack)::before { left: 47%; right: auto; }
+  .signs-on-stake:has(> .cta-stack)::after  { left: auto; right: 47%; }
+}
