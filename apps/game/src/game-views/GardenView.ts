@@ -13,10 +13,14 @@ import {
   markAllDueGardenReturnsSeen,
 } from '@arc/game-logic';
 import { playShakeOff } from '../ui/ShakeOffAnimation';
-import { createPillTitle, createTextButton } from '../ui/UIButton';
+import {
+  createChromeTitle, createChromeCircleButton, createTextButton,
+} from '../ui/UIButton';
 import { showToast } from '../ui/ErrorOverlay';
 import { createAnimalSprite } from '../ui/sprites';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import {
+  COLOURS, FONTS, TEXT_RESOLUTION, EDGE_CONTROL_INSET,
+} from '../ui/constants';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
 import { createWeatherParticles, type WeatherParticleHandle } from '../ui/WeatherParticles';
 import type { GameStateStore } from '../game-state';
@@ -200,37 +204,49 @@ function renderZone(
   }
 
   // ── Zone label + carousel controls ───────────────────────
+  //
+  // Chrome, not scenery. The gold pill this replaced carried the painted
+  // world's bevel and warmth on an element that floats above the world —
+  // and the kitchen, which has a pill like it beside a white glass panel
+  // and a flat green button, is why "three visual languages" is the first
+  // finding in the audit. A view title is not an object in the world, so
+  // it gets the one non-diegetic surface.
+  //
+  // Centred on the play area rather than the screen. The HUD leaves its
+  // middle gap on the play origin, so a title centred on `width` drifts by
+  // half the reserved column and lands under the shelter pill — corridor
+  // and room already moved; the garden was the odd one out. `TITLE_CY`
+  // matches theirs, clear of the HUD's second row at y 78..106.
   const zoneLabel = zone === 'lawn' ? 'Garden — Lawn' : 'Garden — Quiet nook';
-  const zoneColour = zone === 'lawn' ? 0x2E8B57 : 0x4A7C59;
+  const TITLE_CY = 45;
   container.add(
-    createPillTitle(scene, width / 2, 55, zoneLabel, {
-      bgColour: zoneColour, fontSize: '20px', icon: 'icon-garden',
+    createChromeTitle(scene, play.x + play.w / 2, TITLE_CY, zoneLabel, {
+      icon: 'icon-garden',
     }),
   );
 
-  // Left arrow → other zone.
+  // Zone arrows → the other zone.
   //
-  // Was at x=30, inside the 56px the collapsed rail reserves, so on a
-  // landscape phone the control a child taps to reach the quiet nook was
-  // behind an opaque rail at depth 50. Both arrows and the dots below now
-  // sit in the play area, centred on the band like everything else.
+  // Was a 48px text glyph with `.setInteractive()`, which gives a hit area
+  // the size of the *glyph*, not of the control — and at x = play.x + 30
+  // the left one was partly behind the arrivals rail while the right one
+  // sat flush to the screen edge, where the OS takes the touch before the
+  // game sees it. Both now sit SAFE_MARGIN clear of the play column, in
+  // chrome circles whose hit area is floored at MIN_TAP independently of
+  // what is drawn.
   const otherZone: GardenZone = zone === 'lawn' ? 'quiet' : 'lawn';
   const arrowY = play.y + play.h / 2;
-  const leftArrow = scene.add.text(play.x + 30, arrowY, '◀', {
-    fontSize: '48px', fontFamily: FONTS.body, color: '#ffffff',
-    resolution: TEXT_RESOLUTION,
-  }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-  leftArrow.setShadow(2, 2, '#000000', 4, true, true);
-  leftArrow.on('pointerdown', () => renderZone(scene, store, container, callbacks, otherZone));
-  container.add(leftArrow);
-
-  const rightArrow = scene.add.text(play.x + play.w - 30, arrowY, '▶', {
-    fontSize: '48px', fontFamily: FONTS.body, color: '#ffffff',
-    resolution: TEXT_RESOLUTION,
-  }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-  rightArrow.setShadow(2, 2, '#000000', 4, true, true);
-  rightArrow.on('pointerdown', () => renderZone(scene, store, container, callbacks, otherZone));
-  container.add(rightArrow);
+  const swapZone = () => renderZone(scene, store, container, callbacks, otherZone);
+  container.add(
+    createChromeCircleButton(
+      scene, play.x + EDGE_CONTROL_INSET, arrowY, '◀', swapZone,
+    ),
+  );
+  container.add(
+    createChromeCircleButton(
+      scene, play.x + play.w - EDGE_CONTROL_INSET, arrowY, '▶', swapZone,
+    ),
+  );
 
   // Dot indicator — two dots, filled one = current zone
   // Above the upgrades/badges footer, which stacks up from the band
@@ -249,25 +265,40 @@ function renderZone(
   }
 
   // ── Empty-zone messaging ─────────────────────────────────
+  //
+  // This was two lines of mid-grey set straight onto painted grass,
+  // flowers and dappled light — close to illegible, and the only place in
+  // the game where words carry no plate under them. It is also the one
+  // finding a child actually loses information to: these two lines are how
+  // she learns that bonding is what turns an animal into a pet.
+  //
+  // The rule the sign screens follow — nothing on screen that could not be
+  // a sketch of something real — has a counterpart here: no words without
+  // something to be written on. A heading with a caption on a chrome plate
+  // is the same shape as a view title, so it is the same call.
+  //
+  // Centred on the play column, not the screen — the screen centre is
+  // under the rail on the x. On the y it centres on the *content* space
+  // rather than the band: the band's bottom 100px belongs to the dot
+  // indicator and the upgrades footer, and the dots are added before this
+  // and so draw on top. In the audit capture two of them are sitting in
+  // the middle of "they become your pet forever", which was survivable
+  // while the words were unplated and would not be once they are.
   if (zoneAnimals.length === 0) {
-    const msg = pets.length === 0 && outsiders.length === 0 && zone === 'lawn'
-      ? 'No pets yet!'
-      : `Nobody in the ${zone} right now.`;
+    const isFirstEver = pets.length === 0 && outsiders.length === 0 && zone === 'lawn';
     container.add(
-      scene.add.text(width / 2, height / 2 - 30, msg, {
-        fontSize: '22px', fontFamily: FONTS.body, color: COLOURS.textLight,
-        resolution: TEXT_RESOLUTION,
-      }).setOrigin(0.5),
+      createChromeTitle(
+        scene, play.x + play.w / 2, (play.y + dotY - 12) / 2,
+        isFirstEver ? 'No pets yet!' : `Nobody in the ${zone} right now.`,
+        {
+          fontSize: '22px',
+          subtitleSize: '16px',
+          subtitle: isFirstEver
+            ? 'Keep caring for your animals — when their bond\nreaches 100%, they become your pet forever!'
+            : undefined,
+        },
+      ),
     );
-    if (pets.length === 0 && outsiders.length === 0 && zone === 'lawn') {
-      container.add(
-        scene.add.text(width / 2, height / 2 + 10,
-          'Keep caring for your animals — when their bond\nreaches 100%, they become your pet forever!', {
-            fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
-            align: 'center', resolution: TEXT_RESOLUTION,
-          }).setOrigin(0.5),
-      );
-    }
   } else {
     const petsHere = pets.length;
     const visitorsHere = outsiders.length;
@@ -276,9 +307,14 @@ function renderZone(
       : petsHere > 0
         ? `${petsHere} pet${petsHere > 1 ? 's' : ''} living their best life`
         : `${visitorsHere} visitor${visitorsHere > 1 ? 's' : ''} outside`;
+    // Same origin as the title above it. The y is left where it was and is
+    // still wrong: 95 is inside the HUD's second row (phase and weather
+    // pills, y 78..106), which is drawn after this container and lands on
+    // top. Moving it wants the same call as the other fifteen title
+    // conversions — see the handover — rather than a local guess here.
     container.add(
-      scene.add.text(width / 2, 95, countLine, {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      scene.add.text(play.x + play.w / 2, 95, countLine, {
+        fontSize: '16px', fontFamily: FONTS.ui, color: COLOURS.textLight,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );

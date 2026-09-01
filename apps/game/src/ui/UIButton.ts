@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, CHROME } from './constants';
 
 /**
  * Polished rounded button with shadow and 3D bevel effect.
@@ -327,6 +327,217 @@ export function createPanel(
   }
 
   const container = scene.add.container(x, y, [gfx]);
+  return container;
+}
+
+// ── Chrome ───────────────────────────────────────────────────────────
+//
+// Everything below draws the one non-diegetic surface described by
+// `CHROME` in ./constants. Painted wood belongs to the sign screens,
+// because those boards are objects in the world; a view title, a panel or
+// a zone arrow is not, and gets this instead.
+
+/**
+ * The chrome plate — one rounded surface, one fill, one stroke, one shadow.
+ *
+ * Use it anywhere a view needs to put something *over* the world: a title,
+ * an empty state, an info panel, the back of a button. It replaces both the
+ * translucent-white `createPanel` look and the gold-pill `createPillTitle`
+ * look, which between them are why the kitchen shows three visual languages
+ * in one frame.
+ *
+ * The container publishes its drawn size via `setSize`, so a caller can
+ * measure it to lay out whatever sits beneath — Graphics contributes nothing
+ * to `getBounds()`, and a caller that trusts the default gets zero and
+ * stacks its next row on top of this one.
+ */
+export function createChromePlate(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  options?: {
+    radius?: number;
+    fillAlpha?: number;
+    shadow?: boolean;
+  }
+): Phaser.GameObjects.Container {
+  const radius = options?.radius ?? CHROME.radius;
+  const fillAlpha = options?.fillAlpha ?? CHROME.fillAlpha;
+  const shadow = options?.shadow ?? true;
+
+  const gfx = scene.add.graphics();
+
+  if (shadow) {
+    gfx.fillStyle(CHROME.shadowColour, CHROME.shadowAlpha);
+    gfx.fillRoundedRect(-w / 2 + CHROME.shadowX, -h / 2 + CHROME.shadowY, w, h, radius);
+  }
+
+  gfx.fillStyle(CHROME.fill, fillAlpha);
+  gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
+
+  gfx.lineStyle(CHROME.strokeWidth, CHROME.stroke, CHROME.strokeAlpha);
+  gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
+
+  const container = scene.add.container(x, y, [gfx]);
+  container.setSize(w, h);
+  return container;
+}
+
+/**
+ * A view title on a chrome plate — the non-diegetic replacement for
+ * `createPillTitle`.
+ *
+ * The gold pills are chrome wearing scenery clothes: they carry the painted
+ * world's bevel and warmth on an element that floats above the world and
+ * could not be an object in it. Same shape of call as `createPillTitle` so
+ * the remaining callers convert without rethinking their layout, minus the
+ * colour options — the point of one surface is that it is not per-view.
+ *
+ * `subtitle` sets a second, quieter line on the same plate. Views that show
+ * a heading and a count under it were drawing the count straight onto
+ * painted art, which is the same readability problem one line lower down.
+ */
+export function createChromeTitle(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  label: string,
+  options?: {
+    fontSize?: string;
+    subtitle?: string;
+    subtitleSize?: string;
+    icon?: string;       // texture key for a custom icon
+    iconSize?: number;   // display size in px (default 26)
+  }
+): Phaser.GameObjects.Container {
+  const fontSize = options?.fontSize ?? '20px';
+  const subtitleSize = options?.subtitleSize ?? '15px';
+  const iconSize = options?.iconSize ?? 26;
+
+  const text = scene.add.text(0, 0, label, {
+    fontSize,
+    fontFamily: FONTS.ui,
+    fontStyle: 'bold',
+    color: CHROME.ink,
+    resolution: TEXT_RESOLUTION,
+  }).setOrigin(0.5);
+
+  const subtitle = options?.subtitle
+    ? scene.add.text(0, 0, options.subtitle, {
+      fontSize: subtitleSize,
+      fontFamily: FONTS.ui,
+      color: CHROME.inkMuted,
+      align: 'center',
+      resolution: TEXT_RESOLUTION,
+    }).setOrigin(0.5)
+    : undefined;
+
+  let icon: Phaser.GameObjects.Image | undefined;
+  if (options?.icon && scene.textures.exists(options.icon)) {
+    icon = scene.add.image(0, 0, options.icon).setOrigin(0.5);
+    icon.setScale(iconSize / Math.max(icon.width, icon.height));
+  }
+
+  // Heading row: [icon] label. The subtitle, when present, is centred on
+  // the plate rather than on the row, so it reads as a caption for the
+  // whole thing rather than as a continuation of the label.
+  const gap = 8;
+  const rowW = text.width + (icon ? iconSize + gap : 0);
+  if (icon) {
+    icon.setX(-rowW / 2 + iconSize / 2);
+    text.setX(rowW / 2 - text.width / 2);
+  }
+
+  const rowH = Math.max(text.height, icon ? iconSize : 0);
+  const stackH = rowH + (subtitle ? 4 + subtitle.height : 0);
+  const contentW = Math.max(rowW, subtitle?.width ?? 0);
+
+  const w = contentW + CHROME.padX * 2;
+  const h = stackH + CHROME.padY * 2;
+
+  const rowY = -stackH / 2 + rowH / 2;
+  text.setY(rowY);
+  icon?.setY(rowY);
+  subtitle?.setY(stackH / 2 - subtitle.height / 2);
+
+  const plate = createChromePlate(scene, 0, 0, w, h);
+
+  const children: Phaser.GameObjects.GameObject[] = [plate, text];
+  if (icon) children.push(icon);
+  if (subtitle) children.push(subtitle);
+
+  const container = scene.add.container(x, y, children);
+  container.setSize(w, h + CHROME.shadowY);
+  return container;
+}
+
+/**
+ * A round chrome button — for glyph controls like the garden's zone arrows.
+ *
+ * Those were 48px text objects with `.setInteractive()` on them, which gives
+ * a glyph-sized hit area, not a control-sized one; the drawn arrow and the
+ * region that answers a tap are different rectangles, and the smaller one
+ * wins. The hit area here is floored at `MIN_TAP` independently of the
+ * drawn diameter, the established pattern for exactly this.
+ */
+export function createChromeCircleButton(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  glyph: string,
+  onClick: () => void,
+  options?: {
+    diameter?: number;
+    fontSize?: string;
+  }
+): Phaser.GameObjects.Container {
+  const diameter = options?.diameter ?? MIN_TAP;
+  const r = diameter / 2;
+  const fontSize = options?.fontSize ?? '22px';
+
+  const gfx = scene.add.graphics();
+
+  gfx.fillStyle(CHROME.shadowColour, CHROME.shadowAlpha);
+  gfx.fillCircle(CHROME.shadowX - 1, CHROME.shadowY - 1, r);
+
+  gfx.fillStyle(CHROME.fill, CHROME.fillAlpha);
+  gfx.fillCircle(0, 0, r);
+
+  gfx.lineStyle(CHROME.strokeWidth, CHROME.stroke, CHROME.strokeAlpha);
+  gfx.strokeCircle(0, 0, r);
+
+  const text = scene.add.text(0, 0, glyph, {
+    fontSize,
+    fontFamily: FONTS.ui,
+    color: CHROME.ink,
+    resolution: TEXT_RESOLUTION,
+  }).setOrigin(0.5);
+
+  // A transparent rectangle floored at MIN_TAP, per the idiom documented on
+  // MIN_TAP — not `setInteractive()` on the glyph, which is what these
+  // arrows used to be and which gives a hit area the size of the character.
+  const hitSize = Math.max(diameter, MIN_TAP);
+  const hitArea = scene.add.rectangle(0, 0, hitSize, hitSize, 0x000000, 0)
+    .setInteractive({ useHandCursor: true });
+
+  const container = scene.add.container(x, y, [gfx, text, hitArea]);
+  container.setSize(hitSize, hitSize);
+
+  hitArea.on('pointerover', () => container.setScale(1.06));
+  hitArea.on('pointerout', () => container.setScale(1));
+  hitArea.on('pointerdown', () => {
+    scene.tweens.add({
+      targets: container,
+      scaleX: 0.92,
+      scaleY: 0.92,
+      duration: 60,
+      yoyo: true,
+      onComplete: onClick,
+    });
+  });
+
   return container;
 }
 
