@@ -4,10 +4,23 @@ import re
 import pathlib
 import urllib.request
 
+# Nunito + Caveat are the game canvas's faces. Fredoka, Quicksand, Kalam
+# and Gochi Hand are the sign screens' — those were still being fetched
+# from fonts.googleapis.com by 36 files in public/admin/ long after the
+# canvas stopped, which is the same three problems the header below
+# describes, on the screens a child actually reads words on.
+#
+# Weights are what the sign screens ask for, taken from the <link> they
+# used: Fredoka 400-700, Quicksand 400-600, Kalam 400/700, Gochi Hand has
+# only one.
 CSS_URL = (
     "https://fonts.googleapis.com/css2"
     "?family=Nunito:wght@400;600;700;800;900"
     "&family=Caveat:wght@400;700"
+    "&family=Fredoka:wght@400;500;600;700"
+    "&family=Quicksand:wght@400;500;600"
+    "&family=Kalam:wght@400;700"
+    "&family=Gochi+Hand"
     "&display=swap"
 )
 # A modern UA makes Google serve woff2 + unicode-range subsets.
@@ -42,7 +55,8 @@ for block in blocks:
     if not (fam and wgt and url):
         continue
 
-    name = f"{fam.group(1).lower()}-{wgt.group(1)}-{subset}.woff2"
+    slug = fam.group(1).lower().replace(" ", "-")
+    name = f"{slug}-{wgt.group(1)}-{subset}.woff2"
     if name not in downloaded:
         data = urllib.request.urlopen(
             urllib.request.Request(url.group(1), headers={"User-Agent": UA})
@@ -54,13 +68,20 @@ for block in blocks:
 
 header = (
     "/*\n"
-    " * Self-hosted Nunito + Caveat.\n"
+    " * Self-hosted type: Nunito + Caveat for the game canvas, Fredoka +\n"
+    " * Quicksand + Kalam + Gochi Hand for the DOM sign screens.\n"
     " *\n"
     " * These used to load from fonts.googleapis.com. That meant a\n"
     " * third-party request on every cold launch — which sends the device\n"
     " * IP to Google, a review risk for an App Store Kids Category title —\n"
     " * plus fallback typography whenever the game opened offline, and a\n"
     " * race against Phaser's first canvas text paint.\n"
+    " *\n"
+    " * The sign screens kept their fonts.googleapis.com <link> for months\n"
+    " * after the canvas dropped it — 36 files. That is why a hand-painted\n"
+    " * plank could render its label in plain system sans: the stack ends\n"
+    " * in system-ui, and until the network answered, system-ui is what\n"
+    " * you got. Offline, it is what you kept.\n"
     " *\n"
     " * Latin and latin-ext subsets only. Regenerate with\n"
     " * scripts/fetch-fonts.py if the weights in use ever change.\n"
