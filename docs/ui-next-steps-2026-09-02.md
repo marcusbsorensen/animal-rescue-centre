@@ -12,7 +12,7 @@ Counts are exact and re-measured today. Judgements are mine.
 
 | | Finding | State |
 |---|---|---|
-| §1 | Three visual languages | **Most of it.** Titles, plates and all 56 buttons are one surface. The HUD and the nav bar are still the old languages, and DepotScene/SupplyRunScene are held back on decision 1. |
+| §1 | Three visual languages | **Four, and three of them are gone.** Titles, plates and every button are one surface; `createButton` and `createPillTitle` are deleted. Depot and SupplyRun — the fourth language the audit never saw — are warmed up. The HUD and the nav bar are what is left. |
 | §2 | 39 font stacks | **Done, and the finding was wrong.** The 24 shipping screens were already consistent; the variance was in two mockups. The real defect was 36 screens fetching four faces from fonts.googleapis.com — IP to Google on cold launch, fallback type offline. All six faces self-hosted, Chalkboard SE dropped so Mac and iPad agree. |
 | §3 | Text on painted art | **Two of unknown.** Garden and species room are plated. Nobody has enumerated the rest. |
 | §4 | Raw colour literals | **Untouched.** 658 raw `0xRRGGBB` against 287 `COLOURS.` uses — still about 70%. (The audit's 610/276 used a narrower grep; the ratio is what matters.) |
@@ -22,25 +22,21 @@ Counts are exact and re-measured today. Judgements are mine.
 
 ---
 
-## Decisions before more code
+## Decisions — all three settled 2026-09-02
 
-These are not work items. They change what the work is.
+1. **Depot and SupplyRun join the game's world.** Warmed up fully, not
+   just their chrome. The Depot is a workbench in the corridor's own
+   browns; the supply run is a daytime drive on `DRIVE_COLOURS`, the
+   palette `PtvDriveScene` already uses. The commit lists the six defects
+   the change exposed — all of them invisible while the grounds were dark.
 
-1. **Do Depot and SupplyRun join the game's world, or stay their own?**
-   They are deep purple and near-black with neon cards — a *fourth*
-   language, not an unconverted third. The audit inferred its findings
-   would hold there and they do not. Both read fine as they are, so this
-   is a taste call, not a defect: are they deliberately "the grown-up
-   logistics bit", or should they warm up to match?
+2. **`chrome-views` merged to `main`.** Not behind a flag; this changes
+   what a child sees.
 
-2. **Does `main` deploy, and do you want it to right now?**
-   `chrome-views` changes what a child sees on sixteen screens. Nothing
-   is behind a flag. Worth knowing before it merges.
-
-3. **The sign fold — sweep or drop?** `d22ef1a` on `side-nav-prototype`
-   has been carried for several sessions and touches twelve live DOM
-   screens with ten never looked at. It is either an afternoon of
-   sweeping or a delete.
+3. **The sign fold is dropped.** `d22ef1a` stays on `side-nav-prototype`
+   as history and is not coming to `main`. Live CSS on twelve DOM screens
+   with ten never looked at is the thing this whole arc has been avoiding.
+   Do not pick it up again without a reason that did not exist today.
 
 ---
 
@@ -154,6 +150,13 @@ exists and wins the fallback chain ahead of it. So "the nav bar draws the
 same key correctly" was comparing against something that never ran.
 
 ### 5. Sweep the edges with the harness holding it
+**The baseline, measured 2026-09-02:** `e2e/ux-review.spec.ts` reports
+3 FAIL and 107 WARN across 42 scene/viewport combinations. All three
+failures are `GameScene`'s left rail — L3 on mobile (the rail sits flush to
+x=0) and T4 on tablet and desktop (4px between an arrival card and the
+Welcome button under it). Nothing in Depot, SupplyRun or any converted
+screen fails. Start from those numbers.
+
 `EDGE_CONTROL_INSET` exists and one control uses it. `ux-geometry.ts`
 already has the predicates and `e2e/ux-review.spec.ts` runs them. Point
 them at every scene and fix what falls out. TRAPS.md records three
@@ -199,6 +202,7 @@ item — worth starting the ask early even though the code is last.
 ## Housekeeping
 
 - ~~`createPillTitle` has no callers. Delete it.~~ Deleted.
+- ~~`createButton` is the last bevel.~~ Deleted; no callers.
 - `createPanel` has 20 call sites left; they want `createChromePlate`.
 - `chrome-views` is unmerged.
 - `e2e/chrome-buttons.spec.ts` shoots the overlays `ui-audit.spec.ts` never

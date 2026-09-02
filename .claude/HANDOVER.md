@@ -5,27 +5,27 @@ Ship A.R.C. as an iPad/iPhone app for 7–10 year olds. Current arc: make it
 look like one finished product rather than three stitched together.
 
 ## State
-**On `main`** (`5cd5c67`): the audit, the chrome surface, GardenView, and the
-side-nav layout behind `?sideRail=1` defaulting off.
+**On `main`** (`1ff6873`): the whole chrome conversion, merged 2026-09-02 —
+the audit, the surface, GardenView, the self-hosted fonts, and the side-nav
+layout behind `?sideRail=1` defaulting off.
 
-**On `chrome-views`** (`bfdf77c`), pushed, unmerged, nine commits ahead. 340
-tests, typecheck clean, 38 lint warnings (unchanged baseline, 0 errors).
-- Every titled screen is on the chrome surface. `createPillTitle` is deleted.
-- All six webfonts self-hosted; zero requests to googleapis/gstatic.
-- Chalkboard SE dropped, so Mac and iPad render the sign screens alike.
-- All 56 buttons are on the chrome surface too, bar the four in DepotScene
-  and SupplyRunScene held back on the Depot decision. `createButton` stays
-  until those move.
+**On `warm-depot`**, unpushed, three commits ahead of `main`. 340 tests,
+typecheck clean, 36 lint warnings (two below the old baseline, 0 errors).
+- Depot and SupplyRun warmed into the game's world — the fourth visual
+  language the audit never saw. Not just their chrome: palette, sky, road,
+  board, cards.
+- `createButton` and `createPillTitle` are both deleted. Every button in the
+  game is `createChromeButton`; the bevel is gone.
 
-**Verified.** Chrome captures at 874x402 for the sixteen titled screens plus
-the animal card, its More grid, the Games popup and the Phaser PIN keypad.
-Corridor, Dog Room, kitchen and garden also seen on an iPhone 17 Pro
-simulator. `ui-rounded` and Kalam both confirmed resolving by canvas probe,
-not by eye.
+**Verified.** Chrome captures at 874x402 for the sixteen titled screens, the
+animal card and its More grid, the Games popup, the Phaser PIN keypad, and
+both phases of Depot and SupplyRun. Corridor, Dog Room, kitchen and garden
+also seen on an iPhone 17 Pro simulator. `ui-rounded` and Kalam confirmed
+resolving by canvas probe, not by eye.
 
-**On `side-nav-prototype` only, deliberately.** The sign fold, `d22ef1a`, kept
-off `main`: live CSS on twelve DOM screens with ten never looked at, and `main`
-deploys.
+**Dropped, on purpose.** The sign fold, `d22ef1a`, stays on
+`side-nav-prototype` as history. Live CSS on twelve DOM screens with ten
+never looked at; decided against 2026-09-02.
 
 ## Files
 - `docs/ui-next-steps-2026-09-02.md` — the ranked queue and three open
@@ -59,14 +59,14 @@ deploys.
   when it sits on another plate, which is where filled goes instead.
 
 ## Next step
-Queue item 5, sweeping the edges with `ux-geometry.ts` and
-`e2e/ux-review.spec.ts` pointed at every scene — `EDGE_CONTROL_INSET` still
-has one user. Or item 2's leftover, hoisting the type scale out of 23 copies
-into `fonts.css`, which is contained and mechanical.
+Push `warm-depot` and merge it, then pick from the queue. Item 5 is the
+edges sweep: `ux-review.spec.ts` sits at 3 FAIL / 107 WARN over 42
+scene/viewport pairs, and all three failures are `GameScene`'s left rail.
+Item 2's leftover — hoisting the type scale out of 23 per-screen copies into
+`fonts.css` — is contained and mechanical if you want a shorter one.
 
-**Three decisions are open and two of them gate work** — they are listed at
-the top of the queue. Depot and SupplyRun's own language is the one blocking
-the last four button call sites.
+**No decisions are open.** All three in the queue were settled 2026-09-02
+and the queue records which way.
 
 ## Traps
 - **Read `.claude/TRAPS.md` before the harness.** It records that Playwright's
@@ -76,6 +76,13 @@ the last four button call sites.
 - **`animalCard()` destroys the card.** It calls `destroyAnimalCard()` and
   returns a fresh empty container, so reading the card through it deletes
   what you were reading. Use `animalCardContainer`.
+- **`scene-walk.spec.ts` only reaches a scene's first screen.** The Depot's
+  board and the supply run's road were never in a capture until
+  `chrome-buttons.spec.ts` started their phases directly. A scene that
+  passes the walk is not a scene that has been looked at.
+- **The Phaser paths in LoginScene and SignupScene are switched off**, not
+  merely unused: `const USE_OVERLAY = true as boolean` mounts the DOM sign
+  board and returns before any of it runs. Flip it by hand to see them.
 - **The Games popup lays a full-screen dismiss rectangle over the scene.**
   Nothing shot after it can be clicked — open it last.
 - **Do not judge a typeface, or an icon, from a Mac screenshot** without
