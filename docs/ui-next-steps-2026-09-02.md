@@ -46,15 +46,25 @@ These are not work items. They change what the work is.
 
 ## The queue
 
-### 1. See the chrome on a device
-Everything so far is verified in Chrome at 874x402 and nowhere else.
-`FONTS.ui` leads with `ui-rounded`, which is a WebKit generic — if it
-resolves differently in the app's WKWebView than in Chrome, **sixteen
-screens carry the same mistake**. This is the cheapest way to find out
-and the most expensive thing to discover late.
+### 1. ~~See the chrome on a device~~ — the font question is answered
+**Done 2026-09-02.** `ui-rounded` resolves in the app's WKWebView: 187.86px
+against a 178.29px nonexistent-family baseline and 186.12px for plain
+`system-ui`. The chrome renders in the rounded face on device, so the
+sixteen screens are not carrying a shared mistake.
 
-Needs Marcus at the keyboard: `osascript` cannot rotate the simulator.
-`VITE_SIDE_RAIL=1 pnpm build:ios`, then Cmd+Left, then re-attach.
+Two things fell out of the same probe:
+- `"SF Pro Rounded"` by name does **not** resolve on iOS — it measures
+  identical to a font that does not exist. Harmless, since `ui-rounded`
+  precedes it, but it is not doing the work anyone would assume.
+- The app's viewport is **874x402**, exactly what the harness shoots at.
+  So Chrome captures at that size are geometrically faithful, which is
+  what makes the whole capture workflow trustworthy for layout.
+
+**Still open:** nothing has been *looked at* on device past the welcome
+screen. Reaching the game views needs a login, and Claude will not type
+credentials or create an account. Either Marcus logs in and hands the
+session over, or the layout claim rests on the geometry above — which is
+a good argument, not a sighting.
 
 ### 2. Finish §2 on the DOM screens
 The audit's second finding is the one that is still fully open, and its

@@ -66,6 +66,24 @@ export const FONTS = {
    * the friendly-but-plain register this game's chrome wants. Nunito is
    * deliberately absent: putting a webfont mid-stack would reintroduce the
    * load-order dependency this exists to remove.
+   *
+   * **Measured inside the shipped app**, 2026-09-02, iPhone 17 Pro
+   * simulator at 874x402 — an on-page canvas probe, because you cannot run
+   * JS in the app without Web Inspector (see TRAPS.md). Widths for
+   * "Garden — Quiet nook" at 20px:
+   *
+   *   this whole stack   187.86   ← resolves
+   *   ui-rounded         187.86   ← and this is the entry that wins
+   *   "SF Pro Rounded"   178.29   ← identical to a nonexistent family
+   *   system-ui          186.12
+   *   -apple-system      186.12
+   *   nonexistent        178.29
+   *
+   * So the chrome really does render in the rounded face on device, which
+   * was the open question — and `"SF Pro Rounded"` by name does *not*
+   * resolve on iOS. It is kept because it is a real family name that may
+   * resolve on other platforms, but it is not what is holding this up:
+   * `ui-rounded` is, and it is first for that reason.
    */
   ui: 'ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
 } as const;

@@ -332,6 +332,24 @@ checking the claim still holds.
   `@playwright/test` — one in a scratch directory fails with
   ERR_MODULE_NOT_FOUND. `playwright install webkit` stalls too — do not wait on it, use
   the simulator's Safari instead.
+- **`ui-rounded` resolves in WKWebView; `"SF Pro Rounded"` by name does
+  not.** Measured 2026-09-02 with an on-page canvas probe in the shipped
+  app (iPhone 17 Pro sim, 874x402): "Garden — Quiet nook" at 20px is
+  187.86px under `ui-rounded` and under the whole `FONTS.ui` stack,
+  186.12px under `system-ui`/`-apple-system`, and 178.29px under both
+  `"SF Pro Rounded"` and a deliberately nonexistent family — i.e. the
+  quoted name is dead on iOS and the generic is what fires. So the chrome
+  type is genuinely rounded on device, and the ordering in `FONTS.ui`
+  matters: `ui-rounded` must stay first.
+  To re-measure: append a probe div to `apps/game/index.html` that
+  canvas-measures each stack and prints the numbers, `pnpm build:ios`,
+  rebuild, launch, screenshot, revert. Canvas measurement is the right
+  test because Phaser sets a CSS font string on a 2D context, so it
+  resolves through the same machinery the game uses.
+- **The app's WKWebView viewport is 874x402 on an iPhone 17 Pro**, the
+  same box `e2e/ui-audit.spec.ts` shoots at. Confirmed by the same probe.
+  So a Chrome capture at that size is geometrically faithful to the app —
+  which is what makes the harness worth trusting for layout.
 - WebGL does not initialise in the Claude browser pane. Use Playwright or
   the simulator, not `preview_*`.
 - `@arc/game-logic` has `main: src/index.ts` and `noEmit`, so there is no
