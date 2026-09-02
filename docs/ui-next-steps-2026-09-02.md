@@ -12,7 +12,7 @@ Counts are exact and re-measured today. Judgements are mine.
 
 | | Finding | State |
 |---|---|---|
-| §1 | Three visual languages | **Half.** Titles and plates are one surface. 57 `createButton` call sites across 24 files, the HUD and the nav bar are still the old languages. |
+| §1 | Three visual languages | **Most of it.** Titles, plates and all 56 buttons are one surface. The HUD and the nav bar are still the old languages, and DepotScene/SupplyRunScene are held back on decision 1. |
 | §2 | 39 font stacks | **Done, and the finding was wrong.** The 24 shipping screens were already consistent; the variance was in two mockups. The real defect was 36 screens fetching four faces from fonts.googleapis.com — IP to Google on cold launch, fallback type offline. All six faces self-hosted, Chalkboard SE dropped so Mac and iPad agree. |
 | §3 | Text on painted art | **Two of unknown.** Garden and species room are plated. Nobody has enumerated the rest. |
 | §4 | Raw colour literals | **Untouched.** 658 raw `0xRRGGBB` against 287 `COLOURS.` uses — still about 70%. (The audit's 610/276 used a narrower grep; the ratio is what matters.) |
@@ -98,22 +98,60 @@ copies of the same four custom properties. Values agree today; nothing
 stops them drifting. Hoisting them into `fonts.css` would make "declared
 once" literally true, and is a contained 23-file change.
 
-### 3. Retire `createButton`'s bevel
-57 call sites, 24 files: the largest remaining piece of §1 and the one a
-child touches most. Every screen has at least one. A `createChromeButton`
-beside the existing chrome helpers, then the same mechanical sweep the
-titles just had.
+### 3. ~~Retire `createButton`'s bevel~~ — done, bar two screens
+**Done 2026-09-02.** 56 call sites across 22 files, all but the four in
+DepotScene and SupplyRunScene, which are the deep-purple screens decision 1
+is about. `createButton` stays until those move.
 
-Do it after §2, not before — buttons carry labels, and converting them
-twice because the type scale moved would be the third time this project
-has paid that particular tax.
+`createChromeButton` carries two weights on one surface — `plate` is the
+cream paper, `filled` is the ink and the paper swapped. The dozen
+`bgColour`s are gone, and what they carried splits in two: *which button
+matters* is now weight, *which button is which* was always the icon and the
+label.
 
-### 4. The kitchen's Garden button icon
-Renders as two small dots instead of the walk glyph. The nav bar draws
-the same `icon-walk` key correctly, so it is `createButton`'s icon
-scaling, not a missing texture. Small, real, and a child sees it.
+The rule the sweep applied, written on `variant` in the source:
 
-Fold into 3 if 3 happens soon; do it alone if not.
+- **Plate by default**, on painted art and on bare cream alike. The worry
+  that a plate would vanish on the game's own cream was drawn and looked at,
+  not argued: a button carries a drop shadow as well as a hairline and reads
+  as something raised. The "nearly invisible on flat-cream scenes" note
+  further down is about title plates, which have only the hairline.
+- **Filled for the one action a screen is for.** Two side by side spends
+  the emphasis.
+- **Filled throughout on a surface that is already a plate** — the left
+  rail, the Games popup, the animal card. A plate there is a frame inside
+  a frame.
+
+Three things fell out of it:
+
+- **The icon set has two kinds, and only one survives on paper.**
+  `icon-back`, `icon-accept` and `icon-walk` are white line drawings made
+  when every button had a dark fill. `iconStyle: 'glyph'` tints them to
+  whatever ink the button is already setting its label in, so one asset
+  reads dark on the plate and cream on the filled button. The painterly
+  icons keep their own colours; tint multiplies, which is right for line
+  art and ruinous for anything painted.
+- **The Phaser PIN keypads set white type on `#f5efe4` — 1.06:1.** Both
+  LoginScene and SignupScene. Behind `USE_OVERLAY = true`, so no child has
+  seen it, but it is what renders the day the DOM board fails. Fixed by the
+  conversion.
+- **`animalCard()` destroys the card it is asked for.** It calls
+  `destroyAnimalCard()` and returns a fresh empty container, so reading the
+  card through it deletes the card. Cost four blank captures. Read
+  `animalCardContainer` instead.
+
+### 4. ~~The kitchen's Garden button icon~~ — done, and it was the asset
+**Done 2026-09-02**, and the diagnosis above was wrong twice over.
+
+Not `createButton`'s icon scaling: `icon-walk.png` had 69x34 of drawn
+content adrift in a 128x128 frame and off-centre, so scaling the *frame* to
+a 24px box drew the paw at 13x6px. Cropped to its content, centred, and
+scaled to the ~70% the rest of the set fills.
+
+And not only the kitchen — WalkScene draws the same key on "Let's go!". The
+nav bar looked fine because it never draws `icon-walk` at all: `nav-play.png`
+exists and wins the fallback chain ahead of it. So "the nav bar draws the
+same key correctly" was comparing against something that never ran.
 
 ### 5. Sweep the edges with the harness holding it
 `EDGE_CONTROL_INSET` exists and one control uses it. `ux-geometry.ts`
@@ -160,10 +198,13 @@ item — worth starting the ask early even though the code is last.
 
 ## Housekeeping
 
-- `createPillTitle` has **no callers**. Delete it.
+- ~~`createPillTitle` has no callers. Delete it.~~ Deleted.
 - `createPanel` has 20 call sites left; they want `createChromePlate`.
 - `chrome-views` is unmerged.
-- The handover still describes the fifteen-view conversion as pending.
+- `e2e/chrome-buttons.spec.ts` shoots the overlays `ui-audit.spec.ts` never
+  opens — the animal card, its More grid, the Games popup. The Phaser login
+  keypad in it needs `USE_OVERLAY` flipped to false by hand and skips itself
+  otherwise.
 
 ## Environment, so it is not rediscovered a third time
 
