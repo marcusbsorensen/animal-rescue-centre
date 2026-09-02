@@ -190,99 +190,6 @@ export function createTextButton(
 }
 
 /**
- * Colourful pill-shaped title banner — used for location headings.
- * Now with proper rounded rect, shadow, and optional icon glow.
- */
-export function createPillTitle(
-  scene: Phaser.Scene,
-  x: number,
-  y: number,
-  label: string,
-  options?: {
-    bgColour?: number;
-    fontSize?: string;
-    textColour?: string;
-    padX?: number;
-    padY?: number;
-    shadow?: boolean;
-    icon?: string;       // texture key for a custom icon
-    iconSize?: number;   // display size in px (default 28)
-  }
-): Phaser.GameObjects.Container {
-  const fontSize = options?.fontSize ?? '22px';
-  const textColour = options?.textColour ?? '#ffffff';
-  const padX = options?.padX ?? 28;
-  const padY = options?.padY ?? 10;
-  const bgColour = options?.bgColour ?? 0x4A9438;
-  const shadow = options?.shadow ?? true;
-  const iconSize = options?.iconSize ?? 28;
-
-  const text = scene.add.text(0, 0, label, {
-    fontSize,
-    fontFamily: FONTS.title,
-    fontStyle: 'bold',
-    color: textColour,
-    shadow: { offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.25)', blur: 2, fill: true },
-    resolution: TEXT_RESOLUTION,
-  }).setOrigin(0.5);
-
-  // Optional icon to the left of text
-  let pillIcon: Phaser.GameObjects.Image | undefined;
-  if (options?.icon && scene.textures.exists(options.icon)) {
-    pillIcon = scene.add.image(0, 0, options.icon).setOrigin(0.5);
-    const scale = iconSize / Math.max(pillIcon.width, pillIcon.height);
-    pillIcon.setScale(scale);
-    const totalW = iconSize + 8 + text.width;
-    text.setX((iconSize + 8) / 2);
-    pillIcon.setX(-totalW / 2 + iconSize / 2);
-  }
-
-  const contentW = text.width + (pillIcon ? iconSize + 8 : 0);
-  const w = contentW + padX * 2;
-  const h = text.height + padY * 2;
-  const radius = h / 2;
-
-  const gfx = scene.add.graphics();
-
-  // Drop shadow
-  if (shadow) {
-    gfx.fillStyle(0x000000, 0.2);
-    gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 3, w, h, radius);
-  }
-
-  // Main pill
-  gfx.fillStyle(bgColour, 1);
-  gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
-
-  // Inner highlight (top half, lighter)
-  const baseR = (bgColour >> 16) & 0xFF;
-  const baseG = (bgColour >> 8) & 0xFF;
-  const baseB = bgColour & 0xFF;
-  const highlight = Phaser.Display.Color.GetColor(
-    Math.min(255, baseR + 30),
-    Math.min(255, baseG + 30),
-    Math.min(255, baseB + 30)
-  );
-  gfx.fillStyle(highlight, 0.2);
-  gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 1, w - 4, h * 0.42, { tl: radius, tr: radius, bl: 0, br: 0 });
-
-  // Thin outline
-  gfx.lineStyle(1, 0xffffff, 0.2);
-  gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
-
-  const pillChildren: Phaser.GameObjects.GameObject[] = [gfx, text];
-  if (pillIcon) pillChildren.push(pillIcon);
-  const container = scene.add.container(x, y, pillChildren);
-  // The pill is drawn into a Graphics object, and Graphics contributes
-  // nothing to getBounds() — so a caller measuring this container to lay
-  // out whatever sits beneath it gets the height of the *text*, about 10px
-  // short, and puts its next row inside the pill. Publish the real drawn
-  // size instead; `title.width` / `title.height` are then meaningful.
-  container.setSize(w, h + (shadow ? 3 : 0));
-  return container;
-}
-
-/**
  * Styled card panel — rounded rectangle with shadow, used for
  * content areas, animal cards, info panels.
  */
@@ -341,10 +248,11 @@ export function createPanel(
  * The chrome plate — one rounded surface, one fill, one stroke, one shadow.
  *
  * Use it anywhere a view needs to put something *over* the world: a title,
- * an empty state, an info panel, the back of a button. It replaces both the
+ * an empty state, an info panel, the back of a button. It replaced both the
  * translucent-white `createPanel` look and the gold-pill `createPillTitle`
- * look, which between them are why the kitchen shows three visual languages
- * in one frame.
+ * look, which between them were why the kitchen showed three visual
+ * languages in one frame. The pill is gone; `createPanel` still has 20
+ * callers and wants this.
  *
  * The container publishes its drawn size via `setSize`, so a caller can
  * measure it to lay out whatever sits beneath — Graphics contributes nothing
@@ -386,14 +294,16 @@ export function createChromePlate(
 }
 
 /**
- * A view title on a chrome plate — the non-diegetic replacement for
- * `createPillTitle`.
+ * A view title on a chrome plate — what replaced the gold pills, all
+ * twenty of them.
  *
- * The gold pills are chrome wearing scenery clothes: they carry the painted
+ * The pills were chrome wearing scenery clothes: they carried the painted
  * world's bevel and warmth on an element that floats above the world and
- * could not be an object in it. Same shape of call as `createPillTitle` so
- * the remaining callers convert without rethinking their layout, minus the
+ * could not be an object in it. This kept their shape of call so the
+ * conversion did not have to rethink twenty layouts as well, minus the
  * colour options — the point of one surface is that it is not per-view.
+ * `createPillTitle` itself is deleted; its last caller went with the
+ * conversion.
  *
  * `subtitle` sets a second, quieter line on the same plate. Views that show
  * a heading and a count under it were drawing the count straight onto
