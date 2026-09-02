@@ -1,50 +1,43 @@
-# A.R.C. UI direction — handover 2026-08-31
+# A.R.C. UI direction — handover 2026-09-02
 
-The chrome surface exists and the garden is its first consumer. Fifteen
-more views to convert, and the sign-fold sweep is still open.
+The chrome surface exists and every titled screen in the game is on it.
+`createPillTitle` has no callers left. Nothing has been seen on a device.
 
 ## Goal
 Ship A.R.C. as an iPad/iPhone app for 7–10 year olds. Current arc: make
 it look like one finished product rather than three stitched together.
 
 ## State
-**Committed.** `72f4647` on branch `side-nav-prototype`, not merged to
-`main`. Side-nav layout behind `?sideRail=1`, default off. Verified in
-the real Capacitor app on an iPhone 17 Pro sim — rail clears the Dynamic
-Island and the home indicator.
+**On `main`** (`5cd5c67`): the audit, the chrome surface, GardenView, and
+the side-nav layout behind `?sideRail=1` defaulting off.
 
-**Uncommitted, and the new work.** The chrome surface — audit §1's answer
-— plus `GardenView` converted onto it. 334 tests, typecheck clean, 38
-lint warnings (unchanged baseline, 0 errors).
-- `ui/constants.ts` — `FONTS.ui` (system-rounded, no webfont), `CHROME`
-  (the one non-diegetic surface, drawn from `COLOURS`), `hexNum`,
-  `EDGE_CONTROL_INSET`.
-- `ui/UIButton.ts` — `createChromePlate`, `createChromeTitle`,
-  `createChromeCircleButton`, beside the pill/panel they replace.
-- `game-views/GardenView.ts` — title off `createPillTitle`, empty state
-  onto a plate, arrows into chrome circles with real hit areas.
-- `ui/__tests__/chrome.test.ts` — 13 tests holding the decisions.
+**On `chrome-views`** (`2f5c323`), pushed, unmerged: corridor, room and
+kitchen onto the chrome surface, then the remaining twenty pill titles
+across twelve files. 336 tests, typecheck clean, 38 lint warnings
+(unchanged baseline, 0 errors).
+- `ui/constants.ts` — `FONTS.ui`, `CHROME` (fill/stroke/four inks),
+  `hexNum`, `EDGE_CONTROL_INSET`, `TITLE_CY`.
+- `ui/UIButton.ts` — `createChromePlate`, `createChromeTitle` (with
+  `tone`), `createChromeCircleButton`.
+- `ui/__tests__/chrome.test.ts` — 16 tests holding the decisions.
 
-**On this branch only, deliberately.** The two-board sign fold in
-`public/admin/` `_short-landscape.css` + `_signpost-physics.css`, held as
-`d22ef1a` on `side-nav-prototype` and **kept off `main`**: landscape
-splits the stake into information-left / actions-right on one central
-post pair. Scoped `:has(> .cta-stack)`, so it lands on **twelve** screens
-— adopters, conflict, friends, forgot-pin, login, menu, news, vet,
-welcome, paths, welcome-new, signup. Only welcome and login looked at;
-ten unswept, and `main` deploys, so merging it ships an unreviewed layout
-change to all twelve. Sweep the ten before it goes anywhere.
+**On `side-nav-prototype` only, deliberately.** The two-board sign fold,
+`d22ef1a`, **kept off `main`**: it is live CSS on twelve DOM screens with
+ten never looked at, and `main` deploys. Sweep the ten before it moves.
 
-**Verified by capture**, at 874x402 through the Chrome channel: both
-garden zones, and the right arrow answering a tap. Before/after sit in
-`e2e/__audit__/08-garden-BEFORE-chrome.jpg` and `08-garden.png`.
+**Verified by capture** at 874x402 through the Chrome channel: the four
+game views, and ten of the twelve scenes via `scene-walk.spec.ts`.
+LoginScene and SignupScene could not be seen — the walk starts a scene
+without `unmountAuth()`, so the DOM sign boards sit over them.
 
-**Unverified.** No physical hardware, no simulator run since the chrome
-landed. Menu, the species room, the 14 in-game overlay screens and
-Walk/Depot/Drive/Social/Account are unaudited.
+**Unverified anywhere.** No simulator run since the chrome landed, and no
+physical hardware. `FONTS.ui` leads with `ui-rounded`, a WebKit generic
+that has only ever been resolved by Chrome here. Sixteen screens depend
+on it.
 
 ## Files
-- `docs/ui-audit-2026-08-31.md` — the seven findings, ranked. Read first.
+- `docs/ui-next-steps-2026-09-02.md` — the queue. Read first.
+- `docs/ui-audit-2026-08-31.md` — the seven findings and the reasoning.
 - `docs/landscape-relayout-2026-08-31.md` — side-nav and its open list.
 - `.claude/TRAPS.md` — the simulator section is load-bearing, and read
   the Playwright lines before touching the harness.
@@ -71,22 +64,13 @@ Walk/Depot/Drive/Social/Account are unaudited.
 - **Four rail items, not five.** Supplies moved into Care.
 
 ## Next step
-Convert the remaining fifteen `createPillTitle` callers — CorridorView,
-RoomView, KitchenView and twelve scenes. `createChromeTitle` takes the
-same shape of call minus the colour options, so it is mechanical. Do
-CorridorView and RoomView first: they already share `TITLE_CY` and the
-play-area origin with the garden, so the three read as one product the
-moment they match.
+**`docs/ui-next-steps-2026-09-02.md`** — the ranked queue, three
+decisions that come before more code, and where each of the audit's seven
+findings actually stands. Read that rather than this section.
 
-Then the two things the garden pass surfaced but did not fix:
-- **The garden's count line** (`GardenView.ts`, "2 pets living their best
-  life") is at y=95, inside the HUD's second row (phase and weather pills,
-  y 78..106), which draws on top of it. Its x is fixed; its y wants
-  deciding with the other titles, not locally.
-- **"Garden — Quiet nook" abuts the "0 in care" pill.** It is the longest
-  title in the game and the HUD's 600px-centred gap barely holds it. The
-  chrome plate is 20px narrower than the pill it replaced, so this is
-  better than it was, not worse — but a longer title anywhere will collide.
+The short version: get the chrome onto a simulator before converting
+anything else, because sixteen screens now depend on `ui-rounded`
+resolving in WKWebView the way it does in Chrome, and nobody has looked.
 
 ## Traps
 - **Read `.claude/TRAPS.md` before reaching for the harness.** It already
@@ -100,10 +84,10 @@ Then the two things the garden pass surfaced but did not fix:
 - **Never judge layout in simulator Safari** — its chrome makes the
   viewport ~64pt shorter than the shell's 874x402. Build the app
   (`VITE_SIDE_RAIL=1 pnpm build:ios`).
-- **`e2e/ui-audit.spec.ts` fails at step 09-room**, and did before this
-  work: it sets `viewMode = 'room'` without a species, so `renderRoom`
-  throws on `species.charAt`. Everything up to and including the garden
-  shoots fine.
+- **`ui-audit.spec.ts` and `scene-walk.spec.ts` both pass end to end.**
+  The audit spec used to throw at step 09-room (`viewMode` set without
+  `currentRoomSpecies`), which cost every screen after it too. Fixed; if
+  it regresses, that is the shape to look for.
 - **`_short-landscape.css` pins `.secondary-row` `position: sticky`**,
   lifting buttons out of any board they are meant to sit on.
 - Text objects with `.setInteractive()` get a glyph-sized hit area. The
