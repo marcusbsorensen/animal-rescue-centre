@@ -21,6 +21,7 @@ export { renderHUD } from './HUDView';
 export type { HUDCallbacks } from './HUDView';
 export { renderNavBar, renderGamesPopup, showQuickToast } from './NavBarView';
 export type { NavBarCallbacks, NavBarOptions, GamesPopupCallbacks } from './NavBarView';
+export { renderNavRail } from './NavRailView';
 export { renderCorridor } from './CorridorView';
 export type { CorridorCallbacks } from './CorridorView';
 export { renderRoom } from './RoomView';

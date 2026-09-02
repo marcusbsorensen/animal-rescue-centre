@@ -9,7 +9,9 @@ import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors } from '../lib/RoomAnchors';
 import { FONTS, TEXT_RESOLUTION, pluralSpecies, SAFE_MARGIN } from '../ui/constants';
 import { getPlayArea } from './LeftRailView';
-import { anchorSpaceFor, animalBoxFor, navBarMetrics } from '../ui/layout';
+import {
+  anchorSpaceFor, animalBoxFor, navBarMetrics, sideNavEnabled, ANIMAL_LABEL_HEIGHT,
+} from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 import { renderApprenticeDecorations } from './ApprenticeDecorations';
 
@@ -59,9 +61,21 @@ export function renderCorridor(
   const TITLE_CY = 45;
 
   // ── Background ───────────────────────────────────────────
+  // `height - 40` is the tall-viewport habit: the art is drawn nearly
+  // full-bleed and allowed to run behind the chrome, which is why the
+  // anchor space has to be corrected separately. Under the side-nav
+  // layout there is no horizontal chrome to hide behind, so the art is
+  // drawn into the play box and the two rects agree.
+  //
+  // Still a stretch, not a fit — 696x402 is 1.73 against art authored at
+  // 1.78, so it is a 3% squash rather than the 19% one the bottom-bar
+  // layout imposes. Deciding cover-vs-contain is the next step and wants
+  // to be looked at on a device, not calculated.
+  const bgH = sideNavEnabled() ? play.h : height - 40;
+  const bgCy = sideNavEnabled() ? play.y + play.h / 2 : height / 2;
   if (scene.textures.exists('bg-corridor')) {
-    const bg = scene.add.image(play.x + play.w / 2, height / 2, 'bg-corridor');
-    bg.setDisplaySize(play.w, height - 40);
+    const bg = scene.add.image(play.x + play.w / 2, bgCy, 'bg-corridor');
+    bg.setDisplaySize(play.w, bgH);
     container.add(bg);
   } else {
     container.add(
@@ -296,7 +310,12 @@ export function renderCorridor(
   // 201 and a bar starting at 229 — and an arriving dog measured y158..306:
   // the child saw it from the chest up. `Math.max` was also the wrong
   // direction for its own comment ("well above the FAB/nav dock").
-  const floorY = navBarMetrics(height).fabTop;
+  // Under the side-nav layout there is no FAB and no bar to stand clear
+  // of, so the floor is the bottom of the play box less the room a name
+  // pill and bond bar need under an animal.
+  const floorY = sideNavEnabled()
+    ? play.y + play.h - ANIMAL_LABEL_HEIGHT
+    : navBarMetrics(height).fabTop;
 
   if (arriving.length > 0) {
     // PROTOTYPE: the arrival pill banner, the speech-bubble Welcome

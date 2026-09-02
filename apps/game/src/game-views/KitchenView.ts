@@ -8,8 +8,8 @@ import {
   hasAllyPresent,
 } from '@arc/game-logic';
 import { createButton, createTextButton, createPillTitle, createPanel } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
-import { playAreaFor, viewportIsShort } from '../ui/layout';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, SAFE_MARGIN } from '../ui/constants';
+import { playAreaFor, viewportIsShort, sideNavEnabled } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
 /**
@@ -47,6 +47,14 @@ export interface KitchenCallbacks {
 
   /** Draw the nav bar on top of this view. */
   renderNavBar: (opts: { showBack: boolean }) => void;
+
+  /**
+   * Open the Depot / Supply Run popup.
+   *
+   * Optional because only the side-nav layout routes through here — under
+   * the bottom bar the Supplies FAB still owns it.
+   */
+  openSupplies?: () => void;
 }
 
 export function renderKitchen(
@@ -244,6 +252,26 @@ export function renderKitchen(
       width: 240, fontSize: '15px', bgColour: '#2ecc71', icon: 'icon-walk',
     }),
   );
+
+  // Supplies lives here under the side-nav layout, because it lost its
+  // slot on the rail: four controls fit a thumb-reachable stack and five
+  // do not, and restocking the depot is the least of the five a child
+  // does. Care is where the centre gets looked after, so it is the least
+  // surprising place to find it.
+  //
+  // Only drawn under side-nav — the bottom bar still carries its FAB, and
+  // two routes to one popup is how a control ends up half-maintained.
+  if (sideNavEnabled() && callbacks.openSupplies) {
+    const suppliesY = Math.min(
+      gardenBtnY + 54,
+      play.y + play.h - MIN_TAP / 2 - SAFE_MARGIN,
+    );
+    container.add(
+      createButton(scene, gardenCx, suppliesY, 'Supplies', () => callbacks.openSupplies!(), {
+        width: 240, fontSize: '15px', bgColour: '#d46020', icon: 'icon-supply-run',
+      }),
+    );
+  }
 
   callbacks.renderNavBar({ showBack: true });
 }

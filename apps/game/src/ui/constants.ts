@@ -39,12 +39,80 @@ export const COLOURS = {
   inputBorder: '#d4c8b8',
 } as const;
 
+/** '#rrggbb' → 0xRRGGBB, so the Phaser side can draw straight from COLOURS. */
+export function hexNum(hex: string): number {
+  return parseInt(hex.replace('#', ''), 16);
+}
+
 export const FONTS = {
   title: '"Nunito", "Baloo 2", "Fredoka", system-ui, -apple-system, sans-serif',
   body: '"Nunito", system-ui, -apple-system, sans-serif',
   // Handwritten / chalk style — used for chalkboards, hand-hung notes,
   // anywhere we want the feel of marker or chalk rather than printed type.
   chalk: '"Caveat", "Patrick Hand", "Comic Sans MS", cursive',
+  /**
+   * Chrome type — everything non-diegetic: nav, HUD, view titles, panels,
+   * buttons. Deliberately a *system* face rather than a webfont.
+   *
+   * The sign screens carry 500 `font-family` declarations resolving to 39
+   * distinct stacks, reaching for Barlow Condensed, Oswald, DM Sans, Kalam
+   * and more. With that many stacks and webfonts that may not all have
+   * loaded, a fallback firing somewhere was inevitable — it is what renders
+   * login's primary button in system sans today. A stack that starts at a
+   * face iOS always has cannot fall through to something unintended, so the
+   * chrome looks the same on the first frame as on the hundredth.
+   *
+   * `ui-rounded` is the WebKit generic that maps to SF Pro Rounded, which is
+   * the friendly-but-plain register this game's chrome wants. Nunito is
+   * deliberately absent: putting a webfont mid-stack would reintroduce the
+   * load-order dependency this exists to remove.
+   */
+  ui: 'ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+} as const;
+
+/**
+ * The one non-diegetic surface.
+ *
+ * A.R.C. currently speaks three visual languages — hand-painted wood on the
+ * sign screens, translucent white glass on the HUD and panels, and flat
+ * vector/emoji in the rail — with no rule for which to use. The kitchen has
+ * all three in one frame. A child crossing from a painted signpost yard into
+ * a screen of white pills reads two products stitched together, and that
+ * costs more than any individual screen's layout.
+ *
+ * The rule: **painted is diegetic only.** The hand-painted boards are
+ * artwork — objects inside the world, which a child could believe someone
+ * nailed up. Everything else is chrome: it sits *over* the world rather than
+ * in it, and gets this surface instead. Warm cream paper with a hairline
+ * border and a soft shadow — the same surface the left rail already draws,
+ * promoted from one view's local styling to the thing every view uses.
+ *
+ * Cream rather than white glass on purpose. Non-diegetic does not have to
+ * mean generic: the paper shares the painted world's warmth without
+ * borrowing its grain, bolts or bevels.
+ *
+ * Drawn by `createChromePlate` in `ui/UIButton.ts`. Reach for that rather
+ * than these numbers; they are exported so the geometry stays testable.
+ */
+export const CHROME = {
+  /** COLOURS.bg — the cream the logo sits on. */
+  fill: hexNum(COLOURS.bg),
+  fillAlpha: 0.96,
+  /** COLOURS.inputBorder — the same hairline the inputs use. */
+  stroke: hexNum(COLOURS.inputBorder),
+  strokeAlpha: 0.9,
+  strokeWidth: 1.5,
+  radius: 16,
+  shadowColour: 0x000000,
+  shadowAlpha: 0.18,
+  shadowX: 3,
+  shadowY: 4,
+  /** Breathing room between the plate's edge and whatever sits on it. */
+  padX: 18,
+  padY: 12,
+  /** Ink for text on the plate. Both clear 4.5:1 against the fill. */
+  ink: COLOURS.text,
+  inkMuted: COLOURS.textLight,
 } as const;
 
 /**
@@ -133,6 +201,24 @@ export const MIN_TAP = 48;
 export const MIN_TAP_GAP = 12;
 
 /**
+ * Distance from an edge to the *centre* of a control anchored against it.
+ *
+ * Controls at or past the screen edge is a recurring class, not an
+ * incident: TRAPS.md already records the garden's upgrade button under the
+ * nav bar and its left zone arrow inside the rail's reserved column, both
+ * unreachable on every viewport for as long as they had existed, and the
+ * audit found the right zone arrow flush to the screen edge on top of
+ * that. What they share is a hand-picked gap — 25, 30, 35 — chosen against
+ * the control's old drawn size and never revisited when the hit area was
+ * floored at MIN_TAP.
+ *
+ * Half the tap floor plus the margin is the whole rule: it puts the
+ * control's *outer* edge exactly SAFE_MARGIN clear, whatever is drawn
+ * inside it. Anchor from this rather than inventing a local number.
+ */
+export const EDGE_CONTROL_INSET = SAFE_MARGIN + MIN_TAP / 2;
+
+/**
  * Y for a control anchored to the bottom edge — the "← Back to centre"
  * button on most scenes.
  *
@@ -144,7 +230,7 @@ export const MIN_TAP_GAP = 12;
  * guessing a gap.
  */
 export function bottomAnchorY(height: number): number {
-  return height - (SAFE_MARGIN + MIN_TAP / 2);
+  return height - EDGE_CONTROL_INSET;
 }
 
 /**
