@@ -150,5 +150,48 @@ test('the overlays the buttons live on', async ({ page }) => {
   });
   await shoot(page, '04-games-popup');
 
+  // ── The Depot, on its board ──────────────────────────
+  //
+  // `scene-walk.spec.ts` only ever sees mode select, so the board — wood,
+  // light cells, the goals row — went unlooked-at through the warm-up.
+  await page.evaluate(() => {
+    const g = (window as unknown as { __PHASER_GAME__: Phaser.Game }).__PHASER_GAME__;
+    g.scene.start('DepotScene');
+  });
+  await waitForScene(page, 'DepotScene', 20_000);
+  await page.waitForTimeout(1500);
+  await shoot(page, '05-depot-select');
+  await page.evaluate(() => {
+    const g = (window as unknown as { __PHASER_GAME__: Phaser.Game }).__PHASER_GAME__;
+    const s = g.scene.getScene('DepotScene') as unknown as
+      { startMode: (m: string) => void };
+    s.startMode('parts_and_tools');
+  });
+  await shoot(page, '06-depot-board');
+
+  // ── The supply run, on the road ──────────────────────
+  //
+  // Same reason as the Depot's board: `scene-walk.spec.ts` only ever sees
+  // destination select, so the drive itself — sky, road, dashboard — went
+  // unlooked-at through the warm-up.
+  await page.evaluate(() => {
+    const g = (window as unknown as { __PHASER_GAME__: Phaser.Game }).__PHASER_GAME__;
+    g.scene.start('SupplyRunScene');
+  });
+  await waitForScene(page, 'SupplyRunScene', 20_000);
+  await page.waitForTimeout(1500);
+  await shoot(page, '07-supply-select');
+  await page.evaluate(() => {
+    const g = (window as unknown as { __PHASER_GAME__: Phaser.Game }).__PHASER_GAME__;
+    const s = g.scene.getScene('SupplyRunScene') as unknown as
+      { startRun: (d: unknown) => void; destinations?: unknown[] };
+    const w = window as unknown as { __SUPPLY_DESTS__?: unknown[] };
+    const dest = (w.__SUPPLY_DESTS__ ?? [])[0]
+      ?? { destination: 'bramble_farm', label: 'Bramble Farm Supplies', emoji: '🌾',
+           description: 'Hay, straw, feed', basePay: 50, distance: 100, unlockLevel: 1 };
+    s.startRun(dest);
+  });
+  await shoot(page, '08-supply-drive');
+
   void scene;
 });

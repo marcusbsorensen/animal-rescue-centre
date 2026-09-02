@@ -1,6 +1,11 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createChromeTitle } from '../ui/UIButton';
+import {
+  COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum,
+} from '../ui/constants';
+import {
+  createChromeButton, createTextButton, createChromeTitle, createChromePlate,
+} from '../ui/UIButton';
+import { DRIVE_COLOURS } from '../driving/drive-render';
 import { useRetinaText } from '../ui/retina-text';
 import { AudioManager } from '../audio/AudioManager';
 import {
@@ -22,22 +27,52 @@ import type { SupplyDestination, Economy } from '@arc/shared-types';
 import type { SupplyRunLaneState, ObstacleDef, DestinationDef } from '@arc/game-logic';
 
 // ── Neon colour palette (tonal shift from gentle care) ───────
-const NEON = {
-  bg: 0x0a0a1a,              // near-black
-  road: 0x1a1a2e,            // dark blue-grey
-  lane: 0x2a2a4e,            // lane markings
-  laneActive: 0x00ff88,      // neon green for player lane
-  hud: 0x0d0d24,             // HUD bar background
-  hudBorder: 0x00ccff,       // cyan HUD border
-  accent: 0xff6600,          // orange accent
-  danger: 0xff2244,          // red danger
-  success: 0x00ff88,         // green success
-  gold: 0xffd700,            // gold for money
-  text: '#00ffcc',           // cyan text
-  textWhite: '#ffffff',
-  textDim: '#667788',
-  neonPink: 0xff00aa,
-  neonBlue: 0x00aaff,
+/**
+ * The supply run's palette — a daytime drive, not an arcade cabinet.
+ *
+ * This was neon on near-black: cyan text, hot pink combos, a lit-window
+ * cityscape at midnight. A *fourth* visual language after the painted
+ * world, the chrome surface and the old glass HUD, and the one furthest
+ * from all three. A child drives here straight out of a cream corridor.
+ *
+ * It borrows from `DRIVE_COLOURS` rather than inventing a warm palette,
+ * because the game already has a driving look — `PtvDriveScene` uses it,
+ * and it is described there as tuned to the brand cream and green. Two
+ * driving screens in one game should be the same road.
+ *
+ * The name stays short but no longer says NEON, which it would now be
+ * lying about.
+ */
+const DRIVE = {
+  /**
+   * The menu and results screens sit on the game's cream, like every
+   * other screen. Verge green belongs to the drive and is drawn there.
+   */
+  bg: hexNum(COLOURS.bg),
+  road: DRIVE_COLOURS.tarmac,
+  lane: DRIVE_COLOURS.laneDash,
+  /** The player's lane, picked out in the brand green rather than neon. */
+  laneActive: hexNum(COLOURS.primaryLight),
+  /** The dashboard is chrome, like every other panel that floats. */
+  hud: CHROME.fill,
+  hudBorder: CHROME.stroke,
+  accent: hexNum(COLOURS.warm),
+  danger: hexNum(COLOURS.accent),
+  success: hexNum(COLOURS.primaryDark),
+  gold: hexNum(COLOURS.warmDark),
+  /** Ink on the dashboard, which is cream — so ink, not cyan. */
+  text: CHROME.ink,
+  textWhite: CHROME.ink,
+  textDim: CHROME.inkMuted,
+  /** Where the hot pink was: the combo shout, in the brand red. */
+  neonPink: hexNum(COLOURS.accent),
+  neonBlue: hexNum(COLOURS.info),
+  /** Sky, top to horizon. A clear day over Birchington. */
+  skyTop: { r: 0x8f, g: 0xbe, b: 0xdc },
+  skyHorizon: { r: 0xfa, g: 0xe8, b: 0xc6 },
+  /** The town on the horizon, hazed by distance. */
+  skyline: 0x8a9a86,
+  skylineWindow: 0x6d7c6a,
 };
 
 // ── Pseudo-3D driving constants ──────────────────────────────
@@ -51,11 +86,17 @@ const STEER_SPEED = 0.04;           // per-tick playerX shift
 const STEER_DECAY = 0.92;           // how fast steering centres back
 const SPAWN_Z = 1.0;               // obstacles appear at the horizon
 
-// Road colours that alternate to create the speed illusion
-const ROAD_DARK = 0x2d2d4a;
-const ROAD_LIGHT = 0x3a3a5c;
-const RUMBLE_DARK = 0x882222;
-const RUMBLE_LIGHT = 0xcc3333;
+// Road colours that alternate to create the speed illusion. The pair has
+// to stay close — the flicker between them is the speed, and widening the
+// gap to make the road "look nicer" turns a moving road into a strobing
+// one. Tarmac and a shade either side of it, per DRIVE_COLOURS.
+const ROAD_DARK = DRIVE_COLOURS.tarmac;
+const ROAD_LIGHT = 0x7a7e86;
+// The shoulder alternates too, but quietly. Red-and-white belongs to an
+// arcade cabinet; this is the warm off-white the top-down engine already
+// draws its road edge in, against a sand a shade under it.
+const RUMBLE_DARK = 0xd8ceae;
+const RUMBLE_LIGHT = DRIVE_COLOURS.roadEdgeLine;
 
 /** A single obstacle in the pseudo-3D world. */
 interface Obstacle3D {
@@ -195,9 +236,8 @@ export class SupplyRunScene extends Phaser.Scene {
     this.clearView();
     const { width, height } = this.scale;
 
-    // Dark background
     this.container.add(
-      this.add.rectangle(width / 2, height / 2, width, height, NEON.bg)
+      this.add.rectangle(width / 2, height / 2, width, height, DRIVE.bg)
     );
 
     switch (this.phase) {
@@ -220,13 +260,15 @@ export class SupplyRunScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, 95, 'Pick your destination and drive!', {
-        fontSize: '15px', fontFamily: FONTS.body, color: NEON.textDim,
+        fontSize: '15px', fontFamily: FONTS.body, color: DRIVE.textDim,
       }).setOrigin(0.5)
     );
 
     // Tyre track pattern background
+    // Tyre tracks, at the weight they had — the ink changes side because
+    // the ground did.
     const bgPattern = this.add.graphics();
-    bgPattern.lineStyle(1.5, 0xffffff, 0.04);
+    bgPattern.lineStyle(1.5, hexNum(COLOURS.text), 0.05);
     for (let ty = 0; ty < height; ty += 40) {
       // Left tyre track
       const wobble1 = Math.sin(ty * 0.03) * 15;
@@ -244,22 +286,46 @@ export class SupplyRunScene extends Phaser.Scene {
     }
     this.container.add(bgPattern);
 
-    const cardW = Math.min(width - 60, 500);
-    const cardX = (width - cardW) / 2;
+    // Three cards of 100 at a 120 pitch from y=155 need 395px. A landscape
+    // phone has 402, so the third card ran off the bottom with the Back
+    // link drawn across it — the same fault the Depot's mode cards had, and
+    // fixed the same way: two columns when three rows will not fit.
+    //
+    // The band runs from under the subtitle to above the Back button.
+    const bandTop = 118;
+    const bandBottom = bottomAnchorY(height) - MIN_TAP / 2 - 12;
+    const cardH = 100;
+    const count = SUPPLY_DESTINATIONS.length;
+    const rowsFit = Math.floor((bandBottom - bandTop + 20) / (cardH + 20));
+    const cols = rowsFit >= count ? 1 : 2;
+    const rows = Math.ceil(count / cols);
+    const colGap = 16;
+    const cardW = cols === 1
+      ? Math.min(width - 60, 500)
+      : Math.min((width - 60 - colGap) / 2, 420);
+    const gridW = cardW * cols + colGap * (cols - 1);
+    const gridX = (width - gridW) / 2;
+    const topGap = 12;
+    const availH = bandBottom - bandTop - topGap;
+    const rowPitch = rows > 1 ? Math.min(120, (availH - cardH) / (rows - 1)) : 0;
+    const firstCy = bandTop + topGap + cardH / 2;
 
     SUPPLY_DESTINATIONS.forEach((dest, i) => {
-      const y = 155 + i * 120;
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const cardX = gridX + col * (cardW + colGap);
+      const cardCx = cardX + cardW / 2;
+      // The card's own drawing is written around a `y` that is its centre
+      // minus ten — the emoji sits at y-5 and the three text rows at
+      // y-18/+5/+25 — so keep that origin rather than re-deriving five
+      // offsets.
+      const y = firstCy + row * rowPitch - 10;
       const unlocked = canAccessDestination(dest.destination, this.playerLevel);
       const alpha = unlocked ? 1 : 0.35;
 
-      // Card with neon border
-      const card = this.add.graphics();
-      card.fillStyle(0xffffff, 0.15);
-      card.fillRoundedRect(cardX, y - 40, cardW, 100, 12);
-      if (unlocked) {
-        card.lineStyle(3, NEON.hudBorder, 0.7);
-        card.strokeRoundedRect(cardX, y - 40, cardW, 100, 12);
-      }
+      // A chrome plate, like every other thing in the game that floats
+      // above a surface. It was 15% white glass with a cyan rim.
+      const card = createChromePlate(this, cardCx, y + 10, cardW, cardH, { radius: 12 });
       card.setAlpha(alpha);
       this.container.add(card);
 
@@ -274,7 +340,7 @@ export class SupplyRunScene extends Phaser.Scene {
       this.container.add(
         this.add.text(cardX + 70, y - 18, dest.label, {
           fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
-          color: unlocked ? NEON.textWhite : '#555555',
+          color: unlocked ? DRIVE.textWhite : COLOURS.textLight,
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
 
@@ -282,7 +348,7 @@ export class SupplyRunScene extends Phaser.Scene {
       this.container.add(
         this.add.text(cardX + 70, y + 5, dest.description, {
           fontSize: '14px', fontFamily: FONTS.body,
-          color: unlocked ? NEON.textDim : '#444444',
+          color: unlocked ? DRIVE.textDim : COLOURS.textLight,
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
 
@@ -290,12 +356,12 @@ export class SupplyRunScene extends Phaser.Scene {
         this.add.text(cardX + 70, y + 25,
           unlocked ? `Base pay: ${dest.basePay} coins  |  Distance: ${dest.distance}` : `Unlocks at level ${dest.unlockLevel}`, {
           fontSize: '14px', fontFamily: FONTS.body,
-          color: unlocked ? '#ffd700' : '#555555',
+          color: unlocked ? CHROME.inkAccent : COLOURS.textLight,
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
 
       if (unlocked) {
-        const hitArea = this.add.rectangle(width / 2, y, cardW, 100, 0xffffff, 0)
+        const hitArea = this.add.rectangle(cardCx, y + 10, cardW, cardH, 0xffffff, 0)
           .setInteractive({ useHandCursor: true });
         hitArea.on('pointerdown', () => this.startRun(dest));
         this.container.add(hitArea);
@@ -342,10 +408,13 @@ export class SupplyRunScene extends Phaser.Scene {
 
     // Controls hint
     this.container.add(
+      // Cream, not the chrome's muted ink: this line sits on the tarmac,
+      // not on the dashboard, and #6b5a4a on #6b6f76 measures 1.2:1 — it
+      // was there and unreadable rather than absent, which is worse.
       this.add.text(width / 2, dashboardTop - 8,
         '← → steer  |  SPACE smash!', {
-        fontSize: '14px', fontFamily: FONTS.body, color: NEON.textDim,
-      }).setOrigin(0.5, 1).setAlpha(0.6)
+        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.bg,
+      }).setOrigin(0.5, 1).setAlpha(0.9)
     );
 
     // Setup input
@@ -360,27 +429,27 @@ export class SupplyRunScene extends Phaser.Scene {
     const skyGfx = this.add.graphics();
     const strips = 30;
     const stripH = Math.ceil(horizonY / strips);
+    // Clear blue overhead, warming to the game's cream at the horizon —
+    // the same gradient a painted daytime sky makes, and the reverse of
+    // the navy-to-purple night this used to be.
+    const { skyTop: a, skyHorizon: b } = DRIVE;
     for (let i = 0; i < strips; i++) {
       const t = i / strips;
-      // Dark navy at top → warm purple-orange at horizon
-      const r = Math.floor(8 + t * 80);
-      const g = Math.floor(5 + t * 25);
-      const b = Math.floor(30 + t * 55);
-      const colour = (r << 16) | (g << 8) | b;
-      skyGfx.fillStyle(colour, 1);
+      const r = Math.round(a.r + (b.r - a.r) * t);
+      const g = Math.round(a.g + (b.g - a.g) * t);
+      const bl = Math.round(a.b + (b.b - a.b) * t);
+      skyGfx.fillStyle((r << 16) | (g << 8) | bl, 1);
       skyGfx.fillRect(0, i * stripH, width, stripH + 1);
     }
 
-    // Bright horizon glow
-    skyGfx.fillStyle(0xff6633, 0.15);
+    // Haze along the horizon, where the sunset glow was.
+    skyGfx.fillStyle(hexNum(COLOURS.bg), 0.35);
     skyGfx.fillRect(0, horizonY - 20, width, 25);
-    skyGfx.fillStyle(0xff9944, 0.1);
-    skyGfx.fillRect(0, horizonY - 8, width, 12);
     this.container.add(skyGfx);
 
     // Silhouette cityscape on horizon
     const buildingGfx = this.add.graphics();
-    buildingGfx.fillStyle(0x0a0a18, 1);
+    buildingGfx.fillStyle(DRIVE.skyline, 1);
     const buildings = [
       { x: 0, w: 60, h: 35 }, { x: 55, w: 40, h: 55 }, { x: 90, w: 30, h: 25 },
       { x: 130, w: 50, h: 45 }, { x: 175, w: 35, h: 30 }, { x: 220, w: 55, h: 65 },
@@ -391,13 +460,14 @@ export class SupplyRunScene extends Phaser.Scene {
     for (let startX = 0; startX < width; startX += 520) {
       for (const b of buildings) {
         buildingGfx.fillRect(startX + b.x, horizonY - b.h, b.w - 3, b.h);
-        // Random lit windows
+        // Windows. Dark in daylight, not lit — a town at noon with every
+        // light on is the one thing that would still read as night.
         for (let wy = horizonY - b.h + 5; wy < horizonY - 4; wy += 8) {
           for (let wx = startX + b.x + 4; wx < startX + b.x + b.w - 8; wx += 10) {
             if (Math.random() > 0.4) {
-              buildingGfx.fillStyle(0xffcc44, 0.3 + Math.random() * 0.3);
+              buildingGfx.fillStyle(DRIVE.skylineWindow, 0.5 + Math.random() * 0.3);
               buildingGfx.fillRect(wx, wy, 5, 4);
-              buildingGfx.fillStyle(0x0a0a18, 1);
+              buildingGfx.fillStyle(DRIVE.skyline, 1);
             }
           }
         }
@@ -412,7 +482,9 @@ export class SupplyRunScene extends Phaser.Scene {
       const cy = 20 + (i % 3) * 25 + Math.random() * 20;
       const cw = 40 + Math.random() * 50;
       const ch = 15 + Math.random() * 10;
-      cloudGfx.fillStyle(0xffffff, 0.06 + Math.random() * 0.06);
+      // Cloud, and now actually visible: white at 6% on a night sky was
+      // barely there, and on a blue one it is a cloud.
+      cloudGfx.fillStyle(0xffffff, 0.45 + Math.random() * 0.2);
       cloudGfx.fillEllipse(cx, cy, cw, ch);
       cloudGfx.fillEllipse(cx - cw * 0.25, cy + 3, cw * 0.6, ch * 0.7);
       cloudGfx.fillEllipse(cx + cw * 0.3, cy + 2, cw * 0.5, ch * 0.8);
@@ -427,12 +499,12 @@ export class SupplyRunScene extends Phaser.Scene {
 
     // Semi-transparent dark panel
     this.dashGfx = this.add.graphics();
-    this.dashGfx.fillStyle(NEON.hud, 0.92);
+    // Cream, with the chrome hairline along its top edge. It was a
+    // near-black panel with a cyan rule and a pink one under it.
+    this.dashGfx.fillStyle(DRIVE.hud, CHROME.fillAlpha);
     this.dashGfx.fillRect(0, dashTop, width, dashH);
-    this.dashGfx.lineStyle(2, NEON.hudBorder, 0.5);
+    this.dashGfx.lineStyle(CHROME.strokeWidth, DRIVE.hudBorder, CHROME.strokeAlpha);
     this.dashGfx.lineBetween(0, dashTop, width, dashTop);
-    this.dashGfx.lineStyle(1, NEON.neonPink, 0.2);
-    this.dashGfx.lineBetween(0, dashTop + 1, width, dashTop + 1);
     this.container.add(this.dashGfx);
 
     const row1Y = dashTop + 10;
@@ -442,8 +514,7 @@ export class SupplyRunScene extends Phaser.Scene {
     // Row 1: destination + progress bar
     this.hudDestText = this.add.text(10, row1Y, `${this.destDef.emoji} ${this.destDef.label}`, {
       fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold',
-      color: NEON.text,
-      shadow: { offsetX: 0, offsetY: 1, color: 'rgba(0,255,200,0.2)', blur: 4, fill: true },
+      color: DRIVE.text,
     }).setOrigin(0, 0);
     this.container.add(this.hudDestText);
 
@@ -451,43 +522,42 @@ export class SupplyRunScene extends Phaser.Scene {
     this.hudProgressBarW = width * 0.35;
     const barX = width - 10 - this.hudProgressBarW;
     this.container.add(
-      this.add.rectangle(barX, row1Y + 8, this.hudProgressBarW, 12, 0x222244).setOrigin(0, 0.5)
+      this.add.rectangle(barX, row1Y + 8, this.hudProgressBarW, 12, hexNum(COLOURS.bgDark)).setOrigin(0, 0.5)
     );
     const barBorder = this.add.graphics();
-    barBorder.lineStyle(1, NEON.hudBorder, 0.3);
+    barBorder.lineStyle(1, DRIVE.hudBorder, CHROME.strokeAlpha);
     barBorder.strokeRect(barX, row1Y + 2, this.hudProgressBarW, 12);
     this.container.add(barBorder);
-    this.hudProgressBar = this.add.rectangle(barX, row1Y + 8, 1, 12, NEON.laneActive).setOrigin(0, 0.5);
+    this.hudProgressBar = this.add.rectangle(barX, row1Y + 8, 1, 12, DRIVE.laneActive).setOrigin(0, 0.5);
     this.container.add(this.hudProgressBar);
 
     // Row 2: smash counter, combo, damage
     this.hudSmashText = this.add.text(10, row2Y, '0 smashed', {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#ffd700',
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: CHROME.inkAccent,
     }).setOrigin(0, 0);
     this.container.add(this.hudSmashText);
 
     this.hudComboText = this.add.text(width / 2, row2Y, '', {
-      fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ff00aa',
-      shadow: { offsetX: 0, offsetY: 0, color: '#ff00aa', blur: 6, fill: true },
+      fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: CHROME.inkDanger,
     }).setOrigin(0.5, 0).setAlpha(0);
     this.container.add(this.hudComboText);
 
     this.hudDamageText = this.add.text(width - 10, row2Y, '0%', {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#00ff88',
+      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: CHROME.inkAccent,
     }).setOrigin(1, 0);
     this.container.add(this.hudDamageText);
 
     // Steering wheel indicator (drawn as arc)
     const wheelGfx = this.add.graphics();
-    wheelGfx.lineStyle(3, 0x00ffcc, 0.5);
+    wheelGfx.lineStyle(3, hexNum(COLOURS.textLight), 0.5);
     wheelGfx.strokeCircle(width / 2, row3Y + 10, 14);
-    wheelGfx.lineStyle(2, 0x00ffcc, 0.7);
+    wheelGfx.lineStyle(2, hexNum(COLOURS.textLight), 0.7);
     wheelGfx.lineBetween(width / 2 - 10, row3Y + 10, width / 2 + 10, row3Y + 10);
     wheelGfx.lineBetween(width / 2, row3Y, width / 2, row3Y + 20);
     this.container.add(wheelGfx);
     // Repurpose hudSpeedText as the steering position indicator dot
     this.hudSpeedText = this.add.text(width / 2, row3Y + 10, '●', {
-      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, color: '#00ffcc',
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, color: CHROME.ink,
     }).setOrigin(0.5);
     this.container.add(this.hudSpeedText);
   }
@@ -527,7 +597,9 @@ export class SupplyRunScene extends Phaser.Scene {
       const isLight = stripeIdx < 2;
 
       // Draw grass / off-road
-      const grassColour = isLight ? 0x1a3518 : 0x142a12;
+      // Verge green, the two shades the top-down engine uses either side
+      // of its road — daylight grass, where this was night-black scrub.
+      const grassColour = isLight ? DRIVE_COLOURS.skyGrass : DRIVE_COLOURS.vergeEdge;
       gfx.fillStyle(grassColour, 1);
       gfx.fillRect(0, y, width, rowH + 1);
 
@@ -546,7 +618,7 @@ export class SupplyRunScene extends Phaser.Scene {
       if (isLight && depth < 0.95) {
         const markW = Math.max(1, 2 * (1 - depth));
         const markAlpha = 0.6 * (1 - depth * 0.5);
-        gfx.fillStyle(0xffffff, markAlpha);
+        gfx.fillStyle(DRIVE_COLOURS.laneDash, markAlpha);
         // Left lane divider
         const laneW = roadW / 3;
         gfx.fillRect(rowCx - roadW / 2 + laneW - markW / 2, y, markW, rowH + 1);
@@ -559,10 +631,10 @@ export class SupplyRunScene extends Phaser.Scene {
         const edgeAlpha = 0.5 * (1 - depth);
         const edgeW = Math.max(1, 3 * (1 - depth));
         // Left edge: neon pink
-        gfx.fillStyle(NEON.neonPink, edgeAlpha);
+        gfx.fillStyle(DRIVE.neonPink, edgeAlpha);
         gfx.fillRect(rowCx - roadW / 2 - edgeW, y, edgeW, rowH + 1);
         // Right edge: neon cyan
-        gfx.fillStyle(NEON.neonBlue, edgeAlpha);
+        gfx.fillStyle(DRIVE.neonBlue, edgeAlpha);
         gfx.fillRect(rowCx + roadW / 2, y, edgeW, rowH + 1);
       }
     }
@@ -579,16 +651,16 @@ export class SupplyRunScene extends Phaser.Scene {
       const poleAlpha = 0.6 * (1 - depth * 0.7);
 
       // Left pole
-      gfx.fillStyle(0xcccccc, poleAlpha);
+      gfx.fillStyle(DRIVE_COLOURS.laneDash, poleAlpha);
       gfx.fillRect(rowCx - roadW / 2 - poleW * 3, y - poleH, poleW, poleH);
       // Reflector on pole
-      gfx.fillStyle(NEON.neonPink, poleAlpha * 0.8);
+      gfx.fillStyle(DRIVE.neonPink, poleAlpha * 0.8);
       gfx.fillRect(rowCx - roadW / 2 - poleW * 3, y - poleH, poleW, Math.max(1, poleW));
 
       // Right pole
-      gfx.fillStyle(0xcccccc, poleAlpha);
+      gfx.fillStyle(DRIVE_COLOURS.laneDash, poleAlpha);
       gfx.fillRect(rowCx + roadW / 2 + poleW * 2, y - poleH, poleW, poleH);
-      gfx.fillStyle(NEON.neonBlue, poleAlpha * 0.8);
+      gfx.fillStyle(DRIVE.neonBlue, poleAlpha * 0.8);
       gfx.fillRect(rowCx + roadW / 2 + poleW * 2, y - poleH, poleW, Math.max(1, poleW));
     }
   }
@@ -738,7 +810,8 @@ export class SupplyRunScene extends Phaser.Scene {
         const scoreStr = comboMultiplier > 1
           ? `+${obs.obstacle.scoreOnSmash * comboMultiplier} x${comboMultiplier}`
           : `+${obs.obstacle.scoreOnSmash}`;
-        const popupColour = comboMultiplier >= 3 ? '#ff00aa' : comboMultiplier >= 2 ? '#ff6600' : '#ffd700';
+        const popupColour = comboMultiplier >= 3 ? CHROME.inkDanger
+          : comboMultiplier >= 2 ? COLOURS.warm : CHROME.inkAccent;
 
         const popup = this.add.text(proj.x, proj.y, scoreStr, {
           fontSize: comboMultiplier > 1 ? '24px' : '20px',
@@ -756,7 +829,7 @@ export class SupplyRunScene extends Phaser.Scene {
         });
 
         // Debris particles
-        const debrisColours = [0xff6600, 0xffd700, 0x00ffcc];
+        const debrisColours = [hexNum(COLOURS.warm), hexNum(COLOURS.warmDark), hexNum(COLOURS.primary)];
         for (let p = 0; p < 4; p++) {
           const particle = this.add.circle(
             proj.x + (Math.random() - 0.5) * 30,
@@ -826,7 +899,7 @@ export class SupplyRunScene extends Phaser.Scene {
               AudioManager.getInstance().playSfx('obstacle_hit');
 
               // Flash screen red
-              const flash = this.add.rectangle(width / 2, height / 2, width, height, NEON.danger, 0.3);
+              const flash = this.add.rectangle(width / 2, height / 2, width, height, DRIVE.danger, 0.3);
               this.container.add(flash);
               this.tweens.add({
                 targets: flash,
@@ -915,7 +988,7 @@ export class SupplyRunScene extends Phaser.Scene {
     const labelStr = obstacle.smashable ? '!' : 'X';
     const labelText = this.add.text(0, 0, labelStr, {
       fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
-      color: obstacle.smashable ? '#ffd700' : '#ff2244',
+      color: obstacle.smashable ? CHROME.inkAccent : CHROME.inkDanger,
     }).setOrigin(0.5).setVisible(false);
     this.container.add(labelText);
     obs.labelText = labelText;
@@ -958,14 +1031,14 @@ export class SupplyRunScene extends Phaser.Scene {
         obs.glowGfx.setDepth(9 + Math.floor((1 - obs.worldZ) * 100));
         const ringRadius = Math.max(6, 22 * proj.scale);
         if (obs.obstacle.smashable) {
-          obs.glowGfx.fillStyle(NEON.laneActive, 0.15 * proj.scale);
+          obs.glowGfx.fillStyle(DRIVE.laneActive, 0.15 * proj.scale);
           obs.glowGfx.fillCircle(proj.x, proj.y, ringRadius);
-          obs.glowGfx.lineStyle(Math.max(1, 2 * proj.scale), NEON.laneActive, 0.5 * proj.scale);
+          obs.glowGfx.lineStyle(Math.max(1, 2 * proj.scale), DRIVE.laneActive, 0.5 * proj.scale);
           obs.glowGfx.strokeCircle(proj.x, proj.y, ringRadius);
         } else {
-          obs.glowGfx.fillStyle(NEON.danger, 0.1 * proj.scale);
+          obs.glowGfx.fillStyle(DRIVE.danger, 0.1 * proj.scale);
           obs.glowGfx.fillCircle(proj.x, proj.y, ringRadius);
-          obs.glowGfx.lineStyle(Math.max(1, 2 * proj.scale), NEON.danger, 0.4 * proj.scale);
+          obs.glowGfx.lineStyle(Math.max(1, 2 * proj.scale), DRIVE.danger, 0.4 * proj.scale);
           obs.glowGfx.strokeCircle(proj.x, proj.y, ringRadius);
         }
       }
@@ -988,9 +1061,9 @@ export class SupplyRunScene extends Phaser.Scene {
     if (this.hudProgressBar) {
       this.hudProgressBar.width = Math.max(1, this.hudProgressBarW * progress);
       if (progress > 0.8) {
-        this.hudProgressBar.fillColor = NEON.gold;
+        this.hudProgressBar.fillColor = DRIVE.gold;
       } else if (progress > 0.5) {
-        this.hudProgressBar.fillColor = NEON.accent;
+        this.hudProgressBar.fillColor = DRIVE.accent;
       }
     }
 
@@ -1018,11 +1091,11 @@ export class SupplyRunScene extends Phaser.Scene {
     if (this.hudDamageText) {
       this.hudDamageText.setText(`${Math.min(totalDmg, 100)}%`);
       if (totalDmg > 60) {
-        this.hudDamageText.setColor('#ff2244');
+        this.hudDamageText.setColor(CHROME.inkDanger);
       } else if (totalDmg > 30) {
-        this.hudDamageText.setColor('#ffaa00');
+        this.hudDamageText.setColor(COLOURS.warm);
       } else {
-        this.hudDamageText.setColor('#00ff88');
+        this.hudDamageText.setColor(CHROME.inkAccent);
       }
     }
 
@@ -1072,24 +1145,24 @@ export class SupplyRunScene extends Phaser.Scene {
     // Destination
     this.container.add(
       this.add.text(width / 2, 95, `${this.destDef.emoji} ${this.destDef.label}`, {
-        fontSize: '16px', fontFamily: FONTS.body, color: NEON.textDim,
+        fontSize: '16px', fontFamily: FONTS.body, color: DRIVE.textDim,
       }).setOrigin(0.5)
     );
 
     // Stats
     const statsY = 135;
     const stats = [
-      { label: 'Earnings', value: `${rewards.earnings} coins`, colour: '#ffd700' },
-      { label: 'Obstacles Smashed', value: `${this.runState.obstaclesDestroyed}`, colour: '#ff6600' },
-      { label: 'Total Damage', value: `${this.runState.damages.reduce((s, d) => s + d.severity, 0)}%`, colour: totalled ? '#ff2244' : '#00ff88' },
-      { label: 'Time', value: `${(this.runState.timeTakenMs / 1000).toFixed(1)}s`, colour: NEON.text },
+      { label: 'Earnings', value: `${rewards.earnings} coins`, colour: CHROME.inkAccent },
+      { label: 'Obstacles Smashed', value: `${this.runState.obstaclesDestroyed}`, colour: COLOURS.warm },
+      { label: 'Total Damage', value: `${this.runState.damages.reduce((s, d) => s + d.severity, 0)}%`, colour: totalled ? CHROME.inkDanger : CHROME.inkAccent },
+      { label: 'Time', value: `${(this.runState.timeTakenMs / 1000).toFixed(1)}s`, colour: DRIVE.text },
     ];
 
     stats.forEach((stat, i) => {
       const y = statsY + i * 35;
       this.container.add(
         this.add.text(width / 2 - 100, y, stat.label, {
-          fontSize: '15px', fontFamily: FONTS.body, color: NEON.textDim,
+          fontSize: '15px', fontFamily: FONTS.body, color: DRIVE.textDim,
         }).setOrigin(0, 0.5)
       );
       this.container.add(
@@ -1107,7 +1180,7 @@ export class SupplyRunScene extends Phaser.Scene {
         this.container.add(
           this.add.text(width / 2, bonusY + i * 22, bonus, {
             fontSize: '14px', fontFamily: FONTS.body,
-            color: bonus.includes('No Earnings') ? '#ff2244' : '#ffd700',
+            color: bonus.includes('No Earnings') ? CHROME.inkDanger : CHROME.inkAccent,
           }).setOrigin(0.5)
         );
       });
@@ -1120,12 +1193,12 @@ export class SupplyRunScene extends Phaser.Scene {
 
       // Damage bar
       this.container.add(
-        this.add.rectangle(width / 2, dmgY, width - 80, 16, 0x222244).setOrigin(0.5)
+        this.add.rectangle(width / 2, dmgY, width - 80, 16, hexNum(COLOURS.bgDark)).setOrigin(0.5)
       );
       const dmgBarW = Math.min(1, totalDmg / 100) * (width - 80);
       this.container.add(
         this.add.rectangle(width / 2 - (width - 80) / 2, dmgY, dmgBarW, 16,
-          totalDmg > 60 ? NEON.danger : totalDmg > 30 ? NEON.accent : NEON.success
+          totalDmg > 60 ? DRIVE.danger : totalDmg > 30 ? DRIVE.accent : DRIVE.success
         ).setOrigin(0, 0.5)
       );
 
@@ -1135,7 +1208,7 @@ export class SupplyRunScene extends Phaser.Scene {
         const worst = matched[matched.length - 1];
         this.container.add(
           this.add.text(width / 2, dmgY + 18, `${worst.emoji} ${worst.label}`, {
-            fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: NEON.textDim,
+            fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: DRIVE.textDim,
           }).setOrigin(0.5)
         );
       }
@@ -1148,7 +1221,7 @@ export class SupplyRunScene extends Phaser.Scene {
         const star = this.add.circle(
           width / 2 + Math.cos(angle) * 100,
           50 + Math.sin(angle) * 30,
-          7, 0xffd700
+          7, hexNum(COLOURS.warmDark)
         ).setAlpha(0);
         this.container.add(star);
         this.tweens.add({
@@ -1162,16 +1235,16 @@ export class SupplyRunScene extends Phaser.Scene {
 
     // Buttons
     this.container.add(
-      createButton(this, width / 2, height - 85, 'Drive Again', () => {
+      createChromeButton(this, width / 2, height - 85, 'Drive Again', () => {
         this.phase = 'destination_select';
         this.renderView();
-      }, { width: 200, bgColour: '#ff6600', icon: 'icon-play' })
+      }, { width: 200, icon: 'icon-play', variant: 'filled' })
     );
 
     this.container.add(
-      createButton(this, width / 2, height - 35, 'Back to Centre', () => {
+      createChromeButton(this, width / 2, height - 35, 'Back to Centre', () => {
         this.scene.start('GameScene');
-      }, { width: 200, icon: 'icon-back' })
+      }, { width: 200, icon: 'icon-back', iconStyle: 'glyph' })
     );
   }
 }

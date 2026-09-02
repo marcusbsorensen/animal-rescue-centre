@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createChromeTitle } from '../ui/UIButton';
+import {
+  COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum,
+} from '../ui/constants';
+import {
+  createChromeButton, createTextButton, createChromeTitle, createChromePlate,
+} from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { AudioManager } from '../audio/AudioManager';
 import {
@@ -21,24 +25,51 @@ import type { DepotMode, Tile, BoardState, BoardGoal, PowerUpType, DepotState, E
 import type { TileDefinition, RewardItem } from '@arc/game-logic';
 
 // ── Colour palette for the depot ─────────────────────────────
+/**
+ * The Depot's palette — a workbench, not a nightclub.
+ *
+ * This screen used to be deep purple and near-black with a golden accent:
+ * a *fourth* visual language, after the painted world, the chrome surface
+ * and the old glass HUD. It read fine on its own and badly next to
+ * anything else, and a child walks here from a cream corridor.
+ *
+ * So it is the game's own colours now. The browns are sampled from the
+ * corridor art rather than invented — `#b77e4e` is its floor and `#f5e1be`
+ * the light panels on its doors — which is what makes this a room in the
+ * same building rather than a warmer version of the old screen.
+ *
+ * The board is wood and the tiles sit on light panels, so the emoji that
+ * are the actual game read the same way they did on the purple. Everything
+ * that floats above the board is chrome and comes from `CHROME`.
+ */
 const DEPOT_COLOURS = {
-  bg: 0x2d1b4e,          // deep purple
-  boardBg: 0x1a1030,     // darker purple
-  cellBg: 0x3d2a5e,      // cell background
-  cellHover: 0x5a3d8a,   // hover state
-  headerBg: 0x4a2d7a,    // header bar
-  accent: 0xf0c040,      // golden yellow
-  text: '#f5e6ff',
-  textDim: '#b89dd6',
-  green: 0x4adc7b,
-  red: 0xe74c3c,
+  /** The cream every other screen in the game starts from. */
+  bg: hexNum(COLOURS.bg),
+  /** The corridor's floor: the bench you are building on. */
+  boardBg: 0xb77e4e,
+  /** The corridor doors' light panels: a tile to put a thing on. */
+  cellBg: 0xf5e1be,
+  /** One step brighter than a resting cell, so hover reads as lifted. */
+  cellHover: hexNum(COLOURS.bg),
+  /**
+   * A chrome-weight bar, not a dark one. The header carries the mode name
+   * and the score in the same ink as everything else in the game, which is
+   * only possible if it stays light.
+   */
+  headerBg: hexNum(COLOURS.bgDark),
+  /** The brand orange, where the golden yellow was. */
+  accent: hexNum(COLOURS.warm),
+  text: COLOURS.text,
+  textDim: COLOURS.textLight,
+  green: hexNum(COLOURS.primaryDark),
+  red: hexNum(COLOURS.accent),
 };
 
 // ── Power-up visual config ───────────────────────────────────
 const POWER_UP_DISPLAY: Record<PowerUpType, { emoji: string; colour: number }> = {
-  rocket: { emoji: 'BOOST', colour: 0xff6b35 },
-  bomb:   { emoji: 'BOMB', colour: 0xff4444 },
-  rainbow: { emoji: 'WILD', colour: 0xaa55ff },
+  rocket: { emoji: 'BOOST', colour: hexNum(COLOURS.warm) },
+  bomb:   { emoji: 'BOMB', colour: hexNum(COLOURS.accent) },
+  rainbow: { emoji: 'WILD', colour: hexNum(COLOURS.info) },
 };
 
 /**
@@ -186,8 +217,10 @@ export class DepotScene extends Phaser.Scene {
     const firstCy = bandTop + topGap + cardH / 2;
 
     // Subtle gear/cog pattern background
+    // Cogs, at the same weight they had on the purple — the ink changes
+    // side because the ground did.
     const bgPattern = this.add.graphics();
-    bgPattern.lineStyle(1, 0xffffff, 0.03);
+    bgPattern.lineStyle(1, hexNum(COLOURS.text), 0.05);
     for (let gx = 60; gx < width; gx += 120) {
       for (let gy = 30; gy < height; gy += 120) {
         const r = 25 + ((gx + gy) % 3) * 8;
@@ -203,10 +236,14 @@ export class DepotScene extends Phaser.Scene {
     this.container.add(bgPattern);
 
     const modes: { mode: DepotMode; colour: number; label: string; desc: string }[] = [
-      { mode: 'parts_and_tools', colour: 0xff8c35, label: 'Parts & Tools', desc: 'Fix up the rescue van!' },
-      { mode: 'treats_kitchen', colour: 0xd4783c, label: 'Treats Kitchen', desc: 'Bake tasty treats for animals!' },
-      { mode: 'decorations', colour: 0x9b59b6, label: 'Decorations', desc: 'Brighten up the centre!' },
-      { mode: 'medical_supplies', colour: 0xe74c3c, label: 'Medical Supplies', desc: 'Stock up the vet clinic!' },
+      // Four hues, one per mode, and they have to be four — `warm` and
+      // `warmDark` are two shades of the same orange and read as the same
+      // dot at 18px. The labels are what a child reads; these only need to
+      // be telling apart at a glance, which near-identical browns are not.
+      { mode: 'parts_and_tools', colour: hexNum(COLOURS.warm), label: 'Parts & Tools', desc: 'Fix up the rescue van!' },
+      { mode: 'treats_kitchen', colour: hexNum(COLOURS.primaryDark), label: 'Treats Kitchen', desc: 'Bake tasty treats for animals!' },
+      { mode: 'decorations', colour: hexNum(COLOURS.info), label: 'Decorations', desc: 'Brighten up the centre!' },
+      { mode: 'medical_supplies', colour: hexNum(COLOURS.accent), label: 'Medical Supplies', desc: 'Stock up the vet clinic!' },
     ];
 
     modes.forEach((m, i) => {
@@ -218,14 +255,10 @@ export class DepotScene extends Phaser.Scene {
       const unlocked = canAccessMode(m.mode, this.playerLevel);
       const alpha = unlocked ? 1 : 0.4;
 
-      // Card background
-      const card = this.add.graphics();
-      card.fillStyle(0xffffff, 0.18);
-      card.fillRoundedRect(cardX, y - cardH / 2, cardW, cardH, 14);
-      if (unlocked) {
-        card.lineStyle(2, DEPOT_COLOURS.accent, 0.6);
-        card.strokeRoundedRect(cardX, y - cardH / 2, cardW, cardH, 14);
-      }
+      // Card background — a chrome plate, like every other thing in the
+      // game that floats above a surface. It was 18% white glass with a
+      // gold outline, which is the old HUD's language.
+      const card = createChromePlate(this, cx, y, cardW, cardH);
       card.setAlpha(alpha);
       this.container.add(card);
 
@@ -238,7 +271,7 @@ export class DepotScene extends Phaser.Scene {
       this.container.add(
         this.add.text(cardX + 70, y - 12, m.label, {
           fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
-          color: unlocked ? DEPOT_COLOURS.text : '#666666',
+          color: unlocked ? DEPOT_COLOURS.text : COLOURS.textLight,
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
 
@@ -246,7 +279,7 @@ export class DepotScene extends Phaser.Scene {
       this.container.add(
         this.add.text(cardX + 70, y + 14, unlocked ? m.desc : `Unlocks at level ${m.mode === 'medical_supplies' ? 15 : 1}`, {
           fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
-          color: unlocked ? DEPOT_COLOURS.textDim : '#555555',
+          color: unlocked ? DEPOT_COLOURS.textDim : COLOURS.textLight,
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
 
@@ -333,7 +366,7 @@ export class DepotScene extends Phaser.Scene {
     // Score
     this.container.add(
       this.add.text(width - 15, headerH / 2 - 10, `Score: ${this.boardState?.score ?? 0}`, {
-        fontSize: '16px', fontFamily: FONTS.body, color: '#f0c040',
+        fontSize: '16px', fontFamily: FONTS.body, color: CHROME.inkAccent,
       }).setOrigin(1, 0.5)
     );
 
@@ -402,9 +435,13 @@ export class DepotScene extends Phaser.Scene {
 
     // "MATCH THESE:" label above the target cards
     this.container.add(
-      this.add.text(width / 2, y - 30, 'MATCH THESE:', {
+      // y - 42, not y - 30. The cards are 58 tall and centred on y, so
+      // their top edge is at y - 29 and a 12px label centred at y - 30 ran
+      // five pixels into it. It was equally wrong on the purple and simply
+      // did not show: pale gold on dark, over a 10%-white card.
+      this.add.text(width / 2, y - 42, 'MATCH THESE:', {
         fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
-        color: '#f0c040', resolution: TEXT_RESOLUTION,
+        color: CHROME.inkAccent, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
 
@@ -421,10 +458,13 @@ export class DepotScene extends Phaser.Scene {
       const progress = `${Math.min(goal.currentCount, goal.targetCount)}/${goal.targetCount}`;
 
       // Card background — makes the target icon unmistakable
+      // A chrome plate, with a green rim once the target is met — the one
+      // place a fill is allowed to change, because "done" is the thing this
+      // card exists to say and the count beside it says it too.
       const card = this.add.graphics();
-      card.fillStyle(done ? 0x27ae60 : 0xffffff, done ? 0.25 : 0.1);
+      card.fillStyle(CHROME.fill, CHROME.fillAlpha);
       card.fillRoundedRect(x - cardW / 2, y - cardH / 2, cardW, cardH, 10);
-      card.lineStyle(2, done ? 0x27ae60 : 0xf0c040, done ? 1 : 0.7);
+      card.lineStyle(2, done ? DEPOT_COLOURS.green : CHROME.stroke, done ? 1 : CHROME.strokeAlpha);
       card.strokeRoundedRect(x - cardW / 2, y - cardH / 2, cardW, cardH, 10);
       this.container.add(card);
 
@@ -435,14 +475,24 @@ export class DepotScene extends Phaser.Scene {
           }).setOrigin(0.5)
         );
       } else {
-        this.container.add(this.add.circle(x, y - 10, 16, 0x9b59b6));
+        // Every board's first goal is `clear_count` — "clear any N tiles" —
+        // and it carries no target tile, so this branch is the one a child
+        // meets every single game. It drew an anonymous coloured circle,
+        // which asks a question rather than answering one. The word does
+        // the job the emoji does on the other cards.
+        this.container.add(
+          this.add.text(x, y - 10, goal.type === 'clear_count' ? 'Any' : '?', {
+            fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
+            color: CHROME.inkMuted, resolution: TEXT_RESOLUTION,
+          }).setOrigin(0.5)
+        );
       }
 
       this.container.add(
         this.add.text(x, y + 18, progress, {
           fontSize: '15px', fontFamily: FONTS.body, fontStyle: 'bold',
           resolution: TEXT_RESOLUTION,
-          color: done ? '#4adc7b' : '#ffffff',
+          color: done ? CHROME.inkAccent : CHROME.ink,
         }).setOrigin(0.5)
       );
     });
@@ -680,8 +730,11 @@ export class DepotScene extends Phaser.Scene {
       fontSize: extra ? '18px' : '15px',
       fontFamily: FONTS.title,
       fontStyle: 'bold',
-      color: extra ? '#f0c040' : '#ffffff',
-      shadow: { offsetX: 0, offsetY: 0, color: '#f0c040', blur: 6, fill: true },
+      // Dark ink with a cream halo, which is the way round that works over
+      // both grounds this floats across — the wood bench and the light
+      // cells. It was white type with a gold glow, which needed the purple.
+      color: extra ? CHROME.inkAccent : CHROME.ink,
+      shadow: { offsetX: 0, offsetY: 0, color: COLOURS.bg, blur: 6, fill: true },
     }).setOrigin(0.5);
     this.container.add(popup);
 
@@ -732,7 +785,7 @@ export class DepotScene extends Phaser.Scene {
     // Score summary
     this.container.add(
       this.add.text(width / 2, 100, `Score: ${this.boardState?.score ?? 0}`, {
-        fontSize: '22px', fontFamily: FONTS.title, color: '#f0c040',
+        fontSize: '22px', fontFamily: FONTS.title, color: CHROME.inkAccent,
       }).setOrigin(0.5)
     );
 
@@ -753,18 +806,18 @@ export class DepotScene extends Phaser.Scene {
 
       // Row pill background
       const row = this.add.graphics();
-      row.fillStyle(done ? 0x27ae60 : 0xe74c3c, 0.18);
+      row.fillStyle(done ? DEPOT_COLOURS.green : DEPOT_COLOURS.red, 0.14);
       row.fillRoundedRect(width / 2 - rowW / 2, cy - 22, rowW, 44, 22);
       this.container.add(row);
 
       // Status circle
       const statusCircle = this.add.circle(width / 2 - rowW / 2 + 22, cy, 14,
-        done ? 0x27ae60 : 0xe74c3c);
+        done ? DEPOT_COLOURS.green : DEPOT_COLOURS.red);
       this.container.add(statusCircle);
       this.container.add(
         this.add.text(width / 2 - rowW / 2 + 22, cy, done ? '✓' : '×', {
           fontSize: '20px', fontFamily: FONTS.body, fontStyle: 'bold',
-          color: '#ffffff', resolution: TEXT_RESOLUTION,
+          color: COLOURS.bg, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
 
@@ -780,7 +833,7 @@ export class DepotScene extends Phaser.Scene {
         this.add.text(width / 2 + rowW / 2 - 22, cy,
           `${goal.currentCount}/${goal.targetCount}`, {
           fontSize: '17px', fontFamily: FONTS.body, fontStyle: 'bold',
-          color: done ? '#4adc7b' : '#ffcfcf', resolution: TEXT_RESOLUTION,
+          color: done ? CHROME.inkAccent : CHROME.inkDanger, resolution: TEXT_RESOLUTION,
         }).setOrigin(1, 0.5)
       );
     });
@@ -806,9 +859,7 @@ export class DepotScene extends Phaser.Scene {
         const ry = rewardsY + 40 + row * 70;
 
         // Reward card
-        const cardGfx = this.add.graphics();
-        cardGfx.fillStyle(0xffffff, 0.1);
-        cardGfx.fillRoundedRect(rx - 30, ry - 20, 60, 58, 8);
+        const cardGfx = createChromePlate(this, rx, ry + 9, 60, 58, { radius: 8 });
         this.container.add(cardGfx);
 
         this.container.add(
@@ -833,7 +884,7 @@ export class DepotScene extends Phaser.Scene {
         const star = this.add.circle(
           width / 2 + Math.cos(angle) * 90,
           50 + Math.sin(angle) * 30,
-          6, 0xf0c040
+          6, DEPOT_COLOURS.accent
         ).setAlpha(0);
         this.container.add(star);
         this.tweens.add({
@@ -847,16 +898,16 @@ export class DepotScene extends Phaser.Scene {
 
     // Buttons
     this.container.add(
-      createButton(this, width / 2, height - 85, 'Play Again', () => {
+      createChromeButton(this, width / 2, height - 85, 'Play Again', () => {
         this.phase = 'mode_select';
         this.renderView();
-      }, { width: 200, bgColour: '#4a2d7a' })
+      }, { width: 200, variant: 'filled' })
     );
 
     this.container.add(
-      createButton(this, width / 2, height - 35, 'Back to Centre', () => {
+      createChromeButton(this, width / 2, height - 35, 'Back to Centre', () => {
         this.scene.start('GameScene');
-      }, { width: 200, icon: 'icon-back' })
+      }, { width: 200, icon: 'icon-back', iconStyle: 'glyph' })
     );
   }
 }
