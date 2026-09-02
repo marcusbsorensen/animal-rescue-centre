@@ -19,7 +19,7 @@ import {
 import { showToast } from '../ui/ErrorOverlay';
 import { createAnimalSprite } from '../ui/sprites';
 import {
-  COLOURS, FONTS, TEXT_RESOLUTION, EDGE_CONTROL_INSET,
+  COLOURS, FONTS, TEXT_RESOLUTION, EDGE_CONTROL_INSET, TITLE_CY,
 } from '../ui/constants';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
 import { createWeatherParticles, type WeatherParticleHandle } from '../ui/WeatherParticles';
@@ -218,7 +218,6 @@ function renderZone(
   // and room already moved; the garden was the odd one out. `TITLE_CY`
   // matches theirs, clear of the HUD's second row at y 78..106.
   const zoneLabel = zone === 'lawn' ? 'Garden — Lawn' : 'Garden — Quiet nook';
-  const TITLE_CY = 45;
   container.add(
     createChromeTitle(scene, play.x + play.w / 2, TITLE_CY, zoneLabel, {
       icon: 'icon-garden',

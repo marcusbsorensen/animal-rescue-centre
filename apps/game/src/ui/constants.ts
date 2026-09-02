@@ -110,9 +110,20 @@ export const CHROME = {
   /** Breathing room between the plate's edge and whatever sits on it. */
   padX: 18,
   padY: 12,
-  /** Ink for text on the plate. Both clear 4.5:1 against the fill. */
+  /**
+   * The inks that may go on this plate. All three clear 4.5:1 against the
+   * fill, which a test holds.
+   *
+   * `inkAccent` is `primaryDark`, not `primary`, and that is the whole
+   * reason it exists: the brand green measures **4.11:1** on this cream
+   * and does not pass. It is the green the kitchen sets "Everyone is
+   * well-fed!" in, so the first panel converted onto this surface would
+   * have carried a failing heading, and so would the fourteen after it.
+   * Reach for these rather than picking from `COLOURS` at the call site.
+   */
   ink: COLOURS.text,
   inkMuted: COLOURS.textLight,
+  inkAccent: COLOURS.primaryDark,
 } as const;
 
 /**
@@ -199,6 +210,22 @@ export const MIN_TAP = 48;
 
 /** Minimum clear space between two adjacent interactive elements (T4). */
 export const MIN_TAP_GAP = 12;
+
+/**
+ * Centre-line for a view's title plate.
+ *
+ * The HUD constrains itself to the play area's origin and leaves a gap in
+ * the middle for exactly this (see `HUDView`), and the gap is in the
+ * *first* row — the second carries the phase and weather pills across
+ * y 78..106 and is drawn after the view container, so it lands on top of
+ * anything a view puts there.
+ *
+ * Corridor, room and garden each declared their own `const TITLE_CY = 45`,
+ * which is three copies of one shared constraint and precisely how the
+ * garden's title came to be centred on `width` while its siblings used the
+ * play origin. One number, one place.
+ */
+export const TITLE_CY = 45;
 
 /**
  * Distance from an edge to the *centre* of a control anchored against it.

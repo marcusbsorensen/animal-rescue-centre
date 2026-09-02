@@ -73,20 +73,27 @@ test('the screens a child crosses', async ({ page }) => {
 
   // Drive the views from the scene rather than by tapping painted signs,
   // which move with the layout and would make this brittle.
-  const go = async (mode: string, name: string): Promise<void> => {
-    await page.evaluate((m) => {
+  //
+  // `room` needs a species as well as a mode. Setting only `viewMode` left
+  // `currentRoomSpecies` undefined and `renderRoom` threw on
+  // `species.charAt`, which is why the species room went unaudited on
+  // 2026-08-31 and why every screen after it — the clean corridor — went
+  // unshot too. One field, two screens back.
+  const go = async (mode: string, name: string, species?: string): Promise<void> => {
+    await page.evaluate(({ m, sp }) => {
       const g = (window as unknown as { __PHASER_GAME__: Phaser.Game }).__PHASER_GAME__;
       const s = g.scene.getScene('GameScene') as unknown as {
-        viewMode: string; renderView: () => void;
+        viewMode: string; currentRoomSpecies?: string; renderView: () => void;
       };
       s.viewMode = m;
+      if (sp) s.currentRoomSpecies = sp;
       s.renderView();
-    }, mode);
+    }, { m: mode, sp: species });
     await shoot(page, name);
   };
 
   await go('kitchen', '07-kitchen');
   await go('garden', '08-garden');
-  await go('room', '09-room');
+  await go('room', '09-room', 'cat');
   await go('corridor', '10-corridor-clean');
 });

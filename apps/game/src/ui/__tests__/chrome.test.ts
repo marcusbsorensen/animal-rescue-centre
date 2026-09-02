@@ -69,11 +69,29 @@ describe('the chrome surface', () => {
    * close to illegible by eye; if the plate's own ink does not clear AA,
    * the fix has moved the problem rather than solved it.
    */
-  it('carries both inks at AA or better', () => {
-    expect(contrastRatio(CHROME.fill, hexNum(CHROME.ink)))
-      .toBeGreaterThanOrEqual(AA);
-    expect(contrastRatio(CHROME.fill, hexNum(CHROME.inkMuted)))
-      .toBeGreaterThanOrEqual(AA);
+  it('carries every one of its inks at AA or better', () => {
+    for (const ink of [CHROME.ink, CHROME.inkMuted, CHROME.inkAccent]) {
+      expect(contrastRatio(CHROME.fill, hexNum(ink))).toBeGreaterThanOrEqual(AA);
+    }
+  });
+
+  /**
+   * Why `inkAccent` is `primaryDark` and not `primary`.
+   *
+   * The brand green is the obvious thing to reach for on a plate — it is
+   * what the kitchen sets "Everyone is well-fed!" in today — and it does
+   * not pass on this cream. Measured, not asserted from taste. Held here
+   * so that a later edit swapping the accent back to `primary` because it
+   * looks brighter fails instead of shipping.
+   *
+   * The green is fine where it is on darker ground; this is a statement
+   * about the pairing, not about the colour.
+   */
+  it('rejects the brand green as plate ink — it misses AA on this fill', () => {
+    const measured = contrastRatio(CHROME.fill, hexNum(COLOURS.primary));
+    expect(measured).toBeLessThan(AA);
+    expect(measured).toBeGreaterThan(4);
+    expect(CHROME.inkAccent).not.toBe(COLOURS.primary);
   });
 
   it('keeps the shadow behind the plate, not around it', () => {
