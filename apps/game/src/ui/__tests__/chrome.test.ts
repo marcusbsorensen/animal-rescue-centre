@@ -132,6 +132,91 @@ describe('the chrome surface', () => {
   });
 });
 
+/**
+ * `createChromeButton`'s two weights, held as arithmetic.
+ *
+ * The button is the piece of chrome a child actually touches, and the one
+ * place where "one surface" collides with something real: a screen of
+ * identical cream buttons tells her nothing about which one the screen is
+ * for. The answer is not a second surface but the same one read backwards —
+ * `filled` puts the accent in the fill and the cream in the type.
+ *
+ * That choice is what makes these tests short. Every colour a chrome button
+ * can draw is already in `CHROME`, so the pairs below are the plate's own
+ * ink/fill pairs with the arguments swapped, and contrast does not care
+ * which way round you measure. The tests exist so that a later variant
+ * reaching outside those four inks for a fill fails here rather than
+ * shipping a button nobody can read.
+ */
+describe('the chrome button', () => {
+  it('reads as well filled as it does on paper — the pair is symmetric', () => {
+    // Cream type on an accent fill is `inkAccent` on cream, backwards.
+    // The plate's AA guarantee is therefore the filled button's too, and
+    // this is the assertion that says so out loud.
+    for (const accent of [CHROME.inkAccent, CHROME.inkDanger]) {
+      const asInk = contrastRatio(CHROME.fill, hexNum(accent));
+      const asFill = contrastRatio(hexNum(accent), hexNum(COLOURS.bg));
+      expect(asFill).toBeCloseTo(asInk, 10);
+      expect(asFill).toBeGreaterThanOrEqual(AA);
+    }
+  });
+
+  /**
+   * The cream the type is set in has to be the cream the plate is drawn
+   * in, or the two weights are two surfaces wearing the same name. It is
+   * one token — `COLOURS.bg` — appearing as a fill in one variant and as
+   * ink in the other.
+   */
+  it('sets its filled type in the plate\'s own cream', () => {
+    expect(hexNum(COLOURS.bg)).toBe(CHROME.fill);
+  });
+
+  /**
+   * Why `filled` draws no hairline.
+   *
+   * The stroke exists to separate cream from cream — a plate on the
+   * kitchen's cream wall would otherwise have no edge at all — and it is
+   * chosen to be *barely* there: 1.57:1 against the fill, a hairline you
+   * read as an edge rather than as a line.
+   *
+   * On an accent fill the same colour measures 3.9:1 and up, two and a
+   * half times the separation. It stops being a hairline and becomes a
+   * pale outline drawn round a dark shape, which is decoration — and this
+   * surface's whole rule is that decoration is not how it carries meaning.
+   * A dark fill already separates itself from anything it sits on.
+   *
+   * Measured rather than asserted, so that adding the stroke back for
+   * symmetry has to argue with a number.
+   */
+  it('would draw an outline, not a hairline, on a filled button', () => {
+    const onPaper = contrastRatio(CHROME.fill, CHROME.stroke);
+    expect(onPaper).toBeLessThan(2);
+
+    for (const accent of [CHROME.inkAccent, CHROME.inkDanger]) {
+      expect(contrastRatio(hexNum(accent), CHROME.stroke)).toBeGreaterThan(onPaper * 2);
+    }
+  });
+
+  /**
+   * A button is padded for a finger, not for the words.
+   *
+   * `CHROME.padY` is 12 and the button uses 14. The difference is four
+   * pixels of drawn height on every button in the game, all of which
+   * already sit under `MIN_TAP` before the hit area is floored — so the
+   * plate's value would be a number matching a number at the child's
+   * expense. Recorded here because "these two constants disagree" is
+   * exactly the kind of thing a later tidy-up quietly resolves the wrong
+   * way.
+   */
+  it('pads taller than a title plate, and stays short of the tap floor', () => {
+    const BUTTON_PAD_Y = 14;
+    expect(BUTTON_PAD_Y).toBeGreaterThan(CHROME.padY);
+    // A 22px label measures about 28px tall in the rounded face; the drawn
+    // height is that plus twice the padding, and still under the floor.
+    expect(28 + BUTTON_PAD_Y * 2).toBeLessThan(MIN_TAP + 16);
+  });
+});
+
 describe('the chrome type stack', () => {
   /**
    * The sign screens carry 500 `font-family` declarations resolving to 39

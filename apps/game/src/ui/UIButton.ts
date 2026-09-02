@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, CHROME } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, CHROME, hexNum } from './constants';
 
 /**
  * Polished rounded button with shadow and 3D bevel effect.
@@ -551,6 +551,156 @@ export function createChromeCircleButton(
       targets: container,
       scaleX: 0.92,
       scaleY: 0.92,
+      duration: 60,
+      yoyo: true,
+      onComplete: onClick,
+    });
+  });
+
+  return container;
+}
+
+/**
+ * A button on the chrome surface — the non-diegetic replacement for
+ * `createButton`.
+ *
+ * `createButton` is the largest remaining piece of the audit's first
+ * finding, and the piece a child touches most: 56 call sites across 22
+ * files, at least one on every screen. It draws a bevel — a lighter strip
+ * along the top, a darker one along the bottom, a white rim — which is the
+ * painted world's vocabulary on an element that floats above the world.
+ * Worse, each caller picked its own `bgColour`, so the game carries a dozen
+ * button colours whose only shared rule is that somebody liked them.
+ *
+ * **Two weights, one surface.** `plate` is the cream paper every other
+ * chrome element already uses. `filled` is the same plate with the ink and
+ * the paper swapped — the accent as the fill, the cream as the type. That
+ * is one surface read two ways rather than a second surface, and it gives
+ * a screen exactly one level of emphasis to spend on its main action.
+ *
+ * The swap is also why `filled` needs no contrast work of its own: cream on
+ * `inkAccent` is the same pair as `inkAccent` on cream, read backwards, and
+ * `chrome.test.ts` already holds that pair at AA. A test says so, so that
+ * a later edit introducing a third fill has to answer for it.
+ *
+ * **Padding stays at the button's numbers, not the plate's.** `CHROME.padY`
+ * is 12 and this uses 14, deliberately: a title plate is padded so the words
+ * can breathe, a button is padded so a finger can land. Dropping to the
+ * plate's value would take 4px off the drawn height of every button in the
+ * game — all of them already under `MIN_TAP` — to make a number match.
+ */
+export function createChromeButton(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  label: string,
+  onClick: () => void,
+  options?: {
+    fontSize?: string;
+    width?: number;
+    height?: number;
+    radius?: number;
+    icon?: string;       // texture key for a custom icon (e.g. 'icon-play')
+    iconSize?: number;   // display size of icon in px (default 24)
+    /**
+     * `plate` (default) is paper; `filled` is paper and ink swapped.
+     *
+     * One `filled` per screen, on the action the screen exists for —
+     * "Let's go!", "Start Sorting!", "Done playing!". Everything else is
+     * a plate. Two filled buttons side by side spend the emphasis and
+     * leave the child no clue which one the screen wants.
+     */
+    variant?: 'plate' | 'filled';
+    /**
+     * For the rare control that undoes or ends something. Same rule as
+     * `createChromeTitle`'s tone: it moves the ink, never the surface, and
+     * it reinforces a label that already says so. Nothing in the game
+     * reads only as red.
+     */
+    tone?: 'default' | 'danger';
+  }
+): Phaser.GameObjects.Container {
+  const fontSize = options?.fontSize ?? '22px';
+  const radius = options?.radius ?? CHROME.radius;
+  const iconSize = options?.iconSize ?? 24;
+  const filled = options?.variant === 'filled';
+  const accent = options?.tone === 'danger' ? CHROME.inkDanger : CHROME.inkAccent;
+
+  // Filled swaps the two: the accent becomes the surface, the cream the
+  // type. Plate keeps the paper and puts the accent nowhere — a plain
+  // button's label is `ink`, because on a screen of plates the one that
+  // differs should be the one that matters.
+  const fillNum = filled ? hexNum(accent) : CHROME.fill;
+  const inkHex = filled
+    ? COLOURS.bg
+    : (options?.tone === 'danger' ? CHROME.inkDanger : CHROME.ink);
+
+  const text = scene.add.text(0, 0, label, {
+    fontSize,
+    fontFamily: FONTS.ui,
+    fontStyle: 'bold',
+    color: inkHex,
+    resolution: TEXT_RESOLUTION,
+  }).setOrigin(0.5);
+
+  let iconSprite: Phaser.GameObjects.Image | undefined;
+  let iconOffset = 0;
+  if (options?.icon && scene.textures.exists(options.icon)) {
+    iconSprite = scene.add.image(0, 0, options.icon).setOrigin(0.5);
+    iconSprite.setScale(iconSize / Math.max(iconSprite.width, iconSprite.height));
+    iconOffset = (iconSize + 6) / 2;
+    text.setX(iconOffset);
+    iconSprite.setX(-text.width / 2 - 6 + iconOffset - iconSize / 2);
+  }
+
+  const padX = 28;
+  const padY = 14;
+  const contentW = text.width + (iconSprite ? iconSize + 6 : 0);
+  const w = Math.max(contentW + padX * 2, options?.width ?? 200);
+  const h = options?.height ?? text.height + padY * 2;
+
+  const gfx = scene.add.graphics();
+
+  gfx.fillStyle(CHROME.shadowColour, CHROME.shadowAlpha);
+  gfx.fillRoundedRect(-w / 2 + CHROME.shadowX - 1, -h / 2 + CHROME.shadowY - 1, w, h, radius);
+
+  gfx.fillStyle(fillNum, filled ? 1 : CHROME.fillAlpha);
+  gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
+
+  // The hairline is what separates cream from cream. A filled button
+  // separates itself from anything it sits on, and outlining it in the
+  // plate's warm grey would draw a ring around a dark shape rather than
+  // an edge on a light one.
+  if (!filled) {
+    gfx.lineStyle(CHROME.strokeWidth, CHROME.stroke, CHROME.strokeAlpha);
+    gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
+  }
+
+  // Hit area floored at MIN_TAP, per the idiom documented on MIN_TAP. The
+  // drawn button keeps the size the caller asked for; only the region that
+  // answers a tap grows, which costs nothing visible.
+  const hitArea = scene.add.rectangle(
+    0, 0, Math.max(w, MIN_TAP), Math.max(h, MIN_TAP), 0x000000, 0,
+  ).setInteractive({ useHandCursor: true });
+
+  const children: Phaser.GameObjects.GameObject[] = [gfx, text];
+  if (iconSprite) children.push(iconSprite);
+  children.push(hitArea);
+
+  const container = scene.add.container(x, y, children);
+  // Graphics contributes nothing to getBounds(), so a caller measuring this
+  // to stack the next row gets the height of the *text* and lands inside
+  // the button. `createButton` never published its size and every caller
+  // hardcoded round it; this one does.
+  container.setSize(w, h + CHROME.shadowY);
+
+  hitArea.on('pointerover', () => container.setScale(1.03));
+  hitArea.on('pointerout', () => container.setScale(1));
+  hitArea.on('pointerdown', () => {
+    scene.tweens.add({
+      targets: container,
+      scaleX: 0.96,
+      scaleY: 0.96,
       duration: 60,
       yoyo: true,
       onComplete: onClick,
