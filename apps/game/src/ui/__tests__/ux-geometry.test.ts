@@ -130,7 +130,7 @@ describe('overlappingControls — finding 7, two controls sharing a region', () 
   });
 });
 
-describe('textCutByControls — finding 9 and the createButton trap', () => {
+describe('textCutByControls — finding 9 and the chrome-button trap', () => {
   it('catches the rail card story line printed under its own button', () => {
     // LeftRailView: two lines of story reached y+68 while the Welcome
     // button's top edge was at y+60, so the second line was under it.
@@ -150,7 +150,7 @@ describe('textCutByControls — finding 9 and the createButton trap', () => {
   });
 
   it('leaves text a control fully covers alone, whatever the tree says', () => {
-    // `createButton` adds the hit rectangle and the label to the same
+    // `createChromeButton` adds the hit rectangle and the label to the same
     // container as siblings, so a label and a stray control on top of
     // text are indistinguishable from here. Scoring containment turned
     // this check into 140 findings of buttons wearing their own labels.
@@ -160,7 +160,7 @@ describe('textCutByControls — finding 9 and the createButton trap', () => {
   });
 
   it('catches a label wider than the button that holds it', () => {
-    // createButton sizes to max(text + icon + 56, width), so a long label
+    // createChromeButton sizes to max(text + icon + 56, width), so a long label
     // silently widens the button — invisible in a centred row, an overlap
     // in a fixed-cell grid. Here the grid cell did not grow with it.
     const label = r('Vet (Sniffly Nose)', 20, 210, 196, 20);

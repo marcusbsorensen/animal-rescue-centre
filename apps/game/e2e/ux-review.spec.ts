@@ -763,7 +763,7 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
       // nothing here. What does score: text that a control covers only
       // part of. That is either the rail card's second story line printed
       // under its own Welcome button, or a label wider than the button
-      // that grew to hold it — createButton adds 28px of padding a side
+      // that grew to hold it — createChromeButton adds 28px of padding a side
       // and silently widens past the width it was asked for.
       const coveredText = textCutByControls(
         texts.map((t) => ({ ...t, label: t.text.slice(0, 30) })), controls,

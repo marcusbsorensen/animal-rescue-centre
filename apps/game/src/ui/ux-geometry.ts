@@ -283,7 +283,7 @@ export interface CutText {
  * Text a control covers *part* of.
  *
  * Containment scores nothing, and cannot: in this codebase a button's
- * label is a *sibling* of its hit rectangle — `createButton` adds both to
+ * label is a *sibling* of its hit rectangle — `createChromeButton` adds both to
  * the same container — so the tree cannot tell a label from a control
  * dropped on top of unrelated words. Trying it turned this check into 140
  * findings of buttons wearing their own labels.
@@ -292,7 +292,7 @@ export interface CutText {
  * run two lines of story to y+68 under a Welcome button whose top edge
  * was at y+60, so the second line — the only reason a child reads the
  * card — was printed underneath it. And a label wider than the cell that
- * holds it, which is what `createButton`'s 28px-a-side padding produces
+ * holds it, which is what `createChromeButton`'s 28px-a-side padding produces
  * without saying so.
  */
 export function textCutByControls(

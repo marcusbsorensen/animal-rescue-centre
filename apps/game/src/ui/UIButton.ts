@@ -2,141 +2,6 @@ import Phaser from 'phaser';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, CHROME, hexNum } from './constants';
 
 /**
- * Polished rounded button with shadow and 3D bevel effect.
- *
- * Looks like a real game button — rounded corners, soft drop shadow,
- * lighter top edge + darker bottom edge for depth.
- */
-export function createButton(
-  scene: Phaser.Scene,
-  x: number,
-  y: number,
-  label: string,
-  onClick: () => void,
-  options?: {
-    fontSize?: string;
-    bgColour?: string;
-    width?: number;
-    height?: number;
-    radius?: number;
-    icon?: string;       // texture key for a custom icon (e.g. 'icon-play')
-    iconSize?: number;   // display size of icon in px (default 24)
-  }
-): Phaser.GameObjects.Container {
-  const fontSize = options?.fontSize ?? '22px';
-  const bgHex = options?.bgColour ?? COLOURS.primaryDark;
-  const radius = options?.radius ?? 16;
-  const iconSize = options?.iconSize ?? 24;
-
-  const text = scene.add.text(0, -1, label, {
-    fontSize,
-    fontFamily: FONTS.body,
-    fontStyle: 'bold',
-    color: COLOURS.white,
-    shadow: { offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.3)', blur: 2, fill: true },
-    resolution: TEXT_RESOLUTION,
-  }).setOrigin(0.5);
-
-  // Optional icon to the left of text
-  let iconSprite: Phaser.GameObjects.Image | undefined;
-  let iconOffset = 0;
-  if (options?.icon && scene.textures.exists(options.icon)) {
-    iconSprite = scene.add.image(0, -1, options.icon).setOrigin(0.5);
-    const scale = iconSize / Math.max(iconSprite.width, iconSprite.height);
-    iconSprite.setScale(scale);
-    iconOffset = (iconSize + 6) / 2; // half the icon+gap for centering
-    text.setX(iconOffset);
-    iconSprite.setX(-text.width / 2 - 6 + iconOffset - iconSize / 2);
-  }
-
-  const padX = 28;
-  const padY = 14;
-  const contentW = text.width + (iconSprite ? iconSize + 6 : 0);
-  const w = Math.max(contentW + padX * 2, options?.width ?? 200);
-  const h = options?.height ?? text.height + padY * 2;
-
-  const baseColour = Phaser.Display.Color.HexStringToColor(bgHex);
-  const baseNum = baseColour.color;
-
-  // Lighten / darken for bevel
-  const lighten = (c: Phaser.Display.Color, amt: number) => {
-    return Phaser.Display.Color.GetColor(
-      Math.min(255, c.red + amt),
-      Math.min(255, c.green + amt),
-      Math.min(255, c.blue + amt)
-    );
-  };
-  const darken = (c: Phaser.Display.Color, amt: number) => {
-    return Phaser.Display.Color.GetColor(
-      Math.max(0, c.red - amt),
-      Math.max(0, c.green - amt),
-      Math.max(0, c.blue - amt)
-    );
-  };
-
-  const topColour = lighten(baseColour, 25);
-  const bottomColour = darken(baseColour, 35);
-
-  const gfx = scene.add.graphics();
-
-  // Drop shadow
-  gfx.fillStyle(0x000000, 0.22);
-  gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 3, w, h, radius);
-
-  // Main body
-  gfx.fillStyle(baseNum, 1);
-  gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
-
-  // Top highlight (lighter strip inside top — subtle)
-  gfx.fillStyle(topColour, 0.3);
-  gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 1, w - 4, h * 0.38, { tl: radius - 1, tr: radius - 1, bl: 0, br: 0 });
-
-  // Bottom darken (darker strip inside bottom)
-  gfx.fillStyle(bottomColour, 0.35);
-  gfx.fillRoundedRect(-w / 2 + 2, h * 0.05, w - 4, h * 0.42 - 1, { tl: 0, tr: 0, bl: radius - 1, br: radius - 1 });
-
-  // Thin white outline for crispness
-  gfx.lineStyle(1.5, 0xffffff, 0.3);
-  gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
-
-  // Hit area (invisible rect for pointer events), floored at MIN_TAP.
-  //
-  // The drawn button keeps whatever size the caller asked for — the default
-  // height is text.height + 28, which lands at 44-46px for the font sizes in
-  // use, just under the target floor. Growing the art instead would nudge
-  // every layout in the game for the sake of two pixels; growing only the
-  // region that answers a tap costs nothing visible.
-  const hitArea = scene.add.rectangle(
-    0, 0, Math.max(w, MIN_TAP), Math.max(h, MIN_TAP), 0x000000, 0,
-  ).setInteractive({ useHandCursor: true });
-
-  const children: Phaser.GameObjects.GameObject[] = [gfx, text];
-  if (iconSprite) children.push(iconSprite);
-  children.push(hitArea);
-  const container = scene.add.container(x, y, children);
-
-  hitArea.on('pointerover', () => {
-    container.setScale(1.03);
-  });
-  hitArea.on('pointerout', () => {
-    container.setScale(1);
-  });
-  hitArea.on('pointerdown', () => {
-    // Quick press animation
-    scene.tweens.add({
-      targets: container,
-      scaleX: 0.96,
-      scaleY: 0.96,
-      duration: 60,
-      yoyo: true,
-      onComplete: onClick,
-    });
-  });
-
-  return container;
-}
-
-/**
  * Small text-only button (for links, "Log out", secondary actions).
  * Now with subtle underline effect on hover for a polished feel.
  */
@@ -471,16 +336,16 @@ export function createChromeCircleButton(
 }
 
 /**
- * A button on the chrome surface — the non-diegetic replacement for
- * `createButton`.
+ * A button on the chrome surface — the only button in the game.
  *
- * `createButton` is the largest remaining piece of the audit's first
- * finding, and the piece a child touches most: 56 call sites across 22
- * files, at least one on every screen. It draws a bevel — a lighter strip
- * along the top, a darker one along the bottom, a white rim — which is the
- * painted world's vocabulary on an element that floats above the world.
- * Worse, each caller picked its own `bgColour`, so the game carries a dozen
- * button colours whose only shared rule is that somebody liked them.
+ * It replaced `createButton`, which was the largest single piece of the
+ * audit's first finding and the piece a child touches most: 56 call sites
+ * across 22 files, at least one on every screen. That drew a bevel — a
+ * lighter strip along the top, a darker one along the bottom, a white rim
+ * — which is the painted world's vocabulary on an element that floats
+ * above the world. Worse, each caller picked its own `bgColour`, so the
+ * game carried a dozen button colours whose only shared rule was that
+ * somebody had liked them. It is deleted; this is what every screen uses.
  *
  * **Two weights, one surface.** `plate` is the cream paper every other
  * chrome element already uses. `filled` is the same plate with the ink and
@@ -635,8 +500,8 @@ export function createChromeButton(
   const container = scene.add.container(x, y, children);
   // Graphics contributes nothing to getBounds(), so a caller measuring this
   // to stack the next row gets the height of the *text* and lands inside
-  // the button. `createButton` never published its size and every caller
-  // hardcoded round it; this one does.
+  // the button. The bevelled button this replaced never published its
+  // size and every caller hardcoded round it; this one does.
   container.setSize(w, h + CHROME.shadowY);
 
   hitArea.on('pointerover', () => container.setScale(1.03));
