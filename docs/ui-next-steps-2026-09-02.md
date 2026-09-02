@@ -60,11 +60,23 @@ Two things fell out of the same probe:
   So Chrome captures at that size are geometrically faithful, which is
   what makes the whole capture workflow trustworthy for layout.
 
-**Still open:** nothing has been *looked at* on device past the welcome
-screen. Reaching the game views needs a login, and Claude will not type
-credentials or create an account. Either Marcus logs in and hands the
-session over, or the layout claim rests on the geometry above — which is
-a good argument, not a sighting.
+**Seen on device 2026-09-02**, iPhone 17 Pro simulator, landscape:
+corridor, Dog Room, kitchen and garden all render the chrome surface
+correctly in the rounded face. The kitchen's §6 fix is visible — art
+stops at the play column instead of running under the rail — and the
+garden's arrows sit clear of both edges. Nothing differs from the Chrome
+captures, which is the useful result: the harness can be trusted.
+
+Reached by seeding the session with the harness's own `mintRealSession`
+into a temporary `public/__devsession.js`, the app-side equivalent of
+`installSession`. Probe and seed both reverted; no token was committed.
+
+Two things only the device showed:
+- **The animal details card is white glass** with three flat buttons —
+  one of the fourteen in-game overlays the audit never covered, and a
+  large piece of §1 still outstanding.
+- **The kitchen's Garden button icon really is broken**, not a capture
+  artefact: two dots where the walk glyph should be. See item 4.
 
 ### 2. Finish §2 on the DOM screens
 The audit's second finding is the one that is still fully open, and its
