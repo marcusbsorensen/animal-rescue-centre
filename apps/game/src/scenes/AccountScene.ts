@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species, Economy } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
-import { createButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { BADGE_DEFINITIONS } from '@arc/badges';
 import { getSession } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
@@ -92,10 +92,10 @@ export class AccountScene extends Phaser.Scene {
 
     // Back button (top-left)
     this.container.add(
-      createButton(this, SAFE_MARGIN + 58, SAFE_MARGIN + 23, 'Back', () => {
+      createChromeButton(this, SAFE_MARGIN + 58, SAFE_MARGIN + 23, 'Back', () => {
         AudioManager.getInstance().playSfx('button_click');
         this.scene.start('GameScene');
-      }, { width: 100, fontSize: '16px', bgColour: '#6b5a4a', icon: 'icon-back', iconSize: 18 })
+      }, { width: 100, fontSize: '16px', icon: 'icon-back', iconStyle: 'glyph', iconSize: 18 })
     );
 
     this.renderProfileCard();

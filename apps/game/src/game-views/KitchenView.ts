@@ -8,7 +8,7 @@ import {
   hasAllyPresent,
 } from '@arc/game-logic';
 import {
-  createButton, createTextButton, createChromeTitle, createChromePlate,
+  createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
 import {
   FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, SAFE_MARGIN, TITLE_CY, CHROME,
@@ -220,9 +220,9 @@ export function renderKitchen(
 
     // Launch minigame button
     container.add(
-      createButton(scene, btnCx, btnY.sort, 'Start Sorting!', () => {
+      createChromeButton(scene, btnCx, btnY.sort, 'Start Sorting!', () => {
         callbacks.launchMinigame(hungry);
-      }, { width: 240 }),
+      }, { width: 240, variant: 'filled' }),
     );
 
     // Quick-feed option for accessibility
@@ -260,8 +260,8 @@ export function renderKitchen(
     ? 'Garden (empty)'
     : `Garden (${petCount} ${petCount === 1 ? 'pet' : 'pets'})`;
   container.add(
-    createButton(scene, gardenCx, gardenBtnY, gardenLabel, () => callbacks.goToGarden(), {
-      width: 240, fontSize: '15px', bgColour: '#2ecc71', icon: 'icon-walk',
+    createChromeButton(scene, gardenCx, gardenBtnY, gardenLabel, () => callbacks.goToGarden(), {
+      width: 240, fontSize: '15px', icon: 'icon-walk', iconStyle: 'glyph',
     }),
   );
 
@@ -279,8 +279,8 @@ export function renderKitchen(
       play.y + play.h - MIN_TAP / 2 - SAFE_MARGIN,
     );
     container.add(
-      createButton(scene, gardenCx, suppliesY, 'Supplies', () => callbacks.openSupplies!(), {
-        width: 240, fontSize: '15px', bgColour: '#d46020', icon: 'icon-supply-run',
+      createChromeButton(scene, gardenCx, suppliesY, 'Supplies', () => callbacks.openSupplies!(), {
+        width: 240, fontSize: '15px', icon: 'icon-supply-run',
       }),
     );
   }

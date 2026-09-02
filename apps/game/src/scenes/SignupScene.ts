@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS } from '../ui/constants';
-import { createButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { getAvailableUsernames, signup } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
@@ -154,7 +154,7 @@ export class SignupScene extends Phaser.Scene {
 
     this.usernameOptions.forEach((name, i) => {
       const y = startY + i * 70;
-      const btn = createButton(this, width / 2, y, name, () => {
+      const btn = createChromeButton(this, width / 2, y, name, () => {
         this.selectedUsername = name;
         this.showAvatarStep();
       }, { width: 300 });
@@ -263,11 +263,11 @@ export class SignupScene extends Phaser.Scene {
     // Preview + Next button
     const nextY = colourStartY + 130;
     this.container.add(
-      createButton(this, width / 2, nextY, 'Next →', () => {
+      createChromeButton(this, width / 2, nextY, 'Next →', () => {
         if (!this.selectedEmoji) { this.showError('Pick an animal!'); return; }
         if (!this.selectedBgColour) { this.showError('Pick a colour!'); return; }
         this.showPinStep();
-      })
+      }, { variant: 'filled' })
     );
 
     this.container.add(
@@ -372,11 +372,12 @@ export class SignupScene extends Phaser.Scene {
         const x = width / 2 + (ci - 1) * (btnSize + gap);
         const y = padStartY + ri * (btnSize + gap);
 
-        const bgColour = digit === '✓' ? COLOURS.primary
-          : digit === '⌫' ? COLOURS.warm : '#f5efe4';
-        const btn = createButton(this, x, y, digit, () => this.handlePinInput(digit), {
+        // Same keypad as LoginScene, same reasoning — see the comment
+        // there. White type on '#f5efe4' measured 1.06:1.
+        const btn = createChromeButton(this, x, y, digit, () => this.handlePinInput(digit), {
           width: btnSize, height: btnSize, radius: 12,
-          bgColour,
+          variant: digit === '✓' ? 'filled' : 'plate',
+          tone: digit === '⌫' ? 'danger' : 'default',
           fontSize: (digit === '✓' || digit === '⌫') ? '24px' : '28px',
         });
         this.container.add(btn);
@@ -484,9 +485,9 @@ export class SignupScene extends Phaser.Scene {
 
     // Skip button (prominent — skipping is fine)
     this.container.add(
-      createButton(this, width / 2, height / 2 + 20, 'Skip — start playing!', () => {
+      createChromeButton(this, width / 2, height / 2 + 20, 'Skip — start playing!', () => {
         this.doSignup();
-      }, { width: 320 })
+      }, { width: 320, variant: 'filled' })
     );
 
     // "Enter email" option (secondary)

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createChromeTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createChromeTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   applyHealStep,
   HEAL_ACTIONS,
@@ -374,11 +374,11 @@ export class VetScene extends Phaser.Scene {
     );
 
     this.container.add(
-      createButton(this, width / 2, height / 2 + 70, 'Back to Centre', () => {
+      createChromeButton(this, width / 2, height / 2 + 70, 'Back to Centre', () => {
         this.registry.set('updatedAnimals', this.allAnimals);
         this.registry.set('vetResult', { healed: true, animalId: this.animal.id });
         this.scene.start('GameScene');
-      }, { width: 240, icon: 'icon-back' })
+      }, { width: 240, icon: 'icon-back', iconStyle: 'glyph', variant: 'filled' })
     );
   }
 }

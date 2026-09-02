@@ -603,12 +603,46 @@ export function createChromeButton(
     icon?: string;       // texture key for a custom icon (e.g. 'icon-play')
     iconSize?: number;   // display size of icon in px (default 24)
     /**
+     * Which of the two kinds of icon this key is.
+     *
+     * `artwork` (default) — a painterly piece carrying its own colours,
+     * like `icon-feed` or `icon-depot`. Drawn as it was painted.
+     *
+     * `glyph` — a line drawing in white or pale grey: `icon-back`,
+     * `icon-accept`, `icon-walk`. Those were made when every button had a
+     * dark fill, and on cream paper they all but disappear. A glyph is
+     * tinted to whatever ink the button is already setting its label in,
+     * so one asset reads in both weights — dark on the plate, cream on the
+     * filled button — and neither needs redrawing.
+     *
+     * Two kinds rather than tinting everything, because tint multiplies:
+     * exactly right for white line art, ruinous for anything painted.
+     */
+    iconStyle?: 'artwork' | 'glyph';
+    /**
      * `plate` (default) is paper; `filled` is paper and ink swapped.
      *
-     * One `filled` per screen, on the action the screen exists for —
-     * "Let's go!", "Start Sorting!", "Done playing!". Everything else is
-     * a plate. Two filled buttons side by side spend the emphasis and
-     * leave the child no clue which one the screen wants.
+     * **Plate is the default, and it holds on cream.** The worry was that
+     * a cream button on the game's cream canvas would have no edge —
+     * `ui-next-steps` records the title plate as "nearly invisible" on the
+     * flat-cream scenes. Drawn and looked at rather than argued about: a
+     * button is fine. A title plate is understated on purpose and has only
+     * its hairline to show for itself; a button carries the same hairline
+     * *and* a drop shadow, and the two together read as something raised
+     * that you would press. It works on painted art and on bare cream.
+     *
+     * **Filled marks the one action the screen is for** — "Start
+     * Sorting!", "Let's go!", "Done playing!". Two of them side by side
+     * spends the emphasis and leaves a child no clue which the screen
+     * wants.
+     *
+     * **A plate inside a plate is two hairlines a few pixels apart**, so
+     * fill the inner one. That is the left rail, the Games popup and the
+     * animal card: each is already a bordered cream surface, and a bordered
+     * cream button on it reads as a frame around a frame. Those layouts
+     * carry several filled buttons and are right to; they get their
+     * emphasis from position and wording, which is what they were already
+     * doing when the fills were a dozen different colours.
      */
     variant?: 'plate' | 'filled';
     /**
@@ -648,6 +682,7 @@ export function createChromeButton(
   if (options?.icon && scene.textures.exists(options.icon)) {
     iconSprite = scene.add.image(0, 0, options.icon).setOrigin(0.5);
     iconSprite.setScale(iconSize / Math.max(iconSprite.width, iconSprite.height));
+    if (options.iconStyle === 'glyph') iconSprite.setTint(hexNum(inkHex));
     iconOffset = (iconSize + 6) / 2;
     text.setX(iconOffset);
     iconSprite.setX(-text.width / 2 - 6 + iconOffset - iconSize / 2);

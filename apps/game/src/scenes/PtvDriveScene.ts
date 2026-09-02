@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
-import { createButton } from '../ui/UIButton';
+import { createChromeButton } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Economy } from '@arc/shared-types';
@@ -837,7 +837,7 @@ export class PtvDriveScene extends Phaser.Scene {
     });
 
     this.container.add(
-      createButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
+      createChromeButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88 }).setDepth(45)
     );
   }
 
@@ -905,14 +905,14 @@ export class PtvDriveScene extends Phaser.Scene {
     });
 
     this.container.add(
-      createButton(this, width / 2, height * 0.88, "Let's go!", () => {
+      createChromeButton(this, width / 2, height * 0.88, "Let's go!", () => {
         AudioManager.getInstance().playSfx('button_click');
         this.phase = 'parking';
         this.renderView();
-      }, { width: 190, bgColour: COLOURS.primary }).setDepth(45)
+      }, { width: 190, variant: 'filled' }).setDepth(45)
     );
     this.container.add(
-      createButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
+      createChromeButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88 }).setDepth(45)
     );
   }
 
@@ -1070,13 +1070,13 @@ export class PtvDriveScene extends Phaser.Scene {
         backgroundColor: 'rgba(255,249,239,0.7)', padding: { x: 12, y: 4 },
       }).setOrigin(0.5).setDepth(45)
     );
-    const go = createButton(this, width / 2, roadY - 34, "Let's go!", () => this.pullOutOfBay(width, height, roadY), {
-      width: 180, bgColour: COLOURS.primary,
+    const go = createChromeButton(this, width / 2, roadY - 34, "Let's go!", () => this.pullOutOfBay(width, height, roadY), {
+      width: 180, variant: 'filled',
     }).setDepth(45);
     this.container.add(go);
 
     this.container.add(
-      createButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88, bgColour: COLOURS.warm }).setDepth(45)
+      createChromeButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88 }).setDepth(45)
     );
   }
 
@@ -1109,13 +1109,13 @@ export class PtvDriveScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(50)
     );
     this.container.add(
-      createButton(this, width * 0.32, height * 0.62, '◀ Left', () => this.turnAndGo(-1), {
-        width: 150, bgColour: COLOURS.info,
+      createChromeButton(this, width * 0.32, height * 0.62, '◀ Left', () => this.turnAndGo(-1), {
+        width: 150,
       }).setDepth(50)
     );
     this.container.add(
-      createButton(this, width * 0.68, height * 0.62, 'Right ▶', () => this.turnAndGo(1), {
-        width: 150, bgColour: COLOURS.info,
+      createChromeButton(this, width * 0.68, height * 0.62, 'Right ▶', () => this.turnAndGo(1), {
+        width: 150,
       }).setDepth(50)
     );
   }
@@ -1323,11 +1323,14 @@ export class PtvDriveScene extends Phaser.Scene {
     const rightX = Math.min(width - 60, (geo.roadLeft + geo.roadWidth + width) / 2);
     const want = j.side;
     const c = this.add.container(0, 0).setDepth(55);
-    c.add(createButton(this, leftX, y, '◀', () => this.resolveJunction(j, 'left'), {
-      width: 88, height: 78, bgColour: want === 'left' ? COLOURS.primary : COLOURS.info,
+    // The way the route wants is filled and the other is a plate. It was
+    // green against blue, which is the hint a red-green colourblind child
+    // gets nothing from; weight is the one channel everybody reads.
+    c.add(createChromeButton(this, leftX, y, '◀', () => this.resolveJunction(j, 'left'), {
+      width: 88, height: 78, variant: want === 'left' ? 'filled' : 'plate',
     }));
-    c.add(createButton(this, rightX, y, '▶', () => this.resolveJunction(j, 'right'), {
-      width: 88, height: 78, bgColour: want === 'right' ? COLOURS.primary : COLOURS.info,
+    c.add(createChromeButton(this, rightX, y, '▶', () => this.resolveJunction(j, 'right'), {
+      width: 88, height: 78, variant: want === 'right' ? 'filled' : 'plate',
     }));
     this.container.add(c);
     this.junctionPrompt = c;
@@ -1662,15 +1665,15 @@ export class PtvDriveScene extends Phaser.Scene {
 
     // Back / exit button (top-left).
     this.container.add(
-      createButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), {
-        width: 88, bgColour: COLOURS.warm,
+      createChromeButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), {
+        width: 88,
       }).setDepth(40)
     );
 
     // Road-type toggle (demo): cycle country lane / Thanet Way / gravel / sand.
     this.container.add(
-      createButton(this, width - 96, 34, this.roadConfig.label, () => this.cycleRoad(), {
-        width: 168, bgColour: COLOURS.info, fontSize: '14px',
+      createChromeButton(this, width - 96, 34, this.roadConfig.label, () => this.cycleRoad(), {
+        width: 168, fontSize: '14px',
       }).setDepth(40)
     );
 

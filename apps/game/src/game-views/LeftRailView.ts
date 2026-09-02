@@ -29,7 +29,7 @@ import Phaser from 'phaser';
 import type { GameStateStore } from '../game-state/GameStateStore';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getUrgentNeed } from '@arc/game-logic';
-import { createButton } from '../ui/UIButton';
+import { createChromeButton } from '../ui/UIButton';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP } from '../ui/constants';
 import {
   railBoundsFor, playAreaFor, RAIL_TAB_WIDTH,
@@ -330,12 +330,14 @@ function renderSideRail(
     // "Welcome them all" footer when >1 waiting
     if (ctx.arriving.length > 1) {
       cursorY += 4;
-      const btn = createButton(
+      const btn = createChromeButton(
         scene,
         bounds.x + bounds.w / 2, cursorY + 18,
         `Welcome them all (${ctx.arriving.length})`,
         () => callbacks.onWelcomeAll(ctx.arriving),
-        { width: innerW - 6, fontSize: '14px', icon: 'icon-accept', bgColour: COLOURS.primary },
+        // Filled, not plated: the rail is itself cream paper, so a plate
+        // here would be a button drawn on its own colour.
+        { width: innerW - 6, fontSize: '14px', icon: 'icon-accept', iconStyle: 'glyph', variant: 'filled' },
       );
       container.add(btn);
       cursorY += 44;
@@ -496,13 +498,13 @@ function drawArrivalCard(
   // Welcome button — full width of card minus padding, anchored bottom.
   // The 8px bottom pad is why cardH reserves welcomeH + 8 above: an
   // earlier 96px card let this overhang the paper by 7px.
-  const btn = createButton(
+  const btn = createChromeButton(
     scene, x + w / 2, y + cardH - 8 - welcomeH / 2,
     'Welcome',
     onWelcome,
     {
       width: w - 24, height: welcomeH, fontSize: '16px',
-      icon: 'icon-accept', bgColour: COLOURS.primary,
+      icon: 'icon-accept', iconStyle: 'glyph', variant: 'filled',
     },
   );
   container.add(btn);

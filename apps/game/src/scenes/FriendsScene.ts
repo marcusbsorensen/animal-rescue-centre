@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
 import { getSession } from '../lib/auth';
 import { addFriendByCode, getFriends, type Friend } from '../lib/friends';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -101,9 +101,9 @@ export class FriendsScene extends Phaser.Scene {
 
     // Add friend button
     this.container.add(
-      createButton(this, width / 2, 185, 'Add a friend', () => {
+      createChromeButton(this, width / 2, 185, 'Add a friend', () => {
         this.showAddFriend();
-      }, { width: 240 })
+      }, { width: 240, variant: 'filled' })
     );
 
     // Friends list
@@ -202,10 +202,10 @@ export class FriendsScene extends Phaser.Scene {
     });
 
     this.container.add(
-      createButton(this, width / 2, 250, 'Add Friend', () => {
+      createChromeButton(this, width / 2, 250, 'Add Friend', () => {
         if (code.length >= 6) this.doAddFriend(code);
         else this.errorText.setText('Enter the full code');
-      })
+      }, { variant: 'filled' })
     );
 
     this.container.add(

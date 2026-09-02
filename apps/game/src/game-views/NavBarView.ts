@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { createButton } from '../ui/UIButton';
+import { createChromeButton } from '../ui/UIButton';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP_GAP } from '../ui/constants';
 import { viewportIsShort, navBarMetrics } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
@@ -274,22 +274,26 @@ export function renderGamesPopup(
     }).setOrigin(0.5),
   );
 
+  // All three filled, and this is the one place the "one per screen" rule
+  // does not apply. The popup is drawn in the chrome cream, so a plate here
+  // would be a button the same colour as the thing it sits on — and these
+  // are three peer destinations, not one action with two alternatives.
   const btnW = Math.min(220, popupW - 40);
   container.add(
-    createButton(scene, popupX, popupY - 10, 'Depot',
+    createChromeButton(scene, popupX, popupY - 10, 'Depot',
       () => callbacks.onDepot(),
-      { width: btnW, fontSize: '20px', bgColour: '#4a2d7a', icon: 'icon-depot' }),
+      { width: btnW, fontSize: '20px', icon: 'icon-depot', variant: 'filled' }),
   );
   container.add(
-    createButton(scene, popupX, popupY + 52, 'Supply Run',
+    createChromeButton(scene, popupX, popupY + 52, 'Supply Run',
       () => callbacks.onSupplyRun(),
-      { width: btnW, fontSize: '20px', bgColour: '#d46020', icon: 'icon-supply-run' }),
+      { width: btnW, fontSize: '20px', icon: 'icon-supply-run', variant: 'filled' }),
   );
   if (callbacks.onCharms) {
     container.add(
-      createButton(scene, popupX, popupY + 114, 'Charms',
+      createChromeButton(scene, popupX, popupY + 114, 'Charms',
         () => callbacks.onCharms!(),
-        { width: btnW, fontSize: '20px', bgColour: '#b88a37' }),
+        { width: btnW, fontSize: '20px', variant: 'filled' }),
     );
   }
 

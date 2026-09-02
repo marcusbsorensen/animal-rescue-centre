@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { RESOLUTION_ACTIONS, type Conflict, type ResolutionDef } from '@arc/game-logic';
-import { createButton } from '../ui/UIButton';
+import { createChromeButton } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
 import { playAreaFor, HUD_HEIGHT } from '../ui/layout';
@@ -265,8 +265,8 @@ export function renderConflictResult(
   );
 
   container.add(
-    createButton(scene, cx, cy + 80, '← Back', () => callbacks.onBack(), {
-      width: 180,
+    createChromeButton(scene, cx, cy + 80, '← Back', () => callbacks.onBack(), {
+      width: 180, variant: 'filled',
     }),
   );
 }

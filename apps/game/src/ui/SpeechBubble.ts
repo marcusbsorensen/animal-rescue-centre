@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from './constants';
-import { createButton } from './UIButton';
+import { createChromeButton } from './UIButton';
 
 /**
  * Speech bubble attached to a character — genre-standard pet-care game pattern.
@@ -22,7 +22,6 @@ export function createSpeechBubble(
     actionLabel?: string;
     onAction?: () => void;
     accentColour?: number; // hex number, e.g. 0xE67E22
-    actionBgHex?: string;  // hex string for action button, e.g. '#e74c3c'
     actionIcon?: string;   // texture key
     maxWidth?: number;
   }
@@ -49,9 +48,9 @@ export function createSpeechBubble(
 
   let action: Phaser.GameObjects.Container | null = null;
   if (opts.actionLabel && opts.onAction) {
-    action = createButton(scene, 0, 0, opts.actionLabel, opts.onAction, {
+    action = createChromeButton(scene, 0, 0, opts.actionLabel, opts.onAction, {
       width: 120, fontSize: `${MIN_FONT.small}px`,
-      bgColour: opts.actionBgHex ?? '#27ae60',
+      variant: 'filled',
       icon: opts.actionIcon,
     });
   }

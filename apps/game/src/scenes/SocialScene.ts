@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { getFriends, type Friend } from '../lib/friends';
 import {
@@ -246,7 +246,7 @@ export class SocialScene extends Phaser.Scene {
 
       // Claim button
       this.container.add(
-        createButton(this, width - 60, y, 'Open!', () => {
+        createChromeButton(this, width - 60, y, 'Open!', () => {
           this.claimGiftAction(gift.id, i);
         }, { width: 80, fontSize: '14px' })
       );
@@ -397,7 +397,7 @@ export class SocialScene extends Phaser.Scene {
     if (canSend) {
       const sendY = msgStartY + Math.ceil(8 / msgCols) * 30 + 20;
       this.container.add(
-        createButton(this, width / 2, sendY,
+        createChromeButton(this, width / 2, sendY,
           `Send to ${this.selectedFriend!.username}!`, async () => {
           if (this.loading) return;
           this.loading = true;
@@ -424,7 +424,7 @@ export class SocialScene extends Phaser.Scene {
             this.loading = false;
             this.showToast((err as Error).message ?? 'Failed to send');
           }
-        }, { width: 280 })
+        }, { width: 280, variant: 'filled' })
       );
     }
   }
@@ -558,7 +558,7 @@ export class SocialScene extends Phaser.Scene {
       );
     } else {
       this.container.add(
-        createButton(this, width / 2, startY + 90,
+        createChromeButton(this, width / 2, startY + 90,
           'Create Showcase Link', async () => {
           if (this.loading) return;
           this.loading = true;
@@ -571,7 +571,7 @@ export class SocialScene extends Phaser.Scene {
             this.loading = false;
             this.showToast('Failed to create showcase');
           }
-        }, { width: 280 })
+        }, { width: 280, variant: 'filled' })
       );
     }
   }

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createChromeTitle, createPanel } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createChromeTitle, createPanel } from '../ui/UIButton';
 import {
   startGridWalk,
   movePlayer,
@@ -275,7 +275,7 @@ export class WalkScene extends Phaser.Scene {
 
     // Let's go button
     this.container.add(
-      createButton(this, width / 2, height * 0.85, 'Let\'s go!', () => {
+      createChromeButton(this, width / 2, height * 0.85, 'Let\'s go!', () => {
         AudioManager.getInstance().playSfx('collar_pick');
         // Persist the chosen collar colour to the animal (and the live copy
         // the caller will receive when the scene exits).
@@ -285,7 +285,7 @@ export class WalkScene extends Phaser.Scene {
         if (this.gridState) this.gridState.collarOn = true;
         this.phase = 'select_zone';
         this.renderPhase();
-      }, { width: 220, fontSize: '18px', bgColour: '#2E8B57', icon: 'icon-walk' })
+      }, { width: 220, fontSize: '18px', icon: 'icon-walk', iconStyle: 'glyph', variant: 'filled' })
     );
 
     this.container.add(
@@ -1008,24 +1008,24 @@ export class WalkScene extends Phaser.Scene {
 
     // Approach button
     this.overlayContainer.add(
-      createButton(this, width / 2 - 80, py + 40, 'Say hello', () => {
+      createChromeButton(this, width / 2 - 80, py + 40, 'Say hello', () => {
         if (!this.gridState) return;
         const { state, result } = handleAnimalEncounter(this.gridState, npc.id, 'approach');
         this.gridState = state;
         this.overlayContainer.removeAll(true);
         this.showEncounterResult(result);
-      }, { width: 130, fontSize: '15px', bgColour: '#2E8B57' })
+      }, { width: 130, fontSize: '15px' })
     );
 
     // Ignore button
     this.overlayContainer.add(
-      createButton(this, width / 2 + 80, py + 40, 'Walk past', () => {
+      createChromeButton(this, width / 2 + 80, py + 40, 'Walk past', () => {
         if (!this.gridState) return;
         const { state, result } = handleAnimalEncounter(this.gridState, npc.id, 'ignore');
         this.gridState = state;
         this.overlayContainer.removeAll(true);
         this.showEncounterResult(result);
-      }, { width: 130, fontSize: '15px', bgColour: '#888888' })
+      }, { width: 130, fontSize: '15px' })
     );
   }
 
@@ -1216,13 +1216,17 @@ export class WalkScene extends Phaser.Scene {
     }).setOrigin(0, 0.5);
     this.overlayContainer.add(timerText);
 
-    // STOP button — small, tucked to the right of the strip.
-    const stopBtn = createButton(this, width / 2 + stripW / 2 - 70, stripY, 'STOP', () => {
+    // STOP button — small, tucked to the right of the strip. The one
+    // control in the game with a clock on it: three seconds to look both
+    // ways. Filled and in the danger ink, which is what that ink is for —
+    // and the word already says STOP, so the colour reinforces rather
+    // than carries it.
+    const stopBtn = createChromeButton(this, width / 2 + stripW / 2 - 70, stripY, 'STOP', () => {
       if (!this.roadTimer) return;
       this.roadTimer.destroy();
       this.roadTimer = undefined;
       this.handleRoadResult(true);
-    }, { width: 110, fontSize: '20px', bgColour: '#c0392b' });
+    }, { width: 110, fontSize: '20px', variant: 'filled', tone: 'danger' });
     this.overlayContainer.add(stopBtn);
 
     this.roadTimer = this.time.addEvent({
@@ -1373,11 +1377,11 @@ export class WalkScene extends Phaser.Scene {
 
     // Back button
     this.container.add(
-      createButton(this, width / 2, height - 90, 'Back to Centre', () => {
+      createChromeButton(this, width / 2, height - 90, 'Back to Centre', () => {
         this.registry.set('updatedAnimals', this.allAnimals);
         this.registry.set('walkResult', { perfectWalk: rewards.perfectWalk });
         this.scene.start('GameScene');
-      }, { width: 240, fontSize: '18px', icon: 'icon-back' })
+      }, { width: 240, fontSize: '18px', icon: 'icon-back', iconStyle: 'glyph', variant: 'filled' })
     );
   }
 

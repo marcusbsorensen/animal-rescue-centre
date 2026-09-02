@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { createButton, createChromeTitle } from '../ui/UIButton';
+import { createChromeButton, createChromeTitle } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
 
@@ -164,9 +164,9 @@ export function renderPetCreated(
   );
 
   container.add(
-    createButton(scene, width / 2, height / 2 + 110, 'Visit Garden',
+    createChromeButton(scene, width / 2, height / 2 + 110, 'Visit Garden',
       () => callbacks.onVisitGarden(), {
-        width: 220, bgColour: '#2ecc71',
+        width: 220, variant: 'filled',
       }),
   );
 }

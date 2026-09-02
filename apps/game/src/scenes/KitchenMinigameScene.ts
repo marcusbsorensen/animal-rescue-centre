@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
-import { createButton, createTextButton, createChromeTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createChromeTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   generateKitchenRound,
   isFoodValidForSpecies,
@@ -129,8 +129,8 @@ export class KitchenMinigameScene extends Phaser.Scene {
     // Back button — proper button, not a floating text link
     // 16px clearance + half the 44px button height. At height - 30 the
     // button's lower edge sat 8px off the bottom, inside the home-gesture area.
-    createButton(this, SAFE_MARGIN + 59, height - (SAFE_MARGIN + 22), 'Back', () => this.exitMinigame(), {
-      width: 110, fontSize: '14px', bgColour: '#888888', icon: 'icon-back',
+    createChromeButton(this, SAFE_MARGIN + 59, height - (SAFE_MARGIN + 22), 'Back', () => this.exitMinigame(), {
+      width: 110, fontSize: '14px', icon: 'icon-back', iconStyle: 'glyph',
     });
   }
 
@@ -518,9 +518,9 @@ export class KitchenMinigameScene extends Phaser.Scene {
 
     createAmbientParticles(this, [], { count: 10, minAlpha: 0.1, maxAlpha: 0.25 });
 
-    createButton(this, width / 2, height / 2 + 60, 'Back to Centre', () => {
+    createChromeButton(this, width / 2, height / 2 + 60, 'Back to Centre', () => {
       this.exitMinigame();
-    }, { width: 220, icon: 'icon-back' });
+    }, { width: 220, icon: 'icon-back', iconStyle: 'glyph', variant: 'filled' });
   }
 
   private exitMinigame(): void {
