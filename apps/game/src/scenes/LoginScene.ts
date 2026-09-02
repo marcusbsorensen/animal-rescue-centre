@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton, createPanel, createPillTitle, createAmbientParticles } from '../ui/UIButton';
+import { createButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { getRememberedUsernames, login, searchUsername } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
@@ -116,9 +116,7 @@ export class LoginScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createPillTitle(this, width / 2, 60, 'Welcome back!', {
-        bgColour: 0x5AAE4A, fontSize: '28px',
-      })
+      createChromeTitle(this, width / 2, 60, 'Welcome back!', { fontSize: '28px' })
     );
 
     this.container.add(
@@ -165,9 +163,7 @@ export class LoginScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createPillTitle(this, width / 2, 60, 'Find your username', {
-        bgColour: 0x5AAE4A, fontSize: '24px',
-      })
+      createChromeTitle(this, width / 2, 60, 'Find your username', { fontSize: '24px' })
     );
 
     this.container.add(
@@ -242,9 +238,7 @@ export class LoginScene extends Phaser.Scene {
     const { width } = this.scale;
 
     this.container.add(
-      createPillTitle(this, width / 2, 60, `Hi, ${this.selectedUsername}!`, {
-        bgColour: 0x5AAE4A, fontSize: '24px',
-      })
+      createChromeTitle(this, width / 2, 60, `Hi, ${this.selectedUsername}!`, { fontSize: '24px' })
     );
 
     this.container.add(

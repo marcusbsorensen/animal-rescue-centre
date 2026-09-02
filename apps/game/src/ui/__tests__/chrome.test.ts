@@ -70,9 +70,38 @@ describe('the chrome surface', () => {
    * the fix has moved the problem rather than solved it.
    */
   it('carries every one of its inks at AA or better', () => {
-    for (const ink of [CHROME.ink, CHROME.inkMuted, CHROME.inkAccent]) {
+    for (const ink of [CHROME.ink, CHROME.inkMuted, CHROME.inkAccent, CHROME.inkDanger]) {
       expect(contrastRatio(CHROME.fill, hexNum(ink))).toBeGreaterThanOrEqual(AA);
     }
+  });
+
+  /**
+   * Tone is decoration, and this is the measurement that says so.
+   *
+   * "PERFECT RUN!" and "TOTALLED!" are the same banner in the same place a
+   * second apart, and the two inks sit **1.12:1** from each other — all
+   * but identical in luminance. That is forced, not sloppy: both have to
+   * clear 4.5:1 against a light cream plate, which pushes both dark, which
+   * leaves hue as the only axis between them. Hue is exactly what a
+   * red-green colourblind child cannot use.
+   *
+   * So a child who does not see those hues apart reads the same dark ink
+   * both times, and the *words* are what tell her which run she had. That
+   * was equally true of the coloured pills this replaced, so nothing was
+   * lost — but it means tone must never become the only difference
+   * between two states. If a future banner says "Run over" in both cases
+   * and leans on green-vs-red to separate them, it is unreadable to her.
+   *
+   * Held as a measurement rather than a threshold because there is no
+   * threshold to pass: this is a fact about the constraint, and the test
+   * exists so that raising the ratio is a decision someone makes on
+   * purpose rather than a number that quietly drifts.
+   */
+  it('cannot lean on tone alone — the two inks are near-identical in luminance', () => {
+    expect(CHROME.inkAccent).not.toBe(CHROME.inkDanger);
+    const separation = contrastRatio(hexNum(CHROME.inkAccent), hexNum(CHROME.inkDanger));
+    expect(separation).toBeLessThan(1.5);
+    expect(separation).toBeGreaterThan(1);
   });
 
   /**

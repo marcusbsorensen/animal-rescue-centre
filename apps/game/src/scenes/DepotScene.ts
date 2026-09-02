@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
+import { createButton, createTextButton, createChromeTitle } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { AudioManager } from '../audio/AudioManager';
 import {
@@ -142,8 +142,7 @@ export class DepotScene extends Phaser.Scene {
 
   private renderModeSelect(width: number, height: number): void {
     this.container.add(
-      createPillTitle(this, width / 2, 45, 'The Depot', {
-        bgColour: DEPOT_COLOURS.headerBg,
+      createChromeTitle(this, width / 2, 45, 'The Depot', {
         fontSize: '26px',
         icon: 'icon-depot',
       })
@@ -723,9 +722,9 @@ export class DepotScene extends Phaser.Scene {
 
     // Title
     this.container.add(
-      createPillTitle(this, width / 2, 50,
+      createChromeTitle(this, width / 2, 50,
         allGoalsMet ? 'Session Complete!' : 'Out of Moves!', {
-        bgColour: allGoalsMet ? DEPOT_COLOURS.green : DEPOT_COLOURS.headerBg,
+        tone: allGoalsMet ? 'success' : 'default',
         fontSize: '24px',
       })
     );

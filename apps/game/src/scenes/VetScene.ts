@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
+import { createButton, createTextButton, createChromeTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   applyHealStep,
   HEAL_ACTIONS,
@@ -114,7 +114,7 @@ export class VetScene extends Phaser.Scene {
 
     // Title
     this.container.add(
-      createPillTitle(this, width / 2, 35, 'Vet Clinic', { bgColour: 0xE74C3C, fontSize: '20px', icon: 'icon-vet-clinic' })
+      createChromeTitle(this, width / 2, 35, 'Vet Clinic', { fontSize: '20px', icon: 'icon-vet-clinic' })
     );
 
     // ── Patient card: sprite on the left, name + illness on the right ────

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle, createAmbientParticles } from '../ui/UIButton';
+import { createButton, createTextButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { applyGrooming } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
@@ -115,7 +115,7 @@ export class GroomingScene extends Phaser.Scene {
 
     // Title pill
     this.container.add(
-      createPillTitle(this, width / 2, 35, 'Grooming', { bgColour: 0x5A9CB8, fontSize: '20px' })
+      createChromeTitle(this, width / 2, 35, 'Grooming', { fontSize: '20px' })
     );
 
     if (this.phase === 'intro') {
@@ -382,7 +382,7 @@ export class GroomingScene extends Phaser.Scene {
     }
 
     this.container.add(
-      createPillTitle(this, width / 2, 35, 'Grooming', { bgColour: 0x5A9CB8, fontSize: '20px' })
+      createChromeTitle(this, width / 2, 35, 'Grooming', { fontSize: '20px' })
     );
 
     this.container.add(

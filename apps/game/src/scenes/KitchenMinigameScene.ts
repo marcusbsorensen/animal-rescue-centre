@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
+import { createButton, createTextButton, createChromeTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   generateKitchenRound,
   isFoodValidForSpecies,
@@ -97,8 +97,8 @@ export class KitchenMinigameScene extends Phaser.Scene {
     }
 
     // Title pill
-    createPillTitle(this, width / 2, 34, 'Sort the Food!', {
-      bgColour: 0xD4A017, fontSize: '20px', icon: 'icon-kitchen',
+    createChromeTitle(this, width / 2, 34, 'Sort the Food!', {
+      fontSize: '20px', icon: 'icon-kitchen',
     });
 
     // Top info card — progress + instructions on a translucent pill so they

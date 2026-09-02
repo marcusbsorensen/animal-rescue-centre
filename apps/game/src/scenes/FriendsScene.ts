@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS } from '../ui/constants';
-import { createButton, createTextButton, createPanel, createAmbientParticles, createPillTitle } from '../ui/UIButton';
+import { createButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
 import { getSession } from '../lib/auth';
 import { addFriendByCode, getFriends, type Friend } from '../lib/friends';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -74,8 +74,7 @@ export class FriendsScene extends Phaser.Scene {
     const session = getSession();
 
     this.container.add(
-      createPillTitle(this, width / 2, 50, 'Friends', {
-        bgColour: 0x9b59b6,
+      createChromeTitle(this, width / 2, 50, 'Friends', {
         icon: 'icon-friends',
         iconSize: 24,
       })

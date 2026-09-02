@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle, createPanel } from '../ui/UIButton';
+import { createButton, createTextButton, createChromeTitle, createPanel } from '../ui/UIButton';
 import {
   startGridWalk,
   movePlayer,
@@ -198,9 +198,7 @@ export class WalkScene extends Phaser.Scene {
 
   private renderCollarPhase(width: number, height: number): void {
     this.container.add(
-      createPillTitle(this, width / 2, 40, `Walk time for ${this.animal.name}!`, {
-        bgColour: 0x2E8B57, fontSize: '20px',
-      })
+      createChromeTitle(this, width / 2, 40, `Walk time for ${this.animal.name}!`, { fontSize: '20px' })
     );
 
     this.container.add(
@@ -361,9 +359,7 @@ export class WalkScene extends Phaser.Scene {
 
   private renderZoneSelect(width: number, height: number): void {
     this.container.add(
-      createPillTitle(this, width / 2, 45, `Where shall we walk?`, {
-        bgColour: 0x2E8B57, fontSize: '20px',
-      })
+      createChromeTitle(this, width / 2, 45, `Where shall we walk?`, { fontSize: '20px' })
     );
 
     const zones = WALK_ZONES;
@@ -1329,9 +1325,9 @@ export class WalkScene extends Phaser.Scene {
 
     // Title
     this.container.add(
-      createPillTitle(this, width / 2, 50,
+      createChromeTitle(this, width / 2, 50,
         rewards.perfectWalk ? 'Perfect Walk!' : 'Walk Complete!', {
-        bgColour: rewards.perfectWalk ? 0xB8860B : 0x2E8B57, fontSize: '24px',
+        tone: rewards.perfectWalk ? 'success' : 'default', fontSize: '24px',
       })
     );
 

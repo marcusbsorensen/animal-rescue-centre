@@ -410,17 +410,36 @@ export function createChromeTitle(
     subtitleSize?: string;
     icon?: string;       // texture key for a custom icon
     iconSize?: number;   // display size in px (default 26)
+    /**
+     * What the heading *means*, for the handful of places where that is
+     * not neutral — "PERFECT RUN!" against "TOTALLED!", "Session Complete!"
+     * against "Out of Moves!".
+     *
+     * Those were pill titles whose whole background carried the valence:
+     * green plate for a good run, red for a wrecked one. Moving them onto
+     * one cream surface without this would delete the signal a child reads
+     * the moment before she reads the words. It moves to the ink instead,
+     * so the surface stays single and the meaning survives.
+     *
+     * Ink, not fill, and deliberately: the words already differ, so colour
+     * here is reinforcement rather than the only channel — which is the
+     * right way round for a child who does not see red and green apart.
+     */
+    tone?: 'default' | 'success' | 'danger';
   }
 ): Phaser.GameObjects.Container {
   const fontSize = options?.fontSize ?? '20px';
   const subtitleSize = options?.subtitleSize ?? '15px';
   const iconSize = options?.iconSize ?? 26;
+  const ink = options?.tone === 'success' ? CHROME.inkAccent
+    : options?.tone === 'danger' ? CHROME.inkDanger
+      : CHROME.ink;
 
   const text = scene.add.text(0, 0, label, {
     fontSize,
     fontFamily: FONTS.ui,
     fontStyle: 'bold',
-    color: CHROME.ink,
+    color: ink,
     resolution: TEXT_RESOLUTION,
   }).setOrigin(0.5);
 

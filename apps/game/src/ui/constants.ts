@@ -124,6 +124,7 @@ export const CHROME = {
   ink: COLOURS.text,
   inkMuted: COLOURS.textLight,
   inkAccent: COLOURS.primaryDark,
+  inkDanger: COLOURS.accent,
 } as const;
 
 /**

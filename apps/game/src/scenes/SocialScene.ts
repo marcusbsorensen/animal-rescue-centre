@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createPanel, createAmbientParticles, createPillTitle } from '../ui/UIButton';
+import { createButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { getFriends, type Friend } from '../lib/friends';
 import {
@@ -121,8 +121,7 @@ export class SocialScene extends Phaser.Scene {
     this.container.add(bgPattern);
 
     // Title
-    const title = createPillTitle(this, width / 2, 30, 'Social', {
-      bgColour: 0x9b59b6,
+    const title = createChromeTitle(this, width / 2, 30, 'Social', {
       icon: 'icon-social-scene',
       iconSize: 24,
     });
@@ -133,7 +132,7 @@ export class SocialScene extends Phaser.Scene {
     // floor, which is enough to collide with a fixed title above and a
     // fixed content block below if either stays a magic number.
     // Measured from the pill's drawn height, not getBounds() — see
-    // createPillTitle for why those differ.
+    // createChromeTitle for why those differ.
     const tabY = 30 + title.height / 2 + MIN_TAP_GAP + MIN_TAP / 2;
     this.renderTabBar(width, tabY);
     this.contentTop = tabY + MIN_TAP / 2 + MIN_TAP_GAP;

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS } from '../ui/constants';
-import { createButton, createTextButton, createPanel, createPillTitle, createAmbientParticles } from '../ui/UIButton';
+import { createButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { getAvailableUsernames, signup } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
@@ -118,9 +118,7 @@ export class SignupScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createPillTitle(this, width / 2, 60, "Let's make your rescue centre!", {
-        bgColour: 0x5AAE4A, fontSize: '24px',
-      })
+      createChromeTitle(this, width / 2, 60, "Let's make your rescue centre!", { fontSize: '24px' })
     );
 
     this.container.add(
@@ -184,9 +182,7 @@ export class SignupScene extends Phaser.Scene {
     const { width } = this.scale;
 
     this.container.add(
-      createPillTitle(this, width / 2, 40, `Hi, ${this.selectedUsername}!`, {
-        bgColour: 0x5AAE4A, fontSize: '22px',
-      })
+      createChromeTitle(this, width / 2, 40, `Hi, ${this.selectedUsername}!`, { fontSize: '22px' })
     );
 
     this.container.add(
@@ -324,9 +320,9 @@ export class SignupScene extends Phaser.Scene {
 
     const { width } = this.scale;
 
-    const pinTitleContainer = createPillTitle(this, width / 2, 60,
+    const pinTitleContainer = createChromeTitle(this, width / 2, 60,
       confirmMode ? 'Confirm your PIN' : 'Choose a secret PIN', {
-      bgColour: 0xD4783C, fontSize: '22px',
+      fontSize: '22px',
     });
     this.pinTitleText = pinTitleContainer.list.find(
       (obj): obj is Phaser.GameObjects.Text => obj instanceof Phaser.GameObjects.Text
@@ -469,9 +465,7 @@ export class SignupScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createPillTitle(this, width / 2, 60, 'Almost there!', {
-        bgColour: 0x5AAE4A, fontSize: '24px',
-      })
+      createChromeTitle(this, width / 2, 60, 'Almost there!', { fontSize: '24px' })
     );
 
     this.container.add(

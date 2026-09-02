@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle } from '../ui/UIButton';
+import { createButton, createTextButton, createChromeTitle } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { AudioManager } from '../audio/AudioManager';
 import {
@@ -212,8 +212,7 @@ export class SupplyRunScene extends Phaser.Scene {
   private renderDestinationSelect(width: number, height: number): void {
     // Neon banner
     this.container.add(
-      createPillTitle(this, width / 2, 50, 'SUPPLY RUN', {
-        bgColour: NEON.accent,
+      createChromeTitle(this, width / 2, 50, 'SUPPLY RUN', {
         fontSize: '28px',
         icon: 'icon-supply-run',
       })
@@ -1063,9 +1062,9 @@ export class SupplyRunScene extends Phaser.Scene {
 
     // Title
     this.container.add(
-      createPillTitle(this, width / 2, 50,
+      createChromeTitle(this, width / 2, 50,
         totalled ? 'TOTALLED!' : rewards.perfectRun ? 'PERFECT RUN!' : 'RUN COMPLETE!', {
-        bgColour: totalled ? NEON.danger : rewards.perfectRun ? NEON.success : NEON.accent,
+        tone: totalled ? 'danger' : rewards.perfectRun ? 'success' : 'default',
         fontSize: '24px',
       })
     );
