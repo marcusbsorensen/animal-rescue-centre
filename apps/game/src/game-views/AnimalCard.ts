@@ -10,7 +10,7 @@ import {
   walkBlockReason,
   type IllnessDef,
 } from '@arc/game-logic';
-import { createButton } from '../ui/UIButton';
+import { createChromeButton } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_TAP, MIN_TAP_GAP } from '../ui/constants';
 import {
@@ -93,7 +93,8 @@ type Face = 'main' | 'more' | 'story';
 interface CardAction {
   label: string;
   icon?: string;
-  colour: string;
+  /** 'glyph' for the white line drawings — see `createChromeButton`. */
+  iconStyle?: 'artwork' | 'glyph';
   run?: () => void;
   reason?: string;
 }
@@ -233,20 +234,27 @@ function drawMainFace(
   // height: the conditional actions no longer live on this face.
   const [feedX, playX, moreX] = layout.actions.xs;
   const btn = { width: layout.actions.w, height: layout.actions.h, fontSize: '18px' };
-  container.add(createButton(
+  // Feed and Play are what a child does to the animal; More… opens a
+  // drawer. So the two are filled and the third is a plate — which is the
+  // "two primary actions and More" above, said in the surface instead of
+  // in a comment. It also puts back the one thing the old orange/green/
+  // blue was carrying honestly: that the third button is a different kind
+  // of thing. The icons and the labels say which of the first two is
+  // which, as they always did.
+  container.add(createChromeButton(
     scene, feedX, layout.actions.y + layout.actions.h / 2,
     'Feed', () => callbacks.onFeed(),
-    { ...btn, icon: 'icon-feed', bgColour: COLOURS.warm },
+    { ...btn, icon: 'icon-feed', variant: 'filled' },
   ));
-  container.add(createButton(
+  container.add(createChromeButton(
     scene, playX, layout.actions.y + layout.actions.h / 2,
     'Play', () => callbacks.onPlay(),
-    { ...btn, icon: 'icon-play', bgColour: COLOURS.primaryDark },
+    { ...btn, icon: 'icon-play', variant: 'filled' },
   ));
-  container.add(createButton(
+  container.add(createChromeButton(
     scene, moreX, layout.actions.y + layout.actions.h / 2,
     'More…', () => draw('more'),
-    { ...btn, bgColour: COLOURS.info },
+    { ...btn },
   ));
 }
 
@@ -548,7 +556,12 @@ function drawMoreFace(
   actions.forEach((action, i) => {
     const cell = grid.cells[i];
     const available = !!action.run;
-    const button = createButton(
+    // An unavailable action is a plate, an available one is filled. The
+    // grey fill it used to get said "button, but wrong"; an empty plate
+    // beside filled ones reads as not-yet-a-button, which is what it is.
+    // The 0.72 stays — it is what separates this from a plate that simply
+    // is not the screen's main action.
+    const button = createChromeButton(
       scene, cell.x + cell.w / 2, cell.y + grid.buttonH / 2,
       action.label,
       () => action.run?.(),
@@ -557,7 +570,8 @@ function drawMoreFace(
         height: grid.buttonH,
         fontSize: '17px',
         icon: action.icon,
-        bgColour: available ? action.colour : '#9d968c',
+        iconStyle: action.iconStyle,
+        variant: available ? 'filled' : 'plate',
       },
     );
     if (!available) button.setAlpha(0.72);
@@ -600,14 +614,14 @@ function buildActions(
   if (isPet) {
     return [
       {
-        label: 'Visit the\ngarden', icon: 'icon-garden', colour: '#2ecc71',
+        label: 'Visit the\ngarden', icon: 'icon-garden',
         run: () => callbacks.onVisitGarden(),
       },
       // The illness name is in the state chip on the main face, not baked
       // into the button — a label that changes length with the data is
       // what makes a fixed-width cell overflow.
       {
-        label: 'See the\nvet', icon: 'icon-vet', colour: '#e74c3c',
+        label: 'See the\nvet', icon: 'icon-vet',
         run: illness ? () => callbacks.onTakeToVet() : undefined,
         reason: illness ? undefined : `${animal.name} is perfectly well.`,
       },
@@ -637,37 +651,37 @@ function buildActions(
 
   return [
     {
-      label: 'Go for\na walk', icon: 'icon-walk', colour: '#27ae60',
+      label: 'Go for\na walk', icon: 'icon-walk', iconStyle: 'glyph',
       run: walkBlock ? undefined : () => callbacks.onWalk(),
       reason: walkBlock ?? undefined,
     },
     {
-      label: 'Brush\nand groom', colour: '#5A9CB8',
+      label: 'Brush\nand groom',
       run: groomBlock ? undefined : () => callbacks.onGroom(),
       reason: groomBlock ?? undefined,
     },
     {
-      label: 'See the\nvet', icon: 'icon-vet', colour: '#e74c3c',
+      label: 'See the\nvet', icon: 'icon-vet',
       run: illness ? () => callbacks.onHeal() : undefined,
       reason: illness ? undefined : `${animal.name} is perfectly well.`,
     },
     isOutside
       ? {
-        label: 'Bring\ninside', icon: 'icon-home', colour: '#7b5c3a',
+        label: 'Bring\ninside', icon: 'icon-home',
         run: () => callbacks.onBringInside(),
       }
       : {
-        label: 'Go\noutside', icon: 'icon-garden', colour: '#2E8B57',
+        label: 'Go\noutside', icon: 'icon-garden',
         run: letOut.ok ? () => callbacks.onLetOutside() : undefined,
         reason: letOut.ok ? undefined : letOut.reason,
       },
     {
-      label: `Put on\na ${garment}`, colour: '#8B6914',
+      label: `Put on\na ${garment}`,
       run: garmentBlock ? undefined : () => callbacks.onEquipWardrobe(),
       reason: garmentBlock ?? undefined,
     },
     {
-      label: 'What happens\nnext?', colour: '#8a6eb2',
+      label: 'What happens\nnext?',
       run: animal.bondLevel >= PATHS_UNLOCK_BOND && callbacks.onOpenPaths
         ? () => callbacks.onOpenPaths!()
         : undefined,

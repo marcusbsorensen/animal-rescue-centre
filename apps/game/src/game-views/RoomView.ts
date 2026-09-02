@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getAvailableDecorationCounts, getRoomDecorations } from '@arc/game-logic';
-import { createPillTitle } from '../ui/UIButton';
+import { createChromeTitle } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, SAFE_MARGIN } from '../ui/constants';
+import {
+  COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, SAFE_MARGIN, TITLE_CY,
+} from '../ui/constants';
 import { getDecorationEmoji } from '../ui/DecoratePanel';
 import type { GameStateStore } from '../game-state';
 import type { ResolvedAnchor } from './GardenView';
@@ -74,9 +76,6 @@ export function renderRoom(
   // laid out inside the space it leaves. Background and anchors both use it,
   // so animals keep landing on the marks the art was painted for.
   const play = getPlayArea(scene);
-  // 45 keeps a 66px-tall pill title's bottom edge at 78 — the top of the
-  // HUD's second row — instead of 88, which crossed it.
-  const TITLE_CY = 45;
   const species = ctx.species;
   // Hide outsiders — animals currently let out into the garden
   // shouldn't appear in their indoor room. They render in GardenView.
@@ -99,10 +98,12 @@ export function renderRoom(
     );
   }
 
+  // Title — chrome, not scenery. 28px against the corridor's and garden's
+  // 20 was the pill's own emphasis, and it made the room title the largest
+  // type in the game; the three read as one product at one size.
   container.add(
-    createPillTitle(scene, play.x + play.w / 2, TITLE_CY,
-      `${species.charAt(0).toUpperCase() + species.slice(1)} Room`,
-      { bgColour: 0x5AAE4A, fontSize: '28px', padX: 36, padY: 14 }),
+    createChromeTitle(scene, play.x + play.w / 2, TITLE_CY,
+      `${species.charAt(0).toUpperCase() + species.slice(1)} Room`),
   );
 
   // ── Placed decorations (under animals) ────────────────────
@@ -122,10 +123,15 @@ export function renderRoom(
     // Centred on the play band and the play column, not on the screen: the
     // screen centre is under the rail on the x and drifts towards the FAB
     // on the y as the viewport shortens.
+    //
+    // On a plate, for the same reason the garden's is. This is the second
+    // instance of audit §3 and it had never been looked at — the harness
+    // could not reach this screen, so nobody had seen mid-grey 18px set
+    // over painted cat beds, cushions and balls of wool. It also had no
+    // `resolution`, so it was drawn at 1x on a 3x display.
     container.add(
-      scene.add.text(play.x + play.w / 2, play.y + play.h / 2, 'No animals here yet.', {
-        fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
-      }).setOrigin(0.5),
+      createChromeTitle(scene, play.x + play.w / 2, play.y + play.h / 2,
+        'No animals here yet.', { fontSize: '18px' }),
     );
   } else {
     const cols = Math.min(roomAnimals.length, 4);

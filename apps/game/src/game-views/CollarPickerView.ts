@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { createButton, createPillTitle } from '../ui/UIButton';
+import { createChromeButton, createChromeTitle } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
 
@@ -57,8 +57,8 @@ export function renderCollarPicker(
 
   // Celebration pill title
   container.add(
-    createPillTitle(scene, width / 2, 55, 'Full Bond!', {
-      bgColour: 0xB8860B, fontSize: '26px', padX: 32, padY: 12,
+    createChromeTitle(scene, width / 2, 55, 'Full Bond!', {
+      tone: 'success', fontSize: '26px',
     }),
   );
 
@@ -164,9 +164,9 @@ export function renderPetCreated(
   );
 
   container.add(
-    createButton(scene, width / 2, height / 2 + 110, 'Visit Garden',
+    createChromeButton(scene, width / 2, height / 2 + 110, 'Visit Garden',
       () => callbacks.onVisitGarden(), {
-        width: 220, bgColour: '#2ecc71',
+        width: 220, variant: 'filled',
       }),
   );
 }

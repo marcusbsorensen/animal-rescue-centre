@@ -69,11 +69,58 @@ describe('the chrome surface', () => {
    * close to illegible by eye; if the plate's own ink does not clear AA,
    * the fix has moved the problem rather than solved it.
    */
-  it('carries both inks at AA or better', () => {
-    expect(contrastRatio(CHROME.fill, hexNum(CHROME.ink)))
-      .toBeGreaterThanOrEqual(AA);
-    expect(contrastRatio(CHROME.fill, hexNum(CHROME.inkMuted)))
-      .toBeGreaterThanOrEqual(AA);
+  it('carries every one of its inks at AA or better', () => {
+    for (const ink of [CHROME.ink, CHROME.inkMuted, CHROME.inkAccent, CHROME.inkDanger]) {
+      expect(contrastRatio(CHROME.fill, hexNum(ink))).toBeGreaterThanOrEqual(AA);
+    }
+  });
+
+  /**
+   * Tone is decoration, and this is the measurement that says so.
+   *
+   * "PERFECT RUN!" and "TOTALLED!" are the same banner in the same place a
+   * second apart, and the two inks sit **1.12:1** from each other — all
+   * but identical in luminance. That is forced, not sloppy: both have to
+   * clear 4.5:1 against a light cream plate, which pushes both dark, which
+   * leaves hue as the only axis between them. Hue is exactly what a
+   * red-green colourblind child cannot use.
+   *
+   * So a child who does not see those hues apart reads the same dark ink
+   * both times, and the *words* are what tell her which run she had. That
+   * was equally true of the coloured pills this replaced, so nothing was
+   * lost — but it means tone must never become the only difference
+   * between two states. If a future banner says "Run over" in both cases
+   * and leans on green-vs-red to separate them, it is unreadable to her.
+   *
+   * Held as a measurement rather than a threshold because there is no
+   * threshold to pass: this is a fact about the constraint, and the test
+   * exists so that raising the ratio is a decision someone makes on
+   * purpose rather than a number that quietly drifts.
+   */
+  it('cannot lean on tone alone — the two inks are near-identical in luminance', () => {
+    expect(CHROME.inkAccent).not.toBe(CHROME.inkDanger);
+    const separation = contrastRatio(hexNum(CHROME.inkAccent), hexNum(CHROME.inkDanger));
+    expect(separation).toBeLessThan(1.5);
+    expect(separation).toBeGreaterThan(1);
+  });
+
+  /**
+   * Why `inkAccent` is `primaryDark` and not `primary`.
+   *
+   * The brand green is the obvious thing to reach for on a plate — it is
+   * what the kitchen sets "Everyone is well-fed!" in today — and it does
+   * not pass on this cream. Measured, not asserted from taste. Held here
+   * so that a later edit swapping the accent back to `primary` because it
+   * looks brighter fails instead of shipping.
+   *
+   * The green is fine where it is on darker ground; this is a statement
+   * about the pairing, not about the colour.
+   */
+  it('rejects the brand green as plate ink — it misses AA on this fill', () => {
+    const measured = contrastRatio(CHROME.fill, hexNum(COLOURS.primary));
+    expect(measured).toBeLessThan(AA);
+    expect(measured).toBeGreaterThan(4);
+    expect(CHROME.inkAccent).not.toBe(COLOURS.primary);
   });
 
   it('keeps the shadow behind the plate, not around it', () => {
@@ -82,6 +129,91 @@ describe('the chrome surface', () => {
     expect(CHROME.shadowX).toBeGreaterThan(0);
     expect(CHROME.shadowY).toBeGreaterThan(0);
     expect(CHROME.shadowAlpha).toBeLessThan(0.3);
+  });
+});
+
+/**
+ * `createChromeButton`'s two weights, held as arithmetic.
+ *
+ * The button is the piece of chrome a child actually touches, and the one
+ * place where "one surface" collides with something real: a screen of
+ * identical cream buttons tells her nothing about which one the screen is
+ * for. The answer is not a second surface but the same one read backwards —
+ * `filled` puts the accent in the fill and the cream in the type.
+ *
+ * That choice is what makes these tests short. Every colour a chrome button
+ * can draw is already in `CHROME`, so the pairs below are the plate's own
+ * ink/fill pairs with the arguments swapped, and contrast does not care
+ * which way round you measure. The tests exist so that a later variant
+ * reaching outside those four inks for a fill fails here rather than
+ * shipping a button nobody can read.
+ */
+describe('the chrome button', () => {
+  it('reads as well filled as it does on paper — the pair is symmetric', () => {
+    // Cream type on an accent fill is `inkAccent` on cream, backwards.
+    // The plate's AA guarantee is therefore the filled button's too, and
+    // this is the assertion that says so out loud.
+    for (const accent of [CHROME.inkAccent, CHROME.inkDanger]) {
+      const asInk = contrastRatio(CHROME.fill, hexNum(accent));
+      const asFill = contrastRatio(hexNum(accent), hexNum(COLOURS.bg));
+      expect(asFill).toBeCloseTo(asInk, 10);
+      expect(asFill).toBeGreaterThanOrEqual(AA);
+    }
+  });
+
+  /**
+   * The cream the type is set in has to be the cream the plate is drawn
+   * in, or the two weights are two surfaces wearing the same name. It is
+   * one token — `COLOURS.bg` — appearing as a fill in one variant and as
+   * ink in the other.
+   */
+  it('sets its filled type in the plate\'s own cream', () => {
+    expect(hexNum(COLOURS.bg)).toBe(CHROME.fill);
+  });
+
+  /**
+   * Why `filled` draws no hairline.
+   *
+   * The stroke exists to separate cream from cream — a plate on the
+   * kitchen's cream wall would otherwise have no edge at all — and it is
+   * chosen to be *barely* there: 1.57:1 against the fill, a hairline you
+   * read as an edge rather than as a line.
+   *
+   * On an accent fill the same colour measures 3.9:1 and up, two and a
+   * half times the separation. It stops being a hairline and becomes a
+   * pale outline drawn round a dark shape, which is decoration — and this
+   * surface's whole rule is that decoration is not how it carries meaning.
+   * A dark fill already separates itself from anything it sits on.
+   *
+   * Measured rather than asserted, so that adding the stroke back for
+   * symmetry has to argue with a number.
+   */
+  it('would draw an outline, not a hairline, on a filled button', () => {
+    const onPaper = contrastRatio(CHROME.fill, CHROME.stroke);
+    expect(onPaper).toBeLessThan(2);
+
+    for (const accent of [CHROME.inkAccent, CHROME.inkDanger]) {
+      expect(contrastRatio(hexNum(accent), CHROME.stroke)).toBeGreaterThan(onPaper * 2);
+    }
+  });
+
+  /**
+   * A button is padded for a finger, not for the words.
+   *
+   * `CHROME.padY` is 12 and the button uses 14. The difference is four
+   * pixels of drawn height on every button in the game, all of which
+   * already sit under `MIN_TAP` before the hit area is floored — so the
+   * plate's value would be a number matching a number at the child's
+   * expense. Recorded here because "these two constants disagree" is
+   * exactly the kind of thing a later tidy-up quietly resolves the wrong
+   * way.
+   */
+  it('pads taller than a title plate, and stays short of the tap floor', () => {
+    const BUTTON_PAD_Y = 14;
+    expect(BUTTON_PAD_Y).toBeGreaterThan(CHROME.padY);
+    // A 22px label measures about 28px tall in the rounded face; the drawn
+    // height is that plus twice the padding, and still under the floor.
+    expect(28 + BUTTON_PAD_Y * 2).toBeLessThan(MIN_TAP + 16);
   });
 });
 

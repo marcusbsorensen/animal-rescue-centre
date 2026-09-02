@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
-import { createButton, createTextButton, createPillTitle, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { applyGrooming } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
@@ -115,7 +115,7 @@ export class GroomingScene extends Phaser.Scene {
 
     // Title pill
     this.container.add(
-      createPillTitle(this, width / 2, 35, 'Grooming', { bgColour: 0x5A9CB8, fontSize: '20px' })
+      createChromeTitle(this, width / 2, 35, 'Grooming', { fontSize: '20px' })
     );
 
     if (this.phase === 'intro') {
@@ -164,10 +164,10 @@ export class GroomingScene extends Phaser.Scene {
       hedgehog: 'Start brushing!',
     };
     this.container.add(
-      createButton(this, width / 2, cy + 170, startLabel[this.animal.species], () => {
+      createChromeButton(this, width / 2, cy + 170, startLabel[this.animal.species], () => {
         this.phase = 'brushing';
         this.renderView();
-      }, { width: 240, bgColour: '#5A9CB8' })
+      }, { width: 240, variant: 'filled' })
     );
 
     // Back button
@@ -382,7 +382,7 @@ export class GroomingScene extends Phaser.Scene {
     }
 
     this.container.add(
-      createPillTitle(this, width / 2, 35, 'Grooming', { bgColour: 0x5A9CB8, fontSize: '20px' })
+      createChromeTitle(this, width / 2, 35, 'Grooming', { fontSize: '20px' })
     );
 
     this.container.add(
@@ -410,9 +410,9 @@ export class GroomingScene extends Phaser.Scene {
     );
 
     this.container.add(
-      createButton(this, width / 2, height / 2 + 70, 'Back to Centre', () => {
+      createChromeButton(this, width / 2, height / 2 + 70, 'Back to Centre', () => {
         this.exitScene();
-      }, { width: 240, icon: 'icon-back' })
+      }, { width: 240, icon: 'icon-back', iconStyle: 'glyph', variant: 'filled' })
     );
   }
 

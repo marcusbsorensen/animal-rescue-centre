@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { getAvailableToys, getPlayToyId, type ToyDef } from '@arc/game-logic';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
-import { createButton } from '../ui/UIButton';
+import { createChromeButton } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 
 /**
@@ -207,11 +207,11 @@ export function renderToyPicker(
   // ── "Play now!" pill button ────────────────────────────────
   const playBtnY = panelY + panelH - 40;
   container.add(
-    createButton(scene, width / 2, playBtnY, 'Play now!',
+    createChromeButton(scene, width / 2, playBtnY, 'Play now!',
       () => callbacks.onPlay(),
       {
         width: 220, fontSize: '18px',
-        bgColour: '#E6A23C', // honey-amber wooden-button style
+        variant: 'filled',
         radius: 22,
       }),
   );

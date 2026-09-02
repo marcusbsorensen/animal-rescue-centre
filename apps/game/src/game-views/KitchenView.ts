@@ -7,8 +7,12 @@ import {
   isSiblingPresent,
   hasAllyPresent,
 } from '@arc/game-logic';
-import { createButton, createTextButton, createPillTitle, createPanel } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, SAFE_MARGIN } from '../ui/constants';
+import {
+  createChromeButton, createTextButton, createChromeTitle, createChromePlate,
+} from '../ui/UIButton';
+import {
+  FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, SAFE_MARGIN, TITLE_CY, CHROME,
+} from '../ui/constants';
 import { playAreaFor, viewportIsShort, sideNavEnabled } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
@@ -64,24 +68,34 @@ export function renderKitchen(
   callbacks: KitchenCallbacks,
 ): void {
   const { width, height } = scene.scale;
+  const play = playAreaFor(width, height);
 
   // ── Background ───────────────────────────────────────────
+  // `play.w`, not `width`. Audit §6: the corridor, room and garden all
+  // draw to the play box and the kitchen did not, so its art ran under the
+  // arrivals rail and behind the Dynamic Island — visible in the capture
+  // as painting continuing past the rail's left edge. The rail is opaque
+  // and mounted at depth 50, so that strip of the painting was never seen.
   if (scene.textures.exists('bg-kitchen')) {
-    const bg = scene.add.image(width / 2, height / 2, 'bg-kitchen');
-    bg.setDisplaySize(width, height - 40);
+    const bg = scene.add.image(play.x + play.w / 2, height / 2, 'bg-kitchen');
+    bg.setDisplaySize(play.w, height - 40);
     container.add(bg);
   } else {
     container.add(
       scene.add.rectangle(
-        width / 2, height / 2, width, height - 40,
+        play.x + play.w / 2, height / 2, play.w, height - 40,
         Phaser.Display.Color.HexStringToColor('#fff8e7').color,
       ),
     );
   }
 
+  // Title — chrome, and on the play origin like its three siblings. The
+  // gold pill here sat next to a white glass panel and a flat green
+  // button, which is the frame the audit uses to show three visual
+  // languages at once.
   container.add(
-    createPillTitle(scene, width / 2, 55, 'Kitchen', {
-      bgColour: 0xD4A017, fontSize: '20px', icon: 'icon-kitchen',
+    createChromeTitle(scene, play.x + play.w / 2, TITLE_CY, 'Kitchen', {
+      icon: 'icon-kitchen',
     }),
   );
 
@@ -91,7 +105,6 @@ export function renderKitchen(
   // ── Readable card behind text/buttons ────────────────────
   // Sits over the painted counter so body text stays readable against
   // the busy kitchen background.
-  const play = playAreaFor(width, height);
   const short = viewportIsShort(height);
 
   // Two layouts, because the tall one does not fold.
@@ -137,26 +150,25 @@ export function renderKitchen(
   // Garden rides in the message column when folded, so it is `msgCx`, not
   // `btnCx`, that it centres on.
   const gardenCx = twoColumn ? msgCx : panelCx;
-  container.add(
-    createPanel(scene, panelCx, panelCy, panelW, panelH, {
-      fillColour: 0xffffff,
-      fillAlpha: 0.92,
-      borderColour: 0xd4a017,
-      borderWidth: 2,
-      radius: 18,
-    }),
-  );
+  // The white glass panel with the gold border was the second of the three
+  // languages the audit found in this one frame — flat white at 92% alpha
+  // with a drop shadow, which is what every other mobile game looks like.
+  // Same job, one surface.
+  container.add(createChromePlate(scene, panelCx, panelCy, panelW, panelH));
 
   if (hungry.length === 0) {
     container.add(
       scene.add.text(panelCx, row(-10), 'Everyone is well-fed!', {
-        fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
-        color: COLOURS.primary, resolution: TEXT_RESOLUTION,
+        // `CHROME.inkAccent`, not `COLOURS.primary`. The brand green
+        // measures 4.11:1 on the cream and misses AA — see the note on
+        // CHROME. This heading is where that would first have shown.
+        fontSize: '20px', fontFamily: FONTS.ui, fontStyle: 'bold',
+        color: CHROME.inkAccent, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );
     container.add(
       scene.add.text(panelCx, row(18), 'Check back when someone gets peckish.', {
-        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, color: CHROME.inkMuted,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );
@@ -165,8 +177,8 @@ export function renderKitchen(
     container.add(
       scene.add.text(msgCx, twoColumn ? panelCy - 52 : row(-90),
         `${hungry.length} animal${hungry.length > 1 ? 's are' : ' is'} hungry!`, {
-          fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
-          color: COLOURS.text, resolution: TEXT_RESOLUTION,
+          fontSize: '22px', fontFamily: FONTS.ui, fontStyle: 'bold',
+          color: CHROME.ink, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
     );
 
@@ -174,7 +186,7 @@ export function renderKitchen(
     container.add(
       scene.add.text(msgCx, twoColumn ? panelCy - 28 : row(-62),
         "Sort the right food into each animal's bowl!", {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: '14px', fontFamily: FONTS.ui, color: CHROME.inkMuted,
           resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
     );
@@ -208,9 +220,9 @@ export function renderKitchen(
 
     // Launch minigame button
     container.add(
-      createButton(scene, btnCx, btnY.sort, 'Start Sorting!', () => {
+      createChromeButton(scene, btnCx, btnY.sort, 'Start Sorting!', () => {
         callbacks.launchMinigame(hungry);
-      }, { width: 240 }),
+      }, { width: 240, variant: 'filled' }),
     );
 
     // Quick-feed option for accessibility
@@ -248,8 +260,8 @@ export function renderKitchen(
     ? 'Garden (empty)'
     : `Garden (${petCount} ${petCount === 1 ? 'pet' : 'pets'})`;
   container.add(
-    createButton(scene, gardenCx, gardenBtnY, gardenLabel, () => callbacks.goToGarden(), {
-      width: 240, fontSize: '15px', bgColour: '#2ecc71', icon: 'icon-walk',
+    createChromeButton(scene, gardenCx, gardenBtnY, gardenLabel, () => callbacks.goToGarden(), {
+      width: 240, fontSize: '15px', icon: 'icon-walk', iconStyle: 'glyph',
     }),
   );
 
@@ -267,8 +279,8 @@ export function renderKitchen(
       play.y + play.h - MIN_TAP / 2 - SAFE_MARGIN,
     );
     container.add(
-      createButton(scene, gardenCx, suppliesY, 'Supplies', () => callbacks.openSupplies!(), {
-        width: 240, fontSize: '15px', bgColour: '#d46020', icon: 'icon-supply-run',
+      createChromeButton(scene, gardenCx, suppliesY, 'Supplies', () => callbacks.openSupplies!(), {
+        width: 240, fontSize: '15px', icon: 'icon-supply-run',
       }),
     );
   }

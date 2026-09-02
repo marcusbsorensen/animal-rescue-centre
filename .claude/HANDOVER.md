@@ -1,112 +1,91 @@
-# A.R.C. UI direction — handover 2026-08-31
-
-The chrome surface exists and the garden is its first consumer. Fifteen
-more views to convert, and the sign-fold sweep is still open.
+# A.R.C. UI direction — handover 2026-09-02
 
 ## Goal
-Ship A.R.C. as an iPad/iPhone app for 7–10 year olds. Current arc: make
-it look like one finished product rather than three stitched together.
+Ship A.R.C. as an iPad/iPhone app for 7–10 year olds. Current arc: make it
+look like one finished product rather than three stitched together.
 
 ## State
-**Committed.** `72f4647` on branch `side-nav-prototype`, not merged to
-`main`. Side-nav layout behind `?sideRail=1`, default off. Verified in
-the real Capacitor app on an iPhone 17 Pro sim — rail clears the Dynamic
-Island and the home indicator.
+**On `main`** (`5cd5c67`): the audit, the chrome surface, GardenView, and the
+side-nav layout behind `?sideRail=1` defaulting off.
 
-**Uncommitted, and the new work.** The chrome surface — audit §1's answer
-— plus `GardenView` converted onto it. 334 tests, typecheck clean, 38
-lint warnings (unchanged baseline, 0 errors).
-- `ui/constants.ts` — `FONTS.ui` (system-rounded, no webfont), `CHROME`
-  (the one non-diegetic surface, drawn from `COLOURS`), `hexNum`,
-  `EDGE_CONTROL_INSET`.
-- `ui/UIButton.ts` — `createChromePlate`, `createChromeTitle`,
-  `createChromeCircleButton`, beside the pill/panel they replace.
-- `game-views/GardenView.ts` — title off `createPillTitle`, empty state
-  onto a plate, arrows into chrome circles with real hit areas.
-- `ui/__tests__/chrome.test.ts` — 13 tests holding the decisions.
+**On `chrome-views`** (`bfdf77c`), pushed, unmerged, nine commits ahead. 340
+tests, typecheck clean, 38 lint warnings (unchanged baseline, 0 errors).
+- Every titled screen is on the chrome surface. `createPillTitle` is deleted.
+- All six webfonts self-hosted; zero requests to googleapis/gstatic.
+- Chalkboard SE dropped, so Mac and iPad render the sign screens alike.
+- All 56 buttons are on the chrome surface too, bar the four in DepotScene
+  and SupplyRunScene held back on the Depot decision. `createButton` stays
+  until those move.
 
-**On this branch only, deliberately.** The two-board sign fold in
-`public/admin/` `_short-landscape.css` + `_signpost-physics.css`, held as
-`d22ef1a` on `side-nav-prototype` and **kept off `main`**: landscape
-splits the stake into information-left / actions-right on one central
-post pair. Scoped `:has(> .cta-stack)`, so it lands on **twelve** screens
-— adopters, conflict, friends, forgot-pin, login, menu, news, vet,
-welcome, paths, welcome-new, signup. Only welcome and login looked at;
-ten unswept, and `main` deploys, so merging it ships an unreviewed layout
-change to all twelve. Sweep the ten before it goes anywhere.
+**Verified.** Chrome captures at 874x402 for the sixteen titled screens plus
+the animal card, its More grid, the Games popup and the Phaser PIN keypad.
+Corridor, Dog Room, kitchen and garden also seen on an iPhone 17 Pro
+simulator. `ui-rounded` and Kalam both confirmed resolving by canvas probe,
+not by eye.
 
-**Verified by capture**, at 874x402 through the Chrome channel: both
-garden zones, and the right arrow answering a tap. Before/after sit in
-`e2e/__audit__/08-garden-BEFORE-chrome.jpg` and `08-garden.png`.
-
-**Unverified.** No physical hardware, no simulator run since the chrome
-landed. Menu, the species room, the 14 in-game overlay screens and
-Walk/Depot/Drive/Social/Account are unaudited.
+**On `side-nav-prototype` only, deliberately.** The sign fold, `d22ef1a`, kept
+off `main`: live CSS on twelve DOM screens with ten never looked at, and `main`
+deploys.
 
 ## Files
-- `docs/ui-audit-2026-08-31.md` — the seven findings, ranked. Read first.
-- `docs/landscape-relayout-2026-08-31.md` — side-nav and its open list.
-- `.claude/TRAPS.md` — the simulator section is load-bearing, and read
-  the Playwright lines before touching the harness.
-- `src/ui/constants.ts` — `CHROME`, `FONTS`, `COLOURS`, `MIN_TAP`,
-  `EDGE_CONTROL_INSET`.
-- `src/ui/UIButton.ts:354` `createChromePlate`, `:402` `createChromeTitle`,
-  `:485` `createChromeCircleButton`.
-- `e2e/ui-audit.spec.ts` — shoots the screens at 874x402.
+- `docs/ui-next-steps-2026-09-02.md` — the ranked queue and three open
+  decisions. **Read this first**; it carries the detail this note omits.
+- `docs/ui-audit-2026-08-31.md` — the original seven findings. §2 in it is
+  wrong, and so are §1's parts about the button icon; the queue says how.
+- `.claude/TRAPS.md` — read before touching the harness or the simulator.
+- `apps/game/src/ui/constants.ts` — `CHROME` (fill/stroke/four inks),
+  `FONTS.ui`, `TITLE_CY`, `EDGE_CONTROL_INSET`.
+- `apps/game/src/ui/UIButton.ts` — the chrome helpers: `createChromePlate`,
+  `createChromeTitle`, `createChromeCircleButton`, `createChromeButton`.
+  The `variant` doc on the last one carries the plate/filled rule.
+- `apps/game/e2e/chrome-buttons.spec.ts` — shoots the overlays
+  `ui-audit.spec.ts` never opens.
+- `scripts/fetch-fonts.py` — regenerates `apps/game/public/fonts/`.
 
 ## Decisions made
-- **Painted = diegetic only.** The hand-painted wood language belongs to
-  the sign screens, because those boards are artwork — objects in the
-  world. Everything non-diegetic (HUD, nav, panels, view titles, buttons)
-  is chrome and gets `CHROME`: warm cream paper, hairline border, soft
-  shadow — the surface the left rail was already drawing, promoted from
-  one view's local styling. Cream rather than white glass on purpose:
-  non-diegetic does not have to mean generic.
-- **Chrome type is a friendly *system* font**, not a webfont — `FONTS.ui`
-  starts `ui-rounded` / SF Pro Rounded and reaches for no webfont at all,
-  which is what a test now holds. A stack that starts at a face iOS always
-  has cannot fall through, which is the whole failure mode behind login's
-  system-sans button.
-- **No room art needs re-painting.** All 27 backgrounds are 16:9.
-- **Four rail items, not five.** Supplies moved into Care.
+- **Painted = diegetic only.** Sign boards are objects in the world and keep
+  their painted look. Everything floating above it is chrome and shares
+  `CHROME`: cream paper, hairline border, soft shadow.
+- **Chrome type is a system face.** `ui-rounded` first, no webfont in the stack,
+  so it cannot fall through mid-load.
+- **Tone is decoration, never signal.** Success and danger inks sit 1.12:1
+  apart — forced, since both must clear AA on a light plate. The words carry
+  the meaning; colour only reinforces.
+- **Captures must match the device.** Dropping Chalkboard SE cost a nicer face
+  on the Mac and bought screenshots that tell the truth.
+- **Buttons are the same surface at two weights.** `plate` is the paper,
+  `filled` is the ink and paper swapped — so emphasis costs no new colour.
+  A plate holds up on the cream canvas; it is a frame-inside-a-frame only
+  when it sits on another plate, which is where filled goes instead.
 
 ## Next step
-Convert the remaining fifteen `createPillTitle` callers — CorridorView,
-RoomView, KitchenView and twelve scenes. `createChromeTitle` takes the
-same shape of call minus the colour options, so it is mechanical. Do
-CorridorView and RoomView first: they already share `TITLE_CY` and the
-play-area origin with the garden, so the three read as one product the
-moment they match.
+Queue item 5, sweeping the edges with `ux-geometry.ts` and
+`e2e/ux-review.spec.ts` pointed at every scene — `EDGE_CONTROL_INSET` still
+has one user. Or item 2's leftover, hoisting the type scale out of 23 copies
+into `fonts.css`, which is contained and mechanical.
 
-Then the two things the garden pass surfaced but did not fix:
-- **The garden's count line** (`GardenView.ts`, "2 pets living their best
-  life") is at y=95, inside the HUD's second row (phase and weather pills,
-  y 78..106), which draws on top of it. Its x is fixed; its y wants
-  deciding with the other titles, not locally.
-- **"Garden — Quiet nook" abuts the "0 in care" pill.** It is the longest
-  title in the game and the HUD's 600px-centred gap barely holds it. The
-  chrome plate is 20px narrower than the pill it replaced, so this is
-  better than it was, not worse — but a longer title anywhere will collide.
+**Three decisions are open and two of them gate work** — they are listed at
+the top of the queue. Depot and SupplyRun's own language is the one blocking
+the last four button call sites.
 
 ## Traps
-- **Read `.claude/TRAPS.md` before reaching for the harness.** It already
-  records that Playwright's bundled downloads stall and that
-  `ARC_BROWSER_CHANNEL=chrome` is the supported way round it, and that
-  WebGL does not initialise in the Claude browser pane. Both were
-  rediscovered the slow way this session.
-- **`osascript` cannot rotate the simulator** — ask Marcus for Cmd+Left,
-  then re-`attach` and re-`openurl`: the flip can leave the device at the
-  Home Screen in portrait, and the first capture after it lies.
-- **Never judge layout in simulator Safari** — its chrome makes the
-  viewport ~64pt shorter than the shell's 874x402. Build the app
-  (`VITE_SIDE_RAIL=1 pnpm build:ios`).
-- **`e2e/ui-audit.spec.ts` fails at step 09-room**, and did before this
-  work: it sets `viewMode = 'room'` without a species, so `renderRoom`
-  throws on `species.charAt`. Everything up to and including the garden
-  shoots fine.
-- **`_short-landscape.css` pins `.secondary-row` `position: sticky`**,
-  lifting buttons out of any board they are meant to sit on.
-- Text objects with `.setInteractive()` get a glyph-sized hit area. The
-  garden's arrows were the last of those; `createChromeCircleButton`
-  floors the hit area at `MIN_TAP` independently of what is drawn.
+- **Read `.claude/TRAPS.md` before the harness.** It records that Playwright's
+  bundled browsers stall (`ARC_BROWSER_CHANNEL=chrome` is the way round) and
+  that WebGL is dead in the Claude browser pane. Both were rediscovered the
+  slow way anyway.
+- **`animalCard()` destroys the card.** It calls `destroyAnimalCard()` and
+  returns a fresh empty container, so reading the card through it deletes
+  what you were reading. Use `animalCardContainer`.
+- **The Games popup lays a full-screen dismiss rectangle over the scene.**
+  Nothing shot after it can be clicked — open it last.
+- **Do not judge a typeface, or an icon, from a Mac screenshot** without
+  measuring. That is how the audit's §2 came to describe a font that never
+  reached the device, and how the walk icon's fault was put down to scaling
+  code rather than to 69x34 of art in a 128x128 frame.
+- **To reach the game on the simulator, seed the session**, do not log in:
+  `mintRealSession()` from `e2e/helpers.ts` into a temporary
+  `public/__devsession.js`. Delete it after — it holds a live token.
+- Simulator screenshots return in the portrait framebuffer with landscape
+  content rotated. `PIL Image.transpose(ROTATE_90)` to read them; taps use the
+  unrotated 402x874 space.
 - Bash `cd` does not persist between calls; use absolute paths.

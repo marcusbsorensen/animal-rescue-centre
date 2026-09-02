@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, CHROME } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, CHROME, hexNum } from './constants';
 
 /**
  * Polished rounded button with shadow and 3D bevel effect.
@@ -190,99 +190,6 @@ export function createTextButton(
 }
 
 /**
- * Colourful pill-shaped title banner — used for location headings.
- * Now with proper rounded rect, shadow, and optional icon glow.
- */
-export function createPillTitle(
-  scene: Phaser.Scene,
-  x: number,
-  y: number,
-  label: string,
-  options?: {
-    bgColour?: number;
-    fontSize?: string;
-    textColour?: string;
-    padX?: number;
-    padY?: number;
-    shadow?: boolean;
-    icon?: string;       // texture key for a custom icon
-    iconSize?: number;   // display size in px (default 28)
-  }
-): Phaser.GameObjects.Container {
-  const fontSize = options?.fontSize ?? '22px';
-  const textColour = options?.textColour ?? '#ffffff';
-  const padX = options?.padX ?? 28;
-  const padY = options?.padY ?? 10;
-  const bgColour = options?.bgColour ?? 0x4A9438;
-  const shadow = options?.shadow ?? true;
-  const iconSize = options?.iconSize ?? 28;
-
-  const text = scene.add.text(0, 0, label, {
-    fontSize,
-    fontFamily: FONTS.title,
-    fontStyle: 'bold',
-    color: textColour,
-    shadow: { offsetX: 0, offsetY: 1, color: 'rgba(0,0,0,0.25)', blur: 2, fill: true },
-    resolution: TEXT_RESOLUTION,
-  }).setOrigin(0.5);
-
-  // Optional icon to the left of text
-  let pillIcon: Phaser.GameObjects.Image | undefined;
-  if (options?.icon && scene.textures.exists(options.icon)) {
-    pillIcon = scene.add.image(0, 0, options.icon).setOrigin(0.5);
-    const scale = iconSize / Math.max(pillIcon.width, pillIcon.height);
-    pillIcon.setScale(scale);
-    const totalW = iconSize + 8 + text.width;
-    text.setX((iconSize + 8) / 2);
-    pillIcon.setX(-totalW / 2 + iconSize / 2);
-  }
-
-  const contentW = text.width + (pillIcon ? iconSize + 8 : 0);
-  const w = contentW + padX * 2;
-  const h = text.height + padY * 2;
-  const radius = h / 2;
-
-  const gfx = scene.add.graphics();
-
-  // Drop shadow
-  if (shadow) {
-    gfx.fillStyle(0x000000, 0.2);
-    gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 3, w, h, radius);
-  }
-
-  // Main pill
-  gfx.fillStyle(bgColour, 1);
-  gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
-
-  // Inner highlight (top half, lighter)
-  const baseR = (bgColour >> 16) & 0xFF;
-  const baseG = (bgColour >> 8) & 0xFF;
-  const baseB = bgColour & 0xFF;
-  const highlight = Phaser.Display.Color.GetColor(
-    Math.min(255, baseR + 30),
-    Math.min(255, baseG + 30),
-    Math.min(255, baseB + 30)
-  );
-  gfx.fillStyle(highlight, 0.2);
-  gfx.fillRoundedRect(-w / 2 + 2, -h / 2 + 1, w - 4, h * 0.42, { tl: radius, tr: radius, bl: 0, br: 0 });
-
-  // Thin outline
-  gfx.lineStyle(1, 0xffffff, 0.2);
-  gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
-
-  const pillChildren: Phaser.GameObjects.GameObject[] = [gfx, text];
-  if (pillIcon) pillChildren.push(pillIcon);
-  const container = scene.add.container(x, y, pillChildren);
-  // The pill is drawn into a Graphics object, and Graphics contributes
-  // nothing to getBounds() — so a caller measuring this container to lay
-  // out whatever sits beneath it gets the height of the *text*, about 10px
-  // short, and puts its next row inside the pill. Publish the real drawn
-  // size instead; `title.width` / `title.height` are then meaningful.
-  container.setSize(w, h + (shadow ? 3 : 0));
-  return container;
-}
-
-/**
  * Styled card panel — rounded rectangle with shadow, used for
  * content areas, animal cards, info panels.
  */
@@ -341,10 +248,11 @@ export function createPanel(
  * The chrome plate — one rounded surface, one fill, one stroke, one shadow.
  *
  * Use it anywhere a view needs to put something *over* the world: a title,
- * an empty state, an info panel, the back of a button. It replaces both the
+ * an empty state, an info panel, the back of a button. It replaced both the
  * translucent-white `createPanel` look and the gold-pill `createPillTitle`
- * look, which between them are why the kitchen shows three visual languages
- * in one frame.
+ * look, which between them were why the kitchen showed three visual
+ * languages in one frame. The pill is gone; `createPanel` still has 20
+ * callers and wants this.
  *
  * The container publishes its drawn size via `setSize`, so a caller can
  * measure it to lay out whatever sits beneath — Graphics contributes nothing
@@ -386,14 +294,16 @@ export function createChromePlate(
 }
 
 /**
- * A view title on a chrome plate — the non-diegetic replacement for
- * `createPillTitle`.
+ * A view title on a chrome plate — what replaced the gold pills, all
+ * twenty of them.
  *
- * The gold pills are chrome wearing scenery clothes: they carry the painted
+ * The pills were chrome wearing scenery clothes: they carried the painted
  * world's bevel and warmth on an element that floats above the world and
- * could not be an object in it. Same shape of call as `createPillTitle` so
- * the remaining callers convert without rethinking their layout, minus the
+ * could not be an object in it. This kept their shape of call so the
+ * conversion did not have to rethink twenty layouts as well, minus the
  * colour options — the point of one surface is that it is not per-view.
+ * `createPillTitle` itself is deleted; its last caller went with the
+ * conversion.
  *
  * `subtitle` sets a second, quieter line on the same plate. Views that show
  * a heading and a count under it were drawing the count straight onto
@@ -410,17 +320,36 @@ export function createChromeTitle(
     subtitleSize?: string;
     icon?: string;       // texture key for a custom icon
     iconSize?: number;   // display size in px (default 26)
+    /**
+     * What the heading *means*, for the handful of places where that is
+     * not neutral — "PERFECT RUN!" against "TOTALLED!", "Session Complete!"
+     * against "Out of Moves!".
+     *
+     * Those were pill titles whose whole background carried the valence:
+     * green plate for a good run, red for a wrecked one. Moving them onto
+     * one cream surface without this would delete the signal a child reads
+     * the moment before she reads the words. It moves to the ink instead,
+     * so the surface stays single and the meaning survives.
+     *
+     * Ink, not fill, and deliberately: the words already differ, so colour
+     * here is reinforcement rather than the only channel — which is the
+     * right way round for a child who does not see red and green apart.
+     */
+    tone?: 'default' | 'success' | 'danger';
   }
 ): Phaser.GameObjects.Container {
   const fontSize = options?.fontSize ?? '20px';
   const subtitleSize = options?.subtitleSize ?? '15px';
   const iconSize = options?.iconSize ?? 26;
+  const ink = options?.tone === 'success' ? CHROME.inkAccent
+    : options?.tone === 'danger' ? CHROME.inkDanger
+      : CHROME.ink;
 
   const text = scene.add.text(0, 0, label, {
     fontSize,
     fontFamily: FONTS.ui,
     fontStyle: 'bold',
-    color: CHROME.ink,
+    color: ink,
     resolution: TEXT_RESOLUTION,
   }).setOrigin(0.5);
 
@@ -532,6 +461,191 @@ export function createChromeCircleButton(
       targets: container,
       scaleX: 0.92,
       scaleY: 0.92,
+      duration: 60,
+      yoyo: true,
+      onComplete: onClick,
+    });
+  });
+
+  return container;
+}
+
+/**
+ * A button on the chrome surface — the non-diegetic replacement for
+ * `createButton`.
+ *
+ * `createButton` is the largest remaining piece of the audit's first
+ * finding, and the piece a child touches most: 56 call sites across 22
+ * files, at least one on every screen. It draws a bevel — a lighter strip
+ * along the top, a darker one along the bottom, a white rim — which is the
+ * painted world's vocabulary on an element that floats above the world.
+ * Worse, each caller picked its own `bgColour`, so the game carries a dozen
+ * button colours whose only shared rule is that somebody liked them.
+ *
+ * **Two weights, one surface.** `plate` is the cream paper every other
+ * chrome element already uses. `filled` is the same plate with the ink and
+ * the paper swapped — the accent as the fill, the cream as the type. That
+ * is one surface read two ways rather than a second surface, and it gives
+ * a screen exactly one level of emphasis to spend on its main action.
+ *
+ * The swap is also why `filled` needs no contrast work of its own: cream on
+ * `inkAccent` is the same pair as `inkAccent` on cream, read backwards, and
+ * `chrome.test.ts` already holds that pair at AA. A test says so, so that
+ * a later edit introducing a third fill has to answer for it.
+ *
+ * **Padding stays at the button's numbers, not the plate's.** `CHROME.padY`
+ * is 12 and this uses 14, deliberately: a title plate is padded so the words
+ * can breathe, a button is padded so a finger can land. Dropping to the
+ * plate's value would take 4px off the drawn height of every button in the
+ * game — all of them already under `MIN_TAP` — to make a number match.
+ */
+export function createChromeButton(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  label: string,
+  onClick: () => void,
+  options?: {
+    fontSize?: string;
+    width?: number;
+    height?: number;
+    radius?: number;
+    icon?: string;       // texture key for a custom icon (e.g. 'icon-play')
+    iconSize?: number;   // display size of icon in px (default 24)
+    /**
+     * Which of the two kinds of icon this key is.
+     *
+     * `artwork` (default) — a painterly piece carrying its own colours,
+     * like `icon-feed` or `icon-depot`. Drawn as it was painted.
+     *
+     * `glyph` — a line drawing in white or pale grey: `icon-back`,
+     * `icon-accept`, `icon-walk`. Those were made when every button had a
+     * dark fill, and on cream paper they all but disappear. A glyph is
+     * tinted to whatever ink the button is already setting its label in,
+     * so one asset reads in both weights — dark on the plate, cream on the
+     * filled button — and neither needs redrawing.
+     *
+     * Two kinds rather than tinting everything, because tint multiplies:
+     * exactly right for white line art, ruinous for anything painted.
+     */
+    iconStyle?: 'artwork' | 'glyph';
+    /**
+     * `plate` (default) is paper; `filled` is paper and ink swapped.
+     *
+     * **Plate is the default, and it holds on cream.** The worry was that
+     * a cream button on the game's cream canvas would have no edge —
+     * `ui-next-steps` records the title plate as "nearly invisible" on the
+     * flat-cream scenes. Drawn and looked at rather than argued about: a
+     * button is fine. A title plate is understated on purpose and has only
+     * its hairline to show for itself; a button carries the same hairline
+     * *and* a drop shadow, and the two together read as something raised
+     * that you would press. It works on painted art and on bare cream.
+     *
+     * **Filled marks the one action the screen is for** — "Start
+     * Sorting!", "Let's go!", "Done playing!". Two of them side by side
+     * spends the emphasis and leaves a child no clue which the screen
+     * wants.
+     *
+     * **A plate inside a plate is two hairlines a few pixels apart**, so
+     * fill the inner one. That is the left rail, the Games popup and the
+     * animal card: each is already a bordered cream surface, and a bordered
+     * cream button on it reads as a frame around a frame. Those layouts
+     * carry several filled buttons and are right to; they get their
+     * emphasis from position and wording, which is what they were already
+     * doing when the fills were a dozen different colours.
+     */
+    variant?: 'plate' | 'filled';
+    /**
+     * For the rare control that undoes or ends something. Same rule as
+     * `createChromeTitle`'s tone: it moves the ink, never the surface, and
+     * it reinforces a label that already says so. Nothing in the game
+     * reads only as red.
+     */
+    tone?: 'default' | 'danger';
+  }
+): Phaser.GameObjects.Container {
+  const fontSize = options?.fontSize ?? '22px';
+  const radius = options?.radius ?? CHROME.radius;
+  const iconSize = options?.iconSize ?? 24;
+  const filled = options?.variant === 'filled';
+  const accent = options?.tone === 'danger' ? CHROME.inkDanger : CHROME.inkAccent;
+
+  // Filled swaps the two: the accent becomes the surface, the cream the
+  // type. Plate keeps the paper and puts the accent nowhere — a plain
+  // button's label is `ink`, because on a screen of plates the one that
+  // differs should be the one that matters.
+  const fillNum = filled ? hexNum(accent) : CHROME.fill;
+  const inkHex = filled
+    ? COLOURS.bg
+    : (options?.tone === 'danger' ? CHROME.inkDanger : CHROME.ink);
+
+  const text = scene.add.text(0, 0, label, {
+    fontSize,
+    fontFamily: FONTS.ui,
+    fontStyle: 'bold',
+    color: inkHex,
+    resolution: TEXT_RESOLUTION,
+  }).setOrigin(0.5);
+
+  let iconSprite: Phaser.GameObjects.Image | undefined;
+  let iconOffset = 0;
+  if (options?.icon && scene.textures.exists(options.icon)) {
+    iconSprite = scene.add.image(0, 0, options.icon).setOrigin(0.5);
+    iconSprite.setScale(iconSize / Math.max(iconSprite.width, iconSprite.height));
+    if (options.iconStyle === 'glyph') iconSprite.setTint(hexNum(inkHex));
+    iconOffset = (iconSize + 6) / 2;
+    text.setX(iconOffset);
+    iconSprite.setX(-text.width / 2 - 6 + iconOffset - iconSize / 2);
+  }
+
+  const padX = 28;
+  const padY = 14;
+  const contentW = text.width + (iconSprite ? iconSize + 6 : 0);
+  const w = Math.max(contentW + padX * 2, options?.width ?? 200);
+  const h = options?.height ?? text.height + padY * 2;
+
+  const gfx = scene.add.graphics();
+
+  gfx.fillStyle(CHROME.shadowColour, CHROME.shadowAlpha);
+  gfx.fillRoundedRect(-w / 2 + CHROME.shadowX - 1, -h / 2 + CHROME.shadowY - 1, w, h, radius);
+
+  gfx.fillStyle(fillNum, filled ? 1 : CHROME.fillAlpha);
+  gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
+
+  // The hairline is what separates cream from cream. A filled button
+  // separates itself from anything it sits on, and outlining it in the
+  // plate's warm grey would draw a ring around a dark shape rather than
+  // an edge on a light one.
+  if (!filled) {
+    gfx.lineStyle(CHROME.strokeWidth, CHROME.stroke, CHROME.strokeAlpha);
+    gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
+  }
+
+  // Hit area floored at MIN_TAP, per the idiom documented on MIN_TAP. The
+  // drawn button keeps the size the caller asked for; only the region that
+  // answers a tap grows, which costs nothing visible.
+  const hitArea = scene.add.rectangle(
+    0, 0, Math.max(w, MIN_TAP), Math.max(h, MIN_TAP), 0x000000, 0,
+  ).setInteractive({ useHandCursor: true });
+
+  const children: Phaser.GameObjects.GameObject[] = [gfx, text];
+  if (iconSprite) children.push(iconSprite);
+  children.push(hitArea);
+
+  const container = scene.add.container(x, y, children);
+  // Graphics contributes nothing to getBounds(), so a caller measuring this
+  // to stack the next row gets the height of the *text* and lands inside
+  // the button. `createButton` never published its size and every caller
+  // hardcoded round it; this one does.
+  container.setSize(w, h + CHROME.shadowY);
+
+  hitArea.on('pointerover', () => container.setScale(1.03));
+  hitArea.on('pointerout', () => container.setScale(1));
+  hitArea.on('pointerdown', () => {
+    scene.tweens.add({
+      targets: container,
+      scaleX: 0.96,
+      scaleY: 0.96,
       duration: 60,
       yoyo: true,
       onComplete: onClick,

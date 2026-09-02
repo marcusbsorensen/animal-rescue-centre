@@ -58,6 +58,7 @@ apps/game/e2e/__signposts__/
 apps/game/e2e/__siderail__/
 apps/game/e2e/__signs__/
 apps/game/e2e/__audit__/
+apps/game/e2e/__buttons__/
 dist-ios/
 
 # UX/audit screenshots, regenerated on demand — 31 MB of them.

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS } from '../ui/constants';
-import { createButton, createTextButton, createPanel, createPillTitle, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { getAvailableUsernames, signup } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
@@ -118,9 +118,7 @@ export class SignupScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createPillTitle(this, width / 2, 60, "Let's make your rescue centre!", {
-        bgColour: 0x5AAE4A, fontSize: '24px',
-      })
+      createChromeTitle(this, width / 2, 60, "Let's make your rescue centre!", { fontSize: '24px' })
     );
 
     this.container.add(
@@ -156,7 +154,7 @@ export class SignupScene extends Phaser.Scene {
 
     this.usernameOptions.forEach((name, i) => {
       const y = startY + i * 70;
-      const btn = createButton(this, width / 2, y, name, () => {
+      const btn = createChromeButton(this, width / 2, y, name, () => {
         this.selectedUsername = name;
         this.showAvatarStep();
       }, { width: 300 });
@@ -184,9 +182,7 @@ export class SignupScene extends Phaser.Scene {
     const { width } = this.scale;
 
     this.container.add(
-      createPillTitle(this, width / 2, 40, `Hi, ${this.selectedUsername}!`, {
-        bgColour: 0x5AAE4A, fontSize: '22px',
-      })
+      createChromeTitle(this, width / 2, 40, `Hi, ${this.selectedUsername}!`, { fontSize: '22px' })
     );
 
     this.container.add(
@@ -267,11 +263,11 @@ export class SignupScene extends Phaser.Scene {
     // Preview + Next button
     const nextY = colourStartY + 130;
     this.container.add(
-      createButton(this, width / 2, nextY, 'Next →', () => {
+      createChromeButton(this, width / 2, nextY, 'Next →', () => {
         if (!this.selectedEmoji) { this.showError('Pick an animal!'); return; }
         if (!this.selectedBgColour) { this.showError('Pick a colour!'); return; }
         this.showPinStep();
-      })
+      }, { variant: 'filled' })
     );
 
     this.container.add(
@@ -324,9 +320,9 @@ export class SignupScene extends Phaser.Scene {
 
     const { width } = this.scale;
 
-    const pinTitleContainer = createPillTitle(this, width / 2, 60,
+    const pinTitleContainer = createChromeTitle(this, width / 2, 60,
       confirmMode ? 'Confirm your PIN' : 'Choose a secret PIN', {
-      bgColour: 0xD4783C, fontSize: '22px',
+      fontSize: '22px',
     });
     this.pinTitleText = pinTitleContainer.list.find(
       (obj): obj is Phaser.GameObjects.Text => obj instanceof Phaser.GameObjects.Text
@@ -376,11 +372,12 @@ export class SignupScene extends Phaser.Scene {
         const x = width / 2 + (ci - 1) * (btnSize + gap);
         const y = padStartY + ri * (btnSize + gap);
 
-        const bgColour = digit === '✓' ? COLOURS.primary
-          : digit === '⌫' ? COLOURS.warm : '#f5efe4';
-        const btn = createButton(this, x, y, digit, () => this.handlePinInput(digit), {
+        // Same keypad as LoginScene, same reasoning — see the comment
+        // there. White type on '#f5efe4' measured 1.06:1.
+        const btn = createChromeButton(this, x, y, digit, () => this.handlePinInput(digit), {
           width: btnSize, height: btnSize, radius: 12,
-          bgColour,
+          variant: digit === '✓' ? 'filled' : 'plate',
+          tone: digit === '⌫' ? 'danger' : 'default',
           fontSize: (digit === '✓' || digit === '⌫') ? '24px' : '28px',
         });
         this.container.add(btn);
@@ -469,9 +466,7 @@ export class SignupScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createPillTitle(this, width / 2, 60, 'Almost there!', {
-        bgColour: 0x5AAE4A, fontSize: '24px',
-      })
+      createChromeTitle(this, width / 2, 60, 'Almost there!', { fontSize: '24px' })
     );
 
     this.container.add(
@@ -490,9 +485,9 @@ export class SignupScene extends Phaser.Scene {
 
     // Skip button (prominent — skipping is fine)
     this.container.add(
-      createButton(this, width / 2, height / 2 + 20, 'Skip — start playing!', () => {
+      createChromeButton(this, width / 2, height / 2 + 20, 'Skip — start playing!', () => {
         this.doSignup();
-      }, { width: 320 })
+      }, { width: 320, variant: 'filled' })
     );
 
     // "Enter email" option (secondary)

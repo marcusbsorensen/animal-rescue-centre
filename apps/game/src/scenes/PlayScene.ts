@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
-import { createButton, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createAmbientParticles } from '../ui/UIButton';
 import { applyPlay, TOY_DEFS, DEFAULT_TOY_FOR_SPECIES, getPlayToyId, getToyBondBonus } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
@@ -1301,9 +1301,9 @@ export class PlayScene extends Phaser.Scene {
     );
 
     this.container.add(
-      createButton(this, width / 2, height / 2 + 90, 'Back to Centre', () => {
+      createChromeButton(this, width / 2, height / 2 + 90, 'Back to Centre', () => {
         this.exitScene(true);
-      }, { width: 240 })
+      }, { width: 240, variant: 'filled' })
     );
   }
 
@@ -1320,9 +1320,9 @@ export class PlayScene extends Phaser.Scene {
       }).setOrigin(0.5)
     );
     this.container.add(
-      createButton(this, width / 2, height - 90, 'Done playing!', () => {
+      createChromeButton(this, width / 2, height - 90, 'Done playing!', () => {
         this.exitScene(false);
-      }, { width: 240, bgColour: COLOURS.primary })
+      }, { width: 240, variant: 'filled' })
     );
   }
 

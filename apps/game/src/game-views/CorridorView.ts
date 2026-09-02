@@ -2,12 +2,14 @@ import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS } from '@arc/game-logic';
 import {
-  createPillTitle,
+  createChromeTitle,
   createAmbientParticles,
 } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors } from '../lib/RoomAnchors';
-import { FONTS, TEXT_RESOLUTION, pluralSpecies, SAFE_MARGIN } from '../ui/constants';
+import {
+  FONTS, TEXT_RESOLUTION, pluralSpecies, SAFE_MARGIN, TITLE_CY,
+} from '../ui/constants';
 import { getPlayArea } from './LeftRailView';
 import {
   anchorSpaceFor, animalBoxFor, navBarMetrics, sideNavEnabled, ANIMAL_LABEL_HEIGHT,
@@ -56,9 +58,6 @@ export function renderCorridor(
   // full width. Background and anchors both use it, so animals keep landing
   // on the marks the art was painted for.
   const play = getPlayArea(scene);
-  // Titles sit clear of the HUD's second row (time-of-day and weather pills,
-  // y 78..106), which is drawn after this container and so lands on top.
-  const TITLE_CY = 45;
 
   // ── Background ───────────────────────────────────────────
   // `height - 40` is the tall-viewport habit: the art is drawn nearly
@@ -104,10 +103,11 @@ export function renderCorridor(
   }
   container.add(bgPattern);
 
-  // Title
+  // Title — chrome, not scenery. See CHROME in ui/constants: the painted
+  // language belongs to the sign boards, which are objects in the world.
   container.add(
-    createPillTitle(scene, play.x + play.w / 2, TITLE_CY, 'Rescue Centre', {
-      bgColour: 0x8B6914, fontSize: '20px', icon: 'icon-rescue-centre',
+    createChromeTitle(scene, play.x + play.w / 2, TITLE_CY, 'Rescue Centre', {
+      icon: 'icon-rescue-centre',
     }),
   );
 
