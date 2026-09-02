@@ -18,8 +18,8 @@
     --ink: #3a3a3a;
     --headline-font: 'Fredoka', system-ui, sans-serif;
     --body-font: 'Quicksand', system-ui, sans-serif;
-    --sign-font: 'Chalkboard SE', 'Chalkboard', 'Kalam', 'Gochi Hand', 'Patrick Hand', var(--headline-font);
-    --sign-title-font: 'Chalkboard SE', 'Chalkboard', 'Gochi Hand', 'Kalam', var(--headline-font);
+    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
+    --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -304,7 +304,7 @@
     filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.15));
   }
   .fact-header {
-    font-family: 'Chalkboard SE', 'Chalkboard', var(--sign-title-font);
+    font-family: var(--sign-title-font);
     font-weight: 700;
     font-size: clamp(14px, 1.9cqh, 16px);
     color: #4a6b3a;
