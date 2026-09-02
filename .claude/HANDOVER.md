@@ -25,12 +25,15 @@ lint warnings (unchanged baseline, 0 errors).
   onto a plate, arrows into chrome circles with real hit areas.
 - `ui/__tests__/chrome.test.ts` — 13 tests holding the decisions.
 
-**Uncommitted, older.** The two-board sign fold in `public/admin/`
-`_short-landscape.css` + `_signpost-physics.css`: landscape splits the
-stake into information-left / actions-right on one central post pair.
-Scoped `:has(> .cta-stack)`, so it lands on **twelve** screens —
-adopters, conflict, friends, forgot-pin, login, menu, news, vet, welcome,
-paths, welcome-new, signup. Only welcome and login looked at; ten unswept.
+**On this branch only, deliberately.** The two-board sign fold in
+`public/admin/` `_short-landscape.css` + `_signpost-physics.css`, held as
+`d22ef1a` on `side-nav-prototype` and **kept off `main`**: landscape
+splits the stake into information-left / actions-right on one central
+post pair. Scoped `:has(> .cta-stack)`, so it lands on **twelve** screens
+— adopters, conflict, friends, forgot-pin, login, menu, news, vet,
+welcome, paths, welcome-new, signup. Only welcome and login looked at;
+ten unswept, and `main` deploys, so merging it ships an unreviewed layout
+change to all twelve. Sweep the ten before it goes anywhere.
 
 **Verified by capture**, at 874x402 through the Chrome channel: both
 garden zones, and the right arrow answering a tap. Before/after sit in
