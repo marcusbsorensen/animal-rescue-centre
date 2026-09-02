@@ -13,7 +13,7 @@ Counts are exact and re-measured today. Judgements are mine.
 | | Finding | State |
 |---|---|---|
 | §1 | Three visual languages | **Half.** Titles and plates are one surface. 57 `createButton` call sites across 24 files, the HUD and the nav bar are still the old languages. |
-| §2 | 39 font stacks | **Game side only.** `FONTS.ui` fixed Phaser. The 500 declarations live in `public/admin/`, untouched — and that is where the visible symptom is. |
+| §2 | 39 font stacks | **Done, and the finding was wrong.** The 24 shipping screens were already consistent; the variance was in two mockups. The real defect was 36 screens fetching four faces from fonts.googleapis.com — IP to Google on cold launch, fallback type offline. All six faces self-hosted, Chalkboard SE dropped so Mac and iPad agree. |
 | §3 | Text on painted art | **Two of unknown.** Garden and species room are plated. Nobody has enumerated the rest. |
 | §4 | Raw colour literals | **Untouched.** 658 raw `0xRRGGBB` against 287 `COLOURS.` uses — still about 70%. (The audit's 610/276 used a narrower grep; the ratio is what matters.) |
 | §5 | Controls at the screen edge | **Rule exists, one user.** `EDGE_CONTROL_INSET` is named and tested; only the garden arrows use it. |
@@ -78,16 +78,25 @@ Two things only the device showed:
 - **The kitchen's Garden button icon really is broken**, not a capture
   artefact: two dots where the walk glyph should be. See item 4.
 
-### 2. Finish §2 on the DOM screens
-The audit's second finding is the one that is still fully open, and its
-symptom is the most visible thing in the game: login's "TYPE YOUR NAME"
-renders in system sans on a hand-painted plank. 500 `font-family`
-declarations across 21 screens resolving to 39 stacks. The fix has the
-same shape as the game side — one scale, declared once — and
-`_signpost-physics.css` is where it belongs.
+### 2. ~~Finish §2 on the DOM screens~~ — done
+**Done 2026-09-02**, and it was not the job the audit described. See
+`ca8c4fe` and `18342d9`. Three things worth carrying forward:
 
-Mechanical, highly visible, and it closes a finding rather than halving
-one.
+- The audit's "500 declarations, 39 stacks" counted two design mockups
+  that never mount. The 24 shipping screens shared one value per property.
+- The actual defect was the network: 36 screens still linked
+  fonts.googleapis.com for Fredoka, Quicksand, Kalam and Gochi Hand, long
+  after the canvas stopped. Device IP to Google on every cold launch — the
+  Kids Category review risk `fonts.css` already names — and fallback
+  typography until the request landed, permanently when offline.
+- "TYPE YOUR NAME renders in system sans" was a misreading. It was
+  Chalkboard SE, a macOS-only face that never reached the device. Dropped,
+  so captures now tell the truth about the shipping typeface.
+
+**Still open here:** the type scale is declared once *per screen* — 23
+copies of the same four custom properties. Values agree today; nothing
+stops them drifting. Hoisting them into `fonts.css` would make "declared
+once" literally true, and is a contained 23-file change.
 
 ### 3. Retire `createButton`'s bevel
 57 call sites, 24 files: the largest remaining piece of §1 and the one a
