@@ -332,6 +332,31 @@ checking the claim still holds.
   `@playwright/test` — one in a scratch directory fails with
   ERR_MODULE_NOT_FOUND. `playwright install webkit` stalls too — do not wait on it, use
   the simulator's Safari instead.
+- **`_short-landscape.css` is where the phone's type actually comes from.**
+  It is linked after every page's inline `<style>` and wins on the short
+  viewport, so a sweep of the 24 `.html` files leaves the phone on the old
+  values and the review still reporting them. 237 declarations in the pages
+  and 15 in that sheet, and the 15 were the ones a child would have seen.
+  Same for `_signpost-physics.css`. Edit the shared sheets *with* the pages.
+- **A `CSSStyleRule` has its own empty `cssRules` in Chrome**, for nested
+  CSS. So the obvious `if (r.cssRules) recurse; else read the rule` walks
+  every style rule into an empty list and reads none of them — it reports
+  zero rules on a sheet with 146. Read the rule first, then recurse.
+- **Phaser's `TextStyle` default `fontFamily` is `Courier`.** Forty
+  `add.text` calls relied on it and nothing looked wrong, because all forty
+  draw an emoji and emoji fall through to the system emoji font whatever
+  family is named. Add one letter to any of them and it renders in a
+  monospace serif with no error. Name a family even for a glyph.
+- **`MIN_FONT.small` is the floor and `TYPE.caption` is equal to it**, held
+  by `src/ui/__tests__/type-scale.test.ts`. Raising one without the other
+  fails there. The DOM half is `--fs-floor` in `public/fonts/fonts.css`;
+  the two are separate declarations of one number and the reasoning lives
+  in `constants.ts`.
+- **`e2e/visual.spec.ts` baselines were shot against Playwright's bundled
+  Chromium, which does not install on this machine.** Re-shooting with
+  `ARC_BROWSER_CHANNEL=chrome` writes a baseline the pinned browser would
+  not match. CI ignores that spec, so it is a local check either way — but
+  do not read a passing local run as agreement with CI.
 - **`ui-rounded` resolves in WKWebView; `"SF Pro Rounded"` by name does
   not.** Measured 2026-09-02 with an on-page canvas probe in the shipped
   app (iPhone 17 Pro sim, 874x402): "Garden — Quiet nook" at 20px is

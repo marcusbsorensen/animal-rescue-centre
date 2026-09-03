@@ -13,7 +13,7 @@ Counts are exact and re-measured today. Judgements are mine.
 | | Finding | State |
 |---|---|---|
 | §1 | Three visual languages | **Four, and three of them are gone.** Titles, plates and every button are one surface; `createButton` and `createPillTitle` are deleted. Depot and SupplyRun — the fourth language the audit never saw — are warmed up. The HUD and the nav bar are what is left. |
-| §2 | 39 font stacks | **Done, and the finding was wrong.** The 24 shipping screens were already consistent; the variance was in two mockups. The real defect was 36 screens fetching four faces from fonts.googleapis.com — IP to Google on cold launch, fallback type offline. All six faces self-hosted, Chalkboard SE dropped so Mac and iPad agree. |
+| §2 | 39 font stacks | **Done, and the finding was wrong twice.** The 24 shipping screens' *stacks* were already consistent; the variance was in two mockups, and the real network defect (36 screens fetching from fonts.googleapis.com) is fixed. The variance was in the **sizes** — 22 of them on the canvas, 252 sub-16 declarations on the DOM. Both now have a floor and a name. |
 | §3 | Text on painted art | **Two of unknown.** Garden and species room are plated. Nobody has enumerated the rest. |
 | §4 | Raw colour literals | **Untouched.** 658 raw `0xRRGGBB` against 287 `COLOURS.` uses — still about 70%. (The audit's 610/276 used a narrower grep; the ratio is what matters.) |
 | §5 | Controls at the screen edge | **Done.** `ux-review.spec.ts` has no L3 finding left, from 1 FAIL and 15 WARN. The rule grew a second half — `createChromeButton`'s `anchor` — because `EDGE_CONTROL_INSET` only lands a control that is exactly `MIN_TAP`. |
@@ -89,10 +89,11 @@ Two things only the device showed:
   Chalkboard SE, a macOS-only face that never reached the device. Dropped,
   so captures now tell the truth about the shipping typeface.
 
-**Still open here:** the type scale is declared once *per screen* — 23
-copies of the same four custom properties. Values agree today; nothing
-stops them drifting. Hoisting them into `fonts.css` would make "declared
-once" literally true, and is a contained 23-file change.
+~~**Still open here:** the type scale is declared once *per screen*.~~
+**Done 2026-09-03**, in item 6 below. The four families are in
+`fonts.css`; the drift had already started (`tunnel.html` had lost
+`--sign-title-font`, silently, because a missing custom property inherits
+rather than errors).
 
 ### 3. ~~Retire `createButton`'s bevel~~ — done, bar two screens
 **Done 2026-09-02.** 56 call sites across 22 files, all but the four in
@@ -176,23 +177,76 @@ button measures itself and puts that edge on the coordinate you wrote.
   which put one arriving animal 8px from another control. A new T4 warning,
   in the sprite-placement system rather than at an edge.
 
-**What is left, measured 2026-09-03:** 41 F1-F5 (font size), 15 F6 (rounded
-sans-serif), 11 F7 (ALL-CAPS body text), 7 T4, 5 L9, 3 L8, 3 L6, 1 T1-T3.
-The three F rules are two thirds of the total and are one typography job,
-not an edges job.
+**What is left, re-measured 2026-09-03 after item 6:** 7 T4, 5 L9, 4 L8,
+3 L6. The three F rules are at zero. What remains is layout — and four of
+those nineteen are the corridor's fractionally-anchored sprites, already
+named above.
 
-### 6. Enumerate the rest of §3
+### 6. ~~Typography~~ — done, and the floor was the whole finding
+**Done 2026-09-03.** 86 WARN → **19**, 0 FAIL held. Nothing left under
+F1-F5, F6 or F7.
+
+The 41 F1-F5 warnings were one number. Every one read "smallest 14px" —
+not one screen under it and not one over it, because `MIN_FONT.small` was
+14, the checklist's *warn* mark, and 104 call sites sat exactly on it. A
+floor set at the bottom of the comfortable range stops being a minimum and
+becomes the default. It is 16 now, the pass mark, in two places that name
+each other: `MIN_FONT.small` for the canvas and `--fs-floor` in
+`fonts.css` for the DOM.
+
+Underneath it the canvas had **22 distinct font sizes across 329 call
+sites**, each picked at the point of writing. `TYPE` names the steps;
+the 110 sub-16 literals are on `TYPE.caption` and the 58 already on
+`MIN_FONT.small` came with the constant. The steps above `lead` are named
+but not swept onto — that is the job left, and it is aesthetic rather than
+accessibility.
+
+On the DOM, only the **first term** of each `clamp()` moved. The shapes
+were right: a sign title that grows to 21px on a tall viewport is doing
+what a container query is for. Three clamps had a maximum *below* their
+own minimum (`clamp(14px, 1.5cqh, 13px)`), which CSS silently resolves to
+the minimum — invisible until something enumerated them.
+
+Four things worth carrying:
+
+- **`_short-landscape.css` is where the phone's type comes from.** It is
+  linked after every page and wins on the short viewport, so the first
+  pass — 237 declarations across 24 files — left the phone still at 14 and
+  the review still reporting it. Edit that sheet *with* the pages.
+- **F6 was scoring emoji.** Ten of its eleven findings were single glyphs
+  (🔊 🐾 🌾 💊), which render from the system emoji font whatever family
+  is named. The eleventh was the rewilding ceremony's own lettering and
+  Lily's signature, in the handwritten faces `FONTS.chalk` exists to name.
+  The rule knows about the game's three registers now — rounded, hand,
+  and the one monospace string (the friend code, where 0/O has to be told
+  apart).
+- **Forty `add.text` calls named no family**, so Phaser's `Courier`
+  default drew them. Harmless today because all forty hold emoji; a latent
+  trap the moment one gains a letter.
+- **`e2e/dom-type.spec.ts` reaches 25 DOM screens.** `ux-review.spec.ts`
+  measures what GameScene can open, which is twelve — charm-select shipped
+  at a flat 14px and pre-drive's vehicle locks at 11px, and no harness
+  could have said so.
+
+**Seen on device 2026-09-03**, iPhone 17 Pro simulator, Mobile Safari via
+the `mintRealSession` seed page: menu, intro and corridor all render in
+Nunito/Kalam/Gochi Hand at the new floor, with the hoisted families
+resolving from `fonts.css`. Portrait only — landscape needs Marcus's
+Cmd+Left — so this confirms the *faces and sizes*, not the landscape
+layout, which the Chrome harness already covers at the true 874x402.
+
+### 7. Enumerate the rest of §3
 Two instances are plated; nobody knows the denominator. The species room
 one had never been *seen* — it took fixing the walk harness to find it.
 Now that `ui-audit.spec.ts` and `scene-walk.spec.ts` both pass end to
 end, the captures exist to go through.
 
-### 7. Use the palette
+### 8. Use the palette
 658 raw literals against 287 token uses. Invisible individually,
 compounding across screens, and entirely mechanical now that `hexNum`
 exists to bridge `COLOURS` into the Phaser side.
 
-### 8. Retire the emoji furniture
+### 9. Retire the emoji furniture
 §7. Needs commissioned art for anything missing, so it is a lead-time
 item — worth starting the ask early even though the code is last.
 
@@ -222,7 +276,11 @@ item — worth starting the ask early even though the code is last.
 - ~~`createPillTitle` has no callers. Delete it.~~ Deleted.
 - ~~`createButton` is the last bevel.~~ Deleted; no callers.
 - `createPanel` has 20 call sites left; they want `createChromePlate`.
-- `chrome-views` is unmerged.
+- `e2e/visual.spec.ts`'s `main-menu` baseline was stale — failing at
+  `2660130` before this session touched anything, so it had stopped
+  catching regressions. Re-shot 2026-09-03 with `ARC_BROWSER_CHANNEL=chrome`,
+  which is not the pinned bundled Chromium the config says the baselines
+  were shot against. CI ignores that spec, so this is a local check only.
 - `e2e/chrome-buttons.spec.ts` shoots the overlays `ui-audit.spec.ts` never
   opens — the animal card, its More grid, the Games popup. The Phaser login
   keypad in it needs `USE_OVERLAY` flipped to false by hand and skips itself
