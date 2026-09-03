@@ -14,16 +14,12 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
     /* Handwritten stack for sign text — matches the painted crayon logo.
        Kalam everywhere, self-hosted. 'Chalkboard SE' used to lead this
        stack and is a macOS-only face, so the Mac rendered these signs in
        one hand and the iPad in another — and every Mac screenshot of a
        sign screen misreported its own typeface.
        chunkier fallback for the sign titles. */
-    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
-    --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -245,7 +241,7 @@
   .intro li {
     counter-increment: step;
     font-family: var(--sign-font);
-    font-size: clamp(15px, 2.2cqh, 21px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 21px);
     /* Cream hand-painted chalk-style text on the wooden sign */
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
@@ -265,7 +261,7 @@
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-family: var(--headline-font); font-weight: 700;
-    font-size: clamp(14px, 2.2cqh, 20px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.35),
                 inset 0 2px 3px rgba(255,255,255,0.2);
     text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
@@ -286,7 +282,7 @@
     background: rgba(197,72,56,0.92);
     border-radius: 10px;
     padding: 4px clamp(10px, 1.6cqw, 16px);
-    font-size: clamp(14px, 2cqh, 17px);
+    font-size: clamp(var(--fs-floor), 2cqh, 17px);
     text-align: center;
     min-height: 0;
     max-width: 88%;
@@ -309,7 +305,7 @@
     font-weight: 400;
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
-    font-size: clamp(14px, 2.1cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.1cqh, 19px);
     text-align: center;
     opacity: 0.95;
     margin-bottom: clamp(10px, 1.6cqh, 16px);
@@ -349,7 +345,7 @@
   }
   .chip-name {
     font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
     line-height: 1.1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -359,7 +355,7 @@
     /* Quicksand 500 — humanist sans, much more legible at small size
        than Caveat handwriting which gets unreadable below ~14px. */
     font-family: 'Quicksand', system-ui, sans-serif;
-    font-size: clamp(14px, 1.7cqh, 15px);
+    font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
     font-weight: 500;
     letter-spacing: 0.2px;
     opacity: 0.92;
@@ -529,7 +525,7 @@
     position: relative !important;
     font-family: var(--sign-font) !important;
     font-weight: 700 !important;
-    font-size: clamp(14px, 1.7cqh, 17px) !important;
+    font-size: clamp(var(--fs-floor), 1.7cqh, 17px) !important;
     line-height: 1 !important;
     color: #4a2e0a !important;
     text-shadow: 1px 1px 0 rgba(255,250,220,0.55) !important;
@@ -879,7 +875,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.7cqh, 17px);
+    font-size: clamp(var(--fs-floor), 1.7cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -1092,7 +1088,7 @@
   .credit-scrawl {
     font-family: 'Caveat', 'Kalam', cursive;
     font-weight: 700;
-    font-size: clamp(14px, 1.9cqh, 17px);
+    font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
     color: #2f6a32;
     letter-spacing: 0.01em;
     line-height: 1.1;
@@ -1156,7 +1152,7 @@
       /* Sit below the foreground dog/fox so the handwriting is never
          eclipsed by them. Dog/fox bottom ≈ 22–50px; scrawls clear at ≤18px. */
       bottom: clamp(6px, 1.2cqh, 16px);
-      font-size: clamp(15px, 2.2cqh, 19px);
+      font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
       white-space: nowrap;
       transform: rotate(-3deg);
     }
@@ -1219,7 +1215,7 @@
     .secondary-row .link-btn,
     .secondary-row .name-input-sign.demoted {
       padding: clamp(6px, 1cqh, 10px) clamp(14px, 2.6cqw, 22px) !important;
-      font-size: clamp(14px, 1.6cqh, 15px) !important;
+      font-size: clamp(var(--fs-floor), 1.6cqh, 16px) !important;
     }
     .signs-on-stake {
       padding-bottom: clamp(20px, 4cqh, 36px);
@@ -1228,7 +1224,7 @@
        start higher and the planks have room below. */
     #stage-select .sign-title { font-size: clamp(22px, 3.6cqh, 28px); }
     #stage-select .sign-subtitle {
-      font-size: clamp(14px, 2cqh, 16px);
+      font-size: clamp(var(--fs-floor), 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
     }
     /* Login chips drop to 1 column on iPhone so 'Lily / 2 hours ago'
@@ -1241,7 +1237,7 @@
     .chip {
       padding: clamp(6px, 1.2cqh, 10px) clamp(10px, 2.4cqw, 14px);
     }
-    .chip-name { font-size: clamp(15px, 2.4cqh, 17px); }
+    .chip-name { font-size: clamp(var(--fs-floor), 2.4cqh, 17px); }
     .chip-last { white-space: nowrap; }
     .logo-bunny { display: none; }
 
@@ -1261,7 +1257,7 @@
       z-index: 8;
     }
     .credit-scrawl {
-      font-size: clamp(14px, 1.5cqh, 12px);
+      font-size: clamp(var(--fs-floor), 1.5cqh, 16px);
       white-space: nowrap;
       opacity: 0.7;
     }

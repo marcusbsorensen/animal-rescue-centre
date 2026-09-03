@@ -14,16 +14,12 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
     /* Handwritten stack for sign text — matches the painted crayon logo.
        Kalam everywhere, self-hosted. 'Chalkboard SE' used to lead this
        stack and is a macOS-only face, so the Mac rendered these signs in
        one hand and the iPad in another — and every Mac screenshot of a
        sign screen misreported its own typeface.
        chunkier fallback for the sign titles. */
-    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
-    --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -241,7 +237,7 @@
   .intro li {
     counter-increment: step;
     font-family: var(--sign-font);
-    font-size: clamp(15px, 2.2cqh, 21px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 21px);
     /* Cream hand-painted chalk-style text on the wooden sign */
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
@@ -261,7 +257,7 @@
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-family: var(--headline-font); font-weight: 700;
-    font-size: clamp(14px, 2.2cqh, 20px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.35),
                 inset 0 2px 3px rgba(255,255,255,0.2);
     text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
@@ -378,7 +374,7 @@
   .player-greeting { flex: 1 1 0; text-align: left; }
   .player-hello {
     font-family: var(--sign-font);
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
     opacity: 0.9;
@@ -400,7 +396,7 @@
   .menu-card-title {
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
     text-align: center;
@@ -425,7 +421,7 @@
   }
   .menu-stat-label {
     font-family: var(--sign-font);
-    font-size: clamp(14px, 1.5cqh, 13px);
+    font-size: clamp(var(--fs-floor), 1.5cqh, 16px);
     line-height: 1.15;
     opacity: 0.9;
     text-align: center;
@@ -443,14 +439,14 @@
   }
   .friend-code-label {
     font-family: var(--sign-font);
-    font-size: clamp(14px, 1.5cqh, 13px);
+    font-size: clamp(var(--fs-floor), 1.5cqh, 16px);
     color: #6b4820;
     font-weight: 600;
     opacity: 0.85;
   }
   .friend-code-value {
     font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
-    font-size: clamp(14px, 1.7cqh, 15px);
+    font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
     font-weight: 700;
     color: #3a2618;
     letter-spacing: 0.03em;
@@ -462,7 +458,7 @@
     font-weight: 700;
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     text-align: center;
     margin-top: clamp(6px, 1.2cqh, 12px);
     margin-bottom: clamp(6px, 1.2cqh, 10px);
@@ -639,7 +635,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.7cqh, 17px);
+    font-size: clamp(var(--fs-floor), 1.7cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -784,7 +780,7 @@
   .credit-scrawl {
     font-family: 'Caveat', 'Kalam', cursive;
     font-weight: 700;
-    font-size: clamp(14px, 1.9cqh, 17px);
+    font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
     color: #2f6a32;
     letter-spacing: 0.01em;
     line-height: 1.1;
@@ -805,7 +801,7 @@
     gap: clamp(4px, 0.8cqw, 6px);
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.5cqh, 14px);
+    font-size: clamp(var(--fs-floor), 1.5cqh, 16px);
     color: #fffbe8;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
     /* Same honey-amber wooden palette as the main sign, slightly lighter
@@ -894,7 +890,7 @@
   .friend-name {
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(14px, 2cqh, 18px);
+    font-size: clamp(var(--fs-floor), 2cqh, 18px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
     line-height: 1.1;
@@ -903,7 +899,7 @@
     font-family: 'Quicksand', system-ui, sans-serif;
     font-weight: 500;
     letter-spacing: 0.15px;
-    font-size: clamp(14px, 1.7cqh, 15px);
+    font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
     color: #fffbe8;
     opacity: 0.92;
     line-height: 1.2;
@@ -930,7 +926,7 @@
     font-family: 'Quicksand', system-ui, sans-serif;
     font-weight: 600;
     letter-spacing: 0.3px;
-    font-size: clamp(14px, 1.5cqh, 13px);
+    font-size: clamp(var(--fs-floor), 1.5cqh, 16px);
     color: #fffbe8;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
     opacity: 0.95;
@@ -945,7 +941,7 @@
     font-family: 'Quicksand', system-ui, sans-serif;
     font-weight: 600;
     letter-spacing: 0.2px;
-    font-size: clamp(14px, 1.6cqh, 14px);
+    font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
     color: #fffbe8;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
     opacity: 0.95;
@@ -958,7 +954,7 @@
     margin-right: clamp(4px, 0.8cqw, 8px);
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.4cqh, 12px);
+    font-size: clamp(var(--fs-floor), 1.4cqh, 16px);
     color: #fffbe8;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
     border: 2px solid #7a4b15;
@@ -985,13 +981,13 @@
   .friends-empty-line1 {
     font-family: var(--sign-title-font);
     font-weight: 700;
-    font-size: clamp(15px, 2.6cqh, 20px);
+    font-size: clamp(var(--fs-floor), 2.6cqh, 20px);
     color: var(--ink);
     margin-bottom: clamp(4px, 0.8cqh, 8px);
   }
   .friends-empty-line2 {
     font-family: var(--body-font);
-    font-size: clamp(14px, 1.8cqh, 14px);
+    font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
     line-height: 1.4;
   }
 
@@ -1029,7 +1025,7 @@
   }
   .invite-share-line1 {
     font-weight: 700;
-    font-size: clamp(14px, 2.4cqh, 20px);
+    font-size: clamp(var(--fs-floor), 2.4cqh, 20px);
     white-space: nowrap;
     color: var(--garden-green, #2E8B57);
   }
@@ -1041,13 +1037,13 @@
   .invite-share-prefix {
     font-family: var(--body-font);
     font-weight: 500;
-    font-size: clamp(14px, 1.6cqh, 14px);
+    font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
     color: var(--ink-soft);
   }
   .invite-share-code {
     font-family: var(--sign-title-font);
     font-weight: 700;
-    font-size: clamp(14px, 2cqh, 17px);
+    font-size: clamp(var(--fs-floor), 2cqh, 17px);
     color: var(--trellis-brown);
     letter-spacing: 0.02em;
   }
@@ -1090,20 +1086,20 @@
   }
   .invite-code-label {
     font-family: var(--sign-font);
-    font-size: clamp(14px, 1.6cqh, 14px);
+    font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
     color: #6b4820;
     font-weight: 600;
     opacity: 0.85;
   }
   .invite-code-value {
     font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
-    font-size: clamp(14px, 1.8cqh, 16px);
+    font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
     font-weight: 700;
     color: #3a2618;
     letter-spacing: 0.03em;
   }
   .invite-copy-btn {
-    font-size: clamp(14px, 2cqh, 18px);
+    font-size: clamp(var(--fs-floor), 2cqh, 18px);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -1167,7 +1163,7 @@
       /* Sit below the foreground dog/fox so the handwriting is never
          eclipsed by them. Dog/fox bottom ≈ 22–50px; scrawls clear at ≤18px. */
       bottom: clamp(6px, 1.2cqh, 16px);
-      font-size: clamp(15px, 2.2cqh, 19px);
+      font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
       white-space: nowrap;
       transform: rotate(-3deg);
     }

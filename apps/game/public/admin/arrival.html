@@ -16,10 +16,6 @@
     --cream-wash: #fef9ef;
     --honey-amber: #e3b04b;
     --ink: #3a3a3a;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
-    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
-    --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -251,14 +247,14 @@
   }
   .choice-label {
     font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 18px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 18px);
     line-height: 1.15;
   }
   .choice-hint {
     font-family: 'Quicksand', system-ui, sans-serif;
     font-weight: 500;
     letter-spacing: 0.15px;
-    font-size: clamp(14px, 1.7cqh, 15px);
+    font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
     opacity: 0.95;
     line-height: 1.2;
   }
@@ -306,7 +302,7 @@
   .fact-header {
     font-family: var(--sign-title-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.9cqh, 16px);
+    font-size: clamp(var(--fs-floor), 1.9cqh, 16px);
     color: #4a6b3a;
     letter-spacing: 0.02em;
     line-height: 1.1;
@@ -315,7 +311,7 @@
     font-family: 'Caveat', 'Kalam', cursive;
     font-style: italic;
     font-weight: 500;
-    font-size: clamp(14px, 2.1cqh, 17px);
+    font-size: clamp(var(--fs-floor), 2.1cqh, 17px);
     color: #4a3416;
     line-height: 1.2;
   }
@@ -495,7 +491,7 @@
     font-family: var(--sign-font);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
-    font-size: clamp(15px, 2.3cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.3cqh, 19px);
     line-height: 1.35;
     text-align: center;
     padding: 0 clamp(4px, 1cqw, 10px);
@@ -641,7 +637,7 @@
   .memory-wall-photo.visible { opacity: 1; }
   .memory-wall-empty {
     font-family: var(--sign-font);
-    font-size: clamp(14px, 1.4cqh, 11px);
+    font-size: clamp(var(--fs-floor), 1.4cqh, 16px);
     color: #b89860;
     text-align: center;
     line-height: 1.1;
@@ -749,7 +745,7 @@
   .pinned-label {
     font-family: 'Caveat', 'Kalam', cursive;
     font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     color: #fff5d4;
     text-align: center;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);

@@ -14,10 +14,6 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
-    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
-    --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -142,7 +138,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.7cqh, 15px);
+    font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
     color: #fffbe8;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.45);
     border-radius: 999px;
@@ -168,7 +164,7 @@
     text-align: center;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(15px, 2.4cqh, 22px);
+    font-size: clamp(var(--fs-floor), 2.4cqh, 22px);
     color: #fffbe8;
     text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
     line-height: 1.15;
@@ -308,7 +304,7 @@
     padding: clamp(8px, 1.4cqh, 14px) clamp(12px, 2.4cqw, 20px) clamp(10px, 1.8cqh, 18px);
     font-family: 'Caveat', 'Kalam', cursive;
     font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 22px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 22px);
     color: #5d3a18;
     text-shadow: 0 1px 0 rgba(255,255,255,0.6);
     letter-spacing: 0.02em;

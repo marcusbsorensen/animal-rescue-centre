@@ -120,7 +120,7 @@
     padding: 10px 22px;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(15px, 3.4vw, 24px);
+    font-size: clamp(var(--fs-floor), 3.4vw, 24px);
     color: var(--ink);
     box-shadow: 2px 4px 0 rgba(184,138,55,0.35), 0 6px 18px rgba(0,0,0,0.18);
     max-width: 86%;
@@ -201,7 +201,7 @@
     cursor: pointer;
     font-family: 'Kalam', cursive;
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--fs-floor);
     color: var(--ink);
   }
   .skip-row input { cursor: pointer; }

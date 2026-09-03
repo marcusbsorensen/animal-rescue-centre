@@ -18,10 +18,6 @@
     --honey-amber: #e3b04b;
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
-    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
-    --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -158,7 +154,7 @@
     box-shadow: 0 4px 10px rgba(0,0,0,0.4);
     font-family: var(--sign-title-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.8cqh, 16px);
+    font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     transform: rotate(8deg);
@@ -222,7 +218,7 @@
   .visit-message {
     font-family: var(--sign-font);
     color: #fffbe8;
-    font-size: clamp(15px, 2.2cqh, 20px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
     text-align: center;
     line-height: 1.3;
@@ -400,7 +396,7 @@
           box-shadow: inset 0 2px 0 rgba(255,240,210,0.5), 0 3px 8px rgba(0,0,0,0.3);
           font-family: var(--sign-title-font);
           font-weight: 700;
-          font-size: clamp(15px, 2.2cqh, 20px);
+          font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
           color: #5a3a12;
           text-align: center;
           align-items: center;

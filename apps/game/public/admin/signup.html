@@ -14,16 +14,12 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
     /* Handwritten stack for sign text — matches the painted crayon logo.
        Kalam everywhere, self-hosted. 'Chalkboard SE' used to lead this
        stack and is a macOS-only face, so the Mac rendered these signs in
        one hand and the iPad in another — and every Mac screenshot of a
        sign screen misreported its own typeface.
        chunkier fallback for the sign titles. */
-    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
-    --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -256,7 +252,7 @@
   .intro li {
     counter-increment: step;
     font-family: var(--sign-font);
-    font-size: clamp(15px, 2.2cqh, 21px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 21px);
     /* Cream hand-painted chalk-style text on the wooden sign */
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
@@ -276,7 +272,7 @@
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-family: var(--headline-font); font-weight: 700;
-    font-size: clamp(14px, 2.2cqh, 20px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.35),
                 inset 0 2px 3px rgba(255,255,255,0.2);
     text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
@@ -344,7 +340,7 @@
     font-weight: 400;
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
-    font-size: clamp(14px, 2.1cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.1cqh, 19px);
     text-align: center;
     opacity: 0.95;
     margin-bottom: clamp(10px, 1.6cqh, 16px);
@@ -390,14 +386,14 @@
   .chip.avatar-pick { padding: clamp(8px, 1.6cqh, 14px); }
   .chip-name {
     font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
     line-height: 1.1;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .chip-last {
     display: block;
-    font-size: clamp(14px, 1.5cqh, 13px);
+    font-size: clamp(var(--fs-floor), 1.5cqh, 16px);
     font-weight: 400;
     opacity: 0.85;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
@@ -659,7 +655,7 @@
   }
   .gut-check-actions .link-btn {
     text-align: center;
-    font-size: clamp(15px, 2.1cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.1cqh, 19px);
     padding: clamp(12px, 1.8cqh, 16px) clamp(22px, 3.4cqw, 30px);
   }
   /* ── Name-suggestion stickers (shown when a username collides) ──
@@ -674,7 +670,7 @@
   }
   .name-suggestion-heading {
     font-family: 'Caveat', 'Kalam', cursive;
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     color: #fffbe8;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
     text-align: center;
@@ -691,7 +687,7 @@
     position: relative;
     font-family: var(--sign-title-font);
     font-weight: 900;
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     color: #2a1a08;
     text-shadow: 0 1px 0 rgba(255,255,255,0.65);
     padding: clamp(8px, 1.4cqh, 12px) clamp(12px, 2.4cqw, 18px);
@@ -762,13 +758,13 @@
   }
   .hint-actions-row .link-btn {
     text-align: center;
-    font-size: clamp(14px, 2cqh, 17px);
+    font-size: clamp(var(--fs-floor), 2cqh, 17px);
     padding: clamp(10px, 1.6cqh, 14px) clamp(16px, 2.6cqw, 24px);
     flex: 1 1 0; min-width: 0;
   }
   .hint-actions-row .link-btn.plank-sage {
     flex: 1.4 1 0;   /* NEXT slightly bigger — primary action. */
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     font-weight: 700;
   }
   .hint-actions-row .link-btn:disabled,
@@ -794,7 +790,7 @@
     padding: clamp(10px, 1.5cqh, 14px) clamp(14px, 2.2cqw, 18px);
     font-family: var(--body-font);
     font-weight: 500;
-    font-size: clamp(15px, 2.2cqh, 18px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 18px);
     color: #3a2618;
     cursor: pointer;
     box-shadow: 0 3px 5px rgba(0,0,0,0.22), inset 0 2px 0 rgba(255,255,255,0.5);
@@ -814,7 +810,7 @@
     border: 0;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.8cqh, 16px);
+    font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
     cursor: pointer;
@@ -1199,7 +1195,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.7cqh, 17px);
+    font-size: clamp(var(--fs-floor), 1.7cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -1375,7 +1371,7 @@
   .credit-scrawl {
     font-family: 'Caveat', 'Kalam', cursive;
     font-weight: 700;
-    font-size: clamp(14px, 1.9cqh, 17px);
+    font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
     color: #2f6a32;
     letter-spacing: 0.01em;
     line-height: 1.1;
@@ -1439,7 +1435,7 @@
       /* Sit below the foreground dog/fox so the handwriting is never
          eclipsed by them. Dog/fox bottom ≈ 22–50px; scrawls clear at ≤18px. */
       bottom: clamp(6px, 1.2cqh, 16px);
-      font-size: clamp(15px, 2.2cqh, 19px);
+      font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
       white-space: nowrap;
       transform: rotate(-3deg);
     }
@@ -1520,7 +1516,7 @@
        reach the bottom of the device without orphaning anything. */
     #stage-select .sign-title { font-size: clamp(20px, 3.4cqh, 26px); }
     #stage-select .sign-subtitle {
-      font-size: clamp(14px, 2cqh, 16px);
+      font-size: clamp(var(--fs-floor), 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
     }
     .name-field-wrap {
@@ -1535,7 +1531,7 @@
        OK button below. */
     #stage-pin .sign-title { font-size: clamp(20px, 3.4cqh, 26px); }
     #stage-pin .sign-subtitle {
-      font-size: clamp(14px, 2cqh, 16px);
+      font-size: clamp(var(--fs-floor), 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
     }
     #stage-pin .pin-dots {
@@ -1578,7 +1574,7 @@
       z-index: 8;
     }
     .credit-scrawl {
-      font-size: clamp(14px, 1.5cqh, 12px);
+      font-size: clamp(var(--fs-floor), 1.5cqh, 16px);
       white-space: nowrap;
       opacity: 0.7;
     }

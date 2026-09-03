@@ -18,6 +18,56 @@
  * scripts/fetch-fonts.py if the weights in use ever change.
  */
 
+/*
+ * The DOM screens' type, declared once.
+ *
+ * These four properties used to be copied into every screen's own `:root` —
+ * 23 identical copies of the same four lines, which is what "the type scale
+ * is declared once per screen" meant. The values agreed on the day they were
+ * counted and nothing stopped them drifting: `tunnel.html` had already lost
+ * `--sign-title-font` without anyone noticing, because a missing custom
+ * property does not error, it just inherits or falls back.
+ *
+ * This file is linked *before* each page's inline `<style>`, so a page that
+ * still declares its own copy wins. That is deliberate — a screen with a
+ * genuine reason to differ can still say so — but no shipping screen does.
+ *
+ * The handwritten pair is the diegetic register: Kalam and Gochi Hand are
+ * the hand that letters the painted signs, the same decision as "painted is
+ * diegetic only" on the canvas side. `Chalkboard SE` used to lead that stack
+ * and is macOS-only, so the Mac and the iPad rendered the signs in two
+ * different hands and every Mac screenshot of a sign misreported its own
+ * typeface. All six faces here are self-hosted above.
+ */
+:root {
+  --headline-font: 'Fredoka', system-ui, sans-serif;
+  --body-font: 'Quicksand', system-ui, sans-serif;
+  --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
+  --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
+
+  /*
+   * The type floor — the smallest size any of these screens may draw at.
+   *
+   * The screens size type with hand-picked `clamp()`s, and the *shapes* of
+   * those are right: a sign title that grows to 21px on a tall viewport and
+   * settles smaller on a short one is doing exactly what a container query
+   * is for. It is the first term that had no rule. 67 declarations floored
+   * below 16 — `clamp(14px, 1.5cqh, 13px)`, whose maximum sits below its own
+   * minimum; `clamp(10px, 1.6cqh, 16px)`, which resolves to 10px on the
+   * short landscape viewport the phone actually runs at; and a `.v-lock`
+   * chip at a flat 11px.
+   *
+   * So this is one number, not a scale: write `clamp(var(--fs-floor), …, …)`
+   * and the ceiling stays whatever that element wants. 16px is the
+   * children's-UX pass mark (F1-F5 bands at 14/16), and the same floor
+   * `MIN_FONT.small` holds the canvas to — see `src/ui/constants.ts`, which
+   * carries the reasoning for the number itself.
+   *
+   * Raising it later is one edit here rather than 67.
+   */
+  --fs-floor: 16px;
+}
+
 /* latin-ext */
 @font-face {
   font-family: 'Caveat';

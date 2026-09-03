@@ -24,10 +24,6 @@
     --grass-green: #8fbf66;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
-    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
-    --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -166,7 +162,7 @@
     background: #b9452e;
     color: #fff;
     font-family: var(--sign-font);
-    font-size: clamp(14px, 2.1vh, 18px);
+    font-size: clamp(var(--fs-floor), 2.1vh, 18px);
     font-weight: 700;
     padding: 6px 16px;
     border-radius: 999px;
@@ -329,7 +325,7 @@
     z-index: 3;
   }
   .gps-title {
-    font-size: 14px; font-weight: 700;
+    font-size: var(--fs-floor); font-weight: 700;
     color: #4a2e14;
     text-transform: uppercase; letter-spacing: 1px;
     margin-bottom: 6px;
@@ -381,7 +377,7 @@
     z-index: 3;
   }
   .dest-panel .dest-label {
-    font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #7b5c3a;
+    font-size: var(--fs-floor); text-transform: uppercase; letter-spacing: 1px; color: #7b5c3a;
   }
   .dest-panel .dest-name { font-size: 18px; font-weight: 700; color: #4a2e14; }
 
@@ -393,7 +389,7 @@
     background: rgba(255, 255, 255, 0.95);
     color: #4a2e14;
     font-family: var(--sign-font);
-    font-size: clamp(14px, 2vh, 18px);
+    font-size: clamp(var(--fs-floor), 2vh, 18px);
     font-weight: 700;
     padding: 8px 18px;
     border-radius: 999px;
@@ -421,7 +417,7 @@
   .dashboard-hints[hidden] { display: none; }
   .dashboard-hints .hint {
     font-family: var(--sign-font);
-    font-size: 14px;
+    font-size: var(--fs-floor);
     color: #fff5d0;
     background: rgba(255,255,255,0.14);
     padding: 4px 9px;
@@ -466,7 +462,7 @@
     padding: 4px 14px;
     font-family: var(--sign-title-font);
     font-weight: 700;
-    font-size: clamp(14px, 2.2vh, 18px);
+    font-size: clamp(var(--fs-floor), 2.2vh, 18px);
     color: #4a2e14;
     white-space: nowrap;
     box-shadow: 0 3px 0 #7b5c3a;
@@ -525,7 +521,7 @@
   }
   .arrival-sub {
     font-family: var(--sign-font);
-    font-size: clamp(15px, 2.2vh, 20px);
+    font-size: clamp(var(--fs-floor), 2.2vh, 20px);
     color: #5b3b1e;
     text-align: center;
     margin: 6px auto 0;
@@ -537,7 +533,7 @@
     background: #2d3d2a;
     color: #fff5d0;
     font-family: var(--sign-title-font);
-    font-size: clamp(15px, 2.2vh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2vh, 19px);
     font-weight: 700;
     padding: 8px 18px;
     border-radius: 10px;

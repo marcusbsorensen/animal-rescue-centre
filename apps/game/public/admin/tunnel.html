@@ -25,9 +25,6 @@
     --tunnel-stroke: #3a2410;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
-    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -122,7 +119,7 @@
     font-family: 'Caveat', cursive;
     font-style: italic;
     color: var(--earth-mid);
-    font-size: clamp(14px, 1.9cqh, 17px);
+    font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
   }
   /* 12px, not 6 — T4 wants 12 between adjacent touch targets, and these three
      sit shoulder to shoulder at the top right. The group is right-anchored, so
@@ -134,7 +131,7 @@
     border: 2px solid #8a5a2a; border-radius: 10px;
     color: var(--earth-dark);
     font-family: var(--sign-font); font-weight: 700;
-    font-size: clamp(14px, 1.6cqh, 13px);
+    font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
     padding: clamp(4px, 0.6cqh, 6px) clamp(8px, 1.4cqw, 12px);
     cursor: pointer;
     box-shadow: 0 2px 0 rgba(120, 80, 30, 0.4);
@@ -196,7 +193,7 @@
     fill: rgba(58, 58, 58, 0.85);
     font-family: 'Kalam', cursive;
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--fs-floor);
     paint-order: stroke;
     stroke: rgba(255, 247, 224, 0.85);
     stroke-width: 3;
@@ -284,7 +281,7 @@
     color: #fffbe8;
     font-family: 'Fredoka', sans-serif;
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--fs-floor);
     padding: 2px 8px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -327,7 +324,7 @@
     border-radius: 12px;
     font-family: 'Fredoka', sans-serif;
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--fs-floor);
     z-index: 30;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     display: none;
@@ -591,7 +588,7 @@
     max-width: 220px;
     padding: clamp(10px, 1.8cqh, 14px) clamp(14px, 2.4cqw, 22px);
     font-family: var(--sign-font); font-weight: 700;
-    font-size: clamp(14px, 2.2cqh, 18px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 18px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
     background: linear-gradient(180deg, #4a8e3f 0%, #2f6a32 100%);
@@ -652,7 +649,7 @@
     display: flex; align-items: center; justify-content: center;
     color: var(--earth-mid);
     font-family: 'Caveat', cursive;
-    font-size: clamp(14px, 2cqh, 18px);
+    font-size: clamp(var(--fs-floor), 2cqh, 18px);
   }
 
   /* Touch targets: 36x36 audio buttons and 32px-tall text links are below

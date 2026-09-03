@@ -14,16 +14,12 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
     /* Handwritten stack for sign text — matches the painted crayon logo.
        Kalam everywhere, self-hosted. 'Chalkboard SE' used to lead this
        stack and is a macOS-only face, so the Mac rendered these signs in
        one hand and the iPad in another — and every Mac screenshot of a
        sign screen misreported its own typeface.
        chunkier fallback for the sign titles. */
-    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
-    --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -251,7 +247,7 @@
   .intro li {
     counter-increment: step;
     font-family: var(--sign-font);
-    font-size: clamp(15px, 2.2cqh, 21px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 21px);
     /* Cream hand-painted chalk-style text on the wooden sign */
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
@@ -271,7 +267,7 @@
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-family: var(--headline-font); font-weight: 700;
-    font-size: clamp(14px, 2.2cqh, 20px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.35),
                 inset 0 2px 3px rgba(255,255,255,0.2);
     text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
@@ -388,7 +384,7 @@
   .player-greeting { flex: 1 1 0; text-align: left; }
   .player-hello {
     font-family: var(--sign-font);
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
     opacity: 0.9;
@@ -410,7 +406,7 @@
   .menu-card-title {
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
     text-align: center;
@@ -435,7 +431,7 @@
   }
   .menu-stat-label {
     font-family: var(--sign-font);
-    font-size: clamp(14px, 1.5cqh, 13px);
+    font-size: clamp(var(--fs-floor), 1.5cqh, 16px);
     line-height: 1.15;
     opacity: 0.9;
     text-align: center;
@@ -453,14 +449,19 @@
   }
   .friend-code-label {
     font-family: var(--sign-font);
-    font-size: clamp(14px, 1.5cqh, 13px);
+    font-size: clamp(var(--fs-floor), 1.5cqh, 16px);
     color: #6b4820;
     font-weight: 600;
     opacity: 0.85;
   }
   .friend-code-value {
+    /* Monospace on purpose, and the one place on these screens that is.
+       A friend code is read off one screen and typed into another, so the
+       characters that matter are the ones a rounded face makes ambiguous:
+       0/O, 1/l/I, 5/S. The register is "machine-readable", not "brand" —
+       see F6 in e2e/ux-review.spec.ts, which knows about this one. */
     font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
-    font-size: clamp(14px, 1.7cqh, 15px);
+    font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
     font-weight: 700;
     color: #3a2618;
     letter-spacing: 0.03em;
@@ -472,7 +473,7 @@
     font-weight: 700;
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
-    font-size: clamp(15px, 2.2cqh, 19px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     text-align: center;
     margin-top: clamp(6px, 1.2cqh, 12px);
     margin-bottom: clamp(6px, 1.2cqh, 10px);
@@ -649,7 +650,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.7cqh, 17px);
+    font-size: clamp(var(--fs-floor), 1.7cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -794,7 +795,7 @@
   .credit-scrawl {
     font-family: 'Caveat', 'Kalam', cursive;
     font-weight: 700;
-    font-size: clamp(14px, 1.9cqh, 17px);
+    font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
     color: #2f6a32;
     letter-spacing: 0.01em;
     line-height: 1.1;
@@ -858,7 +859,7 @@
       /* Sit below the foreground dog/fox so the handwriting is never
          eclipsed by them. Dog/fox bottom ≈ 22–50px; scrawls clear at ≤18px. */
       bottom: clamp(6px, 1.2cqh, 16px);
-      font-size: clamp(15px, 2.2cqh, 19px);
+      font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
       white-space: nowrap;
       transform: rotate(-3deg);
     }
@@ -1010,7 +1011,7 @@
                 <div class="btn-primary-wrap">
                   <button class="btn-primary" id="continue-btn">
                     <span class="paw paw-left">🐾</span>
-                    <span class="play-label">CONTINUE!</span>
+                    <span class="play-label">Continue!</span>
                     <span class="paw paw-right">🐾</span>
                   </button>
                   <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">

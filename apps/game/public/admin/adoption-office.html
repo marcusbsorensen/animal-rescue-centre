@@ -20,10 +20,6 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    --headline-font: 'Fredoka', system-ui, sans-serif;
-    --body-font: 'Quicksand', system-ui, sans-serif;
-    --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
-    --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -216,7 +212,7 @@
     font-style: italic;
     font-weight: 700;
     color: #fffbe8;
-    font-size: clamp(14px, 2.2cqh, 20px);
+    font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
     line-height: 1.2;
   }
@@ -308,7 +304,7 @@
     font-family: 'Quicksand', system-ui, sans-serif;
     font-weight: 600;
     color: #4a2e14;
-    font-size: clamp(14px, 1.6cqh, 15px);
+    font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
     line-height: 1.25;
   }
   .h-portrait-fallback .ff-emoji {
@@ -328,7 +324,7 @@
   .h-blurb {
     font-family: var(--body-font);
     font-weight: 500;
-    font-size: clamp(14px, 1.8cqh, 15px);
+    font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
     color: var(--ink-soft);
     line-height: 1.35;
   }
@@ -338,7 +334,7 @@
     content: '🐾';
     position: absolute;
     top: 6px; right: 8px;
-    font-size: clamp(14px, 2cqh, 18px);
+    font-size: clamp(var(--fs-floor), 2cqh, 18px);
     opacity: 0.4;
     transform: rotate(18deg);
     pointer-events: none;
@@ -356,7 +352,7 @@
     color: #4a2e14;
     font-family: var(--body-font);
     font-weight: 500;
-    font-size: clamp(14px, 2cqh, 16px);
+    font-size: clamp(var(--fs-floor), 2cqh, 16px);
     line-height: 1.4;
   }
   .empty-state .ff-emoji {
@@ -378,7 +374,7 @@
     cursor: pointer;
     font-family: var(--sign-font);
     font-weight: 700;
-    font-size: clamp(14px, 1.8cqh, 17px);
+    font-size: clamp(var(--fs-floor), 1.8cqh, 17px);
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
     text-decoration: none;
@@ -420,7 +416,7 @@
   @container office (max-width: 420px) {
     .office-inner { gap: clamp(8px, 1.4cqh, 12px); padding: 10px; }
     .banner-title { font-size: clamp(18px, 3cqh, 22px); }
-    .h-name { font-size: clamp(15px, 2.2cqh, 17px); }
+    .h-name { font-size: clamp(var(--fs-floor), 2.2cqh, 17px); }
   }
 
   /* Vertical scroll on landscape sizes — desk content can exceed viewport. */
