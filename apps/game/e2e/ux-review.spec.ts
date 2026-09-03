@@ -21,7 +21,7 @@ import {
  *   T1-T3, T6  touch target sizes for interactive elements
  *   T4         spacing between adjacent targets
  *   F1-F5      font sizes by role
- *   F6         rounded sans-serif font family
+ *   F6         a word in a face nobody chose (brand faces, letters only)
  *   F7         ALL-CAPS body text
  *   F10        text resolution set for retina
  *   L3         safe margins from screen edges
@@ -143,7 +143,20 @@ interface SceneReport {
    */
   offenders: {
     smallTargets: { label: string; w: number; h: number; x: number; y: number; source: string }[];
-    smallText: { text: string; size: number; source: string }[];
+    /**
+     * Text below the F1-F5 **pass** threshold, not below the fail one.
+     *
+     * This used to filter `size < 14`, which is the FAIL band — so on a game
+     * whose smallest type is exactly 14 it was empty on all 42 combinations
+     * while F1-F5 warned on 41 of them. "smallest 14px" with nothing named
+     * is a number you cannot act on. The whole point of this block is to
+     * make a finding traceable back to the line that drew it.
+     */
+    smallText: { text: string; size: number; family: string; source: string; path: string }[];
+    /** F6: text not in a face on the brand list, with what it is in. */
+    offBrandText: { text: string; family: string; size: number; source: string; path: string }[];
+    /** F7: the ALL-CAPS runs, in full — they are short and want rewording. */
+    capsText: { text: string; source: string; path: string }[];
     offCentre: { label: string; cx: number; cy: number; w: number; h: number }[];
     overlaps: { a: string; b: string; share: number; rect: string }[];
     coveredText: { text: string; by: string; share: number; rect: string }[];
@@ -591,6 +604,11 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         }
       }
 
+      // Held outside the block so the offenders section below can name them.
+      // A count without the strings is not something anyone can go and fix.
+      let offBrand: typeof texts = [];
+      let caps: typeof texts = [];
+
       // ── F1-F5: font sizes ────────────────────────────────────────
       if (texts.length > 0) {
         const smallest = Math.min(...texts.map((t) => t.size));
@@ -607,9 +625,38 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         });
 
         // ── F6: rounded sans-serif ─────────────────────────────────
+        //
+        // Two corrections, both from working the findings back to source.
+        //
+        // The **handwritten faces are on brand**, not off it. Caveat, Kalam
+        // and Gochi Hand are the hand that letters the painted signs — the
+        // diegetic register, the same decision as "painted is diegetic only"
+        // on the canvas side, and `FONTS.chalk` names them for exactly this.
+        // Scoring them as off-brand marked the rewilding ceremony's own
+        // lettering and Lily's signature as defects.
+        //
+        // And **text with no letters has no typeface to judge**. Ten of the
+        // eleven remaining offenders were single emoji — 🔊, 🐾, 🌾, 💊 —
+        // which render from the system emoji font whatever family is named,
+        // so the family they carry is unobservable. That is what made this
+        // rule read "4/17 off-brand, e.g. Arial" on a screen whose every
+        // word was in Fredoka.
+        //
+        // What survives is worth having: a *word* in a face nobody chose.
+        //
+        // The game has three deliberate registers and no more. Rounded is the
+        // chrome; handwritten is the painted world; monospace is the one
+        // string a child reads off one screen and types into another — the
+        // friend code, where 0/O and 1/l/I have to be told apart and a
+        // rounded face is actively worse. `.friend-code-value` in menu.html
+        // is the only thing wearing it, and says so.
         const ROUNDED = ['nunito', 'baloo', 'fredoka', 'quicksand', 'comic', 'rounded'];
-        const offBrand = texts.filter(
-          (t) => !ROUNDED.some((f) => t.family.toLowerCase().includes(f)),
+        const HANDWRITTEN = ['caveat', 'kalam', 'gochi'];
+        const MACHINE = ['mono'];
+        const ON_BRAND = [...ROUNDED, ...HANDWRITTEN, ...MACHINE];
+        const hasLetters = (s: string) => /\p{Letter}/u.test(s);
+        offBrand = texts.filter(
+          (t) => hasLetters(t.text) && !ON_BRAND.some((f) => t.family.toLowerCase().includes(f)),
         );
         findings.push({
           id: 'F6',
@@ -621,7 +668,7 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
         });
 
         // ── F7: ALL-CAPS body text ─────────────────────────────────
-        const caps = texts.filter(
+        caps = texts.filter(
           (t) => t.text.length > 8 && t.text === t.text.toUpperCase() && /[A-Z]{4,}/.test(t.text),
         );
         findings.push({
@@ -835,8 +882,11 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
               source: b.source,
             })),
           smallText: texts
-            .filter((t) => t.size < 14)
-            .map((t) => ({ text: t.text, size: t.size, source: t.source })),
+            .filter((t) => t.size < 16)
+            .map((t) => ({ text: t.text, size: t.size, family: t.family.slice(0, 48), source: t.source, path: t.path })),
+          offBrandText: offBrand
+            .map((t) => ({ text: t.text, family: t.family.slice(0, 48), size: t.size, source: t.source, path: t.path })),
+          capsText: caps.map((t) => ({ text: t.text, source: t.source, path: t.path })),
           offCentre: broken.map((b) => ({
             label: b.label,
             cx: Math.round(b.x + b.w / 2), cy: Math.round(b.y + b.h / 2),
