@@ -364,15 +364,34 @@
   }
   .ready-art-deco {
     position: absolute;
+    /* Sized by width alone, these overflowed the box they sit in. `.ready-art`
+       is cut to `min(118px, 30cqh)` on a short viewport, while 50% of its
+       width is about 150px — and at their natural aspect that made them
+       roughly 150px tall in a 112px box, hanging 40-70px below it onto
+       `.ready-title`. The heading read as "...ady to" with a treasure chest
+       across the front of it. Constrain the axis that is actually short. */
     width: 50%;
+    max-height: 100%;
+    height: auto;
+    object-fit: contain;
     filter: drop-shadow(0 8px 16px rgba(58, 36, 16, 0.3));
   }
+  /* Each is capped to what is left *below its own top offset*, and a little
+     under that again because a rotated box measures bigger than it is: at
+     12deg a 111px square bounds 140. Without this both were full-height in a
+     box where one of them starts 30% down, so 130% of the art tried to fit
+     in 100% of the frame and the surplus printed across `.ready-title` —
+     "Get ready to..." read as "...ady to" under a treasure chest. The
+     numbers below are what the box can actually hold, not what looks
+     generous. */
   .ready-art-deco.big-treasure {
     left: 0; top: 5%;
+    max-height: 84%;
     transform: rotate(-8deg);
   }
   .ready-art-deco.big-bones {
     right: 0; top: 30%;
+    max-height: 60%;
     transform: rotate(12deg);
   }
   .ready-title {

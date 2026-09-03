@@ -33,12 +33,25 @@ import { test, expect } from '@playwright/test';
 
 const FLOOR = 16;
 
-/** The screens `src/` actually mounts. Mockups and review pages are not shipped. */
+/**
+ * The screens `src/` actually mounts — every `*.html` a TypeScript file
+ * names. Mockups and review pages are not shipped and are not scored.
+ *
+ * `news`, `pre-drive` and `play-dog` were on this list and are referenced by
+ * nothing in `src/`. They also do not honour `?embed=1`, so they failed on
+ * their own design-preview toolbar: "Viewport:", "iPhone", "iPad P" at 11px,
+ * which is a mock chrome finding rather than a game one. Keeping them here
+ * would have meant either a permanently red test or exempting the toolbar
+ * again — both worse than saying plainly what ships.
+ *
+ * If one of them is ever mounted, add it here *and* give it the
+ * `?embed=1` handling the other 22 have.
+ */
 const SCREENS = [
   'adopters', 'adoption-office', 'adoption', 'arrival', 'badge', 'charm-select',
   'conflict', 'drive-overlay', 'forgot-pin', 'friends', 'intro', 'login', 'map',
   'menu', 'paths', 'rewilding', 'signup', 'tunnel', 'vet', 'visitor',
-  'welcome-new', 'welcome', 'news', 'pre-drive', 'play-dog',
+  'welcome-new', 'welcome',
 ] as const;
 
 interface SmallRun { sel: string; size: number; text: string }
@@ -55,13 +68,16 @@ test.describe('DOM screens keep the type floor', () => {
 
   for (const screen of SCREENS) {
     test(`${screen} draws nothing under ${FLOOR}px`, async ({ page }) => {
-      await page.goto(`/admin/${screen}.html`);
-      // In game these are mounted inside an iframe with `embed` set; the
-      // class is what hides the preview toolbar and lets the device fill
-      // the viewport, so measuring without it measures the mock, not the
-      // screen.
-      await page.evaluate(() => document.body.classList.add('embed'));
-      await page.waitForTimeout(200);
+      // `?embed=1` is exactly how `InGameOverlay` mounts these, and it has
+      // to be the query param rather than adding `body.embed` afterwards.
+      // The mock's preview keeps a `data-size` on `.device` — tunnel.html
+      // defaults to `ipad-p` — and setting the class post-load does not
+      // undo it: the page laid out in a 768x1024 box inside a 402px
+      // viewport, its container query saw a 1024px container, and the whole
+      // short-landscape branch never applied. Every measurement taken that
+      // way describes an iPad-portrait preview, not the phone.
+      await page.goto(`/admin/${screen}.html?embed=1`);
+      await page.waitForTimeout(250);
 
       const small: SmallRun[] = await page.evaluate((floor) => {
         const out: SmallRun[] = [];
