@@ -9,13 +9,16 @@ look like one finished product rather than three stitched together.
 the audit, the surface, GardenView, the self-hosted fonts, and the side-nav
 layout behind `?sideRail=1` defaulting off.
 
-**On `warm-depot`**, unpushed, three commits ahead of `main`. 340 tests,
-typecheck clean, 36 lint warnings (two below the old baseline, 0 errors).
+**On `main`**, one commit past the merge. 344 tests, typecheck clean, 36
+lint warnings (two below the old baseline, 0 errors).
 - Depot and SupplyRun warmed into the game's world — the fourth visual
   language the audit never saw. Not just their chrome: palette, sky, road,
   board, cards.
 - `createButton` and `createPillTitle` are both deleted. Every button in the
   game is `createChromeButton`; the bevel is gone.
+- The edges are swept. `ux-review.spec.ts` is at **0 FAIL / 86 WARN** over
+  42 scene/viewport pairs, down from 3/107, and the L3 edge rule has no
+  findings left at all.
 
 **Verified.** Chrome captures at 874x402 for the sixteen titled screens, the
 animal card and its More grid, the Games popup, the Phaser PIN keypad, and
@@ -59,20 +62,28 @@ never looked at; decided against 2026-09-02.
   when it sits on another plate, which is where filled goes instead.
 
 ## Next step
-Push `warm-depot` and merge it, then pick from the queue. Item 5 is the
-edges sweep: `ux-review.spec.ts` sits at 3 FAIL / 107 WARN over 42
-scene/viewport pairs, and all three failures are `GameScene`'s left rail.
-Item 2's leftover — hoisting the type scale out of 23 per-screen copies into
-`fonts.css` — is contained and mechanical if you want a shorter one.
+Typography is what is left in the harness: 41 F1-F5 (font size), 15 F6
+(rounded sans-serif) and 11 F7 (ALL-CAPS body text) are two thirds of the
+remaining 86 warnings and are one job. Item 2's leftover sits inside it —
+hoisting the type scale out of 23 per-screen copies into `fonts.css`.
 
-**No decisions are open.** All three in the queue were settled 2026-09-02
-and the queue records which way.
+Otherwise the queue's items 6 (enumerate §3), 7 (use the palette: 658 raw
+literals against 287 token uses) and 8 (retire the emoji furniture, which
+needs commissioned art and so wants starting early).
+
+**No decisions are open**, but one is parked with a price on it: the
+side-nav tab is flush to the right edge, and insetting it costs the 696px
+play box that room art finally fits. See item 5 in the queue.
 
 ## Traps
 - **Read `.claude/TRAPS.md` before the harness.** It records that Playwright's
   bundled browsers stall (`ARC_BROWSER_CHANNEL=chrome` is the way round) and
   that WebGL is dead in the Claude browser pane. Both were rediscovered the
   slow way anyway.
+- **`EDGE_CONTROL_INSET` only works for a `MIN_TAP`-sized control.** It is
+  `SAFE_MARGIN + MIN_TAP / 2`, so centring anything larger on it puts the
+  control back inside the margin. Use `createChromeButton`'s `anchor`, which
+  measures the control first.
 - **`animalCard()` destroys the card.** It calls `destroyAnimalCard()` and
   returns a fresh empty container, so reading the card through it deletes
   what you were reading. Use `animalCardContainer`.

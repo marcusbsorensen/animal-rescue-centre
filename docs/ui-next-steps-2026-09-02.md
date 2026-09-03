@@ -16,7 +16,7 @@ Counts are exact and re-measured today. Judgements are mine.
 | §2 | 39 font stacks | **Done, and the finding was wrong.** The 24 shipping screens were already consistent; the variance was in two mockups. The real defect was 36 screens fetching four faces from fonts.googleapis.com — IP to Google on cold launch, fallback type offline. All six faces self-hosted, Chalkboard SE dropped so Mac and iPad agree. |
 | §3 | Text on painted art | **Two of unknown.** Garden and species room are plated. Nobody has enumerated the rest. |
 | §4 | Raw colour literals | **Untouched.** 658 raw `0xRRGGBB` against 287 `COLOURS.` uses — still about 70%. (The audit's 610/276 used a narrower grep; the ratio is what matters.) |
-| §5 | Controls at the screen edge | **Rule exists, one user.** `EDGE_CONTROL_INSET` is named and tested; only the garden arrows use it. |
+| §5 | Controls at the screen edge | **Done.** `ux-review.spec.ts` has no L3 finding left, from 1 FAIL and 15 WARN. The rule grew a second half — `createChromeButton`'s `anchor` — because `EDGE_CONTROL_INSET` only lands a control that is exactly `MIN_TAP`. |
 | §6 | Kitchen ignores the play area | **Done.** |
 | §7 | Emoji standing in for art | **Untouched.** Needs art, not code. |
 
@@ -149,19 +149,37 @@ nav bar looked fine because it never draws `icon-walk` at all: `nav-play.png`
 exists and wins the fallback chain ahead of it. So "the nav bar draws the
 same key correctly" was comparing against something that never ran.
 
-### 5. Sweep the edges with the harness holding it
-**The baseline, measured 2026-09-02:** `e2e/ux-review.spec.ts` reports
-3 FAIL and 107 WARN across 42 scene/viewport combinations. All three
-failures are `GameScene`'s left rail — L3 on mobile (the rail sits flush to
-x=0) and T4 on tablet and desktop (4px between an arrival card and the
-Welcome button under it). Nothing in Depot, SupplyRun or any converted
-screen fails. Start from those numbers.
+### 5. ~~Sweep the edges with the harness holding it~~ — done
+**Done 2026-09-03.** 3 FAIL / 107 WARN → **0 FAIL / 86 WARN**, and L3, the
+edge rule this item is about, has no findings at all.
 
-`EDGE_CONTROL_INSET` exists and one control uses it. `ux-geometry.ts`
-already has the predicates and `e2e/ux-review.spec.ts` runs them. Point
-them at every scene and fix what falls out. TRAPS.md records three
-controls that were unreachable on every viewport for as long as they
-existed, so this class does not stay fixed on its own.
+Four things were in the margin: the arrivals pull-tab flush at x=0 (its
+inset was `safeAreaLeft` alone, which is zero in one of the two landscape
+orientations); the three Back buttons positioned by guessed half-widths of
+53/58/59 against drawn widths of 108/119/121; four DOM clamps flooring at
+10 or 12 across twelve sign screens and the tunnel overlay; and the rail
+card's Welcome button 4px from the card body, the game's only T4 failure.
+
+`EDGE_CONTROL_INSET` was not enough on its own, which is worth knowing
+before reaching for it: it lands the outer edge on `SAFE_MARGIN` for a
+control exactly `MIN_TAP` in that axis and nowhere else. PtvDrive's Back
+button is 52 tall and centring it on the constant left 14px. The second
+half of the rule is `createChromeButton`'s `anchor` — name an edge and the
+button measures itself and puts that edge on the coordinate you wrote.
+
+**Two things deliberately left:**
+- **The side-nav tab is still flush to the right edge.** Insetting it costs
+  16px of a play box whose whole claim is that room art fits it — 696x402,
+  1.77 against art authored at 1.78. That edge is not scored by the harness.
+  If it is ever worth the 16, the art fit is what pays; decide it there.
+- **Moving the rail shifted the corridor's fractionally-anchored sprites**,
+  which put one arriving animal 8px from another control. A new T4 warning,
+  in the sprite-placement system rather than at an edge.
+
+**What is left, measured 2026-09-03:** 41 F1-F5 (font size), 15 F6 (rounded
+sans-serif), 11 F7 (ALL-CAPS body text), 7 T4, 5 L9, 3 L8, 3 L6, 1 T1-T3.
+The three F rules are two thirds of the total and are one typography job,
+not an edges job.
 
 ### 6. Enumerate the rest of §3
 Two instances are plated; nobody knows the denominator. The species room
