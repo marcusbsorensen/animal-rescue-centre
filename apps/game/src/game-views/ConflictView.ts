@@ -64,7 +64,7 @@ export function renderConflictPopup(
   // Title
   container.add(
     scene.add.text(cx, top + 18, `${conflict.type.replace('_', ' ').toUpperCase()}!`, {
-      fontSize: '26px', fontFamily: FONTS.title, color: '#e74c3c',
+      fontSize: TYPE.heading, fontFamily: FONTS.title, color: '#e74c3c',
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5),
   );
@@ -74,7 +74,7 @@ export function renderConflictPopup(
   const animal2 = store.animals.find((a) => a.id === conflict.animal2Id);
 
   const description = scene.add.text(cx, top + 52, conflict.description, {
-    fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
+    fontSize: TYPE.body, fontFamily: FONTS.body, color: COLOURS.text,
     wordWrap: { width: play.w - 80 }, align: 'center',
     resolution: TEXT_RESOLUTION,
   }).setOrigin(0.5);
@@ -112,7 +112,7 @@ export function renderConflictPopup(
   // Prompt, just above the cards
   container.add(
     scene.add.text(cx, cardsTop - 18, 'How do you want to help?', {
-      fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: TYPE.body, fontFamily: FONTS.body, color: COLOURS.textLight,
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5),
   );
@@ -194,7 +194,7 @@ export function renderConflictPopup(
     // Label + helper text, stacked under the icon
     card.add(
       scene.add.text(0, iconCy + 34, action.label, {
-        fontSize: '17px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: TYPE.body, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
         align: 'center', wordWrap: { width: cardW - 16 },
       }).setOrigin(0.5, 0.5),
@@ -247,7 +247,7 @@ export function renderConflictResult(
   container.add(
     scene.add.text(cx, cy - 30,
       effective ? 'Great job!' : 'That helped a little...', {
-        fontSize: '28px', fontFamily: FONTS.title,
+        fontSize: TYPE.title, fontFamily: FONTS.title,
         color: effective ? COLOURS.primary : '#f39c12',
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),

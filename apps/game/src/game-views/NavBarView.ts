@@ -269,7 +269,7 @@ export function renderGamesPopup(
 
   container.add(
     scene.add.text(popupX, popupY - popupH / 2 + 30, 'Games', {
-      fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
       color: COLOURS.text,
     }).setOrigin(0.5),
   );
@@ -282,18 +282,18 @@ export function renderGamesPopup(
   container.add(
     createChromeButton(scene, popupX, popupY - 10, 'Depot',
       () => callbacks.onDepot(),
-      { width: btnW, fontSize: '20px', icon: 'icon-depot', variant: 'filled' }),
+      { width: btnW, fontSize: TYPE.lead, icon: 'icon-depot', variant: 'filled' }),
   );
   container.add(
     createChromeButton(scene, popupX, popupY + 52, 'Supply Run',
       () => callbacks.onSupplyRun(),
-      { width: btnW, fontSize: '20px', icon: 'icon-supply-run', variant: 'filled' }),
+      { width: btnW, fontSize: TYPE.lead, icon: 'icon-supply-run', variant: 'filled' }),
   );
   if (callbacks.onCharms) {
     container.add(
       createChromeButton(scene, popupX, popupY + 114, 'Charms',
         () => callbacks.onCharms!(),
-        { width: btnW, fontSize: '20px', variant: 'filled' }),
+        { width: btnW, fontSize: TYPE.lead, variant: 'filled' }),
     );
   }
 

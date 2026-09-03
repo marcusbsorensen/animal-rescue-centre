@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, TYPE } from './constants';
 
 /**
  * ErrorOverlay — centralised error UI for the game.
@@ -47,7 +47,7 @@ export function showToast(scene: Phaser.Scene, message: string): void {
     .setResolution(TEXT_RESOLUTION);
 
   const text = scene.add.text(-150, 0, message, {
-    fontSize: '16px',
+    fontSize: TYPE.caption,
     fontFamily: FONTS.body,
     color: '#ffffff',
     wordWrap: { width: 320 },
@@ -150,14 +150,14 @@ export function showBlocking(
     .setStrokeStyle(3, 0xd4783c);
 
   const title = scene.add.text(0, -90, titleText, {
-    fontSize: '22px',
+    fontSize: TYPE.lead,
     fontFamily: FONTS.title,
     color: COLOURS.text,
     fontStyle: 'bold',
   }).setOrigin(0.5).setResolution(TEXT_RESOLUTION);
 
   const text = scene.add.text(0, -20, message, {
-    fontSize: '16px',
+    fontSize: TYPE.caption,
     fontFamily: FONTS.body,
     color: COLOURS.text,
     wordWrap: { width: 410 },
@@ -169,7 +169,7 @@ export function showBlocking(
     .setInteractive({ useHandCursor: true });
 
   const btnText = scene.add.text(0, 70, actionText, {
-    fontSize: '18px',
+    fontSize: TYPE.body,
     fontFamily: FONTS.title,
     color: '#ffffff',
     fontStyle: 'bold',
@@ -213,7 +213,7 @@ export function showBlocking(
       .setStrokeStyle(2, 0x8b7d6b)
       .setInteractive({ useHandCursor: true });
     const dismissLabel = scene.add.text(0, 128, dismissText, {
-      fontSize: '18px',
+      fontSize: TYPE.body,
       fontFamily: FONTS.title,
       color: COLOURS.text,
       fontStyle: 'bold',

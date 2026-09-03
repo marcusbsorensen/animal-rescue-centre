@@ -43,4 +43,29 @@ describe('the type scale', () => {
     // F1-F5 bands at 14 (FAIL) / 16 (PASS). 14 is where this started.
     expect(MIN_FONT.small).toBe(16);
   });
+
+  /**
+   * The canvas used 22 distinct sizes; the collapse put 178 type sites onto
+   * six. Six is the number that matters — a seventh step added quietly is
+   * how a scale goes back to being a continuum, which is what this whole
+   * exercise undid.
+   */
+  it('is six distinct sizes, no more', () => {
+    const distinct = new Set(steps.map(([, v]) => v));
+    expect([...distinct].sort()).toEqual(['16px', '18px', '20px', '24px', '28px', '32px']);
+  });
+
+  it('clears the per-role thresholds the checklist sets', () => {
+    const px = (v: string) => Number.parseInt(v, 10);
+    // A button label a child has to read *and* hit.
+    expect(px(TYPE.button)).toBeGreaterThanOrEqual(MIN_FONT.button);
+    // Headings, and the HUD counters that live on the caption step.
+    expect(px(TYPE.heading)).toBeGreaterThanOrEqual(MIN_FONT.heading);
+    expect(px(TYPE.caption)).toBeGreaterThanOrEqual(MIN_FONT.hud);
+    expect(px(TYPE.body)).toBeGreaterThanOrEqual(MIN_FONT.body);
+  });
+
+  it('names button and body the same size, since a label is body a child taps', () => {
+    expect(TYPE.button).toBe(TYPE.body);
+  });
 });

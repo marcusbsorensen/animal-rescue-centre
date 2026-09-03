@@ -742,7 +742,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const destName = this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     this.container.add(
       this.add.text(width / 2, height * 0.505, `Pick your vehicle  ·  off to ${destName}`, {
-        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
         backgroundColor: 'rgba(255,249,239,0.85)', padding: { x: 14, y: 5 },
       }).setOrigin(0.5)
     );
@@ -868,7 +868,7 @@ export class PtvDriveScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, height * 0.08, 'Time for a drive!', {
-        fontSize: '26px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        fontSize: TYPE.heading, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
         backgroundColor: 'rgba(255,249,239,0.8)', padding: { x: 14, y: 6 },
       }).setOrigin(0.5)
     );
@@ -881,13 +881,13 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.add(dp);
     this.container.add(
       this.add.text(dpX + 18, dpY + dpH / 2, `Off to ${destName}`, {
-        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#fff5e8',
+        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold', color: '#fff5e8',
       }).setOrigin(0, 0.5)
     );
 
     this.container.add(
       this.add.text(width / 2, height * 0.31, 'Which vehicle?', {
-        fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
@@ -947,7 +947,7 @@ export class PtvDriveScene extends Phaser.Scene {
 
     card.add(
       this.add.text(w / 2, h * 0.7, v.name, {
-        fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
       }).setOrigin(0.5)
     );
     card.add(
@@ -1066,7 +1066,7 @@ export class PtvDriveScene extends Phaser.Scene {
     // Title + "Let's go!" prompt.
     this.container.add(
       this.add.text(width / 2, height * 0.55, 'Time for a drive!', {
-        fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
         backgroundColor: 'rgba(255,249,239,0.7)', padding: { x: 12, y: 4 },
       }).setOrigin(0.5).setDepth(45)
     );
@@ -1104,7 +1104,7 @@ export class PtvDriveScene extends Phaser.Scene {
   private showTurnChoice(width: number, height: number): void {
     this.container.add(
       this.add.text(width / 2, height * 0.5, 'Which way?', {
-        fontSize: '24px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        fontSize: TYPE.heading, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
         backgroundColor: 'rgba(255,249,239,0.85)', padding: { x: 14, y: 6 },
       }).setOrigin(0.5).setDepth(50)
     );
@@ -1250,7 +1250,7 @@ export class PtvDriveScene extends Phaser.Scene {
   private showRoadBanner(label: string): void {
     const { width, height } = this.scale;
     const t = this.add.text(width / 2, height * 0.2, label, {
-      fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
       backgroundColor: 'rgba(46,107,138,0.92)', padding: { x: 16, y: 7 },
     }).setOrigin(0.5).setDepth(82).setAlpha(0);
     this.container.add(t);
@@ -1653,7 +1653,7 @@ export class PtvDriveScene extends Phaser.Scene {
     // Title pill (top).
     const titlePill = this.add.container(width / 2, 34);
     const t = this.add.text(0, 0, 'Practice Drive', {
-      fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
+      fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.white,
     }).setOrigin(0.5);
     const pad = 18;
     const bg = this.add.graphics();
@@ -1720,7 +1720,7 @@ export class PtvDriveScene extends Phaser.Scene {
     // "Hold on!" popup.
     const { width, height } = this.scale;
     const popup = this.add.text(width / 2, height * 0.5, 'Hold on!', {
-      fontSize: '30px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.title, fontFamily: FONTS.title, fontStyle: 'bold',
       color: '#ffffff',
       backgroundColor: 'rgba(168,32,32,0.85)',
       padding: { x: 16, y: 8 },
@@ -1772,7 +1772,7 @@ export class PtvDriveScene extends Phaser.Scene {
         '#e8dcc8';
       this.container.add(
         this.add.text(stickX, y, label, {
-          fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+          fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
           color: labelColour,
         }).setOrigin(0.5).setDepth(39)
       );
@@ -2009,7 +2009,7 @@ export class PtvDriveScene extends Phaser.Scene {
     }
     const { width, height } = this.scale;
     const msg = this.add.text(width / 2, height * 0.42, 'Release the handbrake first!', {
-      fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
       backgroundColor: 'rgba(168,32,32,0.9)', padding: { x: 14, y: 7 },
     }).setOrigin(0.5).setDepth(60).setAlpha(0);
     this.container.add(msg);
@@ -2395,7 +2395,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 6);
 
     const msg = this.add.text(width / 2, height * 0.34, 'Slow down!', {
-      fontSize: '26px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      fontSize: TYPE.heading, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
       backgroundColor: 'rgba(168,32,32,0.85)', padding: { x: 14, y: 6 },
     }).setOrigin(0.5).setDepth(71).setAlpha(0);
     this.container.add(msg);

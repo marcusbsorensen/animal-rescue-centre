@@ -211,14 +211,14 @@ function drawMainFace(
   const speciesLabel = animal.variant ? `${animal.variant} ${animal.species}` : animal.species;
   container.add(fitText(
     scene.add.text(layout.name.x, layout.name.y, animal.name, {
-      fontSize: '24px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.heading, fontFamily: FONTS.title, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }),
     layout.name.w, 18,
   ));
   container.add(fitText(
     scene.add.text(layout.species.x, layout.species.y, `a ${speciesLabel}`, {
-      fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
       resolution: TEXT_RESOLUTION,
     }),
     layout.species.w, 14,
@@ -233,7 +233,7 @@ function drawMainFace(
   // whatever the animal's state. This is what removed the variable panel
   // height: the conditional actions no longer live on this face.
   const [feedX, playX, moreX] = layout.actions.xs;
-  const btn = { width: layout.actions.w, height: layout.actions.h, fontSize: '18px' };
+  const btn = { width: layout.actions.w, height: layout.actions.h, fontSize: TYPE.body };
   // Feed and Play are what a child does to the animal; More… opens a
   // drawer. So the two are filled and the third is a plate — which is the
   // "two primary actions and More" above, said in the surface instead of
@@ -366,7 +366,7 @@ function drawStateChip(
   const textX = iconCx + rect.h / 2 + 2;
   container.add(fitText(
     scene.add.text(textX, rect.y + rect.h / 2, sentence, {
-      fontSize: '19px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: TYPE.body, fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0.5),
     rect.x + rect.w - 10 - textX, 15,
@@ -403,7 +403,7 @@ function drawBondHearts(
   container.add(
     scene.add.text(rect.x + 5 * pitch + 6, rect.y + rect.h / 2,
       `Best friends: ${filled} of 5`, {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5),
   );
@@ -547,7 +547,7 @@ function drawMoreFace(
   container.add(fitText(
     scene.add.text(grid.title.x, grid.title.y + 15,
       `What else can I do for ${animal.name}?`, {
-        fontSize: '19px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5),
     grid.title.w, 15,
@@ -568,7 +568,7 @@ function drawMoreFace(
       {
         width: cell.w,
         height: grid.buttonH,
-        fontSize: '17px',
+        fontSize: TYPE.body,
         icon: action.icon,
         iconStyle: action.iconStyle,
         variant: available ? 'filled' : 'plate',
@@ -713,7 +713,7 @@ function drawStoryFace(
   iconTarget(scene, container, grid.close, '✕', () => callbacks.onClose());
   container.add(fitText(
     scene.add.text(grid.title.x, grid.title.y + 15, `${animal.name}'s story`, {
-      fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0.5),
     grid.title.w, 16,
@@ -724,7 +724,7 @@ function drawStoryFace(
   let y = layout.card.y + CARD_PAD + MIN_TAP + MIN_TAP_GAP;
 
   const story = scene.add.text(left, y, `“${animal.arrivalStory}”`, {
-    fontSize: '17px', fontFamily: FONTS.body, fontStyle: 'italic',
+    fontSize: TYPE.body, fontFamily: FONTS.body, fontStyle: 'italic',
     color: COLOURS.text, wordWrap: { width: w }, maxLines: 4,
     resolution: TEXT_RESOLUTION,
   });
@@ -751,7 +751,7 @@ function drawStoryFace(
     );
     container.add(
       scene.add.text(left + 26, y + 10, `${name} collar`, {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5),
     );

@@ -78,7 +78,7 @@ export function showBadgeNotification(scene: Phaser.Scene, badgeCode: string): v
   );
   toast.add(
     scene.add.text(textX, -2, title, {
-      fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }),
   );
@@ -122,13 +122,13 @@ export function showLevelUpCelebration(
 
   // Main title
   const title = scene.add.text(width / 2, height / 2 - 60, 'Level Up!', {
-    fontSize: '36px', fontFamily: FONTS.title, color: '#ffd700',
+    fontSize: TYPE.display, fontFamily: FONTS.title, color: '#ffd700',
   }).setOrigin(0.5);
   container.add(title);
 
   // Level number
   const levelText = scene.add.text(width / 2, height / 2 - 20, `Level ${newLevel}`, {
-    fontSize: '24px', fontFamily: FONTS.body, color: COLOURS.white,
+    fontSize: TYPE.heading, fontFamily: FONTS.body, color: COLOURS.white,
   }).setOrigin(0.5);
   container.add(levelText);
 
@@ -138,7 +138,7 @@ export function showLevelUpCelebration(
       (s) => `${s.charAt(0).toUpperCase() + s.slice(1)} unlocked!`,
     );
     const unlockText = scene.add.text(width / 2, height / 2 + 25, lines.join('\n'), {
-      fontSize: '20px', fontFamily: FONTS.body, color: '#2ecc71',
+      fontSize: TYPE.lead, fontFamily: FONTS.body, color: '#2ecc71',
       align: 'center',
     }).setOrigin(0.5);
     container.add(unlockText);

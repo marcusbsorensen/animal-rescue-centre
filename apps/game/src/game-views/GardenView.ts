@@ -288,7 +288,7 @@ function renderZone(
         scene, play.x + play.w / 2, (play.y + dotY - 12) / 2,
         isFirstEver ? 'No pets yet!' : `Nobody in the ${zone} right now.`,
         {
-          fontSize: '22px',
+          fontSize: TYPE.lead,
           subtitleSize: '16px',
           subtitle: isFirstEver
             ? 'Keep caring for your animals — when their bond\nreaches 100%, they become your pet forever!'
@@ -311,7 +311,7 @@ function renderZone(
     // conversions — see the handover — rather than a local guess here.
     container.add(
       scene.add.text(play.x + play.w / 2, 95, countLine, {
-        fontSize: '16px', fontFamily: FONTS.ui, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.ui, color: COLOURS.textLight,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );

@@ -19,7 +19,7 @@ export class FriendsScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.container = this.add.container(0, 0);
     this.errorText = this.add.text(width / 2, height - 40, '', {
-      fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.error,
+      fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.error,
     }).setOrigin(0.5);
 
     // Fade-in transition
@@ -85,7 +85,7 @@ export class FriendsScene extends Phaser.Scene {
       this.container.add(
         this.add.text(width / 2, 100,
           `Your friend code: ${session.joinCode}`, {
-          fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.primary,
+          fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.primary,
           backgroundColor: COLOURS.inputBg,
           padding: { x: 16, y: 8 },
         }).setOrigin(0.5)
@@ -120,7 +120,7 @@ export class FriendsScene extends Phaser.Scene {
       this.container.add(
         this.add.text(width / 2, 280,
           'No friends yet!\nShare your code with someone to get started.', {
-          fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: TYPE.body, fontFamily: FONTS.body, color: COLOURS.textLight,
           align: 'center',
         }).setOrigin(0.5)
       );
@@ -138,7 +138,7 @@ export class FriendsScene extends Phaser.Scene {
         );
         const row = this.add.text(width / 2, y,
           `${friend.avatarEmoji}  ${friend.username}`, {
-          fontSize: '22px', fontFamily: FONTS.body, color: COLOURS.text,
+          fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.text,
           padding: { x: 16, y: 8 },
         }).setOrigin(0.5);
         this.container.add(row);
@@ -159,14 +159,14 @@ export class FriendsScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, 60, 'Add a Friend', {
-        fontSize: '28px', fontFamily: FONTS.title, color: COLOURS.text,
+        fontSize: TYPE.title, fontFamily: FONTS.title, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
     this.container.add(
       this.add.text(width / 2, 110,
         'Type their friend code (like FOX-428):', {
-        fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.body, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 

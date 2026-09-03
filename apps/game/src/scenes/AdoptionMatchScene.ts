@@ -239,7 +239,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, y - 12, 'Adoption Office', {
-        fontSize: '28px',
+        fontSize: TYPE.title,
         fontFamily: FONTS.title,
         fontStyle: 'bold',
         color: '#3a2010',
@@ -278,7 +278,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
     // Hand-lettered name + species
     this.container.add(
       this.add.text(cx + 10, cy - 26, this.animal.name, {
-        fontSize: '20px',
+        fontSize: TYPE.lead,
         fontFamily: FONTS.title,
         fontStyle: 'bold',
         color: '#3a2618',
@@ -347,7 +347,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
     this.container.add(
       this.add.text(cx, cy + 24,
         `No families looking for a ${this.animal.species} this week.`, {
-          fontSize: '16px',
+          fontSize: TYPE.caption,
           fontFamily: FONTS.body,
           color: '#6b3a18',
           fontStyle: 'italic',
@@ -415,7 +415,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(textX, cy - h / 2 + 16, s.applicant.name, {
-        fontSize: '17px',
+        fontSize: TYPE.body,
         fontFamily: FONTS.title,
         fontStyle: 'bold',
         color: '#3a2010',

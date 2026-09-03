@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { runDialogue, type DialoguePortrait } from '../ui/DialogueRunner';
 import type { DialogueSequence, DialogueBeat } from '@arc/game-logic';
-import { FONTS } from '../ui/constants';
+import { FONTS, TYPE } from '../ui/constants';
 
 /**
  * DialogueDemoScene — dev-only harness for eyeballing the DialogueRunner
@@ -29,7 +29,7 @@ export class DialogueDemoScene extends Phaser.Scene {
     this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0xbfe3c8).setOrigin(0, 0);
     this.add
       .text(this.scale.width / 2, 40, 'DialogueRunner demo (?dialogueDemo=1)', {
-        fontSize: '18px', fontFamily: FONTS.body, color: '#2d5a1e', fontStyle: 'bold',
+        fontSize: TYPE.body, fontFamily: FONTS.body, color: '#2d5a1e', fontStyle: 'bold',
       })
       .setOrigin(0.5);
 
@@ -85,7 +85,7 @@ export class DialogueDemoScene extends Phaser.Scene {
       onComplete: () => {
         this.add
           .text(this.scale.width / 2, this.scale.height / 2, 'Dialogue complete ✓  (tap to replay)', {
-            fontSize: '20px', fontFamily: FONTS.body, color: '#2d5a1e', fontStyle: 'bold',
+            fontSize: TYPE.lead, fontFamily: FONTS.body, color: '#2d5a1e', fontStyle: 'bold',
           })
           .setOrigin(0.5)
           .setInteractive()

@@ -206,7 +206,7 @@ function renderTab(
     container.add(ring);
     container.add(
       scene.add.text(cx, badgeCy, `${waiting}`, {
-        fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
         color: '#ffffff', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5, 0.5),
     );
@@ -219,7 +219,7 @@ function renderTab(
   } else {
     container.add(
       scene.add.text(cx, tabY + 92, `${ctx.inCareCount}`, {
-        fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
         color: '#3a2e22', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5, 0.5),
     );
@@ -377,7 +377,7 @@ function drawCountCell(
 
   container.add(
     scene.add.text(x + w / 2, y + 14, value, {
-      fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
       color: '#3a2e22', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5, 0.5),
   );
@@ -503,7 +503,7 @@ function drawArrivalCard(
     'Welcome',
     onWelcome,
     {
-      width: w - 24, height: welcomeH, fontSize: '16px',
+      width: w - 24, height: welcomeH, fontSize: TYPE.caption,
       icon: 'icon-accept', iconStyle: 'glyph', variant: 'filled',
     },
   );

@@ -251,7 +251,7 @@ export class SupplyRunScene extends Phaser.Scene {
     // Neon banner
     this.container.add(
       createChromeTitle(this, width / 2, 50, 'Supply run', {
-        fontSize: '28px',
+        fontSize: TYPE.title,
         icon: 'icon-supply-run',
       })
     );
@@ -337,7 +337,7 @@ export class SupplyRunScene extends Phaser.Scene {
       // Label
       this.container.add(
         this.add.text(cardX + 70, y - 18, dest.label, {
-          fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+          fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
           color: unlocked ? DRIVE.textWhite : COLOURS.textLight,
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
@@ -511,7 +511,7 @@ export class SupplyRunScene extends Phaser.Scene {
 
     // Row 1: destination + progress bar
     this.hudDestText = this.add.text(10, row1Y, `${this.destDef.emoji} ${this.destDef.label}`, {
-      fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
       color: DRIVE.text,
     }).setOrigin(0, 0);
     this.container.add(this.hudDestText);
@@ -536,7 +536,7 @@ export class SupplyRunScene extends Phaser.Scene {
     this.container.add(this.hudSmashText);
 
     this.hudComboText = this.add.text(width / 2, row2Y, '', {
-      fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: CHROME.inkDanger,
+      fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold', color: CHROME.inkDanger,
     }).setOrigin(0.5, 0).setAlpha(0);
     this.container.add(this.hudComboText);
 
@@ -1136,14 +1136,14 @@ export class SupplyRunScene extends Phaser.Scene {
       createChromeTitle(this, width / 2, 50,
         totalled ? 'TOTALLED!' : rewards.perfectRun ? 'PERFECT RUN!' : 'RUN COMPLETE!', {
         tone: totalled ? 'danger' : rewards.perfectRun ? 'success' : 'default',
-        fontSize: '24px',
+        fontSize: TYPE.heading,
       })
     );
 
     // Destination
     this.container.add(
       this.add.text(width / 2, 95, `${this.destDef.emoji} ${this.destDef.label}`, {
-        fontSize: '16px', fontFamily: FONTS.body, color: DRIVE.textDim,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: DRIVE.textDim,
       }).setOrigin(0.5)
     );
 
@@ -1165,7 +1165,7 @@ export class SupplyRunScene extends Phaser.Scene {
       );
       this.container.add(
         this.add.text(width / 2 + 100, y, stat.value, {
-          fontSize: '17px', fontFamily: FONTS.title, fontStyle: 'bold',
+          fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
           color: stat.colour,
         }).setOrigin(1, 0.5)
       );

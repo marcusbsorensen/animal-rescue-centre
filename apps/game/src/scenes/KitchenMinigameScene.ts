@@ -98,7 +98,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
 
     // Title pill
     createChromeTitle(this, width / 2, 34, 'Sort the Food!', {
-      fontSize: '20px', icon: 'icon-kitchen',
+      fontSize: TYPE.lead, icon: 'icon-kitchen',
     });
 
     // Top info card — progress + instructions on a translucent pill so they
@@ -462,7 +462,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
 
     const { width } = this.scale;
     this.feedbackText = this.add.text(width / 2, 132, message, {
-      fontSize: '16px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: colour,
       backgroundColor: '#ffffff',
       padding: { x: 14, y: 6 },
@@ -506,13 +506,13 @@ export class KitchenMinigameScene extends Phaser.Scene {
     });
 
     this.add.text(width / 2, height / 2 - 70, 'All Fed!', {
-      fontSize: '32px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.display, fontFamily: FONTS.title, fontStyle: 'bold',
       color: COLOURS.primary, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
 
     this.add.text(width / 2, height / 2 - 20,
       `You sorted ${this.correctCount} meal${this.correctCount === 1 ? '' : 's'} correctly!`, {
-      fontSize: '18px', fontFamily: FONTS.body,
+      fontSize: TYPE.body, fontFamily: FONTS.body,
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
 

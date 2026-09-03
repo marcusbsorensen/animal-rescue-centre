@@ -135,7 +135,7 @@ export function renderHUD(
   uiContainer.add(lvlCircle);
   uiContainer.add(
     scene.add.text(lvlCx, orbY, `${store.level}`, {
-      fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
       color: '#ffffff', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5),
   );
@@ -281,7 +281,7 @@ function drawTimeWeatherStrip(
       const fallback = { morning: '\u2600', afternoon: '\u2600', evening: '\u263D', night: '\u263D' }[currentPhase];
       container.add(
         scene.add.text(iconCx, cy, fallback, {
-          fontSize: '16px', fontFamily: FONTS.body,
+          fontSize: TYPE.caption, fontFamily: FONTS.body,
           color: COLOURS.text, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
       );

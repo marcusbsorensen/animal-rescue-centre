@@ -98,7 +98,7 @@ export class AccountScene extends Phaser.Scene {
         AudioManager.getInstance().playSfx('button_click');
         this.scene.start('GameScene');
       }, {
-        width: 100, fontSize: '16px', icon: 'icon-back', iconStyle: 'glyph',
+        width: 100, fontSize: TYPE.caption, icon: 'icon-back', iconStyle: 'glyph',
         iconSize: 18, anchor: { x: 'left', y: 'top' },
       })
     );
@@ -152,7 +152,7 @@ export class AccountScene extends Phaser.Scene {
     const username = session?.username ?? 'A.R.C. Keeper';
     this.container.add(
       this.add.text(textX, cardY - 20, username, {
-        fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5)
     );
@@ -212,7 +212,7 @@ export class AccountScene extends Phaser.Scene {
 
         this.container.add(
           this.add.text(x, y - 10, p.value, {
-            fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold',
+            fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
             color: COLOURS.text, resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5)
         );
@@ -290,7 +290,7 @@ export class AccountScene extends Phaser.Scene {
     // Heading
     this.container.add(
       this.add.text(wallX, wallY, 'Badges', {
-        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
@@ -463,7 +463,7 @@ export class AccountScene extends Phaser.Scene {
     }
 
     card.add(this.add.text(0, 0, earned ? def.name : 'Locked', {
-      fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5));
     card.add(this.add.text(0, 28, def.description, {

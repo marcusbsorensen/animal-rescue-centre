@@ -115,7 +115,7 @@ export class GroomingScene extends Phaser.Scene {
 
     // Title pill
     this.container.add(
-      createChromeTitle(this, width / 2, 35, 'Grooming', { fontSize: '20px' })
+      createChromeTitle(this, width / 2, 35, 'Grooming', { fontSize: TYPE.lead })
     );
 
     if (this.phase === 'intro') {
@@ -148,7 +148,7 @@ export class GroomingScene extends Phaser.Scene {
     };
     this.container.add(
       this.add.text(width / 2, cy + 110, introMsg[this.animal.species], {
-        fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
@@ -206,7 +206,7 @@ export class GroomingScene extends Phaser.Scene {
     // Encouragement text — verb matches the tool (brush/cloth/mist)
     const tool = GROOMING_TOOL[this.animal.species];
     this.encouragementText = this.add.text(width / 2, barY + 36, tool.verb, {
-      fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
       color: COLOURS.info, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
     this.container.add(this.encouragementText);
@@ -382,19 +382,19 @@ export class GroomingScene extends Phaser.Scene {
     }
 
     this.container.add(
-      createChromeTitle(this, width / 2, 35, 'Grooming', { fontSize: '20px' })
+      createChromeTitle(this, width / 2, 35, 'Grooming', { fontSize: TYPE.lead })
     );
 
     this.container.add(
       this.add.text(width / 2, height / 2 - 80, 'All clean!', {
-        fontSize: '32px', fontFamily: FONTS.title, color: COLOURS.primary,
+        fontSize: TYPE.display, fontFamily: FONTS.title, color: COLOURS.primary,
       }).setOrigin(0.5)
     );
 
     this.container.add(
       this.add.text(width / 2, height / 2 - 30,
         `${this.animal.name} looks sparkly!`, {
-        fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 

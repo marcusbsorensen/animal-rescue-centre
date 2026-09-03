@@ -129,7 +129,7 @@ export function renderRoom(
     // `resolution`, so it was drawn at 1x on a 3x display.
     container.add(
       createChromeTitle(scene, play.x + play.w / 2, play.y + play.h / 2,
-        'No animals here yet.', { fontSize: '18px' }),
+        'No animals here yet.', { fontSize: TYPE.body }),
     );
   } else {
     const cols = Math.min(roomAnimals.length, 4);
@@ -259,7 +259,7 @@ export function renderRoom(
       // was letting painted room art bleed through and make it worse.
       const pill = pillFor(SPECIES_COLOURS[animal.species]);
       const nameText = scene.add.text(x, y + halfH + 14, animal.name, {
-        fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
         color: pill.ink, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       const nw = nameText.width + 20;
@@ -374,7 +374,7 @@ function renderDecorateButton(
     .setInteractive({ useHandCursor: true });
   const btnText = scene.add
     .text(cx, cy, '🎀 Decorate', {
-      fontSize: '16px',
+      fontSize: TYPE.caption,
       fontFamily: FONTS.title,
       color: COLOURS.text,
       fontStyle: 'bold',

@@ -144,7 +144,7 @@ export class LoadingScene extends Phaser.Scene {
 
     // ── Title ───────────────────────────────────────────────
     const title = this.add.text(width / 2, height / 2 - 18, 'Getting everything ready!', {
-      fontSize: '22px',
+      fontSize: TYPE.lead,
       fontFamily: FONTS.title,
       fontStyle: 'bold',
       color: COLOURS.primary,
@@ -338,7 +338,7 @@ export class LoadingScene extends Phaser.Scene {
     container.add(bg);
 
     const label = this.add.text(0, 0, 'Play now →', {
-      fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
       color: '#ffffff', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
     container.add(label);

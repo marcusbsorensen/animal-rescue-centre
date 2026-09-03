@@ -326,8 +326,22 @@ export const MIN_FONT = {
  *
  * Values are the px strings Phaser's `fontSize` takes, so a call site reads
  * `fontSize: TYPE.caption` with nothing to interpolate and nothing to get
- * wrong. Sizes above `lead` are still being brought onto this scale; the
- * steps are named here so new code lands on them meanwhile.
+ * wrong.
+ *
+ * **The steps are the game's own, not an imposed ratio.** Sorting the 173
+ * type sites by size gave three clear peaks — 16, 18 and 20 — and a thinner
+ * spread at 24, 28 and 32. Those six are where the design already lived;
+ * everything else was a stray within 2px of one of them, except two
+ * celebration banners at 36 and 38. So the collapse moved 169 sites and only
+ * one of them by more than 2px. A prettier 1.25 ratio would have moved
+ * nearly all of them, to buy an elegance no child can see.
+ *
+ * **Emoji are not on this scale.** A Phaser `Text` holding 🪨 or 🎾 is sized
+ * with `font-size` because that is the only lever there is, and the number
+ * answers "how big is this rock" rather than "how easily can this be read".
+ * That is where 40, 44, 46, 48 and 72 came from — 52 sites, none of them
+ * typography. They keep their literals and are sized to their box. If a
+ * glyph ever gains a word beside it, that text is type and takes a step.
  */
 export const TYPE = {
   /**
@@ -344,12 +358,16 @@ export const TYPE = {
   button: '18px',
   /** Card names, section leads, the line that names what you are looking at. */
   lead: '20px',
-  /** Panel and card headings. */
+  /** Panel and card headings, and the overlay titles on the sign scenes. */
   heading: '24px',
-  /** View titles. */
+  /** View titles — "Adoption Office", "Welcome back!", "Supply run". */
   title: '28px',
-  /** Celebrations and scene-opening type. */
-  display: '34px',
+  /**
+   * The largest type in the game: the banner at the end of a minigame.
+   * "All clean!", "All Fed!", "All Better!", "Level Up!", "Good game!" —
+   * five moments that were four different sizes.
+   */
+  display: '32px',
 } as const;
 
 export const GIFT_MESSAGES = [

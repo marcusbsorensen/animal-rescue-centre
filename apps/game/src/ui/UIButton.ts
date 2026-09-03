@@ -13,7 +13,7 @@ export function createTextButton(
   onClick: () => void
 ): Phaser.GameObjects.Container {
   const text = scene.add.text(0, 0, label, {
-    fontSize: '17px',
+    fontSize: TYPE.body,
     fontFamily: FONTS.body,
     fontStyle: 'bold',
     color: COLOURS.primary,

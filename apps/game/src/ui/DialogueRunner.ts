@@ -263,7 +263,7 @@ function drawNamePill(
 ): void {
   const label = scene.add
     .text(0, 0, name, {
-      fontSize: '18px',
+      fontSize: TYPE.body,
       fontFamily: FONTS.title,
       fontStyle: 'bold',
       color: PILL_TEXT,
@@ -356,7 +356,7 @@ function drawChoices(
 
     const label = scene.add
       .text(boxX + boxW / 2, y + pillH / 2, choice.label, {
-        fontSize: '18px',
+        fontSize: TYPE.body,
         fontFamily: FONTS.title,
         fontStyle: 'bold',
         color: NAVY,

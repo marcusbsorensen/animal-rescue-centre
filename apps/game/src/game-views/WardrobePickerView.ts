@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { getGarmentForSpecies } from '@arc/game-logic';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, TYPE } from '../ui/constants';
 
 /**
  * WardrobePickerView — a small modal that lets the player pick a
@@ -82,7 +82,7 @@ export function renderWardrobePicker(
     scene.add.text(width / 2, panelY + 24,
       `Pick a ${garment} for ${animal.name}`,
       {
-        fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       },
     ).setOrigin(0.5),

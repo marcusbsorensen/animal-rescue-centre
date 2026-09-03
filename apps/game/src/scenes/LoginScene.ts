@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS } from '../ui/constants';
+import { COLOURS, FONTS, TYPE } from '../ui/constants';
 import { createChromeButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { getRememberedUsernames, login, searchUsername } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -78,7 +78,7 @@ export class LoginScene extends Phaser.Scene {
     this.container = this.add.container(0, 0);
 
     this.errorText = this.add.text(width / 2, height - 40, '', {
-      fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.error,
+      fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.error,
     }).setOrigin(0.5);
 
     // Viewport resize handling
@@ -116,12 +116,12 @@ export class LoginScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 60, 'Welcome back!', { fontSize: '28px' })
+      createChromeTitle(this, width / 2, 60, 'Welcome back!', { fontSize: TYPE.title })
     );
 
     this.container.add(
       this.add.text(width / 2, 110, 'What\'s your username?', {
-        fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
@@ -163,12 +163,12 @@ export class LoginScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 60, 'Find your username', { fontSize: '24px' })
+      createChromeTitle(this, width / 2, 60, 'Find your username', { fontSize: TYPE.heading })
     );
 
     this.container.add(
       this.add.text(width / 2, 110, 'Type the first few letters:', {
-        fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.body, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
@@ -210,7 +210,7 @@ export class LoginScene extends Phaser.Scene {
               createChromeButton(this, width / 2, 220 + i * 55, name, () => {
                 this.selectedUsername = name;
                 this.showPinEntry();
-              }, { width: 280, fontSize: '20px' })
+              }, { width: 280, fontSize: TYPE.lead })
             );
           });
         } catch {
@@ -238,12 +238,12 @@ export class LoginScene extends Phaser.Scene {
     const { width } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 60, `Hi, ${this.selectedUsername}!`, { fontSize: '24px' })
+      createChromeTitle(this, width / 2, 60, `Hi, ${this.selectedUsername}!`, { fontSize: TYPE.heading })
     );
 
     this.container.add(
       this.add.text(width / 2, 110, 'Enter your PIN:', {
-        fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
@@ -344,7 +344,7 @@ export class LoginScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, height / 2, 'Logging in...', {
-        fontSize: '24px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.heading, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 

@@ -198,7 +198,7 @@ export class WalkScene extends Phaser.Scene {
 
   private renderCollarPhase(width: number, height: number): void {
     this.container.add(
-      createChromeTitle(this, width / 2, 40, `Walk time for ${this.animal.name}!`, { fontSize: '20px' })
+      createChromeTitle(this, width / 2, 40, `Walk time for ${this.animal.name}!`, { fontSize: TYPE.lead })
     );
 
     this.container.add(
@@ -223,7 +223,7 @@ export class WalkScene extends Phaser.Scene {
     // Name pill below sprite
     this.container.add(
       this.add.text(spriteCx, spriteCy + 70, this.animal.name, {
-        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
@@ -231,7 +231,7 @@ export class WalkScene extends Phaser.Scene {
     const pickerY = height * 0.55;
     this.container.add(
       this.add.text(width / 2, pickerY - 50, 'Pick a collar', {
-        fontSize: '16px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
@@ -285,7 +285,7 @@ export class WalkScene extends Phaser.Scene {
         if (this.gridState) this.gridState.collarOn = true;
         this.phase = 'select_zone';
         this.renderPhase();
-      }, { width: 220, fontSize: '18px', icon: 'icon-walk', iconStyle: 'glyph', variant: 'filled' })
+      }, { width: 220, fontSize: TYPE.body, icon: 'icon-walk', iconStyle: 'glyph', variant: 'filled' })
     );
 
     this.container.add(
@@ -359,7 +359,7 @@ export class WalkScene extends Phaser.Scene {
 
   private renderZoneSelect(width: number, height: number): void {
     this.container.add(
-      createChromeTitle(this, width / 2, 45, `Where shall we walk?`, { fontSize: '20px' })
+      createChromeTitle(this, width / 2, 45, `Where shall we walk?`, { fontSize: TYPE.lead })
     );
 
     const zones = WALK_ZONES;
@@ -387,7 +387,7 @@ export class WalkScene extends Phaser.Scene {
       // Title + description on the left half
       this.container.add(
         this.add.text(width / 2 - cardW / 2 + 22, y - 28, zone.label, {
-          fontSize: '22px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+          fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
         }).setOrigin(0, 0.5)
       );
 
@@ -773,7 +773,7 @@ export class WalkScene extends Phaser.Scene {
       this.dpadContainer.add(btn);
       this.dpadContainer.add(
         this.add.text(x, y, label, {
-          fontSize: '20px', fontFamily: FONTS.body, color: '#333333',
+          fontSize: TYPE.lead, fontFamily: FONTS.body, color: '#333333',
         }).setOrigin(0.5)
       );
     };
@@ -989,7 +989,7 @@ export class WalkScene extends Phaser.Scene {
 
     this.overlayContainer.add(
       this.add.text(width / 2, py - 55, npc.label, {
-        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
+        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
@@ -1197,7 +1197,7 @@ export class WalkScene extends Phaser.Scene {
 
     this.overlayContainer.add(
       this.add.text(width / 2 - stripW / 2 + 24, stripY, 'STOP!', {
-        fontSize: '28px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#c0392b',
+        fontSize: TYPE.title, fontFamily: FONTS.title, fontStyle: 'bold', color: '#c0392b',
       }).setOrigin(0, 0.5)
     );
 
@@ -1226,7 +1226,7 @@ export class WalkScene extends Phaser.Scene {
       this.roadTimer.destroy();
       this.roadTimer = undefined;
       this.handleRoadResult(true);
-    }, { width: 110, fontSize: '20px', variant: 'filled', tone: 'danger' });
+    }, { width: 110, fontSize: TYPE.lead, variant: 'filled', tone: 'danger' });
     this.overlayContainer.add(stopBtn);
 
     this.roadTimer = this.time.addEvent({
@@ -1286,7 +1286,7 @@ export class WalkScene extends Phaser.Scene {
     this.overlayContainer.add(
       this.add.text(width / 2, bannerY - 10,
         success ? 'Great road safety!' : 'Oops! Stop and look next time!', {
-        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
         color: success ? '#2E8B57' : '#c0392b',
       }).setOrigin(0.5)
     );
@@ -1331,7 +1331,7 @@ export class WalkScene extends Phaser.Scene {
     this.container.add(
       createChromeTitle(this, width / 2, 50,
         rewards.perfectWalk ? 'Perfect Walk!' : 'Walk Complete!', {
-        tone: rewards.perfectWalk ? 'success' : 'default', fontSize: '24px',
+        tone: rewards.perfectWalk ? 'success' : 'default', fontSize: TYPE.heading,
       })
     );
 
@@ -1339,7 +1339,7 @@ export class WalkScene extends Phaser.Scene {
     const zone = WALK_ZONES.find((z) => z.zone === this.gridState!.zone);
     this.container.add(
       this.add.text(width / 2, 95, `Walked through the ${zone?.label}`, {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
@@ -1381,7 +1381,7 @@ export class WalkScene extends Phaser.Scene {
         this.registry.set('updatedAnimals', this.allAnimals);
         this.registry.set('walkResult', { perfectWalk: rewards.perfectWalk });
         this.scene.start('GameScene');
-      }, { width: 240, fontSize: '18px', icon: 'icon-back', iconStyle: 'glyph', variant: 'filled' })
+      }, { width: 240, fontSize: TYPE.body, icon: 'icon-back', iconStyle: 'glyph', variant: 'filled' })
     );
   }
 

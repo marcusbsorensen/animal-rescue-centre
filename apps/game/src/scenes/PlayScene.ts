@@ -311,7 +311,7 @@ export class PlayScene extends Phaser.Scene {
     this.container.add(backHit);
 
     const goal = this.add.text(width / 2, hudY - 1, goalText, {
-      fontSize: '19px',
+      fontSize: TYPE.body,
       fontFamily: FONTS.chalk,
       fontStyle: 'bold',
       color: '#fffbe8',
@@ -347,7 +347,7 @@ export class PlayScene extends Phaser.Scene {
 
   private renderHintStrip(width: number, height: number, text: string): void {
     const hint = this.add.text(width / 2, height - 24, text, {
-      fontSize: '18px',
+      fontSize: TYPE.body,
       fontFamily: '"Caveat", "Kalam", "Patrick Hand", cursive',
       fontStyle: 'italic',
       color: '#5d3a18',
@@ -388,7 +388,7 @@ export class PlayScene extends Phaser.Scene {
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2;
       const sparkle = this.add.text(x, y, colour, {
-        fontSize: '20px', fontFamily: FONTS.body,
+        fontSize: TYPE.lead, fontFamily: FONTS.body,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       this.container.add(sparkle);
@@ -471,7 +471,7 @@ export class PlayScene extends Phaser.Scene {
     this.container.add(this.ball);
 
     const label = this.add.text(ballX, ballY - ballSize / 2 - 14, 'drag me!', {
-      fontSize: '18px',
+      fontSize: TYPE.body,
       fontFamily: '"Caveat", "Kalam", cursive',
       fontStyle: 'italic',
       color: '#3f5d32',
@@ -952,7 +952,7 @@ export class PlayScene extends Phaser.Scene {
     bell.on('pointerdown', () => this.parrotTap());
 
     const status = this.add.text(width / 2, height - 70, '', {
-      fontSize: '22px',
+      fontSize: TYPE.lead,
       fontFamily: FONTS.chalk,
       fontStyle: 'bold',
       color: '#5d3a18',
@@ -1253,7 +1253,7 @@ export class PlayScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, height / 2 - 90, 'Good game!', {
-        fontSize: '38px',
+        fontSize: TYPE.display,
         fontFamily: FONTS.title,
         fontStyle: 'bold',
         color: COLOURS.primary,
@@ -1264,7 +1264,7 @@ export class PlayScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, height / 2 - 40,
         `${this.animal.name} had a brilliant time!`, {
-          fontSize: '20px',
+          fontSize: TYPE.lead,
           fontFamily: FONTS.body,
           color: COLOURS.text,
           resolution: TEXT_RESOLUTION,
@@ -1278,7 +1278,7 @@ export class PlayScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, height / 2 - 8,
         bondCopy, {
-          fontSize: '22px',
+          fontSize: TYPE.lead,
           fontFamily: FONTS.chalk,
           fontStyle: 'bold',
           color: COLOURS.accent,
@@ -1312,7 +1312,7 @@ export class PlayScene extends Phaser.Scene {
     this.spawnSprite(width, height, 1.0);
     this.container.add(
       this.add.text(width / 2, 100, 'Coming soon!', {
-        fontSize: '32px',
+        fontSize: TYPE.display,
         fontFamily: FONTS.title,
         fontStyle: 'bold',
         color: COLOURS.primary,

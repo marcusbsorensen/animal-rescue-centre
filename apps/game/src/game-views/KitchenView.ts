@@ -160,7 +160,7 @@ export function renderKitchen(
         // `CHROME.inkAccent`, not `COLOURS.primary`. The brand green
         // measures 4.11:1 on the cream and misses AA — see the note on
         // CHROME. This heading is where that would first have shown.
-        fontSize: '20px', fontFamily: FONTS.ui, fontStyle: 'bold',
+        fontSize: TYPE.lead, fontFamily: FONTS.ui, fontStyle: 'bold',
         color: CHROME.inkAccent, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );
@@ -175,7 +175,7 @@ export function renderKitchen(
     container.add(
       scene.add.text(msgCx, twoColumn ? panelCy - 52 : row(-90),
         `${hungry.length} animal${hungry.length > 1 ? 's are' : ' is'} hungry!`, {
-          fontSize: '22px', fontFamily: FONTS.ui, fontStyle: 'bold',
+          fontSize: TYPE.lead, fontFamily: FONTS.ui, fontStyle: 'bold',
           color: CHROME.ink, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
     );

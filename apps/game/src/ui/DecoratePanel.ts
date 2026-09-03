@@ -141,7 +141,7 @@ export function buildDecoratePanel(
   // "Decorate mode" label (left)
   const label = scene.add
     .text(20, paletteY + 40, '🎀 Decorate', {
-      fontSize: '16px',
+      fontSize: TYPE.caption,
       fontFamily: FONTS.title,
       color: COLOURS.text,
       fontStyle: 'bold',
@@ -157,7 +157,7 @@ export function buildDecoratePanel(
     .setInteractive({ useHandCursor: true });
   const doneText = scene.add
     .text(cam.width - 70, paletteY + 40, 'Done', {
-      fontSize: '16px',
+      fontSize: TYPE.caption,
       fontFamily: FONTS.title,
       color: '#ffffff',
       fontStyle: 'bold',

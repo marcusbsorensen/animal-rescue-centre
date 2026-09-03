@@ -201,7 +201,7 @@ export class SocialScene extends Phaser.Scene {
     if (this.inbox.length === 0) {
       this.container.add(
         this.add.text(width / 2, height / 2 - 30, 'No gifts yet!', {
-          fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(0.5)
       );
       this.container.add(
@@ -271,7 +271,7 @@ export class SocialScene extends Phaser.Scene {
     if (this.friends.length === 0) {
       this.container.add(
         this.add.text(width / 2, height / 2 - 20, 'Add friends first!', {
-          fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(0.5)
       );
       this.container.add(
@@ -286,7 +286,7 @@ export class SocialScene extends Phaser.Scene {
     // Step 1: Choose friend
     this.container.add(
       this.add.text(width / 2, startY, '1. Choose a friend:', {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
@@ -321,7 +321,7 @@ export class SocialScene extends Phaser.Scene {
     const giftY = friendY + 70;
     this.container.add(
       this.add.text(width / 2, giftY, '2. Choose a gift:', {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
@@ -363,7 +363,7 @@ export class SocialScene extends Phaser.Scene {
     const msgY = giftY + 95;
     this.container.add(
       this.add.text(width / 2, msgY, '3. Add a message:', {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
@@ -445,14 +445,14 @@ export class SocialScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, startY, 'Friends Leaderboard', {
-        fontSize: '20px', fontFamily: FONTS.title, color: COLOURS.text,
+        fontSize: TYPE.lead, fontFamily: FONTS.title, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
     if (this.leaderboard.length === 0) {
       this.container.add(
         this.add.text(width / 2, height / 2, 'Add friends to see the leaderboard!', {
-          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(0.5)
       );
       return;
@@ -472,7 +472,7 @@ export class SocialScene extends Phaser.Scene {
       } else {
         this.container.add(
           this.add.text(30, y, rank, {
-            fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.text,
+            fontSize: TYPE.body, fontFamily: FONTS.body, color: COLOURS.text,
           }).setOrigin(0, 0.5)
         );
       }
@@ -480,7 +480,7 @@ export class SocialScene extends Phaser.Scene {
       // Avatar + name
       this.container.add(
         this.add.text(65, y, `${entry.avatarEmoji} ${entry.username}`, {
-          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         }).setOrigin(0, 0.5)
       );
 
@@ -508,7 +508,7 @@ export class SocialScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, startY, 'Share Your Centre', {
-        fontSize: '20px', fontFamily: FONTS.title, color: COLOURS.text,
+        fontSize: TYPE.lead, fontFamily: FONTS.title, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
@@ -526,7 +526,7 @@ export class SocialScene extends Phaser.Scene {
 
       this.container.add(
         this.add.text(width / 2, startY + 90, 'Showcase created!', {
-          fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.primary,
+          fontSize: TYPE.body, fontFamily: FONTS.body, color: COLOURS.primary,
         }).setOrigin(0.5)
       );
 
@@ -547,7 +547,7 @@ export class SocialScene extends Phaser.Scene {
       );
       this.container.add(
         this.add.text(width / 2, startY + 155, this.showcaseToken, {
-          fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         }).setOrigin(0.5)
       );
 

@@ -172,14 +172,14 @@ export class DepotScene extends Phaser.Scene {
   private renderModeSelect(width: number, height: number): void {
     this.container.add(
       createChromeTitle(this, width / 2, 45, 'The Depot', {
-        fontSize: '26px',
+        fontSize: TYPE.heading,
         icon: 'icon-depot',
       })
     );
 
     this.container.add(
       this.add.text(width / 2, 85, 'Choose what to build today!', {
-        fontSize: '16px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
       }).setOrigin(0.5)
     );
 
@@ -268,7 +268,7 @@ export class DepotScene extends Phaser.Scene {
       // Label
       this.container.add(
         this.add.text(cardX + 70, y - 12, m.label, {
-          fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
+          fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
           color: unlocked ? DEPOT_COLOURS.text : COLOURS.textLight,
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
@@ -356,7 +356,7 @@ export class DepotScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(15, headerH / 2, modeLabels[this.mode], {
-        fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
         color: DEPOT_COLOURS.text,
       }).setOrigin(0, 0.5)
     );
@@ -364,7 +364,7 @@ export class DepotScene extends Phaser.Scene {
     // Score
     this.container.add(
       this.add.text(width - 15, headerH / 2 - 10, `Score: ${this.boardState?.score ?? 0}`, {
-        fontSize: '16px', fontFamily: FONTS.body, color: CHROME.inkAccent,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: CHROME.inkAccent,
       }).setOrigin(1, 0.5)
     );
 
@@ -480,7 +480,7 @@ export class DepotScene extends Phaser.Scene {
         // the job the emoji does on the other cards.
         this.container.add(
           this.add.text(x, y - 10, goal.type === 'clear_count' ? 'Any' : '?', {
-            fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
+            fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
             color: CHROME.inkMuted, resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5)
         );
@@ -776,14 +776,14 @@ export class DepotScene extends Phaser.Scene {
       createChromeTitle(this, width / 2, 50,
         allGoalsMet ? 'Session Complete!' : 'Out of Moves!', {
         tone: allGoalsMet ? 'success' : 'default',
-        fontSize: '24px',
+        fontSize: TYPE.heading,
       })
     );
 
     // Score summary
     this.container.add(
       this.add.text(width / 2, 100, `Score: ${this.boardState?.score ?? 0}`, {
-        fontSize: '22px', fontFamily: FONTS.title, color: CHROME.inkAccent,
+        fontSize: TYPE.lead, fontFamily: FONTS.title, color: CHROME.inkAccent,
       }).setOrigin(0.5)
     );
 
@@ -814,7 +814,7 @@ export class DepotScene extends Phaser.Scene {
       this.container.add(statusCircle);
       this.container.add(
         this.add.text(width / 2 - rowW / 2 + 22, cy, done ? '✓' : '×', {
-          fontSize: '20px', fontFamily: FONTS.body, fontStyle: 'bold',
+          fontSize: TYPE.lead, fontFamily: FONTS.body, fontStyle: 'bold',
           color: COLOURS.bg, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
@@ -830,7 +830,7 @@ export class DepotScene extends Phaser.Scene {
       this.container.add(
         this.add.text(width / 2 + rowW / 2 - 22, cy,
           `${goal.currentCount}/${goal.targetCount}`, {
-          fontSize: '17px', fontFamily: FONTS.body, fontStyle: 'bold',
+          fontSize: TYPE.body, fontFamily: FONTS.body, fontStyle: 'bold',
           color: done ? CHROME.inkAccent : CHROME.inkDanger, resolution: TEXT_RESOLUTION,
         }).setOrigin(1, 0.5)
       );
@@ -841,7 +841,7 @@ export class DepotScene extends Phaser.Scene {
       const rewardsY = goalY + goals.length * 25 + 30;
       this.container.add(
         this.add.text(width / 2, rewardsY, 'Rewards:', {
-          fontSize: '18px', fontFamily: FONTS.title, fontStyle: 'bold',
+          fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
           color: DEPOT_COLOURS.text,
         }).setOrigin(0.5)
       );

@@ -58,14 +58,14 @@ export function renderCollarPicker(
   // Celebration pill title
   container.add(
     createChromeTitle(scene, width / 2, 55, 'Full Bond!', {
-      tone: 'success', fontSize: '26px',
+      tone: 'success', fontSize: TYPE.heading,
     }),
   );
 
   container.add(
     scene.add.text(width / 2, 95,
       `${animal.name} loves you so much — they want to be your pet forever!`, {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         align: 'center', wordWrap: { width: width - 80 },
       }).setOrigin(0.5),
   );
@@ -85,7 +85,7 @@ export function renderCollarPicker(
   container.add(
     scene.add.text(width / 2, promptY,
       'Choose a collar colour for your new pet:', {
-        fontSize: '17px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.body, fontFamily: FONTS.body, color: COLOURS.text,
       }).setOrigin(0.5),
   );
 
@@ -152,14 +152,14 @@ export function renderPetCreated(
 
   container.add(
     scene.add.text(width / 2, height / 2 + 10, `${animal.name} is now your pet!`, {
-      fontSize: '24px', fontFamily: FONTS.title, color: COLOURS.primary,
+      fontSize: TYPE.heading, fontFamily: FONTS.title, color: COLOURS.primary,
     }).setOrigin(0.5),
   );
 
   container.add(
     scene.add.text(width / 2, height / 2 + 50,
       "They'll live in the garden from now on.", {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5),
   );
 

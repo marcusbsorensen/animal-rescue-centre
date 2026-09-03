@@ -114,7 +114,7 @@ export class VetScene extends Phaser.Scene {
 
     // Title
     this.container.add(
-      createChromeTitle(this, width / 2, 35, 'Vet Clinic', { fontSize: '20px', icon: 'icon-vet-clinic' })
+      createChromeTitle(this, width / 2, 35, 'Vet Clinic', { fontSize: TYPE.lead, icon: 'icon-vet-clinic' })
     );
 
     // ── Patient card: sprite on the left, name + illness on the right ────
@@ -133,7 +133,7 @@ export class VetScene extends Phaser.Scene {
     this.container.add(
       this.add.text(textX, spriteY - 18,
         `${this.animal.name}`, {
-        fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5)
     );
@@ -309,7 +309,7 @@ export class VetScene extends Phaser.Scene {
     if (this.feedbackText) this.feedbackText.destroy();
 
     this.feedbackText = this.add.text(width / 2, 500, message, {
-      fontSize: '16px', fontFamily: FONTS.body, color: colour,
+      fontSize: TYPE.caption, fontFamily: FONTS.body, color: colour,
       backgroundColor: '#ffffff', padding: { x: 10, y: 4 },
     }).setOrigin(0.5);
   }
@@ -344,21 +344,21 @@ export class VetScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, height / 2 - 80, 'All Better!', {
-        fontSize: '32px', fontFamily: FONTS.title, color: COLOURS.primary,
+        fontSize: TYPE.display, fontFamily: FONTS.title, color: COLOURS.primary,
       }).setOrigin(0.5)
     );
 
     this.container.add(
       this.add.text(width / 2, height / 2 - 30,
         `${this.animal.name} is feeling great again!`, {
-        fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
     this.container.add(
       this.add.text(width / 2, height / 2 + 5,
         'You\'re an amazing vet! +8 bond', {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 

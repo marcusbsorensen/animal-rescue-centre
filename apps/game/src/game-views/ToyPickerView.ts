@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { getAvailableToys, getPlayToyId, type ToyDef } from '@arc/game-logic';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, TYPE } from '../ui/constants';
 import { createChromeButton } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 
@@ -76,7 +76,7 @@ export function renderToyPicker(
   const titleY = panelY + 26;
   const title = scene.add.text(width / 2, titleY,
     `Which toy for ${animal.name}?`, {
-      fontSize: '20px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5, 0);
   container.add(title);
@@ -210,7 +210,7 @@ export function renderToyPicker(
     createChromeButton(scene, width / 2, playBtnY, 'Play now!',
       () => callbacks.onPlay(),
       {
-        width: 220, fontSize: '18px',
+        width: 220, fontSize: TYPE.body,
         variant: 'filled',
         radius: 22,
       }),

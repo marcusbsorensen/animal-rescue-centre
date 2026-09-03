@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS } from '../ui/constants';
+import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS, TYPE } from '../ui/constants';
 import { createChromeButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { getAvailableUsernames, signup } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -77,7 +77,7 @@ export class SignupScene extends Phaser.Scene {
     this.container = this.add.container(0, 0);
 
     this.errorText = this.add.text(width / 2, height - 40, '', {
-      fontSize: '16px',
+      fontSize: TYPE.caption,
       fontFamily: FONTS.body,
       color: COLOURS.error,
     }).setOrigin(0.5);
@@ -118,18 +118,18 @@ export class SignupScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 60, "Let's make your rescue centre!", { fontSize: '24px' })
+      createChromeTitle(this, width / 2, 60, "Let's make your rescue centre!", { fontSize: TYPE.heading })
     );
 
     this.container.add(
       this.add.text(width / 2, 110, 'Pick a name for yourself:', {
-        fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
     // Show loading
     const loading = this.add.text(width / 2, height / 2, 'Finding names...', {
-      fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
     }).setOrigin(0.5);
     this.container.add(loading);
 
@@ -182,12 +182,12 @@ export class SignupScene extends Phaser.Scene {
     const { width } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 40, `Hi, ${this.selectedUsername}!`, { fontSize: '22px' })
+      createChromeTitle(this, width / 2, 40, `Hi, ${this.selectedUsername}!`, { fontSize: TYPE.lead })
     );
 
     this.container.add(
       this.add.text(width / 2, 80, 'Choose your animal avatar:', {
-        fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
@@ -228,7 +228,7 @@ export class SignupScene extends Phaser.Scene {
     const colourStartY = startY + Math.ceil(AVATAR_EMOJIS.length / cols) * emojiSize + 30;
     this.container.add(
       this.add.text(width / 2, colourStartY, 'Pick a background colour:', {
-        fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
@@ -322,7 +322,7 @@ export class SignupScene extends Phaser.Scene {
 
     const pinTitleContainer = createChromeTitle(this, width / 2, 60,
       confirmMode ? 'Confirm your PIN' : 'Choose a secret PIN', {
-      fontSize: '22px',
+      fontSize: TYPE.lead,
     });
     this.pinTitleText = pinTitleContainer.list.find(
       (obj): obj is Phaser.GameObjects.Text => obj instanceof Phaser.GameObjects.Text
@@ -332,7 +332,7 @@ export class SignupScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, 100,
         confirmMode ? 'Type the same 4 numbers again:' : 'Type 4 numbers to keep your account safe:', {
-        fontSize: '18px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.body, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
@@ -351,7 +351,7 @@ export class SignupScene extends Phaser.Scene {
     this.container.add(this.pinDisplay);
 
     this.pinStatusText = this.add.text(width / 2, 210, '', {
-      fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
     }).setOrigin(0.5);
     this.container.add(this.pinStatusText);
 
@@ -466,19 +466,19 @@ export class SignupScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 60, 'Almost there!', { fontSize: '24px' })
+      createChromeTitle(this, width / 2, 60, 'Almost there!', { fontSize: TYPE.heading })
     );
 
     this.container.add(
       this.add.text(width / 2, 110, 'Ask a grown-up to read this:', {
-        fontSize: '20px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
     this.container.add(
       this.add.text(width / 2, 170,
         'We only use a parent email if you ever\nwant to delete this account.\nYou can skip this step.', {
-        fontSize: '16px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
         align: 'center',
       }).setOrigin(0.5)
     );
@@ -513,7 +513,7 @@ export class SignupScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, height / 2, 'Creating your rescue centre...', {
-        fontSize: '24px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.heading, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
