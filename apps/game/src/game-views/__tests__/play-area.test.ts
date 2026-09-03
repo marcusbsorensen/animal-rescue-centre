@@ -1,12 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
   playAreaFor, railBoundsFor, railReservedWidth,
   navHeightFor, navBarMetrics, anchorSpaceFor, animalBoxFor,
-  viewportIsShort, clampAnimalIntoBand, RAIL_WIDTH, RAIL_TAB_WIDTH,
-  HUD_HEIGHT, ANIMAL_LABEL_HEIGHT,
+  viewportIsShort, clampAnimalIntoBand, RAIL_WIDTH, RAIL_TAB_WIDTH, railEdgeInset,
+  HUD_HEIGHT, ANIMAL_LABEL_HEIGHT, setSafeAreaLeft,
 } from '../../ui/layout';
+import { SAFE_MARGIN } from '../../ui/constants';
+
+// `safeAreaLeft` is module state and three functions in this file's subject
+// now read it. One test sets a notch; without this the ones after it would
+// be measuring a phone that is not the phone they describe.
+afterEach(() => setSafeAreaLeft(0));
 
 /**
  * The left rail is opaque and mounted at depth 50, over everything the game
@@ -52,15 +58,46 @@ describe('playAreaFor', () => {
     // gives the animals the other 224px back.
     expect(railBoundsFor(812, 375).mode).toBe('tab');
     const play = playAreaFor(812, 375);
-    expect(play.x).toBe(RAIL_TAB_WIDTH);
-    expect(play.w).toBe(812 - RAIL_TAB_WIDTH);
+    // The tab's own width plus whatever holds it off the edge — the notch
+    // where there is one, SAFE_MARGIN where there is not. It used to be
+    // the bare width, because the inset was `safeAreaLeft` and that is 0
+    // in the orientation with the Island on the far side: the tab sat
+    // flush at x=0, the only 0px control in the game.
+    expect(play.x).toBe(railEdgeInset() + RAIL_TAB_WIDTH);
+    expect(play.w).toBe(812 - railEdgeInset() - RAIL_TAB_WIDTH);
   });
 
   it('reserves the full rail on iPad', () => {
     expect(railBoundsFor(1024, 768).mode).toBe('side');
     const play = playAreaFor(1024, 768);
-    expect(play.x).toBe(RAIL_WIDTH);
-    expect(play.w).toBe(1024 - RAIL_WIDTH);
+    expect(play.x).toBe(railEdgeInset() + RAIL_WIDTH);
+    expect(play.w).toBe(1024 - railEdgeInset() - RAIL_WIDTH);
+  });
+
+  /**
+   * `railEdgeInset` — why the tab stopped sitting at x=0.
+   *
+   * The inset used to be `safeAreaLeft` alone. That is right on the
+   * landscape orientation with the Dynamic Island on the left and zero on
+   * the other one, so the pull-tab sat flush against the edge and
+   * `ux-review.spec.ts` scored it as the only 0px control in the game.
+   *
+   * A tab flush to the edge is arguably what a pull-tab is. It is still
+   * wrong: the rule the project wrote down says nothing a child has to hit
+   * sits in the margin, and a 56px tab can give 16 of them back and still
+   * clear MIN_TAP.
+   */
+  it('holds the rail off the edge whether or not there is a notch', () => {
+    setSafeAreaLeft(0);
+    expect(railEdgeInset()).toBe(SAFE_MARGIN);
+
+    // With a notch the notch wins — it is already larger than the margin,
+    // so nothing about the Island case changed.
+    setSafeAreaLeft(50);
+    expect(railEdgeInset()).toBe(50);
+
+    // And the tab still clears the tap floor after giving the margin back.
+    expect(RAIL_TAB_WIDTH).toBeGreaterThanOrEqual(MIN_TAP);
   });
 
   it('splits the fleet at the breakpoint: every iPhone tabs, every iPad does not', () => {
@@ -77,8 +114,8 @@ describe('playAreaFor', () => {
     const open = railBoundsFor(812, 375, true);
     expect(open.mode).toBe('overlay');
     expect(open.w).toBe(RAIL_WIDTH);
-    expect(railReservedWidth(812)).toBe(RAIL_TAB_WIDTH);
-    expect(playAreaFor(812, 375).x).toBe(RAIL_TAB_WIDTH);
+    expect(railReservedWidth(812)).toBe(railEdgeInset() + RAIL_TAB_WIDTH);
+    expect(playAreaFor(812, 375).x).toBe(railEdgeInset() + RAIL_TAB_WIDTH);
   });
 
   it('ignores the open flag where the rail already stands open', () => {

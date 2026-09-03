@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species, Economy } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT, MIN_TAP_GAP } from '../ui/constants';
 import { createChromeButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { BADGE_DEFINITIONS } from '@arc/badges';
 import { getSession } from '../lib/auth';
@@ -92,10 +92,15 @@ export class AccountScene extends Phaser.Scene {
 
     // Back button (top-left)
     this.container.add(
-      createChromeButton(this, SAFE_MARGIN + 58, SAFE_MARGIN + 23, 'Back', () => {
+      // Anchored by its edges, not by guessed halves — it measured 119
+      // wide against the 100 asked for and sat 15px from both.
+      createChromeButton(this, SAFE_MARGIN, SAFE_MARGIN, 'Back', () => {
         AudioManager.getInstance().playSfx('button_click');
         this.scene.start('GameScene');
-      }, { width: 100, fontSize: '16px', icon: 'icon-back', iconStyle: 'glyph', iconSize: 18 })
+      }, {
+        width: 100, fontSize: '16px', icon: 'icon-back', iconStyle: 'glyph',
+        iconSize: 18, anchor: { x: 'left', y: 'top' },
+      })
     );
 
     this.renderProfileCard();
@@ -292,7 +297,7 @@ export class AccountScene extends Phaser.Scene {
 
     // Scrollable badge grid — 4 cols on desktop, 3 on mobile
     const cols = availW >= 520 ? 5 : (availW >= 400 ? 4 : 3);
-    const badgeSize = Math.floor((availW - (cols - 1) * 10) / cols);
+    const badgeSize = Math.floor((availW - (cols - 1) * MIN_TAP_GAP) / cols);
     const wallTop = wallY + 24;
     const wallBottom = height - 30;
     const maskH = wallBottom - wallTop;
@@ -303,14 +308,14 @@ export class AccountScene extends Phaser.Scene {
 
     // Compute total content height to know how far we can scroll
     const rows = Math.ceil(BADGE_DEFINITIONS.length / cols);
-    const totalH = rows * (badgeSize + 10);
+    const totalH = rows * (badgeSize + MIN_TAP_GAP);
 
     // Draw each badge tile
     BADGE_DEFINITIONS.forEach((def, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
-      const bx = wallX - availW / 2 + col * (badgeSize + 10) + badgeSize / 2;
-      const by = row * (badgeSize + 10) + badgeSize / 2;
+      const bx = wallX - availW / 2 + col * (badgeSize + MIN_TAP_GAP) + badgeSize / 2;
+      const by = row * (badgeSize + MIN_TAP_GAP) + badgeSize / 2;
       const earned = this.payload.earnedBadges.includes(def.code);
 
       const tile = this.add.container(bx, by);

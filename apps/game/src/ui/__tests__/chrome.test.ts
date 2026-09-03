@@ -217,6 +217,71 @@ describe('the chrome button', () => {
   });
 });
 
+/**
+ * Edge anchoring — `createChromeButton`'s `anchor`, held as arithmetic.
+ *
+ * The audit's fifth finding was controls at the screen edge, and the queue
+ * notes that this class does not stay fixed on its own: TRAPS.md already
+ * records three controls that were unreachable on every viewport for as
+ * long as they had existed. `EDGE_CONTROL_INSET` was the first answer and
+ * it is not enough on its own — these are the two ways it fails.
+ */
+describe('anchoring a control against an edge', () => {
+  /**
+   * The three Back buttons, as they actually measured.
+   *
+   * Each caller wrote `SAFE_MARGIN + <half the width it asked for>` and
+   * each was wrong, because the button sizes itself to
+   * `max(label + icon + 2 * padX, options.width)` — the asked width is a
+   * floor, not the answer. The drawn widths came from the harness.
+   */
+  const BACK_BUTTONS = [
+    { scene: 'KitchenMinigameScene', asked: 110, drawn: 121, guessedHalf: 59 },
+    { scene: 'AccountScene', asked: 100, drawn: 119, guessedHalf: 58 },
+    { scene: 'PtvDriveScene', asked: 88, drawn: 108, guessedHalf: 53 },
+  ];
+
+  it('cannot be done by guessing a half-width', () => {
+    for (const b of BACK_BUTTONS) {
+      expect(b.drawn).toBeGreaterThan(b.asked);
+      // What the caller got: centre at SAFE_MARGIN + guess, so the outer
+      // edge lands at SAFE_MARGIN + guess - drawn/2.
+      const edge = SAFE_MARGIN + b.guessedHalf - b.drawn / 2;
+      expect(edge).toBeLessThan(SAFE_MARGIN);
+      // All three landed in the WARN band rather than off-screen, which is
+      // why three years of looking at screenshots never caught them.
+      expect(edge).toBeGreaterThan(12);
+    }
+  });
+
+  it('lands exactly on the margin when the button places itself', () => {
+    // `anchor: { x: 'left' }` means the caller writes the margin and the
+    // button adds half of whatever it turned out to be.
+    for (const b of BACK_BUTTONS) {
+      const centre = SAFE_MARGIN + Math.max(b.drawn, MIN_TAP) / 2;
+      expect(centre - Math.max(b.drawn, MIN_TAP) / 2).toBe(SAFE_MARGIN);
+    }
+  });
+
+  /**
+   * Why the vertical axis needed the same thing.
+   *
+   * `EDGE_CONTROL_INSET` is `SAFE_MARGIN + MIN_TAP / 2`, which lands the
+   * outer edge on `SAFE_MARGIN` for a control that is exactly `MIN_TAP`
+   * tall and nowhere else. PtvDriveScene's Back button is 52 — four pixels
+   * over — and centring it on the constant left 14px of margin. The
+   * constant meant to prevent the defect produced it.
+   */
+  it('is not what EDGE_CONTROL_INSET does once a control is taller than MIN_TAP', () => {
+    const exactly = MIN_TAP;
+    expect(EDGE_CONTROL_INSET - exactly / 2).toBe(SAFE_MARGIN);
+
+    const taller = 52;
+    expect(EDGE_CONTROL_INSET - taller / 2).toBeLessThan(SAFE_MARGIN);
+    expect(EDGE_CONTROL_INSET - taller / 2).toBe(14);
+  });
+});
+
 describe('the chrome type stack', () => {
   /**
    * The sign screens carry 500 `font-family` declarations resolving to 39

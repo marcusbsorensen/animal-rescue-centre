@@ -59,6 +59,11 @@ describe('play box', () => {
     setSafeAreaLeft(ISLAND);
     setSideNav(true);
     const play = playAreaFor(PHONE_W, PHONE_H);
+    // Flush, and 696 is why. The tab on the *left* was moved off the edge
+    // by `railEdgeInset` when the edge sweep found it sitting at 0px; this
+    // one stays put, because the 16px would come out of a play box whose
+    // whole claim is that room art fits it — 696x402 is 1.77 against art
+    // authored at 1.78. See the note in `railBoundsFor`.
     expect(play.x + play.w).toBe(PHONE_W - RAIL_TAB_WIDTH);
     expect(play.w).toBe(696);
   });
@@ -159,6 +164,12 @@ describe('what the layout costs', () => {
     // Exactly the rail's width, because the arrivals tab did not appear
     // from nowhere — it moved from the left edge to the right, so its 56
     // was already being spent. The rail is the only new reservation.
+    //
+    // Still exactly, after the edge sweep moved the left-hand tab off the
+    // edge: this case sets the Island, and `railEdgeInset` is the larger of
+    // the notch and the margin, so 50 was already paying for the clearance
+    // 16 would have bought. The sweep bites on the *other* landscape
+    // orientation, where there is no notch and the tab used to sit at 0.
     expect(bar.w - rail.w).toBe(NAV_RAIL_WIDTH);
     // 188 points of height for 72 of width, on a screen with 874 across
     // and 402 down. That is the whole case for the layout.

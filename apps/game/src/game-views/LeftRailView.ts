@@ -30,7 +30,7 @@ import type { GameStateStore } from '../game-state/GameStateStore';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getUrgentNeed } from '@arc/game-logic';
 import { createChromeButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP } from '../ui/constants';
 import {
   railBoundsFor, playAreaFor, RAIL_TAB_WIDTH,
   type RailBounds, type PlayArea,
@@ -511,8 +511,12 @@ function drawArrivalCard(
 
   // Tap card body (above the button) to see details
   if (onTapCard) {
-    // Stops short of the button's top edge so the two never contend.
-    const hit = scene.add.rectangle(x, y, w, cardH - welcomeH - 12, 0x000000, 0)
+    // Stops MIN_TAP_GAP short of the button's top edge, not 12px short of
+    // the button's *centre*. The button hangs 8px above the card's bottom,
+    // so subtracting 12 left exactly 4px between the two targets — the
+    // only T4 failure in the game, on tablet and desktop, and the reason
+    // this number is now derived rather than picked.
+    const hit = scene.add.rectangle(x, y, w, cardH - welcomeH - 8 - MIN_TAP_GAP, 0x000000, 0)
       .setOrigin(0, 0)
       .setInteractive({ useHandCursor: true });
     hit.on('pointerdown', onTapCard);

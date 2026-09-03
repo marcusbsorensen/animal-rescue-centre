@@ -236,7 +236,9 @@
   .adopter-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: clamp(10px, 1.6cqw, 16px);
+    /* 12 floor, not 10 — MIN_TAP_GAP in ui/constants. A whole adopter card
+       is one tap target, so two of them 10px apart is the T4 case exactly. */
+    gap: clamp(12px, 1.6cqw, 16px);
     padding-bottom: 40px;
   }
   .adopter-card {
@@ -539,13 +541,13 @@
     display: grid;
     grid-template-rows: auto 1fr auto;
     grid-template-areas: "top" "content" "credits";
-    padding: clamp(10px, 2cqh, 18px) 0 0;
+    padding: clamp(16px, 2cqh, 18px) 0 0;
   }
 
   .top-strip {
     grid-area: top;
     display: flex; justify-content: flex-end;
-    padding: 0 clamp(12px, 3cqw, 24px);
+    padding: 0 clamp(16px, 3cqw, 24px);
   }
   .audio-btn {
     width: clamp(36px, 5.5cqh, 44px); height: clamp(36px, 5.5cqh, 44px);

@@ -126,11 +126,16 @@ export class KitchenMinigameScene extends Phaser.Scene {
     this._lastWidth = this.scale.width;
     this._lastHeight = this.scale.height;
 
-    // Back button — proper button, not a floating text link
-    // 16px clearance + half the 44px button height. At height - 30 the
-    // button's lower edge sat 8px off the bottom, inside the home-gesture area.
-    createChromeButton(this, SAFE_MARGIN + 59, height - (SAFE_MARGIN + 22), 'Back', () => this.exitMinigame(), {
+    // Back button — proper button, not a floating text link.
+    //
+    // Anchored by its left edge rather than by a guessed centre. The 59
+    // here was half of the 110 the caller asked for plus a bit, and the
+    // button actually measures 121 wide, so its edge landed at 14px —
+    // inside the margin, on every viewport. `anchor` makes the number
+    // written the number measured.
+    createChromeButton(this, SAFE_MARGIN, height - SAFE_MARGIN, 'Back', () => this.exitMinigame(), {
       width: 110, fontSize: '14px', icon: 'icon-back', iconStyle: 'glyph',
+      anchor: { x: 'left', y: 'bottom' },
     });
   }
 

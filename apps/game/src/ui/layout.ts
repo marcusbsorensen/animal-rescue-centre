@@ -7,6 +7,12 @@
  * scene-taking wrappers so callers see no difference.
  */
 
+// The one import, and it is Phaser-free: `constants.ts` has no imports of
+// its own, so pulling SAFE_MARGIN in keeps this module unit-testable in
+// jsdom. Duplicating the number here instead is how the rail and the rest
+// of the game would drift apart about what "clear of the edge" means.
+import { SAFE_MARGIN } from './constants';
+
 /** Width of the rail when it is shown in full. */
 export const RAIL_WIDTH = 280;
 
@@ -269,6 +275,28 @@ export function railIsCollapsible(width: number): boolean {
   return width < RAIL_COLLAPSE_BREAKPOINT;
 }
 
+/**
+ * How far the rail sits from the edge it is anchored to.
+ *
+ * The notch inset where there is one, and `SAFE_MARGIN` where there is
+ * not — never zero. The collapsed pull-tab used to start at
+ * `safeAreaLeft`, which is 0 in the landscape orientation that puts the
+ * Dynamic Island on the *other* side, and `ux-review.spec.ts` scored it as
+ * the only 0px control in the game.
+ *
+ * A tab flush to the edge is arguably what a pull-tab is. It is still
+ * wrong here: the rule the project wrote down says nothing a child has to
+ * hit sits in the margin, and a 56px tab has room to give 16 of them back.
+ * The alternative — an exemption for "edge affordances" — is the kind of
+ * clause that later hides a real defect.
+ *
+ * `railReservedWidth` and `playAreaFor` add this to what they reserve, so
+ * content starts clear of the tab rather than under it.
+ */
+export function railEdgeInset(): number {
+  return Math.max(safeAreaLeft, SAFE_MARGIN);
+}
+
 export function railBoundsFor(width: number, height: number, open = false): RailBounds {
   // Under the side-nav layout the arrivals rail moves to the right edge:
   // the left belongs to navigation. It spans the full height because
@@ -283,16 +311,30 @@ export function railBoundsFor(width: number, height: number, open = false): Rail
     const mode: RailMode = !railIsCollapsible(width)
       ? 'side'
       : (open ? 'overlay' : 'tab');
+    // Flush to the right edge, deliberately, where the left-hand tab is
+    // held off by `railEdgeInset`.
+    //
+    // Not an oversight and not consistency for its own sake. Insetting
+    // this one costs 16px of play width, and the play box under side-nav
+    // is 696x402 — an aspect of 1.77 against room art authored at 1.78,
+    // which is the one place in the game where the art fits the box it is
+    // given. 680 wide puts it back to letterboxing. The left-hand tab has
+    // no such price and is the edge `ux-review.spec.ts` actually scores.
+    //
+    // So: a measured defect on one edge, a real cost and no measurement on
+    // the other. If the right edge is ever worth the same 16, the art fit
+    // is what it is being spent from — decide it there, not here.
     const w = mode === 'tab' ? RAIL_TAB_WIDTH : RAIL_WIDTH;
     return { x: width - w, y: 0, w, h: height, mode };
   }
 
   const y = HUD_HEIGHT;
   const h = height - HUD_HEIGHT;
-  // Start clear of the notch rather than at 0. The tab keeps its full
-  // width and moves right; shrinking it instead would have taken a
-  // 56-wide target down to 6 on the device that needs it most.
-  const x = safeAreaLeft;
+  // Start clear of the notch, or of the safe margin where there is no
+  // notch — see `railEdgeInset`. The tab keeps its full width and moves
+  // right; shrinking it instead would have taken a 56-wide target down to
+  // 6 on the device that needs it most.
+  const x = railEdgeInset();
   if (!railIsCollapsible(width)) {
     return { x, y, w: RAIL_WIDTH, h, mode: 'side' };
   }
@@ -310,10 +352,10 @@ export function railBoundsFor(width: number, height: number, open = false): Rail
  * time she checked her arrivals, and the animals would jump.
  */
 export function railReservedWidth(width: number): number {
-  // The inset is reserved too: the rail now starts after it, so content
-  // laid out from the old figure would slide under the rail rather than
+  // The inset is reserved too: the rail starts after it, so content laid
+  // out from the bare rail width would slide under the rail rather than
   // under the notch.
-  return safeAreaLeft + (railIsCollapsible(width) ? RAIL_TAB_WIDTH : RAIL_WIDTH);
+  return railEdgeInset() + (railIsCollapsible(width) ? RAIL_TAB_WIDTH : RAIL_WIDTH);
 }
 
 /** The box game content may use: clear of the rail, HUD and nav bar. */

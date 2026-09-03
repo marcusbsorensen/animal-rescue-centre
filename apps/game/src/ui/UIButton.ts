@@ -427,6 +427,33 @@ export function createChromeButton(
      * reads only as red.
      */
     tone?: 'default' | 'danger';
+    /**
+     * Which part of the button `x` and `y` name.
+     *
+     * Both default to `centre`, which is the normal thing. Any other value
+     * puts the control's **outer edge** on that coordinate instead, so a
+     * caller anchoring against a screen edge writes the margin it wants and
+     * gets it.
+     *
+     * This exists because the alternative kept failing, on both axes.
+     *
+     * Horizontally: a caller wanting a Back button `SAFE_MARGIN` from the
+     * left has to write `SAFE_MARGIN + w / 2`, and it does not know `w` —
+     * the button sizes itself to `max(label + icon + 56, options.width)`
+     * and the hit box is floored at `MIN_TAP` on top of that. The three
+     * Back buttons in this game used hand-guessed half-widths of 53, 58 and
+     * 59 and landed 14, 15 and 15px from the edge.
+     *
+     * Vertically: `EDGE_CONTROL_INSET` is `SAFE_MARGIN + MIN_TAP / 2`, so
+     * it lands the edge correctly only for a control that is exactly
+     * `MIN_TAP` tall. PtvDriveScene's Back button is 52, and anchoring its
+     * centre there left 14px — the same defect, arrived at through the
+     * constant meant to prevent it.
+     *
+     * The edge measured is the hit box's, not the drawn plate's, because
+     * the hit box is what a child touches and what the harness scores.
+     */
+    anchor?: { x?: 'left' | 'centre' | 'right'; y?: 'top' | 'centre' | 'bottom' };
   }
 ): Phaser.GameObjects.Container {
   const fontSize = options?.fontSize ?? '22px';
@@ -497,7 +524,19 @@ export function createChromeButton(
   if (iconSprite) children.push(iconSprite);
   children.push(hitArea);
 
-  const container = scene.add.container(x, y, children);
+  // Anchoring shifts the whole container so the hit box's outer edge lands
+  // on the coordinate given. Done here rather than by the caller because
+  // neither dimension is knowable until the label has been measured.
+  const hitW = Math.max(w, MIN_TAP);
+  const hitH = Math.max(h, MIN_TAP);
+  const cx = options?.anchor?.x === 'left' ? x + hitW / 2
+    : options?.anchor?.x === 'right' ? x - hitW / 2
+      : x;
+  const cy = options?.anchor?.y === 'top' ? y + hitH / 2
+    : options?.anchor?.y === 'bottom' ? y - hitH / 2
+      : y;
+
+  const container = scene.add.container(cx, cy, children);
   // Graphics contributes nothing to getBounds(), so a caller measuring this
   // to stack the next row gets the height of the *text* and lands inside
   // the button. The bevelled button this replaced never published its

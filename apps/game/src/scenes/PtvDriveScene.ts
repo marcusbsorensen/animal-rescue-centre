@@ -837,7 +837,7 @@ export class PtvDriveScene extends Phaser.Scene {
     });
 
     this.container.add(
-      createChromeButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88 }).setDepth(45)
+      createChromeButton(this, SAFE_MARGIN, SAFE_MARGIN, 'Back', () => this.exit(), { width: 88, anchor: { x: 'left', y: 'top' } }).setDepth(45)
     );
   }
 
@@ -912,7 +912,7 @@ export class PtvDriveScene extends Phaser.Scene {
       }, { width: 190, variant: 'filled' }).setDepth(45)
     );
     this.container.add(
-      createChromeButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88 }).setDepth(45)
+      createChromeButton(this, SAFE_MARGIN, SAFE_MARGIN, 'Back', () => this.exit(), { width: 88, anchor: { x: 'left', y: 'top' } }).setDepth(45)
     );
   }
 
@@ -1076,7 +1076,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.add(go);
 
     this.container.add(
-      createChromeButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), { width: 88 }).setDepth(45)
+      createChromeButton(this, SAFE_MARGIN, SAFE_MARGIN, 'Back', () => this.exit(), { width: 88, anchor: { x: 'left', y: 'top' } }).setDepth(45)
     );
   }
 
@@ -1665,8 +1665,12 @@ export class PtvDriveScene extends Phaser.Scene {
 
     // Back / exit button (top-left).
     this.container.add(
-      createChromeButton(this, SAFE_MARGIN + 53, SAFE_MARGIN + 27, 'Back', () => this.exit(), {
-        width: 88,
+      // Anchored by both edges, like the other three copies of this
+      // button: 53 was half of the 88 asked for and the drawn control is
+      // 108, and the control is 52 tall where EDGE_CONTROL_INSET assumes
+      // MIN_TAP. Both guesses landed it inside the margin.
+      createChromeButton(this, SAFE_MARGIN, SAFE_MARGIN, 'Back', () => this.exit(), {
+        width: 88, anchor: { x: 'left', y: 'top' },
       }).setDepth(40)
     );
 

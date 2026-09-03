@@ -87,7 +87,11 @@
       radial-gradient(ellipse at 50% 30%, #fff5d8 0%, transparent 70%),
       linear-gradient(180deg, #f7e8c5 0%, #e6cfa1 60%, #c9a76a 100%);
     display: flex; flex-direction: column;
-    padding: clamp(8px, 1.6cqh, 16px);
+    /* Floors at 16, not 8. On a short container the clamp resolved to 8,
+       and the header's own 4px on top put the music, overlay and close
+       buttons 12px from the top edge — inside SAFE_MARGIN, which is 16 in
+       ui/constants. Found by the edge sweep, not by eye. */
+    padding: clamp(16px, 1.6cqh, 20px);
     overflow: hidden;
   }
   .tunnel-scene::before {
@@ -574,7 +578,10 @@
   }
 
   .tunnel-footer {
-    display: flex; gap: 8px; justify-content: center;
+    /* 12, not 8 — MIN_TAP_GAP in ui/constants. Two 48px targets 8px apart
+       are close to one 104px target for a small hand, which is the whole
+       point of the rule. */
+    display: flex; gap: 12px; justify-content: center;
     padding: 8px 4px 4px;
     z-index: 2;
     flex-wrap: wrap;
