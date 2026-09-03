@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY, TYPE, TITLE_CY } from '../ui/constants';
-import { createChromeButton, createTextButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY, TYPE, TITLE_CY, SAFE_MARGIN } from '../ui/constants';
+import { createChromeButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { applyGrooming } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
@@ -172,9 +172,12 @@ export class GroomingScene extends Phaser.Scene {
 
     // Back button
     this.container.add(
-      createTextButton(this, width / 2, bottomAnchorY(height), '← Back to centre', () => {
+      createChromeButton(this, SAFE_MARGIN, height - SAFE_MARGIN, 'Back', () => {
         this.exitScene();
-      })
+      }, {
+          width: 110, fontSize: TYPE.caption, icon: 'icon-back', iconStyle: 'glyph',
+          anchor: { x: 'left', y: 'bottom' },
+        })
     );
   }
 
@@ -258,9 +261,12 @@ export class GroomingScene extends Phaser.Scene {
 
     // Back button
     this.container.add(
-      createTextButton(this, width / 2, bottomAnchorY(height), '← Back to centre', () => {
+      createChromeButton(this, SAFE_MARGIN, height - SAFE_MARGIN, 'Back', () => {
         this.exitScene();
-      })
+      }, {
+          width: 110, fontSize: TYPE.caption, icon: 'icon-back', iconStyle: 'glyph',
+          anchor: { x: 'left', y: 'bottom' },
+        })
     );
   }
 

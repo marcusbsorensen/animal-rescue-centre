@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY, TYPE, TITLE_CY, PAGE_MARGIN, SPACE, contentTopFor, bandCentreY } from '../ui/constants';
-import { createChromeButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
+import { createChromeButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { getFriends, type Friend } from '../lib/friends';
 import {
@@ -147,9 +147,11 @@ export class SocialScene extends Phaser.Scene {
 
     // Back button
     this.container.add(
-      createTextButton(this, width / 2, bottomAnchorY(height),
-        '← Back to centre', () => {
+      createChromeButton(this, SAFE_MARGIN, height - SAFE_MARGIN, 'Back', () => {
           this.scene.start('GameScene');
+        }, {
+          width: 110, fontSize: TYPE.caption, icon: 'icon-back', iconStyle: 'glyph',
+          anchor: { x: 'left', y: 'bottom' },
         })
     );
   }

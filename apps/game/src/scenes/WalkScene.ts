@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY, TYPE, TITLE_CY, PAGE_MARGIN, SAFE_MARGIN } from '../ui/constants';
 import { createChromeButton, createTextButton, createChromeTitle, createPanel } from '../ui/UIButton';
 import {
   startGridWalk,
@@ -289,9 +289,12 @@ export class WalkScene extends Phaser.Scene {
     );
 
     this.container.add(
-      createTextButton(this, width / 2, bottomAnchorY(height), '← Back to centre', () => {
+      createChromeButton(this, SAFE_MARGIN, height - SAFE_MARGIN, 'Back', () => {
         this.scene.start('GameScene');
-      })
+      }, {
+          width: 110, fontSize: TYPE.caption, icon: 'icon-back', iconStyle: 'glyph',
+          anchor: { x: 'left', y: 'bottom' },
+        })
     );
   }
 

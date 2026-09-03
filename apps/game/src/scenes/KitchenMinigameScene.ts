@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT, TYPE, TITLE_CY, PAGE_MARGIN, contentTopFor, SPACE } from '../ui/constants';
-import { createChromeButton, createTextButton, createChromeTitle, createChromePlate, createPanel, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createChromeTitle, createChromePlate, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   generateKitchenRound,
   isFoodValidForSpecies,

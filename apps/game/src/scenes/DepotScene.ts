@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE, TITLE_CY, PAGE_MARGIN, SAFE_MARGIN } from '../ui/constants';
 import {
   createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
@@ -294,9 +294,11 @@ export class DepotScene extends Phaser.Scene {
 
     // Board size preview (shows dims for each mode as subtitle)
     this.container.add(
-      createTextButton(this, width / 2, bottomAnchorY(height),
-        '← Back to centre', () => {
+      createChromeButton(this, SAFE_MARGIN, height - SAFE_MARGIN, 'Back', () => {
           this.scene.start('GameScene');
+        }, {
+          width: 110, fontSize: TYPE.caption, icon: 'icon-back', iconStyle: 'glyph',
+          anchor: { x: 'left', y: 'bottom' },
         })
     );
   }
