@@ -47,8 +47,36 @@ export function hexNum(hex: string): number {
 export const FONTS = {
   title: '"Nunito", "Baloo 2", "Fredoka", system-ui, -apple-system, sans-serif',
   body: '"Nunito", system-ui, -apple-system, sans-serif',
-  // Handwritten / chalk style — used for chalkboards, hand-hung notes,
-  // anywhere we want the feel of marker or chalk rather than printed type.
+  /**
+   * Handwritten / chalk style — chalkboards, hand-hung notes, anywhere we
+   * want marker or chalk rather than printed type.
+   *
+   * **Caveat does not honour the type scale, and it is the only face that
+   * does not.** Measured 2026-09-03 with a warmed canvas probe, x-height at
+   * 16px against Nunito's 7.89:
+   *
+   *   Quicksand   8.26   105%
+   *   Kalam       8.18   104%
+   *   Gochi Hand  7.84    99%
+   *   Fredoka     7.72    98%
+   *   Caveat      5.71    72%   ← needs 22.1px to read as 16px does
+   *
+   * So five of the six faces agree within 5% and `TYPE.caption` means the
+   * same thing in all of them; in Caveat it means about 11.6px. F1-F5
+   * cannot see this — it measures the number, not the face.
+   *
+   * `font-size-adjust: 0.49` is the fix on the DOM side and it works here
+   * (tested: Caveat at 16px goes from 129.5px wide to 177.7 against
+   * Nunito's 175.3, i.e. within 1.4%). It is **not applied yet**: Caveat is
+   * on ~50 rules across 20 shipping screens and the correction widens every
+   * one of them by 37%, which is a layout decision rather than a sweep.
+   * Canvas text has no equivalent property, so the Phaser side would need
+   * the multiplier written out.
+   *
+   * Note also that several DOM stacks read `'Caveat', 'Kalam', cursive` —
+   * two faces 44% apart in apparent size, so which one loads decides how
+   * big the text looks.
+   */
   chalk: '"Caveat", "Patrick Hand", "Comic Sans MS", cursive',
   /**
    * Chrome type — everything non-diegetic: nav, HUD, view titles, panels,

@@ -332,6 +332,21 @@ checking the claim still holds.
   `@playwright/test` — one in a scratch directory fails with
   ERR_MODULE_NOT_FOUND. `playwright install webkit` stalls too — do not wait on it, use
   the simulator's Safari instead.
+- **`await document.fonts.ready` is not enough before a canvas font probe.**
+  A self-hosted `@font-face` with `font-display: swap` loads lazily on first
+  *use*, so on a page that does not already draw in that family the probe
+  measures the fallback and says nothing about it — Nunito and Fredoka both
+  reported 187.5px, identical to a deliberately nonexistent family, which is
+  the tell. `await Promise.all(fams.map(f => document.fonts.load('16px "'+f+'"')))`
+  first, and check each result against a nonexistent family before believing
+  it. This is the same class of error as judging a typeface from a Mac
+  screenshot: the measurement looks fine and is of the wrong thing.
+- **`TYPE.caption` means 16px in five faces and about 11.6px in Caveat.**
+  x-height at 16px: Quicksand 8.26, Kalam 8.18, Gochi Hand 7.84, Fredoka
+  7.72, Nunito 7.89 — and **Caveat 5.71, 72%**. It needs 22.1px to read the
+  size the others do at 16. `font-size-adjust: 0.49` corrects it on the DOM
+  (verified) and has no canvas equivalent. Not applied — it widens the text
+  37% across ~50 rules on 20 screens. See the note on `FONTS.chalk`.
 - **`_short-landscape.css` is where the phone's type actually comes from.**
   It is linked after every page's inline `<style>` and wins on the short
   viewport, so a sweep of the 24 `.html` files leaves the phone on the old
