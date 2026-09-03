@@ -21,6 +21,19 @@ export const RAIL_WIDTH = 280;
  * full rail in. Wide enough to carry the ARC paw and an arrivals badge,
  * and to clear MIN_TAP on its own.
  */
+/**
+ * The collapsed arrivals tab's width.
+ *
+ * Stays 56. A review put "waiting" at bold `TYPE.caption` at about 58px and
+ * called the word wider than the tab it sits on; measured, it is **55.8** —
+ * it fits, with 0.2px to spare. Widening to 60 would have cost 4px of a play
+ * box that is already 1.73 against art authored at 1.78, which is a trade
+ * with a recorded decision behind it (see `railBoundsFor`, and the
+ * side-nav-layout test that holds `play.w` at 696).
+ *
+ * Recorded because the number is that tight: any longer word here, or a
+ * heavier weight, does not fit.
+ */
 export const RAIL_TAB_WIDTH = 56;
 
 /**

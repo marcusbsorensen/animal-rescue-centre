@@ -31,10 +31,7 @@ import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getUrgentNeed } from '@arc/game-logic';
 import { createChromeButton } from '../ui/UIButton';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, TYPE } from '../ui/constants';
-import {
-  railBoundsFor, playAreaFor, RAIL_TAB_WIDTH,
-  type RailBounds, type PlayArea,
-} from '../ui/layout';
+import { railBoundsFor, playAreaFor, RAIL_TAB_WIDTH, type RailBounds, type PlayArea } from '../ui/layout';
 
 export { RAIL_WIDTH, RAIL_TAB_WIDTH, RAIL_COLLAPSE_BREAKPOINT, railIsCollapsible } from '../ui/layout';
 
@@ -165,7 +162,20 @@ function renderTab(
   ctx: CountsContext,
 ): void {
   const tabH = 150;
-  const tabY = bounds.y + Math.max(0, (bounds.h - tabH) / 2);
+  /**
+   * Centred on the **play band**, not on the rail's own bounds.
+   *
+   * `railBoundsFor` hands this the strip from the top of the screen to the
+   * bottom of it, because that is the region the rail may draw in. Centring
+   * a 150px tab in that put it at y 167.5..317.5 on the phone while the band
+   * runs 110..297 — 39px below the band's middle, with its last 20px behind
+   * the nav bar. That is what makes the bottom-left corner read as a step
+   * rather than as a corner.
+   *
+   * The band is where the content is, so the tab belongs on its centre.
+   */
+  const play = playAreaFor(scene.scale.width, scene.scale.height);
+  const tabY = play.y + Math.max(0, (play.h - tabH) / 2);
   const w = RAIL_TAB_WIDTH;
   const waiting = ctx.arriving.length;
 

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE, TITLE_CY, PAGE_MARGIN, SAFE_MARGIN } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE, TITLE_CY, PAGE_MARGIN, SAFE_MARGIN, SPACE } from '../ui/constants';
 import {
   createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
@@ -199,20 +199,32 @@ export class DepotScene extends Phaser.Scene {
     const rowsFit = Math.floor((bandBottom - bandTop + 20) / (cardH + 20));
     const cols = rowsFit >= 4 ? 1 : 2;
     const rows = Math.ceil(4 / cols);
-    const colGap = 16;
+    // One gap, not three. This grid used a 40px outer margin, a 16px column
+    // gutter and a 12px row gap — three numbers descending with nothing
+    // relating them, and disagreeing with SupplyRun's 30/16 for what is the
+    // same component written twice.
+    const gap = SPACE.l;
     const cardW = cols === 1
       ? Math.min(width - PAGE_MARGIN * 2, 500)
-      : Math.min((width - PAGE_MARGIN * 2 - colGap) / 2, 400);
-    const gridW = cardW * cols + colGap * (cols - 1);
+      : Math.min((width - PAGE_MARGIN * 2 - gap) / 2, 400);
+    const gridW = cardW * cols + gap * (cols - 1);
     const gridX = (width - gridW) / 2;
-    // Anchored under the subtitle rather than centred in the band, so a
-    // tall screen keeps the layout it had; the pitch closes up only as
-    // far as it must to land the last row above the Back button. On a
-    // landscape phone that is a 12px gap between two rows of two.
-    const topGap = 12;
-    const availH = bandBottom - bandTop - topGap;
-    const rowPitch = rows > 1 ? Math.min(105, (availH - cardH) / (rows - 1)) : 0;
-    const firstCy = bandTop + topGap + cardH / 2;
+    /**
+     * Fit the cards to the band; do not fit the gaps to what is left.
+     *
+     * `min(105, (availH - cardH) / (rows - 1))` is a pitch, not a
+     * constraint, and nothing stopped it resolving below `cardH` — which is
+     * exactly how SupplyRun's cards came to overlap by 31px and put a tap on
+     * one destination onto another. This grid has not been caught doing it,
+     * but it is the same arithmetic on a shorter card, so it is one bad
+     * viewport away.
+     */
+    const availH = bandBottom - bandTop - gap;
+    const cardHFit = rows > 1
+      ? Math.min(cardH, (availH - (rows - 1) * gap) / rows)
+      : Math.min(cardH, availH);
+    const rowPitch = rows > 1 ? cardHFit + gap : 0;
+    const firstCy = bandTop + gap + cardHFit / 2;
 
     // Subtle gear/cog pattern background
     // Cogs, at the same weight they had on the purple — the ink changes
@@ -247,17 +259,21 @@ export class DepotScene extends Phaser.Scene {
     modes.forEach((m, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
-      const cardX = gridX + col * (cardW + colGap);
+      const cardX = gridX + col * (cardW + gap);
       const cx = cardX + cardW / 2;
       const y = firstCy + row * rowPitch;
       const unlocked = canAccessMode(m.mode, this.playerLevel);
-      const alpha = unlocked ? 1 : 0.4;
+      // 0.4 took the plate's shadow down with it and the card stopped
+      // reading as a card — a hole in the grid rather than something not
+      // available yet. The *contents* dim; the surface stays a surface.
+      const alpha = unlocked ? 1 : 0.45;
+      const plateAlpha = unlocked ? 1 : 0.85;
 
       // Card background — a chrome plate, like every other thing in the
       // game that floats above a surface. It was 18% white glass with a
       // gold outline, which is the old HUD's language.
-      const card = createChromePlate(this, cx, y, cardW, cardH);
-      card.setAlpha(alpha);
+      const card = createChromePlate(this, cx, y, cardW, cardHFit);
+      card.setAlpha(plateAlpha);
       this.container.add(card);
 
       // Colour icon circle
