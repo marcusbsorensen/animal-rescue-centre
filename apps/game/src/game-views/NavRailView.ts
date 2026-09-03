@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FONTS, TEXT_RESOLUTION, MIN_TAP, MIN_TAP_GAP } from '../ui/constants';
+import { FONTS, TEXT_RESOLUTION, MIN_TAP, MIN_TAP_GAP, TYPE } from '../ui/constants';
 import { NAV_RAIL_WIDTH, getSafeAreaLeft } from '../ui/layout';
 import type { NavBarCallbacks, NavBarOptions } from './NavBarView';
 
@@ -144,7 +144,7 @@ export function renderNavRail(
 
     navContainer.add(
       scene.add.text(cx, cy + 15, item.label, {
-        fontSize: item.active ? '15px' : '14px',
+        fontSize: item.active ? TYPE.caption : TYPE.caption,
         fontFamily: FONTS.body, fontStyle: 'bold',
         color: item.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),

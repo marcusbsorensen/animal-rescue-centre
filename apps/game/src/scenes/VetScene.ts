@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY, TYPE } from '../ui/constants';
 import { createChromeButton, createTextButton, createChromeTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   applyHealStep,
@@ -140,7 +140,7 @@ export class VetScene extends Phaser.Scene {
     this.container.add(
       this.add.text(textX, spriteY + 4,
         `has ${this.illness.emoji} ${this.illness.label}`, {
-        fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5)
     );
     this.container.add(
@@ -205,7 +205,7 @@ export class VetScene extends Phaser.Scene {
     // ── Heal action buttons ─────────────────────────────────────
     this.container.add(
       this.add.text(width / 2, 288, 'Choose a treatment', {
-        fontSize: '15px', fontFamily: FONTS.title, fontStyle: 'bold',
+        fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
@@ -240,7 +240,7 @@ export class VetScene extends Phaser.Scene {
 
       const emojiY = y - cardH / 2 + 22;
       this.container.add(
-        this.add.text(x, emojiY, action.emoji, { fontSize: '30px' }).setOrigin(0.5)
+        this.add.text(x, emojiY, action.emoji, { fontSize: '30px', fontFamily: FONTS.body }).setOrigin(0.5)
       );
       this.container.add(
         this.add.text(x, emojiY + 24, action.label, {

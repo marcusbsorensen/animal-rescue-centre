@@ -6,7 +6,7 @@ import {
   getMaxShelterAnimals,
 } from '@arc/game-logic';
 import { AudioManager } from '../audio/AudioManager';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, TYPE } from '../ui/constants';
 import { playAreaFor, sideNavEnabled } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
@@ -145,7 +145,7 @@ export function renderHUD(
   const xpW = leftOrbW - orbH - 14;
   uiContainer.add(
     scene.add.text(xpX, orbY - 9, `${welcomedCount} in care`, {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0.5),
   );
@@ -291,7 +291,7 @@ function drawTimeWeatherStrip(
     const labelX = x0 + pillH + 4;
     container.add(
       scene.add.text(labelX, cy - 5, PHASE_LABELS[currentPhase], {
-        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5),
     );
@@ -366,7 +366,7 @@ function drawTimeWeatherStrip(
     // Weather label
     container.add(
       scene.add.text(x0 + pillH + 4, cy, WEATHER_LABELS[current], {
-        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5),
     );
@@ -401,7 +401,7 @@ function drawAlertBadge(
   container.add(gfx);
   container.add(
     scene.add.text(cx, cy, `${count}`, {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#ffffff', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5),
   );
@@ -455,7 +455,7 @@ function drawIconOrb(
   } else {
     container.add(
       scene.add.text(cx, cy, fallback, {
-        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );
@@ -504,7 +504,7 @@ function drawValuePill(
 
   container.add(
     scene.add.text(x0 + orbH + 2, cy, value, {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0.5),
   );

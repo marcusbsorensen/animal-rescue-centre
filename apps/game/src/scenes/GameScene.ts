@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species, DepotState, Economy } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, TYPE } from '../ui/constants';
 import { type Anchor } from '../lib/RoomAnchors';
 import { AudioManager } from '../audio/AudioManager';
 import { AssetLoader } from '../lib/AssetLoader';
@@ -2091,7 +2091,7 @@ export class GameScene extends Phaser.Scene {
       const px = roomBounds.x + deco.x * roomBounds.width;
       const py = roomBounds.y + deco.y * roomBounds.height;
       const emojiText = this.add
-        .text(px, py, getDecorationEmoji(deco.code), { fontSize: '32px' })
+        .text(px, py, getDecorationEmoji(deco.code), { fontSize: '32px', fontFamily: FONTS.body })
         .setOrigin(0.5)
         .setResolution(TEXT_RESOLUTION);
       // Ensure they sit below animals but above the background.
@@ -2108,7 +2108,7 @@ export class GameScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     const btnText = this.add
       .text(width - 70, 55, '🎀 Decorate', {
-        fontSize: '14px',
+        fontSize: TYPE.caption,
         fontFamily: FONTS.title,
         color: COLOURS.text,
         fontStyle: 'bold',

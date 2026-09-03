@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS } from '@arc/game-logic';
+import { FONTS } from './constants';
 
 /**
  * Live view of GameScene's `store.sickAnimals`, registered once at scene
@@ -166,6 +167,6 @@ export function createFoodSprite(
   }
 
   return scene.add.text(x, y, fallbackEmoji, {
-    fontSize: `${size}px`,
+    fontSize: `${size}px`, fontFamily: FONTS.body
   }).setOrigin(0.5);
 }

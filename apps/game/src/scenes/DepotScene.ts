@@ -1,7 +1,5 @@
 import Phaser from 'phaser';
-import {
-  COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum,
-} from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE } from '../ui/constants';
 import {
   createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
@@ -278,7 +276,7 @@ export class DepotScene extends Phaser.Scene {
       // Description
       this.container.add(
         this.add.text(cardX + 70, y + 14, unlocked ? m.desc : `Unlocks at level ${m.mode === 'medical_supplies' ? 15 : 1}`, {
-          fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
           color: unlocked ? DEPOT_COLOURS.textDim : COLOURS.textLight,
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
@@ -374,7 +372,7 @@ export class DepotScene extends Phaser.Scene {
     const movesLeft = this.maxMoves - (this.boardState?.moves ?? 0);
     this.container.add(
       this.add.text(width - 15, headerH / 2 + 12, `Moves: ${movesLeft}`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim, resolution: TEXT_RESOLUTION,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim, resolution: TEXT_RESOLUTION,
       }).setOrigin(1, 0.5)
     );
 
@@ -471,7 +469,7 @@ export class DepotScene extends Phaser.Scene {
       if (emoji) {
         this.container.add(
           this.add.text(x, y - 10, emoji, {
-            fontSize: '34px',
+            fontSize: '34px', fontFamily: FONTS.body
           }).setOrigin(0.5)
         );
       } else {
@@ -490,7 +488,7 @@ export class DepotScene extends Phaser.Scene {
 
       this.container.add(
         this.add.text(x, y + 18, progress, {
-          fontSize: '15px', fontFamily: FONTS.body, fontStyle: 'bold',
+          fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
           resolution: TEXT_RESOLUTION,
           color: done ? CHROME.inkAccent : CHROME.ink,
         }).setOrigin(0.5)
@@ -536,7 +534,7 @@ export class DepotScene extends Phaser.Scene {
 
     const fontSize = Math.max(14, Math.min(this.cellSize - 14, 28));
     const emoji = this.add.text(0, 0, displayText, {
-      fontSize: `${fontSize}px`,
+      fontSize: `${fontSize}px`, fontFamily: FONTS.body
     }).setOrigin(0.5);
 
     const cellContainer = this.add.container(x, y, [bg, emoji]);
@@ -727,7 +725,7 @@ export class DepotScene extends Phaser.Scene {
 
     const text = `+${score} ${extra}`.trim();
     const popup = this.add.text(x, y, text, {
-      fontSize: extra ? '18px' : '15px',
+      fontSize: extra ? '18px' : TYPE.caption,
       fontFamily: FONTS.title,
       fontStyle: 'bold',
       // Dark ink with a cream halo, which is the way round that works over
@@ -791,7 +789,7 @@ export class DepotScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, 130, `Moves used: ${this.boardState?.moves ?? 0} / ${this.maxMoves}`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim,
       }).setOrigin(0.5)
     );
 
@@ -824,7 +822,7 @@ export class DepotScene extends Phaser.Scene {
       // Big target emoji
       this.container.add(
         this.add.text(width / 2 - 10, cy, def?.emoji ?? '', {
-          fontSize: '28px',
+          fontSize: '28px', fontFamily: FONTS.body
         }).setOrigin(0.5)
       );
 
@@ -864,13 +862,13 @@ export class DepotScene extends Phaser.Scene {
 
         this.container.add(
           this.add.text(rx, ry, reward.emoji, {
-            fontSize: '28px',
+            fontSize: '28px', fontFamily: FONTS.body
           }).setOrigin(0.5)
         );
 
         this.container.add(
           this.add.text(rx, ry + 28, reward.label, {
-            fontSize: '14px', fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim, resolution: TEXT_RESOLUTION,
+            fontSize: TYPE.caption, fontFamily: FONTS.body, color: DEPOT_COLOURS.textDim, resolution: TEXT_RESOLUTION,
             align: 'center', wordWrap: { width: 60 },
           }).setOrigin(0.5, 0)
         );

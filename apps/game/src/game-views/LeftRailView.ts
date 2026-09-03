@@ -30,7 +30,7 @@ import type { GameStateStore } from '../game-state/GameStateStore';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, getUrgentNeed } from '@arc/game-logic';
 import { createChromeButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, TYPE } from '../ui/constants';
 import {
   railBoundsFor, playAreaFor, RAIL_TAB_WIDTH,
   type RailBounds, type PlayArea,
@@ -192,7 +192,7 @@ function renderTab(
   } else {
     container.add(
       scene.add.text(cx, tabY + 40, '🐾', {
-        fontSize: '26px', resolution: TEXT_RESOLUTION,
+        fontSize: '26px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5, 0.5),
     );
   }
@@ -212,7 +212,7 @@ function renderTab(
     );
     container.add(
       scene.add.text(cx, tabY + 114, 'waiting', {
-        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
         color: '#A85A28', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5, 0.5),
     );
@@ -225,7 +225,7 @@ function renderTab(
     );
     container.add(
       scene.add.text(cx, tabY + 114, 'in care', {
-        fontSize: '14px', fontFamily: FONTS.body,
+        fontSize: TYPE.caption, fontFamily: FONTS.body,
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5, 0.5),
     );
@@ -269,8 +269,8 @@ function renderSideRail(
 
   // ── Header: "MY RESCUE" eyebrow ──────────────────────────
   container.add(
-    scene.add.text(bounds.x + padX, cursorY, 'MY RESCUE', {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+    scene.add.text(bounds.x + padX, cursorY, 'My rescue', {
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0),
   );
@@ -312,7 +312,7 @@ function renderSideRail(
   if (ctx.arriving.length > 0) {
     cursorY += drawSectionHeader(
       scene, container, bounds.x + padX, cursorY,
-      '★ ARRIVALS WAITING', `${ctx.arriving.length}`, 0xE67E22,
+      '★ Arrivals waiting', `${ctx.arriving.length}`, 0xE67E22,
     );
 
     // One card per arriving animal
@@ -337,7 +337,7 @@ function renderSideRail(
         () => callbacks.onWelcomeAll(ctx.arriving),
         // Filled, not plated: the rail is itself cream paper, so a plate
         // here would be a button drawn on its own colour.
-        { width: innerW - 6, fontSize: '14px', icon: 'icon-accept', iconStyle: 'glyph', variant: 'filled' },
+        { width: innerW - 6, fontSize: TYPE.caption, icon: 'icon-accept', iconStyle: 'glyph', variant: 'filled' },
       );
       container.add(btn);
       cursorY += 44;
@@ -347,7 +347,7 @@ function renderSideRail(
     container.add(
       scene.add.text(bounds.x + bounds.w / 2, cursorY + 30,
         'No new arrivals\nright now',
-        { fontSize: '14px', fontFamily: FONTS.body,
+        { fontSize: TYPE.caption, fontFamily: FONTS.body,
           color: COLOURS.textLight, align: 'center',
           resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5, 0.5),
@@ -383,7 +383,7 @@ function drawCountCell(
   );
   container.add(
     scene.add.text(x + w / 2, y + 38, label, {
-      fontSize: '14px', fontFamily: FONTS.body,
+      fontSize: TYPE.caption, fontFamily: FONTS.body,
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5, 0.5),
   );
@@ -404,11 +404,11 @@ function drawSectionHeader(
   x: number, y: number,
   label: string, badge: string, badgeColour: number,
 ): number {
-  // "\u2605 ARRIVALS WAITING" measures 154.2px at Nunito bold 14px, so the
+  // "\u2605 Arrivals waiting" measures ~160px at Nunito bold 16px, so the
   // badge's old hardcoded x + 110 printed the count circle over the middle of
   // the word WAITING. Measure the label and sit the badge after it.
   const labelText = scene.add.text(x, y, label, {
-    fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+    fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
     color: '#A85A28', resolution: TEXT_RESOLUTION,
   }).setOrigin(0, 0.5).setY(y + 8);
   container.add(labelText);
@@ -419,7 +419,7 @@ function drawSectionHeader(
   container.add(badge1);
   container.add(
     scene.add.text(badgeX, y + 8, badge, {
-      fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
       color: '#ffffff', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5, 0.5),
   );
@@ -462,7 +462,7 @@ function drawArrivalCard(
     ? `${animal.variant} ${animal.species}`
     : animal.species;
   const title = scene.add.text(x + 12, y + 8, `${animal.name} the ${speciesLabel}`, {
-    fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold',
+    fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
     color: '#3a2e22', resolution: TEXT_RESOLUTION,
     wordWrap: { width: w - 24 },
   }).setOrigin(0, 0);
@@ -470,7 +470,7 @@ function drawArrivalCard(
   const rawStory = (animal.arrivalStory || '').trim();
   const truncated = rawStory.length > 88 ? rawStory.slice(0, 86) + '…' : rawStory;
   const story = scene.add.text(x + 12, title.y + title.height + 4, `"${truncated}"`, {
-    fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'italic',
+    fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'italic',
     color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     wordWrap: { width: w - 24 }, maxLines: 2,
   }).setOrigin(0, 0);

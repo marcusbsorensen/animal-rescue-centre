@@ -1,7 +1,5 @@
 import Phaser from 'phaser';
-import {
-  COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum,
-} from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE } from '../ui/constants';
 import {
   createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
@@ -252,7 +250,7 @@ export class SupplyRunScene extends Phaser.Scene {
   private renderDestinationSelect(width: number, height: number): void {
     // Neon banner
     this.container.add(
-      createChromeTitle(this, width / 2, 50, 'SUPPLY RUN', {
+      createChromeTitle(this, width / 2, 50, 'Supply run', {
         fontSize: '28px',
         icon: 'icon-supply-run',
       })
@@ -260,7 +258,7 @@ export class SupplyRunScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, 95, 'Pick your destination and drive!', {
-        fontSize: '15px', fontFamily: FONTS.body, color: DRIVE.textDim,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: DRIVE.textDim,
       }).setOrigin(0.5)
     );
 
@@ -332,7 +330,7 @@ export class SupplyRunScene extends Phaser.Scene {
       // Emoji
       this.container.add(
         this.add.text(cardX + 35, y - 5, dest.emoji, {
-          fontSize: '36px',
+          fontSize: '36px', fontFamily: FONTS.body
         }).setOrigin(0.5).setAlpha(alpha)
       );
 
@@ -347,7 +345,7 @@ export class SupplyRunScene extends Phaser.Scene {
       // Description + pay
       this.container.add(
         this.add.text(cardX + 70, y + 5, dest.description, {
-          fontSize: '14px', fontFamily: FONTS.body,
+          fontSize: TYPE.caption, fontFamily: FONTS.body,
           color: unlocked ? DRIVE.textDim : COLOURS.textLight,
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
@@ -355,7 +353,7 @@ export class SupplyRunScene extends Phaser.Scene {
       this.container.add(
         this.add.text(cardX + 70, y + 25,
           unlocked ? `Base pay: ${dest.basePay} coins  |  Distance: ${dest.distance}` : `Unlocks at level ${dest.unlockLevel}`, {
-          fontSize: '14px', fontFamily: FONTS.body,
+          fontSize: TYPE.caption, fontFamily: FONTS.body,
           color: unlocked ? CHROME.inkAccent : COLOURS.textLight,
         }).setOrigin(0, 0.5).setAlpha(alpha)
       );
@@ -413,7 +411,7 @@ export class SupplyRunScene extends Phaser.Scene {
       // was there and unreadable rather than absent, which is worse.
       this.add.text(width / 2, dashboardTop - 8,
         '← → steer  |  SPACE smash!', {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.bg,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.bg,
       }).setOrigin(0.5, 1).setAlpha(0.9)
     );
 
@@ -533,7 +531,7 @@ export class SupplyRunScene extends Phaser.Scene {
 
     // Row 2: smash counter, combo, damage
     this.hudSmashText = this.add.text(10, row2Y, '0 smashed', {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: CHROME.inkAccent,
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold', color: CHROME.inkAccent,
     }).setOrigin(0, 0);
     this.container.add(this.hudSmashText);
 
@@ -543,7 +541,7 @@ export class SupplyRunScene extends Phaser.Scene {
     this.container.add(this.hudComboText);
 
     this.hudDamageText = this.add.text(width - 10, row2Y, '0%', {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: CHROME.inkAccent,
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold', color: CHROME.inkAccent,
     }).setOrigin(1, 0);
     this.container.add(this.hudDamageText);
 
@@ -980,7 +978,7 @@ export class SupplyRunScene extends Phaser.Scene {
     obs.glowGfx = glowGfx;
 
     const emojiText = this.add.text(0, 0, obstacle.emoji ?? '', {
-      fontSize: '34px',
+      fontSize: '34px', fontFamily: FONTS.body
     }).setOrigin(0.5).setVisible(false);
     this.container.add(emojiText);
     obs.emojiText = emojiText;
@@ -1162,7 +1160,7 @@ export class SupplyRunScene extends Phaser.Scene {
       const y = statsY + i * 35;
       this.container.add(
         this.add.text(width / 2 - 100, y, stat.label, {
-          fontSize: '15px', fontFamily: FONTS.body, color: DRIVE.textDim,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: DRIVE.textDim,
         }).setOrigin(0, 0.5)
       );
       this.container.add(
@@ -1179,7 +1177,7 @@ export class SupplyRunScene extends Phaser.Scene {
       rewards.bonuses.forEach((bonus, i) => {
         this.container.add(
           this.add.text(width / 2, bonusY + i * 22, bonus, {
-            fontSize: '14px', fontFamily: FONTS.body,
+            fontSize: TYPE.caption, fontFamily: FONTS.body,
             color: bonus.includes('No Earnings') ? CHROME.inkDanger : CHROME.inkAccent,
           }).setOrigin(0.5)
         );

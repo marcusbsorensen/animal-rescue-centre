@@ -83,7 +83,7 @@ export function renderToyPicker(
 
   // ── Close X (top-right) ────────────────────────────────────
   const closeX = scene.add.text(panelX + panelW - 20, panelY + 16, '\u2715', {
-    fontSize: '20px', color: '#999', resolution: TEXT_RESOLUTION,
+    fontSize: '20px', fontFamily: FONTS.body, color: '#999', resolution: TEXT_RESOLUTION,
   }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
   closeX.on('pointerdown', (p: Phaser.Input.Pointer) => {
     p.event?.stopPropagation();
@@ -149,7 +149,7 @@ export function renderToyPicker(
 
       // Emoji (big)
       const emoji = scene.add.text(cx, cy - 4, toy.emoji, {
-        fontSize: '46px',
+        fontSize: '46px', fontFamily: FONTS.body,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       container.add(emoji);

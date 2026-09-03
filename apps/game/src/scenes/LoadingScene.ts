@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, TYPE } from '../ui/constants';
 import { AssetLoader } from '../lib/AssetLoader';
 import { createAmbientParticles } from '../ui/UIButton';
 
@@ -188,7 +188,7 @@ export class LoadingScene extends Phaser.Scene {
     this.messageIndex = Math.floor(Math.random() * LOADING_MESSAGES.length);
     this.messageText = this.add.text(width / 2, this.barY + 35,
       LOADING_MESSAGES[this.messageIndex], {
-      fontSize: '15px',
+      fontSize: TYPE.caption,
       fontFamily: FONTS.body,
       color: COLOURS.textLight,
       fontStyle: 'italic',

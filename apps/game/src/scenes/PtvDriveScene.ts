@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
+import { COLOURS, FONTS, SAFE_MARGIN, MIN_FONT, TYPE } from '../ui/constants';
 import { createChromeButton } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
@@ -632,7 +632,7 @@ export class PtvDriveScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(48);
     gps.add(this.gpsInstrArrow);
     this.gpsInstrText = this.add.text(px + 30, by + bh / 2, 'Off we go!', {
-      fontSize: '15px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
     }).setOrigin(0, 0.5).setDepth(48);
     gps.add(this.gpsInstrText);
     this.updateGpsInstruction();
@@ -971,7 +971,7 @@ export class PtvDriveScene extends Phaser.Scene {
       card.add(ov);
       card.add(
         this.add.text(w / 2, h / 2, `Unlocks\nL${v.unlockLevel}`, {
-          fontSize: '15px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', align: 'center',
+          fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', align: 'center',
         }).setOrigin(0.5)
       );
     } else {
@@ -1677,7 +1677,7 @@ export class PtvDriveScene extends Phaser.Scene {
     // Road-type toggle (demo): cycle country lane / Thanet Way / gravel / sand.
     this.container.add(
       createChromeButton(this, width - 96, 34, this.roadConfig.label, () => this.cycleRoad(), {
-        width: 168, fontSize: '14px',
+        width: 168, fontSize: TYPE.caption,
       }).setDepth(40)
     );
 
@@ -2037,7 +2037,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.add(this.handbrakeLamp);
     this.container.add(
       this.add.text(x, y - 14, 'P', {
-        fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#2a0f0c',
+        fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold', color: '#2a0f0c',
       }).setOrigin(0.5).setDepth(41)
     );
     this.handbrakeLabel = this.add.text(x, y + 26, 'PULL', {

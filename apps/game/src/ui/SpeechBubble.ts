@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, TYPE } from './constants';
 import { createChromeButton } from './UIButton';
 
 /**
@@ -32,7 +32,7 @@ export function createSpeechBubble(
 
   // Build content first to measure height
   const title = scene.add.text(0, 0, opts.title, {
-    fontSize: '14px', fontFamily: FONTS.title, fontStyle: 'bold',
+    fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
     color: COLOURS.text, resolution: TEXT_RESOLUTION,
     wordWrap: { width: innerW },
   }).setOrigin(0, 0);

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT, TYPE } from '../ui/constants';
 import { createChromeButton, createTextButton, createChromeTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   generateKitchenRound,
@@ -134,7 +134,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     // inside the margin, on every viewport. `anchor` makes the number
     // written the number measured.
     createChromeButton(this, SAFE_MARGIN, height - SAFE_MARGIN, 'Back', () => this.exitMinigame(), {
-      width: 110, fontSize: '14px', icon: 'icon-back', iconStyle: 'glyph',
+      width: 110, fontSize: TYPE.caption, icon: 'icon-back', iconStyle: 'glyph',
       anchor: { x: 'left', y: 'bottom' },
     });
   }
@@ -156,7 +156,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     const n = this.hungryAnimals.length;
     this.progressText = this.add.text(width / 2 - panelW / 2 + 18, panelCy,
       `Fed 0 / ${n}`, {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0.5);
 
@@ -517,7 +517,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.add.text(width / 2, height / 2 + 10, 'Every animal got a tasty meal!', {
-      fontSize: '15px', fontFamily: FONTS.body,
+      fontSize: TYPE.caption, fontFamily: FONTS.body,
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
 

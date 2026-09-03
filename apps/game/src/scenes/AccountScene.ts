@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species, Economy } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT, MIN_TAP_GAP } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT, MIN_TAP_GAP, TYPE } from '../ui/constants';
 import { createChromeButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { BADGE_DEFINITIONS } from '@arc/badges';
 import { getSession } from '../lib/auth';
@@ -158,7 +158,7 @@ export class AccountScene extends Phaser.Scene {
     );
     this.container.add(
       this.add.text(textX, cardY + 8, `Level ${this.payload.level}`, {
-        fontSize: '15px', fontFamily: FONTS.body, fontStyle: 'bold',
+        fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
         color: COLOURS.primary, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5)
     );
@@ -218,7 +218,7 @@ export class AccountScene extends Phaser.Scene {
         );
         this.container.add(
           this.add.text(x, y + 15, p.label, {
-            fontSize: '14px', fontFamily: FONTS.body,
+            fontSize: TYPE.caption, fontFamily: FONTS.body,
             color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5)
         );

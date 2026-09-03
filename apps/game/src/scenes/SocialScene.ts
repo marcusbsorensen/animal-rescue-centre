@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY } from '../ui/constants';
+import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY, TYPE } from '../ui/constants';
 import { createChromeButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { getFriends, type Friend } from '../lib/friends';
@@ -175,7 +175,7 @@ export class SocialScene extends Phaser.Scene {
       ).setInteractive({ useHandCursor: true });
 
       const text = this.add.text(x, tabY, t.label, {
-        fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
         color: isActive ? '#ffffff' : COLOURS.text,
       }).setOrigin(0.5);
 
@@ -207,7 +207,7 @@ export class SocialScene extends Phaser.Scene {
       this.container.add(
         this.add.text(width / 2, height / 2 + 10,
           'Ask your friends to send you something!', {
-          fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(0.5)
       );
       return;
@@ -232,7 +232,7 @@ export class SocialScene extends Phaser.Scene {
       this.container.add(
         this.add.text(30, y - 12,
           `${gift.fromAvatarEmoji} ${gift.fromUsername}`, {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         }).setOrigin(0, 0.5)
       );
 
@@ -240,7 +240,7 @@ export class SocialScene extends Phaser.Scene {
       this.container.add(
         this.add.text(30, y + 8,
           `${giftDef?.emoji ?? '[gift]'} "${message?.text ?? gift.messagePresetCode}"`, {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(0, 0.5)
       );
 
@@ -248,7 +248,7 @@ export class SocialScene extends Phaser.Scene {
       this.container.add(
         createChromeButton(this, width - 60, y, 'Open!', () => {
           this.claimGiftAction(gift.id, i);
-        }, { width: 80, fontSize: '14px' })
+        }, { width: 80, fontSize: TYPE.caption })
       );
     });
   }
@@ -277,7 +277,7 @@ export class SocialScene extends Phaser.Scene {
       this.container.add(
         this.add.text(width / 2, height / 2 + 15,
           'Use the Friends screen to add friends by code.', {
-          fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(0.5)
       );
       return;
@@ -300,11 +300,11 @@ export class SocialScene extends Phaser.Scene {
       ).setInteractive({ useHandCursor: true });
 
       const emoji = this.add.text(x, friendY, friend.avatarEmoji, {
-        fontSize: '22px',
+        fontSize: '22px', fontFamily: FONTS.body
       }).setOrigin(0.5);
 
       const name = this.add.text(x, friendY + 32, friend.username.slice(0, 8), {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
 
       bg.on('pointerdown', () => {
@@ -340,11 +340,11 @@ export class SocialScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
 
       const emoji = this.add.text(x, y - 8, gift.emoji, {
-        fontSize: '22px',
+        fontSize: '22px', fontFamily: FONTS.body
       }).setOrigin(0.5);
 
       const label = this.add.text(x, y + 15, gift.label, {
-        fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
         color: isSelected ? '#ffffff' : COLOURS.text,
       }).setOrigin(0.5);
 
@@ -379,7 +379,7 @@ export class SocialScene extends Phaser.Scene {
       const isSelected = this.selectedMessage === msg.code;
 
       const text = this.add.text(x, y, `${isSelected ? '> ' : '  '}${msg.text}`, {
-        fontSize: '14px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
         color: isSelected ? COLOURS.primary : COLOURS.text,
       }).setOrigin(0.5)
         .setInteractive({ useHandCursor: true });
@@ -488,7 +488,7 @@ export class SocialScene extends Phaser.Scene {
       this.container.add(
         this.add.text(width - 30, y,
           `Lv${entry.level} · ${entry.totalRescued} rescued`, {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(1, 0.5)
       );
 
@@ -515,7 +515,7 @@ export class SocialScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, startY + 30,
         'Create a snapshot link to show off\nyour centre to friends and family!', {
-        fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
         align: 'center',
       }).setOrigin(0.5)
     );
@@ -532,7 +532,7 @@ export class SocialScene extends Phaser.Scene {
 
       this.container.add(
         this.add.text(width / 2, startY + 120, 'Share this code with family:', {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(0.5)
       );
 
@@ -553,7 +553,7 @@ export class SocialScene extends Phaser.Scene {
 
       this.container.add(
         this.add.text(width / 2, startY + 190, 'Link expires in 7 days', {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
     } else {
@@ -583,7 +583,7 @@ export class SocialScene extends Phaser.Scene {
     const toast = this.add.container(width / 2, -40);
     const bg = this.add.rectangle(0, 0, 320, 40, 0x3a2e22, 0.9);
     const text = this.add.text(0, 0, message, {
-      fontSize: '15px', fontFamily: FONTS.body, color: '#ffffff',
+      fontSize: TYPE.caption, fontFamily: FONTS.body, color: '#ffffff',
     }).setOrigin(0.5);
     toast.add([bg, text]);
     toast.setDepth(100);

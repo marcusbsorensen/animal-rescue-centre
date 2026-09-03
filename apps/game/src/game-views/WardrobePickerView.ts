@@ -100,7 +100,7 @@ export function renderWardrobePicker(
 
   // Close X
   const closeX = scene.add.text(panelX + panelW - 18, panelY + 14, '\u2715', {
-    fontSize: '18px', color: '#999', resolution: TEXT_RESOLUTION,
+    fontSize: '18px', fontFamily: FONTS.body, color: '#999', resolution: TEXT_RESOLUTION,
   }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
   closeX.on('pointerdown', (p: Phaser.Input.Pointer) => {
     p.event?.stopPropagation();

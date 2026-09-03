@@ -5,7 +5,7 @@ import {
   type Applicant,
   type AdoptionStoreLike,
 } from '@arc/game-logic';
-import { FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
+import { FONTS, TEXT_RESOLUTION, MIN_FONT, TYPE } from '../ui/constants';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
 
@@ -249,7 +249,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, y + 16,
         `Who feels like the right home for ${this.animal.name}?`, {
-          fontSize: '15px',
+          fontSize: TYPE.caption,
           fontFamily: FONTS.body,
           fontStyle: 'italic',
           color: '#3a2618',
@@ -341,7 +341,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
 
   private renderEmptyState(cx: number, cy: number): void {
     this.container.add(
-      this.add.text(cx, cy - 24, '🏠', { fontSize: '48px', resolution: TEXT_RESOLUTION })
+      this.add.text(cx, cy - 24, '🏠', { fontSize: '48px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION })
         .setOrigin(0.5),
     );
     this.container.add(
@@ -533,7 +533,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
     this.container.add(pill);
 
     const label = this.add.text(cx, cy, '← Not yet, let me hug them first', {
-      fontSize: '14px',
+      fontSize: TYPE.caption,
       fontFamily: FONTS.title,
       fontStyle: 'bold',
       color: '#fffbe8',

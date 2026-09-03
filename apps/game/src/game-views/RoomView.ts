@@ -4,9 +4,7 @@ import { SPECIES_COLOURS, getAvailableDecorationCounts, getRoomDecorations } fro
 import { createChromeTitle } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
-import {
-  COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, SAFE_MARGIN, TITLE_CY,
-} from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, SAFE_MARGIN, TITLE_CY, TYPE } from '../ui/constants';
 import { getDecorationEmoji } from '../ui/DecoratePanel';
 import type { GameStateStore } from '../game-state';
 import type { ResolvedAnchor } from './GardenView';
@@ -345,7 +343,7 @@ function renderPlacedDecorations(
     const px = roomBounds.x + deco.x * roomBounds.width;
     const py = roomBounds.y + deco.y * roomBounds.height;
     const emojiText = scene.add
-      .text(px, py, getDecorationEmoji(deco.code), { fontSize: '32px' })
+      .text(px, py, getDecorationEmoji(deco.code), { fontSize: '32px', fontFamily: FONTS.body })
       .setOrigin(0.5)
       .setResolution(TEXT_RESOLUTION);
     // Below animals, above bg
@@ -421,7 +419,7 @@ function renderDirtyOverlay(
     const flyOriginX = x + (fi === 0 ? -size * 0.18 : size * 0.18);
     const flyOriginY = y - size * 0.48;
     const fly = scene.add.text(flyOriginX, flyOriginY, '🐝', {
-      fontSize: '14px', resolution: TEXT_RESOLUTION,
+      fontSize: TYPE.caption, fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5).setAlpha(0.85);
     container.add(fly);
     const phase = fi * Math.PI;
@@ -489,7 +487,7 @@ function renderStatusChips(
       container.add(ic);
     } else {
       const em = scene.add.text(chipX, chipY, chip.emoji, {
-        fontSize: '16px', resolution: TEXT_RESOLUTION,
+        fontSize: '16px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       container.add(em);
     }

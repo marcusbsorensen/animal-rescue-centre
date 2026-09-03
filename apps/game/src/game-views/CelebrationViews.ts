@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Species } from '@arc/shared-types';
 import { AudioManager } from '../audio/AudioManager';
 import { BADGE_DEFINITIONS } from '@arc/badges';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, TYPE } from '../ui/constants';
 
 /**
  * CelebrationViews — stateless overlay animations for badge unlocks
@@ -72,7 +72,7 @@ export function showBadgeNotification(scene: Phaser.Scene, badgeCode: string): v
   const textX = iconX + 36;
   toast.add(
     scene.add.text(textX, -14, 'New badge!', {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#b88213', resolution: TEXT_RESOLUTION,
     }),
   );
@@ -84,7 +84,7 @@ export function showBadgeNotification(scene: Phaser.Scene, badgeCode: string): v
   );
   toast.add(
     scene.add.text(textX, 22, subtitle, {
-      fontSize: '14px', fontFamily: FONTS.body,
+      fontSize: TYPE.caption, fontFamily: FONTS.body,
       color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       wordWrap: { width: cardW - (textX + cardW / 2 + 14) },
     }),
@@ -146,7 +146,7 @@ export function showLevelUpCelebration(
 
   // Tap to dismiss hint
   const hint = scene.add.text(width / 2, height / 2 + 90, 'Tap to continue', {
-    fontSize: '14px', fontFamily: FONTS.body, color: '#aaa',
+    fontSize: TYPE.caption, fontFamily: FONTS.body, color: '#aaa',
   }).setOrigin(0.5);
   container.add(hint);
 

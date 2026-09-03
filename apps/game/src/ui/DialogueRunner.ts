@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { DialogueBeat, DialogueSequence, DialogueChoice } from '@arc/game-logic';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, TYPE } from './constants';
 
 /**
  * DialogueRunner — a staged cutscene-dialogue overlay.
@@ -306,7 +306,7 @@ function drawSkip(
   root.add(g);
   const label = scene.add
     .text(cx, cy, 'SKIP ›', {
-      fontSize: '15px',
+      fontSize: TYPE.caption,
       fontFamily: FONTS.title,
       fontStyle: 'bold',
       color: PILL_TEXT,

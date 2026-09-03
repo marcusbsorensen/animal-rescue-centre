@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, CHROME, hexNum } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, CHROME, hexNum, TYPE } from './constants';
 
 /**
  * Small text-only button (for links, "Log out", secondary actions).
@@ -204,7 +204,7 @@ export function createChromeTitle(
   }
 ): Phaser.GameObjects.Container {
   const fontSize = options?.fontSize ?? '20px';
-  const subtitleSize = options?.subtitleSize ?? '15px';
+  const subtitleSize = options?.subtitleSize ?? TYPE.caption;
   const iconSize = options?.iconSize ?? 26;
   const ink = options?.tone === 'success' ? CHROME.inkAccent
     : options?.tone === 'danger' ? CHROME.inkDanger
@@ -596,7 +596,7 @@ export function createAmbientParticles(
     const py = area.y + Math.random() * area.h;
 
     const particle = scene.add.text(px, py, emoji, {
-      fontSize: `${Math.round(size)}px`,
+      fontSize: `${Math.round(size)}px`, fontFamily: FONTS.body
     }).setOrigin(0.5).setAlpha(alpha);
 
     container.add(particle);

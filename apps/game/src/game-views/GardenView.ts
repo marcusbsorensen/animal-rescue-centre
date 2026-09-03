@@ -18,9 +18,7 @@ import {
 } from '../ui/UIButton';
 import { showToast } from '../ui/ErrorOverlay';
 import { createAnimalSprite } from '../ui/sprites';
-import {
-  COLOURS, FONTS, TEXT_RESOLUTION, EDGE_CONTROL_INSET, TITLE_CY,
-} from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, EDGE_CONTROL_INSET, TITLE_CY, TYPE } from '../ui/constants';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
 import { createWeatherParticles, type WeatherParticleHandle } from '../ui/WeatherParticles';
 import type { GameStateStore } from '../game-state';
@@ -387,7 +385,7 @@ function renderZone(
     } else {
       // Tiny "visitor" pip above the animal
       const pip = scene.add.text(cx, cy - 48, 'visiting', {
-        fontSize: '14px', fontFamily: FONTS.body, color: '#ffffff',
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: '#ffffff',
         backgroundColor: '#555555', padding: { left: 4, right: 4, top: 1, bottom: 1 },
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
@@ -397,7 +395,7 @@ function renderZone(
     // Name
     container.add(
       scene.add.text(cx, cy + 30, animal.name, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );
@@ -416,7 +414,7 @@ function renderZone(
     const sickIllness = store.sickAnimals.get(animal.id);
     if (sickIllness) {
       const sickLabel = scene.add.text(cx, cy + 50, 'Sick!', {
-        fontSize: '14px', fontFamily: FONTS.body, color: '#c0392b',
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: '#c0392b',
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       container.add(sickLabel);
@@ -528,7 +526,7 @@ function renderZone(
       container.add(sparkle);
       container.add(
         scene.add.text(cx, cy + 30, ret.animalName, {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
           resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
       );
@@ -555,7 +553,7 @@ function renderZone(
     const upgradeNames = unlocked.map((u) => u.name).join(', ');
     container.add(
       scene.add.text(play.x + play.w / 2, footerBottom - 76, `Upgrades: ${upgradeNames}`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );
@@ -575,7 +573,7 @@ function renderZone(
     container.add(
       scene.add.text(play.x + play.w / 2, footerBottom - 12,
         `${store.earnedBadges.length} badge${store.earnedBadges.length > 1 ? 's' : ''} earned`, {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.primary,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.primary,
           resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
     );

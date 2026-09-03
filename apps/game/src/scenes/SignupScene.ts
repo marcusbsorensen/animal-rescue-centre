@@ -212,7 +212,7 @@ export class SignupScene extends Phaser.Scene {
       const col = i % cols;
       const emojiText = this.add.text(
         startX + col * emojiSize, startY + row * emojiSize, emoji, {
-          fontSize: '32px',
+          fontSize: '32px', fontFamily: FONTS.body
         }
       ).setOrigin(0.5).setInteractive({ useHandCursor: true });
 

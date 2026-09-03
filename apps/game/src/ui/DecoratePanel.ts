@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { PlacedDecoration, DepotState } from '@arc/shared-types';
 import { ALL_REWARDS } from '@arc/game-logic';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from './constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, TYPE } from './constants';
 
 /**
  * DecoratePanel — room decoration placement UI.
@@ -114,7 +114,7 @@ export function buildDecoratePanel(
     const removeBg = scene.add.circle(0, 0, 12, 0xc0392b).setStrokeStyle(2, 0xffffff);
     const removeText = scene.add
       .text(0, 0, '✕', {
-        fontSize: '14px',
+        fontSize: TYPE.caption,
         fontFamily: FONTS.body,
         color: '#ffffff',
         fontStyle: 'bold',
@@ -172,7 +172,7 @@ export function buildDecoratePanel(
   if (codes.length === 0) {
     const emptyText = scene.add
       .text(cam.width / 2, paletteY + 40, 'No decorations earned yet — visit the Depot!', {
-        fontSize: '14px',
+        fontSize: TYPE.caption,
         fontFamily: FONTS.body,
         color: COLOURS.textLight,
         fontStyle: 'italic',
@@ -198,7 +198,7 @@ export function buildDecoratePanel(
         .setInteractive({ useHandCursor: true });
 
       const emoji = scene.add
-        .text(slotX, slotY - 6, emojiFor(code), { fontSize: '28px' })
+        .text(slotX, slotY - 6, emojiFor(code), { fontSize: '28px', fontFamily: FONTS.body })
         .setOrigin(0.5)
         .setResolution(TEXT_RESOLUTION);
 

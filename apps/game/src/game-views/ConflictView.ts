@@ -3,7 +3,7 @@ import type { Animal } from '@arc/shared-types';
 import { RESOLUTION_ACTIONS, type Conflict, type ResolutionDef } from '@arc/game-logic';
 import { createChromeButton } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, TYPE } from '../ui/constants';
 import { playAreaFor, HUD_HEIGHT } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
@@ -258,7 +258,7 @@ export function renderConflictResult(
       effective
         ? 'The animals feel much happier now! (+10 happiness)'
         : 'The animals calmed down a bit. (+3 happiness)', {
-        fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         wordWrap: { width: play.w - 60 }, align: 'center',
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),

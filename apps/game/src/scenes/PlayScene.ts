@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, TYPE } from '../ui/constants';
 import { createChromeButton, createAmbientParticles } from '../ui/UIButton';
 import { applyPlay, TOY_DEFS, DEFAULT_TOY_FOR_SPECIES, getPlayToyId, getToyBondBonus } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
@@ -298,7 +298,7 @@ export class PlayScene extends Phaser.Scene {
     backBg.fillRoundedRect(bbx - bbW / 2 + 2, bby - bbH / 2 + 2, bbW - 4, bbH * 0.45, { tl: 15, tr: 15, bl: 0, br: 0 });
     this.container.add(backBg);
     const backText = this.add.text(bbx, bby - 1, '← Back', {
-      fontSize: '15px',
+      fontSize: TYPE.caption,
       fontFamily: FONTS.chalk,
       fontStyle: 'bold',
       color: '#fffbe8',
@@ -326,7 +326,7 @@ export class PlayScene extends Phaser.Scene {
     for (let i = 0; i < this.targetCount; i++) {
       const px = pawRightEdge - (this.targetCount - 1 - i) * pawSpacing;
       const paw = this.add.text(px, hudY - 1, '🐾', {
-        fontSize: '22px',
+        fontSize: '22px', fontFamily: FONTS.body,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       this.container.add(paw);
@@ -388,7 +388,7 @@ export class PlayScene extends Phaser.Scene {
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2;
       const sparkle = this.add.text(x, y, colour, {
-        fontSize: '20px',
+        fontSize: '20px', fontFamily: FONTS.body,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       this.container.add(sparkle);
@@ -493,7 +493,7 @@ export class PlayScene extends Phaser.Scene {
     c.add(frame);
 
     const ballEmoji = this.add.text(0, 0, TOY_DEFS[this.toyId]?.emoji ?? '🎾', {
-      fontSize: `${Math.floor(size * 0.75)}px`,
+      fontSize: `${Math.floor(size * 0.75)}px`, fontFamily: FONTS.body,
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
     c.add(ballEmoji);
@@ -589,7 +589,7 @@ export class PlayScene extends Phaser.Scene {
     const featherX = width / 2;
     const featherY = height - 140;
     const feather = this.add.text(featherX, featherY, toy.emoji, {
-      fontSize: '44px',
+      fontSize: '44px', fontFamily: FONTS.body,
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
     feather.setAngle(-20);
@@ -671,7 +671,7 @@ export class PlayScene extends Phaser.Scene {
       const lx = Math.cos(angle) * 32;
       const ly = Math.sin(angle) * 12;
       const leaf = this.add.text(lx, ly, leafEmojis[i], {
-        fontSize: '38px',
+        fontSize: '38px', fontFamily: FONTS.body,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5);
       leaf.setAngle((i - 2) * 12);
@@ -796,7 +796,7 @@ export class PlayScene extends Phaser.Scene {
         if (patch.hasTreat) {
           this.emitSparkles(patch.container.x, patch.container.y, 4);
           const treat = this.add.text(patch.container.x, patch.container.y - 20, '🍖', {
-            fontSize: '28px',
+            fontSize: '28px', fontFamily: FONTS.body,
             resolution: TEXT_RESOLUTION,
           }).setOrigin(0.5);
           this.container.add(treat);
@@ -860,7 +860,7 @@ export class PlayScene extends Phaser.Scene {
     const endX = fromLeft ? width + 40 : -40;
     const y = 90 + Math.random() * 120;
     const worm = this.add.text(startX, y, '🐛', {
-      fontSize: '30px',
+      fontSize: '30px', fontFamily: FONTS.body,
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
     this.container.add(worm);
@@ -940,7 +940,7 @@ export class PlayScene extends Phaser.Scene {
     const halo = this.add.circle(0, 0, 52, 0xfff3c4, 0.4);
     bell.add(halo);
     const bellEmoji = this.add.text(0, 0, TOY_DEFS[this.toyId]?.emoji ?? '🔔', {
-      fontSize: '72px',
+      fontSize: '72px', fontFamily: FONTS.body,
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
     bell.add(bellEmoji);
@@ -1011,7 +1011,7 @@ export class PlayScene extends Phaser.Scene {
       yoyo: true,
     });
     const note = this.add.text(this.parrotBell.x, this.parrotBell.y - 50, '🎵', {
-      fontSize: '26px',
+      fontSize: '26px', fontFamily: FONTS.body,
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
     this.container.add(note);
@@ -1104,7 +1104,7 @@ export class PlayScene extends Phaser.Scene {
     this.snakeBarFill = barFill;
     this.snakeBarFullWidth = barW - 4;
     const barLabel = this.add.text(width / 2, barY - 20, 'warmth', {
-      fontSize: '14px',
+      fontSize: TYPE.caption,
       fontFamily: FONTS.chalk,
       color: '#5d3a18',
       resolution: TEXT_RESOLUTION,
@@ -1121,7 +1121,7 @@ export class PlayScene extends Phaser.Scene {
     rockShape.setStrokeStyle(2, 0x5a4228);
     rock.add(rockShape);
     const rockFace = this.add.text(0, 0, '🪨', {
-      fontSize: '38px',
+      fontSize: '38px', fontFamily: FONTS.body,
       resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5);
     rock.add(rockFace);
@@ -1289,7 +1289,7 @@ export class PlayScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, height / 2 + 24,
         '+15 happiness   +10 tiredness', {
-          fontSize: '14px',
+          fontSize: TYPE.caption,
           fontFamily: FONTS.body,
           color: COLOURS.textLight,
           resolution: TEXT_RESOLUTION,

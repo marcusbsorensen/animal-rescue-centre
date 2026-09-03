@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY, TYPE } from '../ui/constants';
 import { createChromeButton, createTextButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { applyGrooming } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
@@ -240,7 +240,7 @@ export class GroomingScene extends Phaser.Scene {
     // for snakes, a water mist for parrots. Matches what the animal would
     // actually want so kids learn real-world care.
     this.brushIcon = this.add.text(-100, -100, tool.emoji, {
-      fontSize: '40px',
+      fontSize: '40px', fontFamily: FONTS.body
     }).setOrigin(0.5).setDepth(1000);
     this.container.add(this.brushIcon);
 
@@ -401,7 +401,7 @@ export class GroomingScene extends Phaser.Scene {
     this.container.add(
       this.add.text(width / 2, height / 2 + 5,
         '+5 happiness   +2 bond   cleanliness 100', {
-        fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 

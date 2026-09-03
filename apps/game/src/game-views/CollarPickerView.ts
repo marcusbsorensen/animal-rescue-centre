@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { createChromeButton, createChromeTitle } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
-import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, TYPE } from '../ui/constants';
 
 /**
  * CollarPickerView + PetCreatedView
@@ -108,7 +108,7 @@ export function renderCollarPicker(
 
     container.add(
       scene.add.text(x, y + 30, collar.name, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );

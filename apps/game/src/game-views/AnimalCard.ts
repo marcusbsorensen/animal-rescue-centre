@@ -12,7 +12,7 @@ import {
 } from '@arc/game-logic';
 import { createChromeButton } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
-import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_TAP, MIN_TAP_GAP } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_TAP, MIN_TAP_GAP, TYPE } from '../ui/constants';
 import {
   animalCardLayout, moreGridLayout, CARD_PAD, MORE_REASON_H,
   type AnimalCardLayout, type Rect,
@@ -306,7 +306,7 @@ function drawPortrait(
   container.add(hintPill);
   container.add(
     scene.add.text(cx, hintCy, 'My story', {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5),
   );
@@ -460,7 +460,7 @@ function drawNeedDots(
     const gcx = rect.x + groupW * (i + 0.5);
 
     const text = scene.add.text(0, labelCy, label, {
-      fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: COLOURS.text, resolution: TEXT_RESOLUTION,
     }).setOrigin(0, 0.5);
     const hasIcon = scene.textures.exists(iconKey);
@@ -521,7 +521,7 @@ function drawFact(
   // says what the line is.
   container.add(fitText(
     scene.add.text(spot.x, spot.y, `${fact.icon} ${fact.fact}`, {
-      fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
       resolution: TEXT_RESOLUTION,
     }),
     spot.w, 13,
@@ -582,7 +582,7 @@ function drawMoreFace(
     if (caption) {
       container.add(
         scene.add.text(cell.x + cell.w / 2, cell.y + grid.buttonH + 5, caption, {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
           align: 'center', wordWrap: { width: cell.w },
           maxLines: Math.max(1, Math.floor(MORE_REASON_H / 17)),
           resolution: TEXT_RESOLUTION,
@@ -734,7 +734,7 @@ function drawStoryFace(
   const fact = pickRandomFact(animal.species, animal.variant, seededRng(animal.id));
   if (fact) {
     const factText = scene.add.text(left, y, `${fact.icon} ${fact.fact}`, {
-      fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.textLight,
+      fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
       wordWrap: { width: w }, maxLines: 2, resolution: TEXT_RESOLUTION,
     });
     container.add(factText);

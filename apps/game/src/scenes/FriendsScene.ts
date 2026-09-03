@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS } from '../ui/constants';
+import { COLOURS, FONTS, TYPE } from '../ui/constants';
 import { createChromeButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
 import { getSession } from '../lib/auth';
 import { addFriendByCode, getFriends, type Friend } from '../lib/friends';
@@ -94,7 +94,7 @@ export class FriendsScene extends Phaser.Scene {
       this.container.add(
         this.add.text(width / 2, 135,
           'Tell a friend this code so they can add you!', {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(0.5)
       );
     }

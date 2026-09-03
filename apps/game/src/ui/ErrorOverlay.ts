@@ -42,7 +42,7 @@ export function showToast(scene: Phaser.Scene, message: string): void {
   const bg = scene.add.rectangle(0, 0, 420, 54, 0x8a4a3a, 0.94)
     .setStrokeStyle(2, 0xffffff, 0.3);
 
-  const icon = scene.add.text(-185, 0, '⚠️', { fontSize: '24px' })
+  const icon = scene.add.text(-185, 0, '⚠️', { fontSize: '24px', fontFamily: FONTS.body })
     .setOrigin(0, 0.5)
     .setResolution(TEXT_RESOLUTION);
 

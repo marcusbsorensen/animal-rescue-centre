@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY, TYPE } from '../ui/constants';
 import { createChromeButton, createTextButton, createChromeTitle, createPanel } from '../ui/UIButton';
 import {
   startGridWalk,
@@ -203,7 +203,7 @@ export class WalkScene extends Phaser.Scene {
 
     this.container.add(
       this.add.text(width / 2, 80, 'Choose a collar colour, then head out!', {
-        fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
@@ -730,7 +730,7 @@ export class WalkScene extends Phaser.Scene {
     const zoneLabel = WALK_ZONES.find((z) => z.zone === this.gridState!.zone)?.label ?? '';
     this.hudContainer.add(
       this.add.text(barX + 34, cy, zoneLabel, {
-        fontSize: '15px', fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+        fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
       }).setOrigin(0, 0.5)
     );
 
@@ -739,7 +739,7 @@ export class WalkScene extends Phaser.Scene {
     const intTotal = this.gridState.totalInteractables;
     this.hudContainer.add(
       this.add.text(barX + maxW / 2, cy, `Explored: ${intDone}/${intTotal}`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: '#aaddaa', resolution: TEXT_RESOLUTION,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: '#aaddaa', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5)
     );
 
@@ -748,7 +748,7 @@ export class WalkScene extends Phaser.Scene {
     const totalRoads = this.gridState.totalRoadCrossings;
     this.hudContainer.add(
       this.add.text(barX + maxW - 16, cy, `Roads: ${roads}/${totalRoads}`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: '#ffccaa', resolution: TEXT_RESOLUTION,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: '#ffccaa', resolution: TEXT_RESOLUTION,
       }).setOrigin(1, 0.5)
     );
   }
@@ -773,7 +773,7 @@ export class WalkScene extends Phaser.Scene {
       this.dpadContainer.add(btn);
       this.dpadContainer.add(
         this.add.text(x, y, label, {
-          fontSize: '20px', color: '#333333',
+          fontSize: '20px', fontFamily: FONTS.body, color: '#333333',
         }).setOrigin(0.5)
       );
     };
@@ -930,12 +930,12 @@ export class WalkScene extends Phaser.Scene {
     );
 
     this.overlayContainer.add(
-      this.add.text(width / 2, py - 12, result.emoji, { fontSize: '24px' }).setOrigin(0.5)
+      this.add.text(width / 2, py - 12, result.emoji, { fontSize: '24px', fontFamily: FONTS.body }).setOrigin(0.5)
     );
 
     this.overlayContainer.add(
       this.add.text(width / 2, py + 16, result.message, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         wordWrap: { width: panelW - 30 }, align: 'center',
       }).setOrigin(0.5)
     );
@@ -995,14 +995,14 @@ export class WalkScene extends Phaser.Scene {
 
     this.overlayContainer.add(
       this.add.text(width / 2, py - 30, `This animal ${tempText}`, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
       }).setOrigin(0.5)
     );
 
     this.overlayContainer.add(
       this.add.text(width / 2, py - 5,
         'What should we do?', {
-        fontSize: '15px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
       }).setOrigin(0.5)
     );
 
@@ -1014,7 +1014,7 @@ export class WalkScene extends Phaser.Scene {
         this.gridState = state;
         this.overlayContainer.removeAll(true);
         this.showEncounterResult(result);
-      }, { width: 130, fontSize: '15px' })
+      }, { width: 130, fontSize: TYPE.caption })
     );
 
     // Ignore button
@@ -1025,7 +1025,7 @@ export class WalkScene extends Phaser.Scene {
         this.gridState = state;
         this.overlayContainer.removeAll(true);
         this.showEncounterResult(result);
-      }, { width: 130, fontSize: '15px' })
+      }, { width: 130, fontSize: TYPE.caption })
     );
   }
 
@@ -1045,7 +1045,7 @@ export class WalkScene extends Phaser.Scene {
 
     this.overlayContainer.add(
       this.add.text(width / 2, py, result.message, {
-        fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         wordWrap: { width: 300 }, align: 'center',
       }).setOrigin(0.5)
     );
@@ -1119,7 +1119,7 @@ export class WalkScene extends Phaser.Scene {
         this.gridContainer.add(feat);
       } else if (def.emoji) {
         const emoji = this.add.text(x, y, def.emoji, {
-          fontSize: `${Math.max(10, this.cellSize * 0.5)}px`,
+          fontSize: `${Math.max(10, this.cellSize * 0.5)}px`, fontFamily: FONTS.body
         }).setOrigin(0.5);
         if (tile.interacted) emoji.setAlpha(0.4);
         this.gridContainer.add(emoji);
@@ -1134,7 +1134,7 @@ export class WalkScene extends Phaser.Scene {
     if (tile.type === 'exit' && def.emoji) {
       this.gridContainer.add(
         this.add.text(x, y, def.emoji, {
-          fontSize: `${Math.max(10, this.cellSize * 0.5)}px`,
+          fontSize: `${Math.max(10, this.cellSize * 0.5)}px`, fontFamily: FONTS.body
         }).setOrigin(0.5)
       );
     }
@@ -1143,7 +1143,7 @@ export class WalkScene extends Phaser.Scene {
     if (tile.interacted && tile.interactable) {
       this.gridContainer.add(
         this.add.text(x + this.cellSize * 0.3, y - this.cellSize * 0.3, '✓', {
-          fontSize: `${this.cellSize * 0.3}px`, color: '#ffffff',
+          fontSize: `${this.cellSize * 0.3}px`, fontFamily: FONTS.body, color: '#ffffff',
         }).setOrigin(0.5)
       );
     }
@@ -1204,7 +1204,7 @@ export class WalkScene extends Phaser.Scene {
     this.overlayContainer.add(
       this.add.text(width / 2 - stripW / 2 + 110, stripY - 10,
         `${this.animal.name} is about to cross!`, {
-        fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: '#c0392b',
+        fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold', color: '#c0392b',
       }).setOrigin(0, 0.5)
     );
 
@@ -1365,12 +1365,12 @@ export class WalkScene extends Phaser.Scene {
       const ly = panelY - 75 + i * 28;
       this.container.add(
         this.add.text(width / 2 - panelW / 2 + 20, ly, line.label, {
-          fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold', color: COLOURS.text,
         }).setOrigin(0, 0.5)
       );
       this.container.add(
         this.add.text(width / 2 + panelW / 2 - 20, ly, line.value, {
-          fontSize: '14px', fontFamily: FONTS.body, color: COLOURS.textLight,
+          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
         }).setOrigin(1, 0.5)
       );
     });

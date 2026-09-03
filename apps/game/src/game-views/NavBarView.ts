@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { createChromeButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP_GAP } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP_GAP, TYPE } from '../ui/constants';
 import { viewportIsShort, navBarMetrics } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
@@ -162,7 +162,7 @@ export function renderNavBar(
     // inside the 74px tab.
     navContainer.add(
       scene.add.text(tx, ty + labelDy, tab.label, {
-        fontSize: tab.active ? '16px' : '15px',
+        fontSize: tab.active ? '16px' : TYPE.caption,
         fontFamily: FONTS.body, fontStyle: 'bold',
         color: tab.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
@@ -221,7 +221,7 @@ export function renderNavBar(
   // Caption under the FAB
   navContainer.add(
     scene.add.text(fabX, fabY + fabSize / 2 - 4, 'Supplies', {
-      fontSize: '15px', fontFamily: FONTS.body, fontStyle: 'bold',
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#6b5a4a', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5, 0),
   );
@@ -311,7 +311,7 @@ export function showQuickToast(scene: Phaser.Scene, message: string): void {
   const toast = scene.add.container(width / 2, height - 140).setDepth(200);
   const padX = 18;
   const label = scene.add.text(0, 0, message, {
-    fontSize: '14px', fontFamily: FONTS.body, fontStyle: 'bold',
+    fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
     color: '#ffffff', resolution: TEXT_RESOLUTION,
     wordWrap: { width: Math.min(width - 60, 360) },
     align: 'center',

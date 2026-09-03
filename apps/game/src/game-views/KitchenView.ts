@@ -10,9 +10,7 @@ import {
 import {
   createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
-import {
-  FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, SAFE_MARGIN, TITLE_CY, CHROME,
-} from '../ui/constants';
+import { FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, SAFE_MARGIN, TITLE_CY, CHROME, TYPE } from '../ui/constants';
 import { playAreaFor, viewportIsShort, sideNavEnabled } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
@@ -186,7 +184,7 @@ export function renderKitchen(
     container.add(
       scene.add.text(msgCx, twoColumn ? panelCy - 28 : row(-62),
         "Sort the right food into each animal's bowl!", {
-          fontSize: '14px', fontFamily: FONTS.ui, color: CHROME.inkMuted,
+          fontSize: TYPE.caption, fontFamily: FONTS.ui, color: CHROME.inkMuted,
           resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
     );
@@ -261,7 +259,7 @@ export function renderKitchen(
     : `Garden (${petCount} ${petCount === 1 ? 'pet' : 'pets'})`;
   container.add(
     createChromeButton(scene, gardenCx, gardenBtnY, gardenLabel, () => callbacks.goToGarden(), {
-      width: 240, fontSize: '15px', icon: 'icon-walk', iconStyle: 'glyph',
+      width: 240, fontSize: TYPE.caption, icon: 'icon-walk', iconStyle: 'glyph',
     }),
   );
 
@@ -280,7 +278,7 @@ export function renderKitchen(
     );
     container.add(
       createChromeButton(scene, gardenCx, suppliesY, 'Supplies', () => callbacks.openSupplies!(), {
-        width: 240, fontSize: '15px', icon: 'icon-supply-run',
+        width: 240, fontSize: TYPE.caption, icon: 'icon-supply-run',
       }),
     );
   }

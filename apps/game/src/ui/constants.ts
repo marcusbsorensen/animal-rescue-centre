@@ -283,13 +283,73 @@ export function bottomAnchorY(height: number): number {
  * Minimum font sizes for children's game UX (ages 7-11).
  * Based on: Hourcade 2015, British Dyslexia Association,
  * Sesame Workshop design guidelines, NNG children's UX studies.
+ *
+ * These are the **thresholds the checklist scores against**, not sizes to
+ * draw at. Reach for `TYPE` for that; a test asserts every step of the scale
+ * clears `small`.
  */
 export const MIN_FONT = {
   body: 16,       // body text / descriptions
   button: 18,     // button labels
   heading: 24,    // scene titles / headings
   hud: 16,        // scores, timers, counters
-  small: 14,      // smallest allowed text (hints, credits)
+  /**
+   * The floor. Nothing a child has to read is drawn below this.
+   *
+   * It was 14, which is what the review's F1-F5 band calls a WARN — the
+   * checklist passes at 16 — and it was the single most common finding in
+   * the game: 41 of 84 warnings across all 42 scene/viewport pairs, every
+   * one of them reading "smallest 14px". Not one screen was under it, and
+   * not one was over it either. 104 call sites sat exactly on the old floor,
+   * which is what a floor set too low does — it stops being a minimum and
+   * becomes the default.
+   *
+   * 14px is about 3.7mm cap height on an iPad held at arm's length. The
+   * evidence base above is consistent that 7-11 year-olds read meaningfully
+   * slower below roughly 16, and that the cost lands hardest on the children
+   * who are already finding reading hard — which in a game whose text is
+   * mostly an animal telling you what it needs is the whole audience.
+   */
+  small: 16,
+} as const;
+
+/**
+ * The type scale — the sizes the game is allowed to draw at.
+ *
+ * Before this existed the canvas used **22 distinct font sizes** across 329
+ * call sites, every one a bare `'18px'` string chosen at the point of
+ * writing. That is the same defect §2 of the audit found on the DOM screens
+ * and mis-described as a font-*family* problem: the families were fine, and
+ * it was the sizes that had no rule. A scale is what makes "declared once"
+ * mean something — a new label picks a step by name, and the name says what
+ * the label is for rather than how big it happens to be.
+ *
+ * Values are the px strings Phaser's `fontSize` takes, so a call site reads
+ * `fontSize: TYPE.caption` with nothing to interpolate and nothing to get
+ * wrong. Sizes above `lead` are still being brought onto this scale; the
+ * steps are named here so new code lands on them meanwhile.
+ */
+export const TYPE = {
+  /**
+   * Captions, chips, counters, secondary labels — the smallest step.
+   *
+   * Equal to `MIN_FONT.small` by construction. If something genuinely does
+   * not fit at this size, the box is too small; shrinking the type is how
+   * the old 14px floor spread to a third of the game's text.
+   */
+  caption: '16px',
+  /** Body copy, descriptions, list rows, an animal's own words. */
+  body: '18px',
+  /** Button labels — anything a child has to read *and* hit. */
+  button: '18px',
+  /** Card names, section leads, the line that names what you are looking at. */
+  lead: '20px',
+  /** Panel and card headings. */
+  heading: '24px',
+  /** View titles. */
+  title: '28px',
+  /** Celebrations and scene-opening type. */
+  display: '34px',
 } as const;
 
 export const GIFT_MESSAGES = [
