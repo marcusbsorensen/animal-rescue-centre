@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { createChromeButton } from '../ui/UIButton';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP_GAP, TYPE } from '../ui/constants';
-import { viewportIsShort, navBarMetrics } from '../ui/layout';
+import { viewportIsShort, navBarMetrics, playAreaFor } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
 /**
@@ -110,7 +110,23 @@ export function renderNavBar(
     width - SAFE_MARGIN * 2,
     tabsSide * 2 * (tabW + MIN_TAP_GAP) + fabSize + fabGap * 2 + 28,
   );
-  const barX = (width - barW) / 2;
+  /**
+   * Centred on the **play area**, not the screen — the same origin every
+   * view title and the HUD already use.
+   *
+   * The HUD was moved onto the play origin when the side nav landed, and the
+   * comment there explains why. The nav bar was left centring on `width`, so
+   * the corridor showed three vertical axes at once: the title plate at
+   * 441.5, the phase/weather pill pair at 427, and this bar and its FAB at
+   * 406. Three near-misses 35px apart, on the screen a child spends most of
+   * her time on, which reads as wobble rather than as a style.
+   *
+   * It is worse on an iPad, not better: the play centre is 660 against a
+   * screen centre of 512, and the open rail (x 16..296) already drew over
+   * this bar's left edge at barX 286.
+   */
+  const play = playAreaFor(width, height);
+  const barX = play.x + (play.w - barW) / 2;
 
   // Glass bar background
   const bg = scene.add.graphics();
@@ -218,9 +234,21 @@ export function renderNavBar(
     );
   }
 
-  // Caption under the FAB
+  /**
+   * Caption under the FAB, on the same line as the four tab labels.
+   *
+   * It used to sit at `fabY + fabSize / 2 - 4`, which is its own coordinate
+   * system: 13.5px above the labels either side of it, with its top 4px
+   * behind the FAB's own hit circle. The centre label of the primary
+   * navigation, out of line with the four beside it, on every viewport —
+   * the report scored it at 44-45% covered on all three.
+   *
+   * `ty + labelDy` is the tab-label line. The -8 lifts it far enough to keep
+   * the row optically level given the FAB sits higher than the tabs, and
+   * still leaves 11px between the caption and the circle above it.
+   */
   navContainer.add(
-    scene.add.text(fabX, fabY + fabSize / 2 - 4, 'Supplies', {
+    scene.add.text(fabX, ty + labelDy - 8, 'Supplies', {
       fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#6b5a4a', resolution: TEXT_RESOLUTION,
     }).setOrigin(0.5, 0),

@@ -255,12 +255,27 @@ function drawTimeWeatherStrip(
   const pillH = 28;
   const centre = (leftEdge + rightEdge) / 2;
 
+  /**
+   * The two pills are placed as a *pair*, not as two things near a centre.
+   *
+   * Each used to sit 6px from `centre` on its own side — but they are 160
+   * and 130 wide, so the pair spanned `centre-166 .. centre+136` and its own
+   * visual centre landed 15px left of the variable that positioned it. On
+   * the corridor that put this row on a third vertical axis, 14px from the
+   * view title's and 21px from the nav bar's. Nothing was wrong with any one
+   * number; the row was simply never measured as a row.
+   */
+  const PHASE_W = 160;
+  const WEATHER_W = 130;
+  const PILL_GAP = 12;
+  const pairX0 = centre - (PHASE_W + PILL_GAP + WEATHER_W) / 2;
+
   // Phase pill (left of centre)
   if (store.timeProgress) {
     const { currentPhase, tasksThisPhase, tasksPerPhase } = store.timeProgress;
     const progress = Math.min(1, tasksThisPhase / Math.max(1, tasksPerPhase));
-    const pillW = 160;
-    const x0 = centre - pillW - 6;
+    const pillW = PHASE_W;
+    const x0 = pairX0;
 
     const bg = scene.add.graphics();
     bg.fillStyle(0x000000, 0.12);
@@ -325,8 +340,8 @@ function drawTimeWeatherStrip(
   // Weather pill (right of centre)
   if (store.gardenWeather) {
     const current = store.gardenWeather.current;
-    const pillW = 130;
-    const x0 = centre + 6;
+    const pillW = WEATHER_W;
+    const x0 = pairX0 + PHASE_W + PILL_GAP;
 
     const bg = scene.add.graphics();
     bg.fillStyle(0x000000, 0.12);
