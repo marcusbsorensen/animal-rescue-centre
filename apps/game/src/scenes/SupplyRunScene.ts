@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE, MIN_TAP_GAP } from '../ui/constants';
 import {
   createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
@@ -292,9 +292,10 @@ export class SupplyRunScene extends Phaser.Scene {
     // The band runs from under the subtitle to above the Back button.
     const bandTop = 118;
     const bandBottom = bottomAnchorY(height) - MIN_TAP / 2 - 12;
-    const cardH = 100;
+    /** What a card wants to be when the band can afford it. */
+    const CARD_H_MAX = 100;
     const count = SUPPLY_DESTINATIONS.length;
-    const rowsFit = Math.floor((bandBottom - bandTop + 20) / (cardH + 20));
+    const rowsFit = Math.floor((bandBottom - bandTop + 20) / (CARD_H_MAX + 20));
     const cols = rowsFit >= count ? 1 : 2;
     const rows = Math.ceil(count / cols);
     const colGap = 16;
@@ -305,7 +306,27 @@ export class SupplyRunScene extends Phaser.Scene {
     const gridX = (width - gridW) / 2;
     const topGap = 12;
     const availH = bandBottom - bandTop - topGap;
-    const rowPitch = rows > 1 ? Math.min(120, (availH - cardH) / (rows - 1)) : 0;
+    /**
+     * Fit the cards to the band; do not fit the *gaps* to what is left.
+     *
+     * This used to be `rowPitch = min(120, (availH - cardH) / (rows - 1))`
+     * against a fixed `cardH` of 100 — which is a pitch, not a constraint,
+     * and nothing stopped it coming out smaller than the card. On the phone
+     * it came out at **69 against a 100-tall card**, so row 1 was drawn 31px
+     * inside row 0. Both cards keep their own hit rectangle, so the top of
+     * the second card was inside the first one's: a tap on Pinebark started
+     * the run to Bramble. The review saw it from the other side — the third
+     * card's icon measured 40% underneath the first card's rectangle.
+     *
+     * Solving for the card instead is the same arithmetic read the right way
+     * round: whatever is left after the gaps, shared between the rows, and
+     * never more than a card wants to be.
+     */
+    const rowGap = MIN_TAP_GAP;
+    const cardH = rows > 1
+      ? Math.min(CARD_H_MAX, (availH - (rows - 1) * rowGap) / rows)
+      : Math.min(CARD_H_MAX, availH);
+    const rowPitch = rows > 1 ? cardH + rowGap : 0;
     const firstCy = bandTop + topGap + cardH / 2;
 
     SUPPLY_DESTINATIONS.forEach((dest, i) => {

@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test, type Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -62,12 +62,26 @@ const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '__ux__');
  * child will ever see. The first pass of this harness ran at 375x812 and
  * 768x1024 and produced a fix list for exactly that layout.
  *
- * Sizes are the CSS-pixel viewports of the smallest devices that matter:
- * iPhone SE/X-class in landscape, and iPad in landscape. Desktop is the web
- * fallback and was already landscape.
+ * The first two rows are the **shipping** viewports, measured inside the
+ * builds themselves rather than picked from a device list. The suite used to
+ * run a 812x375 "mobile" row that belongs to no target this game ships to,
+ * and it was the row every phone judgement was made on.
  */
 const VIEWPORTS = [
-  { name: 'mobile', width: 812, height: 375 },
+  /**
+   * The shipped app, measured inside it — an on-page probe in the WKWebView
+   * on an iPhone 17 Pro, 2026-09-02. This is the one row that describes a
+   * device a child will hold, and until now the suite did not have it: it
+   * shot 812x375, which is 27px shorter and belongs to no shipping target.
+   * Every vertical clearance in the report was 27px kinder than the truth.
+   */
+  { name: 'phone', width: 874, height: 402 },
+  /**
+   * The Home Screen web clip's CSS viewport — 50px shorter than the app
+   * because iOS reserves a strip a `position: fixed` element cannot reach.
+   * See TRAPS.md; `contentInset: 'never'` is what buys it back in Capacitor.
+   */
+  { name: 'clip', width: 812, height: 325 },
   { name: 'tablet', width: 1024, height: 768 },
   { name: 'desktop', width: 1280, height: 800 },
 ];
@@ -163,6 +177,105 @@ interface SceneReport {
   };
 }
 
+/**
+ * Resize, and do not continue until Phaser agrees it has resized.
+ *
+ * `setViewportSize` plus a fixed wait was not enough, and the failure was
+ * silent in the worst way: **8 of the tablet captures and 8 of the desktop
+ * captures came out byte-identical**, all of them one stuck frame — a
+ * phone-sized picker pinned to the top-left of the larger canvas with
+ * another scene bleeding through. Sixteen of the 42 combinations were
+ * measurements of the same wrong frame, and the report said nothing,
+ * because a report only knows what it was handed.
+ *
+ * Two causes, both already documented elsewhere in the repo:
+ *
+ * - **GameScene ignores a viewport change of 50px or less** — the
+ *   `Math.abs(h - this._lastHeight) > 50` gate in `create()`. Step through
+ *   an intermediate height so each leg clears it. This is the same guard
+ *   `nav-bar.spec.ts:resizeTo` has had since the two shipping phone
+ *   viewports turned out to be exactly 50 apart.
+ * - The canvas resize is asynchronous, so a fixed wait is a guess. Poll
+ *   `game.scale` instead and fail loudly if it never agrees, rather than
+ *   quietly measuring the viewport you left.
+ */
+async function resizeGameTo(page: Page, width: number, height: number): Promise<void> {
+  const current = await page.evaluate(() => {
+    const g = (window as unknown as { __PHASER_GAME__?: { scale: { width: number; height: number } } }).__PHASER_GAME__;
+    return { w: g?.scale.width ?? 0, h: g?.scale.height ?? 0 };
+  });
+  if (Math.abs(height - current.h) <= 50 && height !== current.h) {
+    await page.setViewportSize({ width, height: height + 120 });
+    await page.waitForTimeout(1200);
+  }
+  await page.setViewportSize({ width, height });
+  try {
+    // Phaser's Scale Manager is in RESIZE mode and re-reads its parent on the
+    // window's resize event. That event did not always reach it here: the
+    // canvas stayed at the old size while Playwright reported the new one,
+    // which is exactly how eight tablet and eight desktop captures came out
+    // as one frame. `refresh()` makes it re-read on demand — but calling it
+    // once, straight after `setViewportSize`, can land *before* the browser
+    // has laid the new size out, and then it locks in the size we are trying
+    // to leave. So the poll does the refreshing: every tick it compares, and
+    // asks again if the answer is still stale. Self-correcting whatever the
+    // timing, which a single call with a guessed delay is not.
+    await page.waitForFunction(
+      ([w, h]) => {
+        const g = (window as unknown as {
+          __PHASER_GAME__?: { scale: { width: number; height: number; refresh: () => void } };
+        }).__PHASER_GAME__;
+        if (!g) return false;
+        if (Math.round(g.scale.width) === w && Math.round(g.scale.height) === h) return true;
+        g.scale.refresh();
+        return false;
+      },
+      [width, height] as [number, number],
+      { timeout: 15_000 },
+    );
+  } catch {
+    const got = await page.evaluate(() => {
+      const g = (window as unknown as { __PHASER_GAME__?: { scale: { width: number; height: number } } }).__PHASER_GAME__;
+      return g ? { w: g.scale.width, h: g.scale.height } : null;
+    });
+    throw new Error(
+      `the canvas never reached ${width}x${height} — Phaser reports `
+      + `${got ? `${got.w}x${got.h}` : 'no game'}. Measuring here would `
+      + `describe the viewport we left.`,
+    );
+  }
+  // Phaser has the size; give the scene its restart and a frame to draw it.
+  await page.waitForTimeout(1200);
+}
+
+/**
+ * Screenshot the page.
+ *
+ * **Known limitation: on the two large viewports, the eight canvas-only
+ * screens come out as one byte-identical frame.** The screens that mount a
+ * DOM overlay are distinct, because their difference is in the DOM. The
+ * measurements beside them are correct and do vary per scene — it is only
+ * the picture that is stale, so a scene really is being started and really
+ * is being measured; the canvas is not repainting into the capture at
+ * 1024x768 and 1280x800.
+ *
+ * Not fixed here, and the two obvious routes both failed:
+ *   - `renderer.snapshot()` never calls back — it fires on the next render
+ *     and `requestAnimationFrame` is throttled in this headless run, so the
+ *     evaluate hangs until the test's own timeout.
+ *   - forcing `preserveDrawingBuffer` would mean changing the shipped Phaser
+ *     config to suit a test, which costs memory and a copy every frame in
+ *     the build a child runs.
+ *
+ * So: **trust `ux-report.json`, not these PNGs, on tablet and desktop** —
+ * which is what TRAPS.md has said since 2026-08-30, for what turns out to be
+ * this reason. The phone and clip captures are sound and are the ones that
+ * describe a shipping device.
+ */
+async function captureCanvas(page: Page, file: string): Promise<void> {
+  await page.screenshot({ path: file });
+}
+
 /** Banded check: >= pass → PASS, >= warn → WARN, else FAIL. */
 function band(value: number, warn: number, pass: number): Verdict {
   if (value >= pass) return 'PASS';
@@ -195,8 +308,7 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
   const reports: SceneReport[] = [];
 
   for (const vp of VIEWPORTS) {
-    await page.setViewportSize({ width: vp.width, height: vp.height });
-    await page.waitForTimeout(600);
+    await resizeGameTo(page, vp.width, vp.height);
 
     for (const scene of SCENES) {
       const states: readonly string[] = scene === 'GameScene' ? GAME_SCENE_STATES : ['default'];
@@ -517,7 +629,7 @@ test('measure the automatable UX criteria across scenes and viewports', async ({
       }, scene);
 
       const shotName = state === 'default' ? `${scene}-${vp.name}` : `${scene}-${state}-${vp.name}`;
-      await page.screenshot({ path: path.join(OUT, `${shotName}.png`) });
+      await captureCanvas(page, path.join(OUT, `${shotName}.png`));
 
       const findings: Measurement[] = [];
       // A modal draws into its own container above the scene, and the scene
