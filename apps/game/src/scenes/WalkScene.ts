@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
 import { createChromeButton, createTextButton, createChromeTitle, createPanel } from '../ui/UIButton';
 import {
   startGridWalk,
@@ -198,7 +198,7 @@ export class WalkScene extends Phaser.Scene {
 
   private renderCollarPhase(width: number, height: number): void {
     this.container.add(
-      createChromeTitle(this, width / 2, 40, `Walk time for ${this.animal.name}!`, { fontSize: TYPE.lead })
+      createChromeTitle(this, width / 2, TITLE_CY, `Walk time for ${this.animal.name}!`, { fontSize: TYPE.lead })
     );
 
     this.container.add(
@@ -359,11 +359,11 @@ export class WalkScene extends Phaser.Scene {
 
   private renderZoneSelect(width: number, height: number): void {
     this.container.add(
-      createChromeTitle(this, width / 2, 45, `Where shall we walk?`, { fontSize: TYPE.lead })
+      createChromeTitle(this, width / 2, TITLE_CY, `Where shall we walk?`, { fontSize: TYPE.lead })
     );
 
     const zones = WALK_ZONES;
-    const cardW = Math.min(520, width - 40);
+    const cardW = Math.min(520, width - PAGE_MARGIN * 2);
     const cardH = 110;
     const gap = 14;
     const totalH = zones.length * cardH + (zones.length - 1) * gap;
@@ -917,7 +917,7 @@ export class WalkScene extends Phaser.Scene {
 
   private showInteractionPopup(result: InteractionResult): void {
     const { width, height } = this.scale;
-    const panelW = Math.min(340, width - 40);
+    const panelW = Math.min(340, width - PAGE_MARGIN * 2);
     const panelH = 90;
     const py = this.gridOffsetY - 5;
 
@@ -972,7 +972,7 @@ export class WalkScene extends Phaser.Scene {
     const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.3);
     this.overlayContainer.add(dim);
 
-    const panelW = Math.min(360, width - 40);
+    const panelW = Math.min(360, width - PAGE_MARGIN * 2);
     const panelH = 180;
     const py = height * 0.4;
 
@@ -1038,7 +1038,7 @@ export class WalkScene extends Phaser.Scene {
     const colour = result.happinessChange > 0 ? 0x2E8B57 : result.happinessChange < 0 ? 0xe74c3c : 0x888888;
 
     this.overlayContainer.add(
-      createPanel(this, width / 2, py, Math.min(340, width - 40), 70, {
+      createPanel(this, width / 2, py, Math.min(340, width - PAGE_MARGIN * 2), 70, {
         fillColour: 0xffffff, borderColour: colour, borderWidth: 2, shadow: true,
       })
     );
@@ -1273,7 +1273,7 @@ export class WalkScene extends Phaser.Scene {
     this.overlayContainer.removeAll(true);
     const { width } = this.scale;
     const bannerY = Math.max(this.gridOffsetY + 40, 60);
-    const bannerW = Math.min(420, width - 40);
+    const bannerW = Math.min(420, width - PAGE_MARGIN * 2);
 
     this.overlayContainer.add(
       createPanel(this, width / 2, bannerY, bannerW, 64, {
@@ -1329,7 +1329,7 @@ export class WalkScene extends Phaser.Scene {
 
     // Title
     this.container.add(
-      createChromeTitle(this, width / 2, 50,
+      createChromeTitle(this, width / 2, TITLE_CY,
         rewards.perfectWalk ? 'Perfect Walk!' : 'Walk Complete!', {
         tone: rewards.perfectWalk ? 'success' : 'default', fontSize: TYPE.heading,
       })
@@ -1344,7 +1344,7 @@ export class WalkScene extends Phaser.Scene {
     );
 
     // Stats panel
-    const panelW = Math.min(380, width - 40);
+    const panelW = Math.min(380, width - PAGE_MARGIN * 2);
     const panelY = height * 0.42;
     this.container.add(
       createPanel(this, width / 2, panelY, panelW, 200, {

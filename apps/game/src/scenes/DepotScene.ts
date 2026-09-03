@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
 import {
   createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
@@ -171,7 +171,7 @@ export class DepotScene extends Phaser.Scene {
 
   private renderModeSelect(width: number, height: number): void {
     this.container.add(
-      createChromeTitle(this, width / 2, 45, 'The Depot', {
+      createChromeTitle(this, width / 2, TITLE_CY, 'The Depot', {
         fontSize: TYPE.heading,
         icon: 'icon-depot',
       })
@@ -201,8 +201,8 @@ export class DepotScene extends Phaser.Scene {
     const rows = Math.ceil(4 / cols);
     const colGap = 16;
     const cardW = cols === 1
-      ? Math.min(width - 80, 500)
-      : Math.min((width - 80 - colGap) / 2, 400);
+      ? Math.min(width - PAGE_MARGIN * 2, 500)
+      : Math.min((width - PAGE_MARGIN * 2 - colGap) / 2, 400);
     const gridW = cardW * cols + colGap * (cols - 1);
     const gridX = (width - gridW) / 2;
     // Anchored under the subtitle rather than centred in the band, so a
@@ -445,7 +445,7 @@ export class DepotScene extends Phaser.Scene {
 
     const cardW = 72;
     const cardH = 58;
-    const spacing = Math.min(90, (width - 40) / goalCount);
+    const spacing = Math.min(90, (width - PAGE_MARGIN * 2) / goalCount);
     const startX = width / 2 - ((goalCount - 1) * spacing) / 2;
 
     goals.forEach((goal, i) => {
@@ -773,7 +773,7 @@ export class DepotScene extends Phaser.Scene {
 
     // Title
     this.container.add(
-      createChromeTitle(this, width / 2, 50,
+      createChromeTitle(this, width / 2, TITLE_CY,
         allGoalsMet ? 'Session Complete!' : 'Out of Moves!', {
         tone: allGoalsMet ? 'success' : 'default',
         fontSize: TYPE.heading,
@@ -847,7 +847,7 @@ export class DepotScene extends Phaser.Scene {
       );
 
       const cols = Math.min(this.rewards.length, 4);
-      const spacing = Math.min(80, (width - 80) / cols);
+      const spacing = Math.min(80, (width - PAGE_MARGIN * 2) / cols);
       const startX = width / 2 - ((cols - 1) * spacing) / 2;
 
       this.rewards.forEach((reward, i) => {

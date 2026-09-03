@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
 import { createChromeButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { getRememberedUsernames, login, searchUsername } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -71,7 +71,7 @@ export class LoginScene extends Phaser.Scene {
     });
 
     // Central card panel
-    createPanel(this, width / 2, height / 2, width - 40, height - 40, {
+    createPanel(this, width / 2, height / 2, width - PAGE_MARGIN * 2, height - 40, {
       fillColour: 0xffffff, fillAlpha: 0.92, radius: 20,
     });
 
@@ -116,7 +116,7 @@ export class LoginScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 60, 'Welcome back!', { fontSize: TYPE.title })
+      createChromeTitle(this, width / 2, TITLE_CY, 'Welcome back!', { fontSize: TYPE.title })
     );
 
     this.container.add(
@@ -163,7 +163,7 @@ export class LoginScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 60, 'Find your username', { fontSize: TYPE.heading })
+      createChromeTitle(this, width / 2, TITLE_CY, 'Find your username', { fontSize: TYPE.heading })
     );
 
     this.container.add(
@@ -238,7 +238,7 @@ export class LoginScene extends Phaser.Scene {
     const { width } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 60, `Hi, ${this.selectedUsername}!`, { fontSize: TYPE.heading })
+      createChromeTitle(this, width / 2, TITLE_CY, `Hi, ${this.selectedUsername}!`, { fontSize: TYPE.heading })
     );
 
     this.container.add(

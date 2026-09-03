@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT, TYPE } from '../ui/constants';
-import { createChromeButton, createTextButton, createChromeTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT, TYPE, TITLE_CY, PAGE_MARGIN, contentTopFor, SPACE } from '../ui/constants';
+import { createChromeButton, createTextButton, createChromeTitle, createChromePlate, createPanel, createAmbientParticles } from '../ui/UIButton';
 import {
   generateKitchenRound,
   isFoodValidForSpecies,
@@ -97,13 +97,13 @@ export class KitchenMinigameScene extends Phaser.Scene {
     }
 
     // Title pill
-    createChromeTitle(this, width / 2, 34, 'Sort the Food!', {
+    const title = createChromeTitle(this, width / 2, TITLE_CY, 'Sort the Food!', {
       fontSize: TYPE.lead, icon: 'icon-kitchen',
     });
 
     // Top info card — progress + instructions on a translucent pill so they
     // stay readable against the painted counter.
-    this.createTopInfoPanel(width);
+    this.createTopInfoPanel(width, contentTopFor(title));
 
     // Generate food round
     const hungrySpecies = this.hungryAnimals.map((a) => a.species);
@@ -144,14 +144,17 @@ export class KitchenMinigameScene extends Phaser.Scene {
    * each animal" on a rounded translucent card so the text stays legible
    * against the busy painted counter.
    */
-  private createTopInfoPanel(width: number): void {
-    const panelCy = 78;
-    const panelW = Math.min(520, width - 40);
+  private createTopInfoPanel(width: number, contentTop: number): void {
     const panelH = 44;
-    createPanel(this, width / 2, panelCy, panelW, panelH, {
-      fillColour: 0xffffff, fillAlpha: 0.92,
-      borderColour: 0xd4a017, borderWidth: 2, radius: 22, shadow: false,
-    });
+    // Under the title, not at a number that used to be under the title.
+    const panelCy = contentTop + panelH / 2;
+    const panelW = Math.min(520, width - PAGE_MARGIN * 2);
+    // The chrome plate, not a fourth surface. This was white at 0.92 with a
+    // 2px gold rim at radius 22, sitting directly under a cream title plate
+    // with a hairline at radius 16 and above a tray with the gold rim at 18
+    // — three materials in one frame, which is the §1 finding the chrome
+    // pass exists to close.
+    createChromePlate(this, width / 2, panelCy, panelW, panelH);
 
     const n = this.hungryAnimals.length;
     this.progressText = this.add.text(width / 2 - panelW / 2 + 18, panelCy,
@@ -288,24 +291,40 @@ export class KitchenMinigameScene extends Phaser.Scene {
   private createPrepTray(width: number, height: number): void {
     const trayH = 110;
     const trayCy = height - trayH / 2 - 80;
-    const trayW = Math.min(width - 40, 900);
 
-    // Panel behind the tray
-    createPanel(this, width / 2, trayCy, trayW, trayH, {
-      fillColour: 0xfff6e8, fillAlpha: 0.94,
-      borderColour: 0xd4a017, borderWidth: 2, radius: 18,
-    });
+    /**
+     * The tray is sized to the food on it, not to the screen.
+     *
+     * It was `min(width - 40, 900)` — 772px on the phone, holding four 140px
+     * items that span 482. That left 145px of empty tray at each end: a
+     * plate half again as wide as anything on it, and, at 110 tall in a
+     * 187px band, a wall across the lower half of the counter with the blue,
+     * yellow and green bowls' rims behind it. A child was dragging food onto
+     * targets she could only half see.
+     *
+     * Sizing to the contents gives those bowls back about 200px of counter
+     * and stops the tray reading as furniture.
+     */
+    const count = this.foodItems.length;
+    const itemSpacing = 140;
+    const trayPad = SPACE.xxl;
+    const trayW = Math.min(
+      width - PAGE_MARGIN * 2,
+      Math.max(itemSpacing * Math.max(count, 1) + trayPad * 2, 260),
+    );
 
-    // Label sitting ABOVE the tray (not inside — avoids overlap with food)
-    this.add.text(width / 2, trayCy - trayH / 2 - 12, 'Prep Surface', {
-      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold',
+    createChromePlate(this, width / 2, trayCy, trayW, trayH);
+
+    // Label sitting ABOVE the tray (not inside — avoids overlap with food).
+    // SPACE.m rather than 12 by eye, and clear of the tray's own edge: it
+    // used to straddle the rim.
+    this.add.text(width / 2, trayCy - trayH / 2 - SPACE.m, 'Prep Surface', {
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
       color: '#6b4020', resolution: TEXT_RESOLUTION,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5, 1);
 
     // Place food items evenly along the tray
-    const count = this.foodItems.length;
     if (count === 0) return;
-    const itemSpacing = Math.min(140, (trayW - 60) / count);
     const startX = width / 2 - ((count - 1) * itemSpacing) / 2;
 
     for (let i = 0; i < count; i++) {

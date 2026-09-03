@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, TYPE, PAGE_MARGIN } from '../ui/constants';
 import { createChromeButton, createAmbientParticles } from '../ui/UIButton';
 import { applyPlay, TOY_DEFS, DEFAULT_TOY_FOR_SPECIES, getPlayToyId, getToyBondBonus } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
@@ -1095,7 +1095,7 @@ export class PlayScene extends Phaser.Scene {
 
     // Warmth bar (below HUD)
     const barY = 90;
-    const barW = Math.min(420, width - 80);
+    const barW = Math.min(420, width - PAGE_MARGIN * 2);
     const barX = (width - barW) / 2;
     const barBg = this.add.rectangle(barX, barY, barW, 18, 0x3c2a18, 0.5).setOrigin(0, 0.5);
     this.container.add(barBg);

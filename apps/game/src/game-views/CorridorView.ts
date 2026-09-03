@@ -7,9 +7,7 @@ import {
 } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors } from '../lib/RoomAnchors';
-import {
-  FONTS, TEXT_RESOLUTION, pluralSpecies, SAFE_MARGIN, TITLE_CY,
-} from '../ui/constants';
+import { FONTS, TEXT_RESOLUTION, pluralSpecies, SAFE_MARGIN, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
 import { getPlayArea } from './LeftRailView';
 import {
   anchorSpaceFor, animalBoxFor, navBarMetrics, sideNavEnabled, ANIMAL_LABEL_HEIGHT,
@@ -327,7 +325,7 @@ export function renderCorridor(
 
     const floorGfx = scene.add.graphics();
     floorGfx.fillStyle(0x000000, 0.08);
-    floorGfx.fillRect(20, floorY + 1, width - 40, 2);
+    floorGfx.fillRect(PAGE_MARGIN, floorY + 1, width - PAGE_MARGIN * 2, 2);
     container.add(floorGfx);
 
     const n = arriving.length;

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { createChromeButton, createChromeTitle } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
-import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
 
 /**
  * CollarPickerView + PetCreatedView
@@ -57,7 +57,7 @@ export function renderCollarPicker(
 
   // Celebration pill title
   container.add(
-    createChromeTitle(scene, width / 2, 55, 'Full Bond!', {
+    createChromeTitle(scene, width / 2, TITLE_CY, 'Full Bond!', {
       tone: 'success', fontSize: TYPE.heading,
     }),
   );
@@ -66,7 +66,7 @@ export function renderCollarPicker(
     scene.add.text(width / 2, 95,
       `${animal.name} loves you so much — they want to be your pet forever!`, {
         fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
-        align: 'center', wordWrap: { width: width - 80 },
+        align: 'center', wordWrap: { width: width - PAGE_MARGIN * 2 },
       }).setOrigin(0.5),
   );
 

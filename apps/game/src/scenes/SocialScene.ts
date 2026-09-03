@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY, TYPE, TITLE_CY, PAGE_MARGIN, SPACE, contentTopFor, bandCentreY } from '../ui/constants';
 import { createChromeButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { getFriends, type Friend } from '../lib/friends';
@@ -121,7 +121,7 @@ export class SocialScene extends Phaser.Scene {
     this.container.add(bgPattern);
 
     // Title
-    const title = createChromeTitle(this, width / 2, 30, 'Social', {
+    const title = createChromeTitle(this, width / 2, TITLE_CY, 'Social', {
       icon: 'icon-social-scene',
       iconSize: 24,
     });
@@ -133,7 +133,7 @@ export class SocialScene extends Phaser.Scene {
     // fixed content block below if either stays a magic number.
     // Measured from the pill's drawn height, not getBounds() — see
     // createChromeTitle for why those differ.
-    const tabY = 30 + title.height / 2 + MIN_TAP_GAP + MIN_TAP / 2;
+    const tabY = contentTopFor(title) + MIN_TAP / 2;
     this.renderTabBar(width, tabY);
     this.contentTop = tabY + MIN_TAP / 2 + MIN_TAP_GAP;
 
@@ -165,32 +165,62 @@ export class SocialScene extends Phaser.Scene {
     // Four tabs across the top, and every one of them was a 30px bar with
     // 4px between it and the next: under the 40px target floor, and close
     // enough together that a thumb aiming at Inbox could land on Send.
-    const tabWidth = (width - 40) / tabs.length;
+    /**
+     * Chrome buttons, not raw rectangles.
+     *
+     * These were four hard-edged `add.rectangle`s in `0x4a9c5d` and
+     * `0xe0d6c8` — the only square-cornered controls in the game, in two
+     * greens that are in neither `COLOURS` nor `CHROME`, sitting 15px under a
+     * rounded cream title plate. `filled` for the tab you are on and `plate`
+     * for the rest is the weight pair the Games popup already uses for peer
+     * destinations, so this needs no new idiom.
+     */
+    const tabWidth = (width - PAGE_MARGIN * 2) / tabs.length;
     tabs.forEach((t, i) => {
-      const x = 20 + i * tabWidth + tabWidth / 2;
+      const x = PAGE_MARGIN + i * tabWidth + tabWidth / 2;
       const isActive = this.tab === t.key;
-
-      const bg = this.add.rectangle(x, tabY, tabWidth - MIN_TAP_GAP, MIN_TAP,
-        isActive ? 0x4a9c5d : 0xe0d6c8
-      ).setInteractive({ useHandCursor: true });
-
-      const text = this.add.text(x, tabY, t.label, {
-        fontSize: TYPE.caption, fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
-        color: isActive ? '#ffffff' : COLOURS.text,
-      }).setOrigin(0.5);
-
-      bg.on('pointerdown', () => {
+      const btn = createChromeButton(this, x, tabY, t.label, () => {
         this.tab = t.key;
         if (t.key === 'leaderboard' && this.leaderboard.length === 0) {
           this.loadLeaderboard();
         } else {
           this.renderView();
         }
+      }, {
+        variant: isActive ? 'filled' : 'plate',
+        width: tabWidth - MIN_TAP_GAP,
+        fontSize: TYPE.caption,
       });
-
-      this.container.add(bg);
-      this.container.add(text);
+      this.container.add(btn);
     });
+  }
+
+  /**
+   * "Nothing here yet" — a heading and a line under it, as one block.
+   *
+   * The two lines used to be placed at two independent offsets off
+   * `height / 2` — the heading at -30 and its own subtitle at +10, and on
+   * the friends tab at -20 and +15. Four numbers for two pairs, so moving
+   * either line meant remembering the other, and this screen ended up with
+   * its heading printed across its subtitle when only one of them moved.
+   *
+   * One placement, on the centre of the band the screen already computes.
+   */
+  private drawEmptyState(width: number, height: number, heading: string, detail: string): void {
+    const cy = bandCentreY(height, this.contentTop);
+    const gap = SPACE.m;
+    this.container.add(
+      this.add.text(width / 2, cy - gap / 2, heading, {
+        fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
+        resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5, 1),
+    );
+    this.container.add(
+      this.add.text(width / 2, cy + gap / 2, detail, {
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
+        resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5, 0),
+    );
   }
 
   // ── Inbox ──────────────────────────────────────────────────
@@ -199,17 +229,7 @@ export class SocialScene extends Phaser.Scene {
     const startY = this.contentTop;
 
     if (this.inbox.length === 0) {
-      this.container.add(
-        this.add.text(width / 2, height / 2 - 30, 'No gifts yet!', {
-          fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
-        }).setOrigin(0.5)
-      );
-      this.container.add(
-        this.add.text(width / 2, height / 2 + 10,
-          'Ask your friends to send you something!', {
-          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
-        }).setOrigin(0.5)
-      );
+      this.drawEmptyState(width, height, 'No gifts yet!', 'Ask your friends to send you something!');
       return;
     }
 
@@ -220,7 +240,7 @@ export class SocialScene extends Phaser.Scene {
 
       // Gift card (panel with shadow)
       this.container.add(
-        createPanel(this, width / 2, y, width - 40, 50, {
+        createPanel(this, width / 2, y, width - PAGE_MARGIN * 2, 50, {
           fillColour: 0xffffff,
           borderColour: 0xc8b8a4,
           borderWidth: 2,
@@ -269,17 +289,7 @@ export class SocialScene extends Phaser.Scene {
     const startY = this.contentTop;
 
     if (this.friends.length === 0) {
-      this.container.add(
-        this.add.text(width / 2, height / 2 - 20, 'Add friends first!', {
-          fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
-        }).setOrigin(0.5)
-      );
-      this.container.add(
-        this.add.text(width / 2, height / 2 + 15,
-          'Use the Friends screen to add friends by code.', {
-          fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
-        }).setOrigin(0.5)
-      );
+      this.drawEmptyState(width, height, 'Add friends first!', 'Use the Friends screen to add friends by code.');
       return;
     }
 
@@ -369,7 +379,7 @@ export class SocialScene extends Phaser.Scene {
 
     const msgStartY = msgY + 20;
     const msgCols = 2;
-    const colW = (width - 60) / msgCols;
+    const colW = (width - PAGE_MARGIN * 2) / msgCols;
 
     GIFT_MESSAGES.slice(0, 8).forEach((msg, i) => {
       const col = i % msgCols;
@@ -495,7 +505,7 @@ export class SocialScene extends Phaser.Scene {
       // Divider
       if (i < this.leaderboard.length - 1) {
         this.container.add(
-          this.add.rectangle(width / 2, y + 20, width - 60, 1, 0xe0d6c8)
+          this.add.rectangle(width / 2, y + 20, width - PAGE_MARGIN * 2, 1, 0xe0d6c8)
         );
       }
     });

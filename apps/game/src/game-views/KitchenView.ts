@@ -10,7 +10,7 @@ import {
 import {
   createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
-import { FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, SAFE_MARGIN, TITLE_CY, CHROME, TYPE } from '../ui/constants';
+import { FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, SAFE_MARGIN, TITLE_CY, CHROME, TYPE, PAGE_MARGIN } from '../ui/constants';
 import { playAreaFor, viewportIsShort, sideNavEnabled } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
@@ -124,7 +124,7 @@ export function renderKitchen(
   const twoColumn = short && hungry.length > 0;
   const panelW = twoColumn
     ? Math.min(724, play.w - 32)
-    : Math.min(420, width - 40);
+    : Math.min(420, width - PAGE_MARGIN * 2);
   const panelH = twoColumn
     ? play.h - 8
     : (hungry.length > 0 ? 260 : (short ? 78 : 140));

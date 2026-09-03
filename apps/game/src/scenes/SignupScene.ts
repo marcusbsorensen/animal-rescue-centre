@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
 import { createChromeButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import { getAvailableUsernames, signup } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -70,7 +70,7 @@ export class SignupScene extends Phaser.Scene {
     });
 
     // Central card panel
-    createPanel(this, width / 2, height / 2, width - 40, height - 40, {
+    createPanel(this, width / 2, height / 2, width - PAGE_MARGIN * 2, height - 40, {
       fillColour: 0xffffff, fillAlpha: 0.92, radius: 20,
     });
 
@@ -118,7 +118,7 @@ export class SignupScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 60, "Let's make your rescue centre!", { fontSize: TYPE.heading })
+      createChromeTitle(this, width / 2, TITLE_CY, "Let's make your rescue centre!", { fontSize: TYPE.heading })
     );
 
     this.container.add(
@@ -182,7 +182,7 @@ export class SignupScene extends Phaser.Scene {
     const { width } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 40, `Hi, ${this.selectedUsername}!`, { fontSize: TYPE.lead })
+      createChromeTitle(this, width / 2, TITLE_CY, `Hi, ${this.selectedUsername}!`, { fontSize: TYPE.lead })
     );
 
     this.container.add(
@@ -320,7 +320,7 @@ export class SignupScene extends Phaser.Scene {
 
     const { width } = this.scale;
 
-    const pinTitleContainer = createChromeTitle(this, width / 2, 60,
+    const pinTitleContainer = createChromeTitle(this, width / 2, TITLE_CY,
       confirmMode ? 'Confirm your PIN' : 'Choose a secret PIN', {
       fontSize: TYPE.lead,
     });
@@ -466,7 +466,7 @@ export class SignupScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.container.add(
-      createChromeTitle(this, width / 2, 60, 'Almost there!', { fontSize: TYPE.heading })
+      createChromeTitle(this, width / 2, TITLE_CY, 'Almost there!', { fontSize: TYPE.heading })
     );
 
     this.container.add(

@@ -222,6 +222,53 @@ export const TEXT_RESOLUTION = typeof window !== 'undefined'
   : 2;
 
 /**
+ * The spacing scale — every gap, inset and gutter in the game.
+ *
+ * `TYPE` names the sizes, `COLOURS` the inks and `CHROME` the surface.
+ * Nothing named a *gap*, and it showed: **17 distinct outer page margins**
+ * across 60 uses (`width - 40` nineteen times, `- 80` nine, `- 60` eight,
+ * `- 70` five, and thirteen more), and 18 distinct corner radii across 89
+ * hand-drawn boxes. `SAFE_MARGIN` was the outer margin in 3 places out of 60.
+ *
+ * The clearest illustration is Depot and SupplyRun: the same component,
+ * written twice, one on a 40px margin with a 12px row gap and the other on
+ * 30 with a pitch that let its cards overlap. Two adjacent screens copied
+ * from each other, already disagreeing.
+ *
+ * A 4/8 grid, because that is what the values already cluster on and because
+ * halves and doubles of it stay whole. Reach for a name; if none fits, the
+ * layout wants rethinking rather than a seventeenth number.
+ */
+export const SPACE = {
+  /** Hairline separation — a label from its icon. */
+  xs: 4,
+  /** Inside a chip or a pill. */
+  s: 8,
+  /** Between rows of the same thing. */
+  m: 12,
+  /** Between two different things. Equal to `SAFE_MARGIN`. */
+  l: 16,
+  /** Between groups. The page margin. */
+  xl: 24,
+  /** Between sections, and above a screen's first content. */
+  xxl: 32,
+} as const;
+
+/**
+ * Where a screen's content starts, measured in from the edge.
+ *
+ * Distinct from `SAFE_MARGIN`, which is the *floor* for an interactive
+ * control's clearance — a hard minimum a hit area may not cross. This is a
+ * composition choice about where a card grid or a panel begins, and it sits
+ * one step outside the floor so a control at the content edge still has
+ * somewhere to be.
+ *
+ * The game's own commonest value was 20 a side (`width - 40`, 19 uses); 24
+ * is the nearest step of the scale and clears `SAFE_MARGIN` by 8.
+ */
+export const PAGE_MARGIN = SPACE.xl;
+
+/**
  * Minimum clearance between any interactive element and the screen edge.
  *
  * 16px is the pass threshold in the children's UX checklist (L3). On a
@@ -271,8 +318,61 @@ export const MIN_TAP_GAP = 12;
  * which is three copies of one shared constraint and precisely how the
  * garden's title came to be centred on `width` while its siblings used the
  * play origin. One number, one place.
+ *
+ * **It now means every title plate, not only the ones inside GameScene.**
+ * The constant said "one number, one place" and was used by four files while
+ * 25 other `createChromeTitle` calls picked their own — 30, 34, 35, 40, 45,
+ * 50, 55, 60, eight values with nothing choosing between them. The standalone
+ * scenes have no HUD to dodge, so 45 is not derived from anything for them;
+ * it is derived from *consistency*, which is the whole point. A child moving
+ * from the corridor to the Depot to the vet should not see the title jump.
+ *
+ * The plate is about 46px tall, so a centre of 45 puts its top edge on 22 —
+ * clear of `SAFE_MARGIN` and of the notch, and level with a top-left Back
+ * button anchored at `EDGE_CONTROL_INSET`.
  */
 export const TITLE_CY = 45;
+
+/**
+ * The first y a screen's own content may occupy, below its title plate.
+ *
+ * Moving all 29 titles onto `TITLE_CY` broke two screens, and how it broke
+ * them is the point. Social derived its tab row from `30 + title.height / 2
+ * + ...` and the kitchen put its info panel at a bare `78` — both correct
+ * arithmetic against a **copy** of the title's y, taken when that y was 30
+ * and 34. Move the title and the copies stay where they were, so the plate
+ * landed on the tabs and on the panel. Neither screen was wrong; each held
+ * the same fact twice.
+ *
+ * Derived from the *drawn* title rather than an assumed plate height, so a
+ * longer title, a bigger step of the scale or an icon all carry through.
+ * `createChromeTitle` returns the object; hand it straight to this.
+ */
+export function contentTopFor(title: { height: number }): number {
+  return TITLE_CY + title.height / 2 + SPACE.m;
+}
+
+/**
+ * The vertical middle of a screen's content band — under the title, above
+ * the bottom control.
+ *
+ * Content is stacked from offsets off `height / 2`, and there are **16
+ * distinct ones** in use across the celebration, collar, play, vet, kitchen
+ * and conflict views: -90, -68, -60, -40, -36, -30, -20, -15, -8, +10, +24,
+ * +25, +40, +50, +90, +110. The horizontal band is honoured religiously and
+ * the vertical was improvised.
+ *
+ * The clearest case is Social, which computes a proper content top and then
+ * draws its empty state at `height / 2 - 30` — 62px above the middle of the
+ * band it had just worked out, which is exactly what the screen looks like:
+ * text crowded under the tabs, a void, then the back link.
+ *
+ * `contentTop` is what `contentTopFor` returned; the floor is the bottom
+ * control's anchor.
+ */
+export function bandCentreY(height: number, contentTop: number): number {
+  return (contentTop + bottomAnchorY(height) - MIN_TAP / 2) / 2;
+}
 
 /**
  * Distance from an edge to the *centre* of a control anchored against it.

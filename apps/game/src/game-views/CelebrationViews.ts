@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Species } from '@arc/shared-types';
 import { AudioManager } from '../audio/AudioManager';
 import { BADGE_DEFINITIONS } from '@arc/badges';
-import { COLOURS, FONTS, TEXT_RESOLUTION, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, TYPE, PAGE_MARGIN } from '../ui/constants';
 
 /**
  * CelebrationViews — stateless overlay animations for badge unlocks
@@ -30,7 +30,7 @@ export function showBadgeNotification(scene: Phaser.Scene, badgeCode: string): v
   const toast = scene.add.container(width / 2, -80);
   toast.setDepth(200);
 
-  const cardW = Math.min(360, width - 40);
+  const cardW = Math.min(360, width - PAGE_MARGIN * 2);
   const cardH = 92;
 
   const shadow = scene.add.graphics();

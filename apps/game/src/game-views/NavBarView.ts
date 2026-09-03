@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { createChromeButton } from '../ui/UIButton';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP_GAP, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP_GAP, TYPE, PAGE_MARGIN } from '../ui/constants';
 import { viewportIsShort, navBarMetrics, playAreaFor } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
@@ -281,7 +281,7 @@ export function renderGamesPopup(
     .setInteractive();
   container.add(overlay);
 
-  const popupW = Math.min(300, width - 40);
+  const popupW = Math.min(300, width - PAGE_MARGIN * 2);
   const popupH = callbacks.onCharms ? 264 : 200;
   const popupX = width / 2;
   const popupY = height / 2 - 40;
@@ -341,7 +341,7 @@ export function showQuickToast(scene: Phaser.Scene, message: string): void {
   const label = scene.add.text(0, 0, message, {
     fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
     color: '#ffffff', resolution: TEXT_RESOLUTION,
-    wordWrap: { width: Math.min(width - 60, 360) },
+    wordWrap: { width: Math.min(width - PAGE_MARGIN * 2, 360) },
     align: 'center',
   }).setOrigin(0.5);
   const w = label.width + padX * 2;

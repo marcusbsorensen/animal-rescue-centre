@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE, MIN_TAP_GAP } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, bottomAnchorY, CHROME, hexNum, TYPE, MIN_TAP_GAP, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
 import {
   createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
@@ -250,7 +250,7 @@ export class SupplyRunScene extends Phaser.Scene {
   private renderDestinationSelect(width: number, height: number): void {
     // Neon banner
     this.container.add(
-      createChromeTitle(this, width / 2, 50, 'Supply run', {
+      createChromeTitle(this, width / 2, TITLE_CY, 'Supply run', {
         fontSize: TYPE.title,
         icon: 'icon-supply-run',
       })
@@ -300,8 +300,8 @@ export class SupplyRunScene extends Phaser.Scene {
     const rows = Math.ceil(count / cols);
     const colGap = 16;
     const cardW = cols === 1
-      ? Math.min(width - 60, 500)
-      : Math.min((width - 60 - colGap) / 2, 420);
+      ? Math.min(width - PAGE_MARGIN * 2, 500)
+      : Math.min((width - PAGE_MARGIN * 2 - colGap) / 2, 420);
     const gridW = cardW * cols + colGap * (cols - 1);
     const gridX = (width - gridW) / 2;
     const topGap = 12;
@@ -1154,7 +1154,7 @@ export class SupplyRunScene extends Phaser.Scene {
 
     // Title
     this.container.add(
-      createChromeTitle(this, width / 2, 50,
+      createChromeTitle(this, width / 2, TITLE_CY,
         totalled ? 'TOTALLED!' : rewards.perfectRun ? 'PERFECT RUN!' : 'RUN COMPLETE!', {
         tone: totalled ? 'danger' : rewards.perfectRun ? 'success' : 'default',
         fontSize: TYPE.heading,
@@ -1212,11 +1212,11 @@ export class SupplyRunScene extends Phaser.Scene {
 
       // Damage bar
       this.container.add(
-        this.add.rectangle(width / 2, dmgY, width - 80, 16, hexNum(COLOURS.bgDark)).setOrigin(0.5)
+        this.add.rectangle(width / 2, dmgY, width - PAGE_MARGIN * 2, 16, hexNum(COLOURS.bgDark)).setOrigin(0.5)
       );
-      const dmgBarW = Math.min(1, totalDmg / 100) * (width - 80);
+      const dmgBarW = Math.min(1, totalDmg / 100) * (width - PAGE_MARGIN * 2);
       this.container.add(
-        this.add.rectangle(width / 2 - (width - 80) / 2, dmgY, dmgBarW, 16,
+        this.add.rectangle(width / 2 - (width - PAGE_MARGIN * 2) / 2, dmgY, dmgBarW, 16,
           totalDmg > 60 ? DRIVE.danger : totalDmg > 30 ? DRIVE.accent : DRIVE.success
         ).setOrigin(0, 0.5)
       );
