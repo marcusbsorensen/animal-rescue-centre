@@ -7,13 +7,74 @@ import {
 } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors } from '../lib/RoomAnchors';
-import { FONTS, TEXT_RESOLUTION, pluralSpecies, SAFE_MARGIN, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
+import {
+  FONTS, TEXT_RESOLUTION, pluralSpecies, SAFE_MARGIN, TITLE_CY, PAGE_MARGIN,
+  SPACE, MIN_TAP, MIN_TAP_GAP,
+} from '../ui/constants';
 import { getPlayArea } from './LeftRailView';
 import {
   anchorSpaceFor, animalBoxFor, navBarMetrics, sideNavEnabled, ANIMAL_LABEL_HEIGHT,
 } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 import { renderApprenticeDecorations } from './ApprenticeDecorations';
+
+/**
+ * What an arriving animal keeps between itself and the sign row.
+ *
+ * `MIN_TAP_GAP` is the rule — both are tap targets, and a child aiming at
+ * a door sign should not be able to land on the cat instead. The extra
+ * `xs` absorbs the render slop the band clamp below also allows for:
+ * createAnimalSprite draws a few pixels larger than the box it is handed,
+ * so sizing to exactly the gap measures back as 1px of it.
+ */
+const SIGN_GAP = MIN_TAP_GAP + SPACE.xs;
+
+/**
+ * The nearest x at which a `w`-wide animal clears every sign box, staying
+ * inside the play area.
+ *
+ * Each sign forbids the band its own box occupies grown by half the
+ * animal, so a centre outside every band is a box touching none of them.
+ * The bands are merged before the search because two adjacent signs
+ * overlap once grown, and stepping to the edge of one would land inside
+ * its neighbour.
+ *
+ * Returns `x` unchanged when it is already clear, and the least-bad edge
+ * when the row spans the whole play area — with seven species unlocked on
+ * a 325px clip there is no gap left, and something has to be drawn.
+ */
+function nearestClearX(
+  x: number,
+  w: number,
+  signs: { x: number; y: number; w: number; h: number }[],
+  play: { x: number; w: number },
+): number {
+  const pad = w / 2 + SIGN_GAP;
+  const bands = signs
+    .map((s) => [s.x - s.w / 2 - pad, s.x + s.w / 2 + pad] as [number, number])
+    .sort((a, b) => a[0] - b[0])
+    .reduce<[number, number][]>((merged, band) => {
+      const last = merged[merged.length - 1];
+      if (last && band[0] <= last[1]) last[1] = Math.max(last[1], band[1]);
+      else merged.push([...band]);
+      return merged;
+    }, []);
+
+  const hit = bands.find((b) => x > b[0] && x < b[1]);
+  if (!hit) return x;
+
+  const lo = play.x + pad;
+  const hi = play.x + play.w - pad;
+  const left = Phaser.Math.Clamp(hit[0], lo, hi);
+  const right = Phaser.Math.Clamp(hit[1], lo, hi);
+  // Prefer the side that is genuinely outside the row; where clamping has
+  // pulled both back inside it, the nearer edge is the least-bad.
+  const leftClear = !bands.some((b) => left > b[0] && left < b[1]);
+  const rightClear = !bands.some((b) => right > b[0] && right < b[1]);
+  if (leftClear && !rightClear) return left;
+  if (rightClear && !leftClear) return right;
+  return x - hit[0] <= hit[1] - x ? left : right;
+}
 
 /**
  * CorridorView — renders the rescue-centre corridor with painted door
@@ -136,6 +197,12 @@ export function renderCorridor(
   // Lets signs be repositioned per background art without a code deploy.
   const corridorDecor = RoomAnchors.getInstance().getDecor('corridor');
 
+  // The sign row's real extent, collected as the signs draw rather than
+  // recomputed from the slots afterwards. The arriving animals below take
+  // their headroom from it — see the block that places them — and a sign's
+  // bottom is not its own bottom once a chalkboard hangs off it.
+  const signRects: { x: number; y: number; w: number; h: number }[] = [];
+
   store.unlockedSpecies.forEach((species, i) => {
     const fallbackSlot = DOOR_SLOTS[i] ?? DOOR_SLOTS[DOOR_SLOTS.length - 1];
     const placedAnchors = corridorDecor[`sign-${species}`] ?? [];
@@ -233,11 +300,14 @@ export function renderCorridor(
     // chalk-writing. Feels like something a child scribbled at the
     // rescue centre rather than an app-style notification badge. Only on
     // painted signs — the programmatic fallback renders the count inline.
+    let rowBottom = y + signDisplay.h / 2;
+
     if (hasPainted && count > 0) {
       const boardW = Math.max(44, 58 * s);
       const boardH = Math.max(30, 38 * s);
       const boardX = x;
       const boardY = y + signDisplay.h / 2 + boardH / 2 + 6 * s;
+      rowBottom = boardY + boardH / 2;
       // Stable hand-hung tilt, seeded by species.
       const tiltSeed = species.charCodeAt(0) % 5;
       const tilt = Phaser.Math.DegToRad(-2 + tiltSeed);
@@ -282,6 +352,11 @@ export function renderCorridor(
       }).setOrigin(0.5).setRotation(tilt).setAlpha(0.95);
       container.add(chalkText);
     }
+
+    signRects.push({
+      x, y: (y - signDisplay.h / 2 + rowBottom) / 2,
+      w: signDisplay.w, h: rowBottom - (y - signDisplay.h / 2),
+    });
 
     // Hit area over the sign
     const hitArea = scene.add.rectangle(x, y, signDisplay.w, signDisplay.h, 0x000000, 0)
@@ -361,7 +436,10 @@ export function renderCorridor(
       const proceduralCY = floorY - spriteH / 2 + 2;
 
       let ax = proceduralAX;
-      let spriteCy = proceduralCY;
+      // The line the animal stands on. Procedurally that is the floor;
+      // with an anchor it is wherever the editor put its feet, which is
+      // how the staggered depth in the hand-placed data survives.
+      let feetY = proceduralCY + spriteH / 2;
       let useAnchorScale = false;
       let anchorW = spriteW;
       let anchorH = spriteH;
@@ -374,16 +452,51 @@ export function renderCorridor(
         const s = anchor.scale ?? 1;
         anchorW = spriteW * s;
         anchorH = spriteH * s;
-        const feetX = play.x + anchor.x * bgW;
-        const feetY = bgTopY + anchor.y * bgH;
-        ax = feetX;
-        spriteCy = feetY - anchorH / 2;
+        ax = play.x + anchor.x * bgW;
+        feetY = bgTopY + anchor.y * bgH;
         useAnchorScale = true;
         anchorFlipX = anchor.facing === 'left';
       }
 
-      const drawW = useAnchorScale ? anchorW : spriteW;
-      const drawH = useAnchorScale ? anchorH : spriteH;
+      let drawW = useAnchorScale ? anchorW : spriteW;
+      let drawH = useAnchorScale ? anchorH : spriteH;
+
+      // ── The arrival takes the room the sign row leaves it ──────────
+      //
+      // The signs are the block above; this is the same rule the rest of
+      // the game got — a block takes the bottom of the block above it —
+      // arriving late because the arrivals are anchored, not stacked.
+      //
+      // Why it is needed only on a phone: the anchor space compresses to
+      // the play band on a short viewport (see anchorSpaceFor) while the
+      // sprite stays a fraction of that band. The gap from the sign row
+      // to the floor is 0.43 of the band and the animal is 0.55 of it, so
+      // it grows through the one control on that wall — 63% of the cat
+      // sign at 874x402. On an iPad the headroom is 256px against a 148px
+      // animal and nothing here moves.
+      //
+      // Shrinking is the honest fix rather than a concession: an animal
+      // standing at a door at the back of the corridor is *behind* the
+      // signs, and one drawn nearly door-height was never in perspective.
+      if (signRects.length > 0) {
+        const signRowBottom = Math.max(...signRects.map((r) => r.y + r.h / 2));
+        const headroom = feetY - signRowBottom - SIGN_GAP;
+        if (drawH > headroom) {
+          const capped = Math.max(MIN_TAP, headroom);
+          drawW *= capped / drawH;
+          drawH = capped;
+        }
+        // Where even a MIN_TAP animal cannot get under the row — the web
+        // clip's 325px leaves 31px of headroom — it steps sideways into
+        // the nearest gap between signs instead. Standing beside its door
+        // reads as arriving; standing over the sign hides the control the
+        // child taps to go in.
+        if (drawH > headroom) {
+          ax = nearestClearX(ax, drawW, signRects, play);
+        }
+      }
+
+      let spriteCy = feetY - drawH / 2;
 
       const sprite = createAnimalSprite(
         scene, ax, spriteCy, animal,
