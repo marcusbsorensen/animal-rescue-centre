@@ -436,8 +436,14 @@ at all**. I searched `driving/topdown/` and for habitat names and never
 looked for a `destinations/` folder. It covers one of the ten and reads
 as a cottage rather than as one of this set, so the commission stands —
 but the miss is the point: orphaned art in this repo is not discoverable
-by grepping the source, because nothing references it. Marcus to say
-whether it is deleted or kept.
+by grepping the source, because nothing references it.
+
+**Marcus, 2026-09-04: it stays** — real work went into it, the sign on
+its post outside included. `_keep.md` in that folder says so where
+someone tidying up would actually look, since the source will never
+mention it. Swapping it in for the villa is a one-file rename; it is a
+bungalow, which is period-correct for Birchington in a way the villa is
+not.
 
 **What is left here:** the buildings are one render each and have not been
 seen on a device. The A.R.C. building is a slightly softer, lighter hand
