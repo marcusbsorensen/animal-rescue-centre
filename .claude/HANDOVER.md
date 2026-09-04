@@ -6,11 +6,12 @@ look like one finished product rather than four stitched together.
 
 ## State
 All on `main` and pushed. 365 tests, typecheck clean, 35 lint warnings,
-0 errors. One thing is behind a flag and it matters: **`?sideRail=1`**.
+0 errors. **Side-nav is the layout now** — `?sideRail=0` puts the bottom
+bar back, and that is the only flag.
 
-**`e2e/ux-review.spec.ts` is at 2 FAIL / 16 WARN over 56 pairs.** The two
-FAILs are the paths screen's L3 on phone and clip, and nothing this session
-touched goes near them. Everything the composition review left is done.
+**`e2e/ux-review.spec.ts` is at 2 FAIL / 14 WARN over 56 pairs**, measuring
+the new layout — better than the 16 WARN the bottom bar scored. The two
+FAILs are the paths screen's L3 on phone and clip and are untouched.
 
 - **The corridor's arrivals take the room the sign row leaves them.** They
   were the one block that never got "a block takes the bottom of the block
@@ -22,6 +23,13 @@ touched goes near them. Everything the composition review left is done.
 - **`createPanel` is deleted.** All 17 callers took `createChromePlate`,
   which gained `variant: 'plate' | 'filled'` for the one that carried
   selection rather than decoration.
+- **Side-nav shipped, and its chrome was redesigned with it**: a colour per
+  nav destination, the room title left-aligned onto the rail, the world's
+  state as wordless icon chips under it, one player panel top-right in
+  place of the vertical pull-tab, and the two sounds as separate toggles
+  with a long-press volume. Room, Kitchen and Garden draw into the play box.
+- **Messages in the middle of a room are translucent** —
+  `CHROME.fillAlphaOverArt`.
 
 Earlier arc, still true: every title, plate and button is on the chrome
 surface and the bevel is gone; the type floor is 16 in `MIN_FONT.small` and
@@ -40,8 +48,14 @@ harness, not by a device.
 - `apps/game/src/ui/constants.ts` — `TYPE`, `MIN_FONT`, `CHROME`, `FONTS`.
 - `apps/game/src/ui/UIButton.ts` — `createChromePlate`'s `variant` and
   `createChromeButton`'s `variant`/`anchor` carry the rules.
-- `apps/game/src/game-views/CorridorView.ts` — `SIGN_GAP` and
-  `nearestClearX` hold the arrival's relationship to the door signs.
+- `apps/game/src/game-views/CorridorView.ts` — `SIGN_GAP`, `nearestClearX`
+  and `signRowW` hold the arrival's and the signs' relationships.
+- `apps/game/src/game-views/HUDView.ts` — `renderSideNavHeader` is the
+  whole top of the game; the strip above it is the bottom-bar path.
+- `apps/game/src/game-views/NavRailView.ts` — the coloured rail, and why
+  its column starts below the header.
+- `docs/landscape-relayout-2026-08-31.md` — the layout's design note. Its
+  "Still open" list is still accurate bar the views, which are done.
 - `apps/game/public/fonts/fonts.css` — DOM families and `--fs-floor`.
 - `apps/game/public/admin/_short-landscape.css` — where the phone's type
   actually comes from. Edit it *with* the pages, not after.
@@ -62,43 +76,48 @@ harness, not by a device.
   both have the room, the animal gives way — and gets more honest
   perspective for it.
 - **The sign fold is dropped.** `d22ef1a` stays on `side-nav-prototype`.
+- **Colour reinforces; it never carries.** The nav rail's four hues are
+  brand hues each destination's icon is already painted in, and the labels
+  stay — so a child who does not see red and green apart loses nothing.
+- **A message in the middle of a room is translucent; a title at its edge
+  is not.** `CHROME.fillAlphaOverArt`, and 0.84 is a contrast limit rather
+  than a taste.
 
 ## Next step
-Queue items 7b, 8, 9 and 10. Item 1 below is the work; 2 and 3 are settled
-and recorded so they are not re-litigated.
+Queue items 7b, 8, 9 and 10.
 
-**Decided 2026-09-04:**
+**The one that wants Marcus and a device.** Everything below the layout is
+measured geometry. Whether a 7-year-old can work a vertical rail — reach
+it with a thumb, tell four coloured cells apart, find the long-press on a
+sound pill — is not a thing arithmetic answers, and it is the question the
+whole layout now rests on. `VITE_SIDE_RAIL=0 pnpm build:ios` builds the
+bottom bar for a side-by-side.
 
-1. **Make side-nav the default.** Reviewed at Marcus's ask; the survey is
-   in queue item 7b. It is a live prototype on `main` behind `?sideRail=1`
-   (`main.ts:65`, remembered in `localStorage`, `VITE_SIDE_RAIL=1` for the
-   native build) — **not** a branch. `side-nav-prototype` holds the sign
-   fold and is 48 commits behind; do not go looking there for it.
-   `docs/landscape-relayout-2026-08-31.md` is the design note.
+**Open, and now load-bearing: cover versus contain.** The room background
+is `setDisplaySize(play.w, play.h)` — a stretch, not a fit. At 696 wide it
+was a 2.8% squash; at 752 it is a 5.2% stretch, so losing the arrivals tab
+moved the box *past* the art's shape rather than towards it. Both are
+invisible beside the bottom bar's 19%, and the real answer is a uniform
+fit that crops, which has no stretch at any aspect. **Taking it means
+resolving anchors against the drawn art rect rather than the play box** —
+which is why it is not something to do in passing.
 
-   The play box goes 768x362 (aspect **2.12**, letterboxed) → 696x402
-   (**1.73**, against room art authored at 1.78), and `anchorSpaceFor`'s
-   compromise stops existing. **The entire visible cost is that Room,
-   Kitchen and Garden keep the old art rect and show cream margins against
-   the rail** — they size from `height - 40` and KitchenView draws at full
-   `width`; it is the same treatment `CorridorView` already had. Every DOM
-   overlay, every standalone scene and the animal card are pixel-identical
-   in both layouts.
+**Also open, from the design note.** The right-hand safe inset for the
+other landscape orientation (`ui/safe-area.ts` only reads `left`), the
+bottom inset, and whether an iPad wants this layout at all — at >=1024 the
+arrivals rail stands open and vertical is not scarce, so this may be a
+phone-only layout and two arrangements to maintain.
 
-   Still unanswered: the right-hand safe inset for the other landscape
-   orientation, the bottom inset, whether iPad wants this at all, and
-   whether a 7-year-old can work a vertical rail — which is not a thing
-   arithmetic answers, and is the one that wants Marcus and a device.
+**Art that is missing, and it is one commission for three jobs:** an
+effects icon for the sound toggle (which carries a word because
+`icon-music-on`/`off` exist and nothing does for effects), the drive
+picker's forecourt flanks, and item 10's emoji furniture.
 
-2. **The drive picker's forecourt flanks: commission proper art.** Marcus's
-   call — not the existing road furniture. A lead-time item; pair the ask
-   with queue item 10's emoji furniture so one commission covers both.
-
-3. **Caveat: do it with the paths/rewilding work, not before.** It reads at
-   72% of every other face, so `TYPE.caption` means about 11.6px in it.
-   `font-size-adjust: 0.49` fixes it and is verified, but widens text 37%
-   across ~50 rules on 20 screens — which is why it goes where those
-   screens are already open.
+**Settled, so they are not re-litigated:** the forecourt flanks get
+commissioned art rather than the existing road furniture; Caveat's
+`font-size-adjust: 0.49` goes with the paths/rewilding work, not before —
+it widens text 37% across ~50 rules on 20 screens, which is why it belongs
+where those screens are already open.
 
 **Not waiting on anything:** queue item 9 (658 raw colour literals against
 287 token uses — mechanical now `hexNum` exists), item 8 (enumerate the
