@@ -1,18 +1,26 @@
 /**
  * birchie-places.ts
  *
- * Real positions of the drive destinations on the Birchie vector map
- * (`birchie-roads.svg`, the OSM-derived network shown on the town map), as
- * fractions 0..1 of the map image (fx left→right, fy top→bottom; the sea is at
- * the top).
+ * Positions on the Birchie vector map (`birchie-roads.svg`, the OSM-derived
+ * network shown on the town map), as fractions 0..1 of the map image
+ * (fx left→right, fy top→bottom; the sea is at the top).
  *
- * IMPORTANT — these are PROVISIONAL best-guesses. The destinations' existing
- * `mapX`/`mapY` in `destinations.ts` are an abstract layout that does NOT match
- * the real map (coastal places sit at the bottom there, but the sea is at the
- * top here). Marcus to review/correct each position against the real geography
- * before the GPS routing is treated as accurate. Until then the GPS shows the
- * right map with roughly-placed pins.
+ * **The destinations' own positions live on the destination.** They used to
+ * be here *and* in `destinations.ts` as an abstract `mapX`/`mapY` layout that
+ * did not match the real map — coastal places sat at the bottom there, where
+ * the sea is at the top here — and two tables of the same thing disagreeing
+ * is what puts a GPS route and a map pin in different places. The abstract
+ * pair had no readers and is gone; `fx`/`fy` on `DestinationDef` is the one
+ * set, and `placeFor` reads it.
+ *
+ * What is left here is what is not a destination: A.R.C.'s verified anchor
+ * and the fixed speed cameras.
+ *
+ * The positions remain PROVISIONAL as geography — Marcus to nudge them
+ * against the real town — but there is now only one set to nudge.
  */
+
+import { getDestination } from '@arc/game-logic';
 
 export interface MapPoint {
   /** Fraction across the map, 0 (west) .. 1 (east). */
@@ -21,26 +29,22 @@ export interface MapPoint {
   fy: number;
 }
 
-/** A.R.C. — up by the beach huts on the Grenham Bay seafront (verified spot). */
-export const ARC_PLACE: MapPoint = { fx: 0.28, fy: 0.31 };
-
-/** Destination id → map position. Provisional; see file header. */
-export const BIRCHIE_PLACES: Record<string, MapPoint> = {
-  arc: ARC_PLACE,
-  'bramble-farm': { fx: 0.24, fy: 0.50 }, // farmland to the south-west (on a lane)
-  'cove-harbour': { fx: 0.14, fy: 0.24 }, // harbour on the west coast (Minnis Bay)
-  'pinebark-medical': { fx: 0.66, fy: 0.44 }, // near Birchie Station / town
-  moorland: { fx: 0.10, fy: 0.44 }, // open land to the west
-  woodland: { fx: 0.86, fy: 0.60 }, // the Wyx Park greens (east)
-  'sea-cliffs': { fx: 0.68, fy: 0.19 }, // cliffs on the north-east coast
-  'deep-forest': { fx: 0.84, fy: 0.68 }, // south-east woods (on the road network)
-  wetlands: { fx: 0.40, fy: 0.86 }, // low-lying ground to the south
-};
-
 /** Look up a destination's map position, falling back to the town centre. */
 export function placeFor(destinationId: string): MapPoint {
-  return BIRCHIE_PLACES[destinationId] ?? { fx: 0.5, fy: 0.5 };
+  const d = getDestination(destinationId);
+  return d ? { fx: d.fx, fy: d.fy } : { fx: 0.5, fy: 0.5 };
 }
+
+/**
+ * A.R.C. — up by the beach huts on the Grenham Bay seafront, and the start of
+ * every route the drive code builds.
+ *
+ * Read from the `arc` destination rather than written here, because it was
+ * written here: this constant used to hold 0.28,0.31 while `map.html` drew the
+ * building from the real OSM plot polygon at 0.181,0.354, so the GPS set off
+ * from a field a tenth of the map east of the centre. The plot won.
+ */
+export const ARC_PLACE: MapPoint = placeFor('arc');
 
 export interface NamedPlace extends MapPoint {
   name: string;

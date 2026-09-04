@@ -509,6 +509,36 @@ checking the claim still holds.
   icon commission downloaded three files called `nav-home.png` to one path:
   the uploaded reference, v1 and v2. **Verify by dimension or file size, never
   by filename.** Renders were 1024x1024 / ~1MB; references 256x256 / ~85KB.
+- **`applyRoadSwitch` rebuilds `vanGfx` without going through
+  `renderView`**, and `switchRoad` schedules it on a `delayedCall(180)`.
+  So a road change that begins in the last moments of a route lands
+  *after* the drive has left travel mode, destroys the van the arrival
+  just parked, and puts a road-sized one back at `height * 0.72`. Both
+  are guarded on `phase === 'travel'` as of 2026-09-04. The reason this
+  is worth a trap rather than a comment: the arrival rendered last, its
+  own arithmetic was correct, and a `console.log` proved it applied the
+  right scale — the object it applied it to was simply replaced
+  afterwards by something that never calls `renderView`. **When a Phaser
+  object has the wrong properties and the code that sets them is
+  provably right, look for a second writer, not a wrong number.**
+  `this.time.removeAllEvents()` and `this.tweens.killAll()` do not help;
+  the second writer was reachable another way.
+- **`map.html` holds no destination table and must not grow one.** It is
+  a static page and cannot import `destinations.ts`, so GameScene sends
+  the list on `init` and the page draws what it is given. Before
+  2026-09-04 GameScene sent `{ context, playerLevel }` to a page with **no
+  `init` handler at all** — a payload specified from one end and dropped
+  at the other, for as long as both had existed.
+- **A pin is as wide as its name.** Clamping a map marker to the stage on
+  its disc radius still hangs the label off the edge; "Pinebark Medical"
+  drew as "Pinebark Medic". Measure `offsetWidth` after append and clamp
+  again.
+- **The map's tabs are chrome floating over the pin layer, and they take
+  the tap.** A pin under one is not overlapped, it is unreachable. They
+  are top-right as of 2026-09-04 — which also gets them out of the
+  Dynamic Island's x 14–50pt — and pins that would land under them drop
+  below. The A.R.C. building stamp is exempt, because it is drawn on its
+  real plot; that is why the tabs are on the side A.R.C. is not.
 - **Unquoted URLs containing a query string are glob-expanded by zsh**, so the
   command dies before the request runs and the failure surfaces downstream as
   a JSON decode error that looks like an API fault. Quote the URL, or put it in

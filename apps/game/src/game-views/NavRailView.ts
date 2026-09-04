@@ -117,7 +117,14 @@ export function renderNavRail(
   // and older icons/ keys stand in where a piece was never commissioned.
   const homeKey = scene.textures.exists('nav-home') ? 'nav-home' : 'icon-home';
   const careKey = scene.textures.exists('nav-care') ? 'nav-care' : 'icon-kitchen';
-  const socialKey = scene.textures.exists('nav-social') ? 'nav-social' : 'icon-social';
+  // **Nothing is painted for the map yet.** `nav-social` and
+  // `icon-social` are the wrong picture now that the slot goes to the
+  // map, so the chain runs out and the cell falls through to its
+  // lettered disc — which is the honest state of it until the art
+  // lands. See the commission note in docs/ui-next-steps.
+  const mapKey = scene.textures.exists('nav-map')
+    ? 'nav-map'
+    : (scene.textures.exists('icon-map') ? 'icon-map' : 'nav-map');
   const walkKey = scene.textures.exists('nav-play')
     ? 'nav-play'
     : (scene.textures.exists('icon-walk') ? 'icon-walk' : 'icon-games');
@@ -133,6 +140,13 @@ export function renderNavRail(
   // control in the game, and the primary loop is caring for animals, not
   // restocking the depot; it lives in Care now. Its raised-centre shape
   // meant nothing in a vertical stack either way.
+  //
+  // **Social left the rail on 2026-09-04 and the Map took its slot.**
+  // Not a swap of one tab for another: Social became a *place* — the
+  // village hall — and the map is how you reach every place, so the
+  // fourth cell went from being one destination to being all of them.
+  // The four stay four; see the arithmetic above for why that number
+  // is not negotiable.
   const items: RailItem[] = [
     options.showBack
       ? { iconKey: 'icon-back', label: 'Back', colour: NAV_COLOURS.back, active: false, action: callbacks.onBack }
@@ -148,7 +162,7 @@ export function renderNavRail(
       action: callbacks.onCare,
     },
     { iconKey: walkKey, label: 'Walk', colour: NAV_COLOURS.walk, active: false, action: callbacks.onWalk },
-    { iconKey: socialKey, label: 'Social', colour: NAV_COLOURS.social, active: false, action: callbacks.onSocial },
+    { iconKey: mapKey, label: 'Map', colour: NAV_COLOURS.map, active: false, action: callbacks.onMap },
   ];
 
   const railX = railEdgeInset();

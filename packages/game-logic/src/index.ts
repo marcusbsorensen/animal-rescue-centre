@@ -293,11 +293,14 @@ export {
   DESTINATIONS,
   getDestination,
   getAvailableDestinations,
+  mapExtentFor,
+  MAP_EXTENT_MIN,
   habitatForSpecies,
 } from './destinations';
 export type {
   DestinationDef as MapDestinationDef,
   DestinationKind,
+  ArrivalKind,
   RewildingHabitat,
 } from './destinations';
 export {

@@ -64,7 +64,14 @@ export const NAV_COLOURS = {
   home: COLOURS.primary,
   care: COLOURS.warm,
   walk: COLOURS.info,
-  social: COLOURS.accent,
+  /**
+   * The map's hue is the one Social used to carry. Social came off the
+   * rail on 2026-09-04 and became a place on the map — the village
+   * hall — so the slot changed destination rather than changing
+   * colour, and a child who had learned "the purple one" learns one
+   * new thing instead of two.
+   */
+  map: COLOURS.accent,
   /** Back is not a destination; it stays neutral so the four keep meaning. */
   back: COLOURS.textLight,
 } as const;

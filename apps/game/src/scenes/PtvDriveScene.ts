@@ -7,7 +7,7 @@ import { createChromeButton, createChromeTitle, createChromePlate } from '../ui/
 import { useRetinaText } from '../ui/retina-text';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Economy } from '@arc/shared-types';
-import { VEHICLE_DEFS, type VehicleDef, type VehicleType } from '@arc/game-logic';
+import { VEHICLE_DEFS, getDestination, type VehicleDef, type VehicleType } from '@arc/game-logic';
 import {
   createDriveState,
   cycleGear,
@@ -200,6 +200,14 @@ export interface PtvDriveInit {
   economy?: Economy;
   weather?: string;
   returnTo?: string;
+  /**
+   * Handed straight back to `returnTo` when the van parks, untouched.
+   *
+   * Whose journey this is stays the caller's business — GameScene puts
+   * the poorly animal's id in here on a vet run and reads it out at
+   * the far end. The drive does not look inside.
+   */
+  returnData?: Record<string, unknown>;
 }
 
 /**
@@ -221,9 +229,14 @@ export class PtvDriveScene extends Phaser.Scene {
   private turning = false;
   private drive!: DriveState;
   private returnTo?: string;
+  /** Opaque payload echoed back to `returnTo` on arrival. */
+  private returnData: Record<string, unknown> = {};
 
-  // Phase: pick the vehicle, then the A.R.C. car park, then join the road.
-  private phase: 'select' | 'parking' | 'travel' = 'select';
+  // Phase: pick the vehicle, the A.R.C. car park, the road, then the
+  // destination's own forecourt at the far end.
+  private phase: 'select' | 'parking' | 'travel' | 'arrival' = 'select';
+  /** Guards the arrival so a long final tick cannot fire it twice. */
+  private arriving = false;
   /** The fleet vehicle the player is driving (chosen on the select screen). */
   private vehicleId: VehicleType = 'small-van';
   /** Player level — gates which vehicles are unlocked in the picker. */
@@ -363,6 +376,8 @@ export class PtvDriveScene extends Phaser.Scene {
       weather: data?.weather,
     });
     this.returnTo = data?.returnTo;
+    this.returnData = data?.returnData ?? {};
+    this.arriving = false;
     // Dev: ?ptvDemo=1&dest=<id> lets Marcus test any route/turns; else woodland.
     const urlDest = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('dest') ?? undefined
@@ -470,6 +485,8 @@ export class PtvDriveScene extends Phaser.Scene {
       this.renderPicker(width, height);
     } else if (this.phase === 'parking') {
       this.renderParking(width, height);
+    } else if (this.phase === 'arrival') {
+      this.renderArrival(width, height);
     } else {
       this.renderTravel(width, height, geo);
     }
@@ -1109,6 +1126,241 @@ export class PtvDriveScene extends Phaser.Scene {
     );
   }
 
+  // ── Arrival ────────────────────────────────────────────────
+
+  /**
+   * The far end of the journey: the destination's own forecourt.
+   *
+   * **This is the mirror of `renderParking`, and deliberately so.** A
+   * drive that ends by cutting to the vet's waiting room is a drive
+   * that ends in a jump; a child should see the van come off the road,
+   * swing into a bay and stop in front of the building, and only then
+   * find out what is inside. The departure already draws that grammar
+   * — building across the top, bays across the middle, road along the
+   * bottom — so the arrival plays it backwards rather than inventing a
+   * second visual language for the same car park.
+   *
+   * Only A.R.C. has a painted building. Every other destination falls
+   * back to a chrome plate carrying its emoji and name, standing where
+   * the building goes — the same fallback the departure has always had
+   * for a missing `site-arc-building`. So the arrival works today and
+   * gets better as each forecourt is painted. **That is the art ask
+   * this leaves behind: one building per destination.**
+   */
+  private renderArrival(width: number, height: number): void {
+    const dest = getDestination(this.destinationId);
+    const name = dest?.label
+      ?? this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+    // Gravel forecourt (tiled) — same ground as home.
+    if (this.textures.exists('site-gravel')) {
+      this.container.add(this.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
+    } else {
+      this.container.add(this.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
+    }
+
+    // ── The stack ─────────────────────────────────────────
+    //
+    // Laid out from the road upward rather than on fractions of the
+    // height, because the pieces have to clear each other on a 402pt
+    // screen and fractions do not know how tall a van is. The first
+    // pass put "Go inside" at 0.68 and the bays at 0.58–0.78, so the
+    // button printed across the bay the van had just parked in — the
+    // same class of collision the composition pass spent its time on
+    // everywhere else in the game.
+    //
+    // Bottom up: road, then the control above it, then the bays with
+    // the van in them, then the message, then the building.
+    const roadH = height * 0.12;
+    const roadY = height - roadH;
+    const goCy = roadY - 34;                 // where the departure puts "Let's go!"
+    const bayH = Math.min(64, height * 0.17);
+    const bayTop = goCy - 26 - 12 - bayH;    // button half-height, then a gap
+    const msgCy = bayTop - 30;
+
+    // The building across the top, in the room the message leaves it.
+    const buildingKey = `site-${this.destinationId}-building`;
+    const key = this.textures.exists(buildingKey)
+      ? buildingKey
+      : (this.destinationId === 'arc' && this.textures.exists('site-arc-building')
+        ? 'site-arc-building'
+        : undefined);
+    const topRoom = msgCy - 18;
+    if (key) {
+      const b = this.add.image(width / 2, 6, key).setOrigin(0.5, 0);
+      const target = Math.min(width * 0.5, topRoom - 12);
+      b.setDisplaySize(target, target);
+      this.container.add(b);
+    } else {
+      // Not a placeholder box: a signboard is a real thing to find at
+      // the end of a lane, so an unpainted destination reads as a
+      // place with a sign rather than as missing art.
+      const plateH = Math.min(84, topRoom - 20);
+      const plateCy = 10 + plateH / 2;
+      this.container.add(createChromePlate(this, width / 2, plateCy, Math.min(width * 0.6, 320), plateH));
+      this.container.add(
+        this.add.text(width / 2, plateCy - plateH * 0.22, dest?.emoji ?? '📍', {
+          fontSize: '28px', fontFamily: FONTS.body,
+        }).setOrigin(0.5)
+      );
+      this.container.add(
+        this.add.text(width / 2, plateCy + plateH * 0.22, name, {
+          fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: CHROME.ink,
+          resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5)
+      );
+    }
+
+    // Visitor bays, and the road she comes in off along the bottom —
+    // the departure's geometry, because it is the same kind of place.
+    const bayCount = 4;
+    const bayAreaW = Math.min(width * 0.62, 520);
+    const bayLeft = (width - bayAreaW) / 2;
+    const bayW = bayAreaW / bayCount;
+    const bays = this.add.graphics();
+    bays.fillStyle(0x39383a, 1);
+    bays.fillRoundedRect(bayLeft, bayTop, bayAreaW, bayH, 10);
+    bays.fillStyle(0xf2ead6, 0.85);
+    for (let i = 1; i < bayCount; i++) {
+      bays.fillRect(bayLeft + bayW * i - 2, bayTop + 8, 4, bayH - 16);
+    }
+    this.container.add(bays);
+
+    const road = this.add.graphics();
+    road.fillStyle(0x6b6f76, 1);
+    road.fillRect(0, roadY, width, roadH);
+    road.fillStyle(0xfdf6e3, 0.9);
+    for (let x = 10; x < width; x += 54) {
+      road.fillRect(x, roadY + roadH / 2 - 2, 30, 4);
+    }
+    this.container.add(road);
+
+    // The van comes in from the road, nose first, and swings into the
+    // second bay.
+    //
+    // Sized to the bay's *height*, not its width. The departure scales
+    // by width (0.6 of the bay) because its bay is a fifth of the
+    // screen; here the band is 64pt and a width-scaled van stood a
+    // third taller than the space it had parked in, which is what put
+    // it under the message above and the button below.
+    const bayIndex = 1;
+    const bayX = bayLeft + bayW * (bayIndex + 0.5);
+    const van = this.makeVan();
+    const img = van as Phaser.GameObjects.Image;
+    if (img.width && img.height) {
+      const byW = (bayW * 0.6 * VEHICLE_SIZE[this.vehicleId]) / img.width;
+      const byH = (bayH * 0.86 * VEHICLE_SIZE[this.vehicleId] / VEHICLE_SIZE_MAX) / img.height;
+      img.setScale(Math.min(byW, byH));
+    }
+    van.setPosition(width + this.vanW * 2, roadY + roadH / 2);
+    van.setAngle(-90); // nose pointing the way she is travelling: right to left
+    van.setDepth(20);
+    this.container.add(van);
+    this.vanGfx = van;
+
+    // A message in the middle of the scene is translucent —
+    // `CHROME.fillAlphaOverArt`, the same rule the room messages
+    // follow, and 0.84 is a contrast limit rather than a taste.
+    const title = this.add.text(width / 2, msgCy, `We've arrived at ${name}!`, {
+      fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: CHROME.ink,
+      backgroundColor: `rgba(255,249,239,${CHROME.fillAlphaOverArt})`, padding: { x: 12, y: 4 },
+      resolution: TEXT_RESOLUTION,
+    }).setOrigin(0.5).setDepth(45).setAlpha(0);
+    this.container.add(title);
+
+    // Roll in along the road, then turn up into the bay and stop.
+    this.tweens.add({
+      targets: van,
+      x: bayX,
+      duration: 900,
+      ease: 'Sine.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: van,
+          angle: 180, // nose to the building, tail to the road
+          y: bayTop + bayH / 2,
+          duration: 700,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            AudioManager.getInstance().playSfx('button_click');
+            this.tweens.add({ targets: title, alpha: 1, duration: 260 });
+            this.showArrivalPrompt(width, roadY);
+          },
+        });
+      },
+    });
+  }
+
+  /**
+   * The one control on the arrival: go inside.
+   *
+   * Deliberately not automatic. The van parking is a beat worth
+   * letting a child watch end, and the tap is what turns "the drive
+   * finished" into "I have arrived somewhere and I am going in".
+   *
+   * At `roadY - 34`, which is where the departure puts "Let's go!" —
+   * the strip between the bays and the road, so the button sits below
+   * the parked van rather than on top of it. Placed at 0.68 of the
+   * height first, which is *inside* the bays: the van reversed into a
+   * space and the label for going in was printed across it.
+   *
+   * The destination's name is on the building's sign and in the
+   * message above; a third copy under the button was the same three
+   * words three times on one screen.
+   */
+  private showArrivalPrompt(width: number, roadY: number): void {
+    const go = createChromeButton(this, width / 2, roadY - 34, 'Go inside', () => this.finishArrival(), {
+      width: 190, variant: 'filled',
+    }).setDepth(50);
+    this.container.add(go);
+  }
+
+  /**
+   * Hand back to whoever sent us, saying where we got to.
+   *
+   * `returnData` rides along untouched — the drive never looked inside
+   * it — so GameScene reads its own passenger out of the far end.
+   */
+  private finishArrival(): void {
+    this.cleanup();
+    if (!this.returnTo) { this.scene.restart(); return; }
+    this.scene.start(this.returnTo, {
+      arrived: { destinationId: this.destinationId, ...this.returnData },
+    });
+  }
+
+  /**
+   * Progress has reached the far end — leave travel mode and park.
+   *
+   * Guarded, because the drive loop is a repeating timer and progress
+   * stays pinned at 1 once it gets there: without the flag every
+   * subsequent tick would re-enter the arrival and restart the tween.
+   */
+  private beginArrival(): void {
+    if (this.arriving) return;
+    this.arriving = true;
+
+    // **Travel's pending work has to die before the forecourt is
+    // drawn.** `cleanup()` takes the drive timer and the lane tween,
+    // which is everything travel mode owns *synchronously* — but
+    // `switchRoad` schedules its re-layout on a `delayedCall(180)` and
+    // hands the fade to a tween, so a road change that started in the
+    // last moments of the route lands 180ms into the arrival and
+    // re-runs `renderTravel` over it.
+    //
+    // The symptom was subtle and worth writing down: the forecourt
+    // rendered correctly, and then the van in it was silently replaced
+    // by travel's own van — right size for a road lane, half again too
+    // tall for a parking bay, and sitting at 0.72 of the screen
+    // instead of in a space. Everything *looked* like a sizing bug in
+    // the arrival, and the arrival's own numbers were correct.
+    this.time.removeAllEvents();
+    this.tweens.killAll();
+
+    this.phase = 'arrival';
+    this.renderView();
+  }
+
   /** Henry rolls forward out of the bay to the exit road, then asks which way. */
   private pullOutOfBay(width: number, height: number, roadY: number): void {
     // Hide the start-prompt layer (title + Let's go! + Back all sit at depth 45+).
@@ -1227,6 +1479,8 @@ export class PtvDriveScene extends Phaser.Scene {
    */
   private switchRoad(id: RoadId): void {
     if (id === this.roadConfig.id || this.roadSwitching) return;
+    // Travel-mode machinery, and only travel mode. See applyRoadSwitch.
+    if (this.phase !== 'travel') return;
     this.roadSwitching = true;
     const { width, height } = this.scale;
     const cover = this.add.rectangle(width / 2, height / 2, width, height, 0xf4efe6, 0).setDepth(80);
@@ -1250,6 +1504,22 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /** The actual re-layout, run while the flash covers the screen. */
   private applyRoadSwitch(id: RoadId): void {
+    // **Only while we are still on the road.**
+    //
+    // This is a re-layout of travel mode that does not go through
+    // `renderView` — it destroys `vanGfx` and rebuilds it at road
+    // geometry directly. It is also scheduled 180ms out by
+    // `switchRoad`, so a road change that begins in the last moments
+    // of a route lands *after* the arrival has drawn the forecourt,
+    // and silently swaps the parked van for a road one: right size for
+    // a lane, half again too tall for a bay, and sitting at 0.72 of the
+    // screen instead of in a parking space.
+    //
+    // That cost an hour, because every number in the arrival was
+    // correct and the arrival was demonstrably the last thing to
+    // render. The guard is on the phase rather than on the timer
+    // because the timer is not the only way back in here.
+    if (this.phase !== 'travel') return;
     this.roadConfig = ROADS[id];
     const { width, height } = this.scale;
     const geo = this.geo();
@@ -2230,6 +2500,13 @@ export class PtvDriveScene extends Phaser.Scene {
 
         this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + rate * 0.0004));
         this.updateJunctionPrompt();
+
+        // **The drive used to have no end.** Progress clamped at 1 and
+        // the road kept scrolling, which was invisible while the only
+        // way in was `?ptvDemo=1` and the only way out was Back. Now
+        // that a map pin starts a journey, a child has to be able to
+        // get there.
+        if (this.drive.progress >= 1) { this.beginArrival(); return; }
 
         // Advance the GPS position dot along the road route + refresh the turn.
         if (this.gpsDot) {

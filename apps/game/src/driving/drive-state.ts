@@ -7,6 +7,8 @@
  * can be handed between scenes via the registry and unit-tested in isolation.
  */
 
+import { getDestination } from '@arc/game-logic';
+
 /**
  * Gear selection: Park holds the vehicle still (e.g. stopped for a hedgehog
  * crossing), Reverse for negotiating an obstacle, and three forward gears
@@ -40,6 +42,26 @@ export function isStopped(gear: Gear): boolean {
 export const NUM_LANES = 3;
 
 export type DriveType = 'vet' | 'adoption' | 'rewilding' | 'delivery' | 'demo';
+
+/**
+ * Which kind of drive a destination makes.
+ *
+ * Read off the destination's `arrival` — what is waiting at the far
+ * end is what the journey is for, so the two cannot disagree. The
+ * mapping matters beyond flavour: `carriesAnimals` gates whether the
+ * drive is collision-safe, and a supply run is the one trip with
+ * nobody in the back.
+ */
+export function driveTypeFor(destinationId: string): DriveType {
+  switch (getDestination(destinationId)?.arrival) {
+    case 'vet':       return 'vet';
+    case 'rewilding': return 'rewilding';
+    case 'supply':    return 'delivery';
+    // The village hall and going home carry no cargo brief of their
+    // own; they are still gentle trips with the animals aboard.
+    default:          return 'adoption';
+  }
+}
 
 export interface DriveState {
   /** Vehicle id — 'henry' is the only asset-complete cab for MVP. */

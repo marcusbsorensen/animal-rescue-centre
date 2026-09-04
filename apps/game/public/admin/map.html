@@ -58,8 +58,22 @@
        point of the rule. */
     display: flex; gap: 12px;
     /* SAFE_MARGIN in ui/constants. The tabs are the map's only controls
-       and they sit against the top edge; the edge sweep scored them at 12. */
-    position: absolute; top: 16px; left: 16px; z-index: 5;
+       and they sit against the top edge; the edge sweep scored them at 12.
+
+       **Top-RIGHT, as of 2026-09-04.** Two reasons, and both are about
+       the left edge specifically:
+
+       1. The Dynamic Island occupies x 14–50pt of an 874x402 landscape
+          screen (see .claude/TRAPS.md — measured, not inferred). At
+          left:16 the "Town map" tab began underneath it: partly
+          unreadable, and its left third untappable.
+       2. A.R.C. sits at fx 0.18 — west — and its building stamp is the
+          one marker the pin layer does not nudge out from under chrome,
+          because it is drawn on its real plot. Putting the tabs on the
+          opposite side keeps the child's own home clear of them at
+          every zoom, rather than relying on a nudge that would move the
+          building off its own plot. */
+    position: absolute; top: 16px; right: 16px; z-index: 5;
   }
   .tab {
     /* CHROME in ui/constants, in CSS: the cream at 0.96, the same hairline
@@ -338,6 +352,163 @@
     white-space: nowrap;
   }
   #world-stage .pin-arc-label:hover { transform: translate(-50%, -1px); }
+
+  /* ── Destination pins ─────────────────────────────────────
+     Every place a child can drive to, drawn from the list the host
+     sends on init. A.R.C. keeps its painted building stamp above;
+     these are the outward ones.
+
+     A pin is a disc with the destination's emoji and a label under
+     it — chrome, not scenery, so it follows the game's chrome rule:
+     cream paper, a hairline, a soft shadow. It sits *on* the painted
+     map rather than pretending to be part of it.
+
+     Locked pins stay on the map. A child can see what she is working
+     towards, which is the point of the level gate; a padlock and a
+     level on the card say when. They are drawn faint so the places
+     she can actually go are the loud ones. */
+  #world-stage .pin-place {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    pointer-events: auto;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #world-stage .pin-disc {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--cream-wash);
+    border: 2px solid var(--honey-shadow);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.28);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 21px; line-height: 1;
+    transition: transform 160ms ease;
+  }
+  #world-stage .pin-place:hover .pin-disc { transform: scale(1.08); }
+  #world-stage .pin-name {
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    font-size: var(--fs-floor);
+    color: var(--ink);
+    background: var(--cream-wash);
+    border-radius: 10px;
+    padding: 1px 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.22);
+    white-space: nowrap;
+  }
+  #world-stage .pin-place.locked { cursor: pointer; }
+  #world-stage .pin-place.locked .pin-disc {
+    background: #d9d2c4;
+    border-color: #a29a8b;
+    filter: grayscale(1);
+    opacity: 0.72;
+  }
+  #world-stage .pin-place.locked .pin-name {
+    color: var(--ink-soft);
+    opacity: 0.82;
+  }
+  /* The padlock rides the disc's lower-right, so a locked pin reads as
+     locked at a glance rather than only in its card. */
+  #world-stage .pin-lock {
+    position: absolute;
+    top: 24px; left: 26px;
+    font-size: 14px; line-height: 1;
+    filter: none;
+  }
+
+  /* ── Destination card ─────────────────────────────────────
+     A tap opens this; "Drive here!" starts the journey. The second
+     tap is deliberate: a drive is minutes long, and a stray finger
+     on a map full of pins should not cost one. */
+  #world-stage .pin-scrim {
+    position: absolute; inset: 0;
+    background: rgba(38,34,30,0.42);
+    pointer-events: auto;
+    z-index: 5;
+  }
+  #world-stage .dest-card {
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    z-index: 6;
+    width: min(92%, 420px);
+    background: var(--cream-wash);
+    border: 1px solid rgba(123,92,58,0.30);
+    border-radius: 18px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.30);
+    padding: 12px 16px 14px;
+    pointer-events: auto;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'emoji title'
+      'emoji blurb'
+      'action action';
+    column-gap: 12px;
+    row-gap: 2px;
+  }
+  #world-stage .dest-emoji {
+    grid-area: emoji;
+    font-size: 34px; line-height: 1;
+    align-self: center;
+  }
+  #world-stage .dest-title {
+    grid-area: title;
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    font-size: clamp(var(--fs-floor), 4.6cqh, 21px);
+    color: var(--ink);
+  }
+  #world-stage .dest-blurb {
+    grid-area: blurb;
+    font-size: var(--fs-floor);
+    color: var(--ink-soft);
+    line-height: 1.28;
+  }
+  #world-stage .dest-action {
+    grid-area: action;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  #world-stage .dest-btn {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: var(--fs-floor);
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: 22px;
+    border: 1px solid var(--honey-shadow);
+    background: var(--honey-amber);
+    color: var(--ink);
+    box-shadow: 0 2px 0 rgba(0,0,0,0.15);
+    cursor: pointer;
+  }
+  #world-stage .dest-btn.ghost {
+    background: var(--cream-wash);
+    color: var(--ink-soft);
+    border-color: rgba(123,92,58,0.30);
+  }
+  /* A locked card says when, not "no". The level is the answer to the
+     question the padlock asks. */
+  #world-stage .dest-locked {
+    grid-area: action;
+    margin-top: 10px;
+    font-family: 'Quicksand', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: var(--fs-floor);
+    color: var(--trellis-brown);
+    display: flex; align-items: center; gap: 8px;
+    min-height: 44px;
+  }
+  #world-stage .dest-locked .spacer { margin-left: auto; }
 
   /* A.R.C. detail view.
      Background: a custom fine-grain noise gravel texture
@@ -1102,6 +1273,21 @@
       const s = normaliseSeason(m.payload.season);
       if (s) applySeason(s);
     }
+    // The map holds no table of its own. `destinations.ts` is the
+    // single source of truth and this page cannot import it, so the
+    // host sends the list — already carrying each place's unlock
+    // level — plus the extent to frame it in. Before this, GameScene
+    // had been posting `playerLevel` into a page with no init handler
+    // at all: the payload was specified from one end and dropped at
+    // the other.
+    if (m.type === 'init' && m.payload) {
+      const p = m.payload;
+      if (Array.isArray(p.destinations)) DESTINATIONS = p.destinations;
+      if (typeof p.playerLevel === 'number') playerLevel = p.playerLevel;
+      if (p.extent && typeof p.extent.half === 'number') extent = p.extent;
+      if (typeof p.context === 'string') context = p.context;
+      placePins();
+    }
   });
 
   // World-view: position pins relative to OSM SVG canvas.
@@ -1110,10 +1296,22 @@
   // countryside. Aspect is ~1.6:1 (1800×1121) — much more square.
   const SVG_VIEW_W = 1800;
   const SVG_VIEW_H = 1121;
-  // ARC plot south-edge anchor (so the building stamp's -85% y-translate
-  // lands on the plot). Computed from the real OSM plot polygon centre.
-  const ARC_PLOT_SVG_X = 326;
-  const ARC_PLOT_SVG_Y = 397;
+
+  // ── What the host tells us ────────────────────────────────
+  //
+  // Empty until `init` arrives, so a standalone open of this page
+  // (the admin preview) shows the map with no pins rather than a
+  // stale hard-coded set that could disagree with the game.
+  //
+  // The A.R.C. building stamp used to be positioned from constants
+  // here — SVG 326,397, the real OSM plot polygon centre. That number
+  // now lives on the `arc` destination as fx/fy (0.1811, 0.3541, the
+  // same point) so the GPS and the map read one position instead of
+  // two that disagreed by a tenth of the map.
+  let DESTINATIONS = [];
+  let playerLevel = 0;
+  let extent = { cx: 0.5, cy: 0.5, half: 0.5 };
+  let context = 'default';
 
   function clearChildren(node) {
     while (node.firstChild) node.removeChild(node.firstChild);
@@ -1135,39 +1333,303 @@
     return { offsetX, offsetY, scale };
   }
 
-  function svgToScreen(svgX, svgY) {
+  /**
+   * The zoom/pan that frames `extent` — a fraction-box of the map —
+   * against the stage.
+   *
+   * Applied to the SVG alone, not to `.map-canvas`, so the pins stay
+   * their own size: a pin is a tap target before it is a decoration,
+   * and one that grows 1.8x on the level-0 map is a pin that has been
+   * sized by the zoom rather than by a child's fingertip.
+   *
+   * **`Math.min`, not `Math.max`** — and that is the whole
+   * correctness of it. `mapExtentFor` promises that every unlocked
+   * destination is inside the frame; cover fills the stage by
+   * cropping the short axis, which breaks the promise on exactly the
+   * viewport where it matters. The phone is 874x402 and the clip is
+   * 812x325 against a map authored at 1.61, so cover throws away a
+   * quarter to a third of the map's height: Wetlands, at fy 0.86,
+   * falls off the bottom of the clip at full extent while the model
+   * insists it is visible.
+   *
+   * Contain instead. Where the frame is wider than the map, the stage
+   * shows through either side — and the stage is painted sea blue for
+   * this reason, so the spare width reads as more sea rather than as
+   * a letterbox bar.
+   */
+  function mapTransform() {
     const rect = computeSvgRect();
     if (!rect) return null;
+    const stage = document.getElementById('world-stage').getBoundingClientRect();
+    const renderedW = SVG_VIEW_W * rect.scale;
+    const renderedH = SVG_VIEW_H * rect.scale;
+    const span = Math.max(extent.half, 0.02) * 2;
+    const k = Math.min(stage.width / (span * renderedW), stage.height / (span * renderedH));
+    // Put the extent's centre on the stage's centre.
+    const px = rect.offsetX + extent.cx * renderedW;
+    const py = rect.offsetY + extent.cy * renderedH;
     return {
-      x: rect.offsetX + svgX * rect.scale,
-      y: rect.offsetY + svgY * rect.scale,
+      k,
+      tx: stage.width / 2 - k * px,
+      ty: stage.height / 2 - k * py,
+      rect, renderedW, renderedH,
     };
   }
 
+  /** A fraction of the map image → stage pixels, after the extent. */
+  function fracToScreen(fx, fy, t) {
+    if (!t) return null;
+    return {
+      x: t.tx + t.k * (t.rect.offsetX + fx * t.renderedW),
+      y: t.ty + t.k * (t.rect.offsetY + fy * t.renderedH),
+    };
+  }
+
+  function svgToScreen(svgX, svgY) {
+    const t = mapTransform();
+    if (!t) return null;
+    return fracToScreen(svgX / SVG_VIEW_W, svgY / SVG_VIEW_H, t);
+  }
+
+  // ── The destination card ──────────────────────────────────
+
+  function closeCard() {
+    const stage = document.getElementById('world-stage');
+    stage.querySelectorAll('.pin-scrim, .dest-card').forEach((n) => n.remove());
+  }
+
+  function openCard(dest, locked) {
+    closeCard();
+    const stage = document.getElementById('world-stage');
+
+    const scrim = document.createElement('div');
+    scrim.className = 'pin-scrim';
+    scrim.addEventListener('click', closeCard);
+    stage.appendChild(scrim);
+
+    const card = document.createElement('div');
+    card.className = 'dest-card';
+
+    const emoji = document.createElement('div');
+    emoji.className = 'dest-emoji';
+    emoji.textContent = dest.emoji || '📍';
+    card.appendChild(emoji);
+
+    const title = document.createElement('div');
+    title.className = 'dest-title';
+    title.textContent = dest.label;
+    card.appendChild(title);
+
+    const blurb = document.createElement('div');
+    blurb.className = 'dest-blurb';
+    // The distance is what makes a pin a journey rather than a button,
+    // so it goes on the line a child reads before deciding.
+    blurb.textContent = dest.distance
+      ? dest.description + ' · ' + dest.distance + ' km away'
+      : dest.description;
+    card.appendChild(blurb);
+
+    if (locked) {
+      const row = document.createElement('div');
+      row.className = 'dest-locked';
+      row.textContent = '🔒 Opens at level ' + dest.unlockLevel;
+      const close = document.createElement('button');
+      close.className = 'dest-btn ghost spacer';
+      close.textContent = 'Close';
+      close.addEventListener('click', closeCard);
+      row.appendChild(close);
+      card.appendChild(row);
+    } else {
+      const row = document.createElement('div');
+      row.className = 'dest-action';
+      const close = document.createElement('button');
+      close.className = 'dest-btn ghost';
+      close.textContent = 'Not now';
+      close.addEventListener('click', closeCard);
+      row.appendChild(close);
+      const go = document.createElement('button');
+      go.className = 'dest-btn';
+      go.textContent = 'Drive here!';
+      go.addEventListener('click', () => {
+        closeCard();
+        try {
+          window.parent?.postMessage(
+            { source: 'arc-map', type: 'drive-to', payload: { destinationId: dest.id, context } },
+            '*',
+          );
+        } catch (_) { /* iframe-less preview — ignore */ }
+      });
+      row.appendChild(go);
+      card.appendChild(row);
+    }
+
+    stage.appendChild(card);
+  }
+
+  // ── Pins ──────────────────────────────────────────────────
+
+  /**
+   * Draw every destination the host sent.
+   *
+   * A.R.C. keeps the painted building stamp and opens the site view —
+   * you are already there, so it is a place to look at rather than a
+   * place to drive to. Everything else is a disc, tappable into a
+   * card.
+   *
+   * Locked pins are drawn where they fall inside the frame and left
+   * off where they do not. That is the reach half of the level gate
+   * doing its job: the far side of Birchie is not "locked", it is
+   * over the horizon, and it arrives as the map widens.
+   */
   function placePins() {
     const layer = document.getElementById('pin-layer');
     if (!layer) return;
     clearChildren(layer);
-    const pos = svgToScreen(ARC_PLOT_SVG_X, ARC_PLOT_SVG_Y);
-    if (!pos) return;
+    closeCard();
 
-    const img = document.createElement('img');
-    img.className = 'pin pin-arc-building';
-    img.src = 'scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png';
-    img.alt = 'A.R.C.';
-    img.title = 'Click to open the rescue centre';
-    img.style.left = pos.x + 'px';
-    img.style.top = pos.y + 'px';
-    img.addEventListener('click', () => showStage('arc'));
-    layer.appendChild(img);
+    const t = mapTransform();
+    if (!t) return;
 
-    const label = document.createElement('div');
-    label.className = 'pin-arc-label';
-    label.textContent = 'A.R.C.';
-    label.style.left = pos.x + 'px';
-    label.style.top = (pos.y + 10) + 'px';
-    label.addEventListener('click', () => showStage('arc'));
-    layer.appendChild(label);
+    // Frame the map to the player's reach.
+    const svg = document.getElementById('osm-svg');
+    if (svg) {
+      svg.style.transformOrigin = '0 0';
+      svg.style.transform = 'translate(' + t.tx + 'px,' + t.ty + 'px) scale(' + t.k + ')';
+    }
+
+    const stage = document.getElementById('world-stage').getBoundingClientRect();
+    const onStage = (p) => p && p.x >= -4 && p.y >= -4
+      && p.x <= stage.width + 4 && p.y <= stage.height + 4;
+
+    // The scale the whole map would draw at, so anything that belongs
+    // *to* the map — the A.R.C. building stamp — can be sized against
+    // it rather than against the stage.
+    const kAtFullMap = Math.min(
+      stage.width / t.renderedW,
+      stage.height / t.renderedH,
+    );
+
+    // **A pin takes the room the chrome leaves it.**
+    //
+    // The two tabs float over the map at top-left — they stopped being
+    // a banded strip when the map got its 67px back — and a pin that
+    // lands under one is not merely overlapped, it is *untappable*:
+    // the tab is above the pin layer and takes the touch. Found by the
+    // harness, which could not reach a locked pin at level 0 because
+    // "Town map" was sitting on it.
+    //
+    // So a pin whose disc would fall inside the tabs' rect drops just
+    // below them, keeping its x. The same rule the corridor's arrivals
+    // got, for the same reason: the geography moves a few points and
+    // stays legible, where an unreachable control is simply broken.
+    const tabsEl = document.querySelector('.tabs');
+    const tabsBox = tabsEl && tabsEl.offsetParent !== null
+      ? tabsEl.getBoundingClientRect()
+      : null;
+    const PIN_R = 22;    // the disc's half-height plus its border
+    const LABEL_H = 22;  // the name that hangs under the disc
+    const CLEAR = 8;
+    function clearOfChrome(p) {
+      if (!tabsBox) return p;
+      const top = tabsBox.top - stage.top, bottom = tabsBox.bottom - stage.top;
+      const left = tabsBox.left - stage.left, right = tabsBox.right - stage.left;
+      const overlaps = p.x + PIN_R > left && p.x - PIN_R < right
+        && p.y + PIN_R > top && p.y - PIN_R < bottom;
+      return overlaps ? { x: p.x, y: bottom + PIN_R + CLEAR } : p;
+    }
+
+    // **The name is part of the pin.** A marker at the frame's edge
+    // was drawing its disc on screen and its label half off it —
+    // Bramble Farm lost its bottom line and Pinebark Medical lost its
+    // right-hand half — which reads as a place whose name the map
+    // cannot quite say. The whole marker comes inside instead; a pin
+    // genuinely beyond the frame is dropped by `onStage` above, so
+    // this only moves ones that were nearly in.
+    function keepOnStage(p) {
+      const min = PIN_R + 4;
+      return {
+        x: Math.max(min, Math.min(stage.width - min, p.x)),
+        y: Math.max(min, Math.min(stage.height - (PIN_R + LABEL_H + 6), p.y)),
+      };
+    }
+
+    for (const dest of DESTINATIONS) {
+      const raw = fracToScreen(dest.fx, dest.fy, t);
+      if (!onStage(raw)) continue;
+      const locked = dest.unlockLevel > playerLevel;
+      // The A.R.C. stamp is a building drawn on its plot, not a pin —
+      // it keeps its true position.
+      const pos = dest.id === 'arc' ? raw : keepOnStage(clearOfChrome(raw));
+
+      if (dest.id === 'arc') {
+        const img = document.createElement('img');
+        img.className = 'pin pin-arc-building';
+        img.src = 'scene-assets/reference/arc-site-tier1-2026-04-29/arc-main-building.png';
+        img.alt = 'A.R.C.';
+        img.title = 'Click to open the rescue centre';
+        img.style.left = pos.x + 'px';
+        img.style.top = pos.y + 'px';
+        // **The building is on the map, so it zooms with the map.**
+        // Its CSS width is 6% of the *stage*, which was right while
+        // the map was always drawn at one scale. Now that the frame
+        // tightens as the level drops, a fixed 6% meant the child's
+        // own home shrank — relative to the town around it — exactly
+        // as the map zoomed in on it. Sized off the transform, it
+        // keeps its footprint on the ground.
+        img.style.width = (0.06 * stage.width * (t.k / kAtFullMap)) + 'px';
+        img.addEventListener('click', () => showStage('arc'));
+        layer.appendChild(img);
+
+        const label = document.createElement('div');
+        label.className = 'pin-arc-label';
+        label.textContent = 'A.R.C.';
+        label.style.left = pos.x + 'px';
+        label.style.top = (pos.y + 10) + 'px';
+        label.addEventListener('click', () => showStage('arc'));
+        layer.appendChild(label);
+        continue;
+      }
+
+      const pin = document.createElement('div');
+      pin.className = 'pin pin-place' + (locked ? ' locked' : '');
+      pin.style.left = pos.x + 'px';
+      pin.style.top = pos.y + 'px';
+
+      const disc = document.createElement('div');
+      disc.className = 'pin-disc';
+      disc.textContent = dest.emoji || '📍';
+      pin.appendChild(disc);
+
+      if (locked) {
+        const lock = document.createElement('div');
+        lock.className = 'pin-lock';
+        lock.textContent = '🔒';
+        pin.appendChild(lock);
+      }
+
+      const name = document.createElement('div');
+      name.className = 'pin-name';
+      name.textContent = dest.label;
+      pin.appendChild(name);
+
+      pin.addEventListener('click', () => openCard(dest, locked));
+      layer.appendChild(pin);
+    }
+
+    // Second pass, now that the labels have a width.
+    //
+    // `keepOnStage` clamps on the disc's radius, which is all it can
+    // know before layout — and a pin is as wide as its *name*, so
+    // "Pinebark Medical" still hung off the right edge reading
+    // "Pinebark Medic". A name the map cannot finish saying is worse
+    // than a pin a few points off its lane, so the marker comes in by
+    // whatever its own label turns out to need.
+    for (const pin of layer.querySelectorAll('.pin-place')) {
+      const halfW = pin.offsetWidth / 2;
+      const x = parseFloat(pin.style.left);
+      const clamped = Math.max(halfW + 4, Math.min(stage.width - halfW - 4, x));
+      if (clamped !== x) pin.style.left = clamped + 'px';
+    }
   }
 
   document.getElementById('osm-svg').addEventListener('load', placePins);

@@ -55,6 +55,8 @@ import {
   getGrantDef,
   pickRandomFact,
   getDestination,
+  DESTINATIONS,
+  mapExtentFor,
   recordCharmEvent,
   CHARMS,
   equipCharm,
@@ -62,6 +64,7 @@ import {
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
+import { driveTypeFor } from '../driving/drive-state';
 import { getSession } from '../lib/auth';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
@@ -187,9 +190,28 @@ export class GameScene extends Phaser.Scene {
   private preSelectedSpecies: Species | null = null;
   private preSelectedVariant: string | undefined = undefined;
 
-  init(data?: { preSelectedSpecies?: Species; preSelectedVariant?: string }): void {
+  /**
+   * Where the van has just parked, if we got here off a drive.
+   *
+   * `PtvDriveScene` hands this back when it returns, because a scene
+   * start is not a return value: the drive ends by starting GameScene
+   * fresh, so the only way for "you have arrived at the vet, with
+   * Pip" to survive the trip is to travel in the init data.
+   *
+   * Cleared as soon as `create()` acts on it, so a later
+   * `scene.restart()` — the resize handler calls one — does not open
+   * the vet a second time.
+   */
+  private arrived: { destinationId: string; animalId?: string } | null = null;
+
+  init(data?: {
+    preSelectedSpecies?: Species;
+    preSelectedVariant?: string;
+    arrived?: { destinationId: string; animalId?: string };
+  }): void {
     this.preSelectedSpecies = data?.preSelectedSpecies ?? null;
     this.preSelectedVariant = data?.preSelectedVariant;
+    this.arrived = data?.arrived ?? null;
   }
 
   constructor() {
@@ -355,6 +377,114 @@ export class GameScene extends Phaser.Scene {
     // view once the texture is in cache so the kid sees the right
     // breed appear. Debounced — variant textures land in bursts.
     this.load.on('filecomplete', this.onVariantTextureLanded, this);
+
+    // Last, because it opens a room over the one we have just drawn.
+    this.handleArrival();
+  }
+
+  /**
+   * The van has parked somewhere; open what is there.
+   *
+   * This is the far end of the map: a pin is a place, a place has a
+   * room, and the drive is the corridor between them. Without this a
+   * destination is a journey that ends in the car park, which is what
+   * the "Drive to X coming soon!" toast was.
+   *
+   * Read once and cleared, because the resize handler calls
+   * `scene.restart()` and a restart re-runs `create()` — an arrival
+   * that survived would open the vet again every time a child rotated
+   * the phone.
+   */
+  private handleArrival(): void {
+    const arrival = this.arrived;
+    this.arrived = null;
+    if (!arrival) return;
+
+    const dest = getDestination(arrival.destinationId);
+    if (!dest) return;
+
+    this.rewardSafeDrive(arrival.animalId, dest.arrival === 'vet');
+
+    switch (dest.arrival) {
+      case 'vet': {
+        // The passenger, resolved by id: the object the map was opened
+        // with is two `tickAllNeeds` copies out of date by now.
+        const animal = arrival.animalId
+          ? this.store.animals.find((a) => a.id === arrival.animalId)
+          : undefined;
+        const illness = animal ? this.store.sickAnimals.get(animal.id) : undefined;
+        if (animal && illness) {
+          this.mountVetPopup(animal, illness);
+        } else {
+          // Healed on the way, or nobody aboard. Say so rather than
+          // opening an empty treatment room.
+          showToast(this, `🩺 ${dest.label}: nobody needs seeing today.`);
+        }
+        return;
+      }
+      case 'social':
+        this.saveState();
+        this.scene.start('SocialScene');
+        return;
+      case 'supply':
+        this.saveState();
+        this.scene.start('SupplyRunScene', {
+          level: this.store.level,
+          economy: this.store.economy,
+        });
+        return;
+      case 'rewilding': {
+        const animal = arrival.animalId
+          ? this.store.animals.find((a) => a.id === arrival.animalId)
+          : undefined;
+        if (animal) { this.openRewildingOverlay(animal); return; }
+        showToast(this, `${dest.emoji} You have arrived at ${dest.label}.`);
+        return;
+      }
+      case 'home':
+      default:
+        showToast(this, `${dest.emoji} Back at ${dest.label}.`);
+    }
+  }
+
+  /**
+   * What a completed drive is worth.
+   *
+   * Lifted out of `openDriveOverlay`'s `drive-complete` branch, which
+   * is where these rewards used to live — the painted vet cutscene was
+   * the only drive in the game that ever finished, so it was the only
+   * place that could pay out. Now that every destination is a real
+   * journey with a real arrival, the payout belongs to arriving rather
+   * than to one screen: otherwise a child who drives to the vet the
+   * new way loses the happiness bonus and three charm events without
+   * anything saying so.
+   */
+  private rewardSafeDrive(animalId: string | undefined, isVetRun: boolean): void {
+    // +1 happiness for the safe drive. `happiness` is optional on the
+    // type, and resolved by id because the object the map was opened
+    // with is several `tickAllNeeds` copies stale by now.
+    if (animalId) {
+      const idx = this.store.animals.findIndex((a) => a.id === animalId);
+      if (idx >= 0) {
+        const a = this.store.animals[idx];
+        const current = typeof a.happiness === 'number' ? a.happiness : 0;
+        this.store.animals[idx] = { ...a, happiness: Math.min(100, current + 1) };
+      }
+    }
+
+    const wasFirstDrive = !this.store.hasCompletedFirstDrive;
+    this.store.hasCompletedFirstDrive = true;
+
+    // Charms — every PTV drive counts toward the 100-drive Golden
+    // Driving Medal and the 10-drive Silver Horseshoe. The comfort
+    // variant fires because a PTV run has no cargo crate to wobble;
+    // when the supply runs gain one, this is the line that has to
+    // start asking.
+    this.fireCharmEvent('drive-completed');
+    this.fireCharmEvent('drive-completed-with-comfort');
+    if (wasFirstDrive && isVetRun) this.fireCharmEvent('first-vet-run');
+
+    this.saveState();
   }
 
   /**
@@ -743,7 +873,12 @@ export class GameScene extends Phaser.Scene {
         onHome: () => { this.viewMode = 'corridor'; this.renderView(); },
         onCare: () => { this.viewMode = 'kitchen'; this.renderView(); },
         onWalk: () => this.handleWalkTap(),
-        onSocial: () => { this.saveState(); this.scene.start('SocialScene'); },
+        // The map, not Social. Social is a place on it now — the
+        // village hall — so the rail stopped naming one destination
+        // and started opening all of them. `openMapOverlay` had no
+        // caller at all until this line; the map has been finished and
+        // unreachable since it was built.
+        onMap: () => this.openMapOverlay(),
         onFab: () => this.showGamesPopup(),
       },
     );
@@ -1375,26 +1510,37 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Mount the HTML world-map overlay. Players use this map to pick driving
-   * destinations — supply runs, adoption deliveries, rewilding releases,
-   * and visits to rewilded animals in their habitats.
+   * Mount the HTML world-map overlay — the mission hub.
    *
-   * The map posts a 'drive-to' action with `{ destinationId, context }` when
-   * the player taps "Drive here!". For v1 we just toast the intent — wiring
-   * to an actual drive scene is v2. The `context` parameter is reserved so
-   * later callers can open the map filtered to rewilded-visit destinations
-   * (e.g. openMapOverlay('visit-rewilded')).
+   * Every place a child can drive to is a pin here: the vet, the
+   * village hall, the supply farms, the rewilding habitats. Tapping
+   * one opens its card; "Drive here!" posts `drive-to` and we put her
+   * in the van.
+   *
+   * **The map holds no destination table.** `map.html` is a static
+   * page and cannot import `destinations.ts`, so the list goes to it
+   * on init, already carrying each place's unlock level, together
+   * with the extent that frames the ones she can reach. The page
+   * draws what it is given. Two tables of the same places drifting
+   * apart is the defect this whole item was cleaning up.
+   *
+   * `animalId` names the passenger, when there is one. Heal opens the
+   * map with a poorly animal in the back, so the vet at the far end
+   * knows who it is treating; an idle map opens with nobody aboard.
    */
-  public openMapOverlay(context: 'default' | 'visit-rewilded' = 'default'): void {
+  public openMapOverlay(
+    context: 'default' | 'visit-rewilded' | 'vet' = 'default',
+    animalId?: string,
+  ): void {
     const unmount = mountInGame('map', {
       onAction: (action, payload) => {
         if (action === 'close' || action === 'back-to-menu') { unmount(); return; }
         if (action === 'drive-to') {
           const id = typeof payload?.destinationId === 'string' ? payload.destinationId : '';
           const dest = getDestination(id);
-          const name = dest?.label ?? id;
-          showToast(this, `🗺 Drive to ${name} coming soon!`);
+          if (!dest) { unmount(); return; }
           unmount();
+          this.driveTo(dest.id, animalId);
           return;
         }
         // Tunnel-mouth tap on the A.R.C. site map → unmount map and
@@ -1405,8 +1551,40 @@ export class GameScene extends Phaser.Scene {
           return;
         }
       },
-    }, { context, playerLevel: this.store.level });
+    }, {
+      context,
+      playerLevel: this.store.level,
+      destinations: DESTINATIONS,
+      extent: mapExtentFor(this.store.level),
+    });
     this.events.once('shutdown', unmountInGame);
+  }
+
+  /**
+   * Put the player in the van and drive to `destinationId`.
+   *
+   * The whole driving engine has been finished and unreachable since
+   * it was written — `PtvDriveScene` had no `scene.start` anywhere in
+   * the game, and ran only under `?ptvDemo=1`. This is the call that
+   * connects it.
+   *
+   * The passenger travels *through* the drive rather than being left
+   * on the store: `returnData` is echoed back untouched when the van
+   * parks, so `create()` picks it up in `init` data. A scene start is
+   * not a return value, and the alternative — parking transient state
+   * on the persisted store — is a field that would get saved.
+   */
+  private driveTo(destinationId: string, animalId?: string): void {
+    this.saveState();
+    this.scene.start('PtvDriveScene', {
+      destinationId,
+      driveType: driveTypeFor(destinationId),
+      level: this.store.level,
+      economy: this.store.economy,
+      weather: this.store.gardenWeather?.current,
+      returnTo: 'GameScene',
+      returnData: animalId ? { animalId } : {},
+    });
   }
 
   /**
@@ -1572,22 +1750,34 @@ export class GameScene extends Phaser.Scene {
     const illness = this.store.sickAnimals.get(animal.id);
     if (!illness) return;
 
-    // PTV first-drive: offer a painted vet-run drive before the vet
-    // popup opens. The drive overlay posts `drive-complete` (apply
-    // +1 happiness bonus, then open the vet popup) or `drive-skipped`
-    // (open the vet popup directly, no bonus). On first completion
-    // we flip `hasCompletedFirstDrive` so subsequent vet runs skip
-    // the tutorial banner + dashboard-label spotlights.
-    this.openDriveOverlay(animal, illness.label?.toLowerCase() ?? 'tummy bug', () => {
-      this.mountVetPopup(animal, illness);
-    });
+    // **The vet is a place, not a button.** Heal used to run the
+    // painted drive cutscene straight into the treatment popup, which
+    // made the journey a fixed animation between two screens. It opens
+    // the map instead, with the poorly animal aboard: she picks Bay
+    // Road Vets off the pins, drives there, and the arrival hands the
+    // passenger back to `handleArrival`, which opens this same popup.
+    //
+    // The vet is unlockLevel 0 precisely so this can never dead-end —
+    // a poorly animal on a child's first day must have somewhere to go.
+    this.openMapOverlay('vet', animal.id);
   }
 
   /**
-   * Mount the painted drive overlay (CTA → drive → arrival). On
-   * completion calls `onArrive` so the caller can open the next
-   * screen (today: the vet popup). On skip, calls `onArrive` without
-   * the happiness bonus.
+   * Mount the painted drive overlay (CTA → drive → arrival).
+   *
+   * **No caller since 2026-09-04.** This is the fixed-route cutscene:
+   * a CSS-drawn clinic hard-coded to Bay Road Vets, with the drive as
+   * an animation between two screens. Heal now opens the map instead,
+   * and `PtvDriveScene` draws a real arrival — the van coming off the
+   * road and parking in front of the building — for *every*
+   * destination, which is the thing this could not do.
+   *
+   * Its rewards moved to `rewardSafeDrive`. Kept rather than deleted
+   * because the cutscene's arrival beat is the part Marcus asked for
+   * and the per-destination forecourts are still unpainted; if the
+   * Phaser arrival turns out to want a painted overlay in front of it,
+   * this is the shape of it. Decide it on a device, then delete or
+   * revive — do not leave it in this state indefinitely.
    */
   private openDriveOverlay(
     animal: Animal,

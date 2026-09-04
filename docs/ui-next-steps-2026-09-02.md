@@ -380,7 +380,93 @@ exists to bridge `COLOURS` into the Phaser side.
 §7. Needs commissioned art for anything missing, so it is a lead-time
 item — worth starting the ask early even though the code is last.
 
-### 11. The map becomes the mission hub
+**The commission is now one ask with six jobs** (was three):
+
+1. A music note for the sound toggle — the speaker is painted, the note
+   is typeset.
+2. The drive picker's forecourt flanks (item 7b).
+3. Item 10's emoji furniture.
+4. **`nav-map`** — the rail's fourth cell. Nothing exists; the chain runs
+   out and the cell draws a lettered disc. It is the one visibly
+   unfinished thing on the default layout.
+5. **A building per destination**, `site-<id>-building.png`, matching
+   `site-arc-building.png`. Ten of them. The arrival draws a chrome
+   signboard where the building goes until each lands, so this is
+   incremental — every one that arrives improves one journey.
+6. **A pin icon per destination** would be better than the emoji the
+   pins currently carry, which are the same emoji §7 wants retired
+   everywhere else. Lower priority than 5: a 21px emoji in a cream disc
+   reads acceptably; a 40%-of-screen emoji standing in for a building
+   does not.
+
+### 11. ~~The map becomes the mission hub~~ — shipped, bar the art
+**Done 2026-09-04.** Every pin is a place, tapping one drives there, and
+arriving opens what is inside. ux-review holds at **2 FAIL / 14 WARN**,
+the same as the side-nav baseline; 1199 tests, typecheck clean, no new
+lint warnings.
+
+The rail is **Home / Care / Walk / Map**. Social is the village hall on
+the map. Heal opens the map with the poorly animal aboard.
+
+**Six things it turned out to need that the plan below did not list.**
+
+- **The drive had no end.** `drive.progress` clamped at 1 and the road
+  kept scrolling — invisible while the only way in was `?ptvDemo=1` and
+  the only way out was Back. `renderArrival` is the mirror of
+  `renderParking`: the van comes off the road, swings into a bay and
+  stops in front of the building, then "Go inside" hands back. Marcus's
+  call, and the right one — the arrival is a beat, not a transition.
+- **`applyRoadSwitch` runs 180ms after `switchRoad` schedules it**, and
+  it rebuilds `vanGfx` at road geometry *without going through
+  `renderView`*. A road change beginning in the last moments of a route
+  therefore landed on top of the freshly-drawn forecourt and swapped the
+  parked van for a road one. Every number in the arrival was correct and
+  the arrival was demonstrably the last thing to render, which is what
+  made it expensive. Both halves are guarded on `phase === 'travel'` now.
+- **Three tables held the same positions and two of them disagreed.**
+  `destinations.ts`'s abstract `mapX/mapY` (coast at the bottom),
+  `birchie-places.ts`'s `BIRCHIE_PLACES` (coast at the top), and
+  `map.html`'s own `ARC_PLOT_SVG_X/Y`. The last is the only one derived
+  from anything — the real OSM plot polygon — so it won: `arc` is
+  `fx 0.1811, fy 0.3541`, `ARC_PLACE` reads it, and the other two are
+  gone. **The GPS had been starting every route a tenth of the map east
+  of the building.**
+- **Half the destinations were in the sea.** Cove Harbour and Sea Cliffs
+  were in open water and Moorland was on the waterline; nothing had ever
+  drawn them, so nothing had ever said so. All ten are placed against the
+  drawn map now. Still Marcus's to nudge — but there is one set to nudge
+  and it is on land.
+- **The tab strip ate the pins under it**, and it sat in the Dynamic
+  Island's band (x 14–50pt) besides. The tabs are top-right now, and a
+  pin that would fall under chrome or off the frame comes inside —
+  measured after layout, because a pin is as wide as its *name* and
+  "Pinebark Medical" was reading "Pinebark Medic".
+- **The old painted cutscene carried real rewards** — +1 happiness, the
+  first-drive flag, three charm events — and it was the only drive in the
+  game that ever finished, so it was the only place that could pay out.
+  They are on `rewardSafeDrive` now, which every arrival calls.
+
+**What is left on this item.**
+
+- **`openDriveOverlay` has no caller.** 828 lines of `drive-overlay.html`
+  and its mount, kept rather than deleted because the cutscene's arrival
+  beat is what Marcus asked for and the per-destination forecourts are
+  unpainted. Decide it on a device: delete, or revive as a painted layer
+  in front of the Phaser arrival. Do not leave it in this state.
+- **Art, and it is the whole remaining gap** — see the commission list
+  below. A destination with no building draws a chrome signboard with its
+  emoji and name, which is honest and is not a forecourt.
+- **The map extent is `contain`, not `cover`.** On an 874x402 phone that
+  means the frame shows ~76% of the map's width at level 0 against the
+  56% the model asks for, so the reach progression reads more in the zoom
+  than in the pin count. Cover would honour the width and crop the
+  height, which drops Wetlands off the bottom of the 812x325 clip. The
+  real answer is an aspect-aware extent; the current one is correct and
+  merely generous.
+
+---
+
+### 11 (original brief, kept for the reasoning)
 **Marcus's brief, 2026-09-04.** Social comes off the rail and becomes a
 place on the map — a village hall. Map takes its slot. Destinations show
 on the map and build up in number *and in reach* as the level rises.
