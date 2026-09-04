@@ -18,7 +18,7 @@ import {
 } from '../ui/UIButton';
 import { showToast } from '../ui/ErrorOverlay';
 import { createAnimalSprite } from '../ui/sprites';
-import { COLOURS, FONTS, TEXT_RESOLUTION, EDGE_CONTROL_INSET, TITLE_CY, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, EDGE_CONTROL_INSET, TITLE_CY, TYPE, MESSAGE_BOTTOM_FRAC } from '../ui/constants';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
 import { createWeatherParticles, type WeatherParticleHandle } from '../ui/WeatherParticles';
 import type { GameStateStore } from '../game-state';
@@ -291,9 +291,12 @@ function renderZone(
   // while the words were unplated and would not be once they are.
   if (zoneAnimals.length === 0) {
     const isFirstEver = pets.length === 0 && outsiders.length === 0 && zone === 'lawn';
-    container.add(
-      createChromeTitle(
-        scene, play.x + play.w / 2, (play.y + dotY - 12) / 2,
+    // Placed by its *bottom*, on the bird bath's line — see
+    // MESSAGE_BOTTOM_FRAC. The y here is provisional; the plate is measured
+    // and moved below, because its height depends on which of the two
+    // strings it is carrying and whether the subtitle is on.
+    const message = createChromeTitle(
+        scene, play.x + play.w / 2, play.y + play.h * MESSAGE_BOTTOM_FRAC,
         isFirstEver ? 'No pets yet!' : `Nobody in the ${zone} right now.`,
         {
           overArt: true,
@@ -303,8 +306,9 @@ function renderZone(
             ? 'Keep caring for your animals — when their bond\nreaches 100%, they become your pet forever!'
             : undefined,
         },
-      ),
     );
+    message.setY(play.y + play.h * MESSAGE_BOTTOM_FRAC - message.height / 2);
+    container.add(message);
   } else {
     const petsHere = pets.length;
     const visitorsHere = outsiders.length;

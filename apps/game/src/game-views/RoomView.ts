@@ -4,7 +4,7 @@ import { SPECIES_COLOURS, getAvailableDecorationCounts, getRoomDecorations } fro
 import { createChromeTitle } from '../ui/UIButton';
 import { createAnimalSprite } from '../ui/sprites';
 import { RoomAnchors, type Anchor } from '../lib/RoomAnchors';
-import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, SAFE_MARGIN, TITLE_CY, TYPE } from '../ui/constants';
+import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, SAFE_MARGIN, TITLE_CY, TYPE, MESSAGE_BOTTOM_FRAC, TITLE_PLATE_H } from '../ui/constants';
 import { getDecorationEmoji } from '../ui/DecoratePanel';
 import type { GameStateStore } from '../game-state';
 import type { ResolvedAnchor } from './GardenView';
@@ -134,7 +134,11 @@ export function renderRoom(
     // over painted cat beds, cushions and balls of wool. It also had no
     // `resolution`, so it was drawn at 1x on a 3x display.
     container.add(
-      createChromeTitle(scene, play.x + play.w / 2, play.y + play.h / 2,
+      // On the message line, not the band's centre — see
+      // MESSAGE_BOTTOM_FRAC. One line, so the plate's height is known and
+      // it does not need measuring back the way the garden's does.
+      createChromeTitle(scene, play.x + play.w / 2,
+        play.y + play.h * MESSAGE_BOTTOM_FRAC - TITLE_PLATE_H / 2,
         'No animals here yet.', { fontSize: TYPE.body, overArt: true }),
     );
   } else {

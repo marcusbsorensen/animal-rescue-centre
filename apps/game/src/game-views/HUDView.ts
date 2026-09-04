@@ -673,25 +673,32 @@ function renderSideNavHeader(
   }
 
   // ── Under it: the two sounds ─────────────────────────────
-  // Words, not icons, and only because the art does not exist: there is an
-  // `icon-music-on`/`off` pair and nothing at all for effects, so a pair of
-  // wordless chips would be one speaker icon and one guess. Two pills is
-  // the honest interim; an effects icon is a commission.
+  // Two discs, shaped like the rail's, with no words on them. A speaker
+  // and a note are controls a seven-year-old has already met on every
+  // device in the house, so the icon is allowed to carry this on its own
+  // where the rail's four destinations were not.
   //
-  // Both filled while both are on, which the `variant` doc warns against
-  // for *emphasis* — but these are toggles, and two toggles that are on
-  // reading as on is the state, not a shout.
+  // Full colour is on; grey with a line through it is off. That is the
+  // convention those controls already use, and it is two channels rather
+  // than one — a child who reads neither the grey nor the slash still has
+  // the other.
+  // Placed by the *tap* radius, not the drawn one — `MIN_TAP / 2` is 24
+  // against a 22px disc, so laying these out from `CHIP_R` left the
+  // right-hand one 14px from the screen and the pair 8px apart, against a
+  // SAFE_MARGIN of 16 and a MIN_TAP_GAP of 12. The same correction the
+  // level orb above carries, for the same two pixels.
   const audio = AudioManager.getInstance().getState();
-  const musicX = rightEdge - AUDIO_PILL_W / 2;
-  const sfxX = musicX - AUDIO_PILL_W - MIN_TAP_GAP;
-  drawAudioPill(scene, container, {
+  const musicX = rightEdge - MIN_TAP / 2;
+  const sfxX = musicX - MIN_TAP - MIN_TAP_GAP;
+  drawAudioDisc(scene, container, {
     cx: musicX, cy: chipCy, on: audio.musicEnabled, label: 'Music',
-    iconKey: audio.musicEnabled ? 'icon-music-on' : 'icon-music-off',
+    glyph: '\u266B',
     onTap: callbacks.onAudioToggle,
     onHold: () => callbacks.onAudioVolume('music', musicX, chipCy),
   });
-  drawAudioPill(scene, container, {
+  drawAudioDisc(scene, container, {
     cx: sfxX, cy: chipCy, on: audio.sfxEnabled, label: 'Sounds',
+    iconKey: 'icon-music-on', glyph: '\u25B6',
     onTap: callbacks.onSfxToggle,
     onHold: () => callbacks.onAudioVolume('sfx', sfxX, chipCy),
   });
@@ -780,16 +787,20 @@ function drawPanelStat(
   return cx + seg;
 }
 
-/** Width of a sound pill — "Sounds" at TYPE.caption plus the plate's padding. */
-const AUDIO_PILL_W = 84;
-
-interface AudioPillOpts {
+interface AudioDiscOpts {
   cx: number;
   cy: number;
   on: boolean;
+  /** Kept on the object rather than drawn — same reason as drawStatusChip. */
   label: string;
-  /** Optional; only Music has art. See the note at the call site. */
+  /**
+   * The painted icon, where one exists. Only the speaker does
+   * (`icon-music-on`), and it goes on *effects* — a speaker is the sound a
+   * thing makes, and a note is the music. Music falls to `glyph`.
+   */
   iconKey?: string;
+  /** The typeset stand-in, and what Music uses until a note is painted. */
+  glyph: string;
   onTap: () => void;
   onHold: () => void;
 }
@@ -803,38 +814,49 @@ interface AudioPillOpts {
  * the hold is never found, and the tap is the action a seven-year-old
  * actually wants — off, now, because someone is talking.
  */
-function drawAudioPill(
+function drawAudioDisc(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
-  opts: AudioPillOpts,
+  opts: AudioDiscOpts,
 ): void {
-  const { cx, cy, on, label, iconKey, onTap, onHold } = opts;
-  const h = CHIP_R * 2;
+  const { cx, cy, on, label, iconKey, glyph, onTap, onHold } = opts;
 
-  container.add(createChromePlate(scene, cx, cy, AUDIO_PILL_W, h, {
-    radius: CHIP_R,
-    variant: on ? 'filled' : 'plate',
-  }));
+  const plate = createChromePlate(scene, cx, cy, CHIP_R * 2, CHIP_R * 2, { radius: CHIP_R });
+  plate.setData('label', label);
+  plate.setData('state', on ? 'on' : 'off');
+  container.add(plate);
 
-  // The music glyphs carry their own colours — a green speaker, a grey one
-  // with a red cross — so they are `artwork` and are never tinted. That is
-  // also why the icon alone would do for Music and cannot for Sounds.
-  const hasIcon = !!iconKey && scene.textures.exists(iconKey);
-  if (hasIcon) {
-    scene.textures.get(iconKey!).setFilter(Phaser.Textures.FilterMode.LINEAR);
+  const ink = on ? COLOURS.primary : COLOURS.textLight;
+  if (iconKey && scene.textures.exists(iconKey)) {
+    scene.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
+    const img = scene.add.image(cx, cy, iconKey)
+      .setDisplaySize(CHIP_R * 1.15, CHIP_R * 1.15).setOrigin(0.5);
+    // Off greys the artwork rather than swapping it. `icon-music-off` is
+    // the same speaker with a red cross already drawn on, which would give
+    // this disc two negations — the cross and the line below it.
+    if (!on) img.setTint(hexNum(COLOURS.textLight));
+    container.add(img);
+  } else {
     container.add(
-      scene.add.image(cx - AUDIO_PILL_W / 2 + 18, cy, iconKey!)
-        .setDisplaySize(20, 20).setOrigin(0.5),
+      scene.add.text(cx, cy, glyph, {
+        fontSize: TYPE.lead, fontFamily: FONTS.ui,
+        color: ink, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5),
     );
   }
-  container.add(
-    scene.add.text(hasIcon ? cx + 8 : cx, cy, label, {
-      fontSize: TYPE.caption, fontFamily: FONTS.ui, fontStyle: 'bold',
-      color: on ? COLOURS.bg : CHROME.inkMuted, resolution: TEXT_RESOLUTION,
-    }).setOrigin(hasIcon ? 0.5 : 0.5, 0.5),
-  );
 
-  const hit = scene.add.rectangle(cx, cy, Math.max(AUDIO_PILL_W, MIN_TAP), Math.max(h, MIN_TAP), 0x000000, 0)
+  if (!on) {
+    // The line, drawn over the icon and inset so it reads as struck
+    // through rather than as a border. Top-left to bottom-right, which is
+    // the direction every mute glyph a child has seen uses.
+    const r = CHIP_R - 6;
+    const slash = scene.add.graphics();
+    slash.lineStyle(3, hexNum(COLOURS.textLight), 0.95);
+    slash.lineBetween(cx - r * 0.7, cy - r * 0.7, cx + r * 0.7, cy + r * 0.7);
+    container.add(slash);
+  }
+
+  const hit = scene.add.circle(cx, cy, Math.max(CHIP_R, MIN_TAP / 2), 0x000000, 0)
     .setInteractive({ useHandCursor: true });
   let held = false;
   let timer: Phaser.Time.TimerEvent | undefined;

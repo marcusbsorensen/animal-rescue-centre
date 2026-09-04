@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   FONTS, TEXT_RESOLUTION, MIN_TAP, MIN_TAP_GAP, TYPE, NAV_COLOURS, hexNum,
-  SPACE, statusRowCy, SAFE_MARGIN,
+  SPACE, statusRowCy, SAFE_MARGIN, COLOURS,
 } from '../ui/constants';
 import { NAV_RAIL_WIDTH, railEdgeInset } from '../ui/layout';
 import type { NavBarCallbacks, NavBarOptions } from './NavBarView';
@@ -31,8 +31,12 @@ import type { NavBarCallbacks, NavBarOptions } from './NavBarView';
  * cut, not the type.
  */
 
-/** Height of one rail cell — icon above label, clearing MIN_TAP by 8. */
-const CELL_H = 56;
+/**
+ * The tallest a rail cell wants to be — icon above label, clearing MIN_TAP
+ * by 8. It shrinks toward `MIN_TAP` where the header above leaves less; see
+ * `cellHeightFor`.
+ */
+const CELL_H_MAX = 56;
 /**
  * Radius of a header status chip — the rail's column starts below them.
  * Same number as `HUDView`'s `CHIP_R`; the two rows have to agree and the
@@ -46,6 +50,15 @@ const CHIP_R = 22;
  * This was 10 and the measured run caught it.
  */
 const CELL_GAP = MIN_TAP_GAP;
+/**
+ * Room the label takes under the disc.
+ *
+ * `TYPE.caption` bold in `FONTS.body` measures ~18 tall. Hard-coded rather
+ * than measured because the disc has to be sized before the text exists,
+ * and every cell's label is the same size — if the type scale moves, this
+ * moves with it.
+ */
+const LABEL_H = 18;
 /**
  * Space left below the last cell.
  *
@@ -63,6 +76,25 @@ const CELL_GAP = MIN_TAP_GAP;
  * against. On the clip the last control may still sit under the indicator.
  */
 const BOTTOM_MARGIN = SAFE_MARGIN;
+
+/**
+ * The height a cell may take, given the room between the header and the
+ * bottom margin.
+ *
+ * The stack was a fixed 4 x 56 + 3 x 12 = 260 and the header leaves 247 on
+ * a 402pt screen, so the top cell rode up *through* the status chips — the
+ * Back button and the time-of-day disc overlapping by 4.5px, which is what
+ * Marcus saw. A fixed stack under a fixed header is two constants that
+ * agree until one of them moves.
+ *
+ * Floored at `MIN_TAP`: a cell is a tap target before it is a layout, and
+ * where even that will not fit the item count is what has to give — the
+ * same conclusion the four-not-five arithmetic reached above.
+ */
+function cellHeightFor(available: number, count: number): number {
+  const gaps = Math.max(0, count - 1) * CELL_GAP;
+  return Phaser.Math.Clamp((available - gaps) / count, MIN_TAP, CELL_H_MAX);
+}
 
 type RailItem = {
   iconKey: string;
@@ -136,6 +168,7 @@ export function renderNavRail(
   // the top third anyway.
   const bgTop = statusRowCy(CHIP_R) + CHIP_R + SPACE.s;
   const bgH = height - bgTop - 6;
+  const CELL_H = cellHeightFor(height - bgTop - BOTTOM_MARGIN, items.length);
   const bg = scene.add.graphics();
   bg.fillStyle(0x000000, 0.12);
   bg.fillRoundedRect(railX + 2, bgTop + 2, railW, bgH, railW / 2);
@@ -151,44 +184,58 @@ export function renderNavRail(
     const cy = stackTop + i * (CELL_H + CELL_GAP) + CELL_H / 2;
 
     const hue = hexNum(item.colour);
-    const iconPx = item.active ? 34 : 31;
 
-    // The destination's colour, on every cell rather than only the one you
-    // are standing in — a rail where three of four cells look alike has
-    // told a child nothing until she picks one. The halo is behind the
-    // icon's own cream disc, so it reads as a ring around the painting
-    // rather than a wash over it.
-    const halo = scene.add.graphics();
+    // Disc and label are sized *from the cell*, not from constants, and
+    // that is the whole lesson of this pass: the cell height is itself
+    // derived from what the header leaves, so a fixed 44px disc plus an
+    // 18px label came to 64 in a 53px cell and the label hung out of the
+    // bottom of its own tap target. `ux-review` reads a label that is only
+    // partly inside its control as text cut by a control, which is exactly
+    // what it is.
+    const discD = Math.max(MIN_TAP - 20, CELL_H - LABEL_H - 2);
+    const discR = discD / 2;
+    const iconPx = discD - 12;
+    const iconCy = cy - CELL_H / 2 + discR;
+
+    // **The disc is the colour, not a wash behind it.**
+    //
+    // The first attempt tinted the label and put a 0.2-alpha halo behind
+    // the icon — and behind the icon's own opaque cream disc, which is
+    // where it stayed. The rail still read as four identical cream circles
+    // with small coloured words under them, which is the thing the colour
+    // was meant to fix.
+    //
+    // So the painted icon is drawn smaller than the disc and sits *on* it:
+    // a solid ring of the destination's hue, wide enough to read at arm's
+    // length. Inactive cells carry it at 0.55 so the one you are standing
+    // in is still the loudest.
+    const disc = scene.add.graphics();
     if (item.active) {
-      halo.fillStyle(hue, 0.14);
-      halo.fillRoundedRect(railX + 5, cy - CELL_H / 2 + 2, railW - 10, CELL_H - 4, 16);
+      disc.fillStyle(hue, 0.16);
+      disc.fillRoundedRect(railX + 5, cy - CELL_H / 2 + 2, railW - 10, CELL_H - 4, 16);
     }
-    halo.fillStyle(hue, item.active ? 0.34 : 0.2);
-    halo.fillCircle(cx, cy - 9, iconPx / 2 + 4);
-    if (item.active) {
-      halo.lineStyle(2, hue, 0.9);
-      halo.strokeCircle(cx, cy - 9, iconPx / 2 + 4);
-    }
-    navContainer.add(halo);
+    disc.fillStyle(hue, item.active ? 1 : 0.55);
+    disc.fillCircle(cx, iconCy, discR);
+    navContainer.add(disc);
 
     if (scene.textures.exists(item.iconKey)) {
-      const img = scene.add.image(cx, cy - 9, item.iconKey)
+      const img = scene.add.image(cx, iconCy, item.iconKey)
         .setDisplaySize(iconPx, iconPx)
         .setOrigin(0.5);
       scene.textures.get(item.iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
-      if (!item.active) img.setAlpha(0.82);
+      if (!item.active) img.setAlpha(0.9);
       navContainer.add(img);
     } else {
       navContainer.add(
-        scene.add.text(cx, cy - 9, item.label.slice(0, 2), {
+        scene.add.text(cx, iconCy, item.label.slice(0, 2), {
           fontSize: `${iconPx}px`, fontFamily: FONTS.title, fontStyle: 'bold',
-          color: item.colour, resolution: TEXT_RESOLUTION,
+          color: COLOURS.bg, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
       );
     }
 
     navContainer.add(
-      scene.add.text(cx, cy + 15, item.label, {
+      scene.add.text(cx, cy + CELL_H / 2 - LABEL_H / 2, item.label, {
         fontSize: TYPE.caption,
         fontFamily: FONTS.body, fontStyle: 'bold',
         color: item.colour, resolution: TEXT_RESOLUTION,
@@ -211,5 +258,5 @@ export function renderNavRail(
  * item count is the first thing to cut if the device says so.
  */
 export function navRailStackHeight(itemCount: number): number {
-  return itemCount * CELL_H + Math.max(0, itemCount - 1) * CELL_GAP;
+  return itemCount * CELL_H_MAX + Math.max(0, itemCount - 1) * CELL_GAP;
 }

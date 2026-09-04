@@ -399,6 +399,24 @@ export const TITLE_CY = 45;
 export const TITLE_PLATE_H = 51;
 
 /**
+ * Where a mid-room message panel's *bottom* sits, as a fraction of the
+ * play box.
+ *
+ * Messages used to be centred on the band, which on a 402pt screen put
+ * "No pets yet!" at y 96..170 — level with the status chips and close
+ * enough to the header that any longer string would have met it. Sitting
+ * them low removes the collision rather than tuning the gap.
+ *
+ * 0.65 is not arbitrary: on the garden it is the top of the painted bird
+ * bath, which is the line Marcus picked by eye, and the number holds
+ * across viewports because the art is drawn to the play box, so a fraction
+ * of the box tracks a fraction of the painting. On the other rooms it is
+ * the lower third, which is where the floor is — a panel there covers
+ * scenery rather than subject.
+ */
+export const MESSAGE_BOTTOM_FRAC = 0.65;
+
+/**
  * Centre-line of the icon-only status chips under the side-nav title.
  *
  * `SPACE.l`, not `SPACE.s`: the row below the header carries controls (the
