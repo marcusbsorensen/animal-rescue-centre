@@ -429,6 +429,16 @@ squashed anything not square; and the building was fitted strictly above
 the message at 158px on an 874-wide screen, where the drive picker had
 already settled that a building runs down behind its own tarmac.
 
+**One building already existed and I did not find it first.**
+`assets/driving/destinations/bay-road-vets.png` — a cream cottage with a
+green cross, same watercolour hand, dated 28 Aug, **referenced by no code
+at all**. I searched `driving/topdown/` and for habitat names and never
+looked for a `destinations/` folder. It covers one of the ten and reads
+as a cottage rather than as one of this set, so the commission stands —
+but the miss is the point: orphaned art in this repo is not discoverable
+by grepping the source, because nothing references it. Marcus to say
+whether it is deleted or kept.
+
 **What is left here:** the buildings are one render each and have not been
 seen on a device. The A.R.C. building is a slightly softer, lighter hand
 than the five new ones — they read as a set with each other, and the
