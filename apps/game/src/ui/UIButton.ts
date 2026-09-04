@@ -373,15 +373,21 @@ export function createChromeButton(
     /**
      * Which of the two kinds of icon this key is.
      *
-     * `artwork` (default) — a painterly piece carrying its own colours,
-     * like `icon-feed` or `icon-depot`. Drawn as it was painted.
+     * `glyph` (default) — white line art on transparency, tinted to
+     * whatever ink the button is already setting its label in. One asset
+     * reads in both weights: dark on the plate, cream on the filled
+     * button.
      *
-     * `glyph` — a line drawing in white or pale grey: `icon-back`,
-     * `icon-accept`, `icon-walk`. Those were made when every button had a
-     * dark fill, and on cream paper they all but disappear. A glyph is
-     * tinted to whatever ink the button is already setting its label in,
-     * so one asset reads in both weights — dark on the plate, cream on the
-     * filled button — and neither needs redrawing.
+     * `artwork` — a painterly piece carrying its own colours, drawn as it
+     * was painted.
+     *
+     * **The default flipped on 2026-09-04**, when the whole interface set
+     * was redrawn as vector line art (`tools/icons/icon-set.mjs`). Before
+     * that, every icon was a painted illustration authored at 128px and
+     * drawn at 24 — a five-fold downscale, which is why the set had to
+     * go. `glyph` was the opt-in for the three line drawings that already
+     * existed; now line art *is* the set, so it is the default and
+     * `artwork` is the exception for anything still painted.
      *
      * Two kinds rather than tinting everything, because tint multiplies:
      * exactly right for white line art, ruinous for anything painted.
@@ -477,7 +483,7 @@ export function createChromeButton(
   if (options?.icon && scene.textures.exists(options.icon)) {
     iconSprite = scene.add.image(0, 0, options.icon).setOrigin(0.5);
     iconSprite.setScale(iconSize / Math.max(iconSprite.width, iconSprite.height));
-    if (options.iconStyle === 'glyph') iconSprite.setTint(hexNum(inkHex));
+    if (options.iconStyle !== 'artwork') iconSprite.setTint(hexNum(inkHex));
     iconOffset = (iconSize + 6) / 2;
     text.setX(iconOffset);
     iconSprite.setX(-text.width / 2 - 6 + iconOffset - iconSize / 2);

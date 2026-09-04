@@ -46,11 +46,7 @@ export function renderNavBar(
   // Painterly nav icons live in signs/ — fall back to older icons/ keys
   const homeKey = scene.textures.exists('nav-home') ? 'nav-home' : 'icon-home';
   const careKey = scene.textures.exists('nav-care') ? 'nav-care' : 'icon-kitchen';
-  // Nothing painted for the map yet — the chain runs out and the tab
-  // draws its label alone. See NavRailView for the same note.
-  const mapKey = scene.textures.exists('nav-map')
-    ? 'nav-map'
-    : (scene.textures.exists('icon-map') ? 'icon-map' : 'nav-map');
+  const mapKey = scene.textures.exists('nav-map') ? 'nav-map' : 'icon-map';
   // 'nav-walk' has never existed on disk, and still doesn't. Keep reading
   // 'nav-play' first: signs/nav-play.png is the file that exists, and adding
   // a nav-walk.png would be dead art — the file made, unused, while the tab

@@ -7,7 +7,7 @@ import { createChromeButton, createChromeTitle, createChromePlate } from '../ui/
 import { useRetinaText } from '../ui/retina-text';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Economy } from '@arc/shared-types';
-import { VEHICLE_DEFS, getDestination, type VehicleDef, type VehicleType } from '@arc/game-logic';
+import { VEHICLE_DEFS, DESTINATIONS, getDestination, type VehicleDef, type VehicleType } from '@arc/game-logic';
 import {
   createDriveState,
   cycleGear,
@@ -344,6 +344,13 @@ export class PtvDriveScene extends Phaser.Scene {
     tryImg('vehicle-topdown-henry', 'vehicle-topdown-henry.png');
     tryImg('site-arc-building', 'site-arc-building.png');
     tryImg('site-gravel', 'site-gravel.png');
+    // The destinations' own buildings, for the arrival forecourt. Keyed
+    // by destination id, so `renderArrival` finds them by name and falls
+    // back to its chrome signboard for any that are not painted yet.
+    for (const d of DESTINATIONS) {
+      tryImg(`site-${d.id}-building`, `site-${d.id}-building.png`);
+      tryImg(`site-${d.id}-place`, `site-${d.id}-place.png`);
+    }
     for (const n of ['car-red', 'car-blue', 'car-yellow', 'pickup', 'truck', 'tractor', 'tractor-red', 'tractor-blue', 'motorbike', 'ambulance', 'fireengine', 'bus', 'binlorry', 'trikey', 'bea', 'big-tilly', 'spark']) {
       tryImg(`vehicle-topdown-${n}`, `vehicle-topdown-${n}.png`);
     }
@@ -1051,8 +1058,12 @@ export class PtvDriveScene extends Phaser.Scene {
     // The A.R.C. building across the top — a hint of the top behind the car park.
     if (this.textures.exists('site-arc-building')) {
       const b = this.add.image(width / 2, 6, 'site-arc-building').setOrigin(0.5, 0);
-      const target = Math.min(width * 0.5, height * 0.52);
-      b.setDisplaySize(target, target);
+      // Aspect-preserving. `setDisplaySize(target, target)` was harmless
+      // while the art happened to be a 768 square; the building has since
+      // been cropped to its own content (693x683, like the five new
+      // destinations) and a forced square now squashes it.
+      const s = Math.min((width * 0.5) / b.width, (height * 0.52) / b.height);
+      b.setScale(s);
       this.container.add(b);
     } else {
       const sign = this.add.text(width / 2, height * 0.16, 'A.R.C.', {
@@ -1176,27 +1187,50 @@ export class PtvDriveScene extends Phaser.Scene {
     const goCy = roadY - 34;                 // where the departure puts "Let's go!"
     const bayH = Math.min(64, height * 0.17);
     const bayTop = goCy - 26 - 12 - bayH;    // button half-height, then a gap
-    const msgCy = bayTop - 30;
+    // **The message goes at the top, not above the bays.**
+    //
+    // Sat just over the car park it printed across the building's ground
+    // floor — the door, the shopfront, the hand-painted name board: the
+    // half of each elevation that says which place this is. Every
+    // building carries its own sign, so the one thing the message must
+    // not cover is the sign.
+    const msgCy = SAFE_MARGIN + 12;
 
     // The building across the top, in the room the message leaves it.
-    const buildingKey = `site-${this.destinationId}-building`;
-    const key = this.textures.exists(buildingKey)
-      ? buildingKey
-      : (this.destinationId === 'arc' && this.textures.exists('site-arc-building')
-        ? 'site-arc-building'
-        : undefined);
-    const topRoom = msgCy - 18;
+    // Two kinds of far end, two key patterns. A place you go *into* is a
+    // `-building` — a front elevation you park in front of. A place you
+    // release an animal *to* is a `-place`: a vignette of the habitat
+    // itself, because a moor has no front door. Marcus's call, 2026-09-04.
+    const key = [
+      `site-${this.destinationId}-place`,
+      `site-${this.destinationId}-building`,
+    ].find((k) => this.textures.exists(k));
+    const topRoom = msgCy + 22;   // the building starts below the message
     if (key) {
-      const b = this.add.image(width / 2, 6, key).setOrigin(0.5, 0);
-      const target = Math.min(width * 0.5, topRoom - 12);
-      b.setDisplaySize(target, target);
+      // **Drawn big, with its base behind the tarmac.**
+      //
+      // The drive picker settled this grammar already: a building that
+      // fills the band down to the bays, with the car park drawing
+      // *after* it so the slab crops its ground line. Fitted strictly
+      // above the message instead, it measured 158px on a 874-wide
+      // screen — a doll's house in an acre of gravel — for the same
+      // reason the picker's building did before it was allowed to run
+      // under its own forecourt.
+      //
+      // And **aspect-preserving**, which the first pass was not:
+      // `setDisplaySize(target, target)` on art that is 746x700 squashes
+      // it 6%. Invisible on one building and obvious across five.
+      const b = this.add.image(width / 2, topRoom, key).setOrigin(0.5, 0);
+      const boxH = bayTop + bayH * 0.45 - topRoom;
+      const boxW = width * 0.55;
+      b.setScale(Math.min(boxW / b.width, boxH / b.height));
       this.container.add(b);
     } else {
       // Not a placeholder box: a signboard is a real thing to find at
       // the end of a lane, so an unpainted destination reads as a
       // place with a sign rather than as missing art.
-      const plateH = Math.min(84, topRoom - 20);
-      const plateCy = 10 + plateH / 2;
+      const plateH = Math.min(96, bayTop - topRoom - 24);
+      const plateCy = topRoom + plateH / 2 + 8;
       this.container.add(createChromePlate(this, width / 2, plateCy, Math.min(width * 0.6, 320), plateH));
       this.container.add(
         this.add.text(width / 2, plateCy - plateH * 0.22, dest?.emoji ?? '📍', {
@@ -1213,16 +1247,28 @@ export class PtvDriveScene extends Phaser.Scene {
 
     // Visitor bays, and the road she comes in off along the bottom —
     // the departure's geometry, because it is the same kind of place.
+    //
+    // Except at a habitat, which is not. Painting four white-lined
+    // parking bays across a moor says "retail park", so the wild
+    // destinations get a plain pull-in on the verge instead: same
+    // geometry, same place for the van, no tarmac.
+    const wild = dest?.arrival === 'rewilding';
     const bayCount = 4;
     const bayAreaW = Math.min(width * 0.62, 520);
     const bayLeft = (width - bayAreaW) / 2;
     const bayW = bayAreaW / bayCount;
     const bays = this.add.graphics();
-    bays.fillStyle(0x39383a, 1);
-    bays.fillRoundedRect(bayLeft, bayTop, bayAreaW, bayH, 10);
-    bays.fillStyle(0xf2ead6, 0.85);
-    for (let i = 1; i < bayCount; i++) {
-      bays.fillRect(bayLeft + bayW * i - 2, bayTop + 8, 4, bayH - 16);
+    if (wild) {
+      // A worn chalk pull-in: a paler patch of ground, no markings.
+      bays.fillStyle(0xd8cdb2, 0.85);
+      bays.fillRoundedRect(bayLeft, bayTop, bayAreaW, bayH, bayH / 2);
+    } else {
+      bays.fillStyle(0x39383a, 1);
+      bays.fillRoundedRect(bayLeft, bayTop, bayAreaW, bayH, 10);
+      bays.fillStyle(0xf2ead6, 0.85);
+      for (let i = 1; i < bayCount; i++) {
+        bays.fillRect(bayLeft + bayW * i - 2, bayTop + 8, 4, bayH - 16);
+      }
     }
     this.container.add(bays);
 

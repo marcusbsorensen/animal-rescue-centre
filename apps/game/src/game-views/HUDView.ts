@@ -692,16 +692,37 @@ function renderSideNavHeader(
   const sfxX = musicX - MIN_TAP - MIN_TAP_GAP;
   drawAudioDisc(scene, container, {
     cx: musicX, cy: chipCy, on: audio.musicEnabled, label: 'Music',
-    glyph: '\u266B',
+    iconKey: 'icon-music-on', glyph: '\u266B',
     onTap: callbacks.onAudioToggle,
     onHold: () => callbacks.onAudioVolume('music', musicX, chipCy),
   });
   drawAudioDisc(scene, container, {
     cx: sfxX, cy: chipCy, on: audio.sfxEnabled, label: 'Sounds',
-    iconKey: 'icon-music-on', glyph: '\u25B6',
+    // A speaker, not a second music note. The two toggles wore the same
+    // picture because nothing was drawn for effects — the gap the
+    // handover recorded as "an effects icon is missing". It exists now.
+    iconKey: 'icon-sfx-on', glyph: '\u25B6',
     onTap: callbacks.onSfxToggle,
     onHold: () => callbacks.onAudioVolume('sfx', sfxX, chipCy),
   });
+}
+
+/**
+ * Tint a status-chip icon to the chrome ink — unless it is one of the
+ * few that are still painted.
+ *
+ * `sundial` is a little watercolour dial and carries its own colours;
+ * tint multiplies, so tinting it would just dirty it. Everything else on
+ * the chips is white line art from `tools/icons/icon-set.mjs` and needs
+ * the ink to be visible at all.
+ */
+const PAINTED_CHIP_ICONS = new Set(['sundial']);
+function tintChipIcon(
+  img: Phaser.GameObjects.Image,
+  iconKey: string,
+): Phaser.GameObjects.Image {
+  if (!PAINTED_CHIP_ICONS.has(iconKey)) img.setTint(hexNum(CHROME.ink));
+  return img;
 }
 
 interface StatusChipOpts {
@@ -744,8 +765,16 @@ function drawStatusChip(
 
   if (iconKey) {
     scene.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
+    // Tinted to the chrome ink. The chip used to draw its icon untinted,
+    // which was right while every icon was a painted piece carrying its
+    // own colours — and invisible the moment the set became white line
+    // art on a cream plate. `sundial` is still painted, so it keeps its
+    // own colours; see the artwork guard below.
     container.add(
-      scene.add.image(cx, cy, iconKey).setDisplaySize(CHIP_R * 1.3, CHIP_R * 1.3).setOrigin(0.5),
+      tintChipIcon(
+        scene.add.image(cx, cy, iconKey).setDisplaySize(CHIP_R * 1.3, CHIP_R * 1.3).setOrigin(0.5),
+        iconKey,
+      ),
     );
   } else {
     container.add(
@@ -831,10 +860,11 @@ function drawAudioDisc(
     scene.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
     const img = scene.add.image(cx, cy, iconKey)
       .setDisplaySize(CHIP_R * 1.15, CHIP_R * 1.15).setOrigin(0.5);
-    // Off greys the artwork rather than swapping it. `icon-music-off` is
-    // the same speaker with a red cross already drawn on, which would give
-    // this disc two negations — the cross and the line below it.
-    if (!on) img.setTint(hexNum(COLOURS.textLight));
+    // Tinted in BOTH states. It used to tint only when off, letting the
+    // painted artwork speak for itself when on — and the vector set is
+    // white, so "on" drew a white note on a cream disc and the control
+    // vanished at exactly the moment it was doing its job.
+    img.setTint(hexNum(ink));
     container.add(img);
   } else {
     container.add(

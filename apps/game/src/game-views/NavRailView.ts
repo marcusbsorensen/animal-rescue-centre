@@ -117,14 +117,7 @@ export function renderNavRail(
   // and older icons/ keys stand in where a piece was never commissioned.
   const homeKey = scene.textures.exists('nav-home') ? 'nav-home' : 'icon-home';
   const careKey = scene.textures.exists('nav-care') ? 'nav-care' : 'icon-kitchen';
-  // **Nothing is painted for the map yet.** `nav-social` and
-  // `icon-social` are the wrong picture now that the slot goes to the
-  // map, so the chain runs out and the cell falls through to its
-  // lettered disc — which is the honest state of it until the art
-  // lands. See the commission note in docs/ui-next-steps.
-  const mapKey = scene.textures.exists('nav-map')
-    ? 'nav-map'
-    : (scene.textures.exists('icon-map') ? 'icon-map' : 'nav-map');
+  const mapKey = scene.textures.exists('nav-map') ? 'nav-map' : 'icon-map';
   const walkKey = scene.textures.exists('nav-play')
     ? 'nav-play'
     : (scene.textures.exists('icon-walk') ? 'icon-walk' : 'icon-games');
@@ -219,17 +212,30 @@ export function renderNavRail(
     // with small coloured words under them, which is the thing the colour
     // was meant to fix.
     //
-    // So the painted icon is drawn smaller than the disc and sits *on* it:
-    // a solid ring of the destination's hue, wide enough to read at arm's
-    // length. Inactive cells carry it at 0.55 so the one you are standing
-    // in is still the loudest.
+    // So the icon is drawn smaller than the disc and sits *on* it: a
+    // solid ring of the destination's hue, wide enough to read at arm's
+    // length.
+    //
+    // **Both states draw the disc solid, as of 2026-09-04.** Inactive
+    // cells used to take the hue at 0.55, which was fine under a painted
+    // icon carrying its own colours and is not fine under the vector set,
+    // which is white and gets its colour from what it sits on: Home's
+    // green at 0.55 over the rail's white composites to rgb(148,191,149),
+    // and a white icon on that is 1.9:1. The active cell is still
+    // obviously the active one — it keeps the tinted cell halo behind it
+    // and gains a cream ring — and now every icon in the stack is legible
+    // rather than only the one you are standing in.
     const disc = scene.add.graphics();
     if (item.active) {
       disc.fillStyle(hue, 0.16);
       disc.fillRoundedRect(railX + 5, cy - CELL_H / 2 + 2, railW - 10, CELL_H - 4, 16);
     }
-    disc.fillStyle(hue, item.active ? 1 : 0.55);
+    disc.fillStyle(hue, 1);
     disc.fillCircle(cx, iconCy, discR);
+    if (item.active) {
+      disc.lineStyle(2.5, hexNum(COLOURS.bg), 1);
+      disc.strokeCircle(cx, iconCy, discR - 1.25);
+    }
     navContainer.add(disc);
 
     if (scene.textures.exists(item.iconKey)) {
