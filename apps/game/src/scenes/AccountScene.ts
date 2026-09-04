@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species, Economy } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT, MIN_TAP_GAP, TYPE } from '../ui/constants';
-import { createChromeButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
+import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT, MIN_TAP_GAP, TYPE, TITLE_CY, PAGE_MARGIN, SPACE, MIN_TAP, bottomAnchorY, contentTopFor } from '../ui/constants';
+import { createChromeButton, createChromeTitle, createChromePlate, createAmbientParticles } from '../ui/UIButton';
 import { BADGE_DEFINITIONS } from '@arc/badges';
 import { getSession } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
@@ -83,12 +83,11 @@ export class AccountScene extends Phaser.Scene {
     // centre the title in what is left rather than over the button.
     const backRight = SAFE_MARGIN + 58 + 58;
     const titleX = width < 500 ? (backRight + width) / 2 : width / 2;
-    this.container.add(
-      createChromeTitle(this, titleX, SAFE_MARGIN + 23, 'My A.R.C.', {
-        icon: 'icon-badge',
-        iconSize: 22,
-      })
-    );
+    const title = createChromeTitle(this, titleX, TITLE_CY, 'My A.R.C.', {
+      icon: 'icon-badge',
+      iconSize: 22,
+    });
+    this.container.add(title);
 
     // Back button (top-left)
     this.container.add(
@@ -103,30 +102,35 @@ export class AccountScene extends Phaser.Scene {
       })
     );
 
-    this.renderProfileCard();
-    // Stats can wrap to more than one row on a narrow screen; renderStatsRow
-    // reports the first y the badge wall may safely start at.
-    const contentTop = this.renderStatsRow();
-    this.renderBadgeWall(contentTop);
+    // Each block is placed under the one above it rather than at a number
+    // that used to be under it. Four blocks on one centre line, at four
+    // widths, each anchored to its own constant, is how the title came to
+    // overlap the card by half a pixel.
+    const cardBottom = this.renderProfileCard(contentTopFor(title));
+    const statsBottom = this.renderStatsRow(cardBottom + SPACE.m);
+    this.renderBadgeWall(statsBottom);
   }
 
-  private renderProfileCard(): void {
+  private renderProfileCard(contentTop: number): number {
     const { width } = this.scale;
     const session = getSession();
-    const cardY = 120;
-    const cardW = Math.min(560, width - SAFE_MARGIN * 2);
     const cardH = 110;
+    /**
+     * Under the title, measured — not at 120.
+     *
+     * The title plate ran to y 65.5 and the card started at 65: they
+     * overlapped by half a pixel and read as one fused block. Half a pixel
+     * is not a rounding error here, it is two elements each placed against
+     * a number rather than against each other.
+     */
+    const cardY = contentTop + cardH / 2;
+    const cardW = Math.min(560, width - PAGE_MARGIN * 2);
     const cardX = width / 2;
 
-    // Card background
-    const gfx = this.add.graphics();
-    gfx.fillStyle(0x000000, 0.14);
-    gfx.fillRoundedRect(cardX - cardW / 2 + 3, cardY - cardH / 2 + 4, cardW, cardH, 18);
-    gfx.fillStyle(0xffffff, 0.98);
-    gfx.fillRoundedRect(cardX - cardW / 2, cardY - cardH / 2, cardW, cardH, 18);
-    gfx.lineStyle(2, 0xE67E22, 0.45);
-    gfx.strokeRoundedRect(cardX - cardW / 2, cardY - cardH / 2, cardW, cardH, 18);
-    this.container.add(gfx);
+    // The chrome plate, not white glass with an orange rim. On a flat cream
+    // ground that rim is the one context where the old surface reads as a
+    // different material rather than as a panel.
+    this.container.add(createChromePlate(this, cardX, cardY, cardW, cardH));
 
     // Avatar disc
     const avatarX = cardX - cardW / 2 + 60;
@@ -169,11 +173,11 @@ export class AccountScene extends Phaser.Scene {
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
       }).setOrigin(0, 0.5)
     );
+    return cardY + cardH / 2;
   }
 
-  private renderStatsRow(): number {
+  private renderStatsRow(rowY: number): number {
     const { width } = this.scale;
-    const rowY = 210;
     const pills = [
       { label: 'In care', value: `${this.payload.animals.filter(a => a.state === 'sheltered' || a.state === 'bonding').length}` },
       { label: 'Pets', value: `${this.payload.animals.filter(a => a.state === 'pet').length}` },
@@ -200,7 +204,7 @@ export class AccountScene extends Phaser.Scene {
     rows.forEach((row, rowIndex) => {
       const rowW = pillW * row.length + gap * (row.length - 1);
       let x = width / 2 - rowW / 2 + pillW / 2;
-      const y = rowY + rowIndex * (pillH + 10);
+      const y = rowY + pillH / 2 + rowIndex * (pillH + SPACE.s);
 
       for (const p of row) {
         const g = this.add.graphics();
@@ -230,7 +234,12 @@ export class AccountScene extends Phaser.Scene {
     // needed, so the species chips do not land on top of them.
     // Where the pill block actually ends, rather than a constant that only
     // held while the row never wrapped.
-    const pillsBottom = rowY + (rows.length - 1) * (pillH + 10) + pillH / 2;
+    // The pills now start *at* rowY rather than being centred on it, so
+    // their bottom is a whole pill lower than this used to say. Keeping the
+    // old formula is what printed "Animals you've met" across the pill
+    // labels: one expression describing the row, and another describing
+    // where it ends, disagreeing.
+    const pillsBottom = rowY + (rows.length - 1) * (pillH + SPACE.s) + pillH;
 
     // Species collected — one little disc per species with the animal emoji
     const speciesOrder: Species[] = ['cat', 'dog', 'bunny', 'fox', 'bat', 'parrot', 'snake', 'hedgehog'];
@@ -243,7 +252,7 @@ export class AccountScene extends Phaser.Scene {
     // chip centres) plus the 19px chip radius, with air either side. The
     // old fixed 265 put the caption 4px inside the pills even before the
     // row wrapped — wrapping just made it obvious.
-    const chipY = pillsBottom + 52;
+    const chipY = pillsBottom + SPACE.xxl + 20;
     const chipW = 38;
     // Eight chips at 38 + 10 gap is 374px, one pixel inside a 375px phone
     // and outside the safe margin. Squeeze the gap before the chip.
@@ -278,13 +287,19 @@ export class AccountScene extends Phaser.Scene {
     }
 
     // Hand the badge wall the first y it may safely use.
-    return chipY + 19 + 22;
+    return chipY + chipW / 2 + SPACE.xl;
   }
 
-  private renderBadgeWall(contentTop = 310): void {
+  private renderBadgeWall(contentTop: number): void {
     const { width, height } = this.scale;
-    const wallY = Math.max(310, contentTop);
-    const availW = Math.min(width - SAFE_MARGIN * 2, 640);
+    // No floor. `310` was a guess at where the blocks above would end, and
+    // now they say.
+    const wallY = contentTop;
+    // PAGE_MARGIN, not SAFE_MARGIN: the tiles are content, and the margin
+    // is the floor for a *control's* clearance rather than where a grid
+    // starts. At 16 the outermost tile measured 13px from the edge once the
+    // wall moved up and more of it came into view.
+    const availW = Math.min(width - PAGE_MARGIN * 2, 640);
     const wallX = width / 2;
 
     // Heading
@@ -298,8 +313,17 @@ export class AccountScene extends Phaser.Scene {
     // Scrollable badge grid — 4 cols on desktop, 3 on mobile
     const cols = availW >= 520 ? 5 : (availW >= 400 ? 4 : 3);
     const badgeSize = Math.floor((availW - (cols - 1) * MIN_TAP_GAP) / cols);
-    const wallTop = wallY + 24;
-    const wallBottom = height - 30;
+    const wallTop = wallY + SPACE.xl;
+    /**
+     * The wall stops at the safe margin, not 30px short of the screen.
+     *
+     * `height - 30` left the last visible row 13px from the bottom edge on
+     * an iPad — inside the margin, and on a phone that band is the
+     * home-gesture strip, where the OS takes the touch before the game sees
+     * it. It is a scrolling region, so ending it higher costs nothing but
+     * one row of scroll.
+     */
+    const wallBottom = bottomAnchorY(height) - MIN_TAP / 2;
     const maskH = wallBottom - wallTop;
 
     // Masked container for scroll clipping
