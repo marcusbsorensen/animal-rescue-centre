@@ -10,10 +10,7 @@ import type { GameStateStore } from '../game-state';
 import type { ResolvedAnchor } from './GardenView';
 import { getPlayArea } from './LeftRailView';
 import { pillFor } from '../ui/contrast';
-import {
-  navHeightFor, anchorSpaceFor, animalBoxFor, clampAnimalIntoBand,
-  type PlayArea,
-} from '../ui/layout';
+import { navHeightFor, anchorSpaceFor, animalBoxFor, clampAnimalIntoBand, type PlayArea, titleAnchor, sideNavEnabled } from '../ui/layout';
 import {
   renderApprenticeDecorations,
   type ApprenticeRoomSpecies,
@@ -87,7 +84,14 @@ export function renderRoom(
     : 'bg-room-generic';
   if (scene.textures.exists(roomBgKey)) {
     const bg = scene.add.image(play.x + play.w / 2, height / 2, roomBgKey);
-    bg.setDisplaySize(play.w, height - 40);
+    // Under side-nav the art is drawn into the play box: there is no
+    // horizontal chrome for it to run behind, so the art rect and the
+    // anchor rect are the same rect and `anchorSpaceFor` has nothing to
+    // correct. `height - 40` is the bottom-bar habit — full-bleed art with
+    // the chrome sitting on top of it — and left alone here it leaves a
+    // cream margin against the rail.
+    bg.setY(sideNavEnabled() ? play.y + play.h / 2 : height / 2);
+    bg.setDisplaySize(play.w, sideNavEnabled() ? play.h : height - 40);
     container.add(bg);
   } else {
     const colour = SPECIES_COLOURS[species];
@@ -99,9 +103,11 @@ export function renderRoom(
   // Title — chrome, not scenery. 28px against the corridor's and garden's
   // 20 was the pill's own emphasis, and it made the room title the largest
   // type in the game; the three read as one product at one size.
+  const titleAt = titleAnchor(play);
   container.add(
-    createChromeTitle(scene, play.x + play.w / 2, TITLE_CY,
-      `${species.charAt(0).toUpperCase() + species.slice(1)} Room`),
+    createChromeTitle(scene, titleAt.x, TITLE_CY,
+      `${species.charAt(0).toUpperCase() + species.slice(1)} Room`,
+      { align: titleAt.align }),
   );
 
   // ── Placed decorations (under animals) ────────────────────
@@ -129,7 +135,7 @@ export function renderRoom(
     // `resolution`, so it was drawn at 1x on a 3x display.
     container.add(
       createChromeTitle(scene, play.x + play.w / 2, play.y + play.h / 2,
-        'No animals here yet.', { fontSize: TYPE.body }),
+        'No animals here yet.', { fontSize: TYPE.body, overArt: true }),
     );
   } else {
     const cols = Math.min(roomAnimals.length, 4);

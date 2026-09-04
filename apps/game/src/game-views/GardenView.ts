@@ -24,7 +24,7 @@ import { createWeatherParticles, type WeatherParticleHandle } from '../ui/Weathe
 import type { GameStateStore } from '../game-state';
 import { renderApprenticeDecorations } from './ApprenticeDecorations';
 import { getPlayArea } from './LeftRailView';
-import { anchorSpaceFor, animalBoxFor } from '../ui/layout';
+import { anchorSpaceFor, animalBoxFor, titleAnchor, sideNavEnabled } from '../ui/layout';
 
 /**
  * GardenView — renders the "bonded pets living their best life" area
@@ -180,7 +180,14 @@ function renderZone(
   );
   if (bgKey) {
     const bg = scene.add.image(play.x + play.w / 2, height / 2, bgKey);
-    bg.setDisplaySize(play.w, height - 40);
+    // Under side-nav the art is drawn into the play box: there is no
+    // horizontal chrome for it to run behind, so the art rect and the
+    // anchor rect are the same rect and `anchorSpaceFor` has nothing to
+    // correct. `height - 40` is the bottom-bar habit — full-bleed art with
+    // the chrome sitting on top of it — and left alone here it leaves a
+    // cream margin against the rail.
+    bg.setY(sideNavEnabled() ? play.y + play.h / 2 : height / 2);
+    bg.setDisplaySize(play.w, sideNavEnabled() ? play.h : height - 40);
     container.add(bg);
   } else {
     // Fallback fill — lawn is warmer green, quiet is cooler
@@ -216,9 +223,10 @@ function renderZone(
   // and room already moved; the garden was the odd one out. `TITLE_CY`
   // matches theirs, clear of the HUD's second row at y 78..106.
   const zoneLabel = zone === 'lawn' ? 'Garden — Lawn' : 'Garden — Quiet nook';
+  const titleAt = titleAnchor(play);
   container.add(
-    createChromeTitle(scene, play.x + play.w / 2, TITLE_CY, zoneLabel, {
-      icon: 'icon-garden',
+    createChromeTitle(scene, titleAt.x, TITLE_CY, zoneLabel, {
+      icon: 'icon-garden', align: titleAt.align,
     }),
   );
 
@@ -288,6 +296,7 @@ function renderZone(
         scene, play.x + play.w / 2, (play.y + dotY - 12) / 2,
         isFirstEver ? 'No pets yet!' : `Nobody in the ${zone} right now.`,
         {
+          overArt: true,
           fontSize: TYPE.lead,
           subtitleSize: '16px',
           subtitle: isFirstEver

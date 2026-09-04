@@ -14,6 +14,7 @@ import {
 import { getPlayArea } from './LeftRailView';
 import {
   anchorSpaceFor, animalBoxFor, navBarMetrics, sideNavEnabled, ANIMAL_LABEL_HEIGHT,
+  titleAnchor,
 } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 import { renderApprenticeDecorations } from './ApprenticeDecorations';
@@ -164,9 +165,12 @@ export function renderCorridor(
 
   // Title — chrome, not scenery. See CHROME in ui/constants: the painted
   // language belongs to the sign boards, which are objects in the world.
+  // Under side-nav it starts on the nav rail and runs out onto the art,
+  // which is what makes the rail and the header read as one piece.
+  const titleAt = titleAnchor(play);
   container.add(
-    createChromeTitle(scene, play.x + play.w / 2, TITLE_CY, 'Rescue Centre', {
-      icon: 'icon-rescue-centre',
+    createChromeTitle(scene, titleAt.x, TITLE_CY, 'Rescue Centre', {
+      icon: 'icon-rescue-centre', align: titleAt.align,
     }),
   );
 
@@ -203,6 +207,30 @@ export function renderCorridor(
   // bottom is not its own bottom once a chalkboard hangs off it.
   const signRects: { x: number; y: number; w: number; h: number }[] = [];
 
+  /**
+   * How wide a door sign may be drawn.
+   *
+   * The signs are anchored to painted doors as fractions of the play box,
+   * so their spacing scales with the box while `140` did not. On the web
+   * clip's 724-wide box the cat and dog signs land 110 apart and overlap
+   * by 30 — two tap targets on top of each other, so a child aiming at CAT
+   * can open the dog room. `ux-review` scored it at 20% on the clip and
+   * 25% on an iPad.
+   *
+   * So the row measures itself first and the signs take the width the
+   * tightest pair leaves, keeping `MIN_TAP_GAP` between neighbours. On a
+   * wide box the cap is far above 140 and nothing shrinks.
+   */
+  const signCentres = store.unlockedSpecies.map((species, i) => {
+    const slot = DOOR_SLOTS[i] ?? DOOR_SLOTS[DOOR_SLOTS.length - 1];
+    const placed = (corridorDecor[`sign-${species}`] ?? [])[0];
+    return play.x + play.w * (placed ? placed.x : slot.xFrac);
+  }).sort((a, b) => a - b);
+  const tightestPair = signCentres.length < 2
+    ? Infinity
+    : Math.min(...signCentres.slice(1).map((x, i) => x - signCentres[i]));
+  const signRowW = Math.min(140, Math.max(MIN_TAP, tightestPair - MIN_TAP_GAP));
+
   store.unlockedSpecies.forEach((species, i) => {
     const fallbackSlot = DOOR_SLOTS[i] ?? DOOR_SLOTS[DOOR_SLOTS.length - 1];
     const placedAnchors = corridorDecor[`sign-${species}`] ?? [];
@@ -213,7 +241,7 @@ export function renderCorridor(
     // ~0.14 of the way in, which is less than half a sign width once the rail
     // has taken its column — on iPad portrait the bat sign clipped under the
     // rail by 2px without this.
-    const halfSign = (140 * s) / 2;
+    const halfSign = (signRowW * s) / 2;
     const x = Phaser.Math.Clamp(
       play.x + play.w * (placed ? placed.x : fallbackSlot.xFrac),
       play.x + halfSign,
@@ -229,7 +257,7 @@ export function renderCorridor(
     const signKey = `sign-${species}`;
     const hasPainted = scene.textures.exists(signKey);
 
-    const signW = 140 * s;
+    const signW = signRowW * s;
     const signDisplay = hasPainted
       ? (() => {
         const tex = scene.textures.get(signKey).getSourceImage() as HTMLImageElement;
@@ -300,7 +328,11 @@ export function renderCorridor(
     // chalk-writing. Feels like something a child scribbled at the
     // rescue centre rather than an app-style notification badge. Only on
     // painted signs — the programmatic fallback renders the count inline.
-    let rowBottom = y + signDisplay.h / 2;
+    // The *tap* extent, not the painted one. The hit area below is floored
+    // at MIN_TAP and now genuinely exceeds the art — a 34px sign answers
+    // across 48 — and it is the tap target an arriving animal has to keep
+    // clear of, not the plank.
+    let rowBottom = y + Math.max(signDisplay.h, MIN_TAP) / 2;
 
     if (hasPainted && count > 0) {
       const boardW = Math.max(44, 58 * s);
@@ -353,14 +385,23 @@ export function renderCorridor(
       container.add(chalkText);
     }
 
+    const rowTop = y - Math.max(signDisplay.h, MIN_TAP) / 2;
     signRects.push({
-      x, y: (y - signDisplay.h / 2 + rowBottom) / 2,
-      w: signDisplay.w, h: rowBottom - (y - signDisplay.h / 2),
+      x, y: (rowTop + rowBottom) / 2,
+      w: Math.max(signDisplay.w, MIN_TAP), h: rowBottom - rowTop,
     });
 
-    // Hit area over the sign
-    const hitArea = scene.add.rectangle(x, y, signDisplay.w, signDisplay.h, 0x000000, 0)
-      .setInteractive({ useHandCursor: true });
+    // Hit area over the sign, floored at MIN_TAP — the idiom documented on
+    // that constant, and newly load-bearing: capping the row's width to
+    // keep the signs apart took a 140x49 sign to 98x34, and the drawn size
+    // is not the size a finger has to find. Only the region that answers a
+    // tap grows, and it grows downward into empty door rather than
+    // sideways into the neighbour the cap was protecting.
+    const hitArea = scene.add.rectangle(
+      x, y,
+      Math.max(signDisplay.w, MIN_TAP), Math.max(signDisplay.h, MIN_TAP),
+      0x000000, 0,
+    ).setInteractive({ useHandCursor: true });
     hitArea.on('pointerover', () => {
       if ('setAlpha' in signDisplayObj) (signDisplayObj as Phaser.GameObjects.Image).setAlpha(0.85);
     });

@@ -11,7 +11,7 @@ import {
   createChromeButton, createTextButton, createChromeTitle, createChromePlate,
 } from '../ui/UIButton';
 import { FONTS, TEXT_RESOLUTION, MIN_FONT, MIN_TAP, SAFE_MARGIN, TITLE_CY, CHROME, TYPE, PAGE_MARGIN } from '../ui/constants';
-import { playAreaFor, viewportIsShort, sideNavEnabled } from '../ui/layout';
+import { playAreaFor, viewportIsShort, sideNavEnabled, titleAnchor } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
 /**
@@ -76,7 +76,14 @@ export function renderKitchen(
   // and mounted at depth 50, so that strip of the painting was never seen.
   if (scene.textures.exists('bg-kitchen')) {
     const bg = scene.add.image(play.x + play.w / 2, height / 2, 'bg-kitchen');
-    bg.setDisplaySize(play.w, height - 40);
+    // Under side-nav the art is drawn into the play box: there is no
+    // horizontal chrome for it to run behind, so the art rect and the
+    // anchor rect are the same rect and `anchorSpaceFor` has nothing to
+    // correct. `height - 40` is the bottom-bar habit — full-bleed art with
+    // the chrome sitting on top of it — and left alone here it leaves a
+    // cream margin against the rail.
+    bg.setY(sideNavEnabled() ? play.y + play.h / 2 : height / 2);
+    bg.setDisplaySize(play.w, sideNavEnabled() ? play.h : height - 40);
     container.add(bg);
   } else {
     container.add(
@@ -91,9 +98,10 @@ export function renderKitchen(
   // gold pill here sat next to a white glass panel and a flat green
   // button, which is the frame the audit uses to show three visual
   // languages at once.
+  const titleAt = titleAnchor(play);
   container.add(
-    createChromeTitle(scene, play.x + play.w / 2, TITLE_CY, 'Kitchen', {
-      icon: 'icon-kitchen',
+    createChromeTitle(scene, titleAt.x, TITLE_CY, 'Kitchen', {
+      icon: 'icon-kitchen', align: titleAt.align,
     }),
   );
 
@@ -152,7 +160,8 @@ export function renderKitchen(
   // languages the audit found in this one frame — flat white at 92% alpha
   // with a drop shadow, which is what every other mobile game looks like.
   // Same job, one surface.
-  container.add(createChromePlate(scene, panelCx, panelCy, panelW, panelH));
+  container.add(createChromePlate(scene, panelCx, panelCy, panelW, panelH,
+    { fillAlpha: CHROME.fillAlphaOverArt }));
 
   if (hungry.length === 0) {
     container.add(
