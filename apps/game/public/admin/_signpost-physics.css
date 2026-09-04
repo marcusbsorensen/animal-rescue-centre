@@ -161,3 +161,25 @@
  * worse than the problem. The posts come to the grass instead. If the
  * board ever wants wider support than the tuft allows, the answer is a
  * tileable grass strip, not a stretched one. */
+
+
+/* The sign column is centred, and was not on any of the twelve screens.
+ *
+ * `.signs-on-stake` is a block-level flex container with `margin: 0` and a
+ * `max-width` narrower than its parent, so it sat flush against its parent's
+ * content-box left edge. The parent sets `text-align: center`, which centres
+ * *inline* content and does nothing for a block child — which is why this
+ * looked centred in the source and measured 42px left of centre on the
+ * screen. On the menu at 874x402 the whole column ran 120..716 against a
+ * viewport centre of 437: 64px of margin on the left, 148 on the right,
+ * with the board and the Continue plank agreeing with each other, so it was
+ * the column rather than any one element.
+ *
+ * A block box centres with auto inline margins and with nothing else.
+ *
+ * Here rather than in twelve pages, for the reason at the top of this file:
+ * every one of them carries its own copy of the sign rules, and a
+ * correction put in one page is a correction eleven screens do not get. */
+.signs-on-stake {
+  margin-inline: auto;
+}
