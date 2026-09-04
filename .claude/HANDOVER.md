@@ -28,8 +28,12 @@ FAILs are the paths screen's L3 on phone and clip and are untouched.
   state as wordless icon chips under it, one player panel top-right in
   place of the vertical pull-tab, and the two sounds as separate toggles
   with a long-press volume. Room, Kitchen and Garden draw into the play box.
-- **Messages in the middle of a room are translucent** —
-  `CHROME.fillAlphaOverArt`.
+- **Messages in the middle of a room are translucent**
+  (`CHROME.fillAlphaOverArt`) and sit on `MESSAGE_BOTTOM_FRAC` — 0.65 of
+  the play box, which is the garden's bird bath line.
+- **The nav discs carry their destination's colour**, sized from the cell
+  so the label always fits inside its own tap target. The two sound
+  toggles are wordless discs: full colour on, grey and struck through off.
 
 Earlier arc, still true: every title, plate and button is on the chrome
 surface and the bevel is gone; the type floor is 16 in `MIN_FONT.small` and
@@ -84,50 +88,54 @@ harness, not by a device.
   than a taste.
 
 ## Next step
-Queue items 7b, 8, 9 and 10.
+**Queue item 11 — the map becomes the mission hub.** Marcus's brief and the
+survey behind it are in `docs/ui-next-steps-2026-09-02.md`; read that item
+before touching anything, because most of this is wiring rather than
+building.
 
-**The one that wants Marcus and a device.** Everything below the layout is
-measured geometry. Whether a 7-year-old can work a vertical rail — reach
-it with a thumb, tell four coloured cells apart, find the long-press on a
-sound pill — is not a thing arithmetic answers, and it is the question the
-whole layout now rests on. `VITE_SIDE_RAIL=0 pnpm build:ios` builds the
-bottom bar for a side-by-side.
+Social comes off the rail and becomes a place on the map (a village hall).
+Map takes its slot — the rail stays **Home / Care / Walk / Map**, which is
+exactly the four that fit. Destinations build up in number *and reach* with
+level. Tapping one drives there. The vet becomes one, so taking a poorly
+animal to the vet is a journey.
 
-**Open, and now load-bearing: cover versus contain.** The room background
-is `setDisplaySize(play.w, play.h)` — a stretch, not a fit. At 696 wide it
-was a 2.8% squash; at 752 it is a 5.2% stretch, so losing the arrivals tab
-moved the box *past* the art's shape rather than towards it. Both are
-invisible beside the bottom bar's 19%, and the real answer is a uniform
-fit that crops, which has no stretch at any aspect. **Taking it means
-resolving anchors against the drawn art rect rather than the play box** —
-which is why it is not something to do in passing.
+**Three finished things are sitting unreached and this connects them:**
+`openMapOverlay()` has no caller, `PtvDriveScene` has no `scene.start`
+anywhere (the whole driving engine is behind `?ptvDemo=1`), and
+`getAvailableDestinations(level)` is used only by tests.
 
-**Also open, from the design note.** The right-hand safe inset for the
-other landscape orientation (`ui/safe-area.ts` only reads `left`), the
-bottom inset, and whether an iPad wants this layout at all — at >=1024 the
-arrivals rail stands open and vertical is not scarce, so this may be a
-phone-only layout and two arrangements to maintain.
+**The contract is already written from both ends with the middle missing.**
+GameScene sends `{ context, playerLevel }` to the map overlay and listens
+for a `drive-to` message carrying a `destinationId` — then shows a "coming
+soon" toast. `map.html` ignores the level and never posts `drive-to`.
 
-**Art that is missing, and it is one commission for three jobs:** an
-effects icon for the sound toggle (which carries a word because
-`icon-music-on`/`off` exist and nothing does for effects), the drive
+Decisions taken 2026-09-04 so they are not reopened: **drive to every
+destination** (not walk-the-near-ones); **the vet moves onto the map** and
+the card's Heal sends you there; **both the pin count and the visible map
+extent grow**, with locked pins shown so a child can see what is coming.
+
+**Still open from the layout work, and unchanged by the above:**
+
+- **Cover versus contain.** The room background is stretched to the play
+  box, not fitted — a 5.2% horizontal stretch at 752x402 against art
+  authored at 1.78. Invisible beside the bottom bar's 19%, and the real
+  answer is a uniform fit that crops. Taking it means resolving anchors
+  against the drawn art rect rather than the play box.
+- **The right-hand and bottom safe insets** for the other landscape
+  orientation — `ui/safe-area.ts` only reads `left`.
+- **Whether an iPad wants this layout at all**, and **whether a
+  seven-year-old can work a vertical rail** — the second is not a thing
+  arithmetic answers and is the one that wants Marcus and a device.
+  `VITE_SIDE_RAIL=0 pnpm build:ios` builds the bottom bar for a
+  side-by-side.
+
+**Art that is missing — one commission, three jobs:** a music note for the
+sound toggle (the speaker is painted, the note is typeset), the drive
 picker's forecourt flanks, and item 10's emoji furniture.
 
 **Settled, so they are not re-litigated:** the forecourt flanks get
 commissioned art rather than the existing road furniture; Caveat's
-`font-size-adjust: 0.49` goes with the paths/rewilding work, not before —
-it widens text 37% across ~50 rules on 20 screens, which is why it belongs
-where those screens are already open.
-
-**Not waiting on anything:** queue item 9 (658 raw colour literals against
-287 token uses — mechanical now `hexNum` exists), item 8 (enumerate the
-rest of §3 from captures that now exist), item 10 (retire the emoji
-furniture, which needs commissioned art and so is a lead-time item).
-
-**Still open, measured:** the tablet and desktop *captures* are one frame
-even though their measurements are right — `renderer.snapshot()` hangs on a
-throttled rAF and `preserveDrawingBuffer` would mean changing the shipped
-config for a test. The iPad can be measured but not looked at.
+`font-size-adjust: 0.49` goes with the paths/rewilding work, not before.
 
 ## Traps
 - **`?embed=1` is not the same as adding `body.embed` after load.** The mock

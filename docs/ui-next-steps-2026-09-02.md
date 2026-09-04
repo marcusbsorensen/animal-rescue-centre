@@ -380,6 +380,77 @@ exists to bridge `COLOURS` into the Phaser side.
 §7. Needs commissioned art for anything missing, so it is a lead-time
 item — worth starting the ask early even though the code is last.
 
+### 11. The map becomes the mission hub
+**Marcus's brief, 2026-09-04.** Social comes off the rail and becomes a
+place on the map — a village hall. Map takes its slot. Destinations show
+on the map and build up in number *and in reach* as the level rises.
+Tapping one drives there. The vet becomes one of them, so taking a poorly
+animal to the vet is a journey rather than a button on its card.
+
+The rail stays four: **Home / Care / Walk / Map**, which is exactly what
+fits (see `NavRailView`'s four-not-five arithmetic).
+
+**This is mostly wiring, not building.** Three finished things are sitting
+unreached, and this is the feature that connects them:
+
+- **`openMapOverlay()` has no caller** (`GameScene.ts:1388`) — the map is
+  unreachable from any game UI.
+- **`PtvDriveScene` has no `scene.start` anywhere.** The whole driving
+  engine is reachable only under `?ptvDemo=1` (`main.ts:52`).
+- **`getAvailableDestinations(level)`** is written, exported and used
+  **only by tests** (`packages/game-logic/src/destinations.ts:187`).
+
+And the contract between map and game is already specified from both ends,
+with the middle missing:
+
+- GameScene **sends** `{ context, playerLevel }` to the overlay on init
+  (`GameScene.ts:1408`) — and `map.html` ignores it.
+- GameScene **listens** for `drive-to` with `payload.destinationId`,
+  resolves it through `getDestination`, and then shows a
+  **"Drive to X coming soon!" toast** (`GameScene.ts:1392-1399`).
+- `map.html` **never posts `drive-to`**. Its only outbound message is
+  `open-tunnel` (`map.html:1191`).
+
+**What exists to build on**
+
+- `DESTINATIONS` — `packages/game-logic/src/destinations.ts:54`. Nine
+  places with `id, label, emoji, kind, description, distance, unlockLevel,
+  mapX/mapY, suitableSpecies`. Unlock levels 0-10. This is the model the
+  brief describes and it is already written.
+- `BIRCHIE_PLACES` — `src/driving/birchie-places.ts:28`. Nine `fx/fy`
+  fractions of the map image, **keyed by the same ids**. Its header flags
+  the positions as provisional, and warns that `destinations.ts`'s
+  `mapX/mapY` is a *different, non-matching* abstract layout — so pick one
+  and delete the other rather than letting two disagree.
+- `map.html`'s pin layer — `#pin-layer` at `map.html:805`, `.pin` CSS at
+  307, `placePins()` at 1147 draws exactly **one** hardcoded pin (the
+  A.R.C. building) whose click switches stage locally.
+
+**The shape of the work**
+
+1. `placePins()` takes a list instead of a constant, positions from `fx/fy`,
+   and posts `drive-to` on tap. It already receives `playerLevel` on init;
+   it needs to start reading it.
+2. GameScene's `drive-to` handler replaces its toast with
+   `scene.start('PtvDriveScene', ...)` — the destination id is already
+   resolved there.
+3. Social becomes a destination (village hall) and comes off the rail. It
+   is trivially movable: `SocialScene` is self-contained, takes no payload,
+   has one entry point and one `scene.start('GameScene')` back.
+4. The vet becomes a destination; the animal card's Heal sends you to the
+   map rather than straight to `VetScene` (`GameScene.ts:997`).
+5. Reach: both the pin count and the visible map extent grow with level.
+   Locked pins stay visible so a child can see what she is working towards.
+
+**One thing to tidy while in here: there are four unrelated "unlocks at
+level N" tables** — `SUPPLY_DESTINATIONS` (`supply-runs.ts:22`),
+`VEHICLE_DEFS` (`crate-stacking.ts:146`), `DESTINATIONS`
+(`destinations.ts:54`) and `MODE_UNLOCK_LEVELS` (`depot-inventory.ts:175`)
+— and `DepotScene.ts:325` hardcodes its number in the label rather than
+reading its own table. The supply-run destinations and the world
+destinations overlap by name (`bramble_farm` / `Bramble Farm`) and are two
+different records of the same three places.
+
 ---
 
 ## Smaller things, carried
