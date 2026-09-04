@@ -5,8 +5,8 @@ Ship A.R.C. as an iPad/iPhone app for 7–10 year olds. Current arc: make it
 look like one finished product rather than four stitched together.
 
 ## State
-All on `main` (`7d2ef24`), **not yet pushed**. 365 tests, typecheck clean,
-35 lint warnings, 0 errors. Nothing behind a flag.
+All on `main` and pushed. 365 tests, typecheck clean, 35 lint warnings,
+0 errors. One thing is behind a flag and it matters: **`?sideRail=1`**.
 
 **`e2e/ux-review.spec.ts` is at 2 FAIL / 16 WARN over 56 pairs.** The two
 FAILs are the paths screen's L3 on phone and clip, and nothing this session
@@ -64,25 +64,41 @@ harness, not by a device.
 - **The sign fold is dropped.** `d22ef1a` stays on `side-nav-prototype`.
 
 ## Next step
-Queue items 7b, 8, 9 and 10, and two of them are waiting on Marcus.
+Queue items 7b, 8, 9 and 10. Item 1 below is the work; 2 and 3 are settled
+and recorded so they are not re-litigated.
 
-**Waiting on a decision:**
-1. **The side-nav layout is switched off and is the real fix for a whole
-   family of bugs.** `setSideNav` has no caller in `src/` or `e2e/`; the
-   live version is `side-nav-prototype`. Under it the anchor rect and the
-   art rect are the same rect, so `anchorSpaceFor`'s compromise — anchors
-   resolving against the play band while the art fills the screen — has
-   nothing left to correct. Every "the animal stands above the painted
-   floor" finding is that compromise. **Merging it retires the family;
-   this session managed one symptom of it.**
-2. **The drive picker's forecourt flanks.** Dress them with the road
-   furniture that is already painted and loaded (`decor-barrier`,
-   `decor-bollard`, `decor-cone`), or leave them as forecourt. Nothing is
-   broken either way.
-3. **Caveat reads at 72% of every other face**, so `TYPE.caption` means
-   about 11.6px in it. `font-size-adjust: 0.49` fixes it and is verified,
-   but it widens text 37% across ~50 rules on 20 screens. Belongs with the
-   paths/rewilding screen work.
+**Decided 2026-09-04:**
+
+1. **Make side-nav the default.** Reviewed at Marcus's ask; the survey is
+   in queue item 7b. It is a live prototype on `main` behind `?sideRail=1`
+   (`main.ts:65`, remembered in `localStorage`, `VITE_SIDE_RAIL=1` for the
+   native build) — **not** a branch. `side-nav-prototype` holds the sign
+   fold and is 48 commits behind; do not go looking there for it.
+   `docs/landscape-relayout-2026-08-31.md` is the design note.
+
+   The play box goes 768x362 (aspect **2.12**, letterboxed) → 696x402
+   (**1.73**, against room art authored at 1.78), and `anchorSpaceFor`'s
+   compromise stops existing. **The entire visible cost is that Room,
+   Kitchen and Garden keep the old art rect and show cream margins against
+   the rail** — they size from `height - 40` and KitchenView draws at full
+   `width`; it is the same treatment `CorridorView` already had. Every DOM
+   overlay, every standalone scene and the animal card are pixel-identical
+   in both layouts.
+
+   Still unanswered: the right-hand safe inset for the other landscape
+   orientation, the bottom inset, whether iPad wants this at all, and
+   whether a 7-year-old can work a vertical rail — which is not a thing
+   arithmetic answers, and is the one that wants Marcus and a device.
+
+2. **The drive picker's forecourt flanks: commission proper art.** Marcus's
+   call — not the existing road furniture. A lead-time item; pair the ask
+   with queue item 10's emoji furniture so one commission covers both.
+
+3. **Caveat: do it with the paths/rewilding work, not before.** It reads at
+   72% of every other face, so `TYPE.caption` means about 11.6px in it.
+   `font-size-adjust: 0.49` fixes it and is verified, but widens text 37%
+   across ~50 rules on 20 screens — which is why it goes where those
+   screens are already open.
 
 **Not waiting on anything:** queue item 9 (658 raw colour literals against
 287 token uses — mechanical now `hexNum` exists), item 8 (enumerate the
@@ -112,6 +128,11 @@ config for a test. The iPad can be measured but not looked at.
 - **LoginScene/SignupScene's Phaser paths are switched off**, not unused.
   Five of the plate conversions are in them and the harness cannot see any
   of them.
+- **`rg src/ …` from the repo root silently matches nothing** — `src/` is
+  under `apps/game/`. With `2>/dev/null` on the end it reports zero hits
+  rather than an error, which is how this session concluded `setSideNav`
+  had no callers when it has one in `main.ts`. Check the cwd before
+  believing an empty result.
 - **`grep` trips this session's token guard on alternation; `rg` does not.**
 - **Never judge a typeface or an icon from a Mac screenshot.** Measure.
 

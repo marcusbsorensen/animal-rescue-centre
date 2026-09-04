@@ -324,16 +324,36 @@ rather than coordinates.
   and already loaded by that scene. Whether the flanks want dressing or are
   simply forecourt is Marcus's call; nothing is broken either way.
 - **The side-nav layout is the real fix for the class of bug item 7's first
-  entry belongs to**, and it is switched off. `setSideNav` has **no caller
-  anywhere in `src/` or `e2e/`** — the layout exists on `main` and nothing
-  turns it on; the live version is `side-nav-prototype`. `layout.ts` says
-  why it matters, and it is not the extra height: under side-nav the anchor
-  rect and the art rect are the same rect again, so the compromise in
+  entry belongs to.** It is a live prototype on `main` behind `?sideRail=1`
+  (`main.ts:65`, remembered in `localStorage`, `VITE_SIDE_RAIL=1` for the
+  native build) — **not** a branch: `side-nav-prototype` holds the sign fold
+  and is 48 commits behind. `docs/landscape-relayout-2026-08-31.md` is the
+  design note and its "Still open" list is accurate.
+
+  Why it matters is not the extra height: under side-nav the anchor rect and
+  the art rect are the same rect again, so the compromise in
   `anchorSpaceFor` — anchors resolving against the band while the art fills
   the screen — has nothing left to correct. Every "the animal stands a
-  little above the painted floor" finding is that compromise. Merging the
-  prototype retires the whole family; the corridor fix above manages one
-  symptom of it.
+  little above the painted floor" finding is that compromise.
+
+  **Surveyed 2026-09-04 at 874x402, both layouts, every scene and overlay.**
+  The play box goes from 768x362 (aspect **2.12**, letterboxed) to 696x402
+  (**1.73**, against room art authored at 1.78) — the corridor gains its
+  floor and its rug, and the arriving cat stands on the floor at full size
+  rather than at door height. Cost, all of it already in that doc's list:
+
+  - **Room, Kitchen and Garden keep the old art rect** and show cream
+    margins against the rail — they size from `height - 40` and KitchenView
+    draws at full `width`. This is the whole visible cost, and it is the
+    same treatment `CorridorView` already had.
+  - **Nothing else moves.** The DOM overlays (paths, rewilding, tunnel,
+    adoption-office, map), the standalone scenes (Depot, SupplyRun, Kitchen
+    minigame, Account, Social) and the animal card are pixel-identical in
+    both layouts — they never consult the play area.
+  - Still unanswered from the design note: the right-hand safe inset for the
+    other landscape orientation, the bottom inset, whether iPad wants this
+    at all (two arrangements to maintain), and whether a 7-year-old can
+    work a vertical rail — which is not a thing arithmetic answers.
 
 ### 8. Enumerate the rest of §3
 Two instances are plated; nobody knows the denominator. The species room
