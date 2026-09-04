@@ -82,6 +82,7 @@ import {
   renderWardrobePicker,
   renderToyPicker,
   renderHUD,
+  showVolumeSlider,
   renderLeftRail,
   renderNavBar,
   renderNavRail,
@@ -138,6 +139,8 @@ export class GameScene extends Phaser.Scene {
    *  Reset on navigation so the rail never covers a view the child has
    *  just moved to. */
   private railOpen = false;
+  /** The volume popup a long press opens, so a second press replaces it. */
+  private volumeSlider?: Phaser.GameObjects.Container;
   // Persistent layer for cross-fading sprites during state transitions.
   // NOT cleared by gameContainer.removeAll() so ghost sprites can outlive
   // a re-render while fading out.
@@ -682,6 +685,14 @@ export class GameScene extends Phaser.Scene {
         });
       },
       onArrivalAlertTap: () => {
+        // Under side-nav this badge *is* the arrivals rail's handle — the
+        // vertical pull-tab it replaced opened the rail, so this does too
+        // rather than only walking the child back to the corridor.
+        if (sideNavEnabled()) {
+          this.railOpen = true;
+          this.renderRail();
+          return;
+        }
         this.viewMode = 'corridor';
         this.renderView();
       },
@@ -692,6 +703,24 @@ export class GameScene extends Phaser.Scene {
       onAudioToggle: () => {
         AudioManager.getInstance().toggleMusic();
         this.renderHUD();
+      },
+      onSfxToggle: () => {
+        AudioManager.getInstance().toggleSfx();
+        this.renderHUD();
+      },
+      onAudioVolume: (kind, cx, cy) => {
+        this.volumeSlider?.destroy(true);
+        const audio = AudioManager.getInstance();
+        const state = audio.getState();
+        this.volumeSlider = showVolumeSlider(this, {
+          cx, cy,
+          label: kind === 'music' ? 'Music' : 'Sounds',
+          value: kind === 'music' ? state.musicVolume : state.sfxVolume,
+          onChange: (v: number) => {
+            if (kind === 'music') audio.setMusicVolume(v);
+            else audio.setSfxVolume(v);
+          },
+        });
       },
     });
   }

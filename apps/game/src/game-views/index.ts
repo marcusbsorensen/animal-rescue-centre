@@ -17,7 +17,7 @@ export { renderWardrobePicker } from './WardrobePickerView';
 export type { WardrobePickerCallbacks } from './WardrobePickerView';
 export { renderToyPicker } from './ToyPickerView';
 export type { ToyPickerCallbacks } from './ToyPickerView';
-export { renderHUD } from './HUDView';
+export { renderHUD, showVolumeSlider } from './HUDView';
 export type { HUDCallbacks } from './HUDView';
 export { renderNavBar, renderGamesPopup, showQuickToast } from './NavBarView';
 export type { NavBarCallbacks, NavBarOptions, GamesPopupCallbacks } from './NavBarView';

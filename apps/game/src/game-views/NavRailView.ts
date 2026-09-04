@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
-import { FONTS, TEXT_RESOLUTION, MIN_TAP, MIN_TAP_GAP, TYPE } from '../ui/constants';
-import { NAV_RAIL_WIDTH, getSafeAreaLeft } from '../ui/layout';
+import {
+  FONTS, TEXT_RESOLUTION, MIN_TAP, MIN_TAP_GAP, TYPE, NAV_COLOURS, hexNum,
+  SPACE, statusRowCy, SAFE_MARGIN,
+} from '../ui/constants';
+import { NAV_RAIL_WIDTH, railEdgeInset } from '../ui/layout';
 import type { NavBarCallbacks, NavBarOptions } from './NavBarView';
 
 /**
@@ -31,6 +34,12 @@ import type { NavBarCallbacks, NavBarOptions } from './NavBarView';
 /** Height of one rail cell — icon above label, clearing MIN_TAP by 8. */
 const CELL_H = 56;
 /**
+ * Radius of a header status chip — the rail's column starts below them.
+ * Same number as `HUDView`'s `CHIP_R`; the two rows have to agree and the
+ * header is the one that sets it.
+ */
+const CHIP_R = 22;
+/**
  * Gap between cells. MIN_TAP_GAP is a floor, not a suggestion — two
  * targets that pass on size and fail on separation are, for a child
  * aiming at Care and hitting Walk, the same defect as being too small.
@@ -40,19 +49,26 @@ const CELL_GAP = MIN_TAP_GAP;
 /**
  * Space left below the last cell.
  *
- * UNVERIFIED against the home indicator. 10 leaves the bottom cell 10pt
- * clear, and the Home Screen web clip reports `safe-area-inset-bottom:
- * 20px` (the Capacitor app reports 0 — see .claude/TRAPS.md, they are
- * different viewports). `ui/safe-area.ts` only reads the left inset, so
- * there is no bottom reading to lay this out against; on the clip the
- * last control may sit under the indicator. Same gap as the right-hand
- * inset the arrivals rail has, and the same fix.
+ * `SAFE_MARGIN`, because the edge sweep scores this edge: at 10 the bottom
+ * cell measured 10px from the screen on all four viewports and L3 called
+ * it, which is the same rule that moved the arrivals pull-tab off the left
+ * edge. Six points off the stack; the stack is bottom-anchored and has
+ * them.
+ *
+ * Still UNVERIFIED against the home indicator, which is a different
+ * question from the sweep's. The Home Screen web clip reports
+ * `safe-area-inset-bottom: 20px` and the Capacitor app reports 0 — see
+ * .claude/TRAPS.md, they are different viewports — and `ui/safe-area.ts`
+ * only reads the left inset, so there is no bottom reading to lay this out
+ * against. On the clip the last control may still sit under the indicator.
  */
-const BOTTOM_MARGIN = 10;
+const BOTTOM_MARGIN = SAFE_MARGIN;
 
 type RailItem = {
   iconKey: string;
   label: string;
+  /** The destination's brand hue — see NAV_COLOURS for why each is its own. */
+  colour: string;
   active: boolean;
   action: () => void;
 };
@@ -87,28 +103,44 @@ export function renderNavRail(
   // meant nothing in a vertical stack either way.
   const items: RailItem[] = [
     options.showBack
-      ? { iconKey: 'icon-back', label: 'Back', active: false, action: callbacks.onBack }
-      : { iconKey: homeKey, label: 'Home', active: options.activeMode === 'corridor', action: callbacks.onHome },
+      ? { iconKey: 'icon-back', label: 'Back', colour: NAV_COLOURS.back, active: false, action: callbacks.onBack }
+      : {
+        iconKey: homeKey, label: 'Home', colour: NAV_COLOURS.home,
+        active: options.activeMode === 'corridor', action: callbacks.onHome,
+      },
     {
       iconKey: careKey,
       label: 'Care',
+      colour: NAV_COLOURS.care,
       active: options.activeMode === 'kitchen' || options.activeMode === 'garden',
       action: callbacks.onCare,
     },
-    { iconKey: walkKey, label: 'Walk', active: false, action: callbacks.onWalk },
-    { iconKey: socialKey, label: 'Social', active: false, action: callbacks.onSocial },
+    { iconKey: walkKey, label: 'Walk', colour: NAV_COLOURS.walk, active: false, action: callbacks.onWalk },
+    { iconKey: socialKey, label: 'Social', colour: NAV_COLOURS.social, active: false, action: callbacks.onSocial },
   ];
 
-  const railX = getSafeAreaLeft();
+  const railX = railEdgeInset();
   const railW = NAV_RAIL_WIDTH;
   const cx = railX + railW / 2;
 
   // ── Rail background ───────────────────────────────────
+  //
+  // The column starts below the header, not at the top of the screen.
+  //
+  // The room title is drawn by the view into `gameContainer`, which is
+  // under `navContainer`, so a title running onto a full-height rail is a
+  // title with its icon behind an opaque column — and the fix is not to
+  // fight the z-order but to stop the column reaching that far. The title
+  // and the status chips share the rail's left edge instead, which is what
+  // ties them together; the cells are bottom-anchored and were never using
+  // the top third anyway.
+  const bgTop = statusRowCy(CHIP_R) + CHIP_R + SPACE.s;
+  const bgH = height - bgTop - 6;
   const bg = scene.add.graphics();
   bg.fillStyle(0x000000, 0.12);
-  bg.fillRoundedRect(railX + 2, 8, railW, height - 16, railW / 2);
+  bg.fillRoundedRect(railX + 2, bgTop + 2, railW, bgH, railW / 2);
   bg.fillStyle(0xffffff, 0.92);
-  bg.fillRoundedRect(railX, 6, railW, height - 12, railW / 2);
+  bg.fillRoundedRect(railX, bgTop, railW, bgH, railW / 2);
   navContainer.add(bg);
 
   // ── Cells, stacked upward from the bottom ─────────────
@@ -118,14 +150,27 @@ export function renderNavRail(
   items.forEach((item, i) => {
     const cy = stackTop + i * (CELL_H + CELL_GAP) + CELL_H / 2;
 
-    if (item.active) {
-      const pill = scene.add.graphics();
-      pill.fillStyle(0x5AAE4A, 0.18);
-      pill.fillRoundedRect(railX + 5, cy - CELL_H / 2 + 2, railW - 10, CELL_H - 4, 16);
-      navContainer.add(pill);
-    }
-
+    const hue = hexNum(item.colour);
     const iconPx = item.active ? 34 : 31;
+
+    // The destination's colour, on every cell rather than only the one you
+    // are standing in — a rail where three of four cells look alike has
+    // told a child nothing until she picks one. The halo is behind the
+    // icon's own cream disc, so it reads as a ring around the painting
+    // rather than a wash over it.
+    const halo = scene.add.graphics();
+    if (item.active) {
+      halo.fillStyle(hue, 0.14);
+      halo.fillRoundedRect(railX + 5, cy - CELL_H / 2 + 2, railW - 10, CELL_H - 4, 16);
+    }
+    halo.fillStyle(hue, item.active ? 0.34 : 0.2);
+    halo.fillCircle(cx, cy - 9, iconPx / 2 + 4);
+    if (item.active) {
+      halo.lineStyle(2, hue, 0.9);
+      halo.strokeCircle(cx, cy - 9, iconPx / 2 + 4);
+    }
+    navContainer.add(halo);
+
     if (scene.textures.exists(item.iconKey)) {
       const img = scene.add.image(cx, cy - 9, item.iconKey)
         .setDisplaySize(iconPx, iconPx)
@@ -137,16 +182,16 @@ export function renderNavRail(
       navContainer.add(
         scene.add.text(cx, cy - 9, item.label.slice(0, 2), {
           fontSize: `${iconPx}px`, fontFamily: FONTS.title, fontStyle: 'bold',
-          color: item.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
+          color: item.colour, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5),
       );
     }
 
     navContainer.add(
       scene.add.text(cx, cy + 15, item.label, {
-        fontSize: item.active ? TYPE.caption : TYPE.caption,
+        fontSize: TYPE.caption,
         fontFamily: FONTS.body, fontStyle: 'bold',
-        color: item.active ? '#3d8a2e' : '#6b5a4a', resolution: TEXT_RESOLUTION,
+        color: item.colour, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );
 

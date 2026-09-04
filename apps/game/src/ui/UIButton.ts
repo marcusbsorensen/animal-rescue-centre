@@ -173,6 +173,22 @@ export function createChromeTitle(
      * right way round for a child who does not see red and green apart.
      */
     tone?: 'default' | 'success' | 'danger';
+    /**
+     * `centre` (default) reads `x` as the plate's centre; `left` reads it
+     * as the plate's left edge.
+     *
+     * For the side-nav header, where the room title starts on the nav rail
+     * and runs out onto the art. The caller cannot do this itself before
+     * the plate is measured, and doing it after — reading `container.width`
+     * and shifting — is the arithmetic four views would each repeat.
+     */
+    align?: 'centre' | 'left';
+    /**
+     * Draw the plate at `CHROME.fillAlphaOverArt` — for the headings that
+     * are *messages in the middle of a room* rather than titles at its
+     * edge. See that token for why the number is where it is.
+     */
+    overArt?: boolean;
   }
 ): Phaser.GameObjects.Container {
   const fontSize = options?.fontSize ?? '20px';
@@ -228,13 +244,18 @@ export function createChromeTitle(
   icon?.setY(rowY);
   subtitle?.setY(stackH / 2 - subtitle.height / 2);
 
-  const plate = createChromePlate(scene, 0, 0, w, h);
+  const plate = createChromePlate(scene, 0, 0, w, h,
+    options?.overArt ? { fillAlpha: CHROME.fillAlphaOverArt } : undefined);
 
   const children: Phaser.GameObjects.GameObject[] = [plate, text];
   if (icon) children.push(icon);
   if (subtitle) children.push(subtitle);
 
-  const container = scene.add.container(x, y, children);
+  const container = scene.add.container(
+    options?.align === 'left' ? x + w / 2 : x,
+    y,
+    children,
+  );
   container.setSize(w, h + CHROME.shadowY);
   return container;
 }

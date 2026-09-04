@@ -103,6 +103,12 @@ export function renderLeftRail(
     return getUrgentNeed(a) !== null || store.sickAnimals.has(a.id);
   }).length;
 
+  if (mode === 'hidden') {
+    // Side-nav, rail shut. Nothing is drawn: the waiting count lives on the
+    // HUD's player panel and that badge is what opens this. See RailMode.
+    return;
+  }
+
   if (mode === 'tab') {
     renderTab(scene, container, callbacks, bounds, { inCareCount, arriving, needsCareCount });
     return;

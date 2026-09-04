@@ -39,6 +39,36 @@ export const COLOURS = {
   inputBorder: '#d4c8b8',
 } as const;
 
+/**
+ * One brand hue per navigation destination.
+ *
+ * The four painted nav icons share a single cream disc with a brown ring —
+ * they read as a set, which is right, but it means the only thing telling
+ * Home from Care at a glance is a 30px painting of a building against a
+ * 30px painting of a bowl. A child learning the game has to read the label
+ * every time.
+ *
+ * So the cell carries a colour and the icon does not have to. Nothing here
+ * is invented: the brand has exactly four hues and each destination's
+ * subject is already painted in its own one — the rescue centre's roof is
+ * green, the food bowl is the brand orange, the gift box is the brand red.
+ * Walk takes the blue, which is the one hue with no object of its own and
+ * the right temperature for outdoors.
+ *
+ * **Colour reinforces here, it does not carry.** The labels stay — they
+ * were set at the readability floor for a 7-11 year old and were not
+ * traded for layout, so they are not traded for colour either. A child who
+ * does not see red and green apart loses nothing they had before.
+ */
+export const NAV_COLOURS = {
+  home: COLOURS.primary,
+  care: COLOURS.warm,
+  walk: COLOURS.info,
+  social: COLOURS.accent,
+  /** Back is not a destination; it stays neutral so the four keep meaning. */
+  back: COLOURS.textLight,
+} as const;
+
 /** '#rrggbb' → 0xRRGGBB, so the Phaser side can draw straight from COLOURS. */
 export function hexNum(hex: string): number {
   return parseInt(hex.replace('#', ''), 16);
@@ -144,6 +174,24 @@ export const CHROME = {
   /** COLOURS.bg — the cream the logo sits on. */
   fill: hexNum(COLOURS.bg),
   fillAlpha: 0.96,
+  /**
+   * The fill for a plate that sits in the *middle* of the painted world
+   * rather than at its edge — an empty state, a "well-fed" panel, a toast.
+   *
+   * Those are the big ones. A title plate is a strip along the top and
+   * costs the art almost nothing; a message panel is 300x70 in the centre
+   * of a room a child is looking at, and at 0.96 it is a hole in the
+   * painting. At 0.84 the room reads through it and the words still sit on
+   * paper rather than on grass.
+   *
+   * Not lower, and this is the limit rather than a preference: the ink
+   * contrast a test holds is measured against `fill`, and every point of
+   * alpha given away is contrast handed to whatever happens to be painted
+   * behind. 0.84 keeps `ink` above 4.5:1 on the darkest room art in the
+   * game; a message that needs to be quieter than this wants to be smaller
+   * instead.
+   */
+  fillAlphaOverArt: 0.84,
   /** COLOURS.inputBorder — the same hairline the inputs use. */
   stroke: hexNum(COLOURS.inputBorder),
   strokeAlpha: 0.9,
@@ -332,6 +380,36 @@ export const MIN_TAP_GAP = 12;
  * button anchored at `EDGE_CONTROL_INSET`.
  */
 export const TITLE_CY = 45;
+
+/**
+ * The drawn height of a one-line chrome title, and the y of the row that
+ * sits under it in the side-nav header.
+ *
+ * A measured constant rather than a coupling: the title is drawn by the
+ * room view and the status chips by `HUDView`, and the two never meet.
+ * `createChromeTitle` builds a one-line plate at `TYPE.lead` as
+ * `text.height + CHROME.padY * 2` — 27 + 24 — so the plate runs
+ * `TITLE_CY ± 25.5`.
+ *
+ * **A two-line title under side-nav invalidates this**, and the subtitle
+ * option is exactly how that would happen. No side-nav view uses one
+ * today; if one does, this is the number that has to start being measured
+ * rather than assumed.
+ */
+export const TITLE_PLATE_H = 51;
+
+/**
+ * Centre-line of the icon-only status chips under the side-nav title.
+ *
+ * `SPACE.l`, not `SPACE.s`: the row below the header carries controls (the
+ * two sound pills) and the row above carries controls (the level orb, the
+ * arrivals badge), so what separates them is a tap gap rather than a
+ * reading gap. At 8 the measured gap between the orb and the pill under it
+ * was 8px against a `MIN_TAP_GAP` of 12.
+ */
+export function statusRowCy(chipRadius: number): number {
+  return TITLE_CY + TITLE_PLATE_H / 2 + SPACE.l + chipRadius;
+}
 
 /**
  * The first y a screen's own content may occupy, below its title plate.

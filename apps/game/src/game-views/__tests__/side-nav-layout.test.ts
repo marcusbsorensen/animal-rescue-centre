@@ -55,17 +55,17 @@ describe('play box', () => {
     expect(play.x).toBe(ISLAND + NAV_RAIL_WIDTH);
   });
 
-  it('reserves the arrivals tab on the right', () => {
+  it('reserves nothing on the right, the tab having gone', () => {
     setSafeAreaLeft(ISLAND);
     setSideNav(true);
     const play = playAreaFor(PHONE_W, PHONE_H);
-    // Flush, and 696 is why. The tab on the *left* was moved off the edge
-    // by `railEdgeInset` when the edge sweep found it sitting at 0px; this
-    // one stays put, because the 16px would come out of a play box whose
-    // whole claim is that room art fits it — 696x402 is 1.77 against art
-    // authored at 1.78. See the note in `railBoundsFor`.
-    expect(play.x + play.w).toBe(PHONE_W - RAIL_TAB_WIDTH);
-    expect(play.w).toBe(696);
+    // The 56pt vertical pull-tab is gone: the waiting count moved onto the
+    // HUD's player panel, which floats over the art and reserves nothing.
+    // So the room reaches the screen's right edge and gets 752 rather than
+    // 696. `RAIL_TAB_WIDTH` still exists for the bottom-bar layout's
+    // left-hand tab, which is unaffected.
+    expect(play.x + play.w).toBe(PHONE_W);
+    expect(play.w).toBe(752);
   });
 
   it('reserves the full rail on an iPad, where it stands open', () => {
@@ -87,9 +87,20 @@ describe('play box', () => {
     const play = playAreaFor(PHONE_W, PHONE_H);
     const boxAspect = play.w / play.h;
 
+    // 752x402 is 1.870 against 1.78 — a 5.2% horizontal stretch, where the
+    // 696-wide box was a 2.8% squash. Losing the tab's 56pt moved the box
+    // *past* the art's shape rather than towards it, and this bound went
+    // from 1.05 to 1.08 to say so honestly.
+    //
+    // Both are imperceptible beside the 19% the bottom bar imposes, and
+    // the real answer to all of it is the cover-vs-contain decision the
+    // corridor's own comment defers to a device: a uniform fit that crops
+    // has no stretch at any aspect. Taking it means moving the anchor
+    // space onto the drawn art rect rather than the play box, which is why
+    // it is not being taken in passing.
     const sideNavStretch = boxAspect / ART_ASPECT;
     expect(sideNavStretch).toBeGreaterThan(0.95);
-    expect(sideNavStretch).toBeLessThan(1.05);
+    expect(sideNavStretch).toBeLessThan(1.08);
 
     setSideNav(false);
     const bar = playAreaFor(PHONE_W, PHONE_H);
@@ -100,11 +111,15 @@ describe('play box', () => {
 });
 
 describe('arrivals rail', () => {
-  it('moves to the right edge and spans the full height', () => {
+  it('draws nothing at all while it is shut', () => {
     setSideNav(true);
     const bounds = railBoundsFor(PHONE_W, PHONE_H);
-    expect(bounds.mode).toBe('tab');
-    expect(bounds.x).toBe(PHONE_W - RAIL_TAB_WIDTH);
+    // `hidden`, not `tab`. The rail has no handle of its own under
+    // side-nav — the HUD player panel's arrivals badge is the handle — so
+    // shut means nothing on screen and nothing reserved.
+    expect(bounds.mode).toBe('hidden');
+    expect(bounds.w).toBe(0);
+    expect(bounds.x).toBe(PHONE_W);
     expect(bounds.y).toBe(0);
     expect(bounds.h).toBe(PHONE_H);
   });
@@ -170,7 +185,11 @@ describe('what the layout costs', () => {
     // the notch and the margin, so 50 was already paying for the clearance
     // 16 would have bought. The sweep bites on the *other* landscape
     // orientation, where there is no notch and the tab used to sit at 0.
-    expect(bar.w - rail.w).toBe(NAV_RAIL_WIDTH);
+    // 16, not 72: the rail takes 72 on the left and the arrivals tab gives
+    // 56 back on the right, so the room is 16pt narrower than under the
+    // bottom bar and 188pt taller. The original 72 was measured when the
+    // tab still stood.
+    expect(bar.w - rail.w).toBe(16);
     // 188 points of height for 72 of width, on a screen with 874 across
     // and 402 down. That is the whole case for the layout.
     expect(rail.h / bar.h).toBeGreaterThan(1.8);

@@ -6,8 +6,12 @@ import {
   getMaxShelterAnimals,
 } from '@arc/game-logic';
 import { AudioManager } from '../audio/AudioManager';
-import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, TYPE } from '../ui/constants';
-import { playAreaFor, sideNavEnabled } from '../ui/layout';
+import {
+  COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, TYPE, SPACE, MIN_TAP, MIN_TAP_GAP,
+  CHROME, TITLE_CY, TITLE_PLATE_H, statusRowCy, hexNum,
+} from '../ui/constants';
+import { createChromePlate } from '../ui/UIButton';
+import { playAreaFor, sideNavEnabled, sideNavHeaderLeft, railIsCollapsible } from '../ui/layout';
 import type { GameStateStore } from '../game-state';
 
 // Human-readable names for phases + weathers (shown in HUD pills).
@@ -57,6 +61,16 @@ export interface HUDCallbacks {
   onCareAlertTap: () => void;
   /** Tap the music-on/off orb — scene toggles audio + re-renders HUD. */
   onAudioToggle: () => void;
+  /** Tap the sound-effects chip — side-nav only; the two are separate there. */
+  onSfxToggle: () => void;
+  /**
+   * Press and hold either sound chip — open that one's volume slider.
+   *
+   * The chip's own position comes with it: the popup anchors under the
+   * control the press started from, and only the header knows where the
+   * chips landed.
+   */
+  onAudioVolume: (kind: 'music' | 'sfx', cx: number, cy: number) => void;
 }
 
 export function renderHUD(
@@ -85,6 +99,17 @@ export function renderHUD(
     (a) => a.state === 'sheltered' || a.state === 'bonding',
   ).length;
   const maxShelter = getMaxShelterAnimals(store.level);
+
+  // Under side-nav the strip is not a strip. It is two header blocks —
+  // where you are on the left, how you are doing on the right — and it is
+  // built somewhere else entirely.
+  if (sideNavEnabled()) {
+    renderSideNavHeader(scene, store, uiContainer, callbacks, {
+      welcomedCount, arrivingCount, needsCareCount,
+      shelteredCount, maxShelter, xpProgress,
+    });
+    return;
+  }
 
   // Constrain to 600px centred, and centre it on the play area rather
   // than the whole screen.
@@ -390,59 +415,6 @@ function drawTimeWeatherStrip(
 
 // ── Helpers ────────────────────────────────────────────────
 
-interface AlertBadgeOpts {
-  cx: number; cy: number;
-  radius: number;
-  fillColour: number;
-  count: number;
-  pulseScale: number;
-  pulseDuration: number;
-  onTap: () => void;
-}
-
-function drawAlertBadge(
-  scene: Phaser.Scene,
-  container: Phaser.GameObjects.Container,
-  opts: AlertBadgeOpts,
-): void {
-  const { cx, cy, radius, fillColour, count, pulseScale, pulseDuration, onTap } = opts;
-  const gfx = scene.add.graphics();
-  gfx.fillStyle(0x000000, 0.2);
-  gfx.fillCircle(cx + 1, cy + 2, radius);
-  gfx.fillStyle(fillColour, 1);
-  gfx.fillCircle(cx, cy, radius);
-  gfx.lineStyle(2, 0xffffff, 1);
-  gfx.strokeCircle(cx, cy, radius);
-  container.add(gfx);
-  container.add(
-    scene.add.text(cx, cy, `${count}`, {
-      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
-      color: '#ffffff', resolution: TEXT_RESOLUTION,
-    }).setOrigin(0.5),
-  );
-
-  // Pulse so it draws the eye
-  const pulseTarget = { s: 1 };
-  scene.tweens.add({
-    targets: pulseTarget,
-    s: pulseScale,
-    duration: pulseDuration,
-    yoyo: true,
-    repeat: -1,
-    ease: 'Sine.easeInOut',
-    onUpdate: () => {
-      gfx.setScale(pulseTarget.s, pulseTarget.s);
-      gfx.x = cx * (1 - pulseTarget.s);
-      gfx.y = cy * (1 - pulseTarget.s);
-    },
-  });
-
-  const hit = scene.add.circle(cx, cy, Math.max(radius + 4, 24), 0x000000, 0)
-    .setInteractive({ useHandCursor: true });
-  hit.on('pointerdown', onTap);
-  container.add(hit);
-}
-
 interface IconOrbOpts {
   iconKey: string; fallback: string;
   cx: number; cy: number; size: number;
@@ -525,4 +497,440 @@ function drawValuePill(
   );
 
   return x0 - 6;  // next rx
+}
+
+// ── Side-nav header ────────────────────────────────────────
+//
+// Two blocks instead of a strip.
+//
+// **Left — where you are.** The room title (drawn by the view, starting on
+// the nav rail) and, under it, the world's state as icons alone: the phase
+// with its progress as a ring, and the weather. The words went because
+// "Morning" and "Sunny" are the two most redundant strings in the game —
+// the sky in the art behind them already says both — and because a row of
+// two 160px worded pills was spending a fifth of the width saying it.
+//
+// **Right — how you are doing.** One wider plate mirroring the title:
+// level, what is in care, coins, homes, and the arrivals badge that opens
+// the rail. That badge is what replaced the vertical pull-tab on the right
+// edge; a 56px column of chrome for one number was the thing this layout
+// could least afford, and it is the same information.
+//
+// **Under it — the two sounds.** Music and effects, separately, because
+// they are separately wanted: a child who needs the game quiet in a room
+// with other people still wants to know the button she pressed did
+// something. Tap toggles; press and hold opens that one's volume.
+
+/** Radius of a status or audio chip. Clears MIN_TAP across, with room. */
+const CHIP_R = 22;
+
+interface HeaderCounts {
+  welcomedCount: number;
+  arrivingCount: number;
+  needsCareCount: number;
+  shelteredCount: number;
+  maxShelter: number;
+  xpProgress: number;
+}
+
+function renderSideNavHeader(
+  scene: Phaser.Scene,
+  store: GameStateStore,
+  container: Phaser.GameObjects.Container,
+  callbacks: HUDCallbacks,
+  counts: HeaderCounts,
+): void {
+  const { width, height } = scene.scale;
+  const play = playAreaFor(width, height);
+  const chipCy = statusRowCy(CHIP_R);
+
+  // ── Left: the world's state, icons only ─────────────────
+  const leftX = sideNavHeaderLeft();
+  let cx = leftX + CHIP_R;
+
+  if (store.timeProgress) {
+    const { currentPhase, tasksThisPhase, tasksPerPhase } = store.timeProgress;
+    const progress = Math.min(1, tasksThisPhase / Math.max(1, tasksPerPhase));
+    // The phase pill's progress bar was the one thing on that row a child
+    // could not get from the sky: how close her care work is to moving the
+    // day on. It survives as a ring around the chip rather than a bar
+    // beside a word.
+    drawStatusChip(scene, container, {
+      cx, cy: chipCy,
+      iconKey: scene.textures.exists('sundial') ? 'sundial' : '',
+      fallbackGlyph: currentPhase === 'night' || currentPhase === 'evening' ? '☽' : '☀',
+      label: PHASE_LABELS[currentPhase],
+      progress,
+    });
+    cx += CHIP_R * 2 + SPACE.s;
+  }
+
+  if (store.gardenWeather) {
+    const weather = store.gardenWeather.current;
+    const key = WEATHER_ICON[weather];
+    drawStatusChip(scene, container, {
+      cx, cy: chipCy,
+      iconKey: scene.textures.exists(key) ? key : '',
+      fallbackGlyph: '☁',
+      label: WEATHER_LABELS[weather],
+    });
+  }
+
+  // ── Right: the player's own numbers, on one plate ────────
+  const rightEdge = play.x + play.w - SAFE_MARGIN;
+  const panelH = TITLE_PLATE_H;
+  const orbR = (panelH - 14) / 2;
+
+  const coinText = `${store.economy.coins}`;
+  const homeText = `${counts.shelteredCount}/${counts.maxShelter}`;
+  const careText = `${counts.welcomedCount}`;
+  const alerts = counts.arrivingCount + counts.needsCareCount;
+
+  // The badge is a *handle* for the arrivals rail, so it has nothing to
+  // offer on a viewport where that rail already stands open — an iPad
+  // shows the counts and the Welcome buttons themselves, and a badge
+  // beside them is a duplicate control on the screen with the most
+  // controls already. `railIsCollapsible` is the same test the rail uses
+  // to decide whether it collapses at all.
+  const showAlerts = alerts > 0 && railIsCollapsible(width);
+
+  const SEG = 52;
+  const segments = 2 + (store.economy.coins > 0 ? 1 : 0) + 1 + (showAlerts ? 1 : 0);
+  const panelW = CHROME.padX * 2 + segments * SEG;
+  const panelCx = rightEdge - panelW / 2;
+
+  container.add(createChromePlate(scene, panelCx, TITLE_CY, panelW, panelH));
+
+  let sx = panelCx - panelW / 2 + CHROME.padX + SEG / 2;
+
+  // Level orb — the one control on this plate that goes somewhere else.
+  const lvlGfx = scene.add.graphics();
+  lvlGfx.fillStyle(hexNum(COLOURS.primary), 1);
+  lvlGfx.fillCircle(sx, TITLE_CY, orbR);
+  container.add(lvlGfx);
+  container.add(
+    scene.add.text(sx, TITLE_CY, `${store.level}`, {
+      fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
+      color: COLOURS.white, resolution: TEXT_RESOLUTION,
+    }).setOrigin(0.5),
+  );
+  // The XP ring, where the XP bar used to be. A bar needs a run of width
+  // this plate does not have to spare; a ring needs none.
+  const xpRing = scene.add.graphics();
+  xpRing.lineStyle(3, hexNum(COLOURS.primaryLight), 0.9);
+  xpRing.beginPath();
+  xpRing.arc(sx, TITLE_CY, orbR + 3, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * counts.xpProgress);
+  xpRing.strokePath();
+  container.add(xpRing);
+  const lvlHit = scene.add.circle(sx, TITLE_CY, Math.max(orbR + 4, MIN_TAP / 2), 0x000000, 0)
+    .setInteractive({ useHandCursor: true });
+  lvlHit.on('pointerdown', () => callbacks.onLevelOrbTap());
+  container.add(lvlHit);
+  sx += SEG;
+
+  sx = drawPanelStat(scene, container, {
+    cx: sx, cy: TITLE_CY, value: careText,
+    iconKey: scene.textures.exists('nav-care') ? 'nav-care' : 'icon-kitchen',
+    seg: SEG,
+  });
+
+  if (store.economy.coins > 0) {
+    sx = drawPanelStat(scene, container, {
+      cx: sx, cy: TITLE_CY, value: coinText,
+      iconKey: scene.textures.exists('hud-coins') ? 'hud-coins' : 'icon-hud-coins',
+      seg: SEG,
+    });
+  }
+
+  sx = drawPanelStat(scene, container, {
+    cx: sx, cy: TITLE_CY, value: homeText,
+    iconKey: scene.textures.exists('hud-homes') ? 'hud-homes' : 'icon-hud-homes',
+    seg: SEG,
+  });
+
+  // Arrivals badge — the pull-tab's replacement, and the way into the rail.
+  if (showAlerts) {
+    const badge = scene.add.graphics();
+    badge.fillStyle(hexNum(counts.arrivingCount > 0 ? COLOURS.accent : COLOURS.warm), 1);
+    badge.fillCircle(sx, TITLE_CY, orbR);
+    container.add(badge);
+    container.add(
+      scene.add.text(sx, TITLE_CY, `${alerts}`, {
+        fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
+        color: COLOURS.white, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5),
+    );
+    const hit = scene.add.circle(sx, TITLE_CY, Math.max(orbR + 4, MIN_TAP / 2), 0x000000, 0)
+      .setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', () => callbacks.onArrivalAlertTap());
+    container.add(hit);
+    // The one pulse left in the HUD. It marks the only thing on this plate
+    // that is asking for something rather than reporting it.
+    scene.tweens.add({
+      targets: badge, alpha: 0.55, duration: 900,
+      yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+  }
+
+  // ── Under it: the two sounds ─────────────────────────────
+  // Words, not icons, and only because the art does not exist: there is an
+  // `icon-music-on`/`off` pair and nothing at all for effects, so a pair of
+  // wordless chips would be one speaker icon and one guess. Two pills is
+  // the honest interim; an effects icon is a commission.
+  //
+  // Both filled while both are on, which the `variant` doc warns against
+  // for *emphasis* — but these are toggles, and two toggles that are on
+  // reading as on is the state, not a shout.
+  const audio = AudioManager.getInstance().getState();
+  const musicX = rightEdge - AUDIO_PILL_W / 2;
+  const sfxX = musicX - AUDIO_PILL_W - MIN_TAP_GAP;
+  drawAudioPill(scene, container, {
+    cx: musicX, cy: chipCy, on: audio.musicEnabled, label: 'Music',
+    iconKey: audio.musicEnabled ? 'icon-music-on' : 'icon-music-off',
+    onTap: callbacks.onAudioToggle,
+    onHold: () => callbacks.onAudioVolume('music', musicX, chipCy),
+  });
+  drawAudioPill(scene, container, {
+    cx: sfxX, cy: chipCy, on: audio.sfxEnabled, label: 'Sounds',
+    onTap: callbacks.onSfxToggle,
+    onHold: () => callbacks.onAudioVolume('sfx', sfxX, chipCy),
+  });
+}
+
+interface StatusChipOpts {
+  cx: number;
+  cy: number;
+  iconKey: string;
+  fallbackGlyph: string;
+  /** Kept on the object rather than drawn — see the note in drawStatusChip. */
+  label: string;
+  progress?: number;
+}
+
+/**
+ * One icon-only status chip.
+ *
+ * The label is set as data rather than drawn. `ux-review` harvests text
+ * runs to check that nothing on screen is unreadable, and an icon with no
+ * word attached anywhere is a thing no measurement can name — so the word
+ * still exists, it simply is not ink.
+ */
+function drawStatusChip(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  opts: StatusChipOpts,
+): void {
+  const { cx, cy, iconKey, fallbackGlyph, label, progress } = opts;
+
+  const plate = createChromePlate(scene, cx, cy, CHIP_R * 2, CHIP_R * 2, { radius: CHIP_R });
+  plate.setData('label', label);
+  container.add(plate);
+
+  if (progress !== undefined) {
+    const ring = scene.add.graphics();
+    ring.lineStyle(3, hexNum(COLOURS.warm), 0.85);
+    ring.beginPath();
+    ring.arc(cx, cy, CHIP_R - 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+    ring.strokePath();
+    container.add(ring);
+  }
+
+  if (iconKey) {
+    scene.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
+    container.add(
+      scene.add.image(cx, cy, iconKey).setDisplaySize(CHIP_R * 1.3, CHIP_R * 1.3).setOrigin(0.5),
+    );
+  } else {
+    container.add(
+      scene.add.text(cx, cy, fallbackGlyph, {
+        fontSize: TYPE.body, fontFamily: FONTS.body,
+        color: COLOURS.text, resolution: TEXT_RESOLUTION,
+      }).setOrigin(0.5),
+    );
+  }
+}
+
+interface PanelStatOpts {
+  cx: number;
+  cy: number;
+  value: string;
+  iconKey: string;
+  seg: number;
+}
+
+/** An icon and its number, one segment of the player panel. Returns the next x. */
+function drawPanelStat(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  opts: PanelStatOpts,
+): number {
+  const { cx, cy, value, iconKey, seg } = opts;
+  if (scene.textures.exists(iconKey)) {
+    scene.textures.get(iconKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
+    container.add(
+      scene.add.image(cx - 11, cy, iconKey).setDisplaySize(24, 24).setOrigin(0.5),
+    );
+  }
+  container.add(
+    scene.add.text(cx + 6, cy, value, {
+      fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold',
+      color: CHROME.ink, resolution: TEXT_RESOLUTION,
+    }).setOrigin(0, 0.5),
+  );
+  return cx + seg;
+}
+
+/** Width of a sound pill — "Sounds" at TYPE.caption plus the plate's padding. */
+const AUDIO_PILL_W = 84;
+
+interface AudioPillOpts {
+  cx: number;
+  cy: number;
+  on: boolean;
+  label: string;
+  /** Optional; only Music has art. See the note at the call site. */
+  iconKey?: string;
+  onTap: () => void;
+  onHold: () => void;
+}
+
+/**
+ * A sound toggle. Tap flips it; press and hold opens its volume.
+ *
+ * A second gesture on one control is normally how a child loses a feature
+ * she never discovers. It is acceptable here because the whole feature is
+ * *behind* the thing the tap already does: nothing becomes unreachable if
+ * the hold is never found, and the tap is the action a seven-year-old
+ * actually wants — off, now, because someone is talking.
+ */
+function drawAudioPill(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  opts: AudioPillOpts,
+): void {
+  const { cx, cy, on, label, iconKey, onTap, onHold } = opts;
+  const h = CHIP_R * 2;
+
+  container.add(createChromePlate(scene, cx, cy, AUDIO_PILL_W, h, {
+    radius: CHIP_R,
+    variant: on ? 'filled' : 'plate',
+  }));
+
+  // The music glyphs carry their own colours — a green speaker, a grey one
+  // with a red cross — so they are `artwork` and are never tinted. That is
+  // also why the icon alone would do for Music and cannot for Sounds.
+  const hasIcon = !!iconKey && scene.textures.exists(iconKey);
+  if (hasIcon) {
+    scene.textures.get(iconKey!).setFilter(Phaser.Textures.FilterMode.LINEAR);
+    container.add(
+      scene.add.image(cx - AUDIO_PILL_W / 2 + 18, cy, iconKey!)
+        .setDisplaySize(20, 20).setOrigin(0.5),
+    );
+  }
+  container.add(
+    scene.add.text(hasIcon ? cx + 8 : cx, cy, label, {
+      fontSize: TYPE.caption, fontFamily: FONTS.ui, fontStyle: 'bold',
+      color: on ? COLOURS.bg : CHROME.inkMuted, resolution: TEXT_RESOLUTION,
+    }).setOrigin(hasIcon ? 0.5 : 0.5, 0.5),
+  );
+
+  const hit = scene.add.rectangle(cx, cy, Math.max(AUDIO_PILL_W, MIN_TAP), Math.max(h, MIN_TAP), 0x000000, 0)
+    .setInteractive({ useHandCursor: true });
+  let held = false;
+  let timer: Phaser.Time.TimerEvent | undefined;
+  hit.on('pointerdown', () => {
+    held = false;
+    timer = scene.time.delayedCall(450, () => { held = true; onHold(); });
+  });
+  hit.on('pointerup', () => {
+    timer?.destroy();
+    if (!held) onTap();
+  });
+  // A finger that slides off mid-hold has not asked for either thing.
+  hit.on('pointerout', () => { timer?.destroy(); held = false; });
+  container.add(hit);
+}
+
+/**
+ * The volume popup a long press on a sound chip opens.
+ *
+ * Drawn into its own container at a depth above the HUD, dismissed by a
+ * tap anywhere else. The track answers a tap along its whole length as
+ * well as a drag: dragging a knob is a fine-motor task, and a child who
+ * wants it quieter can simply touch the quiet end.
+ *
+ * Returns the container so the caller can destroy it; it also destroys
+ * itself on dismiss.
+ */
+export function showVolumeSlider(
+  scene: Phaser.Scene,
+  opts: {
+    cx: number;
+    cy: number;
+    label: string;
+    value: number;
+    onChange: (v: number) => void;
+  },
+): Phaser.GameObjects.Container {
+  const { cx, label, value, onChange } = opts;
+  const W = 168;
+  const H = 64;
+  const TRACK = W - CHROME.padX * 2;
+  const { width } = scene.scale;
+
+  // Below the chip, not above it: the chips sit under the header plate and
+  // there is nothing but art beneath them, whereas above is the panel the
+  // press started from.
+  const py = opts.cy + CHIP_R + 8 + H / 2;
+  // Kept inside the screen — the effects chip is two chip-widths in from
+  // the right edge and a 168-wide popup centred on it would hang off.
+  const px = Phaser.Math.Clamp(cx, SAFE_MARGIN + W / 2, width - SAFE_MARGIN - W / 2);
+
+  const container = scene.add.container(0, 0).setDepth(900);
+
+  // Full-screen catcher first, so it sits under the popup's own art and a
+  // tap anywhere else closes rather than falling through to the room.
+  const catcher = scene.add.rectangle(width / 2, scene.scale.height / 2, width, scene.scale.height, 0x000000, 0)
+    .setInteractive();
+  catcher.on('pointerdown', () => container.destroy(true));
+  container.add(catcher);
+
+  container.add(createChromePlate(scene, px, py, W, H));
+  container.add(
+    scene.add.text(px, py - 16, label, {
+      fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold',
+      color: CHROME.ink, resolution: TEXT_RESOLUTION,
+    }).setOrigin(0.5),
+  );
+
+  const trackX0 = px - TRACK / 2;
+  const trackY = py + 10;
+  const bar = scene.add.graphics();
+  const knob = scene.add.circle(0, trackY, 11, hexNum(COLOURS.primary));
+  const paint = (v: number) => {
+    bar.clear();
+    bar.fillStyle(hexNum(COLOURS.inputBorder), 1);
+    bar.fillRoundedRect(trackX0, trackY - 4, TRACK, 8, 4);
+    bar.fillStyle(hexNum(COLOURS.primary), 1);
+    bar.fillRoundedRect(trackX0, trackY - 4, Math.max(8, TRACK * v), 8, 4);
+    knob.setX(trackX0 + TRACK * v);
+  };
+  container.add(bar);
+  container.add(knob);
+  paint(value);
+
+  // The whole track answers, floored at MIN_TAP tall so the band a finger
+  // has to find is a finger's worth rather than the 8px bar's.
+  const hit = scene.add.rectangle(px, trackY, TRACK + 22, MIN_TAP, 0x000000, 0)
+    .setInteractive({ draggable: true, useHandCursor: true });
+  const set = (pointer: Phaser.Input.Pointer) => {
+    const v = Phaser.Math.Clamp((pointer.x - trackX0) / TRACK, 0, 1);
+    paint(v);
+    onChange(v);
+  };
+  hit.on('pointerdown', set);
+  hit.on('drag', set);
+  container.add(hit);
+
+  return container;
 }

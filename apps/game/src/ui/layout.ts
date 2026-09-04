@@ -212,7 +212,13 @@ export function clampAnimalIntoBand(
  * overlay — full rail slid in over the scene; still only the tab's width
  *           is reserved, so the scene does not reflow as it opens.
  */
-export type RailMode = 'side' | 'tab' | 'overlay';
+/**
+ * `hidden` is the side-nav closed state: the arrivals rail has no pull-tab
+ * of its own there, because the waiting count lives on the HUD's player
+ * panel and that panel is what opens it. The rail still exists — it slides
+ * in as an `overlay` — it simply has nothing on screen while shut.
+ */
+export type RailMode = 'side' | 'tab' | 'overlay' | 'hidden';
 
 export interface RailBounds {
   x: number;
@@ -283,6 +289,32 @@ export function sideNavEnabled(): boolean {
   return sideNav;
 }
 
+/**
+ * The x a side-nav header block starts from.
+ *
+ * Inside the nav rail's own column, not beside it: the room title begins
+ * on the rail and runs out onto the art, which ties the two pieces of
+ * chrome into one header instead of leaving a plate floating next to a
+ * column. The rail spans `safeAreaLeft .. +NAV_RAIL_WIDTH`, so a start
+ * `SPACE.s` in sits well within it.
+ */
+export function sideNavHeaderLeft(): number {
+  return railEdgeInset() + 8;
+}
+
+/**
+ * Where a room view's title plate goes.
+ *
+ * Centred over the play area under the bottom bar, and left-aligned onto
+ * the nav rail under side-nav. One helper rather than the same branch in
+ * four views — `TITLE_CY` already learned this lesson for the y.
+ */
+export function titleAnchor(area: PlayArea): { x: number; align: 'centre' | 'left' } {
+  return sideNav
+    ? { x: sideNavHeaderLeft(), align: 'left' }
+    : { x: area.x + area.w / 2, align: 'centre' };
+}
+
 /** True where the rail collapses to a tab rather than standing open. */
 export function railIsCollapsible(width: number): boolean {
   return width < RAIL_COLLAPSE_BREAKPOINT;
@@ -323,7 +355,7 @@ export function railBoundsFor(width: number, height: number, open = false): Rail
   if (sideNav) {
     const mode: RailMode = !railIsCollapsible(width)
       ? 'side'
-      : (open ? 'overlay' : 'tab');
+      : (open ? 'overlay' : 'hidden');
     // Flush to the right edge, deliberately, where the left-hand tab is
     // held off by `railEdgeInset`.
     //
@@ -337,7 +369,7 @@ export function railBoundsFor(width: number, height: number, open = false): Rail
     // So: a measured defect on one edge, a real cost and no measurement on
     // the other. If the right edge is ever worth the same 16, the art fit
     // is what it is being spent from — decide it there, not here.
-    const w = mode === 'tab' ? RAIL_TAB_WIDTH : RAIL_WIDTH;
+    const w = mode === 'hidden' ? 0 : RAIL_WIDTH;
     return { x: width - w, y: 0, w, h: height, mode };
   }
 
@@ -410,8 +442,18 @@ export function playAreaFor(width: number, height: number): PlayArea {
   // aspect of 1.77 against room art authored at 1.78. The art fits the
   // box it is given for the first time.
   if (sideNav) {
-    const left = safeAreaLeft + NAV_RAIL_WIDTH;
-    const right = railIsCollapsible(width) ? RAIL_TAB_WIDTH : RAIL_WIDTH;
+    // `railEdgeInset`, not `safeAreaLeft`: the inset is never zero. On a
+    // phone held with the Island on the *other* side there is no left
+    // reading, and the rail's four cells then start at x=0 — which the
+    // edge sweep scores as four controls flush to the screen, the same
+    // defect it caught on the arrivals pull-tab.
+    const left = railEdgeInset() + NAV_RAIL_WIDTH;
+    // Nothing is reserved on the right while the rail is shut. It used to
+    // hold 56 for a vertical pull-tab; that tab's job — showing the waiting
+    // count and being the way in — moved onto the HUD's player panel, which
+    // floats over the art like the rest of the chrome and costs the room
+    // nothing.
+    const right = railIsCollapsible(width) ? 0 : RAIL_WIDTH;
     return { x: left, y: 0, w: width - left - right, h: height };
   }
 
