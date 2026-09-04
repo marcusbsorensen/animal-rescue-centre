@@ -347,6 +347,42 @@ checking the claim still holds.
   size the others do at 16. `font-size-adjust: 0.49` corrects it on the DOM
   (verified) and has no canvas equivalent. Not applied — it widens the text
   37% across ~50 rules on 20 screens. See the note on `FONTS.chalk`.
+- **`?embed=1` is not the same as adding `body.embed` after load.** The mock
+  pages keep a `data-size` on `.device` — tunnel.html defaults to `ipad-p` —
+  and setting the class afterwards does not undo it. The page then lays out
+  in a 768x1024 box inside a 402px viewport, its `@container` query sees a
+  1024px container, and **the whole short-landscape branch never applies**:
+  `.ready-art` computed 260px instead of 111. `InGameOverlay` uses the query
+  param for exactly this reason — it has to be set before layout. Anything
+  measuring these screens must load them the same way.
+- **A block child does not centre because its parent says `text-align:
+  center`.** `.signs-on-stake` is a block-level flex container with
+  `margin: 0` and a `max-width` narrower than its parent, so it sat against
+  the content-box left edge on all twelve sign screens — 42px off centre on
+  the menu, invisible in the source because the parent looked like it was
+  centring. Auto inline margins are what centre a block box.
+- **Growing a viewport does not always reach Phaser's Scale Manager.** It is
+  in RESIZE mode and re-reads its parent on the window's resize event; the
+  event did not always arrive, and the canvas stayed at the old size while
+  Playwright reported the new one. Shrinking worked, so a small → large
+  order hides it. Poll `game.scale` and call `scale.refresh()` on each tick
+  that disagrees — a single `refresh()` after `setViewportSize` can land
+  before layout and lock in the size you are leaving.
+- **`page.screenshot()` of a Phaser canvas can return a stale frame.** With
+  `preserveDrawingBuffer: false` (the default, and right for production) the
+  drawing buffer is undefined after the compositor presents. Eight tablet
+  and eight desktop captures came out byte-identical while their
+  measurements differed correctly. `renderer.snapshot()` is the documented
+  way round and hangs here — it fires on the next render and rAF is
+  throttled headless. Unsolved: trust `ux-report.json` on those two rows.
+- **A `clamp()` whose maximum is below its minimum resolves to the
+  minimum**, silently. Three shipped that way — `clamp(14px, 1.5cqh, 13px)`
+  — and read as deliberate until something enumerated them.
+- **A rotated element's bounding box is bigger than its box.** `max-height`
+  clamped `.ready-art-deco` to 111px and it still measured 140 on screen,
+  which looked like the property failing. 12deg on a 111px square bounds
+  140. Measure `getBoundingClientRect`, not the computed style, when
+  something overlaps.
 - **`_short-landscape.css` is where the phone's type actually comes from.**
   It is linked after every page's inline `<style>` and wins on the short
   viewport, so a sweep of the 24 `.html` files leaves the phone on the old

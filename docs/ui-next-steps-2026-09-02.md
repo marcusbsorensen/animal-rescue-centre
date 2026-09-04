@@ -235,18 +235,79 @@ resolving from `fonts.css`. Portrait only — landscape needs Marcus's
 Cmd+Left — so this confirms the *faces and sizes*, not the landscape
 layout, which the Chrome harness already covers at the true 874x402.
 
-### 7. Enumerate the rest of §3
+### 7. ~~Composition~~ — most of a review applied, four items left
+**2026-09-04.** A subagent reviewed the layout of fourteen screens against
+the measured report and the source. Its findings, and what happened to them.
+
+**Two were about the instrument, and both were right.**
+- **16 of 42 pairs were one stuck frame.** Growing the viewport never
+  reached Phaser's Scale Manager, and the suite ran small → larger →
+  largest, the only order that hides it. Eight tablet captures and eight
+  desktop ones were byte-identical. Every iPad judgement in three sessions
+  came from that frame. `resizeGameTo` polls until Phaser agrees now, and
+  throws with both numbers rather than continuing.
+- **The suite never shot a shipping viewport.** 812x375 belongs to no
+  target. It runs 874x402 (the app) and 812x325 (the clip) now, which
+  surfaced two FAILs on viewports that had never been measured.
+
+**Fixed, system-wide:**
+- **Three vertical centre-lines became one.** Title 473, HUD pills 458, nav
+  bar 437 — the bar centred on the screen while everything else centres on
+  the play area, and the two HUD pills were each placed 6px from centre
+  while being 160 and 130 wide. On an iPad the bar was 148px out.
+- **`SPACE`, `PAGE_MARGIN`, and `TITLE_CY` for all 29 titles.** There were 17
+  outer margins, 18 radii and 8 title y-values.
+- **One exit control** — bottom-left, "Back". It had five placements and
+  four labels.
+- **`contentTopFor` and `bandCentreY`.** Moving the titles broke two screens
+  because each held the title's y *twice*, and that shape kept recurring:
+  Social's tab row, the kitchen's panel, Account's `pillsBottom`. Blocks
+  take the bottom of the block above them now.
+
+**Fixed, per screen:** SupplyRun's cards overlapped by 31px so a tap started
+the wrong run (the Depot carried the same bug unfired); "Supplies" sat 13.5px
+above the four labels beside it; the kitchen's tray was sized to the screen
+and covered three of four drop targets; Social's tabs were the only
+square-cornered controls in the game; the rail tab was centred on the wrong
+box; Account's title overlapped its card by half a pixel; the tunnel's art
+printed over its own heading; and **the sign column had never been centred on
+any of the twelve screens that use it** — a block child with `margin: 0`
+under a parent whose `text-align: center` does nothing for it.
+
+**Left, and why:**
+- **The corridor's animals overlap the door signs** (60% on the phone). The
+  review's fix — lift the sign row to `yFrac 0.15` — cannot be taken: the
+  signs hang on doors painted into the background, so they are diegetic and
+  cannot move independently of the art. Needs an art decision about where an
+  arriving animal stands, not a coordinate change.
+- **PtvDrive's picker** leaves 55% of its top half bare and uses Phaser
+  `backgroundColor` blocks for its caption and level chips — 20 such sites
+  game-wide, 10 in that file.
+- **The map's tab strip** is the only dark chrome surface in the game and
+  costs 67px of a 402px screen for two controls.
+- **`createPanel` has 17 call sites left**, down from 20.
+
+**One finding measured false.** "waiting" on the rail tab was called ~58px in
+a 56px tab; measured, it is 55.8. Widening would have cost 4px of a play box
+already at 1.73 against art authored at 1.78.
+
+**Also still open:** the tablet and desktop *captures* remain one frame even
+though their measurements are now right — `renderer.snapshot()` hangs on a
+throttled rAF and `preserveDrawingBuffer` would mean changing the shipped
+config for a test. So the iPad cannot be *looked* at yet, only measured.
+
+### 8. Enumerate the rest of §3
 Two instances are plated; nobody knows the denominator. The species room
 one had never been *seen* — it took fixing the walk harness to find it.
 Now that `ui-audit.spec.ts` and `scene-walk.spec.ts` both pass end to
 end, the captures exist to go through.
 
-### 8. Use the palette
+### 9. Use the palette
 658 raw literals against 287 token uses. Invisible individually,
 compounding across screens, and entirely mechanical now that `hexNum`
 exists to bridge `COLOURS` into the Phaser side.
 
-### 9. Retire the emoji furniture
+### 10. Retire the emoji furniture
 §7. Needs commissioned art for anything missing, so it is a lead-time
 item — worth starting the ask early even though the code is last.
 
