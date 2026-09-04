@@ -376,28 +376,81 @@ end, the captures exist to go through.
 compounding across screens, and entirely mechanical now that `hexNum`
 exists to bridge `COLOURS` into the Phaser side.
 
+### 10b. ~~The interface icons~~ — drawn, 2026-09-04
+**Marcus's brief:** the set does not work at small sizes, the "cute
+cottage" detail being the reason. Confirmed exactly: every button icon
+renders at **24-26px** (`UIButton.ts:196,454`) and the set was painted at
+128px, so five-sixths of every icon was thrown away before a child saw
+it. A painted commission would have failed the same way, which is why
+these are **drawn** — `tools/icons/icon-set.mjs`, 53 icons as geometry on
+a 24px grid with a 2px stroke, rasterised at 4x by `build-icons.mjs`.
+
+They are white on transparency and take their colour at draw time, which
+is the system that already existed for three assets: `iconStyle: 'glyph'`
+tints to the button's ink, so one file is dark on a plate and cream on a
+filled button. **Glyph is the default now**; `artwork` is the exception.
+
+Three call sites had been written for icons carrying their own colour and
+broke the moment the set was white — the status chips never tinted, the
+audio discs tinted only when *off*, and the rail's inactive discs sat at
+0.55 alpha (1.9:1 under a white icon). All three fixed; see the commit.
+
+**Closed two art gaps on the way:** `nav-map`, which the rail had been
+drawing as a lettered disc, and an effects icon — the two sound toggles
+wore the same music note because nothing had been drawn for effects.
+
+**Still painted, deliberately:** the animal portraits, the four
+`icon-resolve-*`, the species door signs and `sundial`. Those are content
+at 128-512px, not interface, and flattening them would lose real quality.
+`PAINTED_CHIP_ICONS` in HUDView is the guard for the one that shares a
+chip with the drawn set.
+
+### 10c. ~~Buildings for the destinations~~ — commissioned, 2026-09-04
+All ten arrivals have art. Briefed against the real vernacular of
+Birchington-on-Sea and the Isle of Thanet rather than generic cottage —
+knapped flint with red brick quoins and dressings, Kent peg tiles, black
+tarred weatherboarding, oast cowls, stuccoed seaside villas with canted
+bays, and a nod to Birchington's 1870s bungalows.
+
+- Five **buildings** as flat front elevations, matching
+  `site-arc-building.png`'s ink-and-watercolour hand:
+  `site-{vet,village-hall,bramble-farm,cove-harbour,pinebark-medical}-building.png`.
+- Five **habitat vignettes** — Marcus's call that a wild destination is
+  the place itself, not a structure: `site-<id>-place.png`. The arrival
+  tries `-place` then `-building`, and a habitat gets a chalk pull-in
+  rather than tarmac bays, because four white-lined parking spaces across
+  a moor say retail park.
+
+Three layout defects fell out of putting real art in the slot, all
+recorded on the code: the message plate printed across every shopfront
+(it is at the top now — the building carries its own sign and that is the
+one thing the message must not cover); `setDisplaySize(target, target)`
+squashed anything not square; and the building was fitted strictly above
+the message at 158px on an 874-wide screen, where the drive picker had
+already settled that a building runs down behind its own tarmac.
+
+**What is left here:** the buildings are one render each and have not been
+seen on a device. The A.R.C. building is a slightly softer, lighter hand
+than the five new ones — they read as a set with each other, and the
+question of whether A.R.C. wants re-rendering to match is Marcus's.
+
 ### 10. Retire the emoji furniture
 §7. Needs commissioned art for anything missing, so it is a lead-time
 item — worth starting the ask early even though the code is last.
 
-**The commission is now one ask with six jobs** (was three):
+**Four of the six jobs are done** (2026-09-04 — see 10b and 10c). What is
+left:
 
-1. A music note for the sound toggle — the speaker is painted, the note
-   is typeset.
-2. The drive picker's forecourt flanks (item 7b).
-3. Item 10's emoji furniture.
-4. **`nav-map`** — the rail's fourth cell. Nothing exists; the chain runs
-   out and the cell draws a lettered disc. It is the one visibly
-   unfinished thing on the default layout.
-5. **A building per destination**, `site-<id>-building.png`, matching
-   `site-arc-building.png`. Ten of them. The arrival draws a chrome
-   signboard where the building goes until each lands, so this is
-   incremental — every one that arrives improves one journey.
-6. **A pin icon per destination** would be better than the emoji the
-   pins currently carry, which are the same emoji §7 wants retired
-   everywhere else. Lower priority than 5: a 21px emoji in a cream disc
-   reads acceptably; a 40%-of-screen emoji standing in for a building
-   does not.
+1. ~~A music note / effects icon for the sound toggles.~~ Drawn.
+2. **The drive picker's forecourt flanks** (item 7b) — still bare.
+3. **This item's emoji furniture** — the in-world props, which are the
+   part that genuinely wants painting rather than drawing.
+4. ~~`nav-map`.~~ Drawn.
+5. ~~A building per destination.~~ Commissioned, all ten.
+6. **A pin icon per destination.** The map pins still carry the same
+   emoji this item wants retired. Lower priority: a 21px emoji in a cream
+   disc reads acceptably. Now that `icon-set.mjs` exists, these are
+   probably *drawn* alongside the interface set rather than painted.
 
 ### 11. ~~The map becomes the mission hub~~ — shipped, bar the art
 **Done 2026-09-04.** Every pin is a place, tapping one drives there, and

@@ -1,4 +1,4 @@
-# A.R.C. UI direction — handover 2026-09-04 (map hub)
+# A.R.C. UI direction — handover 2026-09-04 (map hub + art)
 
 ## Goal
 Ship A.R.C. as an iPad/iPhone app for 7–10 year olds. Current arc: make it
@@ -14,6 +14,20 @@ now** — `?sideRail=0` puts the bottom bar back, and that is the only flag.
 the new layout — better than the 16 WARN the bottom bar scored. The two
 FAILs are the paths screen's L3 on phone and clip and are untouched.
 
+- **The interface icons are drawn, not painted.**
+  `tools/icons/icon-set.mjs` is 53 icons as geometry on a 24px grid;
+  `node tools/icons/build-icons.mjs --sheet` rebuilds them and a contact
+  sheet showing each at 96px *and* at 24. They are white and take their
+  colour from `iconStyle: 'glyph'`, which is now the **default** —
+  `artwork` is the exception for the animal portraits, `icon-resolve-*`,
+  the species door signs and `sundial`. The painted set was authored at
+  128px and drawn at 24.
+- **Every destination has art.** Five buildings as flat elevations
+  (`site-<id>-building.png`) and five habitat vignettes
+  (`site-<id>-place.png`), briefed against real Birchington/Thanet
+  vernacular — knapped flint with brick quoins, Kent peg tiles, tarred
+  weatherboard, oast cowls, stuccoed seaside villas. A habitat gets a
+  chalk pull-in rather than tarmac bays.
 - **The map is the mission hub.** Every pin is a place, tapping one
   drives there, and arriving opens what is inside. The rail is **Home /
   Care / Walk / Map**; Social is the village hall on the map; Heal opens
@@ -132,19 +146,25 @@ plated, denominator unknown), then **item 9** (658 raw colour literals
 against 287 token uses, mechanical now `hexNum` exists). Both are in
 `docs/ui-next-steps-2026-09-02.md`.
 
-**Ahead of either, two things the map hub left that want Marcus:**
+**Ahead of either, three things that want Marcus and a device:**
+
+- **The new art has never been seen on a device.** The icons are the
+  whole interface and the buildings are one render each. This is the
+  session's biggest unverified claim.
+- **A.R.C.'s own building is a softer, lighter hand** than the five new
+  ones. They read as a set with each other; whether A.R.C. wants
+  re-rendering to match is a taste call.
 
 - **`openDriveOverlay` has no caller.** 828 lines of `drive-overlay.html`
   plus its mount, kept rather than deleted: the cutscene's arrival beat is
   the thing Marcus asked for, and the per-destination forecourts are
   unpainted. Look at the Phaser arrival on a device, then delete it or
   revive it as a painted layer in front. Do not leave it as it is.
-- **The art ask is now one commission with six jobs** — see item 10. The
-  two that *show* are `nav-map` (the rail's fourth cell draws a lettered
-  disc today, the only visibly unfinished thing on the default layout)
-  and a `site-<id>-building.png` per destination (the arrival draws a
-  chrome signboard where the building goes; ten of them, and each one
-  that lands improves one journey on its own).
+- **The art ask is down from six jobs to three** — see item 10.
+  `nav-map`, the effects icon and all ten destination places are done.
+  What is left is the drive picker's forecourt flanks, item 10's in-world
+  emoji furniture, and a pin icon per destination (probably *drawn*
+  alongside the interface set now that `icon-set.mjs` exists).
 
 **Also open on the map itself, and neither is broken:**
 
@@ -177,6 +197,17 @@ commissioned art rather than the existing road furniture; Caveat's
 `font-size-adjust: 0.49` goes with the paths/rewilding work, not before.
 
 ## Traps
+- **A white icon needs somewhere to take its colour from.** Three call
+  sites had been written for painted icons carrying their own colours and
+  broke silently when the set became white line art: the status chips
+  never tinted, the audio discs tinted only when *off*, and the nav
+  rail's inactive discs sat at 0.55 alpha (1.9:1 under white). Anything
+  new that draws an icon has to say what tints it.
+- **Two identical blocks, and `str.replace` takes the first.**
+  `renderParking` and `renderArrival` share their bay geometry verbatim,
+  and a scripted edit aimed at the arrival landed in the departure. The
+  typecheck caught it only because the new code referenced a variable the
+  departure did not have. Anchor scripted edits on something unique.
 - **When a Phaser object has the wrong properties and the code that sets
   them is provably right, look for a second writer.** `applyRoadSwitch`
   rebuilds `vanGfx` without going through `renderView`, on a 180ms delay,
