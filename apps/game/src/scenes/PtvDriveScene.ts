@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, SAFE_MARGIN, MIN_FONT, TYPE } from '../ui/constants';
-import { createChromeButton } from '../ui/UIButton';
+import {
+  COLOURS, FONTS, SAFE_MARGIN, MIN_FONT, TYPE,
+  CHROME, SPACE, TITLE_CY, TEXT_RESOLUTION, contentTopFor,
+} from '../ui/constants';
+import { createChromeButton, createChromeTitle, createChromePlate } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Economy } from '@arc/shared-types';
@@ -731,21 +734,18 @@ export class PtvDriveScene extends Phaser.Scene {
     } else {
       this.container.add(this.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
     }
-    // A.R.C. building across the top.
-    if (this.textures.exists('site-arc-building')) {
-      const b = this.add.image(width / 2, 2, 'site-arc-building').setOrigin(0.5, 0);
-      const target = Math.min(width * 0.46, height * 0.46);
-      b.setDisplaySize(target, target);
-      this.container.add(b);
-    }
-
+    // The screen's heading, on the chrome surface at the one title line —
+    // this was a `backgroundColor` text block floating at `height * 0.505`,
+    // which is a cream plate drawn by Phaser's text renderer instead of
+    // `createChromeTitle`, and it put the screen's only words on the
+    // midline while the top half sat empty. The two facts it carries are
+    // the two lines the component already has.
     const destName = this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    this.container.add(
-      this.add.text(width / 2, height * 0.505, `Pick your vehicle  ·  off to ${destName}`, {
-        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-        backgroundColor: 'rgba(255,249,239,0.85)', padding: { x: 14, y: 5 },
-      }).setOrigin(0.5)
-    );
+    const title = createChromeTitle(this, width / 2, TITLE_CY, 'Pick your vehicle', {
+      fontSize: TYPE.lead,
+      subtitle: `off to ${destName}`,
+    });
+    this.container.add(title);
 
     // Car park: bays sized in proportion to each vehicle (Trikey narrow, Big
     // Tilly wide — the forecourt has different-sized spaces for exactly this).
@@ -754,6 +754,25 @@ export class PtvDriveScene extends Phaser.Scene {
     const wsum = weights.reduce((a, b) => a + b, 0);
     const bayTop = height * 0.57;
     const bayH = height * 0.28;
+
+    // A.R.C. building at the back of its own forecourt, filling the band
+    // between the title and the bays rather than a bare `0.46` of the
+    // viewport — which on a landscape phone drew it at 185px in the middle
+    // of an empty gravel field, and on a desktop at nearly half the screen.
+    //
+    // Its base runs *under* the tarmac: the slab is added after this, so it
+    // crops the building's own ground line, which is what the far edge of a
+    // car park does to the building behind it. That is what buys the height
+    // back — stacked strictly above the bays it would have measured 141px,
+    // smaller than the number this replaced.
+    if (this.textures.exists('site-arc-building')) {
+      const top = contentTopFor(title);
+      const base = bayTop + bayH * 0.3;
+      const target = Math.max(0, Math.min(base - top, width * 0.46));
+      const b = this.add.image(width / 2, base - target / 2, 'site-arc-building').setOrigin(0.5);
+      b.setDisplaySize(target, target);
+      this.container.add(b);
+    }
     const areaW = Math.min(width * 0.92, 1080);
     const left = (width - areaW) / 2;
 
@@ -818,12 +837,22 @@ export class PtvDriveScene extends Phaser.Scene {
         // vehicle name — close enough that the two labels overlapped and
         // "Big Tilly" read as "B____ly". Moved to the top of the bay, where
         // there is nothing but slab above the roof of a greyed-out van.
+        //
+        // On the chrome plate, not a `backgroundColor` block: this floats
+        // above the world telling the child when the van opens, so it is
+        // chrome, and a darker-than-the-slab block was the only surface in
+        // the game arguing otherwise.
+        const chipLabel = this.add.text(cx, bayTop + 12, `L${v.unlockLevel}`, {
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold',
+          color: CHROME.ink, resolution: TEXT_RESOLUTION,
+        }).setOrigin(0.5).setDepth(23);
         this.container.add(
-          this.add.text(cx, bayTop + 12, `L${v.unlockLevel}`, {
-            fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
-            backgroundColor: 'rgba(40,40,40,0.82)', padding: { x: 5, y: 2 },
-          }).setOrigin(0.5).setDepth(22)
+          createChromePlate(
+            this, cx, bayTop + 12,
+            chipLabel.width + SPACE.m, chipLabel.height + SPACE.s,
+          ).setDepth(22)
         );
+        this.container.add(chipLabel);
       } else if (img) {
         const hit = this.add.rectangle(cx, bayTop + bayH / 2, bw - 6, bayH, 0xffffff, 0)
           .setInteractive({ useHandCursor: true }).setDepth(30);
