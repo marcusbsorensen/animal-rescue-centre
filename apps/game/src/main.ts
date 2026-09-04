@@ -72,13 +72,19 @@ if (typeof window !== 'undefined') {
   try {
     stored = window.localStorage.getItem('arc_side_rail');
   } catch { /* ignore */ }
-  // The native shell loads `capacitor://localhost/` with no query string,
-  // and a fresh install has empty localStorage — so on the device neither
-  // source above says anything and the flag would always read off, which
-  // is exactly where this layout most needs looking at. Build a prototype
-  // with `VITE_SIDE_RAIL=1 pnpm build:ios`; a URL param or a stored choice
-  // still wins, so the toggle keeps working inside that build.
-  const buildDefault = import.meta.env.VITE_SIDE_RAIL === '1';
+  // **Side-nav is the layout now.** It was a prototype behind this flag
+  // from 2026-08-31 until 2026-09-04, when it was surveyed against the
+  // bottom bar across every scene, overlay and room view and became the
+  // default: the room goes from 768x362 to 752x402, the anchor rect and
+  // the art rect become the same rect, and the chrome became two header
+  // blocks instead of a strip.
+  //
+  // The switch stays. `?sideRail=0` puts the bottom bar back, the choice
+  // is remembered, and `VITE_SIDE_RAIL=0 pnpm build:ios` bakes it into a
+  // native build — because the bar is what three sessions of measurement
+  // were taken against, and being able to put it back is how the next
+  // comparison gets made.
+  const buildDefault = import.meta.env.VITE_SIDE_RAIL !== '0';
   const on = param !== null
     ? param !== '0'
     : (stored !== null ? stored === '1' : buildDefault);

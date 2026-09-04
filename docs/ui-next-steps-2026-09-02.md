@@ -323,37 +323,47 @@ rather than coordinates.
   `decor-bollard`, `decor-cone` and `decor-cones-three` are already painted
   and already loaded by that scene. Whether the flanks want dressing or are
   simply forecourt is Marcus's call; nothing is broken either way.
-- **The side-nav layout is the real fix for the class of bug item 7's first
-  entry belongs to.** It is a live prototype on `main` behind `?sideRail=1`
-  (`main.ts:65`, remembered in `localStorage`, `VITE_SIDE_RAIL=1` for the
-  native build) — **not** a branch: `side-nav-prototype` holds the sign fold
-  and is 48 commits behind. `docs/landscape-relayout-2026-08-31.md` is the
-  design note and its "Still open" list is accurate.
+- ~~**The side-nav layout is the real fix for the class of bug item 7's
+  first entry belongs to.**~~ **Shipped 2026-09-04.** It is the default
+  layout; `?sideRail=0` puts the bottom bar back and the choice is
+  remembered, because the bar is what three sessions of measurement were
+  taken against.
 
-  Why it matters is not the extra height: under side-nav the anchor rect and
-  the art rect are the same rect again, so the compromise in
-  `anchorSpaceFor` — anchors resolving against the band while the art fills
-  the screen — has nothing left to correct. Every "the animal stands a
-  little above the painted floor" finding is that compromise.
+  The play box goes 768x362 (aspect 2.12) → 752x402 (1.87 against art
+  authored at 1.78), the anchor rect and the art rect are the same rect,
+  and `anchorSpaceFor`'s compromise has nothing left to correct. Room,
+  Kitchen and Garden were converted with it, which was the last of the
+  design note's "other views".
 
-  **Surveyed 2026-09-04 at 874x402, both layouts, every scene and overlay.**
-  The play box goes from 768x362 (aspect **2.12**, letterboxed) to 696x402
-  (**1.73**, against room art authored at 1.78) — the corridor gains its
-  floor and its rug, and the arriving cat stands on the floor at full size
-  rather than at door height. Cost, all of it already in that doc's list:
+  **The chrome was redesigned with it** — Marcus's brief, 2026-09-04: a
+  colour per nav destination, the room title left-aligned onto the rail,
+  the world's state as wordless icon chips beneath it, one player panel
+  top-right in place of the vertical pull-tab, and the two sounds as
+  separate toggles with a long-press volume. See the commit; the reasoning
+  is on the code.
 
-  - **Room, Kitchen and Garden keep the old art rect** and show cream
-    margins against the rail — they size from `height - 40` and KitchenView
-    draws at full `width`. This is the whole visible cost, and it is the
-    same treatment `CorridorView` already had.
-  - **Nothing else moves.** The DOM overlays (paths, rewilding, tunnel,
-    adoption-office, map), the standalone scenes (Depot, SupplyRun, Kitchen
-    minigame, Account, Social) and the animal card are pixel-identical in
-    both layouts — they never consult the play area.
-  - Still unanswered from the design note: the right-hand safe inset for the
-    other landscape orientation, the bottom inset, whether iPad wants this
-    at all (two arrangements to maintain), and whether a 7-year-old can
-    work a vertical rail — which is not a thing arithmetic answers.
+  ux-review holds at 2 FAIL / 14 WARN, better than the bottom bar's 16, and
+  five of the fixes in that pass were findings the harness produced the
+  first time it measured this layout.
+
+  **Still open, and now the load-bearing one: cover versus contain.** The
+  room background is `setDisplaySize(play.w, play.h)` — a stretch, not a
+  fit. At 696 wide it was a 2.8% squash; at 752 it is a 5.2% stretch, so
+  losing the tab moved the box *past* the art's shape rather than towards
+  it. Both are invisible beside the bottom bar's 19%, and the real answer
+  is a uniform fit that crops, which has no stretch at any aspect. Taking
+  it means resolving anchors against the drawn art rect rather than the
+  play box, which is why it is not something to do in passing.
+
+  Also still open from the design note: the right-hand and bottom safe
+  insets for the other landscape orientation, whether an iPad wants this
+  layout at all, and whether a 7-year-old can work a vertical rail — the
+  last of which is not a thing arithmetic answers.
+
+- **An effects icon is missing.** The sound toggles carry words because
+  `icon-music-on`/`off` exist and nothing does for effects. Pair the ask
+  with the forecourt flanks and item 10's emoji furniture — one
+  commission, three jobs.
 
 ### 8. Enumerate the rest of §3
 Two instances are plated; nobody knows the denominator. The species room
