@@ -1,18 +1,33 @@
-# A.R.C. UI direction — handover 2026-09-04
+# A.R.C. UI direction — handover 2026-09-04 (map hub)
 
 ## Goal
 Ship A.R.C. as an iPad/iPhone app for 7–10 year olds. Current arc: make it
 look like one finished product rather than four stitched together.
 
 ## State
-All on `main` and pushed. 365 tests, typecheck clean, 35 lint warnings,
-0 errors. **Side-nav is the layout now** — `?sideRail=0` puts the bottom
-bar back, and that is the only flag.
+All on `main`, **not yet pushed**. 1199 tests (827 game-logic, 365 game,
+7 badges), typecheck clean, 34 lint warnings in `apps/game` and 12
+pre-existing in `packages/game-logic`, 0 errors. **Side-nav is the layout
+now** — `?sideRail=0` puts the bottom bar back, and that is the only flag.
 
 **`e2e/ux-review.spec.ts` is at 2 FAIL / 14 WARN over 56 pairs**, measuring
 the new layout — better than the 16 WARN the bottom bar scored. The two
 FAILs are the paths screen's L3 on phone and clip and are untouched.
 
+- **The map is the mission hub.** Every pin is a place, tapping one
+  drives there, and arriving opens what is inside. The rail is **Home /
+  Care / Walk / Map**; Social is the village hall on the map; Heal opens
+  the map with the poorly animal aboard. `openMapOverlay`,
+  `PtvDriveScene` and `getAvailableDestinations` were all finished and
+  unreachable, and this is what connects them.
+- **The drive has an end.** `renderArrival` is the mirror of
+  `renderParking` — the van comes off the road, parks in a bay in front
+  of the building, and "Go inside" hands back. Before this, progress
+  clamped at 1 and the road kept scrolling.
+- **There is one set of map positions.** The abstract `mapX/mapY` and
+  `BIRCHIE_PLACES` are gone; `fx/fy` on the destination is it, seeded
+  from the real OSM plot for A.R.C. The GPS had been starting every
+  route a tenth of the map east of the building.
 - **The corridor's arrivals take the room the sign row leaves them.** They
   were the one block that never got "a block takes the bottom of the block
   above it", because they are anchored rather than stacked.
@@ -46,9 +61,18 @@ portrait only. Landscape is confirmed by Chrome at 874x402 and by the
 harness, not by a device.
 
 ## Files
-- `docs/ui-next-steps-2026-09-02.md` — the ranked queue. Items 1–7 done;
-  **7b, 8, 9 and 10 are what is left**. Read first.
+- `docs/ui-next-steps-2026-09-02.md` — the ranked queue. Items 1–7 and 11
+  done; **8, 9 and 10 are what is left**. Read first.
 - `.claude/TRAPS.md` — read before the harness, the CSS or the simulator.
+- `packages/game-logic/src/destinations.ts` — the destination model, and
+  the single source of the map positions. `mapExtentFor` is the reach.
+- `apps/game/public/admin/map.html` — `placePins`, `mapTransform` and the
+  destination card. Holds no table; the host sends the list on `init`.
+- `apps/game/src/scenes/PtvDriveScene.ts` — `renderArrival` is the far end
+  of a journey, and the `phase === 'travel'` guards on `switchRoad` /
+  `applyRoadSwitch` are why the parked van stays parked.
+- `apps/game/src/scenes/GameScene.ts` — `openMapOverlay`, `driveTo`,
+  `handleArrival`, `rewardSafeDrive`.
 - `apps/game/src/ui/constants.ts` — `TYPE`, `MIN_FONT`, `CHROME`, `FONTS`.
 - `apps/game/src/ui/UIButton.ts` — `createChromePlate`'s `variant` and
   `createChromeButton`'s `variant`/`anchor` carry the rules.
@@ -86,41 +110,60 @@ harness, not by a device.
 - **A message in the middle of a room is translucent; a title at its edge
   is not.** `CHROME.fillAlphaOverArt`, and 0.84 is a contrast limit rather
   than a taste.
+- **Arriving opens the place.** The drive is the corridor between rooms,
+  so every destination names the room at the end of it. A pin with no
+  arrival wastes a journey, which is what the "coming soon!" toast was.
+- **The arrival is a beat, not a transition.** Marcus, 2026-09-04: we see
+  the vehicle pull in and park in front of the building, and *then* what
+  is inside. Hence the mirror of the departure rather than a cut.
+- **A tap opens a card; "Drive here!" starts the drive.** A journey is
+  minutes long and a stray finger on a map full of pins should not cost
+  one. The card is also where a locked pin says *when*, rather than *no*.
+- **The vet and the village hall are never locked.** A poorly animal can
+  arrive on a child's first day, and Social was a permanent tab before it
+  moved onto the map.
+- **`map.html` holds no destination table.** It is static and cannot
+  import `destinations.ts`, so the host sends the list and the page draws
+  what it is given.
 
 ## Next step
-**Queue item 11 — the map becomes the mission hub.** Marcus's brief and the
-survey behind it are in `docs/ui-next-steps-2026-09-02.md`; read that item
-before touching anything, because most of this is wiring rather than
-building.
+**Item 8 — enumerate the rest of §3** (text on painted art; two instances
+plated, denominator unknown), then **item 9** (658 raw colour literals
+against 287 token uses, mechanical now `hexNum` exists). Both are in
+`docs/ui-next-steps-2026-09-02.md`.
 
-Social comes off the rail and becomes a place on the map (a village hall).
-Map takes its slot — the rail stays **Home / Care / Walk / Map**, which is
-exactly the four that fit. Destinations build up in number *and reach* with
-level. Tapping one drives there. The vet becomes one, so taking a poorly
-animal to the vet is a journey.
+**Ahead of either, two things the map hub left that want Marcus:**
 
-**Three finished things are sitting unreached and this connects them:**
-`openMapOverlay()` has no caller, `PtvDriveScene` has no `scene.start`
-anywhere (the whole driving engine is behind `?ptvDemo=1`), and
-`getAvailableDestinations(level)` is used only by tests.
+- **`openDriveOverlay` has no caller.** 828 lines of `drive-overlay.html`
+  plus its mount, kept rather than deleted: the cutscene's arrival beat is
+  the thing Marcus asked for, and the per-destination forecourts are
+  unpainted. Look at the Phaser arrival on a device, then delete it or
+  revive it as a painted layer in front. Do not leave it as it is.
+- **The art ask is now one commission with six jobs** — see item 10. The
+  two that *show* are `nav-map` (the rail's fourth cell draws a lettered
+  disc today, the only visibly unfinished thing on the default layout)
+  and a `site-<id>-building.png` per destination (the arrival draws a
+  chrome signboard where the building goes; ten of them, and each one
+  that lands improves one journey on its own).
 
-**The contract is already written from both ends with the middle missing.**
-GameScene sends `{ context, playerLevel }` to the map overlay and listens
-for a `drive-to` message carrying a `destinationId` — then shows a "coming
-soon" toast. `map.html` ignores the level and never posts `drive-to`.
+**Also open on the map itself, and neither is broken:**
 
-Decisions taken 2026-09-04 so they are not reopened: **drive to every
-destination** (not walk-the-near-ones); **the vet moves onto the map** and
-the card's Heal sends you there; **both the pin count and the visible map
-extent grow**, with locked pins shown so a child can see what is coming.
+- **The extent is `contain`.** On an 874x402 phone that shows ~76% of the
+  map's width at level 0 against the 56% `mapExtentFor` asks for, so the
+  reach progression reads more in the zoom than in the pin count. `cover`
+  would honour the width and crop the height, which drops Wetlands off
+  the 812x325 clip. An aspect-aware extent is the real answer.
+- **The pin positions are placed, not surveyed.** All ten are on the
+  ground their description claims — the previous set had two in the sea —
+  but they are Marcus's to nudge, and there is now only one set to nudge.
 
 **Still open from the layout work, and unchanged by the above:**
 
-- **Cover versus contain.** The room background is stretched to the play
-  box, not fitted — a 5.2% horizontal stretch at 752x402 against art
-  authored at 1.78. Invisible beside the bottom bar's 19%, and the real
-  answer is a uniform fit that crops. Taking it means resolving anchors
-  against the drawn art rect rather than the play box.
+- **Cover versus contain** *for the room background*. It is stretched to
+  the play box, not fitted — a 5.2% horizontal stretch at 752x402 against
+  art authored at 1.78. The real answer is a uniform fit that crops, which
+  means resolving anchors against the drawn art rect rather than the play
+  box.
 - **The right-hand and bottom safe insets** for the other landscape
   orientation — `ui/safe-area.ts` only reads `left`.
 - **Whether an iPad wants this layout at all**, and **whether a
@@ -129,15 +172,18 @@ extent grow**, with locked pins shown so a child can see what is coming.
   `VITE_SIDE_RAIL=0 pnpm build:ios` builds the bottom bar for a
   side-by-side.
 
-**Art that is missing — one commission, three jobs:** a music note for the
-sound toggle (the speaker is painted, the note is typeset), the drive
-picker's forecourt flanks, and item 10's emoji furniture.
-
 **Settled, so they are not re-litigated:** the forecourt flanks get
 commissioned art rather than the existing road furniture; Caveat's
 `font-size-adjust: 0.49` goes with the paths/rewilding work, not before.
 
 ## Traps
+- **When a Phaser object has the wrong properties and the code that sets
+  them is provably right, look for a second writer.** `applyRoadSwitch`
+  rebuilds `vanGfx` without going through `renderView`, on a 180ms delay,
+  so it landed after the arrival and replaced the parked van with a road
+  one. A `console.log` showed the arrival applying the correct scale to
+  an object that was then thrown away. Guarded on the phase now — the
+  timer was not the only way back in, so killing timers did not help.
 - **`?embed=1` is not the same as adding `body.embed` after load.** The mock
   keeps its `data-size`, the container query sees the wrong box, and the
   whole short-landscape branch silently does not apply.
