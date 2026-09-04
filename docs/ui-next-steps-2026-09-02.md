@@ -274,18 +274,35 @@ printed over its own heading; and **the sign column had never been centred on
 any of the twelve screens that use it** — a block child with `margin: 0`
 under a parent whose `text-align: center` does nothing for it.
 
-**Left, and why:**
-- **The corridor's animals overlap the door signs** (60% on the phone). The
-  review's fix — lift the sign row to `yFrac 0.15` — cannot be taken: the
-  signs hang on doors painted into the background, so they are diegetic and
-  cannot move independently of the art. Needs an art decision about where an
-  arriving animal stands, not a coordinate change.
-- **PtvDrive's picker** leaves 55% of its top half bare and uses Phaser
-  `backgroundColor` blocks for its caption and level chips — 20 such sites
-  game-wide, 10 in that file.
-- **The map's tab strip** is the only dark chrome surface in the game and
-  costs 67px of a 402px screen for two controls.
-- **`createPanel` has 17 call sites left**, down from 20.
+**The four that were left are done — 2026-09-04.** ux-review went 2 FAIL /
+18 WARN → **2 FAIL / 16 WARN**; the two that cleared are the corridor's, and
+the two that remain are the paths screen's L3, which nothing here touched.
+
+- **The corridor's animals overlap the door signs.** Not an art decision in
+  the end. The arrivals were the one block in the game that never got "a
+  block takes the bottom of the block above it", because they are anchored
+  rather than stacked — and on a short viewport `anchorSpaceFor` compresses
+  the anchor space to the play band while the sprite stays 55% of that band,
+  so the gap from the sign row to the floor (0.43 of the band) was smaller
+  than the animal standing in it. The arrival is capped by its own headroom
+  now, floored at `MIN_TAP`, keeping `MIN_TAP_GAP` off the signs, and steps
+  sideways into the nearest gap where even that will not fit. The anchors
+  keep x and their staggered depth in y. **Shrinking turned out to be the
+  honest fix**: an animal at a door at the back of the corridor is behind the
+  signs, and one drawn nearly door-height was never in perspective.
+- **PtvDrive's picker** has a title plate at `TITLE_CY` with the destination
+  on the subtitle line, chrome-plate unlock chips, and a building that fills
+  the band from the title to the bays with its base running under the tarmac
+  — the slab draws after it, so the car park crops its ground line. Stacked
+  strictly above the bays it measured 141px, *smaller* than the 185 it
+  replaced; the crop is what buys the height back.
+- **The map's tab strip** is gone. The tabs float over the map as chrome
+  plates, the map has its 67px back, and the tabs hide on the A.R.C. site
+  stage, which carries its own "Back to map" — one exit control.
+- **`createPanel` is deleted.** All 17 callers took `createChromePlate`.
+  Three carried valence in the border and it moved to the ink; one carried
+  *selection* in the fill, so the plate gained the `variant: 'plate' |
+  'filled'` pair the button already had.
 
 **One finding measured false.** "waiting" on the rail tab was called ~58px in
 a 56px tab; measured, it is 55.8. Widening would have cost 4px of a play box
@@ -295,6 +312,28 @@ already at 1.73 against art authored at 1.78.
 though their measurements are now right — `renderer.snapshot()` hangs on a
 throttled rAF and `preserveDrawingBuffer` would mean changing the shipped
 config for a test. So the iPad cannot be *looked* at yet, only measured.
+
+### 7b. What the composition pass left behind
+Two things, both recorded rather than fixed, because both are decisions
+rather than coordinates.
+
+- **The drive picker's forecourt flanks are bare** either side of the
+  building — the part of "55% of the top half" that a layout change cannot
+  reach. It is a car park, and a car park has furniture: `decor-barrier`,
+  `decor-bollard`, `decor-cone` and `decor-cones-three` are already painted
+  and already loaded by that scene. Whether the flanks want dressing or are
+  simply forecourt is Marcus's call; nothing is broken either way.
+- **The side-nav layout is the real fix for the class of bug item 7's first
+  entry belongs to**, and it is switched off. `setSideNav` has **no caller
+  anywhere in `src/` or `e2e/`** — the layout exists on `main` and nothing
+  turns it on; the live version is `side-nav-prototype`. `layout.ts` says
+  why it matters, and it is not the extra height: under side-nav the anchor
+  rect and the art rect are the same rect again, so the compromise in
+  `anchorSpaceFor` — anchors resolving against the band while the art fills
+  the screen — has nothing left to correct. Every "the animal stands a
+  little above the painted floor" finding is that compromise. Merging the
+  prototype retires the whole family; the corridor fix above manages one
+  symptom of it.
 
 ### 8. Enumerate the rest of §3
 Two instances are plated; nobody knows the denominator. The species room
@@ -336,7 +375,8 @@ item — worth starting the ask early even though the code is last.
 
 - ~~`createPillTitle` has no callers. Delete it.~~ Deleted.
 - ~~`createButton` is the last bevel.~~ Deleted; no callers.
-- `createPanel` has 20 call sites left; they want `createChromePlate`.
+- ~~`createPanel` has 20 call sites left; they want `createChromePlate`.~~
+  Deleted 2026-09-04; all 17 remaining callers converted.
 - `e2e/visual.spec.ts`'s `main-menu` baseline was stale — failing at
   `2660130` before this session touched anything, so it had stopped
   catching regressions. Re-shot 2026-09-03 with `ARC_BROWSER_CHANNEL=chrome`,
