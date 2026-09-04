@@ -45,22 +45,29 @@
   }
 
   .tabs {
-    /* 12, not 8 — MIN_TAP_GAP in ui/constants. Two 48px targets 8px apart
+    /* Floated over the map, not banded above it.
+       This was the last dark surface in the game: a full-width strip of
+       rgba(0,0,0,0.25) on a #2a2622 body, spending 67px of a 402px screen
+       on two controls and reading as a different application's chrome from
+       everything either side of it. Chrome in this game floats over the
+       painted world — the corridor's title plate sits on the wall — so
+       these do too, and the map gets its whole height back.
+
+       12, not 8 — MIN_TAP_GAP in ui/constants. Two 48px targets 8px apart
        are close to one 104px target for a small hand, which is the whole
        point of the rule. */
     display: flex; gap: 12px;
-    /* 16 vertical, not 12: these tabs are the map's only controls and they
-       sit against the top edge. SAFE_MARGIN in ui/constants is 16 and the
-       edge sweep scored them at 12. */
-    padding: 16px 18px;
-    background: rgba(0,0,0,0.25);
-    border-bottom: 2px dashed rgba(123,92,58,0.35);
-    flex-shrink: 0;
+    /* SAFE_MARGIN in ui/constants. The tabs are the map's only controls
+       and they sit against the top edge; the edge sweep scored them at 12. */
+    position: absolute; top: 16px; left: 16px; z-index: 5;
   }
   .tab {
-    background: var(--paper-tan);
-    border: 2px solid #d3bf94;
-    border-radius: 14px;
+    /* CHROME in ui/constants, in CSS: the cream at 0.96, the same hairline
+       the plates use, its radius and its soft shadow. */
+    background: rgba(254, 249, 239, 0.96);
+    border: 1.5px solid rgba(212, 200, 184, 0.9);
+    border-radius: 16px;
+    box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.18);
     padding: 6px 18px;
     cursor: pointer; user-select: none;
     font-family: 'Fredoka', sans-serif; font-weight: 500; font-size: var(--fs-floor);
@@ -70,8 +77,9 @@
     background: var(--honey-amber);
     border-color: var(--honey-shadow);
     color: var(--ink);
-    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1);
+    box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.18), inset 0 -2px 0 rgba(0,0,0,0.1);
   }
+  html.stage-arc .tabs { display: none; }
   .tabs .right { margin-left: auto; font-size: var(--fs-floor); opacity: 0.6; align-self: center; }
 
   /* Overlay mode (URL param ?overlay=1) — used when this map is
@@ -953,6 +961,11 @@
   function showStage(name) {
     stages.forEach(s => s.classList.toggle('active', s.id === name + '-stage'));
     tabs.forEach(t => t.classList.toggle('active', t.dataset.stage === name));
+    // The A.R.C. site carries its own "Back to map", so the tab pair has
+    // nothing left to offer there — and with the tabs floating over the
+    // map rather than banded above it, keeping both put two ways back in
+    // the same 40px of the top-left corner. One exit control.
+    document.documentElement.classList.toggle('stage-arc', name === 'arc');
     if (name === 'world') setTimeout(placePins, 30);
   }
   tabs.forEach(t => t.addEventListener('click', () => showStage(t.dataset.stage)));
