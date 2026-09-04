@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY, TYPE, TITLE_CY, PAGE_MARGIN, SAFE_MARGIN } from '../ui/constants';
-import { createChromeButton, createTextButton, createChromeTitle, createPanel } from '../ui/UIButton';
+import { COLOURS, FONTS, TEXT_RESOLUTION, COLLAR_COLOURS, MIN_FONT, bottomAnchorY, TYPE, TITLE_CY, PAGE_MARGIN, SAFE_MARGIN, CHROME } from '../ui/constants';
+import { createChromeButton, createTextButton, createChromeTitle, createChromePlate } from '../ui/UIButton';
 import {
   startGridWalk,
   movePlayer,
@@ -927,9 +927,7 @@ export class WalkScene extends Phaser.Scene {
     this.overlayContainer.removeAll(true);
 
     this.overlayContainer.add(
-      createPanel(this, width / 2, py, panelW, panelH, {
-        fillColour: 0xffffff, borderColour: 0x2E8B57, borderWidth: 2, shadow: true,
-      })
+      createChromePlate(this, width / 2, py, panelW, panelH)
     );
 
     this.overlayContainer.add(
@@ -953,7 +951,7 @@ export class WalkScene extends Phaser.Scene {
     if (changes.length > 0) {
       this.overlayContainer.add(
         this.add.text(width / 2, py + 34, changes.join(' | '), {
-          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#2E8B57', resolution: TEXT_RESOLUTION,
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: CHROME.inkAccent, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5)
       );
     }
@@ -980,9 +978,7 @@ export class WalkScene extends Phaser.Scene {
     const py = height * 0.4;
 
     this.overlayContainer.add(
-      createPanel(this, width / 2, py, panelW, panelH, {
-        fillColour: 0xffffff, borderColour: 0x2E8B57, borderWidth: 2, shadow: true,
-      })
+      createChromePlate(this, width / 2, py, panelW, panelH)
     );
 
     // Temperament indicator
@@ -1038,17 +1034,20 @@ export class WalkScene extends Phaser.Scene {
 
     this.overlayContainer.removeAll(true);
 
-    const colour = result.happinessChange > 0 ? 0x2E8B57 : result.happinessChange < 0 ? 0xe74c3c : 0x888888;
+    // The panel's border used to carry how the interaction went — green,
+    // red or grey. On one surface that moves to the ink, which is where
+    // the message already is.
+    const tone = result.happinessChange > 0 ? CHROME.inkAccent
+      : result.happinessChange < 0 ? CHROME.inkDanger
+        : CHROME.ink;
 
     this.overlayContainer.add(
-      createPanel(this, width / 2, py, Math.min(340, width - PAGE_MARGIN * 2), 70, {
-        fillColour: 0xffffff, borderColour: colour, borderWidth: 2, shadow: true,
-      })
+      createChromePlate(this, width / 2, py, Math.min(340, width - PAGE_MARGIN * 2), 70)
     );
 
     this.overlayContainer.add(
       this.add.text(width / 2, py, result.message, {
-        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
+        fontSize: TYPE.caption, fontFamily: FONTS.body, color: tone,
         wordWrap: { width: 300 }, align: 'center',
       }).setOrigin(0.5)
     );
@@ -1192,22 +1191,19 @@ export class WalkScene extends Phaser.Scene {
     const stripW = Math.min(520, width - 20);
 
     this.overlayContainer.add(
-      createPanel(this, width / 2, stripY, stripW, stripH, {
-        fillColour: 0xffecec, borderColour: 0xe74c3c, borderWidth: 3,
-        radius: 14, shadow: true,
-      })
+      createChromePlate(this, width / 2, stripY, stripW, stripH)
     );
 
     this.overlayContainer.add(
       this.add.text(width / 2 - stripW / 2 + 24, stripY, 'STOP!', {
-        fontSize: TYPE.title, fontFamily: FONTS.title, fontStyle: 'bold', color: '#c0392b',
+        fontSize: TYPE.title, fontFamily: FONTS.title, fontStyle: 'bold', color: CHROME.inkDanger,
       }).setOrigin(0, 0.5)
     );
 
     this.overlayContainer.add(
       this.add.text(width / 2 - stripW / 2 + 110, stripY - 10,
         `${this.animal.name} is about to cross!`, {
-        fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold', color: '#c0392b',
+        fontSize: TYPE.caption, fontFamily: FONTS.body, fontStyle: 'bold', color: CHROME.inkDanger,
       }).setOrigin(0, 0.5)
     );
 
@@ -1215,7 +1211,7 @@ export class WalkScene extends Phaser.Scene {
     this.roadTimeLeft = 3000;
     const timerText = this.add.text(width / 2 - stripW / 2 + 110, stripY + 12,
       'Look both ways… 3.0s', {
-      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#c0392b',
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: CHROME.inkDanger,
     }).setOrigin(0, 0.5);
     this.overlayContainer.add(timerText);
 
@@ -1279,18 +1275,14 @@ export class WalkScene extends Phaser.Scene {
     const bannerW = Math.min(420, width - PAGE_MARGIN * 2);
 
     this.overlayContainer.add(
-      createPanel(this, width / 2, bannerY, bannerW, 64, {
-        fillColour: success ? 0xe8f5e9 : 0xffe0e0,
-        borderColour: success ? 0x2E8B57 : 0xe74c3c,
-        borderWidth: 2, radius: 12, shadow: true,
-      })
+      createChromePlate(this, width / 2, bannerY, bannerW, 64)
     );
 
     this.overlayContainer.add(
       this.add.text(width / 2, bannerY - 10,
         success ? 'Great road safety!' : 'Oops! Stop and look next time!', {
         fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
-        color: success ? '#2E8B57' : '#c0392b',
+        color: success ? CHROME.inkAccent : CHROME.inkDanger,
       }).setOrigin(0.5)
     );
 
@@ -1350,9 +1342,7 @@ export class WalkScene extends Phaser.Scene {
     const panelW = Math.min(380, width - PAGE_MARGIN * 2);
     const panelY = height * 0.42;
     this.container.add(
-      createPanel(this, width / 2, panelY, panelW, 200, {
-        fillColour: 0xffffff, borderColour: 0x2E8B57, borderWidth: 2, shadow: true,
-      })
+      createChromePlate(this, width / 2, panelY, panelW, 200)
     );
 
     const lines = [

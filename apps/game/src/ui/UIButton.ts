@@ -54,54 +54,6 @@ export function createTextButton(
   return container;
 }
 
-/**
- * Styled card panel — rounded rectangle with shadow, used for
- * content areas, animal cards, info panels.
- */
-export function createPanel(
-  scene: Phaser.Scene,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  options?: {
-    fillColour?: number;
-    fillAlpha?: number;
-    radius?: number;
-    borderColour?: number;
-    borderWidth?: number;
-    shadow?: boolean;
-  }
-): Phaser.GameObjects.Container {
-  const fillColour = options?.fillColour ?? 0xffffff;
-  const fillAlpha = options?.fillAlpha ?? 0.95;
-  const radius = options?.radius ?? 14;
-  const borderColour = options?.borderColour ?? 0xd4c8b8;
-  const borderWidth = options?.borderWidth ?? 2;
-  const shadow = options?.shadow ?? true;
-
-  const gfx = scene.add.graphics();
-
-  // Drop shadow
-  if (shadow) {
-    gfx.fillStyle(0x000000, 0.1);
-    gfx.fillRoundedRect(-w / 2 + 3, -h / 2 + 4, w, h, radius);
-  }
-
-  // Main fill
-  gfx.fillStyle(fillColour, fillAlpha);
-  gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
-
-  // Border
-  if (borderWidth > 0) {
-    gfx.lineStyle(borderWidth, borderColour, 0.85);
-    gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
-  }
-
-  const container = scene.add.container(x, y, [gfx]);
-  return container;
-}
-
 // ── Chrome ───────────────────────────────────────────────────────────
 //
 // Everything below draws the one non-diegetic surface described by
@@ -116,8 +68,8 @@ export function createPanel(
  * an empty state, an info panel, the back of a button. It replaced both the
  * translucent-white `createPanel` look and the gold-pill `createPillTitle`
  * look, which between them were why the kitchen showed three visual
- * languages in one frame. The pill is gone; `createPanel` still has 20
- * callers and wants this.
+ * languages in one frame. Both are gone: the pill went with the title
+ * conversion, and `createPanel`'s last 17 callers came here.
  *
  * The container publishes its drawn size via `setSize`, so a caller can
  * measure it to lay out whatever sits beneath — Graphics contributes nothing
@@ -134,11 +86,27 @@ export function createChromePlate(
     radius?: number;
     fillAlpha?: number;
     shadow?: boolean;
+    /**
+     * `plate` (default) is paper; `filled` is paper and ink swapped — the
+     * same two weights `createChromeButton` has, and for the same reason.
+     *
+     * A plate needs this where the surface is carrying a *state* rather
+     * than decoration: the gift chips in Social are a row of identical
+     * plates, one of which is the chosen one, and a child reading a row
+     * of chips needs the chosen one to differ before she reads a word.
+     * Painting that as a one-off green fill is how the fills came to be a
+     * dozen different colours in the first place.
+     *
+     * Reach for it for selection, not emphasis. A screen where every plate
+     * is filled has said nothing.
+     */
+    variant?: 'plate' | 'filled';
   }
 ): Phaser.GameObjects.Container {
   const radius = options?.radius ?? CHROME.radius;
   const fillAlpha = options?.fillAlpha ?? CHROME.fillAlpha;
   const shadow = options?.shadow ?? true;
+  const filled = options?.variant === 'filled';
 
   const gfx = scene.add.graphics();
 
@@ -147,11 +115,15 @@ export function createChromePlate(
     gfx.fillRoundedRect(-w / 2 + CHROME.shadowX, -h / 2 + CHROME.shadowY, w, h, radius);
   }
 
-  gfx.fillStyle(CHROME.fill, fillAlpha);
+  gfx.fillStyle(filled ? hexNum(CHROME.inkAccent) : CHROME.fill, filled ? 1 : fillAlpha);
   gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
 
-  gfx.lineStyle(CHROME.strokeWidth, CHROME.stroke, CHROME.strokeAlpha);
-  gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
+  // As on the button: outlining a filled plate in the plate's own warm grey
+  // draws a ring around a dark shape rather than an edge on a light one.
+  if (!filled) {
+    gfx.lineStyle(CHROME.strokeWidth, CHROME.stroke, CHROME.strokeAlpha);
+    gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
+  }
 
   const container = scene.add.container(x, y, [gfx]);
   container.setSize(w, h);

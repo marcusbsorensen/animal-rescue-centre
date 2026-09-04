@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
-import { createChromeButton, createTextButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createAmbientParticles, createChromeTitle, createChromePlate } from '../ui/UIButton';
 import { getSession } from '../lib/auth';
 import { addFriendByCode, getFriends, type Friend } from '../lib/friends';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -129,12 +129,7 @@ export class FriendsScene extends Phaser.Scene {
       friends.forEach((friend) => {
         // Shadow card behind each friend row
         this.container.add(
-          createPanel(this, width / 2, y, width - PAGE_MARGIN * 2, 44, {
-            fillColour: 0xffffff,
-            borderColour: 0xd4c8b8,
-            borderWidth: 1,
-            radius: 10,
-          })
+          createChromePlate(this, width / 2, y, width - PAGE_MARGIN * 2, 44)
         );
         const row = this.add.text(width / 2, y,
           `${friend.avatarEmoji}  ${friend.username}`, {

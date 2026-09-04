@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY, TYPE, TITLE_CY, PAGE_MARGIN, SPACE, contentTopFor, bandCentreY } from '../ui/constants';
-import { createChromeButton, createPanel, createAmbientParticles, createChromeTitle } from '../ui/UIButton';
+import { COLOURS, FONTS, GIFT_MESSAGES, TEXT_RESOLUTION, SAFE_MARGIN, MIN_TAP, MIN_TAP_GAP, bottomAnchorY, TYPE, TITLE_CY, PAGE_MARGIN, SPACE, contentTopFor, bandCentreY, CHROME } from '../ui/constants';
+import { createChromeButton, createAmbientParticles, createChromeTitle, createChromePlate } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { getFriends, type Friend } from '../lib/friends';
 import {
@@ -242,12 +242,7 @@ export class SocialScene extends Phaser.Scene {
 
       // Gift card (panel with shadow)
       this.container.add(
-        createPanel(this, width / 2, y, width - PAGE_MARGIN * 2, 50, {
-          fillColour: 0xffffff,
-          borderColour: 0xc8b8a4,
-          borderWidth: 2,
-          radius: 10,
-        })
+        createChromePlate(this, width / 2, y, width - PAGE_MARGIN * 2, 50)
       );
 
       // From
@@ -342,11 +337,11 @@ export class SocialScene extends Phaser.Scene {
       const y = giftY + 35;
       const isSelected = this.selectedGiftType === gift.type;
 
-      const panel = createPanel(this, x, y, 65, 50, {
-        fillColour: isSelected ? 0x4a9c5d : 0xffffff,
-        borderColour: 0xc8b8a4,
-        borderWidth: 2,
-        radius: 8,
+      // The chosen gift is the filled weight — the plate's ink and paper
+      // swapped — rather than a one-off green. Selection is the case the
+      // variant exists for: a row of identical chips where one is chosen.
+      const panel = createChromePlate(this, x, y, 65, 50, {
+        variant: isSelected ? 'filled' : 'plate',
       });
       const bg = this.add.rectangle(x, y, 65, 50, 0x000000, 0)
         .setInteractive({ useHandCursor: true });
@@ -357,7 +352,7 @@ export class SocialScene extends Phaser.Scene {
 
       const label = this.add.text(x, y + 15, gift.label, {
         fontSize: TYPE.caption, fontFamily: FONTS.body, resolution: TEXT_RESOLUTION,
-        color: isSelected ? '#ffffff' : COLOURS.text,
+        color: isSelected ? COLOURS.bg : CHROME.ink,
       }).setOrigin(0.5);
 
       bg.on('pointerdown', () => {
@@ -550,12 +545,7 @@ export class SocialScene extends Phaser.Scene {
 
       // Token display (for copying)
       this.container.add(
-        createPanel(this, width / 2, startY + 155, 300, 40, {
-          fillColour: 0xffffff,
-          borderColour: 0x4a9c5d,
-          borderWidth: 2,
-          radius: 10,
-        })
+        createChromePlate(this, width / 2, startY + 155, 300, 40)
       );
       this.container.add(
         this.add.text(width / 2, startY + 155, this.showcaseToken, {

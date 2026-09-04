@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
-import { createChromeButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createChromeTitle, createAmbientParticles, createChromePlate } from '../ui/UIButton';
 import { getRememberedUsernames, login, searchUsername } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
@@ -71,9 +71,7 @@ export class LoginScene extends Phaser.Scene {
     });
 
     // Central card panel
-    createPanel(this, width / 2, height / 2, width - PAGE_MARGIN * 2, height - 40, {
-      fillColour: 0xffffff, fillAlpha: 0.92, radius: 20,
-    });
+    createChromePlate(this, width / 2, height / 2, width - PAGE_MARGIN * 2, height - 40);
 
     this.container = this.add.container(0, 0);
 
@@ -249,10 +247,7 @@ export class LoginScene extends Phaser.Scene {
 
     // PIN dots panel
     this.container.add(
-      createPanel(this, width / 2, 170, 220, 60, {
-        fillColour: 0xf5efe4, fillAlpha: 1, radius: 12,
-        borderColour: 0xd4c8b8, borderWidth: 2,
-      })
+      createChromePlate(this, width / 2, 170, 220, 60)
     );
 
     const pinDisplay = this.add.text(width / 2, 170, '○ ○ ○ ○', {

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, bottomAnchorY, TYPE, TITLE_CY } from '../ui/constants';
-import { createChromeButton, createTextButton, createChromeTitle, createPanel, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
 import {
   applyHealStep,
   HEAL_ACTIONS,

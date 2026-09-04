@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { COLOURS, FONTS, TEXT_RESOLUTION, SAFE_MARGIN, MIN_FONT, TYPE, TITLE_CY, PAGE_MARGIN, contentTopFor, SPACE } from '../ui/constants';
-import { createChromeButton, createChromeTitle, createChromePlate, createPanel, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createChromeTitle, createChromePlate, createAmbientParticles } from '../ui/UIButton';
 import {
   generateKitchenRound,
   isFoodValidForSpecies,
@@ -518,11 +518,7 @@ export class KitchenMinigameScene extends Phaser.Scene {
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.4);
 
     const panelW = 380, panelH = 240;
-    createPanel(this, width / 2, height / 2, panelW, panelH, {
-      fillColour: 0xffffff, fillAlpha: 1,
-      borderColour: Phaser.Display.Color.HexStringToColor(COLOURS.primary).color,
-      borderWidth: 3, radius: 16,
-    });
+    createChromePlate(this, width / 2, height / 2, panelW, panelH);
 
     this.add.text(width / 2, height / 2 - 70, 'All Fed!', {
       fontSize: TYPE.display, fontFamily: FONTS.title, fontStyle: 'bold',

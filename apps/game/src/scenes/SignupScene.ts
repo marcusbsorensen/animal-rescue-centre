@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
-import { createChromeButton, createTextButton, createPanel, createChromeTitle, createAmbientParticles } from '../ui/UIButton';
+import { createChromeButton, createTextButton, createChromeTitle, createAmbientParticles, createChromePlate } from '../ui/UIButton';
 import { getAvailableUsernames, signup } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
@@ -70,9 +70,7 @@ export class SignupScene extends Phaser.Scene {
     });
 
     // Central card panel
-    createPanel(this, width / 2, height / 2, width - PAGE_MARGIN * 2, height - 40, {
-      fillColour: 0xffffff, fillAlpha: 0.92, radius: 20,
-    });
+    createChromePlate(this, width / 2, height / 2, width - PAGE_MARGIN * 2, height - 40);
 
     this.container = this.add.container(0, 0);
 
@@ -200,11 +198,8 @@ export class SignupScene extends Phaser.Scene {
     // Panel behind emoji grid
     const emojiRows = Math.ceil(AVATAR_EMOJIS.length / cols);
     this.container.add(
-      createPanel(this, width / 2, startY + (emojiRows * emojiSize) / 2 - emojiSize / 2,
-        cols * emojiSize + 20, emojiRows * emojiSize + 16, {
-        fillColour: 0xf5efe4, fillAlpha: 0.6, radius: 12,
-        borderColour: 0xd4c8b8, borderWidth: 1,
-      })
+      createChromePlate(this, width / 2, startY + (emojiRows * emojiSize) / 2 - emojiSize / 2,
+        cols * emojiSize + 20, emojiRows * emojiSize + 16)
     );
 
     AVATAR_EMOJIS.forEach((emoji, i) => {
@@ -237,11 +232,8 @@ export class SignupScene extends Phaser.Scene {
 
     // Panel behind colour swatches
     this.container.add(
-      createPanel(this, width / 2, colourStartY + 50,
-        AVATAR_BG_COLOURS.length * colourSize + 20, 60, {
-        fillColour: 0xf5efe4, fillAlpha: 0.6, radius: 12,
-        borderColour: 0xd4c8b8, borderWidth: 1,
-      })
+      createChromePlate(this, width / 2, colourStartY + 50,
+        AVATAR_BG_COLOURS.length * colourSize + 20, 60)
     );
 
     AVATAR_BG_COLOURS.forEach((colour, i) => {
@@ -338,10 +330,7 @@ export class SignupScene extends Phaser.Scene {
 
     // PIN dots panel
     this.container.add(
-      createPanel(this, width / 2, 160, 220, 60, {
-        fillColour: 0xf5efe4, fillAlpha: 1, radius: 12,
-        borderColour: 0xd4c8b8, borderWidth: 2,
-      })
+      createChromePlate(this, width / 2, 160, 220, 60)
     );
 
     // PIN display (dots)
