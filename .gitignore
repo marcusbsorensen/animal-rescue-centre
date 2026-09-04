@@ -63,3 +63,7 @@ dist-ios/
 
 # UX/audit screenshots, regenerated on demand — 31 MB of them.
 audit/
+
+# Python bytecode, from tools/sheets and the tools/*.py scripts.
+__pycache__/
+*.pyc
