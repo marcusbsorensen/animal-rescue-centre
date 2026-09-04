@@ -5,19 +5,26 @@ Ship A.R.C. as an iPad/iPhone app for 7–10 year olds. Current arc: make it
 look like one finished product rather than four stitched together.
 
 ## State
-All on `main`, **not yet pushed** — five commits on top of `2660130`, the
-last of them this note. 362 tests, typecheck clean, 36 lint warnings,
+All on `main` and pushed. 365 tests, typecheck clean, 36 lint warnings,
 0 errors. Nothing behind a flag.
 
-**`e2e/ux-review.spec.ts` is at 0 FAIL / 19 WARN** over 42 scene/viewport
-pairs, down from 3/107 two sessions ago and 0/86 this morning. F1-F5, F6
-and F7 are all at zero; what is left is T4, L6, L8, L9 — layout, not type.
+**`e2e/ux-review.spec.ts` is at 2 FAIL / 18 WARN over 56 pairs** — and the
+count went *up* because the instrument was wrong, not the game. It measured
+a stuck frame on 16 of its old 42 pairs, and it had never shot a viewport
+this game ships to. Both fixed; the two FAILs are new information from the
+874x402 and 812x325 rows nobody had measured. Typography is at zero.
 
 - Every title, plate and button is on the chrome surface; the bevel is gone.
 - Depot and SupplyRun are warmed into the game's world.
 - **The type floor is 16 and lives in two named places** — `MIN_FONT.small`
   for the canvas, `--fs-floor` in `fonts.css` for the DOM. It was 14, the
   checklist's *warn* mark, and 104 call sites sat exactly on it.
+- **`TYPE` is six steps.** 22 sizes across 329 sites; 178 type sites are on
+  the scale and 47 emoji keep their literals, because sizing a rock is not
+  typography.
+- **`SPACE`, `PAGE_MARGIN`, `TITLE_CY`, `contentTopFor`, `bandCentreY`.**
+  There were 17 outer margins, 18 radii and 8 title y-values.
+- **One vertical axis**, one exit control, one title line.
 - Six webfonts self-hosted, and the four DOM families now declared once in
   `fonts.css` rather than copied into 23 screens.
 
@@ -62,18 +69,36 @@ covers that, and is trustworthy for it.
   call to change.
 
 ## Next step
-The canvas still carries **227 bare px strings across 20 distinct sizes**,
-16 to 72. Three of those sizes are `TYPE`'s own steps written as literals;
-the other seventeen are the continuum the scale exists to replace — 17, 19,
-22, 26, 30, 34, 36, 38, 42, 44, 46. Collapsing them is the rest of the same
-job, and unlike the floor it is aesthetic rather than accessibility: it
-wants looking at rather than measuring, and it will move things. Everything
-else on the queue (§3 enumeration, the 658 raw colour literals, the emoji
-furniture) is untouched.
+Four items from the composition review are left, and they are listed with
+their reasons in queue item 7. In order:
+
+1. **The corridor's animals overlap the door signs** — 60% on the phone.
+   This is the one that needs *you*, not a coordinate: the signs hang on
+   doors painted into the background, so they cannot move independently of
+   the art. The question is where an arriving animal stands.
+2. **PtvDrive's picker** — 55% of its top half is bare, and its caption and
+   level chips use Phaser `backgroundColor` blocks (20 such sites, 10 in
+   that file) rather than a plate.
+3. **The map's tab strip** — the only dark chrome surface in the game, 67px
+   of a 402px screen for two controls.
+4. **`createPanel`'s last 17 call sites** want `createChromePlate`.
+
+Two things are measured and waiting on a decision:
+- **Caveat reads at 72% of every other face**, so `TYPE.caption` means about
+  11.6px in it. `font-size-adjust: 0.49` fixes it and is verified, but it
+  widens text 37% across ~50 rules on 20 screens. Your call, and it belongs
+  with the paths/rewilding screen work.
+- **The tablet and desktop captures are still one frame** even though their
+  measurements are right, so the iPad can be measured but not looked at.
 
 ## Traps
+- **`?embed=1` is not the same as adding `body.embed` after load.** The mock
+  keeps its `data-size`, the container query sees the wrong box, and the
+  whole short-landscape branch silently does not apply.
 - **`_short-landscape.css` wins on the phone.** A sweep of the `.html`
   files alone leaves the phone on the old values.
+- **A block child does not centre because its parent says `text-align:
+  center`.** That is why the sign column was 42px out on twelve screens.
 - **Phaser's default `fontFamily` is `Courier`** — name one even for a glyph.
 - **`EDGE_CONTROL_INSET` only fits a `MIN_TAP`-sized control.** Use
   `createChromeButton`'s `anchor`, which measures first.
