@@ -18,13 +18,32 @@ fixed by re-matting alone — `cat-black-arriving`, `cat-siamese-growling`,
 `fox-fennec-sleeping`, `fox-marble-sick` had painted backgrounds, two of them
 a transparency checkerboard drawn as pixels.
 
-**Done, awaiting Marcus's word.** The restyle prompt is at round 2. Key line
-is fixed and measured: white cat 0.035 → 0.084, ginger cat 0.020 → 0.101
-against the target's 0.050. Modelling improved everywhere except the ginger
-cat (0.112 → 0.126 vs target 0.201) — see Next step.
+**Committed and pushed.** All of the above, plus the tools, is on `main` at
+`5fee345`. The working tree is clean.
 
-**Not started.** The 600-sprite restyle has not been submitted. Nothing is
-committed; `git status` is dirty with the 86 new sprites and the new tools.
+**Running.** `batch_6a9c74a6ab58819095862285f88d018d` — the cat species
+pilot, 90 sprites, $9.86, submitted 2026-09-05 20:59, expires 20:59 the
+following day. Validated and `in_progress` with 90 total and 0 failed, so
+the request shape is proven at scale, not just on the two-line probe.
+Marcus chose one species before the rest: nine characters across ten poses
+each says more than four prototypes can.
+
+**Settled after five rounds.** The prompt is round 2 plus the volume clause
+and nothing else. Three attempts to improve it failed and are reverted, each
+recorded in `batch-restyle.py` at the clause it touched:
+- the volume clause itself does nothing measurable (ginger modelling
+  0.126 → 0.122 against a target of 0.201). Kept because it is free.
+- a pigment-named PALETTE cost the key line — "shadow is never the same hue
+  darker" reads as "do not go dark", ink 0.961 → 0.681 — and moved no
+  saturation at all.
+- a geometric eating pose ("hips level with the shoulders") brought the head
+  up with the back, so the cat stood instead of eating.
+
+**Corrected.** Saturation is not a target to chase. 0.360 is the reference
+snake's brownness, not a property of the style, and `audit-animal-style.py`
+excludes `sat_mean` from its distance for that reason. What is true is that
+the restyle lifts chroma about 0.12 on every prototype — a question for
+Marcus's eye on the fetched cats, not a number to hit.
 
 **Unverified.** Whether failed batch requests bill. Assumed not; not checked
 against the invoice.
@@ -56,16 +75,24 @@ against the invoice.
 - **Batch API**, $0.1096/image vs $0.2192. 600 serial would be ~20 hours.
 
 ## Next step
-Add a volume clause to `STYLE` in `tools/batch-restyle.py` for the
-smooth-coated animals, whose flat sources give the model nothing to model:
-*"the ribcage and haunch are distinct rounded masses with shadow between
-them; stripes and patches wrap around the form rather than lying flat on
-it."* Apply to `cat-ginger`, `cat-black`, `cat-grey`, `cat-siamese`,
-`cat-tuxedo`, `cat-tortie`, `cat-calico`, `dog-dalmatian`, `dog-beagle`,
-`dog-pug`, `dog-chocolate`, `dog-terrier` — the long-haired ones
-(`cat-white`, `dog-golden`, `dog-collie`, `dog-husky`, `bunny-angora`) already
-model well. Re-roll `cat-ginger-eating` to confirm, then
-`python3 tools/batch-restyle.py submit` ($65.75, up to 24h).
+Fetch the cats and let Marcus judge them.
+
+    python3 tools/batch-restyle.py status batch_6a9c74a6ab58819095862285f88d018d
+    python3 tools/batch-restyle.py fetch  batch_6a9c74a6ab58819095862285f88d018d
+
+That writes 90 raw PNGs to `asset-drafts/batch-restyle/`. They still need
+matting with `tools/rembg-cut.py` and resizing to 512 before they replace
+anything — `restyle-animals-2026-09-05.sh:restyle()` has the three lines.
+Build a contact sheet from them (`tools/sheets/s5_animal_matrix.py`) so nine
+characters × ten poses can be judged as a set, which is the whole point of
+piloting a species rather than four sprites.
+
+The open question the cats answer is the chroma lift. If it reads wrong at
+sheet scale, fix it in post rather than in the prompt — a measured
+desaturation on the fetched PNGs is deterministic and free, and three rounds
+say the prompt will not do it.
+
+Then the remaining 510: `submit` per species, or all at once for $55.90.
 
 ## Traps
 - **`images: [{"image_url": ...}]`** is the Batch shape for `/v1/images/edits`.
@@ -85,6 +112,17 @@ model well. Re-roll `cat-ginger-eating` to confirm, then
 - **Always pilot before a batch.** Every round caught something real: the
   first restyle pilot showed gpt-image-1.5 degrading the set, the two-image
   batch caught the wrong parameter name.
+- **Check the deployment before submitting.** The batch reads its sources
+  from `animal-rescue-centre.vercel.app` by URL, so a sprite committed but
+  not yet deployed is a request spent restyling the old art, or a 404. The
+  check is a HEAD over every `image_url` in `requests.jsonl` plus a shasum
+  against the local file; all 90 cats were verified current before submit.
+- **A stated prohibition moves the model less than a stated property, but a
+  stated property moves more than intended.** KEY LINE worked because
+  "BLACK, on every animal" is checkable. The same trick applied to the
+  palette and to the eating pose over-corrected into a different fault each
+  time. Three rounds of evidence: state the property, then measure whether
+  it took something else with it.
 - **`scared`/`grumpy`/`growling` are never rendered.** `ConflictView.ts:86`
   maps all four conflict types to `sheltered`/`sleeping`/`eating`, so the
   "bickering about toys" screen draws both animals content. Proposed mapping
