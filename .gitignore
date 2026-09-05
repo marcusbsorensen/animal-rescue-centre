@@ -67,3 +67,9 @@ audit/
 # Python bytecode, from tools/sheets and the tools/*.py scripts.
 __pycache__/
 *.pyc
+
+# Style-audit measurements are a scratch output of tools/audit-animal-style.py
+# (--json), regenerated in seconds and 340KB of numbers. The tool documents
+# /tmp/style.json as the place for it; this catches the run that lands in root.
+animal-style-audit.json
+style.json

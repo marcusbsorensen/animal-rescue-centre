@@ -1,7 +1,8 @@
 # Contact sheets
 
-Four sheets that put the game's art next to itself, so a set can be judged
-as a set rather than one render at a time.
+Sheets that put the game's art next to itself, so a set can be judged as a
+set rather than one render at a time. Four cover the game; a fifth renders
+any species' full variant × pose matrix on demand.
 
 ```bash
 python3 tools/sheets/build.py            # all four
@@ -9,7 +10,7 @@ python3 tools/sheets/build.py 2          # just the vehicles
 python3 tools/sheets/build.py icons screens
 ```
 
-They land in the repo root as `sheet-1-buildings-map.png` … `sheet-4-…png`.
+They land in the repo root as `sheet-1-buildings-map.png` … `sheet-5-…png`.
 `/*.png` is gitignored there, which is where `icon-sheet.png` already goes,
 so a rebuild never dirties the tree. `ARC_SHEET_OUT=/some/dir` moves them.
 
@@ -25,6 +26,7 @@ already wrote.
 | 2 | `s2_vehicles.py` | Which vehicles have which views, and which views are missing? |
 | 3 | `s3_icons.py` | Does an icon that reads at 96px still work at 24, and what tints it in place? |
 | 4 | `s4_screens_animals.py` | Which animals does each screen draw, in which pose? |
+| 5 | `s5_animal_matrix.py` | Does every variant hold its identity across all ten poses? |
 
 ## What feeds which
 
@@ -57,6 +59,20 @@ change, re-sample rather than guessing.
 `ROWS` maps each screen to the pose it asks for. `sprite()` falls back the
 way the game does, and a fallback is drawn in grey with its real key, so a
 missing pose shows up as a fact rather than a silent substitution.
+
+**Sheet 5** — takes species names as arguments (`--all` for every one), and
+gets both its variant list and its health verdicts from
+`tools/verify-animal-set.py`, so the sheet and the audit can never
+disagree. It is not part of `build.py`, because the useful call is almost
+always one species rather than all fifty-eight rows:
+
+```bash
+python3 tools/sheets/s5_animal_matrix.py hedgehog
+```
+
+Read a ROW for character drift and a COLUMN for pose drift. A column that
+disagrees with itself is a prompt problem, fixed in `pose_rule` in
+`tools/regen-animal-gaps-2026-09-05.sh`, not an art problem.
 
 ## Re-capturing the screens
 

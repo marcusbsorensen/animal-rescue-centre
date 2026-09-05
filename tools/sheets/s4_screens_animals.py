@@ -16,7 +16,7 @@ BG = os.path.join(REPO, 'apps/game/public/assets/bg')
 REP = {
     'cat': ('cat-ginger', 'Cat'), 'dog': ('dog-golden', 'Dog'), 'fox': ('fox-red', 'Fox'),
     'bunny': ('bunny-lop', 'Bunny'), 'bat': ('bat-brown', 'Bat'), 'parrot': ('parrot-macaw', 'Parrot'),
-    'snake': ('snake-corn', 'Snake'), 'hedgehog': ('hedgehog', 'Hedgehog'),
+    'snake': ('snake-corn', 'Snake'), 'hedgehog': ('hedgehog-chocolate', 'Hedgehog'),
     'raccoon': ('raccoon', 'Raccoon'), 'skunk': ('skunk', 'Skunk'),
 }
 ALL8 = ['cat', 'dog', 'fox', 'bunny', 'bat', 'parrot', 'snake', 'hedgehog']
@@ -49,7 +49,7 @@ ROWS = [
      'Only a species with a habitat can be released. Fox→Moorland, bunny+hedgehog→Woodland, parrot→Sea Cliffs, bat→Deep Forest, snake→Wetlands.'),
     ('GameScene-tunnel-phone.png', 'The garden tunnel', 'GameScene · tunnel minigame', 'walking',
      ['fox', 'skunk', 'hedgehog', 'raccoon'],
-     'Its own cast of four. Skunk and raccoon appear nowhere else in the game and have one pose each.'),
+     'Its own cast of four. Skunk and raccoon appear nowhere else in the game; as of 2026-09-05 they carry all ten poses anyway.'),
     ('GameScene-map-phone.png', 'The map', 'GameScene · openMapOverlay', 'sick', ALL8,
      'Heal opens the map with the poorly animal already aboard, so the sick sprite is the one that travels.'),
     ('PtvDriveScene-phone.png', 'The drive picker', 'PtvDriveScene · select', 'sick', ALL8,
@@ -96,7 +96,7 @@ H = (300
      + 118 + 2 * (ROOM_H + 22) + 60
      + 118 + OUT_H + 60
      + 118 + ST_H + 60
-     + 200 + 150)
+     + 236 + 150)
 
 sheet = new_sheet(W, H)
 d = ImageDraw.Draw(sheet)
@@ -104,7 +104,7 @@ d = ImageDraw.Draw(sheet)
 y = header(sheet, 'Every screen, and who is on it', [
     'Fourteen screens at the app\'s own 874×402, each beside the animals it actually draws, in the pose it draws them in.',
     'Eight species live at the centre; two more exist only inside the garden tunnel.',
-], 'A.R.C.  ·  contact sheet 4 of 4  ·  2026-09-04  ·  captures from e2e/ux-review.spec.ts, sprites at source', W)
+], 'A.R.C.  ·  contact sheet 4  ·  animals as at 2026-09-05  ·  captures from e2e/ux-review.spec.ts, sprites at source', W)
 
 # ── A. screen by screen ──
 y = section(sheet, y, 'Screen by screen', W,
@@ -229,14 +229,16 @@ for i, st in enumerate(STATES):
 y += ST_H + 50
 
 # ── findings ──
-d.rounded_rectangle([PAD, y, PAD + CW, y + 200], radius=16,
+d.rounded_rectangle([PAD, y, PAD + CW, y + 236], radius=16,
                     fill=(247, 241, 228), outline=NOTE, width=3)
 d.text((PAD + 30, y + 22), 'What the pairing shows', font=font('r', 30, 'Bold'), fill=NOTE)
 for i, line in enumerate([
-    'Hedgehog is the odd species out twice over: no room of its own (it borrows `bg-room-generic`) and no `playing` '
-    'pose, so the garden falls back to `sheltered` for it.',
-    'Skunk and raccoon have a single `walking` sprite each and appear only in the garden tunnel — if that minigame '
-    'ever puts them anywhere else, there is nothing to draw.',
+    'The pose set is complete as of 2026-09-05: 60 characters × 10 poses, all present, all usable cut-outs. '
+    '`tools/verify-animal-set.py` measures it against `SPECIES_VARIANTS`,',
+    'not against the folder — which is how hedgehog\'s six declared-but-undrawn variants stayed hidden while every '
+    'hedgehog in the game rendered as the same one.',
+    'What is still open here is scenery, not animals: hedgehog has no room of its own and borrows `bg-room-generic`, '
+    'so it is the one species whose room does not belong to it.',
     'Six screens of the fourteen draw no animal at all. Five of the eight species reach the wild; cat and dog never '
     'do, and hedgehog shares Woodland with bunny.',
 ]):
