@@ -64,6 +64,13 @@ STYLE = (
     "TEXTURE — real painted surface: fur as visible painted strands with tonal variation within each mass, "
     "scales as painted scales, feathers as painted barbs. No flat fills anywhere. "
     "LIGHT — from the upper left, consistently. "
+    # Round 4 tried to name the pigment behaviour here the way KEY LINE names
+    # the line — earth pigments by name, a chroma ceiling, shadow made by
+    # shifting to cool grey rather than darkening the hue. It cost the key
+    # line (ink_darkness 0.961 → 0.681 on the ginger, rim 0.108 → 0.065:
+    # "shadow is never the same hue darker" reads as "do not go dark") and
+    # bought no saturation at all (ginger 0.598 → 0.579, macaw 0.730 → 0.742).
+    # Reverted. The wording below is round 2's, which holds the line.
     "PALETTE — warm, limited and MUTED; pigment-like rather than bright. Lower the saturation from the "
     "reference. "
     "The eye keeps an iris, a round pupil and ONE small specular highlight, sized in proportion to the head. "
@@ -121,6 +128,17 @@ POSE_RESTATE = {
     # confusable); adding "rear down" fixed the posture but the model then
     # scattered kibble on the ground to make eating legible. The ground has
     # to be forbidden as explicitly as the bowl was.
+    # Round 5 tried to cure the rear-up drift with geometry rather than NOTs
+    # — "hips at the SAME HEIGHT as the shoulders, only the NECK bends". It
+    # worked too well and in the wrong half: the back came level and the head
+    # came UP with it, so the cat reads as STANDING and the eating stops
+    # reading at all. Both rolls carrying that clause also lost the key line
+    # (rim 0.108 → 0.065 and 0.039, ink 0.961 → 0.681 and 0.714) where
+    # neither roll without it did — two against two, so suggestive rather
+    # than proven, but it agrees with the eye.
+    # The wording below is round 2's. Its slight rear-up is the price of a
+    # genuinely lowered head, and that is the better trade: a raised rear is
+    # a blemish, a raised head is the wrong pose.
     'eating': ("POSE: head lowered, muzzle down toward the ground, absorbed and content, REAR END DOWN and "
                "all four feet planted flat — a standing animal with its head down to feed, NOT crouched, NOT "
                "with its rear raised, NOT about to pounce. THE GROUND BENEATH THE MUZZLE IS COMPLETELY EMPTY: "
