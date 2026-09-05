@@ -70,6 +70,39 @@ STYLE = (
     "NO blushed cheeks, NO cel shading, NO flat vector fill, NO plastic sheen, NO glow, NO even-width outline. "
     "Transparent background, no ground, no floor, NO drop shadow or smudge beneath the feet."
 )
+# Round 2 fixed the key line everywhere and improved modelling everywhere
+# except the ginger cat, which went 0.112 → 0.126 against the target's 0.201.
+# The pattern is coat length, not species: a long-haired animal gives the
+# model fur to model, and it takes the offer; a smooth-coated one gives it a
+# flat orange shape, and it paints a flat orange shape back. So the smooth
+# coats are told where the volume is, in anatomy rather than in adjectives —
+# name the two masses and the hollow between them, and say what the markings
+# do when they cross them.
+#
+# MEASURED, and it barely moved: re-rolling `cat-ginger-eating` with the
+# clause gave modelling 0.126 → 0.122 against the target's 0.201, and to the
+# eye a slightly rounder haunch and nothing else. The stripes still lie flat,
+# there is still no occlusion shadow between ribcage and haunch. The clause is
+# kept because it costs nothing and does no harm, NOT because it works —
+# do not treat smooth-coat volume as solved. Round 3, same harness as round 2
+# (gpt-image-2 high, the sprite as sole reference, style in words only).
+VOLUME = (
+    "VOLUME — this animal is SHORT-COATED, so its solidity must come from the body beneath the coat rather "
+    "than from fur texture. The ribcage and the haunch are distinct rounded masses with a clear shadow in the "
+    "hollow between them; the shoulder and the hip each catch their own highlight; the belly turns away into "
+    "shadow. Stripes, patches and markings WRAP AROUND those masses, curving and compressing as they cross "
+    "the form, rather than lying flat on the silhouette like paint on a cut-out."
+)
+
+# The long-haired characters — cat-white, dog-golden, dog-collie, dog-husky,
+# bunny-angora — already modelled well in round 2 and are deliberately left
+# out: for them the clause competes with the fur texture it would flatten.
+SMOOTH_COATED = {
+    'cat', 'cat-ginger', 'cat-black', 'cat-grey', 'cat-siamese', 'cat-tuxedo',
+    'cat-tortie', 'cat-calico',
+    'dog-dalmatian', 'dog-beagle', 'dog-pug', 'dog-chocolate', 'dog-terrier',
+}
+
 KEEP = ("Keep the species, the exact markings and colouring, the face and the proportions identical to the "
         "reference.")
 STRIP = ("THE OUTPUT MUST CONTAIN THE ANIMAL AND NOTHING ELSE — delete any bowl, dish, food, mat, blanket, "
@@ -159,7 +192,8 @@ def sprites(species=None, poses=None, limit=None):
 
 def line_for(stem, pose):
     prompt = ' '.join(x for x in (STRIP, POSE_RESTATE.get(pose, 'POSE: identical to the reference.'),
-                                  KEEP, STYLE) if x)
+                                  KEEP, STYLE,
+                                  VOLUME if stem in SMOOTH_COATED else '') if x)
     return {
         'custom_id': f'{stem}-{pose}',
         'method': 'POST',
