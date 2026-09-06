@@ -21,12 +21,24 @@ a transparency checkerboard drawn as pixels.
 **Committed and pushed.** All of the above, plus the tools, is on `main` at
 `5fee345`. The working tree is clean.
 
-**Running.** `batch_6a9c74a6ab58819095862285f88d018d` — the cat species
-pilot, 90 sprites, $9.86, submitted 2026-09-05 20:59, expires 20:59 the
-following day. Validated and `in_progress` with 90 total and 0 failed, so
-the request shape is proven at scale, not just on the two-line probe.
-Marcus chose one species before the rest: nine characters across ten poses
-each says more than four prototypes can.
+**Cat pilot done, awaiting Marcus's word.** `batch_6a9c74a6ab58819095862285f88d018d`
+returned 90/90 with 0 failures in 25 minutes, not the 24-hour window. Fetched
+and staged at 512 in `asset-drafts/batch-restyle/staged-512/`; NOT installed.
+Measured across all 90: ink 0.764 → 0.913 against a target of 0.923, and its
+spread HALVED, 0.170 → 0.099 — the set is consistently inked, not just better
+inked. Zero painted backdrops, zero halos. Poses and markings held; the box
+is gone from `arriving` and the bowl from `eating`.
+
+**The chroma worry is retired.** Across 90 sprites saturation went 0.357 →
+0.383 against the target's 0.360. The ginger cat that cost three prompt
+rounds was one sprite behaving oddly, not the set drifting. No desaturation
+pass is needed.
+
+**Still open on the cats:** `cat-white` is the laggard at ink 0.677 against
+the set's 0.913 — nearly double its own 0.384 before, so the KEY LINE clause
+works on pale animals but does not finish the job. All ten weakest sprites in
+the batch are cat-white. Worth knowing before the other pale long-haired
+characters go through.
 
 **Settled after five rounds.** The prompt is round 2 plus the volume clause
 and nothing else. Three attempts to improve it failed and are reverted, each
@@ -58,6 +70,9 @@ against the invoice.
 - `tools/sheets/s5_animal_matrix.py`, `s6_style_audit.py` — the two sheets.
 - `tools/regen-animal-gaps-2026-09-05.sh` — how the 86 were made.
 - `tools/rembg-cut.py` — the venv has rembg but not its `[cli]` extra.
+- `tools/install-restyled.py` — drafts → installed sprites. Crops, squares
+  with a 6% margin, 512, 256-colour palette, backs up the original first.
+  No matting: gpt-image-2 already returns clean alpha, measured over 90.
 
 ## Decisions made
 - **Target is `snake-python-sheltered.png`**, not the base snake, whose ten
@@ -75,24 +90,16 @@ against the invoice.
 - **Batch API**, $0.1096/image vs $0.2192. 600 serial would be ~20 hours.
 
 ## Next step
-Fetch the cats and let Marcus judge them.
+Marcus has seen the 9×10 sheet and has not yet said install-or-not. When he
+does:
 
-    python3 tools/batch-restyle.py status batch_6a9c74a6ab58819095862285f88d018d
-    python3 tools/batch-restyle.py fetch  batch_6a9c74a6ab58819095862285f88d018d
+    python3 tools/install-restyled.py --dry-run
+    python3 tools/install-restyled.py            # backs up first
+    python3 tools/verify-animal-set.py
 
-That writes 90 raw PNGs to `asset-drafts/batch-restyle/`. They still need
-matting with `tools/rembg-cut.py` and resizing to 512 before they replace
-anything — `restyle-animals-2026-09-05.sh:restyle()` has the three lines.
-Build a contact sheet from them (`tools/sheets/s5_animal_matrix.py`) so nine
-characters × ten poses can be judged as a set, which is the whole point of
-piloting a species rather than four sprites.
-
-The open question the cats answer is the chroma lift. If it reads wrong at
-sheet scale, fix it in post rather than in the prompt — a measured
-desaturation on the fetched PNGs is deterministic and free, and three rounds
-say the prompt will not do it.
-
-Then the remaining 510: `submit` per species, or all at once for $55.90.
+Then the remaining 510: `submit --species <name>` per species, or all at
+once for $55.90. The cat batch took 25 minutes, so the 24h completion window
+is a ceiling rather than an estimate.
 
 ## Traps
 - **`images: [{"image_url": ...}]`** is the Batch shape for `/v1/images/edits`.
