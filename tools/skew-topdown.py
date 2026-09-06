@@ -40,6 +40,27 @@ from PIL import Image, ImageDraw
 TAPER = 0.88
 PAD = 0.12          # margin added before warping, so corners are not clipped
 
+# Applying one taper to every file double-skews the ones that were already
+# right. Caught on the road capture: the travel phase draws `henry-rear`,
+# which is the sprite Marcus named as HAVING the camera correct, and it went
+# through the warp anyway — 0.88 on top of a skew it already had. These keep
+# their own geometry.
+ALREADY_CORRECT = {
+    'vehicle-topdown-henry-rear', 'vehicle-topdown-bea-rear',
+    'vehicle-topdown-big-tilly', 'vehicle-topdown-big-tilly-rear',
+    'vehicle-topdown-pickup',
+}
+
+# And the ones drawn too steep cannot be fixed by narrowing them — they need
+# less end face, which is a redraw. Warping them only makes them narrower
+# while still reading as tilted, so they are left alone and listed instead.
+TOO_STEEP = {
+    'vehicle-topdown-tractor', 'vehicle-topdown-tractor-red',
+    'vehicle-topdown-tractor-blue', 'vehicle-topdown-tractor-rear',
+    'vehicle-topdown-tractor-red-rear', 'vehicle-topdown-tractor-blue-rear',
+    'vehicle-topdown-fireengine', 'vehicle-topdown-fireengine-rear',
+}
+
 
 def _coeffs(dst, src):
     """PIL's PERSPECTIVE maps OUTPUT (x, y) back to INPUT, so solve dst→src."""
@@ -79,6 +100,8 @@ def main():
     ap.add_argument('--taper', type=float, default=TAPER)
     ap.add_argument('--contact-sheet', metavar='PATH',
                     help='also write a before/after sheet here')
+    ap.add_argument('--all', action='store_true',
+                    help='warp every file, ignoring ALREADY_CORRECT and TOO_STEEP')
     args = ap.parse_args()
 
     files = sorted(f for f in os.listdir(args.src) if f.endswith('.png'))
@@ -86,17 +109,29 @@ def main():
         sys.exit(f'no PNGs in {args.src}')
     os.makedirs(args.dst, exist_ok=True)
 
-    done, skipped = [], []
+    done, skipped, passed, steep = [], [], [], []
     for f in files:
-        out = skew(os.path.join(args.src, f), args.taper)
+        stem = f[:-4]
+        if not args.all and stem in TOO_STEEP:
+            steep.append(f)
+            continue
+        taper = 1.0 if (not args.all and stem in ALREADY_CORRECT) else args.taper
+        out = skew(os.path.join(args.src, f), taper)
         if out is None:
             skipped.append(f)
             continue
         out.save(os.path.join(args.dst, f))
-        done.append(f)
+        (passed if taper == 1.0 else done).append(f)
     print(f'{len(done)} skewed at taper {args.taper} → {args.dst}')
+    if passed:
+        print(f'  {len(passed)} already had the camera right, copied unchanged: '
+              f'{", ".join(x[:-4] for x in passed)}')
+    if steep:
+        print(f'  {len(steep)} too steep for a warp to fix — these need redrawing: '
+              f'{", ".join(x[:-4] for x in steep)}')
     if skipped:
         print(f'  skipped {len(skipped)} with no subject: {", ".join(skipped)}')
+    done = done + passed
 
     if args.contact_sheet and done:
         c, pad, lab, left = 210, 6, 15, 58
