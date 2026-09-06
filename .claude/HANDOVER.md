@@ -127,3 +127,84 @@ Then the remaining 510: `submit` per species, or all at once for $55.90.
   maps all four conflict types to `sheltered`/`sleeping`/`eating`, so the
   "bickering about toys" screen draws both animals content. Proposed mapping
   is in the spec doc; six lines, not yet applied.
+
+---
+
+# Top-down vehicles — clay to line-and-wash (opened 2026-09-06)
+
+## Goal
+The 42 sprites in `assets/driving/topdown/` plus three decor pieces
+(`decor-bollard`, `decor-cone`, `decor-speed-camera`) are 3D/claymation
+renders and the only art in the game that is not drawn. Everything else in
+the driving set — the five side-view vehicle portraits, the five mirrors,
+the dashboard, every `site-*` building, seven of the ten decor pieces — is
+already line-and-wash. 45 files to convert.
+
+## State
+**Running.** Manus task `JPi3P3qMaoYsZzFGJ2siXb`, batch 1 of 3 (13 files),
+repaint only. Batches 2 and 3 are listed below.
+
+**Six done and installed**, uncommitted, backed up in
+`asset-drafts/pre-skew-backup/`: henry, henry-rear, bea, car-red, cone
+(painted by Manus, then skewed) and tractor (reverted to its original,
+pending a redraw). Raw Manus output is in `manus-output/vehicles-pilot/`
+(round 1, the good painting) and `manus-output/vehicles-pilot-v2/` (round 2,
+good camera, damaged painting — kept as the evidence, do not install).
+
+## Decisions made
+- **Manus, not OpenAI**, chosen by Marcus after `manus-sprite-rules.md`
+  Rule 6 was put to him. Rule 6's failure mode did NOT occur on the repaint:
+  Manus loaded all ten reference URLs and the silhouette IoU against source
+  was 0.94–0.97, so it redrew rather than re-composed.
+- **The painting comes from Manus; the camera comes from code.** Asking
+  Manus for both in one turn is what returned Bea as a featureless slab.
+  Two passes: repaint all 45 first (proven), geometry second (risky, and a
+  failure then costs one file rather than the set). Marcus chose this
+  sequencing on 2026-09-06.
+- **`tools/skew-topdown.py` at taper 0.88**, per-file. Marcus: every vehicle
+  needs the same inward skew from bottom to top, as seen from an elevated
+  bird's-eye camera. `henry-rear` is the exemplar he named.
+- **Marcus wants the end band too**, not only the skew — so the flat
+  plan-view group needs a shallow visible end face, which a warp cannot draw.
+
+## The three groups
+- **Camera right, leave alone** (`ALREADY_CORRECT` in the tool): henry-rear,
+  bea-rear, big-tilly, big-tilly-rear, pickup.
+- **Flat plan view, no skew and no end face** — takes the 0.88 warp, and
+  still needs a redraw for the band: henry, spark, spark-rear, motorbike,
+  bus, binlorry, truck, the six skiptrucks.
+- **Too steep, reads as taking off** (`TOO_STEEP`, skipped by the tool):
+  all six tractor variants, fireengine, fireengine-rear.
+
+## Next step
+1. Poll `manus_get_task JPi3P3qMaoYsZzFGJ2siXb`, download to
+   `manus-output/vehicles-batch1/`, check each against its source.
+2. Send batches 2 and 3 in the SAME thread — the file lists are regenerated
+   by the snippet in the session log, or just diff `topdown/` against
+   what is already repainted.
+3. `python3 tools/skew-topdown.py --in <batch> --out <staged>` then install.
+4. Only then the geometry pass, on the 21 in the two problem groups.
+
+## Traps
+- **The in-app browser cannot run Phaser** — WebGL fails with "Framebuffer
+  status: Incomplete Attachment", so the preview pane shows a blank canvas.
+- **Playwright's bundled browsers are not installed on this machine.**
+  `chromium-1217` is a 448KB stub and launching it aborts with SIGABRT;
+  `npx playwright install` downloaded 165MB twice and extracted nothing.
+  The way through is `chromium.launch({ channel: 'chrome' })`, which uses
+  the real Chrome and works. `pnpm test:visual` will not run until the
+  install is fixed.
+- **Two concurrent `playwright install` runs deadlock** on `__dirlock` and
+  neither progresses. Kill one.
+- **The travel phase draws the `-rear` sprite** (`PtvDriveScene.ts:511`),
+  the picker and forecourt draw the front. A change to a front-view sprite
+  is invisible on the road — this is how a uniform taper got applied to
+  `henry-rear` unnoticed until the road capture.
+- **To photograph a scene**, start it and STOP every other active scene —
+  otherwise MainMenuScene's login gate renders on top. `beginTravel(1)` on
+  the scene instance jumps past the vehicle picker onto the road.
+- **`VEHICLE_PARK_ANGLE` (`PtvDriveScene.ts:1105`)** assumes Henry, Trikey
+  and Big Tilly are drawn nose-down and Bea and Spark nose-up. A flipped
+  sprite parks backwards in the forecourt.
+- **`PtvDriveScene` scales by `img.width`**, so a changed footprint changes
+  on-screen size. `VEHICLE_SIZE` may want a look once the set is in.
