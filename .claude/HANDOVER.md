@@ -164,6 +164,14 @@ messages: pilot 6, a camera round (reverted), batch 1, batch 2 + batch 3.
   connection drop rather than a 403, and came down on a retry.
   The links expire, so re-download from a fresh `manus_list_output_messages`
   rather than reusing a saved url.
+- **TRAP: "last attachment wins" is wrong for a REJECTED round.** It is right
+  for a re-roll (car-blue) and for a re-attach, but the camera round sits
+  between the pilot and the batches, and for the five pilot files its output
+  is the LAST attachment. Taking it silently installs the artwork that was
+  reverted — Bea as a featureless slab, Henry's tyres as blobs. Skip any
+  attachment whose workspace path contains `animal_rescue_sprite_camera_fix`;
+  the good version of `bea`, `car-red`, `henry`, `henry-rear` and `tractor` is
+  `animal_rescue_sprite_pilot`. `scratchpad/fix-reverted.py` does this.
 
 **Decided 2026-10-06, and both depart from the repaint brief:**
 - The ambulance, blue car and yellow car **do not match front to rear in the
@@ -191,17 +199,38 @@ chosen because each character has exactly one, so it gives a single answer —
 the top-downs cannot do that job, as Henry's front, rear and side top-downs
 are three different colours.
 
-| Character | Master livery | Views to bring to it |
-|---|---|---|
-| Henry | maroon-and-cream, ARC lettering | 5 top-downs, mirror, dashboard |
-| Bea | cream with brown trim | 2 top-downs, mirror |
-| Big Tilly | red cab, wooden flatbed, signage | 2 top-downs, mirror |
-| Spark | white with a green flash | 2 top-downs, mirror |
-| Trikey | pale blue | 2 top-downs, mirror |
+The liveries, read off the drawings rather than remembered:
 
-25 files across 5 characters. **The mirrors (`driving/mirrors/mirror-*.png`)
-and `dashboard-henry-ptv.png` are views too** and were missed by the first
-audit — the mirror is what the child looks at for the whole drive.
+| Character | Master livery | Master's view | Views to bring to it |
+|---|---|---|---|
+| Henry | cream body, maroon roof and waistline, round ARC badge on the door, floral side panel, cream wheels | side, facing left | 5 top-downs |
+| Bea | cream upper, chocolate-brown lower band, gold scrollwork on the upper panel, tan wheels | side, facing left | 2 top-downs |
+| Big Tilly | red cab, natural wood slatted flatbed body, "Big Tilly ♥" in cream on red, black tyres with red hubs | three-quarter, facing right | 2 top-downs |
+| Spark | white body, green flash sweeping along the side, "Spark" in green | side, facing left | 2 top-downs |
+| Trikey | pale blue frame, wicker basket, brown saddle, cream tyres, "GO!" flag on a pole | side, facing right | 2 top-downs |
+
+**The masters cannot settle the roof.** All five are side or three-quarter
+views, and a top-down is mostly roof. Henry's maroon roof reads off his
+portrait's roof edge; the others do not state a roof at all. So a brief must
+name each roof explicitly rather than let the renderer guess, and must say
+which markings are SIDE-ONLY — door badges and flank lettering belong on the
+side views and the mirror, not pasted onto a roof seen from above.
+
+Two further traps in the masters. Big Tilly's portrait is drawn on a visible
+paper panel the other four do not have, which a renderer will copy if it is
+not told to drop it. And Trikey's portrait measures as tan and cream because
+the wicker basket and the cat sitting in it dominate the pixel count — her
+FRAME is pale blue. Measure the vehicle, not the image.
+
+**13 top-downs, plus Trikey's portrait.** The mirrors
+(`driving/mirrors/mirror-*.png`) and `dashboard-henry-ptv.png` LOOK like
+missing views and are not: the mirrors are rear-view mirror FRAMES with empty
+glass — cockpit furniture, not pictures of the vehicle — and the dashboard is
+Henry's cab interior. None of them carries livery, so none is in scope. They
+are already in character, each in its own way: Henry's brass oval, Bea's
+ornate dark circle with scrollwork matching her gold trim, Big Tilly's
+industrial steel rectangle, Spark's plain modern one, Trikey's brass circle
+with blue glass. Checked 2026-10-06; leave them alone.
 
 **Trikey is the one exception on substance.** Her portrait is a two-wheeled
 bicycle with a basket; both top-downs are a three-wheeled trike with a cargo
