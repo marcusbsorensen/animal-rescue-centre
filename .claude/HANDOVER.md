@@ -201,20 +201,40 @@ are three different colours.
 
 The liveries, read off the drawings rather than remembered:
 
-| Character | Master livery | Master's view | Views to bring to it |
+| Character | Master livery, read off the drawing | Master's view | Views to bring to it |
 |---|---|---|---|
-| Henry | cream body, maroon roof and waistline, round ARC badge on the door, floral side panel, cream wheels | side, facing left | 5 top-downs |
-| Bea | cream upper, chocolate-brown lower band, gold scrollwork on the upper panel, tan wheels | side, facing left | 2 top-downs |
-| Big Tilly | red cab, natural wood slatted flatbed body, "Big Tilly ♥" in cream on red, black tyres with red hubs | three-quarter, facing right | 2 top-downs |
-| Spark | white body, green flash sweeping along the side, "Spark" in green | side, facing left | 2 top-downs |
-| Trikey | pale blue frame, wicker basket, brown saddle, cream tyres, "GO!" flag on a pole | side, facing right | 2 top-downs |
+| Henry | cream body AND CREAM ROOF; oak wood-grain flank panel painted with pink and sage flowers; maroon lower skirt; cream oval badge lettered "A.R.C." in maroon serif on the door; chrome grille, round headlamps, chrome hubcaps; 1960s small-van shape | side, facing left | 5 files |
+| Bea | ivory upper AND CREAM ROOF; chocolate-brown lower half, a deep band from the waistline down; gold pinstripe scrollwork with dusky-pink roses on the cream flank; "Bea" in small script on the door; chrome grille, brass hubcaps; 1970s van shape | side, facing left | 2 top-downs |
+| Big Tilly | bright red cab and chassis, RED CAB ROOF; natural oak slatted flatbed, OPEN from above, with stake sides; red drop-side panel lettered "Big Tilly ♥" in cream script; chrome grille; cream hubs with red centres; knobbly tyres; curtains and a potted plant in the cab | three-quarter, facing right | 2 top-downs |
+| Spark | white modern van, WHITE ROOF; green LIGHTNING-BOLT flash along the lower flank; "Spark" in green on the upper flank; black wheels | side, facing left | 2 top-downs |
+| Trikey | pale blue frame, wicker basket, brown saddle, cream tyres, "GO!" flag on a pole | side, facing right | 2 top-downs + her own portrait |
 
-**The masters cannot settle the roof.** All five are side or three-quarter
-views, and a top-down is mostly roof. Henry's maroon roof reads off his
-portrait's roof edge; the others do not state a roof at all. So a brief must
-name each roof explicitly rather than let the renderer guess, and must say
-which markings are SIDE-ONLY — door badges and flank lettering belong on the
-side views and the mirror, not pasted onto a roof seen from above.
+**The roofs are the thing a side view hides, and they decide the top-downs.**
+Read off the roof edges: Henry CREAM, Bea CREAM, Spark WHITE, Big Tilly RED
+cab with an OPEN wooden bed behind it. Three of the four are therefore pale
+from above, which means the existing pale top-downs were broadly right and
+the fault is narrower than a first colour audit suggested — that audit was
+measuring backgrounds, wicker and passengers, not bodywork.
+
+What is actually wrong, per character: Henry is missing the oak flank panel
+and maroon skirt at the edges, and carries a red paw badge the master does
+not have; Bea has no brown anywhere, and her front and rear disagree with
+each other as well; Spark's accent is BLUE where the master is GREEN; and Big
+Tilly is a solid red slab where from above you should be looking down into an
+open wooden load bed. Tilly is the largest piece of work.
+
+**Henry's five files are not five top-downs.** `henry` and `henry-rear` are
+genuine overhead views. `henry-side-left` and `henry-side-right` are SIDE
+ELEVATIONS (mirror images of each other) in cream with blue windows, orange
+wheels and a red paw-heart panel — the same viewpoint as his master portrait,
+so for those two the job is close to transcribing the master. `henry-side` is
+a side elevation too, but of a DIFFERENT VAN: modern, sliding side door,
+wrong proportions, painted salmon. That one needs a redraw, not a recolour,
+and should be briefed separately from the recolours.
+
+A brief must still name each roof explicitly rather than let the renderer
+infer it from a side view, and must say which markings are SIDE-ONLY — door
+badges and flank lettering belong on the elevations, not pasted onto a roof.
 
 Two further traps in the masters. Big Tilly's portrait is drawn on a visible
 paper panel the other four do not have, which a renderer will copy if it is
