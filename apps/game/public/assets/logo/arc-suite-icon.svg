@@ -1,0 +1,46 @@
+<!--
+  A.R.C. — Interfulgent suite mark. Recorded 2026-10-06.
+
+  Drawn to the suite system in uncubed-integration/docs/design/suite-brand.md:
+  ground #0D0D1F (3.1), monoline strokes with round free ends (3.2), one
+  continuous gradient bottom-left to top-right (3.3), and cream accents on a
+  secondary element (3.6).
+
+  The heart is one continuous stroke, so under the closing rule of 3.3 it
+  takes an EVEN SWEEP rather than one-colour-per-element; the per-element rule
+  is for marks made of comparably sized separate glyphs, and applied here it
+  handed the dominant heart a single flat colour.
+
+  Hue 355 -> 25 degrees, and the stops are NOT isoluminant:
+    #C90021  3.2:1 on the ground
+    #FF5343  6.0:1
+    #FCC190 12.0:1
+  UnCubed's letters measure 224 -> 261 degrees, about 37, so hue range is not
+  what makes its icon look like it travels; blue to lavender is a bigger
+  perceptual step than red to orange, and the warm end is capped by FlagFans
+  at 28 degrees. Value is the lever that was available, and FlagFans already
+  departs from isoluminance (6.28 -> 11.45:1).
+
+  The toe layout is MEASURED off the painted logo (arc-logo-icon.png), not
+  eyeballed: its five blobs were thresholded and each centroid and size read
+  off, then scaled into the icon box. The diameters are not — scaling the
+  painted pads gave shapes far heavier than an accent should be, so they are
+  set to two Pfish-like sizes instead.
+
+  The toe row is lifted 4.41 units clear of the heart's stroke. The painted
+  logo is filled, where a pad resting against the heart's mass looks
+  deliberate; drawn as an outline the same overlap reads as a ball balanced on
+  a wire.
+
+  Regenerate with scripts/generate-icons.mjs.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<defs><linearGradient id="g" x1="0" y1="100" x2="100" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#C90021"/><stop offset="0.5" stop-color="#FF5343"/><stop offset="1" stop-color="#FCC190"/></linearGradient></defs>
+<rect width="100" height="100" fill="#0D0D1F"/>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path d="M51.43,73.56 C51.43,73.56 27.88,60.00 27.88,50.21 C27.88,44.85 33.06,42.01 37.77,42.01 C42.95,42.01 48.14,43.90 51.43,51.48 C54.73,43.90 59.91,42.01 65.09,42.01 C69.80,42.01 74.98,44.85 74.98,50.21 C74.98,60.00 51.43,73.56 51.43,73.56 Z" stroke="url(#g)" stroke-width="8.0"/>
+<circle cx="24.78" cy="34.16" r="4.00" stroke="#FEF9EF" stroke-width="2.5"/>
+<circle cx="40.29" cy="27.06" r="5.10" stroke="#FEF9EF" stroke-width="3.3"/>
+<circle cx="59.03" cy="26.35" r="5.10" stroke="#FEF9EF" stroke-width="3.3"/>
+<circle cx="75.08" cy="32.60" r="4.00" stroke="#FEF9EF" stroke-width="2.5"/>
+</g></svg>
