@@ -156,12 +156,14 @@ messages: pilot 6, a camera round (reverted), batch 1, batch 2 + batch 3.
   0.926-0.985 against source, orientation correct on all 13, alpha clean.
   Twelve good. `car-blue` came back grey (sat 0.807 -> 0.298 where nothing
   else moved more than a fifth) and was re-rolled in batch 2.
-- **Batch 2 — 15 files, STRANDED ON MANUS.** Every attachment URL on the task
-  now returns HTTP 403, including batch 1's, which downloaded fine earlier.
-  The signed CDN links expire and `manus_download_output` does not mint new
-  ones. A re-attach has been requested. If it fails again, the files are
-  downloadable by hand from the task page.
-- **Batch 3 — 13 files, requested** with the re-attach.
+- **Batches 2 and 3 — RETRIEVED 2026-10-06.** The re-attach worked: the new
+  signed links carry a policy valid to 2026-10-31. All 42 repainted sprites
+  are at `manus-output/vehicles-all/`, taking the LAST url per filename
+  (later messages supersede earlier ones — car-blue was re-rolled).
+  `scratchpad/fetch-manus.py` does it; three dropped on http 000, a
+  connection drop rather than a 403, and came down on a retry.
+  The links expire, so re-download from a fresh `manus_list_output_messages`
+  rather than reusing a saved url.
 
 **Decided 2026-10-06, and both depart from the repaint brief:**
 - The ambulance, blue car and yellow car **do not match front to rear in the
@@ -176,8 +178,49 @@ messages: pilot 6, a camera round (reverted), batch 1, batch 2 + batch 3.
   two seats a side, about five rows, passengers seen from above facing
   forward.
 
-Neither has been sent to Manus yet — they go as one pass after batch 3 lands,
-rather than piled onto a message that is already carrying two jobs.
+**Decided 2026-10-06 — THE PORTRAIT IS THE MASTER.** Marcus: "You can bet your
+boots that autistic kids will spot that stuff doesn't match when seen from
+different viewpoints so Consistency is Key." An audit of every view found the
+problem is far wider than the three pairs above: all five fleet characters
+disagree with themselves across viewpoints, on livery and in places on what
+the vehicle is.
+
+For each character ONE picture is the master and every other view is brought
+to it. The master is the portrait (`driving/vehicles/vehicle-<name>.png`),
+chosen because each character has exactly one, so it gives a single answer —
+the top-downs cannot do that job, as Henry's front, rear and side top-downs
+are three different colours.
+
+| Character | Master livery | Views to bring to it |
+|---|---|---|
+| Henry | maroon-and-cream, ARC lettering | 5 top-downs, mirror, dashboard |
+| Bea | cream with brown trim | 2 top-downs, mirror |
+| Big Tilly | red cab, wooden flatbed, signage | 2 top-downs, mirror |
+| Spark | white with a green flash | 2 top-downs, mirror |
+| Trikey | pale blue | 2 top-downs, mirror |
+
+25 files across 5 characters. **The mirrors (`driving/mirrors/mirror-*.png`)
+and `dashboard-henry-ptv.png` are views too** and were missed by the first
+audit — the mirror is what the child looks at for the whole drive.
+
+**Trikey is the one exception on substance.** Her portrait is a two-wheeled
+bicycle with a basket; both top-downs are a three-wheeled trike with a cargo
+box, and she is called Trikey. So her portrait is corrected to a trike FIRST,
+keeping its pale blue, and the corrected portrait then becomes her master.
+
+**Consequence for the repaint: for the five fleet characters the repaint and
+the livery fix are one job, not two.** Repainting a top-down into the right
+style but the wrong livery is work thrown away. The repainted sprite is not
+wasted though — it supplies the correct style and camera, and the livery pass
+then reads "recolour this sprite to match this reference", which is a far
+safer brief than a redraw. It was the from-scratch redraws that returned Bea
+as a featureless slab.
+
+Three jobs now queue for Manus, and they go as separate passes rather than
+piled onto one message:
+1. Trikey's portrait corrected to a trike (gates her other three views).
+2. The livery pass, per character, against the master portrait.
+3. The bus redesign.
 
 **Six done and installed**, uncommitted, backed up in
 `asset-drafts/pre-skew-backup/`: henry, henry-rear, bea, car-red, cone
