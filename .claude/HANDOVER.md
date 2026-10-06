@@ -148,8 +148,36 @@ the dashboard, every `site-*` building, seven of the ten decor pieces — is
 already line-and-wash. 45 files to convert.
 
 ## State
-**Running.** Manus task `JPi3P3qMaoYsZzFGJ2siXb`, batch 1 of 3 (13 files),
-repaint only. Batches 2 and 3 are listed below.
+**Manus task `JPi3P3qMaoYsZzFGJ2siXb`** carries all of it. One thread, four
+messages: pilot 6, a camera round (reverted), batch 1, batch 2 + batch 3.
+
+- **Batch 1 — 13 files, in hand** at `manus-output/vehicles-batch1/`.
+  detail 0.210 -> 0.310 against drawn anchors at 0.308; silhouette IoU
+  0.926-0.985 against source, orientation correct on all 13, alpha clean.
+  Twelve good. `car-blue` came back grey (sat 0.807 -> 0.298 where nothing
+  else moved more than a fifth) and was re-rolled in batch 2.
+- **Batch 2 — 15 files, STRANDED ON MANUS.** Every attachment URL on the task
+  now returns HTTP 403, including batch 1's, which downloaded fine earlier.
+  The signed CDN links expire and `manus_download_output` does not mint new
+  ones. A re-attach has been requested. If it fails again, the files are
+  downloadable by hand from the task page.
+- **Batch 3 — 13 files, requested** with the re-attach.
+
+**Decided 2026-10-06, and both depart from the repaint brief:**
+- The ambulance, blue car and yellow car **do not match front to rear in the
+  SOURCE art** — different bodies, roofs and windows, not a repaint fault.
+  "Copy the geometry exactly" preserved the mismatch faithfully. Marcus chose
+  to fix them: keep the repainted front, redraw each rear to be the same
+  vehicle.
+- The **bus is a design fault, not a paint fault**: seats run wall to wall
+  with no aisle for seven rows, ~35 passengers, all drawn facing the viewer
+  when from overhead you would see heads and shoulders, and facing backwards
+  relative to the nose. Marcus chose an open-top bus with a central gangway,
+  two seats a side, about five rows, passengers seen from above facing
+  forward.
+
+Neither has been sent to Manus yet — they go as one pass after batch 3 lands,
+rather than piled onto a message that is already carrying two jobs.
 
 **Six done and installed**, uncommitted, backed up in
 `asset-drafts/pre-skew-backup/`: henry, henry-rear, bea, car-red, cone
