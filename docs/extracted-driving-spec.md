@@ -2,6 +2,8 @@
 
 > **⚠ SUPERSEDED** by the verbatim recovery at [`original-depot-supply-spec.md`](original-depot-supply-spec.md). That file is Marcus's original text, captured from a queue-enqueue entry on 2026-04-13. This file is a **secondary** reconstruction from implementation code + plan summaries — kept as a correlation reference between the spec and the shipped code, not as the source of truth.
 
+> **PTV status note, 2026-10-07.** Where this file says PTV is missing (§5 and gap 1 at the bottom), it describes what *this transcript* contains. PTV is now documented and part-built: the design is [`ptv-pet-transport-vehicle.md`](ptv-pet-transport-vehicle.md), the rules engine is `packages/game-logic/src/crate-stacking.ts`, and the drive is `apps/game/src/scenes/PtvDriveScene.ts`. See the dated notes in §5 and under gap 1.
+
 ---
 
 **Important note on provenance.** This file was written before the verbatim spec was recovered. The original user-pasted spec ("A.R.C. — The Depot & Supply Run System") was thought to be in a session that was **context-compacted before this transcript begins**. What survives in this transcript are:
@@ -12,7 +14,7 @@
 4. The **implemented code files** (supply-runs.ts, depot-inventory.ts, DepotScene.ts, SupplyRunScene.ts, shared-types) which encode the spec as data.
 5. An **implementation summary** at line 2322.
 
-**No verbatim spec titled "A.R.C. — The Depot & Supply Run System" appears in this transcript.** Nothing labelled "PTV" (Pet Transport Vehicle) appears — see gaps section at bottom. The phrases "chaos-outlet", "Hall of Fame", and "Pet Transport Vehicle" appear only incidentally in plan docs, not the user's own words.
+**No verbatim spec titled "A.R.C. — The Depot & Supply Run System" appears in this transcript.** Nothing labelled "PTV" (Pet Transport Vehicle) appears *in this transcript* — see gaps section at bottom and the 2026-10-07 note above. The phrases "chaos-outlet", "Hall of Fame", and "Pet Transport Vehicle" appear only incidentally in plan docs, not the user's own words.
 
 Below is everything relevant, quoted as literally as the transcript preserves it.
 
@@ -286,6 +288,17 @@ Calendar ties:
 
 So the original spec referenced a "PTV engine" that was **never documented in the surviving transcript** — the crate-loading / species-adjacency / happiness mechanics the caller is looking for are NOT here. They were in the compacted prior session.
 
+> **Status update, 2026-10-07 (checked against commit `6869c50`).** The paragraph above and the plan quotes before it describe this transcript, written in April 2026. They no longer describe the project:
+>
+> | Part of PTV | State on 2026-10-07 | Evidence |
+> |---|---|---|
+> | Design document | Exists. Claude-authored, v0.2, written 2026-04-24 (the overnight report records that it was first called `driving-crate-stacking.md`) | [`ptv-pet-transport-vehicle.md`](ptv-pet-transport-vehicle.md) |
+> | Crate-stacking rules (species adjacency, crate fit, arrival happiness) | Built and tested; **not wired** into the game | `packages/game-logic/src/crate-stacking.ts` (added 2026-04-24, commit `cef1f23`); 32 test cases in `__tests__/crate-stacking.test.ts`, all passing on 2026-10-07. No file in `apps/game/src` calls them except that `PtvDriveScene` reads `VEHICLE_DEFS` for its vehicle picker |
+> | Driving scene | Built and wired: vehicle pick, car park, top-down road, arrival. It carries at most one animal and no crates | `apps/game/src/scenes/PtvDriveScene.ts` (first commit `eb0c8f6`, 2026-07-05); launched from the map by `GameScene.driveTo` since commit `b1c0935`, 2026-09-04 |
+> | Crate-loading screen | Designed, not built | [`crate-loading-2026-07-10.md`](crate-loading-2026-07-10.md) |
+>
+> What is still absent is Marcus's own original `ARC_PTV_spec.md`. The PTV doc's provenance note records a search of every Claude Code session on 2026-04-24 with no result, and Marcus saying the specs were never written locally. That search was not repeated on 2026-10-07, so the claim is carried forward unverified.
+
 ---
 
 ## 6. Integration / progression / unlock rules (cross-system)
@@ -344,7 +357,7 @@ Supabase tables (migration `00003_depot_supply.sql`):
 
 ## Gaps / ambiguities
 
-1. **PTV spec is missing entirely.** No crate loading, no species adjacency rules, no happiness-during-transport mechanics appear anywhere in this transcript. The plan treats PTV as a future/unbuilt system; the Supply Run engine was explicitly built as a standalone driving engine that could later be merged with / replaced by PTV.
+1. **PTV spec is not in this transcript.** No crate loading, no species adjacency rules, no happiness-during-transport mechanics appear anywhere in this transcript. The plan, when written, treated PTV as a future system; the Supply Run engine was explicitly built as a standalone driving engine that could later be merged with / replaced by PTV. _Update 2026-10-07: the PTV design, rules engine and driving scene now exist; see the status table in §5. Marcus's original spec text is still not recovered (unverified since 2026-04-24)._
 2. **"Chaos-outlet" phrasing** is my shorthand — it does not appear verbatim. The transcript does confirm the intent via the phrases "cargo-free drives", "deliberate tonal shift from the gentle care gameplay", and the verification test "no phantom animal stress".
 3. **Hall of Fame** — mentioned in a single line of the plan as "friend-scoped leaderboard" with Supabase table `supply_run_records`. No UI mock or ranking formula survives.
 4. **Tap-to-collapse vs match-3**: the implementation is clearly BFS group-detection (tap a group of same-type tiles to collapse them), not 3-in-a-row match-3. Plan docs and the verification plan sometimes loosely say "match-3-generated items"; treat that as sloppy shorthand — the actual mechanic is tap-to-collapse.

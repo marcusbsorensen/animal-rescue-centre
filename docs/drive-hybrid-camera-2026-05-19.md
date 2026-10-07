@@ -4,6 +4,8 @@
 > assessment. Concerns the **PTV drive** specifically (see
 > [`driving-systems.md`](driving-systems.md) for how the three vehicle
 > systems differ). Not yet planned for implementation.
+>
+> _Update 2026-10-07: planned in [`plan-driving-engine-2026-07-04.md`](plan-driving-engine-2026-07-04.md). Slice 1 (top-down travel) is built as `PtvDriveScene`; the cab view, events and camera dive are not._
 
 ## The problem with a single-camera drive
 
@@ -102,6 +104,7 @@ un-parks the cockpit-mirror feature.
 - Does the drive still include the **crate-stacking** adjacency puzzle
   (per `ptv-pet-transport-vehicle.md`), and if so, is that a pre-drive
   loading screen, or does it surface as a cab-view event?
+  _Status 2026-10-07: still open in code. The rules are built, not wired. The drive built so far (`PtvDriveScene`) has no loading step and no cab view. `plan-driving-engine-2026-07-04.md` §5 recommends a pre-drive screen._
 - How long should one PTV drive be — how many events per trip? Suggest
   2–3 events plus arrival, ~60–90 seconds total.
 - Should other road users be purely decorative, or can mishandling

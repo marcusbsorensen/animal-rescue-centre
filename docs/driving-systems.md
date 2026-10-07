@@ -4,9 +4,11 @@ A.R.C. has **three distinct "driving/vehicle" systems**. They share aesthetics (
 
 | System | Purpose | Cargo? | Tonal register | Primary mechanic | Module |
 |---|---|---|---|---|---|
-| **PTV — Pet Transport Vehicle** | Move animals between the centre and homes / wild habitats / other centres | **Animals in crates** | Gentle, tactical, caring | Crate-stacking adjacency puzzle on a vehicle grid | [`packages/game-logic/src/crate-stacking.ts`](../packages/game-logic/src/crate-stacking.ts) |
+| **PTV — Pet Transport Vehicle** | Move animals between the centre and homes / wild habitats / other centres | **Animals in crates** | Gentle, tactical, caring | Crate-stacking adjacency puzzle on a vehicle grid (rules built; the loading screen is not — see the status note below) | [`packages/game-logic/src/crate-stacking.ts`](../packages/game-logic/src/crate-stacking.ts) |
 | **Supply Runs** | Earn coins, burn excess energy, repair budget | **None — cargo-free** | Neon chaos, deliberate tonal shift | 3-lane driving / smashing / time trial | [`packages/game-logic/src/supply-runs.ts`](../packages/game-logic/src/supply-runs.ts) |
 | **The Depot** | Collect parts / treats / decorations / medical stock used by the rest of the game | n/a (stationary) | Focused, puzzly, purple | Tap-to-collapse groups (BFS, **not** match-3) | [`packages/game-logic/src/depot-board.ts`](../packages/game-logic/src/depot-board.ts), [`depot-inventory.ts`](../packages/game-logic/src/depot-inventory.ts) |
+
+> **PTV status, checked 2026-10-07 against commit `6869c50`.** The crate-stacking rules in `crate-stacking.ts` (species matrix, crate types, vehicle grids, adjacency, arrival happiness) are built and tested, and no file in `apps/game/src` calls them. The PTV drive, `PtvDriveScene.ts`, is built and launched from the map by `GameScene.driveTo`; it carries at most one animal and no crates. The loading screen where a player arranges crates is designed and not built. Detail and evidence: "Status of each part" in [`ptv-pet-transport-vehicle.md`](ptv-pet-transport-vehicle.md) and [`crate-loading-2026-07-10.md`](crate-loading-2026-07-10.md).
 
 ## How they connect
 
@@ -40,7 +42,7 @@ A.R.C. has **three distinct "driving/vehicle" systems**. They share aesthetics (
 
 ## Naming discipline
 
-A prior design doc (`driving-crate-stacking.md`, v0.1) used "cargo drive" for both PTV drives and Supply Runs, which is wrong — Supply Runs have never carried cargo. From here on:
+A prior design doc (`driving-crate-stacking.md`, v0.1; renamed `ptv-pet-transport-vehicle.md`, as `overnight-report-2026-04-24.md` records) used "cargo drive" for both PTV drives and Supply Runs, which is wrong — Supply Runs have never carried cargo. From here on:
 
 - "**PTV drive**" = animal transport, uses crate-stacking.
 - "**Supply Run**" = cargo-free chaos drive.

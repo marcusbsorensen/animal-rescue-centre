@@ -27,8 +27,11 @@ drive-off transition → `travel`. The picker's "Let's go!" advances select→pa
 `VEHICLE_SPRITE: Record<VehicleType, string>` → top-down claymation keys.
 - `small-van` → `vehicle-topdown-henry` (exists).
 - `pedal-trike`→`trikey`, `long-van`→`bea`, `animal-lorry`→`big-tilly`,
-  `electric-minibus`→`spark` — NEW claymation sprites (generating now). Until they
-  land, missing keys fall back to Henry's sprite (soft-fail in `makeVan`).
+  `electric-minibus`→`spark` — new claymation sprites. _Update 2026-10-07: all
+  four are on disk in `apps/game/public/assets/driving/topdown/` as
+  `vehicle-topdown-trikey`, `-bea`, `-big-tilly` and `-spark`, each with a
+  `-rear` variant. `makeVan` still falls back to Henry's sprite, then to a drawn
+  van, for any key that fails to load._
 The chosen vehicle's sprite is used on the road (`makeVan`) and in its card.
 
 ## Proportional sizing (2026-07-10)
@@ -45,9 +48,23 @@ Bea 0.95, Big Tilly 0.8 (lumbers), Spark 1.15 (zippy EV). Applied to the drive
 loop's `gearRate`.
 
 ## Status
-- Art for Trikey/Bea/Big Tilly/Spark: generating (subagent) → keyed sprites into
-  `assets/driving/topdown/` when ready.
-- Then: capacity/fuel only cosmetic in the drive for now; slots/cols/rows feed the
-  future crate-loading game ([[project_crate_loading]]).
+- Art for Trikey/Bea/Big Tilly/Spark: **done.** The keyed sprites are in
+  `assets/driving/topdown/` (checked 2026-10-07).
+- Slots, cols, rows and fuel — **checked 2026-10-07 against `6869c50`.**
+  - `slots`, `fuelCost` and `unlockLevel` are printed as text on each card
+    (`Slots N    Fuel N    L{n}+`, in `PtvDriveScene.makeVehicleCard`).
+  - Nothing deducts the fuel, and nothing limits the animals aboard by slots.
+    The drive carries at most one animal (`GameScene.driveTo(destinationId,
+    animalId?)`) and no crates.
+  - `cols` and `rows` are read by no file in `apps/game/src`.
+  - `cols` and `rows` are the grid shape a `CrateGrid` carries into the
+    crate-stacking engine (`neighbourIndices`, `previewPlacement`). That engine
+    is **built and tested, and not wired** into the game: see
+    [`crate-loading-2026-07-10.md`](crate-loading-2026-07-10.md) for what the
+    code settles and what is still only a design. (This note first linked a
+    `[[project_crate_loading]]` memory note; it is not in the repository or the
+    project memory folder.)
+- The picker tests the unlock level inline (`v.unlockLevel > this.playerLevel`)
+  and does not call `getAvailableVehicles(level)`.
 - Destination card currently shows the drive's `destinationId`; aligning the
   drive destinations (birchie-places) with `DESTINATIONS` is a follow-up.

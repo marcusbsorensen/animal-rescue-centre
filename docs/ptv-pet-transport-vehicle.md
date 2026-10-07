@@ -1,8 +1,34 @@
 # PTV — Pet Transport Vehicle
 
-*v0.2 — Claude-authored design. See also [driving-systems.md](driving-systems.md) for how PTV fits alongside Supply Runs and the Depot.*
+*v0.2 — Claude-authored design. See also [driving-systems.md](driving-systems.md) for how PTV fits alongside Supply Runs and the Depot. The crate-stacking parts were checked against the code on 2026-10-07; the result is in "Status of each part" below.*
 
 > **⚠ Provenance note.** Marcus's original `ARC_PTV_spec.md` was referenced in the [Depot & Supply Run spec](original-depot-supply-spec.md) but **never written as a standalone document**. A deep search of every Claude Code session (project + home directory, ~420 MB total) returned zero hits — confirmed 2026-04-24. Marcus's own words: "no specs were written locally ever, everything was discussed in this chat." The vehicle names (Trikey / Henry / Bea / Big Tilly / Spark), crate types, and adjacency matrix below are Claude's own design from the overnight session. Authoritative design notes Marcus has added since are captured in §"User-dictated additions" at the bottom of this doc and should be treated as canonical where they contradict the Claude-authored body.
+
+## Status of each part (checked 2026-10-07 against commit `6869c50`)
+
+Four labels. **Built and wired**: runs in the game. **Built, not wired**: code and tests exist, and no file in `apps/game/src` calls it. **Designed, not built**: written in this document only. **Decided against**: the code's design excludes it.
+
+| Part | State | Evidence |
+|---|---|---|
+| Vehicle table: five vehicles, slots, grid, fuel, unlock level | Built. Printed on the picker card; capacity and fuel are not enforced | `VEHICLE_DEFS`; `PtvDriveScene.makeVehicleCard` |
+| Six crate types and which species each suits (+3 suitable, −10 not) | Built, not wired | `CRATE_DEFS`, `CRATE_PREFERENCE`, `isCrateSuitable` |
+| Compatibility matrix, 8 species, symmetric, species-based | Built, not wired | `MATRIX`, `getCompatibility` |
+| Adjacency N/S/E/W, `previewPlacement`, `isDriveable`, `countStressedAdjacencies` | Built, not wired | `neighbourIndices` and the three functions; diagonals excluded, with a test |
+| Arrival happiness, including the same-species +1 | Built, not wired | `calculateArrivalHappinessDelta`. A finished drive gives its one passenger a flat +1 instead (`GameScene.rewardSafeDrive`) |
+| Sibling bonus; dog near a recovering animal | Designed, not built (TODO) | `animalsById` is accepted and discarded (`void animalsById`) |
+| Temperament overrides | Designed, not built | The engine takes no per-animal input |
+| Crate size, animal size or weight, stacking in a third dimension, gravity or a support rule | Decided against | The grid is flat and none of these attributes exists in the code; no separate written decision was found |
+| Loading screen: vehicle pick | Built and wired | `select` phase of `PtvDriveScene` |
+| Loading screen: crate picker, grid, ⚠ / 🚫 icons, Drive gate | Designed, not built | No scene; `pre-drive.html` is a mockup that nothing mounts |
+| Fuel paid in coins, refund on abort, petrol station | Designed, not built | `fuelCost` is data and card text; no code spends it; no petrol-station code in `apps/game/src` |
+| Spark's smoother ride for anxious animals | Designed, not built | |
+| PTV top-down drive | Built and wired. Carries at most one animal and no crates | `PtvDriveScene`; `GameScene.driveTo` |
+| Cab view, drive events, rear-view mirror with live cargo, camera dive | Designed, not built. The event model and the mood sprites are built, not wired | `drive-events.ts`, `mirror-mood-sprites.ts` |
+| Everything else here (Birchie geography, destinations, cockpit art, charms, weather, collection drives, pet shows) | Not checked in this pass. Some of it is covered by §0 of [`plan-driving-engine-2026-07-04.md`](plan-driving-engine-2026-07-04.md) | |
+
+Tests: `__tests__/crate-stacking.test.ts` has 32 cases and all pass. Its matrix and crate loops cover seven species and leave out the hedgehog. The crate-stacking check in `__tests__/hedgehog.test.ts` asks only that the hedgehog has at least one preferred crate and a symmetric result against every species, so the hedgehog's individual matrix values and crate list have no test that pins them.
+
+---
 
 ## What PTV is (and is not)
 
@@ -13,7 +39,9 @@
 - **Supply Runs** → stress relief + coins (no animals, no adjacency, no crates).
 - **PTV** → careful, tactical, teaches species welfare (animals, crates, adjacency, gentler driving).
 
-The original spec noted Supply Runs were built "standalone" with the expectation that a real PTV engine would follow. This doc is that engine.
+The original spec noted Supply Runs were built "standalone" with the expectation that a real PTV engine would follow. This doc is the design for that engine. The rules are `crate-stacking.ts` and the drive scene is `PtvDriveScene.ts`.
+
+_As built on 2026-10-07: the player picks a vehicle and drives, carrying at most one animal. Crates, loading and arrangement exist as rules only (see Status above)._
 
 ---
 
@@ -32,7 +60,7 @@ PTV drives fire **on top of** existing rescue events — the adoption ceremony s
 
 ## Vehicles
 
-Implemented in [`crate-stacking.ts`](../packages/game-logic/src/crate-stacking.ts) → `VEHICLE_DEFS`.
+Defined in [`crate-stacking.ts`](../packages/game-logic/src/crate-stacking.ts) → `VEHICLE_DEFS`. The figures in the table were checked against the code on 2026-10-07 and match.
 
 | Vehicle | Slots | Grid | Fuel/Drive | Unlock | Notes |
 |---|---|---|---|---|---|
@@ -42,25 +70,32 @@ Implemented in [`crate-stacking.ts`](../packages/game-logic/src/crate-stacking.t
 | **Big Tilly** (animal lorry) | 9 | 3×3 | 20 | L10 | Rewilding + large adoptions |
 | **Spark** (electric mini-bus) | 6 | 3×2 | 5 | L12 | Fast + premium; smoother for anxious animals |
 
-Fuel is paid in coins from the Supply-Run / Depot economy. Spark's smoother-ride property is a design hook — not implemented yet — for future "anxious animal penalty reduction" rules.
+`slots` equals `cols × rows` for every vehicle. The engine does not enforce capacity: it checks neither that a slot index is in range, nor that a slot is empty, nor that a `CrateGrid`'s `cols` and `rows` match its vehicle. The caller does that.
+
+_Designed, not built:_ fuel is paid in coins from the Supply-Run / Depot economy. In the code `fuelCost` is printed on the picker card and nothing spends it. Spark's smoother-ride property is a design hook, not implemented, for future "anxious animal penalty reduction" rules. In the drive, Spark has a speed multiplier of 1.15 (`VEHICLE_SPEED` in `PtvDriveScene.ts`), which is a separate thing.
 
 ---
 
 ## Crates
 
-Implemented in [`crate-stacking.ts`](../packages/game-logic/src/crate-stacking.ts) → `CRATE_DEFS` and `CRATE_PREFERENCE`.
+Built, not wired. [`crate-stacking.ts`](../packages/game-logic/src/crate-stacking.ts) → `CRATE_DEFS` (label and icon) and `CRATE_PREFERENCE` (which species each crate suits). The table below is generated from `CRATE_PREFERENCE` as it stands on 2026-10-07.
 
-| Crate | Icon | Right for | Wrong for |
+| Crate | Icon | Suitable for (+3) | Unsuitable for (−10) |
 |---|---|---|---|
-| Standard | 📦 | cat, dog, bunny, fox | bat (needs dark), snake (needs warmth) |
-| Secure | 🔒 | large dogs, anxious foxes | small timid animals |
-| Quiet | 🌙 | bat (required), anxious cat | boisterous dog |
-| Ventilated basket | 🧺 | bunny, small cat | snake (escape risk) |
-| Warm vivarium | 🟨 | snake (required) | everything else |
-| Perch carrier | 🪺 | parrot (required) | everything else |
+| Standard | 📦 | cat, dog, bunny, fox, hedgehog | bat, parrot, snake |
+| Secure | 🔒 | dog, fox | cat, bunny, bat, parrot, snake, hedgehog |
+| Quiet | 🌙 | cat, bat, hedgehog | dog, bunny, fox, parrot, snake |
+| Ventilated basket | 🧺 | cat, bunny, hedgehog | dog, fox, bat, parrot, snake |
+| Warm vivarium | 🟨 | snake | all other species |
+| Perch carrier | 🪺 | parrot | all other species |
 
-**Right crate**: +3 arrival happiness.
-**Wrong crate**: −10 arrival happiness.
+**Suitable crate**: +3 arrival happiness. **Unsuitable crate**: −10 arrival happiness.
+
+- Every crate in a species' list scores +3; the order of the list is not used in scoring. (The code comment above `CRATE_PREFERENCE` says the first entry earns a bonus and the others are merely tolerated. `isCrateSuitable` does not do that: it scores any listed crate the same.)
+- Bat (quiet), parrot (perch carrier) and snake (warm vivarium) each have exactly one suitable crate. Cat, dog, bunny, fox and hedgehog have two or three.
+- Each crate occupies one slot. No crate and no animal has a size or weight.
+
+Design reasoning from the original table, which the code does not model: standard is wrong for bat (needs dark) and snake (needs warmth); secure was meant for large dogs and anxious foxes and to be wrong for small timid animals; quiet for the bat and an anxious cat, and wrong for a boisterous dog; the ventilated basket for a bunny or small cat, and wrong for a snake (escape risk). The code has no size, temperament or anxiety attribute on animals or crates, so suitability depends on species alone.
 
 The three "required" crates (quiet / warm vivarium / perch carrier) are the main species-welfare teaching beats.
 
@@ -68,29 +103,32 @@ The three "required" crates (quiet / warm vivarium / perch carrier) are the main
 
 ## Adjacency — the core puzzle
 
-Animals in orthogonally-adjacent slots (N/S/E/W, no diagonals) react to each other. Full matrix in `crate-stacking.ts` → `MATRIX`.
+Built, not wired. Animals in orthogonally-adjacent slots (N/S/E/W, no diagonals) react to each other. A slot has up to four neighbours (a corner of a 3×3 grid has two, the centre has four). Full matrix in `crate-stacking.ts` → `MATRIX`.
 
 ### Compatibility classes
 
-- ✅ **happy** — same species OR both-calm pairing (bat ↔ snake). +1 per same-species neighbour.
-- ⚠ **stressed** — tolerated with a small arrival-happiness penalty (−5 each side).
-- 🚫 **blocked** — prey/predator or total incompatibility. The **Drive button is disabled** until the player resolves all blockers.
+- ✅ **happy** — same species, or one of the two both-calm cross-species pairings (bat ↔ snake, bunny ↔ hedgehog). +1 per same-species neighbour; the cross-species pairings add nothing.
+- ⚠ **stressed** — tolerated with a small arrival-happiness penalty (−5 per stressed neighbour, to each animal of the pair).
+- 🚫 **blocked** — prey/predator or total incompatibility. `isDriveable(grid)` returns false while any crate has a blocked neighbour. The design is that the **Drive button is disabled** until the player resolves all blockers; that button is designed, not built.
 
-| | cat | dog | bunny | fox | bat | parrot | snake |
-|---|---|---|---|---|---|---|---|
-| **cat** | ✅ | ⚠ | 🚫 | ⚠ | ⚠ | 🚫 | 🚫 |
-| **dog** | ⚠ | ✅ | 🚫 | ⚠ | 🚫 | ⚠ | 🚫 |
-| **bunny** | 🚫 | 🚫 | ✅ | 🚫 | ⚠ | ⚠ | 🚫 |
-| **fox** | ⚠ | ⚠ | 🚫 | ✅ | ⚠ | 🚫 | 🚫 |
-| **bat** | ⚠ | 🚫 | ⚠ | ⚠ | ✅ | ⚠ | ✅ |
-| **parrot** | 🚫 | ⚠ | ⚠ | 🚫 | ⚠ | ✅ | 🚫 |
-| **snake** | 🚫 | 🚫 | 🚫 | 🚫 | ✅ | 🚫 | ✅ |
+| | cat | dog | bunny | fox | bat | parrot | snake | hedgehog |
+|---|---|---|---|---|---|---|---|---|
+| **cat** | ✅ | ⚠ | 🚫 | ⚠ | ⚠ | 🚫 | 🚫 | ⚠ |
+| **dog** | ⚠ | ✅ | 🚫 | ⚠ | 🚫 | ⚠ | 🚫 | ⚠ |
+| **bunny** | 🚫 | 🚫 | ✅ | 🚫 | ⚠ | ⚠ | 🚫 | ✅ |
+| **fox** | ⚠ | ⚠ | 🚫 | ✅ | ⚠ | 🚫 | 🚫 | 🚫 |
+| **bat** | ⚠ | 🚫 | ⚠ | ⚠ | ✅ | ⚠ | ✅ | ⚠ |
+| **parrot** | 🚫 | ⚠ | ⚠ | 🚫 | ⚠ | ✅ | 🚫 | ⚠ |
+| **snake** | 🚫 | 🚫 | 🚫 | 🚫 | ✅ | 🚫 | ✅ | 🚫 |
+| **hedgehog** | ⚠ | ⚠ | ✅ | 🚫 | ⚠ | ⚠ | 🚫 | ✅ |
+
+_The table was generated from `MATRIX` on 2026-10-07. It is symmetric, and it now includes the hedgehog, which the first version of this table (seven species) left out. The hedgehog's values are not pinned by any test._
 
 ### Bonuses (stacked on top of the base matrix)
 
-- Same-species adjacent → **+1 happiness** each (already in the engine).
-- Sibling pair adjacent → **+1 bond** each (TODO: not yet wired — needs sibling lookup in `calculateArrivalHappinessDelta`).
-- Dog adjacent to a recovering animal (sick/scared) → **+1 happiness** to the recovering one, emotional-support effect (TODO: needs animal-state lookup).
+- Same-species adjacent → **+1 happiness** each. _Built, not wired._ Only same-species pairs score the +1. The test "bat in quiet crate next to snake" in `crate-stacking.test.ts` expects 3 each: the crate fit and nothing for the neighbour.
+- Sibling pair adjacent → **+1 bond** each. **TODO, not implemented.** `calculateArrivalHappinessDelta` accepts `animalsById` and discards it (`void animalsById`), so no sibling is looked up. It returns happiness deltas only, so a bond effect would also need a different return shape. The data it would use exists in the game's types (`Animal.siblingId`; `AnimalRelationship` in `GameState.relationships`, with helpers in `relationships.ts`); `crate-stacking.ts` reads neither.
+- Dog adjacent to a recovering animal (sick/scared) → **+1 happiness** to the recovering one, emotional-support effect. **TODO, not implemented.** "Recovering" has no definition in the code: `AnimalState` is `'arriving' | 'sheltered' | 'bonding' | 'pet'` and `Animal.health` is a 0–100 number. The rule needs that definition first.
 
 ### Temperament overrides (future)
 
@@ -98,11 +136,13 @@ An individual animal's state can shift the matrix one notch:
 - Anxious dog → treat as stressed with cat / bunny / bat even if matrix says happy.
 - Confident calm cat → sit next to bunny as stressed instead of blocked.
 
-Not yet implemented. When it lands it should be a per-animal adjustment passed into `previewPlacement` / `calculateArrivalHappinessDelta`, not a matrix mutation.
+_Designed, not built._ Nothing in the code implements it. When it lands it should be a per-animal adjustment passed into `previewPlacement` / `calculateArrivalHappinessDelta`, not a matrix mutation.
 
 ---
 
 ## Loading flow (UI)
+
+_Status 2026-10-07: designed, not built, except the vehicle pick in step 1, which is the `select` phase of `PtvDriveScene` (cards show slots, fuel and unlock level). Steps 2 to 6 have no code. `previewPlacement` and `isDriveable`, named in steps 4 and 6, are built and have no caller. Step 5's example, "Luna is scared of Max", names individuals; the matrix is species-based, so the engine can support species-level text ("cats and bunnies do not mix") unless per-animal data is added. Step 7 says cut-scene while "Real-time drive, compact city" below says drives are real-time; the built drive is real-time, and that stands._
 
 1. **Vehicle pick** — row of painted vehicle sprites. Tap one. Shows slot count + unlock + fuel cost.
 2. **Crate-loading screen** — two halves:
@@ -135,9 +175,13 @@ animal.happiness += delta
 
 (Implementation: `calculateArrivalHappinessDelta`.)
 
+_Checked 2026-10-07: the figures above match the code (+3, −10, −15, −5, +1). Tests pin the suitable-crate, unsuitable-crate and same-species values; the −5 and −15 adjacency values have no test of their own. Penalties apply per neighbour, so a crate with three stressed neighbours takes −15 from adjacency. The function returns raw deltas and does not clamp; `Animal.happiness` runs 0–100, so the caller has to clamp. Built, not wired: in the game today a finished drive gives the one passenger a flat +1 (`GameScene.rewardSafeDrive`) and `calculateArrivalHappinessDelta` is not called._
+
 - **Rewilding drive**: if the rewilded animal arrived stressed, the ceremony line is wistful ("they hesitated at the treeline") instead of jubilant.
 - **Adoption drive**: if adoptee arrived stressed, the happy-letter-home lands 7 in-game days later instead of 3.
 - **Collection drive**: arrivals that travelled stressed get an immediate need spike (hunger/rest) on first intake.
+
+_The three consequences above are designed, not built. The engine returns no "arrived stressed" flag; a threshold on the delta would have to be defined._
 
 ---
 
@@ -158,7 +202,7 @@ The goal: drive feels like a *transition*, not a mini-game. If the player wants 
 
 ## Integration with the rest of the game
 
-- **Coins**: fuel is paid from `Economy.coins`. Successful drives return nothing (the reward is narrative); failed / aborted drives refund half the fuel.
+- **Coins** _(designed, not built: nothing charges fuel today)_: fuel is paid from `Economy.coins`. Successful drives return nothing (the reward is narrative); failed / aborted drives refund half the fuel.
 - **Depot**: damage from PTV jolts accumulates on the same vehicle-damage state the Supply Run uses; Depot parts repair both.
 - **Calendar**: adoption / rewilding drives fire on real events, not on a schedule, so the seasonal calendar doesn't gate them. Multi-stop runs (L8+) have a daily cap of 1 to keep them rare.
 - **Badges**: proposed — `first_drive`, `smooth_operator` (5 drives with no stressed animals), `wild_and_free` (10 rewilding drives).
@@ -169,13 +213,13 @@ The goal: drive feels like a *transition*, not a mini-game. If the player wants 
 
 Small enough to ship:
 
-- **One vehicle** — Henry (2×2), hardcoded.
-- **One drive type** — adoption delivery, fired from the existing adoption ceremony.
-- **Crate-stacking engine** — already built in `crate-stacking.ts`, 32 tests passing.
-- **Standard crate only** — no crate picker in v1; species-specific crates come in v2.
-- **Loading UI** — drag-and-drop grid overlay, ⚠ / 🚫 between adjacent tiles, Drive button gated by `isDriveable`.
-- **Drive cut-scene** — minimal: road pan for ~5 s with vehicle sprite, plus the adopter's welcome voice clip from the Manus sound pack.
-- **Arrival delta** — applied on arrival, happiness shown in the adoption-farewell screen.
+- **One vehicle** — Henry (2×2), hardcoded. _2026-10-07: not what was built. The picker offers all five vehicles, locked ones dimmed._
+- **One drive type** — adoption delivery, fired from the existing adoption ceremony. _2026-10-07: not built that way. Drives launch from the map (`GameScene.driveTo`), and `driveTypeFor` sets the type (vet, rewilding, delivery or adoption) from the destination's arrival kind._
+- **Crate-stacking engine** — already built in `crate-stacking.ts`, 32 tests passing. _Confirmed 2026-10-07: 32 cases, all pass; built, not wired._
+- **Standard crate only** — no crate picker in v1; species-specific crates come in v2. _Designed, not built._
+- **Loading UI** — drag-and-drop grid overlay, ⚠ / 🚫 between adjacent tiles, Drive button gated by `isDriveable`. _Designed, not built._
+- **Drive cut-scene** — minimal: road pan for ~5 s with vehicle sprite, plus the adopter's welcome voice clip from the Manus sound pack. _Superseded: the drive is real-time (`PtvDriveScene`)._
+- **Arrival delta** — applied on arrival, happiness shown in the adoption-farewell screen. _Designed, not built._
 
 Layered in after v1:
 - Multi-vehicle choice + crate picker.
@@ -187,6 +231,8 @@ Layered in after v1:
 ---
 
 ## Open questions
+
+_Status 2026-10-07: question 1 is settled in code for v1: the matrix is per species (`MATRIX`) and `animalsById` is discarded; a per-animal modifier remains the stretch. Nothing in `crate-stacking.ts` bears on questions 2 to 5._
 
 1. **Dynamic vs static temperament**: should the matrix be per-species (simple, current state) or per-animal (richer, more code)? Leaning per-species for v1; per-animal modifier as a stretch.
 2. **Failed PTV drive**: if the cargo-comfort meter empties, does the adoption fall through? Current thinking: no — the animal arrives but "arrived upset", letter-home delayed to 7 days.
@@ -276,10 +322,11 @@ Moving from mechanic-spec into visual-spec. Marcus's note (2026-04-24): *"visual
 
 - **Placement**: right side of the road, **shortly after the car wash** when entering Birchie from the west. The two landmarks pair as a "you're arriving in Birchie" beat.
 - **Function in game**: integral to the driving dynamics.
-  - **Refuelling**: each vehicle burns fuel per drive (already in `VEHICLE_DEFS.fuelCost`). The petrol station is where that fuel is physically paid for — not an abstract menu cost. Pulling up to the pump plays a small mini-beat: pick a pump, tap-and-hold to fill, release when the gauge is full, pay the attendant.
+  - _Status 2026-10-07: designed, not built. `fuelCost` exists as data and as picker-card text; no code spends fuel, and there is no petrol-station or car-wash code in `apps/game/src`._
+  - **Refuelling**: each vehicle burns fuel per drive (the amount is in `VEHICLE_DEFS.fuelCost`). The petrol station is where that fuel is physically paid for — not an abstract menu cost. Pulling up to the pump plays a small mini-beat: pick a pump, tap-and-hold to fill, release when the gauge is full, pay the attendant.
   - **Pay-at-pump vs pay-inside shop**: pay at pump is quick; going into the shop lets you pick up snacks (small consumables — an energy treat for the driver, a tin of travel biscuits for the onboard pet).
   - **Running out of fuel**: if you skipped a fuel-up and the tank empties mid-drive, the vehicle coasts to a stop. Trigger a **breakdown rescue** mini-event (a local mechanic tows you in for a coin penalty — the kind of small crisis that teaches planning without being punishing).
-  - **Fuel economy differs per vehicle**: Trikey is free (pedal), Spark is half-cost (electric), Big Tilly burns 4× the base rate. Makes vehicle choice matter beyond just slot count.
+  - **Fuel economy differs per vehicle**: `VEHICLE_DEFS.fuelCost` per drive is Trikey 0 (pedal), Henry 5, Spark 5 (electric), Bea 10, Big Tilly 20. With Henry as the base rate, Big Tilly burns 4× and Spark burns the same, not half; the earlier "Spark is half-cost" holds only against Bea. Makes vehicle choice matter beyond just slot count.
 - **Visual cues**: small forecourt, two pumps, a little kiosk shop with bunting across the window. Classic British-petrol-station proportions — low overhang, fluorescent lit at night.
 - **Naming**: generic (no Shell / BP / Esso). Maybe a made-up brand sign: "BIRCHIE FUEL" in painted wood or "THE PUMP" as a village nickname.
 
@@ -760,6 +807,8 @@ The **second** PTV drive adds a second pet. Now the player has to think about cr
 
 This is the opposite of a tutorial wall: the player meets each mechanic on the drive that needs it.
 
+_Status 2026-10-07: designed, not built. Every drive in the game carries at most one animal (`GameScene.driveTo(destinationId, animalId?)`), so the second-drive introduction has no code behind it._
+
 #### Destinations discovered through pet needs, not levels
 
 New destinations unlock because an animal **arrives with a need that requires them**, not because the player hit an XP threshold. This is the dominant unlock logic for PTV destinations — level-gating is a fallback, not the primary mechanism.
@@ -871,6 +920,8 @@ First-pass charm set (painted sprites on transparent background):
 
 ### Rear-view mirror — live cargo check (Marcus, 2026-04-24)
 
+_Status 2026-10-07: designed, not built. The mood-sprite lookup (`apps/game/src/driving/mirror-mood-sprites.ts`) and 28 mood PNGs exist, and no file imports the lookup. The drive draws no mirror and carries no cargo grid. "Blocked pair not possible (drive gate prevents departure)" below depends on the unbuilt loading screen and on `isDriveable`._
+
 The v1 cockpit had no visible connection between the driver and the animals they're transporting. Fix: a **painted rear-view mirror** mounted at the top of the windscreen area, showing a **live view of the cargo** inside the vehicle.
 
 **What's in the mirror:**
@@ -902,6 +953,8 @@ Vehicle choice and PTV/Supply-Run mode are set **before** entering the vehicle, 
 - Choose mode for this trip (PTV for animal transport / Supply Run for cargo-free).
 - Review the adjacency-puzzle / crate-load for PTV trips with 2+ pets.
 - "Let's go!" button.
+
+_Status 2026-10-07: the built pre-drive screen (`select` phase of `PtvDriveScene`) offers vehicle choice, with locked vehicles dimmed, and a "Let's go!" button. The destination is chosen on the map before it. The crate-load review for two or more pets is designed, not built._
 
 **Cockpit (in-vehicle):**
 - Road view (dominant).
