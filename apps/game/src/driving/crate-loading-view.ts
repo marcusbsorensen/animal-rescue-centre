@@ -236,7 +236,7 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
       tone: null,
       body: [
         `${held.name} travels in a ${crate.label.toLowerCase()}.`,
-        'Tap a space in the van to put them down.',
+        `Tap a space in ${state.vehicle.name} to put them down.`,
       ],
     };
   }
@@ -261,10 +261,10 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
 
   if (aboard(session).length === 0) {
     return {
-      heading: 'The van is empty',
+      heading: `${state.vehicle.name} is empty`,
       tone: null,
       body: [
-        'Tap an animal waiting to board, then tap a space in the van.',
+        `Tap an animal waiting to board, then tap a space in ${state.vehicle.name}.`,
         'Animals only mind who is beside them, above them or below them.',
       ],
     };
@@ -639,8 +639,8 @@ function drawTray(
       scene.add.text(
         box.x + SPACE.s, rowTop + rowH / 2,
         heldAnimal(session)
-          ? 'Everybody else is already in the van.'
-          : 'Everybody is in the van.',
+          ? `Everybody else is already in ${state.vehicle.name}.`
+          : `Everybody is in ${state.vehicle.name}.`,
         {
           fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui,
           color: CHROME.inkMuted, resolution: TEXT_RESOLUTION,
