@@ -335,3 +335,53 @@ good camera, damaged painting — kept as the evidence, do not install).
   sprite parks backwards in the forecourt.
 - **`PtvDriveScene` scales by `img.width`**, so a changed footprint changes
   on-screen size. `VEHICLE_SIZE` may want a look once the set is in.
+
+## Crates — opened 2026-10-07
+Marcus: the crate-stacking puzzle should be in the game so children learn to
+position animals next to one another in the right order, and it also settles
+vehicle design, since the crates have to fit.
+
+**The engine was already built and already tested, and had zero callers.**
+`packages/game-logic/src/crate-stacking.ts`, 274 lines, 32 test cases,
+exported from the package index, called by nothing under `apps/game/src`. The
+drive carries one animal; `PtvDriveScene.ts:204` says it "does not look
+inside". So the work was never design, it was wiring.
+
+Capacity was already decided, at `crate-stacking.ts:145`:
+Trikey 2 (1x2) L0 - Henry 4 (2x2) L2 - Bea 6 (3x2) L5 -
+Big Tilly 9 (3x3) L10 - Spark 6 (3x2) L12.
+Spark's distinction is fuel cost 5 against Bea's 10, not capacity, which is
+why two vehicles share 6 slots at different unlock levels.
+
+**This is what held the vehicle livery pass.** Big Tilly's open bed has to
+read as a 3x3 of nine crates, so its plan proportions had to go into the brief
+before it was sent. The other four are closed-roof vans whose crates are never
+visible from above, so their liveries were unaffected. `VEHICLE_SIZE` has
+Tilly at 1.3x Henry while carrying 2.25x his load; 3x3 against 2x2 wants about
+1.5x in each dimension. Trike 0.55 for a 1x2 against Henry's 1.0 for a 2x2 is
+consistent, and Spark 1.18 against Bea 1.12 is a 5 percent difference, not a
+contradiction - I overstated that at first.
+
+**No crate art exists.** Not one sprite for any of the six types. The six are
+standard, secure, quiet, ventilated-basket, warm-vivarium, perch-carrier.
+`CrateDef` carries an `emoji` field, which is the placeholder until art lands.
+
+Decided for the art, and both follow from the code rather than taste:
+- **Crates are drawn EMPTY.** The animal is composited on top at run time.
+  Drawing the occupant in would be 6 types x 9 species = 54 images for 6.
+- **Seen from DIRECTLY ABOVE**, open-topped, with a clear uncluttered middle
+  for the animal to sit in. That is the grid's own viewpoint and it matches
+  looking down into Tilly's bed.
+
+In flight at the time of writing:
+- Manus `JPi3P3qMaoYsZzFGJ2siXb` - the 10-file livery pass.
+- Manus `fC4SeHdgYgHYTMpGDFKyif` - crate art PILOT OF 2, the plainest crate
+  and the hardest one (standard and warm-vivarium), to prove the style across
+  both before committing to the other four.
+- Branch `claude/crate-loading` - loading screen wiring plus the VEHICLE_SIZE
+  fix, and a separate pass reconciling the stale docs against the code.
+
+Docs disagreed with the code: `docs/crate-loading-2026-07-10.md:3` said "not
+yet built" and `docs/extracted-driving-spec.md` said the PTV spec was missing,
+both wrong.
+
