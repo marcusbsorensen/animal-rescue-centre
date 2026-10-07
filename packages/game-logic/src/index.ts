@@ -340,6 +340,7 @@ export type {
 } from './adoption-dialogue';
 
 export * from './crate-stacking';
+export * from './crate-loading';
 export {
   CHARMS,
   initCharmsStore,

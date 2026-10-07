@@ -61,8 +61,9 @@ import {
   CHARMS,
   equipCharm,
   unequipCharm,
+  calculateArrivalHappinessDelta,
 } from '@arc/game-logic';
-import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId } from '@arc/game-logic';
+import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId, CrateGrid } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
 import { driveTypeFor } from '../driving/drive-state';
 import { getSession } from '../lib/auth';
@@ -201,13 +202,21 @@ export class GameScene extends Phaser.Scene {
    * Cleared as soon as `create()` acts on it, so a later
    * `scene.restart()` — the resize handler calls one — does not open
    * the vet a second time.
+   *
+   * `crateGrid` is who was in the back and where they sat, when the
+   * drive had a loading step. Absent on the single-passenger runs,
+   * which is what keeps those landing exactly as they always have.
    */
-  private arrived: { destinationId: string; animalId?: string } | null = null;
+  private arrived: {
+    destinationId: string;
+    animalId?: string;
+    crateGrid?: CrateGrid;
+  } | null = null;
 
   init(data?: {
     preSelectedSpecies?: Species;
     preSelectedVariant?: string;
-    arrived?: { destinationId: string; animalId?: string };
+    arrived?: { destinationId: string; animalId?: string; crateGrid?: CrateGrid };
   }): void {
     this.preSelectedSpecies = data?.preSelectedSpecies ?? null;
     this.preSelectedVariant = data?.preSelectedVariant;
@@ -403,6 +412,7 @@ export class GameScene extends Phaser.Scene {
     const dest = getDestination(arrival.destinationId);
     if (!dest) return;
 
+    this.applyArrivalComfort(arrival.crateGrid);
     this.rewardSafeDrive(arrival.animalId, dest.arrival === 'vet');
 
     switch (dest.arrival) {
@@ -444,6 +454,54 @@ export class GameScene extends Phaser.Scene {
       case 'home':
       default:
         showToast(this, `${dest.emoji} Back at ${dest.label}.`);
+    }
+  }
+
+  /**
+   * What the journey itself did to the animals who were in the back.
+   *
+   * The right crate is worth a little, the wrong one costs a lot, and
+   * sitting beside somebody who worried them costs on top — the
+   * numbers are the engine's (`calculateArrivalHappinessDelta`) and
+   * this applies them to the animals the drive actually carried.
+   *
+   * **No grid, no scoring.** A drive that never had a loading step
+   * hands back `undefined`, and the arrival then does exactly what it
+   * did before the loading screen existed: `rewardSafeDrive`'s +1 for
+   * the passenger and nothing else.
+   *
+   * The animals are resolved by id rather than carried over, because
+   * the records the drive set off with are several `tickAllNeeds`
+   * copies out of date by the time the van parks.
+   */
+  private applyArrivalComfort(grid?: CrateGrid): void {
+    if (!grid || grid.crates.length === 0) return;
+
+    const byId = new Map(this.store.animals.map((a) => [a.id, a]));
+    const deltas = calculateArrivalHappinessDelta(grid, byId);
+
+    const unsettled: string[] = [];
+    for (const [animalId, delta] of deltas) {
+      const idx = this.store.animals.findIndex((a) => a.id === animalId);
+      if (idx < 0) continue;
+      const animal = this.store.animals[idx];
+      const current = typeof animal.happiness === 'number' ? animal.happiness : 0;
+      this.store.animals[idx] = {
+        ...animal,
+        happiness: Math.max(0, Math.min(100, current + delta)),
+      };
+      if (delta < 0) unsettled.push(animal.name);
+    }
+
+    // Say what happened, in the loading screen's own words — a child
+    // who spent the screen learning that a dog makes a cat "worried"
+    // should meet the same word at the far end rather than a number.
+    if (unsettled.length === 1) {
+      showToast(this, `🚐 ${unsettled[0]} was worried on the journey.`);
+    } else if (unsettled.length > 1) {
+      showToast(this, `🚐 ${unsettled.length} animals were worried on the journey.`);
+    } else {
+      showToast(this, '🚐 Everybody travelled happily.');
     }
   }
 
@@ -1573,9 +1631,28 @@ export class GameScene extends Phaser.Scene {
    * parks, so `create()` picks it up in `init` data. A scene start is
    * not a return value, and the alternative — parking transient state
    * on the persisted store — is a field that would get saved.
+   *
+   * `cargo` is who may come along, and it is what turns the drive's
+   * loading screen on. `animalId` keeps its old job on top of that: it
+   * names the one passenger the trip is *for*, so the vet at the far
+   * end knows who it is treating, and it is the animal the loading
+   * screen seats before the child arrives.
+   *
+   * **Nine candidates, because nine is the largest grid in the fleet**
+   * (Big Tilly's 3x3, `VEHICLE_DEFS`). A rescue centre can hold many
+   * more animals than that, and offering all of them would be a tray
+   * no child could read for a van that could not carry them anyway.
+   * The passenger goes first so the trip's own reason is never the one
+   * trimmed off.
    */
   private driveTo(destinationId: string, animalId?: string): void {
     this.saveState();
+    const passenger = animalId
+      ? this.store.animals.filter((a) => a.id === animalId)
+      : [];
+    const others = this.store.animals.filter((a) => a.id !== animalId);
+    const cargo = [...passenger, ...others].slice(0, 9);
+
     this.scene.start('PtvDriveScene', {
       destinationId,
       driveType: driveTypeFor(destinationId),
@@ -1584,6 +1661,8 @@ export class GameScene extends Phaser.Scene {
       weather: this.store.gardenWeather?.current,
       returnTo: 'GameScene',
       returnData: animalId ? { animalId } : {},
+      cargo,
+      preloadAnimalIds: passenger.map((a) => a.id),
     });
   }
 

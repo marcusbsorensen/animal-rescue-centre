@@ -7,7 +7,7 @@
  * can be handed between scenes via the registry and unit-tested in isolation.
  */
 
-import { getDestination } from '@arc/game-logic';
+import { getDestination, type CrateGrid } from '@arc/game-logic';
 
 /**
  * Gear selection: Park holds the vehicle still (e.g. stopped for a hedgehog
@@ -75,6 +75,22 @@ export interface DriveState {
   gear: Gear;
   /** Cargo comfort 0..100 (unused in Slice 1; carried for later slices). */
   cargoComfort: number;
+  /**
+   * Who is in the back, and which bay each of them is sitting in.
+   *
+   * Set by the loading screen when the van sets off, and undefined for
+   * a drive that never had one — the single-passenger runs the game
+   * started with, and the `?ptvDemo=1` boot. **Undefined means "this
+   * drive carries no grid", not "an empty grid"**: the arrival only
+   * scores crates and neighbours when there was a load to score, so a
+   * drive without one lands exactly as it always did.
+   *
+   * Distinct from `cargoComfort`, which is how roughly the van has been
+   * driven. This is who had to sit next to whom for the whole journey,
+   * and it is what `calculateArrivalHappinessDelta` reads at the far
+   * end.
+   */
+  crateGrid?: CrateGrid;
   /** Weather token; 'clear' until a dedicated weather slice applies effects. */
   weather: string;
   /** Route progress 0..1. Reaches 1 at the destination. */

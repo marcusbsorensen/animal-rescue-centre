@@ -6,8 +6,15 @@ import {
 import { createChromeButton, createChromeTitle, createChromePlate } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
-import type { Economy } from '@arc/shared-types';
-import { VEHICLE_DEFS, DESTINATIONS, getDestination, type VehicleDef, type VehicleType } from '@arc/game-logic';
+import type { Animal, Economy, Species } from '@arc/shared-types';
+import {
+  VEHICLE_DEFS, DESTINATIONS, getDestination,
+  aboard, blockingNotes, canSetOff, createLoadingSession, heldAnimal, holdFromTray,
+  liftFromSlot, placeHeld, putHeldBack, spawnAnimal,
+  type CompatibilityLevel, type LoadableAnimal, type LoadingSession,
+  type VehicleDef, type VehicleType,
+} from '@arc/game-logic';
+import { renderCrateLoading } from '../driving/crate-loading-view';
 import {
   createDriveState,
   cycleGear,
@@ -80,13 +87,35 @@ const VEHICLE_SPRITE: Record<VehicleType, string> = {
 /** On-screen size of each fleet vehicle relative to Henry the van (= 1.0), so
  *  they read proportionately: the pedal trike is tiny, Big Tilly the animal
  *  lorry is the biggest. Used on the road, in the picker cards and in the bay
- *  (the A.R.C. forecourt has different-sized spaces for exactly this reason). */
+ *  (the A.R.C. forecourt has different-sized spaces for exactly this reason).
+ *
+ *  **Big Tilly is 1.5, which is 3/2.** Her crate grid is 3x3 where Henry's is
+ *  2x2 (`VEHICLE_DEFS`), so she is three bays across and three deep against
+ *  his two and two: one and a half times his interior on *both* axes. She was
+ *  1.3, which drew a lorry that could not hold what the loading screen says
+ *  she holds — nine crates in the footprint of about six.
+ *
+ *  The scalar multiplies the whole sprite, so it is the right lever for Tilly
+ *  and the wrong one for Bea, and that is why only this entry moves. Bea's
+ *  grid is 3x2 — wider than Henry but no longer — and growing her by 1.5 here
+ *  would stretch her length by the same 1.5 she does not need. Her extra
+ *  columns come from the art instead: at 1.12 the painted sprite already draws
+ *  her a third longer than Henry on the road, because she is a long van and
+ *  the drawing knows it. Spark is a 3x2 as well, and her distinction is a fuel
+ *  cost of 5 against Bea's 10 rather than capacity, so she is left alone too.
+ *
+ *  Checked on the road, not just in arithmetic (`?ptvDemo=1`): with a lane at
+ *  its 84px cap Tilly draws 74px wide inside it against Henry's 49, which is
+ *  a lorry filling its lane rather than one overhanging it, and 2.3x his
+ *  length — the sprite's own aspect is narrower than Henry's, so scaling by
+ *  width buys the length over again. 1.5 is the floor the grid demands and
+ *  the ceiling the lane allows; they agree. */
 const VEHICLE_SIZE: Record<VehicleType, number> = {
   'pedal-trike': 0.55,
   'small-van': 1.0,
   'long-van': 1.12,
   'electric-minibus': 1.18,
-  'animal-lorry': 1.3,
+  'animal-lorry': 1.5,
 };
 const VEHICLE_SIZE_MAX = Math.max(...Object.values(VEHICLE_SIZE));
 
@@ -208,7 +237,28 @@ export interface PtvDriveInit {
    * the far end. The drive does not look inside.
    */
   returnData?: Record<string, unknown>;
+  /**
+   * The animals this trip may carry — the caller's own records, so the
+   * loading screen can draw each one with its painted sprite.
+   *
+   * **Its presence is what turns the loading screen on.** Empty or
+   * absent and the drive is the one it has always been: pick a vehicle,
+   * pull out, choose a way and go, with nothing in the back and no grid
+   * handed home. A caller that wants the old flow changes nothing.
+   */
+  cargo?: Animal[];
+  /**
+   * Animals the trip already has a reason to carry — the poorly one on
+   * a vet run — seated before the child arrives at the screen. Ids from
+   * `cargo`; anything else is ignored.
+   */
+  preloadAnimalIds?: string[];
 }
+
+/** Species names a dev `?cargo=` list may use, for the demo boot. */
+const CARGO_SPECIES: Species[] = [
+  'cat', 'dog', 'bunny', 'fox', 'bat', 'parrot', 'snake', 'hedgehog',
+];
 
 /**
  * PtvDriveScene — the hybrid-camera PTV drive.
@@ -232,15 +282,37 @@ export class PtvDriveScene extends Phaser.Scene {
   /** Opaque payload echoed back to `returnTo` on arrival. */
   private returnData: Record<string, unknown> = {};
 
-  // Phase: pick the vehicle, the A.R.C. car park, the road, then the
-  // destination's own forecourt at the far end.
-  private phase: 'select' | 'parking' | 'travel' | 'arrival' = 'select';
+  // Phase: pick the vehicle, load the crates, the A.R.C. car park, the
+  // road, then the destination's own forecourt at the far end.
+  //
+  // `loading` only happens when the trip was given animals to carry —
+  // see `PtvDriveInit.cargo`. Without them the drive goes straight from
+  // the picker to the road, as it always has.
+  private phase: 'select' | 'loading' | 'parking' | 'travel' | 'arrival' = 'select';
   /** Guards the arrival so a long final tick cannot fire it twice. */
   private arriving = false;
   /** The fleet vehicle the player is driving (chosen on the select screen). */
   private vehicleId: VehicleType = 'small-van';
   /** Player level — gates which vehicles are unlocked in the picker. */
   private playerLevel = 12;
+
+  // Crate loading
+  /** The animals this trip may carry, as the caller's own records. */
+  private cargo: Animal[] = [];
+  /** Which of them are seated before the child sees the screen. */
+  private preloadIds: string[] = [];
+  /**
+   * The loading screen's whole state, built when the vehicle is picked
+   * (the grid's size is the vehicle's). Undefined until then, and on a
+   * drive with nothing to load.
+   */
+  private loadSession?: LoadingSession;
+  /**
+   * What the loading screen last had to tell the child — a refused bay,
+   * or an empty van asked to set off. Cleared by her next tap and never
+   * by a timer.
+   */
+  private loadNotice: { level: CompatibilityLevel | null; text: string } | null = null;
 
   // Render state
   private roadGfx?: Phaser.GameObjects.Graphics;
@@ -365,6 +437,17 @@ export class PtvDriveScene extends Phaser.Scene {
     for (const n of [...DECOR_KINDS, 'speed-camera']) {
       tryImg(`decor-${n}`, `decor/decor-${n}.png`);
     }
+    // The generic species art, for the loading screen's crates and tray.
+    // In the full game the asset manifest has already loaded these (the
+    // exists-check skips them); the isolated `?ptvDemo=1` boot has no
+    // manifest, and without them every animal draws as its fallback
+    // coloured rectangle — which is exactly the thing the screen is
+    // being looked at to judge.
+    for (const s of CARGO_SPECIES) {
+      if (!this.textures.exists(`${s}-sheltered`)) {
+        this.load.image(`${s}-sheltered`, `/assets/animals/${s}-sheltered.png`);
+      }
+    }
     // The Birchie vector map for the GPS mini-map (rasterised from the SVG).
     if (!this.textures.exists('gps-map')) {
       this.load.svg('gps-map', '/admin/scene-assets/birchie-map/birchie-roads.svg', { width: 640, height: 399 });
@@ -396,6 +479,10 @@ export class PtvDriveScene extends Phaser.Scene {
       ? Number(new URLSearchParams(window.location.search).get('level')) : NaN;
     this.playerLevel = data?.level ?? (Number.isFinite(urlLevel) ? urlLevel : 12);
     this.vehicleId = 'small-van';
+    this.cargo = this.readCargo(data);
+    this.preloadIds = data?.preloadAnimalIds ?? [];
+    this.loadSession = undefined;
+    this.loadNotice = null;
     this.phase = 'select';
     this.scrollY = 0;
     this.traffic = [];
@@ -421,6 +508,33 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gpsInstrText = undefined;
     this.gpsInstrArrow = undefined;
     this.gpsInstrBg = undefined;
+  }
+
+  /**
+   * The animals this trip may carry.
+   *
+   * The caller's list wins. Failing that, `?cargo=cat,dog,bunny` fills
+   * the loading screen in the isolated `?ptvDemo=1` boot, which has no
+   * game store to ask — the same shape as the `?dest=` and `?level=`
+   * overrides beside it. Unknown species names are dropped rather than
+   * throwing, so a typo costs a passenger and not the scene.
+   */
+  private readCargo(data?: PtvDriveInit): Animal[] {
+    if (data?.cargo?.length) return data.cargo;
+    if (typeof window === 'undefined') return [];
+    const raw = new URLSearchParams(window.location.search).get('cargo');
+    if (!raw) return [];
+    return raw
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter((s): s is Species => (CARGO_SPECIES as string[]).includes(s))
+      .map((s) => spawnAnimal(s));
+  }
+
+  /** The destination's own name, for the screens that say where we are off to. */
+  private destinationLabel(): string {
+    return getDestination(this.destinationId)?.label
+      ?? this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   create(): void {
@@ -490,6 +604,8 @@ export class PtvDriveScene extends Phaser.Scene {
 
     if (this.phase === 'select') {
       this.renderPicker(width, height);
+    } else if (this.phase === 'loading') {
+      this.renderLoading();
     } else if (this.phase === 'parking') {
       this.renderParking(width, height);
     } else if (this.phase === 'arrival') {
@@ -895,12 +1011,26 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   /** Pick a vehicle and pull it out of its bay toward the exit road, then offer
-   *  the left/right turn onto the road (existing departure flow). */
+   *  the left/right turn onto the road (existing departure flow).
+   *
+   *  With animals to carry the pick opens the loading screen instead, because
+   *  the grid's size is the vehicle's: which crates fit, and therefore who may
+   *  sit where, is not knowable until she has chosen one. With nobody to load
+   *  this is unchanged — the van pulls straight out, as it always has. */
   private pickAndDepart(id: VehicleType, img: Phaser.GameObjects.Image, cy: number, roadY: number): void {
     if (this.departing) return;
     this.departing = true;
     this.vehicleId = id;
     AudioManager.getInstance().playSfx('button_click');
+
+    if (this.cargo.length > 0) {
+      this.loadSession = createLoadingSession(id, this.loadableCargo(), this.preloadIds);
+      this.loadNotice = null;
+      this.phase = 'loading';
+      this.renderView();
+      return;
+    }
+
     img.clearTint();
     img.setDepth(30);
     this.vanGfx = img;
@@ -910,6 +1040,134 @@ export class PtvDriveScene extends Phaser.Scene {
       targets: img, y: roadY - 6, duration: 700, ease: 'Sine.easeInOut',
       onComplete: () => this.showTurnChoice(width, height),
     });
+  }
+
+  // ── Crate loading ──────────────────────────────────────────
+
+  /** The cargo as the rules see it — three fields, no sprites. */
+  private loadableCargo(): LoadableAnimal[] {
+    return this.cargo.map((a) => ({ id: a.id, name: a.name, species: a.species }));
+  }
+
+  /**
+   * The loading screen: this vehicle's grid at its real size, the
+   * animals waiting to board, and a panel that says in words who may
+   * sit next to whom.
+   *
+   * The drawing is `crate-loading-view.ts` and the rules are
+   * `@arc/game-logic`'s `crate-loading`; this method is the wiring
+   * between them, holding the session and redrawing after each tap.
+   */
+  private renderLoading(): void {
+    const session = this.loadSession;
+    if (!session) {
+      // Nothing to load — the only way here is a stale phase, so go
+      // back to the picker rather than drawing an empty van.
+      this.phase = 'select';
+      this.renderView();
+      return;
+    }
+
+    renderCrateLoading(this, this.container, {
+      session,
+      vehicle: VEHICLE_DEFS[this.vehicleId],
+      destinationName: this.destinationLabel(),
+      animalsById: new Map(this.cargo.map((a) => [a.id, a])),
+      notice: this.loadNotice,
+    }, {
+      onHoldFromTray: (animalId) => this.afterLoadTap(holdFromTray(session, animalId)),
+      onLiftFromSlot: (slotIndex) => this.afterLoadTap(liftFromSlot(session, slotIndex)),
+      onPlaceInSlot: (slotIndex) => this.placeIntoBay(session, slotIndex),
+      onPutBack: () => this.afterLoadTap(putHeldBack(session)),
+      onSetOff: () => this.setOffFromLoading(session),
+      onBack: () => {
+        // Back goes to the vehicle picker, not out of the drive: the
+        // load belongs to the vehicle, so changing your mind about the
+        // van is the thing Back is for here. Nothing is lost that was
+        // not about to be rebuilt anyway.
+        this.loadSession = undefined;
+        this.loadNotice = null;
+        this.phase = 'select';
+        this.renderView();
+      },
+    });
+  }
+
+  /** Accept a new session and redraw. */
+  private afterLoadTap(session: LoadingSession): void {
+    AudioManager.getInstance().playSfx('button_click');
+    this.loadSession = session;
+    this.loadNotice = null;
+    this.renderView();
+  }
+
+  /**
+   * Put the held animal into a bay.
+   *
+   * A bay that would frighten a neighbour is refused and said so — the
+   * animal stays in her hands, the grid is untouched, and the panel
+   * names the pair and the reason. The tap sound is the same one every
+   * other tap makes: a refusal is information, not a buzzer, and
+   * nothing about it is punishment.
+   */
+  private placeIntoBay(session: LoadingSession, slotIndex: number): void {
+    AudioManager.getInstance().playSfx('button_click');
+    const outcome = placeHeld(session, slotIndex);
+
+    if (!outcome.placed) {
+      this.loadNotice = outcome.notes.length > 0
+        ? { level: outcome.notes[0].level, text: outcome.notes[0].text }
+        : null;
+      this.renderView();
+      return;
+    }
+
+    this.loadSession = outcome.session;
+    this.loadNotice = null;
+    this.renderView();
+  }
+
+  /**
+   * Leave the loading screen for the forecourt, carrying the grid.
+   *
+   * `isDriveable` is the gate, asked of the grid rather than inferred
+   * from the fact that every placement was checked on the way in — a
+   * grid can also arrive pre-loaded from the caller, and the engine's
+   * own answer is the one that should decide. An empty van is refused
+   * too, calmly: a trip with nobody in it is almost never what a child
+   * meant, and saying so costs one tap to undo.
+   */
+  private setOffFromLoading(session: LoadingSession): void {
+    AudioManager.getInstance().playSfx('button_click');
+
+    if (!canSetOff(session)) {
+      const blocker = blockingNotes(session)[0];
+      this.loadNotice = {
+        level: 'blocked',
+        text: blocker
+          ? `${blocker.text} Tap one of them to move them somewhere else.`
+          : 'Two of the animals cannot sit next to each other yet.',
+      };
+      this.renderView();
+      return;
+    }
+
+    if (aboard(session).length === 0) {
+      this.loadNotice = {
+        level: null,
+        text: heldAnimal(session)
+          ? 'Tap a space in the van to put them down first.'
+          : 'Nobody is in the van yet. Tap an animal waiting to board, then tap a space in the van.',
+      };
+      this.renderView();
+      return;
+    }
+
+    this.loadSession = session;
+    this.loadNotice = null;
+    this.drive.crateGrid = session.grid;
+    this.phase = 'parking';
+    this.renderView();
   }
 
   private renderSelect(width: number, height: number): void {
@@ -1113,8 +1371,21 @@ export class PtvDriveScene extends Phaser.Scene {
     this.vanY = bayTop + bayH * 0.42;
     this.vanGfx = this.makeVan();
     // Sized proportionately in the bay too — Trikey sits small, Big Tilly fills it.
+    //
+    // Contained on both axes, not scaled by width alone. A width-only
+    // scale takes a long body straight out of its bay, over the "Time
+    // for a drive!" line and up into the building behind: Big Tilly's
+    // sprite is narrower than Henry's for its length, so the moment she
+    // grew to the 1.5 her 3x3 grid asks for, she stopped fitting. The
+    // picker's own bays have always fitted both axes; this is the same
+    // arithmetic, and it leaves every other vehicle where it was.
     const parkImg = this.vanGfx as Phaser.GameObjects.Image;
-    if (parkImg.width) parkImg.setScale((bayW * 0.6 * VEHICLE_SIZE[this.vehicleId]) / parkImg.width);
+    if (parkImg.width) {
+      parkImg.setScale(Math.min(
+        (bayW * 0.6 * VEHICLE_SIZE[this.vehicleId]) / parkImg.width,
+        (bayH * 0.92) / parkImg.height,
+      ));
+    }
     this.vanGfx.setPosition(henryX, this.vanY);
     this.vanGfx.setAngle(VEHICLE_PARK_ANGLE[this.vehicleId]); // nose toward the forecourt exit
     this.vanGfx.setDepth(20);
@@ -1366,12 +1637,24 @@ export class PtvDriveScene extends Phaser.Scene {
    *
    * `returnData` rides along untouched — the drive never looked inside
    * it — so GameScene reads its own passenger out of the far end.
+   *
+   * `crateGrid` is the drive's own answer rather than an echo of the
+   * caller's: who travelled, in which bay and in which crate, which is
+   * what `calculateArrivalHappinessDelta` needs and what only the
+   * loading screen knew. It is a sibling of `returnData`, not a key
+   * inside it, so the caller's payload stays something the drive never
+   * writes to. **Undefined on a drive with no loading step**, which is
+   * what keeps the single-passenger flow landing exactly as before.
    */
   private finishArrival(): void {
     this.cleanup();
     if (!this.returnTo) { this.scene.restart(); return; }
     this.scene.start(this.returnTo, {
-      arrived: { destinationId: this.destinationId, ...this.returnData },
+      arrived: {
+        destinationId: this.destinationId,
+        ...this.returnData,
+        crateGrid: this.drive.crateGrid,
+      },
     });
   }
 
