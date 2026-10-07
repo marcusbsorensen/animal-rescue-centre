@@ -241,7 +241,7 @@ describe('arrival happiness delta', () => {
     expect(deltas.get('a')).toBe(-10); // wrong crate
   });
 
-  it('bat in quiet crate next to snake = +4 (crate fit + happy neighbour)', () => {
+  it('bat in quiet crate next to snake = +3 (crate fit; happy neighbours only score when same species)', () => {
     const g: CrateGrid = {
       vehicle: 'small-van', cols: 2, rows: 2,
       crates: [

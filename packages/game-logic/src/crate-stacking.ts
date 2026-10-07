@@ -99,10 +99,18 @@ export const CRATE_DEFS: Record<CrateType, CrateDef> = {
 };
 
 /**
- * Returns the best-fit crates for a species — ordered preference.
- * First entry is the "right crate" that gives a small happiness bonus;
- * other entries are tolerated; anything NOT in the list is "wrong crate"
- * and gives a happiness penalty on arrival.
+ * The crates a species may travel in, in order of preference.
+ *
+ * SCORING IS FLAT: `isCrateSuitable` returns true for ANY entry in the list,
+ * and arrival scores +3 for a suitable crate and -10 for one not listed. The
+ * first entry earns no more than the second. An earlier comment here claimed
+ * a first-entry bonus; the code has never given one.
+ *
+ * The ORDER still does work elsewhere: `bestCrateFor` in crate-loading.ts
+ * auto-assigns `getPreferredCrates(species)[0]`, so the first entry is what an
+ * animal actually arrives in unless something else chooses.
+ *
+ * A species with one entry requires that crate; anything else costs -10.
  */
 const CRATE_PREFERENCE: Record<Species, CrateType[]> = {
   cat:    ['standard', 'ventilated-basket', 'quiet'],
