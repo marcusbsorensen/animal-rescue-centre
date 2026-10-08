@@ -391,3 +391,62 @@ Docs disagreed with the code: `docs/crate-loading-2026-07-10.md:3` said "not
 yet built" and `docs/extracted-driving-spec.md` said the PTV spec was missing,
 both wrong.
 
+## One true scale — decided 2026-10-08
+Marcus, looking at the fleet lined up: "there's no way that these four
+vehicles are actually the same length as shown on the screen." He was right,
+and my comparison sheet was the thing hiding it — it thumbnailed every sprite
+to fit the same cell, which normalises them all to one size and throws away
+the very information being judged. **Never build a fleet comparison by
+thumbnailing to a fixed cell.** Crop to opaque pixels and scale by a real
+measurement. `scratchpad/scale-check.py` does it properly.
+
+Measured, with 0% transparent padding anywhere, so nothing was distorted by
+the canvas. Drawn width over drawn length, against what the real vehicle has:
+
+| sprite | drawn | should be | implied length | real |
+|---|---|---|---|---|
+| henry | 0.692 | 0.417 | 2.5 m | 4.2 m |
+| henry-rear | 0.646 | 0.417 | 2.7 m | 4.2 m |
+| bea | 0.593 | 0.400 | 3.0 m | 4.5 m |
+| bea-rear | 0.762 | 0.400 | 2.4 m | 4.5 m |
+| spark | 0.648 | 0.339 | 3.1 m | 5.9 m |
+| spark-rear | 0.516 | 0.339 | 3.9 m | 5.9 m |
+| big-tilly | 0.507 | 0.354 | 4.5 m | 6.5 m |
+| big-tilly-rear | 0.526 | 0.354 | 4.4 m | 6.5 m |
+
+Every one is too short for its width, so they read as cars rather than vans.
+Two contradictions sit on top of that: from the rear **Bea measures wider than
+Spark**, when Spark is a minibus at 2.0m and Bea a van at 1.8m; and the same
+vehicle changes width between its own views, Bea's rear 29% wider than her
+front, Spark's rear 20% narrower than his.
+
+Chunky proportions are a legitimate children's-book choice — Postman Pat's van
+is not a real van either — so the stubbiness alone was arguable. The
+self-contradiction was not. Marcus chose **one true scale**: real proportions
+throughout.
+
+**The redraw technique matters more than the numbers.** Do NOT stretch: the
+factors run 1.4x to 1.9x and a stretch at that scale turns lamps into ovals
+and thins the ink line along one axis. The instruction is LENGTHEN THE MIDDLE
+— keep the nose and the tail exactly as drawn, extend the box between them,
+run the roof, flank slivers, skirt and waistline straight through the added
+length, and let the wheels sit further apart. A longer wheelbase is what a
+longer van has. For Big Tilly the cab stays and the WOODEN BED lengthens, and
+it must still hold a 3x3.
+
+**The skew barely matters here.** `tools/skew-topdown.py` changes drawn aspect
+by only 0-6% (0.94x on skewed files, 1.000x on the `ALREADY_CORRECT` ones), so
+target ratios can be briefed directly with a small allowance. The figures sent
+to Manus already include it, which is why front and rear targets differ
+slightly for the same vehicle.
+
+**`VEHICLE_SIZE` conflates width and length.** It is applied to WIDTH
+(`img.setScale(vanW * VEHICLE_SIZE[id] / img.width)`), but Big Tilly's 1.5 was
+derived from her 3x3 grid against Henry's 2x2, which is a LENGTH argument. Her
+true width ratio is 1.31. True width ratios against Henry: trike 0.43, Henry
+1.00, Bea 1.03, Spark 1.14, Big Tilly 1.31. Once the sprites carry correct
+aspects, setting width correctly gives correct length for free.
+
+Trikey is excluded from the proportion pass: her bicycle-versus-trike question
+has to be settled first, or she gets redrawn twice.
+
