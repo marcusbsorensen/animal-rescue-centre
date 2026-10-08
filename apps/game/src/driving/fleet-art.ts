@@ -44,8 +44,18 @@ export const VEHICLE_SPRITE: Record<VehicleType, string> = {
  * trike's wooden rim, the van's roofline — reads as the roof lifted
  * off.
  *
- * Measured 2026-10-08 off the shipping sprites with a 5% grid overlay,
- * after the livery pass landed:
+ * **These will go stale, and that is expected.** They were measured by
+ * eye off one set of files; the fleet is being redrawn at corrected
+ * proportions, and a van a third longer for its width moves every
+ * number here. What must not happen is them being *silently* wrong, so
+ * `VEHICLE_BED_SOURCE` records the sprite each one was measured
+ * against and `bedProbePoints` gives a dev check something to sample:
+ * a bed that has drifted off the painted body says so in the console
+ * the first time the screen draws.
+ *
+ * Measured 2026-10-08 with a 5% grid overlay, off the sprites in
+ * `apps/game/public/assets/driving/topdown/vehicle-topdown-*.png` as
+ * they stood after that day's livery pass:
  *
  *   Trikey      the open wooden box behind the saddle
  *   Henry       the van body between the rear doors and the windscreen
@@ -62,6 +72,54 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
   'animal-lorry':     { x: 0.13, y: 0.06, w: 0.74, h: 0.31 },
   'electric-minibus': { x: 0.17, y: 0.07, w: 0.66, h: 0.33 },
 };
+
+/**
+ * The sprite each bed in `VEHICLE_BED` was measured against, in the
+ * file's own pixels.
+ *
+ * A texture that no longer measures this has been redrawn since, so the
+ * fractions beside it are a guess about a different painting. The dev
+ * check in the loading screen compares the two and says so.
+ */
+export const VEHICLE_BED_SOURCE: Record<VehicleType, { w: number; h: number }> = {
+  'pedal-trike': { w: 364, h: 851 },
+  'small-van': { w: 666, h: 960 },
+  'long-van': { w: 606, h: 1022 },
+  'animal-lorry': { w: 513, h: 1012 },
+  'electric-minibus': { w: 621, h: 959 },
+};
+
+/**
+ * Nine points on a bed, as fractions of the sprite, for a dev check to
+ * sample the art at.
+ *
+ * The centre, the four edge midpoints and the four corners — the
+ * corners pulled a tenth of the bed inward, the edges a twentieth,
+ * because a painted body has rounded shoulders and a bed measured
+ * correctly to its widest point still has air at the exact corner. A
+ * bed sitting on the vehicle hits paint at all nine; one that has
+ * drifted off the body since the art was redrawn does not.
+ */
+export function bedProbePoints(bed: LoadBed): Array<{ u: number; v: number }> {
+  const insetX = bed.w * 0.1;
+  const insetY = bed.h * 0.1;
+  const l = bed.x + insetX;
+  const r = bed.x + bed.w - insetX;
+  const t = bed.y + insetY;
+  const b = bed.y + bed.h - insetY;
+  const cx = bed.x + bed.w / 2;
+  const cy = bed.y + bed.h / 2;
+  const edgeT = bed.y + bed.h * 0.05;
+  const edgeB = bed.y + bed.h * 0.95;
+  const edgeL = bed.x + bed.w * 0.05;
+  const edgeR = bed.x + bed.w * 0.95;
+  return [
+    { u: cx, v: cy },
+    { u: cx, v: edgeT }, { u: cx, v: edgeB },
+    { u: edgeL, v: cy }, { u: edgeR, v: cy },
+    { u: l, v: t }, { u: r, v: t }, { u: l, v: b }, { u: r, v: b },
+  ];
+}
 
 /** Gap between two bays, and the margin between the bays and the bed's edge. */
 export const BAY_GAP = 8;
@@ -83,21 +141,54 @@ export const BAY_MIN = 40;
 export const BAY_MAX_W = 132;
 export const BAY_MAX_H = 108;
 
+/**
+ * How far past the measured bed the cutaway floor may spread to keep a
+ * bay tappable.
+ *
+ * `VEHICLE_BED` is a rectangle drawn over a painted shape, and it is
+ * deliberately inset from the body — so there is paint to spare on all
+ * four sides, and a floor a few per cent larger is still inside the
+ * vehicle. Spending that slack is what lets Big Tilly's nine bays reach
+ * the tap floor with the whole lorry still in frame, which is the trade
+ * the other way round from the one this used to make.
+ *
+ * **1.3 is measured, not picked.** Tilly is the vehicle that spends it
+ * and she has the least to spare: her bed is recorded as 0.06..0.37 of
+ * her sprite and her painted wooden load bed runs about 0.01..0.42, so
+ * there is 1.32x of her recorded depth before the floor would reach the
+ * cab. At her tightest viewport she spends 1.26 of it. Anything past
+ * this and a cutaway would start being drawn on paint that is not the
+ * load bed, which is the thing the rectangle exists to prevent.
+ */
+export const BED_SLACK = 1.3;
+
 export interface BedFit {
   /** Multiplier on the sprite's natural size. */
   scale: number;
   /** The drawn sprite. */
   spriteW: number;
   spriteH: number;
-  /** The load bed in drawn px, measured from the sprite's top-left. */
+  /** The measured load bed in drawn px, from the sprite's top-left. */
   bed: { x: number; y: number; w: number; h: number };
+  /**
+   * The cutaway floor the bays are actually laid on — the grid plus its
+   * padding, centred on the bed. Usually the bed to within a rounding
+   * error; a little larger where the bed had to give, a little smaller
+   * where the bays hit their cap.
+   */
+  floor: { x: number; y: number; w: number; h: number };
   /** One bay, drawn. */
   slotW: number;
   slotH: number;
   /** The whole grid, drawn. */
   gridW: number;
   gridH: number;
-  /** The vehicle is drawn taller than the box it was given. */
+  /**
+   * The vehicle is drawn taller than the box it was given.
+   *
+   * A last resort, and on the sizes this game runs at it does not
+   * happen: see `fitLoadBed`.
+   */
   overflows: boolean;
 }
 
@@ -105,22 +196,19 @@ export interface BedFit {
  * Fit a crate grid into a vehicle's load bed, and say how big to draw
  * the vehicle.
  *
- * The bays lead and the vehicle follows, because the bays are what a
- * child has to hit. The whole vehicle is drawn as large as the box
- * allows; if that leaves the bays under `BAY_MIN`, the vehicle grows
- * until they clear it and the caller draws it running off the bottom of
- * the band.
+ * **The whole vehicle stays in frame.** It is drawn as large as its box
+ * allows and no larger, so it sits on the tarmac with air round it
+ * rather than hanging off the bottom of the slab. Where the bed is then
+ * too tight for the bays, the *floor* spreads into the bed's slack
+ * (`BED_SLACK`) instead of the vehicle growing — Big Tilly's nine bays
+ * need about 4% more depth than her measured bed at desktop size, and
+ * her painted wooden bed has it.
  *
- * **Growth is bounded on one axis only.** Big Tilly is the case: her
- * load bed is a third of her sprite's length — she is mostly cab — so a
- * lorry scaled to fit a 383px band gives nine bays of about 31px, and
- * on a landscape phone a trike scaled to fit gets 15px ones. Letting
- * either run past the bottom of the picture is the right trade, because
- * a lorry too big for the frame is true and a grid whose taps land on
- * the wrong bay is not. Running off the *side* is not a trade at all —
- * that is the message panel — so the column's width is the one hard
- * stop, and a vehicle that hits it keeps smaller bays rather than
- * overlapping hit areas, which `drawBays` guards.
+ * Only when that is not enough does the vehicle grow past its box, and
+ * the caller clips it at the tarmac's edge. That is the landscape-phone
+ * case, where the band is about 100px and a trike scaled into it has
+ * 5px bays: a vehicle too big for the picture beats a grid whose taps
+ * land on the wrong bay. It does not happen at 1024x700 or at 820x620.
  */
 export function fitLoadBed(
   box: { w: number; h: number },
@@ -134,52 +222,74 @@ export function fitLoadBed(
   const pad = options?.pad ?? BED_PAD;
   const minSlot = options?.minSlot ?? BAY_MIN;
 
-  const bedW = (s: number) => sprite.w * s * bed.w;
-  const bedH = (s: number) => sprite.h * s * bed.h;
-  const slotsAt = (s: number) => ({
-    w: (bedW(s) - pad * 2 - gap * (cols - 1)) / cols,
-    h: (bedH(s) - pad * 2 - gap * (rows - 1)) / rows,
-  });
-  /** The scale at which every bay is exactly `slot` on its shorter axis. */
-  const scaleForSlot = (slot: number) => Math.max(
-    (slot * cols + gap * (cols - 1) + pad * 2) / (sprite.w * bed.w),
-    (slot * rows + gap * (rows - 1) + pad * 2) / (sprite.h * bed.h),
-  );
+  /** The floor a row or column of `n` bays of `slot` needs. */
+  const span = (slot: number, n: number) => slot * n + gap * (n - 1) + pad * 2;
+  /** The biggest bay a floor of `avail` can hold, `n` across. */
+  const slotIn = (avail: number, n: number) => (avail - pad * 2 - gap * (n - 1)) / n;
+
+  const measure = (scale: number) => {
+    const bedW = sprite.w * scale * bed.w;
+    const bedH = sprite.h * scale * bed.h;
+    // The floor takes the bed, and may spread into its slack — but only
+    // as far as the bays actually need.
+    const availW = Math.max(bedW, Math.min(span(minSlot, cols), bedW * BED_SLACK));
+    const availH = Math.max(bedH, Math.min(span(minSlot, rows), bedH * BED_SLACK));
+    return {
+      bedW,
+      bedH,
+      slotW: Math.max(1, Math.min(Math.floor(slotIn(availW, cols)), BAY_MAX_W)),
+      slotH: Math.max(1, Math.min(Math.floor(slotIn(availH, rows)), BAY_MAX_H)),
+    };
+  };
 
   const fitScale = Math.min(box.w / sprite.w, box.h / sprite.h);
   let scale = fitScale;
-  const atFit = slotsAt(fitScale);
-  if (Math.min(atFit.w, atFit.h) < minSlot) {
-    scale = Math.min(
-      scaleForSlot(minSlot),
-      // Never wider than the box: a vehicle may run off the bottom of a
-      // band, never off the side of its column into the message panel.
+  let m = measure(scale);
+
+  if (Math.min(m.slotW, m.slotH) < minSlot) {
+    // The box is too small for this grid at any honest size. Grow the
+    // vehicle until the bays clear the floor, never wider than the box
+    // — running off the bottom is a picture, running off the side is
+    // the message panel.
+    const grown = Math.min(
+      Math.max(
+        span(minSlot, cols) / (BED_SLACK * sprite.w * bed.w),
+        span(minSlot, rows) / (BED_SLACK * sprite.h * bed.h),
+      ),
       box.w / sprite.w,
     );
-    scale = Math.max(scale, fitScale);
+    if (grown > scale) {
+      scale = grown;
+      m = measure(scale);
+    }
   }
-
-  const slots = slotsAt(scale);
-  const slotW = Math.max(1, Math.min(Math.floor(slots.w), BAY_MAX_W));
-  const slotH = Math.max(1, Math.min(Math.floor(slots.h), BAY_MAX_H));
 
   const spriteW = sprite.w * scale;
   const spriteH = sprite.h * scale;
+  const bedRect = {
+    x: bed.x * spriteW,
+    y: bed.y * spriteH,
+    w: bed.w * spriteW,
+    h: bed.h * spriteH,
+  };
+  const floorW = span(m.slotW, cols);
+  const floorH = span(m.slotH, rows);
 
   return {
     scale,
     spriteW,
     spriteH,
-    bed: {
-      x: bed.x * spriteW,
-      y: bed.y * spriteH,
-      w: bed.w * spriteW,
-      h: bed.h * spriteH,
+    bed: bedRect,
+    floor: {
+      x: bedRect.x + (bedRect.w - floorW) / 2,
+      y: bedRect.y + (bedRect.h - floorH) / 2,
+      w: floorW,
+      h: floorH,
     },
-    slotW,
-    slotH,
-    gridW: slotW * cols + gap * (cols - 1),
-    gridH: slotH * rows + gap * (rows - 1),
+    slotW: m.slotW,
+    slotH: m.slotH,
+    gridW: m.slotW * cols + gap * (cols - 1),
+    gridH: m.slotH * rows + gap * (rows - 1),
     overflows: spriteH > box.h + 0.5,
   };
 }

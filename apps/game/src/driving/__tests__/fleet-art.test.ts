@@ -1,32 +1,34 @@
 import { describe, it, expect } from 'vitest';
 import { VEHICLE_DEFS, type VehicleType } from '@arc/game-logic';
 import {
-  BAY_GAP, BAY_MIN, BED_PAD, VEHICLE_BED, VEHICLE_SPRITE, fitLoadBed,
+  BAY_GAP, BAY_MIN, BED_PAD, BED_SLACK,
+  VEHICLE_BED, VEHICLE_BED_SOURCE, VEHICLE_SPRITE, bedProbePoints, fitLoadBed,
 } from '../fleet-art';
 
-/** The shipping sprites, at the sizes on disk on 2026-10-08. */
-const SPRITE_SIZE: Record<VehicleType, { w: number; h: number }> = {
-  'pedal-trike': { w: 364, h: 851 },
-  'small-van': { w: 666, h: 960 },
-  'long-van': { w: 606, h: 1022 },
-  'animal-lorry': { w: 513, h: 1012 },
-  'electric-minibus': { w: 621, h: 959 },
-};
-
-/** The vehicle column the loading screen gives itself, by viewport. */
+/**
+ * The vehicle box the loading screen hands out, measured off its own
+ * layout at the three viewports it is checked at: the tarmac, inset far
+ * enough on every side for the vehicle to have air round it.
+ */
 const COLUMNS = {
-  'desktop 1024x700': { w: 532, h: 383 },
-  'narrow 820x620': { w: 408, h: 303 },
-  'landscape phone 874x402': { w: 443, h: 121 },
+  'desktop 1024x700': { w: 524, h: 471 },
+  'narrow 820x620': { w: 400, h: 391 },
+  'landscape phone 874x402': { w: 431, h: 98 },
 };
+/** The two the vehicle is required to fit whole. */
+const ROOMY = ['desktop 1024x700', 'narrow 820x620'] as const;
 
 const EVERY_VEHICLE = Object.values(VEHICLE_DEFS);
+const spriteOf = (id: VehicleType) => VEHICLE_BED_SOURCE[id];
+const fitIn = (box: { w: number; h: number }, v: { id: VehicleType; cols: number; rows: number }) =>
+  fitLoadBed(box, spriteOf(v.id), VEHICLE_BED[v.id], v.cols, v.rows);
 
 describe('fleet art', () => {
-  it('has a sprite key and a load bed for every vehicle in the fleet', () => {
+  it('has a sprite key, a load bed and a measured source for every vehicle', () => {
     for (const v of EVERY_VEHICLE) {
       expect(VEHICLE_SPRITE[v.id]).toBeTruthy();
       expect(VEHICLE_BED[v.id]).toBeTruthy();
+      expect(VEHICLE_BED_SOURCE[v.id]).toBeTruthy();
     }
   });
 
@@ -39,12 +41,26 @@ describe('fleet art', () => {
       expect(bed.y + bed.h).toBeLessThanOrEqual(1);
     }
   });
+
+  it('probes nine points, all of them on the bed', () => {
+    for (const v of EVERY_VEHICLE) {
+      const bed = VEHICLE_BED[v.id];
+      const points = bedProbePoints(bed);
+      expect(points).toHaveLength(9);
+      for (const { u, v: pv } of points) {
+        expect(u).toBeGreaterThanOrEqual(bed.x);
+        expect(u).toBeLessThanOrEqual(bed.x + bed.w);
+        expect(pv).toBeGreaterThanOrEqual(bed.y);
+        expect(pv).toBeLessThanOrEqual(bed.y + bed.h);
+      }
+    }
+  });
 });
 
 describe('fitLoadBed', () => {
   it.each(Object.entries(COLUMNS))('gives tappable bays at %s', (_label, box) => {
     for (const v of EVERY_VEHICLE) {
-      const fit = fitLoadBed(box, SPRITE_SIZE[v.id], VEHICLE_BED[v.id], v.cols, v.rows);
+      const fit = fitIn(box, v);
       // At or above the floor, the hit areas floored at MIN_TAP cannot
       // overlap their neighbours — which is what the floor is for.
       expect(fit.slotW, `${v.name} bay width`).toBeGreaterThanOrEqual(BAY_MIN);
@@ -52,48 +68,67 @@ describe('fitLoadBed', () => {
     }
   });
 
-  it('keeps the grid inside the bed, and the vehicle inside its column', () => {
+  it.each(ROOMY)('draws the whole vehicle inside its box at %s', (label) => {
+    const box = COLUMNS[label];
+    for (const v of EVERY_VEHICLE) {
+      const fit = fitIn(box, v);
+      expect(fit.overflows, `${v.name} overflows`).toBe(false);
+      expect(fit.spriteH, `${v.name} drawn height`).toBeLessThanOrEqual(box.h + 0.5);
+      expect(fit.spriteW, `${v.name} drawn width`).toBeLessThanOrEqual(box.w + 0.5);
+    }
+  });
+
+  it('keeps the grid on the floor, and the floor within the bed and its slack', () => {
     for (const [, box] of Object.entries(COLUMNS)) {
       for (const v of EVERY_VEHICLE) {
-        const fit = fitLoadBed(box, SPRITE_SIZE[v.id], VEHICLE_BED[v.id], v.cols, v.rows);
-        expect(fit.gridW, `${v.name} grid width`).toBeLessThanOrEqual(fit.bed.w - BED_PAD);
-        expect(fit.gridH, `${v.name} grid height`).toBeLessThanOrEqual(fit.bed.h - BED_PAD);
-        // A vehicle may run off the bottom of the picture; never off the
-        // side into the message panel.
-        expect(fit.spriteW, `${v.name} drawn width`).toBeLessThanOrEqual(box.w + 0.5);
+        const fit = fitIn(box, v);
+        expect(fit.gridW, `${v.name} grid width`).toBeLessThanOrEqual(fit.floor.w - BED_PAD);
+        expect(fit.gridH, `${v.name} grid height`).toBeLessThanOrEqual(fit.floor.h - BED_PAD);
+        expect(fit.floor.w, `${v.name} floor width`)
+          .toBeLessThanOrEqual(fit.bed.w * BED_SLACK + 1);
+        expect(fit.floor.h, `${v.name} floor height`)
+          .toBeLessThanOrEqual(fit.bed.h * BED_SLACK + 1);
       }
     }
   });
 
-  it('draws the whole vehicle when the bays already clear the floor', () => {
+  it('centres the floor on the bed', () => {
     const box = COLUMNS['desktop 1024x700'];
-    const trikey = fitLoadBed(
-      box, SPRITE_SIZE['pedal-trike'], VEHICLE_BED['pedal-trike'], 1, 2,
-    );
-    expect(trikey.overflows).toBe(false);
-    expect(trikey.spriteH).toBeLessThanOrEqual(box.h + 0.5);
+    for (const v of EVERY_VEHICLE) {
+      const { bed, floor } = fitIn(box, v);
+      expect(floor.x + floor.w / 2).toBeCloseTo(bed.x + bed.w / 2, 5);
+      expect(floor.y + floor.h / 2).toBeCloseTo(bed.y + bed.h / 2, 5);
+    }
   });
 
-  it('grows the lorry past its box rather than shrinking nine bays below the floor', () => {
+  it('spends the bed slack rather than growing the lorry out of frame', () => {
     const box = COLUMNS['desktop 1024x700'];
+    const lorry = VEHICLE_DEFS['animal-lorry'];
     const bed = VEHICLE_BED['animal-lorry'];
-    const sprite = SPRITE_SIZE['animal-lorry'];
+    const sprite = spriteOf('animal-lorry');
 
-    // Scaled to fit, her bed is far too small for a 3x3 — this is the
-    // premise the overscale exists to answer, so assert it rather than
-    // assume it.
+    // Nine bays do not fit her measured bed at the size the box allows —
+    // the premise the slack exists to answer, asserted rather than
+    // assumed.
     const fitScale = Math.min(box.w / sprite.w, box.h / sprite.h);
-    const naiveSlotH = (sprite.h * fitScale * bed.h - BED_PAD * 2 - BAY_GAP * 2) / 3;
-    expect(naiveSlotH).toBeLessThan(BAY_MIN);
+    const bare = (sprite.h * fitScale * bed.h - BED_PAD * 2 - BAY_GAP * 2) / 3;
+    expect(bare).toBeLessThan(BAY_MIN);
 
-    const fit = fitLoadBed(box, sprite, bed, 3, 3);
-    expect(fit.overflows).toBe(true);
+    const fit = fitIn(box, lorry);
+    expect(fit.overflows).toBe(false);
     expect(fit.slotH).toBeGreaterThanOrEqual(BAY_MIN);
+    expect(fit.floor.h).toBeGreaterThan(fit.bed.h);
+  });
+
+  it('only grows past the box where the box cannot hold a tappable grid', () => {
+    const phone = fitIn(COLUMNS['landscape phone 874x402'], VEHICLE_DEFS['pedal-trike']);
+    expect(phone.overflows).toBe(true);
+    expect(phone.slotH).toBeGreaterThanOrEqual(BAY_MIN);
   });
 
   it('gives a bigger grid smaller bays in the same vehicle', () => {
     const box = COLUMNS['desktop 1024x700'];
-    const sprite = SPRITE_SIZE['small-van'];
+    const sprite = spriteOf('small-van');
     const bed = VEHICLE_BED['small-van'];
     const twoByTwo = fitLoadBed(box, sprite, bed, 2, 2);
     const threeByThree = fitLoadBed(box, sprite, bed, 3, 3);
@@ -101,7 +136,9 @@ describe('fitLoadBed', () => {
   });
 
   it('never returns a zero or negative bay, however small the box', () => {
-    const fit = fitLoadBed({ w: 40, h: 30 }, { w: 513, h: 1012 }, VEHICLE_BED['animal-lorry'], 3, 3);
+    const fit = fitLoadBed(
+      { w: 40, h: 30 }, spriteOf('animal-lorry'), VEHICLE_BED['animal-lorry'], 3, 3,
+    );
     expect(fit.slotW).toBeGreaterThan(0);
     expect(fit.slotH).toBeGreaterThan(0);
   });

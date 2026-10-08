@@ -49,6 +49,17 @@ export interface ForecourtOptions {
    * than in the middle, where the slab's corner takes a bite out of it.
    */
   buildingCx?: number;
+  /**
+   * Draw the A.R.C. building behind the tarmac. Default true.
+   *
+   * False for a screen whose content needs the height the building
+   * would stand in. The picker has a shallow band of bays and room for
+   * it above them; the loading screen has one vehicle filling the
+   * frame, and the building it had room for measured about 130px —
+   * which read as a sticker on the slab's top edge rather than as a
+   * building standing behind one.
+   */
+  building?: boolean;
 }
 
 export interface Forecourt {
@@ -80,7 +91,11 @@ export function drawForecourt(
   // between the title and the tarmac rather than a fixed fraction of the
   // viewport — which on a landscape phone drew it tiny in the middle of
   // an empty gravel field and on a desktop at nearly half the screen.
-  if (scene.textures.exists('site-arc-building')) {
+  //
+  // A caller with no room for it says so and gets none. A building drawn
+  // small enough to be wrong reads as a sticker, and a sticker of the
+  // rescue centre is worse than gravel.
+  if ((options.building ?? true) && scene.textures.exists('site-arc-building')) {
     const base = options.buildingBase ?? apronTop + apronH * 0.3;
     const target = Math.max(0, Math.min(base - contentTop, width * 0.46));
     const cx = options.buildingCx ?? width / 2;
@@ -92,9 +107,33 @@ export function drawForecourt(
   const areaW = options.apronW ?? Math.min(width * 0.92, 1080);
   const left = options.apronX ?? (width - areaW) / 2;
 
+  // ── The tarmac ──
+  //
+  // One flat near-black rectangle is a swatch, not a surface, and it is
+  // what made this read as a UI panel with a van hanging off it. Three
+  // cheap things fix that and none of them moves: a warmer, lighter
+  // base so it is asphalt rather than a hole; a handful of patches at
+  // fixed fractions of the slab, so the ground is worn unevenly the way
+  // a car park is; and a pale kerb along the far edge, which is the
+  // line that says this is ground seen from above rather than a shape
+  // lying on top of it.
+  const x = left - 8;
+  const y = apronTop - 8;
+  const w = areaW + 16;
+  const h = apronH + 16;
+
   const slab = scene.add.graphics();
-  slab.fillStyle(0x39383a, 1);
-  slab.fillRoundedRect(left - 8, apronTop - 8, areaW + 16, apronH + 16, 12);
+  slab.fillStyle(0x45434a, 1);
+  slab.fillRoundedRect(x, y, w, h, 18);
+  for (const p of TARMAC_PATCHES) {
+    slab.fillStyle(p.light ? 0xffffff : 0x000000, p.alpha);
+    slab.fillEllipse(x + w * p.u, y + h * p.v, w * p.w, h * p.h);
+  }
+  // The kerb: a pale lip along the top, and a thin shadow under it.
+  slab.fillStyle(0xcdc0a6, 0.5);
+  slab.fillRoundedRect(x, y, w, 4, 2);
+  slab.fillStyle(0x000000, 0.22);
+  slab.fillRect(x + 6, y + 4, w - 12, 3);
   container.add(slab);
 
   // Exit road along the bottom.
@@ -112,24 +151,49 @@ export function drawForecourt(
 }
 
 /**
- * A painted parking bay on the tarmac — two side lines and a stop bar
- * across the back, in the cream the picker already paints its bay
- * dividers in.
+ * Worn patches on the tarmac, as fractions of the slab.
  *
- * The picker's bays are divided by single lines because they sit in a
- * row; a screen showing one vehicle draws the whole bay round it, which
- * is what says "this van is parked at the rescue centre" rather than
- * "this van is a picture of a van".
+ * Fixed rather than random: the screen redraws after every tap, and
+ * ground that reshuffled itself each time would be motion — the one
+ * thing this game will not spend on decoration. Nine soft ellipses,
+ * placed so none of them lands dead centre where the vehicle sits.
  */
-export function drawParkingBay(
+const TARMAC_PATCHES: Array<{ u: number; v: number; w: number; h: number; light: boolean; alpha: number }> = [
+  { u: 0.18, v: 0.14, w: 0.44, h: 0.16, light: true, alpha: 0.05 },
+  { u: 0.82, v: 0.22, w: 0.38, h: 0.13, light: true, alpha: 0.04 },
+  { u: 0.30, v: 0.52, w: 0.50, h: 0.20, light: false, alpha: 0.06 },
+  { u: 0.86, v: 0.63, w: 0.34, h: 0.17, light: false, alpha: 0.05 },
+  { u: 0.12, v: 0.82, w: 0.40, h: 0.15, light: true, alpha: 0.04 },
+  { u: 0.68, v: 0.88, w: 0.46, h: 0.13, light: false, alpha: 0.05 },
+  { u: 0.50, v: 0.05, w: 0.30, h: 0.08, light: false, alpha: 0.05 },
+  { u: 0.05, v: 0.44, w: 0.22, h: 0.26, light: false, alpha: 0.04 },
+  { u: 0.95, v: 0.42, w: 0.22, h: 0.24, light: true, alpha: 0.04 },
+];
+
+/**
+ * The shadow a vehicle casts on the tarmac it is standing on.
+ *
+ * A top-down sprite dropped onto a flat fill floats; a dark pool under
+ * it, offset the way every other shadow in the chrome is offset, puts
+ * it on the ground. It is what replaced the painted bay lines: two
+ * cream rules down the sides of one vehicle read as guides somebody had
+ * left in rather than as paint, and the picker only gets away with them
+ * because it has five bays for them to divide.
+ *
+ * Tight to the silhouette rather than generous. An ellipse the size of
+ * the whole sprite on a 470px-tall trike is a vignette over half the
+ * screen; one at seven tenths of its width sits under the wheels where
+ * a shadow belongs. Drawn before the vehicle, never animated.
+ */
+export function drawVehicleShadow(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
-  box: { x: number; y: number; w: number; h: number },
+  box: { cx: number; cy: number; w: number; h: number },
 ): void {
   const gfx = scene.add.graphics();
-  gfx.fillStyle(0xf2ead6, 0.8);
-  gfx.fillRect(box.x, box.y, 4, box.h);
-  gfx.fillRect(box.x + box.w - 4, box.y, 4, box.h);
-  gfx.fillRect(box.x, box.y, box.w, 4);
+  gfx.fillStyle(0x000000, 0.09);
+  gfx.fillEllipse(box.cx + 11, box.cy + 13, box.w * 0.82, box.h * 0.9);
+  gfx.fillStyle(0x000000, 0.13);
+  gfx.fillEllipse(box.cx + 6, box.cy + 7, box.w * 0.7, box.h * 0.84);
   container.add(gfx);
 }
