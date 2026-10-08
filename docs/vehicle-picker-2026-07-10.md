@@ -56,10 +56,18 @@ loop's `gearRate`.
   - Nothing deducts the fuel, and nothing limits the animals aboard by slots.
     The drive carries at most one animal (`GameScene.driveTo(destinationId,
     animalId?)`) and no crates.
-  - `cols` and `rows` are read by no file in `apps/game/src`.
+  - `cols` and `rows` are read by `driving/crate-loading-view.ts`, which lays
+    that many bays on the chosen vehicle's painted load bed. _(Was "read by no
+    file in `apps/game/src`" when checked on 2026-10-07; the loading screen
+    landed after.)_
+  - **Grid shapes re-cut 2026-10-09**: Trikey 1×2, Henry 2×2, Bea 2×3,
+    Big Tilly 2×4 (**eight slots, down from nine**), Spark 2×3. Nothing in the
+    fleet is more than two crates wide now, because every one of them is
+    painted two to three times longer than it is wide. Tilly's card prints
+    `Slots 8`, which is correct and wants no special handling.
   - `cols` and `rows` are the grid shape a `CrateGrid` carries into the
     crate-stacking engine (`neighbourIndices`, `previewPlacement`). That engine
-    is **built and tested, and not wired** into the game: see
+    is **built and wired** into the loading screen: see
     [`crate-loading-2026-07-10.md`](crate-loading-2026-07-10.md) for what the
     code settles and what is still only a design. (This note first linked a
     `[[project_crate_loading]]` memory note; it is not in the repository or the

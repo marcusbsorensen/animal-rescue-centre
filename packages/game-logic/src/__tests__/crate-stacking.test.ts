@@ -111,12 +111,27 @@ describe('neighbour indices', () => {
     expect(neighbourIndices(3, 2, 2).sort()).toEqual([1, 2]);
   });
 
+  // 3x3 is no vehicle in the fleet — since 2026-10-09 nothing is more
+  // than two crates wide, so no cell anywhere has four neighbours.
+  // These two stay because they test the arithmetic rather than the
+  // fleet, and a grid shape the game does not currently use is
+  // exactly the case a generic function should still get right.
   it('edge slot in 3x3 has 3 neighbours', () => {
     expect(neighbourIndices(1, 3, 3).sort()).toEqual([0, 2, 4]);
   });
 
   it('centre slot in 3x3 has 4 neighbours', () => {
     expect(neighbourIndices(4, 3, 3).sort()).toEqual([1, 3, 5, 7]);
+  });
+
+  it('no cell in the fleet has four neighbours, because none is three wide', () => {
+    for (const def of Object.values(VEHICLE_DEFS)) {
+      expect(def.cols, `${def.name} is ${def.cols} across`).toBeLessThanOrEqual(2);
+      for (let slot = 0; slot < def.cols * def.rows; slot += 1) {
+        expect(neighbourIndices(slot, def.cols, def.rows).length)
+          .toBeLessThanOrEqual(3);
+      }
+    }
   });
 
   it('single-column grid wraps vertically only', () => {
@@ -202,12 +217,16 @@ describe('stressed count', () => {
   });
 
   it('three-in-a-row stressed combo counts 2', () => {
+    // Bea's left-hand column, top to bottom: she is two across and
+    // three deep, so a run of three is vertical now rather than
+    // across. The arithmetic under test does not care which, and the
+    // grid is written as a shape the fleet actually has.
     const g: CrateGrid = {
-      vehicle: 'long-van', cols: 3, rows: 2,
+      vehicle: 'long-van', cols: 2, rows: 3,
       crates: [
         { slotIndex: 0, animalId: 'a', species: 'cat',   crateType: 'standard' },
-        { slotIndex: 1, animalId: 'b', species: 'dog',   crateType: 'standard' },
-        { slotIndex: 2, animalId: 'c', species: 'cat',   crateType: 'standard' },
+        { slotIndex: 2, animalId: 'b', species: 'dog',   crateType: 'standard' },
+        { slotIndex: 4, animalId: 'c', species: 'cat',   crateType: 'standard' },
       ],
     };
     expect(countStressedAdjacencies(g)).toBe(2);

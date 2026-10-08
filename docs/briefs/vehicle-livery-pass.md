@@ -126,11 +126,14 @@ hubs with red centres; big knobbly tyres; curtains and a potted plant in the cab
    WOODEN LOAD BED. Looking down into that bed you see natural oak floor planks running
    along the vehicle, and the inside faces of the wooden stake sides around them. The
    bed is open to the sky — no red roof over it.
-   PROPORTIONS MATTER HERE: in the game Tilly carries a 3x3 grid of nine animal
-   crates in that bed, so the bed must read as roughly SQUARE in plan and plainly
-   big enough that nine boxes would fit in it, three across and three along. Do not
-   draw a narrow slot. The bed is the larger part of the vehicle; the cab is the
-   smaller part.
+   PROPORTIONS MATTER HERE: in the game Tilly carries a 2x4 grid of eight animal
+   crates in that bed, so the bed must read as a LONG RECTANGLE in plan — about
+   twice as long as it is wide — and plainly big enough that eight boxes would fit
+   in it, two across and four along. The bed is the larger part of the vehicle; the
+   cab is the smaller part.
+   (Updated 2026-10-09. This said "roughly SQUARE ... nine boxes, three across and
+   three along" until the grids were re-cut; the painted sprite was already long and
+   narrow, so the brief was describing a lorry nobody had drawn.)
    Keep the red for the cab roof and the chassis rails. Cream hubs with red centres.
    Knobbly tyres. Chrome grille at the nose on file 7.
    The "Big Tilly ♥" lettering is on the drop-side panel, which is a SIDE surface — from

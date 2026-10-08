@@ -66,9 +66,11 @@ Defined in [`crate-stacking.ts`](../packages/game-logic/src/crate-stacking.ts) �
 |---|---|---|---|---|---|
 | **Trikey** (pedal trike) | 2 | 1×2 | 0 | L0 | Cute opener; single-pet drives |
 | **Henry** (small van) | 4 | 2×2 | 5 | L2 | Workhorse; first real choice |
-| **Bea** (long van) | 6 | 3×2 | 10 | L5 | Multi-stop runs |
-| **Big Tilly** (animal lorry) | 9 | 3×3 | 20 | L10 | Rewilding + large adoptions |
-| **Spark** (electric mini-bus) | 6 | 3×2 | 5 | L12 | Fast + premium; smoother for anxious animals |
+| **Bea** (long van) | 6 | 2×3 | 10 | L5 | Multi-stop runs |
+| **Big Tilly** (animal lorry) | 8 | 2×4 | 20 | L10 | Rewilding + large adoptions |
+| **Spark** (electric mini-bus) | 6 | 2×3 | 5 | L12 | Fast + premium; smoother for anxious animals |
+
+_Grid shapes re-cut 2026-10-09._ Every vehicle is painted two to three times longer than it is wide, so the three-across grids were a shape the beds did not have: Bea, Big Tilly and Spark all turned to two columns. **Big Tilly went from nine slots to eight** — 2×4 is the honest rectangle for her bed where 3×3 was a square laid on a shape that is nowhere near square — and she is still comfortably the largest in the fleet. The turn also brought Bea and Spark fully into frame on the loading screen, which three-across had been pushing off the bottom of the tarmac by 28px and 86px at 1024×700.
 
 `slots` equals `cols × rows` for every vehicle. The engine does not enforce capacity: it checks neither that a slot index is in range, nor that a slot is empty, nor that a `CrateGrid`'s `cols` and `rows` match its vehicle. The caller does that.
 
@@ -103,7 +105,7 @@ The three "required" crates (quiet / warm vivarium / perch carrier) are the main
 
 ## Adjacency — the core puzzle
 
-Built, not wired. Animals in orthogonally-adjacent slots (N/S/E/W, no diagonals) react to each other. A slot has up to four neighbours (a corner of a 3×3 grid has two, the centre has four). Full matrix in `crate-stacking.ts` → `MATRIX`.
+Built, not wired. Animals in orthogonally-adjacent slots (N/S/E/W, no diagonals) react to each other. `neighbourIndices` supports up to four, but **no vehicle in the fleet produces a four-neighbour cell**: since the 2026-10-09 reshape nothing is more than two crates wide, so the most any slot can see is three (a corner sees two). Full matrix in `crate-stacking.ts` → `MATRIX`.
 
 ### Compatibility classes
 

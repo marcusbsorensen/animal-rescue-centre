@@ -38,9 +38,12 @@ describe('grid dimensions come from the vehicle', () => {
   it('each vehicle opens at its own real size', () => {
     expect(emptyGridFor('pedal-trike')).toMatchObject({ cols: 1, rows: 2 });
     expect(emptyGridFor('small-van')).toMatchObject({ cols: 2, rows: 2 });
-    expect(emptyGridFor('long-van')).toMatchObject({ cols: 3, rows: 2 });
-    expect(emptyGridFor('animal-lorry')).toMatchObject({ cols: 3, rows: 3 });
-    expect(emptyGridFor('electric-minibus')).toMatchObject({ cols: 3, rows: 2 });
+    // Nothing in the fleet is more than two crates wide: every one of
+    // them is painted two to three times longer than it is wide, so a
+    // bed three across never fitted the thing it was drawn on.
+    expect(emptyGridFor('long-van')).toMatchObject({ cols: 2, rows: 3 });
+    expect(emptyGridFor('animal-lorry')).toMatchObject({ cols: 2, rows: 4 });
+    expect(emptyGridFor('electric-minibus')).toMatchObject({ cols: 2, rows: 3 });
   });
 
   it('slot count matches the vehicle definition', () => {
@@ -228,9 +231,10 @@ describe('a frightening slot is refused, not punished', () => {
   });
 
   it('the worst neighbour decides, and the notes lead with it', () => {
+    // Bea is two across and three deep, so the slot under 1 is 3.
     let s = createLoadingSession('long-van', [LUNA, CLOVER, BUDDY, MITTENS]);
     s = placeHeld(holdFromTray(s, 'c'), 0).session;   // dog at 0
-    s = placeHeld(holdFromTray(s, 'a'), 4).session;   // cat at 4 (under slot 1)
+    s = placeHeld(holdFromTray(s, 'a'), 3).session;   // cat at 3 (under slot 1)
     const out = placeHeld(holdFromTray(s, 'b'), 1);   // bunny at 1 — dog west, cat south
 
     expect(out.placed).toBe(false);

@@ -150,12 +150,39 @@ export interface VehicleDef {
   unlockLevel: number;
 }
 
+/**
+ * The fleet, and the shape of each load bed.
+ *
+ * **Nothing is more than two crates wide, and that is the whole rule.**
+ * Every vehicle in the fleet is painted longer than it is wide — the
+ * proportion pass of 2026-10-08 made the shortest of them 2.3 times
+ * its own width and Big Tilly 2.8 — so a grid three across was always
+ * being laid on a bed that had no room for it crossways and floor to
+ * spare fore and aft. It cost twice over: the crates had to be drawn
+ * at the tap floor to fit the width, and the vehicle had to be drawn
+ * large enough for three of them to fit, which ran Bea and Spark off
+ * the bottom of the screen. Two columns and more rows is the shape of
+ * the thing being loaded.
+ *
+ * **Big Tilly holds eight, not nine.** 2x4 is the honest rectangle for
+ * her bed; 3x3 was a square laid on a shape that is nowhere near
+ * square. She is still comfortably the largest in the fleet, and the
+ * extra row buys her the whole lorry in frame and a bigger animal in
+ * every bay. A nine would have meant 3x3 again or a 1x9 ribbon.
+ *
+ * Adjacency is north/south/east/west, so the turn also gentles the
+ * puzzle slightly: a 3x3 has a centre cell with four neighbours and a
+ * 2x4 has none — the most any cell can see is three. That is a
+ * consequence of the shape rather than a balance change, and on a
+ * screen teaching a child which animals can sit together, fewer
+ * simultaneous constraints is not a loss.
+ */
 export const VEHICLE_DEFS: Record<VehicleType, VehicleDef> = {
   'pedal-trike':      { id: 'pedal-trike',      name: 'Trikey',    slots: 2, cols: 1, rows: 2, fuelCost: 0,  unlockLevel: 0  },
   'small-van':        { id: 'small-van',        name: 'Henry',     slots: 4, cols: 2, rows: 2, fuelCost: 5,  unlockLevel: 2  },
-  'long-van':         { id: 'long-van',         name: 'Bea',       slots: 6, cols: 3, rows: 2, fuelCost: 10, unlockLevel: 5  },
-  'animal-lorry':     { id: 'animal-lorry',     name: 'Big Tilly', slots: 9, cols: 3, rows: 3, fuelCost: 20, unlockLevel: 10 },
-  'electric-minibus': { id: 'electric-minibus', name: 'Spark',     slots: 6, cols: 3, rows: 2, fuelCost: 5,  unlockLevel: 12 },
+  'long-van':         { id: 'long-van',         name: 'Bea',       slots: 6, cols: 2, rows: 3, fuelCost: 10, unlockLevel: 5  },
+  'animal-lorry':     { id: 'animal-lorry',     name: 'Big Tilly', slots: 8, cols: 2, rows: 4, fuelCost: 20, unlockLevel: 10 },
+  'electric-minibus': { id: 'electric-minibus', name: 'Spark',     slots: 6, cols: 2, rows: 3, fuelCost: 5,  unlockLevel: 12 },
 };
 
 export function getAvailableVehicles(playerLevel: number): VehicleDef[] {

@@ -165,25 +165,43 @@ describe('fitLoadBed', () => {
     }
   });
 
-  it('spends the bed slack before it grows the lorry', () => {
+  it('spends the bed slack before it grows the vehicle', () => {
     const box = COLUMNS['desktop 1024x700'];
-    const bed = VEHICLE_BED['animal-lorry'];
-    const sprite = spriteOf('animal-lorry');
+    const id = 'electric-minibus';
+    const bed = VEHICLE_BED[id];
+    const sprite = spriteOf(id);
 
-    // Three bays do not fit across her measured bed at the size the
+    // Spark's bed is the narrowest in the fleet as a fraction of her
+    // sprite, and two bays still do not fit across it at the size the
     // box allows — the premise the slack exists to answer, asserted
     // rather than assumed.
     const fitScale = Math.min(box.w / sprite.w, box.h / sprite.h);
-    const bare = (sprite.w * fitScale * bed.w - BED_PAD * 2 - BAY_GAP * 2) / 3;
+    const bare = (sprite.w * fitScale * bed.w - BED_PAD * 2 - BAY_GAP) / 2;
     expect(bare).toBeLessThan(BAY_MIN);
 
-    const fit = fitIn(box, VEHICLE_DEFS['animal-lorry']);
+    const fit = fitIn(box, VEHICLE_DEFS[id]);
     expect(fit.slotW).toBeGreaterThanOrEqual(BAY_MIN);
-    expect(fit.gridW, 'the grid spread into the slack').toBeGreaterThan(fit.bed.w);
-    // And having spent it she is still drawn as small as the grid
-    // allows: the slack is the thing that keeps the overflow to a
-    // bumper rather than half a lorry.
-    expect(fit.spriteH / box.h, 'how far past the box she runs').toBeLessThan(1.15);
+    expect(fit.gridW, 'the grid spread into the slack').toBeGreaterThan(fit.bed.w - BED_PAD * 2);
+    // And having spent it she is still whole in the frame, which is
+    // what the slack is for: it buys a tappable bay without the
+    // vehicle having to grow out of the picture to supply one.
+    expect(fit.overflows, 'Spark still fits').toBe(false);
+  });
+
+  it('keeps the whole fleet in frame now that none of them is three across', () => {
+    // **What the 2026-10-09 reshape bought, as an assertion.** Three
+    // bays across a bed two-and-a-half times longer than it is wide
+    // forced the vehicle to be drawn big enough to supply the width,
+    // and Bea ran 28px past the bottom of the tarmac at this viewport
+    // while Spark ran 86 — 108 and 166 at the narrow one. Two columns
+    // ask for less than the bed already has, so nothing is clipped.
+    // This is the regression that would otherwise return silently the
+    // next time a grid is widened.
+    for (const label of ROOMY) {
+      for (const v of EVERY_VEHICLE) {
+        expect(fitIn(COLUMNS[label], v).overflows, `${v.name} at ${label}`).toBe(false);
+      }
+    }
   });
 
   it('grows the vehicle past the box rather than drop a bay below the tap floor', () => {
