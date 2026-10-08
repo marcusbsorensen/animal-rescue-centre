@@ -144,11 +144,27 @@ export function syncNextId(existingAnimals: { id: string }[]): void {
  * Spawn a new animal with random story and name.
  * Optionally link to a sibling. Pass existingNames to avoid duplicates.
  */
-export function spawnAnimal(
-  species: Species,
-  siblingId?: string,
-  existingNames?: string[]
-): Animal {
+/**
+ * Options for a spawn.
+ *
+ * These are an OBJECT rather than positional arguments on purpose.
+ * `siblingId` and `variant` are both bare strings, so positionally one
+ * silently takes the other's place and nothing — not the compiler, not a
+ * test — says a word. That is exactly what happened: GameScene passed the
+ * player's chosen variant into the sibling slot, so every animal picked in
+ * the intro arrived with a random coat and a siblingId pointing at nothing.
+ */
+export interface SpawnOptions {
+  /** The id of this animal's sibling, if it has one. */
+  siblingId?: string;
+  /** Force the coat. Falls back to random if it is not one this species has. */
+  variant?: string;
+  /** Names already in the shelter, so the new animal does not take one. */
+  existingNames?: string[];
+}
+
+export function spawnAnimal(species: Species, opts: SpawnOptions = {}): Animal {
+  const { siblingId, variant, existingNames } = opts;
   const id = `animal-${nextId++}`;
   const stories = ARRIVAL_STORIES[species];
   const names = ANIMAL_NAMES[species];
@@ -168,7 +184,12 @@ export function spawnAnimal(
     id,
     name,
     species,
-    variant: pickRandomVariant(species),
+    // A variant the species does not have would name a sprite that is not
+    // there, so an unknown one falls back to random rather than shipping a
+    // broken image.
+    variant: variant && SPECIES_VARIANTS[species].includes(variant)
+      ? variant
+      : pickRandomVariant(species),
     state: 'arriving',
     arrivalStory: stories[Math.floor(Math.random() * stories.length)],
     hunger: 60 + Math.floor(Math.random() * 30),       // 60–89 (hungry)
@@ -204,8 +225,11 @@ export function spawnAnimal(
  * apart at all.
  */
 export function spawnSiblingPair(species: Species, existingNames?: string[]): [Animal, Animal] {
-  const a = spawnAnimal(species, undefined, existingNames);
-  const b = spawnAnimal(species, a.id, [...(existingNames ?? []), a.name]);
+  const a = spawnAnimal(species, { existingNames });
+  const b = spawnAnimal(species, {
+    siblingId: a.id,
+    existingNames: [...(existingNames ?? []), a.name],
+  });
   a.siblingId = b.id;
   return [a, b];
 }

@@ -24,8 +24,29 @@ describe('spawnAnimal', () => {
   });
 
   it('can have a sibling link', () => {
-    const a = spawnAnimal('cat', 'sib-123');
+    const a = spawnAnimal('cat', { siblingId: 'sib-123' });
     expect(a.siblingId).toBe('sib-123');
+  });
+
+  it('honours a chosen variant', () => {
+    for (const variant of SPECIES_VARIANTS.cat) {
+      expect(spawnAnimal('cat', { variant }).variant).toBe(variant);
+    }
+  });
+
+  // The intro lets a child pick the coat of their first animal. That choice
+  // was passed into the sibling slot instead, so it was dropped on the floor
+  // and the animal also carried a siblingId naming no animal at all. Both
+  // are strings, so nothing caught it.
+  it('keeps a chosen variant out of the sibling link', () => {
+    const a = spawnAnimal('cat', { variant: 'ginger' });
+    expect(a.variant).toBe('ginger');
+    expect(a.siblingId).toBeUndefined();
+  });
+
+  it('falls back to a real variant when given one the species has not got', () => {
+    const a = spawnAnimal('cat', { variant: 'not-a-coat' });
+    expect(SPECIES_VARIANTS.cat).toContain(a.variant);
   });
 });
 

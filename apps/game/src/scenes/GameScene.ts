@@ -618,7 +618,10 @@ export class GameScene extends Phaser.Scene {
       this.store.animals.push(a, b);
       firstNew = a;
     } else {
-      const animal = spawnAnimal(species, this.preSelectedVariant ?? undefined, this.store.animals.map(a => a.name));
+      const animal = spawnAnimal(species, {
+        variant: this.preSelectedVariant,
+        existingNames: this.store.animals.map((a) => a.name),
+      });
       this.preSelectedVariant = undefined;
       this.store.animals.push(animal);
       firstNew = animal;

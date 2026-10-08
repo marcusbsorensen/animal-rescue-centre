@@ -100,7 +100,7 @@ export class IntroScene extends Phaser.Scene {
   private preSelectFirstAnimal(): { species: Species; variant: string; spriteSrc: string } {
     const unlocked = getSpeciesUnlocksForLevel(1, 0);
     const species = pickRandomSpecies(unlocked);
-    const sample = spawnAnimal(species, undefined, []);
+    const sample = spawnAnimal(species);
     const variant = sample.variant ?? 'default';
     const spriteSrc = `/assets/animals/${species}-${variant}-arriving.png`;
     return { species, variant, spriteSrc };

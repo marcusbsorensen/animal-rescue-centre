@@ -542,7 +542,7 @@ export class PtvDriveScene extends Phaser.Scene {
       .map((s) => s.trim().toLowerCase())
       .filter((s): s is Species => (CARGO_SPECIES as string[]).includes(s))
       .map((s) => {
-        const animal = spawnAnimal(s, undefined, taken);
+        const animal = spawnAnimal(s, { existingNames: taken });
         taken.push(animal.name);
         return animal;
       });
