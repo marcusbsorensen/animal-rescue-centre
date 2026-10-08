@@ -51,6 +51,17 @@ ALREADY_CORRECT = {
     'vehicle-topdown-pickup',
 }
 
+# Side elevations live in `topdown/` by name only. They are drawn square-on from
+# the flank, so there is no far end to narrow: a top-down taper would pinch the
+# roof against the wheels and tilt the whole van. They are cropped to their
+# subject and nothing else — even under --all, because no camera setting makes
+# the warp right for them. (`henry-side` is a different van that wants a
+# redraw; it is listed so a directory-wide run cannot warp it either.)
+SIDE_ELEVATION = {
+    'vehicle-topdown-henry-side',
+    'vehicle-topdown-henry-side-left', 'vehicle-topdown-henry-side-right',
+}
+
 # And the ones drawn too steep cannot be fixed by narrowing them — they need
 # less end face, which is a redraw. Warping them only makes them narrower
 # while still reading as tilted, so they are left alone and listed instead.
@@ -79,6 +90,11 @@ def skew(path, taper=TAPER, pad=PAD):
     if len(ys) < 64:
         return None
     im = im.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+    if taper >= 1.0:
+        # Nothing to warp. An identity perspective still resamples through
+        # BICUBIC and softens the art (up to 19/255 off on edge pixels, measured
+        # on henry-rear), so "copied unchanged" has to mean a plain crop.
+        return im
     m = int(max(im.size) * pad)
     canvas = Image.new('RGBA', (im.width + 2 * m, im.height + 2 * m), (0, 0, 0, 0))
     canvas.alpha_composite(im, (m, m))
@@ -101,7 +117,8 @@ def main():
     ap.add_argument('--contact-sheet', metavar='PATH',
                     help='also write a before/after sheet here')
     ap.add_argument('--all', action='store_true',
-                    help='warp every file, ignoring ALREADY_CORRECT and TOO_STEEP')
+                    help='warp every top-down file, ignoring ALREADY_CORRECT and '
+                         'TOO_STEEP (side elevations are still never warped)')
     args = ap.parse_args()
 
     files = sorted(f for f in os.listdir(args.src) if f.endswith('.png'))
@@ -109,29 +126,37 @@ def main():
         sys.exit(f'no PNGs in {args.src}')
     os.makedirs(args.dst, exist_ok=True)
 
-    done, skipped, passed, steep = [], [], [], []
+    done, skipped, passed, steep, sides = [], [], [], [], []
     for f in files:
         stem = f[:-4]
-        if not args.all and stem in TOO_STEEP:
+        if stem in SIDE_ELEVATION:
+            taper, bucket = 1.0, sides
+        elif not args.all and stem in TOO_STEEP:
             steep.append(f)
             continue
-        taper = 1.0 if (not args.all and stem in ALREADY_CORRECT) else args.taper
+        elif not args.all and stem in ALREADY_CORRECT:
+            taper, bucket = 1.0, passed
+        else:
+            taper, bucket = args.taper, done
         out = skew(os.path.join(args.src, f), taper)
         if out is None:
             skipped.append(f)
             continue
         out.save(os.path.join(args.dst, f))
-        (passed if taper == 1.0 else done).append(f)
+        bucket.append(f)
     print(f'{len(done)} skewed at taper {args.taper} → {args.dst}')
     if passed:
-        print(f'  {len(passed)} already had the camera right, copied unchanged: '
+        print(f'  {len(passed)} already had the camera right, cropped only: '
               f'{", ".join(x[:-4] for x in passed)}')
+    if sides:
+        print(f'  {len(sides)} side elevations, cropped only (a top-down taper '
+              f'would distort the profile): {", ".join(x[:-4] for x in sides)}')
     if steep:
         print(f'  {len(steep)} too steep for a warp to fix — these need redrawing: '
               f'{", ".join(x[:-4] for x in steep)}')
     if skipped:
         print(f'  skipped {len(skipped)} with no subject: {", ".join(skipped)}')
-    done = done + passed
+    done = done + passed + sides
 
     if args.contact_sheet and done:
         c, pad, lab, left = 210, 6, 15, 58
