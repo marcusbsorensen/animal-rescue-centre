@@ -223,6 +223,12 @@ each other as well; Spark's accent is BLUE where the master is GREEN; and Big
 Tilly is a solid red slab where from above you should be looking down into an
 open wooden load bed. Tilly is the largest piece of work.
 
+**The red paw-heart on Henry's rear STAYS.** Decided by Marcus 2026-10-06.
+It is not a fault and must not be "corrected" away. His master portrait is a
+SIDE view, so it never shows his back and therefore cannot contradict a
+rear-door marking. The flanks take the master's A.R.C. oval and painted
+flowers; the rear door keeps the paw, which is also the app icon's own mark.
+
 **Henry's five files are not five top-downs.** `henry` and `henry-rear` are
 genuine overhead views. `henry-side-left` and `henry-side-right` are SIDE
 ELEVATIONS (mirror images of each other) in cream with blue windows, orange
