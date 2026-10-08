@@ -5,6 +5,8 @@
     python3 tools/install-vehicles.py --in manus-output/vehicles-livery --stage-only
     python3 tools/install-vehicles.py --in manus-output/vehicles-livery
     python3 tools/install-vehicles.py --in <dir> --only henry,spark
+    python3 tools/install-vehicles.py --in manus-output/vehicles-proportion \
+        --gate-mode ends --keep-width --backup-dir asset-drafts/pre-proportion-backup
 
 This is `install-restyled.py` for `assets/driving/topdown/`. That tool was
 written for animals and three of its assumptions are wrong for vehicles, so it
@@ -39,7 +41,27 @@ truth and cannot drift from this tool.
    match better. That catches a drifted outline and a reversed vehicle, which
    a colour pass can do silently. A rejected sprite is reported and skipped;
    nothing else is held up. `--no-gate` for a deliberate redesign.
+
+   `--gate-mode ends` is the gate for a redesign that changes PROPORTION
+   (2026-10-08: the eight fleet sprites lengthened 1.4-1.9x). Whole-outline
+   IoU cannot pass there, because the outline is meant to change. What does
+   not change is the nose and the tail, which the brief says to keep exactly
+   as drawn while the middle is lengthened. So the vehicle is normalised to
+   one width, the first and last half-width of it are cut off, and each end
+   is compared with the same end of the installed sprite (IoU must reach
+   `--min-iou`). The pair is then compared with the installed ends swapped
+   and flipped, and must not match that better: still a reversal check.
+   Measured on the eight, the ends matched at 0.94-0.998 against 0.71-0.94
+   when reversed.
 2. *Geometry*, per file, from skew-topdown's rules: skewed, or cropped only.
+   `--keep-width` adds one pure scale after the warp: the result is resized
+   uniformly back to the opaque width of the source. The warp narrows the
+   widest row by 2-6% on the skewed files and by nothing on the ALREADY_CORRECT
+   ones, so without this a vehicle's front and rear come out at different
+   widths when the source art gave them the same one (measured: Henry 4.1%,
+   Bea 4.5%, Spark 3.5%). It is a uniform scale, so the aspect, the camera
+   and the art are exactly what the warp made them; a cropped-only file is
+   already at its source width and is not resampled at all.
 3. *256-colour palette*, FASTOCTREE, as install-restyled does. The installed
    set is mode P at 256; the 2026-09-06 installs were measured against this
    quantiser (mean RGB error 3.0 against 3.07 here).
@@ -73,6 +95,7 @@ COLOURS = 256
 MIN_IOU = 0.90
 SOLID_FROM = 240        # body alpha at or above this is lifted to 255
 GATE_SIZE = 256         # silhouettes are compared on a normalised square
+END_BAND = 0.5          # --gate-mode ends: depth of each end band, in widths
 
 _spec = importlib.util.spec_from_file_location(
     'skew_topdown', os.path.join(ROOT, 'tools', 'skew-topdown.py'))
@@ -116,6 +139,53 @@ def gate(src_path, ref_path, side, min_iou):
     if flipped > same:
         return False, f'reads as reversed {axis}: IoU {same:.3f} as drawn, {flipped:.3f} flipped'
     return True, f'IoU {same:.3f} (flipped {flipped:.3f})'
+
+
+def end_mask(im, side):
+    """Tight silhouette, long axis down the rows, short axis resampled to GATE_SIZE."""
+    a = np.array(im.convert('RGBA'))[..., 3] > 16
+    ys, xs = np.nonzero(a)
+    c = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    if side:
+        c = c.T
+    h = max(1, round(c.shape[0] * GATE_SIZE / c.shape[1]))
+    return np.array(Image.fromarray((c * 255).astype('uint8')).resize((GATE_SIZE, h))) > 127
+
+
+def gate_ends(src_path, ref_path, side, min_iou):
+    """(ok, why). Compare the NOSE and the TAIL, not the whole outline.
+
+    For a redraw that lengthens the middle, the two ends are the part that must
+    survive. See `--gate-mode ends` in the module docstring."""
+    new = end_mask(Image.open(src_path), side)
+    ref = end_mask(Image.open(ref_path), side)
+    b = round(GATE_SIZE * END_BAND)
+    if min(new.shape[0], ref.shape[0]) < 2 * b:
+        return False, f'shorter than two end bands ({2 * END_BAND:g}x its width): the ends gate does not apply'
+    head, tail = iou(new[:b], ref[:b]), iou(new[-b:], ref[-b:])
+    # A reversed vehicle has the old tail, upside down, where its head should be.
+    rhead, rtail = iou(new[:b], ref[-b:][::-1]), iou(new[-b:], ref[:b][::-1])
+    axis = 'left-right' if side else 'top-bottom'
+    if min(head, tail) < min_iou:
+        return False, (f'end IoU head {head:.3f} tail {tail:.3f}, below {min_iou:.2f}: '
+                       f'a nose or tail has drifted')
+    if rhead + rtail > head + tail:
+        return False, (f'reads as reversed {axis}: ends {head:.3f}/{tail:.3f} as drawn, '
+                       f'{rhead:.3f}/{rtail:.3f} reversed')
+    return True, f'ends IoU head {head:.3f} tail {tail:.3f} (reversed {rhead:.3f}/{rtail:.3f})'
+
+
+def opaque_width(path):
+    a = np.array(Image.open(path).convert('RGBA'))[..., 3] > 16
+    xs = np.nonzero(a.any(axis=0))[0]
+    return int(xs.max() - xs.min() + 1)
+
+
+def match_width(im, want):
+    """Uniform resize so the opaque width is `want`. Aspect is untouched."""
+    if im.width == want:
+        return im
+    return im.resize((want, max(1, round(im.height * want / im.width))), Image.LANCZOS)
 
 
 def translucent_body(im):
@@ -175,6 +245,10 @@ def main():
                     help='default: asset-drafts/pre-vehicle-install-backup-<n>')
     ap.add_argument('--min-iou', type=float, default=MIN_IOU)
     ap.add_argument('--no-gate', action='store_true', help='skip the silhouette/orientation gate')
+    ap.add_argument('--gate-mode', choices=('silhouette', 'ends'), default='silhouette',
+                    help="'ends' compares nose and tail only, for a redraw that changes proportion")
+    ap.add_argument('--keep-width', action='store_true',
+                    help='after the warp, resize uniformly back to the source\'s opaque width')
     ap.add_argument('--stage-only', action='store_true', help='write the staged files and stop')
     ap.add_argument('--dry-run', action='store_true', help='show the plan, write nothing')
     args = ap.parse_args()
@@ -186,6 +260,7 @@ def main():
     if not files:
         sys.exit(f'no vehicle-topdown-*.png in {args.src}')
 
+    check = gate_ends if args.gate_mode == 'ends' else gate
     plan, rejected = [], []
     for f in files:
         stem = f[:-4]
@@ -195,7 +270,7 @@ def main():
             rejected.append((f, why))
             continue
         if not args.no_gate and os.path.exists(ref):
-            ok, gwhy = gate(os.path.join(args.src, f), ref, stem in st.SIDE_ELEVATION, args.min_iou)
+            ok, gwhy = check(os.path.join(args.src, f), ref, stem in st.SIDE_ELEVATION, args.min_iou)
             if not ok:
                 rejected.append((f, gwhy))
                 continue
@@ -222,6 +297,8 @@ def main():
             print(f'  ! {f}: subject too small, likely an empty or failed render')
             rejected.append((f, 'no subject'))
             continue
+        if args.keep_width:
+            out = match_width(out, opaque_width(os.path.join(args.src, f)))
         lifted = translucent_body(out)
         pal = solid_palette(out.quantize(colors=COLOURS, method=Image.FASTOCTREE))
         dst = os.path.join(args.stage, f)
