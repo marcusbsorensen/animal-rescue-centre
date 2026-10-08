@@ -250,6 +250,12 @@ const CARGO_SPECIES: Species[] = [
 ];
 
 /**
+ * The sprite states the loading screen asks for: the settled animal,
+ * and the three faces a neighbour can give her.
+ */
+const CARGO_STATES = ['sheltered', 'walking', 'playing', 'grumpy', 'scared'];
+
+/**
  * PtvDriveScene — the hybrid-camera PTV drive.
  *
  * Slice 1 (+ eyeball polish): top-down travel mode. Gentle daylight bird's-eye
@@ -301,7 +307,16 @@ export class PtvDriveScene extends Phaser.Scene {
    * or an empty van asked to set off. Cleared by her next tap and never
    * by a timer.
    */
-  private loadNotice: { level: CompatibilityLevel | null; text: string } | null = null;
+  private loadNotice: {
+    level: CompatibilityLevel | null;
+    text: string;
+    /**
+     * Who the refusal was about. The sentence names two animals and
+     * the panel now draws them, so the ids travel with the words
+     * instead of being thrown away between the rule and the picture.
+     */
+    pair?: { animalId: string; neighbourId: string };
+  } | null = null;
 
   // Render state
   private roadGfx?: Phaser.GameObjects.Graphics;
@@ -432,9 +447,19 @@ export class PtvDriveScene extends Phaser.Scene {
     // manifest, and without them every animal draws as its fallback
     // coloured rectangle — which is exactly the thing the screen is
     // being looked at to judge.
+    //
+    // **The expression states come with it.** The loading screen draws
+    // an animal with the face her neighbours give her — content,
+    // worried, frightened — and `createAnimalSprite` falls back to
+    // `sheltered` for any state it cannot find. A demo boot missing
+    // these would not break: it would draw eight calm animals and
+    // quietly lose the whole point of the screen, which is the worse
+    // failure of the two.
     for (const s of CARGO_SPECIES) {
-      if (!this.textures.exists(`${s}-sheltered`)) {
-        this.load.image(`${s}-sheltered`, `/assets/animals/${s}-sheltered.png`);
+      for (const st of CARGO_STATES) {
+        if (!this.textures.exists(`${s}-${st}`)) {
+          this.load.image(`${s}-${st}`, `/assets/animals/${s}-${st}.png`);
+        }
       }
     }
     // The six painted crates, for the loading screen's bays and tray.
@@ -1101,7 +1126,14 @@ export class PtvDriveScene extends Phaser.Scene {
 
     if (!outcome.placed) {
       this.loadNotice = outcome.notes.length > 0
-        ? { level: outcome.notes[0].level, text: outcome.notes[0].text }
+        ? {
+          level: outcome.notes[0].level,
+          text: outcome.notes[0].text,
+          pair: {
+            animalId: outcome.notes[0].animalId,
+            neighbourId: outcome.notes[0].neighbourId,
+          },
+        }
         : null;
       this.renderView();
       return;
@@ -1132,6 +1164,9 @@ export class PtvDriveScene extends Phaser.Scene {
         text: blocker
           ? `${blocker.text} Tap one of them to move them somewhere else.`
           : 'Two of the animals cannot sit next to each other yet.',
+        pair: blocker
+          ? { animalId: blocker.animalId, neighbourId: blocker.neighbourId }
+          : undefined,
       };
       this.renderView();
       return;

@@ -40,7 +40,7 @@ import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import {
   FEELING,
-  FEELING_MARK,
+  animalById,
   crateDefFor,
   heldAnimal,
   settledNotes,
@@ -76,16 +76,64 @@ import {
 /**
  * The three feelings, as a surface each.
  *
- * Colour reinforces here, it never carries: every badge draws its mark
- * *and* its word, and the sentence in the panel says the same thing a
- * third time. A child who does not see red and green apart reads the
- * screen exactly as well as one who does.
+ * Colour reinforces here, it never carries: every glyph has a silhouette
+ * of its own, every badge draws its word, and the sentence in the panel
+ * says the same thing a third time. A child who does not see red and
+ * green apart reads the screen exactly as well as one who does.
  */
 const FEELING_SKIN: Record<CompatibilityLevel, { fill: number; stroke: number; ink: string }> = {
   happy:    { fill: 0xd9efdd, stroke: hexNum(COLOURS.primaryDark), ink: COLOURS.primaryDark },
   stressed: { fill: 0xfdeec2, stroke: 0x8a6a1f,                    ink: '#6b5112' },
   blocked:  { fill: 0xf7dcd6, stroke: hexNum(COLOURS.accent),      ink: COLOURS.accent },
 };
+
+/**
+ * The face an animal wears, per feeling.
+ *
+ * The expression art is complete — every species and every variant has
+ * all ten states — so an animal who is frightened of her neighbour can
+ * simply *look* frightened, which is the one thing on this screen a
+ * child who cannot yet read can take in at full speed.
+ *
+ * **Only the animal who feels it wears a face.** The rules name a cause
+ * and a sufferer — "Poppy the dog makes Smokey the cat worried" — and
+ * drawing both of them frightened would teach a child that the dog is
+ * frightened too, which is not what the sentence says and not what is
+ * happening. The cause stays `sheltered`: calm, doing nothing wrong,
+ * which is the truth about a dog who happens to alarm a cat.
+ *
+ * `playing` rather than `sheltered` for a happy pair, because the pair
+ * is the point: `sheltered` is the state every settled animal is in
+ * anyway, so it would say nothing, and `playing` is the one state where
+ * all eight species read as pleased to be there.
+ */
+const FACE_AFFECTED: Record<CompatibilityLevel, string> = {
+  happy: 'playing',
+  stressed: 'grumpy',
+  blocked: 'scared',
+};
+
+/**
+ * The face of an animal who is only ever the cause — fine, doing
+ * nothing, unaware that the hedgehog beside her minds.
+ *
+ * **`walking` rather than the obvious `sheltered`, and it was the art
+ * that decided.** `sheltered` is each species at rest, and at rest
+ * they are at rest in their own way: the cat sits on a cushion with a
+ * pink love-heart over her head, the bat hangs upside down from a
+ * branch, the parrot stands on a perch and the snake is a drab grey
+ * coil where every other state paints her bright green. Drawn beside
+ * a scowling hedgehog under the sentence "Tiger the cat makes Nettle
+ * the hedgehog worried", the love-heart reads as smugness — and it is
+ * a heart, which on this screen is already the mark meaning *these
+ * two are glad of each other*, floating over one animal in a pair
+ * that is not.
+ *
+ * `walking` is the one state where all eight are simply themselves:
+ * upright, unbothered, no props, no weather. Neutral is what the
+ * cause of somebody else's worry should look like.
+ */
+const FACE_CALM = 'walking';
 
 /** Gap between crate bays, and between tray chips. */
 const GAP = BAY_GAP;
@@ -133,6 +181,15 @@ const BAY_WELL_SHADE = 0x6f5737;
 const BAY_WELL_LIP = 0xfdf5e4;
 
 /**
+ * How far the well is cut outside the crate that stands in it.
+ *
+ * Two pixels, which is a ring of shadow round a crate rather than a
+ * margin: the crate should look lowered into the hole, resting on the
+ * lip, not placed on a mat that is bigger than it is.
+ */
+const WELL_LIP = 2;
+
+/**
  * The tray is a grid of chips in whatever room the right-hand column
  * has left. A chip is as big as that allows, within these.
  */
@@ -144,6 +201,43 @@ const CHIP_MAX_H = 104;
  * to the full-width strip instead, where six chips have the room.
  */
 const CHIP_NAME_MIN_W = 76;
+
+/**
+ * The panel, as a height budget: the picture, then the words.
+ *
+ * `PANEL_TEXT_H` is a heading and four lines — the longest copy the
+ * panel now carries, which is one sentence about the pair in the
+ * picture plus the line telling the child what to do about it. It is
+ * sized for that rather than for its contents, because a panel that
+ * changed height would move the words a child is in the middle of
+ * reading.
+ *
+ * **Four lines, where it used to be five and carry three sentences.**
+ * The sentences are long: at the panel's width "Pumpkin the cat makes
+ * Truffle the hedgehog worried. They can sit next to each other, but
+ * Truffle will not enjoy the journey." is three lines on its own, so
+ * three of them was nine lines of prose — a hundred and seventeen
+ * pixels more than the plate had, which it simply ran off the bottom
+ * of onto the tray. It was over its own paper before this change and
+ * nobody had measured it.
+ *
+ * So the panel says one thing now: *this* pair, in a picture and in
+ * the sentence under it. The other pairs did not go anywhere — they
+ * are on the grid, each wearing its own faces and its own glyph on the
+ * edge the two of them share, which is where a fact about two
+ * particular bays belongs and is the whole reason those exist.
+ *
+ * `PANEL_FACES_H` is the band above the words: a name row and an
+ * animal about eighty pixels tall, which is nearly three times the
+ * size the same animal is in one of Big Tilly's bays. That is the
+ * point of it. A panel too short for the full band draws a smaller
+ * one, and a panel too short for `PANEL_FACES_MIN` — the landscape
+ * phone, where the whole band is about 98px — draws none and falls
+ * back to the carried animal in the corner, as it did before.
+ */
+const PANEL_TEXT_H = 34 + 4 * 27;
+const PANEL_FACES_H = 104;
+const PANEL_FACES_MIN = 62;
 
 /**
  * Below this a bay cannot carry a name row without the name taking more
@@ -168,12 +262,20 @@ const BAY_NAME_MIN_H = 60;
  * runs out on different axes in each: a bay is pinched for width, and
  * a tray chip in the landscape-phone strip is pinched for height.
  *
- * Every bay in the fleet clears it, Big Tilly's 36px nine included —
- * the load where matching crates matters most. What does not clear it
- * is that bottom strip on a short viewport, and the no-texture
- * fallback, where bays are sized off the raw box.
+ * Every bay in the fleet clears it, Big Tilly's nine included — the
+ * load where matching crates matters most. What does not clear it is
+ * that bottom strip on a short viewport, and the no-texture fallback,
+ * where bays are sized off the raw box.
+ *
+ * **It was 32 and came down to 24 when `CRATE_FLOOR` went up.** The
+ * threshold is a statement about how much animal is left once the rim
+ * has taken its share, and the rim's share just fell from 44% of the
+ * crate to 22%: a 32px crate used to leave 18px of animal and now
+ * leaves 25px, so the size at which the animal stops being anybody in
+ * particular moved down with it. 24px of crate is 19px of animal,
+ * which is about where the old number sat.
  */
-const CRATE_ART_MIN = 32;
+const CRATE_ART_MIN = 24;
 
 export interface CrateLoadingCallbacks {
   /** An animal in the tray was tapped — pick it up. */
@@ -207,7 +309,51 @@ export interface CrateLoadingState {
    * an empty van asked to set off. Shown instead of the standing
    * message until the next tap, and never on a timer.
    */
-  notice?: { level: CompatibilityLevel | null; text: string } | null;
+  notice?: {
+    level: CompatibilityLevel | null;
+    text: string;
+    /**
+     * The two animals the refusal was about, so the panel can draw
+     * them. Absent for a notice with no pair in it — an empty van
+     * asked to set off.
+     */
+    pair?: { animalId: string; neighbourId: string };
+  } | null;
+}
+
+/** Somebody the panel is drawing, and the face they are wearing. */
+interface CastMember {
+  id: string;
+  name: string;
+  /** Sprite state, or undefined to let the sprite layer derive it. */
+  face?: string;
+}
+
+/**
+ * Who the panel draws above its words.
+ *
+ * **The picture is the panel now, and the sentences sit under it.** It
+ * was three lines of prose, which a child who cannot read fluently
+ * cannot use and a child who is learning will not try: a block of text
+ * is a wall before it is a sentence. So the two animals the sentence is
+ * about are drawn large, side by side, wearing the faces the sentence
+ * gives them, and the words say the same thing underneath for the
+ * children who can read them and the ones who are getting there.
+ *
+ * An empty `members` is the empty van — there is nobody to draw, and
+ * the panel shows the hole they would go in instead of dropping back
+ * to a wall of text the moment it has no animals.
+ */
+interface PanelCast {
+  members: CastMember[];
+  /** The glyph between them, where the two are neighbours. */
+  level?: CompatibilityLevel;
+  /**
+   * They are aboard but not beside each other — drawn with the van's
+   * floor between them, which is the picture of "nobody has a
+   * neighbour to mind".
+   */
+  apart?: boolean;
 }
 
 /** Lines the panel shows, and which feeling (if any) tints its heading. */
@@ -215,6 +361,23 @@ interface PanelCopy {
   heading: string;
   tone: CompatibilityLevel | null;
   body: string[];
+  cast?: PanelCast;
+}
+
+/** One animal, for the panel. */
+function castOne(animal: LoadableAnimal, face?: string): CastMember {
+  return { id: animal.id, name: animal.name, face };
+}
+
+/** The two animals a note is about, each wearing what the note gives them. */
+function castPair(session: LoadingSession, note: AdjacencyNote): PanelCast | undefined {
+  const pair = pairOf(session, note);
+  if (!pair) return undefined;
+  const [faceA, faceB] = pairFaces(note, pair);
+  return {
+    members: [castOne(pair[0], faceA), castOne(pair[1], faceB)],
+    level: note.level,
+  };
 }
 
 interface Box { x: number; y: number; w: number; h: number }
@@ -245,23 +408,163 @@ function fitLabel(
   return text;
 }
 
+// ── Who feels what ───────────────────────────────────────────
+
 /**
- * How much of a painted crate is clear floor.
- *
- * All six are drawn from directly above, open and empty, with a pale
- * cream floor in the middle. Measured off the files as the largest
- * centred square of clear floor: the warm vivarium has 0.59, the
- * secure crate 0.58, the standard crate 0.55, the quiet bed 0.53 and
- * the round ventilated basket 0.44 — the basket is a circle, so its
- * square is the smallest while its *width* at the middle is as wide as
- * anybody's. 0.56 puts an animal on the floor of five of the six and
- * lets the corners of a sprite in the basket brush the weave, which is
- * what an animal in a basket looks like.
- *
- * The perch carrier measures zero because its perch crosses the
- * middle, and a bird drawn over its perch is a bird perching.
+ * The two names an `AdjacencyNote` is about, in the order the rules
+ * wrote them.
  */
-const CRATE_FLOOR = 0.56;
+export function pairOf(
+  session: LoadingSession,
+  note: AdjacencyNote,
+): [LoadableAnimal, LoadableAnimal] | null {
+  const a = animalById(session, note.animalId);
+  const b = animalById(session, note.neighbourId);
+  return a && b ? [a, b] : null;
+}
+
+/**
+ * Which of a pair the note says is the one who feels it.
+ *
+ * **Read off the sentence rather than worked out again here, and
+ * deliberately.** `describePair` already decides the direction — it
+ * ranks the species by how much they alarm the others and makes the
+ * bolder one the subject — but the note it hands back carries only the
+ * two ids and the level, so the view has to recover it somehow. The
+ * two candidates were to re-rank the species in this file or to read
+ * the sentence the child is being shown, and the sentence wins: a
+ * second copy of the ranking could drift, and the day it drifted the
+ * screen would show a frightened face beside a sentence naming the
+ * other animal as the frightened one. Teaching a child the wrong
+ * animal is afraid of the wrong animal is the one failure this whole
+ * change exists to avoid.
+ *
+ * `describePair` writes exactly three shapes, and this reads all
+ * three: "A and B are happy next to each other" (nobody feels
+ * anything), "A makes B worried/frightened" (B feels it), and the
+ * equal-rank "A and B make each other worried" / "frighten each other"
+ * (both feel it). `crate-loading-view.test.ts` pins the reading
+ * against the live `describePair` for every pair of species, so a
+ * reworded sentence fails a test rather than mislabelling a face.
+ */
+export function affectedBy(
+  note: AdjacencyNote,
+  pair: [LoadableAnimal, LoadableAnimal],
+): Set<string> {
+  if (note.level === 'happy') return new Set();
+  const [a, b] = pair;
+  const named = (x: LoadableAnimal) => `${x.name} the ${x.species}`;
+  if (note.text.startsWith(`${named(a)} makes `)) return new Set([b.id]);
+  if (note.text.startsWith(`${named(b)} makes `)) return new Set([a.id]);
+  // Equally alarming to each other — the sentence says "each other",
+  // and so does the picture.
+  return new Set([a.id, b.id]);
+}
+
+/**
+ * How one animal feels about the neighbours she actually has — the
+ * worst of it, and only where she is the one affected.
+ *
+ * **Worst wins, because `previewPlacement` already says so.** The
+ * engine takes the worst level among a slot's neighbours when it
+ * decides whether a placement is allowed, and a face that averaged its
+ * neighbours instead would disagree with the rule the child is being
+ * taught. Frightened beats worried beats happy.
+ *
+ * Null for an animal with nobody beside her, and for one who is only
+ * ever the *cause* — a dog who alarms the cat next door is not himself
+ * alarmed, and painting him worried would say he was.
+ */
+export function gridFeeling(session: LoadingSession, animalId: string): CompatibilityLevel | null {
+  let worst: CompatibilityLevel | null = null;
+  for (const note of settledNotes(session)) {
+    if (note.animalId !== animalId && note.neighbourId !== animalId) continue;
+    const pair = pairOf(session, note);
+    if (!pair) continue;
+    if (note.level === 'happy') {
+      worst ??= 'happy';
+      continue;
+    }
+    if (!affectedBy(note, pair).has(animalId)) continue;
+    if (note.level === 'blocked') return 'blocked';
+    worst = 'stressed';
+  }
+  return worst;
+}
+
+/**
+ * The sprite state an animal in the grid is drawn in.
+ *
+ * Undefined for an animal with nobody beside her, which leaves
+ * `createAnimalSprite` to derive the state as it does everywhere else
+ * — so an animal who is poorly still looks poorly right up until a
+ * neighbour gives the screen something louder to report.
+ *
+ * An animal who *has* a neighbour always gets a face, even when that
+ * face is "fine": she is in the picture the panel may be drawing of
+ * this pair, and the two have to match.
+ */
+export function gridFace(session: LoadingSession, animalId: string): string | undefined {
+  const alone = !settledNotes(session).some(
+    (n) => n.animalId === animalId || n.neighbourId === animalId,
+  );
+  if (alone) return undefined;
+  const feeling = gridFeeling(session, animalId);
+  return feeling ? FACE_AFFECTED[feeling] : FACE_CALM;
+}
+
+/**
+ * The two faces for one note — who looks how, for this pair alone.
+ *
+ * The panel illustrates one sentence, so it asks about one pair; the
+ * bays illustrate the whole load, so they ask `gridFace` about every
+ * neighbour at once. Both go through `affectedBy`, which is what keeps
+ * the panel and the bay from ever disagreeing about who is frightened.
+ */
+export function pairFaces(
+  note: AdjacencyNote,
+  pair: [LoadableAnimal, LoadableAnimal],
+): [string, string] {
+  if (note.level === 'happy') return [FACE_AFFECTED.happy, FACE_AFFECTED.happy];
+  const hit = affectedBy(note, pair);
+  const face = FACE_AFFECTED[note.level];
+  return [
+    hit.has(pair[0].id) ? face : FACE_CALM,
+    hit.has(pair[1].id) ? face : FACE_CALM,
+  ];
+}
+
+/**
+ * How much of a painted crate the animal is drawn across.
+ *
+ * **It was 0.56, the crate's clear floor, and that was the wrong
+ * measurement.** The clear floor is real — measured off the files as
+ * the largest centred square of unbroken cream, the warm vivarium has
+ * 0.59, the secure crate 0.57, the standard 0.55, the quiet bed 0.53
+ * and the round basket 0.47 — but it is the size of the *box*, not of
+ * the animal in it, and the animal art carries a transparent margin of
+ * its own. Measured across the eight species this screen loads, the
+ * opaque part of a sprite runs 0.50 to 0.94 of its file: a bunny is
+ * half her own picture. So a bunny drawn at 0.56 of her crate was
+ * 0.28 of it, and in Big Tilly's 40px bays that is a ten-pixel bunny
+ * inside a thirty-six-pixel box. Marcus is right that she is a speck,
+ * and the arithmetic above is why.
+ *
+ * 0.78 sizes the *box* past the clear floor so the *animal* lands on
+ * it. The species with tight art — the bunny at 0.50, the hedgehog at
+ * 0.56 — come out comfortably inside the rim; the wide ones, the bat
+ * at 0.92 and the snake at 0.92, now reach 0.72 of the crate against
+ * an opening of 0.66 to 0.73 and tuck their edges a few pixels behind
+ * the painted walls. That is not an overflow, it is an animal sitting
+ * in a crate: the walls are nearer the camera than she is, so they are
+ * in front of her, and the crate reads as holding her rather than as a
+ * frame drawn round her.
+ *
+ * The perch carrier has no clear floor at all because its perch
+ * crosses the middle, and a bird drawn over its perch is a bird
+ * perching.
+ */
+const CRATE_FLOOR = 0.78;
 
 /**
  * The crate an animal travels in, drawn — a painted crate when there is
@@ -327,12 +630,16 @@ function makeCratedAnimal(
   animal: Animal | undefined,
   crate: CrateDef,
   size: number,
+  /** The face she wears, where her neighbours have given her one. */
+  state?: string,
 ): Phaser.GameObjects.GameObject {
   const key = `crate-${crate.id}`;
   if (!scene.textures.exists(key)) {
     const fallback: Phaser.GameObjects.GameObject[] = [];
     if (animal) {
-      fallback.push(createAnimalSprite(scene, 0, 0, animal, { width: size, height: size }));
+      fallback.push(createAnimalSprite(
+        scene, 0, 0, animal, { width: size, height: size, stateOverride: state },
+      ));
     }
     const badge = Math.round(size * 0.42);
     fallback.push(makeCrateFace(scene, -size / 2 + badge / 2, -size / 2 + badge / 2, crate, badge));
@@ -345,51 +652,171 @@ function makeCratedAnimal(
   if (animal) {
     const inside = Math.round(size * CRATE_FLOOR);
     children.push(
-      createAnimalSprite(scene, 0, 0, animal, { width: inside, height: inside }),
+      createAnimalSprite(
+        scene, 0, 0, animal, { width: inside, height: inside, stateOverride: state },
+      ),
     );
   }
   return scene.add.container(x, y, children);
 }
 
-/** One feeling badge — the mark, and under it the word. */
+// ── The vibe glyph ───────────────────────────────────────────
+
+/**
+ * One mark per feeling, and each one a different *shape*.
+ *
+ * A spiral for frightened — Marcus's "grrrr", a line winding tighter
+ * and tighter — a zigzag for worried, and a heart for two animals who
+ * are glad of each other. They were a tick, a bang and a cross in
+ * three coloured discs, which was already shape-coded but read as
+ * three buttons; these read as something somebody drew on the load
+ * sheet, which is the register the rest of the screen is in.
+ *
+ * **Shape, not colour, carries it.** Roughly one boy in twelve cannot
+ * tell the red from the green, and red/amber/green is the worst axis
+ * in the world to hang a meaning on. Printed in grey these are still a
+ * spiral, a zigzag and a heart.
+ *
+ * Ink and wash: the wash is a soft blob nudged down and right of the
+ * line, the way a wet colour sits a little off its drawing, and the
+ * line itself is drawn rather than set — no flat fills, no hard
+ * geometric disc behind.
+ */
+function drawVibeGlyph(
+  gfx: Phaser.GameObjects.Graphics,
+  x: number,
+  y: number,
+  level: CompatibilityLevel,
+  r: number,
+): void {
+  const skin = FEELING_SKIN[level];
+
+  // The wash, off its line the way a wet colour is. Soft: it is there
+  // to lift the line off whatever is behind it, not to be a disc.
+  gfx.fillStyle(skin.fill, 0.72);
+  gfx.fillCircle(x + r * 0.1, y + r * 0.12, r * 1.05);
+  gfx.fillStyle(skin.fill, 0.45);
+  gfx.fillCircle(x - r * 0.14, y - r * 0.12, r * 0.86);
+
+  const w = Math.max(1.5, r * 0.22);
+  gfx.lineStyle(w, skin.stroke, 1);
+
+  if (level === 'blocked') {
+    // A spiral, wound from the middle outwards — two and a bit turns,
+    // which is enough to read as winding and few enough to stay open
+    // at Big Tilly's size.
+    const steps = 44;
+    gfx.beginPath();
+    for (let i = 0; i <= steps; i += 1) {
+      const t = i / steps;
+      const ang = t * 2.15 * Math.PI * 2;
+      const rad = r * 0.78 * t;
+      const px = x + Math.cos(ang) * rad;
+      const py = y + Math.sin(ang) * rad;
+      if (i === 0) gfx.moveTo(px, py);
+      else gfx.lineTo(px, py);
+    }
+    gfx.strokePath();
+    return;
+  }
+
+  if (level === 'stressed') {
+    // A zigzag: sharp where the spiral is round, so the two are still
+    // apart with the colour taken away.
+    const pts: Array<[number, number]> = [
+      [-0.62, -0.62], [0.30, -0.26], [-0.30, 0.16], [0.62, 0.58],
+    ];
+    gfx.beginPath();
+    pts.forEach(([ux, uy], i) => {
+      const px = x + ux * r;
+      const py = y + uy * r;
+      if (i === 0) gfx.moveTo(px, py);
+      else gfx.lineTo(px, py);
+    });
+    gfx.strokePath();
+    return;
+  }
+
+  // Happy: a heart, drawn as a closed curve so it has a silhouette of
+  // its own rather than being the third dot in a row of dots.
+  const steps = 40;
+  gfx.beginPath();
+  for (let i = 0; i <= steps; i += 1) {
+    const t = (i / steps) * Math.PI * 2;
+    const hx = 16 * Math.sin(t) ** 3;
+    const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t)
+      - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+    const px = x + (hx / 17) * r * 0.82;
+    const py = y + (hy / 17) * r * 0.82;
+    if (i === 0) gfx.moveTo(px, py);
+    else gfx.lineTo(px, py);
+  }
+  gfx.closePath();
+  gfx.fillStyle(skin.stroke, 0.16);
+  gfx.fillPath();
+  gfx.strokePath();
+}
+
+/**
+ * The glyph on its own, for a shared edge — or with its word under it,
+ * for the live preview inside an empty bay.
+ *
+ * One mark means one thing: the preview a child reads before she taps
+ * and the mark she reads afterwards are the same drawing, so she only
+ * ever learns it once.
+ */
 function makeFeelingBadge(
   scene: Phaser.Scene,
   x: number,
   y: number,
   level: CompatibilityLevel,
-  options?: { withWord?: boolean },
+  options?: { withWord?: boolean; radius?: number },
 ): Phaser.GameObjects.Container {
-  const skin = FEELING_SKIN[level];
   const withWord = options?.withWord ?? false;
-  const r = withWord ? 17 : 13;
+  const r = options?.radius ?? (withWord ? 17 : 13);
 
   const gfx = scene.add.graphics();
-  gfx.fillStyle(skin.fill, 1);
-  gfx.fillCircle(0, withWord ? -6 : 0, r);
-  gfx.lineStyle(2, skin.stroke, 1);
-  gfx.strokeCircle(0, withWord ? -6 : 0, r);
+  drawVibeGlyph(gfx, 0, withWord ? -6 : 0, level, r);
 
-  const mark = scene.add.text(0, withWord ? -6 : 0, FEELING_MARK[level], {
-    fontSize: withWord ? '20px' : '16px',
-    fontFamily: FONTS.ui,
-    fontStyle: 'bold',
-    color: skin.ink,
-    resolution: TEXT_RESOLUTION,
-  }).setOrigin(0.5);
-
-  const children: Phaser.GameObjects.GameObject[] = [gfx, mark];
+  const children: Phaser.GameObjects.GameObject[] = [gfx];
   if (withWord) {
     children.push(
-      scene.add.text(0, 20, FEELING[level], {
+      scene.add.text(0, r + 7, FEELING[level], {
         fontSize: `${MIN_FONT.small}px`,
         fontFamily: FONTS.ui,
         fontStyle: 'bold',
-        color: skin.ink,
+        color: FEELING_SKIN[level].ink,
         resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5),
     );
   }
   return scene.add.container(x, y, children);
+}
+
+/**
+ * Whether a settled pair earns a glyph on the edge they share.
+ *
+ * **Not every pair.** Nine bays have twelve shared edges, and a mark
+ * on all twelve is a grid of marks: the ones that matter stop being
+ * visible precisely because nothing is quiet. So the glyph is spent on
+ * the three cases that are worth a child's attention —
+ *
+ *   frightened  always. The strongest mark on the screen.
+ *   worried     always.
+ *   happy, and the same species. Two bunnies side by side is the
+ *               pairing the engine actually pays a bonus for, and a
+ *               small good thing is worth noticing.
+ *
+ * — and a happy pair of different species gets nothing at all, because
+ * most of the load is that and unremarkable is unremarkable.
+ */
+export function glyphWorthDrawing(
+  session: LoadingSession,
+  note: AdjacencyNote,
+): boolean {
+  if (note.level !== 'happy') return true;
+  const pair = pairOf(session, note);
+  return pair !== null && pair[0].species === pair[1].species;
 }
 
 /** Up to `limit` sentences, worst first. */
@@ -418,6 +845,9 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
         `${held.name} travels in a ${crate.label.toLowerCase()}.`,
         `Tap a space in ${state.vehicle.name} to put them down.`,
       ],
+      // No face forced on her: she is not next to anybody yet, and if
+      // she is the poorly one on a vet run that is the thing to show.
+      cast: { members: [castOne(held)] },
     };
   }
 
@@ -426,16 +856,22 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
     return {
       heading: FEELING.blocked,
       tone: 'blocked',
-      body: [...sentences(blockers, 2), 'Tap one of them to move them somewhere else.'],
+      body: [...sentences(blockers, 1), 'Tap one of them to move them somewhere else.'],
+      cast: castPair(session, blockers[0]),
     };
   }
 
   const settled = settledNotes(session);
   if (settled.length > 0) {
+    // `settledNotes` is sorted worst first, so the pair drawn is the
+    // pair the first sentence is about — and because it is the worst
+    // on the grid, nobody in it can be wearing a face the bays would
+    // contradict.
     return {
       heading: FEELING[settled[0].level],
       tone: settled[0].level,
-      body: sentences(settled, 3),
+      body: sentences(settled, 1),
+      cast: castPair(session, settled[0]),
     };
   }
 
@@ -447,6 +883,10 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
         `Tap an animal waiting to board, then tap a space in ${state.vehicle.name}.`,
         'Animals only mind who is beside them, above them or below them.',
       ],
+      // Nobody to draw, so the panel draws the hole they go in — the
+      // same well the bays draw, which is the shape a child has just
+      // been looking at nine of.
+      cast: { members: [] },
     };
   }
 
@@ -454,6 +894,9 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
   // three words for how an animal feels and this is one of them. A
   // fourth would be a synonym a child has to learn on top of the thing
   // the screen is teaching.
+  //
+  // Drawn as two of the animals aboard with the floor between them,
+  // which is the sentence: there is nobody beside anybody.
   return {
     heading: 'Nobody is worried',
     tone: null,
@@ -461,18 +904,34 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
       'Nobody is sitting next to anybody, so nobody has a neighbour to mind.',
       'Load another animal, or set off.',
     ],
+    cast: { members: aboard(session).slice(0, 2).map((a) => castOne(a)), apart: true },
   };
 }
 
 function panelCopy(state: CrateLoadingState): PanelCopy {
   if (state.notice) {
+    const { notice } = state;
+    // A refusal is the moment a child most needs the picture, so the
+    // notice carries who it was about and the two of them are drawn
+    // exactly as any other pair.
+    const cast = notice.level && notice.pair
+      ? castPair(state.session, {
+        level: notice.level,
+        slotIndex: -1,
+        neighbourSlotIndex: -1,
+        animalId: notice.pair.animalId,
+        neighbourId: notice.pair.neighbourId,
+        text: notice.text,
+      })
+      : undefined;
     return {
-      heading: state.notice.level ? FEELING[state.notice.level] : 'Wait a moment',
-      tone: state.notice.level,
+      heading: notice.level ? FEELING[notice.level] : 'Wait a moment',
+      tone: notice.level,
       body: [
-        state.notice.text,
-        state.notice.level === 'blocked' ? 'Try another space.' : '',
+        notice.text,
+        notice.level === 'blocked' ? 'Try another space.' : '',
       ].filter((l) => l.length > 0),
+      cast,
     };
   }
   return standingCopy(state);
@@ -538,7 +997,7 @@ export function renderCrateLoading(
   // land on the panel.
   const trayLabelH = MIN_FONT.small + SPACE.xs;
   const trayMinH = trayLabelH + SPACE.s + MIN_TAP;
-  const panelWanted = CHROME.padY * 2 + 34 + 5 * 26;
+  const panelWanted = CHROME.padY * 2 + PANEL_FACES_H + SPACE.s + PANEL_TEXT_H;
   const waiting = waitingToBoard(session).length;
   const columnTrayTop = bandTop + Math.min(bandH, panelWanted) + SPACE.l;
   const columnTrayH = bandBottom - columnTrayTop;
@@ -676,6 +1135,14 @@ function bayHoverCopy(session: LoadingSession, slotIndex: number): PanelCopy | n
     body: notes.length > 0
       ? sentences(notes, 2)
       : [`Nobody is beside this space, so ${held?.name ?? 'they'} would travel on their own.`],
+    // The hypothetical, drawn: this is who she would be sitting next
+    // to and how the two of them would take it. The neighbour's face
+    // here is the face of a placement that has not happened, which is
+    // the one place the panel is allowed to differ from her bay — it
+    // is the whole point of a preview.
+    cast: notes.length > 0
+      ? castPair(session, notes[0])
+      : held ? { members: [castOne(held)] } : undefined,
   };
 }
 
@@ -903,6 +1370,19 @@ function drawBedFloor(
   container.add(gfx);
 }
 
+/**
+ * A bay's tap target along one axis, given the drawn cell on that axis.
+ *
+ * Its own function because it is now the *only* thing tying the tap
+ * floor to the layout: the painted well shrank to the crate it holds
+ * and this did not move with it, which is the whole of "a smaller
+ * picture with a full-size hit area". Exported so a test can ask it of
+ * every vehicle at every viewport rather than trusting a comment.
+ */
+export function bayHitSize(cell: number): number {
+  return Math.max(cell, Math.min(MIN_TAP, cell + GAP));
+}
+
 interface GridGeometry {
   originX: number;
   originY: number;
@@ -949,6 +1429,91 @@ interface BayGeometry {
  * because a crate rim round a 30px sprite leaves 17px of animal and
  * the animal is who the child is choosing.
  */
+interface TileArt {
+  /** The crate square, drawn. */
+  size: number;
+  /** Where the crate's centre goes. */
+  cx: number;
+  cy: number;
+  /** The name: its centre, and the room it has. */
+  nameX: number;
+  nameY: number;
+  nameW: number;
+  hasName: boolean;
+  /**
+   * The name sits over the crate rather than beside it — which is
+   * what decides whether the strip between two stacked crates is
+   * clear floor or somebody's name.
+   */
+  nameAbove: boolean;
+}
+
+/**
+ * Where the crate and the name go in a box — worked out on its own, so
+ * the painted well and the thing standing in it are measured once.
+ *
+ * It used to be arithmetic inside the drawing, which was fine while the
+ * well *was* the box; now the well is cut to the crate it holds, two
+ * callers need the same answer and only one of them draws an animal.
+ *
+ * **The name sits above.** It used to sit under the animal in both
+ * arrangements, which puts the thing a child is looking at above the
+ * thing she is reading and makes her eye travel down and back. Above
+ * the picture the name is read on the way in — and in the card
+ * arrangement it also stops the name row competing with the crate for
+ * the bottom of the bay, which is where the pair glyphs now live.
+ */
+export function tileArt(g: BayGeometry): TileArt {
+  if ((g.rowWhenWide ?? true) && g.slotW >= g.slotH * 1.6) {
+    // Wide and shallow: the crate takes the depth, the name takes the
+    // width beside it. Here the name is *beside* rather than under, so
+    // it was never the thing change 2 was about, and it stays put: a
+    // name above in a 53px-deep bay would cost the crate a third of
+    // its height to save a journey the eye is not making.
+    //
+    // Half the width rather than a third: the crate is square and the
+    // depth is what limits it, so the old 0.34 was spending width the
+    // name did not need. A 49px crate leaves 75px of name, which is
+    // "Clementine" with room over.
+    const size = Math.max(1, Math.min(g.slotH - 4, g.slotW * 0.5));
+    const left = g.left + 2 + size;
+    const right = g.left + g.slotW - 4;
+    return {
+      size,
+      cx: g.left + 2 + size / 2,
+      cy: g.cy,
+      nameX: (left + SPACE.xs + right) / 2,
+      nameY: g.cy,
+      nameW: Math.max(0, right - left - SPACE.xs),
+      hasName: right - left - SPACE.xs >= 36,
+      nameAbove: false,
+    };
+  }
+
+  // Roughly square: the name above, the crate under it, the pair
+  // centred in the bay. The inset is 2 rather than the 4 it was, and
+  // the 4 was already down from 10 — a crate painted edge to edge of
+  // its file has no margin of its own to give, and every pixel taken
+  // off the rim comes off the animal inside twice over.
+  const nameRow = g.withName ? MIN_FONT.small + 4 : 0;
+  const size = Math.max(1, Math.min(g.slotW - 2, g.slotH - nameRow - 2));
+  const top = g.cy - (size + nameRow) / 2;
+  return {
+    size,
+    cx: g.cx,
+    cy: top + nameRow + size / 2,
+    nameX: g.cx,
+    nameY: top + nameRow / 2,
+    // Out to within 2px of the gap, not 8 inside it. "Thistle" is
+    // 55px at the name size and Henry's bays are 58, so the old
+    // margin was the difference between a name and "Thi…"; two
+    // adjacent names still keep 6px of air between them.
+    nameW: g.slotW - 4,
+    hasName: g.withName,
+    nameAbove: g.withName,
+  };
+}
+
 function drawAnimalTile(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
@@ -956,51 +1521,29 @@ function drawAnimalTile(
   name: string,
   crate: CrateDef,
   g: BayGeometry,
+  /** The face she wears, where her neighbours have given her one. */
+  state?: string,
 ): void {
   const nameStyle: Phaser.Types.GameObjects.Text.TextStyle = {
     fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
     color: CHROME.ink, resolution: TEXT_RESOLUTION,
   };
 
+  const a = tileArt(g);
+
   /** The animal in her crate, or — too small for a rim — just her. */
-  const art = (x: number, y: number, size: number) => {
-    if (size >= CRATE_ART_MIN) return makeCratedAnimal(scene, x, y, animal, crate, size);
-    if (!animal) return undefined;
-    return createAnimalSprite(scene, x, y, animal, { width: size, height: size });
-  };
-
-  if ((g.rowWhenWide ?? true) && g.slotW >= g.slotH * 1.6) {
-    const size = Math.min(g.slotH - 8, g.slotW * 0.34);
-    const piece = art(g.left + 4 + size / 2, g.cy, size);
-    if (piece) container.add(piece);
-    // The name takes everything to the right of the crate.
-    const textLeft = g.left + 4 + size + SPACE.xs;
-    const textRight = g.left + g.slotW - 4;
-    if (textRight - textLeft >= 36) {
-      container.add(
-        fitLabel(
-          scene, (textLeft + textRight) / 2, g.cy, name, textRight - textLeft, nameStyle,
-        ),
-      );
-    }
-    return;
-  }
-
-  const nameRow = g.withName ? MIN_FONT.small + 4 : 0;
-  // Square, because a crate is: the shorter axis sets the size and the
-  // spare on the other one is floor. The inset is 4 rather than the 10
-  // an animal had, because a crate painted edge to edge of its file has
-  // no margin of its own to give and Big Tilly's bays have none to
-  // lend — every pixel taken off the rim comes off the animal inside.
-  const size = Math.max(1, Math.min(g.slotW - 4, g.slotH - nameRow - 4));
-  const piece = art(g.cx, g.cy - nameRow / 2, size);
+  const piece = a.size >= CRATE_ART_MIN
+    ? makeCratedAnimal(scene, a.cx, a.cy, animal, crate, a.size, state)
+    : animal
+      ? createAnimalSprite(
+        scene, a.cx, a.cy, animal,
+        { width: a.size, height: a.size, stateOverride: state },
+      )
+      : undefined;
   if (piece) container.add(piece);
-  if (g.withName) {
-    container.add(
-      fitLabel(
-        scene, g.cx, g.cy + g.slotH / 2 - nameRow / 2 - 2, name, g.slotW - 8, nameStyle,
-      ),
-    );
+
+  if (a.hasName) {
+    container.add(fitLabel(scene, a.nameX, a.nameY, name, a.nameW, nameStyle));
   }
 }
 
@@ -1029,6 +1572,25 @@ function drawBays(
     const left = cx - slotW / 2;
     const top = cy - slotH / 2;
 
+    // **The painted well is cut to the crate, not to the tap cell.**
+    // A bay used to be the whole cell: at Big Tilly that is 40x54
+    // holding a 36px crate, so a third of the hole was empty floor
+    // painted as hole, and the bays read as the subject with the
+    // animals rattling about inside them. The well is now the crate's
+    // own square plus a lip for it to stand on, which is what "make
+    // the spots smaller" is: the hole is the size of the thing that
+    // goes in it, and the rest of the cell goes back to being the
+    // vehicle's floor.
+    //
+    // The cell itself does not move. It is still what the hit area is
+    // measured from, so a smaller picture costs nothing a finger can
+    // feel — see the hit rectangle below.
+    const well = tileArt({ left, top, cx, cy, slotW, slotH, withName });
+    const wellW = Math.min(slotW, well.size + WELL_LIP * 2);
+    const wellH = Math.min(slotH, well.size + WELL_LIP * 2);
+    const wellX = well.cx - wellW / 2;
+    const wellY = well.cy - wellH / 2;
+
     const bay = scene.add.graphics();
     if (outlook) {
       // Holding an animal lights every empty bay with what it would do
@@ -1036,9 +1598,9 @@ function drawBays(
       // strength, and it still carries the mark and the word on top.
       const skin = FEELING_SKIN[outlook];
       bay.fillStyle(skin.fill, 0.95);
-      bay.fillRoundedRect(left, top, slotW, slotH, 10);
+      bay.fillRoundedRect(wellX, wellY, wellW, wellH, 10);
       bay.lineStyle(3, skin.stroke, 1);
-      bay.strokeRoundedRect(left, top, slotW, slotH, 10);
+      bay.strokeRoundedRect(wellX, wellY, wellW, wellH, 10);
     } else {
       // A bay is a recess *in* the vehicle's floor, not a tile *on*
       // it — darker than the floor rather than a paler crate, so "there
@@ -1055,13 +1617,13 @@ function drawBays(
       // wooden box on it reads as two objects, and the second one is
       // not a thing in the van.
       bay.fillStyle(BAY_WELL_LIP, 0.85);
-      bay.fillRoundedRect(left, top + 2, slotW, slotH, 10);
+      bay.fillRoundedRect(wellX, wellY + 2, wellW, wellH, 10);
       bay.fillStyle(BAY_WELL, 1);
-      bay.fillRoundedRect(left, top, slotW, slotH, 10);
+      bay.fillRoundedRect(wellX, wellY, wellW, wellH, 10);
       bay.lineStyle(2.5, BAY_WELL_SHADE, 0.55);
-      bay.strokeRoundedRect(left, top, slotW, slotH, 10);
+      bay.strokeRoundedRect(wellX, wellY, wellW, wellH, 10);
       bay.lineStyle(2, BAY_WELL_SHADE, 0.3);
-      bay.strokeRoundedRect(left + 1.5, top + 1.5, slotW - 3, slotH - 3, 9);
+      bay.strokeRoundedRect(wellX + 1.5, wellY + 1.5, wellW - 3, wellH - 3, 9);
     }
     container.add(bay);
 
@@ -1070,9 +1632,23 @@ function drawBays(
       drawAnimalTile(
         scene, container, record, record?.name ?? '', crateDefFor(crate.species),
         { left, top, cx, cy, slotW, slotH, withName },
+        // **The animals in the bays wear their feelings too**, so the
+        // whole load can be read without tapping anything: a child
+        // scanning Big Tilly's nine sees where the trouble is from the
+        // faces, and the glyph on the edge between two of them says
+        // which pair it is. Same `affectedBy` the panel uses, so the
+        // bay and the sentence can never disagree about who minds.
+        gridFace(session, crate.animalId),
       );
     } else if (outlook) {
-      container.add(makeFeelingBadge(scene, cx, cy, outlook, { withWord: slotH >= 62 }));
+      // The word comes off the *cell*, not the well: the well shrank
+      // and the room under it did not, so "Happy" still has somewhere
+      // to go on every bay that could carry it before. A mark without
+      // its word is a colour a child has to have been taught.
+      container.add(makeFeelingBadge(scene, well.cx, well.cy, outlook, {
+        withWord: slotH >= 62,
+        radius: Math.max(9, Math.min(15, Math.min(wellW, wellH) * 0.28)),
+      }));
     }
 
     // Hit area floored at MIN_TAP, per the idiom on that constant —
@@ -1081,11 +1657,18 @@ function drawBays(
     // the ceiling for the window where it is not: a hit box 4px short
     // of the floor is a smaller target, while one that overlaps the bay
     // next door picks up the wrong animal.
+    //
+    // **Measured off the cell, not off the painted well.** The well
+    // shrank to the crate it holds and the cell did not move, so this
+    // is the one place on the screen where the picture is deliberately
+    // smaller than the target: Big Tilly's hole is 40 across and her
+    // tap is still 48. Nothing a finger can feel changed. Growing the
+    // *rectangle* past the cell would buy nothing either — two
+    // overlapping hit boxes hand the overlap to whichever was added
+    // last, so the usable target is the pitch however big the
+    // rectangle is drawn.
     const hit = scene.add.rectangle(
-      cx, cy,
-      Math.max(slotW, Math.min(MIN_TAP, slotW + GAP)),
-      Math.max(slotH, Math.min(MIN_TAP, slotH + GAP)),
-      0x000000, 0,
+      cx, cy, bayHitSize(slotW), bayHitSize(slotH), 0x000000, 0,
     ).setInteractive({ useHandCursor: true });
     hit.on('pointerover', () => {
       if (crate) {
@@ -1097,6 +1680,16 @@ function drawBays(
             `${animal.name} is in a ${crateDefFor(crate.species).label.toLowerCase()}.`,
             'Tap to lift them out again.',
           ],
+          // The same face she is wearing in the bay under the pointer,
+          // from the same function, so looking closer never changes
+          // the answer.
+          cast: {
+            members: [{
+              id: crate.animalId,
+              name: animal.name,
+              face: gridFace(session, crate.animalId),
+            }],
+          },
         } : null);
       } else {
         setMessage(bayHoverCopy(session, slot));
@@ -1110,26 +1703,66 @@ function drawBays(
     container.add(hit);
   }
 
-  // Pair marks on the shared edge between two loaded bays — the same
-  // badge the live preview uses, so one mark means one thing.
+  // The vibe glyph, on the edge two bays share — the same drawing the
+  // live preview uses, so one mark means one thing.
+  //
+  // **On the edge, because the feeling belongs to the pair.** Neither
+  // animal owns it: a spiral drawn inside the cat's bay would say the
+  // cat is a frightening thing to be near, and a spiral between the cat
+  // and the dog says what is true, which is that those two together are
+  // the problem. Adjacency is north/south/east/west only, so every
+  // shared edge between two occupied bays is a candidate and
+  // `glyphWorthDrawing` decides which of them is worth the ink.
   //
   // Pushed off the middle of that edge, because the middle is where the
-  // animal's name is: a bay's name row runs along its bottom, so a
-  // badge centred on a north/south boundary lands on it. A pair above
-  // and below each other takes the badge to one side; a pair beside
-  // each other takes it up, clear of both name rows.
+  // animal's name is — and the name moved to the top of the bay, so the
+  // push moved with it. A pair above and below each other takes the
+  // glyph to one side; a pair beside each other takes it *down*, clear
+  // of both name rows, where it used to go up into them.
+  //
+  // **Halfway between the two crates, which is not halfway between
+  // the two bays.** The name row sits at the top of a bay now, so the
+  // crate rides low in its cell and the gap between two crates is not
+  // where the gap between two cells is. Measuring off the crates puts
+  // the mark in the clear strip the two of them leave — 24px between
+  // Tilly's rows, 10px between her columns — rather than across the
+  // bottom third of both of them, which is where a fixed fraction of
+  // the bay put it on the first pass. A glyph arguing with the animal
+  // it annotates is the one thing it must not do.
+  //
+  // It also keeps the marks off each other: the two families sit on
+  // perpendicular edges half a cell apart, so a pair-above-below mark
+  // and a pair-beside mark can no longer land in the same place, which
+  // on nine bays they were doing three times over.
+  //
+  // Sized off the bay rather than fixed, so nine bays on a lorry get a
+  // smaller mark than two on a trike, and small: sixteen pixels on
+  // Tilly against a thirty-pixel animal.
+  const nudge = tileArt({
+    left: -slotW / 2, top: -slotH / 2, cx: 0, cy: 0, slotW, slotH, withName,
+  });
+  const crateCentre = (slot: number) => {
+    const c = slotCentre(slot);
+    return { x: c.x + nudge.cx, y: c.y + nudge.cy };
+  };
+  const glyphR = Math.max(7, Math.min(11, Math.min(slotW, slotH) * 0.2));
   for (const note of settledNotes(session)) {
-    const a = slotCentre(note.slotIndex);
-    const b = slotCentre(note.neighbourSlotIndex);
-    const vertical = a.x === b.x;
-    container.add(
-      makeFeelingBadge(
-        scene,
-        (a.x + b.x) / 2 + (vertical ? slotW * 0.3 : 0),
-        (a.y + b.y) / 2 - (vertical ? 0 : slotH * 0.24),
-        note.level,
-      ).setDepth(6),
-    );
+    if (!glyphWorthDrawing(session, note)) continue;
+    const a = crateCentre(note.slotIndex);
+    const b = crateCentre(note.neighbourSlotIndex);
+    // One above the other, in a bay that carries a name: the name is
+    // *in* the strip between the two crates, because it sits at the
+    // top of the lower one. So the mark rides up onto the bottom rim
+    // of the upper crate instead — the least-telling pixels in either
+    // bay, and certainly better than sitting on top of a word. Where
+    // there is no name, as on all nine of Big Tilly's, the strip is
+    // clear floor and the mark goes in the middle of it.
+    const y = a.x === b.x && nudge.nameAbove
+      ? Math.min(a.y, b.y) + nudge.size / 2
+      : (a.y + b.y) / 2;
+    const gfx = scene.add.graphics();
+    drawVibeGlyph(gfx, (a.x + b.x) / 2, y, note.level, glyphR);
+    container.add(gfx.setDepth(6));
   }
 }
 
@@ -1154,13 +1787,8 @@ function drawPanel(
   const plate = createChromePlate(scene, box.x + box.w / 2, box.y + box.h / 2, box.w, box.h);
   container.add(plate);
 
-  const held = heldAnimal(state.session);
-  const heldRecord = held ? state.animalsById.get(held.id) : undefined;
-  const carrySize = Math.min(56, box.h - CHROME.padY * 2);
-
-  // The sentences keep the full width: the painting sits below them, in
-  // the corner the fifth line only reaches when a bay has been refused,
-  // and a refusal is never something you are holding an animal through.
+  // The sentences keep the full width; the faces sit above them, which
+  // is the change — the picture is read first because it is first.
   const innerW = box.w - CHROME.padX * 2;
 
   // On a landscape phone the plate gets about two-thirds the height its
@@ -1169,8 +1797,23 @@ function drawPanel(
   // leading close up rather than the words running off the bottom of
   // the paper onto the gravel. The type size does not move; that floor
   // is not negotiable, and it is the only thing here that is not.
-  const tight = box.h < CHROME.padY * 2 + 34 + 5 * 26;
-  const headingY = box.y + (tight ? SPACE.s : CHROME.padY + SPACE.xs);
+  const facesH = Math.min(
+    PANEL_FACES_H, box.h - CHROME.padY * 2 - SPACE.s - PANEL_TEXT_H,
+  );
+  const showFaces = facesH >= PANEL_FACES_MIN;
+  const tight = box.h < CHROME.padY * 2 + PANEL_TEXT_H;
+  const headingY = box.y
+    + (tight ? SPACE.s : CHROME.padY + SPACE.xs)
+    + (showFaces ? facesH + SPACE.s : 0);
+
+  const facesBox: Box = {
+    x: box.x + CHROME.padX, y: box.y + CHROME.padY, w: innerW, h: facesH,
+  };
+  // Its own container, because a pointer moving across the bays
+  // repaints this and nothing else: the faces are rebuilt, the plate
+  // and the type under them are not, and the panel never moves.
+  const faces = scene.add.container(0, 0);
+  container.add(faces);
 
   const heading = scene.add.text(box.x + CHROME.padX, headingY, '', {
     fontSize: TYPE.lead, fontFamily: FONTS.ui, fontStyle: 'bold',
@@ -1184,16 +1827,25 @@ function drawPanel(
   }).setOrigin(0, 0);
   container.add(body);
 
-  if (heldRecord && carrySize > 24) {
-    container.add(
-      createAnimalSprite(
-        scene,
-        box.x + box.w - CHROME.padX - carrySize / 2,
-        box.y + box.h - CHROME.padY - carrySize / 2,
-        heldRecord,
-        { width: carrySize, height: carrySize },
-      ).setDepth(4),
-    );
+  if (!showFaces) {
+    // No room for the band. The carried animal goes back in the corner,
+    // which is where she lived before there was one — a small picture
+    // beats no picture, and on this viewport it is a small picture or
+    // the fifth line of a refusal.
+    const held = heldAnimal(state.session);
+    const heldRecord = held ? state.animalsById.get(held.id) : undefined;
+    const carrySize = Math.min(56, box.h - CHROME.padY * 2);
+    if (heldRecord && carrySize > 24) {
+      container.add(
+        createAnimalSprite(
+          scene,
+          box.x + box.w - CHROME.padX - carrySize / 2,
+          box.y + box.h - CHROME.padY - carrySize / 2,
+          heldRecord,
+          { width: carrySize, height: carrySize },
+        ).setDepth(4),
+      );
+    }
   }
 
   const standing = panelCopy(state);
@@ -1202,9 +1854,106 @@ function drawPanel(
     heading.setText(c.heading);
     heading.setColor(c.tone ? FEELING_SKIN[c.tone].ink : CHROME.ink);
     body.setText(c.body.join('\n'));
+    if (!showFaces) return;
+    faces.removeAll(true);
+    drawCast(scene, faces, state, c.cast, facesBox);
   };
   apply(null);
   return apply;
+}
+
+/**
+ * The faces band — the two animals the panel is talking about, large,
+ * side by side, with their names above them and the pair's glyph
+ * between.
+ *
+ * Side by side because that is how they would be sitting: the sentence
+ * is about two animals next to each other in a van, and the picture of
+ * it is two animals next to each other. One animal centres; two with
+ * `apart` set are pushed to the ends with the van's floor showing
+ * between them, which is what "nobody is sitting next to anybody"
+ * looks like; nobody at all draws the empty well.
+ *
+ * Drawn out of their crates here, and that is deliberate: the crate is
+ * already on the bay and on the tray chip, and a rim round a face in
+ * the one place the face is the whole point would be the same mistake
+ * at a larger size.
+ */
+function drawCast(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  state: CrateLoadingState,
+  cast: PanelCast | undefined,
+  box: Box,
+): void {
+  const nameH = MIN_FONT.small + SPACE.xs;
+  const artH = Math.max(16, box.h - nameH);
+  const cy = box.y + nameH + artH / 2;
+
+  if (!cast || cast.members.length === 0) {
+    // The empty van: the hole an animal goes in, at the size the panel
+    // has, drawn exactly as the bays draw theirs.
+    const s = Math.min(artH, box.h, 76);
+    const x = box.x + box.w / 2 - s / 2;
+    const y = cy - s / 2;
+    const gfx = scene.add.graphics();
+    gfx.fillStyle(BAY_WELL_LIP, 0.85);
+    gfx.fillRoundedRect(x, y + 2, s, s, 10);
+    gfx.fillStyle(BAY_WELL, 1);
+    gfx.fillRoundedRect(x, y, s, s, 10);
+    gfx.lineStyle(2.5, BAY_WELL_SHADE, 0.55);
+    gfx.strokeRoundedRect(x, y, s, s, 10);
+    container.add(gfx);
+    return;
+  }
+
+  const nameStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+    fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
+    color: CHROME.ink, resolution: TEXT_RESOLUTION,
+  };
+
+  if (cast.members.length === 1) {
+    const m = cast.members[0];
+    const record = state.animalsById.get(m.id);
+    const size = Math.min(artH, box.w * 0.6);
+    const cx = box.x + box.w / 2;
+    if (record) {
+      container.add(createAnimalSprite(
+        scene, cx, cy, record,
+        { width: size, height: size, stateOverride: m.face },
+      ));
+    }
+    container.add(fitLabel(
+      scene, cx, box.y + nameH / 2, m.name, box.w - SPACE.m, nameStyle,
+    ));
+    return;
+  }
+
+  // Two of them. `apart` pushes them to the ends and draws nothing
+  // between; a pair sits close with the glyph on the gap they share,
+  // which is the same place it sits between two bays.
+  const spread = cast.apart ? 0.29 : 0.25;
+  const size = Math.min(artH, box.w * (cast.apart ? 0.34 : 0.4));
+  const glyphR = Math.max(9, Math.min(15, size * 0.22));
+  cast.members.slice(0, 2).forEach((m, i) => {
+    const cx = box.x + box.w / 2 + (i === 0 ? -spread : spread) * box.w;
+    const record = state.animalsById.get(m.id);
+    if (record) {
+      container.add(createAnimalSprite(
+        scene, cx, cy, record,
+        { width: size, height: size, stateOverride: m.face },
+      ));
+    }
+    container.add(fitLabel(
+      scene, cx, box.y + nameH / 2, m.name, box.w * 0.46, nameStyle,
+    ));
+  });
+
+  if (cast.level) {
+    const gfx = scene.add.graphics();
+    drawVibeGlyph(gfx, box.x + box.w / 2, cy, cast.level, glyphR);
+    container.add(gfx);
+  }
 }
 
 // ── The tray ─────────────────────────────────────────────────
@@ -1327,6 +2076,7 @@ function drawChip(
       `${animal.name} travels in a ${crateDefFor(animal.species).label.toLowerCase()}.`,
       'Tap to pick them up.',
     ],
+    cast: { members: [castOne(animal)] },
   }));
   hit.on('pointerout', () => setMessage(null));
   hit.on('pointerdown', () => callbacks.onHoldFromTray(animal.id));
