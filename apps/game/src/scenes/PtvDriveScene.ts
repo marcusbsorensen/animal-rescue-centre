@@ -15,6 +15,8 @@ import {
   type VehicleDef, type VehicleType,
 } from '@arc/game-logic';
 import { renderCrateLoading } from '../driving/crate-loading-view';
+import { VEHICLE_SPRITE } from '../driving/fleet-art';
+import { drawForecourt } from '../driving/forecourt';
 import {
   createDriveState,
   cycleGear,
@@ -73,15 +75,6 @@ const TRAFFIC_SPRITE_KEYS: Record<TrafficKind, string[]> = {
     'vehicle-topdown-skiptruck-1', 'vehicle-topdown-skiptruck-2', 'vehicle-topdown-skiptruck-3',
     'vehicle-topdown-skiptruck-4', 'vehicle-topdown-skiptruck-5',
   ],
-};
-
-/** The top-down sprite the player drives, per picked fleet vehicle. */
-const VEHICLE_SPRITE: Record<VehicleType, string> = {
-  'pedal-trike': 'vehicle-topdown-trikey',
-  'small-van': 'vehicle-topdown-henry',
-  'long-van': 'vehicle-topdown-bea',
-  'animal-lorry': 'vehicle-topdown-big-tilly',
-  'electric-minibus': 'vehicle-topdown-spark',
 };
 
 /** On-screen size of each fleet vehicle relative to Henry the van (= 1.0), so
@@ -475,8 +468,11 @@ export class PtvDriveScene extends Phaser.Scene {
     this.destinationId = data?.destinationId ?? urlDest ?? 'woodland';
     // Player level gates the vehicle picker. Demo/URL override for testing lock
     // states; default high so the whole fleet shows.
-    const urlLevel = typeof window !== 'undefined'
-      ? Number(new URLSearchParams(window.location.search).get('level')) : NaN;
+    // Read the raw string: an absent param is null and Number(null) is 0, which
+    // would cone off the whole fleet on a plain ?ptvDemo=1 boot.
+    const urlLevelRaw = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('level')?.trim() : undefined;
+    const urlLevel = urlLevelRaw ? Number(urlLevelRaw) : NaN;
     this.playerLevel = data?.level ?? (Number.isFinite(urlLevel) ? urlLevel : 12);
     this.vehicleId = 'small-van';
     this.cargo = this.readCargo(data);
@@ -868,24 +864,20 @@ export class PtvDriveScene extends Phaser.Scene {
   private renderPicker(width: number, height: number): void {
     this.departing = false;
 
-    // Gravel forecourt.
-    if (this.textures.exists('site-gravel')) {
-      this.container.add(this.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
-    } else {
-      this.container.add(this.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
-    }
     // The screen's heading, on the chrome surface at the one title line —
     // this was a `backgroundColor` text block floating at `height * 0.505`,
     // which is a cream plate drawn by Phaser's text renderer instead of
     // `createChromeTitle`, and it put the screen's only words on the
     // midline while the top half sat empty. The two facts it carries are
     // the two lines the component already has.
+    //
+    // Measured before the forecourt is drawn and added after it, so the
+    // chrome lands on top of the world the way chrome always does.
     const destName = this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const title = createChromeTitle(this, width / 2, TITLE_CY, 'Pick your vehicle', {
       fontSize: TYPE.lead,
       subtitle: `off to ${destName}`,
     });
-    this.container.add(title);
 
     // Car park: bays sized in proportion to each vehicle (Trikey narrow, Big
     // Tilly wide — the forecourt has different-sized spaces for exactly this).
@@ -895,40 +887,12 @@ export class PtvDriveScene extends Phaser.Scene {
     const bayTop = height * 0.57;
     const bayH = height * 0.28;
 
-    // A.R.C. building at the back of its own forecourt, filling the band
-    // between the title and the bays rather than a bare `0.46` of the
-    // viewport — which on a landscape phone drew it at 185px in the middle
-    // of an empty gravel field, and on a desktop at nearly half the screen.
-    //
-    // Its base runs *under* the tarmac: the slab is added after this, so it
-    // crops the building's own ground line, which is what the far edge of a
-    // car park does to the building behind it. That is what buys the height
-    // back — stacked strictly above the bays it would have measured 141px,
-    // smaller than the number this replaced.
-    if (this.textures.exists('site-arc-building')) {
-      const top = contentTopFor(title);
-      const base = bayTop + bayH * 0.3;
-      const target = Math.max(0, Math.min(base - top, width * 0.46));
-      const b = this.add.image(width / 2, base - target / 2, 'site-arc-building').setOrigin(0.5);
-      b.setDisplaySize(target, target);
-      this.container.add(b);
-    }
-    const areaW = Math.min(width * 0.92, 1080);
-    const left = (width - areaW) / 2;
-
-    const slab = this.add.graphics();
-    slab.fillStyle(0x39383a, 1);
-    slab.fillRoundedRect(left - 8, bayTop - 8, areaW + 16, bayH + 16, 12);
-    this.container.add(slab);
-
-    // Exit road along the bottom.
-    const roadY = height * 0.93;
-    const road = this.add.graphics();
-    road.fillStyle(0x6b6f76, 1);
-    road.fillRect(0, roadY, width, height - roadY);
-    road.fillStyle(0xfdf6e3, 0.9);
-    for (let rx = 10; rx < width; rx += 54) road.fillRect(rx, roadY + (height - roadY) / 2 - 2, 30, 4);
-    this.container.add(road);
+    // Gravel, the A.R.C. building, the tarmac and the exit road — the same
+    // call the loading screen makes, so the two phases stand in one place.
+    const { apron: { x: left, w: areaW }, roadY } = drawForecourt(this, this.container, {
+      width, height, contentTop: contentTopFor(title), apronTop: bayTop, apronH: bayH,
+    });
+    this.container.add(title);
 
     let x = left;
     defs.forEach((v, i) => {

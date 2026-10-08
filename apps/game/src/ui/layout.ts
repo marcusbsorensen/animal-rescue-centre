@@ -11,7 +11,7 @@
 // its own, so pulling SAFE_MARGIN in keeps this module unit-testable in
 // jsdom. Duplicating the number here instead is how the rail and the rest
 // of the game would drift apart about what "clear of the edge" means.
-import { SAFE_MARGIN } from './constants';
+import { MIN_TAP, SAFE_MARGIN } from './constants';
 
 /** Width of the rail when it is shown in full. */
 export const RAIL_WIDTH = 280;
@@ -506,4 +506,42 @@ export function animalBoxFor(area: PlayArea, base: number, labelled = true): num
   const labels = labelled ? ANIMAL_LABEL_HEIGHT : 0;
   const room = Math.max(0, area.h - labels);
   return Math.min(base, room);
+}
+
+/**
+ * Lay `count` equal chips out in a box, choosing the number of rows.
+ *
+ * A single row is fine under a slab and wrong beside a van: the crate
+ * loading screen's tray is a tall narrow column on a desktop and a
+ * short wide strip on a landscape phone, and nine animals have to fit
+ * both. So the row count is chosen rather than assumed — every
+ * arrangement is measured and the one with the largest chips wins, with
+ * chips clearing `MIN_TAP` on both axes beating any amount of extra
+ * area, and fewer rows breaking a tie because a child reads a row
+ * faster than a block.
+ *
+ * Returns the best it can even when nothing really fits: a chip under
+ * the tap floor is the caller's to floor, and a zero-sized one would be
+ * nobody's.
+ */
+export function fitChipGrid(
+  count: number,
+  box: { w: number; h: number },
+  options: { gap: number; maxW: number; maxH: number },
+): { rows: number; perRow: number; chipW: number; chipH: number } {
+  const { gap, maxW, maxH } = options;
+  const n = Math.max(1, count);
+  let best = { rows: n, perRow: 1, chipW: 1, chipH: 1, score: -1 };
+
+  for (let rows = 1; rows <= n; rows += 1) {
+    const perRow = Math.ceil(n / rows);
+    const chipW = Math.min(maxW, Math.floor((box.w - gap * (perRow - 1)) / perRow));
+    const chipH = Math.min(maxH, Math.floor((box.h - gap * (rows - 1)) / rows));
+    if (chipW < 1 || chipH < 1) continue;
+    const tappable = Math.min(chipW, MIN_TAP) * Math.min(chipH, MIN_TAP);
+    const score = tappable * 1000 + chipW * chipH - rows;
+    if (score > best.score) best = { rows, perRow, chipW, chipH, score };
+  }
+
+  return { rows: best.rows, perRow: best.perRow, chipW: best.chipW, chipH: best.chipH };
 }

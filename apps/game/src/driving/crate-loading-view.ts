@@ -5,12 +5,25 @@
  * sits next to whom, between picking a vehicle and pulling out of the
  * bay.
  *
- * **This screen is the teaching surface.** Everything it draws exists
- * to answer one question in words a child can read: can these two
- * animals sit next to each other, and why. So the big panel on the
- * right is not a status line, it is the point of the screen, and it has
- * a fixed home that never moves between renders. Nothing here is on a
- * timer, nothing flashes, and nothing a child taps can lose her work.
+ * **The animals go into the actual vehicle.** The grid is not a grid: it
+ * is the load bed of the van she just chose, drawn at the size the van
+ * is, with a cutaway panel over it so she can see inside. That is why
+ * Trikey holds two and Big Tilly holds nine — a fact the screen used to
+ * state in a sentence under an abstract slab and never show. The bays
+ * are laid on the painting; `fleet-art.ts` says where each vehicle's bed
+ * is and how big to draw the vehicle so the bays stay tappable.
+ *
+ * **It is also a place.** The vehicle stands in a painted bay on the
+ * A.R.C. tarmac, the building behind it and the exit road along the
+ * bottom — the same forecourt the picker draws, through the same
+ * `drawForecourt`, because this is that car park one moment later.
+ *
+ * **The big panel on the right is the teaching surface.** It is not a
+ * status line, it is the point of the screen: it answers in words a
+ * child can read whether these two animals may sit together, and why.
+ * It has a fixed home that never moves between renders. Nothing here is
+ * on a timer, nothing flashes, and nothing a child taps can lose her
+ * work.
  *
  * The rules, the state machine and every sentence live in
  * `@arc/game-logic`'s `crate-loading` module — this file draws a
@@ -52,6 +65,11 @@ import {
   CHROME, COLOURS, FONTS, MIN_FONT, MIN_TAP, PAGE_MARGIN, SAFE_MARGIN, SPACE,
   TEXT_RESOLUTION, TITLE_CY, TYPE, bottomAnchorY, contentTopFor, hexNum,
 } from '../ui/constants';
+import { fitChipGrid } from '../ui/layout';
+import { drawForecourt, drawParkingBay } from './forecourt';
+import {
+  BAY_GAP, BAY_MAX_H, BAY_MAX_W, BED_PAD, VEHICLE_BED, VEHICLE_SPRITE, fitLoadBed,
+} from './fleet-art';
 
 /**
  * The three feelings, as a surface each.
@@ -68,19 +86,60 @@ const FEELING_SKIN: Record<CompatibilityLevel, { fill: number; stroke: number; i
 };
 
 /** Gap between crate bays, and between tray chips. */
-const GAP = SPACE.s;
-/** A bay never grows past this, however much screen there is. */
-const SLOT_MAX_W = 132;
-const SLOT_MAX_H = 108;
+const GAP = BAY_GAP;
+
 /**
- * The tray is one row, so a chip is as wide as the row allows, within
- * these. The floor is the tap minimum rather than a width that reads
- * nicely: nine animals — the largest grid in the fleet — on the
- * narrowest landscape phone is the case that has to stay tappable, and
- * a name too wide for the chip is handled by `fitLabel`.
+ * The cutaway floor the bays sit on — the inside of the vehicle, seen
+ * with the roof lifted off.
+ *
+ * Four of the five vehicles are closed boxes, so there has to be a
+ * convention for seeing in, and it has to be the same one every time or
+ * the open trike and the closed lorry teach two different lessons. A
+ * warm cream floor inset into the vehicle's own body, with a soft dark
+ * rim where the walls would be, reads as a friendly cutaway in this
+ * hand-drawn register. On Trikey, whose box really is open, the same
+ * panel simply lands on the floor of the box, which is the honest case
+ * the convention is built from.
+ *
+ * Duller than `CHROME.fill`, deliberately: the chrome plates floating
+ * over this screen have to stay readable *as* chrome, and two creams a
+ * shade apart is what keeps the paper above the world from dissolving
+ * into it.
+ */
+const BED_FLOOR = 0xf0e4cc;
+const BED_WALL = 0x3a3027;
+
+/**
+ * The tray is a grid of chips in whatever room the right-hand column
+ * has left. A chip is as big as that allows, within these.
  */
 const CHIP_MAX_W = 128;
-const CHIP_MIN_W = MIN_TAP;
+const CHIP_MAX_H = 104;
+/**
+ * Narrower than this and a chip shows "Wh…" where it meant "Whiskers",
+ * which is the tray's whole job. A column that can only manage it goes
+ * to the full-width strip instead, where six chips have the room.
+ */
+const CHIP_NAME_MIN_W = 76;
+
+/**
+ * Below this a bay cannot carry a name row without the name taking more
+ * of the bay than the animal. Big Tilly's nine bays are the case: her
+ * names live in the panel and on the tray chips instead.
+ */
+const BAY_NAME_MIN_H = 46;
+/**
+ * Below this a bay cannot carry the crate mark either. Low, because the
+ * mark is the one thing in a bay that says *what* an animal travels in,
+ * and Big Tilly's nine bays — the load where matching crates matters
+ * most — are the smallest in the fleet.
+ */
+const BAY_CRATE_MIN_W = 44;
+
+/** The band of gravel and building above the tarmac, where there is room for it. */
+const BUILDING_BAND_MAX = 132;
+/** The least vertical room the vehicle and the panel will put up with. */
+const MIN_BAND = 240;
 
 export interface CrateLoadingCallbacks {
   /** An animal in the tray was tapped — pick it up. */
@@ -124,6 +183,8 @@ interface PanelCopy {
   body: string[];
 }
 
+interface Box { x: number; y: number; w: number; h: number }
+
 /**
  * A label that always fits its box.
  *
@@ -153,10 +214,16 @@ function fitLabel(
 /**
  * The crate an animal travels in, drawn.
  *
- * **No crate art exists yet**, so the crate reads as the emoji already
- * on its `CrateDef`. This function is the only place that decides how a
- * crate looks: when the art lands, it draws an image here and nothing
- * else in the screen changes.
+ * **This is the single swap point for crate art.** A painted crate is
+ * loaded under the key `crate-<type>` and drawn at `size` the moment it
+ * exists; two of the six are painted (`standard`, `warm-vivarium`) and
+ * are not installed yet, so every type falls through to the placeholder
+ * below and the screen works either way.
+ *
+ * The placeholder is the emoji already on the `CrateDef`, on a small
+ * cream disc so it reads as an object pinned to the crate rather than a
+ * glyph floating on the animal. When the art lands it replaces the disc
+ * and nothing else in the screen changes.
  */
 function makeCrateFace(
   scene: Phaser.Scene,
@@ -165,10 +232,26 @@ function makeCrateFace(
   crate: CrateDef,
   size: number,
 ): Phaser.GameObjects.GameObject {
-  return scene.add.text(x, y, crate.emoji, {
-    fontSize: `${size}px`,
+  const key = `crate-${crate.id}`;
+  if (scene.textures.exists(key)) {
+    const img = scene.add.image(x, y, key).setOrigin(0.5);
+    img.setScale(size / Math.max(img.width, img.height));
+    return img;
+  }
+
+  const r = size / 2;
+  const gfx = scene.add.graphics();
+  gfx.fillStyle(CHROME.fill, CHROME.fillAlpha);
+  gfx.fillCircle(0, 0, r);
+  gfx.lineStyle(1.5, CHROME.stroke, CHROME.strokeAlpha);
+  gfx.strokeCircle(0, 0, r);
+
+  const glyph = scene.add.text(0, 0, crate.emoji, {
+    fontSize: `${Math.round(size * 0.62)}px`,
     fontFamily: FONTS.body,
   }).setOrigin(0.5);
+
+  return scene.add.container(x, y, [gfx, glyph]);
 }
 
 /** One feeling badge — the mark, and under it the word. */
@@ -314,51 +397,116 @@ export function renderCrateLoading(
   const { session, vehicle } = state;
   const held = heldAnimal(session);
 
-  // ── Ground ──
-  if (scene.textures.exists('site-gravel')) {
-    container.add(scene.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
-  } else {
-    container.add(scene.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
-  }
-
+  // The title carries what used to be a floating line of ink on the
+  // gravel — "Trikey has 2 spaces". The van on screen now shows its own
+  // capacity, so the words belong with the other fact about this trip
+  // rather than hovering over the tarmac looking for a home.
+  const spaces = `${vehicle.slots} ${vehicle.slots === 1 ? 'space' : 'spaces'}`;
   const title = createChromeTitle(scene, width / 2, TITLE_CY, `Load ${vehicle.name}`, {
     fontSize: TYPE.lead,
-    subtitle: `off to ${state.destinationName}`,
+    subtitle: `${spaces} — off to ${state.destinationName}`,
   });
-  container.add(title);
 
-  // ── Bands ──
-  const bandTop = contentTopFor(title);
+  // ── The forecourt, and the bands on it ──
+  const contentTop = contentTopFor(title);
   const buttonCy = bottomAnchorY(height);
-  const trayH = Math.min(96, Math.max(76, height * 0.19));
-  const trayTop = buttonCy - MIN_TAP / 2 - SPACE.m - trayH;
-  const bandBottom = trayTop - SPACE.m;
-  const bandH = Math.max(120, bandBottom - bandTop);
+  const bandBottom = buttonCy - MIN_TAP / 2 - SPACE.m;
+  const roadTop = height * 0.93;
+
+  // The gravel strip the building stands in gets what it can, and gives
+  // way first: on a landscape phone there is no room for a building and
+  // a van, and the van is the one being loaded.
+  const buildingBand = Math.max(
+    0,
+    Math.min(height * 0.22, BUILDING_BAND_MAX, bandBottom - contentTop - MIN_BAND),
+  );
+  const apronTop = contentTop + buildingBand;
 
   const usable = width - PAGE_MARGIN * 2;
   const colGap = SPACE.xl;
-  const gridColW = Math.round((usable - colGap) * 0.54);
-  const panelColW = usable - colGap - gridColW;
-  const gridColX = PAGE_MARGIN;
-  const panelColX = gridColX + gridColW + colGap;
+  // The panel is sized first and the vehicle takes what is left: the
+  // panel is type, and type has a width below which it stops being
+  // readable, while a vehicle simply draws smaller.
+  const panelColW = Math.round(Math.max(236, Math.min(usable * 0.44, 420)));
+  const vehicleColW = Math.max(160, usable - colGap - panelColW);
+  const panelColX = PAGE_MARGIN + vehicleColW + colGap;
 
-  // The panel first, because the grid and the tray both repaint it on
-  // hover and need the setter it hands back. It is sized for its
-  // longest copy — a heading and five lines — rather than for the band,
-  // and pinned to the top of it: a panel that changed height with its
-  // contents would move the words a child is reading.
-  const panelH = Math.min(bandH, CHROME.padY * 2 + 34 + 5 * 26);
+  const bandTop = apronTop + SPACE.m;
+  const bandH = bandBottom - bandTop;
+
+  // The animals waiting to board stand under the panel, in the same
+  // column, which is what buys the vehicle the full height of the band.
+  // Where that column cannot give them a chip wide enough to carry a
+  // name — a narrow or a short window — they fall back to a strip
+  // across the bottom, and the panel and the vehicle give up the height
+  // instead. Decided before either is drawn, so the strip can never
+  // land on the panel.
+  const trayLabelH = MIN_FONT.small + SPACE.xs;
+  const trayMinH = trayLabelH + SPACE.s + MIN_TAP;
+  const panelWanted = CHROME.padY * 2 + 34 + 5 * 26;
+  const waiting = waitingToBoard(session).length;
+  const columnTrayTop = bandTop + Math.min(bandH, panelWanted) + SPACE.l;
+  const columnTrayH = bandBottom - columnTrayTop;
+  const columnChip = trayGrid(
+    Math.max(1, waiting), { w: panelColW, h: columnTrayH - trayLabelH - SPACE.s },
+  );
+
+  let trayBox: Box;
+  let columnsBottom: number;
+  if (columnTrayH >= trayMinH && columnChip.chipW >= CHIP_NAME_MIN_W) {
+    trayBox = { x: panelColX, y: columnTrayTop, w: panelColW, h: columnTrayH };
+    columnsBottom = bandBottom;
+  } else {
+    // The strip's whole height, label row included — on a landscape
+    // phone every pixel it takes comes off the message panel, which is
+    // the one thing on this screen that cannot be shortened.
+    const trayH = Math.min(104, Math.max(trayLabelH + SPACE.s + MIN_TAP, height * 0.19));
+    trayBox = { x: PAGE_MARGIN, y: bandBottom - trayH, w: usable, h: trayH };
+    columnsBottom = trayBox.y - SPACE.m;
+  }
+
+  // The tarmac is the loading bay, not the whole screen. The picker
+  // lays a wide shallow slab because it is showing a row of five bays;
+  // here there is one vehicle, so the slab is its bay and the rest of
+  // the forecourt stays gravel — which keeps the chrome column reading
+  // as paper over a place rather than as a panel on a black field.
+  //
+  // It ends where the vehicle does rather than always at the road:
+  // under the bottom tray strip the extra tarmac is empty, and empty
+  // tarmac under a strip of chips reads as a hole rather than a car
+  // park.
+  drawForecourt(scene, container, {
+    width,
+    height,
+    contentTop,
+    apronTop,
+    apronH: Math.max(0, Math.min(roadTop - 8, columnsBottom + SPACE.s) - apronTop),
+    apronX: PAGE_MARGIN - SPACE.m,
+    apronW: vehicleColW + SPACE.xl,
+    // Over the bay, so the vehicle is parked in front of the rescue
+    // centre rather than beside it.
+    buildingCx: PAGE_MARGIN + vehicleColW / 2,
+    // Its ground line runs just under the tarmac's top edge. The
+    // picker's default puts it 30% into a shallow band of bays; this
+    // apron runs most of the screen, and the same fraction would stand
+    // the building in the middle of the car park.
+    buildingBase: apronTop + SPACE.s,
+  });
+  container.add(title);
+
+  // The panel is sized for its longest copy — a heading and five lines —
+  // rather than for the band, and pinned to the top of it: a panel that
+  // changed height with its contents would move the words a child is
+  // reading. It takes the band's height when the band is the smaller.
+  const panelH = Math.max(MIN_TAP, Math.min(columnsBottom - bandTop, panelWanted));
   const setMessage = drawPanel(scene, container, state, {
     x: panelColX, y: bandTop, w: panelColW, h: panelH,
   });
 
-  drawGrid(scene, container, state, callbacks, setMessage, {
-    x: gridColX, y: bandTop, w: gridColW, h: bandH,
-  });
-
-  drawTray(scene, container, state, callbacks, setMessage, {
-    x: PAGE_MARGIN, y: trayTop, w: usable, h: trayH,
-  });
+  drawVehicle(scene, container, state, callbacks, setMessage, {
+    x: PAGE_MARGIN, y: bandTop, w: vehicleColW, h: Math.max(100, columnsBottom - bandTop),
+  }, trayBox.y < bandBottom);
+  drawTray(scene, container, state, callbacks, setMessage, trayBox, trayLabelH);
 
   // ── Bottom row ──
   container.add(
@@ -389,9 +537,7 @@ export function renderCrateLoading(
   }
 }
 
-// ── The grid ─────────────────────────────────────────────────
-
-interface Box { x: number; y: number; w: number; h: number }
+// ── The vehicle, and the bays in it ──────────────────────────
 
 /**
  * The live notes for one bay, as panel copy — what a pointer resting on
@@ -411,113 +557,300 @@ function bayHoverCopy(session: LoadingSession, slotIndex: number): PanelCopy | n
   };
 }
 
-function drawGrid(
+/**
+ * The chosen vehicle, parked in a bay on the tarmac, with its load bed
+ * cut away and the crate grid laid in it.
+ *
+ * The bays lead: `fitLoadBed` sizes them for the room there is and then
+ * says how big the vehicle has to be drawn for its bed to hold them,
+ * which is why Big Tilly draws bigger than the band and a trike does
+ * not. The vehicle is centred in its column; when it is bigger than the
+ * band it is pinned to the top of it, so the bed is always fully on
+ * screen and it is the bumper that runs out of the picture.
+ */
+function drawVehicle(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
   state: CrateLoadingState,
   callbacks: CrateLoadingCallbacks,
   setMessage: (copy: PanelCopy | null) => void,
   box: Box,
+  /**
+   * Cut the vehicle off at the bottom of its box.
+   *
+   * A vehicle too big for the band runs out of the bottom of the
+   * picture, which is the honest thing and looks it — until a tray
+   * strip is lying across that bottom, and a wheel reappears below it.
+   * Then the vehicle ends at the strip and goes behind it, which is
+   * what the strip already means.
+   */
+  clipToBox = false,
 ): void {
   const { session, vehicle } = state;
   const { cols, rows } = session.grid;
 
-  const slotW = Math.min(SLOT_MAX_W, Math.floor((box.w - GAP * (cols - 1) - SPACE.m * 2) / cols));
-  const slotH = Math.min(SLOT_MAX_H, Math.floor((box.h - GAP * (rows - 1) - SPACE.m * 2) / rows));
+  const key = VEHICLE_SPRITE[vehicle.id];
+  let slotW: number;
+  let slotH: number;
+  let bed: Box;
+
+  if (scene.textures.exists(key)) {
+    const sprite = scene.add.image(0, 0, key).setOrigin(0.5);
+    const fit = fitLoadBed(
+      { w: box.w, h: box.h },
+      { w: sprite.width, h: sprite.height },
+      VEHICLE_BED[vehicle.id],
+      cols, rows,
+    );
+    const left = box.x + (box.w - fit.spriteW) / 2;
+    const top = fit.overflows ? box.y : box.y + (box.h - fit.spriteH) / 2;
+
+    // The painted bay the vehicle is standing in, under it.
+    drawParkingBay(scene, container, {
+      x: Math.max(box.x, left - SPACE.m),
+      y: box.y,
+      w: Math.min(box.w, fit.spriteW + SPACE.m * 2),
+      h: box.h,
+    });
+
+    sprite.setPosition(left + fit.spriteW / 2, top + fit.spriteH / 2);
+    sprite.setDisplaySize(fit.spriteW, fit.spriteH);
+    if (clipToBox && fit.overflows) {
+      // `setCrop` is in the texture's own pixels and draws the kept part
+      // where it already was, so the bed does not move.
+      const keep = (box.y + box.h - top) / fit.spriteH;
+      sprite.setCrop(0, 0, sprite.width, sprite.height * Math.max(0, Math.min(1, keep)));
+    }
+    container.add(sprite);
+
+    slotW = fit.slotW;
+    slotH = fit.slotH;
+    bed = { x: left + fit.bed.x, y: top + fit.bed.y, w: fit.bed.w, h: fit.bed.h };
+  } else {
+    // No painted vehicle loaded. The bed is still a bed — the cutaway
+    // panel, the bays and every sentence behave identically, so a
+    // missing texture costs the picture and nothing else.
+    slotW = Math.max(1, Math.min(
+      BAY_MAX_W, Math.floor((box.w - BED_PAD * 2 - GAP * (cols - 1)) / cols),
+    ));
+    slotH = Math.max(1, Math.min(
+      BAY_MAX_H, Math.floor((box.h - BED_PAD * 2 - GAP * (rows - 1)) / rows),
+    ));
+    const w = slotW * cols + GAP * (cols - 1) + BED_PAD * 2;
+    const h = slotH * rows + GAP * (rows - 1) + BED_PAD * 2;
+    bed = { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };
+  }
+
+  drawBedFloor(scene, container, bed);
+
   const gridW = slotW * cols + GAP * (cols - 1);
   const gridH = slotH * rows + GAP * (rows - 1);
-  const originX = box.x + (box.w - gridW) / 2;
-  const originY = box.y + (box.h - gridH) / 2;
+  const originX = bed.x + (bed.w - gridW) / 2;
+  const originY = bed.y + (bed.h - gridH) / 2;
 
-  // The van floor the bays sit on — the same dark brown this scene's
-  // destination strip already uses, so the fleet screens agree.
-  const floor = scene.add.graphics();
-  floor.fillStyle(0x4a3f2e, 0.92);
-  floor.fillRoundedRect(
-    originX - SPACE.m, originY - SPACE.m, gridW + SPACE.m * 2, gridH + SPACE.m * 2, 12,
-  );
-  container.add(floor);
+  drawBays(scene, container, state, callbacks, setMessage, {
+    originX, originY, slotW, slotH, cols,
+  });
+}
 
-  container.add(
-    scene.add.text(
-      originX + gridW / 2, originY - SPACE.m - SPACE.s,
-      `${vehicle.name} has ${vehicle.slots} ${vehicle.slots === 1 ? 'space' : 'spaces'}`,
-      {
-        // Ink, not the bay-label cream the picker uses: this line sits on
-        // the gravel above the van floor, not on the dark slab, and cream
-        // on gravel is the one pairing in this screen that does not read.
-        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
-        color: CHROME.ink, resolution: TEXT_RESOLUTION,
-      },
-    ).setOrigin(0.5, 1),
-  );
+/**
+ * The cutaway — a cream floor inset into the vehicle's body with a dark
+ * rim where its walls are, so the bays read as being inside the van
+ * rather than painted on its roof.
+ */
+function drawBedFloor(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  bed: Box,
+): void {
+  const gfx = scene.add.graphics();
+  gfx.fillStyle(BED_WALL, 0.38);
+  gfx.fillRoundedRect(bed.x - 4, bed.y - 4, bed.w + 8, bed.h + 8, 14);
+  gfx.fillStyle(BED_FLOOR, 0.97);
+  gfx.fillRoundedRect(bed.x, bed.y, bed.w, bed.h, 11);
+  gfx.lineStyle(2, 0x8a7a60, 0.5);
+  gfx.strokeRoundedRect(bed.x, bed.y, bed.w, bed.h, 11);
+  container.add(gfx);
+}
+
+interface GridGeometry {
+  originX: number;
+  originY: number;
+  slotW: number;
+  slotH: number;
+  cols: number;
+}
+
+interface BayGeometry {
+  left: number;
+  top: number;
+  cx: number;
+  cy: number;
+  slotW: number;
+  slotH: number;
+  crateSize: number;
+  withName: boolean;
+  withCrate: boolean;
+}
+
+/**
+ * A loaded bay: the animal, her name and the crate she travels in.
+ *
+ * Two arrangements, because the bays are the vehicle's and the vehicle
+ * decides their shape. A van's bay is roughly square and takes a card —
+ * the animal above, her name under her. A trike's bay is the full width
+ * of its box and a fifth as deep, and a card in it draws a 17px animal
+ * over a 20px name; so a wide bay is a row instead, with the animal at
+ * the left and her name beside her, which is the same two facts using
+ * the axis that actually has room.
+ */
+function drawLoadedBay(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  state: CrateLoadingState,
+  animalId: string,
+  crate: CrateDef,
+  g: BayGeometry,
+): void {
+  const animal = state.animalsById.get(animalId);
+  const nameStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+    fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
+    color: CHROME.ink, resolution: TEXT_RESOLUTION,
+  };
+
+  if (g.slotW >= g.slotH * 1.6) {
+    const art = Math.min(g.slotH - 8, g.slotW * 0.34);
+    if (animal) {
+      container.add(
+        createAnimalSprite(scene, g.left + 4 + art / 2, g.cy, animal, {
+          width: art, height: art,
+        }),
+      );
+    }
+    // The name takes everything to the right of the animal, and the
+    // crate mark rides on her shoulder rather than claiming a column of
+    // its own: in a 45px-deep bay the mark costs about three letters,
+    // and three letters of a name is the difference between "Whiskers"
+    // and "Wh…".
+    const textLeft = g.left + 4 + art + SPACE.xs;
+    const textRight = g.left + g.slotW - 4;
+    if (animal && textRight - textLeft >= 36) {
+      container.add(
+        fitLabel(
+          scene, (textLeft + textRight) / 2, g.cy, animal.name, textRight - textLeft, nameStyle,
+        ),
+      );
+    }
+    if (g.withCrate) {
+      const badge = Math.min(g.crateSize, Math.round(art * 0.56));
+      container.add(
+        makeCrateFace(scene, g.left + 3 + badge / 2, g.top + 3 + badge / 2, crate, badge),
+      );
+    }
+    return;
+  }
+
+  const nameRow = g.withName ? MIN_FONT.small + 4 : 0;
+  if (animal) {
+    container.add(
+      createAnimalSprite(scene, g.cx, g.cy - nameRow / 2, animal, {
+        width: g.slotW - 10, height: g.slotH - nameRow - 6,
+      }),
+    );
+    if (g.withName) {
+      container.add(
+        fitLabel(
+          scene, g.cx, g.cy + g.slotH / 2 - nameRow / 2 - 2, animal.name, g.slotW - 8, nameStyle,
+        ),
+      );
+    }
+  }
+  if (g.withCrate) {
+    container.add(
+      makeCrateFace(
+        scene, g.left + g.crateSize / 2 + 4, g.top + g.crateSize / 2 + 4, crate, g.crateSize,
+      ),
+    );
+  }
+}
+
+function drawBays(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  state: CrateLoadingState,
+  callbacks: CrateLoadingCallbacks,
+  setMessage: (copy: PanelCopy | null) => void,
+  geom: GridGeometry,
+): void {
+  const { session } = state;
+  const { originX, originY, slotW, slotH, cols } = geom;
 
   const slotCentre = (slot: number) => ({
     x: originX + (slot % cols) * (slotW + GAP) + slotW / 2,
     y: originY + Math.floor(slot / cols) * (slotH + GAP) + slotH / 2,
   });
 
+  const crateSize = Math.max(16, Math.min(26, Math.round(slotW * 0.36)));
+  const withName = slotH >= BAY_NAME_MIN_H;
+  const withCrate = slotW >= BAY_CRATE_MIN_W;
+
   for (let slot = 0; slot < slotCount(session); slot += 1) {
     const { x: cx, y: cy } = slotCentre(slot);
     const crate = crateAt(session, slot);
     const outlook = slotOutlook(session, slot);
+    const left = cx - slotW / 2;
+    const top = cy - slotH / 2;
 
     const bay = scene.add.graphics();
     if (crate) {
+      // A loaded bay is the crate: the chrome surface, because a crate
+      // is a box with a door and the plate is the one surface in the
+      // game that reads as a thing you could lift.
+      bay.fillStyle(CHROME.shadowColour, 0.2);
+      bay.fillRoundedRect(left + 2, top + 3, slotW, slotH, 10);
       bay.fillStyle(CHROME.fill, CHROME.fillAlpha);
-      bay.fillRoundedRect(cx - slotW / 2, cy - slotH / 2, slotW, slotH, 10);
-      bay.lineStyle(2, CHROME.stroke, 1);
-      bay.strokeRoundedRect(cx - slotW / 2, cy - slotH / 2, slotW, slotH, 10);
+      bay.fillRoundedRect(left, top, slotW, slotH, 10);
+      bay.lineStyle(CHROME.strokeWidth, CHROME.stroke, CHROME.strokeAlpha);
+      bay.strokeRoundedRect(left, top, slotW, slotH, 10);
     } else if (outlook) {
       // Holding an animal lights every empty bay with what it would do
       // to her — the one moment this screen uses colour at full
       // strength, and it still carries the mark and the word on top.
       const skin = FEELING_SKIN[outlook];
       bay.fillStyle(skin.fill, 0.95);
-      bay.fillRoundedRect(cx - slotW / 2, cy - slotH / 2, slotW, slotH, 10);
+      bay.fillRoundedRect(left, top, slotW, slotH, 10);
       bay.lineStyle(3, skin.stroke, 1);
-      bay.strokeRoundedRect(cx - slotW / 2, cy - slotH / 2, slotW, slotH, 10);
+      bay.strokeRoundedRect(left, top, slotW, slotH, 10);
     } else {
-      // An empty bay is a recess in the van floor with a painted
-      // outline, which is what the picker's parking bays already are —
-      // darker than the floor rather than a paler crate, so "there is
-      // nobody here" never has to be read as "there is something here".
-      bay.fillStyle(0x2f2820, 0.38);
-      bay.fillRoundedRect(cx - slotW / 2, cy - slotH / 2, slotW, slotH, 10);
-      bay.lineStyle(2, 0xf2ead6, 0.7);
-      bay.strokeRoundedRect(cx - slotW / 2, cy - slotH / 2, slotW, slotH, 10);
+      // An empty bay is a recess in the vehicle's floor — darker than
+      // the floor rather than a paler crate, so "there is nobody here"
+      // never has to be read as "there is something here".
+      bay.fillStyle(BED_WALL, 0.22);
+      bay.fillRoundedRect(left, top, slotW, slotH, 10);
+      bay.lineStyle(2, BED_WALL, 0.5);
+      bay.strokeRoundedRect(left, top, slotW, slotH, 10);
     }
     container.add(bay);
 
     if (crate) {
-      const animal = state.animalsById.get(crate.animalId);
-      const nameRow = MIN_FONT.small + 4;
-      const artH = slotH - nameRow - 8;
-      if (animal) {
-        container.add(
-          createAnimalSprite(scene, cx, cy - nameRow / 2, animal, {
-            width: slotW - 16, height: artH,
-          }),
-        );
-        container.add(
-          fitLabel(scene, cx, cy + slotH / 2 - nameRow / 2 - 2, animal.name, slotW - 8, {
-            fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
-            color: CHROME.ink, resolution: TEXT_RESOLUTION,
-          }),
-        );
-      }
-      container.add(
-        makeCrateFace(
-          scene, cx - slotW / 2 + 14, cy - slotH / 2 + 14, crateDefFor(crate.species), 18,
-        ),
-      );
+      drawLoadedBay(scene, container, state, crate.animalId, crateDefFor(crate.species), {
+        left, top, cx, cy, slotW, slotH, crateSize, withName, withCrate,
+      });
     } else if (outlook) {
       container.add(makeFeelingBadge(scene, cx, cy, outlook, { withWord: slotH >= 62 }));
     }
 
-    // Hit area floored at MIN_TAP, per the idiom on that constant.
+    // Hit area floored at MIN_TAP, per the idiom on that constant —
+    // but never past its neighbour. `BAY_MIN` keeps the drawn pitch at
+    // or above MIN_TAP so the floor is normally free, and the pitch is
+    // the ceiling for the window where it is not: a hit box 4px short
+    // of the floor is a smaller target, while one that overlaps the bay
+    // next door picks up the wrong animal.
     const hit = scene.add.rectangle(
-      cx, cy, Math.max(slotW, MIN_TAP), Math.max(slotH, MIN_TAP), 0x000000, 0,
+      cx, cy,
+      Math.max(slotW, Math.min(MIN_TAP, slotW + GAP)),
+      Math.max(slotH, Math.min(MIN_TAP, slotH + GAP)),
+      0x000000, 0,
     ).setInteractive({ useHandCursor: true });
     hit.on('pointerover', () => {
       if (crate) {
@@ -570,6 +903,12 @@ function drawGrid(
 /**
  * The fixed message panel. Returns a setter the tray and the bays use
  * to repaint it on hover without redrawing the screen.
+ *
+ * While an animal is held, her painting sits in the panel's bottom
+ * corner. "In your hands" is a sentence a seven-year-old has to read
+ * and believe; a picture of the animal she is carrying is the same fact
+ * at a glance, and it is the one thing on this screen that changes with
+ * no visible cause otherwise.
  */
 function drawPanel(
   scene: Phaser.Scene,
@@ -580,8 +919,22 @@ function drawPanel(
   const plate = createChromePlate(scene, box.x + box.w / 2, box.y + box.h / 2, box.w, box.h);
   container.add(plate);
 
+  const held = heldAnimal(state.session);
+  const heldRecord = held ? state.animalsById.get(held.id) : undefined;
+  const carrySize = Math.min(56, box.h - CHROME.padY * 2);
+
+  // The sentences keep the full width: the painting sits below them, in
+  // the corner the fifth line only reaches when a bay has been refused,
+  // and a refusal is never something you are holding an animal through.
   const innerW = box.w - CHROME.padX * 2;
   const headingY = box.y + CHROME.padY + SPACE.xs;
+
+  // On a landscape phone the plate gets about two-thirds the height its
+  // longest copy wants, and there is nothing to take it from — the tray
+  // and the vehicle are already at their floors. So the lines close up
+  // rather than running off the bottom of the paper onto the gravel.
+  // The type size does not move; that floor is not negotiable.
+  const tight = box.h < CHROME.padY * 2 + 34 + 5 * 26;
 
   const heading = scene.add.text(box.x + CHROME.padX, headingY, '', {
     fontSize: TYPE.lead, fontFamily: FONTS.ui, fontStyle: 'bold',
@@ -589,11 +942,23 @@ function drawPanel(
   }).setOrigin(0, 0);
   container.add(heading);
 
-  const body = scene.add.text(box.x + CHROME.padX, headingY + 34, '', {
+  const body = scene.add.text(box.x + CHROME.padX, headingY + (tight ? 28 : 34), '', {
     fontSize: TYPE.body, fontFamily: FONTS.ui, color: CHROME.ink,
-    lineSpacing: 6, wordWrap: { width: innerW }, resolution: TEXT_RESOLUTION,
+    lineSpacing: tight ? 2 : 6, wordWrap: { width: innerW }, resolution: TEXT_RESOLUTION,
   }).setOrigin(0, 0);
   container.add(body);
+
+  if (heldRecord && carrySize > 24) {
+    container.add(
+      createAnimalSprite(
+        scene,
+        box.x + box.w - CHROME.padX - carrySize / 2,
+        box.y + box.h - CHROME.padY - carrySize / 2,
+        heldRecord,
+        { width: carrySize, height: carrySize },
+      ).setDepth(4),
+    );
+  }
 
   const standing = panelCopy(state);
   const apply = (copy: PanelCopy | null): void => {
@@ -608,6 +973,17 @@ function drawPanel(
 
 // ── The tray ─────────────────────────────────────────────────
 
+/**
+ * How the waiting animals are arranged in whatever rectangle the tray
+ * was given — `fitChipGrid` with this screen's chip sizes.
+ */
+function trayGrid(
+  count: number,
+  box: { w: number; h: number },
+): { rows: number; perRow: number; chipW: number; chipH: number } {
+  return fitChipGrid(count, box, { gap: GAP, maxW: CHIP_MAX_W, maxH: CHIP_MAX_H });
+}
+
 function drawTray(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
@@ -615,6 +991,7 @@ function drawTray(
   callbacks: CrateLoadingCallbacks,
   setMessage: (copy: PanelCopy | null) => void,
   box: Box,
+  labelH: number,
 ): void {
   const { session } = state;
   const waiting = waitingToBoard(session);
@@ -631,35 +1008,39 @@ function drawTray(
   );
   container.add(label);
 
-  const rowTop = box.y + label.height + SPACE.s;
-  const rowH = Math.max(MIN_TAP, box.h - (label.height + SPACE.s));
+  const rowTop = box.y + labelH + SPACE.s;
+  const areaH = Math.max(MIN_TAP, box.h - labelH - SPACE.s);
 
   if (waiting.length === 0) {
     container.add(
       scene.add.text(
-        box.x + SPACE.s, rowTop + rowH / 2,
+        box.x + SPACE.s, rowTop + Math.min(areaH, MIN_TAP) / 2,
         heldAnimal(session)
           ? `Everybody else is already in ${state.vehicle.name}.`
           : `Everybody is in ${state.vehicle.name}.`,
         {
           fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui,
-          color: CHROME.inkMuted, resolution: TEXT_RESOLUTION,
+          color: CHROME.inkMuted, wordWrap: { width: box.w - SPACE.m },
+          resolution: TEXT_RESOLUTION,
         },
       ).setOrigin(0, 0.5),
     );
     return;
   }
 
-  const chipW = Math.max(
-    CHIP_MIN_W,
-    Math.min(CHIP_MAX_W, Math.floor((box.w - GAP * (waiting.length - 1)) / waiting.length)),
-  );
-  const stripW = chipW * waiting.length + GAP * (waiting.length - 1);
-  const startX = box.x + Math.max(0, (box.w - stripW) / 2);
+  const { perRow, chipW, chipH } = trayGrid(waiting.length, { w: box.w, h: areaH });
 
   waiting.forEach((animal, i) => {
+    const row = Math.floor(i / perRow);
+    const col = i % perRow;
+    const inRow = Math.min(perRow, waiting.length - row * perRow);
+    const stripW = chipW * inRow + GAP * (inRow - 1);
+    const startX = box.x + Math.max(0, (box.w - stripW) / 2);
     drawChip(scene, container, state, callbacks, setMessage, animal, {
-      x: startX + i * (chipW + GAP), y: rowTop, w: chipW, h: rowH,
+      x: startX + col * (chipW + GAP),
+      y: rowTop + row * (chipH + GAP),
+      w: chipW,
+      h: chipH,
     });
   });
 }
@@ -677,7 +1058,7 @@ function drawChip(
   const cy = box.y + box.h / 2;
 
   container.add(
-    createChromePlate(scene, cx, cy, box.w, box.h, { radius: 10, shadow: false }),
+    createChromePlate(scene, cx, cy, box.w, box.h, { radius: 10 }),
   );
 
   const nameRow = MIN_FONT.small + 2;
@@ -695,6 +1076,17 @@ function drawChip(
       color: CHROME.ink, resolution: TEXT_RESOLUTION,
     }),
   );
+
+  // The crate an animal needs, on the chip as well as in the bay, so a
+  // child can tell before she picks anybody up that the snake wants the
+  // warm vivarium and the bat wants the quiet one.
+  if (box.w >= 76) {
+    container.add(
+      makeCrateFace(
+        scene, box.x + 15, box.y + 15, crateDefFor(animal.species), 22,
+      ),
+    );
+  }
 
   const hit = scene.add.rectangle(
     cx, cy, Math.max(box.w, MIN_TAP), Math.max(box.h, MIN_TAP), 0x000000, 0,
