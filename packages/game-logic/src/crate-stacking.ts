@@ -73,6 +73,82 @@ export function getCompatibility(a: Species, b: Species): CompatibilityLevel {
   return MATRIX[a][b];
 }
 
+/**
+ * One traveller, as the adjacency rules need to see them: what they
+ * are, and whether they are poorly.
+ *
+ * `poorly` is the game's own illness flag — `GameStateStore.sickAnimals`,
+ * the map the vet flow fills and empties — carried in rather than
+ * re-derived. There is no `sick` in `AnimalState`; being unwell is a
+ * separate fact about an animal and this is it.
+ */
+export interface Passenger {
+  species: Species;
+  poorly?: boolean;
+}
+
+/**
+ * How one animal feels about the animal beside it.
+ *
+ * **Directional, and that is the point.** `MATRIX` is symmetric — it
+ * knows a cat and a dog are a tense pair, not which of them minds —
+ * and until now the whole engine was symmetric with it. Illness is not:
+ * a poorly animal has bigger problems than who it is sitting next to,
+ * and the healthy animal beside it is the one being asked to give some
+ * space. So this answers for one side at a time, and a pair is read by
+ * asking twice.
+ *
+ * Three rules, in this order:
+ *
+ * 1. **Blocked is blocked, sick or not.** Stressed is a preference and
+ *    illness can outweigh a preference; blocked is safety, and a
+ *    poorly bunny beside a fox is in *more* danger than a well one,
+ *    not less. Nothing below is allowed to soften it, and it still
+ *    gates the drive through `isDriveable`.
+ * 2. **A poorly animal takes no `stressed` reaction.** It has bigger
+ *    problems than a neighbour it would rather not have.
+ * 3. **A healthy animal beside a poorly one takes a mild one** — the
+ *    `stressed` level, whatever the two species would otherwise have
+ *    been. Not because it dislikes the patient: because the patient
+ *    needs a quiet space, which is how `describePair` words it and the
+ *    only way it should ever be worded.
+ *
+ * Two poorly animals side by side therefore mind each other not at
+ * all: rule 2 answers for both of them and rule 3 reaches neither.
+ */
+export function feelingToward(self: Passenger, neighbour: Passenger): CompatibilityLevel {
+  const base = getCompatibility(self.species, neighbour.species);
+  if (base === 'blocked') return 'blocked';
+  if (self.poorly) return 'happy';
+  if (neighbour.poorly) return 'stressed';
+  return base;
+}
+
+/**
+ * How a *pair* reads — the worse of the two directions.
+ *
+ * `needsQuiet` says the stress in it is one animal being unwell rather
+ * than two species disagreeing, which is what decides the sentence the
+ * child is shown and the mark drawn on the edge they share. Never true
+ * of a blocked pair: safety is the louder fact and takes the wording.
+ */
+export function pairFeeling(
+  a: Passenger,
+  b: Passenger,
+): { level: CompatibilityLevel; needsQuiet: boolean } {
+  const level = worstOf(feelingToward(a, b), feelingToward(b, a));
+  return {
+    level,
+    needsQuiet: level !== 'blocked' && Boolean(a.poorly) !== Boolean(b.poorly),
+  };
+}
+
+const SEVERITY: Record<CompatibilityLevel, number> = { happy: 0, stressed: 1, blocked: 2 };
+
+function worstOf(a: CompatibilityLevel, b: CompatibilityLevel): CompatibilityLevel {
+  return SEVERITY[a] >= SEVERITY[b] ? a : b;
+}
+
 // ── Crate types ──────────────────────────────────────────────
 
 export type CrateType =
@@ -200,6 +276,15 @@ export interface LoadedCrate {
   animalId: string;
   species: Species;
   crateType: CrateType;
+  /**
+   * This animal is unwell — `GameStateStore.sickAnimals` says so.
+   *
+   * Carried on the crate because adjacency is answered from the grid
+   * and the grid is all `previewPlacement`, `isDriveable` and the
+   * arrival scoring are given. Optional, so a grid built before this
+   * existed still means what it meant.
+   */
+  poorly?: boolean;
 }
 
 export interface CrateGrid {
@@ -229,33 +314,53 @@ export function neighbourIndices(slotIndex: number, cols: number, rows: number):
  * For a hypothetical placement of animal X in slot S on grid G, return
  * the worst compatibility violation (if any) with current neighbours.
  * 'blocked' trumps 'stressed' trumps 'happy'. Useful for UI previews.
+ *
+ * **Both directions, per neighbour.** A healthy animal put down beside
+ * a poorly one is a thing worth previewing even though the newcomer
+ * itself does not mind — and so is a poorly animal put down beside a
+ * well one, where it is the *sitting* animal who will be asked to give
+ * space. Asking only the newcomer would have shown "happy" for half
+ * the cases this change exists to surface.
  */
 export function previewPlacement(
   grid: CrateGrid,
   slotIndex: number,
-  species: Species,
+  passenger: Passenger,
 ): CompatibilityLevel {
   let worst: CompatibilityLevel = 'happy';
   for (const n of neighbourIndices(slotIndex, grid.cols, grid.rows)) {
     const neighbour = grid.crates.find((c) => c.slotIndex === n);
     if (!neighbour) continue;
-    const level = getCompatibility(species, neighbour.species);
+    const { level } = pairFeeling(passenger, neighbour);
     if (level === 'blocked') return 'blocked';
     if (level === 'stressed' && worst === 'happy') worst = 'stressed';
   }
   return worst;
 }
 
-/** Is the grid OK to drive? Any 'blocked' violation blocks departure. */
+/**
+ * Is the grid OK to drive? Any 'blocked' violation blocks departure.
+ *
+ * Illness cannot reach this. `feelingToward` settles blocked before it
+ * looks at who is poorly, so a sick animal beside one that frightens
+ * it stops the van exactly as a well one would — being unwell makes
+ * that pairing worse, never permissible.
+ */
 export function isDriveable(grid: CrateGrid): boolean {
   for (const crate of grid.crates) {
-    const level = previewPlacement({ ...grid, crates: grid.crates.filter((c) => c !== crate) }, crate.slotIndex, crate.species);
+    const level = previewPlacement({ ...grid, crates: grid.crates.filter((c) => c !== crate) }, crate.slotIndex, crate);
     if (level === 'blocked') return false;
   }
   return true;
 }
 
-/** Count the stressed adjacencies in the whole grid. */
+/**
+ * Count the stressed adjacencies in the whole grid.
+ *
+ * A pair counts when either animal feels it, so a well animal seated
+ * beside a patient counts even though the patient does not mind, and
+ * two patients side by side count for nothing.
+ */
 export function countStressedAdjacencies(grid: CrateGrid): number {
   let count = 0;
   const seen = new Set<string>();
@@ -266,7 +371,7 @@ export function countStressedAdjacencies(grid: CrateGrid): number {
       const key = [crate.slotIndex, n].sort().join('-');
       if (seen.has(key)) continue;
       seen.add(key);
-      if (getCompatibility(crate.species, neighbour.species) === 'stressed') count++;
+      if (pairFeeling(crate, neighbour).level === 'stressed') count++;
     }
   }
   return count;
@@ -292,11 +397,17 @@ export function calculateArrivalHappinessDelta(
     } else {
       delta -= 10;
     }
-    // Adjacency
+    // Adjacency, from this animal's own side of each pair — which is
+    // what makes the illness rules score correctly without a second
+    // set of numbers. A patient pays nothing for a neighbour it does
+    // not mind; the well animal beside it pays the ordinary -5 for a
+    // journey spent giving somebody space; and a patient with one of
+    // its own kind alongside still takes the +1, because a friend in
+    // the next crate is a comfort whether or not you are poorly.
     for (const n of neighbourIndices(crate.slotIndex, grid.cols, grid.rows)) {
       const neighbour = grid.crates.find((c) => c.slotIndex === n);
       if (!neighbour) continue;
-      const level = getCompatibility(crate.species, neighbour.species);
+      const level = feelingToward(crate, neighbour);
       if (level === 'blocked')  delta -= 15;
       if (level === 'stressed') delta -= 5;
       if (level === 'happy' && crate.species === neighbour.species) delta += 1;

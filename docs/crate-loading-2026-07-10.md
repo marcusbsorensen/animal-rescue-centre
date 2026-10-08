@@ -16,12 +16,12 @@ _2026-07-10. Marcus's idea, captured for later. Updated 2026-10-07 to record wha
 | Compatibility matrix, 8 species, symmetric, species-based | Built, not wired | `crate-stacking.ts`: `MATRIX`, `getCompatibility` |
 | Six crate types and the species each suits | Built, not wired | `CRATE_DEFS`, `getPreferredCrates`, `isCrateSuitable` |
 | Vehicle capacity as a grid (five vehicles) | Built. The picker card prints slots and fuel | `VEHICLE_DEFS`; `PtvDriveScene.makeVehicleCard` prints `Slots N` |
-| Adjacency, placement preview, drive gate, stressed count | Built, not wired | `neighbourIndices`, `previewPlacement`, `isDriveable`, `countStressedAdjacencies` |
+| Adjacency, placement preview, drive gate, stressed count | Built and wired into the loading screen (2026-10) | `neighbourIndices`, `previewPlacement`, `isDriveable`, `countStressedAdjacencies`; illness via `feelingToward` / `pairFeeling` |
 | Arrival happiness | Built, not wired | `calculateArrivalHappinessDelta` |
 | Staging shelf, drag-and-drop, loading view, crate sprites | Designed, not built | No scene exists; no file with `crate` in its name under `apps/game/public/assets` |
 | Handing a loaded grid to the drive | Designed, not built | `GameScene.driveTo(destinationId, animalId?)` passes one optional animal id and no grid; `PtvDriveScene` phases are `select`, `parking`, `travel`, `arrival` |
 
-The engine's scoring, for reference: +3 for a suitable crate, −10 for an unsuitable one; for each N/S/E/W neighbour, −15 blocked, −5 stressed, +1 same species. The full tables are in [`ptv-pet-transport-vehicle.md`](ptv-pet-transport-vehicle.md).
+The engine's scoring, for reference: +3 for a suitable crate, −10 for an unsuitable one; for each N/S/E/W neighbour, −15 blocked, −5 stressed, +1 same species. _2026-10-09:_ the neighbour part is scored from each animal's own side of the pair rather than from the species matrix, which is what lets illness be asymmetric — a poorly animal pays nothing for a neighbour it does not mind, and the well animal beside it pays the ordinary −5 for giving it space. The full tables are in [`ptv-pet-transport-vehicle.md`](ptv-pet-transport-vehicle.md).
 
 ## Concept
 

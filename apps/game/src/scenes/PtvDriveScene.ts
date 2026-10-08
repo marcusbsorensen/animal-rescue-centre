@@ -5,6 +5,7 @@ import {
 } from '../ui/constants';
 import { createChromeButton, createChromeTitle, createChromePlate } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
+import { registerSickAnimals } from '../ui/sprites';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Animal, Economy, Species } from '@arc/shared-types';
 import {
@@ -242,6 +243,12 @@ export interface PtvDriveInit {
    * `cargo`; anything else is ignored.
    */
   preloadAnimalIds?: string[];
+  /**
+   * Which of the cargo are unwell — `GameStateStore.sickAnimals`, as a
+   * list. The loading rules need it to answer who minds whom, and the
+   * sprite layer needs it to draw a sick face; both read this.
+   */
+  poorlyAnimalIds?: string[];
 }
 
 /** Species names a dev `?cargo=` list may use, for the demo boot. */
@@ -253,7 +260,7 @@ const CARGO_SPECIES: Species[] = [
  * The sprite states the loading screen asks for: the settled animal,
  * and the three faces a neighbour can give her.
  */
-const CARGO_STATES = ['sheltered', 'walking', 'playing', 'grumpy', 'scared'];
+const CARGO_STATES = ['sheltered', 'walking', 'playing', 'grumpy', 'scared', 'sick'];
 
 /**
  * PtvDriveScene — the hybrid-camera PTV drive.
@@ -296,6 +303,8 @@ export class PtvDriveScene extends Phaser.Scene {
   private cargo: Animal[] = [];
   /** Which of them are seated before the child sees the screen. */
   private preloadIds: string[] = [];
+  /** Which of them are unwell. */
+  private poorlyIds = new Set<string>();
   /**
    * The loading screen's whole state, built when the vehicle is picked
    * (the grid's size is the vehicle's). Undefined until then, and on a
@@ -509,6 +518,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.vehicleId = 'small-van';
     this.cargo = this.readCargo(data);
     this.preloadIds = data?.preloadAnimalIds ?? [];
+    this.poorlyIds = this.readPoorly(data);
     this.loadSession = undefined;
     this.loadNotice = null;
     this.phase = 'select';
@@ -571,6 +581,34 @@ export class PtvDriveScene extends Phaser.Scene {
         taken.push(animal.name);
         return animal;
       });
+  }
+
+  /**
+   * Which of the cargo are unwell.
+   *
+   * The caller's list wins — it comes straight from the store's
+   * `sickAnimals`, which is the game's only word on the subject, and
+   * `GameScene` has already pointed the sprite layer at that same map.
+   *
+   * Failing that, `?sick=0,2` marks animals by their position in the
+   * `?cargo=` list for the isolated demo boot, which has no store.
+   * That path *does* register the sprite layer's map, because nothing
+   * else has: without it the rules would say an animal is poorly and
+   * the picture would show a well one, which is worse than no demo at
+   * all. It is guarded on the param being present precisely so it can
+   * never reach over `GameScene`'s live map in the real game.
+   */
+  private readPoorly(data?: PtvDriveInit): Set<string> {
+    if (data?.poorlyAnimalIds?.length) return new Set(data.poorlyAnimalIds);
+    if (typeof window === 'undefined') return new Set();
+    const raw = new URLSearchParams(window.location.search).get('sick');
+    if (!raw) return new Set();
+    const ids = raw
+      .split(',')
+      .map((n) => this.cargo[Number(n.trim())]?.id)
+      .filter((id): id is string => Boolean(id));
+    registerSickAnimals(new Map(ids.map((id) => [id, true])));
+    return new Set(ids);
   }
 
   /** The destination's own name, for the screens that say where we are off to. */
@@ -1056,7 +1094,12 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /** The cargo as the rules see it — three fields, no sprites. */
   private loadableCargo(): LoadableAnimal[] {
-    return this.cargo.map((a) => ({ id: a.id, name: a.name, species: a.species }));
+    return this.cargo.map((a) => ({
+      id: a.id,
+      name: a.name,
+      species: a.species,
+      poorly: this.poorlyIds.has(a.id),
+    }));
   }
 
   /**

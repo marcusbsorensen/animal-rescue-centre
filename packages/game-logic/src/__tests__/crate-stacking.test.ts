@@ -10,6 +10,8 @@ import {
   isDriveable,
   countStressedAdjacencies,
   calculateArrivalHappinessDelta,
+  feelingToward,
+  pairFeeling,
   type CrateGrid,
 } from '../crate-stacking';
 import type { Animal } from '@arc/shared-types';
@@ -146,27 +148,27 @@ describe('placement preview', () => {
   });
 
   it('empty slot with no neighbours is happy', () => {
-    expect(previewPlacement(grid([]), 0, 'cat')).toBe('happy');
+    expect(previewPlacement(grid([]), 0, { species: 'cat' })).toBe('happy');
   });
 
   it('placing a bunny next to a cat is blocked', () => {
     const g = grid([{ slotIndex: 0, animalId: 'a', species: 'cat', crateType: 'standard' }]);
-    expect(previewPlacement(g, 1, 'bunny')).toBe('blocked');
+    expect(previewPlacement(g, 1, { species: 'bunny' })).toBe('blocked');
   });
 
   it('placing a dog next to a cat is stressed', () => {
     const g = grid([{ slotIndex: 0, animalId: 'a', species: 'cat', crateType: 'standard' }]);
-    expect(previewPlacement(g, 1, 'dog')).toBe('stressed');
+    expect(previewPlacement(g, 1, { species: 'dog' })).toBe('stressed');
   });
 
   it('placing a cat next to a cat is happy', () => {
     const g = grid([{ slotIndex: 0, animalId: 'a', species: 'cat', crateType: 'standard' }]);
-    expect(previewPlacement(g, 1, 'cat')).toBe('happy');
+    expect(previewPlacement(g, 1, { species: 'cat' })).toBe('happy');
   });
 
   it('diagonal is ignored (placing bunny at 3 next to cat at 0 is happy, not blocked)', () => {
     const g = grid([{ slotIndex: 0, animalId: 'a', species: 'cat', crateType: 'standard' }]);
-    expect(previewPlacement(g, 3, 'bunny')).toBe('happy');
+    expect(previewPlacement(g, 3, { species: 'bunny' })).toBe('happy');
   });
 });
 
@@ -271,5 +273,104 @@ describe('arrival happiness delta', () => {
     const deltas = calculateArrivalHappinessDelta(g, baseAnimals);
     expect(deltas.get('a')).toBe(3); // +3 crate + 0 happy (not same species)
     expect(deltas.get('b')).toBe(3);
+  });
+});
+
+// ── Illness ──────────────────────────────────────────────────
+
+describe('a poorly animal, and the animal beside it', () => {
+  const well = (species: Parameters<typeof getCompatibility>[0]) => ({ species });
+  const ill = (species: Parameters<typeof getCompatibility>[0]) => ({
+    species, poorly: true,
+  });
+
+  it('minds nothing it would merely have been tense about', () => {
+    // cat + dog is stressed between two well animals.
+    expect(getCompatibility('cat', 'dog')).toBe('stressed');
+    expect(feelingToward(ill('cat'), well('dog'))).toBe('happy');
+  });
+
+  it('is still frightened of what would frighten it, and still blocks', () => {
+    // **The one a future change is most likely to break.** Stressed is
+    // a preference and illness can outweigh a preference. Blocked is
+    // safety, and a poorly bunny beside a fox is in more danger than a
+    // well one, not less.
+    expect(getCompatibility('bunny', 'fox')).toBe('blocked');
+    expect(feelingToward(ill('bunny'), well('fox'))).toBe('blocked');
+    expect(feelingToward(well('fox'), ill('bunny'))).toBe('blocked');
+    expect(pairFeeling(ill('bunny'), well('fox')).level).toBe('blocked');
+    // And it is never dressed up as a need: safety takes the wording.
+    expect(pairFeeling(ill('bunny'), well('fox')).needsQuiet).toBe(false);
+
+    const g: CrateGrid = {
+      vehicle: 'small-van', cols: 2, rows: 2,
+      crates: [
+        { slotIndex: 0, animalId: 'a', species: 'bunny', crateType: 'standard', poorly: true },
+        { slotIndex: 1, animalId: 'b', species: 'fox', crateType: 'secure' },
+      ],
+    };
+    expect(isDriveable(g), 'a sick animal does not unblock a blocked pair').toBe(false);
+  });
+
+  it('makes the well animal beside it mind mildly, whatever the species', () => {
+    // Same species, normally the happiest pairing there is.
+    expect(getCompatibility('bunny', 'bunny')).toBe('happy');
+    expect(feelingToward(well('bunny'), ill('bunny'))).toBe('stressed');
+    expect(pairFeeling(well('bunny'), ill('bunny'))).toEqual({
+      level: 'stressed', needsQuiet: true,
+    });
+  });
+
+  it('leaves two poorly animals minding each other not at all', () => {
+    expect(feelingToward(ill('cat'), ill('dog'))).toBe('happy');
+    expect(feelingToward(ill('dog'), ill('cat'))).toBe('happy');
+    expect(pairFeeling(ill('cat'), ill('dog'))).toEqual({
+      level: 'happy', needsQuiet: false,
+    });
+  });
+
+  it('reads the same whichever way round the pair is given', () => {
+    expect(pairFeeling(ill('cat'), well('dog')))
+      .toEqual(pairFeeling(well('dog'), ill('cat')));
+  });
+});
+
+describe('illness and the scoring', () => {
+  const grid = (crates: CrateGrid['crates']): CrateGrid => ({
+    vehicle: 'small-van', cols: 2, rows: 2, crates,
+  });
+  const noAnimals = new Map<string, Animal>();
+
+  it('counts a well animal beside a patient, and not two patients', () => {
+    expect(countStressedAdjacencies(grid([
+      { slotIndex: 0, animalId: 'a', species: 'bunny', crateType: 'standard', poorly: true },
+      { slotIndex: 1, animalId: 'b', species: 'bunny', crateType: 'standard' },
+    ])), 'one patient, one well').toBe(1);
+
+    expect(countStressedAdjacencies(grid([
+      { slotIndex: 0, animalId: 'a', species: 'cat', crateType: 'standard', poorly: true },
+      { slotIndex: 1, animalId: 'b', species: 'dog', crateType: 'standard', poorly: true },
+    ])), 'both poorly — neither minds').toBe(0);
+  });
+
+  it('charges the journey to the animal that actually minds it', () => {
+    const deltas = calculateArrivalHappinessDelta(grid([
+      { slotIndex: 0, animalId: 'ill', species: 'cat', crateType: 'standard', poorly: true },
+      { slotIndex: 1, animalId: 'well', species: 'dog', crateType: 'standard' },
+    ]), noAnimals);
+    // Both are in a crate that suits them: +3 each. The patient pays
+    // nothing for the dog it does not mind; the dog pays the ordinary
+    // -5 for a journey spent beside somebody who needs quiet.
+    expect(deltas.get('ill')).toBe(3);
+    expect(deltas.get('well')).toBe(3 - 5);
+  });
+
+  it('still lets a patient take comfort from one of its own kind', () => {
+    const deltas = calculateArrivalHappinessDelta(grid([
+      { slotIndex: 0, animalId: 'ill', species: 'bunny', crateType: 'ventilated-basket', poorly: true },
+      { slotIndex: 1, animalId: 'well', species: 'bunny', crateType: 'ventilated-basket' },
+    ]), noAnimals);
+    expect(deltas.get('ill'), 'a friend in the next crate').toBe(3 + 1);
+    expect(deltas.get('well'), 'giving somebody space').toBe(3 - 5);
   });
 });

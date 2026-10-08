@@ -25,8 +25,8 @@ import type { Species } from '@arc/shared-types';
 import {
   CRATE_DEFS,
   VEHICLE_DEFS,
-  getCompatibility,
   getPreferredCrates,
+  pairFeeling,
   isDriveable,
   neighbourIndices,
   previewPlacement,
@@ -101,6 +101,14 @@ export interface LoadableAnimal {
   id: string;
   name: string;
   species: Species;
+  /**
+   * This animal is unwell — the caller's `sickAnimals` map says so.
+   *
+   * It changes who minds whom (`feelingToward`) and what the screen
+   * says about it, so the rules need it; it is not a `AnimalState`
+   * and there is no second flag to invent.
+   */
+  poorly?: boolean;
 }
 
 /**
@@ -118,6 +126,12 @@ export interface AdjacencyNote {
   neighbourId: string;
   /** What happens and why, in one or two sentences. */
   text: string;
+  /**
+   * The stress here is one of them being unwell, not the two species
+   * disagreeing — so the screen marks it as a need rather than as
+   * friction. Never set on a blocked pair.
+   */
+  needsQuiet?: boolean;
 }
 
 /** `Luna the cat` — the phrase both animals are named by, everywhere. */
@@ -135,12 +149,39 @@ function named(animal: LoadableAnimal): string {
 export function describePair(
   animal: LoadableAnimal,
   neighbour: LoadableAnimal,
-): { level: CompatibilityLevel; text: string } {
-  const level = getCompatibility(animal.species, neighbour.species);
+): { level: CompatibilityLevel; text: string; needsQuiet?: boolean } {
+  const { level, needsQuiet } = pairFeeling(animal, neighbour);
+
+  if (needsQuiet) {
+    // **The subject is the poorly animal and the verb is a need.**
+    //
+    // The same mechanic can be worded two ways and they teach
+    // opposite things. "Biscuit does not like sitting next to
+    // Truffle" makes the patient something to be avoided and the
+    // healthy animal the one with the valid preference. "Truffle is
+    // poorly and needs a quiet space" asks the child to give somebody
+    // room. This is a game about a rescue centre, played by children
+    // some of whom have been the one nobody would sit beside, and it
+    // is not a close call: it is always the second one.
+    //
+    // So the well animal is never named as minding, and never named
+    // first. The shape follows the `stressed` sentence below — a fact,
+    // then what it means for sitting together — and the cost in the
+    // second clause lands on the patient's comfort rather than on the
+    // neighbour's patience.
+    const ill = animal.poorly ? animal : neighbour;
+    return {
+      level,
+      needsQuiet,
+      text: `${named(ill)} is poorly and needs a quiet space. `
+        + `They can sit next to each other, but ${ill.name} would rest better on their own.`,
+    };
+  }
 
   if (level === 'happy') {
     return {
       level,
+      needsQuiet,
       text: `${named(animal)} and ${named(neighbour)} are happy next to each other.`,
     };
   }
@@ -156,6 +197,7 @@ export function describePair(
       : 'They can sit next to each other, but neither will enjoy the journey.';
     return {
       level,
+      needsQuiet,
       text: `${named(animal)} and ${named(neighbour)} ${verb} ${object}. ${tail}`,
     };
   }
@@ -169,6 +211,7 @@ export function describePair(
 
   return {
     level,
+    needsQuiet,
     text: `${named(bolder)} makes ${named(timid)} ${feeling}. ${tail}`,
   };
 }
@@ -242,7 +285,7 @@ export function createLoadingSession(
 
     for (let slot = 0; slot < def.cols * def.rows; slot += 1) {
       if (grid.crates.some((c) => c.slotIndex === slot)) continue;
-      if (previewPlacement(grid, slot, animal.species) === 'blocked') continue;
+      if (previewPlacement(grid, slot, animal) === 'blocked') continue;
       grid = { ...grid, crates: [...grid.crates, crateOf(animal, slot)] };
       break;
     }
@@ -257,6 +300,7 @@ function crateOf(animal: LoadableAnimal, slotIndex: number): LoadedCrate {
     animalId: animal.id,
     species: animal.species,
     crateType: bestCrateFor(animal.species),
+    poorly: animal.poorly,
   };
 }
 
@@ -354,7 +398,7 @@ export function placeHeld(session: LoadingSession, slotIndex: number): Placement
   }
 
   const notes = notesForPlacing(session, slotIndex, animal);
-  const level = previewPlacement(session.grid, slotIndex, animal.species);
+  const level = previewPlacement(session.grid, slotIndex, animal);
 
   if (level === 'blocked') return { placed: false, session, level, notes };
 
@@ -397,7 +441,7 @@ export function notesForPlacing(
     if (!crate) continue;
     const neighbour = animalById(session, crate.animalId);
     if (!neighbour) continue;
-    const { level, text } = describePair(animal, neighbour);
+    const { level, text, needsQuiet } = describePair(animal, neighbour);
     notes.push({
       level,
       slotIndex,
@@ -405,6 +449,7 @@ export function notesForPlacing(
       animalId: animal.id,
       neighbourId: neighbour.id,
       text,
+      needsQuiet,
     });
   }
   return sortNotes(notes);
@@ -420,7 +465,7 @@ export function slotOutlook(session: LoadingSession, slotIndex: number): Compati
   const animal = heldAnimal(session);
   if (!animal) return null;
   if (crateAt(session, slotIndex)) return null;
-  return previewPlacement(session.grid, slotIndex, animal.species);
+  return previewPlacement(session.grid, slotIndex, animal);
 }
 
 /** The live notes for one slot, for the animal currently held. */
@@ -453,7 +498,7 @@ export function settledNotes(session: LoadingSession): AdjacencyNote[] {
       seen.add(key);
       const neighbour = animalById(session, other.animalId);
       if (!neighbour) continue;
-      const { level, text } = describePair(animal, neighbour);
+      const { level, text, needsQuiet } = describePair(animal, neighbour);
       notes.push({
         level,
         slotIndex: crate.slotIndex,
@@ -461,6 +506,7 @@ export function settledNotes(session: LoadingSession): AdjacencyNote[] {
         animalId: animal.id,
         neighbourId: neighbour.id,
         text,
+        needsQuiet,
       });
     }
   }

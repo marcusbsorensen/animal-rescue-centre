@@ -1641,11 +1641,12 @@ export class GameScene extends Phaser.Scene {
    * end knows who it is treating, and it is the animal the loading
    * screen seats before the child arrives.
    *
-   * **Nine candidates, because nine is the largest grid in the fleet**
-   * (Big Tilly's 3x3, `VEHICLE_DEFS`). A rescue centre can hold many
-   * more animals than that, and offering all of them would be a tray
-   * no child could read for a van that could not carry them anyway.
-   * The passenger goes first so the trip's own reason is never the one
+   * **Eight candidates, because eight is the largest grid in the
+   * fleet** (Big Tilly's 2x4, `VEHICLE_DEFS` — nine until the grids
+   * were re-cut on 2026-10-09). A rescue centre can hold many more
+   * animals than that, and offering all of them would be a tray no
+   * child could read for a van that could not carry them anyway. The
+   * passenger goes first so the trip's own reason is never the one
    * trimmed off.
    */
   private driveTo(destinationId: string, animalId?: string): void {
@@ -1654,7 +1655,7 @@ export class GameScene extends Phaser.Scene {
       ? this.store.animals.filter((a) => a.id === animalId)
       : [];
     const others = this.store.animals.filter((a) => a.id !== animalId);
-    const cargo = [...passenger, ...others].slice(0, 9);
+    const cargo = [...passenger, ...others].slice(0, 8);
 
     this.scene.start('PtvDriveScene', {
       destinationId,
@@ -1666,6 +1667,10 @@ export class GameScene extends Phaser.Scene {
       returnData: animalId ? { animalId } : {},
       cargo,
       preloadAnimalIds: passenger.map((a) => a.id),
+      // Straight from the store's own illness map — the same one the
+      // sprite layer was pointed at in `create`, so the rules and the
+      // faces cannot disagree about who is poorly.
+      poorlyAnimalIds: cargo.filter((a) => this.store.sickAnimals.has(a.id)).map((a) => a.id),
     });
   }
 

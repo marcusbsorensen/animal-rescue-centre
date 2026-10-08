@@ -81,11 +81,44 @@ import {
  * says the same thing a third time. A child who does not see red and
  * green apart reads the screen exactly as well as one who does.
  */
-const FEELING_SKIN: Record<CompatibilityLevel, { fill: number; stroke: number; ink: string }> = {
+const FEELING_SKIN: Record<Mood, { fill: number; stroke: number; ink: string }> = {
   happy:    { fill: 0xd9efdd, stroke: hexNum(COLOURS.primaryDark), ink: COLOURS.primaryDark },
   stressed: { fill: 0xfdeec2, stroke: 0x8a6a1f,                    ink: '#6b5112' },
   blocked:  { fill: 0xf7dcd6, stroke: hexNum(COLOURS.accent),      ink: COLOURS.accent },
+  // Cool and quiet, deliberately outside the warning family. Red and
+  // amber are what this screen uses for friction, and an animal
+  // needing a bit of peace is not friction — a child who has learned
+  // that red means "two of these cannot sit together" should not read
+  // the same alarm off somebody being unwell.
+  quiet:    { fill: 0xdce8f4, stroke: 0x33566f,                    ink: '#2b4a5e' },
 };
+
+/**
+ * What the screen shows about a pair.
+ *
+ * The *rules* keep three levels and that has not changed — happy,
+ * stressed, blocked, with only blocked gating the drive. This is the
+ * presentation layer's fourth reading of them: a `stressed` pair whose
+ * stress is one animal being unwell is drawn and worded as a need
+ * rather than as a falling-out.
+ */
+type Mood = CompatibilityLevel | 'quiet';
+
+/**
+ * The word under each mark.
+ *
+ * `FEELING` is the rules' own vocabulary and the three words a child
+ * learns for how an animal feels. "Needs quiet" is a fourth thing
+ * rather than a fourth synonym — it says what to do, not how somebody
+ * feels — which is the test the comment on `FEELING` sets for adding
+ * a word, and it passes.
+ */
+const MOOD_WORD: Record<Mood, string> = { ...FEELING, quiet: 'Needs quiet' };
+
+/** How a note reads on screen: its level, unless illness is the reason. */
+function moodOf(note: { level: CompatibilityLevel; needsQuiet?: boolean }): Mood {
+  return note.needsQuiet && note.level !== 'blocked' ? 'quiet' : note.level;
+}
 
 /**
  * The face an animal wears, per feeling.
@@ -134,6 +167,20 @@ const FACE_AFFECTED: Record<CompatibilityLevel, string> = {
  * cause of somebody else's worry should look like.
  */
 const FACE_CALM = 'walking';
+
+/**
+ * The face of an animal who is unwell.
+ *
+ * **Named and passed explicitly, not left to be derived.** The sprite
+ * layer's `deriveVisualState` answers `arriving` before it answers
+ * `sick`, so an animal who is both — which on a vet run is most of
+ * them — would be drawn stepping out of her box with nothing about
+ * her saying why the trip is happening. Saying `sick` outright is
+ * also simply what this screen means: it is not asking for the
+ * animal's general state, it is asking for the one fact the drive is
+ * about.
+ */
+const FACE_SICK = 'sick';
 
 /** Gap between crate bays, and between tray chips. */
 const GAP = BAY_GAP;
@@ -312,6 +359,8 @@ export interface CrateLoadingState {
   notice?: {
     level: CompatibilityLevel | null;
     text: string;
+    /** The refusal was about one of them being poorly. */
+    needsQuiet?: boolean;
     /**
      * The two animals the refusal was about, so the panel can draw
      * them. Absent for a notice with no pair in it — an empty van
@@ -347,7 +396,7 @@ interface CastMember {
 interface PanelCast {
   members: CastMember[];
   /** The glyph between them, where the two are neighbours. */
-  level?: CompatibilityLevel;
+  level?: Mood;
   /**
    * They are aboard but not beside each other — drawn with the van's
    * floor between them, which is the picture of "nobody has a
@@ -359,14 +408,24 @@ interface PanelCast {
 /** Lines the panel shows, and which feeling (if any) tints its heading. */
 interface PanelCopy {
   heading: string;
-  tone: CompatibilityLevel | null;
+  tone: Mood | null;
   body: string[];
   cast?: PanelCast;
 }
 
-/** One animal, for the panel. */
+/**
+ * One animal, for the panel.
+ *
+ * A patient looks like one wherever she is drawn — in your hands, in
+ * the tray, under the pointer — unless the caller has a louder face
+ * to give her, which only a blocked pair ever does.
+ */
 function castOne(animal: LoadableAnimal, face?: string): CastMember {
-  return { id: animal.id, name: animal.name, face };
+  return {
+    id: animal.id,
+    name: animal.name,
+    face: face ?? (animal.poorly ? FACE_SICK : undefined),
+  };
 }
 
 /** The two animals a note is about, each wearing what the note gives them. */
@@ -376,7 +435,7 @@ function castPair(session: LoadingSession, note: AdjacencyNote): PanelCast | und
   const [faceA, faceB] = pairFaces(note, pair);
   return {
     members: [castOne(pair[0], faceA), castOne(pair[1], faceB)],
-    level: note.level,
+    level: moodOf(note),
   };
 }
 
@@ -481,6 +540,12 @@ export function gridFeeling(session: LoadingSession, animalId: string): Compatib
     if (note.animalId !== animalId && note.neighbourId !== animalId) continue;
     const pair = pairOf(session, note);
     if (!pair) continue;
+    // A pair that is only stressed because one of them is unwell
+    // gives neither of them a feeling: the patient shows sick and the
+    // neighbour shows calm. Counting it as stress here would have put
+    // a scowl on the well animal, which is the one face this change
+    // exists to prevent.
+    if (note.needsQuiet && note.level !== 'blocked') continue;
     if (note.level === 'happy') {
       worst ??= 'happy';
       continue;
@@ -505,11 +570,26 @@ export function gridFeeling(session: LoadingSession, animalId: string): Compatib
  * this pair, and the two have to match.
  */
 export function gridFace(session: LoadingSession, animalId: string): string | undefined {
-  const alone = !settledNotes(session).some(
+  // **Poorly outranks everything, neighbours included.** The one
+  // thing a vet run exists to show stays visible however the load is
+  // arranged, and it is the only honest answer besides: an animal
+  // that is unwell is not worried or frightened, it is unwell.
+  if (animalById(session, animalId)?.poorly) return FACE_SICK;
+
+  const mine = settledNotes(session).filter(
     (n) => n.animalId === animalId || n.neighbourId === animalId,
   );
-  if (alone) return undefined;
+  if (mine.length === 0) return undefined;
+
   const feeling = gridFeeling(session, animalId);
+  if (feeling === 'blocked' || feeling === 'stressed') return FACE_AFFECTED[feeling];
+
+  // Beside somebody who is unwell: calm, and never `playing`, even
+  // with a friend of its own kind on the other side. A picture of fun
+  // being had next to a patient is the wrong lesson at the moment the
+  // screen is asking the child to give that patient some room.
+  if (mine.some((n) => n.needsQuiet && n.level !== 'blocked')) return FACE_CALM;
+
   return feeling ? FACE_AFFECTED[feeling] : FACE_CALM;
 }
 
@@ -525,12 +605,28 @@ export function pairFaces(
   note: AdjacencyNote,
   pair: [LoadableAnimal, LoadableAnimal],
 ): [string, string] {
-  if (note.level === 'happy') return [FACE_AFFECTED.happy, FACE_AFFECTED.happy];
+  // Poorly beats every social face, here as in the bays — and the
+  // well animal beside a patient is drawn *content*, not recoiling.
+  // The screen says "this one needs a quiet space", and a neighbour
+  // pulling a face would say the opposite thing about the same pair.
+  const sickAware = (a: LoadableAnimal, face: string): string => (
+    a.poorly ? FACE_SICK : face
+  );
+
+  if (note.needsQuiet && note.level !== 'blocked') {
+    return [sickAware(pair[0], FACE_CALM), sickAware(pair[1], FACE_CALM)];
+  }
+  if (note.level === 'happy') {
+    return [
+      sickAware(pair[0], FACE_AFFECTED.happy),
+      sickAware(pair[1], FACE_AFFECTED.happy),
+    ];
+  }
   const hit = affectedBy(note, pair);
   const face = FACE_AFFECTED[note.level];
   return [
-    hit.has(pair[0].id) ? face : FACE_CALM,
-    hit.has(pair[1].id) ? face : FACE_CALM,
+    sickAware(pair[0], hit.has(pair[0].id) ? face : FACE_CALM),
+    sickAware(pair[1], hit.has(pair[1].id) ? face : FACE_CALM),
   ];
 }
 
@@ -686,7 +782,7 @@ function drawVibeGlyph(
   gfx: Phaser.GameObjects.Graphics,
   x: number,
   y: number,
-  level: CompatibilityLevel,
+  level: Mood,
   r: number,
 ): void {
   const skin = FEELING_SKIN[level];
@@ -716,6 +812,60 @@ function drawVibeGlyph(
       if (i === 0) gfx.moveTo(px, py);
       else gfx.lineTo(px, py);
     }
+    gfx.strokePath();
+    return;
+  }
+
+  if (level === 'quiet') {
+    // A crescent moon: rest, and the one shape on this screen that
+    // says it without saying anything is wrong. It is a closed curve
+    // like the heart and a curve like the spiral, but nobody has ever
+    // mistaken a crescent for either — cut one disc out of another
+    // and the silhouette is unambiguous in grey, which is the test
+    // all four of these have to pass.
+    //
+    // Drawn as one filled path rather than a disc with a disc punched
+    // out of it, because the wash sits underneath and punching with a
+    // background colour would punch through the wash too.
+    //
+    // The two arcs have to *meet*, which means solving for where the
+    // circles cross rather than guessing the angles — the first
+    // attempt swept both through the same angular range and came out
+    // as a lopsided ring. `ix` is the radical line, `iy` the height
+    // of the crossing, and the two arcs run from it in opposite
+    // directions so the path closes on itself.
+    const R = r * 0.86;
+    const bite = R * 0.74;
+    const d = R * 0.54;
+    const ix = (d * d + R * R - bite * bite) / (2 * d);
+    const iy = Math.sqrt(Math.max(0.0001, R * R - ix * ix));
+    const outer = Math.atan2(iy, ix);
+    const inner = Math.atan2(iy, ix - d);
+    // Tilted, because an upright crescent reads as a bracket and a
+    // tilted one reads as the moon.
+    const tilt = -0.42;
+    const cos = Math.cos(tilt);
+    const sin = Math.sin(tilt);
+    const put = (lx: number, ly: number, first = false) => {
+      const px = x + lx * cos - ly * sin;
+      const py = y + lx * sin + ly * cos;
+      if (first) gfx.moveTo(px, py);
+      else gfx.lineTo(px, py);
+    };
+
+    const steps = 26;
+    gfx.beginPath();
+    for (let i = 0; i <= steps; i += 1) {
+      const a = outer + (i / steps) * (Math.PI * 2 - outer * 2);
+      put(Math.cos(a) * R, Math.sin(a) * R, i === 0);
+    }
+    for (let i = 0; i <= steps; i += 1) {
+      const a = (Math.PI * 2 - inner) - (i / steps) * (Math.PI * 2 - inner * 2);
+      put(d + Math.cos(a) * bite, Math.sin(a) * bite);
+    }
+    gfx.closePath();
+    gfx.fillStyle(skin.stroke, 0.26);
+    gfx.fillPath();
     gfx.strokePath();
     return;
   }
@@ -769,7 +919,7 @@ function makeFeelingBadge(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  level: CompatibilityLevel,
+  level: Mood,
   options?: { withWord?: boolean; radius?: number },
 ): Phaser.GameObjects.Container {
   const withWord = options?.withWord ?? false;
@@ -781,7 +931,7 @@ function makeFeelingBadge(
   const children: Phaser.GameObjects.GameObject[] = [gfx];
   if (withWord) {
     children.push(
-      scene.add.text(0, r + 7, FEELING[level], {
+      scene.add.text(0, r + 7, MOOD_WORD[level], {
         fontSize: `${MIN_FONT.small}px`,
         fontFamily: FONTS.ui,
         fontStyle: 'bold',
@@ -814,6 +964,10 @@ export function glyphWorthDrawing(
   session: LoadingSession,
   note: AdjacencyNote,
 ): boolean {
+  // A patient beside a well animal always gets the crescent. The
+  // restraint above is about pairs with nothing to say; this one is
+  // the screen asking for something.
+  if (note.needsQuiet) return true;
   if (note.level !== 'happy') return true;
   const pair = pairOf(session, note);
   return pair !== null && pair[0].species === pair[1].species;
@@ -868,8 +1022,8 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
     // on the grid, nobody in it can be wearing a face the bays would
     // contradict.
     return {
-      heading: FEELING[settled[0].level],
-      tone: settled[0].level,
+      heading: MOOD_WORD[moodOf(settled[0])],
+      tone: moodOf(settled[0]),
       body: sentences(settled, 1),
       cast: castPair(session, settled[0]),
     };
@@ -925,8 +1079,12 @@ function panelCopy(state: CrateLoadingState): PanelCopy {
       })
       : undefined;
     return {
-      heading: notice.level ? FEELING[notice.level] : 'Wait a moment',
-      tone: notice.level,
+      heading: notice.level
+        ? MOOD_WORD[moodOf({ level: notice.level, needsQuiet: notice.needsQuiet })]
+        : 'Wait a moment',
+      tone: notice.level
+        ? moodOf({ level: notice.level, needsQuiet: notice.needsQuiet })
+        : null,
       body: [
         notice.text,
         notice.level === 'blocked' ? 'Try another space.' : '',
@@ -1121,16 +1279,29 @@ export function renderCrateLoading(
 // ── The vehicle, and the bays in it ──────────────────────────
 
 /**
+ * What an empty bay would be, read as a mood — the engine's level,
+ * except that stress caused by illness is a need rather than a
+ * falling-out and is marked as one. Null where there is nothing to
+ * preview.
+ */
+function slotMood(session: LoadingSession, slotIndex: number): Mood | null {
+  const outlook = slotOutlook(session, slotIndex);
+  if (!outlook) return null;
+  const worst = slotNotes(session, slotIndex)[0];
+  return worst ? moodOf(worst) : outlook;
+}
+
+/**
  * The live notes for one bay, as panel copy — what a pointer resting on
  * an empty bay reads out while an animal is held.
  */
 function bayHoverCopy(session: LoadingSession, slotIndex: number): PanelCopy | null {
-  const outlook = slotOutlook(session, slotIndex);
+  const outlook = slotMood(session, slotIndex);
   if (!outlook) return null;
   const notes = slotNotes(session, slotIndex);
   const held = heldAnimal(session);
   return {
-    heading: FEELING[outlook],
+    heading: MOOD_WORD[outlook],
     tone: outlook,
     body: notes.length > 0
       ? sentences(notes, 2)
@@ -1568,7 +1739,7 @@ function drawBays(
   for (let slot = 0; slot < slotCount(session); slot += 1) {
     const { x: cx, y: cy } = slotCentre(slot);
     const crate = crateAt(session, slot);
-    const outlook = slotOutlook(session, slot);
+    const outlook = slotMood(session, slot);
     const left = cx - slotW / 2;
     const top = cy - slotH / 2;
 
@@ -1761,7 +1932,7 @@ function drawBays(
       ? Math.min(a.y, b.y) + nudge.size / 2
       : (a.y + b.y) / 2;
     const gfx = scene.add.graphics();
-    drawVibeGlyph(gfx, (a.x + b.x) / 2, y, note.level, glyphR);
+    drawVibeGlyph(gfx, (a.x + b.x) / 2, y, moodOf(note), glyphR);
     container.add(gfx.setDepth(6));
   }
 }

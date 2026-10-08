@@ -82,8 +82,37 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
   'small-van':        { x: 0.15, y: 0.05, w: 0.70, h: 0.56 },
   'long-van':         { x: 0.21, y: 0.05, w: 0.58, h: 0.54 },
   'animal-lorry':     { x: 0.14, y: 0.04, w: 0.72, h: 0.52 },
-  'electric-minibus': { x: 0.19, y: 0.05, w: 0.62, h: 0.63 },
+  'electric-minibus': { x: 0.181, y: 0.05, w: 0.644, h: 0.63 },
 };
+
+/**
+ * **Spark's width re-measured 2026-10-09, against the painted body
+ * rather than by eye.**
+ *
+ * Every other bed in the fleet covers about 0.855 of the body it sits
+ * in — Henry 0.86, Big Tilly 0.86, Bea 0.85 — taken as the median
+ * opaque extent across the bed's own rows, so a wing mirror or a lamp
+ * on one row cannot skew it. Spark was at 0.82, the only one out of
+ * line, and the eyeballed 0.19/0.62 was simply a little tight. At the
+ * fleet's own ratio, centred on her body, she measures 0.181/0.644:
+ * fifteen more pixels of a 640px sprite.
+ *
+ * **Her bed is not off-centre, and nothing here should try to centre
+ * it.** All four sit within 0.3% of their body's centreline, Spark
+ * included. What reads as lopsided on screen is the green flank flash
+ * in her livery, which makes one side look like the edge of the body
+ * and the other not.
+ *
+ * **This does not fix her small bays and was never going to.** How
+ * much bed width a vehicle gets per unit of band height is its bed
+ * fraction over its aspect ratio: Henry 0.300, Big Tilly 0.257, Bea
+ * 0.236, Spark 0.212. She sits 17% below Tilly and this recovers
+ * about four of those points. The rest is that she is the longest
+ * vehicle in the fleet at 2.92:1, and fitting a longer vehicle into a
+ * height-limited band scales everything on it down. That is what a
+ * long minibus is, not a number to be corrected; the honest fix would
+ * be a taller band.
+ */
 
 /**
  * The sprite each bed in `VEHICLE_BED` was measured against, in the

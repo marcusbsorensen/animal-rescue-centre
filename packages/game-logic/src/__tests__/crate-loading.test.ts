@@ -15,6 +15,7 @@ import {
   heldAnimal,
   waitingToBoard,
   aboard,
+  crateAt,
   slotOutlook,
   slotNotes,
   settledNotes,
@@ -362,5 +363,89 @@ describe('pre-loaded passengers', () => {
   it('an unknown id is ignored rather than throwing', () => {
     const s = createLoadingSession('small-van', [LUNA], ['nobody']);
     expect(aboard(s)).toEqual([]);
+  });
+});
+
+// ── Illness, and how the screen words it ─────────────────────
+
+describe('the sentence for a poorly animal', () => {
+  const TRUFFLE: LoadableAnimal = {
+    id: 'ill', name: 'Truffle', species: 'hedgehog', poorly: true,
+  };
+  const BISCUIT: LoadableAnimal = { id: 'well', name: 'Biscuit', species: 'cat' };
+
+  it('names the patient and their need, never the neighbour and their dislike', () => {
+    const { text, level, needsQuiet } = describePair(BISCUIT, TRUFFLE);
+    expect(level).toBe('stressed');
+    expect(needsQuiet).toBe(true);
+    expect(text).toBe(
+      'Truffle the hedgehog is poorly and needs a quiet space. '
+      + 'They can sit next to each other, but Truffle would rest better on their own.',
+    );
+  });
+
+  it('says it the same way round whichever way the pair is given', () => {
+    expect(describePair(TRUFFLE, BISCUIT).text).toBe(describePair(BISCUIT, TRUFFLE).text);
+  });
+
+  it('never says the well animal minds, dislikes or will not enjoy it', () => {
+    // The framing is the feature. A sentence that made Biscuit the
+    // subject, or gave Biscuit the feeling, would teach the opposite
+    // lesson to the one this game is for.
+    const { text } = describePair(BISCUIT, TRUFFLE);
+    expect(text.startsWith('Truffle'), 'the patient is the subject').toBe(true);
+    for (const wrong of ['Biscuit the cat', 'does not like', 'worried', 'frightened']) {
+      expect(text, `must not say "${wrong}"`).not.toContain(wrong);
+    }
+  });
+
+  it('gives way to the blocked sentence, which is about safety', () => {
+    const poorlyBunny: LoadableAnimal = {
+      id: 'b', name: 'Clover', species: 'bunny', poorly: true,
+    };
+    const fox: LoadableAnimal = { id: 'f', name: 'Rusty', species: 'fox' };
+    const { level, needsQuiet, text } = describePair(poorlyBunny, fox);
+    expect(level).toBe('blocked');
+    expect(needsQuiet).toBeFalsy();
+    expect(text).toContain('cannot sit next to each other');
+  });
+
+  it('says nothing special about two patients together', () => {
+    const alsoIll: LoadableAnimal = {
+      id: 'i2', name: 'Pip', species: 'cat', poorly: true,
+    };
+    const { level, needsQuiet } = describePair(TRUFFLE, alsoIll);
+    expect(level).toBe('happy');
+    expect(needsQuiet).toBe(false);
+  });
+});
+
+describe('a poorly animal on the loading screen', () => {
+  const ILL: LoadableAnimal = { id: 'ill', name: 'Truffle', species: 'hedgehog', poorly: true };
+  const WELL: LoadableAnimal = { id: 'well', name: 'Biscuit', species: 'cat' };
+
+  it('carries the flag onto the grid, so the rules can see it', () => {
+    let s = createLoadingSession('small-van', [ILL, WELL]);
+    s = placeHeld(holdFromTray(s, 'ill'), 0).session;
+    expect(crateAt(s, 0)?.poorly).toBe(true);
+  });
+
+  it('previews a quiet need when a well animal is put beside one', () => {
+    let s = createLoadingSession('small-van', [ILL, WELL]);
+    s = placeHeld(holdFromTray(s, 'ill'), 0).session;
+    const holding = holdFromTray(s, 'well');
+    expect(slotOutlook(holding, 1)).toBe('stressed');
+    expect(slotNotes(holding, 1)[0].needsQuiet).toBe(true);
+  });
+
+  it('previews nothing when the patient is the one being put down', () => {
+    // The newcomer does not mind — but the animal already sitting
+    // there is being asked to give space, so the preview still says
+    // so. Asking only the newcomer would have shown "happy".
+    let s = createLoadingSession('small-van', [ILL, WELL]);
+    s = placeHeld(holdFromTray(s, 'well'), 0).session;
+    const holding = holdFromTray(s, 'ill');
+    expect(slotOutlook(holding, 1)).toBe('stressed');
+    expect(slotNotes(holding, 1)[0].needsQuiet).toBe(true);
   });
 });

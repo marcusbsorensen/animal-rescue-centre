@@ -48,7 +48,8 @@ import {
   type VehicleType,
 } from '@arc/game-logic';
 import {
-  affectedBy, bayHitSize, glyphWorthDrawing, gridFeeling, pairFaces, pairOf, tileArt,
+  affectedBy, bayHitSize, glyphWorthDrawing, gridFace, gridFeeling, pairFaces, pairOf,
+  tileArt,
 } from '../crate-loading-view';
 import { VEHICLE_BED, VEHICLE_BED_SOURCE, fitLoadBed } from '../fleet-art';
 import { MIN_TAP } from '../../ui/constants';
@@ -335,5 +336,71 @@ describe('describePair, as this screen reads it', () => {
     // it is reading, so the next person can see the shape at a glance.
     expect(text).toContain('Poppy the dog');
     expect(text).toContain('Smokey the cat');
+  });
+});
+
+describe('a poorly animal, drawn', () => {
+  const ill = (species: Species, n: number): LoadableAnimal => ({
+    id: `${species}-${n}`, name: `A${n}`, species, poorly: true,
+  });
+
+  it('keeps its sick face whoever it is sitting next to', () => {
+    // **The whole point of a vet run.** No social expression may
+    // paint over it: no override means `createAnimalSprite` derives
+    // the state, and the derived state for a poorly animal is `sick`.
+    const patient = ill('hedgehog', 1);
+    const neighbour = animal('cat', 2);
+    const { session } = adjacentPair(patient, neighbour);
+    expect(gridFace(session, patient.id)).toBe('sick');
+  });
+
+  it('keeps it with no neighbour at all', () => {
+    const patient = ill('cat', 1);
+    const session = sessionWith('animal-lorry', [{ animal: patient, slot: 0 }]);
+    expect(gridFace(session, patient.id)).toBe('sick');
+  });
+
+  it('leaves the animal beside it content, never recoiling', () => {
+    const patient = ill('bunny', 1);
+    const neighbour = animal('bunny', 2);
+    const { session, note } = adjacentPair(patient, neighbour);
+    expect(note.needsQuiet).toBe(true);
+    const [facePatient, faceNeighbour] = pairFaces(note, [patient, neighbour]);
+    expect(facePatient, 'the patient looks poorly').toBe('sick');
+    expect(faceNeighbour, 'the neighbour looks calm').toBe('walking');
+    // And the bay agrees with the panel.
+    expect(gridFace(session, neighbour.id)).toBe('walking');
+  });
+
+  it('always earns a mark on the edge they share', () => {
+    const patient = ill('bunny', 1);
+    const neighbour = animal('bunny', 2);
+    const { session, note } = adjacentPair(patient, neighbour);
+    // Two bunnies would normally be a heart; here the need outranks
+    // it, and a need is never one of the pairs left unmarked.
+    expect(glyphWorthDrawing(session, note)).toBe(true);
+  });
+
+  it('is still frightened of a fox, and the pair still reads as blocked', () => {
+    const patient = ill('bunny', 1);
+    const fox = animal('fox', 2);
+    const { note } = adjacentPair(patient, fox);
+    expect(note.level).toBe('blocked');
+    expect(note.needsQuiet).toBeFalsy();
+    const [facePatient, faceFox] = pairFaces(note, [patient, fox]);
+    // Poorly still wins the patient's own face — she is unwell, not
+    // merely startled — but the pair is blocked and marked as such.
+    expect(facePatient).toBe('sick');
+    expect(faceFox).toBe('walking');
+  });
+
+  it('does not mind another patient', () => {
+    const a = ill('cat', 1);
+    const b = ill('dog', 2);
+    const { session, note } = adjacentPair(a, b);
+    expect(note.level).toBe('happy');
+    expect(note.needsQuiet).toBe(false);
+    expect(gridFace(session, a.id)).toBe('sick');
+    expect(gridFace(session, b.id)).toBe('sick');
   });
 });

@@ -110,7 +110,7 @@ Built, not wired. Animals in orthogonally-adjacent slots (N/S/E/W, no diagonals)
 ### Compatibility classes
 
 - ✅ **happy** — same species, or one of the two both-calm cross-species pairings (bat ↔ snake, bunny ↔ hedgehog). +1 per same-species neighbour; the cross-species pairings add nothing.
-- ⚠ **stressed** — tolerated with a small arrival-happiness penalty (−5 per stressed neighbour, to each animal of the pair).
+- ⚠ **stressed** — tolerated with a small arrival-happiness penalty (−5 per stressed neighbour, to each animal of the pair). Charged per animal rather than per pair since 2026-10-09: where illness is involved, only the animal that actually minds pays it (see "Illness overrides the matrix" below).
 - 🚫 **blocked** — prey/predator or total incompatibility. `isDriveable(grid)` returns false while any crate has a blocked neighbour. The design is that the **Drive button is disabled** until the player resolves all blockers; that button is designed, not built.
 
 | | cat | dog | bunny | fox | bat | parrot | snake | hedgehog |
@@ -126,11 +126,47 @@ Built, not wired. Animals in orthogonally-adjacent slots (N/S/E/W, no diagonals)
 
 _The table was generated from `MATRIX` on 2026-10-07. It is symmetric, and it now includes the hedgehog, which the first version of this table (seven species) left out. The hedgehog's values are not pinned by any test._
 
+### Illness overrides the matrix — added 2026-10-09
+
+`MATRIX` is about species and is symmetric. Illness is about an
+individual animal and is **not** symmetric, so `feelingToward(self,
+neighbour)` answers for one side at a time and `pairFeeling` asks it
+twice. An animal counts as poorly when it is in
+`GameStateStore.sickAnimals` — there is no `sick` in `AnimalState`,
+and `LoadedCrate.poorly` / `LoadableAnimal.poorly` carry that one fact
+into the rules.
+
+1. **Blocked stays blocked.** Checked before anything below. Stressed
+   is a preference and illness can outweigh a preference; blocked is
+   safety, and a poorly bunny beside a fox is in more danger than a
+   well one. `isDriveable` is unaffected, and the sentence stays the
+   blocked one rather than being softened into a need.
+2. **A poorly animal takes no stressed reaction.** It has bigger
+   problems than a neighbour it would rather not have, so it pays no
+   -5 and wears no worried face.
+3. **A well animal beside a poorly one takes a mild one** — the
+   stressed level, whatever the two species would otherwise have
+   been, same-species included. It pays the ordinary -5.
+
+Two poorly animals side by side therefore mind each other not at all:
+rule 2 answers for both and rule 3 reaches neither. A poorly animal
+with one of its own kind alongside still takes the same-species +1.
+
+**The wording is part of the rule.** The sentence is always about what
+the patient needs, never about what the neighbour dislikes — "Truffle
+the hedgehog is poorly and needs a quiet space", never "Biscuit does
+not like sitting next to Truffle". This is a game about caring for
+animals that need help, played by children some of whom have been the
+one nobody would sit beside. The loading screen marks it with a cool
+blue crescent rather than the amber warning, because it is a need and
+not a falling-out.
+
+
 ### Bonuses (stacked on top of the base matrix)
 
 - Same-species adjacent → **+1 happiness** each. _Built, not wired._ Only same-species pairs score the +1. The test "bat in quiet crate next to snake" in `crate-stacking.test.ts` expects 3 each: the crate fit and nothing for the neighbour.
 - Sibling pair adjacent → **+1 bond** each. **TODO, not implemented.** `calculateArrivalHappinessDelta` accepts `animalsById` and discards it (`void animalsById`), so no sibling is looked up. It returns happiness deltas only, so a bond effect would also need a different return shape. The data it would use exists in the game's types (`Animal.siblingId`; `AnimalRelationship` in `GameState.relationships`, with helpers in `relationships.ts`); `crate-stacking.ts` reads neither.
-- Dog adjacent to a recovering animal (sick/scared) → **+1 happiness** to the recovering one, emotional-support effect. **TODO, not implemented.** "Recovering" has no definition in the code: `AnimalState` is `'arriving' | 'sheltered' | 'bonding' | 'pet'` and `Animal.health` is a 0–100 number. The rule needs that definition first.
+- Dog adjacent to a recovering animal (sick/scared) → **+1 happiness** to the recovering one, emotional-support effect. **TODO, not implemented.** "Recovering" has no definition in the code: `AnimalState` is `'arriving' | 'sheltered' | 'bonding' | 'pet'` and `Animal.health` is a 0–100 number. The rule needs that definition first. _Updated 2026-10-09:_ no longer blocked on a definition — `LoadedCrate.poorly` now carries `GameStateStore.sickAnimals` into the rules, so "recovering" has one. `AnimalState` still has no `sick` member and should not grow one; being unwell is a separate fact about an animal, not a state it is in. Note the current rules point the other way, charging a well animal -5 for sitting beside a patient, so a bonus for a *dog* specifically would be an exception stacked on that.
 
 ### Temperament overrides (future)
 
@@ -138,13 +174,13 @@ An individual animal's state can shift the matrix one notch:
 - Anxious dog → treat as stressed with cat / bunny / bat even if matrix says happy.
 - Confident calm cat → sit next to bunny as stressed instead of blocked.
 
-_Designed, not built._ Nothing in the code implements it. When it lands it should be a per-animal adjustment passed into `previewPlacement` / `calculateArrivalHappinessDelta`, not a matrix mutation.
+_Designed, not built._ Nothing in the code implements it. When it lands it should be a per-animal adjustment passed into `previewPlacement` / `calculateArrivalHappinessDelta`, not a matrix mutation. _2026-10-09: that shape now exists._ Illness is exactly such an adjustment — `Passenger.poorly` threaded through `feelingToward`, with `MATRIX` untouched — so a temperament override should follow it rather than invent a second pattern.
 
 ---
 
 ## Loading flow (UI)
 
-_Status 2026-10-07: designed, not built, except the vehicle pick in step 1, which is the `select` phase of `PtvDriveScene` (cards show slots, fuel and unlock level). Steps 2 to 6 have no code. `previewPlacement` and `isDriveable`, named in steps 4 and 6, are built and have no caller. Step 5's example, "Luna is scared of Max", names individuals; the matrix is species-based, so the engine can support species-level text ("cats and bunnies do not mix") unless per-animal data is added. Step 7 says cut-scene while "Real-time drive, compact city" below says drives are real-time; the built drive is real-time, and that stands._
+_Status 2026-10-07: designed, not built, except the vehicle pick in step 1, which is the `select` phase of `PtvDriveScene` (cards show slots, fuel and unlock level). Steps 2 to 6 have no code. `previewPlacement` and `isDriveable`, named in steps 4 and 6, are built and wired — the crate loading screen (`driving/crate-loading-view.ts`) calls both. _(This said "have no caller" when checked on 2026-10-07; the screen landed after.)_ Step 5's example, "Luna is scared of Max", names individuals; the matrix is species-based, so the engine can support species-level text ("cats and bunnies do not mix") unless per-animal data is added. Step 7 says cut-scene while "Real-time drive, compact city" below says drives are real-time; the built drive is real-time, and that stands._
 
 1. **Vehicle pick** — row of painted vehicle sprites. Tap one. Shows slot count + unlock + fuel cost.
 2. **Crate-loading screen** — two halves:
