@@ -8,7 +8,7 @@ import { useRetinaText } from '../ui/retina-text';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Animal, Economy, Species } from '@arc/shared-types';
 import {
-  VEHICLE_DEFS, DESTINATIONS, getDestination,
+  VEHICLE_DEFS, DESTINATIONS, CRATE_DEFS, getDestination,
   aboard, blockingNotes, canSetOff, createLoadingSession, heldAnimal, holdFromTray,
   liftFromSlot, placeHeld, putHeldBack, spawnAnimal,
   type CompatibilityLevel, type LoadableAnimal, type LoadingSession,
@@ -82,33 +82,29 @@ const TRAFFIC_SPRITE_KEYS: Record<TrafficKind, string[]> = {
  *  lorry is the biggest. Used on the road, in the picker cards and in the bay
  *  (the A.R.C. forecourt has different-sized spaces for exactly this reason).
  *
- *  **Big Tilly is 1.5, which is 3/2.** Her crate grid is 3x3 where Henry's is
- *  2x2 (`VEHICLE_DEFS`), so she is three bays across and three deep against
- *  his two and two: one and a half times his interior on *both* axes. She was
- *  1.3, which drew a lorry that could not hold what the loading screen says
- *  she holds — nine crates in the footprint of about six.
+ *  **These are width ratios, because this scalar is applied to width.** Every
+ *  sprite now carries its vehicle's true aspect — the proportion pass made
+ *  each one between 1.4x and 1.9x longer for its width — so setting the width
+ *  right gives the length for free, and nothing here has to argue about
+ *  length at all.
  *
- *  The scalar multiplies the whole sprite, so it is the right lever for Tilly
- *  and the wrong one for Bea, and that is why only this entry moves. Bea's
- *  grid is 3x2 — wider than Henry but no longer — and growing her by 1.5 here
- *  would stretch her length by the same 1.5 she does not need. Her extra
- *  columns come from the art instead: at 1.12 the painted sprite already draws
- *  her a third longer than Henry on the road, because she is a long van and
- *  the drawing knows it. Spark is a 3x2 as well, and her distinction is a fuel
- *  cost of 5 against Bea's 10 rather than capacity, so she is left alone too.
+ *  That is what the old numbers got wrong. Big Tilly was 1.5, reasoned from
+ *  her 3x3 crate grid against Henry's 2x2: a length argument, spent on the
+ *  width lever, which drew a lorry half again too fat because the art of the
+ *  day was too short and the scalar was being asked to fix it. The art fixed
+ *  it instead. She is 1.31 — a 2.4m lorry against Henry's 1.8m van — and the
+ *  sprite's own 2.81:1 aspect makes her 2.6 times his length without being
+ *  asked.
  *
- *  Checked on the road, not just in arithmetic (`?ptvDemo=1`): with a lane at
- *  its 84px cap Tilly draws 74px wide inside it against Henry's 49, which is
- *  a lorry filling its lane rather than one overhanging it, and 2.3x his
- *  length — the sprite's own aspect is narrower than Henry's, so scaling by
- *  width buys the length over again. 1.5 is the floor the grid demands and
- *  the ceiling the lane allows; they agree. */
+ *  Measured off the installed files, as each sprite's opaque width over
+ *  Henry's 561px: Trikey 0.43 (a trike is narrower than her file, which
+ *  includes her handlebars), Bea 1.03, Spark 1.14, Tilly 1.31. */
 const VEHICLE_SIZE: Record<VehicleType, number> = {
-  'pedal-trike': 0.55,
+  'pedal-trike': 0.43,
   'small-van': 1.0,
-  'long-van': 1.12,
-  'electric-minibus': 1.18,
-  'animal-lorry': 1.5,
+  'long-van': 1.03,
+  'electric-minibus': 1.14,
+  'animal-lorry': 1.31,
 };
 const VEHICLE_SIZE_MAX = Math.max(...Object.values(VEHICLE_SIZE));
 
@@ -441,6 +437,17 @@ export class PtvDriveScene extends Phaser.Scene {
         this.load.image(`${s}-sheltered`, `/assets/animals/${s}-sheltered.png`);
       }
     }
+    // The six painted crates, for the loading screen's bays and tray.
+    // Keyed `crate-<type>` to match the `CrateType` values the rules
+    // use, which is how `makeCrateFace` finds them. As with the species
+    // art above, the full game already has these from the asset
+    // manifest and the exists-check skips them; the `?ptvDemo=1` boot
+    // has no manifest and would otherwise draw six emoji.
+    for (const c of Object.keys(CRATE_DEFS)) {
+      if (!this.textures.exists(`crate-${c}`)) {
+        this.load.image(`crate-${c}`, `/assets/driving/crates/crate-${c}.png`);
+      }
+    }
     // The Birchie vector map for the GPS mini-map (rasterised from the SVG).
     if (!this.textures.exists('gps-map')) {
       this.load.svg('gps-map', '/admin/scene-assets/birchie-map/birchie-roads.svg', { width: 640, height: 399 });
@@ -514,17 +521,31 @@ export class PtvDriveScene extends Phaser.Scene {
    * game store to ask — the same shape as the `?dest=` and `?level=`
    * overrides beside it. Unknown species names are dropped rather than
    * throwing, so a typo costs a passenger and not the scene.
+   *
+   * **Every name on the trip is different.** `spawnAnimal` only avoids
+   * a name you tell it about, and the species name lists share plenty:
+   * Bramble is a dog, a fox, a bunny, a snake *and* a hedgehog. Spawned
+   * one at a time with nothing passed, a demo load came up with a bunny
+   * called Bramble sitting next to a hedgehog called Bramble, and the
+   * name is how a child decides who to pick up — two animals answering
+   * to one is the confusion this screen exists to avoid. So the names
+   * already chosen are handed forward.
    */
   private readCargo(data?: PtvDriveInit): Animal[] {
     if (data?.cargo?.length) return data.cargo;
     if (typeof window === 'undefined') return [];
     const raw = new URLSearchParams(window.location.search).get('cargo');
     if (!raw) return [];
+    const taken: string[] = [];
     return raw
       .split(',')
       .map((s) => s.trim().toLowerCase())
       .filter((s): s is Species => (CARGO_SPECIES as string[]).includes(s))
-      .map((s) => spawnAnimal(s));
+      .map((s) => {
+        const animal = spawnAnimal(s, undefined, taken);
+        taken.push(animal.name);
+        return animal;
+      });
   }
 
   /** The destination's own name, for the screens that say where we are off to. */

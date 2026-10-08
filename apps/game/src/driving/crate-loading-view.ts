@@ -70,7 +70,7 @@ import { fitChipGrid } from '../ui/layout';
 import { drawForecourt, drawVehicleShadow } from './forecourt';
 import {
   BAY_GAP, BAY_MAX_H, BAY_MAX_W, BED_PAD, VEHICLE_BED, VEHICLE_BED_SOURCE,
-  VEHICLE_SPRITE, bedProbePoints, fitLoadBed,
+  VEHICLE_SPRITE, bedProbePoints, fitLoadBed, type BedFit,
 } from './fleet-art';
 
 /**
@@ -112,6 +112,27 @@ const BED_FLOOR = 0xf0e4cc;
 const BED_WALL = 0x3a3027;
 
 /**
+ * An empty bay: the well, the shade down its near wall, and the lip of
+ * light on its far one.
+ *
+ * It used to be the cutaway floor with a wash of `BED_WALL` over it,
+ * which came out at about (193,181,161) — four per cent darker than
+ * the floor and a shade cooler. At Trikey's 130px bays the lip and the
+ * inner stroke carried the depth anyway; at Big Tilly's 40px ones they
+ * had nothing to work with, and nine cool grey rounded squares on warm
+ * oak read as tiles laid on the lorry rather than holes cut in it.
+ *
+ * So the well now carries the depth on its own: a warm tan a full step
+ * darker than the floor, which is the colour a shadowed cream floor
+ * actually goes, and which keeps the whole vehicle on one side of the
+ * warm/cool line. The strokes stay, and at Trikey's size they still do
+ * what they always did.
+ */
+const BAY_WELL = 0xcdb792;
+const BAY_WELL_SHADE = 0x6f5737;
+const BAY_WELL_LIP = 0xfdf5e4;
+
+/**
  * The tray is a grid of chips in whatever room the right-hand column
  * has left. A chip is as big as that allows, within these.
  */
@@ -123,22 +144,36 @@ const CHIP_MAX_H = 104;
  * to the full-width strip instead, where six chips have the room.
  */
 const CHIP_NAME_MIN_W = 76;
-/** Below this a chip has no room for the crate mark beside the animal. */
-const CHIP_CRATE_MIN_W = 68;
 
 /**
  * Below this a bay cannot carry a name row without the name taking more
- * of the bay than the animal. Big Tilly's nine bays are the case: her
- * names live in the panel and on the tray chips instead.
+ * of the bay than the crate in it. Big Tilly's nine bays are the case —
+ * 40 wide by 54 deep, where a 20px name row would leave a 34px crate
+ * with a 19px animal inside it. Her names live in the panel and on the
+ * tray chips instead.
+ *
+ * It was 46, measured when a bay held a bare animal sprite and the name
+ * came off the sprite's own slack. A crate has no slack: what the name
+ * takes, the animal loses twice over, once for the rim and once for the
+ * floor inside it.
  */
-const BAY_NAME_MIN_H = 46;
+const BAY_NAME_MIN_H = 60;
 /**
- * Below this a bay cannot carry the crate mark either. Low, because the
- * mark is the one thing in a bay that says *what* an animal travels in,
- * and Big Tilly's nine bays — the load where matching crates matters
- * most — are the smallest in the fleet.
+ * Below this the animal is drawn on her own rather than in her crate.
+ *
+ * Under about 32px the rim is most of what is left and the animal on
+ * the floor inside stops being anybody in particular — and who she is
+ * is the thing a child is reading. One rule for both places, measured
+ * on the drawn art rather than on the box it sits in, because the box
+ * runs out on different axes in each: a bay is pinched for width, and
+ * a tray chip in the landscape-phone strip is pinched for height.
+ *
+ * Every bay in the fleet clears it, Big Tilly's 36px nine included —
+ * the load where matching crates matters most. What does not clear it
+ * is that bottom strip on a short viewport, and the no-texture
+ * fallback, where bays are sized off the raw box.
  */
-const BAY_CRATE_MIN_W = 44;
+const CRATE_ART_MIN = 32;
 
 export interface CrateLoadingCallbacks {
   /** An animal in the tray was tapped — pick it up. */
@@ -211,18 +246,34 @@ function fitLabel(
 }
 
 /**
- * The crate an animal travels in, drawn.
+ * How much of a painted crate is clear floor.
  *
- * **This is the single swap point for crate art.** A painted crate is
- * loaded under the key `crate-<type>` and drawn at `size` the moment it
- * exists; two of the six are painted (`standard`, `warm-vivarium`) and
- * are not installed yet, so every type falls through to the placeholder
- * below and the screen works either way.
+ * All six are drawn from directly above, open and empty, with a pale
+ * cream floor in the middle. Measured off the files as the largest
+ * centred square of clear floor: the warm vivarium has 0.59, the
+ * secure crate 0.58, the standard crate 0.55, the quiet bed 0.53 and
+ * the round ventilated basket 0.44 — the basket is a circle, so its
+ * square is the smallest while its *width* at the middle is as wide as
+ * anybody's. 0.56 puts an animal on the floor of five of the six and
+ * lets the corners of a sprite in the basket brush the weave, which is
+ * what an animal in a basket looks like.
  *
- * The placeholder is the emoji already on the `CrateDef`, on a small
- * cream disc so it reads as an object pinned to the crate rather than a
- * glyph floating on the animal. When the art lands it replaces the disc
- * and nothing else in the screen changes.
+ * The perch carrier measures zero because its perch crosses the
+ * middle, and a bird drawn over its perch is a bird perching.
+ */
+const CRATE_FLOOR = 0.56;
+
+/**
+ * The crate an animal travels in, drawn — a painted crate when there is
+ * one, the emoji on a cream disc when there is not.
+ *
+ * All six are installed in `assets/driving/crates/`, so the fallback is
+ * now only reached if a file goes missing or a load fails: the full
+ * game picks them up from the asset manifest by filename and the
+ * `?ptvDemo=1` boot self-loads them. It stays because a crate is how a
+ * child tells a snake's travel box from a bat's, and a screen that
+ * drops that fact entirely on a failed fetch is worse than one that
+ * falls back to a glyph.
  */
 function makeCrateFace(
   scene: Phaser.Scene,
@@ -251,6 +302,53 @@ function makeCrateFace(
   }).setOrigin(0.5);
 
   return scene.add.container(x, y, [gfx, glyph]);
+}
+
+/**
+ * An animal in the crate she travels in, drawn from above.
+ *
+ * One picture rather than two, and it is the picture the crates were
+ * painted empty for: the animal sits *on the crate's floor*, inside the
+ * rim, the way she will travel. It replaced an animal with a small
+ * crate badge pinned to her shoulder, which said the same thing twice
+ * and said neither of them at the size Big Tilly's bays run to.
+ *
+ * The same object in the tray and in the bay, so the thing a child taps
+ * and the thing that lands in the van are visibly one object.
+ *
+ * Where there is no painted crate the badge comes back — the animal at
+ * full size with the glyph in the corner, exactly as the screen drew it
+ * before the art existed.
+ */
+function makeCratedAnimal(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  animal: Animal | undefined,
+  crate: CrateDef,
+  size: number,
+): Phaser.GameObjects.GameObject {
+  const key = `crate-${crate.id}`;
+  if (!scene.textures.exists(key)) {
+    const fallback: Phaser.GameObjects.GameObject[] = [];
+    if (animal) {
+      fallback.push(createAnimalSprite(scene, 0, 0, animal, { width: size, height: size }));
+    }
+    const badge = Math.round(size * 0.42);
+    fallback.push(makeCrateFace(scene, -size / 2 + badge / 2, -size / 2 + badge / 2, crate, badge));
+    return scene.add.container(x, y, fallback);
+  }
+
+  const children: Phaser.GameObjects.GameObject[] = [
+    makeCrateFace(scene, 0, 0, crate, size),
+  ];
+  if (animal) {
+    const inside = Math.round(size * CRATE_FLOOR);
+    children.push(
+      createAnimalSprite(scene, 0, 0, animal, { width: inside, height: inside }),
+    );
+  }
+  return scene.add.container(x, y, children);
 }
 
 /** One feeling badge — the mark, and under it the word. */
@@ -478,15 +576,36 @@ export function renderCrateLoading(
   // measured about 130px against the picker's 370 and read as a sticker
   // pasted on the slab's top edge. Gravel, tarmac and the exit road
   // carry the place on their own.
+  //
+  // **And the bay is the vehicle's width, not the column's.** The
+  // proportion pass turned every vehicle portrait: Big Tilly draws
+  // 169px wide in a 524px column, and a slab filled to the column put
+  // 350px of empty tarmac beside her — a car park with one lorry
+  // marooned in it, which is the "UI panel with a van on it" reading
+  // this slab was cut down to avoid in the first place. So the vehicle
+  // is measured first and the tarmac laid round it, with the gravel it
+  // no longer covers left as forecourt.
   const apronBottom = Math.min(roadTop - 8, columnsBottom + SPACE.s);
+  const roomX = PAGE_MARGIN - SPACE.m;
+  const roomW = vehicleColW + SPACE.xl;
+  const roomBox = {
+    x: roomX + SPACE.l,
+    y: apronTop + SPACE.l,
+    w: Math.max(120, roomW - SPACE.l * 2),
+    h: Math.max(100, apronBottom - SPACE.l - (apronTop + SPACE.l)),
+  };
+  const fit = vehicleFit(scene, vehicle.id, roomBox, session.grid.cols, session.grid.rows);
+  const bayW = fit
+    ? Math.min(roomW, Math.max(160, fit.spriteW + SPACE.xxl * 2))
+    : roomW;
   const { apron } = drawForecourt(scene, container, {
     width,
     height,
     contentTop,
     apronTop,
     apronH: Math.max(0, apronBottom - apronTop),
-    apronX: PAGE_MARGIN - SPACE.m,
-    apronW: vehicleColW + SPACE.xl,
+    apronX: roomX + (roomW - bayW) / 2,
+    apronW: bayW,
     building: false,
   });
   container.add(title);
@@ -508,7 +627,7 @@ export function renderCrateLoading(
     y: apron.y + SPACE.l,
     w: Math.max(120, apron.w - SPACE.l * 2),
     h: Math.max(100, apronBottom - SPACE.l - (apron.y + SPACE.l)),
-  }, apronBottom - 3);
+  }, apronBottom - 3, fit);
   drawTray(scene, container, state, callbacks, setMessage, trayBox, trayLabelH);
 
   // ── Bottom row ──
@@ -561,6 +680,33 @@ function bayHoverCopy(session: LoadingSession, slotIndex: number): PanelCopy | n
 }
 
 /**
+ * How big this vehicle wants to be drawn in the room it has — worked
+ * out before anything is drawn, so the tarmac can be laid as a bay
+ * round it rather than as a slab it sits somewhere on.
+ *
+ * Undefined where the painted vehicle has not loaded; the caller then
+ * falls back to the whole column, which is what the screen did before
+ * there was any art to measure.
+ */
+function vehicleFit(
+  scene: Phaser.Scene,
+  id: VehicleType,
+  box: Box,
+  cols: number,
+  rows: number,
+): BedFit | undefined {
+  const key = VEHICLE_SPRITE[id];
+  if (!scene.textures.exists(key)) return undefined;
+  const source = scene.textures.get(key).getSourceImage();
+  return fitLoadBed(
+    { w: box.w, h: box.h },
+    { w: source.width, h: source.height },
+    VEHICLE_BED[id],
+    cols, rows,
+  );
+}
+
+/**
  * The chosen vehicle, parked in a bay on the tarmac, with its load bed
  * cut away and the crate grid laid in it.
  *
@@ -581,12 +727,18 @@ function drawVehicle(
   /**
    * The y the vehicle is cut off at — the tarmac's own bottom edge.
    *
-   * Only ever reached on a viewport too short to hold the whole
-   * vehicle at a tappable grid (see `fitLoadBed`). Cutting at the kerb
-   * rather than at an arbitrary line means the vehicle ends where the
-   * ground does, which reads as driving out of the picture.
+   * Reached by the three-across vehicles at every viewport the screen
+   * is checked at (see `fitLoadBed`). Cutting at the kerb rather than
+   * at an arbitrary line means the vehicle ends where the ground does,
+   * which reads as driving out of the picture.
    */
   clipAt?: number,
+  /**
+   * The fit the caller already worked out to lay the tarmac round.
+   * Recomputing it here would risk the bay and the vehicle in it
+   * disagreeing by a pixel over which of them is 169 wide.
+   */
+  measured?: BedFit,
 ): void {
   const { session, vehicle } = state;
   const { cols, rows } = session.grid;
@@ -595,12 +747,14 @@ function drawVehicle(
   let slotW: number;
   let slotH: number;
   let floor: Box;
+  let originX: number;
+  let originY: number;
 
   if (scene.textures.exists(key)) {
     const sprite = scene.add.image(0, 0, key).setOrigin(0.5);
     warnOnStaleBed(scene, key, vehicle.id, sprite.width, sprite.height);
 
-    const fit = fitLoadBed(
+    const fit = measured ?? fitLoadBed(
       { w: box.w, h: box.h },
       { w: sprite.width, h: sprite.height },
       VEHICLE_BED[vehicle.id],
@@ -608,12 +762,20 @@ function drawVehicle(
     );
     const left = box.x + (box.w - fit.spriteW) / 2;
     const top = fit.overflows ? box.y : box.y + (box.h - fit.spriteH) / 2;
+    // Where the vehicle actually ends on screen: its own bottom edge, or
+    // the kerb if it is the bigger vehicle. The shadow is a pool on the
+    // ground under it, so it has to stop where the vehicle stops —
+    // otherwise a lorry running off the slab casts an ellipse across the
+    // exit road and out under the buttons.
+    const bottom = fit.overflows && clipAt !== undefined
+      ? Math.min(clipAt, top + fit.spriteH)
+      : top + fit.spriteH;
 
     drawVehicleShadow(scene, container, {
       cx: left + fit.spriteW / 2,
-      cy: top + fit.spriteH / 2,
+      cy: (top + bottom) / 2,
       w: fit.spriteW,
-      h: fit.spriteH,
+      h: bottom - top,
     });
 
     sprite.setPosition(left + fit.spriteW / 2, top + fit.spriteH / 2);
@@ -628,7 +790,21 @@ function drawVehicle(
 
     slotW = fit.slotW;
     slotH = fit.slotH;
-    floor = { x: left + fit.floor.x, y: top + fit.floor.y, w: fit.floor.w, h: fit.floor.h };
+    // The cutaway ends where the vehicle does. Spark's cabin is 0.63 of
+    // a sprite drawn taller than the band, so at 820x620 the last strip
+    // of her floor is past the kerb — and a cream panel carrying on
+    // over the exit road is the one thing worse than a bumper that
+    // does. The bays are centred in the floor and well inside it, so
+    // nothing tappable is ever what gets cut.
+    const floorY = top + fit.floor.y;
+    floor = {
+      x: left + fit.floor.x,
+      y: floorY,
+      w: fit.floor.w,
+      h: clipAt === undefined ? fit.floor.h : Math.min(fit.floor.h, clipAt - floorY),
+    };
+    originX = left + fit.grid.x;
+    originY = top + fit.grid.y;
   } else {
     // No painted vehicle loaded. The bed is still a bed — the cutaway
     // panel, the bays and every sentence behave identically, so a
@@ -642,13 +818,15 @@ function drawVehicle(
     const w = slotW * cols + GAP * (cols - 1) + BED_PAD * 2;
     const h = slotH * rows + GAP * (rows - 1) + BED_PAD * 2;
     floor = { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };
+    originX = floor.x + BED_PAD;
+    originY = floor.y + BED_PAD;
   }
 
   drawBedFloor(scene, container, floor);
 
   drawBays(scene, container, state, callbacks, setMessage, {
-    originX: floor.x + BED_PAD,
-    originY: floor.y + BED_PAD,
+    originX,
+    originY,
     slotW,
     slotH,
     cols,
@@ -740,9 +918,7 @@ interface BayGeometry {
   cy: number;
   slotW: number;
   slotH: number;
-  crateSize: number;
   withName: boolean;
-  withCrate: boolean;
   /**
    * Let a wide shallow box lay itself out as a row. Default true.
    *
@@ -757,16 +933,21 @@ interface BayGeometry {
 }
 
 /**
- * An animal, her name and the crate she travels in, in a box — a loaded
- * bay in the vehicle, or a chip in the tray waiting to board.
+ * An animal in her crate, with her name, in a box — a loaded bay in the
+ * vehicle, or a chip in the tray waiting to board.
  *
  * Two arrangements, because neither box gets to choose its own shape: a
  * bay is the vehicle's, and a tray chip is whatever the column it wraps
- * into leaves. Roughly square takes a card — the animal above, her name
- * under her. Wide and shallow takes a row — the animal at the left, her
- * name beside her — because a card in a 55px-deep box draws a 17px
+ * into leaves. Roughly square takes a card — the crate above, her name
+ * under it. Wide and shallow takes a row — the crate at the left, her
+ * name beside it — because a card in a 55px-deep box draws a 17px
  * animal over a 20px name, which is two things neither of which can be
  * read. The same two facts, using the axis that has room.
+ *
+ * **The crate is the picture now, not a badge beside it.** Where the
+ * art comes out under `CRATE_ART_MIN` the animal is drawn on her own,
+ * because a crate rim round a 30px sprite leaves 17px of animal and
+ * the animal is who the child is choosing.
  */
 function drawAnimalTile(
   scene: Phaser.Scene,
@@ -781,21 +962,19 @@ function drawAnimalTile(
     color: CHROME.ink, resolution: TEXT_RESOLUTION,
   };
 
+  /** The animal in her crate, or — too small for a rim — just her. */
+  const art = (x: number, y: number, size: number) => {
+    if (size >= CRATE_ART_MIN) return makeCratedAnimal(scene, x, y, animal, crate, size);
+    if (!animal) return undefined;
+    return createAnimalSprite(scene, x, y, animal, { width: size, height: size });
+  };
+
   if ((g.rowWhenWide ?? true) && g.slotW >= g.slotH * 1.6) {
-    const art = Math.min(g.slotH - 8, g.slotW * 0.34);
-    if (animal) {
-      container.add(
-        createAnimalSprite(scene, g.left + 4 + art / 2, g.cy, animal, {
-          width: art, height: art,
-        }),
-      );
-    }
-    // The name takes everything to the right of the animal, and the
-    // crate mark rides on her shoulder rather than claiming a column of
-    // its own: in a 45px-deep bay the mark costs about three letters,
-    // and three letters of a name is the difference between "Whiskers"
-    // and "Wh…".
-    const textLeft = g.left + 4 + art + SPACE.xs;
+    const size = Math.min(g.slotH - 8, g.slotW * 0.34);
+    const piece = art(g.left + 4 + size / 2, g.cy, size);
+    if (piece) container.add(piece);
+    // The name takes everything to the right of the crate.
+    const textLeft = g.left + 4 + size + SPACE.xs;
     const textRight = g.left + g.slotW - 4;
     if (textRight - textLeft >= 36) {
       container.add(
@@ -804,34 +983,22 @@ function drawAnimalTile(
         ),
       );
     }
-    if (g.withCrate) {
-      const badge = Math.min(g.crateSize, Math.round(art * 0.56));
-      container.add(
-        makeCrateFace(scene, g.left + 3 + badge / 2, g.top + 3 + badge / 2, crate, badge),
-      );
-    }
     return;
   }
 
   const nameRow = g.withName ? MIN_FONT.small + 4 : 0;
-  if (animal) {
-    container.add(
-      createAnimalSprite(scene, g.cx, g.cy - nameRow / 2, animal, {
-        width: g.slotW - 10, height: g.slotH - nameRow - 6,
-      }),
-    );
-  }
+  // Square, because a crate is: the shorter axis sets the size and the
+  // spare on the other one is floor. The inset is 4 rather than the 10
+  // an animal had, because a crate painted edge to edge of its file has
+  // no margin of its own to give and Big Tilly's bays have none to
+  // lend — every pixel taken off the rim comes off the animal inside.
+  const size = Math.max(1, Math.min(g.slotW - 4, g.slotH - nameRow - 4));
+  const piece = art(g.cx, g.cy - nameRow / 2, size);
+  if (piece) container.add(piece);
   if (g.withName) {
     container.add(
       fitLabel(
         scene, g.cx, g.cy + g.slotH / 2 - nameRow / 2 - 2, name, g.slotW - 8, nameStyle,
-      ),
-    );
-  }
-  if (g.withCrate) {
-    container.add(
-      makeCrateFace(
-        scene, g.left + g.crateSize / 2 + 4, g.top + g.crateSize / 2 + 4, crate, g.crateSize,
       ),
     );
   }
@@ -853,9 +1020,7 @@ function drawBays(
     y: originY + Math.floor(slot / cols) * (slotH + GAP) + slotH / 2,
   });
 
-  const crateSize = Math.max(16, Math.min(26, Math.round(slotW * 0.36)));
   const withName = slotH >= BAY_NAME_MIN_H;
-  const withCrate = slotW >= BAY_CRATE_MIN_W;
 
   for (let slot = 0; slot < slotCount(session); slot += 1) {
     const { x: cx, y: cy } = slotCentre(slot);
@@ -865,17 +1030,7 @@ function drawBays(
     const top = cy - slotH / 2;
 
     const bay = scene.add.graphics();
-    if (crate) {
-      // A loaded bay is the crate: the chrome surface, because a crate
-      // is a box with a door and the plate is the one surface in the
-      // game that reads as a thing you could lift.
-      bay.fillStyle(CHROME.shadowColour, 0.2);
-      bay.fillRoundedRect(left + 2, top + 3, slotW, slotH, 10);
-      bay.fillStyle(CHROME.fill, CHROME.fillAlpha);
-      bay.fillRoundedRect(left, top, slotW, slotH, 10);
-      bay.lineStyle(CHROME.strokeWidth, CHROME.stroke, CHROME.strokeAlpha);
-      bay.strokeRoundedRect(left, top, slotW, slotH, 10);
-    } else if (outlook) {
+    if (outlook) {
       // Holding an animal lights every empty bay with what it would do
       // to her — the one moment this screen uses colour at full
       // strength, and it still carries the mark and the word on top.
@@ -885,21 +1040,27 @@ function drawBays(
       bay.lineStyle(3, skin.stroke, 1);
       bay.strokeRoundedRect(left, top, slotW, slotH, 10);
     } else {
-      // An empty bay is a recess *in* the vehicle's floor, not a tile
-      // *on* it — darker than the floor rather than a paler crate, so
-      // "there is nobody here" never has to be read as "there is
-      // something here". Three passes make it a hole: a pale lip
-      // peeking out below, where the light catches the near edge; the
-      // well itself; and a dark inner wall round it.
-      bay.fillStyle(0xffffff, 0.5);
+      // A bay is a recess *in* the vehicle's floor, not a tile *on*
+      // it — darker than the floor rather than a paler crate, so "there
+      // is nobody here" never has to be read as "there is something
+      // here". Four passes make it a hole: a lip of light peeking out
+      // below, where the near edge catches the sun; the well; a shaded
+      // wall round it; and a second stroke nudged down and right, which
+      // reads as depth without a gradient.
+      //
+      // The same well under a loaded bay, with the crate standing in
+      // it. A loaded bay used to be a chrome plate instead, which was
+      // right when a bay held an animal and a badge and wrong the
+      // moment it held a painted crate: a cream card with a small
+      // wooden box on it reads as two objects, and the second one is
+      // not a thing in the van.
+      bay.fillStyle(BAY_WELL_LIP, 0.85);
       bay.fillRoundedRect(left, top + 2, slotW, slotH, 10);
-      bay.fillStyle(BED_WALL, 0.26);
+      bay.fillStyle(BAY_WELL, 1);
       bay.fillRoundedRect(left, top, slotW, slotH, 10);
-      bay.lineStyle(2.5, 0x2b2219, 0.4);
+      bay.lineStyle(2.5, BAY_WELL_SHADE, 0.55);
       bay.strokeRoundedRect(left, top, slotW, slotH, 10);
-      // The shaded side of the well — a second stroke nudged down and
-      // right reads as depth without a gradient.
-      bay.lineStyle(2, 0x2b2219, 0.2);
+      bay.lineStyle(2, BAY_WELL_SHADE, 0.3);
       bay.strokeRoundedRect(left + 1.5, top + 1.5, slotW - 3, slotH - 3, 9);
     }
     container.add(bay);
@@ -908,7 +1069,7 @@ function drawBays(
       const record = state.animalsById.get(crate.animalId);
       drawAnimalTile(
         scene, container, record, record?.name ?? '', crateDefFor(crate.species),
-        { left, top, cx, cy, slotW, slotH, crateSize, withName, withCrate },
+        { left, top, cx, cy, slotW, slotH, withName },
       );
     } else if (outlook) {
       container.add(makeFeelingBadge(scene, cx, cy, outlook, { withWord: slotH >= 62 }));
@@ -1150,9 +1311,7 @@ function drawChip(
       cy,
       slotW: box.w,
       slotH: box.h,
-      crateSize: Math.max(16, Math.min(24, Math.round(box.w * 0.26))),
       withName: true,
-      withCrate: box.w >= CHIP_CRATE_MIN_W,
       rowWhenWide: false,
     },
   );

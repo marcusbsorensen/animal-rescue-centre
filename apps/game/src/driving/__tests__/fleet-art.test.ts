@@ -1,9 +1,29 @@
 import { describe, it, expect } from 'vitest';
 import { VEHICLE_DEFS, type VehicleType } from '@arc/game-logic';
 import {
-  BAY_GAP, BAY_MIN, BED_PAD, BED_SLACK,
+  BAY_GAP, BAY_MAX_RATIO, BAY_MIN, BED_PAD, BED_SLACK,
   VEHICLE_BED, VEHICLE_BED_SOURCE, VEHICLE_SPRITE, bedProbePoints, fitLoadBed,
 } from '../fleet-art';
+
+/**
+ * How wide each vehicle's painted body actually is at the load area, as
+ * fractions of its sprite — read off the same files `VEHICLE_BED` was
+ * measured on.
+ *
+ * Here so a test can ask the question the bed numbers exist to answer:
+ * does the cutaway floor stay on the vehicle? The slack is allowed to
+ * spread the floor past the measured bed, and the only thing stopping
+ * it spreading past the lorry is `BED_SLACK` being smaller than the
+ * margin the paint has. That is a relationship between two numbers in
+ * two different places, which is exactly the kind that rots quietly.
+ */
+const PAINTED_BODY: Record<VehicleType, { left: number; right: number }> = {
+  'pedal-trike': { left: 0.08, right: 0.92 },
+  'small-van': { left: 0.10, right: 0.90 },
+  'long-van': { left: 0.164, right: 0.839 },
+  'animal-lorry': { left: 0.081, right: 0.920 },
+  'electric-minibus': { left: 0.14, right: 0.87 },
+};
 
 /**
  * The vehicle box the loading screen hands out, measured off its own
@@ -68,59 +88,105 @@ describe('fitLoadBed', () => {
     }
   });
 
-  it.each(ROOMY)('draws the whole vehicle inside its box at %s', (label) => {
+  it.each(ROOMY)('never draws a vehicle wider than its box at %s', (label) => {
     const box = COLUMNS[label];
     for (const v of EVERY_VEHICLE) {
-      const fit = fitIn(box, v);
-      expect(fit.overflows, `${v.name} overflows`).toBe(false);
-      expect(fit.spriteH, `${v.name} drawn height`).toBeLessThanOrEqual(box.h + 0.5);
-      expect(fit.spriteW, `${v.name} drawn width`).toBeLessThanOrEqual(box.w + 0.5);
+      // Running off the bottom is a picture; running off the side is
+      // the message panel.
+      expect(fitIn(box, v).spriteW, `${v.name} drawn width`).toBeLessThanOrEqual(box.w + 0.5);
     }
   });
 
-  it('keeps the grid on the floor, and the floor within the bed and its slack', () => {
+  it.each(ROOMY)('keeps every bay in frame at %s', (label) => {
+    const box = COLUMNS[label];
+    for (const v of EVERY_VEHICLE) {
+      const fit = fitIn(box, v);
+      // The vehicle is pinned to the top of its box when it overflows,
+      // so the grid is measured from there. Three of the five are now
+      // too long to fit whole and lose a bumper to the kerb (see
+      // `fitLoadBed`), and Spark loses a strip of empty cutaway with
+      // it. What may never be cut is a bay: half a bay is half a tap
+      // target, on a screen whose whole job is tapping them.
+      const top = fit.overflows ? 0 : (box.h - fit.spriteH) / 2;
+      expect(top + fit.grid.y, `${v.name} first row`).toBeGreaterThanOrEqual(-0.5);
+      expect(top + fit.grid.y + fit.gridH, `${v.name} last row`)
+        .toBeLessThanOrEqual(box.h + 0.5);
+    }
+  });
+
+  it.each(ROOMY)('keeps the cutaway and the crates on the painted vehicle at %s', (label) => {
+    const box = COLUMNS[label];
+    for (const v of EVERY_VEHICLE) {
+      const fit = fitIn(box, v);
+      const body = PAINTED_BODY[v.id];
+      expect(fit.floor.x / fit.spriteW, `${v.name} floor left`)
+        .toBeGreaterThanOrEqual(body.left - 0.001);
+      expect((fit.floor.x + fit.floor.w) / fit.spriteW, `${v.name} floor right`)
+        .toBeLessThanOrEqual(body.right + 0.001);
+      // The grid is the one allowed past the bed, so it is the one
+      // that can run off the vehicle. `BED_SLACK` is what stops it.
+      expect(fit.grid.x / fit.spriteW, `${v.name} first column`)
+        .toBeGreaterThanOrEqual(body.left - 0.001);
+      expect((fit.grid.x + fit.gridW) / fit.spriteW, `${v.name} last column`)
+        .toBeLessThanOrEqual(body.right + 0.001);
+    }
+  });
+
+  it('never draws a bay much taller than it is wide', () => {
     for (const [, box] of Object.entries(COLUMNS)) {
       for (const v of EVERY_VEHICLE) {
         const fit = fitIn(box, v);
-        expect(fit.gridW, `${v.name} grid width`).toBeLessThanOrEqual(fit.floor.w - BED_PAD);
-        expect(fit.gridH, `${v.name} grid height`).toBeLessThanOrEqual(fit.floor.h - BED_PAD);
-        expect(fit.floor.w, `${v.name} floor width`)
+        expect(fit.slotH, `${v.name} bay height`)
+          .toBeLessThanOrEqual(Math.max(BAY_MIN, fit.slotW * BAY_MAX_RATIO) + 0.5);
+      }
+    }
+  });
+
+  it('centres the grid on the bed, and the floor is the bed', () => {
+    for (const [, box] of Object.entries(COLUMNS)) {
+      for (const v of EVERY_VEHICLE) {
+        const fit = fitIn(box, v);
+        expect(fit.floor, `${v.name} floor`).toEqual(fit.bed);
+        expect(fit.grid.x + fit.gridW / 2).toBeCloseTo(fit.bed.x + fit.bed.w / 2, 5);
+        expect(fit.grid.y + fit.gridH / 2).toBeCloseTo(fit.bed.y + fit.bed.h / 2, 5);
+      }
+    }
+  });
+
+  it('never spreads the grid past the bed and its slack', () => {
+    for (const [, box] of Object.entries(COLUMNS)) {
+      for (const v of EVERY_VEHICLE) {
+        const fit = fitIn(box, v);
+        expect(fit.gridW, `${v.name} grid width`)
           .toBeLessThanOrEqual(fit.bed.w * BED_SLACK + 1);
-        expect(fit.floor.h, `${v.name} floor height`)
+        expect(fit.gridH, `${v.name} grid height`)
           .toBeLessThanOrEqual(fit.bed.h * BED_SLACK + 1);
       }
     }
   });
 
-  it('centres the floor on the bed', () => {
+  it('spends the bed slack before it grows the lorry', () => {
     const box = COLUMNS['desktop 1024x700'];
-    for (const v of EVERY_VEHICLE) {
-      const { bed, floor } = fitIn(box, v);
-      expect(floor.x + floor.w / 2).toBeCloseTo(bed.x + bed.w / 2, 5);
-      expect(floor.y + floor.h / 2).toBeCloseTo(bed.y + bed.h / 2, 5);
-    }
-  });
-
-  it('spends the bed slack rather than growing the lorry out of frame', () => {
-    const box = COLUMNS['desktop 1024x700'];
-    const lorry = VEHICLE_DEFS['animal-lorry'];
     const bed = VEHICLE_BED['animal-lorry'];
     const sprite = spriteOf('animal-lorry');
 
-    // Nine bays do not fit her measured bed at the size the box allows —
-    // the premise the slack exists to answer, asserted rather than
-    // assumed.
+    // Three bays do not fit across her measured bed at the size the
+    // box allows — the premise the slack exists to answer, asserted
+    // rather than assumed.
     const fitScale = Math.min(box.w / sprite.w, box.h / sprite.h);
-    const bare = (sprite.h * fitScale * bed.h - BED_PAD * 2 - BAY_GAP * 2) / 3;
+    const bare = (sprite.w * fitScale * bed.w - BED_PAD * 2 - BAY_GAP * 2) / 3;
     expect(bare).toBeLessThan(BAY_MIN);
 
-    const fit = fitIn(box, lorry);
-    expect(fit.overflows).toBe(false);
-    expect(fit.slotH).toBeGreaterThanOrEqual(BAY_MIN);
-    expect(fit.floor.h).toBeGreaterThan(fit.bed.h);
+    const fit = fitIn(box, VEHICLE_DEFS['animal-lorry']);
+    expect(fit.slotW).toBeGreaterThanOrEqual(BAY_MIN);
+    expect(fit.gridW, 'the grid spread into the slack').toBeGreaterThan(fit.bed.w);
+    // And having spent it she is still drawn as small as the grid
+    // allows: the slack is the thing that keeps the overflow to a
+    // bumper rather than half a lorry.
+    expect(fit.spriteH / box.h, 'how far past the box she runs').toBeLessThan(1.15);
   });
 
-  it('only grows past the box where the box cannot hold a tappable grid', () => {
+  it('grows the vehicle past the box rather than drop a bay below the tap floor', () => {
     const phone = fitIn(COLUMNS['landscape phone 874x402'], VEHICLE_DEFS['pedal-trike']);
     expect(phone.overflows).toBe(true);
     expect(phone.slotH).toBeGreaterThanOrEqual(BAY_MIN);

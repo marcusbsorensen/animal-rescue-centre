@@ -195,10 +195,17 @@ export function spawnAnimal(
 
 /**
  * Spawn a sibling pair — two animals of the same species, linked.
+ *
+ * Pass the names already in the shelter and neither sibling will take
+ * one of them, or the other's. Without that the pair were drawn from
+ * the same twenty names with nothing to say they had already used one,
+ * so a litter of two bunnies could arrive both called Clover — and a
+ * child who cannot tell her two animals apart by name cannot tell them
+ * apart at all.
  */
-export function spawnSiblingPair(species: Species): [Animal, Animal] {
-  const a = spawnAnimal(species);
-  const b = spawnAnimal(species, a.id);
+export function spawnSiblingPair(species: Species, existingNames?: string[]): [Animal, Animal] {
+  const a = spawnAnimal(species, undefined, existingNames);
+  const b = spawnAnimal(species, a.id, [...(existingNames ?? []), a.name]);
   a.siblingId = b.id;
   return [a, b];
 }

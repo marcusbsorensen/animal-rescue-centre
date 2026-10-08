@@ -44,33 +44,45 @@ export const VEHICLE_SPRITE: Record<VehicleType, string> = {
  * trike's wooden rim, the van's roofline — reads as the roof lifted
  * off.
  *
- * **These will go stale, and that is expected.** They were measured by
- * eye off one set of files; the fleet is being redrawn at corrected
- * proportions, and a van a third longer for its width moves every
- * number here. What must not happen is them being *silently* wrong, so
+ * **These go stale when the art is redrawn, and that is expected.** What
+ * must not happen is them being *silently* wrong, so
  * `VEHICLE_BED_SOURCE` records the sprite each one was measured
  * against and `bedProbePoints` gives a dev check something to sample:
  * a bed that has drifted off the painted body says so in the console
  * the first time the screen draws.
  *
- * Measured 2026-10-08 with a 5% grid overlay, off the sprites in
- * `apps/game/public/assets/driving/topdown/vehicle-topdown-*.png` as
- * they stood after that day's livery pass:
+ * **Re-measured 2026-10-08 against the proportion pass**, which made
+ * every vehicle but Trikey between 1.4x and 1.9x longer for its width:
+ * Big Tilly went from 513x1012 to 738x2071. The guard fired on all
+ * four, which is it working. Method as before — a 5% grid laid over
+ * `apps/game/public/assets/driving/topdown/vehicle-topdown-*.png` and
+ * read off, with a row-and-column colour scan of the same files to
+ * settle the edges the grid left between two lines. Not arithmetic on
+ * the old numbers: the fore-and-aft figures moved by more than the
+ * length change, because a van that grew only in length grew only in
+ * the part of itself the bed is.
  *
- *   Trikey      the open wooden box behind the saddle
- *   Henry       the van body between the rear doors and the windscreen
- *   Bea         the same, a third longer
- *   Big Tilly   inside the walls of her open wooden load bed
- *   Spark       the minibus cabin between the rear window and the screen
+ *   Trikey      the open wooden box behind the saddle. Not redrawn, so
+ *               not re-measured: the box is 0.08..0.92 across and
+ *               0.02..0.33 down, and these numbers still sit in it.
+ *   Henry       the van body, rear doors (0.02) to the bulkhead behind
+ *               the windscreen (0.67); sides 0.10..0.90
+ *   Bea         the same, longer: 0.02 to 0.64; sides 0.16..0.84 —
+ *               narrower than Henry's *as a fraction*, because her
+ *               wing mirrors are what make her file wide
+ *   Big Tilly   inside her open wooden load bed, tailgate (0.01) to
+ *               headboard (0.59); walls 0.08..0.92
+ *   Spark       the minibus cabin, rear (0.02) to windscreen (0.72);
+ *               sides 0.14..0.87
  */
 export interface LoadBed { x: number; y: number; w: number; h: number }
 
 export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
   'pedal-trike':      { x: 0.11, y: 0.04, w: 0.78, h: 0.28 },
-  'small-van':        { x: 0.15, y: 0.06, w: 0.70, h: 0.37 },
-  'long-van':         { x: 0.16, y: 0.06, w: 0.68, h: 0.35 },
-  'animal-lorry':     { x: 0.13, y: 0.06, w: 0.74, h: 0.31 },
-  'electric-minibus': { x: 0.17, y: 0.07, w: 0.66, h: 0.33 },
+  'small-van':        { x: 0.15, y: 0.05, w: 0.70, h: 0.56 },
+  'long-van':         { x: 0.21, y: 0.05, w: 0.58, h: 0.54 },
+  'animal-lorry':     { x: 0.14, y: 0.04, w: 0.72, h: 0.52 },
+  'electric-minibus': { x: 0.19, y: 0.05, w: 0.62, h: 0.63 },
 };
 
 /**
@@ -83,10 +95,10 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
  */
 export const VEHICLE_BED_SOURCE: Record<VehicleType, { w: number; h: number }> = {
   'pedal-trike': { w: 364, h: 851 },
-  'small-van': { w: 666, h: 960 },
-  'long-van': { w: 606, h: 1022 },
-  'animal-lorry': { w: 513, h: 1012 },
-  'electric-minibus': { w: 621, h: 959 },
+  'small-van': { w: 561, h: 1309 },
+  'long-van': { w: 579, h: 1418 },
+  'animal-lorry': { w: 738, h: 2071 },
+  'electric-minibus': { w: 640, h: 1870 },
 };
 
 /**
@@ -121,7 +133,10 @@ export function bedProbePoints(bed: LoadBed): Array<{ u: number; v: number }> {
   ];
 }
 
-/** Gap between two bays, and the margin between the bays and the bed's edge. */
+/**
+ * Gap between two bays, and the margin the grid keeps inside the bed
+ * where the bed is roomy enough to have one.
+ */
 export const BAY_GAP = 8;
 export const BED_PAD = 8;
 
@@ -142,6 +157,23 @@ export const BAY_MAX_W = 132;
 export const BAY_MAX_H = 108;
 
 /**
+ * How much taller than wide a bay may be drawn.
+ *
+ * A bay holds a crate, the crates are painted square, and the
+ * proportion pass made every load bed two to three times longer than
+ * it is wide. Left to fill the bed, Henry's four bays came out 55x117
+ * — letterboxes with a 48px crate marooned in the middle of each. The
+ * cap spends the length on floor instead, which is what a van with
+ * four crates in it actually looks like from above.
+ *
+ * Only the tall direction is capped. A bay wider than it is deep is
+ * Trikey, whose box really is wide and shallow, and `drawAnimalTile`
+ * has a row layout that puts the spare width to work carrying the
+ * name. There is no equivalent use for spare height.
+ */
+export const BAY_MAX_RATIO = 1.35;
+
+/**
  * How far past the measured bed the cutaway floor may spread to keep a
  * bay tappable.
  *
@@ -152,15 +184,18 @@ export const BAY_MAX_H = 108;
  * the tap floor with the whole lorry still in frame, which is the trade
  * the other way round from the one this used to make.
  *
- * **1.3 is measured, not picked.** Tilly is the vehicle that spends it
- * and she has the least to spare: her bed is recorded as 0.06..0.37 of
- * her sprite and her painted wooden load bed runs about 0.01..0.42, so
- * there is 1.32x of her recorded depth before the floor would reach the
- * cab. At her tightest viewport she spends 1.26 of it. Anything past
- * this and a cutaway would start being drawn on paint that is not the
- * load bed, which is the thing the rectangle exists to prevent.
+ * **1.15 is measured, not picked, and it fell when the art changed.**
+ * It used to be 1.3, bought from Tilly's depth — the axis the
+ * proportion pass made enormous. The axis that now matters is her
+ * width, and the slack there is small: her bed is 0.14..0.86 of her
+ * sprite and her painted wooden walls run 0.08..0.92, so there is
+ * 0.84/0.72 = 1.165x of her recorded width before a cutaway would be
+ * drawn on tarmac rather than on the lorry. Bea has 1.164 and Spark
+ * 1.177, so 1.15 is inside all three with nothing to spare, and it is
+ * the number that decides whether a three-across grid stays on the
+ * paint or floats off the side of the vehicle.
  */
-export const BED_SLACK = 1.3;
+export const BED_SLACK = 1.15;
 
 export interface BedFit {
   /** Multiplier on the sprite's natural size. */
@@ -171,12 +206,24 @@ export interface BedFit {
   /** The measured load bed in drawn px, from the sprite's top-left. */
   bed: { x: number; y: number; w: number; h: number };
   /**
-   * The cutaway floor the bays are actually laid on — the grid plus its
-   * padding, centred on the bed. Usually the bed to within a rounding
-   * error; a little larger where the bed had to give, a little smaller
-   * where the bays hit their cap.
+   * The cutaway floor the bays are laid on — the vehicle's interior,
+   * seen with the roof lifted off. The measured bed, in drawn px.
+   *
+   * The same rectangle as `bed`, and kept as its own field because it
+   * is a different question: `bed` is where the load area *is*, and
+   * this is what gets painted. They were different once and may be
+   * again.
    */
   floor: { x: number; y: number; w: number; h: number };
+  /**
+   * The grid's own top-left — where bay 0 starts.
+   *
+   * Centred on the bed, which is usually larger than the grid (a van
+   * with four crates in it has floor fore and aft of them) and
+   * occasionally smaller, where three bays at the tap floor need more
+   * width than the bed has.
+   */
+  grid: { x: number; y: number };
   /** One bay, drawn. */
   slotW: number;
   slotH: number;
@@ -196,19 +243,29 @@ export interface BedFit {
  * Fit a crate grid into a vehicle's load bed, and say how big to draw
  * the vehicle.
  *
- * **The whole vehicle stays in frame.** It is drawn as large as its box
- * allows and no larger, so it sits on the tarmac with air round it
- * rather than hanging off the bottom of the slab. Where the bed is then
- * too tight for the bays, the *floor* spreads into the bed's slack
- * (`BED_SLACK`) instead of the vehicle growing — Big Tilly's nine bays
- * need about 4% more depth than her measured bed at desktop size, and
- * her painted wooden bed has it.
+ * **The vehicle stays in frame where it can.** It is drawn as large as
+ * its box allows and no larger, so it sits on the tarmac with air round
+ * it rather than hanging off the bottom of the slab. Where the bed is
+ * then too tight for the bays, the floor spreads into the bed's slack
+ * (`BED_SLACK`) instead of the vehicle growing.
  *
  * Only when that is not enough does the vehicle grow past its box, and
- * the caller clips it at the tarmac's edge. That is the landscape-phone
- * case, where the band is about 100px and a trike scaled into it has
- * 5px bays: a vehicle too big for the picture beats a grid whose taps
- * land on the wrong bay. It does not happen at 1024x700 or at 820x620.
+ * the caller clips it at the tarmac's edge.
+ *
+ * **Since the proportion pass that is the normal case for the
+ * three-across vehicles, and the arithmetic says it cannot be
+ * otherwise.** A bay is floored at 40px drawn so its hit area can be
+ * floored at `MIN_TAP` without reaching into its neighbour's, which
+ * puts a hard floor of 152px on a three-column grid. Big Tilly's bed
+ * is 0.72 of her sprite's width and she is 2.81 times taller than she
+ * is wide, so 152px of bed means 515px of lorry — against a band of
+ * about 476px at 1024x700 and 400px at 820x620. Bea and Spark are
+ * worse. Nothing in the layout buys 40 more pixels of height, so the
+ * choice is a grid a child mis-taps, a cutaway floating off the side
+ * of the vehicle, or a bumper that runs out of the picture. It is the
+ * bumper: the sprite is pinned to the top of its box, so what goes is
+ * always the front, and the load bed — the thing the screen is about
+ * — is whole every time.
  */
 export function fitLoadBed(
   box: { w: number; h: number },
@@ -222,23 +279,41 @@ export function fitLoadBed(
   const pad = options?.pad ?? BED_PAD;
   const minSlot = options?.minSlot ?? BAY_MIN;
 
-  /** The floor a row or column of `n` bays of `slot` needs. */
-  const span = (slot: number, n: number) => slot * n + gap * (n - 1) + pad * 2;
-  /** The biggest bay a floor of `avail` can hold, `n` across. */
-  const slotIn = (avail: number, n: number) => (avail - pad * 2 - gap * (n - 1)) / n;
+  /** The room a row or column of `n` bays of `slot` takes, gaps and all. */
+  const span = (slot: number, n: number) => slot * n + gap * (n - 1);
+  /**
+   * The biggest bay a run of `avail` can hold, `n` across.
+   *
+   * The epsilon is binary arithmetic, not slop. The growth below solves
+   * for the scale at which a bay is exactly `minSlot`, and a scale that
+   * came back as 39.99999999999999 floored to 39 — one pixel under the
+   * tap floor, from a calculation whose whole purpose was to land on
+   * it.
+   */
+  const slotIn = (avail: number, n: number) => (avail - gap * (n - 1)) / n + 1e-6;
 
   const measure = (scale: number) => {
     const bedW = sprite.w * scale * bed.w;
     const bedH = sprite.h * scale * bed.h;
-    // The floor takes the bed, and may spread into its slack — but only
-    // as far as the bays actually need.
-    const availW = Math.max(bedW, Math.min(span(minSlot, cols), bedW * BED_SLACK));
-    const availH = Math.max(bedH, Math.min(span(minSlot, rows), bedH * BED_SLACK));
+    // The grid keeps `pad` inside the bed where the bed is roomy, and
+    // gives the padding up — then spreads into the bed's slack, out to
+    // the vehicle's own sides — where it is not. Padding is a margin
+    // on a floor the grid already fits in; a grid wider than its floor
+    // has nothing to be a margin of.
+    const availW = Math.max(bedW - pad * 2, Math.min(span(minSlot, cols), bedW * BED_SLACK));
+    const availH = Math.max(bedH - pad * 2, Math.min(span(minSlot, rows), bedH * BED_SLACK));
+    const slotW = Math.max(1, Math.min(Math.floor(slotIn(availW, cols)), BAY_MAX_W));
     return {
       bedW,
       bedH,
-      slotW: Math.max(1, Math.min(Math.floor(slotIn(availW, cols)), BAY_MAX_W)),
-      slotH: Math.max(1, Math.min(Math.floor(slotIn(availH, rows)), BAY_MAX_H)),
+      slotW,
+      // A bay is never much taller than it is wide: the crates are
+      // painted square, so depth past the width is floor, not bay.
+      slotH: Math.max(1, Math.min(
+        Math.floor(slotIn(availH, rows)),
+        BAY_MAX_H,
+        Math.max(minSlot, Math.round(slotW * BAY_MAX_RATIO)),
+      )),
     };
   };
 
@@ -272,24 +347,32 @@ export function fitLoadBed(
     w: bed.w * spriteW,
     h: bed.h * spriteH,
   };
-  const floorW = span(m.slotW, cols);
-  const floorH = span(m.slotH, rows);
+  // The cutaway *is* the bed. It used to be the grid and its padding,
+  // which on the short art was the bed to within a rounding error; on
+  // the long art it is not, and a floor sized to a three-across grid
+  // came out wider than Big Tilly's wooden walls — a cream slab laid
+  // over the lorry instead of a look inside it. Where the grid wants
+  // more than the bed has, it is the grid that spends the slack, and
+  // the outer crates sit against the vehicle's sides, which is where
+  // crates in a full van sit.
+  const floor = bedRect;
+  const gridW = m.slotW * cols + gap * (cols - 1);
+  const gridH = m.slotH * rows + gap * (rows - 1);
 
   return {
     scale,
     spriteW,
     spriteH,
     bed: bedRect,
-    floor: {
-      x: bedRect.x + (bedRect.w - floorW) / 2,
-      y: bedRect.y + (bedRect.h - floorH) / 2,
-      w: floorW,
-      h: floorH,
+    floor,
+    grid: {
+      x: bedRect.x + (bedRect.w - gridW) / 2,
+      y: bedRect.y + (bedRect.h - gridH) / 2,
     },
     slotW: m.slotW,
     slotH: m.slotH,
-    gridW: m.slotW * cols + gap * (cols - 1),
-    gridH: m.slotH * rows + gap * (rows - 1),
+    gridW,
+    gridH,
     overflows: spriteH > box.h + 0.5,
   };
 }

@@ -614,7 +614,7 @@ export class GameScene extends Phaser.Scene {
 
     let firstNew: Animal;
     if (shouldSpawnSiblings() && sheltered + 2 <= maxShelter) {
-      const [a, b] = spawnSiblingPair(species);
+      const [a, b] = spawnSiblingPair(species, this.store.animals.map((x) => x.name));
       this.store.animals.push(a, b);
       firstNew = a;
     } else {
