@@ -287,6 +287,14 @@ for (const size of SIZES) {
     await page.waitForTimeout(2500);
     await shot(page, `collection-arrival-${size.name}`);
 
+    // The plaque says how she came to be here, and it is the trip the
+    // child just made rather than the gate's "someone dropped her off".
+    const plaque = page.frameLocator('iframe[aria-label="A.R.C. arrival"]');
+    const subtitle = await plaque.locator('#arrivalSubtitle')
+      .textContent({ timeout: 10_000 });
+    expect(subtitle).toContain('Goose End Farm');
+    expect(subtitle).not.toContain('dropped off');
+
     const real = errors.filter((e) => !isNoise(e));
     expect(real, `console errors:\n${real.join('\n')}`).toEqual([]);
   });

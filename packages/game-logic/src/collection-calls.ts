@@ -228,6 +228,24 @@ export function admitCollection(
   };
 }
 
+/**
+ * How she came to be here, for an animal who was collected.
+ *
+ * **`spawnAnimal` tells the gate's story, and a collected animal did
+ * not come through the gate.** Its `ARRIVAL_STORIES` are all some
+ * version of "someone just dropped them off at the Centre" — which the
+ * arrival plaque then printed under a dog the child had just driven out
+ * to a farm, met on the forecourt, and lifted into a crate herself. The
+ * first thing the game said about the trip was that it had not
+ * happened.
+ *
+ * So the story is replaced at the point she is spawned, and it names
+ * the place and the child's own part in it.
+ */
+export function collectionArrivalStory(destinationLabel: string): string {
+  return `You drove out to ${destinationLabel} and brought them home.`;
+}
+
 /** Indefinite article for a species name. Only 'otter' would need 'an'. */
 function article(word: string): string {
   return /^[aeiou]/i.test(word) ? 'an' : 'a';

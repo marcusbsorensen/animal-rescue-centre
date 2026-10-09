@@ -11,6 +11,7 @@ import {
   dropCall,
   admitCollection,
   callSummary,
+  collectionArrivalStory,
   type CollectionCall,
 } from '../collection-calls';
 import { DESTINATIONS } from '../destinations';
@@ -348,5 +349,21 @@ describe('callSummary', () => {
       expect(line.toLowerCase()).not.toMatch(/^(no|not|nobody|don't|cannot)/);
       expect(line).toContain(species);
     }
+  });
+});
+
+describe('collectionArrivalStory', () => {
+  it('says the child fetched her, and from where', () => {
+    // `spawnAnimal`'s own stories all say somebody dropped her off at
+    // the Centre. Printed under an animal the child drove out to
+    // collect, the plaque's first sentence denies the trip.
+    const story = collectionArrivalStory('Goose End Farm');
+    expect(story).toContain('Goose End Farm');
+    expect(story.toLowerCase()).toContain('you drove out');
+    expect(story.toLowerCase()).not.toContain('dropped off');
+  });
+
+  it('opens on the child rather than on a negation', () => {
+    expect(collectionArrivalStory('Bay Chapel')).toMatch(/^You /);
   });
 });

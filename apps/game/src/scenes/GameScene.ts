@@ -66,6 +66,7 @@ import {
   SPECIES_VARIANTS,
   admitCollection,
   callSummary,
+  collectionArrivalStory,
   hasRoomToCollect,
   issueCollectionCall,
   offerableCalls,
@@ -526,7 +527,7 @@ export class GameScene extends Phaser.Scene {
           // The corridor is where an arriving animal is drawn, so the
           // view pass comes before the plaque opens over it.
           this.renderView();
-          this.openArrivalOverlay(animal);
+          this.openArrivalOverlay(animal, animal.arrivalStory);
           return;
         }
         showToast(this, `${dest.emoji} Home again from ${dest.label}.`);
@@ -783,8 +784,15 @@ export class GameScene extends Phaser.Scene {
   /**
    * Mount the HTML Arrival plaque as an iframe overlay over Phaser. The
    * player's welcome choice applies a small bond bonus to the new animal.
+   *
+   * `story` is how she came to be here, where it is not the usual way.
+   * The plaque composes its own line from the species — "Someone just
+   * dropped off a little dog" — which is true of a gate arrival and
+   * flatly untrue of an animal the child has just driven out to a farm
+   * and lifted into a crate herself. Passing it replaces that line; a
+   * gate arrival passes nothing and reads exactly as it always has.
    */
-  private openArrivalOverlay(animal: Animal): void {
+  private openArrivalOverlay(animal: Animal, story?: string): void {
     const fact = pickRandomFact(animal.species, animal.variant);
     const unmount = mountInGame('arrival', {
       onAction: (action) => {
@@ -815,6 +823,7 @@ export class GameScene extends Phaser.Scene {
       variant: animal.variant ?? '',
       fact: fact?.fact ?? '',
       factIcon: fact?.icon ?? '💡',
+      ...(story ? { story } : {}),
     });
     this.events.once('shutdown', unmountInGame);
   }
@@ -1871,10 +1880,17 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const collected = spawnAnimal(call.species, {
-      variant: call.variant,
-      existingNames: this.store.animals.map((a) => a.name),
-    });
+    const collected = {
+      ...spawnAnimal(call.species, {
+        variant: call.variant,
+        existingNames: this.store.animals.map((a) => a.name),
+      }),
+      // **Her own story, not the gate's.** `spawnAnimal`'s
+      // `ARRIVAL_STORIES` all say some version of "someone just dropped
+      // them off at the Centre", which the arrival plaque would then
+      // print under an animal the child drove out to fetch herself.
+      arrivalStory: collectionArrivalStory(dest.label),
+    };
     this.saveState();
 
     this.scene.start('PtvDriveScene', {

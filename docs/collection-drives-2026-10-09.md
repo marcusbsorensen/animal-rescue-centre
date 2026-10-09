@@ -38,7 +38,8 @@ The loop, end to end:
    journey home.
 6. **Home.** `finishArrival` carries the grid and the animal back;
    `handleArrival` admits her, hangs up the call, saves, scores the
-   journey and opens the arrival plaque.
+   journey and opens the arrival plaque — which says *"You drove out to
+   Goose End Farm and brought them home."*
 
 ## The three design points
 
@@ -87,6 +88,20 @@ Two smaller consequences, both deliberate:
 - **Back goes to the forecourt, not to the picker.** The picker is at
   the other end of a drive she has already made. Back steps out to the
   gravel she is parked on, where "Lift her in" is waiting.
+
+#### The plaque had to stop saying she was dropped off
+
+Found in the browser, after the rest worked. `arrival.html` composes
+its own subtitle from the species — *"Someone just dropped off a little
+dog. They look a bit scared…"* — and printed it under a dog the child
+had driven to a farm, met on the forecourt and lifted into a crate
+herself. The first sentence the game said about the trip was that it
+had not happened.
+
+The page now takes an optional `story` from the host and prefers it.
+`collectionArrivalStory` writes the line, `driveToCollect` puts it on
+the animal as her `arrivalStory`, and `handleArrival` passes it in. A
+gate arrival sends nothing and reads exactly as it always has.
 
 ### 2. Where the collected animal comes from
 
@@ -193,14 +208,15 @@ call does not know yet whether a cat is what turns up.
 
 ## Tests
 
-- `packages/game-logic/src/__tests__/collection-calls.test.ts` — 32
+- `packages/game-logic/src/__tests__/collection-calls.test.ts` — 34
   tests over the rules: the inbound destinations exist and name
   plausible species, the cap is counted the way the gate counts it,
   calls are silent when the centre or the hallway is full, a place never
   rings twice over, a call only names a species the child has met *and*
   the place would have, offers are withheld without losing the call, and
   `admitCollection` admits once, drops the call, mutates nothing, and
-  admits her even over a full shelter.
+  admits her even over a full shelter — plus the arrival story, which
+  names the place and never says she was dropped off.
 - `apps/game/src/game-state/__tests__/collection-calls-save.test.ts` —
   the call reaches the snapshot, comes back on load, a pre-feature save
   still loads, and the admitted animal and the answered call persist
@@ -212,4 +228,6 @@ call does not know yet whether a cat is what turns up.
   admitted before the journey is scored, the pickup load seats nobody,
   and the homeward "Let's go!" ends the drive.
 - `apps/game/e2e/collection-drive.spec.ts` — the whole loop in real
-  Chrome at 812x375 and 820x620, plus the two refusals.
+  Chrome at 812x375 and 820x620, plus the two refusals. It also checks
+  the two things only a browser can answer: the pin's tap pad measures
+  48px against a 40px disc, and the plaque's own words name the farm.

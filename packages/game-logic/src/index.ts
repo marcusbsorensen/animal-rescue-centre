@@ -315,6 +315,7 @@ export {
   dropCall,
   admitCollection,
   callSummary,
+  collectionArrivalStory,
 } from './collection-calls';
 export type {
   CollectionCall,

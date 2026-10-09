@@ -1177,14 +1177,25 @@
     window.addEventListener('message', (e) => {
       const msg = e.data;
       if (!msg || msg.source !== 'arc-game-host' || msg.type !== 'init') return;
-      const { species, variant, fact, factIcon, firstArrival } = msg.payload || {};
+      const { species, variant, fact, factIcon, firstArrival, story } = msg.payload || {};
       const spriteSrc = (species && variant)
         ? `/assets/animals/${species}-${variant}-arriving.png`
         : null;
       if (spriteSrc) {
         document.getElementById('arrivalAnim').src = spriteSrc;
       }
-      if (species) {
+      // How she came to be here.
+      //
+      // **The host's sentence wins where it sends one**, because not
+      // every animal is dropped off any more: a collected animal was
+      // driven out to and fetched, and telling a child "someone just
+      // dropped her off" immediately after she lifted that animal into
+      // a crate herself denies the trip she has just made. The species
+      // line stays the fallback for a gate arrival and for any host
+      // that does not send a story.
+      if (story) {
+        document.getElementById('arrivalSubtitle').textContent = story;
+      } else if (species) {
         document.getElementById('arrivalSubtitle').textContent =
           `Someone just dropped off a little ${species}. They look a bit scared…`;
       }
