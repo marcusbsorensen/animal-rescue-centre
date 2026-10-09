@@ -598,6 +598,39 @@ export const PICKER_PAD_BOTTOM = 8;
 /** 64: every bay's tap target is its width less 6, and that is at least `MIN_TAP` (48) with room to spare. */
 export const PICKER_MIN_BAY = 64;
 export const PICKER_SIDE_PAD = 16;
+/**
+ * The gravel between the car park's near edge and the bottom of the frame
+ * — the ground the chosen vehicle drives across on her way out.
+ *
+ * **It is where the exit road used to be, and the road is gone.** Marcus's
+ * decision, 9 October 2026, on the arithmetic this file produced: the road
+ * was `height * 0.07`, which at the scale the fleet is now drawn is 0.70 to
+ * 0.76 of a metre — narrower than Trikey's handlebars at 0.75 and under a
+ * third of Big Tilly's width. A truthful lane is `LANE_WIDTH_M`, 3.3m,
+ * which is 190px at 820x620 against a fleet that needs 448 of that screen's
+ * 620. **A thing that does not read as a road is not drawn as one**, which
+ * is the ruling the loading screen already lives under, so the two screens
+ * now agree: no road on either, and the vehicle leaves through the bottom
+ * of the frame.
+ *
+ * 48 is what the near edge needs rather than a share of anything: a cone at
+ * a locked bay is 34px tall and stands 4px below the tarmac, so it reaches
+ * 21px down, and the rest is ground enough that the car park ends in a
+ * surface instead of at the frame. It is also the larger margin — the band
+ * starts 6px below the title — which is the way round the rules ask for.
+ */
+export const PICKER_EXIT_GROUND = 48;
+/**
+ * How much ground is left in front of the chosen vehicle's nose while she
+ * waits at the exit to be told which way she is going.
+ *
+ * Small on purpose: she has pulled out of her bay and is at the edge of
+ * the site, about to leave, and the picture should say so. It is the one
+ * number that keeps her whole at that moment — her rear is
+ * `height − PICKER_EXIT_MARGIN − her length`, which at 820x620 puts Big
+ * Tilly, the longest at 395px, at y=217 with room to spare.
+ */
+export const PICKER_EXIT_MARGIN = 8;
 /** The shortest tap target, in px: `MIN_TAP`, restated here so this file stays free of the UI module. */
 export const PICKER_MIN_HIT = 48;
 
@@ -662,25 +695,63 @@ export function vehicleLengthM(id: VehicleType): number {
   return VEHICLE_WIDTH_M[id] * (sprite.h / sprite.w);
 }
 
+/**
+ * The fleet smallest to largest, which is the order the bays are drawn in.
+ *
+ * **A size comparison that is not in size order is half a comparison.** The
+ * bays used to follow `VEHICLE_DEFS`, which puts Big Tilly fourth and Spark
+ * fifth; while every sprite was thumbnailed to 108px that showed nowhere,
+ * and the moment they were drawn to length the line stepped up, up, up,
+ * down. The eye reads a row of vehicles as a sequence, so the sequence has
+ * to be the thing being compared.
+ *
+ * **Sorted, not listed**, so it cannot drift from `VEHICLE_DEFS` the day a
+ * sixth vehicle is painted: length first, then width, then the id, which
+ * only ever settles a tie that does not currently exist.
+ *
+ * **It is the same order as the vehicle-change arrows**, which Marcus
+ * ordered by capacity with unlock level breaking Bea and Spark's tie
+ * (`VEHICLES_BY_ROOM` in `@arc/game-logic`). Drawn size: 43, 100, 103, 115,
+ * 132 at 820x620; capacity: 2, 4, 6, 6, 8. A bigger vehicle holds more,
+ * so the two agree, and a child who learns the fleet's order on one screen
+ * keeps it on the other. They are derived separately — this one from the
+ * art, that one from the rules — and a test holds them to each other, so
+ * if a capacity ever stops matching a size the test says so rather than
+ * the screens quietly disagreeing.
+ */
+export function fleetBySize(ids: VehicleType[]): VehicleType[] {
+  return ids.slice().sort((a, b) => (
+    vehicleLengthM(a) - vehicleLengthM(b)
+    || VEHICLE_WIDTH_M[a] - VEHICLE_WIDTH_M[b]
+    || a.localeCompare(b)
+  ));
+}
+
 export function pickerLayout(options: {
   width: number;
   height: number;
   /** The first y below the title plate. */
   contentTop: number;
-  /** The fleet, left to right. */
+  /**
+   * The fleet. Order does not matter: the bays come back smallest to
+   * largest, left to right (`fleetBySize`), which is what a size
+   * comparison has to be and is also the arrows' order.
+   */
   ids: VehicleType[];
 }): PickerLayout {
-  const { width, height, contentTop, ids } = options;
+  const { width, height, contentTop } = options;
+  const ids = fleetBySize(options.ids);
   // No building, at any size: Marcus's decision of 9 October 2026, recorded
   // on `PickerLayout.building`, which is kept as the seam for a roof-down
   // one.
   const building = false;
 
   // The band the tarmac could take: everything between the title and the
-  // exit road, less the room a cone needs at the bottom.
-  const roadY = height * 0.93;
+  // bottom of the frame, less the ground the car park ends on. There is no
+  // exit road any more and the band has its pixels (see
+  // `PICKER_EXIT_GROUND`), which is 25px more vehicle at 820x620.
   const apronTop = Math.round(contentTop + 6);
-  const bandMax = Math.round(roadY - 30 - apronTop);
+  const bandMax = Math.round(height - PICKER_EXIT_GROUND - apronTop);
 
   // What the band spends on anything but vehicle: the ground at the head
   // line, then the unlock chip's row and the names under the noses.

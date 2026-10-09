@@ -16,8 +16,9 @@ import {
   type VehicleDef, type VehicleType,
 } from '@arc/game-logic';
 import { renderCrateLoading } from '../driving/crate-loading-view';
-import { VEHICLE_SPRITE, pickerLayout } from '../driving/fleet-art';
+import { PICKER_EXIT_MARGIN, VEHICLE_SPRITE, pickerLayout } from '../driving/fleet-art';
 import { drawForecourt, drawVehicleShadow } from '../driving/forecourt';
+import { stateTween } from '../ui/tween';
 import {
   createDriveState,
   cycleGear,
@@ -355,6 +356,25 @@ export class PtvDriveScene extends Phaser.Scene {
   private promptJunction?: RouteJunction;
   /** Guards the pick-and-depart transition so a double tap can't launch twice. */
   private departing = false;
+  /**
+   * The shadow under the chosen vehicle, so it leaves with her.
+   *
+   * It is the vehicle's own outline on the tarmac, and one left behind in
+   * an empty bay is a ghost. Held on the scene rather than passed along,
+   * because the pull-out and the departure are now two tweens with the
+   * child's answer between them.
+   */
+  private vanShadow: Phaser.GameObjects.GameObject[] = [];
+  /**
+   * Which way out the chosen vehicle takes once the turn is answered:
+   * `'side'` onto the start prompt's exit road, `'bottom'` through the
+   * bottom of the picker's frame, which has no road. `showTurnChoice` sets
+   * it, because the screen asking the question is the screen that knows.
+   */
+  private departVia: 'side' | 'bottom' = 'side';
+  /** The "Which way?" plate and its two buttons, so they can be taken away
+   *  the moment one of them is pressed. */
+  private turnChoice: Phaser.GameObjects.GameObject[] = [];
   private resolvedJunctions = new Set<number>();
   /** False once Marcus manually toggles a road type — stops map auto-following. */
   private autoRoad = true;
@@ -993,11 +1013,11 @@ export class PtvDriveScene extends Phaser.Scene {
     });
     const { apron } = layout;
 
-    // Gravel, the tarmac and the exit road — the same call the loading
-    // screen once made, now with `building: false` at every size. The
+    // Gravel and the tarmac — the same call the loading screen once made,
+    // now with `building: false` at every size and no exit road. The
     // tarmac is as wide as the five bays and no wider, so it is a car park
     // with a fleet in it rather than a slab with five thumbnails on it.
-    const { roadY } = drawForecourt(this, this.container, {
+    drawForecourt(this, this.container, {
       width, height, contentTop: contentTopFor(title),
       apronTop: apron.y, apronH: apron.h, apronX: apron.x, apronW: apron.w,
       building: layout.building,
@@ -1020,8 +1040,13 @@ export class PtvDriveScene extends Phaser.Scene {
     }
     this.container.add(lines);
 
-    defs.forEach((v, i) => {
-      const bay = layout.bays[i];
+    // **The bays decide the order, not `VEHICLE_DEFS`.** `pickerLayout`
+    // returns them smallest to largest, which is what a size comparison
+    // has to be and is also the order the vehicle-change arrows walk; this
+    // used to index the bays by the definition's position, which quietly
+    // relied on the two agreeing.
+    layout.bays.forEach((bay) => {
+      const v = defs.find((d) => d.id === bay.id)!;
       const { cx, cy } = bay;
       const locked = v.unlockLevel > this.playerLevel;
 
@@ -1098,7 +1123,7 @@ export class PtvDriveScene extends Phaser.Scene {
         const vimg = img;
         hit.on('pointerover', () => vimg.setTint(0xfff2c8));
         hit.on('pointerout', () => vimg.clearTint());
-        hit.on('pointerdown', () => this.pickAndDepart(v.id, vimg, cy, roadY, shadow));
+        hit.on('pointerdown', () => this.pickAndDepart(v.id, vimg, cy, shadow));
         this.container.add(hit);
       }
     });
@@ -1108,15 +1133,15 @@ export class PtvDriveScene extends Phaser.Scene {
     );
   }
 
-  /** Pick a vehicle and pull it out of its bay toward the exit road, then offer
-   *  the left/right turn onto the road (existing departure flow).
+  /** Pick a vehicle and pull it out of its bay to the car park's exit, then
+   *  ask which way she is going.
    *
    *  With animals to carry the pick opens the loading screen instead, because
    *  the grid's size is the vehicle's: which crates fit, and therefore who may
    *  sit where, is not knowable until she has chosen one. With nobody to load
    *  this is unchanged — the van pulls straight out, as it always has. */
   private pickAndDepart(
-    id: VehicleType, img: Phaser.GameObjects.Image, cy: number, roadY: number,
+    id: VehicleType, img: Phaser.GameObjects.Image, cy: number,
     shadow: Phaser.GameObjects.GameObject[] = [],
   ): void {
     if (this.departing) return;
@@ -1136,32 +1161,60 @@ export class PtvDriveScene extends Phaser.Scene {
     img.setDepth(30);
     this.vanGfx = img;
     this.vanY = cy;
+    this.vanShadow = shadow;
     const { width, height } = this.scale;
-    // **She stops with her nose on the road and all of her still in the
-    // picture.** The target used to be her *centre* at `roadY - 6`, which
-    // was a few pixels of overhang when every vehicle was thumbnailed to
-    // 158px; with the building gone and the fleet drawn 2.3 times the size,
-    // Big Tilly is 370px long at 820x620 and her centre on the road line
-    // put 136px of lorry below the bottom of the screen — a vehicle parked
-    // half out of the frame, waiting for the child to choose a direction.
+    // **This is the pull-out, not the departure.** She comes forward out of
+    // her bay onto the gravel at the car park's exit and stops there, whole,
+    // and then the child is asked which way — a question that only makes
+    // sense while she is still on screen to go somewhere. She leaves in
+    // `turnAndGo`, through the bottom of the frame.
     //
-    // So the nose is what the tween aims, at the middle of the road where
-    // the dashes are, and the vehicle's own length decides where her centre
-    // lands. `Math.max` is for a vehicle already past that line: she pulls
-    // out or she stays, she never reverses into the bay.
-    //
-    // The road is narrower than she is and cannot be otherwise at this
-    // scale (see `.claude/notes/car-park-one-world.md`, section 11), so
-    // this is the honest read available: she has pulled out of her bay to
-    // the edge of the road and is waiting to turn.
-    const noseTarget = roadY + (height - roadY) / 2;
-    // The shadow goes with her: it is the vehicle's outline on the ground
-    // under her, and one left behind in the bay would be a ghost. They all
-    // move the same distance, so it is a relative move.
-    const dy = Math.max(0, noseTarget - (img.y + img.displayHeight / 2));
-    this.tweens.add({
-      targets: [img, ...shadow], y: `+=${dy}`, duration: 700, ease: 'Sine.easeInOut',
-      onComplete: () => this.showTurnChoice(width, height),
+    // **Her nose is what the tween aims, not her centre.** The target used
+    // to be her centre at the road, which was a few pixels of overhang when
+    // every vehicle was thumbnailed to 158px; with the fleet drawn at true
+    // scale Big Tilly is 395px long at 820x620, and her centre at the exit
+    // put most of a lorry below the bottom of the screen — parked half out
+    // of frame, waiting to be asked a question. The `Math.max` keeps her
+    // rear on screen if she is ever longer than the room, and the floor of
+    // zero means she pulls out or stays, never reverses into the bay.
+    const nose = height - PICKER_EXIT_MARGIN;
+    const half = img.displayHeight / 2;
+    const dy = Math.max(0, Math.max(half, nose - half) - img.y);
+    this.driveTogether([img, ...shadow], { dy, duration: 700, ease: 'Sine.easeInOut' },
+      () => this.showTurnChoice(width, height, 'bottom'));
+  }
+
+  /**
+   * Move a vehicle and the shadow under her together, by `dy` and `dx`.
+   *
+   * **One `stateTween` each, with an absolute end value, and that is the
+   * point.** The departure's end state is load-bearing — the flow that
+   * follows it assumes she has left — so it is a `stateTween`, which under
+   * reduced motion applies the end value at once and still calls back. But
+   * it can only apply a value it can read, and a relative `` `+=${dy}` ``
+   * is a string it leaves alone: written that way, a child with reduced
+   * motion would get the callback with the lorry still sitting in her bay.
+   * So each target is given its own number.
+   */
+  private driveTogether(
+    movers: Phaser.GameObjects.GameObject[],
+    move: { dy: number; dx?: number; angle?: number; duration: number; ease: string },
+    onComplete?: () => void,
+  ): void {
+    const targets = movers as Array<Phaser.GameObjects.GameObject & { x: number; y: number }>;
+    if (targets.length === 0) { onComplete?.(); return; }
+    targets.forEach((target, i) => {
+      stateTween(this, {
+        targets: target,
+        y: target.y + move.dy,
+        ...(move.dx ? { x: target.x + move.dx } : {}),
+        // The angle is the vehicle's alone: a shadow swinging on its own
+        // would come off her, and only the first target is her.
+        ...(move.angle !== undefined && i === 0 ? { angle: move.angle } : {}),
+        duration: move.duration,
+        ease: move.ease,
+        ...(i === 0 && onComplete ? { onComplete } : {}),
+      });
     });
   }
 
@@ -1919,37 +1972,88 @@ export class PtvDriveScene extends Phaser.Scene {
       y: roadY - 4,
       duration: 750,
       ease: 'Sine.easeInOut',
-      onComplete: () => this.showTurnChoice(width, height),
+      onComplete: () => this.showTurnChoice(width, height, 'side'),
     });
   }
 
-  /** Offer the left/right turn onto the road. */
-  private showTurnChoice(width: number, height: number): void {
-    this.container.add(
+  /**
+   * Offer the left/right turn, and say where the vehicle goes once it is
+   * answered.
+   *
+   * **Two screens ask this question and they have different ways out.**
+   * The start prompt (`renderParking`) draws its own exit road along the
+   * bottom, so the vehicle turns onto it and drives off that side, which is
+   * what `'side'` is and what this has always done. The picker has no road
+   * — it could not have one that read as a road at the scale its fleet is
+   * drawn — so its vehicle leaves through the bottom of the frame instead.
+   *
+   * Either way the question is asked while she is standing still and in
+   * frame, out of her bay with somewhere to go: mid-exit it would be a
+   * question about something already happening, and after it a question
+   * about a vehicle the child can no longer see.
+   */
+  private showTurnChoice(width: number, height: number, via: 'side' | 'bottom'): void {
+    this.departVia = via;
+    // Kept so the question can be taken away the moment it is answered:
+    // a vehicle driving out of the picture under a plate still asking
+    // which way she is going is the screen contradicting itself.
+    this.turnChoice = [
       this.add.text(width / 2, height * 0.5, 'Which way?', {
         fontSize: TYPE.heading, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
         backgroundColor: 'rgba(255,249,239,0.85)', padding: { x: 14, y: 6 },
-      }).setOrigin(0.5).setDepth(50)
-    );
-    this.container.add(
+      }).setOrigin(0.5).setDepth(50),
       createChromeButton(this, width * 0.32, height * 0.62, '◀ Left', () => this.turnAndGo(-1), {
         width: 150,
-      }).setDepth(50)
-    );
-    this.container.add(
+      }).setDepth(50),
       createChromeButton(this, width * 0.68, height * 0.62, 'Right ▶', () => this.turnAndGo(1), {
         width: 150,
-      }).setDepth(50)
-    );
+      }).setDepth(50),
+    ];
+    for (const o of this.turnChoice) this.container.add(o);
   }
 
-  /** Henry turns to face the chosen way and drives off that edge of the
-   *  forecourt; then the road screen appears and he drives on from the bottom. */
+  /** She goes the chosen way and leaves the forecourt; then the road screen
+   *  appears and she drives on from the bottom. */
   private turnAndGo(dir: -1 | 1): void {
     AudioManager.getInstance().playSfx('button_click');
+    // The question is answered, so it goes before she does.
+    for (const o of this.turnChoice) o.destroy();
+    this.turnChoice = [];
     const van = this.vanGfx;
     if (!van) { this.beginTravel(dir); return; }
-    const { width } = this.scale;
+    const { width, height } = this.scale;
+
+    if (this.departVia === 'bottom') {
+      // **Out through the bottom of the frame, and genuinely gone.** The
+      // car park has no road to turn onto, so the way out is towards the
+      // viewer. Her centre goes a whole length past the bottom edge, which
+      // puts her rear half a length clear of it however she is angled —
+      // "far enough to be gone" has to be arithmetic, because the screen
+      // that follows assumes an empty forecourt, and under reduced motion
+      // the move happens in one frame with nobody watching it travel.
+      //
+      // She swings a little the way she is going and drifts that way as
+      // she leaves, so Left and Right are two different pictures rather
+      // than one animation behind two buttons. A full 90° turn is the
+      // other screen's, where there is a road to turn along.
+      // A `Graphics` van has no measurable height, so it is sent a whole
+      // screen instead — further than it needs, which is the safe way to
+      // be wrong about "gone".
+      const length = 'displayHeight' in van ? van.displayHeight : height;
+      this.driveTogether(
+        [van, ...this.vanShadow],
+        {
+          dy: (height + length) - van.y,
+          dx: dir * width * 0.14,
+          angle: dir * 18,
+          duration: 700,
+          ease: 'Sine.easeIn',
+        },
+        () => this.beginTravel(dir),
+      );
+      return;
+    }
+
     this.tweens.add({
       targets: van,
       angle: dir > 0 ? 90 : -90,                  // nose points the way we're turning

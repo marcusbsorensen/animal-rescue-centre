@@ -391,19 +391,23 @@ the screen` (all four sizes) and `is capped by the width at 1024x768, and loses 
 
 ### 11.3 The fleet, drawn (width x length in px, measured in real Chrome)
 
+**The figures below are the final ones, with both the building and the exit road gone** (section 12).
+Where the two decisions differ the building's own figure is given in brackets.
+
 | | 820x620 | 1024x700 | 1024x768 | 874x402 (phone) |
 |---|---|---|---|---|
-| Scale | **57.3 px/m** (was 24.5) | **68.8** (was 29.1) | **76.8** (was 33.2) | 25.9 (unchanged) |
-| Trikey | 43x101 | 52x121 | 58x135 | 19x45 |
-| Henry | 100x234 | 120x281 | 134x314 | 45x106 |
-| Bea | 103x253 | 124x303 | 138x339 | 47x114 |
-| Spark | 115x335 | 138x402 | 154x449 | 52x151 |
-| Big Tilly | 132x370 | 158x444 | 177x496 | 60x167 |
-| Band (apron) | 448 (was 236) | 522 (was 266) | 574 (was 292) | 245 |
+| Scale | **61.0 px/m** (was 24.5; 57.3 with the road) | **73.6** (29.1; 68.8) | **76.8** (33.2; 76.8) | **27.4** (25.9; 25.9) |
+| Trikey | 46x107 | 55x129 | 58x135 | 21x48 |
+| Henry | 107x249 | 129x301 | 134x314 | 48x112 |
+| Bea | 110x269 | 132x324 | 138x339 | 49x121 |
+| Spark | 122x356 | 147x430 | 154x449 | 55x160 |
+| Big Tilly | 140x393 | 169x475 | 177x496 | 63x177 |
+| Band (apron) | 471 (was 236; 448) | 553 (266; 522) | 574 (292; 574) | 255 (245; 245) |
 
-**2.3 times the size at 820x620**, which is what the 236-against-448 figure buys. The landscape phone
-is unchanged: the building was already off there, and what limits that screen is its 402px of height,
-not the building.
+**2.5 times the size at 820x620**: the building bought 236px of band against 448, and the road the
+last 23 on top. 1024x768 gains nothing from the road, because five bays across already cap its scale
+and it has height it cannot spend; the landscape phone gains the road's 28px, which is the only thing
+that has ever moved it.
 
 **A bonus worth knowing: at 820x620 and above the bays are now true to scale as well as the vehicles.**
 Every bay is wider than the 64px floor at these scales, so the painted lines are each vehicle's own
@@ -421,19 +425,21 @@ Checked at all four viewports, in real Chrome.
 - **The cone and the unlock chip still work.** The chip stands in its own row between the longest nose
   and the names, where nobody's nose reaches; the cone stands at the mouth of the bay, straddling the
   tarmac's near edge, and clears the road at every size (a test holds that).
-- **The locked grey tint reads differently at this size, and I left it.** `setTint(0x707070)` is a
-  multiply, so a vehicle keeps her hue and loses her light. On an 18px trike that read as grey; on a
-  132px lorry it reads as a *dulled* red lorry rather than a grey one. I think that is the better
-  reading — the child can see which vehicle she is working towards — and the cone and the "L10" chip
-  are what say locked. **If you want them properly grey**, the way to do it without a shader is a
-  second copy of the sprite over the first with `setTintFill(0x8a8a8a)` at about 0.45 alpha, which is
-  the trick `drawVehicleShadow` uses with black. One decision, not a redesign.
+- **The locked grey tint reads differently at this size. Looked at, and deliberately kept.**
+  `setTint(0x707070)` is a multiply, so a vehicle keeps her hue and loses her light. On an 18px trike
+  that read as grey; on a 140px lorry it reads as a *dulled* red lorry rather than a grey one.
+  **Marcus's decision, 9 October 2026: that is the one to keep** — the child sees the vehicle she is
+  working towards in its real colours, muted, and the cone and the "L10" chip are what say locked.
+  **So this is not a bug and grey was not the intention.** It was considered against the alternative
+  (a second copy of the sprite over the first with `setTintFill(0x8a8a8a)` at about 0.45 alpha, the
+  trick `drawVehicleShadow` uses with black, which is the only way to desaturate without a shader),
+  and the dulled livery won. Do not "fix" it.
 - **The departing vehicle used to stop half out of the frame, and now does not.** `pickAndDepart`
   aimed her *centre* at `roadY − 6`, which was a few pixels of overhang at the old size; at the new one
-  Big Tilly is 370px long and 136px of lorry hung below the bottom of a 620px screen while the game
-  asked "Which way?". It now aims her **nose** at the middle of the road and lets her length decide
-  where her centre lands, so she pulls out of her bay and waits whole: measured, she moves 117px and
-  her nose stops at y=598 of 620.
+  Big Tilly is 393px long and most of a lorry hung below the bottom of a 620px screen while the game
+  asked "Which way?". It now aims her **nose**, and her length decides where her centre lands, so she
+  pulls out of her bay and waits whole. (Where her nose stops changed again when the road went:
+  section 12.)
 - **The departing vehicle no longer wears her own name across the cab.** The picker's container is
   never depth-sorted — its children's depths run 0, 0, 20, 0, 30 down the list, in the order they were
   added — so a vehicle at depth 30 still rendered *under* a name label at depth 0 added after her. The
@@ -441,7 +447,10 @@ Checked at all four viewports, in real Chrome.
   departing lorry drives over her name, which is what a lorry does to paint on tarmac. **Worth
   promoting to TRAPS.md: in this scene `setDepth` does not order anything; insertion order does.**
 
-### 11.5 The exit road is now 0.7m wide, and that is the open question
+### 11.5 The exit road is 0.7m wide — the question, which Marcus has since answered
+
+**Answered on 9 October 2026: drop it.** The measurements below are what the decision was made on;
+what was done about it is section 12.
 
 Section 6 recorded the road at 43px, about 1.3m at the old scale. At the new one:
 
@@ -456,19 +465,30 @@ A truthful lane is 3.3m, which is 190px at 820x620 and 253px at 1024x768 — and
 that screen's 620, so a truthful lane does not fit. This is the same arithmetic that took the road off
 the loading screen.
 
-I left it, because the picker's departure flow is built on it: the vehicle tweens to the road, then
-"Which way?" offers Left and Right, then she turns 90° and drives off that edge. **The choice is
-yours, and it is one question:** keep the strip as a signpost for where she is going, or drop the road
-(as the loading screen did) and let her drive out of the bottom of the frame, with the turn choice
-asked as she leaves. Recommend keeping it for now: a child reads the dashes as "the way out", and
-dropping it costs the turn choice its target.
+I left it in the first commit, because the picker's departure flow was built on it, and recommended
+keeping the strip as a signpost. **Marcus went the other way, on this note's own arithmetic: a thing
+that does not read as a road should not be drawn as one, and the loading screen already handles
+having no room for a road by not having one.** The two screens now agree. Section 12 is what that
+took.
 
-### 11.6 Two smaller things, neither changed
+### 11.6 Two smaller things, one fixed
 
-1. **The two biggest vehicles are the wrong way round on screen.** The bays follow `VEHICLE_DEFS`
-   order, which puts Big Tilly (6.5m) fourth and Spark (5.9m) fifth, so the line does not step
-   cleanly from smallest to largest. It was invisible when they were all 108px tall. One line in
-   `renderPicker` if you want them sorted by length.
+1. **The two biggest vehicles were the wrong way round on screen, and now are not** (fixed in the
+   second commit). The bays followed `VEHICLE_DEFS` order, which puts Big Tilly (6.5m) fourth and
+   Spark (5.9m) fifth, so the line stepped up, up, up, down. It was invisible when they were all
+   108px tall. `pickerLayout` now returns the bays through `fleetBySize` — **sorted on the art's own
+   numbers, not listed**, so a sixth vehicle cannot land in the middle of the row — and
+   `renderPicker` draws the bays in the order it is handed rather than indexing them by the
+   definition's position.
+
+   **It is the same order as the vehicle-change arrows**, which Marcus ordered by capacity with
+   unlock level breaking Bea and Spark's tie (`VEHICLES_BY_ROOM`): drawn 43, 100, 103, 115, 132 at
+   820x620, against capacities 2, 4, 6, 6, 8. So there is no second ordering to maintain, and a child
+   who learns the fleet's order on one screen keeps it on the other. The two are derived separately —
+   this from the art, that from the rules — so a test holds them to each other
+   (`parks them in the order the vehicle-change arrows walk`). One oddity to expect in the coned
+   bays: the unlock chips now read L5, L12, L10 left to right, because size, not unlock level, is
+   what the row is sorted on.
 2. **The landscape phone's car park is a 369px strip in 874px of gravel.** Its scale is capped by
    402px of height, so the spare width cannot be spent on vehicles, and spending it on wider bays
    would make the painted spaces less true, not more. It is a small car park on a gravel site, which
@@ -494,3 +514,108 @@ the picker describe went from 23 to 32 tests).
 outside the legacy list, and `car-park.ts` is not on that list. It is there at `855f340`, before this
 branch, and `car-park.ts` belongs to the other agent, so I left it. It wants `stateTween` or
 `decorativeTween` from `ui/tween.ts`.
+
+## 12. No exit road either, and she leaves through the bottom of the frame
+
+Second and third commits on `claude/picker-no-building`, 2026-10-09. Section 11 is the first.
+
+### 12.1 What Marcus decided
+
+Both of section 11's open questions, and they went opposite ways:
+
+- **The locked grey tint stays dulled.** Recorded in 11.4; do not "fix" it to grey.
+- **The exit road comes off the picker.** Against this note's own recommendation, and on this note's
+  own arithmetic: at the scale the fleet is now drawn the road is 0.70 to 0.76 of a metre, narrower
+  than Trikey's handlebars, and **a thing that does not read as a road should not be drawn as one**.
+  The loading screen already handles having no room for a road by not having one, so the two screens
+  now agree.
+
+Also in these commits: the bays are in size order (11.6), and the `setDepth` finding is written into
+`.claude/TRAPS.md`.
+
+### 12.2 What moved off `roadY`
+
+The road was the near edge everything below the bays measured itself against. Four things did:
+
+| Measured against the road | Now |
+|---|---|
+| `pickerLayout`'s band: `roadY − 30 − apronTop` | `height − PICKER_EXIT_GROUND − apronTop`. 48px of gravel at the near edge: a cone at a locked bay is 34px tall and stands 4px below the tarmac, so it reaches 21px down, and the rest is ground enough that the car park ends in a surface rather than at the frame. |
+| `drawForecourt` drawing the road and returning `roadY` | Draws no road, returns `groundBottom` (the frame). The gravel it starts with already covered the frame, so taking the road off left ground, not a hole. |
+| `pickAndDepart` aiming her nose at the middle of the road | Aims it at `height − PICKER_EXIT_MARGIN` (8), the edge of the site. |
+| The test `keeps the cone clear of the lane` | Asks instead that the car park ends on ground: `height − (apron.y + apron.h) ≥ PICKER_EXIT_GROUND`, and the cone inside the frame. |
+
+Nothing else was anchored to it. The chip row and the names were already measured off the apron's own
+bottom, and the apron's bottom is the fleet's extent (11.2), so they followed without touching.
+**`renderParking`, the "Time for a drive!" start prompt, keeps its own road** at `height * 0.88`: it
+is a different screen with a different vehicle size, and it was not in the decision.
+
+### 12.3 The departure: pull out, ask, leave
+
+The flow is now three steps, and the middle one is the question:
+
+1. **The pick pulls her out of her bay** to the car park's exit, nose 8px off the bottom of the frame,
+   **whole and still in the picture**. Measured at 820x620: Big Tilly stands at y 219 to 612 of 620.
+2. **"Which way?" is asked while she is standing there** — out of her bay, with somewhere to go. The
+   question had to move: asking it mid-exit is a question about something already happening, and
+   asking it once she is gone is a question about a vehicle the child cannot see.
+3. **The answer sends her out through the bottom of the frame.** Her centre goes a whole length past
+   the bottom edge, which clears her rear of it by half a length however she is angled, and she swings
+   18° and drifts a seventh of the screen the way she is going, so Left and Right are two different
+   pictures rather than one animation behind two buttons. The forecourt has no road to turn along; the
+   90° turn belongs to the screen that has one.
+
+**The question is taken away the moment it is answered**, on both screens. A vehicle driving out of
+the picture under a plate still asking which way she is going is the screen contradicting itself.
+
+**Reduced motion was the trap here, and it is why the departure is a `stateTween`.** The end state is
+load-bearing: everything after the tween assumes an empty forecourt. `stateTween` applies the end
+value at once under reduced motion and still calls back — **but only a value it can read, and a
+relative `` `+=${dy}` `` is a string it leaves alone.** Written the old way, a child with reduced
+motion would have got the callback with the lorry still sitting in her bay. So `driveTogether` gives
+each target — the vehicle and both shadow layers — its own absolute number. Verified with Chrome under
+`prefers-reduced-motion: reduce`: 60ms after the answer, `arrived` is true and her top edge is at 805
+on a 620px screen.
+
+Measured at all four viewports, with the lorry as the hard case:
+
+| | 820x620 | 1024x700 | 1024x768 | 874x402 |
+|---|---|---|---|---|
+| Waiting at the exit (top, height, frame) | 219, 393, 620 | 217, 475, 700 | 264, 496, 768 | 217, 177, 402 |
+| Whole and in frame | yes | yes | yes | yes |
+| Top edge when the flow says gone | 805 | 923 | 1001 | 485 |
+
+### 12.4 Verification
+
+Real Chrome under Playwright, port 5234. `tools/shoot-car-park.mjs` gained `--turn left|right` and
+`--reduced` on top of `--picker-only`, `--level`, `--cargo` and `--depart`. `--turn` stubs out
+`beginTravel` before answering, so the forecourt is still on screen to measure once she has left —
+otherwise the travel phase rebuilds the container the instant the tween completes and there is
+nothing to look at.
+
+Screenshots in the session scratchpad, `picker-no-building/`:
+
+| File | What it shows |
+|---|---|
+| `noroad-picker-820x620.png` | The picker, no building, no road, bays in size order |
+| `noroad-picker-1024x700.png`, `noroad-picker-1024x768.png`, `noroad-picker-874x402.png` | The same at the other three |
+| `locked-picker-820x620.png`, `locked-picker-874x402.png` | Bea, Spark and Big Tilly coned off with their chips, at the new scale |
+| `exit-depart-820x620.png` | Big Tilly waiting at the exit, whole, with "Which way?" |
+| `exit-leaving-820x620.png` | Mid-departure: she is going out through the bottom edge, the question gone |
+| `exit-gone-820x620.png` | The forecourt after she has left |
+| `reduced-gone-820x620.png` | The same under `prefers-reduced-motion: reduce` |
+
+`pnpm -r typecheck` green. `pnpm -r test`: 925 game-logic and 565 apps/game (550 at the branch point).
+The picker describe is 38 tests, from 23.
+
+**Lint still has the one error that is not mine**: `car-park.ts:521`, a tween added straight to the
+scene outside the reduced-motion legacy list. It is there at `855f340` and the file belongs to the
+other agent.
+
+### 12.5 One thing I would look at next
+
+**The two desktop viewports are now width-bound**, 820x620 as well as 1024x768: five bays across the
+screen decide the scale, not the height. The band follows the fleet so none of it is wasted, but it
+does mean a taller screen buys those two nothing — 1024x768 draws the same 76.8px to the metre it did
+before the road came off. The only lever left is `usable`, the apron's 92% of the viewport width, and
+widening it crowds the frame. Worth knowing before anybody asks why a bigger window did not make the
+lorry bigger.

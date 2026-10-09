@@ -17,8 +17,13 @@
  * wants. `--level` is the player's level, which is what cones a bay off, so
  * `--level 1` is how a locked vehicle and its unlock chip are seen.
  * `--depart` clicks that vehicle's bay with a real mouse and photographs
- * where she stops; with no cargo she pulls out onto the road instead of
- * opening the loading screen, so pass `--cargo ''` with it.
+ * where she stops; with no cargo she pulls out to the car park's exit
+ * instead of opening the loading screen, so pass `--cargo ''` with it.
+ * `--turn left|right` then answers "Which way?" and photographs her
+ * leaving through the bottom of the frame, mid-exit and at the end, with
+ * `beginTravel` stubbed out so the forecourt is still there to measure.
+ * `--reduced` runs the page with `prefers-reduced-motion: reduce`, which
+ * is how you check that a reduced departure still ends with her absent.
  *
  * `--arrows` draws the vehicle-change arrows over the screen the way the
  * loading view will once it passes `onVehicleChange` to `drawCarPark`. The
@@ -54,6 +59,8 @@ const FILL = args.includes('--fill');
 const PICKER_ONLY = args.includes('--picker-only');
 const LEVEL = opt('--level', '');
 const DEPART = opt('--depart', '');
+const TURN = opt('--turn', '');
+const REDUCED = args.includes('--reduced');
 // `--cargo ''` is an empty string, which `opt` cannot tell from absent, so
 // the flag's presence is what counts.
 const CARGO = args.includes('--cargo')
@@ -101,7 +108,10 @@ function measure() {
 }
 
 for (const { w, h, tag } of SIZES) {
-  const page = await browser.newPage({ viewport: { width: w, height: h } });
+  const page = await browser.newPage({
+    viewport: { width: w, height: h },
+    ...(REDUCED ? { reducedMotion: 'reduce' } : {}),
+  });
   page.on('pageerror', (e) => console.error('PAGEERROR', tag, e.message));
 
   const query = `?ptvDemo=1&cargo=${CARGO}${LEVEL ? `&level=${LEVEL}` : ''}`;
@@ -141,6 +151,55 @@ for (const { w, h, tag } of SIZES) {
         console.log(`${TAG} depart-${tag}`, JSON.stringify(await page.evaluate(measure)));
       } else {
         console.log(`${TAG} depart-${tag} NOT FOUND`);
+      }
+
+      if (at && TURN) {
+        // Answer "Which way?" and watch her leave. `beginTravel` is stubbed
+        // so the forecourt is still on screen to measure afterwards —
+        // otherwise the travel phase rebuilds the container the instant
+        // the tween completes and there is nothing left to look at.
+        const label = TURN === 'left' ? 'Left' : 'Right';
+        const button = await page.evaluate((text) => {
+          const g = window.__PHASER_GAME__;
+          const s = g.scene.scenes.find((x) => x.sys.settings.key === 'PtvDriveScene');
+          s.beginTravel = () => { window.__arrived = true; };
+          let found;
+          const walk = (o) => {
+            if (o.type === 'Text' && typeof o.text === 'string' && o.text.includes(text)) found = o;
+            if (o.list) o.list.forEach(walk);
+          };
+          s.container.list.forEach(walk);
+          if (!found) return null;
+          const b = found.getBounds();
+          return { x: b.centerX, y: b.centerY };
+        }, label);
+        if (!button) {
+          console.log(`${TAG} turn-${tag} NO BUTTON`);
+        } else {
+          await page.mouse.click(button.x, button.y);
+          await page.waitForTimeout(REDUCED ? 60 : 300);
+          if (!REDUCED) {
+            await page.screenshot({ path: path.join(OUT, `${TAG}-leaving-${tag}.png`) });
+            console.log(`${TAG} leaving-${tag}`, JSON.stringify(await page.evaluate(measure)));
+            await page.waitForTimeout(900);
+          }
+          const gone = await page.evaluate(() => {
+            const g = window.__PHASER_GAME__;
+            const s = g.scene.scenes.find((x) => x.sys.settings.key === 'PtvDriveScene');
+            const b = s.vanGfx?.getBounds();
+            const { height } = s.scale;
+            return {
+              arrived: !!window.__arrived,
+              top: b ? Math.round(b.y) : null,
+              height,
+              // The only question that matters: is any part of her still
+              // on screen when the flow says she has gone?
+              clearOfFrame: !!b && b.y >= height,
+            };
+          });
+          await page.screenshot({ path: path.join(OUT, `${TAG}-gone-${tag}.png`) });
+          console.log(`${TAG} gone-${tag}${REDUCED ? ' (reduced)' : ''}`, JSON.stringify(gone));
+        }
       }
     }
   }

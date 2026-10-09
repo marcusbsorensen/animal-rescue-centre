@@ -543,3 +543,21 @@ checking the claim still holds.
   command dies before the request runs and the failure surfaces downstream as
   a JSON decode error that looks like an API fault. Quote the URL, or put it in
   a variable and quote that.
+- **`setDepth` orders nothing inside a container that is never depth-sorted,
+  and `PtvDriveScene.container` is one.** A Phaser container renders its
+  children in list order and only re-sorts when something queues a depth
+  sort; this one never does, so the depths down the picker's child list read
+  0, 0, 20, 0, 30 — unsorted, in the order they were added — and are
+  decoration. **The symptom is a correct-looking depth doing nothing:** the
+  chosen vehicle is `setDepth(20)` and then `setDepth(30)` on a pick, and
+  she still rendered *under* her name label at depth 0, because the label
+  was added after her. Big Tilly pulled out of her bay wearing "Big Tilly"
+  across the cab, and the code said depth 30 over depth 0. Invisible until
+  2026-10-09, when the picker's vehicles were drawn 2.3 times the size and
+  a nose finally reached the name row. **Order the `container.add` calls,
+  and do not reach for `setDepth` to fix a render order in this scene.** The
+  picker now adds each bay's name before its vehicle, which is the whole
+  fix — reorder those two adds and the lorry wears her name again. If you
+  ever do want depths honoured here, `container.sort('depth')` after the
+  screen is built is the call, and it re-orders everything else at the same
+  time, the title plate included.

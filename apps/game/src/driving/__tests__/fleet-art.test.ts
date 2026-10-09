@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { VEHICLE_DEFS, type VehicleType } from '@arc/game-logic';
+import { VEHICLES_BY_ROOM, VEHICLE_DEFS, type VehicleType } from '@arc/game-logic';
 
 /**
  * Phaser, stubbed away — as `crate-loading-view.test.ts` does, and for
@@ -14,9 +14,10 @@ vi.mock('phaser', () => ({ default: {} }));
 import {
   BAY_GAP, BAY_LENGTH_M, BAY_MAX_RATIO, BAY_MIN, BAY_WIDTH_M, BED_PAD, BED_SLACK, LANE_WIDTH_M,
   VEHICLE_BED, VEHICLE_BED_SOURCE, VEHICLE_SPRITE, VEHICLE_VISIBLE_FRAC, VEHICLE_WIDTH_M,
-  PICKER_CHIP_H, PICKER_CHIP_ROW, PICKER_LABEL_H, PICKER_MIN_BAY, PICKER_MIN_HIT,
+  PICKER_CHIP_H, PICKER_CHIP_ROW, PICKER_EXIT_GROUND, PICKER_LABEL_H, PICKER_MIN_BAY, PICKER_MIN_HIT,
   PICKER_PAD_BOTTOM, PICKER_PAD_TOP, PICKER_SIDE_PAD,
-  bayWidthM, bedProbePoints, fitLoadBed, minScaleForBays, pickerLayout, vehicleLengthM, wholeVehicleHeight,
+  bayWidthM, bedProbePoints, fitLoadBed, fleetBySize, minScaleForBays, pickerLayout, vehicleLengthM,
+  wholeVehicleHeight,
 } from '../fleet-art';
 import {
   ARROW_DIMMED_INK, ARROW_DIMMED_PAPER, ARROW_H, ARROW_W, PARK_CEILING,
@@ -707,6 +708,42 @@ describe('the picker', () => {
     }
   });
 
+  it.each(SIZES)('parks them smallest to largest, left to right, at %ix%i', (w, h) => {
+    // **A size comparison that is not in size order is half a
+    // comparison.** The bays followed `VEHICLE_DEFS`, which puts Big Tilly
+    // fourth and Spark fifth, so the line stepped up, up, up, down — which
+    // showed nowhere while every sprite was thumbnailed to one height, and
+    // showed the moment they were drawn to length.
+    const bays = layoutAt(w, h).bays;
+    expect(bays.map((b) => b.id)).toEqual(BY_SIZE);
+    for (let i = 1; i < bays.length; i += 1) {
+      expect(bays[i].x, `${bays[i].id} stands right of ${bays[i - 1].id}`)
+        .toBeGreaterThan(bays[i - 1].x);
+      expect(bays[i].spriteH, `${bays[i].id} longer than ${bays[i - 1].id}`)
+        .toBeGreaterThan(bays[i - 1].spriteH);
+    }
+    // Whatever order it is handed, which is what stops a new vehicle in
+    // `VEHICLE_DEFS` landing in the middle of the row.
+    const shuffled = pickerLayout({
+      width: w, height: h, contentTop: CONTENT_TOP, ids: [...IDS].reverse(),
+    });
+    expect(shuffled.bays.map((b) => b.id)).toEqual(BY_SIZE);
+  });
+
+  it('parks them in the order the vehicle-change arrows walk', () => {
+    // The picker sorts by drawn size and the arrows by capacity, with
+    // unlock level breaking Bea and Spark's tie at six spaces each
+    // (`VEHICLES_BY_ROOM`). A bigger vehicle holds more, so the two agree,
+    // and a child who learns the fleet's order on one screen keeps it on
+    // the other. They are derived separately — one from the art, one from
+    // the rules — so this is what says the day they stop agreeing.
+    expect(fleetBySize(IDS)).toEqual([...VEHICLES_BY_ROOM]);
+    expect(layoutAt(820, 620).bays.map((b) => b.id)).toEqual([...VEHICLES_BY_ROOM]);
+    // Non-decreasing capacity, which is the reason they agree.
+    const slots = VEHICLES_BY_ROOM.map((id) => VEHICLE_DEFS[id].slots);
+    expect(slots).toEqual([...slots].sort((a, b) => a - b));
+  });
+
   it.each(SIZES)('is not a fixed cell: Trikey is smallest and Big Tilly largest, in both ways, at %ix%i', (w, h) => {
     const bays = Object.fromEntries(layoutAt(w, h).bays.map((b) => [b.id, b])) as
       Record<VehicleType, ReturnType<typeof layoutAt>['bays'][number]>;
@@ -775,23 +812,38 @@ describe('the picker', () => {
     const longest = Math.max(...layout.bays.map((b) => b.spriteH));
     const rows = PICKER_PAD_TOP + PICKER_CHIP_ROW + PICKER_LABEL_H + PICKER_PAD_BOTTOM;
     expect(layout.apron.h).toBeCloseTo(longest + rows, 0);
-    // And the band stops short of the exit road, so the cone at the mouth
-    // of a locked bay stands on tarmac's edge rather than in the lane.
-    expect(layout.coneY + 17).toBeLessThanOrEqual(h * 0.93);
+    // And the car park ends on ground rather than at the frame: there is
+    // gravel below the tarmac for the cone at the mouth of a locked bay to
+    // stand on (it is 34px tall, 4px below the near edge) and for the
+    // chosen vehicle to drive across on her way out.
+    expect(h - (layout.apron.y + layout.apron.h)).toBeGreaterThanOrEqual(PICKER_EXIT_GROUND - 1);
+    expect(layout.coneY + 17).toBeLessThan(h);
   });
 
-  it('is capped by the width at 1024x768, and loses no height to it', () => {
-    // The one viewport of the four where five bays across decide the
-    // scale. Named here so the test above is read as the general rule and
-    // this as the case that broke it.
-    const layout = layoutAt(1024, 768);
-    const usable = Math.min(1024 * 0.92, 1080) - PICKER_SIDE_PAD * 2;
+  it.each([[820, 620], [1024, 768]])('is capped by the width at %ix%i, and loses no height to it', (w, h) => {
+    // The two viewports where five bays across decide the scale rather
+    // than the band's height — one when the exit road came off and gave
+    // the band its 43px, the other from the start. Named so that the test
+    // above reads as the general rule and these as the cases that broke
+    // it.
+    const layout = layoutAt(w, h);
+    const usable = Math.min(w * 0.92, 1080) - PICKER_SIDE_PAD * 2;
     expect(layout.bays.reduce((sum, b) => sum + b.w, 0)).toBeCloseTo(usable, 1);
-    // Shorter than the band there is, by the height the width would not
-    // let her spend — and the vehicles have all of what is left.
-    const bandMax = Math.round(768 * 0.93 - 30 - layout.apron.y);
+
+    // The width is the tighter of the two limits here, so the scale is
+    // under what the height alone would allow.
+    const rows = PICKER_PAD_TOP + PICKER_CHIP_ROW + PICKER_LABEL_H + PICKER_PAD_BOTTOM;
+    const longestM = Math.max(...IDS.map(vehicleLengthM));
+    const bandMax = Math.round(h - PICKER_EXIT_GROUND - layout.apron.y);
+    expect(layout.pxPerMetre).toBeLessThan((bandMax - rows) / longestM);
+
+    // And the band is exactly the fleet, so the height the width would not
+    // let her spend is below the tarmac rather than under her nose. This
+    // is the relationship the 14.3px gap broke; it was a loose "within
+    // 20px of the band there is" before, which only held while the width
+    // cost little.
     expect(layout.apron.h).toBeLessThan(bandMax);
-    expect(layout.apron.h).toBeGreaterThan(bandMax - 20);
+    expect(layout.apron.h).toBe(Math.round(longestM * layout.pxPerMetre) + rows);
   });
 
   it.each(SIZES)('keeps every bay a tap target, whatever size its vehicle is, at %ix%i', (w, h) => {
@@ -821,10 +873,11 @@ describe('the picker', () => {
   });
 
   it('gives the vehicles the whole band, which is the larger one', () => {
-    // 448px of band at 620px tall, where the building left 236. The number
-    // is here so that putting a building back — the one change that would
-    // halve it — cannot be done quietly.
-    expect(layoutAt(820, 620).apron.h).toBe(448);
+    // 471px of band at 620px tall: 236 with the building, 448 once it came
+    // off, and the last 23 from the exit road going too. The number is
+    // here so that putting either of them back — the two changes that
+    // would halve it — cannot be done quietly.
+    expect(layoutAt(820, 620).apron.h).toBe(471);
     expect(layoutAt(820, 620).apron.h).toBeGreaterThan(236 * 1.8);
     // And the taller the screen, the more band: the band follows the
     // fleet, and the fleet is as large as the room allows.
@@ -834,16 +887,16 @@ describe('the picker', () => {
 
   it('records how large the smallest vehicle is drawn, so a change that shrinks her is seen', () => {
     // The numbers from the layout itself, at all four viewports. With the
-    // building gone Trikey is drawn 2.3 times the size she was (18x43 at
-    // 820x620 before, 43x101 now) — that growth is the whole point of the
-    // decision, and these hold on to it. The landscape phone is unchanged
-    // at 19x45: the building was already off there, and what limits that
-    // screen is its 402px of height.
+    // building gone and then the exit road, Trikey is drawn 2.5 times the
+    // size she was — 18x43 at 820x620, then 43x101, now 46x107 — and that
+    // growth is the whole point of both decisions. Her landscape-phone
+    // figure moved least, 19x45 to 21x48: the building was already off
+    // there and what limits that screen is its 402px of height.
     const trike = (w: number, h: number) => layoutAt(w, h).bays.find((b) => b.id === 'pedal-trike')!;
-    expect([Math.round(trike(820, 620).spriteW), Math.round(trike(820, 620).spriteH)]).toEqual([43, 101]);
-    expect([Math.round(trike(1024, 700).spriteW), Math.round(trike(1024, 700).spriteH)]).toEqual([52, 121]);
+    expect([Math.round(trike(820, 620).spriteW), Math.round(trike(820, 620).spriteH)]).toEqual([46, 107]);
+    expect([Math.round(trike(1024, 700).spriteW), Math.round(trike(1024, 700).spriteH)]).toEqual([55, 129]);
     expect([Math.round(trike(1024, 768).spriteW), Math.round(trike(1024, 768).spriteH)]).toEqual([58, 135]);
-    expect([Math.round(trike(874, 402).spriteW), Math.round(trike(874, 402).spriteH)]).toEqual([19, 45]);
+    expect([Math.round(trike(874, 402).spriteW), Math.round(trike(874, 402).spriteH)]).toEqual([21, 48]);
   });
 
   it('shrinks the scale, never the bays, when the screen is too narrow for five', () => {

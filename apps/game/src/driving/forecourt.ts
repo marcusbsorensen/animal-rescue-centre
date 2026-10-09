@@ -1,12 +1,12 @@
 /**
  * forecourt.ts — the A.R.C. car park, drawn once.
  *
- * The building on gravel, the tarmac apron in front of it and the exit
- * road along the bottom are the *place* two phases of a drive happen in:
- * the vehicle picker, and the loading screen a moment later. They were
- * one painting written twice, which is how two screens standing in the
- * same spot came to disagree about where the ground was — the loading
- * screen had gravel and nothing else, no building, no tarmac, no road.
+ * The building on gravel and the tarmac apron in front of it are the
+ * *place* two phases of a drive happen in: the vehicle picker, and the
+ * loading screen a moment later. They were one painting written twice,
+ * which is how two screens standing in the same spot came to disagree
+ * about where the ground was — the loading screen had gravel and nothing
+ * else, no building, no tarmac, no road.
  *
  * So the picker's rendering moved here whole and the loading screen
  * calls it too. Each phase passes the band its own content needs; this
@@ -65,8 +65,19 @@ export interface ForecourtOptions {
 export interface Forecourt {
   /** The tarmac, in screen coordinates. */
   apron: { x: number; y: number; w: number; h: number };
-  /** Top edge of the exit road along the bottom. */
-  roadY: number;
+  /**
+   * Where the ground ends, which is the bottom of the frame.
+   *
+   * **There is no exit road here any more**, and this is what replaced
+   * `roadY`. The road was `height * 0.07`, and once the picker's fleet was
+   * drawn at true scale that came to 0.70 to 0.76 of a metre — narrower
+   * than the pedal trike's handlebars. A truthful lane does not fit beside
+   * the fleet, the loading screen had already dropped its road for the
+   * same arithmetic, and a thing that does not read as a road should not
+   * be drawn as one (Marcus, 9 October 2026). Gravel runs to the frame
+   * edge instead and the chosen vehicle leaves through it.
+   */
+  groundBottom: number;
 }
 
 /** The gravel the whole site stands on, tiled over the frame. */
@@ -138,8 +149,12 @@ export function drawApron(
 }
 
 /**
- * Draw gravel, the A.R.C. building, the tarmac apron and the exit road
- * into `container`, back to front. Returns where they landed.
+ * Draw gravel, the A.R.C. building and the tarmac apron into `container`,
+ * back to front. Returns where they landed.
+ *
+ * **No exit road**: see `Forecourt.groundBottom`. The gravel this starts
+ * with already covers the frame, so taking the road off left ground rather
+ * than a hole, and the band the road had went to the vehicles.
  */
 export function drawForecourt(
   scene: Phaser.Scene,
@@ -176,18 +191,7 @@ export function drawForecourt(
     x: left - 8, y: apronTop - 8, w: areaW + 16, h: apronH + 16,
   });
 
-  // Exit road along the bottom.
-  const roadY = height * 0.93;
-  const road = scene.add.graphics();
-  road.fillStyle(0x6b6f76, 1);
-  road.fillRect(0, roadY, width, height - roadY);
-  road.fillStyle(0xfdf6e3, 0.9);
-  for (let rx = 10; rx < width; rx += 54) {
-    road.fillRect(rx, roadY + (height - roadY) / 2 - 2, 30, 4);
-  }
-  container.add(road);
-
-  return { apron: { x: left, y: apronTop, w: areaW, h: apronH }, roadY };
+  return { apron: { x: left, y: apronTop, w: areaW, h: apronH }, groundBottom: height };
 }
 
 /**
