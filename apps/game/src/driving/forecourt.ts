@@ -106,6 +106,18 @@ export function drawApron(
   container: Phaser.GameObjects.Container,
   rect: { x: number; y: number; w: number; h: number },
   radius = 18,
+  options?: {
+    /**
+     * Draw the pale kerb along the far edge. Default true.
+     *
+     * The picker's slab ends at its far edge and the kerb is what makes
+     * that edge a piece of ground. A bay seen close up has no far edge
+     * in the picture — the lot carries on past the top of the frame — so
+     * a kerb there is a decoration for a thing that is not on screen,
+     * and `car-park.ts` leaves it off.
+     */
+    kerb?: boolean;
+  },
 ): void {
   const { x, y, w, h } = rect;
   const slab = scene.add.graphics();
@@ -115,11 +127,13 @@ export function drawApron(
     slab.fillStyle(p.light ? 0xffffff : 0x000000, p.alpha);
     slab.fillEllipse(x + w * p.u, y + h * p.v, w * p.w, h * p.h);
   }
-  // The kerb: a pale lip along the top, and a thin shadow under it.
-  slab.fillStyle(0xcdc0a6, 0.5);
-  slab.fillRoundedRect(x, y, w, 4, 2);
-  slab.fillStyle(0x000000, 0.22);
-  slab.fillRect(x + 6, y + 4, w - 12, 3);
+  if (options?.kerb ?? true) {
+    // The kerb: a pale lip along the top, and a thin shadow under it.
+    slab.fillStyle(0xcdc0a6, 0.5);
+    slab.fillRoundedRect(x, y, w, 4, 2);
+    slab.fillStyle(0x000000, 0.22);
+    slab.fillRect(x + 6, y + 4, w - 12, 3);
+  }
   container.add(slab);
 }
 
@@ -197,29 +211,90 @@ const TARMAC_PATCHES: Array<{ u: number; v: number; w: number; h: number; light:
 ];
 
 /**
+ * The key `drawCarPark` leaves on the container to say which vehicle is
+ * standing in it, and how wide she was drawn.
+ *
+ * It is how `drawVehicleShadow` learns the shape of what it is shading
+ * without its caller having to say: the loading view calls the shadow
+ * with a box, and the car park, one call earlier, is the only thing that
+ * knows which sprite is about to stand there. The width is carried so a
+ * stale note — a container reused for another screen — is recognised
+ * and ignored rather than shading the wrong vehicle.
+ */
+export const CAR_PARK_VEHICLE_KEY = 'carParkVehicle';
+
+/**
  * The shadow a vehicle casts on the tarmac it is standing on.
  *
  * A top-down sprite dropped onto a flat fill floats; a dark pool under
  * it, offset the way every other shadow in the chrome is offset, puts
- * it on the ground. It is what replaced the painted bay lines: two
- * cream rules down the sides of one vehicle read as guides somebody had
- * left in rather than as paint, and the picker only gets away with them
- * because it has five bays for them to divide.
+ * it on the ground.
  *
- * Tight to the silhouette rather than generous. An ellipse the size of
- * the whole sprite on a 470px-tall trike is a vignette over half the
- * screen; one at seven tenths of its width sits under the wheels where
- * a shadow belongs. Drawn before the vehicle, never animated.
+ * **It is the vehicle's own silhouette, not an oval under it.** An
+ * ellipse was drawn here first and it is wrong for every vehicle in the
+ * fleet: a van is a rounded rectangle, so an oval leaves the wheels at
+ * its four corners standing on bare tarmac with no shadow under them,
+ * which is exactly what floating looks like; and Trikey is a thin frame
+ * with a box at one end, so an oval puts a pool of shade across tarmac
+ * her frame never touches. The shadow is the sprite itself, filled
+ * black, shifted down and to the right and drawn twice — once tight and
+ * once a little wider and fainter, which is as much softness as Phaser
+ * will give a sprite without a shader. Whatever shape the vehicle is,
+ * its shadow is that shape.
+ *
+ * The texture comes from `box.texture`, or failing that from the note
+ * `drawCarPark` leaves on the container (`CAR_PARK_VEHICLE_KEY`). With
+ * neither — the texture never loaded — it falls back to a rounded
+ * rectangle the size of the box, which is wrong for Trikey and right for
+ * everyone else, and a missing painting is already the worse problem.
+ *
+ * Drawn before the vehicle, never animated. Returns what it drew, so a
+ * screen whose vehicle drives away can take its shadow with it.
  */
 export function drawVehicleShadow(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
-  box: { cx: number; cy: number; w: number; h: number },
-): void {
+  box: { cx: number; cy: number; w: number; h: number; texture?: string },
+): Phaser.GameObjects.GameObject[] {
+  const noted = container.getData?.(CAR_PARK_VEHICLE_KEY) as { key: string; w: number } | undefined;
+  const key = box.texture ?? (noted && Math.abs(noted.w - box.w) < 1.5 ? noted.key : undefined);
+
+  // How far the light throws it: a share of the vehicle's own width, so
+  // a trike's shadow is as long to her as a lorry's is to her.
+  const dx = Math.max(2, Math.min(12, box.w * 0.05));
+  const dy = dx * 1.3;
+
+  if (key && scene.textures.exists(key)) {
+    const source = scene.textures.get(key).getSourceImage();
+    const fullH = box.w * (source.height / source.width);
+    const top = box.cy - box.h / 2;
+    const drawn: Phaser.GameObjects.GameObject[] = [];
+    for (const layer of [
+      { grow: 1.06, alpha: 0.10, push: 1.6 },
+      { grow: 1.0, alpha: 0.22, push: 1 },
+    ]) {
+      const img = scene.add.image(box.cx + dx * layer.push, top + fullH / 2 + dy * layer.push, key)
+        .setDisplaySize(box.w * layer.grow, fullH * layer.grow)
+        .setTintFill(0x000000)
+        .setAlpha(layer.alpha)
+        .setName('vehicle-shadow');
+      // A vehicle that runs past the ground is cut where it is, and so
+      // is the shadow it throws.
+      if (box.h < fullH - 0.5) {
+        img.setCrop(0, 0, source.width, source.height * (box.h / fullH));
+      }
+      container.add(img);
+      drawn.push(img);
+    }
+    return drawn;
+  }
+
   const gfx = scene.add.graphics();
-  gfx.fillStyle(0x000000, 0.09);
-  gfx.fillEllipse(box.cx + 11, box.cy + 13, box.w * 0.82, box.h * 0.9);
-  gfx.fillStyle(0x000000, 0.13);
-  gfx.fillEllipse(box.cx + 6, box.cy + 7, box.w * 0.7, box.h * 0.84);
+  const r = Math.min(box.w * 0.2, 36);
+  gfx.fillStyle(0x000000, 0.1);
+  gfx.fillRoundedRect(box.cx - box.w / 2 + dx * 1.6, box.cy - box.h / 2 + dy * 1.6, box.w, box.h, r);
+  gfx.fillStyle(0x000000, 0.2);
+  gfx.fillRoundedRect(box.cx - box.w / 2 + dx, box.cy - box.h / 2 + dy, box.w, box.h, r);
   container.add(gfx);
+  return [gfx];
 }

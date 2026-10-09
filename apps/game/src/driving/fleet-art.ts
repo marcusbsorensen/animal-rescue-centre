@@ -65,6 +65,14 @@ export const VEHICLE_SPRITE: Record<VehicleType, string> = {
  *   Trikey      the open wooden box behind the saddle. Not redrawn, so
  *               not re-measured: the box is 0.08..0.92 across and
  *               0.02..0.33 down, and these numbers still sit in it.
+ *               **Marcus settled on 2026-10-09 that her load area is a
+ *               rear rack behind the saddle, over the back axle,
+ *               carrying two crates in line, and that the terracotta
+ *               box is dropped.** When the repaint arrives this entry
+ *               and `VEHICLE_BED_SOURCE` are re-measured against the
+ *               rack's deck, which `.claude/notes/car-park-one-world.md`
+ *               section 8 asks for at about 0.78 of her width and 0.28
+ *               of her length, at the rear end.
  *   Henry       the van body, rear doors (0.02) to the bulkhead behind
  *               the windscreen (0.67); sides 0.10..0.90
  *   Bea         the same, longer: 0.02 to 0.64; sides 0.16..0.84 —
@@ -276,32 +284,71 @@ export interface BedFit {
 }
 
 /**
+ * The smallest scale at which a vehicle's bays are all at the tap floor.
+ *
+ * Both axes are asked and the bigger answer wins: a vehicle two bays
+ * across and four down is limited by whichever of its bed's two sides is
+ * tighter. The bed's slack counts, because the floor spreads into it
+ * (see `BED_SLACK`) before the vehicle has to grow.
+ *
+ * It is the number `fitLoadBed` grows a vehicle to when its box is too
+ * small, and the number the loading screen's layout has to be asked for
+ * when it wants to know how tall a column must be for a vehicle to stand
+ * in it whole. One formula, so the two cannot disagree.
+ */
+export function minScaleForBays(
+  sprite: { w: number; h: number },
+  bed: LoadBed,
+  cols: number,
+  rows: number,
+  options?: { gap?: number; minSlot?: number },
+): number {
+  const gap = options?.gap ?? BAY_GAP;
+  const minSlot = options?.minSlot ?? BAY_MIN;
+  const span = (n: number) => minSlot * n + gap * (n - 1);
+  return Math.max(
+    span(cols) / (BED_SLACK * sprite.w * bed.w),
+    span(rows) / (BED_SLACK * sprite.h * bed.h),
+  );
+}
+
+/**
+ * How tall a vehicle has to be drawn for its bays to be tappable — the
+ * height of ground it needs on screen to stand in whole.
+ *
+ * **This is the figure that decides whether the vehicle can be shown
+ * uncropped, and it does not depend on the screen.** A vehicle whose
+ * bays are at the floor is this tall however much room there is; the
+ * room only decides whether it fits. The layout's job is to hand the
+ * car park a column at least this tall, plus the ground round it
+ * (`carParkBackdropH`), and where it cannot, `fitLoadBed` says
+ * `overflows` rather than quietly shrinking a bay.
+ */
+export function wholeVehicleHeight(id: VehicleType, cols: number, rows: number): number {
+  const sprite = VEHICLE_BED_SOURCE[id];
+  return sprite.h * minScaleForBays(sprite, VEHICLE_BED[id], cols, rows);
+}
+
+/**
  * Fit a crate grid into a vehicle's load bed, and say how big to draw
  * the vehicle.
  *
- * **The vehicle stays in frame where it can.** It is drawn as large as
- * its box allows and no larger, so it sits on the tarmac with air round
- * it rather than hanging off the bottom of the slab. Where the bed is
+ * **The vehicle stays whole where it can.** It is drawn as large as its
+ * box allows and no larger, so it stands on the tarmac with ground round
+ * it rather than hanging off the bottom of the frame. Where the bed is
  * then too tight for the bays, the floor spreads into the bed's slack
  * (`BED_SLACK`) instead of the vehicle growing.
  *
  * Only when that is not enough does the vehicle grow past its box, and
- * the caller clips it at the tarmac's edge.
- *
- * **Since the proportion pass that is the normal case for the
- * three-across vehicles, and the arithmetic says it cannot be
- * otherwise.** A bay is floored at 40px drawn so its hit area can be
- * floored at `MIN_TAP` without reaching into its neighbour's, which
- * puts a hard floor of 152px on a three-column grid. Big Tilly's bed
- * is 0.72 of her sprite's width and she is 2.81 times taller than she
- * is wide, so 152px of bed means 515px of lorry — against a band of
- * about 476px at 1024x700 and 400px at 820x620. Bea and Spark are
- * worse. Nothing in the layout buys 40 more pixels of height, so the
- * choice is a grid a child mis-taps, a cutaway floating off the side
- * of the vehicle, or a bumper that runs out of the picture. It is the
- * bumper: the sprite is pinned to the top of its box, so what goes is
- * always the front, and the load bed — the thing the screen is about
- * — is whole every time.
+ * `overflows` says so. **That is the one case where a vehicle is not
+ * shown whole, and it is a fact about the layout and not about the
+ * vehicle:** `wholeVehicleHeight` is what a vehicle needs, and a box
+ * shorter than that cannot hold it at a tappable size. The choice then
+ * is between a bay a child mis-taps and a bumper that runs out of the
+ * picture, and this function has always chosen the bumper — the sprite
+ * is pinned to the top of its box, so what goes is the front, and the
+ * load bed, which the screen is about, is whole every time. The right
+ * fix is a taller box, which is the caller's to give.
  */
 export function fitLoadBed(
   box: { w: number; h: number },
@@ -363,10 +410,7 @@ export function fitLoadBed(
     // — running off the bottom is a picture, running off the side is
     // the message panel.
     const grown = Math.min(
-      Math.max(
-        span(minSlot, cols) / (BED_SLACK * sprite.w * bed.w),
-        span(minSlot, rows) / (BED_SLACK * sprite.h * bed.h),
-      ),
+      minScaleForBays(sprite, bed, cols, rows, { gap, minSlot }),
       box.w / sprite.w,
     );
     if (grown > scale) {
@@ -491,16 +535,181 @@ export function bayWidthM(id: VehicleType): number {
 }
 
 /**
- * How much of a fleet sprite has to stay in frame.
+ * How much of a fleet sprite has to stay in frame: all of it.
  *
- * Every load bed in `VEHICLE_BED` ends by 0.68 of its sprite — they are
- * all a band across the top, behind the cab — so a vehicle whose top
- * 78% is on screen has its whole bed on screen with a tenth of the
- * sprite to spare. What goes is the bumper, which is the trade
- * `fitLoadBed` already makes when a vehicle has to grow for its bays.
+ * **It was 0.78, and that was the fault Marcus saw.** The car park used
+ * to be paid for in bumper: the vehicle was sized for a box 1/0.78 times
+ * as tall as the visible column and then parked so that the last 22% of
+ * her ran under the far kerb and was cut off with `setCrop`. Henry lost
+ * 28% of his height at 820x620 — the bonnet, the lamps and most of the
+ * windscreen — and the screen was showing a van with no front. Marcus, 9
+ * October 2026: "We don't show cropped versions of things. Instead, we
+ * work with real scenes with real interactions in them."
+ * (`docs/manus-sprite-rules.md`, Rule 8.)
  *
- * It is what the car park behind the vehicle is paid for with: the
- * backdrop takes the slack between the bed's near end and the bottom of
- * the band, and never a pixel of the bays.
+ * It is still a constant, and still 1, because the loading view divides
+ * its box by it: `(column.h - carParkBackdropH) / VEHICLE_VISIBLE_FRAC`.
+ * At 1 the vehicle is fitted to what is left of the column once the
+ * ground round it is taken off, and stands whole inside it. A test holds
+ * it at 1 so that nobody trades a bumper for a prettier backdrop again.
  */
-export const VEHICLE_VISIBLE_FRAC = 0.78;
+export const VEHICLE_VISIBLE_FRAC = 1;
+
+// ── The picker: the whole fleet side by side ─────────────────
+
+/**
+ * The forecourt picker is the one place in the game where the five
+ * vehicles stand next to each other, and so the one place where their
+ * relative size can be seen at all. The loading screen zooms each of them
+ * to fill its own bay, which is right for loading and says nothing about
+ * how big a trike is beside a lorry.
+ *
+ * **It drew them all the same height.** `renderPicker` fitted every sprite
+ * to `bayH * 0.62`, so Trikey — 1.75m long — stood exactly as tall as Big
+ * Tilly at 6.5m: 108px against 108px at 820x620. That is a fleet
+ * comparison built by thumbnailing every sprite into a fixed cell, which
+ * normalises them and discards the thing being judged; the handover
+ * ("One true scale", 2026-10-08) records the same mistake in a contact
+ * sheet. It is the picker's job to *not* do that. Marcus, 9 October 2026:
+ * nothing shown cropped, and real scenes with real interactions
+ * (`docs/manus-sprite-rules.md`, Rule 8).
+ *
+ * So the vehicles are drawn at one scale — pixels to the metre — driven by
+ * `VEHICLE_WIDTH_M` and the sprites' own aspect, and the scale is the
+ * biggest one at which the *longest* vehicle stands whole in the band.
+ * Everything else follows from it: Trikey is the smallest and Big Tilly
+ * the largest because that is what they are.
+ *
+ * **Bays are not drawn to scale, vehicles are.** A trike's own bay at this
+ * zoom is under 40px wide, and a tap target under 48 is a mistake on a
+ * screen children use, so no bay is narrower than `PICKER_MIN_BAY` and the
+ * whole bay answers the tap, not the vehicle's outline. The vehicles stay
+ * true; it is only the painted lines round the small ones that sit a
+ * little wider than a real space would.
+ *
+ * Pure arithmetic, like the rest of this file, so a test can hold the
+ * promises at every viewport.
+ */
+export const PICKER_PAD_TOP = 12;
+export const PICKER_LABEL_H = 24;
+export const PICKER_CHIP_H = 28;
+export const PICKER_CHIP_ROW = 34;
+export const PICKER_PAD_BOTTOM = 8;
+/** 64: every bay's tap target is its width less 6, and that is at least `MIN_TAP` (48) with room to spare. */
+export const PICKER_MIN_BAY = 64;
+export const PICKER_SIDE_PAD = 16;
+/**
+ * Below this height the building comes off the picker and the tarmac takes
+ * its room, as the loading screen did first. The building costs the
+ * vehicles half their size: at 620px tall the band the vehicles have with
+ * it is 236px against 448 without, and at 402px it would leave the lorry
+ * 12px across.
+ */
+export const PICKER_BUILDING_MIN_H = 560;
+/** The shortest tap target, in px: `MIN_TAP`, restated here so this file stays free of the UI module. */
+export const PICKER_MIN_HIT = 48;
+
+export interface PickerBay {
+  id: VehicleType;
+  /** The painted bay: its left edge, width and middle. */
+  x: number;
+  w: number;
+  cx: number;
+  /** The vehicle as drawn, and where its rear stands. */
+  spriteW: number;
+  spriteH: number;
+  rearY: number;
+  /** Its middle, which is where the sprite is centred. */
+  cy: number;
+}
+
+export interface PickerLayout {
+  /** Whether the A.R.C. building stands behind the tarmac. */
+  building: boolean;
+  /** The tarmac, as `drawForecourt` takes it. */
+  apron: { x: number; y: number; w: number; h: number };
+  /** Pixels to the metre, the same for every vehicle. */
+  pxPerMetre: number;
+  /** The head line across the bays, and the rows below the vehicles. */
+  headY: number;
+  chipY: number;
+  labelY: number;
+  /** Where a cone stands at the mouth of a locked bay. */
+  coneY: number;
+  bays: PickerBay[];
+}
+
+/** A vehicle's length in metres: its width and the aspect of its own sprite. */
+export function vehicleLengthM(id: VehicleType): number {
+  const sprite = VEHICLE_BED_SOURCE[id];
+  return VEHICLE_WIDTH_M[id] * (sprite.h / sprite.w);
+}
+
+export function pickerLayout(options: {
+  width: number;
+  height: number;
+  /** The first y below the title plate. */
+  contentTop: number;
+  /** The fleet, left to right. */
+  ids: VehicleType[];
+}): PickerLayout {
+  const { width, height, contentTop, ids } = options;
+  const building = height >= PICKER_BUILDING_MIN_H;
+
+  // The band the tarmac takes. With the building it is a fixed share of the
+  // screen below the building's half; without it, everything between the
+  // title and the exit road, less the room a cone needs at the bottom.
+  const roadY = height * 0.93;
+  const apronTop = building ? Math.round(height * 0.5) : Math.round(contentTop + 6);
+  const apronH = building
+    ? Math.round(height * 0.38)
+    : Math.round(roadY - 30 - apronTop);
+
+  // The room a vehicle has, once the rows under it are taken off.
+  const area = apronH - PICKER_PAD_TOP - PICKER_CHIP_ROW - PICKER_LABEL_H - PICKER_PAD_BOTTOM;
+  const longest = Math.max(...ids.map(vehicleLengthM));
+
+  const bayW = (id: VehicleType, p: number) => Math.max(bayWidthM(id) * p, PICKER_MIN_BAY);
+  const total = (p: number) => ids.reduce((sum, id) => sum + bayW(id, p), 0);
+  const usable = Math.min(width * 0.92, 1080) - PICKER_SIDE_PAD * 2;
+
+  let p = area / longest;
+  if (total(p) > usable) {
+    // Too wide for the screen: the biggest scale that fits, found by
+    // halving. Bays never go under the minimum, so this converges on the
+    // scale at which they are all at it.
+    let lo = 0;
+    let hi = p;
+    for (let i = 0; i < 40; i += 1) {
+      const mid = (lo + hi) / 2;
+      if (total(mid) > usable) hi = mid; else lo = mid;
+    }
+    p = lo;
+  }
+
+  const sum = total(p);
+  const left = (width - sum) / 2;
+  const rearY = apronTop + PICKER_PAD_TOP;
+  let x = left;
+  const bays = ids.map((id): PickerBay => {
+    const w = bayW(id, p);
+    const spriteW = VEHICLE_WIDTH_M[id] * p;
+    const spriteH = vehicleLengthM(id) * p;
+    const bay = { id, x, w, cx: x + w / 2, spriteW, spriteH, rearY, cy: rearY + spriteH / 2 };
+    x += w;
+    return bay;
+  });
+
+  const bottom = apronTop + apronH;
+  const labelY = bottom - PICKER_PAD_BOTTOM - PICKER_LABEL_H / 2;
+  return {
+    building,
+    apron: { x: left - PICKER_SIDE_PAD, y: apronTop, w: sum + PICKER_SIDE_PAD * 2, h: apronH },
+    pxPerMetre: p,
+    headY: apronTop + 4,
+    chipY: labelY - PICKER_LABEL_H / 2 - 3 - PICKER_CHIP_H / 2,
+    labelY,
+    coneY: bottom + 4,
+    bays,
+  };
+}
