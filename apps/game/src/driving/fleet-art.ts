@@ -276,32 +276,71 @@ export interface BedFit {
 }
 
 /**
+ * The smallest scale at which a vehicle's bays are all at the tap floor.
+ *
+ * Both axes are asked and the bigger answer wins: a vehicle two bays
+ * across and four down is limited by whichever of its bed's two sides is
+ * tighter. The bed's slack counts, because the floor spreads into it
+ * (see `BED_SLACK`) before the vehicle has to grow.
+ *
+ * It is the number `fitLoadBed` grows a vehicle to when its box is too
+ * small, and the number the loading screen's layout has to be asked for
+ * when it wants to know how tall a column must be for a vehicle to stand
+ * in it whole. One formula, so the two cannot disagree.
+ */
+export function minScaleForBays(
+  sprite: { w: number; h: number },
+  bed: LoadBed,
+  cols: number,
+  rows: number,
+  options?: { gap?: number; minSlot?: number },
+): number {
+  const gap = options?.gap ?? BAY_GAP;
+  const minSlot = options?.minSlot ?? BAY_MIN;
+  const span = (n: number) => minSlot * n + gap * (n - 1);
+  return Math.max(
+    span(cols) / (BED_SLACK * sprite.w * bed.w),
+    span(rows) / (BED_SLACK * sprite.h * bed.h),
+  );
+}
+
+/**
+ * How tall a vehicle has to be drawn for its bays to be tappable — the
+ * height of ground it needs on screen to stand in whole.
+ *
+ * **This is the figure that decides whether the vehicle can be shown
+ * uncropped, and it does not depend on the screen.** A vehicle whose
+ * bays are at the floor is this tall however much room there is; the
+ * room only decides whether it fits. The layout's job is to hand the
+ * car park a column at least this tall, plus the ground round it
+ * (`carParkBackdropH`), and where it cannot, `fitLoadBed` says
+ * `overflows` rather than quietly shrinking a bay.
+ */
+export function wholeVehicleHeight(id: VehicleType, cols: number, rows: number): number {
+  const sprite = VEHICLE_BED_SOURCE[id];
+  return sprite.h * minScaleForBays(sprite, VEHICLE_BED[id], cols, rows);
+}
+
+/**
  * Fit a crate grid into a vehicle's load bed, and say how big to draw
  * the vehicle.
  *
- * **The vehicle stays in frame where it can.** It is drawn as large as
- * its box allows and no larger, so it sits on the tarmac with air round
- * it rather than hanging off the bottom of the slab. Where the bed is
+ * **The vehicle stays whole where it can.** It is drawn as large as its
+ * box allows and no larger, so it stands on the tarmac with ground round
+ * it rather than hanging off the bottom of the frame. Where the bed is
  * then too tight for the bays, the floor spreads into the bed's slack
  * (`BED_SLACK`) instead of the vehicle growing.
  *
  * Only when that is not enough does the vehicle grow past its box, and
- * the caller clips it at the tarmac's edge.
- *
- * **Since the proportion pass that is the normal case for the
- * three-across vehicles, and the arithmetic says it cannot be
- * otherwise.** A bay is floored at 40px drawn so its hit area can be
- * floored at `MIN_TAP` without reaching into its neighbour's, which
- * puts a hard floor of 152px on a three-column grid. Big Tilly's bed
- * is 0.72 of her sprite's width and she is 2.81 times taller than she
- * is wide, so 152px of bed means 515px of lorry — against a band of
- * about 476px at 1024x700 and 400px at 820x620. Bea and Spark are
- * worse. Nothing in the layout buys 40 more pixels of height, so the
- * choice is a grid a child mis-taps, a cutaway floating off the side
- * of the vehicle, or a bumper that runs out of the picture. It is the
- * bumper: the sprite is pinned to the top of its box, so what goes is
- * always the front, and the load bed — the thing the screen is about
- * — is whole every time.
+ * `overflows` says so. **That is the one case where a vehicle is not
+ * shown whole, and it is a fact about the layout and not about the
+ * vehicle:** `wholeVehicleHeight` is what a vehicle needs, and a box
+ * shorter than that cannot hold it at a tappable size. The choice then
+ * is between a bay a child mis-taps and a bumper that runs out of the
+ * picture, and this function has always chosen the bumper — the sprite
+ * is pinned to the top of its box, so what goes is the front, and the
+ * load bed, which the screen is about, is whole every time. The right
+ * fix is a taller box, which is the caller's to give.
  */
 export function fitLoadBed(
   box: { w: number; h: number },
@@ -363,10 +402,7 @@ export function fitLoadBed(
     // — running off the bottom is a picture, running off the side is
     // the message panel.
     const grown = Math.min(
-      Math.max(
-        span(minSlot, cols) / (BED_SLACK * sprite.w * bed.w),
-        span(minSlot, rows) / (BED_SLACK * sprite.h * bed.h),
-      ),
+      minScaleForBays(sprite, bed, cols, rows, { gap, minSlot }),
       box.w / sprite.w,
     );
     if (grown > scale) {
@@ -491,16 +527,22 @@ export function bayWidthM(id: VehicleType): number {
 }
 
 /**
- * How much of a fleet sprite has to stay in frame.
+ * How much of a fleet sprite has to stay in frame: all of it.
  *
- * Every load bed in `VEHICLE_BED` ends by 0.68 of its sprite — they are
- * all a band across the top, behind the cab — so a vehicle whose top
- * 78% is on screen has its whole bed on screen with a tenth of the
- * sprite to spare. What goes is the bumper, which is the trade
- * `fitLoadBed` already makes when a vehicle has to grow for its bays.
+ * **It was 0.78, and that was the fault Marcus saw.** The car park used
+ * to be paid for in bumper: the vehicle was sized for a box 1/0.78 times
+ * as tall as the visible column and then parked so that the last 22% of
+ * her ran under the far kerb and was cut off with `setCrop`. Henry lost
+ * 28% of his height at 820x620 — the bonnet, the lamps and most of the
+ * windscreen — and the screen was showing a van with no front. Marcus, 9
+ * October 2026: "We don't show cropped versions of things. Instead, we
+ * work with real scenes with real interactions in them."
+ * (`docs/manus-sprite-rules.md`, Rule 8.)
  *
- * It is what the car park behind the vehicle is paid for with: the
- * backdrop takes the slack between the bed's near end and the bottom of
- * the band, and never a pixel of the bays.
+ * It is still a constant, and still 1, because the loading view divides
+ * its box by it: `(column.h - carParkBackdropH) / VEHICLE_VISIBLE_FRAC`.
+ * At 1 the vehicle is fitted to what is left of the column once the
+ * ground round it is taken off, and stands whole inside it. A test holds
+ * it at 1 so that nobody trades a bumper for a prettier backdrop again.
  */
-export const VEHICLE_VISIBLE_FRAC = 0.78;
+export const VEHICLE_VISIBLE_FRAC = 1;

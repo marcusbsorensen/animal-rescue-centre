@@ -341,6 +341,7 @@ export type {
 
 export * from './crate-stacking';
 export * from './crate-loading';
+export * from './vehicle-change';
 export {
   CHARMS,
   initCharmsStore,

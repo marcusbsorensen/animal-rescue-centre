@@ -116,6 +116,24 @@ Reference: Adobe Stock #1248673531 (fantasy kingdom map) and #286944577 (modular
 
 ---
 
+## Rule 8: We stay inside the simulated 3D world, nothing is shown cropped, and scenes are real scenes (Marcus, 2026-10-09)
+
+Marcus, looking at the loading screen's car park, where one vehicle was drawn as a 3D clay object in a different style from the others and another had its front cut off:
+
+> "We need to stay within the 3D world or simulated 3D world of the game at all times. We don't show cropped versions of things. Instead, we work with real scenes with real interactions in them."
+
+This governs every sprite we commission and every screen the sprites go on. Three parts:
+
+- **One world, one projection, one drawn style.** Everything that stands in a scene is seen from the same camera and drawn in the same hand. A scene never mixes a clay render, a flat icon and a line-and-wash painting, and never puts one object in plan view beside another in elevation. When one piece in a set is off-style, the fix is to bring that piece in, not to hide it or shrink it. For a brief: name the projection and the camera (the fleet's top-downs are an elevated bird's-eye view, far end 88% of the near end), name the style by pointing at the repainted pieces, and say what the piece must not look like (plasticine, 3D render, glossy specular highlights).
+- **Nothing is shown cropped.** Every object is drawn whole and shown whole. That rules out a fixed-height cell, an overflow clip, a mask, a kerb the object runs under, a canvas edge it is cut by, and any scale that assumes how much of the sprite is "the important part". If an object does not fit, the layout gives it more room or the scene is simplified; the object's front is never what goes. A brief asks for a full silhouette with clear margin, and says so for the rear view and the side view as well.
+- **Real scenes with real interactions.** A screen is a place with real things in it that the player can act on, standing on a real ground with a shadow, not a row of icons on a backdrop. Show the one thing the player is acting on, zoomed in, with only the context that is really there at that distance. Where several pieces are compared, they are shown at their true relative scale and never thumbnailed into equal cells (the fleet: `.claude/HANDOVER.md`, "One true scale", 2026-10-08).
+
+**How it has been applied so far.** The loading screen's car park shows one vehicle at a time, whole, in a single bay with its own shadow, and moves between vehicles with arrows (`apps/game/src/driving/car-park.ts`; `VEHICLE_VISIBLE_FRAC` is 1 and a test holds it there). It has no A.R.C. building because the only building art is a front elevation, and no road because at that zoom one lane is wider than the screen is tall.
+
+**Not settled by this rule, for Marcus.** Rule 7's two-projection map convention (top-down ground with front-elevation buildings) describes the world *map*, and this rule has not been read as repealing it. Whether the map itself should also stay in one projection is his to say.
+
+---
+
 ## Quick template
 
 Copy-paste and fill in:
