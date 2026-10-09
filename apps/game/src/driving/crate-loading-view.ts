@@ -86,10 +86,13 @@ import {
   TEXT_RESOLUTION, TITLE_CY, TYPE, bottomAnchorY, contentTopFor, hexNum,
 } from '../ui/constants';
 import { fitChipGrid } from '../ui/layout';
-import { ARROW_GAP, ARROW_W, carParkBackdropH, drawCarPark } from './car-park';
+import {
+  ARROW_GAP, ARROW_W, PARK_CEILING, carParkBackdropH, drawCarPark,
+  type VehicleDirection,
+} from './car-park';
 import { drawVehicleShadow } from './forecourt';
 import {
-  BAY_GAP, BAY_MAX_H, BAY_MAX_W, BED_PAD, VEHICLE_BED, VEHICLE_BED_SOURCE,
+  BAY_GAP, BAY_MAX_H, BAY_MAX_W, BAY_MIN, BED_PAD, VEHICLE_BED, VEHICLE_BED_SOURCE,
   VEHICLE_SPRITE, VEHICLE_VISIBLE_FRAC, bedProbePoints, fitLoadBed, minScaleForBays,
   wholeVehicleHeight, type BedFit,
 } from './fleet-art';
@@ -593,6 +596,19 @@ export const DROP_SLACK = 28;
  * edge the two of them share, which is where a fact about two
  * particular bays belongs and is the whole reason those exist.
  *
+ * **Still four, after the vehicle arrows were wired, and that was
+ * measured rather than assumed.** A vehicle change is the one event
+ * whose sentence the rules write at full length — "Biscuit the dog
+ * makes Daisy the bunny frightened. They cannot sit next to each other.
+ * There is no other space in Henry for Biscuit, so Biscuit is waiting
+ * to board again." — which is six lines at the 288px column. Budgeting
+ * for six was tried and reverted: it leaves `facesH` at 58 against
+ * `PANEL_FACES_MIN` of 62, so the panel loses its picture at 820x620
+ * for every copy it writes, to carry one sentence of one event. **The
+ * thing that sentence had to keep was the name**, and the name is in
+ * the heading now (`PtvDriveScene.changeBay`), so the tail can go the
+ * way any other overlong tail goes — see the drop in `drawPanel`.
+ *
  * The band above the words is a name row, an animal, and the word for
  * what that animal is feeling — so the panel takes everything the
  * column has up to `PANEL_FACES_MAX` and the animal gets what is left
@@ -620,10 +636,41 @@ const PANEL_FACES_MIN = 62;
 const PANEL_FACES_MAX = 168;
 
 /**
- * The whole panel, as its longest copy wants it: a band of faces, then
- * the heading and four lines.
+ * The panel's own two paddings, and why they are not the same number.
+ *
+ * **More space below the content than above it, always, or the panel
+ * looks unfinished.** Marcus's rule, and the panel was failing it in
+ * both of its shapes. On a roomy plate the heading sat `CHROME.padY`
+ * plus four pixels from the top and the fourth line of copy ended
+ * `CHROME.padY` less four from the bottom — 16 above against 8 below,
+ * inverted by the stray four pixels nobody had written down a reason
+ * for. On the landscape phone it was 8 above against 2.5 below, which
+ * is the squeeze: the plate is 136.5 where its copy wants 134.
+ *
+ * So the budget names the two paddings separately and the lower one is
+ * the larger, `drawPanel` lays the content out against them, and the
+ * stray four pixels are gone rather than quietly inverting the rule.
+ * `SPACE.s` is the step between them, which is the smallest difference
+ * on the scale that reads as deliberate.
  */
-const PANEL_WANTED_H = CHROME.padY * 2 + PANEL_FACES_MAX + SPACE.s + PANEL_TEXT_H;
+const PANEL_PAD_TOP = CHROME.padY;
+const PANEL_PAD_BOTTOM = CHROME.padY + SPACE.s;
+/**
+ * The same pair on a plate too short for its copy, where both of them
+ * are one step down the scale — see `PANEL_TIGHT_H`.
+ */
+const PANEL_TIGHT_PAD_TOP = SPACE.s;
+const PANEL_TIGHT_PAD_BOTTOM = SPACE.m;
+/** The copy on a tight plate: a 26px heading and five closed-up lines. */
+const PANEL_TIGHT_COPY_H = 26 + 5 * 20;
+
+/**
+ * The whole panel, as its longest copy wants it: a band of faces, then
+ * the heading and four lines, with more paper under the words than over
+ * them.
+ */
+const PANEL_WANTED_H = PANEL_PAD_TOP + PANEL_FACES_MAX + SPACE.s
+  + PANEL_TEXT_H + PANEL_PAD_BOTTOM;
 
 /**
  * The least paper that copy can be set on, measured rather than
@@ -640,9 +687,57 @@ const PANEL_WANTED_H = CHROME.padY * 2 + PANEL_FACES_MAX + SPACE.s + PANEL_TEXT_
  * line off the bottom of its own paper on the landscape phone ever
  * since. Measured in Chrome at 874x402: `SPACE.s` above the heading,
  * a 22px heading, the body starting 26px below the heading's top, and
- * 20px a line closed up — so 8 + 26 + 5x20 + 8.
+ * 20px a line closed up.
+ *
+ * **And `SPACE.m` under it rather than `SPACE.s`**, which is the
+ * more-space-below rule applied here as well: it was 8 and 8, and a
+ * plate given exactly 8 and 8 and then squeezed to 136.5 spent the
+ * shortfall on the bottom padding alone, which is where the 2.5px came
+ * from. 146 is what the copy asks for; where the screen cannot give it,
+ * `drawPanel` keeps the larger share underneath anyway.
  */
-const PANEL_TIGHT_H = SPACE.s * 2 + 26 + 5 * 20;
+const PANEL_TIGHT_H = PANEL_TIGHT_PAD_TOP + PANEL_TIGHT_COPY_H + PANEL_TIGHT_PAD_BOTTOM;
+
+/**
+ * The air the panel leaves above its contents and below them, on a
+ * plate of this height.
+ *
+ * **More space below than above, at every plate size** — Marcus's rule,
+ * and the point of this being a function rather than two constants.
+ * Where the plate has what the copy asks for, `above` is its own number
+ * and `below` keeps the rest, which is larger. Where it has less — the
+ * landscape phone, where neither the vehicle nor the tray has a pixel
+ * to give — both come down in the same proportion and the larger is
+ * still the one underneath. Where the plate is shorter than the copy
+ * itself, `above` goes to nothing, so every pixel there is lands under
+ * the words rather than over them; `below` is then negative, which is
+ * the copy overrunning the paper and is reported as such rather than
+ * hidden.
+ *
+ * `tight` is the same plate being too short for the leading as well as
+ * the padding, which is what closes the lines up.
+ *
+ * Pure, and exported, so a test can hold the rule at every viewport.
+ * The arrow plates in `car-park.ts` run the same arithmetic on their own
+ * two numbers (`arrowPlatePadding`); the two plates share no code.
+ */
+export function panelPadding(boxH: number, bandH = 0): {
+  above: number;
+  below: number;
+  tight: boolean;
+  copyH: number;
+} {
+  const tight = boxH < PANEL_PAD_TOP + PANEL_PAD_BOTTOM + PANEL_TEXT_H;
+  const wantTop = tight ? PANEL_TIGHT_PAD_TOP : PANEL_PAD_TOP;
+  const wantBottom = tight ? PANEL_TIGHT_PAD_BOTTOM : PANEL_PAD_BOTTOM;
+  const copyH = tight ? PANEL_TIGHT_COPY_H : PANEL_TEXT_H;
+  const slack = boxH - bandH - copyH;
+  const above = Math.max(0, Math.min(
+    wantTop,
+    Math.round((slack * wantTop) / (wantTop + wantBottom)),
+  ));
+  return { above, below: slack - above, tight, copyH };
+}
 
 /**
  * Below this a bay cannot carry a name row without the name taking more
@@ -708,6 +803,27 @@ export interface CrateLoadingCallbacks {
   onNeedCrate: () => void;
   /** The held animal goes back on the floor, out of her crate. */
   onPutBack: () => void;
+  /**
+   * An arrow beside the vehicle was pressed: load that vehicle instead.
+   *
+   * **Nothing has changed when this fires.** The owner runs
+   * `changeVehicle(session, to)` from `@arc/game-logic` — which keeps
+   * what fits in grid order, sends the rest back to the waiting area,
+   * names them, and never seats anybody beside somebody who frightens
+   * them — keeps its own record of the vehicle, and redraws. `direction`
+   * is which arrow it was, for anything that wants to know; the loading
+   * screen's own wiring does not.
+   */
+  onVehicleChange: (to: VehicleType, direction: VehicleDirection) => void;
+  /**
+   * Show another page of the animals waiting to board.
+   *
+   * Only ever fires where more are waiting than stand on one page — see
+   * `drawWaitingPager`. The owner stores the number and redraws; the
+   * view works out which page that is, and clamps it, so an owner that
+   * simply increments can never land on a page that is not there.
+   */
+  onWaitingPage: (page: number) => void;
   /** Everything is loaded and the vehicle may set off. */
   onSetOff: () => void;
   onBack: () => void;
@@ -727,6 +843,19 @@ export interface CrateLoadingState {
    */
   animalsById: Map<string, Animal>;
   /**
+   * The player's level, so the vehicle arrows skip the vehicles she has
+   * not unlocked. Omit to offer the whole fleet.
+   */
+  playerLevel?: number;
+  /**
+   * Which page of the animals waiting to board is showing.
+   *
+   * Zero, and absent, on every screen wide enough for all of them. See
+   * `drawWaitingPager` for why there are pages at all and why they are
+   * turned by a tap rather than by a drag.
+   */
+  waitingPage?: number;
+  /**
    * What just happened, if the child needs telling — a refused bay, or
    * an empty van asked to set off. Shown instead of the standing
    * message until the next tap, and never on a timer.
@@ -734,6 +863,17 @@ export interface CrateLoadingState {
   notice?: {
     level: CompatibilityLevel | null;
     text: string;
+    /**
+     * The panel's heading for this notice, where the default is wrong
+     * for the event.
+     *
+     * A notice with no feeling and no animal is headed "Wait a Moment",
+     * which is right for an empty vehicle asked to set off and wrong for
+     * a vehicle change — nobody is being asked to wait, the animals have
+     * gone back to the floor and the heading should say so. Already in
+     * title case: the panel does not touch it.
+     */
+    heading?: string;
     /** The refusal was about one of them being poorly. */
     needsQuiet?: boolean;
     /**
@@ -1604,9 +1744,10 @@ function panelCopy(state: CrateLoadingState): PanelCopy {
       // it is named for her rather than headed "Wait a moment" — that
       // heading is for the two states with nobody in them, an empty
       // vehicle asked to set off and nothing to report.
-      heading: mood
-        ? MOOD_WORD[mood]
-        : titleCase(solo ? `${solo.name} the ${solo.species}` : 'Wait a moment'),
+      heading: notice.heading
+        ?? (mood
+          ? MOOD_WORD[mood]
+          : titleCase(solo ? `${solo.name} the ${solo.species}` : 'Wait a moment')),
       tone: mood,
       body: [
         notice.text,
@@ -1703,6 +1844,87 @@ const RACK_W = 2 * MIN_TAP + BAY_GAP;
 const READ_MIN_W = 236;
 
 /**
+ * The smallest a drop bay may be drawn on a screen with no room for
+ * `BAY_MIN`, and the concession this number is.
+ *
+ * **`BAY_MIN` (40) is the drawn size at which two bays' hit areas stop
+ * overlapping**, because a bay's hit area is `bayHitSize` — floored at
+ * `MIN_TAP` but never past its neighbour — so at a drawn 40 and a
+ * `BAY_GAP` of 8 the pitch is exactly `MIN_TAP`. Below 40 the hit areas
+ * are the pitch rather than 48: still touching, never overlapping, so a
+ * tap never answers for the bay next door. What is lost is *size*, not
+ * separation, and the loss is the reason this exists at all.
+ *
+ * **Marcus's decision, 9 October 2026: the drop bays may go under 40 on
+ * a screen with no room for them, and nothing else may.** The 48px floor
+ * on every control — the buttons, the vehicle arrows, Back, the crates,
+ * the waiting animals — does not move. The arithmetic that forced the
+ * choice: the short layout hands the car park `height - 2 * SAFE_MARGIN`
+ * of ground, which is 343px in the Capacitor app (812x375) and 293px in
+ * the Home Screen web clip (812x325), and Spark's six bays at 40 need
+ * her drawn 361px tall. 361 does not go into 343, so either a vehicle is
+ * cropped — against Rule 8, and the fault this whole screen was rebuilt
+ * to fix — or the bays come down. They come down.
+ *
+ * **31 is derived and it is the smallest viewport's own number.**
+ * `wholeVehicleHeight` is affine in the floor, so solving
+ * `wholeVehicleHeight('electric-minibus', 2, 3) = 293` gives 31.75: 31
+ * is the largest whole pixel at which Spark stands whole in the web
+ * clip's 293px, and therefore the lowest any screen the game ships to
+ * ever asks for. It is a clamp and not a target — `bayFloorFor` hands
+ * back the *largest* floor the ground can hold, so 31 is reached only at
+ * 812x325 and only by Spark.
+ */
+export const BAY_FLOOR_MIN = 31;
+
+/**
+ * The largest bay floor this vehicle can have and still stand whole in
+ * the ground the screen has for her.
+ *
+ * `BAY_MIN` wherever `BAY_MIN` fits, which is every viewport the screen
+ * was composed for and every vehicle in the fleet at four of the six
+ * sizes the game ships to. Where it does not fit, the floor comes down
+ * one pixel at a time until she stands whole, and no further — a bay
+ * never gives up a pixel that was not needed to keep a bumper on the
+ * screen. `BAY_FLOOR_MIN` is the clamp under it.
+ *
+ * **Per vehicle, because the floor only ever binds on the vehicle who
+ * needs it.** Relaxing it cannot shrink a bay that already clears
+ * `BAY_MIN`: the floor is the size `fitLoadBed` *grows* a vehicle to
+ * reach, so a vehicle fitted comfortably inside her box never consults
+ * it. At 812x325 Spark takes 31 and Bea 35 and Big Tilly 37, while Henry
+ * and Trikey keep 40 — and an arrow press changes nothing but the
+ * vehicle's own bays, which were already a different size in every
+ * vehicle.
+ *
+ * **It must not decide the page grid's shape.** `FLEET_MIN_WHOLE_H`
+ * stays measured at `BAY_MIN`, so the stacked/short breakpoint is
+ * exactly where it was: the shape may not change when an arrow changes
+ * the vehicle, and a floor that moved the breakpoint would move it.
+ */
+export function bayFloorFor(
+  id: VehicleType,
+  cols: number,
+  rows: number,
+  /** The ground she has, top of her rise to the bottom of the tarmac. */
+  groundH: number,
+): number {
+  if (wholeVehicleHeight(id, cols, rows) <= groundH) return BAY_MIN;
+  const sprite = VEHICLE_BED_SOURCE[id];
+  const bed = VEHICLE_BED[id];
+  // Walked rather than inverted. The height is affine in the floor, but
+  // through a `Math.max` of two axes, and one of the two is the binding
+  // one for some vehicles and not for others — so solving it means
+  // solving both and taking the smaller answer, which is the same forty
+  // evaluations this loop makes and harder to read.
+  for (let floor = BAY_MIN - 1; floor > BAY_FLOOR_MIN; floor -= 1) {
+    const h = sprite.h * minScaleForBays(sprite, bed, cols, rows, { minSlot: floor });
+    if (h <= groundH) return floor;
+  }
+  return BAY_FLOOR_MIN;
+}
+
+/**
  * Where everything on the loading screen goes.
  *
  * Pure arithmetic, so a test can hold every promise on it at every
@@ -1760,6 +1982,18 @@ export interface LoadingColumns {
   park: Box;
   /** How wide the vehicle herself may be drawn inside it. */
   vehicleW: number;
+  /**
+   * How tall the ground is — which is not the column's height.
+   *
+   * The vehicle's rear may rise above the column, as far as
+   * `PARK_CEILING`, and her nose may stand on the column's own bottom
+   * edge, so the room she has is from the ceiling to the foot of the
+   * tarmac. In the short shape the column already starts at the ceiling
+   * and the two are the same number; in the stacked shape the ground is
+   * the taller of the two, which is how Spark stands whole at 820x620
+   * in a 295px column. `bayFloorFor` is asked this and not `park.h`.
+   */
+  groundH: number;
   /** The reading panel. */
   panel: Box;
   /** The floor the animals wait on, its lead-in row included. */
@@ -1812,12 +2046,14 @@ export function loadingColumns(options: {
     const panelFloor = Math.min(PANEL_TIGHT_H, readH - SPACE.m - bandFloorH);
     const panelH = Math.max(panelFloor, Math.min(PANEL_WANTED_H, readH - SPACE.m - bandWanted));
     const looseH = Math.max(bandFloorH, readH - SPACE.m - panelH);
+    const park: Box = {
+      x: PAGE_MARGIN, y: SAFE_MARGIN, w: PARK_SHORT_W, h: height - 2 * SAFE_MARGIN,
+    };
     return {
       kind: 'short',
-      park: {
-        x: PAGE_MARGIN, y: SAFE_MARGIN, w: PARK_SHORT_W, h: height - 2 * SAFE_MARGIN,
-      },
+      park,
       vehicleW: PARK_SHORT_W - 2 * (ARROW_W + ARROW_GAP),
+      groundH: park.y + park.h - PARK_CEILING,
       panel: { x: readX, y: contentTop, w: readShortW, h: panelH },
       loose: { x: readX, y: contentBottom - looseH, w: readShortW, h: looseH },
       shelf: { x: rackX, y: rackTop, w: RACK_W, h: contentBottom - rackTop },
@@ -1846,6 +2082,7 @@ export function loadingColumns(options: {
     kind: 'stacked',
     park,
     vehicleW: park.w,
+    groundH: park.y + park.h - PARK_CEILING,
     panel: { x: readX, y: contentTop, w: readW, h: panelH },
     loose,
     shelf,
@@ -1935,13 +2172,21 @@ export function renderCrateLoading(
   //
   // **The ground may be taller than the column.** The vehicle is fitted
   // to the column less the ground she is owed fore and aft, and where
-  // the column cannot hold her at the 40px tap floor her rear rises
-  // above it into the band beside the title, with the tarmac beginning
-  // just above her head line. At 820x620 Spark is 361px tall against a
-  // 295px column and that is the only way she stands whole; the ledger
-  // is in `loadingColumns`.
+  // the column cannot hold her at the tap floor her rear rises above it
+  // into the band beside the title, with the tarmac beginning just above
+  // her head line. At 820x620 Spark is 361px tall against a 295px column
+  // and that is the only way she stands whole; the ledger is in
+  // `loadingColumns`.
+  //
+  // **And where even the risen rear is not enough, the bays come down
+  // rather than the vehicle being cropped.** That is the two phone
+  // viewports and nowhere else; `bayFloorFor` is the whole of it, and
+  // the 48px floor on every *control* on this screen is untouched.
   const column = cols.park;
   const backdropH = carParkBackdropH(column.h);
+  const bayFloor = bayFloorFor(
+    vehicle.id, session.grid.cols, session.grid.rows, cols.groundH,
+  );
   const fit = vehicleFit(
     scene, vehicle.id,
     {
@@ -1955,6 +2200,7 @@ export function renderCrateLoading(
         : column.h,
     },
     session.grid.cols, session.grid.rows,
+    bayFloor,
   );
   const park = drawCarPark(scene, container, {
     width,
@@ -1962,6 +2208,11 @@ export function renderCrateLoading(
     column,
     chosen: vehicle.id,
     spriteW: fit ? fit.spriteW : cols.vehicleW * 0.42,
+    // Passing this is what draws the arrows. They report the choice and
+    // change nothing themselves: `changeVehicle` decides what becomes of
+    // the animals aboard and the owning scene redraws.
+    onVehicleChange: callbacks.onVehicleChange,
+    playerLevel: state.playerLevel,
   });
   container.add(title);
 
@@ -1982,7 +2233,7 @@ export function renderCrateLoading(
     y: park.parkTop,
     w: park.bay.w,
     h: fit ? fit.spriteH : Math.max(100, park.kerbY - park.parkTop),
-  }, park.kerbY - 2, fit);
+  }, bayFloor, park.kerbY - 2, fit);
   drawLoadingBay(scene, container, state, callbacks, setMessage, zones, drag, cols);
 
   // ── Bottom row ──
@@ -2534,6 +2785,8 @@ function vehicleFit(
   box: Box,
   cols: number,
   rows: number,
+  /** The bay floor this screen can afford her — see `bayFloorFor`. */
+  minSlot: number,
 ): BedFit | undefined {
   const key = VEHICLE_SPRITE[id];
   if (!scene.textures.exists(key)) return undefined;
@@ -2543,6 +2796,7 @@ function vehicleFit(
     { w: source.width, h: source.height },
     VEHICLE_BED[id],
     cols, rows,
+    { minSlot },
   );
 }
 
@@ -2566,15 +2820,19 @@ function drawVehicle(
   zones: DropZone[],
   drag: DragFlag,
   box: Box,
+  /** The bay floor this screen can afford her — see `bayFloorFor`. */
+  minSlot: number,
   /**
    * The y the vehicle is cut off at — the tarmac's own bottom edge.
    *
-   * **A vehicle standing whole never reaches it**, because `drawCarPark`
-   * puts it two lines past her nose when she fits; it bites only where
-   * the ground is shorter than she is, which on the sizes this screen
-   * is composed for is the smallest phone viewports (see
-   * `loadingColumns`). Cutting at the edge of the ground rather than at
-   * an arbitrary line at least means she ends where the car park does.
+   * **Nothing reaches it at any size the game ships to.** `drawCarPark`
+   * puts it two lines past her nose when she fits, and since the bay
+   * floor relaxes on a screen with no room for 40 (`bayFloorFor`) she
+   * fits everywhere: the two phone viewports that used to cut Spark and
+   * Bea and Big Tilly now stand all five whole. It is kept because a
+   * ground shorter than the vehicle is still arithmetic somebody could
+   * reintroduce, and cutting at the edge of the ground at least means
+   * she ends where the car park does.
    */
   clipAt?: number,
   /**
@@ -2603,6 +2861,7 @@ function drawVehicle(
       { w: sprite.width, h: sprite.height },
       VEHICLE_BED[vehicle.id],
       cols, rows,
+      { minSlot },
     );
     const left = box.x + (box.w - fit.spriteW) / 2;
     const top = fit.overflows ? box.y : box.y + (box.h - fit.spriteH) / 2;
@@ -3229,8 +3488,11 @@ function drawPanel(
   // leading close up rather than the words running off the bottom of
   // the paper onto the gravel. The type size does not move; that floor
   // is not negotiable, and it is the only thing here that is not.
+  const { tight, copyH } = panelPadding(box.h);
   const facesH = Math.min(
-    PANEL_FACES_MAX, box.h - CHROME.padY * 2 - SPACE.s - PANEL_TEXT_H,
+    PANEL_FACES_MAX,
+    box.h - (tight ? PANEL_TIGHT_PAD_TOP : PANEL_PAD_TOP)
+      - (tight ? PANEL_TIGHT_PAD_BOTTOM : PANEL_PAD_BOTTOM) - SPACE.s - copyH,
   );
   const showFaces = facesH >= PANEL_FACES_MIN;
   // Whether the band has room for the word under each animal as well
@@ -3239,14 +3501,16 @@ function drawPanel(
   // the alternative is a band whose animals change size as a pointer
   // crosses the bays.
   const showReactions = showFaces && facesH - NAME_ROW_H >= REACTION_ROW_H + 40;
-  const tight = box.h < CHROME.padY * 2 + PANEL_TEXT_H;
   const leading = tight ? 0 : 6;
-  const headingY = box.y
-    + (tight ? SPACE.s : CHROME.padY + SPACE.xs)
-    + (showFaces ? facesH + SPACE.s : 0);
+  const bandH = showFaces ? facesH + SPACE.s : 0;
+
+  // More space below the content than above it, at every plate size —
+  // `panelPadding` is the whole of the rule and why.
+  const { above: padTop, below: bottomPad } = panelPadding(box.h, bandH);
+  const headingY = box.y + padTop + bandH;
 
   const facesBox: Box = {
-    x: box.x + CHROME.padX, y: box.y + CHROME.padY, w: innerW, h: facesH,
+    x: box.x + CHROME.padX, y: box.y + padTop, w: innerW, h: facesH,
   };
   // Its own container, because a pointer moving across the bays
   // repaints this and nothing else: the faces are rebuilt, the plate
@@ -3352,13 +3616,34 @@ function drawPanel(
     let y = headingText.length === 0
       ? headingY
       : Math.max(headingY + (tight ? 26 : 34), heading.y + heading.height + SPACE.xs);
+    // **A sentence that will not fit is left out whole, and only after
+    // one has been set.** On the 812pt phone the plate is shorter than
+    // its copy — see `panelPadding`, and the escalation it is pinned by
+    // — and what it did about it was run the last lines off the bottom
+    // of the paper and across the orange lead-in on the floor below,
+    // which reads as a fault rather than as a short panel. What goes is
+    // the last sentence, which on every copy this panel writes is the
+    // explanation; the heading and the first sentence, which is what to
+    // do next, stay. Marcus's own rule for a highlighted line is that
+    // it must make sense if it is the only one read, and these do.
+    //
+    // Never a part sentence and never the only one: a sentence cut in
+    // the middle is worse than a sentence that is not there, and a
+    // panel with nothing on it is worse than either.
+    const limit = box.y + box.h - Math.max(0, bottomPad);
+    let drawn = 0;
     parts.forEach((part, i) => {
       const block = blocks[i];
       const set = part.flatMap((line) => setLines(measurer(i === 1), line, innerW));
       block.setText(set.join('\n'));
       block.setY(y);
-      block.setVisible(set.length > 0);
-      if (set.length > 0) y += block.height + leading;
+      const dropped = drawn > 0 && set.length > 0 && y + block.height > limit;
+      if (dropped) block.setText('');
+      block.setVisible(set.length > 0 && !dropped);
+      if (set.length > 0 && !dropped) {
+        y += block.height + leading;
+        drawn += 1;
+      }
     });
 
     if (!showFaces) return;
@@ -3608,7 +3893,28 @@ export function looseRowScale(
 }
 
 /**
- * Where each loose animal stands, and how big she is drawn.
+ * The width the pager takes off the end of the animals' row, when there
+ * is a pager. One tap target, and no wider.
+ */
+export const WAITING_PAGER_W = MIN_TAP;
+
+/** Where every waiting animal stands, how big, and on which page. */
+export interface LooseRowPlan {
+  /** The box each animal is drawn inside. */
+  size: number[];
+  /** Where her middle goes, from the left edge of the row. */
+  cx: number[];
+  /** Which page she stands on. */
+  page: number[];
+  /** How many pages the queue takes. One means no pager. */
+  pages: number;
+  /** The width the animals have — `box.w` less the pager, if there is one. */
+  rowW: number;
+}
+
+/**
+ * Where each loose animal stands, how big she is drawn, and which page
+ * of the queue she is on.
  *
  * **Sized against each other, never against a cell.** Each animal gets
  * a share of the band's height from `SPECIES_SIZE`, so a hedgehog is a
@@ -3621,26 +3927,149 @@ export function looseRowScale(
  * in it: a centred row re-centres itself every time somebody boards,
  * which would move the animal a child was reaching for.
  *
- * `size` is the box each animal is drawn inside and `cx` is where her
- * middle goes, measured from the floor's left edge. They stand on one
- * ground line, so the sizes can be compared at a glance.
+ * ## The pitch is a tap target, so it is the pitch that decides how many
+ * stand in view
+ *
+ * **Marcus's decision, 9 October 2026: no two animals' tap targets may
+ * overlap.** The pitch was the drawn size plus `GAP`, and a grab handle
+ * is floored at `MIN_TAP` whatever is drawn — so two 30px animals 38px
+ * apart shared 14px of target, and a child aiming at the hedgehog picked
+ * up the rabbit. The pitch is now the larger of the drawn gap and the
+ * two handles' own half-widths, which is `MIN_TAP` between two animals
+ * drawn smaller than one and the drawn gap between two drawn larger.
+ * The first animal's handle is kept inside the row for the same reason.
+ *
+ * **The row comes down as far as `CRATE_ART_MIN` and then pages rather
+ * than shrinking further.** Floored pitches make the row a little wider
+ * than its drawn edges do, so the scale the width allows is now slightly
+ * too large: at 820x620 the six-animal row wanted 403px of a 393px
+ * floor. Three per cent off the scale recovers that, and keeps the
+ * screen Marcus signed off showing all six, so the scale is solved
+ * against the laid-out row rather than against the sum of the drawn
+ * widths.
+ *
+ * **What stops it there is the smallest animal, not the largest.** A
+ * full lorry's eight share the same floor, so the width already has the
+ * dog at 68 and the bat at 20; staying on one page would mean coming
+ * down another fifth, to a 54px dog and a 16px bat — and the bat is
+ * already the hard one to recognise at 0.3 of a dog. So the search will
+ * not take the smallest animal below `CRATE_ART_MIN`, the size this file
+ * already holds as small enough to stop being anybody in particular.
+ * **This is where Marcus's instruction that the animals stay large is
+ * spent: it buys a page turn instead of another fifth off every animal.**
+ *
+ * Where the floor is so short that the width has already taken the
+ * animals under that size — the landscape phone, where the band is 48px
+ * and the bat is 14 — no shrinking is allowed at all and the queue pages
+ * straight away.
+ *
+ * **And once it is paging, they grow.** A page is not the queue: each
+ * one has the floor to itself, and the scale solved for all eight
+ * standing together is drawing them for a row that is not there. So the
+ * scale goes back up as far as the band's height allows, stopping
+ * before it would cost another page turn — which at 820x620 takes a
+ * lorry's load from a 68px dog to a 108px one. Paging makes the animals
+ * larger here, not smaller.
+ *
+ * **The pages are measured off everybody offered, so they do not move.**
+ * Which page an animal is on is decided once, from the whole cargo, and
+ * never from whoever is still waiting — a queue re-partitioned on every
+ * tap would move the animal a child was reaching for, which is the fault
+ * the row's left-hand anchoring exists to avoid. Boarded animals leave
+ * their gap, exactly as they did on a single page.
  */
 export function looseRow(
   units: readonly number[],
   box: { w: number; h: number },
   gap: number,
-): { size: number[]; cx: number[] } {
-  if (units.length === 0) return { size: [], cx: [] };
-  const wanted = looseRowScale(units, box.w, gap);
-  const scale = Math.max(2, Math.min(box.h, wanted > 0 ? wanted : box.h));
-  const size = units.map((u) => Math.max(1, Math.round(u * scale)));
-  const cx: number[] = [];
-  let x = 0;
-  for (const s of size) {
-    cx.push(x + s / 2);
-    x += s + gap;
+): LooseRowPlan {
+  if (units.length === 0) {
+    return { size: [], cx: [], page: [], pages: 0, rowW: box.w };
   }
-  return { size, cx };
+
+  /**
+   * Walk the queue at this scale, starting a new page where the next
+   * animal's grab handle would not fit in `rowW`.
+   */
+  const lay = (scale: number, rowW: number): LooseRowPlan => {
+    const size = units.map((u) => Math.max(1, Math.round(u * scale)));
+    const cx: number[] = [];
+    const page: number[] = [];
+    let at = 0;
+    let prev = -1;
+    let p = 0;
+    for (let i = 0; i < size.length; i += 1) {
+      const half = Math.max(size[i], MIN_TAP) / 2;
+      let centre = prev < 0
+        ? half
+        : at + Math.max(
+          (size[prev] + size[i]) / 2 + gap,
+          Math.max(size[prev], MIN_TAP) / 2 + half,
+        );
+      // The first animal on a page never turns the page, however wide
+      // she is: a page with nobody on it is not a page.
+      if (prev >= 0 && centre + half > rowW) {
+        p += 1;
+        centre = half;
+      }
+      cx.push(centre);
+      page.push(p);
+      at = centre;
+      prev = i;
+    }
+    return { size, cx, page, pages: p + 1, rowW };
+  };
+
+  const wanted = looseRowScale(units, box.w, gap);
+  const want = Math.max(2, Math.min(box.h, wanted > 0 ? wanted : box.h));
+  const whole = lay(want, box.w);
+  if (whole.pages === 1) return whole;
+
+  // The smallest scale the search may take: the one that puts the
+  // smallest animal in the cargo on `CRATE_ART_MIN`, or `want` itself
+  // where the floor is so short that she is already under it.
+  const least = Math.min(want, CRATE_ART_MIN / Math.min(...units));
+  const scale = least;
+  if (least < want && lay(least, box.w).pages === 1) {
+    // Twenty halvings settle a range of a few hundred pixels to well
+    // under a pixel of scale.
+    let lo = least;
+    let hi = want;
+    for (let i = 0; i < 20; i += 1) {
+      const mid = (lo + hi) / 2;
+      if (lay(mid, box.w).pages === 1) lo = mid; else hi = mid;
+    }
+    return lay(lo, box.w);
+  }
+
+  // They do not all fit at any size the smallest of them survives, so
+  // the queue pages. The pager stands at the end of the row and its own
+  // width comes off before the pages are worked out, or the last animal
+  // on each page would stand under it.
+  const paged = Math.max(MIN_TAP, box.w - WAITING_PAGER_W - gap);
+  const start = lay(scale, paged);
+
+  // **And then they grow, because a page is not the queue.** The scale
+  // above was solved for the whole queue standing on one floor; once it
+  // is in pages, each page has the floor to itself and the animals were
+  // being drawn for a row that is not there — page two of a lorry's
+  // eight came out as four 12-to-22px animals on an empty strip of
+  // gravel. So the scale goes back up as far as the band's height
+  // allows, stopping before it would cost another page turn. The page
+  // count is monotone in the scale, so this is a search and not a
+  // guess, and the sizes it settles on are the same on every page.
+  if (scale < box.h) {
+    let lo = scale;
+    let hi = box.h;
+    let best = start;
+    for (let i = 0; i < 20; i += 1) {
+      const mid = (lo + hi) / 2;
+      const tried = lay(mid, paged);
+      if (tried.pages <= start.pages) { lo = mid; best = tried; } else hi = mid;
+    }
+    return best;
+  }
+  return start;
 }
 
 /**
@@ -3871,11 +4300,6 @@ function drawLooseAnimals(
   const held = heldAnimal(session);
   const heldLoose = held && !heldCrateType(session) ? held : null;
 
-  // The floor is a space of its own: a crated animal dragged back down
-  // here is put down, out of her crate. Pushed before anything else, so
-  // it is a target even when there is nobody standing on it.
-  zones.push({ rect: { ...box }, target: { kind: 'floor' } });
-
   // On the floor: everybody not aboard, and the animal in your hands
   // only while she is still loose — once she is in a crate she is on
   // the shelf, in it.
@@ -3885,6 +4309,7 @@ function drawLooseAnimals(
     : waitingToBoard(session);
 
   if (onFloor.length === 0) {
+    zones.push({ rect: { ...box }, target: { kind: 'floor' } });
     container.add(
       scene.add.text(
         box.x + SPACE.s, box.y + Math.min(box.h, MIN_TAP) / 2,
@@ -3905,15 +4330,44 @@ function drawLooseAnimals(
   // waiting.** A row re-measured on every tap gives the remaining
   // animals a new size and a new place each time, so the picture jumps
   // because of something the child did somewhere else. Measured once,
-  // the row simply shortens from the right.
-  const { size, cx } = looseRow(
+  // the row simply shortens from the right — and which page each animal
+  // is on is settled the same way, once.
+  const plan = looseRow(
     session.offered.map((a) => SPECIES_SIZE[a.species]),
     { w: box.w, h: box.h },
     GAP,
   );
+  const { size, cx } = plan;
+
+  // The floor is a space of its own: a crated animal dragged back down
+  // here is put down, out of her crate. It stops where the animals do,
+  // so the pager is a control and not somewhere to drop an animal.
+  zones.push({ rect: { ...box, w: plan.rowW }, target: { kind: 'floor' } });
+
+  // Which page is showing. Clamped here rather than trusted, so an
+  // owner that simply stores a number — and a cargo that shrank since
+  // it did — can never leave the floor empty.
+  const page = plan.pages > 0
+    ? ((state.waitingPage ?? 0) % plan.pages + plan.pages) % plan.pages
+    : 0;
+  const pageOf = (a: LoadableAnimal): number => plan.page[order(a)] ?? 0;
+  const here = onFloor.filter((a) => pageOf(a) === page);
+  const elsewhere = onFloor.length - here.length;
+  if (elsewhere > 0) {
+    // The next page with somebody still waiting on it, coming round.
+    // Skipping the pages whose animals have all boarded is what keeps
+    // the control honest: it says how many are waiting out of view and
+    // every press brings some of them into it.
+    const next = Array.from({ length: plan.pages }, (_, i) => (page + 1 + i) % plan.pages)
+      .find((p) => p !== page && onFloor.some((a) => pageOf(a) === p)) ?? page;
+    drawWaitingPager(
+      scene, container, box, elsewhere, () => callbacks.onWaitingPage(next),
+    );
+  }
+
   const ground = box.y + box.h;
 
-  for (const animal of onFloor) {
+  for (const animal of here) {
     const place = order(animal);
     const s = size[place] ?? MIN_TAP;
     const x = box.x + (cx[place] ?? s / 2);
@@ -3982,6 +4436,114 @@ function drawLooseAnimals(
     // The animal in your hands is held still; the ones waiting breathe.
     if (!lifted) breathe(scene, piece, place);
   }
+}
+
+/**
+ * The control at the end of the queue that brings the next animals
+ * round, with the number still waiting out of view printed on it.
+ *
+ * ## Why there is a control here at all
+ *
+ * Adjacent animals' tap targets may not overlap (`looseRow`), so the
+ * floor holds `floor(width / MIN_TAP)` of them however large they are
+ * drawn — five on an 812pt phone, six on an 874, eight or more on
+ * anything the screen is stacked on. Up to eight animals can be offered,
+ * so on a phone some of them are out of view and the screen has to say
+ * so and give the child a way to reach them.
+ *
+ * ## Why a pager and not a scroller
+ *
+ * **It is operable by single taps, which a scroller is not.** The child
+ * this game is for may not drag or swipe accurately — it is the reason
+ * every drag on this screen is also a tap — and a row that answers only
+ * to a swipe would be the one part of the mechanic she could not use.
+ * A momentum scroller is worse again: a flick that overshoots moves the
+ * animal she was reaching for, and nothing on this floor is allowed to
+ * move for a reason she did not intend.
+ *
+ * **And the queue is not hidden.** The plate prints how many animals are
+ * waiting where she cannot see them — a numeral, not a word, because the
+ * child cannot read — so "there are three more" is on the screen at all
+ * times, which is the thing a silently truncated row did not say. The
+ * pages themselves are fixed off the whole cargo, so an animal is always
+ * on the same page and always in the same place on it.
+ *
+ * **It comes round rather than stopping.** The vehicle arrows are dimmed
+ * at the ends and do not wrap, because a size order has ends and a child
+ * can lose her place in it; a queue of animals has no wrong end, and one
+ * control that always brings somebody is better for a pre-reader than
+ * two that are sometimes dead. The numeral says how many are not in
+ * front of her, so it is never a lie about where she is.
+ */
+function drawWaitingPager(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  /** The animals' own box: the pager stands at the right-hand end of it. */
+  box: Box,
+  /** How many animals are waiting on the pages she cannot see. */
+  waiting: number,
+  onPress: () => void,
+): void {
+  const w = WAITING_PAGER_W;
+  // As tall as the row has room for, up to a comfortable plate. It
+  // stands on the same ground line as the animals, so it is a thing at
+  // the end of the queue rather than a button floating over the floor.
+  const h = Math.max(MIN_TAP, Math.min(box.h, 64));
+  const cx = box.x + box.w - w / 2;
+  const cy = box.y + box.h - h / 2;
+
+  const plate = createChromePlate(scene, 0, 0, w, h, { radius: 14 });
+
+  // **The number beside the chevron, not above it.** A tap target is
+  // 48px square and a 16px numeral stacked over a chevron fills it
+  // corner to corner, which at the size it is actually drawn reads as
+  // one squiggle rather than as a number and an arrow. Side by side
+  // they are two marks with air round each: how many are waiting, and
+  // which way they are.
+  const count = scene.add.text(-9, 0, `${waiting}`, {
+    fontSize: `${MIN_FONT.small}px`,
+    fontFamily: FONTS.title,
+    fontStyle: 'bold',
+    color: CHROME.ink,
+    resolution: TEXT_RESOLUTION,
+  }).setOrigin(0.5);
+
+  // The chevron, drawn rather than set, for the reason `drawBackControl`
+  // gives: a glyph resolves to whatever the device has.
+  const chevron = scene.add.graphics();
+  chevron.fillStyle(hexNum(CHROME.ink), 1);
+  const barL = 13;
+  const barT = 4.5;
+  for (const turn of [-1, 1]) {
+    chevron.save();
+    chevron.translateCanvas(10, turn * 4.5);
+    chevron.rotateCanvas(turn * -Math.PI / 4);
+    chevron.fillRoundedRect(-barL / 2, -barT / 2, barL, barT, barT / 2);
+    chevron.restore();
+  }
+
+  const piece = scene.add.container(cx, cy, [plate, count, chevron]);
+  piece.setSize(w, h);
+  piece.setName('waiting-more');
+
+  let done = false;
+  const hit = scene.add.rectangle(0, 0, Math.max(w, MIN_TAP), Math.max(h, MIN_TAP), 0x000000, 0)
+    .setInteractive({ useHandCursor: true })
+    .setName('waiting-more-hit');
+  hit.on('pointerover', () => piece.setScale(1.05));
+  hit.on('pointerout', () => piece.setScale(1));
+  hit.on('pointerdown', () => {
+    // A state tween, as every other press in the game is: the page turn
+    // hangs off `onComplete`, and a yoyo ends where it started, so with
+    // motion reduced this moves nothing and still turns the page.
+    // Absolute numbers only — a relative string is silently skipped.
+    stateTween(scene, {
+      targets: piece, scaleX: 0.94, scaleY: 0.94, duration: 60, yoyo: true,
+      onComplete: () => { if (!done) { done = true; onPress(); } },
+    });
+  });
+  piece.add(hit);
+  container.add(piece);
 }
 
 /**

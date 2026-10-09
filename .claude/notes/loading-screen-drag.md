@@ -556,3 +556,234 @@ the shelf lit for her), `short-874x402-reduced-motion` and
 `apps/game/tools/measure-loading.mjs` prints the numbers the test
 fixture is measured from. The Claude browser pane cannot run Phaser
 (`.claude/TRAPS.md`).
+
+## The bay floor, the queue's pitch, the panel's padding, and the arrows
+
+2026-10-09, later again, on `claude/crate-loading`. Files:
+`crate-loading-view.ts`, `car-park.ts`, `PtvDriveScene.ts`,
+`crate-loading-view.test.ts`, `tools/shoot-short-loading.mjs`.
+
+### The fixture was re-measured first, and this time it was right
+
+`RAW_COLUMNS` in `fleet-art.test.ts` was read off the running screen in
+Chrome again before anything was changed, and it agrees with what the
+layout hands out at all four viewports it records — `24,97 542x437`,
+`24,97 542x369`, `24,97 424x295`, and `24,16 360x370` with the vehicle
+drawn no wider than 132. Nothing in this work moved the car park's
+column, so it is still right afterwards. `measure-loading.mjs` is what
+was run; it also reads the two 812pt sizes.
+
+### Job 1: the bay floor relaxes, and the number is 31
+
+**Marcus's decision: the drop bays may go under 40 where there is no
+room for 40, and nothing else may.** The arithmetic, all of it derived
+rather than chosen:
+
+- The short layout hands the car park `height - 2 * SAFE_MARGIN` of
+  ground: 370px at 874x402, **343 at 812x375** (the Capacitor app) and
+  **293 at 812x325** (the Home Screen web clip).
+- `wholeVehicleHeight` is affine in the bay floor. Spark's six bays at
+  40 need her drawn 361. Solving `= 343` gives 37.85 and `= 293` gives
+  31.75, so **37 and 31** are the largest whole pixels that stand her.
+- **The threshold is 393px of viewport height**: Spark's 361 plus two
+  safe margins. At 393 every vehicle keeps 40; at 392 she is the first
+  to give a pixel up.
+- `BAY_FLOOR_MIN` is **31** — the lowest number any screen the game
+  ships to asks for, and therefore the clamp.
+
+`bayFloorFor(id, cols, rows, groundH)` is the whole of it, and it is
+**per vehicle**: relaxing the floor can never shrink a bay that already
+clears 40, because the floor is only the size `fitLoadBed` *grows* a
+vehicle to reach. So at 812x325 Spark takes 31, Bea 35 and Big Tilly
+37, while Henry and Trikey keep 40, and an arrow press changes nothing
+but that vehicle's own bays.
+
+| | 1024x768 | 1024x700 | 820x620 | 874x402 | 812x375 | 812x325 |
+|---|---|---|---|---|---|---|
+| ground | 518.5 | 450 | 376 | 370 | 343 | 293 |
+| bay floor | 40 | 40 | 40 | 40 | 40, Spark 37 | 40; Bea 35, Tilly 37, Spark 31 |
+| anything cropped | no | no | no | no | **no** | **no** |
+
+**What a relaxed bay costs is size, not separation.** `bayHitSize` is
+floored at `MIN_TAP` *but never past its neighbour*, so a 31px bay has
+a 39px target that still touches rather than overlaps the next one.
+Said at the call site in `renderCrateLoading`, and a test holds that
+the arrows, the crates' pitch and the animals' pitch all still clear 48
+at 812x325 while the bays do not.
+
+**`FLEET_MIN_WHOLE_H` stays measured at `BAY_MIN`.** A relaxed floor fed
+back into the stacked/short breakpoint would move it, and the shape may
+not change when an arrow changes the vehicle. 599/598 is where it was.
+
+**A two-pixel crop nobody had found.** A test now walks every viewport
+height from 325 to 768 rather than the six composed sizes. At 599 and
+600 — stacked, just above the breakpoint — the ground is 359 against
+Spark's 361, so she was cut by two pixels at heights no named viewport
+sits on. The floor comes down to 39 there and she is whole.
+
+### Job 2: a full hit box apart, and what that costs
+
+**The pitch between two waiting animals is now the larger of the drawn
+gap and the two grab handles' half-widths**, so no two targets overlap.
+It is not simply `MIN_TAP`: an animal drawn 50px has a 25px half, so a
+50 beside a 10 needs 49 of pitch, not 48.
+
+**Drawing them smaller buys nothing past a tap target.** A row of `n`
+animals needs at least `n * MIN_TAP` of floor however small they are
+drawn, so the number in view is set by the pitch and not by the art.
+That is the argument that Marcus's "the animals stay large" and "a full
+hit box apart" do not trade against each other.
+
+Two things follow, both in `looseRow`:
+
+1. **A three per cent shrink, to keep the screen he signed off intact.**
+   The floored pitches made the six-animal row 403px wide on 820x620's
+   393px floor, so the scale is solved against the laid-out row rather
+   than the sum of the drawn widths: the dog goes 99 to 96 and all six
+   stay in view.
+2. **It will not go below `CRATE_ART_MIN` for the smallest animal.** A
+   full lorry's eight on that floor would need the dog at 54 and the bat
+   at 16. That is the trade Marcus ruled out, so the queue pages instead.
+
+**Paging, not scrolling, and the reason is the child.** A scroller
+answers only to a drag or a swipe, which is the one gesture this screen
+has been built not to require — every drag on it is also a tap. A
+momentum flick is worse again: an overshoot moves the animal she was
+reaching for, and nothing on this floor may move for a reason she did
+not intend. So the queue pages, and the control is one plate at the end
+of the row carrying **a numeral and a chevron**: how many animals are
+waiting where she cannot see them, and which way they are. The numeral
+is the answer to "a queue that silently truncates is worse than one
+that is visibly longer than the screen" — it is on the screen at all
+times, and it is a digit because the child cannot read.
+
+- **It comes round rather than stopping.** The vehicle arrows are
+  dimmed at the ends and do not wrap, because a size order has ends; a
+  queue of animals has no wrong end, and one control that always brings
+  somebody beats two that are sometimes dead. It skips pages whose
+  animals have all boarded, so a press always brings animals.
+- **The pages are fixed off the whole cargo**, so an animal is always on
+  the same page and in the same place on it. Boarded animals leave their
+  gap, as they did on a single row.
+- **Once it pages, the animals grow.** Each page has the floor to
+  itself, so the scale goes back up to what the band's height allows,
+  stopping before it would cost another page turn. At 820x620 a lorry's
+  load goes from a 68px dog to a 108px one. Paging makes them larger
+  here, not smaller.
+- The numeral sits **beside** the chevron, not above it: a 48px square
+  with a 16px numeral over a chevron fills corner to corner and reads
+  as one squiggle. Shot, looked at, and changed.
+
+What it costs, as page counts (a test holds the table):
+
+| | 1024x768 | 1024x700 | 820x620 | 874x402 | 812x375 | 812x325 |
+|---|---|---|---|---|---|---|
+| six animals | 1 | 1 | 1 | 1 | 2 | 2 |
+| eight animals | 1 | 1 | 2 | 2 | 2 | 2 |
+
+The page is the scene's (`waitingPage`, `onWaitingPage`); the view
+clamps whatever it is handed, so an owner that only counts up can never
+land on a page that is not there. A vehicle change puts it back to zero.
+
+### Job 3: the panel's padding, and the panel it was not the only one in
+
+`PANEL_PAD_TOP` and `PANEL_PAD_BOTTOM` are now two numbers, the lower
+one larger, and `panelPadding(boxH, bandH)` is the rule: **where the
+plate has the room, the top is its own number and the bottom keeps the
+rest; where it has less, both come down in proportion and the larger is
+still underneath; where the plate is shorter than the copy, the top goes
+to nothing so every pixel there is lands under the words.** Measured on
+the running screen afterwards:
+
+| | above | below |
+|---|---|---|
+| 1024x768 | 12.6 | 90.7 |
+| 820x620 | 12.6 | 64.5 |
+| 874x402 | 3.5 | 27.3 (was 8 against 2.5) |
+| 812x375 | 0 | 4.3 |
+
+**Two more of the same inversion came out of looking for it elsewhere.**
+
+- **The roomy panel was inverted too**, by four pixels nobody had
+  written a reason for: `CHROME.padY + SPACE.xs` above against
+  `CHROME.padY` below. The stray four are gone.
+- **The vehicle arrow plates were inverted by 2.6px** — the chevron was
+  pinned 36px from the top and the two lines fell where they fell.
+  `arrowPlatePadding` runs the same proportional rule on its own pair,
+  and a dimmed arrow's one word now sits on the name's line, so it reads
+  as the same plate with one line instead of a different control.
+- The lead-in blocks are a centred pill with equal air above and below,
+  which is a different thing and was left alone.
+
+**And a containment, which is not the same as a fix.** At 812pt the
+reading column is 197.5px (app) and 147.5 (clip), the floor takes 76 of
+it before the panel is given anything, and what is left is less than the
+copy. It was running the last lines off the paper and across the orange
+lead-in below. A sentence that will not fit is now **left out whole, and
+only after one has been set** — never a part sentence, never the only
+one. What goes is the explanation; the heading and the first sentence,
+which is what to do next, stay.
+
+### Job 4: the arrows are wired
+
+`crate-loading-view.ts` passes `onVehicleChange` and `playerLevel` to
+`drawCarPark` (which is what draws the arrows), and
+`PtvDriveScene.changeBay` is the recipe from
+`.claude/notes/car-park-one-world.md` section 5: `changeVehicle(session,
+to)` from `@arc/game-logic`, then the vehicle id, the session and the
+notice, then a redraw. Nothing is reimplemented and nothing is cached —
+the title, the bed, the grid, the bays and the arrows' own neighbours
+are all read off `state` every render.
+
+**The notice type gained an optional `heading`**, because `level: null`
+draws "Wait a Moment", which is right for an empty vehicle asked to set
+off and wrong here. Two shapes:
+
+- One animal came off: **"Milo Is Waiting Again"**. Not decoration — the
+  rules' sentence for that case carries her name in its *last* clause,
+  three sentences in, past what the plate can hold. A heading cannot be
+  dropped, so the name cannot be.
+- Two or more: **"Waiting to Board Again"**, because the rules' first
+  sentence names them and that one is never dropped.
+
+**A six-line copy budget was tried for this and reverted.** The longest
+change message — "Biscuit the dog makes Daisy the bunny frightened. They
+cannot sit next to each other. There is no other space in Henry for
+Biscuit, so Biscuit is waiting to board again." — is six lines at the
+288px column, and budgeting for six leaves `facesH` at 58 against a
+`PANEL_FACES_MIN` of 62: the panel loses its picture at 820x620, for
+every copy it writes, to carry one sentence of one event. The name went
+into the heading instead and `PANEL_TEXT_H` stayed at four lines.
+
+### Still not right, and for Marcus rather than the next agent
+
+- **The panel's copy is longer than its plate at 812pt.** The plate is
+  109.5px in the Capacitor app and **59.5 in the Home Screen web clip**,
+  against a copy that wants 126. Every lever is already down: the type
+  size does not move, the floor holds one row of tap targets, and the
+  title plate takes 97.5 of a 325px screen because the all-caps title is
+  his own decision. The containment above stops it drawing over the
+  floor; what the panel should *say* on that viewport is a decision
+  about words, not layout. Pinned by a test that states the numbers.
+- **A relaxed bay's target is the pitch, not 48.** 39px at 812x325 for
+  Spark's six. Nothing overlaps, but it is under the floor the rest of
+  the game keeps, and it is worth his knowing in those words.
+- **The queue pages at 812pt with the standard six animals.** Four then
+  two. On a 325px-tall screen that may be the right answer anyway; it is
+  the first screen in the game with a page turn on it.
+
+### Screenshots
+
+`/private/tmp/claude-501/-Users-marcus-Projects-animal-rescue-centre/cf0b1264-730a-4126-9f9f-22caf5987837/scratchpad/loading-floor-2026-10-09/`
+— `app-812x375-trikey|henry|bea|spark|bigtilly` (all five whole in the
+Capacitor app), `clip-812x325-spark` (whole in the web clip),
+`queue-820x620-eight` and `queue-1024x768-eight` (the new spacing),
+`queue-pager-812x375` and `queue-pager-turned-812x375` (the pager and
+the page it turns to), `arrow-downsize-812x375` and
+`arrow-downsize-820x620` (a press mid-change, with the animal back on
+the floor and named), `arrow-upsize-820x620`, `panel-874x402` (the
+padding), and the earlier set re-shot. Real Chrome under Playwright;
+the Claude browser pane cannot run Phaser.
+
+`pnpm -r typecheck` green, `pnpm -r lint` 0 errors, `pnpm -r test` 925
+game-logic and 604 apps/game (592 at the branch point).

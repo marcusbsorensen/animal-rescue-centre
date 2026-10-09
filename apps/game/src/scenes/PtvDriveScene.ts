@@ -10,12 +10,12 @@ import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Animal, Economy, Species } from '@arc/shared-types';
 import {
   VEHICLE_DEFS, DESTINATIONS, CRATE_DEFS, getDestination,
-  aboard, blockingNotes, canSetOff, createLoadingSession, describeCrateChoice, heldAnimal,
-  holdFromTray, liftFromSlot, placeHeld, putHeldBack, putHeldInCrate, spawnAnimal,
+  aboard, blockingNotes, canSetOff, changeVehicle, createLoadingSession, describeCrateChoice,
+  heldAnimal, holdFromTray, liftFromSlot, placeHeld, putHeldBack, putHeldInCrate, spawnAnimal,
   type CompatibilityLevel, type CrateType, type LoadableAnimal, type LoadingSession,
   type VehicleDef, type VehicleType,
 } from '@arc/game-logic';
-import { renderCrateLoading } from '../driving/crate-loading-view';
+import { renderCrateLoading, titleCase } from '../driving/crate-loading-view';
 import { PICKER_EXIT_MARGIN, VEHICLE_SPRITE, pickerLayout } from '../driving/fleet-art';
 import { drawForecourt, drawVehicleShadow } from '../driving/forecourt';
 import { stateTween } from '../ui/tween';
@@ -320,6 +320,8 @@ export class PtvDriveScene extends Phaser.Scene {
   private loadNotice: {
     level: CompatibilityLevel | null;
     text: string;
+    /** The panel's heading, where the default is wrong for the event. */
+    heading?: string;
     /**
      * Who the refusal was about. The sentence names two animals and
      * the panel now draws them, so the ids travel with the words
@@ -332,6 +334,17 @@ export class PtvDriveScene extends Phaser.Scene {
      */
     animalId?: string;
   } | null = null;
+  /**
+   * Which page of the animals waiting to board the loading screen is
+   * showing.
+   *
+   * Zero on every viewport wide enough for all of them, which is every
+   * one the screen is stacked on; the pages exist because two adjacent
+   * animals' tap targets may not overlap and a phone's floor is only so
+   * wide. The view clamps whatever it is given, so this only ever has to
+   * count up.
+   */
+  private waitingPage = 0;
 
   // Render state
   private roadGfx?: Phaser.GameObjects.Graphics;
@@ -546,6 +559,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.poorlyIds = this.readPoorly(data);
     this.loadSession = undefined;
     this.loadNotice = null;
+    this.waitingPage = 0;
     this.phase = 'select';
     this.scrollY = 0;
     this.traffic = [];
@@ -1152,6 +1166,7 @@ export class PtvDriveScene extends Phaser.Scene {
     if (this.cargo.length > 0) {
       this.loadSession = createLoadingSession(id, this.loadableCargo(), this.preloadIds);
       this.loadNotice = null;
+      this.waitingPage = 0;
       this.phase = 'loading';
       this.renderView();
       return;
@@ -1254,6 +1269,8 @@ export class PtvDriveScene extends Phaser.Scene {
       vehicle: VEHICLE_DEFS[this.vehicleId],
       destinationName: this.destinationLabel(),
       animalsById: new Map(this.cargo.map((a) => [a.id, a])),
+      playerLevel: this.playerLevel,
+      waitingPage: this.waitingPage,
       notice: this.loadNotice,
     }, {
       onHoldFromTray: (animalId) => this.afterLoadTap(holdFromTray(session, animalId)),
@@ -1262,6 +1279,12 @@ export class PtvDriveScene extends Phaser.Scene {
       onPlaceInSlot: (slotIndex) => this.placeIntoBay(session, slotIndex),
       onNeedCrate: () => this.askForCrate(session),
       onPutBack: () => this.afterLoadTap(putHeldBack(session)),
+      onVehicleChange: (to) => this.changeBay(to),
+      onWaitingPage: (page) => {
+        AudioManager.getInstance().playSfx('button_click');
+        this.waitingPage = page;
+        this.renderView();
+      },
       onSetOff: () => this.setOffFromLoading(session),
       onBack: () => {
         // Back goes to the vehicle picker, not out of the drive: the
@@ -1281,6 +1304,65 @@ export class PtvDriveScene extends Phaser.Scene {
     AudioManager.getInstance().playSfx('button_click');
     this.loadSession = session;
     this.loadNotice = null;
+    this.renderView();
+  }
+
+  /**
+   * An arrow beside the vehicle was pressed: load the vehicle in the
+   * next bay along instead.
+   *
+   * **The rule about who stays aboard is `changeVehicle`'s and this does
+   * not second-guess it**: it keeps what fits in grid order, re-seats
+   * everybody whose own place survives in the same place, never seats
+   * anybody beside somebody who frightens them, and hands back whoever
+   * is waiting to board again along with the sentence that names them.
+   * The animal in the child's hands stays in her hands.
+   *
+   * **Nothing is cached from the vehicle this screen was built with.**
+   * `renderCrateLoading` reads the bed, the grid, the all-caps title and
+   * the bays off `state` every time, and the session's grid is the new
+   * vehicle's, so the whole screen re-flows from these three lines.
+   *
+   * **The notice carries its own heading, and the heading is where the
+   * name goes.** A notice with no feeling and no pair is otherwise
+   * headed "Wait a Moment", which is right for an empty vehicle asked
+   * to set off and wrong here: nobody is waiting for anything, the
+   * animals have gone back to the floor, and the heading should say so
+   * in the same words the floor's own lead-in uses.
+   *
+   * Where exactly one animal came off, the heading names her. That is
+   * not decoration: the rules' sentence for the one case that returns a
+   * single animal — no safe space for her in the new vehicle — carries
+   * her name in its *last* clause, and that clause is three sentences
+   * in, past what the panel's plate can hold. The heading cannot be
+   * dropped, so the name cannot be. Where two or more came off, the
+   * rules' first sentence names them and the generic heading will do.
+   *
+   * It also names the first of them as the picture, so the child sees
+   * one of the animals the sentence is about.
+   */
+  private changeBay(to: VehicleType): void {
+    const session = this.loadSession;
+    if (!session || to === this.vehicleId) return;
+    AudioManager.getInstance().playSfx('button_click');
+
+    const out = changeVehicle(session, to);
+    this.vehicleId = to;
+    this.loadSession = out.session;
+    // A shorter queue on the floor may have fewer pages than the one
+    // she was looking at; the view clamps it, and starting at the front
+    // is the kinder answer when the queue has just changed under her.
+    this.waitingPage = 0;
+    this.loadNotice = out.message
+      ? {
+        level: null,
+        heading: out.returned.length === 1
+          ? titleCase(`${out.returned[0].name} is waiting again`)
+          : 'Waiting to Board Again',
+        text: out.message,
+        animalId: out.returned[0]?.id,
+      }
+      : null;
     this.renderView();
   }
 

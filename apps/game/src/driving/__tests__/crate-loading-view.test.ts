@@ -52,16 +52,20 @@ import {
   type VehicleType,
 } from '@arc/game-logic';
 import {
-  DROP_SLACK, SPECIES_SIZE, activityTitle, dropTargetsFor, affectedBy, bayHitSize, glyphWorthDrawing,
+  BAY_FLOOR_MIN, DROP_SLACK, SPECIES_SIZE, WAITING_PAGER_W, activityTitle, bayFloorFor,
+  dropTargetsFor, affectedBy, bayHitSize, glyphWorthDrawing,
   gridFace, gridFeeling, loadingColumns, looseRow, looseRowScale, nearestDropZone, pairFaces,
-  pairOf, pairReactions, plural, setLines, splitLoadingBay, splitTakeaway, tileArt, titleCase,
-  whoTravelsIn,
+  pairOf, pairReactions, panelPadding, plural, setLines, splitLoadingBay, splitTakeaway,
+  tileArt, titleCase, whoTravelsIn,
   type DropZone,
 } from '../crate-loading-view';
 import {
-  BAY_GAP, VEHICLE_BED, VEHICLE_BED_SOURCE, fitLoadBed, wholeVehicleHeight,
+  BAY_GAP, BAY_MIN, VEHICLE_BED, VEHICLE_BED_SOURCE, fitLoadBed, wholeVehicleHeight,
 } from '../fleet-art';
-import { ARROW_GAP, ARROW_W, carParkBackdropH, vehicleParkTop } from '../car-park';
+import {
+  ARROW_GAP, ARROW_H, ARROW_PAD_BOTTOM, ARROW_W, arrowPlatePadding, carParkBackdropH,
+  vehicleParkTop,
+} from '../car-park';
 import { fitChipGrid } from '../../ui/layout';
 import { MIN_TAP, PAGE_MARGIN, SAFE_MARGIN } from '../../ui/constants';
 
@@ -597,25 +601,120 @@ describe('the loose animals are sized against each other', () => {
   });
 
   it('lays the row out left to right from the floor’s own edge', () => {
+    // **The premise that changed, 2026-10-09: the gap is no longer
+    // always 8.** It used to be exactly `gap` between every pair of
+    // drawn edges, and this test said so. The pitch is now floored so
+    // that no two grab handles overlap, which means two small animals
+    // stand further apart than their drawn edges need — the gap is
+    // `>= 8` now, and the pitch is held by the test after this one.
+    // Nothing about the direction or the starting edge has moved.
     const { size, cx } = looseRow([1, 0.5, 0.25], { w: 600, h: 100 }, 8);
-    expect(cx[0]).toBe(size[0] / 2);
+    expect(cx[0]).toBe(Math.max(size[0], MIN_TAP) / 2);
     for (let i = 1; i < cx.length; i += 1) {
       const gap = (cx[i] - size[i] / 2) - (cx[i - 1] + size[i - 1] / 2);
-      expect(gap, `gap before ${i}`).toBeCloseTo(8, 5);
+      expect(gap, `gap before ${i}`).toBeGreaterThanOrEqual(8 - 1e-9);
+    }
+    // And where the drawn edges alone need more than a handle does, they
+    // are what decides it: a dog beside a cat is not pushed apart.
+    expect((cx[1] - size[1] / 2) - (cx[0] + size[0] / 2)).toBeCloseTo(8, 5);
+  });
+
+  it('never lets two waiting animals’ tap targets overlap', () => {
+    // **The fault, and Marcus's decision.** A grab handle is floored at
+    // `MIN_TAP` whatever the animal is drawn at, and the pitch was the
+    // drawn size plus 8 — so two 30px animals stood 38px apart and
+    // shared 14px of target, and a child aiming at the hedgehog picked
+    // up the rabbit. The pitch is a full hit box now, so two handles
+    // touch and never overlap.
+    const units = SPECIES.map((s) => SPECIES_SIZE[s]);
+    for (const w of [196, 252, 314, 393, 503, 900]) {
+      const { size, cx, page } = looseRow(units, { w, h: 96 }, 8);
+      for (let i = 1; i < cx.length; i += 1) {
+        if (page[i] !== page[i - 1]) continue;
+        expect(cx[i] - cx[i - 1], `pitch before ${i} at ${w}`)
+          .toBeGreaterThanOrEqual(MIN_TAP - 1e-9);
+        const overlap = (cx[i - 1] + Math.max(size[i - 1], MIN_TAP) / 2)
+          - (cx[i] - Math.max(size[i], MIN_TAP) / 2);
+        expect(overlap, `handles overlap before ${i} at ${w}`).toBeLessThanOrEqual(1e-9);
+      }
     }
   });
 
-  it('fits the row inside the floor it was given', () => {
+  it('fits every page inside the floor it was given, handles and all', () => {
     const units = SPECIES.map((s) => SPECIES_SIZE[s]);
-    for (const w of [240, 420, 600, 900]) {
-      const { size, cx } = looseRow(units, { w, h: 96 }, 8);
-      const right = cx[cx.length - 1] + size[size.length - 1] / 2;
-      expect(right, `row at ${w}`).toBeLessThanOrEqual(w + 1);
+    for (const w of [196, 252, 314, 393, 503, 900]) {
+      const { size, cx, page, rowW } = looseRow(units, { w, h: 96 }, 8);
+      expect(rowW, `row at ${w}`).toBeLessThanOrEqual(w);
+      for (let i = 0; i < cx.length; i += 1) {
+        const half = Math.max(size[i], MIN_TAP) / 2;
+        expect(cx[i] - half, `${i} at ${w} left of the floor`).toBeGreaterThanOrEqual(-1e-9);
+        // The first animal on a page may be wider than the page: a page
+        // with nobody on it is not a page.
+        if (i > 0 && page[i] === page[i - 1]) {
+          expect(cx[i] + half, `${i} at ${w} past the floor`).toBeLessThanOrEqual(rowW + 1e-9);
+        }
+      }
     }
+  });
+
+  it('comes down three per cent to keep a six-animal queue on one page', () => {
+    // 393px is the stacked floor at 820x620, and the screen Marcus
+    // signed off. The six-animal row wanted 403 of it once the pitches
+    // were floored, so the scale comes down a little rather than the
+    // queue splitting in two: the dog goes from 99 to 96.
+    const six = (['cat', 'bunny', 'dog', 'hedgehog', 'snake', 'bat'] as Species[])
+      .map((s) => SPECIES_SIZE[s]);
+    expect(Math.round(looseRowScale(six, 393, 8))).toBe(99);
+    const row = looseRow(six, { w: 393, h: 108 }, 8);
+    expect(row.pages).toBe(1);
+    expect(row.size[2]).toBe(96);
+  });
+
+  it('turns a page rather than taking the smallest animal below her art’s floor', () => {
+    // A full lorry's eight on that same floor: the width would have the
+    // dog at 68 and the bat at 20, and staying on one page would mean
+    // another fifth off both — a 54px dog and a 16px bat, which is the
+    // thing Marcus said not to trade back. So it pages instead, and
+    // then each page has the floor to itself, so the animals go up to
+    // what the band's height allows rather than being drawn for a row
+    // that is not there. The dog ends up larger than she would have
+    // been on one crowded row, not smaller.
+    const eight = (['dog', 'fox', 'cat', 'bunny', 'snake', 'parrot', 'hedgehog', 'bat'] as Species[])
+      .map((s) => SPECIES_SIZE[s]);
+    const row = looseRow(eight, { w: 393, h: 108 }, 8);
+    expect(row.pages).toBe(2);
+    expect(row.size[0]).toBe(108);
+    expect(row.size[7]).toBe(32);
+    // Growing stopped at the band's own height, which is the cap it was
+    // never going to pass — not at a page turn.
+    expect(row.size[0]).toBe(108);
+    // Eight animals need at least eight tap targets of floor however
+    // small they are drawn, which is why shrinking stops buying places
+    // in the row and the pages are the only answer left.
+    const tiny = looseRow(eight.map(() => 0.1), { w: 900, h: 96 }, 8);
+    expect(tiny.cx[7] - tiny.cx[0]).toBeGreaterThanOrEqual(7 * MIN_TAP - 1e-9);
+  });
+
+  it('pages the queue where the floor cannot hold it, and keeps the pages still', () => {
+    const units = SPECIES.map((s) => SPECIES_SIZE[s]);
+    // The 812pt phone's own floor: 252px, which is five tap targets. The
+    // pager takes its width off the row before the pages are worked out,
+    // so the last animal on a page never stands under it.
+    const phone = looseRow(units, { w: 252, h: 48 }, 8);
+    expect(phone.pages).toBeGreaterThan(1);
+    expect(phone.rowW).toBe(252 - WAITING_PAGER_W - 8);
+    // Every page carries somebody, and the pages run in queue order.
+    for (let i = 1; i < phone.page.length; i += 1) {
+      const step = phone.page[i] - phone.page[i - 1];
+      expect(step, `page step at ${i}`).toBeGreaterThanOrEqual(0);
+      expect(step, `page step at ${i}`).toBeLessThanOrEqual(1);
+    }
+    expect(Math.max(...phone.page)).toBe(phone.pages - 1);
   });
 
   it('gives back nothing for nobody', () => {
-    expect(looseRow([], { w: 500, h: 100 }, 8)).toEqual({ size: [], cx: [] });
+    expect(looseRow([], { w: 500, h: 100 }, 8))
+      .toEqual({ size: [], cx: [], page: [], pages: 0, rowW: 500 });
   });
 });
 
@@ -977,13 +1076,20 @@ describe('where the loading screen puts everything', () => {
     const backdropH = carParkBackdropH(cols.park.h);
     return { w: cols.vehicleW, h: backdropH > 0 ? cols.park.h - backdropH : cols.park.h };
   };
+  const floorFor = (cols: ReturnType<typeof loadingColumns>, v: typeof FLEET[number]) =>
+    bayFloorFor(v.id, v.cols, v.rows, cols.groundH);
   const parkedNose = (cols: ReturnType<typeof loadingColumns>, v: typeof FLEET[number]) => {
     const fit = fitLoadBed(
       vehicleBox(cols), VEHICLE_BED_SOURCE[v.id], VEHICLE_BED[v.id], v.cols, v.rows,
+      { minSlot: floorFor(cols, v) },
     );
     const top = vehicleParkTop(cols.park, fit.spriteH);
     return { top, bottom: top + fit.spriteH, fit };
   };
+  /** Every viewport the game ships to, shortest last. */
+  const SHIPPED: Array<[number, number]> = [
+    [1024, 768], [1024, 700], [820, 620], [874, 402], [812, 375], [812, 325],
+  ];
 
   it('is stacked on every viewport the screen is composed for, and short on a phone', () => {
     expect(at(1024, 768).kind).toBe('stacked');
@@ -1006,10 +1112,11 @@ describe('where the loading screen puts everything', () => {
   });
 
   it('stands every vehicle whole in the column it hands out, at every supported size', () => {
-    // Rule 8, as arithmetic: nothing cropped, at any supported size.
-    // The sizes it cannot hold are named in the test below rather than
-    // left out of this one.
-    for (const [w, h] of [[1024, 768], [1024, 700], [820, 620], [874, 402]]) {
+    // Rule 8, as arithmetic: nothing cropped, at any size the game
+    // ships to, **including the two phone viewports that used to cut
+    // three of the five.** What bought it is the bay floor coming down
+    // where there is no room for 40 — the two tests after this one.
+    for (const [w, h] of SHIPPED) {
       const cols = at(w, h);
       for (const v of FLEET) {
         const { top, bottom } = parkedNose(cols, v);
@@ -1020,25 +1127,152 @@ describe('where the loading screen puts everything', () => {
     }
   });
 
-  it('cannot stand Spark whole on the two smallest phone viewports, and says which', () => {
-    // **The escalation, as a test.** Spark needs 361px drawn for her six
-    // bays to reach the 40px floor, and the short layout already gives
-    // the car park the screen's height less two safe margins. Below
-    // 393px of viewport height she cannot be whole however the rest is
-    // arranged: at 812x375 the column is 343 and she is cut by 18px; at
-    // 812x325 it is 293 and three of the five are cut. Moving the tap
-    // floor is the only thing that would change it, and Marcus has
-    // ruled that out.
-    const cut = (w: number, h: number) => FLEET
-      .filter((v) => {
-        const cols = at(w, h);
-        return parkedNose(cols, v).bottom > cols.park.y + cols.park.h + 0.5;
-      })
-      .map((v) => v.id).sort();
+  it('crops nothing at any viewport height from the web clip to the tablet', () => {
+    // The six sizes above are the ones the game is composed for; this
+    // walks every height between them, because what used to crop was an
+    // arithmetic edge rather than a chosen viewport. It catches the two
+    // pixels Spark was short of at 599 and 600 — the stacked heights
+    // just above the short layout's breakpoint — which no named
+    // viewport sits on and nobody had measured.
+    for (let h = 325; h <= 768; h += 1) {
+      const cols = at(h >= 599 ? 1024 : 812, h);
+      for (const v of FLEET) {
+        const { bottom } = parkedNose(cols, v);
+        expect(bottom, `${v.name} nose at ${h} tall`)
+          .toBeLessThanOrEqual(cols.park.y + cols.park.h + 0.5);
+      }
+    }
+  });
+
+  it('keeps the bays at 40px wherever 40px fits, and relaxes them nowhere else', () => {
+    // **Marcus's decision, 9 October 2026, and the arithmetic it rests
+    // on.** `BAY_MIN` is the drawn size at which two bays' hit areas
+    // stop overlapping, and it holds at every viewport the screen was
+    // composed for. It cannot hold on the two phone viewports: Spark
+    // needs 361px drawn for her six bays to reach it, and the short
+    // layout has 343px of ground at 812x375 and 293 at 812x325. So the
+    // bays come down there — only there, only on the vehicles who need
+    // it, and only as far as standing her whole requires.
     expect(Math.round(wholeVehicleHeight('electric-minibus', 2, 3))).toBe(361);
-    expect(cut(874, 402)).toEqual([]);
-    expect(cut(812, 375)).toEqual(['electric-minibus']);
-    expect(cut(812, 325)).toEqual(['animal-lorry', 'electric-minibus', 'long-van']);
+    for (const [w, h] of [[1024, 768], [1024, 700], [820, 620], [874, 402]]) {
+      for (const v of FLEET) {
+        expect(floorFor(at(w, h), v), `${v.name} at ${w}x${h}`).toBe(BAY_MIN);
+      }
+    }
+    // The Capacitor app: Spark alone, and 37 is the largest floor that
+    // stands her in 343px of ground.
+    expect(Object.fromEntries(FLEET.map((v) => [v.id, floorFor(at(812, 375), v)]))).toEqual({
+      'pedal-trike': 40,
+      'small-van': 40,
+      'long-van': 40,
+      'animal-lorry': 40,
+      'electric-minibus': 37,
+    });
+    // The Home Screen web clip, 50px shorter: three of the five, and
+    // Spark's 31 is `BAY_FLOOR_MIN` — the lowest number any screen the
+    // game ships to ever asks for, which is why it is the clamp.
+    expect(Object.fromEntries(FLEET.map((v) => [v.id, floorFor(at(812, 325), v)]))).toEqual({
+      'pedal-trike': 40,
+      'small-van': 40,
+      'long-van': 35,
+      'animal-lorry': 37,
+      'electric-minibus': BAY_FLOOR_MIN,
+    });
+    expect(BAY_FLOOR_MIN).toBe(31);
+  });
+
+  it('puts the threshold where 40px stops fitting, and never goes under the clamp', () => {
+    // Derived, not chosen: the short layout hands the car park
+    // `height - 2 * SAFE_MARGIN` of ground, and the first vehicle to
+    // lose the 40px floor is the one who needs the most of it. Spark's
+    // 361 plus two safe margins is 393, so every vehicle keeps 40 at
+    // 393 and she is the first to give a pixel up at 392.
+    const floors = (w: number, h: number) => FLEET.map((v) => floorFor(at(w, h), v));
+    expect(floors(812, 393)).toEqual([40, 40, 40, 40, 40]);
+    expect(Math.min(...floors(812, 392))).toBe(39);
+    // And the clamp holds on a viewport nobody has composed for, rather
+    // than handing back a bay a crate cannot be seen in.
+    expect(Math.min(...floors(812, 240))).toBe(BAY_FLOOR_MIN);
+  });
+
+  it('does not let the bay floor move the page grid’s own breakpoint', () => {
+    // The shape may not change when an arrow changes the vehicle, and
+    // `FLEET_MIN_WHOLE_H` is measured at `BAY_MIN` for exactly that
+    // reason. A relaxed floor fed back into the breakpoint would move
+    // it — these are the two heights either side of it, unmoved.
+    expect(at(1024, 599).kind).toBe('stacked');
+    expect(at(1024, 598).kind).toBe('short');
+  });
+
+  it('relaxes the drop bays and nothing else, on the smallest screen there is', () => {
+    // **The concession is the drop bays' and no other control's.** At
+    // 812x325 three vehicles' bays go under `BAY_MIN`, and every other
+    // target on the screen still clears `MIN_TAP`: the vehicle arrows,
+    // the crates' pitch in their rack, the waiting animals' pitch on
+    // the floor. A bay's own hit area is the pitch rather than 48, so it
+    // still never overlaps its neighbour — which is what the floor was
+    // ever for.
+    const cols = at(812, 325);
+    const bays = FLEET.map((v) => parkedNose(cols, v).fit);
+    expect(Math.min(...bays.map((f) => Math.min(f.slotW, f.slotH)))).toBeLessThan(BAY_MIN);
+    for (const fit of bays) {
+      expect(bayHitSize(fit.slotW)).toBeLessThanOrEqual(fit.slotW + BAY_GAP);
+      expect(bayHitSize(fit.slotH)).toBeLessThanOrEqual(fit.slotH + BAY_GAP);
+      expect(fit.slotW).toBeGreaterThanOrEqual(BAY_FLOOR_MIN);
+      expect(fit.slotH).toBeGreaterThanOrEqual(BAY_FLOOR_MIN);
+    }
+
+    // The arrows keep their whole plate, which is twice the floor.
+    expect(ARROW_W).toBeGreaterThanOrEqual(MIN_TAP * 2);
+    expect(ARROW_H).toBeGreaterThanOrEqual(MIN_TAP * 2);
+    expect(cols.park.w - cols.vehicleW).toBe(2 * (ARROW_W + ARROW_GAP));
+
+    // The crates in their rack, and the animals on their floor.
+    const grid = fitChipGrid(
+      SHELF_CRATES.length,
+      { w: cols.shelf.w, h: cols.shelf.h - cols.labelH - 8 },
+      { gap: BAY_GAP, maxW: 76, maxH: 76 },
+    );
+    expect(grid.chipW + BAY_GAP).toBeGreaterThanOrEqual(MIN_TAP);
+    expect(grid.chipH + BAY_GAP).toBeGreaterThanOrEqual(MIN_TAP);
+    const row = looseRow(
+      (['cat', 'bunny', 'dog', 'hedgehog', 'snake', 'bat'] as Species[])
+        .map((s) => SPECIES_SIZE[s]),
+      { w: cols.loose.w, h: cols.loose.h - cols.labelH - 8 },
+      BAY_GAP,
+    );
+    for (let i = 1; i < row.cx.length; i += 1) {
+      if (row.page[i] !== row.page[i - 1]) continue;
+      expect(row.cx[i] - row.cx[i - 1], `animal pitch ${i}`)
+        .toBeGreaterThanOrEqual(MIN_TAP - 1e-9);
+    }
+  });
+
+  it('says which viewports pay for the pitch in page turns, and how many', () => {
+    // **What the full hit box costs, size by size.** Six is the cargo
+    // the screen is usually photographed with; eight is the largest the
+    // fleet can carry, which is Big Tilly's. The number is how many
+    // pages the queue takes, so a regression that quietly truncated the
+    // row or quietly shrank the animals would move one of them.
+    const unitsOf = (cargo: Species[]) => cargo.map((s) => SPECIES_SIZE[s]);
+    const SIX = unitsOf(['cat', 'bunny', 'dog', 'hedgehog', 'snake', 'bat']);
+    const EIGHT = unitsOf(['dog', 'fox', 'cat', 'bunny', 'snake', 'parrot', 'hedgehog', 'bat']);
+    const rowAt = (w: number, h: number, units: number[]) => {
+      const cols = loadingColumns({ ...chromeFor(w, h), units });
+      return looseRow(units, { w: cols.loose.w, h: cols.loose.h - cols.labelH - 8 }, BAY_GAP);
+    };
+    const pages = (units: number[]) => SHIPPED.map(([w, h]) => rowAt(w, h, units).pages);
+    //                         1024x768 1024x700 820x620 874x402 812x375 812x325
+    expect(pages(SIX)).toEqual([1, 1, 1, 1, 2, 2]);
+    expect(pages(EIGHT)).toEqual([1, 1, 2, 2, 2, 2]);
+
+    // And the animals stayed large: the dog is a tap target or more at
+    // every size, and twice one on anything the screen is stacked on.
+    for (const [w, h] of SHIPPED) {
+      const dog = rowAt(w, h, SIX).size[2];
+      expect(dog, `the dog at ${w}x${h}`).toBeGreaterThanOrEqual(MIN_TAP);
+      if (h >= 599) expect(dog, `the dog at ${w}x${h}`).toBeGreaterThanOrEqual(MIN_TAP * 2);
+    }
   });
 
   it('gives the car park the whole height of the screen when it is short', () => {
@@ -1138,6 +1372,74 @@ describe('where the loading screen puts everything', () => {
     expect(Math.round(looseRowScale(units, 314, BAY_GAP))).toBe(77);
     expect(Math.round(looseRowScale(units, 732, BAY_GAP))).toBe(194);
     expect(looseRowScale([], 300, BAY_GAP)).toBe(0);
+  });
+
+  it('leaves more paper under the panel’s words than over them', () => {
+    // **Marcus's rule, and the fault it caught.** The panel on the
+    // landscape phone had 8px above its heading and 2.5px below its
+    // last line, which is the rule inverted and a plate that looks
+    // unfinished. On a roomy plate it was 16 above against 8 below,
+    // from four pixels of optical offset nobody had written a reason
+    // for. Both are gone. Held at every size whose plate is at least as
+    // tall as the copy on it; the two that are not are the next test.
+    for (const [w, h] of SHIPPED) {
+      const { panel } = at(w, h);
+      const pad = panelPadding(Math.max(MIN_TAP, panel.h));
+      if (panel.h < pad.copyH) continue;
+      expect(pad.below, `${w}x${h} below against above`).toBeGreaterThan(pad.above);
+    }
+    // The landscape phone, measured: the plate is 136.5 where its copy
+    // wants 126, so both shares come down and the larger stays under.
+    const phone = panelPadding(136.5);
+    expect(phone.tight).toBe(true);
+    expect(phone.above).toBe(4);
+    expect(phone.below).toBe(6.5);
+    // A plate with the room asks for its own two numbers and no more.
+    const roomy = panelPadding(480, 176);
+    expect(roomy.tight).toBe(false);
+    expect(roomy.above).toBe(12);
+    expect(roomy.below).toBe(480 - 176 - roomy.copyH - 12);
+    expect(roomy.below).toBeGreaterThan(roomy.above);
+  });
+
+  it('says how far the copy overruns the plate on the 812pt phone, rather than hiding it', () => {
+    // **An escalation, pinned so it cannot go quiet.** At 812pt the
+    // reading column is `contentBottom - contentTop` — 197.5px in the
+    // Capacitor app and 147.5 in the Home Screen web clip — and the
+    // floor of waiting animals takes 76 of it before the panel is given
+    // anything. What is left is less than the copy, and every lever is
+    // already down: the type size does not move, the floor holds one
+    // row of tap targets, and the title plate above it takes 97.5px of
+    // a 325px screen because the all-caps title is Marcus's own
+    // decision. Only he can say what the panel drops.
+    //
+    // What this holds is that the shortfall shows in the arithmetic —
+    // `below` goes negative, and `above` goes to nothing so every pixel
+    // there is lands under the words — instead of being spent silently
+    // on the bottom padding, which is exactly how the 2.5px happened.
+    const app = at(812, 375).panel;
+    expect(app.h).toBe(109.5);
+    expect(panelPadding(app.h)).toMatchObject({ above: 0, below: -16.5, copyH: 126 });
+
+    const clip = at(812, 325).panel;
+    expect(clip.h).toBe(59.5);
+    expect(panelPadding(clip.h)).toMatchObject({ above: 0, below: -66.5 });
+  });
+
+  it('leaves more paper under a vehicle arrow’s contents than over them', () => {
+    // The same inversion, in the other plate this screen draws: the
+    // chevron was pinned 36px from the top edge and the two lines of
+    // type fell where they fell, leaving 14.6 above and 12 below. Held
+    // as a relation, so it survives the plate being resized.
+    for (const lines of [1, 2]) {
+      const pad = arrowPlatePadding(ARROW_H, lines);
+      expect(pad.below, `${lines} line(s): below against above`).toBeGreaterThan(pad.above);
+      expect(pad.above, `${lines} line(s): above`).toBeGreaterThanOrEqual(0);
+    }
+    // At the height the screen draws them the plate has room for both
+    // of its own numbers, within a pixel of rounding.
+    expect(arrowPlatePadding(ARROW_H, 2).below)
+      .toBeGreaterThanOrEqual(ARROW_PAD_BOTTOM - 4);
   });
 
   it('leaves the tall shape exactly where it was', () => {

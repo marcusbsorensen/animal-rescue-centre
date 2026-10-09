@@ -63,7 +63,9 @@ import Phaser from 'phaser';
 import { VEHICLE_DEFS, vehicleNeighbours, type VehicleType } from '@arc/game-logic';
 import { createChromePlate } from '../ui/UIButton';
 import { stateTween } from '../ui/tween';
-import { CHROME, FONTS, MIN_FONT, MIN_TAP, SAFE_MARGIN, TEXT_RESOLUTION, hexNum } from '../ui/constants';
+import {
+  CHROME, FONTS, MIN_FONT, MIN_TAP, SAFE_MARGIN, SPACE, TEXT_RESOLUTION, hexNum,
+} from '../ui/constants';
 import { CAR_PARK_VEHICLE_KEY, drawApron, drawGravel } from './forecourt';
 import { VEHICLE_SPRITE, VEHICLE_WIDTH_M, bayWidthM } from './fleet-art';
 
@@ -332,6 +334,52 @@ const DIMMED_INK = ARROW_DIMMED_INK;
 export const ARROW_GAP = 10;
 
 /**
+ * What an arrow plate carries, and the two paddings it carries it
+ * between.
+ *
+ * **More space below the contents than above them**, which is Marcus's
+ * rule and which this plate was failing by two and a half pixels: the
+ * chevron was pinned 36px from the top edge and the two lines of type
+ * fell where they fell, leaving 14.6 above and 12 below. The plate is
+ * laid out from these now, so the relation holds at whatever height it
+ * is drawn, and a test holds the relation rather than the numbers.
+ *
+ * `ARROW_CHEVRON_H` is the painted extent of the chevron drawn below,
+ * not a box somebody chose: two 26x9 bars turned 45°, whose centres are
+ * 18px apart, bound a shape 43px tall. `ARROW_LINE_H` is a 16px line of
+ * `FONTS.title` with its leading.
+ *
+ * The 12-and-20 pair, and splitting whatever slack there is in that
+ * proportion, is the same arrangement the loading screen's message panel
+ * uses (`PANEL_PAD_TOP` in `crate-loading-view.ts`). One rule, stated
+ * twice, because the two plates have no code in common.
+ */
+export const ARROW_PAD_TOP = SPACE.m;
+export const ARROW_PAD_BOTTOM = SPACE.m + SPACE.s;
+export const ARROW_CHEVRON_H = 43;
+export const ARROW_LINE_H = MIN_FONT.small + 3;
+
+/**
+ * Where an arrow plate's contents start, and the air left above and
+ * below them.
+ *
+ * Pure arithmetic so a test can ask it of every plate the screen draws:
+ * `below` is always the larger of the two.
+ */
+export function arrowPlatePadding(
+  h: number,
+  lines: number,
+): { above: number; below: number; contentTop: number } {
+  const contentH = ARROW_CHEVRON_H + SPACE.xs + lines * ARROW_LINE_H;
+  const slack = h - contentH;
+  const above = Math.max(0, Math.min(
+    ARROW_PAD_TOP,
+    Math.round((slack * ARROW_PAD_TOP) / (ARROW_PAD_TOP + ARROW_PAD_BOTTOM)),
+  ));
+  return { above, below: slack - above, contentTop: -h / 2 + above };
+}
+
+/**
  * Where the two arrows sit: one in the ground either side of the
  * vehicle, in the middle of whatever room there is, level with the
  * middle of her.
@@ -466,6 +514,13 @@ function buildArrow(
     ? { radius: 20 }
     : { radius: 20, shadow: false, tint: { fill: ARROW_DIMMED_PAPER, stroke: 0xaaa28f } });
 
+  // Laid out from the top down: the chevron, then the name, then how
+  // many spaces, with more air underneath than over — see
+  // `arrowPlatePadding`.
+  const { contentTop } = arrowPlatePadding(rect.h, enabled ? 2 : 1);
+  const chevCy = contentTop + ARROW_CHEVRON_H / 2;
+  const nameCy = contentTop + ARROW_CHEVRON_H + SPACE.xs + ARROW_LINE_H / 2;
+
   // The chevron: two rounded bars meeting at the tip. Drawn, not set in
   // a font, so it is the same shape on every device.
   const sign = direction === 'more' ? 1 : -1;
@@ -473,12 +528,11 @@ function buildArrow(
   chevron.fillStyle(enabled ? ink : 0x8a8374, 1);
   const barL = 26;
   const barT = 9;
-  const cy = -rect.h / 2 + 36;
   for (const turn of [-1, 1]) {
     chevron.save();
     // The tip is 5px past the middle in the direction of travel and each
     // bar's centre is 9px back along its own arm from it.
-    chevron.translateCanvas(-sign * 4, cy + turn * 9);
+    chevron.translateCanvas(-sign * 4, chevCy + turn * 9);
     chevron.rotateCanvas(sign * turn * -Math.PI / 4);
     chevron.fillRoundedRect(-barL / 2, -barT / 2, barL, barT, barT / 2);
     chevron.restore();
@@ -493,16 +547,18 @@ function buildArrow(
   if (target) {
     const def = VEHICLE_DEFS[target];
     children.push(
-      scene.add.text(0, 14, def.name, {
+      scene.add.text(0, nameCy, def.name, {
         ...textStyle, fontSize: `${MIN_FONT.small}px`, fontStyle: 'bold',
       }).setOrigin(0.5),
-      scene.add.text(0, 36, `${def.slots} spaces`, {
+      scene.add.text(0, nameCy + ARROW_LINE_H, `${def.slots} spaces`, {
         ...textStyle, fontSize: `${MIN_FONT.small}px`,
       }).setOrigin(0.5),
     );
   } else {
+    // On the name's own line, so a dimmed plate reads as the same plate
+    // with one line instead of two rather than as a different control.
     children.push(
-      scene.add.text(0, 26, direction === 'fewer' ? 'Smallest' : 'Largest', {
+      scene.add.text(0, nameCy, direction === 'fewer' ? 'Smallest' : 'Largest', {
         ...textStyle, fontSize: `${MIN_FONT.small}px`, color: DIMMED_INK,
       }).setOrigin(0.5),
     );

@@ -28,13 +28,45 @@ async function ready(page) {
   await page.waitForTimeout(1600);
 }
 
-async function load(page, vehicle) {
-  await page.evaluate((vid) => {
+async function load(page, vehicle, { seated = false } = {}) {
+  await page.evaluate(({ vid, seat }) => {
     const g = window.__PHASER_GAME__;
     const s = g.scene.scenes.find((x) => x.sys.settings.key === 'PtvDriveScene');
+    // Seating everybody who fits is the only way to photograph what a
+    // downsize does: the arrow has to have passengers to send back.
+    s.preloadIds = seat ? s.cargo.map((a) => a.id) : [];
     s.pickAndDepart(vid, { clearTint() {}, setDepth() {} }, 0, 0);
-  }, vehicle);
+  }, { vid: vehicle, seat: seated });
   await page.waitForTimeout(1400);
+}
+
+/** Where a named interactive object is, in screen coordinates. */
+async function namedAt(page, name) {
+  return page.evaluate((want) => {
+    const g = window.__PHASER_GAME__;
+    const s = g.scene.scenes.find((x) => x.sys.settings.key === 'PtvDriveScene');
+    let found = null;
+    const walk = (o) => {
+      if (o.name === want && o.getBounds) {
+        const b = o.getBounds();
+        found = { x: b.centerX, y: b.centerY, w: b.width, h: b.height };
+      }
+      if (o.list) o.list.forEach(walk);
+    };
+    s.container.list.forEach(walk);
+    return found;
+  }, name);
+}
+
+/** Click a named interactive object with a real mouse. */
+async function clickNamed(page, name) {
+  const at = await namedAt(page, name);
+  if (!at) throw new Error(`no object named ${name} on screen`);
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  return at;
 }
 
 /** The waiting animals' grab handles and the crates, in screen coordinates. */
@@ -64,12 +96,19 @@ async function pieces(page) {
   });
 }
 
-async function shoot(tag, { w, h, vehicle, query = '', drag = false }) {
+async function shoot(tag, {
+  w, h, vehicle, query = '', drag = false, cargo = CARGO, seated = false,
+  click = [],
+}) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   page.on('pageerror', (e) => console.error('PAGEERROR', tag, e.message));
-  await page.goto(`${BASE}/?ptvDemo=1&cargo=${CARGO}${query}`, { waitUntil: 'load' });
+  await page.goto(`${BASE}/?ptvDemo=1&cargo=${cargo}${query}`, { waitUntil: 'load' });
   await ready(page);
-  await load(page, vehicle);
+  await load(page, vehicle, { seated });
+  for (const name of click) {
+    const at = await clickNamed(page, name);
+    console.log('  clicked', name, 'at', Math.round(at.x), Math.round(at.y));
+  }
 
   if (drag) {
     const { hits, crates, height, width } = await pieces(page);
@@ -117,6 +156,48 @@ await shoot('short-874x402-reduced-mid-drag', {
   w: 874, h: 402, vehicle: 'small-van', query: '&motion=reduced', drag: true,
 });
 await shoot('tall-820x620-henry', { w: 820, h: 620, vehicle: 'small-van' });
+
+// ── The 812pt phone, after the bay floor was allowed to relax ──
+//
+// 812x375 is the Capacitor app and 812x325 the Home Screen web clip.
+// Spark, Bea and Big Tilly were cropped at these sizes; they are whole
+// now, and these are the five to look at.
+const EIGHT = 'dog,fox,cat,bunny,snake,parrot,hedgehog,bat';
+for (const [id, name] of Object.entries({
+  'pedal-trike': 'trikey',
+  'small-van': 'henry',
+  'long-van': 'bea',
+  'electric-minibus': 'spark',
+  'animal-lorry': 'bigtilly',
+})) {
+  await shoot(`app-812x375-${name}`, { w: 812, h: 375, vehicle: id });
+}
+await shoot('clip-812x325-spark', { w: 812, h: 325, vehicle: 'electric-minibus' });
+
+// ── The waiting queue, a full hit box apart ──
+await shoot('queue-820x620-eight', { w: 820, h: 620, vehicle: 'animal-lorry', cargo: EIGHT });
+await shoot('queue-1024x768-eight', { w: 1024, h: 768, vehicle: 'animal-lorry', cargo: EIGHT });
+await shoot('queue-pager-812x375', { w: 812, h: 375, vehicle: 'animal-lorry', cargo: EIGHT });
+await shoot('queue-pager-turned-812x375', {
+  w: 812, h: 375, vehicle: 'animal-lorry', cargo: EIGHT, click: ['waiting-more-hit'],
+});
+
+// ── An arrow press that sends passengers back to the floor ──
+//
+// Bea loaded full, then the left arrow: Henry has four spaces, so two of
+// the six are waiting to board again and the panel names them.
+await shoot('arrow-downsize-812x375', {
+  w: 812, h: 375, vehicle: 'long-van', seated: true, click: ['vehicle-arrow-fewer'],
+});
+await shoot('arrow-downsize-820x620', {
+  w: 820, h: 620, vehicle: 'long-van', seated: true, click: ['vehicle-arrow-fewer'],
+});
+await shoot('arrow-upsize-820x620', {
+  w: 820, h: 620, vehicle: 'long-van', seated: true, click: ['vehicle-arrow-more'],
+});
+
+// ── The panel's padding on the phone ──
+await shoot('panel-874x402', { w: 874, h: 402, vehicle: 'small-van', seated: true });
 
 await browser.close();
 console.log('shots in', OUT);
