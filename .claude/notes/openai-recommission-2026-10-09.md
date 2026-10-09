@@ -222,3 +222,108 @@ All ten clear both. Tightest colour distance 86.9 (Bea/Spark), tightest grey gap
 `pnpm -r typecheck` clean. `pnpm -r lint` 0 errors (apps/game 34 warnings, game-logic 11, unchanged). Tests **946 game-logic, 623 apps/game** (and 7 in badges), unchanged. `pnpm check:sprites` 557/600 with the 43 known failures allowed.
 
 Screenshots, real Chrome with Playwright, are in `manus-output/install-2026-10-09/` (gitignored): `loading-812x375.png`, `loading-820x620.png` (the screen as it opens, crates in the tray), `filled-812x375.png`, `filled-820x620.png` (Big Tilly loaded, all six crates on the bed), `loading-trikey-*.png`, `portraits-812x375.png`, `portraits-820x620.png` (the vehicle-choice screen), `trikey-before-after.png`.
+
+---
+
+## 9. Installed: the three van portraits (2026-10-09, later still)
+
+Answers section 6's "no installer exists" for the vans, and supersedes section 8.2's "Not measured: the fleet as it stands *installed*". Henry, Bea and Spark are installed; the top-downs are **not** commissioned (they are painted from these, next); nothing deployed. Branch `claude/crate-loading`.
+
+### 9.1 Re-measured before installing, and section 2 held
+
+Same method as section 2 (body = opaque pixels within 45 of the target, median; roof = median of the top 18% of the silhouette box, ink excluded), run on `manus-output/van-portraits/` before anything was copied.
+
+| | body median | worst channel off target | L | dL | roof median | body share | margins L/T/R/B | palette entries used |
+|---|---|---|---|---|---|---|---|---|
+| Henry | (143, 53, 55) | 1 | 80.1 | +1.0 | (142, 53, 55) | 46.9% | 128 / 66 / 128 / 65 | 188 |
+| Bea | (74, 112, 164) | 0 | 106.6 | 0.0 | (76, 113, 164) | 63.4% | 82 / 86 / 86 / 43 | 187 |
+| Spark | (116, 156, 102) | 0 | 137.9 | 0.0 | (116, 156, 102) | 64.2% | 161 / 73 / 162 / 66 | 190 |
+
+Body medians, roofs, margins and the 1024x512 canvas are the note's, to the digit. Body share is within 0.6 of the note's 47.0 / 63.5 / 64.8 (the note does not record its opaque threshold; the figure moves by about a point across thresholds, 62.1 to 66.5 on Spark). **Spark's see-through fix reproduces: semi-transparent pixels (alpha 1 to 192) inside the closed silhouette 20.7% on the old portrait, 4.5% on the new; fully clear inside the silhouette 9.5% to 2.5%.** (Counting every alpha from 1 to 249 as semi-transparent, which includes the soft edge, gives 24.9% to 7.0%; the note's 4.5% is the 1-to-192 reading.) Henry's and Bea's are under 1.5%.
+
+### 9.2 What was overwritten, and where the originals are
+
+The portraits live in one place: `apps/game/public/assets/driving/vehicles/vehicle-{henry,bea,spark}.png`, tracked in git (HEAD blobs `eaa6eac`, `bf787da`, `3962668`). Originals are copied to **`manus-output/install-2026-10-09/vehicle-{henry,bea,spark}-BEFORE-installed.png`**, shasum-checked against the installed bytes before the overwrite.
+
+| | | bytes | sha256 (12) | margins L/T/R/B | drawn | palette |
+|---|---|---|---|---|---|
+| Henry | before | 141,918 | d330bf7c9399 | 128 / 65 / 128 / 61 | 768x386 | 256 |
+| | **after** | **127,733** | 0be54b120a82 | 128 / 66 / 128 / 65 | 768x381 | 188 |
+| Bea | before | 162,652 | 3ae7a3291f9a | 82 / 86 / 86 / 40 | 856x386 | 256 |
+| | **after** | **135,622** | 474dd39bb584 | 82 / 86 / 86 / 43 | 856x383 | 187 |
+| Spark | before | 160,278 | 90df674a443c | 153 / 73 / 158 / 51 | 713x388 | 256 |
+| | **after** | **114,402** | b5751830d7c4 | 161 / 73 / 162 / 66 | 701x373 | 190 |
+
+All six are mode P, 1024x512. The three are 87,091 bytes lighter in all. The drawn box shrinks by 5, 3 and 15 px in height because the old portraits carried a ground smudge under the wheels and the brief said to leave it out; Spark is also 12 px narrower for the same reason. Left and right margins on Henry and Bea are unchanged.
+
+**A fourth copy of Henry exists and was left alone.** `apps/game/public/assets/driving/vehicle-henry.png` (the old path, directly under `driving/`, tracked) is byte-identical to the old Henry (sha d330bf7c9399). Nothing in code names it. Only docs do (`docs/arc-site-tier1-brief.md` lines 101 and 247, `docs/plan-driving-engine-2026-07-04.md` line 101). So the repo now holds the new maroon Henry at `vehicles/` and the old cream Henry at the old path, and a URL to the old path serves cream. It is outside the three files this install was scoped to; delete it or sync it, Marcus's call. Bea and Spark have no second copy.
+
+**How.** The sources are already 8-bit indexed PNGs (187 to 190 palette entries, 1024x512), so nothing was re-quantised; re-quantising would only add error. What section 6 asked for beyond that is the near-opaque fix, and it is a change to the palette's alpha table alone: entries at alpha 240 to 254 forced to 255 (6, 6 and 7 entries; 2,861, 1,825 and 3,440 px), as `install-crates.py` does. Verified on the decoded pixels, not the indices: the RGB of every visible pixel is identical to the source and no alpha moved except the forced ones. A throwaway script did it (not committed; the procedure is the paragraph above). `tools/install-vehicles.py` was not touched and does not need a flag: it is for top-downs.
+
+### 9.3 Re-measured after installing: the numbers survived
+
+| | body median | L | roof median | body share | margins | semi-transparent (alpha 1-192) | clear inside |
+|---|---|---|---|---|---|---|---|
+| Henry | (143, 53, 55) | 80.1 | (142, 53, 55) | 46.9% | 128 / 66 / 128 / 65 | 1.2% | 2.2% |
+| Bea | (74, 112, 164) | 106.6 | (76, 113, 164) | 63.4% | 82 / 86 / 86 / 43 | 0.8% | 2.4% |
+| Spark | (116, 156, 102) | 137.9 | (116, 156, 102) | 64.2% | 161 / 73 / 162 / 66 | 4.5% | 2.5% |
+
+Identical to 9.1 on every colour and geometry figure. The only difference is the forced alpha: fully opaque pixels (alpha 250 or more) inside Spark's silhouette 90.5% to 91.3%, Henry 96.0% to 96.3%, Bea 96.4% to 96.5%. For contrast, what was installed before: Henry cream with a maroon roof edge and skirt, Bea ivory over a chocolate-brown lower half, Spark white with a thin green flash. A body-wash search around the new targets finds 7.7% of Henry's opaque pixels (the old maroon roof and skirt, median (134, 47, 64)), none of Bea's, and 10.1% of Spark's (a grey, median (128, 131, 116), which is the see-through patches).
+
+### 9.4 The fleet, measured from the installed files
+
+Method as `fleet.py` used earlier today: body = median of opaque (alpha 200 or more) pixels within 45 of the recorded palette colour. Colour distance is Euclidean RGB against 60; grey gap is 0.299R + 0.587G + 0.114B against 20.
+
+| | recorded palette | measured, installed | L recorded | L measured |
+|---|---|---|---|---|
+| Henry | (142, 52, 54) | (143, 53, 55) | 79.1 | 80.1 |
+| Bea | (74, 112, 164) | (74, 112, 164) | 106.6 | 106.6 |
+| Spark | (116, 156, 102) | (116, 156, 102) | 137.9 | 137.9 |
+| Trikey | (180, 152, 196) | (180, 152, 196), and the lilac hue-band median agrees | 165.4 | 165.4 |
+| Big Tilly | (238, 183, 116) | **(241, 175, 119)** | 191.8 | **188.3** |
+
+| pair | colour distance | grey gap | recorded palette gives | |
+|---|---|---|---|---|
+| Henry / Bea | 141.9 | 26.4 | 142.6 / 27.4 | pass |
+| Henry / Spark | 116.4 | 57.7 | 117.5 / 58.7 | pass |
+| Henry / Trikey | 176.2 | 85.2 | 177.8 / 86.2 | pass |
+| Henry / Big Tilly | 169.1 | 108.2 | 173.8 / 112.7 | pass |
+| Bea / Spark | 86.9 | 31.3 | 86.9 / 31.3 | pass |
+| Bea / Trikey | 117.7 | 58.8 | 117.7 / 58.8 | pass |
+| Bea / Big Tilly | 184.1 | 81.8 | 185.0 / 85.2 | pass |
+| Spark / Trikey | 113.8 | 27.5 | 113.8 / 27.5 | pass |
+| Spark / Big Tilly | 127.6 | 50.5 | 125.7 / 53.9 | pass |
+| **Trikey / Big Tilly** | **100.9** | **23.0** | 103.6 / 26.4 | pass, by 3.0 |
+
+All ten clear both thresholds. Tightest colour 86.9 (Bea / Spark), tightest grey 23.0 (Trikey / Big Tilly). The ladder as measured: Henry 80.1, Bea 106.6, Spark 137.9, Trikey 165.4, Big Tilly 188.3.
+
+**Where this disagrees with the palette table.** Two places. Henry delivered one point above his target in each channel, which takes a point off the grey gap of every Henry pair (26.4 against 27.4 for Henry / Bea): inside the brief's tolerance, and the only change in the three vans. And **Big Tilly is not the colour the table records**: (241, 175, 119) against (238, 183, 116), 3.5 darker, which takes 3.5 off the grey gap of all four of her pairs and the Trikey / Big Tilly gap from the table's 26.4 to 23.0. This confirms the earlier agent's reading.
+
+**The Trikey / Big Tilly figure is soft, and the reason is Tilly, not Trikey.** Her portrait has two large colour families, not one body: red-coral (the cab, 40% of her opaque pixels, median (223, 96, 72), L 131.2) and orange-tan (the bed and hull, 39%, median (220, 162, 112), L 173.6, with a lightness spread of 125 to 219 from the 10th to the 90th percentile). "Her body" is whichever you pick, and the 23.0 comes from the pale end of the tan, found by a ball around the table's (238, 183, 116). The radius moves it:
+
+| ball around (238, 183, 116) | median | L | gap to Trikey |
+|---|---|---|---|
+| radius 30 | (244, 181, 107) | 191.4 | 26.0 |
+| **radius 45** (the method used above) | (241, 175, 119) | 188.3 | **23.0** |
+| radius 60 | (238, 167, 119) | 182.8 | 17.4 (fails) |
+| the whole orange-tan family | (220, 162, 112) | 173.6 | 8.2 (fails) |
+| the red-coral cab | (223, 96, 72) | 131.2 | 34.2 |
+
+In the greyscale row of `vans-fleet-portraits.png` Tilly's cab reads darker than Trikey's lilac and her bed lighter, so a child who cannot tell colours apart is helped by the cab and the bed together, not by one wash. Nothing here fails on the method the earlier notes used, and nothing was adjusted. What is open is the question of what "Big Tilly's body" is for this test. It matters more once the top-downs exist, because from above the bed is most of what is seen.
+
+### 9.5 Does anything in the game read these portraits?
+
+**Nothing sizes from them, draws them or measures them.** Evidence:
+
+- **The repo.** Searched everything outside `node_modules`, `dist`, `dist-ios`, `ios/App`, `manus-output` and `.git`. The three filenames appear in docs only (the three lines in 9.2 and `docs/briefs/vehicle-livery-pass.md` lines 20 to 23). The one page that builds the path is `apps/game/public/admin/pre-drive.html` line 703, `'/assets/driving/vehicles/vehicle-' + v.sprite + '.png'`, for `henry`, `bea`, `spark`, `trikey` and `big-tilly`.
+- **`apps/game/src`.** No `driving/vehicles` path anywhere, no `vehicle-` template that could build one, no iteration over texture keys. Every `vehicle-` filename is `vehicle-topdown-*`. `VEHICLE_SPRITE` (`fleet-art.ts` 19 to 23) maps all five vehicles to top-downs, `PtvDriveScene.preload` loads from `/assets/driving/topdown/`, and the only tests that read pixels (`fleet-art.test.ts` 1058, 1216, 1224) read `topdown/`. `check:sprites` scans `assets/animals` only.
+- **Live, in real Chrome.** `?ptvDemo=1`, the real `PtvDriveScene`: 76 requests under `/assets/driving/`, 69 of them top-downs, **none for a portrait or the old-path Henry**; the Phaser texture cache holds none of `vehicle-henry/bea/spark/big-tilly/trikey`; none is on any display list. `pre-drive.html`: five portrait requests, each shown at 151x76 from a natural 1024x512, the whole canvas fitted into the 150x84 `object-fit: contain` box. That is a function of the canvas, and the canvas is 1024x512 on all three, before and after.
+- **The top-downs did not move.** `git status` shows no top-down changed by this install (the two modified PNGs in the tree are another agent's). The picker and the loading screen draw them unchanged; the picker's measured top-down sizes at 820x620 are Trikey 46x107, Henry 107x249, Bea 110x269, Spark 122x356, Big Tilly 140x393.
+
+**One thing the earlier statement leaves out, and it is why this is not quite "nothing reads them".** The full game fetches them. `plugins/asset-manifest.ts` lists every file under `public/assets`; `AssetLoader.parseEntry` files `assets/driving/vehicles/vehicle-*.png` under category `ui`, tier `essential`, key `vehicle-henry` and so on (confirmed by asking the loader through the page: all five come back `[ui/essential]`); and `LoadingScene` (245), `MainMenuScene` (69) and `GameScene` (379) call `startBackgroundLoad`, which `load.image`s the lot. So in the full game the five portraits are downloaded and decoded into the texture cache as 1024x512 textures, and then nothing ever names them. (`?ptvDemo=1` has no manifest, which is why the live check above shows them absent.) I did not boot the full game, which needs a sign-in. It is a load cost, not a read: nothing is derived from them, and the only thing this install moved is their weight, 87,091 bytes less. If they should not be fetched at all, the manifest scan already skips underscore-prefixed files, and that is the lever. I read it as not the stop condition you described (a portrait that something is sized from) and installed.
+
+### 9.6 Gate, and where the pictures are
+
+`pnpm -r typecheck` clean. `pnpm -r lint` 0 errors (apps/game 34 warnings, game-logic 11, unchanged). Tests **946 game-logic, 633 apps/game, 7 badges**, unchanged. `pnpm check:sprites` 557/600 with the 43 known failures allowed.
+
+Screenshots, real Chrome, in `manus-output/install-2026-10-09/` (gitignored): `vans-fleet-portraits.png` (the five installed portraits, colour above and greyscale below, on one scale), `vans-predrive-row-820x620.png` and `vans-predrive-row-812x375.png` (the vehicle cards, the only place the portraits are drawn), `vans-predrive-820x620.png` and `vans-predrive-812x375.png` (the whole page), `vans-picker-820x620.png` and `vans-picker-812x375.png` (the car park forecourt with all five, at true scale), `vans-henry-820x620.png`, `vans-bea-820x620.png`, `vans-spark-820x620.png` (the loading bays). **The car park still draws Henry and Bea cream and Spark white**, because it draws top-downs and the top-downs are not repainted. The new liveries reach a child only when they are. That is the next commission. It still needs these portraits deployed first (Rule 1). The repaint commits `b829999` and `a08ab96`, which section 6 called unpushed, are now ancestors of `origin/claude/crate-loading`, so they are pushed on this branch; what the live URLs serve I did not check (`van-repaint-2026-10-09.md` section 4 has the `shasum` check).
