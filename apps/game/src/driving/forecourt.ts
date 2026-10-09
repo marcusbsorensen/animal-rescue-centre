@@ -69,6 +69,60 @@ export interface Forecourt {
   roadY: number;
 }
 
+/** The gravel the whole site stands on, tiled over the frame. */
+export function drawGravel(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  width: number,
+  height: number,
+): void {
+  if (scene.textures.exists('site-gravel')) {
+    container.add(scene.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
+  } else {
+    container.add(scene.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
+  }
+}
+
+/**
+ * A slab of tarmac, worn the way a car park is worn, with a pale kerb
+ * along its far edge.
+ *
+ * Its own function because two screens lay tarmac at wildly different
+ * scales — the picker a shallow band of five bays, the loading screen
+ * one bay round a vehicle drawn ten times the size — and the thing that
+ * has to stay the same between them is the *surface*, not the rectangle.
+ *
+ * One flat near-black rectangle is a swatch, not a surface, and it is
+ * what made the loading screen read as a UI panel with a van hanging
+ * off it. Three cheap things fix that and none of them moves: a warmer,
+ * lighter base so it is asphalt rather than a hole; a handful of patches
+ * at fixed fractions of the slab, so the ground is worn unevenly the way
+ * a car park is; and a pale kerb along the far edge, which is the line
+ * that says this is ground seen from above rather than a shape lying on
+ * top of it.
+ */
+export function drawApron(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  rect: { x: number; y: number; w: number; h: number },
+  radius = 18,
+): void {
+  const { x, y, w, h } = rect;
+  const slab = scene.add.graphics();
+  slab.fillStyle(0x45434a, 1);
+  slab.fillRoundedRect(x, y, w, h, radius);
+  for (const p of TARMAC_PATCHES) {
+    slab.fillStyle(p.light ? 0xffffff : 0x000000, p.alpha);
+    slab.fillEllipse(x + w * p.u, y + h * p.v, w * p.w, h * p.h);
+  }
+  // The kerb: a pale lip along the top, and a thin shadow under it.
+  slab.fillStyle(0xcdc0a6, 0.5);
+  slab.fillRoundedRect(x, y, w, 4, 2);
+  slab.fillStyle(0x000000, 0.22);
+  slab.fillRect(x + 6, y + 4, w - 12, 3);
+  container.add(slab);
+}
+
 /**
  * Draw gravel, the A.R.C. building, the tarmac apron and the exit road
  * into `container`, back to front. Returns where they landed.
@@ -81,11 +135,7 @@ export function drawForecourt(
   const { width, height, contentTop, apronTop, apronH } = options;
 
   // Gravel, everywhere.
-  if (scene.textures.exists('site-gravel')) {
-    container.add(scene.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
-  } else {
-    container.add(scene.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
-  }
+  drawGravel(scene, container, width, height);
 
   // The building at the back of its own forecourt, filling the band
   // between the title and the tarmac rather than a fixed fraction of the
@@ -108,33 +158,9 @@ export function drawForecourt(
   const left = options.apronX ?? (width - areaW) / 2;
 
   // ── The tarmac ──
-  //
-  // One flat near-black rectangle is a swatch, not a surface, and it is
-  // what made this read as a UI panel with a van hanging off it. Three
-  // cheap things fix that and none of them moves: a warmer, lighter
-  // base so it is asphalt rather than a hole; a handful of patches at
-  // fixed fractions of the slab, so the ground is worn unevenly the way
-  // a car park is; and a pale kerb along the far edge, which is the
-  // line that says this is ground seen from above rather than a shape
-  // lying on top of it.
-  const x = left - 8;
-  const y = apronTop - 8;
-  const w = areaW + 16;
-  const h = apronH + 16;
-
-  const slab = scene.add.graphics();
-  slab.fillStyle(0x45434a, 1);
-  slab.fillRoundedRect(x, y, w, h, 18);
-  for (const p of TARMAC_PATCHES) {
-    slab.fillStyle(p.light ? 0xffffff : 0x000000, p.alpha);
-    slab.fillEllipse(x + w * p.u, y + h * p.v, w * p.w, h * p.h);
-  }
-  // The kerb: a pale lip along the top, and a thin shadow under it.
-  slab.fillStyle(0xcdc0a6, 0.5);
-  slab.fillRoundedRect(x, y, w, 4, 2);
-  slab.fillStyle(0x000000, 0.22);
-  slab.fillRect(x + 6, y + 4, w - 12, 3);
-  container.add(slab);
+  drawApron(scene, container, {
+    x: left - 8, y: apronTop - 8, w: areaW + 16, h: apronH + 16,
+  });
 
   // Exit road along the bottom.
   const roadY = height * 0.93;
