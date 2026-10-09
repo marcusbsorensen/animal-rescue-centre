@@ -62,6 +62,7 @@
 import Phaser from 'phaser';
 import { VEHICLE_DEFS, vehicleNeighbours, type VehicleType } from '@arc/game-logic';
 import { createChromePlate } from '../ui/UIButton';
+import { stateTween } from '../ui/tween';
 import { CHROME, FONTS, MIN_FONT, MIN_TAP, SAFE_MARGIN, TEXT_RESOLUTION, hexNum } from '../ui/constants';
 import { CAR_PARK_VEHICLE_KEY, drawApron, drawGravel } from './forecourt';
 import { VEHICLE_SPRITE, VEHICLE_WIDTH_M, bayWidthM } from './fleet-art';
@@ -518,7 +519,12 @@ function buildArrow(
   hit.on('pointerover', () => container.setScale(1.05));
   hit.on('pointerout', () => container.setScale(1));
   hit.on('pointerdown', () => {
-    scene.tweens.add({
+    // A state tween, not a decorative one: the vehicle change hangs off
+    // onComplete, exactly as every other button press in the game does
+    // (see UIButton). A yoyo ends where it started, so with motion
+    // reduced this moves nothing and only fires activate - which is what
+    // keeps the arrow working when a child has motion turned off.
+    stateTween(scene, {
       targets: container, scaleX: 0.94, scaleY: 0.94, duration: 60, yoyo: true,
       onComplete: activate,
     });
