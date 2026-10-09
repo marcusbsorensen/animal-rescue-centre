@@ -9,7 +9,21 @@
  *   node tools/shoot-car-park.mjs <outdir> [--base http://localhost:5173]
  *        [--tag before|after] [--vehicles pedal-trike,animal-lorry]
  *        [--sizes 820x620,1024x700] [--arrows] [--walk more,fewer,...]
- *        [--keys] [--fill]
+ *        [--keys] [--fill] [--picker] [--picker-only] [--level 1]
+ *        [--cargo ''] [--depart animal-lorry]
+ *
+ * `--picker` photographs the forecourt picker; `--picker-only` stops there
+ * rather than going on to the loading screen, which is what a picker change
+ * wants. `--level` is the player's level, which is what cones a bay off, so
+ * `--level 1` is how a locked vehicle and its unlock chip are seen.
+ * `--depart` clicks that vehicle's bay with a real mouse and photographs
+ * where she stops; with no cargo she pulls out to the car park's exit
+ * instead of opening the loading screen, so pass `--cargo ''` with it.
+ * `--turn left|right` then answers "Which way?" and photographs her
+ * leaving through the bottom of the frame, mid-exit and at the end, with
+ * `beginTravel` stubbed out so the forecourt is still there to measure.
+ * `--reduced` runs the page with `prefers-reduced-motion: reduce`, which
+ * is how you check that a reduced departure still ends with her absent.
  *
  * `--arrows` draws the vehicle-change arrows over the screen the way the
  * loading view will once it passes `onVehicleChange` to `drawCarPark`. The
@@ -42,7 +56,16 @@ const WALK = opt('--walk', '').split(',').filter(Boolean);
 const KEYS = args.includes('--keys');
 const MOUSE = args.includes('--mouse');
 const FILL = args.includes('--fill');
-const CARGO = 'cat,bunny,dog,hedgehog,snake,bat';
+const PICKER_ONLY = args.includes('--picker-only');
+const LEVEL = opt('--level', '');
+const DEPART = opt('--depart', '');
+const TURN = opt('--turn', '');
+const REDUCED = args.includes('--reduced');
+// `--cargo ''` is an empty string, which `opt` cannot tell from absent, so
+// the flag's presence is what counts.
+const CARGO = args.includes('--cargo')
+  ? (args[args.indexOf('--cargo') + 1] ?? '')
+  : 'cat,bunny,dog,hedgehog,snake,bat';
 const SIZES = opt('--sizes', '820x620,1024x700').split(',').map((s) => {
   const [w, h] = s.split('x').map(Number);
   return { w, h, tag: s };
@@ -85,19 +108,106 @@ function measure() {
 }
 
 for (const { w, h, tag } of SIZES) {
-  const page = await browser.newPage({ viewport: { width: w, height: h } });
+  const page = await browser.newPage({
+    viewport: { width: w, height: h },
+    ...(REDUCED ? { reducedMotion: 'reduce' } : {}),
+  });
   page.on('pageerror', (e) => console.error('PAGEERROR', tag, e.message));
+
+  const query = `?ptvDemo=1&cargo=${CARGO}${LEVEL ? `&level=${LEVEL}` : ''}`;
 
   if (args.includes('--picker')) {
     // The forecourt picker, before anything is chosen.
-    await page.goto(`${BASE}/?ptvDemo=1&cargo=${CARGO}`, { waitUntil: 'load' });
+    await page.goto(`${BASE}/${query}`, { waitUntil: 'load' });
     await ready(page);
     await page.screenshot({ path: path.join(OUT, `${TAG}-picker-${tag}.png`) });
     console.log(`${TAG} picker-${tag}`, JSON.stringify(await page.evaluate(measure)));
+
+    if (DEPART) {
+      // The bay's own hit rectangle, clicked with a real mouse, then a wait
+      // for the 700ms pull-out. Where she stops is the number that matters:
+      // a vehicle parked half below the bottom of the frame is not a
+      // vehicle waiting at the road.
+      const at = await page.evaluate((id) => {
+        const g = window.__PHASER_GAME__;
+        const s = g.scene.scenes.find((x) => x.sys.settings.key === 'PtvDriveScene');
+        const defs = s.container.list;
+        let found;
+        const walk = (o) => {
+          if (o.type === 'Image' && o.texture?.key === `vehicle-topdown-${id}`) found = o;
+          if (o.list) o.list.forEach(walk);
+        };
+        defs.forEach(walk);
+        if (!found) return null;
+        const b = found.getBounds();
+        return { x: b.centerX, y: b.centerY };
+      }, DEPART.replace('pedal-trike', 'trikey').replace('small-van', 'henry')
+        .replace('long-van', 'bea').replace('electric-minibus', 'spark')
+        .replace('animal-lorry', 'big-tilly'));
+      if (at) {
+        await page.mouse.click(at.x, at.y);
+        await page.waitForTimeout(1200);
+        await page.screenshot({ path: path.join(OUT, `${TAG}-depart-${tag}.png`) });
+        console.log(`${TAG} depart-${tag}`, JSON.stringify(await page.evaluate(measure)));
+      } else {
+        console.log(`${TAG} depart-${tag} NOT FOUND`);
+      }
+
+      if (at && TURN) {
+        // Answer "Which way?" and watch her leave. `beginTravel` is stubbed
+        // so the forecourt is still on screen to measure afterwards —
+        // otherwise the travel phase rebuilds the container the instant
+        // the tween completes and there is nothing left to look at.
+        const label = TURN === 'left' ? 'Left' : 'Right';
+        const button = await page.evaluate((text) => {
+          const g = window.__PHASER_GAME__;
+          const s = g.scene.scenes.find((x) => x.sys.settings.key === 'PtvDriveScene');
+          s.beginTravel = () => { window.__arrived = true; };
+          let found;
+          const walk = (o) => {
+            if (o.type === 'Text' && typeof o.text === 'string' && o.text.includes(text)) found = o;
+            if (o.list) o.list.forEach(walk);
+          };
+          s.container.list.forEach(walk);
+          if (!found) return null;
+          const b = found.getBounds();
+          return { x: b.centerX, y: b.centerY };
+        }, label);
+        if (!button) {
+          console.log(`${TAG} turn-${tag} NO BUTTON`);
+        } else {
+          await page.mouse.click(button.x, button.y);
+          await page.waitForTimeout(REDUCED ? 60 : 300);
+          if (!REDUCED) {
+            await page.screenshot({ path: path.join(OUT, `${TAG}-leaving-${tag}.png`) });
+            console.log(`${TAG} leaving-${tag}`, JSON.stringify(await page.evaluate(measure)));
+            await page.waitForTimeout(900);
+          }
+          const gone = await page.evaluate(() => {
+            const g = window.__PHASER_GAME__;
+            const s = g.scene.scenes.find((x) => x.sys.settings.key === 'PtvDriveScene');
+            const b = s.vanGfx?.getBounds();
+            const { height } = s.scale;
+            return {
+              arrived: !!window.__arrived,
+              top: b ? Math.round(b.y) : null,
+              height,
+              // The only question that matters: is any part of her still
+              // on screen when the flow says she has gone?
+              clearOfFrame: !!b && b.y >= height,
+            };
+          });
+          await page.screenshot({ path: path.join(OUT, `${TAG}-gone-${tag}.png`) });
+          console.log(`${TAG} gone-${tag}${REDUCED ? ' (reduced)' : ''}`, JSON.stringify(gone));
+        }
+      }
+    }
   }
 
+  if (PICKER_ONLY) { await page.close(); continue; }
+
   for (const id of VEHICLES) {
-    await page.goto(`${BASE}/?ptvDemo=1&cargo=${CARGO}`, { waitUntil: 'load' });
+    await page.goto(`${BASE}/${query}`, { waitUntil: 'load' });
     await ready(page);
     await page.evaluate((vid) => {
       const g = window.__PHASER_GAME__;

@@ -543,3 +543,49 @@ checking the claim still holds.
   command dies before the request runs and the failure surfaces downstream as
   a JSON decode error that looks like an API fault. Quote the URL, or put it in
   a variable and quote that.
+- **`setDepth` orders nothing inside a container that is never depth-sorted,
+  and `PtvDriveScene.container` is one.** A Phaser container renders its
+  children in list order and only re-sorts when something queues a depth
+  sort; this one never does, so the depths down the picker's child list read
+  0, 0, 20, 0, 30 — unsorted, in the order they were added — and are
+  decoration. **The symptom is a correct-looking depth doing nothing:** the
+  chosen vehicle is `setDepth(20)` and then `setDepth(30)` on a pick, and
+  she still rendered *under* her name label at depth 0, because the label
+  was added after her. Big Tilly pulled out of her bay wearing "Big Tilly"
+  across the cab, and the code said depth 30 over depth 0. Invisible until
+  2026-10-09, when the picker's vehicles were drawn 2.3 times the size and
+  a nose finally reached the name row. **Order the `container.add` calls,
+  and do not reach for `setDepth` to fix a render order in this scene.** The
+  picker now adds each bay's name before its vehicle, which is the whole
+  fix — reorder those two adds and the lorry wears her name again. If you
+  ever do want depths honoured here, `container.sort('depth')` after the
+  screen is built is the call, and it re-orders everything else at the same
+  time, the title plate included.
+- **`stateTween` can only apply a value it can read, so a relative
+  `` `+=${dy}` `` is a string it leaves alone — and it calls `onComplete`
+  anyway.** Phaser accepts a relative target and resolves it against the
+  object when the tween starts; `ui/tween.ts` cannot, because there is no
+  honest way to resolve `+=` from outside a running tween, so `endValues`
+  takes numbers and `{ from, to }` and skips everything else. Under reduced
+  motion a state tween applies its end values at once **and then runs the
+  callback**, so a tween whose only property is relative moves nothing and
+  reports that it arrived. **The symptom is a correct-looking animation
+  with a lying callback:** the picker's departing lorry was tweened
+  `` y: `+=${dy}` ``, and with reduced motion on, the flow was told the
+  forecourt was empty while she was still sitting in her bay — and
+  everything after that point assumes she has gone. **This is silent.**
+  Nothing throws, nothing logs, the property is simply not in the list;
+  and the full-motion path is perfect, so it only appears with reduced
+  motion turned on, which is the configuration least likely to be the one
+  anybody tests in. In this game it is also the configuration most likely
+  to be real: it is built for autistic children, and reduced motion is a
+  setting that will be on. **Work the number out before the call** — `y:
+  target.y + dy`, one tween per target — which is what
+  `PtvDriveScene.driveTogether` does for the vehicle and each of her shadow
+  layers. Since 2026-10-09 both helpers warn in dev when a config gives
+  them a string property, on the full-motion path as well as the reduced
+  one, because a warning you only see in the configuration you do not run
+  is the same bug again. A warning and not a throw: a child mid-game cannot
+  act on it, and a crash is a worse answer than an animation that does not
+  move. Audited at the time — every other `stateTween` and
+  `decorativeTween` call in the repo passes plain numbers.

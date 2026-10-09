@@ -104,6 +104,60 @@ const NOT_A_PROPERTY = new Set([
 
 type Mutable = Record<string, unknown>;
 
+/** Property names already warned about, so a particle loop says it once. */
+const warned = new Set<string>();
+
+/**
+ * Say so when a config animates a property this module cannot read.
+ *
+ * **Phaser takes a relative string — `` y: `+=${dy}` `` — and these two
+ * functions cannot.** `endValues` reads numbers and `{ from, to }`, which
+ * is everything this game writes; a string is left alone rather than
+ * guessed at, because `+=` has to be resolved against a target's value at
+ * the moment the tween starts and there is no honest way to do that from
+ * here. The result is a `stateTween` that under reduced motion moves
+ * nothing and calls `onComplete` anyway — the caller told the end state
+ * had arrived when it has not.
+ *
+ * **It is silent otherwise, and that is the whole reason this exists.**
+ * Nothing throws, nothing is logged, and the full-motion path is perfect,
+ * so the fault only appears with reduced motion turned on — the setting
+ * least likely to be the one anybody tests in, and in this game the one
+ * most likely to be on for real. It cost a departing lorry: the forecourt
+ * told the flow she had gone while she sat in her bay.
+ *
+ * So the warning fires on **both** paths, not just the reduced one. A
+ * warning a developer only sees in the configuration they do not run is
+ * the same bug again.
+ *
+ * Dev only, and a warning rather than a throw: a child mid-game is not
+ * the person who can act on it, and a crash is a worse answer than an
+ * animation that does not move. Fix it by computing the number up front
+ * — `y: target.y + dy` rather than `` y: `+=${dy}` `` — which is what
+ * `PtvDriveScene.driveTogether` does for the vehicle and each of her
+ * shadow layers.
+ */
+function warnUnreadable(kind: string, config: MotionTweenConfig): void {
+  if (!import.meta.env?.DEV) return;
+  for (const [key, value] of Object.entries(config)) {
+    if (NOT_A_PROPERTY.has(key) || typeof value !== 'string') continue;
+    const seen = `${kind}.${key}`;
+    if (warned.has(seen)) continue;
+    warned.add(seen);
+    console.warn(
+      `[tween] ${kind} was given ${key}: ${JSON.stringify(value)}, which it cannot read. `
+      + 'Only numbers and { from, to } are applied, so under reduced motion this property '
+      + 'does not move — a stateTween would still call onComplete, and a decorativeTween '
+      + 'would not put it back. Work the number out first: `y: target.y + dy`.',
+    );
+  }
+}
+
+/** For tests: forget which properties have already been warned about. */
+export function forgetTweenWarnings(): void {
+  warned.clear();
+}
+
 function targetsOf(config: MotionTweenConfig): Mutable[] {
   const raw = config.targets;
   const list = Array.isArray(raw) ? raw : [raw];
@@ -143,6 +197,7 @@ export function stateTween(
   scene: TweenHost,
   config: MotionTweenConfig,
 ): { stop: () => void } | null {
+  warnUnreadable('stateTween', config);
   if (!isMotionReduced()) return addTo(scene, config);
 
   if (!config.yoyo) {
@@ -205,6 +260,7 @@ export function decorativeTween(
   scene: TweenHost,
   config: MotionTweenConfig,
 ): { stop: () => void } | null {
+  warnUnreadable('decorativeTween', config);
   if (isMotionReduced()) return null;
 
   const props = endValues(config).map(([key]) => key);
@@ -231,4 +287,5 @@ export function forgetDecorativeTweens(): void {
   running.clear();
   watching?.();
   watching = null;
+  forgetTweenWarnings();
 }
