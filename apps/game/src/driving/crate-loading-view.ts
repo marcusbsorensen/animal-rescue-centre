@@ -67,10 +67,11 @@ import {
   TEXT_RESOLUTION, TITLE_CY, TYPE, bottomAnchorY, contentTopFor, hexNum,
 } from '../ui/constants';
 import { fitChipGrid } from '../ui/layout';
-import { drawForecourt, drawVehicleShadow } from './forecourt';
+import { carParkBackdropH, drawCarPark } from './car-park';
+import { drawVehicleShadow } from './forecourt';
 import {
   BAY_GAP, BAY_MAX_H, BAY_MAX_W, BED_PAD, VEHICLE_BED, VEHICLE_BED_SOURCE,
-  VEHICLE_SPRITE, bedProbePoints, fitLoadBed, type BedFit,
+  VEHICLE_SPRITE, VEHICLE_VISIBLE_FRAC, bedProbePoints, fitLoadBed, type BedFit,
 } from './fleet-art';
 
 /**
@@ -248,6 +249,22 @@ const CHIP_MAX_H = 104;
  * to the full-width strip instead, where six chips have the room.
  */
 const CHIP_NAME_MIN_W = 76;
+/**
+ * And the same question down the other axis.
+ *
+ * A chip is a name row with an animal in a crate under it, and the
+ * animal is the part a child reads. `fitChipGrid` scores a grid on how
+ * tappable it is and then on area, which at the narrow viewport picked
+ * two rows of short chips over one row of tall ones — 102x58, with
+ * about 36px of animal in each, where the full-width strip at the
+ * bottom gives the same six animals 130x86.
+ *
+ * So the column has to clear a floor on height as well as on width, or
+ * it wins the tray by making the animals small — which is the one
+ * trade this screen may not make. A name row, a tap target and a gap:
+ * below that the strip is simply the better picture.
+ */
+const CHIP_MIN_H = MIN_FONT.small + SPACE.s + MIN_TAP;
 
 /**
  * The panel, as a height budget: the picture, then the words.
@@ -1121,30 +1138,34 @@ export function renderCrateLoading(
     subtitle: `${spaces} — off to ${state.destinationName}`,
   });
 
-  // ── The forecourt, and the bands on it ──
+  // ── The page grid ──
+  //
+  // **One margin, two columns, one gutter, one top line and one bottom
+  // line.** The screen had none of that: the title floated on `width /
+  // 2`, Back sat on `SAFE_MARGIN`, the panel began 44px below the top
+  // of the content on `PAGE_MARGIN`, the tarmac began 12px outside it
+  // on `PAGE_MARGIN - SPACE.m`, and the bottom buttons were on
+  // `SAFE_MARGIN` again — four different left edges and nothing lining
+  // up with anything.
+  //
+  // So: everything the screen *composes* sits on `PAGE_MARGIN` and in
+  // one of two columns, and the two things that are the game's own
+  // chrome — the title on `TITLE_CY` and Back on `SAFE_MARGIN` — stay
+  // where every other screen puts them. That distinction is the one
+  // `constants.ts` already draws: `SAFE_MARGIN` is the floor a control
+  // may not cross, `PAGE_MARGIN` is where content begins.
   const contentTop = contentTopFor(title);
   const buttonCy = bottomAnchorY(height);
-  const bandBottom = buttonCy - MIN_TAP / 2 - SPACE.m;
-  const roadTop = height * 0.93;
-
-  // A strip of gravel above the tarmac, so the car park has a far edge
-  // to stand on rather than butting the title. Every pixel of it comes
-  // off the vehicle, so it is a fraction of what is going spare and
-  // capped at one step of the scale.
-  const apronTop = contentTop
-    + Math.min(SPACE.xxl, Math.max(0, (bandBottom - contentTop) * 0.06));
+  const contentBottom = buttonCy - MIN_TAP / 2 - SPACE.l;
 
   const usable = width - PAGE_MARGIN * 2;
-  const colGap = SPACE.xl;
-  // The panel is sized first and the vehicle takes what is left: the
-  // panel is type, and type has a width below which it stops being
-  // readable, while a vehicle simply draws smaller.
-  const panelColW = Math.round(Math.max(236, Math.min(usable * 0.44, 420)));
-  const vehicleColW = Math.max(160, usable - colGap - panelColW);
-  const panelColX = PAGE_MARGIN + vehicleColW + colGap;
-
-  const bandTop = apronTop + SPACE.m;
-  const bandH = bandBottom - bandTop;
+  const gutter = SPACE.xl;
+  // The reading column is sized first and the car park takes what is
+  // left: the panel is type, and type has a width below which it stops
+  // being readable, while a vehicle simply draws smaller.
+  const readW = Math.round(Math.max(236, Math.min(usable * 0.42, 420)));
+  const parkW = Math.max(160, usable - gutter - readW);
+  const readX = PAGE_MARGIN + parkW + gutter;
 
   // The animals waiting to board stand under the panel, in the same
   // column, which is what buys the vehicle the full height of the band.
@@ -1157,94 +1178,93 @@ export function renderCrateLoading(
   const trayMinH = trayLabelH + SPACE.s + MIN_TAP;
   const panelWanted = CHROME.padY * 2 + PANEL_FACES_H + SPACE.s + PANEL_TEXT_H;
   const waiting = waitingToBoard(session).length;
-  const columnTrayTop = bandTop + Math.min(bandH, panelWanted) + SPACE.l;
-  const columnTrayH = bandBottom - columnTrayTop;
+  const columnTrayTop = contentTop
+    + Math.min(contentBottom - contentTop, panelWanted) + SPACE.l;
+  const columnTrayH = contentBottom - columnTrayTop;
   const columnChip = trayGrid(
-    Math.max(1, waiting), { w: panelColW, h: columnTrayH - trayLabelH - SPACE.s },
+    Math.max(1, waiting), { w: readW, h: columnTrayH - trayLabelH - SPACE.s },
   );
 
   let trayBox: Box;
   let columnsBottom: number;
-  if (columnTrayH >= trayMinH && columnChip.chipW >= CHIP_NAME_MIN_W) {
-    trayBox = { x: panelColX, y: columnTrayTop, w: panelColW, h: columnTrayH };
-    columnsBottom = bandBottom;
+  if (
+    columnTrayH >= trayMinH
+    && columnChip.chipW >= CHIP_NAME_MIN_W
+    && columnChip.chipH >= CHIP_MIN_H
+  ) {
+    trayBox = { x: readX, y: columnTrayTop, w: readW, h: columnTrayH };
+    columnsBottom = contentBottom;
   } else {
     // The strip's whole height, label row included — on a landscape
     // phone every pixel it takes comes off the message panel, which is
     // the one thing on this screen that cannot be shortened.
-    const trayH = Math.min(104, Math.max(trayLabelH + SPACE.s + MIN_TAP, height * 0.19));
-    trayBox = { x: PAGE_MARGIN, y: bandBottom - trayH, w: usable, h: trayH };
+    const trayH = Math.min(104, Math.max(trayMinH, height * 0.19));
+    trayBox = { x: PAGE_MARGIN, y: contentBottom - trayH, w: usable, h: trayH };
     columnsBottom = trayBox.y - SPACE.s;
   }
 
-  // The tarmac is the loading bay, not the whole screen. The picker
-  // lays a wide shallow slab because it is showing a row of five bays;
-  // here there is one vehicle, so the slab is its bay and the rest of
-  // the forecourt stays gravel — which keeps the chrome column reading
-  // as paper over a place rather than as a panel on a black field.
+  // ── The car park ──
   //
-  // It ends where the vehicle does rather than always at the road:
-  // under the bottom tray strip the extra tarmac is empty, and empty
-  // tarmac under a strip of chips reads as a hole rather than a car
-  // park.
+  // The left column is a place, not a slab: the A.R.C. building at the
+  // back, the tarmac apron, the rest of the fleet in the bays either
+  // side — the picker's car park with the camera moved in. The exit
+  // road is not in it, and that is arithmetic rather than taste; see
+  // `car-park.ts`.
   //
-  // **No building.** The height it would stand in is the height the
-  // vehicle needs to sit on the tarmac whole; drawn in what was left it
-  // measured about 130px against the picker's 370 and read as a sticker
-  // pasted on the slab's top edge. Gravel, tarmac and the exit road
-  // carry the place on their own.
-  //
-  // **And the bay is the vehicle's width, not the column's.** The
-  // proportion pass turned every vehicle portrait: Big Tilly draws
-  // 169px wide in a 524px column, and a slab filled to the column put
-  // 350px of empty tarmac beside her — a car park with one lorry
-  // marooned in it, which is the "UI panel with a van on it" reading
-  // this slab was cut down to avoid in the first place. So the vehicle
-  // is measured first and the tarmac laid round it, with the gravel it
-  // no longer covers left as forecourt.
-  const apronBottom = Math.min(roadTop - 8, columnsBottom + SPACE.s);
-  const roomX = PAGE_MARGIN - SPACE.m;
-  const roomW = vehicleColW + SPACE.xl;
-  const roomBox = {
-    x: roomX + SPACE.l,
-    y: apronTop + SPACE.l,
-    w: Math.max(120, roomW - SPACE.l * 2),
-    h: Math.max(100, apronBottom - SPACE.l - (apronTop + SPACE.l)),
+  // **The band behind her is paid for in bumper, not in bays.** The
+  // backdrop comes off the top of the column, and the vehicle is then
+  // fitted to what is left *divided by* the share of her that has to
+  // stay in frame — so she is drawn very nearly the size she was with
+  // no car park at all, parked lower down, and cut off at the kerb.
+  // Every load bed in the fleet sits in the top two-thirds of its
+  // sprite, so what the picture behind her costs is her nose.
+  const column = {
+    x: PAGE_MARGIN,
+    y: contentTop,
+    w: parkW,
+    h: Math.max(100, columnsBottom - contentTop),
   };
-  const fit = vehicleFit(scene, vehicle.id, roomBox, session.grid.cols, session.grid.rows);
-  const bayW = fit
-    ? Math.min(roomW, Math.max(160, fit.spriteW + SPACE.xxl * 2))
-    : roomW;
-  const { apron } = drawForecourt(scene, container, {
+  const backdropH = carParkBackdropH(column.h);
+  const fit = vehicleFit(
+    scene, vehicle.id,
+    {
+      ...column,
+      h: backdropH > 0
+        ? (column.h - backdropH) / VEHICLE_VISIBLE_FRAC
+        : column.h,
+    },
+    session.grid.cols, session.grid.rows,
+  );
+  const park = drawCarPark(scene, container, {
     width,
     height,
     contentTop,
-    apronTop,
-    apronH: Math.max(0, apronBottom - apronTop),
-    apronX: roomX + (roomW - bayW) / 2,
-    apronW: bayW,
-    building: false,
+    column,
+    chosen: vehicle.id,
+    spriteW: fit ? fit.spriteW : column.w * 0.42,
   });
   container.add(title);
 
-  // The panel is sized for its longest copy — a heading and five lines —
-  // rather than for the band, and pinned to the top of it: a panel that
-  // changed height with its contents would move the words a child is
-  // reading. It takes the band's height when the band is the smaller.
-  const panelH = Math.max(MIN_TAP, Math.min(columnsBottom - bandTop, panelWanted));
+  // The panel is sized for its longest copy — a heading and four lines
+  // — rather than for the band, and pinned to the top line, level with
+  // the far kerb of the car park beside it. A panel that changed height
+  // with its contents would move the words a child is reading; one that
+  // started below the top of the content made the column look dropped.
+  const panelH = Math.max(MIN_TAP, Math.min(columnsBottom - contentTop, panelWanted));
   const setMessage = drawPanel(scene, container, state, {
-    x: panelColX, y: bandTop, w: panelColW, h: panelH,
+    x: readX, y: contentTop, w: readW, h: panelH,
   });
 
-  // The vehicle stands *inside* the tarmac, inset far enough on every
-  // side to have air round it. A van drawn to the slab's own edges is
-  // a van hanging off a panel, which is what this looked like.
+  // She stands in her bay, reversed in with her rear against the head
+  // of it and her nose toward the exit, cut off where the tarmac is. A
+  // bay is where a loaded van is; the old inset rectangle was a van
+  // hanging off a panel.
   drawVehicle(scene, container, state, callbacks, setMessage, {
-    x: apron.x + SPACE.l,
-    y: apron.y + SPACE.l,
-    w: Math.max(120, apron.w - SPACE.l * 2),
-    h: Math.max(100, apronBottom - SPACE.l - (apron.y + SPACE.l)),
-  }, apronBottom - 3, fit);
+    x: park.bay.x,
+    y: park.parkTop,
+    w: park.bay.w,
+    h: fit ? fit.spriteH : Math.max(100, park.kerbY - park.parkTop),
+  }, park.kerbY - 2, fit);
   drawTray(scene, container, state, callbacks, setMessage, trayBox, trayLabelH);
 
   // ── Bottom row ──
@@ -1267,8 +1287,10 @@ export function renderCrateLoading(
 
   if (held) {
     container.add(
+      // On `PAGE_MARGIN`, so its right edge is the reading column's
+      // right edge rather than eight pixels past it.
       createChromeButton(
-        scene, width - SAFE_MARGIN, buttonCy, `Put ${held.name} back`,
+        scene, width - PAGE_MARGIN, buttonCy, `Put ${held.name} back`,
         () => callbacks.onPutBack(),
         { width: 180, fontSize: TYPE.button, anchor: { x: 'right' } },
       ).setDepth(45),
@@ -1401,11 +1423,19 @@ function drawVehicle(
     const left = box.x + (box.w - fit.spriteW) / 2;
     const top = fit.overflows ? box.y : box.y + (box.h - fit.spriteH) / 2;
     // Where the vehicle actually ends on screen: its own bottom edge, or
-    // the kerb if it is the bigger vehicle. The shadow is a pool on the
+    // the kerb if it runs past it. The shadow is a pool on the
     // ground under it, so it has to stop where the vehicle stops —
     // otherwise a lorry running off the slab casts an ellipse across the
     // exit road and out under the buttons.
-    const bottom = fit.overflows && clipAt !== undefined
+    //
+    // Measured against `clipAt` rather than against `overflows`, which
+    // only ever asked whether the sprite was taller than the box it was
+    // *sized* in. The box and the cut line are now two different
+    // questions: the vehicle is sized against the whole column so her
+    // bays stay as big as they were, and then parked lower down it with
+    // the car park behind her, so she reaches the kerb without ever
+    // having overflowed anything.
+    const bottom = clipAt !== undefined
       ? Math.min(clipAt, top + fit.spriteH)
       : top + fit.spriteH;
 
@@ -1418,7 +1448,7 @@ function drawVehicle(
 
     sprite.setPosition(left + fit.spriteW / 2, top + fit.spriteH / 2);
     sprite.setDisplaySize(fit.spriteW, fit.spriteH);
-    if (fit.overflows && clipAt !== undefined) {
+    if (clipAt !== undefined && bottom < top + fit.spriteH) {
       // `setCrop` is in the texture's own pixels and draws the kept part
       // where it already was, so the bed does not move.
       const keep = (clipAt - top) / fit.spriteH;

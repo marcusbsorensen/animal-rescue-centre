@@ -82,7 +82,14 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
   'small-van':        { x: 0.15, y: 0.05, w: 0.70, h: 0.56 },
   'long-van':         { x: 0.21, y: 0.05, w: 0.58, h: 0.54 },
   'animal-lorry':     { x: 0.14, y: 0.04, w: 0.72, h: 0.52 },
-  'electric-minibus': { x: 0.181, y: 0.05, w: 0.644, h: 0.63 },
+  // Reverted from a "correction" to x 0.181 w 0.644 on 2026-10-09. That came
+  // from measuring her painted body as the median opaque extent across the
+  // bed's rows — which on Spark runs through her WING MIRRORS, so it measured
+  // mirror to mirror and called it bodywork. Her body is 0.722 wide, not the
+  // 0.753 that gave, and at the fleet's bed-to-body ratio of 0.855 that is
+  // 0.617. The original 0.62 was right. The narrow-viewport test caught it by
+  // spotting the grid spilling off the paint, so leave that test alone.
+  'electric-minibus': { x: 0.19, y: 0.05, w: 0.62, h: 0.63 },
 };
 
 /**
@@ -405,3 +412,95 @@ export function fitLoadBed(
     overflows: spriteH > box.h + 0.5,
   };
 }
+
+// ── The fleet at real size ───────────────────────────────────
+
+/**
+ * How wide each fleet vehicle is, in metres.
+ *
+ * **This is the one number that lets anything else on a screen be
+ * measured.** A top-down sprite has no scale of its own: it is however
+ * many pixels wide the layout drew it, and until something says what
+ * those pixels are worth, every road, kerb, bay line and dash beside it
+ * is drawn by eye. The loading screen's exit road was — 48px of
+ * carriageway against a van drawn 204px wide, which is a road 42cm
+ * across.
+ *
+ * Taken from the proportion pass of 2026-10-08 (`.claude/HANDOVER.md`,
+ * "One true scale"), which redrew every sprite to its real aspect and
+ * recorded what each vehicle is: Henry a 1.75m x 4.2m small van, Bea a
+ * 1.8m van, Spark a 2.0m minibus, Big Tilly a 2.3m lorry. They are
+ * `VEHICLE_SIZE` x Henry, which is how that table was built, so the two
+ * stay in step — a test holds them to each other.
+ *
+ * Trikey was not in the pass because she was not redrawn; 0.75m is her
+ * `VEHICLE_SIZE` of 0.43 against Henry, and a 0.75m-wide cargo trike is
+ * about right.
+ *
+ * Length comes free from the sprite's own aspect and is not recorded
+ * here: every file now carries its vehicle's true proportion, so
+ * `width_m * spriteH / spriteW` is the length, within 3% of the
+ * handover's table for all four.
+ */
+export const VEHICLE_WIDTH_M: Record<VehicleType, number> = {
+  'pedal-trike': 0.75,
+  'small-van': 1.75,
+  'long-van': 1.80,
+  'electric-minibus': 2.00,
+  'animal-lorry': 2.30,
+};
+
+/**
+ * A marked UK parking bay: 2.4m across, 4.8m deep.
+ *
+ * The loading screen paints the width and never the far end, because
+ * at the scale it draws the chosen vehicle a 4.8m bay is deeper than
+ * the band it has — the bay runs off the bottom of the frame with the
+ * vehicle in it, which is the same thing the road does.
+ */
+export const BAY_WIDTH_M = 2.4;
+export const BAY_LENGTH_M = 4.8;
+
+/**
+ * A UK traffic lane on a single carriageway, in metres.
+ *
+ * Here to be measured against rather than drawn: at the size the
+ * loading screen draws the chosen vehicle, one lane is wider than the
+ * viewport is tall, which is the arithmetic that took the exit road off
+ * that screen.
+ */
+export const LANE_WIDTH_M = 3.3;
+
+/**
+ * The clearance a standard bay leaves Henry — 65cm, shared between the
+ * two sides.
+ *
+ * This is the whole rule for a bay's width, and the 2.4m standard is
+ * what it gives a 1.75m van. Squeezing the rest of the fleet into 2.4
+ * would leave Big Tilly 5cm, which is a line painted on a lorry; and
+ * giving a pedal trike a car's bay draws a 0.75m trike alone in the
+ * middle of 2.4m of tarmac. Marcus's forecourt was always drawn with
+ * different-sized spaces for exactly this reason — it is in the
+ * picker's own comment — so this is that design, in metres.
+ */
+export const BAY_CLEARANCE_M = BAY_WIDTH_M - VEHICLE_WIDTH_M['small-van'];
+
+/** How wide this vehicle's bay is painted, in metres. */
+export function bayWidthM(id: VehicleType): number {
+  return VEHICLE_WIDTH_M[id] + BAY_CLEARANCE_M;
+}
+
+/**
+ * How much of a fleet sprite has to stay in frame.
+ *
+ * Every load bed in `VEHICLE_BED` ends by 0.68 of its sprite — they are
+ * all a band across the top, behind the cab — so a vehicle whose top
+ * 78% is on screen has its whole bed on screen with a tenth of the
+ * sprite to spare. What goes is the bumper, which is the trade
+ * `fitLoadBed` already makes when a vehicle has to grow for its bays.
+ *
+ * It is what the car park behind the vehicle is paid for with: the
+ * backdrop takes the slack between the bed's near end and the bottom of
+ * the band, and never a pixel of the bays.
+ */
+export const VEHICLE_VISIBLE_FRAC = 0.78;

@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { VEHICLE_DEFS, type VehicleType } from '@arc/game-logic';
 import {
-  BAY_GAP, BAY_MAX_RATIO, BAY_MIN, BED_PAD, BED_SLACK,
-  VEHICLE_BED, VEHICLE_BED_SOURCE, VEHICLE_SPRITE, bedProbePoints, fitLoadBed,
+  BAY_GAP, BAY_LENGTH_M, BAY_MAX_RATIO, BAY_MIN, BAY_WIDTH_M, BED_PAD, BED_SLACK, LANE_WIDTH_M,
+  VEHICLE_BED, VEHICLE_BED_SOURCE, VEHICLE_SPRITE, VEHICLE_VISIBLE_FRAC, VEHICLE_WIDTH_M,
+  bayWidthM, bedProbePoints, fitLoadBed,
 } from '../fleet-art';
+import { carParkBackdropH } from '../car-park';
 
 /**
  * How wide each vehicle's painted body actually is at the load area, as
@@ -27,16 +29,48 @@ const PAINTED_BODY: Record<VehicleType, { left: number; right: number }> = {
 
 /**
  * The vehicle box the loading screen hands out, measured off its own
- * layout at the three viewports it is checked at: the tarmac, inset far
- * enough on every side for the vehicle to have air round it.
+ * layout at the three viewports it is checked at.
+ *
+ * **Re-measured 2026-10-09 against the car park**, and the narrow one
+ * was wrong before that. It said 391 where the screen was handing out
+ * 287: the loading screen drops its tray to a full-width strip at
+ * 820x620 and the number here predated that, so three of the five
+ * vehicles had been overflowing their box at that viewport while a
+ * test asserted none of them did. The fixture, not the code, was what
+ * made it pass.
+ *
+ * The box is now the car-park column: `PAGE_MARGIN` to the gutter
+ * across, and down from the title to the tray — divided, where there
+ * is a building behind, by `VEHICLE_VISIBLE_FRAC`, because the vehicle
+ * is sized for the whole band and then parked below the backdrop.
  */
-const COLUMNS = {
-  'desktop 1024x700': { w: 524, h: 471 },
-  'narrow 820x620': { w: 400, h: 391 },
-  'landscape phone 874x402': { w: 431, h: 98 },
+const RAW_COLUMNS = {
+  'desktop 1024x700': { w: 532, h: 526 },
+  'narrow 820x620': { w: 424, h: 334 },
+  'landscape phone 874x402': { w: 455, h: 144 },
 };
-/** The two the vehicle is required to fit whole. */
+/** The two the screen is composed for. */
 const ROOMY = ['desktop 1024x700', 'narrow 820x620'] as const;
+
+type Viewport = keyof typeof RAW_COLUMNS;
+const boxFor = (c: { w: number; h: number }) => {
+  const backdrop = carParkBackdropH(c.h);
+  return { w: c.w, h: backdrop > 0 ? (c.h - backdrop) / VEHICLE_VISIBLE_FRAC : c.h };
+};
+const COLUMNS = Object.fromEntries(
+  Object.entries(RAW_COLUMNS).map(([k, c]) => [k, boxFor(c)]),
+) as Record<Viewport, { w: number; h: number }>;
+
+/**
+ * How much of each column is actually on screen — the column less the
+ * band the building stands in.
+ *
+ * This is the bound that matters: a bay below it is a tap target cut
+ * in half.
+ */
+const VISIBLE = Object.fromEntries(
+  Object.entries(RAW_COLUMNS).map(([k, c]) => [k, c.h - carParkBackdropH(c.h)]),
+) as Record<Viewport, number>;
 
 const EVERY_VEHICLE = Object.values(VEHICLE_DEFS);
 const spriteOf = (id: VehicleType) => VEHICLE_BED_SOURCE[id];
@@ -101,16 +135,15 @@ describe('fitLoadBed', () => {
     const box = COLUMNS[label];
     for (const v of EVERY_VEHICLE) {
       const fit = fitIn(box, v);
-      // The vehicle is pinned to the top of its box when it overflows,
-      // so the grid is measured from there. Three of the five are now
-      // too long to fit whole and lose a bumper to the kerb (see
-      // `fitLoadBed`), and Spark loses a strip of empty cutaway with
-      // it. What may never be cut is a bay: half a bay is half a tap
-      // target, on a screen whose whole job is tapping them.
-      const top = fit.overflows ? 0 : (box.h - fit.spriteH) / 2;
-      expect(top + fit.grid.y, `${v.name} first row`).toBeGreaterThanOrEqual(-0.5);
-      expect(top + fit.grid.y + fit.gridH, `${v.name} last row`)
-        .toBeLessThanOrEqual(box.h + 0.5);
+      // The vehicle's rear sits on the head of her bay, so the grid is
+      // measured from the top of the box in every case. Several of
+      // them are too long to fit the visible band and lose a bumper to
+      // the kerb (see `fitLoadBed`), and Spark loses a strip of empty
+      // cutaway with it. What may never be cut is a bay: half a bay is
+      // half a tap target, on a screen whose whole job is tapping them.
+      expect(fit.grid.y, `${v.name} first row`).toBeGreaterThanOrEqual(-0.5);
+      expect(fit.grid.y + fit.gridH, `${v.name} last row`)
+        .toBeLessThanOrEqual(VISIBLE[label] + 0.5);
     }
   });
 
@@ -188,18 +221,36 @@ describe('fitLoadBed', () => {
     expect(fit.overflows, 'Spark still fits').toBe(false);
   });
 
-  it('keeps the whole fleet in frame now that none of them is three across', () => {
-    // **What the 2026-10-09 reshape bought, as an assertion.** Three
-    // bays across a bed two-and-a-half times longer than it is wide
-    // forced the vehicle to be drawn big enough to supply the width,
-    // and Bea ran 28px past the bottom of the tarmac at this viewport
-    // while Spark ran 86 — 108 and 166 at the narrow one. Two columns
-    // ask for less than the bed already has, so nothing is clipped.
-    // This is the regression that would otherwise return silently the
-    // next time a grid is widened.
+  it('keeps every load bed whole, whatever runs off the kerb', () => {
+    // **What the 2026-10-09 reshape bought, restated against the
+    // thing that actually matters.** It used to assert `overflows ===
+    // false` for the whole fleet at both roomy viewports, which read
+    // as "nothing is clipped" and was never true at the narrow one —
+    // see `COLUMNS`. And it stopped being the right question once the
+    // car park went in behind the vehicle: she is now *sized* for the
+    // whole column and *parked* below the backdrop, so reaching the
+    // kerb is the design rather than the fault.
+    //
+    // The fault would be a bed that reached it. Every bed in the fleet
+    // ends by `VEHICLE_VISIBLE_FRAC` of its sprite, which is what lets
+    // the picture behind her be paid for in bumper; this holds that
+    // relationship, because the next vehicle painted with a longer
+    // load area is what would quietly break it.
+    for (const v of EVERY_VEHICLE) {
+      const bed = VEHICLE_BED[v.id];
+      expect(bed.y + bed.h, `${v.name} load bed`).toBeLessThanOrEqual(VEHICLE_VISIBLE_FRAC);
+    }
+    // The exception is a vehicle `fitLoadBed` had to grow past her box
+    // to keep her bays tappable — she is then taller than the band
+    // was ever going to be, and what the kerb takes is the empty end
+    // of her cutaway. Even then the bays themselves are whole, which
+    // is the line that matters and is asserted above.
     for (const label of ROOMY) {
       for (const v of EVERY_VEHICLE) {
-        expect(fitIn(COLUMNS[label], v).overflows, `${v.name} at ${label}`).toBe(false);
+        const fit = fitIn(COLUMNS[label], v);
+        if (fit.overflows) continue;
+        expect(fit.bed.y + fit.bed.h, `${v.name} bed at ${label}`)
+          .toBeLessThanOrEqual(VISIBLE[label] + 0.5);
       }
     }
   });
@@ -225,5 +276,104 @@ describe('fitLoadBed', () => {
     );
     expect(fit.slotW).toBeGreaterThan(0);
     expect(fit.slotH).toBeGreaterThan(0);
+  });
+});
+
+describe('the fleet at real size', () => {
+  /**
+   * What the proportion pass of 2026-10-08 recorded each vehicle as —
+   * `.claude/HANDOVER.md`, "One true scale". Here rather than imported
+   * because it is the external fact `VEHICLE_WIDTH_M` and the sprites
+   * are both answerable to, and a copy either of them drifts from is
+   * the point of having it.
+   */
+  const REAL: Partial<Record<VehicleType, { w: number; l: number }>> = {
+    'small-van': { w: 1.75, l: 4.2 },
+    'long-van': { w: 1.8, l: 4.5 },
+    'electric-minibus': { w: 2.0, l: 5.9 },
+    'animal-lorry': { w: 2.3, l: 6.5 },
+  };
+
+  it('has a width in metres for every vehicle, matching the proportion pass', () => {
+    for (const v of EVERY_VEHICLE) {
+      expect(VEHICLE_WIDTH_M[v.id], `${v.name} width`).toBeGreaterThan(0);
+      const real = REAL[v.id];
+      if (real) expect(VEHICLE_WIDTH_M[v.id], `${v.name} width`).toBeCloseTo(real.w, 2);
+    }
+  });
+
+  it('gets each vehicle its real length free, from the sprite it was repainted to', () => {
+    // The whole reason lengths are not written down: every file now
+    // carries its vehicle's true aspect, so the width is the only fact
+    // that has to be stated. Within 5% of the handover's table.
+    for (const v of EVERY_VEHICLE) {
+      const real = REAL[v.id];
+      if (!real) continue;
+      const sprite = spriteOf(v.id);
+      const length = VEHICLE_WIDTH_M[v.id] * (sprite.h / sprite.w);
+      expect(length, `${v.name} length`).toBeGreaterThan(real.l * 0.95);
+      expect(length, `${v.name} length`).toBeLessThan(real.l * 1.05);
+    }
+  });
+
+  it('paints Henry the UK standard bay and everyone else their own', () => {
+    expect(bayWidthM('small-van')).toBeCloseTo(BAY_WIDTH_M, 5);
+    for (const v of EVERY_VEHICLE) {
+      const clear = bayWidthM(v.id) - VEHICLE_WIDTH_M[v.id];
+      expect(clear, `${v.name} clearance`).toBeCloseTo(BAY_WIDTH_M - VEHICLE_WIDTH_M['small-van'], 5);
+    }
+    // Sized to the vehicle, which is what the picker's forecourt
+    // always claimed to do: a trike's space is not a lorry's.
+    expect(bayWidthM('pedal-trike')).toBeLessThan(bayWidthM('animal-lorry'));
+  });
+
+  it('cannot fit a traffic lane beside the chosen vehicle, which is why there is no road', () => {
+    // The arithmetic that took the exit road off this screen, as an
+    // assertion rather than a comment. The screen used to draw a 48px
+    // carriageway with a centre line down it beside a van drawn 202px
+    // wide — 42cm of road against 1.75m of van, a lane an eighth of a
+    // van across. Drawn right, one lane is wider than the whole band
+    // of car park the vehicle stands in, and the two-way carriageway
+    // the centre line claimed is taller than the viewport. There is no
+    // size the road could have been drawn at that would have been
+    // honest, which is why what runs off the bottom of this frame is
+    // the car park.
+    const fit = fitIn(COLUMNS['desktop 1024x700'], VEHICLE_DEFS['small-van']);
+    const pxPerMetre = fit.spriteW / VEHICLE_WIDTH_M['small-van'];
+    expect(LANE_WIDTH_M * pxPerMetre).toBeGreaterThan(VISIBLE['desktop 1024x700']);
+    expect(2 * LANE_WIDTH_M * pxPerMetre).toBeGreaterThan(700);
+  });
+
+  it('cannot paint the far end of the bay either, for the same reason', () => {
+    // A UK bay is 4.8m deep and the band the car park has at the
+    // desktop viewport is about 3.2m of it, so the bay runs off the
+    // bottom of the frame with the vehicle standing in it. That is why
+    // what is painted is the two side lines and the head, and never a
+    // near end: a bay closed at a line the van is sticking out of
+    // would read as a van parked badly.
+    const fit = fitIn(COLUMNS['desktop 1024x700'], VEHICLE_DEFS['small-van']);
+    const pxPerMetre = fit.spriteW / VEHICLE_WIDTH_M['small-van'];
+    expect(BAY_LENGTH_M * pxPerMetre).toBeGreaterThan(VISIBLE['desktop 1024x700']);
+  });
+
+  it('gives the car park a band at the sizes the screen is composed for, and none on a phone', () => {
+    for (const label of ROOMY) {
+      expect(carParkBackdropH(RAW_COLUMNS[label].h), label).toBeGreaterThan(0);
+    }
+    // The landscape phone's whole column is shorter than one van, so
+    // it keeps the picture it had: gravel, and every pixel to the bays.
+    expect(carParkBackdropH(RAW_COLUMNS['landscape phone 874x402'].h)).toBe(0);
+  });
+
+  it('pays for the band out of the bumper and not out of the bays', () => {
+    // Henry's bays with a car park behind him against the box the
+    // screen handed him before there was one — 524x471, measured off
+    // the layout this replaced. The backdrop comes off the top of the
+    // column and what is left is divided by the share of him that has
+    // to stay in frame, so the bays come out within a pixel.
+    const withPark = fitIn(COLUMNS['desktop 1024x700'], VEHICLE_DEFS['small-van']);
+    const before = fitIn({ w: 524, h: 471 }, VEHICLE_DEFS['small-van']);
+    expect(withPark.slotW).toBeGreaterThanOrEqual(before.slotW - 1);
+    expect(withPark.slotH).toBeGreaterThanOrEqual(before.slotH - 1);
   });
 });
