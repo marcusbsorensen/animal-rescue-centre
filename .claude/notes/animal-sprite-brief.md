@@ -611,6 +611,24 @@ written down. **The one-line follow-up** is to delete `SPECIES_SIZE` from
 that file and re-export the shared table; a test currently asserts the two
 literals agree rung for rung so they cannot drift meanwhile.
 
+## The thing true scale breaks, and the fix
+
+**Drawing an animal honestly shrinks the thing a child has to hit**, and it
+shrinks it most for the animals a child most wants to prod. A bat at 0.24 of
+a 148px corridor box is 36px across, against the 48 the rest of the game
+holds itself to; the corridor, the rooms and the garden all pass
+`interactive: true`. So `createAnimalSprite` now grows the hit area back to
+`MIN_TAP` around the animal's middle whenever she is drawn under it, in frame
+units so Phaser scales it with the sprite. An animal already big enough keeps
+her own silhouette as the target. The picture shrinks; the target does not.
+Two tests hold both halves.
+
+One trap found doing it, worth knowing: naming anything from `Phaser.Geom` as
+a *value* in `ui/sprites.ts` makes the Phaser import survive the build, and
+loading Phaser for real under jsdom throws on its canvas probe — every sprite
+test fails before it runs. The hit rectangle and its `contains` are written
+out by hand so the import stays type-only and is erased.
+
 ## The art, placed and verified — and not installed
 
     python3 tools/place-at-scale.py --out <dir>     # 556 placed, 44 failed
