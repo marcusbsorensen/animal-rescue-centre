@@ -131,7 +131,10 @@ export class GroomingScene extends Phaser.Scene {
     const cy = height / 2 - 40;
 
     // Big animal sprite
-    const sprite = createAnimalSprite(this, width / 2, cy, this.animal, { width: 360, height: 320 });
+    // Solo: one animal, before the brushing starts.
+    const sprite = createAnimalSprite(this, width / 2, cy, this.animal, {
+      width: 360, height: 320, scale: 'fill',
+    });
     this.container.add(sprite);
 
     // Tailor intro copy to the species so brush/cloth/mist reads naturally.
@@ -217,7 +220,12 @@ export class GroomingScene extends Phaser.Scene {
     // Animal sprite centre
     const spriteCX = width / 2;
     const spriteCY = height / 2 + 20;
-    const sprite = createAnimalSprite(this, spriteCX, spriteCY, this.animal, { width: 520, height: 440 });
+    // Solo: one animal being groomed, and she is also the target the child
+    // is brushing, so drawing her small would make the game harder as well
+    // as odder. The dirt spots below are spread off her drawn size.
+    const sprite = createAnimalSprite(this, spriteCX, spriteCY, this.animal, {
+      width: 520, height: 440, scale: 'fill',
+    });
     this.container.add(sprite);
 
     // Dirt spots, scattered over the middle two fifths of the animal that

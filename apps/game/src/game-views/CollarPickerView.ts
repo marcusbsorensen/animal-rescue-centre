@@ -72,8 +72,9 @@ export function renderCollarPicker(
 
   // Animal sprite in upper area
   const spriteY = height * 0.28;
+  // Solo: one animal becoming a pet, with swatches below her.
   const sprite = createAnimalSprite(scene, width / 2, spriteY, animal, {
-    width: 200, height: 160,
+    width: 200, height: 160, scale: 'fill',
   });
   if (sprite instanceof Phaser.GameObjects.Rectangle) {
     sprite.setStrokeStyle(3, 0xffd700);

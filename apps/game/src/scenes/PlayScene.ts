@@ -366,10 +366,12 @@ export class PlayScene extends Phaser.Scene {
     // its own piece of work — this is the size it has always drawn at.
     const spriteW = Math.min(720, width * scaleFactor);
     const spriteH = Math.min(640, height * scaleFactor);
+    // Solo: one animal playing. Nothing else animal-shaped is on screen.
     const sprite = createAnimalSprite(this, cx, cy, this.animal, {
       width: spriteW,
       height: spriteH,
       stateOverride: 'playing',
+      scale: 'fill',
     });
     this.container.add(sprite);
     this.tweens.add({
@@ -440,10 +442,13 @@ export class PlayScene extends Phaser.Scene {
     const dogCY = height / 2 + 40;
     const spriteW = Math.min(720, width * 1.1);
     const spriteH = Math.min(640, height * 1.1);
+    // Solo: one animal catching a thrown toy, and the toy's landing point is
+    // measured off her drawn height, so her size is the game's playfield.
     const sprite = createAnimalSprite(this, dogCX, dogCY, this.animal, {
       width: spriteW,
       height: spriteH,
       stateOverride: 'playing',
+      scale: 'fill',
     });
     this.container.add(sprite);
     this.animalSprite = sprite;

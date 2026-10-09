@@ -1,0 +1,67 @@
+# Animal sprites that fail `tools/check-sprite-scale.py --gate` today.
+#
+# **This file is the record of what still needs art, not a way of passing.**
+# The gate fails on anything that is not listed here, and it also fails when
+# something listed here starts passing, so the list shrinks and never quietly
+# grows. One sprite per line: the texture key, then why.
+#
+# Taken 2026-10-09, over the set as installed. Two kinds of fault:
+#
+#   * **cropped / painted background** — the animal runs off her canvas, or
+#     the file has a non-transparent corner. Both are Rule 8 and Rule 2, and
+#     both need the sprite drawing again; nothing in code can recover a paw
+#     that was never painted.
+#   * **separate object / drawn small** — a bowl, a perch or a cast shadow
+#     left beside the animal, or a subject that covers less than 0.70 of its
+#     file. The restyle round in `.claude/notes/animal-sprite-brief.md`
+#     replaces most of these; the clause that forbids them is in the brief.
+#
+# Separately, 44 of the 600 cannot be placed at species scale by
+# `tools/place-at-scale.py` because they would have to be enlarged — 41
+# legacy base-species files at 128x128 or 256x256, plus dog-chocolate-walking,
+# dog-dalmatian-growling and dog-husky-scared, three 512px dogs drawn too
+# small in their own canvas. That is a resolution problem rather than a drawn
+# one, so it is not listed here; `place-at-scale.py` names them every run.
+bat-arriving cropped
+bat-brown-grumpy cropped
+bat-fruit-arriving 1 separate object(s) beside the animal
+bat-fruit-sheltered cropped
+bat-fruit-sleeping cropped
+bat-pipistrelle-arriving 1 separate object(s) beside the animal
+bat-pipistrelle-grumpy cropped
+bat-pipistrelle-scared drawn small: long side 0.664 of canvas, want >= 0.7
+bat-white-arriving 1 separate object(s) beside the animal
+bat-white-scared cropped
+bat-white-sheltered drawn small: long side 0.637 of canvas, want >= 0.7
+bunny-grumpy drawn small: long side 0.648 of canvas, want >= 0.7
+cat-black-eating 1 separate object(s) beside the animal
+cat-ginger-sheltered drawn small: long side 0.654 of canvas, want >= 0.7
+cat-sheltered 1 separate object(s) beside the animal
+dog-collie-arriving 1 separate object(s) beside the animal
+dog-husky-arriving 1 separate object(s) beside the animal
+dog-terrier-arriving 1 separate object(s) beside the animal
+fox-arriving cropped
+fox-cross-playing cropped
+fox-red-arriving 1 separate object(s) beside the animal
+fox-silver-arriving cropped
+fox-silver-playing cropped
+fox-sleeping 3 separate object(s) beside the animal
+hedgehog-chocolate-arriving drawn small: long side 0.619 of canvas, want >= 0.7
+parrot-grey-eating 1 separate object(s) beside the animal
+parrot-grey-growling 1 separate object(s) beside the animal
+parrot-grey-grumpy 1 separate object(s) beside the animal
+parrot-grey-scared 1 separate object(s) beside the animal
+parrot-grey-sheltered 1 separate object(s) beside the animal
+parrot-grey-sick 1 separate object(s) beside the animal
+parrot-grey-sleeping 1 separate object(s) beside the animal
+parrot-grey-walking 1 separate object(s) beside the animal
+parrot-growling cropped
+parrot-macaw-growling cropped; painted background: corner alpha [55, 32, 55, 32]; 1 separate object(s) beside the animal
+parrot-sleeping 1 separate object(s) beside the animal
+snake-garter-sheltered drawn small: long side 0.652 of canvas, want >= 0.7
+snake-hognose-eating 1 separate object(s) beside the animal
+snake-hognose-playing cropped
+snake-king-eating 1 separate object(s) beside the animal
+snake-python-eating 1 separate object(s) beside the animal
+snake-python-playing cropped
+snake-walking drawn small: long side 0.672 of canvas, want >= 0.7

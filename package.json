@@ -11,6 +11,8 @@
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
+    "check:sprites": "python3 tools/check-sprite-scale.py --gate",
+    "sprites:bounds": "python3 tools/check-sprite-scale.py --emit-bounds",
     "build:ios": "node scripts/build-ios.mjs",
     "ios": "pnpm build:ios && pnpm --filter @arc/game exec cap open ios"
   },

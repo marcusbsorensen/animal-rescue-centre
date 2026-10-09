@@ -285,7 +285,11 @@ function drawPortrait(
   container.add(plate);
 
   const inner = size - 12;
-  const sprite = createAnimalSprite(scene, cx, cy, animal, { width: inner, height: inner });
+  // Solo: the card's own portrait, inside its own plate. The view behind it
+  // draws its animals to scale; this is a framed picture of one of them.
+  const sprite = createAnimalSprite(scene, cx, cy, animal, {
+    width: inner, height: inner, scale: 'fill',
+  });
   container.add(sprite);
 
   // Tapping the animal turns the card over. The hint is what makes that

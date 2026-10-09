@@ -131,20 +131,23 @@ export function renderConflictPopup(
     const drawW = drawH * 1.25;
     const spriteRowY = bandTop + bandH / 2;
     const spread = drawW * 0.6;
-    if (animal1) {
-      container.add(
-        createAnimalSprite(scene, cx - spread, spriteRowY, animal1, {
-          width: drawW, height: drawH, stateOverride: s1State,
-        }),
-      );
-    }
-    if (animal2) {
-      container.add(
-        createAnimalSprite(scene, cx + spread, spriteRowY, animal2, {
-          width: drawW, height: drawH, stateOverride: s2State,
-        }),
-      );
-    }
+    // **Comparative.** This is a pairing and nothing else: two named animals
+    // facing each other in one band, which is the whole picture the screen
+    // draws. Drawn to the same size they would be a different falling-out.
+    //
+    // Both stand on one line — the bottom of the band the box would have
+    // reached — so the smaller of the two is shorter rather than floating.
+    const groundY = spriteRowY + drawH / 2;
+    const face = (animalOnside: typeof animal1, dx: number, state: string | undefined) => {
+      if (!animalOnside) return;
+      const sprite = createAnimalSprite(scene, cx + dx, spriteRowY, animalOnside, {
+        width: drawW, height: drawH, stateOverride: state, scale: 'species',
+      });
+      sprite.y = groundY - sprite.displayHeight / 2;
+      container.add(sprite);
+    };
+    face(animal1, -spread, s1State);
+    face(animal2, spread, s2State);
   }
 
   const rowW = cardW * cardCount + cardGap * (cardCount - 1);

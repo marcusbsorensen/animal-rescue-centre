@@ -379,8 +379,10 @@ function renderZone(
       : '#cccccc';
     const ringColour = Phaser.Display.Color.HexStringToColor(ringHex).color;
 
+    // **Comparative.** The lawn and the nook both hold several animals of
+    // mixed species at once, and the wild returners below land beside them.
     const sprite = createAnimalSprite(scene, cx, cy, animal, {
-      width: spriteW, height: spriteH, interactive: true,
+      width: spriteW, height: spriteH, interactive: true, scale: 'species',
     });
     if (placed?.flipX && 'setFlipX' in sprite) {
       (sprite as Phaser.GameObjects.Image).setFlipX(true);
@@ -520,9 +522,11 @@ function renderZone(
         happiness: 100,
       } as unknown as Animal;
 
+      // **Comparative.** A row of up to three returners, drawn on the same
+      // lawn as the residents above and on the same ground line.
       const sprite = createAnimalSprite(scene, cx, cy, fakeAnimal, {
         width: 180, height: 144, interactive: true,
-        stateOverride: 'playing',
+        stateOverride: 'playing', scale: 'species',
       });
 
       // Sparkle marker above — "wild visitor"

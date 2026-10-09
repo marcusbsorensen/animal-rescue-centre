@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
-import { SPECIES_COLOURS } from '@arc/game-logic';
+import { SPECIES_COLOURS, animalScaleFraction } from '@arc/game-logic';
 import { FONTS } from './constants';
+import { animalSpriteBounds } from './animal-sprite-bounds';
 
 /**
  * Live view of GameScene's `store.sickAnimals`, registered once at scene
@@ -91,6 +92,79 @@ function getAnimalTextureKey(scene: Phaser.Scene, species: Species, state: strin
 }
 
 /**
+ * How big to draw this animal relative to the box she is handed.
+ *
+ * **`'species'` is the comparative claim and it is never the default.** A
+ * screen that asks for it is saying "the animals on me are drawn beside each
+ * other, so their sizes mean something"; a screen that asks for `'fill'` is
+ * saying "there is one animal here and nothing to compare her with". The
+ * decision is recorded at the call site rather than inferred from a default,
+ * because the default is what hid the bug for this long: `SPECIES_SIZE` was
+ * used in exactly one place and every other screen contain-fitted the whole
+ * texture, so a hedgehog has been drawn dog-sized beside a fox on six
+ * screens. `apps/game/src/ui/__tests__/animal-scale-call-sites.test.ts`
+ * fails if a call site leaves the question open.
+ *
+ * - `'species'` — the animal's long side is `animalScaleFraction` of the
+ *   box's shorter side: a dog at 0.80 of it, a hedgehog at 0.304, a budgie
+ *   at 0.205. Measured from the animal rather than from her file, so the
+ *   0.62-to-1.00 spread in how much of its canvas each sprite fills comes
+ *   out and `displayWidth` comes back meaning the animal. Use wherever two
+ *   animals are visible at once — a row, a bay, a corridor, a queue, a panel
+ *   pairing, a grid of passers-by.
+ * - `'fill'` — the whole file is contain-fitted into the box, which is what
+ *   every call site has always done. Use for one animal alone, where there
+ *   is nothing to be relatively sized against. It fills her frame because
+ *   the install step already normalises every sprite to fill its own canvas,
+ *   so no arithmetic is needed to make a lone hedgehog look like a hedgehog
+ *   rather than a mistake — and the hand-measured decorations on those
+ *   screens (the vet's label beside her, the toy row under her, the grooming
+ *   dirt spread across her) stay exactly where they were measured.
+ *
+ * Omitting the option is `'fill'`. It is still an omission rather than a
+ * choice, and the call-site test treats it as one.
+ */
+export type AnimalDrawScale = 'species' | 'fill';
+
+/**
+ * The Phaser frame cut to the animal herself, rather than to her file.
+ *
+ * The name is fixed and the frame is added to the texture once, the first
+ * time any sprite needs it, so this costs one small object per texture and
+ * nothing per sprite.
+ */
+const SUBJECT_FRAME = '__arc-subject';
+
+/**
+ * The frame name to draw, or `undefined` to draw the whole canvas.
+ *
+ * Returns `undefined` — and so falls back to the old whole-canvas fit —
+ * when the texture is not a measured animal sprite, when the committed
+ * bounds disagree with the file's actual size (a stale table, which
+ * `check-sprite-scale.py --check-bounds` is the gate against), or when the
+ * scene's texture manager is a stand-in that cannot carry frames, as it is
+ * in the unit tests.
+ */
+function subjectFrame(scene: Phaser.Scene, textureKey: string): string | undefined {
+  const bounds = animalSpriteBounds(textureKey);
+  if (!bounds) return undefined;
+  const manager = scene.textures;
+  if (!manager || typeof manager.get !== 'function') return undefined;
+  const texture = manager.get(textureKey);
+  if (!texture || typeof texture.add !== 'function' || typeof texture.has !== 'function') {
+    return undefined;
+  }
+  if (texture.has(SUBJECT_FRAME)) return SUBJECT_FRAME;
+  const source = texture.source?.[0];
+  if (!source || source.width !== bounds.canvasW || source.height !== bounds.canvasH) {
+    return undefined;
+  }
+  return texture.add(SUBJECT_FRAME, 0, bounds.x, bounds.y, bounds.w, bounds.h)
+    ? SUBJECT_FRAME
+    : undefined;
+}
+
+/**
  * Create an animal sprite — uses real art if available, coloured rectangle as fallback.
  *
  * **The contract: `width`/`height` are the box the animal is drawn inside.**
@@ -113,7 +187,14 @@ export function createAnimalSprite(
   x: number,
   y: number,
   animal: Animal,
-  options?: { width?: number; height?: number; interactive?: boolean; stateOverride?: string }
+  options?: {
+    width?: number;
+    height?: number;
+    interactive?: boolean;
+    stateOverride?: string;
+    /** See {@link AnimalDrawScale}. Say which; the default is the old behaviour. */
+    scale?: AnimalDrawScale;
+  }
 ): Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle {
   const w = options?.width ?? 80;
   const h = options?.height ?? 64;
@@ -122,13 +203,45 @@ export function createAnimalSprite(
   const textureKey = getAnimalTextureKey(scene, animal.species, visualState, animal.variant);
 
   if (textureKey) {
-    const img = scene.add.image(x, y, textureKey);
+    // A comparative sprite is drawn from the frame cut to the animal, so her
+    // size is set outright and `displayWidth` comes back meaning the animal
+    // rather than her transparent margin. How much of its file a sprite
+    // fills runs 0.62 to 1.00 across the set and wanders pose to pose within
+    // one animal, so fitting the canvas would leave her changing size when
+    // she changes mood — in a row, beside an animal that did not.
+    //
+    // A `'fill'` sprite keeps the whole canvas, because its screen measures
+    // decorations off the box and off `displayWidth`, and those numbers were
+    // read from the canvas.
+    const frame = options?.scale === 'species'
+      ? subjectFrame(scene, textureKey)
+      : undefined;
+    const img = frame
+      ? scene.add.image(x, y, textureKey, frame)
+      : scene.add.image(x, y, textureKey);
     // Contain, not cover: the smaller ratio, so the whole animal is inside
     // the box on both axes. The art is square (480 of 523 files are 512²),
     // so a square box draws the animal at exactly that box and a wider one
     // leaves slack at the sides — which is why a caller reading back
     // `displayWidth` gets a different answer from the width it passed.
-    const scale = Math.min(w / img.width, h / img.height);
+    const contain = Math.min(w / img.width, h / img.height);
+    let scale = contain;
+
+    if (options?.scale === 'species') {
+      const fraction = animalScaleFraction(animal.species, animal.variant);
+      // No rung on the ladder means a species with art and no size, which is
+      // how raccoon and skunk were drawn dog-sized. Leave it at the plain
+      // fit rather than guessing; `check-sprite-scale.py` names it by sprite.
+      if (fraction !== undefined) {
+        scale = frame
+          // `img` is the animal, so her long side is set to her share of the
+          // box outright, and the box's own aspect ratio cannot change it.
+          ? (fraction * Math.min(w, h)) / Math.max(img.width, img.height)
+          // No measured bounds: the canvas stands in for the animal. True to
+          // within how much of its file that sprite happens to fill.
+          : contain * fraction;
+      }
+    }
     img.setScale(scale);
 
     if (options?.interactive) {

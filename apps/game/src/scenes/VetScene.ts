@@ -122,7 +122,11 @@ export class VetScene extends Phaser.Scene {
     const spriteW = 200, spriteH = 180;
     const spriteX = width / 2 - 110;
     const spriteY = 120;
-    const animalSprite = createAnimalSprite(this, spriteX, spriteY, this.animal, { width: spriteW, height: spriteH });
+    // Solo: one patient, with her name and illness set beside her. The
+    // label's x is measured against this box, so she keeps filling it.
+    const animalSprite = createAnimalSprite(this, spriteX, spriteY, this.animal, {
+      width: spriteW, height: spriteH, scale: 'fill',
+    });
     if (animalSprite instanceof Phaser.GameObjects.Rectangle) {
       animalSprite.setStrokeStyle(2, 0xff6b6b);
     }
