@@ -697,3 +697,61 @@ same browser.
    shared table by a test. One line to remove, once that file is free.
 4. The 44 unplaceable sprites and the 43 drawn failures overlap but are not
    the same list; both need art, neither is a code problem.
+
+---
+
+## 2026-10-09, later: the round was submitted and every request failed
+
+Both batches went out at 16:52 and produced **nothing**.
+
+| group | batch id | total | failed |
+|---|---|---|---|
+| untested | `batch_6ac90dac99dc8190ad259b0810111291` | 234 | 234 |
+| proven | `batch_6ac90dcdb75481909eca47e1ce153351` | 239 | 203, then cancelled |
+
+One cause, every request:
+
+```
+code=invalid_value  "Transparent background is not supported for this model."
+```
+
+`gpt-image-2` does not accept `background: transparent`. `batch-restyle.py:43`
+defaults `MODEL` to `gpt-image-2` and `:224` sets `'background': 'transparent'`,
+so the two have never been compatible. The probe batch the request shape was
+taken from (`batch_6a9c19bb`) evidently did not exercise this pair.
+
+**Nothing was billed for generation.** The Batch API charges completed requests;
+zero completed. The $51.84 is unspent.
+
+**Two things were right** and should not be re-litigated: references were linked
+under `images[].image_url` and verified byte-identical to local by
+`check-sprite-refs.py` first (the Batch API takes no multipart body, so linking
+is forced and verification substitutes for attaching); and the split into two
+batches put the untested surfaces in their own group.
+
+### The fix, measured
+
+`gpt-image-1.5` is on the account and **does** accept transparency. Probed with
+this round's real 4,777-character prompt at high quality, on `bat-brown-arriving`
+(a species the pilot never covered):
+
+| | source | restyled |
+|---|---|---|
+| transparent | 59% | 68% |
+| ink, luma < 0.35 | 32.0% | 29.4% |
+| corner alpha | 0,0,0,0 | 0,0,0,0 |
+| distinct colours | 249 | **46,632** |
+
+Alpha is genuine and ink coverage is in range. The colour count is 187x the
+source and more than upscaling accounts for: it suggests smooth gradient shading
+where the existing art uses flat posterised washes. **Marcus is judging that from
+the picture before any batch is resubmitted.**
+
+Also unverified: the price. $51.84 was 473 x $0.1096, which is *gpt-image-2's*
+batch rate. gpt-image-1.5 may differ and `/organization/costs` returns 403 with
+the key in `.env.local`, so an admin key is needed to confirm actual spend.
+
+### To resume
+`asset-drafts/animal-restyle-2026-10-09/{untested,proven}/requests.jsonl` are
+already built, 234 and 239 lines. Swapping `body.model` to `gpt-image-1.5` is the
+only change needed. Do NOT rebuild the prompt.
