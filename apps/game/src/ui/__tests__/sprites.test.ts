@@ -4,6 +4,7 @@ import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_UNIT, animalScaleFraction } from '@arc/game-logic';
 import { createAnimalSprite, registerSickAnimals } from '../sprites';
 import { animalSpriteBounds } from '../animal-sprite-bounds';
+import { MIN_TAP } from '../constants';
 
 /**
  * Minimal stand-in for a Phaser scene: enough surface for
@@ -275,7 +276,11 @@ function framedScene(available: string[], bounds: Record<string, BoundsLike>) {
             this.displayHeight = src.h * s;
             return this;
           },
-          setInteractive() { return this; },
+          hit: undefined as undefined | { width: number; height: number },
+          setInteractive(config?: { hitArea?: { width: number; height: number } }) {
+            this.hit = config?.hitArea;
+            return this;
+          },
         };
       },
       rectangle: (_x: number, _y: number, w: number, h: number) => ({
@@ -382,6 +387,32 @@ describe('createAnimalSprite — comparative scale', () => {
     const budgie = animalScaleFraction('parrot', 'budgie')!;
     const sprite = (fraction: number) => fraction * 240;
     expect(sprite(macaw)).toBeGreaterThan(sprite(budgie) * 2.5);
+  });
+
+  it('keeps a small animal as tappable as a big one', () => {
+    // Drawing a bat honestly makes her 36px across in a 148px corridor box,
+    // under the 48 this game holds itself to — and the small animals are the
+    // ones a child most wants to prod. The picture shrinks; the target does
+    // not. The hit area is in frame units, which Phaser scales with the
+    // sprite, so this is MIN_TAP on the glass.
+    const sprite = createAnimalSprite(
+      framedScene([BAT], boundsFor(BAT)), 0, 0, animal({ species: 'bat', variant: 'brown' }),
+      { width: 148, height: 148, scale: 'species', interactive: true },
+    ) as unknown as { hit?: { width: number; height: number }; displayWidth: number };
+    const scale = sprite.displayWidth / animalSpriteBounds(BAT)!.w;
+    expect(sprite.displayWidth).toBeLessThan(MIN_TAP);
+    expect(sprite.hit).toBeDefined();
+    expect(sprite.hit!.width * scale).toBeGreaterThanOrEqual(MIN_TAP - 0.001);
+    expect(sprite.hit!.height * scale).toBeGreaterThanOrEqual(MIN_TAP - 0.001);
+  });
+
+  it('leaves a big animal’s hit area alone', () => {
+    const sprite = createAnimalSprite(
+      framedScene([DOG], boundsFor(DOG)), 0, 0, animal({ species: 'dog', variant: 'collie' }),
+      { width: 240, height: 240, scale: 'species', interactive: true },
+    ) as unknown as { hit?: unknown; displayWidth: number };
+    expect(sprite.displayWidth).toBeGreaterThan(MIN_TAP);
+    expect(sprite.hit).toBeUndefined();
   });
 
   it('falls back to the plain fit when the sprite has no measured bounds', () => {

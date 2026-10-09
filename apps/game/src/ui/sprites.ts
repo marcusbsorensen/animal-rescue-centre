@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, animalScaleFraction } from '@arc/game-logic';
-import { FONTS } from './constants';
+import { FONTS, MIN_TAP } from './constants';
 import { animalSpriteBounds } from './animal-sprite-bounds';
 
 /**
@@ -165,6 +165,42 @@ function subjectFrame(scene: Phaser.Scene, textureKey: string): string | undefin
 }
 
 /**
+ * Make an animal tappable, and keep her tappable when she is small.
+ *
+ * **Drawing a bat at true scale shrinks the thing a child has to hit.** At
+ * 0.24 of a 148px corridor box she is 36px across, under the 48 the rest of
+ * this game holds itself to — and the animals a child most wants to prod are
+ * exactly the small ones. So the hit area is grown back to `MIN_TAP` around
+ * her middle, in frame units, which Phaser then scales with the sprite. The
+ * picture stays honest and the target does not shrink with it.
+ *
+ * Nothing changes for an animal already drawn at least `MIN_TAP` across; she
+ * keeps the plain hit area, which is her own silhouette's box.
+ */
+function makeTappable(img: Phaser.GameObjects.Image, scale: number): void {
+  const small = img.displayWidth < MIN_TAP || img.displayHeight < MIN_TAP;
+  if (!small || scale <= 0) {
+    img.setInteractive({ useHandCursor: true });
+    return;
+  }
+  const w = Math.max(img.width, MIN_TAP / scale);
+  const h = Math.max(img.height, MIN_TAP / scale);
+  // A plain rectangle and our own `contains`, rather than `Phaser.Geom`.
+  // Everything else this module names from Phaser is a type, so the import
+  // is erased at build time and the sprite layer can be unit-tested under
+  // jsdom, where loading Phaser for real throws on its canvas probe.
+  const hitArea = { x: (img.width - w) / 2, y: (img.height - h) / 2, width: w, height: h };
+  img.setInteractive({
+    hitArea,
+    hitAreaCallback: (area: typeof hitArea, px: number, py: number) => (
+      px >= area.x && px <= area.x + area.width
+      && py >= area.y && py <= area.y + area.height
+    ),
+    useHandCursor: true,
+  });
+}
+
+/**
  * Create an animal sprite — uses real art if available, coloured rectangle as fallback.
  *
  * **The contract: `width`/`height` are the box the animal is drawn inside.**
@@ -245,7 +281,7 @@ export function createAnimalSprite(
     img.setScale(scale);
 
     if (options?.interactive) {
-      img.setInteractive({ useHandCursor: true });
+      makeTappable(img, scale);
     }
     return img;
   }
