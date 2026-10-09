@@ -71,9 +71,18 @@ End every multi-sprite brief with:
 
 This catches drift before it eats review cycles.
 
-## Rule 6: OpenAI ONLY for anything needing character / style continuity (Marcus, 2026-04-24)
+## Rule 6: References are ATTACHED, never linked (Marcus, 2026-04-24; narrowed 2026-10-09)
 
-**Hard rule:** if a sprite needs to preserve character identity, match existing art, or sit in a set alongside others, use **OpenAI's `/v1/images/edits`** via `tools/gpt-image-regen.sh` — NOT Manus.
+**Hard rule:** if a sprite needs to preserve character identity, match existing art, or
+sit in a set alongside others, its references are **attached as files**. Never linked. If a
+brief must rely on a URL, `shasum` what that URL actually serves against the local file
+first. The PROVIDER is then chosen per job on measured acceptance, not named in advance.
+
+This rule was narrowed on 2026-10-09. It used to read "OpenAI ONLY ... NOT Manus" and to
+mandate `tools/gpt-image-regen.sh`. Its reason survived testing; its remedy did not, twice
+over, and the evidence is in the dated section below. What generalises is attach-don't-link.
+Which provider is safer is a question about one specific job, answered by measuring what
+comes back.
 
 Why: Manus's NanoBanana re-composes scenes with only loose adherence to references, and — critically — will silently proceed without fetching references if it can't reach them (which it can't if references are local paths, and sometimes even with public URLs). That's an unacceptable failure mode for cast / cameo work.
 
@@ -85,17 +94,45 @@ OpenAI's `/v1/images/edits` takes the reference image(s) as multipart input — 
 - Any sprite that belongs to a set that must match.
 - Any sprite that must match a specific pre-existing character.
 
-Manus is acceptable ONLY for brand-new sprites with no character-continuity stakes — things like:
+Work with NO character-continuity stakes — brand-new sprites with nothing to match — carries
+none of this weight. Things like:
 
 - The original dangly-charm set (17 new items, no prior art to match).
 - The initial painted mirrors (5 new pieces, vehicle-specific vibes but no cross-reference constraints).
 - One-off backdrop illustrations, landscape scenes, unique props.
 
-**If there's any doubt, use OpenAI.**
+**If there's any doubt, attach the references and measure what comes back.** A set that must
+share an exact footprint is the hardest case either provider faces, because each image is a
+separate call with no knowledge of its siblings: check the footprints against each other
+before anything is installed, whoever painted them.
 
 ### STOP on reference-fetch failure
 
-Every OpenAI brief for continuity work must include: "if you cannot load the reference images, STOP and report back — do not generate from description alone." The `tools/gpt-image-regen.sh` pipeline has built-in reference-loading so this is a safeguard against future tooling changes.
+Every brief for continuity work, to any provider, must include: "if you cannot load the
+reference images, STOP and report back — do not generate from description alone." This is the
+safeguard that matters most, because the failure it catches is SILENT: a provider that cannot
+reach a reference may paint from the words alone and say nothing about it.
+
+### Tested 2026-10-09: the reason holds, the remedy has two limits
+
+The rule's **reason** was confirmed twice in one day. Both are the same failure: a brief pointing at a URL that does not serve what the brief thinks it serves.
+
+1. **The plasticine style anchor.** The first crate brief gave Manus `vehicle-topdown-henry.png` at the Vercel address as a style reference. That URL serves the OLD clay render, not the repainted line-and-wash one. The pilot was anchored to exactly the style it must not have. Round 3's brief had to carry an explicit withdrawal of reference 3 (`.claude/notes/commissions-2026-10-09.md`, section 3).
+2. **The unpushed top-downs serving stale bytes.** The repaint commits `b829999` and `a08ab96` are on no remote branch, so every `topdown/vehicle-topdown-*.png` URL serves the pre-repaint plasticine version. Checked by `shasum` against the local file: all six differ (`commissions-2026-10-09.md` section 7; `van-repaint-2026-10-09.md` section 4). A URL returning HTTP 200 proves nothing about which bytes it returns.
+
+**So: attach references as files, do not link them, and `shasum` any URL a brief does rely on.** That much is settled.
+
+The **remedy** — routing this work to `/v1/images/edits` — was then tried on the day's three commissions and hit two hard limits worth knowing before the next brief:
+
+- **The endpoint cannot make a 1024×512 canvas.** Probed directly: `Invalid size '1024x512'. Supported sizes are 1024x1024, 1024x1536, 1536x1024, and auto.` Every vehicle portrait is 1024×512, so no portrait can be re-cut this way without a canvas change, which Rule 8 ("nothing is shown cropped") then has to rule on.
+- **One probe at 1024×1024 drifted harder than Manus had.** A single crate edit, references attached and the STOP line included, came back with an invented cartoon dog and cat peeking over the rim and a "RESCUE ANIMALS" sign across the opening — big-eyed kawaii and flat cel-shading, both on Rule 4's blocklist — with the centre not clear, the footprint 885×955 instead of 932×932, and 69,394 colours against a brief asking for under 200. The Manus set it was asked to match passed all three tests. Saved at `manus-output/openai-probe/` with the numbers in `.claude/notes/openai-recommission-2026-10-09.md`.
+
+Neither limit repeals the rule. `/v1/images/edits` still takes references as multipart input, which is the thing Manus cannot be relied on to do. But "use OpenAI" is not automatically the safer choice for a **set** that must share an exact footprint, because each image is a separate call with no knowledge of its siblings, and it is not available at all for the 2:1 portraits. **Settled by Marcus, 2026-10-09:** neither. The rule narrows to attach-don't-link, and the
+provider is chosen per job on measured acceptance. Portrait work therefore stays wherever it
+can actually be done — today that is Manus for a 1024x512 canvas — under attach-and-verify,
+and the portrait canvas does not change. What is NOT optional is the measuring: every one of
+the day's three Manus commissions was checked against its brief by script before being kept,
+and that is the discipline this rule now carries.
 
 ---
 
