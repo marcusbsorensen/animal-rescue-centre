@@ -561,3 +561,31 @@ checking the claim still holds.
   ever do want depths honoured here, `container.sort('depth')` after the
   screen is built is the call, and it re-orders everything else at the same
   time, the title plate included.
+- **`stateTween` can only apply a value it can read, so a relative
+  `` `+=${dy}` `` is a string it leaves alone — and it calls `onComplete`
+  anyway.** Phaser accepts a relative target and resolves it against the
+  object when the tween starts; `ui/tween.ts` cannot, because there is no
+  honest way to resolve `+=` from outside a running tween, so `endValues`
+  takes numbers and `{ from, to }` and skips everything else. Under reduced
+  motion a state tween applies its end values at once **and then runs the
+  callback**, so a tween whose only property is relative moves nothing and
+  reports that it arrived. **The symptom is a correct-looking animation
+  with a lying callback:** the picker's departing lorry was tweened
+  `` y: `+=${dy}` ``, and with reduced motion on, the flow was told the
+  forecourt was empty while she was still sitting in her bay — and
+  everything after that point assumes she has gone. **This is silent.**
+  Nothing throws, nothing logs, the property is simply not in the list;
+  and the full-motion path is perfect, so it only appears with reduced
+  motion turned on, which is the configuration least likely to be the one
+  anybody tests in. In this game it is also the configuration most likely
+  to be real: it is built for autistic children, and reduced motion is a
+  setting that will be on. **Work the number out before the call** — `y:
+  target.y + dy`, one tween per target — which is what
+  `PtvDriveScene.driveTogether` does for the vehicle and each of her shadow
+  layers. Since 2026-10-09 both helpers warn in dev when a config gives
+  them a string property, on the full-motion path as well as the reduced
+  one, because a warning you only see in the configuration you do not run
+  is the same bug again. A warning and not a throw: a child mid-game cannot
+  act on it, and a crash is a worse answer than an animation that does not
+  move. Audited at the time — every other `stateTween` and
+  `decorativeTween` call in the repo passes plain numbers.

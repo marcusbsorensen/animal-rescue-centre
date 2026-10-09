@@ -159,6 +159,82 @@ describe('with motion reduced', () => {
   });
 });
 
+describe('a value the helpers cannot read', () => {
+  /**
+   * **Phaser takes `` y: `+=${dy}` `` and these two cannot**, because a
+   * relative value has to be resolved against the target when the tween
+   * starts and there is no honest way to do that from here. So it is
+   * skipped — and a `stateTween` that skips its only property still calls
+   * `onComplete`, which tells the caller an end state arrived that did
+   * not. That is how a departing lorry came to be reported gone while she
+   * sat in her bay, and it is invisible except with reduced motion on.
+   *
+   * The warning is the remedy for the invisibility, so the thing worth
+   * testing hardest is that it fires on the **full-motion** path too.
+   */
+  it('warns on the full-motion path, where the fault cannot otherwise be seen', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scene = fakeScene();
+    stateTween(scene, { targets: piece(), y: '+=120', duration: 700 });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('stateTween');
+    expect(warn.mock.calls[0][0]).toContain('y');
+    // And the animation still runs: the warning is for the author, not a
+    // reason to drop a child's animation on the floor.
+    expect(scene.added).toHaveLength(1);
+    warn.mockRestore();
+  });
+
+  it('warns with motion reduced, where it does the damage', () => {
+    setMotionSetting('reduced');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scene = fakeScene();
+    const target = piece();
+    let arrived = false;
+    stateTween(scene, {
+      targets: target, y: '+=120', duration: 700, onComplete: () => { arrived = true; },
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    // The fault itself, recorded rather than fixed: the callback runs and
+    // the target has not moved. Nothing here can resolve a `+=`; the
+    // caller has to hand over a number.
+    expect(arrived, 'the callback still runs').toBe(true);
+    expect(target.y, 'and the target has not moved').toBe(20);
+    warn.mockRestore();
+  });
+
+  it('warns about a decorative tween too, whose restore would miss it', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scene = fakeScene();
+    decorativeTween(scene, { targets: piece(), x: '-=4', duration: 2300, repeat: -1 });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('decorativeTween');
+    warn.mockRestore();
+  });
+
+  it('says it once, not once per particle', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scene = fakeScene();
+    for (let i = 0; i < 20; i += 1) {
+      decorativeTween(scene, { targets: piece(), x: '-=4', duration: 2300 });
+    }
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('says nothing about the numbers and { from, to } this game writes', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scene = fakeScene();
+    stateTween(scene, {
+      targets: piece(), x: 99, alpha: { from: 0, to: 0.5 }, duration: 110, ease: 'Sine.easeIn',
+    });
+    // `ease` is a string and a tween setting, not a property of the
+    // target: warning about it would make the warning worthless.
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
 describe('when the setting changes mid-session', () => {
   it('stops a running decorative tween and puts its target back', () => {
     // A carer turns reduced motion on while the child is in the game.
