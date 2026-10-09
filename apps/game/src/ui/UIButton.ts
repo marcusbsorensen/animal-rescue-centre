@@ -101,12 +101,33 @@ export function createChromePlate(
      * is filled has said nothing.
      */
     variant?: 'plate' | 'filled';
+    /**
+     * Paper in a colour of its own, rather than the one cream.
+     *
+     * **For a panel whose *surface* is carrying the news, not for
+     * decoration.** The rule the chrome is built on is one surface, and
+     * a screen that tints every plate has gone back to the dozen fills
+     * this replaced. The case it exists for is a panel that reports a
+     * state which already has a colour elsewhere on the same screen —
+     * the crate loading screen's message panel, which takes the tint of
+     * the feeling whose glyph is drawn on the bays beside it, so the
+     * panel says what it is before a word of it is read.
+     *
+     * `stroke` is the same colour at full weight: a pale wash with the
+     * chrome's warm grey edge reads as a cream plate somebody has
+     * stained, where the wash with its own darker edge reads as paper
+     * in that colour.
+     *
+     * Ignored when `variant` is `filled`.
+     */
+    tint?: { fill: number; stroke: number };
   }
 ): Phaser.GameObjects.Container {
   const radius = options?.radius ?? CHROME.radius;
   const fillAlpha = options?.fillAlpha ?? CHROME.fillAlpha;
   const shadow = options?.shadow ?? true;
   const filled = options?.variant === 'filled';
+  const tint = filled ? undefined : options?.tint;
 
   const gfx = scene.add.graphics();
 
@@ -115,13 +136,18 @@ export function createChromePlate(
     gfx.fillRoundedRect(-w / 2 + CHROME.shadowX, -h / 2 + CHROME.shadowY, w, h, radius);
   }
 
-  gfx.fillStyle(filled ? hexNum(CHROME.inkAccent) : CHROME.fill, filled ? 1 : fillAlpha);
+  if (filled) gfx.fillStyle(hexNum(CHROME.inkAccent), 1);
+  else gfx.fillStyle(tint ? tint.fill : CHROME.fill, fillAlpha);
   gfx.fillRoundedRect(-w / 2, -h / 2, w, h, radius);
 
   // As on the button: outlining a filled plate in the plate's own warm grey
   // draws a ring around a dark shape rather than an edge on a light one.
   if (!filled) {
-    gfx.lineStyle(CHROME.strokeWidth, CHROME.stroke, CHROME.strokeAlpha);
+    gfx.lineStyle(
+      tint ? CHROME.strokeWidth + 0.5 : CHROME.strokeWidth,
+      tint ? tint.stroke : CHROME.stroke,
+      tint ? 0.75 : CHROME.strokeAlpha,
+    );
     gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, radius);
   }
 

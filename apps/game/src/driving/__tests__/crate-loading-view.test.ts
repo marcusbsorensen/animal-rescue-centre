@@ -49,7 +49,7 @@ import {
 } from '@arc/game-logic';
 import {
   affectedBy, bayHitSize, glyphWorthDrawing, gridFace, gridFeeling, pairFaces, pairOf,
-  tileArt,
+  setLines, splitTakeaway, tileArt, titleCase,
 } from '../crate-loading-view';
 import { VEHICLE_BED, VEHICLE_BED_SOURCE, fitLoadBed } from '../fleet-art';
 import { MIN_TAP } from '../../ui/constants';
@@ -402,5 +402,80 @@ describe('a poorly animal, drawn', () => {
     expect(note.needsQuiet).toBe(false);
     expect(gridFace(session, a.id)).toBe('sick');
     expect(gridFace(session, b.id)).toBe('sick');
+  });
+});
+
+// ── Marcus's typesetting rules, as code ──────────────────────
+
+describe('headings in title case', () => {
+  it('capitalises the first character, not the first lowercase one', () => {
+    // The bug this exists for turned "Henry is empty" into "HEnry Is
+    // Empty" — a regex that found the first lowercase letter *inside*
+    // the word.
+    expect(titleCase('Henry is empty')).toBe('Henry Is Empty');
+    expect(titleCase('Big Tilly is empty')).toBe('Big Tilly Is Empty');
+  });
+
+  it('leaves his small words small, unless they lead or end', () => {
+    expect(titleCase('Nobody is worried')).toBe('Nobody Is Worried');
+    expect(titleCase('Wait a moment')).toBe('Wait a Moment');
+    expect(titleCase('in your hands: pip the bat')).toBe('In Your Hands: Pip the Bat');
+    // Last word, so it is capitalised even though it is on the list.
+    expect(titleCase('somewhere to')).toBe('Somewhere To');
+  });
+
+  it('does not touch a word the rules already capitalised', () => {
+    expect(titleCase('A.R.C. is open')).toBe('A.R.C. Is Open');
+  });
+});
+
+describe('the takeaway is one sentence, not one line', () => {
+  it('splits a two-sentence note after the first full stop', () => {
+    expect(splitTakeaway(
+      'Pepper the cat makes Bracken the hedgehog worried. They can sit next'
+      + ' to each other, but Bracken will not enjoy the journey.',
+    )).toEqual([
+      ['Pepper the cat makes Bracken the hedgehog worried.'],
+      ['They can sit next to each other, but Bracken will not enjoy the journey.'],
+    ]);
+  });
+
+  it('leaves a single sentence whole, with nothing after it', () => {
+    expect(splitTakeaway('Tap to pick them up.')).toEqual([['Tap to pick them up.'], []]);
+  });
+});
+
+describe('the lines a paragraph is set in', () => {
+  // One character is one unit wide — the rules under test are about
+  // which words land on which line, not about the face.
+  const measure = (s: string): number => s.length;
+
+  it('never leaves a single word on the last line', () => {
+    const lines = setLines(measure, 'one two three four five six sevenlong', 20);
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines[lines.length - 1].split(' ').length).toBeGreaterThan(1);
+  });
+
+  it('never ends a line on a one-letter word', () => {
+    const lines = setLines(measure, 'give them a quiet space to travel in today', 18);
+    for (const line of lines.slice(0, -1)) {
+      const last = line.split(' ').pop() as string;
+      expect(last.replace(/[^A-Za-z]/g, '').length).toBeGreaterThan(1);
+    }
+  });
+
+  it('never starts a line with bare punctuation', () => {
+    for (const line of setLines(measure, 'alpha bravo charlie , delta echo foxtrot', 14)) {
+      expect(/^[^A-Za-z0-9]/.test(line)).toBe(false);
+    }
+  });
+
+  it('loses no words and keeps their order', () => {
+    const text = 'Animals only mind who is beside them, above them or below them.';
+    expect(setLines(measure, text, 24).join(' ')).toBe(text);
+  });
+
+  it('gives back nothing for nothing', () => {
+    expect(setLines(measure, '', 100)).toEqual([]);
   });
 });

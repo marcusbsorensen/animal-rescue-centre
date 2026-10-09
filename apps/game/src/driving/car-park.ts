@@ -29,11 +29,36 @@
  * **Depth, not size.** The chosen vehicle is the subject and must stay
  * the subject, so the fleet beside her is drawn at the same true scale
  * — same car park, same metre — and pushed back with tint and alpha
- * instead, with the frame cutting the outer ones. The building behind
- * is large and soft: the lesson from the attempt that drew it at 130px
- * was that a small building reads as a sticker, so this one is sized
- * off the band it stands in and cropped by the apron's kerb, the way a
- * building behind a car park is cropped by the car park.
+ * instead, with the frame cutting the outer ones.
+ *
+ * **There is no building in this picture, and the reason is the
+ * camera.** `docs/manus-sprite-rules.md` Rule 7 locks the site's art to
+ * two projections: ground top-down, buildings and trees as
+ * front-elevation stamps, the painted-storybook-map convention. The
+ * picker can hold both at once because it is a wide shot — the stamp is
+ * a discrete object standing in a field of gravel, read as a picture of
+ * a building rather than as a thing in the scene. Move the camera in
+ * until one van fills the frame and the convention breaks: the façade
+ * is the only thing left in elevation, it meets the tarmac along a
+ * horizontal line, and what the eye reports is a building that has sunk
+ * into the car park up to its ceiling. Marcus saw it immediately and he
+ * is right. No amount of ground under it fixes that, because the fault
+ * is not where the building stands, it is which way the camera is
+ * pointing at it.
+ *
+ * The fix is a bird's-eye A.R.C. building — roof, dome and flagpole
+ * seen from above, in the projection the tarmac and every vehicle are
+ * already in. **That art does not exist.** The only A.R.C. building in
+ * the repository is `site-arc-building.png`, which despite its
+ * `topdown/` folder is the front elevation commissioned in
+ * `docs/arc-site-tier1-brief.md` ("as if standing on Canute Road
+ * looking at the front of the building"), and its two other copies are
+ * the same painting. Squashing or skewing it would produce a squashed
+ * façade, which is the same fault with extra steps, so until the art is
+ * commissioned this screen shows what it can honestly show: the car
+ * park, from above, with its far kerb and the gravel beyond it. That is
+ * not a hole where a building was — it is the back edge of the car
+ * park, which is what you see from here.
  *
  * Nothing here moves, flashes or is on a timer.
  */
@@ -46,42 +71,25 @@ import { VEHICLE_SPRITE, VEHICLE_WIDTH_M, bayWidthM } from './fleet-art';
 export interface Rect { x: number; y: number; w: number; h: number }
 
 /**
- * The band the building stands in, above the apron — a share of the
- * column, with a floor and a ceiling.
+ * The strip of gravel above the apron — the ground the car park ends
+ * on, between its far kerb and the top of the frame.
  *
- * Under about 84px there is no building, only a smear of roof, and the
- * honest thing is gravel: that is what the landscape phone gets, where
- * the whole column is shorter than one van. Past about 200 it stops
- * buying legibility and starts costing the bays.
+ * **It was 0.30 of the column, 84 to 200 pixels, and it was a band for
+ * a building to stand in.** With the building gone (see the note at the
+ * top of this file) what it holds is the far edge of the car park, and
+ * that edge needs enough gravel above it to read as ground the tarmac
+ * stops on rather than as a cut at the top of the picture. A kerb with
+ * nothing beyond it is a slab again, which is the failure
+ * `f0e4dd0`/`7abdd63` were fixing.
  *
- * 0.30 is what the trade is worth. The band comes out of the vehicle's
- * *length*, never its width — see `VEHICLE_VISIBLE_FRAC` — so at
- * 1024x700 it leaves her drawn 201px wide with 58px bays against the
- * 204 and 59 she had with no car park at all. The picture behind her
- * is free; what pays for it is her bumper.
+ * 42px is two kerbs' worth of gravel at every viewport this screen
+ * runs at, and it is flat rather than a fraction because it is a
+ * constant feature of the ground, not a share of the composition. At
+ * 1024x700 it hands about 150px back to the vehicle and her bays —
+ * which is the one trade this screen is allowed to make in only one
+ * direction, because the animals are the subject.
  */
-const BACKDROP_FRAC = 0.30;
-const BACKDROP_MIN = 84;
-const BACKDROP_MAX = 200;
-
-/**
- * The widest the building is drawn, as a share of the column it stands
- * behind and of the frame.
- *
- * **The lesson from the attempt that failed was scale.** A rescue
- * centre drawn 130px wide behind a 200px van is a sticker, because a
- * building is not the size of a van. So this one is drawn about as
- * wide as the whole car park column and cropped at its own ground
- * line: what shows is the flat roof, the aviary dome and the flagpole,
- * and what is hidden is everything a car park in front of a building
- * hides. A big building mostly behind something reads as a big
- * building; a small whole one reads as a model.
- */
-const BUILDING_W_FRAC = 1.0;
-const BUILDING_W_MIN = 240;
-const BUILDING_W_MAX_FRAME = 0.5;
-/** Never so little of it that it is a line of roof. */
-const BUILDING_KEEP_MAX = 0.72;
+const BACKDROP_H = 42;
 
 /** A painted bay line is 100mm of white thermoplastic. */
 const BAY_LINE_M = 0.1;
@@ -104,29 +112,28 @@ const BAY_LINE_ALPHA = 0.8;
  */
 const PARKED_TINT = 0xbcb7ad;
 const PARKED_ALPHA = 0.76;
-const BUILDING_TINT = 0xe4dfd4;
-const BUILDING_ALPHA = 0.88;
 
 /**
- * How much of a car-park column goes to the building behind it.
+ * How much of a car-park column is gravel above the apron's far kerb.
  *
  * Exported because the caller has to know it *before* it measures the
- * vehicle: the band is taken off the top of the column, the vehicle is
+ * vehicle: the strip is taken off the top of the column, the vehicle is
  * fitted to what is left plus the length she may hang past the kerb,
- * and then this draws the band. Two readings of one number would be
+ * and then this draws the ground. Two readings of one number would be
  * the vehicle and the ground disagreeing about where the car park
  * starts.
+ *
+ * A column too short to spare it gets none, and the tarmac runs to the
+ * top of the frame — on the landscape phone the whole column is
+ * shorter than one van, and a van is worth more than a kerb.
  */
 export function carParkBackdropH(columnH: number): number {
-  const want = Math.min(columnH * BACKDROP_FRAC, BACKDROP_MAX);
-  return want >= BACKDROP_MIN ? want : 0;
+  return columnH >= BACKDROP_H * 5 ? BACKDROP_H : 0;
 }
 
 export interface CarParkOptions {
   width: number;
   height: number;
-  /** The first y below the title plate — the building is sized from it. */
-  contentTop: number;
   /** The column the chosen vehicle is drawn in, and its bay centred in it. */
   column: Rect;
   /** The chosen vehicle. Her bay is left empty for the caller to fill. */
@@ -164,7 +171,7 @@ export function drawCarPark(
   container: Phaser.GameObjects.Container,
   options: CarParkOptions,
 ): CarPark {
-  const { width, height, contentTop, column, chosen, spriteW } = options;
+  const { width, height, column, chosen, spriteW } = options;
 
   drawGravel(scene, container, width, height);
 
@@ -182,38 +189,6 @@ export function drawCarPark(
     w: bayW,
     h: apronBottom - apronTop,
   };
-
-  // ── The building, at the back ──
-  //
-  // Centred on the bay rather than on the frame: the child has parked
-  // in front of the rescue centre, and a building centred on a viewport
-  // whose vehicle is off to one side is a building standing somewhere
-  // else. Its ground line runs under the apron, which is drawn after
-  // it, so the kerb crops it the way the far edge of a car park crops
-  // whatever is behind it.
-  if (backdropH > 0 && scene.textures.exists('site-arc-building')) {
-    const img = scene.add.image(bayCx, contentTop, 'site-arc-building').setOrigin(0.5, 0);
-    const aspect = img.width / img.height;
-    const visible = apronTop - contentTop + 10;
-    const wantW = Math.min(
-      Math.max(column.w * BUILDING_W_FRAC, BUILDING_W_MIN),
-      width * BUILDING_W_MAX_FRAME,
-    );
-    let drawnH = wantW / aspect;
-    let keep = visible / drawnH;
-    if (keep > BUILDING_KEEP_MAX) {
-      keep = BUILDING_KEEP_MAX;
-      drawnH = visible / keep;
-    }
-    img.setDisplaySize(drawnH * aspect, drawnH);
-    // `setCrop` is in the texture's own pixels and leaves the kept part
-    // where it already was, so the roofline does not move when the band
-    // changes size.
-    img.setCrop(0, 0, img.width, img.height * Math.max(0.05, Math.min(1, keep)));
-    img.setTint(BUILDING_TINT);
-    img.setAlpha(BUILDING_ALPHA);
-    container.add(img);
-  }
 
   // ── The apron ──
   //

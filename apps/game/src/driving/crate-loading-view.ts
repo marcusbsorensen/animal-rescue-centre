@@ -14,16 +14,21 @@
  * is and how big to draw the vehicle so the bays stay tappable.
  *
  * **It is also a place.** The vehicle stands in a painted bay on the
- * A.R.C. tarmac, the building behind it and the exit road along the
- * bottom — the same forecourt the picker draws, through the same
- * `drawForecourt`, because this is that car park one moment later.
+ * A.R.C. tarmac, with the rest of the fleet either side of her and the
+ * car park's far kerb behind — the picker's forecourt with the camera
+ * moved in, because this is that car park one moment later. Neither
+ * the exit road nor the rescue centre itself is in the frame, and
+ * `car-park.ts` says why each is out.
  *
- * **The big panel on the right is the teaching surface.** It is not a
- * status line, it is the point of the screen: it answers in words a
- * child can read whether these two animals may sit together, and why.
- * It has a fixed home that never moves between renders. Nothing here is
- * on a timer, nothing flashes, and nothing a child taps can lose her
- * work.
+ * **The big panel on the right is the teaching surface, and the screen
+ * says so in colour.** It is not a status line, it is the point: it
+ * answers in words a child can read whether these two animals may sit
+ * together, and why. Its paper takes the colour of the feeling it is
+ * reporting — the same four the glyphs use — so the answer arrives
+ * before the sentence does, and the one colour that is not a feeling,
+ * the brand orange, marks the one place a child starts. It has a fixed
+ * home that never moves between renders. Nothing here is on a timer,
+ * nothing flashes, and nothing a child taps can lose her work.
  *
  * The rules, the state machine and every sentence live in
  * `@arc/game-logic`'s `crate-loading` module — this file draws a
@@ -95,6 +100,35 @@ const FEELING_SKIN: Record<Mood, { fill: number; stroke: number; ink: string }> 
 };
 
 /**
+ * The one colour on this screen that is not a feeling: the brand
+ * orange, and it means *this is where you act*.
+ *
+ * **Every plate on this screen used to be the same cream rounded
+ * rectangle** — the title, Back, the message panel, all six tray chips
+ * and both buttons — which is precisely what "bland" names: nine
+ * surfaces of equal weight and no way to tell the teaching surface
+ * from the furniture. The screen already had a colour language in
+ * `FEELING_SKIN`, four hues a child learns here and reads on the
+ * glyphs, so the panel now takes the feeling's own colour as its
+ * *surface* and says what it is before a word of it is read.
+ *
+ * That leaves the entry point with nothing, and Marcus's rule is that
+ * a lead-in takes a colour no panel uses. Green, amber, red and blue
+ * are spoken for; cream is paper. The brand's fifth hue is this
+ * orange, which carries no meaning anywhere else on the screen, so it
+ * carries the one thing the feelings cannot: the next thing to do.
+ * It is used exactly twice — the inverse block over the animals
+ * waiting to board, which is where a child starts, and nowhere else.
+ *
+ * `WASH` is the same hue at the weight a sub-panel takes: the tray
+ * chips are shades of their lead-in, so six chips read as one group
+ * belonging to that block rather than as six more cream plates
+ * competing with the panel.
+ */
+const ACT = hexNum(COLOURS.warm);
+const ACT_WASH = { fill: 0xf6e9dc, stroke: ACT };
+
+/**
  * What the screen shows about a pair.
  *
  * The *rules* keep three levels and that has not changed — happy,
@@ -114,7 +148,130 @@ type Mood = CompatibilityLevel | 'quiet';
  * feels — which is the test the comment on `FEELING` sets for adding
  * a word, and it passes.
  */
-const MOOD_WORD: Record<Mood, string> = { ...FEELING, quiet: 'Needs quiet' };
+const MOOD_WORD: Record<Mood, string> = { ...FEELING, quiet: 'Needs Quiet' };
+
+/**
+ * The words a heading never capitalises, unless it is the first word
+ * or the last.
+ *
+ * Marcus's list, verbatim. Title case is his house rule for every
+ * heading, and on this screen the headings are assembled from animal
+ * names and species at run time — "Nutmeg the bunny", "Henry is
+ * empty" — so a function is the only way to hold the rule. The
+ * *sentences* are not touched: their wording was settled with him and
+ * is pinned by tests, and this only ever sees a heading.
+ */
+const TITLE_SMALL = new Set([
+  'a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet', 'as', 'at',
+  'by', 'in', 'of', 'off', 'on', 'per', 'to', 'up', 'via', 'vs', 'from',
+  'into', 'onto', 'with', 'upon',
+]);
+
+/** A heading in title case — see `TITLE_SMALL`. */
+export function titleCase(heading: string): string {
+  const words = heading.split(' ');
+  return words
+    .map((w, i) => {
+      const bare = w.replace(/[^A-Za-z]/g, '');
+      if (i > 0 && i < words.length - 1 && TITLE_SMALL.has(bare.toLowerCase())) {
+        return w.toLowerCase();
+      }
+      // Only the *first character* is touched, never the first
+      // lowercase one anywhere in the word — that is what turned
+      // "Henry" into "HEnry". "A.R.C." and a name the rules already
+      // capitalised come back unchanged.
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    })
+    .join(' ');
+}
+
+/**
+ * A line split into its first sentence and whatever follows it.
+ *
+ * The takeaway is one sentence, so a note carrying two gets the bold
+ * on the first and plain on the rest. A line with one sentence comes
+ * back whole, with nothing after it.
+ */
+export function splitTakeaway(line: string): [string[], string[]] {
+  const m = /^(.+?[.!?])\s+(\S.*)$/.exec(line);
+  return m ? [[m[1]], [m[2]]] : [[line], []];
+}
+
+/**
+ * The lines a paragraph breaks into, set rather than wrapped.
+ *
+ * Phaser's `wordWrap` is greedy and stops there, which on a 374px
+ * column gives "Animals only mind who is beside them, above / them or
+ * below them." — a line starting on "them", and a last line that at
+ * other widths comes out as a single stranded word. Marcus's rules
+ * name four faults a greedy wrap produces and this fixes all four
+ * against the measured width:
+ *
+ * - **No runts.** The last line of a paragraph never holds a single
+ *   word; the word before it comes down to keep it company.
+ * - **No one-letter word at a line end.** "a" and "I" go to the next
+ *   line rather than hanging off the right edge.
+ * - **No word stranded in front of punctuation.** A line never begins
+ *   with a bare comma or full stop.
+ * - **Roughly eight to ten words a line**, which at this column's
+ *   width and 18px type is what the greedy pass already gives; the
+ *   fixups only ever move words *down*, so they cannot overrun it.
+ *
+ * `measure` is the live Phaser text object's own width, so this is
+ * measured in the face that will draw it rather than estimated.
+ */
+export function setLines(
+  measure: (s: string) => number,
+  text: string,
+  maxWidth: number,
+): string[] {
+  const words = text.split(/\s+/).filter((w) => w.length > 0);
+  if (words.length === 0) return [];
+
+  const lines: string[][] = [[]];
+  for (const w of words) {
+    const line = lines[lines.length - 1];
+    if (line.length === 0) { line.push(w); continue; }
+    if (measure([...line, w].join(' ')) <= maxWidth) line.push(w);
+    else lines.push([w]);
+  }
+
+  const fits = (line: string[]): boolean => measure(line.join(' ')) <= maxWidth;
+
+  // No one-letter word at a line end: push it onto the next line,
+  // which can only make that line longer, so it is checked.
+  for (let i = 0; i < lines.length - 1; i += 1) {
+    const line = lines[i];
+    const last = line[line.length - 1];
+    if (line.length > 1 && last.replace(/[^A-Za-z]/g, '').length === 1) {
+      const next = [last, ...lines[i + 1]];
+      if (fits(next)) { line.pop(); lines[i + 1] = next; }
+    }
+  }
+
+  // No runt: a last line holding one word takes the word above it.
+  // Guarded so the line it takes from never drops below two words,
+  // which would just move the runt up a line.
+  for (let guard = 0; guard < words.length; guard += 1) {
+    const last = lines[lines.length - 1];
+    const prev = lines[lines.length - 2];
+    if (!prev || last.length > 1 || prev.length < 2) break;
+    const moved = [prev[prev.length - 1], ...last];
+    if (!fits(moved)) break;
+    prev.pop();
+    lines[lines.length - 1] = moved;
+  }
+
+  // No line begins with bare punctuation — it belongs to the word it
+  // follows, on that word's line.
+  for (let i = 1; i < lines.length; i += 1) {
+    while (lines[i].length > 0 && /^[^A-Za-z0-9]+$/.test(lines[i][0])) {
+      lines[i - 1].push(lines[i].shift() as string);
+    }
+  }
+
+  return lines.filter((l) => l.length > 0).map((l) => l.join(' '));
+}
 
 /** How a note reads on screen: its level, unless illness is the reason. */
 function moodOf(note: { level: CompatibilityLevel; needsQuiet?: boolean }): Mood {
@@ -302,6 +459,20 @@ const CHIP_MIN_H = MIN_FONT.small + SPACE.s + MIN_TAP;
 const PANEL_TEXT_H = 34 + 4 * 27;
 const PANEL_FACES_H = 104;
 const PANEL_FACES_MIN = 62;
+/**
+ * How tall the band may grow when the column has height going spare.
+ *
+ * On the short viewport the animals waiting fall back to a strip
+ * across the bottom, and the reading column then ends level with the
+ * panel rather than level with the car park — about fifty pixels of
+ * gravel under a panel that stopped short, beside a vehicle that did
+ * not. Marcus's rule for two columns of unequal height is that the
+ * shorter one gets a purposeful element, not empty space, and the
+ * purposeful element here is obvious: the two animals the panel is
+ * talking about, drawn bigger. Nothing else on this screen is a better
+ * use of fifty pixels.
+ */
+const PANEL_FACES_MAX = 168;
 
 /**
  * Below this a bay cannot carry a name row without the name taking more
@@ -422,11 +593,29 @@ interface PanelCast {
   apart?: boolean;
 }
 
-/** Lines the panel shows, and which feeling (if any) tints its heading. */
+/** Lines the panel shows, and which feeling (if any) it is reporting. */
 interface PanelCopy {
   heading: string;
+  /**
+   * The feeling this copy is about. It tints the heading's ink *and*
+   * the panel's whole surface, so a child reading across the screen
+   * sees the same four colours on the glyphs, on the bays and on the
+   * paper the sentence is printed on.
+   */
   tone: Mood | null;
   body: string[];
+  /**
+   * Which body line is the takeaway — the one sentence to leave with,
+   * set bold.
+   *
+   * Zero by default, because in nearly every branch the first line is
+   * the fact and the second is what to do about it. It is overridden
+   * where line 0 is a *negation*: Marcus's rule is that the boldest
+   * thing on a page says what something is, never what it is not, so
+   * "Nobody is sitting next to anybody" is set plain and the line that
+   * says what to do is bolded instead. `null` bolds nothing.
+   */
+  boldLine?: number | null;
   cast?: PanelCast;
 }
 
@@ -1010,8 +1199,12 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
   if (held) {
     const crate = crateDefFor(held.species);
     return {
-      heading: `In your hands: ${held.name} the ${held.species}`,
+      heading: titleCase(`In your hands: ${held.name} the ${held.species}`),
       tone: null,
+      // Line 0, the same line the tray bolds when she is hovered: what
+      // she travels in is the fact this screen is teaching, and the
+      // weight staying on it when she is picked up means nothing moves
+      // in the panel that the child did not move.
       body: [
         `${held.name} travels in a ${crate.label.toLowerCase()}.`,
         `Tap a space in ${state.vehicle.name} to put them down.`,
@@ -1048,8 +1241,12 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
 
   if (aboard(session).length === 0) {
     return {
-      heading: `${state.vehicle.name} is empty`,
+      heading: titleCase(`${state.vehicle.name} is empty`),
       tone: null,
+      // The lesson, not the instruction: the arrow in the picture
+      // above already says tap-then-tap, and the sentence a child
+      // should leave this screen with is the one about neighbours.
+      boldLine: 1,
       body: [
         `Tap an animal waiting to board, then tap a space in ${state.vehicle.name}.`,
         'Animals only mind who is beside them, above them or below them.',
@@ -1069,8 +1266,10 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
   // Drawn as two of the animals aboard with the floor between them,
   // which is the sentence: there is nobody beside anybody.
   return {
-    heading: 'Nobody is worried',
+    heading: titleCase('Nobody is worried'),
     tone: null,
+    // Line 0 is a negation twice over and may not be the bold one.
+    boldLine: 1,
     body: [
       'Nobody is sitting next to anybody, so nobody has a neighbour to mind.',
       'Load another animal, or set off.',
@@ -1098,7 +1297,7 @@ function panelCopy(state: CrateLoadingState): PanelCopy {
     return {
       heading: notice.level
         ? MOOD_WORD[moodOf({ level: notice.level, needsQuiet: notice.needsQuiet })]
-        : 'Wait a moment',
+        : titleCase('Wait a moment'),
       tone: notice.level
         ? moodOf({ level: notice.level, needsQuiet: notice.needsQuiet })
         : null,
@@ -1177,16 +1376,26 @@ export function renderCrateLoading(
   const trayLabelH = MIN_FONT.small + SPACE.xs;
   const trayMinH = trayLabelH + SPACE.s + MIN_TAP;
   const panelWanted = CHROME.padY * 2 + PANEL_FACES_H + SPACE.s + PANEL_TEXT_H;
-  const waiting = waitingToBoard(session).length;
+  // **Sized for everybody offered, not for whoever is still waiting.**
+  // The tray empties as the child loads, and a grid re-measured on
+  // each tap gives the remaining animals a new size and a new place
+  // every time — the chips jump sideways and grow under her hand,
+  // which is motion this game does not spend, and on this screen it is
+  // motion caused by the thing she just did somewhere else. Measured
+  // once off `offered`, the chips are fixed for the life of the screen
+  // and the row simply shortens from the right, which is a record of
+  // who has boarded rather than a reshuffle.
+  const offered = session.offered.length;
   const columnTrayTop = contentTop
     + Math.min(contentBottom - contentTop, panelWanted) + SPACE.l;
   const columnTrayH = contentBottom - columnTrayTop;
   const columnChip = trayGrid(
-    Math.max(1, waiting), { w: readW, h: columnTrayH - trayLabelH - SPACE.s },
+    Math.max(1, offered), { w: readW, h: columnTrayH - trayLabelH - SPACE.s },
   );
 
   let trayBox: Box;
   let columnsBottom: number;
+  let panelH: number;
   if (
     columnTrayH >= trayMinH
     && columnChip.chipW >= CHIP_NAME_MIN_W
@@ -1194,6 +1403,9 @@ export function renderCrateLoading(
   ) {
     trayBox = { x: readX, y: columnTrayTop, w: readW, h: columnTrayH };
     columnsBottom = contentBottom;
+    // The tray is under the panel in the same column, so the panel is
+    // exactly as tall as its copy and the tray has the rest.
+    panelH = Math.min(contentBottom - contentTop, panelWanted);
   } else {
     // The strip's whole height, label row included — on a landscape
     // phone every pixel it takes comes off the message panel, which is
@@ -1201,23 +1413,29 @@ export function renderCrateLoading(
     const trayH = Math.min(104, Math.max(trayMinH, height * 0.19));
     trayBox = { x: PAGE_MARGIN, y: contentBottom - trayH, w: usable, h: trayH };
     columnsBottom = trayBox.y - SPACE.s;
+    // Nothing is under the panel now, so it runs to the foot of the
+    // column and the extra goes to the picture — see `PANEL_FACES_MAX`.
+    panelH = Math.max(MIN_TAP, Math.min(
+      columnsBottom - contentTop,
+      CHROME.padY * 2 + PANEL_FACES_MAX + SPACE.s + PANEL_TEXT_H,
+    ));
   }
 
   // ── The car park ──
   //
-  // The left column is a place, not a slab: the A.R.C. building at the
-  // back, the tarmac apron, the rest of the fleet in the bays either
-  // side — the picker's car park with the camera moved in. The exit
-  // road is not in it, and that is arithmetic rather than taste; see
-  // `car-park.ts`.
+  // The left column is a place, not a slab: the tarmac apron, its far
+  // kerb with the site's gravel beyond it, and the rest of the fleet
+  // in the bays either side — the picker's car park with the camera
+  // moved in. Neither the exit road nor the A.R.C. building is in it,
+  // and both are arithmetic rather than taste; see `car-park.ts`.
   //
-  // **The band behind her is paid for in bumper, not in bays.** The
-  // backdrop comes off the top of the column, and the vehicle is then
+  // **The gravel above the kerb is paid for in bumper, not in bays.**
+  // The strip comes off the top of the column, and the vehicle is then
   // fitted to what is left *divided by* the share of her that has to
   // stay in frame — so she is drawn very nearly the size she was with
   // no car park at all, parked lower down, and cut off at the kerb.
   // Every load bed in the fleet sits in the top two-thirds of its
-  // sprite, so what the picture behind her costs is her nose.
+  // sprite, so what the ground behind her costs is her nose.
   const column = {
     x: PAGE_MARGIN,
     y: contentTop,
@@ -1238,7 +1456,6 @@ export function renderCrateLoading(
   const park = drawCarPark(scene, container, {
     width,
     height,
-    contentTop,
     column,
     chosen: vehicle.id,
     spriteW: fit ? fit.spriteW : column.w * 0.42,
@@ -1250,9 +1467,8 @@ export function renderCrateLoading(
   // the far kerb of the car park beside it. A panel that changed height
   // with its contents would move the words a child is reading; one that
   // started below the top of the content made the column look dropped.
-  const panelH = Math.max(MIN_TAP, Math.min(columnsBottom - contentTop, panelWanted));
   const setMessage = drawPanel(scene, container, state, {
-    x: readX, y: contentTop, w: readW, h: panelH,
+    x: readX, y: contentTop, w: readW, h: Math.max(MIN_TAP, panelH),
   });
 
   // She stands in her bay, reversed in with her rear against the head
@@ -1328,6 +1544,9 @@ function bayHoverCopy(session: LoadingSession, slotIndex: number): PanelCopy | n
     body: notes.length > 0
       ? sentences(notes, 2)
       : [`Nobody is beside this space, so ${held?.name ?? 'they'} would travel on their own.`],
+    // One line, and it opens on a negation, so nothing in it is set
+    // bold: the boldest thing on a page says what something is.
+    boldLine: notes.length > 0 ? 0 : null,
     // The hypothetical, drawn: this is who she would be sitting next
     // to and how the two of them would take it. The neighbour's face
     // here is the face of a placement that has not happened, which is
@@ -1985,8 +2204,33 @@ function drawPanel(
   state: CrateLoadingState,
   box: Box,
 ): (copy: PanelCopy | null) => void {
-  const plate = createChromePlate(scene, box.x + box.w / 2, box.y + box.h / 2, box.w, box.h);
-  container.add(plate);
+  // Its own layer. The plate is repainted when the feeling changes —
+  // a pointer crossing the bays can take the panel from cream to amber
+  // to red — and a plate added straight to the view's container would
+  // land on top of the car park every time it was rebuilt.
+  const layer = scene.add.container(0, 0);
+  container.add(layer);
+
+  let painted: Mood | null | undefined;
+  let plate: Phaser.GameObjects.Container | undefined;
+  const setPlate = (tone: Mood | null): void => {
+    if (plate && painted === tone) return;
+    painted = tone;
+    plate?.destroy();
+    plate = createChromePlate(scene, box.x + box.w / 2, box.y + box.h / 2, box.w, box.h, {
+      // **The panel carries the news, not just its heading.** The four
+      // feelings already have a colour each, drawn on the glyph between
+      // two bays; the paper the sentence is printed on is now the same
+      // colour, so the answer arrives before the words are read. Cream
+      // is kept for the states that are not a feeling — an empty van,
+      // an animal in your hands — and so stays one meaning: paper with
+      // nothing to report.
+      tint: tone
+        ? { fill: FEELING_SKIN[tone].fill, stroke: FEELING_SKIN[tone].stroke }
+        : undefined,
+    });
+    layer.addAt(plate, 0);
+  };
 
   // The sentences keep the full width; the faces sit above them, which
   // is the change — the picture is read first because it is first.
@@ -1999,10 +2243,11 @@ function drawPanel(
   // the paper onto the gravel. The type size does not move; that floor
   // is not negotiable, and it is the only thing here that is not.
   const facesH = Math.min(
-    PANEL_FACES_H, box.h - CHROME.padY * 2 - SPACE.s - PANEL_TEXT_H,
+    PANEL_FACES_MAX, box.h - CHROME.padY * 2 - SPACE.s - PANEL_TEXT_H,
   );
   const showFaces = facesH >= PANEL_FACES_MIN;
   const tight = box.h < CHROME.padY * 2 + PANEL_TEXT_H;
+  const leading = tight ? 0 : 6;
   const headingY = box.y
     + (tight ? SPACE.s : CHROME.padY + SPACE.xs)
     + (showFaces ? facesH + SPACE.s : 0);
@@ -2014,19 +2259,41 @@ function drawPanel(
   // repaints this and nothing else: the faces are rebuilt, the plate
   // and the type under them are not, and the panel never moves.
   const faces = scene.add.container(0, 0);
-  container.add(faces);
+  layer.add(faces);
 
   const heading = scene.add.text(box.x + CHROME.padX, headingY, '', {
     fontSize: TYPE.lead, fontFamily: FONTS.ui, fontStyle: 'bold',
     color: CHROME.ink, wordWrap: { width: innerW }, resolution: TEXT_RESOLUTION,
   }).setOrigin(0, 0);
-  container.add(heading);
+  layer.add(heading);
 
-  const body = scene.add.text(box.x + CHROME.padX, headingY + (tight ? 26 : 34), '', {
+  // Three blocks rather than one, so the takeaway can be set bold while
+  // the rest of the paragraph is not. They share one left edge, which
+  // is the heading's — the whole panel has exactly one.
+  const bodyStyle: Phaser.Types.GameObjects.Text.TextStyle = {
     fontSize: TYPE.body, fontFamily: FONTS.ui, color: CHROME.ink,
-    lineSpacing: tight ? 0 : 6, wordWrap: { width: innerW }, resolution: TEXT_RESOLUTION,
-  }).setOrigin(0, 0);
-  container.add(body);
+    lineSpacing: leading, resolution: TEXT_RESOLUTION,
+  };
+  const blocks = [0, 1, 2].map(() => {
+    const t = scene.add.text(box.x + CHROME.padX, headingY, '', bodyStyle).setOrigin(0, 0);
+    layer.add(t);
+    return t;
+  });
+  blocks[1].setFontStyle('bold');
+
+  // One hidden text object in each weight, so the line breaks are
+  // measured in the face that will draw them rather than estimated.
+  const rulers = [0, 1].map((i) => {
+    const t = scene.add.text(0, 0, '', bodyStyle).setVisible(false);
+    if (i === 1) t.setFontStyle('bold');
+    layer.add(t);
+    return t;
+  });
+  const measurer = (bold: boolean) => (line: string): number => {
+    const r = rulers[bold ? 1 : 0];
+    r.setText(line);
+    return r.width;
+  };
 
   if (!showFaces) {
     // No room for the band. The carried animal goes back in the corner,
@@ -2037,7 +2304,7 @@ function drawPanel(
     const heldRecord = held ? state.animalsById.get(held.id) : undefined;
     const carrySize = Math.min(56, box.h - CHROME.padY * 2);
     if (heldRecord && carrySize > 24) {
-      container.add(
+      layer.add(
         createAnimalSprite(
           scene,
           box.x + box.w - CHROME.padX - carrySize / 2,
@@ -2052,9 +2319,40 @@ function drawPanel(
   const standing = panelCopy(state);
   const apply = (copy: PanelCopy | null): void => {
     const c = copy ?? standing;
+    setPlate(c.tone);
     heading.setText(c.heading);
     heading.setColor(c.tone ? FEELING_SKIN[c.tone].ink : CHROME.ink);
-    body.setText(c.body.join('\n'));
+
+    // The takeaway, and the lines either side of it.
+    //
+    // **One sentence, not one line.** The rules write two sentences in
+    // a single note — "Pepper the cat makes Bracken the hedgehog
+    // worried. They can sit next to each other, but Bracken will not
+    // enjoy the journey." — and setting the whole note bold is four
+    // bold lines, which is a paragraph in bold rather than a
+    // takeaway. The first sentence is the fact; what follows it is the
+    // consequence, and it is set plain. No word changes: only where
+    // the weight stops.
+    const bold = c.boldLine === undefined ? 0 : c.boldLine;
+    const lines = c.body.filter((l) => l.length > 0);
+    let parts: string[][] = [lines, [], []];
+    if (bold !== null && bold < lines.length) {
+      const [key, rest] = splitTakeaway(lines[bold]);
+      parts = [lines.slice(0, bold), key, [...rest, ...lines.slice(bold + 1)]];
+    }
+
+    // Never above the heading's last line, and never at a fixed offset
+    // that a two-line heading would run through.
+    let y = Math.max(headingY + (tight ? 26 : 34), heading.y + heading.height + SPACE.xs);
+    parts.forEach((part, i) => {
+      const block = blocks[i];
+      const set = part.flatMap((line) => setLines(measurer(i === 1), line, innerW));
+      block.setText(set.join('\n'));
+      block.setY(y);
+      block.setVisible(set.length > 0);
+      if (set.length > 0) y += block.height + leading;
+    });
+
     if (!showFaces) return;
     faces.removeAll(true);
     drawCast(scene, faces, state, c.cast, facesBox);
@@ -2091,12 +2389,8 @@ function drawCast(
   const artH = Math.max(16, box.h - nameH);
   const cy = box.y + nameH + artH / 2;
 
-  if (!cast || cast.members.length === 0) {
-    // The empty van: the hole an animal goes in, at the size the panel
-    // has, drawn exactly as the bays draw theirs.
-    const s = Math.min(artH, box.h, 76);
-    const x = box.x + box.w / 2 - s / 2;
-    const y = cy - s / 2;
+  // The hole an animal goes in, drawn exactly as the bays draw theirs.
+  const drawWell = (x: number, y: number, s: number): void => {
     const gfx = scene.add.graphics();
     gfx.fillStyle(BAY_WELL_LIP, 0.85);
     gfx.fillRoundedRect(x, y + 2, s, s, 10);
@@ -2105,6 +2399,55 @@ function drawCast(
     gfx.lineStyle(2.5, BAY_WELL_SHADE, 0.55);
     gfx.strokeRoundedRect(x, y, s, s, 10);
     container.add(gfx);
+  };
+
+  if (!cast || cast.members.length === 0) {
+    // **The empty van, and it is the one state with no pair to draw.**
+    // A single well centred in a 370px band left a void either side of
+    // it that was the largest empty area on the screen — and a band
+    // that wide holding one small square says nothing a child can use.
+    //
+    // So the band draws the instruction instead of illustrating its
+    // absence: the first animal waiting, an arrow, the space she goes
+    // in. That is the sentence underneath it as a picture, which is the
+    // order a child reads the panel in, and everything needed to read
+    // it is on the drawing. With nobody waiting there is no instruction
+    // to give and the well stands on its own.
+    const next = waitingToBoard(state.session)[0];
+    const record = next ? state.animalsById.get(next.id) : undefined;
+    const s = Math.min(artH, box.h, 112);
+    if (!next) {
+      drawWell(box.x + box.w / 2 - s / 2, cy - s / 2, s);
+      return;
+    }
+
+    const step = Math.min(s, box.w * 0.3);
+    const fromX = box.x + box.w / 2 - box.w * 0.24;
+    const toX = box.x + box.w / 2 + box.w * 0.24;
+    container.add(makeCratedAnimal(
+      scene, fromX, cy, record, crateDefFor(next.species), step,
+    ));
+    container.add(fitLabel(
+      scene, fromX, box.y + nameH / 2, next.name, box.w * 0.42, {
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
+        color: CHROME.ink, resolution: TEXT_RESOLUTION,
+      },
+    ));
+    drawWell(toX - step / 2, cy - step / 2, step);
+    // The arrow is the screen's one "do this" colour, the same orange
+    // as the block over the animals waiting — and it is level with the
+    // middle of what it joins, which is the picture, not the names.
+    const arrow = scene.add.graphics();
+    const half = Math.min(22, box.w * 0.07);
+    arrow.lineStyle(3.5, ACT, 0.9);
+    arrow.beginPath();
+    arrow.moveTo(box.x + box.w / 2 - half, cy);
+    arrow.lineTo(box.x + box.w / 2 + half, cy);
+    arrow.moveTo(box.x + box.w / 2 + half - 7, cy - 6);
+    arrow.lineTo(box.x + box.w / 2 + half, cy);
+    arrow.lineTo(box.x + box.w / 2 + half - 7, cy + 6);
+    arrow.strokePath();
+    container.add(arrow);
     return;
   }
 
@@ -2135,7 +2478,12 @@ function drawCast(
   // which is the same place it sits between two bays.
   const spread = cast.apart ? 0.29 : 0.25;
   const size = Math.min(artH, box.w * (cast.apart ? 0.34 : 0.4));
-  const glyphR = Math.max(9, Math.min(15, size * 0.22));
+  // Larger here than it is on a shared bay edge, and the panel's own
+  // colour is why: the glyph's wash is the feeling's pale fill, which
+  // is now also the paper it is drawn on, so the wash does no lifting
+  // and the drawn line is the whole mark. A line carrying it alone has
+  // to be big enough to read as a spiral, a zigzag, a heart or a moon.
+  const glyphR = Math.max(11, Math.min(22, size * 0.3));
   cast.members.slice(0, 2).forEach((m, i) => {
     const cx = box.x + box.w / 2 + (i === 0 ? -spread : spread) * box.w;
     const record = state.animalsById.get(m.id);
@@ -2182,16 +2530,41 @@ function drawTray(
   const { session } = state;
   const waiting = waitingToBoard(session);
 
-  const label = scene.add.text(box.x, box.y, 'Waiting to board', {
+  // ── The lead-in ──
+  //
+  // **This is where a child starts, and it is the only thing on the
+  // screen that says so.** It was a small cream tab reading "Waiting
+  // to board" — the ninth cream plate, indistinguishable from the
+  // eight others, marking the entry point with the same weight as the
+  // furniture. Marcus's rule for an entry point is an inverse block:
+  // the words reversed out of a solid colour, with an arrow aligned to
+  // the text, in a colour no panel uses. `ACT` is that colour, the
+  // brand orange, and the arrow points at the animals below it.
+  const label = scene.add.text(0, 0, titleCase('Waiting to board'), {
     fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
-    color: CHROME.ink, resolution: TEXT_RESOLUTION,
-  }).setOrigin(0, 0);
-  container.add(
-    createChromePlate(
-      scene, box.x + label.width / 2 + SPACE.s, box.y + label.height / 2,
-      label.width + SPACE.l, label.height + SPACE.s, { radius: 8, shadow: false },
-    ),
-  );
+    color: COLOURS.white, resolution: TEXT_RESOLUTION,
+  }).setOrigin(0, 0.5);
+  const arrowW = 14;
+  const blockH = label.height + SPACE.s;
+  const blockW = label.width + SPACE.l + arrowW + SPACE.s;
+  const blockCy = box.y + blockH / 2;
+  const block = scene.add.graphics();
+  block.fillStyle(ACT, 1);
+  block.fillRoundedRect(box.x, box.y, blockW, blockH, 7);
+  // The arrow is white, the same weight as the type, and sits on the
+  // text's own centre line rather than the block's — one line here, so
+  // they are the same, and it stays true if the label ever wraps.
+  label.setPosition(box.x + SPACE.s + SPACE.xs, blockCy);
+  const ax = box.x + blockW - SPACE.s - arrowW;
+  block.lineStyle(2.5, 0xffffff, 1);
+  block.beginPath();
+  block.moveTo(ax, label.y);
+  block.lineTo(ax + arrowW, label.y);
+  block.moveTo(ax + arrowW - 5, label.y - 4.5);
+  block.lineTo(ax + arrowW, label.y);
+  block.lineTo(ax + arrowW - 5, label.y + 4.5);
+  block.strokePath();
+  container.add(block);
   container.add(label);
 
   const rowTop = box.y + labelH + SPACE.s;
@@ -2214,16 +2587,22 @@ function drawTray(
     return;
   }
 
-  const { perRow, chipW, chipH } = trayGrid(waiting.length, { w: box.w, h: areaH });
+  // Off `offered`, for the reason in `renderCrateLoading`: one size
+  // and one set of places for the whole screen, so nothing a child
+  // taps moves anything she is not touching.
+  const { perRow, chipW, chipH } = trayGrid(session.offered.length, { w: box.w, h: areaH });
 
   waiting.forEach((animal, i) => {
     const row = Math.floor(i / perRow);
     const col = i % perRow;
-    const inRow = Math.min(perRow, waiting.length - row * perRow);
-    const stripW = chipW * inRow + GAP * (inRow - 1);
-    const startX = box.x + Math.max(0, (box.w - stripW) / 2);
+    // Left-aligned on the column's own edge, not centred in it. A
+    // centred row introduces a left edge that belongs to nothing —
+    // the panel above starts at `box.x`, the lead-in starts at
+    // `box.x`, and so does every chip. One edge, not three. It is also
+    // what keeps a chip still when its neighbour boards: a centred row
+    // re-centres on every tap.
     drawChip(scene, container, state, callbacks, setMessage, animal, {
-      x: startX + col * (chipW + GAP),
+      x: box.x + col * (chipW + GAP),
       y: rowTop + row * (chipH + GAP),
       w: chipW,
       h: chipH,
@@ -2243,8 +2622,12 @@ function drawChip(
   const cx = box.x + box.w / 2;
   const cy = box.y + box.h / 2;
 
+  // A shade of the block that leads them, rather than a tenth copy of
+  // the cream plate the panel is: six chips in the lead-in's own
+  // colour read as the group that block names, and stop competing
+  // with the one surface on this screen that is teaching.
   container.add(
-    createChromePlate(scene, cx, cy, box.w, box.h, { radius: 10 }),
+    createChromePlate(scene, cx, cy, box.w, box.h, { radius: 10, tint: ACT_WASH }),
   );
 
   // The same tile a loaded bay draws, so a chip and the bay it lands in
@@ -2271,7 +2654,7 @@ function drawChip(
   ).setInteractive({ useHandCursor: true });
   // Hovering a waiting animal reads out what it needs, before any tap.
   hit.on('pointerover', () => setMessage({
-    heading: `${animal.name} the ${animal.species}`,
+    heading: titleCase(`${animal.name} the ${animal.species}`),
     tone: null,
     body: [
       `${animal.name} travels in a ${crateDefFor(animal.species).label.toLowerCase()}.`,

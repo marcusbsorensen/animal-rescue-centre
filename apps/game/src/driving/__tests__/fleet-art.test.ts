@@ -41,8 +41,9 @@ const PAINTED_BODY: Record<VehicleType, { left: number; right: number }> = {
  *
  * The box is now the car-park column: `PAGE_MARGIN` to the gutter
  * across, and down from the title to the tray — divided, where there
- * is a building behind, by `VEHICLE_VISIBLE_FRAC`, because the vehicle
- * is sized for the whole band and then parked below the backdrop.
+ * is gravel above the kerb, by `VEHICLE_VISIBLE_FRAC`, because the
+ * vehicle is sized for the whole band and then parked below that
+ * strip.
  */
 const RAW_COLUMNS = {
   'desktop 1024x700': { w: 532, h: 526 },
@@ -63,7 +64,7 @@ const COLUMNS = Object.fromEntries(
 
 /**
  * How much of each column is actually on screen — the column less the
- * band the building stands in.
+ * strip of gravel above the apron's far kerb.
  *
  * This is the bound that matters: a bay below it is a tap target cut
  * in half.
@@ -199,7 +200,17 @@ describe('fitLoadBed', () => {
   });
 
   it('spends the bed slack before it grows the vehicle', () => {
-    const box = COLUMNS['desktop 1024x700'];
+    // **Measured at 820x620, where it used to be measured at
+    // 1024x700.** The desktop column grew by about 150px when the
+    // A.R.C. building came off this screen — it was drawn in
+    // elevation among top-down art and read as a building sunk into
+    // the tarmac, so the strip above the kerb went from 30% of the
+    // column to a flat 42px of gravel. Spark is sized to the taller
+    // box now, and at 1024x700 her bare bays clear `BAY_MIN` on their
+    // own: the premise this test exists to check is simply not true
+    // there any more. It is still true at 820x620, which is where the
+    // slack has to work, so that is where it is now asserted.
+    const box = COLUMNS['narrow 820x620'];
     const id = 'electric-minibus';
     const bed = VEHICLE_BED[id];
     const sprite = spriteOf(id);
