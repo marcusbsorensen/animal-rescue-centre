@@ -42,12 +42,18 @@
  */
 
 import Phaser from 'phaser';
-import type { Animal } from '@arc/shared-types';
+import type { Animal, Species } from '@arc/shared-types';
 import {
+  CRATE_DEFS,
   FEELING,
+  SHELF_CRATES,
   animalById,
   crateDefFor,
+  describeCrateChoice,
   heldAnimal,
+  heldCrateType,
+  isCrateSuitable,
+  loadStage,
   settledNotes,
   slotNotes,
   slotOutlook,
@@ -60,6 +66,7 @@ import {
   type AdjacencyNote,
   type CompatibilityLevel,
   type CrateDef,
+  type CrateType,
   type LoadableAnimal,
   type LoadingSession,
   type VehicleDef,
@@ -117,16 +124,12 @@ const FEELING_SKIN: Record<Mood, { fill: number; stroke: number; ink: string }> 
  * are spoken for; cream is paper. The brand's fifth hue is this
  * orange, which carries no meaning anywhere else on the screen, so it
  * carries the one thing the feelings cannot: the next thing to do.
- * It is used exactly twice — the inverse block over the animals
- * waiting to board, which is where a child starts, and nowhere else.
- *
- * `WASH` is the same hue at the weight a sub-panel takes: the tray
- * chips are shades of their lead-in, so six chips read as one group
- * belonging to that block rather than as six more cream plates
- * competing with the panel.
+ * It marks the two halves of the loading bay floor — the animals
+ * waiting and the crates beside them, which are where a child starts
+ * and what she does next — and the arrow in the panel that draws the
+ * same instruction. Nowhere else.
  */
 const ACT = hexNum(COLOURS.warm);
-const ACT_WASH = { fill: 0xf6e9dc, stroke: ACT };
 
 /**
  * What the screen shows about a pair.
@@ -151,6 +154,29 @@ type Mood = CompatibilityLevel | 'quiet';
 const MOOD_WORD: Record<Mood, string> = { ...FEELING, quiet: 'Needs Quiet' };
 
 /**
+ * The four words, as a set — so the panel can tell a heading that is
+ * only a feeling from one that says something else.
+ *
+ * A heading of "Worried" is the panel naming a feeling, and where the
+ * picture under it is already naming that feeling against the animal
+ * who has it, the heading is the same word in the one place that caused
+ * the attribution bug. "Nobody Is Worried" and "Henry Is Empty" are
+ * sentences, not words, and are not in here.
+ */
+const MOOD_WORDS = new Set<string>(Object.values(MOOD_WORD));
+
+/**
+ * The two rows of type in the panel's picture band: the name above the
+ * animal and the word for what she is feeling below her.
+ *
+ * One number each, because the band's height is divided once per render
+ * and both the band and the heading above the sentences have to agree
+ * about whether the lower row is being drawn at all.
+ */
+const NAME_ROW_H = MIN_FONT.small + SPACE.xs;
+const REACTION_ROW_H = MIN_FONT.small + SPACE.xs;
+
+/**
  * The words a heading never capitalises, unless it is the first word
  * or the last.
  *
@@ -166,6 +192,25 @@ const TITLE_SMALL = new Set([
   'by', 'in', 'of', 'off', 'on', 'per', 'to', 'up', 'via', 'vs', 'from',
   'into', 'onto', 'with', 'upon',
 ]);
+
+/**
+ * The name of the activity this screen is, in capitals.
+ *
+ * **Marcus's own override of the title-case rule, for this one
+ * element.** Title case is his house rule for every heading and he
+ * asked for this one in capitals and larger: it is not a heading over
+ * some text, it is the name of the thing the child is doing, and on a
+ * screen of four surfaces it is the one that says which game this is.
+ *
+ * **Built from the vehicle's own name, always.** "LOAD HENRY" reads
+ * like a string somebody typed, and the day somebody types it the trike
+ * says Henry. The screen has shipped that bug once already, in the
+ * sentence that called every vehicle "the van" — Trikey is a tricycle
+ * and Big Tilly is a lorry.
+ */
+export function activityTitle(vehicleName: string): string {
+  return `Load ${vehicleName}`.toUpperCase();
+}
 
 /** A heading in title case — see `TITLE_SMALL`. */
 export function titleCase(heading: string): string {
@@ -395,33 +440,82 @@ const BAY_WELL_LIP = 0xfdf5e4;
 const WELL_LIP = 2;
 
 /**
- * The tray is a grid of chips in whatever room the right-hand column
- * has left. A chip is as big as that allows, within these.
- */
-const CHIP_MAX_W = 128;
-const CHIP_MAX_H = 104;
-/**
- * Narrower than this and a chip shows "Wh…" where it meant "Whiskers",
- * which is the tray's whole job. A column that can only manage it goes
- * to the full-width strip instead, where six chips have the room.
- */
-const CHIP_NAME_MIN_W = 76;
-/**
- * And the same question down the other axis.
+ * How big each animal is drawn, relative to the others.
  *
- * A chip is a name row with an animal in a crate under it, and the
- * animal is the part a child reads. `fitChipGrid` scores a grid on how
- * tappable it is and then on area, which at the narrow viewport picked
- * two rows of short chips over one row of tall ones — 102x58, with
- * about 36px of animal in each, where the full-width strip at the
- * bottom gives the same six animals 130x86.
+ * **The art is already normalised and that is the trap.** Every sprite
+ * is painted to fill its own square — measured across the set, the
+ * opaque part of a `sheltered` file runs 0.75 to 0.86 of the file on
+ * its longest side, hedgehog and dog alike — so two animals drawn into
+ * boxes of the same size come out the same size on screen. A hedgehog
+ * the size of a dog is the mistake this table exists to stop, and it is
+ * one the project has made before.
  *
- * So the column has to clear a floor on height as well as on width, or
- * it wins the tray by making the animals small — which is the one
- * trade this screen may not make. A name row, a tap target and a gap:
- * below that the strip is simply the better picture.
+ * So the loose animals waiting on the floor are drawn against these
+ * instead: a share of the band's height, roughly as the real animals
+ * compare. 1.0 is the dog, the largest thing this screen carries, and
+ * the bat is a tenth of his length in life and a third of his height
+ * here, because a bat drawn at a tenth of a dog would be four pixels.
+ * The scale is honest about the order and the rough spacing rather than
+ * to the centimetre, which is what a child reads off it.
+ *
+ * It is used in the one place on the screen where the animals are drawn
+ * out of their crates and beside each other. A bay and a crate are a
+ * fixed box and the animal fills it, which is right: a crate is a crate
+ * whoever is in it.
  */
-const CHIP_MIN_H = MIN_FONT.small + SPACE.s + MIN_TAP;
+export const SPECIES_SIZE: Record<Species, number> = {
+  dog: 1,
+  fox: 0.88,
+  cat: 0.74,
+  bunny: 0.58,
+  snake: 0.56,
+  parrot: 0.5,
+  hedgehog: 0.38,
+  bat: 0.3,
+};
+
+/**
+ * The crate shelf's biggest crate, and the floor under which the shelf
+ * stops being worth the width.
+ *
+ * Six crates in a row at 76 is 496px, which is more shelf than any
+ * viewport has to spare; the grid falls to two rows of three on the way
+ * down and the crates stay square and tappable either way.
+ */
+const SHELF_CRATE_MAX = 76;
+const SHELF_MIN_W = 3 * MIN_TAP + 2 * BAY_GAP;
+const SHELF_MAX_W = 6 * SHELF_CRATE_MAX + 5 * BAY_GAP;
+
+/**
+ * How far a pointer may travel between going down and coming up and
+ * still count as a tap rather than a drag.
+ *
+ * **Every drag on this screen is also a tap, and this number is the
+ * whole of the arrangement.** A child who cannot drag accurately taps
+ * the animal, then taps the crate, then taps the space, and gets
+ * exactly what the drag would have given her. A child who drags gets
+ * the same three answers in one gesture each. Nothing is reachable one
+ * way and not the other.
+ *
+ * Ten pixels, because a finger on a touch screen moves a few by itself
+ * and a tap that turned into a drag because the hand wobbled would
+ * leave the animal in mid-air.
+ */
+export const DRAG_SLOP = 10;
+
+/**
+ * How far outside a space a drop may land and still count as landing in
+ * it.
+ *
+ * The targets are already floored at `MIN_TAP`; this is on top of that,
+ * and it is what "generous" means for a drag rather than for a tap. A
+ * child aiming for Big Tilly's third bay and releasing twenty pixels
+ * short has hit the third bay. Nothing overlaps badly enough for the
+ * slack to pick the wrong one: `nearestDropZone` measures to the edge
+ * of each space and takes the nearest, so a point inside one space is
+ * always that space.
+ */
+export const DROP_SLACK = 28;
 
 /**
  * The panel, as a height budget: the picture, then the words.
@@ -448,29 +542,29 @@ const CHIP_MIN_H = MIN_FONT.small + SPACE.s + MIN_TAP;
  * edge the two of them share, which is where a fact about two
  * particular bays belongs and is the whole reason those exist.
  *
- * `PANEL_FACES_H` is the band above the words: a name row and an
- * animal about eighty pixels tall, which is nearly three times the
- * size the same animal is in one of Big Tilly's bays. That is the
- * point of it. A panel too short for the full band draws a smaller
- * one, and a panel too short for `PANEL_FACES_MIN` — the landscape
- * phone, where the whole band is about 98px — draws none and falls
- * back to the carried animal in the corner, as it did before.
+ * The band above the words is a name row, an animal, and the word for
+ * what that animal is feeling — so the panel takes everything the
+ * column has up to `PANEL_FACES_MAX` and the animal gets what is left
+ * once the two rows of type are paid for. A panel too short for
+ * `PANEL_FACES_MIN` — the landscape phone, where the whole column is
+ * about 98px — draws no band at all and falls back to the carried
+ * animal in the corner, as it did before; there the feeling's word
+ * goes back into the heading, which is the only place left for it.
  */
 const PANEL_TEXT_H = 34 + 4 * 27;
-const PANEL_FACES_H = 104;
 const PANEL_FACES_MIN = 62;
 /**
  * How tall the band may grow when the column has height going spare.
  *
- * On the short viewport the animals waiting fall back to a strip
- * across the bottom, and the reading column then ends level with the
- * panel rather than level with the car park — about fifty pixels of
- * gravel under a panel that stopped short, beside a vehicle that did
- * not. Marcus's rule for two columns of unequal height is that the
- * shorter one gets a purposeful element, not empty space, and the
- * purposeful element here is obvious: the two animals the panel is
- * talking about, drawn bigger. Nothing else on this screen is a better
- * use of fifty pixels.
+ * The animals waiting are a strip across the bottom at every viewport
+ * now, so nothing sits under the panel and the reading column would
+ * otherwise end level with its own copy — leaving a band of gravel
+ * under a panel that stopped short, beside a vehicle that did not.
+ * Marcus's rule for two columns of unequal height is that the shorter
+ * one gets a purposeful element, not empty space, and the purposeful
+ * element here is obvious: the animals the panel is talking about,
+ * drawn bigger. Nothing else on this screen is a better use of the
+ * height.
  */
 const PANEL_FACES_MAX = 168;
 
@@ -478,8 +572,7 @@ const PANEL_FACES_MAX = 168;
  * Below this a bay cannot carry a name row without the name taking more
  * of the bay than the crate in it. Big Tilly's nine bays are the case —
  * 40 wide by 54 deep, where a 20px name row would leave a 34px crate
- * with a 19px animal inside it. Her names live in the panel and on the
- * tray chips instead.
+ * with a 19px animal inside it. Her names live in the panel instead.
  *
  * It was 46, measured when a bay held a bare animal sprite and the name
  * came off the sprite's own slack. A crate has no slack: what the name
@@ -513,15 +606,33 @@ const BAY_NAME_MIN_H = 60;
 const CRATE_ART_MIN = 24;
 
 export interface CrateLoadingCallbacks {
-  /** An animal in the tray was tapped — pick it up. */
+  /** A loose animal was tapped, or dragged off the floor — pick it up. */
   onHoldFromTray: (animalId: string) => void;
   /** A loaded bay was tapped — lift that animal out into the child's hands. */
   onLiftFromSlot: (slotIndex: number) => void;
-  /** An empty bay was tapped while holding an animal. */
+  /**
+   * The held animal goes into this crate — the first of the two stages.
+   *
+   * Reached by dragging a loose animal onto a crate on the shelf, and
+   * by tapping the crate while holding her. Any crate is accepted; the
+   * screen says what would have suited.
+   */
+  onPutInCrate: (animalId: string, crateType: CrateType) => void;
+  /** An empty bay was tapped or dropped into while holding a crate. */
   onPlaceInSlot: (slotIndex: number) => void;
-  /** The held animal goes back on the pavement. */
+  /**
+   * A space was asked for before a crate was chosen.
+   *
+   * The second stage cannot happen before the first, and this is how
+   * the screen says so — calmly, in the panel, naming the animal and
+   * the crate she needs. It is the same shape as a refused bay: the
+   * owner sets a notice and redraws, nothing is lost, and the next tap
+   * can be anywhere.
+   */
+  onNeedCrate: () => void;
+  /** The held animal goes back on the floor, out of her crate. */
   onPutBack: () => void;
-  /** Everything is loaded and the van may set off. */
+  /** Everything is loaded and the vehicle may set off. */
   onSetOff: () => void;
   onBack: () => void;
 }
@@ -555,6 +666,14 @@ export interface CrateLoadingState {
      * asked to set off.
      */
     pair?: { animalId: string; neighbourId: string };
+    /**
+     * One animal the notice is about, where it is not about a pairing
+     * — a crate chosen for her, or a space asked for before one was.
+     *
+     * Ignored when `pair` is set; a notice is about two animals or
+     * about one, never both.
+     */
+    animalId?: string;
   } | null;
 }
 
@@ -564,6 +683,24 @@ interface CastMember {
   name: string;
   /** Sprite state, or undefined to let the sprite layer derive it. */
   face?: string;
+  /**
+   * The word for what *this* animal is feeling, drawn under her.
+   *
+   * **The feeling belongs to the animal feeling it.** The panel used to
+   * carry one word for the pair, set as its heading above the picture,
+   * and the heading sits directly under the left-hand animal's name —
+   * so a screen reading "Misty / [cat] [hedgehog] / Worried" said the
+   * cat was worried when the sentence underneath said the hedgehog was.
+   * Marcus caught it on 2026-10-09: "we have worried but oh Misty, but
+   * in fact it's the hedgehog that is worried".
+   *
+   * So the word is per animal now and it sits under her, and the
+   * heading drops it rather than saying it twice. Undefined for an
+   * animal with nothing to report — the cause of somebody else's worry
+   * is not worried, and labelling her "Calm" would be a word a child
+   * has to read to learn nothing.
+   */
+  reaction?: Mood;
 }
 
 /**
@@ -622,27 +759,85 @@ interface PanelCopy {
 /**
  * One animal, for the panel.
  *
- * A patient looks like one wherever she is drawn — in your hands, in
- * the tray, under the pointer — unless the caller has a louder face
- * to give her, which only a blocked pair ever does.
+ * A patient looks like one wherever she is drawn — in your hands, on
+ * the floor, under the pointer — unless the caller has a louder face
+ * to give her, which only a blocked pair ever does. And she carries the
+ * blue word with her: a poorly animal needs a quiet space whoever she
+ * is sitting next to, which is the one thing a vet run is about.
  */
-function castOne(animal: LoadableAnimal, face?: string): CastMember {
+function castOne(animal: LoadableAnimal, face?: string, reaction?: Mood): CastMember {
   return {
     id: animal.id,
     name: animal.name,
     face: face ?? (animal.poorly ? FACE_SICK : undefined),
+    reaction: reaction ?? (animal.poorly ? 'quiet' : undefined),
   };
 }
 
-/** The two animals a note is about, each wearing what the note gives them. */
+/**
+ * The two animals a note is about, each wearing what the note gives
+ * them — the face, and the word under it.
+ *
+ * **Both come from `affectedBy`, which is the point.** The face and the
+ * word are two readings of one fact, so they are taken from one
+ * function: the animal drawn frightened is the animal the word
+ * "Frightened" sits under, and neither can drift from the sentence
+ * because `affectedBy` reads the direction off the sentence itself.
+ *
+ * A pair that is only stressed because one of them is unwell gives the
+ * blue word to the patient and nothing to her neighbour — the need is
+ * hers, and the animal beside her is being asked to give space rather
+ * than being told she minds.
+ */
 function castPair(session: LoadingSession, note: AdjacencyNote): PanelCast | undefined {
   const pair = pairOf(session, note);
   if (!pair) return undefined;
   const [faceA, faceB] = pairFaces(note, pair);
+  const [feelA, feelB] = pairReactions(note, pair);
   return {
-    members: [castOne(pair[0], faceA), castOne(pair[1], faceB)],
+    members: [castOne(pair[0], faceA, feelA), castOne(pair[1], faceB, feelB)],
     level: moodOf(note),
   };
+}
+
+/**
+ * The word under each of a pair — who feels what, for this pair alone.
+ *
+ * The sibling of `pairFaces`, off the same `affectedBy`, so the picture
+ * and the label can never disagree about who minds.
+ *
+ * - **A happy pair**: both, because being glad of each other is a thing
+ *   both of them are doing.
+ * - **A pair that needs quiet**: the patient alone, and the blue word,
+ *   which says what she needs rather than what anybody minds.
+ * - **Worried or frightened**: whoever the sentence says feels it,
+ *   which is one of them or both.
+ */
+export function pairReactions(
+  note: AdjacencyNote,
+  pair: [LoadableAnimal, LoadableAnimal],
+): [Mood | undefined, Mood | undefined] {
+  if (note.needsQuiet && note.level !== 'blocked') {
+    return [
+      pair[0].poorly ? 'quiet' : undefined,
+      pair[1].poorly ? 'quiet' : undefined,
+    ];
+  }
+  if (note.level === 'happy') {
+    // Two patients side by side mind each other not at all, which the
+    // engine calls happy — but they are both drawn looking poorly, and
+    // "Happy" under a poorly animal is the wrong word for the right
+    // fact. Each keeps the word for what she needs.
+    return [
+      pair[0].poorly ? 'quiet' : 'happy',
+      pair[1].poorly ? 'quiet' : 'happy',
+    ];
+  }
+  const hit = affectedBy(note, pair);
+  return [
+    hit.has(pair[0].id) ? note.level : undefined,
+    hit.has(pair[1].id) ? note.level : undefined,
+  ];
 }
 
 interface Box { x: number; y: number; w: number; h: number }
@@ -1197,21 +1392,38 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
   const held = heldAnimal(session);
 
   if (held) {
-    const crate = crateDefFor(held.species);
+    const chosen = heldCrateType(session);
+    if (!chosen) {
+      // **Stage one, and the panel asks the question.** It used to say
+      // what she travelled in, because the screen had already decided;
+      // now the child decides, so the line is the fact she decides on
+      // — which crate suits this animal — and the next line is where
+      // to do it.
+      const best = crateDefFor(held.species).label.toLowerCase();
+      return {
+        heading: titleCase(`In your hands: ${held.name} the ${held.species}`),
+        tone: null,
+        body: [
+          `${held.name} travels best in a ${best}.`,
+          `Drag ${held.name} to a crate, or tap one.`,
+        ],
+        // No face forced on her: she is not next to anybody yet, and
+        // if she is the poorly one on a vet run that is the thing to
+        // show.
+        cast: { members: [castOne(held)] },
+      };
+    }
+    const choice = describeCrateChoice(held, chosen);
     return {
       heading: titleCase(`In your hands: ${held.name} the ${held.species}`),
-      tone: null,
-      // Line 0, the same line the tray bolds when she is hovered: what
-      // she travels in is the fact this screen is teaching, and the
-      // weight staying on it when she is picked up means nothing moves
-      // in the panel that the child did not move.
+      tone: choice.suitable ? 'happy' : 'stressed',
       body: [
-        `${held.name} travels in a ${crate.label.toLowerCase()}.`,
-        `Tap a space in ${state.vehicle.name} to put them down.`,
+        choice.text,
+        `Drag the crate to a space in ${state.vehicle.name}, or tap one.`,
       ],
-      // No face forced on her: she is not next to anybody yet, and if
-      // she is the poorly one on a vet run that is the thing to show.
-      cast: { members: [castOne(held)] },
+      cast: {
+        members: [castOne(held, undefined, choice.suitable ? 'happy' : 'stressed')],
+      },
     };
   }
 
@@ -1248,7 +1460,15 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
       // should leave this screen with is the one about neighbours.
       boldLine: 1,
       body: [
-        `Tap an animal waiting to board, then tap a space in ${state.vehicle.name}.`,
+        // **No vehicle name in this line, and it is a line-break
+        // decision.** "…then a space in Henry." is 52 characters and
+        // breaks after "space", which splits "a space in Henry" across
+        // two lines — a break inside a phrase, which is the fault
+        // Marcus's typesetting rules name. Without it the sentence
+        // fits the column whole, and which vehicle is in front of her
+        // is not in doubt: the title says so and the vehicle is drawn
+        // beside the words.
+        'Pick an animal, then a crate, then a space.',
         'Animals only mind who is beside them, above them or below them.',
       ],
       // Nobody to draw, so the panel draws the hole they go in — the
@@ -1281,10 +1501,13 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
 function panelCopy(state: CrateLoadingState): PanelCopy {
   if (state.notice) {
     const { notice } = state;
+    const mood = notice.level
+      ? moodOf({ level: notice.level, needsQuiet: notice.needsQuiet })
+      : null;
     // A refusal is the moment a child most needs the picture, so the
     // notice carries who it was about and the two of them are drawn
     // exactly as any other pair.
-    const cast = notice.level && notice.pair
+    const pairCast = notice.level && notice.pair
       ? castPair(state.session, {
         level: notice.level,
         slotIndex: -1,
@@ -1294,21 +1517,42 @@ function panelCopy(state: CrateLoadingState): PanelCopy {
         text: notice.text,
       })
       : undefined;
+    // A notice about one animal — a crate chosen for her, or a space
+    // asked for before one was. She is drawn alone, wearing the word
+    // the notice is reporting, because the news is about her and not
+    // about a pairing.
+    const solo = !notice.pair && notice.animalId
+      ? animalById(state.session, notice.animalId)
+      : undefined;
     return {
-      heading: notice.level
-        ? MOOD_WORD[moodOf({ level: notice.level, needsQuiet: notice.needsQuiet })]
-        : titleCase('Wait a moment'),
-      tone: notice.level
-        ? moodOf({ level: notice.level, needsQuiet: notice.needsQuiet })
-        : null,
+      heading: mood ? MOOD_WORD[mood] : titleCase('Wait a moment'),
+      tone: mood,
       body: [
         notice.text,
-        notice.level === 'blocked' ? 'Try another space.' : '',
+        notice.level === 'blocked' ? 'Try another space.' : nextStep(state),
       ].filter((l) => l.length > 0),
-      cast,
+      cast: pairCast ?? (solo ? { members: [castOne(solo, undefined, mood ?? undefined)] } : undefined),
     };
   }
   return standingCopy(state);
+}
+
+/**
+ * What to do next, in one line, for a notice that has just answered
+ * something.
+ *
+ * Read off the stage rather than written into each notice: the sentence
+ * after "Echo the bat travels best in a quiet crate." is the same
+ * sentence whether a child got there by dragging, by tapping, or by
+ * asking for a space too early, and it is the standing copy's own
+ * instruction for the stage she is now in.
+ */
+function nextStep(state: CrateLoadingState): string {
+  const held = heldAnimal(state.session);
+  if (!held) return '';
+  return loadStage(state.session) === 'pick-a-crate'
+    ? `Tap a crate for ${held.name}.`
+    : `Tap a space in ${state.vehicle.name} to put ${held.name} down.`;
 }
 
 /**
@@ -1332,8 +1576,11 @@ export function renderCrateLoading(
   // capacity, so the words belong with the other fact about this trip
   // rather than hovering over the tarmac looking for a home.
   const spaces = `${vehicle.slots} ${vehicle.slots === 1 ? 'space' : 'spaces'}`;
-  const title = createChromeTitle(scene, width / 2, TITLE_CY, `Load ${vehicle.name}`, {
-    fontSize: TYPE.lead,
+  const title = createChromeTitle(scene, width / 2, TITLE_CY, activityTitle(vehicle.name), {
+    // The largest step the game has below its end-of-game banners, and
+    // up two from the 20px this was. See `activityTitle` for why the
+    // capitals, which are Marcus's instruction rather than the rule.
+    fontSize: TYPE.title,
     subtitle: `${spaces} — off to ${state.destinationName}`,
   });
 
@@ -1366,60 +1613,46 @@ export function renderCrateLoading(
   const parkW = Math.max(160, usable - gutter - readW);
   const readX = PAGE_MARGIN + parkW + gutter;
 
-  // The animals waiting to board stand under the panel, in the same
-  // column, which is what buys the vehicle the full height of the band.
-  // Where that column cannot give them a chip wide enough to carry a
-  // name — a narrow or a short window — they fall back to a strip
-  // across the bottom, and the panel and the vehicle give up the height
-  // instead. Decided before either is drawn, so the strip can never
-  // land on the panel.
+  // ── The loading bay floor ──
+  //
+  // **The animals are loose on the floor at the bottom of the screen,
+  // and the crates stand beside them.** They used to be chips in the
+  // right-hand column under the panel, each one a rounded plate holding
+  // a crate holding an animal — three frames round every animal, and a
+  // column that could not give them a name row fell back to a strip
+  // across the bottom. Marcus, 2026-10-09: "The waiting to board area
+  // is crowded and there's no reason for the animals to be showing
+  // inside those rounded corner rectangles and then the crates and then
+  // the animal inside. Get rid of the outlines and just show the
+  // animals that are waiting to board."
+  //
+  // So the strip is the only arrangement now, it is always there, and
+  // it is where both halves of the new mechanic start: the animals
+  // stand loose on the left of it and the six crates stand on the right
+  // of it, which makes the first drag a short sideways one along the
+  // floor. Always drawn, never resized by what the child has done, so
+  // nothing she is reaching for moves.
   const trayLabelH = MIN_FONT.small + SPACE.xs;
-  const trayMinH = trayLabelH + SPACE.s + MIN_TAP;
-  const panelWanted = CHROME.padY * 2 + PANEL_FACES_H + SPACE.s + PANEL_TEXT_H;
-  // **Sized for everybody offered, not for whoever is still waiting.**
-  // The tray empties as the child loads, and a grid re-measured on
-  // each tap gives the remaining animals a new size and a new place
-  // every time — the chips jump sideways and grow under her hand,
-  // which is motion this game does not spend, and on this screen it is
-  // motion caused by the thing she just did somewhere else. Measured
-  // once off `offered`, the chips are fixed for the life of the screen
-  // and the row simply shortens from the right, which is a record of
-  // who has boarded rather than a reshuffle.
-  const offered = session.offered.length;
-  const columnTrayTop = contentTop
-    + Math.min(contentBottom - contentTop, panelWanted) + SPACE.l;
-  const columnTrayH = contentBottom - columnTrayTop;
-  const columnChip = trayGrid(
-    Math.max(1, offered), { w: readW, h: columnTrayH - trayLabelH - SPACE.s },
-  );
+  const bandMinH = trayLabelH + SPACE.s + MIN_TAP;
+  const bandH = Math.round(Math.min(142, Math.max(bandMinH, height * 0.22)));
+  const bayFloor: Box = {
+    x: PAGE_MARGIN, y: contentBottom - bandH, w: usable, h: bandH,
+  };
+  const columnsBottom = bayFloor.y - SPACE.m;
+  // Nothing sits under the panel now, so it runs to the foot of the
+  // column and the extra goes to the picture — see `PANEL_FACES_MAX`.
+  const panelH = Math.max(MIN_TAP, Math.min(
+    columnsBottom - contentTop,
+    CHROME.padY * 2 + PANEL_FACES_MAX + SPACE.s + PANEL_TEXT_H,
+  ));
 
-  let trayBox: Box;
-  let columnsBottom: number;
-  let panelH: number;
-  if (
-    columnTrayH >= trayMinH
-    && columnChip.chipW >= CHIP_NAME_MIN_W
-    && columnChip.chipH >= CHIP_MIN_H
-  ) {
-    trayBox = { x: readX, y: columnTrayTop, w: readW, h: columnTrayH };
-    columnsBottom = contentBottom;
-    // The tray is under the panel in the same column, so the panel is
-    // exactly as tall as its copy and the tray has the rest.
-    panelH = Math.min(contentBottom - contentTop, panelWanted);
-  } else {
-    // The strip's whole height, label row included — on a landscape
-    // phone every pixel it takes comes off the message panel, which is
-    // the one thing on this screen that cannot be shortened.
-    const trayH = Math.min(104, Math.max(trayMinH, height * 0.19));
-    trayBox = { x: PAGE_MARGIN, y: contentBottom - trayH, w: usable, h: trayH };
-    columnsBottom = trayBox.y - SPACE.s;
-    // Nothing is under the panel now, so it runs to the foot of the
-    // column and the extra goes to the picture — see `PANEL_FACES_MAX`.
-    panelH = Math.max(MIN_TAP, Math.min(
-      columnsBottom - contentTop,
-      CHROME.padY * 2 + PANEL_FACES_MAX + SPACE.s + PANEL_TEXT_H,
-    ));
-  }
+  // Where a dragged animal or crate may be let go. Filled by the bays
+  // and by the shelf as they are drawn, and read when a pointer comes
+  // up — so the order the three are built in does not matter.
+  const zones: DropZone[] = [];
+  // And whether one of them is in the air, which every hover on the
+  // screen has to know. See `DragFlag`.
+  const drag: DragFlag = { active: false };
 
   // ── The car park ──
   //
@@ -1475,20 +1708,19 @@ export function renderCrateLoading(
   // of it and her nose toward the exit, cut off where the tarmac is. A
   // bay is where a loaded van is; the old inset rectangle was a van
   // hanging off a panel.
-  drawVehicle(scene, container, state, callbacks, setMessage, {
+  drawVehicle(scene, container, state, callbacks, setMessage, zones, drag, {
     x: park.bay.x,
     y: park.parkTop,
     w: park.bay.w,
     h: fit ? fit.spriteH : Math.max(100, park.kerbY - park.parkTop),
   }, park.kerbY - 2, fit);
-  drawTray(scene, container, state, callbacks, setMessage, trayBox, trayLabelH);
+  drawLoadingBay(
+    scene, container, state, callbacks, setMessage, zones, drag, bayFloor, trayLabelH,
+  );
 
   // ── Bottom row ──
-  container.add(
-    createChromeButton(scene, SAFE_MARGIN, SAFE_MARGIN, 'Back', () => callbacks.onBack(), {
-      width: 88, anchor: { x: 'left', y: 'top' },
-    }).setDepth(45),
-  );
+  container.add(drawBackControl(scene, SAFE_MARGIN, SAFE_MARGIN, () => callbacks.onBack())
+    .setDepth(45));
 
   const ready = canSetOff(session) && aboard(session).length > 0;
   container.add(
@@ -1514,6 +1746,444 @@ export function renderCrateLoading(
   }
 }
 
+// ── Back ─────────────────────────────────────────────────────
+
+/**
+ * Back, with a chevron pointing left.
+ *
+ * **Drawn, not set.** "‹" and "❮" are a quotation mark and a dingbat:
+ * the first is too light to read at 18px beside bold type and the
+ * second resolves to whatever the device has, which on iOS is not the
+ * weight it is on a Mac. Two strokes in a Graphics object are the same
+ * mark at every size, in the same ink as the word beside them, and the
+ * screen already draws its arrows that way — the lead-in over the
+ * crates and the one in the empty-vehicle panel.
+ *
+ * **One block, one left edge.** The chevron and the word sit in one
+ * plate with the chevron at its left padding, and the plate's hit box
+ * is anchored on `SAFE_MARGIN` — the edge every other screen in the
+ * game puts Back on. Marcus's note was "the chevron and the word align
+ * on one left edge"; read as stacking the chevron above the word it
+ * would make Back the only vertical control in the game, so it is read
+ * here as the two of them forming a single block on a single edge. See
+ * `.claude/notes/loading-screen-drag.md`.
+ */
+export function drawBackControl(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  onClick: () => void,
+): Phaser.GameObjects.Container {
+  const label = scene.add.text(0, 0, 'Back', {
+    fontSize: TYPE.button,
+    fontFamily: FONTS.ui,
+    fontStyle: 'bold',
+    color: CHROME.ink,
+    resolution: TEXT_RESOLUTION,
+  }).setOrigin(0, 0.5);
+
+  const chevW = 9;
+  const chevH = 16;
+  const padX = 18;
+  const gap = SPACE.s;
+  const w = Math.max(96, padX * 2 + chevW + gap + label.width);
+  const h = Math.max(MIN_TAP, label.height + 24);
+
+  const gfx = scene.add.graphics();
+  gfx.fillStyle(CHROME.shadowColour, CHROME.shadowAlpha);
+  gfx.fillRoundedRect(
+    -w / 2 + CHROME.shadowX - 1, -h / 2 + CHROME.shadowY - 1, w, h, CHROME.radius,
+  );
+  gfx.fillStyle(CHROME.fill, CHROME.fillAlpha);
+  gfx.fillRoundedRect(-w / 2, -h / 2, w, h, CHROME.radius);
+  gfx.lineStyle(CHROME.strokeWidth, CHROME.stroke, CHROME.strokeAlpha);
+  gfx.strokeRoundedRect(-w / 2, -h / 2, w, h, CHROME.radius);
+
+  // The chevron: two strokes meeting at a point on the left, as tall as
+  // the capital it stands beside, in the label's own ink.
+  const cx = -w / 2 + padX + chevW / 2;
+  gfx.lineStyle(3, hexNum(CHROME.ink), 1);
+  gfx.beginPath();
+  gfx.moveTo(cx + chevW / 2, -chevH / 2);
+  gfx.lineTo(cx - chevW / 2, 0);
+  gfx.lineTo(cx + chevW / 2, chevH / 2);
+  gfx.strokePath();
+
+  label.setPosition(-w / 2 + padX + chevW + gap, 0);
+
+  const hit = scene.add.rectangle(0, 0, Math.max(w, MIN_TAP), Math.max(h, MIN_TAP), 0x000000, 0)
+    .setInteractive({ useHandCursor: true });
+
+  const container = scene.add.container(
+    x + Math.max(w, MIN_TAP) / 2, y + Math.max(h, MIN_TAP) / 2, [gfx, label, hit],
+  );
+  container.setSize(w, h + CHROME.shadowY);
+  hit.on('pointerover', () => container.setScale(1.03));
+  hit.on('pointerout', () => container.setScale(1));
+  hit.on('pointerdown', () => {
+    scene.tweens.add({
+      targets: container,
+      scaleX: 0.96,
+      scaleY: 0.96,
+      duration: 60,
+      yoyo: true,
+      onComplete: onClick,
+    });
+  });
+  return container;
+}
+
+// ── Dragging, in two stages ──────────────────────────────────
+
+/**
+ * Where a dragged thing may be let go.
+ *
+ * Three kinds, and they are the two stages plus the way back:
+ *
+ *   crate  — a crate on the shelf. A loose animal dropped here goes
+ *            into it, which is stage one. A crate already holding her
+ *            dropped on a different one moves her across.
+ *   bay    — a space in the vehicle, which is stage two.
+ *   floor  — the floor the loose animals stand on. Dropping a crated
+ *            animal back here puts her down, out of the crate, which
+ *            is how a child undoes a choice by dragging rather than by
+ *            finding the button.
+ */
+export type DropTarget =
+  | { kind: 'crate'; crate: CrateType }
+  | { kind: 'bay'; slotIndex: number }
+  | { kind: 'floor' };
+
+export interface DropZone {
+  rect: Box;
+  target: DropTarget;
+}
+
+/**
+ * Which space a drop landed in — the one it is inside, or the nearest
+ * one within `slack` of its edge.
+ *
+ * **Nearest by edge distance, which is what makes the slack safe.** A
+ * point inside a space is zero from it and no other space can beat
+ * that, so widening the slack can never steal a drop from the space it
+ * actually landed in; all it does is catch the ones that landed just
+ * outside. Pure arithmetic, so the generosity is a number a test can
+ * hold rather than a feeling.
+ */
+export function nearestDropZone(
+  zones: readonly DropZone[],
+  x: number,
+  y: number,
+  slack: number,
+): DropTarget | null {
+  let best: { target: DropTarget; d: number } | null = null;
+  for (const zone of zones) {
+    const dx = Math.max(zone.rect.x - x, 0, x - (zone.rect.x + zone.rect.w));
+    const dy = Math.max(zone.rect.y - y, 0, y - (zone.rect.y + zone.rect.h));
+    const d = Math.hypot(dx, dy);
+    if (d > slack) continue;
+    if (!best || d < best.d) best = { target: zone.target, d };
+  }
+  return best ? best.target : null;
+}
+
+/**
+ * The two things that get dragged on this screen.
+ *
+ * Named, because what a piece may be let go in is a fact about the
+ * piece rather than about the stage the session is in: a child may
+ * pick up a second animal off the floor while the first is in a crate
+ * in her hands, and the loose one still has only crates to go to.
+ */
+export type DragKind = 'loose-animal' | 'crated-animal';
+
+/**
+ * Which spaces each kind of piece may be let go in.
+ *
+ * **A loose animal takes crates and nothing else.** The second stage
+ * cannot happen before the first, and it is better that the bays are
+ * not targets for her at all than that a drop which landed squarely on
+ * one is refused: a drag that goes home is a drag that missed, and a
+ * child learns from it that the bays are not where animals go yet.
+ * Tapping a bay too early is answered in words instead — see
+ * `CrateLoadingCallbacks.onNeedCrate` — because a tap cannot miss.
+ *
+ * **A crated animal takes everything**: a space in the vehicle, which
+ * is the move; another crate, which changes her mind about the crate;
+ * and the floor, which puts her down.
+ */
+export function dropTargetsFor(kind: DragKind): (target: DropTarget) => boolean {
+  return kind === 'loose-animal' ? (t) => t.kind === 'crate' : () => true;
+}
+
+/** A rectangle at least `MIN_TAP` each way, centred where it was. */
+function generous(cx: number, cy: number, w: number, h: number): Box {
+  const gw = Math.max(w, MIN_TAP);
+  const gh = Math.max(h, MIN_TAP);
+  return { x: cx - gw / 2, y: cy - gh / 2, w: gw, h: gh };
+}
+
+interface DragSpec {
+  /** Where the piece sits when nothing is happening. */
+  home: { x: number; y: number };
+  /** The same thing a tap does. Every drag has one. */
+  onTap: () => void;
+  /** It landed somewhere. */
+  onDrop: (target: DropTarget) => void;
+  /**
+   * Which spaces this piece may be let go in. Everything, by default.
+   *
+   * A loose animal takes only crates, because stage two cannot happen
+   * before stage one — and it is better that the bays are not targets
+   * for her at all than that a drop which landed on one is refused.
+   * Anything not accepted is a miss: she goes home, and the panel says
+   * what she needs.
+   */
+  accepts?: (target: DropTarget) => boolean;
+  /**
+   * What the space under the pointer would mean, as the piece passes
+   * over it. Called only when the answer changes.
+   *
+   * This is the drag's own preview, and it replaces every hover on the
+   * screen for as long as the drag lasts — a child dragging a crate
+   * over Big Tilly's bays reads what each one would do to the animal
+   * in it, which is the same thing she would read by hovering if she
+   * were not already holding something.
+   */
+  describe?: (target: DropTarget | null) => void;
+  /** It landed nowhere, and has gone home. */
+  onMiss?: () => void;
+  /** Called when the piece is picked up, to stop it breathing. */
+  onLift?: () => void;
+  /** Called when it goes home without having been dropped anywhere. */
+  onSettle?: () => void;
+}
+
+/**
+ * The invisible rectangle a finger has to land in to take hold of a
+ * piece — at least `MIN_TAP` each way, whatever the piece is drawn at.
+ *
+ * One rectangle per piece, and every pointer event on that piece comes
+ * through it: hovering, tapping and dragging are three readings of one
+ * target, so they can never disagree about where the thing is. Phaser
+ * reports over and out for the topmost hit object only, so a second
+ * rectangle under this one would simply never be hovered.
+ */
+function grabHandle(
+  scene: Phaser.Scene,
+  piece: Phaser.GameObjects.Container,
+  w: number,
+  h: number,
+): Phaser.GameObjects.Rectangle {
+  const hit = scene.add.rectangle(
+    0, 0, Math.max(w, MIN_TAP), Math.max(h, MIN_TAP), 0x000000, 0,
+  ).setInteractive({ useHandCursor: true });
+  piece.add(hit);
+  return hit;
+}
+
+/**
+ * Make a piece draggable, and tappable, with one handler.
+ *
+ * **A tap is a drag that did not move.** The two gestures share
+ * everything up to `pointerup`, and which of them happened is one
+ * comparison against `DRAG_SLOP` — so there is no mode, no long-press,
+ * and nothing a child can do halfway. That is what keeps the screen
+ * operable for a child who cannot drag accurately: she taps, and the
+ * same callback runs.
+ *
+ * The pointer listeners are the scene's, added on the way down and
+ * removed on the way up, because the view is redrawn from scratch after
+ * every move and a listener left on the scene would outlive the piece
+ * it was moving. Everything checks `piece.scene` before touching the
+ * piece for the same reason.
+ */
+function makeDraggable(
+  scene: Phaser.Scene,
+  piece: Phaser.GameObjects.Container,
+  hit: Phaser.GameObjects.Rectangle,
+  zones: readonly DropZone[],
+  drag: DragFlag,
+  spec: DragSpec,
+): void {
+  let from: { x: number; y: number } | null = null;
+  let moved = false;
+  let done = false;
+  let over = '\u0000';
+
+  const alive = (): boolean => Boolean(piece.scene) && !done;
+
+  const allowed = (): readonly DropZone[] => (
+    spec.accepts ? zones.filter((z) => spec.accepts?.(z.target)) : zones
+  );
+
+  const end = (): void => {
+    scene.input.off('pointermove', onMove);
+    scene.input.off('pointerup', onUp);
+    scene.input.off('pointerupoutside', onUp);
+    from = null;
+    drag.active = false;
+  };
+
+  const goHome = (): void => {
+    if (!alive()) return;
+    scene.tweens.add({
+      targets: piece,
+      x: spec.home.x,
+      y: spec.home.y,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 180,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        if (!alive()) return;
+        piece.setDepth(0);
+        spec.onSettle?.();
+      },
+    });
+  };
+
+  function onMove(pointer: Phaser.Input.Pointer): void {
+    if (!from || !alive()) { end(); return; }
+    const dx = pointer.x - from.x;
+    const dy = pointer.y - from.y;
+    if (!moved && Math.hypot(dx, dy) > DRAG_SLOP) {
+      moved = true;
+      // Picked up: above everything, and a little larger, which is the
+      // only feedback a drag needs. No tilt and no shadow that grows —
+      // the piece is the same object it was, held.
+      piece.setDepth(80);
+      piece.setScale(1.08);
+      // **Nothing else may speak while a piece is in the air.** A
+      // dragged animal passes over the other animals on the floor, and
+      // Phaser hands each of them a pointerover as she goes — so the
+      // panel was reporting whichever animal happened to be under the
+      // one the child was carrying, and then clearing itself when she
+      // left. For the length of a drag the panel belongs to the drag:
+      // every hover handler on this screen reads this flag.
+      drag.active = true;
+      spec.onLift?.();
+    }
+    if (!moved) return;
+    piece.setPosition(spec.home.x + dx, spec.home.y + dy);
+
+    // What the space under the pointer would mean, as she passes over
+    // it — the same answer the drop will give, before she commits to
+    // it. Only when it changes, so the panel is not rebuilt per frame.
+    if (!spec.describe) return;
+    const target = nearestDropZone(allowed(), pointer.x, pointer.y, DROP_SLACK);
+    const key = targetKey(target);
+    if (key === over) return;
+    over = key;
+    spec.describe(target);
+  }
+
+  function onUp(pointer: Phaser.Input.Pointer): void {
+    const wasDragging = moved;
+    end();
+    if (!alive()) return;
+    if (!wasDragging) {
+      done = true;
+      spec.onTap();
+      return;
+    }
+    const target = nearestDropZone(allowed(), pointer.x, pointer.y, DROP_SLACK);
+    if (!target) {
+      moved = false;
+      goHome();
+      spec.onMiss?.();
+      return;
+    }
+    // The snap: the piece goes to the middle of the space it landed in
+    // before anything else happens, so a child sees where it went
+    // rather than seeing it vanish and the screen change.
+    done = true;
+    const to = zoneCentre(zones, target);
+    scene.tweens.add({
+      targets: piece,
+      x: to ? to.x : piece.x,
+      y: to ? to.y : piece.y,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 110,
+      ease: 'Quad.easeOut',
+      onComplete: () => spec.onDrop(target),
+    });
+  }
+
+  hit.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    if (done) return;
+    from = { x: pointer.x, y: pointer.y };
+    moved = false;
+    over = '\u0000';
+    scene.input.on('pointermove', onMove);
+    scene.input.on('pointerup', onUp);
+    scene.input.on('pointerupoutside', onUp);
+  });
+}
+
+/**
+ * One flag for the whole screen: a piece is in the air.
+ *
+ * Shared by every hover handler, because the question "should the
+ * panel change?" is about the screen rather than about the object the
+ * pointer happens to be over. One object per render, handed down.
+ */
+interface DragFlag { active: boolean }
+
+/** A target as a string, so a move can tell when it has changed. */
+function targetKey(target: DropTarget | null): string {
+  if (!target) return '-';
+  if (target.kind === 'crate') return `c:${target.crate}`;
+  if (target.kind === 'bay') return `b:${target.slotIndex}`;
+  return 'f';
+}
+
+/** The middle of a zone, for the snap. */
+function zoneCentre(
+  zones: readonly DropZone[],
+  target: DropTarget,
+): { x: number; y: number } | null {
+  const same = (a: DropTarget): boolean => {
+    if (a.kind !== target.kind) return false;
+    if (a.kind === 'crate' && target.kind === 'crate') return a.crate === target.crate;
+    if (a.kind === 'bay' && target.kind === 'bay') return a.slotIndex === target.slotIndex;
+    return true;
+  };
+  const zone = zones.find((z) => same(z.target));
+  return zone
+    ? { x: zone.rect.x + zone.rect.w / 2, y: zone.rect.y + zone.rect.h / 2 }
+    : null;
+}
+
+/**
+ * A gentle breath, so the loose animals are alive without anything
+ * happening.
+ *
+ * **Slow, small, and out of step with each other.** Two and a bit
+ * seconds for a full breath, three and a half per cent of scale and a
+ * pixel and a half of rise — at a hedgehog's size that is under half a
+ * pixel of movement. The phase is taken from the animal's own place in
+ * the row, so six of them do not pulse in unison, which is the thing
+ * that would read as a machine rather than as animals waiting. Nothing
+ * flashes, nothing changes colour and nothing moves suddenly: this is a
+ * screen for autistic children and the motion budget is small on
+ * purpose.
+ */
+function breathe(scene: Phaser.Scene, piece: Phaser.GameObjects.Container, seed: number): void {
+  scene.tweens.add({
+    targets: piece,
+    scaleX: 1.035,
+    scaleY: 1.035,
+    y: piece.y - 1.5,
+    duration: 2300 + (seed % 5) * 190,
+    delay: (seed % 7) * 280,
+    yoyo: true,
+    repeat: -1,
+    ease: 'Sine.easeInOut',
+  });
+}
+
 // ── The vehicle, and the bays in it ──────────────────────────
 
 /**
@@ -1523,6 +2193,12 @@ export function renderCrateLoading(
  * preview.
  */
 function slotMood(session: LoadingSession, slotIndex: number): Mood | null {
+  // **One stage lit at a time.** The engine previews a slot for
+  // whoever is in the child's hands, crate or no crate — but an animal
+  // without a crate is not going into the vehicle yet, and a bed full
+  // of green hearts while the screen is asking her to pick a crate
+  // invites the one tap it is about to refuse.
+  if (loadStage(session) !== 'pick-a-space') return null;
   const outlook = slotOutlook(session, slotIndex);
   if (!outlook) return null;
   const worst = slotNotes(session, slotIndex)[0];
@@ -1602,6 +2278,8 @@ function drawVehicle(
   state: CrateLoadingState,
   callbacks: CrateLoadingCallbacks,
   setMessage: (copy: PanelCopy | null) => void,
+  zones: DropZone[],
+  drag: DragFlag,
   box: Box,
   /**
    * The y the vehicle is cut off at — the tarmac's own bottom edge.
@@ -1711,7 +2389,7 @@ function drawVehicle(
 
   drawBedFloor(scene, container, floor);
 
-  drawBays(scene, container, state, callbacks, setMessage, {
+  drawBays(scene, container, state, callbacks, setMessage, zones, drag, {
     originX,
     originY,
     slotW,
@@ -1973,6 +2651,8 @@ function drawBays(
   state: CrateLoadingState,
   callbacks: CrateLoadingCallbacks,
   setMessage: (copy: PanelCopy | null) => void,
+  zones: DropZone[],
+  drag: DragFlag,
   geom: GridGeometry,
 ): void {
   const { session } = state;
@@ -2087,10 +2767,21 @@ function drawBays(
     // overlapping hit boxes hand the overlap to whichever was added
     // last, so the usable target is the pitch however big the
     // rectangle is drawn.
+    // An empty bay is where stage two lands, so it is a drop zone as
+    // well as a tap target — the same rectangle, so a drag and a tap
+    // aim at exactly the same thing.
+    if (!crate) {
+      zones.push({
+        rect: generous(cx, cy, bayHitSize(slotW), bayHitSize(slotH)),
+        target: { kind: 'bay', slotIndex: slot },
+      });
+    }
+
     const hit = scene.add.rectangle(
       cx, cy, bayHitSize(slotW), bayHitSize(slotH), 0x000000, 0,
     ).setInteractive({ useHandCursor: true });
     hit.on('pointerover', () => {
+      if (drag.active) return;
       if (crate) {
         const animal = state.animalsById.get(crate.animalId);
         setMessage(animal ? {
@@ -2115,9 +2806,18 @@ function drawBays(
         setMessage(bayHoverCopy(session, slot));
       }
     });
-    hit.on('pointerout', () => setMessage(null));
+    hit.on('pointerout', () => { if (!drag.active) setMessage(null); });
     hit.on('pointerdown', () => {
-      if (crate) callbacks.onLiftFromSlot(slot);
+      if (crate) {
+        callbacks.onLiftFromSlot(slot);
+        return;
+      }
+      // **The second stage cannot happen before the first.** A space
+      // asked for while the animal is still loose is answered with the
+      // crate she needs rather than with a silent nothing — and never
+      // by quietly choosing a crate for her, which would make the
+      // choice the screen is now about skippable.
+      if (loadStage(session) === 'pick-a-crate') callbacks.onNeedCrate();
       else callbacks.onPlaceInSlot(slot);
     });
     container.add(hit);
@@ -2246,6 +2946,12 @@ function drawPanel(
     PANEL_FACES_MAX, box.h - CHROME.padY * 2 - SPACE.s - PANEL_TEXT_H,
   );
   const showFaces = facesH >= PANEL_FACES_MIN;
+  // Whether the band has room for the word under each animal as well
+  // as the name above it. Decided once, from the geometry, so it is the
+  // same answer for every copy the panel shows while it stands there —
+  // the alternative is a band whose animals change size as a pointer
+  // crosses the bays.
+  const showReactions = showFaces && facesH - NAME_ROW_H >= REACTION_ROW_H + 40;
   const tight = box.h < CHROME.padY * 2 + PANEL_TEXT_H;
   const leading = tight ? 0 : 6;
   const headingY = box.y
@@ -2320,7 +3026,19 @@ function drawPanel(
   const apply = (copy: PanelCopy | null): void => {
     const c = copy ?? standing;
     setPlate(c.tone);
-    heading.setText(c.heading);
+    // **The feeling is said once.** Where the band under the animals
+    // carries the word — "Worried" under the hedgehog who is worried —
+    // the heading would be the same word a second time, and a heading
+    // sits directly under the left-hand animal, which is how the word
+    // came to be read as belonging to the wrong animal in the first
+    // place. So the heading drops a bare mood word whenever the picture
+    // is attributing it, and keeps it on the viewport too short to draw
+    // the band, where it is the only place the word can go.
+    const attributed = showReactions
+      && (c.cast?.members ?? []).some((m) => m.reaction !== undefined);
+    const headingText = attributed && MOOD_WORDS.has(c.heading) ? '' : c.heading;
+    heading.setText(headingText);
+    heading.setVisible(headingText.length > 0);
     heading.setColor(c.tone ? FEELING_SKIN[c.tone].ink : CHROME.ink);
 
     // The takeaway, and the lines either side of it.
@@ -2342,8 +3060,12 @@ function drawPanel(
     }
 
     // Never above the heading's last line, and never at a fixed offset
-    // that a two-line heading would run through.
-    let y = Math.max(headingY + (tight ? 26 : 34), heading.y + heading.height + SPACE.xs);
+    // that a two-line heading would run through. With no heading the
+    // words start where it would have been, so the type does not move
+    // up and down as a pointer crosses the bays.
+    let y = headingText.length === 0
+      ? headingY
+      : Math.max(headingY + (tight ? 26 : 34), heading.y + heading.height + SPACE.xs);
     parts.forEach((part, i) => {
       const block = blocks[i];
       const set = part.flatMap((line) => setLines(measurer(i === 1), line, innerW));
@@ -2355,7 +3077,7 @@ function drawPanel(
 
     if (!showFaces) return;
     faces.removeAll(true);
-    drawCast(scene, faces, state, c.cast, facesBox);
+    drawCast(scene, faces, state, c.cast, facesBox, showReactions);
   };
   apply(null);
   return apply;
@@ -2374,9 +3096,18 @@ function drawPanel(
  * looks like; nobody at all draws the empty well.
  *
  * Drawn out of their crates here, and that is deliberate: the crate is
- * already on the bay and on the tray chip, and a rim round a face in
- * the one place the face is the whole point would be the same mistake
- * at a larger size.
+ * already on the bay and on the shelf, and a rim round a face in the
+ * one place the face is the whole point would be the same mistake at a
+ * larger size.
+ *
+ * **The name above, the feeling below.** Three rows, and which row a
+ * word is in is what says who it belongs to: the name is a label on the
+ * animal, and so is the word for what she is feeling. Marcus, on the
+ * panel that put one feeling above a pair of animals: "the name of the
+ * emotion or reaction needs to be below the animal that is displaying
+ * it... in fact it's the hedgehog that is worried". Two animals with
+ * two different feelings therefore wear one word each, and an animal
+ * with nothing to report wears none.
  */
 function drawCast(
   scene: Phaser.Scene,
@@ -2384,10 +3115,23 @@ function drawCast(
   state: CrateLoadingState,
   cast: PanelCast | undefined,
   box: Box,
+  /** The band is tall enough for the word under each animal. */
+  showReactions = false,
 ): void {
-  const nameH = MIN_FONT.small + SPACE.xs;
-  const artH = Math.max(16, box.h - nameH);
+  const nameH = NAME_ROW_H;
+  const reactionH = showReactions ? REACTION_ROW_H : 0;
+  const artH = Math.max(16, box.h - nameH - reactionH);
   const cy = box.y + nameH + artH / 2;
+  const reactionY = box.y + nameH + artH + reactionH / 2;
+
+  /** The word for what this animal is feeling, under this animal. */
+  const drawReaction = (x: number, mood: Mood | undefined, maxW: number): void => {
+    if (!showReactions || !mood) return;
+    container.add(fitLabel(scene, x, reactionY, MOOD_WORD[mood], maxW, {
+      fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
+      color: FEELING_SKIN[mood].ink, resolution: TEXT_RESOLUTION,
+    }));
+  };
 
   // The hole an animal goes in, drawn exactly as the bays draw theirs.
   const drawWell = (x: number, y: number, s: number): void => {
@@ -2408,11 +3152,17 @@ function drawCast(
     // that wide holding one small square says nothing a child can use.
     //
     // So the band draws the instruction instead of illustrating its
-    // absence: the first animal waiting, an arrow, the space she goes
-    // in. That is the sentence underneath it as a picture, which is the
-    // order a child reads the panel in, and everything needed to read
-    // it is on the drawing. With nobody waiting there is no instruction
-    // to give and the well stands on its own.
+    // absence: the first animal waiting, an arrow, and the crate she
+    // goes in. That is the sentence underneath it as a picture, which
+    // is the order a child reads the panel in, and everything needed to
+    // read it is on the drawing. With nobody waiting there is no
+    // instruction to give and the empty well stands on its own.
+    //
+    // **The animal is loose and the crate is empty, because that is the
+    // first move now.** It used to draw her already in her crate with
+    // an empty bay beside her, which was the whole of the old
+    // interaction; a child shown that picture would be looking for the
+    // step the screen has just stopped doing for her.
     const next = waitingToBoard(state.session)[0];
     const record = next ? state.animalsById.get(next.id) : undefined;
     const s = Math.min(artH, box.h, 112);
@@ -2424,16 +3174,20 @@ function drawCast(
     const step = Math.min(s, box.w * 0.3);
     const fromX = box.x + box.w / 2 - box.w * 0.24;
     const toX = box.x + box.w / 2 + box.w * 0.24;
-    container.add(makeCratedAnimal(
-      scene, fromX, cy, record, crateDefFor(next.species), step,
-    ));
+    if (record) {
+      container.add(createAnimalSprite(
+        scene, fromX, cy, record, { width: step, height: step },
+      ));
+    }
     container.add(fitLabel(
       scene, fromX, box.y + nameH / 2, next.name, box.w * 0.42, {
         fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
         color: CHROME.ink, resolution: TEXT_RESOLUTION,
       },
     ));
-    drawWell(toX - step / 2, cy - step / 2, step);
+    container.add(makeCrateFace(
+      scene, toX, cy, crateDefFor(next.species), step,
+    ));
     // The arrow is the screen's one "do this" colour, the same orange
     // as the block over the animals waiting — and it is level with the
     // middle of what it joins, which is the picture, not the names.
@@ -2470,6 +3224,7 @@ function drawCast(
     container.add(fitLabel(
       scene, cx, box.y + nameH / 2, m.name, box.w - SPACE.m, nameStyle,
     ));
+    drawReaction(cx, m.reaction, box.w - SPACE.m);
     return;
   }
 
@@ -2496,6 +3251,7 @@ function drawCast(
     container.add(fitLabel(
       scene, cx, box.y + nameH / 2, m.name, box.w * 0.46, nameStyle,
     ));
+    drawReaction(cx, m.reaction, box.w * 0.46);
   });
 
   if (cast.level) {
@@ -2505,57 +3261,112 @@ function drawCast(
   }
 }
 
-// ── The tray ─────────────────────────────────────────────────
+
+// ── The loading bay floor ────────────────────────────────────
 
 /**
- * How the waiting animals are arranged in whatever rectangle the tray
- * was given — `fitChipGrid` with this screen's chip sizes.
+ * How the floor divides: the animals on the left, the crates on the
+ * right.
+ *
+ * **Left to right is the order the child works in.** She takes an
+ * animal off the floor and puts her in a crate, so the animals are on
+ * the side she reads from and the crates are the next thing along. The
+ * whole of stage one is then a short sideways drag rather than a reach
+ * across the screen.
+ *
+ * The shelf is sized first and the animals take what is left, for the
+ * same reason the reading column is sized before the car park: there
+ * are always exactly six crates and they have a width below which they
+ * stop being tappable, while animals simply draw smaller.
  */
-function trayGrid(
-  count: number,
-  box: { w: number; h: number },
-): { rows: number; perRow: number; chipW: number; chipH: number } {
-  return fitChipGrid(count, box, { gap: GAP, maxW: CHIP_MAX_W, maxH: CHIP_MAX_H });
+export function splitLoadingBay(box: Box): { loose: Box; shelf: Box } {
+  const gutter = SPACE.xl;
+  // **The shelf gets the wider share of what is spare, and the animals
+  // are still the larger half.** The row of animals is bounded by its
+  // own height — a dog is as tall as the band and no wider than a dog —
+  // so width given to it beyond what the row needs is floor nobody
+  // stands on, while every pixel given to the shelf is a bigger crate.
+  // At 0.42 the crates came out at 59px on a desktop; at 0.46 they are
+  // 68, and the animals' row still has room to spare.
+  const shelfW = Math.round(Math.max(
+    Math.min(SHELF_MIN_W, box.w * 0.45),
+    Math.min(box.w * 0.46, SHELF_MAX_W),
+  ));
+  const looseW = Math.max(MIN_TAP, box.w - gutter - shelfW);
+  return {
+    loose: { x: box.x, y: box.y, w: looseW, h: box.h },
+    shelf: { x: box.x + box.w - shelfW, y: box.y, w: shelfW, h: box.h },
+  };
 }
 
-function drawTray(
+/**
+ * Where each loose animal stands, and how big she is drawn.
+ *
+ * **Sized against each other, never against a cell.** Each animal gets
+ * a share of the band's height from `SPECIES_SIZE`, so a hedgehog is a
+ * third of a dog and reads as one. If the row of them is wider than the
+ * floor, every one of them comes down by the same factor — the row
+ * shrinks, the proportions do not, which is the one thing that has to
+ * survive a narrow window.
+ *
+ * The row starts on the floor's own left edge rather than being centred
+ * in it: a centred row re-centres itself every time somebody boards,
+ * which would move the animal a child was reaching for.
+ *
+ * `size` is the box each animal is drawn inside and `cx` is where her
+ * middle goes, measured from the floor's left edge. They stand on one
+ * ground line, so the sizes can be compared at a glance.
+ */
+export function looseRow(
+  units: readonly number[],
+  box: { w: number; h: number },
+  gap: number,
+): { size: number[]; cx: number[] } {
+  if (units.length === 0) return { size: [], cx: [] };
+  const sum = units.reduce((a, b) => a + b, 0);
+  const room = box.w - gap * (units.length - 1);
+  const scale = Math.max(2, Math.min(box.h, sum > 0 ? room / sum : box.h));
+  const size = units.map((u) => Math.max(1, Math.round(u * scale)));
+  const cx: number[] = [];
+  let x = 0;
+  for (const s of size) {
+    cx.push(x + s / 2);
+    x += s + gap;
+  }
+  return { size, cx };
+}
+
+/**
+ * An inverse block naming a place a child acts, with a white arrow
+ * aligned on the text's own centre line.
+ *
+ * Marcus's lead-in: the words reversed out of a solid colour, in a
+ * colour no panel uses. `ACT` is that colour, the brand orange, and it
+ * now marks both halves of the loading bay floor — the animals and the
+ * crates — because both are places the child acts and the two of them
+ * are one band. It is still the only orange on the screen, so it still
+ * means exactly one thing.
+ */
+function drawLeadIn(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
-  state: CrateLoadingState,
-  callbacks: CrateLoadingCallbacks,
-  setMessage: (copy: PanelCopy | null) => void,
-  box: Box,
-  labelH: number,
+  x: number,
+  y: number,
+  words: string,
 ): void {
-  const { session } = state;
-  const waiting = waitingToBoard(session);
-
-  // ── The lead-in ──
-  //
-  // **This is where a child starts, and it is the only thing on the
-  // screen that says so.** It was a small cream tab reading "Waiting
-  // to board" — the ninth cream plate, indistinguishable from the
-  // eight others, marking the entry point with the same weight as the
-  // furniture. Marcus's rule for an entry point is an inverse block:
-  // the words reversed out of a solid colour, with an arrow aligned to
-  // the text, in a colour no panel uses. `ACT` is that colour, the
-  // brand orange, and the arrow points at the animals below it.
-  const label = scene.add.text(0, 0, titleCase('Waiting to board'), {
+  const label = scene.add.text(0, 0, words, {
     fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
     color: COLOURS.white, resolution: TEXT_RESOLUTION,
   }).setOrigin(0, 0.5);
   const arrowW = 14;
   const blockH = label.height + SPACE.s;
   const blockW = label.width + SPACE.l + arrowW + SPACE.s;
-  const blockCy = box.y + blockH / 2;
+  const blockCy = y + blockH / 2;
   const block = scene.add.graphics();
   block.fillStyle(ACT, 1);
-  block.fillRoundedRect(box.x, box.y, blockW, blockH, 7);
-  // The arrow is white, the same weight as the type, and sits on the
-  // text's own centre line rather than the block's — one line here, so
-  // they are the same, and it stays true if the label ever wraps.
-  label.setPosition(box.x + SPACE.s + SPACE.xs, blockCy);
-  const ax = box.x + blockW - SPACE.s - arrowW;
+  block.fillRoundedRect(x, y, blockW, blockH, 7);
+  label.setPosition(x + SPACE.s + SPACE.xs, blockCy);
+  const ax = x + blockW - SPACE.s - arrowW;
   block.lineStyle(2.5, 0xffffff, 1);
   block.beginPath();
   block.moveTo(ax, label.y);
@@ -2566,15 +3377,160 @@ function drawTray(
   block.strokePath();
   container.add(block);
   container.add(label);
+}
+
+/**
+ * The floor of the loading bay: the animals waiting on it, and the
+ * crates standing beside them.
+ */
+function drawLoadingBay(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  state: CrateLoadingState,
+  callbacks: CrateLoadingCallbacks,
+  setMessage: (copy: PanelCopy | null) => void,
+  zones: DropZone[],
+  drag: DragFlag,
+  box: Box,
+  labelH: number,
+): void {
+  const { loose, shelf } = splitLoadingBay(box);
+  drawLeadIn(scene, container, loose.x, loose.y, titleCase('Waiting to board'));
+  drawLeadIn(scene, container, shelf.x, shelf.y, titleCase('Crates'));
 
   const rowTop = box.y + labelH + SPACE.s;
-  const areaH = Math.max(MIN_TAP, box.h - labelH - SPACE.s);
+  const rowH = Math.max(MIN_TAP, box.h - labelH - SPACE.s);
+  // The shelf first, so the animals can be handed the thing that
+  // lights it up while one of them is being dragged across it.
+  const preview = drawCrateShelf(
+    scene, container, state, callbacks, setMessage, zones, drag,
+    { x: shelf.x, y: rowTop, w: shelf.w, h: rowH },
+  );
+  drawLooseAnimals(
+    scene, container, state, callbacks, setMessage, zones, drag, preview,
+    { x: loose.x, y: rowTop, w: loose.w, h: rowH },
+  );
+}
 
-  if (waiting.length === 0) {
+/**
+ * A handle on the shelf's marks, so the animals can light it up while
+ * one of them is being dragged across it.
+ *
+ * `show(animal)` draws what every crate would mean for her;
+ * `show(null)` puts the shelf back to rest. Nothing in the session
+ * changes — this is a preview, and the same preview a tap gives.
+ */
+interface ShelfPreview {
+  show: (animal: LoadableAnimal | null) => void;
+}
+
+/**
+ * What the panel says about one crate and one animal: whether it suits
+ * her, and what to do next.
+ *
+ * `inIt` is true when she is already sitting in this crate, which
+ * changes only the second line — the next move is the vehicle rather
+ * than the crate.
+ */
+function crateCopy(
+  state: CrateLoadingState,
+  animal: LoadableAnimal,
+  crate: CrateType,
+  inIt: boolean,
+): PanelCopy {
+  const verdict = describeCrateChoice(animal, crate);
+  const mood: Mood = verdict.suitable ? 'happy' : 'stressed';
+  return {
+    // No heading: the word for the feeling is under the animal in the
+    // picture above, and saying it twice is the fault this panel was
+    // just fixed for.
+    heading: '',
+    tone: mood,
+    body: [
+      verdict.text,
+      inIt
+        ? `Drag ${animal.name} to a space in ${state.vehicle.name}.`
+        : `Put ${animal.name} in to travel.`,
+    ],
+    cast: { members: [castOne(animal, undefined, mood)] },
+  };
+}
+
+/** What the panel says about a loose animal: the crate she needs. */
+function looseCopy(animal: LoadableAnimal, lifted: boolean): PanelCopy {
+  const crate = crateDefFor(animal.species).label.toLowerCase();
+  return {
+    heading: titleCase(`${animal.name} the ${animal.species}`),
+    tone: null,
+    body: [
+      `${animal.name} travels best in a ${crate}.`,
+      lifted
+        ? 'Drag them to a crate, or tap the crate.'
+        : 'Drag them to a crate, or tap them to pick them up.',
+    ],
+    cast: { members: [castOne(animal)] },
+  };
+}
+
+/**
+ * The animals waiting to board — loose on the floor, nothing round
+ * them, at their sizes relative to each other.
+ *
+ * **Nothing round them, and that is the instruction.** Each one used to
+ * be a rounded plate holding a painted crate holding the animal: three
+ * frames, of which the outer two said nothing a child needed on the way
+ * in. What is left is the animal, standing on the floor, which is what
+ * she is.
+ *
+ * **No names here either**, and that is a departure from the rule that
+ * names sit above the animals. The rule was settled for the vehicle bed
+ * and for the panel, where an animal is placed and her name is a label
+ * on her; on the floor the names were the last furniture left, and six
+ * of them on one baseline above animals of six different heights reads
+ * as a row of captions floating over a row of animals. Whoever is under
+ * the pointer or in the child's hands is named in the panel, large,
+ * with the sentence about her. Recorded in
+ * `.claude/notes/loading-screen-drag.md`, and cheap to put back.
+ *
+ * The animal in the child's hands who has not been put in a crate yet
+ * keeps her place in the row, raised off the floor with her shadow
+ * under her. She is still the thing to drag, so she has to still be
+ * there to drag — and her place not changing is what stops the row
+ * shuffling under a child's hand.
+ */
+function drawLooseAnimals(
+  scene: Phaser.Scene,
+  container: Phaser.GameObjects.Container,
+  state: CrateLoadingState,
+  callbacks: CrateLoadingCallbacks,
+  setMessage: (copy: PanelCopy | null) => void,
+  zones: DropZone[],
+  drag: DragFlag,
+  preview: ShelfPreview,
+  box: Box,
+): void {
+  const { session } = state;
+  const held = heldAnimal(session);
+  const heldLoose = held && !heldCrateType(session) ? held : null;
+
+  // The floor is a space of its own: a crated animal dragged back down
+  // here is put down, out of her crate. Pushed before anything else, so
+  // it is a target even when there is nobody standing on it.
+  zones.push({ rect: { ...box }, target: { kind: 'floor' } });
+
+  // On the floor: everybody not aboard, and the animal in your hands
+  // only while she is still loose — once she is in a crate she is on
+  // the shelf, in it.
+  const order = (a: LoadableAnimal): number => session.offered.indexOf(a);
+  const onFloor = heldLoose
+    ? [...waitingToBoard(session), heldLoose].sort((a, b) => order(a) - order(b))
+    : waitingToBoard(session);
+
+  if (onFloor.length === 0) {
     container.add(
       scene.add.text(
-        box.x + SPACE.s, rowTop + Math.min(areaH, MIN_TAP) / 2,
-        heldAnimal(session)
+        box.x + SPACE.s, box.y + Math.min(box.h, MIN_TAP) / 2,
+        held
           ? `Everybody else is already in ${state.vehicle.name}.`
           : `Everybody is in ${state.vehicle.name}.`,
         {
@@ -2587,82 +3543,281 @@ function drawTray(
     return;
   }
 
-  // Off `offered`, for the reason in `renderCrateLoading`: one size
-  // and one set of places for the whole screen, so nothing a child
-  // taps moves anything she is not touching.
-  const { perRow, chipW, chipH } = trayGrid(session.offered.length, { w: box.w, h: areaH });
+  // **Measured off everybody offered, not off whoever is still
+  // waiting.** A row re-measured on every tap gives the remaining
+  // animals a new size and a new place each time, so the picture jumps
+  // because of something the child did somewhere else. Measured once,
+  // the row simply shortens from the right.
+  const { size, cx } = looseRow(
+    session.offered.map((a) => SPECIES_SIZE[a.species]),
+    { w: box.w, h: box.h },
+    GAP,
+  );
+  const ground = box.y + box.h;
 
-  waiting.forEach((animal, i) => {
-    const row = Math.floor(i / perRow);
-    const col = i % perRow;
-    // Left-aligned on the column's own edge, not centred in it. A
-    // centred row introduces a left edge that belongs to nothing —
-    // the panel above starts at `box.x`, the lead-in starts at
-    // `box.x`, and so does every chip. One edge, not three. It is also
-    // what keeps a chip still when its neighbour boards: a centred row
-    // re-centres on every tap.
-    drawChip(scene, container, state, callbacks, setMessage, animal, {
-      x: box.x + col * (chipW + GAP),
-      y: rowTop + row * (chipH + GAP),
-      w: chipW,
-      h: chipH,
+  for (const animal of onFloor) {
+    const place = order(animal);
+    const s = size[place] ?? MIN_TAP;
+    const x = box.x + (cx[place] ?? s / 2);
+    const lifted = animal === heldLoose;
+    const y = ground - s / 2 - (lifted ? 8 : 0);
+
+    if (lifted) {
+      // A pool of shadow on the floor where she was standing: she is
+      // off the ground, in the child's hands. Not an outline — the one
+      // thing this area may not grow again.
+      const shadow = scene.add.graphics();
+      shadow.fillStyle(BED_WALL, 0.22);
+      shadow.fillEllipse(x, ground - 2, s * 0.62, Math.max(5, s * 0.16));
+      container.add(shadow);
+    }
+
+    const piece = scene.add.container(x, y);
+    const record = state.animalsById.get(animal.id);
+    if (record) {
+      piece.add(createAnimalSprite(scene, 0, 0, record, { width: s, height: s }));
+    }
+    container.add(piece);
+
+    const hit = grabHandle(scene, piece, s, s);
+    hit.on('pointerover', () => { if (!drag.active) setMessage(looseCopy(animal, lifted)); });
+    hit.on('pointerout', () => { if (!drag.active) setMessage(null); });
+
+    makeDraggable(scene, piece, hit, zones, drag, {
+      home: { x, y },
+      accepts: dropTargetsFor('loose-animal'),
+      // Over a crate, the panel says what that crate would mean for
+      // her — the same sentence the drop will give, one moment early.
+      describe: (t) => setMessage(
+        t && t.kind === 'crate' ? crateCopy(state, animal, t.crate, false) : looseCopy(animal, true),
+      ),
+      onTap: () => {
+        if (lifted) callbacks.onPutBack();
+        else callbacks.onHoldFromTray(animal.id);
+      },
+      onDrop: (t) => {
+        // One gesture, one answer: she is picked up and put in the
+        // crate she was dragged to, in a single move, so the screen
+        // repaints once and the sound plays once.
+        if (t.kind === 'crate') callbacks.onPutInCrate(animal.id, t.crate);
+      },
+      onMiss: () => setMessage(looseCopy(animal, lifted)),
+      onLift: () => {
+        scene.tweens.killTweensOf(piece);
+        // **A drag gets the same preview a tap does.** Picking her up
+        // by tapping lights every crate with what it would mean for
+        // her; dragging her would have crossed an unlit shelf, so the
+        // lift does it too. Nothing in the session has changed yet —
+        // this is the screen answering a question that has been asked
+        // and not yet committed to, which is what every preview on it
+        // is.
+        preview.show(animal);
+        setMessage(looseCopy(animal, true));
+      },
+      onSettle: () => {
+        preview.show(heldLoose);
+        setMessage(null);
+        if (!lifted) breathe(scene, piece, place);
+      },
     });
-  });
+
+    // The animal in your hands is held still; the ones waiting breathe.
+    if (!lifted) breathe(scene, piece, place);
+  }
 }
 
-function drawChip(
+/**
+ * The crate shelf — all six crates, standing on the floor beside the
+ * animals.
+ *
+ * **Choosing the crate is the child's now, and this is where she does
+ * it.** It used to be `bestCrateFor`, decided for her, on the grounds
+ * that one screen should teach one thing. Marcus, 2026-10-09: "that
+ * makes for another fun round of choosing how that animal might like to
+ * travel and that could help with alleviating some of the issues with
+ * other animals on board or their health condition."
+ *
+ * All six, always, in `SHELF_CRATES` order — a shelf that offered only
+ * the crates that suit the animal in hand would take away the choice,
+ * and one whose contents changed between animals would move the thing
+ * she was reaching for.
+ *
+ * **While she is holding an animal, every crate says what it would mean
+ * for her** — the same marks and the same words the bays use for a
+ * neighbour, because it is the same question asked about a different
+ * thing. A child can read the answer before she commits, which is how
+ * this screen has always worked and is why nothing here has to punish a
+ * poor choice.
+ */
+function drawCrateShelf(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
   state: CrateLoadingState,
   callbacks: CrateLoadingCallbacks,
   setMessage: (copy: PanelCopy | null) => void,
-  animal: LoadableAnimal,
+  zones: DropZone[],
+  drag: DragFlag,
   box: Box,
-): void {
-  const cx = box.x + box.w / 2;
-  const cy = box.y + box.h / 2;
+): ShelfPreview {
+  const { session } = state;
+  const held = heldAnimal(session);
+  const inCrate = heldCrateType(session);
 
-  // A shade of the block that leads them, rather than a tenth copy of
-  // the cream plate the panel is: six chips in the lead-in's own
-  // colour read as the group that block names, and stop competing
-  // with the one surface on this screen that is teaching.
-  container.add(
-    createChromePlate(scene, cx, cy, box.w, box.h, { radius: 10, tint: ACT_WASH }),
+  // The marks live in a layer of their own, so lighting the shelf up
+  // and letting it go again costs one container and never touches the
+  // crates themselves.
+  const marks = scene.add.container(0, 0);
+  const lamps: Array<{ type: CrateType; cx: number; cy: number; size: number }> = [];
+
+  const { rows, perRow, chipW, chipH } = fitChipGrid(
+    SHELF_CRATES.length, { w: box.w, h: box.h },
+    { gap: GAP, maxW: SHELF_CRATE_MAX, maxH: SHELF_CRATE_MAX },
   );
+  // **The crates stand on the same ground line as the animals.** The
+  // whole band is one floor, and a shelf centred in its half of it had
+  // the crates floating twenty pixels above the feet of the animals
+  // beside them — two ground lines in one picture, which is the fault
+  // Marcus's shared-edges rule names.
+  const gridH = rows * chipH + (rows - 1) * GAP;
+  const top = box.y + Math.max(0, box.h - gridH);
 
-  // The same tile a loaded bay draws, so a chip and the bay it lands in
-  // are one object before and after the tap. The crate mark rides
-  // along: a child can tell before she picks anybody up that the snake
-  // wants the warm vivarium and the bat wants the quiet one.
-  drawAnimalTile(
-    scene, container, state.animalsById.get(animal.id), animal.name,
-    crateDefFor(animal.species),
-    {
-      left: box.x,
-      top: box.y,
-      cx,
-      cy,
-      slotW: box.w,
-      slotH: box.h,
-      withName: true,
-      rowWhenWide: false,
-    },
-  );
+  SHELF_CRATES.forEach((type, i) => {
+    const def = CRATE_DEFS[type];
+    const cx = box.x + (i % perRow) * (chipW + GAP) + chipW / 2;
+    const cy = top + Math.floor(i / perRow) * (chipH + GAP) + chipH / 2;
+    const size = Math.max(1, Math.min(chipW, chipH) - 2);
 
-  const hit = scene.add.rectangle(
-    cx, cy, Math.max(box.w, MIN_TAP), Math.max(box.h, MIN_TAP), 0x000000, 0,
-  ).setInteractive({ useHandCursor: true });
-  // Hovering a waiting animal reads out what it needs, before any tap.
-  hit.on('pointerover', () => setMessage({
-    heading: titleCase(`${animal.name} the ${animal.species}`),
-    tone: null,
-    body: [
-      `${animal.name} travels in a ${crateDefFor(animal.species).label.toLowerCase()}.`,
-      'Tap to pick them up.',
-    ],
-    cast: { members: [castOne(animal)] },
-  }));
-  hit.on('pointerout', () => setMessage(null));
-  hit.on('pointerdown', () => callbacks.onHoldFromTray(animal.id));
-  container.add(hit);
+    // Always a space, whatever is happening: an animal may be dropped
+    // in, and a crate already holding her may be dropped on another one
+    // to move her across.
+    zones.push({
+      rect: generous(cx, cy, chipW, chipH),
+      target: { kind: 'crate', crate: type },
+    });
+
+    const holding = held && inCrate === type ? held : null;
+    const record = holding ? state.animalsById.get(holding.id) : undefined;
+
+    const piece = scene.add.container(cx, cy);
+    piece.add(makeCratedAnimal(
+      scene, 0, 0, record, def, size, holding?.poorly ? FACE_SICK : undefined,
+    ));
+    container.add(piece);
+
+    lamps.push({ type, cx, cy, size });
+
+    const copy = (): PanelCopy => (held
+      ? crateCopy(state, held, type, Boolean(holding))
+      : { heading: titleCase(def.label), tone: null, body: [whoTravelsIn(type)] });
+
+    const hit = grabHandle(scene, piece, chipW, chipH);
+    hit.on('pointerover', () => { if (!drag.active) setMessage(copy()); });
+    hit.on('pointerout', () => { if (!drag.active) setMessage(null); });
+
+    if (holding) {
+      // Stage two: this crate holds her, so this crate is the thing
+      // that goes into the vehicle.
+      makeDraggable(scene, piece, hit, zones, drag, {
+        home: { x: cx, y: cy },
+        // Everywhere a crated animal may go, except the crate she is
+        // already in — dropping her back where she started is a miss,
+        // not a move.
+        accepts: (t) => dropTargetsFor('crated-animal')(t)
+          && (t.kind !== 'crate' || t.crate !== type),
+        // Over a bay, what that bay would do to her; over another
+        // crate, what that crate would mean; over the floor, that she
+        // would be put down. The drag reads the screen out loud.
+        describe: (t) => {
+          if (t?.kind === 'bay') { setMessage(bayHoverCopy(session, t.slotIndex)); return; }
+          if (t?.kind === 'crate') { setMessage(crateCopy(state, holding, t.crate, false)); return; }
+          if (t?.kind === 'floor') {
+            setMessage({
+              heading: titleCase(`${holding.name} the ${holding.species}`),
+              tone: null,
+              body: [`${holding.name} would wait on the floor again.`],
+              cast: { members: [castOne(holding)] },
+            });
+            return;
+          }
+          setMessage(copy());
+        },
+        onTap: () => setMessage(copy()),
+        onDrop: (t) => {
+          if (t.kind === 'bay') callbacks.onPlaceInSlot(t.slotIndex);
+          else if (t.kind === 'crate') callbacks.onPutInCrate(holding.id, t.crate);
+          else callbacks.onPutBack();
+        },
+        onMiss: () => setMessage(copy()),
+      });
+      return;
+    }
+
+    hit.on('pointerdown', () => {
+      if (held) callbacks.onPutInCrate(held.id, type);
+      else setMessage(copy());
+    });
+  });
+
+  container.add(marks.setDepth(7));
+
+  /**
+   * Light every crate with what it would mean for this animal — the
+   * same marks the bays use for a neighbour, because it is the same
+   * question asked about a different thing.
+   *
+   * Only while she is still loose: once she is in a crate, the picture
+   * of her sitting in it is the answer and a mark beside it would be
+   * the same thing said twice.
+   */
+  const show = (animal: LoadableAnimal | null): void => {
+    marks.removeAll(true);
+    if (!animal) return;
+    for (const lamp of lamps) {
+      if (inCrate === lamp.type && animal.id === held?.id) continue;
+      const mood: Mood = describeCrateChoice(animal, lamp.type).suitable ? 'happy' : 'stressed';
+      marks.add(makeFeelingBadge(
+        scene, lamp.cx, lamp.cy + lamp.size / 2 - 2, mood,
+        { radius: Math.max(8, Math.min(13, lamp.size * 0.2)) },
+      ));
+    }
+  };
+
+  // Tapping an animal to pick her up lights the shelf straight away;
+  // dragging her lights it on the way (see `onLift`).
+  if (held && !inCrate) show(held);
+  return { show };
+}
+
+/**
+ * More than one of a species.
+ *
+ * Eight words, and the two that are not "add an s" are the two the
+ * first version got wrong: a fox is a fox**es** and a bunny is a
+ * bunn**ies**. Rules rather than a table, because the three endings
+ * cover every species the game has and any it gains.
+ */
+export function plural(species: Species): string {
+  if (/[sxz]$|[cs]h$/.test(species)) return `${species}es`;
+  if (/[^aeiou]y$/.test(species)) return `${species.slice(0, -1)}ies`;
+  return `${species}s`;
+}
+
+/**
+ * Who a crate is for, in one line — what the panel says about a crate
+ * when nobody is in the child's hands.
+ *
+ * Read off the engine rather than written out, so the sentence cannot
+ * drift from the scoring: `isCrateSuitable` already knows, and it is
+ * the same function the +3 and the -10 come from.
+ */
+export function whoTravelsIn(crate: CrateType): string {
+  const species = (Object.keys(SPECIES_SIZE) as Species[])
+    .filter((s) => isCrateSuitable(s, crate))
+    .sort();
+  if (species.length === 0) return 'This crate is spare.';
+  const names = species.map(plural);
+  const list = names.length === 1
+    ? names[0]
+    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return `For ${list}.`;
 }

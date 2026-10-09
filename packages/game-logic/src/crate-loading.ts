@@ -26,6 +26,7 @@ import {
   CRATE_DEFS,
   VEHICLE_DEFS,
   getPreferredCrates,
+  isCrateSuitable,
   pairFeeling,
   isDriveable,
   neighbourIndices,
@@ -219,23 +220,80 @@ export function describePair(
 // ── Crates ───────────────────────────────────────────────────
 
 /**
- * The crate an animal travels in.
+ * The crate an animal travels in when nobody has chosen one.
  *
  * The first entry of `CRATE_PREFERENCE` is the right crate for the
  * species, so picking it is always the +3 crate-fit on arrival and
- * never the -10. **Choosing the crate is deliberately not the child's
- * job in this slice**: the screen teaches one thing — who may sit next
- * to whom — and a second, differently-scored decision on the same
- * screen would blur which of the two a wrong answer came from. When
- * crate choice does arrive it replaces this function and nothing else.
+ * never the -10.
+ *
+ * **It is now the default rather than the answer.** Crate choice became
+ * the child's on 2026-10-09 — see `putHeldInCrate` and `loadStage` — and
+ * this is what still answers for the two callers who have no child to
+ * ask: `createLoadingSession`'s preloaded animals, who are aboard
+ * before the screen opens, and `placeHeld` reached without a crate
+ * chosen, which is how the rules stay usable from a script and from a
+ * test that is about adjacency rather than about crates.
  */
 export function bestCrateFor(species: Species): CrateType {
   return getPreferredCrates(species)[0];
 }
 
-/** The crate definition an animal travels in — label and placeholder emoji. */
+/** The crate definition an animal travels in by default — label and emoji. */
 export function crateDefFor(species: Species): CrateDef {
   return CRATE_DEFS[bestCrateFor(species)];
+}
+
+/**
+ * The crates standing in the loading bay, in the order they stand in.
+ *
+ * Every crate the game has, always all six, always in this order. A
+ * shelf that offered only the crates that suit the animal in hand would
+ * remove the choice it exists to give; a shelf whose contents changed
+ * between animals would move the thing a child had just reached for.
+ * Ordinary first, specialised last.
+ */
+export const SHELF_CRATES: readonly CrateType[] = [
+  'standard', 'secure', 'ventilated-basket', 'quiet', 'warm-vivarium', 'perch-carrier',
+];
+
+/** `a` or `an`, for a label the rules are about to put a word in front of. */
+function article(label: string): string {
+  return /^[aeiou]/i.test(label) ? 'an' : 'a';
+}
+
+/**
+ * What a crate would mean for this animal, in words.
+ *
+ * **Any listed crate is a good crate, and that is the engine's own
+ * number rather than a simplification.** `isCrateSuitable` is true for
+ * every entry in the species' list and arrival scores a flat +3 for a
+ * suitable crate against -10 for one not listed — the first entry earns
+ * nothing extra, whatever the old comment at `CRATE_PREFERENCE` used to
+ * claim. So there are two sentences here and not six: this crate suits
+ * her, or this one does.
+ *
+ * **The unsuitable sentence says what would suit and stops.** It does
+ * not name the crate she is in, score the choice, or tell her she is
+ * wrong. A child who has just put a bat in a wicker basket can see the
+ * bat in the basket; what she does not know yet is that a bat travels
+ * in the quiet crate, and that is the whole of what she is told.
+ */
+export function describeCrateChoice(
+  animal: LoadableAnimal,
+  crate: CrateType,
+): { suitable: boolean; text: string } {
+  if (isCrateSuitable(animal.species, crate)) {
+    const label = CRATE_DEFS[crate].label.toLowerCase();
+    return {
+      suitable: true,
+      text: `${named(animal)} is happy in ${article(label)} ${label}.`,
+    };
+  }
+  const best = CRATE_DEFS[bestCrateFor(animal.species)].label.toLowerCase();
+  return {
+    suitable: false,
+    text: `${named(animal)} travels best in ${article(best)} ${best}.`,
+  };
 }
 
 // ── The session ──────────────────────────────────────────────
@@ -253,6 +311,44 @@ export interface LoadingSession {
   grid: CrateGrid;
   offered: LoadableAnimal[];
   heldId: string | null;
+  /**
+   * The crate the held animal has been put in, if the child has chosen
+   * one yet.
+   *
+   * **This is the second stage of the load, as a value.** The child
+   * drags a loose animal into a crate and then drags that crate to a
+   * space in the vehicle, so between the two there is an animal who is
+   * in her hands *and* in a crate, and this is it. `loadStage` reads
+   * the pair of fields and says which of the three stages the screen is
+   * in; nothing else should infer it.
+   *
+   * Optional, and absent means the same as null: she is in your hands
+   * with no crate chosen. A session built before crate choice existed —
+   * by a test, or by a caller that only cares about adjacency — still
+   * means exactly what it meant, and `placeHeld` falls back to
+   * `bestCrateFor`.
+   */
+  heldCrate?: CrateType | null;
+}
+
+/**
+ * Which of the three questions the screen is asking.
+ *
+ * One function, read by the view, so the order of play lives beside the
+ * rules it sequences rather than in a drag handler. The names are the
+ * question each stage puts to the child, which is also what the screen
+ * says out loud at that moment.
+ */
+export type LoadStage = 'pick-an-animal' | 'pick-a-crate' | 'pick-a-space';
+
+export function loadStage(session: LoadingSession): LoadStage {
+  if (!session.heldId) return 'pick-an-animal';
+  return session.heldCrate ? 'pick-a-space' : 'pick-a-crate';
+}
+
+/** The crate the held animal is in, or null while she is still loose. */
+export function heldCrateType(session: LoadingSession): CrateType | null {
+  return session.heldId ? session.heldCrate ?? null : null;
 }
 
 /** An empty grid at the vehicle's own dimensions. */
@@ -291,17 +387,62 @@ export function createLoadingSession(
     }
   }
 
-  return { grid, offered: [...offered], heldId: null };
+  return { grid, offered: [...offered], heldId: null, heldCrate: null };
 }
 
-function crateOf(animal: LoadableAnimal, slotIndex: number): LoadedCrate {
+function crateOf(animal: LoadableAnimal, slotIndex: number, crateType?: CrateType | null): LoadedCrate {
   return {
     slotIndex,
     animalId: animal.id,
     species: animal.species,
-    crateType: bestCrateFor(animal.species),
+    crateType: crateType ?? bestCrateFor(animal.species),
     poorly: animal.poorly,
   };
+}
+
+/**
+ * Move the whole load into a different vehicle.
+ *
+ * **The arrows beside the vehicle change which vehicle is being
+ * loaded**, and they may be pressed with animals already aboard, so
+ * somebody has to answer what happens to them. This does: everybody
+ * keeps the crate they are in and is re-seated into the new bed in the
+ * order they were sitting, into the first space that frightens nobody.
+ * Anybody the new bed has no safe space for goes back to waiting rather
+ * than being dropped from the trip — a smaller vehicle holds fewer
+ * animals, which is the reason a child would press the arrow, and
+ * losing one silently is not the lesson.
+ *
+ * The animal in the child's hands stays in them, crate and all: she was
+ * never in the old bed.
+ */
+export function reseatInto(
+  session: LoadingSession,
+  vehicle: VehicleType,
+): { session: LoadingSession; leftBehind: LoadableAnimal[] } {
+  const def = VEHICLE_DEFS[vehicle];
+  const travelling = [...session.grid.crates].sort((a, b) => a.slotIndex - b.slotIndex);
+  let grid = emptyGridFor(vehicle);
+  const leftBehind: LoadableAnimal[] = [];
+
+  for (const crate of travelling) {
+    const animal = animalById(session, crate.animalId);
+    if (!animal) continue;
+    let seated = false;
+    for (let slot = 0; slot < def.cols * def.rows; slot += 1) {
+      if (grid.crates.some((c) => c.slotIndex === slot)) continue;
+      if (previewPlacement(grid, slot, animal) === 'blocked') continue;
+      grid = {
+        ...grid,
+        crates: [...grid.crates, crateOf(animal, slot, crate.crateType)],
+      };
+      seated = true;
+      break;
+    }
+    if (!seated) leftBehind.push(animal);
+  }
+
+  return { session: { ...session, grid }, leftBehind };
 }
 
 /** Total slots in the session's vehicle. */
@@ -338,11 +479,34 @@ export function aboard(session: LoadingSession): LoadableAnimal[] {
 
 // ── Picking up and putting down ──────────────────────────────
 
-/** Pick an animal up from the tray. */
+/**
+ * Pick a loose animal up off the floor of the loading bay.
+ *
+ * She comes up out of a crate, so the next question is which crate she
+ * travels in — `heldCrate` is cleared rather than left as whatever the
+ * last animal was in.
+ */
 export function holdFromTray(session: LoadingSession, animalId: string): LoadingSession {
   if (!animalById(session, animalId)) return session;
   if (session.grid.crates.some((c) => c.animalId === animalId)) return session;
-  return { ...session, heldId: animalId };
+  return { ...session, heldId: animalId, heldCrate: null };
+}
+
+/**
+ * Put the held animal into a crate — the first of the two stages.
+ *
+ * **Any crate is allowed, including one that does not suit her.** A
+ * frightening neighbour is refused because it is a safety rule; a crate
+ * that does not suit is a worse journey, which the screen says out loud
+ * (`describeCrateChoice`) and the arrival scoring charges for, and a
+ * child who may only ever make the right choice is not making a choice.
+ * Changing her mind costs one more tap: calling this again moves the
+ * animal to the other crate.
+ */
+export function putHeldInCrate(session: LoadingSession, crate: CrateType): LoadingSession {
+  if (!session.heldId) return session;
+  if (session.heldCrate === crate) return session;
+  return { ...session, heldCrate: crate };
 }
 
 /**
@@ -360,12 +524,24 @@ export function liftFromSlot(session: LoadingSession, slotIndex: number): Loadin
     ...session,
     grid: { ...session.grid, crates: session.grid.crates.filter((c) => c !== crate) },
     heldId: crate.animalId,
+    // **The crate comes out of the bed with her.** She is already in
+    // one, so lifting her out of the vehicle lands at the second stage
+    // and the next tap can be another space. A child moving an animal
+    // from one bay to another is not being asked to choose a crate
+    // again; one who wants to is one tap away on the shelf.
+    heldCrate: crate.crateType,
   };
 }
 
-/** Put the held animal back on the pavement. Always available, never costs anything. */
+/**
+ * Put the held animal back down on the floor of the loading bay.
+ *
+ * Out of the crate as well as out of the child's hands: loose on the
+ * floor is where the animals start and is the one state with nothing
+ * chosen yet. Always available, never costs anything.
+ */
 export function putHeldBack(session: LoadingSession): LoadingSession {
-  return { ...session, heldId: null };
+  return { ...session, heldId: null, heldCrate: null };
 }
 
 /** What `placeHeld` did, and what to say about it. */
@@ -377,6 +553,15 @@ export interface PlacementOutcome {
   level: CompatibilityLevel | null;
   /** One note per neighbour, worst first. */
   notes: AdjacencyNote[];
+  /**
+   * The crate she went in, and whether it suits her.
+   *
+   * Null when nothing was placed. The caller shows the sentence after a
+   * placement that went through in a crate that does not suit, which is
+   * the one moment a child has committed to a crate choice and the
+   * screen owes her the answer.
+   */
+  crate?: { type: CrateType; suitable: boolean; text: string } | null;
 }
 
 /**
@@ -400,16 +585,26 @@ export function placeHeld(session: LoadingSession, slotIndex: number): Placement
   const notes = notesForPlacing(session, slotIndex, animal);
   const level = previewPlacement(session.grid, slotIndex, animal);
 
-  if (level === 'blocked') return { placed: false, session, level, notes };
+  if (level === 'blocked') return { placed: false, session, level, notes, crate: null };
+
+  // The crate she is in, or the right one for her species where nobody
+  // chose. See `bestCrateFor` for who still reaches that fallback.
+  const crateType = session.heldCrate ?? bestCrateFor(animal.species);
+  const choice = describeCrateChoice(animal, crateType);
 
   return {
     placed: true,
     level,
     notes,
+    crate: { type: crateType, suitable: choice.suitable, text: choice.text },
     session: {
       ...session,
-      grid: { ...session.grid, crates: [...session.grid.crates, crateOf(animal, slotIndex)] },
+      grid: {
+        ...session.grid,
+        crates: [...session.grid.crates, crateOf(animal, slotIndex, crateType)],
+      },
       heldId: null,
+      heldCrate: null,
     },
   };
 }

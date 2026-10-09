@@ -1,0 +1,201 @@
+# Loading screen — the two-stage drag, and four smaller fixes
+
+Opened 2026-10-09, from Marcus's notes on the crate-loading screen.
+Branch `claude/crate-loading`. Nothing pushed.
+
+Files: `apps/game/src/driving/crate-loading-view.ts` (the drawing),
+`packages/game-logic/src/crate-loading.ts` (the rules and the words),
+`apps/game/src/scenes/PtvDriveScene.ts` (the wiring).
+`crate-stacking.ts` — the engine — is untouched.
+
+## What changed
+
+1. **Back has a drawn chevron.** `drawBackControl` in the view, not
+   `createChromeButton`, because the button takes a texture key and this
+   is two strokes in a Graphics object. Drawn rather than set: "‹" is a
+   quotation mark and "❮" resolves to whatever the device has.
+2. **LOAD HENRY**, at `TYPE.title` (28px, up from 20), all capitals,
+   built by `activityTitle(vehicle.name)`. Marcus's explicit override of
+   the title-case rule for this one element.
+3. **The feeling is attributed to the animal feeling it.** See below.
+4. **The animals waiting to board are loose on the floor** — no plates,
+   no crates, sized against each other, breathing.
+5. **Two-stage drag**: animal → crate → space.
+
+## The two-stage state model
+
+The stage is **derived, never stored twice**. `loadStage(session)` in
+`crate-loading.ts` reads two fields and returns one of three:
+
+| stage | session | what the screen asks |
+|---|---|---|
+| `pick-an-animal` | `heldId` null | which animal |
+| `pick-a-crate` | `heldId` set, `heldCrate` null | which crate |
+| `pick-a-space` | both set | which space in the vehicle |
+
+`LoadingSession.heldCrate?: CrateType \| null` is the new field. It is
+optional, so a session built before it existed — by a test, or by a
+caller that only cares about adjacency — still means what it meant.
+
+Mutators: `holdFromTray` clears it (a fact about the animal in your
+hands, so the *pick-up* clears it, not only the put-down);
+`putHeldInCrate` sets it; `liftFromSlot` carries the crate out of the
+bed with her, so lifting lands at stage two; `putHeldBack` clears both.
+`placeHeld` uses `session.heldCrate ?? bestCrateFor(species)` and
+returns `crate: { type, suitable, text }`.
+
+**`placeHeld` stays tolerant of no crate on purpose.** The sequencing is
+one exported predicate (`loadStage`) that the view obeys, rather than a
+refusal in the rules — which keeps the 884 existing game-logic tests
+honest (they are about adjacency, not crates) and keeps the rules usable
+from a script and from `createLoadingSession`'s preload path.
+
+### In the view
+
+- `DropTarget` is `crate` | `bay` | `floor`; `DropZone` is one of those
+  with a rectangle. The zones array is built as the bays and the shelf
+  are drawn and read when a pointer comes up, so draw order does not
+  matter.
+- `nearestDropZone(zones, x, y, slack)` — the zone the point is inside,
+  else the nearest within `slack` of its edge. Distance is to the edge,
+  so a point inside a zone is zero from it and the slack can never steal
+  a drop from the zone it landed in. `DROP_SLACK` is 28 on top of hit
+  boxes already floored at `MIN_TAP`.
+- `dropTargetsFor('loose-animal' | 'crated-animal')` — what each kind of
+  piece may be let go in. A loose animal takes crates only.
+- `makeDraggable` — one handler for tap and drag, parted by
+  `DRAG_SLOP` (10px). **Every drag is also a tap**, so the whole screen
+  is operable without dragging: tap the animal, tap the crate, tap the
+  space.
+- `DragFlag` — one `{ active }` object per render, read by every hover
+  handler on the screen. Without it the panel reported whichever animal
+  the dragged one happened to pass over.
+- `DragSpec.describe` — while dragging, the panel says what the space
+  under the pointer would mean. That is the drag's own preview and it
+  replaces hovering for the length of the drag.
+
+## The crate choice, and its consequences
+
+`SHELF_CRATES` is all six crates, always, in one order. A shelf that
+offered only the crates that suit the animal would remove the choice;
+one whose contents changed between animals would move what she was
+reaching for.
+
+**Scoring is flat and the words say so.** `isCrateSuitable` is true for
+*any* crate in the species' list and arrival scores +3 for a suitable
+crate against -10 for one not listed — the first entry earns nothing
+extra (the comment at `CRATE_PREFERENCE` says so). So
+`describeCrateChoice` has two sentences, not six:
+
+- suitable → `"Echo the bat is happy in a quiet crate."`
+- not → `"Echo the bat travels best in a quiet crate."`
+
+The second **says what would suit and stops**: it does not name the
+crate she is in, score the choice, or say she is wrong.
+
+**An unsuitable crate is allowed.** A frightening neighbour is refused
+because it is safety; a poor crate is a worse journey, which the panel
+says in amber and the arrival scoring charges for. A child who may only
+ever make the right choice is not making one.
+
+**Judgement call — amber for a poor crate.** `stressed`/amber means "the
+animal minds, and it is allowed" everywhere else on this screen, and an
+animal in the wrong crate minds. Cream would under-say it; red is
+reserved for safety. Worth Marcus's eye.
+
+**Asking for a space too early** is answered in words
+(`onNeedCrate` → a notice: "Berry needs a crate to travel in. Tap a
+crate for Berry."), never by quietly choosing a crate for her. The bays
+do not light up at stage one either — one stage lit at a time, so the
+screen never invites the tap it is about to refuse.
+
+## The emotion label
+
+`pairReactions(note, pair)` is the sibling of `pairFaces`, off the same
+`affectedBy`, so the face and the word can never disagree about who
+minds. The word is drawn **under** the animal by `drawCast`, in the
+feeling's own ink; the name stays above. Where the picture carries the
+word, the panel heading drops it (`MOOD_WORDS` tells a bare mood word
+from a sentence) — the heading sits directly under the left-hand animal,
+which is how "Worried" came to read as belonging to the wrong one.
+
+- happy pair → both, because both are glad of each other
+- one-sided → the sufferer only; the cause wears nothing
+- needs quiet → the patient only, in blue
+- two patients → both "Needs Quiet", never "Happy" under a sick face
+
+On a viewport too short for the band (the landscape phone) no reactions
+are drawn and the heading keeps the word, which is then the only place
+for it.
+
+## Judgement calls against a rule
+
+- **No names on the loose animals.** The rule is names above the
+  animals, settled for the vehicle bed and the panel. On the floor the
+  names were the last furniture left, and six of them on one baseline
+  above animals of six different heights reads as captions floating over
+  a row of animals. Whoever is under the pointer is named in the panel.
+  Cheap to put back: `drawLooseAnimals`.
+- **A second orange lead-in.** `ACT` was "used exactly twice". There are
+  now two lead-ins on the bay floor, "Waiting to Board" and "Crates",
+  because both are places the child acts and they are one band.
+- **Back's chevron sits beside the word, not above it.** Marcus wrote
+  "the chevron and the word align on one left edge"; stacked, Back would
+  be the only vertical control in the game, so it is read as the two of
+  them forming one block on one edge.
+- **Boarded animals leave a gap in the row** rather than the row
+  re-packing. Nothing the child is reaching for ever moves; the cost is
+  a hole where the dog was.
+
+## When the vehicle changes
+
+The other agent's prev/next arrows change which vehicle is being loaded.
+**Nothing in the view caches anything across renders** — `renderCrateLoading`
+reads every number off `state` and the drag state is per-render — so the
+hook is:
+
+```ts
+const { session, leftBehind } = reseatInto(this.loadSession, nextVehicleId);
+this.vehicleId = nextVehicleId;
+this.loadSession = session;
+this.loadNotice = leftBehind.length > 0 ? { … } : null;
+this.renderView();
+```
+
+`reseatInto(session, vehicle)` is in `crate-loading.ts`: everybody keeps
+the crate they were travelling in and is re-seated into the new bed in
+the order they were sitting, into the first space that frightens nobody.
+Anybody the new bed has no safe space for comes back in `leftBehind` and
+goes back to waiting — **say so in the panel**, or a child pressing the
+arrow loses a passenger silently. The animal in the child's hands stays
+in them, crate and all.
+
+The view takes the vehicle's bay rectangle from `drawCarPark`'s return
+value (`park.bay`), so arrows that narrow the bay narrow the vehicle
+without any change here.
+
+## Unresolved
+
+- **The crates read as picture frames at shelf size** (68px on a
+  desktop, 52 at 820). The art is a top-down box and at that size the
+  interior is a flat cream panel. It reads correctly once an animal is
+  in one. Worth a look at the crate art rather than the layout.
+- **The bat is a brown lump at 0.3 of a dog.** That is the honest
+  relative size and Marcus asked for honest relative sizes; a child may
+  still not be able to tell what it is. The hit target is `MIN_TAP`
+  whatever the drawn size.
+- **The "Happy" word under a bay's preview badge overhangs the well** at
+  Henry's bay size. Pre-existing, unchanged, visible in
+  `04-crated-stage-two.png`.
+- **No reduced-motion switch exists in the game.** The breathing tween
+  is 2.3s, 3.5% of scale and 1.5px of rise, out of phase per animal, and
+  there is nowhere to turn it off.
+- Whether amber is the right colour for a poor crate (above).
+
+## Screenshots
+
+`/private/tmp/claude-501/-Users-marcus-Projects-animal-rescue-centre/cf0b1264-730a-4126-9f9f-22caf5987837/scratchpad/loading-2026-10-09/`
+— `01-loading-whole`, `02-waiting-strip`, `03-mid-drag`,
+`04-crated-stage-two`, `05-panel-two-feelings`, `06-panel-needs-quiet`,
+`07-narrow-820`. Shot in real Chrome through Playwright; the Claude
+browser pane cannot initialise WebGL (`.claude/TRAPS.md`).

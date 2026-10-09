@@ -10,9 +10,9 @@ import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Animal, Economy, Species } from '@arc/shared-types';
 import {
   VEHICLE_DEFS, DESTINATIONS, CRATE_DEFS, getDestination,
-  aboard, blockingNotes, canSetOff, createLoadingSession, heldAnimal, holdFromTray,
-  liftFromSlot, placeHeld, putHeldBack, spawnAnimal,
-  type CompatibilityLevel, type LoadableAnimal, type LoadingSession,
+  aboard, blockingNotes, canSetOff, createLoadingSession, describeCrateChoice, heldAnimal,
+  holdFromTray, liftFromSlot, placeHeld, putHeldBack, putHeldInCrate, spawnAnimal,
+  type CompatibilityLevel, type CrateType, type LoadableAnimal, type LoadingSession,
   type VehicleDef, type VehicleType,
 } from '@arc/game-logic';
 import { renderCrateLoading } from '../driving/crate-loading-view';
@@ -325,6 +325,11 @@ export class PtvDriveScene extends Phaser.Scene {
      * instead of being thrown away between the rule and the picture.
      */
     pair?: { animalId: string; neighbourId: string };
+    /**
+     * Who it was about, where it is about one animal rather than two —
+     * a crate chosen for her, or a space asked for before one was.
+     */
+    animalId?: string;
   } | null = null;
 
   // Render state
@@ -1130,7 +1135,9 @@ export class PtvDriveScene extends Phaser.Scene {
     }, {
       onHoldFromTray: (animalId) => this.afterLoadTap(holdFromTray(session, animalId)),
       onLiftFromSlot: (slotIndex) => this.afterLoadTap(liftFromSlot(session, slotIndex)),
+      onPutInCrate: (animalId, crateType) => this.putIntoCrate(animalId, crateType),
       onPlaceInSlot: (slotIndex) => this.placeIntoBay(session, slotIndex),
+      onNeedCrate: () => this.askForCrate(session),
       onPutBack: () => this.afterLoadTap(putHeldBack(session)),
       onSetOff: () => this.setOffFromLoading(session),
       onBack: () => {
@@ -1155,6 +1162,60 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   /**
+   * Stage one: the held animal goes into a crate.
+   *
+   * **The animal is named rather than assumed to be in hand**, because
+   * dragging a loose animal onto a crate is one gesture that answers
+   * both halves — pick her up, put her in — and doing it as two
+   * callbacks would redraw the screen twice and click twice for one
+   * move. An animal already aboard is ignored; `holdFromTray` refuses
+   * her and this checks that it did.
+   *
+   * The verdict is shown as a notice rather than left to the standing
+   * copy, because this is the moment the child chose: suitable comes
+   * back in the green, unsuitable in the amber, and in both cases the
+   * sentence says what suits her. Nothing is refused and nothing is
+   * scolded — `describeCrateChoice` holds that wording.
+   */
+  private putIntoCrate(animalId: string, crateType: CrateType): void {
+    const session = this.loadSession;
+    if (!session) return;
+    const picked = session.heldId === animalId ? session : holdFromTray(session, animalId);
+    const animal = heldAnimal(picked);
+    if (!animal || picked.heldId !== animalId) return;
+
+    AudioManager.getInstance().playSfx('button_click');
+    const choice = describeCrateChoice(animal, crateType);
+    this.loadSession = putHeldInCrate(picked, crateType);
+    this.loadNotice = {
+      level: choice.suitable ? 'happy' : 'stressed',
+      text: choice.text,
+      animalId: animal.id,
+    };
+    this.renderView();
+  }
+
+  /**
+   * A space was asked for before a crate was chosen.
+   *
+   * The order of play is `loadStage`'s, and this is the screen saying
+   * so out loud: the animal she is holding, the crate she needs, and
+   * nothing lost. Never by quietly choosing a crate for her, which
+   * would make the choice skippable and the round pointless.
+   */
+  private askForCrate(session: LoadingSession): void {
+    const animal = heldAnimal(session);
+    if (!animal) return;
+    AudioManager.getInstance().playSfx('button_click');
+    this.loadNotice = {
+      level: null,
+      text: `${animal.name} needs a crate to travel in.`,
+      animalId: animal.id,
+    };
+    this.renderView();
+  }
+
+  /**
    * Put the held animal into a bay.
    *
    * A bay that would frighten a neighbour is refused and said so — the
@@ -1162,6 +1223,11 @@ export class PtvDriveScene extends Phaser.Scene {
    * names the pair and the reason. The tap sound is the same one every
    * other tap makes: a refusal is information, not a buzzer, and
    * nothing about it is punishment.
+   *
+   * A crate that does not suit her is **not** a refusal: she travels,
+   * and the panel says what would have suited. The scoring already
+   * charges for it on arrival, and a child who may only ever make the
+   * right choice is not making one.
    */
   private placeIntoBay(session: LoadingSession, slotIndex: number): void {
     AudioManager.getInstance().playSfx('button_click');
@@ -1183,7 +1249,14 @@ export class PtvDriveScene extends Phaser.Scene {
     }
 
     this.loadSession = outcome.session;
-    this.loadNotice = null;
+    this.loadNotice = outcome.crate && !outcome.crate.suitable
+      ? {
+        level: 'stressed',
+        text: outcome.crate.text,
+        animalId: outcome.session.grid.crates
+          .find((c) => c.slotIndex === slotIndex)?.animalId,
+      }
+      : null;
     this.renderView();
   }
 
@@ -1216,11 +1289,17 @@ export class PtvDriveScene extends Phaser.Scene {
     }
 
     if (aboard(session).length === 0) {
+      // **The vehicle's own name, never "the van".** Trikey is a
+      // tricycle and Big Tilly is a lorry; the screen has shipped that
+      // mistake once already and these two sentences were the last of
+      // it. The second one also names the three stages now, because
+      // that is what a child has to do.
+      const name = VEHICLE_DEFS[this.vehicleId].name;
       this.loadNotice = {
         level: null,
         text: heldAnimal(session)
-          ? 'Tap a space in the van to put them down first.'
-          : 'Nobody is in the van yet. Tap an animal waiting to board, then tap a space in the van.',
+          ? `Put them down in ${name} first.`
+          : `Nobody is in ${name} yet. Pick an animal, then a crate, then a space.`,
       };
       this.renderView();
       return;

@@ -23,7 +23,17 @@ import {
   blockingNotes,
   type LoadableAnimal,
 } from '../crate-loading';
-import { getCompatibility, isCrateSuitable, VEHICLE_DEFS } from '../crate-stacking';
+import {
+  SHELF_CRATES,
+  describeCrateChoice,
+  heldCrateType,
+  loadStage,
+  putHeldInCrate,
+  reseatInto,
+} from '../crate-loading';
+import {
+  CRATE_DEFS, getCompatibility, getPreferredCrates, isCrateSuitable, VEHICLE_DEFS,
+} from '../crate-stacking';
 import type { Species } from '@arc/shared-types';
 
 const ALL_SPECIES: Species[] = ['cat', 'dog', 'bunny', 'fox', 'bat', 'parrot', 'snake', 'hedgehog'];
@@ -417,6 +427,196 @@ describe('the sentence for a poorly animal', () => {
     const { level, needsQuiet } = describePair(TRUFFLE, alsoIll);
     expect(level).toBe('happy');
     expect(needsQuiet).toBe(false);
+  });
+});
+
+// ── The two stages: an animal, then a crate, then a space ────
+
+describe('the three stages of a load', () => {
+  const open = () => createLoadingSession('small-van', [LUNA, CLOVER, BUDDY, ECHO]);
+
+  it('starts by asking which animal', () => {
+    const s = open();
+    expect(loadStage(s)).toBe('pick-an-animal');
+    expect(heldCrateType(s)).toBeNull();
+  });
+
+  it('asks which crate the moment an animal is in your hands', () => {
+    const s = holdFromTray(open(), 'a');
+    expect(loadStage(s)).toBe('pick-a-crate');
+    expect(heldCrateType(s)).toBeNull();
+  });
+
+  it('asks which space once she is in a crate', () => {
+    const s = putHeldInCrate(holdFromTray(open(), 'a'), 'ventilated-basket');
+    expect(loadStage(s)).toBe('pick-a-space');
+    expect(heldCrateType(s)).toBe('ventilated-basket');
+  });
+
+  it('carries the chosen crate into the bay, not the species default', () => {
+    // A cat's default is the standard crate; a wicker basket also suits
+    // her, and the child's choice is the one that travels.
+    expect(bestCrateFor('cat')).toBe('standard');
+    const out = placeHeld(putHeldInCrate(holdFromTray(open(), 'a'), 'ventilated-basket'), 0);
+    expect(out.placed).toBe(true);
+    expect(crateAt(out.session, 0)?.crateType).toBe('ventilated-basket');
+    expect(out.crate).toMatchObject({ type: 'ventilated-basket', suitable: true });
+  });
+
+  it('empties both hands and the crate when she is put down', () => {
+    const out = placeHeld(putHeldInCrate(holdFromTray(open(), 'a'), 'standard'), 0);
+    expect(loadStage(out.session)).toBe('pick-an-animal');
+    expect(heldCrateType(out.session)).toBeNull();
+  });
+
+  it('changing your mind moves her to the other crate', () => {
+    let s = putHeldInCrate(holdFromTray(open(), 'a'), 'standard');
+    s = putHeldInCrate(s, 'quiet');
+    expect(heldCrateType(s)).toBe('quiet');
+    expect(loadStage(s)).toBe('pick-a-space');
+  });
+
+  it('lifting out of a bay keeps her in the crate she was travelling in', () => {
+    const loaded = placeHeld(putHeldInCrate(holdFromTray(open(), 'a'), 'quiet'), 0).session;
+    const lifted = liftFromSlot(loaded, 0);
+    expect(heldCrateType(lifted)).toBe('quiet');
+    expect(loadStage(lifted)).toBe('pick-a-space');
+  });
+
+  it('putting her back down takes her out of the crate as well', () => {
+    const s = putHeldBack(putHeldInCrate(holdFromTray(open(), 'a'), 'quiet'));
+    expect(loadStage(s)).toBe('pick-an-animal');
+    expect(heldCrateType(s)).toBeNull();
+  });
+
+  it('picking up the next animal does not leave her in the last one’s crate', () => {
+    // `heldCrate` is a fact about the animal in your hands, so it has
+    // to be cleared by the pick-up and not merely by the put-down.
+    let s = putHeldInCrate(holdFromTray(open(), 'e'), 'quiet'); // a bat
+    s = holdFromTray(putHeldBack(s), 'c');                      // now a dog
+    expect(loadStage(s)).toBe('pick-a-crate');
+    expect(heldCrateType(s)).toBeNull();
+  });
+
+  it('a crate cannot be chosen with empty hands', () => {
+    const s = open();
+    expect(putHeldInCrate(s, 'quiet')).toBe(s);
+    expect(loadStage(s)).toBe('pick-an-animal');
+  });
+
+  it('still seats an animal nobody chose a crate for', () => {
+    // The fallback path: a session built by a script, or by a test
+    // about adjacency rather than about crates.
+    const out = placeHeld(holdFromTray(open(), 'a'), 0);
+    expect(out.placed).toBe(true);
+    expect(crateAt(out.session, 0)?.crateType).toBe(bestCrateFor('cat'));
+  });
+});
+
+describe('what a crate means for the animal in it', () => {
+  it('every crate on the shelf is a real crate, and all of them are there', () => {
+    expect([...SHELF_CRATES].sort()).toEqual(Object.keys(CRATE_DEFS).sort());
+  });
+
+  it('calls any crate the species lists a happy one', () => {
+    for (const s of ALL_SPECIES) {
+      for (const crate of getPreferredCrates(s)) {
+        const { suitable, text } = describeCrateChoice({ id: 'x', name: 'Pip', species: s }, crate);
+        expect(suitable, `${s} in ${crate}`).toBe(true);
+        expect(text).toContain('is happy in');
+        expect(text).toContain(CRATE_DEFS[crate].label.toLowerCase());
+      }
+    }
+  });
+
+  it('answers an unsuitable crate by naming the one that suits', () => {
+    const { suitable, text } = describeCrateChoice(ECHO, 'ventilated-basket');
+    expect(suitable).toBe(false);
+    expect(text).toBe('Echo the bat travels best in a quiet crate.');
+  });
+
+  it('never scolds, and never names the crate she is in', () => {
+    // "Say what would suit, never scold" — Marcus, 2026-10-09. The
+    // sentence a child reads after a poor choice says what the animal
+    // needs and nothing about the choice she just made.
+    for (const s of ALL_SPECIES) {
+      for (const crate of SHELF_CRATES) {
+        const { suitable, text } = describeCrateChoice({ id: 'x', name: 'Pip', species: s }, crate);
+        if (suitable) continue;
+        expect(text, `${s} in ${crate}`).toBe(
+          `Pip the ${s} travels best in a ${CRATE_DEFS[bestCrateFor(s)].label.toLowerCase()}.`,
+        );
+        expect(text).not.toContain(CRATE_DEFS[crate].label.toLowerCase());
+        for (const scold of ['wrong', 'cannot', 'not ', 'no ', 'try again', '!']) {
+          expect(text, `must not say "${scold}"`).not.toContain(scold);
+        }
+      }
+    }
+  });
+
+  it('agrees with the engine for every species and every crate', () => {
+    for (const s of ALL_SPECIES) {
+      for (const crate of SHELF_CRATES) {
+        expect(
+          describeCrateChoice({ id: 'x', name: 'Pip', species: s }, crate).suitable,
+          `${s} in ${crate}`,
+        ).toBe(isCrateSuitable(s, crate));
+      }
+    }
+  });
+
+  it('an unsuitable crate is allowed — it is a worse journey, not a refusal', () => {
+    const s = createLoadingSession('small-van', [ECHO]);
+    const out = placeHeld(putHeldInCrate(holdFromTray(s, 'e'), 'standard'), 0);
+    expect(out.placed).toBe(true);
+    expect(out.crate).toMatchObject({ type: 'standard', suitable: false });
+    expect(aboard(out.session).map((a) => a.id)).toEqual(['e']);
+  });
+});
+
+describe('changing which vehicle is being loaded', () => {
+  it('everybody keeps the crate they were travelling in', () => {
+    let s = createLoadingSession('animal-lorry', [LUNA, MITTENS, ECHO]);
+    s = placeHeld(putHeldInCrate(holdFromTray(s, 'a'), 'ventilated-basket'), 0).session;
+    s = placeHeld(putHeldInCrate(holdFromTray(s, 'e'), 'quiet'), 3).session;
+
+    const { session, leftBehind } = reseatInto(s, 'small-van');
+    expect(leftBehind).toEqual([]);
+    expect(session.grid.vehicle).toBe('small-van');
+    expect(session.grid.cols).toBe(2);
+    const byAnimal = new Map(session.grid.crates.map((c) => [c.animalId, c.crateType]));
+    expect(byAnimal.get('a')).toBe('ventilated-basket');
+    expect(byAnimal.get('e')).toBe('quiet');
+  });
+
+  it('re-seats in the order they were sitting, from the front', () => {
+    let s = createLoadingSession('animal-lorry', [LUNA, MITTENS]);
+    s = placeHeld(holdFromTray(s, 'a'), 5).session;
+    s = placeHeld(holdFromTray(s, 'd'), 7).session;
+    const { session } = reseatInto(s, 'small-van');
+    expect([...session.grid.crates].sort((x, y) => x.slotIndex - y.slotIndex)
+      .map((c) => [c.animalId, c.slotIndex])).toEqual([['a', 0], ['d', 1]]);
+  });
+
+  it('nobody is seated where they would frighten somebody', () => {
+    // The lorry can keep a cat and a bunny apart; the trike's two
+    // spaces are one above the other, so one of them has to wait.
+    let s = createLoadingSession('animal-lorry', [LUNA, CLOVER]);
+    s = placeHeld(holdFromTray(s, 'a'), 0).session;
+    s = placeHeld(holdFromTray(s, 'b'), 3).session;
+    const { session, leftBehind } = reseatInto(s, 'pedal-trike');
+    expect(canSetOff(session)).toBe(true);
+    expect(leftBehind.map((a) => a.id)).toEqual(['b']);
+    expect(waitingToBoard(session).map((a) => a.id)).toEqual(['b']);
+  });
+
+  it('leaves the animal in the child’s hands in them', () => {
+    let s = createLoadingSession('animal-lorry', [LUNA, ECHO]);
+    s = putHeldInCrate(holdFromTray(s, 'e'), 'quiet');
+    const { session } = reseatInto(s, 'long-van');
+    expect(heldAnimal(session)?.id).toBe('e');
+    expect(heldCrateType(session)).toBe('quiet');
+    expect(loadStage(session)).toBe('pick-a-space');
   });
 });
 
