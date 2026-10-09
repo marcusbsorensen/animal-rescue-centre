@@ -180,12 +180,24 @@ export function renderRoom(
       const prevVisualState = ctx.lastVisualStates.get(animal.id);
       const stateChanged = prevVisualState !== undefined && prevVisualState !== visualState;
 
+      // **Comparative.** A room holds several animals of one species at
+      // once, so the variants are what differ — and a pug beside a collie,
+      // or a lionhead beside a lop, is a size difference a child can see.
       const sprite = createAnimalSprite(scene, x, y, animal, {
-        width: size, height: size * 0.8, interactive: true,
+        width: size, height: size * 0.8, interactive: true, scale: 'species',
       });
       if (placed?.flipX && 'setFlipX' in sprite) {
         (sprite as Phaser.GameObjects.Image).setFlipX(true);
       }
+
+      // Stand her on the mark rather than in the middle of the box.
+      // `resolveAnchor` puts the *box's* feet on the anchor, which was the
+      // same thing as the animal's feet while every animal filled her box.
+      // At species scale a hedgehog fills a third of it, so without this she
+      // floats two thirds of a box above the floor her room-mate is on.
+      const boxFeetY = y + (size * 0.8) / 2;
+      y = boxFeetY - sprite.displayHeight / 2;
+      sprite.y = y;
 
       // Decorations must be placed from what was actually drawn, not from
       // the box we asked for. The two agree far more often now the render
@@ -221,8 +233,11 @@ export function renderRoom(
       if (stateChanged) {
         // Old-state ghost in the persistent transition layer survives the
         // next container.removeAll(true) cleanly while fading out.
+        // Same scale as the sprite it is fading out of, or the cross-fade
+        // would be a size change as well as a state change.
         const ghost = createAnimalSprite(scene, x, y, animal, {
           width: size, height: size * 0.8, stateOverride: prevVisualState,
+          scale: 'species',
         });
         if (placed?.flipX && 'setFlipX' in ghost) {
           (ghost as Phaser.GameObjects.Image).setFlipX(true);

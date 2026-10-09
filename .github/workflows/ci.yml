@@ -21,6 +21,20 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # The animal sprites, gated. Two things can rot here and neither shows
+      # up in a typecheck: the generated bounds table in
+      # `apps/game/src/ui/animal-sprite-bounds.ts` going stale against the
+      # art, which makes the sprite layer cut its frames from the wrong box;
+      # and a newly installed sprite that is cropped, has a painted corner or
+      # has a bowl left beside it. `tools/sprite-scale-known-failures.txt` is
+      # the list of sprites that already fail and still need art — the gate
+      # fails on anything else, and also when one of those starts passing, so
+      # the list only ever shrinks.
+      - name: Sprite scale and bounds
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check pillow numpy
+          python3 tools/check-sprite-scale.py --gate
+
       - name: Typecheck
         run: pnpm typecheck
 

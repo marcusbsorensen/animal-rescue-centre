@@ -194,9 +194,16 @@ export class KitchenMinigameScene extends Phaser.Scene {
       // 0.52 of a box that drew at twice its size; the offset on screen is
       // unchanged.
       const animalCy = bowl.y - spriteH * 0.26;
+      // **Comparative.** A row of hungry animals along one counter, each at
+      // her own bowl: the clearest "who is big and who is small" picture the
+      // kitchen has, and the one place a child sees them queue.
       const sprite = createAnimalSprite(this, bowl.x, animalCy, animal, {
-        width: spriteW, height: spriteH,
+        width: spriteW, height: spriteH, scale: 'species',
       });
+      // Feet at the back rim of the bowl, not the middle of the box, so the
+      // row stands on the counter rather than hovering over it by whatever
+      // fraction of the box each animal happens to be.
+      sprite.y = animalCy + spriteH / 2 - sprite.displayHeight / 2;
       // Gentle idle bob
       this.tweens.add({
         targets: sprite,

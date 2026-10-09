@@ -272,7 +272,10 @@ export class AdoptionMatchScene extends Phaser.Scene {
     card.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, 6);
     this.container.add(card);
 
-    const sprite = createAnimalSprite(this, cx - 50, cy - 4, this.animal, { width: 172, height: 168 });
+    // Solo: a polaroid of one animal. A portrait in a frame is not a row.
+    const sprite = createAnimalSprite(this, cx - 50, cy - 4, this.animal, {
+      width: 172, height: 168, scale: 'fill',
+    });
     this.container.add(sprite);
 
     // Hand-lettered name + species

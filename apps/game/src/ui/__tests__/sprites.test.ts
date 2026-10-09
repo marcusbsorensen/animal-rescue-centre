@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type Phaser from 'phaser';
-import type { Animal } from '@arc/shared-types';
+import type { Animal, Species } from '@arc/shared-types';
+import { SPECIES_UNIT, animalScaleFraction } from '@arc/game-logic';
 import { createAnimalSprite, registerSickAnimals } from '../sprites';
+import { animalSpriteBounds } from '../animal-sprite-bounds';
+import { MIN_TAP } from '../constants';
 
 /**
  * Minimal stand-in for a Phaser scene: enough surface for
@@ -213,5 +216,249 @@ describe('createAnimalSprite \u2014 the size contract', () => {
     );
     expect(sprite.displayWidth).toBeLessThanOrEqual(200);
     expect(sprite.displayHeight).toBeLessThanOrEqual(160);
+  });
+});
+
+/**
+ * The scale decision: solo against comparative.
+ *
+ * A screen that draws two animals at once is making a claim about how big
+ * they are relative to each other, and until `scale: 'species'` existed it
+ * made that claim wrongly on every screen but one — `SPECIES_SIZE` was read
+ * in a single place and everywhere else contain-fitted the whole texture, so
+ * a hedgehog was drawn the size of a dog in the corridor, the garden, a room,
+ * a falling-out, the kitchen counter and the walk.
+ *
+ * A screen that draws one animal alone is making no such claim, and drawing
+ * her at a third of her frame there would read as a mistake rather than as a
+ * small animal. So the two modes are not a preference: they are two different
+ * questions, and `'species'` is only ever the answer to the second one.
+ */
+
+/**
+ * Scene stub that can carry a frame, as real Phaser does.
+ *
+ * `add.image(x, y, key, frame)` answers with the frame's own size when one is
+ * asked for, which is what makes the species scale land on the animal rather
+ * than on her transparent margin.
+ */
+function framedScene(available: string[], bounds: Record<string, BoundsLike>) {
+  const frames = new Map<string, Map<string, BoundsLike>>();
+  return {
+    textures: {
+      exists: (key: string) => available.includes(key),
+      get: (key: string) => {
+        const b = bounds[key];
+        if (!b) return { source: [], has: () => false, add: () => null };
+        if (!frames.has(key)) frames.set(key, new Map());
+        const own = frames.get(key)!;
+        return {
+          source: [{ width: b.canvasW, height: b.canvasH }],
+          has: (name: string) => own.has(name),
+          add: (name: string, _i: number, x: number, y: number, w: number, h: number) => {
+            own.set(name, { canvasW: b.canvasW, canvasH: b.canvasH, x, y, w, h });
+            return {};
+          },
+        };
+      },
+    },
+    add: {
+      image: (_x: number, _y: number, key: string, frame?: string) => {
+        const b = bounds[key];
+        const src = frame && b ? { w: b.w, h: b.h } : { w: b?.canvasW ?? 512, h: b?.canvasH ?? 512 };
+        return {
+          width: src.w,
+          height: src.h,
+          displayWidth: src.w,
+          displayHeight: src.h,
+          setScale(s: number) {
+            this.displayWidth = src.w * s;
+            this.displayHeight = src.h * s;
+            return this;
+          },
+          hit: undefined as undefined | { width: number; height: number },
+          setInteractive(config?: { hitArea?: { width: number; height: number } }) {
+            this.hit = config?.hitArea;
+            return this;
+          },
+        };
+      },
+      rectangle: (_x: number, _y: number, w: number, h: number) => ({
+        displayWidth: w,
+        displayHeight: h,
+        setStrokeStyle() { return this; },
+        setInteractive() { return this; },
+      }),
+    },
+  } as unknown as Phaser.Scene;
+}
+
+interface BoundsLike {
+  canvasW: number; canvasH: number; x: number; y: number; w: number; h: number;
+}
+
+/** A real row of bounds, taken from the committed table. */
+function boundsFor(...keys: string[]): Record<string, BoundsLike> {
+  const out: Record<string, BoundsLike> = {};
+  for (const key of keys) {
+    const b = animalSpriteBounds(key);
+    if (!b) throw new Error(`no committed bounds for ${key} — regenerate the table`);
+    out[key] = { ...b };
+  }
+  return out;
+}
+
+const DOG = 'dog-collie-sheltered';
+const HEDGEHOG = 'hedgehog-brown-sheltered';
+const BAT = 'bat-brown-sheltered';
+
+function drawLongSide(key: string, species: Species, variant: string, box: [number, number],
+                      scale: 'species' | 'fill') {
+  const sprite = createAnimalSprite(
+    framedScene([key], boundsFor(key)), 0, 0,
+    animal({ species, variant }),
+    { width: box[0], height: box[1], scale },
+  );
+  return Math.max(sprite.displayWidth, sprite.displayHeight);
+}
+
+describe('createAnimalSprite — comparative scale', () => {
+  beforeEach(() => {
+    registerSickAnimals(new Map());
+  });
+
+  const BOX: [number, number] = [240, 240];
+
+  it('draws a hedgehog a third of a dog, in the same box', () => {
+    const dog = drawLongSide(DOG, 'dog', 'collie', BOX, 'species');
+    const hedgehog = drawLongSide(HEDGEHOG, 'hedgehog', 'brown', BOX, 'species');
+    // 0.38 against 1.00 on the ladder. This is the assertion that fails if
+    // anybody ever draws animals beside each other off the canvas again.
+    expect(hedgehog / dog).toBeCloseTo(SPECIES_UNIT.hedgehog / SPECIES_UNIT.dog, 2);
+    expect(hedgehog).toBeLessThan(dog * 0.5);
+  });
+
+  it('sets the animal’s long side to her share of the box, exactly', () => {
+    for (const [key, species, variant] of [
+      [DOG, 'dog', 'collie'], [HEDGEHOG, 'hedgehog', 'brown'], [BAT, 'bat', 'brown'],
+    ] as [string, Species, string][]) {
+      const drawn = drawLongSide(key, species, variant, BOX, 'species');
+      const want = animalScaleFraction(species, variant)! * Math.min(...BOX);
+      expect(drawn, key).toBeCloseTo(want, 4);
+    }
+  });
+
+  it('is independent of how much of its file a sprite happens to fill', () => {
+    // The real reason the frame exists. Across the 600 files the subject
+    // covers 0.62 to 1.00 of its canvas, so two animals scaled off their
+    // canvases come out up to 60% apart for no reason the ladder knows.
+    const spread = boundsFor(DOG);
+    const tight = { [DOG]: { ...spread[DOG], w: 500, h: 500, x: 6, y: 6 } };
+    const loose = { [DOG]: { ...spread[DOG], w: 320, h: 320, x: 96, y: 96 } };
+    const sizes = [tight, loose].map((bounds) => {
+      const sprite = createAnimalSprite(
+        framedScene([DOG], bounds), 0, 0, animal({ species: 'dog', variant: 'collie' }),
+        { width: 240, height: 240, scale: 'species' },
+      );
+      return Math.max(sprite.displayWidth, sprite.displayHeight);
+    });
+    expect(sizes[0]).toBeCloseTo(sizes[1], 4);
+  });
+
+  it('still draws inside the box it was handed', () => {
+    for (const [w, h] of [[200, 160], [240, 240], [40, 300], [1, 1]] as [number, number][]) {
+      for (const [key, species, variant] of [
+        [DOG, 'dog', 'collie'], [BAT, 'bat', 'brown'],
+      ] as [string, Species, string][]) {
+        const sprite = createAnimalSprite(
+          framedScene([key], boundsFor(key)), 0, 0, animal({ species, variant }),
+          { width: w, height: h, scale: 'species' },
+        );
+        expect(sprite.displayWidth, `${key} in ${w}x${h}`).toBeLessThanOrEqual(w + 0.001);
+        expect(sprite.displayHeight, `${key} in ${w}x${h}`).toBeLessThanOrEqual(h + 0.001);
+      }
+    }
+  });
+
+  it('separates a macaw from a budgie, which one parrot row cannot', () => {
+    // The art has 60 species-variants and the ladder has ten rungs; without
+    // the variant table these two birds are the same size.
+    const macaw = animalScaleFraction('parrot', 'macaw')!;
+    const budgie = animalScaleFraction('parrot', 'budgie')!;
+    const sprite = (fraction: number) => fraction * 240;
+    expect(sprite(macaw)).toBeGreaterThan(sprite(budgie) * 2.5);
+  });
+
+  it('keeps a small animal as tappable as a big one', () => {
+    // Drawing a bat honestly makes her 36px across in a 148px corridor box,
+    // under the 48 this game holds itself to — and the small animals are the
+    // ones a child most wants to prod. The picture shrinks; the target does
+    // not. The hit area is in frame units, which Phaser scales with the
+    // sprite, so this is MIN_TAP on the glass.
+    const sprite = createAnimalSprite(
+      framedScene([BAT], boundsFor(BAT)), 0, 0, animal({ species: 'bat', variant: 'brown' }),
+      { width: 148, height: 148, scale: 'species', interactive: true },
+    ) as unknown as { hit?: { width: number; height: number }; displayWidth: number };
+    const scale = sprite.displayWidth / animalSpriteBounds(BAT)!.w;
+    expect(sprite.displayWidth).toBeLessThan(MIN_TAP);
+    expect(sprite.hit).toBeDefined();
+    expect(sprite.hit!.width * scale).toBeGreaterThanOrEqual(MIN_TAP - 0.001);
+    expect(sprite.hit!.height * scale).toBeGreaterThanOrEqual(MIN_TAP - 0.001);
+  });
+
+  it('leaves a big animal’s hit area alone', () => {
+    const sprite = createAnimalSprite(
+      framedScene([DOG], boundsFor(DOG)), 0, 0, animal({ species: 'dog', variant: 'collie' }),
+      { width: 240, height: 240, scale: 'species', interactive: true },
+    ) as unknown as { hit?: unknown; displayWidth: number };
+    expect(sprite.displayWidth).toBeGreaterThan(MIN_TAP);
+    expect(sprite.hit).toBeUndefined();
+  });
+
+  it('falls back to the plain fit when the sprite has no measured bounds', () => {
+    // A texture the bounds table has never seen — a sprite installed after
+    // the table was last built. It is drawn at its species' share of the box
+    // off the canvas instead, which is right to within how much of its file
+    // that one sprite fills, and is never larger than the box.
+    const key = 'cat-unmeasured-sheltered';
+    const sprite = createAnimalSprite(
+      framedScene([key], {}), 0, 0, animal({ species: 'cat', variant: 'unmeasured' }),
+      { width: 240, height: 240, scale: 'species' },
+    );
+    const drawn = Math.max(sprite.displayWidth, sprite.displayHeight);
+    expect(drawn).toBeCloseTo(animalScaleFraction('cat')! * 240, 4);
+    expect(drawn).toBeLessThanOrEqual(240);
+  });
+});
+
+describe('createAnimalSprite — a solo animal fills her frame', () => {
+  beforeEach(() => {
+    registerSickAnimals(new Map());
+  });
+
+  it('draws a hedgehog and a dog the same size when each is alone', () => {
+    // The decision, as a test. A screen with one animal on it has nothing to
+    // compare her against, so a hedgehog there is drawn as large as the frame
+    // allows — the same frame a dog would have had.
+    const dog = drawLongSide(DOG, 'dog', 'collie', [240, 240], 'fill');
+    const hedgehog = drawLongSide(HEDGEHOG, 'hedgehog', 'brown', [240, 240], 'fill');
+    expect(hedgehog).toBeCloseTo(dog, 4);
+  });
+
+  it('is the same drawing as before the scale ladder existed', () => {
+    // `'fill'` is a claim, not a change: these screens were already right,
+    // and their labels, dirt spots and toy rows are measured against this
+    // box. Asserting it stops a later tidy-up from quietly resizing them.
+    const bounds = boundsFor(HEDGEHOG);
+    const withClaim = createAnimalSprite(
+      framedScene([HEDGEHOG], bounds), 0, 0, animal({ species: 'hedgehog', variant: 'brown' }),
+      { width: 360, height: 320, scale: 'fill' },
+    );
+    const without = createAnimalSprite(
+      framedScene([HEDGEHOG], bounds), 0, 0, animal({ species: 'hedgehog', variant: 'brown' }),
+      { width: 360, height: 320 },
+    );
+    expect(withClaim.displayWidth).toBe(without.displayWidth);
+    expect(withClaim.displayHeight).toBe(without.displayHeight);
   });
 });

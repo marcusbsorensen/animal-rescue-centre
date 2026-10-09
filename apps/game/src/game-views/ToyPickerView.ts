@@ -101,10 +101,13 @@ export function renderToyPicker(
   // the layout exactly as it was rather than pushing the cards off screen.
   const spriteBox = 240;
   const rowBasis = 120;
+  // Solo: one animal choosing a toy. The card row below is measured against
+  // `rowBasis`, not against her, so her size is this view's own business.
   const sprite = createAnimalSprite(scene, width / 2, spriteCY, animal, {
     width: spriteBox,
     height: spriteBox,
     stateOverride: 'sheltered',
+    scale: 'fill',
   });
   container.add(sprite);
 

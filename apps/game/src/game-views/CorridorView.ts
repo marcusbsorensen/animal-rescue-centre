@@ -539,10 +539,19 @@ export function renderCorridor(
 
       let spriteCy = feetY - drawH / 2;
 
+      // **Comparative.** The corridor is a queue of newly arrived animals of
+      // every species standing along one floor, which is the single clearest
+      // place in the game to read a fox against a hedgehog.
       const sprite = createAnimalSprite(
         scene, ax, spriteCy, animal,
-        { width: drawW, height: drawH, interactive: true },
+        { width: drawW, height: drawH, interactive: true, scale: 'species' },
       );
+      // Feet on the floor, not the box's middle. `drawH` is the box; with a
+      // species scale the animal is a known fraction of it, so a row sized
+      // off `drawH` alone would hang each animal a different distance above
+      // the floor and the proportions would read as random instead of true.
+      spriteCy = feetY - sprite.displayHeight / 2;
+      sprite.y = spriteCy;
       if (anchorFlipX && 'setFlipX' in sprite) {
         (sprite as Phaser.GameObjects.Image).setFlipX(true);
       }

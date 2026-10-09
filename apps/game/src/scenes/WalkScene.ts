@@ -210,7 +210,10 @@ export class WalkScene extends Phaser.Scene {
     // Animal sprite — positioned so the collar ring sits at the neck
     const spriteCx = width / 2;
     const spriteCy = height * 0.30;
-    const sprite = createAnimalSprite(this, spriteCx, spriteCy, this.animal, { width: 240, height: 192 });
+    // Solo: one animal having a collar chosen for her, nothing to compare.
+    const sprite = createAnimalSprite(this, spriteCx, spriteCy, this.animal, {
+      width: 240, height: 192, scale: 'fill',
+    });
     this.container.add(sprite);
 
     // Collar ring + bow (redrawn whenever colour changes)
@@ -553,9 +556,18 @@ export class WalkScene extends Phaser.Scene {
     // Use 'walking' state so we pick up walking-pose art when it exists.
     // createAnimalSprite falls back to 'sheltered' for species that don't
     // yet have a dedicated walking sprite.
+    // **Not comparative, deliberately — the one place in the game where that
+    // claim is knowingly not made.** The pet is already drawn to a different
+    // box from the passers-by around her (1.7 cells against 1.4), so this
+    // screen has never compared the two. More to the point, the collar is
+    // positioned by a table of per-variant anchor fractions tuned by eye
+    // against this box, for sixty animals; re-basing it on the drawn animal
+    // is the right end state and is a change nobody can check except by
+    // looking at all sixty. Until then she fills her box and the collar
+    // stays on her neck.
     const sprite = createAnimalSprite(this, 0, 0, this.gridState.animal, {
       width: collarBasis * 2, height: collarBasis * 1.6,
-      stateOverride: 'walking',
+      stateOverride: 'walking', scale: 'fill',
     });
     container.add(sprite);
 
@@ -670,8 +682,12 @@ export class WalkScene extends Phaser.Scene {
           state: 'sheltered', hunger: 0, tiredness: 0, happiness: 100,
           health: 100, bondLevel: 0, arrivalStory: '', roomId: '',
         };
+        // **Comparative.** Several animal passers-by share the grid and the
+        // same cell-sized box, so a fox NPC two tiles from a hedgehog NPC
+        // should read as the bigger animal.
         const sprite = createAnimalSprite(this, x, y, fakeAnimal, {
           width: this.cellSize * 1.4, height: this.cellSize * 1.2,
+          scale: 'species',
         });
         this.gridContainer.add(sprite);
         this.npcSprites.set(npc.id, sprite);

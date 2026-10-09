@@ -386,3 +386,15 @@ export type {
 
 export { mergeSaveState } from './merge-save';
 export type { MergeResult, MergeLevels } from './merge-save';
+
+export {
+  ANIMAL_CANVAS_CAP,
+  ANIMAL_FOOT_BAND,
+  SCALED_SPECIES,
+  SPECIES_UNIT,
+  VARIANT_UNIT,
+  isScaledSpecies,
+  animalScaleUnit,
+  animalScaleFraction,
+} from './animal-scale';
+export type { ScaledSpecies } from './animal-scale';

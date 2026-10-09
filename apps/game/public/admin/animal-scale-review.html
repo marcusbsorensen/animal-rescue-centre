@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A.R.C. — animal scale review</title>
+<!--
+  The scale ladder, drawn.
+
+  **Dev server only.** The script is `/src/dev/animal-scale-review.ts`, which
+  vite transforms on the fly in dev and does not put in a production build.
+  Open at http://127.0.0.1:4173/admin/animal-scale-review.html with
+  `pnpm --filter @arc/game dev --host 127.0.0.1 --port 4173` running.
+
+  It exists because the thing the ladder changes cannot be seen anywhere else
+  without a live Supabase session: the Room, the Corridor and the Garden all
+  sit behind the login gate, and without a session `ErrorOverlay` puts an
+  interactive scrim over the lot (`.claude/TRAPS.md`). This page calls
+  `createAnimalSprite` the way those screens do — same function, same Phaser,
+  real Chrome — so a row of mixed species on one ground line can be looked at.
+-->
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0; background: #fef9ef; color: #3a2618;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header { padding: 18px 20px 6px; }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  p { margin: 0; max-width: 72ch; color: #6b5744; }
+  #game { padding: 10px 20px 24px; }
+  canvas { border-radius: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Animal scale</h1>
+  <p>
+    The same animals drawn by <code>createAnimalSprite</code> three ways, each
+    band standing on one ground line. The sizes come from
+    <code>packages/game-logic/src/animal-scale.ts</code>; the number under each
+    animal is her rung, in units of a dog.
+  </p>
+</header>
+<div id="game"></div>
+<script type="module" src="/src/dev/animal-scale-review.ts"></script>
+</body>
+</html>
