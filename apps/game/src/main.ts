@@ -26,6 +26,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { shouldRegisterServiceWorker } from './lib/platform';
 import { setSafeAreaLeft, getSafeAreaLeft, setSideNav } from './ui/layout';
 import { readSafeAreaInsets } from './ui/safe-area';
+import { setMotionSetting } from './lib/motion-preference';
 
 // Show the painted "new version ready!" banner when vite-plugin-pwa
 // detects a waiting service worker. Refresh clicks skip-waiting the SW
@@ -89,6 +90,23 @@ if (typeof window !== 'undefined') {
     ? param !== '0'
     : (stored !== null ? stored === '1' : buildDefault);
   setSideNav(on);
+}
+
+// `?motion=reduced|full|system` sets the player's motion preference and
+// remembers it, exactly as `?sideRail=` does for the layout.
+//
+// **This is not a settings screen and is not meant to be one.** The
+// game has no single place for player-facing settings — the two audio
+// toggles are HUD icons — so where a motion switch belongs is a design
+// question for Marcus rather than something to invent here. Until it
+// has an answer, this is how the setting is reached: by a carer on a
+// device, and by the harness that photographs the screen with motion
+// reduced. The default is `system`, which needs no switch at all.
+if (typeof window !== 'undefined') {
+  const raw = new URLSearchParams(window.location.search).get('motion');
+  if (raw === 'reduced' || raw === 'full' || raw === 'system') {
+    setMotionSetting(raw);
+  }
 }
 
 // `?safeAreaLeft=50` forces the inset a desktop browser cannot report.

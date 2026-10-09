@@ -73,6 +73,7 @@ import {
   type VehicleType,
 } from '@arc/game-logic';
 import { createAnimalSprite } from '../ui/sprites';
+import { decorativeTween, stateTween } from '../ui/tween';
 import { createChromeButton, createChromeTitle, createChromePlate } from '../ui/UIButton';
 import {
   CHROME, COLOURS, FONTS, MIN_FONT, MIN_TAP, PAGE_MARGIN, SAFE_MARGIN, SPACE,
@@ -1869,7 +1870,11 @@ export function drawBackControl(
   hit.on('pointerover', () => container.setScale(1.03));
   hit.on('pointerout', () => container.setScale(1));
   hit.on('pointerdown', () => {
-    scene.tweens.add({
+    // State, not decoration: the press carries the tap. Reduced
+    // motion skips the flex and still goes Back — `stateTween` runs
+    // `onComplete` either way, and a yoyo ends where it started so
+    // nothing is left shrunk.
+    stateTween(scene, {
       targets: container,
       scaleX: 0.96,
       scaleY: 0.96,
@@ -2075,7 +2080,11 @@ function makeDraggable(
 
   const goHome = (): void => {
     if (!alive()) return;
-    scene.tweens.add({
+    // State: the journey back is what says the drop landed nowhere.
+    // Reduced motion puts the piece home at once — which still says
+    // it, because it is somewhere other than where the hand let go —
+    // and the panel's sentence says the rest.
+    stateTween(scene, {
       targets: piece,
       x: spec.home.x,
       y: spec.home.y,
@@ -2147,7 +2156,12 @@ function makeDraggable(
     // rather than seeing it vanish and the screen change.
     done = true;
     const to = zoneCentre(zones, target);
-    scene.tweens.add({
+    // State, and the most load-bearing of the four: the snap is how a
+    // child sees *which* space took the thing she let go of. Reduced
+    // motion puts it in the middle of that space at once and then
+    // redraws, so she sees the animal in the crate rather than the
+    // animal travelling to it — the same answer, delivered as a cut.
+    stateTween(scene, {
       targets: piece,
       x: to ? to.x : piece.x,
       y: to ? to.y : piece.y,
@@ -2219,7 +2233,12 @@ function zoneCentre(
  * purpose.
  */
 function breathe(scene: Phaser.Scene, piece: Phaser.GameObjects.Container, seed: number): void {
-  scene.tweens.add({
+  // Decoration, and the clearest case of it on the screen: it says
+  // nothing, it never ends, and a child who has asked for less
+  // movement has asked for exactly this to stop. `decorativeTween`
+  // does not start it under reduced motion and stops it mid-breath if
+  // the setting changes, putting the animal back at rest.
+  decorativeTween(scene, {
     targets: piece,
     scaleX: 1.035,
     scaleY: 1.035,

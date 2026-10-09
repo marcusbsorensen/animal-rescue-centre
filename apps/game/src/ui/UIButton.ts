@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_TAP, CHROME, hexNum, TYPE } from './constants';
+import { isMotionReduced } from '../lib/motion-preference';
+import { decorativeTween, stateTween } from './tween';
 
 /**
  * Small text-only button (for links, "Log out", secondary actions).
@@ -341,7 +343,8 @@ export function createChromeCircleButton(
   hitArea.on('pointerover', () => container.setScale(1.06));
   hitArea.on('pointerout', () => container.setScale(1));
   hitArea.on('pointerdown', () => {
-    scene.tweens.add({
+    // State: the round button's press carries its action too.
+    stateTween(scene, {
       targets: container,
       scaleX: 0.92,
       scaleY: 0.92,
@@ -571,7 +574,13 @@ export function createChromeButton(
   hitArea.on('pointerover', () => container.setScale(1.03));
   hitArea.on('pointerout', () => container.setScale(1));
   hitArea.on('pointerdown', () => {
-    scene.tweens.add({
+    // **State, and the reason this one had to be routed first.** Every
+    // button in the game hangs its action off this tween's
+    // `onComplete`: skip the animation naively under reduced motion
+    // and the whole game stops responding to taps. `stateTween` runs
+    // the callback either way, and a yoyo ends where it started, so
+    // the button is never left shrunk.
+    stateTween(scene, {
       targets: container,
       scaleX: 0.96,
       scaleY: 0.96,
@@ -587,6 +596,12 @@ export function createChromeButton(
 /**
  * Floating ambient particles — paw prints, hearts, stars etc.
  * Creates a gentle drifting effect across the scene for visual richness.
+ *
+ * **Decoration, whole.** Not the drift but the particles themselves:
+ * under reduced motion the drift would simply leave a scatter of faint
+ * emoji sitting still on the screen, which is clutter where there was
+ * once an effect. So the container comes back empty instead, and the
+ * scene that asked for it is none the wiser.
  */
 export function createAmbientParticles(
   scene: Phaser.Scene,
@@ -611,6 +626,7 @@ export function createAmbientParticles(
   const area = options?.area ?? { x: 0, y: 0, w: width, h: height };
 
   const container = scene.add.container(0, 0);
+  if (isMotionReduced()) return container;
 
   for (let i = 0; i < count; i++) {
     const emoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -631,7 +647,7 @@ export function createAmbientParticles(
     const driftY = -20 - Math.random() * 30 * speed;
     const duration = 4000 + Math.random() * 6000;
 
-    scene.tweens.add({
+    decorativeTween(scene, {
       targets: particle,
       x: px + driftX,
       y: py + driftY,

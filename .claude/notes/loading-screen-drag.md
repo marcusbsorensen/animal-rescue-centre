@@ -236,6 +236,85 @@ The view takes the vehicle's bay rectangle from `drawCarPark`'s return
 value (`park.bay`), so arrows that narrow the bay narrow the vehicle
 without any change here.
 
+## Reduced motion
+
+Marcus's decision, 2026-10-09: honour the system setting **and** give a
+manual override, then route every animation through it so it is settled
+once. Built as two modules, not as a restraint applied by hand.
+
+**`apps/game/src/lib/motion-preference.ts` — the one source of truth.**
+`isMotionReduced()` is the only question anything asks. It reads the
+player's choice and, where that is `system`, the live
+`prefers-reduced-motion` media query — fresh every time, so a carer
+turning the device setting on mid-session is answered by the very next
+thing that asks. The setting is a three-way, because a boolean cannot
+say "my system setting is wrong for me":
+
+| | |
+|---|---|
+| `system` | follow the device. The default, and stored as nothing |
+| `reduced` | the player asked for less, whatever the device says |
+| `full` | the player asked for all of it, whatever the device says |
+
+Persisted in `localStorage` under `arc_motion`, which is the mechanism
+`lib/intro-state.ts` and the side rail already use for a per-device
+player preference. `onMotionChange(cb)` is how an animation already
+running gets told; it binds the media listener only while somebody is
+subscribed.
+
+**`apps/game/src/ui/tween.ts` — what a future author must use.** Two
+functions, and no general one, because the author has to say which kind
+of animation it is:
+
+- `stateTween(scene, config)` — it says something happened. Under
+  reduced motion the end state is applied at once and `onComplete`
+  still runs. A yoyo ends where it started, so a reduced yoyo moves
+  nothing and only runs the callback.
+- `decorativeTween(scene, config)` — it is pleasant and says nothing.
+  Under reduced motion it does not run, and one already running is
+  stopped and its target put back the moment the setting changes.
+
+**Never `scene.tweens.add` again.** `eslint.config.js` makes it an
+error everywhere in `apps/game/src` except `ui/tween.ts` and a named
+list of twenty-five files that predate the setting. That list is a
+backlog, not a permission: clear a file by routing its tweens and
+deleting it from the list. The rule was checked by writing a violation
+and watching it fail.
+
+### What was judged state, and what decoration
+
+**State — kept, cut to the end state under reduced motion**
+
+| | why |
+|---|---|
+| the snap into a dropped space | it is how a child sees *which* space took the thing she let go of |
+| the journey home from a missed drop | it says the drop landed nowhere |
+| `createChromeButton`'s press | every button in the game hangs its action off this tween's `onComplete` — skipping it naively would stop the game responding to taps |
+| `createChromeCircleButton`'s press | the same |
+| the loading screen's Back control | the same |
+
+**Decoration — dropped entirely**
+
+| | why |
+|---|---|
+| the loose animals' breathing | it never ends and says nothing, and a child who asked for less movement asked for exactly this |
+| `createAmbientParticles` | the particles, not only the drift: stopping the drift would leave a scatter of faint emoji sitting still, which is clutter where there was an effect. The container comes back empty |
+
+**Not animations, and therefore untouched** — the lift on picking a
+piece up (`setDepth`, `setScale`) and a button's hover scale are
+immediate sets, not tweens. That is why a child can still tell a piece
+was picked up with motion fully reduced.
+
+### Where the toggle lives — a question for Marcus
+
+**Nowhere yet, deliberately.** The game has no settings screen: the two
+audio toggles are HUD icons, and the side rail and skip-intro flags are
+URL parameters. Inventing a third place was out of scope, so the
+setting is exposed as `?motion=reduced|full|system`, which writes the
+stored preference exactly as `?sideRail=` does — reachable by a carer,
+and how the harness photographs the screen with motion off. Where a
+player-facing switch belongs is the open question.
+
 ## Unresolved — for Marcus, not for the next agent
 
 - **The crates read as picture frames at shelf size** (68px on a
@@ -243,9 +322,7 @@ without any change here.
   interior is a flat cream panel. It reads correctly once an animal is
   in one, and the ghost preview helps, but the art is the thing to
   change rather than the layout.
-- **No reduced-motion switch exists in the game.** The breathing tween
-  is 2.3s, 3.5% of scale and 1.5px of rise, out of phase per animal, and
-  there is nowhere to turn it off.
+- **Where the motion toggle goes** (above).
 
 ## Smaller, open
 
@@ -265,5 +342,6 @@ without any change here.
 `07-narrow-820-worried`, `08-shelf-lit`, `09-poor-crate`,
 `10-narrow-820-quiet`, and `grey-08-shelf-lit.jpg` — the shelf with the
 colour taken out, which is the check that a crate that does not suit is
-still identifiable. Shot in real Chrome through Playwright; the Claude
+still identifiable. With motion reduced: `11-reduced-motion`,
+`12-reduced-mid-drag`, `13-reduced-crated`, `14-reduced-mid-session`. Shot in real Chrome through Playwright; the Claude
 browser pane cannot initialise WebGL (`.claude/TRAPS.md`).
