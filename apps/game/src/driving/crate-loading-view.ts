@@ -51,6 +51,7 @@ import type { Animal, Species } from '@arc/shared-types';
 import {
   CRATE_DEFS,
   FEELING,
+  REMEDY,
   SHELF_CRATES,
   VEHICLE_DEFS,
   animalById,
@@ -740,6 +741,101 @@ export function panelPadding(boxH: number, bandH = 0): {
 }
 
 /**
+ * Whether the plate is shorter than the copy the panel would put on it,
+ * and so shows the short form of its copy instead — see `CompactCopy`.
+ *
+ * **The same condition `panelPadding` reports as `below < 0`**: the plate
+ * is shorter than the closed-up copy itself, `PANEL_TIGHT_COPY_H`. It is
+ * derived rather than chosen, and it lands where the screen needs it to.
+ * At 812pt the plate is 109.5 in the Capacitor app and 59.5 in the Home
+ * Screen web clip, and the copy wants 126, so both are compact. The 874
+ * wide phone's plate is 137 and holds the copy whole, so it keeps it,
+ * and so does every taller screen.
+ *
+ * Measured on the plate and not on the width, because height is what
+ * ran out: a plate that holds the copy is given the copy.
+ */
+export function panelIsCompact(boxH: number): boolean {
+  return boxH < PANEL_TIGHT_COPY_H;
+}
+
+/**
+ * What a compact plate holds: a heading's slot, and one closed-up line.
+ *
+ * The slot is there whether or not there is a line under it, so the
+ * heading stands in one place on a plate and does not hop as a pointer
+ * crosses from a pair with a remedy to a pair with none.
+ */
+const PANEL_COMPACT_COPY_H = 26 + 20;
+
+/**
+ * The air a compact plate leaves above its heading and below its line,
+ * with the larger share underneath.
+ *
+ * The roomy plate's own two numbers, 12 above and 20 below, run as a
+ * proportion and capped above at 12 — the rule `panelPadding` applies,
+ * with the compact copy's height in place of the long copy's. On the
+ * 59.5px web clip that is 5 above and 8.5 below; on the 109.5px app
+ * plate it is 12 above and 51.5 below, which is the plate's own height
+ * given to it and not a gap to fill. Pure, so a test holds it at every
+ * plate height.
+ */
+export function compactPanelPadding(boxH: number): {
+  above: number;
+  below: number;
+  copyH: number;
+} {
+  const slack = boxH - PANEL_COMPACT_COPY_H;
+  const above = Math.max(0, Math.min(
+    PANEL_PAD_TOP,
+    Math.round((slack * PANEL_PAD_TOP) / (PANEL_PAD_TOP + PANEL_PAD_BOTTOM)),
+  ));
+  return { above, below: slack - above, copyH: PANEL_COMPACT_COPY_H };
+}
+
+/**
+ * What a plate of this height can hold above its words: whether it draws
+ * the picture band at all, and whether the band has the room for the word
+ * under each animal.
+ *
+ * **A compact plate never has a band, and a band never has a compact
+ * plate.** That is the invariant the reaction word under each animal was
+ * fixed to keep: the word belongs to the animal feeling it and is drawn
+ * under her, and where there is no band to draw her in, the heading is
+ * the only place the word can go and nobody is above it to be taken for
+ * the one who feels it. The short form is therefore only ever shown
+ * where no animal stands over the heading. A test holds it at every
+ * plate height.
+ */
+export function panelBand(boxH: number): {
+  tight: boolean;
+  copyH: number;
+  facesH: number;
+  showFaces: boolean;
+  showReactions: boolean;
+} {
+  const { tight, copyH } = panelPadding(boxH);
+  const facesH = Math.min(
+    PANEL_FACES_MAX,
+    boxH - (tight ? PANEL_TIGHT_PAD_TOP : PANEL_PAD_TOP)
+      - (tight ? PANEL_TIGHT_PAD_BOTTOM : PANEL_PAD_BOTTOM) - SPACE.s - copyH,
+  );
+  const showFaces = facesH >= PANEL_FACES_MIN;
+  return {
+    tight,
+    copyH,
+    facesH,
+    showFaces,
+    // Whether the band has room for the word under each animal as well
+    // as the name above it. Decided once, from the geometry, so it is
+    // the same answer for every copy the panel shows while it stands
+    // there — the alternative is a band whose animals change size as a
+    // pointer crosses the bays.
+    showReactions: showFaces && facesH - NAME_ROW_H >= REACTION_ROW_H + 40,
+  };
+}
+
+/**
  * Below this a bay cannot carry a name row without the name taking more
  * of the bay than the crate in it. Big Tilly's nine bays are the case —
  * 40 wide by 54 deep, where a 20px name row would leave a 34px crate
@@ -970,6 +1066,29 @@ interface PanelCopy {
    */
   boldLine?: number | null;
   cast?: PanelCast;
+  /**
+   * What this copy says on a plate too short for it — see
+   * `panelIsCompact`. Absent means the copy has no short form and is set
+   * as it is, which is where it was before there was one.
+   */
+  compact?: CompactCopy;
+}
+
+/**
+ * The short form of a piece of panel copy: the heading, and under it
+ * either the one line that says what would help or nothing at all.
+ *
+ * **Never a sentence about who feels what.** On a plate this short the
+ * panel has no picture band, so the faces on the animals in the vehicle
+ * and the word in the heading carry that, and the one line says only
+ * what would help. A pair with nothing to put right has an empty body:
+ * its heading and its colour are the whole report.
+ */
+interface CompactCopy {
+  heading: string;
+  tone: Mood | null;
+  /** Nothing, or exactly one line. */
+  body: string[];
 }
 
 /**
@@ -1013,6 +1132,57 @@ function castPair(session: LoadingSession, note: AdjacencyNote): PanelCast | und
   return {
     members: [castOne(pair[0], faceA, feelA), castOne(pair[1], faceB, feelB)],
     level: moodOf(note),
+  };
+}
+
+/**
+ * What the panel says about one pair on a plate with room for a heading
+ * and one line: the feeling's word, and what would help.
+ *
+ * **Marcus's decision, 2026-10-09: at the narrowest plates the panel
+ * says the remedy only.** The plate is 109.5px in the Capacitor app and
+ * 59.5 in the Home Screen web clip against copy that wants 126, and
+ * every other lever was already down. Who feels what is carried by the
+ * faces on the animals in the vehicle and by the word in the heading;
+ * the line says what would help and nothing else. His reason is his own
+ * rule: people look at the picture before the caption and often never
+ * read it, and the expression system was built so that a child who
+ * cannot read never needs the sentence.
+ *
+ * - **A pair with something to put right** — one-sided friction, mutual
+ *   friction, a patient beside a well animal, a pair the rules refuse —
+ *   gets its feeling's word and the pair's `remedy`.
+ * - **A pair with nothing to put right** gets its heading and nothing
+ *   under it. A remedy invented for a happy pair would send a child to
+ *   rearrange something the rules are satisfied with, and a line that
+ *   repeated the heading would be a caption restating its title.
+ * - **Two patients side by side** read "Needs Quiet", in blue. The
+ *   engine calls them happy because neither minds the other, but both
+ *   are drawn looking poorly, and with no band to put a word under each
+ *   of them the heading is the only place the word can go — "Happy" on
+ *   a green plate above two poorly animals is the fault `pairReactions`
+ *   was written to remove. They are not told to separate: the rules
+ *   have no objection to them and nor does this.
+ *
+ * Plain rather than bold. The bold weight is 7% wider, and the longest
+ * remedy is 208px against the 216 the narrowest column has: set bold it
+ * would take a second line the plate does not have. The heading above it
+ * is already bold, and one line is not dense text.
+ */
+export function compactCopyFor(
+  note: AdjacencyNote,
+  pair: [LoadableAnimal, LoadableAnimal] | null,
+): CompactCopy {
+  if (note.level === 'happy') {
+    const patients = pair !== null && Boolean(pair[0].poorly) && Boolean(pair[1].poorly);
+    const mood: Mood = patients ? 'quiet' : 'happy';
+    return { heading: MOOD_WORD[mood], tone: mood, body: [] };
+  }
+  const mood = moodOf(note);
+  return {
+    heading: MOOD_WORD[mood],
+    tone: mood,
+    body: note.remedy ? [note.remedy] : [],
   };
 }
 
@@ -1649,6 +1819,7 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
       tone: 'blocked',
       body: [...sentences(blockers, 1), 'Tap one of them to move them somewhere else.'],
       cast: castPair(session, blockers[0]),
+      compact: compactCopyFor(blockers[0], pairOf(session, blockers[0])),
     };
   }
 
@@ -1663,6 +1834,7 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
       tone: moodOf(settled[0]),
       body: sentences(settled, 1),
       cast: castPair(session, settled[0]),
+      compact: compactCopyFor(settled[0], pairOf(session, settled[0])),
     };
   }
 
@@ -1710,6 +1882,9 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
       'Load another animal, or set off.',
     ],
     cast: { members: aboard(session).slice(0, 2).map((a) => castOne(a)), apart: true },
+    // Nothing to report and so nothing to put right: the heading says
+    // it, and a next step is not a remedy.
+    compact: { heading: titleCase('Nobody is worried'), tone: null, body: [] },
   };
 }
 
@@ -1722,16 +1897,20 @@ function panelCopy(state: CrateLoadingState): PanelCopy {
     // A refusal is the moment a child most needs the picture, so the
     // notice carries who it was about and the two of them are drawn
     // exactly as any other pair.
-    const pairCast = notice.level && notice.pair
-      ? castPair(state.session, {
+    const pairNote: AdjacencyNote | undefined = notice.level && notice.pair
+      ? {
         level: notice.level,
         slotIndex: -1,
         neighbourSlotIndex: -1,
         animalId: notice.pair.animalId,
         neighbourId: notice.pair.neighbourId,
         text: notice.text,
-      })
+        // A refusal is the rules turning a pair down, which is the one
+        // notice about a pair there is.
+        remedy: notice.level === 'blocked' ? REMEDY.elsewhere : undefined,
+      }
       : undefined;
+    const pairCast = pairNote ? castPair(state.session, pairNote) : undefined;
     // A notice about one animal — a crate chosen for her, or a space
     // asked for before one was. She is drawn alone, wearing the word
     // the notice is reporting, because the news is about her and not
@@ -1754,6 +1933,7 @@ function panelCopy(state: CrateLoadingState): PanelCopy {
         notice.level === 'blocked' ? 'Try another space.' : nextStep(state),
       ].filter((l) => l.length > 0),
       cast: pairCast ?? (solo ? { members: [castOne(solo, undefined, mood ?? undefined)] } : undefined),
+      compact: pairNote ? compactCopyFor(pairNote, pairOf(state.session, pairNote)) : undefined,
     };
   }
   return standingCopy(state);
@@ -2767,6 +2947,10 @@ function bayHoverCopy(session: LoadingSession, slotIndex: number): PanelCopy | n
     cast: notes.length > 0
       ? castPair(session, notes[0])
       : held ? { members: [castOne(held)] } : undefined,
+    // No neighbour is nothing to put right, the same as a happy one.
+    compact: notes.length > 0
+      ? compactCopyFor(notes[0], pairOf(session, notes[0]))
+      : { heading: MOOD_WORD[outlook], tone: outlook, body: [] },
   };
 }
 
@@ -3488,19 +3672,12 @@ function drawPanel(
   // leading close up rather than the words running off the bottom of
   // the paper onto the gravel. The type size does not move; that floor
   // is not negotiable, and it is the only thing here that is not.
-  const { tight, copyH } = panelPadding(box.h);
-  const facesH = Math.min(
-    PANEL_FACES_MAX,
-    box.h - (tight ? PANEL_TIGHT_PAD_TOP : PANEL_PAD_TOP)
-      - (tight ? PANEL_TIGHT_PAD_BOTTOM : PANEL_PAD_BOTTOM) - SPACE.s - copyH,
-  );
-  const showFaces = facesH >= PANEL_FACES_MIN;
-  // Whether the band has room for the word under each animal as well
-  // as the name above it. Decided once, from the geometry, so it is the
-  // same answer for every copy the panel shows while it stands there —
-  // the alternative is a band whose animals change size as a pointer
-  // crosses the bays.
-  const showReactions = showFaces && facesH - NAME_ROW_H >= REACTION_ROW_H + 40;
+  const { tight, facesH, showFaces, showReactions } = panelBand(box.h);
+  // On a plate shorter than the copy, a copy with a short form sets the
+  // short form — see `panelIsCompact`. Decided here from the plate and
+  // applied below copy by copy, because only some copies have one.
+  const compactPlate = panelIsCompact(box.h);
+  const compactPad = compactPanelPadding(box.h);
   const leading = tight ? 0 : 6;
   const bandH = showFaces ? facesH + SPACE.s : 0;
 
@@ -3552,6 +3729,11 @@ function drawPanel(
     return r.width;
   };
 
+  // The carried animal's corner picture, when there is one — kept so the
+  // short form can stand it down. A corner animal is 56px wide against a
+  // one-line remedy that runs to 208 of the 216 there are, and the two
+  // would be drawn over one another.
+  let carried: Phaser.GameObjects.GameObject & { setVisible(v: boolean): unknown } | undefined;
   if (!showFaces) {
     // No room for the band. The carried animal goes back in the corner,
     // which is where she lived before there was one — a small picture
@@ -3561,21 +3743,38 @@ function drawPanel(
     const heldRecord = held ? state.animalsById.get(held.id) : undefined;
     const carrySize = Math.min(56, box.h - CHROME.padY * 2);
     if (heldRecord && carrySize > 24) {
-      layer.add(
-        createAnimalSprite(
-          scene,
-          box.x + box.w - CHROME.padX - carrySize / 2,
-          box.y + box.h - CHROME.padY - carrySize / 2,
-          heldRecord,
-          { width: carrySize, height: carrySize },
-        ).setDepth(4),
-      );
+      carried = createAnimalSprite(
+        scene,
+        box.x + box.w - CHROME.padX - carrySize / 2,
+        box.y + box.h - CHROME.padY - carrySize / 2,
+        heldRecord,
+        { width: carrySize, height: carrySize },
+      ).setDepth(4);
+      layer.add(carried);
     }
   }
 
   const standing = panelCopy(state);
   const apply = (copy: PanelCopy | null): void => {
-    const c = copy ?? standing;
+    const full = copy ?? standing;
+    // **The short form where the plate is shorter than the copy, and
+    // only for a copy that has one.** The rest are set as they were: a
+    // copy with no short form on a short plate is the containment's
+    // business, below, and was before this existed.
+    const short = compactPlate ? full.compact : undefined;
+    const c: PanelCopy = short
+      // Plain, whatever the full copy bolds: see `compactCopyFor`.
+      ? { ...full, heading: short.heading, tone: short.tone, body: short.body, boldLine: null }
+      : full;
+    carried?.setVisible(!short);
+    // Where the heading stands, how much of the plate is held back
+    // under the words, and how far down the first line starts. The short
+    // form is laid out on its own two numbers; everything else keeps the
+    // plate's own, which is what it has always had.
+    const lay = short
+      ? { top: box.y + compactPad.above, slot: 26, below: compactPad.below }
+      : { top: headingY, slot: tight ? 26 : 34, below: bottomPad };
+    heading.setY(lay.top);
     setPlate(c.tone);
     // **The feeling is said once.** Where the band under the animals
     // carries the word — "Worried" under the hedgehog who is worried —
@@ -3614,8 +3813,8 @@ function drawPanel(
     // words start where it would have been, so the type does not move
     // up and down as a pointer crosses the bays.
     let y = headingText.length === 0
-      ? headingY
-      : Math.max(headingY + (tight ? 26 : 34), heading.y + heading.height + SPACE.xs);
+      ? lay.top
+      : Math.max(lay.top + lay.slot, heading.y + heading.height + SPACE.xs);
     // **A sentence that will not fit is left out whole, and only after
     // one has been set.** On the 812pt phone the plate is shorter than
     // its copy — see `panelPadding`, and the escalation it is pinned by
@@ -3630,7 +3829,7 @@ function drawPanel(
     // Never a part sentence and never the only one: a sentence cut in
     // the middle is worse than a sentence that is not there, and a
     // panel with nothing on it is worse than either.
-    const limit = box.y + box.h - Math.max(0, bottomPad);
+    const limit = box.y + box.h - Math.max(0, lay.below);
     let drawn = 0;
     parts.forEach((part, i) => {
       const block = blocks[i];

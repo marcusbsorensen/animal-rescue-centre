@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   FEELING,
   FEELING_MARK,
+  REMEDY,
   bestCrateFor,
   crateDefFor,
   describePair,
@@ -467,6 +468,141 @@ describe('the sentence for a poorly animal', () => {
     const { level, needsQuiet } = describePair(TRUFFLE, alsoIll);
     expect(level).toBe('happy');
     expect(needsQuiet).toBe(false);
+  });
+});
+
+// ── The remedy: what would help, in one line ─────────────────
+
+describe('the remedy line', () => {
+  /**
+   * Every sentence `describePair` can write — every pair of species, in
+   * both orders, with the first animal well and then poorly and the
+   * second the same — the way the panel's sweep builds them.
+   */
+  const everyPair = () => {
+    const out: Array<{
+      a: LoadableAnimal; b: LoadableAnimal; verdict: ReturnType<typeof describePair>;
+    }> = [];
+    for (const sa of ALL_SPECIES) {
+      for (const sb of ALL_SPECIES) {
+        for (const illA of [false, true]) {
+          for (const illB of [false, true]) {
+            const a: LoadableAnimal = { id: '1', name: 'Clementine', species: sa, poorly: illA };
+            const b: LoadableAnimal = { id: '2', name: 'Pip', species: sb, poorly: illB };
+            out.push({ a, b, verdict: describePair(a, b) });
+          }
+        }
+      }
+    }
+    return out;
+  };
+
+  it('is the short form of the second sentence, in the same voice', () => {
+    // Derived from the full sentences: "Cleo would be happier a space
+    // away." is "A space away would help.", "They would both be happier
+    // a space apart." is "A space apart would help.", and "A space
+    // beside Truffle would help." keeps its verb and loses its name.
+    expect(REMEDY.away).toBe('A space away would help.');
+    expect(REMEDY.apart).toBe('A space apart would help.');
+    expect(REMEDY.quiet).toBe('A quiet space would help.');
+  });
+
+  it('uses away for one animal who minds and apart for two', () => {
+    const dog: LoadableAnimal = { id: 'd', name: 'Poppy', species: 'dog' };
+    const cat: LoadableAnimal = { id: 'c', name: 'Smokey', species: 'cat' };
+    expect(describePair(dog, cat).remedy).toBe(REMEDY.away);
+    expect(describePair(cat, dog).remedy).toBe(REMEDY.away);
+    // Bunny and bat alarm each other equally: the "each other" sentence.
+    const bunny: LoadableAnimal = { id: 'b', name: 'Clover', species: 'bunny' };
+    const bat: LoadableAnimal = { id: 'e', name: 'Echo', species: 'bat' };
+    const { text, remedy } = describePair(bunny, bat);
+    expect(text).toContain('make each other worried');
+    expect(remedy).toBe(REMEDY.apart);
+  });
+
+  it('is a quiet space for a patient beside a well animal, whichever way round', () => {
+    const patient: LoadableAnimal = { id: 'i', name: 'Truffle', species: 'hedgehog', poorly: true };
+    const well: LoadableAnimal = { id: 'w', name: 'Biscuit', species: 'cat' };
+    expect(describePair(well, patient).remedy).toBe(REMEDY.quiet);
+    expect(describePair(patient, well).remedy).toBe(REMEDY.quiet);
+  });
+
+  it('is absent where there is nothing to put right, two patients included', () => {
+    // Two patients mind each other not at all, which the engine calls
+    // happy. A remedy invented for them would send a child to
+    // rearrange something the rules are satisfied with.
+    for (const { a, b, verdict } of everyPair()) {
+      if (verdict.level !== 'happy') continue;
+      expect(verdict.remedy, `${a.species} ${a.poorly} / ${b.species} ${b.poorly}`).toBeUndefined();
+    }
+    const one: LoadableAnimal = { id: '1', name: 'Pip', species: 'cat', poorly: true };
+    const two: LoadableAnimal = { id: '2', name: 'Sage', species: 'dog', poorly: true };
+    expect(describePair(one, two)).toMatchObject({ level: 'happy' });
+    expect(describePair(one, two).remedy).toBeUndefined();
+  });
+
+  it('is present wherever something is wrong, which is where the level is not happy', () => {
+    for (const { a, b, verdict } of everyPair()) {
+      if (verdict.level === 'happy') continue;
+      expect(verdict.remedy, `${a.species} ${a.poorly} / ${b.species} ${b.poorly}`)
+        .toBeTruthy();
+    }
+  });
+
+  it('says what would help and never what is wrong, for every pair', () => {
+    // **Positive in construction.** None opens on a negation, none
+    // contains one, and none names a feeling — who feels it is the
+    // picture's to say.
+    const seen = new Set<string>();
+    for (const { verdict } of everyPair()) {
+      if (verdict.remedy) seen.add(verdict.remedy);
+    }
+    expect([...seen].sort()).toEqual([
+      REMEDY.apart, REMEDY.away, REMEDY.elsewhere, REMEDY.quiet,
+    ].sort());
+    for (const line of seen) {
+      expect(/^(not|never|cannot|no|nobody|neither)\b/i.test(line), line).toBe(false);
+      expect(/\b(not|never|cannot|can't|won't|don't|doesn't)\b|n't/i.test(line), line).toBe(false);
+      for (const feeling of ['worried', 'frightened', 'scared', 'poorly', 'unhappy']) {
+        expect(line.toLowerCase(), line).not.toContain(feeling);
+      }
+      expect(line.startsWith(line[0].toUpperCase()), line).toBe(true);
+      expect(line.endsWith('.'), line).toBe(true);
+    }
+  });
+
+  it('carries no name, so it is one short line on the narrowest column', () => {
+    // The narrowest reading column is 216px. At the stricter measure
+    // the panel's own sweep uses (8.6px a character) 25 characters is
+    // 215 — one line — and every one of these is within it.
+    for (const line of Object.values(REMEDY)) {
+      expect(line.length, line).toBeLessThanOrEqual(25);
+    }
+    for (const { a, b, verdict } of everyPair()) {
+      for (const name of [a.name, b.name]) {
+        expect(verdict.remedy ?? '', name).not.toContain(name);
+      }
+    }
+  });
+
+  it('is in British English', () => {
+    for (const line of Object.values(REMEDY)) {
+      expect(line, line).not.toMatch(/\b(color|neighbor|gray|favorite|realize)/i);
+    }
+  });
+
+  it('travels on the notes, for a placement and for the settled grid', () => {
+    const dog: LoadableAnimal = { id: 'd', name: 'Poppy', species: 'dog' };
+    const cat: LoadableAnimal = { id: 'c', name: 'Smokey', species: 'cat' };
+    const session = createLoadingSession('small-van', [dog, cat], ['d']);
+    // Hold the cat over the slot beside the dog: a preview.
+    const held = holdFromTray(session, 'c');
+    const next = [1, 2].find((slot) => slotNotes(held, slot).length > 0) as number;
+    expect(slotNotes(held, next)[0].remedy).toBe(REMEDY.away);
+    // And once she is down, the settled grid says the same.
+    const down = placeHeld(held, next);
+    expect(down.placed).toBe(true);
+    expect(settledNotes(down.session)[0].remedy).toBe(REMEDY.away);
   });
 });
 

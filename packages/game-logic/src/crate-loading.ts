@@ -133,12 +133,56 @@ export interface AdjacencyNote {
    * friction. Never set on a blocked pair.
    */
   needsQuiet?: boolean;
+  /**
+   * What would help, in one line — see `REMEDY`. Absent where the pair
+   * has nothing to put right.
+   */
+  remedy?: string;
 }
 
 /** `Luna the cat` — the phrase both animals are named by, everywhere. */
 function named(animal: LoadableAnimal): string {
   return `${animal.name} the ${animal.species}`;
 }
+
+/**
+ * What would help, in one line and no names — the short form of each
+ * second sentence `describePair` writes, for a plate with room for one
+ * line and no more.
+ *
+ * **Derived from the full sentences, so the voice is the same one.**
+ * "Cleo would be happier a space away." is "A space away would help.";
+ * "They would both be happier a space apart." is "A space apart would
+ * help."; "A space beside Truffle would help." keeps its own verb and
+ * loses its name. *Away* is for one animal and *apart* is for two, the
+ * way the long sentences have it.
+ *
+ * **Positive in construction, every one.** Each says what would help
+ * and none says what is wrong, so none opens on "not", "never" or
+ * "cannot" and none can be bolded as a negation. Who feels it is not
+ * said here: on a plate this short the faces on the animals carry that.
+ *
+ * **No name in any of them, and that is also why they are short.** The
+ * narrowest reading column is 216px, and the longest of these is 25
+ * characters, which is one line there at the widest the face runs.
+ * `crate-loading.test.ts` holds the length and the construction for
+ * every pair `describePair` can write.
+ *
+ * A pair with nothing to put right has no entry. Inventing a remedy for
+ * a happy pair, or for two patients who mind each other not at all,
+ * would send a child to rearrange something the rules are satisfied
+ * with.
+ */
+export const REMEDY = {
+  /** One of them minds the other: the one who minds is the one to move. */
+  away: 'A space away would help.',
+  /** They mind each other equally. */
+  apart: 'A space apart would help.',
+  /** One of them is poorly. */
+  quiet: 'A quiet space would help.',
+  /** A frightening pair, which the rules refuse to seat together. */
+  elsewhere: 'Try another space.',
+} as const;
 
 /**
  * The sentence for one pair of neighbours.
@@ -164,11 +208,16 @@ function named(animal: LoadableAnimal): string {
  * what carries that now is the contrast with the blocked sentence,
  * which still says "cannot" outright, and the fact that the placement
  * goes through.
+ *
+ * **`remedy` is the second sentence's short form**, for a plate with
+ * room for one line — see `REMEDY`. It is absent for a pair with
+ * nothing to put right, which is every happy pair, and that includes
+ * two patients side by side.
  */
 export function describePair(
   animal: LoadableAnimal,
   neighbour: LoadableAnimal,
-): { level: CompatibilityLevel; text: string; needsQuiet?: boolean } {
+): { level: CompatibilityLevel; text: string; needsQuiet?: boolean; remedy?: string } {
   const { level, needsQuiet } = pairFeeling(animal, neighbour);
 
   if (needsQuiet) {
@@ -194,6 +243,7 @@ export function describePair(
       needsQuiet,
       text: `${named(ill)} is poorly and needs a quiet space. `
         + `A space beside ${ill.name} would help.`,
+      remedy: REMEDY.quiet,
     };
   }
 
@@ -218,6 +268,7 @@ export function describePair(
       level,
       needsQuiet,
       text: `${named(animal)} and ${named(neighbour)} ${verb} ${object}. ${tail}`,
+      remedy: level === 'blocked' ? REMEDY.elsewhere : REMEDY.apart,
     };
   }
 
@@ -232,6 +283,7 @@ export function describePair(
     level,
     needsQuiet,
     text: `${named(bolder)} makes ${named(timid)} ${feeling}. ${tail}`,
+    remedy: level === 'blocked' ? REMEDY.elsewhere : REMEDY.away,
   };
 }
 
@@ -654,7 +706,7 @@ export function notesForPlacing(
     if (!crate) continue;
     const neighbour = animalById(session, crate.animalId);
     if (!neighbour) continue;
-    const { level, text, needsQuiet } = describePair(animal, neighbour);
+    const { level, text, needsQuiet, remedy } = describePair(animal, neighbour);
     notes.push({
       level,
       slotIndex,
@@ -663,6 +715,7 @@ export function notesForPlacing(
       neighbourId: neighbour.id,
       text,
       needsQuiet,
+      remedy,
     });
   }
   return sortNotes(notes);
@@ -711,7 +764,7 @@ export function settledNotes(session: LoadingSession): AdjacencyNote[] {
       seen.add(key);
       const neighbour = animalById(session, other.animalId);
       if (!neighbour) continue;
-      const { level, text, needsQuiet } = describePair(animal, neighbour);
+      const { level, text, needsQuiet, remedy } = describePair(animal, neighbour);
       notes.push({
         level,
         slotIndex: crate.slotIndex,
@@ -720,6 +773,7 @@ export function settledNotes(session: LoadingSession): AdjacencyNote[] {
         neighbourId: neighbour.id,
         text,
         needsQuiet,
+        remedy,
       });
     }
   }
