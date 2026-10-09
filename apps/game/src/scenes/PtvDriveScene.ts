@@ -16,8 +16,8 @@ import {
   type VehicleDef, type VehicleType,
 } from '@arc/game-logic';
 import { renderCrateLoading } from '../driving/crate-loading-view';
-import { VEHICLE_SPRITE } from '../driving/fleet-art';
-import { drawForecourt } from '../driving/forecourt';
+import { VEHICLE_SPRITE, pickerLayout } from '../driving/fleet-art';
+import { drawForecourt, drawVehicleShadow } from '../driving/forecourt';
 import {
   createDriveState,
   cycleGear,
@@ -940,10 +940,21 @@ export class PtvDriveScene extends Phaser.Scene {
   /** The pre-drive screen: choose the destination (shown) and pick a fleet
    *  vehicle. Locked vehicles (unlockLevel > playerLevel) are dimmed. */
   /**
-   * The single pre-drive screen: the A.R.C. building above a car park whose bays
-   * are sized to each vehicle. Every fleet vehicle sits parked in its bay; the
-   * ones above the player's level are coned off with an "L10" unlock label.
-   * Clicking an available vehicle picks it and pulls straight out for the drive.
+   * The single pre-drive screen: the A.R.C. building above a car park with
+   * the whole fleet parked in it, reversed in against the head of the bays;
+   * the ones above the player's level are coned off with an "L10" unlock
+   * label. Clicking an available vehicle picks it and pulls straight out
+   * for the drive.
+   *
+   * **The five stand at true relative scale** (`pickerLayout`): one
+   * pixels-to-the-metre for all of them, driven by `VEHICLE_WIDTH_M`, so
+   * Trikey is the smallest and Big Tilly the largest because that is what
+   * they are. This screen is the only place in the game where the fleet
+   * is seen side by side, and it used to fit every sprite to one height —
+   * a trike as tall as a lorry — which is the fixed-cell thumbnail the
+   * handover ("One true scale") and Rule 8 both rule out. Each stands on
+   * the tarmac with its own outline thrown to one side as a shadow, and
+   * nothing is cropped.
    */
   private renderPicker(width: number, height: number): void {
     this.departing = false;
@@ -963,41 +974,57 @@ export class PtvDriveScene extends Phaser.Scene {
       subtitle: `off to ${destName}`,
     });
 
-    // Car park: bays sized in proportion to each vehicle (Trikey narrow, Big
-    // Tilly wide — the forecourt has different-sized spaces for exactly this).
+    // The whole fleet at one scale, in bays that are never too narrow to
+    // tap. `pickerLayout` decides every number; this draws them.
     const defs = Object.values(VEHICLE_DEFS);
-    const weights = defs.map((v) => VEHICLE_SIZE[v.id]);
-    const wsum = weights.reduce((a, b) => a + b, 0);
-    const bayTop = height * 0.57;
-    const bayH = height * 0.28;
+    const layout = pickerLayout({
+      width, height, contentTop: contentTopFor(title), ids: defs.map((v) => v.id),
+    });
+    const { apron } = layout;
 
-    // Gravel, the A.R.C. building, the tarmac and the exit road — the same
-    // call the loading screen makes, so the two phases stand in one place.
-    const { apron: { x: left, w: areaW }, roadY } = drawForecourt(this, this.container, {
-      width, height, contentTop: contentTopFor(title), apronTop: bayTop, apronH: bayH,
+    // Gravel, the A.R.C. building (where there is room for it), the tarmac
+    // and the exit road — the same call the loading screen once made. The
+    // tarmac is as wide as the five bays and no wider, so it is a car park
+    // with a fleet in it rather than a slab with five thumbnails on it.
+    const { roadY } = drawForecourt(this, this.container, {
+      width, height, contentTop: contentTopFor(title),
+      apronTop: apron.y, apronH: apron.h, apronX: apron.x, apronW: apron.w,
+      building: layout.building,
     });
     this.container.add(title);
 
-    let x = left;
-    defs.forEach((v, i) => {
-      const bw = areaW * (weights[i] / wsum);
-      const cx = x + bw / 2;
-      const cy = bayTop + bayH * 0.44;
-      const locked = v.unlockLevel > this.playerLevel;
+    // The bay lines: a head line across the bays and a line between each
+    // pair, in metres — 100mm of paint — with the vehicles reversed in
+    // against the head, so their lengths hang from one line and can be
+    // compared by eye.
+    const lineW = Math.max(3, Math.min(6, 0.1 * layout.pxPerMetre));
+    const lines = this.add.graphics();
+    lines.fillStyle(0xf2ead6, 0.85);
+    const first = layout.bays[0];
+    const last = layout.bays[layout.bays.length - 1];
+    const lineBottom = apron.y + apron.h - 6;
+    lines.fillRect(first.x - lineW / 2, layout.headY, last.x + last.w - first.x + lineW, lineW);
+    for (const edge of [first.x, ...layout.bays.map((b) => b.x + b.w)]) {
+      lines.fillRect(edge - lineW / 2, layout.headY, lineW, lineBottom - layout.headY);
+    }
+    this.container.add(lines);
 
-      if (i > 0) {
-        const d = this.add.graphics();
-        d.fillStyle(0xf2ead6, 0.85);
-        d.fillRect(x - 2, bayTop + 8, 4, bayH - 16);
-        this.container.add(d);
-      }
+    defs.forEach((v, i) => {
+      const bay = layout.bays[i];
+      const { cx, cy } = bay;
+      const locked = v.unlockLevel > this.playerLevel;
 
       const key = VEHICLE_SPRITE[v.id];
       let img: Phaser.GameObjects.Image | undefined;
+      let shadow: Phaser.GameObjects.GameObject[] = [];
       if (this.textures.exists(key)) {
+        // The ground first: the vehicle's own outline, thrown down and to
+        // the right, so she stands on the tarmac instead of floating over it.
+        shadow = drawVehicleShadow(this, this.container, {
+          cx, cy, w: bay.spriteW, h: bay.spriteH, texture: key,
+        });
         img = this.add.image(cx, cy, key);
-        const targetW = Math.min(bw * 0.72, bayH * 0.62 * (img.width / img.height));
-        img.setScale(targetW / img.width);
+        img.setScale(bay.spriteW / img.width);
         img.setAngle(VEHICLE_PARK_ANGLE[v.id]);
         img.setDepth(20);
         if (locked) img.setTint(0x707070);
@@ -1005,14 +1032,14 @@ export class PtvDriveScene extends Phaser.Scene {
       }
 
       this.container.add(
-        this.add.text(cx, bayTop + bayH - 9, v.name, {
+        this.add.text(cx, layout.labelY, v.name, {
           fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#e8dcc8',
         }).setOrigin(0.5)
       );
 
       if (locked) {
-        // Coned off, with the unlock level called out.
-        const coneY = bayTop + bayH + 20;
+        // Coned off at the mouth of the bay, with the unlock level called out.
+        const coneY = layout.coneY;
         if (this.textures.exists('decor-cone')) {
           this.container.add(this.add.image(cx, coneY, 'decor-cone').setDisplaySize(26, 34).setDepth(22));
         } else {
@@ -1021,36 +1048,39 @@ export class PtvDriveScene extends Phaser.Scene {
           cone.fillStyle(0xffffff, 0.85); cone.fillRect(cx - 7, coneY + 1, 14, 4);
           this.container.add(cone);
         }
-        // The unlock chip used to sit just above the cone, 7px below the
-        // vehicle name — close enough that the two labels overlapped and
-        // "Big Tilly" read as "B____ly". Moved to the top of the bay, where
-        // there is nothing but slab above the roof of a greyed-out van.
+        // The unlock chip stands in its own row between the end of the
+        // longest vehicle and the name. It used to sit at the top of the
+        // bay, where there was nothing but slab above the roof of a
+        // greyed-out van; with the vehicles drawn to length that is where
+        // their rears are, so it moved down to the one row nobody's nose
+        // reaches.
         //
         // On the chrome plate, not a `backgroundColor` block: this floats
         // above the world telling the child when the van opens, so it is
         // chrome, and a darker-than-the-slab block was the only surface in
         // the game arguing otherwise.
-        const chipLabel = this.add.text(cx, bayTop + 12, `L${v.unlockLevel}`, {
+        const chipLabel = this.add.text(cx, layout.chipY, `L${v.unlockLevel}`, {
           fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold',
           color: CHROME.ink, resolution: TEXT_RESOLUTION,
         }).setOrigin(0.5).setDepth(23);
         this.container.add(
           createChromePlate(
-            this, cx, bayTop + 12,
+            this, cx, layout.chipY,
             chipLabel.width + SPACE.m, chipLabel.height + SPACE.s,
           ).setDepth(22)
         );
         this.container.add(chipLabel);
       } else if (img) {
-        const hit = this.add.rectangle(cx, bayTop + bayH / 2, bw - 6, bayH, 0xffffff, 0)
+        // The whole bay answers the tap, not the outline of the vehicle in
+        // it: a trike is 19px wide at this scale and her bay is 64.
+        const hit = this.add.rectangle(cx, apron.y + apron.h / 2, bay.w - 6, apron.h, 0xffffff, 0)
           .setInteractive({ useHandCursor: true }).setDepth(30);
         const vimg = img;
         hit.on('pointerover', () => vimg.setTint(0xfff2c8));
         hit.on('pointerout', () => vimg.clearTint());
-        hit.on('pointerdown', () => this.pickAndDepart(v.id, vimg, cy, roadY));
+        hit.on('pointerdown', () => this.pickAndDepart(v.id, vimg, cy, roadY, shadow));
         this.container.add(hit);
       }
-      x += bw;
     });
 
     this.container.add(
@@ -1065,7 +1095,10 @@ export class PtvDriveScene extends Phaser.Scene {
    *  the grid's size is the vehicle's: which crates fit, and therefore who may
    *  sit where, is not knowable until she has chosen one. With nobody to load
    *  this is unchanged — the van pulls straight out, as it always has. */
-  private pickAndDepart(id: VehicleType, img: Phaser.GameObjects.Image, cy: number, roadY: number): void {
+  private pickAndDepart(
+    id: VehicleType, img: Phaser.GameObjects.Image, cy: number, roadY: number,
+    shadow: Phaser.GameObjects.GameObject[] = [],
+  ): void {
     if (this.departing) return;
     this.departing = true;
     this.vehicleId = id;
@@ -1084,8 +1117,12 @@ export class PtvDriveScene extends Phaser.Scene {
     this.vanGfx = img;
     this.vanY = cy;
     const { width, height } = this.scale;
+    // The shadow goes with her: it is the vehicle's outline on the ground
+    // under her, and one left behind in the bay would be a ghost. They all
+    // move the same distance, so it is a relative move.
+    const dy = (roadY - 6) - img.y;
     this.tweens.add({
-      targets: img, y: roadY - 6, duration: 700, ease: 'Sine.easeInOut',
+      targets: [img, ...shadow], y: `+=${dy}`, duration: 700, ease: 'Sine.easeInOut',
       onComplete: () => this.showTurnChoice(width, height),
     });
   }

@@ -248,25 +248,27 @@ export const CAR_PARK_VEHICLE_KEY = 'carParkVehicle';
  * rectangle the size of the box, which is wrong for Trikey and right for
  * everyone else, and a missing painting is already the worse problem.
  *
- * Drawn before the vehicle, never animated.
+ * Drawn before the vehicle, never animated. Returns what it drew, so a
+ * screen whose vehicle drives away can take its shadow with it.
  */
 export function drawVehicleShadow(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
   box: { cx: number; cy: number; w: number; h: number; texture?: string },
-): void {
+): Phaser.GameObjects.GameObject[] {
   const noted = container.getData?.(CAR_PARK_VEHICLE_KEY) as { key: string; w: number } | undefined;
   const key = box.texture ?? (noted && Math.abs(noted.w - box.w) < 1.5 ? noted.key : undefined);
 
   // How far the light throws it: a share of the vehicle's own width, so
   // a trike's shadow is as long to her as a lorry's is to her.
-  const dx = Math.max(4, Math.min(12, box.w * 0.05));
+  const dx = Math.max(2, Math.min(12, box.w * 0.05));
   const dy = dx * 1.3;
 
   if (key && scene.textures.exists(key)) {
     const source = scene.textures.get(key).getSourceImage();
     const fullH = box.w * (source.height / source.width);
     const top = box.cy - box.h / 2;
+    const drawn: Phaser.GameObjects.GameObject[] = [];
     for (const layer of [
       { grow: 1.06, alpha: 0.10, push: 1.6 },
       { grow: 1.0, alpha: 0.22, push: 1 },
@@ -282,8 +284,9 @@ export function drawVehicleShadow(
         img.setCrop(0, 0, source.width, source.height * (box.h / fullH));
       }
       container.add(img);
+      drawn.push(img);
     }
-    return;
+    return drawn;
   }
 
   const gfx = scene.add.graphics();
@@ -293,4 +296,5 @@ export function drawVehicleShadow(
   gfx.fillStyle(0x000000, 0.2);
   gfx.fillRoundedRect(box.cx - box.w / 2 + dx, box.cy - box.h / 2 + dy, box.w, box.h, r);
   container.add(gfx);
+  return [gfx];
 }

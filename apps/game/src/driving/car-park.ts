@@ -27,12 +27,26 @@
  *
  * **Nothing is cropped.** The vehicle is fitted to the whole column, less
  * a margin of ground fore and aft, and is parked in the middle of it.
- * `VEHICLE_VISIBLE_FRAC` is 1. The single case that cannot hold is a
- * column shorter than `wholeVehicleHeight` — Spark at 820x620 needs 361px
- * and the layout hands this module 334, and every vehicle on a landscape
- * phone — where `fitLoadBed` keeps the bays at the tap floor and the
- * vehicle grows past the ground. That is a fact about the layout, and
- * the layout is where it is fixed; see `.claude/notes/car-park-one-world.md`.
+ * `VEHICLE_VISIBLE_FRAC` is 1.
+ *
+ * **The ground is allowed to be taller than the column.** The column is
+ * what the loading view's layout leaves between the title and the tray —
+ * 335px at 820x620 — and Spark's bays need her drawn 361px tall at the
+ * 40px tap floor, 387px with the ground she is owed. The floor does not
+ * move, so the ground does: where a vehicle will not stand in the column
+ * with a margin of tarmac in front of her, she is parked with that margin
+ * and her rear rises above the top of the column, into the band beside
+ * the Back button and the title, and the tarmac begins just above her
+ * head line. Her rear is the narrow end of her and both pieces of
+ * chrome stand clear of it at every width the screen is composed for
+ * (a test holds that), so nothing is hidden behind them. `PARK_CEILING`
+ * is the highest it may rise.
+ *
+ * What is left is a vehicle that does not stand whole in the ground the
+ * screen has above the tray, and that is the landscape phone, where the
+ * column is 145px and every vehicle needs 255 to 361: the bays are
+ * whole, the front runs off, and the layout is where it is fixed. See
+ * `.claude/notes/car-park-one-world.md`.
  *
  * **Arrows either side move to the next bay.** Fewer spaces to the left,
  * more to the right, in the order `@arc/game-logic`'s `vehicleNeighbours`
@@ -87,19 +101,34 @@ export function carParkBackdropH(columnH: number): number {
 }
 
 /**
+ * The highest the vehicle's rear may stand, as a y on the screen: the
+ * `SAFE_MARGIN` the chrome keeps from every edge.
+ */
+export const PARK_CEILING = SAFE_MARGIN;
+
+/**
  * Where the vehicle's rear sits, in screen coordinates.
  *
- * **In the middle of the ground when she fits**, so there is as much
+ * **In the middle of the ground when she has room**, so there is as much
  * tarmac in front of her as behind and neither end of her is near the
- * edge of the picture; **at the top of it when she does not**, so her
- * bays are whole and what runs out of the picture is the end of her that
- * has none. A pure function of two numbers so a test can hold the
+ * edge of the picture. **When she has not**, the ground in front of her
+ * is the one that is kept — the margin below her nose — and her rear
+ * rises above the column to make it, as far as `PARK_CEILING`. Where
+ * even that is not enough she stands at the ceiling, her bays are whole,
+ * and it is the front of her that runs out of ground.
+ *
+ * A pure function of the column and her height so a test can hold the
  * promise at every viewport — the loading view reads the answer back
  * from `CarPark.parkTop` and never works it out for itself.
  */
 export function vehicleParkTop(column: Rect, vehicleH: number | undefined): number {
-  if (vehicleH === undefined) return column.y + carParkBackdropH(column.h) / 2;
-  return vehicleH <= column.h ? column.y + (column.h - vehicleH) / 2 : column.y;
+  const margin = carParkBackdropH(column.h) / 2;
+  if (vehicleH === undefined) return column.y + margin;
+  const spare = (column.h - vehicleH) / 2;
+  // One pixel of give: a vehicle fitted to the box the layout hands out
+  // comes back within a pixel of it, and 12.9 is not a reason to move her.
+  if (spare >= margin - 1) return column.y + spare;
+  return Math.max(PARK_CEILING, column.y + column.h - margin - vehicleH);
 }
 
 export interface CarParkOptions {
@@ -194,16 +223,21 @@ export function drawCarPark(
     vehicleH = spriteW * (source.height / source.width);
   }
 
-  const groundTop = column.y;
   const groundBottom = column.y + column.h;
-  const fits = vehicleH !== undefined && vehicleH <= column.h;
   const margin = carParkBackdropH(column.h) / 2;
   const parkTop = vehicleParkTop(column, vehicleH);
+  // She is whole where her nose is on the ground.
+  const whole = vehicleH !== undefined && parkTop + vehicleH <= groundBottom + 0.5;
 
   // The chosen vehicle's bay, centred in her column.
   const bayW = bayWidthM(chosen) * pxPerMetre;
   const bayCx = column.x + column.w / 2;
-  const bay: Rect = { x: bayCx - bayW / 2, y: groundTop, w: bayW, h: column.h };
+  const lineW = Math.max(3, Math.min(10, BAY_LINE_M * pxPerMetre));
+  const headY = parkTop - lineW - 3;
+  // The tarmac begins just above the head line, which is the column's top
+  // unless she has risen above it.
+  const groundTop = Math.min(column.y, headY - 6);
+  const bay: Rect = { x: bayCx - bayW / 2, y: groundTop, w: bayW, h: groundBottom - groundTop };
 
   // ── The tarmac ──
   //
@@ -217,7 +251,7 @@ export function drawCarPark(
     x: -24,
     y: groundTop,
     w: column.x + column.w + 24,
-    h: column.h,
+    h: groundBottom - groundTop,
   }, 8, { kerb: false });
 
   // ── The bay ──
@@ -225,8 +259,6 @@ export function drawCarPark(
   // Two side lines the full height of the ground and a head line behind
   // the vehicle's rear, in metres: 100mm of paint, and a bay as wide as
   // `bayWidthM` says this vehicle needs.
-  const lineW = Math.max(3, Math.min(10, BAY_LINE_M * pxPerMetre));
-  const headY = Math.max(groundTop + 2, parkTop - lineW - 3);
   const lines = scene.add.graphics();
   lines.fillStyle(BAY_LINE, BAY_LINE_ALPHA);
   lines.fillRect(bay.x - lineW / 2, headY, lineW, groundBottom - headY);
@@ -262,7 +294,7 @@ export function drawCarPark(
     bay,
     parkTop,
     pxPerMetre,
-    kerbY: fits ? Math.max(groundBottom, parkTop + (vehicleH ?? 0)) + 2 : groundBottom,
+    kerbY: whole ? Math.max(groundBottom, parkTop + (vehicleH ?? 0)) + 2 : groundBottom,
     vehicleH,
     vehicleRect,
   };

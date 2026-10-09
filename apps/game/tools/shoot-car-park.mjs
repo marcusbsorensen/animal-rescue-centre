@@ -80,7 +80,8 @@ function measure() {
     if (o.list) o.list.forEach(walk);
   };
   s.container.list.forEach(walk);
-  return { viewport: { width, height }, vehicles: found, vehicleId: s.vehicleId };
+  const note = s.container.getData?.('carParkVehicle');
+  return { viewport: { width, height }, vehicles: found, vehicleId: s.vehicleId, column: note?.column, vehicleRect: note?.vehicleRect };
 }
 
 for (const { w, h, tag } of SIZES) {
