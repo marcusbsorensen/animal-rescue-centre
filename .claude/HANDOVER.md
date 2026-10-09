@@ -203,14 +203,28 @@ The liveries, read off the drawings rather than remembered:
 
 | Character | Master livery, read off the drawing | Master's view | Views to bring to it |
 |---|---|---|---|
-| Henry | cream body AND CREAM ROOF; oak wood-grain flank panel painted with pink and sage flowers; maroon lower skirt; cream oval badge lettered "A.R.C." in maroon serif on the door; chrome grille, round headlamps, chrome hubcaps; 1960s small-van shape | side, facing left | 5 files |
+| Henry | cream body with a MUTED ROSE ROOF (217,151,154), corrected 2026-10-09; oak wood-grain flank panel painted with pink and sage flowers; maroon lower skirt; cream oval badge lettered "A.R.C." in maroon serif on the door; chrome grille, round headlamps, chrome hubcaps; 1960s small-van shape | side, facing left | 5 files |
 | Bea | ivory upper AND CREAM ROOF; chocolate-brown lower half, a deep band from the waistline down; gold pinstripe scrollwork with dusky-pink roses on the cream flank; "Bea" in small script on the door; chrome grille, brass hubcaps; 1970s van shape | side, facing left | 2 top-downs |
 | Big Tilly | bright red cab and chassis, RED CAB ROOF; natural oak slatted flatbed, OPEN from above, with stake sides; red drop-side panel lettered "Big Tilly ♥" in cream script; chrome grille; cream hubs with red centres; knobbly tyres; curtains and a potted plant in the cab | three-quarter, facing right | 2 top-downs |
 | Spark | white modern van, WHITE ROOF; green LIGHTNING-BOLT flash along the lower flank; "Spark" in green on the upper flank; black wheels | side, facing left | 2 top-downs |
 | Trikey | pale blue frame, wicker basket, brown saddle, cream tyres, "GO!" flag on a pole | side, facing right | 2 top-downs + her own portrait |
 
 **The roofs are the thing a side view hides, and they decide the top-downs.**
-Read off the roof edges: Henry CREAM, Bea CREAM, Spark WHITE, Big Tilly RED
+
+CORRECTED 2026-10-09, by measuring bands of the portraits rather than
+squinting at a roof edge. Henry's roof is a MUTED ROSE (217,151,154), hue
+357, saturation 0.31 - in the maroon family but far lighter than his skirt
+(135,44,66, saturation 0.67). This entry read CREAM, and a separate reading
+earlier the same day said MAROON; both were wrong, because a side elevation
+shows the roof as a thin sliver and a few pixels of edge do not carry a
+colour. Bea's roof IS cream (saturation 0.07), so hers held. Spark's is a
+warm cream at hue 39, not the neutral white recorded, and his green bolt is
+thin enough that it registers in no band of his portrait at all.
+
+The method that settled it: take the opaque bounding box, then read the
+dominant colour of horizontal bands at 0-6%, 6-20%, 35-55% and 75-92% of
+the painted body's height. Do that rather than sampling a roof edge.
+Read off the roof edges: Henry ROSE, Bea CREAM, Spark WARM CREAM, Big Tilly RED
 cab with an OPEN wooden bed behind it. Three of the four are therefore pale
 from above, which means the existing pale top-downs were broadly right and
 the fault is narrower than a first colour audit suggested — that audit was
