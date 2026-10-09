@@ -370,6 +370,12 @@ function applySavedState(
   if (Array.isArray(saved.gardenReturns)) {
     store.gardenReturns = saved.gardenReturns as GameStateStore['gardenReturns'];
   }
+  // Collection calls — places waiting to be driven to. Absent on any
+  // save written before collection drives existed, which is why this
+  // is guarded rather than assigned.
+  if (Array.isArray(saved.collectionCalls)) {
+    store.collectionCalls = saved.collectionCalls as GameStateStore['collectionCalls'];
+  }
 
   // Back-compat: lastGrantCheckAt (gate for monthly charity grants).
   // Leave undefined for brand-new / older saves — charity.ts seeds
@@ -485,6 +491,7 @@ function snapshot(store: GameStateStore): Record<string, unknown> {
     wildVisitsUnlocked: store.wildVisitsUnlocked,
     hasCompletedFirstDrive: store.hasCompletedFirstDrive,
     gardenReturns: store.gardenReturns,
+    collectionCalls: store.collectionCalls,
     lastGrantCheckAt: store.lastGrantCheckAt,
     grantsReceived: store.grantsReceived,
     unlockedCharms: store.unlockedCharms,

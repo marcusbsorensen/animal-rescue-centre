@@ -78,6 +78,10 @@ const ID_LISTS = [
   'apprentices',
   'gardenReturns',
   'grantsReceived',
+  // A call collected on one device must stay collected when the other's
+  // save merges in, and `mergeById` is the only rule here that reads a
+  // removal as a removal rather than as a gap to fill back in.
+  'collectionCalls',
 ] as const;
 
 /** History that only ever grows. Keyed by every field, so duplicates collapse. */

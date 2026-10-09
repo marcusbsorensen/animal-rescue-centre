@@ -110,6 +110,25 @@ export function pickRandomVariant(species: Species): string {
 }
 
 /**
+ * One glyph per species, for the places a painted sprite will not fit.
+ *
+ * A map pin is the first of them: a collection pin has to say what is
+ * waiting at the far end of the drive, to a child who cannot read
+ * "Goose End Farm", in about sixteen points of a 40px disc. A hedgehog
+ * is legible at that size and a word is not.
+ */
+export const SPECIES_EMOJI: Record<Species, string> = {
+  cat: '🐱',
+  dog: '🐶',
+  fox: '🦊',
+  bunny: '🐰',
+  bat: '🦇',
+  parrot: '🦜',
+  snake: '🐍',
+  hedgehog: '🦔',
+};
+
+/**
  * Colours for placeholder rectangle sprites per species.
  */
 export const SPECIES_COLOURS: Record<Species, number> = {

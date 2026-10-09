@@ -387,6 +387,62 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 21px; line-height: 1;
     transition: transform 160ms ease;
+    position: relative;
+  }
+  /* **The target is 48px; the disc stays 40.**
+     MIN_TAP is 48 and the drawn disc is 40, which is a pin that looks
+     right and misses a four-year-old's fingertip — the same 24px-hatch
+     failure the tunnel mouth shipped. A transparent pad centred on the
+     disc takes the touch instead, so the hit area is set by the hand
+     and the drawing by the map. The pin's own label adds target below
+     it; this is the part that was short. */
+  #world-stage .pin-disc::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 48px; height: 48px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+  }
+  /* ── A call waiting at a pin ──────────────────────────────
+     A collection pin whose place has rung wears what is waiting for
+     her: the species, as a glyph, on its own small disc at the pin's
+     upper-right. That is the only thing on the map a pre-reader can
+     read, and it is the thing that decides whether she wants to go.
+
+     It differs from the pin under it in lightness as well as hue — a
+     dark ring and ink-dark ground against the pin's cream — so the two
+     discs stay two discs with the colour taken out. */
+  #world-stage .pin-call {
+    position: absolute;
+    top: -8px; right: -10px;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #4a3f2e;
+    border: 2px solid var(--cream-wash);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; line-height: 1;
+  }
+  /* The ring that says this pin is the one with somebody on it. */
+  #world-stage .pin-place.has-call .pin-disc {
+    border-color: #4a3f2e;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.28), 0 0 0 3px rgba(74,63,46,0.28);
+  }
+  /* The card's own line for what is waiting. Its own grid row, between
+     the blurb and the buttons — the card is a named grid, so a child
+     left unplaced flows into an implicit cell and lands outside the
+     panel, under the buttons, which is where this first drew. */
+  #world-stage .dest-call {
+    grid-area: call;
+    justify-self: start;
+    font-family: 'Kalam', cursive;
+    font-weight: 700;
+    color: var(--ink);
+    background: #f3e7cf;
+    border-radius: 10px;
+    padding: 4px 10px;
+    margin-top: 6px;
   }
   #world-stage .pin-place:hover .pin-disc { transform: scale(1.08); }
   #world-stage .pin-name {
@@ -448,6 +504,7 @@
     grid-template-areas:
       'emoji title'
       'emoji blurb'
+      'call  call'
       'action action';
     column-gap: 12px;
     row-gap: 2px;
@@ -1286,6 +1343,10 @@
       if (typeof p.playerLevel === 'number') playerLevel = p.playerLevel;
       if (p.extent && typeof p.extent.half === 'number') extent = p.extent;
       if (typeof p.context === 'string') context = p.context;
+      // The calls waiting on the map, already filtered by the host to
+      // the ones that can still be answered — the page does not know
+      // the shelter's cap and should not learn it.
+      if (Array.isArray(p.calls)) CALLS = p.calls;
       placePins();
     }
   });
@@ -1312,6 +1373,25 @@
   let playerLevel = 0;
   let extent = { cx: 0.5, cy: 0.5, half: 0.5 };
   let context = 'default';
+  /**
+   * Collection calls: `{ destinationId, species, emoji, summary }`.
+   *
+   * Empty until `init`, and empty is the normal state — most of the
+   * time nobody has rung. A collection pin with no call in this list is
+   * a place with nobody waiting, and `openCard` offers it no drive, so
+   * this list is what stands between a child and a journey to an empty
+   * forecourt.
+   */
+  let CALLS = [];
+
+  function callFor(destinationId) {
+    return CALLS.find((c) => c && c.destinationId === destinationId);
+  }
+
+  /** Is this a place that rings up, rather than one you deliver to? */
+  function isCollection(dest) {
+    return dest && dest.arrival === 'collection';
+  }
 
   function clearChildren(node) {
     while (node.firstChild) node.removeChild(node.firstChild);
@@ -1428,6 +1508,42 @@
       ? dest.description + ' · ' + dest.distance + ' km away'
       : dest.description;
     card.appendChild(blurb);
+
+    // What is waiting, when something is. One line, species first,
+    // because the species is what the child is deciding about.
+    const call = callFor(dest.id);
+    if (call && !locked) {
+      const line = document.createElement('div');
+      line.className = 'dest-call';
+      line.textContent = (call.emoji ? call.emoji + '  ' : '')
+        + (call.summary || 'Somebody is waiting');
+      card.appendChild(line);
+    }
+
+    // **A collection pin with no call offers no drive.**
+    //
+    // Everywhere else on this map is a place that is simply there; a
+    // collection source is a place that has *rung*, and once the call
+    // has been answered there is nobody at the far end of that
+    // journey. "Drive here!" would then be a promise the forecourt
+    // cannot keep — the thing the old "coming soon!" toast was. So the
+    // card says how it stands and keeps the one honest control.
+    if (!locked && isCollection(dest) && !call) {
+      const row = document.createElement('div');
+      row.className = 'dest-action';
+      const quiet = document.createElement('div');
+      quiet.className = 'dest-call';
+      quiet.textContent = 'All quiet here just now.';
+      card.appendChild(quiet);
+      const close = document.createElement('button');
+      close.className = 'dest-btn';
+      close.textContent = 'Back to the map';
+      close.addEventListener('click', closeCard);
+      row.appendChild(close);
+      card.appendChild(row);
+      stage.appendChild(card);
+      return;
+    }
 
     if (locked) {
       const row = document.createElement('div');
@@ -1590,8 +1706,12 @@
         continue;
       }
 
+      const call = locked ? null : callFor(dest.id);
+
       const pin = document.createElement('div');
-      pin.className = 'pin pin-place' + (locked ? ' locked' : '');
+      pin.className = 'pin pin-place'
+        + (locked ? ' locked' : '')
+        + (call ? ' has-call' : '');
       pin.style.left = pos.x + 'px';
       pin.style.top = pos.y + 'px';
 
@@ -1599,6 +1719,15 @@
       disc.className = 'pin-disc';
       disc.textContent = dest.emoji || '📍';
       pin.appendChild(disc);
+
+      // The species riding the pin's shoulder — the trip's purpose,
+      // visible before she commits to the drive.
+      if (call) {
+        const badge = document.createElement('div');
+        badge.className = 'pin-call';
+        badge.textContent = call.emoji || '🐾';
+        disc.appendChild(badge);
+      }
 
       if (locked) {
         const lock = document.createElement('div');

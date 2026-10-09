@@ -57,6 +57,12 @@ export function driveTypeFor(destinationId: string): DriveType {
     case 'vet':       return 'vet';
     case 'rewilding': return 'rewilding';
     case 'supply':    return 'delivery';
+    // A collection goes out with an empty bed and comes home with
+    // somebody in it. It stays a gentle, collision-safe trip rather
+    // than joining the supply runs: `carriesAnimals` is what gates the
+    // crashes, and half of this journey has an animal aboard — the
+    // half a child would be driving when one happened.
+    case 'collection': return 'adoption';
     // The village hall and going home carry no cargo brief of their
     // own; they are still gentle trips with the animals aboard.
     default:          return 'adoption';

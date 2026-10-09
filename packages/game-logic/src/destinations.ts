@@ -28,7 +28,8 @@ export type DestinationKind =
   | 'training-sniffer'
   | 'training-parrot'
   | 'training-rewilding-prep'
-  | 'pet-show';             // village fête → national championship
+  | 'pet-show'              // village fête → national championship
+  | 'collection-call';      // somebody has rung: an animal needs fetching
 
 export type RewildingHabitat =
   | 'moorland'
@@ -50,7 +51,13 @@ export type ArrivalKind =
   | 'vet'        // the treatment popup, for the animal in the back
   | 'social'     // the village hall: friends, gifts, the leaderboard
   | 'supply'     // load up and run the supplies home
-  | 'rewilding'; // the release ceremony, in the habitat it belongs to
+  | 'rewilding'  // the release ceremony, in the habitat it belongs to
+  // ── The one inbound arrival. Every kind above it sends something
+  // ── out of the centre; this one brings somebody back. The animal is
+  // ── standing on the forecourt when the van parks, so the loading
+  // ── screen opens *here* rather than at home — see
+  // ── docs/collection-drives-2026-10-09.md.
+  | 'collection';
 
 export interface DestinationDef {
   id: string;
@@ -86,7 +93,15 @@ export interface DestinationDef {
   fy: number;
   /** What opens once the van has parked. */
   arrival: ArrivalKind;
-  /** For rewilding-habitat destinations, which species belong here */
+  /**
+   * Which species belong here.
+   *
+   * For a rewilding habitat, the ones that can be released into it. For
+   * a collection source, the ones that turn up there to be fetched — a
+   * grass snake on a gravestone is a churchyard animal and a stray collie
+   * is a farm one, and `issueCollectionCall` will not ring about an
+   * animal the place would never have.
+   */
   suitableSpecies?: string[];
 }
 
@@ -186,6 +201,65 @@ export const DESTINATIONS: DestinationDef[] = [
     fx: 0.72,
     fy: 0.55,
     arrival: 'supply',
+  },
+
+  // ── Collection calls ──
+  //
+  // The two places that ring up. Everywhere else on this list is
+  // somewhere the centre *sends* an animal; these are where one is
+  // waiting to be fetched, which is the half of the care loop the map
+  // has been missing (docs/ptv-pet-transport-vehicle.md §"Collection
+  // drives"). A collection pin only offers a drive while there is a
+  // call pending on it — see `collection-calls.ts` — so the journey
+  // always has somebody at the end of it.
+  //
+  // Both are close to home and open early, because the first
+  // collection is the one that teaches the mechanic: a short run out,
+  // an animal on the forecourt, her crate chosen where she is standing,
+  // and home. The farmer's call is the onboarding one per Marcus's
+  // note; the vicar's follows a few levels later.
+  {
+    id: 'goose-end-farm',
+    label: 'Goose End Farm',
+    emoji: '🚜',
+    kind: 'collection-call',
+    description: 'The farmer rings when a stray turns up in his fields.',
+    distance: 7,
+    unlockLevel: 2,
+    // The field belt south-west of the village, on the lane out to the
+    // Bay Road — Marcus's note puts the old Gore End plot out west so
+    // every supply run passes it.
+    //
+    // **Placed against the drawn map, not converted from a latitude.**
+    // The true position is out on the west coast strip, which already
+    // carries Cove Harbour and Moorland: a third marker between them
+    // buried all three labels at both shipping viewports. Nudged east
+    // and south until every name could be read, which is the same call
+    // the rest of this table was placed by. Marcus's to move.
+    fx: 0.3,
+    fy: 0.72,
+    arrival: 'collection',
+    // Farm strays: the animals that turn up in a field or a barn.
+    suitableSpecies: ['dog', 'cat', 'bunny', 'hedgehog'],
+  },
+  {
+    id: 'bay-chapel',
+    label: 'Bay Chapel',
+    emoji: '⛪',
+    kind: 'collection-call',
+    description: 'The vicar rings when somebody small moves into the churchyard.',
+    distance: 4,
+    unlockLevel: 5,
+    // The old village church, in the streets between A.R.C. and the
+    // station. Nudged west off its first spot, which printed "Bay
+    // Chapel" across "Bay Road Vets".
+    fx: 0.3,
+    fy: 0.36,
+    arrival: 'collection',
+    // The churchyard cast from Marcus's note: the cat in the bell-tower
+    // stairwell, the parrot in the rafters, the grass snake on a
+    // gravestone, the bat in the porch.
+    suitableSpecies: ['cat', 'parrot', 'snake', 'bat', 'hedgehog'],
   },
 
   // ── Rewilding habitats ──

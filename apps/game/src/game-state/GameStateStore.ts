@@ -9,7 +9,7 @@ import type {
   TimeProgress,
   GardenWeather,
 } from '@arc/shared-types';
-import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward, CharmId, CharmUnlockEvent } from '@arc/game-logic';
+import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward, CharmId, CharmUnlockEvent, CollectionCall } from '@arc/game-logic';
 
 /**
  * GameStateStore — a plain container holding all mutable game state.
@@ -178,6 +178,17 @@ export class GameStateStore {
    * tap or when the player navigates out of the garden view.
    */
   gardenReturns: GardenReturnEntry[] = [];
+
+  /**
+   * Places that have rung to say an animal needs collecting.
+   *
+   * One per place at most, and each one lives on the save until the PTV
+   * brings her home — so a call survives a closed lid, and a child who
+   * puts the iPad down halfway through deciding still has the trip
+   * waiting for her. `admitCollection` is what takes one off the list.
+   * Default `[]` keeps older saves crash-free.
+   */
+  collectionCalls: CollectionCall[] = [];
 
   /**
    * Epoch-ms of the last charity-grant roll. Gates the monthly

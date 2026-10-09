@@ -909,8 +909,15 @@ export interface CrateLoadingCallbacks {
    * them — keeps its own record of the vehicle, and redraws. `direction`
    * is which arrow it was, for anything that wants to know; the loading
    * screen's own wiring does not.
+   *
+   * **Omit it and the arrows are not drawn** — `drawCarPark` takes the
+   * same option on the same terms. A load at the A.R.C. depot always
+   * passes it, because the fleet is standing in the next bays along and
+   * changing your mind about the van is the thing the arrows are for. A
+   * collection load does not: it happens on a farmyard three miles from
+   * the depot, where the only vehicle is the one she drove.
    */
-  onVehicleChange: (to: VehicleType, direction: VehicleDirection) => void;
+  onVehicleChange?: (to: VehicleType, direction: VehicleDirection) => void;
   /**
    * Show another page of the animals waiting to board.
    *

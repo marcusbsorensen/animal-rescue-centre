@@ -9,8 +9,8 @@ import {
 } from '../destinations';
 
 describe('destinations catalogue', () => {
-  it('contains the expected 11 destinations (A.R.C. + 10 outward)', () => {
-    expect(DESTINATIONS).toHaveLength(11);
+  it('contains the expected 13 destinations (A.R.C., 10 outward, 2 inbound)', () => {
+    expect(DESTINATIONS).toHaveLength(13);
     const ids = DESTINATIONS.map((d) => d.id);
     expect(ids).toContain('arc');
     expect(ids).toContain('vet');
@@ -23,6 +23,10 @@ describe('destinations catalogue', () => {
     expect(ids).toContain('sea-cliffs');
     expect(ids).toContain('deep-forest');
     expect(ids).toContain('wetlands');
+    // The two inbound pins — places that ring up rather than places
+    // the centre sends an animal to. See collection-calls.test.ts.
+    expect(ids).toContain('goose-end-farm');
+    expect(ids).toContain('bay-chapel');
   });
 
   it('every destination sits on the map, as a [0, 1] fraction of the image', () => {

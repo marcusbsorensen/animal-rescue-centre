@@ -81,6 +81,7 @@ export {
   syncNextId,
   SPECIES_COLOURS,
   SPECIES_VARIANTS,
+  SPECIES_EMOJI,
 } from './animals';
 export {
   tickNeeds,
@@ -303,6 +304,23 @@ export type {
   ArrivalKind,
   RewildingHabitat,
 } from './destinations';
+export {
+  collectionDestinations,
+  unlockedCollectionDestinations,
+  collectionRoom,
+  hasRoomToCollect,
+  pendingCall,
+  offerableCalls,
+  issueCollectionCall,
+  dropCall,
+  admitCollection,
+  callSummary,
+} from './collection-calls';
+export type {
+  CollectionCall,
+  CollectionSlice,
+  IssueCallOptions,
+} from './collection-calls';
 export {
   calculateAdoptionFee,
   checkCharityGrants,

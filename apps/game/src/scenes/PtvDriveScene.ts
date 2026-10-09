@@ -5,7 +5,7 @@ import {
 } from '../ui/constants';
 import { createChromeButton, createChromeTitle, createChromePlate } from '../ui/UIButton';
 import { useRetinaText } from '../ui/retina-text';
-import { registerSickAnimals } from '../ui/sprites';
+import { createAnimalSprite, registerSickAnimals } from '../ui/sprites';
 import { AudioManager, type HornProfile } from '../audio/AudioManager';
 import type { Animal, Economy, Species } from '@arc/shared-types';
 import {
@@ -250,6 +250,22 @@ export interface PtvDriveInit {
    * sprite layer needs it to draw a sick face; both read this.
    */
   poorlyAnimalIds?: string[];
+  /**
+   * The animal waiting at the far end, on a collection drive.
+   *
+   * **The mirror image of `cargo`.** `cargo` is who may ride out, and
+   * opens the loading screen at the A.R.C. car park before the journey.
+   * `collect` is who rides *back*, and opens it on the destination's own
+   * forecourt after the journey — because that is where she is standing,
+   * and choosing a crate for an animal three miles away is a choice
+   * about nothing. A drive given both would load twice; the game gives
+   * a collection `cargo: []` and this.
+   *
+   * The record is the caller's, and it travels home in `returnData` —
+   * the drive never writes to it and never puts her anywhere. All it
+   * does is let the child pick her crate.
+   */
+  collect?: Animal;
 }
 
 /** Species names a dev `?cargo=` list may use, for the demo boot. */
@@ -306,6 +322,12 @@ export class PtvDriveScene extends Phaser.Scene {
   private preloadIds: string[] = [];
   /** Which of them are unwell. */
   private poorlyIds = new Set<string>();
+  /**
+   * The animal to be collected at the far end, on a collection drive.
+   * Undefined on every outbound trip, which is what keeps those ending
+   * at "Go inside" rather than at a loading screen.
+   */
+  private collect?: Animal;
   /**
    * The loading screen's whole state, built when the vehicle is picked
    * (the grid's size is the vehicle's). Undefined until then, and on a
@@ -557,6 +579,7 @@ export class PtvDriveScene extends Phaser.Scene {
     this.cargo = this.readCargo(data);
     this.preloadIds = data?.preloadAnimalIds ?? [];
     this.poorlyIds = this.readPoorly(data);
+    this.collect = data?.collect;
     this.loadSession = undefined;
     this.loadNotice = null;
     this.waitingPage = 0;
@@ -1267,7 +1290,14 @@ export class PtvDriveScene extends Phaser.Scene {
     renderCrateLoading(this, this.container, {
       session,
       vehicle: VEHICLE_DEFS[this.vehicleId],
-      destinationName: this.destinationLabel(),
+      // **Where this load is going, not where the drive went.** On a
+      // collection the loading screen stands on the pickup's forecourt
+      // and the journey ahead of it is the one home, so the subtitle
+      // that reads "off to Bay Chapel" everywhere else has to read
+      // "off to A.R.C." here or it names the place the van is parked in.
+      destinationName: this.collect
+        ? getDestination('arc')?.label ?? 'A.R.C.'
+        : this.destinationLabel(),
       animalsById: new Map(this.cargo.map((a) => [a.id, a])),
       playerLevel: this.playerLevel,
       waitingPage: this.waitingPage,
@@ -1279,7 +1309,11 @@ export class PtvDriveScene extends Phaser.Scene {
       onPlaceInSlot: (slotIndex) => this.placeIntoBay(session, slotIndex),
       onNeedCrate: () => this.askForCrate(session),
       onPutBack: () => this.afterLoadTap(putHeldBack(session)),
-      onVehicleChange: (to) => this.changeBay(to),
+      // **No arrows on a collection.** They swap the vehicle being
+      // loaded, which only means anything in the depot with the rest of
+      // the fleet parked either side. On a farmyard at the far end of a
+      // drive there is one vehicle, and it is the one she came in.
+      onVehicleChange: this.collect ? undefined : (to) => this.changeBay(to),
       onWaitingPage: (page) => {
         AudioManager.getInstance().playSfx('button_click');
         this.waitingPage = page;
@@ -1291,9 +1325,20 @@ export class PtvDriveScene extends Phaser.Scene {
         // load belongs to the vehicle, so changing your mind about the
         // van is the thing Back is for here. Nothing is lost that was
         // not about to be rebuilt anyway.
+        //
+        // **Except on a collection**, where the picker is at the other
+        // end of a drive she has already made and there is no changing
+        // vans. Back steps out to the forecourt she is parked on, where
+        // "Lift her in" is waiting — a loop with a way round it rather
+        // than a screen she cannot leave.
         this.loadSession = undefined;
         this.loadNotice = null;
-        this.phase = 'select';
+        if (this.collect) {
+          this.cargo = [];
+          this.phase = 'arrival';
+        } else {
+          this.phase = 'select';
+        }
         this.renderView();
       },
     });
@@ -1500,12 +1545,19 @@ export class PtvDriveScene extends Phaser.Scene {
       // mistake once already and these two sentences were the last of
       // it. The second one also names the three stages now, because
       // that is what a child has to do.
+      //
+      // On a collection the empty bed means something more specific —
+      // the animal is standing on the gravel beside the vehicle — so it
+      // is said that way, and it names her.
       const name = VEHICLE_DEFS[this.vehicleId].name;
+      const waiting = this.collect;
       this.loadNotice = {
         level: null,
         text: heldAnimal(session)
           ? `Put them down in ${name} first.`
-          : `Nobody is in ${name} yet. Pick an animal, then a crate, then a space.`,
+          : waiting
+            ? `${waiting.name} is still outside. Pick her up, then a crate, then a space in ${name}.`
+            : `Nobody is in ${name} yet. Pick an animal, then a crate, then a space.`,
       };
       this.renderView();
       return;
@@ -1514,6 +1566,15 @@ export class PtvDriveScene extends Phaser.Scene {
     this.loadSession = session;
     this.loadNotice = null;
     this.drive.crateGrid = session.grid;
+
+    // **On a collection, "Let's go!" is the journey home.** The drive
+    // out has already happened, so there is no forecourt to depart from
+    // and no road to re-run: the grid she chose rides back in
+    // `finishArrival`, where `applyArrivalComfort` scores it exactly as
+    // it scores an outbound load. This is the one `setOffFromLoading`
+    // that ends the scene instead of starting the next phase of it.
+    if (this.collect) { this.finishArrival(); return; }
+
     this.phase = 'parking';
     this.renderView();
   }
@@ -1871,7 +1932,10 @@ export class PtvDriveScene extends Phaser.Scene {
     // parking bays across a moor says "retail park", so the wild
     // destinations get a plain pull-in on the verge instead: same
     // geometry, same place for the van, no tarmac.
-    const wild = dest?.arrival === 'rewilding';
+    //
+    // A collection source is the same kind of ground: a farmyard and a
+    // churchyard are gravel and grass, not a marked car park.
+    const wild = dest?.arrival === 'rewilding' || dest?.arrival === 'collection';
     const bayCount = 4;
     const bayAreaW = Math.min(width * 0.62, 520);
     const bayLeft = (width - bayAreaW) / 2;
@@ -1923,10 +1987,42 @@ export class PtvDriveScene extends Phaser.Scene {
     this.container.add(van);
     this.vanGfx = van;
 
+    // **On a collection, she is standing there.**
+    //
+    // The trip's whole purpose is an animal at the far end, and a
+    // forecourt that showed a building and a van said nothing about
+    // her — the child would meet her for the first time on the loading
+    // screen, after the beat that was supposed to introduce her. So she
+    // waits in the pull-in beside the van, one bay along so the two
+    // never overlap.
+    //
+    // `'fill'` because she is alone on this screen: nothing beside her
+    // for her size to be read against, so the box she is given is the
+    // box she should fill (see `AnimalDrawScale`).
+    if (this.collect) {
+      // Sized to the pull-in rather than to a number of her own, so she
+      // stands *in* it instead of over it. The first pass gave her
+      // `bayH * 1.2` and she overhung the ground she was standing on at
+      // both viewports, which reads as a collie the size of the van.
+      const h = Math.min(76, bayH);
+      const feetY = bayTop + bayH - 4;
+      const waiting = createAnimalSprite(
+        this, bayLeft + bayW * 0.5, feetY - h / 2, this.collect,
+        { width: h, height: h, scale: 'fill' },
+      );
+      waiting.setDepth(22);
+      this.container.add(waiting);
+    }
+
     // A message in the middle of the scene is translucent —
     // `CHROME.fillAlphaOverArt`, the same rule the room messages
     // follow, and 0.84 is a contrast limit rather than a taste.
-    const title = this.add.text(width / 2, msgCy, `We've arrived at ${name}!`, {
+    // The message names her on a collection, because meeting her is
+    // what arriving here *is* — the place's own name is on its sign.
+    const arrivalLine = this.collect
+      ? `We've found ${this.collect.name} at ${name}!`
+      : `We've arrived at ${name}!`;
+    const title = this.add.text(width / 2, msgCy, arrivalLine, {
       fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: CHROME.ink,
       backgroundColor: `rgba(255,249,239,${CHROME.fillAlphaOverArt})`, padding: { x: 12, y: 4 },
       resolution: TEXT_RESOLUTION,
@@ -1974,10 +2070,52 @@ export class PtvDriveScene extends Phaser.Scene {
    * words three times on one screen.
    */
   private showArrivalPrompt(width: number, roadY: number): void {
-    const go = createChromeButton(this, width / 2, roadY - 34, 'Go inside', () => this.finishArrival(), {
-      width: 190, variant: 'filled',
-    }).setDepth(50);
+    // On a collection the far end is not a door to walk through — it is
+    // an animal standing on the gravel. So the one control says what is
+    // actually about to happen, and it names her, because her name is
+    // the thing the child has just learned.
+    const collecting = this.collect;
+    const label = collecting ? `Lift ${collecting.name} in` : 'Go inside';
+    const go = createChromeButton(
+      this, width / 2, roadY - 34, label,
+      () => (collecting ? this.beginCollectionLoad(collecting) : this.finishArrival()),
+      { width: collecting ? 240 : 190, variant: 'filled' },
+    ).setDepth(50);
     this.container.add(go);
+  }
+
+  /**
+   * Open the loading screen on the collection forecourt.
+   *
+   * **The crate choice happens where the animal is.** Every other drive
+   * loads at home before setting off, because that is where its animals
+   * are; a collection has nobody in the back on the way out and
+   * somebody waiting on the way home, so the same screen belongs at the
+   * other end of the journey. The child meets her, picks the crate that
+   * suits her, puts her in a space, and "Let's go!" is the trip home.
+   *
+   * The collected animal becomes this drive's `cargo`, which is what
+   * makes the whole screen work unchanged: `loadableCargo`, the sprite
+   * lookup in `renderLoading`, and the vehicle arrows all read `cargo`,
+   * and none of them needs to know why she is in it.
+   *
+   * **Nobody is preloaded.** A vet run seats its passenger before the
+   * child arrives, because that trip's reason is already decided. Here
+   * the choice *is* the point — an animal dropped into a crate for her
+   * would be a control with no consequence — so she starts in the tray
+   * and `setOffFromLoading`'s empty-bed refusal becomes the honest
+   * sentence it always wanted to be: she is still on the ground, lift
+   * her in.
+   */
+  private beginCollectionLoad(collected: Animal): void {
+    AudioManager.getInstance().playSfx('button_click');
+    this.cargo = [collected];
+    this.preloadIds = [];
+    this.loadSession = createLoadingSession(this.vehicleId, this.loadableCargo(), []);
+    this.loadNotice = null;
+    this.waitingPage = 0;
+    this.phase = 'loading';
+    this.renderView();
   }
 
   /**

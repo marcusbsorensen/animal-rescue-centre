@@ -62,8 +62,17 @@ import {
   equipCharm,
   unequipCharm,
   calculateArrivalHappinessDelta,
+  SPECIES_EMOJI,
+  SPECIES_VARIANTS,
+  admitCollection,
+  callSummary,
+  hasRoomToCollect,
+  issueCollectionCall,
+  offerableCalls,
+  pendingCall,
+  unlockedCollectionDestinations,
 } from '@arc/game-logic';
-import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId, CrateGrid } from '@arc/game-logic';
+import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId, CrateGrid, MapDestinationDef } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
 import { driveTypeFor } from '../driving/drive-state';
 import { getSession } from '../lib/auth';
@@ -105,6 +114,18 @@ type ViewMode = 'corridor' | 'room' | 'kitchen' | 'garden';
  * if the dialogue misbehaves in front of a child.
  */
 const ADOPTION_DIALOGUE_ENABLED = true;
+
+/**
+ * How often an arrival comes in as a collection call rather than as a
+ * knock at the gate, once the PTV is in service.
+ *
+ * Marcus's phase-gate note: "From unlock moment, mix ~50% gate-arrivals
+ * / ~50% collection-calls, then gradually favour collection as the
+ * player levels up." This is the first half of that — a flat share, so
+ * the mechanic cannot arrive as a cliff. The level-weighted curve is a
+ * later change to one number.
+ */
+const COLLECTION_CALL_SHARE = 0.5;
 
 export class GameScene extends Phaser.Scene {
   private _lastWidth = 0;
@@ -206,17 +227,30 @@ export class GameScene extends Phaser.Scene {
    * `crateGrid` is who was in the back and where they sat, when the
    * drive had a loading step. Absent on the single-passenger runs,
    * which is what keeps those landing exactly as they always have.
+   *
+   * `collected` is the animal a collection drive went out for and came
+   * back with. She is spawned in `driveToCollect` and travels in the
+   * drive's `returnData`, so she exists for the length of the journey
+   * and joins the shelter only when the van is home — which is also
+   * why she is a whole record rather than an id: until this moment
+   * there is nothing in `store.animals` to look her up in.
    */
   private arrived: {
     destinationId: string;
     animalId?: string;
     crateGrid?: CrateGrid;
+    collected?: Animal;
   } | null = null;
 
   init(data?: {
     preSelectedSpecies?: Species;
     preSelectedVariant?: string;
-    arrived?: { destinationId: string; animalId?: string; crateGrid?: CrateGrid };
+    arrived?: {
+      destinationId: string;
+      animalId?: string;
+      crateGrid?: CrateGrid;
+      collected?: Animal;
+    };
   }): void {
     this.preSelectedSpecies = data?.preSelectedSpecies ?? null;
     this.preSelectedVariant = data?.preSelectedVariant;
@@ -412,8 +446,37 @@ export class GameScene extends Phaser.Scene {
     const dest = getDestination(arrival.destinationId);
     if (!dest) return;
 
+    // **An inbound arrival admits its passenger first.**
+    //
+    // `applyArrivalComfort` resolves the grid's animals out of
+    // `store.animals` by id, and `rewardSafeDrive` does the same — so a
+    // collected animal who joined the shelter after them would have
+    // ridden home in a crate nobody scored and arrived without the safe
+    // journey's +1. She goes in before either of them runs.
+    //
+    // The cap is deliberately not asked again here. It was asked when
+    // the call was issued and again when the map offered the pin; an
+    // animal already in a crate at the far end of a finished drive is
+    // not somebody a ceiling may turn away.
+    if (dest.arrival === 'collection' && arrival.collected) {
+      const admitted = admitCollection(
+        {
+          animals: this.store.animals,
+          collectionCalls: this.store.collectionCalls,
+        },
+        arrival.collected,
+        dest.id,
+      );
+      this.store.animals = admitted.animals;
+      this.store.collectionCalls = admitted.collectionCalls;
+      this.saveState();
+    }
+
     this.applyArrivalComfort(arrival.crateGrid);
-    this.rewardSafeDrive(arrival.animalId, dest.arrival === 'vet');
+    this.rewardSafeDrive(
+      arrival.animalId ?? arrival.collected?.id,
+      dest.arrival === 'vet',
+    );
 
     switch (dest.arrival) {
       case 'vet': {
@@ -449,6 +512,24 @@ export class GameScene extends Phaser.Scene {
           : undefined;
         if (animal) { this.openRewildingOverlay(animal); return; }
         showToast(this, `${dest.emoji} You have arrived at ${dest.label}.`);
+        return;
+      }
+      case 'collection': {
+        // She is in the shelter by now, admitted above. Resolved by id
+        // out of the store rather than used as handed over, because the
+        // record the drive carried is a copy and the hallway's is the
+        // one the game renders from.
+        const animal = arrival.collected
+          ? this.store.animals.find((a) => a.id === arrival.collected?.id)
+          : undefined;
+        if (animal) {
+          // The corridor is where an arriving animal is drawn, so the
+          // view pass comes before the plaque opens over it.
+          this.renderView();
+          this.openArrivalOverlay(animal);
+          return;
+        }
+        showToast(this, `${dest.emoji} Home again from ${dest.label}.`);
         return;
       }
       case 'home':
@@ -582,6 +663,14 @@ export class GameScene extends Phaser.Scene {
   // ── Animal Spawning ─────────────────────────────────────────
 
   private spawnNewAnimal(): void {
+    // **Phase 2 of the arrival rhythm.** Once the PTV is in service,
+    // some of what used to simply appear in the welcoming hallway
+    // arrives as a telephone call instead: somewhere rings, a pin
+    // appears on the map, and the child drives out to fetch her. The
+    // gate keeps working — locals will always bring strays in — so this
+    // is a share of the arrivals, not a replacement for them.
+    if (this.maybeRingInstead()) return;
+
     // Level-based population cap — don't overcrowd the centre
     const sheltered = this.store.animals.filter((a) => a.state === 'sheltered' || a.state === 'bonding').length;
     const maxShelter = getMaxShelterAnimals(this.store.level);
@@ -642,6 +731,53 @@ export class GameScene extends Phaser.Scene {
     // overlay over the running scene — the player picks a welcome gesture
     // which nudges bond (and for the treat, hunger too).
     this.openArrivalOverlay(firstNew);
+  }
+
+  /**
+   * Somebody rings instead of somebody knocking — maybe.
+   *
+   * Returns true when a call was issued and the gate arrival should be
+   * skipped, which is the whole of its contract with `spawnNewAnimal`.
+   *
+   * Three gates, in the order they are cheapest to ask:
+   *
+   * 1. **The PTV has to be in service.** `hasCompletedFirstDrive` is the
+   *    same flag the driving tutorial uses, so the first hour of play
+   *    keeps the gentle "they're just here" rhythm and the mechanic
+   *    arrives when the child already knows how to drive.
+   * 2. **Somewhere has to be open** to ring from.
+   * 3. **A coin flip**, so the two kinds of arrival mix rather than one
+   *    replacing the other — Marcus's phase-gate note asks for roughly
+   *    half and half at the unlock.
+   *
+   * `issueCollectionCall` can still answer no after all three — a full
+   * centre, or every open place already waiting — and a no means the
+   * gate arrival goes ahead as usual. Nothing is lost either way.
+   */
+  private maybeRingInstead(): boolean {
+    if (!this.store.hasCompletedFirstDrive) return false;
+    if (unlockedCollectionDestinations(this.store.level).length === 0) return false;
+    if (Math.random() >= COLLECTION_CALL_SHARE) return false;
+
+    const call = issueCollectionCall({
+      playerLevel: this.store.level,
+      animals: this.store.animals,
+      calls: this.store.collectionCalls,
+      unlockedSpecies: this.store.unlockedSpecies,
+      variantsFor: (species) => SPECIES_VARIANTS[species],
+    });
+    if (!call) return false;
+
+    this.store.collectionCalls = [...this.store.collectionCalls, call];
+    this.saveState();
+
+    const dest = getDestination(call.destinationId);
+    showToast(this, `📞 ${dest?.label ?? 'A neighbour'} rang — ${callSummary(call).toLowerCase()}.`);
+    // The map is reached from the chrome, so the chrome is what needs
+    // redrawing; the corridor has nothing new to show yet.
+    this.renderRail();
+    this.renderHUD();
+    return true;
   }
 
   /**
@@ -1617,6 +1753,23 @@ export class GameScene extends Phaser.Scene {
       playerLevel: this.store.level,
       destinations: DESTINATIONS,
       extent: mapExtentFor(this.store.level),
+      // **Only the calls that can still be answered.** A collection pin
+      // with no call is a place with nobody waiting, and the map draws
+      // it without a "Drive here!" — so this list is also the gate that
+      // stops a child setting off for an empty forecourt or for a bed
+      // the centre has since filled.
+      calls: offerableCalls(
+        this.store.collectionCalls,
+        this.store.level,
+        this.store.animals,
+      ).map((c) => ({
+        destinationId: c.destinationId,
+        species: c.species,
+        // The glyph the pin wears, which is the part a pre-reader can
+        // actually read, and the one line the card adds under it.
+        emoji: SPECIES_EMOJI[c.species],
+        summary: callSummary(c),
+      })),
     });
     this.events.once('shutdown', unmountInGame);
   }
@@ -1650,6 +1803,11 @@ export class GameScene extends Phaser.Scene {
    * trimmed off.
    */
   private driveTo(destinationId: string, animalId?: string): void {
+    // A collection goes out empty, so it does not build a cargo tray at
+    // all — see `driveToCollect`.
+    const dest = getDestination(destinationId);
+    if (dest?.arrival === 'collection') { this.driveToCollect(dest); return; }
+
     this.saveState();
     const passenger = animalId
       ? this.store.animals.filter((a) => a.id === animalId)
@@ -1671,6 +1829,65 @@ export class GameScene extends Phaser.Scene {
       // sprite layer was pointed at in `create`, so the rules and the
       // faces cannot disagree about who is poorly.
       poorlyAnimalIds: cargo.filter((a) => this.store.sickAnimals.has(a.id)).map((a) => a.id),
+    });
+  }
+
+  /**
+   * Drive out to fetch somebody.
+   *
+   * **The one drive that leaves with an empty bed**, and everything
+   * here follows from that:
+   *
+   * - **`cargo: []`.** The shelter's animals are staying at home, and
+   *   offering them would be a loading screen asking a child to put the
+   *   cat she already has into a van going the other way. `cargo`'s
+   *   presence is what turns the loading screen on (`PtvDriveInit`), so
+   *   an empty list is also what keeps it shut on the way out — which
+   *   matters, because `setOffFromLoading` refuses to depart with
+   *   nobody aboard and would have stranded the trip at the picker.
+   * - **`collect`.** The animal waiting at the far end. The loading
+   *   screen opens *there*, on the forecourt she is standing on, and
+   *   the crate the child picks is the crate she rides home in. See
+   *   docs/collection-drives-2026-10-09.md.
+   * - **She is spawned here**, not when the call came in, so no id
+   *   reaches the save for an animal who has not been collected yet.
+   *   She travels in `returnData`, which the drive echoes back
+   *   untouched, and joins the shelter in `handleArrival`.
+   *
+   * Two calm refusals before any of that. A pin whose call has gone
+   * (two taps on the same card, or the call was answered on another
+   * device) and a centre that filled up while the map was open both
+   * say so and stay put, because the alternative is a drive that
+   * arrives at an empty forecourt.
+   */
+  private driveToCollect(dest: MapDestinationDef): void {
+    const call = pendingCall(this.store.collectionCalls, dest.id);
+    if (!call) {
+      showToast(this, `${dest.emoji} All quiet at ${dest.label} just now.`);
+      return;
+    }
+    if (!hasRoomToCollect(this.store.level, this.store.animals)) {
+      showToast(this, '🏡 Welcome the animals waiting in the hallway, then there is room for one more.');
+      return;
+    }
+
+    const collected = spawnAnimal(call.species, {
+      variant: call.variant,
+      existingNames: this.store.animals.map((a) => a.name),
+    });
+    this.saveState();
+
+    this.scene.start('PtvDriveScene', {
+      destinationId: dest.id,
+      driveType: driveTypeFor(dest.id),
+      level: this.store.level,
+      economy: this.store.economy,
+      weather: this.store.gardenWeather?.current,
+      returnTo: 'GameScene',
+      returnData: { collected },
+      cargo: [],
+      collect: collected,
+      poorlyAnimalIds: [],
     });
   }
 
