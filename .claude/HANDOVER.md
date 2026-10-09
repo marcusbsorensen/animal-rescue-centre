@@ -354,23 +354,36 @@ drive carries one animal; `PtvDriveScene.ts:204` says it "does not look
 inside". So the work was never design, it was wiring.
 
 Capacity was already decided, at `crate-stacking.ts:145`:
-Trikey 2 (1x2) L0 - Henry 4 (2x2) L2 - Bea 6 (3x2) L5 -
-Big Tilly 9 (3x3) L10 - Spark 6 (3x2) L12.
+Trikey 2 (1x2) L0 - Henry 4 (2x2) L2 - Bea 6 (2x3) L5 -
+Big Tilly 8 (2x4) L10 - Spark 6 (2x3) L12.
+CORRECTED 2026-10-09: this block used to read Tilly 9 (3x3), Bea 3x2 and
+Spark 3x2. Marcus turned Bea and Spark to 2x3 and set Tilly to 2x4 so her
+load fills the bed without overflowing it. Nothing in the fleet is more than
+two crates wide. `crate-stacking.ts` is authoritative; this file was stale.
 Spark's distinction is fuel cost 5 against Bea's 10, not capacity, which is
 why two vehicles share 6 slots at different unlock levels.
 
 **This is what held the vehicle livery pass.** Big Tilly's open bed has to
-read as a 3x3 of nine crates, so its plan proportions had to go into the brief
+read as a 2x4 of eight crates, so its plan proportions had to go into the brief
 before it was sent. The other four are closed-roof vans whose crates are never
 visible from above, so their liveries were unaffected. `VEHICLE_SIZE` has
-Tilly at 1.3x Henry while carrying 2.25x his load; 3x3 against 2x2 wants about
-1.5x in each dimension. Trike 0.55 for a 1x2 against Henry's 1.0 for a 2x2 is
+Tilly at 1.3x Henry while carrying 2x his load; 2x4 against 2x2 is the same two
+columns with twice the rows, so all of her extra capacity is LENGTH and none of
+it is width. Trike 0.55 for a 1x2 against Henry's 1.0 for a 2x2 is
 consistent, and Spark 1.18 against Bea 1.12 is a 5 percent difference, not a
 contradiction - I overstated that at first.
 
-**No crate art exists.** Not one sprite for any of the six types. The six are
-standard, secure, quiet, ventilated-basket, warm-vivarium, perch-carrier.
-`CrateDef` carries an `emoji` field, which is the placeholder until art lands.
+**Crate art landed 2026-10-09.** Six sprites at 256px, distinguishable at 72px,
+at `apps/game/public/assets/driving/crates/crate-*.png`. The six are standard,
+secure, quiet, ventilated-basket, warm-vivarium, perch-carrier. `CrateDef`
+still carries an `emoji` field, now redundant for these six.
+
+**An art pass on the six is approved but not yet commissioned (2026-10-09).**
+The child now chooses the crate BEFORE the animal goes in, so a crate has to
+read as a crate, and as its own type, while empty - at shelf size it currently
+reads as a picture frame. The pass adds visible fittings: straw, bedding, a
+water bottle, slatted sides. CONSTRAINT: the middle stays clear, because the
+animal is still composited into it at run time. Fittings go round the rim.
 
 Decided for the art, and both follow from the code rather than taste:
 - **Crates are drawn EMPTY.** The animal is composited on top at run time.
@@ -442,7 +455,7 @@ slightly for the same vehicle.
 
 **`VEHICLE_SIZE` conflates width and length.** It is applied to WIDTH
 (`img.setScale(vanW * VEHICLE_SIZE[id] / img.width)`), but Big Tilly's 1.5 was
-derived from her 3x3 grid against Henry's 2x2, which is a LENGTH argument. Her
+derived from her grid against Henry's, which is a LENGTH argument. Her
 true width ratio is 1.31. True width ratios against Henry: trike 0.43, Henry
 1.00, Bea 1.03, Spark 1.14, Big Tilly 1.31. Once the sprites carry correct
 aspects, setting width correctly gives correct length for free.
