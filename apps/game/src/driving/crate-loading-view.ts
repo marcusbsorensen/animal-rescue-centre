@@ -13,12 +13,17 @@
  * are laid on the painting; `fleet-art.ts` says where each vehicle's bed
  * is and how big to draw the vehicle so the bays stay tappable.
  *
- * **It is also a place.** The vehicle stands in a painted bay on the
- * A.R.C. tarmac, with the rest of the fleet either side of her and the
- * car park's far kerb behind — the picker's forecourt with the camera
- * moved in, because this is that car park one moment later. Neither
- * the exit road nor the rescue centre itself is in the frame, and
- * `car-park.ts` says why each is out.
+ * **It is also a place.** The vehicle stands whole in a painted bay on
+ * the A.R.C. tarmac, zoomed in on that one bay with an arrow either
+ * side to move to the next — because this is the picker's car park one
+ * moment later, with the camera moved in. Her neighbours, the far
+ * kerb, the exit road and the rescue centre itself are all out of the
+ * frame, and `car-park.ts` says which arithmetic took each of them out.
+ *
+ * **Nothing on it is shown cropped**, which is `docs/manus-sprite-rules.md`
+ * Rule 8 and the reason the screen has two shapes: where the height
+ * cannot hold a vehicle whole above the waiting animals, the animals
+ * move to the side of her instead. See `loadingColumns`.
  *
  * **The big panel on the right is the teaching surface, and the screen
  * says so in colour.** It is not a status line, it is the point: it
@@ -47,6 +52,7 @@ import {
   CRATE_DEFS,
   FEELING,
   SHELF_CRATES,
+  VEHICLE_DEFS,
   animalById,
   crateDefFor,
   describeCrateChoice,
@@ -80,11 +86,12 @@ import {
   TEXT_RESOLUTION, TITLE_CY, TYPE, bottomAnchorY, contentTopFor, hexNum,
 } from '../ui/constants';
 import { fitChipGrid } from '../ui/layout';
-import { carParkBackdropH, drawCarPark } from './car-park';
+import { ARROW_GAP, ARROW_W, carParkBackdropH, drawCarPark } from './car-park';
 import { drawVehicleShadow } from './forecourt';
 import {
   BAY_GAP, BAY_MAX_H, BAY_MAX_W, BED_PAD, VEHICLE_BED, VEHICLE_BED_SOURCE,
-  VEHICLE_SPRITE, VEHICLE_VISIBLE_FRAC, bedProbePoints, fitLoadBed, type BedFit,
+  VEHICLE_SPRITE, VEHICLE_VISIBLE_FRAC, bedProbePoints, fitLoadBed, minScaleForBays,
+  wholeVehicleHeight, type BedFit,
 } from './fleet-art';
 
 /**
@@ -611,6 +618,31 @@ const PANEL_FACES_MIN = 62;
  * height.
  */
 const PANEL_FACES_MAX = 168;
+
+/**
+ * The whole panel, as its longest copy wants it: a band of faces, then
+ * the heading and four lines.
+ */
+const PANEL_WANTED_H = CHROME.padY * 2 + PANEL_FACES_MAX + SPACE.s + PANEL_TEXT_H;
+
+/**
+ * The least paper that copy can be set on, measured rather than
+ * guessed.
+ *
+ * `drawPanel` closes the leading and the padding up on a plate shorter
+ * than `CHROME.padY * 2 + PANEL_TEXT_H` — the landscape phone, where
+ * there is nothing to take the height from. The type size does not
+ * move; that is the one thing on this screen that is not negotiable.
+ *
+ * **Five lines, not four.** `PANEL_TEXT_H` counts four because four is
+ * what the longest copy takes at the desktop column; at the narrow one
+ * the same words take five, and the panel has been running its last
+ * line off the bottom of its own paper on the landscape phone ever
+ * since. Measured in Chrome at 874x402: `SPACE.s` above the heading,
+ * a 22px heading, the body starting 26px below the heading's top, and
+ * 20px a line closed up — so 8 + 26 + 5x20 + 8.
+ */
+const PANEL_TIGHT_H = SPACE.s * 2 + 26 + 5 * 20;
 
 /**
  * Below this a bay cannot carry a name row without the name taking more
@@ -1604,6 +1636,223 @@ function nextStep(state: CrateLoadingState): string {
     : `Tap a space in ${state.vehicle.name} to put ${held.name} down.`;
 }
 
+// ── The page grid, and the two shapes it takes ───────────────
+
+/**
+ * The least height any vehicle in the fleet needs to stand whole with
+ * her bays at the tap floor, and the most width any of them needs for
+ * the same.
+ *
+ * **Both are facts about the fleet and not about the screen**, which is
+ * what makes them usable as breakpoints: the layout must not change
+ * shape when the arrows change the vehicle, or a child pressing one
+ * would have the whole screen re-flow under her hand. So the decision
+ * is taken once, against the whole fleet.
+ *
+ * The height is Henry's 255 — he is the shortest requirement, so a
+ * column that cannot hold him cannot hold anybody. The width is Bea's
+ * 132: her bed is the narrowest share of her body in the fleet (0.58),
+ * so two 40px bays across cost her more drawn width than they cost
+ * anyone else, and a column that gives her 132 gives every vehicle her
+ * bays. Measured off `minScaleForBays`, the same formula `fitLoadBed`
+ * grows an under-boxed vehicle with, so the three cannot disagree.
+ */
+const FLEET_MIN_WHOLE_H = Math.min(
+  ...Object.values(VEHICLE_DEFS).map((v) => wholeVehicleHeight(v.id, v.cols, v.rows)),
+);
+const FLEET_WHOLE_W = Math.max(
+  ...Object.values(VEHICLE_DEFS).map((v) => {
+    const sprite = VEHICLE_BED_SOURCE[v.id];
+    return sprite.w * minScaleForBays(sprite, VEHICLE_BED[v.id], v.cols, v.rows);
+  }),
+);
+
+/**
+ * How wide the car park's column is on a short viewport: the widest any
+ * vehicle has to be drawn, with room for an arrow either side of her.
+ *
+ * On a short viewport every pixel of width that is not the vehicle or
+ * her arrows is worth more to the reading column and the crates, so the
+ * vehicle is drawn at the smallest size her bays allow and no larger.
+ * That is the opposite of the tall layout, where she is fitted to
+ * whatever the column has and her bays grow with it.
+ */
+const PARK_SHORT_W = Math.round(FLEET_WHOLE_W + 2 * (ARROW_W + ARROW_GAP));
+
+/**
+ * The crate rack's width on a short viewport: two crates at the tap
+ * floor with a gap between them.
+ *
+ * **The crates are the reason the short layout has a third column.**
+ * Six of them need either 328px of width in one row or 160x104 in two,
+ * and on a landscape phone the reading column's own band has neither —
+ * a shelf squeezed into it comes out at 27px a crate, which is under
+ * the tap floor twice over: the drawn crate is smaller than a finger
+ * and the 48px hit boxes of two neighbours overlap by 13px, so a tap
+ * near the edge of one answers for the next. Standing them up in a
+ * column of their own is what keeps all six at the floor.
+ *
+ * 104 is two crates and a gap — enough for `fitChipGrid` to choose two
+ * across by three down, which is the arrangement that keeps the drawn
+ * crate largest, and enough for the "Crates" lead-in block above it
+ * (93px) to stand on the rack's own left edge.
+ */
+const RACK_W = 2 * MIN_TAP + BAY_GAP;
+
+/** The narrowest the reading column may be, as the tall layout has it. */
+const READ_MIN_W = 236;
+
+/**
+ * Where everything on the loading screen goes.
+ *
+ * Pure arithmetic, so a test can hold every promise on it at every
+ * viewport: that the vehicle stands whole, that nothing a child taps is
+ * under the floor, and that the reading column keeps a width the
+ * sentences can be set at. The drawing functions take their boxes from
+ * here and work none of it out for themselves.
+ *
+ * ## The two shapes
+ *
+ * **Stacked** — two columns, the car park and the reading panel, over a
+ * full-width floor carrying the waiting animals and the crates. This is
+ * the screen Marcus signed off and it is what every viewport tall
+ * enough gets.
+ *
+ * **Short** — three columns: the car park down the left with the whole
+ * height of the screen, the reading panel over the waiting animals in
+ * the middle, and the crates standing in a rack on the right. The car
+ * park's column is `SAFE_MARGIN` to `SAFE_MARGIN`, not `contentTop` to
+ * the floor, because on a landscape phone the vehicle needs 393 of the
+ * 402 pixels there are and everything else has to be beside her rather
+ * than above or below her. The title plate and Back float over the
+ * tarmac either side of her, which is what they already do to the
+ * risen rear in the tall layout.
+ *
+ * ## The breakpoint, and where it comes from
+ *
+ * The stacked layout hands the car park
+ *
+ *     contentBottom - bandH(height) - SPACE.m - contentTop
+ *
+ * and a vehicle stands whole in a column when the column, less the
+ * ground she is owed fore and aft (`carParkBackdropH`), is at least
+ * `wholeVehicleHeight` tall. The short layout takes over at the height
+ * where that fails for `FLEET_MIN_WHOLE_H` — the *smallest* requirement
+ * in the fleet, because below it no vehicle stands whole stacked and
+ * there is nothing left to weigh.
+ *
+ * **At the title plate this screen draws, that height is 599px.**
+ * 620 - 80 - 136 - 12 - 97 = 295 of column, less 24 of ground, is 271
+ * against Henry's 255, so 820x620 stays stacked with 16px to spare; at
+ * 598 the column is 276, less 22, is 254 and he no longer fits. It is
+ * computed here rather than written down because `contentTop` is read
+ * off the drawn title, and a longer vehicle name moves it.
+ *
+ * The short layout also needs width: two page margins, `PARK_SHORT_W`,
+ * two gutters, the rack and `READ_MIN_W` come to 796px, and below that
+ * it falls back to stacked rather than drawing three columns that do
+ * not fit. Every viewport this game is composed for is wider — the
+ * narrowest is the 812pt phone.
+ */
+export interface LoadingColumns {
+  kind: 'stacked' | 'short';
+  /** The car park's column, which the bay is centred in. */
+  park: Box;
+  /** How wide the vehicle herself may be drawn inside it. */
+  vehicleW: number;
+  /** The reading panel. */
+  panel: Box;
+  /** The floor the animals wait on, its lead-in row included. */
+  loose: Box;
+  /** Where the crates stand, its lead-in row included. */
+  shelf: Box;
+  /** The lead-in row's height, which both of those start with. */
+  labelH: number;
+}
+
+export function loadingColumns(options: {
+  width: number;
+  height: number;
+  /** The first y the screen's own content may occupy, below the title. */
+  contentTop: number;
+  /** The last y it may occupy, above the bottom row of buttons. */
+  contentBottom: number;
+  /** Half the drawn title plate, so a column can tell whether it is under it. */
+  titleHalfW: number;
+  /** The waiting animals' sizes relative to each other, for their row. */
+  units: readonly number[];
+}): LoadingColumns {
+  const { width, height, contentTop, contentBottom, titleHalfW, units } = options;
+  const usable = width - PAGE_MARGIN * 2;
+  const gutter = SPACE.xl;
+  const labelH = MIN_FONT.small + SPACE.xs;
+  const bandFloorH = labelH + SPACE.s + MIN_TAP;
+
+  // What the stacked layout would give the car park, which is the
+  // question the breakpoint asks.
+  const bandH = Math.round(Math.min(142, Math.max(bandFloorH, height * 0.22)));
+  const stackedParkH = contentBottom - bandH - SPACE.m - contentTop;
+  const readShortW = usable - 2 * gutter - PARK_SHORT_W - RACK_W;
+  const short = stackedParkH - carParkBackdropH(stackedParkH) < FLEET_MIN_WHOLE_H
+    && readShortW >= READ_MIN_W;
+
+  if (short) {
+    const readX = PAGE_MARGIN + PARK_SHORT_W + gutter;
+    const rackX = readX + readShortW + gutter;
+    // The rack takes the screen's height as well, where the title plate
+    // does not reach it. The reading column never can: the plate is
+    // centred on the screen and the middle column is what is under it.
+    const rackTop = width / 2 + titleHalfW <= rackX ? SAFE_MARGIN : contentTop;
+    const readH = contentBottom - contentTop;
+    // The animals' row is sized by the width it has — eight animals on
+    // one ground line run out of floor long before they run out of
+    // height — so height given to the band beyond that is empty floor.
+    const rowWanted = looseRowScale(units, readShortW, BAY_GAP);
+    const bandWanted = labelH + SPACE.s + Math.max(MIN_TAP, Math.round(rowWanted));
+    const panelFloor = Math.min(PANEL_TIGHT_H, readH - SPACE.m - bandFloorH);
+    const panelH = Math.max(panelFloor, Math.min(PANEL_WANTED_H, readH - SPACE.m - bandWanted));
+    const looseH = Math.max(bandFloorH, readH - SPACE.m - panelH);
+    return {
+      kind: 'short',
+      park: {
+        x: PAGE_MARGIN, y: SAFE_MARGIN, w: PARK_SHORT_W, h: height - 2 * SAFE_MARGIN,
+      },
+      vehicleW: PARK_SHORT_W - 2 * (ARROW_W + ARROW_GAP),
+      panel: { x: readX, y: contentTop, w: readShortW, h: panelH },
+      loose: { x: readX, y: contentBottom - looseH, w: readShortW, h: looseH },
+      shelf: { x: rackX, y: rackTop, w: RACK_W, h: contentBottom - rackTop },
+      labelH,
+    };
+  }
+
+  // The reading column is sized first and the car park takes what is
+  // left: the panel is type, and type has a width below which it stops
+  // being readable, while a vehicle simply draws smaller.
+  const readW = Math.round(Math.max(READ_MIN_W, Math.min(usable * 0.42, 420)));
+  const parkW = Math.max(160, usable - gutter - readW);
+  const readX = PAGE_MARGIN + parkW + gutter;
+  const bayFloor: Box = {
+    x: PAGE_MARGIN, y: contentBottom - bandH, w: usable, h: bandH,
+  };
+  const columnsBottom = bayFloor.y - SPACE.m;
+  const park: Box = {
+    x: PAGE_MARGIN, y: contentTop, w: parkW, h: Math.max(100, columnsBottom - contentTop),
+  };
+  // Nothing sits under the panel, so it runs to the foot of the column
+  // and the extra goes to the picture — see `PANEL_FACES_MAX`.
+  const panelH = Math.max(MIN_TAP, Math.min(columnsBottom - contentTop, PANEL_WANTED_H));
+  const { loose, shelf } = splitLoadingBay(bayFloor);
+  return {
+    kind: 'stacked',
+    park,
+    vehicleW: park.w,
+    panel: { x: readX, y: contentTop, w: readW, h: panelH },
+    loose,
+    shelf,
+    labelH,
+  };
+}
+
 /**
  * Draw the whole loading screen into `container`.
  *
@@ -1653,47 +1902,19 @@ export function renderCrateLoading(
   const buttonCy = bottomAnchorY(height);
   const contentBottom = buttonCy - MIN_TAP / 2 - SPACE.l;
 
-  const usable = width - PAGE_MARGIN * 2;
-  const gutter = SPACE.xl;
-  // The reading column is sized first and the car park takes what is
-  // left: the panel is type, and type has a width below which it stops
-  // being readable, while a vehicle simply draws smaller.
-  const readW = Math.round(Math.max(236, Math.min(usable * 0.42, 420)));
-  const parkW = Math.max(160, usable - gutter - readW);
-  const readX = PAGE_MARGIN + parkW + gutter;
-
-  // ── The loading bay floor ──
-  //
-  // **The animals are loose on the floor at the bottom of the screen,
-  // and the crates stand beside them.** They used to be chips in the
-  // right-hand column under the panel, each one a rounded plate holding
-  // a crate holding an animal — three frames round every animal, and a
-  // column that could not give them a name row fell back to a strip
-  // across the bottom. Marcus, 2026-10-09: "The waiting to board area
-  // is crowded and there's no reason for the animals to be showing
-  // inside those rounded corner rectangles and then the crates and then
-  // the animal inside. Get rid of the outlines and just show the
-  // animals that are waiting to board."
-  //
-  // So the strip is the only arrangement now, it is always there, and
-  // it is where both halves of the new mechanic start: the animals
-  // stand loose on the left of it and the six crates stand on the right
-  // of it, which makes the first drag a short sideways one along the
-  // floor. Always drawn, never resized by what the child has done, so
-  // nothing she is reaching for moves.
-  const trayLabelH = MIN_FONT.small + SPACE.xs;
-  const bandMinH = trayLabelH + SPACE.s + MIN_TAP;
-  const bandH = Math.round(Math.min(142, Math.max(bandMinH, height * 0.22)));
-  const bayFloor: Box = {
-    x: PAGE_MARGIN, y: contentBottom - bandH, w: usable, h: bandH,
-  };
-  const columnsBottom = bayFloor.y - SPACE.m;
-  // Nothing sits under the panel now, so it runs to the foot of the
-  // column and the extra goes to the picture — see `PANEL_FACES_MAX`.
-  const panelH = Math.max(MIN_TAP, Math.min(
-    columnsBottom - contentTop,
-    CHROME.padY * 2 + PANEL_FACES_MAX + SPACE.s + PANEL_TEXT_H,
-  ));
+  // Which of the two shapes the screen is in, and where everything goes
+  // in it. All of it is in `loadingColumns`, which is arithmetic a test
+  // can hold at every viewport — nothing here works a box out for
+  // itself. The short shape, and the height it takes over at, are in
+  // that function's own doc.
+  const cols = loadingColumns({
+    width,
+    height,
+    contentTop,
+    contentBottom,
+    titleHalfW: title.width / 2,
+    units: session.offered.map((a) => SPECIES_SIZE[a.species]),
+  });
 
   // Where a dragged animal or crate may be let go. Filled by the bays
   // and by the shelf as they are drawn, and read when a pointer comes
@@ -1705,30 +1926,30 @@ export function renderCrateLoading(
 
   // ── The car park ──
   //
-  // The left column is a place, not a slab: the tarmac apron, its far
-  // kerb with the site's gravel beyond it, and the rest of the fleet
-  // in the bays either side — the picker's car park with the camera
-  // moved in. Neither the exit road nor the A.R.C. building is in it,
-  // and both are arithmetic rather than taste; see `car-park.ts`.
+  // The left column is a place, not a slab: one marked bay on the
+  // A.R.C. tarmac with the vehicle standing whole in it, the arrows
+  // either side, and the site's gravel showing past the edge of the
+  // lot. No neighbours, no far kerb, no exit road and no building —
+  // each of those is arithmetic rather than taste, and `car-park.ts`
+  // says which arithmetic.
   //
-  // **The gravel above the kerb is paid for in bumper, not in bays.**
-  // The strip comes off the top of the column, and the vehicle is then
-  // fitted to what is left *divided by* the share of her that has to
-  // stay in frame — so she is drawn very nearly the size she was with
-  // no car park at all, parked lower down, and cut off at the kerb.
-  // Every load bed in the fleet sits in the top two-thirds of its
-  // sprite, so what the ground behind her costs is her nose.
-  const column = {
-    x: PAGE_MARGIN,
-    y: contentTop,
-    w: parkW,
-    h: Math.max(100, columnsBottom - contentTop),
-  };
+  // **The ground may be taller than the column.** The vehicle is fitted
+  // to the column less the ground she is owed fore and aft, and where
+  // the column cannot hold her at the 40px tap floor her rear rises
+  // above it into the band beside the title, with the tarmac beginning
+  // just above her head line. At 820x620 Spark is 361px tall against a
+  // 295px column and that is the only way she stands whole; the ledger
+  // is in `loadingColumns`.
+  const column = cols.park;
   const backdropH = carParkBackdropH(column.h);
   const fit = vehicleFit(
     scene, vehicle.id,
     {
       ...column,
+      // The vehicle's own box is the width she may be drawn in — the
+      // whole column in the tall layout, the part between the arrows in
+      // the short one.
+      w: cols.vehicleW,
       h: backdropH > 0
         ? (column.h - backdropH) / VEHICLE_VISIBLE_FRAC
         : column.h,
@@ -1740,32 +1961,29 @@ export function renderCrateLoading(
     height,
     column,
     chosen: vehicle.id,
-    spriteW: fit ? fit.spriteW : column.w * 0.42,
+    spriteW: fit ? fit.spriteW : cols.vehicleW * 0.42,
   });
   container.add(title);
 
   // The panel is sized for its longest copy — a heading and four lines
-  // — rather than for the band, and pinned to the top line, level with
-  // the far kerb of the car park beside it. A panel that changed height
-  // with its contents would move the words a child is reading; one that
-  // started below the top of the content made the column look dropped.
+  // — rather than for the band, and pinned to the top line. A panel
+  // that changed height with its contents would move the words a child
+  // is reading; one that started below the top of the content made the
+  // column look dropped.
   const setMessage = drawPanel(scene, container, state, {
-    x: readX, y: contentTop, w: readW, h: Math.max(MIN_TAP, panelH),
+    ...cols.panel, h: Math.max(MIN_TAP, cols.panel.h),
   });
 
   // She stands in her bay, reversed in with her rear against the head
-  // of it and her nose toward the exit, cut off where the tarmac is. A
-  // bay is where a loaded van is; the old inset rectangle was a van
-  // hanging off a panel.
+  // of it and her nose toward the exit. A bay is where a loaded van is;
+  // the old inset rectangle was a van hanging off a panel.
   drawVehicle(scene, container, state, callbacks, setMessage, zones, drag, {
     x: park.bay.x,
     y: park.parkTop,
     w: park.bay.w,
     h: fit ? fit.spriteH : Math.max(100, park.kerbY - park.parkTop),
   }, park.kerbY - 2, fit);
-  drawLoadingBay(
-    scene, container, state, callbacks, setMessage, zones, drag, bayFloor, trayLabelH,
-  );
+  drawLoadingBay(scene, container, state, callbacks, setMessage, zones, drag, cols);
 
   // ── Bottom row ──
   container.add(drawBackControl(scene, SAFE_MARGIN, SAFE_MARGIN, () => callbacks.onBack())
@@ -2334,10 +2552,10 @@ function vehicleFit(
  *
  * The bays lead: `fitLoadBed` sizes them for the room there is and then
  * says how big the vehicle has to be drawn for its bed to hold them,
- * which is why Big Tilly draws bigger than the band and a trike does
- * not. The vehicle is centred in its column; when it is bigger than the
- * band it is pinned to the top of it, so the bed is always fully on
- * screen and it is the bumper that runs out of the picture.
+ * which is why Spark draws taller than her column and a trike does not.
+ * Where she does, `vehicleParkTop` has already decided where she
+ * stands — her nose keeps the tarmac it is owed and her rear rises —
+ * and this draws her there.
  */
 function drawVehicle(
   scene: Phaser.Scene,
@@ -2351,10 +2569,12 @@ function drawVehicle(
   /**
    * The y the vehicle is cut off at — the tarmac's own bottom edge.
    *
-   * Reached by the three-across vehicles at every viewport the screen
-   * is checked at (see `fitLoadBed`). Cutting at the kerb rather than
-   * at an arbitrary line means the vehicle ends where the ground does,
-   * which reads as driving out of the picture.
+   * **A vehicle standing whole never reaches it**, because `drawCarPark`
+   * puts it two lines past her nose when she fits; it bites only where
+   * the ground is shorter than she is, which on the sizes this screen
+   * is composed for is the smallest phone viewports (see
+   * `loadingColumns`). Cutting at the edge of the ground rather than at
+   * an arbitrary line at least means she ends where the car park does.
    */
   clipAt?: number,
   /**
@@ -3366,6 +3586,28 @@ export function splitLoadingBay(box: Box): { loose: Box; shelf: Box } {
 }
 
 /**
+ * How big the loose animals want to be, given the width of floor they
+ * have — the dog's drawn height, and every other animal's share of it.
+ *
+ * Width is what bounds this row almost everywhere: eight animals on one
+ * ground line run out of floor long before they run out of height. So
+ * the layout asks this *before* it decides how tall the band is, and
+ * gives the band the height the row asks for rather than a share of the
+ * viewport — height beyond it is floor nobody stands on, and on a short
+ * viewport that floor is the car park's column.
+ */
+export function looseRowScale(
+  units: readonly number[],
+  width: number,
+  gap: number,
+): number {
+  if (units.length === 0) return 0;
+  const sum = units.reduce((a, b) => a + b, 0);
+  if (sum <= 0) return 0;
+  return (width - gap * (units.length - 1)) / sum;
+}
+
+/**
  * Where each loose animal stands, and how big she is drawn.
  *
  * **Sized against each other, never against a cell.** Each animal gets
@@ -3389,9 +3631,8 @@ export function looseRow(
   gap: number,
 ): { size: number[]; cx: number[] } {
   if (units.length === 0) return { size: [], cx: [] };
-  const sum = units.reduce((a, b) => a + b, 0);
-  const room = box.w - gap * (units.length - 1);
-  const scale = Math.max(2, Math.min(box.h, sum > 0 ? room / sum : box.h));
+  const wanted = looseRowScale(units, box.w, gap);
+  const scale = Math.max(2, Math.min(box.h, wanted > 0 ? wanted : box.h));
   const size = units.map((u) => Math.max(1, Math.round(u * scale)));
   const cx: number[] = [];
   let x = 0;
@@ -3412,6 +3653,13 @@ export function looseRow(
  * crates — because both are places the child acts and the two of them
  * are one band. It is still the only orange on the screen, so it still
  * means exactly one thing.
+ *
+ * **The arrow points at the thing it names.** In the tall layout both
+ * sets of pieces run off to the right of their lead-in, so both arrows
+ * point right; on a short viewport the crates stand in a rack *under*
+ * theirs, and an arrow pointing right would be pointing at the edge of
+ * the screen. An arrow that leads nowhere is the fault Marcus's rule
+ * names — every arrow says what it is — so the rack's turns down.
  */
 function drawLeadIn(
   scene: Phaser.Scene,
@@ -3419,6 +3667,7 @@ function drawLeadIn(
   x: number,
   y: number,
   words: string,
+  points: 'right' | 'down' = 'right',
 ): void {
   const label = scene.add.text(0, 0, words, {
     fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.ui, fontStyle: 'bold',
@@ -3435,11 +3684,24 @@ function drawLeadIn(
   const ax = x + blockW - SPACE.s - arrowW;
   block.lineStyle(2.5, 0xffffff, 1);
   block.beginPath();
-  block.moveTo(ax, label.y);
-  block.lineTo(ax + arrowW, label.y);
-  block.moveTo(ax + arrowW - 5, label.y - 4.5);
-  block.lineTo(ax + arrowW, label.y);
-  block.lineTo(ax + arrowW - 5, label.y + 4.5);
+  if (points === 'down') {
+    // The same shaft and head, turned a quarter: it starts on the
+    // label's centre line, as the right-pointing one does, and runs to
+    // the foot of the block.
+    const cx = ax + arrowW / 2;
+    const tip = y + blockH - SPACE.xs;
+    block.moveTo(cx, label.y - arrowW / 2);
+    block.lineTo(cx, tip);
+    block.moveTo(cx - 4.5, tip - 5);
+    block.lineTo(cx, tip);
+    block.lineTo(cx + 4.5, tip - 5);
+  } else {
+    block.moveTo(ax, label.y);
+    block.lineTo(ax + arrowW, label.y);
+    block.moveTo(ax + arrowW - 5, label.y - 4.5);
+    block.lineTo(ax + arrowW, label.y);
+    block.lineTo(ax + arrowW - 5, label.y + 4.5);
+  }
   block.strokePath();
   container.add(block);
   container.add(label);
@@ -3448,6 +3710,29 @@ function drawLeadIn(
 /**
  * The floor of the loading bay: the animals waiting on it, and the
  * crates standing beside them.
+ *
+ * **The animals are loose on the floor and the crates stand beside
+ * them.** They used to be chips in the right-hand column under the
+ * panel, each one a rounded plate holding a crate holding an animal —
+ * three frames round every animal. Marcus, 2026-10-09: "The waiting to
+ * board area is crowded and there's no reason for the animals to be
+ * showing inside those rounded corner rectangles and then the crates
+ * and then the animal inside. Get rid of the outlines and just show the
+ * animals that are waiting to board."
+ *
+ * It is where both halves of the mechanic start, and the animals are
+ * always on the side the child reads from with the crates the next
+ * thing along, so the first drag is a short sideways one. In the tall
+ * layout the two of them share one full-width strip across the bottom
+ * (`splitLoadingBay`); on a short viewport the crates stand up in a
+ * rack of their own beside the reading column, because six crates at
+ * the tap floor will not fit in a strip a landscape phone can spare.
+ * Either way the pieces are never resized by what the child has done,
+ * so nothing she is reaching for moves.
+ *
+ * Both halves' lead-in rows are the same height and both sets of pieces
+ * end on the same line — `contentBottom` — so the animals' feet and the
+ * bottom crate stand on one ground line in both shapes.
  */
 function drawLoadingBay(
   scene: Phaser.Scene,
@@ -3457,24 +3742,28 @@ function drawLoadingBay(
   setMessage: (copy: PanelCopy | null) => void,
   zones: DropZone[],
   drag: DragFlag,
-  box: Box,
-  labelH: number,
+  cols: LoadingColumns,
 ): void {
-  const { loose, shelf } = splitLoadingBay(box);
+  const { loose, shelf, labelH } = cols;
   drawLeadIn(scene, container, loose.x, loose.y, titleCase('Waiting to board'));
-  drawLeadIn(scene, container, shelf.x, shelf.y, titleCase('Crates'));
+  drawLeadIn(
+    scene, container, shelf.x, shelf.y, titleCase('Crates'),
+    cols.kind === 'short' ? 'down' : 'right',
+  );
 
-  const rowTop = box.y + labelH + SPACE.s;
-  const rowH = Math.max(MIN_TAP, box.h - labelH - SPACE.s);
+  const below = (box: Box): Box => ({
+    x: box.x,
+    y: box.y + labelH + SPACE.s,
+    w: box.w,
+    h: Math.max(MIN_TAP, box.h - labelH - SPACE.s),
+  });
   // The shelf first, so the animals can be handed the thing that
   // lights it up while one of them is being dragged across it.
   const preview = drawCrateShelf(
-    scene, container, state, callbacks, setMessage, zones, drag,
-    { x: shelf.x, y: rowTop, w: shelf.w, h: rowH },
+    scene, container, state, callbacks, setMessage, zones, drag, below(shelf),
   );
   drawLooseAnimals(
-    scene, container, state, callbacks, setMessage, zones, drag, preview,
-    { x: loose.x, y: rowTop, w: loose.w, h: rowH },
+    scene, container, state, callbacks, setMessage, zones, drag, preview, below(loose),
   );
 }
 

@@ -321,8 +321,15 @@ export const ARROW_H = 112;
 export const ARROW_DIMMED_PAPER = 0xd9d3c5;
 export const ARROW_DIMMED_INK = '#5a5448';
 const DIMMED_INK = ARROW_DIMMED_INK;
-/** The air between an arrow and the vehicle beside it. */
-const ARROW_GAP = 10;
+/**
+ * The air between an arrow and the vehicle beside it.
+ *
+ * Exported because a layout that wants both promises kept — the arrows
+ * inside the column and clear of the vehicle — has to reserve
+ * `ARROW_W + ARROW_GAP` a side before it decides how wide to draw her.
+ * The short-viewport loading layout does exactly that.
+ */
+export const ARROW_GAP = 10;
 
 /**
  * Where the two arrows sit: one in the ground either side of the

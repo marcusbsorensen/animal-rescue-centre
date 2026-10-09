@@ -45,43 +45,52 @@ const PAINTED_BODY: Record<VehicleType, { left: number; right: number }> = {
 };
 
 /**
- * The vehicle box the loading screen hands out, measured off its own
- * layout at the three viewports it is checked at.
+ * The car-park column the loading screen hands out, and the width the
+ * vehicle herself may be drawn in it, read off the running screen in
+ * Chrome at each viewport.
  *
- * **Re-measured 2026-10-09 against the car park**, and the narrow one
- * was wrong before that. It said 391 where the screen was handing out
- * 287: the loading screen drops its tray to a full-width strip at
- * 820x620 and the number here predated that, so three of the five
- * vehicles had been overflowing their box at that viewport while a
- * test asserted none of them did. The fixture, not the code, was what
- * made it pass.
+ * **Re-measured 2026-10-09, twice, and both times the fixture was what
+ * had gone stale.** The first set said 391 where the screen handed out
+ * 287. This set replaces 335/527/145, which were measured on the car
+ * park's own branch before the loading screen's floor band grew from
+ * 104px to 142: the two branches merged, the band took 32 to 40px off
+ * every column, and nothing re-measured. A fixture that describes a
+ * layout the screen no longer has is a test that passes for the wrong
+ * reason, which is what both of these were.
  *
- * The box is the car-park column: `PAGE_MARGIN` to the gutter across,
- * and down from the title to the tray. Less, where the column is tall
- * enough to spare it, the ground the vehicle keeps clear of the frame
- * fore and aft (`carParkBackdropH`) — and **no longer divided by
- * anything**. It was divided by `VEHICLE_VISIBLE_FRAC` (0.78), so the
- * vehicle was sized for a box 28% taller than the column and the
- * bottom of her was cut off at a kerb; with the fraction at 1 she is
- * sized for what is left and stands whole inside the column.
+ * **The landscape phone is a different shape now.** Below 599px of
+ * viewport height the loading screen lays itself out in three columns
+ * and gives the car park the whole height of the screen rather than a
+ * share of it, so the phone's column is `SAFE_MARGIN` to `SAFE_MARGIN`
+ * — 370px, not 145 — and the vehicle in it is drawn no wider than her
+ * bays need (132) so the arrows have room either side. See
+ * `loadingColumns` in `crate-loading-view.ts`.
+ *
+ * The box the vehicle is fitted to is that width by the column's height
+ * less the ground she is owed fore and aft (`carParkBackdropH`), and
+ * **no longer divided by anything**: it used to be divided by
+ * `VEHICLE_VISIBLE_FRAC` (0.78), so she was sized for a box 28% taller
+ * than the column and cut off at a kerb.
  */
 const RAW_COLUMNS = {
-  'desktop 1024x700': { x: 24, y: 93, w: 542, h: 527 },
-  'narrow 820x620': { x: 24, y: 93, w: 424, h: 335 },
-  'landscape phone 874x402': { x: 24, y: 93, w: 455, h: 145 },
+  'tablet 1024x768': { x: 24, y: 97, w: 542, h: 437, vehicleW: 542 },
+  'desktop 1024x700': { x: 24, y: 97, w: 542, h: 369, vehicleW: 542 },
+  'narrow 820x620': { x: 24, y: 97, w: 424, h: 295, vehicleW: 424 },
+  'landscape phone 874x402': { x: 24, y: 16, w: 360, h: 370, vehicleW: 132 },
 };
-/** The two the screen is composed for. */
-const ROOMY = ['desktop 1024x700', 'narrow 820x620'] as const;
+/** The three laid out in the tall shape: two columns over a full-width floor. */
+const ROOMY = ['tablet 1024x768', 'desktop 1024x700', 'narrow 820x620'] as const;
 /** The viewport widths, for where the chrome stands. */
 const WIDTH_OF: Record<keyof typeof RAW_COLUMNS, number> = {
+  'tablet 1024x768': 1024,
   'desktop 1024x700': 1024,
   'narrow 820x620': 820,
   'landscape phone 874x402': 874,
 };
 
 type Viewport = keyof typeof RAW_COLUMNS;
-const boxFor = (c: { w: number; h: number }) => ({
-  w: c.w,
+const boxFor = (c: { w: number; h: number; vehicleW: number }) => ({
+  w: c.vehicleW,
   h: (c.h - carParkBackdropH(c.h)) / VEHICLE_VISIBLE_FRAC,
 });
 const COLUMNS = Object.fromEntries(
@@ -268,11 +277,16 @@ describe('fitLoadBed', () => {
     expect(fit.spriteH).toBeCloseTo(box.h, 5);
   });
 
-  it('spends the slack at 1024x700 too, where it is exactly enough', () => {
-    // The same behaviour on a real screen: at the desktop viewport
-    // Spark's box is 486px, her bare bays come out at 39.6px - four
-    // tenths under the floor - and the slack is what saves her.
-    const box = COLUMNS['desktop 1024x700'];
+  it('spends the slack at 1024x768 too, where it is exactly enough', () => {
+    // The same behaviour on a real screen. **It used to be asserted at
+    // 1024x700 and that viewport has stopped being the case**, because
+    // the loading screen's floor band grew from 104px to 142: the
+    // desktop column fell from 527 to 369 and Spark now needs 22px more
+    // than the slack can buy her there, so she grows and her rear
+    // rises. The iPad's 1024x768 is where the slack is now exactly
+    // enough - her box is 403px, her bare bays come out at 38.7px, two
+    // under the floor, and the slack is what saves her from growing.
+    const box = COLUMNS['tablet 1024x768'];
     const id = 'electric-minibus';
     const bed = VEHICLE_BED[id];
     const sprite = spriteOf(id);
@@ -328,33 +342,87 @@ describe('fitLoadBed', () => {
     }
   });
 
-  it('moves only the vehicles whose room ran out, and leaves the other three where they were', () => {
-    // At 820x620 the box is 309px: Trikey, Henry and Big Tilly are fitted
-    // to it and stand in the middle of the column exactly as they did
-    // before the ground was allowed above it. Bea (323) and Spark (361)
-    // are the two that need more than the column's middle can give them.
+  it('moves only the vehicles whose room ran out, and by how much', () => {
+    // **Re-derived 2026-10-09 against the column the screen really
+    // hands out.** It used to say two vehicles move at 820x620 and
+    // three stand centred; that was measured against a 335px column,
+    // and the merge that brought the loading screen's floor band up to
+    // 142px left 295. In 295 only Henry fits centred with his margin.
+    // The others are the arithmetic of a shorter column, not a change
+    // of rule: a vehicle whose own height plus her ground will not fit
+    // in the middle of the column keeps the ground in front of her and
+    // rises, and the rest stand exactly where they stood.
+    //
+    // Recorded with the distances, because they are the measure of how
+    // much work the rising rear is doing: if the layout ever frees the
+    // height, these fall to nothing and the rise can go.
     const label = 'narrow 820x620';
     const column = RAW_COLUMNS[label];
-    const moved: VehicleType[] = [];
+    const risen: Record<string, number> = {};
     for (const v of EVERY_VEHICLE) {
       const fit = fitIn(COLUMNS[label], v);
       const centred = column.y + (column.h - fit.spriteH) / 2;
-      if (Math.abs(parkTopFor(label, fit.spriteH) - centred) > 1.01) moved.push(v.id);
+      const moved = centred - parkTopFor(label, fit.spriteH);
+      if (moved > 1.01) risen[v.id] = Math.round(moved);
     }
-    expect(moved.sort()).toEqual(['electric-minibus', 'long-van']);
+    expect(risen).toEqual({
+      'pedal-trike': 1,
+      'animal-lorry': 18,
+      'long-van': 26,
+      'electric-minibus': 45,
+    });
   });
 
-  it('keeps every bay whole on a landscape phone, where the front of the vehicle still runs off', () => {
-    // The one screen where "nothing is cropped" cannot hold: the column is
-    // 145px and every vehicle needs 255 to 361. What the rising rear buys
-    // is that the bays are whole and tappable - they used to spill over
-    // the tray - and each vehicle stands at the ceiling.
+  it('needs the rising rear at three of the four viewports, and says which', () => {
+    // **The answer to "is the rise still doing anything".** It is: only
+    // the iPad's column is tall enough to stand every vehicle centred
+    // with her ground. Spark rises at 1024x700 and at 874x402 as well
+    // as at 820x620, where three others join her. Recorded as one table
+    // so that a layout change which frees the height shows up here as
+    // the number that can go, rather than being discovered by eye.
+    const rising = Object.fromEntries(
+      (Object.keys(RAW_COLUMNS) as Viewport[]).map((label) => {
+        const column = RAW_COLUMNS[label];
+        const who = EVERY_VEHICLE.filter((v) => {
+          const fit = fitIn(COLUMNS[label], v);
+          const centred = column.y + (column.h - fit.spriteH) / 2;
+          // Two pixels, not one: Trikey comes out 1.15px off centre at
+          // 820x620 because her grown height lands a hair over the box
+          // she was fitted to, and a pixel of rounding is not a rise.
+          // The distances themselves are in the test above.
+          return centred - parkTopFor(label, fit.spriteH) > 2;
+        }).map((v) => v.id).sort();
+        return [label, who];
+      }),
+    );
+    expect(rising).toEqual({
+      'tablet 1024x768': [],
+      'desktop 1024x700': ['electric-minibus'],
+      'narrow 820x620': ['animal-lorry', 'electric-minibus', 'long-van'],
+      'landscape phone 874x402': ['electric-minibus'],
+    });
+  });
+
+  it('stands every vehicle whole on a landscape phone as well, now the column is the screen', () => {
+    // **Rewritten 2026-10-09, and the premise is the one that changed.**
+    // It used to say the landscape phone was the one screen where
+    // "nothing is cropped" could not hold: the column was 145px and
+    // every vehicle needed 255 to 361, so the bays were whole and the
+    // front of the vehicle ran off. Marcus chose a short-viewport
+    // layout over a crop, and the loading screen now lays itself out in
+    // three columns below 599px of height and gives the car park
+    // `SAFE_MARGIN` to `SAFE_MARGIN` - 370px at 402 - with the animals
+    // beside the vehicle rather than under her. Every vehicle stands
+    // whole in that, Spark by nine pixels. See `loadingColumns`.
     const label = 'landscape phone 874x402';
+    const bottom = GROUND_BOTTOM[label];
     for (const v of EVERY_VEHICLE) {
       const fit = fitIn(COLUMNS[label], v);
-      expect(fit.overflows, v.name).toBe(true);
-      expect(parkTopFor(label, fit.spriteH), v.name).toBe(PARK_CEILING);
-      expect(fit.slotW, v.name).toBeGreaterThanOrEqual(BAY_MIN);
+      const top = parkTopFor(label, fit.spriteH);
+      expect(top, `${v.name} rear`).toBeGreaterThanOrEqual(PARK_CEILING);
+      expect(top + fit.spriteH, `${v.name} nose`).toBeLessThanOrEqual(bottom + 0.5);
+      expect(fit.slotW, `${v.name} bay`).toBeGreaterThanOrEqual(BAY_MIN);
+      expect(fit.slotH, `${v.name} bay`).toBeGreaterThanOrEqual(BAY_MIN);
     }
   });
 
@@ -387,13 +455,22 @@ describe('fitLoadBed', () => {
   });
 
   it('grows the vehicle past the box rather than drop a bay below the tap floor', () => {
-    const phone = fitIn(COLUMNS['landscape phone 874x402'], VEHICLE_DEFS['pedal-trike']);
+    // Spark on the landscape phone: her box is 340px once the ground
+    // she is owed is taken off the 370px column, she needs 361, and
+    // what gives is the ground and not the bay. She still stands whole
+    // in the column - the test above - because the margin she gives up
+    // is exactly what she grows into.
+    const phone = fitIn(COLUMNS['landscape phone 874x402'], VEHICLE_DEFS['electric-minibus']);
     expect(phone.overflows).toBe(true);
+    expect(phone.slotW).toBeGreaterThanOrEqual(BAY_MIN);
     expect(phone.slotH).toBeGreaterThanOrEqual(BAY_MIN);
   });
 
   it('gives a bigger grid smaller bays in the same vehicle', () => {
-    const box = COLUMNS['desktop 1024x700'];
+    // At the iPad's column, where Henry's bays are above the floor and
+    // so have room to differ. At 1024x700 both grids come back at
+    // exactly `BAY_MIN`, which says nothing about the rule.
+    const box = COLUMNS['tablet 1024x768'];
     const sprite = spriteOf('small-van');
     const bed = VEHICLE_BED['small-van'];
     const twoByTwo = fitLoadBed(box, sprite, bed, 2, 2);
@@ -471,12 +548,17 @@ describe('the fleet at real size', () => {
     // column on its own. The conclusion stands in the form that was
     // always the real one: the vehicle and one lane in front of her are
     // taller than the column, so a road cannot share the picture with a
-    // vehicle standing whole in it - and two lanes, the carriageway a
-    // centre line claims, are taller than the viewport.
+    // vehicle standing whole in it.
+    //
+    // **The second half of this went with the column, 2026-10-09.** It
+    // also claimed two lanes were taller than the viewport, which held
+    // while Henry was drawn 208px wide; against the 369px column he is
+    // 145 and a carriageway is 548px against 700. The conclusion does
+    // not rest on it, and a claim that has stopped being true is worse
+    // than no claim, so it is gone rather than re-tuned.
     const fit = fitIn(COLUMNS['desktop 1024x700'], VEHICLE_DEFS['small-van']);
     const pxPerMetre = fit.spriteW / VEHICLE_WIDTH_M['small-van'];
     expect(fit.spriteH + LANE_WIDTH_M * pxPerMetre).toBeGreaterThan(RAW_COLUMNS['desktop 1024x700'].h);
-    expect(2 * LANE_WIDTH_M * pxPerMetre).toBeGreaterThan(700);
   });
 
   it('cannot paint the far end of the bay either, for the same reason', () => {
@@ -500,24 +582,41 @@ describe('the fleet at real size', () => {
     expect(VEHICLE_VISIBLE_FRAC).toBe(1);
   });
 
-  it('keeps ground round the vehicle at the sizes the screen is composed for, and none on a phone', () => {
-    for (const label of ROOMY) {
+  it('keeps ground round the vehicle at every size the screen is composed for', () => {
+    // **The phone has ground now too, and that is the short layout.**
+    // This used to assert the opposite — that a 145px column was
+    // shorter than one van, so every pixel went to the vehicle and none
+    // to a margin. The landscape phone's column is 370px today, which
+    // is a 30px margin and a vehicle standing whole inside it.
+    for (const label of Object.keys(RAW_COLUMNS) as Viewport[]) {
       expect(carParkBackdropH(RAW_COLUMNS[label].h), label).toBeGreaterThan(0);
     }
-    // The landscape phone's whole column is shorter than one van, so
-    // every pixel goes to the vehicle and none to a margin round her.
-    expect(carParkBackdropH(RAW_COLUMNS['landscape phone 874x402'].h)).toBe(0);
+    // And it is still nothing at all where a column really is shorter
+    // than a van, which is the rule the 145px case was an instance of.
+    expect(carParkBackdropH(145)).toBe(0);
   });
 
-  it('takes the ground from a few pixels of vehicle and not from the bays', () => {
-    // Henry's bays with ground round him against the box the screen
-    // handed him before there was a car park at all - 524x471, measured
-    // off the layout this replaced. The margin comes off the column and
-    // what is left is the box, so the bays come out within a pixel.
-    const withPark = fitIn(COLUMNS['desktop 1024x700'], VEHICLE_DEFS['small-van']);
-    const before = fitIn({ w: 524, h: 471 }, VEHICLE_DEFS['small-van']);
-    expect(withPark.slotW).toBeGreaterThanOrEqual(before.slotW - 1);
-    expect(withPark.slotH).toBeGreaterThanOrEqual(before.slotH - 1);
+  it('takes the ground from the vehicle and never from a bay\'s tap floor', () => {
+    // What the margin round the vehicle costs, asked of the same column
+    // with and without it.
+    //
+    // **Re-pointed 2026-10-09, and the claim is narrower than it was.**
+    // It used to compare against a fixed 524x471 — the box the screen
+    // handed out two layouts ago — and say the bays came out "within a
+    // pixel". Against the real columns that is only true where the bays
+    // are already at the floor and cannot shrink: on the iPad, where
+    // Henry's bays have room above it, 34px of ground costs him five
+    // pixels of bay. What holds everywhere, and is what the margin is
+    // answerable to, is that it never pushes a bay under the tap floor.
+    for (const label of ROOMY) {
+      const raw = RAW_COLUMNS[label];
+      const withGround = fitIn(COLUMNS[label], VEHICLE_DEFS['small-van']);
+      const bare = fitIn({ w: raw.vehicleW, h: raw.h }, VEHICLE_DEFS['small-van']);
+      expect(withGround.slotW, `${label} bay width`).toBeGreaterThanOrEqual(BAY_MIN);
+      expect(withGround.slotH, `${label} bay height`).toBeGreaterThanOrEqual(BAY_MIN);
+      expect(bare.slotW - withGround.slotW, `${label} bay width cost`).toBeLessThanOrEqual(5);
+      expect(bare.slotH - withGround.slotH, `${label} bay height cost`).toBeLessThanOrEqual(7);
+    }
   });
 });
 

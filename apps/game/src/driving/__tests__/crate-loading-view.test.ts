@@ -53,12 +53,17 @@ import {
 } from '@arc/game-logic';
 import {
   DROP_SLACK, SPECIES_SIZE, activityTitle, dropTargetsFor, affectedBy, bayHitSize, glyphWorthDrawing,
-  gridFace, gridFeeling, looseRow, nearestDropZone, pairFaces, pairOf, pairReactions,
-  plural, setLines, splitLoadingBay, splitTakeaway, tileArt, titleCase, whoTravelsIn,
+  gridFace, gridFeeling, loadingColumns, looseRow, looseRowScale, nearestDropZone, pairFaces,
+  pairOf, pairReactions, plural, setLines, splitLoadingBay, splitTakeaway, tileArt, titleCase,
+  whoTravelsIn,
   type DropZone,
 } from '../crate-loading-view';
-import { VEHICLE_BED, VEHICLE_BED_SOURCE, fitLoadBed } from '../fleet-art';
-import { MIN_TAP } from '../../ui/constants';
+import {
+  BAY_GAP, VEHICLE_BED, VEHICLE_BED_SOURCE, fitLoadBed, wholeVehicleHeight,
+} from '../fleet-art';
+import { ARROW_GAP, ARROW_W, carParkBackdropH, vehicleParkTop } from '../car-park';
+import { fitChipGrid } from '../../ui/layout';
+import { MIN_TAP, PAGE_MARGIN, SAFE_MARGIN } from '../../ui/constants';
 
 const SPECIES: Species[] = [
   'cat', 'dog', 'bunny', 'fox', 'bat', 'parrot', 'snake', 'hedgehog',
@@ -876,8 +881,14 @@ describe('every sentence the rules write can be set', () => {
    */
   const COLUMNS = {
     'desktop 1024': 374,
-    'landscape phone 874': 311,
+    'a tall 874': 311,
     'narrow 820': 288,
+    // The short layout's reading column, which is narrower because the
+    // crates stand in a rack of their own beside it: `readShortW` less
+    // `CHROME.padX * 2`, at the two phone widths. Added 2026-10-09 with
+    // the short layout — the list only ever grows.
+    'landscape phone 874': 278,
+    'landscape phone 812': 216,
   };
 
   /**
@@ -935,5 +946,210 @@ describe('every sentence the rules write can be set', () => {
         }
       }
     }
+  });
+});
+
+// ── The page grid, in both of its shapes ─────────────────────
+
+describe('where the loading screen puts everything', () => {
+  /**
+   * The chrome the layout is handed, measured in Chrome off the running
+   * screen: the title plate is 81px tall including its shadow, so
+   * `contentTopFor` returns 97.5, and the bottom row of buttons takes
+   * `EDGE_CONTROL_INSET + MIN_TAP / 2 + SPACE.l` = 80.
+   */
+  const CONTENT_TOP = 97.5;
+  const TITLE_HALF_W = 120;
+  const chromeFor = (width: number, height: number) => ({
+    width,
+    height,
+    contentTop: CONTENT_TOP,
+    contentBottom: height - 80,
+    titleHalfW: TITLE_HALF_W,
+    units: (['cat', 'bunny', 'dog', 'hedgehog', 'snake', 'bat'] as Species[])
+      .map((s) => SPECIES_SIZE[s]),
+  });
+  const at = (width: number, height: number) => loadingColumns(chromeFor(width, height));
+
+  const FLEET = Object.values(VEHICLE_DEFS);
+  /** The box the car park fits the vehicle in, as `renderCrateLoading` builds it. */
+  const vehicleBox = (cols: ReturnType<typeof loadingColumns>) => {
+    const backdropH = carParkBackdropH(cols.park.h);
+    return { w: cols.vehicleW, h: backdropH > 0 ? cols.park.h - backdropH : cols.park.h };
+  };
+  const parkedNose = (cols: ReturnType<typeof loadingColumns>, v: typeof FLEET[number]) => {
+    const fit = fitLoadBed(
+      vehicleBox(cols), VEHICLE_BED_SOURCE[v.id], VEHICLE_BED[v.id], v.cols, v.rows,
+    );
+    const top = vehicleParkTop(cols.park, fit.spriteH);
+    return { top, bottom: top + fit.spriteH, fit };
+  };
+
+  it('is stacked on every viewport the screen is composed for, and short on a phone', () => {
+    expect(at(1024, 768).kind).toBe('stacked');
+    expect(at(1024, 700).kind).toBe('stacked');
+    expect(at(820, 620).kind).toBe('stacked');
+    expect(at(874, 402).kind).toBe('short');
+    expect(at(812, 375).kind).toBe('short');
+    expect(at(812, 325).kind).toBe('short');
+  });
+
+  it('changes shape at the height where the smallest vehicle stops fitting', () => {
+    // **The breakpoint is derived, not chosen.** It is the height at
+    // which the stacked column, less the ground the vehicle is owed,
+    // falls under the least any vehicle in the fleet needs to stand
+    // whole with her bays at the tap floor — Henry's 255. At the title
+    // plate this screen draws, that lands on 599.
+    expect(Math.round(wholeVehicleHeight('small-van', 2, 2))).toBe(255);
+    expect(at(1024, 599).kind).toBe('stacked');
+    expect(at(1024, 598).kind).toBe('short');
+  });
+
+  it('stands every vehicle whole in the column it hands out, at every supported size', () => {
+    // Rule 8, as arithmetic: nothing cropped, at any supported size.
+    // The sizes it cannot hold are named in the test below rather than
+    // left out of this one.
+    for (const [w, h] of [[1024, 768], [1024, 700], [820, 620], [874, 402]]) {
+      const cols = at(w, h);
+      for (const v of FLEET) {
+        const { top, bottom } = parkedNose(cols, v);
+        expect(top, `${v.name} rear at ${w}x${h}`).toBeGreaterThanOrEqual(SAFE_MARGIN);
+        expect(bottom, `${v.name} nose at ${w}x${h}`)
+          .toBeLessThanOrEqual(cols.park.y + cols.park.h + 0.5);
+      }
+    }
+  });
+
+  it('cannot stand Spark whole on the two smallest phone viewports, and says which', () => {
+    // **The escalation, as a test.** Spark needs 361px drawn for her six
+    // bays to reach the 40px floor, and the short layout already gives
+    // the car park the screen's height less two safe margins. Below
+    // 393px of viewport height she cannot be whole however the rest is
+    // arranged: at 812x375 the column is 343 and she is cut by 18px; at
+    // 812x325 it is 293 and three of the five are cut. Moving the tap
+    // floor is the only thing that would change it, and Marcus has
+    // ruled that out.
+    const cut = (w: number, h: number) => FLEET
+      .filter((v) => {
+        const cols = at(w, h);
+        return parkedNose(cols, v).bottom > cols.park.y + cols.park.h + 0.5;
+      })
+      .map((v) => v.id).sort();
+    expect(Math.round(wholeVehicleHeight('electric-minibus', 2, 3))).toBe(361);
+    expect(cut(874, 402)).toEqual([]);
+    expect(cut(812, 375)).toEqual(['electric-minibus']);
+    expect(cut(812, 325)).toEqual(['animal-lorry', 'electric-minibus', 'long-van']);
+  });
+
+  it('gives the car park the whole height of the screen when it is short', () => {
+    const cols = at(874, 402);
+    expect(cols.park.y).toBe(SAFE_MARGIN);
+    expect(cols.park.h).toBe(402 - 2 * SAFE_MARGIN);
+    // And the vehicle is drawn no wider than her bays need, so the
+    // arrows keep their room and everything else goes to the reading
+    // column and the crates.
+    expect(cols.park.w - cols.vehicleW).toBe(2 * (ARROW_W + ARROW_GAP));
+  });
+
+  it('keeps the reading column wide enough to set a sentence in, in both shapes', () => {
+    for (const [w, h] of [[1024, 768], [1024, 700], [820, 620], [874, 402], [812, 375]]) {
+      expect(at(w, h).panel.w, `${w}x${h}`).toBeGreaterThanOrEqual(236);
+    }
+    // The widths the sentence test above is run at, so the two lists
+    // cannot drift apart.
+    expect(at(874, 402).panel.w - 36).toBe(278);
+    expect(at(812, 375).panel.w - 36).toBe(216);
+  });
+
+  it('stays stacked where the screen is too narrow for three columns', () => {
+    // 796px of width is what the short layout needs: two page margins,
+    // the car park's column (360), two gutters, the crate rack (104)
+    // and the narrowest reading column (236). Below it the stacked
+    // shape is the lesser fault — a cropped vehicle against a panel too
+    // narrow to read. Every viewport this game is composed for is
+    // wider: the narrowest is the 812pt phone.
+    expect(at(795, 402).kind).toBe('stacked');
+    expect(at(796, 402).kind).toBe('short');
+  });
+
+  it('never lets two columns overlap, in either shape', () => {
+    for (const [w, h] of [[1024, 768], [820, 620], [874, 402], [812, 375]]) {
+      const { park, panel, loose, shelf } = at(w, h);
+      expect(park.x + park.w, `${w}x${h} park to panel`).toBeLessThanOrEqual(panel.x);
+      expect(panel.x + panel.w, `${w}x${h} panel`).toBeLessThanOrEqual(w - PAGE_MARGIN + 0.5);
+      expect(shelf.x + shelf.w, `${w}x${h} shelf`).toBeLessThanOrEqual(w - PAGE_MARGIN + 0.5);
+      // The animals are always on the side the child reads from and the
+      // crates are the next thing along, so the first drag is a short
+      // sideways one whichever shape the screen is in.
+      expect(loose.x, `${w}x${h} animals left of the crates`).toBeLessThan(shelf.x);
+      // The panel is above the animals, never over them.
+      if (panel.x === loose.x) {
+        expect(panel.y + panel.h, `${w}x${h} panel above the floor`).toBeLessThanOrEqual(loose.y);
+      }
+    }
+  });
+
+  it('ends the animals and the crates on one ground line', () => {
+    // They are one floor: a crate twenty pixels above the feet of the
+    // animal beside it is two ground lines in one picture.
+    for (const [w, h] of [[1024, 768], [820, 620], [874, 402], [812, 375]]) {
+      const { loose, shelf } = at(w, h);
+      expect(shelf.y + shelf.h, `${w}x${h}`).toBeCloseTo(loose.y + loose.h, 5);
+    }
+  });
+
+  it('keeps every crate at the tap floor, with no two hit boxes overlapping', () => {
+    // **The reason the short layout has a third column.** Six crates
+    // need 328px of width in one row or 160x104 in two, and a landscape
+    // phone's reading column can give neither: squeezed in beside the
+    // animals they come out 27px across, so the 48px hit boxes of two
+    // neighbours overlap by 13 and a tap near the edge of one answers
+    // for the next. Standing them up in a rack of their own is what
+    // keeps all six at the floor.
+    for (const [w, h] of [[1024, 768], [1024, 700], [820, 620], [874, 402], [812, 375]]) {
+      const { shelf, labelH } = at(w, h);
+      const grid = fitChipGrid(
+        SHELF_CRATES.length,
+        { w: shelf.w, h: shelf.h - labelH - 8 },
+        { gap: BAY_GAP, maxW: 76, maxH: 76 },
+      );
+      // The hit box is floored at MIN_TAP whatever is drawn, so what has
+      // to hold is the pitch: two cells a gap apart must be MIN_TAP or
+      // more from centre to centre, on both axes.
+      expect(grid.chipW + BAY_GAP, `${w}x${h} crate pitch across`).toBeGreaterThanOrEqual(MIN_TAP);
+      if (grid.rows > 1) {
+        expect(grid.chipH + BAY_GAP, `${w}x${h} crate pitch down`).toBeGreaterThanOrEqual(MIN_TAP);
+      }
+    }
+  });
+
+  it('keeps the waiting animals on a row at least a tap target tall', () => {
+    for (const [w, h] of [[1024, 768], [1024, 700], [820, 620], [874, 402], [812, 375]]) {
+      const { loose, labelH } = at(w, h);
+      expect(loose.h - labelH - 8, `${w}x${h}`).toBeGreaterThanOrEqual(MIN_TAP);
+    }
+  });
+
+  it('sizes the waiting animals by the floor they have, not by a share of the viewport', () => {
+    // The row runs out of floor long before it runs out of height, so
+    // the layout asks the width first and gives the band what the row
+    // asks for.
+    const units = [1, 0.58, 0.74, 0.38, 0.56, 0.3];
+    expect(Math.round(looseRowScale(units, 314, BAY_GAP))).toBe(77);
+    expect(Math.round(looseRowScale(units, 732, BAY_GAP))).toBe(194);
+    expect(looseRowScale([], 300, BAY_GAP)).toBe(0);
+  });
+
+  it('leaves the tall shape exactly where it was', () => {
+    // The two columns and the full-width floor, measured off the
+    // running screen at 820x620 and 1024x700 before the short shape
+    // existed. Nothing in this work was allowed to move them.
+    const narrow = at(820, 620);
+    expect(narrow.park).toEqual({ x: 24, y: 97.5, w: 424, h: 294.5 });
+    expect(narrow.panel.w).toBe(324);
+    expect(narrow.loose.y + narrow.loose.h).toBe(540);
+    const desktop = at(1024, 700);
+    expect(desktop.park).toEqual({ x: 24, y: 97.5, w: 542, h: 368.5 });
+    expect(desktop.panel.w).toBe(410);
   });
 });

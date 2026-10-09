@@ -345,3 +345,214 @@ colour taken out, which is the check that a crate that does not suit is
 still identifiable. With motion reduced: `11-reduced-motion`,
 `12-reduced-mid-drag`, `13-reduced-crated`, `14-reduced-mid-session`. Shot in real Chrome through Playwright; the Claude
 browser pane cannot initialise WebGL (`.claude/TRAPS.md`).
+
+## Spark's column, and a second shape for a short screen
+
+2026-10-09, later the same day, on `claude/crate-loading` after the
+car-park branch merged. Files: `crate-loading-view.ts` (the layout),
+`car-park.ts` (one export), and the two test files.
+
+### The fixture was describing a layout that no longer existed
+
+Before anything else: **`RAW_COLUMNS` in `fleet-art.test.ts` was wrong
+by 40 to 158 pixels**, and so was every number quoted off it, including
+the 335px column in `.claude/notes/car-park-one-world.md` and the 387px
+Marcus was asked about. The car-park branch measured the columns on
+`f835b2b`, where the loading bay floor was `min(104, max(76, h*0.19))`.
+The crate-loading branch had already changed it to
+`min(142, max(76, h*0.22))`. The merge took both, and nothing
+re-measured. The real columns, read off the running screen in Chrome:
+
+| | column the car park gets | was recorded as |
+|---|---|---|
+| 1024x768 | 437 | — |
+| 1024x700 | 369 | 527 |
+| 820x620 | 295 | 335 |
+| 874x402 | 145 | 145 |
+
+So the collision Marcus ruled on was worse than the question described:
+Spark needs 361 drawn, and at 820x620 she had 295 of column, not 335.
+
+### Job 1: Spark's 387px column cannot be given at 820x620
+
+**Option A is 98px out of reach at that viewport, and 38px out of reach
+even with the loading bay floor squeezed to the tap floor.** The whole
+height ledger at 820x620:
+
+| | px |
+|---|---|
+| title plate and the gap under it (`contentTopFor`) | 97 |
+| the car park / reading column | 295 |
+| `SPACE.m` | 12 |
+| the loading bay floor | 136 |
+| the "Let's go!" row (`EDGE_CONTROL_INSET` + `MIN_TAP`/2 + `SPACE.l`) | 80 |
+
+620 in total, and only the middle three are the screen's own. The
+column needs **393**, not 387: the 387 in the earlier note added Spark's
+361 to the ground a *335px* column is owed (26), and `carParkBackdropH`
+is 4% of the column, so a taller column is owed more. 393 is the least
+column with `columnH - carParkBackdropH(columnH) >= 361`.
+
+To find 98px the floor band would have to fall from 136 to 38. Its own
+floor is 76 — a 20px lead-in row, `SPACE.s`, and `MIN_TAP` for the
+animals and crates standing on it — and at 76 the column still only
+reaches 355. **So the 40px bay floor and the 48px floor on the loading
+bay cannot both hold at 820x620 in a stacked layout.** That is the
+escalation, and it is the same shape as the one that produced the
+question in the first place.
+
+**The band has no slack to give, either.** It looks like it has: the
+animals are drawn 99px tall in a 108px row. But `looseRow` sizes them
+by the *width* of floor they have and caps at the row's height, and with
+six animals offered at 820x620 the width allows 99 — so the band is
+using what it has. With eight animals it would be 68 and 40px would come
+free, which is a layout that depends on the cargo and therefore moves
+the vehicle between trips. Not taken.
+
+### So the rising rear stays, and here is exactly what it is doing
+
+The previous note guessed the rise would become a no-op. It is the
+opposite: with the real columns it is load-bearing at three of the four
+viewports. Held by a test (`needs the rising rear at three of the four
+viewports, and says which`), with the distances in the one above it:
+
+| | who rises | by |
+|---|---|---|
+| 1024x768 | nobody | — |
+| 1024x700 | Spark | 11px |
+| 820x620 | Big Tilly 18, Bea 26, Spark 45 | (Trikey 1px, which is rounding) |
+| 874x402 | Spark | 5px, clamped at `PARK_CEILING` |
+
+**And it is the only shape the extra height can take.** The band beside
+the title at 820x620 is 280px wide between Back and the title plate, and
+a vehicle drawn tall enough to use all of it would be 164px wide and
+run under the plate — Henry's painted body would reach x=302 against a
+plate starting at 290. Only the narrow rear of a vehicle who needs it
+can use that band, which is what `vehicleParkTop` does. Widening the
+column for everybody would break the clearance the existing test holds.
+
+What the layout gained instead: nothing at 820x620, and the honest
+statement of why, in `loadingColumns`' own doc.
+
+### Job 2: the short shape, and where it starts
+
+Below **599px of viewport height** the screen lays itself out in three
+columns instead of two over a floor. The number is derived in
+`loadingColumns` and computed at render time, because `contentTop` is
+read off the drawn title:
+
+> the stacked column is `contentBottom - bandH(height) - SPACE.m -
+> contentTop`; a vehicle stands whole in it when the column less
+> `carParkBackdropH` is at least `wholeVehicleHeight`; the short shape
+> takes over where that fails for the *smallest* requirement in the
+> fleet, Henry's 255.
+
+At 599 the column is 277 and 277 − 22 = 255; at 598 it is 276 and 254.
+**The smallest, not the current vehicle** — the shape must not change
+when an arrow changes the vehicle, or the screen re-flows under the
+child's hand. 820x620 clears it by 16px of column and stays stacked.
+
+It also needs width: two page margins, the car park's column, two
+gutters, the rack and the narrowest reading column come to 796px. Below
+that it falls back to stacked. The narrowest viewport in the game is
+812.
+
+### What the short shape is
+
+```
+  [ car park, SAFE_MARGIN to SAFE_MARGIN ] [ panel over the animals ] [ crate rack ]
+```
+
+- **The car park gets the whole height of the screen**, because at
+  874x402 Spark needs 393 of the 402 there are. The title plate and Back
+  float over the tarmac either side of her — which is what they already
+  do to the risen rear in the tall shape — and the buttons sit on the
+  tarmac to the right of her nose, clear of her at every vehicle.
+- **The vehicle is drawn no wider than her bays need** (132, which is
+  Bea — her bed is the narrowest share of her body in the fleet), with
+  `ARROW_W + ARROW_GAP` reserved either side. In the tall shape she is
+  fitted to the column and her bays grow with it; here every pixel of
+  width that is not her or her arrows is worth more to the words.
+- **The crates stand up in a rack of their own.** This is the part that
+  decides the whole arrangement. Six crates at the tap floor need either
+  328px of width in one row or 160x104 in two, and a landscape phone's
+  reading column can give neither: squeezed in beside the animals they
+  come out **27px across, so the 48px hit boxes of two neighbours
+  overlap by 13px** and a tap near the edge of one answers for the next
+  — the same failure `BAY_MIN` exists to stop in the vehicle. Two
+  crates wide by three down, in 104px of width, keeps all six at the
+  floor. A test holds the pitch on both axes at all five viewports.
+- **The animals are still left of the crates**, so stage one is still a
+  short sideways drag, and both end on one ground line at
+  `contentBottom`, so the animals' feet and the bottom crate stand on
+  the same floor.
+- **The rack's lead-in arrow points down**, because the crates are under
+  it rather than off to its right. An arrow pointing at the edge of the
+  screen is the fault Marcus's rule names.
+
+Measured at 874x402, against the same screen before:
+
+| | before | after |
+|---|---|---|
+| Henry | 255 tall, **cropped** — 33px of his front gone | 308, whole |
+| every other vehicle | cropped | whole |
+| crates drawn | 54 | 46 |
+| biggest animal drawn | 60 | 48 |
+| reading column, inner | 311 | 278 |
+| panel's longest copy | ran 8px off the bottom of its paper | on the paper |
+
+### Two things fixed on the way
+
+- **`PANEL_TEXT_H` counts four body lines and the narrow column takes
+  five**, so the panel has been running its last line off its own plate
+  on the landscape phone for as long as there has been one. `drawPanel`
+  closes the leading up on a short plate; measured in Chrome that is
+  8 + 26 + 5x20 + 8 = 142, which is now `PANEL_TIGHT_H` and the floor
+  the layout reserves. It is what cost the animals 11px of their row.
+- The stale comments in this file about the far kerb, the fleet in the
+  bays either side and the bumper paid for the backdrop — the car-park
+  note listed them — now describe the picture that is there.
+
+### What is still not right, and the numbers
+
+- **812x375 (the Capacitor app) and 812x325 (the Home Screen web clip)
+  still crop.** The short shape gives the car park `height - 32`: 343
+  and 293. Spark needs 361, so she is cut by 18px at 375 and Bea, Big
+  Tilly and Spark are all cut at 325. Nothing in the layout can fix it —
+  361px of vehicle does not go into 343px of screen — and the only lever
+  left is the 40px bay floor, which Marcus has ruled out. Held by a test
+  that names exactly which vehicles are cut at which size, so it cannot
+  go quiet.
+- **The reading column at 812 wide is 252px (216 inner), about five
+  words a line** against the eight to ten the rule asks for. Every
+  sentence `describePair` can write still sets cleanly there — the test
+  now runs at 278 and 216 as well as 374, 311 and 288, and a sweep of
+  every width from 180 to 400 came back clean — but five words a line is
+  a thin column and it is the price of three columns on an 812pt phone.
+- **The panel's bottom padding is 2.5px against 8 at the top** on the
+  landscape phone, which is the wrong way round under the
+  more-space-below rule. It is the squeeze: the panel is 136.5 where its
+  copy wants 134 and the band below it is already at its floor.
+- **Adjacent animals' hit boxes overlap on the floor**, in both shapes
+  and before this work. The row's pitch is the drawn size plus 8, and
+  the hit box is floored at 48, so two small animals 30px apart share
+  14px of target. Pre-existing, unchanged, and worth a decision of its
+  own: the honest fix is to space the row by the hit boxes, which makes
+  every animal smaller.
+- **The vehicle-change arrows are still not wired**, so the 228px the
+  short shape reserves for them is bare tarmac today. It is a marked bay
+  on a car park rather than an empty panel, so it reads as a place; but
+  it is 228px, and wiring them (the recipe is in
+  `.claude/notes/car-park-one-world.md` §5) is what it is for.
+
+### Screenshots
+
+`/private/tmp/claude-501/-Users-marcus-Projects-animal-rescue-centre/cf0b1264-730a-4126-9f9f-22caf5987837/scratchpad/loading-short-2026-10-09/`
+— `spark-whole-820x620`, `tall-820x620-henry`, `short-874x402-henry`,
+`short-874x402-spark`, `short-874x402-mid-drag` (a cat in the air with
+the shelf lit for her), `short-874x402-reduced-motion` and
+`short-874x402-reduced-mid-drag`. Real Chrome under Playwright;
+`apps/game/tools/shoot-short-loading.mjs` takes them and
+`apps/game/tools/measure-loading.mjs` prints the numbers the test
+fixture is measured from. The Claude browser pane cannot run Phaser
+(`.claude/TRAPS.md`).
