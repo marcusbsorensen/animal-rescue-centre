@@ -3375,7 +3375,20 @@ function drawAnimalTile(
   }
 }
 
-function drawBays(
+/**
+ * The vehicle's bays, drawn — the holes, what is standing in them, and
+ * the mark on the edge between any two animals who mind each other.
+ *
+ * **Exported for its test, which is about which crate it draws.** The
+ * rest of the drawing is checked by eye and by screenshot, as the test
+ * file's own header says; this one fact is not visible in a test that
+ * cannot see a canvas and is exactly the one that went wrong — the bed
+ * drew the species default rather than the child's choice from the day
+ * crate choice shipped until it was found the same evening. A stub
+ * scene that records the texture keys is enough to pin it, so it is
+ * pinned.
+ */
+export function drawBays(
   scene: Phaser.Scene,
   container: Phaser.GameObjects.Container,
   state: CrateLoadingState,
@@ -3460,7 +3473,16 @@ function drawBays(
     if (crate) {
       const record = state.animalsById.get(crate.animalId);
       drawAnimalTile(
-        scene, container, record, record?.name ?? '', crateDefFor(crate.species),
+        // **The crate she is in, not the crate she ought to be in.**
+        // `crate.crateType` is the child's own choice, carried from
+        // `putHeldInCrate` through `placeHeld` onto the `LoadedCrate`;
+        // this drew `crateDefFor(crate.species)` until 2026-10-09, which
+        // is the species default and therefore one design per species
+        // however the child chose. A dog put in the secure crate was
+        // drawn in a standard one, so the six crate designs could never
+        // show on the bed and the choice had no visible consequence —
+        // the one thing a screen built around a choice may not do.
+        scene, container, record, record?.name ?? '', CRATE_DEFS[crate.crateType],
         { left, top, cx, cy, slotW, slotH, withName },
         // **The animals in the bays wear their feelings too**, so the
         // whole load can be read without tapping anything: a child
@@ -3518,7 +3540,10 @@ function drawBays(
           heading: `${animal.name} the ${animal.species}`,
           tone: null,
           body: [
-            `${animal.name} is in a ${crateDefFor(crate.species).label.toLowerCase()}.`,
+            // The crate she is in, from the same field the bay draws
+            // from, so the picture and the sentence cannot disagree
+            // about which crate a child is looking at.
+            `${animal.name} is in a ${CRATE_DEFS[crate.crateType].label.toLowerCase()}.`,
             'Tap to lift them out again.',
           ],
           // The same face she is wearing in the bay under the pointer,

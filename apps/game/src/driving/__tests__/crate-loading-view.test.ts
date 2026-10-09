@@ -21,7 +21,7 @@
  *      checked at.
  */
 import { describe, it, expect, vi } from 'vitest';
-import type { Species } from '@arc/shared-types';
+import type { Animal, Species } from '@arc/shared-types';
 
 /**
  * Phaser, stubbed away.
@@ -40,9 +40,14 @@ import {
   SHELF_CRATES,
   VEHICLE_DEFS,
   bestCrateFor,
+  createLoadingSession,
   describePair,
   getCompatibility,
+  holdFromTray,
   isCrateSuitable,
+  placeHeld,
+  putHeldInCrate,
+  reseatInto,
   settledNotes,
   type AdjacencyNote,
   type CompatibilityLevel,
@@ -53,10 +58,11 @@ import {
 } from '@arc/game-logic';
 import {
   BAY_FLOOR_MIN, DROP_SLACK, SPECIES_SIZE, WAITING_PAGER_W, activityTitle, bayFloorFor,
-  dropTargetsFor, affectedBy, bayHitSize, glyphWorthDrawing,
+  dropTargetsFor, affectedBy, bayHitSize, drawBays, glyphWorthDrawing,
   gridFace, gridFeeling, loadingColumns, looseRow, looseRowScale, nearestDropZone, pairFaces,
   pairOf, pairReactions, panelPadding, plural, setLines, splitLoadingBay, splitTakeaway,
   tileArt, titleCase, whoTravelsIn,
+  type CrateLoadingCallbacks,
   type DropZone,
 } from '../crate-loading-view';
 import {
@@ -1453,5 +1459,230 @@ describe('where the loading screen puts everything', () => {
     const desktop = at(1024, 700);
     expect(desktop.park).toEqual({ x: 24, y: 97.5, w: 542, h: 368.5 });
     expect(desktop.panel.w).toBe(410);
+  });
+});
+
+/**
+ * The third load-bearing coupling, added 2026-10-09: **which crate a
+ * bay draws.**
+ *
+ * The screen asks the child to choose a crate and then shows her the
+ * load. Those are the same object seen twice, and between the day crate
+ * choice shipped and the evening of the same day they disagreed: the
+ * bed drew `crateDefFor(crate.species)` — the species default, one
+ * design per species — instead of `crate.crateType`, the choice the
+ * child had just made and the rules had faithfully stored. A dog put in
+ * the secure crate was drawn in a standard one.
+ *
+ * Nothing was visibly broken, which is why it survived a day of
+ * screenshots: every bay held a plausible crate with the right animal
+ * in it. What was gone was the consequence of choosing, and an action
+ * with no visible result is the one thing this screen may not have.
+ *
+ * So the bays are drawn here against a scene that records the texture
+ * keys it is asked for, and those keys are checked against the crates
+ * the session says the animals are in. It is the whole of the drawing
+ * this file asserts, and deliberately so — the rest is for the eye and
+ * for the screenshots.
+ */
+interface StubScene {
+  /** Every `crate-*` texture the scene was asked to draw, in order. */
+  keys: string[];
+  /** The `pointerover` handlers the bays registered, in slot order. */
+  hovers: Array<() => void>;
+  scene: Phaser.Scene;
+}
+
+/**
+ * A scene that draws nothing and remembers what it was asked to draw.
+ *
+ * `textures.exists` is true only for the crates, so `createAnimalSprite`
+ * takes its coloured-rectangle fallback rather than reaching for art
+ * this test has no canvas to hold. The crates are the subject, so the
+ * crates are the textures that exist.
+ */
+function stubScene(): StubScene {
+  const keys: string[] = [];
+  const hovers: Array<() => void> = [];
+
+  /** An object that answers every drawing call with itself. */
+  const chain = (): Record<string, unknown> => {
+    const g: Record<string, unknown> = { width: 256, height: 256 };
+    for (const m of [
+      'fillStyle', 'fillRect', 'fillRoundedRect', 'fillCircle', 'lineStyle',
+      'strokeRect', 'strokeRoundedRect', 'strokeCircle', 'beginPath', 'moveTo',
+      'lineTo', 'closePath', 'strokePath', 'fillPath', 'setDepth', 'setOrigin',
+      'setScale', 'setAlpha', 'setStrokeStyle', 'setDisplaySize', 'setName',
+      'setInteractive', 'add', 'setPosition', 'destroy', 'setVisible',
+      'setData', 'getData', 'setAngle', 'setTint', 'on',
+    ]) {
+      g[m] = () => g;
+    }
+    return g;
+  };
+
+  const add = {
+    graphics: () => chain(),
+    container: () => chain(),
+    image: (_x: number, _y: number, key: string) => {
+      if (key.startsWith('crate-')) keys.push(key);
+      return chain();
+    },
+    text: (_x: number, _y: number, str: string) => {
+      const t = chain();
+      // A width `fitLabel` can shrink below any sane maximum, so its
+      // ellipsis search terminates instead of spinning.
+      t.width = str.length * 7;
+      t.setText = (s: unknown) => { t.width = String(s).length * 7; return t; };
+      return t;
+    },
+    rectangle: () => {
+      const r = chain();
+      r.on = (event: unknown, fn: unknown) => {
+        if (event === 'pointerover') hovers.push(fn as () => void);
+        return r;
+      };
+      return r;
+    },
+  };
+
+  const scene = {
+    add,
+    textures: { exists: (key: string) => key.startsWith('crate-') },
+    tweens: { add: () => undefined },
+  } as unknown as Phaser.Scene;
+
+  return { keys, hovers, scene };
+}
+
+/** The painted records the bays draw from, for animals built by `animal()`. */
+function recordsFor(animals: LoadableAnimal[]): Map<string, Animal> {
+  return new Map(animals.map((a) => [a.id, {
+    id: a.id,
+    name: a.name,
+    species: a.species,
+    state: 'sheltered',
+  } as unknown as Animal]));
+}
+
+type PanelBody = { heading: string; body: string[] } | null;
+
+/**
+ * Load animals into a vehicle through the real rules — hold, choose a
+ * crate, put her in a space — and draw the bays of the result.
+ *
+ * Through `putHeldInCrate` and `placeHeld` rather than by writing a
+ * grid, because the crate type's journey from the child's tap to the
+ * `LoadedCrate` is half of what is being asserted here. A grid written
+ * by hand would pass this test with the choosing flow unplugged.
+ */
+function drawLoaded(
+  vehicle: VehicleType,
+  loaded: Array<{ animal: LoadableAnimal; crate: CrateType; slot: number }>,
+): { session: LoadingSession; keys: string[]; hovers: Array<() => void>; messages: PanelBody[] } {
+  let session = createLoadingSession(vehicle, loaded.map((l) => l.animal));
+  for (const l of loaded) {
+    session = putHeldInCrate(holdFromTray(session, l.animal.id), l.crate);
+    const out = placeHeld(session, l.slot);
+    expect(out.placed, `${l.animal.name} into slot ${l.slot}`).toBe(true);
+    session = out.session;
+  }
+  const drawn = drawBaysOf(session, vehicle, loaded.map((l) => l.animal));
+  return { session, ...drawn };
+}
+
+/** Draw one session's bays, and hand back what the scene was asked for. */
+function drawBaysOf(
+  session: LoadingSession,
+  vehicle: VehicleType,
+  animals: LoadableAnimal[],
+): { keys: string[]; hovers: Array<() => void>; messages: PanelBody[] } {
+  const def = VEHICLE_DEFS[vehicle];
+  const stub = stubScene();
+  const messages: PanelBody[] = [];
+  drawBays(
+    stub.scene,
+    stub.scene.add.container(0, 0),
+    {
+      session,
+      vehicle: def,
+      destinationName: 'The Vet',
+      animalsById: recordsFor(animals),
+    },
+    {} as unknown as CrateLoadingCallbacks,
+    (copy) => messages.push(copy as PanelBody),
+    [],
+    { active: false },
+    { originX: 0, originY: 0, slotW: 120, slotH: 100, cols: def.cols },
+  );
+  return { keys: stub.keys, hovers: stub.hovers, messages };
+}
+
+describe('the bay draws the crate the child chose', () => {
+  it('draws the non-default crate when that is the one she picked', () => {
+    // A dog's default is the standard crate and the secure crate is the
+    // other one she may travel in — a different painting. Keyed on
+    // species this drew `crate-standard`, so the child's tap on the
+    // secure crate had no visible result anywhere on the screen.
+    expect(bestCrateFor('dog')).toBe('standard');
+    const { keys } = drawLoaded('small-van', [
+      { animal: animal('dog', 1), crate: 'secure', slot: 0 },
+    ]);
+    expect(keys).toEqual(['crate-secure']);
+    expect(keys).not.toContain(`crate-${bestCrateFor('dog')}`);
+  });
+
+  it('draws a different crate per bay when two of one species differ', () => {
+    // The sharpest form of it: one species, two animals, two crates.
+    // Anything keyed on species can only ever draw these two the same,
+    // whatever the child did.
+    const { keys } = drawLoaded('small-van', [
+      { animal: animal('cat', 1), crate: 'quiet', slot: 0 },
+      { animal: animal('cat', 2), crate: 'ventilated-basket', slot: 1 },
+    ]);
+    expect(keys).toEqual(['crate-quiet', 'crate-ventilated-basket']);
+  });
+
+  it('draws any of the six, for every species, because any of them can be chosen', () => {
+    // Swept, so no species is quietly pinned to its first preference.
+    // The shelf offers all six to every animal on purpose — see
+    // `SHELF_CRATES` — so every one of the six is a crate the bed has
+    // to be able to draw for every one of the eight.
+    for (const species of SPECIES) {
+      for (const crate of SHELF_CRATES) {
+        const { keys } = drawLoaded('pedal-trike', [
+          { animal: animal(species, 1), crate, slot: 0 },
+        ]);
+        expect(keys, `${species} in ${crate}`).toEqual([`crate-${crate}`]);
+      }
+    }
+  });
+
+  it('names the crate she is in, not the one she ought to be in', () => {
+    // The hover sentence had the same fault as the picture and is fixed
+    // with it: a bay drawn as a secure crate that says "is in a
+    // standard crate" is worse than either mistake on its own.
+    const { hovers, messages } = drawLoaded('small-van', [
+      { animal: animal('dog', 1), crate: 'secure', slot: 0 },
+    ]);
+    hovers[0]();
+    const copy = messages.at(-1);
+    expect(copy?.body[0]).toBe(`A1 is in a ${CRATE_DEFS.secure.label.toLowerCase()}.`);
+    expect(copy?.body[0]).not.toContain(CRATE_DEFS.standard.label.toLowerCase());
+  });
+
+  it('keeps the crate when the load is moved to another vehicle', () => {
+    // `reseatInto` promises everybody keeps the crate they are in. The
+    // bed is where that promise is visible, so it is checked here as
+    // well as in the rules' own tests — a bunny who chose the standard
+    // crate must not be redrawn in her species' basket by an arrow.
+    const bunny = animal('bunny', 1);
+    const { session } = drawLoaded('small-van', [
+      { animal: bunny, crate: 'standard', slot: 0 },
+    ]);
+    expect(bestCrateFor('bunny')).toBe('ventilated-basket');
+    const moved = reseatInto(session, 'long-van');
+    expect(moved.leftBehind).toEqual([]);
+    expect(drawBaysOf(moved.session, 'long-van', [bunny]).keys).toEqual(['crate-standard']);
   });
 });

@@ -787,3 +787,167 @@ the Claude browser pane cannot run Phaser.
 
 `pnpm -r typecheck` green, `pnpm -r lint` 0 errors, `pnpm -r test` 925
 game-logic and 604 apps/game (592 at the branch point).
+
+---
+
+## The bed drew the wrong crate (2026-10-09, evening)
+
+Two jobs: the bay drawing the species default instead of the child's
+choice, found and left unfixed in
+`.claude/notes/openai-recommission-2026-10-09.md` section 8.1; and
+Trikey's geometry after today's portrait repaint.
+
+### The chosen crate was stored all along
+
+**The crate type was never missing.** The whole path is intact and was
+intact before this change:
+
+```
+tap or drag onto a shelf crate
+  -> onPutInCrate            (crate-loading-view.ts)
+  -> PtvDriveScene.putIntoCrate
+  -> putHeldInCrate(session, crate)   -> session.heldCrate
+tap or drag onto a bay
+  -> onPlaceInSlot -> placeIntoBay
+  -> placeHeld(session, slot)
+  -> crateOf(animal, slot, session.heldCrate)
+  -> LoadedCrate.crateType            (crate-stacking.ts)
+```
+
+Only the drawing ignored it. `drawBays` passed
+`crateDefFor(crate.species)` — `CRATE_PREFERENCE[species][0]`, the
+species default — to `drawAnimalTile`, and `makeCrateFace` turns a
+`CrateDef` into the texture key `crate-${def.id}`. So the bed could
+only ever show one design per species, whatever the child chose, and
+six crates commissioned, measured for distinguishability and installed
+this afternoon were invisible the moment an animal went aboard.
+
+**Two call sites, not one.** The hover sentence underneath — "Nala is
+in a wicker basket." — had the same fault and read the same field, so
+a bay drawn correctly and a sentence read off the species would have
+disagreed with each other. Both now read `CRATE_DEFS[crate.crateType]`.
+
+**Three other `crateDefFor` calls were checked and left alone.** They
+are all about an animal who is *not in a crate yet*, where the species
+default is the right answer and the point of the sentence:
+`standingCopy` ("Nala travels best in a standard crate"), `looseCopy`
+(the same, on the floor), and the empty-van instruction picture in the
+panel (animal, arrow, the crate she goes in).
+
+### Trikey: nothing in code is sized from the portrait
+
+**The premise did not hold, and the measurements say so.** Her portrait
+`assets/driving/vehicles/vehicle-trikey.png` was indeed repainted today
+(`ad521be`) — measured against its predecessor, drawn width **605px ->
+738px (+22.0%)** on an unchanged 1024x512 canvas, right margin **181px
+-> 48px**, left/top/bottom identical at 238/30/24. That is the rack and
+the pennant, exactly as commissioned.
+
+But **no game code reads that file.** The only reference anywhere is
+`public/admin/pre-drive.html`, a mock page, which drops it into a
+`max-width: 150px; max-height: 84px; object-fit: contain` box — the
+canvas is unchanged, so what it draws is unchanged.
+
+Every Trikey geometry constant comes off her **top-down** sprite,
+`assets/driving/topdown/vehicle-topdown-trikey.png`, which was last
+touched on 2026-10-08 (`ba61aa5`, an ink colour fix) and was not
+repainted. Re-measured against the installed file rather than taken on
+trust:
+
+| constant | recorded | measured today | verdict |
+|---|---|---|---|
+| `VEHICLE_BED_SOURCE['pedal-trike']` | 364 x 851 | **364 x 851** | correct |
+| `VEHICLE_BED['pedal-trike']` | x 0.11, y 0.04, w 0.78, h 0.28 | all nine `bedProbePoints` land on paint at alpha 255 | correct |
+| `PAINTED_BODY['pedal-trike']` (test fixture) | 0.08 .. 0.92 | body median **0.0797 .. 0.9231** | correct, and conservative by ~0.3% either side |
+| `VEHICLE_WIDTH_M['pedal-trike']` | 0.75 m | a real-world figure, not read off art | untouched |
+| `VEHICLE_SIZE['pedal-trike']` (`PtvDriveScene`) | 0.43 | her raw opaque width is 0.649 of Henry's 561px; the comment says so and says why (the file includes her handlebars) | untouched, deliberate |
+
+**So nothing was corrected, because nothing was wrong.** The re-measure
+`.claude/notes/commissions-2026-10-09.md` section 6 asks for is still
+owed, and still blocked on the same thing: her two top-downs are
+commissioned *from* the repainted portrait and have not been drawn yet.
+When they land, `install-vehicles.py` installs them and the numbers in
+the table above are the ones to redo.
+
+### What is pinned now that was not
+
+`warnOnStaleBed` was the only guard on any of this and it is a
+`console.warn` at draw time — it fires in a browser, on the first
+frame, for whoever is looking. The whole fleet was repainted at new
+canvas sizes on 2026-10-08 and the beds were re-measured by hand
+afterwards, which is the right outcome by the wrong mechanism, and a
+stale measurement fixture cost most of a day earlier today.
+
+`fleet-art.test.ts` now **reads the installed PNGs and measures them**,
+by the methods the constants' own comments name: a small
+`node:zlib` PNG reader (no `sharp` — it resolves from here only because
+Node walks up to the monorepo root, which is not a dependency worth
+leaning on), then the canvas against `VEHICLE_BED_SOURCE`, the nine
+probe points against the sprite's alpha, and the median opaque extent
+across the bed's rows against `PAINTED_BODY`. Five tests, all five
+vehicles.
+
+**Said plainly, what it cannot catch:** nothing there knows what the
+art is *of*. A repaint at the same canvas size, same body width, with
+the load area moved inside it, passes. Trikey is about to be exactly
+that case. What it stops is the silent half — art replaced, numbers
+left behind.
+
+### Tests
+
+- `crate-loading-view.test.ts`, five new: the bays drawn against a stub
+  scene that records texture keys, with the session built through the
+  real `holdFromTray` / `putHeldInCrate` / `placeHeld` rather than by
+  writing a grid, so the crate type's whole journey is under the
+  assertion. A dog in `secure`; two cats in two different crates; every
+  one of the six for every one of the eight species; the hover
+  sentence; and the crate surviving `reseatInto`. **All five fail on
+  the old line** (verified by putting `crateDefFor(crate.species)`
+  back: 5 failed, 100 passed).
+- `fleet-art.test.ts`, five new, above. Verified they bite by widening
+  `PAINTED_BODY['pedal-trike']` to 0.02..0.98 — fails, reporting the
+  paint at 0.0787.
+- `drawBays` is exported for the first, which is in keeping: `tileArt`,
+  `bayHitSize`, `setLines` and a dozen others already are.
+
+Counts: game-logic **946** unchanged, apps/game **623 -> 633**, badges
+7. `pnpm -r typecheck` clean, `pnpm -r lint` 0 errors (34 apps/game
+warnings, 11 game-logic, both unchanged), `pnpm check:sprites` 557/600
+with the 43 known failures.
+
+### Screenshots
+
+Real Chrome under Playwright, via the new
+`apps/game/tools/shoot-chosen-crates.mjs` — there was no way to
+photograph a non-default crate before, which is a fair part of why this
+survived a day of screenshots. Repo root, gitignored:
+
+- `chosen-crates-animal-lorry-820x620.png`, `-812x375.png` — four
+  animals, four crates, none of them the species default: a cat in the
+  round wicker basket, a bunny in the plain wooden standard, a hedgehog
+  in the purple squircle quiet crate, a dog in the grey octagonal
+  secure crate. Four different shapes as well as four colours, which is
+  what the commission was for.
+- `chosen-crates-small-van-820x620.png`, `-812x375.png` — three of
+  them on Henry.
+- `chosen-crates-pedal-trike-820x620.png`, `-812x375.png` — Trikey's
+  two bays, a cat in the quiet crate and a hedgehog in the standard
+  one, with the worried zigzag on the edge they share.
+
+The scene was read back as well as photographed: at both sizes and on
+all three vehicles the `crate-*` textures drawn on the bed match the
+session's `crateType` exactly. No `[crate loading]` stale-bed warning
+on any run. `tools/measure-loading.mjs` re-run at both sizes: the
+column is 24,97 424x295 at 820x620 and 24,16 360x343 at 812x375, which
+is what the fixture already said — nothing in this work moved the
+layout.
+
+### Left undone
+
+- Trikey's top-down repaint and the re-measure that follows it. Blocked
+  on the commission, which is blocked on deploying the portrait.
+- `CRATE_FLOOR`'s doc comment is still stale — it says the perch
+  carrier's perch crosses the middle, and in the installed art the
+  perch is a rail along the top with the gate at the bottom. The number
+  looks right on screen; only the sentence is wrong. Noted in
+  `openai-recommission-2026-10-09.md` section 8.1 and not touched here.

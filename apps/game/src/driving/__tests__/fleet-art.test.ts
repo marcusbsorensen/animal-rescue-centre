@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
 import { VEHICLES_BY_ROOM, VEHICLE_DEFS, type VehicleType } from '@arc/game-logic';
 
 /**
@@ -1010,6 +1013,289 @@ describe('the picker', () => {
     // Still true to scale.
     for (const bay of narrow.bays) {
       expect(bay.spriteW / VEHICLE_WIDTH_M[bay.id]).toBeCloseTo(narrow.pxPerMetre, 6);
+    }
+  });
+});
+
+/**
+ * **The fixtures, checked against the paint they describe.**
+ *
+ * Added 2026-10-09, after Trikey's portrait was repainted and the first
+ * question asked of the change — "which of her numbers moved?" — could
+ * only be answered by opening the files by hand. Everything above this
+ * point is arithmetic on three records of what the art looks like:
+ * `VEHICLE_BED` (where the load area is), `VEHICLE_BED_SOURCE` (which
+ * painting it was measured on) and `PAINTED_BODY` (how wide the body is
+ * there). All three were written by eye and none of them was checked
+ * against a file by anything that runs.
+ *
+ * `warnOnStaleBed` in `crate-loading-view.ts` is the existing guard and
+ * it is a `console.warn` at draw time: it fires in a browser, on the
+ * first frame, for whoever happens to be looking. A repaint therefore
+ * reached a commit and a CI run with nothing said. On 2026-10-08 the
+ * whole fleet was repainted at new canvas sizes and the beds were
+ * re-measured by hand afterwards, which is the right outcome by the
+ * wrong mechanism.
+ *
+ * So these read the installed PNGs and measure them, by the methods the
+ * constants' own comments name:
+ *
+ *   - the canvas, from the file header, against `VEHICLE_BED_SOURCE`;
+ *   - the nine `bedProbePoints`, against the sprite's alpha, so a bed
+ *     that has drifted off the painted body fails here rather than
+ *     warning there;
+ *   - the median opaque extent across the bed's rows — median, so one
+ *     wing mirror cannot skew it, which is the mistake the Spark
+ *     comment in `fleet-art.ts` records — against `PAINTED_BODY`.
+ *
+ * **What they cannot catch**, said plainly: nothing here knows what the
+ * art is *of*. A repaint at the same canvas size that keeps a body of
+ * the same width in the same place, and moves the load area within it,
+ * passes. Trikey is about to be that case — her load area becomes a
+ * rear rack — so her re-measure is still a person's job. What these
+ * stop is the silent half: art replaced and numbers left behind.
+ */
+const TOPDOWN = path.join(__dirname, '../../../public/assets/driving/topdown');
+
+/** A decoded sprite: its canvas, and the alpha of any pixel in it. */
+interface Sprite {
+  w: number;
+  h: number;
+  alphaAt: (x: number, y: number) => number;
+}
+
+/**
+ * Enough of a PNG reader to answer "is there paint here?".
+ *
+ * Hand-rolled on purpose. `sharp` is a root dev dependency of the
+ * monorepo and resolves from here only because Node walks up to the
+ * root `node_modules`; it is not a dependency of `@arc/game`, and a
+ * test that leans on that is a test that breaks the first time the
+ * install layout changes. Everything below is `node:zlib` and
+ * arithmetic.
+ *
+ * Handles what the fleet actually is — bit depth 8, non-interlaced,
+ * colour type 6 (RGBA, Trikey) or 3 (palette + `tRNS`, the other four
+ * after the installer's quantise) — and throws on anything else rather
+ * than guessing, so a future sprite in a format this does not read
+ * fails loudly instead of reporting every pixel opaque.
+ */
+function readSprite(file: string): Sprite {
+  const buf = fs.readFileSync(file);
+  const SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  for (const [i, byte] of SIGNATURE.entries()) {
+    if (buf[i] !== byte) throw new Error(`${file} is not a PNG`);
+  }
+
+  let w = 0;
+  let h = 0;
+  let depth = 0;
+  let colour = 0;
+  let interlace = 0;
+  let trns: Buffer | undefined;
+  const idat: Buffer[] = [];
+
+  for (let at = 8; at + 8 <= buf.length;) {
+    const len = buf.readUInt32BE(at);
+    const type = buf.toString('ascii', at + 4, at + 8);
+    const body = buf.subarray(at + 8, at + 8 + len);
+    if (type === 'IHDR') {
+      w = body.readUInt32BE(0);
+      h = body.readUInt32BE(4);
+      depth = body[8];
+      colour = body[9];
+      interlace = body[12];
+    } else if (type === 'tRNS') {
+      trns = Buffer.from(body);
+    } else if (type === 'IDAT') {
+      idat.push(Buffer.from(body));
+    } else if (type === 'IEND') {
+      break;
+    }
+    at += 12 + len;
+  }
+
+  if (depth !== 8 || interlace !== 0 || (colour !== 6 && colour !== 3)) {
+    throw new Error(
+      `${path.basename(file)}: bit depth ${depth}, colour type ${colour}, `
+      + `interlace ${interlace} — this reader handles depth 8, types 3 and 6, `
+      + 'non-interlaced only. Teach it the new format rather than skipping it.',
+    );
+  }
+
+  // One byte per pixel for a palette image, four for RGBA.
+  const bpp = colour === 6 ? 4 : 1;
+  const stride = w * bpp;
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const out = Buffer.alloc(stride * h);
+
+  // Un-filter, scanline by scanline. Each line is prefixed with its
+  // filter type and is reconstructed from the pixel to its left (`a`)
+  // and the line above (`b`, `c` being up-and-left). Straight out of
+  // the PNG specification's filter definitions; `raw` is the filtered
+  // bytes and `out` the picture.
+  for (let y = 0; y < h; y += 1) {
+    const filter = raw[y * (stride + 1)];
+    const from = y * (stride + 1) + 1;
+    for (let i = 0; i < stride; i += 1) {
+      const x = raw[from + i];
+      const a = i >= bpp ? out[y * stride + i - bpp] : 0;
+      const b = y > 0 ? out[(y - 1) * stride + i] : 0;
+      const c = y > 0 && i >= bpp ? out[(y - 1) * stride + i - bpp] : 0;
+      let value: number;
+      if (filter === 0) value = x;
+      else if (filter === 1) value = x + a;
+      else if (filter === 2) value = x + b;
+      else if (filter === 3) value = x + ((a + b) >> 1);
+      else if (filter === 4) {
+        // Paeth: whichever of the three neighbours the gradient a+b−c
+        // is nearest to.
+        const p = a + b - c;
+        const da = Math.abs(p - a);
+        const db = Math.abs(p - b);
+        const dc = Math.abs(p - c);
+        value = x + (da <= db && da <= dc ? a : db <= dc ? b : c);
+      } else throw new Error(`${path.basename(file)}: unknown filter ${filter}`);
+      out[y * stride + i] = value & 0xff;
+    }
+  }
+
+  const alphaAt = colour === 6
+    ? (x: number, y: number) => out[y * stride + x * 4 + 3]
+    // A palette entry with no `tRNS` byte is opaque.
+    : (x: number, y: number) => trns?.[out[y * stride + x]] ?? 255;
+
+  return { w, h, alphaAt };
+}
+
+/** Opaque, at the threshold the sprite measurements have always used. */
+const PAINT = 16;
+
+/**
+ * The painted body across a bed's own rows, as fractions of the sprite:
+ * the median first and last opaque pixel.
+ *
+ * The median is the whole method. A wing mirror, a lamp or a handlebar
+ * reaches wider than the body on a handful of rows, and taking the
+ * extreme would measure mirror to mirror and call it bodywork — which
+ * is exactly how Spark's bed was "corrected" to a wrong number on
+ * 2026-10-09 and reverted. See `VEHICLE_BED`.
+ */
+function paintedBodyOf(sprite: Sprite, bed: { y: number; h: number }) {
+  const lefts: number[] = [];
+  const rights: number[] = [];
+  const top = Math.round(bed.y * sprite.h);
+  const bottom = Math.round((bed.y + bed.h) * sprite.h);
+  for (let y = Math.max(0, top); y <= Math.min(sprite.h - 1, bottom); y += 1) {
+    let first = -1;
+    let last = -1;
+    for (let x = 0; x < sprite.w; x += 1) {
+      if (sprite.alphaAt(x, y) > PAINT) {
+        if (first < 0) first = x;
+        last = x;
+      }
+    }
+    if (first >= 0) {
+      lefts.push(first);
+      rights.push(last);
+    }
+  }
+  lefts.sort((a, b) => a - b);
+  rights.sort((a, b) => a - b);
+  return {
+    left: lefts[lefts.length >> 1] / sprite.w,
+    right: (rights[rights.length >> 1] + 1) / sprite.w,
+  };
+}
+
+describe('the art the bed numbers were measured on', () => {
+  const sprites = new Map<VehicleType, Sprite>();
+  const spriteOfFile = (id: VehicleType) => {
+    let s = sprites.get(id);
+    if (!s) {
+      s = readSprite(path.join(TOPDOWN, `${VEHICLE_SPRITE[id]}.png`));
+      sprites.set(id, s);
+    }
+    return s;
+  };
+
+  it('finds all five sprites, so a missing file cannot pass this file', () => {
+    for (const v of EVERY_VEHICLE) {
+      const file = path.join(TOPDOWN, `${VEHICLE_SPRITE[v.id]}.png`);
+      expect(fs.existsSync(file), file).toBe(true);
+    }
+    expect(EVERY_VEHICLE).toHaveLength(5);
+  });
+
+  it('still measures the canvas VEHICLE_BED_SOURCE records', () => {
+    // The claim `VEHICLE_BED_SOURCE`'s own comment makes: a texture
+    // that no longer measures this has been redrawn since, and the
+    // fractions beside it are then a guess about a different painting.
+    // Every fleet repaint so far has changed the canvas, so this is the
+    // one that would have caught each of them.
+    for (const v of EVERY_VEHICLE) {
+      const sprite = spriteOfFile(v.id);
+      expect({ w: sprite.w, h: sprite.h }, `${v.name}: ${VEHICLE_SPRITE[v.id]}.png`)
+        .toEqual(VEHICLE_BED_SOURCE[v.id]);
+    }
+  });
+
+  it('keeps Trikey at the sprite her bed was measured on, repaint or not', () => {
+    // **Named, because today's repaint was hers and did not touch it.**
+    // `assets/driving/vehicles/vehicle-trikey.png` is her portrait: the
+    // canon picture every other view of her is painted from, repainted
+    // 2026-10-09 with a rear rack and a pennant, which took her drawn
+    // width from 605px to 738px of a 1024x512 canvas and her right
+    // margin from 181px to 48px. Nothing in the game reads it — the
+    // only thing that does is the mock `public/admin/pre-drive.html`,
+    // which fits the whole canvas into a 150x84 box.
+    //
+    // Her bed comes off `topdown/vehicle-topdown-trikey.png`, which is
+    // a different file and was not repainted. So her numbers are
+    // untouched by the portrait, and the re-measure
+    // `.claude/notes/commissions-2026-10-09.md` asks for waits on the
+    // top-down being redrawn from the new portrait, which is still to
+    // be commissioned.
+    expect(VEHICLE_SPRITE['pedal-trike']).toBe('vehicle-topdown-trikey');
+    const sprite = spriteOfFile('pedal-trike');
+    expect({ w: sprite.w, h: sprite.h }).toEqual({ w: 364, h: 851 });
+  });
+
+  it('lands all nine probe points of every bed on paint', () => {
+    // The check `warnOnStaleBed` makes in a browser console, made here
+    // instead — same points, same question, and it fails a run.
+    for (const v of EVERY_VEHICLE) {
+      const sprite = spriteOfFile(v.id);
+      const off: string[] = [];
+      for (const { u, v: vv } of bedProbePoints(VEHICLE_BED[v.id])) {
+        const x = Math.min(sprite.w - 1, Math.max(0, Math.round(u * sprite.w)));
+        const y = Math.min(sprite.h - 1, Math.max(0, Math.round(vv * sprite.h)));
+        if (sprite.alphaAt(x, y) <= 8) off.push(`(${u.toFixed(3)}, ${vv.toFixed(3)})`);
+      }
+      expect(off, `${v.name}'s bed off the painted body at`).toEqual([]);
+    }
+  });
+
+  it('keeps PAINTED_BODY inside the paint, and close enough to mean something', () => {
+    // The fixture is used as a bound the cutaway floor must stay within,
+    // so the direction that matters is one-sided: a fixture *wider*
+    // than the body would let the floor be drawn on tarmac and the test
+    // above it would still pass. The 0.03 is the other half — a
+    // fixture allowed to drift arbitrarily tight stops describing the
+    // art at all. Measured 2026-10-09: Trikey 0.0797..0.9231, Henry
+    // 0.0945..0.9055, Bea 0.1623..0.8411, Big Tilly 0.0813..0.9228,
+    // Spark 0.1266..0.8812.
+    for (const v of EVERY_VEHICLE) {
+      const measured = paintedBodyOf(spriteOfFile(v.id), VEHICLE_BED[v.id]);
+      const fixture = PAINTED_BODY[v.id];
+      expect(fixture.left, `${v.name} body left (paint at ${measured.left.toFixed(4)})`)
+        .toBeGreaterThanOrEqual(measured.left - 0.001);
+      expect(fixture.right, `${v.name} body right (paint at ${measured.right.toFixed(4)})`)
+        .toBeLessThanOrEqual(measured.right + 0.001);
+      expect(fixture.left - measured.left, `${v.name} body left slack`)
+        .toBeLessThan(0.03);
+      expect(measured.right - fixture.right, `${v.name} body right slack`)
+        .toBeLessThan(0.03);
     }
   });
 });
