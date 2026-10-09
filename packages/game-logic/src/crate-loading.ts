@@ -146,6 +146,24 @@ function named(animal: LoadableAnimal): string {
  * Exported because the departure message, the slot preview and the
  * settled grid all need the same sentence for the same pair; a second
  * copy of this wording is a second vocabulary.
+ *
+ * **The second sentence was rewritten on 2026-10-09 because the old one
+ * could not be set.** Every pair that was allowed but unhappy ended
+ * "They can sit next to each other, but X will not enjoy the journey."
+ * — forty characters of subordinate clause, which at the panel's narrow
+ * column broke as "…but Cleo will / not enjoy the journey": a line
+ * break inside a verb phrase, with a negation stranded at the start of
+ * a line. Marcus's typesetting rules forbid both outright, and no
+ * line-breaking algorithm can fix a sentence whose only break points
+ * are bad ones.
+ *
+ * So the tail is short and says what would suit instead of what will
+ * not happen — "Cleo would be happier a space away." It fits one line
+ * at the widest column and breaks between phrases at the narrowest.
+ * Three sentences lost the clause "they can sit next to each other";
+ * what carries that now is the contrast with the blocked sentence,
+ * which still says "cannot" outright, and the fact that the placement
+ * goes through.
  */
 export function describePair(
   animal: LoadableAnimal,
@@ -175,7 +193,7 @@ export function describePair(
       level,
       needsQuiet,
       text: `${named(ill)} is poorly and needs a quiet space. `
-        + `They can sit next to each other, but ${ill.name} would rest better on their own.`,
+        + `A space beside ${ill.name} would help.`,
     };
   }
 
@@ -195,7 +213,7 @@ export function describePair(
     const object = level === 'blocked' ? 'each other' : 'each other worried';
     const tail = level === 'blocked'
       ? 'They cannot sit next to each other.'
-      : 'They can sit next to each other, but neither will enjoy the journey.';
+      : 'They would both be happier a space apart.';
     return {
       level,
       needsQuiet,
@@ -208,7 +226,7 @@ export function describePair(
   const feeling = level === 'blocked' ? 'frightened' : 'worried';
   const tail = level === 'blocked'
     ? 'They cannot sit next to each other.'
-    : `They can sit next to each other, but ${timid.name} will not enjoy the journey.`;
+    : `${timid.name} would be happier a space away.`;
 
   return {
     level,

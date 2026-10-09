@@ -283,36 +283,68 @@ export function setLines(
 
   const fits = (line: string[]): boolean => measure(line.join(' ')) <= maxWidth;
 
-  // No one-letter word at a line end: push it onto the next line,
-  // which can only make that line longer, so it is checked.
-  for (let i = 0; i < lines.length - 1; i += 1) {
-    const line = lines[i];
-    const last = line[line.length - 1];
-    if (line.length > 1 && last.replace(/[^A-Za-z]/g, '').length === 1) {
-      const next = [last, ...lines[i + 1]];
-      if (fits(next)) { line.pop(); lines[i + 1] = next; }
+  /** No one-letter word at a line end: it goes to the next line. */
+  const unstrandLetters = (): boolean => {
+    let moved = false;
+    for (let i = 0; i < lines.length - 1; i += 1) {
+      const line = lines[i];
+      const last = line[line.length - 1];
+      if (line.length > 1 && last.replace(/[^A-Za-z]/g, '').length === 1) {
+        const next = [last, ...lines[i + 1]];
+        if (fits(next)) { line.pop(); lines[i + 1] = next; moved = true; }
+      }
     }
-  }
+    return moved;
+  };
 
-  // No runt: a last line holding one word takes the word above it.
-  // Guarded so the line it takes from never drops below two words,
-  // which would just move the runt up a line.
-  for (let guard = 0; guard < words.length; guard += 1) {
-    const last = lines[lines.length - 1];
-    const prev = lines[lines.length - 2];
-    if (!prev || last.length > 1 || prev.length < 2) break;
-    const moved = [prev[prev.length - 1], ...last];
-    if (!fits(moved)) break;
-    prev.pop();
-    lines[lines.length - 1] = moved;
-  }
-
-  // No line begins with bare punctuation — it belongs to the word it
-  // follows, on that word's line.
-  for (let i = 1; i < lines.length; i += 1) {
-    while (lines[i].length > 0 && /^[^A-Za-z0-9]+$/.test(lines[i][0])) {
-      lines[i - 1].push(lines[i].shift() as string);
+  /**
+   * No runt: a last line holding one word takes the word above it.
+   * Guarded so the line it takes from never drops below two words,
+   * which would just move the runt up a line.
+   */
+  const unrunt = (): boolean => {
+    let moved = false;
+    for (let guard = 0; guard < words.length; guard += 1) {
+      const last = lines[lines.length - 1];
+      const prev = lines[lines.length - 2];
+      if (!prev || last.length > 1 || prev.length < 2) break;
+      const taken = [prev[prev.length - 1], ...last];
+      if (!fits(taken)) break;
+      prev.pop();
+      lines[lines.length - 1] = taken;
+      moved = true;
     }
+    return moved;
+  };
+
+  /**
+   * No line begins with bare punctuation — it belongs to the word it
+   * follows, on that word's line.
+   */
+  const unorphanPunctuation = (): boolean => {
+    let moved = false;
+    for (let i = 1; i < lines.length; i += 1) {
+      while (lines[i].length > 0 && /^[^A-Za-z0-9]+$/.test(lines[i][0])) {
+        lines[i - 1].push(lines[i].shift() as string);
+        moved = true;
+      }
+    }
+    return moved;
+  };
+
+  // **The three fixups run until they stop changing anything**, because
+  // each one can undo another. Fixing a runt pulls the last word of the
+  // line above down onto the last line — and that word may leave a
+  // one-letter word newly stranded at the end of the line it came
+  // from, which the single pass that used to run first had already
+  // gone past. "Smokey would be happier a space away." at the narrow
+  // column is exactly that: greedy gives "…happier a space / away.",
+  // the runt fix makes it "…happier a / space away.", and nothing was
+  // left to move the "a". Three passes is the most any of these has
+  // needed; the bound is there so a pathological measure cannot spin.
+  for (let pass = 0; pass < 6; pass += 1) {
+    const changed = [unstrandLetters(), unrunt(), unorphanPunctuation()].some(Boolean);
+    if (!changed) break;
   }
 
   return lines.filter((l) => l.length > 0).map((l) => l.join(' '));
@@ -483,6 +515,18 @@ export const SPECIES_SIZE: Record<Species, number> = {
  * down and the crates stay square and tappable either way.
  */
 const SHELF_CRATE_MAX = 76;
+
+/**
+ * How far back a crate that does not suit the animal in hand is drawn,
+ * and how faint the ghost of her is in one that does.
+ *
+ * Weight rather than colour — see `ShelfPreview.show` for why there
+ * was no colour left to use. Four tenths is far enough back to read as
+ * a different state in greyscale and near enough to stay a crate a
+ * child can see and tap; nothing on this shelf is ever disabled.
+ */
+const CRATE_DIMMED = 0.4;
+const CRATE_GHOST = 0.42;
 const SHELF_MIN_W = 3 * MIN_TAP + 2 * BAY_GAP;
 const SHELF_MAX_W = 6 * SHELF_CRATE_MAX + 5 * BAY_GAP;
 
@@ -529,12 +573,11 @@ export const DROP_SLACK = 28;
  *
  * **Four lines, where it used to be five and carry three sentences.**
  * The sentences are long: at the panel's width "Pumpkin the cat makes
- * Truffle the hedgehog worried. They can sit next to each other, but
- * Truffle will not enjoy the journey." is three lines on its own, so
- * three of them was nine lines of prose — a hundred and seventeen
- * pixels more than the plate had, which it simply ran off the bottom
- * of onto the tray. It was over its own paper before this change and
- * nobody had measured it.
+ * Truffle the hedgehog worried. Truffle would be happier a space
+ * away." is three lines on its own, so three of them was nine lines of
+ * prose — a hundred and seventeen pixels more than the plate had,
+ * which it simply ran off the bottom of onto the tray. It was over its
+ * own paper before this change and nobody had measured it.
  *
  * So the panel says one thing now: *this* pair, in a picture and in
  * the sentence under it. The other pairs did not go anywhere — they
@@ -1081,7 +1124,7 @@ function makeCrateFace(
   y: number,
   crate: CrateDef,
   size: number,
-): Phaser.GameObjects.GameObject {
+): Phaser.GameObjects.Image | Phaser.GameObjects.Container {
   const key = `crate-${crate.id}`;
   if (scene.textures.exists(key)) {
     const img = scene.add.image(x, y, key).setOrigin(0.5);
@@ -1413,17 +1456,16 @@ function standingCopy(state: CrateLoadingState): PanelCopy {
         cast: { members: [castOne(held)] },
       };
     }
+    // Cream here too: a crate is not a neighbour. See `crateCopy`.
     const choice = describeCrateChoice(held, chosen);
     return {
       heading: titleCase(`In your hands: ${held.name} the ${held.species}`),
-      tone: choice.suitable ? 'happy' : 'stressed',
+      tone: null,
       body: [
         choice.text,
         `Drag the crate to a space in ${state.vehicle.name}, or tap one.`,
       ],
-      cast: {
-        members: [castOne(held, undefined, choice.suitable ? 'happy' : 'stressed')],
-      },
+      cast: { members: [castOne(held)] },
     };
   }
 
@@ -1525,7 +1567,13 @@ function panelCopy(state: CrateLoadingState): PanelCopy {
       ? animalById(state.session, notice.animalId)
       : undefined;
     return {
-      heading: mood ? MOOD_WORD[mood] : titleCase('Wait a moment'),
+      // A notice about one animal and no feeling is a crate fact, and
+      // it is named for her rather than headed "Wait a moment" — that
+      // heading is for the two states with nobody in them, an empty
+      // vehicle asked to set off and nothing to report.
+      heading: mood
+        ? MOOD_WORD[mood]
+        : titleCase(solo ? `${solo.name} the ${solo.species}` : 'Wait a moment'),
       tone: mood,
       body: [
         notice.text,
@@ -3045,10 +3093,9 @@ function drawPanel(
     //
     // **One sentence, not one line.** The rules write two sentences in
     // a single note — "Pepper the cat makes Bracken the hedgehog
-    // worried. They can sit next to each other, but Bracken will not
-    // enjoy the journey." — and setting the whole note bold is four
-    // bold lines, which is a paragraph in bold rather than a
-    // takeaway. The first sentence is the fact; what follows it is the
+    // worried. Bracken would be happier a space away." — and setting
+    // the whole note bold is three bold lines, which is a paragraph in
+    // bold rather than a takeaway. The first sentence is the fact; what follows it is the
     // consequence, and it is set plain. No word changes: only where
     // the weight stops.
     const bold = c.boldLine === undefined ? 0 : c.boldLine;
@@ -3439,20 +3486,23 @@ function crateCopy(
   inIt: boolean,
 ): PanelCopy {
   const verdict = describeCrateChoice(animal, crate);
-  const mood: Mood = verdict.suitable ? 'happy' : 'stressed';
   return {
-    // No heading: the word for the feeling is under the animal in the
-    // picture above, and saying it twice is the fault this panel was
-    // just fixed for.
-    heading: '',
-    tone: mood,
+    heading: titleCase(`${animal.name} the ${animal.species}`),
+    // **Cream, whichever crate it is.** The four colours on this
+    // screen say how an animal feels about the animal beside her;
+    // a crate is not a neighbour, and amber on a crate would have
+    // taught a child that the two facts are the same fact. What
+    // answers here is the sentence, set bold, and the shelf behind
+    // it, which shows in weight and shape which crates suit her —
+    // see `ShelfPreview.show`.
+    tone: null,
     body: [
       verdict.text,
       inIt
         ? `Drag ${animal.name} to a space in ${state.vehicle.name}.`
         : `Put ${animal.name} in to travel.`,
     ],
-    cast: { members: [castOne(animal, undefined, mood)] },
+    cast: { members: [castOne(animal)] },
   };
 }
 
@@ -3663,11 +3713,19 @@ function drawCrateShelf(
   const held = heldAnimal(session);
   const inCrate = heldCrateType(session);
 
-  // The marks live in a layer of their own, so lighting the shelf up
-  // and letting it go again costs one container and never touches the
-  // crates themselves.
+  // The ghosts live in a layer of their own, so lighting the shelf up
+  // and letting it go again costs one container; the crates' own
+  // weight is set on the crate objects, which are kept here with them.
   const marks = scene.add.container(0, 0);
-  const lamps: Array<{ type: CrateType; cx: number; cy: number; size: number }> = [];
+  const lamps: Array<{
+    type: CrateType;
+    cx: number;
+    cy: number;
+    size: number;
+    face: Phaser.GameObjects.Image | Phaser.GameObjects.Container;
+    /** True when the animal in hand is really sitting in this one. */
+    occupied: boolean;
+  }> = [];
 
   const { rows, perRow, chipW, chipH } = fitChipGrid(
     SHELF_CRATES.length, { w: box.w, h: box.h },
@@ -3698,13 +3756,24 @@ function drawCrateShelf(
     const holding = held && inCrate === type ? held : null;
     const record = holding ? state.animalsById.get(holding.id) : undefined;
 
+    // The crate and the animal in it are drawn separately here, where
+    // the bays use `makeCratedAnimal` for the pair — because the shelf
+    // changes the crate's own weight to say whether it suits the
+    // animal in hand, and the animal inside must not fade with it.
     const piece = scene.add.container(cx, cy);
-    piece.add(makeCratedAnimal(
-      scene, 0, 0, record, def, size, holding?.poorly ? FACE_SICK : undefined,
-    ));
+    const face = makeCrateFace(scene, 0, 0, def, size);
+    piece.add(face);
+    if (record) {
+      const inside = Math.round(size * CRATE_FLOOR);
+      piece.add(createAnimalSprite(scene, 0, 0, record, {
+        width: inside,
+        height: inside,
+        stateOverride: holding?.poorly ? FACE_SICK : undefined,
+      }));
+    }
     container.add(piece);
 
-    lamps.push({ type, cx, cy, size });
+    lamps.push({ type, cx, cy, size, face, occupied: Boolean(holding) });
 
     const copy = (): PanelCopy => (held
       ? crateCopy(state, held, type, Boolean(holding))
@@ -3761,30 +3830,57 @@ function drawCrateShelf(
   container.add(marks.setDepth(7));
 
   /**
-   * Light every crate with what it would mean for this animal — the
-   * same marks the bays use for a neighbour, because it is the same
-   * question asked about a different thing.
+   * Show which crates suit the animal in hand — **in shape and weight,
+   * with no colour in it at all.**
    *
-   * Only while she is still loose: once she is in a crate, the picture
-   * of her sitting in it is the answer and a mark beside it would be
-   * the same thing said twice.
+   * The first version marked them with the feeling glyphs: a green
+   * heart on the ones that suit, an amber zigzag on the ones that do
+   * not. That broke the one rule this screen's colour language rests
+   * on. Amber means *a neighbour minds* — a fact about two animals and
+   * a relationship — and a crate that does not suit is a fact about
+   * one animal's own comfort. Two meanings on one colour, on the
+   * screen where a child is learning what the colours mean, and the
+   * green was the same error the other way up. Red is refusal and blue
+   * is needing quiet, so there was no fourth hue to move to either.
+   *
+   * So the crates say it the way a shelf says it:
+   *
+   *   suits her — the crate at full weight, with a **ghost of the
+   *               animal sitting in it**. Not a symbol standing for
+   *               her: her, in that crate, at the size she would be.
+   *   does not  — the crate drawn back to four tenths, empty.
+   *
+   * Both differences survive the colour being taken away, which is the
+   * test: one is dark and has a shape inside it, the other is pale and
+   * has nothing. It is positive in construction — the mark says where
+   * she fits, and the crates that do not suit are simply not marked.
+   *
+   * **The crate she is actually in keeps its animal at full strength**
+   * whatever its weight, so a poor choice reads as exactly what it is:
+   * her, solid, sitting in a faded crate, with the crate that suits
+   * her lit two along.
    */
   const show = (animal: LoadableAnimal | null): void => {
     marks.removeAll(true);
-    if (!animal) return;
     for (const lamp of lamps) {
-      if (inCrate === lamp.type && animal.id === held?.id) continue;
-      const mood: Mood = describeCrateChoice(animal, lamp.type).suitable ? 'happy' : 'stressed';
-      marks.add(makeFeelingBadge(
-        scene, lamp.cx, lamp.cy + lamp.size / 2 - 2, mood,
-        { radius: Math.max(8, Math.min(13, lamp.size * 0.2)) },
-      ));
+      if (!animal) { lamp.face.setAlpha(1); continue; }
+      const suits = describeCrateChoice(animal, lamp.type).suitable;
+      lamp.face.setAlpha(suits ? 1 : CRATE_DIMMED);
+      if (!suits || lamp.occupied) continue;
+      const record = state.animalsById.get(animal.id);
+      if (!record) continue;
+      const inside = Math.round(lamp.size * CRATE_FLOOR);
+      marks.add(createAnimalSprite(scene, lamp.cx, lamp.cy, record, {
+        width: inside, height: inside,
+      }).setAlpha(CRATE_GHOST));
     }
   };
 
-  // Tapping an animal to pick her up lights the shelf straight away;
-  // dragging her lights it on the way (see `onLift`).
-  if (held && !inCrate) show(held);
+  // Tapping an animal to pick her up lights the shelf straight away,
+  // and dragging her lights it on the way (see `onLift`). It stays lit
+  // once she is in a crate, because that is when a child most needs to
+  // see which one she should have picked.
+  if (held) show(held);
   return { show };
 }
 

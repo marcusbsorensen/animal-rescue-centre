@@ -1172,10 +1172,13 @@ export class PtvDriveScene extends Phaser.Scene {
    * her and this checks that it did.
    *
    * The verdict is shown as a notice rather than left to the standing
-   * copy, because this is the moment the child chose: suitable comes
-   * back in the green, unsuitable in the amber, and in both cases the
-   * sentence says what suits her. Nothing is refused and nothing is
-   * scolded — `describeCrateChoice` holds that wording.
+   * copy, because this is the moment the child chose — and it carries
+   * **no feeling level**, so the panel stays cream. The four colours
+   * on the loading screen say how an animal feels about the animal
+   * beside her; a crate is not a neighbour. What answers is the
+   * sentence and the shelf, which shows in weight which crates suit
+   * her. Nothing is refused and nothing is scolded —
+   * `describeCrateChoice` holds that wording.
    */
   private putIntoCrate(animalId: string, crateType: CrateType): void {
     const session = this.loadSession;
@@ -1187,11 +1190,7 @@ export class PtvDriveScene extends Phaser.Scene {
     AudioManager.getInstance().playSfx('button_click');
     const choice = describeCrateChoice(animal, crateType);
     this.loadSession = putHeldInCrate(picked, crateType);
-    this.loadNotice = {
-      level: choice.suitable ? 'happy' : 'stressed',
-      text: choice.text,
-      animalId: animal.id,
-    };
+    this.loadNotice = { level: null, text: choice.text, animalId: animal.id };
     this.renderView();
   }
 
@@ -1249,9 +1248,11 @@ export class PtvDriveScene extends Phaser.Scene {
     }
 
     this.loadSession = outcome.session;
+    // A crate that does not suit her is said in words on cream paper,
+    // not in a feeling's colour — see `putIntoCrate`.
     this.loadNotice = outcome.crate && !outcome.crate.suitable
       ? {
-        level: 'stressed',
+        level: null,
         text: outcome.crate.text,
         animalId: outcome.session.grid.crates
           .find((c) => c.slotIndex === slotIndex)?.animalId,

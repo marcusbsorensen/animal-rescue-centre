@@ -800,11 +800,11 @@ describe('headings in title case', () => {
 describe('the takeaway is one sentence, not one line', () => {
   it('splits a two-sentence note after the first full stop', () => {
     expect(splitTakeaway(
-      'Pepper the cat makes Bracken the hedgehog worried. They can sit next'
-      + ' to each other, but Bracken will not enjoy the journey.',
+      'Pepper the cat makes Bracken the hedgehog worried.'
+      + ' Bracken would be happier a space away.',
     )).toEqual([
       ['Pepper the cat makes Bracken the hedgehog worried.'],
-      ['They can sit next to each other, but Bracken will not enjoy the journey.'],
+      ['Bracken would be happier a space away.'],
     ]);
   });
 
@@ -845,5 +845,95 @@ describe('the lines a paragraph is set in', () => {
 
   it('gives back nothing for nothing', () => {
     expect(setLines(measure, '', 100)).toEqual([]);
+  });
+
+  it('fixes a one-letter line end the runt fix has just created', () => {
+    // **The three rules undo each other and the pass has to repeat.**
+    // Greedy gives "…happier a space / away."; the runt fix pulls
+    // "space" down to keep "away." company and leaves "a" at the end
+    // of the line it came from — which the single one-letter pass,
+    // running first, had already gone past. This is the sentence that
+    // found it, at the 820-wide column.
+    const lines = setLines(
+      (s) => s.length, 'Smokey would be happier a space away.', 26,
+    );
+    for (const line of lines.slice(0, -1)) {
+      const last = line.split(' ').pop() as string;
+      expect(last.replace(/[^A-Za-z]/g, '').length, line).toBeGreaterThan(1);
+    }
+    expect(lines[lines.length - 1].split(' ').length).toBeGreaterThan(1);
+    expect(lines.join(' ')).toBe('Smokey would be happier a space away.');
+  });
+});
+
+// ── The sentences, set at the widths they are set at ─────────
+
+describe('every sentence the rules write can be set', () => {
+  /**
+   * The panel's inner width at each viewport the screen is checked at
+   * — `readW - CHROME.padX * 2`, with `readW` as
+   * `renderCrateLoading` computes it.
+   */
+  const COLUMNS = {
+    'desktop 1024': 374,
+    'landscape phone 874': 311,
+    'narrow 820': 288,
+  };
+
+  /**
+   * A character is 8.6px wide.
+   *
+   * The real measure is the live Phaser text object, which this
+   * cannot be. 8.6 is a shade wider than `FONTS.ui` runs at 18px, so
+   * every line breaks a little earlier here than it does on screen —
+   * the test is stricter than the thing it stands for, which is the
+   * right way round for an approximation. The screenshots are the
+   * check on the face itself.
+   */
+  const measure = (s: string): number => s.length * 8.6;
+
+  /** Every sentence `describePair` can write, for every pair. */
+  const everySentence = (): string[] => {
+    const out: string[] = [];
+    for (const sa of SPECIES) {
+      for (const sb of SPECIES) {
+        for (const ill of [false, true]) {
+          const a: LoadableAnimal = { id: '1', name: 'Clementine', species: sa, poorly: ill };
+          const b: LoadableAnimal = { id: '2', name: 'Pip', species: sb };
+          out.push(describePair(a, b).text);
+        }
+      }
+    }
+    return out;
+  };
+
+  it.each(Object.entries(COLUMNS))('sets every pair cleanly at %s', (_label, width) => {
+    for (const sentence of everySentence()) {
+      // The panel splits a note at the first full stop and sets the
+      // two halves as separate blocks, so each half is measured on
+      // its own — exactly as `drawPanel` does it.
+      for (const half of splitTakeaway(sentence).flat()) {
+        const lines = setLines(measure, half, width);
+        expect(lines.join(' '), half).toBe(half);
+        for (const line of lines.slice(0, -1)) {
+          const last = line.split(' ').pop() as string;
+          expect(last.replace(/[^A-Za-z]/g, '').length, `"${line}" in "${half}"`)
+            .toBeGreaterThan(1);
+        }
+        const last = lines[lines.length - 1];
+        if (lines.length > 1) {
+          expect(last.split(' ').length, `runt in "${half}"`).toBeGreaterThan(1);
+        }
+        for (const line of lines.slice(1)) {
+          expect(/^[^A-Za-z0-9]/.test(line), `punctuation leads "${line}"`).toBe(false);
+          // **No negation stranded at a line start.** "…but Cleo will
+          // / not enjoy the journey" is the break that sent the
+          // wording back to be rewritten; nothing the rules write may
+          // open a line on one of these again.
+          const first = line.split(' ')[0].toLowerCase().replace(/[^a-z]/g, '');
+          expect(['not', 'never', 'cannot'], `"${line}" in "${half}"`).not.toContain(first);
+        }
+      }
+    }
   });
 });

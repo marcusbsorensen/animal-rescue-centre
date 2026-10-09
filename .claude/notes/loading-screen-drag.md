@@ -98,10 +98,35 @@ because it is safety; a poor crate is a worse journey, which the panel
 says in amber and the arrival scoring charges for. A child who may only
 ever make the right choice is not making one.
 
-**Judgement call — amber for a poor crate.** `stressed`/amber means "the
-animal minds, and it is allowed" everywhere else on this screen, and an
-animal in the wrong crate minds. Cream would under-say it; red is
-reserved for safety. Worth Marcus's eye.
+**A crate fact carries no colour, and that is the resolution of a
+collision.** The first version marked the shelf with the feeling
+glyphs — a green heart on the crates that suit, an amber zigzag on the
+ones that do not — which put two meanings on one colour on the screen
+where a child is learning what the colours mean. Amber means *a
+neighbour minds*: a fact about two animals and a relationship. A crate
+that does not suit is a fact about one animal's own comfort. Red is
+refusal and blue is needing quiet, so there was no fourth hue to move
+to.
+
+So the four colours keep their single meanings and the shelf says it in
+**weight and shape**:
+
+| | crate | inside it |
+|---|---|---|
+| suits her | full weight | a ghost of her, at 0.42 |
+| does not | 0.4 | nothing |
+
+Both differences survive the colour being taken away — one is dark with
+a shape in it, the other pale and empty — which is the test, and
+`grey-08-shelf-lit.jpg` is it, run. The mark is positive in
+construction: it says where she fits, and the crates that do not suit
+are simply unmarked. The crate she is actually in keeps its animal at
+full strength whatever its own weight, so a poor choice reads as her,
+solid, in a faded crate, with the crate that suits her lit two along.
+
+The panel follows: a crate verdict is cream paper with the sentence set
+bold and no word under the animal. `ShelfPreview.show` and `crateCopy`
+carry the reasoning.
 
 **Asking for a space too early** is answered in words
 (`onNeedCrate` → a notice: "Berry needs a crate to travel in. Tap a
@@ -127,6 +152,43 @@ which is how "Worried" came to read as belonging to the wrong one.
 On a viewport too short for the band (the landscape phone) no reactions
 are drawn and the heading keeps the word, which is then the only place
 for it.
+
+## The sentences were rewritten so they could be set
+
+Every pair that was allowed but unhappy used to end "They can sit next
+to each other, but X will not enjoy the journey." — forty characters of
+subordinate clause whose only break point at the panel's narrow column
+is "…but Cleo will / not enjoy the journey": a break inside a verb
+phrase with a negation stranded at a line start. No line-breaking
+algorithm fixes a sentence whose break points are all bad ones.
+
+| | now |
+|---|---|
+| one-sided | `Cleo would be happier a space away.` |
+| mutual | `They would both be happier a space apart.` |
+| needs quiet | `A space beside Truffle would help.` |
+
+Short, positive, and they say what would suit rather than what will not
+happen. What the lost clause carried — that the pairing is allowed — is
+carried by the contrast with the blocked sentence, which still says
+"cannot sit next to each other", and by the placement going through.
+Two game-logic tests were rewritten to the new strings, each with a note
+saying the premise that changed was the column width and not the
+framing.
+
+**`setLines` now runs its three fixups until they stop changing
+anything.** They undo each other: fixing a runt pulls the last word of
+the line above down, which can leave a one-letter word newly stranded at
+the end of the line it came from — and the single one-letter pass ran
+first and had already gone past. "Smokey would be happier a space away."
+at the 820 column is exactly that case, and it is pinned by a test.
+
+A new test sets **every sentence `describePair` can write**, for every
+pair of species and both illness states, at all three column widths
+(374, 311, 288), and asserts no runt, no one-letter line end, no leading
+punctuation and no line opening on "not", "never" or "cannot". Its
+measure is 8.6px a character — a shade wider than the real face, so it
+breaks earlier than the screen does and is the stricter test.
 
 ## Judgement calls against a rule
 
@@ -174,28 +236,34 @@ The view takes the vehicle's bay rectangle from `drawCarPark`'s return
 value (`park.bay`), so arrows that narrow the bay narrow the vehicle
 without any change here.
 
-## Unresolved
+## Unresolved — for Marcus, not for the next agent
 
 - **The crates read as picture frames at shelf size** (68px on a
   desktop, 52 at 820). The art is a top-down box and at that size the
   interior is a flat cream panel. It reads correctly once an animal is
-  in one. Worth a look at the crate art rather than the layout.
-- **The bat is a brown lump at 0.3 of a dog.** That is the honest
-  relative size and Marcus asked for honest relative sizes; a child may
-  still not be able to tell what it is. The hit target is `MIN_TAP`
-  whatever the drawn size.
-- **The "Happy" word under a bay's preview badge overhangs the well** at
-  Henry's bay size. Pre-existing, unchanged, visible in
-  `04-crated-stage-two.png`.
+  in one, and the ghost preview helps, but the art is the thing to
+  change rather than the layout.
 - **No reduced-motion switch exists in the game.** The breathing tween
   is 2.3s, 3.5% of scale and 1.5px of rise, out of phase per animal, and
   there is nowhere to turn it off.
-- Whether amber is the right colour for a poor crate (above).
+
+## Smaller, open
+
+- **The bat is a brown lump at 0.3 of a dog.** That is the honest
+  relative size and the honest relative sizes were the instruction; a
+  child may still not be able to tell what it is. The hit target is
+  `MIN_TAP` whatever the drawn size.
+- **The "Happy" word under a bay's preview badge overhangs the well** at
+  Henry's bay size. Pre-existing, unchanged, visible in
+  `04-crated-stage-two.png`.
 
 ## Screenshots
 
 `/private/tmp/claude-501/-Users-marcus-Projects-animal-rescue-centre/cf0b1264-730a-4126-9f9f-22caf5987837/scratchpad/loading-2026-10-09/`
 — `01-loading-whole`, `02-waiting-strip`, `03-mid-drag`,
 `04-crated-stage-two`, `05-panel-two-feelings`, `06-panel-needs-quiet`,
-`07-narrow-820`. Shot in real Chrome through Playwright; the Claude
+`07-narrow-820-worried`, `08-shelf-lit`, `09-poor-crate`,
+`10-narrow-820-quiet`, and `grey-08-shelf-lit.jpg` — the shelf with the
+colour taken out, which is the check that a crate that does not suit is
+still identifiable. Shot in real Chrome through Playwright; the Claude
 browser pane cannot initialise WebGL (`.claude/TRAPS.md`).

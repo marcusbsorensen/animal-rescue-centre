@@ -93,13 +93,44 @@ describe('the words', () => {
     );
   });
 
-  it('a worried pair is told it may still travel', () => {
+  /**
+   * **Reworded 2026-10-09, and the old assertion was right until it
+   * was not.** It pinned "They can sit next to each other, but Luna
+   * will not enjoy the journey.", which was good wording and
+   * unsettable type: at the panel's narrow column the only place that
+   * clause breaks is "…but Luna will / not enjoy the journey" — inside
+   * a verb phrase, with a negation stranded at the start of a line,
+   * both of which Marcus's typesetting rules forbid. The premise that
+   * changed is not what the sentence should say but that it has to fit
+   * a 288px column; see `describePair`.
+   *
+   * What it must still do is what this now checks: name both animals,
+   * say who is worried, and say what would suit rather than what will
+   * not happen.
+   */
+  it('a worried pair is told what would suit, in words that can be set', () => {
     const { level, text } = describePair(BUDDY, LUNA);
     expect(level).toBe('stressed');
     expect(text).toBe(
-      'Buddy the dog makes Luna the cat worried. '
-      + 'They can sit next to each other, but Luna will not enjoy the journey.',
+      'Buddy the dog makes Luna the cat worried. Luna would be happier a space away.',
     );
+    // Positive in construction: no "not", nothing a child has to read
+    // twice to find out what to do.
+    expect(text).not.toContain(' not ');
+  });
+
+  it('says the same of a pair who alarm each other equally', () => {
+    // A bat and a parrot rank the same, so neither is the cause and
+    // the sentence says "each other" — the tail was reworded with the
+    // one-sided one, for the same reason.
+    const kiwi: LoadableAnimal = { id: 'p', name: 'Kiwi', species: 'parrot' };
+    const { level, text } = describePair(ECHO, kiwi);
+    expect(level).toBe('stressed');
+    expect(text).toBe(
+      'Echo the bat and Kiwi the parrot make each other worried. '
+      + 'They would both be happier a space apart.',
+    );
+    expect(text).not.toContain(' not ');
   });
 
   it('a happy pair is told so in the same shape', () => {
@@ -384,13 +415,22 @@ describe('the sentence for a poorly animal', () => {
   };
   const BISCUIT: LoadableAnimal = { id: 'well', name: 'Biscuit', species: 'cat' };
 
+  /**
+   * **Reworded 2026-10-09 with the other two tails.** The old one
+   * ended "…but Truffle would rest better on their own.", which at the
+   * narrow column broke as "would rest better on / their own" — a
+   * break inside a prepositional phrase. The framing this test exists
+   * to protect is untouched: the patient is still the subject, the
+   * need is still hers, and the well animal is still never named as
+   * minding. Only the length changed.
+   */
   it('names the patient and their need, never the neighbour and their dislike', () => {
     const { text, level, needsQuiet } = describePair(BISCUIT, TRUFFLE);
     expect(level).toBe('stressed');
     expect(needsQuiet).toBe(true);
     expect(text).toBe(
       'Truffle the hedgehog is poorly and needs a quiet space. '
-      + 'They can sit next to each other, but Truffle would rest better on their own.',
+      + 'A space beside Truffle would help.',
     );
   });
 
