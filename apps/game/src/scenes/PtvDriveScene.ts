@@ -945,11 +945,10 @@ export class PtvDriveScene extends Phaser.Scene {
   /** The pre-drive screen: choose the destination (shown) and pick a fleet
    *  vehicle. Locked vehicles (unlockLevel > playerLevel) are dimmed. */
   /**
-   * The single pre-drive screen: the A.R.C. building above a car park with
-   * the whole fleet parked in it, reversed in against the head of the bays;
-   * the ones above the player's level are coned off with an "L10" unlock
-   * label. Clicking an available vehicle picks it and pulls straight out
-   * for the drive.
+   * The single pre-drive screen: a car park with the whole fleet parked in
+   * it, reversed in against the head of the bays; the ones above the
+   * player's level are coned off with an "L10" unlock label. Clicking an
+   * available vehicle picks it and pulls straight out for the drive.
    *
    * **The five stand at true relative scale** (`pickerLayout`): one
    * pixels-to-the-metre for all of them, driven by `VEHICLE_WIDTH_M`, so
@@ -960,6 +959,13 @@ export class PtvDriveScene extends Phaser.Scene {
    * handover ("One true scale") and Rule 8 both rule out. Each stands on
    * the tarmac with its own outline thrown to one side as a shadow, and
    * nothing is cropped.
+   *
+   * **No A.R.C. building, at any size**, which is why the tarmac now
+   * reaches the title: Marcus's decision of 9 October 2026, recorded on
+   * `PickerLayout.building`, where the seam for a roof-down building also
+   * lives. It cost the vehicles half their size — 236px of band against
+   * 448 at 620px tall — and it was the last front elevation standing among
+   * plan-view vehicles.
    */
   private renderPicker(width: number, height: number): void {
     this.departing = false;
@@ -987,8 +993,8 @@ export class PtvDriveScene extends Phaser.Scene {
     });
     const { apron } = layout;
 
-    // Gravel, the A.R.C. building (where there is room for it), the tarmac
-    // and the exit road — the same call the loading screen once made. The
+    // Gravel, the tarmac and the exit road — the same call the loading
+    // screen once made, now with `building: false` at every size. The
     // tarmac is as wide as the five bays and no wider, so it is a car park
     // with a fleet in it rather than a slab with five thumbnails on it.
     const { roadY } = drawForecourt(this, this.container, {
@@ -1019,6 +1025,21 @@ export class PtvDriveScene extends Phaser.Scene {
       const { cx, cy } = bay;
       const locked = v.unlockLevel > this.playerLevel;
 
+      // The name is painted on the tarmac, so it goes down before the
+      // vehicle does. At rest nobody's nose reaches this row, so the order
+      // shows nowhere — until a pick, when the chosen vehicle drives
+      // forward over her own name on her way to the road. **Insertion
+      // order is what decides that, not `setDepth`:** this container is
+      // never depth-sorted (its children's depths run 0, 0, 20, 0, 30 down
+      // the list, in the order they were added), so a vehicle at depth 30
+      // still rendered under a label at depth 0 that was added after her,
+      // and the departing lorry wore her own name across the cab.
+      this.container.add(
+        this.add.text(cx, layout.labelY, v.name, {
+          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#e8dcc8',
+        }).setOrigin(0.5)
+      );
+
       const key = VEHICLE_SPRITE[v.id];
       let img: Phaser.GameObjects.Image | undefined;
       let shadow: Phaser.GameObjects.GameObject[] = [];
@@ -1035,12 +1056,6 @@ export class PtvDriveScene extends Phaser.Scene {
         if (locked) img.setTint(0x707070);
         this.container.add(img);
       }
-
-      this.container.add(
-        this.add.text(cx, layout.labelY, v.name, {
-          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#e8dcc8',
-        }).setOrigin(0.5)
-      );
 
       if (locked) {
         // Coned off at the mouth of the bay, with the unlock level called out.
@@ -1122,10 +1137,28 @@ export class PtvDriveScene extends Phaser.Scene {
     this.vanGfx = img;
     this.vanY = cy;
     const { width, height } = this.scale;
+    // **She stops with her nose on the road and all of her still in the
+    // picture.** The target used to be her *centre* at `roadY - 6`, which
+    // was a few pixels of overhang when every vehicle was thumbnailed to
+    // 158px; with the building gone and the fleet drawn 2.3 times the size,
+    // Big Tilly is 370px long at 820x620 and her centre on the road line
+    // put 136px of lorry below the bottom of the screen — a vehicle parked
+    // half out of the frame, waiting for the child to choose a direction.
+    //
+    // So the nose is what the tween aims, at the middle of the road where
+    // the dashes are, and the vehicle's own length decides where her centre
+    // lands. `Math.max` is for a vehicle already past that line: she pulls
+    // out or she stays, she never reverses into the bay.
+    //
+    // The road is narrower than she is and cannot be otherwise at this
+    // scale (see `.claude/notes/car-park-one-world.md`, section 11), so
+    // this is the honest read available: she has pulled out of her bay to
+    // the edge of the road and is waiting to turn.
+    const noseTarget = roadY + (height - roadY) / 2;
     // The shadow goes with her: it is the vehicle's outline on the ground
     // under her, and one left behind in the bay would be a ghost. They all
     // move the same distance, so it is a relative move.
-    const dy = (roadY - 6) - img.y;
+    const dy = Math.max(0, noseTarget - (img.y + img.displayHeight / 2));
     this.tweens.add({
       targets: [img, ...shadow], y: `+=${dy}`, duration: 700, ease: 'Sine.easeInOut',
       onComplete: () => this.showTurnChoice(width, height),

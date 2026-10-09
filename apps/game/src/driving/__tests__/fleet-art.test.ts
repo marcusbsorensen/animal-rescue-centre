@@ -14,7 +14,8 @@ vi.mock('phaser', () => ({ default: {} }));
 import {
   BAY_GAP, BAY_LENGTH_M, BAY_MAX_RATIO, BAY_MIN, BAY_WIDTH_M, BED_PAD, BED_SLACK, LANE_WIDTH_M,
   VEHICLE_BED, VEHICLE_BED_SOURCE, VEHICLE_SPRITE, VEHICLE_VISIBLE_FRAC, VEHICLE_WIDTH_M,
-  PICKER_BUILDING_MIN_H, PICKER_CHIP_H, PICKER_CHIP_ROW, PICKER_MIN_BAY, PICKER_MIN_HIT, PICKER_SIDE_PAD,
+  PICKER_CHIP_H, PICKER_CHIP_ROW, PICKER_LABEL_H, PICKER_MIN_BAY, PICKER_MIN_HIT,
+  PICKER_PAD_BOTTOM, PICKER_PAD_TOP, PICKER_SIDE_PAD,
   bayWidthM, bedProbePoints, fitLoadBed, minScaleForBays, pickerLayout, vehicleLengthM, wholeVehicleHeight,
 } from '../fleet-art';
 import {
@@ -758,6 +759,41 @@ describe('the picker', () => {
     expect(gap).toBeLessThanOrEqual(PICKER_CHIP_ROW - PICKER_CHIP_H);
   });
 
+  it.each(SIZES)('ends the band where the fleet ends, not at a share of the screen, at %ix%i', (w, h) => {
+    // **The fault the building's removal exposed, and the fix.** The scale
+    // answers to two limits — the band's height and five bays' width — and
+    // with the band 90% taller the tighter one at 1024x768 became the
+    // width: 76.8px to the metre against the 78.6 the height would allow.
+    // The height the width would not let the vehicles spend used to sit as
+    // dead ground under their noses, because the chip row and the names
+    // hung off the bottom of a band sized as a share of the screen: the
+    // lorry stopped 14.3px short of a row the arithmetic says she reaches.
+    //
+    // So the band is the fleet's extent — padding, the longest vehicle as
+    // drawn, and the two rows — whichever limit binds.
+    const layout = layoutAt(w, h);
+    const longest = Math.max(...layout.bays.map((b) => b.spriteH));
+    const rows = PICKER_PAD_TOP + PICKER_CHIP_ROW + PICKER_LABEL_H + PICKER_PAD_BOTTOM;
+    expect(layout.apron.h).toBeCloseTo(longest + rows, 0);
+    // And the band stops short of the exit road, so the cone at the mouth
+    // of a locked bay stands on tarmac's edge rather than in the lane.
+    expect(layout.coneY + 17).toBeLessThanOrEqual(h * 0.93);
+  });
+
+  it('is capped by the width at 1024x768, and loses no height to it', () => {
+    // The one viewport of the four where five bays across decide the
+    // scale. Named here so the test above is read as the general rule and
+    // this as the case that broke it.
+    const layout = layoutAt(1024, 768);
+    const usable = Math.min(1024 * 0.92, 1080) - PICKER_SIDE_PAD * 2;
+    expect(layout.bays.reduce((sum, b) => sum + b.w, 0)).toBeCloseTo(usable, 1);
+    // Shorter than the band there is, by the height the width would not
+    // let her spend — and the vehicles have all of what is left.
+    const bandMax = Math.round(768 * 0.93 - 30 - layout.apron.y);
+    expect(layout.apron.h).toBeLessThan(bandMax);
+    expect(layout.apron.h).toBeGreaterThan(bandMax - 20);
+  });
+
   it.each(SIZES)('keeps every bay a tap target, whatever size its vehicle is, at %ix%i', (w, h) => {
     const layout = layoutAt(w, h);
     for (const bay of layout.bays) {
@@ -770,23 +806,43 @@ describe('the picker', () => {
     expect(PICKER_MIN_BAY - 6).toBeGreaterThanOrEqual(MIN_TAP);
   });
 
-  it('keeps the building on a screen with room for it and takes it off one without', () => {
-    // The building costs the vehicles half their size: 236px of band
-    // against 448 at 620px tall. At 402 it would leave nothing to see.
-    expect(layoutAt(820, 620).building).toBe(true);
-    expect(layoutAt(1024, 700).building).toBe(true);
-    expect(layoutAt(874, 402).building).toBe(false);
-    expect(PICKER_BUILDING_MIN_H).toBeLessThanOrEqual(620);
-    expect(layoutAt(874, 402).apron.h).toBeGreaterThan(layoutAt(820, 620).apron.h);
+  it.each(SIZES)('has no building, and gives the vehicles the band it stood in, at %ix%i', (w, h) => {
+    // **Marcus's decision, 9 October 2026: no building at any size.** It
+    // was a height threshold — on above 560px, off below — and the band it
+    // left the vehicles at 620px tall was 236px against 448 without it.
+    // Two reasons, both the same way: the vehicles are what this screen is
+    // for, and it is the only screen where the fleet's relative size can
+    // be seen at all, because the loading screen zooms each vehicle to
+    // fill its own bay; and a front elevation standing among plan-view
+    // vehicles is the Rule 8 mismatch already taken off the loading
+    // screen. The seam is kept (`PickerLayout.building`) for a roof-down
+    // building, which does not exist yet.
+    expect(layoutAt(w, h).building).toBe(false);
   });
 
-  it('records how small the smallest vehicle is drawn, so a change that shrinks her is seen', () => {
-    // The numbers Marcus was told, from the layout itself. Her bay is 64px
-    // wide and she is 18; the comparison with the lorry is what the
-    // screen is for, and it holds.
+  it('gives the vehicles the whole band, which is the larger one', () => {
+    // 448px of band at 620px tall, where the building left 236. The number
+    // is here so that putting a building back — the one change that would
+    // halve it — cannot be done quietly.
+    expect(layoutAt(820, 620).apron.h).toBe(448);
+    expect(layoutAt(820, 620).apron.h).toBeGreaterThan(236 * 1.8);
+    // And the taller the screen, the more band: the band follows the
+    // fleet, and the fleet is as large as the room allows.
+    expect(layoutAt(820, 620).apron.h).toBeGreaterThan(layoutAt(874, 402).apron.h);
+    expect(layoutAt(1024, 768).apron.h).toBeGreaterThan(layoutAt(1024, 700).apron.h);
+  });
+
+  it('records how large the smallest vehicle is drawn, so a change that shrinks her is seen', () => {
+    // The numbers from the layout itself, at all four viewports. With the
+    // building gone Trikey is drawn 2.3 times the size she was (18x43 at
+    // 820x620 before, 43x101 now) — that growth is the whole point of the
+    // decision, and these hold on to it. The landscape phone is unchanged
+    // at 19x45: the building was already off there, and what limits that
+    // screen is its 402px of height.
     const trike = (w: number, h: number) => layoutAt(w, h).bays.find((b) => b.id === 'pedal-trike')!;
-    expect([Math.round(trike(820, 620).spriteW), Math.round(trike(820, 620).spriteH)]).toEqual([18, 43]);
-    expect([Math.round(trike(1024, 700).spriteW), Math.round(trike(1024, 700).spriteH)]).toEqual([22, 51]);
+    expect([Math.round(trike(820, 620).spriteW), Math.round(trike(820, 620).spriteH)]).toEqual([43, 101]);
+    expect([Math.round(trike(1024, 700).spriteW), Math.round(trike(1024, 700).spriteH)]).toEqual([52, 121]);
+    expect([Math.round(trike(1024, 768).spriteW), Math.round(trike(1024, 768).spriteH)]).toEqual([58, 135]);
     expect([Math.round(trike(874, 402).spriteW), Math.round(trike(874, 402).spriteH)]).toEqual([19, 45]);
   });
 

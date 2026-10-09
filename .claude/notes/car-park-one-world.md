@@ -316,3 +316,181 @@ Two traps worth promoting to `.claude/TRAPS.md` when the other branch is merged 
 
 - **`car-park.ts` now imports `ui/UIButton`, which imports Phaser**, so any test that imports it needs `vi.mock('phaser', () => ({ default: {} }))`, as `crate-loading-view.test.ts` does. `fleet-art.test.ts` has one.
 - **`getBounds()` on a cropped Phaser image returns the uncropped size.** Check `isCropped`, or a harness will report a whole vehicle that is not.
+
+## 11. The picker has no building, and the band follows the fleet
+
+Branch `claude/picker-no-building`, 2026-10-09, based on `claude/crate-loading` at `855f340`. Not
+pushed. Touches the picker parts of `fleet-art.ts`, `PtvDriveScene.ts`, `fleet-art.test.ts` and
+`tools/shoot-car-park.mjs`; `car-park.ts` and `crate-loading-view.ts` untouched, as asked.
+
+### 11.1 The decision
+
+**Marcus, 9 October 2026: the A.R.C. building comes off the vehicle picker at every size.** Section 7
+offered it as a trade and this is the answer. Two reasons, both pointing the same way:
+
+- **It cost the vehicles half their size.** At 620px tall the band they had with it was 236px; without
+  it, 448.
+- **The picker is the only screen where the fleet's true relative scale is visible**, because the
+  loading screen zooms each vehicle to fill its own bay. The comparison is now the screen's job, and
+  the building was taking the room the comparison needs.
+
+It was also the last front elevation standing among plan-view vehicles — the Rule 8 mismatch already
+taken off the loading screen.
+
+`PICKER_BUILDING_MIN_H` (560) is gone: the answer no longer depends on the screen. **The `building`
+flag on `PickerLayout` is kept as the seam**, always false, with the decision and these figures
+recorded on it. The decision was about this painting, not about buildings: `site-arc-building.png` is
+a front elevation, and the day a roof-down one exists the picker is where it goes back. Set the flag
+true for the screens with room for it and `drawForecourt` draws it, as it still can. Nothing else has
+to be reinstated.
+
+### 11.2 The fault the removal exposed, and the fix
+
+With the band 90% taller, three tests failed. Two were stale premises and were rewritten. The third
+was real: **at 1024x768 the lorry left a 14.3px gap between her nose and the chip row where the
+layout allows at most 6** (`PICKER_CHIP_ROW − PICKER_CHIP_H`).
+
+**The cause was the picker becoming width-bound.** The scale answers to two limits, and either can be
+the tighter one:
+
+| 1024x768 | px to the metre |
+|---|---|
+| What the band's height allows | 78.6 |
+| What five bays across the screen allow (`min(width×0.92, 1080) − 32`) | **76.7** |
+
+The width won, so about 12px of the reclaimed height could not be spent on a vehicle. It did not
+disappear: the band was still `roadY − 30 − apronTop`, a share of the screen, and the chip row and the
+names hung off the *bottom* of it. The unspendable height therefore sat as dead ground under the
+noses — a gap below the fleet, which Marcus's rules call a fault twice over (no large empty band;
+more space below content than above it).
+
+**The fix: the rows follow the fleet's drawn extent.** `pickerLayout` now finds the scale against the
+band there *could* be, and then sizes the band to what the fleet actually is:
+
+```ts
+const bandMax = Math.round(roadY - 30 - apronTop);
+const rows = PICKER_PAD_TOP + PICKER_CHIP_ROW + PICKER_LABEL_H + PICKER_PAD_BOTTOM;
+let p = (bandMax - rows) / longest;          // what the height allows
+if (total(p) > usable) { /* halve to the width's answer */ }
+const apronH = Math.round(longest * p) + rows;   // the band is the fleet
+```
+
+**Why this and not the alternatives.** Widening the apron past 92% of the viewport would also have
+closed the 1024x768 gap, but only there, by crowding the frame, and it leaves the same fault waiting
+at the next viewport where the width binds. Shrinking the fleet to match the band gives back the size
+the decision just bought. This one is general: whichever limit binds, the longest vehicle's nose lands
+on the chip row (the gap is now 3.0 to 3.3px at all four viewports, against an allowance of 6), and
+what the width would not let her spend stays *below* the tarmac as gravel — the ground between the car
+park and the road, where more space below content than above it is what the rules ask for. The band
+at 1024x768 is 574px against the 585 there is; at the other three the height binds and the band is
+all of it.
+
+No assertion was weakened. `gives the longest vehicle all the room there is` is untouched and passes,
+and two tests were added that hold the fix: `ends the band where the fleet ends, not at a share of
+the screen` (all four sizes) and `is capped by the width at 1024x768, and loses no height to it`.
+
+### 11.3 The fleet, drawn (width x length in px, measured in real Chrome)
+
+| | 820x620 | 1024x700 | 1024x768 | 874x402 (phone) |
+|---|---|---|---|---|
+| Scale | **57.3 px/m** (was 24.5) | **68.8** (was 29.1) | **76.8** (was 33.2) | 25.9 (unchanged) |
+| Trikey | 43x101 | 52x121 | 58x135 | 19x45 |
+| Henry | 100x234 | 120x281 | 134x314 | 45x106 |
+| Bea | 103x253 | 124x303 | 138x339 | 47x114 |
+| Spark | 115x335 | 138x402 | 154x449 | 52x151 |
+| Big Tilly | 132x370 | 158x444 | 177x496 | 60x167 |
+| Band (apron) | 448 (was 236) | 522 (was 266) | 574 (was 292) | 245 |
+
+**2.3 times the size at 820x620**, which is what the 236-against-448 figure buys. The landscape phone
+is unchanged: the building was already off there, and what limits that screen is its 402px of height,
+not the building.
+
+**A bonus worth knowing: at 820x620 and above the bays are now true to scale as well as the vehicles.**
+Every bay is wider than the 64px floor at these scales, so the painted lines are each vehicle's own
+space in metres. The floor still bites on the landscape phone (Trikey's true bay there is 36px and she
+is given 64), so the caveat in section 7 now applies only to screens under about 500px tall.
+
+### 11.4 What the bigger vehicles do to the rest of the picker
+
+Checked at all four viewports, in real Chrome.
+
+- **Nothing is cropped and nothing leaves the frame.** All five report `cropped: false, inFrame: true`
+  at 820x620, 1024x700, 1024x768 and 874x402.
+- **The silhouette shadows scale with the vehicles** and are not cropped: `drawVehicleShadow` crops
+  only when the box is shorter than the sprite's own aspect, and the picker's box never is.
+- **The cone and the unlock chip still work.** The chip stands in its own row between the longest nose
+  and the names, where nobody's nose reaches; the cone stands at the mouth of the bay, straddling the
+  tarmac's near edge, and clears the road at every size (a test holds that).
+- **The locked grey tint reads differently at this size, and I left it.** `setTint(0x707070)` is a
+  multiply, so a vehicle keeps her hue and loses her light. On an 18px trike that read as grey; on a
+  132px lorry it reads as a *dulled* red lorry rather than a grey one. I think that is the better
+  reading — the child can see which vehicle she is working towards — and the cone and the "L10" chip
+  are what say locked. **If you want them properly grey**, the way to do it without a shader is a
+  second copy of the sprite over the first with `setTintFill(0x8a8a8a)` at about 0.45 alpha, which is
+  the trick `drawVehicleShadow` uses with black. One decision, not a redesign.
+- **The departing vehicle used to stop half out of the frame, and now does not.** `pickAndDepart`
+  aimed her *centre* at `roadY − 6`, which was a few pixels of overhang at the old size; at the new one
+  Big Tilly is 370px long and 136px of lorry hung below the bottom of a 620px screen while the game
+  asked "Which way?". It now aims her **nose** at the middle of the road and lets her length decide
+  where her centre lands, so she pulls out of her bay and waits whole: measured, she moves 117px and
+  her nose stops at y=598 of 620.
+- **The departing vehicle no longer wears her own name across the cab.** The picker's container is
+  never depth-sorted — its children's depths run 0, 0, 20, 0, 30 down the list, in the order they were
+  added — so a vehicle at depth 30 still rendered *under* a name label at depth 0 added after her. The
+  names are now added before the vehicles, so at rest nothing changes (no nose reaches that row) and a
+  departing lorry drives over her name, which is what a lorry does to paint on tarmac. **Worth
+  promoting to TRAPS.md: in this scene `setDepth` does not order anything; insertion order does.**
+
+### 11.5 The exit road is now 0.7m wide, and that is the open question
+
+Section 6 recorded the road at 43px, about 1.3m at the old scale. At the new one:
+
+| | 820x620 | 1024x700 | 1024x768 | 874x402 |
+|---|---|---|---|---|
+| Road, px | 43.4 | 49.0 | 53.8 | 28.1 |
+| Road, metres | **0.76** | **0.71** | **0.70** | 1.09 |
+
+**It is narrower than Trikey's handlebars (0.75m) and under a third of Big Tilly's width.** It no
+longer reads as a road a vehicle drives onto; it reads as a painted strip at the foot of the car park.
+A truthful lane is 3.3m, which is 190px at 820x620 and 253px at 1024x768 — and the fleet needs 448 of
+that screen's 620, so a truthful lane does not fit. This is the same arithmetic that took the road off
+the loading screen.
+
+I left it, because the picker's departure flow is built on it: the vehicle tweens to the road, then
+"Which way?" offers Left and Right, then she turns 90° and drives off that edge. **The choice is
+yours, and it is one question:** keep the strip as a signpost for where she is going, or drop the road
+(as the loading screen did) and let her drive out of the bottom of the frame, with the turn choice
+asked as she leaves. Recommend keeping it for now: a child reads the dashes as "the way out", and
+dropping it costs the turn choice its target.
+
+### 11.6 Two smaller things, neither changed
+
+1. **The two biggest vehicles are the wrong way round on screen.** The bays follow `VEHICLE_DEFS`
+   order, which puts Big Tilly (6.5m) fourth and Spark (5.9m) fifth, so the line does not step
+   cleanly from smallest to largest. It was invisible when they were all 108px tall. One line in
+   `renderPicker` if you want them sorted by length.
+2. **The landscape phone's car park is a 369px strip in 874px of gravel.** Its scale is capped by
+   402px of height, so the spare width cannot be spent on vehicles, and spending it on wider bays
+   would make the painted spaces less true, not more. It is a small car park on a gravel site, which
+   is at least a scene rather than an empty band. Only a taller viewport fixes it.
+
+### 11.7 Verification
+
+Real Chrome under Playwright, against Vite from this worktree, port 5234. `tools/shoot-car-park.mjs`
+gained `--picker-only`, `--level`, `--cargo` and `--depart`: `--level 3` is how a coned bay and its
+chip are seen, and `--depart animal-lorry --cargo ''` clicks the lorry's bay with a real mouse and
+photographs where she stops.
+
+Screenshots in the session scratchpad, `picker-no-building/`:
+`nobuilding-picker-820x620.png`, `nobuilding-picker-1024x700.png`, `nobuilding-picker-1024x768.png`,
+`nobuilding-picker-874x402.png`, `locked-picker-820x620.png`, `locked-picker-874x402.png`,
+`depart-depart-820x620.png`.
+
+`pnpm -r typecheck` green. `pnpm -r test`: 925 game-logic and 559 apps/game, all passing (550 before;
+the picker describe went from 23 to 32 tests).
+
+**Lint has one error and it is not mine**: `car-park.ts:521` adds a tween straight to the scene
+(`scene.tweens.add` in the arrow plate's press animation), which the reduced-motion rule forbids
+outside the legacy list, and `car-park.ts` is not on that list. It is there at `855f340`, before this
+branch, and `car-park.ts` belongs to the other agent, so I left it. It wants `stateTween` or
+`decorativeTween` from `ui/tween.ts`.

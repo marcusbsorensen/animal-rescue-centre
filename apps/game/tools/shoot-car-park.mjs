@@ -9,7 +9,16 @@
  *   node tools/shoot-car-park.mjs <outdir> [--base http://localhost:5173]
  *        [--tag before|after] [--vehicles pedal-trike,animal-lorry]
  *        [--sizes 820x620,1024x700] [--arrows] [--walk more,fewer,...]
- *        [--keys] [--fill]
+ *        [--keys] [--fill] [--picker] [--picker-only] [--level 1]
+ *        [--cargo ''] [--depart animal-lorry]
+ *
+ * `--picker` photographs the forecourt picker; `--picker-only` stops there
+ * rather than going on to the loading screen, which is what a picker change
+ * wants. `--level` is the player's level, which is what cones a bay off, so
+ * `--level 1` is how a locked vehicle and its unlock chip are seen.
+ * `--depart` clicks that vehicle's bay with a real mouse and photographs
+ * where she stops; with no cargo she pulls out onto the road instead of
+ * opening the loading screen, so pass `--cargo ''` with it.
  *
  * `--arrows` draws the vehicle-change arrows over the screen the way the
  * loading view will once it passes `onVehicleChange` to `drawCarPark`. The
@@ -42,7 +51,14 @@ const WALK = opt('--walk', '').split(',').filter(Boolean);
 const KEYS = args.includes('--keys');
 const MOUSE = args.includes('--mouse');
 const FILL = args.includes('--fill');
-const CARGO = 'cat,bunny,dog,hedgehog,snake,bat';
+const PICKER_ONLY = args.includes('--picker-only');
+const LEVEL = opt('--level', '');
+const DEPART = opt('--depart', '');
+// `--cargo ''` is an empty string, which `opt` cannot tell from absent, so
+// the flag's presence is what counts.
+const CARGO = args.includes('--cargo')
+  ? (args[args.indexOf('--cargo') + 1] ?? '')
+  : 'cat,bunny,dog,hedgehog,snake,bat';
 const SIZES = opt('--sizes', '820x620,1024x700').split(',').map((s) => {
   const [w, h] = s.split('x').map(Number);
   return { w, h, tag: s };
@@ -88,16 +104,51 @@ for (const { w, h, tag } of SIZES) {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   page.on('pageerror', (e) => console.error('PAGEERROR', tag, e.message));
 
+  const query = `?ptvDemo=1&cargo=${CARGO}${LEVEL ? `&level=${LEVEL}` : ''}`;
+
   if (args.includes('--picker')) {
     // The forecourt picker, before anything is chosen.
-    await page.goto(`${BASE}/?ptvDemo=1&cargo=${CARGO}`, { waitUntil: 'load' });
+    await page.goto(`${BASE}/${query}`, { waitUntil: 'load' });
     await ready(page);
     await page.screenshot({ path: path.join(OUT, `${TAG}-picker-${tag}.png`) });
     console.log(`${TAG} picker-${tag}`, JSON.stringify(await page.evaluate(measure)));
+
+    if (DEPART) {
+      // The bay's own hit rectangle, clicked with a real mouse, then a wait
+      // for the 700ms pull-out. Where she stops is the number that matters:
+      // a vehicle parked half below the bottom of the frame is not a
+      // vehicle waiting at the road.
+      const at = await page.evaluate((id) => {
+        const g = window.__PHASER_GAME__;
+        const s = g.scene.scenes.find((x) => x.sys.settings.key === 'PtvDriveScene');
+        const defs = s.container.list;
+        let found;
+        const walk = (o) => {
+          if (o.type === 'Image' && o.texture?.key === `vehicle-topdown-${id}`) found = o;
+          if (o.list) o.list.forEach(walk);
+        };
+        defs.forEach(walk);
+        if (!found) return null;
+        const b = found.getBounds();
+        return { x: b.centerX, y: b.centerY };
+      }, DEPART.replace('pedal-trike', 'trikey').replace('small-van', 'henry')
+        .replace('long-van', 'bea').replace('electric-minibus', 'spark')
+        .replace('animal-lorry', 'big-tilly'));
+      if (at) {
+        await page.mouse.click(at.x, at.y);
+        await page.waitForTimeout(1200);
+        await page.screenshot({ path: path.join(OUT, `${TAG}-depart-${tag}.png`) });
+        console.log(`${TAG} depart-${tag}`, JSON.stringify(await page.evaluate(measure)));
+      } else {
+        console.log(`${TAG} depart-${tag} NOT FOUND`);
+      }
+    }
   }
 
+  if (PICKER_ONLY) { await page.close(); continue; }
+
   for (const id of VEHICLES) {
-    await page.goto(`${BASE}/?ptvDemo=1&cargo=${CARGO}`, { waitUntil: 'load' });
+    await page.goto(`${BASE}/${query}`, { waitUntil: 'load' });
     await ready(page);
     await page.evaluate((vid) => {
       const g = window.__PHASER_GAME__;

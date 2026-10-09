@@ -598,14 +598,6 @@ export const PICKER_PAD_BOTTOM = 8;
 /** 64: every bay's tap target is its width less 6, and that is at least `MIN_TAP` (48) with room to spare. */
 export const PICKER_MIN_BAY = 64;
 export const PICKER_SIDE_PAD = 16;
-/**
- * Below this height the building comes off the picker and the tarmac takes
- * its room, as the loading screen did first. The building costs the
- * vehicles half their size: at 620px tall the band the vehicles have with
- * it is 236px against 448 without, and at 402px it would leave the lorry
- * 12px across.
- */
-export const PICKER_BUILDING_MIN_H = 560;
 /** The shortest tap target, in px: `MIN_TAP`, restated here so this file stays free of the UI module. */
 export const PICKER_MIN_HIT = 48;
 
@@ -624,7 +616,32 @@ export interface PickerBay {
 }
 
 export interface PickerLayout {
-  /** Whether the A.R.C. building stands behind the tarmac. */
+  /**
+   * Whether the A.R.C. building stands behind the tarmac. **Always false,
+   * and kept as the seam for the day it is true again.**
+   *
+   * Marcus's decision, 9 October 2026: the building comes off the vehicle
+   * picker at every size. Two reasons, both pointing the same way. It cost
+   * the vehicles half their size — at 620px tall the band they had with it
+   * was 236px against 448 without — and the picker is now the only screen
+   * in the game where the fleet's true relative scale can be seen at all,
+   * because the loading screen zooms each vehicle to fill its own bay. The
+   * building was also the last front elevation left standing among
+   * plan-view vehicles, the same Rule 8 mismatch he had already had taken
+   * off the loading screen.
+   *
+   * It was a height threshold before (`PICKER_BUILDING_MIN_H`, 560), so
+   * the building stood on a desktop and came off a phone. That constant is
+   * gone: the answer no longer depends on the screen.
+   *
+   * **The seam is here rather than deleted because the decision was about
+   * this painting, not about buildings.** `site-arc-building.png` is a
+   * front elevation. The day a roof-down A.R.C. building exists, the
+   * picker is where it goes back: set this true for the screens with room
+   * for it and `drawForecourt` draws it, as it still can. Nothing else
+   * about the layout has to be reinstated — the band follows the fleet
+   * either way (see `pickerLayout`).
+   */
   building: boolean;
   /** The tarmac, as `drawForecourt` takes it. */
   apron: { x: number; y: number; w: number; h: number };
@@ -654,26 +671,27 @@ export function pickerLayout(options: {
   ids: VehicleType[];
 }): PickerLayout {
   const { width, height, contentTop, ids } = options;
-  const building = height >= PICKER_BUILDING_MIN_H;
+  // No building, at any size: Marcus's decision of 9 October 2026, recorded
+  // on `PickerLayout.building`, which is kept as the seam for a roof-down
+  // one.
+  const building = false;
 
-  // The band the tarmac takes. With the building it is a fixed share of the
-  // screen below the building's half; without it, everything between the
-  // title and the exit road, less the room a cone needs at the bottom.
+  // The band the tarmac could take: everything between the title and the
+  // exit road, less the room a cone needs at the bottom.
   const roadY = height * 0.93;
-  const apronTop = building ? Math.round(height * 0.5) : Math.round(contentTop + 6);
-  const apronH = building
-    ? Math.round(height * 0.38)
-    : Math.round(roadY - 30 - apronTop);
+  const apronTop = Math.round(contentTop + 6);
+  const bandMax = Math.round(roadY - 30 - apronTop);
 
-  // The room a vehicle has, once the rows under it are taken off.
-  const area = apronH - PICKER_PAD_TOP - PICKER_CHIP_ROW - PICKER_LABEL_H - PICKER_PAD_BOTTOM;
+  // What the band spends on anything but vehicle: the ground at the head
+  // line, then the unlock chip's row and the names under the noses.
+  const rows = PICKER_PAD_TOP + PICKER_CHIP_ROW + PICKER_LABEL_H + PICKER_PAD_BOTTOM;
   const longest = Math.max(...ids.map(vehicleLengthM));
 
   const bayW = (id: VehicleType, p: number) => Math.max(bayWidthM(id) * p, PICKER_MIN_BAY);
   const total = (p: number) => ids.reduce((sum, id) => sum + bayW(id, p), 0);
   const usable = Math.min(width * 0.92, 1080) - PICKER_SIDE_PAD * 2;
 
-  let p = area / longest;
+  let p = (bandMax - rows) / longest;
   if (total(p) > usable) {
     // Too wide for the screen: the biggest scale that fits, found by
     // halving. Bays never go under the minimum, so this converges on the
@@ -686,6 +704,29 @@ export function pickerLayout(options: {
     }
     p = lo;
   }
+
+  // **The band is the fleet's own extent, not a share of the screen.**
+  //
+  // The scale answers to two limits — the height of the band and the five
+  // bays' width — and either can be the tighter one. With the building
+  // gone the band grew by about 90%, which moved the limit from height to
+  // width at the tallest viewport: at 1024x768 the height allows 78.6px to
+  // the metre and five bays across allow 76.7, so the scale is the width's
+  // and about 12px of the reclaimed height cannot be spent on a vehicle.
+  //
+  // Measured from the band, that 12px sat as dead ground under the noses:
+  // the chip row and the names hung off the bottom of a fixed band, so the
+  // lorry stopped 14px short of a row the arithmetic says she reaches.
+  // Marcus's rules forbid a large empty band and ask for more space below
+  // content than above it, so slack left *under* the fleet is a fault in
+  // the picture as much as in the assertion.
+  //
+  // So the rows follow the vehicles instead: the band is the padding, the
+  // longest vehicle as actually drawn, and the two rows. Whichever limit
+  // binds, the longest vehicle's nose lands on the chip row and what the
+  // width would not let her spend stays below the tarmac as gravel, where
+  // it is the ground between the car park and the road.
+  const apronH = Math.round(longest * p) + rows;
 
   const sum = total(p);
   const left = (width - sum) / 2;
