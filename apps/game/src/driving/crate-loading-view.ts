@@ -1443,9 +1443,21 @@ export function pairFaces(
  * in front of her, and the crate reads as holding her rather than as a
  * frame drawn round her.
  *
- * The perch carrier has no clear floor at all because its perch
- * crosses the middle, and a bird drawn over its perch is a bird
- * perching.
+ * **The perch carrier's reason was rewritten on 2026-10-09, measured
+ * on the installed art.** This said the carrier "has no clear floor at
+ * all because its perch crosses the middle", which describes the
+ * opposite of what is now drawn. In `crate-perch-carrier.png` the
+ * perch is a RAIL NEAR THE TOP - the densest band of the sprite sits
+ * at 10-15% of its height and spans 0.94 of its width - and the
+ * middle is the CLEAREST part of the whole crate, 5.8% ink across
+ * 45-60%, which is just the two thin side walls. The base is at the
+ * bottom.
+ *
+ * 0.78 is unchanged and still right, but for a different reason: the
+ * bird stands on the base with the rail overhead, rather than
+ * overlapping a perch drawn across her middle. Worth knowing that she
+ * therefore no longer perches ON anything, which is a drawing
+ * decision nobody has taken yet rather than a number to adjust here.
  */
 const CRATE_FLOOR = 0.78;
 
