@@ -118,6 +118,62 @@ describe('createAnimalSprite — sick state', () => {
 });
 
 /**
+ * `exactPose` — a screen whose message is the mood.
+ *
+ * Per-variant art loads in the background after the game is running, so a
+ * screen can open while `cat-black-grumpy` is still on its way. The plain
+ * resolution order would then reach for the same variant's `sheltered` if
+ * that has landed — the conflict screen's two grumpy cats, settled and
+ * content. `exactPose` goes to the species' own art for the pose instead,
+ * which the essential tier guarantees.
+ */
+describe('createAnimalSprite — exactPose', () => {
+  beforeEach(() => {
+    registerSickAnimals(new Map());
+  });
+
+  const SPECIES_ART = ['cat-grumpy', 'cat-sheltered'];
+
+  it('draws the variant\'s own art for the pose once it has loaded', () => {
+    const { scene, requested } = stubScene(['cat-ginger-grumpy', 'cat-ginger-sheltered', ...SPECIES_ART]);
+    createAnimalSprite(scene, 0, 0, animal(), { stateOverride: 'grumpy', exactPose: true });
+    expect(requested).toEqual(['cat-ginger-grumpy']);
+  });
+
+  it('draws the species\' art for the pose while the variant\'s is still loading', () => {
+    // The variant's `sheltered` has landed and its `grumpy` has not.
+    const { scene, requested } = stubScene(['cat-ginger-sheltered', ...SPECIES_ART]);
+    createAnimalSprite(scene, 0, 0, animal(), { stateOverride: 'grumpy', exactPose: true });
+    expect(requested).toEqual(['cat-grumpy']);
+  });
+
+  it('does the same when no variant art has loaded at all', () => {
+    const { scene, requested } = stubScene(SPECIES_ART);
+    createAnimalSprite(scene, 0, 0, animal(), { stateOverride: 'grumpy', exactPose: true });
+    expect(requested).toEqual(['cat-grumpy']);
+  });
+
+  it('still falls back to the variant\'s sheltered art when neither has the pose', () => {
+    // Better a settled animal than a coloured rectangle.
+    const { scene, requested } = stubScene(['cat-ginger-sheltered', 'cat-sheltered']);
+    createAnimalSprite(scene, 0, 0, animal(), { stateOverride: 'grumpy', exactPose: true });
+    expect(requested).toEqual(['cat-ginger-sheltered']);
+  });
+
+  it('leaves every other caller on the old order, which keeps her colours', () => {
+    const { scene, requested } = stubScene(['cat-ginger-sheltered', ...SPECIES_ART]);
+    createAnimalSprite(scene, 0, 0, animal(), { stateOverride: 'grumpy' });
+    expect(requested).toEqual(['cat-ginger-sheltered']);
+  });
+
+  it('is ignored without a stateOverride, where the state is derived', () => {
+    const { scene, requested } = stubScene(['cat-ginger-sheltered', ...SPECIES_ART]);
+    createAnimalSprite(scene, 0, 0, animal(), { exactPose: true });
+    expect(requested).toEqual(['cat-ginger-sheltered']);
+  });
+});
+
+/**
  * The size contract.
  *
  * `width`/`height` are the box the animal is drawn *inside*. The fit

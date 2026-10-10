@@ -52,8 +52,22 @@ function deriveVisualState(animal: Animal): string {
  *   4. species-sheltered            (generic species fallback)
  *   5. any species-* texture        (last resort before rectangle)
  *   6. null → coloured rectangle
+ *
+ * `exactPose` moves step 3 ahead of step 2. Per-variant art arrives in the
+ * background after the game is already running, so a screen can open while
+ * `cat-black-grumpy` is still in flight. Step 2 would then draw the cat in
+ * `cat-black-sheltered` if that one had landed — her own colours, in the
+ * wrong mood — where step 3 has her in the species' `cat-grumpy`, which
+ * the essential tier guarantees. A screen whose whole message is the pose
+ * asks for that trade; a screen that is merely showing the animal does not.
  */
-function getAnimalTextureKey(scene: Phaser.Scene, species: Species, state: string, variant?: string): string | null {
+function getAnimalTextureKey(
+  scene: Phaser.Scene,
+  species: Species,
+  state: string,
+  variant?: string,
+  exactPose = false,
+): string | null {
   // Map game states to sprite states
   const spriteState = state === 'pet' ? 'sheltered'
     : state === 'bonding' ? 'sheltered'
@@ -63,6 +77,10 @@ function getAnimalTextureKey(scene: Phaser.Scene, species: Species, state: strin
   if (variant) {
     const variantExact = `${species}-${variant}-${spriteState}`;
     if (scene.textures.exists(variantExact)) return variantExact;
+
+    if (exactPose && scene.textures.exists(`${species}-${spriteState}`)) {
+      return `${species}-${spriteState}`;
+    }
 
     const variantFallback = `${species}-${variant}-sheltered`;
     if (scene.textures.exists(variantFallback)) return variantFallback;
@@ -228,6 +246,13 @@ export function createAnimalSprite(
     height?: number;
     interactive?: boolean;
     stateOverride?: string;
+    /**
+     * The pose named by `stateOverride` is the point of the screen, so
+     * until the variant's art for it has loaded draw the species' art for
+     * that same pose, not the variant's `sheltered`. Ignored without a
+     * `stateOverride`. See `getAnimalTextureKey`.
+     */
+    exactPose?: boolean;
     /** See {@link AnimalDrawScale}. Say which; the default is the old behaviour. */
     scale?: AnimalDrawScale;
   }
@@ -236,7 +261,13 @@ export function createAnimalSprite(
   const h = options?.height ?? 64;
 
   const visualState = options?.stateOverride ?? deriveVisualState(animal);
-  const textureKey = getAnimalTextureKey(scene, animal.species, visualState, animal.variant);
+  const textureKey = getAnimalTextureKey(
+    scene,
+    animal.species,
+    visualState,
+    animal.variant,
+    options?.stateOverride !== undefined && options.exactPose === true,
+  );
 
   if (textureKey) {
     // A comparative sprite is drawn from the frame cut to the animal, so her
