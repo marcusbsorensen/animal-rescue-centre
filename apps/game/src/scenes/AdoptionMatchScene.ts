@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import {
   getEligibleApplicants,
+  householdUseCount,
   type Applicant,
   type AdoptionStoreLike,
 } from '@arc/game-logic';
@@ -167,7 +168,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
     // Capacity headroom — a household at 0/1 used is "fresh", a returning
     // adopter (1/1) is filtered out by getEligibleApplicants so we only
     // see real headroom here, but we still dial the score by it.
-    const used = this.store.rehomed.filter((r) => r.householdId === applicant.householdId).length;
+    const used = householdUseCount(this.store.rehomed, applicant.householdId);
     const headroom = applicant.capacity - used;
     if (headroom >= 1) score += 10;
 

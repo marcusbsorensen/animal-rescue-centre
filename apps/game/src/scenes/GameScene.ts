@@ -48,6 +48,7 @@ import {
   calculateAdoptionFee,
   getEligibleApplicants,
   L1_CURTAILED_HOUSEHOLD_DEFS,
+  canonicalHouseholdId,
   buildHandoverDialogue,
   WARDEN_SPEAKER,
   commitAdoption as commitAdoptionLogic,
@@ -2451,9 +2452,16 @@ export class GameScene extends Phaser.Scene {
     return this.castFetchPromise;
   }
 
+  /**
+   * The cast.json entry for a household. The id is translated first: a
+   * visit scheduled from an adoption saved under one of the five L1
+   * households' original ids ('01-pri-kaur') would otherwise find nobody,
+   * and cast.json only knows the current ones.
+   */
   private findCast(householdId: string): Record<string, unknown> | undefined {
     if (!this.castData) return undefined;
-    return this.castData.find((c) => c['id'] === householdId);
+    const wanted = canonicalHouseholdId(householdId);
+    return this.castData.find((c) => c['id'] === wanted);
   }
 
   /**

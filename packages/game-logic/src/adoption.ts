@@ -14,7 +14,7 @@ import type { Animal, Species } from '@arc/shared-types';
 
 /** A household applicant card shown in the adoption office. */
 export interface Applicant {
-  householdId: string;       // canonical id, e.g. '01-pri-kaur'
+  householdId: string;       // the cast.json id, e.g. '01-priya'
   name: string;              // display name, e.g. 'Priya "Pri" Kaur'
   avatarSrc: string;         // path to painted portrait under apps/game/public
   blurb: string;             // 1-sentence painted-storybook blurb
@@ -43,12 +43,19 @@ export interface AdoptionStoreLike {
  * Marcus's locked decisions. These are the only households offered
  * before the centre unlocks the wider 32-household cast.
  *
+ * `householdId` is the id `apps/game/public/data/cast.json` uses, because
+ * that is how the game finds the household's species list (the +15 fee
+ * bonus), its name and its portrait. These five were first written with
+ * longer ids ('01-pri-kaur') that cast.json never had, so every lookup
+ * missed; see LEGACY_HOUSEHOLD_IDS for how saves written under the old
+ * ids are still read.
+ *
  * Source: docs/rehoming-cast.md + docs/animal-flow-implementation-plan-2026-05-03.md
  *   (section "Decisions LOCKED 2026-05-03 (Marcus) > 1. L1 curtailed roster").
  */
 export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
   {
-    householdId: '01-pri-kaur',
+    householdId: '01-priya',
     name: 'Priya "Pri" Kaur',
     avatarSrc: '/admin/scene-assets/cast/01-priya.png',
     blurb:
@@ -57,7 +64,7 @@ export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
     capacity: 1,
   },
   {
-    householdId: '03-nova-adebayo',
+    householdId: '03-nova',
     name: 'Nova Adebayo',
     avatarSrc: '/admin/scene-assets/cast/03-nova.png',
     blurb:
@@ -66,7 +73,7 @@ export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
     capacity: 1,
   },
   {
-    householdId: '04-babcia-kowalska',
+    householdId: '04-babcia',
     name: 'Babcia Basia Kowalska',
     avatarSrc: '/admin/scene-assets/cast/04-babcia.png',
     blurb:
@@ -75,7 +82,7 @@ export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
     capacity: 1,
   },
   {
-    householdId: '06-hiro-nakamura',
+    householdId: '06-hiro',
     name: 'Hiroshi "Hiro" Nakamura',
     avatarSrc: '/admin/scene-assets/cast/06-hiro.png',
     blurb:
@@ -84,7 +91,7 @@ export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
     capacity: 1,
   },
   {
-    householdId: '07-anjali-sam-patel-green',
+    householdId: '07-patel-greens',
     name: 'Anjali & Sam Patel-Green',
     avatarSrc: '/admin/scene-assets/cast/07-patel-greens.png',
     blurb:
@@ -93,6 +100,50 @@ export const L1_CURTAILED_HOUSEHOLD_DEFS: Applicant[] = [
     capacity: 1,
   },
 ];
+
+/**
+ * The ids the five L1 households carried before they were reconciled with
+ * cast.json, mapped to the ids they carry now.
+ *
+ * A save is never rewritten to use the new ids. `store.rehomed` is
+ * append-only history that merges across devices by union of whole
+ * entries (merge-save.ts), so a device that rewrote its copy would meet a
+ * server copy still holding the old ids and keep both — every adoption
+ * doubled. Readers translate instead: anything that matches a stored
+ * `householdId` against a household, or looks one up in cast.json, goes
+ * through `canonicalHouseholdId` or `householdUseCount` first. A save
+ * written under the old ids therefore keeps its history, and a household
+ * that was full under the old id is still full under the new one.
+ *
+ * Add to this map only when an id is renamed. Never remove an entry: a
+ * save written under that id may still exist.
+ */
+export const LEGACY_HOUSEHOLD_IDS: Readonly<Record<string, string>> = {
+  '01-pri-kaur': '01-priya',
+  '03-nova-adebayo': '03-nova',
+  '04-babcia-kowalska': '04-babcia',
+  '06-hiro-nakamura': '06-hiro',
+  '07-anjali-sam-patel-green': '07-patel-greens',
+};
+
+/** The current id for a household id read from a save, a visit or a caller. */
+export function canonicalHouseholdId(householdId: string): string {
+  return Object.prototype.hasOwnProperty.call(LEGACY_HOUSEHOLD_IDS, householdId)
+    ? LEGACY_HOUSEHOLD_IDS[householdId]
+    : householdId;
+}
+
+/**
+ * How many rehomed animals a household has taken, counting entries
+ * written under either of its ids.
+ */
+export function householdUseCount(
+  rehomed: ReadonlyArray<{ householdId: string }>,
+  householdId: string,
+): number {
+  const wanted = canonicalHouseholdId(householdId);
+  return rehomed.filter((r) => canonicalHouseholdId(r.householdId) === wanted).length;
+}
 
 /**
  * Filter: which of the L1 (or wider) applicants are eligible for THIS
@@ -109,7 +160,7 @@ export function getEligibleApplicants(
 ): Applicant[] {
   return L1_CURTAILED_HOUSEHOLD_DEFS.filter((h) => {
     if (!h.speciesPreferences.includes(animal.species)) return false;
-    const used = store.rehomed.filter((r) => r.householdId === h.householdId).length;
+    const used = householdUseCount(store.rehomed, h.householdId);
     if (used >= h.capacity) return false;
     return true;
   });
@@ -139,8 +190,11 @@ export function commitAdoption(
     );
   }
 
+  // A caller still holding an old id gets the household it meant, and the
+  // entry is written under the current one.
+  const canonicalId = canonicalHouseholdId(householdId);
   const eligible = getEligibleApplicants(animal, store);
-  if (!eligible.some((h) => h.householdId === householdId)) {
+  if (!eligible.some((h) => h.householdId === canonicalId)) {
     throw new Error(
       `commitAdoption: household ${householdId} is not eligible for ${animal.id} (${animal.species})`,
     );
@@ -150,7 +204,7 @@ export function commitAdoption(
     animalId: animal.id,
     animalName: animal.name,
     species: animal.species,
-    householdId,
+    householdId: canonicalId,
     date: now,
   };
   if (animal.variant !== undefined) entry.variant = animal.variant;

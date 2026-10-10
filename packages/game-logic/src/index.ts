@@ -344,6 +344,9 @@ export type { SpeciesFact } from './species-facts';
 
 export {
   L1_CURTAILED_HOUSEHOLD_DEFS,
+  LEGACY_HOUSEHOLD_IDS,
+  canonicalHouseholdId,
+  householdUseCount,
   getEligibleApplicants,
   commitAdoption,
 } from './adoption';
