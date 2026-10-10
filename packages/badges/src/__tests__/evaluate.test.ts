@@ -76,6 +76,12 @@ describe('evaluateBadges', () => {
     expect(result).not.toContain('early_supporter');
   });
 
+  it('awards cosy_centre at the first house upgrade, not before', () => {
+    const stats = makeStats();
+    expect(evaluateBadges(stats, makeExtras({ houseUpgrades: 0 }), [])).not.toContain('cosy_centre');
+    expect(evaluateBadges(stats, makeExtras({ houseUpgrades: 1 }), [])).toContain('cosy_centre');
+  });
+
   it('awards all_species when all counters >= 1', () => {
     const stats = makeStats({
       catsRescued: 1,

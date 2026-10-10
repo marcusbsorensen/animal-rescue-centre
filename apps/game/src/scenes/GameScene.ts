@@ -2866,7 +2866,7 @@ export class GameScene extends Phaser.Scene {
         walksWithoutIncident: 0,
         animalsTrained: 0,
         conflictsResolved: this.store.conflictsResolved,
-        houseUpgrades: 0,
+        houseUpgrades: this.store.houseUpgrades.length,
         totalPets: pets.length,
         consecutiveDays: 1,
         totalDaysPlayed: 1,
