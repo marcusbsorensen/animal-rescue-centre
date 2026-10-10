@@ -1,3 +1,84 @@
+# A.R.C. — handover 2026-10-09/10
+
+**This session did too many things: the animal sprite restyle, the fleet repaint,
+the loading screen, the animal scale system, a game-wide audit, and the collection
+drives. The sections below this one are earlier handovers; the sprite set, crates
+and one-true-scale ones are now CLOSED.**
+
+## Goal
+A children's animal-rescue game for autistic children, 3-8, many pre-readers.
+Today: close the play loop so vehicles actually collect animals, and get every
+animal and vehicle into one consistent visual register.
+
+## State
+Verified, all pushed on `claude/crate-loading`, 980 game-logic + 645 app + 7 badges:
+- **473 animal sprites restyled and installed** (`712022e`). 588/600 pass the drawn
+  gate, up from 557; the permitted-failure list shrank 43 -> 12. Alpha byte-identical
+  on all 473, asserted per channel by hash. Cost ~$17.35 of an approved $51.84.
+- **Collection drives built** (`0f419bc`, `c71f673`) - the vehicles go out and fetch
+  animals. This half of the loop did not exist before today.
+- **Loading screen**: the bay draws the crate the child chose (`7f2d7fc`), plus tap
+  floors, queue pager, vehicle arrows, panel copy at the narrowest plate.
+- **Fleet portraits**: Henry maroon, Bea slate blue, Spark leaf green (`ad49610`);
+  Trikey lilac with her rack (`ad521be`); six crates installed and visible (`3ffd10a`).
+- **Animal scale** in code with a CI gate (`b86959b`), nine wrong draws fixed.
+
+Not verified / not reaching a child yet:
+- **The van and Trikey TOP-DOWNS are not repainted**, so the car park still draws
+  Henry and Bea cream and Spark white. The portraits are canon; top-downs are painted
+  from them. This is the single biggest visible gap.
+- Both Playwright UX harnesses could not be made to run; `e2e/__ux__/ux-report.json`
+  is dated 2026-09-04.
+
+## Files
+- `.claude/notes/animal-sprite-brief.md` - the restyle round in full, sections 1-56.
+- `.claude/notes/openai-recommission-2026-10-09.md` - van, Trikey and crate installs.
+- `docs/collection-drives-2026-10-09.md` - the three collection design decisions.
+- `tools/sprite-scale-known-failures.txt` - 12 entries; the gate only lets it shrink.
+- `tools/openai-spend.py` - works the moment an admin key exists.
+- `tools/regrade-to-source.py` - saturation match onto each sprite's own source.
+
+## Decisions made
+- **Rule 6 narrowed to "attach references, never link them"** (`docs/manus-sprite-rules.md`).
+  Provider is chosen per job on measured acceptance. OpenAI's edits endpoint has no
+  1024x512 canvas and drifted worse than Manus on a set; the reachability failure the
+  rule was written about is real and happened twice.
+- **Animal register: flat line-and-wash.** The old prompt demanded speculars,
+  occlusion shadow and gradients and forbade flat fills - that is what replaced drawn
+  detail with modelled shading.
+- **Colour is fixed in post, not asked of the model.** The prompt said "muted" and got
+  1.14x more saturated.
+- **Model `gpt-image-2.5-sunburst` at high.** `gpt-image-2` is the only model on the
+  account that refuses `background: transparent` - it killed 473 requests. `gpt-image-1.5`
+  loses the key line on pale coats.
+- **Big Tilly's "body" for the colour-blind test is the coral cab**, not the tan bed.
+- **Collection flow**: out empty with no loading screen, crate choice at the pickup;
+  species known before the drive and the individual a surprise; cap checked three times
+  before departure and never at the gate.
+- **Distinct-colour count is not an acceptance criterion** - it measures the palettising
+  pipeline, not the art. The source itself has ~21,781 colours before quantising.
+
+## Next step
+Fix root `pnpm test` so CI runs the app's tests. It is red and silently skips them:
+8 game-logic suites die on `[vitest-worker]: Timeout calling "fetch"` under parallel
+load (all pass in isolation in 351ms), then `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL` aborts
+before `@arc/game` runs at all.
+
+## Traps
+- **Run tests per package**: `pnpm --filter @arc/game-logic test`, `pnpm --filter @arc/game test`.
+- **The in-app browser pane cannot run Phaser.** Real Chrome with Playwright only.
+- **`/organization/costs` needs an `sk-admin-` key**; `.env.local` has `sk-proj-`. Every
+  cost figure today is arithmetic on token usage, not an invoice.
+- **Unpushed commits serve stale bytes from repo URLs.** `shasum` any URL a brief relies on.
+- **Two batches of ~820k tokens cannot be enqueued together** (1M ceiling). Submit in series.
+- Machine was under heavy memory pressure: `omlx-server` 21GB, ComfyUI 8GB.
+- **The audit's open list**, worth reading before new features: adoption caps at 5 per save
+  and takes only cats and dogs; the wardrobe garments and 18 charms are painted but never
+  drawn; `doFeed` never saves; 11 of 25 badges are mathematically unreachable; the tunnel
+  is implemented twice and the game runs the copy; garden feeding and play areas do not exist.
+
+---
+
 # Animal sprite set — handover 2026-09-05
 
 Replaces the 2026-09-04 UI/map handover, which is committed and pushed.
