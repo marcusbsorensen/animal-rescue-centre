@@ -1427,7 +1427,10 @@ export class GameScene extends Phaser.Scene {
 
     renderAnimalCard(this, this.store, this.animalCard(), animal, {
       onClose: () => this.closePopup(),
-      onFeed: () => { doFeed(); this.tickClock('feed'); },
+      // Saved here, after tickClock, and not inside doFeed: the tick
+      // is what advances the clock and the weather, and a save taken
+      // before it would leave those behind in a closed lid.
+      onFeed: () => { doFeed(); this.tickClock('feed'); this.saveState(); },
       onPlay: () => { doPlay(); this.tickClock('play'); },
       onWalk: doWalk,
       onGroom: doGroom,

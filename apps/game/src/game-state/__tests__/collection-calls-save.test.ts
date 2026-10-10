@@ -1,4 +1,6 @@
 import 'fake-indexeddb/auto';
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 /**
@@ -7,11 +9,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
  * A call is the only thing a collection drive leaves behind between the
  * phone ringing and the van coming home, so if it is not persisted the
  * feature loses its whole middle: a child who closes the lid after the
- * toast comes back to a map with nothing on it. `doFeed` is the standing
+ * toast comes back to a map with nothing on it. `doFeed` was the standing
  * example of state changed and never saved, and these are the three
- * things that stop this becoming the second one — it reaches the
+ * things that stop a call becoming the second one — it reaches the
  * snapshot, it comes back on load, and a save written before the feature
- * existed still loads.
+ * existed still loads. Feeding has its own block at the foot, because
+ * the bug it names is the reason the rest of this file exists.
  *
  * Same stubs as `save-version.test.ts`, for the same reasons.
  */
@@ -34,6 +37,7 @@ const { GameStateStore } = await import('../GameStateStore');
 const { clearLocalSave } = await import('../localSave');
 const { admitCollection } = await import('@arc/game-logic');
 const { spawnAnimal } = await import('@arc/game-logic');
+const { applyFeeding } = await import('@arc/game-logic');
 
 const invoke = supabase.functions.invoke as ReturnType<typeof vi.fn>;
 const scene = {} as Parameters<typeof saveGameState>[0];
@@ -129,5 +133,67 @@ describe('collection calls on the save', () => {
     expect(state.collectionCalls).toEqual([]);
     expect((state.animals as Array<{ id: string }>).map((a) => a.id))
       .toContain(collected.id);
+  });
+});
+
+describe('feeding on the save', () => {
+  beforeEach(async () => {
+    localStorage.setItem('arc_session', JSON.stringify({
+      userId: USER,
+      username: 'BrambleFox',
+      avatarEmoji: '🦊',
+      avatarBgColour: '#fff',
+      joinCode: 'FOX-428',
+      token: 'a'.repeat(64),
+    }));
+    await clearLocalSave(USER);
+    resetSaveTracking();
+    invoke.mockReset();
+  });
+
+  it('carries a fed animal\'s hunger into the snapshot', async () => {
+    // What the handler does to the store, and what a save then writes.
+    // The snapshot has always carried this; the missing piece was
+    // anything asking for the save, which the next test pins.
+    const store = new GameStateStore();
+    const hungry = { ...spawnAnimal('dog', { variant: 'collie' }), hunger: 80, state: 'sheltered' as const };
+    store.animals = [hungry];
+
+    store.animals[0] = applyFeeding(store.animals[0]);
+
+    invoke.mockResolvedValueOnce({ data: { saved: true, version: 1 }, error: null });
+    await saveGameState(scene, store);
+
+    const state = bodyOf(0).state as Record<string, unknown>;
+    const saved = (state.animals as Array<{ id: string; hunger: number }>)
+      .find((a) => a.id === hungry.id);
+    expect(saved?.hunger).toBe(40);
+  });
+
+  it('is saved by the feed handler, after the clock ticks', () => {
+    // `GameScene` cannot be imported under test (Phaser probes a canvas
+    // on import), so this reads the handler the way
+    // `__tests__/collection-wiring.test.ts` reads the arrival switch.
+    // The order is the point: `tickClock` advances the care clock and
+    // the weather, and a save taken before it would leave both behind
+    // for a child who closes the lid straight after feeding.
+    const source = fs.readFileSync(
+      path.join(__dirname, '../../scenes/GameScene.ts'),
+      'utf8',
+    );
+    const handlers = [...source.matchAll(/onFeed:\s*\(\)\s*=>\s*\{([^}]*)\}/g)];
+
+    // One card, one handler. If this fails the pattern has stopped
+    // finding it and the assertions below are checking nothing.
+    expect(handlers).toHaveLength(1);
+
+    const body = handlers[0][1];
+    const fed = body.indexOf('doFeed()');
+    const ticked = body.indexOf("this.tickClock('feed')");
+    const saved = body.indexOf('this.saveState()');
+
+    expect(fed).toBeGreaterThanOrEqual(0);
+    expect(ticked).toBeGreaterThan(fed);
+    expect(saved).toBeGreaterThan(ticked);
   });
 });
