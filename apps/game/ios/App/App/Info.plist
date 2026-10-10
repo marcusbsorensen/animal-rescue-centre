@@ -22,6 +22,18 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!--
+	  Declares the app uses no non-exempt encryption. Without it every
+	  TestFlight upload sits at "Missing Compliance" until the question is
+	  answered by hand in App Store Connect, and testers cannot install it.
+
+	  True for this app: it talks to Supabase over HTTPS and does nothing
+	  else cryptographic. Standard HTTPS is exempt under the US export
+	  regulations Apple is asking about. Revisit if the game ever ships its
+	  own crypto rather than borrowing the platform's.
+	-->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
