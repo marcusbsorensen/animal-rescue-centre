@@ -5,10 +5,20 @@
     python3 tools/install-restyled.py --stage-only       # write staged-512/, install nothing
     python3 tools/install-restyled.py                    # install over the originals
     python3 tools/install-restyled.py --species cat      # one species
+    python3 tools/install-restyled.py --drafts a b        # several draft dirs at once
 
 `batch-restyle.py fetch` writes 1024px RGBA PNGs and then tells you in prose
 to "matte, resize to 512, copy over the originals". This is that step, so it
 is done the same way twice.
+
+*Both input namings are accepted.* A `fetch` writes `<stem>-<pose>-raw.png`;
+`regrade-to-source.py --out-dir` writes the graded sprite as
+`<stem>-<pose>.png`, which is already the name it will be installed under.
+This step collects either, so the documented sequence — fetch, regrade, stage,
+install — feeds itself. It used to collect only `-raw.png` and so exited
+"nothing to install" on a regraded directory. If one directory holds both
+spellings of the same sprite the run stops and names them, because which of
+the two is wanted is not something this script can know.
 
 **What it does and why each part is there.**
 
@@ -73,9 +83,35 @@ def convert(src):
     return out.quantize(colors=COLOURS, method=Image.FASTOCTREE), None
 
 
+def collect(drafts, species):
+    """One draft dir → ([(filename, destination)], [strays]).
+
+    Accepts `<stem>-<pose>-raw.png` (a fetch) and `<stem>-<pose>.png` (a
+    regrade). `staged-512/` is a directory, so it is never scanned.
+    """
+    jobs, strays = {}, []
+    for f in sorted(os.listdir(drafts)):
+        if not f.endswith('.png'):
+            continue
+        base = f[:-8] if f.endswith('-raw.png') else f[:-4]
+        stem, _, pose = base.rpartition('-')
+        if pose not in POSES or not stem:
+            strays.append(f)              # probe files and other strays
+            continue
+        if species and not (stem == species or stem.startswith(species + '-')):
+            continue
+        dst = f'{stem}-{pose}.png'
+        if dst in jobs:
+            sys.exit(f'{drafts}: both {jobs[dst]} and {f} would install as {dst}. '
+                     f'Which one is wanted is not knowable here — remove one and run again.')
+        jobs[dst] = f
+    return [(src, dst) for dst, src in sorted(jobs.items())], strays
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--drafts', default=DRAFTS, help='where the *-raw.png live')
+    ap.add_argument('--drafts', nargs='+', default=[DRAFTS],
+                    help='one or more dirs holding *-raw.png or regraded *.png')
     ap.add_argument('--species', help='only stems matching this species')
     ap.add_argument('--backup-dir', default=None,
                     help='default: asset-drafts/pre-restyle-backup-<n>')
@@ -84,36 +120,38 @@ def main():
     ap.add_argument('--dry-run', action='store_true')
     args = ap.parse_args()
 
-    raws = sorted(f for f in os.listdir(args.drafts) if f.endswith('-raw.png'))
-    jobs = []
-    for f in raws:
-        stem, _, pose = f[:-8].rpartition('-')
-        if pose not in POSES or not stem:
-            continue                      # probe files and other strays
-        if args.species and not (stem == args.species or stem.startswith(args.species + '-')):
-            continue
-        jobs.append((f, f'{stem}-{pose}.png'))
+    jobs, strays, seen = [], [], {}
+    for d in args.drafts:
+        found, stray = collect(d, args.species)
+        for src, dst in found:
+            if dst in seen:
+                sys.exit(f'{dst} is offered by both {seen[dst]} and {os.path.join(d, src)}. '
+                         f'Two draft dirs hold the same sprite — install them separately.')
+            seen[dst] = os.path.join(d, src)
+            jobs.append((d, src, dst))
+        strays += stray
     if not jobs:
-        sys.exit(f'nothing to install from {args.drafts}')
+        sys.exit(f'nothing to install from {", ".join(args.drafts)}')
 
-    skipped = [f for f in raws if not any(f == j[0] for j in jobs)]
-    print(f'{len(jobs)} sprites to install from {args.drafts}')
-    if skipped:
-        print(f'  ignoring {len(skipped)}: {", ".join(skipped[:4])}'
-              f'{" …" if len(skipped) > 4 else ""}')
+    print(f'{len(jobs)} sprites to install from {", ".join(args.drafts)}')
+    if strays:
+        print(f'  ignoring {len(strays)}: {", ".join(strays[:4])}'
+              f'{" …" if len(strays) > 4 else ""}')
 
-    missing = [dst for _, dst in jobs if not os.path.exists(os.path.join(ASSETS, dst))]
+    missing = [dst for _, _, dst in jobs if not os.path.exists(os.path.join(ASSETS, dst))]
     if missing:
         print(f'  {len(missing)} would be NEW files (no original to replace): '
               f'{", ".join(missing[:4])}')
     if args.dry_run:
-        for src, dst in jobs[:6]:
-            print(f'  {src} → {dst}')
+        for d, src, dst in jobs[:6]:
+            print(f'  {os.path.join(d, src)} → {dst}')
         print(f'  … {len(jobs)} total')
         return
 
-    stage = os.path.join(args.drafts, 'staged-512')
-    os.makedirs(stage, exist_ok=True)
+    stages = {}
+    for d in args.drafts:
+        stages[d] = os.path.join(d, 'staged-512')
+        os.makedirs(stages[d], exist_ok=True)
     backup = args.backup_dir
     if not args.stage_only:
         if not backup:
@@ -124,25 +162,26 @@ def main():
         os.makedirs(backup, exist_ok=True)
 
     done = failed = 0
-    for src, dst in jobs:
-        img, err = convert(os.path.join(args.drafts, src))
+    for d, src, dst in jobs:
+        img, err = convert(os.path.join(d, src))
         if err:
             print(f'  ! {dst}: {err}')
             failed += 1
             continue
-        img.save(os.path.join(stage, dst), optimize=True)
+        staged_file = os.path.join(stages[d], dst)
+        img.save(staged_file, optimize=True)
         if not args.stage_only:
             original = os.path.join(ASSETS, dst)
             if os.path.exists(original):
                 shutil.copy2(original, os.path.join(backup, dst))
-            shutil.copy2(os.path.join(stage, dst), original)
+            shutil.copy2(staged_file, original)
         done += 1
 
-    total = sum(os.path.getsize(os.path.join(stage, dst)) for _, dst in jobs
-                if os.path.exists(os.path.join(stage, dst)))
+    total = sum(os.path.getsize(os.path.join(stages[d], dst)) for d, _, dst in jobs
+                if os.path.exists(os.path.join(stages[d], dst)))
     print(f'\n{done} converted · {failed} failed · {total // 1024} KB '
           f'({total // max(1, done) // 1024} KB each)')
-    print(f'staged in {stage}')
+    print(f'staged in {", ".join(stages[d] for d in args.drafts)}')
     if args.stage_only:
         print('nothing installed (--stage-only)')
     else:
