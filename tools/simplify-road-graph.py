@@ -1,22 +1,56 @@
 #!/usr/bin/env python3
 """
-simplify-road-graph.py - propose simpler versions of the Birchie road graph.
+simplify-road-graph.py - make the simpler Birchie road graph, and draw the map from it.
 
-Reads apps/game/public/assets/driving/birchie-graph.json (never writes to it)
+Reads the OpenStreetMap import in tools/road-graph-source/ (never writes to it)
 and writes candidate graphs, a report and comparison images to
 tools/road-graph-candidates/. Deterministic: no randomness, sorted iteration,
 so a re-run is byte-identical.
 
+INSTALLED: candidate D (2026-10-11, Marcus's choice over C, which leaves A.R.C.
+  on a bare headland with the towns gone). The game runs
+  apps/game/public/assets/driving/birchie-graph.json = birchie-graph.D.json, and
+  the roads it draws are the road layer of
+  apps/game/public/admin/scene-assets/birchie-map/birchie-roads.svg, written by
+  `--svg`. To install a different candidate, or after changing this tool:
+      python3 tools/simplify-road-graph.py --svg --no-images --out /tmp/x
+      cp /tmp/x/birchie-graph.D.json apps/game/public/assets/driving/birchie-graph.json
+      cp /tmp/x/birchie-roads.D.svg  apps/game/public/admin/scene-assets/birchie-map/birchie-roads.svg
+  and run `pnpm --filter @arc/game test`: road-graph-reach.test.ts checks every
+  destination is reachable and that the map draws exactly the graph's roads.
+  The `--svg` map is the LIVE birchie-roads.svg with only its road layer
+  replaced (landmarks, labels, seasons and animations are carried through byte
+  for byte, and asserted), so it is safe to run after the art changes. It is
+  not a road-only file and must never be written over the map from a stale copy.
+  MOVING A PIN changes the graph: each pin snaps to its nearest node and that
+  node is protected, so a pin moved to a new node keeps a different stub and
+  prunes another. The hog hospital and Wilderwood sit exactly ON the nodes D
+  already protects (a track's end, a point on the south lane), which is why D is
+  unchanged by placing them. Move a pin, and re-run, re-install and re-test.
+
+THE SOURCE (tools/road-graph-source/)
+  birchie-graph.osm.json   the graph as it shipped until 2026-10-11: 2,475 edges,
+                           extracted from the OSM roads in birchie-roads.svg by a
+                           tools/build-road-graph.py that is gone (retired, git has
+                           it): roads sampled every 14 map units, shared points
+                           snapped to 13, dangling ends bridged within 18.
+  birchie-roads.osm.svg    the road layer of birchie-roads.svg as it was then: the
+                           12 road classes, every road. This is where the service
+                           road Cove Harbour follows comes from; the live map has
+                           dropped it.
+  These are inputs, not outputs. Nothing regenerates them. Anything that reads
+  "the full graph" or "today" in this tool means them, not the installed files.
+
 WHY
-  The graph is OpenStreetMap imported wholesale: 2,475 edges, 503 junctions,
+  The graph was OpenStreetMap imported wholesale: 2,475 edges, 503 junctions,
   mostly residential closes, farm tracks and unclassified lanes. A child aged
-  3-8 cannot read it, and a route through it asks them to steer at ~28 forks.
+  3-8 cannot read it, and a route through it asked them to steer at ~28 forks.
   The map the child SEES (birchie-roads.svg: map.html, the in-drive GPS panel,
-  intro.html) is also a separate thing from the graph the van DRIVES, so the
-  two already disagree: 141 footpaths, service roads, cycleways and pedestrian
-  streets are drawn that no route can use. The decision behind this tool is ONE
-  graph for both. Each candidate is one file, and --svg writes the map to draw
-  from it.
+  intro.html, birchie-map.html) was also a separate thing from the graph the van
+  DRIVES, so the two disagreed: 141 footpaths, service roads, cycleways and
+  pedestrian streets were drawn that no route could use. The decision behind this
+  tool is ONE graph for both. Each candidate is one file, and --svg writes the map
+  to draw from it.
 
 OUTPUT FORMAT (version 2, a superset of version 1)
   nodes    [[fx, fy], ...]          unchanged encoding, so road-router.ts,
@@ -39,7 +73,7 @@ THE LEVERS, in order of safety
             visible (it is the same lines): the clutter is junctions, not
             geometry points. It is what makes the count honest.
   tracks    Farm tracks are not rescue-van roads, except where one is the only
-            road to a destination (Cove Harbour and Moorland, today).
+            road to a destination (Cove Harbour, Moorland and the hog hospital).
   stubs     Prune dead-end stubs shorter than a threshold, unless they lead to a
             destination or run off the edge of the map.
   access    Keep a road of a dropped class only where it is the cheapest way to
@@ -69,7 +103,10 @@ REACHABILITY
   that has no road shows up here.
 
   python3 tools/simplify-road-graph.py              build everything
-  python3 tools/simplify-road-graph.py --svg        also write birchie-roads.<key>.svg
+  python3 tools/simplify-road-graph.py --svg        also write birchie-roads.<key>.svg: the whole
+                                                    map, the live birchie-roads.svg with ONLY its
+                                                    road layer replaced (asserted: every byte
+                                                    outside the road layer is the live file's)
   python3 tools/simplify-road-graph.py --check F    verify any graph file (exit 1 if a
                                                     destination cannot be reached)
 
@@ -85,8 +122,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-GRAPH_IN = ROOT / 'apps/game/public/assets/driving/birchie-graph.json'
-SVG_IN = ROOT / 'apps/game/public/admin/scene-assets/birchie-map/birchie-roads.svg'
+SOURCE_DIR = ROOT / 'tools/road-graph-source'
+GRAPH_IN = SOURCE_DIR / 'birchie-graph.osm.json'          # the OSM import: the full graph (see THE SOURCE)
+OSM_ROADS_IN = SOURCE_DIR / 'birchie-roads.osm.svg'       # its road layer as drawn: the full set of roads
+SVG_IN = ROOT / 'apps/game/public/admin/scene-assets/birchie-map/birchie-roads.svg'   # the LIVE map: landmarks, labels, seasons
 DEST_TS = ROOT / 'packages/game-logic/src/destinations.ts'
 OUT_DIR = ROOT / 'tools/road-graph-candidates'
 
@@ -99,10 +138,15 @@ FRAME_TOL = 16.0        # px: a road ending this close to the frame runs off the
 LINK_STEP = 14.0        # px: synthetic links are cut to the graph's own grain
 # How the SVG draws each class; the candidates reuse it so the comparison is of
 # structure, not of paint. Order is z-order (bottom first). One departure: the
-# map paints a track in near-farmland cream, which is invisible when a track is
-# the only road to a place (Cove Harbour), so tracks here are drawn darker.
+# OSM map painted a track as a thin dashed line in near-farmland cream, which is
+# invisible, and a track is now the ONLY road to Cove Harbour, Moorland and the
+# hog hospital, so a child could not see the way to a place she can drive to.
+# Tracks are a solid mid-brown, 7 wide: the first try, a darker dashed tan 4.5
+# wide, still read as a field boundary (the map's fields are outlined in the same
+# tan) and vanished at phone size, where one map unit is 0.2 to 0.45 points. Solid,
+# because a dash is a point or two long there and breaks into dots.
 ROAD_STYLE = [
-    ('track', '#c9a65f', 4.5, '6 4'),
+    ('track', '#a8742f', 7, None),
     ('service', '#fdf6dc', 5, None),
     ('residential', '#fdf6dc', 8, None),
     ('unclassified', '#f6ecc7', 8, None),
@@ -330,7 +374,7 @@ WAY_CLASSES = ('service', 'path', 'footway', 'cycleway', 'pedestrian')
 def svg_ways(classes=WAY_CLASSES):
     """The map's own roads that never made it into the graph, as (cls, [(x, y)])
     in map units: the real geometry a repair can follow instead of a ruled line."""
-    svg = SVG_IN.read_text()
+    svg = OSM_ROADS_IN.read_text()
     out, seen = [], set()
     for m in re.finditer(r'<path\b([^>]*)>', svg):
         cls = re.search(r'data-cls="([^"]*)"', m.group(1))
@@ -426,8 +470,11 @@ def repair_links(nodes, edges, anchors, arc_node, ways=()):
                     best = (d, i, j)
         d, i, j = best
         chain = add_link(nodes, edges, i, j, 'unclassified')
+        # A ruled line across a field, not a road anyone drew. It makes the place reachable and
+        # that is all it does. Deep Forest's is one: it wants a proper drawn road.
         links.append({'kind': 'repair', 'cls': 'unclassified', 'chain': chain, 'px': round(d, 1), 'serves': names,
-                      'via': 'a straight link'})
+                      'via': 'a straight link',
+                      'note': 'a straight line across the fields, not a drawn road: wants a proper road drawn for ' + ', '.join(names)})
 
 
 def apply_fixes(nodes0, edges0, anchors):
@@ -754,7 +801,8 @@ def finish(nodes, edges, anchors, links, spec):
     for l in links:
         if all(n in remap for n in l['chain']):
             kept_links.append({'kind': l['kind'], 'cls': l['cls'], 'px': l['px'], 'serves': l['serves'],
-                               'via': l.get('via', 'a straight link'), 'nodes': [remap[n] for n in l['chain']]})
+                               'via': l.get('via', 'a straight link'), 'nodes': [remap[n] for n in l['chain']],
+                               **({'note': l['note']} if 'note' in l else {})})
     return {
         'version': 2,
         'candidate': spec['key'],
@@ -839,8 +887,9 @@ def junctions_in_window(nodes, edges, win):
 
 
 def drawn_not_driven(svg_text=None):
-    """Roads the map draws that the graph never had: no route can use them."""
-    svg = svg_text if svg_text is not None else SVG_IN.read_text()
+    """Roads the map drew that the graph never had: no route could use them. Read
+    from the OSM layer, because the live map no longer draws them."""
+    svg = svg_text if svg_text is not None else OSM_ROADS_IN.read_text()
     c = collections.Counter()
     seen = set()
     for m in re.finditer(r'<path\b([^>]*)>', svg):
@@ -915,14 +964,43 @@ def link_markup(nodes, links):
     return out
 
 
+ROAD_GROUP = '<g id="roads-'
+ROAD_BLOCK = re.compile(r'(?:' + re.escape(ROAD_GROUP) + r'[^"]*"[^>]*>.*?</g>\n)+', re.S)
+
+
+def split_roads(svg):
+    """(before, road layer, after). The road layer is the run of <g id="roads-*">
+    groups, which the map keeps in one block; this refuses a file where they are
+    not, because replacing 'the road layer' would then mean guessing."""
+    blocks = list(ROAD_BLOCK.finditer(svg))
+    if len(blocks) != 1 or blocks[0].group(0).count(ROAD_GROUP) != svg.count(ROAD_GROUP):
+        raise SystemExit('the road groups in the map are not one contiguous block: fix split_roads, do not guess')
+    return svg[:blocks[0].start()], blocks[0].group(0), svg[blocks[0].end():]
+
+
+def splice_roads(svg, markup):
+    """The map with its road layer replaced by `markup`. Everything else in the
+    file, the landmarks, labels, seasons and animations, is carried through
+    byte for byte, and that is asserted: a road swap must never touch art."""
+    before, _, after = split_roads(svg)
+    out = before + markup.rstrip('\n') + '\n' + after
+    again = split_roads(out)
+    assert again[0] == before and again[2] == after, 'splice_roads changed something outside the road layer'
+    return out
+
+
+def osm_roads_markup():
+    """Today's roads as the map drew them: the OSM layer, every class."""
+    return split_roads(OSM_ROADS_IN.read_text())[1]
+
+
 def map_svg(dests, nodes=None, roads=None, links=()):
-    """The map with its drawn roads replaced by the graph's (or untouched, if
-    no graph is given), plus pins, plus red links."""
-    svg = SVG_IN.read_text()
-    if roads is not None:
-        first = svg.index('<g id="roads-footway"')
-        svg = re.sub(r'<g id="roads-[^"]*"[^>]*>.*?</g>', '', svg, flags=re.S)
-        svg = svg[:first] + road_markup(nodes, roads) + svg[first:]
+    """The whole map, the live one, with its road layer drawn from the graph's
+    roads (or, if no graph is given, as OpenStreetMap had it), plus pins, plus
+    red links. Only the road layer differs from SVG_IN; pins and links are
+    appended after it and are for the comparison images, never for installing
+    (--svg passes none)."""
+    svg = splice_roads(SVG_IN.read_text(), road_markup(nodes, roads) if roads is not None else osm_roads_markup())
     over = (link_markup(nodes, links) if roads is not None else '') + pin_markup(dests)
     assert svg.rstrip().endswith('</svg>')
     return svg.rstrip()[:-len('</svg>')] + over + '</svg>'
@@ -1098,7 +1176,7 @@ def write_report(path, dests, base, results, wins):
             seen.add(key)
             what = (('stranded destination: ' + ', '.join(l['serves']) + ', along ' + l['via']) if l['kind'] == 'repair'
                     else 'gap in the ' + l['cls'] + ' road, ' + l['via'])
-            L.append(f"  {l['kind']:7s} {l['px']:>5} px  {what}")
+            L.append(f"  {l['kind']:7s} {l['px']:>5} px  {what}" + (' (wants a proper drawn road)' if l.get('note') else ''))
     L.append('')
     dnd = drawn_not_driven()
     L.append('DRAWN TODAY BUT NEVER DRIVEN (in birchie-roads.svg, absent from the graph): '
@@ -1164,7 +1242,7 @@ def make_images(out, dests, nodes0, edges0, base, results):
         panels.append((f"{spec['key']}  {spec['title']}", lines, im))
     notes = ['Forks per route: the nodes on the shelter-to-destination route where more than two real roads meet, the same test junctions.ts uses to ask the child to steer. Median over the destinations.',
              'Red: a link this tool added. Each one is a gap in today\'s data (the A28 is in four pieces; Cove Harbour and Deep Forest are cut off from the network). They are in meta.links and can be argued with.',
-             'Dashed brown: a farm track kept because it is the only road to Cove Harbour and Moorland. Today\'s map paints tracks in near-farmland cream, which would hide them.']
+             'Brown: a farm track kept because it is the only road to Cove Harbour, Moorland and the hog hospital. The OSM map painted tracks in near-farmland cream, which would hide them.']
     panels.append(('', [], legend_image(dests, pw, today.height + 146, notes)))
     sheet_im = sheet(panels, 3, pw)
     sheet_im.save(out / 'map-candidates.jpg', quality=78, optimize=True, progressive=True)

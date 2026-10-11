@@ -334,6 +334,12 @@ export const DESTINATIONS: DestinationDef[] = [
     distance: 40,
     unlockLevel: 8,
     // the deep woods in the south-east corner
+    //
+    // **Its road is a ruled line across a field.** The shipped OSM graph left
+    // it in a housing estate cut off from the rest of the network, and nothing
+    // drew a road between. birchie-graph.json joins it with a straight link
+    // (meta.links, "wants a proper drawn road"), which makes it reachable and
+    // is not a road anyone drew. It wants a proper one drawn later.
     fx: 0.96,
     fy: 0.72,
     arrival: 'rewilding',
@@ -362,6 +368,13 @@ export const DESTINATIONS: DestinationDef[] = [
   // Both stand where the real places they allude to do: inland and a
   // few miles west of Birchie, a mile or so apart. The map has no room west
   // of A.R.C., so the south edge stands in for it.
+  //
+  // **Each pin is ON a road**, at a node of birchie-graph.json: the route
+  // runs to the nearest node and then straight to the pin, so a pin in a
+  // field parks the van in the lane. These were 54 and 104 map units from
+  // any road when they were first placed on the empty edge; they now sit
+  // where the nearest node is the pin (road-graph-reach.test.ts holds every
+  // pin within 40 units of the network). Move one and move it along a road.
   {
     id: 'hog-hospital',
     label: HOG_HOSPITAL_NAME,
@@ -372,10 +385,11 @@ export const DESTINATIONS: DestinationDef[] = [
     // Hedgehogs arrive at level 7 (progression.ts), and this opens with them.
     unlockLevel: 7,
     // On Bullstone Road, inland and south of the town, well back from the
-    // seafront. The south edge of the map is empty, so it goes there. Not
-    // further west: the name is long, and the label runs off the frame.
-    fx: 0.14,
-    fy: 0.95,
+    // seafront: at the end of the farm track that leaves the A28 for the
+    // south-west edge of the map, where the track stops. Not further west:
+    // the name is long, and the label runs off the frame.
+    fx: 0.1115,
+    fy: 0.9352,
     arrival: 'placement',
   },
   {
@@ -387,9 +401,10 @@ export const DESTINATIONS: DestinationDef[] = [
     distance: 22,
     // Snakes arrive at level 4, and they are the first to be placed here.
     unlockLevel: 4,
-    // A mile or so further along the road from the hog hospital.
-    fx: 0.3,
-    fy: 0.95,
+    // East of the hog hospital, on the lane that runs south from the A28
+    // to the edge of the map.
+    fx: 0.2427,
+    fy: 0.937,
     arrival: 'placement',
   },
 ];

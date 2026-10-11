@@ -636,3 +636,30 @@ checking the claim still holds.
   counting a Tuesday twice when two devices open the game on it. A day is
   recorded when the store is loaded, and saved with the next save: a launch
   that saves nothing leaves no day behind.
+- **The roads on the map and the roads the van drives are one graph, written
+  by one tool.** `birchie-graph.json` and the `roads-*` groups of
+  `birchie-roads.svg` both come from `tools/simplify-road-graph.py`, from the
+  OSM import kept in `tools/road-graph-source/` (candidate D, installed
+  2026-10-11: 970 edges, 154 drawn roads). Do not edit either by hand, and do
+  not re-run `tools/osm-to-svg.py`: it rewrites the WHOLE svg from OSM, every
+  road class back again and none of the landmarks added by hand since.
+  To change a road, change the tool, run `--svg`, copy the two outputs over
+  (the tool splices only the road layer into the live svg and asserts every
+  other byte is untouched, so landmark edits survive). `road-graph-reach.test.ts`
+  fails if a destination has no road, a pin is more than 40 units from one, or
+  the drawing and the graph drift. Tracks are the only way to Cove Harbour,
+  Moorland and the hog hospital, so they are drawn solid brown, not cream.
+- **`map.html` places its pins as if the SVG were letterboxed (`meet`); the
+  SVG root says `slice`. They agree only on a 1.6:1 stage (1800:1121).**
+  Measured 2026-10-11 on a fresh load: at 1280x797 the A.R.C. stamp sits on
+  its drawn plot; at 812x375 it is 67px right and 19px below it, at 874x402
+  73px and 20px. Every pin moves the same way, so a pin on a road in the
+  file is off the road on a phone, and at level 10 the map is cropped
+  top and bottom while the pins are laid out for the whole of it. `map.html`
+  (1404) and `intro.html` (288) both assume `meet`; the svg was `meet` until
+  `1b2ae80` (2026-05-18) made it `slice`. The landmark positions are fine,
+  it is the overlay that is wrong. Do not "fix" a pin to match a phone
+  screenshot: fix the disagreement. Calling the `init` message twice on one
+  page load (to change level) also corrupts the transform, because
+  `computeSvgRect` reads a rect that already carries the previous scale; load
+  the page fresh for each level when testing.

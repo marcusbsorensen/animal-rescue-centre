@@ -1,8 +1,10 @@
 /**
  * road-router.ts
  *
- * Pure router over the Birchie road graph (built offline by
- * tools/build-road-graph.py from birchie-roads.svg into birchie-graph.json).
+ * Pure router over the Birchie road graph (birchie-graph.json, written offline
+ * by tools/simplify-road-graph.py, which also writes the road layer of
+ * birchie-roads.svg from the same graph, so the roads a child sees are the
+ * roads the van can drive).
  * Nodes are map fractions [fx, fy]; edges carry a road class. Dijkstra finds a
  * road-following route between two map points, gently preferring bigger roads
  * (like real sat-nav). Falls back to a straight line if the points can't be

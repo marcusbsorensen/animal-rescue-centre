@@ -34,8 +34,8 @@ woodland           yes    15  1576  32 yes    15  1576  32 yes    15  1576  29 y
 sea-cliffs         yes    10  1454  51 yes    10  1454  51 yes    10  1453  50 yes    10  1560  17 yes    10  1461  20
 deep-forest         NO     4     0   0  NO     4     0   0 yes     4  1671  30 yes     4  2037   6 yes     4  1938   9
 wetlands           yes    13  1017  29 yes    13  1017  29 yes    13  1017  27 yes    13  1125   4 yes    13  1025   6
-hog-hospital       yes    54  1480  41 yes    54  1480  41 yes    54  1480  40 yes    54  1616  19 yes    54  1516  22
-wilderwood         yes   104  1104  27 yes   104  1104  27 yes   104  1104  25 yes   104  1239   5 yes   104  1140   8
+hog-hospital       yes     0  1480  41 yes     0  1480  41 yes     0  1480  40 yes     0  1616  19 yes     0  1516  22
+wilderwood         yes     0  1104  27 yes     0  1104  27 yes     0  1104  25 yes     0  1239   5 yes     0  1140   8
 
 SYNTHETIC LINKS (drawn red on the images; each is a place the shipped graph has a gap)
   heal      9.4 px  gap in the trunk road, a straight link
@@ -43,6 +43,6 @@ SYNTHETIC LINKS (drawn red on the images; each is a place the shipped graph has 
   heal     27.0 px  gap in the trunk road, a straight link
   heal      5.9 px  gap in the tertiary road, a straight link
   repair  114.4 px  stranded destination: cove-harbour, along the map's own service road
-  repair   54.3 px  stranded destination: deep-forest, along a straight link
+  repair   54.3 px  stranded destination: deep-forest, along a straight link (wants a proper drawn road)
 
 DRAWN TODAY BUT NEVER DRIVEN (in birchie-roads.svg, absent from the graph): 9 cycleway, 88 footway, 6 path, 12 pedestrian, 26 service  = 141 roads
