@@ -45,7 +45,10 @@ cancellation — the GPS stays on screen.
 which the reference draws and never lets you turn off. Ours is switchable,
 because a younger child cannot read the road fast enough without it and an
 older one finds it babyish. Marcus's idea, and it is better than the
-reference. The route it draws is the one the GPS already computes.
+reference. The route it draws is the one the GPS already computes. The switch
+is on the driving screen itself, a brass knob on the dashboard beside the GPS,
+on by default and remembered on the device (Marcus, 2026-10-11: the game has
+no settings screen).
 
 ## Why top-down, and why that is not a compromise
 

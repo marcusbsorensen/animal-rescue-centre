@@ -1,5 +1,6 @@
 // dashboard.js — the van's own dashboard, a strip along the bottom of the
-// driving spike that holds the gears, the handbrake and the horn.
+// driving spike that holds the gears, the handbrake, the horn and the guide
+// line's switch.
 //
 // Decided by Marcus, 2026-10-11 (docs/driving-port-plan-2026-10-11.md,
 // section 5, question 1): the controls live in a strip below the van, styled
@@ -23,11 +24,19 @@
 //   load()                    -> Promise<dash>
 //   height(dash, w, h)        the strip's height in CSS px on a w x h canvas
 //   draw(ctx, dash, w, h, s)  draws the strip; s = { v, gear, handbrake,
-//                             jostle, x, y, camH, route, s, roads }
+//                             guide, jostle, x, y, camH, route, s, roads };
+//                             guide is whether the guide line is on
 //   hit(dash, x, y)           'gear1' | 'gear2' | 'gear3' | 'horn' |
-//                             'handbrake' on a control, 'dash' elsewhere on
-//                             the strip, null above it
+//                             'handbrake' | 'guide' on a control, 'dash'
+//                             elsewhere on the strip, null above it
 //   honk(dash)                the horn: a short two-note beep
+//
+// The guide line's switch (Marcus, 2026-10-11, answer 11C: the game has no
+// settings screen, so it lives on the driving screen) is a brass knob with a
+// little road-and-arrow on it, lit when the line is on. It sits on the dash
+// face beside the GPS, whose route the line draws, and not on the console
+// with the gears and horn, where a child's thumb is all the time. The page
+// owns the on/off state; the dashboard only draws it and reports the tap.
 
 const ART = '/assets/driving/dashboard-henry-ptv.png';
 
@@ -176,6 +185,11 @@ function layout(dash, w, h) {
     })),
   });
 
+  const guideAt = (x, y) => ({
+    x, y, w: TARGET, h: TARGET, cx: x + TARGET / 2, cy: y + TARGET / 2, r: 22,
+    hit: { x, y, w: TARGET, h: TARGET },
+  });
+
   if (land) {
     L.trim = [top, top + 8];
     L.face = [top + 8, h];
@@ -188,9 +202,15 @@ function layout(dash, w, h) {
     L.brake = { x: L.comfort.x - 14 - 68, y, w: 68, h: rh };
     const hx = L.brake.x - 14 - TARGET;
     L.horn = { cx: hx + TARGET / 2, cy: y + rh / 2, r: 24, hit: { x: hx, y, w: TARGET, h: rh } };
-    const a = L.gears.plate.x + L.gears.plate.w + 20, b = hx - 20;
+    // The guide switch sits just left of the GPS whose route it draws.
+    const sx = L.gears.plate.x + L.gears.plate.w + 14;
+    L.guide = guideAt(sx, y);
+    const a = sx + TARGET + 10, b = hx - 14;
     const gw = Math.max(80, Math.min(rh * 3.4, b - a));
     L.gps = { x: (a + b - gw) / 2, y, w: gw, h: rh };
+    // On a very narrow phone held sideways (568 wide and under) the controls
+    // take all the room and the GPS, which is only to look at, gives way.
+    L.noGps = b - a < 64;
   } else {
     L.trim = [top, top + 10];
     L.face = [top + 10, top + 84];
@@ -201,7 +221,10 @@ function layout(dash, w, h) {
     L.fuel = { cx: m + ah + 6, cy: ay + ah - 13, r: 13 };
     const cw = ah * comfortAspect;
     L.comfort = { x: w - m - cw, y: ay, w: cw, h: ah };
-    const a = L.fuel.cx + 13 + 10, b = L.comfort.x - 10;
+    // The guide switch, centred on the dash face, just left of the GPS.
+    const sx = L.fuel.cx + 13 + 10;
+    L.guide = guideAt(sx, L.face[0] + (L.face[1] - L.face[0] - TARGET) / 2);
+    const a = sx + TARGET + 10, b = L.comfort.x - 10;
     const gw = Math.max(80, Math.min(ah * 3.4, b - a));
     L.gps = { x: (a + b - gw) / 2, y: ay, w: gw, h: ah };
 
@@ -230,6 +253,7 @@ export function hit(dash, x, y) {
   for (const k of L.gears.knobs) if (inside(k.hit, x, y)) return k.id;
   if (inside(L.horn.hit, x, y)) return 'horn';
   if (inside(L.brake.hit, x, y)) return 'handbrake';
+  if (inside(L.guide.hit, x, y)) return 'guide';
   return 'dash';
 }
 
@@ -319,8 +343,10 @@ function paintBackground(dash, L, w, dpr) {
 
   // The GPS frame, stretched to the room there is.
   const G = L.gps;
-  shadowOf(g, () => rr(g, G.x, G.y, G.w, G.h, G.b * 0.3));
-  nine(g, dash.gpsFrame, SRC.gps.border, G.x, G.y, G.w, G.h, G.b);
+  if (!L.noGps) {
+    shadowOf(g, () => rr(g, G.x, G.y, G.w, G.h, G.b * 0.3));
+    nine(g, dash.gpsFrame, SRC.gps.border, G.x, G.y, G.w, G.h, G.b);
+  }
 
   // The cargo-comfort gauge, painted plate and all.
   const C = L.comfort, cs = SRC.comfort;
@@ -329,10 +355,12 @@ function paintBackground(dash, L, w, dpr) {
   g.drawImage(img, cs.x, cs.y, cs.w, cs.h, C.x, C.y, C.w, C.h);
   g.restore();
 
-  // The gear gate and the handbrake's boot: sunk walnut panels with brass
-  // edges, so each control's whole touch area reads as part of the dash.
+  // The gear gate, the handbrake's boot and the guide line's switch plate:
+  // sunk walnut panels with brass edges, so each control's whole touch area
+  // reads as part of the dash.
   sunkPanel(g, L.gears.plate);
   sunkPanel(g, L.brake);
+  sunkPanel(g, L.guide);
   const B = L.brake;
   screw(g, B.x + 16, B.y + B.h - 14, 6);
   return c;
@@ -393,6 +421,7 @@ function drawNeedle(g, S, a) {
 /** Heading-up, like the road view: the route ahead points up the screen and
  *  turns as the world does, so left on the GPS is left on the road. */
 function drawGps(g, L, s) {
+  if (L.noGps) return;
   const R = L.gpsScreen;
   g.save();
   rr(g, R.x, R.y, R.w, R.h, R.r); g.clip();
@@ -517,8 +546,10 @@ function drawComfort(g, L, c, jostle, dt, reduce) {
   g.restore();
 }
 
-/** A chunky brass knob with a cream face, as a dash this age would have. */
-function knob(g, k, lit) {
+/** A chunky brass knob with a cream face, as a dash this age would have; lit
+ *  it glows amber and sits a touch lower, as if pressed in. Returns where its
+ *  face is, for whatever is printed on it. */
+function knobBody(g, k, lit) {
   const { cx, r } = k, cy = k.cy + (lit ? 1.2 : 0);
   shadowOf(g, () => circle(g, cx, cy, r), lit ? 1.2 : 2.6);
   circle(g, cx, cy, r);
@@ -536,7 +567,12 @@ function knob(g, k, lit) {
   g.fillStyle = face; g.fill();
   g.restore();
   circle(g, cx, cy, fr); g.lineWidth = 1; g.strokeStyle = 'rgba(46,17,8,.6)'; g.stroke();
+  return { cx, cy, r, fr };
+}
 
+/** A gear knob: its number, and a pip for each gear. */
+function knob(g, k, lit) {
+  const { cx, cy, r } = knobBody(g, k, lit);
   g.fillStyle = lit ? '#3a1a06' : '#5a4330';
   g.font = `700 ${Math.round(r * 0.86)}px ${FONT}`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -545,6 +581,33 @@ function knob(g, k, lit) {
   for (let i = 0; i < k.n; i++) {
     circle(g, cx + (i - (k.n - 1) / 2) * r * 0.24, cy + r * 0.47, Math.max(1.3, r * 0.075));
     g.fill();
+  }
+}
+
+/** The guide line's switch: the same brass knob with a little road on its
+ *  face. Lit, the road carries the line in the guide's blue, ending in an
+ *  arrow, as the road view does; unlit, the road is plain with its dashed
+ *  centre, so what the switch does can be read off the knob without words. */
+function drawGuideSwitch(g, G, on) {
+  const { cx, cy, fr } = knobBody(g, G, on);
+  const top = cy - fr * 0.8, foot = cy + fr * 0.8, hw0 = fr * 0.5, hw1 = fr * 0.2;
+  g.beginPath();
+  g.moveTo(cx - hw0, foot); g.lineTo(cx - hw1, top); g.lineTo(cx + hw1, top); g.lineTo(cx + hw0, foot);
+  g.closePath();
+  g.fillStyle = on ? '#4a3b31' : '#8b7a66'; g.fill();
+  g.lineWidth = 1; g.strokeStyle = INK; g.stroke();
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  if (on) {
+    const lw = Math.max(1.8, fr * 0.16), headTop = cy - fr * 0.9, headBase = cy - fr * 0.36, hh = fr * 0.34;
+    g.strokeStyle = '#78a9ff'; g.lineWidth = lw;
+    g.beginPath(); g.moveTo(cx, foot - fr * 0.08); g.lineTo(cx, headBase + 1); g.stroke();
+    g.beginPath(); g.moveTo(cx, headTop); g.lineTo(cx - hh, headBase); g.lineTo(cx + hh, headBase); g.closePath();
+    g.fillStyle = '#78a9ff'; g.fill();
+    g.lineWidth = 1; g.strokeStyle = '#1f3f87'; g.stroke();
+  } else {
+    g.strokeStyle = '#f2ead8'; g.lineWidth = Math.max(1.4, fr * 0.1); g.setLineDash([fr * 0.2, fr * 0.22]);
+    g.beginPath(); g.moveTo(cx, foot - fr * 0.06); g.lineTo(cx, top + fr * 0.06); g.stroke();
+    g.setLineDash([]);
   }
 }
 
@@ -638,6 +701,7 @@ export function draw(ctx, dash, w, h, s) {
   drawGps(ctx, L, s);
   drawComfort(ctx, L, dash.comfort, s.jostle, dt, reduce);
   for (const k of L.gears.knobs) knob(ctx, k, k.n === s.gear);
+  drawGuideSwitch(ctx, L.guide, s.guide !== false);
   drawHorn(ctx, L.horn, now - dash.hornAt < 260);
   dash.lever += ((s.handbrake ? 1 : 0) - dash.lever) * (1 - Math.exp(-28 * dt));
   drawHandbrake(ctx, L.brake, dash.lever, s.handbrake);

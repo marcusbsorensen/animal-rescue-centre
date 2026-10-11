@@ -43,13 +43,14 @@ after 10 minutes and pushed nothing. Read its log with
    only by trunk. Show the options map above. Options being measured: no trunk
    ever / crossing a dual carriageway but never riding along it / cycle paths
    from the real map. Plus: Trikey simply does not serve unreachable places.
-2. **The guide-line switch has nowhere to live**: the game has no settings
-   screen; reduced motion is only a `?motion=` URL switch. A) a small grown-ups'
-   settings page behind a parent gate holding both (recommended), B) URL only
-   for now, C) a switch on the driving screen.
+2. ~~The guide-line switch~~ — answered (13C) and done: a switch on the driving
+   screen, on the spike's dashboard beside the GPS (G on a keyboard), on by
+   default. When the scene is ported it should call `setGuideLine()` in
+   `apps/game/src/lib/guide-line-preference.ts`, which the spike already shares
+   a storage key with.
 
 ## Next steps, in order
-1. Merge crossings; show Marcus the Trikey map and ask 1–2.
+1. Merge crossings; show Marcus the Trikey map and ask 1.
 2. Port the answers that touch `PtvDriveScene.ts` (now free of other jobs):
    2A reduced motion drops shake, judder and the speed camera's white flash;
    3A Park and Reverse go; 4A a speed camera fires on "too fast for this road"
