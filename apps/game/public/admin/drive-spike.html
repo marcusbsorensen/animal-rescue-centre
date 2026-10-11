@@ -63,7 +63,6 @@
     <button id="gearBtn">gear: 2</button>
     <button id="brakeBtn">handbrake</button>
     <button id="routeBtn">new route</button>
-    <button id="bigBtn">big road: zoom</button>
     <button id="trunkBtn">to big road</button>
   </div>
 </div>
@@ -87,25 +86,21 @@ const METRES_PER_UNIT = 3900;
 const PPM = 22;
 
 /** Road widths in metres by OSM class. A trunk road gets two lanes each way,
- *  everything else one each way; a track is single and unmarked. The trunk's
- *  width comes from trunkWidth(), because it depends on the trial below. */
+ *  everything else one each way; a track is single and unmarked. */
 const ROAD_M = { secondary: 10, tertiary: 10, unclassified: 9, residential: 8, track: 5 };
 const LANE_M = 5;
 
-/** The dual carriageway at true width is 21.6m of road, which at PPM fills a
- *  390pt phone edge to edge. Two answers are on trial, switched with the "big
- *  road" button or ?bigroad=zoom|narrow:
- *    zoom   — true widths; the camera eases out while the van is on one, so the
- *             van shrinks a little and she sees further ahead at speed
- *    narrow — the zoom never changes and the big road's lanes shrink to fit,
- *             as the reference keeps its car one size throughout
- *  Both put the same ~300px of road on screen, so the comparison is fair. */
-let bigRoad = new URLSearchParams(location.search).get('bigroad') === 'narrow' ? 'narrow' : 'zoom';
+/** The dual carriageway keeps its true width, 21.6m, which at PPM would fill
+ *  a 390pt phone edge to edge. So the camera eases out to BIG_ROAD_ZOOM as the
+ *  van approaches one: the van shrinks a little and she sees further ahead at
+ *  the road's top speed. Marcus chose this on 2026-10-11 over narrowing the
+ *  big road's lanes, which would have made them narrower than a country
+ *  road's — the kind of mismatch a child spots. */
 const BIG_ROAD_ZOOM = 0.62;
-const TRUNK_LANE_M = { zoom: 5, narrow: 3.0 };
+const TRUNK_LANE_M = 5;
 const RESERVATION_M = 1.6;   // the grass strip between the two carriageways
-function trunkWidth() { return 4 * TRUNK_LANE_M[bigRoad] + RESERVATION_M; }
-function roadWidth(cls) { return cls === 'trunk' ? trunkWidth() : (ROAD_M[cls] ?? 8); }
+const TRUNK_M = 4 * TRUNK_LANE_M + RESERVATION_M;
+function roadWidth(cls) { return cls === 'trunk' ? TRUNK_M : (ROAD_M[cls] ?? 8); }
 let zoom = 1;
 
 /** Where the van sits on screen, measured off Lily's game: 53.5% across,
@@ -292,7 +287,7 @@ let throttle = false, handbrake = false, showGuide = true;
 function laneOffset(lane, s) {
   const cls = s == null ? null : classAtS(s);
   if (cls === 'trunk') {
-    const w = TRUNK_LANE_M[bigRoad];
+    const w = TRUNK_LANE_M;
     return -(RESERVATION_M / 2 + (lane === 0 ? 1.5 : 0.5) * w);
   }
   if (cls === 'track') return 0;
@@ -350,9 +345,9 @@ function step(dt) {
   car.heading = pos.h;
 
   // Zoom out a little before the dual carriageway, not on it, so the wider
-  // road is already framed when the van arrives. Only in the zoom trial.
+  // road is already framed when the van arrives.
   const bigAhead = car.road === 'trunk' || classAtS(car.s + 40) === 'trunk';
-  const zt = bigRoad === 'zoom' && bigAhead ? BIG_ROAD_ZOOM : 1;
+  const zt = bigAhead ? BIG_ROAD_ZOOM : 1;
   zoom += (zt - zoom) * (1 - Math.exp(-1.6 * dt));
 
   // Aim at where the route is in 20 metres, not at the segment underfoot.
@@ -446,7 +441,7 @@ function drawRoads(cx, cy, radius) {
       } else if (cls === 'trunk') {
         // Two carriageways: a grass strip down the middle with a kerb line
         // each side, and a dashed line between each pair of lanes.
-        const lw = TRUNK_LANE_M[bigRoad], half = RESERVATION_M / 2;
+        const lw = TRUNK_LANE_M, half = RESERVATION_M / 2;
         ctx.strokeStyle = '#7fae5c'; ctx.lineWidth = RESERVATION_M; ctx.stroke();
         ctx.strokeStyle = '#f2ead8'; ctx.lineWidth = 0.25;
         strokeOffset(ax, ay, bx, by, half); strokeOffset(ax, ay, bx, by, -half);
@@ -580,15 +575,8 @@ brakeBtn.addEventListener('pointerdown', () => { handbrake = true; });
 window.addEventListener('pointerup', () => { handbrake = false; });
 document.getElementById('routeBtn').onclick = () => { pickRoute(); car.s = 0; car.v = 0; car.base = null; };
 
-const bigBtn = document.getElementById('bigBtn');
-bigBtn.textContent = 'big road: ' + bigRoad;
-bigBtn.onclick = () => {
-  bigRoad = bigRoad === 'zoom' ? 'narrow' : 'zoom';
-  bigBtn.textContent = 'big road: ' + bigRoad;
-};
-
 /** Jump to a route that uses the dual carriageway, starting just before it,
- *  so the two big-road trials can be compared without hunting for one. */
+ *  so the zoom-out can be judged without hunting for one. */
 document.getElementById('trunkBtn').onclick = () => {
   for (let tries = 0; tries < 60; tries++) {
     pickRoute();

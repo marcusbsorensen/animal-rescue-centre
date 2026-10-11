@@ -134,12 +134,14 @@ run the cargo shifts. Braking for herself is the skill; the self-stop is the
 cost of not doing it. Marcus chose this over a gentle cruise-control that
 would cost nothing and make the handbrake pointless.
 
-**The dual carriageway is tried both ways before it is chosen.** The spike's
-"big road" button switches between *zoom* (true 5 m lanes, the camera eases
-out to 0.62 as the van approaches, so it shrinks and she sees further ahead)
-and *narrow* (the zoom never changes, the four lanes shrink to 3 m). Both put
-about 300 px of road on a 390 pt screen. "to big road" jumps to a route that
-uses one. Marcus drives both and picks.
+**The dual carriageway keeps its true width and the camera zooms out for it.**
+Four 5 m lanes and a grass strip, 21.6 m, would fill a 390 pt screen, so the
+camera eases out to 0.62 as the van approaches one: the van shrinks a little
+and she sees further ahead at the road's top speed. Marcus chose this over
+narrowing the big road's lanes to 3 m, after seeing both side by side: narrow
+lanes would have made the biggest road's lanes narrower than a country
+road's, which is the mismatch a child spots. "to big road" in the spike jumps
+to a route that uses one.
 
 **What happens at a roadside stop.** Marcus and Lily, 2026-10-11. There are
 two reasons to pull over, and the care depends on the animal and the weather:
@@ -169,7 +171,6 @@ becomes a dual carriageway is the road moving under it, and is free.
   sense of speed beyond the lane markings. Top-down canopies, roofs, hedges,
   placed from the child's own map (`birchie-roads.svg` has the farmland,
   woodland, parks and sea), so what she drives past is what the map shows.
-- The dual carriageway: zoom or narrow, above.
 - Traffic, which overtaking needs to be about anything.
 - How likely a squabble is for a given load, and what the rearranging looks
   like at the roadside: the full loading screen again, or a smaller swap.
