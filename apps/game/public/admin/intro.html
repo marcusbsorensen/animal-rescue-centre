@@ -24,9 +24,10 @@
   SVG and we set CSS variables --scale + --origin-x/y per panel,
   with a 1500ms ease transition for smooth pushes.
 
-  Plot centre in the SVG viewBox (1800x1121) is (326, 376) → 18.1%
-  from left, 33.5% from top → that's the transform-origin we zoom
-  toward.
+  The A.R.C. plot is at (326, 397) in the SVG's viewBox (1800x1121) →
+  18.1% from left, 35.4% from top of the MAP. placeBuildingStamp() works
+  out where that is on screen from the SVG's own viewBox and
+  preserveAspectRatio, and that is the transform-origin we zoom toward.
 
   Iframe handshake (unchanged from previous intro):
     - parent posts {source: 'arc-auth-host', type: 'init', payload}
@@ -237,6 +238,7 @@
   </div>
 </div>
 
+<script src="map-fit.js"></script>
 <script>
   (function () {
     const body         = document.body;
@@ -263,10 +265,9 @@
     // ─── Building stamp placement ───────────────────────────────────
     // The painted main-building PNG isn't part of the SVG — we drop
     // it on top, anchored to the A.R.C. plot's SVG coordinates,
-    // following the same letterbox maths as /admin/map.html so it
-    // stays glued to the plot as the viewport reflows.
-    const SVG_VIEW_W = 1800;
-    const SVG_VIEW_H = 1121;
+    // following the SVG's own fit (map-fit.js, the same as /admin/map.html)
+    // so it stays glued to the plot as the viewport reflows. The size and
+    // fit come off the loaded SVG's root, not from constants here.
     const ARC_PLOT_SVG_X = 326;
     const ARC_PLOT_SVG_Y = 397;
 
@@ -285,14 +286,14 @@
       const baseW  = objR.width  / scale;
       const baseH  = objR.height / scale;
       if (baseW === 0 || baseH === 0) return;
-      // SVG uses preserveAspectRatio="xMidYMid meet" → contain.
-      const svgScale = Math.min(baseW / SVG_VIEW_W, baseH / SVG_VIEW_H);
-      const renderedW = SVG_VIEW_W * svgScale;
-      const renderedH = SVG_VIEW_H * svgScale;
-      const offX = (baseW - renderedW) / 2;
-      const offY = (baseH - renderedH) / 2;
-      const px = offX + ARC_PLOT_SVG_X * svgScale;
-      const py = offY + ARC_PLOT_SVG_Y * svgScale;
+      // Where the SVG itself puts its viewBox in that box (meet, slice, ...).
+      let fit = null;
+      try { fit = MapFit.readRoot(obj.contentDocument && obj.contentDocument.documentElement); } catch (_) { /* cross-origin */ }
+      if (!fit) return;
+      const placed = MapFit.place({ w: baseW, h: baseH }, fit.view, fit.par);
+      const at = MapFit.toBox(placed, fit.view, ARC_PLOT_SVG_X, ARC_PLOT_SVG_Y);
+      const px = at.x;
+      const py = at.y;
       // Express as % of stage box so the stamp scales smoothly.
       const leftPct = px / baseW * 100;
       const topPct  = py / baseH * 100;

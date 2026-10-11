@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1121" width="1800" height="1121" preserveAspectRatio="xMidYMid slice">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1121" width="1800" height="1121" preserveAspectRatio="xMidYMid meet">
 <!-- Birchie geography: real OSM, wider bounds (2026-05-03 overhaul).
      bbox lat 51.355..51.39, lon 1.27..1.36
      (6237m W-E x 3885m N-S real). -->

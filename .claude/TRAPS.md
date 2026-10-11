@@ -649,17 +649,37 @@ checking the claim still holds.
   fails if a destination has no road, a pin is more than 40 units from one, or
   the drawing and the graph drift. Tracks are the only way to Cove Harbour,
   Moorland and the hog hospital, so they are drawn solid brown, not cream.
-- **`map.html` places its pins as if the SVG were letterboxed (`meet`); the
-  SVG root says `slice`. They agree only on a 1.6:1 stage (1800:1121).**
-  Measured 2026-10-11 on a fresh load: at 1280x797 the A.R.C. stamp sits on
-  its drawn plot; at 812x375 it is 67px right and 19px below it, at 874x402
-  73px and 20px. Every pin moves the same way, so a pin on a road in the
-  file is off the road on a phone, and at level 10 the map is cropped
-  top and bottom while the pins are laid out for the whole of it. `map.html`
-  (1404) and `intro.html` (288) both assume `meet`; the svg was `meet` until
-  `1b2ae80` (2026-05-18) made it `slice`. The landmark positions are fine,
-  it is the overlay that is wrong. Do not "fix" a pin to match a phone
-  screenshot: fix the disagreement. Calling the `init` message twice on one
-  page load (to change level) also corrupts the transform, because
-  `computeSvgRect` reads a rect that already carries the previous scale; load
-  the page fresh for each level when testing.
+- **FIXED 2026-10-11: `map.html` placed its pins as if the SVG were letterboxed
+  (`meet`) while the SVG root said `slice`, so they agreed only on a 1.6:1 stage.**
+  At 874x402 the A.R.C. stamp stood 73px right and 20px below its drawn plot, at
+  2400x480 540px; every pin moved the same way, so a pin on a road in the data was
+  off the road on a phone (`road-graph-reach.test.ts` read the data and passed).
+  The SVG was `meet` until `1b2ae80` (2026-05-18), which made it `slice` to stop
+  the stage's tan gradient showing as bars either side of the map. Cropping was
+  never wanted: `mapExtentFor` promises every unlocked pin is in the frame, and
+  `slice` at 874x402 loses a third of the map's height.
+  **How it is fixed.** The root is `meet` again. `map.html` no longer holds the
+  viewBox or assumes a fit: it reads `viewBox` and `preserveAspectRatio` off the
+  loaded SVG's root and `map-fit.js` (`MapFit.place`) does what the SVG does with
+  them, so a change to either follows instead of contradicting. `intro.html` did
+  the same sum with the same assumption and now uses `map-fit.js` too (stamp 0px
+  off at 874x402, 812x375, 1440x900, 2400x480). The spare room a `meet` map leaves
+  is the stage, painted the colour of the SVG's own sea in the current season
+  (`syncStageSea`), and the SVG is clipped to its viewBox so the fields it keeps
+  past its edge do not float in it. The tabs-and-clamp rules are unchanged.
+  `road-graph-reach.test.ts` ("the map on a screen") runs `map.html`'s geometry
+  block as written (between the `begin/end screen geometry` markers) against the
+  root's real attributes at ten stage shapes, and fails if the root crops the map,
+  if the page stops reading the attribute, or if either disagrees with Chrome's
+  own `getScreenCTM()` numbers recorded in the test. Keep the markers.
+  **Also fixed in the same code:** `computeSvgRect` read `getBoundingClientRect()`
+  of an object it had itself put a CSS zoom on, so every second `placePins` call (a
+  resize, a rotation, the 200 and 600ms retries after an `init`) undid the frame
+  the one before set, toggling the zoom. It reads the layout box now. Do not
+  reintroduce a read of the transformed rect (the test stubs it to throw).
+  **Still true:** a pin at the frame's edge is pulled in by `keepOnStage` so its
+  whole marker stays on stage (hog hospital and Wilderwood 24px up at 874x402,
+  level 10), and at 812-874px wide the south-west cluster is crowded: Bramble
+  Farm's name sits under the neighbouring discs. That is layout, not alignment;
+  it needs a decision, not a nudge. Do not "fix" a pin to match a phone
+  screenshot: fix the disagreement.
