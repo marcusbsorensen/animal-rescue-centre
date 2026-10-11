@@ -138,6 +138,50 @@ was, and Spark's rear window is untouched.
   read as bland from above, which is the view a child spends most time looking
   at. The motif is extracted from the master portrait's own artwork rather than
   redrawn, so the roof carries literally the same marks as the flank.
+  **Installed 2026-10-11** with `tools/decorate-roof.py`, run on the six files as
+  they stand after the fronts and the glass were finished (`36262bb`, `50d138e`),
+  because its placement is a share of the roof it finds and the roofs had grown.
+  Marcus chose one option per character from twelve candidates:
+
+  | Character | Option | On the roof | Front / rear |
+  |---|---|---|---|
+  | Henry | **A, garland** | pink flower, leaves, sage flower, leaves, pink flower down the centre line, pink nearest the nose | roof 692 / 764 rows; 3 flowers and 2 leaf sprigs at both ends |
+  | Bea | **B, scrollwork twice** | the cargo-panel scroll, then its mirror image, roses outward and flourishes toward the centre, symmetrical about the roof's centre line | roof 739 / 900 rows; one pair at both ends (665 x 123 px each scroll / 810 x 132) |
+  | Spark | **A, one flash** | the flank's cream flash down the roof, tip at the nose | roof 652 / 442 rows; one flash at both ends (561 x 201 px / 380 x 136) |
+  | Big Tilly | none | her bed is open and busy from above | |
+  | Trikey | none | she has no roof | |
+
+  Henry wears the garland and not option B, the oak inlay. The garland is the
+  flank's own pink and sage flowers and leaves lifted off the panel. The inlay is
+  a piece of the oak panel, bookmatched about its open end so it has a border on
+  every side, and that mirror is the one thing in it that is not on the flank. A
+  future session should not swap it in. Bea's scrollwork is the faintest of the
+  three at 46px, and Marcus accepted that: *"delicate is her character"*. Her
+  whole livery is fine gold scrollwork and roses, so thickening it would make her
+  a different vehicle. Do not make it bolder.
+
+  Front and rear carry one treatment: the rear sprite is the front's roof turned
+  half way round, so the bolt's tip and Henry's nearest pink flower are at the
+  nose in both, and Bea's pair is symmetrical in both. The repeat counts agree
+  (above). Only size differs, because every size is a share of the roof's own
+  length and the two views show different lengths of it. Spark's front has its
+  rear window painted out (section 3), so its roof runs on to the tail, 652 rows;
+  his rear's roof stops at the glass, 442 rows. His rear flash is therefore 0.68
+  of the front's in length and thickness, and limited by length because that roof
+  is wider (0.91) than it is long. If the bolt is ever to match across views, cap
+  the front's at the rear's size rather than stretching the rear's.
+
+  The six files are 256-colour palette PNGs: the tool merges near-duplicate roof
+  shades to make room for the motif's colours, so alpha is byte-identical, the
+  canvas is unchanged and the colour outside the motif moves by at most 32 of 255,
+  on 11 to 1,236 pixels per file (Henry's front is the 1,236; 55 of them in
+  Henry's rear-door glass, at most 17). Henry's rear-door paw-heart is the pixels it was, and no paw-coloured
+  pixel appears on any roof. **Re-run the tool, never install these through
+  `install-vehicles.py`**: its 0.88 taper would skew them a second time. If a
+  roof is redrawn again the motifs must be re-placed, and the tool does it from
+  the file it is given:
+  `python3 tools/decorate-roof.py <installed file> --design <A|B> --out <path> --check`
+  with henry A, bea B, spark A.
 
 ## 6. Open
 
@@ -148,11 +192,6 @@ was, and Spark's rear window is untouched.
   738x1849, L/W 2.505, against the rear's 2.516, so the two agree. 1.79 is not
   reached and cannot be: it leaves 161 rows below the bed, less than her
   windscreen, and buys a bed of about 1:1, a 2x2 load.
-- **The roof motifs are still to be applied.** `tools/decorate-roof.py` must be
-  re-run once Marcus picks his options, on the new fronts and on the rears as
-  they are now: the new roofs are longer (Bea's front 739 rows where the hatch
-  line cut it to 557, Spark's 652 where the sunroof cut it to 431), so the
-  motifs it placed before would be the wrong size.
 - **Trikey's two top-downs** are still cobalt clay with a terracotta cargo box
   against a lilac portrait, and are a redraw rather than a recolour.
 - **Thirty-one traffic sprites are still claymation** — both ambulances, the
