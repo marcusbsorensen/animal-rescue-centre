@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { RoadGraph } from '../road-router';
-import { atDistance, routePathFromNodes, type RoutePath } from '../route-path';
+import { atDistance, carriagewayAt, roadClassAt, routePathFromNodes, type RoutePath } from '../route-path';
+import { parseTrunkCarriageways, type CarriagewayKind } from '../trunk-carriageways';
 import {
+  bigRoadAt, BIG_ROAD_ZOOM_AHEAD_M,
   ARRIVE_ZOOM_M, BASE_PPM, BIG_ROAD_ZOOM, CAM_EASE, LOOKAHEAD_M, SPIKE_CAM_EASE, VAN_WIDTH_M,
   ZOOM_ARRIVE, ZOOM_FAST, ZOOM_IN_RATE, ZOOM_OUT_RATE, ZOOM_STILL_LANE, ZOOM_STILL_ROAD,
   cameraAim, easeCameraHeading, easeCameraHeadingSpike, easeZoom, pixelsPerMetre,
@@ -9,7 +11,7 @@ import {
 } from '../world-camera';
 import { LANE_M } from '../lane-motion';
 import { GEAR_SPEED_MPS } from '../road-gears';
-import { anchorRoutes, vertexTurns } from './real-graph';
+import { anchorRoutes, carriageways, vertexTurns } from './real-graph';
 
 // The claims in docs/driving-rebuild-2026-10-11.md ("What is proved, and
 // where"), measured here on the installed Birchie graph rather than on one
@@ -231,6 +233,41 @@ describe('the zoom follows speed and place', () => {
     expect(zoomTarget(r, r.length - 10, 0)).toBe(BIG_ROAD_ZOOM);
     // further out, top speed is its own 0.66
     expect(zoomTarget(r, corner - 50, V)).toBeCloseTo(0.66, 12);
+  });
+
+  it('only the real dual carriageway: a divided or single A28 stretch gets the main road\'s zoom', () => {
+    const L: RoadGraph = { nodes: [[0, 0], [0.05, 0], [0.05, 0.05]], edges: [[0, 1, 'tertiary'], [1, 2, 'trunk']] };
+    const data = (kind: CarriagewayKind, mph: number) => parseTrunkCarriageways({
+      edges: [{ edge: 1, nodes: [1, 2], kind, maxspeedMph: mph, lanes: 2, oneway: null, lengthM: 196, osmWays: [] }],
+    }, L);
+    const at = (kind: CarriagewayKind, mph: number) => routePathFromNodes(L, [0, 1, 2], undefined, data(kind, mph));
+    for (const [kind, mph] of [['divided', 40], ['single', 30]] as const) {
+      const r = at(kind, mph);
+      const corner = r.points[1].s;
+      expect(bigRoadAt(r, corner + 10), kind).toBe(false);
+      expect(zoomTarget(r, corner - 30, 0), kind).toBe(1.15);
+      expect(zoomTarget(r, corner + 10, 0), kind).toBe(1.15);
+      expect(zoomTarget(r, corner + 10, V), kind).toBeCloseTo(0.66, 12);
+    }
+    const dual = at('dual', 50);
+    const corner = dual.points[1].s;
+    expect(bigRoadAt(dual, corner + 10)).toBe(true);
+    expect(zoomTarget(dual, corner - 30, 0)).toBe(BIG_ROAD_ZOOM);
+    expect(zoomTarget(dual, corner + 10, V)).toBe(BIG_ROAD_ZOOM);
+  });
+
+  it('on the real A28, the cap holds only on or within 40 m of a dual edge', () => {
+    let capped = 0, mainRoad = 0;
+    for (const { route } of anchorRoutes(carriageways)) {
+      for (let s = 0; s < route.length - ARRIVE_ZOOM_M; s += 25) {
+        const z = zoomTarget(route, s, 0);
+        const nearDual = [s, s + BIG_ROAD_ZOOM_AHEAD_M].some((d) => carriagewayAt(route, d)?.kind === 'dual');
+        if (nearDual) { capped++; expect(z).toBe(BIG_ROAD_ZOOM); }
+        else if (roadClassAt(route, s) === 'trunk') { mainRoad++; expect(z).toBe(ZOOM_STILL_ROAD); }
+      }
+    }
+    expect(capped).toBeGreaterThan(0);
+    expect(mainRoad).toBeGreaterThan(0);
   });
 
   /** zoom after `seconds` of easing towards a fixed target at `fps`. */

@@ -17,6 +17,7 @@
  * No Phaser — unit-tested against the real Birchie graph.
  */
 import { shortestPath, type Adjacency, type RoadGraph } from './road-router';
+import type { Carriageway, TrunkCarriageways } from './trunk-carriageways';
 
 /** The map is 1800x1121 over roughly 6.2km x 3.9km. One unit of fy is this
  *  many metres, and fx is scaled by the aspect to match, the same convention
@@ -34,6 +35,9 @@ export interface RouteVertex {
   s: number;
   /** Class of the segment that ENDS at this vertex; vertex 0 copies vertex 1. */
   cls: string;
+  /** On a trunk segment, what the A28 really is there, when the route was
+   *  built with the carriageway data; copied to vertex 0 like cls. */
+  carriageway?: Carriageway;
 }
 
 export interface RoutePath {
@@ -68,11 +72,13 @@ export function edgeClassLookup(g: RoadGraph): (a: number, b: number) => string 
   return (a, b) => m.get(a * n + b);
 }
 
-/** A node path to a world-space polyline with cumulative distance. */
+/** A node path to a world-space polyline with cumulative distance. Given the
+ *  carriageway data, trunk segments carry their carriageway. */
 export function routePathFromNodes(
   g: RoadGraph,
   nodes: number[],
   classOf: (a: number, b: number) => string | undefined = edgeClassLookup(g),
+  carriageways?: TrunkCarriageways,
 ): RoutePath {
   if (nodes.length < 2) throw new Error('a route needs at least two nodes');
   const points: RouteVertex[] = nodes.map((i) => ({ ...nodeToWorld(g.nodes[i][0], g.nodes[i][1]), s: 0, cls: DEFAULT_ROAD_CLASS }));
@@ -80,17 +86,22 @@ export function routePathFromNodes(
     const a = points[i - 1], b = points[i];
     b.s = a.s + Math.hypot(b.x - a.x, b.y - a.y);
     b.cls = classOf(nodes[i - 1], nodes[i]) ?? DEFAULT_ROAD_CLASS;
+    const c = b.cls === 'trunk' ? carriageways?.between(nodes[i - 1], nodes[i]) : null;
+    if (c) b.carriageway = c;
   }
   points[0].cls = points[1].cls;
+  if (points[1].carriageway) points[0].carriageway = points[1].carriageway;
   return { nodes: nodes.slice(), points, length: points[points.length - 1].s };
 }
 
 /** The route between two graph nodes, by road-router.ts's pathfinding, or null
  *  when they are not joined by road (or are the same node). */
-export function routeBetween(g: RoadGraph, adj: Adjacency, from: number, to: number): RoutePath | null {
+export function routeBetween(
+  g: RoadGraph, adj: Adjacency, from: number, to: number, carriageways?: TrunkCarriageways,
+): RoutePath | null {
   const nodes = shortestPath(adj, from, to);
   if (!nodes || nodes.length < 2) return null;
-  return routePathFromNodes(g, nodes);
+  return routePathFromNodes(g, nodes, undefined, carriageways);
 }
 
 /** Index i of the segment (points[i-1] -> points[i]) that s falls on. A
@@ -127,4 +138,11 @@ export function atDistance(route: RoutePath, s: number): RoutePose {
 export function roadClassAt(route: RoutePath, s: number): string {
   const c = Math.max(0, Math.min(route.length, s));
   return route.points[segmentAt(route.points, c)].cls;
+}
+
+/** The A28 carriageway at distance s, or undefined off it (or where the route
+ *  was built without the data). */
+export function carriagewayAt(route: RoutePath, s: number): Carriageway | undefined {
+  const c = Math.max(0, Math.min(route.length, s));
+  return route.points[segmentAt(route.points, c)].carriageway;
 }

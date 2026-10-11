@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { buildAdjacency, type RoadGraph } from '../road-router';
 import { routeBetween, type RoutePath } from '../route-path';
-import { parseTrunkCarriageways, type TrunkCarriagewaysFile } from '../trunk-carriageways';
+import { parseTrunkCarriageways, type TrunkCarriageways, type TrunkCarriagewaysFile } from '../trunk-carriageways';
 
 export const graph = JSON.parse(
   fs.readFileSync(path.join(__dirname, '../../../public/assets/driving/birchie-graph.json'), 'utf8'),
@@ -24,12 +24,13 @@ function readAsset<T>(name: string): T {
 export const carriagewaysFile = readAsset<TrunkCarriagewaysFile & { summary: { trunkEdges: number; byKind: Record<string, number> } }>('trunk-carriageways.json');
 export const carriageways = parseTrunkCarriageways(carriagewaysFile, graph);
 
-export function anchorRoutes(): { from: string; to: string; route: RoutePath }[] {
+/** Every ordered pair's route; given the carriageway data, trunk segments carry it. */
+export function anchorRoutes(trunk?: TrunkCarriageways): { from: string; to: string; route: RoutePath }[] {
   const out: { from: string; to: string; route: RoutePath }[] = [];
   const names = Object.keys(graph.anchors);
   for (const from of names) for (const to of names) {
     if (from === to) continue;
-    const route = routeBetween(graph, adj, graph.anchors[from], graph.anchors[to]);
+    const route = routeBetween(graph, adj, graph.anchors[from], graph.anchors[to], trunk);
     if (route) out.push({ from, to, route });
   }
   return out;
