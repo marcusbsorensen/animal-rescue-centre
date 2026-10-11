@@ -10,8 +10,15 @@
  *
  * A van that is barely moving is never told off: pulling away in third on a
  * lane is not speeding. That is the spike's `v < 1` rule, kept.
+ * The A28 is not one road (trunk-carriageways.ts). A trunk edge with its
+ * carriageway known is judged by that: the real dual carriageway keeps the
+ * dual's gears, and the divided and single stretches at 30–40 mph fit the gears
+ * whose speed is within their limit, so third through The Square is too fast.
+ * A trunk edge with no record (no data loaded) is judged as before, as a dual
+ * carriageway.
  * No Phaser — unit-tested.
  */
+import type { Carriageway } from './trunk-carriageways';
 
 export type ForwardGear = 1 | 2 | 3;
 
@@ -47,13 +54,41 @@ export type GearVerdict =
 
 const ALL_GEARS: readonly ForwardGear[] = [1, 2, 3];
 
-export function gearsFor(roadClass: string): readonly ForwardGear[] {
+export const MPS_PER_MPH = 0.44704;
+
+/** What a trunk edge that is not the dual carriageway is called on the chip. */
+export const A_ROAD_NAME = 'main road';
+
+/** Whether this edge is a trunk edge we know to be other than a dual
+ *  carriageway. */
+function isLesserTrunk(roadClass: string, c: Carriageway | null | undefined): c is Carriageway {
+  return roadClass === 'trunk' && !!c && c.kind !== 'dual';
+}
+
+/** The gears that fit a road. On a trunk edge whose carriageway is known: the
+ *  gears whose "go" speed is within its limit, and on the dual carriageway not
+ *  first, where traffic queues behind her. */
+export function gearsFor(roadClass: string, carriageway?: Carriageway | null): readonly ForwardGear[] {
+  if (roadClass === 'trunk' && carriageway) {
+    const limit = carriageway.maxspeedMph * MPS_PER_MPH;
+    const within = ALL_GEARS.filter((g) => GEAR_SPEED_MPS[g] <= limit);
+    return carriageway.kind === 'dual' ? within.filter((g) => GEAR_OK.trunk.includes(g)) : within;
+  }
   return GEAR_OK[roadClass] ?? ALL_GEARS;
 }
 
-export function gearVerdict(roadClass: string, gear: ForwardGear, speedMps: number): GearVerdict {
-  const roadName = ROAD_NAME[roadClass] ?? roadClass;
-  const ok = gearsFor(roadClass);
+/** The road's name on the chip: a divided or single stretch of the A28 is a
+ *  main road, not a dual carriageway. */
+export function roadNameFor(roadClass: string, carriageway?: Carriageway | null): string {
+  if (isLesserTrunk(roadClass, carriageway)) return A_ROAD_NAME;
+  return ROAD_NAME[roadClass] ?? roadClass;
+}
+
+export function gearVerdict(
+  roadClass: string, gear: ForwardGear, speedMps: number, carriageway?: Carriageway | null,
+): GearVerdict {
+  const roadName = roadNameFor(roadClass, carriageway);
+  const ok = gearsFor(roadClass, carriageway);
   if (ok.includes(gear) || speedMps < VERDICT_MIN_SPEED_MPS) return { ok: true, roadName };
   if (gear > Math.max(...ok)) {
     return {
@@ -74,8 +109,13 @@ export function gearVerdict(roadClass: string, gear: ForwardGear, speedMps: numb
  * the same verdict as the road chip's, not on a fixed gear. Too slow is never
  * a camera's business, and a van barely moving is never caught. Marcus,
  * 2026-10-11 (docs/driving-port-plan-2026-10-11.md section 5, answer 7).
+ * On the A28 "this road" is the carriageway underfoot: third gear is fine on
+ * the 50 mph dual carriageway and too fast on the 30 mph road through The
+ * Square.
  */
-export function speedCameraFires(roadClass: string, gear: ForwardGear, speedMps: number): boolean {
-  const v = gearVerdict(roadClass, gear, speedMps);
+export function speedCameraFires(
+  roadClass: string, gear: ForwardGear, speedMps: number, carriageway?: Carriageway | null,
+): boolean {
+  const v = gearVerdict(roadClass, gear, speedMps, carriageway);
   return !v.ok && v.problem === 'too-fast';
 }

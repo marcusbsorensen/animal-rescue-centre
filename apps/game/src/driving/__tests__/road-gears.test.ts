@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { GEAR_OK, GEAR_SPEED_MPS, ROAD_NAME, gearVerdict, gearsFor, speedCameraFires, type ForwardGear } from '../road-gears';
-import { graph } from './real-graph';
+import { graph, carriageways } from './real-graph';
+import { buildAdjacency, roadClassAt, roadRunAt, routeProfile } from '../road-router';
+import type { CarriagewayKind } from '../trunk-carriageways';
 
 // docs/driving-rebuild-2026-10-11.md, "Gears are about choosing a speed":
 //   trunk                    2-3  first gear: traffic beeping, pulling up behind
@@ -81,5 +83,90 @@ describe('speedCameraFires', () => {
   it('never fires on a van barely moving, or on a road the table does not know', () => {
     expect(speedCameraFires('track', 3, 0)).toBe(false);
     expect(speedCameraFires('service', 3, MOVING)).toBe(false);
+  });
+});
+
+// ── The A28 by carriageway ──
+//
+// trunk-carriageways.json: the dual carriageway at 50 mph, the divided and
+// single stretches at 30–40 mph. Third gear (about 45 mph) is within 50 and
+// over 40; second (about 29 mph) is within 30.
+describe('gears on the A28 follow its carriageway', () => {
+  const kinds = (kind: CarriagewayKind, mph?: number) =>
+    carriageways.all.filter((c) => c.kind === kind && (mph === undefined || c.maxspeedMph === mph));
+
+  it('keeps the dual carriageway\'s gears on the real dual carriageway', () => {
+    const dual = kinds('dual');
+    expect(dual.length).toBeGreaterThan(0);
+    for (const c of dual) {
+      expect(gearsFor('trunk', c)).toEqual([2, 3]);
+      expect(gearVerdict('trunk', 1, MOVING, c)).toMatchObject({ ok: false, problem: 'too-slow', label: 'beeping', roadName: 'dual carriageway' });
+      expect(speedCameraFires('trunk', 3, MOVING, c)).toBe(false);
+    }
+  });
+
+  it('makes third too fast, and first fine, on every divided and single stretch', () => {
+    const lesser = [...kinds('divided'), ...kinds('single')];
+    expect(lesser).toHaveLength(127);
+    for (const c of lesser) {
+      expect(gearsFor('trunk', c), `edge ${c.edge}`).toEqual([1, 2]);
+      expect(gearVerdict('trunk', 1, MOVING, c)).toEqual({ ok: true, roadName: 'main road' });
+      expect(gearVerdict('trunk', 3, MOVING, c)).toMatchObject({ ok: false, problem: 'too-fast', label: 'too fast', cost: 'speeding', roadName: 'main road' });
+      expect(speedCameraFires('trunk', 3, MOVING, c), `edge ${c.edge}`).toBe(true);
+      expect(speedCameraFires('trunk', 2, MOVING, c), `edge ${c.edge}`).toBe(false);
+    }
+  });
+
+  it('the 30 mph road through The Square is not the 50 mph dual carriageway', () => {
+    const square = kinds('single', 30)[0];
+    const dual = kinds('dual')[0];
+    expect(speedCameraFires('trunk', 3, MOVING, square)).toBe(true);
+    expect(speedCameraFires('trunk', 3, MOVING, dual)).toBe(false);
+    expect(speedCameraFires('trunk', 3, 0, square)).toBe(false); // barely moving
+  });
+
+  it('judges a trunk edge with no record as before, and ignores a carriageway on any other road', () => {
+    expect(gearsFor('trunk')).toEqual([2, 3]);
+    expect(gearsFor('trunk', null)).toEqual([2, 3]);
+    const single = kinds('single')[0];
+    expect(gearsFor('residential', single)).toEqual([1, 2]);
+    expect(gearVerdict('residential', 1, MOVING, single)).toEqual({ ok: true, roadName: 'houses' });
+  });
+});
+
+// What the scene's speed camera reads: the run under the van, carriageway and all.
+describe('the route profile carries the carriageway', () => {
+  const adj = buildAdjacency(graph);
+  const from = (n: number) => ({ fx: graph.nodes[n][0], fy: graph.nodes[n][1] });
+  const runs = () => {
+    const out = [];
+    const names = Object.keys(graph.anchors);
+    for (const a of names) for (const b of names) {
+      if (a !== b) out.push(...routeProfile(graph, adj, from(graph.anchors[a]), from(graph.anchors[b]), carriageways));
+    }
+    return out;
+  };
+
+  it('gives every trunk run a carriageway, and no other run one', () => {
+    const all = runs();
+    const trunk = all.filter((r) => r.roadClass === 'trunk');
+    expect(trunk.length).toBeGreaterThan(0);
+    for (const r of trunk) expect(r.carriageway).toBeDefined();
+    for (const r of all) if (r.roadClass !== 'trunk') expect(r.carriageway).toBeUndefined();
+    expect(new Set(trunk.map((r) => r.carriageway!.kind))).toEqual(new Set(['dual', 'divided', 'single']));
+  });
+
+  it('leaves the classes along every route as they were without the data', () => {
+    const names = Object.keys(graph.anchors);
+    for (const a of names) for (const b of names) {
+      if (a === b) continue;
+      const f = from(graph.anchors[a]), t = from(graph.anchors[b]);
+      const plain = routeProfile(graph, adj, f, t);
+      const rich = routeProfile(graph, adj, f, t, carriageways);
+      // The data only splits trunk runs; the classes, and where they change, are as before.
+      expect(rich.map((r) => r.roadClass).filter((c, i, arr) => c !== arr[i - 1]), `${a} -> ${b}`).toEqual(plain.map((r) => r.roadClass));
+      expect(rich[rich.length - 1].untilProgress).toBeCloseTo(1, 9);
+      for (let p = 0; p <= 1; p += 0.01) expect(roadRunAt(rich, p)?.roadClass, `${a} -> ${b} at ${p.toFixed(2)}`).toBe(roadClassAt(plain, p));
+    }
   });
 });

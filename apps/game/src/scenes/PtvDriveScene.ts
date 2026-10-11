@@ -46,7 +46,8 @@ import { buildRoadTransitions, worldYForRow, type RoadTransition } from '../driv
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
-import { buildAdjacency, roadClassAt, routePolyline, routeProfile, vehicleRouteAdjacency, ROADS_BARRED, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
+import { parseTrunkCarriageways, type TrunkCarriageways, type TrunkCarriagewaysFile } from '../driving/trunk-carriageways';
+import { buildAdjacency, roadClassAt, roadRunAt, routePolyline, routeProfile, vehicleRouteAdjacency, ROADS_BARRED, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
 import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, projectToRoute, type Maneuver } from '../driving/route-instructions';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
@@ -430,6 +431,8 @@ export class PtvDriveScene extends Phaser.Scene {
   private gpsArc = { x: 0, y: 0 };
   private gpsDest = { x: 0, y: 0 };
   private gpsGraph?: RoadGraph;
+  /** The A28's carriageways, for the speed verdict; absent if the file is. */
+  private trunkCarriageways?: TrunkCarriageways;
   /** Every road, and each vehicle's own roads where it is barred from some
    *  (Trikey: no dual carriageways). Built once each, on first use. */
   private gpsAdjAll?: Adjacency;
@@ -554,6 +557,10 @@ export class PtvDriveScene extends Phaser.Scene {
     // The routable road graph (built offline from the same SVG).
     if (!this.cache.json.exists('birchie-graph')) {
       this.load.json('birchie-graph', '/assets/driving/birchie-graph.json');
+    }
+    // What each A28 edge really is: dual, divided or single, and its limit.
+    if (!this.cache.json.exists('trunk-carriageways')) {
+      this.load.json('trunk-carriageways', '/assets/driving/trunk-carriageways.json');
     }
     this.load.on('loaderror', () => { /* tolerate not-yet-generated sprites */ });
   }
@@ -2097,6 +2104,10 @@ export class PtvDriveScene extends Phaser.Scene {
     if (!this.gpsGraph && this.cache.json.exists('birchie-graph')) {
       this.gpsGraph = this.cache.json.get('birchie-graph') as RoadGraph;
       this.gpsAdjAll = buildAdjacency(this.gpsGraph);
+      if (this.cache.json.exists('trunk-carriageways')) {
+        this.trunkCarriageways = parseTrunkCarriageways(
+          this.cache.json.get('trunk-carriageways') as TrunkCarriagewaysFile, this.gpsGraph);
+      }
     }
   }
 
@@ -2123,7 +2134,7 @@ export class PtvDriveScene extends Phaser.Scene {
   private computeRouteProfile(): void {
     const adj = this.routeAdjacency();
     this.roadProfile = this.gpsGraph && adj
-      ? routeProfile(this.gpsGraph, adj, ARC_PLACE, placeFor(this.destinationId))
+      ? routeProfile(this.gpsGraph, adj, ARC_PLACE, placeFor(this.destinationId), this.trunkCarriageways)
       : [];
     // One merge zone per road-type change, centred on the class boundary
     // (~3–4s to play out at cruising speed). scrollY and progress are the same
@@ -3278,17 +3289,19 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /**
    * Whether a speed camera would catch her now: her gear is too fast for the
-   * road class under the van, by the road-gear table. `rate` is this frame's
+   * road under the van, by the road-gear table; on the A28, by the carriageway
+   * there, so the 30 mph road through The Square is not judged as the 50 mph
+   * dual carriageway. `rate` is this frame's
    * pace, which scales the gear's speed down when she is held behind traffic
    * or on the handbrake, so a van barely moving is never caught. With no
    * route profile there is no road class to judge by, and nothing fires.
    */
   private tooFastForRoad(rate: number): boolean {
-    const roadClass = roadClassAt(this.roadProfile, this.drive.progress);
-    if (!roadClass) return false;
+    const run = roadRunAt(this.roadProfile, this.drive.progress);
+    if (!run) return false;
     const gear = this.drive.gear;
     const speedMps = GEAR_SPEED_MPS[gear] * Math.max(0, rate) / gearScrollRate(gear);
-    return speedCameraFires(roadClass, gear, speedMps);
+    return speedCameraFires(run.roadClass, gear, speedMps, run.carriageway);
   }
 
   /** Speed camera caught us going too fast — a white blitz, a little camera
