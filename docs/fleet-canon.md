@@ -80,6 +80,12 @@ So: the rear views are correct and are the reference. The fronts of Bea, Spark
 and Big Tilly are to be redrawn to that camera. Nothing visible from a
 slightly forward-tilted overhead view may show a face that camera cannot reach.
 
+**Built, awaiting approval to install** (2026-10-11): `tools/redraw-fronts.py`.
+Each front is scaled row by row to its rear's silhouette along the roof, so the
+two have one body width; the mirrors are lifted off and put back unscaled; the
+hatch (Bea) and the rear window (Spark) are painted out. Big Tilly's side
+windows are on the flank, which this camera cannot see, so they come out too.
+
 ## 4. Windows: the animal space is tinted, the cab is clear
 
 Decided 2026-10-11, resolving Spark's rear window being black from above and
@@ -96,6 +102,18 @@ needs to see who is driving.
 
 Trikey is unaffected; her basket is open to the air.
 
+**The one treatment** (`tools/tint-glass.py`): smoked charcoal, neutral, fully
+opaque. Base RGB (53, 55, 54), the diagonal sheen streaks rising to about
+(102, 102, 103). It is Spark's rear window in his top-down, pixel for pixel, so
+there is no second colour to keep in step. Clear glass is the pale mottled
+blue-grey of the windscreens, RGB (138, 160, 180) to (196, 210, 220).
+
+Only Spark's portrait has rear side glass to tint. Bea and Henry are panel vans
+with a cab window and nothing aft of it, and Big Tilly's bed is open, so their
+portraits are unchanged. Against this section, and not yet decided:
+`vehicle-topdown-henry-rear` has two CLEAR teal rear-door windows, and
+`vehicle-topdown-spark-rear` a DARK windscreen slot at its far end.
+
 ## 5. Markings that belong to one view only
 
 - **Henry's red paw-heart is on the REAR DOOR only.** Decided 2026-10-06 and it
@@ -111,10 +129,13 @@ Trikey is unaffected; her basket is open to the air.
 
 ## 6. Open
 
-- **Big Tilly's front cab cannot be shortened by cutting** — it is windscreen,
+- **Big Tilly's front cab could not be shortened by cutting** — it is windscreen,
   mirrors, side windows, pillars and tyres with no plain section to remove, and
-  every trial cut tore a side window. Reaching 1.79 needs the cab REDRAWN, and
-  that is queued with the front-camera redraw.
+  every trial cut tore a side window. Built, awaiting approval to install:
+  the side windows come out (flank, section 3), then the roof and bonnet are
+  cut. The front is 738x1849, L/W 2.505, against the rear's 2.516, so the two
+  agree. 1.79 is not reached and cannot be: it leaves 161 rows below the bed,
+  less than her windscreen, and buys a bed of about 1:1, a 2x2 load.
 - **Trikey's two top-downs** are still cobalt clay with a terracotta cargo box
   against a lilac portrait, and are a redraw rather than a recolour.
 - **Thirty-one traffic sprites are still claymation** — both ambulances, the
