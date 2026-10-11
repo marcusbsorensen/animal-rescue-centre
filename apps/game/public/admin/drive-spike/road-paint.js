@@ -296,7 +296,7 @@ function paintTile() {
 /** Patch repairs: newer, darker, smoother tarmac. */
 function patchTile(season) {
   const S = 256, [c, g] = canvas(S), r = rng(hash(7, 29, season.length));
-  const b = mix(base('main', season), '#1c1d20', 0.3);
+  const b = mix(base('main', season), '#1c1d20', 0.22);
   g.fillStyle = b; g.fillRect(0, 0, S, S);
   mottle(g, S, 4, mix(b, '#111', 0.4), mix(b, '#ddd', 0.3), 0.1, 61);
   dots(g, S, r, 1500, 0.4, 0.9, rr => rgba(mix(b, '#eee', 0.3), 0.3 + rr() * 0.3));
@@ -316,31 +316,52 @@ function seg(ch, s) {
 }
 
 /** The chain's centreline from sa to sb shifted sideways by off(s) metres,
- *  as a flat [x, y, x, y...] list. Corners use the mitred normal. A point
- *  that would run backwards (the inside of a bend tighter than the offset)
- *  is dropped, so offset lines never cross over themselves in an X. */
+ *  as a flat [x, y, x, y...] list. At a sharp corner the outside goes round
+ *  in an arc, as the old round-jointed stroke did, and the inside stops at
+ *  the true corner: points that would run past it are taken back, so an
+ *  offset line never loops over itself in an X (nor a band into a hole). */
 function side(ch, sa, sb, step, off) {
-  const { xs, ys, ss, tx, ty, mx, my } = ch;
+  const { xs, ys, ss, tx, ty, mx, my, turn } = ch;
   const nseg = ss.length - 1, out = [];
   let k = seg(ch, sa), lx = 0, ly = 0, have = false;
-  const put = (s, kk, v) => {
-    const dx = tx[kk], dy = ty[kk];
-    let px, py, nx, ny;
-    if (v >= 0) { px = xs[v]; py = ys[v]; nx = mx[v]; ny = my[v]; }
-    else { const u = s - ss[kk]; px = xs[kk] + dx * u; py = ys[kk] + dy * u; nx = -dy; ny = dx; }
-    const o = off(s), qx = px + nx * o, qy = py + ny * o;
-    if (have && (qx - lx) * dx + (qy - ly) * dy <= 1e-4) return;
-    out.push(qx, qy); lx = qx; ly = qy; have = true;
+  const push = (qx, qy) => { out.push(qx, qy); lx = qx; ly = qy; have = true; };
+  const put = (s, kk) => {
+    const dx = tx[kk], dy = ty[kk], u = s - ss[kk], o = off(s);
+    const qx = xs[kk] + dx * u - dy * o, qy = ys[kk] + dy * u + dx * o;
+    if (have && (qx - lx) * dx + (qy - ly) * dy <= 1e-4) return;   // still behind the corner
+    push(qx, qy);
   };
-  put(sa, k, -1);
+  const corner = (s, v) => {
+    const o = off(s), px = xs[v], py = ys[v];
+    if (turn[v] < 0.3) { push(px + mx[v] * o, py + my[v] * o); return; }
+    const ax = tx[v - 1], ay = ty[v - 1], bx = tx[v], by = ty[v];
+    if (o * (ax * by - ay * bx) > 0) {
+      // Inside: the two offset lines meet at the unclamped mitre point.
+      let nx = -(ay + by), ny = ax + bx;
+      const l = Math.hypot(nx, ny) || 1;
+      nx /= l; ny /= l;
+      const f = Math.min(6, 1 / Math.max(0.17, nx * -ay + ny * ax));
+      const ix = px + nx * f * o, iy = py + ny * f * o;
+      while (out.length >= 2 && (out[out.length - 2] - ix) * ax + (out[out.length - 1] - iy) * ay > -1e-4) out.length -= 2;
+      push(ix, iy);
+    } else {
+      // Outside: an arc from one segment's normal to the next.
+      const a0 = Math.atan2(ax, -ay);
+      let da = Math.atan2(bx, -by) - a0;
+      da = Math.atan2(Math.sin(da), Math.cos(da));
+      const m = Math.max(2, Math.ceil(Math.abs(da) / 0.25));
+      for (let i = 0; i <= m; i++) { const a = a0 + da * i / m; push(px + Math.cos(a) * o, py + Math.sin(a) * o); }
+    }
+  };
+  put(sa, k);
   let s = sa;
   while (s < sb - 1e-6) {
     let ns = Math.min(sb, s + step);
     if (k < nseg - 1 && ns >= ss[k + 1] - 1e-6) {
-      if (ss[k + 1] < sb - 1e-6) { s = ss[k + 1]; put(s, k, k + 1); k++; continue; }
+      if (ss[k + 1] < sb - 1e-6) { s = ss[k + 1]; k++; corner(s, k); continue; }
       ns = sb;
     }
-    put(ns, k, -1); s = ns;
+    put(ns, k); s = ns;
   }
   return out;
 }
@@ -675,7 +696,7 @@ export function load(world) {
   fill.set('track:ruts', [pat(wearTile(mix(base('track', season), '#2b1f12', season === 'winter' ? 0.5 : 0.42), 83, 1)), Math.min(1, 0.85 * T.wear)]);
   const grass = pat(grassTile(season));
   fill.set('track:grass', [grass, 1]);
-  fill.set('main:patch', [pat(patchTile(season)), 0.85]);
+  fill.set('main:patch', [pat(patchTile(season)), 0.7]);
   fill.set('reserve', [grass, 1]);
   const paint = pat(paintTile());
   fill.set('paint0', [paint, 0.95]); fill.set('paint1', [paint, 0.7]); fill.set('paint2', [paint, 0.42]);
