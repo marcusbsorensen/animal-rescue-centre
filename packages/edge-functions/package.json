@@ -1,0 +1,13 @@
+{
+  "name": "@arc/edge-functions",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Tests for the Supabase Edge Functions in supabase/functions, run offline with Vitest",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}
