@@ -323,6 +323,7 @@ function pickRoute(fromId) {
   xing = crossings.create({
     length: routeLen, atDistance, laneOffset, roadClassAt: classAtS, laneWidth: LANE_M,
   }, { graph, mapToWorld, season: SEASON });
+  window.__xing = xing;   // as window.__drive: lets a test find a crossing
 }
 
 // ---------------------------------------------------------------- the driving
