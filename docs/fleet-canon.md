@@ -45,7 +45,7 @@ Each top-down's length-over-width matches its portrait's length-over-height:
 | Henry | 2.02 | 2.33–2.40 |
 | Bea | 2.23 | 2.45–2.50 |
 | Spark | 1.88 | 2.92 |
-| Big Tilly | 1.79 | 2.81 |
+| Big Tilly | 1.79 | 2.81 (installed 2.505: see section 6) |
 
 **Width never changes.** `PtvDriveScene` scales by `img.width`, so holding
 width constant keeps on-screen size right and alters only length.
@@ -80,11 +80,15 @@ So: the rear views are correct and are the reference. The fronts of Bea, Spark
 and Big Tilly are to be redrawn to that camera. Nothing visible from a
 slightly forward-tilted overhead view may show a face that camera cannot reach.
 
-**Built, awaiting approval to install** (2026-10-11): `tools/redraw-fronts.py`.
-Each front is scaled row by row to its rear's silhouette along the roof, so the
-two have one body width; the mirrors are lifted off and put back unscaled; the
-hatch (Bea) and the rear window (Spark) are painted out. Big Tilly's side
-windows are on the flank, which this camera cannot see, so they come out too.
+**Installed 2026-10-11** (`tools/redraw-fronts.py`; Marcus approved them from
+the comparison sheet). Each front is scaled row by row to its rear's silhouette
+along the roof, so the two have one body width; the mirrors are lifted off and
+put back unscaled; the hatch (Bea) and the rear window (Spark) are painted out.
+Big Tilly's side windows are on the flank, which this camera cannot see, so they
+come out too. Canvas widths are unchanged (Big Tilly's height went from 2071 to
+1849), and the three beds in `fleet-art.ts` were re-measured with them: Big
+Tilly's rows are untouched, and Bea's and Spark's are widened to the fleet's
+0.855 of the body now that their fronts no longer taper.
 
 ## 4. Windows: the animal space is tinted, the cab is clear
 
@@ -110,9 +114,17 @@ blue-grey of the windscreens, RGB (138, 160, 180) to (196, 210, 220).
 
 Only Spark's portrait has rear side glass to tint. Bea and Henry are panel vans
 with a cab window and nothing aft of it, and Big Tilly's bed is open, so their
-portraits are unchanged. Against this section, and not yet decided:
-`vehicle-topdown-henry-rear` has two CLEAR teal rear-door windows, and
-`vehicle-topdown-spark-rear` a DARK windscreen slot at its far end.
+portraits are unchanged.
+
+**Every view now follows it** (2026-10-11). Spark's portrait is tinted
+(`tint-glass.py`); his front's windscreen is clear (`redraw-fronts.py`); and the
+two rears that disagreed were finished by `tools/glass-rears.py`:
+`vehicle-topdown-henry-rear`'s two rear-door windows are the one tint (a cut of
+Spark's own rear window, one from each half of it) and
+`vehicle-topdown-spark-rear`'s windscreen slot at its far end is clear glass,
+mapped by the function that cleared his front's. Nothing else in either file
+moved: the silhouette is byte-identical, Henry's paw-heart is the pixels it
+was, and Spark's rear window is untouched.
 
 ## 5. Markings that belong to one view only
 
@@ -131,11 +143,16 @@ portraits are unchanged. Against this section, and not yet decided:
 
 - **Big Tilly's front cab could not be shortened by cutting** — it is windscreen,
   mirrors, side windows, pillars and tyres with no plain section to remove, and
-  every trial cut tore a side window. Built, awaiting approval to install:
-  the side windows come out (flank, section 3), then the roof and bonnet are
-  cut. The front is 738x1849, L/W 2.505, against the rear's 2.516, so the two
-  agree. 1.79 is not reached and cannot be: it leaves 161 rows below the bed,
-  less than her windscreen, and buys a bed of about 1:1, a 2x2 load.
+  every trial cut tore a side window. Installed 2026-10-11: the side windows
+  come out (flank, section 3), then the roof and bonnet are cut. The front is
+  738x1849, L/W 2.505, against the rear's 2.516, so the two agree. 1.79 is not
+  reached and cannot be: it leaves 161 rows below the bed, less than her
+  windscreen, and buys a bed of about 1:1, a 2x2 load.
+- **The roof motifs are still to be applied.** `tools/decorate-roof.py` must be
+  re-run once Marcus picks his options, on the new fronts and on the rears as
+  they are now: the new roofs are longer (Bea's front 739 rows where the hatch
+  line cut it to 557, Spark's 652 where the sunroof cut it to 431), so the
+  motifs it placed before would be the wrong size.
 - **Trikey's two top-downs** are still cobalt clay with a terracotta cargo box
   against a lilac portrait, and are a redraw rather than a recolour.
 - **Thirty-one traffic sprites are still claymation** — both ambulances, the
