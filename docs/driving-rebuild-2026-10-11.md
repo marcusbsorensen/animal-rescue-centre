@@ -125,13 +125,35 @@ ease towards that aim rather than jumping to it. Measured again after:
 difference between its own heading and the camera's, which is exactly what
 gives the reference its look — the world swings, the vehicle barely turns.
 
+## Decided later the same day
+
+**When she does not brake, the van does, hard.** Holding "go" into the back of
+a slower vehicle never ends in contact: the van stops itself at 26 m/s², and
+that stop counts as rough driving — the animals are jostled, or on a delivery
+run the cargo shifts. Braking for herself is the skill; the self-stop is the
+cost of not doing it. Marcus chose this over a gentle cruise-control that
+would cost nothing and make the handbrake pointless.
+
+**The dual carriageway is tried both ways before it is chosen.** The spike's
+"big road" button switches between *zoom* (true 5 m lanes, the camera eases
+out to 0.62 as the van approaches, so it shrinks and she sees further ahead)
+and *narrow* (the zoom never changes, the four lanes shrink to 3 m). Both put
+about 300 px of road on a 390 pt screen. "to big road" jumps to a route that
+uses one. Marcus drives both and picks.
+
+**Following the road is not a swerve.** Only the child's own lane change feeds
+the jostle model; the van drifting outward as a lane widens or the road
+becomes a dual carriageway is the road moving under it, and is free.
+
 ## Still open
 
 - Scenery. The spike draws roads on grass and nothing else, so there is no
-  sense of speed beyond the lane markings. Top-down canopies, roofs, hedges.
-- The dual carriageway at 20m fills the screen at this zoom. Either narrow it
-  or pull the camera back on the bigger roads.
+  sense of speed beyond the lane markings. Top-down canopies, roofs, hedges,
+  placed from the child's own map (`birchie-roads.svg` has the farmland,
+  woodland, parks and sea), so what she drives past is what the map shows.
+- The dual carriageway: zoom or narrow, above.
 - Traffic, which overtaking needs to be about anything.
+- What the driver does to help the animals during a roadside stop.
 - Where the gear, handbrake and lane controls live now that they may not sit
   on the carriageway.
 - The advanced tier: the child reads the GPS and chooses at junctions.
