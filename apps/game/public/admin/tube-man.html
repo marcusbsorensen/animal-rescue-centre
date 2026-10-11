@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A.R.C. — Steve the tube man (prototype)</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Quicksand', system-ui, sans-serif; background: #2a2622; color: #f6efe1; padding: 16px; min-height: 100vh; }
+  header { text-align: center; margin-bottom: 12px; }
+  header h1 { font-family: 'Fredoka', sans-serif; font-size: 22px; font-weight: 700; }
+  header p { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 0 auto 12px; }
+  .controls label, .controls button, .controls span {
+    display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12px; color: inherit;
+    background: rgba(255,255,255,0.08); padding: 5px 11px; border-radius: 14px; border: 0; cursor: pointer;
+  }
+  .controls input[type=number] { width: 80px; font: inherit; border-radius: 8px; border: 0; padding: 2px 6px; }
+  .controls span { cursor: default; font-variant-numeric: tabular-nums; }
+  .stage { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: flex-end; }
+  figure { background: #fef9ef; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  figure canvas { display: block; }
+  figcaption { color: #4a3b33; font-size: 12px; padding: 6px 10px; background: #f3ead8; }
+  .note { max-width: 760px; margin: 14px auto 0; font-size: 12px; opacity: 0.75; line-height: 1.5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Steve, the car wash tube man</h1>
+  <p>Painted and animated in code (decision 29A). Never the same twice: change the seed for a different Steve.</p>
+</header>
+<div class="controls">
+  <label>seed <input id="seed" type="number" min="1" step="1"></label>
+  <label><input id="reduced" type="checkbox"> reduced motion</label>
+  <button id="pause" type="button">pause</button>
+  <span id="perf">– ms</span>
+</div>
+<div class="stage">
+  <figure><canvas id="big"></canvas><figcaption>Big (90 px/m)</figcaption></figure>
+  <figure><canvas id="drive"></canvas><figcaption>Driving world (22 px/m, zoom 1), billboard with shadow</figcaption></figure>
+  <figure><canvas id="map"></canvas><figcaption>Map scale (8 px/m) and ×4 loupe</figcaption></figure>
+</div>
+<p class="note">
+  His right arm (your left) flaps; his left stays low. Every few seconds the air drops, he folds and
+  springs back up. Reduced motion keeps a gentle sway with no collapses; it follows the system setting
+  and <code>?reduced=1</code>. <code>?seed=</code> picks the Steve. The ms figure is step + draw for all
+  three, averaged.
+</p>
+<script type="module">
+import { create } from './tube-man.js';
+
+const q = new URLSearchParams(location.search);
+const seed = parseInt(q.get('seed') || '', 10) || 1 + Math.floor(Math.random() * 99999);
+const reducedPref = q.has('reduced') ? q.get('reduced') !== '0'
+  : matchMedia('(prefers-reduced-motion: reduce)').matches;
+// ?capture=1 stops the clock so a test can advance it frame by frame.
+const capture = q.get('capture') === '1';
+
+document.getElementById('seed').value = seed;
+document.getElementById('reduced').checked = reducedPref;
+
+const dpr = Math.min(2, window.devicePixelRatio || 1);
+function setup(id, w, h) {
+  const c = document.getElementById(id);
+  c.width = w * dpr; c.height = h * dpr;
+  c.style.width = w + 'px'; c.style.height = h + 'px';
+  const ctx = c.getContext('2d');
+  return { c, ctx, w, h };
+}
+const big = setup('big', 520, 600);
+const drive = setup('drive', 300, 300);
+const map = setup('map', 300, 300);
+
+// Three separate Steves on one seed stream, as the game would have one per view.
+let steves;
+function build() {
+  const s = parseInt(document.getElementById('seed').value, 10) || 1;
+  const red = document.getElementById('reduced').checked;
+  steves = [create(s, { reducedMotion: red }), create(s, { reducedMotion: red }), create(s, { reducedMotion: red })];
+}
+build();
+document.getElementById('seed').addEventListener('change', build);
+document.getElementById('reduced').addEventListener('change', e => steves.forEach(t => t.setReducedMotion(e.target.checked)));
+let paused = false;
+document.getElementById('pause').addEventListener('click', e => { paused = !paused; e.target.textContent = paused ? 'play' : 'pause'; });
+
+const van = new Image();
+van.src = '/assets/driving/topdown/vehicle-topdown-henry.png';
+
+function frame(dt) {
+  const t0 = performance.now();
+  for (const s of steves) s.step(dt);
+
+  // Big: plain paper, a strip of forecourt.
+  let { ctx, w, h } = big;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#fef9ef'; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#d8d2c6'; ctx.fillRect(0, h - 40, w, 40);
+  steves[0].draw(ctx, w / 2, h - 30, 90);
+
+  // Driving world: road, verge, van at the same scale; Steve stands up as
+  // a billboard on the verge with a soft shadow, as the crossing animals do.
+  ({ ctx, w, h } = drive);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#a8c47e'; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#c9c3b6'; ctx.fillRect(150, 0, 110, h);
+  ctx.fillStyle = '#f4f0e6'; for (let y = 10; y < h; y += 40) ctx.fillRect(203, y, 4, 20);
+  if (van.complete && van.naturalWidth) {
+    const vw = 2.4 * 22, vh = vw * van.naturalHeight / van.naturalWidth;
+    ctx.drawImage(van, 228 - vw / 2, 150, vw, vh);
+  }
+  steves[1].draw(ctx, 95, 230, 22, { shadow: true });
+
+  // Map scale, true size and a pixel loupe.
+  ({ ctx, w, h } = map);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#fef9ef'; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#e8dfcc'; ctx.fillRect(0, 70, 60, 6);
+  steves[2].draw(ctx, 30, 72, 8);
+  ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(map.c, 0, 20 * dpr, 60 * dpr, 60 * dpr, 70 * dpr, 20 * dpr, 220 * dpr, 220 * dpr);
+  ctx.imageSmoothingEnabled = true;
+
+  return performance.now() - t0;
+}
+
+// Rolling average of step + draw.
+let avg = 0, n = 0;
+const perf = document.getElementById('perf');
+let last = performance.now();
+function loop(now) {
+  const dt = (now - last) / 1000; last = now;
+  if (!paused) {
+    const ms = frame(dt);
+    avg += ms; n++;
+    if (n === 60) { perf.textContent = (avg / 60).toFixed(3) + ' ms / frame (3 Steves)'; avg = 0; n = 0; }
+  }
+  requestAnimationFrame(loop);
+}
+
+if (capture) {
+  window.__tubeMan = { advance: (sec) => frame(sec), steves: () => steves, create };
+  frame(0);
+} else {
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
