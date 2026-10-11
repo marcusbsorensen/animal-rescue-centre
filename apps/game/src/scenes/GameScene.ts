@@ -91,7 +91,7 @@ import {
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId, CrateGrid, MapDestinationDef } from '@arc/game-logic';
 import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
-import { driveTypeFor } from '../driving/drive-state';
+import { carriesAnimalsFor, driveTypeFor } from '../driving/drive-state';
 import { getSession } from '../lib/auth';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
@@ -1983,20 +1983,25 @@ export class GameScene extends Phaser.Scene {
     if (dest?.arrival === 'collection') { this.driveToCollect(dest); return; }
 
     this.saveState();
-    const passenger = animalId
+    // A supply run is the delivery race, with nothing alive aboard: no
+    // passenger, no cargo tray, so no loading screen and no journey for
+    // anybody's comfort to be scored on.
+    const driveType = driveTypeFor(destinationId);
+    const aboard = carriesAnimalsFor(driveType);
+    const passenger = aboard && animalId
       ? this.store.animals.filter((a) => a.id === animalId)
       : [];
-    const others = this.store.animals.filter((a) => a.id !== animalId);
+    const others = aboard ? this.store.animals.filter((a) => a.id !== animalId) : [];
     const cargo = [...passenger, ...others].slice(0, 8);
 
     this.scene.start('PtvDriveScene', {
       destinationId,
-      driveType: driveTypeFor(destinationId),
+      driveType,
       level: this.store.level,
       economy: this.store.economy,
       weather: this.store.gardenWeather?.current,
       returnTo: 'GameScene',
-      returnData: animalId ? { animalId } : {},
+      returnData: aboard && animalId ? { animalId } : {},
       cargo,
       preloadAnimalIds: passenger.map((a) => a.id),
       // Straight from the store's own illness map — the same one the

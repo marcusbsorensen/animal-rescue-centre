@@ -19,14 +19,14 @@ import { renderCrateLoading, titleCase } from '../driving/crate-loading-view';
 import { PICKER_EXIT_MARGIN, VEHICLE_SPRITE, pickerLayout } from '../driving/fleet-art';
 import { drawForecourt, drawVehicleShadow } from '../driving/forecourt';
 import { stateTween } from '../ui/tween';
+import { driveJolts } from '../driving/drive-jolts';
+import { GEAR_SPEED_MPS, speedCameraFires } from '../driving/road-gears';
 import {
   createDriveState,
   cycleGear,
   gearLabel,
   gearScrollRate,
   jostleComfort,
-  PARK,
-  REVERSE,
   type DriveState,
   type DriveType,
   type Gear,
@@ -46,14 +46,14 @@ import { buildRoadTransitions, worldYForRow, type RoadTransition } from '../driv
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
-import { buildAdjacency, routePolyline, routeProfile, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
+import { buildAdjacency, roadClassAt, routePolyline, routeProfile, vehicleRouteAdjacency, ROADS_BARRED, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
 import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, projectToRoute, type Maneuver } from '../driving/route-instructions';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
 /**
  * Reference cruising rate (px/tick) that traffic `relSpeed` is measured
  * against, so other vehicles have an *absolute* speed independent of ours —
- * they keep flowing past even when we're stopped (Park/Neutral) at a crossing.
+ * they keep flowing past even when we're stopped on the handbrake at a crossing.
  */
 const TRAFFIC_REF_SPEED = gearScrollRate(2);
 
@@ -309,7 +309,7 @@ const CARGO_STATES = ['sheltered', 'walking', 'playing', 'grumpy', 'scared', 'si
  *
  * Slice 1 (+ eyeball polish): top-down travel mode. Gentle daylight bird's-eye
  * road, van fixed near the lower third while the world scrolls past. Banked
- * snap lane changes, a vertical gear stick (R/1/2/3) with reverse, exponential
+ * snap lane changes, a vertical gear stick (1/2/3), exponential
  * gear speeds, roadside scenery, and varied decorative traffic (cars,
  * tractors, trucks, pick-ups, weaving motorbikes, overtaking emergency cars).
  * No cab/events/cargo yet — those arrive in later slices.
@@ -430,7 +430,10 @@ export class PtvDriveScene extends Phaser.Scene {
   private gpsArc = { x: 0, y: 0 };
   private gpsDest = { x: 0, y: 0 };
   private gpsGraph?: RoadGraph;
-  private gpsAdj?: Adjacency;
+  /** Every road, and each vehicle's own roads where it is barred from some
+   *  (Trikey: no dual carriageways). Built once each, on first use. */
+  private gpsAdjAll?: Adjacency;
+  private gpsAdjByVehicle = new Map<VehicleType, Adjacency>();
   /** The route as panel-pixel points, with cumulative lengths for the dot. */
   private gpsRoutePts: { x: number; y: number }[] = [];
   private gpsRouteCum: number[] = [];
@@ -455,7 +458,8 @@ export class PtvDriveScene extends Phaser.Scene {
   private gearSlotY: Partial<Record<string, number>> = {};
 
   /** Handbrake: while engaged the vehicle is held and gear changes are blocked
-   *  (a reminder flashes). Off once the van pulls away; re-engages on Park. */
+   *  (a reminder flashes). It is the only way to stand still: there is no
+   *  Park. */
   private handbrakeOn = false;
   private handbrakeLamp?: Phaser.GameObjects.Arc;
   private handbrakeLabel?: Phaser.GameObjects.Text;
@@ -467,7 +471,6 @@ export class PtvDriveScene extends Phaser.Scene {
     down: Phaser.Input.Keyboard.Key;
     a: Phaser.Input.Keyboard.Key;
     d: Phaser.Input.Keyboard.Key;
-    r: Phaser.Input.Keyboard.Key;
     space: Phaser.Input.Keyboard.Key;
     h: Phaser.Input.Keyboard.Key;
   };
@@ -627,6 +630,8 @@ export class PtvDriveScene extends Phaser.Scene {
    * already chosen are handed forward.
    */
   private readCargo(data?: PtvDriveInit): Animal[] {
+    // A supply run carries nobody, whatever it is handed: no loading screen.
+    if (!this.drive.carriesAnimals) return [];
     if (data?.cargo?.length) return data.cargo;
     if (typeof window === 'undefined') return [];
     const raw = new URLSearchParams(window.location.search).get('cargo');
@@ -864,9 +869,9 @@ export class PtvDriveScene extends Phaser.Scene {
 
     // Road-following route A.R.C. → destination (Dijkstra on the road graph,
     // straight-line fallback if the network can't connect).
-    this.ensureGraph();
-    const polyFrac: RoutePoint[] = this.gpsGraph && this.gpsAdj
-      ? routePolyline(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
+    const gpsAdj = this.routeAdjacency();
+    const polyFrac: RoutePoint[] = this.gpsGraph && gpsAdj
+      ? routePolyline(this.gpsGraph, gpsAdj, ARC_PLACE, placeFor(this.destinationId))
       : [ARC_PLACE, placeFor(this.destinationId)];
     this.gpsRoutePts = polyFrac.map(toPanel);
     this.gpsRouteCum = [0];
@@ -2091,14 +2096,34 @@ export class PtvDriveScene extends Phaser.Scene {
   private ensureGraph(): void {
     if (!this.gpsGraph && this.cache.json.exists('birchie-graph')) {
       this.gpsGraph = this.cache.json.get('birchie-graph') as RoadGraph;
-      this.gpsAdj = buildAdjacency(this.gpsGraph);
+      this.gpsAdjAll = buildAdjacency(this.gpsGraph);
     }
   }
 
-  private computeRouteProfile(): void {
+  /**
+   * The adjacency this drive routes over: the picked vehicle's own roads, so
+   * the GPS line and the road profile both follow them (Trikey keeps off dual
+   * carriageways). Where her own roads cannot reach the destination she takes
+   * every road instead; see `vehicleRouteAdjacency` for the open question.
+   */
+  private routeAdjacency(): Adjacency | undefined {
     this.ensureGraph();
-    this.roadProfile = this.gpsGraph && this.gpsAdj
-      ? routeProfile(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
+    const g = this.gpsGraph;
+    const all = this.gpsAdjAll;
+    if (!g || !all) return undefined;
+    if (!ROADS_BARRED[this.vehicleId]) return all;
+    let own = this.gpsAdjByVehicle.get(this.vehicleId);
+    if (!own) {
+      own = buildAdjacency(g, this.vehicleId);
+      this.gpsAdjByVehicle.set(this.vehicleId, own);
+    }
+    return vehicleRouteAdjacency(g, own, all, ARC_PLACE, placeFor(this.destinationId)).adj;
+  }
+
+  private computeRouteProfile(): void {
+    const adj = this.routeAdjacency();
+    this.roadProfile = this.gpsGraph && adj
+      ? routeProfile(this.gpsGraph, adj, ARC_PLACE, placeFor(this.destinationId))
       : [];
     // One merge zone per road-type change, centred on the class boundary
     // (~3–4s to play out at cruising speed). scrollY and progress are the same
@@ -2108,11 +2133,8 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /** The road type at a progress fraction, from the route's class profile. */
   private profileRoadId(progress: number): RoadId {
-    for (const run of this.roadProfile) {
-      if (progress <= run.untilProgress + 1e-6) return roadIdForClass(run.roadClass);
-    }
-    const last = this.roadProfile[this.roadProfile.length - 1];
-    return last ? roadIdForClass(last.roadClass) : 'country-lane';
+    const cls = roadClassAt(this.roadProfile, progress);
+    return cls ? roadIdForClass(cls) : 'country-lane';
   }
 
   /**
@@ -2567,17 +2589,19 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /**
    * Handbrake — slam to a halt. Better than an RTA, but it jostles the animals
-   * in their cages: comfort drops, the van judders, the screen shakes. Drops
-   * the stick straight into Park so the vehicle actually stops.
+   * in their cages: comfort drops, the van judders, the screen shakes (those
+   * two not under reduced motion). Leaves the handbrake on, which is what
+   * holds the vehicle still.
    */
   private emergencyBrake(): void {
-    this.setGear(PARK);
+    this.setHandbrake(true);
     this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 15);
     AudioManager.getInstance().playSfx('food_wrong'); // wobble/chaos cue (placeholder)
 
-    // Screen shake + a quick van judder.
-    this.cameras.main.shake(320, 0.012);
-    if (this.vanGfx) {
+    // Screen shake + a quick van judder, both gone under reduced motion.
+    const jolts = driveJolts();
+    if (jolts.shake) this.cameras.main.shake(320, 0.012);
+    if (this.vanGfx && jolts.judder) {
       this.tweens.add({
         targets: this.vanGfx,
         angle: { from: -6, to: 6 },
@@ -2610,12 +2634,12 @@ export class PtvDriveScene extends Phaser.Scene {
     });
   }
 
-  /** Vertical gear stick on the right: 3 / 2 / 1 / P / R top-to-bottom. */
+  /** Vertical gear stick on the right: 3 / 2 / 1 top-to-bottom. */
   private renderGearStick(width: number, height: number): void {
     const stickX = width - 46;
     const topY = height * 0.28;
     const botY = height * 0.78;
-    const slots: Gear[] = [3, 2, 1, PARK, REVERSE]; // visual top → bottom
+    const slots: Gear[] = [3, 2, 1]; // visual top → bottom
     const slotY = (i: number) => topY + (botY - topY) * (i / (slots.length - 1));
 
     // Track.
@@ -2637,15 +2661,10 @@ export class PtvDriveScene extends Phaser.Scene {
     slots.forEach((gear, i) => {
       const y = slotY(i);
       this.gearSlotY[String(gear)] = y;
-      const label = gearLabel(gear);
-      const labelColour =
-        gear === PARK ? '#a9c7e0' :
-        gear === REVERSE ? '#ffc9c9' :
-        '#e8dcc8';
       this.container.add(
-        this.add.text(stickX, y, label, {
+        this.add.text(stickX, y, gearLabel(gear), {
           fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
-          color: labelColour,
+          color: '#e8dcc8',
         }).setOrigin(0.5).setDepth(39)
       );
       const zone = this.add.rectangle(stickX, y, 52, 40, 0xffffff, 0)
@@ -2678,7 +2697,6 @@ export class PtvDriveScene extends Phaser.Scene {
         down: kb.addKey('DOWN'),
         a: kb.addKey('A'),
         d: kb.addKey('D'),
-        r: kb.addKey('R'),
         space: kb.addKey('SPACE'),
         h: kb.addKey('H'),
       };
@@ -2688,7 +2706,6 @@ export class PtvDriveScene extends Phaser.Scene {
       this.keys.d.on('down', () => this.moveLane(1));
       this.keys.up.on('down', () => this.setGear(cycleGear(this.drive.gear, 1)));
       this.keys.down.on('down', () => this.setGear(cycleGear(this.drive.gear, -1)));
-      this.keys.r.on('down', () => this.setGear(REVERSE));
       this.keys.space.on('down', () => this.toggleHandbrake()); // handbrake: pull/release
       this.keys.h.on('down', () => this.playHorn());
     }
@@ -2729,9 +2746,10 @@ export class PtvDriveScene extends Phaser.Scene {
 
     const next = Math.max(0, Math.min(pl - 1, this.drive.lane + dir));
     if (next !== this.drive.lane) {
-      // Ordinary lane change within our own carriageway. Safety first: with
-      // animals aboard we NEVER swerve into another vehicle.
-      if (this.drive.carriesAnimals && this.laneBlockedAt(next, this.vanY)) {
+      // Ordinary lane change within our own carriageway. Safety first: we
+      // NEVER swerve into another vehicle, with animals aboard or on a supply
+      // run. There is never a road accident.
+      if (this.laneBlockedAt(next, this.vanY)) {
         this.bumpBlocked(dir);
         return;
       }
@@ -2824,13 +2842,12 @@ export class PtvDriveScene extends Phaser.Scene {
 
   private setGear(gear: Gear): void {
     if (gear === this.drive.gear) return;
-    // Can't select a driving gear with the handbrake on — flash a reminder.
-    if (gear !== PARK && this.handbrakeOn) {
+    // Can't select a gear with the handbrake on — flash a reminder.
+    if (this.handbrakeOn) {
       this.flashHandbrakeReminder();
       return;
     }
     this.drive.gear = gear;
-    if (gear === PARK) this.setHandbrake(true); // parking pulls the handbrake on
     AudioManager.getInstance().playSfx('button_click');
     const y = this.gearSlotY[String(gear)];
     if (this.gearKnob && y !== undefined) {
@@ -2839,7 +2856,7 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   /** Engage/release the handbrake. Releasing lets the driver pick a gear;
-   *  pulling it on stops the vehicle (drops to Park). */
+   *  pulling it on stops the vehicle and holds it. */
   private toggleHandbrake(): void {
     if (this.handbrakeOn) {
       this.setHandbrake(false); // release — the driver can now select a gear
@@ -2983,7 +3000,8 @@ export class PtvDriveScene extends Phaser.Scene {
     // through a slower vehicle ahead in our lane — we tuck in behind until
     // we pull out to overtake.
     // Same gear, different speed per vehicle (Trikey crawls, Spark zips).
-    const gearRate = gearScrollRate(this.drive.gear) * VEHICLE_SPEED[this.vehicleId];
+    // The handbrake holds her still; there is no Park.
+    const gearRate = this.handbrakeOn ? 0 : gearScrollRate(this.drive.gear) * VEHICLE_SPEED[this.vehicleId];
     // `rate` is px per old tick, which the cap is still worked out in;
     // `dy` is how far the road moves this frame.
     const rate = this.effectivePlayerRate(gearRate);
@@ -3001,13 +3019,14 @@ export class PtvDriveScene extends Phaser.Scene {
     }
 
     // Roadside decorations scroll with the road. A speed camera flashes if
-    // we pass it in top gear — the gentle "consequence" that pairs with the
-    // handbrake, never a crash.
+    // we pass it too fast for the road we are on (road-gears.ts) — the gentle
+    // "consequence" that pairs with the handbrake, never a crash.
+    const caught = this.tooFastForRoad(rate);
     for (let di = this.decor.length - 1; di >= 0; di--) {
       const d = this.decor[di];
       const prevY = d.y;
       d.y += dy;
-      if (d.isCamera && !d.triggered && prevY < this.vanY && d.y >= this.vanY && this.drive.gear === 3) {
+      if (d.isCamera && !d.triggered && prevY < this.vanY && d.y >= this.vanY && caught) {
         this.flashSpeedCamera(d);
         d.triggered = true;
       }
@@ -3141,17 +3160,6 @@ export class PtvDriveScene extends Phaser.Scene {
   /** Our forward pace, capped so the van never drives through another vehicle. */
   private effectivePlayerRate(gearRate: number): number {
     const vanHalf = this.carHalfLen(this.vanGfx);
-
-    // Reversing: stop rather than back into (or drag) a vehicle behind us — they
-    // hold their ground, the van simply can't reverse past them.
-    if (gearRate < 0) {
-      for (const c of this.traffic) {
-        if (c.lane !== this.drive.lane || c.y <= this.vanY) continue; // behind = below us
-        const gap = c.y - this.vanY;
-        if (gap <= this.carHalfLen(c.gfx) + vanHalf + this.vanH * 0.15) return 0;
-      }
-      return gearRate;
-    }
     if (gearRate === 0) return 0;
 
     // Out overtaking in the oncoming lane: never drive into an oncoming car head
@@ -3268,15 +3276,33 @@ export class PtvDriveScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Whether a speed camera would catch her now: her gear is too fast for the
+   * road class under the van, by the road-gear table. `rate` is this frame's
+   * pace, which scales the gear's speed down when she is held behind traffic
+   * or on the handbrake, so a van barely moving is never caught. With no
+   * route profile there is no road class to judge by, and nothing fires.
+   */
+  private tooFastForRoad(rate: number): boolean {
+    const roadClass = roadClassAt(this.roadProfile, this.drive.progress);
+    if (!roadClass) return false;
+    const gear = this.drive.gear;
+    const speedMps = GEAR_SPEED_MPS[gear] * Math.max(0, rate) / gearScrollRate(gear);
+    return speedCameraFires(roadClass, gear, speedMps);
+  }
+
   /** Speed camera caught us going too fast — a white blitz, a little camera
    *  pop, a jostle to the cargo and a "Slow down!". No crash, just a nudge. */
   private flashSpeedCamera(d: DecorProp): void {
     const { width, height } = this.scale;
     AudioManager.getInstance().playSfx('food_wrong');
 
-    const flash = this.add.rectangle(width / 2, height / 2, width, height, 0xffffff, 0.85).setDepth(70);
-    this.container.add(flash);
-    this.tweens.add({ targets: flash, alpha: 0, duration: 320, onComplete: () => flash.destroy() });
+    // The white blitz goes under reduced motion; the sound and the words stay.
+    if (driveJolts().cameraFlash) {
+      const flash = this.add.rectangle(width / 2, height / 2, width, height, 0xffffff, 0.85).setDepth(70);
+      this.container.add(flash);
+      this.tweens.add({ targets: flash, alpha: 0, duration: 320, onComplete: () => flash.destroy() });
+    }
 
     this.tweens.add({ targets: d.obj, scale: d.obj.scale * 1.18, duration: 110, yoyo: true });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GEAR_OK, GEAR_SPEED_MPS, ROAD_NAME, gearVerdict, gearsFor, type ForwardGear } from '../road-gears';
+import { GEAR_OK, GEAR_SPEED_MPS, ROAD_NAME, gearVerdict, gearsFor, speedCameraFires, type ForwardGear } from '../road-gears';
 import { graph } from './real-graph';
 
 // docs/driving-rebuild-2026-10-11.md, "Gears are about choosing a speed":
@@ -54,5 +54,32 @@ describe('gearVerdict', () => {
 
   it('has the spike\'s gear speeds', () => {
     expect(GEAR_SPEED_MPS).toEqual({ 1: 7, 2: 13, 3: 20 });
+  });
+});
+
+describe('speedCameraFires', () => {
+  it('fires on too fast for the road, not on a fixed gear', () => {
+    expect(speedCameraFires('residential', 3, MOVING)).toBe(true);
+    expect(speedCameraFires('unclassified', 3, MOVING)).toBe(true);
+    expect(speedCameraFires('track', 2, MOVING)).toBe(true);
+    // Third gear is right for a main road and the dual carriageway.
+    expect(speedCameraFires('secondary', 3, MOVING)).toBe(false);
+    expect(speedCameraFires('trunk', 3, MOVING)).toBe(false);
+  });
+
+  it('never fires on a gear the road suits', () => {
+    for (const [cls, ok] of Object.entries(GEAR_OK)) {
+      for (const g of ok) expect(speedCameraFires(cls, g, MOVING), `${cls} ${g}`).toBe(false);
+    }
+  });
+
+  it('never fires for too slow', () => {
+    expect(gearVerdict('trunk', 1, MOVING).ok).toBe(false);
+    expect(speedCameraFires('trunk', 1, MOVING)).toBe(false);
+  });
+
+  it('never fires on a van barely moving, or on a road the table does not know', () => {
+    expect(speedCameraFires('track', 3, 0)).toBe(false);
+    expect(speedCameraFires('service', 3, MOVING)).toBe(false);
   });
 });

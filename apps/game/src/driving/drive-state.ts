@@ -10,31 +10,18 @@
 import { getDestination, type CrateGrid } from '@arc/game-logic';
 
 /**
- * Gear selection: Park holds the vehicle still (e.g. stopped for a hedgehog
- * crossing), Reverse for negotiating an obstacle, and three forward gears
- * (1..3).
+ * Gear selection: three forward gears (1..3) and nothing else. Park and
+ * Reverse were dropped (port plan 2026-10-11, section 5, answer 6): the
+ * handbrake is what holds the van still, and nothing on rails needs to back
+ * up.
  */
-export type Gear = 'P' | 'R' | 1 | 2 | 3;
-
-/** Park — fully stopped. */
-export const PARK: Gear = 'P';
-/** Reverse. */
-export const REVERSE: Gear = 'R';
+export type Gear = 1 | 2 | 3;
 
 /** Forward gears, low → high. */
 export const FORWARD_GEARS: readonly Gear[] = [1, 2, 3];
 
-/**
- * Gear stick order, bottom → top: Reverse, Park, then the forward gears. Park
- * sits between Reverse and 1st, so you drop into it straight from first gear
- * without passing through Reverse.
- */
-export const GEAR_ORDER: readonly Gear[] = ['R', 'P', 1, 2, 3];
-
-/** Whether a gear holds the vehicle stationary. */
-export function isStopped(gear: Gear): boolean {
-  return gear === PARK;
-}
+/** Gear stick order, bottom → top. */
+export const GEAR_ORDER: readonly Gear[] = FORWARD_GEARS;
 
 /** Number of lanes on the (placeholder) 3-lane PTV road. The road-system
  *  slice makes this per-route (single vs dual carriageway); until then it's
@@ -48,9 +35,8 @@ export type DriveType = 'vet' | 'adoption' | 'rewilding' | 'delivery' | 'demo';
  *
  * Read off the destination's `arrival` — what is waiting at the far
  * end is what the journey is for, so the two cannot disagree. The
- * mapping matters beyond flavour: `carriesAnimals` gates whether the
- * drive is collision-safe, and a supply run is the one trip with
- * nobody in the back.
+ * mapping matters beyond flavour: a supply run is the delivery race,
+ * the one trip with nobody in the back (`carriesAnimalsFor`).
  */
 export function driveTypeFor(destinationId: string): DriveType {
   switch (getDestination(destinationId)?.arrival) {
@@ -58,10 +44,9 @@ export function driveTypeFor(destinationId: string): DriveType {
     case 'rewilding': return 'rewilding';
     case 'supply':    return 'delivery';
     // A collection goes out with an empty bed and comes home with
-    // somebody in it. It stays a gentle, collision-safe trip rather
-    // than joining the supply runs: `carriesAnimals` is what gates the
-    // crashes, and half of this journey has an animal aboard — the
-    // half a child would be driving when one happened.
+    // somebody in it. It stays an animals-aboard trip rather than
+    // joining the supply runs: half of this journey has an animal in
+    // the back, and the drive home is the half she drives.
     case 'collection': return 'adoption';
     // Keepers take an animal in for good, which is the adoption drive's
     // errand: a gentle trip with the animal aboard, ending somewhere it is
@@ -81,7 +66,7 @@ export interface DriveState {
   destinationId: string;
   /** Current lane, 0 (left) .. NUM_LANES-1 (right). */
   lane: number;
-  /** Selected gear (-1 reverse, 1..3 forward). */
+  /** Selected gear, 1..3. */
   gear: Gear;
   /** Cargo comfort 0..100 (unused in Slice 1; carried for later slices). */
   cargoComfort: number;
@@ -106,10 +91,10 @@ export interface DriveState {
   /** Route progress 0..1. Reaches 1 at the destination. */
   progress: number;
   /**
-   * Whether animals are aboard. When true the drive is COLLISION-SAFE: the game
-   * never lets the van actually hit another vehicle (you slow and tuck in
-   * behind, you can't swerve into a car). Only animal-free supply runs allow
-   * real crashes/chaos.
+   * Whether animals are aboard. False only on a supply run, the delivery
+   * race: no cargo, no loading screen, nobody's comfort to show. Every drive
+   * is collision-safe either way — there is never a road accident
+   * (docs/driving-rebuild-2026-10-11.md, "Two modes").
    */
   carriesAnimals: boolean;
 }
@@ -119,22 +104,33 @@ export interface CreateDriveStateOptions {
   driveType?: DriveType;
   destinationId?: string;
   weather?: string;
-  /** Defaults to true — the PTV carries animals, so the drive is collision-safe. */
+  /** Defaults to `carriesAnimalsFor(driveType)`: true except on a supply run. */
   carriesAnimals?: boolean;
+}
+
+/**
+ * Whether a kind of drive has animals aboard. Supply runs are the delivery
+ * race, with nothing alive aboard; every other drive carries animals.
+ * Marcus, 2026-10-11 (docs/driving-port-plan-2026-10-11.md section 5,
+ * answer 8).
+ */
+export function carriesAnimalsFor(driveType: DriveType): boolean {
+  return driveType !== 'delivery';
 }
 
 /** Build a fresh drive state with sensible MVP defaults. */
 export function createDriveState(opts: CreateDriveStateOptions = {}): DriveState {
+  const driveType = opts.driveType ?? 'demo';
   return {
     vehicle: opts.vehicle ?? 'henry',
-    driveType: opts.driveType ?? 'demo',
+    driveType,
     destinationId: opts.destinationId ?? '',
     lane: Math.floor(NUM_LANES / 2), // start in the middle lane
     gear: 1, // pull away in first gear
     cargoComfort: 100,
     weather: opts.weather ?? 'clear',
     progress: 0,
-    carriesAnimals: opts.carriesAnimals ?? true,
+    carriesAnimals: opts.carriesAnimals ?? carriesAnimalsFor(driveType),
   };
 }
 
@@ -150,7 +146,7 @@ export function shiftLane(lane: number, dir: -1 | 1): number {
   return clampLane(lane + dir);
 }
 
-/** Move the gear stick up (+1, toward 3) or down (-1, toward P), clamped. */
+/** Move the gear stick up (+1, toward 3) or down (-1, toward 1), clamped. */
 export function cycleGear(gear: Gear, dir: -1 | 1): Gear {
   const idx = GEAR_ORDER.indexOf(gear);
   const next = Math.max(0, Math.min(GEAR_ORDER.length - 1, idx + dir));
@@ -165,20 +161,18 @@ export function jostleComfort(comfort: number, severity: number): number {
   return Math.max(0, Math.min(100, comfort - severity));
 }
 
-/** Human-friendly gear label for the stick / HUD ('P','R','1','2','3'). */
+/** Human-friendly gear label for the stick / HUD ('1','2','3'). */
 export function gearLabel(gear: Gear): string {
   return String(gear);
 }
 
 /**
- * Road-scroll rate (pixels per drive tick) for a gear. Park and Neutral hold
- * still (0). Forward gears ramp *exponentially* — third is a lot quicker than
- * first, per Marcus's eyeball. Reverse creeps backward (negative).
+ * Road-scroll rate (pixels per drive tick) for a gear. Forward gears ramp
+ * *exponentially* — third is a lot quicker than first, per Marcus's eyeball.
+ * Standing still is the handbrake's job, not a gear's.
  */
 export function gearScrollRate(gear: Gear): number {
   switch (gear) {
-    case 'P': return 0;   // park — stopped
-    case 'R': return -2.6; // reverse — gentle backward creep
     case 1: return 3.2;
     case 2: return 7.2;
     case 3: return 15;
