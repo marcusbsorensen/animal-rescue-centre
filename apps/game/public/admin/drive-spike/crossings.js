@@ -11,14 +11,16 @@
 // from its centreline (metres, negative to the left), as in traffic.js.
 //
 // How it keeps the promise. A crossing is a place on a straight stretch of
-// small road. The animal waits on the verge until the van is close enough to
-// see it at the lane zoom, and only steps out if the van can still stop short
-// of it at well under the page's emergency rate. From that moment until the
-// last animal is off the far kerb the whole carriageway at that place is
-// closed, and speedCap keeps the van's nose short of it. If the van is
-// already too close (a route that starts beside one), the animal stays in the
-// hedge and crosses behind the van. crossings.check.mjs drives this with
-// random inputs and measures the gap in world space.
+// small road. The animal waits on the verge, on screen, until the van is
+// close, and only steps out if the van can still stop short of it at well
+// under the page's emergency rate. From that moment until the last animal is
+// off the far kerb the whole carriageway at that place is closed, and
+// speedCap keeps the van's nose short of it. If the van is already too close
+// (a route that starts beside one), the animal stays on the verge and crosses
+// behind the van. The animals are drawn far larger than life, so a child can
+// see them on a phone, and the gap that counts is to the body as drawn:
+// crossings.check.mjs drives this with random inputs and measures that gap
+// in world space.
 //
 // Where. Every small-road edge of the graph is a candidate, and a hash of its
 // midpoint's position decides whether it has a crossing, so a place has the
@@ -50,6 +52,14 @@ const END_CLEAR_M = 45;       // ...or where it pulls up
  *  braking), and far enough that the van can always stop for it. */
 function triggerGap(v) { return 8 + 0.6 * v; }
 
+/** But never before she has had a moment to see it waiting. Held sideways,
+ *  or at speed before the camera has pulled back, the screen can show less
+ *  road than triggerGap, and an animal would step out from above the top
+ *  edge. So it waits until it has been on screen this long; if by then the
+ *  van could not stop, it crosses behind instead. The page puts the metres
+ *  shown ahead of the van on van.view.ahead. */
+const SEEN_S = 0.35;
+
 /** The rate the cap is computed at, below the page's EMERGENCY of 26 m/s², so
  *  frame stepping never carries the van past the line. And the stricter rate
  *  an animal checks before stepping out at all. */
@@ -57,24 +67,29 @@ const CAP_DECEL = 22;
 const COMMIT_DECEL = 18;
 
 /** Along the road, how far either side of the crossing's centre is closed:
- *  the widest body (a deer's length is across the road; its width is along
- *  it), its wobble, and a clear metre in front of the bumper. */
+ *  half the widest drawn body along the road (a deer, turned a little as it
+ *  looks about), its wobble, and a clear metre in front of the bumper. */
 const ZONE_HALF_M = 1.9;
-const VERGE_M = 1.3;          // where an animal waits, beyond the kerb
 
 /** The warning sign stands this far before the zone: far enough to be read
  *  first, near enough to be on screen just before the animal is. */
 const SIGN_BEFORE_M = 22;
 
-/** Bodies, true to life in metres. len along the animal, wid across it, hgt
- *  for the shadow, r for the clearance check, speed in m/s while walking. */
+/** Bodies as drawn, in metres. The page draws vehicles about 1.37 times true
+ *  width, but at that a rabbit is still 16px at the lane zoom on a 390-wide
+ *  phone (PPM 22 x 1.35 = 29.7 px/m), a smudge. So they are storybook size:
+ *  a hedgehog or rabbit about 38px nose to tail, a deer near 70px. dl and dw
+ *  are the whole drawing, ink and every frame of its animation included,
+ *  measured in a browser off the pixels drawn (1 cm grid, plus a margin);
+ *  ox centres the drawing on that box. It is this box the van keeps clear
+ *  of, not the animal's real size. hgt lifts the shadow; speed is m/s. */
 const SPECIES = {
-  hedgehog: { len: 0.25, wid: 0.16, hgt: 0.14, r: 0.14, speed: 1.3 },
-  rabbit:   { len: 0.40, wid: 0.18, hgt: 0.22, r: 0.21, speed: 2.0 },
-  pheasant: { len: 0.80, wid: 0.20, hgt: 0.32, r: 0.42, speed: 1.4 },
-  duck:     { len: 0.55, wid: 0.25, hgt: 0.25, r: 0.29, speed: 1.2 },
-  duckling: { len: 0.14, wid: 0.09, hgt: 0.08, r: 0.08, speed: 1.2 },
-  deer:     { len: 1.15, wid: 0.34, hgt: 0.85, r: 0.60, speed: 1.7 },
+  hedgehog: { dl: 1.29, dw: 0.95, ox: -0.03, hgt: 0.28, speed: 1.3 },
+  rabbit:   { dl: 1.33, dw: 0.83, ox: 0.04, hgt: 0.32, speed: 2.0 },
+  pheasant: { dl: 1.84, dw: 0.75, ox: 0.28, hgt: 0.36, speed: 1.4 },
+  duck:     { dl: 1.41, dw: 0.85, ox: -0.03, hgt: 0.3, speed: 1.2 },
+  duckling: { dl: 0.70, dw: 0.49, ox: -0.05, hgt: 0.14, speed: 1.2 },
+  deer:     { dl: 2.3, dw: 0.98, ox: -0.17, hgt: 0.9, speed: 1.7 },
 };
 
 // ------------------------------------------------------------ deterministic
@@ -221,7 +236,9 @@ function partyFor(place, season, seed) {
       }
       return r() < 0.6 ? [one('duck', 'hen'), one('duck', 'drake')] : [one('duck', r() < 0.5 ? 'hen' : 'drake')];
     }
-    case 'wood': return [one('deer')];
+    // A roe buck's antlers are what tell a child it is a deer; he casts them
+    // in late autumn and they are only buds until spring.
+    case 'wood': return [one('deer', season !== 'winter' && r() < 0.6 ? 'buck' : 'doe')];
     case 'houses': case 'park': case 'hedge':
       return season === 'winter' ? [] : [one('hedgehog')];
     default:
@@ -257,6 +274,10 @@ export function create(route, world) {
         const before = route.atDistance(sx - 16).h, after = route.atDistance(sx + 6).h;
         if (Math.abs(wrap(before - p.h)) > 0.02 || Math.abs(wrap(after - p.h)) > 0.02) continue;
         if (!SMALL.has(route.roadClassAt(sx))) continue;
+        // The same road for SETTLED_M before it. Where a road narrows the page
+        // eases the van in at 4 m/s, so for a while it rides over the verge,
+        // where the animal waits nose to the kerb.
+        if (!sameRoadBefore(route, sx)) continue;
         lastS = sx;
         xing.crossings.push(makeCrossing(route, world, site, sx));
       }
@@ -264,6 +285,13 @@ export function create(route, world) {
   }
   if (typeof window !== 'undefined') window.__crossings = xing;   // for a test, as window.__drive
   return xing;
+}
+
+const SETTLED_M = 45;   // the widest change, a dual carriageway's 8.3 m, at 20 m/s
+function sameRoadBefore(route, s) {
+  const cls = route.roadClassAt(s);
+  for (let k = 5; k <= SETTLED_M; k += 5) if (route.roadClassAt(Math.max(0, s - k)) !== cls) return false;
+  return true;
 }
 
 function makeCrossing(route, world, site, s) {
@@ -276,21 +304,29 @@ function makeCrossing(route, world, site, s) {
   // the screen's right edge, and an animal should be seen before it steps out.
   const side = r() < 0.75 ? -1 : 1;
   const party = partyFor(site.place, world.season, site.seed).map((a, k) => ({
-    ...a, k, sp: SPECIES[a.kind], d: 0, alpha: 1,
-    gap: a.kind === 'duckling' ? 0.24 : k === 0 ? 0 : 0.7,
-    phase: r() * 6.28,
+    ...a, k, sp: SPECIES[a.kind], d: 0, alpha: 1, phase: r() * 6.28,
   }));
-  // Followers queue behind the leader, deeper in the verge.
+  // Followers queue nose to tail behind the leader, deeper in the verge;
+  // ducklings huddle a little closer than that.
   let back = 0;
-  for (const a of party) { back += a.gap; a.back = a.k === 0 ? 0 : back; a.d = -a.back; }
+  for (let k = 1; k < party.length; k++) {
+    const a = party[k], b = party[k - 1];
+    back += a.kind === 'duckling' ? (a.sp.dl + b.sp.dl) / 2 - 0.06 : (a.sp.dl + b.sp.dl) / 2 + 0.25;
+    a.back = back;
+  }
+  if (party[0]) party[0].back = 0;
+  for (const a of party) a.d = -a.back;
   const sign = route.atDistance(Math.max(1, s - ZONE_HALF_M - SIGN_BEFORE_M));
   const signLat = -((route.roadClassAt(Math.max(1, s - ZONE_HALF_M - SIGN_BEFORE_M)) === 'track'
     ? 2.5 : 2 * Math.abs(route.laneOffset(0, Math.max(1, s - ZONE_HALF_M - SIGN_BEFORE_M)))) + 0.9);
   return {
-    s, x: p.x, y: p.y, h: p.h, halfW, side, cls, place: site.place, seed: site.seed,
+    s, x: p.x, y: p.y, h: p.h, halfW, side,
+    // The leader waits with its nose just short of the kerb, in plain sight
+    // and in front of the hedge (scenery.js's begin about 2.8 m beyond it).
+    verge: party[0] ? party[0].sp.dl / 2 + 0.15 : 1, cls, place: site.place, seed: site.seed,
     species: party[0]?.kind ?? (['houses', 'park', 'hedge'].includes(site.place) ? 'hedgehog' : null), party,
     sign: { x: sign.x, y: sign.y, h: sign.h, lat: signLat, hog: ['houses', 'park', 'hedge'].includes(site.place) },
-    state: party.length ? 'wait' : 'none', t: 0, script: null,
+    state: party.length ? 'wait' : 'none', t: 0, seen: 0, script: null,
     forced: false, moving: false, praised: false,
     pauses: [0.5 + r() * 0.8, r() < 0.6 ? 0.3 + r() * 0.8 : 0], midFrac: 0.3 + r() * 0.35,
   };
@@ -301,8 +337,9 @@ function makeCrossing(route, world, site, s) {
  *  far verge far enough that the last of a family is off the road too. */
 function buildScript(c) {
   const lead = c.party[0], v = lead.sp.speed;
-  const kerb = VERGE_M - 0.15, mid = VERGE_M + c.midFrac * 2 * c.halfW;
-  const end = 2 * VERGE_M + 2 * c.halfW + 0.6 + c.party[c.party.length - 1].back;
+  const last = c.party[c.party.length - 1];
+  const kerb = 0.35, mid = c.verge + c.midFrac * 2 * c.halfW;
+  const end = c.verge + 2 * c.halfW + last.sp.dl / 2 + 0.6 + last.back;
   const legs = [];
   let d = 0;
   const walk = (to) => { legs.push({ d0: d, d1: to, dur: (to - d) / v }); d = to; };
@@ -319,12 +356,19 @@ function scriptAt(legs, t) {
 }
 
 /** Lateral offset of a party member walking d metres from its start. */
-function latOf(c, a, d) { return c.side * (c.halfW + VERGE_M - d); }
+function latOf(c, a, d) { return c.side * (c.halfW + c.verge - d); }
 
 /** True while any of the party is on the carriageway or about to be. */
 function onRoad(c) {
   const last = c.party[c.party.length - 1];
-  return last.d < 2 * c.halfW + VERGE_M + last.sp.r + 0.15;
+  return last.d < 2 * c.halfW + c.verge + last.sp.dl / 2 + 0.15;
+}
+
+/** What the page's toast says when she stops by herself: words for her,
+ *  not an event id. The only event step() reports. */
+const THANKS = { hedgehog: '🦔', rabbit: '🐇', pheasant: '🐦', duck: '🦆', deer: '🦌' };
+function thanks(c) {
+  return 'Thank you for waiting! ' + (c.party.some(a => a.kind === 'duckling') ? '🦆🐥🐥' : THANKS[c.species]);
 }
 
 /** Advance the animals and report what they mean for the van.
@@ -341,7 +385,9 @@ export function step(xing, dt, van) {
     if (c.state === 'none' || c.state === 'gone') continue;
     const gap = c.s - ZONE_HALF_M - nose;    // room before the closed stretch
     if (c.state === 'wait') {
-      if (c.s - nose <= triggerGap(van.v)) {
+      const ahead = van.view?.ahead;
+      if (ahead == null || c.s - van.s < ahead - c.party[0].sp.dl / 2) c.seen += dt;   // all of it, even turned
+      if (c.s - nose <= triggerGap(van.v) && c.seen >= SEEN_S) {
         if (gap >= van.v * van.v / (2 * COMMIT_DECEL) + 0.5) {
           c.state = 'go'; c.blocking = true; c.moving = van.v > 0.5;
         } else c.state = 'late';
@@ -364,7 +410,7 @@ export function step(xing, dt, van) {
       if (van.v > 0.5) c.moving = true;
       if (van.v < 0.25 && c.moving && !c.forced && !c.praised) {
         c.praised = true;
-        events.push('stopped-for-animal');
+        events.push(thanks(c));
       }
     }
     if (c.t > total) {
@@ -375,25 +421,53 @@ export function step(xing, dt, van) {
   return { speedCap, events };
 }
 
-/** Every animal's body in world metres, for the check and for traffic.js if
- *  it wants to give way too: {x, y, r, kind, s, lat, crossing}. */
+/** Every animal's drawn body in world metres, for the check and for
+ *  traffic.js if it wants to give way too: a box len along the animal's
+ *  heading h and wid across it, centred on (x, y), as drawn this frame.
+ *  r is half the width, for anything that wants a circle.
+ *  {x, y, h, len, wid, r, kind, s, lat, crossing} */
 export function animals(xing) {
   const out = [];
   for (const c of xing.crossings) {
     if (c.state === 'none' || c.state === 'gone') continue;
-    for (const a of c.party) out.push({ ...bodyAt(c, a, xing.t), r: a.sp.r, kind: a.kind, crossing: c });
+    const walking = isWalking(c);
+    for (const a of c.party) {
+      const p = pose(c, a, xing.t, walking);
+      out.push({ x: p.x, y: p.y, h: p.h, len: a.sp.dl, wid: a.sp.dw, r: a.sp.dw / 2,
+        kind: a.kind, s: p.s, lat: p.lat, crossing: c });
+    }
   }
   return out;
 }
 
-/** Where an animal is, with a little wobble along the road: they do not walk
- *  ruler-straight. Bounded by 0.12 m, inside ZONE_HALF_M. */
-function bodyAt(c, a, t) {
+/** Where an animal is and which way it faces. A wobble along the road, as
+ *  they do not walk ruler-straight (bounded by 0.12 m, inside ZONE_HALF_M);
+ *  a waddle or a scurry while walking; and a look up and down the road
+ *  while it waits. The box's centre is the drawing's, so what the check
+ *  measures is what she sees. */
+/** Strides a second (radians) for the animals whose body moves as they go;
+ *  a duck's waddle is all in its turn. A stride is FRAMES pictures. */
+const GAIT = { hedgehog: 22, rabbit: 8, pheasant: 11, deer: 7 };
+const FRAMES = 8;
+const TAU = Math.PI * 2;
+
+function pose(c, a, t, walking) {
   const lat = latOf(c, a, a.d);
   const ds = 0.12 * Math.sin(a.d * 1.7 + a.phase);
   const hx = Math.cos(c.h), hy = Math.sin(c.h);
-  const nx = Math.cos(c.h + Math.PI / 2), ny = Math.sin(c.h + Math.PI / 2);
-  return { x: c.x + hx * ds + nx * lat, y: c.y + hy * ds + ny * lat, s: c.s + ds, lat };
+  let yaw = 0, frame = 0;
+  if (!walking) yaw = (a.kind === 'duckling' ? 0.12 : 0.3) * Math.sin(t * 1.4 + a.phase);
+  else {
+    if (a.kind === 'duck' || a.kind === 'duckling') yaw = 0.12 * Math.sin(t * 9 + a.phase);
+    else if (a.kind === 'hedgehog') yaw = 0.05 * Math.sin(t * 22 + a.phase);
+    const f = GAIT[a.kind];
+    if (f) frame = ((Math.round((t * f + a.phase) / TAU * FRAMES) % FRAMES) + FRAMES) % FRAMES;
+  }
+  return {
+    x: c.x + hx * ds - hy * lat, y: c.y + hy * ds + hx * lat, s: c.s + ds, lat,
+    h: c.h + (c.side < 0 ? Math.PI / 2 : -Math.PI / 2) + yaw, frame,
+    lift: a.kind === 'rabbit' ? Math.max(0, Math.sin(frame / FRAMES * TAU)) : 0,
+  };
 }
 
 /** Which closed stretches the van must stay out of, for anything else that
@@ -405,6 +479,13 @@ export function closed(xing) {
 
 function wrap(a) { return Math.atan2(Math.sin(a), Math.cos(a)); }
 
+function isWalking(c) {
+  if (c.state !== 'go' || !c.script) return false;
+  let t = c.t;
+  for (const l of c.script) { if (t <= l.dur) return l.d1 !== l.d0; t -= l.dur; }
+  return false;
+}
+
 // ------------------------------------------------------------------ drawing
 
 let HOG_SIGN = null;
@@ -415,142 +496,266 @@ if (typeof Image !== 'undefined') {
 
 const SHADOW = 'rgba(40,46,38,.22)';
 
+/** The contour every animal shares with the hedges: a dark warm ink, stroked
+ *  under the fill at the hedges' 0.36 m so 0.18 m of it shows. Ducklings get
+ *  a finer line, or they would be more ink than duckling. */
+const INK = '#33241a';
+const INK_W = 0.36, INK_W_SMALL = 0.2;
+
+/** Each animal is described once and painted from that twice: the parts as
+ *  one silhouette, stroked and filled in ink, so the contour runs round the
+ *  whole animal and not between its parts, as on a hedge; then the parts in
+ *  colour, with the details only this second time. */
+let pctx = null, inking = false;
+const P = {
+  get paint() { return !inking; },
+  e(x, y, rx, ry, rot, fill) {
+    if (inking) { pctx.moveTo(x + rx * Math.cos(rot), y + rx * Math.sin(rot)); pctx.ellipse(x, y, rx, ry, rot, 0, TAU); return; }
+    pctx.beginPath(); pctx.ellipse(x, y, rx, ry, rot, 0, TAU);
+    pctx.fillStyle = fill; pctx.fill();
+  },
+  /** A detail: colour only, no contour. */
+  dab(x, y, rx, ry, rot, fill) { if (!inking) P.e(x, y, rx, ry, rot, fill); },
+  /** A closed outline from a flat [x0, y0, x1, y1, ...] list, scaled and moved. */
+  poly(pts, fill, ox = 0, oy = 0, sx = 1, sy = 1) {
+    if (!inking) pctx.beginPath();
+    pctx.moveTo(ox + pts[0] * sx, oy + pts[1] * sy);
+    for (let i = 2; i < pts.length; i += 2) pctx.lineTo(ox + pts[i] * sx, oy + pts[i + 1] * sy);
+    pctx.closePath();
+    if (!inking) { pctx.fillStyle = fill; pctx.fill(); }
+  },
+};
+
 /** Called with ctx in world metres, rotated by the camera, after traffic and
  *  before the van. Shadows along view.sun, as scenery.js and traffic.js. */
 export function draw(ctx, xing, view) {
-  const lw = 1.1 / view.ppm;
   const r2 = (view.radius + 4) ** 2;
+  const lw = 1.1 / view.ppm;
   for (const c of xing.crossings) {
     const sg = c.sign;
     const sx = sg.x + Math.cos(sg.h + Math.PI / 2) * sg.lat, sy = sg.y + Math.sin(sg.h + Math.PI / 2) * sg.lat;
     if ((sx - view.cx) ** 2 + (sy - view.cy) ** 2 < r2) drawSign(ctx, sg, sx, sy, c.species, view, lw);
     if (c.state === 'none' || c.state === 'gone') continue;
     if ((c.x - view.cx) ** 2 + (c.y - view.cy) ** 2 > r2) continue;
-    const dir = c.h + (c.side < 0 ? Math.PI / 2 : -Math.PI / 2);   // facing across
+    const walking = isWalking(c);
     for (let k = c.party.length - 1; k >= 0; k--) {
       const a = c.party[k];
       if (a.alpha <= 0) continue;
-      const b = bodyAt(c, a, xing.t);
-      const walking = c.state === 'go' && c.t > 0 && isWalking(c);
-      ctx.save();
-      ctx.globalAlpha = a.alpha;
+      const p = pose(c, a, xing.t, walking), sp = a.sp, im = spriteOf(a, p.frame);
+      if (!im) continue;
       // Shadow first, in world space along the sun, so it stays put as the
-      // camera turns.
+      // camera turns; a hopping rabbit's leaves it behind. A plain oval: a
+      // second picture per animal measured as dear as the first.
+      const hgt = sp.hgt + 0.3 * p.lift;
       ctx.save();
-      ctx.translate(b.x + view.sun.x * a.sp.hgt, b.y + view.sun.y * a.sp.hgt);
-      ctx.rotate(dir);
+      ctx.translate(p.x + view.sun.x * hgt, p.y + view.sun.y * hgt);
+      ctx.rotate(p.h);
+      ctx.globalAlpha = a.alpha;
       ctx.fillStyle = SHADOW;
-      shadowShape(ctx, a);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, sp.dl * 0.4, sp.dw * 0.36, 0, 0, TAU);
+      ctx.fill();
       ctx.restore();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(dir);
-      const bob = walking ? Math.sin(xing.t * 14 + a.phase) : 0;
-      DRAW[a.kind](ctx, a, lw, bob);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.h);
+      ctx.globalAlpha = a.alpha;
+      ctx.drawImage(im.body, -im.w / 2, -im.h / 2, im.w, im.h);
       ctx.restore();
     }
   }
 }
 
-function isWalking(c) {
-  let t = c.t;
-  for (const l of c.script) { if (t <= l.dur) return l.d1 !== l.d0; t -= l.dur; }
-  return false;
+/** Each animal is painted once per frame of its stride into a small canvas
+ *  and drawn from there: a dozen ellipses and a wide stroke per animal per
+ *  frame cost a phone about a millisecond, a picture almost nothing. Baked
+ *  finer than the closest zoom at a pixel ratio of 2 (22 x 1.6 x 2 px/m),
+ *  so it is only ever drawn smaller. */
+const SPRITE_PPM = 80;
+const sprites = new Map();
+function spriteOf(a, frame) {
+  const key = a.kind + a.look + frame;
+  let im = sprites.get(key);
+  if (im !== undefined) return im;
+  const sp = a.sp, shape = DRAW[a.kind], g = Math.sin(frame / FRAMES * TAU);
+  const cw = Math.ceil(sp.dl * SPRITE_PPM) + 4, ch = Math.ceil(sp.dw * SPRITE_PPM) + 4;
+  const make = () => {
+    // A page canvas, not an OffscreenCanvas: drawing one of those onto the
+    // page's canvas measured slower than painting the animal afresh.
+    if (typeof document === 'undefined') return null;
+    const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch; return cv;
+  };
+  const body = make();
+  if (!body) { sprites.set(key, null); return null; }
+  pctx = body.getContext('2d');
+  pctx.translate(cw / 2, ch / 2);
+  pctx.scale(SPRITE_PPM, SPRITE_PPM);
+  pctx.translate(sp.ox, 0);
+  inking = true;
+  pctx.beginPath(); shape(a, g);
+  pctx.lineJoin = 'round';
+  pctx.lineWidth = a.kind === 'duckling' ? INK_W_SMALL : INK_W;
+  pctx.strokeStyle = INK; pctx.stroke();
+  pctx.fillStyle = INK; pctx.fill();
+  inking = false;
+  shape(a, g);
+  pctx = null;
+  im = { body, w: cw / SPRITE_PPM, h: ch / SPRITE_PPM };
+  sprites.set(key, im);
+  return im;
 }
 
-function shadowShape(ctx, a) {
-  const { len, wid } = a.sp;
-  ctx.beginPath();
-  if (a.kind === 'pheasant') {
-    ctx.ellipse(0.02, 0, 0.17, wid / 2, 0, 0, Math.PI * 2);
-    ctx.moveTo(-0.1, 0.03); ctx.lineTo(-0.55, 0.01); ctx.lineTo(-0.55, -0.01); ctx.lineTo(-0.1, -0.03);
-  } else ctx.ellipse(0, 0, len / 2, wid / 2, 0, 0, Math.PI * 2);
-  ctx.fill();
+/** The hedgehog's spiny outline, a unit ellipse with every other point
+ *  pulled in. */
+const SPINES = [];
+for (let k = 0; k < 30; k++) {
+  const t = (k / 30) * TAU, rr = k % 2 ? 0.88 : 1;
+  SPINES.push(Math.cos(t) * rr, Math.sin(t) * rr);
 }
+/** Pale spine tips in rows across its back. */
+const HOG_FLECKS = [];
+for (let i = 0; i < 4; i++) for (let j = 0; j < 6; j++) {
+  const x = -0.38 + j * 0.1 + (i % 2) * 0.05, y = -0.165 + i * 0.11;
+  if (((x + 0.06) / 0.3) ** 2 + (y / 0.215) ** 2 < 1) HOG_FLECKS.push(x, y);
+}
+/** A pheasant's tail, tapering to a point behind it. */
+const TAIL = [-0.14, 0.08, -0.96, 0.032, -1.0, 0, -0.96, -0.032, -0.14, -0.08];
 
-/** Flat fill, darker ink outline, a little wash: the game's register. */
-function blob(ctx, x, y, rx, ry, fill, ink, lw, rot = 0) {
-  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
+/** Top-down bodies, nose along +x, in metres at the drawn scale. g is where
+ *  it is in its stride, -1 to 1, 0 standing. */
+const DRAW = {
+  hedgehog(a, g) {
+    const w = 0.05 * g;                                             // the scurry
+    P.e(0.2 + w, 0.22, 0.065, 0.045, 0, '#c99d73');                // feet under the skirt
+    P.e(0.2 - w, -0.22, 0.065, 0.045, 0, '#c99d73');
+    P.e(-0.2 - w, 0.22, 0.065, 0.045, 0, '#c99d73');
+    P.e(-0.2 + w, -0.22, 0.065, 0.045, 0, '#c99d73');
+    P.poly(SPINES, '#6b4a2e', -0.05, 0, 0.37, 0.27);
+    if (P.paint) {
+      P.dab(-0.02, 0.04, 0.24, 0.13, 0, '#5a3d25');
+      for (let i = 0; i < HOG_FLECKS.length; i += 2) P.dab(HOG_FLECKS[i], HOG_FLECKS[i + 1], 0.038, 0.015, 0, '#ead3a2');
+    }
+    P.e(0.29, 0, 0.15, 0.115, 0, '#e4c696');                        // the pale face
+    if (P.paint) {
+      P.dab(0.33, 0.062, 0.024, 0.024, 0, '#1d140e');
+      P.dab(0.33, -0.062, 0.024, 0.024, 0, '#1d140e');
+    }
+    P.e(0.435, 0, 0.032, 0.032, 0, '#1d140e');                      // nose
+  },
+  rabbit(a, g) {
+    const l = Math.max(0, g);                                       // 0 crouched, 1 mid-hop
+    P.e(-0.25 - 0.1 * l, 0.15, 0.16, 0.06, -0.1, '#7f6345');        // hind feet, kicking out
+    P.e(-0.25 - 0.1 * l, -0.15, 0.16, 0.06, 0.1, '#7f6345');
+    P.e(-0.06, 0, 0.3 + 0.03 * l, 0.2, 0, '#9c7c58');
+    if (P.paint) P.dab(-0.1, -0.05, 0.18, 0.08, 0, '#bc9b73');      // sunlit back
+    P.e(-0.37 - 0.04 * l, 0, 0.075, 0.075, 0, '#f6f1e6');           // white scut
+    P.e(0.27, 0, 0.15, 0.13, 0, '#a5845f');
+    // Long ears, laid back and a little apart: they are what says rabbit.
+    P.e(0.08, 0.1, 0.21, 0.058, -0.5, '#8f7050');
+    P.e(0.08, -0.1, 0.21, 0.058, 0.5, '#8f7050');
+    if (P.paint) {
+      P.dab(0.1, 0.09, 0.14, 0.024, -0.5, '#d6a597');
+      P.dab(0.1, -0.09, 0.14, 0.024, 0.5, '#d6a597');
+      P.dab(-0.08, 0.2, 0.04, 0.035, -0.5, '#3a2b1f');              // black ear tips
+      P.dab(-0.08, -0.2, 0.04, 0.035, 0.5, '#3a2b1f');
+      P.dab(0.31, 0.092, 0.022, 0.022, 0, '#1d140e');
+      P.dab(0.31, -0.092, 0.022, 0.022, 0, '#1d140e');
+      P.dab(0.405, 0, 0.026, 0.022, 0, '#d48c88');
+    }
+  },
+  pheasant(a, g) {
+    const cock = a.look === 'cock';
+    const bob = 0.035 * g;                                          // the head goes as it walks
+    P.poly(TAIL, cock ? '#b07a3e' : '#9b8462');
+    if (P.paint) for (let x = -0.3; x > -0.92; x -= 0.12) P.dab(x, 0, 0.013, 0.07 + x * 0.04, 0, '#4d3218');
+    P.e(0, 0, 0.26, 0.17, 0, cock ? '#b9652a' : '#ab8e66');
+    if (P.paint) {
+      P.dab(-0.06, 0, 0.17, 0.11, 0, cock ? '#d08a48' : '#c4ab84');   // folded wings
+      for (let i = 0; i < 6; i++) P.dab(-0.16 + (i >> 1) * 0.1, (i & 1 ? 1 : -1) * 0.06, 0.026, 0.015, 0, cock ? '#5e3417' : '#5e4a30');
+      if (cock) P.dab(0.16, 0, 0.024, 0.08, 0, '#f4efe4');           // white neck ring
+    }
+    P.e(0.25 + bob, 0, 0.1, 0.085, 0, cock ? '#2f5d4f' : '#a38763');
+    if (P.paint && cock) {
+      P.dab(0.27 + bob, 0.048, 0.045, 0.025, 0, '#cf3a2c');          // red wattles
+      P.dab(0.27 + bob, -0.048, 0.045, 0.025, 0, '#cf3a2c');
+    }
+    if (P.paint) {
+      P.dab(0.29 + bob, 0.05, 0.016, 0.016, 0, '#1d140e');
+      P.dab(0.29 + bob, -0.05, 0.016, 0.016, 0, '#1d140e');
+    }
+    P.e(0.36 + bob, 0, 0.045, 0.024, 0, '#e2cf8a');                 // beak
+  },
+  duck(a) {
+    const drake = a.look === 'drake';
+    P.e(-0.4, 0, 0.07, 0.06, 0, drake ? '#2b2b2b' : '#7a5a36');      // tail
+    P.e(-0.05, 0, 0.36, 0.22, 0, drake ? '#d9d3c6' : '#a68056');
+    if (P.paint) {
+      P.dab(-0.12, 0.085, 0.24, 0.1, -0.05, drake ? '#a39a88' : '#80603b');   // folded wings
+      P.dab(-0.12, -0.085, 0.24, 0.1, 0.05, drake ? '#a39a88' : '#80603b');
+      P.dab(-0.03, 0.16, 0.07, 0.028, 0, '#3d63b5');                 // the blue flash
+      P.dab(-0.03, -0.16, 0.07, 0.028, 0, '#3d63b5');
+      if (drake) {
+        P.dab(0.2, 0, 0.075, 0.16, 0, '#7b4028');                    // chestnut breast
+        P.dab(0.23, 0, 0.02, 0.1, 0, '#f4f1ea');                     // white collar
+      } else for (let i = 0; i < 5; i++) P.dab(-0.3 + i * 0.1, (i & 1 ? 0.04 : -0.04), 0.03, 0.016, 0, '#5e4127');
+    }
+    P.e(0.31, 0, 0.13, 0.115, 0, drake ? '#2f7448' : '#9d7752');
+    if (P.paint) {
+      P.dab(0.33, 0.07, 0.02, 0.02, 0, '#1d140e');
+      P.dab(0.33, -0.07, 0.02, 0.02, 0, '#1d140e');
+    }
+    P.e(0.45, 0, 0.085, 0.05, 0, drake ? '#e6c544' : '#df8a3a');     // bill
+  },
+  duckling(a) {
+    P.e(-0.02, 0, 0.16, 0.12, 0, '#e6c450');
+    if (P.paint) P.dab(-0.06, 0, 0.085, 0.06, 0, '#8a6630');          // the brown back
+    P.e(0.15, 0, 0.085, 0.078, 0, '#ecce58');
+    if (P.paint) {
+      P.dab(0.17, 0.045, 0.015, 0.015, 0, '#2a1e12');
+      P.dab(0.17, -0.045, 0.015, 0.015, 0, '#2a1e12');
+    }
+    P.e(0.24, 0, 0.035, 0.024, 0, '#5a4526');
+  },
+  deer(a, g) {
+    const nod = 0.03 * g, w = 0.07 * g;                             // legs, under the flanks
+    P.e(0.28 + w, 0.22, 0.075, 0.065, 0, '#7d4f2b');
+    P.e(0.28 - w, -0.22, 0.075, 0.065, 0, '#7d4f2b');
+    P.e(-0.55 - w, 0.2, 0.075, 0.065, 0, '#7d4f2b');
+    P.e(-0.55 + w, -0.2, 0.075, 0.065, 0, '#7d4f2b');
+    P.e(-0.18, 0, 0.6, 0.25, 0, '#a5693a');
+    if (P.paint) {
+      P.dab(-0.16, -0.02, 0.42, 0.1, 0, '#c58d5c');                 // the sunlit back
+      P.dab(-0.7, 0, 0.075, 0.13, 0, '#f3ebdd');                     // white rump
+    }
+    P.e(0.46, 0, 0.24, 0.1, 0, '#a5693a');                           // neck
+    if (a.look === 'buck') {                                         // short forked antlers
+      P.e(0.66 + nod, 0.12, 0.13, 0.034, -0.65, '#eadcbc');
+      P.e(0.66 + nod, -0.12, 0.13, 0.034, 0.65, '#eadcbc');
+      P.e(0.62 + nod, 0.2, 0.06, 0.03, 0.4, '#eadcbc');
+      P.e(0.62 + nod, -0.2, 0.06, 0.03, -0.4, '#eadcbc');
+    }
+    P.e(0.74 + nod, 0.17, 0.13, 0.06, -0.8, '#94592f');              // big ears
+    P.e(0.74 + nod, -0.17, 0.13, 0.06, 0.8, '#94592f');
+    if (P.paint) {
+      P.dab(0.74 + nod, 0.17, 0.085, 0.03, -0.8, '#e2b99a');
+      P.dab(0.74 + nod, -0.17, 0.085, 0.03, 0.8, '#e2b99a');
+    }
+    P.e(0.82 + nod, 0, 0.19, 0.13, 0, '#9c6034');
+    P.e(0.98 + nod, 0, 0.09, 0.075, 0, '#9c6034');                   // muzzle
+    if (P.paint) {
+      P.dab(0.82 + nod, 0.08, 0.028, 0.028, 0, '#1d140e');
+      P.dab(0.82 + nod, -0.08, 0.028, 0.028, 0, '#1d140e');
+      P.dab(0.97 + nod, 0, 0.065, 0.05, 0, '#e9d9c4');               // pale muzzle
+    }
+    P.e(1.05 + nod, 0, 0.04, 0.045, 0, '#2a1c12');                   // nose
+  },
+};
+
+function blob(ctx, x, y, rx, ry, fill, ink, lw) {
+  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, TAU);
   ctx.fillStyle = fill; ctx.fill();
   if (ink) { ctx.strokeStyle = ink; ctx.lineWidth = lw; ctx.stroke(); }
 }
-function wash(ctx, x, y, rx, ry, colour, alpha) {
-  ctx.save(); ctx.globalAlpha *= alpha;
-  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-  ctx.fillStyle = colour; ctx.fill(); ctx.restore();
-}
-
-/** Top-down bodies, nose along +x, in metres. */
-const DRAW = {
-  hedgehog(ctx, a, lw) {
-    // A spiky oval: the spines are the outline.
-    ctx.beginPath();
-    const n = 22;
-    for (let k = 0; k <= n; k++) {
-      const t = (k / n) * Math.PI * 2, rr = k % 2 ? 0.86 : 1;
-      const x = Math.cos(t) * 0.115 * rr - 0.01, y = Math.sin(t) * 0.08 * rr;
-      k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-    }
-    ctx.fillStyle = '#7b5b3d'; ctx.fill();
-    ctx.strokeStyle = '#3b2a1b'; ctx.lineWidth = lw; ctx.stroke();
-    wash(ctx, -0.03, -0.015, 0.06, 0.04, '#b08c62', 0.55);
-    blob(ctx, 0.095, 0, 0.042, 0.034, '#d8c29c', '#5a4430', lw);   // face
-    blob(ctx, 0.135, 0, 0.011, 0.011, '#2a1d14', null, lw);         // nose
-  },
-  rabbit(ctx, a, lw, bob) {
-    const s = 1 + 0.06 * Math.max(0, bob);                           // the hop
-    blob(ctx, -0.18, 0, 0.035, 0.035, '#f4efe4', '#6d5a44', lw);    // scut
-    blob(ctx, -0.03, 0, 0.16 * s, 0.09, '#9a8263', '#4d3e2c', lw);
-    wash(ctx, -0.06, -0.02, 0.09, 0.045, '#c2ab88', 0.5);
-    blob(ctx, 0.12, 0, 0.065, 0.055, '#9a8263', '#4d3e2c', lw);     // head
-    blob(ctx, 0.04, -0.03, 0.07, 0.018, '#8a7356', '#4d3e2c', lw, -0.25); // ears laid back
-    blob(ctx, 0.04, 0.03, 0.07, 0.018, '#8a7356', '#4d3e2c', lw, 0.25);
-    blob(ctx, 0.175, 0, 0.012, 0.012, '#3a2b20', null, lw);
-  },
-  pheasant(ctx, a, lw) {
-    const cock = a.look === 'cock';
-    // Long barred tail behind.
-    ctx.beginPath();
-    ctx.moveTo(-0.1, 0.035); ctx.lineTo(-0.56, 0.012); ctx.lineTo(-0.56, -0.012); ctx.lineTo(-0.1, -0.035); ctx.closePath();
-    ctx.fillStyle = cock ? '#9a6a36' : '#8f7a5a'; ctx.fill();
-    ctx.strokeStyle = '#4a321a'; ctx.lineWidth = lw; ctx.stroke();
-    ctx.strokeStyle = 'rgba(60,40,20,.6)';
-    for (let x = -0.18; x > -0.52; x -= 0.07) { ctx.beginPath(); ctx.moveTo(x, -0.025); ctx.lineTo(x, 0.025); ctx.stroke(); }
-    blob(ctx, 0.02, 0, 0.16, 0.095, cock ? '#b8662c' : '#a48a64', '#4a321a', lw);
-    wash(ctx, -0.02, -0.03, 0.09, 0.04, cock ? '#d99a5a' : '#c7ae86', 0.5);
-    if (cock) {
-      blob(ctx, 0.155, 0, 0.022, 0.05, '#f2ede2', null, lw);         // white neck ring
-      blob(ctx, 0.19, 0, 0.045, 0.04, '#2e4d40', '#1b2d25', lw);     // green head
-      blob(ctx, 0.2, -0.022, 0.018, 0.012, '#c8322b', null, lw);     // red wattles
-      blob(ctx, 0.2, 0.022, 0.018, 0.012, '#c8322b', null, lw);
-    } else blob(ctx, 0.18, 0, 0.042, 0.037, '#a48a64', '#4a321a', lw);
-    blob(ctx, 0.235, 0, 0.014, 0.01, '#d9c27a', null, lw);           // beak
-  },
-  duck(ctx, a, lw) {
-    const drake = a.look === 'drake';
-    blob(ctx, 0, 0, 0.22, 0.115, drake ? '#cfc8b8' : '#9b7b55', drake ? '#5d5446' : '#4d3a24', lw);
-    wash(ctx, -0.05, 0, 0.12, 0.07, drake ? '#8b7a64' : '#6f5435', 0.45);   // folded wings
-    if (drake) blob(ctx, 0.14, 0, 0.035, 0.07, '#7a4a35', null, lw);        // chestnut breast
-    blob(ctx, 0.2, 0, 0.055, 0.05, drake ? '#2f6a42' : '#8c6e4c', drake ? '#1d3d28' : '#4d3a24', lw);
-    blob(ctx, 0.27, 0, 0.035, 0.02, drake ? '#e0c24a' : '#d48a3a', '#6a5020', lw);  // bill
-  },
-  duckling(ctx, a, lw) {
-    blob(ctx, 0, 0, 0.06, 0.042, '#d9b84a', '#7a6324', lw);
-    wash(ctx, -0.01, 0, 0.035, 0.022, '#7a6334', 0.45);
-    blob(ctx, 0.05, 0, 0.026, 0.024, '#6b5326', '#4a3a18', lw);
-    blob(ctx, 0.078, 0, 0.012, 0.008, '#3a2e18', null, lw);
-  },
-  deer(ctx, a, lw, bob) {
-    const nod = 0.015 * bob;
-    blob(ctx, -0.03, 0, 0.42, 0.165, '#9c6b40', '#4a3018', lw);
-    wash(ctx, 0, 0, 0.3, 0.08, '#c19066', 0.45);                     // the sunlit back
-    blob(ctx, -0.42, 0, 0.07, 0.1, '#f1e8d8', '#7a6a55', lw);        // white rump
-    blob(ctx, 0.43 + nod, 0, 0.07, 0.06, '#9c6b40', '#4a3018', lw);   // neck
-    blob(ctx, 0.52 + nod, 0, 0.1, 0.06, '#94643b', '#4a3018', lw);    // head
-    blob(ctx, 0.47 + nod, -0.065, 0.04, 0.022, '#8a5a34', '#4a3018', lw, 0.6);  // ears
-    blob(ctx, 0.47 + nod, 0.065, 0.04, 0.022, '#8a5a34', '#4a3018', lw, -0.6);
-    blob(ctx, 0.615 + nod, 0, 0.016, 0.02, '#2a1c12', null, lw);      // nose
-  },
-};
 
 /** A warning sign on its post at the left verge, seen from above: the post's
  *  shadow along the sun, and the plate turned to face the van so it reads.

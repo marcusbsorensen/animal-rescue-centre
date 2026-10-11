@@ -9,7 +9,9 @@
 // map so the species follow its fields, woods and water, in every season.
 // Then 12 seeds on real routes of the Birchie graph. The van is stepped as
 // drive-spike.html's step() does it, self-stop included, and the contact test
-// is in world space: the van's rectangle against every animal's body.
+// is in world space: the van's rectangle against every animal's body as
+// drawn (crossings.js draws them at storybook size, and that box is what a
+// child sees the van stop short of).
 //
 // Asserts: no contact ever; crossings only on residential, unclassified and
 // track; no hedgehog in winter; ducklings only in spring. Prints the counts.
@@ -105,7 +107,7 @@ function newCar() { return { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v
 function stepCar(car, route, xing, dt, input, stats) {
   const x = crossings.step(xing, dt, car);
   const cap = x.speedCap;
-  for (const ev of x.events) if (ev === 'stopped-for-animal') stats.praised++;
+  stats.praised += x.events.length;   // its only event is the thanks for stopping
   const toGo = route.length - car.s;
   const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
   const target = Math.min(input.throttle ? GEARS[car.gear] : 0, arriveCap);
@@ -122,6 +124,11 @@ function stepCar(car, route, xing, dt, input, stats) {
   if (car.base == null) car.base = off0;
   car.base += Math.max(-4 * dt, Math.min(4 * dt, off0 - car.base));
   car.lane = car.base + car.laneT * (off1 - off0);
+  // What the page's camera shows ahead of the van, upright on a 390x844
+  // phone at the zoom for this speed, less the page's easing: crossings.js
+  // waits for an animal to have been on screen before it steps out.
+  const zoom = 1.35 + (0.66 - 1.35) * Math.min(1, car.v / GEARS[3]);
+  car.view = { ahead: 408 / (22 * zoom) };
   const pos = route.atDistance(car.s);
   car.x = pos.x + Math.cos(pos.h + Math.PI / 2) * car.lane;
   car.y = pos.y + Math.sin(pos.h + Math.PI / 2) * car.lane;
@@ -129,12 +136,39 @@ function stepCar(car, route, xing, dt, input, stats) {
   return toGo <= STOP_SHORT_M + 0.5 && car.v < 0.2;
 }
 
-/** Clearance from the van's rectangle to a circle, metres; <= 0 is contact. */
+/** The four corners of a box len x wid centred on (x, y), turned to h. */
+function corners(x, y, h, len, wid) {
+  const c = Math.cos(h), s = Math.sin(h), l = len / 2, w = wid / 2;
+  return [[l, w], [-l, w], [-l, -w], [l, -w]].map(([u, v]) => [x + u * c - v * s, y + u * s + v * c]);
+}
+function segDist([px, py], [ax, ay], [bx, by]) {
+  const dx = bx - ax, dy = by - ay, t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(px - ax - t * dx, py - ay - t * dy);
+}
+/** Do two convex quads overlap? Separating axes: their edge normals. */
+function overlap(A, B) {
+  for (const Q of [A, B]) for (let i = 0; i < 4; i++) {
+    const [ax, ay] = Q[i], [bx, by] = Q[(i + 1) % 4], nx = ay - by, ny = bx - ax;
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (const [x, y] of A) { const d = x * nx + y * ny; a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+    for (const [x, y] of B) { const d = x * nx + y * ny; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+    if (a1 < b0 || b1 < a0) return false;
+  }
+  return true;
+}
+/** Clearance from the van's rectangle to the animal's drawn box, metres, as
+ *  crossings.animals() gives it this frame (turn, waddle and all); <= 0 is
+ *  contact. Exact for two convex quads apart: the nearest pair is a corner of
+ *  one against an edge of the other. */
 function clearance(car, a) {
-  const dx = a.x - car.x, dy = a.y - car.y, c = Math.cos(car.h), s = Math.sin(car.h);
-  const along = dx * c + dy * s, across = -dx * s + dy * c;
-  const ox = Math.max(0, Math.abs(along) - car.length / 2), oy = Math.max(0, Math.abs(across) - car.width / 2);
-  return Math.hypot(ox, oy) - a.r;
+  // Far apart, the bounding circles' gap is near enough and much cheaper.
+  const far = Math.hypot(a.x - car.x, a.y - car.y) - Math.hypot(car.length, car.width) / 2 - Math.hypot(a.len, a.wid) / 2;
+  if (far > 3) return far;
+  const V = corners(car.x, car.y, car.h, car.length, car.width), A = corners(a.x, a.y, a.h, a.len, a.wid);
+  if (overlap(V, A)) return 0;
+  let best = Infinity;
+  for (const [P, Q] of [[V, A], [A, V]]) for (const p of P) for (let i = 0; i < 4; i++) best = Math.min(best, segDist(p, Q[i], Q[(i + 1) % 4]));
+  return best;
 }
 
 // --------------------------------------------------------------- the driving
@@ -142,7 +176,7 @@ function clearance(car, a) {
 const totals = {
   seeds: 0, minutes: 0, routes: 0, crossings: 0, crossed: 0, late: 0, sleeping: 0,
   praised: 0, selfStops: 0, emergencyFrames: 0, families: 0, contacts: 0, minClear: Infinity,
-  offSmall: 0, winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {},
+  offSmall: 0, winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {}, bodies: {},
 };
 const fail = [];
 
@@ -212,6 +246,8 @@ function drive(seed, newRouteFn, season, label) {
     const arrived = stepCar(car, route, xing, dt, { throttle: held, handbrake: hb }, stats);
 
     for (const a of crossings.animals(xing)) {
+      if (!(a.len > 0 && a.wid > 0)) { totals.contacts++; fail.push(`${label}: ${a.kind} has no drawn body`); continue; }
+      totals.bodies[a.kind] ??= `${a.len}x${a.wid} m`;
       const cl = clearance(car, a);
       if (a.crossing.state === 'go' && cl < totals.minClear) totals.minClear = cl;
       if (cl <= 0) { totals.contacts++; fail.push(`${label}: contact with ${a.kind} at t=${t.toFixed(1)} s=${car.s.toFixed(1)} v=${car.v.toFixed(2)}`); }
@@ -292,7 +328,8 @@ console.log(`mother ducks leading ducklings (spring) ${totals.families}`);
 console.log(`by place ${JSON.stringify(totals.byPlace)}`);
 console.log(`crossed by season ${JSON.stringify(totals.bySeason)}`);
 console.log(`she stopped by herself ${totals.praised}, the van stopped itself ${totals.selfStops} (${totals.emergencyFrames} hard-braking frames), crossed behind the van ${totals.late}`);
-console.log(`contacts ${totals.contacts}, closest the van came to a crossing animal ${totals.minClear.toFixed(2)} m`);
+console.log(`contacts ${totals.contacts}, closest the van came to a crossing animal's drawn body ${totals.minClear.toFixed(2)} m`);
+console.log(`drawn bodies measured: ${Object.entries(totals.bodies).map(([k, v]) => `${k} ${v}`).join(', ')}`);
 console.log(`crossings off the small roads ${totals.offSmall}, hedgehogs in winter ${totals.winterHogs}, ducklings outside spring ${totals.ducklingsOutOfSpring}`);
 if (fail.length || !totals.crossed || !totals.selfStops || !totals.praised || !totals.families) {
   console.error('FAIL\n' + fail.slice(0, 20).join('\n'));
