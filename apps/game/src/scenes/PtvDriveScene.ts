@@ -98,8 +98,9 @@ const TRAFFIC_SPRITE_KEYS: Record<TrafficKind, string[]> = {
  *  width lever, which drew a lorry half again too fat because the art of the
  *  day was too short and the scalar was being asked to fix it. The art fixed
  *  it instead. She is 1.31 — a 2.4m lorry against Henry's 1.8m van — and the
- *  sprite's own 2.81:1 aspect makes her about 1.8 times his length (2.03:1
- *  since he was shortened) without being asked.
+ *  sprite's own aspect, 2.505:1 front and 2.516:1 rear since her front was
+ *  redrawn (it was 2.81:1), makes her about 1.6 times his length (his is
+ *  2.03:1 since he was shortened) without being asked.
  *
  *  Measured off the installed files, as each sprite's opaque width over
  *  Henry's 561px: Trikey 0.43 (a trike is narrower than her file, which

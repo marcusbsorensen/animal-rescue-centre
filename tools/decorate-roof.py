@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """decorate-roof.py: put the master portrait's own side markings on a top-down vehicle's roof.
 
-    python3 tools/decorate-roof.py apps/game/public/assets/driving/topdown/vehicle-topdown-spark-rear.png \\
-        --design A --out /tmp/spark-rear-A.png --check
+    python3 tools/decorate-roof.py $SRC/vehicle-topdown-spark-rear.png \\
+        --design A --out /tmp/spark-rear-A.png --check        # $SRC: the sprites BEFORE any motif, see RECIPE
     python3 tools/decorate-roof.py --cutouts /tmp/cutouts      # write the extracted motifs as PNGs, nothing else
 
 WHY. The six van top-downs were recoloured to match their portraits and then read as one flat slab of
@@ -57,11 +57,28 @@ survives that has to be written against the roof it finds, so:
      are applied to the motif at half strength so it sits in the same light.
   5. Pixels that are not clean roof paint are never touched; the render counts any motif pixel that
      fell there ("clipped") and every design measures 0.
+  6. A design that is ONE motif (SIZED_ONCE: spark A and B, bea A) is matched with the other view of
+     the same vehicle, because step 2 makes its size a share of the roof in front of it and the two
+     views show different lengths of one roof. Spark's front has its rear window painted out, so its
+     roof runs on to the tail (652 rows); his rear's stops at the glass (442). The same recipe drew
+     the rear flash 0.68 the size of the front's, 10 px thick against 14 at 46 px wide, and a child
+     sees a bolt change size between views. So the motif is sized on BOTH roofs, takes the smaller of
+     the two in each direction and the smaller motif's gap to the nose end of its roof (the
+     windscreen), and each view is drawn at that: the flash is a 380 x 136 px box on both, its tip
+     31 px from the nose end of the roof on both.
+     The smaller wins because a motif that fits the tighter roof fits the other, and the reverse is how
+     a flash gets pushed into the glass. The answer is the same from either file in either order,
+     nothing is ever enlarged, and Spark's rear, the camera reference (fleet-canon.md section 3),
+     does not move at all; his front comes down to it. A design that repeats (henry A and B, bea B)
+     keeps its views in step by its repeat count and its direction and is not matched: matching would
+     only take repeats off the longer roof. The other view is the sibling beside this file (front
+     <-> -rear) or --pair; --alone sizes by this roof alone and the views will disagree.
 
 DESIGNS (one letter each, parameters named at the top of each block below; * = recommended).
 
   spark A* one flash down the roof, tip at the nose. 86% of L long, up to 62% of W thick; on a short
-           roof it gives up at most 35% of its length before it gets thinner instead.
+           roof it gives up at most 35% of its length before it gets thinner instead. Sized once for
+           both views (step 6): 380 x 136 px, the rear's.
         B  one flash at its painted shape, turned 40 degrees off the roof's line, as big as fits.
   bea   A  the whole scroll once down the centre line, 40% of W across, at most 90% of L long.
         B* the same scroll twice, the second its mirror image across the centre line, 29% of W each,
@@ -69,10 +86,17 @@ DESIGNS (one letter each, parameters named at the top of each block below; * = r
            toward the centre, a clear strip (3% of W) between.
   henry A* a garland down the centre line: pink flower, leaves, sage flower, leaves, pink ..., a
            flower every 0.62 W (46% of W across for pink, 35% for sage), pink nearest the nose.
-        B  the oak inlay, 40% of W across, as many as fit (one on both current roofs).
+        B  the oak inlay, 40% of W across, as many as fit (one on each current roof, 692 and 764 rows).
+
+THE ROOFS TODAY, as this tool measures them on the motif-free sprites (rows long, canvas px wide, length
+over width), front / rear:
+
+  henry  692 x 388 (1.78) / 764 x 418 (1.83)     bea    739 x 429 (1.72) / 900 x 457 (1.97)
+  spark  652 x 418 (1.56) / 442 x 488 (0.91)
 
 WHEN THE ROOF GETS SHORTER. Measured on the committed sprites before and after the shortening
-(roof length over width 2.22 -> 1.78 on Henry front, 2.87 -> 1.11 on Spark front), the same recipe, no change:
+(shorten-topdown.py, f4cc906; roof length over width 2.22 -> 1.78 on Henry front, 2.87 -> 1.11 on Spark
+front; Spark's front has since been redrawn, and is the 1.56 above), the same recipe, no change:
   henry A  flowers 4 -> 3 (their spacing gives a little, so front and rear always agree); B  2 inlays -> 1
   bea   A, B  one scroll either way; it shrinks to stay at most 90% of L, giving up at most 15% of its
               shape first; share of roof 7.7% -> 6.3% (A), 13.6% -> 12.5% (B)
@@ -102,17 +126,29 @@ vehicles.gate IoU against the input; alpha differences; and, on Henry's rear, th
 a poor detector of a heavy motif (Henry B moves them by 0.2 although oak covers 19% of the roof),
 so the share of the roof is printed beside them. Look at it as well.
 
-RECIPE, one line per file (A or B as chosen; the files are not installed by this script):
+RECIPE, one line per file (A or B as chosen; the files are not installed by this script). The sources are
+the sprites BEFORE any motif, in one folder $SRC: the installed files carry a motif now, and to this tool
+a motif is not clean paint, so it measures a different roof (Spark's front comes out 196 rows, on the
+bonnet) and puts a small second motif there. The tool refuses a roof under MIN_ROOF of the painted
+height for that reason. They are the files at 011f02a^, until a redraw makes newer motif-free ones:
+
+  git show 011f02a^:apps/game/public/assets/driving/topdown/vehicle-topdown-$f.png > $SRC/vehicle-topdown-$f.png
 
   for f in henry henry-rear bea bea-rear spark spark-rear; do
-    python3 tools/decorate-roof.py apps/game/public/assets/driving/topdown/vehicle-topdown-$f.png \\
-        --design $D --out /tmp/$f.png --check
+    python3 tools/decorate-roof.py $SRC/vehicle-topdown-$f.png --design $D --out /tmp/$f.png --check
   done                                  # $D: henry A, bea B, spark A (recommended)
+
+A one-motif design finds its other view beside the file it is given, so $SRC must hold both. The output
+is then copied over the installed files (not through install-vehicles.py), and re-running it gives the
+same bytes.
 
 KNOWN LIMITS. The flash's torn edge and Bea's stepped strokes show a little at 1:1 and nowhere at the
 46 to 92 px the game draws these at. Bea's scrollwork is fine work and the faintest of the three at
-46 px. Spark's roof, after shortening, is as wide as it is long, so a flash of its painted shape is
-smaller than it was on the long roof; A lets it fatten along its width by up to 1.5x before shrinking.
+46 px. Spark's rear roof is wider than it is long (442 rows by 488), so a flash of its painted shape is
+smaller there than on his front's; A lets it stretch along the roof by up to 1.3x or squash by up to 35%
+before it shrinks, and both of his roofs are at the squash. Matching the views (step 6) gives the front
+the rear's flash, so on his long front roof it is smaller than the roof would carry and leaves bare paint
+behind it; that is the price of one bolt that does not change size.
 """
 import argparse
 import importlib.util
@@ -686,6 +722,73 @@ def motifs_for(vehicle):
     return {'items': extract_henry_flowers(), 'inlay': extract_henry_inlay()}
 
 
+# ------------------------------------------------------------------ one motif, two views
+#
+# A design that repeats keeps a vehicle's two views in step by its repeat count and its direction, and
+# only the repeats differ. A design that is ONE motif has nothing but its size to keep in step, and its
+# size is a share of the roof in front of it, which is not the same stretch of roof in both views:
+# Spark's front has the rear window painted out (fleet-canon.md section 3) and its roof runs on to
+# the tail, 652 rows, where his rear's stops at the glass, 442. So such a design is sized on both roofs
+# and each view takes the smaller size and the smaller motif's distance from the nose end of its roof (the
+# windscreen), so the one motif is the same size and the same distance from the glass in both views. A motif
+# that fits the tighter roof fits the other, so the longer roof is the one that gives way and nothing is
+# enlarged.
+
+SIZED_ONCE = {('spark', 'A'), ('spark', 'B'), ('bea', 'A')}
+MIN_ROOF = 0.28         # a roof shorter than this share of the sprite's painted height is not a roof (a motif is on it already)
+
+
+def _along(p):
+    """How far a placed motif reaches along the roof, in canvas px: its box, turned by its `turn`."""
+    mh, mw = p['motif'].shape[:2]
+    t = np.radians(p['turn'])
+    return mw * p['sa'] * abs(np.cos(t)) + mh * p['sc'] * abs(np.sin(t))
+
+
+def _nose_gap(p, roof):
+    """Canvas px between the nose-ward end of a placed motif and the nose-ward end of the roof, which is where
+    the windscreen starts."""
+    return roof.length - (p['v0'] + _along(p) / 2.0)
+
+
+def match_views(mine, my_roof, theirs, their_roof):
+    """`mine` (this view's placements of a one-motif design, on `my_roof`) matched to `theirs` (the other view's,
+    on `their_roof`): in each direction the smaller scale of the two, and the nose gap of whichever view has the
+    smaller motif. The same answer from either view, so the order of the runs does not matter, and the view that
+    already has the smaller motif comes back as it was, to the bit."""
+    out = []
+    for p, q in zip(mine, theirs):
+        sa, sc = min(p['sa'], q['sa']), min(p['sc'], q['sc'])
+        mine_binds = p['sa'] * p['sc'] <= q['sa'] * q['sc']
+        if mine_binds and (sa, sc) == (p['sa'], p['sc']):
+            out.append(p)
+            continue
+        gap = _nose_gap(p, my_roof) if mine_binds else _nose_gap(q, their_roof)
+        r = dict(p, sa=sa, sc=sc)
+        r['v0'] = max(my_roof.length - gap - _along(r) / 2.0, _along(r) / 2.0)
+        out.append(r)
+    return out
+
+
+def sibling(path):
+    """The other view's file beside this one: vehicle-topdown-spark.png <-> vehicle-topdown-spark-rear.png."""
+    folder, name = os.path.split(path)
+    stem, ext = os.path.splitext(name)
+    return os.path.join(folder, (stem[:-5] if stem.endswith('-rear') else stem + '-rear') + ext)
+
+
+def painted_height(rgba):
+    rows = np.nonzero((rgba[..., 3] > 16).any(1))[0]
+    return int(rows.max() - rows.min() + 1)
+
+
+def check_is_a_roof(roof, rgba, path):
+    if roof.length < MIN_ROOF * painted_height(rgba):
+        sys.exit(f'{os.path.basename(path)}: the roof found is {roof.length} rows of a {painted_height(rgba)}-row sprite, '
+                 f'which is not a roof. Is a motif already on it? The installed files carry one: use the sprites '
+                 f'from before it (RECIPE in this file\'s docstring).')
+
+
 # ------------------------------------------------------------------ the gates
 
 TARGETS = {'henry': (142, 52, 54), 'bea': (74, 112, 164), 'spark': (116, 156, 102)}   # the portraits' body colours
@@ -814,6 +917,14 @@ def report(src_path, out_path, src_rgba, new_rgba_raw, roof, stats, vehicle, vie
               f'motif colour error {g["motif_err"]:.2f} of 255; {g["shifted"]} px outside the motif shifted by a merge, largest shift {g["shifted_max"]} of 255')
     print(f'motif covers {stats["covered"]} px = {stats["share_of_roof"]:.1%} of the clean roof; '
           f'{stats["clipped"]} motif px fell on something that was not clean paint and were not drawn')
+    if stats['pair']:
+        ppath, proof = stats['pair']
+        (al, ac, gap), (al0, ac0, gap0) = stats['placed'][0], stats['alone'][0]
+        print(f'sized once with {os.path.basename(ppath)} (its roof {proof.length} rows, this one {roof.length}): '
+              f'motif {al:.0f} x {ac:.0f} px, tip {gap:.0f} px from the nose end of the roof (the windscreen); '
+              f'this roof alone would give {al0:.0f} x {ac0:.0f}, {gap0:.0f} px from it')
+    elif (vehicle, design) in SIZED_ONCE:
+        print('sized by this roof alone (--alone): the two views will disagree')
     print(f'livery bands (0-6, 6-20, 35-55, 75-92% of painted height), dominant colour, distance from {tuple(TARGETS[vehicle])}:')
     for tag, img in (('  before', src_rgba), ('  after ', back)):
         d = [float(np.linalg.norm(b['dominant'] - tgt)) for b in rt.band_colours(img)]
@@ -860,14 +971,28 @@ def write_cutouts(folder):
         save(f'henry-{it["kind"]}-{i}.png', it['motif'])
 
 
-def decorate(src, vehicle, view, design, check=False, out=None):
+def decorate(src, vehicle, view, design, check=False, out=None, pair=None):
+    """The roof exclusion zones are always this file's own (Roof(rgba) of `src`); `pair`, the other view's
+    motif-free sprite, is measured only for the size and the nose gap a one-motif design shares (SIZED_ONCE)."""
     rgba = rt.load_rgba(src)
     roof = Roof(rgba)
+    check_is_a_roof(roof, rgba, src)
     M = motifs_for(vehicle)
     placements = DESIGNS[(vehicle, design)](roof, M)
+    alone = placements
+    other = None
+    if pair is not None:
+        prgba = rt.load_rgba(pair)
+        other = Roof(prgba)
+        check_is_a_roof(other, prgba, pair)
+        placements = match_views(placements, roof, DESIGNS[(vehicle, design)](other, M), other)
     rgb, alpha = render(roof, view, placements)
     new, stats = composite(rgba, roof, rgb, alpha)
     stats['mask'] = (alpha * roof.ok) > 0.02
+    stats['pair'] = None if other is None else (pair, other)
+    if pair is not None:
+        size = lambda ps: [(p['motif'].shape[1] * p['sa'], p['motif'].shape[0] * p['sc'], _nose_gap(p, roof)) for p in ps]
+        stats['placed'], stats['alone'] = size(placements), size(alone)
     return rgba, roof, new, stats
 
 
@@ -881,6 +1006,10 @@ def main():
     ap.add_argument('--view', choices=['front', 'rear'], help='default: from the file name')
     ap.add_argument('--check', action='store_true', help='print the gates')
     ap.add_argument('--raw', help='also write the unquantised RGBA here')
+    ap.add_argument('--pair', metavar='SRC', help="the vehicle's other view, as it was before any motif. A one-motif design (spark A "
+                    "and B, bea A) is sized on both roofs and drawn at the smaller, so the motif is the same size in both views; "
+                    "default: the sibling file beside the source (front <-> -rear)")
+    ap.add_argument('--alone', action='store_true', help='size a one-motif design by this roof alone, as before; the two views will disagree')
     args = ap.parse_args()
     if args.cutouts:
         write_cutouts(args.cutouts)
@@ -895,7 +1024,18 @@ def main():
     src, out = os.path.abspath(args.src), os.path.abspath(args.out)
     if src == out:
         sys.exit('refusing to write over the source')
-    rgba, roof, new, stats = decorate(src, veh, view, args.design)
+    pair = None
+    if (veh, args.design) in SIZED_ONCE and not args.alone:
+        pair = os.path.abspath(args.pair) if args.pair else sibling(src)
+        if not os.path.exists(pair):
+            sys.exit(f'{veh} {args.design} is one motif and is sized once for both views, so it needs the other view: '
+                     f'{os.path.basename(pair)} was not found beside the source. Give it with --pair (the sprite from before '
+                     f'any motif), or --alone to size this roof by itself, which leaves the two views disagreeing.')
+        if pair == src:
+            sys.exit('--pair is the source itself; it must be the vehicle\'s other view')
+    elif args.pair:
+        print(f'note: {veh} {args.design} repeats and is not sized across views, so --pair is not used')
+    rgba, roof, new, stats = decorate(src, veh, view, args.design, pair=pair)
     if args.raw:
         Image.fromarray(new, 'RGBA').save(args.raw)
     src_img = Image.open(src)

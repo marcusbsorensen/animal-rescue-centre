@@ -147,7 +147,7 @@ was, and Spark's rear window is untouched.
   |---|---|---|---|
   | Henry | **A, garland** | pink flower, leaves, sage flower, leaves, pink flower down the centre line, pink nearest the nose | roof 692 / 764 rows; 3 flowers and 2 leaf sprigs at both ends |
   | Bea | **B, scrollwork twice** | the cargo-panel scroll, then its mirror image, roses outward and flourishes toward the centre, symmetrical about the roof's centre line | roof 739 / 900 rows; one pair at both ends (665 x 123 px each scroll / 810 x 132) |
-  | Spark | **A, one flash** | the flank's cream flash down the roof, tip at the nose | roof 652 / 442 rows; one flash at both ends (561 x 201 px / 380 x 136) |
+  | Spark | **A, one flash** | the flank's cream flash down the roof, tip at the nose | roof 652 / 442 rows; one flash at both ends, the same size on both: a 380 x 136 px box, 377 px along and 142 / 137 across |
   | Big Tilly | none | her bed is open and busy from above | |
   | Trikey | none | she has no roof | |
 
@@ -162,14 +162,38 @@ was, and Spark's rear window is untouched.
 
   Front and rear carry one treatment: the rear sprite is the front's roof turned
   half way round, so the bolt's tip and Henry's nearest pink flower are at the
-  nose in both, and Bea's pair is symmetrical in both. The repeat counts agree
-  (above). Only size differs, because every size is a share of the roof's own
-  length and the two views show different lengths of it. Spark's front has its
-  rear window painted out (section 3), so its roof runs on to the tail, 652 rows;
-  his rear's roof stops at the glass, 442 rows. His rear flash is therefore 0.68
-  of the front's in length and thickness, and limited by length because that roof
-  is wider (0.91) than it is long. If the bolt is ever to match across views, cap
-  the front's at the rear's size rather than stretching the rear's.
+  nose in both, and Bea's pair is symmetrical in both. Henry's garland and Bea's
+  scrollwork keep the two views in step by their repeat count and their direction
+  (the same count at each end), and their size follows their roof: Henry's
+  flowers are 1.08x larger on the rear and Bea's scrolls 1.22x longer. That is
+  correct and is not to be matched.
+
+  **Spark's flash is one size in both views (fixed 2026-10-11).** A single flash
+  has no repeat count to keep the views in step, so its size is all there is to
+  disagree, and it did: every size is a share of the roof's own length, and
+  Spark's front has its rear window painted out (section 3) so its roof runs on to
+  the tail, 652 rows, where his rear's stops at the glass, 442. The rear's flash
+  was 0.68 of the front's in length and thickness (at 46 px wide, a flash 14 px
+  thick against one 10 px thick). The front has come down to the rear,
+  which is the camera reference (section 3) and whose bolt cannot be enlarged
+  without pushing it into the glass its roof stops at. `decorate-roof.py` now
+  sizes a one-motif design (`SIZED_ONCE`: Spark A and B, Bea A) on both roofs,
+  takes the smaller in each direction, and sets the bolt the same distance from the
+  nose end of its roof, so the rule holds for whichever file is run first and
+  the rear file did not change at all. Measured from the pixels:
+
+  | | Before | After |
+  |---|---|---|
+  | Front | 195 x 557 px (561 x 201 box) | 142 x 377 px (380 x 136 box) |
+  | Rear | 137 x 377 px (380 x 136 box) | unchanged, byte-identical |
+  | Front / rear along the roof | 1.48 | 1.00 |
+  | Front / rear across | 1.42 | 1.04 (the roof's own taper) |
+  | At 46 px wide, across x along | front 14.0 x 40.0, rear 9.8 x 27.1 | front 10.2 x 27.1, rear 9.8 x 27.1 |
+
+  The tip is 31 px from the nose end of the roof in both views. The flash is now
+  smaller than his long front roof would carry, and bare paint runs on behind
+  it: that is what one bolt that does not change size costs. On the front, a
+  flash larger than the rear's 380 x 136 px box is the fault again.
 
   The six files are 256-colour palette PNGs: the tool merges near-duplicate roof
   shades to make room for the motif's colours, so alpha is byte-identical, the
@@ -179,9 +203,12 @@ was, and Spark's rear window is untouched.
   pixel appears on any roof. **Re-run the tool, never install these through
   `install-vehicles.py`**: its 0.88 taper would skew them a second time. If a
   roof is redrawn again the motifs must be re-placed, and the tool does it from
-  the file it is given:
-  `python3 tools/decorate-roof.py <installed file> --design <A|B> --out <path> --check`
-  with henry A, bea B, spark A.
+  the file it is given, which must be the sprite before any motif (the installed
+  files carry one now, and the tool refuses them: its recipe says where the
+  motif-free ones are, `git show 011f02a^:<path>`):
+  `python3 tools/decorate-roof.py <motif-free file> --design <A|B> --out <path> --check`
+  with henry A, bea B, spark A. Spark's two files are run from one folder, because
+  each reads the other for the size they share (`--pair`).
 
 ## 6. Open
 
