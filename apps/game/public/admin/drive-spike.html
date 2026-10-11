@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<!--
+  drive-spike.html — the rotating-world driving model, before it touches the game.
+
+  Why it exists: the driving scene draws a straight corridor and scrolls rows of
+  it towards you. The model Lily's game uses instead pins the vehicle to one spot
+  on screen and rotates the whole world underneath it, so a bend is the world
+  turning rather than the van steering. That is a different renderer, not a
+  tweak, and it is cheaper to prove here on a plain canvas than inside a 3,600
+  line Phaser scene.
+
+  What it proves, and nothing else:
+    - the real Birchie graph (937 nodes) drives the geometry, so the roads here
+      are the roads the child sees on the map
+    - the camera rotates to the route's heading and the van never moves
+    - the scale: a lane is 110px on a 390pt phone, the van 53px across, against
+      28px and 16px in the game today
+    - hold-to-go, gears, handbrake, and swerving between lanes
+    - the guide line, and what the screen looks like with it switched off
+
+  Open it at /admin/drive-spike.html with the dev server running.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>A.R.C. — driving spike</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2c2c2c;
+    font-family: "Nunito", system-ui, -apple-system, sans-serif; }
+  #wrap { position: relative; height: 100%; display: grid; place-items: center; }
+  canvas { display: block; touch-action: none; background: #8fbf6a; }
+  #hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex;
+    gap: 8px; align-items: flex-start; pointer-events: none; font-size: 13px; }
+  .chip { background: rgba(255,252,246,.92); border-radius: 14px; padding: 6px 10px;
+    font-weight: 700; color: #3a3226; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+  #panel { position: absolute; bottom: 10px; left: 10px; right: 10px;
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 14px;
+    padding: 9px 13px; background: #fffcf6; color: #3a3226;
+    box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+  button[aria-pressed="true"] { background: #4b8b3b; color: #fff; }
+  #note { position: absolute; bottom: 58px; left: 0; right: 0; text-align: center;
+    color: #fffcf6; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+</style>
+
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div class="chip" id="gearChip">P</div>
+    <div class="chip" id="speedChip">0 mph</div>
+    <div class="chip" id="laneChip">left lane</div>
+    <div class="chip" id="roadChip">—</div>
+  </div>
+  <div id="note">hold anywhere to go · swipe or ←/→ to change lane · space = go · 1–3 gears · B = handbrake</div>
+  <div id="panel">
+    <button id="guideBtn" aria-pressed="true">guide line</button>
+    <button id="gearBtn">gear: 2</button>
+    <button id="brakeBtn">handbrake</button>
+    <button id="routeBtn">new route</button>
+  </div>
+</div>
+
+<script type="module">
+// ---------------------------------------------------------------- the world
+
+/** The map is 1800x1121 over roughly 6.2km x 3.9km, so one unit of fy is this
+ *  many metres and fx is scaled by the aspect to match. Same convention as
+ *  road-router.ts, which is why a route computed there lands here unchanged. */
+const ASPECT = 1800 / 1121;
+const METRES_PER_UNIT = 3900;
+
+/** Pixels per metre. Chosen so a 5m lane draws 110px wide on a 390pt phone —
+ *  the reference game gives its car about half a lane and we match that. */
+const PPM = 22;
+
+/** Road widths in metres by OSM class. A trunk road gets two lanes each way,
+ *  everything else one each way; a track is single and unmarked. */
+const ROAD_M = { trunk: 20, secondary: 10, tertiary: 10, unclassified: 9, residential: 8, track: 5 };
+const LANE_M = 5;
+
+/** Where the van sits on screen, measured off Lily's game: 53.5% across,
+ *  59% down, in every frame of 35 seconds. */
+const VAN_SX = 0.535, VAN_SY = 0.59;
+
+/** Van footprint in metres. 2.4m across is a real panel van; the length comes
+ *  from the sprite's own aspect so the art is never squashed. */
+const VAN_W_M = 2.4;
+
+const GEARS = { 1: 7, 2: 13, 3: 20 };   // metres per second
+const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34;  // m/s^2
+
+/** Which gears suit which road, and what it costs to get it wrong. The point
+ *  of the gearbox is choosing a speed for the circumstances, so the graph's
+ *  own road class is the teacher: third on a farm track throws up dust the
+ *  animals breathe, first on the dual carriageway has a queue behind you
+ *  beeping. The graph already carries the class on every edge, so this is a
+ *  lookup rather than new content. */
+const ROAD_NAME = {
+  trunk: 'dual carriageway', secondary: 'main road', tertiary: 'country road',
+  unclassified: 'lane', residential: 'houses', track: 'farm track',
+};
+const GEAR_OK = {
+  trunk: [2, 3], secondary: [1, 2, 3], tertiary: [1, 2, 3],
+  unclassified: [1, 2], residential: [1, 2], track: [1],
+};
+const TOO_FAST = { track: 'dust!', unclassified: 'too fast', residential: 'slow down' };
+const TOO_SLOW = { trunk: 'beeping' };
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let graph = null, adj = null, route = [], routeLen = 0;
+let vanImg = null;
+
+// -------------------------------------------------------------- graph + route
+
+function buildAdjacency(g) {
+  const a = g.nodes.map(() => []);
+  for (const [i, j] of g.edges) {
+    if (i < 0 || j < 0 || i >= g.nodes.length || j >= g.nodes.length) continue;
+    const w = segLen(g.nodes[i], g.nodes[j]);
+    a[i].push([j, w]); a[j].push([i, w]);
+  }
+  return a;
+}
+function segLen(p, q) { return Math.hypot((p[0] - q[0]) * ASPECT, p[1] - q[1]); }
+
+/** Dijkstra, plain array frontier — 937 nodes, run once per route. */
+function shortestPath(s, t) {
+  const n = adj.length, dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1);
+  const done = new Uint8Array(n);
+  dist[s] = 0;
+  for (;;) {
+    let u = -1, best = Infinity;
+    for (let i = 0; i < n; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+    if (u < 0 || u === t) break;
+    done[u] = 1;
+    for (const [v, w] of adj[u]) if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+  }
+  if (dist[t] === Infinity) return null;
+  const path = []; for (let v = t; v >= 0; v = prev[v]) path.push(v);
+  return path.reverse();
+}
+
+/** Node path to a world-space polyline in metres, with cumulative distance. */
+function toPolyline(path) {
+  const pts = path.map(i => {
+    const [fx, fy] = graph.nodes[i];
+    return { x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT, s: 0 };
+  });
+  for (let i = 1; i < pts.length; i++) {
+    pts[i].s = pts[i - 1].s + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  }
+  return pts;
+}
+
+/** Position and heading at distance s along the route. */
+function atDistance(s) {
+  const p = route;
+  if (s <= 0) return { x: p[0].x, y: p[0].y, h: Math.atan2(p[1].y - p[0].y, p[1].x - p[0].x) };
+  let i = 1;
+  while (i < p.length - 1 && p[i].s < s) i++;
+  const a = p[i - 1], b = p[i];
+  const t = (s - a.s) / Math.max(1e-6, b.s - a.s);
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    h: Math.atan2(b.y - a.y, b.x - a.x),
+  };
+}
+
+function pickRoute() {
+  const ids = Object.keys(graph.anchors);
+  for (let tries = 0; tries < 24; tries++) {
+    const a = graph.anchors[ids[(Math.random() * ids.length) | 0]];
+    const b = graph.anchors[ids[(Math.random() * ids.length) | 0]];
+    if (a === b) continue;
+    const path = shortestPath(a, b);
+    if (!path || path.length < 12) continue;
+    route = toPolyline(path);
+    routeLen = route[route.length - 1].s;
+    if (routeLen > 1200) return;
+  }
+}
+
+// ---------------------------------------------------------------- the driving
+
+const car = { s: 0, lane: 0, laneWant: 0, v: 0, gear: 2, road: 'tertiary', jostle: 0 };
+
+/** The camera's own heading, which is NOT the route's. The route is straight
+ *  segments between graph nodes, so its tangent snaps by up to 55 degrees at a
+ *  corner — measured, and it is exactly the jerkiness the corridor renderer was
+ *  blamed for. Two things fix it: aim at a point some way ahead rather than at
+ *  the current segment, and ease towards that aim instead of jumping to it.
+ *
+ *  Drawing the van at the difference between its own heading and the camera's
+ *  is what gives the reference game its look: the world swings through a bend
+ *  while the car turns only a little in the frame. */
+let camH = null;
+const LOOKAHEAD_M = 20;
+const CAM_EASE = 3.4;       // per second
+
+function wrapAngle(a) { return Math.atan2(Math.sin(a), Math.cos(a)); }
+let throttle = false, handbrake = false, showGuide = true;
+
+/** Lane 0 is ours (keep left), lane 1 is the oncoming side — overtaking. The
+ *  van eases across rather than snapping, which is what makes a swerve read as
+ *  a swerve and not a teleport. */
+function laneOffset(lane) { return (lane === 0 ? -0.5 : 0.5) * LANE_M; }
+
+function step(dt) {
+  const target = throttle ? GEARS[car.gear] : 0;
+  if (handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
+  else if (car.v < target) car.v = Math.min(target, car.v + ACCEL * dt);
+  else car.v = Math.max(target, car.v - BRAKE * dt);
+
+  car.s += car.v * dt;
+  if (car.s > routeLen - 40) { car.s = 0; }
+
+  const want = laneOffset(car.laneWant);
+  const rate = 7 * dt;                       // metres per second of sidestep
+  const before = car.lane;
+  car.lane += Math.max(-rate, Math.min(rate, want - car.lane));
+
+  // How much the animals in the back feel it. Hard braking and swerving both
+  // count; it settles while the driving is smooth. With animals aboard enough
+  // of this means pulling over to calm them. On a delivery run with no animals
+  // it costs cargo instead, and the child may drive as badly as they like.
+  const swerve = Math.abs(car.lane - before) / Math.max(1e-6, dt);
+  const decel = handbrake ? HANDBRAKE : 0;
+  car.jostle = Math.max(0, Math.min(100,
+    car.jostle + (swerve * 1.6 + decel * 0.5) * dt - 6 * dt));
+
+  const pos = atDistance(car.s);
+  const nx = Math.cos(pos.h + Math.PI / 2), ny = Math.sin(pos.h + Math.PI / 2);
+  car.x = pos.x + nx * car.lane; car.y = pos.y + ny * car.lane;
+  car.road = roadClassAt(car.x, car.y);
+  car.heading = pos.h;
+
+  // Aim at where the route is in 20 metres, not at the segment underfoot.
+  const ahead = atDistance(Math.min(routeLen - 1, car.s + LOOKAHEAD_M));
+  const aim = Math.atan2(ahead.y - pos.y, ahead.x - pos.x);
+  if (camH === null) camH = aim;
+  else camH += wrapAngle(aim - camH) * Math.min(1, CAM_EASE * dt);
+  car.camH = camH;
+
+  window.__drive = car;   // so a test can read the state without a screenshot
+}
+
+// ------------------------------------------------------------------ rendering
+
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.min(window.innerWidth, 430), h = window.innerHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function draw() {
+  const w = canvas.width / (window.devicePixelRatio || 1);
+  const h = canvas.height / (window.devicePixelRatio || 1);
+  const pos = atDistance(car.s);
+
+  // The van rides at a lateral offset from the route's centreline, so the
+  // camera still follows the route and only the van moves between lanes.
+  const nx = Math.cos(pos.h + Math.PI / 2), ny = Math.sin(pos.h + Math.PI / 2);
+  const camX = pos.x + nx * car.lane, camY = pos.y + ny * car.lane;
+
+  ctx.save();
+  ctx.fillStyle = '#8fbf6a';
+  ctx.fillRect(0, 0, w, h);
+
+  // Rotate the world so the route's heading points up the screen, and place
+  // the van's world position at its fixed spot.
+  ctx.translate(w * VAN_SX, h * VAN_SY);
+  ctx.rotate(-(camH ?? pos.h) - Math.PI / 2);
+  ctx.scale(PPM, PPM);
+  ctx.translate(-camX, -camY);
+
+  drawRoads(camX, camY, Math.max(w, h) / PPM);
+  if (showGuide) drawGuide();
+  ctx.restore();
+
+  drawVan(w, h);
+  updateHud();
+}
+
+/** Every edge whose midpoint is within the view radius, stroked by class. One
+ *  pass over 970 edges per frame is nothing, so there is no spatial index. */
+function drawRoads(cx, cy, radius) {
+  const r2 = radius * radius;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const pass of ['surface', 'marking']) {
+    for (const [i, j, cls] of graph.edges) {
+      if (i < 0 || j < 0 || i >= graph.nodes.length || j >= graph.nodes.length) continue;
+      const a = graph.nodes[i], b = graph.nodes[j];
+      const ax = a[0] * ASPECT * METRES_PER_UNIT, ay = a[1] * METRES_PER_UNIT;
+      const bx = b[0] * ASPECT * METRES_PER_UNIT, by = b[1] * METRES_PER_UNIT;
+      const mx = (ax + bx) / 2 - cx, my = (ay + by) / 2 - cy;
+      if (mx * mx + my * my > r2 * 1.6) continue;
+      const width = ROAD_M[cls] ?? 8;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+      if (pass === 'surface') {
+        ctx.strokeStyle = '#6c6f6b'; ctx.lineWidth = width; ctx.setLineDash([]); ctx.stroke();
+        ctx.strokeStyle = '#f2ead8'; ctx.lineWidth = 0.3;
+        ctx.setLineDash([]); ctx.save();
+        ctx.translate(Math.cos(Math.atan2(by - ay, bx - ax) + Math.PI / 2) * width / 2,
+                      Math.sin(Math.atan2(by - ay, bx - ax) + Math.PI / 2) * width / 2);
+        ctx.stroke(); ctx.restore();
+      } else if (cls !== 'track') {
+        ctx.strokeStyle = '#f7f2e4'; ctx.lineWidth = 0.28;
+        ctx.setLineDash([3, 4]); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+  }
+}
+
+/** The line Lily's game draws from the car's nose along the route ahead. Ours
+ *  is the route we already compute for the GPS, drawn instead of spoken. */
+function drawGuide() {
+  const ahead = 90;
+  ctx.beginPath();
+  for (let d = 0; d <= ahead; d += 4) {
+    const p = atDistance(car.s + d);
+    const nx = Math.cos(p.h + Math.PI / 2), ny = Math.sin(p.h + Math.PI / 2);
+    const off = d < 12 ? car.lane : laneOffset(car.laneWant);
+    const x = p.x + nx * off, y = p.y + ny * off;
+    if (d === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = 'rgba(70,120,210,.72)';
+  ctx.lineWidth = 0.9; ctx.lineCap = 'round';
+  ctx.stroke();
+}
+
+function drawVan(w, h) {
+  const px = w * VAN_SX, py = h * VAN_SY;
+  const wpx = VAN_W_M * PPM;
+  const aspect = vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0;
+  const hpx = wpx * aspect;
+
+  // The shadow is drawn in world space, not on the sprite, so it does not
+  // swing round with the van when the world turns. The painted sprites have
+  // their light baked in from one side; this is the part that would give that
+  // away if it rotated too.
+  ctx.save();
+  ctx.translate(px + wpx * 0.14, py + hpx * 0.06);
+  ctx.fillStyle = 'rgba(40,46,38,.22)';
+  ctx.beginPath(); ctx.ellipse(0, 0, wpx * 0.46, hpx * 0.46, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(px, py);
+  // Only the difference between where the van points and where the camera
+  // points, so it turns a little in the frame while the world turns a lot.
+  ctx.rotate(wrapAngle((car.heading ?? 0) - (camH ?? 0)));
+  if (vanImg) ctx.drawImage(vanImg, -wpx / 2, -hpx / 2, wpx, hpx);
+  else { ctx.fillStyle = '#749c66'; ctx.fillRect(-wpx / 2, -hpx / 2, wpx, hpx); }
+  ctx.restore();
+}
+
+/** The class of the nearest edge to the van — what road we are actually on. */
+function roadClassAt(x, y) {
+  let best = 'tertiary', bestD = Infinity;
+  for (const [i, j, cls] of graph.edges) {
+    if (i < 0 || j < 0 || i >= graph.nodes.length || j >= graph.nodes.length) continue;
+    const a = graph.nodes[i], b = graph.nodes[j];
+    const ax = a[0] * ASPECT * METRES_PER_UNIT, ay = a[1] * METRES_PER_UNIT;
+    const bx = b[0] * ASPECT * METRES_PER_UNIT, by = b[1] * METRES_PER_UNIT;
+    const dx = bx - ax, dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len2)) : 0;
+    const d = Math.hypot(x - (ax + dx * t), y - (ay + dy * t));
+    if (d < bestD) { bestD = d; best = cls; }
+  }
+  return best;
+}
+
+function updateHud() {
+  document.getElementById('gearChip').textContent = handbrake ? 'BRAKE' : String(car.gear);
+  document.getElementById('speedChip').textContent = Math.round(car.v * 2.237) + ' mph';
+  document.getElementById('laneChip').textContent = car.laneWant === 0 ? 'left lane' : 'overtaking';
+
+  const chip = document.getElementById('roadChip');
+  const ok = GEAR_OK[car.road] ?? [1, 2, 3];
+  const name = ROAD_NAME[car.road] ?? car.road;
+  if (ok.includes(car.gear) || car.v < 1) {
+    chip.textContent = name;
+    chip.style.background = 'rgba(255,252,246,.92)'; chip.style.color = '#3a3226';
+  } else {
+    const over = car.gear > Math.max(...ok);
+    chip.textContent = name + ' — ' + (over ? (TOO_FAST[car.road] ?? 'too fast') : (TOO_SLOW[car.road] ?? 'too slow'));
+    chip.style.background = over ? '#c4562f' : '#d8a21e'; chip.style.color = '#fff';
+  }
+}
+
+// --------------------------------------------------------------------- input
+
+let dragX = null;
+function onDown(e) { throttle = true; dragX = e.clientX ?? null; }
+function onMove(e) {
+  if (dragX === null) return;
+  const dx = (e.clientX ?? dragX) - dragX;
+  if (Math.abs(dx) > 26) { car.laneWant = dx > 0 ? 1 : 0; dragX = e.clientX; }
+}
+function onUp() { throttle = false; dragX = null; }
+canvas.addEventListener('pointerdown', onDown);
+canvas.addEventListener('pointermove', onMove);
+window.addEventListener('pointerup', onUp);
+window.addEventListener('pointercancel', onUp);
+
+window.addEventListener('keydown', e => {
+  if (e.key === ' ') { throttle = true; e.preventDefault(); }
+  if (e.key === 'ArrowRight') car.laneWant = 1;
+  if (e.key === 'ArrowLeft') car.laneWant = 0;
+  if (e.key === 'b' || e.key === 'B') handbrake = true;
+  if (['1', '2', '3'].includes(e.key)) car.gear = Number(e.key);
+});
+window.addEventListener('keyup', e => {
+  if (e.key === ' ') throttle = false;
+  if (e.key === 'b' || e.key === 'B') handbrake = false;
+});
+
+document.getElementById('guideBtn').onclick = (e) => {
+  showGuide = !showGuide;
+  e.currentTarget.setAttribute('aria-pressed', String(showGuide));
+};
+document.getElementById('gearBtn').onclick = (e) => {
+  car.gear = car.gear === 3 ? 1 : car.gear + 1;
+  e.currentTarget.textContent = 'gear: ' + car.gear;
+};
+const brakeBtn = document.getElementById('brakeBtn');
+brakeBtn.addEventListener('pointerdown', () => { handbrake = true; });
+window.addEventListener('pointerup', () => { handbrake = false; });
+document.getElementById('routeBtn').onclick = () => { pickRoute(); car.s = 0; car.v = 0; };
+
+// ---------------------------------------------------------------------- boot
+
+async function boot() {
+  const res = await fetch('/assets/driving/birchie-graph.json');
+  graph = await res.json();
+  adj = buildAdjacency(graph);
+  pickRoute();
+
+  vanImg = new Image();
+  vanImg.src = '/assets/driving/topdown/vehicle-topdown-spark-rear.png';
+  await new Promise(r => { vanImg.onload = r; vanImg.onerror = () => { vanImg = null; r(); }; });
+
+  resize();
+  window.addEventListener('resize', resize);
+
+  let last = performance.now();
+  (function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    step(dt); draw();
+    requestAnimationFrame(frame);
+  })(last);
+}
+boot();
+</script>
