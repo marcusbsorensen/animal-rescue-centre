@@ -8,12 +8,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { buildAdjacency, type RoadGraph } from '../road-router';
 import { routeBetween, type RoutePath } from '../route-path';
+import { parseTrunkCarriageways, type TrunkCarriagewaysFile } from '../trunk-carriageways';
 
 export const graph = JSON.parse(
   fs.readFileSync(path.join(__dirname, '../../../public/assets/driving/birchie-graph.json'), 'utf8'),
 ) as RoadGraph & { anchors: Record<string, number> };
 
 export const adj = buildAdjacency(graph);
+
+function readAsset<T>(name: string): T {
+  return JSON.parse(fs.readFileSync(path.join(__dirname, '../../../public/assets/driving', name), 'utf8')) as T;
+}
+
+/** What each trunk edge really is: dual, divided or single (trunk-carriageways.json). */
+export const carriagewaysFile = readAsset<TrunkCarriagewaysFile & { summary: { trunkEdges: number; byKind: Record<string, number> } }>('trunk-carriageways.json');
+export const carriageways = parseTrunkCarriageways(carriagewaysFile, graph);
 
 export function anchorRoutes(): { from: string; to: string; route: RoutePath }[] {
   const out: { from: string; to: string; route: RoutePath }[] = [];
