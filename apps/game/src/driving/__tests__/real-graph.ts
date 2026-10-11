@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { buildAdjacency, type RoadGraph } from '../road-router';
 import { routeBetween, type RoutePath } from '../route-path';
+import type { TrikeyLinksFile } from '../trikey-links';
 import { parseTrunkCarriageways, type TrunkCarriageways, type TrunkCarriagewaysFile } from '../trunk-carriageways';
 
 export const graph = JSON.parse(
@@ -23,6 +24,14 @@ function readAsset<T>(name: string): T {
 /** What each trunk edge really is: dual, divided or single (trunk-carriageways.json). */
 export const carriagewaysFile = readAsset<TrunkCarriagewaysFile & { summary: { trunkEdges: number; byKind: Record<string, number> } }>('trunk-carriageways.json');
 export const carriageways = parseTrunkCarriageways(carriagewaysFile, graph);
+
+/** Trikey's extra paths, junction sides and crossings (trikey-links.json). */
+export const trikeyLinksFile = readAsset<TrikeyLinksFile & {
+  result: { fromArc: string[]; pairs: number; worstDetourM: number; islands: string[][] };
+}>('trikey-links.json');
+
+/** The file's own check of what following OSM's oneway would do to cars. */
+export const onewayCheck = (carriagewaysFile as unknown as { checks: { carWithOneway: { pairsUnreachable: number } } }).checks.carWithOneway;
 
 /** Every ordered pair's route; given the carriageway data, trunk segments carry it. */
 export function anchorRoutes(trunk?: TrunkCarriageways): { from: string; to: string; route: RoutePath }[] {

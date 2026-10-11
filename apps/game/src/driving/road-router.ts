@@ -11,8 +11,10 @@
  * connected on the network, so the GPS never draws nothing.
  *
  * Routing can be vehicle-aware: an adjacency built for a vehicle leaves out the
- * roads that vehicle must not use (Trikey, the pedal trike, never rides a dual
- * carriageway). Built with no vehicle, every road is in, as it always was.
+ * roads that vehicle must not use (Trikey, the pedal trike, never rides the
+ * A28). Built with no vehicle, every road is in, as it always was, the A28
+ * two-way whatever OSM's oneway says (trunk-carriageways.ts). Trikey's whole
+ * network, her paths and the two crossings she may use, is trikey-links.ts.
  */
 import type { VehicleType } from '@arc/game-logic';
 import type { Carriageway, TrunkCarriageways } from './trunk-carriageways';
@@ -37,11 +39,16 @@ function segLen(a: [number, number], b: [number, number]): number {
   return Math.hypot((a[0] - b[0]) * ASPECT, a[1] - b[1]);
 }
 
+/** The routing weight of an edge: its length, scaled by how much the router
+ *  prefers its class. In map units, as segLen. */
+export function roadWeight(g: RoadGraph, a: number, b: number, cls: string): number {
+  return segLen(g.nodes[a], g.nodes[b]) * (CLASS_MULT[cls] ?? 1);
+}
+
 /**
- * Road classes a vehicle never routes over. Trikey is half the speed of every
- * gear, so on a dual carriageway (OSM `trunk`), where first gear is already too
- * slow, she would be too slow in every gear: her routes avoid them (driving
- * port plan 2026-10-11, section 5, answer 10).
+ * Road classes a vehicle never routes over. Trikey never rides along the A28
+ * (OSM `trunk`), whatever stretch of it: rule 18A, port plan 2026-10-11,
+ * section 5, answer 10. Where she may cross it is trikey-links.ts.
  */
 export const ROADS_BARRED: Partial<Record<VehicleType, readonly string[]>> = {
   'pedal-trike': ['trunk'],
@@ -63,38 +70,11 @@ export function buildAdjacency(g: RoadGraph, vehicle?: VehicleType): Adjacency {
   for (const [a, b, cls] of g.edges) {
     if (a < 0 || b < 0 || a >= g.nodes.length || b >= g.nodes.length) continue;
     if (!roadAllowedFor(vehicle, cls)) continue;
-    const w = segLen(g.nodes[a], g.nodes[b]) * (CLASS_MULT[cls] ?? 1);
+    const w = roadWeight(g, a, b, cls);
     adj[a].push({ to: b, w });
     adj[b].push({ to: a, w });
   }
   return adj;
-}
-
-/**
- * The adjacency a vehicle's route between two places runs over: the vehicle's
- * own, or every road where its own cannot join them. `reachable` says which.
- *
- * Without trunk roads the map splits into islands, and from A.R.C. Trikey
- * cannot reach 8 of the 14 places. Rather than strand her, or draw a straight
- * line across the fields, she takes the road every other vehicle would,
- * dual carriageway and all, for that one trip.
- *
- * TODO(Marcus): how Trikey treats the places she cannot reach is still open:
- * hide them when she is picked, or add lanes to the map to join the islands
- * (bramble-farm and goose-end-farm need a non-trunk road to the pin itself).
- * This fallback stands until that is decided.
- */
-export function vehicleRouteAdjacency(
-  g: RoadGraph,
-  vehicleAdj: Adjacency,
-  allAdj: Adjacency,
-  from: RoutePoint,
-  to: RoutePoint,
-): { adj: Adjacency; reachable: boolean } {
-  if (vehicleAdj === allAdj || g.nodes.length === 0) return { adj: vehicleAdj, reachable: true };
-  const s = nearestNode(g, from.fx, from.fy);
-  const t = nearestNode(g, to.fx, to.fy);
-  return shortestPath(vehicleAdj, s, t) ? { adj: vehicleAdj, reachable: true } : { adj: allAdj, reachable: false };
 }
 
 /** Index of the graph node closest to a map point. */
