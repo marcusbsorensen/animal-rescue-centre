@@ -207,12 +207,13 @@ const HINT_DELAY = 0.6;   // seconds
 const LURCH_M = 0.14, LURCH_S = 0.2;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
-/** The gear lever. Tapping a knob the road will not take is a 'nope'; tapping
- *  the gear she is already in, if it suits the road, is her answer to the
- *  prompt and hushes it for the rest of this road. */
+/** The gear lever. Tapping a knob the road will not take is a 'nope'. While
+ *  the prompt glows, picking any gear that suits the road — the one she is
+ *  already in included — is her answer, and hushes it for the rest of this
+ *  road: it stays her choice. */
 function setGear(n) {
   if (n > gearTop(car.road)) { if (dash) dashboard.nope(dash, n); return; }
-  if (GEAR_OK[car.road]?.includes(n) ?? true) car.hushed = true;
+  if (car.gearHint && (GEAR_OK[car.road]?.includes(n) ?? true)) car.hushed = true;
   if (n === car.gear) return;
   const dir = Math.sign(n - car.gear);
   car.gear = n;

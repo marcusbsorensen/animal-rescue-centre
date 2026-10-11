@@ -589,7 +589,7 @@ function drawComfort(g, L, c, jostle, dt, reduce) {
 /** A chunky brass knob with a cream face, as a dash this age would have; lit
  *  it glows amber and sits a touch lower, as if pressed in. Returns where its
  *  face is, for whatever is printed on it. */
-function knobBody(g, k, lit) {
+function knobBody(g, k, lit, warm = 0) {
   const { cx, r } = k, cy = k.cy + (lit ? 1.2 : 0);
   shadowOf(g, () => circle(g, cx, cy, r), lit ? 1.2 : 2.6);
   circle(g, cx, cy, r);
@@ -603,7 +603,7 @@ function knobBody(g, k, lit) {
   circle(g, cx, cy, fr);
   const face = g.createRadialGradient(cx - fr * 0.3, cy - fr * 0.35, 0, cx, cy, fr);
   if (lit) { face.addColorStop(0, '#fff4c4'); face.addColorStop(0.55, '#ffc145'); face.addColorStop(1, '#e88a1a'); }
-  else { face.addColorStop(0, '#fef5e2'); face.addColorStop(1, '#e9d3ab'); }
+  else { face.addColorStop(0, mix('#fef5e2', '#fff1c0', warm)); face.addColorStop(1, mix('#e9d3ab', '#ffc65a', warm)); }
   g.fillStyle = face; g.fill();
   g.restore();
   circle(g, cx, cy, fr); g.lineWidth = 1; g.strokeStyle = 'rgba(46,17,8,.6)'; g.stroke();
@@ -618,18 +618,11 @@ const HINT_GLOW = '255,176,52';
  *  glows to be picked (0 to 1), dim that the road will not take it, shake a
  *  sideways offset in px for a refused tap. */
 function knob(g, k, lit, { hint = 0, dim = false, shake = 0 } = {}) {
-  const at = { cx: k.cx + shake, cy: k.cy, r: k.r * (1 + 0.07 * hint) };
+  const at = { cx: k.cx + shake, cy: k.cy, r: k.r * (1 + 0.08 * hint) };
+  const { cx, cy, r } = knobBody(g, at, lit, hint);
   if (hint > 0) {
-    const R = at.r + 9;
-    const halo = g.createRadialGradient(at.cx, at.cy, at.r * 0.7, at.cx, at.cy, R);
-    halo.addColorStop(0, `rgba(${HINT_GLOW},${0.95 * hint})`);
-    halo.addColorStop(1, `rgba(${HINT_GLOW},0)`);
-    circle(g, at.cx, at.cy, R); g.fillStyle = halo; g.fill();
-  }
-  const { cx, cy, r } = knobBody(g, at, lit);
-  if (hint > 0) {
-    circle(g, cx, cy, r + 1.5);
-    g.lineWidth = 2.4; g.strokeStyle = `rgba(255,214,120,${0.5 + 0.5 * hint})`; g.stroke();
+    circle(g, cx, cy, r + 1.8);
+    g.lineWidth = 3.2; g.strokeStyle = `rgba(255,226,140,${0.55 + 0.45 * hint})`; g.stroke();
   }
   g.fillStyle = lit ? '#3a1a06' : '#5a4330';
   g.font = `700 ${Math.round(r * 0.86)}px ${FONT}`;
@@ -642,6 +635,19 @@ function knob(g, k, lit, { hint = 0, dim = false, shake = 0 } = {}) {
   }
   // Not possible on this road: the knob sinks into the walnut's shade.
   if (dim) { circle(g, cx, cy, r + 1); g.fillStyle = 'rgba(46,17,8,.58)'; g.fill(); }
+}
+
+/** The glow behind a knob the road is asking for, drawn under every knob so
+ *  it spills evenly onto the gate either side. */
+function knobHalo(g, k, hint) {
+  const r = k.r * (1 + 0.08 * hint);
+  g.save();
+  g.shadowColor = `rgba(${HINT_GLOW},${hint})`; g.shadowBlur = 22;
+  circle(g, k.cx, k.cy, r + 6);
+  const band = g.createRadialGradient(k.cx, k.cy, r, k.cx, k.cy, r + 6);
+  band.addColorStop(0, `rgba(255,236,170,${hint})`); band.addColorStop(1, `rgba(${HINT_GLOW},${0.85 * hint})`);
+  g.fillStyle = band; g.fill(); g.fill();
+  g.restore();
 }
 
 /** The gear number, big enough to read at a glance, on a cream drum that
@@ -808,8 +814,9 @@ export function draw(ctx, dash, w, h, s) {
   // The prompt pulses about once a second, and holds steady under reduced
   // motion; a refused knob shakes for a moment, except under reduced motion.
   const top = s.gearTop ?? 3;
-  const pulse = reduce ? 0.85 : 0.35 + 0.65 * (0.5 - 0.5 * Math.cos(now / 1000 * TAU));
+  const pulse = reduce ? 0.85 : 0.3 + 0.7 * (0.5 - 0.5 * Math.cos(now / 1000 * TAU));
   const nopeT = (now - dash.nope.at) / 1000;
+  for (const k of L.gears.knobs) if (k.n === s.gearHint) knobHalo(ctx, k, pulse);
   for (const k of L.gears.knobs) {
     knob(ctx, k, k.n === s.gear, {
       hint: k.n === s.gearHint ? pulse : 0,
