@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   createDriveState,
+  carriesAnimalsFor,
+  driveTypeFor,
   clampLane,
   shiftLane,
   cycleGear,
@@ -39,6 +41,24 @@ describe('drive-state', () => {
       expect(s.driveType).toBe('vet');
       expect(s.destinationId).toBe('bay-road-vets');
       expect(s.weather).toBe('rain');
+    });
+  });
+
+  describe('carriesAnimalsFor', () => {
+    it('a supply run is the delivery race, with nothing alive aboard', () => {
+      expect(carriesAnimalsFor('delivery')).toBe(false);
+      expect(driveTypeFor('bramble-farm')).toBe('delivery');
+      expect(carriesAnimalsFor(driveTypeFor('bramble-farm'))).toBe(false);
+    });
+    it('every other drive carries animals', () => {
+      for (const t of ['vet', 'adoption', 'rewilding', 'demo'] as const) {
+        expect(carriesAnimalsFor(t), t).toBe(true);
+      }
+    });
+    it('is what a fresh drive state defaults to', () => {
+      expect(createDriveState({ driveType: 'delivery' }).carriesAnimals).toBe(false);
+      expect(createDriveState({ driveType: 'vet' }).carriesAnimals).toBe(true);
+      expect(createDriveState().carriesAnimals).toBe(true);
     });
   });
 

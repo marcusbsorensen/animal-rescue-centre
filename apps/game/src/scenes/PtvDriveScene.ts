@@ -627,6 +627,8 @@ export class PtvDriveScene extends Phaser.Scene {
    * already chosen are handed forward.
    */
   private readCargo(data?: PtvDriveInit): Animal[] {
+    // A supply run carries nobody, whatever it is handed: no loading screen.
+    if (!this.drive.carriesAnimals) return [];
     if (data?.cargo?.length) return data.cargo;
     if (typeof window === 'undefined') return [];
     const raw = new URLSearchParams(window.location.search).get('cargo');
@@ -2721,9 +2723,10 @@ export class PtvDriveScene extends Phaser.Scene {
 
     const next = Math.max(0, Math.min(pl - 1, this.drive.lane + dir));
     if (next !== this.drive.lane) {
-      // Ordinary lane change within our own carriageway. Safety first: with
-      // animals aboard we NEVER swerve into another vehicle.
-      if (this.drive.carriesAnimals && this.laneBlockedAt(next, this.vanY)) {
+      // Ordinary lane change within our own carriageway. Safety first: we
+      // NEVER swerve into another vehicle, with animals aboard or on a supply
+      // run. There is never a road accident.
+      if (this.laneBlockedAt(next, this.vanY)) {
         this.bumpBlocked(dir);
         return;
       }

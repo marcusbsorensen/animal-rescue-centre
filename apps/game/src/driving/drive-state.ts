@@ -35,9 +35,8 @@ export type DriveType = 'vet' | 'adoption' | 'rewilding' | 'delivery' | 'demo';
  *
  * Read off the destination's `arrival` — what is waiting at the far
  * end is what the journey is for, so the two cannot disagree. The
- * mapping matters beyond flavour: `carriesAnimals` gates whether the
- * drive is collision-safe, and a supply run is the one trip with
- * nobody in the back.
+ * mapping matters beyond flavour: a supply run is the delivery race,
+ * the one trip with nobody in the back (`carriesAnimalsFor`).
  */
 export function driveTypeFor(destinationId: string): DriveType {
   switch (getDestination(destinationId)?.arrival) {
@@ -45,10 +44,9 @@ export function driveTypeFor(destinationId: string): DriveType {
     case 'rewilding': return 'rewilding';
     case 'supply':    return 'delivery';
     // A collection goes out with an empty bed and comes home with
-    // somebody in it. It stays a gentle, collision-safe trip rather
-    // than joining the supply runs: `carriesAnimals` is what gates the
-    // crashes, and half of this journey has an animal aboard — the
-    // half a child would be driving when one happened.
+    // somebody in it. It stays an animals-aboard trip rather than
+    // joining the supply runs: half of this journey has an animal in
+    // the back, and the drive home is the half she drives.
     case 'collection': return 'adoption';
     // Keepers take an animal in for good, which is the adoption drive's
     // errand: a gentle trip with the animal aboard, ending somewhere it is
@@ -93,10 +91,10 @@ export interface DriveState {
   /** Route progress 0..1. Reaches 1 at the destination. */
   progress: number;
   /**
-   * Whether animals are aboard. When true the drive is COLLISION-SAFE: the game
-   * never lets the van actually hit another vehicle (you slow and tuck in
-   * behind, you can't swerve into a car). Only animal-free supply runs allow
-   * real crashes/chaos.
+   * Whether animals are aboard. False only on a supply run, the delivery
+   * race: no cargo, no loading screen, nobody's comfort to show. Every drive
+   * is collision-safe either way — there is never a road accident
+   * (docs/driving-rebuild-2026-10-11.md, "Two modes").
    */
   carriesAnimals: boolean;
 }
@@ -106,22 +104,33 @@ export interface CreateDriveStateOptions {
   driveType?: DriveType;
   destinationId?: string;
   weather?: string;
-  /** Defaults to true — the PTV carries animals, so the drive is collision-safe. */
+  /** Defaults to `carriesAnimalsFor(driveType)`: true except on a supply run. */
   carriesAnimals?: boolean;
+}
+
+/**
+ * Whether a kind of drive has animals aboard. Supply runs are the delivery
+ * race, with nothing alive aboard; every other drive carries animals.
+ * Marcus, 2026-10-11 (docs/driving-port-plan-2026-10-11.md section 5,
+ * answer 8).
+ */
+export function carriesAnimalsFor(driveType: DriveType): boolean {
+  return driveType !== 'delivery';
 }
 
 /** Build a fresh drive state with sensible MVP defaults. */
 export function createDriveState(opts: CreateDriveStateOptions = {}): DriveState {
+  const driveType = opts.driveType ?? 'demo';
   return {
     vehicle: opts.vehicle ?? 'henry',
-    driveType: opts.driveType ?? 'demo',
+    driveType,
     destinationId: opts.destinationId ?? '',
     lane: Math.floor(NUM_LANES / 2), // start in the middle lane
     gear: 1, // pull away in first gear
     cargoComfort: 100,
     weather: opts.weather ?? 'clear',
     progress: 0,
-    carriesAnimals: opts.carriesAnimals ?? true,
+    carriesAnimals: opts.carriesAnimals ?? carriesAnimalsFor(driveType),
   };
 }
 
