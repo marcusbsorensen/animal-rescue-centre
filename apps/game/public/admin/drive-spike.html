@@ -84,6 +84,7 @@
 import * as scenery from './drive-spike/scenery.js';
 import * as traffic from './drive-spike/traffic.js';
 import * as crossings from './drive-spike/crossings.js';
+import * as look from './drive-spike/vehicle-look.js';
 // The gears, handbrake and horn, in a strip along the bottom styled as the
 // van's own dashboard (Marcus, 2026-10-11). The road view is the canvas above
 // that strip.
@@ -625,28 +626,34 @@ function drawVan(w, vanY, ppm) {
   const wpx = VAN_W_M * ppm;
   const aspect = vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0;
   const hpx = wpx * aspect;
+  const name = VAN_ID + '-rear';
+  // Only the difference between where the van points and where the camera
+  // points, so it turns a little in the frame while the world turns a lot.
+  const turn = wrapAngle((car.heading ?? 0) - (camH ?? 0));
 
   // The shadow falls along the world's sun, not a fixed screen offset, so it
   // agrees with every tree and roof shadow when the camera turns. Rotating
   // the sun vector by the camera turns it into screen space. The body is
-  // ~1.9m tall; the ellipse takes the van's own small turn in the frame.
+  // ~1.9m tall. Cast from the outlined silhouette, as traffic's are.
   const rot = -(camH ?? 0) - Math.PI / 2;
   const sx = (SUN.x * Math.cos(rot) - SUN.y * Math.sin(rot)) * 1.9 * ppm;
   const sy = (SUN.x * Math.sin(rot) + SUN.y * Math.cos(rot)) * 1.9 * ppm;
   ctx.save();
   ctx.translate(px + sx, py + sy);
-  ctx.rotate(wrapAngle((car.heading ?? 0) - (camH ?? 0)));
-  ctx.fillStyle = 'rgba(40,46,38,.22)';
-  ctx.beginPath(); ctx.ellipse(0, 0, wpx * 0.46, hpx * 0.46, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.rotate(turn);
+  if (!look.shadow(ctx, name, vanImg, VAN_W_M, wpx, hpx)) {
+    ctx.fillStyle = 'rgba(40,46,38,.22)';
+    ctx.beginPath(); ctx.ellipse(0, 0, wpx * 0.46, hpx * 0.46, 0, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
 
   ctx.save();
   ctx.translate(px, py);
-  // Only the difference between where the van points and where the camera
-  // points, so it turns a little in the frame while the world turns a lot.
-  ctx.rotate(wrapAngle((car.heading ?? 0) - (camH ?? 0)));
-  if (vanImg) ctx.drawImage(vanImg, -wpx / 2, -hpx / 2, wpx, hpx);
-  else { ctx.fillStyle = '#749c66'; ctx.fillRect(-wpx / 2, -hpx / 2, wpx, hpx); }
+  ctx.rotate(turn);
+  // Outlined like the hedges, its tyres turning by the distance driven.
+  if (!look.body(ctx, name, vanImg, VAN_W_M, wpx, hpx, { key: 'van', odo: car.s, nose: 'up' })) {
+    ctx.fillStyle = '#749c66'; ctx.fillRect(-wpx / 2, -hpx / 2, wpx, hpx);
+  }
   ctx.restore();
 }
 
@@ -775,6 +782,7 @@ async function boot() {
         b[0] * ASPECT * METRES_PER_UNIT, b[1] * METRES_PER_UNIT, cls];
     });
   dash = await dashboard.load();
+  await look.load();
   window.__dash = dash;   // its layout and needle, for a test
 
   vanImg = new Image();
