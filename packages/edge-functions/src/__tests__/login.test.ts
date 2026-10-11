@@ -21,7 +21,7 @@ function withAccount(): FakeSupabase {
     if (q.table === 'users' && q.op === 'select') {
       return {
         data: {
-          id: 'u1', username: 'Bramble', pin_hash: pinHash,
+          id: 'u1', username: 'Bramble', display_name: 'MossyOtter', pin_hash: pinHash,
           avatar_emoji: '🦊', avatar_bg_colour: '#ffd0a0', join_code: 'FOX-428', is_active: true,
         },
         error: null,
@@ -38,6 +38,14 @@ describe('login', () => {
     expect(res.status).toBe(200);
     expect(((await json(res)).session as Record<string, unknown>).token).toMatch(/^[0-9a-f]{64}$/);
     expect(db.rpcs.map((r) => r.fn)).toContain('clear_rate_limit');
+  });
+
+  it('tells the app the name other players see', async () => {
+    const db = useFakeSupabase(withAccount());
+    const res = await handler(post({ username: 'Bramble', pin: '4821' }));
+    const session = (await json(res)).session as Record<string, unknown>;
+    expect(session.displayName).toBe('MossyOtter');
+    expect(db.on('users', 'select')[0].columns).toContain('display_name');
   });
 
   it('charges the address for a wrong PIN', async () => {

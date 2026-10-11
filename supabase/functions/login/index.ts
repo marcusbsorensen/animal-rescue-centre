@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     // Find user
     const { data: user, error: userErr } = await supabase
       .from('users')
-      .select('id, username, pin_hash, avatar_emoji, avatar_bg_colour, join_code, is_active')
+      .select('id, username, display_name, pin_hash, avatar_emoji, avatar_bg_colour, join_code, is_active')
       .eq('username', username)
       .single();
 
@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
       session: {
         userId: user.id,
         username: user.username,
+        displayName: user.display_name,
         avatarEmoji: user.avatar_emoji,
         avatarBgColour: user.avatar_bg_colour,
         joinCode: user.join_code,

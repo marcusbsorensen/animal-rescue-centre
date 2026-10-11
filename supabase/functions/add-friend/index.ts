@@ -35,10 +35,12 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invalid join code format' }, 400);
     }
 
-    // Find the friend by join code
+    // Find the friend by join code. Only what a friend may see: the
+    // display name from the word lists, never the name they typed, which
+    // is their login.
     const { data: friend, error: friendErr } = await supabase
       .from('users')
-      .select('id, username, avatar_emoji, avatar_bg_colour')
+      .select('id, display_name, avatar_emoji, avatar_bg_colour')
       .eq('join_code', normalised)
       .eq('is_active', true)
       .single();
@@ -86,7 +88,7 @@ Deno.serve(async (req) => {
     return jsonResponse({
       friend: {
         id: friend.id,
-        username: friend.username,
+        displayName: friend.display_name,
         avatarEmoji: friend.avatar_emoji,
         avatarBgColour: friend.avatar_bg_colour,
       },

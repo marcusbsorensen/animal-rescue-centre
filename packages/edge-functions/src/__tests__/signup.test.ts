@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { createHash } from 'node:crypto';
 import { FakeSupabase, type Query } from '../support/fake-supabase';
 import { loadFunction, useFakeSupabase, post, json, type Handler } from '../support/harness';
+import { isDisplayName } from '../../../game-logic/src/display-names';
 
 let handler: Handler;
 let db: FakeSupabase;
@@ -114,6 +115,71 @@ describe('signup', () => {
     const written = JSON.stringify(db.queries).toLowerCase();
     expect(written).not.toContain('example.com');
     expect(written).not.toContain(sha256);
+  });
+
+  it('gives the account the display name the child was shown', async () => {
+    const res = await handler(post(signupBody({ displayName: 'MossyOtter' })));
+    expect(res.status).toBe(200);
+    const row = db.on('users', 'insert')[0].values as Record<string, unknown>;
+    expect(row.display_name).toBe('MossyOtter');
+    // The typed name stays the login, and only the player sees it.
+    expect(row.username).toBe('Bramble');
+    const session = (await json(res)).session as Record<string, unknown>;
+    expect(session.displayName).toBe('MossyOtter');
+  });
+
+  it('adds a number when that display name is taken', async () => {
+    db = useFakeSupabase(new FakeSupabase((q: Query) => {
+      if (q.table === 'users' && q.op === 'insert') return { data: NEW_USER, error: null };
+      if (q.table === 'users' && q.op === 'select' && q.filters.some((f) => f.column === 'display_name')) {
+        return { data: [{ display_name: 'MossyOtter' }, { display_name: 'MossyOtter2' }], error: null };
+      }
+      return undefined;
+    }));
+    const res = await handler(post(signupBody({ displayName: 'MossyOtter' })));
+    expect(res.status).toBe(200);
+    const name = (db.on('users', 'insert')[0].values as Record<string, unknown>).display_name as string;
+    expect(name).toMatch(/^MossyOtter\d{1,2}$/);
+    expect(name).not.toBe('MossyOtter2');
+    expect(isDisplayName(name)).toBe(true);
+    expect(((await json(res)).session as Record<string, unknown>).displayName).toBe(name);
+  });
+
+  it('never stores a display name that is not from the lists', async () => {
+    // Only a pair from the lists, with no number, is taken from the app.
+    // Anything else, typed or tampered with, is replaced, not refused:
+    // the child has no box to fix it in.
+    for (const sent of ['Lily Smith', 'MossyOtter7', 'mossyotter', undefined]) {
+      db = useFakeSupabase(freshDatabase());
+      const res = await handler(post(signupBody({ displayName: sent })));
+      expect(res.status).toBe(200);
+      const name = (db.on('users', 'insert')[0].values as Record<string, unknown>).display_name;
+      expect(isDisplayName(name), String(sent)).toBe(true);
+      expect(name).not.toBe(sent);
+    }
+  });
+
+  it('tries another display name if one is taken between the check and the insert', async () => {
+    let inserts = 0;
+    db = useFakeSupabase(new FakeSupabase((q: Query) => {
+      if (q.table === 'users' && q.op === 'insert') {
+        inserts++;
+        if (inserts === 1) {
+          return {
+            data: null,
+            error: { code: '23505', message: 'duplicate key value violates unique constraint "users_display_name_key"' },
+          };
+        }
+        return { data: NEW_USER, error: null };
+      }
+      return undefined;
+    }));
+    const res = await handler(post(signupBody({ displayName: 'MossyOtter' })));
+    expect(res.status).toBe(200);
+    const [first, second] = db.on('users', 'insert').map((q) => (q.values as Record<string, unknown>).display_name);
+    expect(first).toBe('MossyOtter');
+    expect(second).not.toBe('MossyOtter');
+    expect(isDisplayName(second)).toBe(true);
   });
 
   it('answers a name check without creating anything', async () => {

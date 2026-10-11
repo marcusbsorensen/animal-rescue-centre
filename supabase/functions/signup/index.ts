@@ -3,6 +3,7 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { hashPin, generateToken, generateJoinCode } from '../_shared/crypto.ts';
 import { createSession } from '../_shared/session.ts';
 import { isPinHintCode } from '../_shared/pin-hints.ts';
+import { isDisplayNameBase, randomDisplayName, freeDisplayName } from '../_shared/display-names.ts';
 import {
   checkRateLimit,
   peekRateLimit,
@@ -19,7 +20,7 @@ Deno.serve(async (req) => {
     // touched. Older builds may still send a parent's email address (no
     // screen ever asked for one) or a typed `pinHint`; neither is read or
     // kept.
-    const { username, pin, avatarEmoji, avatarBgColour, pinHintCode, checkOnly } =
+    const { username, pin, avatarEmoji, avatarBgColour, pinHintCode, displayName, checkOnly } =
       await req.json();
 
     // `checkOnly` answers "is this name free?" and creates nothing.
@@ -184,11 +185,24 @@ Deno.serve(async (req) => {
       joinCode = generateJoinCode();
     }
 
-    // Create user
-    const { data: user, error: userErr } = await supabase
+    // The name other players see. The signup page shows the child a pair
+    // from the word lists ("Other players see you as MossyOtter") and
+    // sends it back; only a pair from the lists, with no number, is taken
+    // from the app. Anything else (an older build that sends none, or a
+    // name that is not from the lists) gets a pair picked here, because
+    // the child has no box to correct it in. A number is added here, and
+    // only when the pair is taken. The typed `username` stays the login.
+    const wanted = isDisplayNameBase(displayName) ? displayName : randomDisplayName();
+    let chosenDisplayName = await freeDisplayName(supabase, wanted);
+
+    // Create user. The unique index on display_name settles a race with
+    // another signup between the check above and this insert: lose it,
+    // and the account is made with another free name.
+    const insertUser = (name: string) => supabase
       .from('users')
       .insert({
         username: trimmedUsername,
+        display_name: name,
         pin_hash: pinHash,
         pin_hint_code: hintCode,
         avatar_emoji: avatarEmoji,
@@ -196,8 +210,14 @@ Deno.serve(async (req) => {
         join_code: joinCode,
         last_seen_at: new Date().toISOString(),
       })
-      .select('id, username, avatar_emoji, avatar_bg_colour, join_code')
+      .select('id, username, display_name, avatar_emoji, avatar_bg_colour, join_code')
       .single();
+
+    let { data: user, error: userErr } = await insertUser(chosenDisplayName);
+    for (let attempt = 0; attempt < 3 && isDisplayNameClash(userErr); attempt++) {
+      chosenDisplayName = await freeDisplayName(supabase, randomDisplayName());
+      ({ data: user, error: userErr } = await insertUser(chosenDisplayName));
+    }
 
     if (userErr) {
       console.error('User creation failed:', userErr);
@@ -247,6 +267,7 @@ Deno.serve(async (req) => {
       session: {
         userId: user.id,
         username: user.username,
+        displayName: user.display_name ?? chosenDisplayName,
         avatarEmoji: user.avatar_emoji,
         avatarBgColour: user.avatar_bg_colour,
         joinCode: user.join_code,
@@ -305,6 +326,12 @@ async function suggestAvailableUsernames(
   // Return the first 3 that aren't claimed.
   const free = uniq.filter((c) => !claimedSet.has(c)).slice(0, 3);
   return free;
+}
+
+/** A unique-key failure on the display name, rather than on the login. */
+function isDisplayNameClash(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; details?: string } | null;
+  return e?.code === '23505' && `${e.message ?? ''} ${e.details ?? ''}`.includes('display_name');
 }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {

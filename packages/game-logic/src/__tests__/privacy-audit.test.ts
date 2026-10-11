@@ -12,9 +12,9 @@ import * as path from 'node:path';
  *
  * - A new column on `users`, or a new table, fails until it is listed
  *   below, which is the moment to ask what a child could put in it.
- * - The known gap (a child types their own player name, and it is public
- *   to friends and on a showcase) is asserted as it is, with the reason.
- *   Fixing it fails these tests, and the fix updates them.
+ * - Player names: the name a child types is their login and stays with
+ *   them; everything other players see carries a display name made from
+ *   two word lists. Both halves are asserted, so undoing either fails.
  *
  * This file used to read migration 00001 alone, so it could not see
  * `pin_hint` (00004, free text a child typed) or `rate_limits` (00007,
@@ -130,6 +130,7 @@ describe('Privacy Audit: schema after every migration', () => {
       'avatar_bg_colour',
       'avatar_emoji',
       'created_at',
+      'display_name',
       'id',
       'is_active',
       'join_code',
@@ -252,41 +253,55 @@ describe('Privacy Audit: no parent email', () => {
   });
 });
 
-describe('Privacy Audit: player names (known gap, asserted as it is)', () => {
-  // The child types their own player name. The pool in `username_pool`
-  // only supplies suggestions, and signup marks a pool name claimed if
-  // one was used. The typed name is shown to friends, in the gift inbox,
-  // on the friends board and in a public showcase, and it is also the
-  // login. The proposal for a separate display name drawn from a pool is
-  // in the child-data report of 2026-10-11 (branch claude/child-data-gaps).
-  //
-  // When that is built these assertions fail, and they should be
-  // rewritten to assert the new state.
+describe('Privacy Audit: player names', () => {
+  // The child types a name at signup. It is their login, and it used to be
+  // what friends, the gift inbox, the friends board and a public showcase
+  // showed too. Since 2026-10-12 other players see a display name instead,
+  // made from two word lists (packages/game-logic/src/display-names.ts):
+  // MossyOtter, or MossyOtter7 when that one is taken.
   let signup: string;
+  let allSql: string;
 
   beforeAll(() => {
     signup = read('supabase/functions/signup/index.ts');
+    allSql = migrations().map((m) => m.sql).join('\n');
   });
 
-  it('signup accepts any name of 2 to 18 letters that passes a short blocklist', () => {
+  it('the typed name is the login: 2 to 18 letters past a short blocklist', () => {
     expect(signup).toContain('trimmedUsername.length < 2 || trimmedUsername.length > 18');
     expect(signup).toMatch(/const blocklist = \[/);
-    // The name is never checked against the pool before the account is made.
-    expect(signup).not.toMatch(/from\('username_pool'\)\s*\.select/);
-    expect(signup).toMatch(/from\('username_pool'\)\s*\.update/);
-  });
-
-  it('the signup page asks the child to type the name', () => {
     expect(read('apps/game/public/admin/signup.html')).toMatch(/<input[^>]*class="name-field"/);
-  });
-
-  it('the typed name is also the login', () => {
     expect(read('supabase/functions/login/index.ts')).toMatch(/\.eq\('username', username\)/);
   });
 
-  it('the typed name goes into a public showcase and to friends', () => {
-    expect(read('supabase/functions/create-showcase/index.ts')).toContain('username: user.username');
-    expect(read('supabase/functions/add-friend/index.ts')).toContain('username: friend.username');
+  it('every account has a display name, which the database holds to the word lists', () => {
+    expect(allSql).toMatch(/alter table users add column if not exists display_name text/);
+    expect(allSql).toMatch(/alter column display_name set not null/);
+    expect(allSql).toMatch(/create unique index if not exists \w+ on users \(display_name\)/);
+    expect(allSql).toMatch(/check \(arc_is_display_name\(display_name\)\)/);
+    // An account made without one (an older signup) gets one from the lists.
+    expect(allSql).toMatch(/alter column display_name set default arc_new_display_name\(\)/);
+  });
+
+  it('signup takes only a pair from the lists from the app, and adds any number itself', () => {
+    expect(signup).toMatch(/isDisplayNameBase\(displayName\)/);
+    expect(signup).toContain('display_name:');
+  });
+
+  it('a friend is told the display name, never the typed name', () => {
+    const src = read('supabase/functions/add-friend/index.ts');
+    expect(src).toContain('displayName: friend.display_name');
+    expect(src).not.toMatch(/\busername\b/);
+  });
+
+  it('a public showcase carries the display name, never the typed name', () => {
+    const create = read('supabase/functions/create-showcase/index.ts');
+    expect(create).toContain('displayName: user.display_name');
+    expect(create).not.toMatch(/\busername\b/);
+    // Showcases made before display names lose the typed name twice over:
+    // 00014 rewrites them, and get-showcase drops it on the way out.
+    expect(allSql).toMatch(/update showcase_links[\s\S]*snapshot - 'username'/);
+    expect(read('supabase/functions/get-showcase/index.ts')).toMatch(/delete \w+\.username|username: _/);
   });
 });
 
