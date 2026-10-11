@@ -175,8 +175,8 @@ function tarmacTile(fam, season) {
   if (season === 'summer') mottle(g, S, 5, b, DUST.summer, 0.22 * T.mottle, 27);
   // Grit: the aggregate showing through, dark and light chips.
   const n = (fam === 'main' ? 7000 : 9000) * T.grit;
-  dots(g, S, r, n, 0.5, 1.2, rr => rgba(rr() < 0.5 ? mix(b, '#141518', 0.35 + rr() * 0.3) : mix(b, '#f3ecda', 0.25 + rr() * 0.35), 0.35 + rr() * 0.4));
-  dots(g, S, r, (fam === 'main' ? 500 : 1400) * T.grit, 1, 2, rr => rgba(mix(b, rr() < 0.7 ? '#e6dcc4' : '#3a3734', 0.35 + rr() * 0.3), 0.6));
+  dots(g, S, r, n, 0.5, 1.3, rr => rr() < 0.65 ? rgba(mix(b, '#141518', 0.3 + rr() * 0.3), 0.3 + rr() * 0.4) : rgba(mix(b, '#f3ecda', 0.2 + rr() * 0.25), 0.2 + rr() * 0.25));
+  dots(g, S, r, (fam === 'main' ? 400 : 1200) * T.grit, 1, 2.2, rr => rgba(mix(b, rr() < 0.6 ? '#e6dcc4' : '#3a3734', 0.2 + rr() * 0.25), 0.5));
   if (fam === 'old') {
     // Hairline cracks in old tarmac, wandering, wrapped round the tile.
     g.lineCap = 'round';
@@ -296,7 +296,7 @@ function paintTile() {
 /** Patch repairs: newer, darker, smoother tarmac. */
 function patchTile(season) {
   const S = 256, [c, g] = canvas(S), r = rng(hash(7, 29, season.length));
-  const b = mix(base('main', season), '#202124', 0.28);
+  const b = mix(base('main', season), '#1c1d20', 0.3);
   g.fillStyle = b; g.fillRect(0, 0, S, S);
   mottle(g, S, 4, mix(b, '#111', 0.4), mix(b, '#ddd', 0.3), 0.1, 61);
   dots(g, S, r, 1500, 0.4, 0.9, rr => rgba(mix(b, '#eee', 0.3), 0.3 + rr() * 0.3));
@@ -497,7 +497,7 @@ const LANE_PAINT_W = 0.28, EDGE_PAINT_W = 0.3, TRUNK_EDGE_W = 0.25;
  *  wobble, wear and breaks all come from distance along the chain. */
 function line(R, ch, r0, r1, off, w, dash, salt) {
   const sd = ch.seed + salt * 977;
-  const wob = s => off + 0.035 * T.wob * ((noise1(s, 2.3, sd + 1) - 0.5) * 1.4 + (noise1(s, 0.9, sd + 2) - 0.5) * 0.6);
+  const wob = s => off + 0.045 * T.wob * ((noise1(s, 2.3, sd + 1) - 0.5) * 1.4 + (noise1(s, 0.9, sd + 2) - 0.5) * 0.6);
   const wmul = s => 1 + T.widthVar * 2 * (noise1(s, 3.1, sd + 3) - 0.5) * 1.4;
   if (!dash) {
     // Worn thin, then broken, where this noise runs high.
@@ -526,10 +526,10 @@ function line(R, ch, r0, r1, off, w, dash, salt) {
     if (c - on < 0 || c + on > ch.len) continue;
     const r = rng(hash(ch.seed, k, salt));
     if (r() < T.dashSkip) continue;
-    const j = 0.25 * T.wob;
+    const j = 0.4 * T.wob;
     const s0 = c - on / 2 + (r() - 0.5) * j, s1 = c + on / 2 + (r() - 0.5) * j;
     // Uneven ends: each edge of the dash starts and stops a little apart.
-    const e = 0.1 * T.wob, la = s0 + (r() - 0.5) * e, lb = s1 + (r() - 0.5) * e;
+    const e = 0.16 * T.wob, la = s0 + (r() - 0.5) * e, lb = s1 + (r() - 0.5) * e;
     const ra = s0 + (r() - 0.5) * e, rb = s1 + (r() - 0.5) * e;
     if (covered(ch, s0, off) || covered(ch, s1, off) || covered(ch, c, off)) continue;
     const dw = 1 + (r() - 0.5) * T.widthVar * 1.2;
@@ -538,10 +538,16 @@ function line(R, ch, r0, r1, off, w, dash, salt) {
     const hw = s => w / 2 * dw * wmul(s);
     const L = side(ch, la, lb, 0.4, s => wob(s) + hw(s)), Rr = side(ch, ra, rb, 0.4, s => wob(s) - hw(s));
     if (L.length < 4 || Rr.length < 4) continue;
+    // Each end is a brush lifting off: bulged or dragged a little at its middle.
+    const tip = s => side(ch, s, s + 0.01, 1, wob);
+    const e1 = tip(Math.min(ch.len - 0.02, Math.max(0, (lb + rb) / 2 + (r() - 0.3) * 0.12 * T.wob)));
+    const e0 = tip(Math.min(ch.len - 0.02, Math.max(0, (la + ra) / 2 - (r() - 0.3) * 0.12 * T.wob)));
     const p = R.get('paint' + b);
     p.moveTo(L[0], L[1]);
     for (let i = 2; i < L.length; i += 2) p.lineTo(L[i], L[i + 1]);
+    p.lineTo(e1[0], e1[1]);
     for (let i = Rr.length - 2; i >= 0; i -= 2) p.lineTo(Rr[i], Rr[i + 1]);
+    p.lineTo(e0[0], e0[1]);
     p.closePath();
   }
 }
@@ -601,23 +607,23 @@ function buildRun(ch, r0, r1, trunk) {
     for (const d of [-0.8, 0.8]) {
       const so = seed + 51 + li * 8 + (d > 0 ? 4 : 0);
       const mid = s => lc + d + 0.14 * (noise1(s, 7, so) - 0.5) * 2;
-      const gate = s => clamp01((noise1(s, 9, so + 1) - 0.28) / 0.18);
+      const gate = s => { const g = clamp01((noise1(s, 9, so + 1) - 0.25) / 0.3); return g * g * (3 - 2 * g); };
       bandClear(wear, ch, a, b, 0.7,
-        s => mid(s) - 0.36 * (0.5 + 0.8 * noise1(s, 1.3, so + 2)) * gate(s),
-        s => mid(s) + 0.36 * (0.5 + 0.8 * noise1(s, 1.5, so + 3)) * gate(s));
+        s => mid(s) - 0.4 * (0.6 + 0.7 * noise1(s, 1.3, so + 2)) * gate(s),
+        s => mid(s) + 0.4 * (0.6 + 0.7 * noise1(s, 1.5, so + 3)) * gate(s));
     }
   });
 
   if (fam === 'main') {
     // Patch repairs: squared-off rectangles of newer tarmac, a lane wide or less.
     const r = rng(hash(seed, 61, 0));
-    for (let s = 6 + r() * 30; s < ch.len - 6; s += (22 + r() * 55) * T.patchGap) {
-      const len = 1.4 + r() * 3.2;
-      if (s < r0 || s >= r1) { r(); r(); r(); continue; }
-      const lc = lanes[(r() * lanes.length) | 0], c = lc + (r() - 0.5) * 1.6, w = 1 + r() * 2;
-      const j = r() * 0.15;
-      if (covered(ch, s, c) || covered(ch, s + len, c)) continue;
-      band(R.get('main:patch'), ch, s, s + len, 0.5, t => c - w / 2 - j * (t - s) / len, t => c + w / 2 + j * (1 - (t - s) / len));
+    for (let s = 6 + r() * 30; s < ch.len - 6; s += (14 + r() * 36) * T.patchGap) {
+      const len = 1.4 + r() * 3.2, lc = lanes[(r() * lanes.length) | 0], c = lc + (r() - 0.5) * 1.6, w = 1 + r() * 2;
+      const j = r() * 0.15, ps = seed + Math.round(s * 10);
+      if (s < r0 || s >= r1 || covered(ch, s, c) || covered(ch, s + len, c)) continue;
+      // Hand-cut, so the sides are not quite straight or parallel.
+      band(R.get('main:patch'), ch, s, s + len, 0.4,
+        t => c - w / 2 - j * (t - s) / len + rag(t, ps, 0.05), t => c + w / 2 + j * (1 - (t - s) / len) + rag(t, ps + 3, 0.05));
     }
   }
 
@@ -662,14 +668,14 @@ export function load(world) {
   for (const f of fams) {
     fill.set(f + ':surface', [pat(f === 'track' ? earthTile(season) : tarmacTile(f, season)), 1]);
     fill.set(f + ':verge', [pat(vergeTile(f, season)), f === 'main' ? 0.7 : 0.9]);
-    if (f !== 'track') fill.set(f + ':wear', [null, { main: 0.35, worn: 0.75, old: 0.6 }[f] * Math.min(1, 0.7 * T.wear)]);
+    if (f !== 'track') fill.set(f + ':wear', [null, { main: 0.3, worn: 0.65, old: 0.55 }[f] * Math.min(1, 0.7 * T.wear)]);
   }
   const wearP = pat(wearTile(mix(base('worn', season), '#f0eadb', 0.45), 81, 0.8));
   for (const f of ['old', 'worn', 'main']) fill.get(f + ':wear')[0] = wearP;
   fill.set('track:ruts', [pat(wearTile(mix(base('track', season), '#2b1f12', season === 'winter' ? 0.5 : 0.42), 83, 1)), Math.min(1, 0.85 * T.wear)]);
   const grass = pat(grassTile(season));
   fill.set('track:grass', [grass, 1]);
-  fill.set('main:patch', [pat(patchTile(season)), 0.95]);
+  fill.set('main:patch', [pat(patchTile(season)), 0.85]);
   fill.set('reserve', [grass, 1]);
   const paint = pat(paintTile());
   fill.set('paint0', [paint, 0.95]); fill.set('paint1', [paint, 0.7]); fill.set('paint2', [paint, 0.42]);
