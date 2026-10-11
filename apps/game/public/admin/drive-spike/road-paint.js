@@ -296,7 +296,7 @@ function paintTile() {
 /** Patch repairs: newer, darker, smoother tarmac. */
 function patchTile(season) {
   const S = 256, [c, g] = canvas(S), r = rng(hash(7, 29, season.length));
-  const b = mix(base('main', season), '#1c1d20', 0.22);
+  const b = mix(base('main', season), '#1c1d20', 0.16);
   g.fillStyle = b; g.fillRect(0, 0, S, S);
   mottle(g, S, 4, mix(b, '#111', 0.4), mix(b, '#ddd', 0.3), 0.1, 61);
   dots(g, S, r, 1500, 0.4, 0.9, rr => rgba(mix(b, '#eee', 0.3), 0.3 + rr() * 0.3));
@@ -642,9 +642,16 @@ function buildRun(ch, r0, r1, trunk) {
       const len = 1.4 + r() * 3.2, lc = lanes[(r() * lanes.length) | 0], c = lc + (r() - 0.5) * 1.6, w = 1 + r() * 2;
       const j = r() * 0.15, ps = seed + Math.round(s * 10);
       if (s < r0 || s >= r1 || covered(ch, s, c) || covered(ch, s + len, c)) continue;
-      // Hand-cut, so the sides are not quite straight or parallel.
-      band(R.get('main:patch'), ch, s, s + len, 0.4,
-        t => c - w / 2 - j * (t - s) / len + rag(t, ps, 0.05), t => c + w / 2 + j * (1 - (t - s) / len) + rag(t, ps + 3, 0.05));
+      // Hand-cut, so no side is quite straight, parallel or square to the road.
+      const q = rng(ps), e = () => (q() - 0.5) * 0.5;
+      const L = side(ch, s + e(), s + len + e(), 0.4, t => c + w / 2 + j * (1 - (t - s) / len) + rag(t, ps + 3, 0.07));
+      const Rr = side(ch, s + e(), s + len + e(), 0.4, t => c - w / 2 - j * (t - s) / len + rag(t, ps, 0.07));
+      if (L.length < 4 || Rr.length < 4) continue;
+      const p = R.get('main:patch');
+      p.moveTo(L[0], L[1]);
+      for (let i = 2; i < L.length; i += 2) p.lineTo(L[i], L[i + 1]);
+      for (let i = Rr.length - 2; i >= 0; i -= 2) p.lineTo(Rr[i], Rr[i + 1]);
+      p.closePath();
     }
   }
 
