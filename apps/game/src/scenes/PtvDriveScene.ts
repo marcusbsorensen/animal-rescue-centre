@@ -13,7 +13,7 @@ import {
   aboard, blockingNotes, canSetOff, changeVehicle, createLoadingSession, describeCrateChoice,
   heldAnimal, holdFromTray, liftFromSlot, placeHeld, putHeldBack, putHeldInCrate, spawnAnimal,
   type CompatibilityLevel, type CrateType, type LoadableAnimal, type LoadingSession,
-  type VehicleDef, type VehicleType,
+  type VehicleType,
 } from '@arc/game-logic';
 import { renderCrateLoading, titleCase } from '../driving/crate-loading-view';
 import { PICKER_EXIT_MARGIN, VEHICLE_SPRITE, pickerLayout } from '../driving/fleet-art';
@@ -1583,133 +1583,6 @@ export class PtvDriveScene extends Phaser.Scene {
 
     this.phase = 'parking';
     this.renderView();
-  }
-
-  private renderSelect(width: number, height: number): void {
-    if (this.textures.exists('site-gravel')) {
-      this.container.add(this.add.tileSprite(0, 0, width, height, 'site-gravel').setOrigin(0));
-    } else {
-      this.container.add(this.add.rectangle(width / 2, height / 2, width, height, 0xcbb79a));
-    }
-
-    this.container.add(
-      this.add.text(width / 2, height * 0.08, 'Time for a drive!', {
-        fontSize: TYPE.heading, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-        backgroundColor: 'rgba(255,249,239,0.8)', padding: { x: 14, y: 6 },
-      }).setOrigin(0.5)
-    );
-
-    // Where are we going? — a simple destination strip.
-    const destName = this.destinationId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    const dpW = Math.min(width * 0.7, 560), dpX = (width - dpW) / 2, dpY = height * 0.16, dpH = 52;
-    const dp = this.add.graphics();
-    dp.fillStyle(0x4a3f2e, 0.92); dp.fillRoundedRect(dpX, dpY, dpW, dpH, 12);
-    this.container.add(dp);
-    this.container.add(
-      this.add.text(dpX + 18, dpY + dpH / 2, `Off to ${destName}`, {
-        fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold', color: '#fff5e8',
-      }).setOrigin(0, 0.5)
-    );
-
-    this.container.add(
-      this.add.text(width / 2, height * 0.31, 'Which vehicle?', {
-        fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-      }).setOrigin(0.5)
-    );
-
-    // Vehicle cards, one row.
-    const defs = Object.values(VEHICLE_DEFS);
-    const n = defs.length;
-    const gap = 14;
-    const areaW = Math.min(width * 0.94, 1100);
-    const cardW = Math.min(200, (areaW - gap * (n - 1)) / n);
-    const cardH = height * 0.42;
-    const rowW = cardW * n + gap * (n - 1);
-    const startX = (width - rowW) / 2, cardY = height * 0.36;
-    defs.forEach((v, i) => {
-      this.container.add(this.makeVehicleCard(v, startX + i * (cardW + gap), cardY, cardW, cardH));
-    });
-
-    this.container.add(
-      createChromeButton(this, width / 2, height * 0.88, "Let's go!", () => {
-        AudioManager.getInstance().playSfx('button_click');
-        this.phase = 'parking';
-        this.renderView();
-      }, { width: 190, variant: 'filled' }).setDepth(45)
-    );
-    this.container.add(
-      createChromeButton(this, SAFE_MARGIN, SAFE_MARGIN, 'Back', () => this.exit(), { width: 88, anchor: { x: 'left', y: 'top' } }).setDepth(45)
-    );
-  }
-
-  /** One vehicle card in the picker (top-left origin at x,y). */
-  private makeVehicleCard(v: VehicleDef, x: number, y: number, w: number, h: number): Phaser.GameObjects.Container {
-    const locked = v.unlockLevel > this.playerLevel;
-    const selected = v.id === this.vehicleId;
-    const card = this.add.container(x, y);
-
-    const bg = this.add.graphics();
-    bg.fillStyle(selected ? 0xfff2e0 : 0xfbf6ec, 1);
-    bg.fillRoundedRect(0, 0, w, h, 12);
-    bg.lineStyle(selected ? 4 : 2, selected ? 0xd9534f : 0xcbbfa6, 1);
-    bg.strokeRoundedRect(0, 0, w, h, 12);
-    card.add(bg);
-
-    const key = VEHICLE_SPRITE[v.id];
-    if (this.textures.exists(key)) {
-      const img = this.add.image(w / 2, h * 0.36, key);
-      // Scale by WIDTH proportional to real size (Henry = 1.0), so Trikey reads
-      // tiny and the bigger vehicles are visibly wider — never narrower than
-      // Henry. Cap the height so a long body mostly fits, but a "large" vehicle
-      // (size >= Henry) is floored at Henry's width even if it then runs tall.
-      const henryW = w * 0.52;
-      let scale = (henryW * VEHICLE_SIZE[v.id]) / img.width;
-      const maxH = h * 0.58;
-      if (img.height * scale > maxH) scale = maxH / img.height;
-      if (VEHICLE_SIZE[v.id] >= 1) scale = Math.max(scale, henryW / img.width);
-      img.setScale(scale);
-      card.add(img);
-    }
-
-    card.add(
-      this.add.text(w / 2, h * 0.7, v.name, {
-        fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold', color: COLOURS.text,
-      }).setOrigin(0.5)
-    );
-    card.add(
-      this.add.text(w / 2, h * 0.82, `Slots ${v.slots}    Fuel ${v.fuelCost}    L${v.unlockLevel}+`, {
-        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#6a6152',
-      }).setOrigin(0.5)
-    );
-
-    if (selected) {
-      card.add(
-        this.add.text(w - 8, 8, 'Selected!', {
-          fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
-          backgroundColor: '#d9534f', padding: { x: 6, y: 3 },
-        }).setOrigin(1, 0)
-      );
-    }
-
-    if (locked) {
-      const ov = this.add.graphics();
-      ov.fillStyle(0x2a2a2a, 0.5); ov.fillRoundedRect(0, 0, w, h, 12);
-      card.add(ov);
-      card.add(
-        this.add.text(w / 2, h / 2, `Unlocks\nL${v.unlockLevel}`, {
-          fontSize: TYPE.caption, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff', align: 'center',
-        }).setOrigin(0.5)
-      );
-    } else {
-      card.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
-      card.on('pointerdown', () => {
-        if (this.vehicleId === v.id) return;
-        this.vehicleId = v.id;
-        AudioManager.getInstance().playSfx('button_click');
-        this.renderView();
-      });
-    }
-    return card;
   }
 
   // ── Parking-lot start ──────────────────────────────────────
