@@ -4,7 +4,7 @@
     python3 tools/recolour-topdown.py apps/game/public/assets/driving/topdown/vehicle-topdown-henry.png \\
         --target 142,52,54 --out /tmp/henry-maroon.png --check
     python3 tools/recolour-topdown.py <in.png> --target R,G,B --out <out.png> \\
-        [--keep-box x0,y0,x1,y1 ...] [--no-plate-cut] [--debug-dir <dir>]
+        [--keep-box x0,y0,x1,y1 ...] [--no-plate-cut] [--seed-share F] [--include-box x0,y0,x1,y1 ...] [--res-limits S,G[,NS,NG]] [--debug-dir <dir>]
 
 PILOT, 2026-10-11, one file: vehicle-topdown-henry.png, cream to maroon (142,52,54).
 It worked: see RESULT. Nothing is installed by this script; it writes beside the
@@ -85,7 +85,10 @@ WHAT IT CANNOT DO. Read before running it on anything else.
   off; `--keep-box x0,y0,x1,y1` (repeatable, pixel coordinates) then protects the
   genuine plates by hand. Checked on Henry: with the rule off, 1,263 plate pixels
   recolour; with two tight boxes round the plates, the result matches the
-  default to within 224 pixels. Expect to look at every output.
+  default to within 224 pixels. Expect to look at every output. NOTE (fleet run,
+  below): turning the rule off does not BRING a separate piece into the body, it only
+  stops cutting it out, so a door the ink lines have cut off the main region stays
+  cream. --seed-share and --include-box are what bring such pieces in.
 * White has no chroma. Spark's paint has chroma 0.5, so there is nothing for the
   colour test to separate chrome highlights from, and the whole job rides on the
   spatial step. His cream bolt and lettering are the same cluster as the
@@ -110,6 +113,53 @@ WHAT IT CANNOT DO. Read before running it on anything else.
   (the same effect the original has already been through, so "byte-identical
   alpha" holds for this script's output and not for the installed file), and
   leaves the IoU at 1.000 and the band colours within 1 unit.
+
+FLEET RUN, 2026-10-11: the other five, and what each one needed.
+
+  Three flags were added for the files where the body is not one connected piece
+  of paint (all default to the pilot's behaviour; henry front is byte-identical).
+
+  --seed-share F      a paint piece with this share of the visible pixels is body
+                      (default 0.05). Bea's cab has ink lines round the bonnet, the
+                      scuttle and both wings: five pieces, all body, none the biggest.
+  --include-box BOX   any paint piece the box touches is body, whatever its size. A
+                      6 px box on the thickest point of a piece is enough. For when a
+                      size threshold cannot tell the body from a marking: Spark's
+                      flank slivers (marking, left alone) are bigger than his nose
+                      wings (body, wanted).
+  --res-limits S,G[,NS,NG]
+                      the four colour limits. Henry's rear paint shades through ochre
+                      under the lamps and round the paw (a*b* 17-48 off the line,
+                      limit 12-40); at the defaults those patches stay cream. 30,45,40,60
+                      takes them without touching the lamps, paw or glass; 60,80,70,90
+                      starts to take a lamp.
+
+  Recipes (target, then flags; pixel boxes are for the shipped files):
+    henry       142,52,54                (none)
+    henry-rear  142,52,54  --include-box 487,1081,493,1087 --res-limits 30,45,40,60
+    bea         74,112,164 --no-plate-cut --seed-share 0.0005 and --keep-box on both
+                mirrors (502,905,578,982 / 0,905,78,982) and the grille surround
+                (150,1305,415,1368)
+    bea-rear    74,112,164 --no-plate-cut --seed-share 0.002 and --keep-box on both
+                mirrors (0,139,56,205 + 56,153,80,205 / 522,139,578,205 + 500,153,522,205)
+    spark       116,156,102 --include-box on the four pieces 27,1631,33,1637
+                604,1670,610,1676 (nose wings) 523,108,529,114 112,102,118,108 (roof corners)
+    spark-rear  116,156,102 --include-box 400,1620,406,1626 (the tailgate panel)
+
+  On henry-rear and spark-rear the doors and tailgate are seeded by --include-box and
+  the plate rule is left ON: it then does what it was written for and protects the
+  bumper rim and number plate without a keep-box.
+
+  Left as drawn, on purpose: Bea's cream mirrors and grille surround, Spark's white
+  mirrors, bumper and number plate, Henry's cream rear bumper and plate, every lamp,
+  the glass, Spark's flank slivers (white) and green flank stripe, Henry's paw-heart.
+  Spark's flank green stripe is a more saturated green than the leaf target.
+
+  Known imperfection: Bea's gold windscreen trim is one to three px wide and its
+  muted gold sits 17-21 a*b* units off the line, so a few of its pixels go part-way
+  blue. It is a dotted line at 1:1 and nothing at the size the game draws it.
+
+  Install by quantising and copying, never through install-vehicles.py (above).
 """
 import argparse
 import importlib.util
@@ -222,7 +272,7 @@ def _disk(r):
     return x * x + y * y <= r * r
 
 
-def body_mask(res, lab, alpha, plate_cut=True):
+def body_mask(res, lab, alpha, plate_cut=True, seed_share=MAIN_SHARE, include_boxes=()):
     """(footprint, plates, n_seed_pieces, biggest_sizes). See step 3 of the module docstring."""
     paint = (res <= RES_SOLID) & (lab[..., 0] >= 55) & (alpha >= OPAQUE)
     core = ndimage.binary_opening(paint, structure=np.ones((3, 3)), iterations=1)
@@ -230,9 +280,13 @@ def body_mask(res, lab, alpha, plate_cut=True):
     if n == 0:
         raise SystemExit('no paint-coloured region found; wrong sprite or wrong reference')
     sizes = ndimage.sum(core, lbl, range(1, n + 1))
-    seed = np.isin(lbl, [i + 1 for i, s in enumerate(sizes) if s >= MAIN_SHARE * (alpha > 16).sum()])
+    seed = np.isin(lbl, [i + 1 for i, s in enumerate(sizes) if s >= seed_share * (alpha > 16).sum()])
     if not seed.any():
         seed = lbl == (int(np.argmax(sizes)) + 1)
+    for x0, y0, x1, y1 in include_boxes:       # --include-box: any paint piece a box touches is body
+        box = np.zeros_like(core)
+        box[y0:y1, x0:x1] = True
+        seed |= core & box
     # The opening only picked the seed. The body is the whole connected piece of
     # UNopened paint that contains it, which brings back the rim and the wedges
     # of paint the opening trimmed off.
@@ -254,7 +308,7 @@ def body_mask(res, lab, alpha, plate_cut=True):
 
 # ---------------------------------------------------------------- recolour
 
-def recolour(rgba, target, gamma=GAMMA, wash=WASH, plate_cut=True, keep_boxes=()):
+def recolour(rgba, target, gamma=GAMMA, wash=WASH, plate_cut=True, keep_boxes=(), seed_share=MAIN_SHARE, include_boxes=()):
     """rgba uint8 (H, W, 4) -> (new rgba uint8, debug dict). Alpha is copied, never computed.
 
     keep_boxes: (x0, y0, x1, y1) pixel rectangles inside which nothing is recoloured."""
@@ -264,7 +318,7 @@ def recolour(rgba, target, gamma=GAMMA, wash=WASH, plate_cut=True, keep_boxes=()
     ref = modal_colour_lab(rgb8, alpha >= OPAQUE)
     res, da, db = residual(lab, ref)
 
-    body, plates, n_pieces, biggest = body_mask(res, lab, alpha, plate_cut)
+    body, plates, n_pieces, biggest = body_mask(res, lab, alpha, plate_cut, seed_share, include_boxes)
     dist = ndimage.distance_transform_edt(~body)
     # Tolerance for "is this still paint" is wider right at the body's edge.
     near = np.clip(1.0 - dist / EDGE_NEAR, 0.0, 1.0)
@@ -365,6 +419,7 @@ def report(src, out, rgba, back, dbg, target):
 
 
 def main():
+    global RES_SOLID, RES_GONE, NEAR_SOLID, NEAR_GONE
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('src')
     ap.add_argument('--target', required=True, help='R,G,B of the body colour wanted')
@@ -373,6 +428,16 @@ def main():
     ap.add_argument('--wash', type=float, default=WASH)
     ap.add_argument('--no-plate-cut', action='store_true',
                     help='do not cut out large separate pieces as chrome (use on multi-panel rear views)')
+    ap.add_argument('--seed-share', type=float, default=MAIN_SHARE, metavar='F',
+                    help='a paint piece holding this share of the visible pixels counts as body (default %g); '
+                         'lower it when ink lines split the body into several big pieces (cab front, rear doors)' % MAIN_SHARE)
+    ap.add_argument('--res-limits', metavar='S,G[,NS,NG]',
+                    help='override the colour limits (a*b* units off the ink-to-paint line): paint-solid, paint-gone, and '
+                         'the same two right at the body edge. Defaults %g,%g,%g,%g. Raise them when the art shades its '
+                         'paint through a hue the line does not predict (Henry rear: ochre shadows under the lamps).'
+                         % (RES_SOLID, RES_GONE, NEAR_SOLID, NEAR_GONE))
+    ap.add_argument('--include-box', action='append', default=[], metavar='x0,y0,x1,y1',
+                    help='any paint piece this pixel rectangle touches is body, whatever its size; repeatable')
     ap.add_argument('--keep-box', action='append', default=[], metavar='x0,y0,x1,y1',
                     help='pixel rectangle inside which nothing is recoloured; repeatable')
     ap.add_argument('--debug-dir', help='write the membership map and body footprint here')
@@ -381,14 +446,22 @@ def main():
     if not 1.0 <= args.gamma < 2.0:
         sys.exit('--gamma must be in [1, 2)')
 
+    if args.res_limits:
+        lim = [float(v) for v in args.res_limits.split(',')]
+        if len(lim) == 2:
+            lim += [lim[0] + (NEAR_SOLID - RES_SOLID), lim[1] + (NEAR_GONE - RES_GONE)]
+        if len(lim) != 4 or not (0 < lim[0] < lim[1] and lim[0] <= lim[2] < lim[3]):
+            sys.exit('--res-limits wants S,G or S,G,NS,NG with S < G and NS < NG')
+        RES_SOLID, RES_GONE, NEAR_SOLID, NEAR_GONE = lim
     target = tuple(int(v) for v in args.target.split(','))
     boxes = [tuple(int(v) for v in b.split(',')) for b in args.keep_box]
+    inc = [tuple(int(v) for v in b.split(',')) for b in args.include_box]
     src = os.path.abspath(args.src)
     out = os.path.abspath(args.out)
     if src == out:
         sys.exit('refusing to write over the source')
     rgba = load_rgba(src)
-    new, dbg = recolour(rgba, target, args.gamma, args.wash, not args.no_plate_cut, boxes)
+    new, dbg = recolour(rgba, target, args.gamma, args.wash, not args.no_plate_cut, boxes, args.seed_share, inc)
 
     Image.fromarray(new, 'RGBA').save(out)
     back = load_rgba(out)
