@@ -7,7 +7,7 @@ import {
   checkRateLimit,
   peekRateLimit,
   bumpRateLimit,
-  clientIp,
+  addressKey,
 } from '../_shared/rate-limit.ts';
 
 Deno.serve(async (req) => {
@@ -102,11 +102,13 @@ Deno.serve(async (req) => {
     // household and nowhere near useful to a flood.
     //
     // Both come before any database read: the cost starts there.
-    const ip = clientIp(req);
-    const createKey = ip ? `signup-create-ip:${ip}` : null;
-    if (ip && createKey) {
+    //
+    // Keyed by a hash of the address, never the address (addressKey).
+    const addr = await addressKey(req);
+    const createKey = addr ? `signup-create-ip:${addr}` : null;
+    if (addr && createKey) {
       const attempts = await checkRateLimit(
-        supabase, `signup-ip:${ip}`, 60, 15 * 60 * 1000,
+        supabase, `signup-ip:${addr}`, 60, 15 * 60 * 1000,
       );
       if (!attempts.allowed) {
         const retryMinutes = Math.ceil(attempts.retryAfterMs / 60_000);
@@ -128,8 +130,6 @@ Deno.serve(async (req) => {
           429,
         );
       }
-    } else {
-      console.error('no client IP header; address limits skipped');
     }
 
     // Pre-check: is this username already claimed by another user?

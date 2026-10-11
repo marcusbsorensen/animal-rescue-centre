@@ -18,7 +18,7 @@
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { checkRateLimit, clientIp } from '../_shared/rate-limit.ts';
+import { checkRateLimit, addressKey } from '../_shared/rate-limit.ts';
 import { pinHintText } from '../_shared/pin-hints.ts';
 
 Deno.serve(async (req) => {
@@ -58,10 +58,11 @@ Deno.serve(async (req) => {
     // through this endpoint is the enumeration the per-name cap cannot
     // see. Every lookup counts here, unlike login — there is no correct
     // answer a caller could give to show they own the account.
-    const ip = clientIp(req);
-    if (ip) {
+    // Keyed by a hash of the address, never the address (addressKey).
+    const addr = await addressKey(req);
+    if (addr) {
       const ipRl = await checkRateLimit(
-        supabase, `hint-ip:${ip}`, 30, 30 * 60 * 1000,
+        supabase, `hint-ip:${addr}`, 30, 30 * 60 * 1000,
       );
       if (!ipRl.allowed) {
         const retryMinutes = Math.ceil(ipRl.retryAfterMs / 60_000);
@@ -70,8 +71,6 @@ Deno.serve(async (req) => {
           429,
         );
       }
-    } else {
-      console.error('no client IP header; address limit skipped');
     }
 
     const { data: user, error } = await supabase

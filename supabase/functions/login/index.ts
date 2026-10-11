@@ -6,7 +6,7 @@ import {
   clearRateLimit,
   peekRateLimit,
   bumpRateLimit,
-  clientIp,
+  addressKey,
 } from '../_shared/rate-limit.ts';
 import { createSession } from '../_shared/session.ts';
 
@@ -55,8 +55,9 @@ Deno.serve(async (req) => {
     // Failures only, and never cleared by a success. Clearing it would
     // let someone holding one valid account spray sixty, log in, and go
     // again — which is no limit at all.
-    const ip = clientIp(req);
-    const ipKey = ip ? `login-ip:${ip}` : null;
+    // Keyed by a hash of the address, never the address (addressKey).
+    const addr = await addressKey(req);
+    const ipKey = addr ? `login-ip:${addr}` : null;
     if (ipKey) {
       const ipRl = await peekRateLimit(supabase, ipKey, 60);
       if (!ipRl.allowed) {
@@ -66,8 +67,6 @@ Deno.serve(async (req) => {
           429
         );
       }
-    } else {
-      console.error('no client IP header; address limit skipped');
     }
 
     // Find user

@@ -183,6 +183,32 @@ describe('Privacy Audit: schema after every migration', () => {
   });
 });
 
+describe('Privacy Audit: IP addresses', () => {
+  const FUNCTIONS = ['signup', 'login', 'get-pin-hint', 'send-gift'];
+
+  it('no function puts a raw address into a rate-limit key', () => {
+    for (const fn of FUNCTIONS) {
+      const src = read(`supabase/functions/${fn}/index.ts`);
+      expect(src, fn).not.toMatch(/-ip:\$\{ip\}/);
+      expect(src, fn).not.toMatch(/\bclientIp\(/);
+      expect(src, fn).toMatch(/\baddressKey\(req\)/);
+    }
+  });
+
+  it('the address is hashed with HMAC under a secret from the function env', () => {
+    const shared = read('supabase/functions/_shared/rate-limit.ts');
+    expect(shared).toMatch(/name: 'HMAC', hash: 'SHA-256'/);
+    expect(shared).toContain("Deno.env.get('RATE_LIMIT_ADDRESS_KEY')");
+  });
+
+  it('the database removes raw-address rows and refuses new ones', () => {
+    const sql = migrations().find((m) => m.file.startsWith('00012_'))?.sql ?? '';
+    expect(sql).toMatch(/delete from rate_limits/);
+    expect(sql).toMatch(/add constraint \w+ check/);
+    expect(sql).toContain("[0-9a-f]{64}$");
+  });
+});
+
 describe('Privacy Audit: player names (known gap, asserted as it is)', () => {
   // The child types their own player name. The pool in `username_pool`
   // only supplies suggestions, and signup marks a pool name claimed if

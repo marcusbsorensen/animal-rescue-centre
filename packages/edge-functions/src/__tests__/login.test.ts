@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { FakeSupabase, type Query } from '../support/fake-supabase';
-import { loadFunction, useFakeSupabase, post, json, type Handler } from '../support/harness';
+import { loadFunction, useFakeSupabase, setEnv, post, json, type Handler } from '../support/harness';
 import { hashPin } from '../../../../supabase/functions/_shared/crypto.ts';
 
 let handler: Handler;
@@ -9,6 +9,11 @@ let pinHash: string;
 beforeAll(async () => {
   handler = await loadFunction(() => import('../../../../supabase/functions/login/index.ts'));
   pinHash = await hashPin('4821');
+});
+
+beforeEach(() => {
+  // A test value, not a real secret: address limits need one to run.
+  setEnv({ RATE_LIMIT_ADDRESS_KEY: 'test-only-address-key-0123456789abcdef0123456789abcdef' });
 });
 
 function withAccount(): FakeSupabase {
