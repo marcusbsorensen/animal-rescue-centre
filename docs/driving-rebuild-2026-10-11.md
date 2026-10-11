@@ -75,6 +75,17 @@ every edge, so the right gear for the road is a lookup rather than new content.
 | Lane, houses (`unclassified`, `residential`) | 1–2 | Too fast |
 | Farm track, rewilding approach (`track`) | 1 | A dust storm the animals breathe, shown on screen |
 
+**Decided (Marcus, 2026-10-12, 30A): the gear stays her choice, but the road
+prompts her.** He had not noticed the gears at all. In the wrong gear for the
+road, the knob for the right one glows and pulses; the gear shows as a big
+number on the dashboard; a change gives a clunk and a small lurch. A gear
+above the road's top one is not possible there: its knob is dimmed and the van
+goes no faster than the road's top gear, so arriving on a lane in third eases
+her down to second's speed. In his words: *"what will be most noticeable and
+annoying for her is that the speed of the vehicle is limited to the gear that
+one is in. So one does need to go up to gear three in order to go at the
+highest speed. But that's not possible on all road types."*
+
 ## Lane discipline, and being allowed to be naughty
 
 Marcus: *"Lily loves speeding and overtaking and generally doing slightly
