@@ -24,9 +24,9 @@
 //     junctions, one class each), and every mark is seeded by distance along
 //     its chain, so it is identical every frame and every drive.
 //   - Each chain is cut into runs of about RUN_M, and each run turns its marks
-//     into one Path2D per layer at load. A frame joins the runs in view into
-//     one path per layer (rebuilt only when the view leaves the set it was
-//     built for) and fills each once: a dozen fills a frame, whatever the map.
+//     into one Path2D per layer the first time it comes near. A frame joins
+//     the runs near into one path per layer and fills each once: a dozen
+//     fills a frame, whatever the map.
 //   - Where a mark would sit on another road's surface at a junction it is
 //     left out, so edge lines break across a junction's mouth.
 
@@ -82,11 +82,27 @@ const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
 // ------------------------------------------------------------------- colours
 
 function hex(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+// Textures ask for tens of thousands of colours, so both are remembered, with
+// the fraction rounded to 1/32: no eye can tell, and load is far quicker.
+const memo = new Map();
 function mix(a, b, f) {
-  const p = hex(a), q = hex(b);
-  return '#' + p.map((v, i) => Math.round(v + (q[i] - v) * f).toString(16).padStart(2, '0')).join('');
+  f = Math.round(f * 32) / 32;
+  const key = a + b + f;
+  let v = memo.get(key);
+  if (!v) {
+    const p = hex(a), q = hex(b);
+    v = '#' + p.map((x, i) => Math.round(x + (q[i] - x) * f).toString(16).padStart(2, '0')).join('');
+    memo.set(key, v);
+  }
+  return v;
 }
-const rgba = (h, a) => { const [r, g, b] = hex(h); return `rgba(${r},${g},${b},${a})`; };
+function rgba(h, a) {
+  a = Math.round(a * 32) / 32;
+  const key = h + '@' + a;
+  let v = memo.get(key);
+  if (!v) { const [r, g, b] = hex(h); v = `rgba(${r},${g},${b},${a})`; memo.set(key, v); }
+  return v;
+}
 
 /** Which surface a road gets. `kind` is the carriageway ('dual', 'divided',
  *  'single') a later job will tag trunk edges with; every trunk edge is drawn
@@ -161,7 +177,9 @@ function dots(g, S, r, n, rmin, rmax, colour, salt) {
   for (let i = 0; i < n; i++) {
     const x = r() * S, y = r() * S, rad = rmin + r() * (rmax - rmin);
     g.fillStyle = colour(r);
-    wrap(S, x, y, rad, (px, py) => { g.beginPath(); g.arc(px, py, rad, 0, Math.PI * 2); g.fill(); });
+    // A fleck this small is a square once smoothed; an arc costs ten times as much.
+    if (rad < 1.1) wrap(S, x, y, rad, (px, py) => g.fillRect(px - rad, py - rad, rad * 2, rad * 2));
+    else wrap(S, x, y, rad, (px, py) => { g.beginPath(); g.arc(px, py, rad, 0, Math.PI * 2); g.fill(); });
   }
 }
 
@@ -222,13 +240,14 @@ function earthTile(season) {
 function vergeTile(fam, season) {
   const S = 512, [c, g] = canvas(S), r = rng(hash(fam.length, 17, season.length));
   const dust = DUST[season];
+  // One soft blob, stamped at many sizes: a gradient per blob was the slowest
+  // thing at load.
+  const [blob, bg] = canvas(64), gr = bg.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, rgba(dust, 0.32)); gr.addColorStop(1, rgba(dust, 0));
+  bg.fillStyle = gr; bg.fillRect(0, 0, 64, 64);
   for (let i = 0; i < 420; i++) {
     const x = r() * S, y = r() * S, rad = 6 + r() * 14;
-    wrap(S, x, y, rad, (px, py) => {
-      const gr = g.createRadialGradient(px, py, 0, px, py, rad);
-      gr.addColorStop(0, rgba(dust, 0.32)); gr.addColorStop(1, rgba(dust, 0));
-      g.fillStyle = gr; g.beginPath(); g.arc(px, py, rad, 0, 7); g.fill();
-    });
+    wrap(S, x, y, rad, (px, py) => g.drawImage(blob, px - rad, py - rad, rad * 2, rad * 2));
   }
   dots(g, S, r, 3200 * T.grit, 0.6, 1.8, rr => rgba(mix(rr() < 0.5 ? '#d8cdb4' : '#7c7466', dust, rr() * 0.4), 0.55 + rr() * 0.35));
   if (fam === 'old' || fam === 'track') {
@@ -693,9 +712,10 @@ export function load(world) {
   };
   const fams = ['track', 'old', 'worn', 'main'];
   const fill = new Map();
+  const vergeP = { track: pat(vergeTile('track', season)), tarmac: pat(vergeTile('old', season)) };
   for (const f of fams) {
     fill.set(f + ':surface', [pat(f === 'track' ? earthTile(season) : tarmacTile(f, season)), 1]);
-    fill.set(f + ':verge', [pat(vergeTile(f, season)), f === 'main' ? 0.7 : 0.9]);
+    fill.set(f + ':verge', [vergeP[f === 'track' ? 'track' : 'tarmac'], f === 'main' ? 0.6 : 0.9]);
     if (f !== 'track') fill.set(f + ':wear', [null, { main: 0.3, worn: 0.65, old: 0.55 }[f] * Math.min(1, 0.7 * T.wear)]);
   }
   const wearP = pat(wearTile(mix(base('worn', season), '#f0eadb', 0.45), 81, 0.8));
@@ -735,11 +755,11 @@ export function load(world) {
       runs.push({
         id: runs.length, x: (x0 + x1) / 2, y: (y0 + y1) / 2,
         r: Math.hypot(x1 - x0, y1 - y0) / 2 + ch.half + 1,
-        layers: buildRun(ch, r0, r1, world.trunk),
+        ch, r0, r1, layers: null,   // built when first near: building them all took ~0.4s
       });
     }
   }
-  P = { runs, fill, order, set: null, joined: null, buildMs: performance.now() - t0 };
+  P = { runs, fill, order, trunk: world.trunk, set: null, joined: null, loadMs: performance.now() - t0 };
   return P;
 }
 
@@ -747,27 +767,30 @@ export function load(world) {
  *  draw with (?road=0, or not loaded), and the page then draws its own. */
 export function draw(ctx, cx, cy, radius) {
   if (!P) return false;
-  const need = radius * 1.25;
-  // Rebuild the joined paths only when a run that must be seen is missing
-  // from the set they were built for, which was taken generously wide.
-  let rebuild = !P.set;
-  if (!rebuild) for (const run of P.runs) {
-    const dx = run.x - cx, dy = run.y - cy, rr = need + run.r;
-    if (dx * dx + dy * dy < rr * rr && !P.set.has(run.id)) { rebuild = true; break; }
-  }
-  if (rebuild) {
-    const wide = radius * 2;
-    P.set = new Set();
-    P.joined = new Map();
-    for (const run of P.runs) {
-      const dx = run.x - cx, dy = run.y - cy, rr = wide + run.r;
-      if (dx * dx + dy * dy >= rr * rr) continue;
-      P.set.add(run.id);
-      for (const [name, path] of run.layers) {
-        let j = P.joined.get(name);
-        if (!j) { j = new Path2D(); P.joined.set(name, j); }
-        j.addPath(path);
-      }
+  // Runs in view are built at once; those in the ring beyond, a couple a
+  // frame, so they are ready before she gets there and no frame builds many.
+  // Each joins the per-layer paths as it is built, and the paths are only
+  // started afresh once plenty of what they hold is far behind.
+  const need = radius * 1.25, wide = radius * 2;
+  if (!P.joined) { P.joined = new Map(); P.set = new Set(); }
+  let budget = 2, far = 0;
+  for (const run of P.runs) {
+    const dx = run.x - cx, dy = run.y - cy, d2 = dx * dx + dy * dy;
+    const rn = need + run.r, rw = wide + run.r;
+    if (d2 >= rw * rw) {
+      if (d2 > 2.25 * rw * rw && P.set.has(run.id)) far++;
+      continue;
+    }
+    if (!run.layers) {
+      if (d2 >= rn * rn && budget-- <= 0) continue;
+      run.layers = buildRun(run.ch, run.r0, run.r1, P.trunk);
+    }
+    if (P.set.has(run.id)) continue;
+    P.set.add(run.id);
+    for (const [name, path] of run.layers) {
+      let j = P.joined.get(name);
+      if (!j) { j = new Path2D(); P.joined.set(name, j); }
+      j.addPath(path);
     }
   }
   ctx.save();
@@ -780,5 +803,6 @@ export function draw(ctx, cx, cy, radius) {
     ctx.fill(path);
   }
   ctx.restore();
+  if (far > 24) P.joined = null;   // rejoined next frame from the runs near
   return true;
 }
