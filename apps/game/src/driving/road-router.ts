@@ -69,6 +69,33 @@ export function buildAdjacency(g: RoadGraph, vehicle?: VehicleType): Adjacency {
   return adj;
 }
 
+/**
+ * The adjacency a vehicle's route between two places runs over: the vehicle's
+ * own, or every road where its own cannot join them. `reachable` says which.
+ *
+ * Without trunk roads the map splits into islands, and from A.R.C. Trikey
+ * cannot reach 8 of the 14 places. Rather than strand her, or draw a straight
+ * line across the fields, she takes the road every other vehicle would,
+ * dual carriageway and all, for that one trip.
+ *
+ * TODO(Marcus): how Trikey treats the places she cannot reach is still open:
+ * hide them when she is picked, or add lanes to the map to join the islands
+ * (bramble-farm and goose-end-farm need a non-trunk road to the pin itself).
+ * This fallback stands until that is decided.
+ */
+export function vehicleRouteAdjacency(
+  g: RoadGraph,
+  vehicleAdj: Adjacency,
+  allAdj: Adjacency,
+  from: RoutePoint,
+  to: RoutePoint,
+): { adj: Adjacency; reachable: boolean } {
+  if (vehicleAdj === allAdj || g.nodes.length === 0) return { adj: vehicleAdj, reachable: true };
+  const s = nearestNode(g, from.fx, from.fy);
+  const t = nearestNode(g, to.fx, to.fy);
+  return shortestPath(vehicleAdj, s, t) ? { adj: vehicleAdj, reachable: true } : { adj: allAdj, reachable: false };
+}
+
 /** Index of the graph node closest to a map point. */
 export function nearestNode(g: RoadGraph, fx: number, fy: number): number {
   let best = 0;

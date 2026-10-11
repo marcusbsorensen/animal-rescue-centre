@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { VEHICLE_DEFS, type VehicleType } from '@arc/game-logic';
 import { graph, adj } from './real-graph';
-import { buildAdjacency, roadAllowedFor, routePolyline, shortestPath, type RoadGraph } from '../road-router';
+import { buildAdjacency, roadAllowedFor, routePolyline, routeProfile, shortestPath, vehicleRouteAdjacency, type RoadGraph } from '../road-router';
+import { ARC_PLACE, placeFor } from '../birchie-places';
 import { routeBetween } from '../route-path';
 
 // ── Trikey avoids dual carriageways ──
@@ -118,5 +119,37 @@ describe('Trikey routes on the Birchie graph', () => {
       'wilderwood -> pinebark-medical -753',
       'wilderwood -> bay-chapel +1637',
     ]);
+  });
+});
+
+// What the drive routes Trikey over, from A.R.C. (PtvDriveScene.routeAdjacency).
+describe('vehicleRouteAdjacency', () => {
+  const route = (to: string) => vehicleRouteAdjacency(graph, trikeAdj, adj, ARC_PLACE, placeFor(to));
+
+  it('keeps Trikey on her own roads where they reach, and off the dual carriageway', () => {
+    for (const to of ['woodland', 'wilderwood', 'deep-forest', 'wetlands']) {
+      const r = route(to);
+      expect(r.reachable, to).toBe(true);
+      expect(r.adj, to).toBe(trikeAdj);
+      const profile = routeProfile(graph, r.adj, ARC_PLACE, placeFor(to));
+      expect(profile.length, to).toBeGreaterThan(0);
+      expect(profile.map((p) => p.roadClass), to).not.toContain('trunk');
+    }
+  });
+
+  it('falls back to every road where she cannot reach, rather than no route at all', () => {
+    for (const to of ['vet', 'village-hall', 'bramble-farm', 'cove-harbour', 'goose-end-farm', 'moorland', 'sea-cliffs', 'hog-hospital']) {
+      const r = route(to);
+      expect(r.reachable, to).toBe(false);
+      expect(r.adj, to).toBe(adj);
+      const line = routePolyline(graph, r.adj, ARC_PLACE, placeFor(to));
+      expect(line, to).toEqual(routePolyline(graph, adj, ARC_PLACE, placeFor(to)));
+      expect(line.length, to).toBeGreaterThan(2); // on the roads, not a straight line
+    }
+  });
+
+  it('changes nothing for a vehicle routed over every road', () => {
+    const r = vehicleRouteAdjacency(graph, adj, adj, ARC_PLACE, placeFor('vet'));
+    expect(r).toEqual({ adj, reachable: true });
   });
 });

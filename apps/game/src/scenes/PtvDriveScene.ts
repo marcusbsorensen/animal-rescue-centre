@@ -46,7 +46,7 @@ import { buildRoadTransitions, worldYForRow, type RoadTransition } from '../driv
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
-import { buildAdjacency, roadClassAt, routePolyline, routeProfile, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
+import { buildAdjacency, roadClassAt, routePolyline, routeProfile, vehicleRouteAdjacency, ROADS_BARRED, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
 import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, projectToRoute, type Maneuver } from '../driving/route-instructions';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
@@ -430,7 +430,10 @@ export class PtvDriveScene extends Phaser.Scene {
   private gpsArc = { x: 0, y: 0 };
   private gpsDest = { x: 0, y: 0 };
   private gpsGraph?: RoadGraph;
-  private gpsAdj?: Adjacency;
+  /** Every road, and each vehicle's own roads where it is barred from some
+   *  (Trikey: no dual carriageways). Built once each, on first use. */
+  private gpsAdjAll?: Adjacency;
+  private gpsAdjByVehicle = new Map<VehicleType, Adjacency>();
   /** The route as panel-pixel points, with cumulative lengths for the dot. */
   private gpsRoutePts: { x: number; y: number }[] = [];
   private gpsRouteCum: number[] = [];
@@ -866,9 +869,9 @@ export class PtvDriveScene extends Phaser.Scene {
 
     // Road-following route A.R.C. → destination (Dijkstra on the road graph,
     // straight-line fallback if the network can't connect).
-    this.ensureGraph();
-    const polyFrac: RoutePoint[] = this.gpsGraph && this.gpsAdj
-      ? routePolyline(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
+    const gpsAdj = this.routeAdjacency();
+    const polyFrac: RoutePoint[] = this.gpsGraph && gpsAdj
+      ? routePolyline(this.gpsGraph, gpsAdj, ARC_PLACE, placeFor(this.destinationId))
       : [ARC_PLACE, placeFor(this.destinationId)];
     this.gpsRoutePts = polyFrac.map(toPanel);
     this.gpsRouteCum = [0];
@@ -2093,14 +2096,34 @@ export class PtvDriveScene extends Phaser.Scene {
   private ensureGraph(): void {
     if (!this.gpsGraph && this.cache.json.exists('birchie-graph')) {
       this.gpsGraph = this.cache.json.get('birchie-graph') as RoadGraph;
-      this.gpsAdj = buildAdjacency(this.gpsGraph);
+      this.gpsAdjAll = buildAdjacency(this.gpsGraph);
     }
   }
 
-  private computeRouteProfile(): void {
+  /**
+   * The adjacency this drive routes over: the picked vehicle's own roads, so
+   * the GPS line and the road profile both follow them (Trikey keeps off dual
+   * carriageways). Where her own roads cannot reach the destination she takes
+   * every road instead; see `vehicleRouteAdjacency` for the open question.
+   */
+  private routeAdjacency(): Adjacency | undefined {
     this.ensureGraph();
-    this.roadProfile = this.gpsGraph && this.gpsAdj
-      ? routeProfile(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
+    const g = this.gpsGraph;
+    const all = this.gpsAdjAll;
+    if (!g || !all) return undefined;
+    if (!ROADS_BARRED[this.vehicleId]) return all;
+    let own = this.gpsAdjByVehicle.get(this.vehicleId);
+    if (!own) {
+      own = buildAdjacency(g, this.vehicleId);
+      this.gpsAdjByVehicle.set(this.vehicleId, own);
+    }
+    return vehicleRouteAdjacency(g, own, all, ARC_PLACE, placeFor(this.destinationId)).adj;
+  }
+
+  private computeRouteProfile(): void {
+    const adj = this.routeAdjacency();
+    this.roadProfile = this.gpsGraph && adj
+      ? routeProfile(this.gpsGraph, adj, ARC_PLACE, placeFor(this.destinationId))
       : [];
     // One merge zone per road-type change, centred on the class boundary
     // (~3–4s to play out at cruising speed). scrollY and progress are the same
