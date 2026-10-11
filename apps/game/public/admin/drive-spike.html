@@ -42,6 +42,10 @@
   button[aria-pressed="true"] { background: #4b8b3b; color: #fff; }
   #note { position: absolute; bottom: 58px; left: 0; right: 0; text-align: center;
     color: #fffcf6; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  #toast { position: absolute; top: 22%; left: 0; right: 0; text-align: center;
+    font-size: 30px; font-weight: 900; color: #fffcf6; pointer-events: none;
+    text-shadow: 0 2px 6px rgba(0,0,0,.55); opacity: 0; transition: opacity .25s; }
+  #toast.on { opacity: 1; }
 </style>
 
 <div id="wrap">
@@ -52,6 +56,7 @@
     <div class="chip" id="laneChip">left lane</div>
     <div class="chip" id="roadChip">—</div>
   </div>
+  <div id="toast"></div>
   <div id="note">hold anywhere to go · swipe or ←/→ to change lane · space = go · 1–3 gears · B = handbrake</div>
   <div id="panel">
     <button id="guideBtn" aria-pressed="true">guide line</button>
@@ -62,6 +67,11 @@
 </div>
 
 <script type="module">
+// Scenery and traffic live in their own modules so each can be built without
+// touching this file. Their contracts are documented at the top of each.
+import * as scenery from './drive-spike/scenery.js';
+import * as traffic from './drive-spike/traffic.js';
+
 // ---------------------------------------------------------------- the world
 
 /** The map is 1800x1121 over roughly 6.2km x 3.9km, so one unit of fy is this
@@ -107,11 +117,37 @@ const GEAR_OK = {
 const TOO_FAST = { track: 'dust!', unclassified: 'too fast', residential: 'slow down' };
 const TOO_SLOW = { trunk: 'beeping' };
 
+/** One pixel of the child's map (birchie-roads.svg, 1800 x 1121) in metres,
+ *  the same on both axes. Graph node (fx, fy) is map pixel (fx*1800, fy*1121). */
+const METRES_PER_MAP_PX = METRES_PER_UNIT / 1121;
+function mapToWorld(px, py) { return { x: px * METRES_PER_MAP_PX, y: py * METRES_PER_MAP_PX }; }
+
+/** Where shadows fall, in world metres per metre of height. Fixed in the
+ *  world, so when the camera turns every shadow — the van's included — swings
+ *  round on screen together, as a real sun would. */
+const SUN = { x: 0.45, y: 0.3 };
+
+/** The season follows the real date (docs/world-coherence-rule-2026-10-11.md
+ *  section 7), on the British meteorological calendar. ?season= overrides it
+ *  so each can be looked at. */
+const SEASON = (() => {
+  const q = new URLSearchParams(location.search).get('season');
+  if (['spring', 'summer', 'autumn', 'winter'].includes(q)) return q;
+  const m = new Date().getMonth() + 1;
+  return m >= 3 && m <= 5 ? 'spring' : m >= 6 && m <= 8 ? 'summer' : m >= 9 && m <= 11 ? 'autumn' : 'winter';
+})();
+
+/** How hard the van stops itself when the child has not braked for something
+ *  ahead. There is never an accident; this stop is the cost, felt by whoever
+ *  is in the back. */
+const EMERGENCY = 26;  // m/s^2
+
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
 let graph = null, adj = null, route = [], routeLen = 0;
 let vanImg = null;
+let scn = null, trf = null;
 
 // -------------------------------------------------------------- graph + route
 
@@ -180,8 +216,15 @@ function pickRoute() {
     if (!path || path.length < 12) continue;
     route = toPolyline(path);
     routeLen = route[route.length - 1].s;
-    if (routeLen > 1200) return;
+    if (routeLen > 1200) break;
   }
+  trf = traffic.create({
+    length: routeLen,
+    atDistance,
+    laneOffset,
+    roadClassAt: (s) => { const p = atDistance(s); return roadClassAt(p.x, p.y); },
+    laneWidth: LANE_M,
+  });
 }
 
 // ---------------------------------------------------------------- the driving
@@ -210,9 +253,20 @@ let throttle = false, handbrake = false, showGuide = true;
 function laneOffset(lane) { return (lane === 0 ? -0.5 : 0.5) * LANE_M; }
 
 function step(dt) {
+  car.length = VAN_W_M * (vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0);
+  car.width = VAN_W_M;
+  const t = trf ? traffic.step(trf, dt, car) : { speedCap: Infinity, laneBlocked: false, events: [] };
+  if (t.laneBlocked) car.laneWant = 0;
+  for (const ev of t.events) toast(ev);
+
   const target = throttle ? GEARS[car.gear] : 0;
-  if (handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
-  else if (car.v < target) car.v = Math.min(target, car.v + ACCEL * dt);
+  let emergency = 0;
+  if (car.v > t.speedCap) {
+    // Something is ahead and the child has not braked: the van does it.
+    emergency = EMERGENCY;
+    car.v = Math.max(t.speedCap, car.v - EMERGENCY * dt);
+  } else if (handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
+  else if (car.v < target) car.v = Math.min(target, t.speedCap, car.v + ACCEL * dt);
   else car.v = Math.max(target, car.v - BRAKE * dt);
 
   car.s += car.v * dt;
@@ -228,7 +282,7 @@ function step(dt) {
   // of this means pulling over to calm them. On a delivery run with no animals
   // it costs cargo instead, and the child may drive as badly as they like.
   const swerve = Math.abs(car.lane - before) / Math.max(1e-6, dt);
-  const decel = handbrake ? HANDBRAKE : 0;
+  const decel = emergency || (handbrake ? HANDBRAKE : 0);
   car.jostle = Math.max(0, Math.min(100,
     car.jostle + (swerve * 1.6 + decel * 0.5) * dt - 6 * dt));
 
@@ -279,8 +333,15 @@ function draw() {
   ctx.scale(PPM, PPM);
   ctx.translate(-camX, -camY);
 
+  const view = {
+    cx: camX, cy: camY, radius: Math.hypot(w, h) / PPM, camH: camH ?? pos.h,
+    ppm: PPM, season: SEASON, sun: SUN,
+  };
+  if (scn) scenery.drawGround(ctx, scn, view);
   drawRoads(camX, camY, Math.max(w, h) / PPM);
+  if (scn) scenery.drawObjects(ctx, scn, view);
   if (showGuide) drawGuide();
+  if (trf) traffic.draw(ctx, trf, view);
   ctx.restore();
 
   drawVan(w, h);
@@ -340,12 +401,16 @@ function drawVan(w, h) {
   const aspect = vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0;
   const hpx = wpx * aspect;
 
-  // The shadow is drawn in world space, not on the sprite, so it does not
-  // swing round with the van when the world turns. The painted sprites have
-  // their light baked in from one side; this is the part that would give that
-  // away if it rotated too.
+  // The shadow falls along the world's sun, not a fixed screen offset, so it
+  // agrees with every tree and roof shadow when the camera turns. Rotating
+  // the sun vector by the camera turns it into screen space. The body is
+  // ~1.9m tall; the ellipse takes the van's own small turn in the frame.
+  const rot = -(camH ?? 0) - Math.PI / 2;
+  const sx = (SUN.x * Math.cos(rot) - SUN.y * Math.sin(rot)) * 1.9 * PPM;
+  const sy = (SUN.x * Math.sin(rot) + SUN.y * Math.cos(rot)) * 1.9 * PPM;
   ctx.save();
-  ctx.translate(px + wpx * 0.14, py + hpx * 0.06);
+  ctx.translate(px + sx, py + sy);
+  ctx.rotate(wrapAngle((car.heading ?? 0) - (camH ?? 0)));
   ctx.fillStyle = 'rgba(40,46,38,.22)';
   ctx.beginPath(); ctx.ellipse(0, 0, wpx * 0.46, hpx * 0.46, 0, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
@@ -375,6 +440,18 @@ function roadClassAt(x, y) {
     if (d < bestD) { bestD = d; best = cls; }
   }
   return best;
+}
+
+/** A one-off word over the road — "CLOSE!" for a clean overtake. Praise for
+ *  skill, never a score. */
+const TOAST_TEXT = { close: 'CLOSE! 😱', beep: 'beep beep!' };
+let toastTimer = 0;
+function toast(ev) {
+  const el = document.getElementById('toast');
+  el.textContent = TOAST_TEXT[ev] ?? ev;
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 1100);
 }
 
 function updateHud() {
@@ -442,6 +519,7 @@ async function boot() {
   graph = await res.json();
   adj = buildAdjacency(graph);
   pickRoute();
+  scn = await scenery.load({ graph, mapToWorld, metresPerMapPx: METRES_PER_MAP_PX });
 
   vanImg = new Image();
   vanImg.src = '/assets/driving/topdown/vehicle-topdown-spark-rear.png';
