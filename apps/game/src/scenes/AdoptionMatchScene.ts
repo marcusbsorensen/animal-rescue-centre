@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
 import {
-  getEligibleApplicants,
-  householdUseCount,
+  pickApplicants,
+  householdActiveUseCount,
   type Applicant,
   type AdoptionStoreLike,
 } from '@arc/game-logic';
@@ -26,8 +26,9 @@ import { AudioManager } from '../audio/AudioManager';
  *   1. GameScene calls `openAdoptionMatchOverlay(animal)`, which pauses
  *      itself and `scene.launch('AdoptionMatchScene', { animal,
  *      onComplete })`.
- *   2. This scene reads the curtailed L1 roster via game-logic's
- *      `getEligibleApplicants`, scores each, and renders cards.
+ *   2. This scene asks game-logic's `pickApplicants` for the few
+ *      households on offer (three of the free ones, not all of them),
+ *      scores each, and renders cards.
  *   3. Tapping a card fires `onComplete(householdId)`; tapping "not yet"
  *      fires `onComplete(null)`. Either way we stop ourselves so
  *      GameScene resumes and runs `commitAdoption` (or no-ops).
@@ -67,6 +68,13 @@ const TIER_LABEL: Record<MatchTier, string> = {
   maybe: 'Could work',
 };
 
+/** "foxes", "bunnies" — the card says "Loves ___", and `${species}s` gave "foxs" and "bunnys". */
+function pluralSpecies(species: string): string {
+  if (species.endsWith('y')) return `${species.slice(0, -1)}ies`;
+  if (species.endsWith('x')) return `${species}es`;
+  return `${species}s`;
+}
+
 export class AdoptionMatchScene extends Phaser.Scene {
   private animal!: Animal;
   private store!: AdoptionStoreLike;
@@ -75,6 +83,8 @@ export class AdoptionMatchScene extends Phaser.Scene {
   private container!: Phaser.GameObjects.Container;
   private scored: ScoredApplicant[] = [];
   private resolved = false;
+  /** Fixed at init, so the offer and the headroom count agree on "now". */
+  private now = 0;
   private _lastWidth = 0;
   private _lastHeight = 0;
 
@@ -87,13 +97,14 @@ export class AdoptionMatchScene extends Phaser.Scene {
     this.store = data.store;
     this.onComplete = data.onComplete;
     this.resolved = false;
+    this.now = Date.now();
   }
 
   preload(): void {
     // Each applicant portrait lives at avatarSrc — load any that aren't
     // already in the texture cache. Keys mirror householdId for re-use.
-    const eligible = getEligibleApplicants(this.animal, this.store);
-    for (const a of eligible) {
+    const offered = pickApplicants(this.animal, this.store, this.now);
+    for (const a of offered) {
       const key = `cast:${a.householdId}`;
       if (!this.textures.exists(key)) {
         this.load.image(key, a.avatarSrc);
@@ -107,8 +118,8 @@ export class AdoptionMatchScene extends Phaser.Scene {
     this.container = this.add.container(0, 0);
 
     // Score and stash for render. Sort: tier rank desc, then score desc.
-    const eligible = getEligibleApplicants(this.animal, this.store);
-    this.scored = eligible
+    const offered = pickApplicants(this.animal, this.store, this.now);
+    this.scored = offered
       .map((a) => this.scoreApplicant(a))
       .sort((a, b) => {
         const rank = (t: MatchTier) => t === 'great' ? 2 : t === 'good' ? 1 : 0;
@@ -145,12 +156,13 @@ export class AdoptionMatchScene extends Phaser.Scene {
     const reasons: string[] = [];
     let score = 0;
 
-    // Species preference (always satisfied here — getEligibleApplicants
-    // already filters — but we surface the line either way).
+    // Species preference (always satisfied here — pickApplicants only
+    // offers households that take this species — but we surface the line
+    // either way).
     if (applicant.speciesPreferences.includes(this.animal.species)) {
       score += 50;
       const speciesWord = applicant.speciesPreferences.length === 1
-        ? `${this.animal.species}s`
+        ? pluralSpecies(this.animal.species)
         : 'pets like this';
       reasons.push(`Loves ${speciesWord}`);
     }
@@ -165,10 +177,12 @@ export class AdoptionMatchScene extends Phaser.Scene {
       reasons.push(`${this.animal.name} is bonded enough to leave`);
     }
 
-    // Capacity headroom — a household at 0/1 used is "fresh", a returning
-    // adopter (1/1) is filtered out by getEligibleApplicants so we only
-    // see real headroom here, but we still dial the score by it.
-    const used = householdUseCount(this.store.rehomed, applicant.householdId);
+    // Capacity headroom — a household with nothing fresh is "fresh"; one
+    // still settling in an animal is filtered out by the picker, so we only
+    // see real headroom here, but we still dial the score by it. "Fresh"
+    // means inside the cooldown, and counts either id a household was
+    // saved under.
+    const used = householdActiveUseCount(this.store.rehomed, applicant.householdId, this.now);
     const headroom = applicant.capacity - used;
     if (headroom >= 1) score += 10;
 

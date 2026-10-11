@@ -623,8 +623,8 @@
                every release in the game read "Farewell, Luna" over a red-fox
                sprite at "Bond: Champion", whichever animal the child had
                actually raised and released. -->
-          <div class="farewell-title" id="farewell-title">Farewell, friend</div>
-          <div class="farewell-subtitle">A wild heart ready for wild skies</div>
+          <div class="farewell-title" id="farewell-title">A wild home for your friend</div>
+          <div class="farewell-subtitle" id="farewell-subtitle">Going home to the wild</div>
 
           <div class="portrait-wrap">
             <div class="portrait-frame">
@@ -658,7 +658,7 @@
         <div class="release-wrap">
           <button class="btn-primary" id="release-btn" type="button">
             <span class="leaf-flank leaf-left" aria-hidden="true">🌿</span>
-            <span>Release her to the wild</span>
+            <span id="release-label">WAVE THEM OFF!</span>
             <span class="leaf-flank leaf-right" aria-hidden="true">🌿</span>
           </button>
         </div>
@@ -678,13 +678,32 @@
   // Driven by the 'init' payload. Before it lands the copy stays generic;
   // it previously hardcoded "Dear Lily … — Luna" at parse time with no
   // listener to correct it.
+  //
+  // **The words arrive finished.** The host sends `copy` — title, subtitle,
+  // the animal's letter, its sign-off, the button, the "will remember you"
+  // line — built by game-logic/exits.ts, which knows the habitat and who
+  // (Simeon & Karo for a bat, Benji for a fox) takes the animal home. This
+  // page holds no table of either. The sentences below are only what shows
+  // if the host never sends them, and they say nothing a particular animal
+  // could contradict. They used to be "Farewell, Luna", "A wild heart ready
+  // for wild skies" and "Release her to the wild", the same for a hedgehog.
+  function text(v) {
+    return typeof v === 'string' && v.trim() ? v.trim() : null;
+  }
   function renderFarewell(p) {
     const animal = (p && typeof p.animalName === 'string' && p.animalName.trim())
       ? p.animalName.trim() : null;
     const shown = animal || 'your friend';
+    const copy = (p && p.copy && typeof p.copy === 'object') ? p.copy : {};
 
     const titleEl = document.getElementById('farewell-title');
-    if (titleEl) titleEl.textContent = animal ? `Farewell, ${animal}` : 'Farewell, friend';
+    if (titleEl) titleEl.textContent = text(copy.title) || `A wild home for ${shown}`;
+
+    const subtitleEl = document.getElementById('farewell-subtitle');
+    if (subtitleEl) subtitleEl.textContent = text(copy.subtitle) || 'Going home to the wild';
+
+    const labelEl = document.getElementById('release-label');
+    if (labelEl) labelEl.textContent = text(copy.button) || 'WAVE THEM OFF!';
 
     const img = document.getElementById('animal-portrait');
     if (img) {
@@ -693,7 +712,10 @@
     }
 
     const rememberEl = document.getElementById('bond-remember-text');
-    if (rememberEl) rememberEl.textContent = `${shown.charAt(0).toUpperCase()}${shown.slice(1)} will remember you`;
+    if (rememberEl) {
+      rememberEl.textContent = text(copy.rememberLine)
+        || `${shown.charAt(0).toUpperCase()}${shown.slice(1)} will remember you`;
+    }
 
     // Bond is 0-100. Show it only when a real number arrives.
     const bondRow = document.getElementById('bond-row');
@@ -710,13 +732,14 @@
 
     const body = document.getElementById('scroll-body');
     if (body) {
-      body.textContent =
-        "Thank you for teaching me to trust people again. " +
-        "I'll come running if you visit my meadow.";
+      body.textContent = text(copy.letter)
+        || "Thank you for taking such good care of me. I'm going home, where I belong. " +
+           "I'll be so happy there! I might pop back to say hello.";
     }
 
     const sign = document.getElementById('scroll-sign');
-    if (sign) sign.textContent = animal ? `Your friend always — ${animal}` : 'Your friend always';
+    if (sign) sign.textContent = text(copy.sign)
+      || (animal ? `Your friend always — ${animal}` : 'Your friend always');
   }
 
   renderFarewell(null);

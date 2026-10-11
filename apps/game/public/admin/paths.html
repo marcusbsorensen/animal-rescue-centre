@@ -190,10 +190,13 @@
     opacity: 0.9;
     line-height: 1.25;
   }
-  /* 3-card grid — stacks on narrow screens */
+  /* Up to 3 cards — stacks on narrow screens. The host hides the paths a
+     species does not have (no wild for a cat, no family for a hedgehog) and
+     sets --path-cards to how many are left, so two cards share the row
+     rather than leaving a gap where the third was. */
   .paths-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(var(--path-cards, 3), 1fr);
     gap: clamp(10px, 1.8cqw, 16px);
     padding: clamp(10px, 1.8cqh, 16px) 0;
   }
@@ -218,6 +221,7 @@
     position: relative;
   }
   .path-card:hover { transform: translateY(-2px); }
+  .path-card[hidden] { display: none; }
   .path-rehome {
     background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
     border-color: #7a4b15;
@@ -275,6 +279,10 @@
     font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
     margin-top: clamp(4px, 0.6cqh, 6px);
   }
+  /* `display` above beats the `hidden` attribute, so the checklists the markup
+     marks hidden were being drawn — invented ticks, and "✕ Wild species"
+     struck through on the card for an animal that is about to be let go. */
+  .path-criteria[hidden] { display: none; }
   .path-criteria li {
     padding-left: 22px;
     position: relative;
@@ -1265,7 +1273,7 @@
             <img class="paths-portrait" src="/assets/animals/dog-collie-sheltered.png" alt="">
             <div class="paths-header-text">
               <div class="paths-title">What happens to Luna next?</div>
-              <div class="paths-subtitle">Pick a future for Luna. You can change your mind later. Every animal needs something different to be happy.</div>
+              <div class="paths-subtitle" id="paths-subtitle">Pick a future for Luna. You can change your mind later. Every animal needs something different to be happy.</div>
             </div>
           </div>
           <!-- The .path-criteria lists below are hidden, not deleted. Every
@@ -1304,11 +1312,13 @@
               <!-- This lock is load-bearing: the click handler below returns
                    early on .path-state-locked. It said "Not for collies" on
                    every animal, so the rewild path was dead for foxes and
-                   hedgehogs too — the species was never checked, because no
-                   rewildable-species rule exists anywhere in game-logic yet.
-                   Kept locked (enabling a path with no eligibility rule is a
-                   design decision, not a bug fix) but no longer blaming the
-                   animal for it. -->
+                   hedgehogs too — the species was never checked. It still
+                   starts locked, so a page that never hears from its host
+                   offers nothing it cannot deliver. The host's init message
+                   (below) now says whether the species has a wild home —
+                   the rule is game-logic/exits.ts, which this static page
+                   cannot import — and unlocks the card, or hides it for a
+                   cat or dog, who have none. -->
               <div class="path-state path-state-locked">🔒 Not yet</div>
             </button>
             <button class="path-card path-work" data-path="work">
@@ -1365,22 +1375,59 @@
     }
     // "← Back to Luna" button
     document.querySelector('[data-action="close"]')?.addEventListener('click', () => send('close'));
+    // Which paths this species has. The host decides (game-logic/exits.ts):
+    // cats and dogs have no wild home, and no household takes a hedgehog, so
+    // those cards are not drawn rather than drawn and dead. Only an explicit
+    // `false` hides a card, so a host that sends nothing leaves all three.
+    function applyPaths(payload) {
+      const rehome = document.querySelector('.path-rehome');
+      const rewild = document.querySelector('.path-rewild');
+      if (rehome) rehome.hidden = payload.canRehome === false;
+      if (rewild) {
+        rewild.hidden = payload.canRewild === false;
+        if (payload.canRewild === true) {
+          const state = rewild.querySelector('.path-state');
+          if (state) {
+            state.classList.remove('path-state-locked');
+            state.textContent = 'Choose this';
+          }
+        }
+      }
+      const shown = document.querySelectorAll('.path-card:not([hidden])').length;
+      document.querySelector('.paths-grid')?.style.setProperty('--path-cards', String(Math.max(1, shown)));
+    }
     // Personalise the title from ?animalName=… if the host sent an init payload
     window.addEventListener('message', (e) => {
       const m = e.data;
       if (m?.source !== 'arc-game-host' || m.type !== 'init' || !m.payload) return;
+      applyPaths(m.payload);
       const name = typeof m.payload.animalName === 'string' ? m.payload.animalName : null;
       if (name) {
         const titleEl = document.querySelector('.paths-title');
         if (titleEl) titleEl.textContent = `What happens to ${name} next?`;
         const backBtn = document.querySelector('[data-action="close"]');
         if (backBtn) backBtn.textContent = `← Back to ${name}`;
+        // The subtitle and the portrait were also fixed to "Luna" and a
+        // collie, over a hedgehog's two cards.
+        const subEl = document.getElementById('paths-subtitle');
+        if (subEl) {
+          subEl.textContent = `Pick a future for ${name}. You can change your mind later. ` +
+            'Every animal needs something different to be happy.';
+        }
+        const portrait = document.querySelector('.paths-portrait');
+        if (portrait && typeof m.payload.animalSpriteSrc === 'string' && m.payload.animalSpriteSrc) {
+          portrait.src = m.payload.animalSpriteSrc;
+        }
         // The three card blurbs also name the animal, and only the title
         // and back button were ever rewritten — so a child reading about
         // their hedgehog was told what "Luna" would become.
+        const where = typeof m.payload.habitatPhrase === 'string' && m.payload.habitatPhrase
+          ? m.payload.habitatPhrase : null;
         const blurbs = {
           '.path-rehome': `Find ${name} a loving home with a human family`,
-          '.path-rewild': `Release ${name} to the wild once they're ready`,
+          '.path-rewild': where
+            ? `Take ${name} home to ${where}`
+            : `Take ${name} back to the wild`,
           '.path-work': `${name} becomes a working animal at the centre`,
         };
         for (const [sel, text] of Object.entries(blurbs)) {

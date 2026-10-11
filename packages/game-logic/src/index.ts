@@ -159,6 +159,7 @@ export type { Conflict, ConflictType, ResolutionAction, ResolutionDef } from './
 export {
   createCalendarState,
   calculateCurrentDate,
+  inGameDaysBetween,
   getSeasonForMonth,
   getSeasonForDate,
   getCurrentSeason,
@@ -343,14 +344,43 @@ export {
 export type { SpeciesFact } from './species-facts';
 
 export {
-  L1_CURTAILED_HOUSEHOLD_DEFS,
+  ADOPTER_HOUSEHOLD_DEFS,
+  NON_ADOPTING_HOUSEHOLDS,
+} from './adopter-roster';
+export {
+  ADOPTION_COOLDOWN_DAYS,
+  OFFERED_APPLICANTS,
   LEGACY_HOUSEHOLD_IDS,
   canonicalHouseholdId,
   householdUseCount,
+  householdActiveUseCount,
+  householdsForSpecies,
+  isAdoptableSpecies,
   getEligibleApplicants,
+  pickApplicants,
   commitAdoption,
 } from './adoption';
 export type { Applicant, RehomedEntry, AdoptionStoreLike } from './adoption';
+
+export {
+  REWILDING_HELPERS,
+  HABITAT_PHRASES,
+  exitsForSpecies,
+  rewildingPlanFor,
+  canReleaseAt,
+  commitRewilding,
+  rewildingCopy,
+  lifetimeRescuedCount,
+} from './exits';
+export type {
+  ExitKind,
+  SpeciesExits,
+  RewildingHelper,
+  RewildingPlan,
+  RewildedEntry,
+  RewildingStoreLike,
+  RewildingCopy,
+} from './exits';
 
 export { buildHandoverDialogue, WARDEN_SPEAKER } from './adoption-dialogue';
 export type {

@@ -47,8 +47,15 @@ import {
   getAvailableToys,
   calculateAdoptionFee,
   getEligibleApplicants,
-  L1_CURTAILED_HOUSEHOLD_DEFS,
+  ADOPTER_HOUSEHOLD_DEFS,
+  isAdoptableSpecies,
   canonicalHouseholdId,
+  exitsForSpecies,
+  rewildingPlanFor,
+  rewildingCopy,
+  canReleaseAt,
+  commitRewilding as commitRewildingLogic,
+  lifetimeRescuedCount,
   buildHandoverDialogue,
   WARDEN_SPEAKER,
   commitAdoption as commitAdoptionLogic,
@@ -512,7 +519,22 @@ export class GameScene extends Phaser.Scene {
         const animal = arrival.animalId
           ? this.store.animals.find((a) => a.id === arrival.animalId)
           : undefined;
-        if (animal) { this.openRewildingOverlay(animal); return; }
+        // The right animal at the right place. The map has always listed which
+        // species belong at each habitat; arrival did not ask, so a cat could
+        // be driven to the moor and let go.
+        if (animal && canReleaseAt(animal.species, dest.id)) {
+          this.openRewildingOverlay(animal);
+          return;
+        }
+        if (animal) {
+          showToast(
+            this,
+            rewildingPlanFor(animal.species)
+              ? `${dest.emoji} ${animal.name}'s wild home is somewhere else.`
+              : `🏡 ${animal.name} loves people — let's find them a family.`,
+          );
+          return;
+        }
         showToast(this, `${dest.emoji} You have arrived at ${dest.label}.`);
         return;
       }
@@ -1528,12 +1550,27 @@ export class GameScene extends Phaser.Scene {
           return;
         }
       },
-    }, { animalName: animal.name, animalSpecies: animal.species, bond: animal.bondLevel });
+    }, {
+      animalName: animal.name,
+      animalSpecies: animal.species,
+      animalSpriteSrc: animal.variant
+        ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
+        : `/assets/animals/${animal.species}-sheltered.png`,
+      bond: animal.bondLevel,
+      // Which of the paths this species has (game-logic/exits.ts). The page
+      // cannot import the rule, so it is sent: a cat or dog is never offered
+      // the wild, and a hedgehog — whom no household takes — is never offered
+      // a forever family, so neither is left as a card that goes nowhere.
+      canRehome: exitsForSpecies(animal.species).adopt,
+      canRewild: exitsForSpecies(animal.species).rewild,
+      habitatPhrase: rewildingPlanFor(animal.species)?.habitatPhrase,
+    });
     this.events.once('shutdown', unmountInGame);
   }
 
   /**
-   * Mount the new adoption-office iframe (L1 curtailed roster).
+   * Mount the adoption-office iframe (the older picker; the game uses
+   * `openAdoptionMatchOverlay`).
    *
    * Architecture note: the office iframe reads the animal banner info
    * from URL query params (`animalName`, `species`, `variant`,
@@ -1598,6 +1635,14 @@ export class GameScene extends Phaser.Scene {
    * `commitAdoption` path is unchanged.
    */
   public openAdoptionMatchOverlay(animal: Animal): void {
+    // Nobody adopts a fox, a bat or a hedgehog — they go back to the wild.
+    // The Paths panel does not offer this screen for them; if some other
+    // caller arrives here, send the animal where it can actually go rather
+    // than open an office with no one in it.
+    if (!isAdoptableSpecies(animal.species)) {
+      this.openRewildingOverlay(animal);
+      return;
+    }
     this.scene.pause();
     this.scene.launch('AdoptionMatchScene', {
       animal,
@@ -1670,7 +1715,9 @@ export class GameScene extends Phaser.Scene {
     // all, so every adoption in the game read "A forever home for Luna"
     // from "Theo, Kofi and Zuri" — the wrong animal and the wrong family,
     // every time. Resolve the household here, where the roster lives.
-    const household = L1_CURTAILED_HOUSEHOLD_DEFS.find((h) => h.householdId === householdId);
+    const household = ADOPTER_HOUSEHOLD_DEFS.find(
+      (h) => h.householdId === canonicalHouseholdId(householdId),
+    );
     const spriteSrc = animal.variant
       ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
       : `/assets/animals/${animal.species}-sheltered.png`;
@@ -1697,6 +1744,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openRewildingOverlay(animal: Animal): void {
+    // A cat or a dog has no wild home to go to. Nothing offers this for one
+    // (the Paths card is not drawn, the drive's arrival checks), so this is
+    // only the last line.
+    const plan = rewildingPlanFor(animal.species);
+    if (!plan) {
+      showToast(this, `🏡 ${animal.name} loves people — let's find them a family.`);
+      return;
+    }
     const unmount = mountInGame('rewilding', {
       onAction: (action) => {
         if (action === 'rewild-cancel') { unmount(); return; }
@@ -1709,12 +1764,16 @@ export class GameScene extends Phaser.Scene {
     }, {
       animalId: animal.id,
       animalName: animal.name,
-      // Same story as adoption: the page had no listener, so every
-      // release said "Farewell, Luna" at "Bond: Champion" regardless.
+      // Same story as adoption: the page had no listener, so every release
+      // said "Farewell, Luna" at "Bond: Champion" regardless.
       animalSpriteSrc: animal.variant
         ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
         : `/assets/animals/${animal.species}-sheltered.png`,
       bond: animal.bondLevel,
+      // The words come from game-logic, which knows the habitat and who helps,
+      // so the page holds no table of either. Read aloud, they are the whole
+      // ending for a child who cannot read them.
+      copy: rewildingCopy(animal.name, plan),
     });
     this.events.once('shutdown', unmountInGame);
   }
@@ -2255,20 +2314,19 @@ export class GameScene extends Phaser.Scene {
 
   /** Commit: remove animal from centre, record in rewilded list, save. */
   private commitRewilding(animal: Animal): void {
-    const idx = this.store.animals.findIndex((a) => a.id === animal.id);
-    if (idx < 0) return;
-    const a = this.store.animals[idx];
-    this.store.rewilded.push({
-      animalId: a.id,
-      animalName: a.name,
-      species: a.species,
-      variant: a.variant,
-      date: Date.now(),
-    });
-    this.store.animals.splice(idx, 1);
-    this.store.sickAnimals.delete(a.id);
+    const plan = rewildingPlanFor(animal.species);
+    if (!plan) return;
+    let entry;
+    try {
+      entry = commitRewildingLogic(animal, this.store);
+    } catch {
+      showToast(this, "Couldn't complete the release — try again?");
+      return;
+    }
+    this.store.sickAnimals.delete(entry.animalId);
     AudioManager.getInstance().playSfx('animal_happy');
-    showToast(this, `🌲 ${a.name} is running free in the wild — they'll come to visit!`);
+    // Names the habitat, and who took them when someone did.
+    showToast(this, rewildingCopy(entry.animalName, plan).toast);
     // Charms — first rewilding drive unlocks the Fox Tail.
     this.fireCharmEvent('first-rewilding-drive');
     this.saveState();
@@ -2856,13 +2914,16 @@ export class GameScene extends Phaser.Scene {
 
     const stats = {
       userId: '',
-      catsRescued: this.store.animals.filter((a) => a.species === 'cat').length,
-      dogsRescued: this.store.animals.filter((a) => a.species === 'dog').length,
-      bunniesRescued: this.store.animals.filter((a) => a.species === 'bunny').length,
-      foxesRescued: this.store.animals.filter((a) => a.species === 'fox').length,
-      snakesRescued: this.store.animals.filter((a) => a.species === 'snake').length,
-      parrotsRescued: this.store.animals.filter((a) => a.species === 'parrot').length,
-      batsRescued: this.store.animals.filter((a) => a.species === 'bat').length,
+      // Everyone the child has rescued of a kind — in the centre, adopted or
+      // gone back to the wild. These used to count only who was in the
+      // building, so each animal that left took its badge progress with it.
+      catsRescued: lifetimeRescuedCount('cat', this.store),
+      dogsRescued: lifetimeRescuedCount('dog', this.store),
+      bunniesRescued: lifetimeRescuedCount('bunny', this.store),
+      foxesRescued: lifetimeRescuedCount('fox', this.store),
+      snakesRescued: lifetimeRescuedCount('snake', this.store),
+      parrotsRescued: lifetimeRescuedCount('parrot', this.store),
+      batsRescued: lifetimeRescuedCount('bat', this.store),
       totalRescued: this.store.totalRescued,
       badgesUnlockedCount: this.store.earnedBadges.length,
       giftsSentCount: 0,

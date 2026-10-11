@@ -9,7 +9,7 @@ import type {
   TimeProgress,
   GardenWeather,
 } from '@arc/shared-types';
-import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward, CharmId, CharmUnlockEvent, CollectionCall } from '@arc/game-logic';
+import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward, CharmId, CharmUnlockEvent, CollectionCall, RewildedEntry } from '@arc/game-logic';
 
 /**
  * GameStateStore — a plain container holding all mutable game state.
@@ -90,15 +90,11 @@ export class GameStateStore {
 
   /**
    * Animals released back to the wild. They can return as garden-only
-   * visitors once the "visit in the wild" mechanic lands.
+   * visitors once the "visit in the wild" mechanic lands. `habitat` and
+   * `helperHouseholdId` (who saw them off, e.g. Simeon & Karo for a bat)
+   * are absent on entries from before they were recorded.
    */
-  rewilded: Array<{
-    animalId: string;
-    animalName: string;
-    species: Species;
-    variant?: string;
-    date: number;
-  }> = [];
+  rewilded: RewildedEntry[] = [];
 
   /**
    * Animals who stay at A.R.C. in a working role (therapy, mouser,

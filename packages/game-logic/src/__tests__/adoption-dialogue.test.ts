@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Animal } from '@arc/shared-types';
-import { L1_CURTAILED_HOUSEHOLD_DEFS } from '../adoption';
+import { ADOPTER_HOUSEHOLD_DEFS } from '../adopter-roster';
 import { buildHandoverDialogue, WARDEN_SPEAKER } from '../adoption-dialogue';
 
 function makeAnimal(overrides: Partial<Animal> = {}): Animal {
@@ -17,7 +17,7 @@ function makeAnimal(overrides: Partial<Animal> = {}): Animal {
   };
 }
 
-const priya = L1_CURTAILED_HOUSEHOLD_DEFS[0]; // Priya "Pri" Kaur, cat/dog
+const priya = ADOPTER_HOUSEHOLD_DEFS[0]; // Priya "Pri" Kaur, cat/dog
 
 describe('buildHandoverDialogue', () => {
   it('produces a short 4-beat hand-over conversation', () => {

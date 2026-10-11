@@ -16,8 +16,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
  *    union of whole entries — a device that rewrote its copy would meet a
  *    server copy still holding the old id and keep both, so every
  *    adoption would count twice.
- * 2. The household she filled is still full. An old id that quietly
- *    stopped matching would hand it back its capacity.
+ * 2. The household she filled is still busy. An old id that quietly
+ *    stopped matching would hand it back its capacity. Busy is for the
+ *    21-day cooldown, not forever: an entry that has aged out frees the
+ *    household, as a current-id entry would.
  * 3. The readers that bypass `getEligibleApplicants` translate too —
  *    `GameScene.findCast` and `AdoptionMatchScene`'s headroom count. Both
  *    live in Phaser scenes that cannot be imported under test, so they are
@@ -45,18 +47,25 @@ const { GameStateStore } = await import('../GameStateStore');
 const { clearLocalSave } = await import('../localSave');
 const { getEligibleApplicants, commitAdoption, mergeSaveState, spawnAnimal } = await import('@arc/game-logic');
 
+/** A game day is 7/30 of a real one (calendar.ts), so 3 game days ago is recent and 60 is not. */
+const GAME_DAY_MS = (7 * 86_400_000) / 30;
+const NOW = Date.now();
+
 const invoke = supabase.functions.invoke as ReturnType<typeof vi.fn>;
 const scene = {} as Parameters<typeof saveGameState>[0];
 const USER = 'child-legacy-households';
 
-/** Nova, adopted from under her original id. */
+/** Nova, adopted from under her original id, three game days ago. */
 const OLD_NOVA = {
   animalId: 'old-cat-1',
   animalName: 'Mittens',
   species: 'cat',
   householdId: '03-nova-adebayo',
-  date: 1_760_000_000_000,
+  date: NOW - 3 * GAME_DAY_MS,
 };
+
+/** The same adoption, long enough ago that Nova has settled and is free again. */
+const OLD_NOVA_LONG_AGO = { ...OLD_NOVA, date: NOW - 60 * GAME_DAY_MS };
 
 function cat() {
   return { ...spawnAnimal('cat'), state: 'pet' as const, bondLevel: 100 };
@@ -92,19 +101,30 @@ describe('a save holding old-style household ids', () => {
     expect(store.rehomed).toEqual([OLD_NOVA]);
   });
 
-  it('still counts the household as full', async () => {
+  it('still counts the household as busy', async () => {
     const store = await loadSaveWith([OLD_NOVA]);
-    const eligible = getEligibleApplicants(cat(), store).map((h) => h.householdId);
+    const eligible = getEligibleApplicants(cat(), store, NOW).map((h) => h.householdId);
 
     expect(eligible).not.toContain('03-nova');
-    expect(eligible).toEqual(['01-priya', '04-babcia', '06-hiro', '07-patel-greens']);
+    // ...and nobody else was caught by it.
+    for (const id of ['01-priya', '04-babcia', '06-hiro', '07-patel-greens']) {
+      expect(eligible).toContain(id);
+    }
+  });
+
+  it('frees the household once the old entry is past the cooldown, without rewriting it', async () => {
+    const store = await loadSaveWith([OLD_NOVA_LONG_AGO]);
+    const eligible = getEligibleApplicants(cat(), store, NOW).map((h) => h.householdId);
+
+    expect(eligible).toContain('03-nova');
+    expect(store.rehomed).toEqual([OLD_NOVA_LONG_AGO]);
   });
 
   it('writes the old entry back unchanged beside a new adoption under the current id', async () => {
     const store = await loadSaveWith([OLD_NOVA]);
     const second = cat();
     store.animals = [second];
-    commitAdoption(second, '06-hiro', store, 1_760_000_100_000);
+    commitAdoption(second, '06-hiro', store, NOW);
 
     invoke.mockResolvedValueOnce({ data: { saved: true, version: 3 }, error: null });
     await saveGameState(scene, store);
@@ -145,7 +165,7 @@ describe('the readers that bypass getEligibleApplicants', () => {
   it('counts a household\'s headroom across both of its ids', () => {
     const source = read('scenes/AdoptionMatchScene.ts');
 
-    expect(source).toContain('householdUseCount(this.store.rehomed, applicant.householdId)');
+    expect(source).toContain('householdActiveUseCount(this.store.rehomed, applicant.householdId, this.now)');
     expect(source).not.toMatch(/rehomed\.filter\(\(r\) => r\.householdId ===/);
   });
 });

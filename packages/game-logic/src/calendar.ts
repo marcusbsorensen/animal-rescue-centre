@@ -118,6 +118,28 @@ export function calculateCurrentDate(
   return { year, month, day, dayOfYear };
 }
 
+/**
+ * Whole in-game days between two real timestamps, at the calendar's rate
+ * (one real week is one 30-day in-game month).
+ *
+ * This is the one place "how many game days have passed since X" is
+ * answered for things that were stamped with an epoch-ms `date` and need
+ * no calendar state of their own — the adoption cooldown reads it against
+ * `RehomedEntry.date`. It uses the calendar's rate rather than keeping a
+ * second clock; `timeProgress` cannot answer the question because it is
+ * task-driven and holds only the phase of the current day, not a count.
+ *
+ * Integer arithmetic on purpose: 21 days is 423_360_000 ms, and going
+ * through a fractional "days per real day" lands on 20.999… and floors
+ * to 20. A span that is negative (an entry stamped by a device whose
+ * clock ran ahead) counts as no days at all.
+ */
+export function inGameDaysBetween(fromMs: number, toMs: number): number {
+  const elapsed = toMs - fromMs;
+  if (!Number.isFinite(elapsed) || elapsed <= 0) return 0;
+  return Math.floor((elapsed * DAYS_PER_MONTH) / (REAL_DAYS_PER_MONTH * MS_PER_REAL_DAY));
+}
+
 /** Get the season for a given in-game month (1-12). */
 export function getSeasonForMonth(month: number): Season {
   if (month >= 1 && month <= 3) return 'spring_bloom';
