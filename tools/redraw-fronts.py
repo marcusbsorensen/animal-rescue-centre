@@ -74,7 +74,8 @@ WHAT IT LEAVES.
     and Spark `x 0.165, w 0.670`. Not changed here: it is a decision about the loading screen.
   * `vehicle-topdown-spark-rear.png`'s far end carries a DARK windscreen slot, and `vehicle-topdown-henry-rear.png`'s
     two rear-door windows are CLEAR teal: both disagree with canon section 4 and neither is touched, because the
-    rears are the reference. The front windscreen is clear, so on Spark the two ends now differ.
+    rears are the reference. The front windscreen is clear, so on Spark the two ends now differ. (Finished by
+    `tools/glass-rears.py`, which changes the glass and nothing else in either file.)
   * Bea's rear shows the front tyres at its far end; her new front shows no rear tyres at its own. Her old front
     did not either, and Spark's does.
   * `decorate-roof.py` finds the roof on the sprite it is given, and the new fronts have longer roofs (Bea's 739
