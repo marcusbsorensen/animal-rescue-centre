@@ -112,6 +112,57 @@ added to a new `petRetirementHome` count.
   retirement polaroid sits on the photo wall like other rehoming
   polaroids.
 
+## Two further routes, discussed but never written down until now
+
+> Marcus 2026-10-11, recalling the original planning. Recorded here
+> because neither existed anywhere in the repo and both were about to
+> be lost. Neither is designed yet — this is the intent, not a spec.
+
+### 5. Training an animal to support other animals
+
+An animal that has settled and bonded can be trained to help the
+animals that arrive after it — a calm older dog that steadies a
+frightened new arrival, rather than leaving itself. It is an exit from
+*needing care* rather than an exit from the building, which makes it
+different in kind from the four above.
+
+Worth noting what it solves: it gives a good outcome to an animal that
+is too bonded to rehome and too well to retire, and it rewards the
+patient play the game otherwise has no way to recognise.
+
+The groundwork exists. `walks.ts:186-221` already defines `TRICKS` and
+`canTrain` with no UI attached, and the `trainer` badge
+(`packages/badges/src/definitions.ts:112-117`) is currently unreachable
+because `animalsTrained` is hard-coded to 0.
+
+### 6. Loaning experienced animals to friends' centres
+
+Other rescue centres run by the player's friends, with experienced
+animals loaned between them. A loan is not an exit — the animal comes
+back — so it is the only route here that does not end in a permanent
+placement.
+
+It leans on the social layer that already exists: `FriendsScene`,
+`SocialScene`, and the gift edge functions that already track
+`rescue_stats` server-side.
+
+### Why the caps exist, and why they are not negotiable
+
+Lily's original idea was that she would rescue and keep hundreds and
+hundreds of animals, so she could play with them all. She and Marcus
+then worked out together that **every animal needs the care it needs,
+and no one person can look after hundreds.**
+
+That is the reason for the pet cap of ~3, for shelter capacity, and for
+every exit on this page. It is a teaching point the game is built
+around, not a technical convenience, and it should not be relaxed to
+make the game feel more generous.
+
+It also sets the tone for every piece of exit copy. An animal leaving
+is the **good** outcome, because it is going somewhere it will be
+properly cared for. No exit may read as the shelter getting rid of an
+animal, and none may read as the child having failed to keep it.
+
 ## Implementation backlog
 
 Not implemented yet. The design above is the spec. Implementation
