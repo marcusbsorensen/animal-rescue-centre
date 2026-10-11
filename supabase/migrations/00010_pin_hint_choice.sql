@@ -11,12 +11,17 @@
 -- packages/game-logic/src/pin-hints.ts; pin-hints.test.ts holds the
 -- three, and this constraint, to one list).
 --
--- Order of running, because the deployed functions change at the same
--- time:
---   1. this migration (adds the new column, blanks the old one; the old
---      functions keep working, since the old column still exists);
---   2. deploy signup and get-pin-hint;
---   3. 00011, which drops the old column.
+-- Order of running on production, because the deployed functions change
+-- at the same time (00012 has its own step, folded in here):
+--   1. set the RATE_LIMIT_ADDRESS_KEY function secret (see 00012);
+--   2. run this file by hand (SQL editor). It adds the new column and
+--      blanks the old one; the old functions keep working, since the old
+--      column still exists;
+--   3. deploy signup, get-pin-hint, login and send-gift;
+--   4. `supabase db push`, which runs this file again (safe), then 00011
+--      (drops the old column) and 00012.
+-- Running `supabase db push` before step 3 drops a column the deployed
+-- functions still use.
 
 alter table users
   add column if not exists pin_hint_code text
@@ -43,6 +48,10 @@ begin
 end;
 $$;
 
+-- Dropped first so this file can run twice: by hand in the SQL editor
+-- before the deploy, then again from `supabase db push`, which does not
+-- know it already ran.
+drop trigger if exists users_blank_pin_hint on users;
 create trigger users_blank_pin_hint
   before insert or update of pin_hint on users
   for each row execute function users_blank_pin_hint();
