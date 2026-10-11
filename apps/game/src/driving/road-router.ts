@@ -9,7 +9,12 @@
  * road-following route between two map points, gently preferring bigger roads
  * (like real sat-nav). Falls back to a straight line if the points can't be
  * connected on the network, so the GPS never draws nothing.
+ *
+ * Routing can be vehicle-aware: an adjacency built for a vehicle leaves out the
+ * roads that vehicle must not use (Trikey, the pedal trike, never rides a dual
+ * carriageway). Built with no vehicle, every road is in, as it always was.
  */
+import type { VehicleType } from '@arc/game-logic';
 
 export interface RoadGraph {
   nodes: [number, number][];
@@ -31,11 +36,32 @@ function segLen(a: [number, number], b: [number, number]): number {
   return Math.hypot((a[0] - b[0]) * ASPECT, a[1] - b[1]);
 }
 
-/** Build a weighted adjacency list once per graph. */
-export function buildAdjacency(g: RoadGraph): Adjacency {
+/**
+ * Road classes a vehicle never routes over. Trikey is half the speed of every
+ * gear, so on a dual carriageway (OSM `trunk`), where first gear is already too
+ * slow, she would be too slow in every gear: her routes avoid them (driving
+ * port plan 2026-10-11, section 5, answer 10).
+ */
+export const ROADS_BARRED: Partial<Record<VehicleType, readonly string[]>> = {
+  'pedal-trike': ['trunk'],
+};
+
+/** Whether a vehicle may drive a road of this class. No vehicle: every road. */
+export function roadAllowedFor(vehicle: VehicleType | undefined, roadClass: string): boolean {
+  if (!vehicle) return true;
+  return !(ROADS_BARRED[vehicle]?.includes(roadClass) ?? false);
+}
+
+/**
+ * Build a weighted adjacency list once per graph (and per vehicle, when one is
+ * given: roads it may not use are left out, so every route over this adjacency
+ * avoids them, and a place reachable only by such a road is unreachable).
+ */
+export function buildAdjacency(g: RoadGraph, vehicle?: VehicleType): Adjacency {
   const adj: Adjacency = g.nodes.map(() => []);
   for (const [a, b, cls] of g.edges) {
     if (a < 0 || b < 0 || a >= g.nodes.length || b >= g.nodes.length) continue;
+    if (!roadAllowedFor(vehicle, cls)) continue;
     const w = segLen(g.nodes[a], g.nodes[b]) * (CLASS_MULT[cls] ?? 1);
     adj[a].push({ to: b, w });
     adj[b].push({ to: a, w });

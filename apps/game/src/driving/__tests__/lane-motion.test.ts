@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  BASE_FOLLOW_MPS, LANE_M, RESERVATION_M, SIDESTEP_MPS, TRUNK_LANE_M,
-  createLaneState, laneOffset, roadWidth, stepLane, trunkWidth, type LaneState,
+  BASE_FOLLOW_MPS, LANE_M, RESERVATION_M, ROAD_M, SIDESTEP_MPS, TRUNK_LANE_M, TRUNK_M,
+  createLaneState, laneOffset, roadWidth, stepLane, type LaneState,
 } from '../lane-motion';
 
 // Keep left is lane 0; lane 1 is the overtaking side. Offsets are metres from
@@ -27,26 +27,28 @@ describe('lane offsets', () => {
     expect(laneOffset(1, 'track')).toBe(0);
   });
 
-  it('the dual carriageway is two lanes each way, both of ours left of the grass', () => {
-    // zoom trial, true 5 m lanes: 21.6 m of road
-    expect(trunkWidth('zoom')).toBeCloseTo(21.6, 12);
-    expect(laneOffset(0, 'trunk', 'zoom')).toBeCloseTo(-(0.8 + 7.5), 12);
-    expect(laneOffset(1, 'trunk', 'zoom')).toBeCloseTo(-(0.8 + 2.5), 12);
-    // narrow trial, 3 m lanes: 13.6 m of road
-    expect(trunkWidth('narrow')).toBeCloseTo(13.6, 12);
-    expect(laneOffset(0, 'trunk', 'narrow')).toBeCloseTo(-(0.8 + 4.5), 12);
-    expect(laneOffset(1, 'trunk', 'narrow')).toBeCloseTo(-(0.8 + 1.5), 12);
-    for (const mode of ['zoom', 'narrow'] as const) {
-      // each lane centre is half a lane in from its lines
-      expect(laneOffset(1, 'trunk', mode) + TRUNK_LANE_M[mode] / 2).toBeCloseTo(-RESERVATION_M / 2, 12);
-      expect(laneOffset(0, 'trunk', mode) - TRUNK_LANE_M[mode] / 2).toBeCloseTo(-roadWidth('trunk', mode) / 2, 12);
+  it('every other road puts a lane centre a quarter of its width from the centreline, as the spike does', () => {
+    for (const [cls, w] of Object.entries(ROAD_M)) {
+      if (cls === 'track') continue;
+      expect(laneOffset(0, cls)).toBe(-w / 4);
+      expect(laneOffset(1, cls)).toBe(w / 4);
     }
   });
 
-  it('both trials put about 300 px of big road on screen', () => {
-    // zoom: 21.6 m * 22 px * 0.62; narrow: 13.6 m * 22 px
-    expect(trunkWidth('zoom') * 22 * 0.62).toBeCloseTo(294.6, 1);
-    expect(trunkWidth('narrow') * 22).toBeCloseTo(299.2, 1);
+  it('the dual carriageway is two true 5 m lanes each way, both of ours left of the grass', () => {
+    expect(TRUNK_LANE_M).toBe(LANE_M);
+    expect(RESERVATION_M).toBe(1.6);
+    expect(TRUNK_M).toBeCloseTo(21.6, 12);
+    expect(roadWidth('trunk')).toBe(TRUNK_M);
+    expect(laneOffset(0, 'trunk')).toBeCloseTo(-(0.8 + 7.5), 12);
+    expect(laneOffset(1, 'trunk')).toBeCloseTo(-(0.8 + 2.5), 12);
+    // each lane centre is half a lane in from its lines
+    expect(laneOffset(1, 'trunk') + TRUNK_LANE_M / 2).toBeCloseTo(-RESERVATION_M / 2, 12);
+    expect(laneOffset(0, 'trunk') - TRUNK_LANE_M / 2).toBeCloseTo(-roadWidth('trunk') / 2, 12);
+  });
+
+  it('at the 0.62 zoom cap the big road is about 300 px across', () => {
+    expect(TRUNK_M * 22 * 0.62).toBeCloseTo(294.6, 1);
   });
 });
 

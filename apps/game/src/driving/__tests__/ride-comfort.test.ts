@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { jostleComfort } from '../drive-state';
 import {
-  ACCEL, BRAKE, EMERGENCY, HANDBRAKE, SETTLE_PER_S,
-  jostleDelta, stepComfort, stepJostle, stepSpeed,
+  ACCEL, BRAKE, EMERGENCY, HANDBRAKE, PULL_UP, SETTLE_PER_S, STOP_SHORT_M,
+  advanceAlong, arrivalCap, hasArrived, jostleDelta, stepComfort, stepJostle, stepSpeed,
 } from '../ride-comfort';
+import { GEAR_SPEED_MPS } from '../road-gears';
 
 const DT = 1 / 60;
 
@@ -81,5 +82,60 @@ describe('jostle', () => {
     const s = stepSpeed({ v: 20, target: 0, speedCap: Infinity, handbrake: false, dt: DT });
     expect(s.hardDecel).toBe(0);
     expect(BRAKE).toBe(14);
+  });
+});
+
+describe('pulling up at the destination', () => {
+  const TOP = GEAR_SPEED_MPS[3];
+
+  it('lowers the speed she can ask for to sqrt(2 * 2.5 * (toGo - 6))', () => {
+    expect([PULL_UP, STOP_SHORT_M]).toEqual([2.5, 6]);
+    expect(arrivalCap(6 + 80)).toBeCloseTo(TOP, 12);   // top speed is allowed until 86 m out
+    expect(arrivalCap(6 + 10)).toBeCloseTo(Math.sqrt(50), 12);
+    expect(arrivalCap(6)).toBe(0);
+    expect(arrivalCap(2)).toBe(0);
+    // far out, nothing changes
+    expect(stepSpeed({ v: TOP, target: TOP, speedCap: Infinity, handbrake: false, dt: DT, toGo: 200 }).v).toBe(TOP);
+    // inside it, holding go slows the van like easing off does, at BRAKE, not hard
+    const s = stepSpeed({ v: TOP, target: TOP, speedCap: Infinity, handbrake: false, dt: DT, toGo: 46 });
+    expect(s).toEqual({ v: TOP - BRAKE * DT, hardDecel: 0, emergency: false });
+    // and accelerating never goes past it
+    expect(stepSpeed({ v: 9.9, target: TOP, speedCap: Infinity, handbrake: false, dt: DT, toGo: 26 }).v).toBe(10);
+  });
+
+  it('with no destination given, stepSpeed is unchanged', () => {
+    expect(stepSpeed({ v: TOP, target: TOP, speedCap: Infinity, handbrake: false, dt: DT }).v).toBe(TOP);
+  });
+
+  for (const fps of [30, 60, 120]) {
+    it(`from 20 m/s holding go, stops 6 m short with no jostle added (${fps} fps)`, () => {
+      const dt = 1 / fps, length = 600;
+      let s = 300, v = TOP, j = 0, t = 0, arrivedAt = -1;
+      while (t < 20) {
+        const toGo = length - s;
+        const step = stepSpeed({ v, target: TOP, speedCap: Infinity, handbrake: false, dt, toGo });
+        expect(step.hardDecel).toBe(0);
+        expect(step.emergency).toBe(false);
+        v = step.v;
+        s = advanceAlong(s, v, dt, length);
+        j = stepJostle(j, 0, step.hardDecel, dt);
+        if (arrivedAt < 0 && hasArrived(length - s, v)) arrivedAt = t;
+        t += dt;
+      }
+      expect(j).toBe(0);
+      expect(length - s).toBeCloseTo(STOP_SHORT_M, 6);
+      expect(v).toBeLessThan(0.01);
+      // it pulls up in about the time a 2.5 m/s² stop from where it starts slowing takes
+      expect(arrivedAt).toBeGreaterThan(0);
+      expect(arrivedAt).toBeLessThan((300 - 80 - 6) / TOP + TOP / PULL_UP + 0.5);
+    });
+  }
+
+  it('never rolls past the stopping point', () => {
+    expect(advanceAlong(590, 20, 1, 600)).toBe(594);
+    expect(advanceAlong(500, 20, 1, 600)).toBe(520);
+    expect(hasArrived(6.4, 0.1)).toBe(true);
+    expect(hasArrived(6.4, 0.3)).toBe(false);
+    expect(hasArrived(7, 0)).toBe(false);
   });
 });

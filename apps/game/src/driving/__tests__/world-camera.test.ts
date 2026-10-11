@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import type { RoadGraph } from '../road-router';
 import { atDistance, routePathFromNodes, type RoutePath } from '../route-path';
 import {
-  BASE_PPM, BIG_ROAD_ZOOM, CAM_EASE, LOOKAHEAD_M, SPIKE_CAM_EASE, VAN_WIDTH_M,
+  ARRIVE_ZOOM_M, BASE_PPM, BIG_ROAD_ZOOM, CAM_EASE, LOOKAHEAD_M, SPIKE_CAM_EASE, VAN_WIDTH_M,
+  ZOOM_ARRIVE, ZOOM_FAST, ZOOM_IN_RATE, ZOOM_OUT_RATE, ZOOM_STILL_LANE, ZOOM_STILL_ROAD,
   cameraAim, easeCameraHeading, easeCameraHeadingSpike, easeZoom, pixelsPerMetre,
-  vanScreenPoint, vanScreenRotation, vanWidthFraction, worldToScreen, wrapAngle, zoomTarget,
+  vanScreenPoint, vanScreenRotation, vanWidthFraction, worldToScreen, wrapAngle, zoomFor, zoomTarget,
 } from '../world-camera';
 import { LANE_M } from '../lane-motion';
 import { GEAR_SPEED_MPS } from '../road-gears';
@@ -179,15 +180,89 @@ describe('the aim', () => {
   it('falls back to the segment underfoot at the very end', () => {
     expect(cameraAim(r, r.length) * DEG).toBeCloseTo(90, 6);
   });
+});
 
-  it('zooms out on the dual carriageway and 40 m before it, only in the zoom trial', () => {
-    expect(zoomTarget(r, corner - 50, 'zoom')).toBe(1);
-    expect(zoomTarget(r, corner - 30, 'zoom')).toBe(BIG_ROAD_ZOOM);
-    expect(zoomTarget(r, corner + 10, 'zoom')).toBe(BIG_ROAD_ZOOM);
-    expect(zoomTarget(r, corner + 10, 'narrow')).toBe(1);
-    let z = 1;
-    for (let i = 0; i < 120; i++) z = easeZoom(z, BIG_ROAD_ZOOM, 1 / 60);
-    expect(z).toBeCloseTo(BIG_ROAD_ZOOM + (1 - BIG_ROAD_ZOOM) * Math.exp(-3.2), 9);
+describe('the zoom follows speed and place', () => {
+  /** A straight road of one class, 0.1 units east: about 626 m. */
+  const straight = (cls: string): RoutePath =>
+    routePathFromNodes({ nodes: [[0, 0], [0.1, 0]], edges: [[0, 1, cls]] }, [0, 1]);
+  const FAR = 300;   // metres in, far from both ends
+
+  it('standing still: 1.15 on a main road, 1.35 among houses, on a lane or a track', () => {
+    expect([ZOOM_STILL_ROAD, ZOOM_STILL_LANE]).toEqual([1.15, 1.35]);
+    for (const cls of ['secondary', 'tertiary']) expect(zoomTarget(straight(cls), FAR, 0)).toBe(1.15);
+    for (const cls of ['residential', 'unclassified', 'track']) expect(zoomTarget(straight(cls), FAR, 0)).toBe(1.35);
+  });
+
+  it('at top speed (third gear, 20 m/s) 0.66 on any road, and linear in speed between', () => {
+    expect(ZOOM_FAST).toBe(0.66);
+    for (const cls of ['secondary', 'tertiary', 'residential', 'unclassified', 'track']) {
+      expect(zoomTarget(straight(cls), FAR, V)).toBeCloseTo(0.66, 12);
+      expect(zoomTarget(straight(cls), FAR, 2 * V)).toBeCloseTo(0.66, 12);   // never further than that
+    }
+    expect(zoomTarget(straight('tertiary'), FAR, V / 2)).toBeCloseTo((1.15 + 0.66) / 2, 12);
+    expect(zoomTarget(straight('residential'), FAR, V / 4)).toBeCloseTo(1.35 + (0.66 - 1.35) / 4, 12);
+  });
+
+  it('rises to 1.6 over the last 120 m to the destination', () => {
+    const r = straight('residential');
+    expect([ZOOM_ARRIVE, ARRIVE_ZOOM_M]).toEqual([1.6, 120]);
+    expect(zoomTarget(r, r.length - 120, 0)).toBe(1.35);
+    expect(zoomTarget(r, r.length - 60, 0)).toBeCloseTo(1.35 + (1.6 - 1.35) / 2, 12);
+    expect(zoomTarget(r, r.length - 30, 0)).toBeCloseTo(1.35 + (1.6 - 1.35) * 0.75, 12);
+    expect(zoomTarget(r, r.length, 0)).toBeCloseTo(1.6, 12);
+    // from whatever the speed would give, on any road
+    const fast = zoomFor({ road: 'secondary', v: V, toGo: 30, bigAhead: false });
+    expect(fast).toBeCloseTo(0.66 + (1.6 - 0.66) * 0.75, 12);
+  });
+
+  it('never closer than 0.62 on the dual carriageway or within 40 m of it', () => {
+    // the L: tertiary east, then trunk south
+    const L: RoadGraph = { nodes: [[0, 0], [0.05, 0], [0.05, 0.05]], edges: [[0, 1, 'tertiary'], [1, 2, 'trunk']] };
+    const r = routePathFromNodes(L, [0, 1, 2]);
+    const corner = r.points[1].s;
+    expect(BIG_ROAD_ZOOM).toBe(0.62);
+    expect(zoomTarget(r, corner - 50, 0)).toBe(1.15);
+    expect(zoomTarget(r, corner - 30, 0)).toBe(BIG_ROAD_ZOOM);
+    expect(zoomTarget(r, corner + 10, 0)).toBe(BIG_ROAD_ZOOM);
+    // at speed the cap still holds: 0.66 would be too close for 21.6 m
+    expect(zoomTarget(r, corner + 10, V)).toBe(BIG_ROAD_ZOOM);
+    // and it beats the arrival zoom when the destination is on the big road
+    expect(zoomTarget(r, r.length - 10, 0)).toBe(BIG_ROAD_ZOOM);
+    // further out, top speed is its own 0.66
+    expect(zoomTarget(r, corner - 50, V)).toBeCloseTo(0.66, 12);
+  });
+
+  /** zoom after `seconds` of easing towards a fixed target at `fps`. */
+  const ease = (from: number, to: number, seconds: number, fps: number) => {
+    let z = from;
+    for (let i = 0; i < seconds * fps; i++) z = easeZoom(z, to, 1 / fps);
+    return z;
+  };
+
+  it('eases multiplicatively, out at 1.5/s and in at 0.7/s', () => {
+    expect([ZOOM_OUT_RATE, ZOOM_IN_RATE]).toEqual([1.5, 0.7]);
+    // after t seconds the ratio left is (target / start) ^ exp(-rate t)
+    expect(ease(1.35, 0.66, 1, 60)).toBeCloseTo(0.66 * (1.35 / 0.66) ** Math.exp(-1.5), 12);
+    expect(ease(0.66, 1.35, 1, 60)).toBeCloseTo(1.35 * (0.66 / 1.35) ** Math.exp(-0.7), 12);
+    // multiplicative: the same ratio closes in the same time, whatever the zoom
+    expect(Math.log(ease(1.2, 0.6, 1, 60) / 0.6)).toBeCloseTo(Math.log(ease(0.8, 0.4, 1, 60) / 0.4), 12);
+    expect(Math.log(ease(0.6, 1.2, 1, 60) / 1.2)).toBeCloseTo(Math.log(ease(0.4, 0.8, 1, 60) / 0.8), 12);
+    // out is quicker than in: share of the ratio closed in one second
+    const share = (from: number, to: number) => 1 - Math.log(ease(from, to, 1, 60) / to) / Math.log(from / to);
+    expect(share(1.35, 0.66)).toBeCloseTo(1 - Math.exp(-1.5), 12);
+    expect(share(0.66, 1.35)).toBeCloseTo(1 - Math.exp(-0.7), 12);
+    expect(share(1.35, 0.66)).toBeGreaterThan(share(0.66, 1.35));
+    // a zoom at its target stays there
+    expect(easeZoom(1.15, 1.15, 1 / 60)).toBe(1.15);
+  });
+
+  it('closes the same amount per second at 30, 60 and 120 fps, both ways', () => {
+    for (const [from, to] of [[1.35, 0.62], [0.66, 1.6]]) {
+      const at60 = ease(from, to, 2, 60);
+      expect(ease(from, to, 2, 30)).toBeCloseTo(at60, 12);
+      expect(ease(from, to, 2, 120)).toBeCloseTo(at60, 12);
+    }
   });
 });
 

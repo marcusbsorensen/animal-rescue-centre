@@ -24,12 +24,13 @@
  *
  * Screen placement is measured off the reference game: the vehicle sits 53.5%
  * across and 59% down in every frame. Pixels per metre is the spike's 22 (a
- * 5 m lane is 110 px) times a zoom, because the dual carriageway either zooms
- * out (BIG_ROAD_ZOOM) or narrows its lanes (lane-motion.ts's TRUNK_LANE_M).
+ * 5 m lane is 110 px) times a zoom, and the zoom follows speed and place
+ * (zoomFor, below; docs/driving-rebuild-2026-10-11.md, "The camera's distance
+ * follows speed and place").
  * No Phaser — unit-tested.
  */
 import { atDistance, roadClassAt, type RoutePath } from './route-path';
-import type { BigRoadMode } from './lane-motion';
+import { GEAR_SPEED_MPS } from './road-gears';
 
 /** The camera aims at the route this far ahead of the van, metres. */
 export const LOOKAHEAD_M = 20;
@@ -50,11 +51,32 @@ export const BASE_PPM = 22;
 /** Van footprint across, metres: a real panel van. */
 export const VAN_WIDTH_M = 2.4;
 
-/** The zoom trial's framing on the dual carriageway, and how soon before it. */
+/** The closest the camera may sit on the dual carriageway, whose true 21.6 m
+ *  would otherwise fill a phone, and how soon before it that applies, so the
+ *  wider road is already framed when the van arrives. */
 export const BIG_ROAD_ZOOM = 0.62;
 export const BIG_ROAD_ZOOM_AHEAD_M = 40;
-/** Zoom's easing rate, per second; already exponential in the spike. */
-export const ZOOM_EASE = 1.6;
+
+/** How close the camera sits, by speed and by place. Marcus, 2026-10-11:
+ *  going fast is for overview, seeing far ahead; going slowly, on the small
+ *  lanes and pulling up at a farm or a rewilding site, is for detail, such as
+ *  a small animal crossing the road. 1 is the scale measured against the
+ *  reference: the van 13.6% of the screen's width. */
+export const ZOOM_FAST = 0.66;
+/** Standing still on a small road (SMALL_ROADS), and on any other. */
+export const ZOOM_STILL_LANE = 1.35;
+export const ZOOM_STILL_ROAD = 1.15;
+/** Pulled up at the gate, and how far out the arrival zoom begins. */
+export const ZOOM_ARRIVE = 1.6;
+export const ARRIVE_ZOOM_M = 120;
+export const SMALL_ROADS: ReadonlySet<string> = new Set(['residential', 'unclassified', 'track']);
+/** The speed at which the zoom reaches ZOOM_FAST: third gear. */
+export const ZOOM_TOP_SPEED_MPS = GEAR_SPEED_MPS[3];
+
+/** Zoom's easing rates, per second. Out is quicker than in: seeing ahead when
+ *  speeding up matters more than detail when slowing down. */
+export const ZOOM_OUT_RATE = 1.5;
+export const ZOOM_IN_RATE = 0.7;
 
 /** An angle into (-PI, PI]. */
 export function wrapAngle(a: number): number {
@@ -131,15 +153,43 @@ export function worldToScreen(view: CameraView, wx: number, wy: number): { x: nu
   return { x: o.x + rx * ppm, y: o.y + ry * ppm };
 }
 
-/** The zoom the camera is heading for: pulled back on the dual carriageway,
- *  and a little before it so the wider road is framed when the van arrives.
- *  Only in the zoom trial; the narrow trial never changes zoom. */
-export function zoomTarget(route: RoutePath, s: number, mode: BigRoadMode): number {
-  if (mode !== 'zoom') return 1;
-  const bigAhead = roadClassAt(route, s) === 'trunk' || roadClassAt(route, s + BIG_ROAD_ZOOM_AHEAD_M) === 'trunk';
-  return bigAhead ? BIG_ROAD_ZOOM : 1;
+export interface ZoomPlace {
+  /** OSM class of the road underfoot. */
+  road: string;
+  /** Speed, m/s. */
+  v: number;
+  /** Metres left to the end of the route. */
+  toGo: number;
+  /** On, or within BIG_ROAD_ZOOM_AHEAD_M of, the dual carriageway. */
+  bigAhead: boolean;
 }
 
+/** The zoom the camera is heading for: from the standing zoom for the road
+ *  down to ZOOM_FAST at top speed, drawn in towards ZOOM_ARRIVE over the last
+ *  ARRIVE_ZOOM_M, and never closer than BIG_ROAD_ZOOM near the dual
+ *  carriageway. The spike's zoomTarget. */
+export function zoomFor({ road, v, toGo, bigAhead }: ZoomPlace): number {
+  const still = SMALL_ROADS.has(road) ? ZOOM_STILL_LANE : ZOOM_STILL_ROAD;
+  const f = Math.min(1, v / ZOOM_TOP_SPEED_MPS);
+  let z = still + (ZOOM_FAST - still) * f;
+  if (toGo < ARRIVE_ZOOM_M) z += (ZOOM_ARRIVE - z) * (1 - toGo / ARRIVE_ZOOM_M);
+  if (bigAhead) z = Math.min(z, BIG_ROAD_ZOOM);
+  return z;
+}
+
+/** zoomFor at distance s along the route, at speed v. */
+export function zoomTarget(route: RoutePath, s: number, v: number): number {
+  const road = roadClassAt(route, s);
+  const bigAhead = road === 'trunk' || roadClassAt(route, s + BIG_ROAD_ZOOM_AHEAD_M) === 'trunk';
+  return zoomFor({ road, v, toGo: route.length - s, bigAhead });
+}
+
+/** Ease the zoom towards target over dt seconds, multiplicatively (each step
+ *  closes a share of the ratio, not of the difference, so going from 0.62 to
+ *  1.24 feels as fast as from 0.8 to 1.6), out at ZOOM_OUT_RATE and in at
+ *  ZOOM_IN_RATE. The share is 1 - exp(-rate * dt), so it closes the same
+ *  amount per second at any frame rate, as easeCameraHeading does. */
 export function easeZoom(zoom: number, target: number, dt: number): number {
-  return zoom + (target - zoom) * (1 - Math.exp(-ZOOM_EASE * dt));
+  const rate = target < zoom ? ZOOM_OUT_RATE : ZOOM_IN_RATE;
+  return zoom * Math.exp(Math.log(target / zoom) * (1 - Math.exp(-rate * dt)));
 }
