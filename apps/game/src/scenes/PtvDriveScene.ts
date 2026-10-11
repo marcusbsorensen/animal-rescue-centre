@@ -20,6 +20,7 @@ import { PICKER_EXIT_MARGIN, VEHICLE_SPRITE, pickerLayout } from '../driving/fle
 import { drawForecourt, drawVehicleShadow } from '../driving/forecourt';
 import { stateTween } from '../ui/tween';
 import { driveJolts } from '../driving/drive-jolts';
+import { GEAR_SPEED_MPS, speedCameraFires } from '../driving/road-gears';
 import {
   createDriveState,
   cycleGear,
@@ -45,7 +46,7 @@ import { buildRoadTransitions, worldYForRow, type RoadTransition } from '../driv
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
-import { buildAdjacency, routePolyline, routeProfile, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
+import { buildAdjacency, roadClassAt, routePolyline, routeProfile, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
 import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, projectToRoute, type Maneuver } from '../driving/route-instructions';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
@@ -2107,11 +2108,8 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /** The road type at a progress fraction, from the route's class profile. */
   private profileRoadId(progress: number): RoadId {
-    for (const run of this.roadProfile) {
-      if (progress <= run.untilProgress + 1e-6) return roadIdForClass(run.roadClass);
-    }
-    const last = this.roadProfile[this.roadProfile.length - 1];
-    return last ? roadIdForClass(last.roadClass) : 'country-lane';
+    const cls = roadClassAt(this.roadProfile, progress);
+    return cls ? roadIdForClass(cls) : 'country-lane';
   }
 
   /**
@@ -2995,13 +2993,14 @@ export class PtvDriveScene extends Phaser.Scene {
     }
 
     // Roadside decorations scroll with the road. A speed camera flashes if
-    // we pass it in top gear — the gentle "consequence" that pairs with the
-    // handbrake, never a crash.
+    // we pass it too fast for the road we are on (road-gears.ts) — the gentle
+    // "consequence" that pairs with the handbrake, never a crash.
+    const caught = this.tooFastForRoad(rate);
     for (let di = this.decor.length - 1; di >= 0; di--) {
       const d = this.decor[di];
       const prevY = d.y;
       d.y += dy;
-      if (d.isCamera && !d.triggered && prevY < this.vanY && d.y >= this.vanY && this.drive.gear === 3) {
+      if (d.isCamera && !d.triggered && prevY < this.vanY && d.y >= this.vanY && caught) {
         this.flashSpeedCamera(d);
         d.triggered = true;
       }
@@ -3249,6 +3248,21 @@ export class PtvDriveScene extends Phaser.Scene {
       if (clear && target === this.drive.lane && Math.abs(this.vanY - car.y) < minGap) clear = false;
       if (clear) { this.moveCarToLane(car, target); return; }
     }
+  }
+
+  /**
+   * Whether a speed camera would catch her now: her gear is too fast for the
+   * road class under the van, by the road-gear table. `rate` is this frame's
+   * pace, which scales the gear's speed down when she is held behind traffic
+   * or on the handbrake, so a van barely moving is never caught. With no
+   * route profile there is no road class to judge by, and nothing fires.
+   */
+  private tooFastForRoad(rate: number): boolean {
+    const roadClass = roadClassAt(this.roadProfile, this.drive.progress);
+    if (!roadClass) return false;
+    const gear = this.drive.gear;
+    const speedMps = GEAR_SPEED_MPS[gear] * Math.max(0, rate) / gearScrollRate(gear);
+    return speedCameraFires(roadClass, gear, speedMps);
   }
 
   /** Speed camera caught us going too fast — a white blitz, a little camera

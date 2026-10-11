@@ -4,6 +4,7 @@ import {
   nearestNode,
   shortestPath,
   routePolyline,
+  roadClassAt,
   type RoadGraph,
 } from '../road-router';
 
@@ -57,5 +58,25 @@ describe('road-router', () => {
     const from = { fx: 0.1, fy: 0.1 };
     const to = { fx: 0.9, fy: 0.9 };
     expect(routePolyline(empty, buildAdjacency(empty), from, to)).toEqual([from, to]);
+  });
+});
+
+describe('roadClassAt', () => {
+  const profile = [
+    { roadClass: 'residential', untilProgress: 0.2 },
+    { roadClass: 'trunk', untilProgress: 0.7 },
+    { roadClass: 'track', untilProgress: 1 },
+  ];
+
+  it('gives the run the progress falls in', () => {
+    expect(roadClassAt(profile, 0)).toBe('residential');
+    expect(roadClassAt(profile, 0.2)).toBe('residential');
+    expect(roadClassAt(profile, 0.21)).toBe('trunk');
+    expect(roadClassAt(profile, 0.99)).toBe('track');
+  });
+
+  it('holds the last run beyond the end, and knows nothing without a profile', () => {
+    expect(roadClassAt(profile, 1.2)).toBe('track');
+    expect(roadClassAt([], 0.5)).toBeUndefined();
   });
 });

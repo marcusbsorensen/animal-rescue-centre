@@ -68,3 +68,14 @@ export function gearVerdict(roadClass: string, gear: ForwardGear, speedMps: numb
     cost: 'queue',
   };
 }
+
+/**
+ * Whether a speed camera catches her: it fires on "too fast for this road",
+ * the same verdict as the road chip's, not on a fixed gear. Too slow is never
+ * a camera's business, and a van barely moving is never caught. Marcus,
+ * 2026-10-11 (docs/driving-port-plan-2026-10-11.md section 5, answer 7).
+ */
+export function speedCameraFires(roadClass: string, gear: ForwardGear, speedMps: number): boolean {
+  const v = gearVerdict(roadClass, gear, speedMps);
+  return !v.ok && v.problem === 'too-fast';
+}

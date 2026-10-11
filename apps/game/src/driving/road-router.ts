@@ -166,6 +166,18 @@ export function routeProfile(g: RoadGraph, adj: Adjacency, from: RoutePoint, to:
 }
 
 /**
+ * The road class at a progress fraction along a profile: the run it falls in,
+ * the last run beyond the end, and undefined for an empty profile (no graph,
+ * or no route).
+ */
+export function roadClassAt(profile: readonly RoadClassRun[], progress: number): string | undefined {
+  for (const run of profile) {
+    if (progress <= run.untilProgress + 1e-6) return run.roadClass;
+  }
+  return profile[profile.length - 1]?.roadClass;
+}
+
+/**
  * Dissolve short road-class runs so the drive doesn't flip road types every few
  * seconds where a route briefly touches an A-road. Runs shorter than `minSpan`
  * (progress fraction) are absorbed into a neighbour; adjacent same-class runs
