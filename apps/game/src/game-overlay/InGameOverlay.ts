@@ -28,6 +28,7 @@ export type InGameAction =
   | 'close'
   | 'aspire-rehome'
   | 'aspire-rewild'
+  | 'aspire-place'
   | 'aspire-stay'
   | 'back-to-menu'
   | 'meet-adopter'

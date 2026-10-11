@@ -652,7 +652,7 @@
             <span id="bond-remember-text">Your friend will remember you</span>
             <span aria-hidden="true">💚</span>
           </div>
-          <div class="bond-visit">Visit their wild home any time</div>
+          <div class="bond-visit" id="bond-visit-text">Visit their wild home any time</div>
         </div>
 
         <div class="release-wrap">
@@ -683,7 +683,8 @@
   // the animal's letter, its sign-off, the button, the "will remember you"
   // line — built by game-logic/exits.ts, which knows the habitat and who
   // (Simeon & Karo for a bat, Benji for a fox) takes the animal home. This
-  // page holds no table of either. The sentences below are only what shows
+  // page holds no table of either. It also serves an animal going to keepers
+  // (placementCopy), which sends a `visitLine` of its own. The sentences below are only what shows
   // if the host never sends them, and they say nothing a particular animal
   // could contradict. They used to be "Farewell, Luna", "A wild heart ready
   // for wild skies" and "Release her to the wild", the same for a hedgehog.
@@ -710,6 +711,11 @@
       img.alt = shown;
       if (p && typeof p.animalSpriteSrc === 'string') img.src = p.animalSpriteSrc;
     }
+
+    // The default is about a wild home. A ceremony that is not a release
+    // (an animal going to keepers) sends its own line.
+    const visitEl = document.getElementById('bond-visit-text');
+    if (visitEl) visitEl.textContent = text(copy.visitLine) || 'Visit their wild home any time';
 
     const rememberEl = document.getElementById('bond-remember-text');
     if (rememberEl) {

@@ -63,6 +63,10 @@ export function driveTypeFor(destinationId: string): DriveType {
     // crashes, and half of this journey has an animal aboard — the
     // half a child would be driving when one happened.
     case 'collection': return 'adoption';
+    // Keepers take an animal in for good, which is the adoption drive's
+    // errand: a gentle trip with the animal aboard, ending somewhere it is
+    // going to be looked after.
+    case 'placement':  return 'adoption';
     // The village hall and going home carry no cargo brief of their
     // own; they are still gentle trips with the animals aboard.
     default:          return 'adoption';

@@ -298,6 +298,8 @@ export {
   mapExtentFor,
   MAP_EXTENT_MIN,
   habitatForSpecies,
+  HOG_HOSPITAL_NAME,
+  WILDLIFE_PARK_NAME,
 } from './destinations';
 export type {
   DestinationDef as MapDestinationDef,
@@ -356,6 +358,8 @@ export {
   householdActiveUseCount,
   householdsForSpecies,
   isAdoptableSpecies,
+  PLACEMENT_ID_PREFIX,
+  isPlacementId,
   getEligibleApplicants,
   pickApplicants,
   commitAdoption,
@@ -365,21 +369,38 @@ export type { Applicant, RehomedEntry, AdoptionStoreLike } from './adoption';
 export {
   REWILDING_HELPERS,
   HABITAT_PHRASES,
+  PLACEMENTS,
+  isUnreleasable,
   exitsForSpecies,
+  exitsForAnimal,
+  placementsFor,
+  placementFor,
+  placementPlanFor,
+  placementCopy,
+  placementCard,
+  canPlaceAt,
   rewildingPlanFor,
+  rewildingPlanForAnimal,
   canReleaseAt,
   commitRewilding,
+  commitPlacement,
   rewildingCopy,
   lifetimeRescuedCount,
 } from './exits';
 export type {
   ExitKind,
+  ExitSubject,
   SpeciesExits,
+  Placement,
+  PlacementGate,
+  PlacementPlan,
+  PlacementCard,
   RewildingHelper,
   RewildingPlan,
   RewildedEntry,
   RewildingStoreLike,
   RewildingCopy,
+  ExitCopy,
 } from './exits';
 
 export { buildHandoverDialogue, WARDEN_SPEAKER } from './adoption-dialogue';

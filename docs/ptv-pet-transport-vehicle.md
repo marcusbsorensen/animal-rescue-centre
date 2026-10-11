@@ -333,7 +333,7 @@ Marcus's note (2026-04-24): the PTV world map needs destinations beyond the thre
 - Framing: assessment is a *gentle gate*, not a pass/fail verdict. Failed animals aren't rejected — they just get different storylines (therapy pet, sanctuary resident).
 
 #### 4. Rewilding locations
-- Already captured in [`destinations.ts`](../packages/game-logic/src/destinations.ts): Moorland (fox), Woodland (bunny / hedgehog / squirrel), Sea Cliffs (parrot / seabird), Deep Forest (bat), Wetlands (snake). ✓
+- Already captured in [`destinations.ts`](../packages/game-logic/src/destinations.ts): Moorland (fox), Woodland (bunny / hedgehog / squirrel), Sea Cliffs (seabird; never a parrot, which is not British wildlife — see [`animal-exits.md`](animal-exits.md)), Deep Forest (bat), Wetlands (snake). ✓
 
 #### 5. Pet shows
 - Competition venues where animals win prizes for **skills** (agility, obedience, tricks, scent-work, dressage-style routines) and **looks** (coat, confirmation, "best rescue story" — rescue-specific category is important).
@@ -435,14 +435,14 @@ Supply Runs are the chaos outlet — but the **coherent world** principle means 
 
 Marcus's note (2026-04-24): the compact city is modelled on **Birchington-on-Sea**, the Kent coastal village where Marcus and Lily actually live. Not a generic seaside-resort stereotype — the real place has the right mix of features: North Sea coastline, chalk cliffs, four sandy bays, a large country estate (Quex Park), a 13th-century church, farmland behind, and it sits between the larger towns of Herne Bay and Margate on the Isle of Thanet. Population ~10,500 — genuinely compact.
 
-Lily being able to recognise her home town in the game is part of the point. Naming is open (full treatment as "Birchington-on-Sea" vs a light fictionalisation like "Birchbay-on-Sea" — both preserve recognisability; Marcus to pick).
+Lily being able to recognise her home town in the game is part of the point. Naming is open (full treatment as "Birchington-on-Sea" vs a light fictionalisation like "Birchbay-on-Sea" — both preserve recognisability; Marcus to pick). **Settled in practice: the light fictionalisation, as a rule for every place. See [`naming-places.md`](naming-places.md).**
 
 #### Landmark → game-world mapping (first pass)
 
 | Real Birchington feature | In-game role |
 |---|---|
 | **Minnis Bay** (western sandy bay, paddling pool, sailing) | Family beach area — pet-show fête venue, dog walks, gentle coastal drives |
-| **Grenham Bay / Beresford Gap / Epple Bay** | Smaller beaches — chalk cliffs, sea caves, cliff stacks | Sea Cliffs rewilding habitat (parrots / seabirds) |
+| **Grenham Bay / Beresford Gap / Epple Bay** | Smaller beaches — chalk cliffs, sea caves, cliff stacks | Sea Cliffs rewilding habitat (seabirds) |
 | **Chalk cliffs + sea caves** between bays | Rewilding habitat for seabirds; visual signature of the coastline |
 | **Quex Park Estate** (country house, deer park, grounds) | The A.R.C. itself — the Centre is set in an estate-like grounds with outbuildings |
 | **Waterloo Tower** (Quex Park bell tower, 1818) | Landmark on the map, visible on the horizon; maybe a pet-show venue or Centre flavour |

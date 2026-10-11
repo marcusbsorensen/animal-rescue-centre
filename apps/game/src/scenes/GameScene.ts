@@ -50,11 +50,16 @@ import {
   ADOPTER_HOUSEHOLD_DEFS,
   isAdoptableSpecies,
   canonicalHouseholdId,
-  exitsForSpecies,
-  rewildingPlanFor,
+  exitsForAnimal,
+  rewildingPlanForAnimal,
   rewildingCopy,
   canReleaseAt,
   commitRewilding as commitRewildingLogic,
+  placementPlanFor,
+  placementCopy,
+  placementCard,
+  canPlaceAt,
+  commitPlacement as commitPlacementLogic,
   lifetimeRescuedCount,
   buildHandoverDialogue,
   WARDEN_SPEAKER,
@@ -521,18 +526,30 @@ export class GameScene extends Phaser.Scene {
           : undefined;
         // The right animal at the right place. The map has always listed which
         // species belong at each habitat; arrival did not ask, so a cat could
-        // be driven to the moor and let go.
-        if (animal && canReleaseAt(animal.species, dest.id)) {
+        // be driven to the moor and let go. Asked of the whole animal, so one
+        // that cannot be released is not let go either.
+        if (animal && canReleaseAt(animal, dest.id)) {
           this.openRewildingOverlay(animal);
           return;
         }
         if (animal) {
-          showToast(
-            this,
-            rewildingPlanFor(animal.species)
-              ? `${dest.emoji} ${animal.name}'s wild home is somewhere else.`
-              : `🏡 ${animal.name} loves people — let's find them a family.`,
-          );
+          showToast(this, this.elsewhereToast(animal, dest.emoji));
+          return;
+        }
+        showToast(this, `${dest.emoji} You have arrived at ${dest.label}.`);
+        return;
+      }
+      case 'placement': {
+        const animal = arrival.animalId
+          ? this.store.animals.find((a) => a.id === arrival.animalId)
+          : undefined;
+        // Same rule as the habitats: the right animal at the right place.
+        if (animal && canPlaceAt(animal, dest.id)) {
+          this.openPlacementOverlay(animal);
+          return;
+        }
+        if (animal) {
+          showToast(this, this.elsewhereToast(animal, dest.emoji));
           return;
         }
         showToast(this, `${dest.emoji} You have arrived at ${dest.label}.`);
@@ -1524,6 +1541,8 @@ export class GameScene extends Phaser.Scene {
    * for now the ceremony / adopter flows chain off the aspiration choice.
    */
   private openPathsOverlay(animal: Animal): void {
+    const exits = exitsForAnimal(animal);
+    const placement = placementPlanFor(animal);
     const unmount = mountInGame('paths', {
       onAction: (action) => {
         if (action === 'close' || action === 'back-to-menu') {
@@ -1542,6 +1561,14 @@ export class GameScene extends Phaser.Scene {
           this.openRewildingOverlay(animal);
           return;
         }
+        if (action === 'aspire-place') {
+          // Keepers are a kind of forever home, and the entry lands in
+          // `rehomed`, so that is the aspiration that is saved.
+          this.setAspiration(animal, 'rehome');
+          unmount();
+          this.openPlacementOverlay(animal);
+          return;
+        }
         if (action === 'aspire-stay') {
           // Aspiration saved — final commit happens later via a working-
           // animal slot. For now dismiss back to the game.
@@ -1557,13 +1584,17 @@ export class GameScene extends Phaser.Scene {
         ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
         : `/assets/animals/${animal.species}-sheltered.png`,
       bond: animal.bondLevel,
-      // Which of the paths this species has (game-logic/exits.ts). The page
+      // Which of the paths this animal has (game-logic/exits.ts). The page
       // cannot import the rule, so it is sent: a cat or dog is never offered
-      // the wild, and a hedgehog — whom no household takes — is never offered
-      // a forever family, so neither is left as a card that goes nowhere.
-      canRehome: exitsForSpecies(animal.species).adopt,
-      canRewild: exitsForSpecies(animal.species).rewild,
-      habitatPhrase: rewildingPlanFor(animal.species)?.habitatPhrase,
+      // the wild, a parrot is never offered the wild, a hedgehog — whom no
+      // household takes — is never offered a forever family, and an animal
+      // that cannot be released is offered its keepers instead of the wild.
+      // So no card is left that goes nowhere.
+      canRehome: exits.adopt,
+      canRewild: exits.rewild,
+      habitatPhrase: rewildingPlanForAnimal(animal)?.habitatPhrase,
+      // The keepers' card, worded in game-logic like the ceremony it opens.
+      place: placement ? placementCard(animal.name, placement) : undefined,
     });
     this.events.once('shutdown', unmountInGame);
   }
@@ -1635,10 +1666,11 @@ export class GameScene extends Phaser.Scene {
    * `commitAdoption` path is unchanged.
    */
   public openAdoptionMatchOverlay(animal: Animal): void {
-    // Nobody adopts a fox, a bat or a hedgehog — they go back to the wild.
-    // The Paths panel does not offer this screen for them; if some other
-    // caller arrives here, send the animal where it can actually go rather
-    // than open an office with no one in it.
+    // Nobody adopts a fox, a bat or a hedgehog — they go back to the wild,
+    // or to keepers when they cannot be released. The Paths panel does not
+    // offer this screen for them; if some other caller arrives here, send the
+    // animal where it can actually go rather than open an office with no one
+    // in it.
     if (!isAdoptableSpecies(animal.species)) {
       this.openRewildingOverlay(animal);
       return;
@@ -1744,11 +1776,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openRewildingOverlay(animal: Animal): void {
-    // A cat or a dog has no wild home to go to. Nothing offers this for one
-    // (the Paths card is not drawn, the drive's arrival checks), so this is
-    // only the last line.
-    const plan = rewildingPlanFor(animal.species);
+    // A cat, a dog or a parrot has no wild home to go to, and an animal that
+    // cannot be released does not go to one. Nothing offers this for them (the
+    // Paths card is not drawn, the drive's arrival checks), so this is only the
+    // last line: it sends the animal where it can go.
+    const plan = rewildingPlanForAnimal(animal);
     if (!plan) {
+      if (placementPlanFor(animal)) {
+        this.openPlacementOverlay(animal);
+        return;
+      }
       showToast(this, `🏡 ${animal.name} loves people — let's find them a family.`);
       return;
     }
@@ -1776,6 +1813,51 @@ export class GameScene extends Phaser.Scene {
       copy: rewildingCopy(animal.name, plan),
     });
     this.events.once('shutdown', unmountInGame);
+  }
+
+  /**
+   * The ceremony for an animal going to keepers: the hog hospital, the
+   * wildlife park. It is the release page with the placement's words — the
+   * page holds none of its own, so the same page and the same two actions
+   * (`rewild-confirm`, `rewild-cancel`) serve both.
+   */
+  private openPlacementOverlay(animal: Animal): void {
+    const plan = placementPlanFor(animal);
+    if (!plan) {
+      showToast(this, `🏡 ${animal.name} loves people — let's find them a family.`);
+      return;
+    }
+    const unmount = mountInGame('rewilding', {
+      onAction: (action) => {
+        if (action === 'rewild-cancel') { unmount(); return; }
+        if (action === 'rewild-confirm') {
+          this.commitPlacement(animal);
+          unmount();
+          return;
+        }
+      },
+    }, {
+      animalId: animal.id,
+      animalName: animal.name,
+      animalSpriteSrc: animal.variant
+        ? `/assets/animals/${animal.species}-${animal.variant}-sheltered.png`
+        : `/assets/animals/${animal.species}-sheltered.png`,
+      bond: animal.bondLevel,
+      copy: placementCopy(animal.name, plan),
+    });
+    this.events.once('shutdown', unmountInGame);
+  }
+
+  /**
+   * What a drive says when the animal aboard does not belong at the place the
+   * van has parked: where it does belong, in the order it can go there. Said
+   * as a place it is going TO, never as a reason it cannot stay.
+   */
+  private elsewhereToast(animal: Animal, emoji: string): string {
+    if (rewildingPlanForAnimal(animal)) return `${emoji} ${animal.name}'s wild home is somewhere else.`;
+    const place = placementPlanFor(animal);
+    if (place) return `${emoji} ${animal.name}'s safe home is ${place.name}.`;
+    return `🏡 ${animal.name} loves people — let's find them a family.`;
   }
 
   /**
@@ -2314,7 +2396,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Commit: remove animal from centre, record in rewilded list, save. */
   private commitRewilding(animal: Animal): void {
-    const plan = rewildingPlanFor(animal.species);
+    const plan = rewildingPlanForAnimal(animal);
     if (!plan) return;
     let entry;
     try {
@@ -2329,6 +2411,24 @@ export class GameScene extends Phaser.Scene {
     showToast(this, rewildingCopy(entry.animalName, plan).toast);
     // Charms — first rewilding drive unlocks the Fox Tail.
     this.fireCharmEvent('first-rewilding-drive');
+    this.saveState();
+    this.renderView();
+  }
+
+  /** Commit: remove animal from centre, record it as rehomed with its keepers, save. */
+  private commitPlacement(animal: Animal): void {
+    const plan = placementPlanFor(animal);
+    if (!plan) return;
+    let entry;
+    try {
+      entry = commitPlacementLogic(animal, this.store);
+    } catch {
+      showToast(this, "Couldn't complete the move — try again?");
+      return;
+    }
+    this.store.sickAnimals.delete(entry.animalId);
+    AudioManager.getInstance().playSfx('animal_happy');
+    showToast(this, placementCopy(entry.animalName, plan).toast);
     this.saveState();
     this.renderView();
   }

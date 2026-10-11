@@ -231,6 +231,19 @@ checking the claim still holds.
 - **Rewilding has no gameplay route at all.** `openRewildingOverlay` fires
   only from `'aspire-rewild'`, and `paths.html`'s rewild card is
   hard-locked — the click handler returns early on `.path-state-locked`.
+  *Out of date since `e0f626d`:* the host now unlocks the card for each
+  animal that has a wild home (`exitsForAnimal`), and the van's arrival
+  opens the ceremony too.
+- **Nothing sets `Animal.chronicIllness`, so the keepers' route cannot be
+  reached by playing.** The flag is what stops an animal that cannot be
+  released being sent to the wild; it goes to the wildlife park or the hog
+  hospital instead (`PLACEMENTS`, `exits.ts`). To see it: from the
+  inspector, `a = gs.store.animals[0]; a.chronicIllness = true;
+  gs.openPathsOverlay(a)` (or `gs.openPlacementOverlay(a)`). Set it on the
+  store's own object and open at once — `tickAllNeeds` replaces animals every
+  two seconds, though it spreads the flag across. Real arrivals get it when
+  the vet work in `docs/animal-flow-implementation-plan-2026-05-03.md`
+  Phase 4 lands.
 - **Adoption needs bond ≥ 50 and state ≠ 'pet'** (`AnimalDetailsPopup.ts:78`);
   bond hitting 100 flips the animal to `'pet'` and removes the Paths
   button, so the usable window is bond 50–99. Feed is +3 and closes the

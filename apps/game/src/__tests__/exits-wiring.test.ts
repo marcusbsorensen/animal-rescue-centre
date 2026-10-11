@@ -1,7 +1,16 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { exitsForSpecies, rewildingPlanFor, rewildingCopy } from '@arc/game-logic';
+import {
+  exitsForAnimal,
+  placementCard,
+  placementCopy,
+  placementPlanFor,
+  rewildingCopy,
+  rewildingPlanForAnimal,
+} from '@arc/game-logic';
+import { HOG_HOSPITAL_NAME } from '@arc/game-logic';
+import type { ExitSubject } from '@arc/game-logic';
 
 /**
  * How the exits reach a child: the Paths panel, the release ceremony, and the
@@ -31,21 +40,52 @@ describe('GameScene uses the exit rules', () => {
   it('can find the methods it is checked on', () => {
     // If this fails a split has stopped finding its method and every
     // assertion below it is checking an empty string.
-    for (const m of ['openPathsOverlay', 'openRewildingOverlay', 'commitRewilding', 'openAdoptionMatchOverlay', 'checkBadges']) {
+    for (const m of [
+      'openPathsOverlay', 'openRewildingOverlay', 'commitRewilding', 'openAdoptionMatchOverlay', 'checkBadges',
+      'openPlacementOverlay', 'commitPlacement',
+    ]) {
       expect(method(m).length, m).toBeGreaterThan(200);
     }
   });
 
-  it('tells the Paths panel which paths the species has', () => {
+  it('tells the Paths panel which paths this animal has, not only its species', () => {
+    // The animal, because a fox that cannot be released has different paths
+    // from one that can.
     const paths = method('openPathsOverlay');
-    expect(paths).toContain('canRehome: exitsForSpecies(animal.species).adopt');
-    expect(paths).toContain('canRewild: exitsForSpecies(animal.species).rewild');
+    expect(paths).toContain('const exits = exitsForAnimal(animal)');
+    expect(paths).toContain('canRehome: exits.adopt');
+    expect(paths).toContain('canRewild: exits.rewild');
+    expect(paths).toContain('placementPlanFor(animal)');
+    expect(paths).toContain('placementCard(animal.name, placement)');
+    expect(paths).not.toContain('exitsForSpecies');
+  });
+
+  it('opens the keepers’ ceremony from the Paths card', () => {
+    const paths = method('openPathsOverlay');
+    const branch = paths.split("action === 'aspire-place'")[1]?.split("action === 'aspire-stay'")[0] ?? '';
+    expect(branch).toContain('this.openPlacementOverlay(animal)');
   });
 
   it('sends the ceremony words from game-logic, built for this animal', () => {
     const overlay = method('openRewildingOverlay');
     expect(overlay).toContain('rewildingCopy(animal.name, plan)');
-    expect(overlay).toContain('rewildingPlanFor(animal.species)');
+    // Asked of the animal, so one that cannot be released has no plan.
+    expect(overlay).toContain('rewildingPlanForAnimal(animal)');
+    expect(overlay).not.toContain('rewildingPlanFor(animal.species)');
+  });
+
+  it('sends the keepers’ ceremony words from game-logic, on the release page', () => {
+    const overlay = method('openPlacementOverlay');
+    expect(overlay).toContain('placementPlanFor(animal)');
+    expect(overlay).toContain('placementCopy(animal.name, plan)');
+    expect(overlay).toContain("mountInGame('rewilding'");
+  });
+
+  it('commits a placement through game-logic, not by pushing onto the store', () => {
+    const commit = method('commitPlacement');
+    expect(commit).toContain('commitPlacementLogic(animal, this.store)');
+    expect(commit).not.toContain('this.store.rehomed.push');
+    expect(commit).not.toContain('this.store.animals.splice');
   });
 
   it('commits a release through game-logic, not by pushing onto the store', () => {
@@ -57,9 +97,18 @@ describe('GameScene uses the exit rules', () => {
 
   it('only opens the ceremony at a habitat the animal belongs to', () => {
     const arrival = GAME_SCENE.split("case 'rewilding': {")[1]?.split("case 'collection'")[0] ?? '';
-    expect(arrival).toContain('canReleaseAt(animal.species, dest.id)');
+    // The animal, not its species: one that cannot be released is not let go.
+    expect(arrival).toContain('canReleaseAt(animal, dest.id)');
+    expect(arrival).not.toContain('canReleaseAt(animal.species');
     // The old line opened it for whoever was aboard.
     expect(arrival).not.toMatch(/if \(animal\) \{ this\.openRewildingOverlay\(animal\); return; \}/);
+  });
+
+  it('only opens the keepers’ ceremony at a place that takes the animal', () => {
+    const arrival = GAME_SCENE.split("case 'placement': {")[1]?.split("case 'collection'")[0] ?? '';
+    expect(arrival).toContain('canPlaceAt(animal, dest.id)');
+    expect(arrival).toContain('this.openPlacementOverlay(animal)');
+    expect(arrival).not.toMatch(/if \(animal\) \{ this\.openPlacementOverlay\(animal\); return; \}/);
   });
 
   it('sends an animal nobody adopts to the wild rather than to an empty office', () => {
@@ -121,18 +170,25 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-const card = (name: 'rehome' | 'rewild' | 'work') =>
+const card = (name: 'rehome' | 'rewild' | 'place' | 'work') =>
   document.querySelector<HTMLButtonElement>(`.path-card[data-path="${name}"]`);
 
-/** What the Paths panel is sent for a species — the scene's own payload shape. */
-function pathsInit(species: Parameters<typeof exitsForSpecies>[0], name: string) {
+/**
+ * What the Paths panel is sent for an animal — the scene's own payload shape.
+ * `lasting` is an animal that cannot be released.
+ */
+function pathsInit(species: ExitSubject['species'], name: string, lasting = false) {
+  const animal: ExitSubject = { species, chronicIllness: lasting };
+  const exits = exitsForAnimal(animal);
+  const placement = placementPlanFor(animal);
   return {
     animalName: name,
     animalSpecies: species,
     bond: 80,
-    canRehome: exitsForSpecies(species).adopt,
-    canRewild: exitsForSpecies(species).rewild,
-    habitatPhrase: rewildingPlanFor(species)?.habitatPhrase,
+    canRehome: exits.adopt,
+    canRewild: exits.rewild,
+    habitatPhrase: rewildingPlanForAnimal(animal)?.habitatPhrase,
+    place: placement ? placementCard(name, placement) : undefined,
   };
 }
 
@@ -166,14 +222,66 @@ describe('the Paths panel', () => {
     }
   });
 
-  it('offers a bunny, a parrot and a snake both', () => {
-    for (const species of ['bunny', 'parrot', 'snake'] as const) {
+  it('offers a bunny and a snake both', () => {
+    for (const species of ['bunny', 'snake'] as const) {
       const send = mount('paths.html', '?embed=1');
       send(pathsInit(species, 'Pip'));
       expect(card('rehome')?.hidden, species).toBe(false);
       expect(card('rewild')?.hidden, species).toBe(false);
       expect(card('rewild')?.querySelector('.path-state-locked'), species).toBeNull();
     }
+  });
+
+  it('offers a parrot the family and never the wild', () => {
+    // A parrot is not British wildlife: letting one go is illegal and harms
+    // native birds. Whatever else changes, this card stays off.
+    const send = mount('paths.html', '?embed=1');
+    send(pathsInit('parrot', 'Pip'));
+    expect(card('rehome')?.hidden).toBe(false);
+    expect(card('rewild')?.hidden).toBe(true);
+    expect(card('place')?.hidden).toBe(true);
+  });
+
+  it('offers a healthy fox the wild and not the keepers', () => {
+    const send = mount('paths.html', '?embed=1');
+    send(pathsInit('fox', 'Rusty'));
+    expect(card('rehome')?.hidden).toBe(true);
+    expect(card('rewild')?.hidden).toBe(false);
+    expect(card('place')?.hidden).toBe(true);
+  });
+
+  it('offers a fox that cannot be released its keepers and not the wild', () => {
+    const send = mount('paths.html', '?embed=1');
+    send(pathsInit('fox', 'Rusty', true));
+    expect(card('rehome')?.hidden).toBe(true);
+    expect(card('rewild')?.hidden).toBe(true);
+    const place = card('place');
+    expect(place?.hidden).toBe(false);
+    expect(place?.querySelector('.path-name')?.textContent).toBe('A safe home');
+    expect(place?.querySelector('.path-blurb')?.textContent).toMatch(/will look after Rusty$/);
+    expect(place?.querySelector('.path-badge')?.textContent).toBeTruthy();
+    expect(place?.querySelector('.path-state')?.textContent).toBe('Choose this');
+  });
+
+  it('offers a hedgehog that cannot be released the hog hospital', () => {
+    const send = mount('paths.html', '?embed=1');
+    send(pathsInit('hedgehog', 'Bramble', true));
+    expect(card('rewild')?.hidden).toBe(true);
+    expect(card('place')?.hidden).toBe(false);
+    expect(card('place')?.querySelector('.path-badge')?.textContent).toBe('🦔');
+  });
+
+  it('tells the host when the keepers’ card is chosen', async () => {
+    const send = mount('paths.html', '?embed=1');
+    send(pathsInit('fox', 'Rusty', true));
+    const heard: unknown[] = [];
+    const listen = (e: MessageEvent) => { if (e.data?.source === 'arc-game') heard.push(e.data); };
+    window.addEventListener('message', listen);
+    card('place')?.click();
+    // jsdom delivers a same-window postMessage asynchronously.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    window.removeEventListener('message', listen);
+    expect(heard).toEqual([{ source: 'arc-game', type: 'aspire-place', payload: { path: 'place' } }]);
   });
 
   it('lays the cards that are left across the row', () => {
@@ -187,6 +295,23 @@ describe('the Paths panel', () => {
     expect(document.querySelector<HTMLElement>('.paths-grid')?.style.getPropertyValue('--path-cards')).toBe('3');
   });
 
+  it('lays a snake’s four cards two by two', () => {
+    const send = mount('paths.html', '?embed=1');
+    send(pathsInit('snake', 'Noodle'));
+    const grid = document.querySelector<HTMLElement>('.paths-grid');
+    expect(grid?.style.getPropertyValue('--path-cards')).toBe('4');
+    expect(grid?.dataset.cards).toBe('4');
+    expect(card('place')?.hidden).toBe(false);
+  });
+
+  it('starts with the keepers’ card hidden, so a page that hears nothing promises nothing', () => {
+    mount('paths.html', '?embed=1');
+    expect(card('place')?.hidden).toBe(true);
+    const send = mount('paths.html', '?embed=1');
+    send({ animalName: 'Pip' });
+    expect(card('place')?.hidden).toBe(true);
+  });
+
   it('leaves all three cards alone when the host says nothing about them', () => {
     const send = mount('paths.html', '?embed=1');
     send({ animalName: 'Pip' });
@@ -196,11 +321,56 @@ describe('the Paths panel', () => {
   });
 });
 
+describe('the keepers’ ceremony', () => {
+  const text = (id: string) => document.getElementById(id)?.textContent ?? '';
+
+  function placementFor(species: ExitSubject['species'], name: string) {
+    const plan = placementPlanFor({ species, chronicIllness: true });
+    if (!plan) throw new Error(`no placement for ${species}`);
+    const send = mount('rewilding.html', '?embed=1');
+    send({
+      animalId: 'x',
+      animalName: name,
+      animalSpriteSrc: `/assets/animals/${species}-sheltered.png`,
+      bond: 90,
+      copy: placementCopy(name, plan),
+    });
+    return plan;
+  }
+
+  it('reads as a safe home, on the same page as a release', () => {
+    const plan = placementFor('hedgehog', 'Bramble');
+    expect(text('farewell-title')).toBe('A safe home for Bramble');
+    expect(text('farewell-subtitle')).toBe(`${plan.name} will look after Bramble`);
+    expect(text('scroll-body')).toContain(`Now I'm going to ${plan.name}.`);
+    expect(text('scroll-sign')).toBe('Your friend always — Bramble');
+    expect(text('release-label')).toBe('WAVE THEM OFF!');
+    expect(text('bond-remember-text')).toBe('Bramble will remember you');
+  });
+
+  it('visits the keepers, not a wild home', () => {
+    const plan = placementFor('fox', 'Rusty');
+    expect(text('bond-visit-text')).toBe(`Visit ${plan.name} any time`);
+    expect(text('bond-visit-text')).not.toMatch(/wild home/i);
+  });
+
+  it('says nothing of the wild, a release or a family, whoever is going', () => {
+    for (const species of ['fox', 'bat', 'snake', 'hedgehog'] as const) {
+      placementFor(species, 'Pip');
+      const everything = [
+        text('farewell-title'), text('farewell-subtitle'), text('scroll-body'),
+        text('scroll-sign'), text('release-label'), text('bond-remember-text'), text('bond-visit-text'),
+      ].join(' ');
+      expect(everything, species).not.toMatch(/farewell|\bher\b|\bshe\b|meadow|release|\bwild\b|adopt|family/i);
+    }
+  });
+});
+
 describe('the release ceremony', () => {
   const text = (id: string) => document.getElementById(id)?.textContent ?? '';
 
-  function ceremonyFor(species: Parameters<typeof rewildingPlanFor>[0], name: string) {
-    const plan = rewildingPlanFor(species);
+  function ceremonyFor(species: ExitSubject['species'], name: string) {
+    const plan = rewildingPlanForAnimal({ species });
     if (!plan) throw new Error(`no plan for ${species}`);
     const send = mount('rewilding.html', '?embed=1');
     send({
@@ -215,9 +385,9 @@ describe('the release ceremony', () => {
   it('reads as a good ending for a hedgehog', () => {
     ceremonyFor('hedgehog', 'Bramble');
     expect(text('farewell-title')).toBe('A wild home for Bramble');
-    expect(text('farewell-subtitle')).toBe('Bramble is going home to the woods');
+    expect(text('farewell-subtitle')).toBe(`${HOG_HOSPITAL_NAME} will take Bramble home to the woods`);
     expect(text('scroll-body')).toBe(
-      "Thank you for taking such good care of me. Now I'm going home to the woods, where I belong. " +
+      `Thank you for taking such good care of me. ${HOG_HOSPITAL_NAME} will take me home to the woods, where I belong. ` +
       "I'll be so happy there! I might pop back to say hello.",
     );
     expect(text('scroll-sign')).toBe('Your friend always — Bramble');
@@ -232,7 +402,7 @@ describe('the release ceremony', () => {
   });
 
   it('no longer says "Farewell" or "her" or a meadow, whoever is going', () => {
-    for (const species of ['fox', 'bunny', 'parrot', 'bat', 'snake', 'hedgehog'] as const) {
+    for (const species of ['fox', 'bunny', 'bat', 'snake', 'hedgehog'] as const) {
       ceremonyFor(species, 'Pip');
       const everything = [
         text('farewell-title'), text('farewell-subtitle'), text('scroll-body'),
@@ -240,6 +410,11 @@ describe('the release ceremony', () => {
       ].join(' ');
       expect(everything, species).not.toMatch(/farewell|\bher\b|\bshe\b|meadow|release/i);
     }
+  });
+
+  it('keeps its own line about visiting a wild home', () => {
+    ceremonyFor('hedgehog', 'Bramble');
+    expect(text('bond-visit-text')).toBe('Visit their wild home any time');
   });
 
   it('says nothing a particular animal could contradict when the host sends no words', () => {

@@ -190,8 +190,8 @@
     opacity: 0.9;
     line-height: 1.25;
   }
-  /* Up to 3 cards — stacks on narrow screens. The host hides the paths a
-     species does not have (no wild for a cat, no family for a hedgehog) and
+  /* Up to 4 cards — stacks on narrow screens. The host hides the paths an
+     animal does not have (no wild for a cat, no family for a hedgehog) and
      sets --path-cards to how many are left, so two cards share the row
      rather than leaving a gap where the third was. */
   .paths-grid {
@@ -202,6 +202,11 @@
   }
   @container welcome (max-width: 700px) {
     .paths-grid { grid-template-columns: 1fr; }
+  }
+  /* A snake can have all four (family, wild, a safe home, stay), and four
+     across is too narrow to read. Two by two. */
+  @container welcome (min-width: 701px) {
+    .paths-grid[data-cards="4"] { grid-template-columns: repeat(2, 1fr); }
   }
   .path-card {
     text-align: left;
@@ -229,6 +234,10 @@
   .path-rewild {
     background: linear-gradient(180deg, #7ea063 0%, #5d7f4a 55%, #3f5d32 100%);
     border-color: #3c5238;
+  }
+  .path-place {
+    background: linear-gradient(180deg, #6fb3c8 0%, #4a8fa8 55%, #2f6479 100%);
+    border-color: #25495a;
   }
   .path-work {
     background: linear-gradient(180deg, #b89ad5 0%, #8a6eb2 55%, #5f4780 100%);
@@ -1321,6 +1330,16 @@
                    cat or dog, who have none. -->
               <div class="path-state path-state-locked">🔒 Not yet</div>
             </button>
+            <!-- Hidden until the host sends a `place` card: keepers who look
+                 after an animal for good (game-logic/exits.ts, PLACEMENTS).
+                 Which animals have one, and the words, are the host's, so a
+                 page that hears nothing offers nothing. -->
+            <button class="path-card path-place" data-path="place" hidden>
+              <div class="path-badge">🏡</div>
+              <div class="path-name">A safe home</div>
+              <div class="path-blurb"></div>
+              <div class="path-state">Choose this</div>
+            </button>
             <button class="path-card path-work" data-path="work">
               <div class="path-badge">🎖️</div>
               <div class="path-name">Stay at A.R.C.</div>
@@ -1362,7 +1381,7 @@
       try { parent.postMessage({ source: 'arc-game', type, payload }, '*'); } catch (_) {}
     };
     // Path-card click — map each card to an aspire-* action.
-    const pathToAction = { rehome: 'aspire-rehome', rewild: 'aspire-rewild', work: 'aspire-stay' };
+    const pathToAction = { rehome: 'aspire-rehome', rewild: 'aspire-rewild', place: 'aspire-place', work: 'aspire-stay' };
     for (const card of document.querySelectorAll('.path-card')) {
       card.addEventListener('click', () => {
         const path = card.dataset.path;
@@ -1375,9 +1394,9 @@
     }
     // "← Back to Luna" button
     document.querySelector('[data-action="close"]')?.addEventListener('click', () => send('close'));
-    // Which paths this species has. The host decides (game-logic/exits.ts):
-    // cats and dogs have no wild home, and no household takes a hedgehog, so
-    // those cards are not drawn rather than drawn and dead. Only an explicit
+    // Which paths this animal has. The host decides (game-logic/exits.ts):
+    // cats, dogs and parrots have no wild home, and no household takes a
+    // hedgehog, so those cards are not drawn rather than drawn and dead. Only an explicit
     // `false` hides a card, so a host that sends nothing leaves all three.
     function applyPaths(payload) {
       const rehome = document.querySelector('.path-rehome');
@@ -1393,8 +1412,29 @@
           }
         }
       }
+      // The keepers' card is drawn only when the host sends its words. They
+      // are the host's (game-logic/exits.ts) because which animals have one,
+      // and what to call the place, are rules this static page cannot import.
+      const place = document.querySelector('.path-place');
+      if (place) {
+        const p = payload.place;
+        const ok = p && typeof p === 'object' && typeof p.name === 'string' && p.name.trim();
+        place.hidden = !ok;
+        if (ok) {
+          const badge = place.querySelector('.path-badge');
+          const title = place.querySelector('.path-name');
+          const blurb = place.querySelector('.path-blurb');
+          if (badge && typeof p.badge === 'string' && p.badge) badge.textContent = p.badge;
+          if (title) title.textContent = p.name;
+          if (blurb && typeof p.blurb === 'string') blurb.textContent = p.blurb;
+        }
+      }
       const shown = document.querySelectorAll('.path-card:not([hidden])').length;
-      document.querySelector('.paths-grid')?.style.setProperty('--path-cards', String(Math.max(1, shown)));
+      const grid = document.querySelector('.paths-grid');
+      if (grid) {
+        grid.style.setProperty('--path-cards', String(Math.max(1, shown)));
+        grid.dataset.cards = String(Math.max(1, shown));
+      }
     }
     // Personalise the title from ?animalName=… if the host sent an init payload
     window.addEventListener('message', (e) => {

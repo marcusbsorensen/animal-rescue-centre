@@ -21,7 +21,10 @@
 // rewilding, with Benji and Simeon & Karo as the people who help — see
 // REWILDING_HELPERS in exits.ts. There is no hedgehog household either, and
 // cast.json's species_vocabulary does not list one: hedgehogs are nursed and
-// let go, not rehomed.
+// let go, not rehomed. One that cannot be released goes to keepers instead,
+// and that is a placement, a place on the map (PLACEMENTS in exits.ts), not a
+// household in this file: a household in cast.json is a painted person, and
+// the hog hospital and the wildlife park are neither.
 //
 // **Nova and Hiro take CATS.** docs/rehoming-cast.md (rows 3 and 6) and the
 // code have always said cats. The "Decisions LOCKED 2026-05-03" table in

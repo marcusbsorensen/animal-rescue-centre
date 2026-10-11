@@ -18,6 +18,22 @@ export interface Animal {
   health: number;       // 0–100, 100 = full health
   bondLevel: number;    // 0–100, 100 = fully bonded
   cleanliness?: number; // 0–100, 100 = pristine (optional for save compat)
+
+  /**
+   * A lasting condition: this animal will not recover to full wild fitness.
+   * The flag docs/animal-exits.md plans for the Pet Retirement Home
+   * ("chronic illness"), used here for the same reason and nothing more —
+   * it covers a hurt that will not mend as well as an illness.
+   *
+   * It is not `sickAnimals`. A cold or a sore paw is poorly *now* and heals,
+   * and an animal that heals goes back to the wild. This is the animal that
+   * does not, which is what makes a safe home with expert keepers its right
+   * ending (game-logic/exits.ts, `isUnreleasable`).
+   *
+   * Absent means false. **Nothing in play sets it yet**; that arrives with the
+   * vet work in docs/animal-flow-implementation-plan-2026-05-03.md Phase 4.
+   */
+  chronicIllness?: boolean;
   siblingId?: string;   // linked sibling
   roomId: string;
   bedId?: string;

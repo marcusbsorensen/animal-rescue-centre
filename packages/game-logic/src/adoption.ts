@@ -27,12 +27,26 @@ export interface Applicant {
   capacity: number;
 }
 
+/**
+ * A placement (a hog hospital, a wildlife park — PLACEMENTS in ./exits) is
+ * recorded in `store.rehomed` like an adoption, under an id that starts with
+ * this. No cast.json household has an id like it, so nothing mistakes a
+ * keeper for a family; the visit scheduler asks `isPlacementId` to give a
+ * placed animal's visitors the right things to say.
+ */
+export const PLACEMENT_ID_PREFIX = 'place:';
+
+export function isPlacementId(householdId: string): boolean {
+  return householdId.startsWith(PLACEMENT_ID_PREFIX);
+}
+
 /** A completed adoption — appended to store.rehomed. */
 export interface RehomedEntry {
   animalId: string;
   animalName: string;
   species: Species;
   variant?: string;
+  /** The cast.json household that took it, or a placement id (`isPlacementId`). */
   householdId: string;
   date: number; // epoch ms
 }
@@ -60,6 +74,11 @@ export interface AdoptionStoreLike {
  * three in-game months is 21 REAL days, about 90 in-game days. One of the two
  * is a slip. This follows the heading. If three months was meant, the change
  * is this number: 90.
+ *
+ * **PROVISIONAL.** Marcus decides after playing it. The alternative is 90
+ * in-game days, which is the "3 in-game months" the spec's own parenthetical
+ * asks for (about 21 real days to a child, where 21 in-game days is about
+ * five). Until he has, it stays at 21.
  */
 export const ADOPTION_COOLDOWN_DAYS = 21;
 
@@ -140,8 +159,9 @@ export function householdsForSpecies(species: Species): Applicant[] {
 
 /**
  * Does any household adopt this species? False for fox, bat and hedgehog:
- * those animals leave by rewilding (exits.ts), and the adoption office has
- * nothing to show for them.
+ * those animals leave by rewilding, or when they cannot be released by a
+ * placement (both in exits.ts), and the adoption office has nothing to show
+ * for them.
  */
 export function isAdoptableSpecies(species: Species): boolean {
   return householdsForSpecies(species).length > 0;

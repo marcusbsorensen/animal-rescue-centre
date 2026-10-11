@@ -1,5 +1,7 @@
 # Manus prompt list — Birchie map landmarks (painted PNG set)
 
+> Place names on the map allude to real ones and never name them (Quex Park is Wyx Park, Thanet Earth is Glasshouse Acres). The rule and why are in [`naming-places.md`](naming-places.md).
+
 **Output directory:** `/Users/marcus/Projects/animal-rescue-centre/manus-output/birchie-map-landmarks/`
 
 Replaces all the in-SVG vector icons + the three existing ship PNGs on the

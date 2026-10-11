@@ -16,6 +16,10 @@
 export type DestinationKind =
   | 'supply-run'
   | 'rewilding-habitat'
+  // A place whose keepers look after an animal for good: neither a habitat
+  // (the animal does not go back to the wild) nor a household (nobody
+  // adopts it). See PLACEMENTS in ./exits for who goes where.
+  | 'placement'
   | 'adoption-home'
   | 'visit-home'
   | 'village-hall'
@@ -52,6 +56,7 @@ export type ArrivalKind =
   | 'social'     // the village hall: friends, gifts, the leaderboard
   | 'supply'     // load up and run the supplies home
   | 'rewilding'  // the release ceremony, in the habitat it belongs to
+  | 'placement'  // the keepers take an animal in, for good
   // ── The one inbound arrival. Every kind above it sends something
   // ── out of the centre; this one brings somebody back. The animal is
   // ── standing on the forecourt when the van parks, so the loading
@@ -104,6 +109,16 @@ export interface DestinationDef {
    */
   suitableSpecies?: string[];
 }
+
+// ── Names that allude to real places ─────────────────────────
+// The game alludes to real local places so that anyone who knows the area
+// recognises them, and never names them (Quex Park is Wyx Park; the rule and
+// its worked examples are in docs/naming-places.md). These two are
+// PLACEHOLDERS until Marcus confirms them. Each name is written once, here:
+// the destination labels, the ceremony copy in ./exits and the tests all read
+// these constants, so a rename is one line.
+export const HOG_HOSPITAL_NAME = "Freckle's Little Hog Hospital";
+export const WILDLIFE_PARK_NAME = 'Wilderwood';
 
 export const DESTINATIONS: DestinationDef[] = [
   // ── Centre ──
@@ -304,7 +319,11 @@ export const DESTINATIONS: DestinationDef[] = [
     fx: 0.88,
     fy: 0.34,
     arrival: 'rewilding',
-    suitableSpecies: ['parrot', 'seabird'],
+    // Not 'parrot'. A parrot is not British wildlife, and letting a pet one
+    // go on these cliffs is illegal and harms the birds that nest here. See
+    // SPECIES_HABITATS below. 'seabird' is not a species the game spawns, so
+    // until one is added nobody can be released here.
+    suitableSpecies: ['seabird'],
   },
   {
     id: 'deep-forest',
@@ -334,6 +353,45 @@ export const DESTINATIONS: DestinationDef[] = [
     arrival: 'rewilding',
     suitableSpecies: ['snake'],
   },
+
+  // ── Placements: keepers who look after an animal for good ──
+  //
+  // Not habitats (the animal does not go back to the wild) and not
+  // households (nobody adopts it). Who may go to each, and when, is
+  // PLACEMENTS in ./exits; the pin only has to be somewhere to drive.
+  // Both stand where the real places they allude to do: inland and a
+  // few miles west of Birchie, a mile or so apart. The map has no room west
+  // of A.R.C., so the south edge stands in for it.
+  {
+    id: 'hog-hospital',
+    label: HOG_HOSPITAL_NAME,
+    emoji: '🦔',
+    kind: 'placement',
+    description: 'A shed of warm hutches and kind hands, for hedgehogs that need looking after.',
+    distance: 20,
+    // Hedgehogs arrive at level 7 (progression.ts), and this opens with them.
+    unlockLevel: 7,
+    // On Bullstone Road, inland and south of the town, well back from the
+    // seafront. The south edge of the map is empty, so it goes there. Not
+    // further west: the name is long, and the label runs off the frame.
+    fx: 0.14,
+    fy: 0.95,
+    arrival: 'placement',
+  },
+  {
+    id: 'wilderwood',
+    label: WILDLIFE_PARK_NAME,
+    emoji: '🦉',
+    kind: 'placement',
+    description: 'A wildlife park where keepers look after animals who need expert care.',
+    distance: 22,
+    // Snakes arrive at level 4, and they are the first to be placed here.
+    unlockLevel: 4,
+    // A mile or so further along the road from the hog hospital.
+    fx: 0.3,
+    fy: 0.95,
+    arrival: 'placement',
+  },
 ];
 
 // ── Species → habitat mapping ────────────────────────────────
@@ -341,11 +399,19 @@ export const DESTINATIONS: DestinationDef[] = [
 // Cats and dogs are intentionally absent — they can't survive wild,
 // and the Paths panel disables the rewild card for them. Same logic
 // applies here: habitatForSpecies('cat') → undefined.
+//
+// **Parrot is absent on purpose. Do not add it back as a "missing" route.**
+// It used to map to the sea cliffs. A parrot is not native British wildlife:
+// letting a pet one go in the British countryside is illegal and harms the
+// birds that live there, and a rescue game that teaches children to do it is
+// the opposite of what it is for. Parrots leave by adoption only (six
+// households take them: 20-lei, 21-mara, 12-odenkirks, 31-estrada-train,
+// 28-iris-teacher, 30-two-houses). Snake stays, because a grass snake is
+// British wildlife and belongs in wetlands.
 const SPECIES_HABITATS: Record<string, RewildingHabitat> = {
   fox: 'moorland',
   bat: 'deep-forest',
   snake: 'wetlands',
-  parrot: 'sea-cliffs',
   seabird: 'sea-cliffs',
   bunny: 'woodland',
   hedgehog: 'woodland',
