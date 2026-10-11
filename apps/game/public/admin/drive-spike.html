@@ -118,7 +118,7 @@ const FULL_WIDTH = VIEW_Q.get('full') === '1';
 
 /** Van footprint in metres. 2.4m across is a real panel van; the length comes
  *  from the sprite's own aspect so the art is never squashed. */
-const VAN_W_M = 2.4;
+const VAN_W_M = Number(new URLSearchParams(location.search).get('vanw')) || 2.4;   // ?vanw= to compare sizes
 
 const GEARS = { 1: 7, 2: 13, 3: 20 };   // metres per second
 const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34;  // m/s^2
@@ -663,7 +663,7 @@ async function boot() {
   scn = await scenery.load({ graph, mapToWorld, metresPerMapPx: METRES_PER_MAP_PX });
 
   vanImg = new Image();
-  vanImg.src = '/assets/driving/topdown/vehicle-topdown-spark-rear.png';
+  vanImg.src = '/assets/driving/topdown/vehicle-topdown-' + (VIEW_Q.get('van') || 'spark') + '-rear.png';   // ?van= henry, bea, big-tilly, trikey
   await new Promise(r => { vanImg.onload = r; vanImg.onerror = () => { vanImg = null; r(); }; });
 
   resize();
