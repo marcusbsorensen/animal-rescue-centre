@@ -57,3 +57,46 @@ mini-beat, pay in coins, running dry means a tow and a coin penalty), wash
 `:473-476` (one coin, a small mood lift, "Lily will love the inflatable
 guy"), tube man `:348-357`. `docs/original-depot-supply-spec.md:50`: repairs
 paid with Depot parts "rather than cash sinks".
+
+## Decided (Marcus, 2026-10-12)
+
+- **Places (22A):** as in real life. Two petrol stations, the Esso/MFG on
+  Canterbury Road (west) and the BP towards Westgate (east), each with a car
+  wash; the tube man stands at the west one. The workshop is the Station
+  Garage on Minnis Road, beside the vet. In-game names allude, never name.
+- **Fuel (23A):** the gauge falls with distance, faster for bigger vans. At a
+  quarter tank the gauge glows and the GPS offers the nearer station. Ignored,
+  the van runs dry, pulls onto the verge with its hazard lights on and is
+  towed: time and coins lost, and the animals aboard grow restless.
+- **Paying (24A):** fuel and the wash in coins; repairs with Depot parts, as
+  the original Depot spec said (its part codes must first be made to match
+  `depot-inventory.ts`).
+- **Workshop (25A):** wear builds with distance and with rough driving (hard
+  stops, the van stopping itself, kerbs). A spanner light comes on; until the
+  service the ride is bumpier for the animals. Supply-run damage is mended
+  there too.
+- **Car wash (26A, extended):** the van gets dirty outside on farm tracks and
+  in winter, AND inside from the animals it carries: one that is sick or
+  moulting, one that makes a mess, two that squabble. A wash costs a coin and
+  the animals perk up. (Inside dirt links to animal needs and to
+  `crate-stacking.ts` `feelingToward`; how the inside is cleaned is still to
+  be asked.)
+- **Spark and Trikey (27A+B):** Spark has a battery gauge and charges at
+  A.R.C.'s own charger or at either petrol station (both have chargers now,
+  though the May OSM data predates them). Trikey needs no fuel, only the
+  workshop for the odd puncture.
+- **When (28A):** fuel from level 2 (Henry, the first van that uses fuel),
+  the car wash from level 4, the workshop from level 6.
+- **Tube man (29A):** painted in the game's style from the README (blue
+  dungarees, red shirt, blue cap) and animated in code: the tube sways and
+  buckles, the right arm flaps, the left stays low; janky, never the same
+  twice.
+
+## Crossing animals (20, 21A, same day)
+
+Vehicle outlines at 0.65 of the hedges' weight (the vans are smaller and more
+finely drawn than the hedges). The crossing animals become the game's own
+painted animals in side view, with a much finer contour than the vehicles,
+and a pulsing highlight on the road beneath each so a young player spots it
+at once. The pulse keeps time with the animal's gait: a rabbit hops across, a
+hedgehog shuffles, stops and shuffles again, a fox bounds.

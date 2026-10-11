@@ -47,14 +47,16 @@
 // stand-in.
 //
 // Comparison switches for Marcus, chosen by looking:
-//   ?outline=0|1|2   none, the hedges' weight (default), heavier
+//   ?outline=0|1|2|3 none, 0.65 of the hedges' weight (default: Marcus,
+//                    2026-10-12, the vans are smaller and finer-drawn than
+//                    the hedges' blobs), the hedges' weight, heavier
 //   ?wheels=0|1|debug  off, on (default), on with each tyre patch outlined
 //   ?tread=road|top  which way the bands run. road (default) moves them front
 //                    to back with the road, as asked; top is what a real
 //                    tyre's top does, back to front.
 
 const Q = typeof location === 'undefined' ? new URLSearchParams() : new URLSearchParams(location.search);
-const OUTLINE_M = [0, 0.18, 0.3][Q.get('outline') === null ? 1 : Number(Q.get('outline'))] ?? 0.18;
+const OUTLINE_M = [0, 0.117, 0.18, 0.3][Q.get('outline') === null ? 1 : Number(Q.get('outline'))] ?? 0.117;
 const WHEELS = Q.get('wheels') ?? '1';
 const TREAD_SIGN = Q.get('tread') === 'top' ? -1 : 1;
 
