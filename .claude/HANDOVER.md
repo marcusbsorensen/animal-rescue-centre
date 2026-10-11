@@ -30,27 +30,25 @@ rabbit is a few pixels), hence the routine below. The root-test worry is
 closed: the routine could not reproduce the timeouts in 5 runs, and CI run
 #481 on main runs and passes every package including the app.
 
-**In flight (cloud routines, fired 19:53–19:54 UTC; check with `list_runs`
-and `git ls-remote origin 'claude/*'`, then merge and look at each):**
-- `arc-spike-vehicle-look` (`trig_01117eV8QxQ4FyEKySyvfrAE`) →
-  `claude/spike-vehicle-look`: ink outlines on every vehicle and tread that
-  scrolls with distance so wheels seem to turn (Marcus asked for both).
-  `?outline=0|1|2`, `?wheels=0|1|debug`.
-- `arc-spike-road-paint` (`trig_018sTJawMCPDUh3Ke5V5S9iF`) →
-  `claude/spike-road-paint`: world-anchored tarmac/grit/dust by road class,
-  earth tracks with ruts, hand-painted lane lines (Marcus asked). `?road=0|1|2`.
-- `arc-spike-animals-readable` (`trig_01QzQPihaKrrHY1EtZpk8YW7`) →
-  `claude/spike-animals-readable`: crossing animals at storybook scale with
-  ink contours; the check measures the drawn bodies.
-- `arc-port-answers` (`trig_01QR4f9tUDCWer9Rowa8LC6v`) →
-  `claude/port-answers`: Q5 reduced motion, Q6 no Park/Reverse, Q7 speed
-  camera on "too fast for this road", Q8 supply runs carry nothing alive,
-  Q10 Trikey's adjacency, in `PtvDriveScene.ts`/`GameScene.ts`. Run the e2e
-  locally after merging (the cloud cannot).
-The two spike look jobs both touch `drive-spike.html` (different functions,
-both add an import line): expect a small conflict in the import block.
-Once merged, screenshot each comparison switch side by side for Marcus to
-choose (he decides visuals by looking).
+**Merged 2026-10-11 night (all checks green, e2e 4/4):** vehicle outlines
+(now 0.65 of the hedges' weight, `vehicle-look.js`), turning tyre tread,
+crossing animals (still too small, being replaced), port answers Q5–Q8/Q10 in
+`PtvDriveScene.ts`. Road data committed: `assets/driving/trunk-carriageways.json`
+(what each A28 edge really is) and `trikey-links.json` (Trikey's extra paths
+and the two crossings she may use). The routine `arc-spike-road-paint` died at
+the five-hour usage limit (cloud routines share Marcus's limit) and lost its
+work; every prompt now says push early and often.
+
+**In flight (check each with RemoteTrigger list_runs and git ls-remote on the
+claude branches; merge, run the checks, screenshot for Marcus):**
+- `arc-spike-road-paint-2` (`trig_01QsJEGA5ZPtBBPBkQnp5JkH`) → `claude/spike-road-paint`: tarmac, grit, dust, earth tracks, hand-painted lines; `?road=0|1|2`. Owns drawRoads.
+- `arc-a28-model` (`trig_01EChsKzNshhu76p6D2E8fTz`) → `claude/a28-model`: TS speeds and zoom by carriageway kind, Trikey rule 18A (expect 6 of 14, 44 pairs, +1,637 m), `crossingsOnRoute`, `reachableFor`.
+- `arc-spike-animals-sideview` (`trig_01QGTXAMchbhPVPqKMxgZodF`) → `claude/spike-animals-sideview`: the game's own side-view hedgehog and fox, fine contour, gait-synced pulsing glow (21A); toast backing; ducklings clear of the HUD; tractor nose check.
+- `arc-tube-man` (`trig_01PE1q1ndQi4zjw69ZpaUHz9`) → `claude/tube-man`: `/admin/tube-man.html`, the rig animated in code (29A).
+- `arc-spike-gears` (`trig_01FoxWx92DsELVMBoTcJyXzg`) → `claude/spike-gears`: 30A, gears allowed per road, the right knob pulses, a big numeral, clunk and lurch.
+- A local agent painting rabbit, duck, duckling, pheasant and deer candidates with ComfyUI into the session scratchpad `crossing-art/` (contact.png) for Marcus to choose; nothing goes in the repo until he picks.
+
+After the A28 model and the road paint land: a spike job drawing the A28 by kind (dual / divided / single). Not yet started: the fuel, workshop, wash and charging model (decisions 22–28 in `docs/fuel-workshop-carwash-2026-10-12.md`).
 
 ## Open questions for Marcus (ask numbered, lettered, recommendation marked)
 1. **Answered 15D, with a condition**: crossing a dual carriageway only by a
