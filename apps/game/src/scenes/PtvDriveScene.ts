@@ -26,8 +26,6 @@ import {
   gearLabel,
   gearScrollRate,
   jostleComfort,
-  PARK,
-  REVERSE,
   type DriveState,
   type DriveType,
   type Gear,
@@ -54,7 +52,7 @@ import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 /**
  * Reference cruising rate (px/tick) that traffic `relSpeed` is measured
  * against, so other vehicles have an *absolute* speed independent of ours —
- * they keep flowing past even when we're stopped (Park/Neutral) at a crossing.
+ * they keep flowing past even when we're stopped on the handbrake at a crossing.
  */
 const TRAFFIC_REF_SPEED = gearScrollRate(2);
 
@@ -310,7 +308,7 @@ const CARGO_STATES = ['sheltered', 'walking', 'playing', 'grumpy', 'scared', 'si
  *
  * Slice 1 (+ eyeball polish): top-down travel mode. Gentle daylight bird's-eye
  * road, van fixed near the lower third while the world scrolls past. Banked
- * snap lane changes, a vertical gear stick (R/1/2/3) with reverse, exponential
+ * snap lane changes, a vertical gear stick (1/2/3), exponential
  * gear speeds, roadside scenery, and varied decorative traffic (cars,
  * tractors, trucks, pick-ups, weaving motorbikes, overtaking emergency cars).
  * No cab/events/cargo yet — those arrive in later slices.
@@ -456,7 +454,8 @@ export class PtvDriveScene extends Phaser.Scene {
   private gearSlotY: Partial<Record<string, number>> = {};
 
   /** Handbrake: while engaged the vehicle is held and gear changes are blocked
-   *  (a reminder flashes). Off once the van pulls away; re-engages on Park. */
+   *  (a reminder flashes). It is the only way to stand still: there is no
+   *  Park. */
   private handbrakeOn = false;
   private handbrakeLamp?: Phaser.GameObjects.Arc;
   private handbrakeLabel?: Phaser.GameObjects.Text;
@@ -468,7 +467,6 @@ export class PtvDriveScene extends Phaser.Scene {
     down: Phaser.Input.Keyboard.Key;
     a: Phaser.Input.Keyboard.Key;
     d: Phaser.Input.Keyboard.Key;
-    r: Phaser.Input.Keyboard.Key;
     space: Phaser.Input.Keyboard.Key;
     h: Phaser.Input.Keyboard.Key;
   };
@@ -2569,11 +2567,11 @@ export class PtvDriveScene extends Phaser.Scene {
   /**
    * Handbrake — slam to a halt. Better than an RTA, but it jostles the animals
    * in their cages: comfort drops, the van judders, the screen shakes (those
-   * two not under reduced motion). Drops the stick straight into Park so the
-   * vehicle actually stops.
+   * two not under reduced motion). Leaves the handbrake on, which is what
+   * holds the vehicle still.
    */
   private emergencyBrake(): void {
-    this.setGear(PARK);
+    this.setHandbrake(true);
     this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 15);
     AudioManager.getInstance().playSfx('food_wrong'); // wobble/chaos cue (placeholder)
 
@@ -2613,12 +2611,12 @@ export class PtvDriveScene extends Phaser.Scene {
     });
   }
 
-  /** Vertical gear stick on the right: 3 / 2 / 1 / P / R top-to-bottom. */
+  /** Vertical gear stick on the right: 3 / 2 / 1 top-to-bottom. */
   private renderGearStick(width: number, height: number): void {
     const stickX = width - 46;
     const topY = height * 0.28;
     const botY = height * 0.78;
-    const slots: Gear[] = [3, 2, 1, PARK, REVERSE]; // visual top → bottom
+    const slots: Gear[] = [3, 2, 1]; // visual top → bottom
     const slotY = (i: number) => topY + (botY - topY) * (i / (slots.length - 1));
 
     // Track.
@@ -2640,15 +2638,10 @@ export class PtvDriveScene extends Phaser.Scene {
     slots.forEach((gear, i) => {
       const y = slotY(i);
       this.gearSlotY[String(gear)] = y;
-      const label = gearLabel(gear);
-      const labelColour =
-        gear === PARK ? '#a9c7e0' :
-        gear === REVERSE ? '#ffc9c9' :
-        '#e8dcc8';
       this.container.add(
-        this.add.text(stickX, y, label, {
+        this.add.text(stickX, y, gearLabel(gear), {
           fontSize: TYPE.body, fontFamily: FONTS.title, fontStyle: 'bold',
-          color: labelColour,
+          color: '#e8dcc8',
         }).setOrigin(0.5).setDepth(39)
       );
       const zone = this.add.rectangle(stickX, y, 52, 40, 0xffffff, 0)
@@ -2681,7 +2674,6 @@ export class PtvDriveScene extends Phaser.Scene {
         down: kb.addKey('DOWN'),
         a: kb.addKey('A'),
         d: kb.addKey('D'),
-        r: kb.addKey('R'),
         space: kb.addKey('SPACE'),
         h: kb.addKey('H'),
       };
@@ -2691,7 +2683,6 @@ export class PtvDriveScene extends Phaser.Scene {
       this.keys.d.on('down', () => this.moveLane(1));
       this.keys.up.on('down', () => this.setGear(cycleGear(this.drive.gear, 1)));
       this.keys.down.on('down', () => this.setGear(cycleGear(this.drive.gear, -1)));
-      this.keys.r.on('down', () => this.setGear(REVERSE));
       this.keys.space.on('down', () => this.toggleHandbrake()); // handbrake: pull/release
       this.keys.h.on('down', () => this.playHorn());
     }
@@ -2827,13 +2818,12 @@ export class PtvDriveScene extends Phaser.Scene {
 
   private setGear(gear: Gear): void {
     if (gear === this.drive.gear) return;
-    // Can't select a driving gear with the handbrake on — flash a reminder.
-    if (gear !== PARK && this.handbrakeOn) {
+    // Can't select a gear with the handbrake on — flash a reminder.
+    if (this.handbrakeOn) {
       this.flashHandbrakeReminder();
       return;
     }
     this.drive.gear = gear;
-    if (gear === PARK) this.setHandbrake(true); // parking pulls the handbrake on
     AudioManager.getInstance().playSfx('button_click');
     const y = this.gearSlotY[String(gear)];
     if (this.gearKnob && y !== undefined) {
@@ -2842,7 +2832,7 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   /** Engage/release the handbrake. Releasing lets the driver pick a gear;
-   *  pulling it on stops the vehicle (drops to Park). */
+   *  pulling it on stops the vehicle and holds it. */
   private toggleHandbrake(): void {
     if (this.handbrakeOn) {
       this.setHandbrake(false); // release — the driver can now select a gear
@@ -2986,7 +2976,8 @@ export class PtvDriveScene extends Phaser.Scene {
     // through a slower vehicle ahead in our lane — we tuck in behind until
     // we pull out to overtake.
     // Same gear, different speed per vehicle (Trikey crawls, Spark zips).
-    const gearRate = gearScrollRate(this.drive.gear) * VEHICLE_SPEED[this.vehicleId];
+    // The handbrake holds her still; there is no Park.
+    const gearRate = this.handbrakeOn ? 0 : gearScrollRate(this.drive.gear) * VEHICLE_SPEED[this.vehicleId];
     // `rate` is px per old tick, which the cap is still worked out in;
     // `dy` is how far the road moves this frame.
     const rate = this.effectivePlayerRate(gearRate);
@@ -3144,17 +3135,6 @@ export class PtvDriveScene extends Phaser.Scene {
   /** Our forward pace, capped so the van never drives through another vehicle. */
   private effectivePlayerRate(gearRate: number): number {
     const vanHalf = this.carHalfLen(this.vanGfx);
-
-    // Reversing: stop rather than back into (or drag) a vehicle behind us — they
-    // hold their ground, the van simply can't reverse past them.
-    if (gearRate < 0) {
-      for (const c of this.traffic) {
-        if (c.lane !== this.drive.lane || c.y <= this.vanY) continue; // behind = below us
-        const gap = c.y - this.vanY;
-        if (gap <= this.carHalfLen(c.gfx) + vanHalf + this.vanH * 0.15) return 0;
-      }
-      return gearRate;
-    }
     if (gearRate === 0) return 0;
 
     // Out overtaking in the oncoming lane: never drive into an oncoming car head

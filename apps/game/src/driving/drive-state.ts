@@ -10,31 +10,18 @@
 import { getDestination, type CrateGrid } from '@arc/game-logic';
 
 /**
- * Gear selection: Park holds the vehicle still (e.g. stopped for a hedgehog
- * crossing), Reverse for negotiating an obstacle, and three forward gears
- * (1..3).
+ * Gear selection: three forward gears (1..3) and nothing else. Park and
+ * Reverse were dropped (port plan 2026-10-11, section 5, answer 6): the
+ * handbrake is what holds the van still, and nothing on rails needs to back
+ * up.
  */
-export type Gear = 'P' | 'R' | 1 | 2 | 3;
-
-/** Park — fully stopped. */
-export const PARK: Gear = 'P';
-/** Reverse. */
-export const REVERSE: Gear = 'R';
+export type Gear = 1 | 2 | 3;
 
 /** Forward gears, low → high. */
 export const FORWARD_GEARS: readonly Gear[] = [1, 2, 3];
 
-/**
- * Gear stick order, bottom → top: Reverse, Park, then the forward gears. Park
- * sits between Reverse and 1st, so you drop into it straight from first gear
- * without passing through Reverse.
- */
-export const GEAR_ORDER: readonly Gear[] = ['R', 'P', 1, 2, 3];
-
-/** Whether a gear holds the vehicle stationary. */
-export function isStopped(gear: Gear): boolean {
-  return gear === PARK;
-}
+/** Gear stick order, bottom → top. */
+export const GEAR_ORDER: readonly Gear[] = FORWARD_GEARS;
 
 /** Number of lanes on the (placeholder) 3-lane PTV road. The road-system
  *  slice makes this per-route (single vs dual carriageway); until then it's
@@ -81,7 +68,7 @@ export interface DriveState {
   destinationId: string;
   /** Current lane, 0 (left) .. NUM_LANES-1 (right). */
   lane: number;
-  /** Selected gear (-1 reverse, 1..3 forward). */
+  /** Selected gear, 1..3. */
   gear: Gear;
   /** Cargo comfort 0..100 (unused in Slice 1; carried for later slices). */
   cargoComfort: number;
@@ -150,7 +137,7 @@ export function shiftLane(lane: number, dir: -1 | 1): number {
   return clampLane(lane + dir);
 }
 
-/** Move the gear stick up (+1, toward 3) or down (-1, toward P), clamped. */
+/** Move the gear stick up (+1, toward 3) or down (-1, toward 1), clamped. */
 export function cycleGear(gear: Gear, dir: -1 | 1): Gear {
   const idx = GEAR_ORDER.indexOf(gear);
   const next = Math.max(0, Math.min(GEAR_ORDER.length - 1, idx + dir));
@@ -165,20 +152,18 @@ export function jostleComfort(comfort: number, severity: number): number {
   return Math.max(0, Math.min(100, comfort - severity));
 }
 
-/** Human-friendly gear label for the stick / HUD ('P','R','1','2','3'). */
+/** Human-friendly gear label for the stick / HUD ('1','2','3'). */
 export function gearLabel(gear: Gear): string {
   return String(gear);
 }
 
 /**
- * Road-scroll rate (pixels per drive tick) for a gear. Park and Neutral hold
- * still (0). Forward gears ramp *exponentially* — third is a lot quicker than
- * first, per Marcus's eyeball. Reverse creeps backward (negative).
+ * Road-scroll rate (pixels per drive tick) for a gear. Forward gears ramp
+ * *exponentially* — third is a lot quicker than first, per Marcus's eyeball.
+ * Standing still is the handbrake's job, not a gear's.
  */
 export function gearScrollRate(gear: Gear): number {
   switch (gear) {
-    case 'P': return 0;   // park — stopped
-    case 'R': return -2.6; // reverse — gentle backward creep
     case 1: return 3.2;
     case 2: return 7.2;
     case 3: return 15;
