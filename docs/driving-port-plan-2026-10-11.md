@@ -307,7 +307,7 @@ later the same day):
 | 7 | (a) a speed camera fires on "too fast for this road". |
 | 8 | Supply runs are the delivery race: nothing alive aboard. |
 | 9 | (a) true relative widths, Henry at the measured size. |
-| 10 | (a) Trikey's routes avoid dual carriageways. |
+| 10 | (a) Trikey's routes avoid dual carriageways. Refined later the same day (Marcus, option D): she also uses cycle paths and farm tracks, and may cross a dual carriageway, but **only by a bridge or a tunnel**, never at road level, "otherwise it teaches something very dangerous to kids". Places she still cannot reach say "too far for Trikey" in the vehicle picker. |
 | 11 | (b) a switch on the driving screen, on by default (Marcus changed this from (a) on 2026-10-11: there is no settings screen). In the spike it is a brass knob on the dashboard beside the GPS, and G on a keyboard. `apps/game/src/lib/guide-line-preference.ts` remains the game's preference store (per-device localStorage); the spike already uses its key and value, and the ported scene's switch should call `setGuideLine()` there. |
 | 12 | (a) a blocked lane change keeps the lean and the sound. |
 

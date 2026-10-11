@@ -53,15 +53,18 @@ Once merged, screenshot each comparison switch side by side for Marcus to
 choose (he decides visuals by looking).
 
 ## Open questions for Marcus (ask numbered, lettered, recommendation marked)
-1. **Asked as question 15 on 2026-10-11, awaiting his letter.** Trikey
+1. **Answered 15D, with a condition**: crossing a dual carriageway only by a
+   bridge or tunnel, never at road level (a child would copy it). The options
+   agent is re-measuring D on that rule from the OSM data; then a routine
+   implements it (trike-only extra edges as an overlay, NOT by regenerating
+   the map with `osm-to-svg.py`). The earlier measurements: Trikey
    reaches 6 of 14 places from A.R.C. as built; crossing a dual carriageway
    for at most 60 m (never riding along it) adds Cove Harbour (7); cycle paths
    and farm tracks add Village Hall (7); both together 8 of 14. Map:
    `.../c124365a-79a7-4b32-87ef-f47f8231944e/scratchpad/trikey-options.png`
    (scripts beside it). Whatever he picks, the places she still cannot reach
    need a "too far for Trikey" answer in the picker.
-2. **Disk, question 16, awaiting his letter.** 81 GB free at 20:36 BST (it had
-   recovered). Scan table is in the session; nothing deleted.
+2. **Disk, answered 16A: leave it all.** 81 GB free at 20:36 BST.
 2. ~~The guide-line switch~~ — answered (13C) and done: a switch on the driving
    screen, on the spike's dashboard beside the GPS (G on a keyboard), on by
    default. When the scene is ported it should call `setGuideLine()` in
