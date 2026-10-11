@@ -88,14 +88,29 @@ const CLEAR_M = 1;
 /** A side-on animal stands upright on the screen, so where the camera looks
  *  a little off the road's line its box turns against the road by that
  *  much. The camera aims 20 m ahead and the road is straight only 6 m past a
- *  crossing; crossings.check.mjs measures the most it turns and holds it
- *  under this. */
-const CAM_SKEW = 0.4;
+ *  crossing, but by the time the van is close it has long settled:
+ *  crossings.check.mjs measured 0.03 at most within 6 m of an animal, and
+ *  fails if it is ever more than this. */
+const CAM_SKEW = 0.12;
+export const CAMERA_SKEW = CAM_SKEW;
 
-/** The HUD chips and the dev row along the top of the screen, css px,
- *  measured at 390x844 (68 held sideways). An animal waits to step out
- *  until all of it, and all of its family, is below them. */
+/** The HUD chips and the dev row along the top of the screen, css px:
+ *  van.view.chipsPx if the page gives it, else the bottom of the page's
+ *  #top, read now and then (reading it every frame would force a layout),
+ *  else 104, measured at 390x844 (68 held sideways). Once it has been seen,
+ *  an animal waits to step out until all of it, and all of its family, is
+ *  below them. */
 const CHIPS_PX = 104;
+let chipsRead = { at: -Infinity, px: CHIPS_PX };
+function chipsPx(view, t) {
+  if (view.chipsPx != null) return view.chipsPx;
+  if (typeof document === 'undefined') return CHIPS_PX;
+  if (t - chipsRead.at > 1) {
+    const el = document.getElementById('top');
+    chipsRead = { at: t, px: el ? el.getBoundingClientRect().bottom : CHIPS_PX };
+  }
+  return chipsRead.px;
+}
 
 /** The warning sign stands this far before the zone: far enough to be read
  *  first, near enough to be on screen just before the animal is. */
@@ -122,7 +137,7 @@ const ART = {
     'salt-and-pepper': 'hedgehog-salt-and-pepper-walking.png', blonde: 'hedgehog-blonde-walking.png',
   } },
   rabbit:   { len: 44, tall: 0.95, files: { '': 'rabbit-walking.png' } },
-  fox:      { len: 74, tall: 0.95, files: { '': 'fox-red-walking.png' } },
+  fox:      { len: 68, tall: 0.9, files: { '': 'fox-red-walking.png' } },
   pheasant: { len: 58, tall: 0.8, files: { '': 'pheasant-walking.png' } },
   duck:     { len: 42, tall: 0.95, files: { '': 'duck-walking.png' } },
   duckling: { len: 24, tall: 1.0, files: { '': 'duckling-walking.png' } },
@@ -560,11 +575,12 @@ export function step(xing, dt, van) {
     if (c.state === 'none' || c.state === 'gone') continue;
     const gap = c.s - c.near - nose;    // room before the closed stretch
     if (c.state === 'wait') {
-      // All of it on screen, and below the chips: the top of the screen less
-      // the chips, in metres ahead of the van.
-      const v = van.view, roof = v?.ahead == null ? Infinity : v.ahead - (v.ppm ? CHIPS_PX / v.ppm : 0);
-      if (c.s + c.top - van.s < roof) c.seen += dt;
-      if (c.s - nose <= triggerGap(van.v) && c.seen >= SEEN_S) {
+      // Seen once it is on the screen; out from under the chips when all of
+      // the party is below them (metres ahead of the van, as view.ahead).
+      const v = van.view;
+      if (v?.ahead == null || c.s - van.s < v.ahead) c.seen += dt;
+      const clear = v?.ahead == null || !v.ppm || c.s + c.top - van.s < v.ahead - chipsPx(v, xing.t) / v.ppm;
+      if (c.s - nose <= triggerGap(van.v) && c.seen >= SEEN_S && clear) {
         if (gap >= van.v * van.v / (2 * COMMIT_DECEL) + 0.5) {
           c.state = 'go'; c.blocking = true; c.moving = van.v > 0.5;
         } else c.state = 'late';
@@ -850,11 +866,11 @@ function glowSprite() {
   if (GLOW || typeof document === 'undefined') return GLOW;
   const n = 128, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
   const g = cv.getContext('2d'), gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
-  gr.addColorStop(0, 'rgba(255,222,140,.5)');
-  gr.addColorStop(0.55, 'rgba(255,214,128,.48)');
-  gr.addColorStop(0.78, 'rgba(255,238,178,.92)');
-  gr.addColorStop(0.9, 'rgba(242,164,72,.45)');
-  gr.addColorStop(1, 'rgba(242,164,72,0)');
+  gr.addColorStop(0, 'rgba(255,214,120,.78)');
+  gr.addColorStop(0.5, 'rgba(255,206,108,.74)');
+  gr.addColorStop(0.74, 'rgba(255,240,186,1)');
+  gr.addColorStop(0.86, 'rgba(238,150,58,.72)');
+  gr.addColorStop(1, 'rgba(238,150,58,0)');
   g.fillStyle = gr; g.fillRect(0, 0, n, n);
   return (GLOW = cv);
 }

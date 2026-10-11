@@ -10,8 +10,11 @@
 // Then 12 seeds on real routes of the Birchie graph. The van is stepped as
 // drive-spike.html's step() does it, self-stop included, and the contact test
 // is in world space: the van's rectangle against every animal's body as
-// drawn (crossings.js draws them at storybook size, and that box is what a
-// child sees the van stop short of).
+// drawn (crossings.js draws them at storybook size, side on and upright on
+// the screen, with a glow under each, and that box is what a child sees the
+// van stop short of). The page's camera is stepped too, since a side-on
+// animal's box is square to it; a third of the drivers hold the phone
+// sideways.
 //
 // Asserts: no contact ever; crossings only on residential, unclassified and
 // track; no hedgehog in winter; ducklings only in spring. Prints the counts.
@@ -101,7 +104,7 @@ function edgeClasses(graph) {
 
 // ---------------------------------------------------------------- the van
 
-function newCar() { return { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, length: VAN_L, width: VAN_W }; }
+function newCar() { return { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, length: VAN_L, width: VAN_W, camH: null }; }
 
 /** drive-spike.html's step(), less the camera: the same order, the same caps. */
 function stepCar(car, route, xing, dt, input, stats) {
@@ -124,12 +127,20 @@ function stepCar(car, route, xing, dt, input, stats) {
   if (car.base == null) car.base = off0;
   car.base += Math.max(-4 * dt, Math.min(4 * dt, off0 - car.base));
   car.lane = car.base + car.laneT * (off1 - off0);
-  // What the page's camera shows ahead of the van, upright on a 390x844
-  // phone at the zoom for this speed, less the page's easing: crossings.js
-  // waits for an animal to have been on screen before it steps out.
+  // What the page's camera shows ahead of the van at the zoom for this
+  // speed, less the page's easing: upright on a 390x844 phone, or held
+  // sideways (844x390: the van lower, the camera pulled back by 0.75).
+  // crossings.js waits for an animal to be on screen, below the chips,
+  // before it steps out.
   const zoom = 1.35 + (0.66 - 1.35) * Math.min(1, car.v / GEARS[3]);
-  car.view = { ahead: 408 / (22 * zoom) };
+  const ppm = 22 * zoom * (car.sideways ? 0.75 : 1);
+  car.view = { ahead: (car.sideways ? 254.4 : 408.28) / ppm, ppm, chipsPx: car.sideways ? 68 : 104 };
   const pos = route.atDistance(car.s);
+  // The page's camera: aimed at the route 20 m ahead, eased at 3.4 a second.
+  const aheadP = route.atDistance(Math.min(route.length - 1, car.s + 20));
+  const aim = Math.atan2(aheadP.y - pos.y, aheadP.x - pos.x);
+  if (car.camH == null) car.camH = aim;
+  else { const d = aim - car.camH; car.camH += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, 3.4 * dt); }
   car.x = pos.x + Math.cos(pos.h + Math.PI / 2) * car.lane;
   car.y = pos.y + Math.sin(pos.h + Math.PI / 2) * car.lane;
   car.h = pos.h;
@@ -175,7 +186,7 @@ function clearance(car, a) {
 
 const totals = {
   seeds: 0, minutes: 0, routes: 0, crossings: 0, crossed: 0, late: 0, sleeping: 0,
-  praised: 0, selfStops: 0, emergencyFrames: 0, families: 0, contacts: 0, minClear: Infinity,
+  praised: 0, selfStops: 0, emergencyFrames: 0, families: 0, contacts: 0, minClear: Infinity, skew: 0, minClearSide: {}, lateBy: {},
   offSmall: 0, winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {}, bodies: {},
 };
 const fail = [];
@@ -188,6 +199,7 @@ function drive(seed, newRouteFn, season, label) {
   const world = () => ({ graph: newRouteFn.graph(), mapToWorld, season });
   let xing = crossings.create(route, world());
   const car = newCar();
+  car.sideways = seed % 3 === 0;
   const input = { throttle: false, handbrake: false };
   let tInput = 0, arrivedFor = 0, t = 0;
   const T = 20 * 60;
@@ -217,7 +229,7 @@ function drive(seed, newRouteFn, season, label) {
         if (c.party.some(a => a.kind === 'duckling')) totals.families++;
         if (c._late) totals.late++;
       }
-      if (c.state === 'late') c._late = true;
+      if (c.state === 'late' && !c._late) { c._late = true; const k = `${c.species} ${car.sideways ? 'sideways' : 'upright'}`; totals.lateBy[k] = (totals.lateBy[k] ?? 0) + 1; }
     }
   };
   account(xing);
@@ -245,11 +257,16 @@ function drive(seed, newRouteFn, season, label) {
     }
     const arrived = stepCar(car, route, xing, dt, { throttle: held, handbrake: hb }, stats);
 
-    for (const a of crossings.animals(xing)) {
+    for (const a of crossings.animals(xing, car.camH)) {
       if (!(a.len > 0 && a.wid > 0)) { totals.contacts++; fail.push(`${label}: ${a.kind} has no drawn body`); continue; }
-      totals.bodies[a.kind] ??= `${a.len}x${a.wid} m`;
+      totals.bodies[a.kind] ??= `${a.len.toFixed(2)}x${a.wid.toFixed(2)} m`;
       const cl = clearance(car, a);
       if (a.crossing.state === 'go' && cl < totals.minClear) totals.minClear = cl;
+      if (a.crossing.state === 'go' && a.crossing.blocking) {
+        const k = car.sideways ? 'sideways' : 'upright';
+        totals.minClearSide[k] = Math.min(totals.minClearSide[k] ?? Infinity, cl);
+        if (cl < 6) { const d = car.camH - a.crossing.h; totals.skew = Math.max(totals.skew, Math.abs(Math.atan2(Math.sin(d), Math.cos(d)))); }
+      }
       if (cl <= 0) { totals.contacts++; fail.push(`${label}: contact with ${a.kind} at t=${t.toFixed(1)} s=${car.s.toFixed(1)} v=${car.v.toFixed(2)}`); }
     }
     settle(xing);
@@ -328,9 +345,12 @@ console.log(`mother ducks leading ducklings (spring) ${totals.families}`);
 console.log(`by place ${JSON.stringify(totals.byPlace)}`);
 console.log(`crossed by season ${JSON.stringify(totals.bySeason)}`);
 console.log(`she stopped by herself ${totals.praised}, the van stopped itself ${totals.selfStops} (${totals.emergencyFrames} hard-braking frames), crossed behind the van ${totals.late}`);
+console.log(`crossed behind the van, by species and how the phone was held ${JSON.stringify(totals.lateBy)}`);
 console.log(`contacts ${totals.contacts}, closest the van came to a crossing animal's drawn body ${totals.minClear.toFixed(2)} m`);
-console.log(`drawn bodies measured: ${Object.entries(totals.bodies).map(([k, v]) => `${k} ${v}`).join(', ')}`);
+console.log(`closest while it blocked the road: upright ${totals.minClearSide.upright?.toFixed(2)} m, sideways ${totals.minClearSide.sideways?.toFixed(2)} m; the camera turned at most ${totals.skew.toFixed(2)} rad off a crossing's line within 6 m of it (crossings.js allows ${crossings.CAMERA_SKEW})`);
+console.log(`drawn bodies measured (box across x along, first seen): ${Object.entries(totals.bodies).map(([k, v]) => `${k} ${v}`).join(', ')}`);
 console.log(`crossings off the small roads ${totals.offSmall}, hedgehogs in winter ${totals.winterHogs}, ducklings outside spring ${totals.ducklingsOutOfSpring}`);
+if (totals.skew > crossings.CAMERA_SKEW) fail.push(`the camera turned ${totals.skew.toFixed(2)} rad off a crossing, more than crossings.js's CAM_SKEW allows for`);
 if (fail.length || !totals.crossed || !totals.selfStops || !totals.praised || !totals.families) {
   console.error('FAIL\n' + fail.slice(0, 20).join('\n'));
   if (!totals.crossed || !totals.selfStops || !totals.praised || !totals.families) console.error('the check did not exercise crossings, self-stops and praise');
