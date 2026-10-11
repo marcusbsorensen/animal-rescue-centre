@@ -23,13 +23,27 @@
 // Contract with drive-spike.html:
 //   load()                    -> Promise<dash>
 //   height(dash, w, h)        the strip's height in CSS px on a w x h canvas
-//   draw(ctx, dash, w, h, s)  draws the strip; s = { v, gear, handbrake,
-//                             guide, jostle, x, y, camH, route, s, roads };
-//                             guide is whether the guide line is on
+//   draw(ctx, dash, w, h, s)  draws the strip; s = { v, gear, gearTop,
+//                             gearHint, handbrake, guide, jostle, x, y, camH,
+//                             route, s, roads }; guide is whether the guide
+//                             line is on, gearTop the road's top gear (knobs
+//                             above it are dimmed), gearHint the knob to
+//                             glow, or 0
 //   hit(dash, x, y)           'gear1' | 'gear2' | 'gear3' | 'horn' |
 //                             'handbrake' | 'guide' on a control, 'dash'
 //                             elsewhere on the strip, null above it
 //   honk(dash)                the horn: a short two-note beep
+//   clunk(dash, dir)          a gear change, up (1) or down (-1): a clunk
+//                             and a twitch of the comfort gauge
+//   nope(dash, n)             knob n tapped where the road will not take it:
+//                             a little shake and a soft 'nope'
+//
+// The gears (Marcus, 2026-10-12, 30A): he had not noticed them at all, so
+// the gear in use is also a big painted number in a brass window by the
+// speedometer, rolling over like an odometer drum when it changes; the knob
+// for the road's best gear glows and pulses when she is in another; and a
+// gear the road will not take is dimmed. The page decides all of that; the
+// dashboard only draws it and makes the noises.
 //
 // The guide line's switch (Marcus, 2026-10-11, answer 11C: the game has no
 // settings screen, so it lives on the driving screen) is a brass knob with a
@@ -65,6 +79,7 @@ const MPH = 2.237;
  *  a floor of 56) plus the instruments: two tiers upright, one row sideways. */
 const STRIP = { port: 152, land: 72 };
 const TARGET = 58;   // every control's touch area is at least this wide and tall
+const GEAR_WIN = { port: 44, land: 42 };   // the gear number's window, wide
 
 const INK = '#2e1108';                   // the painting's outline brown
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
@@ -90,6 +105,8 @@ export async function load() {
     comfort: { level: 1, wave: 0, t: 0, lastJostle: 0 },
     lever: 0,
     hornAt: -1e9,
+    drum: { n: 0, prev: 0, at: -1e9, dir: 1 },   // the gear window's roll
+    nope: { n: 0, at: -1e9 },                     // the last refused knob
     last: performance.now(),
     reduce: matchMedia('(prefers-reduced-motion: reduce)'),
     L: null, bg: null,
@@ -196,12 +213,18 @@ function layout(dash, w, h) {
     const y = top + 11, rh = TARGET;
     L.speedo = { cx: m + rh / 2, cy: y + rh / 2, r: rh / 2 };
     L.fuel = { cx: m + rh + 5, cy: y + rh - 12, r: 12 };
-    L.gears = gearsAt(L.fuel.cx + 12 + 14, y);
     const cw = rh * comfortAspect;
     L.comfort = { x: w - m - cw, y, w: cw, h: rh };
     L.brake = { x: L.comfort.x - 14 - 68, y, w: 68, h: rh };
     const hx = L.brake.x - 14 - TARGET;
     L.horn = { cx: hx + TARGET / 2, cy: y + rh / 2, r: 24, hit: { x: hx, y, w: TARGET, h: rh } };
+    // The gear number sits between the fuel gauge and the knobs it answers
+    // to, if the guide switch still clears the horn; on a very narrow phone
+    // held sideways it gives way and the lit knob alone says the gear.
+    const wx = L.fuel.cx + 12 + 8, ww = GEAR_WIN.land;
+    const fits = wx + ww + 10 + 3 * TARGET + 8 + 14 + TARGET + 10 <= hx;
+    if (fits) L.gearWin = { x: wx, y, w: ww, h: rh };
+    L.gears = gearsAt(fits ? wx + ww + 10 : L.fuel.cx + 12 + 14, y);
     // The guide switch sits just left of the GPS whose route it draws.
     const sx = L.gears.plate.x + L.gears.plate.w + 14;
     L.guide = guideAt(sx, y);
@@ -221,12 +244,16 @@ function layout(dash, w, h) {
     L.fuel = { cx: m + ah + 6, cy: ay + ah - 13, r: 13 };
     const cw = ah * comfortAspect;
     L.comfort = { x: w - m - cw, y: ay, w: cw, h: ah };
-    // The guide switch, centred on the dash face, just left of the GPS.
-    const sx = L.fuel.cx + 13 + 10;
+    // The gear number beside the speedometer, over the knobs it answers to;
+    // then the guide switch, centred on the dash face, just left of the GPS.
+    L.gearWin = { x: L.fuel.cx + 13 + 8, y: ay, w: GEAR_WIN.port, h: ah };
+    const sx = L.gearWin.x + L.gearWin.w + 8;
     L.guide = guideAt(sx, L.face[0] + (L.face[1] - L.face[0] - TARGET) / 2);
     const a = sx + TARGET + 10, b = L.comfort.x - 10;
     const gw = Math.max(80, Math.min(ah * 3.4, b - a));
     L.gps = { x: (a + b - gw) / 2, y: ay, w: gw, h: ah };
+    // On a phone 340 wide and under the GPS gives way here too.
+    L.noGps = b - a < 64;
 
     const by = top + 92;
     L.gears = gearsAt(m, by);
@@ -361,9 +388,22 @@ function paintBackground(dash, L, w, dpr) {
   sunkPanel(g, L.gears.plate);
   sunkPanel(g, L.brake);
   sunkPanel(g, L.guide);
+  if (L.gearWin) gearBezel(g, L.gearWin);
   const B = L.brake;
   screw(g, B.x + 16, B.y + B.h - 14, 6);
   return c;
+}
+
+/** The gear number's window: a brass bezel round a cream drum, like the
+ *  speedometer's face, with two screws. */
+function gearBezel(g, W) {
+  shadowOf(g, () => rr(g, W.x, W.y, W.w, W.h, 10), 1.5);
+  rr(g, W.x, W.y, W.w, W.h, 10);
+  const br = g.createLinearGradient(W.x, W.y, W.x + W.w, W.y + W.h);
+  br.addColorStop(0, '#f8df9c'); br.addColorStop(0.45, '#d2a446'); br.addColorStop(1, '#85601d');
+  g.fillStyle = br; g.fill(); g.lineWidth = 1.6; g.strokeStyle = INK; g.stroke();
+  screw(g, W.x + W.w / 2, W.y + 4.5, 2.4);
+  screw(g, W.x + W.w / 2, W.y + W.h - 4.5, 2.4);
 }
 
 function sunkPanel(g, P) {
@@ -570,9 +610,27 @@ function knobBody(g, k, lit) {
   return { cx, cy, r, fr };
 }
 
-/** A gear knob: its number, and a pip for each gear. */
-function knob(g, k, lit) {
-  const { cx, cy, r } = knobBody(g, k, lit);
+/** The warm glow the crossing animals are picked out with, amber like a lit
+ *  knob, behind a knob the road is asking for. */
+const HINT_GLOW = '255,176,52';
+
+/** A gear knob: its number, and a pip for each gear. hint is how strongly it
+ *  glows to be picked (0 to 1), dim that the road will not take it, shake a
+ *  sideways offset in px for a refused tap. */
+function knob(g, k, lit, { hint = 0, dim = false, shake = 0 } = {}) {
+  const at = { cx: k.cx + shake, cy: k.cy, r: k.r * (1 + 0.07 * hint) };
+  if (hint > 0) {
+    const R = at.r + 9;
+    const halo = g.createRadialGradient(at.cx, at.cy, at.r * 0.7, at.cx, at.cy, R);
+    halo.addColorStop(0, `rgba(${HINT_GLOW},${0.95 * hint})`);
+    halo.addColorStop(1, `rgba(${HINT_GLOW},0)`);
+    circle(g, at.cx, at.cy, R); g.fillStyle = halo; g.fill();
+  }
+  const { cx, cy, r } = knobBody(g, at, lit);
+  if (hint > 0) {
+    circle(g, cx, cy, r + 1.5);
+    g.lineWidth = 2.4; g.strokeStyle = `rgba(255,214,120,${0.5 + 0.5 * hint})`; g.stroke();
+  }
   g.fillStyle = lit ? '#3a1a06' : '#5a4330';
   g.font = `700 ${Math.round(r * 0.86)}px ${FONT}`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -582,6 +640,53 @@ function knob(g, k, lit) {
     circle(g, cx + (i - (k.n - 1) / 2) * r * 0.24, cy + r * 0.47, Math.max(1.3, r * 0.075));
     g.fill();
   }
+  // Not possible on this road: the knob sinks into the walnut's shade.
+  if (dim) { circle(g, cx, cy, r + 1); g.fillStyle = 'rgba(46,17,8,.58)'; g.fill(); }
+}
+
+/** The gear number, big enough to read at a glance, on a cream drum that
+ *  rolls over when the gear changes: up for an up-change, down for a
+ *  down-change, as an odometer's would. Under reduced motion the numbers
+ *  cross-fade instead. In a gear the road will not take, the number is the
+ *  needle's red. */
+function drawGearWindow(g, W, d, gear, over, now, reduce) {
+  if (d.n !== gear) {
+    d.prev = d.n || gear; d.dir = gear > d.prev ? 1 : -1; d.n = gear; d.at = d.n === d.prev ? -1e9 : now;
+  }
+  const b = 4.5, D = { x: W.x + b, y: W.y + b + 3, w: W.w - 2 * b, h: W.h - 2 * b - 6 };
+  g.save();
+  rr(g, D.x, D.y, D.w, D.h, 6); g.clip();
+  const face = g.createLinearGradient(0, D.y, 0, D.y + D.h);
+  face.addColorStop(0, '#d9bf92'); face.addColorStop(0.22, '#fef5e2');
+  face.addColorStop(0.7, '#f6e7c8'); face.addColorStop(1, '#cdb184');
+  g.fillStyle = face; g.fillRect(D.x, D.y, D.w, D.h);
+
+  const p = Math.min(1, (now - d.at) / 240), e = 1 - (1 - p) ** 3;
+  const cx = D.x + D.w / 2, cy = D.y + D.h / 2;
+  const numeral = (n, dy, alpha) => {
+    if (alpha <= 0) return;
+    g.globalAlpha = alpha;
+    g.fillStyle = over && n === gear ? '#a3401f' : '#3a1a06';
+    g.font = `700 ${Math.round(D.h * 0.74)}px ${FONT}`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(String(n), cx, cy - D.h * 0.07 + dy);
+    // The knobs' pips, so the number reads without reading.
+    for (let i = 0; i < n; i++) {
+      circle(g, cx + (i - (n - 1) / 2) * 6, cy + D.h * 0.36 + dy, 1.7); g.fill();
+    }
+    g.globalAlpha = 1;
+  };
+  if (p >= 1) numeral(gear, 0, 1);
+  else if (reduce) { numeral(d.prev, 0, 1 - e); numeral(gear, 0, e); }
+  else { numeral(d.prev, -d.dir * e * D.h, 1); numeral(gear, d.dir * (1 - e) * D.h, 1); }
+
+  // The drum curves away top and bottom.
+  const shade = g.createLinearGradient(0, D.y, 0, D.y + D.h);
+  shade.addColorStop(0, 'rgba(46,17,8,.38)'); shade.addColorStop(0.2, 'rgba(46,17,8,0)');
+  shade.addColorStop(0.8, 'rgba(46,17,8,0)'); shade.addColorStop(1, 'rgba(46,17,8,.38)');
+  g.fillStyle = shade; g.fillRect(D.x, D.y, D.w, D.h);
+  g.restore();
+  rr(g, D.x, D.y, D.w, D.h, 6); g.lineWidth = 1.2; g.strokeStyle = INK; g.stroke();
 }
 
 /** The guide line's switch: the same brass knob with a little road on its
@@ -700,7 +805,19 @@ export function draw(ctx, dash, w, h, s) {
   drawNeedle(ctx, L.speedo, dash.needle.a);
   drawGps(ctx, L, s);
   drawComfort(ctx, L, dash.comfort, s.jostle, dt, reduce);
-  for (const k of L.gears.knobs) knob(ctx, k, k.n === s.gear);
+  // The prompt pulses about once a second, and holds steady under reduced
+  // motion; a refused knob shakes for a moment, except under reduced motion.
+  const top = s.gearTop ?? 3;
+  const pulse = reduce ? 0.85 : 0.35 + 0.65 * (0.5 - 0.5 * Math.cos(now / 1000 * TAU));
+  const nopeT = (now - dash.nope.at) / 1000;
+  for (const k of L.gears.knobs) {
+    knob(ctx, k, k.n === s.gear, {
+      hint: k.n === s.gearHint ? pulse : 0,
+      dim: k.n > top,
+      shake: !reduce && k.n === dash.nope.n && nopeT < 0.35 ? Math.sin(nopeT * 55) * 3.5 * (1 - nopeT / 0.35) : 0,
+    });
+  }
+  if (L.gearWin) drawGearWindow(ctx, L.gearWin, dash.drum, s.gear, s.gear > top, now, reduce);
   drawGuideSwitch(ctx, L.guide, s.guide !== false);
   drawHorn(ctx, L.horn, now - dash.hornAt < 260);
   dash.lever += ((s.handbrake ? 1 : 0) - dash.lever) * (1 - Math.exp(-28 * dt));
@@ -736,4 +853,64 @@ export function honk(dash) {
       }
     }
   } catch { /* no sound is fine; the toast still says beep */ }
+}
+
+// ------------------------------------------------------------ gear change
+
+/** A short mechanical clunk: a low thump with a knock of noise on top, a
+ *  shade deeper for a down-change. The animals feel it as a twitch of the
+ *  comfort gauge, which settles straight away; not under reduced motion. */
+export function clunk(dash, dir) {
+  if (!dash.reduce.matches) dash.comfort.wave = Math.min(1, dash.comfort.wave + 0.3);
+  try {
+    audio ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+    const t0 = audio.currentTime + 0.01;
+    const out = audio.createGain(); out.gain.value = 0.16;
+    out.connect(audio.destination);
+
+    const thump = audio.createOscillator(), te = audio.createGain();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(dir > 0 ? 150 : 120, t0);
+    thump.frequency.exponentialRampToValueAtTime(50, t0 + 0.09);
+    te.gain.setValueAtTime(0, t0);
+    te.gain.linearRampToValueAtTime(1, t0 + 0.005);
+    te.gain.exponentialRampToValueAtTime(0.001, t0 + 0.12);
+    thump.connect(te); te.connect(out);
+    thump.start(t0); thump.stop(t0 + 0.13);
+
+    const n = Math.ceil(audio.sampleRate * 0.05);
+    const buf = audio.createBuffer(1, n, audio.sampleRate), ch = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n) ** 3;
+    const knock = audio.createBufferSource(); knock.buffer = buf;
+    const bp = audio.createBiquadFilter(); bp.type = 'bandpass';
+    bp.frequency.value = dir > 0 ? 1300 : 1000; bp.Q.value = 2.5;
+    const ke = audio.createGain(); ke.gain.value = 0.7;
+    knock.connect(bp); bp.connect(ke); ke.connect(out);
+    knock.start(t0 + 0.004);
+  } catch { /* no sound is fine; the number still rolls over */ }
+}
+
+/** A knob the road will not take: two soft falling notes, quieter than the
+ *  horn, and a shake drawn by draw(). */
+export function nope(dash, n) {
+  dash.nope = { n, at: performance.now() };
+  try {
+    audio ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+    const t0 = audio.currentTime + 0.01;
+    const out = audio.createGain(); out.gain.value = 0.06;
+    const lp = audio.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200;
+    lp.connect(out); out.connect(audio.destination);
+    for (const [start, f] of [[0, 330], [0.12, 247]]) {
+      const env = audio.createGain();
+      env.gain.setValueAtTime(0, t0 + start);
+      env.gain.linearRampToValueAtTime(1, t0 + start + 0.015);
+      env.gain.linearRampToValueAtTime(0, t0 + start + 0.1);
+      env.connect(lp);
+      const o = audio.createOscillator();
+      o.type = 'sine'; o.frequency.value = f;
+      o.connect(env); o.start(t0 + start); o.stop(t0 + start + 0.11);
+    }
+  } catch { /* the shake still says no */ }
 }
