@@ -141,6 +141,24 @@ and *narrow* (the zoom never changes, the four lanes shrink to 3 m). Both put
 about 300 px of road on a 390 pt screen. "to big road" jumps to a route that
 uses one. Marcus drives both and picks.
 
+**What happens at a roadside stop.** Marcus and Lily, 2026-10-11. There are
+two reasons to pull over, and the care depends on the animal and the weather:
+
+- *Rough driving.* The animals are unsettled. The driver opens the back and
+  either calms each one by touch, stroking it or talking to it in its crate
+  until it settles, or gives it what it needs: water, a treat, a blanket.
+  Which one depends on the species and on the day: a blanket in the cold,
+  water in the heat.
+- *A squabble.* Lily: sometimes you have to pull over because the animals
+  have started growling at one another. That is a social problem between
+  them, not a driving one, and the fix is to rearrange the crates. It should
+  be rare when the crates were loaded with care, and more common when the
+  child took chances with the arrangement. This joins the drive to the
+  crate puzzle: `packages/game-logic/src/crate-stacking.ts` already rates
+  every pair of neighbours `happy`, `stressed` or `blocked`
+  (`feelingToward`), so a load with stressed neighbours is what makes a
+  squabble likely on the road.
+
 **Following the road is not a swerve.** Only the child's own lane change feeds
 the jostle model; the van drifting outward as a lane widens or the road
 becomes a dual carriageway is the road moving under it, and is free.
@@ -153,7 +171,8 @@ becomes a dual carriageway is the road moving under it, and is free.
   woodland, parks and sea), so what she drives past is what the map shows.
 - The dual carriageway: zoom or narrow, above.
 - Traffic, which overtaking needs to be about anything.
-- What the driver does to help the animals during a roadside stop.
+- How likely a squabble is for a given load, and what the rearranging looks
+  like at the roadside: the full loading screen again, or a smaller swap.
 - Where the gear, handbrake and lane controls live now that they may not sit
   on the carriageway.
 - The advanced tier: the child reads the GPS and chooses at junctions.

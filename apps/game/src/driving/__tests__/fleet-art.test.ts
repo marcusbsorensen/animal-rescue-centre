@@ -902,13 +902,17 @@ describe('the picker', () => {
   const layoutAt = (w: number, h: number) =>
     pickerLayout({ width: w, height: h, contentTop: CONTENT_TOP, ids: IDS });
   /**
-   * Shortest to longest, which is also smallest to largest.
+   * Smallest footprint to largest.
    *
-   * **Spark and Bea swapped on 2026-10-11.** Spark's sprite was shortened to
-   * her portrait's 1.88:1 and Bea's to hers, 2.23:1, so Spark is 3.8m long
-   * to Bea's 4.0 while still being wider. The row reads by length.
+   * **Spark and Bea are the one pair where footprint and length disagree.**
+   * On 2026-10-11 Spark's sprite was shortened to his portrait's 1.88:1 and
+   * Bea's to hers, 2.23:1, so Spark is 3.8m long to Bea's 4.0 while still
+   * being wider. Marcus chose the same day that the picker sorts by
+   * footprint (Bea 7.2 m², Spark 7.6 m²) rather than the arrows following
+   * length, so Bea stays before Spark.
    */
-  const BY_SIZE: VehicleType[] = ['pedal-trike', 'small-van', 'electric-minibus', 'long-van', 'animal-lorry'];
+  const BY_SIZE: VehicleType[] = ['pedal-trike', 'small-van', 'long-van', 'electric-minibus', 'animal-lorry'];
+  const footprintPx = (b: { spriteW: number; spriteH: number }) => b.spriteW * b.spriteH;
 
   it.each(SIZES)('draws all five at one scale, driven by their width in metres, at %ix%i', (w, h) => {
     const layout = layoutAt(w, h);
@@ -929,8 +933,8 @@ describe('the picker', () => {
     for (let i = 1; i < bays.length; i += 1) {
       expect(bays[i].x, `${bays[i].id} stands right of ${bays[i - 1].id}`)
         .toBeGreaterThan(bays[i - 1].x);
-      expect(bays[i].spriteH, `${bays[i].id} longer than ${bays[i - 1].id}`)
-        .toBeGreaterThan(bays[i - 1].spriteH);
+      expect(footprintPx(bays[i]), `${bays[i].id} covers more ground than ${bays[i - 1].id}`)
+        .toBeGreaterThan(footprintPx(bays[i - 1]));
     }
     // Whatever order it is handed, which is what stops a new vehicle in
     // `VEHICLE_DEFS` landing in the middle of the row.
@@ -940,33 +944,23 @@ describe('the picker', () => {
     expect(shuffled.bays.map((b) => b.id)).toEqual(BY_SIZE);
   });
 
-  it('parks them in the order the vehicle-change arrows walk, but for the pair that ties on capacity', () => {
-    // The picker sorts by drawn size and the arrows by capacity, with
+  it('parks them in the order the vehicle-change arrows walk', () => {
+    // The picker sorts by drawn footprint and the arrows by capacity, with
     // unlock level breaking Bea and Spark's tie at six spaces each
     // (`VEHICLES_BY_ROOM`). A bigger vehicle holds more, so the two agree,
     // and a child who learns the fleet's order on one screen keeps it on
     // the other. They are derived separately - one from the art, one from
     // the rules - so this is what says the day they stop agreeing.
     //
-    // **That day was 2026-10-11, and it is recorded here rather than hidden.**
-    // Marcus chose each portrait's own proportions for Henry, Bea and
-    // Spark, which makes Spark (1.88 long for her width) shorter than Bea
-    // (2.23): the picker now stands her before Bea, and the arrows still
-    // walk Bea then Spark. They differ in exactly the one pair that has
-    // the same capacity, and in nothing that matters to the invariant
-    // below. Which order is right is a decision for him - the arrows could
-    // follow length, or the picker could sort by footprint, which keeps
-    // Bea first - and it is not made here.
-    expect(fleetBySize(IDS)).toEqual(['pedal-trike', 'small-van', 'electric-minibus', 'long-van', 'animal-lorry']);
-    expect([...VEHICLES_BY_ROOM]).toEqual(['pedal-trike', 'small-van', 'long-van', 'electric-minibus', 'animal-lorry']);
-    expect(layoutAt(820, 620).bays.map((b) => b.id)).toEqual(fleetBySize(IDS));
-    // What has to keep holding is that a bigger vehicle never holds less,
-    // in either order, and that the only swap is within a tie.
-    for (const order of [fleetBySize(IDS), [...VEHICLES_BY_ROOM]]) {
-      const slots = order.map((id) => VEHICLE_DEFS[id].slots);
-      expect(slots).toEqual([...slots].sort((a, b) => a - b));
-    }
-    expect(VEHICLE_DEFS['long-van'].slots).toBe(VEHICLE_DEFS['electric-minibus'].slots);
+    // They stopped agreeing once, on 2026-10-11, when the picker sorted by
+    // length and Spark's shortened sprite stood him before Bea. Marcus
+    // chose that the picker gives way: it sorts by footprint, and the two
+    // orders are one again.
+    expect(fleetBySize(IDS)).toEqual([...VEHICLES_BY_ROOM]);
+    expect(layoutAt(820, 620).bays.map((b) => b.id)).toEqual([...VEHICLES_BY_ROOM]);
+    // And a bigger vehicle never holds less.
+    const slots = fleetBySize(IDS).map((id) => VEHICLE_DEFS[id].slots);
+    expect(slots).toEqual([...slots].sort((a, b) => a - b));
   });
 
   it.each(SIZES)('is not a fixed cell: Trikey is smallest and Big Tilly largest, in both ways, at %ix%i', (w, h) => {
@@ -975,14 +969,14 @@ describe('the picker', () => {
     for (let i = 1; i < BY_SIZE.length; i += 1) {
       const smaller = bays[BY_SIZE[i - 1]];
       const larger = bays[BY_SIZE[i]];
-      // Wider every step but one: Bea (1.03 of Henry) is narrower than
-      // Spark (1.14) and now longer than her, which is the pair that swapped
-      // on 2026-10-11 when Spark's sprite was shortened to her portrait.
-      if (!(smaller.id === 'electric-minibus' && larger.id === 'long-van')) {
-        expect(larger.spriteW, `${larger.id} wider than ${smaller.id}`).toBeGreaterThan(smaller.spriteW);
+      expect(larger.spriteW, `${larger.id} wider than ${smaller.id}`).toBeGreaterThan(smaller.spriteW);
+      // Longer every step but one: Spark is wider than Bea and covers more
+      // ground, but since 2026-10-11 his sprite is drawn to his portrait's
+      // 1.88:1 and hers to 2.23:1, so he is the shorter. A few pixels at
+      // least everywhere else: two vehicles the same height is the bug.
+      if (!(smaller.id === 'long-van' && larger.id === 'electric-minibus')) {
+        expect(larger.spriteH, `${larger.id} longer than ${smaller.id}`).toBeGreaterThan(smaller.spriteH + 3);
       }
-      // A few pixels at least: two vehicles the same height is the bug.
-      expect(larger.spriteH, `${larger.id} longer than ${smaller.id}`).toBeGreaterThan(smaller.spriteH + 3);
     }
     // And by the right amount: a 5.8m lorry is about 3.3 trikes long (it
     // was 6.5m and 3.7 until her front was redrawn to her rear's

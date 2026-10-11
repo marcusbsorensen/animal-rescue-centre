@@ -779,34 +779,34 @@ export function vehicleLengthM(id: VehicleType): number {
  * down. The eye reads a row of vehicles as a sequence, so the sequence has
  * to be the thing being compared.
  *
- * **Sorted, not listed**, so it cannot drift from `VEHICLE_DEFS` the day a
- * sixth vehicle is painted: length first, then width, then the id, which
- * only ever settles a tie that does not currently exist.
+ * **Size is footprint**, width times length, the ground a vehicle covers.
+ * Sorted, not listed, so it cannot drift from `VEHICLE_DEFS` the day a sixth
+ * vehicle is painted; length, width and the id settle ties that do not
+ * currently exist.
  *
  * **It is the same order as the vehicle-change arrows**, which Marcus
  * ordered by capacity with unlock level breaking Bea and Spark's tie
- * (`VEHICLES_BY_ROOM` in `@arc/game-logic`). Drawn size: 43, 100, 103, 115,
- * 132 at 820x620; capacity: 2, 4, 6, 6, 8. A bigger vehicle holds more,
+ * (`VEHICLES_BY_ROOM` in `@arc/game-logic`). A bigger vehicle holds more,
  * so the two agree, and a child who learns the fleet's order on one screen
  * keeps it on the other. They are derived separately — this one from the
  * art, that one from the rules — and a test holds them to each other, so
  * if a capacity ever stops matching a size the test says so rather than
  * the screens quietly disagreeing.
  *
- * **They stopped agreeing on 2026-10-11, in the one pair that ties on
- * capacity.** Marcus chose each portrait's own proportions for Henry, Bea
- * and Spark's top-downs, which draws Spark (1.88 long for her width, 3.8m)
- * shorter than Bea (2.23, 4.0m), though she is still the wider. Sorted by
- * length the row is now Trikey, Henry, Spark, Bea, Big Tilly, and the
- * arrows still walk Bea then Spark. Nothing here was changed to hide it:
- * the order that has to hold, that a bigger vehicle never holds less, still
- * does, and the test says which pair differs. Whether the arrows should
- * follow length, or this should sort by footprint (width times length,
- * which keeps Bea first), is Marcus's to decide.
+ * **Why footprint and not length.** On 2026-10-11 Marcus chose each
+ * portrait's own proportions for Henry, Bea and Spark's top-downs, which
+ * draws Spark (3.8m) shorter than Bea (4.0m) though he is the wider. Sorted
+ * by length the picker stood Spark first while the arrows walked Bea then
+ * Spark. Marcus chose the same day that the picker gives way: by footprint
+ * Bea is 7.2 m² and Spark 7.6 m², so the row is Trikey, Henry, Bea, Spark,
+ * Big Tilly, the arrows' order. The cost is that one step in the row,
+ * Bea to Spark, gets wider but not longer.
  */
 export function fleetBySize(ids: VehicleType[]): VehicleType[] {
+  const footprint = (id: VehicleType) => VEHICLE_WIDTH_M[id] * vehicleLengthM(id);
   return ids.slice().sort((a, b) => (
-    vehicleLengthM(a) - vehicleLengthM(b)
+    footprint(a) - footprint(b)
+    || vehicleLengthM(a) - vehicleLengthM(b)
     || VEHICLE_WIDTH_M[a] - VEHICLE_WIDTH_M[b]
     || a.localeCompare(b)
   ));
