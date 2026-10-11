@@ -195,8 +195,31 @@ stops itself, as it does for traffic. Never an accident.
 the jostle model; the van drifting outward as a lane widens or the road
 becomes a dual carriageway is the road moving under it, and is free.
 
+**The A28 as it really is (17A, 18A).** OSM's `highway=trunk` means a
+primary A-road, not a dual carriageway, and the game had drawn every trunk
+edge as one. Here the A28 is 1.7 km of real dual carriageway at 50 mph (west
+of Brooksend), 2.0 km of divided road (two one-way carriageways, 30–40 mph,
+Birchington to Westgate) and 3.5 km of ordinary two-way A-road (through The
+Square). The game draws each as what it is; the big-road zoom belongs to the
+real dual stretch. Trikey never rides along the A28; she crosses its
+30–40 mph stretches only at traffic lights or a zebra, waiting for the green,
+and the dual stretch only by bridge or tunnel (there are none). Marcus: a
+crossing at road level of a dual carriageway "teaches something very
+dangerous to kids". Nothing the game makes normal on the road should be
+dangerous for a child to copy.
+
+**Later levels: fuel, the workshop and the car wash.** Marcus, 2026-10-11:
+"part of the driving game, as the levels go on, will also involve tanking
+fuel at one of the two local garages, and sometimes a visit to the workshop
+for repairs, and also visiting the car wash with the inflatable guy (which
+needs better animated artwork)". How each works (what runs the gauge down,
+what sends a van to the workshop, when a wash is due, Spark charging rather
+than fuelling, Trikey needing neither) is still to be asked.
+
 ## Still open
 
+- Fuel, workshop and car wash: the rules above, and the inflatable man's
+  animation.
 - Scenery. The spike draws roads on grass and nothing else, so there is no
   sense of speed beyond the lane markings. Top-down canopies, roofs, hedges,
   placed from the child's own map (`birchie-roads.svg` has the farmland,
