@@ -24,25 +24,44 @@ Chrome on this Mac (the cloud cannot run it: no `.env.local`). Trikey routing (`
 and the guide-line preference (`lib/guide-line-preference.ts`, URL only) are
 merged. Game 1005 tests, game-logic 1193, typecheck clean.
 
-**In flight when this was written (check each):**
-- Cloud routine `arc-spike-crossings` (`trig_01LPfUtH7kVsS6LCutYBPpBE`) →
-  branch `claude/spike-crossings`: small animals crossing the lanes. Merge it
-  (touches only `drive-spike/crossings*`), run `node
-  apps/game/public/admin/drive-spike/crossings.check.mjs`, look at a crossing.
-- A local agent measuring Trikey's options; its map lands at
-  `.../c124365a-79a7-4b32-87ef-f47f8231944e/scratchpad/trikey-options.png`.
+Crossings are merged (`0858458`): the check passes, 0 contacts over 1,240
+simulated minutes, closest 1.1 m. But on a phone the animals are specks (a
+rabbit is a few pixels), hence the routine below. The root-test worry is
+closed: the routine could not reproduce the timeouts in 5 runs, and CI run
+#481 on main runs and passes every package including the app.
 
-**Unverified / stalled.** Cloud routine `arc-root-test-green`
-(`trig_01E4R1AHt19BD28baNAxfvDg`, run `cse_01BsYeppy1KaNNVWxUpbpjwb`) went idle
-after 10 minutes and pushed nothing. Read its log with
-`RemoteTrigger get_run_log` (only the main session has that tool), then re-run.
+**In flight (cloud routines, fired 19:53–19:54 UTC; check with `list_runs`
+and `git ls-remote origin 'claude/*'`, then merge and look at each):**
+- `arc-spike-vehicle-look` (`trig_01117eV8QxQ4FyEKySyvfrAE`) →
+  `claude/spike-vehicle-look`: ink outlines on every vehicle and tread that
+  scrolls with distance so wheels seem to turn (Marcus asked for both).
+  `?outline=0|1|2`, `?wheels=0|1|debug`.
+- `arc-spike-road-paint` (`trig_018sTJawMCPDUh3Ke5V5S9iF`) →
+  `claude/spike-road-paint`: world-anchored tarmac/grit/dust by road class,
+  earth tracks with ruts, hand-painted lane lines (Marcus asked). `?road=0|1|2`.
+- `arc-spike-animals-readable` (`trig_01QzQPihaKrrHY1EtZpk8YW7`) →
+  `claude/spike-animals-readable`: crossing animals at storybook scale with
+  ink contours; the check measures the drawn bodies.
+- `arc-port-answers` (`trig_01QR4f9tUDCWer9Rowa8LC6v`) →
+  `claude/port-answers`: Q5 reduced motion, Q6 no Park/Reverse, Q7 speed
+  camera on "too fast for this road", Q8 supply runs carry nothing alive,
+  Q10 Trikey's adjacency, in `PtvDriveScene.ts`/`GameScene.ts`. Run the e2e
+  locally after merging (the cloud cannot).
+The two spike look jobs both touch `drive-spike.html` (different functions,
+both add an import line): expect a small conflict in the import block.
+Once merged, screenshot each comparison switch side by side for Marcus to
+choose (he decides visuals by looking).
 
 ## Open questions for Marcus (ask numbered, lettered, recommendation marked)
-1. **Trikey cannot reach 8 of 14 places without dual carriageways**: the trunk
-   roads split the map into islands; bramble-farm and goose-end-farm are reached
-   only by trunk. Show the options map above. Options being measured: no trunk
-   ever / crossing a dual carriageway but never riding along it / cycle paths
-   from the real map. Plus: Trikey simply does not serve unreachable places.
+1. **Asked as question 15 on 2026-10-11, awaiting his letter.** Trikey
+   reaches 6 of 14 places from A.R.C. as built; crossing a dual carriageway
+   for at most 60 m (never riding along it) adds Cove Harbour (7); cycle paths
+   and farm tracks add Village Hall (7); both together 8 of 14. Map:
+   `.../c124365a-79a7-4b32-87ef-f47f8231944e/scratchpad/trikey-options.png`
+   (scripts beside it). Whatever he picks, the places she still cannot reach
+   need a "too far for Trikey" answer in the picker.
+2. **Disk, question 16, awaiting his letter.** 81 GB free at 20:36 BST (it had
+   recovered). Scan table is in the session; nothing deleted.
 2. ~~The guide-line switch~~ — answered (13C) and done: a switch on the driving
    screen, on the spike's dashboard beside the GPS (G on a keyboard), on by
    default. When the scene is ported it should call `setGuideLine()` in
@@ -50,15 +69,15 @@ after 10 minutes and pushed nothing. Read its log with
    a storage key with.
 
 ## Next steps, in order
-1. Merge crossings; show Marcus the Trikey map and ask 1.
-2. Port the answers that touch `PtvDriveScene.ts` (now free of other jobs):
-   2A reduced motion drops shake, judder and the speed camera's white flash;
-   3A Park and Reverse go; 4A a speed camera fires on "too fast for this road"
-   (`road-gears.ts`); 5A supply runs carry no animals (`GameScene.ts:~1985`,
-   `carriesAnimals`); pass the vehicle to `buildAdjacency(this.gpsGraph,
-   vehicleId)` (~line 2320). One cloud routine can take these, one commit each.
-3. Port plan step 5: the world behind `?drive=world`, from the TS modules.
-4. Marcus drives the spike on a phone and judges the feel.
+1. Merge the four routines above as they land; run the checks, the game
+   tests and (for port-answers) the e2e locally; show Marcus the look
+   switches side by side and ask which strength.
+2. Act on his answers to 15 (Trikey) and 16 (disk).
+3. The look work (outlines, turning wheels, road paint, readable animals)
+   will need porting to the Phaser scene too: add it to the port plan once
+   he has chosen.
+4. Port plan step 5: the world behind `?drive=world`, from the TS modules.
+5. Marcus drives the spike on a phone and judges the feel.
 
 ## Traps
 - **Work account cloud env is `env_01XEuhfALG2Bm8UZiSSGr96Q`**, not the one in
