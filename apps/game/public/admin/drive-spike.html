@@ -16,6 +16,9 @@
     - the scale: a lane is 110px on a 390pt phone, the van 53px across, against
       28px and 16px in the game today
     - hold-to-go, gears, handbrake, and swerving between lanes
+    - the gears, handbrake and horn on the van's own dashboard, a strip
+      below the van, with a live speedometer, GPS and cargo-comfort gauge
+      (drive-spike/dashboard.js)
     - the guide line, and what the screen looks like with it switched off
 
   Open it at /admin/drive-spike.html with the dev server running.
@@ -24,24 +27,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>A.R.C. — driving spike</title>
 <style>
-  :root { color-scheme: light; }
+  :root { color-scheme: light; --sab: env(safe-area-inset-bottom, 0px); }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #2c2c2c;
     font-family: "Nunito", system-ui, -apple-system, sans-serif; }
   #wrap { position: relative; height: 100%; display: grid; place-items: center; }
   canvas { display: block; touch-action: none; background: #8fbf6a; }
-  #hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex;
-    gap: 8px; align-items: flex-start; flex-wrap: wrap; pointer-events: none; font-size: 13px; }
+  /* The chips, and under them the grown-up's tools, folded behind "dev" so
+     the child's controls are only the dashboard's. */
+  #top { position: absolute; top: 10px; left: 10px; right: 10px; display: flex;
+    flex-direction: column; gap: 6px; align-items: flex-start; pointer-events: none; }
+  #hud { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; font-size: 13px; }
   .chip { background: rgba(255,252,246,.92); border-radius: 14px; padding: 6px 10px;
     font-weight: 700; color: #3a3226; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
-  #panel { position: absolute; bottom: 10px; left: 10px; right: 10px;
-    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-  button { font: inherit; font-weight: 700; border: 0; border-radius: 14px;
-    padding: 9px 13px; background: #fffcf6; color: #3a3226;
-    box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+  #panel { display: flex; gap: 6px; flex-wrap: wrap; pointer-events: auto; font-size: 11px; }
+  #devTools { display: contents; }
+  #devTools[hidden] { display: none; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 11px;
+    padding: 5px 9px; background: rgba(255,252,246,.85); color: #3a3226;
+    box-shadow: 0 1px 4px rgba(0,0,0,.18); }
   button[aria-pressed="true"] { background: #4b8b3b; color: #fff; }
-  #note { position: absolute; bottom: 58px; left: 0; right: 0; text-align: center;
-    color: #fffcf6; font-size: 12px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  #note { color: #fffcf6; font-size: 11px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
   #toast { position: absolute; top: 22%; left: 0; right: 0; text-align: center;
     font-size: 30px; font-weight: 900; color: #fffcf6; pointer-events: none;
     text-shadow: 0 2px 6px rgba(0,0,0,.55); opacity: 0; transition: opacity .25s; }
@@ -50,22 +56,25 @@
 
 <div id="wrap">
   <canvas id="c"></canvas>
-  <div id="hud">
-    <div class="chip" id="gearChip">P</div>
-    <div class="chip" id="speedChip">0 mph</div>
-    <div class="chip" id="laneChip">left lane</div>
-    <div class="chip" id="roadChip">—</div>
-    <div class="chip" id="destChip">—</div>
+  <div id="top">
+    <div id="hud">
+      <div class="chip" id="gearChip">P</div>
+      <div class="chip" id="speedChip">0 mph</div>
+      <div class="chip" id="laneChip">left lane</div>
+      <div class="chip" id="roadChip">—</div>
+      <div class="chip" id="destChip">—</div>
+    </div>
+    <div id="panel">
+      <button id="devBtn" aria-pressed="false">dev</button>
+      <span id="devTools" hidden>
+        <button id="guideBtn" aria-pressed="true">guide line</button>
+        <button id="routeBtn">new route</button>
+        <button id="trunkBtn">to big road</button>
+      </span>
+    </div>
+    <div id="note" hidden>hold the road to go · swipe or ←/→ to change lane · space = go · 1–3 gears · B = handbrake · H = horn</div>
   </div>
   <div id="toast"></div>
-  <div id="note">hold anywhere to go · swipe or ←/→ to change lane · space = go · 1–3 gears · B = handbrake</div>
-  <div id="panel">
-    <button id="guideBtn" aria-pressed="true">guide line</button>
-    <button id="gearBtn">gear: 2</button>
-    <button id="brakeBtn">handbrake</button>
-    <button id="routeBtn">new route</button>
-    <button id="trunkBtn">to big road</button>
-  </div>
 </div>
 
 <script type="module">
@@ -74,6 +83,10 @@
 import * as scenery from './drive-spike/scenery.js';
 import * as traffic from './drive-spike/traffic.js';
 import * as crossings from './drive-spike/crossings.js';
+// The gears, handbrake and horn, in a strip along the bottom styled as the
+// van's own dashboard (Marcus, 2026-10-11). The road view is the canvas above
+// that strip.
+import * as dashboard from './drive-spike/dashboard.js';
 
 // ---------------------------------------------------------------- the world
 
@@ -120,6 +133,17 @@ const FULL_WIDTH = VIEW_Q.get('full') === '1';
  *  the camera pulls back, which shows about 16m. */
 function vanSY(w, h) { return Number(VIEW_Q.get('pin')) || (w > h ? 0.8 : 0.59); }
 function zoomX(w, h) { return Number(VIEW_Q.get('zoomx')) || (w > h ? 0.75 : 1); }
+
+/** The van's height on screen: the pin is a fraction of the road view above
+ *  the dashboard, not of the whole screen, so the strip covers only road
+ *  already driven. Held sideways and pulled up close at a gate, the pin would
+ *  put the van's tail under the dashboard, so then it rises just enough to
+ *  keep the whole van in view. w and h are the screen's, which decide
+ *  upright or sideways. */
+function vanScreenY(w, h, roadH, ppm) {
+  const halfLen = (car.length || VAN_W_M * 2) * ppm / 2;
+  return Math.min(roadH * vanSY(w, h), roadH - halfLen - 6);
+}
 
 /** Every vehicle at its true width relative to Henry, and Henry at the size
  *  measured against the reference (13.5% of a phone's width), Marcus's choice
@@ -182,6 +206,7 @@ const ctx = canvas.getContext('2d');
 let graph = null, adj = null, route = [], routeLen = 0;
 let vanImg = null;
 let scn = null, trf = null, xing = null;
+let dash = null, roads = null;   // the dashboard, and every road in metres for its GPS
 
 // -------------------------------------------------------------- graph + route
 
@@ -453,8 +478,10 @@ function resize() {
 }
 
 function draw() {
-  const w = canvas.width / (window.devicePixelRatio || 1);
-  const h = canvas.height / (window.devicePixelRatio || 1);
+  // The canvas's own CSS size: resize() caps its pixel ratio at 2, so
+  // dividing by devicePixelRatio came out short on a 3x phone.
+  const w = parseFloat(canvas.style.width) || canvas.width;
+  const h = parseFloat(canvas.style.height) || canvas.height;
   const pos = atDistance(car.s);
 
   // The van rides at a lateral offset from the route's centreline, so the
@@ -462,15 +489,21 @@ function draw() {
   const nx = Math.cos(pos.h + Math.PI / 2), ny = Math.sin(pos.h + Math.PI / 2);
   const camX = pos.x + nx * car.lane, camY = pos.y + ny * car.lane;
 
+  // The road view is the canvas above the dashboard; the van's spot is
+  // measured within it.
+  const stripH = dash ? dashboard.height(dash, w, h) : 0;
+  const roadH = h - stripH;
+  const ppm = PPM * zoom * zoomX(w, h);
+  const vanY = vanScreenY(w, h, roadH, ppm);
+
   ctx.save();
   ctx.fillStyle = '#8fbf6a';
   ctx.fillRect(0, 0, w, h);
 
   // Rotate the world so the route's heading points up the screen, and place
   // the van's world position at its fixed spot.
-  ctx.translate(w * VAN_SX, h * vanSY(w, h));
+  ctx.translate(w * VAN_SX, vanY);
   ctx.rotate(-(camH ?? pos.h) - Math.PI / 2);
-  const ppm = PPM * zoom * zoomX(w, h);
   ctx.scale(ppm, ppm);
   ctx.translate(-camX, -camY);
 
@@ -486,7 +519,15 @@ function draw() {
   if (xing) crossings.draw(ctx, xing, view);
   ctx.restore();
 
-  drawVan(w, h, ppm);
+  drawVan(w, vanY, ppm);
+  if (dash) {
+    dashboard.draw(ctx, dash, w, h, {
+      v: car.v, gear: car.gear, handbrake, jostle: car.jostle,
+      x: car.x, y: car.y, camH: camH ?? pos.h, route, s: car.s, roads,
+    });
+  }
+  // What a test needs to measure the view: metres of road ahead of the van.
+  car.view = { stripH, roadH, vanY, ppm, ahead: vanY / ppm };
   updateHud();
 }
 
@@ -556,8 +597,8 @@ function drawGuide() {
   ctx.stroke();
 }
 
-function drawVan(w, h, ppm) {
-  const px = w * VAN_SX, py = h * vanSY(w, h);
+function drawVan(w, vanY, ppm) {
+  const px = w * VAN_SX, py = vanY;
   const wpx = VAN_W_M * ppm;
   const aspect = vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0;
   const hpx = wpx * aspect;
@@ -620,42 +661,68 @@ function updateHud() {
 
 // --------------------------------------------------------------------- input
 
-let dragX = null;
-function onDown(e) { throttle = true; dragX = e.clientX ?? null; }
+// Each finger is tracked on its own, so she can hold the road with one and
+// pull the handbrake or change gear with another. A touch that starts on the
+// dashboard is for the dashboard and is never "go"; only one that starts on
+// the road holds the throttle or swipes between lanes.
+const goPointers = new Set();
+let spaceDown = false, keyBrake = false, brakePointer = null;
+let dragId = null, dragX = null;
+function setThrottle() { throttle = spaceDown || goPointers.size > 0; }
+function setHandbrake() { handbrake = keyBrake || brakePointer !== null; }
+function honk() { if (dash) dashboard.honk(dash); toast('beep'); }
+
+function onDown(e) {
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  const what = dash ? dashboard.hit(dash, x, y) : null;
+  if (what) {
+    if (what === 'handbrake') { brakePointer = e.pointerId; setHandbrake(); }
+    else if (what === 'horn') honk();
+    else if (what.startsWith('gear')) car.gear = Number(what.slice(4));
+    return;
+  }
+  goPointers.add(e.pointerId); setThrottle();
+  if (dragId === null) { dragId = e.pointerId; dragX = e.clientX; }
+}
 function onMove(e) {
-  if (dragX === null) return;
+  if (e.pointerId !== dragId || dragX === null) return;
   const dx = (e.clientX ?? dragX) - dragX;
   if (Math.abs(dx) > 26) { car.laneWant = dx > 0 ? 1 : 0; dragX = e.clientX; }
 }
-function onUp() { throttle = false; dragX = null; }
+function onUp(e) {
+  goPointers.delete(e.pointerId); setThrottle();
+  if (e.pointerId === dragId) { dragId = null; dragX = null; }
+  if (e.pointerId === brakePointer) { brakePointer = null; setHandbrake(); }
+}
 canvas.addEventListener('pointerdown', onDown);
 canvas.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp);
 window.addEventListener('pointercancel', onUp);
 
 window.addEventListener('keydown', e => {
-  if (e.key === ' ') { throttle = true; e.preventDefault(); }
+  if (e.key === ' ') { spaceDown = true; setThrottle(); e.preventDefault(); }
   if (e.key === 'ArrowRight') car.laneWant = 1;
   if (e.key === 'ArrowLeft') car.laneWant = 0;
-  if (e.key === 'b' || e.key === 'B') handbrake = true;
+  if (e.key === 'b' || e.key === 'B') { keyBrake = true; setHandbrake(); }
+  if ((e.key === 'h' || e.key === 'H') && !e.repeat) honk();
   if (['1', '2', '3'].includes(e.key)) car.gear = Number(e.key);
 });
 window.addEventListener('keyup', e => {
-  if (e.key === ' ') throttle = false;
-  if (e.key === 'b' || e.key === 'B') handbrake = false;
+  if (e.key === ' ') { spaceDown = false; setThrottle(); }
+  if (e.key === 'b' || e.key === 'B') { keyBrake = false; setHandbrake(); }
 });
 
+document.getElementById('devBtn').onclick = (e) => {
+  const tools = document.getElementById('devTools');
+  tools.hidden = !tools.hidden;
+  document.getElementById('note').hidden = tools.hidden;
+  e.currentTarget.setAttribute('aria-pressed', String(!tools.hidden));
+};
 document.getElementById('guideBtn').onclick = (e) => {
   showGuide = !showGuide;
   e.currentTarget.setAttribute('aria-pressed', String(showGuide));
 };
-document.getElementById('gearBtn').onclick = (e) => {
-  car.gear = car.gear === 3 ? 1 : car.gear + 1;
-  e.currentTarget.textContent = 'gear: ' + car.gear;
-};
-const brakeBtn = document.getElementById('brakeBtn');
-brakeBtn.addEventListener('pointerdown', () => { handbrake = true; });
-window.addEventListener('pointerup', () => { handbrake = false; });
 document.getElementById('routeBtn').onclick = () => { pickRoute(); car.s = 0; car.v = 0; car.base = null; };
 
 /** Jump to a route that uses the dual carriageway, starting just before it,
@@ -679,6 +746,15 @@ async function boot() {
   adj = buildAdjacency(graph);
   pickRoute();
   scn = await scenery.load({ graph, mapToWorld, metresPerMapPx: METRES_PER_MAP_PX });
+  roads = graph.edges
+    .filter(([i, j]) => i >= 0 && j >= 0 && i < graph.nodes.length && j < graph.nodes.length)
+    .map(([i, j, cls]) => {
+      const a = graph.nodes[i], b = graph.nodes[j];
+      return [a[0] * ASPECT * METRES_PER_UNIT, a[1] * METRES_PER_UNIT,
+        b[0] * ASPECT * METRES_PER_UNIT, b[1] * METRES_PER_UNIT, cls];
+    });
+  dash = await dashboard.load();
+  window.__dash = dash;   // its layout and needle, for a test
 
   vanImg = new Image();
   vanImg.src = '/assets/driving/topdown/vehicle-topdown-' + VAN_ID + '-rear.png';
