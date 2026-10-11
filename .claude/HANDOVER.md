@@ -1,65 +1,68 @@
-# A.R.C. on TestFlight — handover 2026-10-11
+# A.R.C. driving rebuild — handover 2026-10-11
 
 ## Goal
-A.R.C. playable on Marcus's iPhone through TestFlight, with the Interfulgent
-suite mark as the app icon and a real gameplay loop. Lily is not a tester yet.
+Rebuild the driving game on the model of Lily's favourite driving game: the
+vehicle pinned to one spot, the world rotating underneath it, steering on
+rails, the child controlling speed and lane. The full design is in
+`docs/driving-rebuild-2026-10-11.md` — read that first, it is the spec.
 
 ## State
-**Verified.** TestFlight build 2 uploaded 2026-10-11 06:15 (delivery UUID
-`4a08a332`, 100.9 MB, `UPLOAD SUCCEEDED`). Five gates green at `91e3b53`:
-game 910 tests, game-logic 1193, badges, typecheck, lint, `check:sprites`.
-Branch `claude/crate-loading` pushed, 32 commits ahead of `main`, not merged.
-The build-number lookup answers 2 against the live ASC API.
+**Verified.** TestFlight build 2 uploaded and processing (delivery UUID
+`4a08a332`); nobody has played it yet. The driving spike runs at
+`/admin/drive-spike.html` with `pnpm dev`: real 937-node graph, camera rotation
+eased to 1° per sample against the route's 7°, van 13.6% of screen width
+against 4.1% in the game. Branch `claude/crate-loading` pushed, 34 commits
+ahead of `main`, not merged.
 
-**Unverified.** Nobody has played build 2. The point of cutting it is the
-collection loop — call in, drive out, choose a crate, bring her home — which
-existed in code but had never run on a device. Garments on animals, the depot's
-daily reset and the species exits are equally unplayed.
+**Unverified.** Marcus has not driven the spike. Nothing of the rebuild has
+touched the game yet — `PtvDriveScene` is untouched and still ships the old
+corridor renderer.
 
-**Blocked.** Three edge functions (`load-game`, `send-gift`, `claim-gift`) are
-undeployed. Gift badges need RLS policies that are keyed on `auth.uid()`.
-Seasons cannot switch to the real date until the garden has autumn art — it
-would draw snow in October.
+**Blocked.** Three edge functions undeployed (`load-game`, `send-gift`,
+`claim-gift`); gift badges need RLS keyed on `auth.uid()`. Seasons cannot use the
+real date until the garden has autumn art.
 
 ## Files
-- `docs/testflight-and-gap-plan-2026-10-10.md` — ASC ids, both audits, plan A–I.
-- `docs/fleet-canon.md` — binds every view of every vehicle; §6 is the open list.
-- `docs/naming-places.md` — allude to real places, never name them.
-- `docs/world-coherence-rule-2026-10-11.md` — outdoor scenes track the real season.
-- `docs/animal-exits.md` — seven routes; the caps are a teaching point, not a limit.
-- `scripts/testflight.mjs` — one command to build and upload. Read its header.
-- `.claude/notes/landmark-pilot-2026-10-11.md` — a three-asset Manus brief, unsent.
-- `tools/*.py` — every image and map transform, recipe in each docstring.
-- `.claude/handovers/2026-10-10-accumulated.md` — the old 615-line file. History, not state.
+- `docs/driving-rebuild-2026-10-11.md` — the rebuild spec. Everything Marcus
+  said on 2026-10-11, which existed nowhere before.
+- `apps/game/public/admin/drive-spike.html` — the spike. Plain canvas, no Phaser.
+- `apps/game/src/driving/drive-render.ts` — the 539-line corridor renderer the
+  rebuild replaces.
+- `apps/game/src/driving/road-router.ts`, `route-instructions.ts` — the route
+  maths the guide line draws; correct already, reuse it.
+- `apps/game/src/driving/drive-state.ts` — `jostleComfort` seeds the
+  animal-disturbance model.
+- `docs/fleet-canon.md`, `naming-places.md`, `world-coherence-rule-2026-10-11.md`,
+  `animal-exits.md` — standing rules, all current.
+- `.claude/handovers/2026-10-10-accumulated.md` — the old 615-line file. History.
 
 ## Decisions made
-- **The rear top-down is the camera reference**; the portrait is the master for
-  livery *and* length. Realistic proportions lost to matching the portraits,
-  because the portraits are chunky children's-book vans.
-- **The animal space is tinted, the cab is clear** — privacy and heat for the
-  animal, and the child still sees who is driving.
-- **The painted April logo stays inside the game.** The suite mark is the icon only.
-- **Seasons follow the real-world date**, once the art exists.
-- **Tractors stay large**; reroute roads around them — their size is the seasonal cue.
-- Spark's roof flash: the front comes down to the rear, never the rear up.
+- **Go straight to the rotation rebuild**, no interim scale fix.
+- **Turning is automatic** for now; reading the GPS at junctions is a later tier.
+- **Gears stay** — they are choosing a speed for the road, not a gearbox lesson.
+  Road class drives it and the graph already carries it.
+- **No animal is ever hurt and there is never an accident.** Rough driving with
+  animals aboard costs a roadside stop; on a delivery run it costs cargo.
+- **Fully top-down**, because a painted three-quarter building cannot stay
+  upright while the ground rotates. Shadows draw in world space for that reason.
+- Rear top-down is still the camera reference; the portrait is still the master
+  for livery and length (`docs/fleet-canon.md`).
 
 ## Next step
-Ask Marcus what build 2 played like and act on that. If he has nothing yet, the
-next unblocked piece of work is Trikey's two top-downs — cobalt clay against a
-lilac portrait, so a redraw rather than a recolour. Everything else needs either
-his decision or Manus credit.
+Add scenery to the spike — top-down canopies, roofs and hedges placed in world
+space — because without it there is no sense of speed and Marcus cannot judge
+the feel. Then traffic, then the dual carriageway's 20m width, which fills the
+screen at this zoom.
 
 ## Traps
-- **Homebrew rsync 3.5.1 breaks `xcodebuild -exportArchive`** with "Copy failed".
-  `scripts/testflight.mjs` runs Xcode with `/opt/homebrew/bin` off PATH. This
-  will bite every other iOS project on this machine.
-- **The ASC API key cannot mint certificates or create app records.** Signing is
-  manual against the existing "ARC App Store" profile; app records need the web UI.
+- **Homebrew rsync 3.5.1 breaks `xcodebuild -exportArchive`.** `scripts/testflight.mjs`
+  runs Xcode with `/opt/homebrew/bin` off PATH. Bites every iOS project here.
+- **The ASC API key cannot mint certificates or create app records.**
+- **The built-in browser screenshots the Phaser canvas blank.** Use the
+  Playwright MCP for anything visual; `browser_run_code_unsafe` gives `page.mouse`
+  for clicking into a canvas.
 - **Never install the top-downs through `install-vehicles.py`** — its 0.88 taper
-  would skew the roof motifs a second time. Re-run `tools/decorate-roof.py`.
-- **`tools/osm-to-svg.py` is still live** and would regenerate the whole map,
-  discarding the simplification and the hand-placed landmarks.
-- **Manus is overdrawn** by roughly 7,500 credits. Read the real balance on the
-  usage page before commissioning anything.
-- **Give each agent its own files by path and its own scratchpad filenames.** One
-  swept another's staged files into its commit; another overwrote a `compose.py`.
+  skews the roof motifs. Re-run `tools/decorate-roof.py`.
+- **`tools/osm-to-svg.py` would regenerate the whole map**, losing the
+  simplification and the hand-placed landmarks.
+- **Manus is overdrawn** by roughly 7,500 credits. Read the usage page first.
