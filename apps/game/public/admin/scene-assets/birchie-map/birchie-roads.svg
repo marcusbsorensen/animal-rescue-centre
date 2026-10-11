@@ -707,7 +707,16 @@
        - ARC ............. 30px  (the kid's HOME / primary landmark)
        - Major places .... 22px  (Wyx Park, Golf, Glasshouse Acres)
        - Service POIs .... 14px  (Fuel stations, Car Wash)
-     so the player's eye lands on A.R.C. first. -->
+     so the player's eye lands on A.R.C. first.
+     Placement rules (checked by pixel overlap against the road layer):
+       - the icon is never on a road; a label may cross one only where
+         the heavy stroke keeps it legible;
+       - the icon stands above its name, never beside or under it;
+       - markers are static: nothing loops faster than the ships;
+       - a winter cap is drawn at the icon's own geometry (marker origin
+         + translate(0,-44)), in #winter-snowcaps, not at the old origin;
+       - a landmark that belongs to one season sits in a group the season
+         CSS names (#beach-huts is hidden in winter). -->
 
 <!-- Wyx Park — country estate / future events venue. Icon: tree.
      (Icon ~50px tall — sized so the player can ID it from the
@@ -731,7 +740,7 @@
 <!-- Westbeach Golf Club — coastal links on the FAR EAST coast (was
      mid-map; moved to match the real Westgate & Birchington Golf
      Club position). Icon: flag in hole. -->
-<g class="poi-marker poi-major" transform="translate(1630,350)">
+<g class="poi-marker poi-major" transform="translate(1646,410)">
   <g class="poi-icon" transform="translate(0,-44)">
     <ellipse cx="0" cy="10" rx="26" ry="8" fill="#7ec25a" stroke="#3a5e2e" stroke-width="1.4"/>
     <ellipse cx="-3" cy="10" rx="5" ry="2.5" fill="#1a1a1a"/>
@@ -799,7 +808,7 @@
 <!-- Wyx Farm Shop — farm-shop / café at the southern edge of Wyx
      Park (matches the real Quex Barn). Icon: pitched-roof barn with
      a red door and a wooden shop sign. -->
-<g class="poi-marker poi-major" transform="translate(1060,900)">
+<g class="poi-marker poi-major" transform="translate(1006,840)">
   <g class="poi-icon" transform="translate(0,-44)">
     <!-- Barn body (warm cream weatherboard) -->
     <rect x="-22" y="-4" width="44" height="20" fill="#f4e3b4" stroke="#7b5c3a" stroke-width="1.4"/>
@@ -844,66 +853,35 @@
        the A28 transitions from open farmland into the residential
        grid. Was two stations clustered together which felt redundant
        on a small village map. -->
-  <g class="fuel-marker" transform="translate(380,738)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/><text x="0" y="-22" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Petrol Station</text></g>
+  <g class="fuel-marker" transform="translate(378,754)"><g transform="scale(1.3)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/></g><text x="0" y="34" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Petrol Station</text></g>
 </g>
-<!-- Suds 'n' Steve's — the local car wash. 2× the original scale for
-     recognition and a bit more visual real estate. Animated:
-       - Steve's right arm waves up and down (scrubbing motion)
-       - Bubble cluster bobs up beside him
-       - A single bigger bubble drifts up and pops
-     so the kid can spot him from across the map. -->
-<g id="wash-bandits" transform="translate(500,673) scale(2)">
-  <style>
-    .ww-arm     { animation: ww-scrub 1.4s ease-in-out infinite; transform-origin: 5px -5px; transform-box: fill-box; }
-    .ww-bubbles { animation: ww-bob 1.8s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
-    .ww-pop     { animation: ww-pop 2.6s ease-out infinite; transform-origin: 11px -15px; transform-box: fill-box; }
-    @keyframes ww-scrub { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(28deg); } }
-    @keyframes ww-bob   { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-    @keyframes ww-pop   {
-      0%   { transform: translate(0, 0)   scale(0.4); opacity: 0; }
-      20%  { transform: translate(2, -4)  scale(0.7); opacity: 0.8; }
-      80%  { transform: translate(6, -14) scale(1.1); opacity: 0.5; }
-      100% { transform: translate(8, -18) scale(1.3); opacity: 0;   }
-    }
-  </style>
-  <!-- Shadow under feet -->
-  <ellipse cx="0" cy="18" rx="11" ry="3" fill="#3a3a3a" stroke="#1a1612" stroke-width="0.6" opacity="0.5"/>
-  <!-- Blue dungarees / body -->
-  <path d="M-5,-3 L-5,15 L5,15 L5,-3 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.8"/>
-  <rect x="-2.5" y="-1" width="5" height="14" fill="#d63838"/>
-  <!-- Yellow shirt shoulders / collar -->
-  <path d="M-6,-8 L-6,-3 L6,-3 L6,-8 Z" fill="#f0c870" stroke="#9a7c30" stroke-width="0.6"/>
-  <!-- Left arm (static, holding bucket below) -->
-  <path d="M-5,-5 L-7,3" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/>
-  <!-- Tiny brown bucket in the left hand -->
-  <path d="M-9,2 L-5,2 L-6,7 L-8,7 Z" fill="#7b5c3a" stroke="#3a2613" stroke-width="0.4"/>
-  <!-- Right arm — ANIMATED scrub (the sponge moves up and down) -->
-  <g class="ww-arm">
-    <path d="M5,-5 Q 9,-9 11,-15" fill="none" stroke="#f0c870" stroke-width="2.5" stroke-linecap="round"/>
-    <!-- Yellow sponge in the right hand -->
-    <rect x="9" y="-18" width="4" height="4" rx="0.6" fill="#f4e84a" stroke="#9a7c30" stroke-width="0.4"/>
+<!-- Suds 'n' Steve's — the local car wash. A service POI, the same tier as
+     the petrol station: a small static pictogram (a red hatchback under a
+     wash gantry, in a cap of foam) with its name beneath. It was a
+     lone cartoon man with a flapping arm, 56x95 units, the tallest thing
+     on the map, and nothing about him said "car wash" at 874 wide. The
+     inflatable wavy-arm man is a drive-scene character; he comes back
+     painted (docs/manus-prompts-birchie-map-landmarks-2026-05-19.md,
+     asset 2, which wants him beside a car, ~60x48). Static like every
+     other marker: nothing here moves faster than the ships. -->
+<g id="wash-bandits" transform="translate(486,687) scale(1.15)">
+  <!-- Shadow -->
+  <ellipse cx="0" cy="12" rx="17" ry="3" fill="#3a3a3a" opacity="0.22"/>
+  <!-- Wash gantry: two posts and a beam over the car -->
+  <path d="M-17,12 L-17,-9 Q-17,-14 -12,-14 L12,-14 Q17,-14 17,-9 L17,12" fill="none" stroke="#3a73c2" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M-17,12 L-17,-9 Q-17,-14 -12,-14 L12,-14 Q17,-14 17,-9 L17,12" fill="none" stroke="#1f4d8a" stroke-width="0.7" stroke-linejoin="round"/>
+  <!-- Car: cabin, body, windows, wheels -->
+  <path d="M-8,0 L-5,-7 L6,-7 L10,0 Z" fill="#d63838" stroke="#7a1f1f" stroke-width="1.2" stroke-linejoin="round"/>
+  <rect x="-14" y="-1" width="28" height="10" rx="3" fill="#d63838" stroke="#7a1f1f" stroke-width="1.2"/>
+  <path d="M-6,-1 L-4,-5.5 L0,-5.5 L0,-1 Z M2,-1 L2,-5.5 L5,-5.5 L8,-1 Z" fill="#a0cfff" stroke="#3a3a3a" stroke-width="0.5"/>
+  <g fill="#222" stroke="#000" stroke-width="0.4"><circle cx="-8" cy="9" r="3.2"/><circle cx="8" cy="9" r="3.2"/></g>
+  <!-- Foam -->
+  <g fill="#e6f3f8" stroke="#7badc3" stroke-width="0.6">
+    <circle cx="-5" cy="-10" r="3.6"/><circle cx="2" cy="-12" r="4.4"/><circle cx="9" cy="-9" r="3.2"/><circle cx="-11" cy="-7" r="2.6"/>
   </g>
-  <!-- Head -->
-  <circle cx="0" cy="-12" r="5" fill="#f5d4a8" stroke="#7b5c3a" stroke-width="0.8"/>
-  <!-- Blue cap -->
-  <path d="M-5,-13 A5,5 0 0,1 5,-13 L5,-15 L-5,-15 Z" fill="#3a73c2" stroke="#1f4d8a" stroke-width="0.6"/>
-  <rect x="-5" y="-13" width="10" height="1" fill="#1f4d8a"/>
-  <!-- Big smile -->
-  <path d="M-2,-10.5 Q 0,-9 2,-10.5" fill="none" stroke="#3a3a3a" stroke-width="0.6" stroke-linecap="round"/>
-  <!-- Eyes (slightly wider apart for comedy) -->
-  <circle cx="-2" cy="-12.8" r="0.5" fill="#3a3a3a"/>
-  <circle cx="2"  cy="-12.8" r="0.5" fill="#3a3a3a"/>
-  <!-- Bubble cluster bobbing beside him -->
-  <g class="ww-bubbles">
-    <circle cx="12" cy="-8" r="2"   fill="#cfe9f3" stroke="#7badc3" stroke-width="0.3" opacity="0.9"/>
-    <circle cx="14" cy="-11" r="1.4" fill="#e6f3f8" stroke="#7badc3" stroke-width="0.3" opacity="0.9"/>
-    <circle cx="10" cy="-12" r="1"  fill="#e6f3f8" stroke="#7badc3" stroke-width="0.3" opacity="0.9"/>
-  </g>
-  <!-- Single bigger bubble drifting up and popping -->
-  <circle class="ww-pop" cx="11" cy="-15" r="2.4" fill="#e6f3f8" stroke="#7badc3" stroke-width="0.4"/>
 </g>
-<!-- Label OUTSIDE the scaled group so it doesn't get blown up to 2x -->
-<text x="500" y="709" font-family="Fredoka, sans-serif" font-size="14" font-weight="700"
+<!-- Label BELOW the icon, like every major marker -->
+<text x="486" y="720" font-family="Fredoka, sans-serif" font-size="14" font-weight="700"
       fill="#fef9ef" text-anchor="middle" paint-order="stroke"
       stroke="#3a3a3a" stroke-width="3">Suds 'n' Steve's</text>
 <!-- Glasshouse Acres — fake stand-in for the real Thanet Earth
@@ -926,19 +904,19 @@
   </linearGradient>
 </defs>
 <!-- Access road first (rendered BEFORE the building so building sits
-     on top of it). Goes from the secondary road (Manston Road) at
-     ~(1000, 880) down to the greenhouse's NE corner at ~(920, 940).
-     A gentle curve so it reads as a slip road rather than a ruler. -->
-<path d="M1000,880 Q 980,905 920,940" stroke="#a89860" stroke-width="9" fill="none" stroke-linecap="round" opacity="0.55"/>
-<path d="M1000,880 Q 980,905 920,940" stroke="#d3c490" stroke-width="7" fill="none" stroke-linecap="round"/>
+     on top of it): a short slip road from the nearest drawn road to the
+     yard pad on the greenhouse's NE corner. The complex stands clear of
+     the road network (a three-way junction used to run underneath it). -->
+<path d="M855,1038 Q 835,1037 817,1028" stroke="#a89860" stroke-width="9" fill="none" stroke-linecap="round" opacity="0.55"/>
+<path d="M855,1038 Q 835,1037 817,1028" stroke="#d3c490" stroke-width="7" fill="none" stroke-linecap="round"/>
 
-<!-- Glasshouse Acres — repositioned south of Manston Road, rotated
-     35° clockwise to suggest a real-world Thanet glasshouse aligned
-     with the field boundaries (not the road grid). 70% scale of the
-     original drawing so it sits comfortably in the open farmland
-     without crowding nearby plots. Loading bay now on the NE corner,
-     wired up to Manston Road via the access curve above. -->
-<g id="glasshouse-acres" transform="translate(840,1000) rotate(35) scale(0.7)">
+<!-- Glasshouse Acres — open farmland south of the main road, clear of
+     the road network. It was rotated 35 degrees and stood on a three-way
+     road junction (the simplified road layer kept those roads, so they ran
+     underneath it); it is now level, in the field south-west of the
+     junction, with the yard pad on its east end wired to the nearest road
+     by the access curve above. 70% scale of the original drawing. -->
+<g id="glasshouse-acres" transform="translate(736,1052) rotate(0) scale(0.7)">
   <!-- Yard / hardstanding pad on the NE corner (was the south loading
        bay before the rotation rebuild). Sits OUTSIDE the boundary
        fence, where the access road meets the complex. -->
@@ -977,7 +955,7 @@
 <!-- Glasshouse Acres label — kept OUT of the rotated group so the
      text stays horizontal and readable. Positioned just above the
      rotated complex. -->
-<text x="840" y="945" font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+<text x="736" y="998" font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
       fill="#fef9ef" text-anchor="middle" paint-order="stroke"
       stroke="#3a3a3a" stroke-width="3.5">Glasshouse Acres</text>
 
@@ -1151,14 +1129,19 @@
 </style>
 
 <!-- ── Beach huts on the Minnis Bay sands (NW coast) ──
-     A row of six colourful painted huts. Hidden in winter. -->
-<g id="beach-huts" transform="translate(-6,-20)">
-  <g transform="translate(298,316)"><rect x="-9" y="-2" width="18" height="14" fill="#d95b5b" stroke="#7a2e2e" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#7a2e2e" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
-  <g transform="translate(326,318)"><rect x="-9" y="-2" width="18" height="14" fill="#4d97c4" stroke="#27506a" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#27506a" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
-  <g transform="translate(354,321)"><rect x="-9" y="-2" width="18" height="14" fill="#e8b14a" stroke="#8a6420" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#8a6420" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
-  <g transform="translate(382,324)"><rect x="-9" y="-2" width="18" height="14" fill="#5fae62" stroke="#2f6a32" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#2f6a32" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
-  <g transform="translate(410,327)"><rect x="-9" y="-2" width="18" height="14" fill="#c971ac" stroke="#6f3257" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#6f3257" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
-  <g transform="translate(438,330)"><rect x="-9" y="-2" width="18" height="14" fill="#d97f3d" stroke="#7a481c" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#7a481c" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+     Six painted huts standing on the green grass strip that runs along
+     the shore of Minnis Bay (the long 'green-grass' path west of the
+     A.R.C. plot), each tilted to the strip's slope, with their bases on
+     its centreline. They were a straight row across the headland, the
+     first two out in the water. Keep the id: the season CSS hides
+     #beach-huts in winter. -->
+<g id="beach-huts">
+  <g transform="translate(44.0,413.3) rotate(-3.5) translate(0,-12)"><rect x="-9" y="-2" width="18" height="14" fill="#d95b5b" stroke="#7a2e2e" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#7a2e2e" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+  <g transform="translate(71.0,411.7) rotate(-3.6) translate(0,-12)"><rect x="-9" y="-2" width="18" height="14" fill="#4d97c4" stroke="#27506a" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#27506a" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+  <g transform="translate(98.0,409.8) rotate(-4.2) translate(0,-12)"><rect x="-9" y="-2" width="18" height="14" fill="#e8b14a" stroke="#8a6420" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#8a6420" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+  <g transform="translate(125.0,408.2) rotate(-6.1) translate(0,-12)"><rect x="-9" y="-2" width="18" height="14" fill="#5fae62" stroke="#2f6a32" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#2f6a32" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+  <g transform="translate(152.0,405.1) rotate(-8.5) translate(0,-12)"><rect x="-9" y="-2" width="18" height="14" fill="#c971ac" stroke="#6f3257" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#6f3257" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
+  <g transform="translate(178.0,399.6) rotate(-15.0) translate(0,-12)"><rect x="-9" y="-2" width="18" height="14" fill="#d97f3d" stroke="#7a481c" stroke-width="1"/><path d="M-11,-2 L0,-12 L11,-2 Z" fill="#fff3e0" stroke="#7a481c" stroke-width="1" stroke-linejoin="round"/><rect x="-3" y="3" width="6" height="9" fill="#5a3a22"/></g>
 </g>
 
 <!-- ── Spring blossom drift ── -->
@@ -1198,14 +1181,17 @@
 
 <!-- ── Winter: snow caps on the painted-roof landmarks ── -->
 <g id="winter-snowcaps" class="season-layer">
-  <!-- Glasshouse Acres (rotated complex ~840,1000) -->
-  <ellipse cx="840" cy="958" rx="78" ry="14" fill="#ffffff" opacity="0.85" transform="rotate(35 840 958)"/>
-  <!-- Birchie Station (~770,470) -->
-  <path d="M742,452 L770,438 L798,452 Z" fill="#ffffff" opacity="0.9"/>
-  <!-- Jolly Jim's (~1200,615) -->
-  <path d="M1178,598 L1200,584 L1222,598 Z" fill="#ffffff" opacity="0.9"/>
-  <!-- Wyx Farm Shop (~1060,900) -->
-  <path d="M1036,884 L1060,870 L1084,884 Z" fill="#ffffff" opacity="0.9"/>
+  <!-- Each cap is registered to its icon's own geometry (marker origin
+       + translate(0,-44)); they used to sit at the old marker origins,
+       so snow floated between the icons and their labels. -->
+  <!-- Glasshouse Acres: frost over the glass, in the complex's own frame -->
+  <g transform="translate(736,1052) rotate(0) scale(0.7)"><rect x="-100" y="-46" width="200" height="81" rx="2" fill="#ffffff" opacity="0.6"/></g>
+  <!-- Birchie Station: snow on the carriage roof -->
+  <path d="M749,418 Q749,412 755,412 L785,412 Q791,412 791,418 Z" fill="#ffffff" stroke="#cdd9de" stroke-width="0.8" opacity="0.95"/>
+  <!-- Jolly Jim's: snow on the dome -->
+  <path d="M1186,557 Q1187,549 1200,548 Q1213,549 1214,557 Q1207,553 1200,554 Q1193,553 1186,557 Z" fill="#ffffff" stroke="#cdd9de" stroke-width="0.8" opacity="0.95"/>
+  <!-- Wyx Farm Shop: snow on the roof -->
+  <g transform="translate(1006,796)"><path d="M-14.8,-11.5 L0,-23 L14.8,-11.5 Q7,-14.5 0,-12 Q-7,-14.5 -14.8,-11.5 Z" fill="#ffffff" stroke="#cdd9de" stroke-width="0.8" opacity="0.95"/></g>
 </g>
 
 <!-- ── Winter: ice over the SW farmland pond ── -->
@@ -1216,7 +1202,7 @@
 </g>
 
 <!-- ── Winter: Santa's grotto at Wyx Park ── -->
-<g id="winter-grotto" class="season-layer" transform="translate(1040,690)">
+<g id="winter-grotto" class="season-layer" transform="translate(1060,690)">
   <!-- Snowy ground patch -->
   <ellipse cx="0" cy="20" rx="26" ry="7" fill="#ffffff" opacity="0.8"/>
   <!-- Grotto hut body -->

@@ -43,8 +43,13 @@
 ## Beach huts at Minnis Bay
 
 - New `#beach-huts` — a row of colourful painted huts on the Minnis
-  Bay sands (don't currently exist on the map).
+  Bay sands.
 - Visible spring / summer / autumn; **hidden in winter** (cross-faded).
+- Where they stand (2026-10-11): on the long green grass strip along the
+  Minnis Bay shore, west of the A.R.C. plot (SVG x 33 to 190, y 375 to
+  414), each tilted to the strip's slope. They were first drawn as a
+  straight row across the Grenham Bay headland, the first two in the sea.
+  The season CSS names `#beach-huts`, so the group keeps that id.
 
 ## Seasonal vehicle behaviour
 
