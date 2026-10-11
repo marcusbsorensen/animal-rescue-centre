@@ -707,7 +707,15 @@
        - ARC ............. 30px  (the kid's HOME / primary landmark)
        - Major places .... 22px  (Wyx Park, Golf, Glasshouse Acres)
        - Service POIs .... 14px  (Fuel stations, Car Wash)
-     so the player's eye lands on A.R.C. first.
+     so the player's eye lands on A.R.C. first. Those are sizes in MAP
+     units, which is what a page that draws this SVG at its own scale
+     gets (intro.html zooms it up to 5x). /admin/map.html, the page a
+     child plays on, sets every text element of class poi-label at a SCREEN size
+     instead (18px a place, 16px the rest: the game's type floor), puts it
+     beside the icon named in data-for (an element with class poi-icon),
+     and keeps it off the pins and out of the tractors' data-run strips:
+     see "Names and labels" in map.html. A label's x, y and font-size
+     here are only where it stands when that page has not run.
      Placement rules (checked by pixel overlap against the road layer):
        - the icon is never on a road; a label may cross one only where
          the heavy stroke keeps it legible;
@@ -721,8 +729,8 @@
 <!-- Wyx Park — country estate / future events venue. Icon: tree.
      (Icon ~50px tall — sized so the player can ID it from the
      fully-zoomed-out world map without needing to zoom in.) -->
-<g class="poi-marker poi-major" transform="translate(978,706)">
-  <g class="poi-icon" transform="translate(0,-44)">
+<g class="poi-marker poi-major" id="poi-wyx-park" transform="translate(978,706)">
+  <g class="poi-icon" id="icon-wyx-park" transform="translate(0,-44)">
     <!-- Tree trunk -->
     <rect x="-4" y="-2" width="8" height="22" fill="#6b4625" stroke="#3a2613" stroke-width="1.2"/>
     <!-- Canopy: three overlapping leaf circles -->
@@ -732,7 +740,8 @@
     <!-- Highlight on top-left of canopy -->
     <circle cx="-5" cy="-22" r="5" fill="#8bb56e" opacity="0.7"/>
   </g>
-  <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+  <text class="poi-label" data-for="icon-wyx-park" data-tier="major"
+        font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke"
         stroke="#3a3a3a" stroke-width="3.5">Wyx Park</text>
 </g>
@@ -740,14 +749,15 @@
 <!-- Westbeach Golf Club — coastal links on the FAR EAST coast (was
      mid-map; moved to match the real Westgate & Birchington Golf
      Club position). Icon: flag in hole. -->
-<g class="poi-marker poi-major" transform="translate(1646,410)">
-  <g class="poi-icon" transform="translate(0,-44)">
+<g class="poi-marker poi-major" id="poi-golf" transform="translate(1646,410)">
+  <g class="poi-icon" id="icon-golf" transform="translate(0,-44)">
     <ellipse cx="0" cy="10" rx="26" ry="8" fill="#7ec25a" stroke="#3a5e2e" stroke-width="1.4"/>
     <ellipse cx="-3" cy="10" rx="5" ry="2.5" fill="#1a1a1a"/>
     <line x1="-3" y1="10" x2="-3" y2="-26" stroke="#3a3a3a" stroke-width="2.4" stroke-linecap="round"/>
     <path d="M-3,-26 L17,-21 L-3,-16 Z" fill="#d63838" stroke="#7a1f1f" stroke-width="1.2" stroke-linejoin="round"/>
   </g>
-  <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+  <text class="poi-label" data-for="icon-golf" data-tier="major"
+        font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke"
         stroke="#3a3a3a" stroke-width="3.5">Westbeach Golf Club</text>
 </g>
@@ -755,8 +765,8 @@
 <!-- Birchington-on-Sea station — the real Birchington-on-Sea railway
      station sits in the middle of town. Icon: front of a stylised
      train carriage with a yellow cab. -->
-<g class="poi-marker poi-major" transform="translate(770,470)">
-  <g class="poi-icon" transform="translate(0,-44)">
+<g class="poi-marker poi-major" id="poi-station" transform="translate(770,470)">
+  <g class="poi-icon" id="icon-station" transform="translate(0,-44)">
     <!-- Rails: two parallel grey lines under the train -->
     <line x1="-30" y1="18" x2="30" y2="18" stroke="#7a7a7a" stroke-width="1.6"/>
     <line x1="-30" y1="22" x2="30" y2="22" stroke="#7a7a7a" stroke-width="1.6"/>
@@ -778,7 +788,8 @@
       <circle cx="14"  cy="18" r="3.5"/>
     </g>
   </g>
-  <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+  <text class="poi-label" data-for="icon-station" data-tier="major"
+        font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke"
         stroke="#3a3a3a" stroke-width="3.5">Birchie Station</text>
 </g>
@@ -786,8 +797,8 @@
 <!-- Jolly Jim's — soft-play barn for kids (alliterative J-J echo
      of the real Jungle Jims Ltd south-east of Birchington town).
      Icon: bouncy castle / bright dome with stars. -->
-<g class="poi-marker poi-major" transform="translate(1200,615)">
-  <g class="poi-icon" transform="translate(0,-44)">
+<g class="poi-marker poi-major" id="poi-jolly-jims" transform="translate(1200,615)">
+  <g class="poi-icon" id="icon-jolly-jims" transform="translate(0,-44)">
     <!-- Ground baseline (light shadow) -->
     <ellipse cx="0" cy="18" rx="28" ry="3" fill="#3a3a3a" opacity="0.25"/>
     <!-- Bouncy castle dome — red-yellow-blue stripes -->
@@ -800,7 +811,8 @@
     <!-- Entry archway -->
     <rect x="-5" y="6" width="10" height="11" rx="5" fill="#7b5c3a" stroke="#3a2613" stroke-width="0.8"/>
   </g>
-  <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+  <text class="poi-label" data-for="icon-jolly-jims" data-tier="major"
+        font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke"
         stroke="#3a3a3a" stroke-width="3.5">Jolly Jim's</text>
 </g>
@@ -808,8 +820,8 @@
 <!-- Wyx Farm Shop — farm-shop / café at the southern edge of Wyx
      Park (matches the real Quex Barn). Icon: pitched-roof barn with
      a red door and a wooden shop sign. -->
-<g class="poi-marker poi-major" transform="translate(1006,840)">
-  <g class="poi-icon" transform="translate(0,-44)">
+<g class="poi-marker poi-major" id="poi-farm-shop" transform="translate(1006,840)">
+  <g class="poi-icon" id="icon-farm-shop" transform="translate(0,-44)">
     <!-- Barn body (warm cream weatherboard) -->
     <rect x="-22" y="-4" width="44" height="20" fill="#f4e3b4" stroke="#7b5c3a" stroke-width="1.4"/>
     <!-- Vertical plank lines for weatherboard texture -->
@@ -830,30 +842,18 @@
     <rect x="14" y="-2" width="10" height="6" rx="0.5" fill="#7b5c3a" stroke="#3a2613" stroke-width="0.6"/>
     <line x1="14" y1="0" x2="22" y2="0" stroke="#fef9ef" stroke-width="0.4"/>
   </g>
-  <text font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+  <text class="poi-label" data-for="icon-farm-shop" data-tier="major"
+        font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke"
         stroke="#3a3a3a" stroke-width="3.5">Wyx Farm Shop</text>
 </g>
 
-<!-- Named bay labels along the coast. The OSM-derived coast already
-     has the natural scoops; the labels just name them so players can
-     orient. Smaller font (16px) so they read as 'feature' rather than
-     'destination'. -->
-<text x="380" y="200" font-family="Fredoka, sans-serif" font-size="16" font-weight="600"
-      fill="#3a3a3a" text-anchor="middle" paint-order="stroke"
-      stroke="#cfe5ea" stroke-width="3" font-style="italic">Grenham Bay</text>
-<text x="1150" y="160" font-family="Fredoka, sans-serif" font-size="16" font-weight="600"
-      fill="#3a3a3a" text-anchor="middle" paint-order="stroke"
-      stroke="#cfe5ea" stroke-width="3" font-style="italic">Epple Bay</text>
-<text x="60" y="270" font-family="Fredoka, sans-serif" font-size="16" font-weight="600"
-      fill="#3a3a3a" text-anchor="middle" paint-order="stroke"
-      stroke="#cfe5ea" stroke-width="3" font-style="italic">Minnis Bay</text>
 <g id="petrol-stations">
   <!-- Single petrol station at the west entrance to Birchie, where
        the A28 transitions from open farmland into the residential
        grid. Was two stations clustered together which felt redundant
        on a small village map. -->
-  <g class="fuel-marker" transform="translate(378,754)"><g transform="scale(1.3)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/></g><text x="0" y="34" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Petrol Station</text></g>
+  <g class="fuel-marker" transform="translate(378,754)"><g class="poi-icon" id="icon-petrol" transform="scale(1.3)"><rect x="-10" y="-13" width="20" height="24" rx="2.5" fill="#e3b04b" stroke="#7b5c3a" stroke-width="2"/><rect x="-7" y="-10" width="14" height="7" fill="#fef9ef" stroke="#7b5c3a" stroke-width="0.8"/><line x1="-4" y1="-7" x2="4" y2="-7" stroke="#3a3a3a" stroke-width="0.6"/><line x1="-4" y1="-5" x2="4" y2="-5" stroke="#3a3a3a" stroke-width="0.6"/><path d="M10 -4 Q 16 -4 16 2 L 16 9" fill="none" stroke="#7b5c3a" stroke-width="2" stroke-linecap="round"/><rect x="14" y="9" width="4" height="3" fill="#7b5c3a"/></g><text class="poi-label" data-for="icon-petrol" data-tier="service" x="0" y="34" font-family="Fredoka, sans-serif" font-size="14" font-weight="700" fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a" stroke-width="3">Petrol Station</text></g>
 </g>
 <!-- Suds 'n' Steve's — the local car wash. A service POI, the same tier as
      the petrol station: a small static pictogram (a red hatchback under a
@@ -864,7 +864,7 @@
      painted (docs/manus-prompts-birchie-map-landmarks-2026-05-19.md,
      asset 2, which wants him beside a car, ~60x48). Static like every
      other marker: nothing here moves faster than the ships. -->
-<g id="wash-bandits" transform="translate(486,687) scale(1.15)">
+<g id="wash-bandits" class="poi-icon" transform="translate(486,687) scale(1.15)">
   <!-- Shadow -->
   <ellipse cx="0" cy="12" rx="17" ry="3" fill="#3a3a3a" opacity="0.22"/>
   <!-- Wash gantry: two posts and a beam over the car -->
@@ -881,7 +881,7 @@
   </g>
 </g>
 <!-- Label BELOW the icon, like every major marker -->
-<text x="486" y="720" font-family="Fredoka, sans-serif" font-size="14" font-weight="700"
+<text class="poi-label" data-for="wash-bandits" data-tier="service" x="486" y="720" font-family="Fredoka, sans-serif" font-size="14" font-weight="700"
       fill="#fef9ef" text-anchor="middle" paint-order="stroke"
       stroke="#3a3a3a" stroke-width="3">Suds 'n' Steve's</text>
 <!-- Glasshouse Acres — fake stand-in for the real Thanet Earth
@@ -916,7 +916,7 @@
      underneath it); it is now level, in the field south-west of the
      junction, with the yard pad on its east end wired to the nearest road
      by the access curve above. 70% scale of the original drawing. -->
-<g id="glasshouse-acres" transform="translate(660,1052) rotate(0) scale(0.7)">
+<g id="glasshouse-acres" class="poi-icon" transform="translate(660,1052) rotate(0) scale(0.7)">
   <!-- Yard / hardstanding pad on the NE corner (was the south loading
        bay before the rotation rebuild). Sits OUTSIDE the boundary
        fence, where the access road meets the complex. -->
@@ -955,7 +955,7 @@
 <!-- Glasshouse Acres label — kept OUT of the rotated group so the
      text stays horizontal and readable. Positioned just above the
      rotated complex. -->
-<text x="660" y="998" font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+<text class="poi-label" data-for="glasshouse-acres" data-tier="major" x="660" y="998" font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
       fill="#fef9ef" text-anchor="middle" paint-order="stroke"
       stroke="#3a3a3a" stroke-width="3.5">Glasshouse Acres</text>
 
@@ -982,10 +982,14 @@
      them ploughing through roads and houses. Now each tractor stays
      inside ONE specific field. Opacity fades in/out at the field edges
      so the loop reset is invisible.
-       .tractor-west → field 22 (western farmland, x:354-848)
-       .tractor-east → field 17 (eastern farmland, x:1178-1554) */
-  .tractor-west { animation: tractor-cross-west 80s linear infinite; }
-  .tractor-east { animation: tractor-cross-east 95s linear infinite; animation-delay: -30s; }
+       .tractor-west → farmland polygon 24 (south of Goose End), x 536-774, y 838-874
+       .tractor-east → farmland polygon 17 (south-east),        x 1272-1486, y 854-890
+     Both run at full size, entirely on that farmland, off every road
+     (at least 4 units clear of a road's drawn edge). The strips are the
+     tractors' VISIBLE bodies (the PNGs carry transparent margins): see
+     data-run on each .tractor-wrap, which map.html also keeps labels out of. */
+  .tractor-west { animation: tractor-cross-west 56s linear infinite; }
+  .tractor-east { animation: tractor-cross-east 48s linear infinite; animation-delay: -30s; }
   /* Ships drift from x=1300 (east edge of sea band) to x=-700 (off
      the west edge). Capped at 1300 (was 1900) because the coast on
      the right side of the map cuts up to y~150, and ships drawn at
@@ -995,20 +999,23 @@
   @keyframes drift-east-to-west { from { transform: translateX(1300px); } to { transform: translateX(-700px); } }
   @keyframes drift-west-to-east { from { transform: translateX(-700px); } to { transform: translateX(1300px); } }
   /* Tractor 1 (classic, east-to-west) within the western field.
-     Image x is placed at field-east-edge - 80; translateX walks it
-     leftward to field-west-edge then loops, with fade at edges. */
+     Its visible body starts at x 712+20=732..772 and walks 194 west to
+     538..578 (the image is 80 wide; the body is x 20-60 of it), then
+     loops, fading over the first and last 18 units. */
   @keyframes tractor-cross-west {
-    0%   { transform: translateX(0);     opacity: 0; }
-    7%   { transform: translateX(-40px); opacity: 1; }
-    93%  { transform: translateX(-380px); opacity: 1; }
-    100% { transform: translateX(-420px); opacity: 0; }
+    0%   { transform: translateX(0);      opacity: 0; }
+    7%   { transform: translateX(-18px);  opacity: 1; }
+    93%  { transform: translateX(-176px); opacity: 1; }
+    100% { transform: translateX(-194px); opacity: 0; }
   }
-  /* Tractor 2 (with trailer, west-to-east) within the eastern field. */
+  /* Tractor 2 (with trailer, west-to-east) within the eastern field.
+     Its visible body (x 17-83 of a 100-wide image) starts at 1274..1340
+     and walks 143 east to 1417..1483. */
   @keyframes tractor-cross-east {
-    0%   { transform: translateX(0);     opacity: 0; }
-    7%   { transform: translateX(40px);  opacity: 1; }
-    93%  { transform: translateX(290px); opacity: 1; }
-    100% { transform: translateX(330px); opacity: 0; }
+    0%   { transform: translateX(0);      opacity: 0; }
+    7%   { transform: translateX(14px);   opacity: 1; }
+    93%  { transform: translateX(129px);  opacity: 1; }
+    100% { transform: translateX(143px);  opacity: 0; }
   }
   /* Tractors that travel west are flipped horizontally so they
      "face the way they're going." Apply scale to the inner image. */
@@ -1027,23 +1034,44 @@
   <image href="cargo-ship-small.png" x="0" y="185" width="135" height="48"/>
 </g>
 
+<!-- Named bay labels along the coast. The OSM-derived coast already
+     has the natural scoops; the labels just name them so players can
+     orient. They are drawn AFTER the ships, which sail through this
+     band, so a ship passes under a name and never over it. map.html
+     sets them at a readable screen size and keeps them off the pins. -->
+<text class="poi-label" data-tier="bay" x="380" y="200" font-family="Fredoka, sans-serif" font-size="16" font-weight="600"
+      fill="#3a3a3a" text-anchor="middle" paint-order="stroke"
+      stroke="#cfe5ea" stroke-width="3" font-style="italic">Grenham Bay</text>
+<text class="poi-label" data-tier="bay" x="1150" y="160" font-family="Fredoka, sans-serif" font-size="16" font-weight="600"
+      fill="#3a3a3a" text-anchor="middle" paint-order="stroke"
+      stroke="#cfe5ea" stroke-width="3" font-style="italic">Epple Bay</text>
+<text class="poi-label" data-tier="bay" x="60" y="270" font-family="Fredoka, sans-serif" font-size="16" font-weight="600"
+      fill="#3a3a3a" text-anchor="middle" paint-order="stroke"
+      stroke="#cfe5ea" stroke-width="3" font-style="italic">Minnis Bay</text>
+
 <!-- Tractors on the southern farmland. Each one ploughs across ONE
      field only (not the full map width) — see keyframes above.
-     Tractor 1 starts at the east edge of the western field (x≈760)
-     and walks west to ≈340 (translateX(-420)).
-     Tractor 2 starts at the west edge of the eastern field (x≈1190)
-     and walks east to ≈1520 (translateX(+330)). -->
+     They are drawn at full size, 80x44 and 100x42, and kept entirely
+     on farmland and off every road: before 2026-10-11 the west one
+     crossed two roads and the east one ran off its field onto a third,
+     because the runs were 420 and 330 units long and the fields they
+     were drawn for are not. data-run is the strip a tractor's visible body sweeps (x0 y0
+     x1 y1, in map units); map.html keeps every label out of it, in every
+     season, so nothing moves when the tractors go off in winter.
+     Tractor 1 starts at the east end of its strip (x 712) and walks west
+     194 (translateX(-194)). Tractor 2 starts at the west end of its
+     strip (x 1257) and walks east 143 (translateX(+143)). -->
 <!-- Tractors wrapped in .tractor-wrap so the seasonal cross-fade
      (opacity) doesn't fight the inner driving animation, whose
      keyframes already animate opacity at the field edges. -->
-<g class="tractor-wrap">
+<g class="tractor-wrap" data-run="536 838 774 874">
   <g class="tractor-west">
-    <image href="tractor-classic.png" x="760" y="920" width="80" height="44"/>
+    <image href="tractor-classic.png" x="712" y="834" width="80" height="44"/>
   </g>
 </g>
-<g class="tractor-wrap">
+<g class="tractor-wrap" data-run="1272 854 1486 890">
   <g class="tractor-east">
-    <image class="face-west" href="tractor-with-trailer.png" x="1190" y="900" width="100" height="42"/>
+    <image class="face-west" href="tractor-with-trailer.png" x="1257" y="851" width="100" height="42"/>
   </g>
 </g>
 
@@ -1203,6 +1231,7 @@
 
 <!-- ── Winter: Santa's grotto at Wyx Park ── -->
 <g id="winter-grotto" class="season-layer" transform="translate(1060,690)">
+  <g class="poi-icon" id="icon-grotto" data-season="winter">
   <!-- Snowy ground patch -->
   <ellipse cx="0" cy="20" rx="26" ry="7" fill="#ffffff" opacity="0.8"/>
   <!-- Grotto hut body -->
@@ -1214,8 +1243,9 @@
   <rect x="-6" y="7" width="12" height="13" rx="5" fill="#3a2613"/>
   <!-- Gold star on top -->
   <path d="M0,-26 L2,-21 L7,-21 L3,-18 L5,-13 L0,-16 L-5,-13 L-3,-18 L-7,-21 L-2,-21 Z" fill="#f4c84a" stroke="#9a7c30" stroke-width="0.6"/>
+  </g>
   <!-- Label -->
-  <text x="0" y="-30" font-family="Fredoka, sans-serif" font-size="13" font-weight="700"
+  <text class="poi-label" data-for="icon-grotto" data-tier="service" data-season="winter" x="0" y="-30" font-family="Fredoka, sans-serif" font-size="13" font-weight="700"
         fill="#fef9ef" text-anchor="middle" paint-order="stroke" stroke="#3a3a3a"
         stroke-width="3">Santa's Grotto</text>
 </g>

@@ -679,7 +679,44 @@ checking the claim still holds.
   reintroduce a read of the transformed rect (the test stubs it to throw).
   **Still true:** a pin at the frame's edge is pulled in by `keepOnStage` so its
   whole marker stays on stage (hog hospital and Wilderwood 24px up at 874x402,
-  level 10), and at 812-874px wide the south-west cluster is crowded: Bramble
-  Farm's name sits under the neighbouring discs. That is layout, not alignment;
-  it needs a decision, not a nudge. Do not "fix" a pin to match a phone
-  screenshot: fix the disagreement.
+  level 10). The crowded south-west cluster (Bramble Farm's name under the
+  neighbouring discs) was a layout decision, and it is taken: see the next
+  entry. Do not "fix" a pin to match a phone screenshot: fix the disagreement.
+- **FIXED 2026-10-11: the map's text. SVG labels were 8px (a place) and 5px
+  (service) at 874x402, and Bramble Farm's name rendered as "mble F".**
+  The game's type floor is 16px (`--fs-floor`); the SVG draws its text in map
+  units, so it was as small as the map. `map.html` ("Names and labels", after
+  `placePins`) now sets every `text.poi-label` at a SCREEN size (18px a place,
+  16px the rest) whatever the frame's zoom, outlined cream-on-dark rather than
+  on a plate (a plate means "tap me" here), and lays names and labels out
+  together: pins are tap targets and never move, every name and label gives way
+  (another side of its disc or icon, one line or two, a place's name down to 16px);
+  a label with no clear place is hidden for that frame (`data-placed="hidden"`),
+  never drawn over a pin and never below 16px. One cost function, annealed from a
+  fixed seed (deterministic; ~15ms), so overlaps, distance from the usual place,
+  roads under the text and a label reading as another place's name are traded
+  off together. Measured at 874x402 and 812x375, every level 0-10: no text
+  overlaps text, a pin or a painted icon. Tractor strips (`data-run`) are
+  obstacles too, in every season, so winter moves no text.
+  **What still collides, and is not text:** the Jolly Jim's icon is half under
+  the Pinebark Medical disc at levels 0-2 (170-190 px2 of ~340), the golf flag
+  sits 11 px2 under the Sea Cliffs disc at 812x375, and Cove Harbour's disc
+  touches the A.R.C. pill (11 px2): pin over art or pin over chrome, not labels;
+  move the icon or the pin, it needs a decision. At 812x375, level 8-10, one
+  label has no room (Petrol Station, or Birchie Station when two collection
+  calls are showing); its icon stays.
+  **Do not:** put label sizes back in the SVG for map.html's sake (intro.html
+  draws the same file zoomed to 5x and wants the map-unit sizes); read the
+  transformed rect of the `<object>` (the geometry block's test stubs it to
+  throw: the new code reads the elements inside it and the stage); spell the two
+  placeholder names in `map.html` (exits.test.ts); add an SVG label without
+  `data-tier` and a `data-for` naming a `.poi-icon` (map-tractors-and-labels.test.ts).
+- **FIXED 2026-10-11: the map's tractors crossed roads.** They ran 420 and 330
+  units across fields that are not that wide (west: two roads; east: ended on a
+  third). They are kept at full size (Marcus's decision: they are the seasonal
+  cue) and rerouted: west in field 24 (x 536-774, y 838-874, travel 194), east in
+  field 17 (x 1272-1486, y 854-890, travel 143), measured on the visible body
+  of the sprite, 4 units off every road. Winter takes both off through
+  `svg[data-season="winter"] .tractor-wrap`. `map-tractors-and-labels.test.ts`
+  fails if a run touches a road, leaves its field, goes under a park, or a
+  tractor is shrunk. The drive scene's all-year tractors are a separate job.
