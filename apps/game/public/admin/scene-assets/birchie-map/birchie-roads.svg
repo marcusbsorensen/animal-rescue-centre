@@ -907,8 +907,8 @@
      on top of it): a short slip road from the nearest drawn road to the
      yard pad on the greenhouse's NE corner. The complex stands clear of
      the road network (a three-way junction used to run underneath it). -->
-<path d="M855,1038 Q 835,1037 817,1028" stroke="#a89860" stroke-width="9" fill="none" stroke-linecap="round" opacity="0.55"/>
-<path d="M855,1038 Q 835,1037 817,1028" stroke="#d3c490" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M741,974 Q 747,1001 741,1028" stroke="#a89860" stroke-width="9" fill="none" stroke-linecap="round" opacity="0.55"/>
+<path d="M741,974 Q 747,1001 741,1028" stroke="#d3c490" stroke-width="7" fill="none" stroke-linecap="round"/>
 
 <!-- Glasshouse Acres — open farmland south of the main road, clear of
      the road network. It was rotated 35 degrees and stood on a three-way
@@ -916,7 +916,7 @@
      underneath it); it is now level, in the field south-west of the
      junction, with the yard pad on its east end wired to the nearest road
      by the access curve above. 70% scale of the original drawing. -->
-<g id="glasshouse-acres" transform="translate(736,1052) rotate(0) scale(0.7)">
+<g id="glasshouse-acres" transform="translate(660,1052) rotate(0) scale(0.7)">
   <!-- Yard / hardstanding pad on the NE corner (was the south loading
        bay before the rotation rebuild). Sits OUTSIDE the boundary
        fence, where the access road meets the complex. -->
@@ -955,7 +955,7 @@
 <!-- Glasshouse Acres label — kept OUT of the rotated group so the
      text stays horizontal and readable. Positioned just above the
      rotated complex. -->
-<text x="736" y="998" font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
+<text x="660" y="998" font-family="Fredoka, sans-serif" font-size="22" font-weight="700"
       fill="#fef9ef" text-anchor="middle" paint-order="stroke"
       stroke="#3a3a3a" stroke-width="3.5">Glasshouse Acres</text>
 
@@ -1185,7 +1185,7 @@
        + translate(0,-44)); they used to sit at the old marker origins,
        so snow floated between the icons and their labels. -->
   <!-- Glasshouse Acres: frost over the glass, in the complex's own frame -->
-  <g transform="translate(736,1052) rotate(0) scale(0.7)"><rect x="-100" y="-46" width="200" height="81" rx="2" fill="#ffffff" opacity="0.6"/></g>
+  <g transform="translate(660,1052) rotate(0) scale(0.7)"><rect x="-100" y="-46" width="200" height="81" rx="2" fill="#ffffff" opacity="0.6"/></g>
   <!-- Birchie Station: snow on the carriage roof -->
   <path d="M749,418 Q749,412 755,412 L785,412 Q791,412 791,418 Z" fill="#ffffff" stroke="#cdd9de" stroke-width="0.8" opacity="0.95"/>
   <!-- Jolly Jim's: snow on the dome -->
