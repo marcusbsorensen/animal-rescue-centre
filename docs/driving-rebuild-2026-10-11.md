@@ -143,6 +143,21 @@ lanes would have made the biggest road's lanes narrower than a country
 road's, which is the mismatch a child spots. "to big road" in the spike jumps
 to a route that uses one.
 
+**The camera's distance follows speed and place.** Marcus, 2026-10-11: going
+fast is for overview and seeing far ahead; going slowly, on the small lanes
+and pulling up at a farm or a rewilding site, is for detail, such as a small
+animal crossing the road. In the spike the zoom runs from 0.66 at top speed
+to 1.15 standing on a main road and 1.35 standing on a lane, house street or
+track, rising to 1.6 over the last 120 m to a destination, and never closer
+than the dual carriageway's 0.62 allows. It eases out quicker than in. 1 is
+the scale measured against the reference, the van 13.6% of the screen's
+width.
+
+**The van pulls up at the destination on its own**, as the route steers on
+its own: within about 80 m at top speed it lowers the speed she can ask for
+and stops at the gate, gently, so it costs no jostle. The place is named, and
+the next drive sets off from there.
+
 **What happens at a roadside stop.** Marcus and Lily, 2026-10-11. There are
 two reasons to pull over, and the care depends on the animal and the weather:
 
@@ -172,6 +187,7 @@ becomes a dual carriageway is the road moving under it, and is free.
   placed from the child's own map (`birchie-roads.svg` has the farmland,
   woodland, parks and sea), so what she drives past is what the map shows.
 - Traffic, which overtaking needs to be about anything.
+- Small animals crossing the small lanes, which the close zoom is for.
 - How likely a squabble is for a given load, and what the rearranging looks
   like at the roadside: the full loading screen again, or a smaller swap.
 - Where the gear, handbrake and lane controls live now that they may not sit

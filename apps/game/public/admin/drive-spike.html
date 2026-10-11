@@ -31,7 +31,7 @@
   #wrap { position: relative; height: 100%; display: grid; place-items: center; }
   canvas { display: block; touch-action: none; background: #8fbf6a; }
   #hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex;
-    gap: 8px; align-items: flex-start; pointer-events: none; font-size: 13px; }
+    gap: 8px; align-items: flex-start; flex-wrap: wrap; pointer-events: none; font-size: 13px; }
   .chip { background: rgba(255,252,246,.92); border-radius: 14px; padding: 6px 10px;
     font-weight: 700; color: #3a3226; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
   #panel { position: absolute; bottom: 10px; left: 10px; right: 10px;
@@ -55,6 +55,7 @@
     <div class="chip" id="speedChip">0 mph</div>
     <div class="chip" id="laneChip">left lane</div>
     <div class="chip" id="roadChip">—</div>
+    <div class="chip" id="destChip">—</div>
   </div>
   <div id="toast"></div>
   <div id="note">hold anywhere to go · swipe or ←/→ to change lane · space = go · 1–3 gears · B = handbrake</div>
@@ -237,18 +238,36 @@ function atDistance(s) {
   };
 }
 
-function pickRoute() {
+/** The destinations' own names, as `packages/game-logic/src/destinations.ts`
+ *  labels them, keyed by the graph's anchor ids. */
+const PLACE_NAME = {
+  'arc': 'A.R.C.', 'vet': 'Bay Road Vets', 'village-hall': 'Village Hall',
+  'bramble-farm': 'Bramble Farm', 'cove-harbour': 'Cove Harbour',
+  'pinebark-medical': 'Pinebark Medical', 'goose-end-farm': 'Goose End Farm',
+  'bay-chapel': 'Bay Chapel', 'moorland': 'Moorland', 'woodland': 'Woodland',
+  'sea-cliffs': 'Sea Cliffs', 'deep-forest': 'Deep Forest', 'wetlands': 'Wetlands',
+  'hog-hospital': "Freckle's Little Hog Hospital", 'wilderwood': 'Wilderwood',
+};
+let dest = null;
+
+/** A route between two destinations. From `fromId` when given, so that after
+ *  pulling up somewhere the next drive sets off from there. */
+function pickRoute(fromId) {
   const ids = Object.keys(graph.anchors);
-  for (let tries = 0; tries < 24; tries++) {
-    const a = graph.anchors[ids[(Math.random() * ids.length) | 0]];
-    const b = graph.anchors[ids[(Math.random() * ids.length) | 0]];
-    if (a === b) continue;
-    const path = shortestPath(a, b);
+  for (let tries = 0; tries < 40; tries++) {
+    const aId = fromId ?? ids[(Math.random() * ids.length) | 0];
+    const bId = ids[(Math.random() * ids.length) | 0];
+    if (aId === bId) continue;
+    const path = shortestPath(graph.anchors[aId], graph.anchors[bId]);
     if (!path || path.length < 12) continue;
     route = toPolyline(path);
     routeLen = route[route.length - 1].s;
+    dest = bId;
     if (routeLen > 1200) break;
   }
+  const chip = document.getElementById('destChip');
+  if (chip) chip.textContent = 'to ' + (PLACE_NAME[dest] ?? dest);
+  car.arrived = 0;
   trf = traffic.create({
     length: routeLen,
     atDistance,
@@ -276,6 +295,31 @@ const LOOKAHEAD_M = 20;
 const CAM_EASE = 3.4;       // per second
 
 function wrapAngle(a) { return Math.atan2(Math.sin(a), Math.cos(a)); }
+
+/** How close the camera sits, by speed and by place. Marcus, 2026-10-11:
+ *  going fast is for overview, seeing far ahead; going slowly, on the small
+ *  lanes and pulling up at a farm or a rewilding site, is for detail — a
+ *  small animal crossing the road. So the zoom is set by how fast the van is
+ *  going, sits closer on the small roads, closer still at the destination,
+ *  and never closer than the dual carriageway's width allows. 1 is the scale
+ *  measured against the reference: van 13.6% of the screen's width. */
+const ZOOM_FAST = 0.66;                          // at top speed
+const ZOOM_STILL = { lane: 1.35, road: 1.15 };   // standing, small road / other
+const ZOOM_ARRIVE = 1.6;                         // pulled up at the gate
+const ARRIVE_ZOOM_M = 120;                       // how far out the arrival zoom begins
+const SMALL_ROADS = new Set(['residential', 'unclassified', 'track']);
+const PULL_UP = 2.5;          // m/s^2, the gentle stop at the destination
+const STOP_SHORT_M = 6;       // stop this far before the anchor node
+const ARRIVED_WAIT_MS = 3500; // then set off for somewhere new
+
+function zoomTarget(bigAhead, toGo) {
+  const still = SMALL_ROADS.has(car.road) ? ZOOM_STILL.lane : ZOOM_STILL.road;
+  const f = Math.min(1, car.v / GEARS[3]);
+  let z = still + (ZOOM_FAST - still) * f;
+  if (toGo < ARRIVE_ZOOM_M) z += (ZOOM_ARRIVE - z) * (1 - toGo / ARRIVE_ZOOM_M);
+  if (bigAhead) z = Math.min(z, BIG_ROAD_ZOOM);
+  return z;
+}
 let throttle = false, handbrake = false, showGuide = true;
 
 /** Lateral offset of a lane's centre from the route's centreline, metres,
@@ -302,7 +346,12 @@ function step(dt) {
   if (t.laneBlocked) car.laneWant = 0;
   for (const ev of t.events) toast(ev);
 
-  const target = throttle ? GEARS[car.gear] : 0;
+  // Pulling up at the destination. The van eases to a stop at the gate on
+  // its own, as the route steers on its own: the stop lowers the speed she
+  // can ask for, so it is a gentle stop, not a jostle.
+  const toGo = routeLen - car.s;
+  const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
+  const target = Math.min(throttle ? GEARS[car.gear] : 0, arriveCap);
   let emergency = 0;
   if (car.v > t.speedCap) {
     // Something is ahead and the child has not braked: the van does it.
@@ -312,8 +361,13 @@ function step(dt) {
   else if (car.v < target) car.v = Math.min(target, t.speedCap, car.v + ACCEL * dt);
   else car.v = Math.max(target, car.v - BRAKE * dt);
 
-  car.s += car.v * dt;
-  if (car.s > routeLen - 40) { car.s = 0; }
+  car.s = Math.min(routeLen - STOP_SHORT_M, car.s + car.v * dt);
+  if (toGo <= STOP_SHORT_M + 0.5 && car.v < 0.2) {
+    if (!car.arrived) { car.arrived = performance.now(); toast(PLACE_NAME[dest] ?? dest); }
+    else if (performance.now() - car.arrived > ARRIVED_WAIT_MS) {
+      pickRoute(dest); car.s = 0; car.v = 0; car.base = null; camH = null;
+    }
+  }
 
   // Two things move the van sideways and only one is a swerve. laneT is the
   // child's choice of lane, 0 to 1 across, eased at 7 m/s of sidestep: that
@@ -344,11 +398,14 @@ function step(dt) {
   car.road = classAtS(car.s);
   car.heading = pos.h;
 
-  // Zoom out a little before the dual carriageway, not on it, so the wider
-  // road is already framed when the van arrives.
+  // Zoom out before the dual carriageway, not on it, so the wider road is
+  // already framed when the van arrives. Out is quicker than in: seeing
+  // ahead when speeding up matters more than detail when slowing down.
   const bigAhead = car.road === 'trunk' || classAtS(car.s + 40) === 'trunk';
-  const zt = bigAhead ? BIG_ROAD_ZOOM : 1;
-  zoom += (zt - zoom) * (1 - Math.exp(-1.6 * dt));
+  const zt = zoomTarget(bigAhead, toGo);
+  const rate = zt < zoom ? 1.5 : 0.7;
+  zoom *= Math.exp(Math.log(zt / zoom) * (1 - Math.exp(-rate * dt)));
+  car.zoom = zoom;
 
   // Aim at where the route is in 20 metres, not at the segment underfoot.
   const ahead = atDistance(Math.min(routeLen - 1, car.s + LOOKAHEAD_M));
@@ -462,7 +519,7 @@ function drawGuide() {
   const ahead = 90;
   ctx.beginPath();
   for (let d = 0; d <= ahead; d += 4) {
-    const p = atDistance(car.s + d);
+    const p = atDistance(Math.min(routeLen, car.s + d));
     const nx = Math.cos(p.h + Math.PI / 2), ny = Math.sin(p.h + Math.PI / 2);
     const off = d < 12 ? car.lane : laneOffset(car.laneWant, car.s + d);
     const x = p.x + nx * off, y = p.y + ny * off;
