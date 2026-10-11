@@ -45,6 +45,62 @@ const FAN = { edge: '#1d1d22', side: '#34343c', top: '#5a5a66', hi: '#8a8a98', g
 // Fixed physics tick: the rig behaves the same at 30, 60 or 120 fps.
 const TICK = 1 / 60;
 
+// Paper-and-fabric grain laid over the painted tube at large sizes, so he
+// sits beside the watercolour animals rather than looking like clip art.
+// Built once, shared by every Steve; screen-aligned, which is fine at this
+// low contrast.
+let grain = null;
+function grainPattern(ctx) {
+  if (grain !== null) return grain;
+  grain = undefined;
+  try {
+    const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(96, 96) : document.createElement('canvas');
+    c.width = 96; c.height = 96;
+    const g = c.getContext('2d');
+    const rnd = mulberry32(99);
+    // Faint vertical weave, then speckle, dark and light.
+    for (let i = 0; i < 40; i++) {
+      g.fillStyle = rnd() < 0.5 ? 'rgba(59,42,36,0.05)' : 'rgba(255,255,255,0.07)';
+      g.fillRect(Math.floor(rnd() * 96), Math.floor(rnd() * 96), 1, 6 + rnd() * 30);
+    }
+    for (let i = 0; i < 260; i++) {
+      g.fillStyle = rnd() < 0.55 ? `rgba(59,42,36,${(0.03 + rnd() * 0.07).toFixed(3)})` : `rgba(255,255,255,${(0.04 + rnd() * 0.1).toFixed(3)})`;
+      g.beginPath(); g.arc(rnd() * 96, rnd() * 96, 0.4 + rnd() * 1.8, 0, TAU); g.fill();
+    }
+    grain = ctx.createPattern(c, 'repeat') || undefined;
+  } catch { grain = undefined; }
+  return grain;
+}
+
+// "CAR WASH" is drawn from a strip of pre-rendered letters: drawImage is far
+// cheaper than fillText every frame. One strip per on-screen size.
+const GLYPHS = ['C', 'A', 'R', 'W', 'S', 'H'];
+const glyphCache = new Map();
+// Painted heads, keyed by on-screen size, detail and grin step.
+const headCache = new Map();
+function glyphStrip(px) {
+  px = Math.max(4, Math.round(px * 2) / 2);
+  let g = glyphCache.get(px);
+  if (g !== undefined) return g;
+  if (glyphCache.size > 8) glyphCache.clear();
+  g = null;
+  try {
+    const cell = Math.ceil(px * 1.3);
+    const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(cell * GLYPHS.length, cell) : document.createElement('canvas');
+    c.width = cell * GLYPHS.length; c.height = cell;
+    const x = c.getContext('2d');
+    x.font = `700 ${px}px Fredoka, "Arial Rounded MT Bold", sans-serif`;
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    x.fillStyle = '#d4302f';
+    GLYPHS.forEach((ch, i) => x.fillText(ch, i * cell + cell / 2, cell / 2 + px * 0.05));
+    g = { canvas: c, cell, px };
+  } catch { g = null; }
+  // Only keep it once the web font is in, or the strip stays in the fallback face.
+  if (typeof document === 'undefined' || !document.fonts || document.fonts.check(`700 ${px}px Fredoka`)) glyphCache.set(px, g);
+  return g;
+}
+
 function mulberry32(seed) {
   let a = seed >>> 0;
   return function () {
@@ -89,7 +145,7 @@ export function create(seed = 1, options = {}) {
     kinkUntil: 0, kinkNext: r(0.5, 1.5),
     gustNext: r(0.3, 1.0),
     flapUp: true, flapNext: 0, flapTarget: -1.0, whipNext: r(1.5, 3.5),
-    lowTarget: 2.75, lowNext: 0,
+    lowTarget: 2.65, lowNext: 0,
     phase: 'up', phaseUntil: r(3.5, 7), foldJoint: 4, foldDir: 1,
     grin: 0,
   };
@@ -184,7 +240,7 @@ export function create(seed = 1, options = {}) {
     }
     // Left arm stays low, with the odd twitch.
     if (t >= s.lowNext) {
-      s.lowTarget = rnd() < 0.12 ? r(2.35, 2.5) : r(2.65, 2.85);
+      s.lowTarget = rnd() < 0.12 ? r(2.3, 2.45) : r(2.55, 2.75);
       s.lowNext = t + r(0.3, 1.2);
     }
   }
@@ -335,22 +391,26 @@ export function create(seed = 1, options = {}) {
     ctx.fill();
   }
 
-  function paintTube(ctx, col, from, to, line, detail) {
+  function paintTube(ctx, col, from, to, line, detail, thin = false) {
     ctx.fillStyle = INK; band(ctx, from, to, 1, 0, line);
-    ctx.fillStyle = col.edge; band(ctx, from, to, 1, 0, 0);
-    ctx.fillStyle = col.shade; band(ctx, from, to, 0.86, -0.05, 0);
+    if (detail > 1) { ctx.fillStyle = col.edge; band(ctx, from, to, 1, 0, 0); }
+    ctx.fillStyle = detail > 1 ? col.shade : col.edge; band(ctx, from, to, detail > 1 ? 0.86 : 1, -0.05, 0);
     ctx.fillStyle = col.base; band(ctx, from, to, 0.6, -0.12, 0);
-    if (detail) {
-      ctx.fillStyle = col.light; band(ctx, from, to, 0.3, -0.2, 0);
-      ctx.fillStyle = col.hi; band(ctx, from, to, 0.08, -0.26, 0);
+    if (detail > 1) { ctx.fillStyle = col.light; band(ctx, from, to, 0.3, -0.2, 0); }
+    // A thin tube's highlight is under a pixel wide until the big view.
+    if (detail > (thin ? 1 : 0)) { ctx.fillStyle = col.hi; band(ctx, from, to, 0.1, -0.26, 0); }
+    if (detail > 1) {
+      const gp = grainPattern(ctx);
+      if (gp) { ctx.fillStyle = gp; band(ctx, from, to, 1, 0, 0); }
     }
   }
 
   function drawArm(ctx, ang, side, S, line, detail, shoulderX, shoulderY) {
     // Arm geometry overwrites px/py, so the shoulder is passed in.
     const body = a[SHOULDER];
-    let x = shoulderX + side * Math.cos(body) * TUBE_W * 0.3 * S;
-    let y = shoulderY + side * Math.sin(body) * TUBE_W * 0.3 * S;
+    // Shoulders sit at the tube's edge, so the sleeves come off its sides.
+    let x = shoulderX + side * Math.cos(body) * TUBE_W * 0.42 * S;
+    let y = shoulderY + side * Math.sin(body) * TUBE_W * 0.42 * S;
     const L = ARM_SEG * S * (0.85 + 0.15 * Math.min(s.P, 1));
     px[0] = x; py[0] = y; pw[0] = ARM_W * S * 1.2;
     for (let i = 0; i < ARM_N; i++) {
@@ -359,14 +419,14 @@ export function create(seed = 1, options = {}) {
       px[i + 1] = x; py[i + 1] = y; pw[i + 1] = ARM_W * S * (1 - 0.07 * i);
     }
     smooth(ARM_N + 1);
-    paintTube(ctx, RED, 0, cn - 1, line, detail);
+    paintTube(ctx, RED, 0, cn - 1, line, detail, true);
     // A pale mitten at the end, as the reference units have.
     const hr = ARM_W * S * 0.62;
     ctx.fillStyle = INK;
     ctx.beginPath(); ctx.arc(x, y, hr + line, 0, TAU); ctx.fill();
     ctx.fillStyle = '#e9e4df';
     ctx.beginPath(); ctx.arc(x, y, hr, 0, TAU); ctx.fill();
-    if (detail) {
+    if (detail > 1) {
       ctx.fillStyle = '#ffffff';
       ctx.beginPath(); ctx.arc(x - hr * 0.25, y - hr * 0.25, hr * 0.5, 0, TAU); ctx.fill();
     }
@@ -383,6 +443,8 @@ export function create(seed = 1, options = {}) {
     if (detail) {
       ctx.fillStyle = FAN.hi;
       ctx.fillRect(x - w / 2 + w * 0.06, y - h + top * 0.25, w * 0.5, top * 0.3);
+    }
+    if (detail > 1) {
       // Grille slots on the front.
       ctx.fillStyle = FAN.grille;
       const gw = w * 0.07, gh = h * 0.42;
@@ -392,18 +454,59 @@ export function create(seed = 1, options = {}) {
     }
   }
 
+  // Two ellipses mirrored about the head's centre line, filled as one path:
+  // one draw call where there would be two. `shift` moves both the same way.
+  function pair(ctx, x, y, ex, ey, rot, shift = 0) {
+    ctx.beginPath();
+    ctx.ellipse(shift - x, y, ex, ey, -rot, 0, TAU);
+    ctx.moveTo(shift + x + ex, y);
+    ctx.ellipse(shift + x, y, ex, ey, rot, 0, TAU);
+    ctx.fill();
+  }
+
+  // The head is the busiest part (about twenty fills) but only turns and
+  // grins, so it's painted once per size and grin step into a sprite and
+  // drawn with one rotated drawImage. Five grin steps read as part of the
+  // jank, not as stepping.
   function drawHead(ctx, hx, hy, ang, S, line, detail) {
-    const rx = HEAD_RX * S, ry = HEAD_RY * S;
+    const m = ctx.getTransform();
+    const ds = Math.hypot(m.a, m.b) || 1;
+    const level = Math.round(s.grin * 4);
+    const key = `${(S * ds).toFixed(1)}|${detail}|${level}`;
+    let spr = headCache.get(key);
+    if (spr === undefined) {
+      if (headCache.size > 60) headCache.clear();
+      spr = null;
+      try {
+        const half = Math.ceil((HEAD_RX * 1.3 * S + line * 2) * ds) + 2;
+        const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(half * 2, half * 2) : document.createElement('canvas');
+        c.width = half * 2; c.height = half * 2;
+        const hc = c.getContext('2d');
+        // Centre a little low: the cap rises further above the centre than
+        // the chin falls below it.
+        hc.setTransform(ds, 0, 0, ds, half, half + 0.18 * HEAD_RY * S * ds);
+        paintHead(hc, S, line, detail, level / 4);
+        spr = { c, half, oy: 0.18 * HEAD_RY * S };
+      } catch { spr = null; }
+      headCache.set(key, spr);
+    }
     ctx.save();
     ctx.translate(hx, hy);
     ctx.rotate(ang);
+    if (spr) {
+      const w = (spr.half * 2) / ds;
+      ctx.drawImage(spr.c, -w / 2, -w / 2 - spr.oy, w, w);
+    } else {
+      paintHead(ctx, S, line, detail, s.grin);
+    }
+    ctx.restore();
+  }
+
+  function paintHead(ctx, S, line, detail, g) {
+    const rx = HEAD_RX * S, ry = HEAD_RY * S;
     // Ears and a fringe of hair either side, behind the face.
-    ctx.fillStyle = INK;
-    ctx.beginPath(); ctx.ellipse(-rx * 0.98, ry * 0.05, rx * 0.2 + line, ry * 0.22 + line, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(rx * 0.98, ry * 0.05, rx * 0.2 + line, ry * 0.22 + line, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = SKIN.shade;
-    ctx.beginPath(); ctx.ellipse(-rx * 0.98, ry * 0.05, rx * 0.2, ry * 0.22, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(rx * 0.98, ry * 0.05, rx * 0.2, ry * 0.22, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = INK; pair(ctx, rx * 0.98, ry * 0.05, rx * 0.2 + line, ry * 0.22 + line, 0);
+    ctx.fillStyle = SKIN.shade; pair(ctx, rx * 0.98, ry * 0.05, rx * 0.2, ry * 0.22, 0);
     // Face: contour, shade, then the lit face offset to the upper left.
     ctx.fillStyle = INK;
     ctx.beginPath(); ctx.ellipse(0, 0, rx + line, ry + line, 0, 0, TAU); ctx.fill();
@@ -416,9 +519,7 @@ export function create(seed = 1, options = {}) {
       ctx.beginPath(); ctx.ellipse(-rx * 0.38, -ry * 0.12, rx * 0.22, ry * 0.16, -0.5, 0, TAU); ctx.fill();
     }
     // Hair tufts below the cap.
-    ctx.fillStyle = HAIR;
-    ctx.beginPath(); ctx.ellipse(-rx * 0.82, -ry * 0.36, rx * 0.2, ry * 0.2, 0.5, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(rx * 0.82, -ry * 0.36, rx * 0.2, ry * 0.2, -0.5, 0, TAU); ctx.fill();
+    ctx.fillStyle = HAIR; pair(ctx, rx * 0.82, -ry * 0.36, rx * 0.2, ry * 0.2, -0.5);
 
     // Cap: a dome with a short peak, sitting low over the brow.
     const capY = -ry * 0.42;
@@ -433,23 +534,19 @@ export function create(seed = 1, options = {}) {
       ctx.beginPath(); ctx.ellipse(-rx * 0.38, capY - ry * 0.34, rx * 0.3, ry * 0.14, -0.35, 0, TAU); ctx.fill();
       ctx.fillStyle = CAP.edge;
       ctx.fillRect(-rx * 1.02, capY, rx * 2.04, ry * 0.12);
+    }
+    if (detail > 1) {
       ctx.fillStyle = INK;
       ctx.beginPath(); ctx.arc(0, capY - ry * 0.7, rx * 0.08 + line * 0.5, 0, TAU); ctx.fill();
     }
 
     // Big eyes like the painted animals': dark, glossy, with a glint.
-    const g = s.grin;
     const ex = rx * 0.36, ey = ry * 0.02, er = rx * (0.19 - 0.02 * g);
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.ellipse(-ex, ey, er * 1.05 + line * 0.6, er * 1.25 + line * 0.6, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(ex, ey, er * 1.05 + line * 0.6, er * 1.25 + line * 0.6, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#2a1c18';
-    ctx.beginPath(); ctx.ellipse(-ex + er * 0.08, ey + er * 0.1, er * 0.82, er * 1.0, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(ex + er * 0.08, ey + er * 0.1, er * 0.82, er * 1.0, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.arc(-ex - er * 0.2, ey - er * 0.3, er * 0.32, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.arc(ex - er * 0.2, ey - er * 0.3, er * 0.32, 0, TAU); ctx.fill();
-    if (detail) {
+    ctx.fillStyle = '#ffffff'; pair(ctx, ex, ey, er * 1.05 + line * 0.6, er * 1.25 + line * 0.6, 0);
+    // Both pupils look a touch to his left, so the pair isn't mirrored.
+    ctx.fillStyle = '#2a1c18'; pair(ctx, ex, ey + er * 0.1, er * 0.82, er, 0, er * 0.08);
+    if (detail) { ctx.fillStyle = '#ffffff'; pair(ctx, ex, ey - er * 0.3, er * 0.32, er * 0.32, 0, -er * 0.2); }
+    if (detail > 1) {
       ctx.beginPath(); ctx.arc(-ex + er * 0.3, ey + er * 0.4, er * 0.13, 0, TAU); ctx.fill();
       ctx.beginPath(); ctx.arc(ex + er * 0.3, ey + er * 0.4, er * 0.13, 0, TAU); ctx.fill();
       // Brows lift as the grin widens.
@@ -470,7 +567,10 @@ export function create(seed = 1, options = {}) {
     ctx.beginPath(); ctx.moveTo(-mw - line, my - line * 0.5); ctx.lineTo(mw + line, my - line * 0.5); ctx.ellipse(0, my, mw + line, mh + line, 0, 0, Math.PI); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#7a1f24';
     ctx.beginPath(); ctx.moveTo(-mw, my); ctx.lineTo(mw, my); ctx.ellipse(0, my, mw, mh, 0, 0, Math.PI); ctx.closePath(); ctx.fill();
-    if (detail) {
+    if (detail === 1) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-mw * 0.7, my, mw * 1.4, mh * 0.3);
+    } else if (detail > 1) {
       ctx.save();
       ctx.clip();
       ctx.fillStyle = '#ffffff';
@@ -479,17 +579,16 @@ export function create(seed = 1, options = {}) {
       ctx.beginPath(); ctx.ellipse(0, my + mh * 0.95, mw * 0.55, mh * 0.45, 0, 0, TAU); ctx.fill();
       ctx.restore();
     }
-    ctx.restore();
   }
 
   const LETTERS = ['C', 'A', 'R', '', 'W', 'A', 'S', 'H'];
 
   function drawLetters(ctx, S, collarIdx) {
     const size = 0.34 * S;
-    ctx.font = `700 ${size.toFixed(1)}px Fredoka, "Arial Rounded MT Bold", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = RED.base;
+    const m = ctx.getTransform();
+    const g = glyphStrip(size * Math.hypot(m.a, m.b));
+    if (!g) return;
+    const k = size / g.px; // glyph pixels back to user space
     // Walk down the spine from just under the collar, one letter per step.
     const gap = size * 1.02;
     let want = size * 0.9, run = 0, li = 0;
@@ -498,15 +597,15 @@ export function create(seed = 1, options = {}) {
       const seg = Math.hypot(dx, dy);
       while (run + seg >= want && li < LETTERS.length) {
         const t = (want - run) / seg;
-        const ch = LETTERS[li++];
-        if (ch) {
+        const gi = GLYPHS.indexOf(LETTERS[li++]);
+        if (gi >= 0) {
           const lx = cx[i] + dx * t, ly = cy[i] + dy * t;
           ctx.save();
           ctx.translate(lx - nx[i] * cw[i] * 0.04, ly - ny[i] * cw[i] * 0.04);
           ctx.rotate(Math.atan2(-dx, dy));
           // Squash across the tube where it pinches at a kink.
-          ctx.scale(Math.min(1, cw[i] / (TUBE_W * S)), 1);
-          ctx.fillText(ch, 0, 0);
+          ctx.scale(k * Math.min(1, cw[i] / (TUBE_W * S)), k);
+          ctx.drawImage(g.canvas, gi * g.cell, 0, g.cell, g.cell, -g.cell / 2, -g.cell / 2, g.cell, g.cell);
           ctx.restore();
         }
         want += gap;
@@ -517,7 +616,10 @@ export function create(seed = 1, options = {}) {
 
   function draw(ctx, x, y, S, opts = {}) {
     const line = Math.max(0.8, 0.032 * S);
-    const detail = S >= 12;  // below this the highlights are sub-pixel noise
+    // Level of detail: 0 on the map, 1 in the driving world, 2 large. Below
+    // 40 px/m the grain, brows and creases are sub-pixel noise that costs
+    // draw calls; below 12 so are the highlights.
+    const detail = S >= 40 ? 2 : S >= 12 ? 1 : 0;
     const P = Math.min(s.P, 1.2);
 
     if (opts.shadow) {
@@ -548,7 +650,7 @@ export function create(seed = 1, options = {}) {
     smooth(N + 1);
     const collar = cn - 1 - Math.round(SUB * 0.9);
     paintTube(ctx, BLUE, 0, cn - 1, line, detail);
-    if (detail) {
+    if (detail > 1) {
       // Dungaree bib: a slightly darker top edge, two straps and buttons.
       ctx.fillStyle = BLUE.edge;
       band(ctx, collar - 1, collar, 0.9, 0, 0);
@@ -562,7 +664,7 @@ export function create(seed = 1, options = {}) {
     if (S * 0.34 >= 4.5) drawLetters(ctx, S, collar - SUB);
 
     // Crease marks where the fabric folds hard.
-    if (detail) {
+    if (detail > 1) {
       ctx.strokeStyle = INK;
       ctx.lineWidth = line * 0.8;
       ctx.lineCap = 'round';
@@ -588,7 +690,7 @@ export function create(seed = 1, options = {}) {
     drawArm(ctx, ra, -1, S, line, detail, shoulderX, shoulderY);
     for (let i = 0; i < keep; i++) { cx[i] = kx[i]; cy[i] = ky[i]; cw[i] = kw[i]; nx[i] = knx[i]; ny[i] = kny[i]; }
     // Red shirt collar between the bib and the chin.
-    paintTube(ctx, RED, 0, keep - 1, line, detail);
+    paintTube(ctx, RED, 0, keep - 1, line, detail, true);
 
     const hd = HEAD_RY * S * 0.82;
     drawHead(ctx, topX + Math.sin(headAng) * hd, topY - Math.cos(headAng) * hd, headAng, S, line, detail);
