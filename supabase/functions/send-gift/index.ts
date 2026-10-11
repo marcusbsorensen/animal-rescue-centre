@@ -137,10 +137,16 @@ Deno.serve(async (req) => {
       .eq('user_id', userId)
       .single();
 
+    // The new count goes back with the reply, so the client can hand it to
+    // the badge check (`giver`, `generous`) without a second round trip and
+    // without counting for itself. Left out when there is no stats row to
+    // have counted in, which the client reads as "unchanged".
+    let giftsSentCount: number | undefined;
     if (stats) {
+      giftsSentCount = (stats.gifts_sent_count ?? 0) + 1;
       await supabase
         .from('rescue_stats')
-        .update({ gifts_sent_count: (stats.gifts_sent_count ?? 0) + 1 })
+        .update({ gifts_sent_count: giftsSentCount })
         .eq('user_id', userId);
     }
 
@@ -152,7 +158,7 @@ Deno.serve(async (req) => {
       metadata: { gift_id: gift.id, gift_type: giftType },
     });
 
-    return jsonResponse({ gift });
+    return jsonResponse({ gift, giftsSentCount });
   } catch (err) {
     console.error('Send gift error:', err);
     return jsonResponse({ error: 'Internal server error' }, 500);

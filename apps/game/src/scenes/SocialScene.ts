@@ -13,6 +13,8 @@ import {
 } from '../lib/gifts';
 import { getSession } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
+import type { GameStateStore } from '../game-state/GameStateStore';
+import { recordGiftCounts } from '../game-state/gift-counts';
 
 type SocialTab = 'inbox' | 'send' | 'leaderboard' | 'showcase';
 
@@ -270,9 +272,20 @@ export class SocialScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * The shelter's store, when there is one on the registry. The gift badges
+   * live there, so a count the server reports has to reach it; GameScene
+   * checks the badges when it starts again on the way back.
+   */
+  private shelterStore(): GameStateStore | undefined {
+    return this.registry.get('gameStore') as GameStateStore | undefined;
+  }
+
   private async claimGiftAction(giftId: string, index: number): Promise<void> {
     try {
-      await claimGift(giftId);
+      const claimed = await claimGift(giftId);
+      const store = this.shelterStore();
+      if (store) recordGiftCounts(store, claimed);
       this.inbox.splice(index, 1);
       this.renderView();
     } catch {
@@ -409,11 +422,13 @@ export class SocialScene extends Phaser.Scene {
           if (this.loading) return;
           this.loading = true;
           try {
-            await sendGift(
+            const sent = await sendGift(
               this.selectedFriend!.id,
               this.selectedGiftType!,
               this.selectedMessage!
             );
+            const store = this.shelterStore();
+            if (store) recordGiftCounts(store, sent);
             // Reset and show success
             this.selectedFriend = undefined;
             this.selectedGiftType = undefined;

@@ -44,7 +44,45 @@ export class GameStateStore {
   houseUpgrades: string[] = [];
   sickAnimals: Map<string, IllnessDef> = new Map();
   activeConflict?: Conflict;
+
+  /**
+   * Badge counters. Each is a lifetime tally of something the child did,
+   * saved with the shelter (so the badge it feeds can be earned across
+   * sittings, not only in one) and added together by the cross-device merge.
+   * Default 0 keeps saves from before they existed loading.
+   *
+   *  - conflictsResolved: squabbles settled (`peacekeeper`). There is a
+   *    90-second cooldown between squabbles, so ten in a single sitting was
+   *    all the badge could ever see before this was saved.
+   *  - selfHealed: sick animals the child nursed back to health herself,
+   *    through the vet game or home care, not a paid vet visit
+   *    (`vet_apprentice`, `vet_pro`).
+   *  - walksWithoutIncident: walks finished without a road incident
+   *    (`good_walker`).
+   */
   conflictsResolved = 0;
+  selfHealed = 0;
+  walksWithoutIncident = 0;
+
+  /**
+   * The real days (YYYY-MM-DD, the calendar's own spelling) the game has
+   * been opened on, earliest first. `daily_week` reads the run of days in a
+   * row off it and `daily_month` the total; see packages/game-logic
+   * real-day.ts for why it is a set of days and not a pair of counters.
+   * Starts empty on a save from before it was recorded.
+   */
+  playedDays: string[] = [];
+
+  /**
+   * Gifts sent and claimed, as the server counts them (`rescue_stats`). The
+   * server is the only place that increments them, so the client holds a copy
+   * it was told and never counts for itself: a second tally here would drift
+   * from the server's the first time a send was retried. Not part of the
+   * save, deliberately; refreshed by `load-game` and by the replies to
+   * `send-gift` and `claim-gift`, and 0 until one of those has said.
+   */
+  giftsSentCount = 0;
+  giftsReceivedCount = 0;
 
   /**
    * Epoch-ms of the last conflict popup (spawned OR resolved). We suppress

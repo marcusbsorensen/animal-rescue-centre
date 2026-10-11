@@ -215,6 +215,108 @@ describe('mergeSaveState — counters, sets and flags', () => {
   });
 });
 
+describe('mergeSaveState — the badge counters', () => {
+  it('adds the conflicts, heals and safe walks done on each device', () => {
+    const base = save({ conflictsResolved: 4, selfHealed: 1, walksWithoutIncident: 3 });
+    const mine = save({ conflictsResolved: 6, selfHealed: 1, walksWithoutIncident: 5 });
+    const theirs = save({ conflictsResolved: 5, selfHealed: 3, walksWithoutIncident: 3 });
+
+    const { state } = mergeSaveState(base, mine, theirs);
+    expect(state.conflictsResolved).toBe(7);
+    expect(state.selfHealed).toBe(3);
+    expect(state.walksWithoutIncident).toBe(5);
+  });
+
+  it('merges across a base that predates them, counting from zero', () => {
+    // The first conflict after this ships: the ancestor is the last
+    // confirmed save, which was written by a build with no such fields.
+    const base = save();
+    const mine = save({ conflictsResolved: 2, selfHealed: 1 });
+    const theirs = save({ conflictsResolved: 3 });
+
+    const { state } = mergeSaveState(base, mine, theirs);
+    expect(state.conflictsResolved).toBe(5);
+    expect(state.selfHealed).toBe(1);
+    expect(state.walksWithoutIncident).toBeUndefined();
+  });
+
+  it('keeps the larger count when there is no base to take deltas from', () => {
+    const { state } = mergeSaveState(
+      null, save({ selfHealed: 4 }), save({ selfHealed: 7 }),
+    );
+    expect(state.selfHealed).toBe(7);
+  });
+
+  it('unions the days played, counting a day both devices opened once', () => {
+    const base = save({ playedDays: ['2026-10-10', '2026-10-11'] });
+    const mine = save({ playedDays: ['2026-10-10', '2026-10-11', '2026-10-12'] });
+    const theirs = save({ playedDays: ['2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13'] });
+
+    const { state } = mergeSaveState(base, mine, theirs);
+    expect(state.playedDays).toEqual(['2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13']);
+  });
+
+  it('takes the days from the side that has any, when the other predates the list', () => {
+    const { state } = mergeSaveState(
+      save(), save(), save({ playedDays: ['2026-10-12'] }),
+    );
+    expect(state.playedDays).toEqual(['2026-10-12']);
+  });
+
+  it('leaves the exit ledgers to their own union rule', () => {
+    // The badge counters sit beside rehomed and rewilded in the save; the
+    // ledgers merge by union of whole entries and nothing here touches that.
+    const entry = (id: string) => ({ animalId: id, animalName: id, species: 'cat', householdId: 'h', date: 1 });
+    const wild = (id: string) => ({ animalId: id, animalName: id, species: 'fox', date: 2 });
+    const base = save({ rehomed: [entry('1')], rewilded: [], selfHealed: 0 });
+    const mine = save({ rehomed: [entry('1'), entry('2')], rewilded: [wild('9')], selfHealed: 1 });
+    const theirs = save({ rehomed: [entry('1'), entry('3')], rewilded: [], selfHealed: 2 });
+
+    const { state } = mergeSaveState(base, mine, theirs);
+    expect((state.rehomed as Array<{ animalId: string }>).map((r) => r.animalId).sort()).toEqual(['1', '2', '3']);
+    expect((state.rewilded as Array<{ animalId: string }>).map((r) => r.animalId)).toEqual(['9']);
+    expect(state.selfHealed).toBe(3);
+  });
+});
+
+describe('mergeSaveState — the calendar', () => {
+  const calendar = (lastRealDayChecked: string, over: Record<string, unknown> = {}) => ({
+    gameStartedAt: '2026-10-01T09:00:00.000Z',
+    currentInGameDate: { year: 1, month: 2, day: 4 },
+    currentSeason: 'spring_bloom',
+    activeEvents: [],
+    dayOfYear: 34,
+    lastRealDayChecked,
+    ...over,
+  });
+
+  it('takes the server calendar but not an older real day than this device has', () => {
+    // This device opened the game today and ran the daily reset; the other
+    // device last saved yesterday. The server's calendar stands, but the day
+    // it records must not roll back or tomorrow's reset runs a second time today.
+    const mine = save({ calendar: calendar('2026-10-12') });
+    const theirs = save({ calendar: calendar('2026-10-11', { dayOfYear: 40 }) });
+
+    const { state } = mergeSaveState(save({ calendar: calendar('2026-10-11') }), mine, theirs);
+    const merged = state.calendar as { lastRealDayChecked: string; dayOfYear: number };
+    expect(merged.lastRealDayChecked).toBe('2026-10-12');
+    expect(merged.dayOfYear).toBe(40);
+  });
+
+  it('takes the later day from the server when it is the later', () => {
+    const mine = save({ calendar: calendar('2026-10-11') });
+    const theirs = save({ calendar: calendar('2026-10-12') });
+    const { state } = mergeSaveState(null, mine, theirs);
+    expect((state.calendar as { lastRealDayChecked: string }).lastRealDayChecked).toBe('2026-10-12');
+  });
+
+  it('keeps whichever calendar exists when only one side has one', () => {
+    const only = calendar('2026-10-12');
+    expect(mergeSaveState(null, save({ calendar: only }), save()).state.calendar).toEqual(only);
+    expect(mergeSaveState(null, save(), save({ calendar: only })).state.calendar).toEqual(only);
+  });
+});
+
 describe('mergeSaveState — history and id-keyed lists', () => {
   it('keeps exit records from both devices', () => {
     const base = save({ rehomed: [{ animalId: '1', date: 1 }] });

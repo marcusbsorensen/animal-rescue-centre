@@ -9,6 +9,8 @@ import {
   createCalendarState,
   advanceCalendar,
   isDailyReset,
+  markRealDayChecked,
+  realDayKey,
   SEASONS,
   SEASON_THEMES,
   CALENDAR_EVENTS,
@@ -296,11 +298,50 @@ describe('advanceCalendar', () => {
     expect(advanced.gameStartedAt).toBe(START);
   });
 
-  it('updates lastRealDayChecked when advancing', () => {
+  it('leaves lastRealDayChecked at the day the player was last here', () => {
+    // It used to be stamped with today, which made isDailyReset compare
+    // today with today and answer false on every launch.
     const state = createCalendarState(START);
-    const now = addRealDays(START, 5);
-    const advanced = advanceCalendar(state, START, now);
-    expect(advanced.lastRealDayChecked).toBe(localYMD(now));
+    const advanced = advanceCalendar(state, START, addRealDays(START, 5));
+    expect(advanced.lastRealDayChecked).toBe(localYMD(START));
+  });
+
+  it('still lets isDailyReset see a new real day afterwards', () => {
+    // The sequence a launch performs, built from instants rather than from
+    // the field under test: the player was last here on the start day, and
+    // it is now five real days later.
+    const state = createCalendarState(START);
+    const later = new Date(new Date(START).getTime() + 5 * 24 * 60 * 60 * 1000);
+    const advanced = advanceCalendar(state, START, later.toISOString());
+    expect(isDailyReset(advanced, later)).toBe(true);
+  });
+});
+
+describe('markRealDayChecked', () => {
+  it('records the day it is given, and nothing else', () => {
+    const state = createCalendarState(START);
+    const later = new Date(new Date(START).getTime() + 3 * 24 * 60 * 60 * 1000);
+    const marked = markRealDayChecked(state, later);
+    expect(marked.lastRealDayChecked).toBe(realDayKey(later));
+    expect(marked).toEqual({ ...state, lastRealDayChecked: realDayKey(later) });
+  });
+
+  it('makes a second look the same day a non-reset', () => {
+    const state = createCalendarState(START);
+    const later = new Date(new Date(START).getTime() + 3 * 24 * 60 * 60 * 1000);
+    expect(isDailyReset(state, later)).toBe(true);
+    expect(isDailyReset(markRealDayChecked(state, later), later)).toBe(false);
+  });
+});
+
+describe('realDayKey', () => {
+  it('spells the local day YYYY-MM-DD, as the calendar stores it', () => {
+    expect(realDayKey(new Date(2026, 9, 5, 23, 59, 59))).toBe('2026-10-05');
+    expect(realDayKey(new Date(2026, 0, 31, 0, 0, 1))).toBe('2026-01-31');
+  });
+
+  it('agrees with the day a new calendar records', () => {
+    expect(createCalendarState(START).lastRealDayChecked).toBe(realDayKey(new Date(START)));
   });
 });
 
@@ -350,11 +391,21 @@ describe('isDailyReset', () => {
     expect(isDailyReset(state, lastMoment)).toBe(false);
   });
 
-  it('returns true after advanceCalendar moves to a new day', () => {
+  it('returns true on a launch the day after the last, after advanceCalendar has run', () => {
+    // The calendar is advanced and then asked, in that order, on every
+    // launch. The instant the question is asked at is an instant, not
+    // something derived from the field being asked about.
     const state = createCalendarState(START);
-    const advanced = advanceCalendar(state, START, addRealDays(START, 1));
-    expect(isDailyReset(advanced, localDayOffset(advanced, 1))).toBe(true);
-    expect(isDailyReset(advanced, localDayOffset(advanced, 0))).toBe(false);
+    const nextDay = new Date(localDayOffset(state, 1));
+    const advanced = advanceCalendar(state, START, nextDay.toISOString());
+    expect(isDailyReset(advanced, nextDay)).toBe(true);
+  });
+
+  it('returns false on a second launch the same day, once the day has been marked', () => {
+    const state = createCalendarState(START);
+    const nextDay = new Date(localDayOffset(state, 1));
+    const launched = markRealDayChecked(advanceCalendar(state, START, nextDay.toISOString()), nextDay);
+    expect(isDailyReset(launched, nextDay)).toBe(false);
   });
 
   it('detects reset across month boundaries', () => {

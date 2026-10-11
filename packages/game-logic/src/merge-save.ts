@@ -31,8 +31,12 @@
  *   and an exit recorded on either device really happened.
  * - **Sets** (badges, upgrades, charms): three-way set — additions from
  *   both, removals honoured.
- * - **Lifetime counters** (totalRescued, totalBonded, event counters):
- *   additive from base. Both devices' progress is real progress.
+ * - **Lifetime counters** (totalRescued, totalBonded, conflictsResolved,
+ *   selfHealed, walksWithoutIncident, event counters): additive from base.
+ *   Both devices' progress is real progress.
+ * - **Days played** (playedDays): union. It is a set of days rather than a
+ *   counter, because two devices that both open the game on one Tuesday
+ *   would each add one and a counter would count Tuesday twice.
  * - **Economy**: additive from base, floored at zero. A child who earned
  *   40 coins on the iPad and spent 60 on the phone should end up down 20,
  *   not up 40 or down 60 depending on which device saved last. Floored
@@ -42,7 +46,9 @@
  *   They only ever turn on.
  * - **Ephemeral session state** (timeProgress, gardenWeather, calendar):
  *   the server's copy, which is the later wall-clock write. There is
- *   nothing to merge in "it is currently afternoon".
+ *   nothing to merge in "it is currently afternoon". The calendar's
+ *   `lastRealDayChecked` is the one part that is not ephemeral: it takes the
+ *   later of the two days, so a merge cannot re-run the daily reset.
  * - **Depot**: its own rules — daily sessions consumed by both devices are
  *   both gone, its counters add, its inventory adds per item.
  * - **Anything unrecognised**: a generic three-way scalar — the side that
@@ -53,6 +59,8 @@
  * everything they did on both devices in it; `notes` is for the console
  * and the next person reading a bug report, not for a seven-year-old.
  */
+
+import { mergePlayedDays } from './real-day';
 
 type Save = Record<string, unknown>;
 
@@ -91,13 +99,21 @@ const HISTORY_LISTS = ['rehomed', 'rewilded'] as const;
 const STRING_SETS = ['earnedBadges', 'houseUpgrades', 'unlockedCharms'] as const;
 
 /** Counters where both devices' progress should show up in the total. */
-const ADDITIVE_NUMBERS = ['totalRescued', 'totalBonded'] as const;
+const ADDITIVE_NUMBERS = [
+  'totalRescued',
+  'totalBonded',
+  // The three badge counters. Each is a tally of things the child did, so a
+  // thing done on one device and a thing done on the other are both done.
+  'conflictsResolved',
+  'selfHealed',
+  'walksWithoutIncident',
+] as const;
 
 /** Flags that only ever turn on. */
 const ONE_WAY_FLAGS = ['wildVisitsUnlocked', 'hasCompletedFirstDrive'] as const;
 
 /** Session state with nothing mergeable in it; the later write stands. */
-const NEWEST_WINS = ['timeProgress', 'gardenWeather', 'calendar', 'equippedCharm'] as const;
+const NEWEST_WINS = ['timeProgress', 'gardenWeather', 'equippedCharm'] as const;
 
 /**
  * Animal `state` only ever advances, so the further of two values is never
@@ -145,6 +161,8 @@ export function mergeSaveState(
       out[key] = mv === true || tv === true;
     } else if ((NEWEST_WINS as readonly string[]).includes(key)) {
       out[key] = tv !== undefined ? tv : mv;
+    } else if (key === 'calendar') {
+      out[key] = mergeCalendar(mv, tv);
     } else if (key === 'economy') {
       out[key] = mergeEconomy(bv, mv, tv, !!ancestor);
     } else if (key === 'depot') {
@@ -155,6 +173,8 @@ export function mergeSaveState(
       out[key] = mergeCounterRecord(bv, mv, tv, !!ancestor);
     } else if (key === 'relationships') {
       out[key] = unionByValue(mv, tv);
+    } else if (key === 'playedDays') {
+      out[key] = mergePlayedDays(mv, tv);
     } else if (key === 'lastGrantCheckAt') {
       out[key] = Math.max(num(mv), num(tv)) || undefined;
     } else {
@@ -355,6 +375,21 @@ function mergeCounterRecord(bv: unknown, mv: unknown, tv: unknown, hasBase: bool
 function addFromBase(b: number, m: number, t: number, hasBase: boolean): number {
   if (!hasBase) return Math.max(m, t);
   return b + (m - b) + (t - b);
+}
+
+/**
+ * The calendar is session state, so the later write stands, with one
+ * exception: `lastRealDayChecked` is the real day the daily reset last ran,
+ * and taking the other device's older one would run it again on the next
+ * launch today. The later of the two days wins, as for the depot's
+ * `lastSessionDay`.
+ */
+function mergeCalendar(mv: unknown, tv: unknown): unknown {
+  const m = asRecord(mv);
+  const t = asRecord(tv);
+  if (!t) return mv;
+  if (!m) return tv;
+  return { ...t, lastRealDayChecked: laterDay(m.lastRealDayChecked, t.lastRealDayChecked) };
 }
 
 function mergeEconomy(bv: unknown, mv: unknown, tv: unknown, hasBase: boolean): unknown {

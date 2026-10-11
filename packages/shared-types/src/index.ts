@@ -309,6 +309,7 @@ export interface RescueStats {
   snakesRescued: number;
   parrotsRescued: number;
   batsRescued: number;
+  hedgehogsRescued: number;
   totalRescued: number;
   badgesUnlockedCount: number;
   giftsSentCount: number;

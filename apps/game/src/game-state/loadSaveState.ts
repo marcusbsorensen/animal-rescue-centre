@@ -15,8 +15,8 @@ import {
   syncPlacedDecorationId,
   createCalendarState,
   advanceCalendar,
-  isDailyReset,
-  resetDailySessions,
+  startRealDay,
+  normalisePlayedDays,
   relationshipsFromSiblingIds,
   createTimeProgress,
   generateDailyWeather,
@@ -30,6 +30,8 @@ import { getSession, sessionHeaders, logout } from '../lib/auth';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { showToast, showBlocking } from '../ui/ErrorOverlay';
 import { GameStateStore } from './GameStateStore';
+import { recordGiftCounts } from './gift-counts';
+import type { GiftCounts } from './gift-counts';
 import {
   getLocalSave,
   putLocalSave,
@@ -132,7 +134,13 @@ export async function loadGameState(
     // `save: null` is the honest first-time-player answer, and is
     // deliberately distinct from an error — no retry overlay for someone
     // who simply hasn't saved yet.
-    const data = (payload as { save: CloudSave | null } | null)?.save ?? null;
+    const body = payload as { save: CloudSave | null; stats?: GiftCounts } | null;
+    const data = body?.save ?? null;
+
+    // The server's own count of gifts sent and claimed, which the gift
+    // badges read. Told, not counted: see gift-counts.ts. Absent from a
+    // server that has not been redeployed, and then it changes nothing.
+    recordGiftCounts(store, body?.stats);
 
     // Record the version before anything else can go wrong. It is what the
     // next save claims to be replacing, and a wrong value here is precisely
@@ -295,6 +303,12 @@ function applySavedState(
   if (typeof saved.totalBonded === 'number') store.totalBonded = saved.totalBonded;
   if (Array.isArray(saved.earnedBadges)) store.earnedBadges = saved.earnedBadges as string[];
   if (Array.isArray(saved.houseUpgrades)) store.houseUpgrades = saved.houseUpgrades as string[];
+  // Badge counters. Each is absent from a save written before it existed,
+  // and absent means nothing has been counted yet, not that it is unknown.
+  if (typeof saved.conflictsResolved === 'number') store.conflictsResolved = saved.conflictsResolved;
+  if (typeof saved.selfHealed === 'number') store.selfHealed = saved.selfHealed;
+  if (typeof saved.walksWithoutIncident === 'number') store.walksWithoutIncident = saved.walksWithoutIncident;
+  if (Array.isArray(saved.playedDays)) store.playedDays = normalisePlayedDays(saved.playedDays);
   if (saved.sickAnimals && typeof saved.sickAnimals === 'object') {
     store.sickAnimals = new Map(Object.entries(saved.sickAnimals as Record<string, IllnessDef>));
   }
@@ -424,11 +438,19 @@ function initialiseSubsystems(store: GameStateStore): void {
     };
   }
 
-  // Advance calendar and check for daily reset
+  // Advance the calendar, then see whether this is a new real day. Order
+  // matters twice over: advanceCalendar used to stamp today on the calendar,
+  // which left nothing for the daily-reset question to find, so the depot
+  // was never refilled (see startRealDay). The same moment records the day
+  // as one the child has played, for `daily_week` and `daily_month`.
   store.calendar = advanceCalendar(store.calendar, store.calendar.gameStartedAt);
-  if (isDailyReset(store.calendar, new Date())) {
-    store.depot = resetDailySessions(store.depot);
-  }
+  const day = startRealDay(
+    { calendar: store.calendar, depot: store.depot, playedDays: store.playedDays },
+    new Date(),
+  );
+  store.calendar = day.calendar;
+  store.depot = day.depot;
+  store.playedDays = day.playedDays;
 
   // Time progress — task-driven clock. Init on first load; refreshed
   // elsewhere when level or helper-count changes.
@@ -476,6 +498,10 @@ function snapshot(store: GameStateStore): Record<string, unknown> {
     totalBonded: store.totalBonded,
     earnedBadges: store.earnedBadges,
     houseUpgrades: store.houseUpgrades,
+    conflictsResolved: store.conflictsResolved,
+    selfHealed: store.selfHealed,
+    walksWithoutIncident: store.walksWithoutIncident,
+    playedDays: store.playedDays,
     sickAnimals: Object.fromEntries(store.sickAnimals),
     calendar: store.calendar,
     depot: store.depot,

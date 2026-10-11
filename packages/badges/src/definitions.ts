@@ -58,6 +58,10 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
     code: 'all_species',
     name: 'Full Menagerie',
     description: 'Rescue one of every species',
+    // Hedgehogs are a species too (they arrive at level 7). This list stopped
+    // at seven and the eighth was never counted, so the badge could be earned
+    // by a child who had not met one. `all_mammals` is "Fluffy Five" and
+    // stays at its five.
     criterion: (s) =>
       s.catsRescued >= 1 &&
       s.dogsRescued >= 1 &&
@@ -65,7 +69,8 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
       s.bunniesRescued >= 1 &&
       s.batsRescued >= 1 &&
       s.parrotsRescued >= 1 &&
-      s.snakesRescued >= 1,
+      s.snakesRescued >= 1 &&
+      s.hedgehogsRescued >= 1,
   },
   {
     code: 'snake_friend',

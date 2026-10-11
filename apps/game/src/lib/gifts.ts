@@ -24,13 +24,14 @@ export interface ShowcaseData {
 }
 
 /**
- * Send a gift to a friend.
+ * Send a gift to a friend. Resolves with the sender's gift count as the
+ * server now has it, when the server says (`giver` and `generous` read it).
  */
 export async function sendGift(
   toUserId: string,
   giftType: string,
   messagePresetCode: string
-): Promise<void> {
+): Promise<{ giftsSentCount?: number }> {
   const session = getSession();
   if (!session || !isSupabaseConfigured()) throw new Error('Not available');
 
@@ -44,6 +45,8 @@ export async function sendGift(
 
   if (error) throw new Error(error.message ?? 'Failed to send gift');
   if (data?.error) throw new Error(data.error);
+
+  return typeof data?.giftsSentCount === 'number' ? { giftsSentCount: data.giftsSentCount } : {};
 }
 
 /**
@@ -85,9 +88,12 @@ export async function getGiftInbox(): Promise<GiftInbox[]> {
 }
 
 /**
- * Claim a gift from the inbox.
+ * Claim a gift from the inbox. Resolves with the recipient's claimed count as
+ * the server now has it, when the server says (`receiver` reads it).
  */
-export async function claimGift(giftId: string): Promise<{ giftType: string }> {
+export async function claimGift(
+  giftId: string,
+): Promise<{ giftType: string; giftsReceivedCount?: number }> {
   const session = getSession();
   if (!session || !isSupabaseConfigured()) throw new Error('Not available');
 
@@ -99,7 +105,10 @@ export async function claimGift(giftId: string): Promise<{ giftType: string }> {
   if (error) throw new Error(error.message ?? 'Failed to claim gift');
   if (data?.error) throw new Error(data.error);
 
-  return { giftType: data.gift.giftType };
+  return {
+    giftType: data.gift.giftType,
+    ...(typeof data.giftsReceivedCount === 'number' ? { giftsReceivedCount: data.giftsReceivedCount } : {}),
+  };
 }
 
 /**

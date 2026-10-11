@@ -602,3 +602,37 @@ checking the claim still holds.
   act on it, and a crash is a worse answer than an animation that does not
   move. Audited at the time — every other `stateTween` and
   `decorativeTween` call in the repo passes plain numbers.
+- **The vet game and the walk never call the `onComplete` GameScene hands
+  them; they report through the registry.** `VetScene` sets `vetResult` and
+  `WalkScene` sets `walkResult` on their last button and start `GameScene`,
+  which reads them in `create()` (`registry.get('vetResult')`). The
+  `onComplete` closures in `showAnimalDetails` (`doWalk`, `doVetVisit`) are
+  never invoked, so a counter wired there counts nothing. This is why
+  `selfHealed` and `walksWithoutIncident` are incremented in `create()`,
+  and why `healedByCare` counts only when `sickAnimals.delete` finds the
+  animal sick: if anything ever does call `onComplete`, a heal arriving by
+  both routes is still one.
+- **`mountInGame` takes down whatever overlay is open, and `unmount()`
+  takes down whatever is open now.** A badge plaque is an overlay, so
+  `checkBadges()` called before a popup's own `unmount()` puts the plaque up
+  and removes it in the same tick, with the badge already marked earned and
+  never shown. Call `checkBadges()` after `unmount()`. The same replacement
+  means a due visitor (`checkDueVisitors`, 1.5s after `create()`) will cover
+  a plaque that is still on screen; nothing guards it yet.
+- **The social screens read their tables with the anon key, and every
+  policy in `00002_rls_policies.sql` keys on `auth.uid()`, which this game
+  never has.** `getFriends` (`lib/friends.ts`), `getGiftInbox` and
+  `getFriendLeaderboard` (`lib/gifts.ts`) therefore return nothing, as
+  `game_states` did before `load-game` existed. By the migrations a child
+  sees "Add friends first!", cannot reach `sendGift`, and has an empty
+  inbox, so `giver`, `generous` and `receiver` are wired to the server's
+  `rescue_stats` counts (`load-game`, `send-gift` and `claim-gift` now return
+  them) and still cannot rise until those three reads go through Edge
+  Functions. Not verified against the live project. The three functions
+  above also need deploying: committed is not deployed.
+- **Days played are a set of day keys (`GameStateStore.playedDays`), not two
+  counters, and nothing trims it.** About 13 bytes a day, near 5 KB a
+  year; the merge unions it, which a pair of counters could not do without
+  counting a Tuesday twice when two devices open the game on it. A day is
+  recorded when the store is loaded, and saved with the next save: a launch
+  that saves nothing leaves no day behind.

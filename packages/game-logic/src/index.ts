@@ -167,11 +167,22 @@ export {
   getActiveEvents,
   advanceCalendar,
   isDailyReset,
+  markRealDayChecked,
+  realDayKey,
   SEASONS,
   SEASON_THEMES,
   CALENDAR_EVENTS,
 } from './calendar';
 export type { Season, CalendarState, SeasonDef, CalendarEventDef } from './calendar';
+export {
+  startRealDay,
+  recordPlayDay,
+  mergePlayedDays,
+  normalisePlayedDays,
+  totalDaysPlayed,
+  consecutiveDays,
+} from './real-day';
+export type { RealDayState, RealDayResult } from './real-day';
 export {
   canAccessDestination,
   startSupplyRun,

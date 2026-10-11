@@ -1388,7 +1388,7 @@ export class WalkScene extends Phaser.Scene {
     this.container.add(
       createChromeButton(this, width / 2, height - 90, 'Back to Centre', () => {
         this.registry.set('updatedAnimals', this.allAnimals);
-        this.registry.set('walkResult', { perfectWalk: rewards.perfectWalk });
+        this.registry.set('walkResult', { perfectWalk: rewards.perfectWalk, roadSafe: rewards.roadSafe });
         this.scene.start('GameScene');
       }, { width: 240, fontSize: TYPE.body, icon: 'icon-back', iconStyle: 'glyph', variant: 'filled' })
     );

@@ -223,7 +223,18 @@ export function createCalendarState(gameStartedAt: string): CalendarState {
   };
 }
 
-/** Advance calendar state to the current real-world time. */
+/**
+ * Advance calendar state to the current real-world time.
+ *
+ * Moves the in-game date, the season and the events. It does **not** touch
+ * `lastRealDayChecked`: that field is the real day the player was last
+ * here, and it only means something while it still holds that day when
+ * `isDailyReset` is asked about today. This function used to stamp it with
+ * today, which made the next `isDailyReset` call compare today with today
+ * and answer false on every launch, so the depot's daily sessions were
+ * never refilled. Stamp the day with `markRealDayChecked`, after acting on
+ * `isDailyReset`; `startRealDay` does the two in order.
+ */
 export function advanceCalendar(
   state: CalendarState,
   gameStartedAt: string,
@@ -232,7 +243,6 @@ export function advanceCalendar(
   const date = calculateCurrentDate(gameStartedAt, now);
   const season = getSeasonForMonth(date.month);
   const activeEvents = getActiveEvents(date);
-  const nowDate = now ? new Date(now) : new Date();
 
   return {
     ...state,
@@ -240,8 +250,26 @@ export function advanceCalendar(
     currentSeason: season,
     activeEvents,
     dayOfYear: date.dayOfYear,
-    lastRealDayChecked: formatDateYMD(nowDate),
   };
+}
+
+/**
+ * Record that the player has been seen on this real day. Call it after
+ * `isDailyReset` has been asked and acted on, never before: stamping first
+ * is how the daily reset came to be unreachable.
+ */
+export function markRealDayChecked(state: CalendarState, now: Date): CalendarState {
+  return { ...state, lastRealDayChecked: formatDateYMD(now) };
+}
+
+/**
+ * The real day as the calendar writes it: YYYY-MM-DD in the device's local
+ * time. The one spelling of "which day is it" for everything that counts
+ * real days, so the daily reset and the days a child has played cannot
+ * disagree about where a day starts.
+ */
+export function realDayKey(now: Date): string {
+  return formatDateYMD(now);
 }
 
 // ── Additional helpers (Phase 1: Depot & Supply Run) ─────────

@@ -61,6 +61,9 @@ import {
   canPlaceAt,
   commitPlacement as commitPlacementLogic,
   lifetimeRescuedCount,
+  consecutiveDays,
+  totalDaysPlayed,
+  realDayKey,
   buildHandoverDialogue,
   WARDEN_SPEAKER,
   commitAdoption as commitAdoptionLogic,
@@ -338,10 +341,20 @@ export class GameScene extends Phaser.Scene {
       this.store.animals = updatedAnimals;
       this.registry.remove('updatedAnimals');
 
-      // Check for vet results (clear sickness if healed)
+      // Check for vet results (clear sickness if healed). This is the path a
+      // vet visit really reports by: VetScene sets `vetResult` and starts
+      // this scene, and never calls the `onComplete` doVetVisit hands it.
       const vetResult = this.registry.get('vetResult') as { healed: boolean; animalId?: string } | undefined;
       if (vetResult?.healed && vetResult.animalId) {
-        this.store.sickAnimals.delete(vetResult.animalId);
+        this.healedByCare(vetResult.animalId);
+      }
+      // Likewise a walk: WalkScene sets `walkResult` on its results screen
+      // and never calls its `onComplete`. `roadSafe` is "no road incident",
+      // which is all the Pavement Pro badge asks; `perfectWalk` also wants
+      // 60% explored and is not what it counts.
+      const walkResult = this.registry.get('walkResult') as { perfectWalk?: boolean; roadSafe?: boolean } | undefined;
+      if (walkResult?.roadSafe) {
+        this.store.walksWithoutIncident++;
       }
       this.registry.remove('vetResult');
       this.registry.remove('walkResult');
@@ -434,6 +447,13 @@ export class GameScene extends Phaser.Scene {
     // view once the texture is in cache so the kid sees the right
     // breed appear. Debounced — variant textures land in bursts.
     this.load.on('filecomplete', this.onVariantTextureLanded, this);
+
+    // Badges whose inputs changed while this scene was not running: the day
+    // (counted when the store was loaded, at the menu), the server's gift
+    // counts (a send or a claim in the social scene), and a heal or a walk
+    // that has just come back through the registry. Not when a van is
+    // arriving, which is about to open a room over the top of a plaque.
+    if (!this.arrived) this.checkBadges();
 
     // Last, because it opens a room over the one we have just drawn.
     this.handleArrival();
@@ -1381,7 +1401,7 @@ export class GameScene extends Phaser.Scene {
         allAnimals: this.store.animals,
         onComplete: (updatedAnimals: Animal[], healed: boolean) => {
           this.store.animals = updatedAnimals;
-          if (healed) this.store.sickAnimals.delete(animal.id);
+          if (healed) this.healedByCare(animal.id);
           this.checkBadges();
           this.saveState();
         },
@@ -2299,26 +2319,29 @@ export class GameScene extends Phaser.Scene {
       onAction: (action) => {
         if (action === 'close') { unmount(); return; }
         if (action === 'treatment-vet') {
-          // Full heal immediately (vet visit equivalent to doVetVisit).
+          // Full heal immediately (vet visit equivalent to doVetVisit). The
+          // vet did this, not the child, so it is not a self-heal.
           this.store.sickAnimals.delete(animal.id);
           if (this.store.economy?.coins != null && this.store.economy.coins >= 20) {
             this.store.economy.coins -= 20;
           }
-          this.checkBadges();
           this.saveState();
           this.renderView();
           unmount();
+          // After the popup is gone, not before: a badge plaque replaces
+          // whichever overlay is open, and checking first put it up and took
+          // it straight down again with `unmount()`.
+          this.checkBadges();
           return;
         }
         if (action === 'treatment-home') {
-          // 70% chance full heal, 30% stays sick.
-          if (Math.random() < 0.7) {
-            this.store.sickAnimals.delete(animal.id);
-            this.checkBadges();
-          }
+          // 70% chance full heal, 30% stays sick. Home care is the child's
+          // own nursing, so a heal here is a self-heal.
+          const healed = Math.random() < 0.7 && this.healedByCare(animal.id);
           this.saveState();
           this.renderView();
           unmount();
+          if (healed) this.checkBadges();
           return;
         }
         if (action === 'treatment-rest') {
@@ -2340,6 +2363,24 @@ export class GameScene extends Phaser.Scene {
       illnessName: illness.label?.toLowerCase() ?? 'tummy bug',
     });
     this.events.once('shutdown', unmountInGame);
+  }
+
+  /**
+   * A sick animal the child has nursed back to health. Clears the illness and
+   * counts it for `vet_apprentice` and `vet_pro` ("heal ... yourself"):
+   * through the vet game, or home care in the vet popup. Not a paid vet
+   * visit, where the vet does the healing, and not a rest, which heals
+   * itself inside the clock tick.
+   *
+   * Counts only if the animal was sick. `Map.delete` says whether it was, so
+   * a heal reported twice - VetScene sets the registry result, and the
+   * `onComplete` it was given would report it again if anything ever called
+   * it - is one heal.
+   */
+  private healedByCare(animalId: string): boolean {
+    const wasSick = this.store.sickAnimals.delete(animalId);
+    if (wasSick) this.store.selfHealed++;
+    return wasSick;
   }
 
   /** In-memory rest heal countdown keyed by animal id. MVP: not persisted. */
@@ -3007,6 +3048,7 @@ export class GameScene extends Phaser.Scene {
   // ── Badge Evaluation ───────────────────────────────────────
 
   private checkBadges(): void {
+    const today = realDayKey(new Date());
     const pets = this.store.animals.filter((a) => a.state === 'pet');
     const siblingPairs = this.store.animals.filter(
       (a) => a.siblingId && a.state !== 'arriving'
@@ -3024,22 +3066,31 @@ export class GameScene extends Phaser.Scene {
       snakesRescued: lifetimeRescuedCount('snake', this.store),
       parrotsRescued: lifetimeRescuedCount('parrot', this.store),
       batsRescued: lifetimeRescuedCount('bat', this.store),
+      hedgehogsRescued: lifetimeRescuedCount('hedgehog', this.store),
       totalRescued: this.store.totalRescued,
       badgesUnlockedCount: this.store.earnedBadges.length,
-      giftsSentCount: 0,
-      giftsReceivedCount: 0,
+      // The server's own count of gifts; the store holds what it was told.
+      giftsSentCount: this.store.giftsSentCount,
+      giftsReceivedCount: this.store.giftsReceivedCount,
       extras: {
         totalBonded: this.store.totalBonded,
         siblingPairsReunited: Math.floor(siblingPairs),
-        selfHealed: 0,
-        walksWithoutIncident: 0,
+        selfHealed: this.store.selfHealed,
+        walksWithoutIncident: this.store.walksWithoutIncident,
+        // No training screen exists for tricks to be taught in, so
+        // `trainer` cannot be earned. Left at 0 on purpose, not forgotten.
         animalsTrained: 0,
         conflictsResolved: this.store.conflictsResolved,
         houseUpgrades: this.store.houseUpgrades.length,
         totalPets: pets.length,
-        consecutiveDays: 1,
-        totalDaysPlayed: 1,
-        playerNumber: 999, // placeholder
+        // Read off the days the game has been opened on, up to today: a
+        // clock that was once set forward cannot add a day not yet played.
+        consecutiveDays: consecutiveDays(this.store.playedDays, today),
+        totalDaysPlayed: totalDaysPlayed(this.store.playedDays, today),
+        // Founding-friend order is the server's to know (it is the order
+        // accounts were created in), and nothing sends it. 999 keeps
+        // `early_supporter` unearned rather than handing it to everyone.
+        playerNumber: 999,
         level: this.store.level,
       },
     };
@@ -3132,6 +3183,10 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.checkBadges();
+    // The tally of squabbles settled is only worth having if it survives
+    // the lid being closed: it used to sit in memory until some other
+    // action happened to save, and was not in the save at all.
+    this.saveState();
   }
 
   // ── Level Progression ──────────────────────────────────────
