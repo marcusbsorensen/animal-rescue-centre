@@ -62,6 +62,17 @@ export {
 export { PIN_HINT_CHOICES, isPinHintCode, pinHintText } from './pin-hints';
 export type { PinHintCode } from './pin-hints';
 export {
+  DISPLAY_NAME_ADJECTIVES,
+  DISPLAY_NAME_ANIMALS,
+  DISPLAY_NAME_SKIPPED_NUMBERS,
+  DISPLAY_NAME_MAX_LENGTH,
+  allowedDisplayNameNumbers,
+  randomDisplayName,
+  anotherDisplayName,
+  isDisplayNameBase,
+  isDisplayName,
+} from './display-names';
+export {
   buildRecoveryQuestions,
   scoreRecovery,
 } from './forgot-pin';
