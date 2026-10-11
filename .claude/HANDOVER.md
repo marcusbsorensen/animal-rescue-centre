@@ -1,68 +1,79 @@
-# A.R.C. driving rebuild — handover 2026-10-11
+# A.R.C. driving rebuild — handover 2026-10-11, evening
 
 ## Goal
-Rebuild the driving game on the model of Lily's favourite driving game: the
-vehicle pinned to one spot, the world rotating underneath it, steering on
-rails, the child controlling speed and lane. The full design is in
-`docs/driving-rebuild-2026-10-11.md` — read that first, it is the spec.
+Rebuild the driving game on the model of Lily's favourite driving game: the van
+pinned, the world rotating underneath, steering on rails, the child controlling
+speed and lane. Spec: `docs/driving-rebuild-2026-10-11.md`. Port plan for the
+real scene: `docs/driving-port-plan-2026-10-11.md` (section 5 holds Marcus's
+answers to all twelve questions).
 
 ## State
-**Verified.** TestFlight build 2 uploaded and processing (delivery UUID
-`4a08a332`); nobody has played it yet. The driving spike runs at
-`/admin/drive-spike.html` with `pnpm dev`: real 937-node graph, camera rotation
-eased to 1° per sample against the route's 7°, van 13.6% of screen width
-against 4.1% in the game. Branch `claude/crate-loading` pushed, 34 commits
-ahead of `main`, not merged.
+**Verified, on `claude/crate-loading`, pushed.** The spike
+(`/admin/drive-spike.html`, `pnpm dev`) now has: scenery placed from the
+child's own map with seasons (`drive-spike/scenery.js`), traffic that can never
+touch the van, proved over 50 seeds × 20 simulated minutes
+(`traffic.js`, `traffic.check.mjs`), Henry's painted dashboard with live
+speedometer, GPS and comfort gauge and the gear/handbrake/horn
+(`dashboard.js`), speed-and-place zoom, pulling up at named destinations, true
+vehicle widths (Henry default), the landscape layout. The pure TS model is in
+`apps/game/src/driving/` (`route-path`, `world-camera`, `lane-motion`,
+`road-gears`, `ride-comfort`), brought up to the zoom/pull-up decisions.
+Port steps 1–4 are merged (dead picker, "Which way?" and the junction prompt
+gone, the loop on `update`); `e2e/collection-drive.spec.ts` passes 4/4 in real
+Chrome on this Mac (the cloud cannot run it: no `.env.local`). Trikey routing (`buildAdjacency(g, 'pedal-trike')`)
+and the guide-line preference (`lib/guide-line-preference.ts`, URL only) are
+merged. Game 1005 tests, game-logic 1193, typecheck clean.
 
-**Unverified.** Marcus has not driven the spike. Nothing of the rebuild has
-touched the game yet — `PtvDriveScene` is untouched and still ships the old
-corridor renderer.
+**In flight when this was written (check each):**
+- Cloud routine `arc-spike-crossings` (`trig_01LPfUtH7kVsS6LCutYBPpBE`) →
+  branch `claude/spike-crossings`: small animals crossing the lanes. Merge it
+  (touches only `drive-spike/crossings*`), run `node
+  apps/game/public/admin/drive-spike/crossings.check.mjs`, look at a crossing.
+- A local agent measuring Trikey's options; its map lands at
+  `.../c124365a-79a7-4b32-87ef-f47f8231944e/scratchpad/trikey-options.png`.
 
-**Blocked.** Three edge functions undeployed (`load-game`, `send-gift`,
-`claim-gift`); gift badges need RLS keyed on `auth.uid()`. Seasons cannot use the
-real date until the garden has autumn art.
+**Unverified / stalled.** Cloud routine `arc-root-test-green`
+(`trig_01E4R1AHt19BD28baNAxfvDg`, run `cse_01BsYeppy1KaNNVWxUpbpjwb`) went idle
+after 10 minutes and pushed nothing. Read its log with
+`RemoteTrigger get_run_log` (only the main session has that tool), then re-run.
 
-## Files
-- `docs/driving-rebuild-2026-10-11.md` — the rebuild spec. Everything Marcus
-  said on 2026-10-11, which existed nowhere before.
-- `apps/game/public/admin/drive-spike.html` — the spike. Plain canvas, no Phaser.
-- `apps/game/src/driving/drive-render.ts` — the 539-line corridor renderer the
-  rebuild replaces.
-- `apps/game/src/driving/road-router.ts`, `route-instructions.ts` — the route
-  maths the guide line draws; correct already, reuse it.
-- `apps/game/src/driving/drive-state.ts` — `jostleComfort` seeds the
-  animal-disturbance model.
-- `docs/fleet-canon.md`, `naming-places.md`, `world-coherence-rule-2026-10-11.md`,
-  `animal-exits.md` — standing rules, all current.
-- `.claude/handovers/2026-10-10-accumulated.md` — the old 615-line file. History.
+## Open questions for Marcus (ask numbered, lettered, recommendation marked)
+1. **Trikey cannot reach 8 of 14 places without dual carriageways**: the trunk
+   roads split the map into islands; bramble-farm and goose-end-farm are reached
+   only by trunk. Show the options map above. Options being measured: no trunk
+   ever / crossing a dual carriageway but never riding along it / cycle paths
+   from the real map. Plus: Trikey simply does not serve unreachable places.
+2. **The guide-line switch has nowhere to live**: the game has no settings
+   screen; reduced motion is only a `?motion=` URL switch. A) a small grown-ups'
+   settings page behind a parent gate holding both (recommended), B) URL only
+   for now, C) a switch on the driving screen.
 
-## Decisions made
-- **Go straight to the rotation rebuild**, no interim scale fix.
-- **Turning is automatic** for now; reading the GPS at junctions is a later tier.
-- **Gears stay** — they are choosing a speed for the road, not a gearbox lesson.
-  Road class drives it and the graph already carries it.
-- **No animal is ever hurt and there is never an accident.** Rough driving with
-  animals aboard costs a roadside stop; on a delivery run it costs cargo.
-- **Fully top-down**, because a painted three-quarter building cannot stay
-  upright while the ground rotates. Shadows draw in world space for that reason.
-- Rear top-down is still the camera reference; the portrait is still the master
-  for livery and length (`docs/fleet-canon.md`).
-
-## Next step
-Add scenery to the spike — top-down canopies, roofs and hedges placed in world
-space — because without it there is no sense of speed and Marcus cannot judge
-the feel. Then traffic, then the dual carriageway's 20m width, which fills the
-screen at this zoom.
+## Next steps, in order
+1. Merge crossings; show Marcus the Trikey map and ask 1–2.
+2. Port the answers that touch `PtvDriveScene.ts` (now free of other jobs):
+   2A reduced motion drops shake, judder and the speed camera's white flash;
+   3A Park and Reverse go; 4A a speed camera fires on "too fast for this road"
+   (`road-gears.ts`); 5A supply runs carry no animals (`GameScene.ts:~1985`,
+   `carriesAnimals`); pass the vehicle to `buildAdjacency(this.gpsGraph,
+   vehicleId)` (~line 2320). One cloud routine can take these, one commit each.
+3. Port plan step 5: the world behind `?drive=world`, from the TS modules.
+4. Marcus drives the spike on a phone and judges the feel.
 
 ## Traps
-- **Homebrew rsync 3.5.1 breaks `xcodebuild -exportArchive`.** `scripts/testflight.mjs`
-  runs Xcode with `/opt/homebrew/bin` off PATH. Bites every iOS project here.
-- **The ASC API key cannot mint certificates or create app records.**
-- **The built-in browser screenshots the Phaser canvas blank.** Use the
-  Playwright MCP for anything visual; `browser_run_code_unsafe` gives `page.mouse`
-  for clicking into a canvas.
-- **Never install the top-downs through `install-vehicles.py`** — its 0.88 taper
-  skews the roof motifs. Re-run `tools/decorate-roof.py`.
-- **`tools/osm-to-svg.py` would regenerate the whole map**, losing the
-  simplification and the hand-placed landmarks.
-- **Manus is overdrawn** by roughly 7,500 credits. Read the usage page first.
+- **Work account cloud env is `env_01XEuhfALG2Bm8UZiSSGr96Q`**, not the one in
+  `~/.claude/CLAUDE.md`. Strip connectors after every create.
+- **The built-in browser pane pauses animation while hidden**: the spike looks
+  frozen. Use the Playwright MCP; its screenshots save only under
+  `.playwright-mcp/` (gitignored).
+- **`cockpit-slots-henry.json` does not match the painting** (its speedometer
+  is the ignition key). `dashboard.js` measures off the painting instead.
+- **Camera on hairpins**: a few real corners turn the route up to 150°, where
+  the camera moves up to 7.7° in a frame against <1° elsewhere. Smooth it if it
+  feels jerky.
+- **The disk filled to 402 MB free once tonight.** Big users are other
+  sessions' temp folders (pfish-ios 11 GB, uncubed-integration 9.7 GB), Xcode
+  DerivedData 12 GB and CoreSimulator 16 GB. Nothing was deleted.
+- Older traps (rsync breaking `xcodebuild -exportArchive`, the ASC key limits,
+  Phaser canvas blank in the built-in browser, `install-vehicles.py` taper,
+  `osm-to-svg.py` regenerating the map, Manus overdrawn) still apply:
+  `.claude/handovers/2026-10-10-accumulated.md`.
