@@ -68,6 +68,8 @@
 
 // ------------------------------------------------------------------ the art
 
+import * as look from './vehicle-look.js';
+
 const TOPDOWN = '/assets/driving/topdown/vehicle-topdown-';
 
 /** Which way each sprite's nose points in the image, checked by eye one by one
@@ -722,10 +724,19 @@ function images(T) {
   T.imgs = {};
   for (const name of Object.keys(SPRITES)) {
     const img = new Image();
+    // The outline and tread are built as each sprite arrives, not mid-drive.
+    img.onload = () => look.prepare(name, img, widthOf(name));
     img.src = TOPDOWN + name + '.png';
     T.imgs[name] = img;
   }
   return T.imgs;
+}
+
+/** A skin's width in metres, from the kind it belongs to. */
+function widthOf(skin) {
+  const base = skin.replace(/-rear$/, '');
+  for (const k in KINDS) if (KINDS[k].skins.includes(base)) return KINDS[k].width;
+  return 2;
 }
 
 /** Called with ctx in world metres, rotated by the camera, after the scenery
@@ -741,13 +752,16 @@ export function draw(ctx, T, view) {
     shown.push([w, fp]);
   }
   // Shadows first, all of them, so no shadow falls across a body. Fixed in
-  // the world like the van's: the sun does not turn with the camera.
+  // the world like the van's: the sun does not turn with the camera. Cast
+  // from the outlined silhouette once it is built, an ellipse until then.
   ctx.fillStyle = 'rgba(40,46,38,.22)';
   for (const [w, fp] of shown) {
     ctx.save();
     ctx.translate(fp.x + view.sun.x * w.H, fp.y + view.sun.y * w.H);
-    ctx.rotate(fp.h);
-    ctx.beginPath(); ctx.ellipse(0, 0, fp.L * 0.48, fp.W * 0.48, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.rotate(fp.h + (SPRITES[w.skin].nose === 'up' ? Math.PI / 2 : -Math.PI / 2));
+    if (!look.shadow(ctx, w.skin, imgs?.[w.skin], w.W, fp.W, fp.L)) {
+      ctx.beginPath(); ctx.ellipse(0, 0, fp.W * 0.48, fp.L * 0.48, 0, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.restore();
   }
   for (const [w, fp] of shown) {
@@ -756,9 +770,11 @@ export function draw(ctx, T, view) {
     // Turn the sprite so its own nose, up or down the image, points the way
     // the vehicle travels.
     ctx.rotate(fp.h + (SPRITES[w.skin].nose === 'up' ? Math.PI / 2 : -Math.PI / 2));
-    const img = imgs?.[w.skin];
-    if (img && img.complete && img.naturalWidth) ctx.drawImage(img, -fp.W / 2, -fp.L / 2, fp.W, fp.L);
-    else { ctx.fillStyle = KINDS[w.kind].colour; ctx.fillRect(-fp.W / 2, -fp.L / 2, fp.W, fp.L); }
+    // Outlined, with its tyres turning by the distance it has come.
+    const m = { key: w.id, odo: w.s * w.dir, nose: SPRITES[w.skin].nose };
+    if (!look.body(ctx, w.skin, imgs?.[w.skin], w.W, fp.W, fp.L, m)) {
+      ctx.fillStyle = KINDS[w.kind].colour; ctx.fillRect(-fp.W / 2, -fp.L / 2, fp.W, fp.L);
+    }
     ctx.restore();
   }
 }
