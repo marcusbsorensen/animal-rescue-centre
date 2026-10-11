@@ -1989,7 +1989,9 @@ function nextStep(state: CrateLoadingState): string {
  * would have the whole screen re-flow under her hand. So the decision
  * is taken once, against the whole fleet.
  *
- * The height is Henry's 255 — he is the shortest requirement, so a
+ * The height is Henry's 221 (255 until 2026-10-11, when his sprite was
+ * shortened to his portrait's proportions at the same width) — he is the
+ * shortest requirement, so a
  * column that cannot hold him cannot hold anybody. The width is Bea's
  * 132: her bed is the narrowest share of her body in the fleet (0.58),
  * so two 40px bays across cost her more drawn width than they cost
@@ -2065,6 +2067,16 @@ const READ_MIN_W = 236;
  * cropped — against Rule 8, and the fault this whole screen was rebuilt
  * to fix — or the bays come down. They come down.
  *
+ * **Overtaken in part, 2026-10-11.** Henry, Bea and Spark were shortened
+ * to their portraits' proportions at the same widths, which took Spark's
+ * six bays from needing 361px drawn to 245, and Bea's 323 to 294 and
+ * Henry's 255 to 221. The tallest requirement is Big Tilly's 308, whose
+ * 2x4 needs a bed 2:1 that had no slack to give. So the Capacitor app's
+ * 343px (812x375) now costs nobody a pixel, and the web clip's 293px
+ * (812x325) costs two vehicles: Bea 39 and Big Tilly 37, where it cost
+ * Spark 31, Bea 35 and Big Tilly 37. Everything below describes the
+ * sprites of the day it was written.
+ *
  * **31 is derived and it is the smallest viewport's own number.**
  * `wholeVehicleHeight` is affine in the floor, so solving
  * `wholeVehicleHeight('electric-minibus', 2, 3) = 293` gives 31.75: 31
@@ -2091,8 +2103,9 @@ export const BAY_FLOOR_MIN = 31;
  * needs it.** Relaxing it cannot shrink a bay that already clears
  * `BAY_MIN`: the floor is the size `fitLoadBed` *grows* a vehicle to
  * reach, so a vehicle fitted comfortably inside her box never consults
- * it. At 812x325 Spark takes 31 and Bea 35 and Big Tilly 37, while Henry
- * and Trikey keep 40 — and an arrow press changes nothing but the
+ * it. At 812x325 Spark took 31 and Bea 35 and Big Tilly 37, while Henry
+ * and Trikey kept 40 (since 2026-10-11 it is Bea 39 and Big Tilly 37, and
+ * Spark keeps 40) — and an arrow press changes nothing but the
  * vehicle's own bays, which were already a different size in every
  * vehicle.
  *
@@ -2143,8 +2156,9 @@ export function bayFloorFor(
  * height of the screen, the reading panel over the waiting animals in
  * the middle, and the crates standing in a rack on the right. The car
  * park's column is `SAFE_MARGIN` to `SAFE_MARGIN`, not `contentTop` to
- * the floor, because on a landscape phone the vehicle needs 393 of the
- * 402 pixels there are and everything else has to be beside her rather
+ * the floor, because on a landscape phone the vehicle needed 393 of the
+ * 402 pixels there are (340 since the shortening of 2026-10-11, and it is
+ * Big Tilly's) and everything else has to be beside her rather
  * than above or below her. The title plate and Back float over the
  * tarmac either side of her, which is what they already do to the
  * risen rear in the tall layout.
@@ -2162,10 +2176,12 @@ export function bayFloorFor(
  * in the fleet, because below it no vehicle stands whole stacked and
  * there is nothing left to weigh.
  *
- * **At the title plate this screen draws, that height is 599px.**
- * 620 - 80 - 136 - 12 - 97 = 295 of column, less 24 of ground, is 271
- * against Henry's 255, so 820x620 stays stacked with 16px to spare; at
- * 598 the column is 276, less 22, is 254 and he no longer fits. It is
+ * **At the title plate this screen draws, that height is 552px** (it
+ * was 599 until 2026-10-11; the numbers that follow are the 599 working,
+ * with Henry's 255 where it is now 221). 620 - 80 - 136 - 12 - 97 = 295
+ * of column, less 24 of ground, is 271 against Henry's 255, so 820x620
+ * stays stacked with 16px to spare; at 598 the column is 276, less 22,
+ * is 254 and he no longer fit. It is
  * computed here rather than written down because `contentTop` is read
  * off the drawn title, and a longer vehicle name moves it.
  *

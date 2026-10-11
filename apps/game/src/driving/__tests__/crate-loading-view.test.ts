@@ -1110,11 +1110,20 @@ describe('where the loading screen puts everything', () => {
     // **The breakpoint is derived, not chosen.** It is the height at
     // which the stacked column, less the ground the vehicle is owed,
     // falls under the least any vehicle in the fleet needs to stand
-    // whole with her bays at the tap floor — Henry's 255. At the title
-    // plate this screen draws, that lands on 599.
-    expect(Math.round(wholeVehicleHeight('small-van', 2, 2))).toBe(255);
-    expect(at(1024, 599).kind).toBe('stacked');
-    expect(at(1024, 598).kind).toBe('short');
+    // whole with her bays at the tap floor — Henry's 221. At the title
+    // plate this screen draws, that lands on 552.
+    //
+    // **Moved 2026-10-11, from 255 and 599, because Henry is shorter.**
+    // His sprite was shortened to his portrait's proportions (1309 rows to
+    // 1136) at the same width, so his bays reach 40px at the same scale and
+    // the van that carries them is 34px less tall. Nothing here was
+    // retuned: the layout derives the height from the art, which is what
+    // it is for. The stacked layout now holds down to 552px of viewport
+    // where it held to 599, so the three-column layout has 47px less
+    // of the heights between a phone and a tablet.
+    expect(Math.round(wholeVehicleHeight('small-van', 2, 2))).toBe(221);
+    expect(at(1024, 552).kind).toBe('stacked');
+    expect(at(1024, 551).kind).toBe('short');
   });
 
   it('stands every vehicle whole in the column it hands out, at every supported size', () => {
@@ -1138,10 +1147,11 @@ describe('where the loading screen puts everything', () => {
     // walks every height between them, because what used to crop was an
     // arithmetic edge rather than a chosen viewport. It catches the two
     // pixels Spark was short of at 599 and 600 — the stacked heights
-    // just above the short layout's breakpoint — which no named
-    // viewport sits on and nobody had measured.
+    // just above the short layout's breakpoint, which has since moved to
+    // 552 (see above) — which no named viewport sits on and nobody had
+    // measured.
     for (let h = 325; h <= 768; h += 1) {
-      const cols = at(h >= 599 ? 1024 : 812, h);
+      const cols = at(h >= 552 ? 1024 : 812, h);
       for (const v of FLEET) {
         const { bottom } = parkedNose(cols, v);
         expect(bottom, `${v.name} nose at ${h} tall`)
@@ -1154,35 +1164,46 @@ describe('where the loading screen puts everything', () => {
     // **Marcus's decision, 9 October 2026, and the arithmetic it rests
     // on.** `BAY_MIN` is the drawn size at which two bays' hit areas
     // stop overlapping, and it holds at every viewport the screen was
-    // composed for. It cannot hold on the two phone viewports: Spark
-    // needs 361px drawn for her six bays to reach it, and the short
+    // composed for. It could not hold on the two phone viewports: Spark
+    // needed 361px drawn for her six bays to reach it, and the short
     // layout has 343px of ground at 812x375 and 293 at 812x325. So the
-    // bays come down there — only there, only on the vehicles who need
+    // bays came down there — only there, only on the vehicles who need
     // it, and only as far as standing her whole requires.
-    expect(Math.round(wholeVehicleHeight('electric-minibus', 2, 3))).toBe(361);
-    for (const [w, h] of [[1024, 768], [1024, 700], [820, 620], [874, 402]]) {
+    //
+    // **Re-recorded 2026-10-11, and mostly it got better.** Spark was
+    // shortened to her portrait's proportions at the same width, so her
+    // six bays reach 40 at 245px rather than 361, and Henry and Bea came
+    // down with her (221 and 294). The tallest requirement is now Big
+    // Tilly's 308, which is the one thing that did not change, because
+    // her 2x4 needs a bed 2:1 and there was none to take from it.
+    expect(Math.round(wholeVehicleHeight('electric-minibus', 2, 3))).toBe(245);
+    expect(Math.round(wholeVehicleHeight('animal-lorry', 2, 4))).toBe(308);
+    for (const [w, h] of [[1024, 768], [1024, 700], [820, 620], [874, 402], [812, 375]]) {
       for (const v of FLEET) {
         expect(floorFor(at(w, h), v), `${v.name} at ${w}x${h}`).toBe(BAY_MIN);
       }
     }
-    // The Capacitor app: Spark alone, and 37 is the largest floor that
-    // stands her in 343px of ground.
+    // The Capacitor app, 343px of ground: it used to cost Spark three
+    // pixels, and now every vehicle keeps all 40.
     expect(Object.fromEntries(FLEET.map((v) => [v.id, floorFor(at(812, 375), v)]))).toEqual({
       'pedal-trike': 40,
       'small-van': 40,
       'long-van': 40,
       'animal-lorry': 40,
-      'electric-minibus': 37,
+      'electric-minibus': 40,
     });
-    // The Home Screen web clip, 50px shorter: three of the five, and
-    // Spark's 31 is `BAY_FLOOR_MIN` — the lowest number any screen the
-    // game ships to ever asks for, which is why it is the clamp.
+    // The Home Screen web clip, 50px shorter, 293px of ground: it was
+    // three of the five (Bea 35, Big Tilly 37, Spark 31) and is two,
+    // Bea a pixel under at 294 against 293 and Big Tilly 37. `BAY_FLOOR_MIN`
+    // was Spark's 31 there, "the lowest number any screen the game ships
+    // to ever asks for"; it is now the clamp for viewports nobody has
+    // composed for and no shipped one asks for it (the lowest is 37).
     expect(Object.fromEntries(FLEET.map((v) => [v.id, floorFor(at(812, 325), v)]))).toEqual({
       'pedal-trike': 40,
       'small-van': 40,
-      'long-van': 35,
+      'long-van': 39,
       'animal-lorry': 37,
-      'electric-minibus': BAY_FLOOR_MIN,
+      'electric-minibus': 40,
     });
     expect(BAY_FLOOR_MIN).toBe(31);
   });
@@ -1191,11 +1212,13 @@ describe('where the loading screen puts everything', () => {
     // Derived, not chosen: the short layout hands the car park
     // `height - 2 * SAFE_MARGIN` of ground, and the first vehicle to
     // lose the 40px floor is the one who needs the most of it. Spark's
-    // 361 plus two safe margins is 393, so every vehicle keeps 40 at
-    // 393 and she is the first to give a pixel up at 392.
+    // 361 plus two safe margins was 393 and she was the first to give a
+    // pixel up at 392. Big Tilly's 308 is the tallest now (the shortening
+    // of 2026-10-11 took 116px off Spark's), so every vehicle keeps 40 at
+    // 340 and she is the first to give a pixel up at 339.
     const floors = (w: number, h: number) => FLEET.map((v) => floorFor(at(w, h), v));
-    expect(floors(812, 393)).toEqual([40, 40, 40, 40, 40]);
-    expect(Math.min(...floors(812, 392))).toBe(39);
+    expect(floors(812, 340)).toEqual([40, 40, 40, 40, 40]);
+    expect(Math.min(...floors(812, 339))).toBe(39);
     // And the clamp holds on a viewport nobody has composed for, rather
     // than handing back a bay a crate cannot be seen in.
     expect(Math.min(...floors(812, 240))).toBe(BAY_FLOOR_MIN);
@@ -1205,14 +1228,16 @@ describe('where the loading screen puts everything', () => {
     // The shape may not change when an arrow changes the vehicle, and
     // `FLEET_MIN_WHOLE_H` is measured at `BAY_MIN` for exactly that
     // reason. A relaxed floor fed back into the breakpoint would move
-    // it — these are the two heights either side of it, unmoved.
-    expect(at(1024, 599).kind).toBe('stacked');
-    expect(at(1024, 598).kind).toBe('short');
+    // it — these are the two heights either side of it, unmoved (599 and
+    // 598 until 2026-10-11, 552 and 551 since: see the first of these).
+    expect(at(1024, 552).kind).toBe('stacked');
+    expect(at(1024, 551).kind).toBe('short');
   });
 
   it('relaxes the drop bays and nothing else, on the smallest screen there is', () => {
     // **The concession is the drop bays' and no other control's.** At
-    // 812x325 three vehicles' bays go under `BAY_MIN`, and every other
+    // 812x325 two vehicles' bays go under `BAY_MIN` (three until
+    // 2026-10-11, when Spark was shortened), and every other
     // target on the screen still clears `MIN_TAP`: the vehicle arrows,
     // the crates' pitch in their rack, the waiting animals' pitch on
     // the floor. A bay's own hit area is the pitch rather than 48, so it
@@ -1277,7 +1302,7 @@ describe('where the loading screen puts everything', () => {
     for (const [w, h] of SHIPPED) {
       const dog = rowAt(w, h, SIX).size[2];
       expect(dog, `the dog at ${w}x${h}`).toBeGreaterThanOrEqual(MIN_TAP);
-      if (h >= 599) expect(dog, `the dog at ${w}x${h}`).toBeGreaterThanOrEqual(MIN_TAP * 2);
+      if (h >= 552) expect(dog, `the dog at ${w}x${h}`).toBeGreaterThanOrEqual(MIN_TAP * 2);
     }
   });
 

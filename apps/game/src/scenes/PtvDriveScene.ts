@@ -85,22 +85,27 @@ const TRAFFIC_SPRITE_KEYS: Record<TrafficKind, string[]> = {
  *  (the A.R.C. forecourt has different-sized spaces for exactly this reason).
  *
  *  **These are width ratios, because this scalar is applied to width.** Every
- *  sprite now carries its vehicle's true aspect — the proportion pass made
- *  each one between 1.4x and 1.9x longer for its width — so setting the width
- *  right gives the length for free, and nothing here has to argue about
- *  length at all.
+ *  sprite carries its vehicle's own aspect — the proportion pass of
+ *  2026-10-08 made each one between 1.4x and 1.9x longer for its width, and
+ *  on 2026-10-11 Henry, Bea and Spark were shortened again, to the
+ *  proportions of their portraits (2.02, 2.23 and 1.88 long for their
+ *  width) — so setting the width right gives the length for free, and
+ *  nothing here has to argue about length at all. Both passes left every
+ *  file's width alone, which is why this table did not move.
  *
  *  That is what the old numbers got wrong. Big Tilly was 1.5, reasoned from
  *  her 3x3 crate grid against Henry's 2x2: a length argument, spent on the
  *  width lever, which drew a lorry half again too fat because the art of the
  *  day was too short and the scalar was being asked to fix it. The art fixed
  *  it instead. She is 1.31 — a 2.4m lorry against Henry's 1.8m van — and the
- *  sprite's own 2.81:1 aspect makes her 2.6 times his length without being
- *  asked.
+ *  sprite's own 2.81:1 aspect makes her about 1.8 times his length (2.03:1
+ *  since he was shortened) without being asked.
  *
  *  Measured off the installed files, as each sprite's opaque width over
  *  Henry's 561px: Trikey 0.43 (a trike is narrower than her file, which
- *  includes her handlebars), Bea 1.03, Spark 1.14, Tilly 1.31. */
+ *  includes her handlebars), Bea 1.03, Spark 1.14, Tilly 1.31. Measured
+ *  again after the shortening, with the same answers: 578, 640 and 738
+ *  against Henry's 560. */
 const VEHICLE_SIZE: Record<VehicleType, number> = {
   'pedal-trike': 0.43,
   'small-van': 1.0,

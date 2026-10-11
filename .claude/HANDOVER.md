@@ -570,3 +570,46 @@ aspects, setting width correctly gives correct length for free.
 Trikey is excluded from the proportion pass: her bicycle-versus-trike question
 has to be settled first, or she gets redrawn twice.
 
+
+## Shortened to the portraits — decided 2026-10-11
+Marcus took the portraits' own proportions as the target for the top-downs, over
+the real vehicles' of "One true scale" above. Drawn length over width, measured
+off `vehicles/vehicle-<name>.png` and then off the sprites:
+
+| sprite | was | portrait | now |
+|---|---|---|---|
+| henry | 2.34 | 2.02 | 2.03 |
+| henry-rear | 2.40 | 2.02 | 2.02 |
+| bea | 2.45 | 2.23 | 2.23 |
+| bea-rear | 2.50 | 2.23 | 2.23 |
+| spark | 2.92 | 1.88 | 1.89 |
+| spark-rear | 2.92 | 1.88 | 1.88 |
+| big-tilly | 2.81 | 1.79 | 2.81, declined |
+| big-tilly-rear | 2.82 | 1.79 | 2.52 |
+
+`tools/shorten-topdown.py` did it, and its docstring is the recipe: the nose and
+the tail are kept byte for byte and the length comes out of the roof or the bed,
+so nothing was squashed, with the seam found by matching rows and cut through the
+paint. Widths did not change, so `VEHICLE_SIZE` did not either. It reads the
+originals from git (`9267ec5`) and is safe to run again.
+
+**Big Tilly could not be done, and why is in the docstring.** Her 2x4 needs a bed
+about 2:1 and her front has none to give (bed 2.03:1, plank floor 2.20:1); her cab
+is windscreen, mirrors, side windows, pillar bars and tyres, and every cut through
+it tears a window. The front is untouched. The rear showed a 2.64:1 floor the front
+does not, so it was cut to the front's 2.20:1. To go further the cab needs
+redrawing, or her load needs to be 2x3.
+
+**What moved because the art did**, all recorded in `fleet-art.ts` and the two
+test files with the old figure beside the new one: `VEHICLE_BED_SOURCE` and the
+three beds (each keeps its place between its cabin's landmarks); every vehicle's
+`wholeVehicleHeight` (Henry 255 to 221, Bea 323 to 294, Spark 361 to 245), which
+the loading screen derives its breakpoints from, so the stacked/short height went
+from 599 to 552 and Spark no longer rises at any viewport; the picker's size order,
+where Spark is now shorter than Bea (3.8m to 4.0m) and stands before her, while the
+vehicle arrows still walk Bea then Spark. **That last one is open** and is
+Marcus's to decide: the arrows could follow length, or the picker could sort by
+footprint, which keeps Bea first.
+
+`tools/scale-check.py` still holds the real vehicles' lengths and now reports
+Henry, Bea and Spark as short of them, which is the decision and not a fault.

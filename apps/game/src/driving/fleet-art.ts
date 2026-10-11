@@ -82,13 +82,42 @@ export const VEHICLE_SPRITE: Record<VehicleType, string> = {
  *               headboard (0.59); walls 0.08..0.92
  *   Spark       the minibus cabin, rear (0.02) to windscreen (0.72);
  *               sides 0.14..0.87
+ *
+ * **Re-measured 2026-10-11, when Henry, Bea and Spark were shortened to
+ * their portraits' proportions** (`tools/shorten-topdown.py`: Henry
+ * 1309 to 1136, Bea 1418 to 1289, Spark 1870 to 1207; Big Tilly's front
+ * was not touched, so her entry and source stand). **This time it is
+ * arithmetic on the old numbers, and that is right here**, because
+ * nothing was redrawn: the rows above the cut are the same rows and the
+ * rows below it are the same rows moved up by what came out. Each bed
+ * keeps its place between its cabin's two landmarks, the same share of
+ * the way from the rear to the windscreen, and so the margin of paint
+ * round it shrinks with the cabin: 28-36 rows at the rear and 37-62 at
+ * the windscreen end, against 27-32px at its sides. Keeping the old
+ * margins in pixels instead would have taken the removed length out of
+ * the bed alone and left Spark's 2x3 in 515 rows, which at the phone's
+ * 132px of vehicle is a bay 35px deep: under the tap floor, and a
+ * column 15px wider on every short viewport to buy it back. Landmarks
+ * and beds now:
+ *
+ *   Henry       rear doors (0.023) to bulkhead (0.620); bed 0.050..0.564
+ *   Bea         0.022 to 0.604; bed 0.050..0.557
+ *   Spark       rear (0.031) to windscreen (0.566); bed 0.054..0.536
+ *
+ * The beds got shorter with the vehicles, so their shape changed and
+ * their width did not: Henry's 2x2 grid now lies in a bed 1.49:1 rather
+ * than 1.87:1, Bea's 2x3 in 1.95:1 rather than 2.28:1, and Spark's 2x3
+ * in 1.47:1 rather than 2.97:1, which is the 1.5:1 that square crates
+ * want in two across and three down. Big Tilly's 2x4 is the one that
+ * could not be allowed to shrink: her bed is 2.03:1 and the crates are
+ * painted square, so her front sprite was left alone.
  */
 export interface LoadBed { x: number; y: number; w: number; h: number }
 
 export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
   'pedal-trike':      { x: 0.11, y: 0.04, w: 0.78, h: 0.28 },
-  'small-van':        { x: 0.15, y: 0.05, w: 0.70, h: 0.56 },
-  'long-van':         { x: 0.21, y: 0.05, w: 0.58, h: 0.54 },
+  'small-van':        { x: 0.15, y: 0.050, w: 0.70, h: 0.514 },
+  'long-van':         { x: 0.21, y: 0.050, w: 0.58, h: 0.507 },
   'animal-lorry':     { x: 0.14, y: 0.04, w: 0.72, h: 0.52 },
   // Reverted from a "correction" to x 0.181 w 0.644 on 2026-10-09. That came
   // from measuring her painted body as the median opaque extent across the
@@ -97,7 +126,7 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
   // 0.753 that gave, and at the fleet's bed-to-body ratio of 0.855 that is
   // 0.617. The original 0.62 was right. The narrow-viewport test caught it by
   // spotting the grid spilling off the paint, so leave that test alone.
-  'electric-minibus': { x: 0.19, y: 0.05, w: 0.62, h: 0.63 },
+  'electric-minibus': { x: 0.19, y: 0.054, w: 0.62, h: 0.482 },
 };
 
 /**
@@ -127,6 +156,12 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
  * height-limited band scales everything on it down. That is what a
  * long minibus is, not a number to be corrected; the honest fix would
  * be a taller band.
+ *
+ * **Overtaken 2026-10-11.** Spark was shortened to her portrait's 1.88:1
+ * (Henry and Bea to 2.02 and 2.23), and the figures above become Henry
+ * 0.346, Spark 0.329, Bea 0.261, Big Tilly 0.257. She is no longer the
+ * longest vehicle in the fleet or the one with the least bed per unit of
+ * band; the paragraph describes the sprite she had.
  */
 
 /**
@@ -139,10 +174,10 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
  */
 export const VEHICLE_BED_SOURCE: Record<VehicleType, { w: number; h: number }> = {
   'pedal-trike': { w: 364, h: 851 },
-  'small-van': { w: 561, h: 1309 },
-  'long-van': { w: 579, h: 1418 },
+  'small-van': { w: 561, h: 1136 },
+  'long-van': { w: 579, h: 1289 },
   'animal-lorry': { w: 738, h: 2071 },
-  'electric-minibus': { w: 640, h: 1870 },
+  'electric-minibus': { w: 640, h: 1207 },
 };
 
 /**
@@ -482,9 +517,15 @@ export function fitLoadBed(
  * about right.
  *
  * Length comes free from the sprite's own aspect and is not recorded
- * here: every file now carries its vehicle's true proportion, so
- * `width_m * spriteH / spriteW` is the length, within 3% of the
- * handover's table for all four.
+ * here: `width_m * spriteH / spriteW` is the length. **Since 2026-10-11
+ * that is no longer the real vehicle's length for three of the four.**
+ * Marcus chose each portrait's own proportions for Henry, Bea and
+ * Spark, so they are drawn 2.02, 2.23 and 1.88 long for their width:
+ * 3.5m, 4.0m and 3.8m against the handover's 4.2, 4.5 and 5.9. Spark is
+ * now the shorter of her and Bea, which is the one thing that moved in
+ * the fleet's order. Big Tilly's front is unchanged at 2.81, 6.5m, as
+ * the proportions of her bed cannot go any shorter (see
+ * `VEHICLE_BED`).
  */
 export const VEHICLE_WIDTH_M: Record<VehicleType, number> = {
   'pedal-trike': 0.75,
@@ -718,6 +759,17 @@ export function vehicleLengthM(id: VehicleType): number {
  * art, that one from the rules — and a test holds them to each other, so
  * if a capacity ever stops matching a size the test says so rather than
  * the screens quietly disagreeing.
+ *
+ * **They stopped agreeing on 2026-10-11, in the one pair that ties on
+ * capacity.** Marcus chose each portrait's own proportions for Henry, Bea
+ * and Spark's top-downs, which draws Spark (1.88 long for her width, 3.8m)
+ * shorter than Bea (2.23, 4.0m), though she is still the wider. Sorted by
+ * length the row is now Trikey, Henry, Spark, Bea, Big Tilly, and the
+ * arrows still walk Bea then Spark. Nothing here was changed to hide it:
+ * the order that has to hold, that a bigger vehicle never holds less, still
+ * does, and the test says which pair differs. Whether the arrows should
+ * follow length, or this should sort by footprint (width times length,
+ * which keeps Bea first), is Marcus's to decide.
  */
 export function fleetBySize(ids: VehicleType[]): VehicleType[] {
   return ids.slice().sort((a, b) => (

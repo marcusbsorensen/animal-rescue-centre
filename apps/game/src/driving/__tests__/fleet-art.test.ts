@@ -260,10 +260,14 @@ describe('fitLoadBed', () => {
     // depend on a screen: there is a window of vehicle heights in which
     // the bare bays are under the floor and the floor spread into the
     // bed's slack is not, and inside it the slack must be spent before
-    // the vehicle grows. For Spark that window is 361px to 490px. 420 is
-    // inside it, so this asserts the behaviour against a box chosen for
-    // the purpose, with the premise asserted rather than assumed.
-    const box = { w: 532, h: 420 };
+    // the vehicle grows. For Spark that window was 361px to 490px, and
+    // **is 245px to 316px since 2026-10-11**, when her sprite was shortened
+    // to her portrait's proportions at the same width: her bays reach 40
+    // sooner, and her bare bays stay under it until she is drawn 316px
+    // tall. 280 is inside it, so this asserts the behaviour against a box
+    // chosen for the purpose, with the premise asserted rather than
+    // assumed.
+    const box = { w: 532, h: 280 };
     const id = 'electric-minibus';
     const bed = VEHICLE_BED[id];
     const sprite = spriteOf(id);
@@ -291,8 +295,15 @@ describe('fitLoadBed', () => {
     // rises. The iPad's 1024x768 is where the slack is now exactly
     // enough - her box is 403px, her bare bays come out at 38.7px, two
     // under the floor, and the slack is what saves her from growing.
+    //
+    // **Moved to Big Tilly, 2026-10-11.** Spark was shortened at the same
+    // width and is drawn 213px wide in that box with 54px bays, roomy,
+    // and no longer needs the slack anywhere on the iPad. The vehicle
+    // that does is the one whose box is now tightest: Big Tilly's 2x4 is
+    // drawn 144px wide in 403px, her bare bays come out at 39.7px, a
+    // third of a pixel under the floor, and the slack saves her.
     const box = COLUMNS['tablet 1024x768'];
-    const id = 'electric-minibus';
+    const id = 'animal-lorry';
     const bed = VEHICLE_BED[id];
     const sprite = spriteOf(id);
     const fitScale = Math.min(box.w / sprite.w, box.h / sprite.h);
@@ -361,6 +372,12 @@ describe('fitLoadBed', () => {
     // Recorded with the distances, because they are the measure of how
     // much work the rising rear is doing: if the layout ever frees the
     // height, these fall to nothing and the rise can go.
+    //
+    // **Re-recorded 2026-10-11 and the rise got smaller, which is the
+    // direction it was meant to go.** Bea rose 26 and Spark 45 before
+    // their sprites were shortened to their portraits' proportions;
+    // Bea rises 11 now and Spark does not rise at all. Big Tilly's 18 and
+    // Trikey's 1 are what they were, and Henry still does not move.
     const label = 'narrow 820x620';
     const column = RAW_COLUMNS[label];
     const risen: Record<string, number> = {};
@@ -373,18 +390,24 @@ describe('fitLoadBed', () => {
     expect(risen).toEqual({
       'pedal-trike': 1,
       'animal-lorry': 18,
-      'long-van': 26,
-      'electric-minibus': 45,
+      'long-van': 11,
     });
   });
 
-  it('needs the rising rear at three of the four viewports, and says which', () => {
+  it('needs the rising rear at one of the four viewports, and says which', () => {
     // **The answer to "is the rise still doing anything".** It is: only
     // the iPad's column is tall enough to stand every vehicle centred
     // with her ground. Spark rises at 1024x700 and at 874x402 as well
     // as at 820x620, where three others join her. Recorded as one table
     // so that a layout change which frees the height shows up here as
     // the number that can go, rather than being discovered by eye.
+    //
+    // **Re-recorded 2026-10-11: it is now one of the four.** Spark's rear
+    // rose at three viewports and rises at none, because her sprite was
+    // shortened to her portrait's proportions (361px to stand whole, 245
+    // now). The rise is still doing work at 820x620, for Bea (294px
+    // against a 295px column that owes her ground) and Big Tilly (308),
+    // and nowhere else.
     const rising = Object.fromEntries(
       (Object.keys(RAW_COLUMNS) as Viewport[]).map((label) => {
         const column = RAW_COLUMNS[label];
@@ -402,9 +425,9 @@ describe('fitLoadBed', () => {
     );
     expect(rising).toEqual({
       'tablet 1024x768': [],
-      'desktop 1024x700': ['electric-minibus'],
-      'narrow 820x620': ['animal-lorry', 'electric-minibus', 'long-van'],
-      'landscape phone 874x402': ['electric-minibus'],
+      'desktop 1024x700': [],
+      'narrow 820x620': ['animal-lorry', 'long-van'],
+      'landscape phone 874x402': [],
     });
   });
 
@@ -465,10 +488,20 @@ describe('fitLoadBed', () => {
     // what gives is the ground and not the bay. She still stands whole
     // in the column - the test above - because the margin she gives up
     // is exactly what she grows into.
+    //
+    // **Re-pointed 2026-10-11, because nobody is in that position any
+    // more.** Spark was shortened to her portrait's proportions and
+    // stands whole in 245px; the tallest requirement in the fleet is Big
+    // Tilly's 308, which the 340px box holds. The behaviour is unchanged
+    // and is asserted where it still happens: Big Tilly in a box 28px
+    // short of what her 2x4 needs.
     const phone = fitIn(COLUMNS['landscape phone 874x402'], VEHICLE_DEFS['electric-minibus']);
-    expect(phone.overflows).toBe(true);
-    expect(phone.slotW).toBeGreaterThanOrEqual(BAY_MIN);
-    expect(phone.slotH).toBeGreaterThanOrEqual(BAY_MIN);
+    expect(phone.overflows).toBe(false);
+    const tilly = VEHICLE_DEFS['animal-lorry'];
+    const tight = fitIn({ w: 132, h: wholeVehicleHeight('animal-lorry', tilly.cols, tilly.rows) - 28 }, tilly);
+    expect(tight.overflows).toBe(true);
+    expect(tight.slotW).toBeGreaterThanOrEqual(BAY_MIN);
+    expect(tight.slotH).toBeGreaterThanOrEqual(BAY_MIN);
   });
 
   it('gives a bigger grid smaller bays in the same vehicle', () => {
@@ -515,17 +548,31 @@ describe('the fleet at real size', () => {
     }
   });
 
-  it('gets each vehicle its real length free, from the sprite it was repainted to', () => {
-    // The whole reason lengths are not written down: every file now
-    // carries its vehicle's true aspect, so the width is the only fact
-    // that has to be stated. Within 5% of the handover's table.
+  it('gets each vehicle its length free, from the sprite it was drawn to', () => {
+    // The whole reason lengths are not written down: every file carries
+    // its vehicle's aspect, so the width is the only fact that has to be
+    // stated.
+    //
+    // **Rewritten 2026-10-11, because the aspects changed hands.** This
+    // used to hold each length within 5% of the handover's table of real
+    // vehicles (4.2, 4.5, 5.9 and 6.5m). Marcus then chose each
+    // portrait's own drawn proportions as the target for Henry, Bea and
+    // Spark's top-downs - 2.02, 2.23 and 1.88 long for their width,
+    // measured off `vehicles/vehicle-<name>.png` - so they are 3.5, 4.0
+    // and 3.8m, and Spark is shorter than Bea. Big Tilly's front was not
+    // shortened (her 2x4 needs a bed 2:1 and a cab that is all features;
+    // see `tools/shorten-topdown.py`) and is still 2.81, 6.5m. Held to
+    // those, within 2%.
+    const DRAWN: Partial<Record<VehicleType, number>> = {
+      'small-van': 2.02, 'long-van': 2.23, 'electric-minibus': 1.88, 'animal-lorry': 2.81,
+    };
     for (const v of EVERY_VEHICLE) {
-      const real = REAL[v.id];
-      if (!real) continue;
+      const lw = DRAWN[v.id];
+      if (!lw) continue;
       const sprite = spriteOf(v.id);
       const length = VEHICLE_WIDTH_M[v.id] * (sprite.h / sprite.w);
-      expect(length, `${v.name} length`).toBeGreaterThan(real.l * 0.95);
-      expect(length, `${v.name} length`).toBeLessThan(real.l * 1.05);
+      expect(length, `${v.name} length`).toBeGreaterThan(VEHICLE_WIDTH_M[v.id] * lw * 0.98);
+      expect(length, `${v.name} length`).toBeLessThan(VEHICLE_WIDTH_M[v.id] * lw * 1.02);
     }
   });
 
@@ -619,8 +666,13 @@ describe('the fleet at real size', () => {
       const bare = fitIn({ w: raw.vehicleW, h: raw.h }, VEHICLE_DEFS['small-van']);
       expect(withGround.slotW, `${label} bay width`).toBeGreaterThanOrEqual(BAY_MIN);
       expect(withGround.slotH, `${label} bay height`).toBeGreaterThanOrEqual(BAY_MIN);
-      expect(bare.slotW - withGround.slotW, `${label} bay width cost`).toBeLessThanOrEqual(5);
-      expect(bare.slotH - withGround.slotH, `${label} bay height cost`).toBeLessThanOrEqual(7);
+      // Five until 2026-10-11, six since Henry was shortened: a shorter
+      // sprite leaves the same ground a larger share of a box that is
+      // tighter in height than in width.
+      expect(bare.slotW - withGround.slotW, `${label} bay width cost`).toBeLessThanOrEqual(6);
+      // Seven until 2026-10-11, eight since Henry was shortened (same
+      // reason as the width above).
+      expect(bare.slotH - withGround.slotH, `${label} bay height cost`).toBeLessThanOrEqual(8);
     }
   });
 });
@@ -644,15 +696,22 @@ describe('how tall a vehicle must be to stand whole', () => {
     // Spark 2x3: 361 - the tallest, and the one 820x620 cannot hold. Bea
     // is the other one to watch: 323 stands in the 334px column with five
     // pixels of ground fore and aft instead of the thirteen she is owed.
+    //
+    // **Re-recorded 2026-10-11.** Henry, Bea and Spark were shortened to
+    // their portraits' proportions at the same widths, and their bays
+    // reach 40 at the same scale on a van that is less tall: Henry 221,
+    // Bea 294, Spark 245. Big Tilly's 308 and Trikey's 273 are what they
+    // were. **Big Tilly is the tallest now, and Spark is the second
+    // shortest**, which is the whole of the effect on the layout.
     const tall = Object.fromEntries(
       EVERY_VEHICLE.map((v) => [v.id, Math.round(wholeVehicleHeight(v.id, v.cols, v.rows))]),
     );
     expect(tall).toEqual({
       'pedal-trike': 273,
-      'small-van': 255,
-      'long-van': 323,
+      'small-van': 221,
+      'long-van': 294,
       'animal-lorry': 308,
-      'electric-minibus': 361,
+      'electric-minibus': 245,
     });
   });
 
@@ -799,8 +858,14 @@ describe('the picker', () => {
   const SIZES: Array<[number, number]> = [[820, 620], [1024, 700], [874, 402], [1024, 768]];
   const layoutAt = (w: number, h: number) =>
     pickerLayout({ width: w, height: h, contentTop: CONTENT_TOP, ids: IDS });
-  /** Shortest to longest, which is also smallest to largest. */
-  const BY_SIZE: VehicleType[] = ['pedal-trike', 'small-van', 'long-van', 'electric-minibus', 'animal-lorry'];
+  /**
+   * Shortest to longest, which is also smallest to largest.
+   *
+   * **Spark and Bea swapped on 2026-10-11.** Spark's sprite was shortened to
+   * her portrait's 1.88:1 and Bea's to hers, 2.23:1, so Spark is 3.8m long
+   * to Bea's 4.0 while still being wider. The row reads by length.
+   */
+  const BY_SIZE: VehicleType[] = ['pedal-trike', 'small-van', 'electric-minibus', 'long-van', 'animal-lorry'];
 
   it.each(SIZES)('draws all five at one scale, driven by their width in metres, at %ix%i', (w, h) => {
     const layout = layoutAt(w, h);
@@ -832,18 +897,33 @@ describe('the picker', () => {
     expect(shuffled.bays.map((b) => b.id)).toEqual(BY_SIZE);
   });
 
-  it('parks them in the order the vehicle-change arrows walk', () => {
+  it('parks them in the order the vehicle-change arrows walk, but for the pair that ties on capacity', () => {
     // The picker sorts by drawn size and the arrows by capacity, with
     // unlock level breaking Bea and Spark's tie at six spaces each
     // (`VEHICLES_BY_ROOM`). A bigger vehicle holds more, so the two agree,
     // and a child who learns the fleet's order on one screen keeps it on
-    // the other. They are derived separately — one from the art, one from
-    // the rules — so this is what says the day they stop agreeing.
-    expect(fleetBySize(IDS)).toEqual([...VEHICLES_BY_ROOM]);
-    expect(layoutAt(820, 620).bays.map((b) => b.id)).toEqual([...VEHICLES_BY_ROOM]);
-    // Non-decreasing capacity, which is the reason they agree.
-    const slots = VEHICLES_BY_ROOM.map((id) => VEHICLE_DEFS[id].slots);
-    expect(slots).toEqual([...slots].sort((a, b) => a - b));
+    // the other. They are derived separately - one from the art, one from
+    // the rules - so this is what says the day they stop agreeing.
+    //
+    // **That day was 2026-10-11, and it is recorded here rather than hidden.**
+    // Marcus chose each portrait's own proportions for Henry, Bea and
+    // Spark, which makes Spark (1.88 long for her width) shorter than Bea
+    // (2.23): the picker now stands her before Bea, and the arrows still
+    // walk Bea then Spark. They differ in exactly the one pair that has
+    // the same capacity, and in nothing that matters to the invariant
+    // below. Which order is right is a decision for him - the arrows could
+    // follow length, or the picker could sort by footprint, which keeps
+    // Bea first - and it is not made here.
+    expect(fleetBySize(IDS)).toEqual(['pedal-trike', 'small-van', 'electric-minibus', 'long-van', 'animal-lorry']);
+    expect([...VEHICLES_BY_ROOM]).toEqual(['pedal-trike', 'small-van', 'long-van', 'electric-minibus', 'animal-lorry']);
+    expect(layoutAt(820, 620).bays.map((b) => b.id)).toEqual(fleetBySize(IDS));
+    // What has to keep holding is that a bigger vehicle never holds less,
+    // in either order, and that the only swap is within a tie.
+    for (const order of [fleetBySize(IDS), [...VEHICLES_BY_ROOM]]) {
+      const slots = order.map((id) => VEHICLE_DEFS[id].slots);
+      expect(slots).toEqual([...slots].sort((a, b) => a - b));
+    }
+    expect(VEHICLE_DEFS['long-van'].slots).toBe(VEHICLE_DEFS['electric-minibus'].slots);
   });
 
   it.each(SIZES)('is not a fixed cell: Trikey is smallest and Big Tilly largest, in both ways, at %ix%i', (w, h) => {
@@ -852,7 +932,12 @@ describe('the picker', () => {
     for (let i = 1; i < BY_SIZE.length; i += 1) {
       const smaller = bays[BY_SIZE[i - 1]];
       const larger = bays[BY_SIZE[i]];
-      expect(larger.spriteW, `${larger.id} wider than ${smaller.id}`).toBeGreaterThan(smaller.spriteW);
+      // Wider every step but one: Bea (1.03 of Henry) is narrower than
+      // Spark (1.14) and now longer than her, which is the pair that swapped
+      // on 2026-10-11 when Spark's sprite was shortened to her portrait.
+      if (!(smaller.id === 'electric-minibus' && larger.id === 'long-van')) {
+        expect(larger.spriteW, `${larger.id} wider than ${smaller.id}`).toBeGreaterThan(smaller.spriteW);
+      }
       // A few pixels at least: two vehicles the same height is the bug.
       expect(larger.spriteH, `${larger.id} longer than ${smaller.id}`).toBeGreaterThan(smaller.spriteH + 3);
     }
