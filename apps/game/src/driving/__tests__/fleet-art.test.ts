@@ -44,9 +44,12 @@ import { contrastRatio } from '../../ui/contrast';
 const PAINTED_BODY: Record<VehicleType, { left: number; right: number }> = {
   'pedal-trike': { left: 0.08, right: 0.92 },
   'small-van': { left: 0.10, right: 0.90 },
-  'long-van': { left: 0.164, right: 0.839 },
+  // Bea and Spark moved on 2026-10-11, when their fronts were redrawn to the
+  // camera of their rears and lost the taper that made the body thinner at the
+  // rows the bed is on: 0.164..0.839 and 0.14..0.87 before.
+  'long-van': { left: 0.08, right: 0.92 },
   'animal-lorry': { left: 0.081, right: 0.920 },
-  'electric-minibus': { left: 0.14, right: 0.87 },
+  'electric-minibus': { left: 0.11, right: 0.89 },
 };
 
 /**
@@ -286,7 +289,7 @@ describe('fitLoadBed', () => {
     expect(fit.spriteH).toBeCloseTo(box.h, 5);
   });
 
-  it('spends the slack at 1024x768 too, where it is exactly enough', () => {
+  it('spends the slack at 1024x700 too, where it is exactly enough', () => {
     // The same behaviour on a real screen. **It used to be asserted at
     // 1024x700 and that viewport has stopped being the case**, because
     // the loading screen's floor band grew from 104px to 142: the
@@ -302,7 +305,14 @@ describe('fitLoadBed', () => {
     // that does is the one whose box is now tightest: Big Tilly's 2x4 is
     // drawn 144px wide in 403px, her bare bays come out at 39.7px, a
     // third of a pixel under the floor, and the slack saves her.
-    const box = COLUMNS['tablet 1024x768'];
+    //
+    // **Moved again the same day, to 1024x700.** Her front was redrawn
+    // 222 rows shorter at the same width (2071 to 1849), so the same
+    // 403px draws her 161px wide and her bare bays come out at 45.9px:
+    // she is roomy on the iPad and needs nothing. The desktop's 339px
+    // box is where she is tightest now, drawn 135px wide, bare bays
+    // 36.7px, three under the floor, and the slack is what saves her.
+    const box = COLUMNS['desktop 1024x700'];
     const id = 'animal-lorry';
     const bed = VEHICLE_BED[id];
     const sprite = spriteOf(id);
@@ -378,6 +388,15 @@ describe('fitLoadBed', () => {
     // their sprites were shortened to their portraits' proportions;
     // Bea rises 11 now and Spark does not rise at all. Big Tilly's 18 and
     // Trikey's 1 are what they were, and Henry still does not move.
+    //
+    // **Re-recorded again the same day, when the fronts were redrawn, and
+    // the rise got smaller again.** Bea's bed was widened to the fleet's
+    // share of her body, which brings her six bays to 40px at 237px of
+    // vehicle where it took 294, so she stands in the column and does not
+    // rise. Big Tilly's front lost 222 rows of cab and roof and none of her
+    // bed, so she needs 275 and rises 2 where she rose 18. What is left,
+    // 1 and 2, is rounding: the one pixel of Trikey's grown height and the
+    // couple Big Tilly is under.
     const label = 'narrow 820x620';
     const column = RAW_COLUMNS[label];
     const risen: Record<string, number> = {};
@@ -389,12 +408,11 @@ describe('fitLoadBed', () => {
     }
     expect(risen).toEqual({
       'pedal-trike': 1,
-      'animal-lorry': 18,
-      'long-van': 11,
+      'animal-lorry': 2,
     });
   });
 
-  it('needs the rising rear at one of the four viewports, and says which', () => {
+  it('needs the rising rear at none of the four viewports, and says so', () => {
     // **The answer to "is the rise still doing anything".** It is: only
     // the iPad's column is tall enough to stand every vehicle centred
     // with her ground. Spark rises at 1024x700 and at 874x402 as well
@@ -408,6 +426,15 @@ describe('fitLoadBed', () => {
     // now). The rise is still doing work at 820x620, for Bea (294px
     // against a 295px column that owes her ground) and Big Tilly (308),
     // and nowhere else.
+    //
+    // **Re-recorded the same day, when the fronts were redrawn: it is now
+    // none of the four.** Bea needs 237px (her bed was widened to the
+    // fleet's share of her body) and Big Tilly 275 (her front lost 222
+    // rows of cab and roof), and both stand in the 820x620 column with
+    // their ground. Big Tilly is 1.96px off the middle, which is under
+    // the two this counts as a rise. The vehicle-park rise is now doing
+    // nothing a child can see at any viewport the game ships to, and is
+    // the number that can go if it is ever wanted gone.
     const rising = Object.fromEntries(
       (Object.keys(RAW_COLUMNS) as Viewport[]).map((label) => {
         const column = RAW_COLUMNS[label];
@@ -426,7 +453,7 @@ describe('fitLoadBed', () => {
     expect(rising).toEqual({
       'tablet 1024x768': [],
       'desktop 1024x700': [],
-      'narrow 820x620': ['animal-lorry', 'long-van'],
+      'narrow 820x620': [],
       'landscape phone 874x402': [],
     });
   });
@@ -494,7 +521,8 @@ describe('fitLoadBed', () => {
     // stands whole in 245px; the tallest requirement in the fleet is Big
     // Tilly's 308, which the 340px box holds. The behaviour is unchanged
     // and is asserted where it still happens: Big Tilly in a box 28px
-    // short of what her 2x4 needs.
+    // short of what her 2x4 needs. (Her 308 is 275 since her front was
+    // redrawn the same day, and the box is 28px short of that.)
     const phone = fitIn(COLUMNS['landscape phone 874x402'], VEHICLE_DEFS['electric-minibus']);
     expect(phone.overflows).toBe(false);
     const tilly = VEHICLE_DEFS['animal-lorry'];
@@ -563,8 +591,15 @@ describe('the fleet at real size', () => {
     // shortened (her 2x4 needs a bed 2:1 and a cab that is all features;
     // see `tools/shorten-topdown.py`) and is still 2.81, 6.5m. Held to
     // those, within 2%.
+    //
+    // **Big Tilly moved the same day, to 2.505 and 5.8m.** Her side
+    // windows came off the cab, which is the flank (a face the camera of
+    // the top-downs cannot reach), and with nothing to tear the roof and
+    // the bonnet could be cut: 738x2071 became 738x1849, which is her
+    // rear's 2.516 within half a per cent (`tools/redraw-fronts.py`). The
+    // rows of her bed are untouched, so the 2x4 is the 2.03:1 it was.
     const DRAWN: Partial<Record<VehicleType, number>> = {
-      'small-van': 2.02, 'long-van': 2.23, 'electric-minibus': 1.88, 'animal-lorry': 2.81,
+      'small-van': 2.02, 'long-van': 2.23, 'electric-minibus': 1.88, 'animal-lorry': 2.505,
     };
     for (const v of EVERY_VEHICLE) {
       const lw = DRAWN[v.id];
@@ -703,14 +738,22 @@ describe('how tall a vehicle must be to stand whole', () => {
     // Bea 294, Spark 245. Big Tilly's 308 and Trikey's 273 are what they
     // were. **Big Tilly is the tallest now, and Spark is the second
     // shortest**, which is the whole of the effect on the layout.
+    //
+    // **Re-recorded the same day, when the fronts were redrawn.** Big
+    // Tilly lost 222 rows of cab and roof at her width and none of her bed,
+    // so her bays reach 40 at 275px, and Bea's bed was widened to the
+    // fleet's 0.855 of her body (her front lost its taper), which brings
+    // hers to 237. Big Tilly is still the tallest, and Trikey is now a
+    // couple of pixels under her at 273; Henry is the shortest, then Bea,
+    // then Spark.
     const tall = Object.fromEntries(
       EVERY_VEHICLE.map((v) => [v.id, Math.round(wholeVehicleHeight(v.id, v.cols, v.rows))]),
     );
     expect(tall).toEqual({
       'pedal-trike': 273,
       'small-van': 221,
-      'long-van': 294,
-      'animal-lorry': 308,
+      'long-van': 237,
+      'animal-lorry': 275,
       'electric-minibus': 245,
     });
   });
@@ -941,10 +984,14 @@ describe('the picker', () => {
       // A few pixels at least: two vehicles the same height is the bug.
       expect(larger.spriteH, `${larger.id} longer than ${smaller.id}`).toBeGreaterThan(smaller.spriteH + 3);
     }
-    // And by the right amount: a 6.5m lorry is about 3.7 trikes long.
+    // And by the right amount: a 5.8m lorry is about 3.3 trikes long (it
+    // was 6.5m and 3.7 until her front was redrawn to her rear's
+    // proportions on 2026-10-11). The 3 is the floor under "not a fixed
+    // cell": a lorry that is not at least three trikes long is a picker
+    // that has stopped drawing the fleet at one scale.
     const ratio = bays['animal-lorry'].spriteH / bays['pedal-trike'].spriteH;
     expect(ratio).toBeCloseTo(vehicleLengthM('animal-lorry') / vehicleLengthM('pedal-trike'), 6);
-    expect(ratio).toBeGreaterThan(3.5);
+    expect(ratio).toBeGreaterThan(3);
   });
 
   it.each(SIZES)('stands every vehicle whole, in its own bay, on the tarmac, at %ix%i', (w, h) => {
@@ -1064,12 +1111,24 @@ describe('the picker', () => {
     // off, and the last 23 from the exit road going too. The number is
     // here so that putting either of them back — the two changes that
     // would halve it — cannot be done quietly.
-    expect(layoutAt(820, 620).apron.h).toBe(471);
+    //
+    // **429 since 2026-10-11, and the band is smaller because the fleet
+    // is.** The band is the longest vehicle as drawn plus the rows under
+    // her, and Big Tilly's front was redrawn from 2.81 to 2.505 long for
+    // her width (6.5m to 5.8m), so the scale holds and the longest
+    // vehicle in the picker is 42px shorter at 820x620.
+    expect(layoutAt(820, 620).apron.h).toBe(429);
     expect(layoutAt(820, 620).apron.h).toBeGreaterThan(236 * 1.8);
     // And the taller the screen, the more band: the band follows the
     // fleet, and the fleet is as large as the room allows.
     expect(layoutAt(820, 620).apron.h).toBeGreaterThan(layoutAt(874, 402).apron.h);
-    expect(layoutAt(1024, 768).apron.h).toBeGreaterThan(layoutAt(1024, 700).apron.h);
+    // **Equal at 1024 since 2026-10-11, where it used to be strictly more.**
+    // With the lorry 5.8m long and not 6.5, the 700px screen fits the whole
+    // fleet at the scale five bays across allow (76.8px to the metre) and
+    // stops being limited by its height, so the 768px screen has no more
+    // to spend and the two bands are the same 521. Never less.
+    expect(layoutAt(1024, 768).apron.h).toBeGreaterThanOrEqual(layoutAt(1024, 700).apron.h);
+    expect(layoutAt(1024, 700).apron.h).toBeGreaterThan(layoutAt(820, 620).apron.h);
   });
 
   it('records how large the smallest vehicle is drawn, so a change that shrinks her is seen', () => {
@@ -1079,11 +1138,19 @@ describe('the picker', () => {
     // growth is the whole point of both decisions. Her landscape-phone
     // figure moved least, 19x45 to 21x48: the building was already off
     // there and what limits that screen is its 402px of height.
+    //
+    // **Two of them grew on 2026-10-11, and it is the lorry's doing.** Where
+    // the band's height sets the scale, the longest vehicle sets it, and Big
+    // Tilly's redrawn front is 5.8m long for her width where it was 6.5m,
+    // so the same band draws every vehicle larger: Trikey is 58x135 at
+    // 1024x700 (5%) where she was 55x129, and 23x54 on the landscape phone
+    // (12%) where she was 21x48. At 820x620 and 1024x768 five bays across
+    // set the scale and nothing moved.
     const trike = (w: number, h: number) => layoutAt(w, h).bays.find((b) => b.id === 'pedal-trike')!;
     expect([Math.round(trike(820, 620).spriteW), Math.round(trike(820, 620).spriteH)]).toEqual([46, 107]);
-    expect([Math.round(trike(1024, 700).spriteW), Math.round(trike(1024, 700).spriteH)]).toEqual([55, 129]);
+    expect([Math.round(trike(1024, 700).spriteW), Math.round(trike(1024, 700).spriteH)]).toEqual([58, 135]);
     expect([Math.round(trike(1024, 768).spriteW), Math.round(trike(1024, 768).spriteH)]).toEqual([58, 135]);
-    expect([Math.round(trike(874, 402).spriteW), Math.round(trike(874, 402).spriteH)]).toEqual([21, 48]);
+    expect([Math.round(trike(874, 402).spriteW), Math.round(trike(874, 402).spriteH)]).toEqual([23, 54]);
   });
 
   it('shrinks the scale, never the bays, when the screen is too narrow for five', () => {
@@ -1369,7 +1436,10 @@ describe('the art the bed numbers were measured on', () => {
     // fixture allowed to drift arbitrarily tight stops describing the
     // art at all. Measured 2026-10-09: Trikey 0.0797..0.9231, Henry
     // 0.0945..0.9055, Bea 0.1623..0.8411, Big Tilly 0.0813..0.9228,
-    // Spark 0.1266..0.8812.
+    // Spark 0.1266..0.8812. **Re-measured 2026-10-11** on the redrawn
+    // fronts (Henry's 0.9037 is where his right edge is measured now):
+    // Bea 0.0794..0.9240 and Spark 0.1078..0.8953, which are the two
+    // that moved; Big Tilly's bed rows are the ones she always had.
     for (const v of EVERY_VEHICLE) {
       const measured = paintedBodyOf(spriteOfFile(v.id), VEHICLE_BED[v.id]);
       const fixture = PAINTED_BODY[v.id];

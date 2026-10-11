@@ -991,9 +991,10 @@ describe('every sentence the rules write can be set', () => {
     // The short layout's reading column, which is narrower because the
     // crates stand in a rack of their own beside it: `readShortW` less
     // `CHROME.padX * 2`, at the two phone widths. Added 2026-10-09 with
-    // the short layout — the list only ever grows.
-    'landscape phone 874': 278,
-    'landscape phone 812': 216,
+    // the short layout — the list only ever grows. 278 and 216 until
+    // 2026-10-11, when the car park's column came in by two pixels.
+    'landscape phone 874': 280,
+    'landscape phone 812': 218,
   };
 
   /**
@@ -1176,8 +1177,16 @@ describe('where the loading screen puts everything', () => {
     // down with her (221 and 294). The tallest requirement is now Big
     // Tilly's 308, which is the one thing that did not change, because
     // her 2x4 needs a bed 2:1 and there was none to take from it.
+    //
+    // **Re-recorded the same day, when the fronts were redrawn, and the
+    // last two pixels went.** Big Tilly's bed rows are untouched and her cab
+    // and roof gave up 222 rows, so her bays reach 40 at 275px, and Bea's
+    // bed was widened to the fleet's share of her body, which brings hers
+    // to 237. Nobody needs more than 275, and the web clip's 293px of ground
+    // holds that.
     expect(Math.round(wholeVehicleHeight('electric-minibus', 2, 3))).toBe(245);
-    expect(Math.round(wholeVehicleHeight('animal-lorry', 2, 4))).toBe(308);
+    expect(Math.round(wholeVehicleHeight('animal-lorry', 2, 4))).toBe(275);
+    expect(Math.round(wholeVehicleHeight('long-van', 2, 3))).toBe(237);
     for (const [w, h] of [[1024, 768], [1024, 700], [820, 620], [874, 402], [812, 375]]) {
       for (const v of FLEET) {
         expect(floorFor(at(w, h), v), `${v.name} at ${w}x${h}`).toBe(BAY_MIN);
@@ -1198,11 +1207,16 @@ describe('where the loading screen puts everything', () => {
     // was Spark's 31 there, "the lowest number any screen the game ships
     // to ever asks for"; it is now the clamp for viewports nobody has
     // composed for and no shipped one asks for it (the lowest is 37).
+    //
+    // **Nobody, since the fronts were redrawn on 2026-10-11:** the tallest
+    // vehicle needs 275px and the clip has 293, so all five keep 40 on
+    // every viewport the game ships to. The relaxation is machinery for a
+    // screen shorter than that and is exercised on one, below.
     expect(Object.fromEntries(FLEET.map((v) => [v.id, floorFor(at(812, 325), v)]))).toEqual({
       'pedal-trike': 40,
       'small-van': 40,
-      'long-van': 39,
-      'animal-lorry': 37,
+      'long-van': 40,
+      'animal-lorry': 40,
       'electric-minibus': 40,
     });
     expect(BAY_FLOOR_MIN).toBe(31);
@@ -1216,9 +1230,14 @@ describe('where the loading screen puts everything', () => {
     // pixel up at 392. Big Tilly's 308 is the tallest now (the shortening
     // of 2026-10-11 took 116px off Spark's), so every vehicle keeps 40 at
     // 340 and she is the first to give a pixel up at 339.
+    //
+    // **307 and 306 since the fronts were redrawn the same day**, for the
+    // same reason: Big Tilly is still the tallest, at 275 (her cab and roof
+    // gave up 222 rows and none of her bed), and 275 plus two safe margins
+    // is 307. Trikey, at 273, is the next to give a pixel up.
     const floors = (w: number, h: number) => FLEET.map((v) => floorFor(at(w, h), v));
-    expect(floors(812, 340)).toEqual([40, 40, 40, 40, 40]);
-    expect(Math.min(...floors(812, 339))).toBe(39);
+    expect(floors(812, 307)).toEqual([40, 40, 40, 40, 40]);
+    expect(Math.min(...floors(812, 306))).toBe(39);
     // And the clamp holds on a viewport nobody has composed for, rather
     // than handing back a bay a crate cannot be seen in.
     expect(Math.min(...floors(812, 240))).toBe(BAY_FLOOR_MIN);
@@ -1243,8 +1262,15 @@ describe('where the loading screen puts everything', () => {
     // the floor. A bay's own hit area is the pitch rather than 48, so it
     // still never overlaps its neighbour — which is what the floor was
     // ever for.
-    const cols = at(812, 325);
-    const bays = FLEET.map((v) => parkedNose(cols, v).fit);
+    //
+    // **812x325 relaxes nobody since the fronts were redrawn the same day**
+    // (the tallest vehicle needs 275px and the clip has 293), so the
+    // bays are looked at on a screen 25px shorter, 812x300, which nothing
+    // the game ships to is and which is what the relaxation and its clamp
+    // are for. The other controls are still measured on the smallest
+    // screen the game does ship to.
+    const squeezed = at(812, 300);
+    const bays = FLEET.map((v) => parkedNose(squeezed, v).fit);
     expect(Math.min(...bays.map((f) => Math.min(f.slotW, f.slotH)))).toBeLessThan(BAY_MIN);
     for (const fit of bays) {
       expect(bayHitSize(fit.slotW)).toBeLessThanOrEqual(fit.slotW + BAY_GAP);
@@ -1252,6 +1278,7 @@ describe('where the loading screen puts everything', () => {
       expect(fit.slotW).toBeGreaterThanOrEqual(BAY_FLOOR_MIN);
       expect(fit.slotH).toBeGreaterThanOrEqual(BAY_FLOOR_MIN);
     }
+    const cols = at(812, 325);
 
     // The arrows keep their whole plate, which is twice the floor.
     expect(ARROW_W).toBeGreaterThanOrEqual(MIN_TAP * 2);
@@ -1322,19 +1349,25 @@ describe('where the loading screen puts everything', () => {
     }
     // The widths the sentence test above is run at, so the two lists
     // cannot drift apart.
-    expect(at(874, 402).panel.w - 36).toBe(278);
-    expect(at(812, 375).panel.w - 36).toBe(216);
+    // 278 until 2026-10-11, when Bea's bed was widened and Spark became the
+    // widest bay: the car park's column is 358px and not 360.
+    expect(at(874, 402).panel.w - 36).toBe(280);
+    expect(at(812, 375).panel.w - 36).toBe(218);
   });
 
   it('stays stacked where the screen is too narrow for three columns', () => {
-    // 796px of width is what the short layout needs: two page margins,
-    // the car park's column (360), two gutters, the crate rack (104)
+    // 794px of width is what the short layout needs: two page margins,
+    // the car park's column (358), two gutters, the crate rack (104)
     // and the narrowest reading column (236). Below it the stacked
     // shape is the lesser fault — a cropped vehicle against a panel too
     // narrow to read. Every viewport this game is composed for is
     // wider: the narrowest is the 812pt phone.
-    expect(at(795, 402).kind).toBe('stacked');
-    expect(at(796, 402).kind).toBe('short');
+    //
+    // 796 and 360 until 2026-10-11. The column is as wide as the widest
+    // bay needs, which was Bea's 132 and is Spark's 130 now that Bea's
+    // bed is the fleet's share of her body.
+    expect(at(793, 402).kind).toBe('stacked');
+    expect(at(794, 402).kind).toBe('short');
   });
 
   it('never lets two columns overlap, in either shape', () => {

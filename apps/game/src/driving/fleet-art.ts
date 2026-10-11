@@ -111,14 +111,42 @@ export const VEHICLE_SPRITE: Record<VehicleType, string> = {
  * want in two across and three down. Big Tilly's 2x4 is the one that
  * could not be allowed to shrink: her bed is 2.03:1 and the crates are
  * painted square, so her front sprite was left alone.
+ *
+ * **Re-measured 2026-10-11 again, when the fronts of Bea, Spark and Big
+ * Tilly were redrawn to the camera of their rears**
+ * (`tools/redraw-fronts.py`, `docs/fleet-canon.md` section 3).
+ *
+ * Bea and Spark keep their canvases (579x1289 and 640x1207) and lose the
+ * taper their old fronts carried, so each body is now as wide as her
+ * rear's along the whole roof. Measured as the Spark note below says, the
+ * median opaque extent over the bed's own rows, Bea's body is 0.0794 to
+ * 0.9240 of her width where it was 0.1623 to 0.8411, and Spark's 0.1078
+ * to 0.8953 where it was 0.1266 to 0.8812. Their beds had been held at
+ * the fleet's 0.855 of the body and were now 0.69 and 0.79 of it, with
+ * more paint round the cutaway than any other vehicle, so the ratio is
+ * applied to the new body, centred: Bea x 0.21 w 0.58 becomes x 0.141
+ * w 0.719, Spark x 0.19 w 0.62 becomes x 0.165 w 0.670. Their rows are
+ * what they were. Looked at in the loading screen at 874x402 and
+ * 1024x700: the cutaway sits on the paint with an even margin, nothing
+ * spills, and the bays are larger on the phone. Bea needs 237px to stand
+ * whole where she needed 294.
+ *
+ * Big Tilly's front was redrawn the other way: the same 738px wide and
+ * 222 rows shorter (738x2071 to 738x1849, 2.81 to 2.505 against her
+ * rear's 2.516), by cutting the roof and the bonnet and leaving every row
+ * of the bed alone. The 2x4 rectangle is still 531x1077 on rows 83 to
+ * 1160 (2.03:1), which is y 0.04 h 0.52 of the old height and y 0.045
+ * h 0.582 of the new. She needs 275px to stand whole where she needed
+ * 308, and "her front sprite was left alone" above is the day it was
+ * written.
  */
 export interface LoadBed { x: number; y: number; w: number; h: number }
 
 export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
   'pedal-trike':      { x: 0.11, y: 0.04, w: 0.78, h: 0.28 },
   'small-van':        { x: 0.15, y: 0.050, w: 0.70, h: 0.514 },
-  'long-van':         { x: 0.21, y: 0.050, w: 0.58, h: 0.507 },
-  'animal-lorry':     { x: 0.14, y: 0.04, w: 0.72, h: 0.52 },
+  'long-van':         { x: 0.141, y: 0.050, w: 0.719, h: 0.507 },
+  'animal-lorry':     { x: 0.14, y: 0.045, w: 0.72, h: 0.582 },
   // Reverted from a "correction" to x 0.181 w 0.644 on 2026-10-09. That came
   // from measuring her painted body as the median opaque extent across the
   // bed's rows — which on Spark runs through her WING MIRRORS, so it measured
@@ -126,7 +154,11 @@ export const VEHICLE_BED: Record<VehicleType, LoadBed> = {
   // 0.753 that gave, and at the fleet's bed-to-body ratio of 0.855 that is
   // 0.617. The original 0.62 was right. The narrow-viewport test caught it by
   // spotting the grid spilling off the paint, so leave that test alone.
-  'electric-minibus': { x: 0.19, y: 0.054, w: 0.62, h: 0.482 },
+  // **That was her old front.** Redrawn on 2026-10-11 her body is 0.7875 of
+  // the sprite at these rows, so 0.855 of it is 0.670, centred at 0.165. The
+  // bed rows are clear of her wing mirrors, which sit lower (about 0.58 to
+  // 0.68 of her length against a bed that ends at 0.536).
+  'electric-minibus': { x: 0.165, y: 0.054, w: 0.670, h: 0.482 },
 };
 
 /**
@@ -176,7 +208,7 @@ export const VEHICLE_BED_SOURCE: Record<VehicleType, { w: number; h: number }> =
   'pedal-trike': { w: 364, h: 851 },
   'small-van': { w: 561, h: 1136 },
   'long-van': { w: 579, h: 1289 },
-  'animal-lorry': { w: 738, h: 2071 },
+  'animal-lorry': { w: 738, h: 1849 },
   'electric-minibus': { w: 640, h: 1207 },
 };
 
@@ -523,9 +555,10 @@ export function fitLoadBed(
  * Spark, so they are drawn 2.02, 2.23 and 1.88 long for their width:
  * 3.5m, 4.0m and 3.8m against the handover's 4.2, 4.5 and 5.9. Spark is
  * now the shorter of her and Bea, which is the one thing that moved in
- * the fleet's order. Big Tilly's front is unchanged at 2.81, 6.5m, as
- * the proportions of her bed cannot go any shorter (see
- * `VEHICLE_BED`).
+ * the fleet's order. Big Tilly's front was redrawn the same day to her
+ * rear's 2.505, so she is 5.8m against the handover's 6.5: the rows of
+ * her bed could not go any shorter and the cab and the roof gave up the
+ * length (see `VEHICLE_BED`).
  */
 export const VEHICLE_WIDTH_M: Record<VehicleType, number> = {
   'pedal-trike': 0.75,
