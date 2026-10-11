@@ -19,27 +19,29 @@
  * driving (docs/driving-rebuild-2026-10-11.md, "Following the road is not a
  * swerve").
  *
- * The dual carriageway's width is on trial (the same doc): `zoom` keeps true
- * 5 m lanes and world-camera.ts pulls back, `narrow` keeps the camera and
- * shrinks the lanes to 3 m. Both are here so either can be chosen.
+ * The dual carriageway keeps its true width, four 5 m lanes and a grass strip,
+ * and world-camera.ts pulls back for it. Marcus chose that on 2026-10-11 over
+ * narrowing its lanes to 3 m, which would have made the biggest road's lanes
+ * narrower than a country road's (the same doc, "Decided later the same day").
  * No Phaser — unit-tested.
  */
 
 /** An ordinary lane, metres. A 5 m lane draws 110 px at the spike's scale. */
 export const LANE_M = 5;
 
-/** Road widths in metres by OSM class; the trunk's comes from trunkWidth(). */
+/** Road widths in metres by OSM class; the trunk's is TRUNK_M. */
 export const ROAD_M: Readonly<Record<string, number>> = {
   secondary: 10, tertiary: 10, unclassified: 9, residential: 8, track: 5,
 };
 /** Width of a class the table does not know. */
 export const DEFAULT_ROAD_M = 8;
 
-export type BigRoadMode = 'zoom' | 'narrow';
-/** Lane width on the dual carriageway in each trial. */
-export const TRUNK_LANE_M: Readonly<Record<BigRoadMode, number>> = { zoom: 5, narrow: 3 };
+/** Lane width on the dual carriageway: a true lane, as on every other road. */
+export const TRUNK_LANE_M = 5;
 /** The grass strip between the two carriageways. */
 export const RESERVATION_M = 1.6;
+/** The dual carriageway across: four lanes and the reservation, 21.6 m. */
+export const TRUNK_M = 4 * TRUNK_LANE_M + RESERVATION_M;
 
 /** How fast the child's lane change crosses the road, metres per second. */
 export const SIDESTEP_MPS = 7;
@@ -48,25 +50,20 @@ export const BASE_FOLLOW_MPS = 4;
 
 export type Lane = 0 | 1;
 
-/** Four lanes and the reservation. */
-export function trunkWidth(mode: BigRoadMode): number {
-  return 4 * TRUNK_LANE_M[mode] + RESERVATION_M;
-}
-
-export function roadWidth(cls: string, mode: BigRoadMode): number {
-  return cls === 'trunk' ? trunkWidth(mode) : (ROAD_M[cls] ?? DEFAULT_ROAD_M);
+export function roadWidth(cls: string): number {
+  return cls === 'trunk' ? TRUNK_M : (ROAD_M[cls] ?? DEFAULT_ROAD_M);
 }
 
 /** Lateral offset of a lane's centre from the route's centreline, metres,
  *  negative to the left. With no class it answers for an ordinary two-lane
  *  road of LANE_M lanes, which is what the spike's traffic module assumes. */
-export function laneOffset(lane: Lane, cls: string | null, mode: BigRoadMode = 'zoom'): number {
+export function laneOffset(lane: Lane, cls: string | null): number {
   if (cls === 'trunk') {
-    const w = TRUNK_LANE_M[mode];
+    const w = TRUNK_LANE_M;
     return -(RESERVATION_M / 2 + (lane === 0 ? 1.5 : 0.5) * w);
   }
   if (cls === 'track') return 0;
-  const quarter = (cls ? roadWidth(cls, mode) : 2 * LANE_M) / 4;   // a lane is half the road
+  const quarter = (cls ? roadWidth(cls) : 2 * LANE_M) / 4;   // a lane is half the road
   return lane === 0 ? -quarter : quarter;
 }
 

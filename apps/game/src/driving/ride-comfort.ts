@@ -11,6 +11,13 @@
  * accident (docs/driving-rebuild-2026-10-11.md, "When she does not brake, the
  * van does, hard"); the self-stop is the cost, felt in the back.
  *
+ * Pulling up. The van stops at the destination on its own, as the route
+ * steers on its own: within the last stretch it lowers the speed she can ask
+ * for to arrivalCap(toGo), which a van slowing at PULL_UP can always meet, so
+ * it comes to rest STOP_SHORT_M before the end. Lowering the target, not
+ * capping the speed, is what keeps it gentle: it slows the way easing off
+ * "go" does, and costs no jostle.
+ *
  * Jostle. Hard deceleration (the handbrake, or the self-stop) and the child's
  * own swerving add to it; it settles at SETTLE_PER_S while the driving is
  * smooth. Easing off "go" is ordinary slowing and costs nothing. Only the
@@ -36,6 +43,14 @@ export const HANDBRAKE = 34;
 /** How hard the van stops itself when the child has not braked. */
 export const EMERGENCY = 26;
 
+/** The gentle stop at the destination, m/s², and how far short of the route's
+ *  end (the destination's anchor node) the van comes to rest. */
+export const PULL_UP = 2.5;
+export const STOP_SHORT_M = 6;
+/** Arrived: this close to the stopping point, metres, and this slow, m/s. */
+export const ARRIVED_SLACK_M = 0.5;
+export const ARRIVED_MPS = 0.2;
+
 /** Jostle per (m/s of sideways swerve) per second. */
 export const SWERVE_JOSTLE = 1.6;
 /** Jostle per (m/s² of hard deceleration) per second. */
@@ -52,6 +67,8 @@ export interface SpeedInput {
   speedCap: number;
   handbrake: boolean;
   dt: number;
+  /** Metres left to the end of the route; omitted, there is no destination. */
+  toGo?: number;
 }
 
 export interface SpeedStep {
@@ -62,7 +79,15 @@ export interface SpeedStep {
   emergency: boolean;
 }
 
-export function stepSpeed({ v, target, speedCap, handbrake, dt }: SpeedInput): SpeedStep {
+/** The fastest she may ask for with toGo metres left: the speed from which
+ *  PULL_UP stops the van STOP_SHORT_M before the end. 20 m/s is allowed until
+ *  86 m out. */
+export function arrivalCap(toGo: number): number {
+  return Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
+}
+
+export function stepSpeed({ v, target: asked, speedCap, handbrake, dt, toGo = Infinity }: SpeedInput): SpeedStep {
+  const target = Math.min(asked, arrivalCap(toGo));
   if (v > speedCap) {
     // Something is ahead and the child has not braked: the van does it.
     return { v: Math.max(speedCap, v - EMERGENCY * dt), hardDecel: EMERGENCY, emergency: true };
@@ -85,4 +110,15 @@ export function stepComfort(comfort: number, swerveMps: number, hardDecel: numbe
 /** The spike's jostle (0 calm) after dt seconds: 100 - comfort. */
 export function stepJostle(jostle: number, swerveMps: number, hardDecel: number, dt: number): number {
   return 100 - stepComfort(100 - jostle, swerveMps, hardDecel, dt);
+}
+
+/** Distance along the route after dt seconds at v, never past the stopping
+ *  point STOP_SHORT_M before the end. */
+export function advanceAlong(s: number, v: number, dt: number, routeLength: number): number {
+  return Math.min(routeLength - STOP_SHORT_M, s + v * dt);
+}
+
+/** The van has pulled up at the destination. */
+export function hasArrived(toGo: number, v: number): boolean {
+  return toGo <= STOP_SHORT_M + ARRIVED_SLACK_M && v < ARRIVED_MPS;
 }
