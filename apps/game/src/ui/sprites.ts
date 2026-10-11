@@ -3,6 +3,7 @@ import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_COLOURS, animalScaleFraction } from '@arc/game-logic';
 import { FONTS, MIN_TAP } from './constants';
 import { animalSpriteBounds } from './animal-sprite-bounds';
+import { ensureDressedTexture } from './wardrobe-art';
 
 /**
  * Live view of GameScene's `store.sickAnimals`, registered once at scene
@@ -163,8 +164,18 @@ const SUBJECT_FRAME = '__arc-subject';
  * scene's texture manager is a stand-in that cannot carry frames, as it is
  * in the unit tests.
  */
-function subjectFrame(scene: Phaser.Scene, textureKey: string): string | undefined {
-  const bounds = animalSpriteBounds(textureKey);
+function subjectFrame(
+  scene: Phaser.Scene,
+  textureKey: string,
+  /**
+   * The sprite whose bounds these are. A dressed animal is drawn from a
+   * texture of her own (`ui/wardrobe-art.ts`) that is the same size as her
+   * file and has the same animal in the same place, so it is her file's bounds
+   * that cut it.
+   */
+  boundsKey: string = textureKey,
+): string | undefined {
+  const bounds = animalSpriteBounds(boundsKey);
   if (!bounds) return undefined;
   const manager = scene.textures;
   if (!manager || typeof manager.get !== 'function') return undefined;
@@ -270,6 +281,12 @@ export function createAnimalSprite(
   );
 
   if (textureKey) {
+    // An animal with a garment on is drawn from a copy of her sprite with the
+    // garment painted over it — same size, same animal in the same place — so
+    // everything below, and every caller after it, treats her as she was.
+    // `null` is "nothing to paint", and she is drawn bare.
+    const drawKey = (animal.wardrobe && ensureDressedTexture(scene, textureKey, animal)) || textureKey;
+
     // A comparative sprite is drawn from the frame cut to the animal, so her
     // size is set outright and `displayWidth` comes back meaning the animal
     // rather than her transparent margin. How much of its file a sprite
@@ -281,11 +298,11 @@ export function createAnimalSprite(
     // decorations off the box and off `displayWidth`, and those numbers were
     // read from the canvas.
     const frame = options?.scale === 'species'
-      ? subjectFrame(scene, textureKey)
+      ? subjectFrame(scene, drawKey, textureKey)
       : undefined;
     const img = frame
-      ? scene.add.image(x, y, textureKey, frame)
-      : scene.add.image(x, y, textureKey);
+      ? scene.add.image(x, y, drawKey, frame)
+      : scene.add.image(x, y, drawKey);
     // Contain, not cover: the smaller ratio, so the whole animal is inside
     // the box on both axes. The art is square (480 of 523 files are 512²),
     // so a square box draws the animal at exactly that box and a wider one

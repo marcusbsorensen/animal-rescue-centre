@@ -13,6 +13,8 @@
     "typecheck": "pnpm -r typecheck",
     "check:sprites": "python3 tools/check-sprite-scale.py --gate",
     "sprites:bounds": "python3 tools/check-sprite-scale.py --emit-bounds",
+    "wardrobe:garments": "python3 tools/draw-garments.py",
+    "wardrobe:anchors": "python3 tools/measure-wardrobe-anchors.py",
     "build:ios": "node scripts/build-ios.mjs",
     "ios": "pnpm build:ios && pnpm --filter @arc/game exec cap open ios",
     "testflight": "node scripts/testflight.mjs"

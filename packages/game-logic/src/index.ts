@@ -23,8 +23,17 @@ export {
   unequipWardrobe,
   isDressedForWeather,
   dressingBlockReason,
+  animalNeedsGarment,
+  canBeDressed,
+  SPECIES_AWAITING_GARMENT_ART,
+  WARDROBE_COLOURS,
+  DEFAULT_WARDROBE_HEX,
+  normaliseHex,
+  parseWardrobe,
+  formatWardrobe,
+  wardrobeHex,
 } from './wardrobe';
-export type { Garment, WardrobeAnchor } from './wardrobe';
+export type { Garment, WardrobeAnchor, WardrobeCode } from './wardrobe';
 export { getSpeciesUnlocksForLevel, getRequiredRescuesForLevel, getMaxShelterAnimals, getMaxArrivals } from './progression';
 export {
   APPRENTICE_DEFS,

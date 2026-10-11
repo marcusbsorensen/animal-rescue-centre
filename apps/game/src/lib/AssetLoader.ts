@@ -58,6 +58,10 @@ const ANIMAL_STATES = new Set([
   'growling', 'grumpy', 'scared', 'sick', 'playing',
 ]);
 
+// `dog-coat`, `cat-scarf`, `parrot-hat`: a species' garment. Two tokens, like
+// a species-level pose, but the second is not a pose.
+const GARMENT_NAMES = new Set(['coat', 'scarf', 'hat']);
+
 export class AssetLoader {
   private static instance: AssetLoader;
   private manifest: string[] = [];
@@ -323,8 +327,12 @@ export class AssetLoader {
       // {species}-{state}.png → 2 tokens → fallback (essential)
       // {species}-{variant}-{state}.png → 3 tokens → variant
       const tokens = name.split('-');
-      if (tokens.length === 2 && ANIMAL_STATES.has(tokens[1])) {
-        tier = 'essential';  // species fallback
+      if (tokens.length === 2 && (ANIMAL_STATES.has(tokens[1]) || GARMENT_NAMES.has(tokens[1]))) {
+        // species fallback — and the species' garment, which has to be here
+        // by the time any animal is drawn wearing it. Seven small files; as a
+        // variant-tier file it landed last, and an animal dressed in a coat
+        // that had not arrived was drawn without one.
+        tier = 'essential';
       } else {
         tier = 'variant';    // per-variant sprite
       }

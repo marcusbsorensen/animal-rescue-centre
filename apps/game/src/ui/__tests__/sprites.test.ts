@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type Phaser from 'phaser';
 import type { Animal, Species } from '@arc/shared-types';
 import { SPECIES_UNIT, animalScaleFraction } from '@arc/game-logic';
@@ -516,5 +516,116 @@ describe('createAnimalSprite — a solo animal fills her frame', () => {
     );
     expect(withClaim.displayWidth).toBe(without.displayWidth);
     expect(withClaim.displayHeight).toBe(without.displayHeight);
+  });
+});
+
+
+/**
+ * An animal wearing a garment.
+ *
+ * She is drawn from a texture of her own — her sprite with the garment painted
+ * on (`ui/wardrobe-art.ts`) — and everything else about her is her sprite's:
+ * the frame is cut to her sprite's bounds, so her size and her feet are where
+ * they were. These pin that, with a scene that can paint.
+ */
+describe('createAnimalSprite \u2014 wearing a garment', () => {
+  beforeEach(() => {
+    registerSickAnimals(new Map());
+  });
+
+  const ART = ['cat-ginger-sheltered', 'cat-ginger-arriving', 'cat-scarf'];
+
+  function dressingScene(available: string[]) {
+    const made: string[] = [];
+    const drawn: { key: string; frame?: string }[] = [];
+    const frames = new Map<string, { x: number; y: number; w: number; h: number }>();
+    const ctx = {
+      drawImage() {}, getImageData: () => ({ data: new Uint8ClampedArray(512 * 512 * 4) }), putImageData() {},
+      clearRect() {}, save() {}, restore() {}, translate() {}, rotate() {}, scale() {}, beginPath() {}, arc() {}, fill() {},
+      canvas: {},
+    };
+    const has = (k: string) => available.includes(k) || made.includes(k);
+    const scene = {
+      textures: {
+        exists: has,
+        get: (key: string) => ({
+          source: [{ width: 512, height: 512 }],
+          getSourceImage: () => ({ width: 512, height: 512 }),
+          has: (name: string) => frames.has(`${key}/${name}`),
+          add: (name: string, _i: number, x: number, y: number, w: number, h: number) => {
+            frames.set(`${key}/${name}`, { x, y, w, h });
+            return {};
+          },
+        }),
+        createCanvas: (key: string) => { made.push(key); return { getContext: () => ctx, refresh() {} }; },
+        remove: (key: string) => { made.splice(made.indexOf(key), 1); },
+      },
+      add: {
+        image: (_x: number, _y: number, key: string, frame?: string) => {
+          drawn.push({ key, frame });
+          return { width: 512, height: 512, setScale() {}, setInteractive() {} };
+        },
+        rectangle: () => ({ setStrokeStyle: () => ({ setInteractive() {} }) }),
+      },
+    } as unknown as Phaser.Scene;
+    return { scene, drawn, frames, made };
+  }
+
+  function withCanvas<T>(fn: () => T): T {
+    const spy = vi.spyOn(document, 'createElement').mockImplementation(
+      () => ({ width: 0, height: 0, getContext: () => ({
+        clearRect() {}, save() {}, restore() {}, translate() {}, rotate() {}, scale() {}, drawImage() {},
+        beginPath() {}, arc() {}, fill() {}, canvas: {},
+      }) }) as unknown as HTMLCanvasElement,
+    );
+    try { return fn(); } finally { spy.mockRestore(); }
+  }
+
+  it('is drawn from the sprite with her garment painted on', () => {
+    const { scene, drawn } = dressingScene(ART);
+    withCanvas(() => createAnimalSprite(scene, 0, 0, animal({ wardrobe: 'scarf:#c0392b' })));
+    expect(drawn.map((d) => d.key)).toEqual(['cat-ginger-sheltered+cat-scarf@c0392b']);
+  });
+
+  it('is cut to her own sprite\'s bounds, so dressing her does not change how big she is drawn', () => {
+    const { scene, drawn, frames } = dressingScene(ART);
+    withCanvas(() => createAnimalSprite(scene, 0, 0, animal({ wardrobe: 'scarf:#c0392b' }), {
+      width: 200, height: 160, scale: 'species',
+    }));
+    const b = animalSpriteBounds('cat-ginger-sheltered')!;
+    expect(drawn).toEqual([{ key: 'cat-ginger-sheltered+cat-scarf@c0392b', frame: '__arc-subject' }]);
+    expect(frames.get('cat-ginger-sheltered+cat-scarf@c0392b/__arc-subject'))
+      .toEqual({ x: b.x, y: b.y, w: b.w, h: b.h });
+  });
+
+  it('is drawn bare when her garment\'s art has not loaded', () => {
+    const { scene, drawn } = dressingScene(['cat-ginger-sheltered']);
+    withCanvas(() => createAnimalSprite(scene, 0, 0, animal({ wardrobe: 'scarf:#c0392b' })));
+    expect(drawn.map((d) => d.key)).toEqual(['cat-ginger-sheltered']);
+  });
+
+  it('is drawn bare in her arriving box', () => {
+    const { scene, drawn } = dressingScene(ART);
+    withCanvas(() => createAnimalSprite(scene, 0, 0, animal({ state: 'arriving', wardrobe: 'scarf:#c0392b' })));
+    expect(drawn.map((d) => d.key)).toEqual(['cat-ginger-arriving']);
+  });
+
+  it('is drawn bare when she has nothing on, and never asks for a canvas', () => {
+    const { scene, drawn, made } = dressingScene(ART);
+    withCanvas(() => createAnimalSprite(scene, 0, 0, animal()));
+    expect(drawn.map((d) => d.key)).toEqual(['cat-ginger-sheltered']);
+    expect(made).toEqual([]);
+  });
+
+  it('is drawn in the colour she was dressed in, and a different colour is a different texture', () => {
+    const { scene, drawn } = dressingScene(ART);
+    withCanvas(() => {
+      createAnimalSprite(scene, 0, 0, animal({ wardrobe: 'scarf:#27ae60' }));
+      createAnimalSprite(scene, 0, 0, animal({ wardrobe: 'scarf:#8e44ad' }));
+    });
+    expect(drawn.map((d) => d.key)).toEqual([
+      'cat-ginger-sheltered+cat-scarf@27ae60',
+      'cat-ginger-sheltered+cat-scarf@8e44ad',
+    ]);
   });
 });

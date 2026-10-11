@@ -1,0 +1,235 @@
+{
+ "_": "Landmarks read by eye where the measurement put the head or torso on the wrong part of the animal. See tools/measure-wardrobe-anchors.py.",
+ "dog-collie-eating": {
+  "head": [
+   179,
+   320,
+   100
+  ],
+  "body": [
+   262,
+   198,
+   109
+  ]
+ },
+ "dog-collie-growling": {
+  "head": [
+   211,
+   250,
+   86
+  ],
+  "body": [
+   320,
+   218,
+   96
+  ]
+ },
+ "dog-collie-sick": {
+  "head": [
+   143,
+   257,
+   80
+  ],
+  "body": [
+   242,
+   275,
+   62
+  ]
+ },
+ "dog-collie-playing": {
+  "head": [
+   320,
+   336,
+   90
+  ],
+  "body": [
+   179,
+   218,
+   109
+  ]
+ },
+ "cat-black-walking": {
+  "head": [
+   358,
+   174,
+   61
+  ],
+  "body": [
+   240,
+   262,
+   70
+  ]
+ },
+ "cat-black-scared": {
+  "head": [
+   338,
+   205,
+   92
+  ],
+  "body": [
+   164,
+   266,
+   113
+  ]
+ },
+ "cat-white-playing": {
+  "head": [
+   164,
+   358,
+   92
+  ]
+ },
+ "dog-husky-sleeping": {
+  "head": [
+   190,
+   300,
+   90
+  ],
+  "body": [
+   357,
+   217,
+   150
+  ]
+ },
+ "fox-silver-sleeping": {
+  "head": [
+   349,
+   334,
+   109
+  ],
+  "body": [
+   178,
+   264,
+   140
+  ]
+ },
+ "fox-silver-growling": {
+  "head": [
+   171,
+   217,
+   93
+  ],
+  "body": [
+   326,
+   295,
+   101
+  ]
+ },
+ "fox-silver-sick": {
+  "body": [
+   202,
+   186,
+   85
+  ]
+ },
+ "fox-eating": {
+  "head": [
+   256,
+   171,
+   145
+  ],
+  "body": [
+   264,
+   388,
+   95
+  ]
+ },
+ "snake-python-sheltered": {
+  "head": [
+   171,
+   132,
+   78
+  ]
+ },
+ "snake-python-growling": {
+  "head": [
+   163,
+   127,
+   74
+  ]
+ },
+ "snake-python-grumpy": {
+  "head": [
+   202,
+   124,
+   81
+  ]
+ },
+ "snake-king-sleeping": {
+  "head": [
+   140,
+   132,
+   70
+  ]
+ },
+ "snake-garter-eating": {
+  "head": [
+   357,
+   303,
+   124
+  ]
+ },
+ "snake-garter-sick": {
+  "head": [
+   183,
+   338,
+   50
+  ]
+ },
+ "snake-hognose-grumpy": {
+  "head": [
+   202,
+   132,
+   109
+  ]
+ },
+ "snake-king-eating": {
+  "head": [
+   388,
+   295,
+   85
+  ]
+ },
+ "snake-king-sick": {
+  "head": [
+   171,
+   147,
+   101
+  ]
+ },
+ "snake-python-sick": {
+  "head": [
+   334,
+   140,
+   109
+  ]
+ },
+ "parrot-grey-sheltered": {
+  "head": [
+   256,
+   124,
+   110
+  ]
+ },
+ "parrot-grey-sleeping": {
+  "head": [
+   310,
+   147,
+   93
+  ]
+ },
+ "fox-sick": {
+  "body": [
+   396,
+   318,
+   109
+  ]
+ },
+ "dog-golden-eating": {
+  "body": [
+   357,
+   295,
+   132
+  ]
+ }
+}

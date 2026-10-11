@@ -1,36 +1,40 @@
 import Phaser from 'phaser';
 import type { Animal } from '@arc/shared-types';
-import { getGarmentForSpecies } from '@arc/game-logic';
+import {
+  getGarmentForSpecies,
+  getWardrobeTextureKey,
+  parseWardrobe,
+  formatWardrobe,
+  WARDROBE_COLOURS,
+} from '@arc/game-logic';
 import { COLOURS, FONTS, TEXT_RESOLUTION, MIN_FONT, TYPE } from '../ui/constants';
+import { ensureTintedGarment } from '../ui/wardrobe-art';
 
 /**
  * WardrobePickerView — a small modal that lets the player pick a
- * colour for their species' garment (coat / scarf / hat) and equip it.
+ * garment (coat / scarf / hat) for their animal and put it on.
  *
  * Design:
- *   - Species gets ONE garment type (see wardrobe.ts mapping). The
- *     picker only shows colour choices, not garment type.
- *   - 6 pre-set kid-friendly colours + a "none / remove" option.
- *   - Tapping a colour equips + closes modal; re-render happens on
+ *   - Species gets ONE garment type (see wardrobe.ts mapping), so what
+ *     varies is its colour. Each choice is **the garment itself, drawn in
+ *     that colour** — not a swatch of the colour. A child who cannot read
+ *     "coat" and "hat" can still see which one is on offer, and what it
+ *     will look like on the animal, because it is the same picture.
+ *   - 6 pre-set kid-friendly colours (`WARDROBE_COLOURS`) + a "take off"
+ *     option.
+ *   - Tapping one equips + closes modal; re-render happens on
  *     the scene side via the provided `onEquip` callback.
  *   - Tapping outside the panel or the ✕ closes without changing.
  *
  * The actual `wardrobe` field on Animal stores a code like
- * `"scarf:#ff6b9d"` — the garment name plus a `:#hex` suffix for the
- * tint to apply to the shared species-garment sprite at render time.
+ * `"scarf:#ff6b9d"` — the garment name plus a `:#hex` suffix, which is the
+ * tint `createAnimalSprite` paints the garment in (`ui/wardrobe-art.ts`).
+ * If the garment's art is not available — not loaded yet, or never drawn —
+ * the tile falls back to a swatch of the colour rather than an empty box.
  */
 
-const WARDROBE_COLOURS: Array<{ name: string; hex: string }> = [
-  { name: 'Rust',    hex: '#c0392b' },
-  { name: 'Navy',    hex: '#2c3e50' },
-  { name: 'Mustard', hex: '#e3b04b' },
-  { name: 'Forest',  hex: '#27ae60' },
-  { name: 'Plum',    hex: '#8e44ad' },
-  { name: 'Teal',    hex: '#16a085' },
-];
-
 export interface WardrobePickerCallbacks {
-  /** Player picked a colour — persists the equip (code = "garment:#hex"). */
+  /** Player picked one — persists the equip (code = "garment:#hex"). */
   onEquip: (wardrobeCode: string) => void;
   /** Player tapped the remove-garment option. */
   onRemove: () => void;
@@ -58,7 +62,8 @@ export function renderWardrobePicker(
   container.add(overlay);
 
   // Panel
-  const panelW = 320;
+  // 300 tall: the shortest screen we draw on is the 325px web clip.
+  const panelW = 330;
   const panelH = 300;
   const panelX = width / 2 - panelW / 2;
   const panelY = height / 2 - panelH / 2;
@@ -76,6 +81,8 @@ export function renderWardrobePicker(
   container.add(body);
 
   const garment = getGarmentForSpecies(animal.species);
+  const garmentKey = getWardrobeTextureKey(animal.species);
+  const wornHex = parseWardrobe(animal.wardrobe)?.hex;
 
   // Title
   container.add(
@@ -90,7 +97,7 @@ export function renderWardrobePicker(
 
   container.add(
     scene.add.text(width / 2, panelY + 48,
-      'Tap a colour to equip it',
+      'Tap one to put it on',
       {
         fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
         color: COLOURS.textLight, resolution: TEXT_RESOLUTION,
@@ -108,40 +115,55 @@ export function renderWardrobePicker(
   });
   container.add(closeX);
 
-  // Colour swatches — 2 rows × 3 cols
-  const swatchSize = 64;
-  const gap = 18;
+  // The garment in each colour — 2 rows x 3 cols
+  const tileW = 92;
+  const tileH = 64;
+  const gap = 12;
   const cols = 3;
-  const gridW = cols * swatchSize + (cols - 1) * gap;
+  const gridW = cols * tileW + (cols - 1) * gap;
   const gridX0 = width / 2 - gridW / 2;
-  const gridY0 = panelY + 80;
+  const gridY0 = panelY + 68;
 
   WARDROBE_COLOURS.forEach(({ name, hex }, i) => {
     const row = Math.floor(i / cols);
     const col = i % cols;
-    const cx = gridX0 + col * (swatchSize + gap) + swatchSize / 2;
-    const cy = gridY0 + row * (swatchSize + gap + 14) + swatchSize / 2;
+    const cx = gridX0 + col * (tileW + gap) + tileW / 2;
+    const cy = gridY0 + row * (tileH + 28) + tileH / 2;
+    const equipped = wornHex === hex;
 
-    // Swatch circle
-    const colourInt = Phaser.Display.Color.HexStringToColor(hex).color;
-    const swatch = scene.add.circle(cx, cy, swatchSize / 2, colourInt)
-      .setStrokeStyle(3, 0xffffff, 0.9)
-      .setInteractive({ useHandCursor: true });
-    // Highlight if currently equipped
-    const equippedHex = animal.wardrobe?.split(':')[1];
-    if (equippedHex === hex) {
-      scene.add.circle(cx, cy, swatchSize / 2 + 4, 0x000000, 0)
-        .setStrokeStyle(3, 0x333333, 1);
+    // Tile — the tap target, and the one the animal is wearing is ringed
+    const tile = scene.add.graphics();
+    tile.fillStyle(0xffffff, 0.85);
+    tile.fillRoundedRect(cx - tileW / 2, cy - tileH / 2, tileW, tileH, 14);
+    tile.lineStyle(equipped ? 4 : 2, equipped ? 0x333333 : 0xd9c8a8, equipped ? 1 : 0.8);
+    tile.strokeRoundedRect(cx - tileW / 2, cy - tileH / 2, tileW, tileH, 14);
+    container.add(tile);
+
+    // The garment itself, coloured. No art (not loaded, or not drawn yet)
+    // is a swatch of the colour, not an empty tile.
+    const tinted = ensureTintedGarment(scene, garmentKey, hex);
+    if (tinted) {
+      const art = scene.add.image(cx, cy, tinted);
+      art.setScale(Math.min((tileW - 18) / art.width, (tileH - 14) / art.height));
+      container.add(art);
+    } else {
+      container.add(
+        scene.add.circle(cx, cy, 26, Phaser.Display.Color.HexStringToColor(hex).color)
+          .setStrokeStyle(3, 0xffffff, 0.9),
+      );
     }
-    swatch.on('pointerdown', (p: Phaser.Input.Pointer) => {
+
+    const hit = scene.add.rectangle(cx, cy, tileW, tileH, 0x000000, 0)
+      .setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', (p: Phaser.Input.Pointer) => {
       p.event?.stopPropagation();
-      callbacks.onEquip(`${garment}:${hex}`);
+      callbacks.onEquip(formatWardrobe(garment, hex));
     });
-    container.add(swatch);
+    container.add(hit);
 
     // Colour name below
     container.add(
-      scene.add.text(cx, cy + swatchSize / 2 + 8, name, {
+      scene.add.text(cx, cy + tileH / 2 + 4, name, {
         fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body,
         color: COLOURS.text, resolution: TEXT_RESOLUTION,
       }).setOrigin(0.5, 0),
@@ -149,7 +171,7 @@ export function renderWardrobePicker(
   });
 
   // Remove-garment option (bottom of panel)
-  const removeY = panelY + panelH - 36;
+  const removeY = panelY + panelH - 28;
   if (animal.wardrobe) {
     const removeHit = scene.add.rectangle(width / 2, removeY, 200, 28, 0xeeeeee, 0.8)
       .setStrokeStyle(1, 0xd9c8a8)
