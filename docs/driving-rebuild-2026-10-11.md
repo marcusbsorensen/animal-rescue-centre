@@ -75,6 +75,18 @@ every edge, so the right gear for the road is a lookup rather than new content.
 | Lane, houses (`unclassified`, `residential`) | 1–2 | Too fast |
 | Farm track, rewilding approach (`track`) | 1 | A dust storm the animals breathe, shown on screen |
 
+**Every gear works on every road (30A, Marcus, 2026-10-12).** "Any gear is
+available in any car at any time, but that doesn't mean that it's correct for
+the road that one is on. The same with bicycle gears that might be more
+familiar to children." The gear sets the top speed, so the fastest speed
+needs third; the "Gears" column is what suits the road, never a lock. A wrong
+gear is allowed and costs what the right-hand column says: too fast for the
+road flashes the speed camera (`speedCameraFires` in `road-gears.ts`), jostles
+the animals harder and makes the van's own hard stops (for traffic, for a
+crossing animal) come sooner and more often; too slow on the big road queues
+the traffic behind her. The knob that suits the road pulses as a hint she may
+ignore.
+
 ## Lane discipline, and being allowed to be naughty
 
 Marcus: *"Lily loves speeding and overtaking and generally doing slightly

@@ -45,7 +45,7 @@ claude branches; merge, run the checks, screenshot for Marcus):**
 - `arc-a28-model` (`trig_01EChsKzNshhu76p6D2E8fTz`) → `claude/a28-model`: TS speeds and zoom by carriageway kind, Trikey rule 18A (expect 6 of 14, 44 pairs, +1,637 m), `crossingsOnRoute`, `reachableFor`.
 - `arc-spike-animals-sideview` (`trig_01QGTXAMchbhPVPqKMxgZodF`) → `claude/spike-animals-sideview`: the game's own side-view hedgehog and fox, fine contour, gait-synced pulsing glow (21A); toast backing; ducklings clear of the HUD; tractor nose check.
 - `arc-tube-man` (`trig_01PE1q1ndQi4zjw69ZpaUHz9`) → `claude/tube-man`: `/admin/tube-man.html`, the rig animated in code (29A).
-- `arc-spike-gears` (`trig_01FoxWx92DsELVMBoTcJyXzg`) → `claude/spike-gears`: 30A, gears allowed per road, the right knob pulses, a big numeral, clunk and lurch.
+- `arc-spike-gears` (`trig_01FoxWx92DsELVMBoTcJyXzg`) → `claude/spike-gears`: 30A, the right knob pulses, a big numeral, clunk and lurch. **Its prompt locked gears per road; Marcus then decided every gear works on every road** (like a bike's; a wrong gear costs, see the gears section of `docs/driving-rebuild-2026-10-11.md`). When it lands, launch a follow-up on its branch: remove the dimmed knobs, the 'nope' and the ease-down; the too-fast consequences instead.
 - A local agent painting rabbit, duck, duckling, pheasant and deer candidates with ComfyUI into the session scratchpad `crossing-art/` (contact.png) for Marcus to choose; nothing goes in the repo until he picks.
 
 After the A28 model and the road paint land: a spike job drawing the A28 by kind (dual / divided / single). Not yet started: the fuel, workshop, wash and charging model (decisions 22–28 in `docs/fuel-workshop-carwash-2026-10-12.md`).
