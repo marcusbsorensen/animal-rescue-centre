@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { createHash } from 'node:crypto';
 import { FakeSupabase, type Query } from '../support/fake-supabase';
 import { loadFunction, useFakeSupabase, post, json, type Handler } from '../support/harness';
 
@@ -97,6 +98,22 @@ describe('signup', () => {
     expect(row).not.toHaveProperty('pin_hint');
     expect(row.pin_hint_code ?? null).toBeNull();
     expect(JSON.stringify(db.queries)).not.toContain('Pip');
+  });
+
+  it('keeps nothing of a parent email sent by an older app build', async () => {
+    // No screen asks for a parent email, but the signup function used to
+    // read `parentEmail` and keep an unkeyed SHA-256 of it. Any build
+    // that still sends one gets an account and nothing of the address,
+    // or of its hash, is written.
+    const email = 'Grown.Up@example.com';
+    const sha256 = createHash('sha256').update(email.toLowerCase()).digest('hex');
+    const res = await handler(post(signupBody({ parentEmail: email })));
+    expect(res.status).toBe(200);
+    const row = db.on('users', 'insert')[0].values as Record<string, unknown>;
+    expect(row).not.toHaveProperty('parent_email_hash');
+    const written = JSON.stringify(db.queries).toLowerCase();
+    expect(written).not.toContain('example.com');
+    expect(written).not.toContain(sha256);
   });
 
   it('answers a name check without creating anything', async () => {

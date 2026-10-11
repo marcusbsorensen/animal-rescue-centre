@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { hashPin, hashEmail, generateToken, generateJoinCode } from '../_shared/crypto.ts';
+import { hashPin, generateToken, generateJoinCode } from '../_shared/crypto.ts';
 import { createSession } from '../_shared/session.ts';
 import { isPinHintCode } from '../_shared/pin-hints.ts';
 import {
@@ -15,7 +15,11 @@ Deno.serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
-    const { username, pin, avatarEmoji, avatarBgColour, parentEmail, pinHintCode, checkOnly } =
+    // Fields are read by name, so anything else in the body is never
+    // touched. Older builds may still send a parent's email address (no
+    // screen ever asked for one) or a typed `pinHint`; neither is read or
+    // kept.
+    const { username, pin, avatarEmoji, avatarBgColour, pinHintCode, checkOnly } =
       await req.json();
 
     // `checkOnly` answers "is this name free?" and creates nothing.
@@ -168,12 +172,6 @@ Deno.serve(async (req) => {
     // Hash PIN
     const pinHash = await hashPin(pin);
 
-    // Hash parent email if provided
-    let parentEmailHash: string | null = null;
-    if (parentEmail && typeof parentEmail === 'string' && parentEmail.includes('@')) {
-      parentEmailHash = await hashEmail(parentEmail);
-    }
-
     // Generate join code (retry if collision)
     let joinCode = generateJoinCode();
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -195,7 +193,6 @@ Deno.serve(async (req) => {
         pin_hint_code: hintCode,
         avatar_emoji: avatarEmoji,
         avatar_bg_colour: avatarBgColour,
-        parent_email_hash: parentEmailHash,
         join_code: joinCode,
         last_seen_at: new Date().toISOString(),
       })

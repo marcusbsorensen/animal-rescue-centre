@@ -51,6 +51,8 @@ function currentSchema(): Map<string, Set<string>> {
   for (const { sql } of migrations()) {
     // Statements in file order, so an add and a later drop apply in turn.
     for (const stmt of sql.split(';')) {
+      const dropped = stmt.match(/drop table (?:if exists )?(\w+)/);
+      if (dropped) { tables.delete(dropped[1]); continue; }
       const create = stmt.match(/create table (?:if not exists )?(\w+)\s*\(([\s\S]*)\)\s*$/);
       if (create) {
         const cols = new Set<string>();
@@ -105,7 +107,6 @@ describe('Privacy Audit: schema after every migration', () => {
       'audit_log',              // actions; metadata is server-written
       'badges_earned',          // codes
       'calendar_events',        // game calendar, codes
-      'deletion_requests',      // unused: nothing reads or writes it
       'depot_inventory_ledger', // game economy
       'depot_sessions',         // game economy
       'friendships',            // ids
@@ -133,7 +134,6 @@ describe('Privacy Audit: schema after every migration', () => {
       'is_active',
       'join_code',
       'last_seen_at',
-      'parent_email_hash',
       'pin_hash',
       'pin_hint_code',
       'username',
@@ -144,10 +144,14 @@ describe('Privacy Audit: schema after every migration', () => {
     expect(allSql).toMatch(/pin_hint_code text\s+constraint \w+ check \(\s*pin_hint_code in \(/);
   });
 
-  it('parent_email_hash is the only email-related column', () => {
+  it('no table holds an email address or a hash of one', () => {
+    // users.parent_email_hash held an unkeyed SHA-256 of any parent email
+    // signup was sent, and no screen ever asked for one. 00013 drops it,
+    // and deletion_requests, which nothing read or wrote.
     const emailCols = [...schema.entries()]
       .flatMap(([t, cols]) => [...cols].filter((c) => c.includes('email')).map((c) => `${t}.${c}`));
-    expect(emailCols).toEqual(['users.parent_email_hash']);
+    expect(emailCols).toEqual([]);
+    expect(schema.has('deletion_requests')).toBe(false);
   });
 
   it('no age or date_of_birth column exists', () => {
@@ -206,6 +210,45 @@ describe('Privacy Audit: IP addresses', () => {
     expect(sql).toMatch(/delete from rate_limits/);
     expect(sql).toMatch(/add constraint \w+ check/);
     expect(sql).toContain("[0-9a-f]{64}$");
+  });
+});
+
+describe('Privacy Audit: no parent email', () => {
+  // Decided 2026-10-12: a grown-up asks for a deletion through the help
+  // page, so ARC takes no parent email. The signup step that promised one
+  // was never shown, and the hash it fed was never read.
+
+  it('signup does not read or hash a parent email', () => {
+    const src = read('supabase/functions/signup/index.ts');
+    expect(src).not.toMatch(/parentEmail/);
+    expect(src).not.toMatch(/parent_email/);
+    expect(src).not.toMatch(/hashEmail/);
+  });
+
+  it('there is no email hashing helper left to call', () => {
+    expect(read('supabase/functions/_shared/crypto.ts')).not.toMatch(/hashEmail/);
+  });
+
+  it('the app sends no parent email and has no step that asks for one', () => {
+    expect(read('apps/game/src/lib/auth.ts')).not.toMatch(/parentEmail/);
+    const scene = read('apps/game/src/scenes/SignupScene.ts');
+    expect(scene).not.toMatch(/parentEmail/);
+    expect(scene).not.toMatch(/showParentStep/);
+    expect(scene).not.toMatch(/'parent'/);
+  });
+
+  it('00013 refuses to run while any account holds a parent email hash', () => {
+    const raw = read('supabase/migrations/00013_drop_parent_email.sql');
+    // The header gives Marcus the query to run first, by hand.
+    expect(raw).toContain('select count(*) from users where parent_email_hash is not null');
+    // And the migration checks the same thing itself before dropping.
+    const sql = raw.replace(/--[^\n]*/g, '').toLowerCase();
+    expect(sql).toMatch(/if exists \(select 1 from users where parent_email_hash is not null\)/);
+    // A row in deletion_requests would be a request nobody acted on.
+    expect(sql).toMatch(/if exists \(select 1 from deletion_requests\)/);
+    expect(sql).toMatch(/raise exception/);
+    expect(sql.indexOf('raise exception')).toBeLessThan(sql.indexOf('drop column'));
+    expect(sql.indexOf('raise exception')).toBeLessThan(sql.indexOf('drop table'));
   });
 });
 

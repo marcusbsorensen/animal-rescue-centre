@@ -9,7 +9,6 @@ export interface SignupData {
    *  `@arc/game-logic` (`PIN_HINT_CHOICES`), never typed text. Shown back
    *  on the forgot-PIN screen. See docs/forgot-pin-recovery.md. */
   pinHintCode?: string;
-  parentEmailHash?: string;
 }
 
 export interface LoginData {
