@@ -37,7 +37,7 @@
   <span id="perf">– ms</span>
 </div>
 <div class="stage">
-  <figure><canvas id="big"></canvas><figcaption>Big (90 px/m)</figcaption></figure>
+  <figure><canvas id="big"></canvas><figcaption>Big (80 px/m)</figcaption></figure>
   <figure><canvas id="drive"></canvas><figcaption>Driving world (22 px/m, zoom 1), billboard with shadow</figcaption></figure>
   <figure><canvas id="map"></canvas><figcaption>Map scale (8 px/m) and ×4 loupe</figcaption></figure>
 </div>
@@ -68,7 +68,7 @@ function setup(id, w, h) {
   const ctx = c.getContext('2d');
   return { c, ctx, w, h };
 }
-const big = setup('big', 520, 600);
+const big = setup('big', 600, 560);
 const drive = setup('drive', 300, 300);
 const map = setup('map', 300, 300);
 
@@ -97,7 +97,7 @@ function frame(dt) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = '#fef9ef'; ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = '#d8d2c6'; ctx.fillRect(0, h - 40, w, 40);
-  steves[0].draw(ctx, w / 2, h - 30, 90);
+  steves[0].draw(ctx, w / 2, h - 30, 80);
 
   // Driving world: road, verge, van at the same scale; Steve stands up as
   // a billboard on the verge with a soft shadow, as the crossing animals do.
@@ -141,7 +141,12 @@ function loop(now) {
 }
 
 if (capture) {
-  window.__tubeMan = { advance: (sec) => frame(sec), steves: () => steves, create };
+  window.__tubeMan = {
+    // Long advances are run in small steps: step() caps dt so a stalled tab
+    // doesn't run seconds of physics at once.
+    advance(sec) { let ms = 0; while (sec > 1e-9) { const d = Math.min(sec, 0.1); ms = frame(d); sec -= d; } return ms; },
+    steves: () => steves, create,
+  };
   frame(0);
 } else {
   requestAnimationFrame(loop);

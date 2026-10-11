@@ -89,13 +89,14 @@ export function create(seed = 1, options = {}) {
     kinkUntil: 0, kinkNext: r(0.5, 1.5),
     gustNext: r(0.3, 1.0),
     flapUp: true, flapNext: 0, flapTarget: -1.0, whipNext: r(1.5, 3.5),
-    lowTarget: 2.6, lowNext: 0,
+    lowTarget: 2.75, lowNext: 0,
     phase: 'up', phaseUntil: r(3.5, 7), foldJoint: 4, foldDir: 1,
     grin: 0,
   };
 
   function scheduleSway() {
-    s.swayAmp = r(0.04, 0.2) * sign();
+    // Per joint; ten joints add up, so 0.1 is about 0.8 rad of lean at the top.
+    s.swayAmp = r(0.02, 0.1) * sign();
     // 0 = a C-bend, 1 = an S-bend (lower half one way, upper the other).
     s.swayShape = rnd() < 0.4 ? 1 : 0;
     s.swayNext = s.t + r(0.18, 0.6);
@@ -126,7 +127,7 @@ export function create(seed = 1, options = {}) {
     if (t >= s.kinkNext) {
       kink.fill(0);
       const j = 2 + Math.floor(rnd() * (N - 3));
-      kink[j] = r(0.35, 0.8) * sign();
+      kink[j] = r(0.3, 0.6) * sign();
       s.kinkUntil = t + r(0.08, 0.25);
       s.kinkNext = t + r(0.5, 1.8);
     } else if (t >= s.kinkUntil) {
@@ -135,7 +136,7 @@ export function create(seed = 1, options = {}) {
 
     // Gusts kick the whole tube, harder near the top.
     if (t >= s.gustNext) {
-      const g = r(1.5, 4.5) * sign();
+      const g = r(0.4, 1.2) * sign();
       for (let i = 0; i <= N; i++) v[i] += g * (0.2 + i / N);
       s.gustNext = t + r(0.35, 1.4);
     }
@@ -145,7 +146,7 @@ export function create(seed = 1, options = {}) {
     if (s.phase === 'up' && t >= s.phaseUntil) {
       s.phase = 'sag';
       s.phaseUntil = t + r(0.2, 0.35);
-      s.foldJoint = 3 + Math.floor(rnd() * 3);
+      s.foldJoint = 4 + Math.floor(rnd() * 2);
       s.foldDir = sign();
     } else if (s.phase === 'sag' && t >= s.phaseUntil) {
       s.phase = 'down';
@@ -153,14 +154,14 @@ export function create(seed = 1, options = {}) {
     } else if (s.phase === 'down' && t >= s.phaseUntil) {
       s.phase = 'reinflate';
       s.phaseUntil = t + r(0.35, 0.55);
-      for (let i = 0; i <= N; i++) v[i] -= s.foldDir * r(2, 4); // the snap back
+      for (let i = 0; i <= N; i++) v[i] -= s.foldDir * r(0.3, 0.7) * (i / N); // the snap back
     } else if (s.phase === 'reinflate' && t >= s.phaseUntil) {
       s.phase = 'up';
       s.phaseUntil = t + r(3.5, 8.5);
     }
     if (s.phase === 'sag') s.P = Math.max(0.14, s.P - 4.2 * TICK);
     else if (s.phase === 'down') s.P = 0.14;
-    else if (s.phase === 'reinflate') s.P = 1.45; // over-pressure, no easing
+    else if (s.phase === 'reinflate') s.P = 1.3; // over-pressure, no easing
     else s.P = 1;
     if (s.phase === 'sag' || s.phase === 'down') {
       target[s.foldJoint] += s.foldDir * 1.25;
@@ -171,19 +172,19 @@ export function create(seed = 1, options = {}) {
     // Right arm: big flap, flop, big flap, flop, at uneven beats.
     if (t >= s.flapNext) {
       s.flapUp = !s.flapUp;
-      s.flapTarget = s.flapUp ? -r(0.35, 1.05) : -r(1.9, 2.5);
+      s.flapTarget = s.flapUp ? -r(0.35, 1.05) : -r(1.8, 2.3);
       s.flapNext = t + (s.flapUp ? r(0.16, 0.42) : r(0.12, 0.36));
-      rv[0] += (s.flapUp ? 1 : -1) * -r(2, 6);
+      rv[0] += (s.flapUp ? 1 : -1) * -r(1.5, 4);
     }
     if (t >= s.whipNext) {
       // A sharp whip: the tip cracks over while the root barely moves.
-      const w = r(9, 16) * (rnd() < 0.7 ? -1 : 1);
+      const w = r(6, 11) * (rnd() < 0.7 ? -1 : 1);
       rv[ARM_N - 1] += w; rv[ARM_N - 2] += w * 0.6;
       s.whipNext = t + r(1.2, 3.8);
     }
     // Left arm stays low, with the odd twitch.
     if (t >= s.lowNext) {
-      s.lowTarget = rnd() < 0.15 ? r(2.0, 2.25) : r(2.45, 2.75);
+      s.lowTarget = rnd() < 0.12 ? r(2.35, 2.5) : r(2.65, 2.85);
       s.lowNext = t + r(0.3, 1.2);
     }
   }
@@ -191,17 +192,23 @@ export function create(seed = 1, options = {}) {
   function chainBody() {
     const P = s.P;
     const K = reduced ? 140 : 270;
-    const C = reduced ? 14 : 5.5;
+    // Each link follows its parent with no push back, so an underdamped
+    // chain amplifies at every joint and the top goes wild. Damping the bend
+    // near critical stops that; the jank comes from the jumpy targets and
+    // kicks instead. A little air drag on the absolute angle settles it.
+    const C = reduced ? 30 : 22;
+    const D = reduced ? 3 : 1.2;
     const G = 15 * (1 - 0.75 * Math.min(P, 1));
     for (let i = 0; i <= N; i++) {
       const parent = i === 0 ? 0 : a[i - 1];
       const rel = a[i] - parent;
       const isHead = i === N;
-      const stiff = isHead ? 0.45 : 1 - 0.35 * (i / N);
+      const stiff = isHead ? 0.45 : 1 - 0.2 * (i / N);
       const k = K * stiff * (0.12 + 0.88 * P);
       const mass = isHead ? 0.4 : (N + 1 - i) / (N + 1);
-      let acc = -k * (rel - target[i] - kink[i]) - C * v[i] + G * Math.sin(a[i]) * mass;
-      if (!reduced && rnd() < 0.04) acc += r(-60, 60) * (0.3 + i / N); // fabric flutter
+      const pv = i === 0 ? 0 : v[i - 1];
+      let acc = -k * (rel - target[i] - kink[i]) - C * (v[i] - pv) - D * v[i] + G * Math.sin(a[i]) * mass;
+      if (!reduced && rnd() < 0.03) acc += r(-30, 30) * (0.3 + i / N); // fabric flutter
       v[i] += acc * TICK;
       a[i] += v[i] * TICK;
       // Clamps keep him from tangling or turning inside out: a joint can
@@ -212,7 +219,8 @@ export function create(seed = 1, options = {}) {
         a[i] = parent + clamp(nrel, -maxRel, maxRel);
         v[i] = (i === 0 ? 0 : v[i - 1]) - 0.3 * (v[i] - (i === 0 ? 0 : v[i - 1]));
       }
-      const maxAbs = 2.1;
+      // Folding right over is for collapses only.
+      const maxAbs = s.phase === 'up' ? 1.6 : 1.95;
       if (a[i] > maxAbs || a[i] < -maxAbs) {
         a[i] = clamp(a[i], -maxAbs, maxAbs);
         v[i] *= -0.25;
@@ -222,8 +230,8 @@ export function create(seed = 1, options = {}) {
 
   function chainArm(ang, vel, rootTarget, side, lowArm) {
     const P = Math.min(s.P, 1.2);
-    const K = reduced ? 160 : lowArm ? 220 : 380;
-    const C = reduced ? 12 : lowArm ? 9 : 4.5;
+    const K = reduced ? 160 : lowArm ? 340 : 380;
+    const C = reduced ? 30 : lowArm ? 28 : 18;
     const G = 9 * (1.25 - Math.min(P, 1));
     const body = a[SHOULDER];
     // Out of air, the arms hang regardless of what the wind wants.
@@ -233,19 +241,25 @@ export function create(seed = 1, options = {}) {
       const want = i === 0 ? tgt : side * (lowArm ? 0.05 : s.flapUp ? -0.12 : 0.1);
       const rel = ang[i] - parent;
       const k = K * (1 - 0.15 * i) * (0.2 + 0.8 * P);
-      let acc = -k * (rel - want) - C * vel[i] + G * Math.sin(ang[i]) * 0.6;
-      if (!reduced && !lowArm && rnd() < 0.05) acc += r(-80, 80);
+      const pv = i === 0 ? v[SHOULDER] : vel[i - 1];
+      let acc = -k * (rel - want) - C * (vel[i] - pv) - 1.5 * vel[i] + G * Math.sin(ang[i]) * 0.6;
+      if (!reduced && !lowArm && rnd() < 0.04) acc += r(-50, 50);
       vel[i] += acc * TICK;
       ang[i] += vel[i] * TICK;
       // The root stays on its own side of the body; joints bend but never
       // fold back on themselves.
       if (i === 0) {
-        const lo = side < 0 ? -2.95 : 0.25, hi = side < 0 ? -0.15 : 2.95;
+        const lo = side < 0 ? -2.6 : 0.25, hi = side < 0 ? -0.15 : 2.95;
         const nrel = ang[0] - body;
         if (nrel < lo || nrel > hi) { ang[0] = body + clamp(nrel, lo, hi); vel[0] *= -0.3; }
       } else {
         const nrel = ang[i] - parent;
-        if (nrel > 0.85 || nrel < -0.85) { ang[i] = parent + clamp(nrel, -0.85, 0.85); vel[i] *= -0.3; }
+        const m = lowArm ? 0.4 : 0.6;
+        if (nrel > m || nrel < -m) { ang[i] = parent + clamp(nrel, -m, m); vel[i] *= -0.3; }
+        // No part of an arm may swing across his front or over his head.
+        const lo = side < 0 ? -2.8 : 0.1, hi = side < 0 ? -0.1 : 2.95;
+        const b = ang[i] - body;
+        if (b < lo || b > hi) { ang[i] = body + clamp(b, lo, hi); vel[i] *= -0.3; }
       }
     }
   }
@@ -274,6 +288,7 @@ export function create(seed = 1, options = {}) {
   const cx = new Float64Array(MAXP), cy = new Float64Array(MAXP), cw = new Float64Array(MAXP);
   const nx = new Float64Array(MAXP), ny = new Float64Array(MAXP);
   let cn = 0;
+  const kx = new Float64Array(MAXP), ky = new Float64Array(MAXP), kw = new Float64Array(MAXP), knx = new Float64Array(MAXP), kny = new Float64Array(MAXP);
   const px = new Float64Array(N + 2), py = new Float64Array(N + 2), pw = new Float64Array(N + 2);
 
   // Catmull-Rom through the joints so the fabric reads as one soft tube,
@@ -329,23 +344,6 @@ export function create(seed = 1, options = {}) {
       ctx.fillStyle = col.light; band(ctx, from, to, 0.3, -0.2, 0);
       ctx.fillStyle = col.hi; band(ctx, from, to, 0.08, -0.26, 0);
     }
-  }
-
-  function armPoints(ang, side, ox, oy, S, k) {
-    const body = a[SHOULDER];
-    const sx = Math.cos(body), sy = Math.sin(body);
-    // Shoulder: at the side of the tube, a little below the collar.
-    let x = px[k] + side * sx * TUBE_W * 0.32 * S - Math.sin(body) * 0.18 * S;
-    let y = py[k] + side * sy * TUBE_W * 0.32 * S + Math.cos(body) * 0.18 * S;
-    const L = ARM_SEG * S * (0.85 + 0.15 * Math.min(s.P, 1));
-    const out = { n: ARM_N + 1 };
-    px[0] = x; py[0] = y; pw[0] = ARM_W * S * 1.15;
-    for (let i = 0; i < ARM_N; i++) {
-      x += Math.sin(ang[i]) * L;
-      y -= Math.cos(ang[i]) * L;
-      px[i + 1] = x; py[i + 1] = y; pw[i + 1] = ARM_W * S * (1 - 0.08 * i);
-    }
-    return out;
   }
 
   function drawArm(ctx, ang, side, S, line, detail, shoulderX, shoulderY) {
@@ -547,20 +545,6 @@ export function create(seed = 1, options = {}) {
 
     drawFan(ctx, x, y, S, line, detail);
 
-    // Arms go behind the body so their roots tuck under the tube.
-    drawArm(ctx, la, 1, S, line, detail, shoulderX, shoulderY);
-    drawArm(ctx, ra, -1, S, line, detail, shoulderX, shoulderY);
-
-    // Re-run the spine (the arms reused the buffers).
-    bx = x; by = y - FAN_H * S * 0.9;
-    px[0] = bx; py[0] = by; pw[0] = TUBE_W * S * 0.92;
-    for (let i = 0; i < N; i++) {
-      bx += Math.sin(a[i]) * L;
-      by -= Math.cos(a[i]) * L;
-      const bend = i + 1 < N ? Math.abs(a[i + 1] - a[i]) : 0;
-      px[i + 1] = bx; py[i + 1] = by;
-      pw[i + 1] = TUBE_W * S * (0.88 + 0.12 * P) * (1 - 0.32 * Math.min(1, bend / 0.9));
-    }
     smooth(N + 1);
     const collar = cn - 1 - Math.round(SUB * 0.9);
     paintTube(ctx, BLUE, 0, cn - 1, line, detail);
@@ -575,8 +559,6 @@ export function create(seed = 1, options = {}) {
         ctx.beginPath(); ctx.arc(cx[bi] + nx[bi] * o, cy[bi] + ny[bi] * o, cw[bi] * 0.06, 0, TAU); ctx.fill();
       }
     }
-    // Red shirt collar between the bib and the chin.
-    paintTube(ctx, RED, collar, cn - 1, line, detail);
     if (S * 0.34 >= 4.5) drawLetters(ctx, S, collar - SUB);
 
     // Crease marks where the fabric folds hard.
@@ -597,6 +579,17 @@ export function create(seed = 1, options = {}) {
       }
     }
 
+    // Arms in front of the tube, sleeves over the shoulders, then the
+    // collar on top hides where they join. The arms reuse the spine
+    // buffers, so the collar's points are kept first.
+    const cs = collar, ce = cn - 1, keep = ce - cs + 1;
+    for (let i = 0; i < keep; i++) { kx[i] = cx[cs + i]; ky[i] = cy[cs + i]; kw[i] = cw[cs + i]; knx[i] = nx[cs + i]; kny[i] = ny[cs + i]; }
+    drawArm(ctx, la, 1, S, line, detail, shoulderX, shoulderY);
+    drawArm(ctx, ra, -1, S, line, detail, shoulderX, shoulderY);
+    for (let i = 0; i < keep; i++) { cx[i] = kx[i]; cy[i] = ky[i]; cw[i] = kw[i]; nx[i] = knx[i]; ny[i] = kny[i]; }
+    // Red shirt collar between the bib and the chin.
+    paintTube(ctx, RED, 0, keep - 1, line, detail);
+
     const hd = HEAD_RY * S * 0.82;
     drawHead(ctx, topX + Math.sin(headAng) * hd, topY - Math.cos(headAng) * hd, headAng, S, line, detail);
   }
@@ -605,6 +598,6 @@ export function create(seed = 1, options = {}) {
     step,
     draw,
     setReducedMotion(on) { reduced = !!on; if (on) { s.phase = 'up'; s.phaseUntil = s.t + 5; } },
-    get state() { return { t: s.t, P: s.P, phase: s.phase }; },
+    get state() { return { t: s.t, P: s.P, phase: s.phase, body: Array.from(a), right: Array.from(ra), left: Array.from(la) }; },
   };
 }
