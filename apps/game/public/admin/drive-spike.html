@@ -106,7 +106,15 @@ let zoom = 1;
 
 /** Where the van sits on screen, measured off Lily's game: 53.5% across,
  *  59% down, in every frame of 35 seconds. */
-const VAN_SX = 0.535, VAN_SY = 0.59;
+const VAN_SX = 0.535;
+
+/** View parameters for comparing layouts, not settings: ?full=1 drops the
+ *  430px width cap (to see landscape), ?pin= moves the van's height on screen
+ *  from the measured 0.59, ?zoomx= scales every zoom. */
+const VIEW_Q = new URLSearchParams(location.search);
+const VAN_SY = Number(VIEW_Q.get('pin')) || 0.59;
+const ZOOM_X = Number(VIEW_Q.get('zoomx')) || 1;
+const FULL_WIDTH = VIEW_Q.get('full') === '1';
 
 /** Van footprint in metres. 2.4m across is a real panel van; the length comes
  *  from the sprite's own aspect so the art is never squashed. */
@@ -421,7 +429,7 @@ function step(dt) {
 
 function resize() {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const w = Math.min(window.innerWidth, 430), h = window.innerHeight;
+  const w = FULL_WIDTH ? window.innerWidth : Math.min(window.innerWidth, 430), h = window.innerHeight;
   canvas.width = w * dpr; canvas.height = h * dpr;
   canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -445,7 +453,7 @@ function draw() {
   // the van's world position at its fixed spot.
   ctx.translate(w * VAN_SX, h * VAN_SY);
   ctx.rotate(-(camH ?? pos.h) - Math.PI / 2);
-  const ppm = PPM * zoom;
+  const ppm = PPM * zoom * ZOOM_X;
   ctx.scale(ppm, ppm);
   ctx.translate(-camX, -camY);
 

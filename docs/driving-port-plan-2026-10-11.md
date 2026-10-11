@@ -300,12 +300,12 @@ Recommendation first. None of these is answered by the code or the docs.
    (b) Small floating buttons at the screen's sides, over the verges.
    (c) Gear chosen before setting off, with only the handbrake on screen.
    And does the horn stay?
-2. **The dual carriageway: zoom or narrow?** (spec, still open) No
+2. **ANSWERED 2026-10-11: zoom.** The camera eases out for the dual carriageway, and the zoom also follows speed and place; see the spec's *Decided later the same day*. The narrow trial is gone from the spike. Was: **The dual carriageway: zoom or narrow?** (spec, still open) No
    recommendation from the code: steps 5-8 support both behind one setting, as
    the spike does. One fact to weigh: zoom changes the van's size on screen,
    and the reference "keeps its car one size throughout" (spike, `bigRoad`
    comment).
-3. **What does the driver do to help the animals at a roadside stop?** (spec,
+3. **ANSWERED 2026-10-11 by Marcus and Lily**: calming by touch, or water, a treat or a blanket by species and weather; and a squabble means rearranging the crates. See the spec. Was: **What does the driver do to help the animals at a roadside stop?** (spec,
    still open) (a) **Recommended:** the grid she loaded opens, with each
    animal's face (the loading screen draws them already, `gridFace` in
    `crate-loading-view.ts:1367`), and she taps the unsettled ones to calm them.
