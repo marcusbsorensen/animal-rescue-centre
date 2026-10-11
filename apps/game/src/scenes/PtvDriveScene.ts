@@ -19,6 +19,7 @@ import { renderCrateLoading, titleCase } from '../driving/crate-loading-view';
 import { PICKER_EXIT_MARGIN, VEHICLE_SPRITE, pickerLayout } from '../driving/fleet-art';
 import { drawForecourt, drawVehicleShadow } from '../driving/forecourt';
 import { stateTween } from '../ui/tween';
+import { driveJolts } from '../driving/drive-jolts';
 import {
   createDriveState,
   cycleGear,
@@ -2567,17 +2568,19 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /**
    * Handbrake — slam to a halt. Better than an RTA, but it jostles the animals
-   * in their cages: comfort drops, the van judders, the screen shakes. Drops
-   * the stick straight into Park so the vehicle actually stops.
+   * in their cages: comfort drops, the van judders, the screen shakes (those
+   * two not under reduced motion). Drops the stick straight into Park so the
+   * vehicle actually stops.
    */
   private emergencyBrake(): void {
     this.setGear(PARK);
     this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 15);
     AudioManager.getInstance().playSfx('food_wrong'); // wobble/chaos cue (placeholder)
 
-    // Screen shake + a quick van judder.
-    this.cameras.main.shake(320, 0.012);
-    if (this.vanGfx) {
+    // Screen shake + a quick van judder, both gone under reduced motion.
+    const jolts = driveJolts();
+    if (jolts.shake) this.cameras.main.shake(320, 0.012);
+    if (this.vanGfx && jolts.judder) {
       this.tweens.add({
         targets: this.vanGfx,
         angle: { from: -6, to: 6 },
@@ -3274,9 +3277,12 @@ export class PtvDriveScene extends Phaser.Scene {
     const { width, height } = this.scale;
     AudioManager.getInstance().playSfx('food_wrong');
 
-    const flash = this.add.rectangle(width / 2, height / 2, width, height, 0xffffff, 0.85).setDepth(70);
-    this.container.add(flash);
-    this.tweens.add({ targets: flash, alpha: 0, duration: 320, onComplete: () => flash.destroy() });
+    // The white blitz goes under reduced motion; the sound and the words stay.
+    if (driveJolts().cameraFlash) {
+      const flash = this.add.rectangle(width / 2, height / 2, width, height, 0xffffff, 0.85).setDepth(70);
+      this.container.add(flash);
+      this.tweens.add({ targets: flash, alpha: 0, duration: 320, onComplete: () => flash.destroy() });
+    }
 
     this.tweens.add({ targets: d.obj, scale: d.obj.scale * 1.18, duration: 110, yoyo: true });
 
