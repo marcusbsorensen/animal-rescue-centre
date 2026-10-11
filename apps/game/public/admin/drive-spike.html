@@ -393,6 +393,9 @@ function step(dt) {
   const x = xing ? crossings.step(xing, dt, car) : { speedCap: Infinity, events: [] };
   t.speedCap = Math.min(t.speedCap, x.speedCap);
   if (t.laneBlocked) car.laneWant = 0;
+  // Something is alongside in our own lane: a swipe back now would be a
+  // side-on touch, so traffic holds the van out until there is room.
+  if (t.laneHold) car.laneWant = 1;
   for (const ev of [...t.events, ...x.events]) toast(ev);
 
   // Pulling up at the destination. The van eases to a stop at the gate on

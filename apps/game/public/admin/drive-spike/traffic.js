@@ -479,7 +479,7 @@ export function step(T, dt, van) {
   populate(T, van, vb, dt);
 
   T.last = { speedCap, capBy, laneBlocked, hold: T.hold, laneT, unsafe };
-  return { speedCap, laneBlocked, events };
+  return { speedCap, laneBlocked, laneHold: T.hold, events };
 }
 
 /** The fastest speed from which a stop at `rate` fits in `room` metres,
