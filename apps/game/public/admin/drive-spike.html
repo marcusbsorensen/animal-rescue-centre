@@ -73,6 +73,7 @@
 // touching this file. Their contracts are documented at the top of each.
 import * as scenery from './drive-spike/scenery.js';
 import * as traffic from './drive-spike/traffic.js';
+import * as crossings from './drive-spike/crossings.js';
 
 // ---------------------------------------------------------------- the world
 
@@ -112,13 +113,23 @@ const VAN_SX = 0.535;
  *  430px width cap (to see landscape), ?pin= moves the van's height on screen
  *  from the measured 0.59, ?zoomx= scales every zoom. */
 const VIEW_Q = new URLSearchParams(location.search);
-const VAN_SY = Number(VIEW_Q.get('pin')) || 0.59;
-const ZOOM_X = Number(VIEW_Q.get('zoomx')) || 1;
 const FULL_WIDTH = VIEW_Q.get('full') === '1';
 
-/** Van footprint in metres. 2.4m across is a real panel van; the length comes
- *  from the sprite's own aspect so the art is never squashed. */
-const VAN_W_M = Number(new URLSearchParams(location.search).get('vanw')) || 2.4;   // ?vanw= to compare sizes
+/** Held sideways, the measured pin leaves 9m of road ahead against 20m held
+ *  upright. Marcus chose (2026-10-11) that in landscape the van sits lower and
+ *  the camera pulls back, which shows about 16m. */
+function vanSY(w, h) { return Number(VIEW_Q.get('pin')) || (w > h ? 0.8 : 0.59); }
+function zoomX(w, h) { return Number(VIEW_Q.get('zoomx')) || (w > h ? 0.75 : 1); }
+
+/** Every vehicle at its true width relative to Henry, and Henry at the size
+ *  measured against the reference (13.5% of a phone's width), Marcus's choice
+ *  of 2026-10-11. Real widths from `fleet-art.ts` VEHICLE_WIDTH_M. ?van= picks
+ *  the vehicle, ?vanw= overrides the width for comparisons. */
+const VAN_ID = VIEW_Q.get('van') || 'henry';
+const REAL_W_M = { trikey: 0.75, henry: 1.75, bea: 1.80, spark: 2.00, 'big-tilly': 2.30 };
+const HENRY_DRAWN_M = 2.4;
+const VAN_W_M = Number(VIEW_Q.get('vanw'))
+  || (REAL_W_M[VAN_ID] ?? REAL_W_M.henry) * HENRY_DRAWN_M / REAL_W_M.henry;
 
 const GEARS = { 1: 7, 2: 13, 3: 20 };   // metres per second
 const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34;  // m/s^2
@@ -170,7 +181,7 @@ const ctx = canvas.getContext('2d');
 
 let graph = null, adj = null, route = [], routeLen = 0;
 let vanImg = null;
-let scn = null, trf = null;
+let scn = null, trf = null, xing = null;
 
 // -------------------------------------------------------------- graph + route
 
@@ -283,6 +294,9 @@ function pickRoute(fromId) {
     roadClassAt: classAtS,
     laneWidth: LANE_M,
   });
+  xing = crossings.create({
+    length: routeLen, atDistance, laneOffset, roadClassAt: classAtS, laneWidth: LANE_M,
+  }, { graph, mapToWorld, season: SEASON });
 }
 
 // ---------------------------------------------------------------- the driving
@@ -351,8 +365,10 @@ function step(dt) {
   car.length = VAN_W_M * (vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0);
   car.width = VAN_W_M;
   const t = trf ? traffic.step(trf, dt, car) : { speedCap: Infinity, laneBlocked: false, events: [] };
+  const x = xing ? crossings.step(xing, dt, car) : { speedCap: Infinity, events: [] };
+  t.speedCap = Math.min(t.speedCap, x.speedCap);
   if (t.laneBlocked) car.laneWant = 0;
-  for (const ev of t.events) toast(ev);
+  for (const ev of [...t.events, ...x.events]) toast(ev);
 
   // Pulling up at the destination. The van eases to a stop at the gate on
   // its own, as the route steers on its own: the stop lowers the speed she
@@ -429,7 +445,8 @@ function step(dt) {
 
 function resize() {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const w = FULL_WIDTH ? window.innerWidth : Math.min(window.innerWidth, 430), h = window.innerHeight;
+  const landscape = window.innerWidth > window.innerHeight;
+  const w = FULL_WIDTH || landscape ? window.innerWidth : Math.min(window.innerWidth, 430), h = window.innerHeight;
   canvas.width = w * dpr; canvas.height = h * dpr;
   canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -451,9 +468,9 @@ function draw() {
 
   // Rotate the world so the route's heading points up the screen, and place
   // the van's world position at its fixed spot.
-  ctx.translate(w * VAN_SX, h * VAN_SY);
+  ctx.translate(w * VAN_SX, h * vanSY(w, h));
   ctx.rotate(-(camH ?? pos.h) - Math.PI / 2);
-  const ppm = PPM * zoom * ZOOM_X;
+  const ppm = PPM * zoom * zoomX(w, h);
   ctx.scale(ppm, ppm);
   ctx.translate(-camX, -camY);
 
@@ -466,6 +483,7 @@ function draw() {
   if (scn) scenery.drawObjects(ctx, scn, view);
   if (showGuide) drawGuide();
   if (trf) traffic.draw(ctx, trf, view);
+  if (xing) crossings.draw(ctx, xing, view);
   ctx.restore();
 
   drawVan(w, h, ppm);
@@ -539,7 +557,7 @@ function drawGuide() {
 }
 
 function drawVan(w, h, ppm) {
-  const px = w * VAN_SX, py = h * VAN_SY;
+  const px = w * VAN_SX, py = h * vanSY(w, h);
   const wpx = VAN_W_M * ppm;
   const aspect = vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0;
   const hpx = wpx * aspect;
@@ -663,7 +681,7 @@ async function boot() {
   scn = await scenery.load({ graph, mapToWorld, metresPerMapPx: METRES_PER_MAP_PX });
 
   vanImg = new Image();
-  vanImg.src = '/assets/driving/topdown/vehicle-topdown-' + (VIEW_Q.get('van') || 'spark') + '-rear.png';   // ?van= henry, bea, big-tilly, trikey
+  vanImg.src = '/assets/driving/topdown/vehicle-topdown-' + VAN_ID + '-rear.png';
   await new Promise(r => { vanImg.onload = r; vanImg.onerror = () => { vanImg = null; r(); }; });
 
   resize();

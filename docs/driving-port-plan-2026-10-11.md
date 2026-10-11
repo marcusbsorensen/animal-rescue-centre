@@ -292,6 +292,28 @@ Steps 1-4 depend on nothing and can start now.
 
 ## 5. Open questions for Marcus
 
+**Answered by Marcus, 2026-10-11 evening** — every recommendation below was
+taken, with one addition to question 1:
+
+| Q | Answer |
+|---|---|
+| 1 | (a) a strip along the bottom, **styled as the vehicle's own cockpit dashboard** (`dashboard-henry-ptv.png` and `cockpit-slots-henry.json` already place a speedometer, GPS screen, cargo-comfort gauge and hazard switch). The horn stays, on the dashboard. |
+| 2 | Zoom (see the spec). |
+| 3 | Calming, water/treat/blanket, and crate rearranging for squabbles (see the spec). |
+| 4 | (a) in landscape the van sits lower and the camera pulls back. |
+| 5 | (a) the rotation stays; shake, judder and the speed camera's white flash go under reduced motion. |
+| 6 | (a) Park and Reverse are dropped. |
+| 7 | (a) a speed camera fires on "too fast for this road". |
+| 8 | Supply runs are the delivery race: nothing alive aboard. |
+| 9 | (a) true relative widths, Henry at the measured size. |
+| 10 | (a) Trikey's routes avoid dual carriageways. |
+| 11 | (a) guide line on by default, switched in settings beside the motion preference. |
+| 12 | (a) a blocked lane change keeps the lean and the sound. |
+
+Also decided: **small animals cross the small lanes** — hedgehogs, rabbits,
+pheasants and the like; she slows or stops, and if she does not the van stops
+itself, the same rule as for traffic.
+
 Recommendation first. None of these is answered by the code or the docs.
 
 1. **Where do gear, handbrake, lane and horn controls live?** (spec, still open)

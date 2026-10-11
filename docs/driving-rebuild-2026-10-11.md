@@ -176,6 +176,18 @@ two reasons to pull over, and the care depends on the animal and the weather:
   (`feelingToward`), so a load with stressed neighbours is what makes a
   squabble likely on the road.
 
+**Controls, and the rest of the port plan's questions.** Answered 2026-10-11;
+the full table is in `docs/driving-port-plan-2026-10-11.md` section 5. The
+gear, handbrake and horn live in a strip along the bottom, below the van,
+styled as the vehicle's own cockpit dashboard. Park and Reverse are gone. In
+landscape the van sits lower and the camera pulls back. Every vehicle is drawn
+at its true width relative to Henry. Supply runs are the delivery race.
+
+**Small animals cross the small lanes.** Marcus's idea, and the reason the
+camera comes in close on them: hedgehogs, rabbits, pheasants and the like
+cross in front of the van; she slows or stops, and if she does not, the van
+stops itself, as it does for traffic. Never an accident.
+
 **Following the road is not a swerve.** Only the child's own lane change feeds
 the jostle model; the van drifting outward as a lane widens or the road
 becomes a dual carriageway is the road moving under it, and is free.
@@ -187,7 +199,6 @@ becomes a dual carriageway is the road moving under it, and is free.
   placed from the child's own map (`birchie-roads.svg` has the farmland,
   woodland, parks and sea), so what she drives past is what the map shows.
 - Traffic, which overtaking needs to be about anything.
-- Small animals crossing the small lanes, which the close zoom is for.
 - How likely a squabble is for a given load, and what the rearranging looks
   like at the roadside: the full loading screen again, or a smaller swap.
 - Where the gear, handbrake and lane controls live now that they may not sit
