@@ -16,6 +16,24 @@ describe('get-pin-hint', () => {
     expect(await json(res)).toEqual({ found: false });
   });
 
+  it('returns the picked clue as its code and its words', async () => {
+    const db = useFakeSupabase(new FakeSupabase((q) =>
+      q.table === 'users' ? { data: { pin_hint_code: 'birthday', is_active: true }, error: null } : undefined,
+    ));
+    const res = await handler(post({ username: 'Bramble' }));
+    expect(await json(res)).toEqual({ found: true, hintCode: 'birthday', hint: 'A birthday' });
+    // Reads the code column only: the free-text column is gone.
+    expect(db.on('users')[0].columns).toBe('pin_hint_code, is_active');
+  });
+
+  it('returns no clue for an account that never picked one', async () => {
+    useFakeSupabase(new FakeSupabase((q) =>
+      q.table === 'users' ? { data: { pin_hint_code: null, is_active: true }, error: null } : undefined,
+    ));
+    const res = await handler(post({ username: 'Bramble' }));
+    expect(await json(res)).toEqual({ found: true, hintCode: null, hint: null });
+  });
+
   it('refuses when the per-name budget is spent', async () => {
     const db = useFakeSupabase(new FakeSupabase(undefined, (fn) =>
       fn === 'check_rate_limit'

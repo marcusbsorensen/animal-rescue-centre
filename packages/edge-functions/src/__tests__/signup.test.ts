@@ -71,6 +71,34 @@ describe('signup', () => {
     expect(JSON.stringify(row)).not.toContain('4821');
   });
 
+  it('stores the clue the child picked, as its code', async () => {
+    const res = await handler(post(signupBody({ pinHintCode: 'birthday' })));
+    expect(res.status).toBe(200);
+    const row = db.on('users', 'insert')[0].values as Record<string, unknown>;
+    expect(row.pin_hint_code).toBe('birthday');
+    expect(row).not.toHaveProperty('pin_hint');
+  });
+
+  it('refuses a clue code that is not on the list', async () => {
+    const res = await handler(post(signupBody({ pinHintCode: 'my nan was born 1950' })));
+    expect(res.status).toBe(400);
+    expect((await json(res)).error).toMatch(/clue/i);
+    expect(db.on('users', 'insert')).toHaveLength(0);
+  });
+
+  it('keeps nothing of a typed hint sent by an older app build', async () => {
+    // Builds already on phones send `pinHint` as free text. The account
+    // is still made, so those children can sign up, and the text is
+    // dropped before anything is written.
+    const typed = 'my cat Pip was born in the spring';
+    const res = await handler(post(signupBody({ pinHint: typed })));
+    expect(res.status).toBe(200);
+    const row = db.on('users', 'insert')[0].values as Record<string, unknown>;
+    expect(row).not.toHaveProperty('pin_hint');
+    expect(row.pin_hint_code ?? null).toBeNull();
+    expect(JSON.stringify(db.queries)).not.toContain('Pip');
+  });
+
   it('answers a name check without creating anything', async () => {
     const res = await handler(post({ username: 'Bramble', checkOnly: true }));
     expect(res.status).toBe(200);

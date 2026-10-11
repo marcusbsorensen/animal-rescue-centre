@@ -598,66 +598,53 @@
   .name-field::placeholder { color: rgba(58,38,24,0.4); }
   .name-field:focus { border-color: #9a6528; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(231,168,74,0.4); }
 
-  /* ── Stage C: PIN-hint capture ── */
-  /* Hint input — bigger painted-paper-tag (Caveat handwriting), 44px+
-     min-height for finger-friendly tapping. */
-  .hint-field {
-    width: 100%;
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-weight: 700;
-    font-size: clamp(22px, 3.4cqh, 30px);
-    min-height: 56px;
-    padding: clamp(12px, 1.8cqh, 16px) clamp(14px, 2.4cqw, 20px);
-    color: #3a2618;
+  /* ── Stage C: pick a clue for the PIN ── */
+  /* Six cream notes in two columns, each a whole-card tap target. The
+     picked one gets the sage border and a tick. */
+  .clue-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(6px, 1.1cqh, 10px) clamp(8px, 1.6cqw, 14px);
+    margin-top: clamp(6px, 1cqh, 10px);
+  }
+  .clue-card {
+    position: relative;
+    min-height: 44px;
+    text-align: center;
     background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
     border: 2px solid #7a4b15;
-    border-radius: 10px;
-    box-shadow:
-      inset 0 2px 4px rgba(0,0,0,0.15),
-      0 2px 3px rgba(0,0,0,0.2);
-    outline: none;
-    text-align: center;
-    line-height: 1.2;
-  }
-  .hint-field::placeholder { color: rgba(58,38,24,0.35); font-style: italic; }
-  .hint-field:focus { border-color: #9a6528; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(231,168,74,0.4); }
-
-  /* Gut-check sub-stage — big question + the typed hint shown back as a
-     small painted callout. */
-  .hint-callout {
-    margin-top: clamp(10px, 1.6cqh, 16px);
-    padding: clamp(10px, 1.6cqh, 14px) clamp(14px, 2.2cqw, 18px);
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
-    border: 2px solid #7a4b15;
-    border-radius: 10px;
-    box-shadow: 0 2px 3px rgba(0,0,0,0.2), inset 0 2px 3px rgba(0,0,0,0.08);
-    transform: rotate(-1.2deg);
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-weight: 700;
-    font-size: clamp(18px, 2.8cqh, 24px);
+    border-radius: 8px;
+    padding: clamp(5px, 0.9cqh, 10px) clamp(10px, 1.8cqw, 14px);
+    font-family: var(--body-font);
+    font-weight: 600;
+    font-size: clamp(var(--fs-floor), 2.1cqh, 18px);
+    line-height: 1.15;
     color: #3a2618;
+    cursor: pointer;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.22), inset 0 2px 0 rgba(255,255,255,0.5);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .clue-card:nth-child(odd)  { transform: rotate(-0.8deg); }
+  .clue-card:nth-child(even) { transform: rotate(0.7deg); }
+  .clue-card:active { transform: translateY(1px) rotate(0deg); }
+  .clue-card[aria-checked="true"] {
+    border-color: #4f7a3a;
+    box-shadow: 0 0 0 3px rgba(122,170,96,0.55), 0 3px 5px rgba(0,0,0,0.22);
+  }
+  .clue-card[aria-checked="true"]::after {
+    content: '\2713';
+    position: absolute;
+    top: -8px; right: -6px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #6a9a4e;
+    color: #fffbe8;
+    font-size: 14px;
+    line-height: 22px;
     text-align: center;
-    word-break: break-word;
-  }
-  .hint-callout::before {
-    content: '\201C'; font-size: 1.3em; color: #9a6528; margin-right: 4px;
-  }
-  .hint-callout::after {
-    content: '\201D'; font-size: 1.3em; color: #9a6528; margin-left: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
   }
 
-  /* Two big plank buttons stacked vertically for the gut-check answer. */
-  .gut-check-actions {
-    display: flex; flex-direction: column;
-    gap: clamp(10px, 1.6cqh, 14px);
-    margin-top: clamp(14px, 2.2cqh, 20px);
-    align-items: stretch;
-  }
-  .gut-check-actions .link-btn {
-    text-align: center;
-    font-size: clamp(var(--fs-floor), 2.1cqh, 19px);
-    padding: clamp(12px, 1.8cqh, 16px) clamp(22px, 3.4cqw, 30px);
-  }
   /* ── Name-suggestion stickers (shown when a username collides) ──
      Three colourful painted-sticker chips, same visual language as
      the PIN keypad: pastel gradient, rounded shape, slight rotation,
@@ -747,8 +734,7 @@
     filter: brightness(1.05);
   }
 
-  /* Hint-input action row — Need-ideas (amber) + NEXT (sage). NEXT
-     gets the bigger weight so kids know what to tap to advance. */
+  /* Stage C action row — the NEXT plank under the clues. */
   .hint-actions-row {
     display: flex;
     gap: clamp(8px, 1.6cqw, 14px);
@@ -773,54 +759,6 @@
     filter: saturate(0.5);
     cursor: not-allowed;
   }
-
-  /* Idea cards — vertical list of tappable cream notes with rotation. */
-  .idea-list {
-    display: flex; flex-direction: column;
-    gap: clamp(10px, 1.6cqh, 14px);
-    margin-top: clamp(8px, 1.2cqh, 12px);
-  }
-  .idea-card {
-    display: block;
-    width: 100%;
-    text-align: left;
-    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
-    border: 2px solid #7a4b15;
-    border-radius: 8px;
-    padding: clamp(10px, 1.5cqh, 14px) clamp(14px, 2.2cqw, 18px);
-    font-family: var(--body-font);
-    font-weight: 500;
-    font-size: clamp(var(--fs-floor), 2.2cqh, 18px);
-    color: #3a2618;
-    cursor: pointer;
-    box-shadow: 0 3px 5px rgba(0,0,0,0.22), inset 0 2px 0 rgba(255,255,255,0.5);
-    transition: transform 0.12s, box-shadow 0.12s;
-  }
-  .idea-card:nth-child(1) { transform: rotate(-1.4deg); }
-  .idea-card:nth-child(2) { transform: rotate(0.9deg); }
-  .idea-card:nth-child(3) { transform: rotate(-0.6deg); }
-  .idea-card:nth-child(4) { transform: rotate(1.3deg); }
-  .idea-card:hover { box-shadow: 0 5px 9px rgba(0,0,0,0.28), inset 0 2px 0 rgba(255,255,255,0.5); }
-  .idea-card:active { transform: translateY(1px) rotate(0deg); }
-
-  .hint-back-link {
-    display: inline-block;
-    margin-top: clamp(10px, 1.6cqh, 14px);
-    background: transparent;
-    border: 0;
-    font-family: var(--sign-font);
-    font-weight: 700;
-    font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
-    color: #fffbe8;
-    text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-  }
-
-  /* sub-stage swap inside stage C — only one of (input | gut | help) shown */
-  .substage { display: block; }
-  .substage.hidden { display: none; }
 
   /* Avatar picker chips — emoji-only circles in a 4-column grid (8
      animals total in 2 rows). Marcus 2026-04-24. */
@@ -1752,7 +1690,9 @@
                 </div>
               </div>
 
-              <!-- Stage C: PIN-hint capture (with gut-check + idea-help substages) -->
+              <!-- Stage C: pick a clue for the PIN, from a fixed list. Never
+                   typed: the old free-text box let a child write anything
+                   about themselves, and it was stored as typed. -->
               <div class="intro stage-hint hidden" id="stage-hint">
                 <button class="back-sticker" data-back-sticker aria-label="Go back">
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1768,48 +1708,14 @@
                   <span class="zz zz3">Z</span>
                 </div>
 
-                <!-- C1: capture the hint -->
-                <div class="substage" id="substage-hint-input">
-                  <div class="sign-title-row">
-                    <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
-                    <div class="sign-title">Help future-you remember</div>
-                  </div>
-                  <div class="sign-subtitle">Type a clue that helps YOU remember your secret code, but won't help anyone else guess it.</div>
-                  <div class="name-field-wrap">
-                    <input type="text" class="hint-field" id="hint-input" placeholder="Type a clue here…" maxlength="60" />
-                  </div>
-                  <!-- NEXT button + ideas helper. Kids might not know
-                       to press Return; the green plank makes "advance"
-                       obvious. The amber plank surfaces the idea pool
-                       early for kids who can't get started. -->
-                  <div class="hint-actions-row">
-                    <button class="link-btn outlined" id="hint-help-input-btn">Need ideas?</button>
-                    <button class="link-btn plank-sage" id="hint-next-btn">NEXT →</button>
-                  </div>
+                <div class="sign-title-row">
+                  <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+                  <div class="sign-title">Where do your numbers come from?</div>
                 </div>
-
-                <!-- C2: gut-check -->
-                <div class="substage hidden" id="substage-gut-check">
-                  <div class="sign-title-row">
-                    <div class="sign-title">Could someone else guess your secret code using this hint?</div>
-                  </div>
-                  <div class="hint-callout" id="hint-callout-text"></div>
-                  <div class="gut-check-actions">
-                    <button class="link-btn plank-sage" id="hint-safe-btn">I'm sure it's safe →</button>
-                    <button class="link-btn outlined" id="hint-help-btn">Help me think →</button>
-                  </div>
-                </div>
-
-                <!-- C3: idea-help -->
-                <div class="substage hidden" id="substage-idea-help">
-                  <div class="sign-title-row">
-                    <div class="sign-title">Pick an idea</div>
-                  </div>
-                  <div class="sign-subtitle">Tap one — you can edit it after.</div>
-                  <div class="idea-list" id="idea-list"></div>
-                  <div style="text-align:center;">
-                    <button class="hint-back-link" id="hint-back-btn">← Back</button>
-                  </div>
+                <div class="sign-subtitle">Pick one. We show it to you if you forget your code.</div>
+                <div class="clue-grid" id="clue-grid" role="radiogroup" aria-label="Clues for your secret code"></div>
+                <div class="hint-actions-row">
+                  <button class="link-btn plank-sage" id="hint-next-btn" disabled aria-disabled="true">NEXT →</button>
                 </div>
               </div>
 
@@ -1865,96 +1771,27 @@
       device.dataset.size = btn.dataset.size;
     });
   }
-  // ─── Inlined from packages/game-logic/src/auth-validation.ts ───
-  // Mockups are static HTML with no module loader; keep these in sync
-  // with the canonical implementation. See docs/forgot-pin-recovery.md.
-  function validatePinHint(hint, pin) {
-    if (!hint || typeof hint !== 'string') return { valid: false, error: 'Hint is required' };
-    const trimmed = hint.trim();
-    if (trimmed.length < 4) return { valid: false, error: 'Hint is too short — write a few words' };
-    if (trimmed.length > 60) return { valid: false, error: 'Hint is too long — keep it short' };
-    if (/^[0-9\s\-_,.]+$/.test(trimmed)) return { valid: false, error: 'Your hint should be words, not numbers' };
-    if (!/[a-zA-Z]/.test(trimmed)) return { valid: false, error: 'Your hint should include some words' };
-    if (pin && pin.length >= 4 && trimmed.includes(pin)) {
-      return { valid: false, error: 'That hint gives away your secret number — try again' };
-    }
-    if (pin && pin.length >= 4) {
-      for (let i = 0; i + 3 <= pin.length; i++) {
-        const run = pin.slice(i, i + 3);
-        if (trimmed.includes(run)) return { valid: false, error: 'That hint gives away part of your secret number' };
-      }
-    }
-    if (/\d{3,}/.test(trimmed)) {
-      return { valid: false, error: 'Your hint should not contain a number — write a clue in words' };
-    }
-    const lower = trimmed.toLowerCase().replace(/[^a-z\s-]/g, ' ');
-    const tokens = lower.split(/[\s-]+/).filter(Boolean);
-    const digitWords = { zero:'0', oh:'0', nought:'0', nil:'0', one:'1', two:'2', three:'3', four:'4', five:'5', six:'6', seven:'7', eight:'8', nine:'9' };
-    let digitsFromWords = '';
-    for (const tok of tokens) if (digitWords[tok]) digitsFromWords += digitWords[tok];
-    if (pin && digitsFromWords.includes(pin)) {
-      return { valid: false, error: 'That hint spells out your secret number — try again' };
-    }
-    const teens = { ten:'10', eleven:'11', twelve:'12', thirteen:'13', fourteen:'14', fifteen:'15', sixteen:'16', seventeen:'17', eighteen:'18', nineteen:'19' };
-    const tens = { twenty:'2', thirty:'3', forty:'4', fifty:'5', sixty:'6', seventy:'7', eighty:'8', ninety:'9' };
-    let compound = '';
-    for (let i = 0; i < tokens.length; i++) {
-      const t = tokens[i];
-      if (teens[t]) compound += teens[t];
-      else if (tens[t]) {
-        const next = tokens[i + 1];
-        if (next && digitWords[next]) { compound += tens[t] + digitWords[next]; i++; }
-        else compound += tens[t] + '0';
-      } else if (digitWords[t]) compound += digitWords[t];
-    }
-    if (pin && compound.includes(pin)) {
-      return { valid: false, error: 'That hint spells out your secret number — try again' };
-    }
-    return { valid: true };
-  }
-  function getHintIdeas(seed) {
-    // Hints must map to FOUR DIGITS — the PIN is numeric, so each prompt
-    // resolves to digits via dates, ages, counts, addresses, jersey
-    // numbers, doubled-up numbers, etc. Inlined from
-    // packages/game-logic/src/auth-validation.ts getHintIdeas — keep in sync.
-    const pool = [
-      "the day and month your pet was born",
-      "the year mum was born",
-      "the year dad was born",
-      "the year you started school",
-      "your house number, twice",
-      "your age and your sibling's age together",
-      "the number on your favourite team shirt",
-      "your phone's last four numbers",
-      "your birthday backwards",
-      "two of your favourite numbers, then again",
-      "the day you got your first pet",
-      "your house number plus your age",
-      "your age, four times",
-      "the year your best friend was born",
-      "your favourite player's shirt number, twice",
-      "your school year and your age, mixed",
-      "your birthday day, twice",
-      "your bus or class number, twice",
-      "your age now and when you started school",
-      "the number of pets you wish you had, four times",
-    ];
-    let h = 2166136261;
-    for (let i = 0; i < seed.length; i++) {
-      h ^= seed.charCodeAt(i);
-      h = (h * 16777619) >>> 0;
-    }
-    const indexed = pool.map((idea, i) => ({ idea, sort: ((h ^ (i * 2654435761)) >>> 0) }));
-    indexed.sort((a, b) => a.sort - b.sort);
-    return indexed.slice(0, 4).map((x) => x.idea);
-  }
+  // ─── The clues for the PIN ───
+  // A copy of PIN_HINT_CHOICES in packages/game-logic/src/pin-hints.ts:
+  // this page is static HTML with no module loader. pin-hints.test.ts
+  // fails if the two lists differ. Only the code leaves this page.
+  const PIN_HINT_CHOICES = [
+    { code: 'birthday', text: 'A birthday' },
+    { code: 'year', text: 'A year' },
+    { code: 'pet', text: 'About a pet' },
+    { code: 'shirt', text: 'A shirt number' },
+    { code: 'pattern', text: 'A shape on the keypad' },
+    { code: 'favourite', text: 'My favourite numbers' },
+  ];
+  const isHintCode = (c) => PIN_HINT_CHOICES.some((h) => h.code === c);
+  let selectedHintCode = '';
 
   // ─── Stage management ───
   const stageSelect = document.getElementById('stage-select');
   const stagePin = document.getElementById('stage-pin');
   const stageHint = document.getElementById('stage-hint');
   const stageToggle = document.getElementById('stage-toggle');
-  const STAGE_LABELS = { select: 'Stage: A · Name+animal', pin: 'Stage: B · PIN', hint: 'Stage: C · Hint' };
+  const STAGE_LABELS = { select: 'Stage: A · Name+animal', pin: 'Stage: B · PIN', hint: 'Stage: C · Clue' };
   let showing = 'select';
   function setStage(s) {
     showing = s;
@@ -1972,7 +1809,7 @@
     document.querySelector('.btn-primary-wrap')?.classList.toggle('hidden', s === 'hint' || s === 'pin');
     // Hide the "I already have an account" secondary-row on stages B
     // and C — by then the kid has already typed their name + PIN
-    // (and possibly a hint). Tapping that plank silently abandons
+    // (and possibly picked a clue). Tapping that plank silently abandons
     // their progress. The yellow back-sticker covers stepping back.
     document.querySelector('.secondary-row')?.classList.toggle('hidden', s === 'pin' || s === 'hint');
     // Carry the typed name + selected animal emoji from stage A into
@@ -2022,8 +1859,8 @@
     }
     // Last gate, and the only one this page cannot answer by itself: is
     // the name still free? Ask the host and wait. Advancing first meant
-    // the child chose a PIN, confirmed it, wrote a hint and answered a
-    // question about it before being told to start again.
+    // the child chose a PIN, confirmed it and picked a clue before being
+    // told to start again.
     //
     // Opened directly for design review there is no host to ask, so the
     // check is skipped rather than hanging on a reply that never comes.
@@ -2117,9 +1954,8 @@
       saveDraft();
     });
   }
-  // Persist name + hint changes as the kid types.
+  // Persist name changes as the kid types.
   document.querySelector('.name-field')?.addEventListener('input', saveDraft);
-  document.getElementById('hint-input')?.addEventListener('input', saveDraft);
 
   // ─── Mode-aware messaging ───
   const params = new URLSearchParams(location.search);
@@ -2133,10 +1969,10 @@
     }
   };
   // "I already have an account" plank on stage A. Sends 'login' to the
-  // host so it can swap to LoginScene. Match by id, like the other two
-  // .link-btn.plank-sage buttons (hint-next-btn, hint-safe-btn) — a
-  // catch-all class selector here would hijack their clicks and send
-  // 'login' instead of letting their handlers run.
+  // host so it can swap to LoginScene. Match by id, like the other
+  // .link-btn.plank-sage button (hint-next-btn) — a catch-all class
+  // selector here would hijack its clicks and send 'login' instead of
+  // letting its handler run.
   //
   // Do NOT go back to a descendant selector. This button lives in
   // .cta-stack, a SIBLING of #stage-select, so `#stage-select ...`
@@ -2209,11 +2045,11 @@
         animal: sel ? (sel.querySelector('.chip-avatar')?.textContent || '').trim() : '',
         pin: pinBuffer,
         capturedPin,
-        hint: (document.getElementById('hint-input')?.value || '').trim(),
+        hintCode: selectedHintCode,
         stage: showing,
       };
       // Don't bother persisting an empty draft.
-      if (!draft.name && !draft.animal && !draft.pin && !draft.hint) return;
+      if (!draft.name && !draft.animal && !draft.pin && !draft.hintCode) return;
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch (_) { /* private mode / storage full */ }
   }
@@ -2243,8 +2079,10 @@
         renderPinDots(); updateConfirmEnabled();
       }
       if (typeof draft.capturedPin === 'string') capturedPin = draft.capturedPin;
-      const hintInput = document.getElementById('hint-input');
-      if (hintInput && draft.hint) hintInput.value = draft.hint;
+      // Only a code from the list comes back. A draft saved before the
+      // clue became a choice may hold typed text under `hint`; it is not
+      // read, and the next save writes the draft without it.
+      if (isHintCode(draft.hintCode)) selectHintCode(draft.hintCode);
       // Restore the stage the kid was on — but ONLY if its prerequisites
       // are present in the draft. Otherwise fall back to the earliest
       // viable stage. Without this guard, a stale draft with
@@ -2386,7 +2224,7 @@
       } else {
         // Show the error on the stage the child can actually act on.
         //
-        // Signup submits from stage C (the hint screen), so `showing` is
+        // Signup submits from stage C (the clue screen), so `showing` is
         // always 'hint' by the time a server 400 comes back — and every
         // name rule the server enforces (2–18 characters, letters only,
         // the profanity blocklist) needs the name field, which only
@@ -2402,7 +2240,7 @@
         // costs the account.
         const lower = String(msg).toLowerCase();
         const stage = lower.includes('pin') ? 'pin'
-          : lower.includes('hint') ? 'hint'
+          : (lower.includes('hint') || lower.includes('clue')) ? 'hint'
           : 'select';
         if (typeof setStage === 'function' && showing !== stage) setStage(stage);
         showError(msg, `stage-${stage}`);
@@ -2486,59 +2324,57 @@
     note.textContent = text;
   }
 
-  // ─── Stage C: PIN-hint capture ───
-  const subInput = document.getElementById('substage-hint-input');
-  const subGut   = document.getElementById('substage-gut-check');
-  const subHelp  = document.getElementById('substage-idea-help');
-  const hintInput = document.getElementById('hint-input');
-  const hintCalloutText = document.getElementById('hint-callout-text');
-  const ideaList = document.getElementById('idea-list');
+  // ─── Stage C: pick a clue for the PIN ───
+  const clueGrid = document.getElementById('clue-grid');
+  for (const choice of PIN_HINT_CHOICES) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'clue-card';
+    card.setAttribute('role', 'radio');
+    card.setAttribute('aria-checked', 'false');
+    card.dataset.hintCode = choice.code;
+    card.textContent = choice.text;
+    card.addEventListener('click', () => {
+      selectHintCode(choice.code);
+      saveDraft();
+    });
+    clueGrid?.appendChild(card);
+  }
 
-  function setSubstage(which) {
-    subInput.classList.toggle('hidden', which !== 'input');
-    subGut.classList.toggle('hidden', which !== 'gut');
-    subHelp.classList.toggle('hidden', which !== 'help');
-    if (which === 'input') setTimeout(() => hintInput?.focus(), 50);
+  function selectHintCode(code) {
+    selectedHintCode = isHintCode(code) ? code : '';
+    for (const card of document.querySelectorAll('.clue-card')) {
+      card.setAttribute('aria-checked', card.dataset.hintCode === selectedHintCode ? 'true' : 'false');
+    }
+    updateHintNextEnabled();
   }
 
   function enterHintStage() {
     setStage('hint');
-    setSubstage('input');
   }
 
-  function submitHint() {
-    const hint = hintInput.value;
-    const result = validatePinHint(hint, capturedPin);
-    if (!result.valid) {
-      showError(result.error || 'Try a different hint', 'stage-hint');
+  // NEXT stays disabled until a clue is picked.
+  function updateHintNextEnabled() {
+    const btn = document.getElementById('hint-next-btn');
+    if (!btn) return;
+    const ok = isHintCode(selectedHintCode);
+    btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+    if (ok) btn.removeAttribute('disabled');
+    else btn.setAttribute('disabled', 'true');
+  }
+
+  document.getElementById('hint-next-btn')?.addEventListener('click', () => {
+    if (!isHintCode(selectedHintCode)) {
+      showError('Pick one of the clues!', 'stage-hint');
       return;
     }
-    hintCalloutText.textContent = hint.trim();
-    setSubstage('gut');
-  }
-
-  hintInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); submitHint(); }
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (showing !== 'hint') return;
-    if (e.key === 'Escape') {
-      if (!subGut.classList.contains('hidden') || !subHelp.classList.contains('hidden')) {
-        e.preventDefault();
-        setSubstage('input');
-      }
-    }
-  });
-
-  document.getElementById('hint-safe-btn')?.addEventListener('click', () => {
     const name = currentName();
     const { emoji, bg } = currentAvatar();
     send('signup-complete', {
       username: name,
       animal: emoji,
       pin: capturedPin,
-      hint: hintInput.value.trim(),
+      hintCode: selectedHintCode,
       avatarEmoji: emoji,
       avatarBgColour: bg,
     });
@@ -2546,72 +2382,7 @@
     // back the next time the kid hits signup.
     clearDraft();
   });
-
-  function showIdeaCards() {
-    const seed = currentName() || 'anon';
-    const ideas = getHintIdeas(seed);
-    while (ideaList.firstChild) ideaList.removeChild(ideaList.firstChild);
-    for (const idea of ideas) {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'idea-card';
-      card.textContent = idea;
-      card.addEventListener('click', () => {
-        // Pre-fill the input with the idea so the kid can see what
-        // they picked. The marker (data-idea-seed) tells the focus/
-        // click handler below to BLANK the field when the kid taps in
-        // to type their actual answer — otherwise they'd have to
-        // manually clear "the year mum was born" before typing.
-        hintInput.value = idea;
-        hintInput.dataset.ideaSeed = idea;
-        saveDraft();
-        updateHintNextEnabled();
-        setSubstage('input');
-      });
-      ideaList.appendChild(card);
-    }
-    setSubstage('help');
-  }
-  // When the kid taps the input AFTER picking an idea card, blank the
-  // field so they can just type the number/word — no manual clearing
-  // of the prompt text needed. Only clears if the value still equals
-  // the picked idea (so once they've typed something else, taps stop
-  // wiping it).
-  function clearIfStillIdeaSeed() {
-    const seed = hintInput?.dataset?.ideaSeed;
-    if (seed && hintInput.value === seed) {
-      hintInput.value = '';
-      delete hintInput.dataset.ideaSeed;
-      updateHintNextEnabled();
-      saveDraft();
-    }
-  }
-  hintInput?.addEventListener('focus', clearIfStillIdeaSeed);
-  hintInput?.addEventListener('click', clearIfStillIdeaSeed);
-  // "Need ideas?" on the input substage AND "Help me think →" on the
-  // gut-check substage both surface the same idea pool.
-  document.getElementById('hint-help-btn')?.addEventListener('click', showIdeaCards);
-  document.getElementById('hint-help-input-btn')?.addEventListener('click', showIdeaCards);
-
-  // Big sage NEXT button on the input substage — kids might not know
-  // they can press Return. Disabled until they've typed something.
-  function updateHintNextEnabled() {
-    const btn = document.getElementById('hint-next-btn');
-    if (!btn) return;
-    const ok = (hintInput.value || '').trim().length > 0;
-    btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
-    if (ok) btn.removeAttribute('disabled');
-    else btn.setAttribute('disabled', 'true');
-  }
-  hintInput?.addEventListener('input', updateHintNextEnabled);
-  document.getElementById('hint-next-btn')?.addEventListener('click', () => {
-    if ((hintInput.value || '').trim().length === 0) return;
-    submitHint();
-  });
-  // Initial state on load (also runs after loadDraft restores the input).
   updateHintNextEnabled();
-
-  document.getElementById('hint-back-btn')?.addEventListener('click', () => setSubstage('input'));
 
   // Restore any in-progress signup draft from localStorage. Last because
   // it triggers setStage which depends on every other handler being

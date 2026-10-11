@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { hashPin, hashEmail, generateToken, generateJoinCode } from '../_shared/crypto.ts';
 import { createSession } from '../_shared/session.ts';
+import { isPinHintCode } from '../_shared/pin-hints.ts';
 import {
   checkRateLimit,
   peekRateLimit,
@@ -14,16 +15,16 @@ Deno.serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
-    const { username, pin, avatarEmoji, avatarBgColour, parentEmail, pinHint, checkOnly } =
+    const { username, pin, avatarEmoji, avatarBgColour, parentEmail, pinHintCode, checkOnly } =
       await req.json();
 
     // `checkOnly` answers "is this name free?" and creates nothing.
     //
     // It exists so the name screen can say "that one is taken" while the
-    // child is still standing on it. Without it the refusal arrives five
-    // screens later — after they have chosen a PIN, confirmed it,
-    // written a hint and answered a question about the hint — and all of
-    // that work is thrown away by the check further down this file.
+    // child is still standing on it. Without it the refusal arrives
+    // three screens later — after they have chosen a PIN, confirmed it
+    // and picked a clue — and all of that work is thrown away by the
+    // check further down this file.
     //
     // It gives away nothing this function did not already give away at
     // the end of the flow, and it spends an attempt from the same
@@ -61,22 +62,21 @@ Deno.serve(async (req) => {
     if (!isCheck && (!avatarEmoji || !avatarBgColour)) {
       return jsonResponse({ error: 'Avatar emoji and background colour are required' }, 400);
     }
-    // Hint is optional (back-compat with older signup payloads). If
-    // present, it must be a string of reasonable length; we don't
-    // re-run the leak-detection rules server-side because that runs
-    // client-side already and the kid has already gut-checked it.
+    // The clue for the PIN is a code from a fixed list
+    // (_shared/pin-hints.ts), never typed text. It used to be free text
+    // of up to 100 characters, stored as typed, which let a child write
+    // anything about themselves into it.
     //
-    // Cap bumped 60 → 100 chars 2026-05-02 — Lily's "Danish numbers
-    // (the language no-one speaks here)" was 73 chars and had to be
-    // truncated to 49 on her account. 100 gives room for one full
-    // sentence of context + parenthesis without feeling cramped.
-    let cleanHint: string | null = null;
-    if (typeof pinHint === 'string') {
-      const t = pinHint.trim();
-      if (t.length > 100) {
-        return jsonResponse({ error: 'Hint is too long' }, 400);
+    // Optional, as the hint always was. A `pinHint` string from an app
+    // build that still has the typing box is not read at all: the
+    // account is made without a clue, so those children can still sign
+    // up and nothing they typed is kept.
+    let hintCode: string | null = null;
+    if (pinHintCode !== undefined && pinHintCode !== null) {
+      if (!isPinHintCode(pinHintCode)) {
+        return jsonResponse({ error: 'Pick one of the clues' }, 400);
       }
-      if (t.length >= 4) cleanHint = t;
+      hintCode = pinHintCode;
     }
 
     // Service role client for writes
@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
       .insert({
         username: trimmedUsername,
         pin_hash: pinHash,
-        pin_hint: cleanHint,
+        pin_hint_code: hintCode,
         avatar_emoji: avatarEmoji,
         avatar_bg_colour: avatarBgColour,
         parent_email_hash: parentEmailHash,

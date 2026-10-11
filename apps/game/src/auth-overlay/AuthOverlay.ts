@@ -8,12 +8,13 @@
  *   - parent → iframe: {type:'init', payload:{usernames:string[]}}  (once loaded)
  *   - iframe → parent: {type:'play'|'login'|'signup'|'back-to-welcome'}
  *   - iframe → parent: {type:'login-submit', payload:{username,pin}}
- *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,pinHint?}}
+ *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,hintCode?}}
  *   - parent → iframe: {type:'auth-error', payload:{message}}   (on failure, iframe shakes+clears)
  */
 
 import { login, signup, checkUsername, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
+import { isPinHintCode } from '@arc/game-logic';
 
 export type AuthAction =
   | 'play'
@@ -182,12 +183,12 @@ export function mountAuth(
       }
       return;
     }
-    // Signup completion — the iframe now sends 'signup-complete' once
-    // the whole multi-stage flow (name+animal → PIN → hint) is done.
-    // Older 'signup-submit' kept as an alias for back-compat with any
-    // external callers still using the original event name. The
-    // payload from the iframe carries `hint`; we map it to `pinHint`
-    // so it lines up with SignupData on the lib/auth side.
+    // Signup completion — the iframe sends 'signup-complete' once the
+    // whole multi-stage flow (name+animal → PIN → clue) is done. Older
+    // 'signup-submit' kept as an alias for back-compat with any external
+    // callers still using the original event name. The payload carries
+    // `hintCode`, a code from the fixed clue list; typed text is never
+    // passed on, even if an old page sends it.
     if (msg.type === 'signup-complete' || msg.type === 'signup-submit') {
       try {
         const raw = (msg.payload ?? {}) as Record<string, unknown>;
@@ -196,7 +197,7 @@ export function mountAuth(
           pin: String(raw.pin ?? ''),
           avatarEmoji: String(raw.avatarEmoji ?? raw.animal ?? ''),
           avatarBgColour: String(raw.avatarBgColour ?? '#ffd0a0'),
-          pinHint: typeof raw.hint === 'string' ? raw.hint : (typeof raw.pinHint === 'string' ? raw.pinHint : undefined),
+          pinHintCode: isPinHintCode(raw.hintCode) ? raw.hintCode : undefined,
         };
         const session = await signup(data);
         handlers.onAction('auth-success-new', session);

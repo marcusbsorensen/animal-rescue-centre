@@ -1,15 +1,16 @@
 /**
- * get-pin-hint — returns the saved PIN-hint for a username, gated by
- * rate-limiting and a minimal proof that the requester has access to
- * recovery context. Called from the forgot-PIN flow when the kid has
- * already passed 2/3 of the recovery questions (Tier 1) and needs the
- * hint to remember their PIN (Tier 2).
+ * get-pin-hint — returns the clue a player picked for their PIN, gated
+ * by rate-limiting. Called from the forgot-PIN flow.
  *
  * Design notes:
- * - The hint is by definition NOT secret on its own — it's a memory
- *   aid, not a credential. Returning it to anyone who knows a valid
- *   username is acceptable risk; the harder gate is rate-limiting so
- *   it can't be brute-force enumerated.
+ * - The clue is a code from a fixed list (_shared/pin-hints.ts), such as
+ *   `birthday`, and the answer carries both the code and its words. It
+ *   used to be free text the child typed, returned as typed; that column
+ *   is gone (migrations 00010 and 00011).
+ * - The clue is not secret on its own — it is a memory aid, not a
+ *   credential. Returning it to anyone who knows a valid username is
+ *   acceptable risk; the harder gate is rate-limiting so it can't be
+ *   brute-force enumerated.
  * - We don't return a hint at all if the account doesn't exist
  *   (avoids username enumeration via this endpoint).
  *
@@ -18,6 +19,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { checkRateLimit, clientIp } from '../_shared/rate-limit.ts';
+import { pinHintText } from '../_shared/pin-hints.ts';
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -74,7 +76,7 @@ Deno.serve(async (req) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('pin_hint, is_active')
+      .select('pin_hint_code, is_active')
       .eq('username', trimmed)
       .maybeSingle();
 
@@ -83,11 +85,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ found: false }, 200);
     }
 
+    // `hint` carries the words, as it always has, so app builds already
+    // on phones show the clue without an update. A code that is not on
+    // the list answers as no clue.
+    const hint = pinHintText(user.pin_hint_code);
     return jsonResponse({
       found: true,
-      hint: typeof user.pin_hint === 'string' && user.pin_hint.length > 0
-        ? user.pin_hint
-        : null,
+      hintCode: hint ? user.pin_hint_code : null,
+      hint,
     });
   } catch (err) {
     console.error('get-pin-hint error:', err);

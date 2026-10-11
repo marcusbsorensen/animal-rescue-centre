@@ -57,10 +57,10 @@ export {
   validateAvatarEmoji,
   validateAvatarBgColour,
   isUsernameSafe,
-  validatePinHint,
-  getHintIdeas,
   validateAnimalName,
 } from './auth-validation';
+export { PIN_HINT_CHOICES, isPinHintCode, pinHintText } from './pin-hints';
+export type { PinHintCode } from './pin-hints';
 export {
   buildRecoveryQuestions,
   scoreRecovery,
