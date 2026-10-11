@@ -9,9 +9,10 @@ import {
 
 /**
  * The display-name word lists live in places that cannot share code: the
- * game (here), the Edge Functions (Deno) and the database, which makes a
- * name for an account that arrives without one and checks every name
- * against the lists. These tests hold the copies to one list.
+ * game (here), the signup page (static HTML), the Edge Functions (Deno)
+ * and the database, which makes a name for an account that arrives
+ * without one and checks every name against the lists. These tests hold
+ * the copies to one list.
  */
 
 const ROOT = path.resolve(__dirname, '../../../..');
@@ -46,6 +47,12 @@ describe('display names: one list everywhere', () => {
     expect(wordsAfter(src, 'DISPLAY_NAME_ADJECTIVES =')).toEqual([...DISPLAY_NAME_ADJECTIVES]);
     expect(wordsAfter(src, 'DISPLAY_NAME_ANIMALS =')).toEqual([...DISPLAY_NAME_ANIMALS]);
     expect(numbersAfter(src, 'DISPLAY_NAME_SKIPPED_NUMBERS =')).toEqual([...DISPLAY_NAME_SKIPPED_NUMBERS]);
+  });
+
+  it('the signup page shows names made from the same words', () => {
+    const page = read('apps/game/public/admin/signup.html');
+    expect(wordsAfter(page, 'const DISPLAY_NAME_ADJECTIVES =')).toEqual([...DISPLAY_NAME_ADJECTIVES]);
+    expect(wordsAfter(page, 'const DISPLAY_NAME_ANIMALS =')).toEqual([...DISPLAY_NAME_ANIMALS]);
   });
 
   it('the database makes and checks names from the same words', () => {

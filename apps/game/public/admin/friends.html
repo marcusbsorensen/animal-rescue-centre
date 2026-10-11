@@ -1423,7 +1423,8 @@
       info.className = 'friend-info';
       const nameEl = document.createElement('div');
       nameEl.className = 'friend-name';
-      nameEl.textContent = typeof f.username === 'string' ? f.username : '';
+      // The friend's display name from the word lists, never their login.
+      nameEl.textContent = typeof f.displayName === 'string' ? f.displayName : '';
       info.appendChild(nameEl);
 
       const visitEl = document.createElement('div');
@@ -1456,7 +1457,7 @@
         btn.type = 'button';
         btn.className = 'recruit-btn';
         btn.textContent = 'Recruit!';
-        btn.setAttribute('aria-label', 'Recruit ' + (f.username || '') + ' as an apprentice');
+        btn.setAttribute('aria-label', 'Recruit ' + (f.displayName || '') + ' as an apprentice');
         btn.addEventListener('click', (ev) => {
           ev.stopPropagation();
           if (typeof onRecruit === 'function') onRecruit(f.apprenticeId);
@@ -1481,7 +1482,7 @@
       card.appendChild(medalWrap);
 
       if (typeof onOpen === 'function') {
-        card.addEventListener('click', () => onOpen(f.username));
+        card.addEventListener('click', () => onOpen(f.displayName));
       }
       list.appendChild(card);
     }
@@ -1514,7 +1515,7 @@
         const list = Array.isArray(p.friends) ? p.friends : SAMPLE_FRIENDS;
         renderFriends(
           list,
-          (username) => send('open-friend', { username }),
+          (displayName) => send('open-friend', { displayName }),
           (id) => send('recruit-apprentice', { id }),
         );
       }
@@ -1523,7 +1524,7 @@
     // even before the host posts an init payload.
     renderFriends(
       SAMPLE_FRIENDS,
-      (username) => send('open-friend', { username }),
+      (displayName) => send('open-friend', { displayName }),
       (id) => send('recruit-apprentice', { id }),
     );
 

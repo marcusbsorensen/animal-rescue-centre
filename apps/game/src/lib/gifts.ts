@@ -3,7 +3,8 @@ import { getSession, sessionHeaders } from './auth';
 
 export interface GiftInbox {
   id: string;
-  fromUsername: string;
+  /** The sender's display name from the word lists, never their login. */
+  fromDisplayName: string;
   fromAvatarEmoji: string;
   giftType: string;
   messagePresetCode: string;
@@ -11,7 +12,7 @@ export interface GiftInbox {
 }
 
 export interface ShowcaseData {
-  username: string;
+  displayName: string;
   avatarEmoji: string;
   avatarBgColour: string;
   level: number;
@@ -61,7 +62,7 @@ export async function getGiftInbox(): Promise<GiftInbox[]> {
       message_preset_code,
       sent_at,
       sender:users!gifts_from_user_fkey (
-        username, avatar_emoji
+        display_name, avatar_emoji
       )
     `)
     .eq('to_user', session.userId)
@@ -75,7 +76,7 @@ export async function getGiftInbox(): Promise<GiftInbox[]> {
     const sender = (row as any).sender as Record<string, string> | null;
     return {
       id: row.id,
-      fromUsername: sender?.username ?? 'Unknown',
+      fromDisplayName: sender?.display_name ?? 'Unknown',
       fromAvatarEmoji: sender?.avatar_emoji ?? '🐾',
       giftType: row.gift_type,
       messagePresetCode: row.message_preset_code,
@@ -138,7 +139,7 @@ export async function getShowcase(token: string): Promise<ShowcaseData | null> {
  * Get friend leaderboard (top friends by total rescued).
  */
 export async function getFriendLeaderboard(): Promise<
-  Array<{ username: string; avatarEmoji: string; totalRescued: number; level: number }>
+  Array<{ displayName: string; avatarEmoji: string; totalRescued: number; level: number }>
 > {
   const session = getSession();
   if (!session || !isSupabaseConfigured()) return [];
@@ -159,9 +160,10 @@ export async function getFriendLeaderboard(): Promise<
   const { data: stats } = await supabase
     .from('rescue_stats')
     .select(`
+      user_id,
       total_rescued,
       user:users!rescue_stats_user_id_fkey (
-        username, avatar_emoji
+        display_name, avatar_emoji
       )
     `)
     .in('user_id', friendIds)
@@ -182,7 +184,7 @@ export async function getFriendLeaderboard(): Promise<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const user = (row as any).user as Record<string, string> | null;
     return {
-      username: user?.username ?? 'Unknown',
+      displayName: user?.display_name ?? 'Unknown',
       avatarEmoji: user?.avatar_emoji ?? '🐾',
       totalRescued: row.total_rescued ?? 0,
       level: levelMap.get((row as Record<string, unknown>).user_id as string) ?? 1,

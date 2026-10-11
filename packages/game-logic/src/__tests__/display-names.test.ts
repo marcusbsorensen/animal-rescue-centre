@@ -9,6 +9,7 @@ import {
   anotherDisplayName,
   isDisplayNameBase,
   isDisplayName,
+  splitDisplayName,
 } from '../display-names';
 
 /**
@@ -183,5 +184,17 @@ describe('display names: making and checking one', () => {
     expect(isDisplayName(null)).toBe(false);
     expect(isDisplayName(42)).toBe(false);
     expect(isDisplayNameBase(undefined)).toBe(false);
+  });
+});
+
+describe('display names: on two lines', () => {
+  it('splits a name into its adjective and its animal, number and all', () => {
+    expect(splitDisplayName('MossyOtter')).toEqual(['Mossy', 'Otter']);
+    expect(splitDisplayName('SparklyFlamingo99')).toEqual(['Sparkly', 'Flamingo99']);
+  });
+
+  it('leaves anything else on one line', () => {
+    expect(splitDisplayName('Lily')).toEqual(['Lily']);
+    expect(splitDisplayName('')).toEqual(['']);
   });
 });

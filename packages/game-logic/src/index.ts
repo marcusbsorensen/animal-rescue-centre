@@ -71,6 +71,7 @@ export {
   anotherDisplayName,
   isDisplayNameBase,
   isDisplayName,
+  splitDisplayName,
 } from './display-names';
 export {
   buildRecoveryQuestions,

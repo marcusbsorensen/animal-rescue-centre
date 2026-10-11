@@ -645,6 +645,31 @@
     box-shadow: 0 1px 2px rgba(0,0,0,0.3);
   }
 
+  /* ── Stage D: the name other players see ── */
+  /* Cream paper like the name field, but read-only: the name is picked
+     from the word lists, not typed. */
+  .display-name-card {
+    font-family: var(--sign-font);
+    font-weight: 700;
+    font-size: clamp(22px, 3.6cqh, 32px);
+    line-height: 1.1;
+    text-align: center;
+    color: #3a2618;
+    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
+    border: 2px solid #7a4b15;
+    border-radius: 10px;
+    padding: clamp(8px, 1.4cqh, 12px) clamp(14px, 2.4cqw, 20px);
+    margin-top: clamp(4px, 0.8cqh, 8px);
+    box-shadow: 0 3px 5px rgba(0,0,0,0.22), inset 0 2px 0 rgba(255,255,255,0.5);
+    transform: rotate(-0.6deg);
+  }
+  /* As wide as stage A's sign. Left to its own content the sign is
+     narrower, and the CREATE MY ACCOUNT! plank under it wraps. */
+  #stage-name { min-width: min(430px, 92cqw); }
+  #stage-name .hint-actions-row { margin-top: clamp(8px, 1.4cqh, 12px); }
+  #stage-name .hint-actions-row .link-btn.plank-sage { flex: 0 1 auto; }
+  #stage-name .sign-subtitle { margin-top: clamp(6px, 1cqh, 10px); white-space: pre-line; }
+
   /* ── Name-suggestion stickers (shown when a username collides) ──
      Three colourful painted-sticker chips, same visual language as
      the PIN keypad: pastel gradient, rounded shape, slight rotation,
@@ -1719,6 +1744,36 @@
                 </div>
               </div>
 
+              <!-- Stage D: the name other players see. Made from two word
+                   lists (an adjective and an animal), never typed. The name
+                   typed on stage A stays the login, and only this player
+                   sees it. -->
+              <div class="intro stage-name hidden" id="stage-name">
+                <button class="back-sticker" data-back-sticker aria-label="Go back">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="9,16 4,11 9,6"/>
+                    <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
+                  </svg>
+                </button>
+                <div class="error-sticker" id="error-sticker-name"></div>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <div class="zzz-stack" aria-hidden="true">
+                  <span class="zz zz1">Z</span>
+                  <span class="zz zz2">Z</span>
+                  <span class="zz zz3">Z</span>
+                </div>
+                <div class="sign-title-row">
+                  <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+                  <div class="sign-title" id="display-name-title">Other players see you as</div>
+                </div>
+                <div class="display-name-card" id="display-name" aria-live="polite" aria-describedby="display-name-title">MossyOtter</div>
+                <div class="hint-actions-row">
+                  <button class="link-btn plank-sage" id="display-name-another" type="button">Show another</button>
+                </div>
+                <div class="sign-subtitle" id="display-name-login">You log in with your own name.
+Only you see that name.</div>
+              </div>
+
               <div class="cta-stack">
                 <div class="btn-primary-wrap">
                   <button class="btn-primary" id="next-btn">
@@ -1786,18 +1841,61 @@
   const isHintCode = (c) => PIN_HINT_CHOICES.some((h) => h.code === c);
   let selectedHintCode = '';
 
+  // ─── The name other players see ───
+  // Copies of DISPLAY_NAME_ADJECTIVES and DISPLAY_NAME_ANIMALS in
+  // packages/game-logic/src/display-names.ts: this page is static HTML
+  // with no module loader. display-names-copies.test.ts fails if they
+  // differ. Every pair was checked to say nothing rude, mocking or
+  // frightening. The server adds a number if the pair is taken.
+  const DISPLAY_NAME_ADJECTIVES = [
+    'Brave', 'Breezy', 'Bright', 'Bubbly', 'Calm', 'Cheery', 'Chirpy', 'Clever',
+    'Comfy', 'Cosy', 'Curious', 'Daring', 'Gentle', 'Gleeful', 'Happy', 'Helpful',
+    'Hopeful', 'Jolly', 'Kind', 'Leafy', 'Lucky', 'Merry', 'Misty', 'Mossy',
+    'Nimble', 'Plucky', 'Rosy', 'Snowy', 'Snug', 'Sparkly', 'Starry', 'Sunny',
+    'Swift', 'Twinkly', 'Wise', 'Zippy',
+  ];
+  const DISPLAY_NAME_ANIMALS = [
+    'Alpaca', 'Badger', 'Bee', 'Canary', 'Deer', 'Dolphin', 'Dormouse', 'Fawn',
+    'Ferret', 'Finch', 'Flamingo', 'Gecko', 'Gerbil', 'Hamster', 'Hare', 'Hedgehog',
+    'Heron', 'Kitten', 'Koala', 'Ladybird', 'Lamb', 'Lemur', 'Llama', 'Meerkat',
+    'Otter', 'Owl', 'Panda', 'Pangolin', 'Penguin', 'Pony', 'Puppy', 'Quokka',
+    'Rabbit', 'Robin', 'Seal', 'Sparrow', 'Squirrel', 'Starling', 'Swan', 'Tortoise',
+    'Toucan', 'Turtle', 'Vole', 'Wombat', 'Wren',
+  ];
+  const pickWord = (list) => list[Math.floor(Math.random() * list.length)];
+  const isDisplayNameBase = (v) => typeof v === 'string' && DISPLAY_NAME_ADJECTIVES.some(
+    (a) => v.startsWith(a) && DISPLAY_NAME_ANIMALS.includes(v.slice(a.length)));
+  function newDisplayName(current) {
+    let next = current;
+    while (next === current) next = pickWord(DISPLAY_NAME_ADJECTIVES) + pickWord(DISPLAY_NAME_ANIMALS);
+    return next;
+  }
+  let displayName = newDisplayName('');
+  function renderDisplayName() {
+    const el = document.getElementById('display-name');
+    if (el) el.textContent = displayName;
+  }
+  renderDisplayName();
+  document.getElementById('display-name-another')?.addEventListener('click', () => {
+    displayName = newDisplayName(displayName);
+    renderDisplayName();
+    saveDraft();
+  });
+
   // ─── Stage management ───
   const stageSelect = document.getElementById('stage-select');
   const stagePin = document.getElementById('stage-pin');
   const stageHint = document.getElementById('stage-hint');
+  const stageName = document.getElementById('stage-name');
   const stageToggle = document.getElementById('stage-toggle');
-  const STAGE_LABELS = { select: 'Stage: A · Name+animal', pin: 'Stage: B · PIN', hint: 'Stage: C · Clue' };
+  const STAGE_LABELS = { select: 'Stage: A · Name+animal', pin: 'Stage: B · PIN', hint: 'Stage: C · Clue', name: 'Stage: D · Player name' };
   let showing = 'select';
   function setStage(s) {
     showing = s;
     stageSelect.classList.toggle('hidden', s !== 'select');
     stagePin.classList.toggle('hidden', s !== 'pin');
     stageHint.classList.toggle('hidden', s !== 'hint');
+    stageName.classList.toggle('hidden', s !== 'name');
     if (stageToggle) stageToggle.textContent = STAGE_LABELS[s] || 'Stage';
     const primary = document.getElementById('primary-label');
     if (primary) {
@@ -1811,7 +1909,7 @@
     // and C — by then the kid has already typed their name + PIN
     // (and possibly picked a clue). Tapping that plank silently abandons
     // their progress. The yellow back-sticker covers stepping back.
-    document.querySelector('.secondary-row')?.classList.toggle('hidden', s === 'pin' || s === 'hint');
+    document.querySelector('.secondary-row')?.classList.toggle('hidden', s !== 'select');
     // Carry the typed name + selected animal emoji from stage A into
     // stage B's title so the greeting matches what the kid actually
     // picked. (Was hardcoded "Nice, Lily!" + paw-heart logo before.)
@@ -1823,16 +1921,25 @@
       const selectedChip = document.querySelector('.chip.avatar-pick.selected .chip-avatar');
       if (emojiEl && selectedChip) emojiEl.textContent = (selectedChip.textContent || '').trim();
     }
+    if (s === 'name') {
+      renderDisplayName();
+      const typedName = currentName();
+      const loginEl = document.getElementById('display-name-login');
+      // Two lines, broken after the sentence, so no word is left alone.
+      if (loginEl && typedName) loginEl.textContent = `You log in as ${typedName}.\nOnly you see that name.`;
+    }
     // Persist the new stage as part of the draft so a reload mid-flow
     // resumes on the right step.
     saveDraft();
   }
   stageToggle?.addEventListener('click', () => {
-    const order = ['select', 'pin', 'hint'];
+    const order = ['select', 'pin', 'hint', 'name'];
     setStage(order[(order.indexOf(showing) + 1) % order.length]);
   });
 
   document.getElementById('next-btn')?.addEventListener('click', () => {
+    // On stage D the big plank reads CREATE MY ACCOUNT! and submits.
+    if (showing === 'name') { submitSignup(); return; }
     if (showing !== 'select') return;
     // Gate on a usable name. The field used to ship value="Lily", so it
     // was never empty and this never needed checking; now that a child
@@ -2003,6 +2110,7 @@
         return;
       }
       if (showing === 'hint') { setStage('pin'); return; }
+      if (showing === 'name') { setStage('hint'); return; }
       send('back-to-welcome');
     });
   });
@@ -2046,6 +2154,7 @@
         pin: pinBuffer,
         capturedPin,
         hintCode: selectedHintCode,
+        displayName,
         stage: showing,
       };
       // Don't bother persisting an empty draft.
@@ -2083,16 +2192,20 @@
       // clue became a choice may hold typed text under `hint`; it is not
       // read, and the next save writes the draft without it.
       if (isHintCode(draft.hintCode)) selectHintCode(draft.hintCode);
+      if (isDisplayNameBase(draft.displayName)) { displayName = draft.displayName; renderDisplayName(); }
       // Restore the stage the kid was on — but ONLY if its prerequisites
       // are present in the draft. Otherwise fall back to the earliest
       // viable stage. Without this guard, a stale draft with
       // stage:'hint' (or 'pin') jumps the user past stages they haven't
       // actually completed and they can never finish signup.
-      if (draft.stage && ['select', 'pin', 'hint'].includes(draft.stage)) {
+      if (draft.stage && ['select', 'pin', 'hint', 'name'].includes(draft.stage)) {
         const hasName = !!(nameInput && nameInput.value && nameInput.value.trim());
         const hasAnimal = !!document.querySelector('.chip.avatar-pick.selected');
         const hasPin = typeof capturedPin === 'string' && capturedPin.length === 4;
         let restoreTo = draft.stage;
+        if (restoreTo === 'name' && !(hasName && hasAnimal && hasPin && isHintCode(selectedHintCode))) {
+          restoreTo = 'hint';
+        }
         if (restoreTo === 'hint' && !(hasName && hasAnimal && hasPin)) {
           restoreTo = (hasName && hasAnimal) ? 'pin' : 'select';
         }
@@ -2368,20 +2481,19 @@
       showError('Pick one of the clues!', 'stage-hint');
       return;
     }
+    setStage('name');
+  });
+
+  // Stage D's CREATE MY ACCOUNT! plank. `displayName` is the pair shown
+  // on the card; the server takes it only if it is from the lists.
+  function submitSignup() {
     const name = currentName();
     const { emoji, bg } = currentAvatar();
-    send('signup-complete', {
-      username: name,
-      animal: emoji,
-      pin: capturedPin,
-      hintCode: selectedHintCode,
-      avatarEmoji: emoji,
-      avatarBgColour: bg,
-    });
+    send('signup-complete', { username: name, animal: emoji, pin: capturedPin, hintCode: selectedHintCode, avatarEmoji: emoji, avatarBgColour: bg, displayName });
     // Successful submission — clear the draft so it doesn't come
     // back the next time the kid hits signup.
     clearDraft();
-  });
+  }
   updateHintNextEnabled();
 
   // Restore any in-progress signup draft from localStorage. Last because

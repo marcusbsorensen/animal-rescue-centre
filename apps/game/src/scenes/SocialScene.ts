@@ -12,6 +12,7 @@ import {
   type GiftInbox,
 } from '../lib/gifts';
 import { getSession } from '../lib/auth';
+import { splitDisplayName } from '@arc/game-logic';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 type SocialTab = 'inbox' | 'send' | 'leaderboard' | 'showcase';
@@ -37,7 +38,7 @@ export class SocialScene extends Phaser.Scene {
   private selectedMessage?: string;
   private showcaseToken?: string;
   private leaderboard: Array<{
-    username: string;
+    displayName: string;
     avatarEmoji: string;
     totalRescued: number;
     level: number;
@@ -248,7 +249,7 @@ export class SocialScene extends Phaser.Scene {
       // From
       this.container.add(
         this.add.text(30, y - 12,
-          `${gift.fromAvatarEmoji} ${gift.fromUsername}`, {
+          `${gift.fromAvatarEmoji} ${gift.fromDisplayName}`, {
           fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         }).setOrigin(0, 0.5)
       );
@@ -310,9 +311,16 @@ export class SocialScene extends Phaser.Scene {
         fontSize: '22px', fontFamily: FONTS.body
       }).setOrigin(0.5);
 
-      const name = this.add.text(x, friendY + 32, friend.username.slice(0, 8), {
+      // Display names run to 17 characters and the circles sit 70px
+      // apart, so the name goes on two lines (Mossy / Otter7) and shrinks
+      // if a line is still wider than its slot. It used to cut a typed
+      // name to its first 8 letters.
+      const name = this.add.text(x, friendY + 27, splitDisplayName(friend.displayName).join('\n'), {
         fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text, resolution: TEXT_RESOLUTION,
-      }).setOrigin(0.5);
+        align: 'center', lineSpacing: -4,
+      }).setOrigin(0.5, 0);
+      const slot = 66;
+      if (name.width > slot) name.setScale(slot / name.width);
 
       bg.on('pointerdown', () => {
         this.selectedFriend = friend;
@@ -405,7 +413,7 @@ export class SocialScene extends Phaser.Scene {
       const sendY = msgStartY + Math.ceil(8 / msgCols) * 30 + 20;
       this.container.add(
         createChromeButton(this, width / 2, sendY,
-          `Send to ${this.selectedFriend!.username}!`, async () => {
+          `Send to ${this.selectedFriend!.displayName}!`, async () => {
           if (this.loading) return;
           this.loading = true;
           try {
@@ -486,7 +494,7 @@ export class SocialScene extends Phaser.Scene {
 
       // Avatar + name
       this.container.add(
-        this.add.text(65, y, `${entry.avatarEmoji} ${entry.username}`, {
+        this.add.text(65, y, `${entry.avatarEmoji} ${entry.displayName}`, {
           fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.text,
         }).setOrigin(0, 0.5)
       );

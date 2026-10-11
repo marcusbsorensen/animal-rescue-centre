@@ -294,6 +294,28 @@ describe('Privacy Audit: player names', () => {
     expect(src).not.toMatch(/\busername\b/);
   });
 
+  it('signup shows the child the name other players see, and sends it', () => {
+    const page = read('apps/game/public/admin/signup.html');
+    expect(page).toContain('Other players see you as');
+    expect(page).toMatch(/send\('signup-complete', \{[^}]*displayName/);
+    // The host passes on only a pair from the lists.
+    expect(read('apps/game/src/auth-overlay/AuthOverlay.ts')).toMatch(/isDisplayNameBase\(raw\.displayName\)/);
+  });
+
+  it('the game shows other players by display name, and never asks for their login', () => {
+    for (const file of ['apps/game/src/lib/friends.ts', 'apps/game/src/lib/gifts.ts']) {
+      const src = read(file);
+      expect(src, file).toContain('display_name');
+      expect(src, file).not.toMatch(/\busername\b/);
+    }
+    for (const file of ['apps/game/src/scenes/SocialScene.ts', 'apps/game/src/scenes/FriendsScene.ts']) {
+      expect(read(file), file).not.toMatch(/\.username\b|fromUsername/);
+    }
+    const friendsPage = read('apps/game/public/admin/friends.html');
+    expect(friendsPage).toContain('f.displayName');
+    expect(friendsPage).not.toMatch(/f\.username/);
+  });
+
   it('a public showcase carries the display name, never the typed name', () => {
     const create = read('supabase/functions/create-showcase/index.ts');
     expect(create).toContain('displayName: user.display_name');

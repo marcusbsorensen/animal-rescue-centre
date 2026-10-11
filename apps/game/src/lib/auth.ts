@@ -9,6 +9,10 @@ export interface SignupData {
    *  `@arc/game-logic` (`PIN_HINT_CHOICES`), never typed text. Shown back
    *  on the forgot-PIN screen. See docs/forgot-pin-recovery.md. */
   pinHintCode?: string;
+  /** The name other players see, as shown on the signup page: a pair
+   *  from the word lists in `@arc/game-logic` (`isDisplayNameBase`), with
+   *  no number. The server adds a number if that pair is taken. */
+  displayName?: string;
 }
 
 export interface LoginData {
@@ -18,7 +22,11 @@ export interface LoginData {
 
 export interface AuthSession {
   userId: string;
+  /** The name typed at signup: the login, shown only to this player. */
   username: string;
+  /** The name other players see (MossyOtter7). Missing from a session
+   *  saved by a build from before display names. */
+  displayName?: string;
   avatarEmoji: string;
   avatarBgColour: string;
   joinCode: string;

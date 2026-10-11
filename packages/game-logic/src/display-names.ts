@@ -96,3 +96,12 @@ export function isDisplayName(value: unknown): value is string {
   if (m[2] !== undefined && !allowedDisplayNameNumbers().includes(Number(m[2]))) return false;
   return isDisplayNameBase(m[1]);
 }
+
+/**
+ * A display name as its two words, for a label too narrow for one line:
+ * ['Mossy', 'Otter7']. Anything not from the lists stays whole.
+ */
+export function splitDisplayName(name: string): string[] {
+  const adj = DISPLAY_NAME_ADJECTIVES.find((a) => name.startsWith(a) && name.length > a.length);
+  return adj && isDisplayName(name) ? [adj, name.slice(adj.length)] : [name];
+}

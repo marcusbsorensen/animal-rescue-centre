@@ -8,13 +8,13 @@
  *   - parent → iframe: {type:'init', payload:{usernames:string[]}}  (once loaded)
  *   - iframe → parent: {type:'play'|'login'|'signup'|'back-to-welcome'}
  *   - iframe → parent: {type:'login-submit', payload:{username,pin}}
- *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,hintCode?}}
+ *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,hintCode?,displayName?}}
  *   - parent → iframe: {type:'auth-error', payload:{message}}   (on failure, iframe shakes+clears)
  */
 
 import { login, signup, checkUsername, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
-import { isPinHintCode } from '@arc/game-logic';
+import { isPinHintCode, isDisplayNameBase } from '@arc/game-logic';
 
 export type AuthAction =
   | 'play'
@@ -188,7 +188,9 @@ export function mountAuth(
     // 'signup-submit' kept as an alias for back-compat with any external
     // callers still using the original event name. The payload carries
     // `hintCode`, a code from the fixed clue list; typed text is never
-    // passed on, even if an old page sends it.
+    // passed on, even if an old page sends it. `displayName` is the name
+    // other players see, as the page showed it: passed on only if it is a
+    // pair from the word lists, and the server checks again.
     if (msg.type === 'signup-complete' || msg.type === 'signup-submit') {
       try {
         const raw = (msg.payload ?? {}) as Record<string, unknown>;
@@ -198,6 +200,7 @@ export function mountAuth(
           avatarEmoji: String(raw.avatarEmoji ?? raw.animal ?? ''),
           avatarBgColour: String(raw.avatarBgColour ?? '#ffd0a0'),
           pinHintCode: isPinHintCode(raw.hintCode) ? raw.hintCode : undefined,
+          displayName: isDisplayNameBase(raw.displayName) ? raw.displayName : undefined,
         };
         const session = await signup(data);
         handlers.onAction('auth-success-new', session);
