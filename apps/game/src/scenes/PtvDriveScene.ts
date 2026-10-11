@@ -34,7 +34,6 @@ import {
 import {
   drawRoadForConfig,
   drawTransitionRoad,
-  drawJunctionMouth,
   drawTopDownVan,
   drawTrafficVehicle,
   drawSceneryItem,
@@ -44,7 +43,6 @@ import {
   isOvertakingZone,
 } from '../driving/drive-render';
 import { buildRoadTransitions, worldYForRow, type RoadTransition } from '../driving/road-transition';
-import { buildRouteJunctions, nextJunction, nextChoiceJunction, inDecisionWindow, type RouteJunction } from '../driving/junctions';
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
@@ -214,10 +212,6 @@ function roadIdForClass(cls: string): RoadId {
 /** Merge-zone length in world-px (~3–4s at cruising speed): the stretch over
  *  which a dual↔single carriageway change is drawn narrowing/opening. */
 const MERGE_ZONE_LEN = 550;
-
-/** How far either side of a fork (world-px) a turn choice counts — generous, so
- *  it's never a split-second reflex test for a young player. */
-const JUNCTION_WINDOW_HALF = 220;
 
 export interface PtvDriveInit {
   driveType?: DriveType;
@@ -390,14 +384,8 @@ export class PtvDriveScene extends Phaser.Scene {
   private roadProfile: RoadClassRun[] = [];
   /** World-space merge zones for smooth road-type changes (dual↔single). */
   private roadTransitions: RoadTransition[] = [];
-  /** Junctions along the route — real forks (a player choice) and cosmetic bends. */
-  private routeJunctions: RouteJunction[] = [];
-  /** Live turn-choice prompt state at a fork. */
-  private junctionPrompt?: Phaser.GameObjects.Container;
-  private promptJunction?: RouteJunction;
   /** Guards the pick-and-depart transition so a double tap can't launch twice. */
   private departing = false;
-  private resolvedJunctions = new Set<number>();
   /** False once Marcus manually toggles a road type — stops map auto-following. */
   private autoRoad = true;
   /** True during a road-type change so the loop doesn't re-trigger it. */
@@ -585,10 +573,6 @@ export class PtvDriveScene extends Phaser.Scene {
     this.cameraTriggers = [];
     this.roadProfile = [];
     this.roadTransitions = [];
-    this.routeJunctions = [];
-    this.junctionPrompt = undefined;
-    this.promptJunction = undefined;
-    this.resolvedJunctions = new Set();
     this.turning = false;
     this.autoRoad = true;
     this.roadSwitching = false;
@@ -2093,9 +2077,6 @@ export class PtvDriveScene extends Phaser.Scene {
     // (~3–4s to play out at cruising speed). scrollY and progress are the same
     // signal, so the zone's world-Y lines up with where the boundary scrolls to.
     this.roadTransitions = buildRoadTransitions(this.roadProfile, roadIdForClass, MERGE_ZONE_LEN);
-    this.routeJunctions = this.gpsGraph && this.gpsAdj
-      ? buildRouteJunctions(this.gpsGraph, this.gpsAdj, ARC_PLACE, placeFor(this.destinationId))
-      : [];
   }
 
   /** The road type at a progress fraction, from the route's class profile. */
@@ -2204,15 +2185,6 @@ export class PtvDriveScene extends Phaser.Scene {
     } else {
       drawRoadForConfig(this.roadGfx, width, height, this.scrollY, this.geo(), this.roadConfig);
     }
-    // Just the NEXT unresolved fork's side-road opening — one clear turn-in
-    // approaching from the top, not every fork on the route (which stacked into
-    // a clutter of tarmac strips). It scrolls down at road speed via its fixed
-    // world-Y; drawJunctionMouth culls it once off-screen.
-    const mouth = this.routeJunctions.find(
-      (j) => j.isChoice && j.side && !this.resolvedJunctions.has(j.nodeIndex) &&
-        this.scrollY + this.vanY - j.worldY < height + 40,
-    );
-    if (mouth) drawJunctionMouth(this.roadGfx, width, height, this.scrollY, this.vanY, this.geo(), mouth);
   }
 
   /** Whether any merge zone overlaps the visible rows this frame. */
@@ -2227,67 +2199,6 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   // ── Turning at junctions ───────────────────────────────────
-
-  /** Each tick: offer the next fork's turn choice while the van is in its
-   *  (generous) decision window, and auto-resolve one we've driven past. */
-  private updateJunctionPrompt(): void {
-    // The van sits at vanY, so its world-Y is exactly scrollY.
-    const active = this.promptJunction;
-    if (active && this.scrollY > active.worldY + JUNCTION_WINDOW_HALF && !this.resolvedJunctions.has(active.nodeIndex)) {
-      this.resolveJunction(active, 'straight'); // drove past without choosing → carry on
-    }
-    if (!this.routeJunctions.length) return;
-    const j = nextChoiceJunction(this.routeJunctions, this.drive.progress);
-    if (!j || this.resolvedJunctions.has(j.nodeIndex)) return;
-    if (this.promptJunction?.nodeIndex !== j.nodeIndex && inDecisionWindow(j, this.scrollY, JUNCTION_WINDOW_HALF)) {
-      this.showJunctionChoice(j);
-    }
-  }
-
-  /** Offer a left/right turn at a fork — buttons sit out on the grass verges,
-   *  clear of the road and van; the GPS-correct way is highlighted green. The
-   *  arrow keys (A/D too) turn while a fork is live. Doing nothing carries on. */
-  private showJunctionChoice(j: RouteJunction): void {
-    this.clearJunctionPrompt();
-    this.promptJunction = j;
-    const { width, height } = this.scale;
-    const geo = this.geo();
-    const y = height * 0.5;
-    const leftX = Math.max(60, geo.roadLeft * 0.5);
-    const rightX = Math.min(width - 60, (geo.roadLeft + geo.roadWidth + width) / 2);
-    const want = j.side;
-    const c = this.add.container(0, 0).setDepth(55);
-    // The way the route wants is filled and the other is a plate. It was
-    // green against blue, which is the hint a red-green colourblind child
-    // gets nothing from; weight is the one channel everybody reads.
-    c.add(createChromeButton(this, leftX, y, '◀', () => this.resolveJunction(j, 'left'), {
-      width: 88, height: 78, variant: want === 'left' ? 'filled' : 'plate',
-    }));
-    c.add(createChromeButton(this, rightX, y, '▶', () => this.resolveJunction(j, 'right'), {
-      width: 88, height: 78, variant: want === 'right' ? 'filled' : 'plate',
-    }));
-    this.container.add(c);
-    this.junctionPrompt = c;
-  }
-
-  private clearJunctionPrompt(): void {
-    this.junctionPrompt?.destroy();
-    this.junctionPrompt = undefined;
-    this.promptJunction = undefined;
-  }
-
-  /** Resolve a fork. The GPS-correct way is cheerful; a wrong way (or a
-   *  drive-past) is gently accepted — for now we always carry on along the
-   *  route (a true wrong-turn reroute is the next slice). */
-  private resolveJunction(j: RouteJunction, dir: 'left' | 'straight' | 'right'): void {
-    if (this.resolvedJunctions.has(j.nodeIndex)) return;
-    this.resolvedJunctions.add(j.nodeIndex);
-    this.clearJunctionPrompt();
-    const correct = dir === (j.side ?? 'straight');
-    AudioManager.getInstance().playSfx(correct ? 'button_click' : 'food_wrong');
-    this.showRoadBanner(correct ? 'Good turn!' : 'This way!');
-    if (dir !== 'straight') this.turnWorld(dir);
-  }
 
   /**
    * Take a junction: the whole world (road, scenery, traffic) rotates 90° about
@@ -2744,10 +2655,10 @@ export class PtvDriveScene extends Phaser.Scene {
         space: kb.addKey('SPACE'),
         h: kb.addKey('H'),
       };
-      this.keys.left.on('down', () => this.steer(-1));
-      this.keys.a.on('down', () => this.steer(-1));
-      this.keys.right.on('down', () => this.steer(1));
-      this.keys.d.on('down', () => this.steer(1));
+      this.keys.left.on('down', () => this.moveLane(-1));
+      this.keys.a.on('down', () => this.moveLane(-1));
+      this.keys.right.on('down', () => this.moveLane(1));
+      this.keys.d.on('down', () => this.moveLane(1));
       this.keys.up.on('down', () => this.setGear(cycleGear(this.drive.gear, 1)));
       this.keys.down.on('down', () => this.setGear(cycleGear(this.drive.gear, -1)));
       this.keys.r.on('down', () => this.setGear(REVERSE));
@@ -2769,12 +2680,6 @@ export class PtvDriveScene extends Phaser.Scene {
     rightZone.on('pointerdown', () => this.moveLane(1));
     rightZone.setDepth(1);
     this.container.add(rightZone);
-  }
-
-  /** Left/right input: turns at a live fork, otherwise changes lane. */
-  private steer(dir: -1 | 1): void {
-    if (this.promptJunction) this.resolveJunction(this.promptJunction, dir < 0 ? 'left' : 'right');
-    else this.moveLane(dir);
   }
 
   private moveLane(dir: -1 | 1): void {
@@ -3134,7 +3039,6 @@ export class PtvDriveScene extends Phaser.Scene {
         this.drawShadows();
 
         this.drive.progress = Math.min(1, Math.max(0, this.drive.progress + rate * 0.0004));
-        this.updateJunctionPrompt();
 
         // **The drive used to have no end.** Progress clamped at 1 and
         // the road kept scrolling, which was invisible while the only
