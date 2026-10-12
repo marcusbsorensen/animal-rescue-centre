@@ -289,7 +289,8 @@ stops itself, as it does for traffic. Never an accident.
   close up in a round magnifier), with the wait or go sign. Marcus: no
   rear-view mirror, nothing from above. The ground is the top-down
   ground and roads projected onto the road a row at a time; trees, hedges,
-  walls and houses stand up beside it; the traffic is drawn plain in its
+  walls, houses and the real buildings from the map (each at its own eave
+  and ridge height) stand up beside it; the traffic is drawn plain in its
   colour until the painted backs and fronts are in
   `assets/driving/vehicle-views/` (its README says what goes there).
   `drive-spike/behind-view.js` draws it.

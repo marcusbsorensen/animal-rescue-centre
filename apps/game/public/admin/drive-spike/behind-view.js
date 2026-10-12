@@ -424,9 +424,13 @@ function gatherScenery(items, P, S, cam) {
         g.globalAlpha = 1;
       } });
     }
-    for (const h of c.houses) {
-      const [X, Z] = P.toCam(h.box.x, h.box.y);
-      const reach = Math.hypot(h.box.hu, h.box.hv);
+    // The houses scenery.js makes up, and the real buildings it places from
+    // the map (the towns' streets, the farms, the landmarks), each a box
+    // with a roof at its own height.
+    for (const list of [c.houses, c.blds ?? []]) for (const h of list) {
+      const b = h.rbox ?? h.box;
+      const [X, Z] = P.toCam(b.x, b.y);
+      const reach = Math.hypot(b.hu, b.hv);
       if (Z - reach < 2 || !inFrustum(P, X, Z, reach, R)) continue;
       items.push({ z: Z, draw: g => house(g, P, h, lw) });
     }
@@ -475,7 +479,10 @@ function tree(g, P, X, Z, t, season, lw) {
 /** A house: a box with a pitched roof, ridge along its longer side. Only the
  *  faces turned to the eye are drawn, which for a box is all it needs. */
 function house(g, P, h, lw) {
-  const b = h.box, eave = 4.6, ridge = 7.2;
+  // A real building has its ridge-wise box and its kind's eave and ridge
+  // (scenery.js BH); a flat roof's ridge is its eave.
+  const b = h.rbox ?? h.box, eave = h.he ?? 4.6;
+  const ridge = h.form === 'flat' ? eave : h.hr ?? 7.2;
   const along = b.hu >= b.hv;   // ridge along u
   const corner = (su, sv) => P.toCam(b.x + b.ux * b.hu * su - b.uy * b.hv * sv, b.y + b.uy * b.hu * su + b.ux * b.hv * sv);
   // Corners in the camera frame, counter-clockwise round the box.
