@@ -53,8 +53,21 @@ the road (in 2nd on a main road nothing pulses): check both gear branches do
 this when merging, since their prompts left it ambiguous, and record 31A/33A
 in `docs/driving-rebuild-2026-10-11.md` then; 34A tube man approved for the
 west car wash; 35 rabbit B, duck B, duckling B, pheasant B (wattle painted
-out), deer C; 36A used as painted. A local agent is installing the five
-animals and the halo in `crossings.js`.
+out), deer C; 36A used as painted. The five animals and the halo are
+installed (cd75ae7).
+
+**Next, asked 2026-10-12 ~02:00 (start once `claude/spike-gears-free-a28`
+has merged, since it touches the same files):** (a) every vehicle, both
+directions, stops for crossing animals, and the check proves no vehicle ever
+touches one (it only checked the van); (b) behind a slow vehicle the gap
+breathes a little, unevenly, so the two do not move in lockstep; (c) 37A
+poking out to look before overtaking: the further she swipes (or the longer
+she holds an arrow key) the further the van eases towards the middle;
+released before halfway it eases back, past halfway it overtakes; (d) the
+dashboard matches the vehicle being driven (earlier work exists; an Explore
+agent is finding it). Open: 38 (one painting per animal: doe with antlers,
+recommended A fine for now), 39 (van stops too far back, recommended A stop
+a van's length short).
 
 **In flight (cloud; check with RemoteTrigger list_runs and git ls-remote,
 merge, run the checks, screenshot for Marcus):**
