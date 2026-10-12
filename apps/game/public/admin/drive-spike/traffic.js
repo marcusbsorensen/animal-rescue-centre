@@ -446,17 +446,28 @@ function vanParts(T, van, vb) {
 }
 
 /** A vehicle's speed held for the fold zones: never onto the other part of
- *  a zone the van has. One already on it goes on through. */
+ *  a zone the van has. One already on it goes on through, and so does one
+ *  going too fast to stop short when the van takes the zone (the van then
+ *  waits). Once held it stays held until the van lets the zone go: it used
+ *  to be let go in the last metre before the part, or once the speed it
+ *  wanted (not the speed it had) could no longer stop there, and so came on
+ *  while the van was on its own part, and each then stood for the other as
+ *  drawn (seed 28 of safety.check, 900 s). */
 function foldZoneSpeed(T, w, v, mine, dt) {
   const zones = foldZones(T);
   const lo = w.s - w.L / 2, hi = w.s + w.L / 2, front = w.dir > 0 ? hi : lo;
+  const held = w.foldHeld ?? (w.foldHeld = new Set());
   for (let k = 0; k < zones.length; k++) {
-    if (mine[k] < 0) continue;
+    if (mine[k] < 0) { held.delete(k); continue; }
     const part = zones[k].parts[1 - mine[k]];
-    if (onPart(lo, hi, part)) continue;              // on it: through and off
+    if (onPart(lo, hi, part) || (w.dir > 0 ? lo >= part[1] : hi <= part[0])) {
+      held.delete(k);                                 // on it: through and off; or past it
+      continue;
+    }
     const room = w.dir > 0 ? part[0] - front - 1 : front - part[1] - 1;
-    if (room < 0 || room > 200) continue;            // past it, or far
-    if (room < v * dt + v * v / (2 * ONC_STOP)) continue;   // too late to stop: it goes, the van waits
+    if (room > 200) continue;                         // far
+    if (!held.has(k) && room < w.v * dt + w.v * w.v / (2 * ONC_STOP)) continue;   // too late to stop: it goes, the van waits
+    held.add(k);
     v = Math.min(v, stopSpeed(room, FOLD_STOP, dt));
   }
   return v;
