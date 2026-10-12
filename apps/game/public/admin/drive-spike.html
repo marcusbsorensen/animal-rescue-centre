@@ -577,6 +577,7 @@ function pickRoute(fromId) {
     length: routeLen, atDistance, laneOffset, roadClassAt: classAtS, laneWidth: LANE_M,
   }, { graph, mapToWorld, season: SEASON });
   window.__xing = xing;   // as window.__drive: lets a test find a crossing
+  window.__trf = trf;     // and see why the overtaking lane is refused (__trf.last.unsafe)
 }
 
 // ---------------------------------------------------------------- the driving

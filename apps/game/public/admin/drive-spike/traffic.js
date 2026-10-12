@@ -172,7 +172,8 @@ const SPAWN_AHEAD = 215, SPAWN_ONC = 235, SPAWN_BEHIND = 75;
 const DESPAWN_BEHIND = 95, DESPAWN_AHEAD = 340;
 const IN_VIEW = 70;       // metres from the van inside which nothing pops in or out
 const BEND_M = 60;        // no overtaking this close before a sharp bend
-const BEND_DEG = 30;      // a "sharp bend": the route turns more than this within 30 m
+const BEND_DEG = 30;
+const OWN_BEND_M = 45;    // in our own second lane, back in this far before a sharp bend or its end      // a "sharp bend": the route turns more than this within 30 m
 const CORNER_DEG = 22;    // past this, oncoming traffic takes a corner one at a time with the van
 const LANE_CHANGE_S = 0.7;
 const ANIMAL_STOP = 3.5;  // how hard a vehicle slows for a crossing animal, m/s²: a careful driver
@@ -202,8 +203,13 @@ export function create(route, opts = {}) {
 function survey(T) {
   const r = T.route, L = r.length;
   T.tracks = []; T.trunks = []; T.vertices = []; T.bends = []; T.boundaries = [];
-  let prevCls = null, open = null, prevH = null;
+  let prevCls = null, open = null, prevH = null, prevOnc = null;
   for (let s = 0; s <= L; s += 1) {
+    // Where lane 1 stops being our own and becomes the oncoming lane (the
+    // A28 from divided to single), the van must not carry it across.
+    const onc = lane1Oncoming(T, s);
+    if (prevOnc !== null && onc !== prevOnc && !T.boundaries.includes(s)) T.boundaries.push(s);
+    prevOnc = onc;
     const cls = r.roadClassAt(s);
     if (cls !== prevCls) {
       if (open) { open.list.push([open.a, s]); open = null; }
@@ -291,7 +297,8 @@ function cornerExtra(T, a, b, lat) {
     else if (v.s > b + 6 && v.s < b + 31) sum += Math.abs(v.turn) * (1 - (v.s - b - 6) / 25);
   }
   if (sum < 1e-3) return 0;
-  return Math.min(40, 2 * (Math.abs(lat) + 1.4) * Math.tan(Math.min(sum, 2.2) / 2));
+  // Up to a 155° hairpin, which the real graph has where a lane leaves the A28.
+  return Math.min(40, 2 * (Math.abs(lat) + 1.4) * Math.tan(Math.min(sum, 2.7) / 2));
 }
 
 /** The one of two lateral offsets further from the centreline: the corner
@@ -677,8 +684,17 @@ function laneUnsafe(T, van, vb, laneT) {
   const horizon = clamp(need * vGear, BEND_M, 160);
 
   if (cls === 'track' || inAny(T.tracks, vb.rear - 5, vb.front + horizon)) return 'track';
-  if (anyPoint(T.boundaries, vb.rear - 10, vb.front + horizon)) return 'road ends';
-  if (anyPoint(T.bends, vb.rear - 10, vb.front + 3 + Math.min(horizon, 120))) return 'bend';
+  // Nor across a change of road: a track, either end of the dual
+  // carriageway, the A28 from divided to single. From our own second lane
+  // only the last OWN_BEND_M count: she may use it until then.
+  if (T.boundaries.some(b => b >= vb.rear - 10 && b <= vb.front + horizon
+      && (lane1Oncoming(T, b - 1) || b <= vb.front + OWN_BEND_M))) return 'road ends';
+  // No overtaking into the oncoming lane near a bend. Where lane 1 is our
+  // own (the dual carriageway, the A28's divided stretches with two lanes
+  // each way, which in town bend often) a bend only calls her back in just
+  // before it, where the corner folds the two lanes together.
+  const bendTo = vb.front + 3 + Math.min(horizon, 120);
+  if (T.bends.some(b => b >= vb.rear - 10 && b <= bendTo && (lane1Oncoming(T, b) || b <= vb.front + OWN_BEND_M))) return 'bend';
   for (const w of T.vehicles) {
     if (w.dir > 0) continue;
     if (w.s + w.L / 2 < vb.rear - 2) continue;              // already past
