@@ -5,7 +5,8 @@
 // Decided by Marcus, 2026-10-11 (docs/driving-port-plan-2026-10-11.md,
 // section 5, question 1): the controls live in a strip below the van, styled
 // as the vehicle's own cockpit dashboard rather than as buttons over the
-// world. The van sits 59% down the road view, so the strip covers only road
+// world. The van sits three quarters of the way down the road view (Lily,
+// 2026-10-12), with a strip of road behind it, so the strip covers only road
 // already driven.
 //
 // The art is Henry's painted cab, dashboard-henry-ptv.png. Only Henry has

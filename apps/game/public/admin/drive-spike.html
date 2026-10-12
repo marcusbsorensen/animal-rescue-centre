@@ -144,31 +144,40 @@ function roadWidth(cls, cw) {
 }
 let zoom = 1;
 
-/** Where the van sits on screen, measured off Lily's game: 53.5% across,
- *  59% down, in every frame of 35 seconds. */
+/** Where the van sits across the screen, measured off Lily's game: 53.5%
+ *  across in every frame of 35 seconds. */
 const VAN_SX = 0.535;
 
 /** View parameters for comparing layouts, not settings: ?full=1 drops the
  *  430px width cap (to see landscape), ?pin= moves the van's height on screen
- *  from the measured 0.59, ?zoomx= scales every zoom. */
+ *  (a fraction of the road view, as below), ?zoomx= scales every zoom. */
 const VIEW_Q = new URLSearchParams(location.search);
 const FULL_WIDTH = VIEW_Q.get('full') === '1';
 
-/** Held sideways, the measured pin leaves 9m of road ahead against 20m held
- *  upright. Marcus chose (2026-10-11) that in landscape the van sits lower and
- *  the camera pulls back, which shows about 16m. */
-function vanSY(w, h) { return Number(VIEW_Q.get('pin')) || (w > h ? 0.8 : 0.59); }
+/** How far down the road view the van sits. The reference game has it 59%
+ *  down; Lily, 2026-10-12: "it would be better for the vehicle we are
+ *  driving to be a bit further down / back on the road so we have more open
+ *  road ahead to be seen, as we don't ever reverse". So upright it sits 75%
+ *  down, which gives the road ahead about a quarter more of the screen, and
+ *  held sideways, where there was least road ahead, 86%. Held sideways the
+ *  camera also pulls back (Marcus, 2026-10-11). */
+const VAN_PIN = { port: 0.75, land: 0.86 };
+function vanSY(w, h) { return Number(VIEW_Q.get('pin')) || (w > h ? VAN_PIN.land : VAN_PIN.port); }
 function zoomX(w, h) { return Number(VIEW_Q.get('zoomx')) || (w > h ? 0.75 : 1); }
+
+/** Road kept in view behind the van's tail, in CSS px, so it never looks
+ *  parked on the dashboard. */
+const BEHIND_PX = 16;
 
 /** The van's height on screen: the pin is a fraction of the road view above
  *  the dashboard, not of the whole screen, so the strip covers only road
- *  already driven. Held sideways and pulled up close at a gate, the pin would
- *  put the van's tail under the dashboard, so then it rises just enough to
- *  keep the whole van in view. w and h are the screen's, which decide
- *  upright or sideways. */
+ *  already driven. Pulled up close at a gate, or held sideways, the pin
+ *  would put the van's tail under the dashboard, so then it rises just
+ *  enough to keep the whole van and a strip of road behind it in view. w and
+ *  h are the screen's, which decide upright or sideways. */
 function vanScreenY(w, h, roadH, ppm) {
   const halfLen = (car.length || VAN_W_M * 2) * ppm / 2;
-  return Math.min(roadH * vanSY(w, h), roadH - halfLen - 6);
+  return Math.min(roadH * vanSY(w, h), roadH - halfLen - BEHIND_PX);
 }
 
 /** Every vehicle at its true width relative to Henry, and Henry at the size
@@ -626,7 +635,7 @@ function letGo() { if (car.laneWant === 0) car.ask = 0; }
  *  is what gives the reference game its look: the world swings through a bend
  *  while the car turns only a little in the frame. */
 let camH = null;
-const LOOKAHEAD_M = 20;
+const LOOKAHEAD_M = 20, LOOKAHEAD_MAX_M = 28;
 const CAM_EASE = 3.4;       // per second
 
 function wrapAngle(a) { return Math.atan2(Math.sin(a), Math.cos(a)); }
@@ -795,8 +804,12 @@ function step(dt) {
   zoom *= Math.exp(Math.log(zt / zoom) * (1 - Math.exp(-rate * dt)));
   car.zoom = zoom;
 
-  // Aim at where the route is in 20 metres, not at the segment underfoot.
-  const ahead = atDistance(Math.min(routeLen - 1, car.s + LOOKAHEAD_M));
+  // Aim at where the route is some way ahead, not at the segment underfoot:
+  // 20 metres, or further when the view shows more road ahead (the van sits
+  // low, and pulled out at speed), so the road up the screen stays in view
+  // through a bend.
+  const aimM = Math.min(LOOKAHEAD_MAX_M, Math.max(LOOKAHEAD_M, 0.7 * (car.view?.ahead ?? 0)));
+  const ahead = atDistance(Math.min(routeLen - 1, car.s + aimM));
   const aim = Math.atan2(ahead.y - pos.y, ahead.x - pos.x);
   if (camH === null) camH = aim;
   else camH += wrapAngle(aim - camH) * Math.min(1, CAM_EASE * dt);
