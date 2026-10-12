@@ -194,8 +194,9 @@ function pick(cands, length, gapK) {
   return out;
 }
 
-/** Where the route turns at a junction: graph nodes with three or more roads
- *  where the heading 20 m either side differs by more than 50 degrees. */
+/** The junctions a child would give directions by: a crossroads (four or
+ *  more roads meet), and a corner where the route turns off at a junction
+ *  of three (the heading 20 m either side differs by more than 50 degrees). */
 function corners(T, r, length) {
   const g = r.graph;
   if (T.degreeOf !== g) {
@@ -210,7 +211,7 @@ function corners(T, r, length) {
     const a = r.atDistance(Math.max(0, p.s - 20)), b = r.atDistance(Math.min(length, p.s + 20));
     const h0 = Math.atan2(p.y - a.y, p.x - a.x), h1 = Math.atan2(b.y - p.y, b.x - p.x);
     const turn = Math.atan2(Math.sin(h1 - h0), Math.cos(h1 - h0));
-    if (Math.abs(turn) < 50 * Math.PI / 180) continue;
+    if (Math.abs(turn) < 50 * Math.PI / 180 && T.degree[n] < 4) continue;
     out.push({ id: 'corner-' + n, kind: 'junction', name: T.degree[n] >= 4 ? 'Crossroads' : 'The corner',
       rank: 4, s: p.s, d: 0, side: turn < 0 ? -1 : 1, near: 0 });
   }
