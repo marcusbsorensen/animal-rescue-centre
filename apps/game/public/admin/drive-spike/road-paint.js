@@ -432,7 +432,7 @@ function bandClear(path, ch, sa, sb, step, lo, hi) {
 
 /** Ragged-edge wobble, metres, along s. */
 function rag(s, salt, amp) {
-  return amp * ((noise1(s, 2.6, salt) - 0.5) * 1.3 + (noise1(s, 0.7, salt + 1) - 0.5) * 0.7);
+  return amp * ((noise1(s, 2.6, salt) - 0.5) * 1.3 + (noise1(s, 1.1, salt + 1) - 0.5) * 0.7);
 }
 
 function buildChains(graph, nodeXY) {
@@ -552,7 +552,7 @@ function line(R, ch, r0, r1, off, w, dash, salt) {
     for (let s = r0 + 1; ; s = Math.min(r1, s + 1)) {
       const b = s >= r1 ? -1 : bucket(s);
       if (b !== b0) {
-        bandClear(R.get('paint' + b0), ch, a, s, 0.5, t => wob(t) - hw(t), t => wob(t) + hw(t));
+        bandClear(R.get('paint' + b0), ch, a, s, 0.6, t => wob(t) - hw(t), t => wob(t) + hw(t));
         a = s; b0 = b;
       }
       if (s >= r1) break;
@@ -576,7 +576,7 @@ function line(R, ch, r0, r1, off, w, dash, salt) {
     const fade = noise1(c, 17, ch.seed + salt * 977 + 7) + (r() - 0.5) * 0.25;
     const b = fade > T.fadeAt + 0.22 ? 2 : fade > T.fadeAt ? 1 : 0;
     const hw = s => w / 2 * dw * wmul(s);
-    const L = side(ch, la, lb, 0.4, s => wob(s) + hw(s)), Rr = side(ch, ra, rb, 0.4, s => wob(s) - hw(s));
+    const L = side(ch, la, lb, 0.5, s => wob(s) + hw(s)), Rr = side(ch, ra, rb, 0.5, s => wob(s) - hw(s));
     if (L.length < 4 || Rr.length < 4) continue;
     // Each end is a brush lifting off: bulged or dragged a little at its middle.
     const tip = s => side(ch, s, s + 0.01, 1, wob);
@@ -602,7 +602,7 @@ function buildRun(ch, r0, r1, trunk) {
   // sharp corner so the round join the old stroke gave is kept.
   const amp = { main: 0.05, worn: 0.09, old: 0.13, track: 0.22 }[fam] * T.rag;
   const surf = R.get(fam + ':surface');
-  band(surf, ch, a, b, 0.8, s => -half - rag(s, seed + 11, amp), s => half + rag(s, seed + 13, amp));
+  band(surf, ch, a, b, 1.2, s => -half - rag(s, seed + 11, amp), s => half + rag(s, seed + 13, amp));
   for (let i = 0; i < ch.xs.length; i++) {
     const s = ch.ss[i];
     if (s < r0 - 0.01 || s >= r1 - 0.01 && !(i === ch.xs.length - 1 && s <= r1 + 0.01)) continue;
@@ -615,13 +615,13 @@ function buildRun(ch, r0, r1, trunk) {
   // Dust and gravel feathering the edge into the verge (and, on old roads,
   // collecting a way in from the edge).
   const [inner, outer] = { main: [0.3, 0.45], worn: [0.55, 0.55], old: [1.0, 0.6], track: [0.5, 0.75] }[fam];
-  const vg = R.get(fam + ':verge');
+  const vg = R.get(fam === 'track' ? 'track:verge' : 'verge');
   for (const sgn of [1, -1]) {
     const so = seed + (sgn > 0 ? 21 : 25);
     const lo = s => half - inner * (0.6 + 0.8 * noise1(s, 4.5, so)) + rag(s, so + 1, amp);
     const hi = s => half + outer * (0.6 + 0.8 * noise1(s, 3.7, so + 2)) + rag(s, so + 3, amp);
-    if (sgn > 0) bandClear(vg, ch, a, b, 0.8, lo, hi);
-    else bandClear(vg, ch, a, b, 0.8, s => -hi(s), s => -lo(s));
+    if (sgn > 0) bandClear(vg, ch, a, b, 1.2, lo, hi);
+    else bandClear(vg, ch, a, b, 1.2, s => -hi(s), s => -lo(s));
   }
 
   if (fam === 'track') {
@@ -642,13 +642,13 @@ function buildRun(ch, r0, r1, trunk) {
   const lanes = ch.cls === 'trunk'
     ? [1, -1].flatMap(sg => [sg * (trunk.reservation / 2 + trunk.lane / 2), sg * (trunk.reservation / 2 + trunk.lane * 1.5)])
     : [half / 2, -half / 2];
-  const wear = R.get(fam + ':wear');
+  const wear = R.get('wear'), wearAt = fam === 'main' ? 0.45 : 0.25;   // main roads wear less
   lanes.forEach((lc, li) => {
     for (const d of [-0.8, 0.8]) {
       const so = seed + 51 + li * 8 + (d > 0 ? 4 : 0);
       const mid = s => lc + d + 0.14 * (noise1(s, 7, so) - 0.5) * 2;
-      const gate = s => { const g = clamp01((noise1(s, 9, so + 1) - 0.25) / 0.3); return g * g * (3 - 2 * g); };
-      bandClear(wear, ch, a, b, 0.7,
+      const gate = s => { const g = clamp01((noise1(s, 9, so + 1) - wearAt) / 0.3); return g * g * (3 - 2 * g); };
+      bandClear(wear, ch, a, b, 1.1,
         s => mid(s) - 0.4 * (0.6 + 0.7 * noise1(s, 1.3, so + 2)) * gate(s),
         s => mid(s) + 0.4 * (0.6 + 0.7 * noise1(s, 1.5, so + 3)) * gate(s));
     }
@@ -715,11 +715,10 @@ export function load(world) {
   const vergeP = { track: pat(vergeTile('track', season)), tarmac: pat(vergeTile('old', season)) };
   for (const f of fams) {
     fill.set(f + ':surface', [pat(f === 'track' ? earthTile(season) : tarmacTile(f, season)), 1]);
-    fill.set(f + ':verge', [vergeP[f === 'track' ? 'track' : 'tarmac'], f === 'main' ? 0.6 : 0.9]);
-    if (f !== 'track') fill.set(f + ':wear', [null, { main: 0.3, worn: 0.65, old: 0.55 }[f] * Math.min(1, 0.7 * T.wear)]);
   }
-  const wearP = pat(wearTile(mix(base('worn', season), '#f0eadb', 0.45), 81, 0.8));
-  for (const f of ['old', 'worn', 'main']) fill.get(f + ':wear')[0] = wearP;
+  fill.set('verge', [vergeP.tarmac, 0.85]);
+  fill.set('track:verge', [vergeP.track, 0.9]);
+  fill.set('wear', [pat(wearTile(mix(base('worn', season), '#f0eadb', 0.45), 81, 0.8)), 0.6 * Math.min(1, 0.7 * T.wear)]);
   fill.set('track:ruts', [pat(wearTile(mix(base('track', season), '#2b1f12', season === 'winter' ? 0.5 : 0.42), 83, 1)), Math.min(1, 0.85 * T.wear)]);
   const grass = pat(grassTile(season));
   fill.set('track:grass', [grass, 1]);
@@ -729,14 +728,10 @@ export function load(world) {
   fill.set('paint0', [paint, 0.95]); fill.set('paint1', [paint, 0.7]); fill.set('paint2', [paint, 0.42]);
 
   // Low classes first, so at a junction the bigger road's surface lies on top.
-  const order = [];
-  for (const f of fams) {
-    order.push(f + ':surface', f + ':verge');
-    if (f === 'track') order.push('track:ruts', 'track:grass');
-    else order.push(f + ':wear');
-    if (f === 'main') order.push('main:patch', 'reserve');
-  }
-  order.push('paint2', 'paint1', 'paint0');
+  // The marks above the surfaces already stop at other roads' edges, so they
+  // share one layer each whatever the road: fewer, larger fills.
+  const order = ['track:surface', 'track:ruts', 'track:grass', 'track:verge', 'old:surface', 'worn:surface', 'main:surface',
+    'main:patch', 'reserve', 'verge', 'wear', 'paint2', 'paint1', 'paint0'];
 
   const runs = [];
   for (const ch of chains) {
