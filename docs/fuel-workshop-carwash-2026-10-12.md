@@ -101,7 +101,16 @@ and a pulsing highlight on the road beneath each so a young player spots it
 at once. The pulse keeps time with the animal's gait: a rabbit hops across, a
 hedgehog shuffles, stops and shuffles again, a fox bounds.
 
+Later the same night (Marcus): the highlight is a soft halo about twice the
+animal's width, not a thin ring (32A), so a young child cannot miss it. The
+five missing animals are painted to match the house hedgehog and fox and used
+as painted (35, 36A): rabbit B, duck B, duckling B, pheasant B (its
+chicken-style under-beak wattle painted out), deer C (a roe buck: the antlers
+say "deer" at road size).
+
 ## Tube man prototype (29A, 2026-10-12)
+
+Marcus approved it as it is (34A): it stands at the west station's car wash.
 
 Steve is painted and animated in code: `apps/game/public/admin/tube-man.html`
 (add `?seed=` to pick a Steve and `?reduced=1` for reduced motion), module

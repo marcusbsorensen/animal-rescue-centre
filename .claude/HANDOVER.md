@@ -46,6 +46,16 @@ wrong gear costs (speed camera, jostle, dust; traffic queues if too slow on
 the dual). Recorded in the gears section of `docs/driving-rebuild-2026-10-11.md`
 and memory `arc-consequences-not-locks`.
 
+**Answered after the merges:** 31A road paint medium (`?road=1`, already the
+default); 32A the crossing glow a soft halo about twice the animal's width,
+still gait-synced; 33A the gear knob pulses ONLY when her gear does not suit
+the road (in 2nd on a main road nothing pulses): check both gear branches do
+this when merging, since their prompts left it ambiguous, and record 31A/33A
+in `docs/driving-rebuild-2026-10-11.md` then; 34A tube man approved for the
+west car wash; 35 rabbit B, duck B, duckling B, pheasant B (wattle painted
+out), deer C; 36A used as painted. A local agent is installing the five
+animals and the halo in `crossings.js`.
+
 **In flight (cloud; check with RemoteTrigger list_runs and git ls-remote,
 merge, run the checks, screenshot for Marcus):**
 - `arc-van-upkeep` (`trig_012zZPH77nGzTcAEouSRpmER`) → `claude/van-upkeep`: game-logic model for fuel, charge, wear, dirt (decisions 22–28), part codes fixed, doc with questions for Marcus.
