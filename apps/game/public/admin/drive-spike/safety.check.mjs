@@ -183,6 +183,17 @@ function stepCar(car, R, T, X, dt, input, stats) {
   t.speedCap = Math.min(t.speedCap, x.speedCap);
   if (t.laneBlocked || !R.canOvertakeAt(car.s)) car.laneWant = 0;
   if (t.laneHold) car.laneWant = 1;
+  // The page's peekStep (37A): looking out, and past halfway an overtake if
+  // the road allows it.
+  const mayOvertake = !t.laneBlocked && R.canOvertakeAt(car.s);
+  if (car.laneWant === 1) car.returning = false;
+  else if (car.prevWant === 1) car.returning = true;
+  if (car.returning && car.laneT <= 0.001) car.returning = false;
+  car.ask = car.laneWant === 0 && !car.returning ? input.ask : 0;
+  if (car.laneWant === 0 && !car.returning && car.ask >= 0.5 && mayOvertake) { car.laneWant = 1; car.ask = 0; }
+  car.prevWant = car.laneWant;
+  car.peek = car.laneWant === 0 && !car.returning;
+  car.peekT = car.peek && R.canOvertakeAt(car.s) ? Math.min(1, car.ask / 0.5) * Math.min(0.38, t.peekMax ?? 0) : 0;
   stats.praised += x.events.length;
   const toGo = R.length - car.s;
   const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
@@ -204,7 +215,8 @@ function stepCar(car, R, T, X, dt, input, stats) {
   const off0 = R.laneOffset(0, car.s), off1 = R.laneOffset(1, car.s);
   const span = Math.abs(off1 - off0) || LANE_M;
   const stepT = 7 * dt / span;
-  car.laneT += Math.max(-stepT, Math.min(stepT, car.laneWant - car.laneT));
+  const goal = car.laneWant === 1 ? 1 : car.peek ? car.peekT : 0;
+  car.laneT += Math.max(-stepT, Math.min(stepT, goal - car.laneT));
   if (car.base == null) car.base = off0;
   car.base += Math.max(-4 * dt, Math.min(4 * dt, off0 - car.base));
   car.lane = car.base + car.laneT * (off1 - off0);
@@ -253,7 +265,7 @@ function drive(seed) {
     totals.routes++;
   };
   fresh();
-  const input = { throttle: false, handbrake: false };
+  const input = { throttle: false, handbrake: false, ask: 0, askFor: 0 };
   let tInput = 0, arrivedFor = 0, t = 0;
   const prevV = new Map(), stand = new Map(), closedSince = new Map(), counted = new Set(), waited = new Set();
   const end = MINUTES * 60;
@@ -266,7 +278,10 @@ function drive(seed) {
       input.handbrake = !input.throttle && r() < 0.12;
       tInput = input.throttle ? 0.5 + r() * 10 : 0.2 + r() * 3;
       if (r() < 0.3) car.gear = 1 + ((r() * 3) | 0);
-      if (r() < 0.3) car.laneWant = r() < 0.5 ? 0 : 1;
+      if (r() < 0.3) {
+        if (r() < 0.5) { car.laneWant = 0; input.ask = 0; }
+        else { input.ask = r() < 0.5 ? 1 : 0.1 + r() * 0.55; input.askFor = 0.2 + r() * 3; }
+      }
     }
     let held = input.throttle, hb = input.handbrake;
     if (r() < watchful) {
@@ -277,7 +292,9 @@ function drive(seed) {
     }
     const kind = R.kindAt(car.s);
     totals.byKind[kind] = (totals.byKind[kind] ?? 0) + dt / 60;
-    const arrived = stepCar(car, R, T, X, dt, { throttle: held, handbrake: hb }, stats);
+    if (input.ask > 0 && (input.askFor -= dt) <= 0) input.ask = 0;   // let go
+    const arrived = stepCar(car, R, T, X, dt, { throttle: held, handbrake: hb, ask: input.ask }, stats);
+    if (car.laneWant === 1) input.ask = 0;   // the swipe is spent on the overtake
 
     // Which way each vehicle is giving way: the closed stretches now.
     const closed = crossings.closed(X);

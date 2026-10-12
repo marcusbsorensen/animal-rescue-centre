@@ -81,7 +81,7 @@
         <button id="a28Btn">to A28 town</button>
       </span>
     </div>
-    <div id="note" hidden>hold the road to go · swipe or ←/→ to change lane · space = go · 1–3 gears · B = handbrake · H = horn · G = guide line</div>
+    <div id="note" hidden>hold the road to go · swipe right or hold → to look out, further to overtake · swipe left or ← to come back · space = go · 1–3 gears · B = handbrake · H = horn · G = guide line</div>
   </div>
   <div id="toast"></div>
 </div>
@@ -582,7 +582,39 @@ function pickRoute(fromId) {
 
 // ---------------------------------------------------------------- the driving
 
-const car = { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, road: 'tertiary', jostle: 0 };
+const car = { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, road: 'tertiary', jostle: 0,
+  ask: 0, peek: true, peekT: 0, peekSafe: false, returning: false };
+
+/** Poking out to look before overtaking (Marcus, 2026-10-12, 37A). Her
+ *  swipe towards the middle of the road (or how long she holds →) is
+ *  car.ask, 0 to 1. Up to halfway the van eases out that share of PEEK_T
+ *  across, to look past what is in front; let go before halfway and it
+ *  eases back. Past halfway it overtakes, but only when traffic.js says
+ *  the road allows it: otherwise it stays at the look, and eases back when
+ *  she lets go. The look never goes further than traffic.js's peekMax,
+ *  which keeps it clear of anything coming the other way. A sign by the
+ *  centre line ahead of the van says wait or go while she looks. */
+const PEEK_T = 0.38;          // the furthest look: her offside wheels just over the centre line
+const SWIPE_FULL_PX = 96;     // a swipe this far right asks for the whole way; half of it overtakes
+const KEY_FULL_S = 1.4;       // holding → this long asks for the whole way (0.7 s to overtake)
+let keyRight = false, prevWant = 0;
+function peekStep(dt, t) {
+  const mayOvertake = !t.laneBlocked && canOvertakeAt(car.s);
+  if (car.laneWant === 1) car.returning = false;
+  else if (prevWant === 1) car.returning = true;           // coming back in from an overtake
+  if (car.returning && car.laneT <= 0.001) car.returning = false;
+  if (car.laneWant === 0 && !car.returning) {
+    if (keyRight) car.ask = Math.min(1, car.ask + dt / KEY_FULL_S);
+    if (car.ask >= 0.5 && mayOvertake) { car.laneWant = 1; car.ask = 0; }
+  } else car.ask = 0;
+  prevWant = car.laneWant;
+  car.peek = car.laneWant === 0 && !car.returning;
+  car.peekT = car.peek && canOvertakeAt(car.s)
+    ? Math.min(1, car.ask / 0.5) * Math.min(PEEK_T, t.peekMax ?? 0) : 0;
+  car.peekSafe = mayOvertake;
+}
+/** Let go: a look not yet past halfway eases back in. */
+function letGo() { if (car.laneWant === 0) car.ask = 0; }
 
 /** The camera's own heading, which is NOT the route's. The route is straight
  *  segments between graph nodes, so its tangent snaps by up to 55 degrees at a
@@ -680,6 +712,7 @@ function step(dt) {
   // Something is alongside in our own lane: a swipe back now would be a
   // side-on touch, so traffic holds the van out until there is room.
   if (t.laneHold) car.laneWant = 1;
+  peekStep(dt, t);
   for (const ev of [...t.events, ...x.events]) toast(ev);
 
   // Pulling up at the destination. The van eases to a stop at the gate on
@@ -727,7 +760,8 @@ function step(dt) {
   const off0 = laneOffset(0, car.s), off1 = laneOffset(1, car.s);
   const span = Math.abs(off1 - off0) || LANE_M;
   const stepT = 7 * dt / span;
-  const dT = Math.max(-stepT, Math.min(stepT, car.laneWant - car.laneT));
+  const goal = car.laneWant === 1 ? 1 : car.peek ? car.peekT : 0;
+  const dT = Math.max(-stepT, Math.min(stepT, goal - car.laneT));
   car.laneT += dT;
   if (car.base == null) car.base = off0;
   car.base += Math.max(-4 * dt, Math.min(4 * dt, off0 - car.base));
@@ -826,6 +860,7 @@ function draw() {
   ctx.restore();
 
   drawVan(w, vanY, ppm);
+  drawPeekSign(w, vanY, ppm);
   drawSpeedCamera(w, roadH);
   if (dash) {
     dashboard.draw(ctx, dash, w, h, {
@@ -913,13 +948,48 @@ function drawGuide() {
   for (let d = 0; d <= ahead; d += 4) {
     const p = atDistance(Math.min(routeLen, car.s + d));
     const nx = Math.cos(p.h + Math.PI / 2), ny = Math.sin(p.h + Math.PI / 2);
-    const off = d < 12 ? car.lane : laneOffset(car.laneWant, car.s + d);
+    const lane = car.laneWant === 1 || (car.peek && car.peekSafe && car.laneT > 0.02) ? 1 : 0;
+    const off = d < 12 ? car.lane : laneOffset(lane, car.s + d);
     const x = p.x + nx * off, y = p.y + ny * off;
     if (d === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   }
   ctx.strokeStyle = 'rgba(70,120,210,.72)';
   ctx.lineWidth = 0.9; ctx.lineCap = 'round';
   ctx.stroke();
+}
+
+/** While she pokes out to look (37A): a small round sign by the centre
+ *  line just ahead of the van, green with an arrow when the road allows an
+ *  overtake, amber with a pause when it does not. No words. It fades in as
+ *  she eases out and away as she comes back. */
+function drawPeekSign(w, vanY, ppm) {
+  if (!car.peek || !canOvertakeAt(car.s)) return;
+  const off0 = laneOffset(0, car.s), off1 = laneOffset(1, car.s);
+  if (Math.abs(off1 - off0) < 1e-3) return;
+  const k = Math.min(1, Math.max(car.ask * 2.5, car.laneT / (PEEK_T * 0.5)));
+  if (k < 0.02) return;
+  const x = w * VAN_SX + ((off0 + off1) / 2 - car.lane) * ppm;
+  const y = vanY - ((car.length || 4.8) / 2 + 2.4) * ppm;
+  const r = Math.max(13, 0.62 * ppm);
+  ctx.save();
+  ctx.globalAlpha = k;
+  ctx.translate(x, y);
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = car.peekSafe ? '#3b9d58' : '#e2a23b'; ctx.fill();
+  ctx.lineWidth = Math.max(2, r * 0.16); ctx.strokeStyle = '#fffaf0'; ctx.stroke();
+  ctx.fillStyle = '#fffaf0';
+  if (car.peekSafe) {
+    // An arrow up the road and over: go.
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.62); ctx.lineTo(r * 0.5, -r * 0.05); ctx.lineTo(r * 0.18, -r * 0.05);
+    ctx.lineTo(r * 0.18, r * 0.55); ctx.lineTo(-r * 0.18, r * 0.55); ctx.lineTo(-r * 0.18, -r * 0.05);
+    ctx.lineTo(-r * 0.5, -r * 0.05); ctx.closePath(); ctx.fill();
+  } else {
+    // Two bars: wait.
+    ctx.fillRect(-r * 0.38, -r * 0.45, r * 0.26, r * 0.9);
+    ctx.fillRect(r * 0.12, -r * 0.45, r * 0.26, r * 0.9);
+  }
+  ctx.restore();
 }
 
 function drawVan(w, vanY, ppm) {
@@ -991,7 +1061,7 @@ function toast(ev) {
 function updateHud() {
   document.getElementById('gearChip').textContent = handbrake ? 'BRAKE' : String(car.gear);
   document.getElementById('speedChip').textContent = Math.round(car.v * 2.237) + ' mph';
-  document.getElementById('laneChip').textContent = car.laneWant === 0 ? 'left lane'
+  document.getElementById('laneChip').textContent = car.laneWant === 0 ? (car.peek && car.laneT > 0.02 ? 'looking' : 'left lane')
     : bigRoadAt(car.s) || (car.cw?.kind === 'divided' && car.cw.lanes >= 2) ? 'fast lane' : 'overtaking';
 
   const chip = document.getElementById('roadChip');
@@ -1015,7 +1085,7 @@ function updateHud() {
 // the road holds the throttle or swipes between lanes.
 const goPointers = new Set();
 let spaceDown = false, keyBrake = false, brakePointer = null;
-let dragId = null, dragX = null;
+let dragId = null, dragX = null, dragLane = 0;
 function setThrottle() { throttle = spaceDown || goPointers.size > 0; }
 function setHandbrake() { handbrake = keyBrake || brakePointer !== null; }
 function honk() { if (dash) dashboard.honk(dash); toast('beep'); }
@@ -1032,16 +1102,24 @@ function onDown(e) {
     return;
   }
   goPointers.add(e.pointerId); setThrottle();
-  if (dragId === null) { dragId = e.pointerId; dragX = e.clientX; }
+  if (dragId === null) { dragId = e.pointerId; dragX = e.clientX; dragLane = car.laneWant; }
 }
 function onMove(e) {
   if (e.pointerId !== dragId || dragX === null) return;
-  const dx = (e.clientX ?? dragX) - dragX;
-  if (Math.abs(dx) > 26) { car.laneWant = dx > 0 ? 1 : 0; dragX = e.clientX; }
+  // The swipe is measured from where it started, or from where the van last
+  // changed lane under it, or from as far left as it has been.
+  if (car.laneWant !== dragLane) { dragLane = car.laneWant; dragX = e.clientX; }
+  let dx = (e.clientX ?? dragX) - dragX;
+  if (car.laneWant === 1) {
+    if (dx < -26) { car.laneWant = 0; dragLane = 0; dragX = e.clientX; }
+    return;
+  }
+  if (dx < 0) { dragX = e.clientX; dx = 0; }
+  if (!car.returning) car.ask = Math.min(1, dx / SWIPE_FULL_PX);
 }
 function onUp(e) {
   goPointers.delete(e.pointerId); setThrottle();
-  if (e.pointerId === dragId) { dragId = null; dragX = null; }
+  if (e.pointerId === dragId) { dragId = null; dragX = null; letGo(); }
   if (e.pointerId === brakePointer) { brakePointer = null; setHandbrake(); }
 }
 canvas.addEventListener('pointerdown', onDown);
@@ -1051,15 +1129,17 @@ window.addEventListener('pointercancel', onUp);
 
 window.addEventListener('keydown', e => {
   if (e.key === ' ') { spaceDown = true; setThrottle(); e.preventDefault(); }
-  if (e.key === 'ArrowRight') car.laneWant = 1;
-  if (e.key === 'ArrowLeft') car.laneWant = 0;
+  if (e.key === 'ArrowRight') keyRight = true;   // held: eases out to look, then overtakes
+  if (e.key === 'ArrowLeft') { keyRight = false; car.ask = 0; car.laneWant = 0; }
   if (e.key === 'b' || e.key === 'B') { keyBrake = true; setHandbrake(); }
   if ((e.key === 'h' || e.key === 'H') && !e.repeat) honk();
   if ((e.key === 'g' || e.key === 'G') && !e.repeat && !e.ctrlKey && !e.metaKey) setGuide(!showGuide);
   if (['1', '2', '3'].includes(e.key) && !e.repeat) setGear(Number(e.key));
 });
+window.addEventListener('blur', () => { keyRight = false; letGo(); });
 window.addEventListener('keyup', e => {
   if (e.key === ' ') { spaceDown = false; setThrottle(); }
+  if (e.key === 'ArrowRight') { keyRight = false; letGo(); }
   if (e.key === 'b' || e.key === 'B') { keyBrake = false; setHandbrake(); }
 });
 

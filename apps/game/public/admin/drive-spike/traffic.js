@@ -24,6 +24,12 @@
 //   - laneBlocked keeps the van out of the oncoming lane unless the whole
 //     overtake fits before the next oncoming vehicle, and never near a sharp
 //     bend, on a track, or across the ends of the dual carriageway
+//   - poking out to look (37A) is not overtaking: the van stays in lane 0
+//     (laneWant 0) and eases part way out, never further than peekMax, which
+//     keeps it PEEK_MARGIN clear of anything coming the other way. While it
+//     looks, an oncoming vehicle conflicts with it only if they really
+//     overlap sideways (they never do), and there is nothing to hold it out
+//     for: it comes back in whenever she lets go
 //   - the one move the page does not let us refuse is the child swiping BACK
 //     to lane 0 while something is alongside. Then step() sets van.laneWant
 //     back to 1 (the van stays out until there is room, then returns by
@@ -57,6 +63,9 @@
  * @property {number} width    metres
  * @property {number} [laneT]  0..1 across from lane 0 to lane 1 (the page has it)
  * @property {number} [gear]   1..3 (the page has it; used for the beep)
+ * @property {boolean} [peek]  she is easing out to look (37A), not overtaking:
+ *           laneWant is 0 and the van may be part way out
+ * @property {number} [peekT]  how far out she is asking to look, 0..1 across
  */
 
 /**
@@ -68,6 +77,9 @@
  * @property {boolean} laneBlocked the overtaking lane is not safe now. The
  *           spike refuses a swipe into it and, if the van is already there,
  *           brings it back, which also counts as a swerve.
+ * @property {number} peekMax     how far out (laneT, 0..1) the van may ease to look
+ *           without coming within PEEK_MARGIN of anything coming the other way,
+ *           and 0 near a sharp bend or a change of road
  * @property {string[]} events     one-off moments for the HUD, e.g. 'close'
  *           for a clean overtake (the reference's "CLOSE!"), 'beep' for a
  *           queue behind a van in first gear on a dual carriageway.
@@ -173,6 +185,9 @@ const DESPAWN_BEHIND = 95, DESPAWN_AHEAD = 340;
 const IN_VIEW = 70;       // metres from the van inside which nothing pops in or out
 const BEND_M = 60;        // no overtaking this close before a sharp bend
 const BEND_DEG = 30;
+const PEEK_MARGIN = 0.7;   // metres kept between a peeking van and anything coming the other way
+const PEEK_LOOK = 150;     // how far ahead an oncoming vehicle limits the peek
+const PEEK_NEAR_M = 40;    // no peeking this near a sharp bend or a change of road
 const OWN_BEND_M = 45;    // in our own second lane, back in this far before a sharp bend or its end      // a "sharp bend": the route turns more than this within 30 m
 const CORNER_DEG = 22;    // past this, oncoming traffic takes a corner one at a time with the van
 const LANE_CHANGE_S = 0.7;
@@ -390,10 +405,13 @@ export function step(T, dt, van, world = {}) {
     : Math.abs(span) < 1e-3 ? (van.laneWant ? 1 : 0) : clamp((van.lane - off0) / span, 0, 1);
 
   // ---- 1. may the van be in the overtaking lane, and may it come back?
+  const peeking = !!van.peek && van.laneWant === 0;
   const unsafe = laneUnsafe(T, van, vb, laneT);
   const inLane1 = laneT > 0.001;
   if (T.pendingReturn && van.laneWant === 1 && !inLane1) T.pendingReturn = false;
-  const wantsBack = inLane1 && (van.laneWant === 0 || unsafe || T.pendingReturn);
+  // Easing back from a look is not coming back from an overtake: nothing
+  // can be alongside it, and nothing holds it out.
+  const wantsBack = !peeking && inLane1 && (van.laneWant === 0 || unsafe || T.pendingReturn);
   // Once a return is under way the caps on both sides already hold the gaps,
   // so only something actually alongside turns it round.
   const underway = laneT < 0.999 && van.laneWant === 0;
@@ -416,15 +434,17 @@ export function step(T, dt, van, world = {}) {
   // it sweeps sideways.
   const occ0 = laneT < 0.999 || want === 0;
   const occ1 = laneT > 0.001 || want === 1;
-  const tgtLat = off0 + want * span;
+  const tgtLat = off0 + Math.max(want, peeking ? clamp(van.peekT ?? 0, 0, 1) : 0) * span;
   const bandLo = Math.min(van.lane, tgtLat) - van.width / 2;
   const bandHi = Math.max(van.lane, tgtLat) + van.width / 2;
   const conflicts = (w) => {
     const latHit = w.d + w.W / 2 + 0.3 > bandLo && w.d - w.W / 2 - 0.3 < bandHi;
     if (latHit) return true;
     if (w.dir > 0) return occ0;
+    if (peeking) return false;   // looking, not out: only a real overlap counts
     return occ1 && lane1Oncoming(T, w.s);
   };
+  const peekMax = peekRoom(T, van, vb, off0, span);
 
   // ---- 2. the vehicles move
   for (const w of T.vehicles) {
@@ -526,8 +546,8 @@ export function step(T, dt, van, world = {}) {
   // ---- 5. arrivals and departures
   populate(T, van, vb, dt);
 
-  T.last = { speedCap, capBy, laneBlocked, hold: T.hold, laneT, unsafe };
-  return { speedCap, laneBlocked, laneHold: T.hold, events };
+  T.last = { speedCap, capBy, laneBlocked, hold: T.hold, laneT, unsafe, peekMax };
+  return { speedCap, laneBlocked, laneHold: T.hold, peekMax, events };
 }
 
 /** How much further back than the band the van sits behind a leader, metres:
@@ -704,6 +724,26 @@ function laneUnsafe(T, van, vb, laneT) {
     if (D < need * (vGear + vo) + 25) return 'oncoming';
   }
   return '';
+}
+
+/** How far out the van may ease to look (laneT, 0..1): its offside kept
+ *  PEEK_MARGIN clear of every vehicle coming the other way within
+ *  PEEK_LOOK, and not at all near a sharp bend or a change of road, where
+ *  the lanes fold or move under it, nor within BEND_M of a bend it could
+ *  not overtake round. */
+function peekRoom(T, van, vb, off0, span) {
+  if (Math.abs(span) < 1e-3) return 0;
+  if (T.zones.some(z => z.sharp && z.b > vb.rear - 2 && z.a < vb.front + PEEK_NEAR_M)) return 0;
+  // Nor looking out where it could not overtake for a bend: there is nothing
+  // to see round it.
+  if (T.bends.some(b => b >= vb.rear - 10 && b <= vb.front + BEND_M + 3 && lane1Oncoming(T, b))) return 0;
+  if (anyPoint(T.boundaries, vb.rear - 5, vb.front + PEEK_NEAR_M)) return 0;
+  let lat = Infinity;
+  for (const w of T.vehicles) {
+    if (w.dir > 0 || w.s + w.L / 2 < vb.rear - 2 || w.s - w.L / 2 - vb.front > PEEK_LOOK) continue;
+    lat = Math.min(lat, w.d - w.W / 2 - PEEK_MARGIN);
+  }
+  return clamp((lat - van.width / 2 - off0) / span, 0, 1);
 }
 
 /** The vehicle in lane 0 that the van cannot move back in beside, or null. */
