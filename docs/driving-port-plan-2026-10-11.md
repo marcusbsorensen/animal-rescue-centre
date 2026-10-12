@@ -302,9 +302,9 @@ later the same day):
 | 2 | Zoom (see the spec). |
 | 3 | Calming, water/treat/blanket, and crate rearranging for squabbles (see the spec). |
 | 4 | (a) in landscape the van sits lower and the camera pulls back. |
-| 5 | (a) the rotation stays; shake, judder and the speed camera's white flash go under reduced motion. |
+| 5 | (a) the rotation stays; shake, judder and the speed camera's white flash go under reduced motion. The 30A gear prompt holds steady instead of pulsing, with a toast (`driveJolts().gearHintPulse`). |
 | 6 | (a) Park and Reverse are dropped. |
-| 7 | (a) a speed camera fires on "too fast for this road". |
+| 7 | (a) a speed camera fires on "too fast for this road". Since 30A (2026-10-12) it is `gearCosts(...).speedCamera` in `road-gears.ts`, one of the wrong gear's costs; no gear is locked by road. |
 | 8 | Supply runs are the delivery race: nothing alive aboard. |
 | 9 | (a) true relative widths, Henry at the measured size. |
 | 10 | (a) Trikey's routes avoid dual carriageways. Refined later the same day (Marcus, option D): she also uses cycle paths and farm tracks, and may cross a dual carriageway, but **only by a bridge or a tunnel**, never at road level, "otherwise it teaches something very dangerous to kids". Places she still cannot reach say "too far for Trikey" in the vehicle picker. |

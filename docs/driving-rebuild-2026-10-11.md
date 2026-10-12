@@ -87,6 +87,18 @@ crossing animal) come sooner and more often; too slow on the big road queues
 the traffic behind her. The knob that suits the road pulses as a hint she may
 ignore.
 
+*In the real game (2026-10-12, `claude/road-gears-30a`):* `road-gears.ts` says
+it as pure functions: `suitingGears`/`bestGear` (the road's top suiting gear,
+by A28 carriageway too), `gearFit`, `gearCosts` (speed camera, a jostle
+multiplier, sooner self-stops, `queue`, `dust`) and the knob prompt
+(`stepGearHint`/`pickGear`: 0.6 s after a mismatch, hushed once she picks a
+suiting gear, back on a new road). `ride-comfort.ts` takes the multiplier, the
+sooner stops (still EMERGENCY, so still rough) and the gear's soft pull near
+its top. `PtvDriveScene` glows the knob (steady, with a toast, under reduced
+motion), knocks the animals harder while too fast, brakes itself sooner behind
+traffic, draws the dust and beeps the queue once a stretch. Nothing refuses,
+dims or caps a gear by road. Not yet ported: the big numeral, clunk and lurch.
+
 **How the road prompts her (30A, Marcus, 2026-10-12, first pass; the lock in
 it is superseded by the paragraph above).** He had not noticed the gears at
 all. In the wrong gear for the road, the knob for the right one glows and
