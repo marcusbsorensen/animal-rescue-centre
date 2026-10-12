@@ -11,19 +11,26 @@
 // So while she pokes out to look (37A), a 16:9 window framed in the GPS's
 // painted bezel slides in from the right edge at the top, as far in as she
 // is poking out: it opens as she eases out and closes as she eases back.
-// It is a second camera into the same top-down world, turned with the main
-// camera, so the road in it runs the way the road on screen runs. Eased
-// out a little, it sits close behind the vehicle in front; eased out all
-// the way, it pulls back along the oncoming lane until it frames whatever
-// makes the overtake unsafe (a vehicle coming, a bend, the road ending),
-// ringed (and, when it is far enough to be small, shown close up in a round
-// magnifier beside the ring), with the same wait or go sign as the one by
-// the centre line. As
-// she eases out its camera moves out to the oncoming lane and on past it,
-// so the vehicle in front slides left across it and the oncoming lane and
-// the road beyond open up on its right; while only part of the window is
-// in, the picture is centred on that part. Under reduced motion it does
-// not slide: it is there or it is not.
+// Under reduced motion it does not slide: it is there or it is not.
+//
+// What is in it (decision 54B, Marcus, after Lily asked to see why she
+// cannot overtake): the road ahead seen from behind her van, at the eye
+// height of whoever drives it, looking forward along her route from where
+// she has poked out to. The back of the vehicle she follows is on the
+// left, her lane and the oncoming lane run ahead, and anything coming
+// towards her shows its front. "We are not showing a rear view mirror or
+// anything that comes from the top": no mirror, nothing from above.
+// behind-view.js draws the picture; this file places the camera, the
+// window, the ring and the sign.
+//
+// As she eases out the camera moves right, out to the oncoming lane and a
+// little past it, so the vehicle in front slides left and the oncoming road
+// opens up. Eased out all the way, it looks towards whatever makes the
+// overtake unsafe (a vehicle coming, a bend, the road ending, a farm track)
+// and narrows in on it until it reads, ringed in amber (and, when a vehicle
+// coming is still small, shown close up in a round magnifier beside the
+// ring), with the same wait or go sign as the one by the centre line. While
+// only part of the window is in, the picture is centred on that part.
 //
 // It never covers the van: its height gives way to keep clear of the van's
 // roof. The page fades the label chips while it covers them.
@@ -33,16 +40,19 @@
 //   step(LA, dt, p, reduce)     p: how far she is poking out, 0..1 (0 = closed)
 //   rect(LA, w, h, vanTop)      the window's outside as it is now, or null
 //                               when shut, { x, y, w, h }
-//   draw(ctx, LA, w, h, s, drawWorld, paint)
-//       s = { camH, van: { s, x, y, front }, reason: { s, lat, r } | null,
+//   draw(ctx, LA, w, h, s, world, paint)
+//       s = { van: { s, front, id }, reason: { s, lat, r } | null,
 //             horizon, safe, vanTop, season, sun, reduce }
 //       reason is what makes lane 1 unsafe, at distance s along the route,
 //       lat metres off the centreline, r metres round; horizon is how far
-//       along the route to show when nothing does. drawWorld(view, roadR)
-//       draws the world under a transform the window has set, as the main
-//       view's is drawn. paint = { frame(ctx, x, y, w, h, b) -> screen,
-//       glass(ctx, screen) }: the dashboard's bezel and glass, or null for
-//       a plain one. Returns the window's outside, or null when shut.
+//       along the route the camera aims when nothing does. world = {
+//       ground(g, view, radius): the page's ground and roads into g under a
+//       transform the window has set; scenery, traffic, footprint(T, w) }.
+//       paint = { frame(ctx, x, y, w, h, b) -> screen, glass(ctx, screen) }:
+//       the dashboard's bezel and glass, or null for a plain one. Returns
+//       the window's outside, or null when shut.
+
+import * as behind from './behind-view.js';
 
 const ASPECT = 16 / 9;
 const TOP = 6;               // px from the screen's top
@@ -51,20 +61,22 @@ const BEZEL = 11;            // px, the painted frame
 const CLEAR_OF_VAN = 14;     // px kept between the window and the van's roof
 const MIN_INNER_H = 70;      // smaller than this and the window stays shut
 
-/** The two framings she moves between as she eases out. */
-const CLOSE = { ahead: 28, ppmMin: 3.2, ppmMax: 6 };   // close behind the vehicle in front
-const FAR = { ppmMin: 1.15, ppmMax: 6, margin: 15 };   // out to the reason
-/** Eased out all the way, everything in the window has slid this share of
- *  its width to the left, on top of the camera moving out to the oncoming
- *  lane: the vehicle in front goes left, the road beyond opens on its
- *  right. */
-const SLIDE = 0.07;
+/** Eye heights, metres above the road, of whoever drives each van. */
+const EYE = { trikey: 1.1, henry: 1.6, bea: 1.6, spark: 1.6, 'big-tilly': 2.4 };
+const SEAT_M = 1.8;          // the driver's eye, this far back from the van's nose
+const AIM_M = 32;            // the camera looks at the route this far ahead
+const PAST_M = 0.7;          // eased out all the way, the eye is this far past the oncoming lane's middle
+const HFOV = 68 * Math.PI / 180;   // across the window, before it narrows in on a reason
+const F0 = 0.5 / Math.tan(HFOV / 2);
+const ZOOM_MAX = 2.8;        // how far it may narrow in on a reason
+const REASON_PX = 30;        // and it narrows until the reason is about this wide on screen
+const HORIZON = 0.42;        // the horizon's height, as a share of the window from the top
 
 const OPEN_RATE = 14;        // per second: how closely the slide follows her
 const SNAP = 0.12;           // reduced motion: open past this much of a look
 
 export function create(route) {
-  return { route, p: 0, q: 0, t: 0, cam: null };
+  return { route, p: 0, q: 0, t: 0, cam: null, bv: null };
 }
 
 /** p is how far she is poking out, 0 to 1. q is how far the window is in. */
@@ -98,151 +110,125 @@ export function rect(LA, w, h, vanTop) {
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const smooth = t => t * t * (3 - 2 * t);
+const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 
-/** One framing: the stretch of route from sA to sB at latAt(s) metres off
- *  the centreline, fitted into the window's screen (iw x ih px), in the
- *  window's own frame (metres, x right, y down the screen, from the van).
- *  When it will not fit at ppmMin, the keep end stays in. */
-function frameOf(LA, s, sA, sB, latAt, iw, ih, lim, keepFar, extra) {
-  const { atDistance } = LA.route;
-  const c = Math.cos(s.rot), sn = Math.sin(s.rot);
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, near = null, far = null;
-  const n = 10;
-  for (let i = 0; i <= n; i++) {
-    const d = sA + (sB - sA) * i / n;
-    const p = atDistance(d), lat = latAt(d);
-    const wx = p.x - Math.sin(p.h) * lat - s.van.x, wy = p.y + Math.cos(p.h) * lat - s.van.y;
-    const x = wx * c - wy * sn, y = wx * sn + wy * c;
-    if (i === 0) near = { x, y };
-    if (i === n) far = { x, y };
-    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
-  }
-  // And the reason itself, ring and all, so the ring is never cut off.
-  if (extra) {
-    const wx = extra.x - s.van.x, wy = extra.y - s.van.y;
-    const x = wx * c - wy * sn, y = wx * sn + wy * c, r = extra.pad;
-    x0 = Math.min(x0, x - r); x1 = Math.max(x1, x + r); y0 = Math.min(y0, y - r); y1 = Math.max(y1, y + r);
-    if (keepFar) far = { x, y };
-  }
-  const m = 12;   // px kept clear inside the bezel
-  const fit = Math.min((iw - 2 * m) / Math.max(1, x1 - x0), (ih - 2 * m) / Math.max(1, y1 - y0));
-  const ppm = clamp(fit, lim.ppmMin, lim.ppmMax);
-  let cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-  if (fit < ppm) {
-    const k = keepFar ? far : near;
-    const hw = iw / 2 / ppm - m / ppm, hh = ih / 2 / ppm - m / ppm;
-    cx = clamp(cx, k.x - hw, k.x + hw);
-    cy = clamp(cy, k.y - hh, k.y + hh);
-  }
-  return { cx, cy, ppm, keep: keepFar ? far : near };
+/** A point lat metres off the route's centreline at distance d. */
+function along(route, d, lat) {
+  const p = route.atDistance(d);
+  return { x: p.x - Math.sin(p.h) * lat, y: p.y + Math.cos(p.h) * lat };
 }
 
-export function draw(ctx, LA, w, h, s, drawWorld, paint) {
-  const R0 = rect(LA, w, h, s.vanTop);
-  if (!R0) return null;
-  const { atDistance, laneOffset, length } = LA.route;
+/** Where the camera is and what it looks at, for how far out she is (e),
+ *  eased so a reason appearing or going does not jump the picture. */
+function camera(LA, s, iw, cxFrac) {
+  const { laneOffset, length } = LA.route;
   const end = length() - 1;
-  const rot = -s.camH - Math.PI / 2;
-  const st = { ...s, rot };
-
-  // The frame, then the world inside it.
-  const R = paint ? paint.frame(ctx, R0.x, R0.y, R0.w, R0.h, BEZEL) : inset(R0);
-  const iw = R.w, ih = R.h;
-
   const e = smooth(clamp(LA.p, 0, 1));
-  const off0 = d => laneOffset(0, clamp(d, 0, end));
-  const off1 = d => laneOffset(1, clamp(d, 0, end));
-  // The camera's lane: hers, moving out to the oncoming lane as she looks.
-  const latAt = d => off0(d) + e * (off1(d) - off0(d));
-  const sA = clamp(s.van.front - 3, 0, end);
-  const close = frameOf(LA, st, sA, clamp(sA + CLOSE.ahead, 0, end), latAt, iw, ih, CLOSE, false);
-  const farS = clamp(s.reason ? s.reason.s + FAR.margin : s.horizon, sA + CLOSE.ahead, end);
+  const latAt = d => {
+    const a = laneOffset(0, clamp(d, 0, end)), b = laneOffset(1, clamp(d, 0, end));
+    return a + e * (b - a + Math.sign(b - a) * PAST_M);
+  };
+  const sEye = clamp(s.van.front - SEAT_M, 0, end);
+  const eye = along(LA.route, sEye, latAt(sEye));
+  const sAim = clamp(sEye + AIM_M, 0, end);
+  const aim = along(LA.route, sAim, latAt(sAim));
+  let yaw = Math.atan2(aim.y - eye.y, aim.x - eye.x);
+  let f = F0;
+  // Eased out past halfway, it turns and narrows in on what blocks her.
+  const eFar = smooth(clamp((e - 0.5) / 0.5, 0, 1));
   let spot = null;
   if (s.reason) {
-    const p = atDistance(clamp(s.reason.s, 0, end));
-    spot = { x: p.x - Math.sin(p.h) * s.reason.lat, y: p.y + Math.cos(p.h) * s.reason.lat, pad: s.reason.r + 4 };
+    const sr = clamp(s.reason.s, 0, end);
+    spot = { ...along(LA.route, sr, s.reason.lat), r: s.reason.r };
+    const dx = spot.x - eye.x, dy = spot.y - eye.y, dist = Math.hypot(dx, dy);
+    if (eFar > 0 && dist > 4) {
+      const rel = wrap(Math.atan2(dy, dx) - yaw);
+      const want = clamp(REASON_PX * dist / (2 * spot.r * iw), F0, F0 * ZOOM_MAX);
+      f = Math.exp(lerp(Math.log(F0), Math.log(want), eFar));
+      // Keep it inside the middle of what the narrower view shows.
+      const lim = Math.atan2(0.32, f);
+      if (Math.abs(rel) > lim) yaw += (rel - Math.sign(rel) * lim) * eFar;
+    }
   }
-  const far = frameOf(LA, st, sA, farS, latAt, iw, ih, FAR, true, spot);
-  const target = {
-    cx: lerp(close.cx, far.cx, e), cy: lerp(close.cy, far.cy, e),
-    ppm: Math.exp(lerp(Math.log(close.ppm), Math.log(far.ppm), e)),
-  };
-  // The slide: the camera moves on to the right, so the picture goes left.
-  target.cx += e * SLIDE * iw / target.ppm;
-  // Whatever it is framing out to stays in the picture.
-  if (e > 0.5) {
-    const hw = iw / 2 / target.ppm - 12 / target.ppm, hh = ih / 2 / target.ppm - 12 / target.ppm;
-    target.cx = clamp(target.cx, far.keep.x - hw, far.keep.x + hw);
-    target.cy = clamp(target.cy, far.keep.y - hh, far.keep.y + hh);
-  }
-  // Ease towards the framing, so a reason appearing or going does not jump
-  // the picture; from the first frame open, start there.
+  const target = { yaw, f };
   if (!LA.cam) LA.cam = target;
   else {
     const k = 1 - Math.exp(-7 * (LA.dt ?? 1 / 60));
-    LA.cam = {
-      cx: lerp(LA.cam.cx, target.cx, k), cy: lerp(LA.cam.cy, target.cy, k),
-      ppm: Math.exp(lerp(Math.log(LA.cam.ppm), Math.log(target.ppm), k)),
-    };
+    LA.cam = { yaw: LA.cam.yaw + wrap(target.yaw - LA.cam.yaw) * k, f: Math.exp(lerp(Math.log(LA.cam.f), Math.log(target.f), k)) };
   }
-  const { cy, ppm } = LA.cam;
+  return {
+    cam: { x: eye.x, y: eye.y, yaw: LA.cam.yaw, eye: EYE[s.van.id] ?? EYE.henry, f: LA.cam.f, cx: cxFrac, yH: HORIZON },
+    spot, e,
+  };
+}
+
+export function draw(ctx, LA, w, h, s, world, paint) {
+  const R0 = rect(LA, w, h, s.vanTop);
+  if (!R0) return null;
+  if (!LA.bv) LA.bv = behind.create();
+
+  // The frame, then the picture inside it.
+  const R = paint ? paint.frame(ctx, R0.x, R0.y, R0.w, R0.h, BEZEL) : inset(R0);
   // While it is still sliding in, only its left part is on screen: the
   // picture is centred on that part, so the road shows from the first
   // sliver and slides left with the window as she eases out.
   const visR = Math.min(R.x + R.w, w - SIDE - BEZEL);
-  const cx = LA.cam.cx + (R.x + R.w / 2 - (R.x + visR) / 2) / ppm;
-  // Back from the window's frame to the world.
-  const c = Math.cos(rot), sn = Math.sin(rot);
-  const wx = s.van.x + cx * c + cy * sn, wy = s.van.y - cx * sn + cy * c;
+  const cxFrac = clamp(((R.x + visR) / 2 - R.x) / R.w, 0, 1);
+  const { cam, spot, e } = camera(LA, s, R.w, cxFrac);
+  const shot = behind.render(LA.bv, cam, { ...world, season: s.season, sun: s.sun }, { w: R.w, h: R.h });
 
   ctx.save();
   screenPath(ctx, R); ctx.clip();
-  ctx.fillStyle = '#8fbf6a'; ctx.fillRect(R.x, R.y, R.w, R.h);
-  ctx.save();
-  ctx.translate(R.x + R.w / 2, R.y + R.h / 2);
-  ctx.rotate(rot);
-  ctx.scale(ppm, ppm);
-  ctx.translate(-wx, -wy);
-  const radius = Math.hypot(R.w, R.h) / 2 / ppm + 6;
-  drawWorld({ cx: wx, cy: wy, radius, camH: s.camH, ppm, season: s.season, sun: s.sun }, radius);
-  ctx.restore();
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(LA.bv.out.el, R.x, R.y, R.w, R.h);
 
   // What makes it unsafe, ringed: amber, breathing unless reduced motion.
-  const toPx = (X, Y) => {
-    const dx = X - wx, dy = Y - wy;
-    return [R.x + R.w / 2 + (dx * c - dy * sn) * ppm, R.y + R.h / 2 + (dx * sn + dy * c) * ppm];
-  };
   const sr = clamp(R.h * 0.11, 12, 18);
+  const toScreen = (x, y) => [R.x + x / shot.scale, R.y + y / shot.scale];
   if (spot && !s.safe) {
-    const [x, y] = toPx(spot.x, spot.y);
-    const beat = s.reduce ? 0 : 0.5 + 0.5 * Math.sin(LA.t * 2 * Math.PI * 1.1);
-    const r = Math.max(11, s.reason.r * ppm) + 3 * beat;
-    ring(ctx, x, y, r);
-    // Pulled far back, a car coming is a few pixels long, so it is also
-    // shown close up in a round magnifier beside its ring, joined to it.
-    const rb = clamp(ih * 0.3, 32, 72);
-    const zoomB = clamp((2 * rb) / (2 * s.reason.r + 14), 4, 9);
-    if (e > 0.55 && zoomB > ppm * 1.8) {
-      const a = clamp((e - 0.55) / 0.3, 0, 1);
-      const gap = r + rb + 12;
-      let bx = x + gap;
-      if (bx + rb + 6 > visR - 2 * sr - 12) bx = x - gap;
-      bx = clamp(bx, R.x + rb + 6, visR - rb - 6);
-      const by = clamp(y + rb * 0.4, R.y + rb + 6, R.y + R.h - rb - 6);
-      ctx.save();
-      ctx.globalAlpha = a;
-      const d = Math.hypot(bx - x, by - y) || 1, ux = (bx - x) / d, uy = (by - y) / d;
-      ctx.lineWidth = 2.5; ctx.strokeStyle = '#e2a23b';
-      ctx.beginPath(); ctx.moveTo(x + ux * r, y + uy * r); ctx.lineTo(bx - ux * rb, by - uy * rb); ctx.stroke();
-      ctx.save();
-      ctx.beginPath(); ctx.arc(bx, by, rb, 0, Math.PI * 2); ctx.clip();
-      ctx.fillStyle = '#8fbf6a'; ctx.fillRect(bx - rb, by - rb, 2 * rb, 2 * rb);
-      ctx.translate(bx, by); ctx.rotate(rot); ctx.scale(zoomB, zoomB); ctx.translate(-spot.x, -spot.y);
-      const rB = rb / zoomB + 4;
-      drawWorld({ cx: spot.x, cy: spot.y, radius: rB, camH: s.camH, ppm: zoomB, season: s.season, sun: s.sun }, rB);
-      ctx.restore();
-      ring(ctx, bx, by, rb);
-      ctx.restore();
+    const v = behind.vehicleAt(LA.bv, spot.x, spot.y, spot.r + 2);
+    let pt = null, rr = 0;
+    if (v) {
+      const k = shot.P.f / v.nZ;
+      pt = [shot.P.cx + k * v.nX, shot.P.yH + k * (shot.P.eye - v.H / 2)];
+      rr = Math.max(v.Wd, v.H) * 0.75 * k / shot.scale;
+    } else {
+      const p = shot.project(spot.x, spot.y, 0.5);
+      if (p) { pt = [p.x, p.y]; rr = spot.r * p.k / shot.scale; }
+    }
+    if (pt) {
+      let [x, y] = toScreen(pt[0], pt[1]);
+      const beat = s.reduce ? 0 : 0.5 + 0.5 * Math.sin(LA.t * 2 * Math.PI * 1.1);
+      const r = Math.max(11, rr) + 3 * beat;
+      x = clamp(x, R.x + 6, visR - 6); y = clamp(y, R.y + 6, R.y + R.h - 6);
+      ring(ctx, x, y, r);
+      // Far up the road, a vehicle coming is a few pixels across, so it is
+      // also shown close up in a round magnifier beside its ring, joined
+      // to it: the same picture, larger, never a view from above.
+      const rb = clamp(R.h * 0.3, 32, 72);
+      const wpx = v ? v.Wd * shot.P.f / v.nZ / shot.scale : 99;
+      if (v && e > 0.55 && wpx < rb * 0.45) {
+        const a = clamp((e - 0.55) / 0.3, 0, 1);
+        const gap = r + rb + 12;
+        let bx = x - gap;
+        if (bx - rb < R.x + 6) bx = x + gap;
+        bx = clamp(bx, R.x + rb + 6, visR - rb - 2 * sr - 12);
+        const by = clamp(y + rb * 0.4, R.y + rb + 6, R.y + R.h - rb - 6);
+        const m = clamp(rb * 1.1 / (v.Wd * shot.P.f / v.nZ), 1.5, 14);   // screen px per internal px
+        ctx.save();
+        ctx.globalAlpha = a;
+        const d = Math.hypot(bx - x, by - y) || 1, ux = (bx - x) / d, uy = (by - y) / d;
+        ctx.lineWidth = 2.5; ctx.strokeStyle = '#e2a23b';
+        ctx.beginPath(); ctx.moveTo(x + ux * r, y + uy * r); ctx.lineTo(bx - ux * rb, by - uy * rb); ctx.stroke();
+        ctx.save();
+        ctx.beginPath(); ctx.arc(bx, by, rb, 0, Math.PI * 2); ctx.clip();
+        ctx.translate(bx, by); ctx.scale(m, m); ctx.translate(-pt[0], -pt[1]);
+        ctx.drawImage(LA.bv.out.el, 0, 0);
+        behind.drawVehicleAt(ctx, LA.bv, shot.P, v, m);
+        ctx.restore();
+        ring(ctx, bx, by, rb);
+        ctx.restore();
+      }
     }
   }
   // The same wait or go sign as by the centre line, at the right of what is
@@ -250,7 +236,7 @@ export function draw(ctx, LA, w, h, s, drawWorld, paint) {
   cue(ctx, visR - sr - 8, R.y + R.h - sr - 8, sr, s.safe);
   if (paint) paint.glass(ctx, R);
   ctx.restore();
-  LA.drawn = { R0, R, ppm, cx: wx, cy: wy };
+  LA.drawn = { R0, R, ms: shot.ms, scale: shot.scale, f: cam.f, yaw: cam.yaw, eye: cam.eye };
   return R0;
 }
 

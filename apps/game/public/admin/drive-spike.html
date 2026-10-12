@@ -487,7 +487,7 @@ const EMERGENCY = 26;  // m/s^2
 const FELT_S = 0.1;    // s: how long a stop takes to be felt
 
 const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');   // let: the look-ahead window borrows it to paint its ground (groundInto)
 
 let graph = null, adj = null, route = [], routeLen = 0;
 let vanImg = null;
@@ -988,7 +988,7 @@ function draw() {
     ppm, season: SEASON, sun: SUN,
   };
   look.nextFrame();
-  drawWorld(view, Math.max(w, h) / ppm, false);
+  drawWorld(view, Math.max(w, h) / ppm);
   ctx.restore();
 
   drawVan(w, vanY, ppm);
@@ -1005,22 +1005,19 @@ function draw() {
   }
   // What a test needs to measure the view: metres of road ahead of the van.
   car.view = { stripH, roadH, vanY, ppm, ahead: vanY / ppm, guide: showGuide,
-    look: win && { ...win, q: la.q, ppm: la.drawn?.ppm } };
+    look: win && { ...win, q: la.q, ms: la.drawn?.ms, scale: la.drawn?.scale } };
   updateHud(win);
 }
 
-/** Everything in the world, under a transform the caller has set: the road
- *  view's, or the look-ahead window's (inWindow), which also draws the van
- *  itself in the world, as the road view draws it on its pin. */
-function drawWorld(view, roadR, inWindow) {
+/** Everything in the world, under the road view's transform. */
+function drawWorld(view, roadR) {
   if (scn) scenery.drawGround(ctx, scn, view);
   drawRoads(view.cx, view.cy, roadR);
   if (scn) scenery.drawObjects(ctx, scn, view);
   if (showGuide) drawGuide();
   if (trf) traffic.draw(ctx, trf, view);
   if (xing) crossings.draw(ctx, xing, view);
-  if (inWindow) drawVanInWorld();
-  else if (dust.length) drawDust();
+  if (dust.length) drawDust();
 }
 
 /** The look-ahead window (look-ahead.js), while she pokes out. Returns its
@@ -1028,36 +1025,26 @@ function drawWorld(view, roadR, inWindow) {
 function drawLookAhead(w, h, vanTop, pos) {
   if (la.q <= 0) return null;
   return lookAhead.draw(ctx, la, w, h, {
-    camH: camH ?? pos.h,
-    van: { s: car.s, x: car.x, y: car.y, front: car.s + (car.length || 4.8) / 2 },
+    van: { s: car.s, front: car.s + (car.length || 4.8) / 2, id: VAN_ID },
     reason: lookReason(), horizon: car.s + LOOK_CLEAR_M,
     safe: car.laneWant === 1 ? !trf?.last?.unsafe : car.peekSafe,
     vanTop, season: SEASON, sun: SUN, reduce: reduceMotion.matches,
-  }, drawWorld, dash && {
+  }, { ground: groundInto, scenery: scn, traffic: trf, footprint: traffic.footprint }, dash && {
     frame: (g, x, y, ww, hh, b) => dashboard.windowFrame(g, dash, x, y, ww, hh, b),
     glass: (g, R) => dashboard.windowGlass(g, R),
   });
 }
 
-/** The van in world metres, for the look-ahead window: as drawVan draws it,
- *  its shadow along the sun. */
-function drawVanInWorld() {
-  const name = VAN_ID + '-rear';
-  const aspect = vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0;
-  const wm = VAN_W_M, hm = VAN_W_M * aspect, turn = (car.heading ?? 0) + Math.PI / 2;
-  ctx.save();
-  ctx.translate(car.x + SUN.x * 1.9, car.y + SUN.y * 1.9); ctx.rotate(turn);
-  if (!look.shadow(ctx, name, vanImg, VAN_W_M, wm, hm)) {
-    ctx.fillStyle = 'rgba(40,46,38,.22)';
-    ctx.beginPath(); ctx.ellipse(0, 0, wm * 0.46, hm * 0.46, 0, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.restore();
-  ctx.save();
-  ctx.translate(car.x, car.y); ctx.rotate(turn);
-  if (!look.body(ctx, name, vanImg, VAN_W_M, wm, hm, { key: 'van', odo: car.s, nose: 'up' })) {
-    ctx.fillStyle = '#749c66'; ctx.fillRect(-wm / 2, -hm / 2, wm, hm);
-  }
-  ctx.restore();
+/** The ground and the roads, without anything upright, into another canvas
+ *  g under a transform it has set: the look-ahead window's view from behind
+ *  the van lays this flat on the road and stands everything else up. */
+function groundInto(g, view, roadR) {
+  const own = ctx;
+  ctx = g;
+  try {
+    if (scn) scenery.drawGround(g, scn, view);
+    drawRoads(view.cx, view.cy, roadR);
+  } finally { ctx = own; }
 }
 
 /** Stroke the segment (ax,ay)-(bx,by) shifted sideways by off metres. The
