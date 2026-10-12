@@ -62,6 +62,9 @@ const crate = (slotIndex: number, animalId: string, species: LoadedCrate['specie
 
 const henryGrid = (crates: LoadedCrate[]): CrateGrid => ({ vehicle: 'small-van', cols: 2, rows: 2, crates });
 
+/** A Depot parts bag that can pay any bill. */
+const PLENTY = { rusty_bolt: 99, shiny_cog: 99, copper_wire: 99 };
+
 describe('places (22A)', () => {
   it('two stations, each with fuel, a wash and a charger; the tube man in the west', () => {
     for (const id of ['station-west', 'station-east'] as const) {
@@ -112,7 +115,7 @@ describe('level gates (28A)', () => {
     const half = { ...freshUpkeep(), energy: 0.5, dirtOutside: 0.8, wear: 0.9 };
     expect(refuel(half, 'small-van', 'station-west', 1).refused).toBe('not-yet');
     expect(wash(half, 'small-van', 'station-west', 3).refused).toBe('not-yet');
-    expect(service(half, 'small-van', 'workshop', 5)).toMatchObject({ refused: 'not-yet', coins: 0, parts: {} });
+    expect(service(half, 'small-van', 'workshop', 5, PLENTY)).toMatchObject({ refused: 'not-yet', coins: 0, parts: {} });
   });
 
   it('below the workshop gate the ride is never rougher and no light shows', () => {
@@ -255,11 +258,11 @@ describe('paying (24A)', () => {
   it('repairs cost Depot parts the Depot actually hands out, never coins', () => {
     const partCodes = new Set(ALL_REWARDS.filter((r) => r.category === 'part').map((r) => r.code));
     const u: VanUpkeep = { ...freshUpkeep(), wear: 0.9, supplyDamage: 100 };
-    const r = service(u, 'animal-lorry', 'workshop', 6);
+    const r = service(u, 'animal-lorry', 'workshop', 6, PLENTY);
     expect(r.coins).toBe(0);
     expect(Object.keys(r.parts).length).toBeGreaterThan(0);
     for (const code of Object.keys(r.parts)) expect(partCodes.has(code), code).toBe(true);
-    const trike = service({ ...freshUpkeep(), puncture: true }, 'pedal-trike', 'workshop', 6);
+    const trike = service({ ...freshUpkeep(), puncture: true }, 'pedal-trike', 'workshop', 6, PLENTY);
     for (const code of Object.keys(trike.parts)) expect(partCodes.has(code), code).toBe(true);
   });
 
@@ -324,22 +327,22 @@ describe('workshop (25A)', () => {
 
   it('the service puts it right, in parts, and the ride is smooth again', () => {
     const u = { ...freshUpkeep(), wear: 0.8 };
-    const r = service(u, 'small-van', 'workshop', 6);
+    const r = service(u, 'small-van', 'workshop', 6, PLENTY);
     expect(r.upkeep.wear).toBe(0);
     expect(r.parts).toEqual(T.SERVICE_PARTS);
     expect(rideRoughness(r.upkeep, 'small-van', 6)).toBe(1);
   });
 
   it('an early service is allowed and costs no parts; a fresh van is nothing to do', () => {
-    const early = service({ ...freshUpkeep(), wear: 0.2 }, 'small-van', 'workshop', 6);
+    const early = service({ ...freshUpkeep(), wear: 0.2 }, 'small-van', 'workshop', 6, PLENTY);
     expect(early.refused).toBeUndefined();
     expect(early.parts).toEqual({});
     expect(early.upkeep.wear).toBe(0);
-    expect(service(freshUpkeep(), 'small-van', 'workshop', 6).refused).toBe('nothing-to-do');
+    expect(service(freshUpkeep(), 'small-van', 'workshop', 6, PLENTY).refused).toBe('nothing-to-do');
   });
 
   it('the service is only at the workshop', () => {
-    expect(service({ ...freshUpkeep(), wear: 0.8 }, 'small-van', 'station-west', 6).refused).toBe('not-here');
+    expect(service({ ...freshUpkeep(), wear: 0.8 }, 'small-van', 'station-west', 6, PLENTY).refused).toBe('not-here');
   });
 
   it('supply-run damage is carried to the van and mended at the workshop', () => {
@@ -352,7 +355,7 @@ describe('workshop (25A)', () => {
     expect(needsWorkshop(damaged, 'small-van', 6)).toBe(true);
     // scratches + dents + rattles, as getRepairCost says for 36.
     expect(workshopParts(damaged, 'small-van', 6)).toEqual({ rusty_bolt: 4, shiny_cog: 1 });
-    expect(service(damaged, 'small-van', 'workshop', 6).upkeep.supplyDamage).toBe(0);
+    expect(service(damaged, 'small-van', 'workshop', 6, PLENTY).upkeep.supplyDamage).toBe(0);
   });
 
   it('supply-run damage is not kept below the workshop level', () => {
@@ -409,11 +412,9 @@ describe('Spark and Trikey (27A+B)', () => {
     expect(refuel({ ...freshUpkeep(), energy: 0.1 }, 'pedal-trike', 'station-west', 20).refused).toBe('not-here');
   });
 
-  it('Trikey does not wear and is not washed', () => {
+  it('Trikey does not wear', () => {
     const r = applyDrive(freshUpkeep(), drive({ vehicle: 'pedal-trike', level: 20, hardStops: 9, weather: 'snow' }, 20, 'track'));
     expect(r.upkeep.wear).toBe(0);
-    expect(r.upkeep.dirtOutside).toBe(0);
-    expect(wash(freshUpkeep(), 'pedal-trike', 'station-west', 20).refused).toBe('not-here');
   });
 
   it('Trikey gets the odd puncture, deterministically from the seed', () => {
@@ -425,7 +426,7 @@ describe('Spark and Trikey (27A+B)', () => {
         const r = applyDrive(u, drive({ vehicle: 'pedal-trike', level: 6, rng }));
         if (r.upkeep.puncture) {
           punctures++;
-          u = service(r.upkeep, 'pedal-trike', 'workshop', 6).upkeep;
+          u = service(r.upkeep, 'pedal-trike', 'workshop', 6, PLENTY).upkeep;
         } else {
           u = r.upkeep;
         }
@@ -463,7 +464,7 @@ describe('Spark and Trikey (27A+B)', () => {
     const flat = { ...freshUpkeep(), puncture: true };
     expect(rideRoughness(flat, 'pedal-trike', 6)).toBe(T.PUNCTURE_ROUGHNESS);
     expect(needsWorkshop(flat, 'pedal-trike', 6)).toBe(true);
-    const r = service(flat, 'pedal-trike', 'workshop', 6);
+    const r = service(flat, 'pedal-trike', 'workshop', 6, PLENTY);
     expect(r.parts).toEqual(T.PUNCTURE_PARTS);
     expect(r.upkeep.puncture).toBe(false);
   });
@@ -543,14 +544,12 @@ describe('dirt inside (26A extended)', () => {
     expect(squabblingPairs(g)).toHaveLength(4);
   });
 
-  it('crossing DIRTY_AT inside is its own event, and the wash does not clean it', () => {
+  it('crossing DIRTY_AT inside is its own event', () => {
     const u = { ...freshUpkeep(), dirtInside: T.DIRTY_AT - 0.01, dirtOutside: 0.9 };
     const r = applyDrive(u, drive({ vehicle: 'small-van', level: 4, grid: henryGrid([crate(0, 'a', 'cat', true)]) }));
     expect(r.events).toContainEqual({ type: 'dirty-inside' });
+    expect(r.events).not.toContainEqual({ type: 'dirty-outside' });
     expect(isDirtyInside(r.upkeep, 'small-van', 4)).toBe(true);
-    const washed = wash(r.upkeep, 'small-van', 'station-west', 4).upkeep;
-    expect(washed.dirtOutside).toBe(0);
-    expect(washed.dirtInside).toBe(r.upkeep.dirtInside);
   });
 
   it('no inside dirt below the wash level', () => {
@@ -618,7 +617,7 @@ describe('purity', () => {
     applyDrive(u, drive({ vehicle: 'small-van', level: 20, kerbs: 3, weather: 'snow' }, 30, 'track'));
     refuel({ ...u, energy: 0.1 }, 'small-van', 'station-west', 20);
     wash(u, 'small-van', 'station-west', 20);
-    service(u, 'small-van', 'workshop', 20);
+    service(u, 'small-van', 'workshop', 20, PLENTY);
     expect(JSON.stringify(u)).toBe(snapshot);
   });
 });

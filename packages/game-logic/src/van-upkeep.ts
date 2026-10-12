@@ -2,15 +2,17 @@
  * Van upkeep — fuel, charge, wear and dirt on A.R.C.'s rescue vans.
  *
  * Decisions 22–28 (Marcus, 2026-10-12), recorded in
- * docs/fuel-workshop-carwash-2026-10-12.md. Design and the questions still
- * open: docs/van-upkeep-model-2026-10-12.md.
+ * docs/fuel-workshop-carwash-2026-10-12.md, and his answers to the model's
+ * ten questions (same day), recorded with the design in
+ * docs/van-upkeep-model-2026-10-12.md ("Decided").
  *
  * Pure and deterministic: every function takes a serialisable state and
  * returns a new one, and the one thing left to chance (a puncture) takes a
  * seeded `rng`. No Phaser, no map, no clock. The scene reports what
  * happened on a drive (`applyDrive`, or `applyDriveLeg` as it goes) and what
- * a visit bought (`refuel`, `wash`, `service`); this module says what the
- * van is like afterwards and what it cost.
+ * a visit bought (`refuel`, `wash`, `service`, and the three inside cleans
+ * `cleanByHand`, `hoover`, `valet`); this module says what the van is like
+ * afterwards and what it cost.
  *
  * The consequence model is the driving rebuild's (docs/driving-rebuild-
  * 2026-10-11.md): nothing is ever hurt and there is never an accident. A
@@ -22,7 +24,7 @@
  * mechanic simply does not run: the drive leaves its numbers where they are.
  */
 
-import type { DamageEntry, Season, Weather } from '@arc/shared-types';
+import type { DamageEntry, Season, Species, Weather } from '@arc/shared-types';
 import {
   VEHICLE_DEFS,
   neighbourIndices,
@@ -31,6 +33,7 @@ import {
   type VehicleType,
 } from './crate-stacking';
 import { DAMAGE_THRESHOLDS } from './supply-runs';
+import type { Illness } from './vet';
 
 // ═══════════════════════════════════════════════════════════════════
 // TUNABLES — every number the model plays with, in one place.
@@ -47,9 +50,9 @@ export const UPKEEP_TUNABLES = {
   // ── Gates (28A) ────────────────────────────────────────────────
   /** Fuel and charge run from here (Henry, the first van that uses fuel). */
   FUEL_FROM_LEVEL: 2,
-  /** Dirt (outside and inside) and the car wash run from here. */
+  /** Dirt (outside and inside), the car wash, the hoover and cleaning by hand run from here. */
   WASH_FROM_LEVEL: 4,
-  /** Wear, punctures, the spanner light and the workshop run from here. */
+  /** Wear, punctures, the spanner light and the workshop (service and valet) run from here. */
   WORKSHOP_FROM_LEVEL: 6,
 
   // ── Fuel and charge (23A, 27A) ─────────────────────────────────
@@ -83,14 +86,18 @@ export const UPKEEP_TUNABLES = {
   /** In-game minutes a full charge takes at A.R.C.'s (slower) charger. */
   HOME_CHARGE_MINUTES: 120,
 
-  // ── Running dry (23A) ──────────────────────────────────────────
+  // ── Running dry (23A; answer 5: towed to the nearer station) ───
   /** Coins the tow costs (never more than she has). About two drives of fuel for Henry. */
   TOW_COINS: 10,
   /** In-game minutes lost waiting on the verge for the tow. */
   TOW_MINUTES: 45,
   /** Happiness each animal aboard loses while they wait (restless). */
   TOW_RESTLESS_HAPPINESS: -8,
-  /** What the tow leaves in the tank: enough for ~1.2 km, to reach a pump. */
+  /**
+   * What the tow leaves in the tank: enough for ~1.2 km. The tow drops her
+   * at the nearer station to fill (answer 5); the splash is the safety net
+   * if the scene lets her drive off without filling, so she is never stuck.
+   */
   TOW_SPLASH: 0.1,
 
   // ── Wear (25A) ─────────────────────────────────────────────────
@@ -169,14 +176,19 @@ export const UPKEEP_TUNABLES = {
    * (`GameStateStore.sickAnimals`). One sick passenger, ~4 drives to dirty.
    */
   INSIDE_DIRT_PER_KM_SICK: 0.05,
-  /** …that is moulting (no such condition in the game yet; an input). */
+  /** …that is moulting (`isMoulting`: by species and season, answer 9). */
   INSIDE_DIRT_PER_KM_MOULTING: 0.04,
-  /** …that makes a mess (no such condition in the game yet; an input). ~2–3 drives. */
+  /** …that makes a mess (the vet's `tummy_ache`, answer 9). ~2–3 drives. */
   INSIDE_DIRT_PER_KM_MESSY: 0.08,
   /** …for each pair of neighbours that squabble (a 'stressed' pair). ~5 drives. */
   INSIDE_DIRT_PER_KM_SQUABBLE: 0.04,
   /** Either kind of dirt counts as "dirty" (worth showing, worth a wash) here. */
   DIRTY_AT: 0.5,
+  /**
+   * Happiness each animal aboard loses on arrival when the inside is dirty
+   * (answer 2B: "a little less happy"). Outside dirt is only seen.
+   */
+  DIRTY_INSIDE_ARRIVAL_HAPPINESS: -3,
 
   // ── The wash (24A, 26A) ────────────────────────────────────────
   /** Coins a wash costs. */
@@ -185,6 +197,19 @@ export const UPKEEP_TUNABLES = {
   WASH_PERK_HAPPINESS: 5,
   /** In-game minutes a wash takes. */
   WASH_MINUTES: 10,
+
+  // ── Cleaning the inside (answer 1: all four ways) ──────────────
+  // The wash (above) does inside and out together for its one coin.
+  /** In-game minutes the care beat at A.R.C. takes (sweep, fresh bedding). Free. */
+  HAND_CLEAN_MINUTES: 15,
+  /** Coins the hoover at either petrol station takes. Inside only. */
+  HOOVER_COINS: 1,
+  /** In-game minutes at the hoover. */
+  HOOVER_MINUTES: 5,
+  /** Depot parts a valet at the workshop costs. Codes are depot-inventory.ts 'part' items. */
+  VALET_PARTS: { rusty_bolt: 1 } as Record<string, number>,
+  /** In-game minutes a valet takes. */
+  VALET_MINUTES: 20,
 } as const;
 
 const T = UPKEEP_TUNABLES;
@@ -202,18 +227,22 @@ export interface UpkeepPlaceDef {
   fuel: boolean;
   charger: boolean;
   wash: boolean;
+  /** A coin-operated hoover: the inside only, one coin (answer 1B). */
+  hoover: boolean;
+  /** Cleaning the inside by hand, a free care beat (answer 1A). Home only. */
+  handClean: boolean;
   workshop: boolean;
   /** The inflatable tube man stands here (29A). */
   tubeMan: boolean;
 }
 
 export const UPKEEP_PLACES: Record<UpkeepPlaceId, UpkeepPlaceDef> = {
-  'station-west': { id: 'station-west', fuel: true,  charger: true,  wash: true,  workshop: false, tubeMan: true  },
-  'station-east': { id: 'station-east', fuel: true,  charger: true,  wash: true,  workshop: false, tubeMan: false },
-  // Beside the vet.
-  'workshop':     { id: 'workshop',     fuel: false, charger: false, wash: false, workshop: true,  tubeMan: false },
-  // A.R.C.'s own charger, at home.
-  'arc-charger':  { id: 'arc-charger',  fuel: false, charger: true,  wash: false, workshop: false, tubeMan: false },
+  'station-west': { id: 'station-west', fuel: true,  charger: true,  wash: true,  hoover: true,  handClean: false, workshop: false, tubeMan: true  },
+  'station-east': { id: 'station-east', fuel: true,  charger: true,  wash: true,  hoover: true,  handClean: false, workshop: false, tubeMan: false },
+  // Beside the vet. Services and valets (both in Depot parts).
+  'workshop':     { id: 'workshop',     fuel: false, charger: false, wash: false, hoover: false, handClean: false, workshop: true,  tubeMan: false },
+  // A.R.C. itself: its own charger, and the yard where she sweeps out by hand.
+  'arc-charger':  { id: 'arc-charger',  fuel: false, charger: true,  wash: false, hoover: false, handClean: true,  workshop: false, tubeMan: false },
 };
 
 /**
@@ -322,9 +351,17 @@ export function fuelRuns(level: number, vehicle: VehicleType): boolean {
   return level >= T.FUEL_FROM_LEVEL && energyKind(vehicle) !== 'none';
 }
 
-/** Dirt and the wash. Trikey is never washed (see the doc's open questions). */
-export function washRuns(level: number, vehicle: VehicleType): boolean {
-  return level >= T.WASH_FROM_LEVEL && vehicle !== 'pedal-trike';
+/**
+ * Outside dirt and the car wash. Trikey too (answer 7B): it gathers mud
+ * on tracks and salt in winter, and may go through the wash, outside only.
+ */
+export function washRuns(level: number, _vehicle: VehicleType): boolean {
+  return level >= T.WASH_FROM_LEVEL;
+}
+
+/** Inside dirt and the inside cleans. Vans only: Trikey has no inside. */
+export function insideRuns(level: number, vehicle: VehicleType): boolean {
+  return washRuns(level, vehicle) && vehicle !== 'pedal-trike';
 }
 
 export function workshopRuns(level: number): boolean {
@@ -351,7 +388,16 @@ export function isDirtyOutside(u: VanUpkeep, vehicle: VehicleType, level: number
 }
 
 export function isDirtyInside(u: VanUpkeep, vehicle: VehicleType, level: number): boolean {
-  return washRuns(level, vehicle) && u.dirtInside >= T.DIRTY_AT;
+  return insideRuns(level, vehicle) && u.dirtInside >= T.DIRTY_AT;
+}
+
+/**
+ * Happiness each animal aboard loses on arriving in this van (answer 2B):
+ * a little when the inside is dirty, nothing otherwise. Outside dirt is only
+ * seen and costs nothing. Apply it once per arrival, to the animals aboard.
+ */
+export function arrivalHappinessEach(u: VanUpkeep, vehicle: VehicleType, level: number): number {
+  return isDirtyInside(u, vehicle, level) ? T.DIRTY_INSIDE_ARRIVAL_HAPPINESS : 0;
 }
 
 /**
@@ -378,19 +424,47 @@ export function rangeLeftKm(u: VanUpkeep, vehicle: VehicleType): number {
 // Drives
 // ═══════════════════════════════════════════════════════════════════
 
-/** Per-animal facts the inside-dirt model needs and the crate grid lacks. */
+/**
+ * Per-animal facts the inside-dirt model needs and the crate grid lacks.
+ * Both are worked out by the model (answer 9) and this is only an override:
+ * leave it out and moulting comes from species and season (`isMoulting`),
+ * mess from the vet's illness (`conditionsFromIllnesses`).
+ */
 export interface PassengerCondition {
-  /**
-   * Moulting. **No such condition exists in the game yet**; the scene passes
-   * false until one does.
-   */
+  /** Moulting. Absent: `isMoulting(species, season)`. */
   moulting?: boolean;
-  /**
-   * Makes a mess. **No such condition exists in the game yet**; until one
-   * does the scene may pass `illness === 'tummy_ache'` (vet.ts) as the
-   * nearest thing, or false.
-   */
+  /** Makes a mess. Absent: false (pass `conditionsFromIllnesses(...)` for tummy aches). */
   messy?: boolean;
+}
+
+/**
+ * The species that moult, and when (answer 9A): the furry ones — cats,
+ * dogs, bunnies and foxes — shed their coats in spring and in autumn. Of the
+ * game's other species, bats, parrots, snakes and hedgehogs are left out (a
+ * snake's shed skin or a parrot's feathers would be a later idea for Marcus).
+ */
+export const MOULTING_SPECIES: readonly Species[] = ['cat', 'dog', 'bunny', 'fox'];
+export const MOULTING_SEASONS: readonly Season[] = ['spring_bloom', 'autumn_hush'];
+
+export function isMoulting(species: Species, season?: Season): boolean {
+  return season !== undefined && MOULTING_SPECIES.includes(species) && MOULTING_SEASONS.includes(season);
+}
+
+/** The vet's illnesses that make a mess in the van (answer 9A). */
+export const MESSY_ILLNESSES: readonly Illness[] = ['tummy_ache'];
+
+/**
+ * Passenger conditions from the game's sick list (`GameStateStore.sickAnimals`,
+ * animal id → its `IllnessDef`): an animal with a tummy ache makes a mess.
+ * Pass the result as `conditions` on the drive.
+ */
+export function conditionsFromIllnesses(
+  sick: ReadonlyMap<string, { illness: Illness }> | Readonly<Record<string, { illness: Illness }>>,
+): Record<string, PassengerCondition> {
+  const entries = sick instanceof Map ? [...sick.entries()] : Object.entries(sick);
+  const out: Record<string, PassengerCondition> = {};
+  for (const [id, def] of entries) if (MESSY_ILLNESSES.includes(def.illness)) out[id] = { messy: true };
+  return out;
 }
 
 export interface DriveLeg {
@@ -421,6 +495,13 @@ export interface DriveReport {
   conditions?: Record<string, PassengerCondition>;
   /** Seeded random source in [0, 1), used only for Trikey's punctures. Absent means no puncture. */
   rng?: () => number;
+  /**
+   * Road distance from a point on the drive (km along it) to each station,
+   * so a van that runs dry can be towed to the nearer one (answer 5). The
+   * scene's router answers it. Absent: `tow.to` is left for the scene to
+   * fill with `nearerStation`.
+   */
+  stationKmAt?: (atKm: number) => Record<StationId, number>;
 }
 
 export type UpkeepEvent =
@@ -443,6 +524,12 @@ export interface TowCost {
   minutes: number;
   /** Happiness change for each animal aboard. */
   happinessEach: number;
+  /**
+   * Where the tow drops her (answer 5B): the nearer station, not her
+   * destination. She fills there (`refuel`) and drives on herself. Present
+   * when the station distances were known.
+   */
+  to?: StationId;
 }
 
 export interface DriveResult {
@@ -452,6 +539,12 @@ export interface DriveResult {
   kmDriven: number;
   /** Present when the van ran dry. */
   tow?: TowCost;
+  /**
+   * Happiness change for each animal aboard when they arrive (answer 2B):
+   * a little less happy if the inside is dirty by the end of the drive.
+   * For a van that ran dry this is on top of `tow.happinessEach`.
+   */
+  arrivalHappinessEach: number;
 }
 
 /**
@@ -476,7 +569,7 @@ export function applyDrive(u: VanUpkeep, report: DriveReport): DriveResult {
     events.push(...r.events);
     kmDriven += r.kmDriven;
     if (r.ranDry) {
-      tow = towCost(report.grid);
+      tow = towCost(report.grid, report.stationKmAt?.(kmDriven));
       break;
     }
   }
@@ -487,7 +580,13 @@ export function applyDrive(u: VanUpkeep, report: DriveReport): DriveResult {
 
   if (tow) state = { ...state, energy: Math.max(state.energy, T.TOW_SPLASH) };
 
-  return { upkeep: state, events, kmDriven, ...(tow ? { tow } : {}) };
+  return {
+    upkeep: state,
+    events,
+    kmDriven,
+    ...(tow ? { tow } : {}),
+    arrivalHappinessEach: arrivalHappinessEach(state, report.vehicle, report.level),
+  };
 }
 
 export interface LegInput extends Omit<DriveReport, 'legs' | 'hardStops' | 'selfStops' | 'kerbs'> {
@@ -560,14 +659,17 @@ export function applyDriveLeg(u: VanUpkeep, leg: LegInput): LegResult {
     }
   }
 
-  // Dirt.
+  // Dirt. Outside on every vehicle, Trikey included (7B); inside on vans.
   if (washRuns(level, vehicle)) {
     const out0 = next.dirtOutside;
-    const in0 = next.dirtInside;
     const outside = outsideDirtPerKm(leg.roadClass, leg.weather, leg.season) * km;
-    const inside = insideDirtPerKm(leg.grid, leg.conditions) * km;
-    next = { ...next, dirtOutside: clamp01(out0 + outside), dirtInside: clamp01(in0 + inside) };
+    next = { ...next, dirtOutside: clamp01(out0 + outside) };
     if (out0 < T.DIRTY_AT && next.dirtOutside >= T.DIRTY_AT) events.push({ type: 'dirty-outside' });
+  }
+  if (insideRuns(level, vehicle)) {
+    const in0 = next.dirtInside;
+    const inside = insideDirtPerKm(leg.grid, leg.conditions, leg.season) * km;
+    next = { ...next, dirtInside: clamp01(in0 + inside) };
     if (in0 < T.DIRTY_AT && next.dirtInside >= T.DIRTY_AT) events.push({ type: 'dirty-inside' });
   }
 
@@ -636,12 +738,18 @@ function addWear(
   return next;
 }
 
-/** The tow, for a van that ran dry with these animals aboard. */
-export function towCost(grid?: CrateGrid): TowCost {
+/**
+ * The tow, for a van that ran dry with these animals aboard. It takes her
+ * to the nearer station (answer 5B), by the road distances from where she
+ * stopped; without them `to` is absent and the scene picks with
+ * `nearerStation`.
+ */
+export function towCost(grid?: CrateGrid, stationKm?: Record<StationId, number>): TowCost {
   return {
     coins: T.TOW_COINS,
     minutes: T.TOW_MINUTES,
     happinessEach: grid && grid.crates.length > 0 ? T.TOW_RESTLESS_HAPPINESS : 0,
+    ...(stationKm ? { to: nearerStation(stationKm) } : {}),
   };
 }
 
@@ -678,13 +786,22 @@ export function squabblingPairs(grid: CrateGrid): Array<[string, string]> {
   return out;
 }
 
-export function insideDirtPerKm(grid?: CrateGrid, conditions?: Record<string, PassengerCondition>): number {
+/**
+ * Inside dirt per km from who is aboard: each poorly animal, each one
+ * moulting (by species and season unless `conditions` says otherwise), each
+ * one making a mess, and each squabbling pair.
+ */
+export function insideDirtPerKm(
+  grid?: CrateGrid,
+  conditions?: Record<string, PassengerCondition>,
+  season?: Season,
+): number {
   if (!grid) return 0;
   let rate = 0;
   for (const c of grid.crates) {
     const cond = conditions?.[c.animalId];
     if (c.poorly) rate += T.INSIDE_DIRT_PER_KM_SICK;
-    if (cond?.moulting) rate += T.INSIDE_DIRT_PER_KM_MOULTING;
+    if (cond?.moulting ?? isMoulting(c.species, season)) rate += T.INSIDE_DIRT_PER_KM_MOULTING;
     if (cond?.messy) rate += T.INSIDE_DIRT_PER_KM_MESSY;
   }
   rate += squabblingPairs(grid).length * T.INSIDE_DIRT_PER_KM_SQUABBLE;
@@ -696,10 +813,11 @@ export function insideDirtPerKm(grid?: CrateGrid, conditions?: Record<string, Pa
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Coins she actually pays for a price, and what she has left. Mirrors the
- * vet (free when she cannot afford it, GameScene's vet fee): a child is
- * never stranded for want of coins, and the purse never goes negative.
- * Whether that kindness should hold here is open question 3 in the doc.
+ * Coins she actually pays for a price, and what she has left. Decided
+ * (answer 3A): if she cannot pay for fuel, a charge, the wash or the hoover
+ * she pays what she has and still gets the whole of it, like the vet. A
+ * child is never stranded for want of coins, and the purse never goes
+ * negative. Every coin visit's `coins` goes through here.
  */
 export function payCoins(price: number, coins: number): { paid: number; coinsLeft: number } {
   const paid = Math.max(0, Math.min(price, coins));
@@ -718,23 +836,50 @@ export type VisitRefusal =
   | 'not-yet'
   /** This place does not do that for this vehicle (Spark at a pump, Trikey at a wash…). */
   | 'not-here'
-  /** Nothing to do: the tank is full, the van is clean, nothing to mend. */
-  | 'nothing-to-do';
+  /** Nothing to do: the tank is full, nothing to mend. */
+  | 'nothing-to-do'
+  /**
+   * The workshop needs Depot parts she has not got (answer 4C): it sends her
+   * to the Depot first. Nothing is mended or spent; the van keeps its
+   * spanner light (or flat, or damage) and stays driveable, bumpier. The
+   * result's `parts` is the whole bill and `missingParts` what she lacks.
+   */
+  | 'need-parts';
 
 export interface VisitResult {
   upkeep: VanUpkeep;
   /** Coins the visit costs before `payCoins`. 0 when refused. */
   coins: number;
-  /** Depot parts the visit costs (workshop only). */
+  /** Depot parts the visit costs (workshop only). On 'need-parts', the bill she could not meet. */
   parts: Record<string, number>;
   minutes: number;
   /** Happiness change for each animal aboard. */
   happinessEach: number;
   refused?: VisitRefusal;
+  /** On 'need-parts': what she lacks, part by part. */
+  missingParts?: Record<string, number>;
+  /**
+   * Workshop visits that went ahead: the Depot parts bag after paying, to
+   * write back to `depot.inventory.parts`.
+   */
+  partsLeft?: Record<string, number>;
 }
 
 function refused(u: VanUpkeep, why: VisitRefusal): VisitResult {
   return { upkeep: u, coins: 0, parts: {}, minutes: 0, happinessEach: 0, refused: why };
+}
+
+/**
+ * Pay a workshop bill from the Depot parts bag, or send her to the Depot
+ * first (answer 4C): nothing done, nothing spent, and the result says what
+ * is missing. Never a silent refusal.
+ */
+function payInParts(u: VanUpkeep, done: VanUpkeep, bill: Record<string, number>, have: Record<string, number>, minutes: number): VisitResult {
+  const missing = missingParts(have, bill);
+  if (Object.keys(missing).length > 0) {
+    return { upkeep: u, coins: 0, parts: bill, minutes: 0, happinessEach: 0, refused: 'need-parts', missingParts: missing };
+  }
+  return { upkeep: done, coins: 0, parts: bill, minutes, happinessEach: 0, partsLeft: spendParts(have, bill) };
 }
 
 /**
@@ -758,6 +903,7 @@ export function refuel(
   if (target <= u.energy) return refused(u, 'nothing-to-do');
 
   const added = target - u.energy;
+  // Spark at home: free and slow (answer 6A).
   const home = place === 'arc-charger';
   const coins = home ? Math.ceil(T.HOME_CHARGE_COINS * added) : Math.ceil(fullTankCoins(vehicle) * added);
   const fullMinutes = kind === 'fuel' ? T.REFUEL_MINUTES : home ? T.HOME_CHARGE_MINUTES : T.STATION_CHARGE_MINUTES;
@@ -771,18 +917,17 @@ export function refuel(
 }
 
 /**
- * The car wash: a coin, the outside comes up clean, and the animals aboard
- * perk up (they love the wash, and the tube man). The INSIDE is not touched:
- * how the inside gets cleaned is not decided (open question 1 in the doc).
- * A clean van may still go through — the animals enjoy it — and pays the
- * same coin: wrong-but-safe, never locked out.
+ * The car wash: a coin, and the van comes out clean inside and out together
+ * (answer 1D: the do-everything choice), and the animals aboard perk up
+ * (they love the wash, and the tube man). Trikey goes through too (7B),
+ * outside only, having no inside. A clean van may still go through — the
+ * animals enjoy it — and pays the same coin: wrong-but-safe, never locked out.
  */
 export function wash(u: VanUpkeep, vehicle: VehicleType, place: UpkeepPlaceId, level: number): VisitResult {
-  if (vehicle === 'pedal-trike') return refused(u, 'not-here');
   if (!washRuns(level, vehicle)) return refused(u, 'not-yet');
   if (!UPKEEP_PLACES[place].wash) return refused(u, 'not-here');
   return {
-    upkeep: { ...u, dirtOutside: 0 },
+    upkeep: { ...u, dirtOutside: 0, dirtInside: insideRuns(level, vehicle) ? 0 : u.dirtInside },
     coins: T.WASH_COINS,
     parts: {},
     minutes: T.WASH_MINUTES,
@@ -804,29 +949,82 @@ export function workshopParts(u: VanUpkeep, vehicle: VehicleType, level: number)
 
 /**
  * The workshop beside the vet: wear back to nought, a puncture mended and
- * supply-run damage put right, paid in Depot parts. Whether she has the
- * parts is `canAffordParts`; what happens when she has not is open
- * question 4 in the doc (the model reports the bill and does not refuse).
+ * supply-run damage put right, paid from the Depot parts bag (`depotParts`,
+ * i.e. `depot.inventory.parts`); write `partsLeft` back to it.
+ *
+ * Without the parts (answer 4C) the workshop sends her to the Depot first:
+ * `refused: 'need-parts'` with the bill and `missingParts`. Nothing is
+ * mended; the spanner light stays on and the van stays driveable, bumpier.
+ * It is all or nothing: the workshop does not mend half a van.
  *
  * A van below the spanner light may be serviced early (wear still resets
  * and costs nothing in parts): taking a van in too soon is allowed.
  */
-export function service(u: VanUpkeep, vehicle: VehicleType, place: UpkeepPlaceId, level: number): VisitResult {
+export function service(
+  u: VanUpkeep,
+  vehicle: VehicleType,
+  place: UpkeepPlaceId,
+  level: number,
+  depotParts: Record<string, number>,
+): VisitResult {
   if (!workshopRuns(level)) return refused(u, 'not-yet');
   if (!UPKEEP_PLACES[place].workshop) return refused(u, 'not-here');
   if (u.wear === 0 && !u.puncture && u.supplyDamage === 0) return refused(u, 'nothing-to-do');
-  return {
-    upkeep: { ...u, wear: 0, puncture: false, supplyDamage: 0 },
-    coins: 0,
-    parts: workshopParts(u, vehicle, level),
-    minutes: T.SERVICE_MINUTES,
-    happinessEach: 0,
-  };
+  const done = { ...u, wear: 0, puncture: false, supplyDamage: 0 };
+  return payInParts(u, done, workshopParts(u, vehicle, level), depotParts, T.SERVICE_MINUTES);
+}
+
+// ── Cleaning the inside (answer 1) ──────────────────────────────
+// Four ways, all ending with a clean inside: by hand at A.R.C. (free, takes
+// a little time), the hoover at either station (one coin, inside only), a
+// valet at the workshop (Depot parts), or the wash (one coin, inside and out
+// together; see `wash`). Vans only: Trikey has no inside. A clean inside may
+// be cleaned again — it costs the same; wrong-but-safe, never refused for it.
+
+/** By hand at A.R.C.: a short care beat (sweep, fresh bedding). Free; costs time. */
+export function cleanByHand(u: VanUpkeep, vehicle: VehicleType, place: UpkeepPlaceId, level: number): VisitResult {
+  if (!insideRuns(level, vehicle)) return refused(u, vehicle === 'pedal-trike' ? 'not-here' : 'not-yet');
+  if (!UPKEEP_PLACES[place].handClean) return refused(u, 'not-here');
+  return { upkeep: { ...u, dirtInside: 0 }, coins: 0, parts: {}, minutes: T.HAND_CLEAN_MINUTES, happinessEach: 0 };
+}
+
+/** The coin-operated hoover at either petrol station: one coin, the inside only. */
+export function hoover(u: VanUpkeep, vehicle: VehicleType, place: UpkeepPlaceId, level: number): VisitResult {
+  if (!insideRuns(level, vehicle)) return refused(u, vehicle === 'pedal-trike' ? 'not-here' : 'not-yet');
+  if (!UPKEEP_PLACES[place].hoover) return refused(u, 'not-here');
+  return { upkeep: { ...u, dirtInside: 0 }, coins: T.HOOVER_COINS, parts: {}, minutes: T.HOOVER_MINUTES, happinessEach: 0 };
+}
+
+/**
+ * A valet at the workshop, paid in Depot parts. From the workshop's level.
+ * Without the parts it sends her to the Depot first, as `service` does.
+ */
+export function valet(
+  u: VanUpkeep,
+  vehicle: VehicleType,
+  place: UpkeepPlaceId,
+  level: number,
+  depotParts: Record<string, number>,
+): VisitResult {
+  if (vehicle === 'pedal-trike') return refused(u, 'not-here');
+  if (!insideRuns(level, vehicle) || !workshopRuns(level)) return refused(u, 'not-yet');
+  if (!UPKEEP_PLACES[place].workshop) return refused(u, 'not-here');
+  return payInParts(u, { ...u, dirtInside: 0 }, { ...T.VALET_PARTS }, depotParts, T.VALET_MINUTES);
 }
 
 /** Does the Depot's `parts` bag hold everything in `cost`? */
 export function canAffordParts(have: Record<string, number>, cost: Record<string, number>): boolean {
   return Object.entries(cost).every(([k, q]) => (have[k] ?? 0) >= q);
+}
+
+/** What `have` lacks to pay `cost`, part by part. Empty when she can pay. */
+export function missingParts(have: Record<string, number>, cost: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, q] of Object.entries(cost)) {
+    const short = q - (have[k] ?? 0);
+    if (short > 0) out[k] = short;
+  }
+  return out;
 }
 
 /** Take `cost` out of the Depot's `parts` bag. Never below zero. */
@@ -838,8 +1036,9 @@ export function spendParts(have: Record<string, number>, cost: Record<string, nu
 
 /**
  * Carry a finished supply run's damage onto the van that drove it, for the
- * workshop to mend (25A). From the workshop's level only; below it the
- * damage is shown at the end of the run, as now, and forgotten.
+ * workshop to mend (25A). From the workshop's level only; below it (answer
+ * 8A) the damage is shown at the end of the run, as now, and forgotten, so
+ * no child reaches level 6 to a pile of old bills.
  */
 export function recordSupplyRunDamage(u: VanUpkeep, damages: DamageEntry[], level: number): VanUpkeep {
   if (!workshopRuns(level)) return u;
