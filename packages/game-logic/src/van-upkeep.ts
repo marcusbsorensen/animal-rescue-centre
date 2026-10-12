@@ -158,7 +158,7 @@ export const UPKEEP_TUNABLES = {
   OUTSIDE_DIRT_PER_KM_RAIN: 0.03,
   /** Outside dirt per km on any road in snow. */
   OUTSIDE_DIRT_PER_KM_SNOW: 0.05,
-  /** Outside dirt per km on any road in winter (salt and slush), any weather. ~8 drives to dirty. */
+  /** Outside dirt per km on any road in winter (salt and slush), any weather. ~7 drives to dirty. */
   OUTSIDE_DIRT_PER_KM_WINTER: 0.025,
   /** Outside dirt per km on any road otherwise (ordinary road grime). ~40 drives to dirty. */
   OUTSIDE_DIRT_PER_KM_BASE: 0.005,
