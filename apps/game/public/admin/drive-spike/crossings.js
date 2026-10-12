@@ -185,7 +185,7 @@ const WOBBLE_M = 0.12, FOLLOW_WOBBLE_M = 0.1;
 
 /** The glow under each, in fractions of the animal's length: a flat ellipse
  *  on the road under its feet. */
-const GLOW_RX = 0.5, GLOW_RY = 0.17;
+const GLOW_RX = 0.56, GLOW_RY = 0.19;
 
 // ------------------------------------------------------------ deterministic
 
@@ -410,7 +410,8 @@ function makeCrossing(route, world, site, s) {
   // The verge it sets out from. Mostly the near one: at the lane zoom with
   // the van standing in the left lane the far verge of a 9 m lane is just off
   // the screen's right edge, and an animal should be seen before it steps out.
-  const side = r() < 0.75 ? -1 : 1;
+  // A family always the near one, or its line would wait off the screen.
+  const near = r() < 0.75;
   const party = partyFor(site.place, world.season, site.seed).map((a, k) => ({
     ...a, k, d: 0, alpha: 1, phase: r() * 6.28, file: fileOf(a.kind, a.look),
     // Half its length across the road, painted or stand-in, whichever is longer.
@@ -429,6 +430,7 @@ function makeCrossing(route, world, site, s) {
   }
   if (party[0]) { party[0].back = 0; party[0].along = 0; }
   for (const a of party) a.d = -a.back;
+  const side = near || party.length > 1 ? -1 : 1;
   const zone = zoneOf({ party });
   const signS = Math.max(1, s - zone.near - SIGN_BEFORE_M);
   const sign = route.atDistance(signS);
@@ -730,8 +732,8 @@ function glowSwell(V) {
   return V.gentle ? 1 + 0.035 * V.pulse : 1 + (MAX_SWELL - 1) * V.pulse;
 }
 function glowAlpha(V) {
-  if (reducedMotion()) return 0.7;
-  return V.gentle ? 0.46 + 0.14 * V.pulse : 0.45 + 0.45 * V.pulse;
+  if (reducedMotion()) return 0.8;
+  return V.gentle ? 0.6 + 0.15 * V.pulse : 0.6 + 0.4 * V.pulse;
 }
 
 /** The most an animal of this kind reaches along the road from its centre,
