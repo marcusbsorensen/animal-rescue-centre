@@ -3,8 +3,9 @@ import { jostleComfort } from '../drive-state';
 import {
   ACCEL, BRAKE, EMERGENCY, HANDBRAKE, PULL_UP, SETTLE_PER_S, STOP_SHORT_M,
   advanceAlong, arrivalCap, hasArrived, jostleDelta, stepComfort, stepJostle, stepSpeed,
+  DECEL_JOSTLE, SWERVE_JOSTLE, TOP_OUT, TOP_PULL, gearPull, knockComfort, soonerCap,
 } from '../ride-comfort';
-import { GEAR_SPEED_MPS } from '../road-gears';
+import { GEAR_SPEED_MPS, TOO_FAST_JOSTLE, TOO_FAST_STOP_SOONER } from '../road-gears';
 
 const DT = 1 / 60;
 
@@ -137,5 +138,82 @@ describe('pulling up at the destination', () => {
     expect(hasArrived(6.4, 0.1)).toBe(true);
     expect(hasArrived(6.4, 0.3)).toBe(false);
     expect(hasArrived(7, 0)).toBe(false);
+  });
+});
+
+// ── 30A: the wrong gear for the road (road-gears.ts gearCosts) ──
+describe('the wrong gear for the road', () => {
+  const base = { v: 0, target: 13, speedCap: Infinity, handbrake: false, dt: DT };
+
+  it('jostles the animals harder while too fast, and settles as fast as ever', () => {
+    expect(jostleDelta(2, EMERGENCY, DT, TOO_FAST_JOSTLE)).toBeCloseTo(
+      ((2 * SWERVE_JOSTLE + EMERGENCY * DECEL_JOSTLE) * TOO_FAST_JOSTLE - SETTLE_PER_S) * DT,
+    );
+    expect(jostleDelta(0, 0, 1, TOO_FAST_JOSTLE)).toBe(jostleDelta(0, 0, 1));
+    expect(stepComfort(80, 0, EMERGENCY, 0.5, TOO_FAST_JOSTLE)).toBeLessThan(stepComfort(80, 0, EMERGENCY, 0.5));
+    expect(stepJostle(20, 0, HANDBRAKE, 0.2, TOO_FAST_JOSTLE)).toBeGreaterThan(stepJostle(20, 0, HANDBRAKE, 0.2));
+  });
+
+  it('a single knock lands harder too, and is the same knock in a suiting gear', () => {
+    expect(knockComfort(80, 6)).toBe(jostleComfort(80, 6));
+    expect(knockComfort(80, 6, TOO_FAST_JOSTLE)).toBe(jostleComfort(80, 6 * TOO_FAST_JOSTLE));
+    expect(knockComfort(2, 15, TOO_FAST_JOSTLE)).toBe(0);
+  });
+
+  it('the van\'s own hard stops come sooner, and are still hard deceleration', () => {
+    // a cap of 10 m/s; at 9 m/s she is under it in a suiting gear
+    expect(stepSpeed({ ...base, v: 9, target: 9, speedCap: 10 }).emergency).toBe(false);
+    const s = stepSpeed({ ...base, v: 9, target: 9, speedCap: 10, stopSooner: TOO_FAST_STOP_SOONER });
+    expect(s.emergency).toBe(true);
+    expect(s.hardDecel).toBe(EMERGENCY);
+    expect(s.v).toBeCloseTo(Math.max(soonerCap(10, TOO_FAST_STOP_SOONER), 9 - EMERGENCY * DT));
+  });
+
+  it('soonerCap wants stopSooner times the stopping distance clear', () => {
+    // caps are sqrt(2·a·gap): the stopping distance at the new cap × k is the gap
+    const a = 4, gap = 30, cap = Math.sqrt(2 * a * gap);
+    const c = soonerCap(cap, 2);
+    expect((c * c) / (2 * a) * 2).toBeCloseTo(gap);
+    expect(soonerCap(cap, 1)).toBe(cap);
+    expect(soonerCap(Infinity, 2)).toBe(Infinity);
+    expect(soonerCap(0, 2)).toBe(0);
+  });
+
+  it('never makes the van go faster than without it', () => {
+    for (const v of [0, 3, 9, 15]) for (const cap of [0, 5, 10, Infinity]) {
+      const plain = stepSpeed({ ...base, v, target: 20, speedCap: cap });
+      const sooner = stepSpeed({ ...base, v, target: 20, speedCap: cap, stopSooner: TOO_FAST_STOP_SOONER });
+      expect(sooner.v).toBeLessThanOrEqual(plain.v + 1e-12);
+    }
+  });
+});
+
+describe('the gear\'s pull near its top speed', () => {
+  const base = { v: 0, target: 7, speedCap: Infinity, handbrake: false, dt: DT };
+
+  it('full pull well below the top, a fading pull near it, never none', () => {
+    expect(gearPull(0, 7)).toBe(1);
+    expect(gearPull(7 - TOP_OUT, 7)).toBe(1);
+    expect(gearPull(7 - TOP_OUT / 2, 7)).toBeCloseTo(0.5);
+    expect(gearPull(7, 7)).toBe(TOP_PULL);
+  });
+
+  it('stepSpeed gains slowly near the gear\'s top, and still gets there', () => {
+    const near = stepSpeed({ ...base, v: 6.5, gearTop: 7 });
+    expect(near.v - 6.5).toBeCloseTo(ACCEL * gearPull(6.5, 7) * DT);
+    expect(near.v - 6.5).toBeLessThan(ACCEL * DT);
+    let v = 0;
+    for (let i = 0; i < 60 * 10; i++) v = stepSpeed({ ...base, v, gearTop: 7 }).v;
+    expect(v).toBe(7);
+  });
+
+  it('without a gearTop it accelerates as before', () => {
+    expect(stepSpeed({ ...base, v: 6.5 }).v).toBeCloseTo(6.5 + ACCEL * DT);
+  });
+
+  it('in first on a main road the needle leans and stops at first\'s top', () => {
+    let v = 0;
+    for (let i = 0; i < 60 * 10; i++) v = stepSpeed({ ...base, target: GEAR_SPEED_MPS[1], v, gearTop: GEAR_SPEED_MPS[1] }).v;
+    expect(v).toBe(GEAR_SPEED_MPS[1]);
   });
 });
