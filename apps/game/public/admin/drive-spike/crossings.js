@@ -170,10 +170,12 @@ const ART = {
   } },
   rabbit:   { len: 44, tall: 0.95, files: { '': 'rabbit-walking.png' } },
   fox:      { len: 68, tall: 0.9, files: { '': 'fox-red-walking.png' } },
-  pheasant: { len: 58, tall: 0.8, files: { '': 'pheasant-walking.png' } },
-  duck:     { len: 42, tall: 0.95, files: { '': 'duck-walking.png' } },
+  // The other of each pair (Marcus, 52A): a drake beside the hen mallard, a
+  // hen pheasant beside the cock, a roe doe beside the buck.
+  pheasant: { len: 58, tall: 0.8, files: { '': 'pheasant-walking.png', hen: 'pheasant-hen-walking.png' } },
+  duck:     { len: 42, tall: 0.95, files: { '': 'duck-walking.png', drake: 'drake-walking.png' } },
   duckling: { len: 24, tall: 1.0, files: { '': 'duckling-walking.png' } },
-  deer:     { len: 86, tall: 1.15, files: { '': 'deer-walking.png' } },
+  deer:     { len: 86, tall: 1.15, files: { '': 'deer-walking.png', doe: 'deer-doe-walking.png' } },
 };
 for (const k in ART) { ART[k].L = ART[k].len / LANE_PPM; ART[k].H = ART[k].L * ART[k].tall; }
 
@@ -365,6 +367,8 @@ function partyFor(place, season, seed) {
   const fox = r() < (FOX[season] ?? 0.1) * (place === 'houses' || place === 'park' ? 0.6 : 1);
   switch (place) {
     case 'water': {
+      // Only the hen mallard leads ducklings; a drake crosses alone or walks
+      // with a hen.
       if (season === 'spring') {
         const n = 4 + Math.floor(r() * 4);
         return [one('duck', 'hen'), ...Array.from({ length: n }, () => one('duckling'))];
@@ -372,9 +376,10 @@ function partyFor(place, season, seed) {
       return r() < 0.6 ? [one('duck', 'hen'), one('duck', 'drake')] : [one('duck', r() < 0.5 ? 'hen' : 'drake')];
     }
     // A roe buck's antlers are what tell a child it is a deer; he casts them
-    // in late autumn and they are only buds until spring.
+    // in late autumn and they are only buds until spring, so in winter every
+    // deer is drawn as the doe. Otherwise buck and doe about half and half.
     case 'wood':
-      return fox || r() < 0.2 ? [one('fox')] : [one('deer', season !== 'winter' && r() < 0.6 ? 'buck' : 'doe')];
+      return fox || r() < 0.2 ? [one('fox')] : [one('deer', season !== 'winter' && r() < 0.5 ? 'buck' : 'doe')];
     case 'houses': case 'park': case 'hedge': {
       if (fox) return [one('fox')];
       // Wild hedgehogs here are brown; now and then a darker or a paler one.
@@ -384,7 +389,7 @@ function partyFor(place, season, seed) {
     }
     default:
       if (fox) return [one('fox')];
-      return r() < 0.55 ? [one('rabbit')] : [one('pheasant', r() < 0.7 ? 'cock' : 'hen')];
+      return r() < 0.55 ? [one('rabbit')] : [one('pheasant', r() < 0.5 ? 'cock' : 'hen')];
   }
 }
 
