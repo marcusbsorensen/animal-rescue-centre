@@ -28,7 +28,8 @@
 // on the road under each that pulses in time with how it goes: a rabbit
 // hops and pauses, a hedgehog shuffles, stops, sniffs and shuffles again, a
 // fox bounds. Where the painting does not exist yet, the old top-down shape
-// stands in, with the same gait and glow.
+// stands in, with the same gait and glow. The glow is a soft halo about
+// twice the animal's width (Marcus, 2026-10-12, 32A).
 //
 // Where. Every small-road edge of the graph is a candidate, and a hash of its
 // midpoint's position decides whether it has a crossing, so a place has the
@@ -168,13 +169,14 @@ const TOPDOWN = {
  *    shuffle: a few quick steps, stop, sniff, again (hedgehog)
  *    hop:     arcs of lift, pitched nose up then down, squashed on landing
  *    waddle:  steady, rocking side to side (ducks; the ducklings quicker)
- *    strut:   a jerky step with a head-bob, and now and then a quick run */
+ *    strut:   short dashes, leaning in, a stop to look between, and now and
+ *             then a run for it (pheasant) */
 const GAIT = {
   hedgehog: { type: 'shuffle', speed: 1.1, stride: 0.75, move: 0.55 },
   rabbit:   { type: 'hop', speed: 1.7, stride: 1.05, move: 0.42, lift: 0.42, squash: 0.2, pitch: 0.22 },
   fox:      { type: 'hop', speed: 3.0, stride: 1.9, move: 0.82, lift: 0.3, squash: 0.08, pitch: 0.14 },
   deer:     { type: 'hop', speed: 4.2, stride: 3.6, move: 0.86, lift: 0.75, squash: 0.08, pitch: 0.2, most: 3 },
-  pheasant: { type: 'strut', speed: 1.1, stride: 0.42, move: 0.5, run: 2.6 },
+  pheasant: { type: 'strut', speed: 1.3, stride: 1.3, move: 0.45, run: 2.2 },
   duck:     { type: 'waddle', speed: 1.0, rock: 0.13, hz: 2.0 },
   duckling: { type: 'waddle', speed: 1.0, rock: 0.17, hz: 3.1 },
 };
@@ -183,9 +185,10 @@ const GAIT = {
 const MAX_SWELL = 1.14, MAX_STRETCH = 0.08;
 const WOBBLE_M = 0.12, FOLLOW_WOBBLE_M = 0.1;
 
-/** The glow under each, in fractions of the animal's length: a flat ellipse
- *  on the road under its feet. */
-const GLOW_RX = 0.56, GLOW_RY = 0.19;
+/** The glow under each, in fractions of the animal's length: a soft halo
+ *  on the road under its feet, about twice as wide as the animal (Marcus,
+ *  2026-10-12, 32A). */
+const GLOW_RX = 1.0, GLOW_RY = 0.38;
 
 // ------------------------------------------------------------ deterministic
 
@@ -682,7 +685,7 @@ function pose(c, a, t, camH) {
     const f = at(fs, lat);
     const w = fit.w * (1 + V.sq - V.st / 2), h = fit.h * (1 - V.sq + V.st);
     const th = Math.abs(V.tilt) + Math.abs(V.rock);
-    const L = ART[a.kind].L, swell = glowSwell(V);
+    const L = ART[a.kind].L, swell = glowSwell(V) * haloOf(c, a);
     const gx = GLOW_RX * L * swell, gy = GLOW_RY * L * swell;
     const half = Math.max(w / 2 + h * Math.sin(th), gx) + HAIR_M;
     const lo = Math.max(gy, w * Math.sin(th) / 2) + HAIR_M, hi = V.lift + h * Math.cos(th) + w * Math.sin(th) + HAIR_M;
@@ -730,6 +733,19 @@ const TAU = Math.PI * 2;
 function glowSwell(V) {
   if (reducedMotion()) return 1.05;
   return V.gentle ? 1 + 0.035 * V.pulse : 1 + (MAX_SWELL - 1) * V.pulse;
+}
+/** The halo's size, as a share of its full size. Full while the animal is
+ *  out on the road, blooming as it sets off. While it waits on the verge,
+ *  and as it steps off the far kerb, it is the size the glow was before the
+ *  halo, so beside the road it reaches no further into the carriageway than
+ *  that did: a van may pass it there, and crossings.check.mjs measures the
+ *  halo as part of the body (full size on the verge put it in the lane). */
+const HALO_VERGE = 0.56, HALO_BLOOM_S = 0.4;
+function haloOf(c, a) {
+  if (c.state !== 'go') return HALO_VERGE;
+  const off = c.verge + 2 * c.halfW + a.half - a.d;   // metres until its body is off the far kerb
+  const u = Math.max(0, Math.min(1, c.t / HALO_BLOOM_S, off));
+  return HALO_VERGE + (1 - HALO_VERGE) * smooth(u);
 }
 function glowAlpha(V) {
   if (reducedMotion()) return 0.8;
@@ -860,17 +876,19 @@ function measure(e, img) {
   e.baked = out;
 }
 
-/** The glow, baked once: warm in the middle, a soft brighter ring, an amber
- *  edge so it still reads on a snowy verge. Drawn squashed to an ellipse. */
+/** The glow, baked once: a soft halo, warm and bright in the middle and
+ *  feathering out through amber to nothing, with no ring in it; the amber
+ *  still reads on a snowy verge. Drawn squashed to an ellipse. */
 let GLOW = null;
 function glowSprite() {
   if (GLOW || typeof document === 'undefined') return GLOW;
   const n = 128, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
   const g = cv.getContext('2d'), gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
-  gr.addColorStop(0, 'rgba(255,214,120,.78)');
-  gr.addColorStop(0.5, 'rgba(255,206,108,.74)');
-  gr.addColorStop(0.74, 'rgba(255,240,186,1)');
-  gr.addColorStop(0.86, 'rgba(238,150,58,.72)');
+  gr.addColorStop(0, 'rgba(255,226,144,.92)');
+  gr.addColorStop(0.35, 'rgba(255,212,118,.84)');
+  gr.addColorStop(0.6, 'rgba(250,186,92,.64)');
+  gr.addColorStop(0.8, 'rgba(242,162,66,.36)');
+  gr.addColorStop(0.92, 'rgba(238,150,58,.13)');
   gr.addColorStop(1, 'rgba(238,150,58,0)');
   g.fillStyle = gr; g.fillRect(0, 0, n, n);
   return (GLOW = cv);
