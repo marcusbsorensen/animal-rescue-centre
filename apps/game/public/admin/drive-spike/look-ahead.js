@@ -63,12 +63,12 @@ const MIN_INNER_H = 70;      // smaller than this and the window stays shut
 
 /** Eye heights, metres above the road, of whoever drives each van. */
 const EYE = { trikey: 1.1, henry: 1.6, bea: 1.6, spark: 1.6, 'big-tilly': 2.4 };
-const SEAT_M = 1.8;          // the driver's eye, this far back from the van's nose
+const BEHIND_M = 1;          // the eye is this far behind her van's tail (her van itself is not drawn)
 const AIM_M = 32;            // the camera looks at the route this far ahead
 const PAST_M = 0.7;          // eased out all the way, the eye is this far past the oncoming lane's middle
 const HFOV = 68 * Math.PI / 180;   // across the window, before it narrows in on a reason
 const F0 = 0.5 / Math.tan(HFOV / 2);
-const ZOOM_MAX = 2.8;        // how far it may narrow in on a reason
+const ZOOM_MAX = 1.7;        // how far it may narrow in on a reason: no further, so the vehicle in front stays in
 const REASON_PX = 30;        // and it narrows until the reason is about this wide on screen
 const HORIZON = 0.42;        // the horizon's height, as a share of the window from the top
 
@@ -128,7 +128,7 @@ function camera(LA, s, iw, cxFrac) {
     const a = laneOffset(0, clamp(d, 0, end)), b = laneOffset(1, clamp(d, 0, end));
     return a + e * (b - a + Math.sign(b - a) * PAST_M);
   };
-  const sEye = clamp(s.van.front - SEAT_M, 0, end);
+  const sEye = clamp(2 * s.van.s - s.van.front - BEHIND_M, 0, end);
   const eye = along(LA.route, sEye, latAt(sEye));
   const sAim = clamp(sEye + AIM_M, 0, end);
   const aim = along(LA.route, sAim, latAt(sAim));
@@ -210,10 +210,12 @@ export function draw(ctx, LA, w, h, s, world, paint) {
       if (v && e > 0.55 && wpx < rb * 0.45) {
         const a = clamp((e - 0.55) / 0.3, 0, 1);
         const gap = r + rb + 12;
-        let bx = x - gap;
-        if (bx - rb < R.x + 6) bx = x + gap;
-        bx = clamp(bx, R.x + rb + 6, visR - rb - 2 * sr - 12);
-        const by = clamp(y + rb * 0.4, R.y + rb + 6, R.y + R.h - rb - 6);
+        // To the right of the ring where there is room, clear of the vehicle
+        // in front on the left and of the sign at the bottom right.
+        let bx = x + gap;
+        if (bx + rb > visR - 6) bx = x - gap;
+        bx = clamp(bx, R.x + rb + 6, visR - rb - 6);
+        const by = clamp(y + rb * 0.2, R.y + rb + 6, R.y + R.h - rb - 2 * sr - 14);
         const m = clamp(rb * 1.1 / (v.Wd * shot.P.f / v.nZ), 1.5, 14);   // screen px per internal px
         ctx.save();
         ctx.globalAlpha = a;
@@ -236,7 +238,7 @@ export function draw(ctx, LA, w, h, s, world, paint) {
   cue(ctx, visR - sr - 8, R.y + R.h - sr - 8, sr, s.safe);
   if (paint) paint.glass(ctx, R);
   ctx.restore();
-  LA.drawn = { R0, R, ms: shot.ms, scale: shot.scale, f: cam.f, yaw: cam.yaw, eye: cam.eye };
+  LA.drawn = { R0, R, ms: shot.ms, scale: shot.scale, prof: LA.bv.prof, f: cam.f, yaw: cam.yaw, eye: cam.eye };
   return R0;
 }
 

@@ -45,8 +45,13 @@
 //   drawVehicleAt(ctx, BV, v, k)      that vehicle again, k times larger, in
 //                                     internal px (for the magnifier)
 
-const NEAR = { z0: -1, z1: 46, L: 22, k: 6 };      // metres, px per metre
-const FAR = { z0: -2, z1: 300, L: 150, k: 1.25 };
+/** The two ground textures: depth z0..z1 and L either side of the eye,
+ *  metres, at k px per metre. Each is repainted only when the eye has gone
+ *  more than slackZ forward or slackX sideways, or turned more than rot
+ *  radians, since it was painted; in between, the rows are read from it
+ *  shifted by how far the eye has moved, which is exact. */
+const NEAR = { z0: -1, z1: 52, L: 24, k: 6, slackZ: 6, slackX: 2.5, rot: 0.4 * Math.PI / 180 };
+const FAR = { z0: -2, z1: 300, L: 140, k: 1.15, slackZ: 22, slackX: 9, rot: 0.3 * Math.PI / 180 };
 const SCENERY_M = 170;     // upright scenery is drawn out to here
 const TRAFFIC_M = 320;     // and traffic out to here
 const NEAR_CLIP = 0.8;     // metres in front of the eye
@@ -112,8 +117,10 @@ export function render(BV, cam, world, size) {
   const P = { W, H, f, cx, yH, eye, toCam, season: world.season };
 
   sky(g, P, cam.yaw);
+  const tA = performance.now();
   ground(BV, g, P, cam, world);
   haze(g, P);
+  const tB = performance.now();
 
   // Everything upright, far to near.
   const items = [];
@@ -125,6 +132,7 @@ export function render(BV, cam, world, size) {
   for (const it of items) it.draw(g);
 
   const ms = performance.now() - t0;
+  BV.prof = { sky: tA - t0, ground: tB - tA, upright: performance.now() - tB, items: items.length, tex: BV.texMs };
   // Keep near the budget: shrink quickly when over, grow back slowly.
   BV.avg = BV.avg ? BV.avg * 0.9 + ms * 0.1 : ms;
   if (BV.avg > BUDGET_MS * 1.2) BV.scale = Math.max(MIN_SCALE, BV.scale * 0.94);
@@ -210,25 +218,49 @@ function paintTexture(T, B, cam, world) {
   world.ground(g, view, view.radius);
 }
 
+/** Where the eye is in the frame a texture was painted from: { X, Z }, and
+ *  whether that texture is too far off to use. */
+function offset(T, B, cam) {
+  const p = T.pose;
+  if (!p) return null;
+  const dx = cam.x - p.x, dy = cam.y - p.y, s = Math.sin(p.yaw), c = Math.cos(p.yaw);
+  const X = -dx * s + dy * c, Z = dx * c + dy * s;
+  if (Math.abs(wrap(cam.yaw - p.yaw)) > B.rot || Math.abs(X) > B.slackX || Z > B.slackZ || Z < -0.5) return null;
+  return { X, Z };
+}
+
 function ground(BV, g, P, cam, world) {
   const { W, H, f, cx, yH, eye } = P;
-  paintTexture(BV.near, NEAR, cam, world);
-  paintTexture(BV.far, FAR, cam, world);
+  const t0 = performance.now();
+  // At most one texture is repainted a frame, unless both have none yet.
+  let oN = offset(BV.near, NEAR, cam), oF = offset(BV.far, FAR, cam);
+  if (!oN) {
+    paintTexture(BV.near, NEAR, cam, world); BV.near.pose = { x: cam.x, y: cam.y, yaw: cam.yaw }; oN = { X: 0, Z: 0 };
+    BV.repaints = (BV.repaints || 0) + 1;
+  }
+  if (!oF && (!BV.far.pose || oN.Z !== 0 || oN.X !== 0)) {
+    paintTexture(BV.far, FAR, cam, world); BV.far.pose = { x: cam.x, y: cam.y, yaw: cam.yaw }; oF = { X: 0, Z: 0 };
+    BV.repaints = (BV.repaints || 0) + 1;
+  }
+  if (!oF) oF = offset({ pose: BV.far.pose }, { ...FAR, rot: 1, slackX: 1e9, slackZ: 1e9 }, cam);   // a frame late
+  BV.texMs = performance.now() - t0;
   g.fillStyle = '#8fbf6a'; g.fillRect(0, yH, W, H - yH);
   g.imageSmoothingEnabled = true;
   // One row of the picture is one depth on the ground.
   for (let y = yH + 1; y < H; y++) {
     const Z = eye * f / (y + 0.5 - yH);
-    const B = Z < NEAR.z1 - 2 ? NEAR : Z < FAR.z1 ? FAR : null;
-    if (!B) continue;
-    const T = B === NEAR ? BV.near : BV.far;
+    const near = Z + oN.Z < NEAR.z1 - 2;
+    const B = near ? NEAR : FAR, o = near ? oN : oF;
+    const Zt = Z + o.Z;
+    if (Zt >= B.z1) continue;
+    const T = near ? BV.near : BV.far;
     const Zn = eye * f / (y + 1.5 - yH);
-    const v = (B.z1 - Z) * B.k, vh = Math.max(0.6, (Z - Zn) * B.k);
+    const v = (B.z1 - Zt) * B.k, vh = Math.max(0.6, (Z - Zn) * B.k);
     // The row covers X from (0 - cx) Z / f to (W - cx) Z / f: what of that
     // the texture holds, drawn to where it lands.
-    const X0 = Math.max(-B.L, -cx * Z / f), X1 = Math.min(B.L, (W - cx) * Z / f);
+    const X0 = Math.max(-B.L - o.X, -cx * Z / f), X1 = Math.min(B.L - o.X, (W - cx) * Z / f);
     if (X1 <= X0) continue;
-    const u0 = (X0 + B.L) * B.k, u1 = (X1 + B.L) * B.k;
+    const u0 = (X0 + o.X + B.L) * B.k, u1 = (X1 + o.X + B.L) * B.k;
     const d0 = cx + f * X0 / Z, d1 = cx + f * X1 / Z;
     g.drawImage(T.el, u0, Math.max(0, v), u1 - u0, Math.min(vh, T.el.height - v), d0, y, d1 - d0, 1.02);
   }

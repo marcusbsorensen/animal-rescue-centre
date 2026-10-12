@@ -1005,7 +1005,7 @@ function draw() {
   }
   // What a test needs to measure the view: metres of road ahead of the van.
   car.view = { stripH, roadH, vanY, ppm, ahead: vanY / ppm, guide: showGuide,
-    look: win && { ...win, q: la.q, ms: la.drawn?.ms, scale: la.drawn?.scale } };
+    look: win && { ...win, q: la.q, ms: la.drawn?.ms, scale: la.drawn?.scale, prof: la.drawn?.prof } };
   updateHud(win);
 }
 
