@@ -30,6 +30,13 @@
 //     itself) and the vehicle alongside eases off to make that room. This
 //     writes to the van object, which the contract does not document: see the
 //     commit message for the field the page should grow instead.
+//   - no animal is ever hurt (Marcus, 2026-10-12: "make SURE that the crossing
+//     animals on the road are not run over by vehicles coming in the other
+//     direction!"). The page passes crossings.js's closed stretches, where an
+//     animal is on the road or stepping onto it; every vehicle, either way,
+//     slows at a careful driver's ANIMAL_STOP and stands short of the stretch
+//     until it opens. crossings.js lets an animal step out only when every
+//     vehicle can still do that, so the stop is always a gentle one.
 
 /**
  * @typedef {Object} Route
@@ -168,6 +175,8 @@ const BEND_M = 60;        // no overtaking this close before a sharp bend
 const BEND_DEG = 30;      // a "sharp bend": the route turns more than this within 30 m
 const CORNER_DEG = 22;    // past this, oncoming traffic takes a corner one at a time with the van
 const LANE_CHANGE_S = 0.7;
+const ANIMAL_STOP = 3.5;  // how hard a vehicle slows for a crossing animal, m/s²: a careful driver
+const ANIMAL_GAP = 1.2;   // and where it stands, this far short of the closed stretch
 const GEAR_V = { 1: 7, 2: 13, 3: 20 };
 
 // --------------------------------------------------------------------- set-up
@@ -183,6 +192,7 @@ export function create(route, opts = {}) {
     hold: false, pendingReturn: false, blocker: null,
     imgs: null, last: null,
   };
+  T.closed = [];
   survey(T);
   return T;
 }
@@ -281,8 +291,13 @@ function cornerExtra(T, a, b, lat) {
     else if (v.s > b + 6 && v.s < b + 31) sum += Math.abs(v.turn) * (1 - (v.s - b - 6) / 25);
   }
   if (sum < 1e-3) return 0;
-  return Math.min(18, 2 * (Math.abs(lat) + 1.4) * Math.tan(Math.min(sum, 2.2) / 2));
+  return Math.min(40, 2 * (Math.abs(lat) + 1.4) * Math.tan(Math.min(sum, 2.2) / 2));
 }
+
+/** The one of two lateral offsets further from the centreline: the corner
+ *  between two things is as short as it is for the one more on the inside,
+ *  which on the A28's wide carriageways is often the van. */
+const wider = (a, b) => Math.abs(a) > Math.abs(b) ? a : b;
 
 /** A vehicle's footprint in the world: a rigid body from its rear axle point
  *  on the route to its front one, so it cuts a corner the way a car does.
@@ -308,6 +323,9 @@ function pickKind(T, group) {
 }
 
 function spawn(T, kind, dir, s) {
+  // Never into the middle of an animal crossing, or so near one it could
+  // not stop for it.
+  if (T.closed.some(z => s > z.s0 - 45 && s < z.s1 + 45)) return null;
   const K = KINDS[kind];
   const base = K.skins[(T.rand() * K.skins.length) | 0];
   const skin = dir > 0 && K.pair ? base + '-rear' : base;
@@ -346,9 +364,13 @@ function vanBox(van) {
 // ---------------------------------------------------------------------- step
 
 /** Advance the traffic and report what it means for the van.
+ *  @param {{closed?: {s0:number, s1:number}[]}} [world] what else is on the
+ *  road: closed, the stretches crossings.closed() reports, where an animal is
+ *  crossing. Every vehicle stops short of them.
  *  @returns {TrafficResult} */
-export function step(T, dt, van) {
+export function step(T, dt, van, world = {}) {
   const events = [];
+  T.closed = world.closed ?? [];
   if (!T.ready || Math.abs(van.s - T.lastVanS) > 40) reset(T, van);
   T.lastVanS = van.s;
   T.time += dt;
@@ -425,7 +447,7 @@ export function step(T, dt, van) {
     const wRear = w.s - w.L / 2, wFront = w.s + w.L / 2;
     if (w.dir > 0) {
       if (w.s < van.s) continue;   // behind: it keeps off us, not we off it
-      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, w.d);
+      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, wider(w.d, van.lane));
       // Close in hard, then sit at the leader's speed anywhere in a following
       // band, so a steady follow never flickers into a self-stop.
       const band = 3 + 0.4 * w.v;
@@ -434,7 +456,7 @@ export function step(T, dt, van) {
       if (cap < speedCap) { speedCap = Math.max(0, cap); capBy = 'lead'; }
     } else {
       if (wFront < vb.rear) continue;   // gone past
-      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, w.d);
+      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, wider(w.d, van.lane));
       const theirs = w.v * dt + w.v * w.v / (2 * ONC_STOP);
       const cap = stopSpeed(g - theirs, VAN_STOP, dt);
       if (cap < speedCap) { speedCap = cap; capBy = 'oncoming'; }
@@ -512,9 +534,12 @@ function sameSpeed(T, w, aiLead, van, vb, conflictsVan, dt) {
   const v0 = desired(T, w);
   let gap = Infinity, dv = 0;
   if (lead) {
-    gap = lead.rear - front - cornerExtra(T, front, lead.rear, w.d);
+    gap = lead.rear - front - cornerExtra(T, front, lead.rear, wider(w.d, lead.d));
     dv = w.v - lead.v;
   }
+  // An animal crossing ahead: a standing obstacle, slowed for gently.
+  const z = animalRoom(T, w, front);
+  if (z < gap) { gap = z + GAP; dv = w.v; }
   let v = w.v + clamp(idm(w.v, v0, gap, dv), -9, 2) * dt;
   if (lead) {
     const room = gap - (lead.van ? GAP : 1);
@@ -524,6 +549,7 @@ function sameSpeed(T, w, aiLead, van, vb, conflictsVan, dt) {
       : stopSpeed(room + lead.v * lead.v / 16, 8, dt);
     v = Math.min(v, cap);
   }
+  if (isFinite(z)) v = Math.min(v, stopSpeed(z, ANIMAL_STOP, dt));
   return clamp(v, 0, 40);
 }
 
@@ -563,14 +589,36 @@ function oncSpeed(T, w, aiLead, van, vb, conflictsVan, dt) {
     cap = Math.min(cap, stopSpeed(g, ONC_STOP, dt));
   }
   if (conflictsVan && vb.front < w.s + w.L / 2) {
-    const g = front - vb.front - GAP - cornerExtra(T, vb.front, front, w.d);
+    const g = front - vb.front - GAP - cornerExtra(T, vb.front, front, wider(w.d, van.lane));
     if (g < gap) { gap = g; dv = w.v + van.v; }
     const vans = van.v * dt + van.v * van.v / (2 * 26);
     cap = Math.min(cap, stopSpeed(g - vans, ONC_STOP, dt));
   }
+  const z = animalRoom(T, w, front);
+  if (z < gap) { gap = z + GAP; dv = w.v; }
+  if (isFinite(z)) cap = Math.min(cap, stopSpeed(z, ANIMAL_STOP, dt));
   let v = w.v + clamp(idm(w.v, v0, gap, dv), -9, 2) * dt;
   return clamp(Math.min(v, cap), 0, 40);
 }
+
+/** Metres a vehicle may still go before the nearest closed stretch ahead of
+ *  it (Infinity when none), its nose `front` stopping ANIMAL_GAP short, and
+ *  more on the inside of a corner. A stretch it is already past is behind
+ *  it; one it is somehow in is 0, so it stands where it is. */
+function animalRoom(T, w, front) {
+  let best = Infinity;
+  for (const z of T.closed) {
+    if (w.dir > 0) {
+      if (w.s - w.L / 2 > z.s1) continue;
+      best = Math.min(best, Math.max(0, z.s0 - front - ANIMAL_GAP - cornerExtra(T, front, z.s0, w.d)));
+    } else {
+      if (w.s + w.L / 2 < z.s0) continue;
+      best = Math.min(best, Math.max(0, front - z.s1 - ANIMAL_GAP - cornerExtra(T, z.s1, front, w.d)));
+    }
+  }
+  return best;
+}
+export const ANIMAL_STOP_RATE = ANIMAL_STOP, ANIMAL_STOP_GAP = ANIMAL_GAP;
 
 /** Seconds to cover d metres from speed v, accelerating at a (the page's
  *  9 m/s² for the van) up to vMax. */
@@ -632,11 +680,11 @@ function returnBlocker(T, van, vb, dt, underway) {
       continue;
     }
     if (wRear >= vb.front) {
-      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, w.d);
+      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, wider(w.d, van.lane));
       const dv = Math.max(0, van.v - w.v);
       if (g < dv * dv / (2 * VAN_STOP) + dv * dt + 0.5) return w;
     } else if (wFront <= vb.rear) {
-      const g = vb.rear - wFront - GAP - cornerExtra(T, wFront, vb.rear, w.d);
+      const g = vb.rear - wFront - GAP - cornerExtra(T, wFront, vb.rear, wider(w.d, van.lane));
       if (g < w.v * dt * 2 + w.v * w.v / (2 * FOLLOW_STOP) + 0.5) return w;
     } else return w;
   }
@@ -693,7 +741,7 @@ function populate(T, van, vb, dt) {
       const k = pickKind(T, g);
       if (k) {
         const w = spawn(T, k, +1, sH);
-        const lead = T.vehicles.find(u => u !== w && u.dir > 0 && u.s > sH && u.s < sH + 60);
+        const lead = w && T.vehicles.find(u => u !== w && u.dir > 0 && u.s > sH && u.s < sH + 60);
         if (lead) w.v = Math.min(w.v, lead.v);
       }
       T.nextGap = SPACING[g] * (0.5 + T.rand());
@@ -722,8 +770,7 @@ function populate(T, van, vb, dt) {
         && !T.vehicles.some(w => w.dir > 0 && Math.abs(w.s - sB) < 40)) {
       const k = pickKind(T, 'trunk');
       const w = spawn(T, k, +1, sB);
-      const room = vb.rear - (sB + w.L / 2) - GAP;
-      w.v = Math.min(w.v, stopSpeed(room, FOLLOW_STOP, 0.05));
+      if (w) w.v = Math.min(w.v, stopSpeed(vb.rear - (sB + w.L / 2) - GAP, FOLLOW_STOP, 0.05));
     }
   }
 }

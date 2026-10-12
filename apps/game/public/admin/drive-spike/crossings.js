@@ -80,6 +80,32 @@ const SEEN_S = 0.35;
 const CAP_DECEL = 22;
 const COMMIT_DECEL = 18;
 
+/** Every other vehicle on the road, both ways, gives way too (Marcus,
+ *  2026-10-12: "make SURE that the crossing animals on the road are not run
+ *  over by vehicles coming in the other direction!"). traffic.js stops each
+ *  one short of closed() at a careful driver's 3.5 m/s², ANIMAL_GAP short of
+ *  it. An animal steps out only when every vehicle coming either way can do
+ *  that at TRAFFIC_DECEL, a little gentler, from a frame later
+ *  (TRAFFIC_LAG s), with TRAFFIC_SLACK m to spare for a corner beyond; one
+ *  in the stretch or too close to stop and it waits on the verge until it
+ *  has gone by. Its stop is traffic.js's to keep, whatever this decides:
+ *  this only makes sure that stop is a gentle one. */
+const TRAFFIC_DECEL = 3, TRAFFIC_LAG = 0.06, TRAFFIC_GAP = 1.2, TRAFFIC_SLACK = 3;
+
+/** Whether no vehicle but the van (others: {s, L, v, dir}) is in the way of
+ *  crossing c now. */
+function trafficClear(c, others) {
+  const s0 = c.s - c.near, s1 = c.s + c.far;
+  for (const w of others) {
+    const ahead = w.s + w.dir * w.L / 2, behind = w.s - w.dir * w.L / 2;
+    // Gone by: its tail is past the stretch.
+    if (w.dir > 0 ? behind > s1 + 1 : behind < s0 - 1) continue;
+    const room = (w.dir > 0 ? s0 - ahead : ahead - s1) - TRAFFIC_GAP - TRAFFIC_SLACK;
+    if (room <= 0 || w.v * TRAFFIC_LAG + w.v * w.v / (2 * TRAFFIC_DECEL) > room) return false;
+  }
+  return true;
+}
+
 /** Along the road, how far either side of the crossing's centre is closed
  *  is worked out for each crossing from its party (zoneOf): the drawn
  *  bodies and glows, a family's line, the wobble, and a clear metre in front
@@ -566,10 +592,13 @@ function thanks(c) {
 }
 
 /** Advance the animals and report what they mean for the van.
+ *  @param {{s:number, L:number, v:number, dir:number}[]} [others] the other
+ *  vehicles on the road (traffic.js's T.vehicles): an animal steps out only
+ *  when all of them can stop for it, as well as the van
  *  @returns {{ speedCap: number, events: string[] }} speedCap as in traffic.js:
  *  the fastest the van may go this frame without reaching an animal; the page
  *  brakes hard itself if she has not. */
-export function step(xing, dt, van) {
+export function step(xing, dt, van, others = []) {
   xing.t += dt;
   if (van.camH != null) xing.camH = van.camH;
   let speedCap = Infinity;
@@ -586,12 +615,13 @@ export function step(xing, dt, van) {
       if (v?.ahead == null || c.s - van.s < v.ahead) c.seen += dt;
       const clear = v?.ahead == null || !v.ppm || c.s + c.top - van.s < v.ahead - chipsPx(v, xing.t) / v.ppm;
       if (c.s - nose <= triggerGap(van.v) && c.seen >= SEEN_S && clear) {
-        if (gap >= van.v * van.v / (2 * COMMIT_DECEL) + 0.5) {
-          c.state = 'go'; c.blocking = true; c.moving = van.v > 0.5;
-        } else c.state = 'late';
+        if (gap < van.v * van.v / (2 * COMMIT_DECEL) + 0.5) c.state = 'late';
+        else if (trafficClear(c, others)) { c.state = 'go'; c.blocking = true; c.moving = van.v > 0.5; }
+        // else something is coming the other way, or is between the van and
+        // it: it waits for that to go by.
       }
     }
-    if (c.state === 'late' && tail > c.s + c.far) { c.state = 'go'; c.blocking = false; }
+    if (c.state === 'late' && tail > c.s + c.far && trafficClear(c, others)) { c.state = 'go'; c.blocking = false; }
     if (c.state !== 'go') continue;
 
     if (!c.script) c.script = buildScript(c);
@@ -775,10 +805,11 @@ function boundOf(kind) {
 }
 function reachOf(kind) { return boundOf(kind).reach; }
 
-/** Which stretches the van must stay out of, for anything else that wants
- *  to know (traffic.js). [{s0, s1}] in route metres. */
+/** Which stretches every other vehicle must stay out of (traffic.js): where
+ *  an animal is on the road or setting out, whether or not the van is
+ *  stopped for it. [{s0, s1}] in route metres. */
 export function closed(xing) {
-  return xing.crossings.filter(c => c.state === 'go' && c.blocking)
+  return xing.crossings.filter(c => c.state === 'go' && onRoad(c))
     .map(c => ({ s0: c.s - c.near, s1: c.s + c.far }));
 }
 

@@ -668,8 +668,11 @@ function laneOffset(lane, s) {
 function step(dt) {
   car.length = VAN_W_M * (vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0);
   car.width = VAN_W_M;
-  const t = trf ? traffic.step(trf, dt, car) : { speedCap: Infinity, laneBlocked: false, events: [] };
-  const x = xing ? crossings.step(xing, dt, car) : { speedCap: Infinity, events: [] };
+  // Every vehicle, either way, stops for an animal crossing; an animal steps
+  // out only when every vehicle can (Marcus, 2026-10-12).
+  const t = trf ? traffic.step(trf, dt, car, { closed: xing ? crossings.closed(xing) : [] })
+    : { speedCap: Infinity, laneBlocked: false, events: [] };
+  const x = xing ? crossings.step(xing, dt, car, trf ? trf.vehicles : []) : { speedCap: Infinity, events: [] };
   t.speedCap = Math.min(t.speedCap, x.speedCap);
   if (t.laneBlocked || !canOvertakeAt(car.s)) car.laneWant = 0;
   // Something is alongside in our own lane: a swipe back now would be a
