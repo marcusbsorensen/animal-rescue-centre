@@ -191,7 +191,7 @@ function clearance(car, a) {
 const totals = {
   seeds: 0, minutes: 0, routes: 0, crossings: 0, crossed: 0, late: 0, sleeping: 0,
   praised: 0, selfStops: 0, emergencyFrames: 0, families: 0, contacts: 0, minClear: Infinity, skew: 0, minClearSide: {}, lateBy: {},
-  offSmall: 0, rest: [], restForced: [], restCareful: [], outSlow: [], outFast: [], winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {}, bodies: {},
+  offSmall: 0, fileStray: 0, rest: [], restForced: [], restCareful: [], outSlow: [], outFast: [], winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {}, bodies: {},
 };
 const fail = [];
 
@@ -275,6 +275,10 @@ function drive(seed, newRouteFn, season, label) {
     for (const a of crossings.animals(xing, car.camH)) {
       if (!(a.len > 0 && a.wid > 0)) { totals.contacts++; fail.push(`${label}: ${a.kind} has no drawn body`); continue; }
       totals.bodies[a.kind] ??= `${a.len.toFixed(2)}x${a.wid.toFixed(2)} m`;
+      // Single file: a duckling on the road keeps to its mother's line.
+      if (a.kind === 'duckling' && a.crossing.state === 'go' && Math.abs(a.lat) < a.crossing.halfW) {
+        totals.fileStray = Math.max(totals.fileStray, Math.abs(a.s - a.crossing.s));
+      }
       const cl = clearance(car, a);
       if (a.crossing.state === 'go' && cl < totals.minClear) totals.minClear = cl;
       if (a.crossing.state === 'go' && a.crossing.blocking) {
@@ -371,7 +375,8 @@ for (let seed = 101; seed <= 112; seed++) {
 console.log(`seeds ${totals.seeds} (50 synthetic + 12 on the Birchie graph), ${totals.minutes} simulated minutes, ${totals.routes} routes`);
 console.log(`crossing places on the routes driven ${totals.crossings} (${totals.sleeping} hedgehog places asleep in winter), animals crossed ${totals.crossed}`);
 console.log(`by species ${JSON.stringify(totals.bySpecies)}`);
-console.log(`mother ducks leading ducklings (spring) ${totals.families}`);
+console.log(`mother ducks leading ducklings (spring) ${totals.families}; on the road a duckling strayed at most ${totals.fileStray.toFixed(2)} m off her line`);
+if (totals.fileStray > 0.4) fail.push(`a duckling strayed ${totals.fileStray.toFixed(2)} m off its mother's line: they cross abreast`);
 console.log(`by place ${JSON.stringify(totals.byPlace)}`);
 console.log(`crossed by season ${JSON.stringify(totals.bySeason)}`);
 console.log(`she stopped by herself ${totals.praised}, the van stopped itself ${totals.selfStops} (${totals.emergencyFrames} hard-braking frames), crossed behind the van ${totals.late}`);

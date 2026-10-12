@@ -451,18 +451,22 @@ function makeCrossing(route, world, site, s) {
     // Half its length across the road, painted or stand-in, whichever is longer.
     half: Math.max(ART[a.kind].L, TOPDOWN[a.kind].dl) / 2,
   }));
-  // Followers queue behind the leader on a slant: back into the verge and
+  // Followers wait behind the leader on a slant: back into the verge and
   // back along it towards the van, so a family waits in a wobbly line in
   // plain sight, below the chips at the top of the screen and inside its
-  // left edge, and crosses as a slanting line. Ducklings huddle closer.
-  let back = 0, along = 0;
+  // left edge. They cross in single file (Marcus, 2026-10-12: "they do not
+  // cross roads like a big front"): each walks the trail of the one in
+  // front, down the slant to where the leader stepped off and then along
+  // her line across the road (trailOf). back is how far behind the leader
+  // along that trail; ducklings keep closer, now and then one lags.
+  let back = 0;
   for (let k = 1; k < party.length; k++) {
     const a = party[k], b = party[k - 1];
-    const gap = a.kind === 'duckling' ? (a.half + b.half) * 0.75 : a.half + b.half + 0.25;
-    back += gap * Math.SQRT1_2; along -= gap * Math.SQRT1_2;
-    a.back = back; a.along = along;
+    a.gap = a.kind === 'duckling' ? (a.half + b.half) * 0.9 + (r() < 0.25 ? 0.25 + 0.35 * r() : 0) : a.half + b.half + 0.25;
+    back += a.gap;
+    a.back = back; a.along = -back * Math.SQRT1_2;
   }
-  if (party[0]) { party[0].back = 0; party[0].along = 0; }
+  if (party[0]) { party[0].back = 0; party[0].along = 0; party[0].gap = 0; }
   for (const a of party) a.d = -a.back;
   const side = nearSide || party.length > 1 ? -1 : 1;
   const zone = zoneOf({ party });
@@ -580,6 +584,28 @@ function gaitOf(kind, l, tl, prev) {
   return G;
 }
 
+/** How far a follower is behind the leader along the trail now: each gap
+ *  closes up a little and opens again at its own slow pace, so the file
+ *  stretches and bunches unevenly; never longer than back, which the
+ *  closed stretch and the script are built on. */
+const FILE_BREATHE = 0.22;
+function backNow(c, k) {
+  let b = 0;
+  for (let j = 1; j <= k; j++) {
+    const m = c.party[j];
+    b += m.gap * (1 - FILE_BREATHE * (0.5 + 0.5 * Math.sin(c.t * (0.8 + (m.phase % 0.9)) + m.phase)));
+  }
+  return b;
+}
+
+/** Where on its trail a party member is, d metres along it from the
+ *  leader's start: across the road on her line once d >= 0, and before that
+ *  down the slant it waited on. Across (metres, as d) and along the road
+ *  (metres from her line, negative towards the van). */
+function trailOf(d) {
+  return d >= 0 ? { x: d, s: 0 } : { x: d * Math.SQRT1_2, s: d * Math.SQRT1_2 };
+}
+
 /** Latitude of a party member walking d metres from its start. */
 function latOf(c, a, d) { return c.side * (c.halfW + c.verge - d); }
 
@@ -634,7 +660,7 @@ export function step(xing, dt, van, others = []) {
     c.leg = legNow(c);
     const { l, tl, prev } = c.leg;
     const lead = l.d0 + (l.d1 - l.d0) * gaitOf(c.party[0].kind, l, tl, prev).p;
-    for (const a of c.party) a.d = lead - a.back;
+    for (const a of c.party) a.d = lead - backNow(c, a.k);
     const total = c.script.reduce((n, l) => n + l.dur, 0);
 
     if (c.blocking && !onRoad(c)) c.blocking = false;
@@ -703,11 +729,12 @@ function looks(c, a, t) {
  *  The box is the whole drawing as drawn, so what the check measures is
  *  what she sees. */
 function pose(c, a, t, camH) {
-  const lat = latOf(c, a, a.d);
+  const tr = trailOf(a.d);
+  const lat = latOf(c, a, tr.x);
   const ds = WOBBLE_M * Math.sin(a.d * 1.7 + a.phase) + (a.k ? FOLLOW_WOBBLE_M * Math.sin(a.d * 3.1 + 2 * a.phase) : 0);
   const hx = Math.cos(c.h), hy = Math.sin(c.h);
   const V = looks(c, a, t);
-  const s = c.s + a.along + ds;
+  const s = c.s + tr.s + ds;
   const at = (ss, ll) => ({ x: c.x + hx * (ss - c.s) - hy * ll, y: c.y + hy * (ss - c.s) + hx * ll });
   // The glow fades as the animal leaves the far kerb behind.
   const past = a.d - (c.verge + 2 * c.halfW + a.half);
