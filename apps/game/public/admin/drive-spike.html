@@ -92,6 +92,7 @@ import * as scenery from './drive-spike/scenery.js';
 import * as traffic from './drive-spike/traffic.js';
 import * as crossings from './drive-spike/crossings.js';
 import * as look from './drive-spike/vehicle-look.js';
+import * as roadPaint from './drive-spike/road-paint.js';   // ?road=0|1|2
 // The gears, handbrake and horn, in a strip along the bottom styled as the
 // van's own dashboard (Marcus, 2026-10-11). The road view is the canvas above
 // that strip.
@@ -575,6 +576,8 @@ function strokeOffset(ax, ay, bx, by, off) {
 /** Every edge whose midpoint is within the view radius, stroked by class. One
  *  pass over 970 edges per frame is nothing, so there is no spatial index. */
 function drawRoads(cx, cy, radius) {
+  // The painted surface and hand-painted lines; at ?road=0 the flat look below.
+  if (roadPaint.draw(ctx, cx, cy, radius)) return;
   const r2 = radius * radius;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (const pass of ['surface', 'marking']) {
@@ -798,6 +801,8 @@ async function boot() {
   adj = buildAdjacency(graph);
   pickRoute();
   scn = await scenery.load({ graph, mapToWorld, metresPerMapPx: METRES_PER_MAP_PX });
+  roadPaint.load({ graph, ctx, roadWidth, season: SEASON, trunk: { lane: TRUNK_LANE_M, reservation: RESERVATION_M },
+    nodeXY: n => [n[0] * ASPECT * METRES_PER_UNIT, n[1] * METRES_PER_UNIT] });
   roads = graph.edges
     .filter(([i, j]) => i >= 0 && j >= 0 && i < graph.nodes.length && j < graph.nodes.length)
     .map(([i, j, cls]) => {
