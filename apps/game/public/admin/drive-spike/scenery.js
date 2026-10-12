@@ -15,9 +15,19 @@
 //
 // How it is built, so the next person can change it:
 //   - load() parses the map once, indexes its polygons and the graph's roads,
-//     and places every object: houses along residential roads (and along any
-//     road where the map has a garden), hedges round fields and along country
-//     roads, trees in woods, parks, verges, hedgerows and back gardens.
+//     and places every object: the real buildings, hedges round fields and
+//     along country roads, trees in woods, parks, verges, hedgerows and back
+//     gardens.
+//   - The real buildings are OpenStreetMap's (buildings.json, written by
+//     tools/osm-buildings.py): houses, farmhouses and barns, shops, the
+//     churches, schools and the station, each drawn from its own footprint
+//     with a roof for its kind. One that stands in a road's verge is moved
+//     back out of it (never more than PUSH_MAX), or left out. Farmyards are
+//     yard ground; a farmyard with no mapped buildings gets a farmhouse and
+//     barns of its own, and the farms get silos and bales.
+//   - Houses are generated along residential roads, along any road where the
+//     map has gardens or OSM has a housing area, and only where OSM has no
+//     buildings: a real building keeps them REAL_GAP away.
 //   - Every placement is seeded by its position (or by the graph edge it hangs
 //     off), so the same place has the same trees on every drive.
 //   - Nothing is placed within (road half-width + VERGE_M) of any graph edge.
@@ -45,6 +55,9 @@
 
 const MAP_URL = '/admin/scene-assets/birchie-map/birchie-roads.svg';
 const MAP_W = 1800, MAP_H = 1121;
+/** The real buildings, farmyards, churchyards and housing areas beside the
+ *  roads, in world metres (tools/osm-buildings.py writes it). */
+const BUILDINGS_URL = '/assets/driving/buildings.json';
 
 /** Cell size of the spatial grid, metres. */
 const CELL_M = 100;
@@ -61,6 +74,19 @@ const crownReach = r => r * 1.04 + 0.25;
 /** Object heights, metres: shadows fall view.sun times these. */
 const H = { canopy: 8, canopyLow: 4.5, house: 7, hedge: 1.5, wall: 0.9, fence: 1.6, glass: 5, hut: 2.4 };
 
+/** Real buildings: eaves and ridge heights by kind, metres. */
+const BH = {
+  house: [5, 8], flats: [8.5, 12], farmhouse: [5.5, 9], barn: [5, 8], church: [8, 13], school: [4.5, 4.5],
+  station: [5, 8], retail: [6, 9], industrial: [6.5, 8.5], workshop: [5, 6.5], garage: [2.4, 2.4],
+  shed: [2.2, 2.7], caravan: [2.8, 3], glasshouse: [3.5, 4.5], canopy: [5, 5], hall: [5, 8], other: [4.5, 6.5],
+};
+const TOWER_H = 18, SPIRE_H = 31, SILO_H = 12;
+/** A real building in a verge is moved back this far at most, else left out. */
+const PUSH_MAX = 4;
+/** A generated house keeps this clear of a real building (box to box), and
+ *  this far from a real house's middle, so it fills only unmapped streets. */
+const REAL_GAP = 6, REAL_NEAR = 18;
+
 const SHADOW_COLOUR = 'rgb(40,46,38)';
 const SHADOW_ALPHA = 0.22;   // the van's own shadow alpha, so they agree
 
@@ -72,16 +98,20 @@ const SHADOW_ALPHA = 0.22;   // the van's own shadow alpha, so they agree
 const GROUND = {
   spring: { sea: '#9fcdd5', seaInk: '#6fa3ae', sand: '#e6d4a2', grass: '#9ec96a', tuftD: '#86b456', tuftL: '#b4d982',
     park: '#a8d274', meadow: '#a9c66e', garden: '#a4cd70', wood: '#6e9446', pitchA: '#a2cd6c', pitchB: '#92c060',
-    pasture: '#a6cf6c', allot: '#a58a62', hard: '#cfc6b0', pool: '#7cc6e0', poolInk: '#4d97b3', yard: '#d9d2bd' },
+    pasture: '#a6cf6c', allot: '#a58a62', hard: '#cfc6b0', pool: '#7cc6e0', poolInk: '#4d97b3', yard: '#d9d2bd',
+    farmyard: '#c4b28e', grit: '#a8966f', gritL: '#ddd0b0' },
   summer: { sea: '#97cbd6', seaInk: '#679fac', sand: '#ead8a6', grass: '#8fbb5c', tuftD: '#78a54c', tuftL: '#a8cd70',
     park: '#97c463', meadow: '#b3bf68', garden: '#93c060', wood: '#5b8340', pitchA: '#92c35e', pitchB: '#82b352',
-    pasture: '#98c35e', allot: '#9a7f58', hard: '#d3cab3', pool: '#79c4df', poolInk: '#4d97b3', yard: '#ddd5bf' },
+    pasture: '#98c35e', allot: '#9a7f58', hard: '#d3cab3', pool: '#79c4df', poolInk: '#4d97b3', yard: '#ddd5bf',
+    farmyard: '#cfbd96', grit: '#b09d74', gritL: '#e4d8b8' },
   autumn: { sea: '#93c1cb', seaInk: '#6595a1', sand: '#dfcd9e', grass: '#98a95c', tuftD: '#82924c', tuftL: '#b3b874',
     park: '#9eb062', meadow: '#b0a764', garden: '#9cae60', wood: '#86713f', pitchA: '#9db462', pitchB: '#8ea656',
-    pasture: '#a0ad62', allot: '#8f6e4c', hard: '#cbc1aa', pool: '#76b9d0', poolInk: '#4b8ea8', yard: '#d4ccb6' },
+    pasture: '#a0ad62', allot: '#8f6e4c', hard: '#cbc1aa', pool: '#76b9d0', poolInk: '#4b8ea8', yard: '#d4ccb6',
+    farmyard: '#b9a682', grit: '#98865f', gritL: '#d4c7a6' },
   winter: { sea: '#a3c4cc', seaInk: '#7598a2', sand: '#ddd3b6', grass: '#b7c1a6', tuftD: '#a2ad92', tuftL: '#d6dccb',
     park: '#bec7ad', meadow: '#c2c4aa', garden: '#bbc4a9', wood: '#8d8670', pitchA: '#c0c9b0', pitchB: '#b2bca2',
     pasture: '#c3cab4', allot: '#b8ad99', hard: '#cfcabd', pool: '#9ccfdf', poolInk: '#6aa0b4', yard: '#d9d5c9',
+    farmyard: '#c9c0ad', grit: '#a89f8c', gritL: '#e2dccd',
     ice: '#dcedf2', iceInk: '#9cc3cf' },
 };
 
@@ -139,6 +169,24 @@ const ROOFS = [
 const WALLS = { brick: { fill: '#a3654c', ink: '#6a3b2b' }, flint: { fill: '#c4bdaf', ink: '#7c7568' } };
 const FENCE = '#8b6a4a';
 const GLASS = { fill: '#cfe2df', ink: '#5f8380', ridge: '#9ab9b5', hl: '#f0f8f6' };
+
+// Real buildings. Barns and works have metal roofs: weathered green-grey,
+// rust, galvanised, dark green, blue-grey. Flat roofs are felt or asphalt
+// with a paler parapet; schools and big shops have roof lights.
+const METAL = [{ base: '#8a958c', kind: 'metal' }, { base: '#9c6247', kind: 'metal' }, { base: '#a9aeae', kind: 'metal' },
+  { base: '#62786a', kind: 'metal' }, { base: '#7f8b97', kind: 'metal' }];
+const SLATES = ROOFS.filter(r => r.kind === 'slate').concat([{ base: '#7d838a', kind: 'slate' }]);
+const TILES = ROOFS.filter(r => r.kind === 'tile').concat([{ base: '#b0735a', kind: 'tile' }, { base: '#9a6a52', kind: 'tile' }]);
+const ROOFS_R = TILES.concat(SLATES);
+const FLAT = [{ base: '#a9a6a0', parapet: '#cfcbc2' }, { base: '#8f8d88', parapet: '#bdb9b0' }, { base: '#b7b2a6', parapet: '#d9d4c8' }];
+const FELT = ['#6f6c66', '#7b7770', '#64625e'];
+const CARAVAN = ['#ece6d6', '#e3e7df', '#efe8da', '#dde5da', '#e9e3d1'];
+const STONE = { fill: '#bdb4a2', ink: '#6c6457', lead: '#9ba1a0', spire: '#727a7e' };
+const AWNING = [['#c9564b', '#f3ede0'], ['#4f7f5a', '#efe6cf'], ['#3f6c99', '#f1ede4'], ['#c98f34', '#f6efe0'], ['#6b4f7d', '#f2ece2']];
+const SILO = { fill: '#c3c7c6', ink: '#6e7473', seam: '#9da3a2', cap: '#8a908f' };
+const BALE = { straw: '#d9b865', strawInk: '#a07f3a', wrap: '#33402f', wrapInk: '#1d241b' };
+const HEADSTONE = { fill: '#b8b5ac', ink: '#6f6c64' };
+const DRIVE = ['#d6ccb4', '#cfc8b8', '#a5a29b'];   // gravel, paving, tarmac
 
 function mix(hex, toward, f) {
   const a = parseInt(hex.slice(1), 16), b = parseInt(toward.slice(1), 16);
@@ -335,7 +383,7 @@ function ringArea(r) {
 }
 
 /** Z order of the ground, bottom to top. groundAt() returns the topmost. */
-const Z = { land: 0, farm: 1, green: 2, wood: 3, estate: 4, golf: 5, clump: 6, bunker: 7, pool: 8, yard: 9 };
+const Z = { land: 0, farm: 1, farmyard: 1.5, green: 2, wood: 3, estate: 4, golf: 5, clump: 6, bunker: 7, pool: 8, yard: 9 };
 const SEA = { layer: 'sea', kind: 'sea' };
 const LAND = { layer: 'land', kind: 'land' };
 
@@ -438,6 +486,89 @@ function lineSpans(rings, ux, uy, c) {
   return spans;
 }
 
+/** buildings.json's ring: integers in q metres, the first point absolute and
+ *  every later one a step from the last. Returns a flat world ring. */
+function decodeRing(a, q, from = 1) {
+  const r = [];
+  let x = a[from], y = a[from + 1];
+  r.push(x * q, y * q);
+  for (let k = from + 2; k + 1 < a.length; k += 2) { x += a[k]; y += a[k + 1]; r.push(x * q, y * q); }
+  return r;
+}
+
+/** Area-weighted middle of a flat ring. */
+function ringCentroid(r) {
+  let a = 0, cx = 0, cy = 0;
+  for (let k = 0; k < r.length; k += 2) {
+    const j = (k + 2) % r.length, f = r[k] * r[j + 1] - r[j] * r[k + 1];
+    a += f; cx += (r[k] + r[j]) * f; cy += (r[k + 1] + r[j + 1]) * f;
+  }
+  if (Math.abs(a) < 1e-9) return [r[0], r[1]];
+  return [cx / (3 * a), cy / (3 * a)];
+}
+
+/** The smallest oriented box round a flat ring, u along its longer side. */
+function ringObb(r) {
+  const pts = [];
+  for (let k = 0; k < r.length; k += 2) pts.push([r[k], r[k + 1]]);
+  const h = hull(pts);
+  let best = null;
+  for (let i = 0; i < h.length; i++) {
+    const [ax, ay] = h[i], [bx, by] = h[(i + 1) % h.length], l = Math.hypot(bx - ax, by - ay);
+    if (l < 1e-6) continue;
+    const ux = (bx - ax) / l, uy = (by - ay) / l;
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const [x, y] of h) {
+      const u = x * ux + y * uy, v = -x * uy + y * ux;
+      u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
+    }
+    const area = (u1 - u0) * (v1 - v0);
+    if (!best || area < best.area) best = { area, ux, uy, u0, u1, v0, v1 };
+  }
+  if (!best) return obb(r[0], r[1], 1, 0, 0.5, 0.5);
+  const { ux, uy, u0, u1, v0, v1 } = best, mu = (u0 + u1) / 2, mv = (v0 + v1) / 2;
+  const cx = mu * ux - mv * uy, cy = mu * uy + mv * ux;
+  return (u1 - u0) >= (v1 - v0) ? obb(cx, cy, ux, uy, (u1 - u0) / 2, (v1 - v0) / 2)
+    : obb(cx, cy, -uy, ux, (v1 - v0) / 2, (u1 - u0) / 2);
+}
+
+/** Point in a flat ring, even-odd. */
+function inRing(r, x, y) {
+  let c = false;
+  for (let k = 0, n = r.length; k < n; k += 2) {
+    const ax = r[k], ay = r[k + 1], bx = r[(k + 2) % n], by = r[(k + 3) % n];
+    if ((ay > y) !== (by > y) && x < ax + (y - ay) * (bx - ax) / (by - ay)) c = !c;
+  }
+  return c;
+}
+
+function flatTo(path, r, dx = 0, dy = 0) {
+  path.moveTo(r[0] + dx, r[1] + dy);
+  for (let k = 2; k < r.length; k += 2) path.lineTo(r[k] + dx, r[k + 1] + dy);
+  path.closePath();
+}
+
+/** A flat ring into a path wound the way hull() winds (positive area), so
+ *  shadow pieces can share one path and one nonzero fill with no holes. */
+function posTo(path, r, dx = 0, dy = 0) {
+  let a = 0;
+  for (let k = 0; k < r.length; k += 2) { const j = (k + 2) % r.length; a += r[k] * r[j + 1] - r[j] * r[k + 1]; }
+  if (a >= 0) { flatTo(path, r, dx, dy); return; }
+  path.moveTo(r[r.length - 2] + dx, r[r.length - 1] + dy);
+  for (let k = r.length - 4; k >= 0; k -= 2) path.lineTo(r[k] + dx, r[k + 1] + dy);
+  path.closePath();
+}
+
+/** A footprint's shadow at height h: the ring swept along the sun, every
+ *  piece wound the same way. */
+function sweepTo(path, r, sx, sy) {
+  posTo(path, r); posTo(path, r, sx, sy);
+  for (let k = 0; k < r.length; k += 2) {
+    const j = (k + 2) % r.length;
+    posTo(path, [r[k], r[k + 1], r[j], r[j + 1], r[j] + sx, r[j + 1] + sy, r[k] + sx, r[k + 1] + sy]);
+  }
+}
+
 // ------------------------------------------------------------------------ load
 
 /**
@@ -456,10 +587,12 @@ export async function load(world) {
     land: null, counts: {}, shadow: null, frame: null,
   };
   for (let k = 0; k < S.gx * S.gy; k++) {
-    S.cells.push({ trees: [], houses: [], hedges: [], walls: [], glass: [], huts: [], fieldIds: new Set(), cache: null, gcache: null });
+    S.cells.push({ trees: [], houses: [], hedges: [], walls: [], glass: [], huts: [], blds: [], silos: [], bales: [], stones: [],
+      fieldIds: new Set(), cache: null, gcache: null });
   }
 
-  // ---- the map
+  // ---- the map, and the real buildings beside its roads
+  const bdataP = fetch(BUILDINGS_URL).then(r => (r.ok ? r.json() : null)).catch(() => null);
   let doc = null;
   try {
     const txt = await (await fetch(MAP_URL)).text();
@@ -523,6 +656,28 @@ export async function load(world) {
     if (k < 2) add(s.rings, 'yard', 'yard');
     else glassBays.push(s.rings[0]);
   });
+
+  // Farmyards are yard ground, not fields. The map draws each as farmland, so
+  // its own polygon becomes the yard; churchyards are grass with graves.
+  // Housing areas are not ground: they say where the town is.
+  // Each map polygon keeps the number it had before the yards and
+  // churchyards were added, so its fields keep their crops and hedges.
+  S.polys.slice().sort((a, b) => a.z - b.z).forEach((p, k) => { p.seedId = k; });
+  const bdata = await bdataP;
+  const housing = [];
+  if (bdata) {
+    const farmPolys0 = S.polys.filter(p => p.layer === 'farm');
+    for (const a of bdata.a) {
+      const kind = bdata.areas[a[0]], ring = decodeRing(a, bdata.q);
+      if (ring.length < 6) continue;
+      if (kind === 'housing') { housing.push(makePoly([ring], 'housing', 'housing')); continue; }
+      if (kind === 'churchyard') { add([ring], 'green', 'churchyard'); continue; }
+      const yb = makePoly([ring], 'farmyard', 'farmyard').bbox;
+      const same = farmPolys0.find(p => !p.yard && p.bbox.every((v, k) => Math.abs(v - yb[k]) < 2.5));
+      if (same) { same.layer = 'farmyard'; same.kind = 'farmyard'; same.z = Z.farmyard; same.yard = true; }
+      else add([ring], 'farmyard', 'farmyard');
+    }
+  }
 
   S.polys.sort((a, b) => a.z - b.z);
   S.polys.forEach((p, k) => { p.id = k; });
@@ -597,6 +752,335 @@ export async function load(world) {
     const i = Math.floor(x / CELL_M), j = Math.floor(y / CELL_M);
     return i < 0 || j < 0 || i >= S.gx || j >= S.gy ? null : S.cells[j * S.gx + i];
   };
+  /** A building in every occupancy cell its box covers, so a big shed is
+   *  found from any side of it. */
+  const putBox = (grid, o) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of obbCorners(o.box)) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    for (let j = Math.max(0, Math.floor(y0 / OG)); j <= Math.min(ogy - 1, Math.floor(y1 / OG)); j++) {
+      for (let i = Math.max(0, Math.floor(x0 / OG)); i <= Math.min(ogx - 1, Math.floor(x1 / OG)); i++) grid[j * ogx + i].push(o);
+    }
+  };
+
+  // ---- housing areas (OSM landuse=residential): where the town really is
+  const housingGrid = Array.from({ length: S.gx * S.gy }, () => []);
+  for (const p of housing) {
+    const [x0, y0, x1, y1] = p.bbox;
+    for (let j = Math.max(0, Math.floor(y0 / CELL_M)); j <= Math.min(S.gy - 1, Math.floor(y1 / CELL_M)); j++) {
+      for (let i = Math.max(0, Math.floor(x0 / CELL_M)); i <= Math.min(S.gx - 1, Math.floor(x1 / CELL_M)); i++) housingGrid[j * S.gx + i].push(p);
+    }
+  }
+  const inHousing = (x, y) => {
+    const i = Math.floor(x / CELL_M), j = Math.floor(y / CELL_M);
+    if (i < 0 || j < 0 || i >= S.gx || j >= S.gy) return false;
+    return housingGrid[j * S.gx + i].some(p => inPoly(p, x, y));
+  };
+
+  /** The nearest road to (x, y), looking about 50m round: the closest point
+   *  on it, its direction and half-width. */
+  const roadNear = (x, y) => {
+    const gxx = Math.floor(x / RG), gyy = Math.floor(y / RG);
+    let best = null;
+    for (let j = gyy - 1; j <= gyy + 1; j++) for (let i = gxx - 1; i <= gxx + 1; i++) {
+      if (i < 0 || j < 0 || i >= rgx || j >= rgy) continue;
+      for (const s of roadGrid[j * rgx + i]) {
+        const dx = s.bx - s.ax, dy = s.by - s.ay, l2 = dx * dx + dy * dy;
+        let t = l2 ? ((x - s.ax) * dx + (y - s.ay) * dy) / l2 : 0;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const px = s.ax + dx * t, py = s.ay + dy * t, d = Math.hypot(x - px, y - py);
+        if (!best || d < best.d) { const l = Math.sqrt(l2) || 1; best = { d, px, py, ux: dx / l, uy: dy / l, half: s.half }; }
+      }
+    }
+    return best;
+  };
+
+  // ---- the real buildings (OpenStreetMap). One that stands in a road's
+  // verge is moved straight back out of it, and the buildings it then runs
+  // into (its own extension, the rest of its terrace) go back with it.
+  const BC = { real: 0, pushed: 0, dropped: 0, farmGen: 0, silos: 0, bales: 0, stones: 0, drives: 0 };
+  /** How far a ring moved by (dx, dy) reaches into a road's keep-clear band
+   *  at its worst point, and which way is out: from that road towards the
+   *  building's middle (mx, my). Infinity when a road runs through it. */
+  const vergeNeed = (ring, mx, my, dx, dy) => {
+    let worst = 0, ox = 0, oy = 0;
+    const n = ring.length;
+    for (let k = 0; k < n; k += 2) {
+      const ax = ring[k] + dx, ay = ring[k + 1] + dy, bx = ring[(k + 2) % n] + dx, by = ring[(k + 3) % n] + dy;
+      const m = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 1.2));
+      for (let t = 0; t < m; t++) {
+        const x = ax + (bx - ax) * t / m, y = ay + (by - ay) * t / m;
+        const gxx = Math.floor(x / RG), gyy = Math.floor(y / RG);
+        if (gxx < 0 || gyy < 0 || gxx >= rgx || gyy >= rgy) continue;
+        for (const s of roadGrid[gyy * rgx + gxx]) {
+          const sx = s.bx - s.ax, sy = s.by - s.ay, l2 = sx * sx + sy * sy;
+          let u = l2 ? ((x - s.ax) * sx + (y - s.ay) * sy) / l2 : 0;
+          u = u < 0 ? 0 : u > 1 ? 1 : u;
+          const px = s.ax + sx * u, py = s.ay + sy * u;
+          let nx = mx + dx - px, ny = my + dy - py;
+          const nl = Math.hypot(nx, ny);
+          if (nl < 0.5) return { need: Infinity, ox: 0, oy: 0 };
+          nx /= nl; ny /= nl;
+          const need = s.half + VERGE_M + 0.05 - ((x - px) * nx + (y - py) * ny);
+          if (need > worst) { worst = need; ox = nx; oy = ny; }
+        }
+      }
+    }
+    return { need: worst, ox, oy };
+  };
+  /** Move (dx, dy) on until the ring is clear of every verge; null if that
+   *  takes more than PUSH_MAX. */
+  const clearOf = (ring, mx, my, dx, dy) => {
+    for (let it = 0; it < 6; it++) {
+      const v = vergeNeed(ring, mx, my, dx, dy);
+      if (v.need <= 0) return [dx, dy];
+      if (!Number.isFinite(v.need)) return null;
+      dx += v.ox * (v.need + 0.05); dy += v.oy * (v.need + 0.05);
+      if (Math.hypot(dx, dy) > PUSH_MAX) return null;
+    }
+    return null;
+  };
+  const shift = (box, dx, dy) => obb(box.x + dx, box.y + dy, box.ux, box.uy, box.hu, box.hv);
+  const realIn = [];
+  if (bdata) {
+    for (const a of bdata.b) {
+      const ring = decodeRing(a, bdata.q);
+      if (ring.length < 6) continue;
+      const [mx, my] = ringCentroid(ring);
+      realIn.push({ kind: bdata.kinds[a[0]], ring, mx, my, box0: ringObb(ring), d: [0, 0], gone: false });
+    }
+  }
+  {
+    const TG = 30, tg = new Map();
+    for (const o of realIn) {
+      const i = Math.floor(o.mx / TG), j = Math.floor(o.my / TG), key = i * 4099 + j;
+      if (!tg.has(key)) tg.set(key, []);
+      tg.get(key).push(o);
+    }
+    const around = (o, fn) => {
+      const ci = Math.floor(o.mx / TG), cj = Math.floor(o.my / TG);
+      for (let j = cj - 2; j <= cj + 2; j++) for (let i = ci - 2; i <= ci + 2; i++) for (const p of tg.get(i * 4099 + j) || []) if (p !== o && !p.gone) fn(p);
+    };
+    const queue = [];
+    for (const o of realIn) {
+      const d = clearOf(o.ring, o.mx, o.my, 0, 0);
+      if (!d) { o.gone = true; continue; }
+      o.d = d;
+      if (Math.hypot(d[0], d[1]) > 0.01) queue.push(o);
+    }
+    // What a moved building now runs into goes back with it (once or twice).
+    const moved = new Set(queue);
+    for (let qi = 0; qi < queue.length && qi < 4 * realIn.length; qi++) {
+      const m = queue[qi];
+      if (m.gone) continue;
+      const len = Math.hypot(m.d[0], m.d[1]), px = m.d[0] / len, py = m.d[1] / len;
+      const mb = shift(m.box0, m.d[0], m.d[1]);
+      around(m, n => {
+        if (obbOverlap(m.box0, n.box0, -0.3)) return;                 // touching already, as mapped
+        if (!obbOverlap(mb, shift(n.box0, n.d[0], n.d[1]), -0.3)) return;
+        const deficit = len - (n.d[0] * px + n.d[1] * py);
+        if (deficit <= 0) return;
+        const d = clearOf(n.ring, n.mx, n.my, n.d[0] + px * deficit, n.d[1] + py * deficit);
+        if (!d) { n.gone = true; return; }
+        n.d = d; moved.add(n); queue.push(n);
+      });
+    }
+    // A moved building that still overlaps another is left out.
+    for (const m of moved) {
+      if (m.gone) continue;
+      const mb = shift(m.box0, m.d[0], m.d[1]);
+      let clash = false;
+      around(m, n => { if (!clash && !obbOverlap(m.box0, n.box0, -0.4) && obbOverlap(mb, shift(n.box0, n.d[0], n.d[1]), -0.4)) clash = true; });
+      if (clash) m.gone = true;
+      else BC.pushed++;
+    }
+  }
+
+  /** A building record: its footprint, box, the axis its ridge runs along,
+   *  and how it is roofed. real is false for the farm buildings made up for
+   *  a farmyard OSM has none mapped in. */
+  const blds = [];
+  const makeBuilding = (kind, ring, real) => {
+    const box = ringObb(ring), [cx, cy] = ringCentroid(ring), area = ringArea(ring);
+    const seed = hash(Math.round(cx * 10), Math.round(cy * 10), 301), r = rng(seed);
+    const rect = ring.length === 8 && Math.abs(area - 4 * box.hu * box.hv) < 0.05 * area;
+    const rn = roadNear(cx, cy);
+    const b = { bld: true, real, kind, ring, box, cx, cy, area, rect, seed, road: rn && rn.d < 45 ? rn : null };
+    // The ridge runs along the long side, except that a house near a road
+    // has its ridge along the road, as a street's roofs do.
+    let ax = box.ux, ay = box.uy;
+    const homely = kind === 'house' || kind === 'farmhouse' || kind === 'retail' || kind === 'flats' || kind === 'hall' || kind === 'station';
+    if (homely && b.road && box.hu / Math.max(0.5, box.hv) < 2.4 && Math.abs(box.ux * b.road.ux + box.uy * b.road.uy) < Math.SQRT1_2) {
+      ax = -box.uy; ay = box.ux;
+    }
+    b.rbox = ax === box.ux && ay === box.uy ? box : obb(box.x, box.y, ax, ay, box.hv, box.hu);
+    [b.he, b.hr] = BH[kind] || BH.other;
+    // Roofs by kind. Neighbouring houses tend to share a roof, as streets do.
+    const street = ROOFS_R[Math.floor(noise(cx, cy, 45, 303) * ROOFS_R.length * 0.999)];
+    const pick = list => list[(r() * list.length) | 0];
+    b.form = 'pitched';
+    switch (kind) {
+      case 'house':
+        b.roof = r() < 0.88 ? street : pick(ROOFS_R);
+        b.hipped = rect && b.rbox.hu > 3.5 && r() < 0.32;
+        b.chimney = r() < 0.7 ? (r() < 0.5 ? -1 : 1) : 0;
+        break;
+      case 'farmhouse':
+        b.roof = r() < 0.7 ? pick(TILES) : pick(SLATES); b.chimney = 2; b.hipped = rect && r() < 0.25;
+        break;
+      case 'flats': b.roof = pick(SLATES); b.hipped = rect; if (area > 700) { b.form = 'flat'; b.flat = pick(FLAT); } break;
+      case 'barn': case 'industrial': case 'workshop':
+        b.roof = kind === 'barn' && r() < 0.2 ? pick(TILES) : pick(METAL);
+        if (kind !== 'barn' && !rect && area > 400) { b.form = 'flat'; b.flat = pick(FLAT); b.lights = true; }
+        break;
+      case 'church': b.form = 'church'; b.roof = SLATES[0]; break;
+      case 'school': b.form = 'flat'; b.flat = FLAT[0]; b.lights = area > 120; break;
+      case 'station': b.roof = SLATES[1]; b.chimney = 2; break;
+      case 'retail':
+        if (area < 260) { b.roof = r() < 0.6 ? pick(SLATES) : street; b.chimney = r() < 0.5 ? 1 : 0; }
+        else { b.form = 'flat'; b.flat = pick(FLAT); b.lights = r() < 0.6; }
+        if (rect && b.road && b.road.d < 26 && r() < 0.8) b.awning = AWNING[(r() * AWNING.length) | 0];
+        break;
+      case 'garage': b.form = 'flat'; b.flat = { base: pick(FELT), parapet: '#99958c' }; break;
+      case 'shed': b.form = 'flat'; b.flat = { base: r() < 0.5 ? pick(FELT) : '#8b6a4a', parapet: '#a08a70' }; break;
+      case 'caravan': b.form = 'caravan'; b.fill = pick(CARAVAN); break;
+      case 'glasshouse': b.form = 'glass'; break;
+      case 'canopy': b.form = 'canopy'; break;
+      default:   // hall, other
+        if (rect && area < 450) { b.roof = r() < 0.6 ? pick(SLATES) : pick(TILES); b.hipped = r() < 0.4; }
+        else { b.form = 'flat'; b.flat = pick(FLAT); b.lights = area > 200; }
+    }
+    if (b.form === 'pitched' && !rect && area > 1600) { b.form = 'flat'; b.flat = pick(FLAT); b.lights = true; }
+    if (kind === 'church') {
+      // The tower at the west end, inside the footprint; a spire on the big
+      // parish church, a flat leaded top on a middling one, a bellcote on a
+      // chapel.
+      const { ux, uy, hu, hv } = b.rbox, w = ux > 0 ? -1 : 1;
+      const ts = Math.max(2.4, Math.min(7, 2 * hv * 0.9, 2 * hu * 0.4));
+      if (area < 220) b.tower = { box: obb(cx + ux * w * (hu - 1.4), cy + uy * w * (hu - 1.4), ux, uy, 0.7, 0.7), top: 'bell' };
+      else {
+        // the westernmost spot along the axis where the whole tower stands on the footprint
+        for (let t = hu - ts / 2 - 0.2; t > -hu + ts / 2; t -= 0.5) {
+          const tb = obb(b.rbox.x + ux * w * t, b.rbox.y + uy * w * t, ux, uy, ts / 2, ts / 2);
+          if (obbCorners(tb).concat([[tb.x, tb.y]]).every(([x, y]) => inRing(ring, x, y))) { b.tower = { box: tb, top: area >= 450 ? 'spire' : 'flat' }; break; }
+        }
+      }
+    }
+    if (b.awning && b.road) {
+      // Along the face towards the road, just inside the footprint.
+      const { ux, uy, hu, hv } = b.rbox, vx = -uy, vy = ux;
+      const tx = b.road.px - b.rbox.x, ty = b.road.py - b.rbox.y;
+      const du = tx * ux + ty * uy, dv = tx * vx + ty * vy;
+      const alongU = Math.abs(dv) / hv >= Math.abs(du) / hu;     // the road is off a long face
+      const s = alongU ? Math.sign(dv) || 1 : Math.sign(du) || 1, D = 1.1;
+      const P = (a, c) => [b.rbox.x + ux * a + vx * c, b.rbox.y + uy * a + vy * c];
+      b.awningPts = alongU
+        ? [P(-hu + 0.3, s * hv), P(hu - 0.3, s * hv), P(hu - 0.3, s * (hv - D)), P(-hu + 0.3, s * (hv - D))]
+        : [P(s * hu, -hv + 0.3), P(s * hu, hv - 0.3), P(s * (hu - D), hv - 0.3), P(s * (hu - D), -hv + 0.3)];
+      b.awningLen = alongU ? 2 * hu - 0.6 : 2 * hv - 0.6;
+    }
+    return b;
+  };
+  for (const o of realIn) {
+    if (o.gone) { BC.dropped++; continue; }
+    const ring = o.d[0] || o.d[1] ? o.ring.map((v, k) => v + o.d[k & 1]) : o.ring;
+    const b = makeBuilding(o.kind, ring, true);
+    blds.push(b);
+    putBox(houseGrid, b);
+    BC.real++;
+  }
+
+  // ---- farmsteads: a farmyard OSM has no buildings in gets a farmhouse and
+  // barns of its own; every farm with a big barn may get silos and bales
+  const silos = [], bales = [];
+  const yards = S.polys.filter(p => p.layer === 'farmyard');
+  for (const y of yards) {
+    const ring = y.rings.reduce((a, r) => (ringArea(r) > ringArea(a) ? r : a), y.rings[0]);
+    const yb = ringObb(ring), area = ringArea(ring), r = rng(hash(Math.round(yb.x), Math.round(yb.y), 311));
+    const inYard = (x, yy) => inPoly(y, x, yy);
+    const fits = (box, gap) => {
+      const pts = obbCorners(box);
+      for (const k of [0, 1, 2, 3]) pts.push([(pts[k][0] + pts[(k + 1) % 4][0]) / 2, (pts[k][1] + pts[(k + 1) % 4][1]) / 2]);
+      pts.push([box.x, box.y]);
+      return pts.every(([x, yy]) => inYard(x, yy) && roadClear(x, yy, 0.6)) && !near(houseGrid, box.x, box.y, h => obbOverlap(h.box, box, gap));
+    };
+    const mine = blds.filter(b => b.real && inYard(b.cx, b.cy));
+    if (!mine.length && area > 500) {
+      const want = area < 1500 ? [[15, 8]] : area < 5000 ? [[26, 12.5], [15, 8]] : [[34, 15], [24, 12], [16, 9]];
+      const made = [];
+      const tryPlace = (L, W, kind, order) => {
+        for (let t = 0; t < 80; t++) {
+          const [a, c, rot] = order(t);
+          const ux = rot ? -yb.uy : yb.ux, uy = rot ? yb.ux : yb.uy;
+          const box = obb(yb.x + yb.ux * a - yb.uy * c, yb.y + yb.uy * a + yb.ux * c, ux, uy, L / 2, W / 2);
+          if (!fits(box, 3)) continue;
+          const b = makeBuilding(kind, obbCorners(box).flat(), false);
+          blds.push(b); putBox(houseGrid, b); made.push(b); BC.farmGen++;
+          return b;
+        }
+        return null;
+      };
+      // The farmhouse nearest the road, the barns anywhere in the yard.
+      if (area > 1200) {
+        const spots = [];
+        for (let a = -yb.hu + 6; a <= yb.hu - 6; a += 3) for (let c = -yb.hv + 5; c <= yb.hv - 5; c += 3) {
+          const x = yb.x + yb.ux * a - yb.uy * c, yy = yb.y + yb.uy * a + yb.ux * c, rn = roadNear(x, yy);
+          spots.push([a, c, rn ? rn.d : 99]);
+        }
+        spots.sort((p, q) => p[2] - q[2]);
+        tryPlace(10 + r() * 2.5, 7.5 + r() * 1.2, 'farmhouse', t => (spots[t] ? [spots[t][0], spots[t][1], false] : [0, 0, false]));
+      }
+      for (const [L, W] of want) {
+        tryPlace(L, W, 'barn', () => [(r() - 0.5) * 2 * Math.max(0, yb.hu - L / 2), (r() - 0.5) * 2 * Math.max(0, yb.hv - W / 2), r() < 0.25]);
+      }
+    }
+    // Silos beside the biggest barn, and a stack of bales along it.
+    const barns = blds.filter(b => (b.kind === 'barn') && inYard(b.cx, b.cy) && b.area > 110).sort((p, q) => q.area - p.area);
+    const big = barns[0];
+    if (!big) continue;
+    const { ux, uy, hu, hv } = big.box, vx = -uy, vy = ux;
+    const at = (a, c) => [big.box.x + ux * a + vx * c, big.box.y + uy * a + vy * c];
+    const free = (x, yy, rad) => inYard(x, yy) && roadClear(x, yy, rad + 0.5)
+      && !near(houseGrid, x, yy, h => obbPointDist(h.box, x, yy) < rad + 0.8)
+      && !silos.some(s => Math.hypot(s.x - x, s.y - yy) < s.r + rad + 0.5);
+    if (r() < 0.75) {
+      const rad = 2.4 + r() * 0.9, n = r() < 0.5 ? 2 : 1, end = r() < 0.5 ? -1 : 1;
+      for (const e of [end, -end]) {
+        const got = [];
+        for (let k = 0; k < n; k++) {
+          const [x, yy] = at(e * (hu + rad + 1.2), (k - (n - 1) / 2) * (2 * rad + 0.6));
+          if (free(x, yy, rad)) got.push({ x, y: yy, r: rad, seed: hash(Math.round(x * 10), Math.round(yy * 10), 313) });
+        }
+        if (got.length) { silos.push(...got); BC.silos += got.length; break; }
+      }
+    }
+    if (r() < 0.7) {
+      const side = r() < 0.5 ? -1 : 1, n = 3 + ((r() * 6) | 0), wrapped = r() < 0.4;
+      for (let k = 0; k < n; k++) {
+        const row = k % 2, col = (k / 2) | 0;
+        const [x, yy] = at(-hu * 0.6 + col * 1.65 + row * 0.8, side * (hv + 1.6 + row * 1.5));
+        if (free(x, yy, 0.8)) { bales.push({ x, y: yy, wrapped, seed: hash(Math.round(x * 10), Math.round(yy * 10), 317) }); BC.bales++; }
+      }
+    }
+  }
+
+  // ---- churchyards: headstones in rows facing east, clear of the church
+  const stones = [];
+  for (const p of S.polys) {
+    if (p.kind !== 'churchyard') continue;
+    const [x0, y0, x1, y1] = p.bbox;
+    for (let y = y0 + 1.5; y < y1; y += 2.4) {
+      for (let x = x0 + 1.2; x < x1; x += 1.5) {
+        const r = rngAt(x, y, 321);
+        const sx = x + (r() - 0.5) * 0.35, sy = y + (r() - 0.5) * 0.5;
+        if (r() > 0.62 || noise(sx, sy, 9, 323) < 0.3) continue;
+        if (!inPoly(p, sx, sy) || !roadClear(sx, sy, 1)) continue;
+        if (near(houseGrid, sx, sy, h => obbPointDist(h.box, sx, sy) < 2.2)) continue;
+        const a = (r() - 0.5) * 0.12;
+        stones.push({ box: obb(sx, sy, Math.sin(a), Math.cos(a), 0.36, 0.16), seed: hash(Math.round(sx * 10), Math.round(sy * 10), 325) });
+      }
+    }
+  }
+  BC.stones = stones.length;
 
   // ---- fields: big farmland polygons split into field-sized blocks, each its
   // own crop and drill direction, with a hedge on every block boundary
@@ -619,7 +1103,7 @@ export async function load(world) {
       if (checkDup && hedgeNear(mx, my)) continue;
       if (okFn && !okFn(mx, my)) continue;
       const g = groundAt(mx, my);
-      if (g === SEA || g.layer === 'pool' || g.layer === 'wood' || g.layer === 'estate') continue;
+      if (g === SEA || g.layer === 'pool' || g.layer === 'wood' || g.layer === 'estate' || g.layer === 'farmyard') continue;
       if (near(houseGrid, mx, my, h => obbPointDist(h.box, mx, my) < 2)) continue;
       hedgePieces.push([x1, y1, x2, y2, kind]);
       hedgeSeen.add(hedgeKey(mx, my));
@@ -628,7 +1112,7 @@ export async function load(world) {
 
   const farmPolys = S.polys.filter(p => p.layer === 'farm');
   for (const p of farmPolys) {
-    const r = rng(hash(p.id, 77, 1));
+    const r = rng(hash(p.seedId, 77, 1));
     const th = r() * Math.PI, ux = Math.cos(th), uy = Math.sin(th);
     const bu = 150 + r() * 80, bv = 120 + r() * 70;
     let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
@@ -648,7 +1132,7 @@ export async function load(world) {
         }
         const area = rings.reduce((a, c) => a + ringArea(c), 0);
         if (area < 400) continue;
-        const fr = rng(hash(p.id, bi * 131 + bj, 2));
+        const fr = rng(hash(p.seedId, bi * 131 + bj, 2));
         const along = fr() < 0.5;
         const f = makePoly(rings, 'field', 'field');
         f.arable = fr() < 0.72;
@@ -678,7 +1162,7 @@ export async function load(world) {
   // The pitches are mown in stripes: the same row machinery as a field.
   for (const p of S.polys) {
     if (p.layer !== 'green' || p.kind !== 'pitch') continue;
-    const r = rng(hash(p.id, 91, 3));
+    const r = rng(hash(p.seedId, 91, 3));
     // Stripe along the pitch's longest edge.
     let best = 0, ang = 0;
     for (const ring of p.rings) for (let k = 0; k < ring.length; k += 2) {
@@ -732,7 +1216,10 @@ export async function load(world) {
         const off = s.half + VERGE_M + front + d / 2;
         const cx = s.ax + ux * tc + vx * off, cy = s.ay + uy * tc + vy * off;
         const g = groundAt(cx, cy);
-        const ok = s.cls === 'residential' || isTown(cx, cy) ? HOUSE_GROUND.has(g.kind) : g.kind === 'garden';
+        const box0 = obb(cx - vx * front / 2, cy - vy * front / 2, ux, uy, w / 2, (d + front) / 2);
+        const ok = (s.cls === 'residential' || isTown(cx, cy) || inHousing(cx, cy) ? HOUSE_GROUND.has(g.kind) : g.kind === 'garden')
+          && !near(houseGrid, cx, cy, h => h.bld && (obbOverlap(h.box, box0, REAL_GAP)
+            || (h.kind === 'house' && Math.hypot(h.cx - cx, h.cy - cy) < REAL_NEAR)));
         const box = obb(cx, cy, ux, uy, w / 2, d / 2);
         let placed = false;
         if (ok && r() < 0.9) {
@@ -746,7 +1233,9 @@ export async function load(world) {
               const bx = cx + vx * (d / 2 + want), by = cy + vy * (d / 2 + want);
               const pb = [[bx - ux * w / 2, by - uy * w / 2], [bx + ux * w / 2, by + uy * w / 2], [bx, by]];
               const gb = groundAt(bx, by);
-              if (pb.every(([x, y]) => roadClear(x, y, 0)) && gb !== SEA && gb.layer !== 'pool') { back = want; break; }
+              const plot = obb(cx + vx * (d + want) / 2, cy + vy * (d + want) / 2, ux, uy, w / 2, want / 2);
+              if (pb.every(([x, y]) => roadClear(x, y, 0)) && gb !== SEA && gb.layer !== 'pool'
+                && !near(houseGrid, bx, by, h => h.bld && obbOverlap(h.box, plot, 0.3))) { back = want; break; }
             }
             const hr = rng(hash(Math.round(cx * 10), Math.round(cy * 10), 13));
             const hipped = !semi && hr() < 0.4;
@@ -838,7 +1327,7 @@ export async function load(world) {
     if (x < 0 || y < 0 || x > S.width || y > S.height) return false;
     if (!roadClear(x, y, crownReach(r))) return false;
     const g = groundAt(x, y);
-    if (g === SEA || g.layer === 'pool' || g.layer === 'bunker' || g.kind === 'pitch' || g.layer === 'yard') return false;
+    if (g === SEA || g.layer === 'pool' || g.layer === 'bunker' || g.kind === 'pitch' || g.layer === 'yard' || g.layer === 'farmyard') return false;
     if (near(houseGrid, x, y, h => obbPointDist(h.box, x, y) < r * 0.75)) return false;
     if (!dense && near(treeGrid, x, y, t => (t.x - x) ** 2 + (t.y - y) ** 2 < ((t.r + r) * 0.62) ** 2)) return false;
     const t = { x, y, r, kind, seed: hash(Math.round(x * 10), Math.round(y * 10), 31) };
@@ -927,6 +1416,61 @@ export async function load(world) {
     addTree(h.box.x + h.vx * t + h.ux * a, h.box.y + h.vy * t + h.uy * a, 2.3 + r() * 1.4, r() < 0.2 ? 'conifer' : 'broad', false);
   }
 
+  // Yews round the churchyard, just inside its edge.
+  for (const p of S.polys) {
+    if (p.kind !== 'churchyard') continue;
+    for (const ring of p.rings) {
+      const [mx, my] = ringCentroid(ring);
+      for (let k = 0; k < ring.length; k += 2) {
+        const j = (k + 2) % ring.length, len = Math.hypot(ring[j] - ring[k], ring[j + 1] - ring[k + 1]);
+        for (let t = 4; t < len - 3; t += 9) {
+          const x = ring[k] + (ring[j] - ring[k]) * t / len, y = ring[k + 1] + (ring[j + 1] - ring[k + 1]) * t / len;
+          const l = Math.hypot(mx - x, my - y) || 1, r = rngAt(x, y, 327);
+          if (r() < 0.6) addTree(x + (mx - x) / l * 2.6, y + (my - y) / l * 2.6, 2 + r() * 0.9, 'conifer', false);
+        }
+      }
+    }
+  }
+
+  // ---- a drive to each real house from its road, beside it where there is
+  // room, else a path to its front; a path to each church door
+  for (const b of blds) {
+    if (!b.real || !b.road || !(b.kind === 'house' || b.kind === 'farmhouse' || b.kind === 'church')) continue;
+    const rn = b.road, church = b.kind === 'church';
+    if (rn.d > (church ? 45 : 30)) continue;
+    let nx = b.cx - rn.px, ny = b.cy - rn.py;
+    const nl = Math.hypot(nx, ny);
+    if (nl < 1) continue;
+    nx /= nl; ny /= nl;
+    const tx = -ny, ty = nx, { ux, uy, hu, hv } = b.box;
+    const ext = (ax, ay) => Math.abs(ax * ux + ay * uy) * hu + Math.abs(-ax * uy + ay * ux) * hv;
+    const front = ext(nx, ny), lat = ext(tx, ty), edge = nl - rn.half + 0.6, r = rng(b.seed ^ 0x3d);
+    // a strip `off` across from the middle, from the road's edge to `to` (along n from the middle, negative is towards the road)
+    const strip = (off, to, wid) => {
+      const ax = b.cx + tx * off - nx * edge, ay = b.cy + ty * off - ny * edge, zx = b.cx + tx * off + nx * to, zy = b.cy + ty * off + ny * to;
+      return [[ax - tx * wid / 2, ay - ty * wid / 2], [ax + tx * wid / 2, ay + ty * wid / 2], [zx + tx * wid / 2, zy + ty * wid / 2], [zx - tx * wid / 2, zy - ty * wid / 2]];
+    };
+    const clear = (pts, self) => {
+      const [a, b1, c, d] = pts, out = [];
+      for (let k = 0; k <= 8; k++) for (const [p, q] of [[a, d], [b1, c]]) out.push([p[0] + (q[0] - p[0]) * k / 8, p[1] + (q[1] - p[1]) * k / 8]);
+      return out.every(([x, y]) => !near(houseGrid, x, y, h => (self || h !== b) && obbPointDist(h.box, x, y) < 0.35));
+    };
+    if (edge - front < 1.2) continue;   // the house is at the road's edge already
+    let drive = null;
+    if (!church) {
+      const side = r() < 0.5 ? -1 : 1;
+      for (const sd of [side, -side]) {
+        const pts = strip(sd * (lat + 1.7), front * 0.3, 2.8);
+        if (clear(pts, true)) { drive = pts; break; }
+      }
+    }
+    if (!drive) {
+      const pts = strip(church ? 0 : (r() - 0.5) * lat * 0.6, -front + 0.1, church ? 1.8 : 1.2);
+      if (clear(pts, false)) drive = pts;
+    }
+    if (drive) { b.drive = drive; b.driveCol = church ? DRIVE[0] : DRIVE[(r() * DRIVE.length) | 0]; BC.drives++; }
+  }
+
   // ---- Glasshouse Acres: each bay cut into sections so none sits on a road
   const glass = [];
   for (const ring of glassBays) {
@@ -969,11 +1513,17 @@ export async function load(world) {
   for (const w of walls) cellOf((w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2)?.walls.push(w);
   for (const g of glass) cellOf(g.box.x, g.box.y)?.glass.push(g);
   for (const h of huts) cellOf(h.box.x, h.box.y)?.huts.push(h);
+  for (const b of blds) cellOf(b.cx, b.cy)?.blds.push(b);
+  for (const s of silos) cellOf(s.x, s.y)?.silos.push(s);
+  for (const b of bales) cellOf(b.x, b.y)?.bales.push(b);
+  for (const s of stones) cellOf(s.box.x, s.box.y)?.stones.push(s);
 
   S.counts = {
     trees: trees.length, conifers: trees.filter(t => t.kind === 'conifer').length, houses: houses.length,
     hedgeMetres: Math.round(hedgePieces.reduce((a, p) => a + Math.hypot(p[2] - p[0], p[3] - p[1]), 0)),
     walls: walls.length, fields: S.fields.length, polygons: S.polys.length, glasshouses: glass.length, huts: huts.length,
+    buildings: BC.real, buildingsMoved: BC.pushed, buildingsLeftOut: BC.dropped, farmBuildingsMade: BC.farmGen,
+    silos: BC.silos, bales: BC.bales, headstones: BC.stones, drives: BC.drives, farmyards: yards.length,
     loadMs: Math.round(performance.now() - t0),
   };
   window.__scenery = S.counts;   // for a headless check
@@ -1071,6 +1621,7 @@ export function drawGround(ctx, S, view) {
       case 'golf': return G.park;
       case 'bunker': return GROUND.summer.sand;
       case 'yard': return G.yard;
+      case 'farmyard': return G.farmyard;
       default: return null;
     }
   };
@@ -1223,6 +1774,24 @@ function ensureGround(S, c, season) {
   }
   // Glasshouse Acres has paths between its bays; the yard polygon is enough.
 
+  // Drives and paths to the real houses and the church doors.
+  for (const b of c.blds) if (b.drive) polyTo(B.get(4, 'fill', b.driveCol), b.drive);
+
+  // Farmyards: packed earth and grit, darker and lighter.
+  if (S.polyGrid[idx].some(p => p.layer === 'farmyard')) {
+    // Worn patches where the tractors turn, from a noise field.
+    const dk = B.get(1, 'fill', G.grit), lt = B.get(1, 'fill', G.gritL), worn = B.get(1, 'fill', mix(G.farmyard, G.grit, 0.16)), gs = 1.4;
+    for (let j = Math.floor(y0 / gs); j * gs < y1; j++) for (let i = Math.floor(x0 / gs); i * gs < x1; i++) {
+      const r = rng(hash(i, j, 331));
+      const x = (i + r()) * gs, y = (j + r()) * gs;
+      if (S.groundAt(x, y).layer !== 'farmyard') continue;
+      const n = noise(x, y, 7, 333);
+      if (n > 0.55) { const wr = 0.9 + (n - 0.55) * 2; worn.moveTo(x + wr, y); worn.arc(x, y, wr, 0, Math.PI * 2); }
+      const rr = 0.05 + r() * 0.08, p = r() < 0.5 ? dk : lt;
+      p.moveTo(x + rr, y); p.arc(x, y, rr, 0, Math.PI * 2);
+    }
+  }
+
   c.gcache = { season, passes: B.passes };
 }
 
@@ -1289,6 +1858,297 @@ function prefetch(S, view, sunKey) {
     if (!doneO) ensureObjects(c, view.season, view.sun, sunKey);
     if (performance.now() - t0 > 2) return;
   }
+}
+
+/** A pitched roof on a rectangle, from directly above: facets in three tones
+ *  by how they face the sun, courses (tile or slate) or corrugations (metal),
+ *  ridge and hips, outline and chimneys; and its shadow, eaves at o.he and
+ *  ridge at o.hr. Generated and real houses share it, so they match.
+ *  o: { hipped, semi, chimney (-1, 1 one end; 2 both), he, hr } */
+function pitchedRect(B, shadows, box, roof, o, sun, Lx, Ly) {
+  const { ux, uy } = box;
+  const vx = -uy, vy = ux;
+  const hu = box.hu, hv = box.hv, cx = box.x, cy = box.y;
+  const P = (a, b) => [cx + ux * a + vx * b, cy + uy * a + vy * b];
+  const tone = (nx, ny) => {
+    const d = nx * Lx + ny * Ly;
+    return d > 0.3 ? lighten(roof.base, 0.22) : d < -0.3 ? darken(roof.base, 0.18) : roof.base;
+  };
+  const facets = [];
+  const rl = o.hipped ? Math.max(0, hu - hv) : hu;     // half length of the ridge
+  // the two long facets
+  facets.push({ pts: [P(-hu, -hv), P(hu, -hv), P(rl, 0), P(-rl, 0)], n: [-vx, -vy], eave: [P(-hu, -hv), P(hu, -hv)], ridgeSide: -1 });
+  facets.push({ pts: [P(-hu, hv), P(hu, hv), P(rl, 0), P(-rl, 0)], n: [vx, vy], eave: [P(-hu, hv), P(hu, hv)], ridgeSide: 1 });
+  if (o.hipped) {
+    facets.push({ pts: [P(-hu, -hv), P(-hu, hv), P(-rl, 0)], n: [-ux, -uy] });
+    facets.push({ pts: [P(hu, -hv), P(hu, hv), P(rl, 0)], n: [ux, uy] });
+  }
+  const metal = roof.kind === 'metal';
+  const rowW = roof.kind === 'slate' ? 0.05 : metal ? 0.06 : 0.07;
+  const rowsOf = t => B.get(7, 'stroke', darken(t, roof.kind === 'slate' ? 0.2 : metal ? 0.16 : 0.24), rowW);
+  const rows = metal ? rowsOf(roof.base) : null;
+  for (const f of facets) {
+    const t = tone(f.n[0], f.n[1]);
+    polyTo(B.get(6, 'fill', t), f.pts);
+    if (!f.eave || metal) continue;
+    const rows = rowsOf(t);
+    // Tile courses parallel to the eave, clipped to the facet's slope.
+    for (let k = 1; k * 0.55 < hv - 0.15; k++) {
+      const v = (hv - k * 0.55) * f.ridgeSide;
+      const inset = o.hipped ? (hv - Math.abs(v)) : 0;
+      const a = P(-hu + inset + 0.1, v), b = P(hu - inset - 0.1, v);
+      rows.moveTo(a[0], a[1]); rows.lineTo(b[0], b[1]);
+    }
+  }
+  if (metal) {
+    // Corrugations down the slope, and a clear roof-light now and then.
+    for (let u = -hu + 0.25; u < hu - 0.1; u += 0.34) {
+      const a = P(u, -hv + 0.05), b = P(u, hv - 0.05);
+      rows.moveTo(a[0], a[1]); rows.lineTo(b[0], b[1]);
+    }
+    const lite = B.get(7, 'fill', mix(roof.base, '#e6eeeb', 0.38));
+    for (let u = -hu + 4; u < hu - 2; u += 7) {
+      for (const sd of [-1, 1]) polyTo(lite, [P(u - 0.4, sd * hv * 0.25), P(u + 0.4, sd * hv * 0.25), P(u + 0.4, sd * hv * 0.75), P(u - 0.4, sd * hv * 0.75)]);
+    }
+  }
+  const ink = darken(roof.base, 0.5);
+  const ridge = B.get(8, 'stroke', darken(roof.base, 0.35), 0.18);
+  const a = P(-rl, 0), b = P(rl, 0);
+  ridge.moveTo(a[0], a[1]); ridge.lineTo(b[0], b[1]);
+  if (o.hipped) {
+    for (const [p, q] of [[P(-hu, -hv), a], [P(-hu, hv), a], [P(hu, -hv), b], [P(hu, hv), b]]) { ridge.moveTo(p[0], p[1]); ridge.lineTo(q[0], q[1]); }
+  }
+  if (o.semi) {   // the party wall between a pair of semis
+    const p = P(0, -hv), q = P(0, hv);
+    ridge.moveTo(p[0], p[1]); ridge.lineTo(q[0], q[1]);
+  }
+  polyTo(B.get(9, 'stroke', ink, 0.2), obbCorners(box));
+  const chims = o.semi ? [-0.15, 0.15] : o.chimney === 2 ? [-0.62, 0.62] : o.chimney ? [o.chimney * 0.62] : [];
+  const chimPts = [];
+  for (const f of chims) {
+    const cc = P(f * hu, 0);
+    const cb = obbCorners(obb(cc[0], cc[1], ux, uy, 0.5, 0.38));
+    polyTo(B.get(10, 'fill', '#9b5e46'), cb);
+    polyTo(B.get(11, 'stroke', '#5c3527', 0.12), cb);
+    const pot = B.get(11, 'fill', '#4a3a32');
+    pot.moveTo(cc[0] + 0.16, cc[1]); pot.arc(cc[0], cc[1], 0.16, 0, Math.PI * 2);
+    for (const p of cb) chimPts.push([p[0] + sun.x * (o.hr + 1), p[1] + sun.y * (o.hr + 1)]);
+  }
+  const corners = obbCorners(box);
+  const sp = new Path2D();
+  polyTo(sp, hull(corners.concat(corners.map(([x, y]) => [x + sun.x * o.he, y + sun.y * o.he]),
+    [a, b].map(([x, y]) => [x + sun.x * o.hr, y + sun.y * o.hr]))));
+  if (chimPts.length) polyTo(sp, hull(chimPts.concat(chimPts.map(([x, y]) => [x - sun.x * 2, y - sun.y * 2]))));
+  shadows.push({ path: sp });
+}
+
+/** Chords of a flat ring along direction (dx, dy) on the line p.(-dy, dx) = c,
+ *  as [x0, y0, x1, y1]. */
+function chords(ring, dx, dy, c) {
+  const nx = -dy, ny = dx;
+  return lineSpans([ring], dx, dy, c).map(([s0, s1]) => [dx * s0 + nx * c, dy * s0 + ny * c, dx * s1 + nx * c, dy * s1 + ny * c]);
+}
+
+/** A pitched roof on any footprint: the ridge along rb's u axis through its
+ *  middle, the footprint split there into two slopes, courses or
+ *  corrugations clipped to the outline. An L-shaped house reads as one roof. */
+function pitchedPoly(B, shadows, ring, rb, roof, o, sun, Lx, Ly) {
+  const { ux, uy } = rb, vx = -uy, vy = ux;
+  const vc = rb.x * vx + rb.y * vy, uc = rb.x * ux + rb.y * uy;
+  const tone = (nx, ny) => {
+    const d = nx * Lx + ny * Ly;
+    return d > 0.3 ? lighten(roof.base, 0.22) : d < -0.3 ? darken(roof.base, 0.18) : roof.base;
+  };
+  const metal = roof.kind === 'metal';
+  const rowW = roof.kind === 'slate' ? 0.05 : metal ? 0.06 : 0.07;
+  const rowsOf = t => B.get(7, 'stroke', darken(t, roof.kind === 'slate' ? 0.2 : metal ? 0.16 : 0.24), rowW);
+  for (const [v0, v1, sd] of [[-1e7, vc, -1], [vc, 1e7, 1]]) {
+    const h = clipRingUV(ring, ux, uy, -1e7, 1e7, v0, v1);
+    if (!h) continue;
+    const t = tone(vx * sd, vy * sd), rows = rowsOf(t);
+    flatTo(B.get(6, 'fill', t), h);
+    const line = (q) => { rows.moveTo(q[0], q[1]); rows.lineTo(q[2], q[3]); };
+    if (metal) {
+      for (let u = -rb.hu + 0.25; u < rb.hu - 0.1; u += 0.34) for (const q of chords(h, vx, vy, -(uc + u))) line(q);
+    } else {
+      for (let k = 1; k * 0.55 < rb.hv + 0.5; k++) for (const q of chords(h, ux, uy, vc + sd * k * 0.55)) line(q);
+    }
+  }
+  const ridge = B.get(8, 'stroke', darken(roof.base, 0.35), 0.18);
+  for (const q of chords(ring, ux, uy, vc)) { ridge.moveTo(q[0], q[1]); ridge.lineTo(q[2], q[3]); }
+  flatTo(B.get(9, 'stroke', darken(roof.base, 0.5), 0.2), ring);
+  const sp = new Path2D();
+  sweepTo(sp, ring, sun.x * (o.he + o.hr) / 2, sun.y * (o.he + o.hr) / 2);
+  shadows.push({ path: sp });
+}
+
+/** A flat roof: felt or asphalt, a paler parapet, roof lights and plant on
+ *  the big ones. */
+function flatRoof(B, shadows, b, sun) {
+  const f = b.flat, ring = b.ring;
+  flatTo(B.get(6, 'fill', f.base), ring);
+  flatTo(B.get(7, 'stroke', f.parapet, 0.45), ring);
+  const { ux, uy, hu, hv } = b.box, vx = -uy, vy = ux;
+  const P = (a, c) => [b.box.x + ux * a + vx * c, b.box.y + uy * a + vy * c];
+  const inside = pts => pts.every(([x, y]) => inRing(ring, x, y));
+  if (b.lights) {
+    const lite = B.get(8, 'fill', '#cbd8d6'), lk = B.get(8, 'stroke', '#7f8c8a', 0.06);
+    for (let a = -hu + 3; a < hu - 2; a += 5) for (let c = -hv + 2.5; c < hv - 2; c += 4.5) {
+      const pts = [P(a - 0.8, c - 0.5), P(a + 0.8, c - 0.5), P(a + 0.8, c + 0.5), P(a - 0.8, c + 0.5)];
+      if (inside(pts)) { polyTo(lite, pts); polyTo(lk, pts); }
+    }
+  }
+  if (b.area > 250) {
+    // Plant on the roof: a box or two, off the middle.
+    const r = rng(b.seed ^ 0x51), plant = B.get(8, 'fill', '#a3a19b'), pk = B.get(9, 'stroke', '#5f5d58', 0.08);
+    for (let k = 0; k < 2; k++) {
+      const a = (r() - 0.5) * hu * 1.2, c = (r() - 0.5) * hv * 1.2;
+      const pts = [P(a - 0.8, c - 0.55), P(a + 0.8, c - 0.55), P(a + 0.8, c + 0.55), P(a - 0.8, c + 0.55)];
+      if (inside(pts)) { polyTo(plant, pts); polyTo(pk, pts); }
+    }
+  }
+  flatTo(B.get(9, 'stroke', darken(f.base, 0.45), 0.2), ring);
+  const sp = new Path2D();
+  sweepTo(sp, ring, sun.x * b.he, sun.y * b.he);
+  shadows.push({ path: sp });
+}
+
+/** One real (or farm-made) building, by its form. */
+function paintBuilding(B, shadows, b, sun, Lx, Ly) {
+  const ring = b.ring;
+  switch (b.form) {
+    case 'flat': flatRoof(B, shadows, b, sun); break;
+    case 'caravan': {
+      flatTo(B.get(6, 'fill', b.fill), ring);
+      const { ux, uy, hu } = b.box, ridge = B.get(7, 'stroke', darken(b.fill, 0.12), 0.12);
+      ridge.moveTo(b.box.x - ux * (hu - 0.4), b.box.y - uy * (hu - 0.4)); ridge.lineTo(b.box.x + ux * (hu - 0.4), b.box.y + uy * (hu - 0.4));
+      const vent = obbCorners(obb(b.box.x + ux * hu * 0.4, b.box.y + uy * hu * 0.4, ux, uy, 0.3, 0.3));
+      polyTo(B.get(8, 'fill', '#b9b6ad'), vent);
+      flatTo(B.get(9, 'stroke', darken(b.fill, 0.45), 0.15), ring);
+      const sp = new Path2D(); sweepTo(sp, ring, sun.x * b.he, sun.y * b.he); shadows.push({ path: sp });
+      break;
+    }
+    case 'glass': {
+      flatTo(B.get(6, 'fill', GLASS.fill), ring);
+      const { ux, uy } = b.box, vx = -uy, vy = ux, vc = b.box.x * vx + b.box.y * vy;
+      const ridge = B.get(7, 'stroke', GLASS.ridge, 0.12);
+      for (let v = -b.box.hv + 1.6; v < b.box.hv; v += 3.2) for (const q of chords(ring, ux, uy, vc + v)) { ridge.moveTo(q[0], q[1]); ridge.lineTo(q[2], q[3]); }
+      flatTo(B.get(9, 'stroke', GLASS.ink, 0.2), ring);
+      const sp = new Path2D(); sweepTo(sp, ring, sun.x * b.he, sun.y * b.he); shadows.push({ path: sp });
+      break;
+    }
+    case 'canopy': {
+      // On posts: its shadow is the roof moved along the sun, not swept.
+      flatTo(B.get(6, 'fill', '#dcdedb'), ring);
+      flatTo(B.get(9, 'stroke', '#7c807e', 0.15), ring);
+      const sp = new Path2D(); posTo(sp, ring, sun.x * b.he, sun.y * b.he); shadows.push({ path: sp });
+      break;
+    }
+    default: {   // pitched, church
+      const o = { hipped: !!b.hipped, chimney: b.chimney || 0, he: b.he, hr: b.hr };
+      if (b.rect) pitchedRect(B, shadows, b.rbox, b.roof, o, sun, Lx, Ly);
+      else pitchedPoly(B, shadows, ring, b.rbox, b.roof, o, sun, Lx, Ly);
+    }
+  }
+  if (b.awningPts) {
+    // A shop's awning along its front, striped across.
+    const [A, Bp, C, D] = b.awningPts, [c0, c1] = b.awning, n = Math.max(2, Math.round(b.awningLen / 0.55));
+    polyTo(B.get(8, 'fill', c1), b.awningPts);
+    const st = B.get(8, 'fill', c0);
+    const L = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+    for (let k = 0; k < n; k += 2) polyTo(st, [L(A, Bp, k / n), L(A, Bp, (k + 1) / n), L(D, C, (k + 1) / n), L(D, C, k / n)]);
+    polyTo(B.get(9, 'stroke', darken(c0, 0.4), 0.08), b.awningPts);
+  }
+  if (b.tower) paintTower(B, shadows, b, sun, Lx, Ly);
+}
+
+/** A church tower from above: stone, with a spire, a leaded flat top and
+ *  pinnacles, or a little bellcote on the ridge. */
+function paintTower(B, shadows, b, sun, Lx, Ly) {
+  const t = b.tower, tb = t.box, pts = obbCorners(tb), sp = new Path2D();
+  polyTo(B.get(10, 'fill', STONE.fill), pts);
+  const ink = B.get(11, 'stroke', STONE.ink, t.top === 'bell' ? 0.12 : 0.2);
+  if (t.top === 'bell') {
+    polyTo(ink, pts);
+    polyTo(sp, hull(pts.concat(pts.map(([x, y]) => [x + sun.x * (b.hr + 2.5), y + sun.y * (b.hr + 2.5)]))));
+    shadows.push({ path: sp });
+    return;
+  }
+  polyTo(sp, hull(pts.concat(pts.map(([x, y]) => [x + sun.x * TOWER_H, y + sun.y * TOWER_H]))));
+  if (t.top === 'spire') {
+    // A broach spire: an octagon of eight slopes rising to a point, each
+    // slope its own tone by how it faces the sun.
+    const R = tb.hu * 0.94, rot = Math.atan2(tb.uy, tb.ux) + Math.PI / 8, oct = [];
+    for (let k = 0; k < 8; k++) { const a = rot + k / 8 * Math.PI * 2; oct.push([tb.x + Math.cos(a) * R, tb.y + Math.sin(a) * R]); }
+    for (let k = 0; k < 8; k++) {
+      const a = rot + (k + 0.5) / 8 * Math.PI * 2, d = Math.cos(a) * Lx + Math.sin(a) * Ly;
+      const col = d > 0.5 ? lighten(STONE.spire, 0.3) : d > 0 ? lighten(STONE.spire, 0.12) : d > -0.5 ? darken(STONE.spire, 0.08) : darken(STONE.spire, 0.22);
+      polyTo(B.get(11, 'fill', col), [[tb.x, tb.y], oct[k], oct[(k + 1) % 8]]);
+    }
+    const seam = B.get(11, 'stroke', darken(STONE.spire, 0.4), 0.07);
+    for (const [x, y] of oct) { seam.moveTo(tb.x, tb.y); seam.lineTo(x, y); }
+    polyTo(seam, oct);
+    const top = B.get(11, 'fill', '#c9a24a');   // the weathercock's gilt
+    top.moveTo(tb.x + 0.22, tb.y); top.arc(tb.x, tb.y, 0.22, 0, Math.PI * 2);
+    polyTo(sp, hull(oct.map(([x, y]) => [x + sun.x * TOWER_H, y + sun.y * TOWER_H]).concat([[tb.x + sun.x * SPIRE_H, tb.y + sun.y * SPIRE_H]])));
+  } else {
+    // A leaded flat top inside a parapet, and a pinnacle at each corner.
+    const inner = obbCorners(obb(tb.x, tb.y, tb.ux, tb.uy, tb.hu - 0.5, tb.hv - 0.5));
+    polyTo(B.get(11, 'fill', STONE.lead), inner);
+    for (const [x, y] of obbCorners(obb(tb.x, tb.y, tb.ux, tb.uy, tb.hu - 0.3, tb.hv - 0.3))) {
+      const pin = obbCorners(obb(x, y, tb.ux, tb.uy, 0.3, 0.3));
+      polyTo(B.get(11, 'fill', lighten(STONE.fill, 0.15)), pin);
+      polyTo(sp, hull(pin.map(([px, py]) => [px + sun.x * TOWER_H, py + sun.y * TOWER_H]).concat(pin.map(([px, py]) => [px + sun.x * (TOWER_H + 2), py + sun.y * (TOWER_H + 2)]))));
+    }
+  }
+  polyTo(ink, pts);
+  shadows.push({ path: sp });
+}
+
+/** A silo from above: a galvanised drum with a shallow cone, seams to the
+ *  cap, lit on the sun's side. */
+function paintSilo(B, shadows, s, sun, Lx, Ly) {
+  const { x, y, r } = s, circ = [];
+  for (let k = 0; k < 20; k++) { const a = k / 20 * Math.PI * 2; circ.push([x + Math.cos(a) * r, y + Math.sin(a) * r]); }
+  const body = B.get(6, 'fill', SILO.fill);
+  body.moveTo(x + r, y); body.arc(x, y, r, 0, Math.PI * 2);
+  const la = Math.atan2(Ly, Lx), lit = B.get(7, 'fill', lighten(SILO.fill, 0.28)), shade = B.get(7, 'fill', darken(SILO.fill, 0.12));
+  lit.moveTo(x, y); lit.arc(x, y, r * 0.96, la - Math.PI / 2, la + Math.PI / 2); lit.closePath();
+  shade.moveTo(x, y); shade.arc(x, y, r * 0.96, la + Math.PI * 0.7, la + Math.PI * 1.3); shade.closePath();
+  const seam = B.get(8, 'stroke', SILO.seam, 0.06);
+  for (let k = 0; k < 12; k++) {
+    const a = k / 12 * Math.PI * 2;
+    seam.moveTo(x + Math.cos(a) * r * 0.3, y + Math.sin(a) * r * 0.3); seam.lineTo(x + Math.cos(a) * r * 0.97, y + Math.sin(a) * r * 0.97);
+  }
+  seam.moveTo(x + r * 0.62, y); seam.arc(x, y, r * 0.62, 0, Math.PI * 2);
+  const cap = B.get(8, 'fill', SILO.cap);
+  cap.moveTo(x + r * 0.28, y); cap.arc(x, y, r * 0.28, 0, Math.PI * 2);
+  const ink = B.get(9, 'stroke', SILO.ink, 0.2);
+  ink.moveTo(x + r, y); ink.arc(x, y, r, 0, Math.PI * 2);
+  const sp = new Path2D();
+  polyTo(sp, hull(circ.concat(circ.map(([px, py]) => [px + sun.x * SILO_H, py + sun.y * SILO_H]))));
+  shadows.push({ path: sp });
+}
+
+/** A round bale standing on end: straw rolled in a spiral, or wrapped. */
+function paintBale(B, shadows, b, sun, Lx, Ly) {
+  const { x, y } = b, r = 0.75, c = b.wrapped ? BALE.wrap : BALE.straw, ink = b.wrapped ? BALE.wrapInk : BALE.strawInk;
+  const body = B.get(6, 'fill', c);
+  body.moveTo(x + r, y); body.arc(x, y, r, 0, Math.PI * 2);
+  const roll = B.get(7, 'stroke', b.wrapped ? lighten(c, 0.3) : darken(c, 0.2), 0.05);
+  if (b.wrapped) {
+    const la = Math.atan2(Ly, Lx);
+    roll.moveTo(x + Math.cos(la - 0.8) * r * 0.6, y + Math.sin(la - 0.8) * r * 0.6); roll.arc(x, y, r * 0.6, la - 0.8, la + 0.8);
+  } else {
+    for (const q of [0.25, 0.48, 0.7]) { roll.moveTo(x + r * q, y); roll.arc(x, y, r * q, 0, Math.PI * 1.7); }
+  }
+  const ik = B.get(9, 'stroke', ink, 0.1);
+  ik.moveTo(x + r, y); ik.arc(x, y, r, 0, Math.PI * 2);
+  const circ = [];
+  for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; circ.push([x + Math.cos(a) * r, y + Math.sin(a) * r]); }
+  const sp = new Path2D();
+  polyTo(sp, hull(circ.concat(circ.map(([px, py]) => [px + sun.x * 1.2, py + sun.y * 1.2]))));
+  shadows.push({ path: sp });
 }
 
 /** Turn a cell's objects into painted batches and shadow paths. */
@@ -1398,64 +2258,21 @@ function ensureObjects(c, season, sun, sunKey) {
   // Houses (passes 6-11): roof facets in three tones by how they face the sun,
   // tile rows, ridge and hips, outline, chimney.
   for (const h of c.houses) {
-    const { box, ux, uy, roof } = h;
-    const vx = -uy, vy = ux;
-    const hu = box.hu, hv = box.hv, cx = box.x, cy = box.y;
-    const P = (a, b) => [cx + ux * a + vx * b, cy + uy * a + vy * b];
-    const tone = (nx, ny) => {
-      const d = nx * Lx + ny * Ly;
-      return d > 0.3 ? lighten(roof.base, 0.22) : d < -0.3 ? darken(roof.base, 0.18) : roof.base;
-    };
-    const facets = [];
-    const rl = h.hipped ? Math.max(0, hu - hv) : hu;     // half length of the ridge
-    // the two long facets
-    facets.push({ pts: [P(-hu, -hv), P(hu, -hv), P(rl, 0), P(-rl, 0)], n: [-vx, -vy], eave: [P(-hu, -hv), P(hu, -hv)], ridgeSide: -1 });
-    facets.push({ pts: [P(-hu, hv), P(hu, hv), P(rl, 0), P(-rl, 0)], n: [vx, vy], eave: [P(-hu, hv), P(hu, hv)], ridgeSide: 1 });
-    if (h.hipped) {
-      facets.push({ pts: [P(-hu, -hv), P(-hu, hv), P(-rl, 0)], n: [-ux, -uy] });
-      facets.push({ pts: [P(hu, -hv), P(hu, hv), P(rl, 0)], n: [ux, uy] });
+    pitchedRect(B, shadows, h.box, h.roof, { hipped: h.hipped, semi: h.semi, chimney: h.chimney, he: H.house * 0.7, hr: H.house }, sun, Lx, Ly);
+  }
+
+  // The real buildings, and the farms' own (passes 6-11; church towers,
+  // chimneys and silo caps 10-11).
+  for (const b of c.blds) paintBuilding(B, shadows, b, sun, Lx, Ly);
+  for (const s of c.silos) paintSilo(B, shadows, s, sun, Lx, Ly);
+  for (const b of c.bales) paintBale(B, shadows, b, sun, Lx, Ly);
+  if (c.stones.length) {
+    const fill = B.get(0, 'fill', HEADSTONE.fill), ink = B.get(1, 'stroke', HEADSTONE.ink, 0.05), sp = new Path2D();
+    for (const st of c.stones) {
+      const pts = obbCorners(st.box);
+      polyTo(fill, pts); polyTo(ink, pts);
+      polyTo(sp, hull(pts.concat(pts.map(([x, y]) => [x + sun.x * 0.9, y + sun.y * 0.9]))));
     }
-    const rowCol = darken(roof.base, roof.kind === 'slate' ? 0.22 : 0.28);
-    const rows = B.get(7, 'stroke', rowCol, roof.kind === 'slate' ? 0.05 : 0.07);
-    for (const f of facets) {
-      polyTo(B.get(6, 'fill', tone(f.n[0], f.n[1])), f.pts);
-      if (!f.eave) continue;
-      // Tile courses parallel to the eave, clipped to the facet's slope.
-      for (let k = 1; k * 0.55 < hv - 0.15; k++) {
-        const v = (hv - k * 0.55) * f.ridgeSide;
-        const inset = h.hipped ? (hv - Math.abs(v)) : 0;
-        const a = P(-hu + inset + 0.1, v), b = P(hu - inset - 0.1, v);
-        rows.moveTo(a[0], a[1]); rows.lineTo(b[0], b[1]);
-      }
-    }
-    const ink = darken(roof.base, 0.5);
-    const ridge = B.get(8, 'stroke', darken(roof.base, 0.35), 0.18);
-    const a = P(-rl, 0), b = P(rl, 0);
-    ridge.moveTo(a[0], a[1]); ridge.lineTo(b[0], b[1]);
-    if (h.hipped) {
-      for (const [p, q] of [[P(-hu, -hv), a], [P(-hu, hv), a], [P(hu, -hv), b], [P(hu, hv), b]]) { ridge.moveTo(p[0], p[1]); ridge.lineTo(q[0], q[1]); }
-    }
-    if (h.semi) {   // the party wall between a pair of semis
-      const p = P(0, -hv), q = P(0, hv);
-      ridge.moveTo(p[0], p[1]); ridge.lineTo(q[0], q[1]);
-    }
-    polyTo(B.get(9, 'stroke', ink, 0.2), obbCorners(box));
-    const chims = h.semi ? [-0.15, 0.15] : h.chimney ? [h.chimney * 0.62] : [];
-    const chimPts = [];
-    for (const f of chims) {
-      const cc = P(f * hu * 2 * 0.5 + (h.semi ? 0 : 0), 0);
-      const cb = obbCorners(obb(cc[0], cc[1], ux, uy, 0.5, 0.38));
-      polyTo(B.get(10, 'fill', '#9b5e46'), cb);
-      polyTo(B.get(11, 'stroke', '#5c3527', 0.12), cb);
-      const pot = B.get(11, 'fill', '#4a3a32');
-      pot.moveTo(cc[0] + 0.16, cc[1]); pot.arc(cc[0], cc[1], 0.16, 0, Math.PI * 2);
-      for (const p of cb) chimPts.push([p[0] + sun.x * (H.house + 1), p[1] + sun.y * (H.house + 1)]);
-    }
-    const corners = obbCorners(box);
-    const sp = new Path2D();
-    polyTo(sp, hull(corners.concat(corners.map(([x, y]) => [x + sun.x * H.house * 0.7, y + sun.y * H.house * 0.7]),
-      [a, b].map(([x, y]) => [x + sun.x * H.house, y + sun.y * H.house]))));
-    if (chimPts.length) polyTo(sp, hull(chimPts.concat(chimPts.map(([x, y]) => [x - sun.x * 2, y - sun.y * 2]))));
     shadows.push({ path: sp });
   }
 
@@ -1582,5 +2399,10 @@ function ensureObjects(c, season, sun, sunKey) {
   shadows.push({ path: crown, hs: [H.canopyLow, (H.canopyLow + H.canopy) / 2, H.canopy] });
   shadows.push({ path: limbs, hs: [H.canopyLow, H.canopy], width: 0.3 });
 
-  c.cache = { season, sunKey, passes: B.passes, shadows };
+  // Every plain shadow in the cell in one path, so a street of roofs is one
+  // fill a frame rather than one each. All are wound alike (hull, posTo).
+  const plain = new Path2D(), swept = [];
+  for (const sh of shadows) { if (sh.hs) swept.push(sh); else plain.addPath(sh.path); }
+  swept.push({ path: plain });
+  c.cache = { season, sunKey, passes: B.passes, shadows: swept };
 }
