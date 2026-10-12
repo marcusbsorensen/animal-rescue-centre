@@ -55,6 +55,16 @@ const SMALL = new Set(['residential', 'unclassified', 'track']);
 const SITE_CHANCE = 0.16;
 const MIN_EDGE_M = 36;        // the midpoint needs 18 m of straight each side
 const SPACING_M = 110;        // never two crossings closer than this on a route
+/** A field site this close to a wood on the child's map (map px, ~3.5 m
+ *  each, so about 90 m) is by the woods, and now and then a deer crosses
+ *  there instead (Marcus, 55A): on about one drive in five that passes one,
+ *  at the first it passes. Sites are only ever on small roads, never the A28. */
+const WOOD_NEAR_PX = 25;
+const DEER_BY_WOOD = 0.2;
+/** Drives so far. Which ducks are at the water and whether a deer is out
+ *  change from drive to drive; counted from 0 in node so the checks repeat,
+ *  from a random start in the browser so a reload is a new drive. */
+let driveNo = typeof window === 'undefined' ? 0 : Math.floor(Math.random() * 1e9);
 const START_CLEAR_M = 35;     // none where the van sets off...
 const END_CLEAR_M = 45;       // ...or where it pulls up
 
@@ -326,6 +336,8 @@ function sitesFor(world) {
       x, y, dx: (b.x - a.x) / len, dy: (b.y - a.y) / len, cls, seed,
       place: placeOf(cls, (x - o.x) / mpp, (y - o.y) / mpp, seed),
     };
+    site.byWood = site.place === 'field' && !!MAP
+      && distTo(MAP.woodland, (x - o.x) / mpp, (y - o.y) / mpp, WOOD_NEAR_PX) <= WOOD_NEAR_PX;
     list.push(site);
     const key = Math.floor(x / 50) + ',' + Math.floor(y / 50);
     if (!grid.has(key)) grid.set(key, []);
@@ -360,20 +372,23 @@ const FOX = { spring: 0.1, summer: 0.08, autumn: 0.18, winter: 0.22 };
  *  hedges; rabbits and pheasants by fields; ducks by water; a deer by woods;
  *  a fox now and then anywhere but the water, a little less by houses. An
  *  empty party is a hedgehog place in winter with no fox about: the sign
- *  stays, the hedgehog is asleep. */
-function partyFor(place, season, seed) {
+ *  stays, the hedgehog is asleep. A place keeps its animal from drive to
+ *  drive, except the water's ducks and a deer by the woods (drive, 55A). */
+function partyFor(place, season, seed, drive = { seed: 0, deer: false }, byWood = false) {
   const r = rng(hash(seed, 11));
+  const d = rng(hash(seed, 13, drive.seed));
   const one = (kind, look) => ({ kind, look: look ?? '' });
   const fox = r() < (FOX[season] ?? 0.1) * (place === 'houses' || place === 'park' ? 0.6 : 1);
   switch (place) {
     case 'water': {
       // Only the hen mallard leads ducklings; a drake crosses alone or walks
-      // with a hen.
-      if (season === 'spring') {
-        const n = 4 + Math.floor(r() * 4);
+      // with a hen. In spring most often a hen and her ducklings.
+      if (season === 'spring' && d() < 0.75) {
+        const n = 4 + Math.floor(d() * 4);
         return [one('duck', 'hen'), ...Array.from({ length: n }, () => one('duckling'))];
       }
-      return r() < 0.6 ? [one('duck', 'hen'), one('duck', 'drake')] : [one('duck', r() < 0.5 ? 'hen' : 'drake')];
+      const u = d();
+      return u < 0.4 ? [one('duck', 'hen'), one('duck', 'drake')] : [one('duck', u < 0.7 ? 'hen' : 'drake')];
     }
     // A roe buck's antlers are what tell a child it is a deer; he casts them
     // in late autumn and they are only buds until spring, so in winter every
@@ -388,6 +403,10 @@ function partyFor(place, season, seed) {
         : [one('hedgehog', u < 0.7 ? 'brown' : u < 0.82 ? 'chocolate' : u < 0.93 ? 'salt-and-pepper' : 'blonde')];
     }
     default:
+      if (byWood && drive.deer) {
+        drive.deer = false;
+        return [one('deer', season !== 'winter' && d() < 0.5 ? 'buck' : 'doe')];
+      }
       if (fox) return [one('fox')];
       return r() < 0.55 ? [one('rabbit')] : [one('pheasant', r() < 0.5 ? 'cock' : 'hen')];
   }
@@ -402,6 +421,8 @@ export function create(route, world) {
   const xing = { route, world, crossings: [], t: 0 };
   if (!world?.graph) return xing;
   const { grid } = sitesFor(world);
+  const drive = { seed: hash(driveNo++, 41) };
+  drive.deer = rng(hash(drive.seed, 43))() < DEER_BY_WOOD;
   const seen = new Set();
   let lastS = -Infinity;
   for (let s = START_CLEAR_M; s < route.length - END_CLEAR_M; s += 1) {
@@ -426,7 +447,7 @@ export function create(route, world) {
         // where the animal waits nose to the kerb.
         if (!sameRoadBefore(route, sx)) continue;
         lastS = sx;
-        xing.crossings.push(makeCrossing(route, world, site, sx));
+        xing.crossings.push(makeCrossing(route, world, site, sx, drive));
       }
     }
   }
@@ -441,7 +462,7 @@ function sameRoadBefore(route, s) {
   return true;
 }
 
-function makeCrossing(route, world, site, s) {
+function makeCrossing(route, world, site, s, drive) {
   const p = route.atDistance(s);
   const cls = route.roadClassAt(s);
   const halfW = cls === 'track' ? 2.5 : 2 * Math.abs(route.laneOffset(0, s));
@@ -451,7 +472,7 @@ function makeCrossing(route, world, site, s) {
   // the screen's right edge, and an animal should be seen before it steps out.
   // A family always the near one, or its line would wait off the screen.
   const nearSide = r() < 0.75;
-  const party = partyFor(site.place, world.season, site.seed).map((a, k) => ({
+  const party = partyFor(site.place, world.season, site.seed, drive, site.byWood).map((a, k) => ({
     ...a, k, d: 0, alpha: 1, phase: r() * 6.28, file: fileOf(a.kind, a.look),
     // Half its length across the road, painted or stand-in, whichever is longer.
     half: Math.max(ART[a.kind].L, TOPDOWN[a.kind].dl) / 2,
