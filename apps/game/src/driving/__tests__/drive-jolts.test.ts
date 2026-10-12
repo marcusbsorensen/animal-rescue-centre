@@ -9,11 +9,11 @@ describe('driveJolts', () => {
   });
 
   it('plays every jolt with motion in full', () => {
-    expect(driveJolts(false)).toEqual({ shake: true, judder: true, cameraFlash: true });
+    expect(driveJolts(false)).toEqual({ shake: true, judder: true, cameraFlash: true, gearHintPulse: true });
   });
 
-  it('drops the shake, the judder and the camera flash under reduced motion', () => {
-    expect(driveJolts(true)).toEqual({ shake: false, judder: false, cameraFlash: false });
+  it('drops the shake, the judder, the camera flash and the gear pulse under reduced motion', () => {
+    expect(driveJolts(true)).toEqual({ shake: false, judder: false, cameraFlash: false, gearHintPulse: false });
   });
 
   it("asks the player's motion setting when not told", () => {
