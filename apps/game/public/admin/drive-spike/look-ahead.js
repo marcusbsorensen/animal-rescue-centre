@@ -199,7 +199,7 @@ export function draw(ctx, LA, w, h, s, world, paint) {
     if (pt) {
       let [x, y] = toScreen(pt[0], pt[1]);
       const beat = s.reduce ? 0 : 0.5 + 0.5 * Math.sin(LA.t * 2 * Math.PI * 1.1);
-      const r = Math.max(11, rr) + 3 * beat;
+      const r = clamp(rr, 11, R.h * 0.36) + 3 * beat;   // a bend close by would ring the whole window
       x = clamp(x, R.x + 6, visR - 6); y = clamp(y, R.y + 6, R.y + R.h - 6);
       ring(ctx, x, y, r);
       // Far up the road, a vehicle coming is a few pixels across, so it is

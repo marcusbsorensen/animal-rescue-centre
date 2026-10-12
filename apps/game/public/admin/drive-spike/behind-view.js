@@ -52,7 +52,7 @@
  *  shifted by how far the eye has moved and turned (exact for moving, and
  *  for turning off only by a sliver of the row's own depth). */
 const NEAR = { z0: -1, z1: 62, L: 26, k: 5.5, slackZ: 14, slackX: 5, rot: 2 * Math.PI / 180, bands: 2 };
-const FAR = { z0: -2, z1: 320, L: 170, k: 0.95, slackZ: 30, slackX: 22, rot: 3 * Math.PI / 180, bands: 6 };
+const FAR = { z0: -2, z1: 320, L: 170, k: 0.95, slackZ: 30, slackX: 22, rot: 3 * Math.PI / 180, bands: 8 };
 const SCENERY_M = 170;     // upright scenery is drawn out to here
 const TRAFFIC_M = 320;     // and traffic out to here
 const NEAR_CLIP = 0.8;     // metres in front of the eye
@@ -258,14 +258,17 @@ function ground(BV, g, P, cam, world) {
   const t0 = performance.now();
   const here = { x: cam.x, y: cam.y, yaw: cam.yaw };
   const tN = texture(BV, 'nearTex'), tF = texture(BV, 'farTex');
-  for (const [t, B] of [[tN, NEAR], [tF, FAR]]) {
-    if (!t.pose) {
-      for (let i = 0; i < B.bands; i++) paintBand(t.front, B, here, world, i);
-      t.pose = here;
-    } else if (!t.job && offset(t.pose, B, cam).used > 0.5) t.job = { pose: here, band: 0 };
+  // The near texture is painted at once the first time; the far one, never:
+  // until its first is done, the rows beyond the near one are left plain.
+  if (!tN.pose) {
+    for (let i = 0; i < NEAR.bands; i++) paintBand(tN.front, NEAR, here, world, i);
+    tN.pose = here;
   }
-  // One band a frame, the near texture's first.
-  const t = tN.job ? tN : tF.job ? tF : null;
+  for (const [t, B] of [[tN, NEAR], [tF, FAR]]) {
+    if (!t.job && (!t.pose || offset(t.pose, B, cam).used > 0.5)) t.job = { pose: here, band: 0 };
+  }
+  // One band a frame: the far texture's first, then the two by turns.
+  const t = tF.job && (!tF.pose || !tN.job || (BV.turn = !BV.turn)) ? tF : tN.job ? tN : null;
   if (t) {
     const B = t === tN ? NEAR : FAR;
     paintBand(t.back, B, t.job.pose, world, t.job.band++);
@@ -278,7 +281,7 @@ function ground(BV, g, P, cam, world) {
   if (globalThis.__bvFlush && t) t.back.g.getImageData(0, 0, 1, 1);
   BV.texMs = performance.now() - t0;
   BV.near = tN.front; BV.far = tF.front;
-  const oN = offset(tN.pose, NEAR, cam), oF = offset(tF.pose, FAR, cam);
+  const oN = offset(tN.pose, NEAR, cam), oF = tF.pose && offset(tF.pose, FAR, cam);
   g.fillStyle = '#8fbf6a'; g.fillRect(0, yH, W, H - yH);
   g.imageSmoothingEnabled = true;
   // One row of the picture is one depth on the ground. In the frame its
@@ -290,7 +293,7 @@ function ground(BV, g, P, cam, world) {
     const Z = eye * f / (y + 0.5 - yH), Zn = eye * f / (y + 1.5 - yH);
     // The far texture under the whole row, unless the near one covers it.
     const near = oN.Z + Z * oN.cos < NEAR.z1 - 2;
-    if (!near || !row(g, P, BV.near, NEAR, oN, Z, Zn, y, true)) row(g, P, BV.far, FAR, oF, Z, Zn, y, false);
+    if (oF && (!near || !row(g, P, BV.near, NEAR, oN, Z, Zn, y, true))) row(g, P, BV.far, FAR, oF, Z, Zn, y, false);
     if (near) row(g, P, BV.near, NEAR, oN, Z, Zn, y, false);
   }
 }
@@ -572,7 +575,12 @@ function gatherTraffic(BV, items, P, world, cam) {
     if (nZ < NEAR_CLIP + 0.3) continue;
     const v = { w, fp, nX, nZ, fX, fZ, away, type: typeOf(w.skin), H: w.H || 1.5, Wd: fp.W };
     BV.drawn.push(v);
-    items.push({ z: nZ + 0.01, draw: g => vehicle(g, BV, P, v, 1) });
+    // One passing right by the eye (the eye is out where she is looking,
+    // not where a vehicle would have to miss it) fades away rather than
+    // filling the window.
+    const a = clamp((nZ - 2) / 5, 0, 1);
+    if (a <= 0) continue;
+    items.push({ z: nZ + 0.01, draw: g => { g.globalAlpha = a; vehicle(g, BV, P, v, 1); g.globalAlpha = 1; } });
   }
 }
 
