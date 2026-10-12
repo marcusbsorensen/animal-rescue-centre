@@ -1391,7 +1391,7 @@ async function boot() {
       return [a[0] * ASPECT * METRES_PER_UNIT, a[1] * METRES_PER_UNIT,
         b[0] * ASPECT * METRES_PER_UNIT, b[1] * METRES_PER_UNIT, cls];
     });
-  dash = await dashboard.load();
+  dash = await dashboard.load(VAN_ID);   // the dashboard of the vehicle being driven
   await look.load();
   window.__dash = dash;   // its layout and needle, for a test
 
