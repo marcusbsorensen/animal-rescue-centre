@@ -148,6 +148,15 @@ environment protection", not named for any species. Reference photos
 `animal-bridge-ref/` (not in git); the satellite tile there is not openly
 licensed, so it is for looking at only and is never traced.
 
+**Decided (Marcus, 2026-10-12, 40A, 41A).** The Animal Bridge goes over the
+game's own short stretch of real dual carriageway west of the village (the
+one road Trikey cannot cross today, so it also gives her a way over). It
+takes Chestfield's shape, two bores under a long green top, but with
+**rounded (arched) tunnel mouths**, and meadow, hedges and scrub on top for
+the animals rather than golf; later the children choose what goes on it.
+(Marcus thinks the tunnel he had in mind is a different one with rounded
+mouths; Chestfield is the reference for everything else.)
+
 **Trikey's special role.** Trikey may use the bridge, and is the vehicle that
 rescues animals found on it hurt or lost: the rider gets off and wheels
 Trikey onto the bridge on foot, then pops the animals into the crates. (On
