@@ -261,6 +261,32 @@ camera comes in close on them: hedgehogs, rabbits, pheasants and the like
 cross in front of the van; she slows or stops, and if she does not, the van
 stops itself, as it does for traffic. Never an accident.
 
+**What the spike does now (asked 2026-10-12).**
+- Every vehicle stops for a crossing animal, both ways, not only the van:
+  cars, tractors and buses slow gently and wait short of it, then go on once
+  it is across. An animal waits on the verge until everything coming either
+  way can stop for it. `safety.check.mjs` drives the animals and the traffic
+  together on the real Birchie roads, the A28's dual, divided and single
+  stretches included, and finds no vehicle ever touches an animal.
+- Behind a slower vehicle the van's gap breathes: it drifts back and in by
+  up to a metre and a half, slowly and unevenly, so the two do not move in
+  lockstep. Settling in behind something no longer counts as a hard stop or
+  rattles the animals in the back; only a real hard stop does.
+- Poking out to look (37A): the further she swipes right, or the longer she
+  holds →, the further the van eases out towards the centre line to see past
+  what is in front. Let go before halfway and it eases back; past halfway it
+  overtakes, but only if the road allows. While she looks, a small round
+  sign by the centre line says go (green, an arrow) or wait (amber, two
+  bars). It never eases out into anything coming the other way.
+- On the A28's divided stretch her right-hand lane is hers to use; it was
+  being refused near every bend as if it were the oncoming lane.
+- Each animal's shadow sits under its feet, with a small dark spot where it
+  touches the road; a hopping rabbit leaves it behind on the road.
+- Ducklings follow their mother across in a loose single file, never
+  abreast.
+- The van stops about a van length short of a crossing animal (39A), so it
+  crosses mid-screen rather than up under the labels.
+
 **Following the road is not a swerve.** Only the child's own lane change feeds
 the jostle model; the van drifting outward as a lane widens or the road
 becomes a dual carriageway is the road moving under it, and is free.
