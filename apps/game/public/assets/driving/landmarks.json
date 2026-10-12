@@ -1,8 +1,8 @@
 {
  "version": 1,
- "about": "Sights along the drives that a child can find her way by, for the driving spike's trip strip and its roadside signs. at is [fx, fy] in birchie-graph.json's node frame. Places from OpenStreetMap (ODbL), osm is the element they were read from; names allude and never name (docs/naming-places.md). anchor: one of the game's own destinations, named by the page. rank 1 is seen from the road, 3 is filler for open country; reach is how far from the road, in metres, it still counts as passed.",
+ "about": "Sights along the drives that a child can find her way by, for the driving spike's trip strip and its roadside signs. at is [fx, fy] in birchie-graph.json's node frame. Places from OpenStreetMap (ODbL), osm is the element they were read from; names allude and never name (docs/naming-places.md). anchor: one of the game's own destinations, named by the page. rank 1 is seen from the road, 3 is filler for open country; reach is how far from the road, in metres, it still counts as passed. with: next door to that one, so shown beside it on one sign.",
  "landmarks": [
-  {"id": "square-clock", "kind": "clock", "name": "The Square clock", "at": [0.40847, 0.4658], "rank": 1, "reach": 110, "osm": "w1133293107"},
+  {"id": "poppy-clock", "kind": "poppy-clock", "name": "The Poppy Clock", "at": [0.40847, 0.4658], "rank": 1, "reach": 110, "osm": "w1133293107"},
   {"id": "all-angels", "kind": "church", "name": "All Angels Church", "at": [0.40029, 0.46725], "rank": 1, "reach": 120, "osm": "w178156590"},
   {"id": "birchie-station", "kind": "station", "name": "Birchie Station", "at": [0.34697, 0.35939], "rank": 1, "reach": 130, "osm": "w567140803"},
   {"id": "st-bennets", "kind": "church", "name": "St Bennet's Church", "at": [0.31492, 0.37854], "rank": 2, "reach": 90, "osm": "w279823712"},
@@ -13,8 +13,10 @@
   {"id": "beach-huts", "kind": "beach-huts", "name": "The beach huts", "at": [0.18216, 0.26713], "rank": 1, "reach": 330, "osm": "w896131278"},
   {"id": "train-bridge-west", "kind": "rail-bridge", "name": "The train bridge", "at": [0.27291, 0.36785], "rank": 2, "reach": 40},
   {"id": "train-bridge-mid", "kind": "rail-bridge", "name": "The train bridge", "at": [0.48339, 0.33791], "rank": 2, "reach": 40},
-  {"id": "suds-n-steves", "kind": "petrol", "name": "Suds 'n' Steve's", "at": [0.33041, 0.607], "rank": 1, "reach": 110, "osm": "w1302599172", "tubeMan": true},
-  {"id": "garlie-pumps", "kind": "petrol", "name": "Garlie Pumps", "at": [0.92411, 0.29714], "rank": 1, "reach": 110, "osm": "w1302596007"},
+  {"id": "car-wash-wahoo", "kind": "car-wash", "name": "Car Wash Wahoo!", "at": [0.30455, 0.63696], "rank": 1, "reach": 110, "osm": "w1302599385"},
+  {"id": "station-k67", "kind": "petrol", "name": "Station K67", "at": [0.33041, 0.607], "rank": 2, "reach": 110, "osm": "w1302599172"},
+  {"id": "fishy-bones", "kind": "chippy", "name": "Fishy Bones", "at": [0.30603, 0.63589], "rank": 1, "reach": 110, "osm": "w285222449", "with": "car-wash-wahoo"},
+  {"id": "fastfuel", "kind": "petrol", "name": "FastFuel", "at": [0.92411, 0.29714], "rank": 1, "reach": 110, "osm": "w1302596007"},
   {"id": "wyx-farm-shop", "kind": "shop", "name": "Wyx Farm Shop", "at": [0.4537, 0.65881], "rank": 1, "reach": 120, "osm": "w280590259"},
   {"id": "waterlily-tower", "kind": "tower", "name": "Waterlily Tower", "at": [0.53568, 0.73159], "rank": 1, "reach": 260, "osm": "w896152160"},
   {"id": "chalk-tower", "kind": "tower", "name": "The Chalk Tower", "at": [0.51694, 0.56559], "rank": 1, "reach": 220, "osm": "n10566451659"},

@@ -10,8 +10,8 @@
 // set off at the bottom, the destination's flag and name at the top, and the
 // van's own icon climbing it as she drives, because the van drives up the
 // screen and up is onward. Beside it, at their places along the journey, the
-// sights she will pass: a church, the station, the tube man's petrol
-// station, a farm. They come from the real map (landmarks.json, read from
+// sights she will pass: a church, the station, the car wash where the tube
+// man waves, a farm. They come from the real map (landmarks.json, read from
 // OpenStreetMap), so the strip's order is the road's order. Each one also has
 // a painted fingerpost at the roadside in the world, on her side of the road,
 // pointing to the side the sight is on and naming it, so the strip and the
@@ -84,6 +84,8 @@ const CSS = `
   filter: drop-shadow(0 1px 1px rgba(46,17,8,.45)); z-index: 2; }
 #trip .tMark { position: absolute; width: var(--icon); height: var(--icon); }
 #trip .tMark img { display: block; width: 100%; height: 100%; transition: opacity .4s; }
+#trip .tMark.pair { height: calc(var(--icon) * 1.6); }
+#trip .tMark.pair img { width: 80%; height: 50%; margin: 0 auto; }
 #trip .tMark.passed img { opacity: .5; }
 #trip .tMark.next img { filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 3px #e9b93c); }
 #trip .tMark.pop img { animation: tPop .5s ease-out; }
@@ -230,16 +232,23 @@ export function choose(T, r) {
     const n = nearest(r.route, w.x, w.y);
     if (!n || n.s < END_CLEAR_M || n.s > length - END_CLEAR_M) continue;
     const reach = m.reach ?? 100;
-    all.push({ id: m.id, kind: m.kind, name, rank: m.rank ?? 2, tubeMan: !!m.tubeMan,
+    all.push({ id: m.id, kind: m.kind, name, rank: m.rank ?? 2, with: m.with ?? null,
       s: n.s, d: n.d, side: n.side, near: n.d / reach });
   }
+  // A sight next door to another (the data's `with`: Fishy Bones beside Car
+  // Wash Wahoo!) is not spaced out from it: it rides on that one's sign, an
+  // arm of its own, and stands beside its icon on the strip.
+  const ids = new Set(all.map(c => c.id));
+  const guest = c => c.with && ids.has(c.with);
+  const hosts = all.filter(c => !guest(c));
   const order = (a, b) => a.rank - b.rank || a.near - b.near;
-  let got = pick(all.filter(c => c.near <= 1).sort(order), length, 1);
-  if (got.length < MIN_MARKS) got = pick(all.filter(c => c.near <= 1.6).sort(order), length, 0.6);
+  let got = pick(hosts.filter(c => c.near <= 1).sort(order), length, 1);
+  if (got.length < MIN_MARKS) got = pick(hosts.filter(c => c.near <= 1.6).sort(order), length, 0.6);
   if (got.length < MIN_MARKS) {
     const more = corners(T, r, length).filter(c => got.every(o => Math.abs(o.s - c.s) >= 120));
     got = pick([...got, ...more], length, 0.6);
   }
+  for (const g of got) g.also = all.find(c => guest(c) && c.with === g.id) ?? null;
   return got.sort((a, b) => a.s - b.s);
 }
 
@@ -255,10 +264,13 @@ export function setRoute(T, r) {
   T.signs = T.marks.map(m => {
     const p = r.atDistance(m.s), lat = -(r.roadHalfAt(m.s) + 0.6);
     return { ...m, x: p.x - Math.sin(p.h) * lat, y: p.y + Math.cos(p.h) * lat, h: p.h,
-      board: signBoard(m.kind, m.name, m.side, m.tubeMan) };
+      board: signBoard(m.kind, m.name, m.side), board2: m.also && signBoard(m.also.kind, m.also.name, m.also.side) };
   });
   T.marksEl.replaceChildren(...T.marks.map(m => {
-    m.el = el('div', { class: 'tMark', title: m.name }, [el('img', { alt: '', src: iconURL(m.kind, m.tubeMan) })]);
+    // A pair stands one above the other, the one she passes first lower.
+    const both = m.also ? [m, m.also].sort((a, b) => b.s - a.s) : [m];
+    m.el = el('div', { class: 'tMark' + (m.also ? ' pair' : ''), title: both.map(b => b.name).join(' and ') },
+      both.map(b => el('img', { alt: '', src: iconURL(b.kind) })));
     m.state = '';
     return m.el;
   }));
@@ -305,7 +317,8 @@ export function layout(T, g) {
   for (const m of T.marks) {
     const y = roadTop + len - (vanH / 2 + run * Math.min(1, m.s / T.total));
     const left = m.side < 0 ? 3 : S.width - S.icon - 3;
-    Object.assign(m.el.style, { left: left + 'px', top: (y - S.icon / 2) + 'px' });
+    const h = m.also ? S.icon * 1.6 : S.icon;
+    Object.assign(m.el.style, { left: left + 'px', top: (y - h / 2) + 'px' });
   }
   T.vanY = null;
   T.el.classList.remove('hidden');
@@ -336,7 +349,7 @@ export function update(T, u) {
     if (state !== m.state) {
       // Passing it: a small pop, as the van passes its sign.
       const pop = passed && m.state !== '' && !m.state.includes('passed') && !u.reduce;
-      m.el.className = 'tMark ' + state + (pop ? ' pop' : '');
+      m.el.className = 'tMark ' + state + (m.also ? ' pair' : '') + (pop ? ' pop' : '');
       m.state = state;
     }
   }
@@ -365,15 +378,25 @@ export function drawSigns(ctx, T, view) {
   const px = k / view.ppm;
   for (const g of T.signs) {
     if (Math.hypot(g.x - view.cx, g.y - view.cy) > view.radius + 20) continue;
-    const B = g.board, bw = B.w * px, bh = B.h * px, post = 12 * px;
-    // The board stands over the verge: its point reaches back towards the
-    // road when the sight is across it.
-    const bx = g.side > 0 ? -bw + 9 * px : -bw + 5 * px;
+    // Its boards, the lowest first, one above the other on the post (two
+    // when a sight next door shares it). Each stands over the verge: its
+    // point reaches back towards the road when the sight is across it.
+    const boards = [];
+    let top = 12 * px;
+    for (const [B, side] of [[g.board2, g.also?.side], [g.board, g.side]]) {
+      if (!B) continue;
+      const bw = B.w * px, bh = B.h * px;
+      boards.push({ B, x: side > 0 ? -bw + 9 * px : -bw + 5 * px, y: -top - bh, w: bw, h: bh });
+      top += bh + 3 * px;
+    }
+    const post = 12 * px + (boards.length > 1 ? boards[0].h + 3 * px : 0);
+    const x0 = Math.min(...boards.map(b => b.x)), x1 = Math.max(...boards.map(b => b.x + b.w));
+    const yTop = boards[boards.length - 1].y;
     ctx.save();
     ctx.translate(g.x + view.sun.x * SIGN_H, g.y + view.sun.y * SIGN_H);
     ctx.rotate(g.h + Math.PI / 2);
     ctx.fillStyle = 'rgba(40,46,38,.24)';
-    ctx.beginPath(); ctx.roundRect(bx, -post - bh, bw, bh + post, 5 * px); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(x0, yTop, x1 - x0, -yTop, 5 * px); ctx.fill();
     ctx.restore();
     ctx.save();
     ctx.translate(g.x, g.y);
@@ -382,7 +405,7 @@ export function drawSigns(ctx, T, view) {
     ctx.beginPath(); ctx.roundRect(-2.2 * px, -post - 2 * px, 4.4 * px, post + 3.5 * px, 1.5 * px); ctx.fill();
     ctx.fillStyle = '#8a6440';
     ctx.fillRect(-1.1 * px, -post - 1 * px, 2.2 * px, post + 1.6 * px);
-    ctx.drawImage(B.canvas, bx, -post - bh, bw, bh);
+    for (const b of boards) ctx.drawImage(b.B.canvas, b.x, b.y, b.w, b.h);
     ctx.restore();
   }
 }
@@ -390,7 +413,7 @@ export function drawSigns(ctx, T, view) {
 /** One fingerpost board, painted once: the sight's icon over its name on
  *  cream, pointed on the side the sight is on. Narrow, so it fits on the
  *  verge between the kerb and the trip strip. */
-function signBoard(kind, name, side, tubeMan) {
+function signBoard(kind, name, side) {
   const S = 2, ICON = 22, PAD = 5, TIP = 8, WRAP = 66, LINE = 12;
   const FONT = '800 10.5px Nunito, system-ui, -apple-system, sans-serif';
   const c = document.createElement('canvas');
@@ -426,7 +449,7 @@ function signBoard(kind, name, side, tubeMan) {
   g.restore();
   g.lineWidth = 1.5; g.strokeStyle = INK; g.lineJoin = 'round'; g.stroke();
   const mid = x0 + bw / 2;
-  g.save(); g.translate(mid - ICON / 2, PAD); g.scale(ICON / 24, ICON / 24); paintIcon(g, kind, tubeMan); g.restore();
+  g.save(); g.translate(mid - ICON / 2, PAD); g.scale(ICON / 24, ICON / 24); paintIcon(g, kind); g.restore();
   g.fillStyle = '#3a3226'; g.font = FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
   lines.forEach((l, k) => g.fillText(l, mid, PAD + ICON + 2 + LINE * (k + 0.5)));
   return { canvas: c, w, h };
@@ -436,14 +459,14 @@ function signBoard(kind, name, side, tubeMan) {
 
 const ICON_CACHE = new Map();
 /** A kind's icon as an image URL for the strip, painted once at 4x. */
-function iconURL(kind, tubeMan) {
-  const key = kind + (tubeMan ? '+tube' : '');
+function iconURL(kind) {
+  const key = kind;
   if (!ICON_CACHE.has(key)) {
     const c = document.createElement('canvas');
     c.width = c.height = 96;
     const g = c.getContext('2d');
     g.scale(4, 4);
-    paintIcon(g, kind, tubeMan);
+    paintIcon(g, kind);
     ICON_CACHE.set(key, c.toDataURL());
   }
   return ICON_CACHE.get(key);
@@ -451,7 +474,7 @@ function iconURL(kind, tubeMan) {
 
 /** Each kind, painted in a 24 x 24 box in the world's style: soft fills and
  *  a thin dark outline, shapes a child names on sight. */
-export function paintIcon(g, kind, tubeMan) {
+export function paintIcon(g, kind) {
   g.lineJoin = 'round'; g.lineCap = 'round'; g.lineWidth = 1.3; g.strokeStyle = INK;
   const P = (pts, fill) => {
     g.beginPath(); g.moveTo(pts[0], pts[1]);
@@ -510,22 +533,63 @@ export function paintIcon(g, kind, tubeMan) {
       break;
     case 'petrol':
       ground('#cfc6b0');
-      R(4.5, 5, 9, 16, '#3f8f5a', 1.2); R(6.3, 7, 5.4, 4.4, CREAM, 0.6);
-      R(3.5, 19.5, 11, 2, '#6c6f6b', 0.4);
-      g.beginPath(); g.moveTo(13.5, 12); g.quadraticCurveTo(18, 12, 17.5, 17); g.stroke();
-      R(16, 7.5, 2.6, 4.5, '#3a3226', 0.6); L(17.3, 12, 17.3, 9.5);
-      if (tubeMan) {
-        // Steve, the tube man, waving.
-        g.lineWidth = 2.8; g.strokeStyle = INK;
-        g.beginPath(); g.moveTo(21, 21); g.quadraticCurveTo(23, 15, 21, 9.5); g.stroke();
-        g.lineWidth = 1.8; g.strokeStyle = '#d13b2f';
-        g.beginPath(); g.moveTo(21, 21); g.quadraticCurveTo(23, 15, 21, 9.5); g.stroke();
-        g.lineWidth = 1.2; g.strokeStyle = '#d13b2f';
-        g.beginPath(); g.moveTo(21.6, 12.5); g.quadraticCurveTo(23.6, 10, 23.2, 7); g.stroke();
-        g.lineWidth = 1; g.strokeStyle = INK; C(21, 8.2, 1.5, '#f2c94c');
-        g.fillStyle = '#3a6fb3'; g.fillRect(19.5, 6.2, 3, 1.1);
-        g.lineWidth = 1.3;
+      R(6.5, 5, 9, 16, '#3f8f5a', 1.2); R(8.3, 7, 5.4, 4.4, CREAM, 0.6);
+      R(5.5, 19.5, 11, 2, '#6c6f6b', 0.4);
+      g.beginPath(); g.moveTo(15.5, 12); g.quadraticCurveTo(20, 12, 19.5, 17); g.stroke();
+      R(18, 7.5, 2.6, 4.5, '#3a3226', 0.6); L(19.3, 12, 19.3, 9.5);
+      break;
+    case 'car-wash': {
+      ground('#cfc6b0');
+      // The wash's arch with its blue brush and bubbles...
+      R(1.5, 7, 2.4, 14, '#5aa9e6', 0.6); R(10.6, 7, 2.4, 14, '#5aa9e6', 0.6); R(1, 6, 12.5, 3, '#5aa9e6', 1);
+      R(5, 10.5, 4.5, 9.5, '#8fc3ec', 2);
+      g.strokeStyle = 'rgba(51,36,26,.45)'; L(5.6, 13, 8.9, 13); L(5.6, 15.5, 8.9, 15.5); L(5.6, 18, 8.9, 18);
+      g.strokeStyle = INK;
+      C(3.5, 3.6, 1.4, '#e8f4fb'); C(6.8, 2.6, 1.1, '#e8f4fb'); C(9.6, 3.8, 1.5, '#e8f4fb');
+      // ...and Steve, the tube man, waving her in with his right arm: blue
+      // dungarees, red shirt, blue cap.
+      const tube = (w, col, pts) => { g.lineWidth = w; g.strokeStyle = col; g.beginPath(); g.moveTo(pts[0], pts[1]); g.quadraticCurveTo(pts[2], pts[3], pts[4], pts[5]); g.stroke(); };
+      for (const [w, inner] of [[3.6, false], [2.2, true]]) {
+        tube(inner ? w - 0.8 : w, inner ? '#d13b2f' : INK, [19.5, 11.5, 22, 9.5, 23, 5.2]);    // the right arm, up
+        tube(inner ? w - 0.8 : w, inner ? '#d13b2f' : INK, [18.4, 12.2, 16.6, 13.5, 15.8, 15.6]); // the left, low
+        tube(w + 0.6, inner ? '#3a6fb3' : INK, [18.5, 21, 20, 17.5, 18.8, 14.5]);              // dungarees
+        tube(w + 0.6, inner ? '#d13b2f' : INK, [18.8, 14.8, 17.8, 12, 19, 9.6]);               // shirt
       }
+      g.lineWidth = 1; g.strokeStyle = INK;
+      C(19.2, 7.9, 1.8, '#f4d2a8');
+      R(17.4, 5.4, 3.6, 1.6, '#3a6fb3', 0.6);
+      g.lineWidth = 1.3;
+      break;
+    }
+    case 'poppy-clock':
+      // The clock memorial on the Square: stone, its face one big red poppy
+      // with the hands meeting at the dark heart, and small poppies carved
+      // below.
+      ground('#d9d2bd');
+      R(4.5, 19, 15, 2.4, '#bdb6a6', 0.4); R(6.5, 16.8, 11, 2.4, '#c9c2b2', 0.4);
+      R(7, 5, 10, 12, '#d8d1c1', 0.5); P([6.4, 5.3, 12, 1.2, 17.6, 5.3], '#b9b2a2');
+      g.lineWidth = 0.9;
+      for (const [dx, dy] of [[0, -2.2], [2.2, 0], [0, 2.2], [-2.2, 0]]) C(12 + dx, 10 + dy, 2.5, '#d42a2a');
+      g.fillStyle = '#d42a2a'; g.beginPath(); g.arc(12, 10, 2.3, 0, Math.PI * 2); g.fill();
+      C(12, 10, 1.2, '#2b1d1a');
+      g.lineWidth = 1.1; g.strokeStyle = CREAM; L(12, 10, 12, 6.4); L(12, 10, 14.3, 11.3);
+      g.strokeStyle = INK; g.lineWidth = 0.8;
+      for (const x of [9.4, 14.6]) { C(x, 14.7, 0.95, '#d42a2a'); g.fillStyle = '#2b1d1a'; g.beginPath(); g.arc(x, 14.7, 0.35, 0, Math.PI * 2); g.fill(); }
+      g.lineWidth = 1.3;
+      break;
+    case 'chippy':
+      // Fish and chips: a battered fish beside a paper cone of chips.
+      ground();
+      for (const [x, top] of [[14.2, 6], [16.2, 4.5], [18.2, 5.5], [20.2, 7]]) R(x - 0.8, top, 1.6, 8, '#f2c94c', 0.4);
+      P([12.8, 10.5, 22.6, 10.5, 20, 21, 15.4, 21], CREAM);
+      g.save(); g.clip();
+      g.fillStyle = '#d13b2f'; for (const x of [14.5, 17.3, 20.1]) g.fillRect(x, 10, 1.3, 11);
+      g.restore();
+      P([12.8, 10.5, 22.6, 10.5, 20, 21, 15.4, 21], 'rgba(0,0,0,0)');
+      P([4.2, 14, 1, 10.6, 1, 17.4], '#d99a45');
+      g.beginPath(); g.ellipse(9.2, 14, 6, 3.4, -0.12, 0, Math.PI * 2); g.fillStyle = '#e3ad55'; g.fill(); g.stroke();
+      g.fillStyle = 'rgba(255,240,200,.7)'; for (const [x, y] of [[7, 13], [9.5, 12.4], [11.5, 14.6], [8, 15.4]]) { g.beginPath(); g.arc(x, y, 0.7, 0, Math.PI * 2); g.fill(); }
+      g.fillStyle = INK; g.beginPath(); g.arc(13.2, 13.1, 0.7, 0, Math.PI * 2); g.fill();
       break;
     case 'shop':
       ground();

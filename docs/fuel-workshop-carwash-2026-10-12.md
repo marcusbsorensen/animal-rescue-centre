@@ -30,8 +30,9 @@ Vehicles unlock at Trikey 0, Henry 2, Bea 5, Big Tilly 10, Spark 12
 
 | Real | Where | Note |
 |---|---|---|
-| Esso / MFG, 361 Canterbury Rd | 51.36884, 1.29968 (map ≈ .33, .61) | car wash beside it; Fishbone Grill next door; the tube man's reference was filmed here (`public/admin/scene-assets/reference/birchie-west-entrance/`) |
-| BP, Canterbury Rd, Westgate | 51.37963, 1.35314 (map ≈ .92, .30) | automatic car wash beside it |
+| Esso / MFG, 361 Canterbury Rd | 51.36884, 1.29968 (map ≈ .33, .61) | the west petrol station, a car wash on its forecourt; no tube man. In the game: **Station K67** |
+| Hand car wash beside Fishbone Grill (fish and chips; **Fishy Bones** in the game, a landmark too), 374 Canterbury Rd | 51.36771, 1.29741 (map ≈ .30, .64) | a separate place about 170 m west of the Esso; **the tube man stands here** (Marcus, 2026-10-12, correcting 22A and 34A below). In the game: **Car Wash Wahoo!** OSM has it only as an untagged building (way 1302599385) in the plot it shares with the fish and chip shop; OSM's own `car_wash` features are the Esso forecourt's |
+| BP, Canterbury Rd, Westgate | 51.37963, 1.35314 (map ≈ .92, .30) | the east petrol station, automatic car wash beside it. In the game: **FastFuel** |
 | Station Garage, 5 Minnis Rd | 51.37655, 1.30232 (map ≈ .36, .38) | car repairs, beside the vet |
 
 No public charging points in the data. The map (`birchie-roads.svg:851-885`)
@@ -62,8 +63,13 @@ paid with Depot parts "rather than cash sinks".
 
 - **Places (22A):** as in real life. Two petrol stations, the Esso/MFG on
   Canterbury Road (west) and the BP towards Westgate (east), each with a car
-  wash; the tube man stands at the west one. The workshop is the Station
-  Garage on Minnis Road, beside the vet. In-game names allude, never name.
+  wash. The tube man stands at neither: he is at **Car Wash Wahoo!**, a
+  separate hand car wash beside the fish and chip shop just west of the west
+  station (Marcus, correcting this later the same day: "the tube man isn't at
+  the Esso garage, it is next to Fishbones fish&chip shop"). The workshop is
+  the Station Garage on Minnis Road, beside the vet. In-game names allude,
+  never name: the BP is **FastFuel**, the Esso **Station K67**, and the fish
+  and chip shop beside the car wash **Fishy Bones**.
 - **Fuel (23A):** the gauge falls with distance, faster for bigger vans. At a
   quarter tank the gauge glows and the GPS offers the nearer station. Ignored,
   the van runs dry, pulls onto the verge with its hazard lights on and is
@@ -90,7 +96,7 @@ paid with Depot parts "rather than cash sinks".
 - **Tube man (29A):** painted in the game's style from the README (blue
   dungarees, red shirt, blue cap) and animated in code: the tube sways and
   buckles, the right arm flaps, the left stays low; janky, never the same
-  twice.
+  twice. He stands at Car Wash Wahoo! (22A), not at a petrol station.
 
 ## Crossing animals (20, 21A, same day)
 
@@ -110,7 +116,10 @@ say "deer" at road size).
 
 ## Tube man prototype (29A, 2026-10-12)
 
-Marcus approved it as it is (34A): it stands at the west station's car wash.
+Marcus approved it as it is (34A). It stands at Car Wash Wahoo!, the hand car
+wash beside the fish and chip shop near the west station, which is a place of
+its own, not the station's wash (Marcus's correction, 2026-10-12; this note
+first said the west station's car wash).
 
 Steve is painted and animated in code: `apps/game/public/admin/tube-man.html`
 (add `?seed=` to pick a Steve and `?reduced=1` for reduced motion), module

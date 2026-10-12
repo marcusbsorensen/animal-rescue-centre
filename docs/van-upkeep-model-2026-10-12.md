@@ -204,7 +204,16 @@ Nothing in `apps/game/` was touched. To wire it in:
   length; the drive scene will need to tally them.
 - **Stations, the workshop and A.R.C.'s charger as places on the map.**
   Ids only here (`station-west`, `station-east`, `workshop`, `arc-charger`);
-  their in-game names are still to be chosen with Marcus.
+  their in-game names are still to be chosen with Marcus. Named since: the
+  east station (the BP) is **FastFuel**; the west (the Esso) is **Station
+  K67**.
+- **The west car wash is a separate place from the west station.** Marcus,
+  2026-10-12: the tube man stands at **Car Wash Wahoo!**, a hand car wash
+  beside the fish and chip shop just west of the Esso, not at the Esso
+  (`docs/fuel-workshop-carwash-2026-10-12.md`, Places and 22A). The code
+  still models the wash and the tube man as part of `station-west`
+  (`tubeMan: true`); it is unchanged here, and splitting the car wash into a
+  place of its own is for a later change.
 
 ## Decided (Marcus, 2026-10-12)
 

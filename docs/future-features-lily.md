@@ -167,6 +167,22 @@ Fits with: the crossing animals on the drive (`docs/driving-rebuild-2026-10-11.m
 Trikey crossing a dual carriageway only by bridge or tunnel (this is the
 first bridge), and the revenue streams in section 5.
 
+---
+
+## 8. The Poppy Clock in November (Marcus, 2026-10-12)
+
+The Poppy Clock is the clock memorial on the Square, a landmark on the drive
+(`apps/game/public/assets/driving/landmarks.json`): stone, with red poppies
+carved on it, its face one big poppy. Birchie has a very active veterans'
+association, and the Armistice commemorations on 11 November are a big deal
+in the village.
+
+The idea: around 11 November The Poppy Clock wears poppy wreaths on the drive,
+a gentle, respectful nod to the village's commemorations and its veterans.
+The game already follows the real calendar (`packages/game-logic/src/real-day.ts`,
+`calendar.ts`), so the wreaths would appear on their own in that week. How it
+is marked, and for how long, is for Marcus to decide later.
+
 ## Priority discussion needed
 
 Before any of these land, we should agree:
