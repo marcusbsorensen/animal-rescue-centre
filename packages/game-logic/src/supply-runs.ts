@@ -84,19 +84,28 @@ export interface DamageThreshold {
   label: string;
   emoji: string;
   threshold: number;        // damage level that triggers this category
-  repairParts: Record<string, number>;  // part_code -> quantity needed
+  /**
+   * Depot part code -> quantity needed. Every code is a `category: 'part'`
+   * item in depot-inventory.ts's catalogue (rusty_bolt, shiny_cog,
+   * copper_wire), held in `DepotInventory.parts`. Repairs are paid in Depot
+   * parts, never coins (decision 24A, docs/original-depot-supply-spec.md).
+   * The codes were invented names (polish, gasket, …) that the Depot never
+   * hands out; they were matched to the real catalogue on 2026-10-12.
+   * Tools are not spent: a spanner is not used up by a repair.
+   */
+  repairParts: Record<string, number>;
   severity: 'cosmetic' | 'minor' | 'moderate' | 'major' | 'catastrophic';
 }
 
 export const DAMAGE_THRESHOLDS: DamageThreshold[] = [
-  { type: 'scratches', label: 'Scratches', emoji: '\uD83E\uDE79', threshold: 10, repairParts: { polish: 1 }, severity: 'cosmetic' },
-  { type: 'dents', label: 'Dents', emoji: '\uD83D\uDD28', threshold: 20, repairParts: { panel_filler: 1, polish: 1 }, severity: 'minor' },
-  { type: 'rattles', label: 'Rattles', emoji: '\uD83D\uDD14', threshold: 35, repairParts: { bolts: 2, wrench_kit: 1 }, severity: 'minor' },
-  { type: 'broken_lights', label: 'Broken Lights', emoji: '\uD83D\uDCA1', threshold: 45, repairParts: { bulb_set: 1, wiring: 1 }, severity: 'moderate' },
-  { type: 'suspension', label: 'Suspension Damage', emoji: '\uD83E\uDDBE', threshold: 60, repairParts: { spring_kit: 2, bolts: 4 }, severity: 'moderate' },
-  { type: 'engine_trouble', label: 'Engine Trouble', emoji: '\u2699\uFE0F', threshold: 75, repairParts: { spark_plugs: 2, oil_can: 1, gasket: 1 }, severity: 'major' },
-  { type: 'bodywork', label: 'Bodywork Damage', emoji: '\uD83D\uDE97', threshold: 85, repairParts: { panel_filler: 3, welding_kit: 1, paint: 2 }, severity: 'major' },
-  { type: 'total', label: 'Total Write-Off', emoji: '\uD83D\uDCA5', threshold: 95, repairParts: { engine_rebuild: 1, chassis_parts: 4, welding_kit: 2, paint: 3 }, severity: 'catastrophic' },
+  { type: 'scratches', label: 'Scratches', emoji: '\uD83E\uDE79', threshold: 10, repairParts: { rusty_bolt: 1 }, severity: 'cosmetic' },
+  { type: 'dents', label: 'Dents', emoji: '\uD83D\uDD28', threshold: 20, repairParts: { rusty_bolt: 1, shiny_cog: 1 }, severity: 'minor' },
+  { type: 'rattles', label: 'Rattles', emoji: '\uD83D\uDD14', threshold: 35, repairParts: { rusty_bolt: 2 }, severity: 'minor' },
+  { type: 'broken_lights', label: 'Broken Lights', emoji: '\uD83D\uDCA1', threshold: 45, repairParts: { copper_wire: 1 }, severity: 'moderate' },
+  { type: 'suspension', label: 'Suspension Damage', emoji: '\uD83E\uDDBE', threshold: 60, repairParts: { shiny_cog: 1, rusty_bolt: 2 }, severity: 'moderate' },
+  { type: 'engine_trouble', label: 'Engine Trouble', emoji: '\u2699\uFE0F', threshold: 75, repairParts: { shiny_cog: 2, copper_wire: 1 }, severity: 'major' },
+  { type: 'bodywork', label: 'Bodywork Damage', emoji: '\uD83D\uDE97', threshold: 85, repairParts: { rusty_bolt: 2, shiny_cog: 1 }, severity: 'major' },
+  { type: 'total', label: 'Total Write-Off', emoji: '\uD83D\uDCA5', threshold: 95, repairParts: { rusty_bolt: 3, shiny_cog: 2, copper_wire: 2 }, severity: 'catastrophic' },
 ];
 
 // ── Extended run state (adds lane tracking on top of shared SupplyRunState) ──

@@ -16,6 +16,7 @@ import {
   OBSTACLES,
   DAMAGE_THRESHOLDS,
 } from '../supply-runs';
+import { ALL_REWARDS } from '../depot-inventory';
 
 describe('destination unlock levels', () => {
   it('bramble_farm is accessible at level 0', () => {
@@ -281,7 +282,7 @@ describe('getRepairCost', () => {
     const barrel = OBSTACLES.find((o) => o.type === 'oil_drums')!; // 12 each
     state = applyObstacleHit(state, barrel); // 12 total -> scratches threshold (10)
     const cost = getRepairCost(state);
-    expect(cost['polish']).toBeGreaterThanOrEqual(1);
+    expect(cost['rusty_bolt']).toBe(1);
   });
 
   it('accumulates parts for higher damage', () => {
@@ -292,8 +293,20 @@ describe('getRepairCost', () => {
     state = applyObstacleHit(state, barrel);
     state = applyObstacleHit(state, barrel);
     const cost = getRepairCost(state);
-    expect(cost['polish']).toBeGreaterThanOrEqual(1);
-    expect(cost['bolts']).toBeGreaterThanOrEqual(2);
+    // scratches 1 bolt + dents 1 bolt 1 cog + rattles 2 bolts
+    expect(cost).toEqual({ rusty_bolt: 4, shiny_cog: 1 });
+  });
+
+  it('asks only for parts the Depot actually hands out (24A)', () => {
+    const depotParts = new Set(
+      ALL_REWARDS.filter((r) => r.category === 'part').map((r) => r.code),
+    );
+    for (const t of DAMAGE_THRESHOLDS) {
+      for (const [code, qty] of Object.entries(t.repairParts)) {
+        expect(depotParts.has(code), `${t.type} asks for ${code}`).toBe(true);
+        expect(qty).toBeGreaterThan(0);
+      }
+    }
   });
 });
 
