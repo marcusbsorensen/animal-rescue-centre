@@ -118,9 +118,9 @@ There is also `setReducedMotion(on)`.
 
 **Rig.** Ten tube segments from the fan to the collar, a short, soft link for
 the head, and two arms of four segments each. Each link keeps an absolute
-angle and is sprung towards its parent's angle plus a target bend, damped
-close to critical. Each link follows its parent with no push back, so an
-underdamped chain amplified at every joint. Gravity acts on him as on an
+angle and is sprung towards its parent's angle plus a target bend. The
+bend is damped close to critical: each link follows its parent with no push
+back, and with lighter damping the motion grew at every joint. Gravity acts on him as on an
 inverted pendulum, and air pressure sets the spring strength. The physics
 runs at a fixed 60 Hz on a seeded generator, so he never loops. The jank
 comes from targets that jump rather than ease: the sway is sample-and-hold
