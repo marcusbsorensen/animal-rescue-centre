@@ -13,6 +13,10 @@ import { LANE_M } from '../lane-motion';
 import { GEAR_SPEED_MPS } from '../road-gears';
 import { anchorRoutes, carriageways, vertexTurns } from './real-graph';
 
+/** The tests that walk every route of the real graph take a few seconds,
+ *  and over vitest's default 5 s when the machine is busy. */
+const HEAVY_MS = 20_000;
+
 // The claims in docs/driving-rebuild-2026-10-11.md ("What is proved, and
 // where"), measured here on the installed Birchie graph rather than on one
 // route someone happened to drive in the spike.
@@ -65,7 +69,7 @@ describe('the camera hides the route\'s corners (real graph, 210 routes, third g
     }
     expect(corners).toBeGreaterThan(1000);
     expect(worst * DEG).toBeLessThanOrEqual(2);
-  });
+  }, HEAVY_MS);
 
   it('through any lone corner, the camera turns at most 1/20 of it per sample', () => {
     // The aim swings through the corner over LOOKAHEAD_M of travel, so the
@@ -79,7 +83,7 @@ describe('the camera hides the route\'s corners (real graph, 210 routes, third g
     }
     expect(corners).toBeGreaterThan(300);
     expect(worst).toBeLessThanOrEqual(1 / 20);
-  });
+  }, HEAVY_MS);
 
   it('across every metre of every route, 95% of samples turn the camera under 1°', () => {
     // Corners that come in clusters (a junction straight after a bend) add up,
@@ -90,7 +94,7 @@ describe('the camera hides the route\'s corners (real graph, 210 routes, third g
     expect(changes[Math.floor(changes.length * 0.95)]).toBeLessThan(1);
     expect(changes[Math.floor(changes.length * 0.99)]).toBeLessThan(2.5);
     expect(changes[changes.length - 1]).toBeLessThan(8);
-  });
+  }, HEAVY_MS);
 });
 
 /** Turns over 5° with nothing else over 5° within 45 m. */
@@ -153,7 +157,7 @@ describe('easing is frame-rate independent', () => {
     };
     expect(spread(easeCameraHeading)).toBeLessThan(0.5);
     expect(spread(easeCameraHeadingSpike)).toBeGreaterThan(0.8);
-  });
+  }, HEAVY_MS);
 
   it('takes the short way round across ±180°', () => {
     const next = easeCameraHeading(Math.PI - 0.1, -Math.PI + 0.1, 1 / 60);
@@ -268,7 +272,7 @@ describe('the zoom follows speed and place', () => {
     }
     expect(capped).toBeGreaterThan(0);
     expect(mainRoad).toBeGreaterThan(0);
-  });
+  }, HEAVY_MS);
 
   /** zoom after `seconds` of easing towards a fixed target at `fps`. */
   const ease = (from: number, to: number, seconds: number, fps: number) => {
