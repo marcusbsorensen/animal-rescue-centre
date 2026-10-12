@@ -5,7 +5,17 @@ import {
   applyDrive,
   applyDriveLeg,
   applyRoughEvent,
+  arrivalHappinessEach,
   canAffordParts,
+  cleanByHand,
+  conditionsFromIllnesses,
+  hoover,
+  insideRuns,
+  isMoulting,
+  missingParts,
+  valet,
+  washRuns,
+  MOULTING_SPECIES,
   energyKind,
   freshFleetUpkeep,
   freshUpkeep,
@@ -36,6 +46,8 @@ import {
 } from '../van-upkeep';
 import { VEHICLE_DEFS, type CrateGrid, type LoadedCrate } from '../crate-stacking';
 import { ALL_REWARDS } from '../depot-inventory';
+import { ILLNESSES } from '../vet';
+import type { Species } from '@arc/shared-types';
 
 const DRIVE = T.TYPICAL_DRIVE_KM;
 
@@ -61,6 +73,9 @@ const crate = (slotIndex: number, animalId: string, species: LoadedCrate['specie
 });
 
 const henryGrid = (crates: LoadedCrate[]): CrateGrid => ({ vehicle: 'small-van', cols: 2, rows: 2, crates });
+
+/** A Depot parts bag that can pay any bill. */
+const PLENTY = { rusty_bolt: 99, shiny_cog: 99, copper_wire: 99 };
 
 describe('places (22A)', () => {
   it('two stations, each with fuel, a wash and a charger; the tube man in the west', () => {
@@ -112,7 +127,7 @@ describe('level gates (28A)', () => {
     const half = { ...freshUpkeep(), energy: 0.5, dirtOutside: 0.8, wear: 0.9 };
     expect(refuel(half, 'small-van', 'station-west', 1).refused).toBe('not-yet');
     expect(wash(half, 'small-van', 'station-west', 3).refused).toBe('not-yet');
-    expect(service(half, 'small-van', 'workshop', 5)).toMatchObject({ refused: 'not-yet', coins: 0, parts: {} });
+    expect(service(half, 'small-van', 'workshop', 5, PLENTY)).toMatchObject({ refused: 'not-yet', coins: 0, parts: {} });
   });
 
   it('below the workshop gate the ride is never rougher and no light shows', () => {
@@ -255,11 +270,11 @@ describe('paying (24A)', () => {
   it('repairs cost Depot parts the Depot actually hands out, never coins', () => {
     const partCodes = new Set(ALL_REWARDS.filter((r) => r.category === 'part').map((r) => r.code));
     const u: VanUpkeep = { ...freshUpkeep(), wear: 0.9, supplyDamage: 100 };
-    const r = service(u, 'animal-lorry', 'workshop', 6);
+    const r = service(u, 'animal-lorry', 'workshop', 6, PLENTY);
     expect(r.coins).toBe(0);
     expect(Object.keys(r.parts).length).toBeGreaterThan(0);
     for (const code of Object.keys(r.parts)) expect(partCodes.has(code), code).toBe(true);
-    const trike = service({ ...freshUpkeep(), puncture: true }, 'pedal-trike', 'workshop', 6);
+    const trike = service({ ...freshUpkeep(), puncture: true }, 'pedal-trike', 'workshop', 6, PLENTY);
     for (const code of Object.keys(trike.parts)) expect(partCodes.has(code), code).toBe(true);
   });
 
@@ -324,22 +339,22 @@ describe('workshop (25A)', () => {
 
   it('the service puts it right, in parts, and the ride is smooth again', () => {
     const u = { ...freshUpkeep(), wear: 0.8 };
-    const r = service(u, 'small-van', 'workshop', 6);
+    const r = service(u, 'small-van', 'workshop', 6, PLENTY);
     expect(r.upkeep.wear).toBe(0);
     expect(r.parts).toEqual(T.SERVICE_PARTS);
     expect(rideRoughness(r.upkeep, 'small-van', 6)).toBe(1);
   });
 
   it('an early service is allowed and costs no parts; a fresh van is nothing to do', () => {
-    const early = service({ ...freshUpkeep(), wear: 0.2 }, 'small-van', 'workshop', 6);
+    const early = service({ ...freshUpkeep(), wear: 0.2 }, 'small-van', 'workshop', 6, PLENTY);
     expect(early.refused).toBeUndefined();
     expect(early.parts).toEqual({});
     expect(early.upkeep.wear).toBe(0);
-    expect(service(freshUpkeep(), 'small-van', 'workshop', 6).refused).toBe('nothing-to-do');
+    expect(service(freshUpkeep(), 'small-van', 'workshop', 6, PLENTY).refused).toBe('nothing-to-do');
   });
 
   it('the service is only at the workshop', () => {
-    expect(service({ ...freshUpkeep(), wear: 0.8 }, 'small-van', 'station-west', 6).refused).toBe('not-here');
+    expect(service({ ...freshUpkeep(), wear: 0.8 }, 'small-van', 'station-west', 6, PLENTY).refused).toBe('not-here');
   });
 
   it('supply-run damage is carried to the van and mended at the workshop', () => {
@@ -352,7 +367,7 @@ describe('workshop (25A)', () => {
     expect(needsWorkshop(damaged, 'small-van', 6)).toBe(true);
     // scratches + dents + rattles, as getRepairCost says for 36.
     expect(workshopParts(damaged, 'small-van', 6)).toEqual({ rusty_bolt: 4, shiny_cog: 1 });
-    expect(service(damaged, 'small-van', 'workshop', 6).upkeep.supplyDamage).toBe(0);
+    expect(service(damaged, 'small-van', 'workshop', 6, PLENTY).upkeep.supplyDamage).toBe(0);
   });
 
   it('supply-run damage is not kept below the workshop level', () => {
@@ -409,11 +424,9 @@ describe('Spark and Trikey (27A+B)', () => {
     expect(refuel({ ...freshUpkeep(), energy: 0.1 }, 'pedal-trike', 'station-west', 20).refused).toBe('not-here');
   });
 
-  it('Trikey does not wear and is not washed', () => {
+  it('Trikey does not wear', () => {
     const r = applyDrive(freshUpkeep(), drive({ vehicle: 'pedal-trike', level: 20, hardStops: 9, weather: 'snow' }, 20, 'track'));
     expect(r.upkeep.wear).toBe(0);
-    expect(r.upkeep.dirtOutside).toBe(0);
-    expect(wash(freshUpkeep(), 'pedal-trike', 'station-west', 20).refused).toBe('not-here');
   });
 
   it('Trikey gets the odd puncture, deterministically from the seed', () => {
@@ -425,7 +438,7 @@ describe('Spark and Trikey (27A+B)', () => {
         const r = applyDrive(u, drive({ vehicle: 'pedal-trike', level: 6, rng }));
         if (r.upkeep.puncture) {
           punctures++;
-          u = service(r.upkeep, 'pedal-trike', 'workshop', 6).upkeep;
+          u = service(r.upkeep, 'pedal-trike', 'workshop', 6, PLENTY).upkeep;
         } else {
           u = r.upkeep;
         }
@@ -463,7 +476,7 @@ describe('Spark and Trikey (27A+B)', () => {
     const flat = { ...freshUpkeep(), puncture: true };
     expect(rideRoughness(flat, 'pedal-trike', 6)).toBe(T.PUNCTURE_ROUGHNESS);
     expect(needsWorkshop(flat, 'pedal-trike', 6)).toBe(true);
-    const r = service(flat, 'pedal-trike', 'workshop', 6);
+    const r = service(flat, 'pedal-trike', 'workshop', 6, PLENTY);
     expect(r.parts).toEqual(T.PUNCTURE_PARTS);
     expect(r.upkeep.puncture).toBe(false);
   });
@@ -543,14 +556,12 @@ describe('dirt inside (26A extended)', () => {
     expect(squabblingPairs(g)).toHaveLength(4);
   });
 
-  it('crossing DIRTY_AT inside is its own event, and the wash does not clean it', () => {
+  it('crossing DIRTY_AT inside is its own event', () => {
     const u = { ...freshUpkeep(), dirtInside: T.DIRTY_AT - 0.01, dirtOutside: 0.9 };
     const r = applyDrive(u, drive({ vehicle: 'small-van', level: 4, grid: henryGrid([crate(0, 'a', 'cat', true)]) }));
     expect(r.events).toContainEqual({ type: 'dirty-inside' });
+    expect(r.events).not.toContainEqual({ type: 'dirty-outside' });
     expect(isDirtyInside(r.upkeep, 'small-van', 4)).toBe(true);
-    const washed = wash(r.upkeep, 'small-van', 'station-west', 4).upkeep;
-    expect(washed.dirtOutside).toBe(0);
-    expect(washed.dirtInside).toBe(r.upkeep.dirtInside);
   });
 
   it('no inside dirt below the wash level', () => {
@@ -576,6 +587,386 @@ describe('the wash (24A, 26A)', () => {
   it('only at a station', () => {
     expect(wash({ ...freshUpkeep(), dirtOutside: 1 }, 'small-van', 'workshop', 4).refused).toBe('not-here');
     expect(wash({ ...freshUpkeep(), dirtOutside: 1 }, 'small-van', 'arc-charger', 4).refused).toBe('not-here');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// Marcus's answers to the model's ten questions (2026-10-12)
+// ═══════════════════════════════════════════════════════════════════
+
+describe('answer 1: four ways to clean the inside', () => {
+  const dirty: VanUpkeep = { ...freshUpkeep(), dirtInside: 0.8, dirtOutside: 0.7 };
+
+  it('A: by hand at A.R.C. — free, takes a little time, inside only', () => {
+    const r = cleanByHand(dirty, 'small-van', 'arc-charger', 4);
+    expect(r.refused).toBeUndefined();
+    expect(r).toMatchObject({ coins: 0, parts: {}, minutes: T.HAND_CLEAN_MINUTES });
+    expect(r.minutes).toBeGreaterThan(0);
+    expect(r.upkeep.dirtInside).toBe(0);
+    expect(r.upkeep.dirtOutside).toBe(0.7);
+  });
+
+  it('A: only at home', () => {
+    for (const place of ['station-west', 'station-east', 'workshop'] as const) {
+      expect(cleanByHand(dirty, 'small-van', place, 4).refused, place).toBe('not-here');
+    }
+  });
+
+  it('B: the hoover at both petrol stations — one coin, inside only', () => {
+    for (const place of ['station-west', 'station-east'] as const) {
+      const r = hoover(dirty, 'long-van', place, 4);
+      expect(r.refused, place).toBeUndefined();
+      expect(r).toMatchObject({ coins: 1, parts: {}, minutes: T.HOOVER_MINUTES });
+      expect(r.upkeep.dirtInside).toBe(0);
+      expect(r.upkeep.dirtOutside).toBe(0.7);
+    }
+    expect(hoover(dirty, 'long-van', 'workshop', 4).refused).toBe('not-here');
+    expect(hoover(dirty, 'long-van', 'arc-charger', 4).refused).toBe('not-here');
+  });
+
+  it('C: a valet at the workshop — paid in Depot parts, inside only', () => {
+    const r = valet(dirty, 'animal-lorry', 'workshop', 6, PLENTY);
+    expect(r.refused).toBeUndefined();
+    expect(r.coins).toBe(0);
+    expect(r.parts).toEqual(T.VALET_PARTS);
+    expect(r.upkeep.dirtInside).toBe(0);
+    expect(r.upkeep.dirtOutside).toBe(0.7);
+    expect(r.partsLeft).toEqual(spendParts(PLENTY, T.VALET_PARTS));
+    expect(valet(dirty, 'animal-lorry', 'station-west', 6, PLENTY).refused).toBe('not-here');
+    const partCodes = new Set(ALL_REWARDS.filter((x) => x.category === 'part').map((x) => x.code));
+    for (const code of Object.keys(T.VALET_PARTS)) expect(partCodes.has(code), code).toBe(true);
+  });
+
+  it('C: the valet opens with the workshop (level 6); hand and hoover with the wash (level 4)', () => {
+    expect(valet(dirty, 'small-van', 'workshop', 5, PLENTY).refused).toBe('not-yet');
+    expect(cleanByHand(dirty, 'small-van', 'arc-charger', 3).refused).toBe('not-yet');
+    expect(hoover(dirty, 'small-van', 'station-west', 3).refused).toBe('not-yet');
+    expect(cleanByHand(dirty, 'small-van', 'arc-charger', 3).coins).toBe(0);
+  });
+
+  it('C: no parts for the valet — sent to the Depot first, nothing spent, inside still dirty', () => {
+    const r = valet(dirty, 'small-van', 'workshop', 6, {});
+    expect(r.refused).toBe('need-parts');
+    expect(r.missingParts).toEqual(T.VALET_PARTS);
+    expect(r.upkeep).toBe(dirty);
+    expect(r.minutes).toBe(0);
+  });
+
+  it('D: the car wash cleans inside and out together, for its one coin', () => {
+    const r = wash(dirty, 'small-van', 'station-east', 4);
+    expect(r.coins).toBe(1);
+    expect(r.upkeep.dirtInside).toBe(0);
+    expect(r.upkeep.dirtOutside).toBe(0);
+  });
+
+  it('the hoover is the cheap inside-only choice, the wash the do-everything one', () => {
+    const h = hoover(dirty, 'small-van', 'station-west', 4);
+    const w = wash(dirty, 'small-van', 'station-west', 4);
+    expect(h.coins).toBeLessThanOrEqual(w.coins);
+    expect(h.minutes).toBeLessThan(w.minutes);
+    expect(h.upkeep.dirtOutside).toBeGreaterThan(w.upkeep.dirtOutside);
+  });
+
+  it('a clean inside may be cleaned again (wrong-but-safe): same price, never refused for it', () => {
+    expect(cleanByHand(freshUpkeep(), 'small-van', 'arc-charger', 4).refused).toBeUndefined();
+    expect(hoover(freshUpkeep(), 'small-van', 'station-west', 4)).toMatchObject({ coins: 1 });
+    expect(valet(freshUpkeep(), 'small-van', 'workshop', 6, PLENTY).refused).toBeUndefined();
+  });
+
+  it('Trikey has no inside: the inside cleans are not-here, free', () => {
+    expect(cleanByHand(dirty, 'pedal-trike', 'arc-charger', 20)).toMatchObject({ refused: 'not-here', coins: 0 });
+    expect(hoover(dirty, 'pedal-trike', 'station-west', 20)).toMatchObject({ refused: 'not-here', coins: 0 });
+    expect(valet(dirty, 'pedal-trike', 'workshop', 20, PLENTY)).toMatchObject({ refused: 'not-here', parts: {} });
+  });
+});
+
+describe('answer 2: inside dirt makes the animals a little less happy on arrival', () => {
+  it('a dirty inside costs a little happiness each; a clean one nothing', () => {
+    expect(T.DIRTY_INSIDE_ARRIVAL_HAPPINESS).toBeLessThan(0);
+    expect(T.DIRTY_INSIDE_ARRIVAL_HAPPINESS).toBeGreaterThan(T.TOW_RESTLESS_HAPPINESS); // "a little"
+    expect(arrivalHappinessEach({ ...freshUpkeep(), dirtInside: T.DIRTY_AT }, 'small-van', 4)).toBe(T.DIRTY_INSIDE_ARRIVAL_HAPPINESS);
+    expect(arrivalHappinessEach({ ...freshUpkeep(), dirtInside: T.DIRTY_AT - 0.01 }, 'small-van', 4)).toBe(0);
+  });
+
+  it('outside dirt is only seen: no happiness cost', () => {
+    expect(arrivalHappinessEach({ ...freshUpkeep(), dirtOutside: 1 }, 'small-van', 4)).toBe(0);
+  });
+
+  it('applyDrive reports it, from the state at the end of the drive', () => {
+    const g = henryGrid([crate(0, 'a', 'cat', true)]);
+    const clean = applyDrive(freshUpkeep(), drive({ vehicle: 'small-van', level: 4, grid: g }));
+    expect(clean.arrivalHappinessEach).toBe(0);
+    const tipped = applyDrive({ ...freshUpkeep(), dirtInside: T.DIRTY_AT - 0.01 }, drive({ vehicle: 'small-van', level: 4, grid: g }));
+    expect(tipped.arrivalHappinessEach).toBe(T.DIRTY_INSIDE_ARRIVAL_HAPPINESS);
+  });
+
+  it('below the wash level, and on Trikey, there is no cost', () => {
+    const filthy = { ...freshUpkeep(), dirtInside: 1 };
+    expect(arrivalHappinessEach(filthy, 'small-van', 3)).toBe(0);
+    expect(arrivalHappinessEach(filthy, 'pedal-trike', 20)).toBe(0);
+  });
+
+  it('any of the four cleans puts it right', () => {
+    const filthy = { ...freshUpkeep(), dirtInside: 1 };
+    for (const r of [
+      cleanByHand(filthy, 'small-van', 'arc-charger', 6),
+      hoover(filthy, 'small-van', 'station-west', 6),
+      valet(filthy, 'small-van', 'workshop', 6, PLENTY),
+      wash(filthy, 'small-van', 'station-west', 6),
+    ]) expect(arrivalHappinessEach(r.upkeep, 'small-van', 6)).toBe(0);
+  });
+});
+
+describe('answer 3: short of coins, she pays what she has and still gets the fill', () => {
+  it('a full tank with 3 coins: pays 3, tank full', () => {
+    const r = refuel({ ...freshUpkeep(), energy: 0.1 }, 'small-van', 'station-west', 2);
+    expect(r.upkeep.energy).toBe(1);
+    expect(payCoins(r.coins, 3)).toEqual({ paid: 3, coinsLeft: 0 });
+  });
+
+  it('the wash and the hoover with an empty purse: free, and done', () => {
+    const dirty = { ...freshUpkeep(), dirtInside: 0.9, dirtOutside: 0.9 };
+    const w = wash(dirty, 'small-van', 'station-west', 4);
+    expect(payCoins(w.coins, 0)).toEqual({ paid: 0, coinsLeft: 0 });
+    expect(w.upkeep.dirtOutside).toBe(0);
+    const h = hoover(dirty, 'small-van', 'station-east', 4);
+    expect(payCoins(h.coins, 0).paid).toBe(0);
+    expect(h.upkeep.dirtInside).toBe(0);
+  });
+});
+
+describe('answer 4: no Depot parts — the workshop sends her to the Depot first', () => {
+  const worn: VanUpkeep = { ...freshUpkeep(), wear: 0.8 };
+
+  it('says so as a result: need-parts, the bill, and what is missing', () => {
+    const r = service(worn, 'small-van', 'workshop', 6, { rusty_bolt: 1 });
+    expect(r.refused).toBe('need-parts');
+    expect(r.parts).toEqual(T.SERVICE_PARTS);
+    expect(r.missingParts).toEqual({ shiny_cog: 1 });
+    expect(r.partsLeft).toBeUndefined();
+    expect(r.coins).toBe(0);
+    expect(r.minutes).toBe(0);
+  });
+
+  it('nothing mended, nothing spent: the spanner light stays on', () => {
+    const r = service(worn, 'small-van', 'workshop', 6, {});
+    expect(r.upkeep).toEqual(worn);
+    expect(spannerLight(r.upkeep, 'small-van', 6)).toBe(true);
+    expect(needsWorkshop(r.upkeep, 'small-van', 6)).toBe(true);
+  });
+
+  it('the van stays driveable, just bumpier', () => {
+    const r = applyDrive(worn, drive({ vehicle: 'small-van', level: 6 }));
+    expect(r.kmDriven).toBe(DRIVE);
+    expect(r.tow).toBeUndefined();
+    expect(rideRoughness(r.upkeep, 'small-van', 6)).toBe(T.WORN_ROUGHNESS);
+  });
+
+  it('all or nothing: supply-run damage she cannot fully pay for is not half-mended', () => {
+    const u: VanUpkeep = { ...freshUpkeep(), wear: 0.8, supplyDamage: 36 };
+    const bill = workshopParts(u, 'small-van', 6);
+    const have = { rusty_bolt: 5, shiny_cog: 1 }; // enough bolts, one cog short
+    const r = service(u, 'small-van', 'workshop', 6, have);
+    expect(r.refused).toBe('need-parts');
+    expect(r.missingParts).toEqual(missingParts(have, bill));
+    expect(r.missingParts).toEqual({ shiny_cog: 1 });
+    expect(r.upkeep).toEqual(u);
+  });
+
+  it('back from the Depot with the parts, it is mended and the bag is paid from', () => {
+    const have = { rusty_bolt: 3, shiny_cog: 2, copper_wire: 1 };
+    const r = service(worn, 'small-van', 'workshop', 6, have);
+    expect(r.refused).toBeUndefined();
+    expect(r.upkeep.wear).toBe(0);
+    expect(r.partsLeft).toEqual({ rusty_bolt: 2, shiny_cog: 1, copper_wire: 1 });
+    expect(have).toEqual({ rusty_bolt: 3, shiny_cog: 2, copper_wire: 1 }); // pure
+  });
+
+  it('a flat Trikey without a bolt is sent to the Depot too, and still rides', () => {
+    const flat = { ...freshUpkeep(), puncture: true };
+    const r = service(flat, 'pedal-trike', 'workshop', 6, {});
+    expect(r).toMatchObject({ refused: 'need-parts', missingParts: T.PUNCTURE_PARTS });
+    expect(r.upkeep.puncture).toBe(true);
+    expect(applyDrive(r.upkeep, drive({ vehicle: 'pedal-trike', level: 6 })).kmDriven).toBe(DRIVE);
+  });
+
+  it('an early service needs no parts, so an empty bag is fine', () => {
+    const r = service({ ...freshUpkeep(), wear: 0.2 }, 'small-van', 'workshop', 6, {});
+    expect(r.refused).toBeUndefined();
+    expect(r.partsLeft).toEqual({});
+  });
+
+  it('missingParts lists only what is short', () => {
+    expect(missingParts({ rusty_bolt: 1 }, { rusty_bolt: 3, shiny_cog: 1 })).toEqual({ rusty_bolt: 2, shiny_cog: 1 });
+    expect(missingParts({ rusty_bolt: 5 }, { rusty_bolt: 3 })).toEqual({});
+  });
+});
+
+describe('answer 5: the tow takes her to the nearer petrol station', () => {
+  it('towCost names the nearer station from where she stopped', () => {
+    expect(towCost(undefined, { 'station-west': 1.2, 'station-east': 0.4 }).to).toBe('station-east');
+    expect(towCost(undefined, { 'station-west': 0.3, 'station-east': 2 }).to).toBe('station-west');
+  });
+
+  it('applyDrive asks the scene for the distances at the point she ran dry', () => {
+    const asked: number[] = [];
+    const r = applyDrive(
+      { ...freshUpkeep(), energy: 0.1 },
+      drive({
+        vehicle: 'small-van', level: 2, grid: henryGrid([crate(0, 'a', 'cat')]),
+        stationKmAt: (atKm) => {
+          asked.push(atKm);
+          return { 'station-west': 3 - atKm, 'station-east': 1 + atKm };
+        },
+      }, 5),
+    );
+    expect(asked).toEqual([r.kmDriven]);
+    expect(r.kmDriven).toBeCloseTo(1.2, 9);
+    // At 1.2 km: west 1.8, east 2.2 — west is nearer.
+    expect(r.tow).toMatchObject({ to: 'station-west', coins: T.TOW_COINS, minutes: T.TOW_MINUTES, happinessEach: T.TOW_RESTLESS_HAPPINESS });
+  });
+
+  it('not on to her destination: the rest of the drive is not driven, and she fills at the station', () => {
+    const r = applyDrive(
+      { ...freshUpkeep(), energy: 0.1 },
+      drive({ vehicle: 'small-van', level: 2, stationKmAt: () => ({ 'station-west': 2, 'station-east': 1 }) }, 5),
+    );
+    expect(r.kmDriven).toBeLessThan(5);
+    const fill = refuel(r.upkeep, 'small-van', r.tow!.to!, 2);
+    expect(fill.refused).toBeUndefined();
+    expect(fill.upkeep.energy).toBe(1);
+    // Even with no coins (answer 3).
+    expect(payCoins(fill.coins, 0).paid).toBe(0);
+  });
+
+  it('Spark is towed to a station too, and charges there', () => {
+    const r = applyDrive(
+      { ...freshUpkeep(), energy: 0.05 },
+      drive({ vehicle: 'electric-minibus', level: 12, stationKmAt: () => ({ 'station-west': 2, 'station-east': 1 }) }),
+    );
+    expect(r.tow?.to).toBe('station-east');
+    expect(refuel(r.upkeep, 'electric-minibus', 'station-east', 12).upkeep.energy).toBe(1);
+  });
+
+  it('without distances the tow still happens; the scene picks with nearerStation', () => {
+    const r = applyDrive({ ...freshUpkeep(), energy: 0.05 }, drive({ vehicle: 'small-van', level: 2 }));
+    expect(r.tow).toBeDefined();
+    expect(r.tow?.to).toBeUndefined();
+  });
+});
+
+describe('answer 6: Spark charges free and slow at A.R.C.', () => {
+  it('free from empty, and slower than a station', () => {
+    const home = refuel({ ...freshUpkeep(), energy: 0 }, 'electric-minibus', 'arc-charger', 12);
+    expect(home.coins).toBe(0);
+    expect(home.minutes).toBe(T.HOME_CHARGE_MINUTES);
+    expect(home.minutes).toBeGreaterThan(refuel({ ...freshUpkeep(), energy: 0 }, 'electric-minibus', 'station-west', 12).minutes);
+  });
+});
+
+describe('answer 7: Trikey can go through the wash, outside only', () => {
+  it('Trikey gathers outside dirt on tracks and in winter, never inside', () => {
+    const g = henryGrid([crate(0, 'a', 'dog', true)]);
+    const r = applyDrive(freshUpkeep(), drive({ vehicle: 'pedal-trike', level: 4, season: 'winter_cosy', grid: g }, 4, 'track'));
+    expect(r.upkeep.dirtOutside).toBeGreaterThanOrEqual(T.DIRTY_AT);
+    expect(r.events).toContainEqual({ type: 'dirty-outside' });
+    expect(r.upkeep.dirtInside).toBe(0);
+    expect(isDirtyOutside(r.upkeep, 'pedal-trike', 4)).toBe(true);
+    expect(washRuns(4, 'pedal-trike')).toBe(true);
+    expect(insideRuns(4, 'pedal-trike')).toBe(false);
+  });
+
+  it('the wash: one coin, outside clean, the animals perk up', () => {
+    const r = wash({ ...freshUpkeep(), dirtOutside: 0.9 }, 'pedal-trike', 'station-west', 4);
+    expect(r.refused).toBeUndefined();
+    expect(r).toMatchObject({ coins: T.WASH_COINS, happinessEach: T.WASH_PERK_HAPPINESS });
+    expect(r.upkeep.dirtOutside).toBe(0);
+  });
+
+  it('still no fuel, and no wash below level 4', () => {
+    const r = applyDrive(freshUpkeep(), drive({ vehicle: 'pedal-trike', level: 20 }, 50, 'track'));
+    expect(r.upkeep.energy).toBe(1);
+    expect(r.tow).toBeUndefined();
+    expect(wash({ ...freshUpkeep(), dirtOutside: 0.9 }, 'pedal-trike', 'station-west', 3).refused).toBe('not-yet');
+    expect(applyDrive(freshUpkeep(), drive({ vehicle: 'pedal-trike', level: 3 }, 4, 'track')).upkeep.dirtOutside).toBe(0);
+  });
+});
+
+describe('answer 8: supply-run damage below level 6 is forgotten', () => {
+  it('below 6 nothing is kept; from 6 it waits for the workshop', () => {
+    const dmg = [{ type: 'dents' as const, severity: 40 }];
+    for (let lvl = 0; lvl < 6; lvl++) expect(recordSupplyRunDamage(freshUpkeep(), dmg, lvl).supplyDamage).toBe(0);
+    expect(recordSupplyRunDamage(freshUpkeep(), dmg, 6).supplyDamage).toBe(40);
+  });
+
+  it('so a child arriving at level 6 owes the workshop nothing', () => {
+    let u = freshUpkeep();
+    for (let i = 0; i < 20; i++) u = recordSupplyRunDamage(u, [{ type: 'total', severity: 99 }], 5);
+    expect(needsWorkshop(u, 'small-van', 6)).toBe(false);
+    expect(workshopParts(u, 'small-van', 6)).toEqual({});
+  });
+});
+
+describe('answer 9: moulting by species and season; mess from tummy_ache', () => {
+  const ALL_SPECIES: Species[] = ['cat', 'dog', 'fox', 'bunny', 'bat', 'parrot', 'snake', 'hedgehog'];
+
+  it('cats, dogs, bunnies and foxes moult in spring and autumn, not summer or winter', () => {
+    expect([...MOULTING_SPECIES].sort()).toEqual(['bunny', 'cat', 'dog', 'fox']);
+    for (const sp of MOULTING_SPECIES) {
+      expect(isMoulting(sp, 'spring_bloom'), sp).toBe(true);
+      expect(isMoulting(sp, 'autumn_hush'), sp).toBe(true);
+      expect(isMoulting(sp, 'summer_warmth'), sp).toBe(false);
+      expect(isMoulting(sp, 'winter_cosy'), sp).toBe(false);
+      expect(isMoulting(sp), sp).toBe(false);
+    }
+  });
+
+  it('bats, parrots, snakes and hedgehogs never moult', () => {
+    for (const sp of ALL_SPECIES.filter((x) => !MOULTING_SPECIES.includes(x))) {
+      expect(isMoulting(sp, 'spring_bloom'), sp).toBe(false);
+      expect(isMoulting(sp, 'autumn_hush'), sp).toBe(false);
+    }
+  });
+
+  it('a moulting passenger dirties the inside by the season, with no conditions passed', () => {
+    const g = henryGrid([crate(0, 'a', 'dog')]);
+    expect(insideDirtPerKm(g, undefined, 'autumn_hush')).toBe(T.INSIDE_DIRT_PER_KM_MOULTING);
+    expect(insideDirtPerKm(g, undefined, 'summer_warmth')).toBe(0);
+    expect(insideDirtPerKm(henryGrid([crate(0, 'h', 'hedgehog')]), undefined, 'spring_bloom')).toBe(0);
+    const r = applyDrive(freshUpkeep(), drive({ vehicle: 'small-van', level: 4, grid: g, season: 'spring_bloom' }));
+    expect(r.upkeep.dirtInside).toBeCloseTo(T.INSIDE_DIRT_PER_KM_MOULTING * DRIVE, 9);
+  });
+
+  it('conditions can still override the season (e.g. a scene that knows better)', () => {
+    const g = henryGrid([crate(0, 'a', 'dog')]);
+    expect(insideDirtPerKm(g, { a: { moulting: false } }, 'spring_bloom')).toBe(0);
+    expect(insideDirtPerKm(g, { a: { moulting: true } }, 'summer_warmth')).toBe(T.INSIDE_DIRT_PER_KM_MOULTING);
+  });
+
+  it('a tummy ache makes a mess; other illnesses do not', () => {
+    const def = (illness: string) => ILLNESSES.find((i) => i.illness === illness)!;
+    const sick = new Map([['a', def('tummy_ache')], ['b', def('cold')]]);
+    expect(conditionsFromIllnesses(sick)).toEqual({ a: { messy: true } });
+    expect(conditionsFromIllnesses({ a: def('tummy_ache') })).toEqual({ a: { messy: true } });
+    expect(conditionsFromIllnesses(new Map())).toEqual({});
+  });
+
+  it('a tummy ache aboard: sick and messy both feed the inside dirt', () => {
+    const g = henryGrid([crate(0, 'a', 'cat', true)]);
+    const sick = new Map([['a', ILLNESSES.find((i) => i.illness === 'tummy_ache')!]]);
+    const conditions = conditionsFromIllnesses(sick);
+    expect(insideDirtPerKm(g, conditions, 'summer_warmth')).toBeCloseTo(T.INSIDE_DIRT_PER_KM_SICK + T.INSIDE_DIRT_PER_KM_MESSY, 9);
+    const r = applyDrive(freshUpkeep(), drive({ vehicle: 'small-van', level: 4, grid: g, conditions }, 2 * DRIVE));
+    expect(r.events).toContainEqual({ type: 'dirty-inside' });
+  });
+});
+
+describe('answer 10: the tunables are kept as they were', () => {
+  it('the numbers the doc quotes are unchanged', () => {
+    expect(fullTankCoins('small-van')).toBe(24);
+    expect(T.RANGE_KM['small-van']).toBe(12);
+    expect(T.WASH_COINS).toBe(1);
+    expect(T.TOW_COINS).toBe(10);
   });
 });
 
@@ -618,7 +1009,10 @@ describe('purity', () => {
     applyDrive(u, drive({ vehicle: 'small-van', level: 20, kerbs: 3, weather: 'snow' }, 30, 'track'));
     refuel({ ...u, energy: 0.1 }, 'small-van', 'station-west', 20);
     wash(u, 'small-van', 'station-west', 20);
-    service(u, 'small-van', 'workshop', 20);
+    service(u, 'small-van', 'workshop', 20, PLENTY);
+    cleanByHand(u, 'small-van', 'arc-charger', 20);
+    hoover(u, 'small-van', 'station-west', 20);
+    valet(u, 'small-van', 'workshop', 20, PLENTY);
     expect(JSON.stringify(u)).toBe(snapshot);
   });
 });
