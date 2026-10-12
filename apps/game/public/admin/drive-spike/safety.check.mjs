@@ -23,8 +23,8 @@ import * as traffic from './traffic.js';
 import * as crossings from './crossings.js';
 import { readFileSync } from 'node:fs';
 
-const SEEDS = Number(process.argv[2] ?? 24);
-const MINUTES = Number(process.argv[3] ?? 20);
+const SEEDS = Number(process.argv[2] ?? 40);
+const MINUTES = Number(process.argv[3] ?? 30);
 const STAND_MAX_S = 60;
 const GENTLE = 4;     // m/s²: the hardest any vehicle may slow for an animal
 
