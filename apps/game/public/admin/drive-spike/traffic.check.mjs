@@ -373,4 +373,4 @@ console.log(`  route laps                       ${totals.wraps}`);
 if (worst) console.log('  worst overlap', worst);
 if (!totals.close) failed++;
 if (failed || totals.overlaps) { console.log(`\nFAIL (${failed} seed failures)`); process.exit(1); }
-console.log('\nPASS');
+console.log(`\nPASS: ${totals.overlaps} real overlaps between the van and any vehicle.`);
