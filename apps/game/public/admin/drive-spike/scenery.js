@@ -775,6 +775,7 @@ export async function load(world) {
     if (i < 0 || j < 0 || i >= S.gx || j >= S.gy) return false;
     return housingGrid[j * S.gx + i].some(p => inPoly(p, x, y));
   };
+  S.inHousing = inHousing;   // and for townAt(), the page's camera
 
   /** The nearest road to (x, y), looking about 50m round: the closest point
    *  on it, its direction and half-width. */
@@ -1531,6 +1532,32 @@ export async function load(world) {
 }
 
 // ---------------------------------------------------------------- per frame
+
+/** The buildings that make a street a town's or a village's: a farm's barns
+ *  and sheds, a glasshouse or a caravan by a lane do not. */
+const TOWN_KINDS = new Set(['house', 'flats', 'retail', 'church', 'school', 'station', 'hall']);
+const TOWN_R = 45;      // metres round the point that count
+const TOWN_FULL = 8;    // this many such buildings within TOWN_R is a street; one alone is not
+
+/** How much (x, y) is in a town or village, 0 to 1, for the page's camera
+ *  (Marcus, 2026-10-12, 59A: held upright, the camera is so close that the
+ *  houses either side barely show): 1 inside an OSM housing area
+ *  (buildings.json's landuse=residential), else how near the real houses,
+ *  shops, churches and the like within TOWN_R come to TOWN_FULL, a lone
+ *  cottage counting for nothing. 0 before loading. */
+export function townAt(S, x, y) {
+  if (!S || S.failed || !S.cells || !S.inHousing) return 0;
+  if (S.inHousing(x, y)) return 1;
+  let n = 0;
+  const i0 = Math.max(0, Math.floor((x - TOWN_R) / CELL_M)), i1 = Math.min(S.gx - 1, Math.floor((x + TOWN_R) / CELL_M));
+  const j0 = Math.max(0, Math.floor((y - TOWN_R) / CELL_M)), j1 = Math.min(S.gy - 1, Math.floor((y + TOWN_R) / CELL_M));
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    for (const b of S.cells[j * S.gx + i].blds ?? []) {
+      if (b.real && TOWN_KINDS.has(b.kind) && (b.cx - x) ** 2 + (b.cy - y) ** 2 < TOWN_R * TOWN_R && ++n >= TOWN_FULL) return 1;
+    }
+  }
+  return Math.max(0, n - 1) / (TOWN_FULL - 1);
+}
 
 /** Cells within the view, with a margin for objects overhanging their cell. */
 function visibleCells(S, view) {

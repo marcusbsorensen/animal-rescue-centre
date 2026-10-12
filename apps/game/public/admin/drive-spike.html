@@ -685,13 +685,42 @@ const PULL_UP = 2.5;          // m/s^2, the gentle stop at the destination
 const STOP_SHORT_M = 6;       // stop this far before the anchor node
 const ARRIVED_WAIT_MS = 3500; // then set off for somewhere new
 
+/** In a town or a village, held upright, the camera pulls back so the
+ *  houses either side of the street show (Marcus, 2026-10-12, 59A: "only
+ *  about 5 m of roadside shows, so the buildings and the landmark
+ *  fingerposts barely appear"): there it sits no closer than ZOOM_TOWN.
+ *  The van shrinks a little and stays the biggest thing on the street.
+ *  Lanes and tracks in open country keep their close-up for the animals,
+ *  and so does a street where an animal is about to cross; the close-in at
+ *  the gate still wins on arrival. Held sideways the screen is wide enough
+ *  already, so nothing changes there. town is 0 to 1 (scenery.js's
+ *  townAt: inside an OSM housing area, or where houses line the road),
+ *  eased, so the pull comes and goes with the speed-and-place zoom's own
+ *  easing. */
+const TOWN_Q = VIEW_Q.get('townzoom');   // ?townzoom= tries another; 0 turns it off
+const ZOOM_TOWN = TOWN_Q === '0' ? Infinity : Number(TOWN_Q) || 0.72;
+const TOWN_AHEAD_M = 30;      // look this far up the road too, to pull back before the first houses
+const TOWN_EASE = 1.5;        // per second
+
 function zoomTarget(bigAhead, toGo) {
   const still = SMALL_ROADS.has(car.road) ? ZOOM_STILL.lane : ZOOM_STILL.road;
   const f = Math.min(1, car.v / GEARS[3]);
   let z = still + (ZOOM_FAST - still) * f;
+  if (car.town > 0) z += (Math.min(z, ZOOM_TOWN) - z) * car.town;
   if (toGo < ARRIVE_ZOOM_M) z += (ZOOM_ARRIVE - z) * (1 - toGo / ARRIVE_ZOOM_M);
   if (bigAhead) z = Math.min(z, BIG_ROAD_ZOOM);
   return z;
+}
+/** How much the road here and just ahead is a town's or a village's, 0 to
+ *  1, for ZOOM_TOWN: 0 held sideways, on a farm track, and where an animal
+ *  is about to cross. */
+function townHere() {
+  if (!scn || window.innerWidth > window.innerHeight || car.road === 'track') return 0;
+  const animal = xing?.crossings?.some(c => c.state !== 'none' && c.state !== 'gone'
+    && c.s > car.s - 5 && c.s - car.s < 60);
+  if (animal) return 0;
+  const a = atDistance(car.s), b = atDistance(Math.min(routeLen, car.s + TOWN_AHEAD_M));
+  return Math.max(scenery.townAt(scn, a.x, a.y), scenery.townAt(scn, b.x, b.y));
 }
 let throttle = false, handbrake = false;
 
@@ -828,6 +857,8 @@ function step(dt) {
   // already framed when the van arrives. Out is quicker than in: seeing
   // ahead when speeding up matters more than detail when slowing down.
   const bigAhead = bigRoadAt(car.s) || bigRoadAt(car.s + 40);
+  const townNow = townHere();
+  car.town = (car.town ?? townNow) + (townNow - (car.town ?? townNow)) * (1 - Math.exp(-TOWN_EASE * dt));
   const zt = zoomTarget(bigAhead, toGo);
   const rate = zt < zoom ? 1.5 : 0.7;
   zoom *= Math.exp(Math.log(zt / zoom) * (1 - Math.exp(-rate * dt)));
@@ -1391,6 +1422,7 @@ async function boot() {
   const carriagewayOf = k => (graph.edges[k]?.[2] === 'trunk' ? cwByEdge.get(k) ?? null : null);
   scn = await scenery.load({ graph, mapToWorld, metresPerMapPx: METRES_PER_MAP_PX,
     roadHalf: (k, cls) => roadWidth(cls, carriagewayOf(k)) / 2 });
+  window.__townAt = (x, y) => scenery.townAt(scn, x, y);   // for a test: where the camera pulls back
   roadPaint.load({ graph, ctx, roadWidth, carriagewayOf, season: SEASON,
     trunk: { lane: TRUNK_LANE_M, reservation: RESERVATION_M, island: ISLAND_M },
     nodeXY: n => [n[0] * ASPECT * METRES_PER_UNIT, n[1] * METRES_PER_UNIT] });
