@@ -21,7 +21,7 @@ import { drawForecourt, drawVehicleShadow } from '../driving/forecourt';
 import { stateTween } from '../ui/tween';
 import { driveJolts } from '../driving/drive-jolts';
 import {
-  GEAR_SPEED_MPS, NO_GEAR_COSTS, createGearHint, gearCosts, gearRoadKey, pickGear, stepGearHint,
+  GEAR_SPEED_MPS, NO_GEAR_COSTS, createGearHint, gearCosts, gearRoadKey, stepGearHint,
   type ForwardGear, type GearCosts, type GearHintState,
 } from '../driving/road-gears';
 import { knockComfort } from '../driving/ride-comfort';
@@ -468,10 +468,10 @@ export class PtvDriveScene extends Phaser.Scene {
   private gearSlotY: Partial<Record<string, number>> = {};
   private gearStickX = 0;
 
-  /** 30A: every gear works on every road. The road only prompts her: the
-   *  suiting knob glows after a mismatch (road-gears.ts stepGearHint), and a
-   *  wrong gear costs what gearCosts says. Nothing here refuses or caps a
-   *  gear by road. */
+  /** 30A: every gear works on every road. The road only prompts her: while
+   *  her gear does not suit the road, the suiting knob glows (33A,
+   *  road-gears.ts stepGearHint), and a wrong gear costs what gearCosts
+   *  says. Nothing here refuses or caps a gear by road. */
   private gearHint: GearHintState = createGearHint();
   /** The knob glowing now, 0 for none. */
   private gearHintKnob: ForwardGear | 0 = 0;
@@ -2996,12 +2996,8 @@ export class PtvDriveScene extends Phaser.Scene {
       this.flashHandbrakeReminder();
       return;
     }
-    // Every gear is hers to pick on every road (30A). Picking one that suits
-    // the road while the prompt glows (the one she is in counts) hushes it.
-    if (this.gearHintKnob) {
-      this.gearHint = pickGear(this.gearHint, gear, true);
-      this.setGearHintKnob(0, null);
-    }
+    // Every gear is hers to pick on every road (30A). The prompt follows the
+    // gear she is in: once it suits the road the knob stops (33A, stepGears).
     if (gear === this.drive.gear) return;
     this.drive.gear = gear;
     AudioManager.getInstance().playSfx('button_click');

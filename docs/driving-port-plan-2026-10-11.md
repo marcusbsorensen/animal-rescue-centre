@@ -311,11 +311,12 @@ later the same day):
 | 11 | (b) a switch on the driving screen, on by default (Marcus changed this from (a) on 2026-10-11: there is no settings screen). In the spike it is a brass knob on the dashboard beside the GPS, and G on a keyboard. `apps/game/src/lib/guide-line-preference.ts` remains the game's preference store (per-device localStorage); the spike already uses its key and value, and the ported scene's switch should call `setGuideLine()` there. |
 | 12 | (a) a blocked lane change keeps the lean and the sound. |
 
-**In the spike, 2026-10-12.** Answers 5 and 7 are now in
-`drive-spike.html`: the camera fires on "too fast for this road" (road-gears'
-verdict, the A28 judged by its carriageway), once per stretch, as a brief
-white flash and a small camera mark; under reduced motion the flash is
-replaced by a "speed camera!" note, and the gear lurch was already off.
+**In the spike too, 2026-10-12.** Answers 5 and 7 are also in
+`drive-spike.html`, as in the real game (the rows above): the camera fires on
+"too fast for this road" (road-gears' verdict, the A28 judged by its
+carriageway), once per stretch, as a brief white flash and a small camera
+mark; under reduced motion the flash is replaced by a "speed camera!" note,
+and the gear lurch was already off.
 
 Also decided: **small animals cross the small lanes** — hedgehogs, rabbits,
 pheasants and the like; she slows or stops, and if she does not the van stops

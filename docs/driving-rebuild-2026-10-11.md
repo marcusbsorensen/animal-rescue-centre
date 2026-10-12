@@ -84,57 +84,66 @@ gear is allowed and costs what the right-hand column says: too fast for the
 road flashes the speed camera (`speedCameraFires` in `road-gears.ts`), jostles
 the animals harder and makes the van's own hard stops (for traffic, for a
 crossing animal) come sooner and more often; too slow on the big road queues
-the traffic behind her. The knob that suits the road pulses as a hint she may
-ignore.
-
-*In the real game (2026-10-12, `claude/road-gears-30a`):* `road-gears.ts` says
-it as pure functions: `suitingGears`/`bestGear` (the road's top suiting gear,
-by A28 carriageway too), `gearFit`, `gearCosts` (speed camera, a jostle
-multiplier, sooner self-stops, `queue`, `dust`) and the knob prompt
-(`stepGearHint`/`pickGear`: 0.6 s after a mismatch, hushed once she picks a
-suiting gear, back on a new road). `ride-comfort.ts` takes the multiplier, the
-sooner stops (still EMERGENCY, so still rough) and the gear's soft pull near
-its top. `PtvDriveScene` glows the knob (steady, with a toast, under reduced
-motion), knocks the animals harder while too fast, brakes itself sooner behind
-traffic, draws the dust and beeps the queue once a stretch. Nothing refuses,
-dims or caps a gear by road. Not yet ported: the big numeral, clunk and lurch.
+the traffic behind her. While her gear does not suit the road, the knob that
+suits it pulses as a hint she may ignore (33A below).
 
 **How the road prompts her (30A, Marcus, 2026-10-12, first pass; the lock in
-it is superseded by the paragraph above).** He had not noticed the gears at
-all. In the wrong gear for the road, the knob for the right one glows and
-pulses; the gear shows as a big number on the dashboard; a change gives a
-clunk and a small lurch. His words, before he overruled the lock: *"what will
-be most noticeable and annoying for her is that the speed of the vehicle is
-limited to the gear that one is in. So one does need to go up to gear three in
-order to go at the highest speed."* The first pass also dimmed the knobs above
-the road's top gear and held the van to that gear's speed; that lock is
-dropped, and a gear above the road's top one costs what the table says
-instead.
+it is superseded by the rule above).** He had not noticed the gears at all. In
+the wrong gear for the road, the knob for the right one glows and pulses; the
+gear shows as a big number on the dashboard; a change gives a clunk and a
+small lurch. His words, before he overruled the lock: *"what will be most
+noticeable and annoying for her is that the speed of the vehicle is limited to
+the gear that one is in. So one does need to go up to gear three in order to
+go at the highest speed."* The first pass also dimmed the knobs above the
+road's top gear and held the van to that gear's speed; that lock is dropped,
+and a gear above the road's top one costs what the table says instead.
+
+**Decided after the first builds (Marcus, 2026-10-12).** 31A: the road surface
+at medium strength (`?road=1`, the default). 33A: the knob pulses only when
+her gear does not suit the road. In second on a main road, where every gear
+suits, nothing pulses; the first builds also pulsed the road's best gear
+(third there) when hers suited but was not the best, and picking any suiting
+gear hushed it until the next road. Both the spike and the real game now pulse
+a knob only while her gear does not suit the road, and stop the moment she
+picks one that does.
 
 **What the spike does now (2026-10-12).** Every gear works on every road in
 `drive-spike.html`: the gear sets the van's speed wherever she is, nothing is
-dimmed or refused, and the knob that suits the road still pulses until she
-picks a suiting gear or ignores it. Too fast for the road (third on a lane,
-among houses or on the A28's 30–40 mph stretches; second or third on a farm
-track) flashes the speed camera once per stretch of road, a white flash and
-a little camera in the corner (a "speed camera!" note instead of the flash
-under reduced motion); while she is going faster than the road's own gear
-would take her the comfort gauge falls (the animals jostled), and on a farm
-track a dust cloud trails the van. The van's own hard stops for traffic and
-crossing animals still count as rough driving, and at speed they come
-sooner. First gear on the dual carriageway gets the traffic queueing behind
-and "beep beep!". The A28 is drawn stretch by stretch from
-`trunk-carriageways.json`: the dual carriageway as before, the divided road
-through Birchington to Westgate as a two-way road with a narrow kerbed island
-and two lanes each way (her right-hand lane is an overtaking lane, the
+dimmed or refused, and while her gear does not suit the road the road's best
+knob pulses until she picks a gear that suits (33A); she may ignore it. Too
+fast for the road (third on a lane, among houses or on the A28's 30–40 mph
+stretches; second or third on a farm track) flashes the speed camera once per
+stretch of road, a white flash and a little camera in the corner (a "speed
+camera!" note instead of the flash under reduced motion); while she is going
+faster than the road's own gear would take her the comfort gauge falls (the
+animals jostled), and on a farm track a dust cloud trails the van. The van's
+own hard stops for traffic and crossing animals still count as rough driving,
+and at speed they come sooner. First gear on the dual carriageway gets the
+traffic queueing behind and "beep beep!". The A28 is drawn stretch by stretch
+from `trunk-carriageways.json`: the dual carriageway as before, the divided
+road through Birchington to Westgate as a two-way road with a narrow kerbed
+island and two lanes each way (her right-hand lane is an overtaking lane, the
 oncoming traffic is across the island; where there is one lane each way she
-cannot change lane across the kerb), and the single stretch through The
-Square as an ordinary main road with a centre line. Only near the dual
-carriageway does the camera pull out and the chip say "dual carriageway";
-elsewhere the A28 is a "main road". The single stretch no longer spills over
-the house street beside it at Westgate, and where the A28 bends on a point of
-that street the A28's lines now stop at its edge. "to A28 town" in the dev
-tools jumps to the divided and single stretches in turn.
+cannot change lane across the kerb), and the single stretch through The Square
+as an ordinary main road with a centre line. Only near the dual carriageway
+does the camera pull out and the chip say "dual carriageway"; elsewhere the
+A28 is a "main road". The single stretch no longer spills over the house
+street beside it at Westgate, and where the A28 bends on a point of that
+street the A28's lines now stop at its edge. "to A28 town" in the dev tools
+jumps to the divided and single stretches in turn.
+
+**What the real game does now (2026-10-12, `claude/road-gears-30a`).** The
+same rule, in `road-gears.ts` as pure functions: `suitingGears`/`bestGear`
+(the road's top suiting gear, by A28 carriageway too), `gearFit`, `gearCosts`
+(speed camera, a jostle multiplier, sooner self-stops, `queue`, `dust`) and
+the knob prompt (`stepGearHint`: the best knob, 0.6 s after her gear stops
+suiting the road, and only while it does not suit, 33A). `ride-comfort.ts`
+takes the multiplier, the sooner stops (still EMERGENCY, so still rough) and
+the gear's soft pull near its top. `PtvDriveScene` glows the knob (steady,
+with a toast, under reduced motion), knocks the animals harder while too fast,
+brakes itself sooner behind traffic, draws the dust and beeps the queue once a
+stretch. Nothing refuses, dims or caps a gear by road. Not yet ported: the big
+numeral, clunk and lurch.
 
 ## Lane discipline, and being allowed to be naughty
 

@@ -268,12 +268,10 @@ const HINT_DELAY = 0.6;   // seconds
 const LURCH_M = 0.14, LURCH_S = 0.2;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
-/** The gear lever. Every gear is always there. While the prompt glows,
- *  picking any gear that suits the road — the one she is already in
- *  included — is her answer, and hushes it for the rest of this road: it
- *  stays her choice, and so is ignoring it. */
+/** The gear lever. Every gear is always there, and picking one that suits
+ *  the road is what stops the prompt (gearHint): it stays her choice, and
+ *  so is ignoring it. */
 function setGear(n) {
-  if (car.gearHint && gearsFor(car.road, car.cw).includes(n)) car.hushed = true;
   if (n === car.gear) return;
   const dir = Math.sign(n - car.gear);
   car.gear = n;
@@ -281,16 +279,14 @@ function setGear(n) {
   if (dash) dashboard.clunk(dash, dir);
 }
 
-/** Which knob glows: the road's best gear, once the gear she is in has not
- *  been it for HINT_DELAY. A gear that does not suit the road prompts until
- *  she changes; one that suits it but is not the best prompts until she
- *  answers. Either way it is a hint she may ignore. */
+/** Which knob glows: only while the gear she is in does not suit the road
+ *  (33A, Marcus, 2026-10-12), and then the road's best gear, once it has
+ *  wanted that knob for HINT_DELAY. In any suiting gear nothing glows, so
+ *  in second on a main road, where every gear suits, no knob does. It is a
+ *  hint she may ignore. road-gears.ts's stepGearHint. */
 function gearHint(dt) {
-  const best = gearBest(car.road, car.cw);
   const suits = gearsFor(car.road, car.cw).includes(car.gear);
-  const here = car.road + ':' + (car.cw?.kind ?? '');
-  if (here !== car.hintRoad) { car.hintRoad = here; car.hushed = false; }
-  const want = car.arrived || car.gear === best || (suits && car.hushed) ? 0 : best;
+  const want = car.arrived || suits ? 0 : gearBest(car.road, car.cw);
   car.hintT = want && want === car.hintWant ? (car.hintT ?? 0) + dt : 0;
   car.hintWant = want;
   return car.hintT >= HINT_DELAY ? want : 0;

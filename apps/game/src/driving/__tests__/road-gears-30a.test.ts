@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   GEAR_SPEED_MPS, HINT_DELAY_S, NO_GEAR_COSTS, TOO_FAST_JOSTLE, TOO_FAST_STOP_SOONER,
   bestGear, createGearHint, gearCosts, gearFit, gearRoadKey, gearTopSpeed, isTooFast, isTooSlow,
-  pickGear, stepGearHint, suitingGears, gearsFor, speedCameraFires,
+  stepGearHint, suitingGears, gearsFor, speedCameraFires,
   type ForwardGear, type GearHintState,
 } from '../road-gears';
 import type { Carriageway, CarriagewayKind } from '../trunk-carriageways';
@@ -161,6 +161,31 @@ describe('the knob prompt', () => {
     expect(drive(createGearHint(), 'track', 1, 5).knob).toBe(0);
   });
 
+  it('33A: second on a main road, where every gear suits, pulses nothing', () => {
+    expect(drive(createGearHint(), 'secondary', 2, 5).knob).toBe(0);
+    expect(drive(createGearHint(), 'secondary', 1, 5).knob).toBe(0);
+    expect(drive(createGearHint(), 'tertiary', 2, 5).knob).toBe(0);
+  });
+
+  it('33A: a knob pulses exactly when her gear does not suit the road', () => {
+    for (const r of ROADS) for (const g of GEARS) {
+      const { knob } = drive(createGearHint(), r, g, 1);
+      expect(knob !== 0, `${r} in ${g}`).toBe(!suitingGears(r).includes(g));
+    }
+    for (const c of carriageways.all) for (const g of GEARS) {
+      const { knob } = drive(createGearHint(), 'trunk', g, 1, c);
+      expect(knob !== 0, `A28 ${c.kind} ${c.maxspeedMph} in ${g}`).toBe(!suitingGears('trunk', c).includes(g));
+    }
+  });
+
+  it('33A: suiting but not the best is quiet on the A28 too', () => {
+    // second on the 50 mph dual suits it; third is its best
+    expect(bestGear('trunk', cw('dual', 50))).toBe(3);
+    expect(drive(createGearHint(), 'trunk', 2, 3, cw('dual', 50)).knob).toBe(0);
+    // first through The Square suits it; second is its best
+    expect(drive(createGearHint(), 'trunk', 1, 3, cw('single', 30)).knob).toBe(0);
+  });
+
   it('waits HINT_DELAY_S after a mismatch, then pulses the best knob', () => {
     expect(HINT_DELAY_S).toBe(0.6);
     expect(drive(createGearHint(), 'track', 3, 0.5).knob).toBe(0);
@@ -169,46 +194,38 @@ describe('the knob prompt', () => {
     expect(drive(createGearHint(), 'residential', 3, 0.7).knob).toBe(2);
   });
 
-  it('asks for the best gear even when hers suits, until she picks one', () => {
-    // second on a main road suits it, but third is where its speed is
-    const { state, knob } = drive(createGearHint(), 'secondary', 2, 1);
-    expect(knob).toBe(3);
-    // tapping the gear she is in, which suits, hushes it
-    const hushed = pickGear(state, 2, true);
-    expect(drive(hushed, 'secondary', 2, 3).knob).toBe(0);
+  it('the knob it pulses always suits the road', () => {
+    for (const r of ROADS) for (const g of GEARS) {
+      const { knob } = drive(createGearHint(), r, g, 1);
+      if (knob) expect(suitingGears(r)).toContain(knob);
+    }
   });
 
-  it('hushes once she picks any suiting gear, not only the best', () => {
-    const { state } = drive(createGearHint(), 'secondary', 1, 1);
-    const s = pickGear(state, 2, true);
-    expect(s.hushed).toBe(true);
-    expect(drive(s, 'secondary', 2, 3).knob).toBe(0);
+  it('picking any suiting gear stops it at once, not only the best', () => {
+    const { state, knob } = drive(createGearHint(), 'residential', 3, 1);
+    expect(knob).toBe(2);
+    expect(stepGearHint(state, { roadClass: 'residential', gear: 1, dt: 1 / 60 }).knob).toBe(0);
+    expect(stepGearHint(state, { roadClass: 'residential', gear: 2, dt: 1 / 60 }).knob).toBe(0);
   });
 
-  it('does not hush for a gear that does not suit', () => {
+  it('a gear that still does not suit keeps it glowing, with no new wait', () => {
     const { state } = drive(createGearHint(), 'track', 3, 1);
-    const s = pickGear(state, 2, true);
-    expect(s.hushed).toBe(false);
-    expect(drive(s, 'track', 2, 1).knob).toBe(1);
+    // down to second on a farm track: still too fast, first still pulses
+    expect(stepGearHint(state, { roadClass: 'track', gear: 2, dt: 1 / 60 }).knob).toBe(1);
   });
 
-  it('does not hush for a pick made before it glowed', () => {
-    const { state } = drive(createGearHint(), 'secondary', 1, 0.3);
-    expect(pickGear(state, 2, false).hushed).toBe(false);
+  it('it comes back if she leaves a suiting gear for one that does not', () => {
+    let { state } = drive(createGearHint(), 'residential', 1, 1);
+    expect(state.want).toBe(0);
+    ({ state } = drive(state, 'residential', 3, 0.5));
+    expect(stepGearHint(state, { roadClass: 'residential', gear: 3, dt: 1 / 60 }).knob).toBe(0);
+    expect(drive(state, 'residential', 3, 0.2).knob).toBe(2);
   });
 
-  it('hushed, it comes back if she picks a gear that does not suit', () => {
-    const { state } = drive(createGearHint(), 'residential', 1, 1);
-    const s = pickGear(state, 1, true);
-    expect(drive(s, 'residential', 1, 2).knob).toBe(0);
-    expect(drive(s, 'residential', 3, 0.7).knob).toBe(2);
-  });
-
-  it('a new road un-hushes it, and restarts the wait', () => {
-    const { state } = drive(createGearHint(), 'secondary', 2, 1);
-    const s = pickGear(state, 2, true);
-    expect(drive(s, 'secondary', 2, 2).knob).toBe(0);
-    // onto a farm track in second: too fast, wait, then first pulses
+  it('onto a road her gear suits, it stops; onto one it does not, it waits again', () => {
+    const { state } = drive(createGearHint(), 'track', 2, 1);
+    expect(drive(state, 'secondary', 2, 1 / 60).knob).toBe(0);
+    const s = drive(state, 'secondary', 2, 1).state;
     expect(drive(s, 'track', 2, 0.5).knob).toBe(0);
     expect(drive(s, 'track', 2, 0.7).knob).toBe(1);
   });
@@ -242,13 +259,5 @@ describe('the knob prompt', () => {
     let knob: ForwardGear | 0 = 0;
     for (let i = 0; i < 60; i++) ({ state: s, knob } = stepGearHint(s, { roadClass: 'track', gear: 3, dt: 1 / 60, arrived: true }));
     expect(knob).toBe(0);
-  });
-
-  it('pickGear never changes which gear she is in: it only hushes', () => {
-    const { state } = drive(createGearHint(), 'track', 3, 1);
-    for (const g of GEARS) {
-      const s = pickGear(state, g, true);
-      expect(Object.keys(s).sort()).toEqual(Object.keys(state).sort());
-    }
   });
 });

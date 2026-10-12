@@ -23,7 +23,8 @@
  * familiar to children." So nothing here refuses, dims or caps a gear: the
  * gear sets the top speed wherever she is, the suiting gears are advice, and a
  * wrong gear costs what gearCosts says. The knob prompt (stepGearHint) is a
- * hint she may ignore. The spike's lock (gearTop) is not ported.
+ * hint she may ignore, and it shows only while her gear does not suit the
+ * road (33A). The spike's lock (gearTop) is not ported.
  * No Phaser — unit-tested.
  */
 import type { Carriageway } from './trunk-carriageways';
@@ -218,7 +219,7 @@ export function gearCosts(
 export const HINT_DELAY_S = 0.6;
 
 /** A key that changes when the road's suiting gears might: the class, and on
- *  the A28 the carriageway underfoot. A new key un-hushes the prompt. */
+ *  the A28 the carriageway underfoot. The scene beeps the queue once per key. */
 export function gearRoadKey(roadClass: string, carriageway?: Carriageway | null): string {
   return roadClass === 'trunk' && carriageway
     ? `${roadClass}:${carriageway.kind}:${carriageway.maxspeedMph}`
@@ -226,20 +227,14 @@ export function gearRoadKey(roadClass: string, carriageway?: Carriageway | null)
 }
 
 export interface GearHintState {
-  /** gearRoadKey of the road the prompt was last judged on. */
-  roadKey: string | null;
   /** The knob it wants to glow, 0 for none. */
   want: ForwardGear | 0;
   /** How long it has wanted it, seconds. */
   t: number;
-  /** She picked a suiting gear while it glowed: quiet for this road. */
-  hushed: boolean;
-  /** The road's suiting gears, as of the last step (for pickGear). */
-  suiting: readonly ForwardGear[];
 }
 
 export function createGearHint(): GearHintState {
-  return { roadKey: null, want: 0, t: 0, hushed: false, suiting: ALL_GEARS };
+  return { want: 0, t: 0 };
 }
 
 export interface GearHintInput {
@@ -259,28 +254,16 @@ export interface GearHintStep {
 
 /**
  * One step of the knob prompt (drive-spike.html's gearHint, without the lock).
- * It wants the road's best gear whenever she is in another, unless she has
- * already picked a suiting gear for this road while it glowed; it glows once
- * it has wanted the same knob for HINT_DELAY_S. A new road un-hushes it.
+ * The knob pulses only when the gear she is in does not suit the road (33A,
+ * Marcus, 2026-10-12): in any suiting gear nothing pulses, so in second on a
+ * main road, where every gear suits, no knob does. When her gear does not
+ * suit, it wants the road's best gear and glows once it has wanted that knob
+ * for HINT_DELAY_S. Picking a suiting gear is what stops it; nothing else
+ * does, and nothing refuses the gear she picks.
  */
 export function stepGearHint(prev: GearHintState, { roadClass, carriageway, gear, dt, arrived = false }: GearHintInput): GearHintStep {
-  const roadKey = gearRoadKey(roadClass, carriageway);
-  const suiting = gearsFor(roadClass, carriageway);
-  const hushed = roadKey === prev.roadKey ? prev.hushed : false;
-  const best = bestGear(roadClass, carriageway);
-  const fits = suiting.includes(gear);
-  const want: ForwardGear | 0 = arrived || gear === best || (fits && hushed) ? 0 : best;
+  const fits = gearsFor(roadClass, carriageway).includes(gear);
+  const want: ForwardGear | 0 = arrived || fits ? 0 : bestGear(roadClass, carriageway);
   const t = want && want === prev.want ? prev.t + dt : 0;
-  const state: GearHintState = { roadKey, want, t, hushed, suiting };
-  return { state, knob: t >= HINT_DELAY_S ? want : 0 };
-}
-
-/**
- * She picked a gear (the same one she is in counts, as a tap on it does). If
- * the knob was glowing and the gear suits the road, the prompt hushes until
- * the road changes. Never refuses the gear: the scene always takes it.
- */
-export function pickGear(state: GearHintState, gear: ForwardGear, glowing: boolean): GearHintState {
-  if (glowing && state.suiting.includes(gear)) return { ...state, hushed: true, want: 0, t: 0 };
-  return state;
+  return { state: { want, t }, knob: t >= HINT_DELAY_S ? want : 0 };
 }
