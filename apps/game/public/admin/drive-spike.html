@@ -112,6 +112,9 @@ import * as lookAhead from './drive-spike/look-ahead.js';
 // The trip strip up the left edge, with the sights on the way and their signs
 // at the roadside (Lily, 2026-10-12).
 import * as tripStrip from './drive-spike/trip-strip.js';
+// Trikey's own roads (Marcus 15D/18A): never along the A28, across it only at
+// the lights, the game's trikey-links.ts in plain JS.
+import * as trikeyRoads from './drive-spike/trikey-roads.js';
 
 // ---------------------------------------------------------------- the world
 
@@ -127,7 +130,8 @@ const PPM = 22;
 
 /** Road widths in metres by OSM class. A trunk road gets two lanes each way,
  *  everything else one each way; a track is single and unmarked. */
-const ROAD_M = { secondary: 10, tertiary: 10, unclassified: 9, residential: 8, track: 5 };
+const ROAD_M = { secondary: 10, tertiary: 10, unclassified: 9, residential: 8, track: 5,
+  path: 3, crossing: 3 };   // Trikey's cycleways and paths, and her crossing at the lights
 const LANE_M = 5;
 
 /** The dual carriageway keeps its true width, 21.6m, which at PPM would fill
@@ -226,10 +230,12 @@ const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34;  // m/s^2
 const ROAD_NAME = {
   trunk: 'dual carriageway', secondary: 'main road', tertiary: 'country road',
   unclassified: 'lane', residential: 'houses', track: 'farm track',
+  path: 'cycle path', crossing: 'crossing',
 };
 const GEAR_OK = {
   trunk: [2, 3], secondary: [1, 2, 3], tertiary: [1, 2, 3],
   unclassified: [1, 2], residential: [1, 2], track: [1],
+  path: [1, 2], crossing: [1],
 };
 const TOO_FAST = { track: 'dust!', unclassified: 'too fast', residential: 'slow down' };
 const TOO_SLOW = { trunk: 'beeping' };
@@ -442,6 +448,14 @@ const canvas = document.getElementById('c');
 let ctx = canvas.getContext('2d');   // let: the look-ahead window borrows it to paint its ground (groundInto)
 
 let graph = null, adj = null, route = [], routeLen = 0;
+/** Trikey's own roads on ?van=trikey (trikeyRoads.create): her graph, the
+ *  game graph without the A28 plus her paths, its junctions split by side and
+ *  joined only at the lights she may cross at. Every route she drives is
+ *  found over it, as the game's trikey-links.ts finds it. null for a van. */
+let trike = null, trikeShown = null;   // and where her nodes are drawn (trikeyRoads.clearOfA28)
+const TRIKEY = VAN_ID === 'trikey';
+/** The graph a route's nodes index: hers for Trikey, the game graph else. */
+function routeGraph() { return trike ? trike.tg : graph; }
 let vanImg = null;
 let scn = null, trf = null, xing = null;
 let fuelState = null;   // the van's fuel or Spark's battery (drive-spike/fuel.js)
@@ -502,13 +516,16 @@ function shortestPath(s, t) {
 
 /** Node path to a world-space polyline in metres, with cumulative distance. */
 function toPolyline(path) {
-  const pts = path.map(i => {
-    const [fx, fy] = graph.nodes[i];
-    return { x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT, s: 0 };
-  });
+  // Each point and the node it stands for. Trikey's are where clearOfA28
+  // draws them, and her step over the A28 goes by the lights: along the
+  // pavement, straight over, along the far pavement (trikeyRoads.routePoints).
+  const pts = trikeShown
+    ? trikeyRoads.routePoints(trike, trikeShown, path).map(p => ({ x: p.x, y: p.y, s: 0, cls: p.cls, node: p.node }))
+    : path.map(i => ({ x: graph.nodes[i][0] * ASPECT * METRES_PER_UNIT, y: graph.nodes[i][1] * METRES_PER_UNIT, s: 0, node: i }));
+  pts.nodes = pts.map(p => p.node);
   for (let i = 1; i < pts.length; i++) {
     pts[i].s = pts[i - 1].s + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-    pts[i].cls = edgeCls.get(edgeKey(path[i - 1], path[i])) ?? 'tertiary';
+    if (!trikeShown) pts[i].cls = edgeCls.get(edgeKey(path[i - 1], path[i])) ?? 'tertiary';
     pts[i].cw = pts[i].cls === 'trunk' ? edgeCw.get(edgeKey(path[i - 1], path[i])) ?? null : null;
   }
   pts[0].cls = pts[1]?.cls ?? 'tertiary';
@@ -539,6 +556,7 @@ function cwAtS(s) { return route[segAtS(s)].cw ?? null; }
  *  page's laneOffset, which traffic.js reads for where the oncoming lane is. */
 function trafficClassAt(s) {
   const cls = classAtS(s);
+  if (cls === 'crossing') return 'path';   // no traffic drives along her crossing
   return cls === 'trunk' && !bigRoadAt(s) ? 'secondary' : cls;
 }
 /** Whether a lane change is possible at s: not on a divided stretch with one
@@ -587,7 +605,17 @@ let dest = null, from = null, routeNodes = [];
  *  pulling up somewhere the next drive sets off from there. */
 function pickRoute(fromId) {
   const ids = Object.keys(graph.anchors);
-  for (let tries = 0; tries < 40; tries++) {
+  // Trikey: only to a place she can ride to on her own roads, never one too
+  // far for Trikey (trikeyRoads.pickTrip), from where she pulled up.
+  for (let tries = 0; trike && tries < 40; tries++) {
+    const trip = trikeyRoads.pickTrip(trike, Math.random, fromId);
+    if (!trip || trip.path.length < 2) continue;
+    route = toPolyline(trip.path);
+    routeLen = route[route.length - 1].s;
+    dest = trip.to; from = trip.from; routeNodes = route.nodes;
+    if (trip.path.length >= 12 && routeLen > 1200) break;
+  }
+  for (let tries = 0; !trike && tries < 40; tries++) {
     const aId = fromId ?? ids[(Math.random() * ids.length) | 0];
     const bId = ids[(Math.random() * ids.length) | 0];
     if (aId === bId) continue;
@@ -599,7 +627,7 @@ function pickRoute(fromId) {
     if (routeLen > 1200) break;
   }
   tripStrip.setRoute(strip, {
-    route, nodes: routeNodes, graph, total: routeLen - STOP_SHORT_M, from, dest,
+    route, nodes: routeNodes, graph: routeGraph(), total: routeLen - STOP_SHORT_M, from, dest,
     nameOf: id => PLACE_NAME[id], atDistance,
     toWorld: (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }),
     roadHalfAt: s => roadWidth(classAtS(s), cwAtS(s)) / 2,
@@ -617,6 +645,18 @@ function pickRoute(fromId) {
     length: routeLen, atDistance, laneOffset, roadClassAt: classAtS, laneWidth: LANE_M,
   }, { graph, mapToWorld, season: SEASON });
   window.__xing = xing;   // as window.__drive: lets a test find a crossing
+  // And what this route is: its places, its roads by class, and for Trikey
+  // whether it keeps her rule (trikeyRoads.a28Breaches, empty when it does).
+  window.__routeInfo = () => {
+    const classes = {};
+    for (let i = 1; i < route.length; i++) classes[route[i].cls] = (classes[route[i].cls] ?? 0) + (route[i].s - route[i - 1].s);
+    for (const k in classes) classes[k] = Math.round(classes[k]);
+    const crossingsAt = [];
+    for (let i = 1; i < route.length; i++) if (route[i].cls === 'crossing') crossingsAt.push([Math.round(route[i - 1].s), Math.round(route[i].s)]);
+    return { van: VAN_ID, from, dest, metres: Math.round(routeLen), classes, crossingsAt,
+      breaches: trike ? trikeyRoads.a28Breaches(trike, routeNodes.filter((n, i) => !i || n !== routeNodes[i - 1])) : null,
+      reachable: trike ? trikeyRoads.reachableFrom(trike, from) : null };
+  };
   window.__trf = trf;     // and see why the overtaking lane is refused (__trf.last.unsafe)
 }
 
@@ -683,7 +723,7 @@ const ZOOM_FAST = 0.66;                          // at top speed
 const ZOOM_STILL = { lane: 1.35, road: 1.15 };   // standing, small road / other
 const ZOOM_ARRIVE = 1.6;                         // pulled up at the gate
 const ARRIVE_ZOOM_M = 120;                       // how far out the arrival zoom begins
-const SMALL_ROADS = new Set(['residential', 'unclassified', 'track']);
+const SMALL_ROADS = new Set(['residential', 'unclassified', 'track', 'path', 'crossing']);
 const PULL_UP = 2.5;          // m/s^2, the gentle stop at the destination
 const STOP_SHORT_M = 6;       // stop this far before the anchor node
 const ARRIVED_WAIT_MS = 3500; // then set off for somewhere new
@@ -764,7 +804,7 @@ function laneOffset(lane, s) {
   if (cw && cw.kind === 'divided') {
     return -(ISLAND_M / 2 + (cw.lanes >= 2 && lane === 0 ? 1.5 : 0.5) * LANE_M);
   }
-  if (cls === 'track') return 0;
+  if (cls === 'track' || cls === 'path' || cls === 'crossing') return 0;
   const quarter = (cls ? roadWidth(cls, cw) : 2 * LANE_M) / 4;   // a lane is half the road
   return lane === 0 ? -quarter : quarter;
 }
@@ -1388,7 +1428,10 @@ document.getElementById('routeBtn').onclick = () => { pickRoute(); car.s = 0; ca
 function jumpTo(want) {
   for (let tries = 0; tries < 120; tries++) {
     pickRoute();
-    const k = route.findIndex(p => p.cls === 'trunk' && want(p.cw?.kind ?? 'dual'));
+    // Trikey never rides the A28: both buttons take her to where she crosses
+    // it at the lights instead.
+    const k = trike ? route.findIndex(p => p.cls === 'crossing')
+      : route.findIndex(p => p.cls === 'trunk' && want(p.cw?.kind ?? 'dual'));
     if (k > 0) {
       car.s = Math.max(0, route[k - 1].s - 60); car.v = 0; car.base = null; camH = null;
       return;
@@ -1414,6 +1457,28 @@ async function boot() {
     if (cr.ok) loadCarriageways(await cr.json());
   } catch { /* without it every trunk edge is a dual carriageway, as before */ }
   adj = buildAdjacency(graph);
+  if (TRIKEY) {
+    // Her roads. Without trikey-links.json she still never rides the A28: her
+    // graph is then the game graph without it (trikey-links.ts NO_TRIKEY_LINKS).
+    let links = trikeyRoads.NO_LINKS;
+    try {
+      const tl = await fetch('/assets/driving/trikey-links.json');
+      if (tl.ok) links = await tl.json();
+    } catch { /* NO_LINKS */ }
+    trike = trikeyRoads.create(graph, links);
+  }
+  // What is painted and on the GPS: every road, and on Trikey's drive her
+  // cycleways and paths too (in her graph's node numbers, a superset of the
+  // game graph's, so the roads keep their edge numbers).
+  // Her paths are drawn and ridden clear of the A28 as it is drawn here (at
+  // its true width): beside it, never on it.
+  if (trike) {
+    trikeShown = trikeyRoads.clearOfA28(trike, k => roadWidth('trunk', cwByEdge.get(k) ?? null) / 2,
+      (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }));
+  }
+  const paintGraph = trike
+    ? trikeyRoads.paintGraph(trike, trikeShown, (x, y) => [x / (ASPECT * METRES_PER_UNIT), y / METRES_PER_UNIT])
+    : graph;
   await tripStrip.load(strip);
   pickRoute();
   // Both learn each A28 edge's carriageway by its index into graph.edges.
@@ -1421,13 +1486,13 @@ async function boot() {
   scn = await scenery.load({ graph, mapToWorld, metresPerMapPx: METRES_PER_MAP_PX,
     roadHalf: (k, cls) => roadWidth(cls, carriagewayOf(k)) / 2 });
   window.__townAt = (x, y) => scenery.townAt(scn, x, y);   // for a test: where the camera pulls back
-  roadPaint.load({ graph, ctx, roadWidth, carriagewayOf, season: SEASON,
+  roadPaint.load({ graph: paintGraph, ctx, roadWidth, carriagewayOf, season: SEASON,
     trunk: { lane: TRUNK_LANE_M, reservation: RESERVATION_M, island: ISLAND_M },
     nodeXY: n => [n[0] * ASPECT * METRES_PER_UNIT, n[1] * METRES_PER_UNIT] });
-  roads = graph.edges
-    .filter(([i, j]) => i >= 0 && j >= 0 && i < graph.nodes.length && j < graph.nodes.length)
+  roads = paintGraph.edges
+    .filter(([i, j]) => i >= 0 && j >= 0 && i < paintGraph.nodes.length && j < paintGraph.nodes.length)
     .map(([i, j, cls]) => {
-      const a = graph.nodes[i], b = graph.nodes[j];
+      const a = paintGraph.nodes[i], b = paintGraph.nodes[j];
       return [a[0] * ASPECT * METRES_PER_UNIT, a[1] * METRES_PER_UNIT,
         b[0] * ASPECT * METRES_PER_UNIT, b[1] * METRES_PER_UNIT, cls];
     });

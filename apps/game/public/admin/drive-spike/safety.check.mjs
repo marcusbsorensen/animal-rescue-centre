@@ -26,6 +26,7 @@
 
 import * as traffic from './traffic.js';
 import * as crossings from './crossings.js';
+import * as trikeyRoads from './trikey-roads.js';
 import { readFileSync } from 'node:fs';
 
 const SEEDS = Number(process.argv[2] ?? 40);
@@ -36,7 +37,7 @@ const GENTLE = 4;     // m/s²: the hardest any vehicle may slow for an animal
 // ----------------------------------------------------- the page's constants
 
 const ASPECT = 1800 / 1121, METRES_PER_UNIT = 3900;
-const ROAD_M = { secondary: 10, tertiary: 10, unclassified: 9, residential: 8, track: 5 };
+const ROAD_M = { secondary: 10, tertiary: 10, unclassified: 9, residential: 8, track: 5, path: 3, crossing: 3 };
 const LANE_M = 5, TRUNK_LANE_M = 5, RESERVATION_M = 1.6, TRUNK_M = 4 * TRUNK_LANE_M + RESERVATION_M, ISLAND_M = 1.2;
 const GEARS = { 1: 7, 2: 13, 3: 20 };
 const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34, EMERGENCY = 26, ENGINE_EASE = 4, TOP_OUT = 3.5, TOP_PULL = 0.18;
@@ -74,6 +75,20 @@ for (const c of cwJson.edges) {
   const rec = { kind: c.kind, maxspeedMph: c.maxspeedMph, lanes: c.lanes };
   edgeCw.set(key(e[0], e[1]), rec); edgeCw.set(key(e[1], e[0]), rec);
 }
+// VAN=trikey: her own roads, as the page routes and draws them (never along
+// the A28, over it only at the lights; trikey-roads.js).
+const trike = VAN_ID === 'trikey'
+  ? trikeyRoads.create(graph, JSON.parse(readFileSync(new URL('../../assets/driving/trikey-links.json', import.meta.url))))
+  : null;
+const trikeShown = trike && (() => {
+  const rec = new Map();
+  for (const c of cwJson.edges) {
+    const e = graph.edges[c.edge];
+    if (e && e[2] === 'trunk' && e[0] === c.nodes[0] && e[1] === c.nodes[1]) rec.set(c.edge, c);
+  }
+  const half = k => { const c = rec.get(k); return !c || c.kind === 'dual' ? TRUNK_M / 2 : c.kind === 'divided' ? (2 * Math.max(1, c.lanes) * LANE_M + ISLAND_M) / 2 : ROAD_M.secondary / 2; };
+  return trikeyRoads.clearOfA28(trike, half, (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }));
+})();
 const adj = graph.nodes.map(() => []);
 for (const [i, j] of graph.edges) {
   if (!graph.nodes[i] || !graph.nodes[j]) continue;
@@ -98,10 +113,12 @@ function shortestPath(s, t) {
 /** The page's route: toPolyline, classAtS, cwAtS, laneOffset, trafficClassAt
  *  and canOvertakeAt, line for line. */
 export function makeRoute(path) {
-  const pts = path.map(i => ({ x: graph.nodes[i][0] * ASPECT * METRES_PER_UNIT, y: graph.nodes[i][1] * METRES_PER_UNIT, s: 0 }));
+  const pts = trike
+    ? trikeyRoads.routePoints(trike, trikeShown, path).map(p => ({ x: p.x, y: p.y, s: 0, cls: p.cls }))
+    : path.map(i => ({ x: graph.nodes[i][0] * ASPECT * METRES_PER_UNIT, y: graph.nodes[i][1] * METRES_PER_UNIT, s: 0 }));
   for (let i = 1; i < pts.length; i++) {
     pts[i].s = pts[i - 1].s + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-    pts[i].cls = edgeCls.get(key(path[i - 1], path[i])) ?? 'tertiary';
+    if (!trike) pts[i].cls = edgeCls.get(key(path[i - 1], path[i])) ?? 'tertiary';
     pts[i].cw = pts[i].cls === 'trunk' ? edgeCw.get(key(path[i - 1], path[i])) ?? null : null;
   }
   pts[0].cls = pts[1].cls; pts[0].cw = pts[1].cw;
@@ -124,14 +141,14 @@ export function makeRoute(path) {
     const cw = cls === 'trunk' ? cwAtS(s) : null;
     if (cls === 'trunk' && (!cw || cw.kind === 'dual')) return -(RESERVATION_M / 2 + (lane === 0 ? 1.5 : 0.5) * TRUNK_LANE_M);
     if (cw && cw.kind === 'divided') return -(ISLAND_M / 2 + (cw.lanes >= 2 && lane === 0 ? 1.5 : 0.5) * LANE_M);
-    if (cls === 'track') return 0;
+    if (cls === 'track' || cls === 'path' || cls === 'crossing') return 0;
     const q = (cls ? roadWidth(cls, cw) : 2 * LANE_M) / 4;
     return lane === 0 ? -q : q;
   };
   const bigRoadAt = s => { if (classAtS(s) !== 'trunk') return false; const c = cwAtS(s); return !c || c.kind === 'dual'; };
-  const trafficClassAt = s => { const c = classAtS(s); return c === 'trunk' && !bigRoadAt(s) ? 'secondary' : c; };
+  const trafficClassAt = s => { const c = classAtS(s); if (c === 'crossing') return 'path'; return c === 'trunk' && !bigRoadAt(s) ? 'secondary' : c; };
   const canOvertakeAt = s => { const c = classAtS(s) === 'trunk' ? cwAtS(s) : null; return !(c && c.kind === 'divided' && c.lanes < 2); };
-  const kindAt = s => { const c = classAtS(s); if (c !== 'trunk') return ({ residential: 'lane', unclassified: 'lane', track: 'track' })[c] ?? 'main'; return 'A28 ' + (cwAtS(s)?.kind ?? 'dual'); };
+  const kindAt = s => { const c = classAtS(s); if (c !== 'trunk') return ({ residential: 'lane', unclassified: 'lane', track: 'track', path: 'path', crossing: 'crossing' })[c] ?? 'main'; return 'A28 ' + (cwAtS(s)?.kind ?? 'dual'); };
   return { pts, length: pts[pts.length - 1].s, atDistance, laneOffset, classAtS, cwAtS, trafficClassAt, canOvertakeAt, kindAt, laneWidth: LANE_M };
 }
 
@@ -154,11 +171,16 @@ function foldStart(route) {
  *  a sixth of the time one that folds back on itself, started short of the
  *  fold, so traffic on its far part meets the van. */
 function pickRoute(r) {
+  // A pair of places and the route between: for Trikey, only places she can
+  // reach on her own roads (trikeyRoads.pickTrip, as the page picks).
+  const pair = () => {
+    if (trike) return trikeyRoads.pickTrip(trike, r, null)?.path ?? null;
+    const a = ids[(r() * ids.length) | 0], b = ids[(r() * ids.length) | 0];
+    return a === b ? null : shortestPath(graph.anchors[a], graph.anchors[b]);
+  };
   if (r() < 0.17) {
     for (let tries = 0; tries < 200; tries++) {
-      const a = ids[(r() * ids.length) | 0], b = ids[(r() * ids.length) | 0];
-      if (a === b) continue;
-      const p = shortestPath(graph.anchors[a], graph.anchors[b]);
+      const p = pair();
       if (!p || p.length < 12) continue;
       const route = makeRoute(p), f = foldStart(route);
       if (f >= 0) return { route, start: Math.max(0, f - 120), fold: true };
@@ -166,13 +188,13 @@ function pickRoute(r) {
   }
   const wantA28 = r() < 0.34 ? ['dual', 'divided', 'single'][(r() * 3) | 0] : null;
   for (let tries = 0; tries < 400; tries++) {
-    const a = ids[(r() * ids.length) | 0], b = ids[(r() * ids.length) | 0];
-    if (a === b) continue;
-    const p = shortestPath(graph.anchors[a], graph.anchors[b]);
+    const p = pair();
     if (!p || p.length < 12) continue;
     const route = makeRoute(p);
     if (!wantA28) return { route, start: 0 };
-    const k = route.pts.findIndex(q => q.cls === 'trunk' && (q.cw?.kind ?? 'dual') === wantA28);
+    // Trikey never rides the A28: started instead just before she crosses it.
+    const k = trike ? route.pts.findIndex(q => q.cls === 'crossing')
+      : route.pts.findIndex(q => q.cls === 'trunk' && (q.cw?.kind ?? 'dual') === wantA28);
     if (k > 0 || tries > 300) return { route, start: k > 0 ? Math.max(0, route.pts[k - 1].s - 60) : 0 };
   }
   throw new Error('no route');

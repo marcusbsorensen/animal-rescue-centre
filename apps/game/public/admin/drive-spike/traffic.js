@@ -154,9 +154,14 @@ const KINDS = {
 /** Road classes grouped by what traffic they carry. */
 const GROUP = {
   trunk: 'trunk', secondary: 'main', tertiary: 'main', primary: 'main',
-  unclassified: 'lane', residential: 'lane', track: 'track',
+  unclassified: 'lane', residential: 'lane', track: 'track', path: 'path',
 };
 const groupAt = (cls) => GROUP[cls] ?? 'main';
+/** Trikey's cycleways, bridleways and paths, and her crossing of the A28 at
+ *  the lights (the page's class 'path'): single and unmarked as a farm track,
+ *  so every track rule holds there (no overtaking, nothing coming the other
+ *  way, a car turns off before it), and no motor traffic at all (no MIX). */
+const trackLike = (cls) => cls === 'track' || cls === 'path';
 
 /** Per group: kind -> [weight, cruising speed m/s]. Speeds sit under what the
  *  van's allowed gears can do there (7 / 13 / 20 m/s), so there is usually
@@ -170,7 +175,7 @@ const MIX = {
   track: { tractor: [1, 3.5] },
 };
 /** Mean metres between same-direction vehicles, and between oncoming ones. */
-const SPACING = { trunk: 95, main: 115, lane: 160, track: 280 };
+const SPACING = { trunk: 95, main: 115, lane: 160, track: 280, path: 280 };
 const ONC_SPACING = { trunk: 110, main: 125, lane: 180 };   // none on a track
 
 // ------------------------------------------------------------ the safety numbers
@@ -230,9 +235,9 @@ function survey(T) {
     const cls = r.roadClassAt(s);
     if (cls !== prevCls) {
       if (open) { open.list.push([open.a, s]); open = null; }
-      if (cls === 'track') open = { list: T.tracks, a: s };
+      if (trackLike(cls)) open = { list: T.tracks, a: s };
       if (cls === 'trunk') open = { list: T.trunks, a: s };
-      if (prevCls !== null && (cls === 'track' || prevCls === 'track' || cls === 'trunk' || prevCls === 'trunk')) T.boundaries.push(s);
+      if (prevCls !== null && (trackLike(cls) || trackLike(prevCls) || cls === 'trunk' || prevCls === 'trunk')) T.boundaries.push(s);
       prevCls = cls;
     }
     const h = r.atDistance(s).h;
@@ -381,7 +386,7 @@ function desired(T, w) {
 function cruise(T, w, s) {
   const g = groupAt(clsAt(T, s));
   const entry = MIX[g]?.[w.kind];
-  let v = entry ? entry[1] : { trunk: 12, main: 9, lane: 6, track: 3.5 }[g];
+  let v = entry ? entry[1] : { trunk: 12, main: 9, lane: 6, track: 3.5, path: 3.5 }[g];
   if (w.kind === 'tractor') v = Math.min(v, 5.5);
   return v * w.pace;
 }
@@ -914,7 +919,7 @@ function laneUnsafe(T, van, vb, laneT) {
   }
   const horizon = clamp(need * vGear, BEND_M, 160);
 
-  if (cls === 'track' || inAny(T.tracks, vb.rear - 5, vb.front + horizon)) return 'track';
+  if (trackLike(cls) || inAny(T.tracks, vb.rear - 5, vb.front + horizon)) return 'track';
   // Nor across a change of road: a track, either end of the dual
   // carriageway, the A28 from divided to single. From our own second lane
   // only the last OWN_BEND_M count: she may use it until then.
@@ -1003,7 +1008,7 @@ function reset(T, van) {
 }
 
 function oncomingMayStart(T, s) {
-  return groupAt(clsAt(T, s)) !== 'track' && !inAny(T.tracks, s - 25, s + 25)
+  return !trackLike(clsAt(T, s)) && !inAny(T.tracks, s - 25, s + 25)
     && Math.abs(s - T.lastVanS) > IN_VIEW;
 }
 

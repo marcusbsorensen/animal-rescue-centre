@@ -330,6 +330,22 @@ crossing at road level of a dual carriageway "teaches something very
 dangerous to kids". Nothing the game makes normal on the road should be
 dangerous for a child to copy.
 
+In the spike (`?van=trikey`) she now routes by the same rule as the game:
+`drive-spike/trikey-roads.js` is `trikey-links.ts` and the router line for
+line (a test holds the two to the same graph and the same route between
+every two places), and a place out of her reach is never picked (from
+A.R.C. she reaches Bay Chapel, Deep Forest, Pinebark Medical, Wetlands,
+Wilderwood and Woodland; Bramble Farm and the Hog Hospital only from each
+other). The spike draws the A28 at its true width, and the cycleway that is
+her only way to Bramble Farm ran inside the dual as drawn, so she was seen
+riding along it: her paths are now drawn and ridden beside the A28, a verge
+past its kerb, and her way over it goes down the pavement to the lights and
+straight across (15 m at the pelican in The Square, 26 m at the lights at
+St Mildred's Road). `trikey-routes.check.mjs` judges every route against
+the game graph's own A28 and fails on any metre of her riding drawn on it
+but the crossing itself. Still to ask: whether she stops and waits for the
+green man there (the spike rides straight over; a crossing suits first gear).
+
 **Later levels: fuel, the workshop and the car wash.** Marcus, 2026-10-11:
 "part of the driving game, as the levels go on, will also involve tanking
 fuel at one of the two local garages, and sometimes a visit to the workshop
