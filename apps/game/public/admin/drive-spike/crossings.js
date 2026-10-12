@@ -63,12 +63,40 @@ const END_CLEAR_M = 45;       // ...or where it pulls up
  *  it crosses mid-screen where she is looking (Marcus, 2026-10-12, 39A: it
  *  used to set out ~10 m ahead, and once the camera had come in it crossed
  *  up under the chips). So it sets out when a child who lets go a moment
- *  after it moves (REACT_S, then the page's BRAKE) stops STOP_AT_M short of
- *  its line; if she does not, the van stops itself at the closed stretch,
- *  nearer still. Never so near the van could not stop (COMMIT_DECEL). */
-const STOP_AT_M = 4.5, REACT_S = 0.3, LET_GO = 14;
-function triggerGap(c, v) {
-  return Math.max(STOP_AT_M, c.near + 0.5) + REACT_S * v + v * v / (2 * LET_GO);
+ *  after it moves (REACT_S, then the page's BRAKE) stops LET_GO_SPARE_M
+ *  more than a van length short of its line; if she does not, the van stops
+ *  itself SELF_STOP_SPARE_M less than a van length short (stopAt). Never so
+ *  near the van could not stop (COMMIT_DECEL). */
+const REACT_S = 0.3, LET_GO = 14, LET_GO_SPARE_M = 0.25, SELF_STOP_SPARE_M = 0.25;
+function stopShort(c, L) { return Math.max(L + LET_GO_SPARE_M, c.near + 0.5); }
+/** How far a child who lets go REACT_S after it moves takes to stop from v. */
+function letGoRun(v) { return REACT_S * v + v * v / (2 * LET_GO); }
+function triggerGap(c, v, L) { return stopShort(c, L) + letGoRun(v); }
+/** The speed from which letGoRun is room: letGoRun's inverse. */
+function letGoSpeed(room) { return room <= 0 ? 0 : LET_GO * (Math.sqrt(REACT_S * REACT_S + 2 * room / LET_GO) - REACT_S); }
+
+/** The van slows for an animal waiting ahead (39A, every gear). It can only
+ *  step out once it has been seen and is clear of the chips, and at speed
+ *  the screen shows less road than triggerGap: in second and third it
+ *  stepped out late and the van's own stop caught her even when she let go
+ *  at once. So the van eases, at APPROACH_DECEL, gentler than letting go and
+ *  so never felt in the back, to the speed at which the animal is on the
+ *  screen by triggerGap (as the page's view shows it now); nearer, to the
+ *  speed from which letting go still stops short; never below CREEP, so a
+ *  van whose animal cannot step out (something coming the other way, or
+ *  held under the chips) still rolls on by. */
+const APPROACH_DECEL = 6, CREEP = 2, SEEN_SPARE_M = 0.3;
+function approachCap(c, van, nose, L, t) {
+  const dist = c.s - nose;
+  const room = dist - stopShort(c, L);
+  const v = van.view;
+  let vOk = Infinity;
+  if (v?.ahead != null && v.ppm) {
+    const shown = v.ahead - chipsPx(v, t) / v.ppm - L / 2 - c.top - SEEN_SPARE_M;
+    vOk = Math.max(CREEP, letGoSpeed(shown - stopShort(c, L)));
+  }
+  const far = Math.sqrt(vOk * vOk + 2 * APPROACH_DECEL * Math.max(0, dist - triggerGap(c, vOk, L)));
+  return Math.max(CREEP, Math.min(far, letGoSpeed(room)));
 }
 
 /** But never before she has had a moment to see it waiting. Held sideways,
@@ -650,14 +678,25 @@ export function step(xing, dt, van, others = []) {
       const v = van.view;
       if (v?.ahead == null || c.s - van.s < v.ahead) c.seen += dt;
       const clear = v?.ahead == null || !v.ppm || c.s + c.top - van.s < v.ahead - chipsPx(v, xing.t) / v.ppm;
-      if (c.s - nose <= triggerGap(c, van.v) && c.seen >= SEEN_S && clear) {
+      if (c.s - nose <= triggerGap(c, van.v, L) && c.seen >= SEEN_S && clear) {
         if (gap < van.v * van.v / (2 * COMMIT_DECEL) + 0.5) c.state = 'late';
-        else if (trafficClear(c, others)) { c.state = 'go'; c.blocking = true; c.moving = van.v > 0.5; }
+        else if (trafficClear(c, others)) {
+          c.state = 'go'; c.blocking = true; c.moving = van.v > 0.5;
+          // Where the van stops itself: a little under a van length short,
+          // or, if it set out late, short of where she would stop had she
+          // let go in time, so that stop is never the van's; never nearer
+          // than the closed stretch.
+          c.stopAt = Math.max(c.near, Math.min(L - SELF_STOP_SPARE_M, c.s - nose - letGoRun(van.v) - 2 * LET_GO_SPARE_M));
+          // And while it is on the road the van does not speed up towards
+          // it: holding go, it rolls on at the speed it had, no faster.
+          c.vGo = Math.max(van.v, CREEP);
+        }
         // else something is coming the other way, or is between the van and
         // it: it waits for that to go by.
       }
     }
     if (c.state === 'late' && tail > c.s + c.far && trafficClear(c, others)) { c.state = 'go'; c.blocking = false; }
+    if (c.state === 'wait' && c.party.length && c.s > nose) speedCap = Math.min(speedCap, approachCap(c, van, nose, L, xing.t));
     if (c.state !== 'go') continue;
 
     if (!c.script) c.script = buildScript(c);
@@ -670,8 +709,9 @@ export function step(xing, dt, van, others = []) {
 
     if (c.blocking && !onRoad(c)) c.blocking = false;
     if (c.blocking) {
-      const cap = gap <= 0 ? 0 : Math.min(Math.sqrt(2 * CAP_DECEL * gap), gap / Math.max(dt, 1e-3));
-      speedCap = Math.min(speedCap, cap);
+      const room = c.s - (c.stopAt ?? c.near) - nose;
+      const cap = room <= 0 ? 0 : Math.min(Math.sqrt(2 * CAP_DECEL * room), room / Math.max(dt, 1e-3));
+      speedCap = Math.min(speedCap, cap, c.vGo ?? Infinity);
       if (van.v > cap + 1e-9) c.forced = true;       // the page brakes for her now
       if (van.v > 0.5) c.moving = true;
       if (van.v < 0.25 && c.moving && !c.forced && !c.praised) {
