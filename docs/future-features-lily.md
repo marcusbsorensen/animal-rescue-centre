@@ -114,11 +114,11 @@ Animal welfare is a natural teaching vehicle. Opportunities:
 
 ---
 
-## 7. The wildlife bridge — civic responsibility (Marcus, 2026-10-12)
+## 7. The Animal Bridge — civic responsibility (Marcus, 2026-10-12)
 
 The children raise in-game money (never real money) towards a green bridge
-for animals over the big dual carriageway — in real life the Thanet Way; in
-the game a name that alludes to it (`docs/naming-places.md`). The point is to
+for animals over the big dual carriageway (in real life the Thanet Way). In
+the game it is simply called "The Animal Bridge". The point is to
 see the consequence: once it is built, fewer animals cross the roads nearby,
 and the lesson is how we live alongside animals and nature rather than
 swerving round them and putting them and us in danger.
@@ -133,10 +133,15 @@ Then the children help design the bridge so that different kinds of animal
 are well catered for (cover for hedgehogs, hedges for birds and bats, a wide
 path for deer, and so on), and the crossings on the drive thin out to match.
 
+**Trikey's special role.** Trikey may use the bridge, and is the vehicle that
+rescues animals found on it hurt or lost: the rider gets off and wheels
+Trikey onto the bridge on foot, then pops the animals into the crates. (On
+foot, pushing, is also the safe habit for a child to copy;
+`arc-teach-safe-road-habits`.)
+
 Fits with: the crossing animals on the drive (`docs/driving-rebuild-2026-10-11.md`),
-Trikey never crossing a dual carriageway at road level (the bridge is for
-animals; whether Trikey may use it is a question for later), and the
-revenue streams in section 5.
+Trikey crossing a dual carriageway only by bridge or tunnel (this is the
+first bridge), and the revenue streams in section 5.
 
 ## Priority discussion needed
 
