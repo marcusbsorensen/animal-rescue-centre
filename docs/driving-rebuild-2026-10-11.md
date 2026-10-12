@@ -278,6 +278,21 @@ stops itself, as it does for traffic. Never an accident.
   overtakes, but only if the road allows. While she looks, a small round
   sign by the centre line says go (green, an arrow) or wait (amber, two
   bars). It never eases out into anything coming the other way.
+- The look-ahead window seen from behind her van (54B). While she pokes
+  out, the 16:9 window that slides in at the top shows the road ahead from
+  just behind her van at the driver's eye height (Trikey 1.1 m, Henry, Bea
+  and Spark 1.6 m, Big Tilly 2.4 m), from where she has poked out to: the
+  back of the vehicle she follows on the left, her lane and the oncoming
+  lane, and the front of anything coming. As she eases out the eye moves
+  right, so the vehicle in front slides left; fully out it turns and
+  narrows in on what blocks her, ringed in amber (a small car coming also
+  close up in a round magnifier), with the wait or go sign. Marcus: no
+  rear-view mirror, nothing from above. The ground is the top-down
+  ground and roads projected onto the road a row at a time; trees, hedges,
+  walls and houses stand up beside it; the traffic is drawn plain in its
+  colour until the painted backs and fronts are in
+  `assets/driving/vehicle-views/` (its README says what goes there).
+  `drive-spike/behind-view.js` draws it.
 - On the A28's divided stretch her right-hand lane is hers to use; it was
   being refused near every bend as if it were the oncoming lane.
 - Each animal's shadow sits under its feet, with a small dark spot where it
