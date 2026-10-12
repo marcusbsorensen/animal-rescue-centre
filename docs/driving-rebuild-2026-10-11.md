@@ -111,6 +111,31 @@ the road's top gear and held the van to that gear's speed; that lock is
 dropped, and a gear above the road's top one costs what the table says
 instead.
 
+**What the spike does now (2026-10-12).** Every gear works on every road in
+`drive-spike.html`: the gear sets the van's speed wherever she is, nothing is
+dimmed or refused, and the knob that suits the road still pulses until she
+picks a suiting gear or ignores it. Too fast for the road (third on a lane,
+among houses or on the A28's 30–40 mph stretches; second or third on a farm
+track) flashes the speed camera once per stretch of road, a white flash and
+a little camera in the corner (a "speed camera!" note instead of the flash
+under reduced motion); while she is going faster than the road's own gear
+would take her the comfort gauge falls (the animals jostled), and on a farm
+track a dust cloud trails the van. The van's own hard stops for traffic and
+crossing animals still count as rough driving, and at speed they come
+sooner. First gear on the dual carriageway gets the traffic queueing behind
+and "beep beep!". The A28 is drawn stretch by stretch from
+`trunk-carriageways.json`: the dual carriageway as before, the divided road
+through Birchington to Westgate as a two-way road with a narrow kerbed island
+and two lanes each way (her right-hand lane is an overtaking lane, the
+oncoming traffic is across the island; where there is one lane each way she
+cannot change lane across the kerb), and the single stretch through The
+Square as an ordinary main road with a centre line. Only near the dual
+carriageway does the camera pull out and the chip say "dual carriageway";
+elsewhere the A28 is a "main road". The single stretch no longer spills over
+the house street beside it at Westgate, and where the A28 bends on a point of
+that street the A28's lines now stop at its edge. "to A28 town" in the dev
+tools jumps to the divided and single stretches in turn.
+
 ## Lane discipline, and being allowed to be naughty
 
 Marcus: *"Lily loves speeding and overtaking and generally doing slightly

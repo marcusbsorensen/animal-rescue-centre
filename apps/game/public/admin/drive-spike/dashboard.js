@@ -23,27 +23,26 @@
 // Contract with drive-spike.html:
 //   load()                    -> Promise<dash>
 //   height(dash, w, h)        the strip's height in CSS px on a w x h canvas
-//   draw(ctx, dash, w, h, s)  draws the strip; s = { v, gear, gearTop,
+//   draw(ctx, dash, w, h, s)  draws the strip; s = { v, gear, tooFast,
 //                             gearHint, handbrake, guide, jostle, x, y, camH,
 //                             route, s, roads }; guide is whether the guide
-//                             line is on, gearTop the road's top gear (knobs
-//                             above it are dimmed), gearHint the knob to
-//                             glow, or 0
+//                             line is on, tooFast whether the gear in use is
+//                             too fast for the road (its numeral reddens),
+//                             gearHint the knob to glow, or 0
 //   hit(dash, x, y)           'gear1' | 'gear2' | 'gear3' | 'horn' |
 //                             'handbrake' | 'guide' on a control, 'dash'
 //                             elsewhere on the strip, null above it
 //   honk(dash)                the horn: a short two-note beep
 //   clunk(dash, dir)          a gear change, up (1) or down (-1): a clunk
 //                             and a twitch of the comfort gauge
-//   nope(dash, n)             knob n tapped where the road will not take it:
-//                             a little shake and a soft 'nope'
 //
 // The gears (Marcus, 2026-10-12, 30A): he had not noticed them at all, so
 // the gear in use is also a big painted number in a brass window by the
 // speedometer, rolling over like an odometer drum when it changes; the knob
-// for the road's best gear glows and pulses when she is in another; and a
-// gear the road will not take is dimmed. The page decides all of that; the
-// dashboard only draws it and makes the noises.
+// for a gear that suits the road glows and pulses when she is in one that
+// does not. Every gear works on every road (Marcus, 2026-10-12): nothing is
+// dimmed or refused; a wrong gear costs what the page says it costs. The
+// page decides all of that; the dashboard only draws it and makes the noises.
 //
 // The guide line's switch (Marcus, 2026-10-11, answer 11C: the game has no
 // settings screen, so it lives on the driving screen) is a brass knob with a
@@ -106,7 +105,6 @@ export async function load() {
     lever: 0,
     hornAt: -1e9,
     drum: { n: 0, prev: 0, at: -1e9, dir: 1 },   // the gear window's roll
-    nope: { n: 0, at: -1e9 },                     // the last refused knob
     last: performance.now(),
     reduce: matchMedia('(prefers-reduced-motion: reduce)'),
     L: null, bg: null,
@@ -615,10 +613,9 @@ function knobBody(g, k, lit, warm = 0) {
 const HINT_GLOW = '255,176,52';
 
 /** A gear knob: its number, and a pip for each gear. hint is how strongly it
- *  glows to be picked (0 to 1), dim that the road will not take it, shake a
- *  sideways offset in px for a refused tap. */
-function knob(g, k, lit, { hint = 0, dim = false, shake = 0 } = {}) {
-  const at = { cx: k.cx + shake, cy: k.cy, r: k.r * (1 + 0.08 * hint) };
+ *  glows to be picked (0 to 1). */
+function knob(g, k, lit, { hint = 0 } = {}) {
+  const at = { cx: k.cx, cy: k.cy, r: k.r * (1 + 0.08 * hint) };
   const { cx, cy, r } = knobBody(g, at, lit, hint);
   if (hint > 0) {
     circle(g, cx, cy, r + 1.8);
@@ -633,8 +630,6 @@ function knob(g, k, lit, { hint = 0, dim = false, shake = 0 } = {}) {
     circle(g, cx + (i - (k.n - 1) / 2) * r * 0.24, cy + r * 0.47, Math.max(1.3, r * 0.075));
     g.fill();
   }
-  // Not possible on this road: the knob sinks into the walnut's shade.
-  if (dim) { circle(g, cx, cy, r + 1); g.fillStyle = 'rgba(46,17,8,.58)'; g.fill(); }
 }
 
 /** The glow behind a knob the road is asking for, drawn under every knob so
@@ -653,7 +648,7 @@ function knobHalo(g, k, hint) {
 /** The gear number, big enough to read at a glance, on a cream drum that
  *  rolls over when the gear changes: up for an up-change, down for a
  *  down-change, as an odometer's would. Under reduced motion the numbers
- *  cross-fade instead. In a gear the road will not take, the number is the
+ *  cross-fade instead. In a gear too fast for the road, the number is the
  *  needle's red. */
 function drawGearWindow(g, W, d, gear, over, now, reduce) {
   if (d.n !== gear) {
@@ -812,19 +807,13 @@ export function draw(ctx, dash, w, h, s) {
   drawGps(ctx, L, s);
   drawComfort(ctx, L, dash.comfort, s.jostle, dt, reduce);
   // The prompt pulses about once a second, and holds steady under reduced
-  // motion; a refused knob shakes for a moment, except under reduced motion.
-  const top = s.gearTop ?? 3;
+  // motion.
   const pulse = reduce ? 0.85 : 0.3 + 0.7 * (0.5 - 0.5 * Math.cos(now / 1000 * TAU));
-  const nopeT = (now - dash.nope.at) / 1000;
   for (const k of L.gears.knobs) if (k.n === s.gearHint) knobHalo(ctx, k, pulse);
   for (const k of L.gears.knobs) {
-    knob(ctx, k, k.n === s.gear, {
-      hint: k.n === s.gearHint ? pulse : 0,
-      dim: k.n > top,
-      shake: !reduce && k.n === dash.nope.n && nopeT < 0.35 ? Math.sin(nopeT * 55) * 3.5 * (1 - nopeT / 0.35) : 0,
-    });
+    knob(ctx, k, k.n === s.gear, { hint: k.n === s.gearHint ? pulse : 0 });
   }
-  if (L.gearWin) drawGearWindow(ctx, L.gearWin, dash.drum, s.gear, s.gear > top, now, reduce);
+  if (L.gearWin) drawGearWindow(ctx, L.gearWin, dash.drum, s.gear, !!s.tooFast, now, reduce);
   drawGuideSwitch(ctx, L.guide, s.guide !== false);
   drawHorn(ctx, L.horn, now - dash.hornAt < 260);
   dash.lever += ((s.handbrake ? 1 : 0) - dash.lever) * (1 - Math.exp(-28 * dt));
@@ -896,28 +885,4 @@ export function clunk(dash, dir) {
     knock.connect(bp); bp.connect(ke); ke.connect(out);
     knock.start(t0 + 0.004);
   } catch { /* no sound is fine; the number still rolls over */ }
-}
-
-/** A knob the road will not take: two soft falling notes, quieter than the
- *  horn, and a shake drawn by draw(). */
-export function nope(dash, n) {
-  dash.nope = { n, at: performance.now() };
-  try {
-    audio ??= new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state === 'suspended') audio.resume();
-    const t0 = audio.currentTime + 0.01;
-    const out = audio.createGain(); out.gain.value = 0.06;
-    const lp = audio.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200;
-    lp.connect(out); out.connect(audio.destination);
-    for (const [start, f] of [[0, 330], [0.12, 247]]) {
-      const env = audio.createGain();
-      env.gain.setValueAtTime(0, t0 + start);
-      env.gain.linearRampToValueAtTime(1, t0 + start + 0.015);
-      env.gain.linearRampToValueAtTime(0, t0 + start + 0.1);
-      env.connect(lp);
-      const o = audio.createOscillator();
-      o.type = 'sine'; o.frequency.value = f;
-      o.connect(env); o.start(t0 + start); o.stop(t0 + start + 0.11);
-    }
-  } catch { /* the shake still says no */ }
 }
