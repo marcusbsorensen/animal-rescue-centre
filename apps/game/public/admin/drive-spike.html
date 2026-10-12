@@ -349,8 +349,8 @@ function drawDust() {
   const col = { spring: '200,184,146', summer: '214,196,152', autumn: '176,152,112', winter: '160,152,140' }[SEASON];
   for (const d of dust) {
     const f = d.age / DUST_LIFE;
-    const x = d.x + d.vx * d.age, y = d.y + d.vy * d.age, r = d.r + 2.4 * Math.sqrt(f);
-    ctx.fillStyle = `rgba(${col},${(0.5 * (1 - f)).toFixed(3)})`;
+    const x = d.x + d.vx * d.age, y = d.y + d.vy * d.age, r = d.r + 3.2 * Math.sqrt(f);
+    ctx.fillStyle = `rgba(${col},${(0.68 * (1 - f) ** 1.3).toFixed(3)})`;
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
   }
 }
