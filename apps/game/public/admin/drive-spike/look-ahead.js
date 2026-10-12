@@ -44,8 +44,8 @@
 //       s = { van: { s, front, id }, reason: { s, lat, r } | null,
 //             horizon, safe, vanTop, season, sun, reduce }
 //       reason is what makes lane 1 unsafe, at distance s along the route,
-//       lat metres off the centreline, r metres round; horizon is how far
-//       along the route the camera aims when nothing does. world = {
+//       lat metres off the centreline, r metres round (horizon, which the
+//       top-down window framed out to, is no longer read). world = {
 //       ground(g, view, radius): the page's ground and roads into g under a
 //       transform the window has set; scenery, traffic, footprint(T, w) }.
 //       paint = { frame(ctx, x, y, w, h, b) -> screen, glass(ctx, screen) }:

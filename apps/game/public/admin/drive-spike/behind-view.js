@@ -16,7 +16,10 @@
 //     them: a fine one for the first NEAR.z1 metres and a coarse one out to
 //     FAR.z1. Each row of the picture below the horizon is one depth on the
 //     ground, so it is one drawImage of one row of a texture, stretched to
-//     the width that depth covers: the scanline ("mode 7") way.
+//     the width that depth covers: the scanline ("mode 7") way. The
+//     textures are not repainted every frame: each is read shifted by how
+//     far the eye has gone since it was painted, and the next is painted
+//     into a spare a band a frame (see NEAR, FAR and ground()).
 //   - Above the horizon a painted sky, a few soft clouds and a low line of
 //     hills, all fixed in the world by bearing so they turn with the road.
 //     A haze lies along the horizon so the end of the textures never shows.
@@ -64,11 +67,7 @@ const BUDGET_MS = 5;       // what a frame of this may cost before it shrinks
 const VIEWS = '/assets/driving/vehicle-views/';
 
 export function create() {
-  const mk = () => {
-    const el = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(8, 8) : document.createElement('canvas');
-    return { el, g: el.getContext('2d') };
-  };
-  const BV = { out: mk(), near: null, far: null, scale: 0.8, avg: 0, views: null, imgs: new Map(), drawn: [] };
+  const BV = { out: canvas(), near: null, far: null, scale: 0.8, avg: 0, views: null, imgs: new Map(), drawn: [] };
   loadIndex(BV);
   return BV;
 }
