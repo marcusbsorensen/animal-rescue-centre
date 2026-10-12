@@ -36,7 +36,13 @@ const LANE_M = 5, TRUNK_LANE_M = 5, RESERVATION_M = 1.6, TRUNK_M = 4 * TRUNK_LAN
 const GEARS = { 1: 7, 2: 13, 3: 20 };
 const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34, EMERGENCY = 26, ENGINE_EASE = 4, TOP_OUT = 3.5, TOP_PULL = 0.18;
 const PULL_UP = 2.5, STOP_SHORT_M = 6, ARRIVED_WAIT_S = 3.5;
-const VAN_W = 2.4, VAN_L = 2.4 * 1205 / 641;
+// The page's van: henry by default (?van=), its length from its top-down
+// sprite's aspect as drive-spike.html's step() sets car.length. VAN=spark,
+// bea, big-tilly ... to drive another.
+const VAN_SPRITES = { henry: [561, 1131], spark: [641, 1205], bea: [578, 1288], 'big-tilly': [735, 1849], trikey: [454, 869] };
+const VAN_ID = process.env.VAN ?? 'henry';
+if (!VAN_SPRITES[VAN_ID]) throw new Error(`no sprite size for van ${VAN_ID}`);
+const VAN_W = 2.4, VAN_L = VAN_W * VAN_SPRITES[VAN_ID][1] / VAN_SPRITES[VAN_ID][0];
 const METRES_PER_MAP_PX = METRES_PER_UNIT / 1121;
 const mapToWorld = (px, py) => ({ x: px * METRES_PER_MAP_PX, y: py * METRES_PER_MAP_PX });
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
@@ -253,13 +259,24 @@ function drive(seed) {
   let R, T, X;
   const car = newCar();
   car.sideways = seed % 3 === 0;
+  // In spring a third of the routes are ones past a duck family, started
+  // short of it: water sites are few, and left to chance a whole run can
+  // go by without one crossing (the henry van's run did).
+  const wantDucks = () => season === 'spring' && r() < 0.34;
   const fresh = () => {
-    const p = pickRoute(r);
-    R = p.route;
+    const ducks = wantDucks();
+    let p;
+    for (let k = 0; k < (ducks ? 80 : 1); k++) {
+      p = pickRoute(r);
+      R = p.route;
+      X = crossings.create({ length: R.length, atDistance: R.atDistance, laneOffset: R.laneOffset, roadClassAt: R.classAtS, laneWidth: LANE_M },
+        { graph, mapToWorld, season });
+      if (!ducks) break;
+      const c = X.crossings.find(c => c.s > 200 && c.party.some(a => a.kind === 'duckling'));
+      if (c) { p.start = c.s - 160; break; }
+    }
     T = traffic.create({ length: R.length, atDistance: R.atDistance, laneOffset: R.laneOffset,
       roadClassAt: R.trafficClassAt, laneWidth: LANE_M }, { random: r });
-    X = crossings.create({ length: R.length, atDistance: R.atDistance, laneOffset: R.laneOffset, roadClassAt: R.classAtS, laneWidth: LANE_M },
-      { graph, mapToWorld, season });
     Object.assign(car, newCar(), { gear: car.gear, sideways: car.sideways });
     car.s = p.start;
     totals.routes++;
@@ -382,7 +399,7 @@ function drive(seed) {
 const t0 = Date.now();
 for (let seed = Number(process.env.FIRST ?? 1); seed < Number(process.env.FIRST ?? 1) + SEEDS; seed++) drive(seed);
 const f2 = x => isFinite(x) ? x.toFixed(2) : 'n/a';
-console.log(`safety.check: ${SEEDS} seeds x ${MINUTES} simulated minutes on the Birchie graph, ${totals.routes} routes, ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+console.log(`safety.check: ${SEEDS} seeds x ${MINUTES} simulated minutes on the Birchie graph, ${totals.routes} routes, the ${VAN_ID} van (${VAN_L.toFixed(2)} m), ${((Date.now() - t0) / 1000).toFixed(0)} s`);
 console.log(`  minutes driven by road: ${Object.entries(totals.byKind).map(([k, v]) => `${k} ${v.toFixed(0)}`).join(', ')}`);
 console.log(`  animals crossed ${totals.crossed} (families of ducklings ${totals.familes}), waited on the verge with traffic near ${totals.waitedForTraffic}`);
 console.log(`  vehicles that stopped for an animal: same way ${totals.stoppedForAnimal.same}, oncoming ${totals.stoppedForAnimal.onc}`);
@@ -391,5 +408,6 @@ console.log(`  contacts with animals ${totals.contacts}; closest to a crossing a
 console.log(`  vehicles touching the van ${totals.vanOverlaps} (closest ${f2(totals.minVanTraffic)} m); frames where the route folds back and a vehicle on its far part overlaps the van ${totals.folded}`);
 console.log(`  she stopped by herself ${totals.praised}, hard-braking frames ${totals.emergencyFrames}`);
 if (!totals.stoppedForAnimal.same || !totals.stoppedForAnimal.onc) fail.push('no vehicle ever stopped for an animal both ways: the check did not exercise it');
+if (SEEDS * MINUTES >= 300 && !totals.familes) fail.push('no duck family crossed: the check did not exercise one');
 if (fail.length) { console.error('FAIL\n' + fail.slice(0, 25).join('\n')); process.exit(1); }
 console.log('PASS');
