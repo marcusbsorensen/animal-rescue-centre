@@ -173,7 +173,7 @@ function patches(g, S, cells, col, lo, hi, alpha, salt) {
   m.putImageData(img, 0, 0);
   g.drawImage(c, 0, 0, S, S);
 }
-function dots(g, S, r, n, rmin, rmax, colour, salt) {
+function dots(g, S, r, n, rmin, rmax, colour) {
   for (let i = 0; i < n; i++) {
     const x = r() * S, y = r() * S, rad = rmin + r() * (rmax - rmin);
     g.fillStyle = colour(r);
@@ -184,7 +184,7 @@ function dots(g, S, r, n, rmin, rmax, colour, salt) {
 }
 
 function tarmacTile(fam, season) {
-  const S = 512, [c, g] = canvas(S), r = rng(hash(fam.length, 11, season.length));
+  const S = 512, [c, g] = canvas(S), r = rng(hash(fam.charCodeAt(0), 11, season.charCodeAt(1)));
   const b = base(fam, season);
   g.fillStyle = b; g.fillRect(0, 0, S, S);
   const m = fam === 'main' ? 0.7 : fam === 'worn' ? 1 : 1.25;
@@ -238,7 +238,7 @@ function earthTile(season) {
 /** The dust, gravel and litter that gathers along a road's edge. Mostly
  *  transparent, so the band it fills breaks up into the verge. */
 function vergeTile(fam, season) {
-  const S = 512, [c, g] = canvas(S), r = rng(hash(fam.length, 17, season.length));
+  const S = 512, [c, g] = canvas(S), r = rng(hash(fam.charCodeAt(0), 17, season.charCodeAt(1)));
   const dust = DUST[season];
   // One soft blob, stamped at many sizes: a gradient per blob was the slowest
   // thing at load.
