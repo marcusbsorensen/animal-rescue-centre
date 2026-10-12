@@ -49,6 +49,9 @@
  *   nothing to merge in "it is currently afternoon". The calendar's
  *   `lastRealDayChecked` is the one part that is not ephemeral: it takes the
  *   later of the two days, so a merge cannot re-run the daily reset.
+ * - **Van upkeep** (vanUpkeep, one record per vehicle): three-way per
+ *   vehicle, the side that changed it wins. A tank is a state, not a
+ *   counter: two devices that each drove Henry do not empty him twice.
  * - **Depot**: its own rules — daily sessions consumed by both devices are
  *   both gone, its counters add, its inventory adds per item.
  * - **Anything unrecognised**: a generic three-way scalar — the side that
@@ -167,7 +170,7 @@ export function mergeSaveState(
       out[key] = mergeEconomy(bv, mv, tv, !!ancestor);
     } else if (key === 'depot') {
       out[key] = mergeDepot(bv, mv, tv, !!ancestor);
-    } else if (key === 'sickAnimals') {
+    } else if (key === 'sickAnimals' || key === 'vanUpkeep') {
       out[key] = mergeRecord(bv, mv, tv, !!ancestor);
     } else if (key === 'eventCounters') {
       out[key] = mergeCounterRecord(bv, mv, tv, !!ancestor);

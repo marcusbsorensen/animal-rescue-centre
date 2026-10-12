@@ -495,3 +495,31 @@ describe('mergeSaveState — the rest', () => {
     expect([base, mine, theirs].map((s) => JSON.stringify(s))).toEqual(snapshots);
   });
 });
+
+describe('mergeSaveState — van upkeep', () => {
+  const van = (over: Record<string, unknown> = {}) => ({
+    energy: 1, wear: 0, dirtOutside: 0, dirtInside: 0, lowWarned: false, puncture: false, supplyDamage: 0,
+    ...over,
+  });
+
+  it('merges per vehicle: each side keeps the van it drove', () => {
+    const base = save({ vanUpkeep: { 'small-van': van(), 'long-van': van() } });
+    const mine = save({ vanUpkeep: { 'small-van': van({ energy: 0.4 }), 'long-van': van() } });
+    const theirs = save({ vanUpkeep: { 'small-van': van(), 'long-van': van({ dirtOutside: 0.7 }) } });
+
+    const { state } = mergeSaveState(base, mine, theirs);
+    const upkeep = state.vanUpkeep as Record<string, { energy: number; dirtOutside: number }>;
+    expect(upkeep['small-van'].energy).toBe(0.4);
+    expect(upkeep['long-van'].dirtOutside).toBe(0.7);
+  });
+
+  it('does not empty a tank twice when both devices drove the same van', () => {
+    const base = save({ vanUpkeep: { 'small-van': van({ energy: 1 }) } });
+    const mine = save({ vanUpkeep: { 'small-van': van({ energy: 0.8 }) } });
+    const theirs = save({ vanUpkeep: { 'small-van': van({ energy: 0.7 }) } });
+
+    const { state } = mergeSaveState(base, mine, theirs);
+    // A state, not a counter: this device's van wins whole.
+    expect((state.vanUpkeep as Record<string, { energy: number }>)['small-van'].energy).toBe(0.8);
+  });
+});
