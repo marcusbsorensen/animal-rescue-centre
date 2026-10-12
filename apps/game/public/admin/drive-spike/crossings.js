@@ -1031,18 +1031,60 @@ function drawGround(ctx, a, p, view) {
     ctx.drawImage(glow, -p.gx, -p.gy, 2 * p.gx, 2 * p.gy);
     ctx.restore();
   }
-  // The shadow, in world space along the sun so it stays put as the camera
-  // turns; a hopping animal's leaves it behind on the road.
-  const hgt = (p.art ? 0.12 : TOPDOWN[a.kind].hgt) + 0.8 * p.V.lift;
+  // The shadow (Marcus, 2026-10-12: "so it doesn't look like they are
+  // floating"). Two parts, both on the road under the feet, never lifted
+  // with a hop: a short soft cast shadow from the feet along the world's
+  // sun, as the hedges' and the vans' fall, and a small darker contact
+  // shadow where it stands. In the air the contact shadow shrinks and
+  // pales, so the gap under a hopping rabbit or a bounding deer shows.
+  const shade = contactSprite();
+  if (!shade) return;
+  const air = Math.max(0, p.V.lift);
+  const sh = 1 / (1 + 3 * air), dark = a.alpha * (0.25 + 0.75 / (1 + 6 * air));
+  const sl = Math.hypot(view.sun.x, view.sun.y), ux = view.sun.x / sl, uy = view.sun.y / sl;
+  // How far the cast shadow reaches: a little of the animal's height.
+  const tall = p.art ? p.h : TOPDOWN[a.kind].hgt;
+  const reach = sl * tall * CAST_SHARE;
+  const wide = p.art ? p.w * 0.36 : TOPDOWN[a.kind].dw * 0.42;
   ctx.save();
-  ctx.translate(p.fx + view.sun.x * hgt, p.fy + view.sun.y * hgt);
-  ctx.globalAlpha = a.alpha;
-  ctx.fillStyle = SHADOW;
-  ctx.beginPath();
-  if (p.art) { ctx.rotate(view.camH + Math.PI / 2); ctx.ellipse(0, 0, p.w * 0.4, p.w * 0.09, 0, 0, TAU); }
-  else { const sp = TOPDOWN[a.kind]; ctx.rotate(p.h); ctx.ellipse(0, 0, sp.dl * 0.4, sp.dw * 0.36, 0, 0, TAU); }
-  ctx.fill();
+  ctx.translate(p.fx + ux * reach / 2, p.fy + uy * reach / 2);
+  ctx.rotate(Math.atan2(uy, ux));
+  ctx.globalAlpha = a.alpha * 0.55 * sh;
+  ctx.drawImage(shade, -reach / 2 - wide * 0.5, -wide * 0.5, reach + wide, wide);
   ctx.restore();
+  ctx.save();
+  ctx.translate(p.fx, p.fy);
+  if (p.art) {
+    // Square to the screen like the painting, flat along its feet.
+    ctx.rotate(view.camH + Math.PI / 2);
+    const rx = p.w * 0.46 * sh, ry = p.w * 0.12 * sh;
+    ctx.globalAlpha = dark;
+    ctx.drawImage(shade, -rx, -ry * 0.7, 2 * rx, 2 * ry);
+  } else {
+    const sp = TOPDOWN[a.kind];
+    ctx.rotate(p.h);
+    const rx = sp.dl * 0.42 * sh, ry = sp.dw * 0.38 * sh;
+    ctx.globalAlpha = dark;
+    ctx.drawImage(shade, -rx, -ry, 2 * rx, 2 * ry);
+  }
+  ctx.restore();
+}
+
+/** The shadow's soft disc, baked once: dark in the middle where the animal
+ *  touches the road, feathered to nothing at the rim; drawn squashed. The
+ *  colour is the scenery's shadow, a little deeper. */
+const CAST_SHARE = 0.45;
+let SHADE = null;
+function contactSprite() {
+  if (SHADE || typeof document === 'undefined') return SHADE;
+  const n = 64, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
+  const g = cv.getContext('2d'), gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+  gr.addColorStop(0, 'rgba(30,34,28,.62)');
+  gr.addColorStop(0.45, 'rgba(30,34,28,.48)');
+  gr.addColorStop(0.75, 'rgba(34,40,32,.2)');
+  gr.addColorStop(1, 'rgba(40,46,38,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, n, n);
+  return (SHADE = cv);
 }
 
 function drawBody(ctx, a, p, view) {
