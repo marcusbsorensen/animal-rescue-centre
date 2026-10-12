@@ -41,6 +41,9 @@ const PULL_UP = 2.5, STOP_SHORT_M = 6, ARRIVED_WAIT_S = 3.5;
 // bea, big-tilly ... to drive another.
 const VAN_SPRITES = { henry: [561, 1131], spark: [641, 1205], bea: [578, 1288], 'big-tilly': [735, 1849], trikey: [454, 869] };
 const VAN_ID = process.env.VAN ?? 'henry';
+// The van's own speed in each gear, as drive-spike.html's VAN_GEARS: Trikey is
+// pedalled, half of every gear (the game's VEHICLE_SPEED).
+const VAN_GEARS = Object.fromEntries(Object.entries(GEARS).map(([g, v]) => [g, v * (VAN_ID === 'trikey' ? 0.5 : 1)]));
 if (!VAN_SPRITES[VAN_ID]) throw new Error(`no sprite size for van ${VAN_ID}`);
 const VAN_W = 2.4, VAN_L = VAN_W * VAN_SPRITES[VAN_ID][1] / VAN_SPRITES[VAN_ID][0];
 const METRES_PER_MAP_PX = METRES_PER_UNIT / 1121;
@@ -203,7 +206,7 @@ function stepCar(car, R, T, X, dt, input, stats) {
   stats.praised += x.events.length;
   const toGo = R.length - car.s;
   const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
-  const gearV = GEARS[car.gear];
+  const gearV = VAN_GEARS[car.gear];
   const target = Math.min(input.throttle ? gearV : 0, arriveCap);
   let emergency = 0, capped = 0;
   if (car.v > t.speedCap) { const v0 = car.v; car.v = Math.max(t.speedCap, car.v - EMERGENCY * dt); capped = (v0 - car.v) / dt; }

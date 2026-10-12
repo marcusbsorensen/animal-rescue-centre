@@ -204,6 +204,16 @@ const VAN_W_M = Number(VIEW_Q.get('vanw'))
   || (REAL_W_M[VAN_ID] ?? REAL_W_M.henry) * HENRY_DRAWN_M / REAL_W_M.henry;
 
 const GEARS = { 1: 7, 2: 13, 3: 20 };   // metres per second
+/** Each vehicle's own speed in a gear is the gear's times the game's
+ *  VEHICLE_SPEED for it (apps/game/src/scenes/PtvDriveScene.ts:129, "Trikey
+ *  crawls, Spark zips"; docs/driving-port-plan-2026-10-11.md question 10).
+ *  Only Trikey's is used here so far (Marcus, 2026-10-12: "make Trikey
+ *  slower"): pedal power, half of every gear, about 8, 15 and 22 mph, which
+ *  her cloth strip's 0 to 20 spans. Her gears set her top speed and her
+ *  speed camera; GEARS stays the world's, for what goes by speed alone (the
+ *  camera's zoom, the dust). */
+const VAN_SPEED = VAN_ID === 'trikey' ? 0.5 : 1;
+const VAN_GEARS = { 1: GEARS[1] * VAN_SPEED, 2: GEARS[2] * VAN_SPEED, 3: GEARS[3] * VAN_SPEED };
 const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34;  // m/s^2
 
 /** Which gears suit which road, and what it costs to get it wrong. The point
@@ -239,7 +249,7 @@ const TOO_SLOW = { trunk: 'beeping' };
 const MPS_PER_MPH = 0.44704;
 function gearsFor(cls, cw) {
   if (cls === 'trunk' && cw) {
-    const within = [1, 2, 3].filter(g => GEARS[g] <= cw.maxspeedMph * MPS_PER_MPH);
+    const within = [1, 2, 3].filter(g => VAN_GEARS[g] <= cw.maxspeedMph * MPS_PER_MPH);
     return cw.kind === 'dual' ? within.filter(g => GEAR_OK.trunk.includes(g)) : within;
   }
   return GEAR_OK[cls] ?? [1, 2, 3];
@@ -338,7 +348,7 @@ function gearCosts() {
   // The camera goes by the gear, as road-gears.ts's speedCameraFires does;
   // the jostle and the dust go by the speed itself, so crawling behind a
   // tractor in third rattles no one.
-  return fast && car.v > GEARS[gearBest(car.road, car.cw)] + 0.5;
+  return fast && car.v > VAN_GEARS[gearBest(car.road, car.cw)] + 0.5;
 }
 
 /** The dust cloud on a farm track: puffs left behind the van's tail in the
@@ -749,7 +759,7 @@ function step(dt) {
   const toGo = routeLen - car.s;
   const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
   // The gear sets how fast go is, on every road: third on a lane is third.
-  const gearV = GEARS[car.gear];
+  const gearV = VAN_GEARS[car.gear];
   const target = Math.min(throttle ? gearV : 0, arriveCap);
   let emergency = 0, capped = 0;
   if (car.v > t.speedCap) {
