@@ -411,7 +411,7 @@ function makeCrossing(route, world, site, s) {
   // the van standing in the left lane the far verge of a 9 m lane is just off
   // the screen's right edge, and an animal should be seen before it steps out.
   // A family always the near one, or its line would wait off the screen.
-  const near = r() < 0.75;
+  const nearSide = r() < 0.75;
   const party = partyFor(site.place, world.season, site.seed).map((a, k) => ({
     ...a, k, d: 0, alpha: 1, phase: r() * 6.28, file: fileOf(a.kind, a.look),
     // Half its length across the road, painted or stand-in, whichever is longer.
@@ -430,7 +430,7 @@ function makeCrossing(route, world, site, s) {
   }
   if (party[0]) { party[0].back = 0; party[0].along = 0; }
   for (const a of party) a.d = -a.back;
-  const side = near || party.length > 1 ? -1 : 1;
+  const side = nearSide || party.length > 1 ? -1 : 1;
   const zone = zoneOf({ party });
   const signS = Math.max(1, s - zone.near - SIGN_BEFORE_M);
   const sign = route.atDistance(signS);
@@ -674,7 +674,7 @@ function pose(c, a, t, camH) {
   // The glow fades as the animal leaves the far kerb behind.
   const past = a.d - (c.verge + 2 * c.halfW + a.half);
   const fade = c.state === 'go' ? Math.max(0, Math.min(1, 1 - past)) : 1;
-  const pic = usesArt(a) ? picOf(a) : null;
+  const pic = usesArt(a) ? picture(a) : null;
   if (pic) {
     // Side on and upright: x across the screen, y up it, from the feet.
     const fit = fitOf(a, pic), B = boundOf(a.kind);
@@ -794,7 +794,7 @@ if (ART_DIR.protocol === 'file:') {
   const { existsSync } = await import('node:fs');
   for (const k in ART) for (const f of Object.values(ART[k].files)) PICS.set(f, { ok: existsSync(new URL(f, ART_DIR)), kind: k });
 }
-function pic(a) {
+function picture(a) {
   let e = PICS.get(a.file);
   if (e) return e;
   e = { ok: null, kind: a.kind };
@@ -808,8 +808,7 @@ function pic(a) {
 }
 /** True unless the painting is known to be missing: one still loading is
  *  measured as if drawn, and simply not drawn yet. */
-function usesArt(a) { return pic(a).ok !== false; }
-function picOf(a) { return pic(a); }
+function usesArt(a) { return picture(a).ok !== false; }
 
 /** The painting's size as drawn, fitted in its box by the painted part. */
 function fitOf(a, e) {
