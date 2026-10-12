@@ -100,3 +100,69 @@ painted animals in side view, with a much finer contour than the vehicles,
 and a pulsing highlight on the road beneath each so a young player spots it
 at once. The pulse keeps time with the animal's gait: a rabbit hops across, a
 hedgehog shuffles, stops and shuffles again, a fox bounds.
+
+## Tube man prototype (29A, 2026-10-12)
+
+Steve is painted and animated in code: `apps/game/public/admin/tube-man.html`
+(add `?seed=` to pick a Steve and `?reduced=1` for reduced motion), module
+`apps/game/public/admin/tube-man.js`. Frames: `docs/img/tube-man-frames.png`
+(a partial collapse and the spring back).
+
+![Twelve frames, 0.1 s apart](img/tube-man-frames.png)
+
+**Contract.** `create(seed, { reducedMotion })` returns an object with
+`step(dt)` (seconds, any frame rate) and `draw(ctx, x, y, scale, { shadow })`.
+`x, y` is the centre of the fan base on the ground; `scale` is pixels per
+metre, so the driving world passes `BASE_PPM * zoom`. He is about 5.4 m tall.
+There is also `setReducedMotion(on)`.
+
+**Rig.** Ten tube segments from the fan to the collar, a short, soft link for
+the head, and two arms of four segments each. Each link keeps an absolute
+angle and is sprung towards its parent's angle plus a target bend, damped
+close to critical. Each link follows its parent with no push back, so an
+underdamped chain amplified at every joint. Gravity acts on him as on an
+inverted pendulum, and air pressure sets the spring strength. The physics
+runs at a fixed 60 Hz on a seeded generator, so he never loops. The jank
+comes from targets that jump rather than ease: the sway is sample-and-hold
+every 0.2 to 0.6 s, with brief buckles at a random joint, gusts, and
+fabric flutter. Every 3.5 to 8.5 s the air drops: he folds at the waist,
+his head flops, and then the fan wins and he snaps back up at
+over-pressure. His right arm (the viewer's left) flaps up and flops down
+on uneven beats and cracks into a whip every few seconds. His left arm
+hangs low, half from his body and half from straight down, and is drawn
+behind the tube. Clamps limit each joint's bend, stop any segment pointing
+at the ground, and keep each arm on its own side. Reduced motion uses slow
+sines, no collapses and no kicks.
+
+**Paint.** Each tube is a few stacked fills offset towards the lit side
+(dark edge, shade, body colour, light, highlight stripe) inside the warm
+dark-brown contour the animals use, with a paper-and-weave grain at large
+sizes. The body has blue dungarees with a bib and buttons, a red collar and
+red sleeves with pale mittens. The head has a blue cap, big glossy eyes
+and an open grin that widens the harder he is thrown about. "CAR WASH" is
+painted as brush strokes running down the tube. The fan is a small dark
+box. Detail drops with size: on the map (under 12 px/m) there are no
+highlights or lettering; in the driving world (12 to 40 px/m) there is no
+grain, brows or creases.
+
+**Top-down.** He stands up as a billboard on the verge, in side view and
+upright on screen whatever the camera does, as the crossing animals will.
+A soft oval shadow at his feet drifts with his lean (`{ shadow: true }`).
+The same rig serves a side-view scene unchanged.
+
+**Cost.** Step is about 2 µs. Step and draw for one Steve, in headless
+Chromium on the cloud box: 0.07 ms at driving scale (22 px/m), 0.05 ms on
+the map and 0.7 ms large (CPU raster; 0.14 ms with GPU raster). With the CPU
+throttled 4×, as a rough stand-in for a mid-range phone: 0.43 to 0.52 ms at
+driving scale. That is over the 0.3 ms budget, and it has not been measured
+on a real phone. If a phone runs slow, redraw his sprite at 30 Hz: the jank
+hides it. Two costs were found and removed. Rotated text cost about 25 µs a
+letter in Chrome, whether drawn with fillText or from a cached glyph strip,
+so the lettering is now strokes. The head is painted once per size and grin
+step into a sprite.
+
+**Unsure.** Which arm "right" means: the README's "right arm" is read as
+*his* right, the viewer's left, as in the landmark brief ("one arm raised
+and waving (his right)"). If Marcus meant the viewer's right, flip `side` in
+the two `chainArm` calls. The colours follow the brief's pulls and may be a
+touch bright beside the watercolour buildings.
