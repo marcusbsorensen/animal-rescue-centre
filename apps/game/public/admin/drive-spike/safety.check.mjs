@@ -212,7 +212,7 @@ function clearance(P, Q) {
 // ---------------------------------------------------------------- the van
 
 function newCar() {
-  return { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, length: VAN_L, width: VAN_W, camH: null, jostle: 0 };
+  return { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, length: VAN_L, width: VAN_W, camH: null, jostle: 0, gears: VAN_GEARS };
 }
 
 /** drive-spike.html's step(), less the drawing: the same order, the same caps. */

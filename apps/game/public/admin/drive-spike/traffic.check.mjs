@@ -31,6 +31,9 @@ if (!VAN_SPRITES[VAN_ID]) throw new Error(`no sprite size for van ${VAN_ID}`);
 const VAN_W_M = 2.4;
 const VAN_ASPECT = VAN_SPRITES[VAN_ID][1] / VAN_SPRITES[VAN_ID][0];
 const GEARS = { 1: 7, 2: 13, 3: 20 };
+// The van's own speed in each gear, as drive-spike.html's VAN_GEARS: Trikey is
+// pedalled, half of every gear (the game's VEHICLE_SPEED).
+const VAN_GEARS = Object.fromEntries(Object.entries(GEARS).map(([g, v]) => [g, v * (VAN_ID === 'trikey' ? 0.5 : 1)]));
 const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34;
 const EMERGENCY = 26;
 
@@ -158,7 +161,7 @@ function run(seed) {
   const bends = [], tracks = [];
   { let s = 0; for (const [len, turn, cls] of LEGS) { if (Math.abs(turn) > 30 && cls !== 'trunk') bends.push(s); if (cls === 'track') tracks.push([s, s + len]); s += len; } }
 
-  const car = { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, road: 'tertiary', jostle: 0 };
+  const car = { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, road: 'tertiary', jostle: 0, gears: VAN_GEARS };
   let throttle = false, handbrake = false, hbTimer = 0, nextInput = 0;
   const out = {
     frames: 0, overlaps: 0, minSep: Infinity, close: 0, beep: 0, emergencies: 0,
@@ -227,7 +230,7 @@ function run(seed) {
       if (!live.has(w)) oracle.delete(w);
     }
 
-    const target = throttle ? GEARS[car.gear] : 0;
+    const target = throttle ? VAN_GEARS[car.gear] : 0;
     let emergency = 0;
     let capped = 0;
     if (car.v > res.speedCap) {

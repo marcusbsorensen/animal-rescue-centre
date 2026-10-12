@@ -193,6 +193,8 @@ const CORNER_DEG = 22;    // past this, oncoming traffic takes a corner one at a
 const LANE_CHANGE_S = 0.7;
 const ANIMAL_STOP = 3.5;  // how hard a vehicle slows for a crossing animal, m/s²: a careful driver
 const ANIMAL_GAP = 1.2;   // and where it stands, this far short of the closed stretch
+/** The world's speed in each gear, m/s: a van's own are van.gears (the
+ *  page's VAN_GEARS; Trikey's are half), which overtakes are planned at. */
 const GEAR_V = { 1: 7, 2: 13, 3: 20 };
 
 // --------------------------------------------------------------------- set-up
@@ -893,7 +895,10 @@ function idm(v, v0, gap, dv) {
 
 /** Why lane 1 is not safe for the van now, or '' when it is. */
 function laneUnsafe(T, van, vb, laneT) {
-  const vGear = Math.max(van.v, GEAR_V[van.gear] ?? 13);
+  // The overtake is planned at the speed this van makes in its gear: Trikey,
+  // pedalled at half of every gear, takes twice as long to get past.
+  const gears = van.gears ?? GEAR_V;
+  const vGear = Math.max(van.v, gears[van.gear] ?? gears[2]);
   const cls = clsAt(T, van.s);
   // The vehicle being overtaken, if any: the nearest one ahead in lane 0 that
   // the van has not yet cleared.

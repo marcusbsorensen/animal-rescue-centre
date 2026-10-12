@@ -623,7 +623,8 @@ function pickRoute(fromId) {
 // ---------------------------------------------------------------- the driving
 
 const car = { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, road: 'tertiary', jostle: 0,
-  ask: 0, peek: true, peekT: 0, peekSafe: false, returning: false };
+  ask: 0, peek: true, peekT: 0, peekSafe: false, returning: false,
+  gears: VAN_GEARS };   // its own speed in each gear, for traffic.js to plan an overtake at
 
 /** Poking out to look before overtaking (Marcus, 2026-10-12, 37A). Her
  *  swipe towards the middle of the road (or how long she holds →) is
