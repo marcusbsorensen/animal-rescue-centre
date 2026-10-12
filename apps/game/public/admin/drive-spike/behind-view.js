@@ -48,10 +48,11 @@
 /** The two ground textures: depth z0..z1 and L either side of the eye,
  *  metres, at k px per metre. Each is repainted only when the eye has gone
  *  more than slackZ forward or slackX sideways, or turned more than rot
- *  radians, since it was painted; in between, the rows are read from it
- *  shifted by how far the eye has moved, which is exact. */
-const NEAR = { z0: -1, z1: 52, L: 24, k: 6, slackZ: 6, slackX: 2.5, rot: 0.4 * Math.PI / 180 };
-const FAR = { z0: -2, z1: 300, L: 140, k: 1.15, slackZ: 22, slackX: 9, rot: 0.3 * Math.PI / 180 };
+ *  radians, since it was painted; in between, each row is read from it
+ *  shifted by how far the eye has moved and turned (exact for moving, and
+ *  for turning off only by a sliver of the row's own depth). */
+const NEAR = { z0: -1, z1: 62, L: 26, k: 5.5, slackZ: 14, slackX: 5, rot: 2 * Math.PI / 180, bands: 2 };
+const FAR = { z0: -2, z1: 320, L: 170, k: 0.95, slackZ: 30, slackX: 22, rot: 3 * Math.PI / 180, bands: 6 };
 const SCENERY_M = 170;     // upright scenery is drawn out to here
 const TRAFFIC_M = 320;     // and traffic out to here
 const NEAR_CLIP = 0.8;     // metres in front of the eye
@@ -67,7 +68,7 @@ export function create() {
     const el = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(8, 8) : document.createElement('canvas');
     return { el, g: el.getContext('2d') };
   };
-  const BV = { out: mk(), near: mk(), far: mk(), scale: 0.8, avg: 0, views: null, imgs: new Map(), drawn: [] };
+  const BV = { out: mk(), near: null, far: null, scale: 0.8, avg: 0, views: null, imgs: new Map(), drawn: [] };
   loadIndex(BV);
   return BV;
 }
@@ -98,6 +99,7 @@ const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 // ---------------------------------------------------------------- the frame
 
 export function render(BV, cam, world, size) {
+  if (globalThis.__bvFlush) BV.out.g.getImageData(0, 0, 1, 1);
   const t0 = performance.now();
   // The internal size: the window's, scaled down to keep within budget.
   const sc = Math.min(BV.scale, MAX_W / size.w);
@@ -131,8 +133,11 @@ export function render(BV, cam, world, size) {
   g.lineJoin = 'round'; g.lineCap = 'round';
   for (const it of items) it.draw(g);
 
+  // A canvas defers its drawing; a test sets __bvFlush to count the real
+  // cost of this frame, the textures' painting included, here.
+  if (globalThis.__bvFlush) g.getImageData(0, 0, 1, 1);
   const ms = performance.now() - t0;
-  BV.prof = { sky: tA - t0, ground: tB - tA, upright: performance.now() - tB, items: items.length, tex: BV.texMs };
+  BV.prof = { sky: tA - t0, ground: tB - tA, upright: performance.now() - tB, items: items.length, tex: BV.texMs, bands: BV.bandsPainted };
   // Keep near the budget: shrink quickly when over, grow back slowly.
   BV.avg = BV.avg ? BV.avg * 0.9 + ms * 0.1 : ms;
   if (BV.avg > BUDGET_MS * 1.2) BV.scale = Math.max(MIN_SCALE, BV.scale * 0.94);
@@ -198,72 +203,116 @@ function wrap(a) { return Math.atan2(Math.sin(a), Math.cos(a)); }
 
 // ---------------------------------------------------------------- the ground
 
-/** Draw the top-down ground and roads for one band of depth into tex, turned
- *  so the camera looks up it: u across (left to right), v down (far at the
- *  top). */
-function paintTexture(T, B, cam, world) {
+/** One band of a ground texture (band i of B.bands, by depth): the
+ *  top-down ground and roads painted into canvas T from pose, turned so the
+ *  camera looks up it: u across (left to right), v down (far at the top). */
+function paintBand(T, B, pose, world, i) {
   const tw = Math.round(2 * B.L * B.k), th = Math.round((B.z1 - B.z0) * B.k);
   if (T.el.width !== tw || T.el.height !== th) { T.el.width = tw; T.el.height = th; }
-  const g = T.g, k = B.k, s = Math.sin(cam.yaw), c = Math.cos(cam.yaw);
+  const g = T.g, k = B.k, s = Math.sin(pose.yaw), c = Math.cos(pose.yaw);
+  const za = B.z0 + (B.z1 - B.z0) * i / B.bands, zb = B.z0 + (B.z1 - B.z0) * (i + 1) / B.bands;
+  const v0 = Math.floor((B.z1 - zb) * k), v1 = Math.ceil((B.z1 - za) * k);
+  g.save();
   g.setTransform(1, 0, 0, 1, 0, 0);
-  g.fillStyle = '#8fbf6a'; g.fillRect(0, 0, tw, th);
+  g.beginPath(); g.rect(0, v0, tw, v1 - v0); g.clip();
+  g.fillStyle = '#8fbf6a'; g.fillRect(0, v0, tw, v1 - v0);
   // u = k (X + L), v = k (z1 - Z), with X = -dx s + dy c, Z = dx c + dy s.
   const a = -k * s, cc = k * c, b = -k * c, d = -k * s;
-  g.setTransform(a, b, cc, d, k * B.L - (a * cam.x + cc * cam.y), k * B.z1 - (b * cam.x + d * cam.y));
-  const zm = (B.z0 + B.z1) / 2;
+  g.setTransform(a, b, cc, d, k * B.L - (a * pose.x + cc * pose.y), k * B.z1 - (b * pose.x + d * pose.y));
+  const zm = (za + zb) / 2;
   const view = {
-    cx: cam.x + c * zm, cy: cam.y + s * zm, radius: Math.hypot(B.L, (B.z1 - B.z0) / 2) + 4,
-    camH: cam.yaw, ppm: k, season: world.season, sun: world.sun,
+    cx: pose.x + c * zm, cy: pose.y + s * zm, radius: Math.hypot(B.L, (zb - za) / 2) + 4,
+    camH: pose.yaw, ppm: k, season: world.season, sun: world.sun,
   };
   world.ground(g, view, view.radius);
+  g.restore();
 }
 
-/** Where the eye is in the frame a texture was painted from: { X, Z }, and
- *  whether that texture is too far off to use. */
-function offset(T, B, cam) {
-  const p = T.pose;
-  if (!p) return null;
-  const dx = cam.x - p.x, dy = cam.y - p.y, s = Math.sin(p.yaw), c = Math.cos(p.yaw);
+/** Where the eye is in the frame a texture was painted from, { X, Z }, how
+ *  far it has turned since, { sin, cos }, and how much of the slack that
+ *  uses up (1 = all of it). */
+function offset(pose, B, cam) {
+  const dx = cam.x - pose.x, dy = cam.y - pose.y, s = Math.sin(pose.yaw), c = Math.cos(pose.yaw);
   const X = -dx * s + dy * c, Z = dx * c + dy * s;
-  if (Math.abs(wrap(cam.yaw - p.yaw)) > B.rot || Math.abs(X) > B.slackX || Z > B.slackZ || Z < -0.5) return null;
-  return { X, Z };
+  const d = wrap(cam.yaw - pose.yaw);
+  const used = Math.max(Math.abs(d) / B.rot, Math.abs(X) / B.slackX, Z / B.slackZ, -Z / 0.5);
+  return { X, Z, sin: Math.sin(d), cos: Math.cos(d), used };
+}
+
+/** A ground texture: the one being read (front), and the next one being
+ *  painted into (back) a band a frame, from where the eye was when it was
+ *  started; they swap when it is done. Painting starts when the front is
+ *  half used up, so the back is ready long before the front runs out, and
+ *  no frame paints more than one band. Only the very first is painted at
+ *  once. */
+function texture(BV, name) {
+  return BV[name] || (BV[name] = { front: canvas(), back: canvas(), pose: null, job: null });
+}
+function canvas() {
+  const el = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(8, 8) : document.createElement('canvas');
+  return { el, g: el.getContext('2d') };
 }
 
 function ground(BV, g, P, cam, world) {
-  const { W, H, f, cx, yH, eye } = P;
+  const { W, H, yH, f, eye } = P;
   const t0 = performance.now();
-  // At most one texture is repainted a frame, unless both have none yet.
-  let oN = offset(BV.near, NEAR, cam), oF = offset(BV.far, FAR, cam);
-  if (!oN) {
-    paintTexture(BV.near, NEAR, cam, world); BV.near.pose = { x: cam.x, y: cam.y, yaw: cam.yaw }; oN = { X: 0, Z: 0 };
-    BV.repaints = (BV.repaints || 0) + 1;
+  const here = { x: cam.x, y: cam.y, yaw: cam.yaw };
+  const tN = texture(BV, 'nearTex'), tF = texture(BV, 'farTex');
+  for (const [t, B] of [[tN, NEAR], [tF, FAR]]) {
+    if (!t.pose) {
+      for (let i = 0; i < B.bands; i++) paintBand(t.front, B, here, world, i);
+      t.pose = here;
+    } else if (!t.job && offset(t.pose, B, cam).used > 0.5) t.job = { pose: here, band: 0 };
   }
-  if (!oF && (!BV.far.pose || oN.Z !== 0 || oN.X !== 0)) {
-    paintTexture(BV.far, FAR, cam, world); BV.far.pose = { x: cam.x, y: cam.y, yaw: cam.yaw }; oF = { X: 0, Z: 0 };
-    BV.repaints = (BV.repaints || 0) + 1;
+  // One band a frame, the near texture's first.
+  const t = tN.job ? tN : tF.job ? tF : null;
+  if (t) {
+    const B = t === tN ? NEAR : FAR;
+    paintBand(t.back, B, t.job.pose, world, t.job.band++);
+    BV.bandsPainted = (BV.bandsPainted || 0) + 1;
+    if (t.job.band >= B.bands) {
+      [t.front, t.back] = [t.back, t.front];
+      t.pose = t.job.pose; t.job = null;
+    }
   }
-  if (!oF) oF = offset({ pose: BV.far.pose }, { ...FAR, rot: 1, slackX: 1e9, slackZ: 1e9 }, cam);   // a frame late
+  if (globalThis.__bvFlush && t) t.back.g.getImageData(0, 0, 1, 1);
   BV.texMs = performance.now() - t0;
+  BV.near = tN.front; BV.far = tF.front;
+  const oN = offset(tN.pose, NEAR, cam), oF = offset(tF.pose, FAR, cam);
   g.fillStyle = '#8fbf6a'; g.fillRect(0, yH, W, H - yH);
   g.imageSmoothingEnabled = true;
-  // One row of the picture is one depth on the ground.
+  // One row of the picture is one depth on the ground. In the frame its
+  // texture was painted from, a point (X, Z) of the row is at
+  //   X' = o.X + Z sin + X cos,   Z' = o.Z + Z cos - X sin,
+  // and the last term, a sliver of the row's depth, is let go so that the
+  // row is still one row of the texture.
   for (let y = yH + 1; y < H; y++) {
-    const Z = eye * f / (y + 0.5 - yH);
-    const near = Z + oN.Z < NEAR.z1 - 2;
-    const B = near ? NEAR : FAR, o = near ? oN : oF;
-    const Zt = Z + o.Z;
-    if (Zt >= B.z1) continue;
-    const T = near ? BV.near : BV.far;
-    const Zn = eye * f / (y + 1.5 - yH);
-    const v = (B.z1 - Zt) * B.k, vh = Math.max(0.6, (Z - Zn) * B.k);
-    // The row covers X from (0 - cx) Z / f to (W - cx) Z / f: what of that
-    // the texture holds, drawn to where it lands.
-    const X0 = Math.max(-B.L - o.X, -cx * Z / f), X1 = Math.min(B.L - o.X, (W - cx) * Z / f);
-    if (X1 <= X0) continue;
-    const u0 = (X0 + o.X + B.L) * B.k, u1 = (X1 + o.X + B.L) * B.k;
-    const d0 = cx + f * X0 / Z, d1 = cx + f * X1 / Z;
-    g.drawImage(T.el, u0, Math.max(0, v), u1 - u0, Math.min(vh, T.el.height - v), d0, y, d1 - d0, 1.02);
+    const Z = eye * f / (y + 0.5 - yH), Zn = eye * f / (y + 1.5 - yH);
+    // The far texture under the whole row, unless the near one covers it.
+    const near = oN.Z + Z * oN.cos < NEAR.z1 - 2;
+    if (!near || !row(g, P, BV.near, NEAR, oN, Z, Zn, y, true)) row(g, P, BV.far, FAR, oF, Z, Zn, y, false);
+    if (near) row(g, P, BV.near, NEAR, oN, Z, Zn, y, false);
   }
+}
+
+/** Draw one row of the picture, at depth Z, from texture T. With onlyIfAll,
+ *  draw it only if T covers the whole row, and say whether it did. */
+function row(g, P, T, B, o, Z, Zn, y, onlyIfAll) {
+  const { W, f, cx } = P;
+  const Zt = o.Z + Z * o.cos;
+  if (Zt >= B.z1) return false;
+  const v = (B.z1 - Zt) * B.k, vh = Math.max(0.6, (Z - Zn) * B.k);
+  // The row covers X from (0 - cx) Z / f to (W - cx) Z / f: what of that
+  // the texture holds, drawn to where it lands.
+  const sh = o.X + Z * o.sin;
+  const A0 = -cx * Z / f, A1 = (W - cx) * Z / f;
+  const X0 = Math.max((-B.L - sh) / o.cos, A0), X1 = Math.min((B.L - sh) / o.cos, A1);
+  if (X1 <= X0) return false;
+  if (onlyIfAll && (X0 > A0 || X1 < A1)) return false;
+  const u0 = (sh + X0 * o.cos + B.L) * B.k, u1 = (sh + X1 * o.cos + B.L) * B.k;
+  const d0 = cx + f * X0 / Z, d1 = cx + f * X1 / Z;
+  g.drawImage(T.el, u0, Math.max(0, v), u1 - u0, Math.min(vh, T.el.height - v), d0, y, d1 - d0, 1.02);
+  return true;
 }
 
 function haze(g, P) {
