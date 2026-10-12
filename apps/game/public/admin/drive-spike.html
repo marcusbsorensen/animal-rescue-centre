@@ -185,6 +185,71 @@ const GEAR_OK = {
 const TOO_FAST = { track: 'dust!', unclassified: 'too fast', residential: 'slow down' };
 const TOO_SLOW = { trunk: 'beeping' };
 
+/** Marcus, 2026-10-12 (30A): the gear stays her choice, but the road prompts
+ *  her, and a gear above the road's top one is not possible there. Its knob
+ *  is dimmed, a tap on it is a soft 'nope', and the van cannot go faster than
+ *  the road's top gear allows, whatever gear it is in. The best gear is the
+ *  one the knob prompt asks for: the road's top gear, because what she feels
+ *  is the speed. First is allowed on the dual carriageway, for the queue
+ *  behind to teach her, so its top is 3 like anywhere else that allows it. */
+const gearTop = cls => Math.max(...(GEAR_OK[cls] ?? [1, 2, 3]));
+const gearBest = cls => gearTop(cls);
+
+/** Arriving on a lane in third, the van eases down to the lane's top speed
+ *  at this rate rather than braking: the road is slowing her, not her foot,
+ *  so the animals do not feel it. */
+const ROAD_EASE = 4;   // m/s^2
+
+/** The last few m/s before the gear's top come on slowly, so holding go in
+ *  first on a main road is a needle that leans and stops, not one that snaps
+ *  to 15 mph: she feels the gear holding the van back. */
+const TOP_OUT = 3.5;   // m/s over which the pull fades
+const TOP_PULL = 0.18; // what is left of it at the very top
+
+/** The prompt waits this long after the road changes before glowing, so a
+ *  short stretch of another class at a junction does not flicker the knobs. */
+const HINT_DELAY = 0.6;   // seconds
+
+/** A gear change lurches the van in the frame: back a little on an up-change,
+ *  forward on a down-change, over LURCH_S. Not under reduced motion. */
+const LURCH_M = 0.14, LURCH_S = 0.2;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+/** The gear lever. Tapping a knob the road will not take is a 'nope'. While
+ *  the prompt glows, picking any gear that suits the road — the one she is
+ *  already in included — is her answer, and hushes it for the rest of this
+ *  road: it stays her choice. */
+function setGear(n) {
+  if (n > gearTop(car.road)) { if (dash) dashboard.nope(dash, n); return; }
+  if (car.gearHint && (GEAR_OK[car.road]?.includes(n) ?? true)) car.hushed = true;
+  if (n === car.gear) return;
+  const dir = Math.sign(n - car.gear);
+  car.gear = n;
+  car.lurch = { at: performance.now(), dir };
+  if (dash) dashboard.clunk(dash, dir);
+}
+
+/** Which knob glows: the road's best gear, once the gear she is in has not
+ *  suited the road for HINT_DELAY. A gear that is not possible always
+ *  prompts; one that is allowed but not the best prompts until she answers. */
+function gearHint(dt) {
+  const best = gearBest(car.road);
+  const allowed = GEAR_OK[car.road]?.includes(car.gear) ?? true;
+  if (car.road !== car.hintRoad) { car.hintRoad = car.road; car.hushed = false; }
+  const want = car.arrived || car.gear === best || (allowed && car.hushed) ? 0 : best;
+  car.hintT = want && want === car.hintWant ? (car.hintT ?? 0) + dt : 0;
+  car.hintWant = want;
+  return car.hintT >= HINT_DELAY || car.gear > gearTop(car.road) ? want : 0;
+}
+
+/** Metres the van sits off its pin in the frame, along its length: positive
+ *  is back down the screen. */
+function lurchM() {
+  if (!car.lurch || reduceMotion.matches) return 0;
+  const t = (performance.now() - car.lurch.at) / 1000 / LURCH_S;
+  return t >= 1 ? 0 : car.lurch.dir * LURCH_M * Math.sin(Math.PI * t);
+}
+
 /** One pixel of the child's map (birchie-roads.svg, 1800 x 1121) in metres,
  *  the same on both axes. Graph node (fx, fy) is map pixel (fx*1800, fy*1121). */
 const METRES_PER_MAP_PX = METRES_PER_UNIT / 1121;
@@ -432,15 +497,23 @@ function step(dt) {
   // can ask for, so it is a gentle stop, not a jostle.
   const toGo = routeLen - car.s;
   const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
-  const target = Math.min(throttle ? GEARS[car.gear] : 0, arriveCap);
+  // The gear sets how fast go is, and the road caps the gear: in third on a
+  // lane the van goes no faster than second would take it.
+  const gearV = GEARS[Math.min(car.gear, gearTop(car.road))];
+  const target = Math.min(throttle ? gearV : 0, arriveCap);
   let emergency = 0;
   if (car.v > t.speedCap) {
     // Something is ahead and the child has not braked: the van does it.
     emergency = EMERGENCY;
     car.v = Math.max(t.speedCap, car.v - EMERGENCY * dt);
   } else if (handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
-  else if (car.v < target) car.v = Math.min(target, t.speedCap, car.v + ACCEL * dt);
+  else if (car.v < target) {
+    const pull = Math.max(TOP_PULL, Math.min(1, (gearV - car.v) / TOP_OUT));
+    car.v = Math.min(target, t.speedCap, car.v + ACCEL * pull * dt);
+  } else if (throttle && target === gearV) car.v = Math.max(target, car.v - ROAD_EASE * dt);
   else car.v = Math.max(target, car.v - BRAKE * dt);
+  car.gearTop = gearTop(car.road);
+  car.gearHint = gearHint(dt);
 
   car.s = Math.min(routeLen - STOP_SHORT_M, car.s + car.v * dt);
   if (toGo <= STOP_SHORT_M + 0.5 && car.v < 0.2) {
@@ -554,7 +627,8 @@ function draw() {
   drawVan(w, vanY, ppm);
   if (dash) {
     dashboard.draw(ctx, dash, w, h, {
-      v: car.v, gear: car.gear, handbrake, guide: showGuide, jostle: car.jostle,
+      v: car.v, gear: car.gear, gearTop: car.gearTop, gearHint: car.gearHint,
+      handbrake, guide: showGuide, jostle: car.jostle,
       x: car.x, y: car.y, camH: camH ?? pos.h, route, s: car.s, roads,
     });
   }
@@ -632,7 +706,7 @@ function drawGuide() {
 }
 
 function drawVan(w, vanY, ppm) {
-  const px = w * VAN_SX, py = vanY;
+  const px = w * VAN_SX, py = vanY + lurchM() * ppm;   // a gear change's lurch
   const wpx = VAN_W_M * ppm;
   const aspect = vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0;
   const hpx = wpx * aspect;
@@ -737,7 +811,7 @@ function onDown(e) {
     if (what === 'handbrake') { brakePointer = e.pointerId; setHandbrake(); }
     else if (what === 'horn') honk();
     else if (what === 'guide') setGuide(!showGuide);
-    else if (what.startsWith('gear')) car.gear = Number(what.slice(4));
+    else if (what.startsWith('gear')) setGear(Number(what.slice(4)));
     return;
   }
   goPointers.add(e.pointerId); setThrottle();
@@ -765,7 +839,7 @@ window.addEventListener('keydown', e => {
   if (e.key === 'b' || e.key === 'B') { keyBrake = true; setHandbrake(); }
   if ((e.key === 'h' || e.key === 'H') && !e.repeat) honk();
   if ((e.key === 'g' || e.key === 'G') && !e.repeat && !e.ctrlKey && !e.metaKey) setGuide(!showGuide);
-  if (['1', '2', '3'].includes(e.key)) car.gear = Number(e.key);
+  if (['1', '2', '3'].includes(e.key) && !e.repeat) setGear(Number(e.key));
 });
 window.addEventListener('keyup', e => {
   if (e.key === ' ') { spaceDown = false; setThrottle(); }

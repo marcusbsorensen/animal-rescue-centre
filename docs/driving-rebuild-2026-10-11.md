@@ -87,6 +87,18 @@ crossing animal) come sooner and more often; too slow on the big road queues
 the traffic behind her. The knob that suits the road pulses as a hint she may
 ignore.
 
+**How the road prompts her (30A, Marcus, 2026-10-12, first pass; the lock in
+it is superseded by the paragraph above).** He had not noticed the gears at
+all. In the wrong gear for the road, the knob for the right one glows and
+pulses; the gear shows as a big number on the dashboard; a change gives a
+clunk and a small lurch. His words, before he overruled the lock: *"what will
+be most noticeable and annoying for her is that the speed of the vehicle is
+limited to the gear that one is in. So one does need to go up to gear three in
+order to go at the highest speed."* The first pass also dimmed the knobs above
+the road's top gear and held the van to that gear's speed; that lock is
+dropped, and a gear above the road's top one costs what the table says
+instead.
+
 ## Lane discipline, and being allowed to be naughty
 
 Marcus: *"Lily loves speeding and overtaking and generally doing slightly
