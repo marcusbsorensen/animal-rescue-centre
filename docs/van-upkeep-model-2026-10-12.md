@@ -1,11 +1,12 @@
 # Van upkeep — the model, 2026-10-12
 
 Fuel, charging, wear and dirt on A.R.C.'s rescue vans, built from Marcus's
-decisions 22–28 (`docs/fuel-workshop-carwash-2026-10-12.md`, "Decided"). This
-is the pure game-logic layer only: no scene, art or UI calls it yet.
+decisions 22–28 (`docs/fuel-workshop-carwash-2026-10-12.md`, "Decided") and
+his answers to this model's ten questions (below, "Decided"). This is the pure
+game-logic layer only: no scene, art or UI calls it yet.
 
 - Code: `packages/game-logic/src/van-upkeep.ts` (exported from `index.ts`)
-- Tests: `packages/game-logic/src/__tests__/van-upkeep.test.ts` (67)
+- Tests: `packages/game-logic/src/__tests__/van-upkeep.test.ts` (110: 67, then 43 more for Marcus's answers)
 - Also changed: `supply-runs.ts` repair part codes (24A), `merge-save.ts`
   (a `vanUpkeep` merge rule)
 
@@ -17,8 +18,8 @@ Each vehicle has one small, serialisable upkeep record:
 |---|---|---|
 | `energy` | 0–1 | Fuel in the tank, or charge in Spark's battery. Trikey stays at 1 |
 | `wear` | 0–1 | Wear from distance and rough driving; the spanner light comes on at 0.6 |
-| `dirtOutside` | 0–1 | Mud, salt and grime. Washed off at a station |
-| `dirtInside` | 0–1 | Fur, mess and scattered bedding. Kept separate; **how it is cleaned is not decided** |
+| `dirtOutside` | 0–1 | Mud, salt and grime. Washed off at a station. Trikey too |
+| `dirtInside` | 0–1 | Fur, mess and scattered bedding. Vans only. Cleaned four ways (answer 1) |
 | `lowWarned` | bool | The quarter-tank warning has fired since the last fill |
 | `puncture` | bool | Trikey has a flat |
 | `supplyDamage` | 0–100 | Supply-run damage waiting for the workshop, on `DAMAGE_THRESHOLDS`' scale |
@@ -27,8 +28,9 @@ Each vehicle has one small, serialisable upkeep record:
 OSM road class (`trunk` … `track`), the hard stops, the times the van stopped
 itself and the kerbs, the weather and season, and who was aboard (the crate
 grid, with its `poorly` flags). **A visit resets it** for a price: the pump or
-charger (coins), the car wash (one coin, the animals perk up), the workshop
-(Depot parts).
+charger (coins), the car wash (one coin, inside and out, the animals perk up), the
+hoover (one coin, inside only), cleaning by hand at A.R.C. (free, time), the
+workshop (service or valet, Depot parts).
 
 Each mechanic has its level gate (28A). Below the gate it does not run: the
 drive leaves those numbers alone and the visit is refused as `not-yet`, free.
@@ -40,11 +42,17 @@ drive leaves those numbers alone and the visit is refused as `not-yet`, free.
   station for the GPS from distances the scene measures. Ignored, the tank
   empties: a `ran-dry` event, the drive stops there (`kmDriven`), and `tow`
   says what it costs: coins, in-game minutes, and a happiness drop for each
-  animal aboard (restless, never hurt). The tow leaves a splash in the tank.
+  animal aboard (restless, never hurt). The tow takes her to the **nearer
+  station** (`tow.to`, answer 5), not on to where she was going; she fills
+  there and drives on. Pass `stationKmAt(atKm)` on the drive report so the
+  model can pick the station from where she stopped. The tow also leaves a
+  splash in the tank, as a safety net if she drives off without filling.
 - **Spark (27A).** Same model with a battery (`energy: 'battery'` on its
-  events). Charges at A.R.C.'s charger (free, slow) or at either station
+  events). Charges at A.R.C.'s charger (free, slow; answer 6) or at either station
   (coins, quicker). A pump fill is quicker than any charge.
-- **Trikey (27B).** No fuel, no wear, no wash. From level 6 it can get a
+- **Trikey (27B, answer 7).** No fuel and no wear. It gathers outside dirt
+  like a van (tracks, rain, snow, winter) and can go through the car wash,
+  outside only, for the same coin; it has no inside. From level 6 it can get a
   puncture: a per-km chance (higher on a farm track) and a per-kerb chance,
   drawn from a **seeded `rng`** the scene passes in. Without an rng there is
   no puncture. A flat Trikey can still be ridden, just bumpier.
@@ -52,21 +60,37 @@ drive leaves those numbers alone and the visit is refused as `not-yet`, free.
   rough event (her own hard stop, the van stopping itself, a kerb). The
   `spanner-on` event fires once when it crosses 0.6. While the light is on,
   `rideRoughness(...)` returns 1.5: multiply the jostle by it.
-- **Dirt (26A).** Outside: per km, a lot on farm tracks, more in rain, snow
-  and winter. Inside: per km for each animal aboard that is poorly, moulting
-  or messy, and for each pair of orthogonal neighbours that squabble
+- **Dirt (26A, answers 2 and 9).** Outside: per km, a lot on farm tracks,
+  more in rain, snow and winter. Only seen: it costs nothing. Inside: per km
+  for each animal aboard that is poorly, moulting (`isMoulting`: cats, dogs,
+  bunnies and foxes in spring and autumn, from the drive's `season`) or
+  messy (a tummy ache: `conditionsFromIllnesses(store.sickAnimals)`), and
+  for each pair of orthogonal neighbours that squabble
   (`pairFeeling` 'stressed' because the species disagree; a healthy animal
   giving a poorly one space is `needsQuiet`, not a squabble, and makes no
-  mess). Crossing 0.5 fires `dirty-outside` / `dirty-inside` once.
-- **Paying (24A).** Fuel and the wash in coins; the workshop in Depot parts.
-  `payCoins` never takes more than she holds (the vet's precedent; open
-  question 3). `canAffordParts` / `spendParts` read and spend
-  `DepotInventory.parts`.
+  mess). Crossing 0.5 fires `dirty-outside` / `dirty-inside` once. A dirty
+  inside makes each animal aboard a little less happy on arrival
+  (`arrivalHappinessEach`, also on `applyDrive`'s result: −3).
+- **Cleaning the inside (answer 1).** Four ways, all to nought: `cleanByHand`
+  at A.R.C. (free, 15 min, a care beat: sweep, fresh bedding), `hoover` at
+  either station (1 coin, inside only), `valet` at the workshop (Depot parts,
+  from level 6), or the `wash` (1 coin, inside and out together). Hand and
+  hoover open with the wash at level 4.
+- **Paying (24A, answers 3 and 4).** Fuel, the wash and the hoover in coins;
+  the workshop in Depot parts. `payCoins` never takes more than she holds,
+  and she still gets the whole fill or wash (answer 3). `service` and `valet`
+  take the Depot parts bag (`depot.inventory.parts`) and either pay from it
+  (`partsLeft` to write back) or, if anything is short, return
+  `refused: 'need-parts'` with the bill and `missingParts`: the workshop
+  sends her to the Depot first (answer 4). Nothing is mended and nothing is
+  spent; the spanner light stays on and the van still drives, bumpier. It is
+  all or nothing: the workshop does not mend half a van.
 - **Wrong but safe.** Nothing is locked out. A clean van may go through the
-  wash (the animals enjoy it, same coin). A van may be serviced before its
-  light comes on (no parts, wear back to nought). A fuel van at A.R.C.'s
-  charger, or Spark at the workshop, is refused as `not-here`, free. A
-  punctured Trikey still rides.
+  wash (the animals enjoy it, same coin), and a clean inside may be swept or
+  hoovered again (same price). A van may be serviced before its light comes
+  on (no parts, wear back to nought). A fuel van at A.R.C.'s charger, or
+  Spark at the workshop, is refused as `not-here`, free. A punctured Trikey
+  still rides, and so does a van the workshop sent to the Depot.
 
 ### The repair part codes (24A)
 
@@ -118,11 +142,15 @@ drive" = 2.5 km (Birchie is about 4 km across).
 | `PUNCTURE_PER_KM` / `_TRACK` / `_KERB` | 0.012 / 0.04 / 0.1 | Trikey: one puncture in ~33 lane drives |
 | `OUTSIDE_DIRT_PER_TRACK_KM` | 0.25 | 1 km of farm track a trip: dirty in two trips |
 | `OUTSIDE_DIRT_PER_KM_RAIN` / `_SNOW` / `_WINTER` / `_BASE` | 0.03 / 0.05 / 0.025 / 0.005 | Winter alone: dirty in ~7 drives; dry summer roads: ~40 |
-| `INSIDE_DIRT_PER_KM_SICK` / `_MOULTING` / `_MESSY` / `_SQUABBLE` | 0.05 / 0.04 / 0.08 / 0.04 | One sick passenger: dirty inside in ~4 drives; a messy one ~2–3; a squabbling pair ~5 |
+| `INSIDE_DIRT_PER_KM_SICK` / `_MOULTING` / `_MESSY` / `_SQUABBLE` | 0.05 / 0.04 / 0.08 / 0.04 | One sick passenger: dirty inside in ~4 drives; a moulting one ~5; a tummy ache (sick + messy) ~2; a squabbling pair ~5 |
 | `DIRTY_AT` | 0.5 | Either kind "dirty" |
+| `DIRTY_INSIDE_ARRIVAL_HAPPINESS` | −3 | Each animal, on arrival, while the inside is dirty (the tow is −8) |
 | `WASH_COINS` | 1 | Decision 26A |
 | `WASH_PERK_HAPPINESS` | +5 | Each animal aboard |
 | `WASH_MINUTES` | 10 | |
+| `HAND_CLEAN_MINUTES` | 15 | Free |
+| `HOOVER_COINS` / `HOOVER_MINUTES` | 1 / 5 | |
+| `VALET_PARTS` / `VALET_MINUTES` | rusty_bolt 1 / 20 | |
 
 ## What the scene will need to call, and when
 
@@ -140,27 +168,34 @@ Nothing in `apps/game/` was touched. To wire it in:
    { vehicle, level, roadClass, km, weather, season, grid, conditions, rng })`.
    On `low`, glow the gauge and have the GPS offer
    `nearerStation({ 'station-west': routeKm(...), 'station-east': routeKm(...) })`.
-   On `ran-dry`, the verge, hazards and tow beat, then apply `towCost(grid)`.
+   On `ran-dry`, the verge, hazards and tow beat to the nearer station, then
+   apply `towCost(grid, { 'station-west': km, 'station-east': km })` (or read
+   `tow` from `applyDrive`, which asks `report.stationKmAt`).
+   Pass `season` and `conditions: conditionsFromIllnesses(store.sickAnimals)`
+   so moulting and tummy aches feed the inside dirt.
    On each handbrake, self-stop (ride-comfort.ts's `EMERGENCY`) or kerb:
    `applyRoughEvent(upkeep, 'hard-stop' | 'self-stop' | 'kerb', ...)`.
    Or, simpler: one `applyDrive(upkeep, report)` at the end of the drive with
    the legs and the counts (the low warning then cannot show mid-drive).
-4. **At a station / A.R.C. / the workshop:** `refuel` (with `to` < 1 for a
-   pump released early), `wash`, `service`. Each returns the new upkeep,
-   `coins` (pass through `payCoins`), `parts` (check `canAffordParts`, take
-   with `spendParts` from `depot.inventory.parts`), `minutes` to advance the
-   clock and `happinessEach` for the animals aboard, or `refused`.
-5. **After a supply run:** `recordSupplyRunDamage(upkeep, run.damages, level)`
+4. **On arrival:** apply `arrivalHappinessEach` to each animal aboard.
+5. **At a station / A.R.C. / the workshop:** `refuel` (with `to` < 1 for a
+   pump released early), `wash`, `hoover`, `cleanByHand`, `service` and
+   `valet` (these two take `depot.inventory.parts`). Each returns the new
+   upkeep, `coins` (pass through `payCoins`), `parts` and `partsLeft` (write
+   back to `depot.inventory.parts`), `minutes` to advance the clock and
+   `happinessEach` for the animals aboard, or `refused`. On `need-parts`,
+   tell her the workshop needs `missingParts` from the Depot.
+6. **After a supply run:** `recordSupplyRunDamage(upkeep, run.damages, level)`
    on the van that drove it.
-6. **Coins:** `GameScene.rewardSafeDrive` (`:662`) pays no coins for a drive;
+7. **Coins:** `GameScene.rewardSafeDrive` (`:662`) pays no coins for a drive;
    supply runs are the income. Prices above assume that.
 
 ## Missing from the game
 
-- **Moulting.** No such condition. `PassengerCondition.moulting` is an
-  input; the scene passes false until it exists.
-- **Makes a mess.** No such condition. `PassengerCondition.messy` is an
-  input. Nearest existing thing: the vet's `tummy_ache` illness.
+- **Moulting** is not an animal condition in the game; the model works it
+  out from species and season (`isMoulting`). Included: cat, dog, bunny,
+  fox. Left out of the game's eight: bat, parrot, snake, hedgehog.
+- **Makes a mess** comes from the vet's `tummy_ache` (`MESSY_ILLNESSES`).
 - **Sick** exists: `GameStateStore.sickAnimals`, already carried onto each
   crate as `poorly`. Used as is.
 - **Which van a supply run uses.** `SupplyRunState` names no vehicle, so the
@@ -171,52 +206,53 @@ Nothing in `apps/game/` was touched. To wire it in:
   Ids only here (`station-west`, `station-east`, `workshop`, `arc-charger`);
   their in-game names are still to be chosen with Marcus.
 
-## Open questions for Marcus
+## Decided (Marcus, 2026-10-12)
 
-1. **How does the inside get cleaned?** (26A left it open; the wash does not touch it.)
-   - A. At A.R.C., by hand: a short care beat (sweep, fresh bedding), free, takes a little time.
-   - B. An extra at the car wash: a hoover for another coin.
-   - C. At the workshop, as a valet, for Depot parts.
-   - D. The car wash does inside and out together for its one coin.
-   - **Recommend A.** It belongs to the care loop like grooming, costs time not coins, and keeps the wash a simple one-coin treat.
-2. **Does a dirty van cost anything if she ignores it?** (Not decided; the model only tracks it.)
-   - A. No: dirt is only seen, and the wash is a treat.
-   - B. Inside dirt makes the animals a little less happy on arrival; outside dirt is only seen.
-   - C. Both kinds cost some happiness.
-   - **Recommend B.** Inside dirt is what the animals sit in; mud on the outside is part of the fun.
-3. **What if she cannot pay for fuel or the wash?**
-   - A. She pays what she has and still gets the fill (as built, like the vet being free when she is short).
-   - B. She gets only what her coins buy.
-   - C. She cannot fill until she has the coins.
-   - **Recommend A.** Running dry on purpose because a purse is empty would be locking her out. (C goes against the design rule.)
-4. **What if she lacks the Depot parts for the workshop?** (The model gives the bill and does not refuse.)
-   - A. The workshop mends it anyway and takes what she has.
-   - B. It mends it and the parts are owed, taken from the next Depot sessions.
-   - C. It sends her to the Depot first; the van keeps its spanner light meanwhile (still driveable).
-   - **Recommend C.** The van still drives (bumpier), which is the cost, and it teaches the Depot-to-workshop link the original spec wanted.
-5. **Where does the tow take her?**
-   - A. On to where she was going, with a splash of fuel.
-   - B. To the nearer station.
-   - C. Home to A.R.C.
-   - **Recommend A.** A vet run still ends at the vet, and the animals' wait is already the cost. The model leaves a splash in the tank either way.
-6. **Spark's charge at A.R.C.: free?** (Built: free and slow, 2 in-game hours from empty.)
-   - A. Free and slow (as built).
-   - B. A few coins, still slow.
-   - **Recommend A.** The home charger is the reason to own an electric van.
-7. **Is Trikey ever washed?** (Built: no; it gathers no dirt either.)
-   - A. No.
-   - B. Yes, outside only (a pedal trike through the wash is a joke Lily might love).
-   - **Recommend A** for now; B is a cheap later treat.
-8. **Supply-run damage below level 6.** Supply runs start at level 0 and the workshop opens at 6.
-   - A. Below 6 the damage is shown at the end of the run and forgotten (as built).
-   - B. Kept on the van, and waiting at the workshop when it opens.
-   - **Recommend A.** Otherwise a child arrives at level 6 to a huge bill.
-9. **Moulting and mess.** Neither condition exists.
-   - A. Add them: moulting by species and season (cats, dogs, bunnies, foxes in spring and autumn); mess from the vet's `tummy_ache`.
-   - B. Mess only, from `tummy_ache`; no moulting.
-   - C. Leave both out; inside dirt comes only from sick animals and squabbles.
-   - **Recommend A.** It is cheap and links the van to the seasons and the vet.
-10. **The numbers.** Every tunable above is a guess. The main one to check by feel: Henry needs fuel every ~5 drives, a full tank costs 24 coins, and a Bramble Farm supply run pays 50.
-    - A. Keep them, tune after playing.
-    - B. Make fuel cheaper (e.g. half) until drives pay coins.
-    - **Recommend A**, and look again once a drive pays.
+His answers to the ten questions this doc first asked (numbered 42–51 in the
+conversation).
+
+1. **Cleaning the inside: all four ways exist.** By hand at A.R.C., a short
+   care beat (sweep, fresh bedding), free, takes a little time. A
+   coin-operated hoover at the petrol station (both stations), one coin,
+   inside only. A valet at the workshop, paid in Depot parts. And the car
+   wash cleans inside and out together for its one coin. So the hoover is the
+   cheap inside-only choice and the wash the do-everything one.
+2. **B.** Inside dirt makes the animals a little less happy on arrival;
+   outside dirt is only seen.
+3. **A.** If she cannot pay for fuel or the wash, she pays what she has and
+   still gets the fill (as built).
+4. **C.** If she lacks the Depot parts, the workshop sends her to the Depot
+   first; the van keeps its spanner light meanwhile and stays driveable
+   (bumpier). The model says so as a result, not a silent refusal.
+5. **B.** When she runs dry, the tow takes her to the nearer petrol station
+   (not on to her destination); she fills there. Time and coins lost and the
+   animals restless, as decided in 23A.
+6. **A.** Spark's charge at A.R.C. is free and slow (as built).
+7. **B.** Trikey can go through the car wash, outside only (a pedal trike
+   through the wash is a joke Lily may love). Trikey gathers outside dirt
+   (tracks, winter) and can be washed; still no fuel.
+8. **A.** Supply-run damage below level 6 is shown at the end of the run and
+   forgotten (as built).
+9. **A.** Moulting by species and season (cats, dogs, bunnies, foxes in
+   spring and autumn), and mess from the vet's `tummy_ache`; both feed inside
+   dirt. Of the game's species, the four he named are in; bats, parrots,
+   snakes and hedgehogs are not.
+10. **A.** Keep the tunable numbers; tune after playing.
+
+## Still open
+
+- **Numbers to feel out in play (10).** In particular the new ones: −3
+  happiness for a dirty inside, a 15-minute hand clean, a 1-bolt valet. And
+  moulting now runs half the year: two moulting dogs aboard in spring make
+  the inside dirty in ~2–3 drives, which may be too often.
+- **Does the hand clean or the hoover cheer the animals, like the wash?**
+  Built: no, only the wash perks them up.
+- **The hoover costs the same coin as the wash**, which does more. Marcus
+  called the hoover "the cheap" choice: it is quicker (5 min against 10) but
+  not cheaper in coins, since one coin is the smallest price. Leave it, or
+  make the hoover free?
+- **The splash after the tow.** The tow drops her at the station to fill,
+  but still leaves a splash in the tank in case the scene lets her drive off
+  without filling. Keep as a safety net, or drop it?
+- **Snakes shedding, parrots moulting** could later join moulting if wanted.
+- The in-game names of the stations, workshop and A.R.C.'s charger.
