@@ -6,7 +6,8 @@
  * Under reduced motion the world still rotates, because the road bending is
  * the information, but the screen shake, the van's judder and the speed
  * camera's full-screen white flash go: they say nothing the sound and the
- * words on screen do not already say. Marcus, 2026-10-11
+ * words on screen do not already say. The gear prompt's pulse goes too: it
+ * holds steady, with a toast. Marcus, 2026-10-11
  * (docs/driving-port-plan-2026-10-11.md section 5, answer 5).
  *
  * Asked fresh each time, as `isMotionReduced` asks for itself, so a carer
@@ -23,8 +24,11 @@ export interface DriveJolts {
   judder: boolean;
   /** The speed camera's full-screen white flash. */
   cameraFlash: boolean;
+  /** The gear knob prompt pulses; under reduced motion it holds steady and a
+   *  toast says which gear suits the road instead (30A). */
+  gearHintPulse: boolean;
 }
 
 export function driveJolts(reduced: boolean = isMotionReduced()): DriveJolts {
-  return { shake: !reduced, judder: !reduced, cameraFlash: !reduced };
+  return { shake: !reduced, judder: !reduced, cameraFlash: !reduced, gearHintPulse: !reduced };
 }
