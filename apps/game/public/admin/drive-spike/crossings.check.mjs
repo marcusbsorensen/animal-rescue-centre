@@ -191,13 +191,14 @@ function clearance(car, a) {
 const totals = {
   seeds: 0, minutes: 0, routes: 0, crossings: 0, crossed: 0, late: 0, sleeping: 0,
   praised: 0, selfStops: 0, emergencyFrames: 0, families: 0, contacts: 0, minClear: Infinity, skew: 0, minClearSide: {}, lateBy: {},
-  offSmall: 0, winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {}, bodies: {},
+  offSmall: 0, rest: [], restForced: [], restCareful: [], outSlow: [], outFast: [], winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {}, bodies: {},
 };
 const fail = [];
 
 function drive(seed, newRouteFn, season, label) {
   const r = rng(seed * 31 + 5);
   const watchful = r();                      // how often this driver watches the road
+  const careful = seed % 5 === 2;
   const stats = { praised: 0, emergencyFrames: 0 };
   let { route } = newRouteFn(r);
   const world = () => ({ graph: newRouteFn.graph(), mapToWorld, season });
@@ -259,6 +260,16 @@ function drive(seed, newRouteFn, season, label) {
         if (c.state === 'go' && c.blocking && gap > 0 && gap < 30) { held = false; hb = gap < 6; }
       }
     }
+    // A careful driver (one seed in five) slows to a crawl on seeing an
+    // animal waiting ahead, creeps up in first, and stops the moment it
+    // steps out: where the van then rests is where she watches it cross.
+    if (careful) {
+      for (const c of xing.crossings) {
+        const gap = c.s - (car.s + car.length / 2);
+        if (c.state === 'wait' && c.party.length && c.seen > 0 && gap > 0 && gap < 18) { held = car.v < 1.2; hb = false; car.gear = 1; }
+        if (c.state === 'go' && c.blocking && gap > 0 && gap < 30) { held = false; hb = true; }
+      }
+    }
     const arrived = stepCar(car, route, xing, dt, { throttle: held, handbrake: hb }, stats);
 
     for (const a of crossings.animals(xing, car.camH)) {
@@ -274,6 +285,21 @@ function drive(seed, newRouteFn, season, label) {
       if (cl <= 0) { totals.contacts++; fail.push(`${label}: contact with ${a.kind} at t=${t.toFixed(1)} s=${car.s.toFixed(1)} v=${car.v.toFixed(2)}`); }
     }
     settle(xing);
+    // How far ahead of the nose an animal set out, by the van's speed then.
+    for (const c of xing.crossings) {
+      if (c.state === 'go' && c.blocking && !c._out) {
+        c._out = true;
+        (car.v < 2 ? totals.outSlow : totals.outFast).push(c.s - (car.s + car.length / 2));
+      }
+    }
+    // Where the van came to rest for a crossing: its nose to the animal's line.
+    if (car.v < 0.05) for (const c of xing.crossings) {
+      if (c.state === 'go' && c.blocking && !c._rest) {
+        c._rest = true;
+        const d = c.s - (car.s + car.length / 2);
+        if (d > 0 && d < 30) { totals.rest.push(d); if (c.forced) totals.restForced.push(d); if (careful) totals.restCareful.push(d); }
+      }
+    }
 
     // Arrival, then a new route from there; now and then a jump onto a fresh
     // route part way along, as the page's "to big road" button does.
@@ -350,6 +376,11 @@ console.log(`by place ${JSON.stringify(totals.byPlace)}`);
 console.log(`crossed by season ${JSON.stringify(totals.bySeason)}`);
 console.log(`she stopped by herself ${totals.praised}, the van stopped itself ${totals.selfStops} (${totals.emergencyFrames} hard-braking frames), crossed behind the van ${totals.late}`);
 console.log(`crossed behind the van, by species and how the phone was held ${JSON.stringify(totals.lateBy)}`);
+{
+  const q = (xs, f) => { const a = [...xs].sort((x, y) => x - y); return a.length ? a[Math.floor(f * (a.length - 1))].toFixed(1) : 'n/a'; };
+  console.log(`where the van came to rest for a crossing, nose to the animal's line: median ${q(totals.rest, 0.5)} m (10% ${q(totals.rest, 0.1)}, 90% ${q(totals.rest, 0.9)}; ${totals.rest.length} stops); when it stopped itself median ${q(totals.restForced, 0.5)} m; a careful driver who creeps up and stops as it steps out median ${q(totals.restCareful, 0.5)} m (10% ${q(totals.restCareful, 0.1)}, 90% ${q(totals.restCareful, 0.9)}; ${totals.restCareful.length}); the van is ${VAN_L.toFixed(1)} m long`);
+  console.log(`how far ahead of the nose an animal set out: van creeping or standing median ${q(totals.outSlow, 0.5)} m (${totals.outSlow.length}), moving median ${q(totals.outFast, 0.5)} m (${totals.outFast.length})`);
+}
 console.log(`contacts ${totals.contacts}, closest the van came to a crossing animal's drawn body ${totals.minClear.toFixed(2)} m`);
 console.log(`closest while it blocked the road: upright ${totals.minClearSide.upright?.toFixed(2)} m, sideways ${totals.minClearSide.sideways?.toFixed(2)} m; the camera turned at most ${totals.skew.toFixed(2)} rad off a crossing's line within 6 m of it (crossings.js allows ${crossings.CAMERA_SKEW})`);
 console.log(`drawn bodies measured (box across x along, first seen): ${Object.entries(totals.bodies).map(([k, v]) => `${k} ${v}`).join(', ')}`);

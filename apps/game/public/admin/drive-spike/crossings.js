@@ -59,12 +59,17 @@ const START_CLEAR_M = 35;     // none where the van sets off...
 const END_CLEAR_M = 45;       // ...or where it pulls up
 
 /** How far ahead of the van's nose an animal starts to cross, by the van's
- *  speed. The lane zoom shows about 14 m ahead of the nose standing and 20 m
- *  at 13 m/s; she sees the animal waiting on the verge before this. Close
- *  enough that a child who stops when it steps out still has it well inside
- *  the screen once the camera has come in (16 m at 13 m/s leaves ~10 m after
- *  braking), and far enough that the van can always stop for it. */
-function triggerGap(v) { return 8 + 0.6 * v; }
+ *  speed. The van should come to rest about one van length short of it, so
+ *  it crosses mid-screen where she is looking (Marcus, 2026-10-12, 39A: it
+ *  used to set out ~10 m ahead, and once the camera had come in it crossed
+ *  up under the chips). So it sets out when a child who lets go a moment
+ *  after it moves (REACT_S, then the page's BRAKE) stops STOP_AT_M short of
+ *  its line; if she does not, the van stops itself at the closed stretch,
+ *  nearer still. Never so near the van could not stop (COMMIT_DECEL). */
+const STOP_AT_M = 4.5, REACT_S = 0.3, LET_GO = 14;
+function triggerGap(c, v) {
+  return Math.max(STOP_AT_M, c.near + 0.5) + REACT_S * v + v * v / (2 * LET_GO);
+}
 
 /** But never before she has had a moment to see it waiting. Held sideways,
  *  or at speed before the camera has pulled back, the screen can show less
@@ -614,7 +619,7 @@ export function step(xing, dt, van, others = []) {
       const v = van.view;
       if (v?.ahead == null || c.s - van.s < v.ahead) c.seen += dt;
       const clear = v?.ahead == null || !v.ppm || c.s + c.top - van.s < v.ahead - chipsPx(v, xing.t) / v.ppm;
-      if (c.s - nose <= triggerGap(van.v) && c.seen >= SEEN_S && clear) {
+      if (c.s - nose <= triggerGap(c, van.v) && c.seen >= SEEN_S && clear) {
         if (gap < van.v * van.v / (2 * COMMIT_DECEL) + 0.5) c.state = 'late';
         else if (trafficClear(c, others)) { c.state = 'go'; c.blocking = true; c.moving = van.v > 0.5; }
         // else something is coming the other way, or is between the van and
