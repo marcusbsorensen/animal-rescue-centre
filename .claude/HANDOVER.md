@@ -30,25 +30,30 @@ rabbit is a few pixels), hence the routine below. The root-test worry is
 closed: the routine could not reproduce the timeouts in 5 runs, and CI run
 #481 on main runs and passes every package including the app.
 
-**Merged 2026-10-11 night (all checks green, e2e 4/4):** vehicle outlines
-(now 0.65 of the hedges' weight, `vehicle-look.js`), turning tyre tread,
-crossing animals (still too small, being replaced), port answers Q5–Q8/Q10 in
-`PtvDriveScene.ts`. Road data committed: `assets/driving/trunk-carriageways.json`
-(what each A28 edge really is) and `trikey-links.json` (Trikey's extra paths
-and the two crossings she may use). The routine `arc-spike-road-paint` died at
-the five-hour usage limit (cloud routines share Marcus's limit) and lost its
-work; every prompt now says push early and often.
+**Merged 2026-10-12 01:00 (5e30f76; all checks green: game 1050, game-logic
+1193, typecheck, traffic and crossings checks, e2e 4/4):** a28-model (TS
+speeds/zoom by carriageway, Trikey 18A: 6 of 14 places, 44 of 210 pairs
+reachable, worst detour +1,637 m), tube-man (`/admin/tube-man.html`),
+side-view crossing animals with a gait-synced glow (hedgehog and fox only;
+the rest wait for art), road paint (`?road=0|1|2`, 1 default), gears first
+pass (pulsing knob, drum numeral, clunk, lurch; its lock is overruled by
+30A). Earlier: vehicle outlines at 0.65, turning tread, port answers,
+trunk-carriageways.json, trikey-links.json. The tractor is drawn nose-first
+both ways (checked). Screenshots: session scratchpad `merge-shots/`.
 
-**In flight (check each with RemoteTrigger list_runs and git ls-remote on the
-claude branches; merge, run the checks, screenshot for Marcus):**
-- `arc-spike-road-paint-2` (`trig_01QsJEGA5ZPtBBPBkQnp5JkH`) → `claude/spike-road-paint`: tarmac, grit, dust, earth tracks, hand-painted lines; `?road=0|1|2`. Owns drawRoads.
-- `arc-a28-model` (`trig_01EChsKzNshhu76p6D2E8fTz`) → `claude/a28-model`: TS speeds and zoom by carriageway kind, Trikey rule 18A (expect 6 of 14, 44 pairs, +1,637 m), `crossingsOnRoute`, `reachableFor`.
-- `arc-spike-animals-sideview` (`trig_01QGTXAMchbhPVPqKMxgZodF`) → `claude/spike-animals-sideview`: the game's own side-view hedgehog and fox, fine contour, gait-synced pulsing glow (21A); toast backing; ducklings clear of the HUD; tractor nose check.
-- `arc-tube-man` (`trig_01PE1q1ndQi4zjw69ZpaUHz9`) → `claude/tube-man`: `/admin/tube-man.html`, the rig animated in code (29A).
-- `arc-spike-gears` (`trig_01FoxWx92DsELVMBoTcJyXzg`) → `claude/spike-gears`: 30A, the right knob pulses, a big numeral, clunk and lurch. **Its prompt locked gears per road; Marcus then decided every gear works on every road** (like a bike's; a wrong gear costs, see the gears section of `docs/driving-rebuild-2026-10-11.md`). When it lands, launch a follow-up on its branch: remove the dimmed knobs, the 'nope' and the ease-down; the too-fast consequences instead.
-- A local agent painting rabbit, duck, duckling, pheasant and deer candidates with ComfyUI into the session scratchpad `crossing-art/` (contact.png) for Marcus to choose; nothing goes in the repo until he picks.
+**30A, Marcus 2026-10-12: every gear works on every road**, like a bike's; a
+wrong gear costs (speed camera, jostle, dust; traffic queues if too slow on
+the dual). Recorded in the gears section of `docs/driving-rebuild-2026-10-11.md`
+and memory `arc-consequences-not-locks`.
 
-After the A28 model and the road paint land: a spike job drawing the A28 by kind (dual / divided / single). Not yet started: the fuel, workshop, wash and charging model (decisions 22–28 in `docs/fuel-workshop-carwash-2026-10-12.md`).
+**In flight (cloud; check with RemoteTrigger list_runs and git ls-remote,
+merge, run the checks, screenshot for Marcus):**
+- `arc-van-upkeep` (`trig_012zZPH77nGzTcAEouSRpmER`) → `claude/van-upkeep`: game-logic model for fuel, charge, wear, dirt (decisions 22–28), part codes fixed, doc with questions for Marcus.
+- `arc-spike-gears-free-a28` (`trig_01EmunpNJbeLDAeqG6CiTfBA`) → `claude/spike-gears-free-a28`: the spike's gear lock removed with consequences instead; the A28 drawn by kind (dual/divided/single), big-road zoom only on the real dual.
+- `arc-road-gears-30a` (`trig_01CkM72E5nfVhfpiohMX53tA`) → `claude/road-gears-30a`: 30A in `road-gears.ts` and `PtvDriveScene.ts`; run the e2e locally after merging.
+- A local agent painting rabbit, duck, duckling, pheasant and deer candidates with ComfyUI into the session scratchpad `crossing-art/` (contact.png) for Marcus to choose; nothing goes in the repo until he picks. (FreqShift's agent cancelled `arcx_rabbit_p0_s23` overnight; it is being re-queued.)
+
+Still to do: port the look work (outlines, wheels, road paint, side-view animals, tube man) into the port plan; place names for the stations and workshop (allude, never name).
 
 ## Open questions for Marcus (ask numbered, lettered, recommendation marked)
 1. **Answered 15D, with a condition**: crossing a dual carriageway only by a
