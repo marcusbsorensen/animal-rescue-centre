@@ -144,7 +144,8 @@ function run(seed) {
     oncomingPasses: 0, overtakes: 0, blockedFrames: 0, maxVehicles: 0, wraps: 0,
     worst: null,
   };
-  let wasEmergency = false, holdWas = false;
+  let wasEmergency = false, holdWas = false, follow = null;
+  out.follows = 0; out.followDrift = 0; out.followMinDrift = Infinity; out.followMaxDrift = 0; out.lockstep = 0;
   const seenAhead = new Map(), oracle = new Map();
   out.expectedClose = 0;
   let t = 0;
@@ -198,12 +199,17 @@ function run(seed) {
 
     const target = throttle ? GEARS[car.gear] : 0;
     let emergency = 0;
+    let capped = 0;
     if (car.v > res.speedCap) {
-      emergency = EMERGENCY;
+      const v0 = car.v;
       car.v = Math.max(res.speedCap, car.v - EMERGENCY * dt);
+      capped = (v0 - car.v) / dt;
     } else if (handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
     else if (car.v < target) car.v = Math.min(target, res.speedCap, car.v + ACCEL * dt);
     else car.v = Math.max(target, car.v - BRAKE * dt);
+    // As the page: only a stop harder than letting go, felt over 0.1 s.
+    car.felt = (car.felt ?? 0) + (capped - (car.felt ?? 0)) * (1 - Math.exp(-dt / 0.1));
+    if (capped > 0 && car.felt > BRAKE + 0.5) emergency = EMERGENCY;
     if (emergency && !wasEmergency) {
       out.emergencies++;
       const k = 'em:' + trf.last.capBy + (car.laneT > 0.01 ? ' (van in lane 1)' : '');
@@ -229,6 +235,23 @@ function run(seed) {
     car.heading = pos.h;
     // ---- end of the page's step()
 
+    // A steady follow: held behind the same vehicle in lane 0 with the
+    // throttle down. How far the gap wanders over each, and how often the
+    // two move in lockstep (the gap within 5 cm for two seconds).
+    {
+      let lead = trf.last.capBy === 'lead' && throttle && !handbrake && car.laneT < 0.01 && Math.abs(car.v - res.speedCap) < 0.3
+        ? trf.vehicles.filter(w => w.dir > 0 && w.s > car.s).sort((a, b) => a.s - b.s)[0] : null;
+      if (lead && (lead.v < 1 || Math.abs(lead.v - car.v) > 1.5)) lead = null;   // a queue standing, or still closing in
+      if (lead && follow && follow.w === lead) {
+        const g = lead.s - lead.L / 2 - (car.s + car.length / 2);
+        follow.t += dt;
+        if (follow.t > 5) { follow.lo = Math.min(follow.lo, g); follow.hi = Math.max(follow.hi, g); }   // settled in
+        if (Math.abs(g - follow.g0) > 0.05) { follow.g0 = g; follow.still = 0; } else if ((follow.still += dt) > 2 && !follow.lock) { follow.lock = true; out.lockstep++; }
+      } else {
+        if (follow && follow.t > 15) { out.follows++; out.followDrift += follow.hi - follow.lo; out.followMinDrift = Math.min(out.followMinDrift, follow.hi - follow.lo); out.followMaxDrift = Math.max(out.followMaxDrift ?? 0, follow.hi - follow.lo); }
+        follow = lead ? { w: lead, t: 0, lo: Infinity, hi: -Infinity, g0: Infinity, still: 0, lock: false } : null;
+      }
+    }
     out.frames++;
     const hold = trf.last?.hold;
     if (hold && !holdWas) out.holds++;
@@ -285,8 +308,8 @@ for (let seed = FIRST; seed < FIRST + SEEDS; seed++) {
   const r = run(seed);
   for (const [k, v] of Object.entries(r)) {
     if (typeof v !== 'number') continue;
-    if (k === 'minSep') totals[k] = Math.min(totals[k] ?? Infinity, v);
-    else if (k === 'maxVehicles') totals[k] = Math.max(totals[k] ?? 0, v);
+    if (k === 'minSep' || k === 'followMinDrift') totals[k] = Math.min(totals[k] ?? Infinity, v);
+    else if (k === 'maxVehicles' || k === 'followMaxDrift') totals[k] = Math.max(totals[k] ?? 0, v);
     else totals[k] = (totals[k] ?? 0) + v;
   }
   const bad = r.overlaps || r.enteredOnTrack || r.enteredNearBend || r.lane1OnTrack;
@@ -308,7 +331,8 @@ console.log(`  'close'                          ${totals.close}   (clean overtak
 console.log(`  'beep'                           ${totals.beep}`);
 console.log(`  vehicles passed                  ${totals.overtakes}`);
 console.log(`  oncoming vehicles met            ${totals.oncomingPasses}`);
-console.log(`  emergency stops by the page      ${totals.emergencies}`);
+console.log(`  steady follows over 15 s         ${totals.follows}: the gap wandered ${(totals.followDrift / Math.max(1, totals.follows)).toFixed(2)} m on average (least ${totals.followMinDrift.toFixed(2)} m, most ${(totals.followMaxDrift ?? 0).toFixed(2)} m); in lockstep for 2 s ${totals.lockstep} times`);
+console.log(`  hard stops by the page           ${totals.emergencies}`);
 for (const k of Object.keys(totals).filter(k => k.startsWith('em:')).sort()) console.log(`    ${k.slice(3).padEnd(28)} ${totals[k]}`);
 console.log(`  times held out (swipe back refused while alongside) ${totals.holds}`);
 console.log(`  most vehicles at once            ${totals.maxVehicles}`);

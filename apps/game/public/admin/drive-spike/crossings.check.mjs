@@ -114,10 +114,14 @@ function stepCar(car, route, xing, dt, input, stats) {
   const toGo = route.length - car.s;
   const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
   const target = Math.min(input.throttle ? GEARS[car.gear] : 0, arriveCap);
-  if (car.v > cap) { car.v = Math.max(cap, car.v - EMERGENCY * dt); stats.emergencyFrames++; }
+  let capped = 0;
+  if (car.v > cap) { const v0 = car.v; car.v = Math.max(cap, car.v - EMERGENCY * dt); capped = (v0 - car.v) / dt; }
   else if (input.handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
   else if (car.v < target) car.v = Math.min(target, cap, car.v + ACCEL * dt);
   else car.v = Math.max(target, car.v - BRAKE * dt);
+  // Felt as a hard stop as the page counts it: harder than letting go, over 0.1 s.
+  car.felt = (car.felt ?? 0) + (capped - (car.felt ?? 0)) * (1 - Math.exp(-dt / 0.1));
+  if (capped > 0 && car.felt > BRAKE + 0.5) stats.emergencyFrames++;
   car.s = Math.min(route.length - STOP_SHORT_M, car.s + car.v * dt);
 
   const off0 = route.laneOffset(0, car.s), off1 = route.laneOffset(1, car.s);

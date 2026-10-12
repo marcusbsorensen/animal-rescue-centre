@@ -402,6 +402,7 @@ const SEASON = (() => {
  *  ahead. There is never an accident; this stop is the cost, felt by whoever
  *  is in the back. */
 const EMERGENCY = 26;  // m/s^2
+const FELT_S = 0.1;    // s: how long a stop takes to be felt
 
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
@@ -688,17 +689,24 @@ function step(dt) {
   // The gear sets how fast go is, on every road: third on a lane is third.
   const gearV = GEARS[car.gear];
   const target = Math.min(throttle ? gearV : 0, arriveCap);
-  let emergency = 0;
+  let emergency = 0, capped = 0;
   if (car.v > t.speedCap) {
     // Something is ahead and the child has not braked: the van does it.
-    emergency = EMERGENCY;
+    const v0 = car.v;
     car.v = Math.max(t.speedCap, car.v - EMERGENCY * dt);
+    capped = (v0 - car.v) / dt;
   } else if (handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
   else if (car.v < target) {
     const pull = Math.max(TOP_PULL, Math.min(1, (gearV - car.v) / TOP_OUT));
     car.v = Math.min(target, t.speedCap, car.v + ACCEL * pull * dt);
   } else if (throttle && target === gearV) car.v = Math.max(target, car.v - ENGINE_EASE * dt);
   else car.v = Math.max(target, car.v - BRAKE * dt);
+  // Only a genuinely hard stop, harder than letting go, is felt in the back:
+  // settling in behind a slower vehicle trims the speed a little at a time
+  // and is not rough driving (it used to count, every frame of a follow).
+  // Felt over a tenth of a second, as a body would.
+  car.felt = (car.felt ?? 0) + (capped - (car.felt ?? 0)) * (1 - Math.exp(-dt / FELT_S));
+  if (capped > 0 && car.felt > BRAKE + 0.5) emergency = car.felt;
   car.gearHint = gearHint(dt);
   const speeding = gearCosts();
 

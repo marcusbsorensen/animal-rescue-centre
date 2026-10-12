@@ -448,11 +448,17 @@ export function step(T, dt, van, world = {}) {
     if (w.dir > 0) {
       if (w.s < van.s) continue;   // behind: it keeps off us, not we off it
       const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, wider(w.d, van.lane));
-      // Close in hard, then sit at the leader's speed anywhere in a following
-      // band, so a steady follow never flickers into a self-stop.
-      const band = 3 + 0.4 * w.v;
-      const cap = g >= band ? w.v + Math.sqrt(2 * VAN_APPROACH * (g - band))
-        : g >= 0 ? w.v : Math.max(0, w.v + 1.5 * g);
+      // Close in hard, then settle at a following gap that breathes: it
+      // drifts out and back by a metre or so, slowly and unevenly, so the van
+      // does not move in lockstep with the vehicle in front (Marcus,
+      // 2026-10-12). Never nearer than the band; below it the cap falls
+      // away as before.
+      const band = 3 + 0.4 * w.v, want = band + breath(T.time, w.id);
+      // (The approach is rounded off near the gap, so the gap moving does
+      // not jerk the cap.)
+      const cap = g >= want ? w.v + Math.sqrt(2 * VAN_APPROACH * (g - want) + ROUND * ROUND) - ROUND
+        : g >= 0 ? Math.max(0, w.v - Math.min(FOLLOW_DROP, FOLLOW_EASE * (want - g)))
+        : Math.max(0, Math.min(w.v - FOLLOW_DROP, w.v + 1.5 * g));
       if (cap < speedCap) { speedCap = Math.max(0, cap); capBy = 'lead'; }
     } else {
       if (wFront < vb.rear) continue;   // gone past
@@ -517,6 +523,21 @@ export function step(T, dt, van, world = {}) {
   return { speedCap, laneBlocked, laneHold: T.hold, events };
 }
 
+/** How much further back than the band the van sits behind a leader, metres:
+ *  three slow swells with unrelated periods, so it never repeats and never
+ *  looks like a wobble, phased by the leader so each follow is its own.
+ *  0 to BREATH_M. */
+const BREATH_M = 1.4;
+const FOLLOW_EASE = 0.45;   // 1/s: how quickly the van drifts to the gap it wants
+const ROUND = 2;            // m/s: how gently the approach meets the following gap
+const FOLLOW_DROP = 1;      // m/s: and at most this much slower than the leader as it drops back
+function breath(t, id) {
+  const p = id * 2.399;
+  const u = 0.5 * Math.sin(t * 2 * Math.PI / 9.7 + p) + 0.3 * Math.sin(t * 2 * Math.PI / 15.3 + 1.7 * p)
+    + 0.2 * Math.sin(t * 2 * Math.PI / 6.1 + 2.9 * p);
+  return BREATH_M * (0.5 + 0.5 * u);
+}
+
 /** The fastest speed from which a stop at `rate` fits in `room` metres,
  *  counting the one frame of travel before the brakes bite. */
 function stopSpeed(room, rate, dt) {
@@ -537,9 +558,9 @@ function sameSpeed(T, w, aiLead, van, vb, conflictsVan, dt) {
     gap = lead.rear - front - cornerExtra(T, front, lead.rear, wider(w.d, lead.d));
     dv = w.v - lead.v;
   }
-  // An animal crossing ahead: a standing obstacle, slowed for gently.
+  // An animal crossing ahead: slowed for at a steady ANIMAL_STOP and no
+  // harder (the following model would brake hard once close).
   const z = animalRoom(T, w, front);
-  if (z < gap) { gap = z + GAP; dv = w.v; }
   let v = w.v + clamp(idm(w.v, v0, gap, dv), -9, 2) * dt;
   if (lead) {
     const room = gap - (lead.van ? GAP : 1);
@@ -595,7 +616,6 @@ function oncSpeed(T, w, aiLead, van, vb, conflictsVan, dt) {
     cap = Math.min(cap, stopSpeed(g - vans, ONC_STOP, dt));
   }
   const z = animalRoom(T, w, front);
-  if (z < gap) { gap = z + GAP; dv = w.v; }
   if (isFinite(z)) cap = Math.min(cap, stopSpeed(z, ANIMAL_STOP, dt));
   let v = w.v + clamp(idm(w.v, v0, gap, dv), -9, 2) * dt;
   return clamp(Math.min(v, cap), 0, 40);

@@ -26,7 +26,7 @@ import { readFileSync } from 'node:fs';
 const SEEDS = Number(process.argv[2] ?? 24);
 const MINUTES = Number(process.argv[3] ?? 20);
 const STAND_MAX_S = 60;
-const GENTLE = 5;     // m/s²: the hardest any vehicle may slow for an animal (half a g)
+const GENTLE = 4;     // m/s²: the hardest any vehicle may slow for an animal
 
 // ----------------------------------------------------- the page's constants
 
@@ -188,14 +188,16 @@ function stepCar(car, R, T, X, dt, input, stats) {
   const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
   const gearV = GEARS[car.gear];
   const target = Math.min(input.throttle ? gearV : 0, arriveCap);
-  let emergency = 0;
-  if (car.v > t.speedCap) { emergency = EMERGENCY; car.v = Math.max(t.speedCap, car.v - EMERGENCY * dt); }
+  let emergency = 0, capped = 0;
+  if (car.v > t.speedCap) { const v0 = car.v; car.v = Math.max(t.speedCap, car.v - EMERGENCY * dt); capped = (v0 - car.v) / dt; }
   else if (input.handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
   else if (car.v < target) {
     const pull = Math.max(TOP_PULL, Math.min(1, (gearV - car.v) / TOP_OUT));
     car.v = Math.min(target, t.speedCap, car.v + ACCEL * pull * dt);
   } else if (input.throttle && target === gearV) car.v = Math.max(target, car.v - ENGINE_EASE * dt);
   else car.v = Math.max(target, car.v - BRAKE * dt);
+  car.felt = (car.felt ?? 0) + (capped - (car.felt ?? 0)) * (1 - Math.exp(-dt / 0.1));
+  if (capped > 0 && car.felt > BRAKE + 0.5) emergency = car.felt;
   if (emergency) stats.emergencyFrames++;
   car.s = Math.min(R.length - STOP_SHORT_M, car.s + car.v * dt);
 
