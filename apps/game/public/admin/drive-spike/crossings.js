@@ -495,10 +495,15 @@ function makeCrossing(route, world, site, s) {
  *  below the chips before it steps out); near and far, the stretch closed
  *  to the van and to anything coming the other way, a clear metre each. */
 function zoneOf(c) {
+  // A follower waiting on the verge towards the van is off the carriageway
+  // (further out than the leader, who waits as any animal beside the road
+  // does), and walks onto the road only on the leader's line, so only the
+  // line counts towards the van: it stops a van length short of the family
+  // as of anyone else.
   let near = 0, far = 0;
   for (const a of c.party) {
     const e = reachOf(a.kind) + (a.k ? FOLLOW_WOBBLE_M : 0);
-    near = Math.max(near, e - a.along); far = Math.max(far, e + a.along);
+    near = Math.max(near, e); far = Math.max(far, e + Math.max(0, a.along));
   }
   return { near: near + CLEAR_M, far: far + CLEAR_M, top: far };
 }
@@ -806,7 +811,9 @@ const HALO_VERGE = 0.56, HALO_BLOOM_S = 0.4;
 function haloOf(c, a) {
   if (c.state !== 'go') return HALO_VERGE;
   const off = c.verge + 2 * c.halfW + a.half - a.d;   // metres until its body is off the far kerb
-  const u = Math.max(0, Math.min(1, c.t / HALO_BLOOM_S, off));
+  // A follower still coming down the verge keeps the verge size until it
+  // reaches the leader's line.
+  const u = Math.max(0, Math.min(1, c.t / HALO_BLOOM_S, off, (a.d + 0.1) / 0.5));
   return HALO_VERGE + (1 - HALO_VERGE) * smooth(u);
 }
 function glowAlpha(V) {
