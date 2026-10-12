@@ -250,12 +250,23 @@ const off = (T, lane, s) => T.route.laneOffset(lane, clamp(s, 0, T.route.length)
 const inAny = (list, a, b) => list.some(([x, y]) => x <= b && y >= a);
 const anyPoint = (list, a, b) => list.some(x => x >= a && x <= b);
 
+/** Whether lane 1 at s is the oncoming lane: on an ordinary road it is the
+ *  mirror of our lane 0. On the dual carriageway, and on a stretch of the A28
+ *  split by a kerbed island, lane 1 is our own (or there is none) and the
+ *  oncoming traffic is beyond the strip or the island. Read off the page's
+ *  lane geometry, so a road the page draws divided needs no class of its own. */
+function lane1Oncoming(T, s) {
+  if (clsAt(T, s) === 'trunk') return false;
+  return Math.abs(off(T, 0, s) + off(T, 1, s)) < 0.5;
+}
+
 /** Where a vehicle's lateral position should be at s. Same direction: our
- *  lane 0. Oncoming: lane 1 on an ordinary road; on the dual carriageway the
- *  far side, the mirror of our lane 0, beyond the grass strip. */
+ *  lane 0. Oncoming: the mirror of our lane 0, which is lane 1 on an
+ *  ordinary road, and on the dual carriageway or a divided road the far
+ *  side beyond the grass strip or the island. */
 function lateralTarget(T, w, s) {
   if (w.dir > 0) return off(T, 0, s);
-  return clsAt(T, s) === 'trunk' ? -off(T, 0, s) : off(T, 1, s);
+  return -off(T, 0, s);
 }
 
 /** On a polyline the inside of a corner is shorter than the centreline: two
@@ -383,7 +394,7 @@ export function step(T, dt, van) {
     const latHit = w.d + w.W / 2 + 0.3 > bandLo && w.d - w.W / 2 - 0.3 < bandHi;
     if (latHit) return true;
     if (w.dir > 0) return occ0;
-    return occ1 && clsAt(T, w.s) !== 'trunk';
+    return occ1 && lane1Oncoming(T, w.s);
   };
 
   // ---- 2. the vehicles move
@@ -603,7 +614,7 @@ function laneUnsafe(T, van, vb, laneT) {
   for (const w of T.vehicles) {
     if (w.dir > 0) continue;
     if (w.s + w.L / 2 < vb.rear - 2) continue;              // already past
-    if (clsAt(T, w.s) === 'trunk' && clsAt(T, w.s - w.L) === 'trunk') continue;   // far carriageway
+    if (!lane1Oncoming(T, w.s) && !lane1Oncoming(T, w.s - w.L)) continue;   // far carriageway
     const D = (w.s - w.L / 2) - vb.front;
     const vo = Math.max(w.v, cruise(T, w, w.s));
     if (D < need * (vGear + vo) + 25) return 'oncoming';

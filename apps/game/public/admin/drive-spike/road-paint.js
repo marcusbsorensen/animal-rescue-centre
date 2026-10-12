@@ -104,9 +104,9 @@ function rgba(h, a) {
   return v;
 }
 
-/** Which surface a road gets. `kind` is the carriageway ('dual', 'divided',
- *  'single') a later job will tag trunk edges with; every trunk edge is drawn
- *  as dual today, so it changes nothing yet. */
+/** Which surface a road gets. `kind` is the A28 edge's carriageway ('dual',
+ *  'divided', 'single'): every stretch of it is a main road's newer tarmac,
+ *  so it changes nothing here; its lines are buildRun's. */
 export function surfaceFor(cls, kind) {
   if (cls === 'track') return 'track';
   if (cls === 'trunk' || cls === 'primary' || cls === 'secondary') return 'main';
@@ -400,7 +400,8 @@ function band(path, ch, sa, sb, step, lo, hi) {
  *  meeting this chain's ends, as a list of [from, to]. */
 function clear(ch, sa, sb, off) {
   const near = 45;
-  if ((!ch.nbA.length || sa > near) && (!ch.nbB.length || sb < ch.len - near)) return [[sa, sb]];
+  if ((!ch.nbA.length || sa > near) && (!ch.nbB.length || sb < ch.len - near)
+    && !ch.touch.some(p => p.s > sa - near && p.s < sb + near)) return [[sa, sb]];
   const res = [];
   let start = null;
   for (let s = sa; ; s = Math.min(sb, s + 0.4)) {
@@ -413,11 +414,13 @@ function clear(ch, sa, sb, off) {
   return res;
 }
 function covered(ch, s, o) {
-  const list = s < 45 ? ch.nbA : s > ch.len - 45 ? ch.nbB : null;
-  if (!list || !list.length) return false;
+  const end = s < 45 ? ch.nbA : s > ch.len - 45 ? ch.nbB : null;
+  const lists = end && end.length ? [end] : [];
+  for (const p of ch.touch) if (Math.abs(p.s - s) < 45) lists.push(p.list);
+  if (!lists.length) return false;
   const k = seg(ch, s), u = s - ch.ss[k];
   const x = ch.xs[k] + ch.tx[k] * u - ch.ty[k] * o, y = ch.ys[k] + ch.ty[k] * u + ch.tx[k] * o;
-  for (const [ax, ay, bx, by, h] of list) {
+  for (const [ax, ay, bx, by, h] of lists.flat()) {
     const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
     const t = L ? clamp01(((x - ax) * dx + (y - ay) * dy) / L) : 0;
     const ex = ax + dx * t - x, ey = ay + dy * t - y;
@@ -435,20 +438,25 @@ function rag(s, salt, amp) {
   return amp * ((noise1(s, 2.6, salt) - 0.5) * 1.3 + (noise1(s, 1.1, salt + 1) - 0.5) * 0.7);
 }
 
-function buildChains(graph, nodeXY) {
+/** A chain is one road between junctions, of one class and, on the A28, one
+ *  carriageway (carriagewayOf(edge index) -> { kind, lanes } or null), so a
+ *  chain breaks where the dual carriageway becomes a divided or single road. */
+function buildChains(graph, nodeXY, carriagewayOf) {
   const N = graph.nodes.length, xy = graph.nodes.map(nodeXY);
   const adj = Array.from({ length: N }, () => []);
   const seen = new Set(), edges = [];
-  for (const [i, j, cls] of graph.edges) {
-    if (i < 0 || j < 0 || i >= N || j >= N || i === j) continue;
+  graph.edges.forEach(([i, j, cls], gk) => {
+    if (i < 0 || j < 0 || i >= N || j >= N || i === j) return;
     const key = Math.min(i, j) * 65536 + Math.max(i, j);
-    if (seen.has(key)) continue;
+    if (seen.has(key)) return;
     seen.add(key);
     const k = edges.length;
-    edges.push(cls); adj[i].push({ j, cls, k }); adj[j].push({ j: i, cls, k });
-  }
+    const cw = cls === 'trunk' ? carriagewayOf?.(gk) ?? null : null;
+    const look = cw ? cls + ':' + cw.kind + ':' + cw.lanes : cls;
+    edges.push(cls); adj[i].push({ j, cls, cw, look, k }); adj[j].push({ j: i, cls, cw, look, k });
+  });
   const used = new Uint8Array(edges.length), chains = [];
-  const isBreak = n => adj[n].length !== 2 || adj[n][0].cls !== adj[n][1].cls;
+  const isBreak = n => adj[n].length !== 2 || adj[n][0].look !== adj[n][1].look;
   const walk = (n, e) => {
     const nodes = [n];
     let cur = n;
@@ -459,7 +467,7 @@ function buildChains(graph, nodeXY) {
       if (!nx) break;
       e = nx;
     }
-    chains.push({ nodes, cls: e.cls });
+    chains.push({ nodes, cls: e.cls, cw: e.cw });
   };
   for (let n = 0; n < N; n++) if (isBreak(n)) for (const e of adj[n]) if (!used[e.k]) walk(n, e);
   for (let n = 0; n < N; n++) for (const e of adj[n]) if (!used[e.k]) walk(n, e);
@@ -467,6 +475,9 @@ function buildChains(graph, nodeXY) {
 }
 
 function makeChain(c, xy, roadWidth) {
+  // On the A28: 'dual' (and a trunk edge with no record), 'divided' or
+  // 'single'; null off it.
+  const kind = c.cls === 'trunk' ? (c.cw ? c.cw.kind : 'dual') : null;
   const pts = [];
   for (const n of c.nodes) {
     const [x, y] = xy[n];
@@ -495,10 +506,10 @@ function makeChain(c, xy, roadWidth) {
   }
   const first = c.nodes[0], last = c.nodes[c.nodes.length - 1];
   return {
-    cls: c.cls, fam: surfaceFor(c.cls), half: roadWidth(c.cls) / 2,
+    cls: c.cls, kind, lanesEach: c.cw?.lanes ?? 2, fam: surfaceFor(c.cls, kind), half: roadWidth(c.cls, c.cw ?? null) / 2,
     xs, ys, ss, tx, ty, mx, my, turn, len: ss[n - 1],
     first, last, seed: hash(Math.min(first, last), Math.max(first, last), c.nodes.length),
-    nbA: [], nbB: [],
+    nbA: [], nbB: [], touch: [],
   };
 }
 
@@ -525,6 +536,40 @@ function linkJunctions(chains) {
       if (o === ch && oe === end) continue;
       if (o === ch) continue;
       (end ? ch.nbB : ch.nbA).push(...near(o, oe));
+    }
+  }
+  linkTouches(chains);
+}
+
+/** Where a road's node lies on another road without the graph joining them
+ *  (the A28 bends at a point on a house street at Westgate, say), each road's
+ *  marks stop at the other's edge there, as at a junction: otherwise one
+ *  road's edge line is painted across the other's lane. */
+const TOUCH_M = 1;
+function linkTouches(chains) {
+  const segsNear = (ch, s0) => {
+    const out = [];
+    for (let i = 0; i < ch.xs.length - 1; i++) {
+      if (ch.ss[i + 1] < s0 - 60 || ch.ss[i] > s0 + 60) continue;
+      out.push([ch.xs[i], ch.ys[i], ch.xs[i + 1], ch.ys[i + 1], ch.half]);
+    }
+    return out;
+  };
+  for (const ch of chains) for (let i = 0; i < ch.xs.length; i++) {
+    const x = ch.xs[i], y = ch.ys[i];
+    for (const o of chains) {
+      if (o === ch) continue;
+      for (let k = 0; k < o.xs.length - 1; k++) {
+        const dx = o.xs[k + 1] - o.xs[k], dy = o.ys[k + 1] - o.ys[k], L = dx * dx + dy * dy;
+        if (!L) continue;
+        const t = clamp01(((x - o.xs[k]) * dx + (y - o.ys[k]) * dy) / L);
+        if (t <= 0 || t >= 1) continue;   // at its node: a joined junction, or none
+        const ex = o.xs[k] + dx * t - x, ey = o.ys[k] + dy * t - y;
+        if (ex * ex + ey * ey > TOUCH_M * TOUCH_M) continue;
+        const so = o.ss[k] + Math.sqrt(L) * t;
+        ch.touch.push({ s: ch.ss[i], list: segsNear(o, so) });
+        o.touch.push({ s: so, list: segsNear(ch, ch.ss[i]) });
+      }
     }
   }
 }
@@ -639,8 +684,13 @@ function buildRun(ch, r0, r1, trunk) {
   }
 
   // Polished bands where the tyres run: two per lane, wandering and patchy.
-  const lanes = ch.cls === 'trunk'
-    ? [1, -1].flatMap(sg => [sg * (trunk.reservation / 2 + trunk.lane / 2), sg * (trunk.reservation / 2 + trunk.lane * 1.5)])
+  // Lane centres. The dual: two each side of the grass strip. Divided: the
+  // data's lanes each side of the island. Anything else, single included:
+  // one each way.
+  const split = ch.kind === 'dual' ? trunk.reservation / 2 : ch.kind === 'divided' ? trunk.island / 2 : null;
+  const each = ch.kind === 'dual' ? 2 : ch.kind === 'divided' ? Math.max(1, ch.lanesEach) : 1;
+  const lanes = split !== null
+    ? [1, -1].flatMap(sg => Array.from({ length: each }, (_, k) => sg * (split + trunk.lane * (k + 0.5))))
     : [half / 2, -half / 2];
   const wear = R.get('wear'), wearAt = fam === 'main' ? 0.45 : 0.25;   // main roads wear less
   lanes.forEach((lc, li) => {
@@ -674,7 +724,20 @@ function buildRun(ch, r0, r1, trunk) {
     }
   }
 
-  if (ch.cls === 'trunk') {
+  if (ch.kind === 'divided') {
+    // A narrow kerbed island down the middle, a kerb line each side of it,
+    // and with two lanes each way a dashed line between them.
+    const hi = trunk.island / 2;
+    bandClear(R.get('island'), ch, a, b, 0.8, s => -hi - rag(s, seed + 75, 0.03), s => hi + rag(s, seed + 77, 0.03));
+    line(R, ch, r0, r1, hi + 0.15, TRUNK_EDGE_W, null, 1);
+    line(R, ch, r0, r1, -hi - 0.15, TRUNK_EDGE_W, null, 2);
+    for (let k = 1; k < each; k++) {
+      line(R, ch, r0, r1, hi + trunk.lane * k, LANE_PAINT_W, [3, 4], 13 + 2 * k);
+      line(R, ch, r0, r1, -hi - trunk.lane * k, LANE_PAINT_W, [3, 4], 14 + 2 * k);
+    }
+    line(R, ch, r0, r1, half - 0.4, EDGE_PAINT_W, null, 5);
+    line(R, ch, r0, r1, -(half - 0.4), EDGE_PAINT_W, null, 6);
+  } else if (ch.kind === 'dual') {
     // The grass strip down the middle, with a kerb line each side of it.
     const hr = trunk.reservation / 2;
     bandClear(R.get('reserve'), ch, a, b, 0.8, s => -hr - rag(s, seed + 71, 0.06), s => hr + rag(s, seed + 73, 0.06));
@@ -695,13 +758,14 @@ function buildRun(ch, r0, r1, trunk) {
 // ---------------------------------------------------------------- contract
 
 /** Build the textures and every run's marks. Call once, after the graph is
- *  loaded. world: { graph, nodeXY(node) -> [x, y] metres, roadWidth(cls),
- *  season, trunk: { lane, reservation } }. Does nothing at ?road=0. */
+ *  loaded. world: { graph, nodeXY(node) -> [x, y] metres, roadWidth(cls, cw),
+ *  carriagewayOf(edge index) -> { kind, lanes } or null, season,
+ *  trunk: { lane, reservation, island } }. Does nothing at ?road=0. */
 export function load(world) {
   if (LEVEL === 0) return null;
   const t0 = performance.now();
   const season = world.season || 'summer';
-  const { chains: raw, xy } = buildChains(world.graph, world.nodeXY);
+  const { chains: raw, xy } = buildChains(world.graph, world.nodeXY, world.carriagewayOf);
   const chains = raw.map(c => makeChain(c, xy, world.roadWidth)).filter(Boolean);
   linkJunctions(chains);
 
@@ -724,6 +788,7 @@ export function load(world) {
   fill.set('track:grass', [grass, 1]);
   fill.set('main:patch', [pat(patchTile(season)), 0.7]);
   fill.set('reserve', [grass, 1]);
+  fill.set('island', [season === 'winter' ? '#a39f95' : '#b3ad9e', 1]);   // kerbed concrete
   const paint = pat(paintTile());
   fill.set('paint0', [paint, 0.95]); fill.set('paint1', [paint, 0.7]); fill.set('paint2', [paint, 0.42]);
 
@@ -731,7 +796,7 @@ export function load(world) {
   // The marks above the surfaces already stop at other roads' edges, so they
   // share one layer each whatever the road: fewer, larger fills.
   const order = ['track:surface', 'track:ruts', 'track:grass', 'track:verge', 'old:surface', 'worn:surface', 'main:surface',
-    'main:patch', 'reserve', 'verge', 'wear', 'paint2', 'paint1', 'paint0'];
+    'main:patch', 'reserve', 'island', 'verge', 'wear', 'paint2', 'paint1', 'paint0'];
 
   const runs = [];
   for (const ch of chains) {

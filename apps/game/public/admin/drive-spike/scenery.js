@@ -550,9 +550,12 @@ export async function load(world) {
   const nodeW = graph.nodes.map(([fx, fy]) => mapToWorld(fx * MAP_W, fy * MAP_H));
   const roads = [];
   const REACH = 12;   // biggest object radius a query may ask about
-  for (const [i, j, cls] of graph.edges) {
+  for (let k = 0; k < graph.edges.length; k++) {
+    const [i, j, cls] = graph.edges[k];
     if (i < 0 || j < 0 || i >= nodeW.length || j >= nodeW.length) continue;
-    const a = nodeW[i], b = nodeW[j], half = ROAD_HALF[cls] ?? 4;
+    // The page's own half-width when it gives one (world.roadHalf), so the
+    // A28's narrower stretches keep their verges; ROAD_HALF otherwise.
+    const a = nodeW[i], b = nodeW[j], half = world.roadHalf?.(k, cls) ?? ROAD_HALF[cls] ?? 4;
     const seg = { ax: a.x, ay: a.y, bx: b.x, by: b.y, half, cls, i, j };
     roads.push(seg);
     const pad = half + VERGE_M + REACH;
