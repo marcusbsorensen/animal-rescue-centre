@@ -185,20 +185,57 @@ const GEAR_OK = {
 const TOO_FAST = { track: 'dust!', unclassified: 'too fast', residential: 'slow down' };
 const TOO_SLOW = { trunk: 'beeping' };
 
-/** Marcus, 2026-10-12 (30A): the gear stays her choice, but the road prompts
- *  her, and a gear above the road's top one is not possible there. Its knob
- *  is dimmed, a tap on it is a soft 'nope', and the van cannot go faster than
- *  the road's top gear allows, whatever gear it is in. The best gear is the
- *  one the knob prompt asks for: the road's top gear, because what she feels
- *  is the speed. First is allowed on the dual carriageway, for the queue
- *  behind to teach her, so its top is 3 like anywhere else that allows it. */
-const gearTop = cls => Math.max(...(GEAR_OK[cls] ?? [1, 2, 3]));
-const gearBest = cls => gearTop(cls);
+/** Every gear works on every road (Marcus, 2026-10-12, 30A): "Any gear is
+ *  available in any car at any time, but that doesn't mean that it's correct
+ *  for the road that one is on. The same with bicycle gears." The gear sets
+ *  the top speed on every road; the lists above are what suits the road, the
+ *  knob prompt asks for the road's best (its top suiting gear, because what
+ *  she feels is the speed), and a wrong gear costs what the doc's 'Getting it
+ *  wrong' column says (see gearCosts in step()).
+ *
+ *  The A28 is not one road (trunk-carriageways.json, road-gears.ts): on a
+ *  trunk edge whose carriageway is known, the gears whose speed is within its
+ *  limit suit it, and on the real dual carriageway not first, where traffic
+ *  queues behind. So third is fine at 50 mph west of Brooksend and too fast
+ *  at 30 mph through The Square. A trunk edge with no record is a dual. */
+const MPS_PER_MPH = 0.44704;
+function gearsFor(cls, cw) {
+  if (cls === 'trunk' && cw) {
+    const within = [1, 2, 3].filter(g => GEARS[g] <= cw.maxspeedMph * MPS_PER_MPH);
+    return cw.kind === 'dual' ? within.filter(g => GEAR_OK.trunk.includes(g)) : within;
+  }
+  return GEAR_OK[cls] ?? [1, 2, 3];
+}
+/** The chip's name: a divided or single stretch of the A28 is a main road. */
+function roadNameFor(cls, cw) {
+  if (cls === 'trunk' && cw && cw.kind !== 'dual') return 'main road';
+  return ROAD_NAME[cls] ?? cls;
+}
+/** road-gears.ts's gearVerdict: null when the gear suits the road (or the
+ *  van is barely moving: pulling away in third on a lane is not speeding),
+ *  else 'fast' or 'slow'. */
+function gearVerdict(cls, cw, gear, v) {
+  const ok = gearsFor(cls, cw);
+  if (ok.includes(gear) || v < 1) return null;
+  return gear > Math.max(...ok) ? 'fast' : 'slow';
+}
+const gearBest = (cls, cw) => Math.max(...gearsFor(cls, cw));
 
-/** Arriving on a lane in third, the van eases down to the lane's top speed
- *  at this rate rather than braking: the road is slowing her, not her foot,
- *  so the animals do not feel it. */
-const ROAD_EASE = 4;   // m/s^2
+/** Changing down while holding go, the van slows to the new gear's speed at
+ *  this rate rather than braking: the engine is holding her back, not her
+ *  foot, so the animals do not feel it. */
+const ENGINE_EASE = 4;   // m/s^2
+
+/** Too fast for the road. The speed camera flashes once per stretch of road
+ *  (a stretch is a run of one class, and on the A28 one carriageway kind);
+ *  under reduced motion a toast says so instead of the white flash (port
+ *  plan section 5, Q5 and Q7). While it lasts the animals are jostled
+ *  harder, the comfort gauge falling at this many points a second on top of
+ *  its settling, and on a farm track the van throws up a dust cloud they
+ *  breathe. The van's own hard stops for traffic and crossing animals come
+ *  sooner at speed by themselves, and each one counts as rough driving. */
+const SPEEDING_JOSTLE = { track: 11, default: 8 };   // per second, against 6 settling
+const FLASH_S = 0.18, CAMERA_MARK_S = 1.6;
 
 /** The last few m/s before the gear's top come on slowly, so holding go in
  *  first on a main road is a needle that leans and stops, not one that snaps
@@ -215,13 +252,12 @@ const HINT_DELAY = 0.6;   // seconds
 const LURCH_M = 0.14, LURCH_S = 0.2;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
-/** The gear lever. Tapping a knob the road will not take is a 'nope'. While
- *  the prompt glows, picking any gear that suits the road — the one she is
- *  already in included — is her answer, and hushes it for the rest of this
- *  road: it stays her choice. */
+/** The gear lever. Every gear is always there. While the prompt glows,
+ *  picking any gear that suits the road — the one she is already in
+ *  included — is her answer, and hushes it for the rest of this road: it
+ *  stays her choice, and so is ignoring it. */
 function setGear(n) {
-  if (n > gearTop(car.road)) { if (dash) dashboard.nope(dash, n); return; }
-  if (car.gearHint && (GEAR_OK[car.road]?.includes(n) ?? true)) car.hushed = true;
+  if (car.gearHint && gearsFor(car.road, car.cw).includes(n)) car.hushed = true;
   if (n === car.gear) return;
   const dir = Math.sign(n - car.gear);
   car.gear = n;
@@ -230,16 +266,18 @@ function setGear(n) {
 }
 
 /** Which knob glows: the road's best gear, once the gear she is in has not
- *  suited the road for HINT_DELAY. A gear that is not possible always
- *  prompts; one that is allowed but not the best prompts until she answers. */
+ *  been it for HINT_DELAY. A gear that does not suit the road prompts until
+ *  she changes; one that suits it but is not the best prompts until she
+ *  answers. Either way it is a hint she may ignore. */
 function gearHint(dt) {
-  const best = gearBest(car.road);
-  const allowed = GEAR_OK[car.road]?.includes(car.gear) ?? true;
-  if (car.road !== car.hintRoad) { car.hintRoad = car.road; car.hushed = false; }
-  const want = car.arrived || car.gear === best || (allowed && car.hushed) ? 0 : best;
+  const best = gearBest(car.road, car.cw);
+  const suits = gearsFor(car.road, car.cw).includes(car.gear);
+  const here = car.road + ':' + (car.cw?.kind ?? '');
+  if (here !== car.hintRoad) { car.hintRoad = here; car.hushed = false; }
+  const want = car.arrived || car.gear === best || (suits && car.hushed) ? 0 : best;
   car.hintT = want && want === car.hintWant ? (car.hintT ?? 0) + dt : 0;
   car.hintWant = want;
-  return car.hintT >= HINT_DELAY || car.gear > gearTop(car.road) ? want : 0;
+  return car.hintT >= HINT_DELAY ? want : 0;
 }
 
 /** Metres the van sits off its pin in the frame, along its length: positive
@@ -248,6 +286,84 @@ function lurchM() {
   if (!car.lurch || reduceMotion.matches) return 0;
   const t = (performance.now() - car.lurch.at) / 1000 / LURCH_S;
   return t >= 1 ? 0 : car.lurch.dir * LURCH_M * Math.sin(Math.PI * t);
+}
+
+/** What the gear she is in costs on this road, this frame. Returns whether
+ *  she is going faster than the road's best gear would take her in a gear
+ *  too fast for it. Too slow (first on the dual carriageway) is
+ *  traffic.js's: the traffic behind queues and beeps. */
+function gearCosts() {
+  car.verdict = gearVerdict(car.road, car.cw, car.gear, car.v);
+  const fast = car.verdict === 'fast';
+  if (fast && car.cameraStretch !== stretchAtS(car.s)) {
+    car.cameraStretch = stretchAtS(car.s);
+    car.cameraAt = performance.now();
+    car.cameras = (car.cameras ?? 0) + 1;   // for a test
+    if (reduceMotion.matches) toast('camera');
+  }
+  // The camera goes by the gear, as road-gears.ts's speedCameraFires does;
+  // the jostle and the dust go by the speed itself, so crawling behind a
+  // tractor in third rattles no one.
+  return fast && car.v > GEARS[gearBest(car.road, car.cw)] + 0.5;
+}
+
+/** The dust cloud on a farm track: puffs left behind the van's tail in the
+ *  world, so they stay where they were thrown up and the van drives out of
+ *  them, swelling and thinning over DUST_LIFE. */
+const DUST_LIFE = 1.8, DUST_RATE = 26;   // seconds; puffs a second
+const dust = [];
+let dustDue = 0;
+function stepDust(dt, raising, pos) {
+  for (const d of dust) d.age += dt;
+  while (dust.length && dust[0].age > DUST_LIFE) dust.shift();
+  if (!raising) { dustDue = 0; return; }
+  dustDue += dt * DUST_RATE * Math.min(1, car.v / GEARS[2]);
+  const back = (car.length || 4.8) / 2 + 0.4;
+  const cx = car.x - Math.cos(pos.h) * back, cy = car.y - Math.sin(pos.h) * back;
+  const nx = -Math.sin(pos.h), ny = Math.cos(pos.h);
+  for (; dustDue >= 1; dustDue--) {
+    const side = (Math.random() - 0.5) * VAN_W_M * 1.1;
+    dust.push({
+      x: cx + nx * side, y: cy + ny * side, age: 0, r: 0.6 + Math.random() * 0.5,
+      vx: nx * side * 0.5 - Math.cos(pos.h) * 1.2, vy: ny * side * 0.5 - Math.sin(pos.h) * 1.2,
+    });
+  }
+}
+function drawDust() {
+  const col = { spring: '200,184,146', summer: '214,196,152', autumn: '176,152,112', winter: '160,152,140' }[SEASON];
+  for (const d of dust) {
+    const f = d.age / DUST_LIFE;
+    const x = d.x + d.vx * d.age, y = d.y + d.vy * d.age, r = d.r + 2.4 * Math.sqrt(f);
+    ctx.fillStyle = `rgba(${col},${(0.5 * (1 - f)).toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+/** The speed camera going off: a brief white flash over the road (not under
+ *  reduced motion, where gearCosts toasts instead) and a small camera mark
+ *  at the top right of the road view, held a moment and faded. */
+function drawSpeedCamera(w, roadH) {
+  if (!car.cameraAt) return;
+  const t = (performance.now() - car.cameraAt) / 1000;
+  if (t < FLASH_S && !reduceMotion.matches) {
+    ctx.fillStyle = `rgba(255,255,255,${(0.7 * (1 - t / FLASH_S)).toFixed(3)})`;
+    ctx.fillRect(0, 0, w, roadH);
+  }
+  if (t >= CAMERA_MARK_S) return;
+  const a = Math.min(1, (CAMERA_MARK_S - t) / 0.4);
+  const x = w - 46, y = Math.min(96, roadH * 0.25);
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = 'rgba(255,252,246,.94)';
+  ctx.beginPath(); ctx.roundRect(x - 4, y - 4, 40, 30, 9); ctx.fill();
+  ctx.fillStyle = '#3a3226';
+  ctx.beginPath(); ctx.roundRect(x + 3, y + 5, 26, 15, 3); ctx.fill();   // body
+  ctx.fillRect(x + 8, y + 1.5, 8, 4);                                     // top
+  ctx.fillStyle = '#f2d36b';
+  ctx.beginPath(); ctx.arc(x + 17, y + 12.5, 4.6, 0, Math.PI * 2); ctx.fill();   // lens
+  ctx.fillStyle = '#fffcf6';
+  ctx.beginPath(); ctx.arc(x + 25.5, y + 8.5, 1.6, 0, Math.PI * 2); ctx.fill();  // flash
+  ctx.restore();
 }
 
 /** One pixel of the child's map (birchie-roads.svg, 1800 x 1121) in metres,
@@ -291,6 +407,21 @@ let dash = null, roads = null;   // the dashboard, and every road in metres for 
 const edgeCls = new Map();
 const edgeKey = (i, j) => i * 4096 + j;
 
+/** What each A28 (trunk) edge really is, from trunk-carriageways.json, keyed
+ *  like edgeCls: { kind: 'dual'|'divided'|'single', maxspeedMph, lanes }.
+ *  Without the file every trunk edge is a dual carriageway, as before. */
+const edgeCw = new Map();
+const cwByEdge = new Map();   // graph edge index -> record
+function loadCarriageways(json) {
+  for (const c of json?.edges ?? []) {
+    const e = graph.edges[c.edge];
+    if (!e || e[2] !== 'trunk' || e[0] !== c.nodes[0] || e[1] !== c.nodes[1]) continue;   // a stale file
+    const rec = { kind: c.kind, maxspeedMph: c.maxspeedMph, lanes: c.lanes };
+    cwByEdge.set(c.edge, rec);
+    edgeCw.set(edgeKey(e[0], e[1]), rec); edgeCw.set(edgeKey(e[1], e[0]), rec);
+  }
+}
+
 function buildAdjacency(g) {
   const a = g.nodes.map(() => []);
   for (const [i, j, cls] of g.edges) {
@@ -329,17 +460,37 @@ function toPolyline(path) {
   for (let i = 1; i < pts.length; i++) {
     pts[i].s = pts[i - 1].s + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
     pts[i].cls = edgeCls.get(edgeKey(path[i - 1], path[i])) ?? 'tertiary';
+    pts[i].cw = pts[i].cls === 'trunk' ? edgeCw.get(edgeKey(path[i - 1], path[i])) ?? null : null;
   }
   pts[0].cls = pts[1]?.cls ?? 'tertiary';
+  pts[0].cw = pts[1]?.cw ?? null;
+  // A stretch is a run of one class (and on the A28, one carriageway kind):
+  // the speed camera flashes at most once on each.
+  const kindOf = p => p.cls + ':' + (p.cw?.kind ?? '');
+  for (let i = 0; i < pts.length; i++) {
+    pts[i].stretch = i > 1 && kindOf(pts[i]) === kindOf(pts[i - 1]) ? pts[i - 1].stretch : i;
+  }
   return pts;
 }
 
-/** The road class at distance s: the class of the segment s falls on. */
-function classAtS(s) {
+/** The index of the route point ending the segment s falls on. */
+function segAtS(s) {
   const p = route;
   let i = 1;
   while (i < p.length - 1 && p[i].s < s) i++;
-  return p[Math.min(i, p.length - 1)].cls;
+  return Math.min(i, p.length - 1);
+}
+/** The road class at distance s: the class of the segment s falls on. */
+function classAtS(s) { return route[segAtS(s)].cls; }
+/** The A28 carriageway at s, or null off it (or without the data). */
+function cwAtS(s) { return route[segAtS(s)].cw ?? null; }
+function stretchAtS(s) { return route[segAtS(s)].stretch; }
+/** world-camera.ts's bigRoadAt: the real dual carriageway, or a trunk edge
+ *  with no record, which counts as one as every trunk edge did before. */
+function bigRoadAt(s) {
+  if (classAtS(s) !== 'trunk') return false;
+  const c = cwAtS(s);
+  return !c || c.kind === 'dual';
 }
 
 /** Position and heading at distance s along the route. */
@@ -387,6 +538,7 @@ function pickRoute(fromId) {
   const chip = document.getElementById('destChip');
   if (chip) chip.textContent = 'to ' + (PLACE_NAME[dest] ?? dest);
   car.arrived = 0;
+  car.cameraStretch = null;
   trf = traffic.create({
     length: routeLen,
     atDistance,
@@ -497,9 +649,8 @@ function step(dt) {
   // can ask for, so it is a gentle stop, not a jostle.
   const toGo = routeLen - car.s;
   const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
-  // The gear sets how fast go is, and the road caps the gear: in third on a
-  // lane the van goes no faster than second would take it.
-  const gearV = GEARS[Math.min(car.gear, gearTop(car.road))];
+  // The gear sets how fast go is, on every road: third on a lane is third.
+  const gearV = GEARS[car.gear];
   const target = Math.min(throttle ? gearV : 0, arriveCap);
   let emergency = 0;
   if (car.v > t.speedCap) {
@@ -510,10 +661,10 @@ function step(dt) {
   else if (car.v < target) {
     const pull = Math.max(TOP_PULL, Math.min(1, (gearV - car.v) / TOP_OUT));
     car.v = Math.min(target, t.speedCap, car.v + ACCEL * pull * dt);
-  } else if (throttle && target === gearV) car.v = Math.max(target, car.v - ROAD_EASE * dt);
+  } else if (throttle && target === gearV) car.v = Math.max(target, car.v - ENGINE_EASE * dt);
   else car.v = Math.max(target, car.v - BRAKE * dt);
-  car.gearTop = gearTop(car.road);
   car.gearHint = gearHint(dt);
+  const speeding = gearCosts();
 
   car.s = Math.min(routeLen - STOP_SHORT_M, car.s + car.v * dt);
   if (toGo <= STOP_SHORT_M + 0.5 && car.v < 0.2) {
@@ -543,14 +694,18 @@ function step(dt) {
   // it costs cargo instead, and the child may drive as badly as they like.
   const swerve = Math.abs(dT) * span / Math.max(1e-6, dt);
   const decel = emergency || (handbrake ? HANDBRAKE : 0);
+  const rattle = speeding ? (SPEEDING_JOSTLE[car.road] ?? SPEEDING_JOSTLE.default) : 0;
   car.jostle = Math.max(0, Math.min(100,
-    car.jostle + (swerve * 1.6 + decel * 0.5) * dt - 6 * dt));
+    car.jostle + (swerve * 1.6 + decel * 0.5 + rattle) * dt - 6 * dt));
+  if (emergency) car.selfStops = (car.selfStops ?? 0) + dt;   // for a test: rough driving
 
   const pos = atDistance(car.s);
   const nx = Math.cos(pos.h + Math.PI / 2), ny = Math.sin(pos.h + Math.PI / 2);
   car.x = pos.x + nx * car.lane; car.y = pos.y + ny * car.lane;
   car.road = classAtS(car.s);
+  car.cw = cwAtS(car.s);
   car.heading = pos.h;
+  stepDust(dt, speeding && car.road === 'track', pos);
 
   // Zoom out before the dual carriageway, not on it, so the wider road is
   // already framed when the van arrives. Out is quicker than in: seeing
@@ -622,12 +777,14 @@ function draw() {
   if (showGuide) drawGuide();
   if (trf) traffic.draw(ctx, trf, view);
   if (xing) crossings.draw(ctx, xing, view);
+  if (dust.length) drawDust();
   ctx.restore();
 
   drawVan(w, vanY, ppm);
+  drawSpeedCamera(w, roadH);
   if (dash) {
     dashboard.draw(ctx, dash, w, h, {
-      v: car.v, gear: car.gear, gearTop: car.gearTop, gearHint: car.gearHint,
+      v: car.v, gear: car.gear, tooFast: car.verdict === 'fast', gearHint: car.gearHint,
       handbrake, guide: showGuide, jostle: car.jostle,
       x: car.x, y: car.y, camH: camH ?? pos.h, route, s: car.s, roads,
     });
@@ -744,7 +901,7 @@ function drawVan(w, vanY, ppm) {
 
 /** A one-off word over the road — "CLOSE!" for a clean overtake. Praise for
  *  skill, never a score. */
-const TOAST_TEXT = { close: 'CLOSE! 😱', beep: 'beep beep!' };
+const TOAST_TEXT = { close: 'CLOSE! 😱', beep: 'beep beep!', camera: '📸 speed camera!' };
 let toastTimer = 0;
 function toast(ev) {
   const el = document.getElementById('toast');
@@ -778,13 +935,13 @@ function updateHud() {
     : car.road === 'trunk' ? 'fast lane' : 'overtaking';
 
   const chip = document.getElementById('roadChip');
-  const ok = GEAR_OK[car.road] ?? [1, 2, 3];
-  const name = ROAD_NAME[car.road] ?? car.road;
-  if (ok.includes(car.gear) || car.v < 1) {
+  const name = roadNameFor(car.road, car.cw);
+  const verdict = gearVerdict(car.road, car.cw, car.gear, car.v);
+  if (!verdict) {
     chip.textContent = name;
     chip.style.background = 'rgba(255,252,246,.92)'; chip.style.color = '#3a3226';
   } else {
-    const over = car.gear > Math.max(...ok);
+    const over = verdict === 'fast';
     chip.textContent = name + ' — ' + (over ? (TOO_FAST[car.road] ?? 'too fast') : (TOO_SLOW[car.road] ?? 'too slow'));
     chip.style.background = over ? '#c4562f' : '#d8a21e'; chip.style.color = '#fff';
   }
@@ -872,6 +1029,10 @@ document.getElementById('trunkBtn').onclick = () => {
 async function boot() {
   const res = await fetch('/assets/driving/birchie-graph.json');
   graph = await res.json();
+  try {
+    const cr = await fetch('/assets/driving/trunk-carriageways.json');
+    if (cr.ok) loadCarriageways(await cr.json());
+  } catch { /* without it every trunk edge is a dual carriageway, as before */ }
   adj = buildAdjacency(graph);
   pickRoute();
   scn = await scenery.load({ graph, mapToWorld, metresPerMapPx: METRES_PER_MAP_PX });
