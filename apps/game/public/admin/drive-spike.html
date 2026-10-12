@@ -50,6 +50,11 @@
     padding: 5px 9px; background: rgba(255,252,246,.85); color: #3a3226;
     box-shadow: 0 1px 4px rgba(0,0,0,.18); }
   button[aria-pressed="true"] { background: #4b8b3b; color: #fff; }
+  /* The chips give way while the look-ahead window covers them. */
+  #top { transition: opacity .2s; }
+  #top.away { opacity: 0; }
+  #top.away #panel { pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { #top { transition: none; } }
   #note { color: #fffcf6; font-size: 11px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
   /* Placed by toast() below the van, or beside it held sideways: never over
      the road ahead. A cream paper label, like the chips, so it reads on
@@ -160,6 +165,9 @@ import * as roadPaint from './drive-spike/road-paint.js';   // ?road=0|1|2
 // van's own dashboard (Marcus, 2026-10-11). The road view is the canvas above
 // that strip.
 import * as dashboard from './drive-spike/dashboard.js';
+// The look-ahead window over the top of the road view while she pokes out
+// to look (Lily and Marcus, 2026-10-12).
+import * as lookAhead from './drive-spike/look-ahead.js';
 
 // ---------------------------------------------------------------- the world
 
@@ -425,7 +433,7 @@ function drawDust() {
 /** The speed camera going off: a brief white flash over the road (not under
  *  reduced motion, where gearCosts toasts instead) and a small camera mark
  *  at the top right of the road view, held a moment and faded. */
-function drawSpeedCamera(w, roadH) {
+function drawSpeedCamera(w, roadH, win) {
   if (!car.cameraAt) return;
   const t = (performance.now() - car.cameraAt) / 1000;
   if (t < FLASH_S && !reduceMotion.matches) {
@@ -434,7 +442,8 @@ function drawSpeedCamera(w, roadH) {
   }
   if (t >= CAMERA_MARK_S) return;
   const a = Math.min(1, (CAMERA_MARK_S - t) / 0.4);
-  const x = w - 46, y = Math.min(96, roadH * 0.25);
+  // Below the look-ahead window while it is open.
+  const x = w - 46, y = Math.max(Math.min(96, roadH * 0.25), win ? win.y + win.h + 10 : 0);
   ctx.save();
   ctx.globalAlpha = a;
   ctx.fillStyle = 'rgba(255,252,246,.94)';
@@ -482,6 +491,7 @@ let graph = null, adj = null, route = [], routeLen = 0;
 let vanImg = null;
 let scn = null, trf = null, xing = null;
 let dash = null, roads = null;   // the dashboard, and every road in metres for its GPS
+const la = lookAhead.create({ atDistance, laneOffset, length: () => routeLen });
 
 // -------------------------------------------------------------- graph + route
 
@@ -878,8 +888,57 @@ function step(dt) {
   else camH += wrapAngle(aim - camH) * Math.min(1, CAM_EASE * dt);
   car.camH = camH;
 
+  lookAhead.step(la, dt, lookOut(), reduceMotion.matches);
   window.__drive = car;   // so a test can read the state without a screenshot
 }
+
+/** How far the look-ahead window is in, 0 to 1: as far as she is poking out
+ *  to look (how far the van has eased out, or how far she has asked to,
+ *  where something coming stops it easing); all the way while she
+ *  overtakes into the oncoming lane, closing as she comes back in. Shut
+ *  where the sign by the centre line is not shown, and in her own second
+ *  lane on the dual carriageway, where there is nothing coming to see. */
+function lookOut() {
+  if (!canOvertakeAt(car.s) || car.arrived) return 0;
+  if (Math.abs(laneOffset(1, car.s) - laneOffset(0, car.s)) < 1e-3) return 0;
+  if (car.peek) return Math.min(1, Math.max(car.laneT / PEEK_T, car.ask / 0.5));
+  const ownLane = bigRoadAt(car.s) || (car.cw?.kind === 'divided' && car.cw.lanes >= 2);
+  if (ownLane) return 0;
+  return car.laneWant === 1 ? 1 : car.laneT;
+}
+
+/** What makes the overtaking lane unsafe now, for the look-ahead window to
+ *  ring: the nearest vehicle coming the other way, the bend, the change of
+ *  road or the farm track, as traffic.js's last step found it (its
+ *  T.last.unsafe and its own lists, read and never changed). null when it
+ *  is safe, or the reason is not one it can point at. */
+function lookReason() {
+  const why = trf?.last?.unsafe;
+  if (!why) return null;
+  const front = car.s + (car.length || 4.8) / 2;
+  if (why === 'oncoming') {
+    let best = null;
+    for (const w of trf.vehicles) {
+      if (w.dir < 0 && w.s + w.L / 2 > car.s - 2 && (!best || w.s < best.s)) best = w;
+    }
+    return best && { s: best.s, lat: best.d, r: Math.max(best.L, best.W) / 2 + 0.8 };
+  }
+  const first = list => {
+    let b = null;
+    for (const x of list ?? []) if (x >= front - 10 && (b === null || x < b)) b = x;
+    return b;
+  };
+  const at = why === 'bend' ? first(trf.bends) : why === 'road ends' ? first(trf.boundaries) : null;
+  if (at !== null) return { s: at, lat: 0, r: 5 };
+  if (why === 'track') {
+    for (const [a, b] of trf.tracks ?? []) if (b >= car.s - 5) return { s: Math.max(a, front), lat: 0, r: 5 };
+  }
+  return null;
+}
+
+/** How far up the road the window looks when nothing makes it unsafe:
+ *  about as far as an overtake there needs to be clear. */
+const LOOK_CLEAR_M = 100;
 
 // ------------------------------------------------------------------ rendering
 
@@ -926,18 +985,15 @@ function draw() {
     cx: camX, cy: camY, radius: Math.hypot(w, h) / ppm, camH: camH ?? pos.h,
     ppm, season: SEASON, sun: SUN,
   };
-  if (scn) scenery.drawGround(ctx, scn, view);
-  drawRoads(camX, camY, Math.max(w, h) / ppm);
-  if (scn) scenery.drawObjects(ctx, scn, view);
-  if (showGuide) drawGuide();
-  if (trf) traffic.draw(ctx, trf, view);
-  if (xing) crossings.draw(ctx, xing, view);
-  if (dust.length) drawDust();
+  look.nextFrame();
+  drawWorld(view, Math.max(w, h) / ppm, false);
   ctx.restore();
 
   drawVan(w, vanY, ppm);
   drawPeekSign(w, vanY, ppm);
-  drawSpeedCamera(w, roadH);
+  const vanTop = vanY - (car.length || 4.8) * ppm / 2;
+  const win = drawLookAhead(w, h, vanTop, pos);
+  drawSpeedCamera(w, roadH, win);
   if (dash) {
     dashboard.draw(ctx, dash, w, h, {
       v: car.v, gear: car.gear, tooFast: car.verdict === 'fast', gearHint: car.gearHint,
@@ -946,8 +1002,60 @@ function draw() {
     });
   }
   // What a test needs to measure the view: metres of road ahead of the van.
-  car.view = { stripH, roadH, vanY, ppm, ahead: vanY / ppm, guide: showGuide };
-  updateHud();
+  car.view = { stripH, roadH, vanY, ppm, ahead: vanY / ppm, guide: showGuide,
+    look: win && { ...win, q: la.q, ppm: la.drawn?.ppm } };
+  updateHud(win);
+}
+
+/** Everything in the world, under a transform the caller has set: the road
+ *  view's, or the look-ahead window's (inWindow), which also draws the van
+ *  itself in the world, as the road view draws it on its pin. */
+function drawWorld(view, roadR, inWindow) {
+  if (scn) scenery.drawGround(ctx, scn, view);
+  drawRoads(view.cx, view.cy, roadR);
+  if (scn) scenery.drawObjects(ctx, scn, view);
+  if (showGuide) drawGuide();
+  if (trf) traffic.draw(ctx, trf, view);
+  if (xing) crossings.draw(ctx, xing, view);
+  if (inWindow) drawVanInWorld();
+  else if (dust.length) drawDust();
+}
+
+/** The look-ahead window (look-ahead.js), while she pokes out. Returns its
+ *  outside on screen, or null while it is shut. */
+function drawLookAhead(w, h, vanTop, pos) {
+  if (la.q <= 0) return null;
+  return lookAhead.draw(ctx, la, w, h, {
+    camH: camH ?? pos.h,
+    van: { s: car.s, x: car.x, y: car.y, front: car.s + (car.length || 4.8) / 2 },
+    reason: lookReason(), horizon: car.s + LOOK_CLEAR_M,
+    safe: car.laneWant === 1 ? !trf?.last?.unsafe : car.peekSafe,
+    vanTop, season: SEASON, sun: SUN, reduce: reduceMotion.matches,
+  }, drawWorld, dash && {
+    frame: (g, x, y, ww, hh, b) => dashboard.windowFrame(g, dash, x, y, ww, hh, b),
+    glass: (g, R) => dashboard.windowGlass(g, R),
+  });
+}
+
+/** The van in world metres, for the look-ahead window: as drawVan draws it,
+ *  its shadow along the sun. */
+function drawVanInWorld() {
+  const name = VAN_ID + '-rear';
+  const aspect = vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0;
+  const wm = VAN_W_M, hm = VAN_W_M * aspect, turn = (car.heading ?? 0) + Math.PI / 2;
+  ctx.save();
+  ctx.translate(car.x + SUN.x * 1.9, car.y + SUN.y * 1.9); ctx.rotate(turn);
+  if (!look.shadow(ctx, name, vanImg, VAN_W_M, wm, hm)) {
+    ctx.fillStyle = 'rgba(40,46,38,.22)';
+    ctx.beginPath(); ctx.ellipse(0, 0, wm * 0.46, hm * 0.46, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.translate(car.x, car.y); ctx.rotate(turn);
+  if (!look.body(ctx, name, vanImg, VAN_W_M, wm, hm, { key: 'van', odo: car.s, nose: 'up' })) {
+    ctx.fillStyle = '#749c66'; ctx.fillRect(-wm / 2, -hm / 2, wm, hm);
+  }
+  ctx.restore();
 }
 
 /** Stroke the segment (ax,ay)-(bx,by) shifted sideways by off metres. The
@@ -1047,25 +1155,8 @@ function drawPeekSign(w, vanY, ppm) {
   const x = w * VAN_SX + ((off0 + off1) / 2 - car.lane) * ppm;
   const y = vanY - ((car.length || 4.8) / 2 + 2.4) * ppm;
   const r = Math.max(13, 0.62 * ppm);
-  ctx.save();
-  ctx.globalAlpha = k;
-  ctx.translate(x, y);
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.fillStyle = car.peekSafe ? '#3b9d58' : '#e2a23b'; ctx.fill();
-  ctx.lineWidth = Math.max(2, r * 0.16); ctx.strokeStyle = '#fffaf0'; ctx.stroke();
-  ctx.fillStyle = '#fffaf0';
-  if (car.peekSafe) {
-    // An arrow up the road and over: go.
-    ctx.beginPath();
-    ctx.moveTo(0, -r * 0.62); ctx.lineTo(r * 0.5, -r * 0.05); ctx.lineTo(r * 0.18, -r * 0.05);
-    ctx.lineTo(r * 0.18, r * 0.55); ctx.lineTo(-r * 0.18, r * 0.55); ctx.lineTo(-r * 0.18, -r * 0.05);
-    ctx.lineTo(-r * 0.5, -r * 0.05); ctx.closePath(); ctx.fill();
-  } else {
-    // Two bars: wait.
-    ctx.fillRect(-r * 0.38, -r * 0.45, r * 0.26, r * 0.9);
-    ctx.fillRect(r * 0.12, -r * 0.45, r * 0.26, r * 0.9);
-  }
-  ctx.restore();
+  // An arrow up the road and over for go; two bars for wait.
+  lookAhead.cue(ctx, x, y, r, car.peekSafe, k);
 }
 
 function drawVan(w, vanY, ppm) {
@@ -1171,8 +1262,28 @@ function updateTrip() {
   if (car.arrived && !trip.el.classList.contains('arrived')) trip.el.classList.add('arrived');
 }
 
-function updateHud() {
+/** The chips, the trip strip and the dev button fade while the look-ahead
+ *  window (in the canvas's own px) is over any of them, and come back when
+ *  it goes. */
+const topEl = document.getElementById('top');
+const topParts = ['hud', 'trip', 'panel'].map(id => document.getElementById(id));
+let topAway = false;
+function giveWay(win) {
+  let away = false;
+  if (win) {
+    const c = canvas.getBoundingClientRect();
+    const L = c.left + win.x, T = c.top + win.y, R = L + win.w, B = T + win.h;
+    away = topParts.some(el => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.left < R && r.right > L && r.top < B && r.bottom > T;
+    });
+  }
+  if (away !== topAway) { topAway = away; topEl.classList.toggle('away', away); }
+}
+
+function updateHud(win) {
   updateTrip();
+  giveWay(win);
   document.getElementById('gearChip').textContent = handbrake ? 'BRAKE' : String(car.gear);
   document.getElementById('speedChip').textContent = Math.round(car.v * 2.237) + ' mph';
   document.getElementById('laneChip').textContent = car.laneWant === 0 ? (car.peek && car.laneT > 0.02 ? 'looking' : 'left lane')

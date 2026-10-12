@@ -36,6 +36,9 @@
 //   honk(dash)                the horn: a short two-note beep
 //   clunk(dash, dir)          a gear change, up (1) or down (-1): a clunk
 //                             and a twitch of the comfort gauge
+//   windowFrame(ctx, dash, x, y, w, h, b) -> screen
+//   windowGlass(ctx, screen)  the GPS's bezel and glass round any window
+//                             over the road (the look-ahead window)
 //
 // The gears (Marcus, 2026-10-12, 30A): he had not noticed them at all, so
 // the gear in use is also a big painted number in a brass window by the
@@ -512,15 +515,33 @@ function drawGps(g, L, s) {
   g.beginPath(); g.moveTo(vx, vy - 8); g.lineTo(vx - 2.8, vy - 4); g.lineTo(vx + 2.8, vy - 4); g.closePath();
   g.fillStyle = '#fffcf6'; g.fill();
 
-  // Glass.
+  glass(g, R);
+  g.restore();
+}
+
+/** The glass over a screen: a soft highlight across it and the bezel's
+ *  shade along its top. Drawn inside the screen's clip. */
+function glass(g, R) {
   const gl = g.createLinearGradient(R.x, R.y, R.x + R.w * 0.6, R.y + R.h);
   gl.addColorStop(0, 'rgba(255,255,255,.28)'); gl.addColorStop(0.45, 'rgba(255,255,255,0)');
   g.fillStyle = gl; g.fillRect(R.x, R.y, R.w, R.h);
   const inner = g.createLinearGradient(0, R.y, 0, R.y + 5);
   inner.addColorStop(0, 'rgba(46,17,8,.35)'); inner.addColorStop(1, 'rgba(46,17,8,0)');
   g.fillStyle = inner; g.fillRect(R.x, R.y, R.w, 5);
-  g.restore();
 }
+
+/** A window over the road framed like the GPS, for the look-ahead window
+ *  (Lily, 2026-10-12): the GPS's own painted bezel nine-sliced to any size,
+ *  with the painting's soft shadow under it. x, y, w, h are its outside in
+ *  CSS px and b the bezel's width. Returns the screen inside the bezel,
+ *  { x, y, w, h, r }, for the page to draw into; windowGlass() then puts
+ *  the glass over it, inside the same clip. */
+export function windowFrame(ctx, dash, x, y, w, h, b) {
+  shadowOf(ctx, () => rr(ctx, x, y, w, h, b * 0.3), 3);
+  nine(ctx, dash.gpsFrame, SRC.gps.border, x, y, w, h, b);
+  return { x: x + b, y: y + b, w: w - 2 * b, h: h - 2 * b, r: b * 0.45 };
+}
+export function windowGlass(ctx, R) { glass(ctx, R); }
 
 function mix(a, b, t) {
   const p = x => [1, 3, 5].map(i => parseInt(x.slice(i, i + 2), 16));

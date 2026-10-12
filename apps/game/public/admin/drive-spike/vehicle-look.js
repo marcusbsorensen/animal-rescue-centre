@@ -41,6 +41,7 @@
 //   body(ctx, name, img, metresW, w, h, m)    ctx at the vehicle's centre, turned
 //                                             so the image's up is up; m = { key,
 //                                             odo: metres driven, nose: 'up'|'down' }
+//   nextFrame()                               once a frame, before drawing
 // w, h are the plain sprite's size in the caller's units (metres or pixels);
 // the outline and shadow grow past it by the outline's width. body() and
 // shadow() return false when the art is not ready, so the caller draws its own
@@ -93,6 +94,11 @@ export async function load() {
 
 /** Build a sprite's copies now, so its first appearance does not stall. */
 export function prepare(name, img, metresW) { return entry(name, img, metresW); }
+
+/** The page calls this once a frame, so a vehicle drawn twice in one (in
+ *  the road view and the look-ahead window) keeps its tyres' speed. */
+let frameNo = 0;
+export function nextFrame() { frameNo++; }
 
 function entry(name, img, metresW) {
   if (!img || !img.complete || !img.naturalWidth || typeof document === 'undefined') return null;
@@ -340,7 +346,10 @@ function wheels(ctx, e, w, h, u, m) {
   if (!s) { s = { odo: m.odo, rate: 0, seen: now, name: e.name }; motion.set(m.key, s); }
   let d = Math.abs(m.odo - s.odo);
   if (d > 3) d = 0;
-  s.rate += (d - s.rate) * 0.3; s.odo = m.odo; s.seen = now;
+  // Drawn again in the same frame (the look-ahead window is a second view
+  // of the world): that is not the vehicle stopping.
+  if (!(frameNo && s.frame === frameNo && d === 0)) s.rate += (d - s.rate) * 0.3;
+  s.odo = m.odo; s.seen = now; s.frame = frameNo;
   if (now - sweep > 2000) {
     sweep = now;
     for (const [k, v] of motion) if (now - v.seen > 2000) motion.delete(k);
