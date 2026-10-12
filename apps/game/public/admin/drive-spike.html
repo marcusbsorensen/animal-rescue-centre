@@ -69,51 +69,6 @@
     font-size: 21px; font-weight: 900; line-height: 1.2; text-align: center;
     box-shadow: 0 2px 8px rgba(40,30,20,.22); }
   #toast.on { opacity: 1; }
-  /* How far to the destination (Lily, 2026-10-12: "we need a countdown or
-     indicator to show us how close we are to our destination"): a little
-     road under the chips with the van on it driving towards the
-     destination's flag, readable without numbers; the distance is written
-     small beside the name for the grown-up. */
-  #trip { position: relative; display: flex; align-items: center; gap: 8px;
-    width: min(100%, 460px); padding: 5px 10px 5px 8px; border-radius: 14px;
-    background: rgba(255,252,246,.92); box-shadow: 0 2px 6px rgba(0,0,0,.18);
-    color: #3a3226; transition: background-color .4s, box-shadow .4s; }
-  #tripRoad { position: relative; flex: 1; height: 30px; min-width: 90px; }
-  #tripRoad::before { content: ""; position: absolute; left: 0; right: 10px; top: 10px; height: 10px;
-    border-radius: 5px; background: #6c6f6b;
-    box-shadow: inset 0 0 0 1px rgba(46,17,8,.25); }
-  #tripRoad::after { content: ""; position: absolute; left: 5px; right: 16px; top: 14.5px; height: 1px;
-    background: repeating-linear-gradient(90deg, #f7f2e4 0 5px, transparent 5px 10px); }
-  /* The road already driven, paled. */
-  #tripDone { position: absolute; left: 0; top: 10px; height: 10px; width: 0;
-    border-radius: 5px 0 0 5px; background: rgba(255,252,246,.55); z-index: 1; }
-  #tripVan { position: absolute; left: 0; top: 0; width: 15px; height: 30px; z-index: 2;
-    transform-origin: 50% 50%; filter: drop-shadow(0 1px 1px rgba(46,17,8,.45)); }
-  #tripFlag { position: absolute; right: 0; top: -4px; width: 21px; height: 30px; z-index: 2;
-    transform-origin: 3.5px 29px; }
-  #tripLabel { display: flex; flex-direction: column; align-items: flex-start; max-width: 46%;
-    line-height: 1.1; }
-  #tripName { font-size: 13px; font-weight: 800; white-space: nowrap; overflow: hidden;
-    text-overflow: ellipsis; max-width: 100%; }
-  #tripLeft { font-size: 10.5px; font-weight: 700; color: #7a6a52; }
-  /* Pulled up: the strip warms to gold and the flag waves, a few times. */
-  #trip.arrived { background: rgba(255,240,196,.97);
-    box-shadow: 0 0 0 2px #e6cf9f, 0 2px 10px rgba(214,160,40,.45); }
-  #trip.arrived #tripFlag { animation: flagWave .5s ease-in-out 4 alternate; }
-  #tripSparks { position: absolute; right: 8px; top: 4px; width: 0; height: 0; z-index: 3; }
-  #trip .spark { position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; pointer-events: none;
-    color: #e0a92e; font-size: 11px; line-height: 10px; opacity: 0; }
-  #trip.arrived .spark { animation: spark 1.3s ease-out forwards; }
-  #trip.arrived .spark:nth-child(2) { animation-delay: .15s; }
-  #trip.arrived .spark:nth-child(3) { animation-delay: .3s; }
-  @keyframes flagWave { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
-  @keyframes spark { 0% { opacity: 0; transform: translate(0, 0) scale(.4); }
-    30% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.1); } }
-  @media (prefers-reduced-motion: reduce) {
-    #trip.arrived #tripFlag { animation: none; }
-    #trip.arrived .spark { animation: none; opacity: 1; transform: translate(var(--dx), var(--dy)); }
-    #trip { transition: none; }
-  }
 </style>
 
 <div id="wrap">
@@ -124,23 +79,6 @@
       <div class="chip" id="speedChip">0 mph</div>
       <div class="chip" id="laneChip">left lane</div>
       <div class="chip" id="roadChip">—</div>
-    </div>
-    <div id="trip" role="img" aria-label="on the way">
-      <div id="tripRoad">
-        <div id="tripDone"></div>
-        <img id="tripVan" alt="">
-        <svg id="tripFlag" viewBox="0 0 18 26" aria-hidden="true">
-          <rect x="2" y="2" width="2.2" height="23" rx="1.1" fill="#6b4a2b"/>
-          <path d="M4 3 L16.5 7.2 L4 11.6 Z" fill="#8c3044" stroke="#fffcf6" stroke-width="1.2" stroke-linejoin="round"/>
-          <circle cx="3.1" cy="2.4" r="1.7" fill="#e0b94e"/>
-        </svg>
-        <span id="tripSparks" aria-hidden="true">
-          <span class="spark" style="--dx:-12px;--dy:-9px">✦</span>
-          <span class="spark" style="--dx:9px;--dy:-11px">✦</span>
-          <span class="spark" style="--dx:-3px;--dy:13px">✦</span>
-        </span>
-      </div>
-      <div id="tripLabel"><span id="tripName">—</span><span id="tripLeft"></span></div>
     </div>
     <div id="panel">
       <button id="devBtn" aria-pressed="false">dev</button>
@@ -170,6 +108,9 @@ import * as dashboard from './drive-spike/dashboard.js';
 // The look-ahead window over the top of the road view while she pokes out
 // to look (Lily and Marcus, 2026-10-12).
 import * as lookAhead from './drive-spike/look-ahead.js';
+// The trip strip up the left edge, with the sights on the way and their signs
+// at the roadside (Lily, 2026-10-12).
+import * as tripStrip from './drive-spike/trip-strip.js';
 
 // ---------------------------------------------------------------- the world
 
@@ -628,7 +569,7 @@ const PLACE_NAME = {
   'sea-cliffs': 'Sea Cliffs', 'deep-forest': 'Deep Forest', 'wetlands': 'Wetlands',
   'hog-hospital': "Freckle's Little Hog Hospital", 'wilderwood': 'Wilderwood',
 };
-let dest = null;
+let dest = null, from = null, routeNodes = [];
 
 /** A route between two destinations. From `fromId` when given, so that after
  *  pulling up somewhere the next drive sets off from there. */
@@ -642,12 +583,15 @@ function pickRoute(fromId) {
     if (!path || path.length < 12) continue;
     route = toPolyline(path);
     routeLen = route[route.length - 1].s;
-    dest = bId;
+    dest = bId; from = aId; routeNodes = path;
     if (routeLen > 1200) break;
   }
-  trip.name.textContent = PLACE_NAME[dest] ?? dest;
-  trip.el.classList.remove('arrived');
-  trip.x = trip.text = null;
+  tripStrip.setRoute(strip, {
+    route, nodes: routeNodes, graph, total: routeLen - STOP_SHORT_M, from, dest,
+    nameOf: id => PLACE_NAME[id], atDistance,
+    toWorld: (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }),
+    roadHalfAt: s => roadWidth(classAtS(s), cwAtS(s)) / 2,
+  });
   car.arrived = 0;
   car.cameraStretch = null;
   trf = traffic.create({
@@ -1016,6 +960,7 @@ function drawWorld(view, roadR, inWindow) {
   if (scn) scenery.drawGround(ctx, scn, view);
   drawRoads(view.cx, view.cy, roadR);
   if (scn) scenery.drawObjects(ctx, scn, view);
+  tripStrip.drawSigns(ctx, strip, view);
   if (showGuide) drawGuide();
   if (trf) traffic.draw(ctx, trf, view);
   if (xing) crossings.draw(ctx, xing, view);
@@ -1227,48 +1172,37 @@ function toast(ev) {
   toastTimer = setTimeout(() => el.classList.remove('on'), 1100);
 }
 
-/** The trip strip: the van's icon along a little road from where it set
- *  off to the destination's flag, moved every frame by the distance driven,
- *  and the distance still to go, in metres under a kilometre and else to a
- *  tenth of one. Only what changed is written, so it costs no layout. */
-const trip = {
-  el: document.getElementById('trip'), road: document.getElementById('tripRoad'),
-  done: document.getElementById('tripDone'), van: document.getElementById('tripVan'),
-  name: document.getElementById('tripName'), left: document.getElementById('tripLeft'),
-  w: 0, x: null, text: null,
-};
-new ResizeObserver(() => { trip.w = trip.road.clientWidth; trip.x = null; }).observe(trip.road);
-const VAN_ICON_L = 30, FLAG_W = 21;
-function distanceText(m) {
-  if (m >= 1000) return (m / 1000).toFixed(1) + ' km';
-  return (m >= 100 ? Math.round(m / 10) * 10 : Math.round(m)) + ' m';
+/** The trip strip (trip-strip.js): up the left edge of the road view, below
+ *  the chips and below where the look-ahead window opens, above the
+ *  dashboard. Where the chips end is measured when they change size. */
+const strip = tripStrip.create(document.getElementById('wrap'));
+const stripAt = { chips: 0, left: 0, top: 0 };
+function measureStrip() {
+  const t = document.getElementById('top'), wrapTop = t.parentElement.getBoundingClientRect().top;
+  stripAt.chips = Math.max(...[...t.children].map(e => e.hidden ? 0 : e.getBoundingClientRect().bottom)) - wrapTop;
+  stripAt.left = canvas.offsetLeft; stripAt.top = canvas.offsetTop;
+  strip.key = '';
 }
+const stripRO = new ResizeObserver(measureStrip);
+stripRO.observe(document.getElementById('top')); stripRO.observe(canvas);
+window.addEventListener('resize', measureStrip);
 function updateTrip() {
-  const total = Math.max(1, routeLen - STOP_SHORT_M);
-  const toGo = Math.max(0, total - car.s);
-  const p = Math.min(1, car.s / total);
-  // The van's nose meets the flagpole on arrival.
-  const x = Math.round(p * Math.max(0, trip.w - VAN_ICON_L - FLAG_W + 4) * 2) / 2;
-  if (x !== trip.x) {
-    trip.x = x;
-    trip.van.style.transform = `translate(${x + VAN_ICON_L / 4}px, 0) rotate(90deg)`;
-    trip.done.style.width = (x + VAN_ICON_L / 2) + 'px';
-  }
-  const text = car.arrived ? 'here' : distanceText(toGo);
-  if (text !== trip.text) {
-    trip.text = text;
-    trip.left.textContent = text;
-    trip.el.setAttribute('aria-label', car.arrived ? 'arrived at ' + trip.name.textContent
-      : trip.name.textContent + ', ' + text + ' to go');
-  }
-  if (car.arrived && !trip.el.classList.contains('arrived')) trip.el.classList.add('arrived');
+  const v = car.view;
+  if (!v) return;
+  const w = parseFloat(canvas.style.width) || canvas.width, h = parseFloat(canvas.style.height) || canvas.height;
+  const vanTop = v.vanY - (car.length || 4.8) * v.ppm / 2;
+  tripStrip.layout(strip, {
+    left: stripAt.left, top: stripAt.top, w, h, roadH: v.roadH, clearTop: stripAt.chips,
+    look: lookAhead.rect({ q: 1 }, w, h, vanTop),
+  });
+  tripStrip.update(strip, { s: car.s, arrived: !!car.arrived, reduce: reduceMotion.matches });
 }
 
-/** The chips, the trip strip and the dev button fade while the look-ahead
+/** The chips and the dev button fade while the look-ahead
  *  window (in the canvas's own px) is over any of them, and come back when
  *  it goes. */
 const topEl = document.getElementById('top');
-const topParts = ['hud', 'trip', 'panel'].map(id => document.getElementById(id));
+const topParts = ['hud', 'panel'].map(id => document.getElementById(id));
 let topAway = false;
 function giveWay(win) {
   let away = false;
@@ -1441,6 +1375,7 @@ async function boot() {
     if (cr.ok) loadCarriageways(await cr.json());
   } catch { /* without it every trunk edge is a dual carriageway, as before */ }
   adj = buildAdjacency(graph);
+  await tripStrip.load(strip);
   pickRoute();
   // Both learn each A28 edge's carriageway by its index into graph.edges.
   const carriagewayOf = k => (graph.edges[k]?.[2] === 'trunk' ? cwByEdge.get(k) ?? null : null);
@@ -1462,7 +1397,7 @@ async function boot() {
 
   vanImg = new Image();
   vanImg.src = '/assets/driving/topdown/vehicle-topdown-' + VAN_ID + '-rear.png';
-  trip.van.src = vanImg.src;
+  tripStrip.setVan(strip, vanImg.src);
   await new Promise(r => { vanImg.onload = r; vanImg.onerror = () => { vanImg = null; r(); }; });
 
   resize();
