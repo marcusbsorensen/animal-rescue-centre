@@ -94,6 +94,10 @@ merge, run the checks, screenshot for Marcus):**
 
 Still to do: port the look work (outlines, wheels, road paint, side-view animals, tube man) into the port plan; place names for the stations and workshop (allude, never name).
 
+**Update 2026-10-12 16:50 BST.** Merged and verified on crate-loading (8f4f611; game 1096, game-logic 1263, typecheck, e2e 4/4): van-upkeep, road-gears-30a, spike-gears-free-a28 (+33A fix 0747cd4), spike-animal-safety (8edd9bf; every vehicle both ways gives way to animals, `safety.check.mjs` proves 0 contacts incl. duck families; breathing follow gap; 37A peek; grounded shadows; ducklings single file). Answered: 42 all four inside-cleaning ways (hand at A.R.C., coin hoover at the stations, workshop valet for parts, the wash in and out), 43B, 44A, 45C, 46B tow to the nearer station, 47A, 48B Trikey can be washed, 49A, 50A, 51A; 40A/41A Animal Bridge over the game's dual stretch, rounded mouths, meadow on top.
+In flight (cloud): `arc-van-upkeep-answers` (`trig_01Hm3nvE9TFQhTiFPynCCW6w`) -> `claude/van-upkeep-answers`; `arc-spike-stop-short-foldback` (`trig_01T8Xykq7ngkwGxxJyThhsvu`) -> `claude/spike-stop-short` (39A a van length short in every gear; 61 frames of traffic overlapping the van where the route folds back: real or artefact; traffic.check on Henry; trikey-routes timeout).
+Waiting on Marcus: 52 (drake/hen pheasant/doe candidates, scratchpad `crossing-art/pairs/contact.jpg`; five better ones queued, finisher writes `crossing-art/pairs/later/DONE`), 53 (dashboards, scratchpad `dash-art/contact.jpg`; recommended Trikey C with A's thumb shifter, Bea B (repaint the HENRY tag), Big Tilly B (digit readout), Spark B (digit and battery overlays)).
+
 ## Open questions for Marcus (ask numbered, lettered, recommendation marked)
 1. **Answered 15D, with a condition**: crossing a dual carriageway only by a
    bridge or tunnel, never at road level (a child would copy it). The options
