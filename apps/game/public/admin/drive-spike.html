@@ -50,9 +50,16 @@
     box-shadow: 0 1px 4px rgba(0,0,0,.18); }
   button[aria-pressed="true"] { background: #4b8b3b; color: #fff; }
   #note { color: #fffcf6; font-size: 11px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
-  #toast { position: absolute; top: 22%; left: 0; right: 0; text-align: center;
-    font-size: 30px; font-weight: 900; color: #fffcf6; pointer-events: none;
-    text-shadow: 0 2px 6px rgba(0,0,0,.55); opacity: 0; transition: opacity .25s; }
+  /* Placed by toast() below the van, or beside it held sideways: never over
+     the road ahead. A cream paper label, like the chips, so it reads on
+     tarmac, grass or snow without a heavy shadow. */
+  #toast { position: absolute; top: 70%; left: 0; width: 100%; display: flex;
+    justify-content: center; align-items: center; pointer-events: none;
+    transform: translateY(-50%); opacity: 0; transition: opacity .25s; }
+  #toast span { max-width: calc(100% - 24px); padding: 7px 16px 8px; border-radius: 18px;
+    background: rgba(255,250,238,.95); border: 2px solid #e6cf9f; color: #3a3226;
+    font-size: 21px; font-weight: 900; line-height: 1.2; text-align: center;
+    box-shadow: 0 2px 8px rgba(40,30,20,.22); }
   #toast.on { opacity: 1; }
 </style>
 
@@ -664,7 +671,24 @@ const TOAST_TEXT = { close: 'CLOSE! 😱', beep: 'beep beep!' };
 let toastTimer = 0;
 function toast(ev) {
   const el = document.getElementById('toast');
-  el.textContent = TOAST_TEXT[ev] ?? ev;
+  const label = document.createElement('span');
+  label.textContent = TOAST_TEXT[ev] ?? ev;
+  el.replaceChildren(label);
+  // Over road already driven, between the van's tail and the dashboard; held
+  // sideways there is no room there, so beside the van, over the left verge.
+  // Never over the road ahead, where the animals and the traffic are.
+  const v = car.view, r = canvas.getBoundingClientRect(), wrap = el.parentElement.getBoundingClientRect();
+  if (v && v.ppm) {
+    const x0 = r.left - wrap.left, y0 = r.top - wrap.top;
+    const half = (car.length || 4.8) * v.ppm / 2, tail = v.vanY + half;
+    const room = v.roadH - tail;
+    if (room >= 56) {
+      Object.assign(el.style, { left: x0 + 'px', width: r.width + 'px', top: (y0 + tail + room / 2) + 'px' });
+    } else {
+      const side = r.width * VAN_SX - VAN_W_M * v.ppm / 2 - 14;
+      Object.assign(el.style, { left: x0 + 'px', width: Math.max(140, side) + 'px', top: (y0 + v.vanY) + 'px' });
+    }
+  }
   el.classList.add('on');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('on'), 1100);
