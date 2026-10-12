@@ -54,7 +54,7 @@ function grainPattern(ctx) {
   if (grain !== null) return grain;
   grain = undefined;
   try {
-    const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(96, 96) : document.createElement('canvas');
+    const c = makeCanvas(96, 96);
     c.width = 96; c.height = 96;
     const g = c.getContext('2d');
     const rnd = mulberry32(99);
@@ -72,33 +72,28 @@ function grainPattern(ctx) {
   return grain;
 }
 
-// "CAR WASH" is drawn from a strip of pre-rendered letters: drawImage is far
-// cheaper than fillText every frame. One strip per on-screen size.
-const GLYPHS = ['C', 'A', 'R', 'W', 'S', 'H'];
-const glyphCache = new Map();
+// Stroke letters in a box -1..1 across, -1..1 down, as flat x,y lists.
+function arcPts(cx, cy, rx, ry, a0, a1, n) {
+  const out = [];
+  for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; out.push(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry); }
+  return out;
+}
+const L_C = [arcPts(0.08, 0, 0.85, 1, -0.75, -Math.PI * 2 + 0.75, 10)];
+const L_A = [[-0.85, 1, 0, -1, 0.85, 1], [-0.45, 0.3, 0.45, 0.3]];
+const L_R = [[-0.7, 1, -0.7, -1, 0.15, -1, ...arcPts(0.15, -0.5, 0.6, 0.5, -Math.PI / 2, Math.PI / 2, 5).slice(2), -0.7, 0], [0.05, 0, 0.75, 1]];
+const L_W = [[-1, -1, -0.5, 1, 0, -0.2, 0.5, 1, 1, -1]];
+const L_S = [[...arcPts(0, -0.5, 0.72, 0.5, -0.2, -Math.PI * 1.5, 6), ...arcPts(0, 0.5, 0.72, 0.5, -Math.PI / 2, Math.PI * 0.8, 6).slice(2)]];
+const L_H = [[-0.75, -1, -0.75, 1], [0.75, -1, 0.75, 1], [-0.75, 0, 0.75, 0]];
+const LETTERS = [L_C, L_A, L_R, null, L_W, L_A, L_S, L_H];
+
 // Painted heads, keyed by on-screen size, detail and grin step.
 const headCache = new Map();
-function glyphStrip(px) {
-  px = Math.max(4, Math.round(px * 2) / 2);
-  let g = glyphCache.get(px);
-  if (g !== undefined) return g;
-  if (glyphCache.size > 8) glyphCache.clear();
-  g = null;
-  try {
-    const cell = Math.ceil(px * 1.3);
-    const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(cell * GLYPHS.length, cell) : document.createElement('canvas');
-    c.width = cell * GLYPHS.length; c.height = cell;
-    const x = c.getContext('2d');
-    x.font = `700 ${px}px Fredoka, "Arial Rounded MT Bold", sans-serif`;
-    x.textAlign = 'center';
-    x.textBaseline = 'middle';
-    x.fillStyle = '#d4302f';
-    GLYPHS.forEach((ch, i) => x.fillText(ch, i * cell + cell / 2, cell / 2 + px * 0.05));
-    g = { canvas: c, cell, px };
-  } catch { g = null; }
-  // Only keep it once the web font is in, or the strip stays in the fallback face.
-  if (typeof document === 'undefined' || !document.fonts || document.fonts.check(`700 ${px}px Fredoka`)) glyphCache.set(px, g);
-  return g;
+
+// Caches use a plain canvas where there is a document, falling back to an
+// OffscreenCanvas in a worker.
+function makeCanvas(w, h) {
+  if (typeof document !== 'undefined') return document.createElement('canvas');
+  return new OffscreenCanvas(w, h);
 }
 
 function mulberry32(seed) {
@@ -290,8 +285,11 @@ export function create(seed = 1, options = {}) {
     const C = reduced ? 30 : lowArm ? 28 : 18;
     const G = 9 * (1.25 - Math.min(P, 1));
     const body = a[SHOULDER];
+    // The low arm hangs half from the body and half from the ground's point
+    // of view, so it stays low when he leans away from it.
+    const root = lowArm ? 0.5 * rootTarget + 0.5 * (2.8 - body) : rootTarget;
     // Out of air, the arms hang regardless of what the wind wants.
-    const tgt = rootTarget * P + side * 2.75 * (1 - Math.min(P, 1));
+    const tgt = root * P + side * 2.75 * (1 - Math.min(P, 1));
     for (let i = 0; i < ARM_N; i++) {
       const parent = i === 0 ? body : ang[i - 1];
       const want = i === 0 ? tgt : side * (lowArm ? 0.05 : s.flapUp ? -0.12 : 0.1);
@@ -376,19 +374,35 @@ export function create(seed = 1, options = {}) {
 
   // One fill of the tube at a fraction of its width, shifted towards the lit
   // side. Stacking a few of these is the "painted" shading: dark edge, body
-  // colour, a soft light and a highlight stripe.
+  // colour, a soft light and a highlight stripe. Edges are quadratic curves
+  // through every SUB-th point (the joints): canvas calls, not pixels, are
+  // what a frame costs, and a lineTo per sample was most of them.
+  const bi = new Int32Array(MAXP);
   function band(ctx, from, to, frac, off, grow) {
+    let m = 0;
+    for (let i = from; i < to; i += SUB) bi[m++] = i;
+    bi[m++] = to;
     ctx.beginPath();
-    for (let i = from; i <= to; i++) {
-      const h = cw[i] * 0.5, o = off * cw[i], e = frac * h + grow;
-      ctx.lineTo(cx[i] + nx[i] * (o + e), cy[i] + ny[i] * (o + e));
-    }
-    for (let i = to; i >= from; i--) {
-      const h = cw[i] * 0.5, o = off * cw[i], e = frac * h + grow;
-      ctx.lineTo(cx[i] + nx[i] * (o - e), cy[i] + ny[i] * (o - e));
-    }
+    edge(ctx, m, frac, off, grow, 1, true);
+    edge(ctx, m, frac, off, grow, -1, false);
     ctx.closePath();
     ctx.fill();
+  }
+
+  function edge(ctx, m, frac, off, grow, side, first) {
+    const at = (k) => bi[side > 0 ? k : m - 1 - k];
+    const ox = (i) => cx[i] + nx[i] * (off * cw[i] + side * (frac * cw[i] * 0.5 + grow));
+    const oy = (i) => cy[i] + ny[i] * (off * cw[i] + side * (frac * cw[i] * 0.5 + grow));
+    let i = at(0);
+    if (first) ctx.moveTo(ox(i), oy(i)); else ctx.lineTo(ox(i), oy(i));
+    for (let k = 1; k < m - 1; k++) {
+      i = at(k);
+      const n = at(k + 1);
+      const x = ox(i), y = oy(i);
+      ctx.quadraticCurveTo(x, y, (x + ox(n)) * 0.5, (y + oy(n)) * 0.5);
+    }
+    i = at(m - 1);
+    ctx.lineTo(ox(i), oy(i));
   }
 
   function paintTube(ctx, col, from, to, line, detail, thin = false) {
@@ -479,7 +493,7 @@ export function create(seed = 1, options = {}) {
       spr = null;
       try {
         const half = Math.ceil((HEAD_RX * 1.3 * S + line * 2) * ds) + 2;
-        const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(half * 2, half * 2) : document.createElement('canvas');
+        const c = makeCanvas(half * 2, half * 2);
         c.width = half * 2; c.height = half * 2;
         const hc = c.getContext('2d');
         // Centre a little low: the cap rises further above the centre than
@@ -581,37 +595,46 @@ export function create(seed = 1, options = {}) {
     }
   }
 
-  const LETTERS = ['C', 'A', 'R', '', 'W', 'A', 'S', 'H'];
-
+  // "CAR WASH" as brush strokes, all eight letters in one stroke() call.
+  // Text was the dearest thing in the frame: Chrome renders each glyph on a
+  // bending tube afresh, ~20-30 µs a letter, and a cached glyph strip drawn
+  // rotated cost the same. Strokes also look hand-painted, as the brief asks.
   function drawLetters(ctx, S, collarIdx) {
     const size = 0.34 * S;
-    const m = ctx.getTransform();
-    const g = glyphStrip(size * Math.hypot(m.a, m.b));
-    if (!g) return;
-    const k = size / g.px; // glyph pixels back to user space
+    ctx.beginPath();
+    const gap = size * 1.05;
+    let want = size * 0.85, run = 0, li = 0;
     // Walk down the spine from just under the collar, one letter per step.
-    const gap = size * 1.02;
-    let want = size * 0.9, run = 0, li = 0;
     for (let i = collarIdx; i > 0 && li < LETTERS.length; i--) {
       const dx = cx[i - 1] - cx[i], dy = cy[i - 1] - cy[i];
       const seg = Math.hypot(dx, dy);
       while (run + seg >= want && li < LETTERS.length) {
         const t = (want - run) / seg;
-        const gi = GLYPHS.indexOf(LETTERS[li++]);
-        if (gi >= 0) {
-          const lx = cx[i] + dx * t, ly = cy[i] + dy * t;
-          ctx.save();
-          ctx.translate(lx - nx[i] * cw[i] * 0.04, ly - ny[i] * cw[i] * 0.04);
-          ctx.rotate(Math.atan2(-dx, dy));
-          // Squash across the tube where it pinches at a kink.
-          ctx.scale(k * Math.min(1, cw[i] / (TUBE_W * S)), k);
-          ctx.drawImage(g.canvas, gi * g.cell, 0, g.cell, g.cell, -g.cell / 2, -g.cell / 2, g.cell, g.cell);
-          ctx.restore();
+        const strokes = LETTERS[li++];
+        if (strokes) {
+          // Local frame: down the tube, and across it (squashed at a pinch).
+          const ux = dx / seg, uy = dy / seg;
+          const sx = Math.min(1, cw[i] / (TUBE_W * S)) * size * 0.62, sy = size * 0.5;
+          const ox = cx[i] + dx * t, oy = cy[i] + dy * t;
+          for (const st of strokes) {
+            for (let k = 0; k < st.length; k += 2) {
+              const lx = st[k] * sx, ly = st[k + 1] * sy;
+              // (dx, dy) runs down the tube, so (uy, -ux) is screen-right
+              // when he stands upright.
+              const X = ox + uy * lx + ux * ly, Y = oy - ux * lx + uy * ly;
+              if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+            }
+          }
         }
         want += gap;
       }
       run += seg;
     }
+    ctx.strokeStyle = '#d4302f';
+    ctx.lineWidth = size * 0.2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
   }
 
   function draw(ctx, x, y, S, opts = {}) {
@@ -632,20 +655,27 @@ export function create(seed = 1, options = {}) {
     // Spine, fan to collar. Segments shorten and narrow as the air goes,
     // and the tube pinches where it folds.
     const L = SEG * S * (0.86 + 0.14 * P);
-    let bx = x, by = y - FAN_H * S * 0.9;
-    px[0] = bx; py[0] = by; pw[0] = TUBE_W * S * 0.92;
-    for (let i = 0; i < N; i++) {
-      bx += Math.sin(a[i]) * L;
-      by -= Math.cos(a[i]) * L;
-      const bend = i + 1 < N ? Math.abs(a[i + 1] - a[i]) : 0;
-      px[i + 1] = bx; py[i + 1] = by;
-      pw[i + 1] = TUBE_W * S * (0.88 + 0.12 * P) * (1 - 0.32 * Math.min(1, bend / 0.9));
-    }
+    const spine = () => {
+      let bx = x, by = y - FAN_H * S * 0.9;
+      px[0] = bx; py[0] = by; pw[0] = TUBE_W * S * 0.92;
+      for (let i = 0; i < N; i++) {
+        bx += Math.sin(a[i]) * L;
+        by -= Math.cos(a[i]) * L;
+        const bend = i + 1 < N ? Math.abs(a[i + 1] - a[i]) : 0;
+        px[i + 1] = bx; py[i + 1] = by;
+        pw[i + 1] = TUBE_W * S * (0.88 + 0.12 * P) * (1 - 0.32 * Math.min(1, bend / 0.9));
+      }
+    };
+    spine();
     const shoulderX = px[SHOULDER], shoulderY = py[SHOULDER];
-    const topX = bx, topY = by;
+    const topX = px[N], topY = py[N];
     const headAng = a[N];
 
     drawFan(ctx, x, y, S, line, detail);
+    // The low arm goes behind the tube: when he leans its way it would
+    // otherwise hang across the lettering. It reuses the spine buffers.
+    drawArm(ctx, la, 1, S, line, detail, shoulderX, shoulderY);
+    spine();
 
     smooth(N + 1);
     const collar = cn - 1 - Math.round(SUB * 0.9);
@@ -654,11 +684,11 @@ export function create(seed = 1, options = {}) {
       // Dungaree bib: a slightly darker top edge, two straps and buttons.
       ctx.fillStyle = BLUE.edge;
       band(ctx, collar - 1, collar, 0.9, 0, 0);
-      const bi = collar - SUB;
+      const b = collar - SUB;
       ctx.fillStyle = '#f4d35e';
       for (const sgn of [-1, 1]) {
-        const o = sgn * cw[bi] * 0.27;
-        ctx.beginPath(); ctx.arc(cx[bi] + nx[bi] * o, cy[bi] + ny[bi] * o, cw[bi] * 0.06, 0, TAU); ctx.fill();
+        const o = sgn * cw[b] * 0.27;
+        ctx.beginPath(); ctx.arc(cx[b] + nx[b] * o, cy[b] + ny[b] * o, cw[b] * 0.06, 0, TAU); ctx.fill();
       }
     }
     if (S * 0.34 >= 4.5) drawLetters(ctx, S, collar - SUB);
@@ -681,12 +711,11 @@ export function create(seed = 1, options = {}) {
       }
     }
 
-    // Arms in front of the tube, sleeves over the shoulders, then the
-    // collar on top hides where they join. The arms reuse the spine
+    // The flapping arm in front of the tube, then the collar on top hides
+    // where it joins. The arms reuse the spine
     // buffers, so the collar's points are kept first.
     const cs = collar, ce = cn - 1, keep = ce - cs + 1;
     for (let i = 0; i < keep; i++) { kx[i] = cx[cs + i]; ky[i] = cy[cs + i]; kw[i] = cw[cs + i]; knx[i] = nx[cs + i]; kny[i] = ny[cs + i]; }
-    drawArm(ctx, la, 1, S, line, detail, shoulderX, shoulderY);
     drawArm(ctx, ra, -1, S, line, detail, shoulderX, shoulderY);
     for (let i = 0; i < keep; i++) { cx[i] = kx[i]; cy[i] = ky[i]; cw[i] = kw[i]; nx[i] = knx[i]; ny[i] = kny[i]; }
     // Red shirt collar between the bib and the chin.
