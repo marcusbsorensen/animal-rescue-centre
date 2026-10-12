@@ -34,11 +34,13 @@
 //   height(dash, w, h)        the strip's height in CSS px on a w x h canvas
 //   draw(ctx, dash, w, h, s)  draws the strip; s = { v, gear, tooFast,
 //                             gearHint, handbrake, guide, jostle, x, y, camH,
-//                             route, s, roads, charge? }; guide is whether
-//                             the guide line is on, tooFast whether the gear
-//                             in use is too fast for the road (its numeral
-//                             reddens), gearHint the knob to glow, or 0;
-//                             charge (0..1) is Spark's battery, if known
+//                             route, s, roads, fuel?, fuelLow? }; guide is
+//                             whether the guide line is on, tooFast whether
+//                             the gear in use is too fast for the road (its
+//                             numeral reddens), gearHint the knob to glow, or
+//                             0; fuel (0..1) is the tank, or Spark's battery
+//                             (fuel.js; full when absent), and fuelLow makes
+//                             its gauge glow
 //   hit(dash, x, y)           'gear1' | 'gear2' | 'gear3' | 'horn' |
 //                             'handbrake' | 'guide' on a control, 'dash'
 //                             elsewhere on the strip, null above it
@@ -103,7 +105,11 @@ const VANS = {
       lip: { x: 300, y: 845, w: 220, h: 22 },       // the face's bottom edge
       console: { x: 650, y: 900, w: 500, h: 150 },  // the centre console's grain
       speedo: { cx: 959, cy: 624, r: 139 },
-      fuel: { cx: 960, cy: 832, r: 59 },
+      // The fuel gauge, from its own sprite with the painted needle taken
+      // out (the painting is shared with the cockpit pages); hub is the
+      // needle's pivot from the gauge's centre, e and f the angles of E and F.
+      fuel: { cx: 960, cy: 832, r: 59, art: '/assets/driving/dashboard-henry-fuel.png',
+        hub: [-0.5, 3], e: 215.7, f: 325, len: 36, colour: '#6f4a1c' },
       // The GPS frame's right edge is hidden behind a folded paper map, so the
       // frame is rebuilt from its left half and that half's mirror image.
       gps: { x: 1138, y: 517, w: 230, h: 291, border: 49, mirror: 'left' },
@@ -126,7 +132,8 @@ const VANS = {
       lip: { x: 300, y: 400, w: 220, h: 26 },       // the brass-lined bottom edge
       console: { x: 702, y: 472, w: 636, h: 356 },  // darker plain walnut
       speedo: { cx: 958, cy: 194, r: 138 },
-      fuel: { cx: 956, cy: 394, r: 51 },
+      fuel: { cx: 956, cy: 394, r: 51, hub: [3.5, 13], len: 34, colour: '#4a2a14',
+        ticks: [[0, 214], [0.25, 237], [0.5, 266], [0.75, 291], [1, 323]] },
       gps: { x: 1143, y: 87, w: 445, h: 285, border: 48 },
       comfort: { x: 1645, y: 87, w: 167, h: 283,
         arch: { cx: 83.5, cy: 67.5, r: 51.5, bottom: 251 } },
@@ -147,7 +154,7 @@ const VANS = {
       lip: { x: 200, y: 367, w: 220, h: 45 },       // the riveted bottom rail
       console: { x: 22, y: 436, w: 636, h: 282 },
       speedo: { cx: 959, cy: 194, r: 128 },         // the big centre gauge, cleared of digits
-      fuel: { cx: 731, cy: 321, r: 51 },
+      fuel: { cx: 731, cy: 321, r: 51, hub: [-1.25, 0.5], e: 163, f: 357, len: 28, colour: '#ff9d3f' },
       gps: { x: 1140, y: 99, w: 407, h: 264, border: 37 },
       comfort: { x: 1646, y: 102, w: 158, h: 252,
         arch: { cx: 79, cy: 75, r: 54, bottom: 180 } },
@@ -239,9 +246,16 @@ export async function load(van = 'henry') {
   const img = new Image();
   img.src = V.art;
   await img.decode();
+  let fuelImg = null;
+  if (V.src.fuel?.art) {
+    fuelImg = new Image();
+    fuelImg.src = V.src.fuel.art;
+    await fuelImg.decode();
+  }
   return {
     V,
     img,
+    fuelImg,
     speedo: V.src.speedo ? makeSpeedoFace(img, V) : null,
     speedFrame: V.src.screen ? makeFrame(img, V.src.screen) : null,
     gpsFrame: makeFrame(img, V.src.gps),
@@ -674,7 +688,8 @@ function paintDash(dash, L, w, g) {
     const F = L.fuel, fs = S.fuel;
     shadowOf(g, () => circle(g, F.cx, F.cy, F.r), 1.5);
     g.save(); circle(g, F.cx, F.cy, F.r); g.clip();
-    g.drawImage(img, fs.cx - fs.r, fs.cy - fs.r, 2 * fs.r, 2 * fs.r, F.cx - F.r, F.cy - F.r, 2 * F.r, 2 * F.r);
+    if (dash.fuelImg) g.drawImage(dash.fuelImg, F.cx - F.r, F.cy - F.r, 2 * F.r, 2 * F.r);
+    else g.drawImage(img, fs.cx - fs.r, fs.cy - fs.r, 2 * fs.r, 2 * fs.r, F.cx - F.r, F.cy - F.r, 2 * F.r, 2 * F.r);
     g.restore();
   }
 
@@ -817,6 +832,53 @@ function drawNeedle(g, Sp, a, src, colour) {
   hub.addColorStop(0, '#fbe3a0'); hub.addColorStop(1, '#a8792a');
   g.fillStyle = hub; g.fill(); g.stroke();
   circle(g, 0, 0, 5 * k); g.fillStyle = '#6f4a1c'; g.fill();
+  g.restore();
+}
+
+/** Where the fuel needle points for a level (0 empty .. 1 full): along the
+ *  gauge's own ticks where it has them, else evenly from E to F. */
+function fuelAngle(fs, level) {
+  const x = Math.max(0, Math.min(1, level));
+  if (fs.ticks) {
+    const t = fs.ticks;
+    let i = 1;
+    while (i < t.length - 1 && t[i][0] < x) i++;
+    const [x0, a0] = t[i - 1], [x1, a1] = t[i];
+    return (a0 + (x - x0) * (a1 - a0) / (x1 - x0)) * DEG;
+  }
+  return (fs.e + (fs.f - fs.e) * x) * DEG;
+}
+
+/** The glow round a gauge at a quarter tank (fuel.js's low): amber, like a
+ *  knob the road is asking for, pulsing with it. path draws its outline. */
+function lowGlow(g, path, pulse) {
+  g.save();
+  g.shadowColor = `rgba(${HINT_GLOW},${0.95 * pulse})`; g.shadowBlur = 8 + 8 * pulse;
+  path();
+  g.lineWidth = 2.4; g.strokeStyle = `rgba(255,200,90,${0.55 + 0.45 * pulse})`; g.stroke();
+  g.restore();
+}
+
+/** The fuel gauge's needle, live: a slim tapered pointer on a small hub, in
+ *  the painted needle's colour, at the tank's level. */
+function drawFuel(g, F, fs, level, low, pulse) {
+  if (low) lowGlow(g, () => circle(g, F.cx, F.cy, F.r + 0.6), pulse);
+  const k = F.r / fs.r, hx = F.cx + fs.hub[0] * k, hy = F.cy + fs.hub[1] * k;
+  const len = fs.len * k, w = Math.max(0.9, 2.6 * k);
+  g.save();
+  g.translate(hx, hy); g.rotate(fuelAngle(fs, level));
+  const path = () => {
+    g.beginPath();
+    g.moveTo(-len * 0.2, -w); g.lineTo(len, -w * 0.25); g.lineTo(len, w * 0.25); g.lineTo(-len * 0.2, w);
+    g.closePath();
+  };
+  g.save(); g.translate(0.6, 0.8); path(); g.fillStyle = 'rgba(46,17,8,.3)'; g.fill(); g.restore();
+  path(); g.fillStyle = fs.colour; g.fill();
+  g.lineWidth = Math.max(0.5, 0.9 * k); g.strokeStyle = INK; g.stroke();
+  circle(g, 0, 0, Math.max(1.3, 5 * k));
+  const hub = g.createRadialGradient(-1.5 * k, -1.5 * k, 0, 0, 0, Math.max(1.3, 5 * k));
+  hub.addColorStop(0, '#fbe3a0'); hub.addColorStop(1, '#8a6420');
+  g.fillStyle = hub; g.fill(); g.lineWidth = 0.6; g.stroke();
   g.restore();
 }
 
@@ -1317,20 +1379,25 @@ export function draw(ctx, dash, w, h, s) {
   ctx.drawImage(dash.bg, 0, L.top, w, L.H);
 
   const mph = s.v * MPH;
+  // The prompts pulse about once a second (a knob the road asks for, a low
+  // tank), and hold steady under reduced motion.
+  const pulse = reduce ? 0.85 : 0.3 + 0.7 * (0.5 - 0.5 * Math.cos(now / 1000 * TAU));
+  const level = s.fuel ?? s.charge ?? 1;
   switch (V.speed.kind) {
     case 'needle':
       stepNeedle(V, dash.needle, mph, dt, reduce);
       drawNeedle(ctx, L.speedo, dash.needle.a, V.src.speedo, V.needle);
       break;
     case 'leds': drawLeds(ctx, L.speedo, mph); break;
-    case 'screen': drawSparkScreen(ctx, L.screenIn, mph, s.charge ?? 0.8, V.speed.full); break;
+    case 'screen':
+      if (s.fuelLow) lowGlow(ctx, () => rr(ctx, L.screen.x, L.screen.y, L.screen.w, L.screen.h, L.screen.b * 0.6), pulse);
+      drawSparkScreen(ctx, L.screenIn, mph, level, V.speed.full);
+      break;
     case 'cloth': drawCloth(ctx, L, dash, mph, dt, reduce); break;
   }
+  if (L.fuel) drawFuel(ctx, L.fuel, V.src.fuel, level, !!s.fuelLow, pulse);
   drawGps(ctx, L, s);
   drawComfort(ctx, L, V.src, dash.comfort, s.jostle, dt, reduce);
-  // The prompt pulses about once a second, and holds steady under reduced
-  // motion.
-  const pulse = reduce ? 0.85 : 0.3 + 0.7 * (0.5 - 0.5 * Math.cos(now / 1000 * TAU));
   for (const k of L.gears.knobs) if (k.n === s.gearHint) knobHalo(ctx, k, pulse);
   for (const k of L.gears.knobs) {
     knob(ctx, k, k.n === s.gear, { hint: k.n === s.gearHint ? pulse : 0 });
