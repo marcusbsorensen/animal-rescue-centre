@@ -29,7 +29,7 @@
  * follows speed and place").
  * No Phaser — unit-tested.
  */
-import { atDistance, roadClassAt, type RoutePath } from './route-path';
+import { atDistance, carriagewayAt, roadClassAt, type RoutePath } from './route-path';
 import { GEAR_SPEED_MPS } from './road-gears';
 
 /** The camera aims at the route this far ahead of the van, metres. */
@@ -53,7 +53,9 @@ export const VAN_WIDTH_M = 2.4;
 
 /** The closest the camera may sit on the dual carriageway, whose true 21.6 m
  *  would otherwise fill a phone, and how soon before it that applies, so the
- *  wider road is already framed when the van arrives. */
+ *  wider road is already framed when the van arrives. Only the real dual
+ *  carriageway: the A28's divided and single stretches are main roads and get
+ *  the main road's zoom (trunk-carriageways.ts). */
 export const BIG_ROAD_ZOOM = 0.62;
 export const BIG_ROAD_ZOOM_AHEAD_M = 40;
 
@@ -160,7 +162,7 @@ export interface ZoomPlace {
   v: number;
   /** Metres left to the end of the route. */
   toGo: number;
-  /** On, or within BIG_ROAD_ZOOM_AHEAD_M of, the dual carriageway. */
+  /** On, or within BIG_ROAD_ZOOM_AHEAD_M of, the real dual carriageway. */
   bigAhead: boolean;
 }
 
@@ -177,10 +179,19 @@ export function zoomFor({ road, v, toGo, bigAhead }: ZoomPlace): number {
   return z;
 }
 
+/** Whether the road at distance s is the real dual carriageway. A trunk
+ *  segment with no carriageway (a route built without the data) counts, as
+ *  every trunk edge did before; one known to be divided or single does not. */
+export function bigRoadAt(route: RoutePath, s: number): boolean {
+  if (roadClassAt(route, s) !== 'trunk') return false;
+  const c = carriagewayAt(route, s);
+  return !c || c.kind === 'dual';
+}
+
 /** zoomFor at distance s along the route, at speed v. */
 export function zoomTarget(route: RoutePath, s: number, v: number): number {
   const road = roadClassAt(route, s);
-  const bigAhead = road === 'trunk' || roadClassAt(route, s + BIG_ROAD_ZOOM_AHEAD_M) === 'trunk';
+  const bigAhead = bigRoadAt(route, s) || bigRoadAt(route, s + BIG_ROAD_ZOOM_AHEAD_M);
   return zoomFor({ road, v, toGo: route.length - s, bigAhead });
 }
 

@@ -1,17 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { VEHICLE_DEFS, type VehicleType } from '@arc/game-logic';
-import { graph, adj } from './real-graph';
-import { buildAdjacency, roadAllowedFor, routePolyline, routeProfile, shortestPath, vehicleRouteAdjacency, type RoadGraph } from '../road-router';
+import { graph, adj, trikeyLinksFile } from './real-graph';
+import { buildAdjacency, roadAllowedFor, routePolyline, routeProfile, shortestPath, type RoadGraph } from '../road-router';
+import { TRIKEY, createRoadNetworks, roadsForRoute } from '../trikey-links';
 import { ARC_PLACE, placeFor } from '../birchie-places';
 import { routeBetween } from '../route-path';
 
-// ── Trikey avoids dual carriageways ──
+// ── Trikey never rides the A28 ──
 //
-// Trikey (pedal-trike) is half the speed of every gear; on a trunk road first
-// gear is already too slow, so she would be too slow in every gear. Marcus,
-// 2026-10-11 (driving port plan, section 5, answer 10): her routes avoid them.
-// Measured on the installed Birchie graph, every ordered pair of its 15 named
-// anchors (210 routes).
+// Rule 18A (driving port plan, section 5, answer 10). The first two blocks
+// measure the trunk bar alone, the game graph without the A28 and nothing
+// added: the floor her own network (trikey-links.ts, its paths and the two
+// crossings she may use, tested in trikey-links.test.ts) is built on. Measured
+// on the installed Birchie graph, every ordered pair of its 15 named anchors
+// (210 routes).
 
 const names = Object.keys(graph.anchors);
 const pairs = names.flatMap((from) => names.filter((to) => to !== from).map((to) => [from, to] as const));
@@ -44,7 +46,7 @@ describe('roadAllowedFor', () => {
   });
 });
 
-describe('Trikey routes on the Birchie graph', () => {
+describe('the trunk bar alone, on the Birchie graph', () => {
   it('never uses a trunk edge', () => {
     const cls = edgeClass(graph);
     let routed = 0;
@@ -122,34 +124,40 @@ describe('Trikey routes on the Birchie graph', () => {
   });
 });
 
-// What the drive routes Trikey over, from A.R.C. (PtvDriveScene.routeAdjacency).
-describe('vehicleRouteAdjacency', () => {
-  const route = (to: string) => vehicleRouteAdjacency(graph, trikeAdj, adj, ARC_PLACE, placeFor(to));
+// What the drive routes Trikey over, from A.R.C. (PtvDriveScene.routeRoads).
+describe('roadsForRoute', () => {
+  const nets = createRoadNetworks(graph, trikeyLinksFile);
+  const own = nets.forVehicle(TRIKEY);
+  const all = nets.forVehicle();
+  const route = (to: string) => roadsForRoute(nets, TRIKEY, ARC_PLACE, placeFor(to));
 
-  it('keeps Trikey on her own roads where they reach, and off the dual carriageway', () => {
-    for (const to of ['woodland', 'wilderwood', 'deep-forest', 'wetlands']) {
+  it('keeps Trikey on her own roads where they reach, and off the A28', () => {
+    for (const to of nets.reachableFor(TRIKEY, 'arc')) {
       const r = route(to);
       expect(r.reachable, to).toBe(true);
-      expect(r.adj, to).toBe(trikeAdj);
-      const profile = routeProfile(graph, r.adj, ARC_PLACE, placeFor(to));
+      expect(r.roads, to).toBe(own);
+      const profile = routeProfile(r.roads.graph, r.roads.adj, ARC_PLACE, placeFor(to));
       expect(profile.length, to).toBeGreaterThan(0);
       expect(profile.map((p) => p.roadClass), to).not.toContain('trunk');
     }
   });
 
-  it('falls back to every road where she cannot reach, rather than no route at all', () => {
-    for (const to of ['vet', 'village-hall', 'bramble-farm', 'cove-harbour', 'goose-end-farm', 'moorland', 'sea-cliffs', 'hog-hospital']) {
+  it('agrees with reachableFor, and falls back to every road where she cannot reach', () => {
+    const unreachable = names.filter((n) => n !== 'arc' && !nets.canReach(TRIKEY, 'arc', n));
+    expect(unreachable.sort()).toEqual(['bramble-farm', 'cove-harbour', 'goose-end-farm', 'hog-hospital', 'moorland', 'sea-cliffs', 'vet', 'village-hall']);
+    for (const to of unreachable) {
       const r = route(to);
       expect(r.reachable, to).toBe(false);
-      expect(r.adj, to).toBe(adj);
-      const line = routePolyline(graph, r.adj, ARC_PLACE, placeFor(to));
+      expect(r.roads, to).toBe(all);
+      const line = routePolyline(r.roads.graph, r.roads.adj, ARC_PLACE, placeFor(to));
       expect(line, to).toEqual(routePolyline(graph, adj, ARC_PLACE, placeFor(to)));
       expect(line.length, to).toBeGreaterThan(2); // on the roads, not a straight line
     }
   });
 
-  it('changes nothing for a vehicle routed over every road', () => {
-    const r = vehicleRouteAdjacency(graph, adj, adj, ARC_PLACE, placeFor('vet'));
-    expect(r).toEqual({ adj, reachable: true });
+  it('changes nothing for any other vehicle', () => {
+    const r = roadsForRoute(nets, 'small-van', ARC_PLACE, placeFor('vet'));
+    expect(r).toEqual({ roads: all, reachable: true });
+    expect(r.roads.adj).toEqual(adj);
   });
 });

@@ -46,7 +46,9 @@ import { buildRoadTransitions, worldYForRow, type RoadTransition } from '../driv
 import { TRAFFIC_PROFILES, pickTrafficKind, pickFrom, isBusSeason, type TrafficProfile, type TrafficKind } from '../driving/traffic';
 import { preferredLane, carAbsoluteSpeed, maxLaneFor } from '../driving/traffic-sim';
 import { ARC_PLACE, placeFor, CAMERA_PLACES } from '../driving/birchie-places';
-import { buildAdjacency, roadClassAt, routePolyline, routeProfile, vehicleRouteAdjacency, ROADS_BARRED, type RoadGraph, type Adjacency, type RoutePoint, type RoadClassRun } from '../driving/road-router';
+import { parseTrunkCarriageways, type TrunkCarriageways, type TrunkCarriagewaysFile } from '../driving/trunk-carriageways';
+import { roadClassAt, roadRunAt, routePolyline, routeProfile, type RoadGraph, type RoutePoint, type RoadClassRun } from '../driving/road-router';
+import { NO_TRIKEY_LINKS, createRoadNetworks, roadsForRoute, type RoadNetworks, type TrikeyLinksFile, type VehicleRoads } from '../driving/trikey-links';
 import { buildManeuvers, nextManeuver, maneuverText, maneuverArrow, projectToRoute, type Maneuver } from '../driving/route-instructions';
 import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
 
@@ -430,10 +432,11 @@ export class PtvDriveScene extends Phaser.Scene {
   private gpsArc = { x: 0, y: 0 };
   private gpsDest = { x: 0, y: 0 };
   private gpsGraph?: RoadGraph;
-  /** Every road, and each vehicle's own roads where it is barred from some
-   *  (Trikey: no dual carriageways). Built once each, on first use. */
-  private gpsAdjAll?: Adjacency;
-  private gpsAdjByVehicle = new Map<VehicleType, Adjacency>();
+  /** The A28's carriageways, for the speed verdict; absent if the file is. */
+  private trunkCarriageways?: TrunkCarriageways;
+  /** Every road for every vehicle but Trikey, and her own network (rule
+   *  18A: never along the A28, across it only at two sets of lights). */
+  private roadNetworks?: RoadNetworks;
   /** The route as panel-pixel points, with cumulative lengths for the dot. */
   private gpsRoutePts: { x: number; y: number }[] = [];
   private gpsRouteCum: number[] = [];
@@ -554,6 +557,14 @@ export class PtvDriveScene extends Phaser.Scene {
     // The routable road graph (built offline from the same SVG).
     if (!this.cache.json.exists('birchie-graph')) {
       this.load.json('birchie-graph', '/assets/driving/birchie-graph.json');
+    }
+    // What each A28 edge really is: dual, divided or single, and its limit.
+    if (!this.cache.json.exists('trunk-carriageways')) {
+      this.load.json('trunk-carriageways', '/assets/driving/trunk-carriageways.json');
+    }
+    // Trikey's own paths and the two A28 crossings she may use.
+    if (!this.cache.json.exists('trikey-links')) {
+      this.load.json('trikey-links', '/assets/driving/trikey-links.json');
     }
     this.load.on('loaderror', () => { /* tolerate not-yet-generated sprites */ });
   }
@@ -869,9 +880,9 @@ export class PtvDriveScene extends Phaser.Scene {
 
     // Road-following route A.R.C. → destination (Dijkstra on the road graph,
     // straight-line fallback if the network can't connect).
-    const gpsAdj = this.routeAdjacency();
-    const polyFrac: RoutePoint[] = this.gpsGraph && gpsAdj
-      ? routePolyline(this.gpsGraph, gpsAdj, ARC_PLACE, placeFor(this.destinationId))
+    const roads = this.routeRoads();
+    const polyFrac: RoutePoint[] = roads
+      ? routePolyline(roads.graph, roads.adj, ARC_PLACE, placeFor(this.destinationId))
       : [ARC_PLACE, placeFor(this.destinationId)];
     this.gpsRoutePts = polyFrac.map(toPanel);
     this.gpsRouteCum = [0];
@@ -2096,34 +2107,33 @@ export class PtvDriveScene extends Phaser.Scene {
   private ensureGraph(): void {
     if (!this.gpsGraph && this.cache.json.exists('birchie-graph')) {
       this.gpsGraph = this.cache.json.get('birchie-graph') as RoadGraph;
-      this.gpsAdjAll = buildAdjacency(this.gpsGraph);
+      const links = this.cache.json.exists('trikey-links')
+        ? this.cache.json.get('trikey-links') as TrikeyLinksFile
+        : NO_TRIKEY_LINKS;
+      this.roadNetworks = createRoadNetworks(this.gpsGraph, links);
+      if (this.cache.json.exists('trunk-carriageways')) {
+        this.trunkCarriageways = parseTrunkCarriageways(
+          this.cache.json.get('trunk-carriageways') as TrunkCarriagewaysFile, this.gpsGraph);
+      }
     }
   }
 
   /**
-   * The adjacency this drive routes over: the picked vehicle's own roads, so
-   * the GPS line and the road profile both follow them (Trikey keeps off dual
-   * carriageways). Where her own roads cannot reach the destination she takes
-   * every road instead; see `vehicleRouteAdjacency` for the open question.
+   * The roads this drive routes over: the picked vehicle's own, so the GPS
+   * line and the road profile both follow them (Trikey keeps off the A28 and
+   * crosses it only at the lights). Where her own roads cannot reach the
+   * destination she takes every road instead; see `roadsForRoute`.
    */
-  private routeAdjacency(): Adjacency | undefined {
+  private routeRoads(): VehicleRoads | undefined {
     this.ensureGraph();
-    const g = this.gpsGraph;
-    const all = this.gpsAdjAll;
-    if (!g || !all) return undefined;
-    if (!ROADS_BARRED[this.vehicleId]) return all;
-    let own = this.gpsAdjByVehicle.get(this.vehicleId);
-    if (!own) {
-      own = buildAdjacency(g, this.vehicleId);
-      this.gpsAdjByVehicle.set(this.vehicleId, own);
-    }
-    return vehicleRouteAdjacency(g, own, all, ARC_PLACE, placeFor(this.destinationId)).adj;
+    if (!this.roadNetworks) return undefined;
+    return roadsForRoute(this.roadNetworks, this.vehicleId, ARC_PLACE, placeFor(this.destinationId)).roads;
   }
 
   private computeRouteProfile(): void {
-    const adj = this.routeAdjacency();
-    this.roadProfile = this.gpsGraph && adj
-      ? routeProfile(this.gpsGraph, adj, ARC_PLACE, placeFor(this.destinationId))
+    const roads = this.routeRoads();
+    this.roadProfile = roads
+      ? routeProfile(roads.graph, roads.adj, ARC_PLACE, placeFor(this.destinationId), this.trunkCarriageways)
       : [];
     // One merge zone per road-type change, centred on the class boundary
     // (~3–4s to play out at cruising speed). scrollY and progress are the same
@@ -3278,17 +3288,19 @@ export class PtvDriveScene extends Phaser.Scene {
 
   /**
    * Whether a speed camera would catch her now: her gear is too fast for the
-   * road class under the van, by the road-gear table. `rate` is this frame's
+   * road under the van, by the road-gear table; on the A28, by the carriageway
+   * there, so the 30 mph road through The Square is not judged as the 50 mph
+   * dual carriageway. `rate` is this frame's
    * pace, which scales the gear's speed down when she is held behind traffic
    * or on the handbrake, so a van barely moving is never caught. With no
    * route profile there is no road class to judge by, and nothing fires.
    */
   private tooFastForRoad(rate: number): boolean {
-    const roadClass = roadClassAt(this.roadProfile, this.drive.progress);
-    if (!roadClass) return false;
+    const run = roadRunAt(this.roadProfile, this.drive.progress);
+    if (!run) return false;
     const gear = this.drive.gear;
     const speedMps = GEAR_SPEED_MPS[gear] * Math.max(0, rate) / gearScrollRate(gear);
-    return speedCameraFires(roadClass, gear, speedMps);
+    return speedCameraFires(run.roadClass, gear, speedMps, run.carriageway);
   }
 
   /** Speed camera caught us going too fast — a white blitz, a little camera
