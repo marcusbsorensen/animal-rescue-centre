@@ -120,6 +120,22 @@ function mulberry32(a) {
   };
 }
 
+/** The page's peekStep (37A), line for line: past halfway an overtake
+ *  if the road allows it, else the van holds at the look. */
+const PEEK_T = 0.38;
+function peekStep(car, res) {
+  const mayOvertake = !res.laneBlocked;
+  if (car.laneWant === 1) car.returning = false;
+  else if (car.prevWant === 1) car.returning = true;
+  if (car.returning && car.laneT <= 0.001) car.returning = false;
+  if (car.laneWant === 0 && !car.returning) {
+    if (car.ask >= 0.5 && mayOvertake) { car.laneWant = 1; car.ask = 0; }
+  } else car.ask = 0;
+  car.prevWant = car.laneWant;
+  car.peek = car.laneWant === 0 && !car.returning;
+  car.peekT = car.peek ? Math.min(1, car.ask / 0.5) * Math.min(PEEK_T, res.peekMax ?? 0) : 0;
+}
+
 // ------------------------------------------------------------------- one run
 
 function run(seed) {
@@ -144,7 +160,9 @@ function run(seed) {
     oncomingPasses: 0, overtakes: 0, blockedFrames: 0, maxVehicles: 0, wraps: 0,
     worst: null,
   };
-  let wasEmergency = false, holdWas = false;
+  let wasEmergency = false, holdWas = false, follow = null, ask = 0, askFor = 0;
+  out.peekFrames = 0; out.peekHeld = 0; out.peekMinSep = Infinity;
+  out.follows = 0; out.followDrift = 0; out.followMinDrift = Infinity; out.followMaxDrift = 0; out.lockstep = 0;
   const seenAhead = new Map(), oracle = new Map();
   out.expectedClose = 0;
   let t = 0;
@@ -165,11 +183,13 @@ function run(seed) {
       if (r < 0.32) throttle = true;
       else if (r < 0.42) throttle = false;
       else if (r < 0.57) car.gear = wild && rand() < 0.6 ? 3 : 1 + ((rand() * 3) | 0);
-      else if (r < 0.78) car.laneWant = 1;
-      else if (r < 0.90) car.laneWant = 0;
+      // A swipe right, all the way or part way (a look, 37A), held a while.
+      else if (r < 0.78) { ask = rand() < 0.5 ? 1 : 0.1 + rand() * 0.55; askFor = 0.2 + rand() * 3; }
+      else if (r < 0.90) { car.laneWant = 0; ask = 0; }
       else { handbrake = true; hbTimer = 0.1 + rand() * 0.9; }
     }
     if (handbrake) { hbTimer -= dt; if (hbTimer <= 0) handbrake = false; }
+    if (ask > 0 && (askFor -= dt) <= 0) ask = 0;   // let go
 
     // ---- the page's step(), line for line
     car.length = VAN_W_M * VAN_ASPECT;
@@ -177,6 +197,11 @@ function run(seed) {
     const laneTBefore = car.laneT;
     const res = traffic.step(trf, dt, car);
     if (res.laneBlocked) car.laneWant = 0;
+    car.ask = car.laneWant === 0 && !car.returning ? ask : 0;
+    peekStep(car, res);
+    if (car.laneWant === 1) ask = 0;   // the swipe is spent on the overtake
+    if (car.peek && car.laneT > 0.001) out.peekFrames++;
+    if (car.peek && car.ask >= 0.5 && res.laneBlocked) out.peekHeld++;
     for (const ev of res.events) { if (ev === 'close') out.close++; if (ev === 'beep') out.beep++; }
     if (res.laneBlocked) out.blockedFrames++;
 
@@ -198,12 +223,17 @@ function run(seed) {
 
     const target = throttle ? GEARS[car.gear] : 0;
     let emergency = 0;
+    let capped = 0;
     if (car.v > res.speedCap) {
-      emergency = EMERGENCY;
+      const v0 = car.v;
       car.v = Math.max(res.speedCap, car.v - EMERGENCY * dt);
+      capped = (v0 - car.v) / dt;
     } else if (handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
     else if (car.v < target) car.v = Math.min(target, res.speedCap, car.v + ACCEL * dt);
     else car.v = Math.max(target, car.v - BRAKE * dt);
+    // As the page: only a stop harder than letting go, felt over 0.1 s.
+    car.felt = (car.felt ?? 0) + (capped - (car.felt ?? 0)) * (1 - Math.exp(-dt / 0.1));
+    if (capped > 0 && car.felt > BRAKE + 0.5) emergency = EMERGENCY;
     if (emergency && !wasEmergency) {
       out.emergencies++;
       const k = 'em:' + trf.last.capBy + (car.laneT > 0.01 ? ' (van in lane 1)' : '');
@@ -217,7 +247,8 @@ function run(seed) {
     const off0 = R.laneOffset(0, car.s), off1 = R.laneOffset(1, car.s);
     const span = Math.abs(off1 - off0) || LANE_M;
     const stepT = 7 * dt / span;
-    const dT = Math.max(-stepT, Math.min(stepT, car.laneWant - car.laneT));
+    const goal = car.laneWant === 1 ? 1 : car.peek ? car.peekT : 0;
+    const dT = Math.max(-stepT, Math.min(stepT, goal - car.laneT));
     car.laneT += dT;
     if (car.base == null) car.base = off0;
     car.base += Math.max(-4 * dt, Math.min(4 * dt, off0 - car.base));
@@ -229,6 +260,23 @@ function run(seed) {
     car.heading = pos.h;
     // ---- end of the page's step()
 
+    // A steady follow: held behind the same vehicle in lane 0 with the
+    // throttle down. How far the gap wanders over each, and how often the
+    // two move in lockstep (the gap within 5 cm for two seconds).
+    {
+      let lead = trf.last.capBy === 'lead' && throttle && !handbrake && car.laneT < 0.01 && Math.abs(car.v - res.speedCap) < 0.3
+        ? trf.vehicles.filter(w => w.dir > 0 && w.s > car.s).sort((a, b) => a.s - b.s)[0] : null;
+      if (lead && (lead.v < 1 || Math.abs(lead.v - car.v) > 1.5)) lead = null;   // a queue standing, or still closing in
+      if (lead && follow && follow.w === lead) {
+        const g = lead.s - lead.L / 2 - (car.s + car.length / 2);
+        follow.t += dt;
+        if (follow.t > 5) { follow.lo = Math.min(follow.lo, g); follow.hi = Math.max(follow.hi, g); }   // settled in
+        if (Math.abs(g - follow.g0) > 0.05) { follow.g0 = g; follow.still = 0; } else if ((follow.still += dt) > 2 && !follow.lock) { follow.lock = true; out.lockstep++; }
+      } else {
+        if (follow && follow.t > 15) { out.follows++; out.followDrift += follow.hi - follow.lo; out.followMinDrift = Math.min(out.followMinDrift, follow.hi - follow.lo); out.followMaxDrift = Math.max(out.followMaxDrift ?? 0, follow.hi - follow.lo); }
+        follow = lead ? { w: lead, t: 0, lo: Infinity, hi: -Infinity, g0: Infinity, still: 0, lock: false } : null;
+      }
+    }
     out.frames++;
     const hold = trf.last?.hold;
     if (hold && !holdWas) out.holds++;
@@ -254,6 +302,7 @@ function run(seed) {
       if (Math.abs(fp.x - car.x) > 30 || Math.abs(fp.y - car.y) > 30) continue;
       const sep = separation(vanBox, fp);
       if (sep < out.minSep) out.minSep = sep;
+      if (car.peek && car.laneT > 0.01 && w.dir < 0 && sep < out.peekMinSep) out.peekMinSep = sep;
       if (sep < 0) {
         out.overlaps++;
         if (!out.worst || sep < out.worst.sep) out.worst = {
@@ -285,8 +334,8 @@ for (let seed = FIRST; seed < FIRST + SEEDS; seed++) {
   const r = run(seed);
   for (const [k, v] of Object.entries(r)) {
     if (typeof v !== 'number') continue;
-    if (k === 'minSep') totals[k] = Math.min(totals[k] ?? Infinity, v);
-    else if (k === 'maxVehicles') totals[k] = Math.max(totals[k] ?? 0, v);
+    if (k === 'minSep' || k === 'followMinDrift' || k === 'peekMinSep') totals[k] = Math.min(totals[k] ?? Infinity, v);
+    else if (k === 'maxVehicles' || k === 'followMaxDrift') totals[k] = Math.max(totals[k] ?? 0, v);
     else totals[k] = (totals[k] ?? 0) + v;
   }
   const bad = r.overlaps || r.enteredOnTrack || r.enteredNearBend || r.lane1OnTrack;
@@ -308,8 +357,10 @@ console.log(`  'close'                          ${totals.close}   (clean overtak
 console.log(`  'beep'                           ${totals.beep}`);
 console.log(`  vehicles passed                  ${totals.overtakes}`);
 console.log(`  oncoming vehicles met            ${totals.oncomingPasses}`);
-console.log(`  emergency stops by the page      ${totals.emergencies}`);
+console.log(`  steady follows over 15 s         ${totals.follows}: the gap wandered ${(totals.followDrift / Math.max(1, totals.follows)).toFixed(2)} m on average (least ${totals.followMinDrift.toFixed(2)} m, most ${(totals.followMaxDrift ?? 0).toFixed(2)} m); in lockstep for 2 s ${totals.lockstep} times`);
+console.log(`  hard stops by the page           ${totals.emergencies}`);
 for (const k of Object.keys(totals).filter(k => k.startsWith('em:')).sort()) console.log(`    ${k.slice(3).padEnd(28)} ${totals[k]}`);
+console.log(`  frames spent looking out (37A)  ${totals.peekFrames}, of them past halfway but held at the look as unsafe ${totals.peekHeld}; closest a looking van came to oncoming traffic ${totals.peekMinSep.toFixed(2)} m`);
 console.log(`  times held out (swipe back refused while alongside) ${totals.holds}`);
 console.log(`  most vehicles at once            ${totals.maxVehicles}`);
 console.log(`  route laps                       ${totals.wraps}`);

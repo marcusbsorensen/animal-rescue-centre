@@ -24,12 +24,25 @@
 //   - laneBlocked keeps the van out of the oncoming lane unless the whole
 //     overtake fits before the next oncoming vehicle, and never near a sharp
 //     bend, on a track, or across the ends of the dual carriageway
+//   - poking out to look (37A) is not overtaking: the van stays in lane 0
+//     (laneWant 0) and eases part way out, never further than peekMax, which
+//     keeps it PEEK_MARGIN clear of anything coming the other way. While it
+//     looks, an oncoming vehicle conflicts with it only if they really
+//     overlap sideways (they never do), and there is nothing to hold it out
+//     for: it comes back in whenever she lets go
 //   - the one move the page does not let us refuse is the child swiping BACK
 //     to lane 0 while something is alongside. Then step() sets van.laneWant
 //     back to 1 (the van stays out until there is room, then returns by
 //     itself) and the vehicle alongside eases off to make that room. This
 //     writes to the van object, which the contract does not document: see the
 //     commit message for the field the page should grow instead.
+//   - no animal is ever hurt (Marcus, 2026-10-12: "make SURE that the crossing
+//     animals on the road are not run over by vehicles coming in the other
+//     direction!"). The page passes crossings.js's closed stretches, where an
+//     animal is on the road or stepping onto it; every vehicle, either way,
+//     slows at a careful driver's ANIMAL_STOP and stands short of the stretch
+//     until it opens. crossings.js lets an animal step out only when every
+//     vehicle can still do that, so the stop is always a gentle one.
 
 /**
  * @typedef {Object} Route
@@ -50,6 +63,9 @@
  * @property {number} width    metres
  * @property {number} [laneT]  0..1 across from lane 0 to lane 1 (the page has it)
  * @property {number} [gear]   1..3 (the page has it; used for the beep)
+ * @property {boolean} [peek]  she is easing out to look (37A), not overtaking:
+ *           laneWant is 0 and the van may be part way out
+ * @property {number} [peekT]  how far out she is asking to look, 0..1 across
  */
 
 /**
@@ -61,6 +77,9 @@
  * @property {boolean} laneBlocked the overtaking lane is not safe now. The
  *           spike refuses a swipe into it and, if the van is already there,
  *           brings it back, which also counts as a swerve.
+ * @property {number} peekMax     how far out (laneT, 0..1) the van may ease to look
+ *           without coming within PEEK_MARGIN of anything coming the other way,
+ *           and 0 near a sharp bend or a change of road
  * @property {string[]} events     one-off moments for the HUD, e.g. 'close'
  *           for a clean overtake (the reference's "CLOSE!"), 'beep' for a
  *           queue behind a van in first gear on a dual carriageway.
@@ -165,9 +184,15 @@ const SPAWN_AHEAD = 215, SPAWN_ONC = 235, SPAWN_BEHIND = 75;
 const DESPAWN_BEHIND = 95, DESPAWN_AHEAD = 340;
 const IN_VIEW = 70;       // metres from the van inside which nothing pops in or out
 const BEND_M = 60;        // no overtaking this close before a sharp bend
-const BEND_DEG = 30;      // a "sharp bend": the route turns more than this within 30 m
+const BEND_DEG = 30;
+const PEEK_MARGIN = 0.7;   // metres kept between a peeking van and anything coming the other way
+const PEEK_LOOK = 150;     // how far ahead an oncoming vehicle limits the peek
+const PEEK_NEAR_M = 40;    // no peeking this near a sharp bend or a change of road
+const OWN_BEND_M = 45;    // in our own second lane, back in this far before a sharp bend or its end      // a "sharp bend": the route turns more than this within 30 m
 const CORNER_DEG = 22;    // past this, oncoming traffic takes a corner one at a time with the van
 const LANE_CHANGE_S = 0.7;
+const ANIMAL_STOP = 3.5;  // how hard a vehicle slows for a crossing animal, m/s²: a careful driver
+const ANIMAL_GAP = 1.2;   // and where it stands, this far short of the closed stretch
 const GEAR_V = { 1: 7, 2: 13, 3: 20 };
 
 // --------------------------------------------------------------------- set-up
@@ -183,6 +208,7 @@ export function create(route, opts = {}) {
     hold: false, pendingReturn: false, blocker: null,
     imgs: null, last: null,
   };
+  T.closed = [];
   survey(T);
   return T;
 }
@@ -192,8 +218,13 @@ export function create(route, opts = {}) {
 function survey(T) {
   const r = T.route, L = r.length;
   T.tracks = []; T.trunks = []; T.vertices = []; T.bends = []; T.boundaries = [];
-  let prevCls = null, open = null, prevH = null;
+  let prevCls = null, open = null, prevH = null, prevOnc = null;
   for (let s = 0; s <= L; s += 1) {
+    // Where lane 1 stops being our own and becomes the oncoming lane (the
+    // A28 from divided to single), the van must not carry it across.
+    const onc = lane1Oncoming(T, s);
+    if (prevOnc !== null && onc !== prevOnc && !T.boundaries.includes(s)) T.boundaries.push(s);
+    prevOnc = onc;
     const cls = r.roadClassAt(s);
     if (cls !== prevCls) {
       if (open) { open.list.push([open.a, s]); open = null; }
@@ -281,8 +312,14 @@ function cornerExtra(T, a, b, lat) {
     else if (v.s > b + 6 && v.s < b + 31) sum += Math.abs(v.turn) * (1 - (v.s - b - 6) / 25);
   }
   if (sum < 1e-3) return 0;
-  return Math.min(18, 2 * (Math.abs(lat) + 1.4) * Math.tan(Math.min(sum, 2.2) / 2));
+  // Up to a 155° hairpin, which the real graph has where a lane leaves the A28.
+  return Math.min(40, 2 * (Math.abs(lat) + 1.4) * Math.tan(Math.min(sum, 2.7) / 2));
 }
+
+/** The one of two lateral offsets further from the centreline: the corner
+ *  between two things is as short as it is for the one more on the inside,
+ *  which on the A28's wide carriageways is often the van. */
+const wider = (a, b) => Math.abs(a) > Math.abs(b) ? a : b;
 
 /** A vehicle's footprint in the world: a rigid body from its rear axle point
  *  on the route to its front one, so it cuts a corner the way a car does.
@@ -308,6 +345,9 @@ function pickKind(T, group) {
 }
 
 function spawn(T, kind, dir, s) {
+  // Never into the middle of an animal crossing, or so near one it could
+  // not stop for it.
+  if (T.closed.some(z => s > z.s0 - 45 && s < z.s1 + 45)) return null;
   const K = KINDS[kind];
   const base = K.skins[(T.rand() * K.skins.length) | 0];
   const skin = dir > 0 && K.pair ? base + '-rear' : base;
@@ -346,9 +386,13 @@ function vanBox(van) {
 // ---------------------------------------------------------------------- step
 
 /** Advance the traffic and report what it means for the van.
+ *  @param {{closed?: {s0:number, s1:number}[]}} [world] what else is on the
+ *  road: closed, the stretches crossings.closed() reports, where an animal is
+ *  crossing. Every vehicle stops short of them.
  *  @returns {TrafficResult} */
-export function step(T, dt, van) {
+export function step(T, dt, van, world = {}) {
   const events = [];
+  T.closed = world.closed ?? [];
   if (!T.ready || Math.abs(van.s - T.lastVanS) > 40) reset(T, van);
   T.lastVanS = van.s;
   T.time += dt;
@@ -361,10 +405,13 @@ export function step(T, dt, van) {
     : Math.abs(span) < 1e-3 ? (van.laneWant ? 1 : 0) : clamp((van.lane - off0) / span, 0, 1);
 
   // ---- 1. may the van be in the overtaking lane, and may it come back?
+  const peeking = !!van.peek && van.laneWant === 0;
   const unsafe = laneUnsafe(T, van, vb, laneT);
   const inLane1 = laneT > 0.001;
   if (T.pendingReturn && van.laneWant === 1 && !inLane1) T.pendingReturn = false;
-  const wantsBack = inLane1 && (van.laneWant === 0 || unsafe || T.pendingReturn);
+  // Easing back from a look is not coming back from an overtake: nothing
+  // can be alongside it, and nothing holds it out.
+  const wantsBack = !peeking && inLane1 && (van.laneWant === 0 || unsafe || T.pendingReturn);
   // Once a return is under way the caps on both sides already hold the gaps,
   // so only something actually alongside turns it round.
   const underway = laneT < 0.999 && van.laneWant === 0;
@@ -387,15 +434,17 @@ export function step(T, dt, van) {
   // it sweeps sideways.
   const occ0 = laneT < 0.999 || want === 0;
   const occ1 = laneT > 0.001 || want === 1;
-  const tgtLat = off0 + want * span;
+  const tgtLat = off0 + Math.max(want, peeking ? clamp(van.peekT ?? 0, 0, 1) : 0) * span;
   const bandLo = Math.min(van.lane, tgtLat) - van.width / 2;
   const bandHi = Math.max(van.lane, tgtLat) + van.width / 2;
   const conflicts = (w) => {
     const latHit = w.d + w.W / 2 + 0.3 > bandLo && w.d - w.W / 2 - 0.3 < bandHi;
     if (latHit) return true;
     if (w.dir > 0) return occ0;
+    if (peeking) return false;   // looking, not out: only a real overlap counts
     return occ1 && lane1Oncoming(T, w.s);
   };
+  const peekMax = peekRoom(T, van, vb, off0, span);
 
   // ---- 2. the vehicles move
   for (const w of T.vehicles) {
@@ -425,16 +474,22 @@ export function step(T, dt, van) {
     const wRear = w.s - w.L / 2, wFront = w.s + w.L / 2;
     if (w.dir > 0) {
       if (w.s < van.s) continue;   // behind: it keeps off us, not we off it
-      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, w.d);
-      // Close in hard, then sit at the leader's speed anywhere in a following
-      // band, so a steady follow never flickers into a self-stop.
-      const band = 3 + 0.4 * w.v;
-      const cap = g >= band ? w.v + Math.sqrt(2 * VAN_APPROACH * (g - band))
-        : g >= 0 ? w.v : Math.max(0, w.v + 1.5 * g);
+      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, wider(w.d, van.lane));
+      // Close in hard, then settle at a following gap that breathes: it
+      // drifts out and back by a metre or so, slowly and unevenly, so the van
+      // does not move in lockstep with the vehicle in front (Marcus,
+      // 2026-10-12). Never nearer than the band; below it the cap falls
+      // away as before.
+      const band = 3 + 0.4 * w.v, want = band + breath(T.time, w.id);
+      // (The approach is rounded off near the gap, so the gap moving does
+      // not jerk the cap.)
+      const cap = g >= want ? w.v + Math.sqrt(2 * VAN_APPROACH * (g - want) + ROUND * ROUND) - ROUND
+        : g >= 0 ? Math.max(0, w.v - Math.min(FOLLOW_DROP, FOLLOW_EASE * (want - g)))
+        : Math.max(0, Math.min(w.v - FOLLOW_DROP, w.v + 1.5 * g));
       if (cap < speedCap) { speedCap = Math.max(0, cap); capBy = 'lead'; }
     } else {
       if (wFront < vb.rear) continue;   // gone past
-      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, w.d);
+      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, wider(w.d, van.lane));
       const theirs = w.v * dt + w.v * w.v / (2 * ONC_STOP);
       const cap = stopSpeed(g - theirs, VAN_STOP, dt);
       if (cap < speedCap) { speedCap = cap; capBy = 'oncoming'; }
@@ -491,8 +546,23 @@ export function step(T, dt, van) {
   // ---- 5. arrivals and departures
   populate(T, van, vb, dt);
 
-  T.last = { speedCap, capBy, laneBlocked, hold: T.hold, laneT, unsafe };
-  return { speedCap, laneBlocked, laneHold: T.hold, events };
+  T.last = { speedCap, capBy, laneBlocked, hold: T.hold, laneT, unsafe, peekMax };
+  return { speedCap, laneBlocked, laneHold: T.hold, peekMax, events };
+}
+
+/** How much further back than the band the van sits behind a leader, metres:
+ *  three slow swells with unrelated periods, so it never repeats and never
+ *  looks like a wobble, phased by the leader so each follow is its own.
+ *  0 to BREATH_M. */
+const BREATH_M = 1.4;
+const FOLLOW_EASE = 0.45;   // 1/s: how quickly the van drifts to the gap it wants
+const ROUND = 2;            // m/s: how gently the approach meets the following gap
+const FOLLOW_DROP = 1;      // m/s: and at most this much slower than the leader as it drops back
+function breath(t, id) {
+  const p = id * 2.399;
+  const u = 0.5 * Math.sin(t * 2 * Math.PI / 9.7 + p) + 0.3 * Math.sin(t * 2 * Math.PI / 15.3 + 1.7 * p)
+    + 0.2 * Math.sin(t * 2 * Math.PI / 6.1 + 2.9 * p);
+  return BREATH_M * (0.5 + 0.5 * u);
 }
 
 /** The fastest speed from which a stop at `rate` fits in `room` metres,
@@ -512,9 +582,12 @@ function sameSpeed(T, w, aiLead, van, vb, conflictsVan, dt) {
   const v0 = desired(T, w);
   let gap = Infinity, dv = 0;
   if (lead) {
-    gap = lead.rear - front - cornerExtra(T, front, lead.rear, w.d);
+    gap = lead.rear - front - cornerExtra(T, front, lead.rear, wider(w.d, lead.d));
     dv = w.v - lead.v;
   }
+  // An animal crossing ahead: slowed for at a steady ANIMAL_STOP and no
+  // harder (the following model would brake hard once close).
+  const z = animalRoom(T, w, front);
   let v = w.v + clamp(idm(w.v, v0, gap, dv), -9, 2) * dt;
   if (lead) {
     const room = gap - (lead.van ? GAP : 1);
@@ -524,6 +597,7 @@ function sameSpeed(T, w, aiLead, van, vb, conflictsVan, dt) {
       : stopSpeed(room + lead.v * lead.v / 16, 8, dt);
     v = Math.min(v, cap);
   }
+  if (isFinite(z)) v = Math.min(v, stopSpeed(z, ANIMAL_STOP, dt));
   return clamp(v, 0, 40);
 }
 
@@ -563,14 +637,35 @@ function oncSpeed(T, w, aiLead, van, vb, conflictsVan, dt) {
     cap = Math.min(cap, stopSpeed(g, ONC_STOP, dt));
   }
   if (conflictsVan && vb.front < w.s + w.L / 2) {
-    const g = front - vb.front - GAP - cornerExtra(T, vb.front, front, w.d);
+    const g = front - vb.front - GAP - cornerExtra(T, vb.front, front, wider(w.d, van.lane));
     if (g < gap) { gap = g; dv = w.v + van.v; }
     const vans = van.v * dt + van.v * van.v / (2 * 26);
     cap = Math.min(cap, stopSpeed(g - vans, ONC_STOP, dt));
   }
+  const z = animalRoom(T, w, front);
+  if (isFinite(z)) cap = Math.min(cap, stopSpeed(z, ANIMAL_STOP, dt));
   let v = w.v + clamp(idm(w.v, v0, gap, dv), -9, 2) * dt;
   return clamp(Math.min(v, cap), 0, 40);
 }
+
+/** Metres a vehicle may still go before the nearest closed stretch ahead of
+ *  it (Infinity when none), its nose `front` stopping ANIMAL_GAP short, and
+ *  more on the inside of a corner. A stretch it is already past is behind
+ *  it; one it is somehow in is 0, so it stands where it is. */
+function animalRoom(T, w, front) {
+  let best = Infinity;
+  for (const z of T.closed) {
+    if (w.dir > 0) {
+      if (w.s - w.L / 2 > z.s1) continue;
+      best = Math.min(best, Math.max(0, z.s0 - front - ANIMAL_GAP - cornerExtra(T, front, z.s0, w.d)));
+    } else {
+      if (w.s + w.L / 2 < z.s0) continue;
+      best = Math.min(best, Math.max(0, front - z.s1 - ANIMAL_GAP - cornerExtra(T, z.s1, front, w.d)));
+    }
+  }
+  return best;
+}
+export const ANIMAL_STOP_RATE = ANIMAL_STOP, ANIMAL_STOP_GAP = ANIMAL_GAP;
 
 /** Seconds to cover d metres from speed v, accelerating at a (the page's
  *  9 m/s² for the van) up to vMax. */
@@ -609,8 +704,17 @@ function laneUnsafe(T, van, vb, laneT) {
   const horizon = clamp(need * vGear, BEND_M, 160);
 
   if (cls === 'track' || inAny(T.tracks, vb.rear - 5, vb.front + horizon)) return 'track';
-  if (anyPoint(T.boundaries, vb.rear - 10, vb.front + horizon)) return 'road ends';
-  if (anyPoint(T.bends, vb.rear - 10, vb.front + 3 + Math.min(horizon, 120))) return 'bend';
+  // Nor across a change of road: a track, either end of the dual
+  // carriageway, the A28 from divided to single. From our own second lane
+  // only the last OWN_BEND_M count: she may use it until then.
+  if (T.boundaries.some(b => b >= vb.rear - 10 && b <= vb.front + horizon
+      && (lane1Oncoming(T, b - 1) || b <= vb.front + OWN_BEND_M))) return 'road ends';
+  // No overtaking into the oncoming lane near a bend. Where lane 1 is our
+  // own (the dual carriageway, the A28's divided stretches with two lanes
+  // each way, which in town bend often) a bend only calls her back in just
+  // before it, where the corner folds the two lanes together.
+  const bendTo = vb.front + 3 + Math.min(horizon, 120);
+  if (T.bends.some(b => b >= vb.rear - 10 && b <= bendTo && (lane1Oncoming(T, b) || b <= vb.front + OWN_BEND_M))) return 'bend';
   for (const w of T.vehicles) {
     if (w.dir > 0) continue;
     if (w.s + w.L / 2 < vb.rear - 2) continue;              // already past
@@ -620,6 +724,26 @@ function laneUnsafe(T, van, vb, laneT) {
     if (D < need * (vGear + vo) + 25) return 'oncoming';
   }
   return '';
+}
+
+/** How far out the van may ease to look (laneT, 0..1): its offside kept
+ *  PEEK_MARGIN clear of every vehicle coming the other way within
+ *  PEEK_LOOK, and not at all near a sharp bend or a change of road, where
+ *  the lanes fold or move under it, nor within BEND_M of a bend it could
+ *  not overtake round. */
+function peekRoom(T, van, vb, off0, span) {
+  if (Math.abs(span) < 1e-3) return 0;
+  if (T.zones.some(z => z.sharp && z.b > vb.rear - 2 && z.a < vb.front + PEEK_NEAR_M)) return 0;
+  // Nor looking out where it could not overtake for a bend: there is nothing
+  // to see round it.
+  if (T.bends.some(b => b >= vb.rear - 10 && b <= vb.front + BEND_M + 3 && lane1Oncoming(T, b))) return 0;
+  if (anyPoint(T.boundaries, vb.rear - 5, vb.front + PEEK_NEAR_M)) return 0;
+  let lat = Infinity;
+  for (const w of T.vehicles) {
+    if (w.dir > 0 || w.s + w.L / 2 < vb.rear - 2 || w.s - w.L / 2 - vb.front > PEEK_LOOK) continue;
+    lat = Math.min(lat, w.d - w.W / 2 - PEEK_MARGIN);
+  }
+  return clamp((lat - van.width / 2 - off0) / span, 0, 1);
 }
 
 /** The vehicle in lane 0 that the van cannot move back in beside, or null. */
@@ -632,11 +756,11 @@ function returnBlocker(T, van, vb, dt, underway) {
       continue;
     }
     if (wRear >= vb.front) {
-      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, w.d);
+      const g = wRear - vb.front - GAP - cornerExtra(T, vb.front, wRear, wider(w.d, van.lane));
       const dv = Math.max(0, van.v - w.v);
       if (g < dv * dv / (2 * VAN_STOP) + dv * dt + 0.5) return w;
     } else if (wFront <= vb.rear) {
-      const g = vb.rear - wFront - GAP - cornerExtra(T, wFront, vb.rear, w.d);
+      const g = vb.rear - wFront - GAP - cornerExtra(T, wFront, vb.rear, wider(w.d, van.lane));
       if (g < w.v * dt * 2 + w.v * w.v / (2 * FOLLOW_STOP) + 0.5) return w;
     } else return w;
   }
@@ -693,7 +817,7 @@ function populate(T, van, vb, dt) {
       const k = pickKind(T, g);
       if (k) {
         const w = spawn(T, k, +1, sH);
-        const lead = T.vehicles.find(u => u !== w && u.dir > 0 && u.s > sH && u.s < sH + 60);
+        const lead = w && T.vehicles.find(u => u !== w && u.dir > 0 && u.s > sH && u.s < sH + 60);
         if (lead) w.v = Math.min(w.v, lead.v);
       }
       T.nextGap = SPACING[g] * (0.5 + T.rand());
@@ -722,8 +846,7 @@ function populate(T, van, vb, dt) {
         && !T.vehicles.some(w => w.dir > 0 && Math.abs(w.s - sB) < 40)) {
       const k = pickKind(T, 'trunk');
       const w = spawn(T, k, +1, sB);
-      const room = vb.rear - (sB + w.L / 2) - GAP;
-      w.v = Math.min(w.v, stopSpeed(room, FOLLOW_STOP, 0.05));
+      if (w) w.v = Math.min(w.v, stopSpeed(vb.rear - (sB + w.L / 2) - GAP, FOLLOW_STOP, 0.05));
     }
   }
 }

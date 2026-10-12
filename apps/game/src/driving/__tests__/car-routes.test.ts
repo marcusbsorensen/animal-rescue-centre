@@ -5,6 +5,10 @@ import { buildAdjacency, shortestPath, type Adjacency } from '../road-router';
 import { routeBetween } from '../route-path';
 import { TRIKEY, createRoadNetworks } from '../trikey-links';
 
+/** The tests that walk every route of the real graph take a few seconds,
+ *  and over vitest's default 5 s when the machine is busy. */
+const HEAVY_MS = 20_000;
+
 // ── Every vehicle but Trikey routes as it always did ──
 //
 // The A28 data changes how the road is drawn and timed, not where a car can
@@ -41,7 +45,7 @@ describe('every other vehicle routes as before', () => {
     }
     // Pinned on claude/crate-loading before this change: 210 routes, 868,538.9 m in all.
     expect(total).toBeCloseTo(868538.947, 2);
-  });
+  }, HEAVY_MS);
 
   it('would lose places if OSM\'s oneway were followed, which is why it is not', () => {
     const directed: Adjacency = graph.nodes.map(() => []);

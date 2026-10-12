@@ -59,12 +59,17 @@ const START_CLEAR_M = 35;     // none where the van sets off...
 const END_CLEAR_M = 45;       // ...or where it pulls up
 
 /** How far ahead of the van's nose an animal starts to cross, by the van's
- *  speed. The lane zoom shows about 14 m ahead of the nose standing and 20 m
- *  at 13 m/s; she sees the animal waiting on the verge before this. Close
- *  enough that a child who stops when it steps out still has it well inside
- *  the screen once the camera has come in (16 m at 13 m/s leaves ~10 m after
- *  braking), and far enough that the van can always stop for it. */
-function triggerGap(v) { return 8 + 0.6 * v; }
+ *  speed. The van should come to rest about one van length short of it, so
+ *  it crosses mid-screen where she is looking (Marcus, 2026-10-12, 39A: it
+ *  used to set out ~10 m ahead, and once the camera had come in it crossed
+ *  up under the chips). So it sets out when a child who lets go a moment
+ *  after it moves (REACT_S, then the page's BRAKE) stops STOP_AT_M short of
+ *  its line; if she does not, the van stops itself at the closed stretch,
+ *  nearer still. Never so near the van could not stop (COMMIT_DECEL). */
+const STOP_AT_M = 4.5, REACT_S = 0.3, LET_GO = 14;
+function triggerGap(c, v) {
+  return Math.max(STOP_AT_M, c.near + 0.5) + REACT_S * v + v * v / (2 * LET_GO);
+}
 
 /** But never before she has had a moment to see it waiting. Held sideways,
  *  or at speed before the camera has pulled back, the screen can show less
@@ -79,6 +84,32 @@ const SEEN_S = 0.35;
  *  an animal checks before stepping out at all. */
 const CAP_DECEL = 22;
 const COMMIT_DECEL = 18;
+
+/** Every other vehicle on the road, both ways, gives way too (Marcus,
+ *  2026-10-12: "make SURE that the crossing animals on the road are not run
+ *  over by vehicles coming in the other direction!"). traffic.js stops each
+ *  one short of closed() at a careful driver's 3.5 m/s², ANIMAL_GAP short of
+ *  it. An animal steps out only when every vehicle coming either way can do
+ *  that at TRAFFIC_DECEL, a little gentler, from a frame later
+ *  (TRAFFIC_LAG s), with TRAFFIC_SLACK m to spare for a corner beyond; one
+ *  in the stretch or too close to stop and it waits on the verge until it
+ *  has gone by. Its stop is traffic.js's to keep, whatever this decides:
+ *  this only makes sure that stop is a gentle one. */
+const TRAFFIC_DECEL = 3, TRAFFIC_LAG = 0.06, TRAFFIC_GAP = 1.2, TRAFFIC_SLACK = 3;
+
+/** Whether no vehicle but the van (others: {s, L, v, dir}) is in the way of
+ *  crossing c now. */
+function trafficClear(c, others) {
+  const s0 = c.s - c.near, s1 = c.s + c.far;
+  for (const w of others) {
+    const ahead = w.s + w.dir * w.L / 2, behind = w.s - w.dir * w.L / 2;
+    // Gone by: its tail is past the stretch.
+    if (w.dir > 0 ? behind > s1 + 1 : behind < s0 - 1) continue;
+    const room = (w.dir > 0 ? s0 - ahead : ahead - s1) - TRAFFIC_GAP - TRAFFIC_SLACK;
+    if (room <= 0 || w.v * TRAFFIC_LAG + w.v * w.v / (2 * TRAFFIC_DECEL) > room) return false;
+  }
+  return true;
+}
 
 /** Along the road, how far either side of the crossing's centre is closed
  *  is worked out for each crossing from its party (zoneOf): the drawn
@@ -420,18 +451,22 @@ function makeCrossing(route, world, site, s) {
     // Half its length across the road, painted or stand-in, whichever is longer.
     half: Math.max(ART[a.kind].L, TOPDOWN[a.kind].dl) / 2,
   }));
-  // Followers queue behind the leader on a slant: back into the verge and
+  // Followers wait behind the leader on a slant: back into the verge and
   // back along it towards the van, so a family waits in a wobbly line in
   // plain sight, below the chips at the top of the screen and inside its
-  // left edge, and crosses as a slanting line. Ducklings huddle closer.
-  let back = 0, along = 0;
+  // left edge. They cross in single file (Marcus, 2026-10-12: "they do not
+  // cross roads like a big front"): each walks the trail of the one in
+  // front, down the slant to where the leader stepped off and then along
+  // her line across the road (trailOf). back is how far behind the leader
+  // along that trail; ducklings keep closer, now and then one lags.
+  let back = 0;
   for (let k = 1; k < party.length; k++) {
     const a = party[k], b = party[k - 1];
-    const gap = a.kind === 'duckling' ? (a.half + b.half) * 0.75 : a.half + b.half + 0.25;
-    back += gap * Math.SQRT1_2; along -= gap * Math.SQRT1_2;
-    a.back = back; a.along = along;
+    a.gap = a.kind === 'duckling' ? (a.half + b.half) * 0.9 + (r() < 0.25 ? 0.25 + 0.35 * r() : 0) : a.half + b.half + 0.25;
+    back += a.gap;
+    a.back = back; a.along = -back * Math.SQRT1_2;
   }
-  if (party[0]) { party[0].back = 0; party[0].along = 0; }
+  if (party[0]) { party[0].back = 0; party[0].along = 0; party[0].gap = 0; }
   for (const a of party) a.d = -a.back;
   const side = nearSide || party.length > 1 ? -1 : 1;
   const zone = zoneOf({ party });
@@ -460,10 +495,15 @@ function makeCrossing(route, world, site, s) {
  *  below the chips before it steps out); near and far, the stretch closed
  *  to the van and to anything coming the other way, a clear metre each. */
 function zoneOf(c) {
+  // A follower waiting on the verge towards the van is off the carriageway
+  // (further out than the leader, who waits as any animal beside the road
+  // does), and walks onto the road only on the leader's line, so only the
+  // line counts towards the van: it stops a van length short of the family
+  // as of anyone else.
   let near = 0, far = 0;
   for (const a of c.party) {
     const e = reachOf(a.kind) + (a.k ? FOLLOW_WOBBLE_M : 0);
-    near = Math.max(near, e - a.along); far = Math.max(far, e + a.along);
+    near = Math.max(near, e); far = Math.max(far, e + Math.max(0, a.along));
   }
   return { near: near + CLEAR_M, far: far + CLEAR_M, top: far };
 }
@@ -549,6 +589,28 @@ function gaitOf(kind, l, tl, prev) {
   return G;
 }
 
+/** How far a follower is behind the leader along the trail now: each gap
+ *  closes up a little and opens again at its own slow pace, so the file
+ *  stretches and bunches unevenly; never longer than back, which the
+ *  closed stretch and the script are built on. */
+const FILE_BREATHE = 0.22;
+function backNow(c, k) {
+  let b = 0;
+  for (let j = 1; j <= k; j++) {
+    const m = c.party[j];
+    b += m.gap * (1 - FILE_BREATHE * (0.5 + 0.5 * Math.sin(c.t * (0.8 + (m.phase % 0.9)) + m.phase)));
+  }
+  return b;
+}
+
+/** Where on its trail a party member is, d metres along it from the
+ *  leader's start: across the road on her line once d >= 0, and before that
+ *  down the slant it waited on. Across (metres, as d) and along the road
+ *  (metres from her line, negative towards the van). */
+function trailOf(d) {
+  return d >= 0 ? { x: d, s: 0 } : { x: d * Math.SQRT1_2, s: d * Math.SQRT1_2 };
+}
+
 /** Latitude of a party member walking d metres from its start. */
 function latOf(c, a, d) { return c.side * (c.halfW + c.verge - d); }
 
@@ -566,10 +628,13 @@ function thanks(c) {
 }
 
 /** Advance the animals and report what they mean for the van.
+ *  @param {{s:number, L:number, v:number, dir:number}[]} [others] the other
+ *  vehicles on the road (traffic.js's T.vehicles): an animal steps out only
+ *  when all of them can stop for it, as well as the van
  *  @returns {{ speedCap: number, events: string[] }} speedCap as in traffic.js:
  *  the fastest the van may go this frame without reaching an animal; the page
  *  brakes hard itself if she has not. */
-export function step(xing, dt, van) {
+export function step(xing, dt, van, others = []) {
   xing.t += dt;
   if (van.camH != null) xing.camH = van.camH;
   let speedCap = Infinity;
@@ -585,13 +650,14 @@ export function step(xing, dt, van) {
       const v = van.view;
       if (v?.ahead == null || c.s - van.s < v.ahead) c.seen += dt;
       const clear = v?.ahead == null || !v.ppm || c.s + c.top - van.s < v.ahead - chipsPx(v, xing.t) / v.ppm;
-      if (c.s - nose <= triggerGap(van.v) && c.seen >= SEEN_S && clear) {
-        if (gap >= van.v * van.v / (2 * COMMIT_DECEL) + 0.5) {
-          c.state = 'go'; c.blocking = true; c.moving = van.v > 0.5;
-        } else c.state = 'late';
+      if (c.s - nose <= triggerGap(c, van.v) && c.seen >= SEEN_S && clear) {
+        if (gap < van.v * van.v / (2 * COMMIT_DECEL) + 0.5) c.state = 'late';
+        else if (trafficClear(c, others)) { c.state = 'go'; c.blocking = true; c.moving = van.v > 0.5; }
+        // else something is coming the other way, or is between the van and
+        // it: it waits for that to go by.
       }
     }
-    if (c.state === 'late' && tail > c.s + c.far) { c.state = 'go'; c.blocking = false; }
+    if (c.state === 'late' && tail > c.s + c.far && trafficClear(c, others)) { c.state = 'go'; c.blocking = false; }
     if (c.state !== 'go') continue;
 
     if (!c.script) c.script = buildScript(c);
@@ -599,7 +665,7 @@ export function step(xing, dt, van) {
     c.leg = legNow(c);
     const { l, tl, prev } = c.leg;
     const lead = l.d0 + (l.d1 - l.d0) * gaitOf(c.party[0].kind, l, tl, prev).p;
-    for (const a of c.party) a.d = lead - a.back;
+    for (const a of c.party) a.d = lead - backNow(c, a.k);
     const total = c.script.reduce((n, l) => n + l.dur, 0);
 
     if (c.blocking && !onRoad(c)) c.blocking = false;
@@ -668,11 +734,12 @@ function looks(c, a, t) {
  *  The box is the whole drawing as drawn, so what the check measures is
  *  what she sees. */
 function pose(c, a, t, camH) {
-  const lat = latOf(c, a, a.d);
+  const tr = trailOf(a.d);
+  const lat = latOf(c, a, tr.x);
   const ds = WOBBLE_M * Math.sin(a.d * 1.7 + a.phase) + (a.k ? FOLLOW_WOBBLE_M * Math.sin(a.d * 3.1 + 2 * a.phase) : 0);
   const hx = Math.cos(c.h), hy = Math.sin(c.h);
   const V = looks(c, a, t);
-  const s = c.s + a.along + ds;
+  const s = c.s + tr.s + ds;
   const at = (ss, ll) => ({ x: c.x + hx * (ss - c.s) - hy * ll, y: c.y + hy * (ss - c.s) + hx * ll });
   // The glow fades as the animal leaves the far kerb behind.
   const past = a.d - (c.verge + 2 * c.halfW + a.half);
@@ -744,7 +811,9 @@ const HALO_VERGE = 0.56, HALO_BLOOM_S = 0.4;
 function haloOf(c, a) {
   if (c.state !== 'go') return HALO_VERGE;
   const off = c.verge + 2 * c.halfW + a.half - a.d;   // metres until its body is off the far kerb
-  const u = Math.max(0, Math.min(1, c.t / HALO_BLOOM_S, off));
+  // A follower still coming down the verge keeps the verge size until it
+  // reaches the leader's line.
+  const u = Math.max(0, Math.min(1, c.t / HALO_BLOOM_S, off, (a.d + 0.1) / 0.5));
   return HALO_VERGE + (1 - HALO_VERGE) * smooth(u);
 }
 function glowAlpha(V) {
@@ -775,10 +844,11 @@ function boundOf(kind) {
 }
 function reachOf(kind) { return boundOf(kind).reach; }
 
-/** Which stretches the van must stay out of, for anything else that wants
- *  to know (traffic.js). [{s0, s1}] in route metres. */
+/** Which stretches every other vehicle must stay out of (traffic.js): where
+ *  an animal is on the road or setting out, whether or not the van is
+ *  stopped for it. [{s0, s1}] in route metres. */
 export function closed(xing) {
-  return xing.crossings.filter(c => c.state === 'go' && c.blocking)
+  return xing.crossings.filter(c => c.state === 'go' && onRoad(c))
     .map(c => ({ s0: c.s - c.near, s1: c.s + c.far }));
 }
 
@@ -968,18 +1038,60 @@ function drawGround(ctx, a, p, view) {
     ctx.drawImage(glow, -p.gx, -p.gy, 2 * p.gx, 2 * p.gy);
     ctx.restore();
   }
-  // The shadow, in world space along the sun so it stays put as the camera
-  // turns; a hopping animal's leaves it behind on the road.
-  const hgt = (p.art ? 0.12 : TOPDOWN[a.kind].hgt) + 0.8 * p.V.lift;
+  // The shadow (Marcus, 2026-10-12: "so it doesn't look like they are
+  // floating"). Two parts, both on the road under the feet, never lifted
+  // with a hop: a short soft cast shadow from the feet along the world's
+  // sun, as the hedges' and the vans' fall, and a small darker contact
+  // shadow where it stands. In the air the contact shadow shrinks and
+  // pales, so the gap under a hopping rabbit or a bounding deer shows.
+  const shade = contactSprite();
+  if (!shade) return;
+  const air = Math.max(0, p.V.lift);
+  const sh = 1 / (1 + 3 * air), dark = a.alpha * (0.25 + 0.75 / (1 + 6 * air));
+  const sl = Math.hypot(view.sun.x, view.sun.y), ux = view.sun.x / sl, uy = view.sun.y / sl;
+  // How far the cast shadow reaches: a little of the animal's height.
+  const tall = p.art ? p.h : TOPDOWN[a.kind].hgt;
+  const reach = sl * tall * CAST_SHARE;
+  const wide = p.art ? p.w * 0.36 : TOPDOWN[a.kind].dw * 0.42;
   ctx.save();
-  ctx.translate(p.fx + view.sun.x * hgt, p.fy + view.sun.y * hgt);
-  ctx.globalAlpha = a.alpha;
-  ctx.fillStyle = SHADOW;
-  ctx.beginPath();
-  if (p.art) { ctx.rotate(view.camH + Math.PI / 2); ctx.ellipse(0, 0, p.w * 0.4, p.w * 0.09, 0, 0, TAU); }
-  else { const sp = TOPDOWN[a.kind]; ctx.rotate(p.h); ctx.ellipse(0, 0, sp.dl * 0.4, sp.dw * 0.36, 0, 0, TAU); }
-  ctx.fill();
+  ctx.translate(p.fx + ux * reach / 2, p.fy + uy * reach / 2);
+  ctx.rotate(Math.atan2(uy, ux));
+  ctx.globalAlpha = a.alpha * 0.55 * sh;
+  ctx.drawImage(shade, -reach / 2 - wide * 0.5, -wide * 0.5, reach + wide, wide);
   ctx.restore();
+  ctx.save();
+  ctx.translate(p.fx, p.fy);
+  if (p.art) {
+    // Square to the screen like the painting, flat along its feet.
+    ctx.rotate(view.camH + Math.PI / 2);
+    const rx = p.w * 0.46 * sh, ry = p.w * 0.12 * sh;
+    ctx.globalAlpha = dark;
+    ctx.drawImage(shade, -rx, -ry * 0.7, 2 * rx, 2 * ry);
+  } else {
+    const sp = TOPDOWN[a.kind];
+    ctx.rotate(p.h);
+    const rx = sp.dl * 0.42 * sh, ry = sp.dw * 0.38 * sh;
+    ctx.globalAlpha = dark;
+    ctx.drawImage(shade, -rx, -ry, 2 * rx, 2 * ry);
+  }
+  ctx.restore();
+}
+
+/** The shadow's soft disc, baked once: dark in the middle where the animal
+ *  touches the road, feathered to nothing at the rim; drawn squashed. The
+ *  colour is the scenery's shadow, a little deeper. */
+const CAST_SHARE = 0.45;
+let SHADE = null;
+function contactSprite() {
+  if (SHADE || typeof document === 'undefined') return SHADE;
+  const n = 64, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
+  const g = cv.getContext('2d'), gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+  gr.addColorStop(0, 'rgba(30,34,28,.62)');
+  gr.addColorStop(0.45, 'rgba(30,34,28,.48)');
+  gr.addColorStop(0.75, 'rgba(34,40,32,.2)');
+  gr.addColorStop(1, 'rgba(40,46,38,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, n, n);
+  return (SHADE = cv);
 }
 
 function drawBody(ctx, a, p, view) {
