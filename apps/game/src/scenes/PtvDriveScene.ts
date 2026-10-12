@@ -20,13 +20,16 @@ import { PICKER_EXIT_MARGIN, VEHICLE_SPRITE, pickerLayout } from '../driving/fle
 import { drawForecourt, drawVehicleShadow } from '../driving/forecourt';
 import { stateTween } from '../ui/tween';
 import { driveJolts } from '../driving/drive-jolts';
-import { GEAR_SPEED_MPS, speedCameraFires } from '../driving/road-gears';
+import {
+  GEAR_SPEED_MPS, NO_GEAR_COSTS, createGearHint, gearCosts, gearRoadKey, pickGear, stepGearHint,
+  type ForwardGear, type GearCosts, type GearHintState,
+} from '../driving/road-gears';
+import { knockComfort } from '../driving/ride-comfort';
 import {
   createDriveState,
   cycleGear,
   gearLabel,
   gearScrollRate,
-  jostleComfort,
   type DriveState,
   type DriveType,
   type Gear,
@@ -58,6 +61,10 @@ import { ROADS, type RoadConfig, type RoadId } from '../driving/road-config';
  * they keep flowing past even when we're stopped on the handbrake at a crossing.
  */
 const TRAFFIC_REF_SPEED = gearScrollRate(2);
+
+/** The knock to cargoComfort when the van brakes itself for traffic she came
+ *  up on too fast for the road (30A); the camera's is 6, the handbrake's 15. */
+const SELF_STOP_KNOCK = 4;
 
 /** Painted top-down sprite key(s) per traffic kind. Cars pick a random colour;
  *  a kind with no loaded sprite falls back to the procedural draw. */
@@ -459,6 +466,24 @@ export class PtvDriveScene extends Phaser.Scene {
   // Gear stick
   private gearKnob?: Phaser.GameObjects.Container;
   private gearSlotY: Partial<Record<string, number>> = {};
+  private gearStickX = 0;
+
+  /** 30A: every gear works on every road. The road only prompts her: the
+   *  suiting knob glows after a mismatch (road-gears.ts stepGearHint), and a
+   *  wrong gear costs what gearCosts says. Nothing here refuses or caps a
+   *  gear by road. */
+  private gearHint: GearHintState = createGearHint();
+  /** The knob glowing now, 0 for none. */
+  private gearHintKnob: ForwardGear | 0 = 0;
+  private gearHintGlow?: Phaser.GameObjects.Graphics;
+  /** This frame's cost of the gear she is in. */
+  private gearCostsNow: GearCosts = { ...NO_GEAR_COSTS };
+  /** The dust cloud behind the van, too fast on a farm track. */
+  private dustGfx?: Phaser.GameObjects.Graphics;
+  /** The road (gearRoadKey) the queue last beeped on, so it beeps once a stretch. */
+  private queueBeepedOn: string | null = null;
+  /** The van is held behind something ahead by its own braking. */
+  private selfStopping = false;
 
   /** Handbrake: while engaged the vehicle is held and gear changes are blocked
    *  (a reminder flashes). It is the only way to stand still: there is no
@@ -609,6 +634,13 @@ export class PtvDriveScene extends Phaser.Scene {
     this.laneTween = undefined;
     this.gearKnob = undefined;
     this.gearSlotY = {};
+    this.gearHint = createGearHint();
+    this.gearHintKnob = 0;
+    this.gearHintGlow = undefined;
+    this.gearCostsNow = { ...NO_GEAR_COSTS };
+    this.dustGfx = undefined;
+    this.queueBeepedOn = null;
+    this.selfStopping = false;
     this.gpsDot = undefined;
     this.gpsManeuvers = [];
     this.cameraTriggers = [];
@@ -2605,7 +2637,7 @@ export class PtvDriveScene extends Phaser.Scene {
    */
   private emergencyBrake(): void {
     this.setHandbrake(true);
-    this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 15);
+    this.drive.cargoComfort = knockComfort(this.drive.cargoComfort, 15, this.gearCostsNow.jostleScale);
     AudioManager.getInstance().playSfx('food_wrong'); // wobble/chaos cue (placeholder)
 
     // Screen shake + a quick van judder, both gone under reduced motion.
@@ -2651,6 +2683,7 @@ export class PtvDriveScene extends Phaser.Scene {
     const botY = height * 0.78;
     const slots: Gear[] = [3, 2, 1]; // visual top → bottom
     const slotY = (i: number) => topY + (botY - topY) * (i / (slots.length - 1));
+    this.gearStickX = stickX;
 
     // Track.
     const track = this.add.graphics().setDepth(38);
@@ -2693,6 +2726,113 @@ export class PtvDriveScene extends Phaser.Scene {
     this.gearKnob.add(knobBg);
     this.gearKnob.setDepth(42);
     this.container.add(this.gearKnob);
+
+    // The prompt's glow, drawn round the suiting knob's notch by drawGearHint.
+    this.gearHintGlow = this.add.graphics().setDepth(40);
+    this.container.add(this.gearHintGlow);
+    this.dustGfx = this.add.graphics().setDepth(19);
+    this.container.add(this.dustGfx);
+  }
+
+  /**
+   * The knob prompt and what the wrong gear costs, once a frame (30A).
+   * `rate` is this frame's pace, which scales the gear's speed down when she
+   * is held behind traffic or on the handbrake, so a van barely moving costs
+   * nothing. The road is the run under the van; on the A28, the carriageway
+   * there, so the 30 mph road through The Square is not judged as the 50 mph
+   * dual carriageway. With no route profile there is no road to judge by: no
+   * prompt, no cost, and no speed camera fires.
+   */
+  private stepGears(rate: number, dt: number): void {
+    // Off the road (the arrival, loading), the stick is gone: no prompt.
+    const run = this.phase === 'travel' ? roadRunAt(this.roadProfile, this.drive.progress) : undefined;
+    if (!run) {
+      this.gearCostsNow = { ...NO_GEAR_COSTS };
+      this.setGearHintKnob(0, null);
+      this.drawDust();
+      return;
+    }
+    const gear = this.drive.gear;
+    this.gearCostsNow = gearCosts(run.roadClass, gear, this.speedMpsAt(rate), run.carriageway);
+    const { state, knob } = stepGearHint(this.gearHint, {
+      roadClass: run.roadClass, carriageway: run.carriageway, gear, dt,
+    });
+    this.gearHint = state;
+    this.setGearHintKnob(knob, run);
+    this.drawGearHint();
+    this.drawDust();
+
+    // Too slow on the dual carriageway: the queue behind beeps, once a stretch.
+    const key = gearRoadKey(run.roadClass, run.carriageway);
+    if (this.gearCostsNow.queue && this.queueBeepedOn !== key) {
+      this.queueBeepedOn = key;
+      AudioManager.getInstance().playSfx('food_wrong');
+      this.gearToast('beep beep! The queue wants you faster');
+    }
+  }
+
+  /** The van's speed, m/s, at this frame's pace: the gear's speed, scaled down
+   *  when she is held behind traffic or on the handbrake. */
+  private speedMpsAt(rate: number): number {
+    const gear = this.drive.gear;
+    return GEAR_SPEED_MPS[gear] * Math.max(0, rate) / gearScrollRate(gear);
+  }
+
+  /** Under reduced motion the glow holds steady, so a toast says it instead. */
+  private setGearHintKnob(knob: ForwardGear | 0, run: RoadClassRun | null | undefined): void {
+    if (knob === this.gearHintKnob) return;
+    this.gearHintKnob = knob;
+    if (knob && run && !driveJolts().gearHintPulse) {
+      this.gearToast(`Gear ${gearLabel(knob)} suits this road`);
+    }
+    if (!knob && this.gearHintGlow?.active) this.gearHintGlow.clear();
+  }
+
+  /** The glow round the suiting knob: it pulses about once a second, and holds
+   *  steady under reduced motion (drive-spike/dashboard.js). */
+  private drawGearHint(): void {
+    const g = this.gearHintGlow;
+    if (!g?.active) return;
+    g.clear();
+    const knob = this.gearHintKnob;
+    const y = knob ? this.gearSlotY[String(knob)] : undefined;
+    if (!knob || y === undefined) return;
+    const pulse = driveJolts().gearHintPulse
+      ? 0.3 + 0.7 * (0.5 - 0.5 * Math.cos((this.time.now / 1000) * Math.PI * 2))
+      : 0.85;
+    g.fillStyle(0xffb034, 0.35 * pulse);
+    g.fillRoundedRect(this.gearStickX - 26, y - 22, 52, 44, 12);
+    g.lineStyle(3, 0xffe28c, 0.55 + 0.45 * pulse);
+    g.strokeRoundedRect(this.gearStickX - 26, y - 22, 52, 44, 12);
+  }
+
+  /** Too fast on a farm track: a dust cloud behind the van, which the animals
+   *  breathe. Drawn still, so it is the same under reduced motion. */
+  private drawDust(): void {
+    const g = this.dustGfx;
+    if (!g?.active) return;
+    g.clear();
+    if (!this.gearCostsNow.dust || !this.vanGfx) return;
+    const x = this.vanGfx.x, y = this.vanY + this.vanH * 0.55;
+    const r = this.vanW * 0.55;
+    g.fillStyle(0xc8a878, 0.45);
+    g.fillCircle(x, y + r * 0.4, r * 1.1);
+    g.fillCircle(x - r * 0.8, y + r * 1.1, r * 0.9);
+    g.fillCircle(x + r * 0.8, y + r * 1.1, r * 0.9);
+    g.fillStyle(0xd8bc90, 0.3);
+    g.fillCircle(x, y + r * 1.8, r * 1.3);
+  }
+
+  /** A short message that sits still and goes: no flash, so it is the same
+   *  under reduced motion. */
+  private gearToast(text: string): void {
+    const { width, height } = this.scale;
+    const msg = this.add.text(width / 2, height * 0.22, text, {
+      fontSize: TYPE.lead, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
+      backgroundColor: 'rgba(40,52,70,0.88)', padding: { x: 14, y: 7 },
+    }).setOrigin(0.5).setDepth(60);
+    this.container.add(msg);
+    this.time.delayedCall(1600, () => msg.destroy());
   }
 
   // ── Input ──────────────────────────────────────────────────
@@ -2851,12 +2991,18 @@ export class PtvDriveScene extends Phaser.Scene {
   }
 
   private setGear(gear: Gear): void {
-    if (gear === this.drive.gear) return;
     // Can't select a gear with the handbrake on — flash a reminder.
-    if (this.handbrakeOn) {
+    if (this.handbrakeOn && gear !== this.drive.gear) {
       this.flashHandbrakeReminder();
       return;
     }
+    // Every gear is hers to pick on every road (30A). Picking one that suits
+    // the road while the prompt glows (the one she is in counts) hushes it.
+    if (this.gearHintKnob) {
+      this.gearHint = pickGear(this.gearHint, gear, true);
+      this.setGearHintKnob(0, null);
+    }
+    if (gear === this.drive.gear) return;
     this.drive.gear = gear;
     AudioManager.getInstance().playSfx('button_click');
     const y = this.gearSlotY[String(gear)];
@@ -3016,6 +3162,7 @@ export class PtvDriveScene extends Phaser.Scene {
     // `dy` is how far the road moves this frame.
     const rate = this.effectivePlayerRate(gearRate);
     const dy = rate * TICKS_PER_SECOND * dt;
+    this.stepGears(rate, dt);
     this.scrollY += dy;
 
     this.drawRoad(width, height);
@@ -3031,7 +3178,7 @@ export class PtvDriveScene extends Phaser.Scene {
     // Roadside decorations scroll with the road. A speed camera flashes if
     // we pass it too fast for the road we are on (road-gears.ts) — the gentle
     // "consequence" that pairs with the handbrake, never a crash.
-    const caught = this.tooFastForRoad(rate);
+    const caught = this.gearCostsNow.speedCamera;
     for (let di = this.decor.length - 1; di >= 0; di--) {
       const d = this.decor[di];
       const prevY = d.y;
@@ -3186,18 +3333,28 @@ export class PtvDriveScene extends Phaser.Scene {
       return gearRate;
     }
 
-    // Normal: capped by the nearest slower vehicle ahead in our lane.
+    // Normal: capped by the nearest slower vehicle ahead in our lane. Too
+    // fast for the road (30A), the van brakes itself for it sooner: it wants
+    // gearCosts' stopSooner times the room ahead.
     let cap = gearRate;
+    const sooner = this.gearCostsNow.stopSooner;
     for (const c of this.traffic) {
       if (c.lane !== this.drive.lane || c.y >= this.vanY) continue; // must be ahead
       const contact = this.carHalfLen(c.gfx) + vanHalf; // centres this close = touching
       const minGap = contact + this.vanH * 0.08;
-      const follow = contact + this.vanH * 1.5;
+      const follow = contact + this.vanH * 1.5 * sooner;
       const gap = this.vanY - c.y;
       if (gap <= follow && c.absSpeed < cap) {
         cap = Math.max(0, gap < minGap ? c.absSpeed - 0.6 : c.absSpeed);
       }
     }
+    // A self-stop she drove into too fast for the road is rough driving: the
+    // animals feel it, harder for the speed (gearCosts' jostleScale).
+    const stopping = cap < gearRate;
+    if (stopping && !this.selfStopping && sooner > 1) {
+      this.drive.cargoComfort = knockComfort(this.drive.cargoComfort, SELF_STOP_KNOCK, this.gearCostsNow.jostleScale);
+    }
+    this.selfStopping = stopping;
     return cap;
   }
 
@@ -3286,23 +3443,6 @@ export class PtvDriveScene extends Phaser.Scene {
     }
   }
 
-  /**
-   * Whether a speed camera would catch her now: her gear is too fast for the
-   * road under the van, by the road-gear table; on the A28, by the carriageway
-   * there, so the 30 mph road through The Square is not judged as the 50 mph
-   * dual carriageway. `rate` is this frame's
-   * pace, which scales the gear's speed down when she is held behind traffic
-   * or on the handbrake, so a van barely moving is never caught. With no
-   * route profile there is no road class to judge by, and nothing fires.
-   */
-  private tooFastForRoad(rate: number): boolean {
-    const run = roadRunAt(this.roadProfile, this.drive.progress);
-    if (!run) return false;
-    const gear = this.drive.gear;
-    const speedMps = GEAR_SPEED_MPS[gear] * Math.max(0, rate) / gearScrollRate(gear);
-    return speedCameraFires(run.roadClass, gear, speedMps, run.carriageway);
-  }
-
   /** Speed camera caught us going too fast — a white blitz, a little camera
    *  pop, a jostle to the cargo and a "Slow down!". No crash, just a nudge. */
   private flashSpeedCamera(d: DecorProp): void {
@@ -3318,7 +3458,7 @@ export class PtvDriveScene extends Phaser.Scene {
 
     this.tweens.add({ targets: d.obj, scale: d.obj.scale * 1.18, duration: 110, yoyo: true });
 
-    this.drive.cargoComfort = jostleComfort(this.drive.cargoComfort, 6);
+    this.drive.cargoComfort = knockComfort(this.drive.cargoComfort, 6, this.gearCostsNow.jostleScale);
 
     const msg = this.add.text(width / 2, height * 0.34, 'Slow down!', {
       fontSize: TYPE.heading, fontFamily: FONTS.title, fontStyle: 'bold', color: '#ffffff',
