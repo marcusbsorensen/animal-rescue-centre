@@ -348,6 +348,12 @@ function spawn(T, kind, dir, s) {
   // Never into the middle of an animal crossing, or so near one it could
   // not stop for it.
   if (T.closed.some(z => s > z.s0 - 45 && s < z.s1 + 45)) return null;
+  // Nor where the route folds back past the van: far along the route, but
+  // on the screen beside it.
+  if (T.lastVanS != null) {
+    const p = at(T, s), q = at(T, T.lastVanS), dw = Math.hypot(p.x - q.x, p.y - q.y);
+    if (dw < IN_VIEW && dw < 0.6 * Math.abs(s - T.lastVanS)) return null;
+  }
   const K = KINDS[kind];
   const base = K.skins[(T.rand() * K.skins.length) | 0];
   const skin = dir > 0 && K.pair ? base + '-rear' : base;
@@ -376,6 +382,164 @@ function cruise(T, w, s) {
   let v = entry ? entry[1] : { trunk: 12, main: 9, lane: 6, track: 3.5 }[g];
   if (w.kind === 'tractor') v = Math.min(v, 5.5);
   return v * w.pace;
+}
+
+// ------------------------------------------------- where the route folds back
+
+/** Everything above reasons along the route, but a route can fold back on
+ *  itself: a hairpin, a road that doubles back alongside, or a road that
+ *  later bends on a point of one already driven (the A28 at Westgate bends
+ *  on the house street beside it, and the two share a strip of road there).
+ *  A vehicle on the far part is then on the screen beside the van though far
+ *  from it along the route, and it is drawn where it is.
+ *
+ *  So each such place is a fold zone: two stretches of the route, more than
+ *  FOLD_ZONE_S apart along it (nearer, the corner rules above already take
+ *  it one at a time), whose centrelines come within FOLD_NEAR_M, so that
+ *  anything on one could touch anything on the other. It is used one side at
+ *  a time, like a bridge with room for one: the van has it while it is on or
+ *  approaching its own stretch, and a vehicle on the other stretch waits
+ *  short of it; one already on it goes on through, and the van waits short
+ *  of its own stretch until it is clear. Worked out once per route. Behind
+ *  that, in world space as drawn, nothing on the far part ever closes on the
+ *  van and the van stops short of anything there in its road. */
+const FOLD_S = 40, FOLD_ZONE_S = 100, FOLD_NEAR_M = 12, FOLD_SAMPLE = 2.5, FOLD_END_M = 3, FOLD_STOP = 6;
+const FOLD_STEP = 1.5, FOLD_MARGIN = 1;
+
+function foldZones(T) {
+  if (T.foldZones) return T.foldZones;
+  const n = Math.ceil(T.route.length / FOLD_SAMPLE) + 1, pts = [], grid = new Map();
+  const key = (cx, cy) => cx * 65536 + cy;
+  for (let i = 0; i < n; i++) {
+    const p = T.route.atDistance(Math.min(T.route.length, i * FOLD_SAMPLE));
+    pts.push(p);
+    const k = key(Math.floor(p.x / FOLD_NEAR_M), Math.floor(p.y / FOLD_NEAR_M));
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(i);
+  }
+  const gap = Math.ceil(FOLD_ZONE_S / FOLD_SAMPLE), zones = [];
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], cx = Math.floor(p.x / FOLD_NEAR_M), cy = Math.floor(p.y / FOLD_NEAR_M);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      for (const j of grid.get(key(cx + dx, cy + dy)) ?? []) {
+        if (j - i <= gap || Math.hypot(pts[j].x - p.x, pts[j].y - p.y) >= FOLD_NEAR_M) continue;
+        // Join it to a zone it continues, or start one.
+        const z = zones.find(z => i >= z.i0 - 2 && i <= z.i1 + 2 && j >= z.j0 - 2 && j <= z.j1 + 2);
+        if (z) { z.i0 = Math.min(z.i0, i); z.i1 = Math.max(z.i1, i); z.j0 = Math.min(z.j0, j); z.j1 = Math.max(z.j1, j); }
+        else zones.push({ i0: i, i1: i, j0: j, j1: j });
+      }
+    }
+  }
+  return (T.foldZones = zones.map(z => ({
+    parts: [[z.i0 * FOLD_SAMPLE - FOLD_END_M, z.i1 * FOLD_SAMPLE + FOLD_END_M], [z.j0 * FOLD_SAMPLE - FOLD_END_M, z.j1 * FOLD_SAMPLE + FOLD_END_M]],
+  })));
+}
+
+/** Whether [lo, hi] along the route overlaps the stretch [a, b]. */
+const onPart = (lo, hi, [a, b]) => hi > a && lo < b;
+
+/** The part of each fold zone the van has: the one it is on, or will be on
+ *  before it could stop gently. -1 for a zone it is nowhere near. */
+function vanParts(T, van, vb) {
+  const reach = van.v * van.v / (2 * VAN_APPROACH) + 15;
+  return foldZones(T).map(z => z.parts.findIndex(([a, b]) => vb.front > a - reach && vb.rear < b));
+}
+
+/** A vehicle's speed held for the fold zones: never onto the other part of
+ *  a zone the van has. One already on it goes on through. */
+function foldZoneSpeed(T, w, v, mine, dt) {
+  const zones = foldZones(T);
+  const lo = w.s - w.L / 2, hi = w.s + w.L / 2, front = w.dir > 0 ? hi : lo;
+  for (let k = 0; k < zones.length; k++) {
+    if (mine[k] < 0) continue;
+    const part = zones[k].parts[1 - mine[k]];
+    if (onPart(lo, hi, part)) continue;              // on it: through and off
+    const room = w.dir > 0 ? part[0] - front - 1 : front - part[1] - 1;
+    if (room < 0 || room > 200) continue;            // past it, or far
+    if (room < v * dt + v * v / (2 * ONC_STOP)) continue;   // too late to stop: it goes, the van waits
+    v = Math.min(v, stopSpeed(room, FOLD_STOP, dt));
+  }
+  return v;
+}
+
+/** The van's cap for the fold zones: short of its own part while anything
+ *  is on the other. */
+function foldZoneCap(T, van, vb, mine, dt) {
+  const zones = foldZones(T);
+  let cap = Infinity;
+  for (let k = 0; k < zones.length; k++) {
+    if (mine[k] < 0) continue;
+    const own = zones[k].parts[mine[k]], other = zones[k].parts[1 - mine[k]];
+    if (vb.front > own[0]) continue;                 // on it already
+    if (!T.vehicles.some(w => onPart(w.s - w.L / 2, w.s + w.L / 2, other))) continue;
+    // Gently: it claimed the zone while it could still stop at this rate.
+    cap = Math.min(cap, stopSpeed(own[0] - vb.front - 1, VAN_APPROACH, dt));
+  }
+  return cap;
+}
+
+function foldBox(T, s, d, L, W) {
+  const p = at(T, s);
+  return { x: p.x + Math.cos(p.h + Math.PI / 2) * d, y: p.y + Math.sin(p.h + Math.PI / 2) * d, h: p.h, L, W };
+}
+function boxCorners(b) {
+  const c = Math.cos(b.h), s = Math.sin(b.h), l = b.L / 2, w = b.W / 2;
+  return [[l, w], [-l, w], [-l, -w], [l, -w]].map(([u, v]) => [b.x + u * c - v * s, b.y + u * s + v * c]);
+}
+function segGap([px, py], [ax, ay], [bx, by]) {
+  const dx = bx - ax, dy = by - ay, t = clamp(((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy), 0, 1);
+  return Math.hypot(px - ax - t * dx, py - ay - t * dy);
+}
+/** Gap between two boxes {x, y, h, L, W}, metres; 0 when they overlap. */
+function boxGap(P, Q) {
+  const far = Math.hypot(P.x - Q.x, P.y - Q.y) - Math.hypot(P.L, P.W) / 2 - Math.hypot(Q.L, Q.W) / 2;
+  if (far > 3) return far;
+  const A = boxCorners(P), B = boxCorners(Q);
+  let apart = false;
+  for (const R of [A, B]) for (let i = 0; i < 4 && !apart; i++) {
+    const [ax, ay] = R[i], [bx, by] = R[(i + 1) % 4], nx = ay - by, ny = bx - ax;
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (const [x, y] of A) { const d = x * nx + y * ny; a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+    for (const [x, y] of B) { const d = x * nx + y * ny; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+    if (a1 < b0 || b1 < a0) apart = true;
+  }
+  if (!apart) return 0;
+  let best = Infinity;
+  for (const [U, V] of [[A, B], [B, A]]) for (const p of U) for (let i = 0; i < 4; i++) best = Math.min(best, segGap(p, V[i], V[(i + 1) % 4]));
+  return best;
+}
+/** The vehicles on the far part of a fold near the van: far from it along
+ *  the route, near it on the screen. */
+function foldVehicles(T, van) {
+  if (!foldZones(T).length) return [];
+  const p = at(T, van.s), out = [];
+  for (const w of T.vehicles) {
+    const ds = Math.abs(w.s - van.s);
+    if (ds <= FOLD_S) continue;
+    const q = at(T, w.s), dw = Math.hypot(q.x - p.x, q.y - p.y);
+    if (dw < 40 && dw < 0.5 * ds) out.push({ w, fp: footprint(T, w) });
+  }
+  return out;
+}
+/** The backstop, as drawn: a vehicle on the far part never closes on the
+ *  van to within FOLD_MARGIN... */
+function foldTouchSpeed(T, w, fp, v, here, dt) {
+  const now = boxGap(here, fp);
+  for (let j = 1; (j - 1) * FOLD_STEP <= v * dt + FOLD_STEP; j++) {
+    const g = boxGap(here, footprint(T, { ...w, s: w.s + w.dir * j * FOLD_STEP }));
+    if (g < FOLD_MARGIN && g < now - 1e-6) return Math.min(v, stopSpeed((j - 1) * FOLD_STEP, FOLD_STOP, dt));
+  }
+  return v;
+}
+/** ...and the van stops short of one in its road ahead. */
+function foldTouchCap(T, van, fp, dt) {
+  const reach = van.v * dt + van.v * van.v / (2 * VAN_STOP) + 12;
+  for (let k = 1; k * FOLD_STEP <= reach; k++) {
+    if (boxGap(foldBox(T, van.s + k * FOLD_STEP, van.lane, van.length, van.width), fp) < FOLD_MARGIN) {
+      return stopSpeed((k - 1) * FOLD_STEP, VAN_STOP, dt);
+    }
+  }
+  return Infinity;
 }
 
 /** The van's footprint along the route. */
@@ -460,6 +624,31 @@ export function step(T, dt, van, world = {}) {
   const newV = new Map();
   same.forEach((w, i) => newV.set(w, sameSpeed(T, w, same[i + 1], van, vb, conflicts(w), dt)));
   onc.forEach((w, i) => newV.set(w, oncSpeed(T, w, onc[i + 1], van, vb, conflicts(w), dt)));
+  // Where the route folds back past the van.
+  const mine = vanParts(T, van, vb), folded = foldVehicles(T, van);
+  if (mine.some(k => k >= 0)) {
+    // For the checks: how often the van had a fold zone, and with what on
+    // its other part.
+    T.foldHad = (T.foldHad ?? 0) + 1;
+    const zs = foldZones(T);
+    if (T.vehicles.some(w => mine.some((k, i) => k >= 0 && onPart(w.s - w.L / 2, w.s + w.L / 2, zs[i].parts[1 - k])))) T.foldShared = (T.foldShared ?? 0) + 1;
+  }
+  if (mine.some(k => k >= 0) || folded.length) {
+    const here = foldBox(T, van.s, van.lane, van.length, van.width);
+    for (const w of T.vehicles) {
+      let v = foldZoneSpeed(T, w, newV.get(w), mine, dt);
+      const f = folded.find(o => o.w === w);
+      if (f) v = foldTouchSpeed(T, w, f.fp, v, here, dt);
+      if (v >= newV.get(w) - 1e-9) continue;
+      T.foldHolds = (T.foldHolds ?? 0) + 1;
+      newV.set(w, v);
+    }
+  }
+  // How long each vehicle on a fold has stood (for the checks).
+  for (const w of T.vehicles) {
+    w.foldStood = newV.get(w) < 0.2 && mine.some(k => k >= 0) ? (w.foldStood ?? 0) + dt : 0;
+    T.foldLongest = Math.max(T.foldLongest ?? 0, w.foldStood);
+  }
   for (const w of T.vehicles) {
     w.v = newV.get(w);
     w.s += w.dir * w.v * dt;
@@ -494,6 +683,12 @@ export function step(T, dt, van, world = {}) {
       const cap = stopSpeed(g - theirs, VAN_STOP, dt);
       if (cap < speedCap) { speedCap = cap; capBy = 'oncoming'; }
     }
+  }
+  // A vehicle on the far part of a fold, in the van's road ahead.
+  {
+    let cap = mine.some(k => k >= 0) ? foldZoneCap(T, van, vb, mine, dt) : Infinity;
+    for (const { w } of folded) cap = Math.min(cap, foldTouchCap(T, van, footprint(T, w), dt));
+    if (cap < speedCap) { speedCap = cap; capBy = 'fold'; }
   }
   // An oncoming vehicle already committed to a sharp corner has it: the van
   // waits short of it. (Oncoming traffic only commits when the van is far
@@ -771,6 +966,7 @@ function returnBlocker(T, van, vb, dt, underway) {
 
 function reset(T, van) {
   T.vehicles = [];
+  T.lastVanS = van.s;
   T.ready = true;
   T.pendingReturn = false;
   const g0 = groupAt(clsAt(T, van.s));

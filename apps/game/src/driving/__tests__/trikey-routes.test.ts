@@ -6,6 +6,10 @@ import { TRIKEY, createRoadNetworks, roadsForRoute } from '../trikey-links';
 import { ARC_PLACE, placeFor } from '../birchie-places';
 import { routeBetween } from '../route-path';
 
+/** The tests that walk every route of the real graph take a few seconds,
+ *  and over vitest's default 5 s when the machine is busy. */
+const HEAVY_MS = 20_000;
+
 // ── Trikey never rides the A28 ──
 //
 // Rule 18A (driving port plan, section 5, answer 10). The first two blocks
@@ -59,7 +63,7 @@ describe('the trunk bar alone, on the Birchie graph', () => {
       }
     }
     expect(routed).toBe(44);
-  });
+  }, HEAVY_MS);
 
   it('leaves every other vehicle routing exactly as before, all 210 pairs', () => {
     for (const v of Object.keys(VEHICLE_DEFS) as VehicleType[]) {
@@ -71,7 +75,7 @@ describe('the trunk bar alone, on the Birchie graph', () => {
         expect(shortestPath(vAdj, s, t), `${v} ${from} -> ${to}`).toEqual(shortestPath(adj, s, t));
       }
     }
-  });
+  }, HEAVY_MS);
 
   // Pinned so it cannot change silently. Without trunk the network falls into
   // islands; a pair is reachable only inside one. Which island each anchor
@@ -95,7 +99,7 @@ describe('the trunk bar alone, on the Birchie graph', () => {
     ]);
     const unreachable = pairs.filter(([f, t]) => shortestPath(trikeAdj, graph.anchors[f], graph.anchors[t]) === null);
     expect(unreachable).toHaveLength(166);
-  });
+  }, HEAVY_MS);
 
   it('pins how much longer the trunk-free routes are', () => {
     const changed: string[] = [];
@@ -121,7 +125,7 @@ describe('the trunk bar alone, on the Birchie graph', () => {
       'wilderwood -> pinebark-medical -753',
       'wilderwood -> bay-chapel +1637',
     ]);
-  });
+  }, HEAVY_MS);
 });
 
 // What the drive routes Trikey over, from A.R.C. (PtvDriveScene.routeRoads).
@@ -140,7 +144,7 @@ describe('roadsForRoute', () => {
       expect(profile.length, to).toBeGreaterThan(0);
       expect(profile.map((p) => p.roadClass), to).not.toContain('trunk');
     }
-  });
+  }, HEAVY_MS);
 
   it('agrees with reachableFor, and falls back to every road where she cannot reach', () => {
     const unreachable = names.filter((n) => n !== 'arc' && !nets.canReach(TRIKEY, 'arc', n));
@@ -153,11 +157,11 @@ describe('roadsForRoute', () => {
       expect(line, to).toEqual(routePolyline(graph, adj, ARC_PLACE, placeFor(to)));
       expect(line.length, to).toBeGreaterThan(2); // on the roads, not a straight line
     }
-  });
+  }, HEAVY_MS);
 
   it('changes nothing for any other vehicle', () => {
     const r = roadsForRoute(nets, 'small-van', ARC_PLACE, placeFor('vet'));
     expect(r).toEqual({ roads: all, reachable: true });
     expect(r.roads.adj).toEqual(adj);
-  });
+  }, HEAVY_MS);
 });

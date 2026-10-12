@@ -14,10 +14,15 @@
 // (traffic.footprint()). It also watches that the giving way ends: every
 // closed stretch opens again and no vehicle stands for an animal for long.
 //
+// A sixth of the routes are ones that fold back on themselves (the A28
+// bending on a point of the Westgate house street the route drove earlier),
+// started short of the fold, so traffic on the far part meets the van there.
+//
 // Asserts: no contact between any vehicle and any animal; no vehicle overlaps
-// the van; no vehicle slows for an animal harder than a careful driver; no
-// vehicle stands for an animal longer than STAND_MAX_S. Prints the counts and
-// the closest approaches.
+// the van, wherever it is along the route, measured where both are drawn; no
+// vehicle slows for an animal harder than a careful driver; no vehicle stands
+// for an animal, nor the van or a vehicle for the other at a fold, longer than
+// STAND_MAX_S. Prints the counts and the closest approaches.
 
 import * as traffic from './traffic.js';
 import * as crossings from './crossings.js';
@@ -131,9 +136,34 @@ export function makeRoute(path) {
 }
 
 const ids = Object.keys(graph.anchors);
+/** Where a route folds back on itself: the first s from which a part of it
+ *  more than 40 m further along comes within 12 m, or -1. */
+function foldStart(route) {
+  const pts = [];
+  for (let s = 0; s <= route.length; s += 5) pts.push(route.atDistance(s));
+  for (let i = 0; i < pts.length; i++) for (let j = i + 9; j < pts.length; j++) {
+    const d = Math.hypot(pts[j].x - pts[i].x, pts[j].y - pts[i].y);
+    if (d < 12) return i * 5;
+    j += Math.max(0, Math.floor((d - 12) / 10));   // a sample moves at most 5 m
+  }
+  return -1;
+}
+
 /** A route like pickRoute(), and a third of the time one that uses the A28,
- *  started just before it, as the page's "to big road" / "to A28 town". */
+ *  started just before it, as the page's "to big road" / "to A28 town"; and
+ *  a sixth of the time one that folds back on itself, started short of the
+ *  fold, so traffic on its far part meets the van. */
 function pickRoute(r) {
+  if (r() < 0.17) {
+    for (let tries = 0; tries < 200; tries++) {
+      const a = ids[(r() * ids.length) | 0], b = ids[(r() * ids.length) | 0];
+      if (a === b) continue;
+      const p = shortestPath(graph.anchors[a], graph.anchors[b]);
+      if (!p || p.length < 12) continue;
+      const route = makeRoute(p), f = foldStart(route);
+      if (f >= 0) return { route, start: Math.max(0, f - 120), fold: true };
+    }
+  }
   const wantA28 = r() < 0.34 ? ['dual', 'divided', 'single'][(r() * 3) | 0] : null;
   for (let tries = 0; tries < 400; tries++) {
     const a = ids[(r() * ids.length) | 0], b = ids[(r() * ids.length) | 0];
@@ -248,11 +278,18 @@ function stepCar(car, R, T, X, dt, input, stats) {
 
 const totals = {
   minutes: 0, routes: 0, crossed: 0, familes: 0, contacts: 0, vanOverlaps: 0,
-  minVan: Infinity, folded: 0, minSame: Infinity, minOnc: Infinity, minVanTraffic: Infinity,
+  minVan: Infinity, foldFrames: 0, minFold: Infinity, foldRoutes: 0, foldHad: 0, foldShared: 0, foldHolds: 0, foldCaps: 0, foldHard: 0, vanFoldStood: 0, foldLongest: 0, minSame: Infinity, minOnc: Infinity, minVanTraffic: Infinity,
   stoppedForAnimal: { same: 0, onc: 0 }, waitedForTraffic: 0, hardest: 0, longestStand: 0, longestClosed: 0,
   byKind: {}, emergencyFrames: 0, praised: 0,
 };
 const fail = [];
+
+/** traffic.js's own counts at the folds, for one route's traffic. */
+function tallyFolds(T) {
+  totals.foldHolds += T.foldHolds ?? 0;
+  totals.foldHad += T.foldHad ?? 0; totals.foldShared += T.foldShared ?? 0;
+  totals.foldLongest = Math.max(totals.foldLongest, T.foldLongest ?? 0);
+}
 
 function drive(seed) {
   const r = rng(seed * 977 + 3);
@@ -278,11 +315,13 @@ function drive(seed) {
       const c = X.crossings.find(c => c.s > 200 && c.party.some(a => a.kind === 'duckling'));
       if (c) { p.start = c.s - 160; break; }
     }
+    if (T) tallyFolds(T);
     T = traffic.create({ length: R.length, atDistance: R.atDistance, laneOffset: R.laneOffset,
       roadClassAt: R.trafficClassAt, laneWidth: LANE_M }, { random: r });
     Object.assign(car, newCar(), { gear: car.gear, sideways: car.sideways });
     car.s = p.start;
     totals.routes++;
+    if (p.fold) totals.foldRoutes++;
   };
   fresh();
   const input = { throttle: false, handbrake: false, ask: 0, askFor: 0 };
@@ -315,6 +354,18 @@ function drive(seed) {
     if (input.ask > 0 && (input.askFor -= dt) <= 0) input.ask = 0;   // let go
     const arrived = stepCar(car, R, T, X, dt, { throttle: held, handbrake: hb, ask: input.ask }, stats);
     if (car.laneWant === 1) input.ask = 0;   // the swipe is spent on the overtake
+    if (T.last?.capBy === 'fold') {
+      totals.foldCaps++;
+      car.foldStood = car.v < 0.2 ? (car.foldStood ?? 0) + dt : 0;
+      totals.vanFoldStood = Math.max(totals.vanFoldStood, car.foldStood);
+      if (process.env.FOLD_DEBUG && car.foldStood > 20 && !car.foldLogged) {
+        car.foldLogged = true;
+        const near = T.vehicles.filter(w => Math.abs(w.s - car.s) > 40).map(w => { const f = traffic.footprint(T, w); return { kind: w.kind, s: +w.s.toFixed(1), dir: w.dir, v: +w.v.toFixed(2), d: +w.d.toFixed(2), x: +f.x.toFixed(1), y: +f.y.toFixed(1), h: +(f.h * 180 / Math.PI).toFixed(0), stood: +(w.foldStood ?? 0).toFixed(1) }; }).filter(o => Math.hypot(o.x - car.x, o.y - car.y) < 40);
+        const pts = R.pts.filter(q => near.some(o => Math.abs(q.s - o.s) < 40) || Math.abs(q.s - car.s) < 40).map(q => `${q.s.toFixed(0)}:${q.cls}${q.cw ? '/' + q.cw.kind : ''}@${q.x.toFixed(1)},${q.y.toFixed(1)}`);
+        console.log('DEADLOCK', JSON.stringify({ seed, t: +t.toFixed(1), van: { s: +car.s.toFixed(1), x: +car.x.toFixed(1), y: +car.y.toFixed(1), h: +(car.h * 180 / Math.PI).toFixed(0), lane: +car.lane.toFixed(2) }, near, pts }));
+      }
+      if (car.felt > BRAKE + 0.5) totals.foldHard++;
+    } else car.foldStood = 0;
 
     // Which way each vehicle is giving way: the closed stretches now.
     const closed = crossings.closed(X);
@@ -361,10 +412,12 @@ function drive(seed) {
     for (const { w, b } of boxes) {
       if (Math.abs(b.x - car.x) > 30 || Math.abs(b.y - car.y) > 30) continue;
       const g = clearance(vanBox, b);
-      // traffic.js reasons along the route, so a vehicle on a part of the
-      // route that folds back past the van (a hairpin, a triangle junction)
-      // is a known blind spot of it, not of the giving way; counted apart.
-      if (Math.abs(w.s - car.s) > 60) { if (g <= 0) totals.folded++; continue; }
+      // Every vehicle counts, wherever it is along the route: one on a part
+      // of the route that folds back past the van (a hairpin, the A28
+      // bending on a point of the Westgate house street the route drove
+      // earlier) is drawn where it is, on the screen beside the van.
+      const foldedHere = Math.abs(w.s - car.s) > 40 && Math.hypot(b.x - car.x, b.y - car.y) < 0.5 * Math.abs(w.s - car.s);
+      if (foldedHere) { totals.foldFrames++; totals.minFold = Math.min(totals.minFold, g); }
       totals.minVanTraffic = Math.min(totals.minVanTraffic, g);
       if (g <= 0 && process.env.DEBUG && totals.vanOverlaps === 0) {
         const pts = R.pts.filter(q => q.s > car.s - 60 && q.s < w.s + 60).map(q => `${q.s.toFixed(0)}:${q.cls}/${q.cw?.kind ?? ''}${q.cw?.lanes ?? ''}`);
@@ -395,6 +448,7 @@ function drive(seed) {
     if (arrivedFor > ARRIVED_WAIT_S || jump) { fresh(); arrivedFor = 0; prevV.clear(); stand.clear(); closedSince.clear(); }
   }
   totals.minutes += end / 60;
+  tallyFolds(T);
   totals.praised += stats.praised;
   totals.emergencyFrames += stats.emergencyFrames;
 }
@@ -408,9 +462,12 @@ console.log(`  animals crossed ${totals.crossed} (families of ducklings ${totals
 console.log(`  vehicles that stopped for an animal: same way ${totals.stoppedForAnimal.same}, oncoming ${totals.stoppedForAnimal.onc}`);
 console.log(`  hardest any vehicle slowed for an animal ${totals.hardest.toFixed(2)} m/s² (allowed ${GENTLE}), longest stand ${totals.longestStand.toFixed(1)} s, longest a crossing was closed ${totals.longestClosed.toFixed(1)} s`);
 console.log(`  contacts with animals ${totals.contacts}; closest to a crossing animal: the van ${f2(totals.minVan)} m, traffic going the same way ${f2(totals.minSame)} m, oncoming traffic ${f2(totals.minOnc)} m`);
-console.log(`  vehicles touching the van ${totals.vanOverlaps} (closest ${f2(totals.minVanTraffic)} m); frames where the route folds back and a vehicle on its far part overlaps the van ${totals.folded}`);
+console.log(`  vehicles touching the van ${totals.vanOverlaps} (closest ${f2(totals.minVanTraffic)} m), every vehicle on any part of the route, measured where it is drawn`);
+console.log(`  where the route folds back (${totals.foldRoutes} routes chosen to): frames the van had a fold zone ${totals.foldHad}, with a vehicle on its other part ${totals.foldShared}; frames with a vehicle from the far part beside the van ${totals.foldFrames}, closest ${f2(totals.minFold)} m; frames such a vehicle was held for the van ${totals.foldHolds} (longest stand ${totals.foldLongest.toFixed(1)} s), the van held for it ${totals.foldCaps} (longest stand ${totals.vanFoldStood.toFixed(1)} s, hard-braking frames ${totals.foldHard})`);
+if (totals.foldLongest > STAND_MAX_S || totals.vanFoldStood > STAND_MAX_S) fail.push('a vehicle or the van stood for the other at a fold longer than STAND_MAX_S');
 console.log(`  she stopped by herself ${totals.praised}, hard-braking frames ${totals.emergencyFrames}`);
 if (!totals.stoppedForAnimal.same || !totals.stoppedForAnimal.onc) fail.push('no vehicle ever stopped for an animal both ways: the check did not exercise it');
 if (SEEDS * MINUTES >= 300 && !totals.familes) fail.push('no duck family crossed: the check did not exercise one');
+if (!totals.foldFrames) fail.push('no vehicle on a folded part of a route came near the van: the check did not exercise it');
 if (fail.length) { console.error('FAIL\n' + fail.slice(0, 25).join('\n')); process.exit(1); }
-console.log('PASS');
+console.log(`PASS: ${totals.vanOverlaps} real overlaps between the van and any vehicle, ${totals.contacts} contacts with an animal.`);

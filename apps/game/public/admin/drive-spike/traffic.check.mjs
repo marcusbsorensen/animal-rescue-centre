@@ -22,8 +22,14 @@ const LANE_M = 5;
 const ROAD_M = { secondary: 10, tertiary: 10, unclassified: 9, residential: 8, track: 5 };
 const TRUNK_LANE_M = { zoom: 5, narrow: 3.0 };
 const RESERVATION_M = 1.6;
+// The page's van: henry by default (?van=), its length from its top-down
+// sprite's aspect as drive-spike.html's step() sets car.length, as in
+// safety.check.mjs. VAN=spark, bea, big-tilly ... to drive another.
+const VAN_SPRITES = { henry: [561, 1131], spark: [641, 1205], bea: [578, 1288], 'big-tilly': [735, 1849], trikey: [454, 869] };
+const VAN_ID = process.env.VAN ?? 'henry';
+if (!VAN_SPRITES[VAN_ID]) throw new Error(`no sprite size for van ${VAN_ID}`);
 const VAN_W_M = 2.4;
-const VAN_ASPECT = 1205 / 641;           // spark-rear.png
+const VAN_ASPECT = VAN_SPRITES[VAN_ID][1] / VAN_SPRITES[VAN_ID][0];
 const GEARS = { 1: 7, 2: 13, 3: 20 };
 const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34;
 const EMERGENCY = 26;
@@ -348,7 +354,7 @@ for (let seed = FIRST; seed < FIRST + SEEDS; seed++) {
 }
 
 const simMin = SEEDS * MINUTES;
-console.log(`\ntraffic.check: ${SEEDS} seeds x ${MINUTES} simulated minutes = ${simMin} minutes, ${totals.frames} frames, ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+console.log(`\ntraffic.check: van ${VAN_ID} (${(VAN_W_M * VAN_ASPECT).toFixed(2)} m), ${SEEDS} seeds x ${MINUTES} simulated minutes = ${simMin} minutes, ${totals.frames} frames, ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 console.log(`  overlaps with the van            ${totals.overlaps}   (closest approach ${totals.minSep.toFixed(2)} m)`);
 console.log(`  moved into lane 1 on the track   ${totals.enteredOnTrack}`);
 console.log(`  moved into lane 1 near the bend  ${totals.enteredNearBend}`);
@@ -367,4 +373,4 @@ console.log(`  route laps                       ${totals.wraps}`);
 if (worst) console.log('  worst overlap', worst);
 if (!totals.close) failed++;
 if (failed || totals.overlaps) { console.log(`\nFAIL (${failed} seed failures)`); process.exit(1); }
-console.log('\nPASS');
+console.log(`\nPASS: ${totals.overlaps} real overlaps between the van and any vehicle.`);

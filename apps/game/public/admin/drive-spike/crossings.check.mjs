@@ -104,7 +104,7 @@ function edgeClasses(graph) {
 
 // ---------------------------------------------------------------- the van
 
-function newCar() { return { s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, length: VAN_L, width: VAN_W, camH: null }; }
+function newCar() { return { zoom: null, s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, length: VAN_L, width: VAN_W, camH: null }; }
 
 /** drive-spike.html's step(), less the camera: the same order, the same caps. */
 function stepCar(car, route, xing, dt, input, stats) {
@@ -136,8 +136,10 @@ function stepCar(car, route, xing, dt, input, stats) {
   // sideways (844x390: the van lower, the camera pulled back by 0.75).
   // crossings.js waits for an animal to be on screen, below the chips,
   // before it steps out.
-  const zoom = 1.35 + (0.66 - 1.35) * Math.min(1, car.v / GEARS[3]);
-  const ppm = 22 * zoom * (car.sideways ? 0.75 : 1);
+  // Eased as the page eases it, out quicker than in.
+  const zt = 1.35 + (0.66 - 1.35) * Math.min(1, car.v / GEARS[3]);
+  car.zoom = car.zoom == null ? zt : car.zoom * Math.exp(Math.log(zt / car.zoom) * (1 - Math.exp(-(zt < car.zoom ? 1.5 : 0.7) * dt)));
+  const ppm = 22 * car.zoom * (car.sideways ? 0.75 : 1);
   car.view = { ahead: (car.sideways ? 254.4 : 408.28) / ppm, ppm, chipsPx: car.sideways ? 68 : 104 };
   const pos = route.atDistance(car.s);
   // The page's camera: aimed at the route 20 m ahead, eased at 3.4 a second.
@@ -191,11 +193,14 @@ function clearance(car, a) {
 const totals = {
   seeds: 0, minutes: 0, routes: 0, crossings: 0, crossed: 0, late: 0, sleeping: 0,
   praised: 0, selfStops: 0, emergencyFrames: 0, families: 0, contacts: 0, minClear: Infinity, skew: 0, minClearSide: {}, lateBy: {},
-  offSmall: 0, fileStray: 0, rest: [], restForced: [], restCareful: [], outSlow: [], outFast: [], winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {}, bodies: {},
+  offSmall: 0, fileStray: 0, rest: [], restForced: [], restCareful: [], restByGear: {}, scripted: {}, outSlow: [], outFast: [], winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {}, bodies: {},
 };
 const fail = [];
 
-function drive(seed, newRouteFn, season, label) {
+/** driver, for the scripted drivers: holds go in one gear the whole way and
+ *  lets go react seconds after an animal steps out ahead (Infinity: never,
+ *  so the van stops itself), then sets off again once it is across. */
+function drive(seed, newRouteFn, season, label, driver = null, T = 20 * 60) {
   const r = rng(seed * 31 + 5);
   const watchful = r();                      // how often this driver watches the road
   const careful = seed % 5 === 2;
@@ -204,10 +209,10 @@ function drive(seed, newRouteFn, season, label) {
   const world = () => ({ graph: newRouteFn.graph(), mapToWorld, season });
   let xing = crossings.create(route, world());
   const car = newCar();
-  car.sideways = seed % 3 === 0;
+  car.sideways = driver ? driver.sideways : seed % 3 === 0;
+  if (driver) car.gear = driver.gear;
   const input = { throttle: false, handbrake: false };
   let tInput = 0, arrivedFor = 0, t = 0;
-  const T = 20 * 60;
   const counted = new Set();
   const seasonCount = totals.bySeason[season] ??= 0;
 
@@ -270,6 +275,12 @@ function drive(seed, newRouteFn, season, label) {
         if (c.state === 'go' && c.blocking && gap > 0 && gap < 30) { held = false; hb = true; }
       }
     }
+    if (driver) {
+      car.gear = driver.gear; held = true; hb = false;
+      for (const c of xing.crossings) {
+        if (c.state === 'go' && c.blocking && c._outAt != null && t - c._outAt >= driver.react) held = false;
+      }
+    }
     const arrived = stepCar(car, route, xing, dt, { throttle: held, handbrake: hb }, stats);
 
     for (const a of crossings.animals(xing, car.camH)) {
@@ -292,16 +303,27 @@ function drive(seed, newRouteFn, season, label) {
     // How far ahead of the nose an animal set out, by the van's speed then.
     for (const c of xing.crossings) {
       if (c.state === 'go' && c.blocking && !c._out) {
-        c._out = true;
+        c._out = true; c._outAt = t; c._gear = car.gear; c._v = car.v; c._peak = 0;
         (car.v < 2 ? totals.outSlow : totals.outFast).push(c.s - (car.s + car.length / 2));
       }
     }
+    for (const c of xing.crossings) if (c._out && !c._rest) c._peak = Math.max(c._peak, car.felt ?? 0);
     // Where the van came to rest for a crossing: its nose to the animal's line.
     if (car.v < 0.05) for (const c of xing.crossings) {
       if (c.state === 'go' && c.blocking && !c._rest) {
         c._rest = true;
         const d = c.s - (car.s + car.length / 2);
-        if (d > 0 && d < 30) { totals.rest.push(d); if (c.forced) totals.restForced.push(d); if (careful) totals.restCareful.push(d); }
+        if (d > 0 && d < 30) {
+          const stop = { d, forced: !!c.forced, peak: c._peak, v: c._v };
+          if (driver) {
+            const k = `gear ${driver.gear} ${driver.sideways ? 'sideways' : 'upright '} ${driver.react === Infinity ? 'never lets go' : `lets go after ${driver.react} s`}`;
+            (totals.scripted[k] ??= []).push(stop);
+          } else {
+            totals.rest.push(d); if (c.forced) totals.restForced.push(d); if (careful) totals.restCareful.push(d);
+            const k = c._v < 2 ? 'creeping' : `gear ${c._gear}`;
+            (totals.restByGear[k] ??= []).push(stop);
+          }
+        }
       }
     }
 
@@ -320,6 +342,7 @@ function drive(seed, newRouteFn, season, label) {
   }
   totals.praised += stats.praised;
   totals.emergencyFrames += stats.emergencyFrames;
+  if (driver) return;
   totals.seeds++; totals.minutes += T / 60;
 }
 
@@ -372,6 +395,21 @@ for (let seed = 101; seed <= 112; seed++) {
   drive(seed, fn, SEASONS[seed % 4], `birchie seed ${seed}`);
 }
 
+// Scripted drivers, for where the van stops in each gear (39A): go held in
+// one gear, letting go 0.3 s after an animal steps out, or never.
+for (const gear of [1, 2, 3]) for (const sideways of [false, true]) for (const react of [0.3, Infinity]) {
+  for (let seed = 201; seed <= 206; seed++) {
+    let g = null;
+    const fn = (r) => {
+      const syn = syntheticGraph(seed * 1000 + ((r() * 1e6) | 0));
+      g = syn.graph;
+      return { route: makeRoute(g, syn.path, edgeClasses(g)) };
+    };
+    fn.graph = () => g;
+    drive(seed, fn, SEASONS[seed % 4], `scripted gear ${gear} seed ${seed}`, { gear, sideways, react }, 4 * 60);
+  }
+}
+
 console.log(`seeds ${totals.seeds} (50 synthetic + 12 on the Birchie graph), ${totals.minutes} simulated minutes, ${totals.routes} routes`);
 console.log(`crossing places on the routes driven ${totals.crossings} (${totals.sleeping} hedgehog places asleep in winter), animals crossed ${totals.crossed}`);
 console.log(`by species ${JSON.stringify(totals.bySpecies)}`);
@@ -384,6 +422,16 @@ console.log(`crossed behind the van, by species and how the phone was held ${JSO
 {
   const q = (xs, f) => { const a = [...xs].sort((x, y) => x - y); return a.length ? a[Math.floor(f * (a.length - 1))].toFixed(1) : 'n/a'; };
   console.log(`where the van came to rest for a crossing, nose to the animal's line: median ${q(totals.rest, 0.5)} m (10% ${q(totals.rest, 0.1)}, 90% ${q(totals.rest, 0.9)}; ${totals.rest.length} stops); when it stopped itself median ${q(totals.restForced, 0.5)} m; a careful driver who creeps up and stops as it steps out median ${q(totals.restCareful, 0.5)} m (10% ${q(totals.restCareful, 0.1)}, 90% ${q(totals.restCareful, 0.9)}; ${totals.restCareful.length}); the van is ${VAN_L.toFixed(1)} m long`);
+  const dist = (stops) => {
+    const ds = stops.map(x => x.d), forced = stops.filter(x => x.forced).length;
+    const peak = stops.reduce((m, x) => Math.max(m, x.peak), 0);
+    const rough = stops.filter(x => x.peak > BRAKE + 0.5).length;
+    return `${String(stops.length).padStart(4)} stops: 10% ${q(ds, 0.1)}, median ${q(ds, 0.5)}, 90% ${q(ds, 0.9)} m; the van stopped itself ${forced}, felt as rough ${rough}; hardest felt ${peak.toFixed(1)} m/s²`;
+  };
+  console.log(`where the van came to rest, nose to the animal's line, by the gear when it stepped out (random drivers):`);
+  for (const k of Object.keys(totals.restByGear).sort()) console.log(`  ${k.padEnd(10)} ${dist(totals.restByGear[k])}`);
+  console.log(`scripted drivers, go held in one gear:`);
+  for (const k of Object.keys(totals.scripted).sort()) console.log(`  ${k.padEnd(42)} ${dist(totals.scripted[k])}`);
   console.log(`how far ahead of the nose an animal set out: van creeping or standing median ${q(totals.outSlow, 0.5)} m (${totals.outSlow.length}), moving median ${q(totals.outFast, 0.5)} m (${totals.outFast.length})`);
 }
 console.log(`contacts ${totals.contacts}, closest the van came to a crossing animal's drawn body ${totals.minClear.toFixed(2)} m`);
@@ -396,4 +444,4 @@ if (fail.length || !totals.crossed || !totals.selfStops || !totals.praised || !t
   if (!totals.crossed || !totals.selfStops || !totals.praised || !totals.families) console.error('the check did not exercise crossings, self-stops and praise');
   process.exit(1);
 }
-console.log('PASS');
+console.log(`PASS: ${totals.contacts} contacts between the van and any animal.`);

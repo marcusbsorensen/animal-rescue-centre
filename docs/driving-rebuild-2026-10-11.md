@@ -285,7 +285,17 @@ stops itself, as it does for traffic. Never an accident.
 - Ducklings follow their mother across in a loose single file, never
   abreast.
 - The van stops about a van length short of a crossing animal (39A), so it
-  crosses mid-screen rather than up under the labels.
+  crosses mid-screen rather than up under the labels, in every gear: it
+  eases, gently enough not to be felt, towards an animal waiting on the
+  verge, to a speed at which the animal is on screen in time to step out.
+  Letting go a moment after it moves stops her about 5 m short; if she does
+  not, the van stops itself about 4.4 m short, and that still counts as rough
+  driving (`crossings.check.mjs` reports the stops by gear).
+- Where the route folds back on itself (the A28 bends on a point of the
+  Westgate house street the route drove earlier) traffic on the far part was
+  being drawn over the van. Such a place is now used one side at a time, the
+  van first, and `safety.check.mjs` counts every overlap, wherever the vehicle
+  is along the route: none.
 
 **Following the road is not a swerve.** Only the child's own lane change feeds
 the jostle model; the van drifting outward as a lane widens or the road
