@@ -64,10 +64,26 @@ breathes a little, unevenly, so the two do not move in lockstep; (c) 37A
 poking out to look before overtaking: the further she swipes (or the longer
 she holds an arrow key) the further the van eases towards the middle;
 released before halfway it eases back, past halfway it overtakes; (d) the
-dashboard matches the vehicle being driven (earlier work exists; an Explore
-agent is finding it). Open: 38 (one painting per animal: doe with antlers,
-recommended A fine for now), 39 (van stops too far back, recommended A stop
-a van's length short).
+dashboard matches the vehicle being driven. Found: animals check only the
+van (`crossings.step` crossings.js:572-593); traffic.js knows nothing of
+animals though crossings.js exports `animals()` (:631) and `closed()` (:780)
+for it; `crossings.check.mjs` has no traffic. Following: van cap in
+traffic.js:412-423 settles at the leader's speed (lockstep), and a cap even
+slightly below `car.v` brakes at EMERGENCY and sets `emergency` (S:505-508),
+so a steady follow may count as hard braking: fix. Lane change is binary
+(`car.laneWant`, `laneT` S:531-538; `laneUnsafe` traffic.js:583-612). Only
+Henry has painted dashboard art; the per-vehicle design is
+`docs/ptv-pet-transport-vehicle.md:1026-1038`; `tools/paint-dashboard.ts`
+has unrun prompts; `cockpit.html` has CSS variants. A local agent is painting
+candidates with ComfyUI into scratchpad `dash-art/`. Also answered: 38B paint the other of
+each pair (drake, hen pheasant, roe doe; the first art agent is painting
+candidates into scratchpad `crossing-art/pairs/`) and mix them on the road;
+only the duck (female) leads ducklings. Each animal's shadow sits tight
+under its feet so it does not float. Ducklings follow their mother in a
+loose single file, never abreast. 39A the van stops about a van's length
+short of a crossing animal, so it crosses mid-screen. Plan: ONE cloud
+routine after the current merge (a, b, c, these three) since crossings.js,
+traffic.js and drive-spike.html are coupled.
 
 **In flight (cloud; check with RemoteTrigger list_runs and git ls-remote,
 merge, run the checks, screenshot for Marcus):**

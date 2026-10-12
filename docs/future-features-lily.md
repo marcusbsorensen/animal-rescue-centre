@@ -133,6 +133,21 @@ Then the children help design the bridge so that different kinds of animal
 are well catered for (cover for hedgehogs, hedges for birds and bats, a wide
 path for deer, and so on), and the crossings on the drive thin out to match.
 
+**The real one to copy: Chestfield Tunnel** on the A299 near Whitstable
+(about 51.3464 N, 1.0702 E). A cut-and-cover tunnel from the mid-1990s
+dualling: two concrete boxes side by side, one per carriageway, each with
+two lanes; about 360 m long and 25 m wide. The portals are dark red-brown
+brick headwalls with flat-topped openings, a galvanised railing along the
+top, stepped brick wing walls, and a central pier between the bores. The top
+is green: golf fairways and rough, with belts of woodland and scrub along the
+approach cuttings and a public footpath crossing it. Seen from above, the
+dual carriageway runs in a wooded cutting into a dark mouth, vanishes under
+about 330 m of green, and comes out again. It was built "to increase
+environment protection", not named for any species. Reference photos
+(Geograph, CC BY-SA) and sources are in the session scratchpad
+`animal-bridge-ref/` (not in git); the satellite tile there is not openly
+licensed, so it is for looking at only and is never traced.
+
 **Trikey's special role.** Trikey may use the bridge, and is the vehicle that
 rescues animals found on it hurt or lost: the rider gets off and wheels
 Trikey onto the bridge on foot, then pops the animals into the crates. (On
