@@ -343,8 +343,40 @@ past its kerb, and her way over it goes down the pavement to the lights and
 straight across (15 m at the pelican in The Square, 26 m at the lights at
 St Mildred's Road). `trikey-routes.check.mjs` judges every route against
 the game graph's own A28 and fails on any metre of her riding drawn on it
-but the crossing itself. Still to ask: whether she stops and waits for the
-green man there (the spike rides straight over; a crossing suits first gear).
+but the crossing itself.
+
+**At the lights she stops, presses and waits for green (62A).** Marcus,
+2026-10-13: she stops, the child presses the crossing button, and she rides
+over when the green signal shows, because it is the habit a child should
+copy. Both of her crossings are drawn as UK toucans (the kind a cyclist may
+ride over): signal heads for the A28, stop lines, zig-zags and red blister
+paving, and on each kerb a push-button box with a WAIT lamp and the green
+cycle and green man. She stops at the kerb by herself, gently, as the van
+pulls up at a gate (a safety stop, not a consequence); holding go there only
+nudges her against the brakes. Once she has stopped and nobody has pressed,
+the box glows and a toast says to press it; a tap on the box (or P) lights
+WAIT with a soft beep, and a press on the way there counts too. The A28 goes
+amber, then red; a vehicle too close to stop on amber goes through. When
+every lane is held, after a one-second pause, the figure goes green and the
+crossing beeps, and the traffic's green comes back only when she is clear of
+the carriageway (or, if she never sets off, after 15 s, and she presses
+again). With no press the A28 stays green. Press to green is about 5 s
+(at most about 8.5 s). Neither of her crossings is a zebra: both are
+signalled (the pelican in The Square and the lights at St Mildred's Road).
+`drive-spike/lights.js`; `lights.check.mjs` proves it.
+
+*Porting it to the game.* `trikey-links.ts` already marks which crossings
+she uses and their type; the port needs, per used crossing, the kerb-to-kerb
+span along her route and the A28's lanes there (`trunk-carriageways.json`
+gives the kind and lanes). In `PtvDriveScene.ts` the lights become a small
+state machine stepped in `update` (green, demand, amber, red, cross, clear,
+red-and-amber, with lights.js's timings), a speed cap on the van short of the
+kerb exactly like the destination pull-up, a tap target on the box (plus P),
+and cross traffic on the A28 for the crossing's few hundred metres, separate
+from the route's own traffic. The markings and the upright box and heads are
+Phaser graphics or a baked texture; the glow must hold still under
+prefers-reduced-motion. Port `lights.check.mjs`'s assertions as a vitest
+over the pure state machine and traffic step.
 
 **Later levels: fuel, the workshop and the car wash.** Marcus, 2026-10-11:
 "part of the driving game, as the levels go on, will also involve tanking
