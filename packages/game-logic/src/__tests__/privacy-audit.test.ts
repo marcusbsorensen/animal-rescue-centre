@@ -352,3 +352,94 @@ describe('Privacy Audit: RLS', () => {
     expect(auditSection).not.toContain('for select');
   });
 });
+
+describe('Privacy Audit: deleting an account', () => {
+  // Apple guideline 5.1.1(v), and DPIA findings 5 and G3: a player can
+  // delete their account from the account screen, and the deletion
+  // reaches every row about them, not only those a cascade happens to.
+  // packages/edge-functions/src/__tests__/delete-account-db.test.ts runs
+  // it against a real Postgres; this checks the list stays whole.
+  let fn: string;
+
+  beforeAll(() => {
+    const sql = migrations().map((m) => m.sql).join('\n');
+    const start = sql.lastIndexOf('create or replace function delete_account(');
+    expect(start).toBeGreaterThan(-1);
+    fn = sql.slice(start, sql.indexOf('$$;', start));
+  });
+
+  it('every table that points at a player is cleared by name', () => {
+    const pointing = migrations()
+      .flatMap(({ sql }) => sql.split(';'))
+      .map((stmt) => stmt.match(/create table (?:if not exists )?(\w+)\s*\(([\s\S]*)\)\s*$/))
+      .filter((m): m is RegExpMatchArray => !!m && /references users\b/.test(m[2]))
+      .map((m) => m[1])
+      .filter((t) => currentSchema().has(t));
+    expect(pointing.length).toBeGreaterThan(5);
+    for (const table of pointing) {
+      expect(fn, table).toMatch(new RegExp(`(delete from|update) ${table}\\b`));
+    }
+  });
+
+  it('also clears the rows a cascade leaves: the activity log and the rate limits', () => {
+    // audit_log.user_id is set null, not removed, and the signup row holds
+    // the typed name; other players' rows hold the id or join code.
+    expect(fn).toMatch(/delete from audit_log\s+where user_id = p_user_id\s+or target_id = p_user_id/);
+    expect(fn).toContain("metadata->>'from_user'");
+    expect(fn).toContain("metadata->>'join_code'");
+    // login:<name> and hint:<name> hold the typed name; gift keys the id.
+    expect(fn).toMatch(/delete from rate_limits/);
+    expect(fn).toContain("key like 'login:%'");
+    expect(fn).toContain("key like 'hint:%'");
+    expect(fn).toMatch(/position\(p_user_id::text in key\)/);
+  });
+
+  it('only the service role can call it', () => {
+    const raw = read('supabase/migrations/00015_delete_account.sql').toLowerCase();
+    expect(raw).toMatch(/revoke execute on function delete_account\(uuid\) from public, anon, authenticated/);
+  });
+
+  it('the function takes the account from the session and checks the PIN', () => {
+    const src = read('supabase/functions/delete-account/index.ts');
+    expect(src).toMatch(/requireSession\(req, supabase\)/);
+    expect(src).toMatch(/verifyPin\(pin, user\.pin_hash\)/);
+    expect(src).toContain("rpc('delete_account', {\n      p_user_id: userId,");
+    // The body gives a PIN and nothing else.
+    expect(src).toContain('const { pin } = await req.json();');
+  });
+});
+
+describe('Privacy Audit: what the public key can read', () => {
+  // The anon key ships in the app. 00016 takes away what the game never
+  // asks it for (DPIA open items 7 and 8, gaps G5 and G6).
+  let sql: string;
+
+  beforeAll(() => {
+    sql = migrations().map((m) => m.sql).join('\n');
+  });
+
+  it('no rule lets it list showcases, which carry pet names a child typed', () => {
+    const created = sql.lastIndexOf('create policy "showcase_read_public"');
+    const dropped = sql.lastIndexOf('drop policy if exists "showcase_read_public"');
+    expect(dropped).toBeGreaterThan(created);
+    expect(sql).toContain('revoke all on table showcase_links from anon, authenticated');
+  });
+
+  it('it may read four columns of users, and the typed name is not one', () => {
+    expect(sql).toContain('revoke all on table users from anon, authenticated');
+    const grant = sql.match(/grant select \(([^)]*)\)\s+on table users to anon, authenticated/);
+    expect(grant?.[1].split(',').map((c) => c.trim()).sort())
+      .toEqual(['avatar_bg_colour', 'avatar_emoji', 'display_name', 'id']);
+  });
+
+  it('it sees unclaimed suggested names only, never who claimed one', () => {
+    expect(sql.lastIndexOf('drop policy if exists "username_pool_read"'))
+      .toBeGreaterThan(sql.lastIndexOf('create policy "username_pool_read"'));
+    expect(sql).toMatch(/create policy "username_pool_read_unclaimed" on username_pool\s+for select using \(claimed_at is null\)/);
+    expect(sql).toMatch(/grant select \(username, claimed_at\) on table username_pool to anon, authenticated/);
+  });
+
+  it('the game no longer searches sign-in names with it', () => {
+    expect(read('apps/game/src/lib/auth.ts')).not.toMatch(/from\('users'\)/);
+  });
+});
