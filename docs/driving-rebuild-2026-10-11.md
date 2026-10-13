@@ -290,9 +290,12 @@ stops itself, as it does for traffic. Never an accident.
   rear-view mirror, nothing from above. The ground is the top-down
   ground and roads projected onto the road a row at a time; trees, hedges,
   walls, houses and the real buildings from the map (each at its own eave
-  and ridge height) stand up beside it; the traffic is drawn plain in its
-  colour until the painted backs and fronts are in
-  `assets/driving/vehicle-views/` (its README says what goes there).
+  and ridge height) stand up beside it; the traffic is the painted back
+  (going her way) or front (coming) of each vehicle, 26 pictures in
+  `assets/driving/vehicle-views/` (its README and `index.json` say how they
+  are sized), scaled to the vehicle's real width and distance, with a plain
+  one in its colour until a picture has loaded. The red and blue tractors
+  are the green one hue-shifted, so the three match.
   `drive-spike/behind-view.js` draws it.
 - On the A28's divided stretch her right-hand lane is hers to use; it was
   being refused near every bend as if it were the oncoming lane.

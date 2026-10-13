@@ -73,24 +73,74 @@ export function create() {
 }
 
 /** Only the files index.json lists are asked for, so a painting that does
- *  not exist yet never shows as a failed request. */
+ *  not exist yet never shows as a failed request. Each is listed with where
+ *  its wheels meet the road (anchor, in the picture's px) and how wide its
+ *  body is in px, which the window scales to the vehicle's real width; side
+ *  is the colour of its flank, for the box laid along it; widthM, that width
+ *  in metres (traffic.js), is for whoever cuts the next one. A bare list of
+ *  names is read as the README's 512 px pictures. */
 async function loadIndex(BV) {
-  BV.views = new Set();
+  BV.views = new Map();
   try {
     const r = await fetch(VIEWS + 'index.json');
-    if (r.ok) for (const v of (await r.json()).views ?? []) BV.views.add(v);
+    if (!r.ok) return;
+    const j = await r.json();
+    const size = j.size ?? 512;
+    if (Array.isArray(j.views)) for (const f of j.views) BV.views.set(f, { size, anchor: [size / 2, size * 470 / 512], bodyPx: size * 400 / 512 });
+    else for (const [f, m] of Object.entries(j.views ?? {})) BV.views.set(f, { size, anchor: m.anchor, bodyPx: m.bodyPx, side: m.side });
   } catch { /* no index: every vehicle is drawn plain */ }
 }
+
+const MIPS = 3;            // halvings kept of each picture, for vehicles far off
+const HAZE_STEP = 0.08;    // far vehicles are tinted in steps of this much haze
+
+/** A painting asked for once, loaded lazily and decoded before it is first
+ *  drawn, so the frame that shows it never pays for decoding it. Until it is
+ *  ready, or if it will not load, this is null and the plain one is drawn. */
 function viewImage(BV, file) {
-  if (!BV.views || !BV.views.has(file)) return null;
-  let im = BV.imgs.get(file);
-  if (im === undefined) {
-    im = new Image();
-    im.onerror = () => BV.imgs.set(file, null);
-    im.src = VIEWS + file;
-    BV.imgs.set(file, im);
+  const meta = BV.views && BV.views.get(file);
+  if (!meta) return null;
+  let v = BV.imgs.get(file);
+  if (v === undefined) {
+    const el = new Image();
+    v = { el, meta, ready: false, mips: [], tints: new Map() };
+    BV.imgs.set(file, v);
+    el.src = VIEWS + file;
+    el.decode().then(() => { v.ready = true; }, () => { v.failed = true; });
   }
-  return im && im.complete && im.naturalWidth ? im : null;
+  return v.ready ? v : null;
+}
+
+/** The painting at about the size it will be drawn: the picture itself, or
+ *  a half, quarter or eighth of it, made once, so a vehicle far up the road
+ *  is not sampled from a picture twenty times its size (which shimmers as it
+ *  moves). haze (0 to 1) washes it towards the horizon's colour, in steps,
+ *  each made once. Returns the canvas or image to draw, stretched over the
+ *  same square as the full picture. */
+function viewAt(v, bodyDest, haze, tone) {
+  const level = clamp(Math.floor(Math.log2(v.meta.bodyPx / Math.max(bodyDest, 1))), 0, MIPS);
+  for (let i = 1; i <= level; i++) {
+    if (v.mips[i]) continue;
+    const n = Math.max(2, v.meta.size >> i), c = canvas(n, n);
+    c.g.imageSmoothingQuality = 'high';
+    c.g.drawImage(i === 1 ? v.el : v.mips[i - 1].el, 0, 0, n, n);
+    v.mips[i] = c;
+  }
+  const src = level ? v.mips[level].el : v.el;
+  const step = Math.round(haze / HAZE_STEP);
+  if (!step) return src;
+  const key = `${level}|${step}|${tone}`;
+  let t = v.tints.get(key);
+  if (!t) {
+    const n = Math.max(2, v.meta.size >> level);
+    t = canvas(n, n);
+    t.g.drawImage(src, 0, 0);
+    t.g.globalCompositeOperation = 'source-atop';
+    t.g.fillStyle = `rgba(${tone},${Math.min(1, step * HAZE_STEP)})`;
+    t.g.fillRect(0, 0, n, n);
+    v.tints.set(key, t);
+  }
+  return t.el;
 }
 
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -247,8 +297,8 @@ function offset(pose, B, cam) {
 function texture(BV, name) {
   return BV[name] || (BV[name] = { front: canvas(), back: canvas(), pose: null, job: null });
 }
-function canvas() {
-  const el = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(8, 8) : document.createElement('canvas');
+function canvas(w = 8, h = 8) {
+  const el = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h });
   return { el, g: el.getContext('2d') };
 }
 
@@ -559,10 +609,10 @@ function shade(hex, f) {
 const PLAIN = {
   'car-red': { body: '#c94b3d' }, 'car-blue': { body: '#4f80c2' }, 'car-yellow': { body: '#e3bf45' },
   pickup: { body: '#e08a3c' }, truck: { body: '#cf6b52', glass: 0.22 },
-  tractor: { body: '#4e9f3d', tractor: true }, 'tractor-red': { body: '#c8463a', tractor: true },
-  'tractor-blue': { body: '#3f74b8', tractor: true },
+  tractor: { body: '#8fae6c', tractor: true }, 'tractor-red': { body: '#b8433b', tractor: true },
+  'tractor-blue': { body: '#4466ab', tractor: true },
   motorbike: { body: '#d85a3a', bike: true }, bus: { body: '#d23c34', glass: 0.3 },
-  binlorry: { body: '#3f8f83', glass: 0.2 }, ambulance: { body: '#f2ead2', stripe: '#3f8f5a', glass: 0.25 },
+  binlorry: { body: '#63874f', glass: 0.2 }, ambulance: { body: '#f2ead2', stripe: '#3f8f5a', glass: 0.25 },
   fireengine: { body: '#d8392b', glass: 0.25 },
 };
 const typeOf = skin => skin.replace(/-rear$/, '');
@@ -615,23 +665,28 @@ function vehicle(g, BV, P, v, mag) {
   g.ellipse((sx0 + sx1) / 2, (sy0 + sy1) / 2, Math.abs(sx1 - sx0) / 2 + wpx * 0.55, Math.abs(sy1 - sy0) / 2 + wpx * 0.06, 0, 0, Math.PI * 2);
   g.fill();
   // The side towards the eye, a box from the near end back along its length.
-  const side = Math.abs(nX) > Wd / 2 ? (nX > 0 ? -1 : 1) : 0;
+  // A painted tractor or motorbike has no flat side to show: open wheels and
+  // a bonnet, not a box, so only its shadow is laid along its length.
+  const art = viewImage(BV, `${v.type}-${v.away ? 'rear' : 'front'}.png`);
+  const side = Math.abs(nX) > Wd / 2 && !(art && (C.tractor || C.bike)) ? (nX > 0 ? -1 : 1) : 0;
   if (side) {
     const off = side * Wd / 2 * 0.98, lift = C.bike ? 0.3 : 0.25;
     const s = [nX + off, nZ, fX + off, fZ];
     if (fZ > NEAR_CLIP) {
       strip(g, P, s, lift, H * 0.92);
-      g.fillStyle = shade(C.body, 0.72); g.fill(); g.lineWidth = lw; g.strokeStyle = INK; g.stroke();
+      g.fillStyle = shade(art && BV.views.get(`${v.type}-rear.png`)?.side || C.body, 0.72); g.fill(); g.lineWidth = lw; g.strokeStyle = INK; g.stroke();
+      fade(g, P, nZ);
     }
   }
-  const im = viewImage(BV, `${v.type}-${v.away ? 'rear' : 'front'}.png`);
-  if (im) {
-    const s = wpx / 400;
-    g.drawImage(im, bx - 256 * s, by - 470 * s, 512 * s, 512 * s);
+  if (art) {
+    // Its body as wide as the vehicle is, its wheels on the road at the near
+    // end; far off it is washed into the haze, as the scenery is.
+    const { size, anchor, bodyPx } = art.meta, s = wpx / bodyPx;
+    g.drawImage(viewAt(art, wpx * mag, fog(nZ), HAZE[P.season] || HAZE.summer), bx - anchor[0] * s, by - anchor[1] * s, size * s, size * s);
   } else {
     plain(g, bx, by, wpx, hpx, C, v.away, lw);
+    fade(g, P, nZ);
   }
-  fade(g, P, nZ);
 }
 
 /** A plain picture of a vehicle's back or front: a rounded box in its colour
