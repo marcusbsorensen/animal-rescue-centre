@@ -1,1 +1,31 @@
-{ "views": [] }
+{
+  "size": 256,
+  "views": {
+    "car-red-rear.png": { "anchor": [128, 235], "bodyPx": 230, "widthM": 1.8, "side": "#db6957" },
+    "car-red-front.png": { "anchor": [128, 235], "bodyPx": 228, "widthM": 1.8, "side": "#c26b5e" },
+    "car-blue-rear.png": { "anchor": [128, 235], "bodyPx": 230, "widthM": 1.8, "side": "#486caf" },
+    "car-blue-front.png": { "anchor": [128.5, 235], "bodyPx": 237, "widthM": 1.8, "side": "#627ab6" },
+    "car-yellow-rear.png": { "anchor": [127.5, 235], "bodyPx": 221, "widthM": 1.8, "side": "#fee0bb" },
+    "car-yellow-front.png": { "anchor": [128, 235], "bodyPx": 220, "widthM": 1.8, "side": "#eed8b8" },
+    "pickup-rear.png": { "anchor": [127.5, 235], "bodyPx": 215, "widthM": 2.0, "side": "#e48e54" },
+    "pickup-front.png": { "anchor": [128, 235], "bodyPx": 216, "widthM": 2.0, "side": "#e69c63" },
+    "truck-rear.png": { "anchor": [128, 235], "bodyPx": 166, "widthM": 2.5, "side": "#f1e5c8" },
+    "truck-front.png": { "anchor": [128, 235], "bodyPx": 164, "widthM": 2.5, "side": "#e79753" },
+    "tractor-rear.png": { "anchor": [127.5, 235], "bodyPx": 197, "widthM": 2.4, "side": "#8c995f" },
+    "tractor-front.png": { "anchor": [128, 235], "bodyPx": 242, "widthM": 2.4, "side": "#a6be7c" },
+    "tractor-red-rear.png": { "anchor": [127.5, 235], "bodyPx": 197, "widthM": 2.4, "side": "#b35248" },
+    "tractor-red-front.png": { "anchor": [128, 235], "bodyPx": 242, "widthM": 2.4, "side": "#b2403d" },
+    "tractor-blue-rear.png": { "anchor": [127.5, 235], "bodyPx": 197, "widthM": 2.4, "side": "#51678b" },
+    "tractor-blue-front.png": { "anchor": [128, 235], "bodyPx": 242, "widthM": 2.4, "side": "#4362ae" },
+    "motorbike-rear.png": { "anchor": [128, 235], "bodyPx": 120, "widthM": 0.8, "side": "#eb805a" },
+    "motorbike-front.png": { "anchor": [127.5, 235], "bodyPx": 129, "widthM": 0.8, "side": "#d3765a" },
+    "bus-rear.png": { "anchor": [127.5, 235], "bodyPx": 151, "widthM": 2.5, "side": "#c1523d" },
+    "bus-front.png": { "anchor": [128, 235], "bodyPx": 174, "widthM": 2.5, "side": "#d5574a" },
+    "binlorry-rear.png": { "anchor": [127.5, 235], "bodyPx": 179, "widthM": 2.5, "side": "#8ca567" },
+    "binlorry-front.png": { "anchor": [128, 235], "bodyPx": 192, "widthM": 2.5, "side": "#486661" },
+    "ambulance-rear.png": { "anchor": [128, 235], "bodyPx": 192, "widthM": 2.3, "side": "#b2bb5e" },
+    "ambulance-front.png": { "anchor": [128, 235], "bodyPx": 196, "widthM": 2.3, "side": "#b3c073" },
+    "fireengine-rear.png": { "anchor": [127.5, 235], "bodyPx": 201, "widthM": 2.5, "side": "#c4896d" },
+    "fireengine-front.png": { "anchor": [128, 235], "bodyPx": 194, "widthM": 2.5, "side": "#c17c6b" }
+  }
+}
