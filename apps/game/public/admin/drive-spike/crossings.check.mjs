@@ -20,8 +20,9 @@
 // Trikey, for how often the rarer animals are out (60A; DRIVES=250 a season).
 //
 // Asserts: no contact ever; crossings only on residential, unclassified and
-// track; no hedgehog in winter; ducklings only in spring; a deer on about
-// one real drive in ten with either van. Prints the counts.
+// track; no hedgehog in winter; ducklings only in spring; a drake and a deer
+// each on about one real drive in ten with either van, and a duck family on
+// one spring drive in fifteen or more. Prints the counts.
 
 import * as crossings from './crossings.js';
 import * as trikeyRoads from './trikey-roads.js';
@@ -614,8 +615,11 @@ console.log(`crossings off the small roads ${totals.offSmall}, hedgehogs in wint
   for (const [van, T] of Object.entries(rarity)) {
     console.log(`  ${van.padEnd(6)} ${T.drives} drives, ${T.km.toFixed(0)} km: drake ${per(T.drake, T.drives)}, deer ${per(T.deer, T.drives)}, duck family ${per(T.family, T.bySeason.spring.drives)} spring drives; ${(T.places / T.km).toFixed(2)} places a km, ${(T.animals / T.km).toFixed(2)} with an animal out`);
     console.log(`         by season ${Object.entries(T.bySeason).map(([k, z]) => `${k} drake ${z.drake}, deer ${z.deer}, families ${z.family} of ${z.drives}`).join('; ')}`);
-    // About one drive in ten (Marcus, 60A).
-    if (T.deer < T.drives / 15 || T.deer > T.drives / 6) fail.push(`${van}: a deer on ${per(T.deer, T.drives)} drives, not about one in ten`);
+    // About one drive in ten (Marcus, 60A), and ducklings in spring.
+    for (const k of ['drake', 'deer']) {
+      if (T[k] < T.drives / 15 || T[k] > T.drives / 6) fail.push(`${van}: a ${k} on ${per(T[k], T.drives)} drives, not about one in ten`);
+    }
+    if (T.bySeason.spring.family < T.bySeason.spring.drives / 15) fail.push(`${van}: a duck family on ${per(T.family, T.bySeason.spring.drives)} spring drives`);
   }
 }
 if (totals.skew > crossings.CAMERA_SKEW) fail.push(`the camera turned ${totals.skew.toFixed(2)} rad off a crossing, more than crossings.js's CAM_SKEW allows for`);

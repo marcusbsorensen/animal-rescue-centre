@@ -68,13 +68,17 @@ const WOOD_NEAR_M = 90, WOOD_PLACE_M = 35;
  *  tools/osm-nature.py), and every small-road edge beside water
  *  (WATER_NEAR_M) or along a wood's edge (WOOD_EDGE_M) is a place they may
  *  cross as well as the hash's sites, but only on a drive when they do, so
- *  the lanes are no more stop-start for it: on each drive the ducks at a
- *  water place are out with DUCKS_OUT, and a deer with DEER_OUT, at the first
- *  wood edge or field by the woods the route passes. Places of one kind are
- *  at least NATURE_SPACING_M apart. A residential street beside a wood is
- *  not a deer's crossing. */
-const WATER_NEAR_M = 30, WOOD_EDGE_M = 40, NATURE_SPACING_M = 150;
-const DUCKS_OUT = 0.5, DEER_OUT = 0.4;
+ *  the lanes are no more stop-start for it. On each drive the ducks are out
+ *  at a water place with DUCKS_OUT, most often by still water (a pond, a
+ *  reservoir, the marsh), less by running water (a ditch, a drain, the
+ *  stream), at the first such place the route passes; a deer is out with
+ *  DEER_OUT, at the first wood or scrub edge, or field by the woods. Either
+ *  way, once a drive at most. Places of one kind are at least
+ *  NATURE_SPACING_M apart. A residential street beside a wood is not a
+ *  deer's crossing. */
+const WATER_NEAR_M = 40, WOOD_EDGE_M = 40, NATURE_SPACING_M = 150;
+const DUCKS_OUT = { still: 0.6, running: 0.2 }, DEER_OUT = 0.17;
+const STILL_WATER = new Set(['pond', 'lake', 'basin', 'wetland']);
 /** Drives so far. Which ducks are at the water and whether a deer is out
  *  change from drive to drive; counted from 0 in node so the checks repeat,
  *  from a random start in the browser so a reload is a new drive. */
@@ -381,8 +385,8 @@ function parseNature(doc) {
     return r;
   };
   const out = { water: [], wood: [] };
-  for (const a of doc.a) out[WATERS.has(doc.kinds[a[0]]) ? 'water' : 'wood'].push(withBox(ring(a)));
-  for (const l of doc.l) out.water.push({ ...withBox(ring(l)), open: true });
+  for (const a of doc.a) out[WATERS.has(doc.kinds[a[0]]) ? 'water' : 'wood'].push({ ...withBox(ring(a)), kind: doc.kinds[a[0]] });
+  for (const l of doc.l) out.water.push({ ...withBox(ring(l)), open: true, kind: doc.kinds[l[0]] });
   return out;
 }
 let NATURE = null;
@@ -394,6 +398,15 @@ function waterDist(px, py, within) {
   if (NATURE?.water.length) return distTo(NATURE.water, px * MAP_M, py * MAP_M, within);
   return MAP ? distTo(MAP.pools, px, py, within / MAP_M) * MAP_M : Infinity;
 }
+/** The kind of the nearest real water: a pond, a ditch and so on. */
+function waterKind(px, py, within) {
+  let best = Infinity, kind = null;
+  for (const p of NATURE?.water ?? []) {
+    const d = distTo([p], px * MAP_M, py * MAP_M, within);
+    if (d < best) { best = d; kind = p.kind; }
+  }
+  return kind;
+}
 function woodDist(px, py, within) {
   if (NATURE) return distTo(NATURE.wood, px * MAP_M, py * MAP_M, within);
   return MAP ? distTo(MAP.woodland, px, py, within / MAP_M) * MAP_M : Infinity;
@@ -403,8 +416,8 @@ function woodDist(px, py, within) {
 
 /** Every candidate place in the world, once per graph: midpoints of small
  *  road edges that the hash picks, and those beside real water or along a
- *  wood's edge (extra: 'water' or 'wood'; out only on some drives,
- *  outToday), with what lives there. */
+ *  wood's edge (extra: 'water' or 'wood'; there only on a drive when the
+ *  ducks or the deer are, create), with what lives there. */
 const SITES = new WeakMap();
 function sitesFor(world) {
   let s = SITES.get(world.graph);
@@ -430,6 +443,7 @@ function sitesFor(world) {
       x, y, dx: (b.x - a.x) / len, dy: (b.y - a.y) / len, cls, seed, place,
       byWood: (place === 'field' || place === 'hedge') && woodDist(px, py, WOOD_NEAR_M) <= WOOD_NEAR_M,
       extra: picked ? null : water ? 'water' : 'wood',
+      water: water ? waterKind(px, py, WATER_NEAR_M) : null,
     };
     if (site.extra) { extras.push(site); continue; }
     list.push(site);
@@ -468,13 +482,17 @@ function placeOf(cls, px, py, seed) {
   return u < 0.4 ? 'hedge' : 'field';
 }
 
-/** Whether a site has its animals out on this drive: the ducks at real
- *  water now and then (at the child's pools, standing in, every drive, as
- *  before), an extra place by the woods only for the drive's deer. */
-function outToday(site, drive) {
-  if (site.extra === 'wood') return drive.deer;
-  if (site.place === 'water') return !NATURE?.water.length || hash(site.seed, 17, drive.seed) / 4294967296 < DUCKS_OUT;
-  return true;
+/** Whether the ducks at a water place are out on this drive: on a pond most
+ *  drives (it is their home), by a ditch, a drain or a stream less often (at
+ *  the child's pools, standing in, every drive, as before). */
+function duckOut(site, drive) {
+  if (!NATURE?.water.length) return true;
+  return hash(site.seed, 17, drive.seed) / 4294967296 < (STILL_WATER.has(site.water) ? DUCKS_OUT.still : DUCKS_OUT.running);
+}
+/** Where the drive's deer may cross: a wood, a wood's edge, or a field or a
+ *  hedge by the woods; never in a street. */
+function deerPlace(site) {
+  return site.cls !== 'residential' && (site.place === 'wood' || site.byWood || site.extra === 'wood');
 }
 
 /** How likely a fox is, against the place's usual animal, by season: most
@@ -489,7 +507,7 @@ const FOX = { spring: 0.1, summer: 0.08, autumn: 0.18, winter: 0.22 };
  *  winter with no fox about: the sign stays, the hedgehog is asleep. A place
  *  keeps its animal from drive to drive, except the water's ducks and the
  *  deer (drive, 55A). */
-function partyFor(site, season, drive = { seed: 0, deer: false }) {
+function partyFor(site, season, drive = { seed: 0 }, deer = false) {
   const { place, seed } = site;
   const r = rng(hash(seed, 11));
   const d = rng(hash(seed, 13, drive.seed));
@@ -498,10 +516,7 @@ function partyFor(site, season, drive = { seed: 0, deer: false }) {
   // A roe buck's antlers are what tell a child it is a deer; he casts them
   // in late autumn and they are only buds until spring, so in winter every
   // deer is drawn as the doe. Otherwise buck and doe about half and half.
-  if (drive.deer && site.cls !== 'residential' && (place === 'wood' || site.byWood || site.extra === 'wood')) {
-    drive.deer = false;
-    return [one('deer', season !== 'winter' && d() < 0.5 ? 'buck' : 'doe')];
-  }
+  if (deer) return [one('deer', season !== 'winter' && d() < 0.5 ? 'buck' : 'doe')];
   switch (place) {
     case 'water': {
       // Only the hen mallard leads ducklings; a drake crosses alone or walks
@@ -531,7 +546,10 @@ function partyFor(site, season, drive = { seed: 0, deer: false }) {
 // ---------------------------------------------------------------- the contract
 
 /** Fresh crossings for a new route. Finds the sites the route drives through,
- *  on straight small-road stretches, at least SPACING_M apart.
+ *  on straight small-road stretches, at least SPACING_M apart. The drive's
+ *  rarer animals have the first claim: its ducks, if they are out today at
+ *  the first water place it passes, and its deer at the first place by the
+ *  woods; the usual places where there is room around them.
  *  @param {Route} route @param {World} world */
 export function create(route, world) {
   const xing = { route, world, crossings: [], t: 0 };
@@ -539,8 +557,7 @@ export function create(route, world) {
   const { grid } = sitesFor(world);
   const drive = { seed: hash(driveNo++, 41) };
   drive.deer = rng(hash(drive.seed, 43))() < DEER_OUT;
-  const seen = new Set();
-  let lastS = -Infinity;
+  const seen = new Set(), cands = [];
   for (let s = START_CLEAR_M; s < route.length - END_CLEAR_M; s += 1) {
     if (!SMALL.has(route.roadClassAt(s))) continue;
     const p = route.atDistance(s);
@@ -553,35 +570,55 @@ export function create(route, world) {
         if (Math.abs(site.dx * hx + site.dy * hy) < 0.98) continue;   // crossing it, not along it
         seen.add(site);
         const sx = s + (site.x - p.x) * hx + (site.y - p.y) * hy;
-        if (sx - lastS < SPACING_M || sx > route.length - END_CLEAR_M) continue;
+        if (sx > route.length - END_CLEAR_M) continue;
         // Straight for the van stopped in front of it and the animals beyond.
         const before = route.atDistance(sx - 16).h, after = route.atDistance(sx + 6).h;
         if (Math.abs(wrap(before - p.h)) > 0.02 || Math.abs(wrap(after - p.h)) > 0.02) continue;
         if (!SMALL.has(route.roadClassAt(sx))) continue;
-        // The same road for SETTLED_M before it. Where a road narrows the page
-        // eases the van in at 4 m/s, so for a while it rides over the verge,
-        // where the animal waits nose to the kerb.
-        if (!sameRoadBefore(route, sx)) continue;
-        // An extra place, or the water's, with nothing out today is no
-        // crossing at all: no sign, and it keeps no other from the route.
-        if (!outToday(site, drive)) continue;
-        lastS = sx;
-        xing.crossings.push(makeCrossing(route, world, site, sx, drive));
+        if (!settledBefore(route, sx)) continue;
+        cands.push({ site, sx, same: settledBefore(route, sx, true) });
       }
     }
   }
+  // An extra place, or the water's, with nothing out today is no crossing
+  // at all: no sign, and it keeps no other from the route.
+  const pond = cands.find(c => c.site.place === 'water');
+  const ducks = pond && duckOut(pond.site, drive) ? pond : null;
+  const room = (keep, c) => keep.every(k => Math.abs(k.sx - c.sx) >= SPACING_M);
+  const keep = ducks ? [ducks] : [];
+  const deer = drive.deer ? cands.find(c => deerPlace(c.site) && room(keep, c)) : null;
+  if (deer) { deer.deer = true; keep.push(deer); }
+  for (const c of cands) {
+    if (c === ducks || c === deer || c.site.extra || c.site.place === 'water' || !c.same) continue;
+    if (room(keep, c)) keep.push(c);
+  }
+  keep.sort((a, b) => a.sx - b.sx);
+  for (const c of keep) xing.crossings.push(makeCrossing(route, world, c.site, c.sx, drive, !!c.deer));
   if (typeof window !== 'undefined') window.__crossings = xing;   // for a test, as window.__drive
   return xing;
 }
 
-const SETTLED_M = 45;   // the widest change, a dual carriageway's 8.3 m, at 20 m/s
-function sameRoadBefore(route, s) {
-  const cls = route.roadClassAt(s);
-  for (let k = 5; k <= SETTLED_M; k += 5) if (route.roadClassAt(Math.max(0, s - k)) !== cls) return false;
+/** The road settled under the van before s. Where a road narrows the page
+ *  eases the van in at 4 m/s, so for a while it rides over the verge, where
+ *  the animal waits nose to the kerb: from 20 m/s that takes 5 m of road for
+ *  each metre its lane moves, SETTLED_M for a dual carriageway's 8.3 m. One
+ *  that moves it less settles sooner: from a country road onto a lane the
+ *  lane moves 0.25 m. The usual places keep the old rule, the same road for
+ *  all of SETTLED_M (same), so they stay where she knows them and no more
+ *  often; the rarer animals' places need only the road settled, or the
+ *  ducks could never cross the lane by the pond Trikey rides past, 25 m on
+ *  from a country road. */
+const SETTLED_M = 45;
+function settledBefore(route, s, same = false) {
+  const cls = route.roadClassAt(s), lane = route.laneOffset(0, s);
+  for (let k = 5; k <= SETTLED_M; k += 5) {
+    const b = Math.max(0, s - k);
+    if (route.roadClassAt(b) !== cls && (same || k < 5 * Math.abs(route.laneOffset(0, b) - lane) + 5)) return false;
+  }
   return true;
 }
 
-function makeCrossing(route, world, site, s, drive) {
+function makeCrossing(route, world, site, s, drive, deer = false) {
   const p = route.atDistance(s);
   const cls = route.roadClassAt(s);
   const halfW = cls === 'track' ? 2.5 : 2 * Math.abs(route.laneOffset(0, s));
@@ -591,7 +628,7 @@ function makeCrossing(route, world, site, s, drive) {
   // the screen's right edge, and an animal should be seen before it steps out.
   // A family always the near one, or its line would wait off the screen.
   const nearSide = r() < 0.75;
-  const party = partyFor(site, world.season, drive).map((a, k) => ({
+  const party = partyFor(site, world.season, drive, deer).map((a, k) => ({
     ...a, k, d: 0, alpha: 1, phase: r() * 6.28, file: fileOf(a.kind, a.look),
     // Half its length across the road, painted or stand-in, whichever is longer.
     half: Math.max(ART[a.kind].L, TOPDOWN[a.kind].dl) / 2,

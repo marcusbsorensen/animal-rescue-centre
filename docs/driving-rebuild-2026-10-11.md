@@ -328,20 +328,27 @@ stops itself, as it does for traffic. Never an accident.
   about one in ten.
   The child's map is coarse: its woods, one pond no lane passes, and garden
   swimming pools, which were where the ducks crossed. So the real water and
-  woods beside the lanes come from OpenStreetMap: `tools/osm-nature.py`
-  writes `assets/driving/nature.json`. Every lane beside water or along a
-  wood's edge is a place the ducks or a deer may cross, as well as the usual
+  woods beside the lanes come from OpenStreetMap (ODbL; Marcus ran the
+  Overpass query, 64A): `tools/osm-nature.py` writes
+  `assets/driving/nature.json`, the ponds, reservoirs, basins, ditches,
+  drains and the Brooksend stream, the woods and the scrub within 100 m of
+  a lane. Every lane within 40 m of water, or along a wood's or scrub's
+  edge, is a place the ducks or a deer may cross, as well as the usual
   places, but only on a drive when they do, so drives are no more
-  stop-start: the ducks at a water place are out on half the drives, and a
-  deer on two in five, at the first wood's edge or field by the woods the
-  drive passes. A deer is now out on about one drive in ten, with Henry and
-  with Trikey. A big animal waits further back from the kerb (a deer at the
-  wood's edge, about 3.3 m), so that drawn upright however the camera turns
-  it is never drawn over a car going by. Still the sexes mixed, and only the
-  duck leads ducklings. The OpenStreetMap export the map was drawn from has
-  no water in it at all (no pond, stream, ditch or drain), so until the
-  water is fetched (the tool prints the query) the ducks still cross by the
-  garden pools, and the drake and Trikey's duck families wait on it.
+  stop-start: once a drive at most, the ducks are out at the first water
+  place it passes (on three drives in five by still water, one in five by
+  a ditch or the stream), and a deer (on about one drive in six) at the
+  first wood's edge or field by the woods. On those drives they have the
+  first claim, and a usual place too near them gives way. In two runs of
+  1,000 drives each: the drake on 1 in 8-9 with Henry and 1 in 9-12 with
+  Trikey (hers by the pond on the lane she rides from the country road), a
+  deer on 1 in 11-12 and 1 in 9, a duck family on about 1 spring drive in
+  7 and 1 in 9; crossings a kilometre as before (Henry 0.82-0.84, Trikey
+  1.01-1.02, against 0.85 and 1.00).
+  A big animal waits further back from the kerb (a deer at the wood's edge,
+  about 3.3 m), so that drawn upright however the camera turns it is never
+  drawn over a car going by. Still the sexes mixed, and only the duck leads
+  ducklings, in loose single file.
 - Where the route folds back on itself (the A28 bends on a point of the
   Westgate house street the route drove earlier) traffic on the far part was
   being drawn over the van. Such a place is now used one side at a time, the

@@ -32,7 +32,7 @@ Shapes are simplified (Douglas-Peucker, SIMPLIFY_M) and quantised to Q
 metres; a long waterway is cut to the stretches near a small road.
 
 Format (compact on purpose, as buildings.json):
-  { "v": 1, "q": 1, "kinds": [...],
+  { "v": 1, "source": "OpenStreetMap contributors, ODbL 1.0 ...", "q": 1, "kinds": [...],
     "a": [[kind, x0, y0, dx1, dy1, ...], ...],   areas, rings open
     "l": [[kind, x0, y0, dx1, dy1, ...], ...] }  lines (waterways)
 Coordinates are integers in units of q metres; the first point is absolute
@@ -163,10 +163,12 @@ def main():
 
     ends = sorted({p for seg in segs for p in seg})
 
-    els, seen = [], set()
+    els, seen, bases = [], set(), []
     sources = [OSM] + ([OSM_NATURE] if OSM_NATURE.exists() else [])
     for src in sources:
-        for e in json.loads(src.read_text())["elements"]:
+        doc = json.loads(src.read_text())
+        bases.append(f"{src.name} OSM base {doc.get('osm3s', {}).get('timestamp_osm_base', '?')}")
+        for e in doc["elements"]:
             key = (e.get("type"), e.get("id"))
             if key in seen:
                 continue
@@ -223,7 +225,10 @@ def main():
 
     a_out.sort(key=lambda b: (b[0], b[2], b[1]))
     l_out.sort(key=lambda b: (b[0], b[2], b[1]))
-    doc = {"v": 1, "q": Q, "kinds": KINDS, "a": a_out, "l": l_out}
+    source = ("OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright). "
+              f"Overpass extracts ({'; '.join(bases)}; in manus-output/birchie-osm/, not in git), "
+              "projected as tools/osm-to-svg.py does, by tools/osm-nature.py.")
+    doc = {"v": 1, "source": source, "q": Q, "kinds": KINDS, "a": a_out, "l": l_out}
     OUT.write_text(json.dumps(doc, separators=(",", ":")) + "\n")
     print(f"{OUT.relative_to(ROOT)}: {OUT.stat().st_size} bytes, {len(a_out)} areas, {len(l_out)} lines"
           f" (from {', '.join(p.name for p in sources)})")
