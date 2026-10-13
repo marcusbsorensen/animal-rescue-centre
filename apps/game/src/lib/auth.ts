@@ -61,9 +61,9 @@ export class SignupError extends Error {
  * (the raw `Response`). Without this, the login/signup screens only
  * ever saw the generic string and fell back to "Something went wrong".
  */
-async function readFunctionErrorBody(
+export async function readFunctionErrorBody(
   error: unknown,
-): Promise<{ error?: string; suggestions?: string[] } | null> {
+): Promise<{ error?: string; suggestions?: string[]; code?: string } | null> {
   const ctx = (error as { context?: Response } | null)?.context;
   if (ctx && typeof ctx.json === 'function') {
     try {
@@ -227,6 +227,23 @@ function rememberUsername(username: string): void {
   if (!existing.includes(username)) {
     existing.unshift(username);
     localStorage.setItem(REMEMBERED_USERNAMES_KEY, JSON.stringify(existing.slice(0, 10)));
+  }
+}
+
+/**
+ * Take a name off this device's list of players who have signed in here.
+ * Used when that account is deleted.
+ */
+export function forgetUsername(username: string): void {
+  const remaining = getRememberedUsernames().filter((name) => name !== username);
+  try {
+    if (remaining.length > 0) {
+      localStorage.setItem(REMEMBERED_USERNAMES_KEY, JSON.stringify(remaining));
+    } else {
+      localStorage.removeItem(REMEMBERED_USERNAMES_KEY);
+    }
+  } catch {
+    // Storage refused; nothing more can be done from here.
   }
 }
 
