@@ -88,7 +88,7 @@
         <button id="a28Btn">to A28 town</button>
       </span>
     </div>
-    <div id="note" hidden>hold the road (finger, mouse button or touchpad press) to go · swipe right or hold → to look out, further to overtake · swipe left or ← to come back · space or B = handbrake · 1–3 gears · H = horn · G = guide line · F = fill up (grown-ups; ?fuel=0..1 sets it)</div>
+    <div id="note" hidden>hold the road (finger, mouse button or touchpad press) to go · swipe right or hold → to look out, further to overtake · swipe left or ← to come back · space or B = handbrake · 1–3 gears · H = horn · G = guide line · P or tap the box = the crossing button (Trikey) · F = fill up (grown-ups; ?fuel=0..1 sets it)</div>
   </div>
   <div id="toast"></div>
 </div>
@@ -115,6 +115,9 @@ import * as tripStrip from './drive-spike/trip-strip.js';
 // Trikey's own roads (Marcus 15D/18A): never along the A28, across it only at
 // the lights, the game's trikey-links.ts in plain JS.
 import * as trikeyRoads from './drive-spike/trikey-roads.js';
+// Her crossings of the A28 are toucans: she stops at the kerb, the child
+// presses the button, she rides over on the green cycle (Marcus, 62A).
+import * as lights from './drive-spike/lights.js';
 
 // ---------------------------------------------------------------- the world
 
@@ -452,7 +455,9 @@ let graph = null, adj = null, route = [], routeLen = 0;
  *  game graph without the A28 plus her paths, its junctions split by side and
  *  joined only at the lights she may cross at. Every route she drives is
  *  found over it, as the game's trikey-links.ts finds it. null for a van. */
-let trike = null, trikeShown = null;   // and where her nodes are drawn (trikeyRoads.clearOfA28)
+let trike = null, trikeShown = null;
+/** Her toucan crossings on this route (lights.js), or null. */
+let lit = null;   // and where her nodes are drawn (trikeyRoads.clearOfA28)
 const TRIKEY = VAN_ID === 'trikey';
 /** The graph a route's nodes index: hers for Trikey, the game graph else. */
 function routeGraph() { return trike ? trike.tg : graph; }
@@ -645,6 +650,17 @@ function pickRoute(fromId) {
     length: routeLen, atDistance, laneOffset, roadClassAt: classAtS, laneWidth: LANE_M,
   }, { graph, mapToWorld, season: SEASON });
   window.__xing = xing;   // as window.__drive: lets a test find a crossing
+  // Her toucan crossings of the A28 on this route (lights.js), each with the
+  // A28's own traffic there.
+  lit = trike ? lights.create({ points: route, length: routeLen, atDistance }, {
+    graph, insideA28: trikeShown.insideA28, lane: LANE_M, island: ISLAND_M,
+    toWorld: (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }),
+    a28Of: k => {
+      const cw = cwByEdge.get(k) ?? null;
+      return { kind: cw?.kind ?? 'dual', lanes: cw?.lanes ?? 2, mph: cw?.maxspeedMph ?? 30, half: roadWidth('trunk', cw) / 2 };
+    },
+  }) : null;
+  window.__lights = lit;
   // And what this route is: its places, its roads by class, and for Trikey
   // whether it keeps her rule (trikeyRoads.a28Breaches, empty when it does).
   window.__routeInfo = () => {
@@ -818,12 +834,17 @@ function step(dt) {
     : { speedCap: Infinity, laneBlocked: false, events: [] };
   const x = xing ? crossings.step(xing, dt, car, trf ? trf.vehicles : []) : { speedCap: Infinity, events: [] };
   t.speedCap = Math.min(t.speedCap, x.speedCap);
+  // At her crossing of the A28 she stops at the kerb by herself and waits
+  // for the green cycle: a safety stop, never a jostle.
+  const lt = lit ? lights.step(lit, dt, car, throttle) : null;
+  if (lt) { t.speedCap = Math.min(t.speedCap, lt.speedCap); t.events.push(...lt.events); }
+  car.nudge = lt ? lt.nudge : 0;
   if (t.laneBlocked || !canOvertakeAt(car.s)) car.laneWant = 0;
   // Something is alongside in our own lane: a swipe back now would be a
   // side-on touch, so traffic holds the van out until there is room.
   if (t.laneHold) car.laneWant = 1;
   peekStep(dt, t);
-  for (const ev of [...t.events, ...x.events]) toast(ev);
+  for (const ev of [...t.events, ...x.events]) toast(ev, TOAST_MS[ev]);
 
   // Pulling up at the destination. The van eases to a stop at the gate on
   // its own, as the route steers on its own: the stop lowers the speed she
@@ -1017,7 +1038,7 @@ function draw() {
 
   const view = {
     cx: camX, cy: camY, radius: Math.hypot(w, h) / ppm, camH: camH ?? pos.h,
-    ppm, season: SEASON, sun: SUN,
+    ppm, season: SEASON, sun: SUN, dpr: canvas.width / w, reduce: reduceMotion.matches,
   };
   look.nextFrame();
   drawWorld(view, Math.max(w, h) / ppm);
@@ -1037,19 +1058,27 @@ function draw() {
     });
   }
   // What a test needs to measure the view: metres of road ahead of the van.
-  car.view = { stripH, roadH, vanY, ppm, ahead: vanY / ppm, guide: showGuide,
+  car.view = { stripH, roadH, vanY, ppm, ahead: vanY / ppm, guide: showGuide, lightsMs,
     look: win && { ...win, q: la.q, ms: la.drawn?.ms, scale: la.drawn?.scale, prof: la.drawn?.prof } };
   updateHud(win);
 }
 
+/** What the crossing's drawing cost this frame, ms (for a test). */
+let lightsMs = 0;
 /** Everything in the world, under the road view's transform. */
 function drawWorld(view, roadR) {
   if (scn) scenery.drawGround(ctx, scn, view);
   drawRoads(view.cx, view.cy, roadR);
+  const l0 = performance.now();
+  if (lit) lights.drawGround(ctx, lit, view);
+  lightsMs = performance.now() - l0;
   if (scn) scenery.drawObjects(ctx, scn, view);
   tripStrip.drawSigns(ctx, strip, view);
   if (showGuide) drawGuide();
   if (trf) traffic.draw(ctx, trf, view);
+  const l1 = performance.now();
+  if (lit) lights.draw(ctx, lit, view);
+  lightsMs += performance.now() - l1;
   if (xing) crossings.draw(ctx, xing, view);
   if (dust.length) drawDust();
 }
@@ -1182,8 +1211,12 @@ function drawPeekSign(w, vanY, ppm) {
   lookAhead.cue(ctx, x, y, r, car.peekSafe, k);
 }
 
+/** How far her nudge against the brakes moves her, drawn and not ridden:
+ *  holding go at the kerb on red does no more than this. */
+const NUDGE_M = 0.14;
 function drawVan(w, vanY, ppm) {
-  const px = w * VAN_SX, py = vanY + lurchM() * ppm;   // a gear change's lurch
+  // A gear change's lurch, and at the lights her nudge against the brakes.
+  const px = w * VAN_SX, py = vanY + lurchM() * ppm - (car.nudge ?? 0) * NUDGE_M * ppm;
   const wpx = VAN_W_M * ppm;
   const aspect = vanImg && vanImg.width ? vanImg.height / vanImg.width : 2.0;
   const hpx = wpx * aspect;
@@ -1222,7 +1255,9 @@ function drawVan(w, vanY, ppm) {
 
 /** A one-off word over the road — "CLOSE!" for a clean overtake. Praise for
  *  skill, never a score. */
-const TOAST_TEXT = { close: 'CLOSE! 😱', beep: 'beep beep!', camera: '📸 speed camera!' };
+const TOAST_TEXT = { close: 'CLOSE! 😱', beep: 'beep beep!', camera: '📸 speed camera!',
+  'press-button': 'press the button 👆' };
+const TOAST_MS = { 'press-button': 2600 };
 let toastTimer = 0;
 function toast(ev, ms = 1100) {
   const el = document.getElementById('toast');
@@ -1329,7 +1364,8 @@ function updateHud(win) {
 // dashboard's gears, horn, handbrake or guide switch does only that. Space
 // held is the handbrake, and so is B. → held eases out to look and then
 // overtakes, ← comes back, 1–3 pick a gear, H is the horn, G the guide line.
-// Only the main button counts, so a right-click is never go. Each press is
+// On Trikey, P presses the crossing button at the lights, as a tap on its
+// box does (a tap there is never go). Only the main button counts, so a right-click is never go. Each press is
 // captured to the canvas, so letting go outside the window still stops the
 // van, and the window losing focus lets go of everything.
 const goPointers = new Set();
@@ -1353,6 +1389,8 @@ function onDown(e) {
     else if (what.startsWith('gear')) setGear(Number(what.slice(4)));
     return;
   }
+  // The crossing button's box, tapped: a press, never go.
+  if (lit && lights.hit(lit, x, y, car)) return;
   hold(e);
   goPointers.add(e.pointerId); setThrottle();
   if (dragId === null) { dragId = e.pointerId; dragX = e.clientX; dragLane = car.laneWant; }
@@ -1398,6 +1436,8 @@ window.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') keyRight = true;   // held: eases out to look, then overtakes
   if (e.key === 'ArrowLeft') { keyRight = false; car.ask = 0; car.laneWant = 0; }
   if ((e.key === 'h' || e.key === 'H') && !e.repeat) honk();
+  // P presses the crossing button, as a tap on its box does.
+  if ((e.key === 'p' || e.key === 'P') && !e.repeat && !e.ctrlKey && !e.metaKey && lit) lights.press(lit, car);
   if ((e.key === 'g' || e.key === 'G') && !e.repeat && !e.ctrlKey && !e.metaKey) setGuide(!showGuide);
   // A grown-up's full tank, so a child is never stuck (fuel.js).
   if ((e.key === 'f' || e.key === 'F') && !e.repeat && !e.ctrlKey && !e.metaKey && fuelState) fuel.refill(fuelState);

@@ -1070,17 +1070,18 @@ function populate(T, van, vb, dt) {
 
 // ---------------------------------------------------------------------- draw
 
-function images(T) {
-  if (T.imgs || typeof Image === 'undefined') return T.imgs;
-  T.imgs = {};
+let IMGS = null;
+function images() {
+  if (IMGS || typeof Image === 'undefined') return IMGS;
+  IMGS = {};
   for (const name of Object.keys(SPRITES)) {
     const img = new Image();
     // The outline and tread are built as each sprite arrives, not mid-drive.
     img.onload = () => look.prepare(name, img, widthOf(name));
     img.src = TOPDOWN + name + '.png';
-    T.imgs[name] = img;
+    IMGS[name] = img;
   }
-  return T.imgs;
+  return IMGS;
 }
 
 /** A skin's width in metres, from the kind it belongs to. */
@@ -1094,38 +1095,62 @@ function widthOf(skin) {
  *  and before the van. Shadows use view.sun, as scenery.js does. */
 export function draw(ctx, T, view) {
   if (!T.vehicles.length) return;
-  const imgs = images(T);
   const r2 = (view.radius + 12) ** 2;
   const shown = [];
   for (const w of T.vehicles) {
     const fp = footprint(T, w);
     if ((fp.x - view.cx) ** 2 + (fp.y - view.cy) ** 2 > r2) continue;
-    shown.push([w, fp]);
+    shown.push({ ...fp, skin: w.skin, kind: w.kind, w: w.W, H: w.H, id: w.id, odo: w.s * w.dir });
   }
+  drawBodies(ctx, shown, view);
+}
+
+/** Vehicles drawn as traffic draws its own, for lights.js's traffic on the
+ *  A28 at Trikey's crossing: each { x, y, h, L, W, skin, kind, w (the kind's
+ *  width), H, id, odo }, with ctx in world metres as in draw(). */
+export function drawBodies(ctx, shown, view) {
+  if (!shown.length) return;
+  const imgs = images();
   // Shadows first, all of them, so no shadow falls across a body. Fixed in
   // the world like the van's: the sun does not turn with the camera. Cast
   // from the outlined silhouette once it is built, an ellipse until then.
   ctx.fillStyle = 'rgba(40,46,38,.22)';
-  for (const [w, fp] of shown) {
+  for (const fp of shown) {
     ctx.save();
-    ctx.translate(fp.x + view.sun.x * w.H, fp.y + view.sun.y * w.H);
-    ctx.rotate(fp.h + (SPRITES[w.skin].nose === 'up' ? Math.PI / 2 : -Math.PI / 2));
-    if (!look.shadow(ctx, w.skin, imgs?.[w.skin], w.W, fp.W, fp.L)) {
+    ctx.translate(fp.x + view.sun.x * fp.H, fp.y + view.sun.y * fp.H);
+    ctx.rotate(fp.h + (SPRITES[fp.skin].nose === 'up' ? Math.PI / 2 : -Math.PI / 2));
+    if (!look.shadow(ctx, fp.skin, imgs?.[fp.skin], fp.w, fp.W, fp.L)) {
       ctx.beginPath(); ctx.ellipse(0, 0, fp.W * 0.48, fp.L * 0.48, 0, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }
-  for (const [w, fp] of shown) {
+  for (const fp of shown) {
     ctx.save();
     ctx.translate(fp.x, fp.y);
     // Turn the sprite so its own nose, up or down the image, points the way
     // the vehicle travels.
-    ctx.rotate(fp.h + (SPRITES[w.skin].nose === 'up' ? Math.PI / 2 : -Math.PI / 2));
+    ctx.rotate(fp.h + (SPRITES[fp.skin].nose === 'up' ? Math.PI / 2 : -Math.PI / 2));
     // Outlined, with its tyres turning by the distance it has come.
-    const m = { key: w.id, odo: w.s * w.dir, nose: SPRITES[w.skin].nose };
-    if (!look.body(ctx, w.skin, imgs?.[w.skin], w.W, fp.W, fp.L, m)) {
-      ctx.fillStyle = KINDS[w.kind].colour; ctx.fillRect(-fp.W / 2, -fp.L / 2, fp.W, fp.L);
+    const m = { key: fp.id, odo: fp.odo, nose: SPRITES[fp.skin].nose };
+    if (!look.body(ctx, fp.skin, imgs?.[fp.skin], fp.w, fp.W, fp.L, m)) {
+      ctx.fillStyle = KINDS[fp.kind].colour; ctx.fillRect(-fp.W / 2, -fp.L / 2, fp.W, fp.L);
     }
     ctx.restore();
   }
+}
+
+/** A vehicle for a main road, from the main roads' mix (MIX.main), for
+ *  lights.js: its kind, its skin (seen from behind, `rear`, where the kind
+ *  has one), its width and length in metres, its height for the shadow and
+ *  its cruising speed. */
+export function mainRoadVehicle(rand, rear) {
+  const mix = MIX.main;
+  let total = 0;
+  for (const k in mix) total += mix[k][0];
+  let t = rand() * total, kind = Object.keys(mix)[0];
+  for (const k in mix) { t -= mix[k][0]; if (t < 0) { kind = k; break; } }
+  const K = KINDS[kind];
+  const base = K.skins[(rand() * K.skins.length) | 0];
+  const skin = rear && K.pair ? base + '-rear' : base;
+  return { kind, skin, W: K.width, L: K.width * SPRITES[skin].aspect, H: K.height, cruise: mix[kind][1] };
 }
