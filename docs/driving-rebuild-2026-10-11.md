@@ -398,6 +398,12 @@ the carriageway (or, if she never sets off, after 15 s, and she presses
 again). With no press the A28 stays green. Press to green is about 5 s
 (at most about 8.5 s). Neither of her crossings is a zebra: both are
 signalled (the pelican in The Square and the lights at St Mildred's Road).
+At a zebra (63A, Marcus, 2026-10-13) the rider gets off and wheels Trikey
+across once the traffic has stopped, as the Highway Code asks of cyclists, the
+same way she wheels Trikey onto The Animal Bridge; none of her routes uses a
+zebra today, so this is the rule for when one does. Still to ask: the crossing
+in The Square is a pelican in real life, which the Highway Code also says a
+cyclist wheels across, while the spike draws it as a toucan she rides over.
 `drive-spike/lights.js`; `lights.check.mjs` proves it.
 
 *Porting it to the game.* `trikey-links.ts` already marks which crossings
