@@ -372,6 +372,29 @@ stops itself, as it does for traffic. Never an accident.
   about 3.3 m), so that drawn upright however the camera turns it is never
   drawn over a car going by. Still the sexes mixed, and only the duck leads
   ducklings, in loose single file.
+- The water is drawn (69A, 2026-10-13). Marcus: "Draw the real ponds,
+  ditches and reservoirs along the lanes in the painted style, so you can
+  see where the ducks come from." `scenery.js` paints `nature.json`'s water
+  on the ground, under the roads, hedges, trees and buildings, in each
+  season's colours: ditches and drains as narrow dark water with a soft
+  sheen, damp green banks and clumps of reeds and rushes, following the
+  real lines; the stream a little wider, with bulrushes in summer and
+  autumn; ponds rounded, reeds in the shallows, a few lily pads in summer
+  and thin ice in winter; farm reservoirs straight-sided on a mown
+  embankment with a crest path and the dark liner at the waterline; the one
+  small basin mostly dry, rushes round a puddle. Where a ditch meets a road
+  it goes under it: a small concrete headwall at the road's edge on each
+  side the water comes out, and a short mapped piece that crosses a road is
+  taken for the culvert itself, since `nature.json` keeps no tunnel tags.
+  Where the projection lays a waterway along under a lane (the stream
+  beside the marsh track), it is moved out to the verge, as a building in
+  a verge is. No tree stands in water. The look-ahead window's ground is
+  this same ground, so the water lies flat in it too. Screenshots:
+  `docs/img/water-scenery/contact.jpg`.
+  The ducks do not yet come from the water's side: `crossings.js` sets them
+  out from the near verge three times in four (a family always), whichever
+  side the water is on, so on real drives about half the duck crossings
+  start on the side away from the water.
 - Where the route folds back on itself (the A28 bends on a point of the
   Westgate house street the route drove earlier) traffic on the far part was
   being drawn over the van. Such a place is now used one side at a time, the
