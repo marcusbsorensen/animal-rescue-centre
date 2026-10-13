@@ -109,7 +109,8 @@ Done on the branch, with every package's tests, typecheck and lint passing (lint
 
 - `7325d37`: migration 00016; `searchUsername` removed
 - `e5b4b2a`: migration 00015, the `delete-account` Edge Function, its tests and the PGlite database tests
-- `097e15e`: the account-screen button and panel, the device clean-up, the client tests and the privacy-audit additions
+- `097e15e`: the account-screen button and panel, the device clean-up and the client tests
+- `95cc815`: the privacy-audit additions
 - this document
 
 Not done, and why:
