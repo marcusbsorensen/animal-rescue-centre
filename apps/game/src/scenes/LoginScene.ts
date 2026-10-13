@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
 import { createChromeButton, createTextButton, createChromeTitle, createAmbientParticles, createChromePlate } from '../ui/UIButton';
-import { getRememberedUsernames, login, searchUsername } from '../lib/auth';
+import { getRememberedUsernames, login } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
 
@@ -201,7 +201,10 @@ export class LoginScene extends Phaser.Scene {
             results = ['BrambleFox', 'CloverPaws', 'MoonBunny']
               .filter((n) => n.toLowerCase().includes(query.toLowerCase()));
           } else {
-            results = await searchUsername(query);
+            // The name as typed, for login to check. Sign-in names are
+            // not searchable: the public key cannot read them (00016),
+            // because listing them would show every child's login.
+            results = [query];
           }
           results.forEach((name, i) => {
             resultsContainer.add(
