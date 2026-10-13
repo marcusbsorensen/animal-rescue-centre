@@ -39,6 +39,10 @@
 //   - Shadows are drawn in world space, view.sun times each object's height,
 //     into one offscreen layer and laid down at a single alpha, so where two
 //     shadows overlap they do not double-darken. Nothing has a baked shadow.
+//   - The real water beside the lanes is OpenStreetMap's (nature.json, written
+//     by tools/osm-nature.py): ditches, drains, the stream, ponds, reservoirs
+//     and basins, each from its own shape, painted last on the ground, so
+//     roads, hedges, trees and buildings all go over it (Marcus, 69A).
 
 /**
  * @typedef {Object} View
@@ -58,6 +62,9 @@ const MAP_W = 1800, MAP_H = 1121;
 /** The real buildings, farmyards, churchyards and housing areas beside the
  *  roads, in world metres (tools/osm-buildings.py writes it). */
 const BUILDINGS_URL = '/assets/driving/buildings.json';
+/** The real water (and woods) beside the small roads, in world metres
+ *  (tools/osm-nature.py writes it; crossings.js puts the ducks there). */
+const NATURE_URL = '/assets/driving/nature.json';
 
 /** Cell size of the spatial grid, metres. */
 const CELL_M = 100;
@@ -155,6 +162,32 @@ const HEDGE = {
   autumn: { fill: '#7b7838', ink: '#4c4321', hl: '#a2874a', dots: '#b5602d' },
   winter: { fill: '#86786a', ink: '#5a4c40', hl: '#a39586', dots: '#6b5c4f' },   // bare twigs
 };
+/** Water by season: the banks and reeds greener in spring and summer, all of
+ *  it duller in winter, with thin ice on the ponds. A ditch is darker than a
+ *  pond; a farm reservoir sits on a mown embankment with its dark liner
+ *  showing at the waterline. */
+const WATER = {
+  spring: { bank: '#84ae58', ditch: '#4f7a77', ditchInk: '#3a5552', still: '#6c9c9c', stillInk: '#46706f',
+    res: '#6896a0', liner: '#3d4746', embank: '#a2c770', crest: '#bfdb91', glint: '#dcefe9', sky: 'rgba(232,246,243,0.26)',
+    reed: '#5a8a39', reedL: '#8fba5e', head: null, pad: null, mud: '#a6936b', marsh: '#92b166' },
+  summer: { bank: '#76a04a', ditch: '#4b7671', ditchInk: '#36514b', still: '#679a95', stillInk: '#436d68',
+    res: '#6593a0', liner: '#3a4443', embank: '#9fbf62', crest: '#c6d78e', glint: '#dcefe6', sky: 'rgba(232,246,240,0.24)',
+    reed: '#4d7b33', reedL: '#7da84b', head: '#6e4b2d', pad: '#5e8f3c', padInk: '#3d6a2a', flower: '#f6e4ec',
+    mud: '#b09c71', marsh: '#86a85a' },
+  autumn: { bank: '#8b9452', ditch: '#55716b', ditchInk: '#3d504b', still: '#6c9294', stillInk: '#4b6d6f',
+    res: '#658f99', liner: '#3d4544', embank: '#a3ad66', crest: '#c1c387', glint: '#dce9e4', sky: 'rgba(228,240,238,0.22)',
+    reed: '#a28f50', reedL: '#c2ac6a', head: '#6b4a2e', pad: null, mud: '#9b865f', marsh: '#a39c62' },
+  winter: { bank: '#a7b094', ditch: '#6b878b', ditchInk: '#526769', still: '#8ea3a6', stillInk: '#6a8186',
+    res: '#86a0a6', liner: '#4a5251', embank: '#bcc3aa', crest: '#d4d9c8', glint: '#eef6f7', sky: 'rgba(240,246,247,0.2)',
+    reed: '#a1926e', reedL: '#c5b893', head: '#7a5f45', pad: null, mud: '#a59a85', marsh: '#b2b098',
+    ice: 'rgba(226,238,242,0.74)' },
+};
+/** Each kind of water: its width and its banks' (metres), for the lines. */
+const WATERWAY = { ditch: { w: 0.9, bank: 2.8 }, drain: { w: 1.1, bank: 3 }, stream: { w: 1.8, bank: 4.4 }, river: { w: 4, bank: 7 } };
+/** A basin smaller than this is a dry or drainage one; bigger, a farm reservoir. */
+const RESERVOIR_M2 = 1500;
+const CULVERT = { fill: '#bab4a6', ink: '#78726a', mouth: '#2e3836' };
+
 /** Garden hedges are privet and stay green all year; darker in winter. */
 const PRIVET = { fill: '#4f7740', ink: '#30482a', hl: '#6a9356' };
 const PRIVET_WINTER = { fill: '#4a6a40', ink: '#2f4329', hl: '#62805a' };
@@ -593,6 +626,7 @@ export async function load(world) {
 
   // ---- the map, and the real buildings beside its roads
   const bdataP = fetch(BUILDINGS_URL).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  const natureP = fetch(NATURE_URL).then(r => (r.ok ? r.json() : null)).catch(() => null);
   let doc = null;
   try {
     const txt = await (await fetch(MAP_URL)).text();
@@ -731,6 +765,27 @@ export async function load(world) {
     return true;
   };
   S.roadClear = roadClear;
+
+  // ---- the real water, before anything is placed, so no tree stands in it
+  S.water = buildWater(await natureP, roads);
+  S.waterCells = new Map();
+  for (const w of S.water) {
+    const k = Math.floor((w.bbox[0] + w.bbox[2]) / 2 / CELL_M) + ',' + Math.floor((w.bbox[1] + w.bbox[3]) / 2 / CELL_M);
+    if (!S.waterCells.has(k)) S.waterCells.set(k, { items: [], cache: null });
+    S.waterCells.get(k).items.push(w);
+  }
+  S.reedCells = new Map();
+  for (const w of S.water) {
+    for (let j = Math.floor(w.bbox[1] / CELL_M); j <= Math.floor(w.bbox[3] / CELL_M); j++) {
+      for (let i = Math.floor(w.bbox[0] / CELL_M); i <= Math.floor(w.bbox[2] / CELL_M); i++) {
+        const k = i + ',' + j;
+        if (!S.reedCells.has(k)) S.reedCells.set(k, { i, j, items: [], cache: null });
+        S.reedCells.get(k).items.push(w);
+      }
+    }
+  }
+  const inWater = (x, y, r) => S.water.some(w => x >= w.bbox[0] && x <= w.bbox[2] && y >= w.bbox[1] && y <= w.bbox[3]
+    && (w.line ? lineDist2(w.pts, x, y) < (w.bank / 2 + r) ** 2 : inRing(w.outer, x, y)));
 
   // ---- occupancy: houses and trees, so nothing stands in anything else
   const OG = 25, ogx = Math.ceil(S.width / OG) + 1, ogy = Math.ceil(S.height / OG) + 1;
@@ -1329,6 +1384,7 @@ export async function load(world) {
     if (!roadClear(x, y, crownReach(r))) return false;
     const g = groundAt(x, y);
     if (g === SEA || g.layer === 'pool' || g.layer === 'bunker' || g.kind === 'pitch' || g.layer === 'yard' || g.layer === 'farmyard') return false;
+    if (inWater(x, y, r * 0.4)) return false;
     if (near(houseGrid, x, y, h => obbPointDist(h.box, x, y) < r * 0.75)) return false;
     if (!dense && near(treeGrid, x, y, t => (t.x - x) ** 2 + (t.y - y) ** 2 < ((t.r + r) * 0.62) ** 2)) return false;
     const t = { x, y, r, kind, seed: hash(Math.round(x * 10), Math.round(y * 10), 31) };
@@ -1523,6 +1579,7 @@ export async function load(world) {
     trees: trees.length, conifers: trees.filter(t => t.kind === 'conifer').length, houses: houses.length,
     hedgeMetres: Math.round(hedgePieces.reduce((a, p) => a + Math.hypot(p[2] - p[0], p[3] - p[1]), 0)),
     walls: walls.length, fields: S.fields.length, polygons: S.polys.length, glasshouses: glass.length, huts: huts.length,
+    waters: S.water.length, culverts: S.water.reduce((a, w) => a + w.culverts.length, 0),
     buildings: BC.real, buildingsMoved: BC.pushed, buildingsLeftOut: BC.dropped, farmBuildingsMade: BC.farmGen,
     silos: BC.silos, bales: BC.bales, headstones: BC.stones, drives: BC.drives, farmyards: yards.length,
     loadMs: Math.round(performance.now() - t0),
@@ -1594,15 +1651,17 @@ class Batch {
 function paintPass(ctx, cells, which, pass) {
   for (const c of cells) {
     const list = c[which] && c[which].passes[pass];
-    if (!list) continue;
-    for (const e of list) {
-      if (e.op === 'fill') { ctx.fillStyle = e.style; ctx.fill(e.path); }
-      else {
-        ctx.strokeStyle = e.style; ctx.lineWidth = e.width;
-        if (e.dash) ctx.setLineDash(e.dash);
-        ctx.stroke(e.path);
-        if (e.dash) ctx.setLineDash([]);
-      }
+    if (list) paintList(ctx, list);
+  }
+}
+function paintList(ctx, list) {
+  for (const e of list) {
+    if (e.op === 'fill') { ctx.fillStyle = e.style; ctx.fill(e.path); }
+    else {
+      ctx.strokeStyle = e.style; ctx.lineWidth = e.width;
+      if (e.dash) ctx.setLineDash(e.dash);
+      ctx.stroke(e.path);
+      if (e.dash) ctx.setLineDash([]);
     }
   }
 }
@@ -1673,6 +1732,7 @@ export function drawGround(ctx, S, view) {
   }
 
   for (let pass = 1; pass < 6; pass++) paintPass(ctx, cells, 'gcache', pass);
+  drawWater(ctx, S, view);
   ctx.restore();
 }
 
@@ -1820,6 +1880,417 @@ function ensureGround(S, c, season) {
   }
 
   c.gcache = { season, passes: B.passes };
+}
+
+// -------------------------------------------------------------------- water
+
+/** The real water from nature.json as pieces to paint: each line (ditch,
+ *  drain, stream) or area (pond, reservoir, basin, wetland) with its shape
+ *  in world metres, its bounding box with the banks, and the culverts where
+ *  a line passes under a road. Woods and scrub are crossings.js's. */
+function buildWater(doc, roads) {
+  const out = [];
+  if (!doc || !Array.isArray(doc.a) || !Array.isArray(doc.l)) return out;
+  const q = doc.q || 1;
+  for (const a of doc.l) {
+    const kind = doc.kinds[a[0]], ww = WATERWAY[kind];
+    if (!ww) continue;
+    const pts = clearOfRoads(decodeRing(a, q), roads, ww);
+    if (pts.length < 4) continue;
+    let len = 0;
+    for (let k = 2; k < pts.length; k += 2) len += Math.hypot(pts[k] - pts[k - 2], pts[k + 1] - pts[k - 1]);
+    const culverts = culvertsOf(pts, roads, ww.bank);
+    // OSM's culverts are short ways of their own under the road (tunnel=culvert);
+    // nature.json keeps no tags, so a short piece that crosses a road is taken
+    // for one: only its headwalls show, no open water.
+    const piped = culverts.length > 0 && len < 30;
+    // A long dyke is painted in pieces, so a frame strokes only what is near.
+    for (const part of pieces(pts, 60)) {
+      out.push({ kind, line: true, pts: part, w: ww.w, bank: ww.bank, piped,
+        culverts: culverts.filter(c => lineDist2(part, c.x, c.y) < 1),
+        bbox: padBox(part, ww.bank), seed: hash(Math.round(part[0] * 10), Math.round(part[1] * 10), 69) });
+    }
+  }
+  for (const a of doc.a) {
+    let kind = doc.kinds[a[0]];
+    if (!['pond', 'lake', 'basin', 'wetland'].includes(kind)) continue;
+    let ring = decodeRing(a, q);
+    if (ring.length < 6) continue;
+    const area = Math.abs(ringArea(ring)), c = ringCentroid(ring);
+    if (kind === 'lake') kind = 'pond';
+    if (kind === 'basin') kind = area >= RESERVOIR_M2 ? 'reservoir' : 'basin';
+    // A pond is rounded; a mapped one of a few square metres is still a pond.
+    if (kind === 'pond') {
+      if (area < 8) ring = scaleRing(ring, c, Math.sqrt(8 / Math.max(area, 0.5)));
+      ring = chaikin(ring, 2);
+    } else if (kind !== 'reservoir') ring = chaikin(ring, 1);
+    const reach = kind === 'reservoir' ? 3.6 : 1.4;
+    const R = Math.sqrt(Math.max(area, 8) / Math.PI);
+    out.push({ kind, line: false, ring, c, R, area, culverts: [],
+      outer: kind === 'reservoir' ? scaleRing(ring, c, 1 + 2.4 / R) : ring,
+      bbox: padBox(ring, reach * 2), seed: hash(Math.round(c[0] * 10), Math.round(c[1] * 10), 69) });
+  }
+  // Where a ditch, a drain and the stream all meet at one road, one culvert,
+  // with a headwall only on a side where open water comes out of it.
+  const seen = [], open = out.filter(w => w.line && !w.piped);
+  for (const w of out) {
+    w.culverts = w.culverts.filter(c => !seen.some(o => Math.hypot(o.x - c.x, o.y - c.y) < 6));
+    seen.push(...w.culverts);
+    for (const c of w.culverts) {
+      const sin = Math.abs(c.ux * c.dy - c.uy * c.dx), t = (c.half + 0.05) / Math.max(sin, 0.25) + 1.5;
+      c.sides = [-1, 1].filter(side => open.some(o => lineDist2(o.pts, c.x + c.dx * t * side, c.y + c.dy * t * side) < o.w * o.w));
+    }
+  }
+  return out;
+}
+
+/** A waterway that runs along a road, under its tarmac as projected (the
+ *  stream beside the marsh track), moved out to the verge on its own side,
+ *  as a building in a verge is: only where it runs with the road, so a ditch
+ *  that crosses one still goes under it. Long stretches are cut into short
+ *  steps first so the whole run moves. */
+function clearOfRoads(pts, roads, ww) {
+  const fine = [pts[0], pts[1]];
+  for (let k = 2; k < pts.length; k += 2) {
+    const ax = pts[k - 2], ay = pts[k - 1], bx = pts[k], by = pts[k + 1], n = Math.ceil(Math.hypot(bx - ax, by - ay) / 6);
+    for (let i = 1; i <= n; i++) fine.push(ax + (bx - ax) * i / n, ay + (by - ay) * i / n);
+  }
+  const m = fine.length / 2, out = fine.slice();
+  for (let i = 0; i < m; i++) {
+    const x = fine[2 * i], y = fine[2 * i + 1];
+    const j0 = Math.max(0, i - 1), j1 = Math.min(m - 1, i + 1);
+    let dx = fine[2 * j1] - fine[2 * j0], dy = fine[2 * j1 + 1] - fine[2 * j0 + 1];
+    const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+    let best = null, bd = Infinity;
+    for (const s of roads) {
+      const d = Math.sqrt(segDist2(x, y, s.ax, s.ay, s.bx, s.by)) - s.half;
+      if (d < bd) { bd = d; best = s; }
+    }
+    if (!best || bd > ww.w / 2 + 0.5) continue;
+    const sx = best.bx - best.ax, sy = best.by - best.ay, sl = Math.hypot(sx, sy) || 1, ux = sx / sl, uy = sy / sl;
+    if (Math.abs(dx * ux + dy * uy) < 0.85) continue;   // crossing it: a culvert
+    const lat = -uy * (x - best.ax) + ux * (y - best.ay), side = lat < 0 ? -1 : 1;
+    const t = (x - best.ax) * ux + (y - best.ay) * uy, want = best.half + ww.bank / 2 - 0.4;
+    out[2 * i] = best.ax + ux * t - uy * side * want;
+    out[2 * i + 1] = best.ay + uy * t + ux * side * want;
+  }
+  return out;
+}
+
+/** Where a waterway passes under a road: the crossing, the road's direction
+ *  and half-width, and the ditch's direction there. */
+function culvertsOf(pts, roads, bank) {
+  const out = [];
+  for (let k = 2; k < pts.length; k += 2) {
+    const ax = pts[k - 2], ay = pts[k - 1], bx = pts[k], by = pts[k + 1];
+    const x0 = Math.min(ax, bx), x1 = Math.max(ax, bx), y0 = Math.min(ay, by), y1 = Math.max(ay, by);
+    for (const s of roads) {
+      if (Math.max(s.ax, s.bx) < x0 || Math.min(s.ax, s.bx) > x1 || Math.max(s.ay, s.by) < y0 || Math.min(s.ay, s.by) > y1) continue;
+      const rx = bx - ax, ry = by - ay, sx = s.bx - s.ax, sy = s.by - s.ay, d = rx * sy - ry * sx;
+      if (Math.abs(d) < 1e-9) continue;
+      const t = ((s.ax - ax) * sy - (s.ay - ay) * sx) / d, u = ((s.ax - ax) * ry - (s.ay - ay) * rx) / d;
+      if (t < 0 || t > 1 || u < 0 || u > 1) continue;
+      const rl = Math.hypot(rx, ry), sl = Math.hypot(sx, sy);
+      const x = ax + rx * t, y = ay + ry * t;
+      if (out.some(c => Math.hypot(c.x - x, c.y - y) < 4)) continue;   // a junction's edges meet there
+      out.push({ x, y, ux: sx / sl, uy: sy / sl, dx: rx / rl, dy: ry / rl, half: s.half, bank });
+    }
+  }
+  return out;
+}
+
+/** An open flat line cut into runs of about len metres, each sharing its
+ *  end point with the next. */
+function pieces(pts, len) {
+  const out = [];
+  let cur = [pts[0], pts[1]], run = 0;
+  for (let k = 2; k < pts.length; k += 2) {
+    run += Math.hypot(pts[k] - pts[k - 2], pts[k + 1] - pts[k - 1]);
+    cur.push(pts[k], pts[k + 1]);
+    if (run >= len && k + 2 < pts.length) { out.push(cur); cur = [pts[k], pts[k + 1]]; run = 0; }
+  }
+  out.push(cur);
+  return out;
+}
+
+function padBox(r, pad) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let k = 0; k < r.length; k += 2) {
+    x0 = Math.min(x0, r[k]); x1 = Math.max(x1, r[k]); y0 = Math.min(y0, r[k + 1]); y1 = Math.max(y1, r[k + 1]);
+  }
+  return [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
+}
+/** Chaikin's corner cutting on a closed flat ring, n times: a rounder pond. */
+function chaikin(r, n) {
+  for (let it = 0; it < n; it++) {
+    const o = [], m = r.length;
+    for (let i = 0; i < m; i += 2) {
+      const j = (i + 2) % m;
+      o.push(r[i] * 0.75 + r[j] * 0.25, r[i + 1] * 0.75 + r[j + 1] * 0.25, r[i] * 0.25 + r[j] * 0.75, r[i + 1] * 0.25 + r[j + 1] * 0.75);
+    }
+    r = o;
+  }
+  return r;
+}
+function scaleRing(r, c, f, dx = 0, dy = 0) {
+  const o = new Array(r.length);
+  for (let k = 0; k < r.length; k += 2) { o[k] = c[0] + (r[k] - c[0]) * f + dx; o[k + 1] = c[1] + (r[k + 1] - c[1]) * f + dy; }
+  return o;
+}
+function lineDist2(pts, x, y) {
+  let d = Infinity;
+  for (let k = 2; k < pts.length; k += 2) d = Math.min(d, segDist2(x, y, pts[k - 2], pts[k - 1], pts[k], pts[k + 1]));
+  return d;
+}
+function lineTo(path, pts) {
+  path.moveTo(pts[0], pts[1]);
+  for (let k = 2; k < pts.length; k += 2) path.lineTo(pts[k], pts[k + 1]);
+}
+/** Every step metres along an open flat line: fn(x, y, nx, ny), n its left normal. */
+function along(pts, step, fn) {
+  let carry = 0;
+  for (let k = 2; k < pts.length; k += 2) {
+    const ax = pts[k - 2], ay = pts[k - 1], l = Math.hypot(pts[k] - ax, pts[k + 1] - ay);
+    if (l < 1e-6) continue;
+    const ux = (pts[k] - ax) / l, uy = (pts[k + 1] - ay) / l;
+    let s = carry;
+    for (; s < l; s += step) fn(ax + ux * s, ay + uy * s, -uy, ux);
+    carry = s - l;
+  }
+}
+/** The same line moved d metres to its left. */
+function offsetLine(pts, d) {
+  const o = [], n = pts.length / 2;
+  for (let i = 0; i < n; i++) {
+    let nx = 0, ny = 0;
+    for (const j of [i - 1, i]) {
+      if (j < 0 || j + 1 >= n) continue;
+      const dx = pts[2 * j + 2] - pts[2 * j], dy = pts[2 * j + 3] - pts[2 * j + 1], l = Math.hypot(dx, dy) || 1;
+      nx += -dy / l; ny += dx / l;
+    }
+    const l = Math.hypot(nx, ny) || 1;
+    o.push(pts[2 * i] + nx / l * d, pts[2 * i + 1] + ny / l * d);
+  }
+  return o;
+}
+
+/** A tuft of reeds or rushes seen from above: blades fanning from (x, y),
+ *  leaning towards (lx, ly) (a unit vector, or 0 for all round). B is null
+ *  for a tuft in another cell: r is drawn from all the same, so every cell
+ *  sees the same reeds. */
+function reedTuft(B, C, r, x, y, lx, ly, size, heads) {
+  const dark = r() < 0.6, p = B && (dark ? B.get(3, 'stroke', C.reed, 0.09) : B.get(3, 'stroke', C.reedL, 0.08));
+  const n = 3 + ((r() * 2) | 0), base = lx || ly ? Math.atan2(ly, lx) : r() * 6.283, spread = lx || ly ? 2.2 : 6.283;
+  for (let k = 0; k < n; k++) {
+    const a = base + (k / (n - 1 || 1) - 0.5) * spread + (r() - 0.5) * 0.4, q = size * (0.6 + r() * 0.5);
+    const ex = x + Math.cos(a) * q, ey = y + Math.sin(a) * q;
+    if (p) { p.moveTo(x, y); p.lineTo(ex, ey); }
+    if (heads && C.head && r() < 0.22 && B) {
+      const h = B.get(3, 'fill', C.head);
+      h.moveTo(ex + 0.08, ey); h.ellipse(ex, ey, 0.08, 0.08, 0, 0, Math.PI * 2);
+    }
+  }
+}
+
+/** One piece of water's paths for the season, into its cell's batch B.
+ *  Passes: 0 banks and embankments, 1 the water, 2 its sheen, ripples and
+ *  ice, 3 reeds and lily pads, 4 culvert headwalls. The reeds are by far the
+ *  most to paint, so they go by where each tuft stands: reedsAt(x, y) is the
+ *  batch for one there, or null (reedCell asks for one cell's). */
+function paintWater(B, w, season, reedsAt = () => null) {
+  const C = WATER[season] || WATER.autumn, r = rng(w.seed), rr = rng(w.seed ^ 0x5eed);
+  const winter = season === 'winter';
+
+  if (w.line && !w.piped) {
+    const { pts } = w, still = w.kind === 'drain', stream = w.kind === 'stream';
+    const water = stream ? mix(C.ditch, C.still, 0.3) : C.ditch;
+    lineTo(B.get(0, 'stroke', mix(C.bank, (GROUND[season] || GROUND.autumn).grass, 0.5), w.bank + 1.2), pts);
+    lineTo(B.get(0, 'stroke', C.bank, w.bank), pts);
+    lineTo(B.get(1, 'stroke', C.ditchInk, w.w + 0.3), pts);
+    lineTo(B.get(1, 'stroke', water, w.w), pts);
+    // The edges wander a little: the bank slumps in here, the water spreads there.
+    const wide = B.get(1, 'fill', water);
+    along(pts, 1.3, (x, y, nx, ny) => {
+      if (r() < 0.5) return;
+      const o = (r() - 0.5) * w.w * 0.4, rr = w.w * (0.4 + r() * 0.12);
+      wide.moveTo(x + nx * o + rr, y + ny * o); wide.ellipse(x + nx * o, y + ny * o, rr, rr, 0, 0, Math.PI * 2);
+    });
+    // The sky's sheen along the sunny side, soft and unbroken; a few faint
+    // flecks on the running stream only. White dashes read as a road's
+    // centre line, so there are none.
+    lineTo(B.get(2, 'stroke', winter ? 'rgba(240,246,247,0.22)' : 'rgba(226,244,240,0.2)', w.w * 0.32), offsetLine(pts, w.w * 0.16));
+    if (stream) {
+      const gl = B.get(2, 'stroke', mix(C.glint, water, 0.45), 0.1);
+      along(pts, 2.4, (x, y, nx, ny) => {
+        if (r() < 0.6) return;
+        const o = w.w * (0.1 + r() * 0.25), l = 0.2 + r() * 0.4, ux = ny, uy = -nx;
+        gl.moveTo(x + nx * o, y + ny * o); gl.lineTo(x + nx * o - ux * l, y + ny * o - uy * l);
+      });
+    }
+    // Reeds and rushes along both banks in clumps, some leaning out over
+    // the water so its edge is never a ruled line; thicker by the stream.
+    const salt = w.seed & 0xffff, size = stream ? 0.9 : 0.65;
+    along(pts, stream ? 0.6 : 0.85, (x, y, nx, ny) => {
+      for (const side of [-1, 1]) {
+        if (noise(x + side * 3, y, 6, salt) < 0.36 || rr() < 0.3) continue;
+        const o = w.w / 2 + (rr() - 0.3) * 0.6, lean = rr() < 0.35 ? -side : side, tx = x + nx * side * o, ty = y + ny * side * o;
+        reedTuft(reedsAt(tx, ty), C, rr, tx, ty, nx * lean, ny * lean, size, stream);
+      }
+    });
+  } else if (!w.line) {
+    const { ring, c, R } = w;
+    if (w.kind === 'reservoir') {
+      // A farm reservoir: straight embanked sides, mown, a crest path round the
+      // top and the dark liner at the waterline; wind ripples across it.
+      flatTo(B.get(0, 'stroke', C.embank, 7), ring);
+      flatTo(B.get(0, 'stroke', darken(C.embank, 0.12), 0.3), scaleRing(ring, c, 1 + 3.4 / R));
+      flatTo(B.get(0, 'stroke', C.crest, 0.6), scaleRing(ring, c, 1 + 1.5 / R));
+      flatTo(B.get(1, 'fill', C.res), ring);
+      flatTo(B.get(1, 'stroke', C.liner, 0.8), ring);
+      flatTo(B.get(2, 'fill', C.sky), scaleRing(ring, c, 0.6, -R * 0.12, -R * 0.1));
+      const rip = B.get(2, 'stroke', C.glint, 0.13), [x0, y0, x1, y1] = w.bbox, sp = 3.6;
+      for (let y = y0; y < y1; y += sp) for (let x = x0; x < x1; x += sp) {
+        if (r() < 0.55) continue;
+        const px = x + r() * sp, py = y + r() * sp, l = 0.7 + r() * 1.6;
+        if (!inRing(ring, px, py) || !inRing(ring, px + l, py + l * 0.35)) continue;
+        rip.moveTo(px, py); rip.quadraticCurveTo(px + l / 2, py + l * 0.05, px + l, py + l * 0.35);
+      }
+    } else if (w.kind === 'basin') {
+      // A small basin is mostly dry: damp mud and rushes, a puddle in the
+      // middle (fuller in winter).
+      flatTo(B.get(0, 'stroke', C.bank, 2.2), ring);
+      flatTo(B.get(0, 'fill', C.mud), ring);
+      const pool = scaleRing(ring, c, winter ? 0.62 : 0.45);
+      flatTo(B.get(1, 'fill', C.still), pool);
+      flatTo(B.get(1, 'stroke', C.stillInk, 0.2), pool);
+      const [x0, y0, x1, y1] = w.bbox;
+      for (let k = 0; k < w.area / 3; k++) {
+        const x = x0 + rr() * (x1 - x0), y = y0 + rr() * (y1 - y0);
+        if (inRing(ring, x, y) && !inRing(pool, x, y)) reedTuft(reedsAt(x, y), C, rr, x, y, 0, 0, 0.45, false);
+      }
+    } else {
+      // A pond, or wetland: rounded, a damp green margin, reeds and rushes
+      // standing in the shallows; lily pads in summer, thin ice in winter.
+      const wet = w.kind === 'wetland';
+      flatTo(B.get(0, 'stroke', C.bank, 2.4), ring);
+      flatTo(B.get(1, 'fill', wet ? C.marsh : C.still), ring);
+      flatTo(B.get(1, 'stroke', wet ? C.bank : C.stillInk, 0.3), ring);
+      if (!wet) {
+        flatTo(B.get(2, 'fill', C.sky), scaleRing(ring, c, 0.55, -R * 0.15, -R * 0.12));
+        if (winter && C.ice) {
+          flatTo(B.get(2, 'fill', C.ice), scaleRing(ring, c, 0.96));
+          const st = B.get(2, 'stroke', 'rgba(250,253,254,0.75)', 0.13);
+          for (let k = 0; k < Math.max(2, w.area / 25); k++) {
+            const x = c[0] + (r() - 0.5) * R * 1.4, y = c[1] + (r() - 0.5) * R * 1.4, l = 0.4 + r() * 0.8;
+            if (inRing(ring, x - l, y - l * 0.4) && inRing(ring, x + l, y + l * 0.4)) { st.moveTo(x - l, y - l * 0.4); st.lineTo(x + l, y + l * 0.4); }
+          }
+        } else {
+          const rip = B.get(2, 'stroke', mix(C.glint, C.still, 0.35), 0.1);
+          for (let k = 0; k < Math.max(2, w.area / 40); k++) {
+            const x = c[0] + (r() - 0.5) * R * 1.4, y = c[1] + (r() - 0.5) * R * 1.4, rr = 0.4 + r() * 0.5;
+            if (!inRing(ring, x, y)) continue;
+            rip.moveTo(x + Math.cos(0.5) * rr, y + Math.sin(0.5) * rr); rip.arc(x, y, rr, 0.5, Math.PI - 0.5);
+          }
+        }
+      }
+      // Reeds round the edge in clumps, in the shallows and on the bank.
+      const salt = w.seed & 0xffff;
+      along(ring.concat(ring.slice(0, 2)), 0.5, (x, y) => {
+        if (noise(x, y, 5, salt) < 0.3 || rr() < 0.2) return;
+        const dx = x - c[0], dy = y - c[1], l = Math.hypot(dx, dy) || 1, o = (rr() - 0.6) * 1.2, tx = x + dx / l * o, ty = y + dy / l * o;
+        reedTuft(reedsAt(tx, ty), C, rr, tx, ty, dx / l, dy / l, 0.75, true);
+      });
+      if (wet) for (let k = 0; k < w.area / 4; k++) {
+        const x = c[0] + (rr() - 0.5) * R * 2, y = c[1] + (rr() - 0.5) * R * 2;
+        if (inRing(ring, x, y)) reedTuft(reedsAt(x, y), C, rr, x, y, 0, 0, 0.5, false);
+      }
+      // A few lily pads in summer, nearer the edge than the middle.
+      if (C.pad && !wet && R > 2) {
+        const pad = B.get(3, 'fill', C.pad), ink = B.get(3, 'stroke', C.padInk, 0.05), fl = B.get(3, 'fill', C.flower);
+        const n = Math.min(9, 2 + Math.round(w.area / 90));
+        for (let k = 0, tries = 0; k < n && tries < 60; tries++) {
+          const a = r() * 6.283, d = R * (0.45 + r() * 0.4), x = c[0] + Math.cos(a) * d, y = c[1] + Math.sin(a) * d, pr = 0.24 + r() * 0.2;
+          if (!inRing(ring, x, y)) continue;
+          k++;
+          const na = r() * 6.283;
+          for (const p of [pad, ink]) { p.moveTo(x, y); p.arc(x, y, pr, na + 0.35, na + 6.283 - 0.35); p.closePath(); }
+          if (r() < 0.25) { fl.moveTo(x + pr * 0.4 + 0.12, y); fl.arc(x + pr * 0.4, y, 0.12, 0, Math.PI * 2); }
+        }
+      }
+    }
+  }
+
+  // Culverts: where a ditch meets a road it goes under, with a small
+  // headwall of concrete each side and the pipe's dark mouth below it.
+  const wall = B.get(4, 'fill', CULVERT.fill), wink = B.get(4, 'stroke', CULVERT.ink, 0.08), mouth = B.get(4, 'fill', CULVERT.mouth);
+  for (const cv of w.culverts) {
+    const sin = Math.abs(cv.ux * cv.dy - cv.uy * cv.dx);
+    if (sin < 0.25) continue;   // a ditch running along under a road edge has no headwall to show
+    const t = (cv.half + 0.05) / sin, hl = Math.min(1.3, cv.bank * 0.4), th = 0.22;
+    for (const side of cv.sides) {
+      const ex = cv.x + cv.dx * t * side, ey = cv.y + cv.dy * t * side;
+      // the wall lies along the road's edge, just off the tarmac
+      const nx = -cv.uy, ny = cv.ux, f = Math.sign(nx * cv.dx * side + ny * cv.dy * side) || 1;
+      const cx = ex + nx * f * th, cy = ey + ny * f * th;
+      const quad = [cx - cv.ux * hl - nx * th, cy - cv.uy * hl - ny * th, cx + cv.ux * hl - nx * th, cy + cv.uy * hl - ny * th,
+        cx + cv.ux * hl + nx * th, cy + cv.uy * hl + ny * th, cx - cv.ux * hl + nx * th, cy - cv.uy * hl + ny * th];
+      flatTo(wall, quad); flatTo(wink, quad);
+      const mx = cx + nx * f * (th + 0.18), my = cy + ny * f * (th + 0.18), mr = 0.38, a0 = Math.atan2(ny * f, nx * f);
+      mouth.moveTo(mx, my); mouth.arc(mx, my, mr, a0 - Math.PI / 2, a0 + Math.PI / 2); mouth.closePath();
+    }
+  }
+
+}
+
+/** A cell's water, every piece whose middle is in it, as one batch per
+ *  season: a frame makes a few calls a cell, not a few a ditch. */
+function waterCell(c, season) {
+  if (c.cache && c.cache.season === season) return c.cache.passes;
+  const B = new Batch();
+  for (const w of c.items) paintWater(B, w, season);
+  c.cache = { season, passes: B.passes };
+  return B.passes;
+}
+/** The reeds standing in one cell (i, j), from every piece that reaches it. */
+function reedCell(c, season) {
+  if (c.cache && c.cache.season === season) return c.cache.list;
+  const B = new Batch(), x0 = c.i * CELL_M, y0 = c.j * CELL_M;
+  const here = (x, y) => (x >= x0 && x < x0 + CELL_M && y >= y0 && y < y0 + CELL_M ? B : null);
+  for (const w of c.items) paintWater(new Batch(), w, season, here);
+  c.cache = { season, list: B.passes[3] || [] };
+  return c.cache.list;
+}
+
+/** The water in view, pass by pass, so one ditch's banks never cover the
+ *  water of the next where they meet. A piece is filed under the cell its
+ *  middle is in and reaches at most WATER_REACH beyond it. S.waterMs is what
+ *  it cost to issue (a test reads it). */
+const WATER_REACH = 80;
+function drawWater(ctx, S, view) {
+  if (!S.waterCells || !S.waterCells.size) return;
+  const t0 = performance.now();
+  const r = view.radius + WATER_REACH, vis = [];
+  const i0 = Math.floor((view.cx - r) / CELL_M), i1 = Math.floor((view.cx + r) / CELL_M);
+  const j0 = Math.floor((view.cy - r) / CELL_M), j1 = Math.floor((view.cy + r) / CELL_M);
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const c = S.waterCells.get(i + ',' + j);
+    if (c) vis.push(waterCell(c, view.season));
+  }
+  for (let pass = 0; pass < 5; pass++) {
+    for (const passes of vis) if (passes[pass]) paintList(ctx, passes[pass]);
+    if (pass !== 2) continue;
+    // the reeds: only the cells in view, and square ends, which are cheaper
+    const q = view.radius;
+    ctx.lineCap = 'butt';
+    for (let j = Math.floor((view.cy - q) / CELL_M); j <= Math.floor((view.cy + q) / CELL_M); j++) {
+      for (let i = Math.floor((view.cx - q) / CELL_M); i <= Math.floor((view.cx + q) / CELL_M); i++) {
+        const c = S.reedCells.get(i + ',' + j);
+        if (c) paintList(ctx, reedCell(c, view.season));
+      }
+    }
+    ctx.lineCap = 'round';
+  }
+  S.waterMs = performance.now() - t0;
 }
 
 // ------------------------------------------------------------------ objects
