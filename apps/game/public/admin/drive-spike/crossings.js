@@ -55,12 +55,26 @@ const SMALL = new Set(['residential', 'unclassified', 'track']);
 const SITE_CHANCE = 0.16;
 const MIN_EDGE_M = 36;        // the midpoint needs 18 m of straight each side
 const SPACING_M = 110;        // never two crossings closer than this on a route
-/** A field site this close to a wood on the child's map (map px, ~3.5 m
- *  each, so about 90 m) is by the woods, and now and then a deer crosses
- *  there instead (Marcus, 55A): on about one drive in five that passes one,
- *  at the first it passes. Sites are only ever on small roads, never the A28. */
-const WOOD_NEAR_PX = 25;
-const DEER_BY_WOOD = 0.2;
+/** A field site this close to a wood is by the woods, and a deer may cross
+ *  there instead (Marcus, 55A). Within WOOD_PLACE_M the place is the wood's
+ *  own. Sites are only ever on small roads, never the A28. */
+const WOOD_NEAR_M = 90, WOOD_PLACE_M = 35;
+/** The rarer animals. Marcus, 2026-10-13 (60A): the drake was out on one
+ *  drive in a hundred or more and a deer on one in forty; each should be
+ *  about one in ten.
+ *  The child's map is coarse: its woods, one pond no lane passes, and garden
+ *  swimming pools, where the ducks had been crossing. So the real water and
+ *  woods beside the lanes come from OpenStreetMap (nature.json, written by
+ *  tools/osm-nature.py), and every small-road edge beside water
+ *  (WATER_NEAR_M) or along a wood's edge (WOOD_EDGE_M) is a place they may
+ *  cross as well as the hash's sites, but only on a drive when they do, so
+ *  the lanes are no more stop-start for it: on each drive the ducks at a
+ *  water place are out with DUCKS_OUT, and a deer with DEER_OUT, at the first
+ *  wood edge or field by the woods the route passes. Places of one kind are
+ *  at least NATURE_SPACING_M apart. A residential street beside a wood is
+ *  not a deer's crossing. */
+const WATER_NEAR_M = 30, WOOD_EDGE_M = 40, NATURE_SPACING_M = 150;
+const DUCKS_OUT = 0.5, DEER_OUT = 0.4;
 /** Drives so far. Which ducks are at the water and whether a deer is out
  *  change from drive to drive; counted from 0 in node so the checks repeat,
  *  from a random start in the browser so a reload is a new drive. */
@@ -94,16 +108,24 @@ function letGoSpeed(room) { return room <= 0 ? 0 : LET_GO * (Math.sqrt(REACT_S *
  *  screen by triggerGap (as the page's view shows it now); nearer, to the
  *  speed from which letting go still stops short; never below CREEP, so a
  *  van whose animal cannot step out (something coming the other way, or
- *  held under the chips) still rolls on by. */
-const APPROACH_DECEL = 6, CREEP = 2, SEEN_SPARE_M = 0.3;
+ *  held under the chips) still rolls on by.
+ *  And never faster than KERB_V, first gear's speed, however much road the
+ *  screen shows: upright, the page now shows 26-30 m ahead in second and
+ *  third, so the animal was always on screen in time, the van never eased,
+ *  and it stepped out with the van at full speed, where a frame or a
+ *  moment's reaction is a metre: the stops ran from 3.9 to 5.4 m. Eased to
+ *  the same speed in every gear, the van stops the same distance short in
+ *  every gear (Marcus, 39A), and the van slows for an animal waiting at the
+ *  kerb as a careful driver would. */
+const APPROACH_DECEL = 6, CREEP = 2, SEEN_SPARE_M = 0.3, KERB_V = 7;
 function approachCap(c, van, nose, L, t) {
   const dist = c.s - nose;
   const room = dist - stopShort(c, L);
   const v = van.view;
-  let vOk = Infinity;
+  let vOk = KERB_V;
   if (v?.ahead != null && v.ppm) {
     const shown = v.ahead - chipsPx(v, t) / v.ppm - L / 2 - c.top - SEEN_SPARE_M;
-    vOk = Math.max(CREEP, letGoSpeed(shown - stopShort(c, L)));
+    vOk = Math.min(KERB_V, Math.max(CREEP, letGoSpeed(shown - stopShort(c, L))));
   }
   const far = Math.sqrt(vOk * vOk + 2 * APPROACH_DECEL * Math.max(0, dist - triggerGap(c, vOk, L)));
   return Math.max(CREEP, Math.min(far, letGoSpeed(room)));
@@ -318,21 +340,23 @@ function withBox(pts) {
   for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
   return { pts, x0, y0, x1, y1 };
 }
-/** Map pixels from (px, py) to the nearest polygon of a group, 0 inside. */
+/** From (px, py) to the nearest polygon of a group, 0 inside, in the
+ *  group's own units. A polygon marked open is a line: a stream or a ditch,
+ *  with no inside. */
 function distTo(polys, px, py, within) {
   let best = Infinity;
   for (const p of polys) {
     if (px < p.x0 - within || px > p.x1 + within || py < p.y0 - within || py > p.y1 + within) continue;
     const q = p.pts;
     let inside = false;
-    for (let i = 0, j = q.length - 1; i < q.length; j = i++) {
+    for (let i = p.open ? 1 : 0, j = p.open ? 0 : q.length - 1; i < q.length; j = i++) {
       const [ax, ay] = q[i], [bx, by] = q[j];
       if ((ay > py) !== (by > py) && px < (bx - ax) * (py - ay) / (by - ay) + ax) inside = !inside;
       const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
       const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2));
       best = Math.min(best, Math.hypot(px - ax - t * dx, py - ay - t * dy));
     }
-    if (inside) return 0;
+    if (inside && !p.open) return 0;
   }
   return best;
 }
@@ -340,17 +364,54 @@ function distTo(polys, px, py, within) {
 let MAP = null;
 try { MAP = parseMap(await loadText(MAP_URL)); } catch { MAP = null; }
 
+/** The real water and woods beside the small roads (nature.json, from
+ *  OpenStreetMap by tools/osm-nature.py), in metres from the map's top-left,
+ *  which is MAP_M metres to a map pixel: { water, wood }, each a list of
+ *  polygons as parseMap's, the waterways open. Without it the child's map
+ *  stands in: its woods, and for water its pools, as before; so too for the
+ *  water if nature.json has none. */
+const MAP_M = 3900 / 1121;
+const NATURE_URL = new URL('../../assets/driving/nature.json', import.meta.url);
+const WATERS = new Set(['pond', 'lake', 'basin', 'wetland', 'stream', 'river', 'ditch', 'drain']);
+function parseNature(doc) {
+  const ring = a => {
+    const r = []; let x = a[1], y = a[2];
+    r.push([x * doc.q, y * doc.q]);
+    for (let k = 3; k + 1 < a.length; k += 2) { x += a[k]; y += a[k + 1]; r.push([x * doc.q, y * doc.q]); }
+    return r;
+  };
+  const out = { water: [], wood: [] };
+  for (const a of doc.a) out[WATERS.has(doc.kinds[a[0]]) ? 'water' : 'wood'].push(withBox(ring(a)));
+  for (const l of doc.l) out.water.push({ ...withBox(ring(l)), open: true });
+  return out;
+}
+let NATURE = null;
+try { NATURE = parseNature(JSON.parse(await loadText(NATURE_URL))); } catch { NATURE = null; }
+
+/** Metres from map pixel (px, py) to the nearest water, and to the nearest
+ *  wood (0 inside it), looking no further than within metres. */
+function waterDist(px, py, within) {
+  if (NATURE?.water.length) return distTo(NATURE.water, px * MAP_M, py * MAP_M, within);
+  return MAP ? distTo(MAP.pools, px, py, within / MAP_M) * MAP_M : Infinity;
+}
+function woodDist(px, py, within) {
+  if (NATURE) return distTo(NATURE.wood, px * MAP_M, py * MAP_M, within);
+  return MAP ? distTo(MAP.woodland, px, py, within / MAP_M) * MAP_M : Infinity;
+}
+
 // ---------------------------------------------------------------- the sites
 
 /** Every candidate place in the world, once per graph: midpoints of small
- *  road edges that the hash picks, with what lives there. */
+ *  road edges that the hash picks, and those beside real water or along a
+ *  wood's edge (extra: 'water' or 'wood'; out only on some drives,
+ *  outToday), with what lives there. */
 const SITES = new WeakMap();
 function sitesFor(world) {
   let s = SITES.get(world.graph);
   if (s) return s;
   const o = world.mapToWorld(0, 0), mpp = world.mapToWorld(1, 0).x - o.x;
   const { nodes, edges } = world.graph;
-  const list = [], grid = new Map();
+  const list = [], grid = new Map(), extras = [];
   for (const [i, j, cls] of edges) {
     if (!SMALL.has(cls) || !nodes[i] || !nodes[j]) continue;
     const a = world.mapToWorld(nodes[i][0] * 1800, nodes[i][1] * 1121);
@@ -358,16 +419,30 @@ function sitesFor(world) {
     const len = Math.hypot(b.x - a.x, b.y - a.y);
     if (len < MIN_EDGE_M) continue;
     const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
+    const px = (x - o.x) / mpp, py = (y - o.y) / mpp;
     const seed = hash(Math.round(x * 10), Math.round(y * 10));
-    if (seed / 4294967296 >= SITE_CHANCE) continue;
+    const picked = seed / 4294967296 < SITE_CHANCE;
+    const place = placeOf(cls, px, py, seed);
+    const edge = cls !== 'residential' && woodDist(px, py, WOOD_EDGE_M) <= WOOD_EDGE_M;
+    const water = place === 'water' && !!NATURE?.water.length;   // real water, not the pools standing in
+    if (!picked && !water && !edge) continue;
     const site = {
-      x, y, dx: (b.x - a.x) / len, dy: (b.y - a.y) / len, cls, seed,
-      place: placeOf(cls, (x - o.x) / mpp, (y - o.y) / mpp, seed),
+      x, y, dx: (b.x - a.x) / len, dy: (b.y - a.y) / len, cls, seed, place,
+      byWood: (place === 'field' || place === 'hedge') && woodDist(px, py, WOOD_NEAR_M) <= WOOD_NEAR_M,
+      extra: picked ? null : water ? 'water' : 'wood',
     };
-    site.byWood = site.place === 'field' && !!MAP
-      && distTo(MAP.woodland, (x - o.x) / mpp, (y - o.y) / mpp, WOOD_NEAR_PX) <= WOOD_NEAR_PX;
+    if (site.extra) { extras.push(site); continue; }
     list.push(site);
-    const key = Math.floor(x / 50) + ',' + Math.floor(y / 50);
+  }
+  // The extra places thinned, by the hash, to one of a kind in
+  // NATURE_SPACING_M: a lane beside a wood the whole way is one place.
+  extras.sort((p, q) => p.seed - q.seed);
+  for (const site of extras) {
+    if (list.some(q => q.extra === site.extra && Math.hypot(q.x - site.x, q.y - site.y) < NATURE_SPACING_M)) continue;
+    list.push(site);
+  }
+  for (const site of list) {
+    const key = Math.floor(site.x / 50) + ',' + Math.floor(site.y / 50);
     if (!grid.has(key)) grid.set(key, []);
     grid.get(key).push(site);
   }
@@ -376,14 +451,15 @@ function sitesFor(world) {
   return s;
 }
 
-/** What is beside the road, from the child's map (distances in map pixels,
- *  one is ~3.5 m). Water wins, then wood, then houses, then fields. */
+/** What is beside the road (px, py in map pixels): real water, then a wood,
+ *  then houses, then fields, from nature.json and the child's map. */
 function placeOf(cls, px, py, seed) {
   const u = (hash(seed, 7) % 1000) / 1000;
-  if (MAP) {
-    if (distTo(MAP.pools, px, py, 25) <= 25) return 'water';
-    if (distTo(MAP.woodland, px, py, 10) <= 10) return 'wood';
-  }
+  // The child's pools stand in only without real water: at about 87 m, as
+  // they did.
+  const nearWater = NATURE?.water.length ? WATER_NEAR_M : 25 * MAP_M;
+  if (waterDist(px, py, nearWater) <= nearWater) return 'water';
+  if (woodDist(px, py, WOOD_PLACE_M) <= WOOD_PLACE_M) return 'wood';
   if (cls === 'residential') return 'houses';
   if (MAP) {
     if (distTo(MAP.farmland, px, py, 8) <= 8) return 'field';
@@ -392,21 +468,40 @@ function placeOf(cls, px, py, seed) {
   return u < 0.4 ? 'hedge' : 'field';
 }
 
+/** Whether a site has its animals out on this drive: the ducks at real
+ *  water now and then (at the child's pools, standing in, every drive, as
+ *  before), an extra place by the woods only for the drive's deer. */
+function outToday(site, drive) {
+  if (site.extra === 'wood') return drive.deer;
+  if (site.place === 'water') return !NATURE?.water.length || hash(site.seed, 17, drive.seed) / 4294967296 < DUCKS_OUT;
+  return true;
+}
+
 /** How likely a fox is, against the place's usual animal, by season: most
  *  in autumn (the cubs leaving home) and winter (the mating season). */
 const FOX = { spring: 0.1, summer: 0.08, autumn: 0.18, winter: 0.22 };
 
 /** Who crosses at a place in a season. Hedgehogs by houses, parks and
- *  hedges; rabbits and pheasants by fields; ducks by water; a deer by woods;
- *  a fox now and then anywhere but the water, a little less by houses. An
- *  empty party is a hedgehog place in winter with no fox about: the sign
- *  stays, the hedgehog is asleep. A place keeps its animal from drive to
- *  drive, except the water's ducks and a deer by the woods (drive, 55A). */
-function partyFor(place, season, seed, drive = { seed: 0, deer: false }, byWood = false) {
+ *  hedges; rabbits and pheasants by fields and woods; ducks by water; the
+ *  drive's deer (if it has one out) at the first wood or wood's edge it
+ *  passes, or a field or hedge by the woods, never in a street; a fox now and then anywhere but
+ *  the water, a little less by houses. An empty party is a hedgehog place in
+ *  winter with no fox about: the sign stays, the hedgehog is asleep. A place
+ *  keeps its animal from drive to drive, except the water's ducks and the
+ *  deer (drive, 55A). */
+function partyFor(site, season, drive = { seed: 0, deer: false }) {
+  const { place, seed } = site;
   const r = rng(hash(seed, 11));
   const d = rng(hash(seed, 13, drive.seed));
   const one = (kind, look) => ({ kind, look: look ?? '' });
   const fox = r() < (FOX[season] ?? 0.1) * (place === 'houses' || place === 'park' ? 0.6 : 1);
+  // A roe buck's antlers are what tell a child it is a deer; he casts them
+  // in late autumn and they are only buds until spring, so in winter every
+  // deer is drawn as the doe. Otherwise buck and doe about half and half.
+  if (drive.deer && site.cls !== 'residential' && (place === 'wood' || site.byWood || site.extra === 'wood')) {
+    drive.deer = false;
+    return [one('deer', season !== 'winter' && d() < 0.5 ? 'buck' : 'doe')];
+  }
   switch (place) {
     case 'water': {
       // Only the hen mallard leads ducklings; a drake crosses alone or walks
@@ -418,11 +513,8 @@ function partyFor(place, season, seed, drive = { seed: 0, deer: false }, byWood 
       const u = d();
       return u < 0.4 ? [one('duck', 'hen'), one('duck', 'drake')] : [one('duck', u < 0.7 ? 'hen' : 'drake')];
     }
-    // A roe buck's antlers are what tell a child it is a deer; he casts them
-    // in late autumn and they are only buds until spring, so in winter every
-    // deer is drawn as the doe. Otherwise buck and doe about half and half.
     case 'wood':
-      return fox || r() < 0.2 ? [one('fox')] : [one('deer', season !== 'winter' && r() < 0.5 ? 'buck' : 'doe')];
+      return fox || r() < 0.2 ? [one('fox')] : r() < 0.5 ? [one('rabbit')] : [one('pheasant', r() < 0.5 ? 'cock' : 'hen')];
     case 'houses': case 'park': case 'hedge': {
       if (fox) return [one('fox')];
       // Wild hedgehogs here are brown; now and then a darker or a paler one.
@@ -431,10 +523,6 @@ function partyFor(place, season, seed, drive = { seed: 0, deer: false }, byWood 
         : [one('hedgehog', u < 0.7 ? 'brown' : u < 0.82 ? 'chocolate' : u < 0.93 ? 'salt-and-pepper' : 'blonde')];
     }
     default:
-      if (byWood && drive.deer) {
-        drive.deer = false;
-        return [one('deer', season !== 'winter' && d() < 0.5 ? 'buck' : 'doe')];
-      }
       if (fox) return [one('fox')];
       return r() < 0.55 ? [one('rabbit')] : [one('pheasant', r() < 0.5 ? 'cock' : 'hen')];
   }
@@ -450,7 +538,7 @@ export function create(route, world) {
   if (!world?.graph) return xing;
   const { grid } = sitesFor(world);
   const drive = { seed: hash(driveNo++, 41) };
-  drive.deer = rng(hash(drive.seed, 43))() < DEER_BY_WOOD;
+  drive.deer = rng(hash(drive.seed, 43))() < DEER_OUT;
   const seen = new Set();
   let lastS = -Infinity;
   for (let s = START_CLEAR_M; s < route.length - END_CLEAR_M; s += 1) {
@@ -474,6 +562,9 @@ export function create(route, world) {
         // eases the van in at 4 m/s, so for a while it rides over the verge,
         // where the animal waits nose to the kerb.
         if (!sameRoadBefore(route, sx)) continue;
+        // An extra place, or the water's, with nothing out today is no
+        // crossing at all: no sign, and it keeps no other from the route.
+        if (!outToday(site, drive)) continue;
         lastS = sx;
         xing.crossings.push(makeCrossing(route, world, site, sx, drive));
       }
@@ -500,7 +591,7 @@ function makeCrossing(route, world, site, s, drive) {
   // the screen's right edge, and an animal should be seen before it steps out.
   // A family always the near one, or its line would wait off the screen.
   const nearSide = r() < 0.75;
-  const party = partyFor(site.place, world.season, site.seed, drive, site.byWood).map((a, k) => ({
+  const party = partyFor(site, world.season, drive).map((a, k) => ({
     ...a, k, d: 0, alpha: 1, phase: r() * 6.28, file: fileOf(a.kind, a.look),
     // Half its length across the road, painted or stand-in, whichever is longer.
     half: Math.max(ART[a.kind].L, TOPDOWN[a.kind].dl) / 2,
@@ -530,10 +621,12 @@ function makeCrossing(route, world, site, s, drive) {
   const c = {
     s, x: p.x, y: p.y, h: p.h, halfW, side,
     // The leader waits with its nose just short of the kerb, in plain sight
-    // and in front of the hedge (scenery.js's begin about 2.8 m beyond it).
-    verge: party[0] ? party[0].half + 0.15 : 1, cls, place: site.place, seed: site.seed,
+    // and in front of the hedge (scenery.js's begin about 2.8 m beyond it);
+    // a big one further back (waitBack).
+    verge: party[0] ? waitBack(party[0]) : 1, cls, place: site.place, seed: site.seed,
     species: party[0]?.kind ?? (['houses', 'park', 'hedge'].includes(site.place) ? 'hedgehog' : null), party,
-    sign: { x: sign.x, y: sign.y, h: sign.h, lat: signLat, hog: ['houses', 'park', 'hedge'].includes(site.place) },
+    sign: { x: sign.x, y: sign.y, h: sign.h, lat: signLat,
+      hog: ['houses', 'park', 'hedge'].includes(site.place) && party[0]?.kind !== 'deer' },
     state: party.length ? 'wait' : 'none', t: 0, seen: 0, script: null, leg: null,
     forced: false, moving: false, praised: false,
     pauses: [0.5 + r() * 0.8, r() < 0.6 ? 0.3 + r() * 0.8 : 0], midFrac: 0.3 + r() * 0.35,
@@ -569,7 +662,7 @@ function zoneOf(c) {
 function buildScript(c) {
   const lead = c.party[0], g = GAIT[lead.kind];
   const last = c.party[c.party.length - 1];
-  const kerb = 0.35, mid = c.verge + c.midFrac * 2 * c.halfW;
+  const kerb = c.verge - lead.half + 0.2, mid = c.verge + c.midFrac * 2 * c.halfW;
   const end = c.verge + 2 * c.halfW + last.half + 0.6 + last.back;
   const legs = [];
   let d = 0;
@@ -704,7 +797,10 @@ export function step(xing, dt, van, others = []) {
       const v = van.view;
       if (v?.ahead == null || c.s - van.s < v.ahead) c.seen += dt;
       const clear = v?.ahead == null || !v.ppm || c.s + c.top - van.s < v.ahead - chipsPx(v, xing.t) / v.ppm;
-      if (c.s - nose <= triggerGap(c, van.v, L) && c.seen >= SEEN_S && clear) {
+      // A frame early rather than a frame late: the van moves on v dt after
+      // this, and setting out that much past triggerGap brought her stop, and
+      // the van's own, that much nearer.
+      if (c.s - nose - van.v * dt <= triggerGap(c, van.v, L) && c.seen >= SEEN_S && clear) {
         if (gap < van.v * van.v / (2 * COMMIT_DECEL) + 0.5) c.state = 'late';
         else if (trafficClear(c, others)) {
           c.state = 'go'; c.blocking = true; c.moving = van.v > 0.5;
@@ -906,9 +1002,26 @@ function boundOf(kind) {
   const sc = 1 + 0.25 * (g.lift ?? 0) / sp.dl, yaw = 0.3;
   const lx = Math.max(sp.dl * sc, 2 * 0.62 * sp.dl * MAX_SWELL) / 2, ly = Math.max(sp.dw * sc, 2 * 0.72 * sp.dw * MAX_SWELL) / 2;
   const top = ly * Math.cos(yaw) + lx * Math.sin(yaw);
-  return (BOUNDS[kind] = { reach: Math.max(art, top) + WOBBLE_M, back: (hi - lo) / 2 });
+  // Waiting it stands still, but for a look about, with its halo at the
+  // verge's size; and upright on the screen, so turned by however far the
+  // camera is from the road's line, which far from the van, or with the van
+  // coming round a bend, can be any way at all. No point of it is further
+  // from its feet than wait.
+  const wHalf = Math.max(A.L / 2 + A.H * Math.sin(0.04), GLOW_RX * A.L * 1.035 * HALO_VERGE) + HAIR_M;
+  const wait = Math.hypot(wHalf, A.H + A.L * Math.sin(0.04) + HAIR_M);
+  return (BOUNDS[kind] = { reach: Math.max(art, top) + WOBBLE_M, back: (hi - lo) / 2, wait });
 }
 function reachOf(kind) { return boundOf(kind).reach; }
+
+/** How far beyond the kerb an animal waits, to its feet: its nose just short
+ *  of the kerb, or for a big one far enough back that, turned any way with
+ *  the camera, it is drawn clear of anything passing, whose side keeps
+ *  KERB_GAP_M from the kerb (a 2.5 m lorry in the 4 m lane of an 8 m street
+ *  keeps 0.75 m). A deer waited with its nose at the kerb, and seen from a
+ *  van coming round a bend, or from one far behind, its head was drawn over
+ *  a car going by the other way: it stands back at the wood's edge. */
+const KERB_GAP_M = 0.5;
+function waitBack(a) { return Math.max(a.half + 0.15, boundOf(a.kind).wait - KERB_GAP_M); }
 
 /** Which stretches every other vehicle must stay out of (traffic.js): where
  *  an animal is on the road or setting out, whether or not the van is

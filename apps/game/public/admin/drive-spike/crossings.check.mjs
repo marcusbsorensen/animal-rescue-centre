@@ -12,14 +12,19 @@
 // is in world space: the van's rectangle against every animal's body as
 // drawn (crossings.js draws them at storybook size, side on and upright on
 // the screen, with a glow under each, and that box is what a child sees the
-// van stop short of). The page's camera is stepped too, since a side-on
-// animal's box is square to it; a third of the drivers hold the phone
-// sideways.
+// van stop short of). The page's camera is stepped too, as the page has it
+// (pageCamera: the road it shows ahead, its zoom and its aim), since an
+// animal steps out only once it is on screen and a side-on animal's box is
+// square to the camera; a third of the drivers hold the phone sideways.
+// Then real drives between the places, with the default van and with
+// Trikey, for how often the rarer animals are out (60A; DRIVES=250 a season).
 //
 // Asserts: no contact ever; crossings only on residential, unclassified and
-// track; no hedgehog in winter; ducklings only in spring. Prints the counts.
+// track; no hedgehog in winter; ducklings only in spring; a deer on about
+// one real drive in ten with either van. Prints the counts.
 
 import * as crossings from './crossings.js';
+import * as trikeyRoads from './trikey-roads.js';
 import { readFileSync } from 'node:fs';
 
 // ----------------------------------------------------- the page's constants
@@ -29,7 +34,7 @@ const ROAD_M = { secondary: 10, tertiary: 10, unclassified: 9, residential: 8, t
 const LANE_M = 5, TRUNK_LANE_M = 5, RESERVATION_M = 1.6, TRUNK_M = 4 * TRUNK_LANE_M + RESERVATION_M;
 const roadWidth = cls => cls === 'trunk' ? TRUNK_M : (ROAD_M[cls] ?? 8);
 const GEARS = { 1: 7, 2: 13, 3: 20 };
-const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34, EMERGENCY = 26;
+const ACCEL = 9, BRAKE = 14, HANDBRAKE = 34, EMERGENCY = 26, ENGINE_EASE = 4, TOP_OUT = 3.5, TOP_PULL = 0.18;
 const PULL_UP = 2.5, STOP_SHORT_M = 6, ARRIVED_WAIT_S = 3.5;
 const VAN_W = 2.4, VAN_L = 2.4 * 1131 / 561;   // henry's top-down sprite aspect
 const METRES_PER_MAP_PX = METRES_PER_UNIT / 1121;
@@ -106,18 +111,129 @@ function edgeClasses(graph) {
 
 function newCar() { return { zoom: null, s: 0, lane: 0, laneT: 0, base: null, laneWant: 0, v: 0, gear: 2, length: VAN_L, width: VAN_W, camH: null }; }
 
+// ------------------------------------------------------- the page's camera
+
+/** drive-spike.html's camera as the page has it now, measured there at
+ *  390x844 upright and 844x390 held sideways: the dashboard takes the
+ *  bottom 152 px (72 sideways); the van sits 75% down the road view above
+ *  it (86% sideways, raised until its tail and 16 px of road behind it clear
+ *  the dashboard), so the road shown ahead of it is vanY / ppm; the chips end
+ *  66 px down either way; held sideways every zoom is 0.75 of upright. The
+ *  zoom is the page's zoomTarget: by speed and by road, pulled back to 0.72
+ *  in a town when upright (59A) but not where an animal is about to cross,
+ *  in at the gate, out before the dual carriageway; eased, out quicker than
+ *  in. The camera aims 20 m up the route, or 0.7 of the road shown, at most
+ *  28 m. In portrait that is 26-30 m of road ahead in second and third gear,
+ *  where the old model of it here showed 20.6 m. */
+const SCREEN = {
+  upright: { roadH: 844 - 152, pin: 0.75, zoomX: 1 },
+  sideways: { roadH: 390 - 72, pin: 0.86, zoomX: 0.75 },
+};
+const CHIPS_PX = 66, BEHIND_PX = 16;
+const ZOOM_FAST = 0.66, ZOOM_STILL = { lane: 1.35, road: 1.15 }, ZOOM_ARRIVE = 1.6, ARRIVE_ZOOM_M = 120;
+const BIG_ROAD_ZOOM = 0.62, ZOOM_TOWN = 0.72, TOWN_AHEAD_M = 30, TOWN_EASE = 1.5;
+const LOOKAHEAD_M = 20, LOOKAHEAD_MAX_M = 28, CAM_EASE = 3.4;
+const ZOOM_LANES = new Set(['residential', 'unclassified', 'track', 'path', 'crossing']);
+
+/** scenery.js's townAt, from the buildings.json it reads: 1 inside a housing
+ *  area, else by how many town buildings stand within 45 m (8 make a street). */
+const TOWN = (() => {
+  const B = JSON.parse(readFileSync(new URL('../../assets/driving/buildings.json', import.meta.url)));
+  const ring = a => {
+    const r = []; let x = a[1], y = a[2];
+    r.push([x * B.q, y * B.q]);
+    for (let k = 3; k + 1 < a.length; k += 2) { x += a[k]; y += a[k + 1]; r.push([x * B.q, y * B.q]); }
+    return r;
+  };
+  const KINDS = new Set(['house', 'flats', 'retail', 'church', 'school', 'station', 'hall']);
+  const cell = (x, y) => Math.floor(x / 50) + ',' + Math.floor(y / 50);
+  const put = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+  const blds = new Map(), housing = new Map();
+  for (const a of B.b) {
+    if (!KINDS.has(B.kinds[a[0]])) continue;
+    const r = ring(a), cx = r.reduce((n, p) => n + p[0], 0) / r.length, cy = r.reduce((n, p) => n + p[1], 0) / r.length;
+    put(blds, cell(cx, cy), [cx, cy]);
+  }
+  for (const a of B.a) {
+    if (B.areas[a[0]] !== 'housing') continue;
+    const r = ring(a);
+    const xs = r.map(p => p[0]), ys = r.map(p => p[1]);
+    const box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+    for (let i = Math.floor(box[0] / 50); i <= Math.floor(box[2] / 50); i++) {
+      for (let j = Math.floor(box[1] / 50); j <= Math.floor(box[3] / 50); j++) put(housing, i + ',' + j, r);
+    }
+  }
+  return { blds, housing };
+})();
+function inRing(r, x, y) {
+  let c = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const [ax, ay] = r[i], [bx, by] = r[j];
+    if ((ay > y) !== (by > y) && x < (bx - ax) * (y - ay) / (by - ay) + ax) c = !c;
+  }
+  return c;
+}
+function townAt(x, y) {
+  if ((TOWN.housing.get(Math.floor(x / 50) + ',' + Math.floor(y / 50)) ?? []).some(r => inRing(r, x, y))) return 1;
+  let n = 0;
+  for (let i = Math.floor((x - 45) / 50); i <= Math.floor((x + 45) / 50); i++) {
+    for (let j = Math.floor((y - 45) / 50); j <= Math.floor((y + 45) / 50); j++) {
+      for (const [bx, by] of TOWN.blds.get(i + ',' + j) ?? []) if ((bx - x) ** 2 + (by - y) ** 2 < 45 * 45 && ++n >= 8) return 1;
+    }
+  }
+  return Math.max(0, n - 1) / 7;
+}
+/** The page's townHere: 0 held sideways, on a farm track, and where an
+ *  animal is about to cross. */
+function townHere(car, route, xing) {
+  if (car.sideways || route.roadClassAt(car.s) === 'track') return 0;
+  if (xing.crossings.some(c => c.state !== 'none' && c.state !== 'gone' && c.s > car.s - 5 && c.s - car.s < 60)) return 0;
+  const a = route.atDistance(car.s), b = route.atDistance(Math.min(route.length, car.s + TOWN_AHEAD_M));
+  return Math.max(townAt(a.x, a.y), townAt(b.x, b.y));
+}
+
+/** The page's zoom, view and camera heading after a step, onto car.view
+ *  (what crossings.js reads the next frame, as the page draws it) and
+ *  car.camH. toGo is from before the step, as the page's. */
+function pageCamera(car, route, xing, dt, toGo) {
+  const S = car.sideways ? SCREEN.sideways : SCREEN.upright;
+  const big = s => route.roadClassAt(Math.min(route.length, s)) === 'trunk';
+  const townNow = townHere(car, route, xing);
+  car.town = (car.town ?? townNow) + (townNow - (car.town ?? townNow)) * (1 - Math.exp(-TOWN_EASE * dt));
+  const still = ZOOM_LANES.has(route.roadClassAt(car.s)) ? ZOOM_STILL.lane : ZOOM_STILL.road;
+  let zt = still + (ZOOM_FAST - still) * Math.min(1, car.v / GEARS[3]);
+  if (car.town > 0) zt += (Math.min(zt, ZOOM_TOWN) - zt) * car.town;
+  if (toGo < ARRIVE_ZOOM_M) zt += (ZOOM_ARRIVE - zt) * (1 - toGo / ARRIVE_ZOOM_M);
+  if (big(car.s) || big(car.s + 40)) zt = Math.min(zt, BIG_ROAD_ZOOM);
+  car.zoom = car.zoom == null ? zt : car.zoom * Math.exp(Math.log(zt / car.zoom) * (1 - Math.exp(-(zt < car.zoom ? 1.5 : 0.7) * dt)));
+  const pos = route.atDistance(car.s);
+  const aimM = Math.min(LOOKAHEAD_MAX_M, Math.max(LOOKAHEAD_M, 0.7 * (car.view?.ahead ?? 0)));
+  const aheadP = route.atDistance(Math.min(route.length - 1, car.s + aimM));
+  const aim = Math.atan2(aheadP.y - pos.y, aheadP.x - pos.x);
+  if (car.camH == null) car.camH = aim;
+  else { const d = aim - car.camH; car.camH += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, CAM_EASE * dt); }
+  const ppm = 22 * car.zoom * S.zoomX;
+  const vanY = Math.min(S.roadH * S.pin, S.roadH - car.length * ppm / 2 - BEHIND_PX);
+  car.view = { ahead: vanY / ppm, ppm, chipsPx: CHIPS_PX };
+}
+
 /** drive-spike.html's step(), less the camera: the same order, the same caps. */
 function stepCar(car, route, xing, dt, input, stats) {
   const x = crossings.step(xing, dt, car);
   const cap = x.speedCap;
+  car.xCap = cap;
   stats.praised += x.events.length;   // its only event is the thanks for stopping
   const toGo = route.length - car.s;
   const arriveCap = Math.sqrt(2 * PULL_UP * Math.max(0, toGo - STOP_SHORT_M));
-  const target = Math.min(input.throttle ? GEARS[car.gear] : 0, arriveCap);
+  const gearV = GEARS[car.gear];
+  const target = Math.min(input.throttle ? gearV : 0, arriveCap);
   let capped = 0;
   if (car.v > cap) { const v0 = car.v; car.v = Math.max(cap, car.v - EMERGENCY * dt); capped = (v0 - car.v) / dt; }
   else if (input.handbrake) car.v = Math.max(0, car.v - HANDBRAKE * dt);
-  else if (car.v < target) car.v = Math.min(target, cap, car.v + ACCEL * dt);
+  else if (car.v < target) {
+    const pull = Math.max(TOP_PULL, Math.min(1, (gearV - car.v) / TOP_OUT));
+    car.v = Math.min(target, cap, car.v + ACCEL * pull * dt);
+  } else if (input.throttle && target === gearV) car.v = Math.max(target, car.v - ENGINE_EASE * dt);
   else car.v = Math.max(target, car.v - BRAKE * dt);
   // Felt as a hard stop as the page counts it: harder than letting go, over 0.1 s.
   car.felt = (car.felt ?? 0) + (capped - (car.felt ?? 0)) * (1 - Math.exp(-dt / 0.1));
@@ -131,22 +247,8 @@ function stepCar(car, route, xing, dt, input, stats) {
   if (car.base == null) car.base = off0;
   car.base += Math.max(-4 * dt, Math.min(4 * dt, off0 - car.base));
   car.lane = car.base + car.laneT * (off1 - off0);
-  // What the page's camera shows ahead of the van at the zoom for this
-  // speed, less the page's easing: upright on a 390x844 phone, or held
-  // sideways (844x390: the van lower, the camera pulled back by 0.75).
-  // crossings.js waits for an animal to be on screen, below the chips,
-  // before it steps out.
-  // Eased as the page eases it, out quicker than in.
-  const zt = 1.35 + (0.66 - 1.35) * Math.min(1, car.v / GEARS[3]);
-  car.zoom = car.zoom == null ? zt : car.zoom * Math.exp(Math.log(zt / car.zoom) * (1 - Math.exp(-(zt < car.zoom ? 1.5 : 0.7) * dt)));
-  const ppm = 22 * car.zoom * (car.sideways ? 0.75 : 1);
-  car.view = { ahead: (car.sideways ? 254.4 : 408.28) / ppm, ppm, chipsPx: car.sideways ? 68 : 104 };
+  pageCamera(car, route, xing, dt, toGo);
   const pos = route.atDistance(car.s);
-  // The page's camera: aimed at the route 20 m ahead, eased at 3.4 a second.
-  const aheadP = route.atDistance(Math.min(route.length - 1, car.s + 20));
-  const aim = Math.atan2(aheadP.y - pos.y, aheadP.x - pos.x);
-  if (car.camH == null) car.camH = aim;
-  else { const d = aim - car.camH; car.camH += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, 3.4 * dt); }
   car.x = pos.x + Math.cos(pos.h + Math.PI / 2) * car.lane;
   car.y = pos.y + Math.sin(pos.h + Math.PI / 2) * car.lane;
   car.h = pos.h;
@@ -193,7 +295,7 @@ function clearance(car, a) {
 const totals = {
   seeds: 0, minutes: 0, routes: 0, crossings: 0, crossed: 0, late: 0, sleeping: 0,
   praised: 0, selfStops: 0, emergencyFrames: 0, families: 0, contacts: 0, minClear: Infinity, skew: 0, minClearSide: {}, lateBy: {},
-  offSmall: 0, fileStray: 0, rest: [], restForced: [], restCareful: [], restByGear: {}, scripted: {}, outSlow: [], outFast: [], winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {}, bodies: {},
+  offSmall: 0, fileStray: 0, outLate: 0, eased: 0, rest: [], restForced: [], restCareful: [], restByGear: {}, scripted: {}, outSlow: [], outFast: [], winterHogs: 0, ducklingsOutOfSpring: 0, bySpecies: {}, byPlace: {}, bySeason: {}, bodies: {},
 };
 const fail = [];
 
@@ -304,10 +406,17 @@ function drive(seed, newRouteFn, season, label, driver = null, T = 20 * 60) {
     for (const c of xing.crossings) {
       if (c.state === 'go' && c.blocking && !c._out) {
         c._out = true; c._outAt = t; c._gear = car.gear; c._v = car.v; c._peak = 0;
+        if (c.stopAt < car.length - 0.3) totals.outLate++;
         (car.v < 2 ? totals.outSlow : totals.outFast).push(c.s - (car.s + car.length / 2));
       }
     }
     for (const c of xing.crossings) if (c._out && !c._rest) c._peak = Math.max(c._peak, car.felt ?? 0);
+    // Eased for an animal waiting ahead: crossings.js's cap below the gear's
+    // speed while it waits and nothing is on the road.
+    for (const c of xing.crossings) {
+      if (c.state === 'wait' && c.party.length && !c._eased && c.s > car.s && car.xCap < GEARS[car.gear] - 0.5
+        && !xing.crossings.some(o => o.state === 'go' && o.blocking)) { c._eased = true; totals.eased++; }
+    }
     // Where the van came to rest for a crossing: its nose to the animal's line.
     if (car.v < 0.05) for (const c of xing.crossings) {
       if (c.state === 'go' && c.blocking && !c._rest) {
@@ -410,6 +519,67 @@ for (const gear of [1, 2, 3]) for (const sideways of [false, true]) for (const r
   }
 }
 
+// Real drives (60A): how often the rarer animals are out on a drive, as the
+// page picks its drives: between the places at random, each from where the
+// last pulled up, with the default van on the roads and with Trikey on hers
+// (trikey-roads.js), DRIVES a season in every season.
+const DRIVES = Number(process.env.DRIVES ?? 250);
+const trike = trikeyRoads.create(real, JSON.parse(readFileSync(new URL('../../assets/driving/trikey-links.json', import.meta.url))));
+const trikeShown = (() => {
+  const cw = JSON.parse(readFileSync(new URL('../../assets/driving/trunk-carriageways.json', import.meta.url)));
+  const rec = new Map();
+  for (const c of cw.edges) { const e = real.edges[c.edge]; if (e && e[2] === 'trunk' && e[0] === c.nodes[0] && e[1] === c.nodes[1]) rec.set(c.edge, c); }
+  const half = k => { const c = rec.get(k); return !c || c.kind === 'dual' ? TRUNK_M / 2 : c.kind === 'divided' ? (2 * Math.max(1, c.lanes) * LANE_M + 1.2) / 2 : ROAD_M.secondary / 2; };
+  return trikeyRoads.clearOfA28(trike, half, (fx, fy) => ({ x: fx * ASPECT * METRES_PER_UNIT, y: fy * METRES_PER_UNIT }));
+})();
+/** Her route as the page draws and drives it (routePoints), as makeRoute's. */
+function trikeRoute(path) {
+  const pts = trikeyRoads.routePoints(trike, trikeShown, path).map(p => ({ x: p.x, y: p.y, s: 0, cls: p.cls }));
+  const g = { nodes: pts.map(p => [p.x / (ASPECT * METRES_PER_UNIT), p.y / METRES_PER_UNIT]) };
+  const cls = new Map(pts.map((p, i) => [(i - 1) * 4096 + i, p.cls]));
+  return makeRoute(g, pts.map((p, i) => i), cls);
+}
+function realTrip(r, from, van) {
+  let best = null;
+  for (let k = 0; k < 40; k++) {
+    if (van === 'trikey') {
+      const trip = trikeyRoads.pickTrip(trike, r, from);
+      if (!trip || trip.path.length < 2) continue;
+      best = { route: trikeRoute(trip.path), to: trip.to };
+      if (trip.path.length >= 12 && best.route.length > 1200) break;
+    } else {
+      const a = from ?? ids[(r() * ids.length) | 0], b = ids[(r() * ids.length) | 0];
+      if (a === b) continue;
+      const p = shortestPath(real.anchors[a], real.anchors[b]);
+      if (!p || p.length < 12) continue;
+      best = { route: makeRoute(real, p, realCls), to: b };
+      if (best.route.length > 1200) break;
+    }
+  }
+  return best;
+}
+const rarity = {};
+for (const van of ['henry', 'trikey']) {
+  const T = rarity[van] = { drives: 0, km: 0, drake: 0, deer: 0, family: 0, places: 0, animals: 0, bySeason: {} };
+  const r = rng(van === 'trikey' ? 7 : 3);
+  for (const season of SEASONS) {
+    const Z = T.bySeason[season] = { drives: 0, drake: 0, deer: 0, family: 0 };
+    let from = null;
+    for (let d = 0; d < DRIVES; d++) {
+      const trip = realTrip(r, from, van);
+      if (!trip) { from = null; continue; }
+      from = trip.to;
+      const xg = crossings.create(trip.route, { graph: real, mapToWorld, season });
+      const all = xg.crossings.flatMap(c => c.party);
+      const has = { drake: all.some(a => a.kind === 'duck' && a.look === 'drake'), deer: all.some(a => a.kind === 'deer'), family: all.some(a => a.kind === 'duckling') };
+      T.drives++; Z.drives++; T.km += trip.route.length / 1000;
+      for (const k of ['drake', 'deer', 'family']) if (has[k]) { T[k]++; Z[k]++; }
+      T.places += xg.crossings.length;
+      T.animals += xg.crossings.filter(c => c.party.length).length;
+    }
+  }
+}
+
 console.log(`seeds ${totals.seeds} (50 synthetic + 12 on the Birchie graph), ${totals.minutes} simulated minutes, ${totals.routes} routes`);
 console.log(`crossing places on the routes driven ${totals.crossings} (${totals.sleeping} hedgehog places asleep in winter), animals crossed ${totals.crossed}`);
 console.log(`by species ${JSON.stringify(totals.bySpecies)}`);
@@ -432,12 +602,22 @@ console.log(`crossed behind the van, by species and how the phone was held ${JSO
   for (const k of Object.keys(totals.restByGear).sort()) console.log(`  ${k.padEnd(10)} ${dist(totals.restByGear[k])}`);
   console.log(`scripted drivers, go held in one gear:`);
   for (const k of Object.keys(totals.scripted).sort()) console.log(`  ${k.padEnd(42)} ${dist(totals.scripted[k])}`);
-  console.log(`how far ahead of the nose an animal set out: van creeping or standing median ${q(totals.outSlow, 0.5)} m (${totals.outSlow.length}), moving median ${q(totals.outFast, 0.5)} m (${totals.outFast.length})`);
+  console.log(`how far ahead of the nose an animal set out: van creeping or standing median ${q(totals.outSlow, 0.5)} m (${totals.outSlow.length}), moving median ${q(totals.outFast, 0.5)} m (${totals.outFast.length}); stepped out late (the van's own stop nearer than a van length) ${totals.outLate}; the van eased for an animal waiting ahead ${totals.eased} times`);
 }
 console.log(`contacts ${totals.contacts}, closest the van came to a crossing animal's drawn body ${totals.minClear.toFixed(2)} m`);
 console.log(`closest while it blocked the road: upright ${totals.minClearSide.upright?.toFixed(2)} m, sideways ${totals.minClearSide.sideways?.toFixed(2)} m; the camera turned at most ${totals.skew.toFixed(2)} rad off a crossing's line within 6 m of it (crossings.js allows ${crossings.CAMERA_SKEW})`);
 console.log(`drawn bodies measured (box across x along, first seen): ${Object.entries(totals.bodies).map(([k, v]) => `${k} ${v}`).join(', ')}`);
 console.log(`crossings off the small roads ${totals.offSmall}, hedgehogs in winter ${totals.winterHogs}, ducklings outside spring ${totals.ducklingsOutOfSpring}`);
+{
+  const per = (n, of) => n ? `1 in ${(of / n).toFixed(1)}` : 'none';
+  console.log(`real drives, ${DRIVES} a season (60A): the rarer animals out on a drive, and crossing places per km`);
+  for (const [van, T] of Object.entries(rarity)) {
+    console.log(`  ${van.padEnd(6)} ${T.drives} drives, ${T.km.toFixed(0)} km: drake ${per(T.drake, T.drives)}, deer ${per(T.deer, T.drives)}, duck family ${per(T.family, T.bySeason.spring.drives)} spring drives; ${(T.places / T.km).toFixed(2)} places a km, ${(T.animals / T.km).toFixed(2)} with an animal out`);
+    console.log(`         by season ${Object.entries(T.bySeason).map(([k, z]) => `${k} drake ${z.drake}, deer ${z.deer}, families ${z.family} of ${z.drives}`).join('; ')}`);
+    // About one drive in ten (Marcus, 60A).
+    if (T.deer < T.drives / 15 || T.deer > T.drives / 6) fail.push(`${van}: a deer on ${per(T.deer, T.drives)} drives, not about one in ten`);
+  }
+}
 if (totals.skew > crossings.CAMERA_SKEW) fail.push(`the camera turned ${totals.skew.toFixed(2)} rad off a crossing, more than crossings.js's CAM_SKEW allows for`);
 if (fail.length || !totals.crossed || !totals.selfStops || !totals.praised || !totals.families) {
   console.error('FAIL\n' + fail.slice(0, 20).join('\n'));

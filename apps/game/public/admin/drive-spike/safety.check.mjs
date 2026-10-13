@@ -231,6 +231,90 @@ function clearance(P, Q) {
   return best;
 }
 
+// ------------------------------------------------------- the page's camera
+
+/** drive-spike.html's camera, as crossings.check.mjs models it (measured on
+ *  the page at 390x844 upright and 844x390 sideways): the road shown ahead
+ *  of the van is vanY / ppm, the van 75% down the road view above the
+ *  152 px dashboard (86% above 72 px sideways, raised to keep its tail and
+ *  16 px behind it in view), the chips end 66 px down, sideways every zoom
+ *  0.75 of upright; the page's zoomTarget, its town pull-back (scenery.js's
+ *  townAt from buildings.json) and its eased aim 20-28 m up the route. */
+const SCREEN = {
+  upright: { roadH: 844 - 152, pin: 0.75, zoomX: 1 },
+  sideways: { roadH: 390 - 72, pin: 0.86, zoomX: 0.75 },
+};
+const ZOOM_LANES = new Set(['residential', 'unclassified', 'track', 'path', 'crossing']);
+const TOWN = (() => {
+  const B = JSON.parse(readFileSync(new URL('../../assets/driving/buildings.json', import.meta.url)));
+  const ring = a => {
+    const r = []; let x = a[1], y = a[2];
+    r.push([x * B.q, y * B.q]);
+    for (let k = 3; k + 1 < a.length; k += 2) { x += a[k]; y += a[k + 1]; r.push([x * B.q, y * B.q]); }
+    return r;
+  };
+  const KINDS = new Set(['house', 'flats', 'retail', 'church', 'school', 'station', 'hall']);
+  const put = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+  const blds = new Map(), housing = new Map();
+  for (const a of B.b) {
+    if (!KINDS.has(B.kinds[a[0]])) continue;
+    const r = ring(a), cx = r.reduce((n, p) => n + p[0], 0) / r.length, cy = r.reduce((n, p) => n + p[1], 0) / r.length;
+    put(blds, Math.floor(cx / 50) + ',' + Math.floor(cy / 50), [cx, cy]);
+  }
+  for (const a of B.a) {
+    if (B.areas[a[0]] !== 'housing') continue;
+    const r = ring(a), xs = r.map(p => p[0]), ys = r.map(p => p[1]);
+    for (let i = Math.floor(Math.min(...xs) / 50); i <= Math.floor(Math.max(...xs) / 50); i++) {
+      for (let j = Math.floor(Math.min(...ys) / 50); j <= Math.floor(Math.max(...ys) / 50); j++) put(housing, i + ',' + j, r);
+    }
+  }
+  return { blds, housing };
+})();
+function inRing(r, x, y) {
+  let c = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const [ax, ay] = r[i], [bx, by] = r[j];
+    if ((ay > y) !== (by > y) && x < (bx - ax) * (y - ay) / (by - ay) + ax) c = !c;
+  }
+  return c;
+}
+function townAt(x, y) {
+  if ((TOWN.housing.get(Math.floor(x / 50) + ',' + Math.floor(y / 50)) ?? []).some(r => inRing(r, x, y))) return 1;
+  let n = 0;
+  for (let i = Math.floor((x - 45) / 50); i <= Math.floor((x + 45) / 50); i++) {
+    for (let j = Math.floor((y - 45) / 50); j <= Math.floor((y + 45) / 50); j++) {
+      for (const [bx, by] of TOWN.blds.get(i + ',' + j) ?? []) if ((bx - x) ** 2 + (by - y) ** 2 < 45 * 45 && ++n >= 8) return 1;
+    }
+  }
+  return Math.max(0, n - 1) / 7;
+}
+function pageCamera(car, R, X, dt, toGo) {
+  const S = car.sideways ? SCREEN.sideways : SCREEN.upright;
+  const big = s => { s = Math.min(R.length, s); if (R.classAtS(s) !== 'trunk') return false; const c = R.cwAtS(s); return !c || c.kind === 'dual'; };
+  let townNow = 0;
+  if (!car.sideways && R.classAtS(car.s) !== 'track'
+    && !X.crossings.some(c => c.state !== 'none' && c.state !== 'gone' && c.s > car.s - 5 && c.s - car.s < 60)) {
+    const a = R.atDistance(car.s), b = R.atDistance(Math.min(R.length, car.s + 30));
+    townNow = Math.max(townAt(a.x, a.y), townAt(b.x, b.y));
+  }
+  car.town = (car.town ?? townNow) + (townNow - (car.town ?? townNow)) * (1 - Math.exp(-1.5 * dt));
+  const still = ZOOM_LANES.has(R.classAtS(car.s)) ? 1.35 : 1.15;
+  let zt = still + (0.66 - still) * Math.min(1, car.v / GEARS[3]);
+  if (car.town > 0) zt += (Math.min(zt, 0.72) - zt) * car.town;
+  if (toGo < 120) zt += (1.6 - zt) * (1 - toGo / 120);
+  if (big(car.s) || big(car.s + 40)) zt = Math.min(zt, 0.62);
+  car.zoom = car.zoom == null ? zt : car.zoom * Math.exp(Math.log(zt / car.zoom) * (1 - Math.exp(-(zt < car.zoom ? 1.5 : 0.7) * dt)));
+  const pos = R.atDistance(car.s);
+  const aimM = Math.min(28, Math.max(20, 0.7 * (car.view?.ahead ?? 0)));
+  const aheadP = R.atDistance(Math.min(R.length - 1, car.s + aimM));
+  const aim = Math.atan2(aheadP.y - pos.y, aheadP.x - pos.x);
+  if (car.camH == null) car.camH = aim;
+  else { const d = aim - car.camH; car.camH += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, 3.4 * dt); }
+  const ppm = 22 * car.zoom * S.zoomX;
+  const vanY = Math.min(S.roadH * S.pin, S.roadH - car.length * ppm / 2 - 16);
+  car.view = { ahead: vanY / ppm, ppm, chipsPx: 66 };
+}
+
 // ---------------------------------------------------------------- the van
 
 function newCar() {
@@ -282,14 +366,8 @@ function stepCar(car, R, T, X, dt, input, stats) {
   car.base += Math.max(-4 * dt, Math.min(4 * dt, off0 - car.base));
   car.lane = car.base + car.laneT * (off1 - off0);
 
-  const zoom = 1.35 + (0.66 - 1.35) * Math.min(1, car.v / GEARS[3]);
-  const ppm = 22 * zoom * (car.sideways ? 0.75 : 1);
-  car.view = { ahead: (car.sideways ? 254.4 : 408.28) / ppm, ppm, chipsPx: car.sideways ? 68 : 104 };
+  pageCamera(car, R, X, dt, toGo);
   const pos = R.atDistance(car.s);
-  const aheadP = R.atDistance(Math.min(R.length - 1, car.s + 20));
-  const aim = Math.atan2(aheadP.y - pos.y, aheadP.x - pos.x);
-  if (car.camH == null) car.camH = aim;
-  else { const d = aim - car.camH; car.camH += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, 3.4 * dt); }
   car.x = pos.x + Math.cos(pos.h + Math.PI / 2) * car.lane;
   car.y = pos.y + Math.sin(pos.h + Math.PI / 2) * car.lane;
   car.h = pos.h;

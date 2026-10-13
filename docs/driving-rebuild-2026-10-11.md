@@ -310,6 +310,38 @@ stops itself, as it does for traffic. Never an accident.
   Letting go a moment after it moves stops her about 5 m short; if she does
   not, the van stops itself about 4.4 m short, and that still counts as rough
   driving (`crossings.check.mjs` reports the stops by gear).
+- The camera fix (2026-10-13). The checks modelled the old camera (20.6 m of
+  road ahead in second gear, upright); the page now shows 26-30 m in second
+  and third, the van 75% down the road view above the dashboard. So the
+  animal was always on screen in time, the van never eased, and it stepped
+  out with the van at full speed: the stops ran from 3.9 to 5.4 m. Now the
+  van eases, gently, to first gear's speed for an animal waiting at the
+  kerb in every gear, and the animal sets out a frame early rather than a
+  frame late: upright, letting go stops her 5.1-5.5 m short and the van's
+  own stop is 4.5-4.6 m, in every gear. Held sideways the screen shows too
+  little road above the van for that in first gear (about 8 m below the
+  chips at the lane zoom); the van creeps and stops 3.5-4.5 m short there.
+  Both checks now model the page's camera as measured on it (390x844 and
+  844x390), its town pull-back included.
+- Rarer animals, more often (60A, 2026-10-13). The drake was out on one
+  drive in a hundred or more and a deer on one in forty; each should be
+  about one in ten.
+  The child's map is coarse: its woods, one pond no lane passes, and garden
+  swimming pools, which were where the ducks crossed. So the real water and
+  woods beside the lanes come from OpenStreetMap: `tools/osm-nature.py`
+  writes `assets/driving/nature.json`. Every lane beside water or along a
+  wood's edge is a place the ducks or a deer may cross, as well as the usual
+  places, but only on a drive when they do, so drives are no more
+  stop-start: the ducks at a water place are out on half the drives, and a
+  deer on two in five, at the first wood's edge or field by the woods the
+  drive passes. A deer is now out on about one drive in ten, with Henry and
+  with Trikey. A big animal waits further back from the kerb (a deer at the
+  wood's edge, about 3.3 m), so that drawn upright however the camera turns
+  it is never drawn over a car going by. Still the sexes mixed, and only the
+  duck leads ducklings. The OpenStreetMap export the map was drawn from has
+  no water in it at all (no pond, stream, ditch or drain), so until the
+  water is fetched (the tool prints the query) the ducks still cross by the
+  garden pools, and the drake and Trikey's duck families wait on it.
 - Where the route folds back on itself (the A28 bends on a point of the
   Westgate house street the route drove earlier) traffic on the far part was
   being drawn over the van. Such a place is now used one side at a time, the
