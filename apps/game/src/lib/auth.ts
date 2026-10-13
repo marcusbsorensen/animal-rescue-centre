@@ -260,18 +260,3 @@ export async function getAvailableUsernames(count = 3): Promise<string[]> {
   const shuffled = data.sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count).map((row) => row.username);
 }
-
-/**
- * Search for a username (for "I'm on a new device" flow).
- */
-export async function searchUsername(query: string): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('username')
-    .ilike('username', `%${query}%`)
-    .eq('is_active', true)
-    .limit(10);
-
-  if (error) throw new Error('Failed to search usernames');
-  return (data ?? []).map((row) => row.username);
-}
