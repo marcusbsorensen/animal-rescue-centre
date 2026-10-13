@@ -318,7 +318,9 @@ stops itself, as it does for traffic. Never an accident.
   `assets/driving/vehicle-views/` (its README and `index.json` say how they
   are sized), scaled to the vehicle's real width and distance, with a plain
   one in its colour until a picture has loaded. The red and blue tractors
-  are the green one hue-shifted, so the three match.
+  are the green one hue-shifted, so the three match. The tractor is the modern
+  four-wheel-drive one (75D, Marcus, 2026-10-13): Set A front d, with chunky
+  lugged 4WD front tyres, and the rear's seat turned to face forward.
   `drive-spike/behind-view.js` draws it.
 - On the A28's divided stretch her right-hand lane is hers to use; it was
   being refused near every bend as if it were the oncoming lane.
