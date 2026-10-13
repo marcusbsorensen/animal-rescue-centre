@@ -20,7 +20,11 @@
 // small under the destination's name for the grown-up.
 //
 // Contract with drive-spike.html:
-//   create(wrap)                 builds the strip in #wrap, returns T
+//   create(wrap, look)           builds the strip in #wrap, returns T. look is
+//                                the page's ?strip=: 'a', 'b' or 'c' for the
+//                                three directions Marcus is choosing between
+//                                (see "The compact strips" below), anything
+//                                else the strip as it is
 //   load(T)                      fetches landmarks.json; without it there are
 //                                no sights and the strip still works
 //   setVan(T, src)               the van's own top-down picture, pointing up
@@ -126,7 +130,8 @@ function flag() {
   ], SVG_NS);
 }
 
-export function create(wrap) {
+export function create(wrap, look) {
+  if (LOOKS.includes(look)) return createHud(wrap, look);
   if (!document.getElementById('tripStripCss')) {
     const st = el('style', { id: 'tripStripCss' });
     st.textContent = CSS;
@@ -255,17 +260,12 @@ export function choose(T, r) {
 export function setRoute(T, r) {
   T.total = Math.max(1, r.total);
   T.marks = r.route.length > 1 ? choose(T, r) : [];
+  if (T.look) { setRouteHud(T, r); return; }
   T.name.textContent = r.nameOf(r.dest) ?? r.dest;
   T.el.classList.remove('arrived');
   T.arrived = false;
   T.text = null; T.vanY = null;
-  // The signs stand on her side of the road, just past the kerb, and
-  // point to the side the sight is on.
-  T.signs = T.marks.map(m => {
-    const p = r.atDistance(m.s), lat = -(r.roadHalfAt(m.s) + 0.6);
-    return { ...m, x: p.x - Math.sin(p.h) * lat, y: p.y + Math.cos(p.h) * lat, h: p.h,
-      board: signBoard(m.kind, m.name, m.side), board2: m.also && signBoard(m.also.kind, m.also.name, m.also.side) };
-  });
+  T.signs = signsFor(T, r);
   T.marksEl.replaceChildren(...T.marks.map(m => {
     // A pair stands one above the other, the one she passes first lower.
     const both = m.also ? [m, m.also].sort((a, b) => b.s - a.s) : [m];
@@ -276,6 +276,16 @@ export function setRoute(T, r) {
   }));
   T.key = '';
   window.__trip = T;   // which sights this drive shows, for a test
+}
+
+/** The signs stand on her side of the road, just past the kerb, and point
+ *  to the side the sight is on. */
+function signsFor(T, r) {
+  return T.marks.map(m => {
+    const p = r.atDistance(m.s), lat = -(r.roadHalfAt(m.s) + 0.6);
+    return { ...m, x: p.x - Math.sin(p.h) * lat, y: p.y + Math.cos(p.h) * lat, h: p.h,
+      board: signBoard(m.kind, m.name, m.side), board2: m.also && signBoard(m.also.kind, m.also.name, m.also.side) };
+  });
 }
 
 // ------------------------------------------------------------------ layout
@@ -289,6 +299,7 @@ function sizes(w, h) {
 }
 
 export function layout(T, g) {
+  if (T.look) { layoutHud(T, g); return; }
   const S = sizes(g.w, g.h);
   const x = g.left + 8;
   // Below the chips, and below the look-ahead window wherever it would open
@@ -332,6 +343,7 @@ function distanceText(m) {
 }
 
 export function update(T, u) {
+  if (T.look) { updateHud(T, u); return; }
   if (!T.geo) return;
   const p = Math.min(1, u.s / T.total);
   const run = Math.max(0, T.geo.len - T.geo.vanH);
@@ -361,6 +373,420 @@ export function update(T, u) {
       : T.name.textContent + ', ' + text + ' to go' + (next ? ', next ' + next.name : ''));
   }
   if (u.arrived && !T.arrived) { T.arrived = true; T.el.classList.add('arrived'); }
+}
+
+// ------------------------------------------------------- the compact strips
+//
+// Marcus, 2026-10-13: "much too intrusive on the screen and there is wasted
+// space on the left hand side ... more translucent, more compact, and a
+// little bit less like small children's fairy tale drawings ... this is for
+// eight, nine-year-olds." Three directions for him to choose between, by
+// ?strip=, the strip above staying until he picks:
+//   a  a slim frosted rail flush with the left edge, the whole drive, with
+//      the destination and the next sight named in tags beside it
+//   b  no panel at all: a thin outlined line floating over the verge with
+//      ringed markers on it, its two names in haloed text
+//   c  a short capsule at the top left that holds the whole drive, and grows
+//      a card naming the next sight only while it is near
+// All three use the same sights (choose()) and signs, and draw each sight as
+// a flat pictogram on a disc coloured by what kind of place it is, as a
+// map's key or a sat-nav does, instead of the painted icons. Translucent
+// panels are dark tinted glass, so the white on them reads over pale grass
+// and dark tarmac alike; the line in b carries its own dark outline.
+
+const LOOKS = ['a', 'b', 'c'];
+const NEAR_M = 300;   // c: the card opens when the next sight is this close
+
+const HUD_CSS = `
+#trip.hud { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 1; color: #fff;
+  font-weight: 800; --disc: 18px; --van: 12px; --w: 30px; }
+#trip.hud.hidden { visibility: hidden; }
+#trip.hud .hPanel { position: absolute; inset: 0; }
+#trip.hud .hRail { position: absolute; left: calc(var(--w) / 2 - 1.5px); width: 3px; border-radius: 2px;
+  background: rgba(255,255,255,.38); }
+#trip.hud .hDone { position: absolute; left: 0; right: 0; bottom: 0; height: 0; border-radius: 2px; background: #f4c04e; }
+#trip.hud .tVan { position: absolute; left: 50%; bottom: 0; width: var(--van); margin-left: calc(var(--van) / -2);
+  filter: drop-shadow(0 0 1px rgba(0,0,0,.7)) drop-shadow(0 1px 2px rgba(0,0,0,.45)); z-index: 3; }
+#trip.hud .hMark, #trip.hud .hDest { position: absolute; left: calc(var(--w) / 2 - var(--disc) / 2);
+  width: var(--disc); height: var(--disc); border-radius: 50%; z-index: 2;
+  box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0,0,0,.45); transition: opacity .3s, transform .3s; }
+#trip.hud .hMark img, #trip.hud .hDest img { display: block; width: 100%; height: 100%; border-radius: 50%; }
+#trip.hud .hMark.passed { opacity: .45; transform: scale(.7); }
+#trip.hud .hMark.next { transform: scale(1.25); box-shadow: 0 0 0 2px #f4c04e, 0 1px 4px rgba(0,0,0,.5); }
+#trip.hud .hTag { position: absolute; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  line-height: 1.1; transition: opacity .3s; }
+#trip.hud .hTag .hTxt { display: flex; flex-direction: column; }
+#trip.hud .hName { font-size: 12.5px; }
+#trip.hud .hLeft { font-size: 10.5px; font-weight: 700; opacity: .85; font-variant-numeric: tabular-nums; }
+#trip.hud .hBar { display: none; }
+#trip.hud .nTag img { display: none; }
+#trip.hud .nTag.none { opacity: 0; }
+#trip.hud.arrived .dTag .hLeft { color: #f4c04e; opacity: 1; }
+
+/* a: the frosted rail. */
+#trip.la .hPanel { border-radius: 0 12px 12px 0; background: rgba(20,24,30,.48);
+  -webkit-backdrop-filter: blur(6px) saturate(1.2); backdrop-filter: blur(6px) saturate(1.2);
+  box-shadow: inset -1px 0 0 rgba(255,255,255,.14); }
+#trip.la .hTag { padding: 3px 9px 4px; border-radius: 9px; background: rgba(20,24,30,.58);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+#trip.la .nTag::before { content: ""; position: absolute; left: -5px; top: calc(50% - 5px);
+  border: 5px solid transparent; border-left: 0; border-right-color: rgba(20,24,30,.58); }
+
+/* b: no panel; everything carries its own outline. */
+#trip.lb .hRail { width: 4px; left: calc(var(--w) / 2 - 2px); background: rgba(255,255,255,.9);
+  box-shadow: 0 0 0 1.5px rgba(16,20,26,.6), 0 1px 4px rgba(0,0,0,.35); }
+#trip.lb .hDone { background: #f4c04e; }
+#trip.lb .hTag { text-shadow: 1px 0 1px #14161b, -1px 0 1px #14161b, 0 1px 1px #14161b, 0 -1px 1px #14161b,
+  0 0 4px rgba(10,12,16,.9), 0 1px 8px rgba(10,12,16,.6); }
+#trip.lb .hName { font-size: 13px; }
+#trip.lb .hMark:not(.next):not(.passed) { transform: scale(.85); }
+
+/* c: the capsule, and the card it grows. */
+#trip.lc { --disc: 8px; }
+#trip.lc .hPanel { border-radius: 999px; background: rgba(20,24,30,.5);
+  -webkit-backdrop-filter: blur(6px) saturate(1.2); backdrop-filter: blur(6px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+#trip.lc .hMark { box-shadow: 0 0 0 1.5px #fff; background: rgba(20,24,30,.9); }
+#trip.lc .hMark img { display: none; }
+#trip.lc .hMark.next { background: #f4c04e; box-shadow: 0 0 0 1.5px #fff; transform: scale(1.3); }
+#trip.lc .hDest { width: 20px; height: 20px; left: calc(var(--w) / 2 - 10px); }
+#trip.lc .hTag { padding: 3px 9px 4px; border-radius: 9px; background: rgba(20,24,30,.58);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+#trip.lc .nTag { padding: 5px 10px 6px 5px; border-radius: 14px; transform-origin: 0 50%;
+  transition: opacity .25s, transform .25s; }
+#trip.lc .nTag img { display: block; width: 30px; height: 30px; border-radius: 50%; box-shadow: 0 0 0 1.5px #fff; }
+#trip.lc .nTag .hName { font-size: 13.5px; }
+#trip.lc .nTag .hBar { display: block; height: 3px; margin-top: 3px; border-radius: 2px; background: rgba(255,255,255,.25); }
+#trip.lc .nTag .hBar i { display: block; height: 100%; border-radius: 2px; background: #f4c04e; transform-origin: 0 0; }
+#trip.lc .nTag.none { opacity: 0; transform: scale(.6, .9); }
+@media (prefers-reduced-motion: reduce) {
+  #trip.hud .hMark, #trip.hud .hTag, #trip.lc .nTag { transition: none; }
+}`;
+
+function createHud(wrap, look) {
+  if (!document.getElementById('tripHudCss')) {
+    const st = el('style', { id: 'tripHudCss' });
+    st.textContent = HUD_CSS;
+    document.head.appendChild(st);
+  }
+  const T = {
+    look, data: null, degree: null, degreeOf: null, marks: [], signs: [], total: 1,
+    geo: null, key: '', vanY: null, text: null, arrived: false, vanAspect: 2, next: undefined, nextText: null,
+    near: null, bar: null,
+  };
+  const tag = (cls, kids) => el('div', { class: 'hTag ' + cls }, kids);
+  T.done = el('div', { class: 'hDone' });
+  T.van = el('img', { class: 'tVan', alt: '' });
+  T.road = el('div', { class: 'hRail' }, [T.done, T.van]);
+  T.marksEl = el('div', { class: 'hMarks' });
+  T.destDisc = el('div', { class: 'hDest' }, [el('img', { alt: '', src: glyphURL('finish') })]);
+  T.name = el('span', { class: 'hName' }, ['—']);
+  T.left = el('span', { class: 'hLeft' });
+  T.destTag = tag('dTag', [el('span', { class: 'hTxt' }, [T.name, T.left])]);
+  T.nextImg = el('img', { alt: '' });
+  T.nextName = el('span', { class: 'hName' });
+  T.nextLeft = el('span', { class: 'hLeft' });
+  T.barFill = el('i');
+  T.nextTag = tag('nTag none', [T.nextImg, el('span', { class: 'hTxt' }, [T.nextName, T.nextLeft, el('span', { class: 'hBar' }, [T.barFill])])]);
+  T.el = el('div', { id: 'trip', class: 'hud l' + look + ' hidden', role: 'img', 'aria-label': 'on the way' },
+    [el('div', { class: 'hPanel' }), T.road, T.marksEl, T.destDisc, T.destTag, T.nextTag]);
+  wrap.appendChild(T.el);
+  return T;
+}
+
+function setRouteHud(T, r) {
+  T.name.textContent = r.nameOf(r.dest) ?? r.dest;
+  T.el.classList.remove('arrived');
+  T.arrived = false;
+  T.text = null; T.vanY = null; T.next = undefined; T.nextText = null; T.near = null; T.bar = null;
+  T.signs = signsFor(T, r);
+  T.marksEl.replaceChildren(...T.marks.map(m => {
+    // A pair shares one disc on the strip, as it shares one post.
+    m.el = el('div', { class: 'hMark', title: [m, m.also].filter(Boolean).map(b => b.name).join(' and ') },
+      [el('img', { alt: '', src: glyphURL(m.kind) })]);
+    m.state = '';
+    return m.el;
+  }));
+  T.key = '';
+  window.__trip = T;
+}
+
+/** Each direction's sizes: a little bigger held sideways, where there is room. */
+function hudSizes(look, w, h) {
+  const land = w > h;
+  if (look === 'c') return { w: land ? 30 : 26, disc: 8, van: land ? 14 : 12 };
+  const disc = land ? Math.max(20, Math.min(26, Math.round(h / 34))) : 18;
+  return { w: disc + 12, disc, van: Math.round(disc * 0.7) };
+}
+
+function layoutHud(T, g) {
+  const S = hudSizes(T.look, g.w, g.h);
+  // a hugs the edge; b floats just in from it; c sits under the chips.
+  const x = g.left + (T.look === 'a' ? 0 : T.look === 'b' ? 4 : 8);
+  let top = g.clearTop + 8;
+  if (g.look && g.look.x < x - g.left + S.w + 160) top = Math.max(top, g.top + g.look.y + g.look.h + 8);
+  let bottom = g.top + g.roadH - 10;
+  if (T.look === 'c') bottom = Math.min(bottom, top + Math.max(140, Math.min(230, g.roadH * 0.3)));
+  const key = [T.look, x, top, bottom, S.w, S.disc, T.vanAspect].map(v => typeof v === 'number' ? Math.round(v * 10) : v).join(',');
+  if (key === T.key) return;
+  T.key = key;
+  const H = Math.max(110, bottom - top);
+  Object.assign(T.el.style, { left: x + 'px', top: top + 'px', width: S.w + 'px', height: H + 'px' });
+  T.el.style.setProperty('--w', S.w + 'px');
+  T.el.style.setProperty('--disc', S.disc + 'px');
+  T.el.style.setProperty('--van', S.van + 'px');
+  // The destination's disc at the top, the rail from under it to the bottom.
+  const destD = T.look === 'c' ? 20 : S.disc + 4;
+  T.destDisc.style.width = T.destDisc.style.height = destD + 'px';
+  T.destDisc.style.left = (S.w / 2 - destD / 2) + 'px';
+  T.destDisc.style.top = (T.look === 'b' ? 0 : 5) + 'px';
+  const roadTop = (T.look === 'b' ? 0 : 5) + destD + 6, roadBottom = H - (T.look === 'c' ? 12 : 8);
+  const len = Math.max(40, roadBottom - roadTop);
+  Object.assign(T.road.style, { top: roadTop + 'px', height: len + 'px' });
+  const vanH = S.van * T.vanAspect;
+  T.geo = { len, vanH, roadTop, w: S.w, destD };
+  const run = Math.max(0, len - vanH);
+  for (const m of T.marks) {
+    m.y = roadTop + len - (vanH / 2 + run * Math.min(1, m.s / T.total));
+    m.el.style.top = (m.y - S.disc / 2) + 'px';
+  }
+  // The destination's name beside its disc.
+  const tagX = S.w + (T.look === 'b' ? 2 : 5);
+  Object.assign(T.destTag.style, { left: tagX + 'px', top: (T.look === 'b' ? -2 : 3) + 'px' });
+  T.next = undefined;   // re-place the next sight's tag
+  T.vanY = null;
+  T.el.classList.remove('hidden');
+}
+
+function updateHud(T, u) {
+  if (!T.geo) return;
+  const G = T.geo;
+  const p = Math.min(1, u.s / T.total);
+  const run = Math.max(0, G.len - G.vanH);
+  const y = Math.round(p * run * 2) / 2;
+  if (y !== T.vanY) {
+    T.vanY = y;
+    T.van.style.transform = `translateY(${-y}px)`;
+    T.done.style.height = (y + G.vanH / 2) + 'px';
+  }
+  let next = null;
+  for (const m of T.marks) {
+    const passed = u.s >= m.s;
+    if (!passed && !next) next = m;
+    const state = passed ? 'passed' : m === next ? 'next' : '';
+    if (state !== m.state) { m.el.className = 'hMark ' + state; m.state = state; }
+  }
+  if (next !== T.next) {
+    T.next = next;
+    if (next) {
+      T.nextName.textContent = next.also ? next.name + ' & ' + next.also.name : next.name;
+      T.nextImg.src = glyphURL(next.kind);
+      // Level with its disc, but never over the destination's name.
+      const tagX = G.w + (T.look === 'b' ? 2 : T.look === 'c' ? 6 : 8);
+      const h = T.look === 'c' ? 44 : 32;
+      const yy = Math.max(G.destD + 22, next.y - h / 2);
+      Object.assign(T.nextTag.style, { left: tagX + 'px', top: yy + 'px' });
+    }
+  }
+  const togo = next ? next.s - u.s : 0;
+  const nextText = next ? distanceText(togo) : '';
+  if (nextText !== T.nextText) { T.nextText = nextText; T.nextLeft.textContent = next ? 'in ' + nextText : ''; }
+  // a and b always name the next sight; c only while it is near.
+  const show = !!next && !u.arrived && (T.look !== 'c' || togo <= NEAR_M);
+  if (show !== T.near) { T.near = show; T.nextTag.classList.toggle('none', !show); }
+  if (T.look === 'c' && show) {
+    const bar = Math.round((1 - togo / NEAR_M) * 50) / 50;
+    if (bar !== T.bar) { T.bar = bar; T.barFill.style.transform = `scaleX(${Math.max(0.02, bar)})`; }
+  }
+  const text = u.arrived ? 'here' : distanceText(Math.max(0, T.total - u.s));
+  if (text !== T.text) {
+    T.text = text;
+    T.left.textContent = text;
+    T.el.setAttribute('aria-label', u.arrived ? 'arrived at ' + T.name.textContent
+      : T.name.textContent + ', ' + text + ' to go' + (next ? ', next ' + next.name : ''));
+  }
+  if (u.arrived && !T.arrived) { T.arrived = true; T.el.classList.add('arrived'); }
+}
+
+// --------------------------------------------------------------- pictograms
+
+/** What kind of place, by the colour of its disc: getting about (blue), old
+ *  buildings and the town's own (plum), shops and fun (orange), the
+ *  emergency services (red), the countryside (green), the A.R.C. and the
+ *  vet's (teal), anything else (slate). */
+const GLYPH_COLOUR = {
+  station: '#2d6cb5', 'rail-bridge': '#2d6cb5', 'over-rail': '#2d6cb5', petrol: '#2d6cb5', 'car-wash': '#2d6cb5',
+  harbour: '#2d6cb5', junction: '#55606e', mast: '#55606e',
+  church: '#7d3a5e', clock: '#7d3a5e', 'poppy-clock': '#7d3a5e', tower: '#7d3a5e', hall: '#7d3a5e', school: '#7d3a5e',
+  shop: '#c4672a', chippy: '#c4672a', play: '#c4672a', 'beach-huts': '#c4672a', caravans: '#c4672a',
+  'fire-station': '#c23a2c',
+  park: '#3c8040', wood: '#3c8040', wild: '#3c8040', golf: '#3c8040', farm: '#3c8040', horses: '#3c8040', glasshouse: '#3c8040',
+  home: '#1f8077', vet: '#1f8077', finish: '#1d2128',
+};
+
+const GLYPH_CACHE = new Map();
+/** A kind's pictogram on its disc, as an image URL, painted once at 64 px. */
+function glyphURL(kind) {
+  if (!GLYPH_CACHE.has(kind)) {
+    const N = 64, k = N / 24;
+    const fg = document.createElement('canvas');
+    fg.width = fg.height = N;
+    const f = fg.getContext('2d');
+    // The pictogram in a 24 box, shrunk into the disc's middle.
+    f.translate(N / 2, N / 2); f.scale(k * 0.66, k * 0.66); f.translate(-12, -12);
+    f.fillStyle = f.strokeStyle = '#fff';
+    f.lineJoin = 'round'; f.lineCap = 'round'; f.lineWidth = 2.4;
+    paintGlyph(f, kind);
+    const c = document.createElement('canvas');
+    c.width = c.height = N;
+    const g = c.getContext('2d');
+    g.fillStyle = GLYPH_COLOUR[kind] ?? '#55606e';
+    g.beginPath(); g.arc(N / 2, N / 2, N / 2, 0, Math.PI * 2); g.fill();
+    g.drawImage(fg, 0, 0);
+    GLYPH_CACHE.set(kind, c.toDataURL());
+  }
+  return GLYPH_CACHE.get(kind);
+}
+
+/** Each kind as one flat white shape in a 24 x 24 box, bold enough to read
+ *  at 18 px: the pictograms of a map's key, not a picture of the place. A
+ *  hole is cut with `cut`. */
+function paintGlyph(g, kind) {
+  const P = (...pts) => { g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.fill(); };
+  const R = (x, y, w, h, r = 0.6) => { g.beginPath(); g.roundRect(x, y, w, h, r); g.fill(); };
+  const C = (x, y, r) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+  const L = (...pts) => { g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.stroke(); };
+  const cut = fn => { g.save(); g.globalCompositeOperation = 'destination-out'; fn(); g.restore(); };
+  switch (kind) {
+    case 'church':
+      R(3, 12, 10, 9); P(2, 12.5, 8, 7.5, 14, 12.5); R(13, 8, 7, 13); P(12.5, 8.5, 16.5, 1.5, 20.5, 8.5);
+      cut(() => { g.beginPath(); g.moveTo(15, 21); g.lineTo(15, 16.5); g.arc(16.5, 16.5, 1.5, Math.PI, 0); g.lineTo(18, 21); g.fill(); });
+      break;
+    case 'clock': case 'poppy-clock':
+      R(7, 3, 10, 18, 1); P(6, 4, 12, 0, 18, 4);
+      cut(() => C(12, 10, 3.6));
+      if (kind === 'poppy-clock') { C(12, 10, 2.2); } else { g.lineWidth = 1.4; L(12, 10, 12, 7.8); L(12, 10, 13.8, 10.8); }
+      break;
+    case 'station':
+      R(6, 2.5, 12, 15, 3);
+      cut(() => { R(8, 4.8, 8, 5.2, 1); C(9, 14, 1.3); C(15, 14, 1.3); });
+      g.lineWidth = 2.2; L(8.5, 18, 6.5, 21.5); L(15.5, 18, 17.5, 21.5);
+      break;
+    case 'rail-bridge': case 'over-rail':
+      g.beginPath(); g.moveTo(2, 9); g.lineTo(22, 9); g.lineTo(22, 21); g.lineTo(18, 21);
+      g.arc(12, 21, 6, 0, Math.PI, true); g.lineTo(2, 21); g.closePath(); g.fill();
+      g.lineWidth = 1.6; L(2, 6, 22, 6);
+      for (let x = 4; x <= 20; x += 4) L(x, 3.8, x, 6);
+      break;
+    case 'beach-huts':
+      for (const x of [1.5, 9, 16.5]) { R(x, 11, 6, 10, 0.3); P(x - 0.6, 11.4, x + 3, 7, x + 6.6, 11.4); }
+      break;
+    case 'petrol':
+      R(5, 3, 10, 18, 1.5);
+      cut(() => R(7, 5.5, 6, 5, 0.6));
+      g.lineWidth = 2; g.beginPath(); g.moveTo(15, 9); g.lineTo(18, 9); g.lineTo(18, 17); g.quadraticCurveTo(18, 19, 20, 19); g.stroke();
+      break;
+    case 'car-wash':
+      R(3, 13, 18, 5.5, 2); P(6, 13.2, 8.5, 9, 15.5, 9, 18, 13.2); C(7.5, 19, 2); C(16.5, 19, 2);
+      for (const x of [6, 12, 18]) { g.beginPath(); g.moveTo(x, 1.5); g.quadraticCurveTo(x + 2, 5, x, 6.3); g.quadraticCurveTo(x - 2, 5, x, 1.5); g.fill(); }
+      break;
+    case 'chippy':
+      g.beginPath(); g.ellipse(10.5, 12, 7.5, 4.6, 0, 0, Math.PI * 2); g.fill();
+      P(16, 12, 22, 7, 22, 17);
+      cut(() => C(6.5, 11, 1.1));
+      break;
+    case 'shop':
+      R(4, 11, 16, 10, 0.4);
+      for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(3 + i * 4.5, 7); g.lineTo(7.5 + i * 4.5, 7); g.lineTo(7.5 + i * 4.5, 10); g.arc(5.25 + i * 4.5, 10, 2.25, 0, Math.PI); g.fill(); }
+      R(3, 5, 18, 2.6, 0.6);
+      cut(() => R(10, 15, 4, 6, 0.4));
+      break;
+    case 'tower':
+      R(7, 6, 10, 15, 0.4);
+      for (const x of [7, 10.75, 14.5]) R(x, 3, 2.5, 3.6, 0.2);
+      cut(() => { g.beginPath(); g.moveTo(10.5, 21); g.lineTo(10.5, 16.5); g.arc(12, 16.5, 1.5, Math.PI, 0); g.lineTo(13.5, 21); g.fill(); R(11, 9, 2, 3.2, 1); });
+      break;
+    case 'play':
+      g.lineWidth = 2.2; L(3, 21, 7, 4, 11, 21); L(13, 21, 17, 4, 21, 21); L(5, 4, 19, 4);
+      g.lineWidth = 1.3; L(12, 4, 12, 14);
+      R(9.5, 14, 5, 2, 0.6);
+      break;
+    case 'caravans':
+      R(2, 6, 16, 11, 3.5);
+      cut(() => R(5, 8.5, 5, 3.5, 0.6));
+      C(8.5, 18, 2.4); g.lineWidth = 2; L(18, 15, 22, 16.5);
+      break;
+    case 'school':
+      R(3, 11, 18, 10, 0.4); P(1.5, 11.5, 12, 4, 22.5, 11.5);
+      cut(() => { C(12, 10.4, 1.7); R(10.3, 15.5, 3.4, 5.5, 0.4); R(5, 13.5, 3, 3, 0.3); R(16, 13.5, 3, 3, 0.3); });
+      break;
+    case 'fire-station':
+      g.beginPath(); g.moveTo(12, 1.5);
+      g.bezierCurveTo(14, 6, 19, 8, 19, 14); g.bezierCurveTo(19, 18.5, 15.8, 22, 12, 22);
+      g.bezierCurveTo(8.2, 22, 5, 18.5, 5, 14.5); g.bezierCurveTo(5, 11, 7, 9.5, 8, 7.5);
+      g.bezierCurveTo(8.5, 10, 9.5, 11, 10.5, 11.5); g.bezierCurveTo(10.5, 8, 11, 4.5, 12, 1.5); g.fill();
+      cut(() => { g.beginPath(); g.moveTo(12, 12); g.bezierCurveTo(13, 15, 15, 16, 15, 18); g.bezierCurveTo(15, 19.8, 13.6, 20.5, 12, 20.5); g.bezierCurveTo(10.4, 20.5, 9, 19.8, 9, 18); g.bezierCurveTo(9, 16, 11, 15, 12, 12); g.fill(); });
+      break;
+    case 'golf':
+      g.lineWidth = 1.8; L(9, 21, 9, 2.5); P(9.6, 2.5, 19, 6, 9.6, 9.5);
+      g.beginPath(); g.ellipse(9, 21, 6, 1.6, 0, 0, Math.PI * 2); g.fill();
+      C(17, 18.5, 1.8);
+      break;
+    case 'farm':
+      P(3, 21, 3, 11, 6.5, 6, 12, 3.5, 17.5, 6, 21, 11, 21, 21);
+      cut(() => { R(8.5, 13, 7, 8, 0.2); });
+      g.lineWidth = 1.4; L(8.5, 13, 15.5, 21); L(15.5, 13, 8.5, 21); g.strokeRect(8.5, 13, 7, 8);
+      break;
+    case 'hall':
+      P(2, 8, 12, 2.5, 22, 8); R(2.5, 8, 19, 2, 0.2); R(2, 19, 20, 2.5, 0.2);
+      for (const x of [4, 8.6, 13.2, 17.8]) R(x, 11, 2.2, 7.5, 0.2);
+      break;
+    case 'junction':
+      g.lineWidth = 4; g.lineCap = 'butt'; L(12, 2, 12, 22); L(2, 12, 22, 12);
+      break;
+    case 'horses':
+      g.lineWidth = 3.4; g.beginPath(); g.arc(12, 11, 6.5, Math.PI * 0.9, Math.PI * 0.1); g.stroke();
+      L(5.6, 12.2, 6.3, 20); L(18.4, 12.2, 17.7, 20);
+      break;
+    case 'wood': case 'wild':
+      P(8, 2, 14, 15, 2, 15); R(7, 15, 2, 6, 0.3);
+      P(17, 6, 22, 17, 12, 17); R(16, 17, 2, 4, 0.3);
+      break;
+    case 'park':
+      C(12, 9, 7); R(10.8, 14, 2.4, 8, 0.4);
+      break;
+    case 'glasshouse':
+      P(2, 11, 12, 3, 22, 11); R(2, 11, 20, 10, 0.3);
+      cut(() => { for (const x of [4, 9, 14]) R(x, 13, 3.4, 6.5, 0.2); R(19, 13, 1.4, 6.5, 0.2); });
+      break;
+    case 'mast':
+      g.lineWidth = 1.8; L(6.5, 21.5, 12, 4, 17.5, 21.5); L(8.5, 15.5, 15.5, 15.5); L(10, 10, 14, 10); L(8.5, 15.5, 14, 10); L(15.5, 15.5, 10, 10);
+      C(12, 3.5, 2);
+      break;
+    case 'home':
+      R(4, 11, 16, 10, 0.4); P(2, 11.5, 12, 3, 22, 11.5);
+      cut(() => { g.beginPath(); g.ellipse(12, 17.5, 2.6, 2.1, 0, 0, Math.PI * 2); g.fill();
+        for (const [x, y] of [[8.9, 14.4], [11, 13], [13, 13], [15.1, 14.4]]) C(x, y, 1); });
+      break;
+    case 'vet':
+      R(9, 3, 6, 18, 1); R(3, 9, 18, 6, 1);
+      break;
+    case 'harbour':
+      g.lineWidth = 2.4; L(12, 7, 12, 21); L(8, 10, 16, 10);
+      g.beginPath(); g.arc(12, 13, 8, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
+      g.beginPath(); g.arc(12, 4.6, 2.3, 0, Math.PI * 2); g.stroke();
+      break;
+    case 'finish':
+      // A chequered flag: where she is going.
+      g.lineWidth = 1.8; L(5, 22, 5, 2.5);
+      g.save(); g.beginPath(); g.rect(6, 3, 14, 10); g.clip();
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) if ((i + j) % 2 === 0) g.fillRect(6 + i * 3.5, 3 + j * 3.34, 3.5, 3.34);
+      g.restore();
+      g.lineWidth = 1; g.strokeRect(6, 3, 14, 10);
+      break;
+    default:
+      C(12, 12, 4.5);
+  }
 }
 
 // ------------------------------------------------------------- the signs

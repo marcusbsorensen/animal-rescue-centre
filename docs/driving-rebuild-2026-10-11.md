@@ -256,6 +256,29 @@ styled as the vehicle's own cockpit dashboard. Park and Reverse are gone. In
 landscape the van sits lower and the camera pulls back. Every vehicle is drawn
 at its true width relative to Henry. Supply runs are the delivery race.
 
+**The trip strip and the chips, three ways each (2026-10-13; Marcus is
+choosing).** The trip strip (`drive-spike/trip-strip.js`, Lily 2026-10-12) is
+the drive up the left edge of the road view: the destination at the top, the
+van climbing, the sights on the way from `landmarks.json`, each matched by a
+fingerpost at the roadside. Marcus found it too intrusive, wasting the left
+column, and too picture-book for 8 to 9 year olds; and the chips at the top
+looked like wireframe placeholders. Three directions for each are behind URL
+parameters, the current look staying the default until he picks
+(screenshots and contact sheets in `docs/img/strip-and-chips/`):
+- `?strip=a` a slim frosted rail flush with the left edge; `?strip=b` no
+  panel, a thin outlined line over the verge with haloed names; `?strip=c` a
+  short capsule at the top left that grows a card for the next sight only
+  when it is within 300 m. All three draw the sights as flat pictograms on
+  discs coloured by kind (transport, old buildings, shops and fun, the
+  countryside), name the destination and the next sight, and show the
+  distance to go.
+- `?chips=a` brass plates on walnut, as the dashboard's fittings; `?chips=b`
+  road-sign badges, the road chip in the colours of that road's signs, a red
+  warning triangle when the gear is wrong; `?chips=c` one bar of tinted
+  glass with a small label over each value. The gear and speed chips repeat
+  the dashboard's gear window and speedometer; whether to keep them is
+  Marcus's call.
+
 **Small animals cross the small lanes.** Marcus's idea, and the reason the
 camera comes in close on them: hedgehogs, rabbits, pheasants and the like
 cross in front of the van; she slows or stops, and if she does not, the van
