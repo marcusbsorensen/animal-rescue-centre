@@ -401,9 +401,9 @@ signalled (the pelican in The Square and the lights at St Mildred's Road).
 At a zebra (63A, Marcus, 2026-10-13) the rider gets off and wheels Trikey
 across once the traffic has stopped, as the Highway Code asks of cyclists, the
 same way she wheels Trikey onto The Animal Bridge; none of her routes uses a
-zebra today, so this is the rule for when one does. Still to ask: the crossing
-in The Square is a pelican in real life, which the Highway Code also says a
-cyclist wheels across, while the spike draws it as a toucan she rides over.
+zebra today, so this is the rule for when one does. The crossing in The Square
+is a pelican in real life (one a cyclist should wheel across), but the game
+keeps it a toucan she rides over (65B, Marcus, 2026-10-13).
 `drive-spike/lights.js`; `lights.check.mjs` proves it.
 
 *Porting it to the game.* `trikey-links.ts` already marks which crossings
