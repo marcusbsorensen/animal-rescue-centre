@@ -45,7 +45,78 @@
   #hud { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; font-size: 13px; }
   .chip { background: rgba(255,252,246,.92); border-radius: 14px; padding: 6px 10px;
     font-weight: 700; color: #3a3226; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+  .chip .ci, .chip .cl { display: none; }
+  .chip .cv { font-weight: inherit; }
   #panel { display: flex; gap: 6px; flex-wrap: wrap; pointer-events: auto; font-size: 11px; }
+  /* Three designs for the chips, by ?chips= (Marcus, 2026-10-13: "the pills
+     at the top of the page need to be designed so they don't look like just
+     space holders in a wireframe"); without it they stay as above until he
+     picks. Each chip holds an icon (.ci, drawn by chipIcon()), a small label
+     (.cl) and its value (.cv); data-state on the gear and road chips is
+     'fast' or 'slow' when the gear does not suit the road, and on the gear
+     chip 'brake' while the handbrake is on.
+       a  brass plates on walnut, as the dashboard's own fittings
+       b  road-sign badges: the road chip in the colours of the signs for
+          that kind of road, a warning triangle when the gear is wrong
+       c  one bar of tinted glass, a game's HUD: a small label over each
+          value, as the strips beside it */
+  .chip .ci svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor;
+    stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .chips-a .chip, .chips-b .chip { display: inline-flex; align-items: center; gap: 5px; height: 30px;
+    padding: 0 10px 0 5px; border-radius: 9px; font-size: 14px; font-weight: 800; white-space: nowrap; }
+  .chips-a .chip .ci, .chips-b .chip .ci { display: block; flex: none; width: 20px; height: 20px; }
+  .chips-a #speedChip .cv::after, .chips-b #speedChip .cv::after { content: " mph"; font-size: 11px; font-weight: 700; opacity: .8; }
+
+  .chips-a .chip { color: #fbe7ae; background: linear-gradient(#6e3d1b, #4a2510);
+    box-shadow: inset 0 0 0 1.5px #c99a3c, inset 0 2.5px 0 rgba(255,226,160,.22), 0 2px 4px rgba(30,14,4,.45); }
+  .chips-a .chip .ci { border-radius: 50%; padding: 3px; color: #3b1d0c;
+    background: radial-gradient(circle at 35% 30%, #fbe7ae, #d2a446 60%, #85601d); box-shadow: 0 0 0 1px #5e3418; }
+  .chips-a .chip .ci svg { stroke-width: 2.6; }
+  .chips-a .chip[data-state="fast"] { color: #fff6e0; background: linear-gradient(#c84a2f, #8e2a1c); }
+  .chips-a .chip[data-state="slow"] { color: #3b1d0c; background: linear-gradient(#f3c24a, #c9901c); }
+  .chips-a .chip[data-state="brake"] { color: #fff6e0; background: linear-gradient(#c84a2f, #8e2a1c); }
+  .chips-a #panel button { border-radius: 50%; width: 28px; height: 28px; padding: 5px; color: #5e3418; opacity: .75;
+    background: radial-gradient(circle at 35% 30%, #fbe7ae, #c99a3c 65%, #85601d); box-shadow: 0 1px 3px rgba(30,14,4,.4); }
+  .chips-a #panel #devTools button, .chips-b #panel #devTools button, .chips-c #panel #devTools button { width: auto; height: auto;
+    border-radius: 9px; padding: 5px 9px; opacity: 1; }
+
+  .chips-b .chip { color: #111; background: #fff; border-radius: 7px; padding-right: 9px;
+    box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3.5px #111, 0 2px 4px rgba(0,0,0,.3); }
+  .chips-b #gearChip { width: 30px; padding: 0; justify-content: center; border-radius: 50%; }
+  .chips-b #gearChip .ci { display: none; }
+  .chips-b #laneChip { color: #fff; background: #1d5fa8; box-shadow: inset 0 0 0 2px #1d5fa8, inset 0 0 0 3.5px #fff, 0 2px 4px rgba(0,0,0,.3); }
+  .chips-b #roadChip[data-road="trunk"], .chips-b #roadChip[data-road="secondary"] { color: #ffd200; background: #00703c;
+    box-shadow: inset 0 0 0 2px #00703c, inset 0 0 0 3.5px #fff, 0 2px 4px rgba(0,0,0,.3); }
+  .chips-b #roadChip[data-road="track"] { color: #fff; background: #6b3f1f;
+    box-shadow: inset 0 0 0 2px #6b3f1f, inset 0 0 0 3.5px #fff, 0 2px 4px rgba(0,0,0,.3); }
+  .chips-b #roadChip[data-road="path"], .chips-b #roadChip[data-road="crossing"] { color: #fff; background: #1d5fa8;
+    box-shadow: inset 0 0 0 2px #1d5fa8, inset 0 0 0 3.5px #fff, 0 2px 4px rgba(0,0,0,.3); }
+  .chips-b .chip[data-state="fast"], .chips-b .chip[data-state="brake"] { color: #111; background: #fff;
+    box-shadow: inset 0 0 0 3.5px #d4202a, 0 2px 4px rgba(0,0,0,.3); }
+  .chips-b .chip[data-state="slow"] { color: #111; background: #ffd200;
+    box-shadow: inset 0 0 0 2px #ffd200, inset 0 0 0 3.5px #111, 0 2px 4px rgba(0,0,0,.3); }
+  .chips-b .chip[data-state="fast"] .ci, .chips-b .chip[data-state="slow"] .ci { color: #d4202a; }
+  .chips-b #panel button { color: #555; background: rgba(240,240,240,.8); border-radius: 6px; padding: 4px 8px;
+    box-shadow: inset 0 0 0 1.5px #888; }
+
+  .chips-c #hud { gap: 0; flex-wrap: nowrap; border-radius: 12px; overflow: hidden; background: rgba(20,24,30,.5);
+    -webkit-backdrop-filter: blur(6px) saturate(1.2); backdrop-filter: blur(6px) saturate(1.2);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 2px 6px rgba(0,0,0,.2); }
+  .chips-c .chip { display: grid; grid-template: "l l" auto "i v" auto / auto 1fr; column-gap: 4px; align-items: center;
+    background: none; box-shadow: none; border-radius: 0; color: #fff; padding: 4px 11px 5px; white-space: nowrap; }
+  .chips-c .chip + .chip { box-shadow: inset 1px 0 0 rgba(255,255,255,.16); }
+  .chips-c .chip .cl { display: block; grid-area: l; font-size: 9px; font-weight: 800; letter-spacing: .09em;
+    text-transform: uppercase; opacity: .65; }
+  .chips-c .chip .ci { display: block; grid-area: i; width: 14px; height: 14px; }
+  .chips-c .chip .cv { grid-area: v; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .chips-c #gearChip .ci, .chips-c #speedChip .ci { display: none; }
+  .chips-c #gearChip .cv, .chips-c #speedChip .cv { grid-area: 2 / 1 / 3 / 3; }
+  .chips-c .chip[data-state="fast"], .chips-c .chip[data-state="brake"] { background: rgba(212,58,40,.85); }
+  .chips-c .chip[data-state="slow"] { background: rgba(232,170,30,.9); color: #1d1406; }
+  .chips-c #panel button { background: none; color: rgba(255,255,255,.8); font-size: 10px; padding: 3px 8px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.45); text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  .chips-c #panel button[aria-pressed="true"], .chips-a #panel button[aria-pressed="true"],
+    .chips-b #panel button[aria-pressed="true"] { background: #4b8b3b; color: #fff; opacity: 1; }
   #devTools { display: contents; }
   #devTools[hidden] { display: none; }
   button { font: inherit; font-weight: 700; border: 0; border-radius: 11px;
@@ -75,10 +146,10 @@
   <canvas id="c"></canvas>
   <div id="top">
     <div id="hud">
-      <div class="chip" id="gearChip">P</div>
-      <div class="chip" id="speedChip">0 mph</div>
-      <div class="chip" id="laneChip">left lane</div>
-      <div class="chip" id="roadChip">—</div>
+      <div class="chip" id="gearChip"><i class="ci"></i><span class="cl">gear</span><b class="cv">P</b></div>
+      <div class="chip" id="speedChip"><i class="ci"></i><span class="cl">mph</span><b class="cv">0 mph</b></div>
+      <div class="chip" id="laneChip"><i class="ci"></i><span class="cl">lane</span><b class="cv">left lane</b></div>
+      <div class="chip" id="roadChip"><i class="ci"></i><span class="cl">road</span><b class="cv">—</b></div>
     </div>
     <div id="panel">
       <button id="devBtn" aria-pressed="false">dev</button>
@@ -1287,7 +1358,7 @@ function toast(ev, ms = 1100) {
 /** The trip strip (trip-strip.js): up the left edge of the road view, below
  *  the chips and below where the look-ahead window opens, above the
  *  dashboard. Where the chips end is measured when they change size. */
-const strip = tripStrip.create(document.getElementById('wrap'));
+const strip = tripStrip.create(document.getElementById('wrap'), VIEW_Q.get('strip'));
 const stripAt = { chips: 0, left: 0, top: 0 };
 function measureStrip() {
   const t = document.getElementById('top'), wrapTop = t.parentElement.getBoundingClientRect().top;
@@ -1329,26 +1400,84 @@ function giveWay(win) {
   if (away !== topAway) { topAway = away; topEl.classList.toggle('away', away); }
 }
 
+/** Which design the chips wear (?chips=a|b|c, see the style sheet), or ''
+ *  for the plain chips. */
+const CHIPS = ['a', 'b', 'c'].includes(VIEW_Q.get('chips')) ? VIEW_Q.get('chips') : '';
+if (CHIPS) document.body.classList.add('chips-' + CHIPS);
+
+/** The chips' icons, in a 24 box, stroked in the chip's colour. */
+const CHIP_ICON = {
+  gear: 'M6 5v14M12 5v14M18 5v7M6 12h12',
+  brake: 'M12 7v6M12 16.5v.5M4 12a8 8 0 1 0 16 0a8 8 0 1 0-16 0',
+  speed: 'M4 17a8 8 0 1 1 16 0M12 17l4-5',
+  'lane-left': 'M5 3v18M19 3v18M12 4v3M12 10.5v3M12 17v3M8.5 9v9M6.5 11l2-2.5 2 2.5',
+  'lane-right': 'M5 3v18M19 3v18M12 4v3M12 10.5v3M12 17v3M15.5 9v9M13.5 11l2-2.5 2 2.5',
+  'lane-look': 'M5 3v18M19 3v18M12 4v3M12 10.5v3M12 17v3M8.5 18c0-5 2-7 7-9M13 7l2.5 2-2 2.5',
+  trunk: 'M3 3v18M9 3v18M15 3v18M21 3v18M6 5v2M6 11v2M6 17v2M18 5v2M18 11v2M18 17v2',
+  secondary: 'M5 3v18M19 3v18M12 4v3M12 10.5v3M12 17v3',
+  tertiary: 'M6 21c0-6 6-6 6-11s-3-6-3-7M15 21c0-6 6-6 6-11s-3-6-3-7',
+  unclassified: 'M8 21c0-6 7-6 7-11s-3-6-3-7M13 21c0-6 7-6 7-11',
+  residential: 'M4 11l8-7 8 7M6 9.5V20h12V9.5M10 20v-5h4v5',
+  track: 'M8 21l2-18M16 21l-2-18M9 8h2M13 8h2M8.5 14h2.5M13 14h2.5',
+  path: 'M6 17.5a3.5 3.5 0 1 0 0 .01M18 17.5a3.5 3.5 0 1 0 0 .01M6 17.5l4-7h6l2 7M10 10.5l-1.5-3H6M16 10.5l-1-4h2.5M12 17.5l-2-7',
+  crossing: 'M4 5h16M4 9.5h16M4 14h16M4 18.5h16',
+  warn: 'M12 3.5l9.5 16.5h-19zM12 10v4.5M12 17.5v.5',
+};
+const chipIcons = new Map();
+/** Puts icon `name` in a chip, only when it changes. */
+function chipIcon(chip, name) {
+  if (chipIcons.get(chip) === name) return;
+  chipIcons.set(chip, name);
+  chip.querySelector('.ci').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${CHIP_ICON[name] ?? ''}"/></svg>`;
+}
+const chipEl = Object.fromEntries(['gear', 'speed', 'lane', 'road'].map(k => {
+  const c = document.getElementById(k + 'Chip');
+  return [k, { c, v: c.querySelector('.cv'), text: null, state: null }];
+}));
+/** Writes a chip's value and state, only what changed. */
+function setChip(k, text, state = '') {
+  const e = chipEl[k];
+  if (text !== e.text) { e.text = text; e.v.textContent = text; }
+  if (state !== e.state) { e.state = state; if (state) e.c.dataset.state = state; else delete e.c.dataset.state; }
+}
+
 function updateHud(win) {
   updateTrip();
   giveWay(win);
-  document.getElementById('gearChip').textContent = handbrake ? 'BRAKE' : String(car.gear);
-  document.getElementById('speedChip').textContent = Math.round(car.v * 2.237) + ' mph';
-  document.getElementById('laneChip').textContent = car.laneWant === 0 ? (car.peek && car.laneT > 0.02 ? 'looking' : 'left lane')
-    : bigRoadAt(car.s) || (car.cw?.kind === 'divided' && car.cw.lanes >= 2) ? 'fast lane' : 'overtaking';
-
-  const chip = document.getElementById('roadChip');
-  const name = roadNameFor(car.road, car.cw);
   const verdict = gearVerdict(car.road, car.cw, car.gear, car.v);
-  if (!verdict) {
-    chip.textContent = name;
-    chip.style.background = 'rgba(255,252,246,.92)'; chip.style.color = '#3a3226';
-  } else {
-    const over = verdict === 'fast';
-    chip.textContent = name + ' — ' + (over ? (TOO_FAST[car.road] ?? 'too fast') : (TOO_SLOW[car.road] ?? 'too slow'));
-    chip.style.background = over ? '#c4562f' : '#d8a21e'; chip.style.color = '#fff';
+  const lane = car.laneWant === 0 ? (car.peek && car.laneT > 0.02 ? 'looking' : 'left lane')
+    : bigRoadAt(car.s) || (car.cw?.kind === 'divided' && car.cw.lanes >= 2) ? 'fast lane' : 'overtaking';
+  const name = roadNameFor(car.road, car.cw);
+  if (!CHIPS) {
+    setChip('gear', handbrake ? 'BRAKE' : String(car.gear));
+    setChip('speed', Math.round(car.v * 2.237) + ' mph');
+    setChip('lane', lane);
+    const chip = chipEl.road.c;
+    if (!verdict) {
+      setChip('road', name);
+      chip.style.background = 'rgba(255,252,246,.92)'; chip.style.color = '#3a3226';
+    } else {
+      const over = verdict === 'fast';
+      setChip('road', name + ' — ' + (over ? (TOO_FAST[car.road] ?? 'too fast') : (TOO_SLOW[car.road] ?? 'too slow')));
+      chip.style.background = over ? '#c4562f' : '#d8a21e'; chip.style.color = '#fff';
+    }
+    return;
   }
+  // The designed chips: the value alone (the label and unit are the
+  // design's), and the state for the design to colour.
+  setChip('gear', handbrake ? 'brake' : String(car.gear), handbrake ? 'brake' : verdict ?? '');
+  chipIcon(chipEl.gear.c, handbrake ? 'brake' : 'gear');
+  setChip('speed', String(Math.round(car.v * 2.237)));
+  chipIcon(chipEl.speed.c, 'speed');
+  setChip('lane', lane);
+  chipIcon(chipEl.lane.c, lane === 'left lane' ? 'lane-left' : lane === 'looking' ? 'lane-look' : 'lane-right');
+  const cls = car.road === 'trunk' && car.cw && car.cw.kind !== 'dual' ? 'secondary' : car.road;
+  if (chipEl.road.c.dataset.road !== cls) chipEl.road.c.dataset.road = cls;
+  setChip('road', verdict ? name + ' · ' + (verdict === 'fast' ? (TOO_FAST[car.road] ?? 'too fast') : (TOO_SLOW[car.road] ?? 'too slow')) : name, verdict ?? '');
+  chipIcon(chipEl.road.c, verdict ? 'warn' : cls);
 }
+// For a test: one HUD update, to time it (window.__hudTick()).
+window.__hudTick = () => updateHud(null);
 
 // --------------------------------------------------------------------- input
 
