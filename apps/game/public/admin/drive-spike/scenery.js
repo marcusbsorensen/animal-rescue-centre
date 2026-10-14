@@ -43,6 +43,18 @@
 //     by tools/osm-nature.py): ditches, drains, the stream, ponds, reservoirs
 //     and basins, each from its own shape, painted last on the ground, so
 //     roads, hedges, trees and buildings all go over it (Marcus, 69A).
+//   - Trees (Marcus, 107A and 108A). The real woods and scrub (the map's
+//     woodland and nature.json's) are filled with crowns; the real single
+//     trees and tree rows are OpenStreetMap's (trees.json, written by
+//     tools/osm-trees.py); hedgerow standards stand in the lanes' hedges every
+//     20 to 60 m, closer near woods; and the game's own wooded places (Deep
+//     Forest, Woodland, Wilderwood, the little wood, Pinebark) are ringed with
+//     woodland along their roads (WOODED), so the name matches what she sees.
+//     On lanes and tracks a crown may reach over the road (OVER_M); on the A28
+//     none does. Every crown is painted one by one, in height order, into
+//     offscreen tiles (TILE_M square) that a frame only lays down: the low
+//     tiles in drawObjects, under the traffic, and the crowns over a road in
+//     drawCanopy, over the van, faded round everything she needs to see.
 
 /**
  * @typedef {Object} View
@@ -65,6 +77,11 @@ const BUILDINGS_URL = '/assets/driving/buildings.json';
 /** The real water (and woods) beside the small roads, in world metres
  *  (tools/osm-nature.py writes it; crossings.js puts the ducks there). */
 const NATURE_URL = '/assets/driving/nature.json';
+/** The real single trees and tree rows (tools/osm-trees.py writes it). */
+const TREES_URL = '/assets/driving/trees.json';
+/** The places she drives to or past, for the game's own woods round the
+ *  wooded ones (trip-strip.js reads the same file). */
+const LANDMARKS_URL = '/assets/driving/landmarks.json';
 
 /** Cell size of the spatial grid, metres. */
 const CELL_M = 100;
@@ -77,6 +94,30 @@ const VERGE_M = 2.2;
 
 /** How far a crown of radius r reaches once its lobes and ink are drawn. */
 const crownReach = r => r * 1.04 + 0.25;
+
+/** How far a crown may reach over a road past its edge, by class (108A):
+ *  lanes and tracks are roofed over in a wood, the A28 stays open to the sky
+ *  (its crowns keep VERGE_M off as before). A trunk stands at least TRUNK_KERB
+ *  off the road's edge. */
+const OVER_M = { secondary: 1.4, tertiary: 3, unclassified: 3.2, residential: 2.6, track: 2.2 };
+const TRUNK_KERB = 1.3;
+/** A tree further than this from any road's edge is deep in a wood: drawn in
+ *  the tiles but not stood up in the look-ahead window, which only shows
+ *  the edge of a wood anyway. */
+const DEEP_M = 30;
+
+/** The game's wooded places (107A): each ringed with woodland along its
+ *  roads for `reach` metres, `depth` metres deep each side at the place, the
+ *  deepest at Deep Forest; `conifer` is the share of evergreens, so the
+ *  winter wood is not all bare. Matched by id in landmarks.json (a
+ *  destination by its anchor). Names are the game's, never the real ones. */
+const WOODED = [
+  { id: 'deep-forest', reach: 400, depth: 95, conifer: 0.34 },
+  { id: 'woodland', reach: 300, depth: 60, conifer: 0.16 },
+  { id: 'wilderwood', reach: 260, depth: 50, conifer: 0.2 },
+  { id: 'little-wood', reach: 150, depth: 32, conifer: 0.12 },
+  { id: 'pinebark-medical', reach: 150, depth: 22, conifer: 0.7 },
+];
 
 /** Object heights, metres: shadows fall view.sun times these. */
 const H = { canopy: 8, canopyLow: 4.5, house: 7, hedge: 1.5, wall: 0.9, fence: 1.6, glass: 5, hut: 2.4 };
@@ -620,13 +661,15 @@ export async function load(world) {
     land: null, counts: {}, shadow: null, frame: null,
   };
   for (let k = 0; k < S.gx * S.gy; k++) {
-    S.cells.push({ trees: [], houses: [], hedges: [], walls: [], glass: [], huts: [], blds: [], silos: [], bales: [], stones: [],
+    S.cells.push({ trees: [], deep: [], houses: [], hedges: [], walls: [], glass: [], huts: [], blds: [], silos: [], bales: [], stones: [],
       fieldIds: new Set(), cache: null, gcache: null });
   }
 
   // ---- the map, and the real buildings beside its roads
   const bdataP = fetch(BUILDINGS_URL).then(r => (r.ok ? r.json() : null)).catch(() => null);
   const natureP = fetch(NATURE_URL).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  const treesP = fetch(TREES_URL).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  const marksP = fetch(LANDMARKS_URL).then(r => (r.ok ? r.json() : null)).catch(() => null);
   let doc = null;
   try {
     const txt = await (await fetch(MAP_URL)).text();
@@ -713,6 +756,20 @@ export async function load(world) {
     }
   }
 
+  // The real woods and scrub beside the lanes (nature.json), as wood ground
+  // the trees below fill (107A). After the seeds above, so no field changes.
+  const nature = await natureP;
+  if (nature && Array.isArray(nature.a)) {
+    let k = 0;
+    for (const a of nature.a) {
+      const kind = nature.kinds[a[0]];
+      if (kind !== 'wood' && kind !== 'scrub') continue;
+      const ring = decodeRing(a, nature.q || 1);
+      if (ring.length < 6) continue;
+      add([ring], 'wood', kind === 'scrub' ? 'scrub' : 'realwood').seedId = 9000 + k++;
+    }
+  }
+
   S.polys.sort((a, b) => a.z - b.z);
   S.polys.forEach((p, k) => { p.id = k; });
 
@@ -767,7 +824,7 @@ export async function load(world) {
   S.roadClear = roadClear;
 
   // ---- the real water, before anything is placed, so no tree stands in it
-  S.water = buildWater(await natureP, roads);
+  S.water = buildWater(nature, roads);
   S.waterCells = new Map();
   for (const w of S.water) {
     const k = Math.floor((w.bbox[0] + w.bbox[2]) / 2 / CELL_M) + ',' + Math.floor((w.bbox[1] + w.bbox[3]) / 2 / CELL_M);
@@ -1119,6 +1176,74 @@ export async function load(world) {
     }
   }
 
+  // ---- the game's own woods (107A): round each wooded place, a band of wood
+  // either side of its roads, deepest at the place and thinning out to
+  // nothing `reach` metres away, its far edge wandering. Laid as wood ground
+  // in short pieces, each kept off the water, the buildings, the gardens and
+  // the town, so the woods below fill it and no house is built in it.
+  const sights = await marksP;
+  const places = [];
+  for (const w of WOODED) {
+    const m = sights?.landmarks?.find(l => l.id === w.id || l.anchor === w.id);
+    const node = graph.anchors?.[w.id];
+    const at = node != null && nodeW[node] ? nodeW[node] : m ? mapToWorld(m.at[0] * MAP_W, m.at[1] * MAP_H) : null;
+    if (at) places.push({ ...w, x: at.x, y: at.y });
+  }
+  const NOT_WOOD = new Set(['garden', 'churchyard', 'golf', 'bunker', 'pitch', 'sports_centre', 'playground', 'allotments', 'pool', 'yard', 'farmyard', 'estate']);
+  const woodable = (x, y) => {
+    const g = groundAt(x, y);
+    return g !== SEA && !NOT_WOOD.has(g.kind) && !NOT_WOOD.has(g.layer) && !inHousing(x, y) && !inWater(x, y, 1.5)
+      && !near(houseGrid, x, y, h => obbPointDist(h.box, x, y) < 5);
+  };
+  const gameWoods = [];
+  for (const pl of places) {
+    for (const sg of roads) {
+      if (sg.cls === 'trunk' || segDist2(pl.x, pl.y, sg.ax, sg.ay, sg.bx, sg.by) > pl.reach * pl.reach) continue;
+      const dx = sg.bx - sg.ax, dy = sg.by - sg.ay, len = Math.hypot(dx, dy);
+      if (len < 1) continue;
+      const ux = dx / len, uy = dy / len, STEP = 8;
+      const depthAt = (x, y, side) => {
+        const d = Math.hypot(x - pl.x, y - pl.y);
+        if (d > pl.reach) return 0;
+        const f = d < 0.55 * pl.reach ? 1 : 1 - (d - 0.55 * pl.reach) / (0.45 * pl.reach);
+        return pl.depth * f * (0.6 + 0.8 * noise(x, y, 55, 401 + side));
+      };
+      for (let t = 0; t < len; t += STEP) {
+        const t1 = Math.min(len, t + STEP + 1);
+        for (const side of [-1, 1]) {
+          const vx = -uy * side, vy = ux * side, in0 = sg.half + 0.5;
+          const ax = sg.ax + ux * t, ay = sg.ay + uy * t, bx = sg.ax + ux * t1, by = sg.ay + uy * t1;
+          let da = depthAt(ax, ay, side), db = depthAt(bx, by, side);
+          if (Math.min(da, db) < 6) continue;
+          // Shallower where it would run into something, else none here.
+          for (let tries = 0; tries < 3; tries++) {
+            const pts = [];
+            for (const f of [0.15, 0.5, 1]) {
+              pts.push([ax + vx * (in0 + da * f), ay + vy * (in0 + da * f)], [bx + vx * (in0 + db * f), by + vy * (in0 + db * f)]);
+            }
+            pts.push([(ax + bx) / 2 + vx * (in0 + (da + db) / 4), (ay + by) / 2 + vy * (in0 + (da + db) / 4)]);
+            if (pts.every(([x, y]) => woodable(x, y))) break;
+            da *= 0.5; db *= 0.5;
+          }
+          if (Math.min(da, db) < 6) continue;
+          const ring = [ax + vx * in0, ay + vy * in0, bx + vx * in0, by + vy * in0,
+            bx + vx * (in0 + db), by + vy * (in0 + db), ax + vx * (in0 + da), ay + vy * (in0 + da)];
+          const p = makePoly([ring], 'wood', 'gamewood');
+          p.z = Z.wood; p.seedId = 20000 + gameWoods.length; p.place = pl;
+          gameWoods.push(p);
+        }
+      }
+    }
+  }
+  for (const p of gameWoods) {
+    p.id = S.polys.length;
+    S.polys.push(p);
+    const [x0, y0, x1, y1] = p.bbox;
+    for (let j = Math.max(0, Math.floor(y0 / CELL_M)); j <= Math.min(S.gy - 1, Math.floor(y1 / CELL_M)); j++) {
+      for (let i = Math.max(0, Math.floor(x0 / CELL_M)); i <= Math.min(S.gx - 1, Math.floor(x1 / CELL_M)); i++) S.polyGrid[j * S.gx + i].push(p);
+    }
+  }
+
   // ---- churchyards: headstones in rows facing east, clear of the church
   const stones = [];
   for (const p of S.polys) {
@@ -1341,6 +1466,7 @@ export async function load(world) {
   // ---- hedges: along country roads first, then field and block boundaries
   // (skipping any that would double one already along the road)
   const COUNTRY = new Set(['farm', 'land', 'grass', 'meadow']);
+  const laneHedges = [];   // each run of hedge along a road, for its standards
   for (const s of roads) {
     if (s.cls === 'trunk' || s.cls === 'residential') continue;
     const dx = s.bx - s.ax, dy = s.by - s.ay, len = Math.hypot(dx, dy);
@@ -1361,6 +1487,7 @@ export async function load(world) {
           // only out of town: no house within 30m
           return !near(houseGrid, x, y, h => Math.hypot(h.box.x - x, h.box.y - y) < 30);
         });
+        laneHedges.push({ ax, ay, bx, by, seed: hash(Math.min(s.i, s.j) * 4099 + Math.max(s.i, s.j), side + 5, Math.round(t)) });
         t = t1 + gap;
       }
     }
@@ -1377,30 +1504,74 @@ export async function load(world) {
 
   // ---- trees
   const trees = [];
+  /** No road within reach of (x, y) but a lane or track the crown may reach
+   *  over by its OVER_M, its trunk TRUNK_KERB off the edge (108A). */
+  const overClear = (x, y, reach) => {
+    const gxx = Math.floor(x / RG), gyy = Math.floor(y / RG);
+    if (gxx < 0 || gyy < 0 || gxx >= rgx || gyy >= rgy) return true;
+    for (const s of roadGrid[gyy * rgx + gxx]) {
+      const d = Math.sqrt(segDist2(x, y, s.ax, s.ay, s.bx, s.by)) - s.half;
+      const over = OVER_M[s.cls];
+      if (over == null ? d < VERGE_M + reach : d < TRUNK_KERB || d < reach - over) return false;
+    }
+    return true;
+  };
   /** Place a tree if it is clear of roads, water, houses and (unless dense)
-   *  other trees. kind: 'broad' | 'conifer'. */
-  const addTree = (x, y, r, kind, dense) => {
+   *  other trees. kind: 'broad' | 'conifer' | 'scrub'. A tree that may reach
+   *  over a lane (canOver) and does is marked over: it is drawn over the
+   *  traffic and the van. */
+  const addTree = (x, y, r, kind, dense, canOver = false) => {
     if (x < 0 || y < 0 || x > S.width || y > S.height) return false;
-    if (!roadClear(x, y, crownReach(r))) return false;
+    let over = false;
+    if (!roadClear(x, y, crownReach(r))) {
+      if (!canOver || !overClear(x, y, crownReach(r))) return false;
+      over = true;
+    }
     const g = groundAt(x, y);
     if (g === SEA || g.layer === 'pool' || g.layer === 'bunker' || g.kind === 'pitch' || g.layer === 'yard' || g.layer === 'farmyard') return false;
     if (inWater(x, y, r * 0.4)) return false;
     if (near(houseGrid, x, y, h => obbPointDist(h.box, x, y) < r * 0.75)) return false;
     if (!dense && near(treeGrid, x, y, t => (t.x - x) ** 2 + (t.y - y) ** 2 < ((t.r + r) * 0.62) ** 2)) return false;
-    const t = { x, y, r, kind, seed: hash(Math.round(x * 10), Math.round(y * 10), 31) };
+    const t = { x, y, r, kind, seed: hash(Math.round(x * 10), Math.round(y * 10), 31), over };
     trees.push(t);
     put(treeGrid, x, y, t);
     return true;
   };
 
-  // Woods: a jittered lattice, dense enough that the crowns run together.
+  // The real trees and tree rows (OpenStreetMap, trees.json): first, so
+  // nothing made up stands where one really does.
+  const tdoc = await treesP;
+  let realTrees = 0;
+  if (tdoc && Array.isArray(tdoc.p)) {
+    const q = tdoc.q || 1, pts = decodeRing([0, ...tdoc.p], q);
+    for (let k = 0; k < pts.length; k += 2) {
+      const r = rngAt(pts[k], pts[k + 1], 37);
+      if (addTree(pts[k], pts[k + 1], 3.2 + r() * 1.6, r() < 0.12 ? 'conifer' : 'broad', true, true)) realTrees++;
+    }
+    for (const l of tdoc.l || []) {
+      const line = decodeRing(l, q);
+      for (let k = 0; k + 3 < line.length; k += 2) {
+        const ax = line[k], ay = line[k + 1], bx = line[k + 2], by = line[k + 3], len = Math.hypot(bx - ax, by - ay);
+        for (let t = 0; t <= len; t += 7) {
+          const x = ax + (bx - ax) * t / len, y = ay + (by - ay) * t / len, r = rngAt(x, y, 39);
+          if (addTree(x, y, 2.8 + r() * 1.4, 'broad', true, true)) realTrees++;
+        }
+      }
+    }
+  }
+
+  // Woods: a jittered lattice, dense enough that the crowns overlap, of
+  // mixed sizes so the tall ones stand over the rest. The map's woods, the
+  // real woods and scrub from nature.json and the game's own (107A).
   const woodish = S.polys.filter(p => p.layer === 'wood' || p.layer === 'estate' || p.layer === 'clump');
   for (const p of woodish) {
-    const sp = p.layer === 'estate' ? 6.2 : 5.4;
+    const scrub = p.kind === 'scrub';
+    const sp = p.layer === 'estate' ? 6.2 : scrub ? 4 : 4.6;
+    const conShare = p.place ? p.place.conifer : 0.14;
     const [x0, y0, x1, y1] = p.bbox;
     for (let j = Math.floor(y0 / sp); j * sp <= y1; j++) {
       for (let i = Math.floor(x0 / sp); i * sp <= x1; i++) {
-        const r = rng(hash(i, j, 41));
+        const r = rng(hash(i, j, scrub ? 43 : 41));
         const x = (i + 0.5 + (r() - 0.5) * 0.9) * sp, y = (j + 0.5 + (r() - 0.5) * 0.9) * sp;
         if (groundAt(x, y) !== p) continue;
         if (p.layer === 'estate') {
@@ -1408,12 +1579,40 @@ export async function load(world) {
           const n = noise(x, y, 70, 5);
           if (n < 0.32 && r() > 0.06) continue;
         }
-        const conifer = r() < 0.12;
-        // Near a road a wood's edge trees are smaller, so the wood still
-        // reaches the verge instead of stopping short of it.
-        let rad = conifer ? 2.4 + r() * 1.2 : 2.9 + r() * 1.8;
-        while (rad > 1.6 && !roadClear(x, y, crownReach(rad))) rad -= 0.5;
-        addTree(x, y, rad, conifer ? 'conifer' : 'broad', true);
+        if (scrub) {
+          // Scrub: low bushes in thickets, with grassy gaps, and the odd tree.
+          if (noise(x, y, 18, 45) < 0.3 && r() > 0.2) continue;
+          if (r() < 0.12 ? addTree(x, y, 2.6 + r() * 1.4, 'broad', true, true) : addTree(x, y, 1.3 + r() * 1.1, 'scrub', true, true)) trees[trees.length - 1].wood = true;
+          continue;
+        }
+        const conifer = r() < conShare;
+        const tall = r() < 0.18;
+        // Near a road a wood's edge trees are smaller unless the crown may
+        // reach over the lane, so the wood still reaches the verge.
+        let rad = conifer ? 2.3 + r() * 1.3 : tall ? 4.4 + r() * 1.4 : 2.7 + r() * 1.7;
+        while (rad > 1.6 && !roadClear(x, y, crownReach(rad)) && !overClear(x, y, crownReach(rad))) rad -= 0.5;
+        if (addTree(x, y, rad, conifer ? 'conifer' : 'broad', true, true)) trees[trees.length - 1].wood = p.layer !== 'estate';
+      }
+    }
+  }
+  // Along a lane through a wood, a row of trees at the edge whose crowns
+  // reach over it, so she drives under them (108A).
+  const inWood = (x, y) => { const g = groundAt(x, y); return g.layer === 'wood' && g.kind !== 'scrub'; };
+  for (const sg of roads) {
+    if (OVER_M[sg.cls] == null || sg.cls === 'secondary') continue;
+    const dx = sg.bx - sg.ax, dy = sg.by - sg.ay, len = Math.hypot(dx, dy);
+    if (len < 4) continue;
+    const ux = dx / len, uy = dy / len;
+    for (const side of [-1, 1]) {
+      const r = rng(hash(Math.min(sg.i, sg.j) * 4099 + Math.max(sg.i, sg.j), side + 5, 49));
+      for (let t = 2 + r() * 4; t < len - 2; t += 4.5 + r() * 3.5) {
+        const off = sg.half + TRUNK_KERB + 0.4 + r() * 1.6;
+        const x = sg.ax + ux * t - uy * side * off, y = sg.ay + uy * t + ux * side * off;
+        const back = sg.half + 8;   // the wood is beside the lane, not only across it
+        if (!inWood(x, y) || !inWood(sg.ax + ux * t - uy * side * back, sg.ay + uy * t + ux * side * back)) continue;
+        const pl = groundAt(x, y).place;
+        const conifer = r() < (pl ? pl.conifer * 0.6 : 0.08);
+        if (addTree(x, y, conifer ? 2.6 + r() * 0.8 : 3.4 + r() * 1.6, conifer ? 'conifer' : 'broad', true, true)) trees[trees.length - 1].wood = true;
       }
     }
   }
@@ -1439,11 +1638,32 @@ export async function load(world) {
     }
   }
 
-  // Hedgerow trees, every so often along a field hedge.
+  // Hedgerow standards (107A): the oaks and ashes an English hedge along a
+  // lane keeps every 20 to 60 m, closer near a wood; they reach over the
+  // lane a little. Then, less often, along the field hedges.
+  const nearWood = (x, y) => {
+    for (const d of [30, 70]) for (let k = 0; k < 6; k++) {
+      const g = groundAt(x + Math.cos(k * 1.047) * d, y + Math.sin(k * 1.047) * d);
+      if (g.layer === 'wood') return true;
+    }
+    return false;
+  };
+  let standards = 0;
+  for (const h of laneHedges) {
+    const len = Math.hypot(h.bx - h.ax, h.by - h.ay), r = rng(h.seed ^ 0x51);
+    if (len < 10) continue;
+    const ux = (h.bx - h.ax) / len, uy = (h.by - h.ay) / len, wood = nearWood((h.ax + h.bx) / 2, (h.ay + h.by) / 2);
+    for (let t = r() * (wood ? 14 : 30); t < len; t += wood ? 18 + r() * 14 : 26 + r() * 34) {
+      const x = h.ax + ux * t, y = h.ay + uy * t;
+      if (!hedgeNear(x, y)) continue;   // a gate, or no hedge after all
+      const j = (r() - 0.5) * 0.8, conifer = r() < 0.04;
+      if (addTree(x - uy * j, y + ux * j, conifer ? 2.4 : 3.4 + r() * 1.8, conifer ? 'conifer' : 'broad', false, true)) standards++;
+    }
+  }
   for (const [x1, y1, x2, y2, kind] of hedgePieces) {
     if (kind !== 'field') continue;
     const r = rngAt(x1, y1, 61);
-    if (r() > 0.07) continue;
+    if (r() > 0.05) continue;
     addTree((x1 + x2) / 2 + (r() - 0.5) * 2, (y1 + y2) / 2 + (r() - 0.5) * 2, 3 + r() * 2.4, 'broad', false);
   }
 
@@ -1564,7 +1784,12 @@ export async function load(world) {
   }
 
   // ---- bucket everything into cells
-  for (const t of trees) cellOf(t.x, t.y)?.trees.push(t);
+  // A tree deep in a wood is only ever seen from above (the tiles); the
+  // look-ahead window stands up the ones near a road.
+  for (const t of trees) {
+    const rn = roadNear(t.x, t.y);
+    cellOf(t.x, t.y)?.[rn && rn.d - rn.half < DEEP_M ? 'trees' : 'deep'].push(t);
+  }
   for (const h of houses) cellOf(h.box.x, h.box.y)?.houses.push(h);
   for (const p of hedgePieces) cellOf((p[0] + p[2]) / 2, (p[1] + p[3]) / 2)?.hedges.push(p);
   for (const w of walls) cellOf((w.x1 + w.x2) / 2, (w.y1 + w.y2) / 2)?.walls.push(w);
@@ -1577,6 +1802,8 @@ export async function load(world) {
 
   S.counts = {
     trees: trees.length, conifers: trees.filter(t => t.kind === 'conifer').length, houses: houses.length,
+    treesOver: trees.filter(t => t.over).length, treesReal: realTrees, standards, gameWoods: gameWoods.length,
+    scrub: trees.filter(t => t.kind === 'scrub').length,
     hedgeMetres: Math.round(hedgePieces.reduce((a, p) => a + Math.hypot(p[2] - p[0], p[3] - p[1]), 0)),
     walls: walls.length, fields: S.fields.length, polygons: S.polys.length, glasshouses: glass.length, huts: huts.length,
     waters: S.water.length, culverts: S.water.reduce((a, w) => a + w.culverts.length, 0),
@@ -1585,6 +1812,16 @@ export async function load(world) {
     loadMs: Math.round(performance.now() - t0),
   };
   window.__scenery = S.counts;   // for a headless check
+  // how many crowns reach over the road within r of (x, y) (108A)
+  window.__canopyAt = (x, y, r = 6) => {
+    let n = 0;
+    const c = cellOf(x, y);
+    for (const t of c ? c.trees : []) if (t.over && (t.x - x) ** 2 + (t.y - y) ** 2 < r * r) n++;
+    return n;
+  };
+  // and what the tree tiles cost (107A): painted so far, kept, ms this frame
+  window.__treeTiles = () => ({ painted: S.tilesPainted || 0, kept: S.tiles?.size || 0, mb: Math.round((S.tileBytes || 0) / 1e5) / 10,
+    res: S.tileRes, inView: S.inView?.length || 0, over: S.canopyTiles || 0, tileMs: S.tileMs, lowMs: S.lowMs, canopyMs: S.canopyMs, canopyParts: S.canopyParts });
   return S;
 }
 
@@ -1703,7 +1940,8 @@ export function drawGround(ctx, S, view) {
           : p.kind === 'garden' ? G.garden : p.kind === 'meadow' ? G.meadow
           : p.kind === 'allotments' ? G.allot : p.kind === 'sports_centre' || p.kind === 'playground' ? G.hard
           : p.kind === 'grass' ? G.grass : G.park;
-      case 'wood': case 'estate': case 'clump': return G.wood;
+      case 'wood': return p.kind === 'scrub' ? mix(G.grass, G.wood, 0.45) : G.wood;
+      case 'estate': case 'clump': return G.wood;
       case 'golf': return G.park;
       case 'bunker': return GROUND.summer.sand;
       case 'yard': return G.yard;
@@ -2296,7 +2534,8 @@ function drawWater(ctx, S, view) {
 // ------------------------------------------------------------------ objects
 
 /** Over the roads, under the guide line, traffic and van: hedges, walls,
- *  roofs, canopies, with their world-space shadows. */
+ *  roofs, the trees that stay off the road, with their world-space shadows.
+ *  drawCanopy, after the van, draws the crowns that reach over it. */
 export function drawObjects(ctx, S, view) {
   if (!S || S.failed) return;
   const cells = visibleCells(S, view);
@@ -2337,6 +2576,13 @@ export function drawObjects(ctx, S, view) {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (let pass = 0; pass < 20; pass++) paintPass(ctx, cells, 'cache', pass);
   ctx.restore();
+
+  // The trees: their shadows and the crowns that stay off the road, from
+  // the tiles; drawCanopy lays the rest over the traffic.
+  S.inView = tilesInView(ctx, S, view);
+  const l0 = performance.now();
+  layTiles(ctx, S.inView, 'low');
+  S.lowMs = performance.now() - l0;
 
   prefetch(S, view, sunKey);
 }
@@ -2774,128 +3020,7 @@ function ensureObjects(c, season, sun, sunKey) {
     shadows.push({ path: sp });
   }
 
-  // Trees (passes 12-17). Leafy crowns share one outline pass so a wood reads
-  // as one mass with crowns in it; winter broadleaves are bare branches.
-  const crown = new Path2D(), limbs = new Path2D(), trunks = new Path2D();
-  for (const t of c.trees) {
-    const r = rng(t.seed);
-    if (t.kind === 'conifer') {
-      const col = CONIFER[(r() * CONIFER.length) | 0], n = 9, rr = t.r;
-      const pts = [];
-      const rot = r() * Math.PI;
-      for (let k = 0; k < n * 2; k++) {
-        const a = rot + k / (n * 2) * Math.PI * 2, d = k % 2 ? rr * 0.72 : rr;
-        pts.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d]);
-      }
-      polyTo(B.get(12, 'stroke', darken(col, 0.45), 0.4), pts);
-      polyTo(B.get(13, 'fill', col), pts);
-      polyTo(crown, pts);
-      // the sun-facing half lighter
-      const hl = B.get(14, 'fill', lighten(col, 0.18));
-      const hp = [];
-      for (let k = 0; k <= n; k++) {
-        const a = Math.atan2(Ly, Lx) - Math.PI / 2 + k / n * Math.PI, d = (k % 2 ? 0.5 : 0.75) * rr;
-        hp.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d]);
-      }
-      hp.push([t.x, t.y]);
-      polyTo(hl, hp);
-      trunks.moveTo(t.x, t.y); trunks.lineTo(t.x + sun.x * H.canopyLow * 0.6, t.y + sun.y * H.canopyLow * 0.6);
-      continue;
-    }
-    if (season === 'winter') {
-      // Bare crown from above: limbs radiating from the trunk, forking to twigs.
-      const haze = B.get(13, 'fill', BARE.haze), lp = B.get(16, 'stroke', BARE.limb, 0.42), tp = B.get(17, 'stroke', BARE.twig, 0.14);
-      haze.moveTo(t.x + t.r * 0.95, t.y); haze.arc(t.x, t.y, t.r * 0.95, 0, Math.PI * 2);
-      const n = 5 + ((r() * 3) | 0), rot = r() * Math.PI * 2;
-      for (let k = 0; k < n; k++) {
-        const a = rot + k / n * Math.PI * 2 + (r() - 0.5) * 0.5;
-        const ex = t.x + Math.cos(a) * t.r * 0.55, ey = t.y + Math.sin(a) * t.r * 0.55;
-        lp.moveTo(t.x, t.y); lp.lineTo(ex, ey);
-        limbs.moveTo(t.x, t.y); limbs.lineTo(ex, ey);
-        for (const da of [-0.45, 0.4]) {
-          const b = a + da + (r() - 0.5) * 0.3, l = t.r * (0.35 + r() * 0.15);
-          const fx = ex + Math.cos(b) * l, fy = ey + Math.sin(b) * l;
-          tp.moveTo(ex, ey); tp.lineTo(fx, fy);
-          for (const db of [-0.4, 0, 0.4]) {
-            const c2 = b + db + (r() - 0.5) * 0.3, l2 = t.r * (0.16 + r() * 0.1);
-            tp.moveTo(fx, fy); tp.lineTo(fx + Math.cos(c2) * l2, fy + Math.sin(c2) * l2);
-          }
-          // and a twig off the middle of the branch
-          const mx = (ex + fx) / 2, my = (ey + fy) / 2, c3 = b + (r() < 0.5 ? -0.9 : 0.9);
-          tp.moveTo(mx, my); tp.lineTo(mx + Math.cos(c3) * t.r * 0.2, my + Math.sin(c3) * t.r * 0.2);
-        }
-      }
-      const dot = B.get(17, 'fill', BARE.limb);
-      dot.moveTo(t.x + 0.32, t.y); dot.arc(t.x, t.y, 0.32, 0, Math.PI * 2);
-      trunks.moveTo(t.x, t.y); trunks.lineTo(t.x + sun.x * H.canopyLow * 0.6, t.y + sun.y * H.canopyLow * 0.6);
-      continue;
-    }
-    // Leafy crown.
-    let col, dots = null;
-    if (season === 'spring' && r() < 0.3) { col = BLOSSOM[(r() * BLOSSOM.length) | 0]; dots = '#fff7f2'; }
-    else col = LEAF[season][(r() * LEAF[season].length) | 0];
-    const thin = season === 'autumn' && r() < 0.35;
-    const ink = darken(col, 0.42), base = B.get(13, 'fill', col), outline = B.get(12, 'stroke', ink, 0.42);
-    const wash = B.get(14, 'fill', lighten(col, 0.2)), clump = B.get(15, 'fill', darken(col, 0.13));
-    const blobs = [];
-    if (thin) {
-      // Thinning: the crown breaks into clumps and the branches show between.
-      const n = 6, rot = r() * Math.PI * 2;
-      for (let k = 0; k < n; k++) {
-        const a = rot + k / n * Math.PI * 2, d = t.r * (0.45 + r() * 0.15);
-        blobs.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d, t.r * (0.36 + r() * 0.12)]);
-      }
-      blobs.push([t.x, t.y, t.r * 0.32]);
-      const lp = B.get(11, 'stroke', BARE.limb, 0.28);
-      for (let k = 0; k < 5; k++) {
-        const a = rot + 0.6 + k / 5 * Math.PI * 2;
-        lp.moveTo(t.x, t.y); lp.lineTo(t.x + Math.cos(a) * t.r * 0.85, t.y + Math.sin(a) * t.r * 0.85);
-      }
-    } else {
-      // A full crown: a lumpy edge from a ring of overlapping lobes.
-      blobs.push([t.x, t.y, t.r * 0.8]);
-      const n = 7, rot = r() * Math.PI * 2;
-      for (let k = 0; k < n; k++) {
-        const a = rot + k / n * Math.PI * 2, d = t.r * 0.52;
-        blobs.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d, t.r * (0.42 + r() * 0.08)]);
-      }
-    }
-    for (const [x, y, rr] of blobs) {
-      outline.moveTo(x + rr, y); outline.arc(x, y, rr, 0, Math.PI * 2);
-      base.moveTo(x + rr, y); base.arc(x, y, rr, 0, Math.PI * 2);
-      crown.moveTo(x + rr, y); crown.arc(x, y, rr, 0, Math.PI * 2);
-      // A wash only on the lobes that face the sun, so the crown reads as
-      // one rounded mass lit from one side.
-      const facing = ((x - t.x) * Lx + (y - t.y) * Ly) / (t.r * 0.5);
-      if (facing > 0.35 || (thin && facing > 0)) {
-        const wr = rr * 0.55, wx = x + Lx * rr * 0.3, wy = y + Ly * rr * 0.3;
-        wash.moveTo(wx + wr, wy); wash.arc(wx, wy, wr, 0, Math.PI * 2);
-      }
-    }
-    if (!thin) {
-      const wr = t.r * 0.32, wx = t.x + Lx * t.r * 0.28, wy = t.y + Ly * t.r * 0.28;
-      wash.moveTo(wx + wr, wy); wash.arc(wx, wy, wr, 0, Math.PI * 2);
-    }
-    // Leaf clumps: a few darker dabs on the shaded side.
-    for (let k = 0; k < 4; k++) {
-      const a = Math.atan2(-Ly, -Lx) + (r() - 0.5) * 2.2, d = t.r * (0.25 + r() * 0.45), rr = t.r * (0.13 + r() * 0.08);
-      const x = t.x + Math.cos(a) * d, y = t.y + Math.sin(a) * d;
-      clump.moveTo(x + rr, y); clump.arc(x, y, rr, 0, Math.PI * 2);
-    }
-    if (dots) {
-      const dp = B.get(16, 'fill', dots);
-      for (let k = 0; k < 10; k++) {
-        const a = r() * Math.PI * 2, d = Math.sqrt(r()) * t.r * 0.85, rr = 0.18 + r() * 0.12;
-        const x = t.x + Math.cos(a) * d, y = t.y + Math.sin(a) * d;
-        dp.moveTo(x + rr, y); dp.arc(x, y, rr, 0, Math.PI * 2);
-      }
-    }
-    trunks.moveTo(t.x, t.y); trunks.lineTo(t.x + sun.x * H.canopyLow * 0.6, t.y + sun.y * H.canopyLow * 0.6);
-  }
-  // A crown's shadow is the crown swept from the bottom of the canopy to its top.
-  shadows.push({ path: trunks, hs: [0], width: 0.4 });
-  shadows.push({ path: crown, hs: [H.canopyLow, (H.canopyLow + H.canopy) / 2, H.canopy] });
-  shadows.push({ path: limbs, hs: [H.canopyLow, H.canopy], width: 0.3 });
+  // Trees are painted into the tiles (treeTile), not here.
 
   // Every plain shadow in the cell in one path, so a street of roofs is one
   // fill a frame rather than one each. All are wound alike (hull, posTo).
@@ -2903,4 +3028,464 @@ function ensureObjects(c, season, sun, sunKey) {
   for (const sh of shadows) { if (sh.hs) swept.push(sh); else plain.addPath(sh.path); }
   swept.push({ path: plain });
   c.cache = { season, sunKey, passes: B.passes, shadows: swept };
+}
+
+// -------------------------------------------------------------------- trees
+
+/** Trees are painted crown by crown into square tiles of TILE_M metres,
+ *  once per season, and a frame only lays the tiles down (107A, 108A). A
+ *  tile is painted at the screen's own resolution (pixels per metre times
+ *  the pixel ratio, in steps of 4, at most TILE_RES_MAX), with TILE_PAD
+ *  pixels of the neighbouring ground painted round it so no seam shows when
+ *  it is scaled and turned. Each tile has a low layer (every tree's shadow,
+ *  and the crowns that stay off the road) and, along a wooded lane, an over
+ *  layer (the crowns that reach over it). TILE_BYTES caps what is kept; the
+ *  least recently used go first. */
+const TILE_M = 20, TILE_PAD = 2, TILE_RES_MAX = 32, TILE_BYTES = 40e6;
+/** How far a tree's crown or shadow reaches from its trunk, at most. */
+const TILE_REACH = 14;
+/** The over layer is faded round what she needs to see, to OVER_KEEP at
+ *  most in the middle, over FADE_M of soft edge (108A). */
+const FADE_M = 1.4, OVER_FLOOR = 0.12, FADE_N = 9;
+/** The fade's steps, outside in: [share of FADE_M outside the core, alpha
+ *  taken]. Together they leave OVER_FLOOR in the core, falling smoothly. */
+const FADE_STEPS = Array.from({ length: FADE_N }, (_, k) => {
+  const left = q => 1 - (1 - OVER_FLOOR) * (q * q * (3 - 2 * q));
+  return [1 - k / (FADE_N - 1), 1 - left((k + 1) / FADE_N) / left(k / FADE_N)];
+});
+export const OVER_KEEP = FADE_STEPS.reduce((a, [, k]) => a * (1 - k), 1);
+
+/** How tall a tree is, metres: the bottom and top of its crown. */
+function treeHeights(t) {
+  if (t.kind === 'scrub') return [0.5, 1 + t.r * 0.6];
+  const k = Math.max(0.7, Math.min(1.3, t.r / 3.8));
+  return t.kind === 'conifer' ? [1.2, (H.canopy + 1) * k] : [H.canopyLow * k, H.canopy * k];
+}
+
+/** The limbs of a bare crown, seeded: [x1, y1, x2, y2, thick] each. */
+function bareLimbs(t) {
+  const r = rng(t.seed ^ 0xb1), out = [];
+  const n = 5 + ((r() * 3) | 0), rot = r() * Math.PI * 2;
+  for (let k = 0; k < n; k++) {
+    const a = rot + k / n * Math.PI * 2 + (r() - 0.5) * 0.5;
+    const ex = t.x + Math.cos(a) * t.r * 0.55, ey = t.y + Math.sin(a) * t.r * 0.55;
+    out.push([t.x, t.y, ex, ey, 1]);
+    for (const da of [-0.45, 0.4]) {
+      const b = a + da + (r() - 0.5) * 0.3, l = t.r * (0.35 + r() * 0.15);
+      const fx = ex + Math.cos(b) * l, fy = ey + Math.sin(b) * l;
+      out.push([ex, ey, fx, fy, 0]);
+      for (const db of [-0.4, 0, 0.4]) {
+        const c2 = b + db + (r() - 0.5) * 0.3, l2 = t.r * (0.16 + r() * 0.1);
+        out.push([fx, fy, fx + Math.cos(c2) * l2, fy + Math.sin(c2) * l2, 0]);
+      }
+      const mx = (ex + fx) / 2, my = (ey + fy) / 2, c3 = b + (r() < 0.5 ? -0.9 : 0.9);
+      out.push([mx, my, mx + Math.cos(c3) * t.r * 0.2, my + Math.sin(c3) * t.r * 0.2, 0]);
+    }
+  }
+  return out;
+}
+
+const isBare = (t, season) => season === 'winter' && t.kind === 'broad';
+
+/** A tree's shadow on the ground: the crown swept from its bottom to its
+ *  top along the sun, and the trunk; a bare tree's limbs. Opaque: the tile
+ *  lays all of them down at one alpha, so overlaps do not double. */
+function treeShadow(g, t, season, sun) {
+  const [h0, h1] = treeHeights(t);
+  if (t.kind !== 'scrub') {
+    g.lineWidth = 0.4;
+    g.beginPath(); g.moveTo(t.x, t.y); g.lineTo(t.x + sun.x * h0 * 0.8, t.y + sun.y * h0 * 0.8); g.stroke();
+  }
+  if (isBare(t, season)) {
+    g.lineWidth = 0.3;
+    g.beginPath();
+    for (const h of [h0, (h0 + h1) / 2, h1]) {
+      for (const [x1, y1, x2, y2, thick] of bareLimbs(t)) {
+        if (!thick && h !== h1) continue;
+        g.moveTo(x1 + sun.x * h, y1 + sun.y * h); g.lineTo(x2 + sun.x * h, y2 + sun.y * h);
+      }
+    }
+    g.stroke();
+    return;
+  }
+  const rr = t.r * (t.kind === 'conifer' ? 0.9 : 0.97);
+  g.beginPath();
+  for (let k = 0; k <= 4; k++) {
+    const h = h0 + (h1 - h0) * k / 4, x = t.x + sun.x * h, y = t.y + sun.y * h;
+    g.moveTo(x + rr, y); g.arc(x, y, rr, 0, Math.PI * 2);
+  }
+  g.fill();
+}
+
+const circle = (g, x, y, r) => { g.moveTo(x + r, y); g.arc(x, y, r, 0, Math.PI * 2); };
+
+/** Scrub by season: the hedge's own palette (blackthorn, bramble, hawthorn),
+ *  so a thicket matches the hedges beside it. */
+const SCRUB_TONE = { spring: ['#5f8f3e', '#6f9c48'], summer: ['#4b7a35', '#577f3a'], autumn: ['#7b7838', '#866a36'], winter: ['#86786a', '#7a6c5c'] };
+
+/** One crown, painted from directly above with everything it needs to sit
+ *  in the scene: a dark outline round its lobes, its colour, the side away
+ *  from the sun in shade, the side towards it lit, and leaf texture.
+ *  Before it, a soft shade on whatever lower crowns it stands over, so the
+ *  crowns of a wood overlap with dark between them. */
+function paintTree(g, t, season, sun, Lx, Ly) {
+  const r = rng(t.seed);
+  const R = t.r;
+  // Its shade on the crowns below (only where something is already painted).
+  if (t.kind !== 'scrub') {
+    g.globalCompositeOperation = 'source-atop';
+    g.fillStyle = 'rgba(20,32,18,0.24)';
+    g.beginPath(); circle(g, t.x + sun.x * 2.2, t.y + sun.y * 2.2, R * 0.98); g.fill();
+    g.globalCompositeOperation = 'source-over';
+  }
+  if (t.kind === 'conifer') {
+    const col = CONIFER[(r() * CONIFER.length) | 0], n = 9, rot = r() * Math.PI;
+    const star = (rad, k0, inner) => {
+      g.beginPath();
+      for (let k = 0; k < n * 2; k++) {
+        const a = rot + k0 + k / (n * 2) * Math.PI * 2, d = k % 2 ? rad * inner : rad;
+        if (k) g.lineTo(t.x + Math.cos(a) * d, t.y + Math.sin(a) * d); else g.moveTo(t.x + Math.cos(a) * d, t.y + Math.sin(a) * d);
+      }
+      g.closePath();
+    };
+    star(R, 0, 0.72);
+    g.lineWidth = 0.4; g.strokeStyle = darken(col, 0.45); g.stroke();
+    g.fillStyle = col; g.fill();
+    g.save(); g.clip();
+    g.fillStyle = darken(col, 0.16);
+    g.beginPath(); circle(g, t.x - Lx * R * 0.55, t.y - Ly * R * 0.55, R * 0.9); g.fill();
+    g.fillStyle = lighten(col, 0.18);
+    g.beginPath(); circle(g, t.x + Lx * R * 0.5, t.y + Ly * R * 0.5, R * 0.62); g.fill();
+    g.restore();
+    // the whorls nearer the top, a smaller star turned half a point
+    star(R * 0.55, Math.PI / n, 0.7);
+    g.lineWidth = 0.18; g.strokeStyle = darken(col, 0.35); g.stroke();
+    g.fillStyle = mix(col, lighten(col, 0.12), 0.5); g.fill();
+    g.fillStyle = lighten(col, 0.3);
+    g.beginPath(); circle(g, t.x + Lx * R * 0.12, t.y + Ly * R * 0.12, R * 0.14); g.fill();
+    return;
+  }
+  if (isBare(t, season)) {
+    // Bare crown from above: a haze of fine twigs, limbs radiating from the
+    // trunk and forking to twigs (as the hedges' winter twigs).
+    g.fillStyle = BARE.haze;
+    g.beginPath(); circle(g, t.x, t.y, R * 0.95); g.fill();
+    const limbs = bareLimbs(t);
+    g.lineCap = 'round';
+    g.strokeStyle = BARE.limb; g.lineWidth = 0.42;
+    g.beginPath(); for (const [x1, y1, x2, y2, thick] of limbs) if (thick) { g.moveTo(x1, y1); g.lineTo(x2, y2); } g.stroke();
+    g.strokeStyle = BARE.twig; g.lineWidth = 0.14;
+    g.beginPath(); for (const [x1, y1, x2, y2, thick] of limbs) if (!thick) { g.moveTo(x1, y1); g.lineTo(x2, y2); } g.stroke();
+    g.fillStyle = BARE.limb;
+    g.beginPath(); circle(g, t.x, t.y, 0.32); g.fill();
+    return;
+  }
+  let col, dots = null;
+  if (t.kind === 'scrub') {
+    const tones = SCRUB_TONE[season];
+    col = tones[(r() * tones.length) | 0];
+    dots = season === 'summer' ? null : HEDGE[season].dots;
+  } else if (season === 'spring' && r() < (t.wood ? 0.06 : 0.3)) { col = BLOSSOM[(r() * BLOSSOM.length) | 0]; dots = '#fff7f2'; }
+  else col = LEAF[season][(r() * LEAF[season].length) | 0];
+  // no two neighbours quite the same green
+  const j = r();
+  col = j < 0.5 ? darken(col, (0.5 - j) * 0.22) : lighten(col, (j - 0.5) * 0.18);
+  const thin = t.kind !== 'scrub' && season === 'autumn' && r() < (t.wood ? 0.2 : 0.35);
+  const blobs = [];
+  const rot = r() * Math.PI * 2;
+  if (thin) {
+    // Thinning: the crown breaks into clumps and the branches show between.
+    for (let k = 0; k < 6; k++) {
+      const a = rot + k / 6 * Math.PI * 2, d = R * (0.45 + r() * 0.15);
+      blobs.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d, R * (0.36 + r() * 0.12)]);
+    }
+    blobs.push([t.x, t.y, R * 0.32]);
+    g.strokeStyle = BARE.limb; g.lineWidth = 0.28; g.lineCap = 'round';
+    g.beginPath();
+    for (let k = 0; k < 5; k++) {
+      const a = rot + 0.6 + k / 5 * Math.PI * 2;
+      g.moveTo(t.x, t.y); g.lineTo(t.x + Math.cos(a) * R * 0.85, t.y + Math.sin(a) * R * 0.85);
+    }
+    g.stroke();
+  } else {
+    // A full crown: a lumpy edge from a ring of overlapping lobes.
+    const n = t.kind === 'scrub' ? 5 : 7;
+    blobs.push([t.x, t.y, R * 0.8]);
+    for (let k = 0; k < n; k++) {
+      const a = rot + k / n * Math.PI * 2, d = R * 0.52;
+      blobs.push([t.x + Math.cos(a) * d, t.y + Math.sin(a) * d, R * (0.42 + r() * 0.08)]);
+    }
+  }
+  g.beginPath();
+  for (const [x, y, rr] of blobs) circle(g, x, y, rr);
+  g.lineWidth = t.kind === 'scrub' ? 0.3 : 0.42; g.strokeStyle = darken(col, 0.42); g.stroke();
+  g.fillStyle = col; g.fill();
+  g.save(); g.clip();
+  // the side away from the sun in shade
+  g.fillStyle = darken(col, 0.17);
+  g.beginPath(); circle(g, t.x - Lx * R * 0.62, t.y - Ly * R * 0.62, R * 0.95); g.fill();
+  // a wash on the lobes that face the sun, so the crown reads as one
+  // rounded mass lit from one side
+  g.fillStyle = lighten(col, 0.2);
+  g.beginPath();
+  for (const [x, y, rr] of blobs) {
+    const facing = ((x - t.x) * Lx + (y - t.y) * Ly) / (R * 0.5);
+    if (facing > 0.35 || (thin && facing > 0)) circle(g, x + Lx * rr * 0.3, y + Ly * rr * 0.3, rr * 0.55);
+  }
+  if (!thin) circle(g, t.x + Lx * R * 0.28, t.y + Ly * R * 0.28, R * 0.32);
+  g.fill();
+  // leaf texture: small clumps, lighter towards the sun and darker away
+  const lt = lighten(col, 0.32), dk = darken(col, 0.3);
+  for (const [style, side, n] of [[dk, -1, 6], [lt, 1, 5]]) {
+    g.fillStyle = style;
+    g.beginPath();
+    for (let k = 0; k < n; k++) {
+      const a = Math.atan2(Ly * side, Lx * side) + (r() - 0.5) * 2.4, d = R * (0.3 + r() * 0.55), rr = R * (0.07 + r() * 0.06);
+      circle(g, t.x + Math.cos(a) * d, t.y + Math.sin(a) * d, rr);
+    }
+    g.fill();
+  }
+  g.restore();
+  if (dots) {
+    g.fillStyle = dots;
+    g.beginPath();
+    for (let k = 0; k < (t.kind === 'scrub' ? 5 : 10); k++) {
+      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * R * 0.85, rr = t.kind === 'scrub' ? 0.1 + r() * 0.06 : 0.18 + r() * 0.12;
+      circle(g, t.x + Math.cos(a) * d, t.y + Math.sin(a) * d, rr);
+    }
+    g.fill();
+  }
+}
+
+function newCanvas(w, h) {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return c;
+}
+
+/** The trees whose crown or shadow may reach the box. */
+function treesNear(S, x0, y0, x1, y1) {
+  const out = [];
+  const i0 = Math.max(0, Math.floor((x0 - TILE_REACH) / CELL_M)), i1 = Math.min(S.gx - 1, Math.floor((x1 + TILE_REACH) / CELL_M));
+  const j0 = Math.max(0, Math.floor((y0 - TILE_REACH) / CELL_M)), j1 = Math.min(S.gy - 1, Math.floor((y1 + TILE_REACH) / CELL_M));
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const c = S.cells[j * S.gx + i];
+    for (const list of [c.trees, c.deep]) {
+      for (const t of list) {
+        if (t.x > x0 - TILE_REACH && t.x < x1 + TILE_REACH && t.y > y0 - TILE_REACH && t.y < y1 + TILE_REACH) out.push(t);
+      }
+    }
+  }
+  // Lowest first, so the tall crowns stand over the rest; the seed breaks
+  // ties, so a tile and its neighbour agree.
+  const order = t => (t.kind === 'scrub' ? 0 : 10 + treeHeights(t)[1]);
+  out.sort((a, b) => order(a) - order(b) || a.seed - b.seed);
+  return out;
+}
+
+/** Paint tile (i, j) of the given layer kind. */
+function paintTile(S, i, j, season, sun) {
+  const res = S.tileRes, x0 = i * TILE_M, y0 = j * TILE_M, x1 = x0 + TILE_M, y1 = y0 + TILE_M;
+  const list = treesNear(S, x0, y0, x1, y1);
+  const tile = { i, j, res, season, low: null, over: null, used: 0, bytes: 0 };
+  if (!list.length) return tile;
+  const px = TILE_M * res + 2 * TILE_PAD, pad = TILE_PAD / res;
+  const sl = Math.hypot(sun.x, sun.y) || 1, Lx = -sun.x / sl, Ly = -sun.y / sl;
+  const setUp = g => { g.setTransform(res, 0, 0, res, TILE_PAD - x0 * res, TILE_PAD - y0 * res); g.lineJoin = 'round'; g.lineCap = 'round'; };
+  const inBox = (t, m) => t.x + m > x0 - pad && t.x - m < x1 + pad && t.y + m > y0 - pad && t.y - m < y1 + pad;
+  // What each layer covers, in the tile's metres, so only that is laid down.
+  const box = () => [Infinity, Infinity, -Infinity, -Infinity];
+  const grow = (b, xa, ya, xb, yb) => { b[0] = Math.min(b[0], xa); b[1] = Math.min(b[1], ya); b[2] = Math.max(b[2], xb); b[3] = Math.max(b[3], yb); };
+  const lowBox = box(), overBox = box();
+  // Shadows: all of them, opaque in a scratch canvas, laid down at one alpha.
+  const sc = S.tileScratch && S.tileScratch.width === px ? S.tileScratch : (S.tileScratch = newCanvas(px, px));
+  const sg = sc.getContext('2d');
+  sg.setTransform(1, 0, 0, 1, 0, 0); sg.clearRect(0, 0, px, px);
+  setUp(sg);
+  sg.fillStyle = SHADOW_COLOUR; sg.strokeStyle = SHADOW_COLOUR;
+  for (const t of list) {
+    treeShadow(sg, t, season, sun);
+    const h = treeHeights(t)[1], m = t.r + 0.5;
+    grow(lowBox, Math.min(t.x, t.x + sun.x * h) - m, Math.min(t.y, t.y + sun.y * h) - m, Math.max(t.x, t.x + sun.x * h) + m, Math.max(t.y, t.y + sun.y * h) + m);
+  }
+  const low = newCanvas(px, px), lg = low.getContext('2d');
+  lg.globalAlpha = SHADOW_ALPHA; lg.drawImage(sc, 0, 0); lg.globalAlpha = 1;
+  setUp(lg);
+  let overs = 0;
+  for (const t of list) {
+    if (t.over) { overs++; continue; }
+    if (inBox(t, t.r * 1.05 + 2.5)) paintTree(lg, t, season, sun, Lx, Ly);
+  }
+  for (const t of list) if (!t.over) grow(lowBox, t.x - t.r - 0.5, t.y - t.r - 0.5, t.x + t.r + 0.5, t.y + t.r + 0.5);
+  tile.low = low; tile.bytes += px * px * 4;
+  if (overs) {
+    const over = newCanvas(px, px), og = over.getContext('2d');
+    setUp(og);
+    let any = false;
+    for (const t of list) {
+      if (!t.over || !inBox(t, t.r * 1.05 + 2.5)) continue;
+      paintTree(og, t, season, sun, Lx, Ly);
+      grow(overBox, t.x - t.r - 0.5, t.y - t.r - 0.5, t.x + t.r + 0.5, t.y + t.r + 0.5);
+      // and its shade on the low crowns under it
+      if (t.kind !== 'scrub') {
+        lg.globalCompositeOperation = 'source-atop';
+        lg.fillStyle = 'rgba(20,32,18,0.24)';
+        lg.beginPath(); circle(lg, t.x + sun.x * 2.2, t.y + sun.y * 2.2, t.r * 0.98); lg.fill();
+        lg.globalCompositeOperation = 'source-over';
+      }
+      any = true;
+    }
+    if (any) { tile.over = over; tile.bytes += px * px * 4; }
+  }
+  // Clipped to the tile, rounded out to whole pixels.
+  const clip = b => {
+    const c = [Math.max(x0, b[0]), Math.max(y0, b[1]), Math.min(x1, b[2]), Math.min(y1, b[3])];
+    if (c[2] <= c[0] || c[3] <= c[1]) return null;
+    const p = [Math.floor((c[0] - x0) * res), Math.floor((c[1] - y0) * res), Math.ceil((c[2] - x0) * res), Math.ceil((c[3] - y0) * res)];
+    return { sx: p[0] + TILE_PAD, sy: p[1] + TILE_PAD, sw: p[2] - p[0], sh: p[3] - p[1], x: x0 + p[0] / res, y: y0 + p[1] / res, w: (p[2] - p[0]) / res, h: (p[3] - p[1]) / res };
+  };
+  tile.lowBox = clip(lowBox);
+  tile.overBox = clip(overBox);
+  if (!tile.lowBox) tile.low = null;
+  if (!tile.overBox) tile.over = null;
+  return tile;
+}
+
+/** The tiles under the screen: ctx's transform turned back on the canvas's
+ *  corners, grown by `grow` metres. */
+function tileRange(ctx, grow) {
+  const inv = ctx.getTransform().inverse(), W = ctx.canvas.width, Hh = ctx.canvas.height;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [px, py] of [[0, 0], [W, 0], [0, Hh], [W, Hh]]) {
+    const x = inv.a * px + inv.c * py + inv.e, y = inv.b * px + inv.d * py + inv.f;
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  }
+  return [Math.floor((x0 - grow) / TILE_M), Math.floor((y0 - grow) / TILE_M), Math.floor((x1 + grow) / TILE_M), Math.floor((y1 + grow) / TILE_M)];
+}
+
+/** The tiles in view, painted as needed, and a few more ahead in spare time.
+ *  Called once a frame, from drawObjects; drawCanopy reuses the list. */
+function tilesInView(ctx, S, view) {
+  const q = Math.max(8, Math.min(TILE_RES_MAX, Math.round((view.ppm * (view.dpr || 1)) / 4) * 4));
+  if (q > (S.tileRes || 0)) S.tileRes = q;
+  if (!S.tiles) { S.tiles = new Map(); S.tileFrame = 0; S.tileBytes = 0; }
+  const frame = ++S.tileFrame, t0 = performance.now();
+  const get = (i, j) => {
+    const key = i * 65536 + j;
+    let t = S.tiles.get(key);
+    if (!t || t.res !== S.tileRes || t.season !== view.season) {
+      if (t) S.tileBytes -= t.bytes;
+      t = paintTile(S, i, j, view.season, view.sun);
+      S.tiles.set(key, t);
+      S.tileBytes += t.bytes;
+      S.tilesPainted = (S.tilesPainted || 0) + 1;
+    }
+    t.used = frame;
+    return t;
+  };
+  const [i0, j0, i1, j1] = tileRange(ctx, 0.5), out = [];
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    if (i < 0 || j < 0 || i * TILE_M > S.width || j * TILE_M > S.height) continue;
+    const t = get(i, j);
+    if (t.low) out.push(t);
+  }
+  // Ahead: the ring round the screen, while there is time.
+  const [a0, b0, a1, b1] = tileRange(ctx, TILE_M / 2);
+  const inRing = (i, j) => i >= a0 && i <= a1 && j >= b0 && j <= b1;
+  for (let j = b0; j <= b1 && performance.now() - t0 < 3; j++) for (let i = a0; i <= a1; i++) {
+    if (i < 0 || j < 0 || i * TILE_M > S.width || j * TILE_M > S.height) continue;
+    const t = S.tiles.get(i * 65536 + j);
+    if (t && t.res === S.tileRes && t.season === view.season) continue;
+    get(i, j);
+    if (performance.now() - t0 > 3) break;
+  }
+  // Forget the least recently used beyond the cap, never one in the ring.
+  if (S.tileBytes > TILE_BYTES) {
+    const old = [...S.tiles.values()].filter(t => !inRing(t.i, t.j)).sort((a, b) => a.used - b.used);
+    for (const t of old) {
+      if (S.tileBytes <= TILE_BYTES * 0.8) break;
+      S.tiles.delete(t.i * 65536 + t.j); S.tileBytes -= t.bytes;
+    }
+  }
+  S.tileMs = performance.now() - t0;
+  return out;
+}
+
+function layTiles(ctx, list, which) {
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  for (const t of list) {
+    const c = t[which], b = t[which + 'Box'];
+    if (!c) continue;
+    ctx.drawImage(c, b.sx, b.sy, b.sw, b.sh, b.x, b.y, b.w, b.h);
+  }
+  ctx.restore();
+}
+
+/**
+ * The crowns that reach over a road (108A), over the road, the traffic and
+ * the van: called with ctx in world metres as drawObjects is, after the van.
+ * They are faded round everything she needs to see, to OVER_KEEP in the
+ * middle with a soft edge FADE_M wide, so nothing is hidden and nothing
+ * flickers: each hole is a line through world points with a width, metres.
+ * @param {Array<{pts: number[][], w: number}>} holes
+ */
+export function drawCanopy(ctx, S, view, holes) {
+  if (!S || S.failed || !S.inView) return;
+  const t0 = performance.now();
+  const list = S.inView.filter(t => t.over);
+  S.canopyTiles = list.length;
+  if (!list.length) { S.canopyMs = performance.now() - t0; return; }
+  // At the screen's CSS resolution: on a 2x phone a quarter of the pixels,
+  // and still as sharp as the tiles are.
+  const cv = ctx.canvas, k = 1 / Math.max(1, view.dpr || 1), fw = Math.ceil(cv.width * k), fh = Math.ceil(cv.height * k);
+  if (!S.over) S.over = { el: newCanvas(fw, fh) };
+  const F = S.over;
+  if (F.el.width !== fw || F.el.height !== fh) { F.el.width = fw; F.el.height = fh; }
+  const g = F.el.getContext('2d');
+  // Only the part of the screen the crowns cover is cleared, faded and laid.
+  const m = ctx.getTransform();
+  let sx0 = Infinity, sy0 = Infinity, sx1 = -Infinity, sy1 = -Infinity;
+  for (const t of list) {
+    const b = t.overBox;
+    for (const [x, y] of [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x + b.w, b.y + b.h]]) {
+      const px = (m.a * x + m.c * y + m.e) * k, py = (m.b * x + m.d * y + m.f) * k;
+      sx0 = Math.min(sx0, px); sx1 = Math.max(sx1, px); sy0 = Math.min(sy0, py); sy1 = Math.max(sy1, py);
+    }
+  }
+  sx0 = Math.max(0, Math.floor(sx0)); sy0 = Math.max(0, Math.floor(sy0));
+  sx1 = Math.min(fw, Math.ceil(sx1)); sy1 = Math.min(fh, Math.ceil(sy1));
+  if (sx1 <= sx0 || sy1 <= sy0) { S.canopyMs = performance.now() - t0; return; }
+  g.save();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(sx0, sy0, sx1 - sx0, sy1 - sy0);
+  g.beginPath(); g.rect(sx0, sy0, sx1 - sx0, sy1 - sy0); g.clip();
+  g.scale(k, k);
+  g.transform(m.a, m.b, m.c, m.d, m.e, m.f);
+  const p0 = performance.now();
+  layTiles(g, list, 'over');
+  const p1 = performance.now();
+  g.globalCompositeOperation = 'destination-out';
+  g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#000';
+  for (const [grow, take] of FADE_STEPS) {
+    g.globalAlpha = take;
+    for (const h of holes) {
+      if (!h.pts.length) continue;
+      g.lineWidth = h.w + 2 * grow * FADE_M;
+      g.beginPath();
+      g.moveTo(h.pts[0][0], h.pts[0][1]);
+      if (h.pts.length === 1) g.lineTo(h.pts[0][0] + 0.01, h.pts[0][1]);
+      for (let k = 1; k < h.pts.length; k++) g.lineTo(h.pts[k][0], h.pts[k][1]);
+      g.stroke();
+    }
+  }
+  g.restore();
+  const p2 = performance.now();
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(F.el, sx0, sy0, sx1 - sx0, sy1 - sy0, sx0 / k, sy0 / k, (sx1 - sx0) / k, (sy1 - sy0) / k);
+  ctx.restore();
+  S.canopyMs = performance.now() - t0;
+  S.canopyParts = [p0 - t0, p1 - p0, p2 - p1, S.canopyMs - (p2 - t0)].map(v => Math.round(v * 10) / 10);
 }

@@ -639,7 +639,7 @@ let dest = null, from = null, routeNodes = [];
 
 /** A route between two destinations. From `fromId` when given, so that after
  *  pulling up somewhere the next drive sets off from there. */
-function pickRoute(fromId) {
+function pickRoute(fromId, toId) {
   const ids = Object.keys(graph.anchors);
   // Trikey: only to a place she can ride to on her own roads, never one too
   // far for Trikey (trikeyRoads.pickTrip), from where she pulled up.
@@ -653,7 +653,7 @@ function pickRoute(fromId) {
   }
   for (let tries = 0; !trike && tries < 40; tries++) {
     const aId = fromId ?? ids[(Math.random() * ids.length) | 0];
-    const bId = ids[(Math.random() * ids.length) | 0];
+    const bId = toId ?? ids[(Math.random() * ids.length) | 0];
     if (aId === bId) continue;
     const path = shortestPath(graph.anchors[aId], graph.anchors[bId]);
     if (!path || path.length < 12) continue;
@@ -1072,10 +1072,19 @@ function draw() {
     ppm, season: SEASON, sun: SUN, dpr: canvas.width / w, reduce: reduceMotion.matches,
   };
   look.nextFrame();
+  const worldM = ctx.getTransform();
   drawWorld(view, Math.max(w, h) / ppm);
   ctx.restore();
 
   drawVan(w, vanY, ppm);
+  // The crowns that reach over a wooded lane, over the van too (108A), faded
+  // round all she needs to see.
+  if (scn) {
+    ctx.save();
+    ctx.setTransform(worldM);
+    scenery.drawCanopy(ctx, scn, view, canopyHoles(view, camX, camY, pos));
+    ctx.restore();
+  }
   drawPeekSign(w, vanY, ppm);
   const vanTop = vanY - (car.length || 4.8) * ppm / 2;
   const win = drawLookAhead(w, h, vanTop, pos);
@@ -1207,19 +1216,52 @@ function drawRoads(cx, cy, radius) {
   }
 }
 
-/** The line Lily's game draws from the car's nose along the route ahead. Ours
- *  is the route we already compute for the GPS, drawn instead of spoken. */
-function drawGuide() {
-  const ahead = 90;
-  ctx.beginPath();
+/** The guide line's points, world metres: the route ahead in her lane. */
+function guidePoints() {
+  const ahead = 90, out = [];
   for (let d = 0; d <= ahead; d += 4) {
     const p = atDistance(Math.min(routeLen, car.s + d));
     const nx = Math.cos(p.h + Math.PI / 2), ny = Math.sin(p.h + Math.PI / 2);
     const lane = car.laneWant === 1 || (car.peek && car.peekSafe && car.laneT > 0.02) ? 1 : 0;
     const off = d < 12 ? car.lane : laneOffset(lane, car.s + d);
-    const x = p.x + nx * off, y = p.y + ny * off;
-    if (d === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    out.push([p.x + nx * off, p.y + ny * off]);
   }
+  return out;
+}
+
+/** What the canopy over a lane must never hide (108A), as lines through
+ *  world points with a width in metres: the van, every vehicle, every
+ *  animal waiting or crossing, the guide line ahead and the fingerposts. */
+function canopyHoles(view, camX, camY, pos) {
+  const holes = [], r2 = (view.radius + 12) ** 2;
+  const body = (x, y, h, L, W, pad) => {
+    const ux = Math.cos(h), uy = Math.sin(h), half = Math.max(0, L / 2 - W / 2);
+    holes.push({ pts: [[x - ux * half, y - uy * half], [x + ux * half, y + uy * half]], w: W + 2 * pad });
+  };
+  body(camX, camY, car.heading ?? pos.h, car.length || 4.8, VAN_W_M, 0.7);
+  for (const v of trf?.vehicles ?? []) {
+    const fp = traffic.footprint(trf, v);
+    if ((fp.x - view.cx) ** 2 + (fp.y - view.cy) ** 2 < r2) body(fp.x, fp.y, fp.h, fp.L, fp.W, 0.7);
+  }
+  if (xing) for (const a of crossings.animals(xing, camH ?? pos.h)) body(a.x, a.y, a.h, a.len, a.wid, 0.6);
+  if (showGuide) holes.push({ pts: guidePoints(), w: dashboard.GUIDE.edgeW + 0.4 });
+  // A fingerpost: from its foot up through its boards, which stand above
+  // it on the screen (trip-strip.js drawSigns lays them out in CSS px).
+  for (const g of strip.signs ?? []) {
+    const bw = Math.max(g.board?.w ?? 0, g.board2?.w ?? 0), bh = (g.board?.h ?? 0) + (g.board2 ? g.board2.h + 3 : 0);
+    if (!bw || (g.x - view.cx) ** 2 + (g.y - view.cy) ** 2 > r2) continue;
+    const th = g.h + Math.PI / 2, c = Math.cos(th), sn = Math.sin(th), q = 1 / view.ppm;
+    const at = (lx, ly) => [g.x + (lx * c - ly * sn) * q, g.y + (lx * sn + ly * c) * q];
+    holes.push({ pts: [at(0, 0), at(-bw / 2 + 7, -12 - bh / 2), at(-bw / 2 + 7, -12 - bh)], w: (bw + 8) * q });
+  }
+  return holes;
+}
+
+/** The line Lily's game draws from the car's nose along the route ahead. Ours
+ *  is the route we already compute for the GPS, drawn instead of spoken. */
+function drawGuide() {
+  ctx.beginPath();
+  guidePoints().forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
   // Gold with a dark edge (dashboard.GUIDE): blue read as water once the real
   // ditches and ponds were painted (Marcus, 2026-10-14), and the edge keeps it
   // legible on a pale track.
@@ -1648,10 +1690,23 @@ async function boot() {
   resize();
   window.addEventListener('resize', resize);
 
+  // For a test: what each of the last 240 frames' draw() cost, ms (with
+  // window.__flushDraw set, its painting too), and a drive from one place
+  // to another, set down s metres along it (a van's: Trikey picks her own).
+  const drawMs = [];
+  window.__drawMs = drawMs;
+  window.__go = (fromId, toId, s = 0) => { pickRoute(fromId, toId); car.s = s; car.v = 0; car.base = null; camH = null; };
   let last = performance.now();
   (function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    step(dt); draw();
+    step(dt);
+    const d0 = performance.now();
+    draw();
+    // A canvas paints later than draw() returns; window.__flushDraw makes it
+    // paint now (reading one pixel back), so the time includes the painting.
+    if (window.__flushDraw) ctx.getImageData(0, 0, 1, 1);
+    drawMs.push(performance.now() - d0);
+    if (drawMs.length > 240) drawMs.shift();
     requestAnimationFrame(frame);
   })(last);
 }
