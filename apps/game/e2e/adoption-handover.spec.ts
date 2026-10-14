@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { waitForGameReady, waitForScene } from './helpers';
 
 /**
@@ -111,9 +112,10 @@ async function bootShelter(page: Page, size: { width: number; height: number }):
       }
     },
   );
-  // Sound is off for this run. The music tracks decode to about half a gigabyte
-  // in the page, and nothing in this flow listens to them.
-  await page.route(/\.(mp3|ogg|wav)(\?.*)?$/, (route) => route.abort());
+  // The game's music and effects are off for this run. The music tracks decode
+  // to about half a gigabyte in the page, and nothing here listens to them.
+  // (Recorded voice lines live under /assets/voice/ and are not touched.)
+  await page.route(/\/assets\/audio\/.*\.(mp3|ogg|wav)(\?.*)?$/, (route) => route.abort());
   page.on('request', (req) => {
     const u = new URL(req.url());
     const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.protocol === 'data:' || u.protocol === 'blob:';
@@ -304,4 +306,71 @@ test('a window resize mid-conversation keeps the conversation, and the adoption 
     if (beat < 3) await waitForBeat(page, beat + 1);
   }
   await expect(page.frameLocator('iframe[aria-label="A.R.C. adoption"]').locator('#wave-btn')).toBeVisible({ timeout: 15_000 });
+});
+
+test.describe('recorded voice lines', () => {
+  const TONE = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures/tone-3s.mp3'));
+  // Marnie's two lines are "recorded". The household's are not.
+  const RECORDED = ['handover-warden-1', 'handover-warden-3'];
+
+  async function playing(page: Page): Promise<string[]> {
+    return page.evaluate(() => {
+      const g = (window as unknown as { __PHASER_GAME__: { sound: { sounds: Array<{ key: string; isPlaying: boolean }> } } }).__PHASER_GAME__;
+      return g.sound.sounds.filter((s) => s.key.startsWith('voice:') && s.isPlaying).map((s) => s.key);
+    });
+  }
+
+  async function withRecordings(page: Page): Promise<void> {
+    // The manifest says which lines have shipped; add two that "have".
+    await page.route('**/asset-manifest.json', async (route) => {
+      const res = await route.fetch();
+      const list = (await res.json()) as string[];
+      await route.fulfill({ response: res, json: [...list, ...RECORDED.map((id) => `assets/voice/${id}.mp3`)] });
+    });
+    await page.route('**/assets/voice/*.mp3', (route) =>
+      route.fulfill({ status: 200, contentType: 'audio/mpeg', body: TONE }));
+  }
+
+  test('plays a line that has a recording, stays silent on one that has not, and moving on or SKIP stops it', async ({ page }) => {
+    test.setTimeout(120_000);
+    await withRecordings(page);
+    await bootShelter(page, PHONE);
+    await pickFirstFamily(page);
+
+    // Beat 1: Marnie, recorded. It plays.
+    let s = await waitForBeat(page, 0);
+    expect(s.lineId).toBe('handover-warden-1');
+    await expect.poll(() => playing(page), { timeout: 8_000 }).toEqual(['voice:handover-warden-1']);
+
+    // Beat 2: the household, not recorded. Moving on stops Marnie, and nothing plays.
+    await page.mouse.click(s.box.x + s.box.w / 2, s.box.y + 30);
+    s = await waitForBeat(page, 1);
+    expect(s.lineId).toMatch(/^handover-[a-z0-9-]+-2$/);
+    expect(await playing(page)).toEqual([]);
+
+    // Beat 3: Marnie again, recorded.
+    await page.mouse.click(s.box.x + s.box.w / 2, s.box.y + 30);
+    s = await waitForBeat(page, 2);
+    expect(s.lineId).toBe('handover-warden-3');
+    await expect.poll(() => playing(page), { timeout: 8_000 }).toEqual(['voice:handover-warden-3']);
+
+    // SKIP ends the conversation and the line with it.
+    await page.mouse.click(s.skip.x + s.skip.w / 2, s.skip.y + s.skip.h / 2);
+    await expect(page.frameLocator('iframe[aria-label="A.R.C. adoption"]').locator('#wave-btn')).toBeVisible({ timeout: 15_000 });
+    expect(await playing(page)).toEqual([]);
+  });
+
+  test('is silent, and the conversation still works, when the effects are turned off', async ({ page }) => {
+    test.setTimeout(120_000);
+    await withRecordings(page);
+    await page.addInitScript(() => {
+      localStorage.setItem('arc-audio-prefs', JSON.stringify({ sfxEnabled: false, musicEnabled: false }));
+    });
+    await bootShelter(page, PHONE);
+    await pickFirstFamily(page);
+    const s = await waitForBeat(page, 0);
+    expect(s.lineId).toBe('handover-warden-1');
+    await page.waitForTimeout(1500);
+    expect(await playing(page)).toEqual([]);
+  });
 });
