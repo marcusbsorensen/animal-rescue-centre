@@ -21,6 +21,7 @@
     "check:leaks": "node tools/leak-check.mjs",
     "test:leaks": "node --test tools/leak-check.test.mjs",
     "test:htaccess": "tools/test-arcgame-htaccess.sh",
+    "test:deploy": "tools/test-deploy-arcgame.sh",
     "deploy:arcgame": "tools/deploy-arcgame.sh"
   },
   "engines": {

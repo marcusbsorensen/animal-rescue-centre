@@ -1,4 +1,4 @@
-# A.R.C. web game on 20i (arcgame.app). A static Vite build, nothing else.
+# A.R.C. web game on 20i, at https://play.arcgame.app (139A). A static Vite build, nothing else.
 #
 # Vite copies this file from apps/game/public/ into dist/, and
 # tools/deploy-arcgame.sh checks that it arrived. Checked against Apache 2.4
@@ -19,22 +19,33 @@ DirectoryIndex index.html
 
 ErrorDocument 404 /404.html
 
-# --- Hostnames --------------------------------------------------------------
+# --- Hostname ---------------------------------------------------------------
+# The game lives at https://play.arcgame.app and nowhere else: its service worker,
+# saves and sign-in belong to that one origin. arcgame.app is the website, and
+# its own .htaccess (tools/site-holding/) handles arcgame.co.uk and www.
+#
+# The rule below only catches the game's files being asked for under one of
+# our OTHER names, which happens if the play folder sits inside public_html
+# (arcgame.app/play/...). It sends the request to the real address, path and
+# query kept. Any other name (20i's temporary address, localhost) is left
+# alone, so the game can still be looked at before the name is live.
+#
 # HTTP to HTTPS is left to 20i's "Force HTTPS" switch (My20i > the package >
 # SSL), not done here: behind 20i's proxy Apache may not see the original
-# scheme, and a %{HTTPS} test could loop forever. Every redirect below goes to
-# https:// so a visitor lands on the secure canonical address in one hop.
+# scheme, and a %{HTTPS} test could loop forever. The redirect goes to https://
+# so a visitor lands on the secure address in one hop.
+#
+# When this folder is inside public_html, the site's .htaccess above it also
+# applies. Its rewrite rules are replaced by the ones here (mod_rewrite does
+# not inherit by default) and are tied to the arcgame.app host anyway, so the
+# two cannot loop.
 
 <IfModule mod_rewrite.c>
 RewriteEngine On
 
-# arcgame.co.uk and www.arcgame.co.uk: 301 to arcgame.app, same path and query.
-RewriteCond %{HTTP_HOST} ^(?:www\.)?arcgame\.co\.uk(?::\d+)?$ [NC]
-RewriteRule ^(.*)$ https://arcgame.app/$1 [R=301,L]
-
-# www.arcgame.app: 301 to arcgame.app, same path and query.
-RewriteCond %{HTTP_HOST} ^www\.arcgame\.app(?::\d+)?$ [NC]
-RewriteRule ^(.*)$ https://arcgame.app/$1 [R=301,L]
+RewriteCond %{HTTP_HOST} ^(?:www\.)?(?:arcgame\.app|arcgame\.co\.uk)(?::\d+)?$ [NC,OR]
+RewriteCond %{HTTP_HOST} ^www\.play\.arcgame\.app(?::\d+)?$ [NC]
+RewriteRule ^(.*)$ https://play.arcgame.app/$1 [R=301,L]
 </IfModule>
 
 # --- Types ------------------------------------------------------------------

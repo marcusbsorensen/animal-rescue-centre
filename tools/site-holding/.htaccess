@@ -1,0 +1,40 @@
+# Holding page for https://arcgame.app until the website exists (139A).
+#
+# The game is at https://play.arcgame.app. Until the site is built, every path on
+# arcgame.app goes there. It is a 302, a TEMPORARY redirect, on purpose: browsers
+# and search engines do not remember it, so the website can replace this folder
+# later and be seen straight away. (Do not make it a 301.)
+#
+# Deployed to public_html by `tools/deploy-arcgame.sh --site`, which keeps
+# .well-known/ and the game's own folder on the host. Checked against Apache 2.4
+# by tools/test-arcgame-htaccess.sh.
+#
+# Every redirect here is tied to the HOST NAME. That matters: if the game's folder
+# (play.arcgame.app) sits inside public_html, this file is read for its requests
+# too, and a rule that redirected every path whatever the host would send the game
+# to itself for ever.
+
+# No directory listings. (A folder with no index answers 403.)
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# 1. Leave /.well-known/ alone, on every host. 20i's certificate checks for
+#    arcgame.app, www and arcgame.co.uk are fetched from here, and a redirect would
+#    fail them. Whatever is in the folder is served; nothing is invented.
+RewriteRule ^\.well-known(?:/|$) - [L]
+
+# 2. arcgame.co.uk and www.arcgame.co.uk: 301 to https://arcgame.app, same path and query.
+RewriteCond %{HTTP_HOST} ^(?:www\.)?arcgame\.co\.uk(?::\d+)?$ [NC]
+RewriteRule ^(.*)$ https://arcgame.app/$1 [R=301,L]
+
+# 3. www.arcgame.app: 301 to arcgame.app, same path and query.
+RewriteCond %{HTTP_HOST} ^www\.arcgame\.app(?::\d+)?$ [NC]
+RewriteRule ^(.*)$ https://arcgame.app/$1 [R=301,L]
+
+# 4. arcgame.app, every path: 302 to the game's front door. QSD drops the query,
+#    so https://arcgame.app/?x=1 does not hand the game a stray parameter.
+RewriteCond %{HTTP_HOST} ^arcgame\.app(?::\d+)?$ [NC]
+RewriteRule ^ https://play.arcgame.app/ [R=302,L,QSD]
+</IfModule>
