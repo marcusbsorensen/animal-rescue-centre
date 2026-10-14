@@ -1203,6 +1203,75 @@ function glowSprite() {
   return (GLOW = cv);
 }
 
+/** TEMPORARY (Marcus, 2026-10-14, 78A): three glows to choose between, behind
+ *  ?glow=ring, ?glow=deep and ?glow=edge; anything else is the glow as it was.
+ *  Remove the two Marcus does not pick, and setGlow, which only the screenshot
+ *  harness uses. Each is a few layers drawn into the glow's own box (so the
+ *  drawn body crossings.check measures is the same): a screen layer, which is
+ *  warm light on a dark ground and does nothing on a pale one; a colour layer,
+ *  which turns any ground gold at the ground's own lightness, so it shows on
+ *  pale ground without muddying a dark one; and, for the ring, a faint
+ *  multiply layer to deepen the line, and for the edge a faint dark line
+ *  outside the gold. Size and strength still come from glowSwell, haloOf and
+ *  glowAlpha, so under reduced motion every one of them holds still. */
+const GLOW_BOX_W = 256, GLOW_BOX_H = Math.round(GLOW_BOX_W * GLOW_RY / GLOW_RX);
+const GLOW_DEFS = {
+  // A thin ring of gold light round the shadow; the ground shows clearly through the middle.
+  ring: () => [
+    { blend: 'screen', peak: 1, sprite: bakeGlow([bandPaint(100, 30, 8, 16, '255,196,64', 1, 3)]) },
+    { blend: 'color', peak: 0.6, sprite: bakeGlow([bandPaint(100, 30, 8, 16, '255,184,40', 1, 3)]) },
+    { blend: 'multiply', peak: 0.4, sprite: bakeGlow([bandPaint(100, 30, 6, 14, '255,176,40', 1, 2)]) },
+  ],
+  // A deeper, more saturated gold at about half the strength.
+  deep: () => [
+    { blend: 'screen', peak: 0.45, sprite: bakeGlow([discPaint([[0, '255,184,40', 1], [0.4, '255,180,36', 0.95], [0.62, '254,166,28', 0.68], [0.82, '248,146,20', 0.28], [1, '240,128,14', 0]])]) },
+    { blend: 'color', peak: 0.55, sprite: bakeGlow([discPaint([[0, '255,186,30', 1], [0.45, '255,186,30', 0.9], [0.7, '255,186,30', 0.5], [1, '255,186,30', 0]])]) },
+  ],
+  // A soft gold edge with a faint darker line outside it, so it reads on pale ground too.
+  edge: () => [
+    { blend: 'screen', peak: 1, sprite: bakeGlow([discPaint([[0, '255,200,90', 0.1], [0.55, '255,200,90', 0.14], [0.8, '255,204,96', 0.62], [0.93, '255,204,96', 0.26], [1, '255,204,96', 0]])]) },
+    { blend: 'color', peak: 0.8, sprite: bakeGlow([discPaint([[0, '255,184,50', 0.1], [0.55, '255,184,50', 0.14], [0.8, '255,184,50', 0.62], [0.93, '255,184,50', 0.26], [1, '255,184,50', 0]])]) },
+    { blend: 'source-over', peak: 0.6, sprite: bakeGlow([bandPaint(122, 42, 2.6, 3, '84,56,22', 0.7)]) },
+  ],
+};
+const GLOW_Q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('glow') : null;
+let glowMode = GLOW_Q && Object.hasOwn(GLOW_DEFS, GLOW_Q) ? GLOW_Q : 'current';
+const GLOW_SETS = {};
+/** The harness's switch: change the glow without reloading. */
+export function setGlow(mode) { glowMode = Object.hasOwn(GLOW_DEFS, mode) ? mode : 'current'; return glowMode; }
+
+/** A disc that fades out through the stops [r, 'R,G,B', alpha], in the box's own shape. */
+function discPaint(stops) {
+  return (g, w, h) => {
+    const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    for (const [r, rgb, a] of stops) gr.addColorStop(r, `rgba(${rgb},${a})`);
+    g.setTransform(1, 0, 0, h / w, 0, 0);
+    g.fillStyle = gr; g.fillRect(0, 0, w, w);
+  };
+}
+/** A soft band all round the box: an ellipse `rx` by `ry` px, stroked `lw` px
+ *  wide and blurred by `blur`, so it is light with no edge. The line itself is
+ *  drawn off the sprite and only its blur lands on it. */
+function bandPaint(rx, ry, lw, blur, rgb, a, passes = 1) {
+  return (g, w, h) => {
+    g.shadowColor = `rgba(${rgb},${a})`; g.shadowBlur = blur; g.shadowOffsetX = 2 * w;
+    g.lineWidth = lw; g.strokeStyle = '#000';
+    for (let i = 0; i < passes; i++) { g.beginPath(); g.ellipse(w / 2 - 2 * w, h / 2, rx, ry, 0, 0, TAU); g.stroke(); }
+  };
+}
+function bakeGlow(paints) {
+  const cv = document.createElement('canvas'); cv.width = GLOW_BOX_W; cv.height = GLOW_BOX_H;
+  const g = cv.getContext('2d');
+  for (const paint of paints) { g.save(); paint(g, GLOW_BOX_W, GLOW_BOX_H); g.restore(); }
+  return cv;
+}
+/** The layers of the glow in use, baked once each. */
+function glowLayers() {
+  if (typeof document === 'undefined') return null;
+  if (glowMode === 'current') return GLOW_SETS.current ??= [{ blend: GLOW_BLEND, peak: GLOW_PEAK, sprite: glowSprite() }];
+  return GLOW_SETS[glowMode] ??= GLOW_DEFS[glowMode]();
+}
+
 // ------------------------------------------------------------------ drawing
 
 let HOG_SIGN = null;
@@ -1269,15 +1338,17 @@ export function draw(ctx, xing, view) {
 /** The glow: warm light on the road round the animal. Every glow goes down
  *  before any shadow, so no glow lightens a shadow. */
 function drawGlow(ctx, a, p, view) {
-  const glow = glowSprite();
-  const k = GLOW_PEAK * glowAlpha(p.V) * p.fade * a.alpha;
-  if (!glow || k < 0.01) return;
+  const layers = glowLayers();
+  const k = glowAlpha(p.V) * p.fade * a.alpha;
+  if (!layers || k * layers[0].peak < 0.01) return;
   ctx.save();
   ctx.translate(p.fx, p.fy);
   ctx.rotate(p.art ? view.camH + Math.PI / 2 : p.h);
-  ctx.globalCompositeOperation = GLOW_BLEND;
-  ctx.globalAlpha = k;
-  ctx.drawImage(glow, -p.gx, -p.gy, 2 * p.gx, 2 * p.gy);
+  for (const L of layers) {
+    ctx.globalCompositeOperation = L.blend;
+    ctx.globalAlpha = Math.min(1, L.peak * k);
+    ctx.drawImage(L.sprite, -p.gx, -p.gy, 2 * p.gx, 2 * p.gy);
+  }
   ctx.restore();
 }
 
