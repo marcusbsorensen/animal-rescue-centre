@@ -267,16 +267,14 @@ describe('what the public key can read (00016)', () => {
     expect(rows.map((r) => r.id).sort()).toEqual([ada.id, bo.id].sort());
   });
 
-  it('sees only unclaimed suggested names, and not who claimed one', async () => {
-    await db.query(`insert into username_pool (username, source) values ('FreeName', 'seed')`);
-    const { rows } = await asRole(db, 'anon', () => db.query<{ username: string }>(
-      `select username from username_pool where claimed_at is null`,
-    ));
-    expect(rows.map((r) => r.username)).toEqual(['FreeName']);
-    const { rows: all } = await asRole(db, 'anon', () => db.query(`select username from username_pool`));
-    expect(all).toHaveLength(1);
-    await expect(
-      asRole(db, 'anon', () => db.query(`select claimed_by from username_pool`)),
-    ).rejects.toThrow(/permission denied/);
+  it('reads nothing from the pool of sign-in names (00017 took back what 00016 allowed)', async () => {
+    // The names are made from public word lists, so a list of the free
+    // ones would show, by what is missing, every child's sign-in name.
+    for (const column of ['username', 'claimed_at', 'claimed_by']) {
+      await expect(
+        asRole(db, 'anon', () => db.query(`select ${column} from username_pool`)),
+        column,
+      ).rejects.toThrow(/permission denied/);
+    }
   });
 });

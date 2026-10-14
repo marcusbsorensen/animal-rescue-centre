@@ -4,6 +4,7 @@ import { hashPin, generateToken, generateJoinCode } from '../_shared/crypto.ts';
 import { createSession } from '../_shared/session.ts';
 import { isPinHintCode } from '../_shared/pin-hints.ts';
 import { isDisplayNameBase, randomDisplayName, freeDisplayName } from '../_shared/display-names.ts';
+import { offerSignInNames, claimSignInName, releaseSignInName } from '../_shared/sign-in-names.ts';
 import {
   checkRateLimit,
   peekRateLimit,
@@ -20,8 +21,38 @@ Deno.serve(async (req) => {
     // touched. Older builds may still send a parent's email address (no
     // screen ever asked for one) or a typed `pinHint`; neither is read or
     // kept.
-    const { username, pin, avatarEmoji, avatarBgColour, pinHintCode, displayName, checkOnly } =
-      await req.json();
+    const {
+      username, pin, avatarEmoji, avatarBgColour, pinHintCode, displayName, checkOnly,
+      offerNames, readyMadeName,
+    } = await req.json();
+
+    // `offerNames` asks for three ready-made sign-in names for the name
+    // screen to show (00017). It needs no name and creates nothing. It
+    // has its own address budget, so a child tapping "Show another" many
+    // times does not use up the tries that signing up needs.
+    if (offerNames === true) {
+      const supabase = serviceClient();
+      const addr = await addressKey(req);
+      if (addr) {
+        const offers = await checkRateLimit(
+          supabase, `signup-names-ip:${addr}`, 120, 15 * 60 * 1000,
+        );
+        if (!offers.allowed) {
+          const retryMinutes = Math.ceil(offers.retryAfterMs / 60_000);
+          return jsonResponse(
+            { error: `Too many tries. Wait ${retryMinutes} minutes.` },
+            429,
+          );
+        }
+      }
+      return jsonResponse({ names: await offerSignInNames(supabase, 3) });
+    }
+
+    // `readyMadeName` says the name was picked from the offered ones, not
+    // typed. Such a name is claimed from the pool before the account is
+    // made, and refused if somebody else has just taken it. Older builds
+    // send a typed name without it, and still sign up as before.
+    const isReadyMade = readyMadeName === true;
 
     // `checkOnly` answers "is this name free?" and creates nothing.
     //
@@ -85,10 +116,7 @@ Deno.serve(async (req) => {
     }
 
     // Service role client for writes
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabase = serviceClient();
 
     // Two address limits, because signup is two different things to
     // abuse and one budget cannot serve both.
@@ -139,9 +167,11 @@ Deno.serve(async (req) => {
 
     // Pre-check: is this username already claimed by another user?
     // The unique constraint on users.username handles the race, but
-    // we surface a friendlier error early — and offer 3 quick
-    // alternatives so the kid doesn't have to think of a new name
-    // from scratch.
+    // we surface a friendlier error early — and offer 3 ready-made names
+    // from the pool, so the child can pick one instead of typing again.
+    // Suggestions are never built from the name that was typed: that
+    // name is often a child's real one, and "Lily7" or "BraveLily" would
+    // carry it into the next try.
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
@@ -153,20 +183,33 @@ Deno.serve(async (req) => {
       // than treat this as an error.
       return jsonResponse({
         available: !existingUser,
-        suggestions: existingUser
-          ? await suggestAvailableUsernames(supabase, trimmedUsername)
-          : [],
+        suggestions: existingUser ? await offerSignInNames(supabase, 3) : [],
       });
     }
 
     if (existingUser) {
-      const suggestions = await suggestAvailableUsernames(supabase, trimmedUsername);
+      const suggestions = await offerSignInNames(supabase, 3);
       return jsonResponse(
         {
           error: 'That name is taken — try another',
           suggestions,
         },
         400,
+      );
+    }
+
+    // A ready-made name is taken from the pool now, before the PIN is
+    // hashed and the account made. Two children who picked the same name
+    // at the same moment cannot both get it: the database gives it to
+    // one, and the other is offered three new names.
+    if (isReadyMade && !(await claimSignInName(supabase, trimmedUsername))) {
+      return jsonResponse(
+        {
+          error: 'Someone just took that name. Pick another!',
+          code: 'name_taken',
+          suggestions: await offerSignInNames(supabase, 3),
+        },
+        409,
       );
     }
 
@@ -221,9 +264,14 @@ Deno.serve(async (req) => {
 
     if (userErr) {
       console.error('User creation failed:', userErr);
+      // No account, so the name it claimed goes back in the pool.
+      if (isReadyMade) await releaseSignInName(supabase, trimmedUsername);
       // Surface unique-violation as a friendly error.
       if ((userErr as { code?: string }).code === '23505') {
-        return jsonResponse({ error: 'That name is taken — try another' }, 400);
+        return jsonResponse(
+          { error: 'That name is taken — try another', suggestions: await offerSignInNames(supabase, 3) },
+          400,
+        );
       }
       return jsonResponse({ error: 'Failed to create account' }, 500);
     }
@@ -233,9 +281,10 @@ Deno.serve(async (req) => {
     // anything, and the attempts budget above already covers that.
     if (createKey) await bumpRateLimit(supabase, createKey, 24 * 60 * 60 * 1000);
 
-    // Best-effort: if this username is in the legacy pool, mark it
-    // claimed. The pool is no longer required for signup — kids can
-    // choose any safe name — but pool-claim keeps old data consistent.
+    // Mark the pool name as this player's. For a ready-made name this
+    // completes the claim made above. A typed name from an older build
+    // that happens to be in the pool is marked too, so it is not offered
+    // to anyone else.
     await supabase
       .from('username_pool')
       .update({ claimed_at: new Date().toISOString(), claimed_by: user.id })
@@ -280,52 +329,11 @@ Deno.serve(async (req) => {
   }
 });
 
-/**
- * Generate up to 3 username suggestions similar to the requested one
- * that are confirmed-available. Variants:
- *   - <name><n> for small numbers (Lily1, Lily2, Lily3, …)
- *   - <name><name> repeated (LilyLily)
- *   - <name><suffix> with a kid-friendly word (LilyFox, LilyBunny, …)
- *   - <prefix><name> (BraveLily, SunnyLily)
- *
- * We bulk-check candidates in one query, return the first 3 that are
- * free. Keeps the candidate set bounded so we never fan out forever
- * even on a wildly-collided name.
- */
-async function suggestAvailableUsernames(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
-  base: string,
-): Promise<string[]> {
-  const SUFFIX_WORDS = ['Fox', 'Bunny', 'Bear', 'Star', 'Cat', 'Dog', 'Owl', 'Pup'];
-  const PREFIX_WORDS = ['Brave', 'Sunny', 'Cosy', 'Tiny', 'Happy', 'Wild'];
-  const candidates: string[] = [];
-  // Numeric suffixes — try 1..9 first, then 10..29 randomised.
-  for (let n = 1; n <= 9; n++) candidates.push(`${base}${n}`);
-  const teens = Array.from({ length: 20 }, (_, i) => i + 10).sort(() => Math.random() - 0.5);
-  for (const n of teens) candidates.push(`${base}${n}`);
-  // Word variants — randomised so different kids don't all see the
-  // same first 3 options.
-  const shuffledSuffix = [...SUFFIX_WORDS].sort(() => Math.random() - 0.5);
-  for (const w of shuffledSuffix) candidates.push(`${base}${w}`);
-  const shuffledPrefix = [...PREFIX_WORDS].sort(() => Math.random() - 0.5);
-  for (const w of shuffledPrefix) candidates.push(`${w}${base}`);
-  // Doubled name (LilyLily) — sweet for short names, redundant for long ones.
-  if (base.length <= 6) candidates.push(`${base}${base}`);
-
-  // Cap at the first 18 unique candidates and length 18.
-  const uniq = Array.from(new Set(candidates)).filter((c) => c.length <= 18).slice(0, 18);
-
-  // Bulk check which ones already exist in users.
-  const { data: claimed } = await supabase
-    .from('users')
-    .select('username')
-    .in('username', uniq);
-  const claimedSet = new Set(((claimed ?? []) as Array<{ username: string }>).map((r) => r.username));
-
-  // Return the first 3 that aren't claimed.
-  const free = uniq.filter((c) => !claimedSet.has(c)).slice(0, 3);
-  return free;
+function serviceClient() {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
 }
 
 /** A unique-key failure on the display name, rather than on the login. */

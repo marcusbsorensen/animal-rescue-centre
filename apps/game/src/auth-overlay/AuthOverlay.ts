@@ -8,11 +8,13 @@
  *   - parent → iframe: {type:'init', payload:{usernames:string[]}}  (once loaded)
  *   - iframe → parent: {type:'play'|'login'|'signup'|'back-to-welcome'}
  *   - iframe → parent: {type:'login-submit', payload:{username,pin}}
- *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,hintCode?,displayName?}}
- *   - parent → iframe: {type:'auth-error', payload:{message}}   (on failure, iframe shakes+clears)
+ *   - iframe → parent: {type:'need-names'}   (the signup name screen wants ready-made names)
+ *   - parent → iframe: {type:'sign-in-names', payload:{names:string[]}}   (empty on failure)
+ *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,hintCode?,displayName?,readyMadeName?}}
+ *   - parent → iframe: {type:'auth-error', payload:{message, suggestions?}}   (on failure, iframe shakes+clears)
  */
 
-import { login, signup, checkUsername, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
+import { login, signup, checkUsername, offerSignInNames, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
 import { isPinHintCode, isDisplayNameBase } from '@arc/game-logic';
 
@@ -173,6 +175,14 @@ export function mountAuth(
       return;
     }
 
+    // Ready-made sign-in names for the name screen: three when it opens,
+    // three more for each "Show another". Always answers, with an empty
+    // list on failure, so the button never stays disabled.
+    if (msg.type === 'need-names') {
+      postToFrame('sign-in-names', { names: await offerSignInNames() });
+      return;
+    }
+
     // Real auth submissions — call lib/auth, route on success, shake on failure.
     if (msg.type === 'login-submit') {
       try {
@@ -201,6 +211,8 @@ export function mountAuth(
           avatarBgColour: String(raw.avatarBgColour ?? '#ffd0a0'),
           pinHintCode: isPinHintCode(raw.hintCode) ? raw.hintCode : undefined,
           displayName: isDisplayNameBase(raw.displayName) ? raw.displayName : undefined,
+          // Picked from the offered names, not typed: the server claims it.
+          readyMadeName: raw.readyMadeName === true ? true : undefined,
         };
         const session = await signup(data);
         handlers.onAction('auth-success-new', session);

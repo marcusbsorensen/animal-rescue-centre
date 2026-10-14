@@ -13,6 +13,10 @@ export interface SignupData {
    *  from the word lists in `@arc/game-logic` (`isDisplayNameBase`), with
    *  no number. The server adds a number if that pair is taken. */
   displayName?: string;
+  /** True when `username` was picked from the ready-made names the
+   *  server offered, not typed. The server then claims it from the pool,
+   *  and refuses it with three new names if somebody has just taken it. */
+  readyMadeName?: boolean;
 }
 
 export interface LoginData {
@@ -22,7 +26,8 @@ export interface LoginData {
 
 export interface AuthSession {
   userId: string;
-  /** The name typed at signup: the login, shown only to this player. */
+  /** The secret name this player signs in with, shown only to them: a
+   *  ready-made one picked at signup, or one typed on an older build. */
   username: string;
   /** The name other players see (MossyOtter7). Missing from a session
    *  saved by a build from before display names. */
@@ -261,19 +266,22 @@ export function getRememberedUsernames(): string[] {
 }
 
 /**
- * Fetch 3 random available usernames from the pool.
+ * Three ready-made sign-in names for the name screen (PebbleKite,
+ * AcornDrum, ...), from the pool the server keeps
+ * (migrations/00017_ready_made_sign_in_names.sql).
+ *
+ * The public key cannot read the pool, so the names come through the
+ * signup function, which also rate-limits asking. Empty on any failure:
+ * the screen keeps the names it has and says to try again.
  */
-export async function getAvailableUsernames(count = 3): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('username_pool')
-    .select('username')
-    .is('claimed_at', null)
-    .limit(50);
-
-  if (error) throw new Error('Failed to fetch usernames');
-  if (!data || data.length === 0) return [];
-
-  // Shuffle and pick `count`
-  const shuffled = data.sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count).map((row) => row.username);
+export async function offerSignInNames(): Promise<string[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke('signup', {
+      body: { offerNames: true },
+    });
+    if (error || !Array.isArray(data?.names)) return [];
+    return (data.names as unknown[]).filter((n): n is string => typeof n === 'string');
+  } catch {
+    return [];
+  }
 }

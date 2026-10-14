@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { createHash } from 'node:crypto';
 import { FakeSupabase, type Query } from '../support/fake-supabase';
-import { loadFunction, useFakeSupabase, post, json, type Handler } from '../support/harness';
+import { loadFunction, useFakeSupabase, setEnv, post, json, type Handler } from '../support/harness';
 import { isDisplayName } from '../../../game-logic/src/display-names';
 
 let handler: Handler;
@@ -187,5 +187,131 @@ describe('signup', () => {
     expect(res.status).toBe(200);
     expect(await json(res)).toEqual({ available: true, suggestions: [] });
     expect(db.on('users', 'insert')).toHaveLength(0);
+  });
+});
+
+describe('signup: ready-made sign-in names', () => {
+  const OFFERED = ['PebbleKite', 'AcornDrum', 'MoonSock'];
+
+  /** A database with free names in the pool; `claim` says whether a claim wins. */
+  function poolDatabase(opts: {
+    claim?: boolean;
+    takenName?: string;
+    insertFails?: boolean;
+    offersAllowed?: boolean;
+  } = {}): FakeSupabase {
+    return useFakeSupabase(new FakeSupabase(
+      (q: Query) => {
+        if (q.table === 'users' && q.op === 'insert') {
+          return opts.insertFails
+            ? { data: null, error: { code: 'XX000', message: 'boom' } }
+            : { data: NEW_USER, error: null };
+        }
+        if (
+          opts.takenName && q.table === 'users' && q.op === 'select' && q.shape === 'maybeSingle'
+          && q.filters.some((f) => f.column === 'username' && f.value === opts.takenName)
+        ) {
+          return { data: { id: 'someone-else' }, error: null };
+        }
+        return undefined;
+      },
+      (fn) => {
+        if (fn === 'arc_offer_sign_in_names') return { data: OFFERED, error: null };
+        if (fn === 'arc_claim_sign_in_name') return { data: opts.claim ?? true, error: null };
+        if (fn === 'check_rate_limit' && opts.offersAllowed === false) {
+          return { data: [{ allowed: false, retry_after_ms: 120_000 }], error: null };
+        }
+        return undefined;
+      },
+    ));
+  }
+
+  it('offers three ready-made names, and creates nothing', async () => {
+    db = poolDatabase();
+    const res = await handler(post({ offerNames: true }));
+    expect(res.status).toBe(200);
+    expect(await json(res)).toEqual({ names: OFFERED });
+    expect(db.rpcs.find((r) => r.fn === 'arc_offer_sign_in_names')?.args).toEqual({ p_count: 3 });
+    expect(db.on('users')).toHaveLength(0);
+    expect(db.on('username_pool')).toHaveLength(0);
+  });
+
+  it('counts offers on their own address budget, keyed by a hash of the address', async () => {
+    setEnv({ RATE_LIMIT_ADDRESS_KEY: 'test-only-address-key-0123456789abcdef0123456789abcdef' });
+    try {
+      db = poolDatabase();
+      await handler(post({ offerNames: true }));
+      const keys = db.rateLimitKeys();
+      expect(keys).toHaveLength(1);
+      expect(keys[0]).toMatch(/^signup-names-ip:[0-9a-f]{64}$/);
+      expect(keys.join(' ')).not.toContain('203.0.113.7');
+    } finally {
+      setEnv({});
+    }
+  });
+
+  it('says to wait when a child has asked for names too many times', async () => {
+    setEnv({ RATE_LIMIT_ADDRESS_KEY: 'test-only-address-key-0123456789abcdef0123456789abcdef' });
+    try {
+      db = poolDatabase({ offersAllowed: false });
+      const res = await handler(post({ offerNames: true }));
+      expect(res.status).toBe(429);
+      expect(db.rpcs.some((r) => r.fn === 'arc_offer_sign_in_names')).toBe(false);
+    } finally {
+      setEnv({});
+    }
+  });
+
+  it('claims a ready-made name, then makes the account and marks the name as its own', async () => {
+    db = poolDatabase();
+    const res = await handler(post(signupBody({ username: 'PebbleKite', readyMadeName: true })));
+    expect(res.status).toBe(200);
+    expect(db.rpcs.find((r) => r.fn === 'arc_claim_sign_in_name')?.args).toEqual({ p_name: 'PebbleKite' });
+    expect(db.on('users', 'insert')).toHaveLength(1);
+    const [mark] = db.on('username_pool', 'update');
+    expect((mark.values as Record<string, unknown>).claimed_by).toBe(NEW_USER.id);
+    expect(mark.filters).toContainEqual({ kind: 'eq', column: 'username', value: 'PebbleKite' });
+  });
+
+  it('refuses a ready-made name somebody has just taken, and offers three new ones', async () => {
+    db = poolDatabase({ claim: false });
+    const res = await handler(post(signupBody({ username: 'PebbleKite', readyMadeName: true })));
+    expect(res.status).toBe(409);
+    const body = await json(res);
+    expect(body.code).toBe('name_taken');
+    expect(body.suggestions).toEqual(OFFERED);
+    expect(db.on('users', 'insert')).toHaveLength(0);
+  });
+
+  it('gives the name back when the account cannot be made', async () => {
+    db = poolDatabase({ insertFails: true });
+    const res = await handler(post(signupBody({ username: 'PebbleKite', readyMadeName: true })));
+    expect(res.status).toBe(500);
+    const [release] = db.on('username_pool', 'update');
+    expect(release.values).toEqual({ claimed_at: null });
+    expect(release.filters).toContainEqual({ kind: 'eq', column: 'username', value: 'PebbleKite' });
+    expect(release.filters).toContainEqual({ kind: 'is', column: 'claimed_by', value: null });
+  });
+
+  it('still signs up a typed name from an older build, without claiming it first', async () => {
+    db = poolDatabase();
+    const res = await handler(post(signupBody()));
+    expect(res.status).toBe(200);
+    expect(db.rpcs.some((r) => r.fn === 'arc_claim_sign_in_name')).toBe(false);
+    expect(db.on('users', 'insert')).toHaveLength(1);
+  });
+
+  it('suggests ready-made names for a taken typed name, never the typed name', async () => {
+    db = poolDatabase({ takenName: 'Lily' });
+    const check = await json(await handler(post({ username: 'Lily', checkOnly: true })));
+    expect(check).toEqual({ available: false, suggestions: OFFERED });
+
+    const res = await handler(post(signupBody({ username: 'Lily' })));
+    expect(res.status).toBe(400);
+    const body = await json(res);
+    expect(body.suggestions).toEqual(OFFERED);
+    for (const s of [...(check.suggestions as string[]), ...(body.suggestions as string[])]) {
+      expect(s.toLowerCase()).not.toContain('lily');
+    }
   });
 });
