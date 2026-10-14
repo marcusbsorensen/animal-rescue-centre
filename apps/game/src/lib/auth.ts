@@ -61,9 +61,9 @@ export class SignupError extends Error {
  * (the raw `Response`). Without this, the login/signup screens only
  * ever saw the generic string and fell back to "Something went wrong".
  */
-async function readFunctionErrorBody(
+export async function readFunctionErrorBody(
   error: unknown,
-): Promise<{ error?: string; suggestions?: string[] } | null> {
+): Promise<{ error?: string; suggestions?: string[]; code?: string } | null> {
   const ctx = (error as { context?: Response } | null)?.context;
   if (ctx && typeof ctx.json === 'function') {
     try {
@@ -231,6 +231,23 @@ function rememberUsername(username: string): void {
 }
 
 /**
+ * Take a name off this device's list of players who have signed in here.
+ * Used when that account is deleted.
+ */
+export function forgetUsername(username: string): void {
+  const remaining = getRememberedUsernames().filter((name) => name !== username);
+  try {
+    if (remaining.length > 0) {
+      localStorage.setItem(REMEMBERED_USERNAMES_KEY, JSON.stringify(remaining));
+    } else {
+      localStorage.removeItem(REMEMBERED_USERNAMES_KEY);
+    }
+  } catch {
+    // Storage refused; nothing more can be done from here.
+  }
+}
+
+/**
  * Get usernames this device has previously logged in with.
  */
 export function getRememberedUsernames(): string[] {
@@ -259,19 +276,4 @@ export async function getAvailableUsernames(count = 3): Promise<string[]> {
   // Shuffle and pick `count`
   const shuffled = data.sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count).map((row) => row.username);
-}
-
-/**
- * Search for a username (for "I'm on a new device" flow).
- */
-export async function searchUsername(query: string): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('username')
-    .ilike('username', `%${query}%`)
-    .eq('is_active', true)
-    .limit(10);
-
-  if (error) throw new Error('Failed to search usernames');
-  return (data ?? []).map((row) => row.username);
 }
