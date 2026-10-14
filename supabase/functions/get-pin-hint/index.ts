@@ -1,15 +1,16 @@
 /**
- * get-pin-hint — returns the saved PIN-hint for a username, gated by
- * rate-limiting and a minimal proof that the requester has access to
- * recovery context. Called from the forgot-PIN flow when the kid has
- * already passed 2/3 of the recovery questions (Tier 1) and needs the
- * hint to remember their PIN (Tier 2).
+ * get-pin-hint — returns the clue a player picked for their PIN, gated
+ * by rate-limiting. Called from the forgot-PIN flow.
  *
  * Design notes:
- * - The hint is by definition NOT secret on its own — it's a memory
- *   aid, not a credential. Returning it to anyone who knows a valid
- *   username is acceptable risk; the harder gate is rate-limiting so
- *   it can't be brute-force enumerated.
+ * - The clue is a code from a fixed list (_shared/pin-hints.ts), such as
+ *   `birthday`, and the answer carries both the code and its words. It
+ *   used to be free text the child typed, returned as typed; that column
+ *   is gone (migrations 00010 and 00011).
+ * - The clue is not secret on its own — it is a memory aid, not a
+ *   credential. Returning it to anyone who knows a valid username is
+ *   acceptable risk; the harder gate is rate-limiting so it can't be
+ *   brute-force enumerated.
  * - We don't return a hint at all if the account doesn't exist
  *   (avoids username enumeration via this endpoint).
  *
@@ -17,7 +18,9 @@
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { checkRateLimit, clientIp } from '../_shared/rate-limit.ts';
+import { checkRateLimit, addressKey } from '../_shared/rate-limit.ts';
+import { pinHintText } from '../_shared/pin-hints.ts';
+import { loginKey } from '../_shared/login-name.ts';
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -28,8 +31,10 @@ Deno.serve(async (req) => {
     if (!username || typeof username !== 'string') {
       return jsonResponse({ error: 'Username is required' }, 400);
     }
-    const trimmed = username.trim();
-    if (trimmed.length < 2 || trimmed.length > 18) {
+    // In small letters, as login matches it (00018): the clue for
+    // PebbleKite is found from pebblekite too.
+    const key = loginKey(username);
+    if (key.length < 2 || key.length > 18) {
       return jsonResponse({ error: 'Invalid username' }, 400);
     }
 
@@ -43,7 +48,7 @@ Deno.serve(async (req) => {
     // often, and a brute-force enumerator should hit a wall quickly.
     // Every lookup counts here, unlike login: there is no "correct"
     // outcome that would prove the caller was the account's owner.
-    const rl = await checkRateLimit(supabase, `hint:${trimmed}`, 5, 30 * 60 * 1000);
+    const rl = await checkRateLimit(supabase, `hint:${key}`, 5, 30 * 60 * 1000);
     if (!rl.allowed) {
       const retryMinutes = Math.ceil(rl.retryAfterMs / 60_000);
       return jsonResponse(
@@ -56,10 +61,11 @@ Deno.serve(async (req) => {
     // through this endpoint is the enumeration the per-name cap cannot
     // see. Every lookup counts here, unlike login — there is no correct
     // answer a caller could give to show they own the account.
-    const ip = clientIp(req);
-    if (ip) {
+    // Keyed by a hash of the address, never the address (addressKey).
+    const addr = await addressKey(req);
+    if (addr) {
       const ipRl = await checkRateLimit(
-        supabase, `hint-ip:${ip}`, 30, 30 * 60 * 1000,
+        supabase, `hint-ip:${addr}`, 30, 30 * 60 * 1000,
       );
       if (!ipRl.allowed) {
         const retryMinutes = Math.ceil(ipRl.retryAfterMs / 60_000);
@@ -68,14 +74,12 @@ Deno.serve(async (req) => {
           429,
         );
       }
-    } else {
-      console.error('no client IP header; address limit skipped');
     }
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('pin_hint, is_active')
-      .eq('username', trimmed)
+      .select('pin_hint_code, is_active')
+      .eq('username_lower', key)
       .maybeSingle();
 
     // Don't reveal whether the account exists — uniform 404 either way.
@@ -83,11 +87,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ found: false }, 200);
     }
 
+    // `hint` carries the words, as it always has, so app builds already
+    // on phones show the clue without an update. A code that is not on
+    // the list answers as no clue.
+    const hint = pinHintText(user.pin_hint_code);
     return jsonResponse({
       found: true,
-      hint: typeof user.pin_hint === 'string' && user.pin_hint.length > 0
-        ? user.pin_hint
-        : null,
+      hintCode: hint ? user.pin_hint_code : null,
+      hint,
     });
   } catch (err) {
     console.error('get-pin-hint error:', err);

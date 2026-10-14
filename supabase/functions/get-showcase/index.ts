@@ -48,8 +48,14 @@ Deno.serve(async (req) => {
       .eq('token', token)
       .then(() => {});
 
+    // A showcase made before display names carried the name the child
+    // typed. Migration 00014 rewrites those; this drops it on the way out
+    // in case one was missed.
+    const snapshot = { ...(showcase.snapshot as Record<string, unknown>) };
+    delete snapshot.username;
+
     return jsonResponse({
-      snapshot: showcase.snapshot,
+      snapshot,
       viewCount: (showcase.view_count ?? 0) + 1,
     });
   } catch (err) {

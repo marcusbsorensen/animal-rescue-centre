@@ -8,12 +8,15 @@
  *   - parent → iframe: {type:'init', payload:{usernames:string[]}}  (once loaded)
  *   - iframe → parent: {type:'play'|'login'|'signup'|'back-to-welcome'}
  *   - iframe → parent: {type:'login-submit', payload:{username,pin}}
- *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,pinHint?}}
- *   - parent → iframe: {type:'auth-error', payload:{message}}   (on failure, iframe shakes+clears)
+ *   - iframe → parent: {type:'need-names'}   (the signup name screen wants ready-made names)
+ *   - parent → iframe: {type:'sign-in-names', payload:{names:string[]}}   (empty on failure)
+ *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,hintCode?,displayName?,readyMadeName?}}
+ *   - parent → iframe: {type:'auth-error', payload:{message, suggestions?}}   (on failure, iframe shakes+clears)
  */
 
-import { login, signup, checkUsername, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
+import { login, signup, checkUsername, offerSignInNames, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
+import { isPinHintCode, isDisplayNameBase } from '@arc/game-logic';
 
 export type AuthAction =
   | 'play'
@@ -23,7 +26,6 @@ export type AuthAction =
   | 'logout'
   | 'back-to-menu'
   | 'back-to-welcome'
-  | 'type-name'                   // login → "Not here? Type your name" → signup with context
   | 'forgot-pin'                  // login → "Forgot your secret code?" → recovery flow
   | 'recruit-apprentice'
   | 'auth-success-existing'      // login() resolved
@@ -56,6 +58,10 @@ const PAGE_URLS: Record<AuthPage, string> = {
 };
 
 let activeFrame: HTMLIFrameElement | null = null;
+/** True once the mounted page has loaded and can hear a message. */
+let activeFrameLoaded = false;
+/** Messages for the mounted page sent before it had loaded. */
+let pendingPosts: Array<{ type: string; payload?: unknown }> = [];
 let activeListener: ((e: MessageEvent) => void) | null = null;
 
 /** Send a message from parent → iframe (used for init + error feedback). */
@@ -66,8 +72,15 @@ function postToFrame(type: string, payload?: unknown): void {
 
 /** Public version — host scenes can post to whichever auth iframe is
  *  currently mounted. Used by ForgotPinScene to push the kid's
- *  freshly-fetched PIN-hint after the iframe is up. */
+ *  freshly-fetched PIN-hint. A message sent before the page has loaded
+ *  waits for it: posted earlier, it would reach the blank document the
+ *  iframe starts with, and be lost. */
 export function postToActiveFrame(type: string, payload?: unknown): void {
+  if (!activeFrame) return;
+  if (!activeFrameLoaded) {
+    pendingPosts.push({ type, payload });
+    return;
+  }
   postToFrame(type, payload);
 }
 
@@ -94,6 +107,8 @@ export function mountAuth(
   frame.setAttribute('aria-label', `A.R.C. ${page} screen`);
   document.body.appendChild(frame);
   activeFrame = frame;
+  activeFrameLoaded = false;
+  pendingPosts = [];
 
   // After iframe loads, send any per-page init data it needs.
   frame.addEventListener('load', () => {
@@ -102,10 +117,8 @@ export function mountAuth(
       postToFrame('init', { usernames });
     }
     if (page === 'signup' && context?.reason) {
-      // Pass the "why we're here" reason to the signup iframe so it can
-      // show contextual greeting (e.g. "Couldn't find you in the list —
-      // let's make a new account!" when a kid taps "Not here? Type
-      // your name" on login).
+      // Pass the "why we're here" reason to the signup iframe, for a
+      // page that has a note to show for it.
       postToFrame('init', { reason: context.reason });
     }
     if (page === 'menu' && context?.session) {
@@ -128,6 +141,13 @@ export function mountAuth(
     // Always sync the current music-on state so the speaker emoji
     // starts in the right 🔊/🔇 position regardless of page.
     postToFrame('music-state', { enabled: AudioManager.getInstance().isMusicOn() });
+    // Then anything a scene sent while the page was still loading.
+    if (activeFrame === frame) {
+      activeFrameLoaded = true;
+      const queued = pendingPosts;
+      pendingPosts = [];
+      for (const m of queued) postToFrame(m.type, m.payload);
+    }
   });
 
   activeListener = async (e: MessageEvent) => {
@@ -140,7 +160,7 @@ export function mountAuth(
         msg.type === 'signup' || msg.type === 'back-to-welcome' ||
         msg.type === 'friends' || msg.type === 'logout' ||
         msg.type === 'back-to-menu' ||
-        msg.type === 'type-name' || msg.type === 'forgot-pin' ||
+        msg.type === 'forgot-pin' ||
         msg.type === 'intro-complete' || msg.type === 'set-skip-intro' ||
         msg.type === 'intro-climactic-sfx') {
       handlers.onAction(msg.type as AuthAction, undefined, msg.payload);
@@ -172,6 +192,14 @@ export function mountAuth(
       return;
     }
 
+    // Ready-made sign-in names for the name screen: three when it opens,
+    // three more for each "Show another". Always answers, with an empty
+    // list on failure, so the button never stays disabled.
+    if (msg.type === 'need-names') {
+      postToFrame('sign-in-names', { names: await offerSignInNames() });
+      return;
+    }
+
     // Real auth submissions — call lib/auth, route on success, shake on failure.
     if (msg.type === 'login-submit') {
       try {
@@ -182,12 +210,14 @@ export function mountAuth(
       }
       return;
     }
-    // Signup completion — the iframe now sends 'signup-complete' once
-    // the whole multi-stage flow (name+animal → PIN → hint) is done.
-    // Older 'signup-submit' kept as an alias for back-compat with any
-    // external callers still using the original event name. The
-    // payload from the iframe carries `hint`; we map it to `pinHint`
-    // so it lines up with SignupData on the lib/auth side.
+    // Signup completion — the iframe sends 'signup-complete' once the
+    // whole multi-stage flow (name+animal → PIN → clue) is done. Older
+    // 'signup-submit' kept as an alias for back-compat with any external
+    // callers still using the original event name. The payload carries
+    // `hintCode`, a code from the fixed clue list; typed text is never
+    // passed on, even if an old page sends it. `displayName` is the name
+    // other players see, as the page showed it: passed on only if it is a
+    // pair from the word lists, and the server checks again.
     if (msg.type === 'signup-complete' || msg.type === 'signup-submit') {
       try {
         const raw = (msg.payload ?? {}) as Record<string, unknown>;
@@ -196,7 +226,10 @@ export function mountAuth(
           pin: String(raw.pin ?? ''),
           avatarEmoji: String(raw.avatarEmoji ?? raw.animal ?? ''),
           avatarBgColour: String(raw.avatarBgColour ?? '#ffd0a0'),
-          pinHint: typeof raw.hint === 'string' ? raw.hint : (typeof raw.pinHint === 'string' ? raw.pinHint : undefined),
+          pinHintCode: isPinHintCode(raw.hintCode) ? raw.hintCode : undefined,
+          displayName: isDisplayNameBase(raw.displayName) ? raw.displayName : undefined,
+          // Picked from the offered names, not typed: the server claims it.
+          readyMadeName: raw.readyMadeName === true ? true : undefined,
         };
         const session = await signup(data);
         handlers.onAction('auth-success-new', session);
@@ -218,6 +251,8 @@ export function unmountAuth(): void {
     window.removeEventListener('message', activeListener);
     activeListener = null;
   }
+  pendingPosts = [];
+  activeFrameLoaded = false;
   if (activeFrame) {
     activeFrame.remove();
     activeFrame = null;

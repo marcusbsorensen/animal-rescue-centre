@@ -289,6 +289,48 @@
     pointer-events: none;
   }
   .login-error-msg.show { opacity: 1; }
+  /* ── Stage A2: type your secret name ──
+     On a device that remembers no names, or when she is not among the ones
+     it remembers, the child types the secret name she picked at signup and
+     then her number. Cream paper, as on signup's name card. 18px or more,
+     so a phone does not zoom in when the box takes the keyboard. */
+  .name-field-wrap {
+    padding: clamp(2px, 0.6cqh, 6px) 0 clamp(4px, 0.8cqh, 8px);
+  }
+  .name-field {
+    width: 100%;
+    min-height: 48px;
+    font-family: var(--body-font);
+    font-weight: 700;
+    font-size: clamp(18px, 2.8cqh, 24px);
+    padding: clamp(6px, 1.2cqh, 12px) clamp(14px, 2.4cqw, 20px);
+    color: #3a2618;
+    background: linear-gradient(180deg, #fffbe8 0%, #f5ecd0 100%);
+    border: 2px solid #7a4b15;
+    border-radius: 10px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 2px 3px rgba(0,0,0,0.2);
+    outline: none;
+    text-align: center;
+  }
+  .name-field:focus {
+    border-color: #9a6528;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(231,168,74,0.4);
+  }
+  #stage-type { min-width: min(400px, 92cqw); }
+  #stage-type .sign-subtitle { display: block; margin-bottom: clamp(4px, 0.8cqh, 8px); }
+  .type-actions {
+    display: flex; justify-content: center;
+    margin-top: clamp(6px, 1.2cqh, 12px);
+  }
+  .type-actions .link-btn {
+    min-width: 48px; min-height: 48px;
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
+  }
+  .type-actions .link-btn[aria-disabled="true"] {
+    opacity: 0.55;
+    filter: saturate(0.5);
+    cursor: not-allowed;
+  }
   @keyframes signShake {
     10%, 90% { transform: translateX(-2px) rotate(-1.2deg); }
     20%, 80% { transform: translateX(4px)  rotate(-1.2deg); }
@@ -1406,6 +1448,32 @@
                 </div>
               </div>
 
+              <!-- Stage A2: type your secret name. The TYPE YOUR NAME sign
+                   opens this; NEXT goes on to the PIN with the typed name. -->
+              <div class="intro stage-type hidden" id="stage-type">
+                <button class="back-sticker" data-back-sticker aria-label="Go back">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="9,16 4,11 9,6"/>
+                    <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
+                  </svg>
+                </button>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt=""><div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
+                <div class="sign-title-row">
+                  <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
+                  <div class="sign-title">Welcome back!</div>
+                </div>
+                <label class="sign-subtitle" for="login-name-field">Type your secret name</label>
+                <div class="name-field-wrap">
+                  <input class="name-field" id="login-name-field" type="text" maxlength="24"
+                         autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+                         enterkeyhint="next">
+                </div>
+                <div class="login-error-msg" id="login-name-error" role="alert" aria-live="polite"></div>
+                <div class="type-actions">
+                  <button class="link-btn plank-sage" id="name-next-btn" aria-disabled="true">NEXT →</button>
+                </div>
+              </div>
+
               <!-- Stage B: PIN entry -->
               <div class="intro stage-pin hidden" id="stage-pin">
                 <button class="back-sticker" data-back-sticker aria-label="Go back">
@@ -1459,7 +1527,7 @@
                   <!-- "Back to welcome" removed: this IS the welcome-back screen,
                        so the action was redundant + non-functional. -->
                   <button class="link-btn plank-orange" id="forgot-pin-btn">Forgot your secret code?</button>
-                  <button class="link-btn plank-sage">New? Make an account</button>
+                  <button class="link-btn plank-sage" id="new-account-btn">New? Make an account</button>
                 </div>
               </div>
 
@@ -1504,8 +1572,14 @@
   // Stage toggle: swap between player-select and PIN entry.
   const stageSelect = document.getElementById('stage-select');
   const stagePin = document.getElementById('stage-pin');
+  const stageType = document.getElementById('stage-type');
+  const nameField = document.getElementById('login-name-field');
+  const nameNextBtn = document.getElementById('name-next-btn');
   const stageToggle = document.getElementById('stage-toggle');
   let showing = 'select';
+  // Where the PIN stage's back sticker returns to: the list of names she
+  // tapped, or the box she typed her name into.
+  let cameFrom = 'select';
 
   // Adaptive TYPE-YOUR-NAME demotion. If there's at least one recent
   // user on this device (chip in the grid), the avatar grid is the
@@ -1539,10 +1613,12 @@
     } else {
       btn.classList.remove('demoted');
       if (label) label.textContent = 'TYPE YOUR NAME';
-      if (subtitle) subtitle.textContent = 'Type your name to start caring for your animals';
+      if (subtitle) subtitle.textContent = 'Type your secret name to start caring for your animals';
     }
   }
   adaptTypeNameButton();
+  // Three stages: 'select' (tap your picture), 'type' (type your secret
+  // name) and 'pin'.
   function setStage(s) {
     showing = s;
     const typeNameBtn = document.getElementById('type-name-btn');
@@ -1551,19 +1627,13 @@
     // laptop screens the cat top + grass bottom get clipped without
     // dedicated compression rules.
     document.body.classList.toggle('stage-pin-active', s === 'pin');
-    if (s === 'pin') {
-      stageSelect.classList.add('hidden');
-      stagePin.classList.remove('hidden');
-      stageToggle.textContent = 'Switch to player-select ↑';
-      // The "TYPE YOUR NAME" sign only makes sense on stage-select.
-      // On PIN stage, hide it — the player has already picked their chip.
-      if (typeNameBtn) typeNameBtn.style.display = 'none';
-    } else {
-      stageSelect.classList.remove('hidden');
-      stagePin.classList.add('hidden');
-      stageToggle.textContent = 'Switch to PIN stage ↓';
-      if (typeNameBtn) typeNameBtn.style.display = '';
-    }
+    stageSelect.classList.toggle('hidden', s !== 'select');
+    stageType?.classList.toggle('hidden', s !== 'type');
+    stagePin.classList.toggle('hidden', s !== 'pin');
+    if (stageToggle) stageToggle.textContent = s === 'pin' ? 'Switch to player-select ↑' : 'Switch to PIN stage ↓';
+    // The "TYPE YOUR NAME" sign only makes sense on stage-select: on the
+    // other two she has already tapped it, or tapped her picture.
+    if (typeNameBtn) typeNameBtn.style.display = s === 'select' ? '' : 'none';
   }
   stageToggle?.addEventListener('click', () => setStage(showing === 'select' ? 'pin' : 'select'));
   // Mode detection: embed mode strips the design-review chrome and posts
@@ -1577,7 +1647,7 @@
     if (!isEmbed) return;
     try { parent.postMessage({ source: 'arc-auth', type, payload }, '*'); } catch (_) {}
   };
-  document.querySelector('.link-btn.plank-sage')?.addEventListener('click', () => send('signup'));
+  document.getElementById('new-account-btn')?.addEventListener('click', () => send('signup'));
   // Orange plank — opens the forgot-PIN recovery flow. In design-
   // review (no embed) we navigate to the standalone screen so Marcus
   // can preview the screen without rigging up a host.
@@ -1586,7 +1656,9 @@
     // (Tier 2 of the recovery flow). selectedUsername is set when the
     // kid tapped their chip; if no chip was selected, it's null and
     // the host can prompt for a username.
-    if (params.has('embed')) send('forgot-pin', { username: selectedUsername || null });
+    // On the type stage the name is whatever is in the box so far.
+    const typed = showing === 'type' ? (nameField?.value || '').trim() : '';
+    if (params.has('embed')) send('forgot-pin', { username: typed || selectedUsername || null });
     else location.href = '/admin/forgot-pin.html';
   });
   // Yellow back-sticker — context-aware. On the chip-pick stage (A)
@@ -1595,25 +1667,67 @@
   // to the chip grid so the kid can pick a different account.
   document.querySelectorAll('[data-back-sticker]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      if (showing === 'pin') { setStage('select'); return; }
+      if (showing === 'pin') {
+        setStage(cameFrom);
+        if (cameFrom === 'type') nameField?.focus();
+        return;
+      }
+      if (showing === 'type') { setStage('select'); return; }
       if (params.has('embed')) send('back-to-welcome');
       else location.href = '/admin/welcome.html';
     });
   });
   // Type-your-name plank — both as primary CTA (no chips on device) and
   // as the demoted "Not here? Type your name" yellow plank under the
-  // chip grid. Both routes through the same handler.
-  // The "Not here? Type your name" demoted-yellow plank routes to
-  // signup with a reason flag, so the host can show a contextual
-  // greeting like "Couldn't find you in the list — let's make a
-  // new account!" on the signup screen rather than dropping the
-  // kid into a blank form with no context.
+  // chip grid. Both open the box she types her secret name into, then
+  // the PIN, and sign her in (131A). They used to go to signup, so a
+  // child on a new device could not sign in to the account she had.
+  // "New? Make an account" is the way to signup.
   document.getElementById('type-name-btn')?.addEventListener('click', () => {
-    // Only claim the child was missing from a list when there was one.
-    // On a fresh device this is the primary CTA, not a fallback, and
-    // leading with "couldn't find you" told them they had failed at
-    // something before they had typed a character.
-    send('type-name', chipCountNow() > 0 ? { reason: 'not-in-chips' } : {});
+    clearNameError();
+    setStage('type');
+    updateNameNextEnabled();
+    // Focusing the box brings up the keyboard on a phone or tablet.
+    nameField?.focus();
+  });
+  function updateNameNextEnabled() {
+    if (!nameNextBtn) return;
+    const ok = (nameField?.value || '').trim().length > 0;
+    nameNextBtn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+  }
+  function clearNameError() {
+    document.getElementById('login-name-error')?.classList.remove('show');
+  }
+  function showNameError(text) {
+    const errEl = document.getElementById('login-name-error');
+    if (errEl) {
+      errEl.textContent = text;
+      errEl.classList.add('show');
+    }
+    if (stageType) {
+      stageType.classList.remove('shake'); void stageType.offsetWidth;
+      stageType.classList.add('shake');
+      setTimeout(() => stageType.classList.remove('shake'), 500);
+    }
+  }
+  function submitTypedName() {
+    // The server ignores capitals and spaces either side; only an empty
+    // box goes nowhere.
+    const name = (nameField?.value || '').trim();
+    if (!name) { nameField?.focus(); return; }
+    cameFrom = 'type';
+    selectedUsername = name;
+    const nameEl = document.querySelector('#stage-pin .sign-title');
+    if (nameEl) nameEl.textContent = `Hi, ${name}!`;
+    nameField?.blur();
+    setStage('pin');
+    clearPin();
+    clearLoginError();
+  }
+  nameNextBtn?.addEventListener('click', submitTypedName);
+  nameField?.addEventListener('input', () => { clearNameError(); updateNameNextEnabled(); });
+  nameField?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submitTypedName(); }
   });
 
   // ── Login flow (works in both embed + design-review modes) ──
@@ -1663,6 +1777,7 @@
     send('login-submit', { username: selectedUsername, pin: pinBuffer });
   }
   function selectChip(el) {
+    cameFrom = 'select';
     selectedUsername = el.dataset.username || el.querySelector('.chip-name')?.textContent.trim();
     const nameEl = document.querySelector('#stage-pin .sign-title');
     if (nameEl && selectedUsername) nameEl.textContent = `Hi, ${selectedUsername}!`;
@@ -1704,7 +1819,21 @@
       // has to be re-evaluated against the real list.
       adaptTypeNameButton();
     }
-    if (m.type === 'auth-error') shakeError(m.payload?.message);
+    if (m.type === 'auth-error') {
+      const msg = m.payload?.message;
+      // A typed name with no account: back to the box she typed it in,
+      // with the name still there to correct, rather than a shake on the
+      // number she has not got wrong.
+      if (cameFrom === 'type' && /username not found/i.test(msg || '')) {
+        setStage('type');
+        clearPin();
+        showNameError("Hmm, can't find that name. Check the spelling?");
+        nameField?.focus();
+        nameField?.select();
+        return;
+      }
+      shakeError(msg);
+    }
   });
   // Hard-coded screen chips still function when 'init' never arrives at
   // all — i.e. this page opened directly for design review, not embedded

@@ -1,9 +1,12 @@
 import { supabase } from './supabase';
 import { getSession, sessionHeaders } from './auth';
 
+/** Another player as this one sees them. `displayName` is the name from
+ *  the word lists (MossyOtter); the name they typed is their login and
+ *  is never sent to anyone else. */
 export interface Friend {
   id: string;
-  username: string;
+  displayName: string;
   avatarEmoji: string;
   avatarBgColour: string;
 }
@@ -63,7 +66,7 @@ export async function getFriends(): Promise<Friend[]> {
     .from('friendships')
     .select(`
       friend:users!friendships_friend_id_fkey (
-        id, username, avatar_emoji, avatar_bg_colour
+        id, display_name, avatar_emoji, avatar_bg_colour
       )
     `)
     .eq('user_id', session.userId);
@@ -75,7 +78,7 @@ export async function getFriends(): Promise<Friend[]> {
     const f = (row as any).friend as Record<string, string>;
     return {
       id: f.id,
-      username: f.username,
+      displayName: f.display_name,
       avatarEmoji: f.avatar_emoji,
       avatarBgColour: f.avatar_bg_colour,
     };

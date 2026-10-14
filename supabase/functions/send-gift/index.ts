@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { checkRateLimit, clientIp } from '../_shared/rate-limit.ts';
+import { checkRateLimit, addressKey } from '../_shared/rate-limit.ts';
 import { requireSession } from '../_shared/session.ts';
 
 const VALID_GIFT_TYPES = ['treat_bundle', 'toy', 'blanket_pattern', 'decoration'];
@@ -52,10 +52,11 @@ Deno.serve(async (req) => {
     // gets ten times however many accounts they hold. Set well clear of
     // a household — six accounts could each spend their full budget
     // before this is felt.
-    const ip = clientIp(req);
-    if (ip) {
+    // Keyed by a hash of the address, never the address (addressKey).
+    const addr = await addressKey(req);
+    if (addr) {
       const ipRl = await checkRateLimit(
-        supabase, `gift-ip:${ip}`, 60, 15 * 60 * 1000,
+        supabase, `gift-ip:${addr}`, 60, 15 * 60 * 1000,
       );
       if (!ipRl.allowed) {
         return jsonResponse({
@@ -63,8 +64,6 @@ Deno.serve(async (req) => {
           retryAfterMs: ipRl.retryAfterMs,
         }, 429);
       }
-    } else {
-      console.error('no client IP header; address limit skipped');
     }
 
     // Verify they are friends

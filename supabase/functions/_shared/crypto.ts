@@ -77,15 +77,6 @@ export function generateJoinCode(): string {
   return `${word}-${num}`;
 }
 
-/**
- * Hash an email for parent gate (SHA-256, hex).
- */
-export async function hashEmail(email: string): Promise<string> {
-  const data = new TextEncoder().encode(email.toLowerCase().trim());
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return toHex(new Uint8Array(hash));
-}
-
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, '0'))

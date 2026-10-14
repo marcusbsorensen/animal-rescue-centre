@@ -6,9 +6,10 @@ import {
   clearRateLimit,
   peekRateLimit,
   bumpRateLimit,
-  clientIp,
+  addressKey,
 } from '../_shared/rate-limit.ts';
 import { createSession } from '../_shared/session.ts';
+import { loginKey } from '../_shared/login-name.ts';
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -17,7 +18,7 @@ Deno.serve(async (req) => {
   try {
     const { username, pin } = await req.json();
 
-    if (!username || typeof username !== 'string') {
+    if (!username || typeof username !== 'string' || !username.trim()) {
       return jsonResponse({ error: 'Username is required' }, 400);
     }
     if (!pin || typeof pin !== 'string' || !/^\d{4}$/.test(pin)) {
@@ -29,10 +30,16 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    // The name in small letters (00018): a sign-in name ignores capitals,
+    // so PebbleKite, pebblekite and PEBBLEKITE are one account.
+    const key = loginKey(username);
+
     // Rate limit: 5 failed attempts per username per 15 minutes. The
     // counter is cleared once the PIN checks out, so only failures
     // accumulate — a child who plays a lot is never locked out by it.
-    const rateLimitKey = `login:${username}`;
+    // Keyed on the name in small letters, so writing it in other capitals
+    // does not buy more tries.
+    const rateLimitKey = `login:${key}`;
     const rl = await checkRateLimit(supabase, rateLimitKey, 5, 15 * 60 * 1000);
     if (!rl.allowed) {
       const retryMinutes = Math.ceil(rl.retryAfterMs / 60_000);
@@ -55,8 +62,9 @@ Deno.serve(async (req) => {
     // Failures only, and never cleared by a success. Clearing it would
     // let someone holding one valid account spray sixty, log in, and go
     // again — which is no limit at all.
-    const ip = clientIp(req);
-    const ipKey = ip ? `login-ip:${ip}` : null;
+    // Keyed by a hash of the address, never the address (addressKey).
+    const addr = await addressKey(req);
+    const ipKey = addr ? `login-ip:${addr}` : null;
     if (ipKey) {
       const ipRl = await peekRateLimit(supabase, ipKey, 60);
       if (!ipRl.allowed) {
@@ -66,15 +74,13 @@ Deno.serve(async (req) => {
           429
         );
       }
-    } else {
-      console.error('no client IP header; address limit skipped');
     }
 
     // Find user
     const { data: user, error: userErr } = await supabase
       .from('users')
-      .select('id, username, pin_hash, avatar_emoji, avatar_bg_colour, join_code, is_active')
-      .eq('username', username)
+      .select('id, username, display_name, pin_hash, avatar_emoji, avatar_bg_colour, join_code, is_active')
+      .eq('username_lower', key)
       .single();
 
     // A miss counts against the address. Spraying a list of names lands
@@ -119,6 +125,7 @@ Deno.serve(async (req) => {
       session: {
         userId: user.id,
         username: user.username,
+        displayName: user.display_name,
         avatarEmoji: user.avatar_emoji,
         avatarBgColour: user.avatar_bg_colour,
         joinCode: user.join_code,

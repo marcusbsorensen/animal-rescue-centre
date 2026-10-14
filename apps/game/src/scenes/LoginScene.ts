@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
 import { createChromeButton, createTextButton, createChromeTitle, createAmbientParticles, createChromePlate } from '../ui/UIButton';
-import { getRememberedUsernames, login, searchUsername } from '../lib/auth';
+import { getRememberedUsernames, login } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
 
@@ -26,20 +26,9 @@ export class LoginScene extends Phaser.Scene {
         onAction: (action, _session, payload) => {
           if (action === 'back-to-welcome')       { unmount(); this.scene.start('MainMenuScene'); return; }
           if (action === 'signup')                { unmount(); this.scene.start('SignupScene'); return; }
-          // "Not here? Type your name" → signup, carrying the reason
-          // only when login actually sent one.
-          //
-          // This used to default to 'not-in-chips'. On a device with no
-          // saved accounts there is no list to be missing from, and the
-          // plank is the primary way in rather than a fallback — so the
-          // default greeted a child who had typed nothing with "couldn't
-          // find you in the list". No reason now means no note.
-          if (action === 'type-name')             {
-            unmount();
-            const reason = (payload as Record<string, unknown> | undefined)?.reason;
-            this.scene.start('SignupScene', typeof reason === 'string' ? { reason } : {});
-            return;
-          }
+          // "TYPE YOUR NAME" stays on the login page: she types her
+          // secret name there and signs in with it (131A), so it sends
+          // no action here.
           if (action === 'forgot-pin')            {
             unmount();
             const username = (payload as Record<string, unknown> | undefined)?.username;
@@ -201,7 +190,10 @@ export class LoginScene extends Phaser.Scene {
             results = ['BrambleFox', 'CloverPaws', 'MoonBunny']
               .filter((n) => n.toLowerCase().includes(query.toLowerCase()));
           } else {
-            results = await searchUsername(query);
+            // The name as typed, for login to check. Sign-in names are
+            // not searchable: the public key cannot read them (00016),
+            // because listing them would show every child's login.
+            results = [query];
           }
           results.forEach((name, i) => {
             resultsContainer.add(

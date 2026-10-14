@@ -5,11 +5,18 @@ export interface SignupData {
   pin: string;
   avatarEmoji: string;
   avatarBgColour: string;
-  /** PIN-recovery hint set during signup (Tier 2 of the forgot-PIN flow).
-   *  Stored on the user row; surfaced when the kid passes 2/3 of the
-   *  recovery questions. See docs/forgot-pin-recovery.md. */
-  pinHint?: string;
-  parentEmailHash?: string;
+  /** The clue picked for the PIN at signup: a code from the fixed list in
+   *  `@arc/game-logic` (`PIN_HINT_CHOICES`), never typed text. Shown back
+   *  on the forgot-PIN screen. See docs/forgot-pin-recovery.md. */
+  pinHintCode?: string;
+  /** The name other players see, as shown on the signup page: a pair
+   *  from the word lists in `@arc/game-logic` (`isDisplayNameBase`), with
+   *  no number. The server adds a number if that pair is taken. */
+  displayName?: string;
+  /** True when `username` was picked from the ready-made names the
+   *  server offered, not typed. The server then claims it from the pool,
+   *  and refuses it with three new names if somebody has just taken it. */
+  readyMadeName?: boolean;
 }
 
 export interface LoginData {
@@ -19,7 +26,12 @@ export interface LoginData {
 
 export interface AuthSession {
   userId: string;
+  /** The secret name this player signs in with, shown only to them: a
+   *  ready-made one picked at signup, or one typed on an older build. */
   username: string;
+  /** The name other players see (MossyOtter7). Missing from a session
+   *  saved by a build from before display names. */
+  displayName?: string;
   avatarEmoji: string;
   avatarBgColour: string;
   joinCode: string;
@@ -54,9 +66,9 @@ export class SignupError extends Error {
  * (the raw `Response`). Without this, the login/signup screens only
  * ever saw the generic string and fell back to "Something went wrong".
  */
-async function readFunctionErrorBody(
+export async function readFunctionErrorBody(
   error: unknown,
-): Promise<{ error?: string; suggestions?: string[] } | null> {
+): Promise<{ error?: string; suggestions?: string[]; code?: string } | null> {
   const ctx = (error as { context?: Response } | null)?.context;
   if (ctx && typeof ctx.json === 'function') {
     try {
@@ -132,8 +144,11 @@ export async function signup(data: SignupData): Promise<AuthSession> {
  * Log in an existing player via the Edge Function.
  */
 export async function login(data: LoginData): Promise<AuthSession> {
+  // A typed name may carry a space from the keyboard. Capitals are left
+  // as typed: the server ignores them, and answers with the name as it
+  // was made, which is the one this device remembers.
   const { data: result, error } = await supabase.functions.invoke('login', {
-    body: data,
+    body: { ...data, username: data.username.trim() },
   });
 
   if (error) {
@@ -151,10 +166,10 @@ export async function login(data: LoginData): Promise<AuthSession> {
 }
 
 /**
- * Fetch the saved PIN-hint for a username. Used by the forgot-PIN
- * recovery flow when the kid passes 2/3 of the challenge questions
- * (see docs/forgot-pin-recovery.md). Returns `null` if the account
- * has no hint or is unknown.
+ * Fetch the words of the clue a player picked for their PIN (for example
+ * "A birthday"). Used by the forgot-PIN recovery flow (see
+ * docs/forgot-pin-recovery.md). Returns `null` if the account has no
+ * clue or is unknown.
  *
  * The endpoint is rate-limited server-side (5 lookups per username
  * per 30 minutes) and returns a uniform shape whether the account
@@ -224,6 +239,23 @@ function rememberUsername(username: string): void {
 }
 
 /**
+ * Take a name off this device's list of players who have signed in here.
+ * Used when that account is deleted.
+ */
+export function forgetUsername(username: string): void {
+  const remaining = getRememberedUsernames().filter((name) => name !== username);
+  try {
+    if (remaining.length > 0) {
+      localStorage.setItem(REMEMBERED_USERNAMES_KEY, JSON.stringify(remaining));
+    } else {
+      localStorage.removeItem(REMEMBERED_USERNAMES_KEY);
+    }
+  } catch {
+    // Storage refused; nothing more can be done from here.
+  }
+}
+
+/**
  * Get usernames this device has previously logged in with.
  */
 export function getRememberedUsernames(): string[] {
@@ -237,34 +269,22 @@ export function getRememberedUsernames(): string[] {
 }
 
 /**
- * Fetch 3 random available usernames from the pool.
+ * Three ready-made sign-in names for the name screen (PebbleKite,
+ * AcornDrum, ...), from the pool the server keeps
+ * (migrations/00017_ready_made_sign_in_names.sql).
+ *
+ * The public key cannot read the pool, so the names come through the
+ * signup function, which also rate-limits asking. Empty on any failure:
+ * the screen keeps the names it has and says to try again.
  */
-export async function getAvailableUsernames(count = 3): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('username_pool')
-    .select('username')
-    .is('claimed_at', null)
-    .limit(50);
-
-  if (error) throw new Error('Failed to fetch usernames');
-  if (!data || data.length === 0) return [];
-
-  // Shuffle and pick `count`
-  const shuffled = data.sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count).map((row) => row.username);
-}
-
-/**
- * Search for a username (for "I'm on a new device" flow).
- */
-export async function searchUsername(query: string): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('username')
-    .ilike('username', `%${query}%`)
-    .eq('is_active', true)
-    .limit(10);
-
-  if (error) throw new Error('Failed to search usernames');
-  return (data ?? []).map((row) => row.username);
+export async function offerSignInNames(): Promise<string[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke('signup', {
+      body: { offerNames: true },
+    });
+    if (error || !Array.isArray(data?.names)) return [];
+    return (data.names as unknown[]).filter((n): n is string => typeof n === 'string');
+  } catch {
+    return [];
+  }
 }

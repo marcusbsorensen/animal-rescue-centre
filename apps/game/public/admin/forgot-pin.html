@@ -1349,9 +1349,9 @@
         <div class="sign-title">Almost! Need a clue?</div>
       </div>
       <div class="sign-subtitle" id="hint-subtitle">${pinHint
-        ? "Here's the hint you wrote when you set your secret code."
-        : "You didn't save a hint for your secret code."}</div>
-      <div class="hint-card" id="hint-card">${escapeHtml(pinHint || 'No hint saved')}</div>
+        ? "Here is the clue you picked for your secret code."
+        : "There is no clue saved for your secret code."}</div>
+      <div class="hint-card" id="hint-card">${escapeHtml(pinHint || 'No clue saved')}</div>
       <div class="opts">
         <button class="opt-btn opt-amber" id="i-remember">I remember now! →</button>
         <button class="opt-btn opt-sage" id="ask-grownup">Still don't know — ask a grown-up</button>
@@ -1359,6 +1359,11 @@
     `;
     transitionTo(html, {
       afterMount: () => {
+        // The card goes in 280ms after this was called, from words picked
+        // then. A clue that arrived in between (a quick server answers
+        // within that) would be painted over with "No clue saved", so the
+        // card is filled again from the clue as it is now.
+        setHint(pinHint);
         document.getElementById('i-remember')?.addEventListener('click', () => {
           send('recovery-hint-resolved', { username: snapshot.username });
         });
@@ -1430,11 +1435,11 @@
   function setHint(h) {
     pinHint = h;
     const card = document.getElementById('hint-card');
-    if (card) card.textContent = h || 'No hint saved';
-    // The stage may already have rendered with the "you didn't save a hint"
+    if (card) card.textContent = h || 'No clue saved';
+    // The stage may already have rendered with the "there is no clue saved"
     // subtitle before this arrived — correct it now that one has.
     const sub = document.getElementById('hint-subtitle');
-    if (sub && h) sub.textContent = "Here's the hint you wrote when you set your secret code.";
+    if (sub && h) sub.textContent = "Here is the clue you picked for your secret code.";
   }
   window.addEventListener('message', (e) => {
     if (e.data?.source !== 'arc-auth-host') return;
@@ -1460,7 +1465,7 @@
   // full quiz against the demo snapshot — that is what it is for.
   // Always the hint stage, never the quiz. The hint may still be in flight
   // (ForgotPinScene resolves it asynchronously and posts it), so the card
-  // renders "No hint saved" and setHint() fills it in when it lands —
+  // renders "No clue saved" and setHint() fills it in when it lands —
   // rather than this deciding a stage from a hint it cannot have yet.
   // Either way "ask a grown-up" is right there.
   if (isEmbed && !params.get('stage')) startStage('hint');

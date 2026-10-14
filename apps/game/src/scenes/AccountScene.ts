@@ -5,6 +5,7 @@ import { createChromeButton, createChromeTitle, createChromePlate, createAmbient
 import { BADGE_DEFINITIONS } from '@arc/badges';
 import { getSession } from '../lib/auth';
 import { AudioManager } from '../audio/AudioManager';
+import { openDeleteAccountPanel } from '../ui/DeleteAccountPanel';
 
 /**
  * AccountScene — "about me" hub for the player.
@@ -79,10 +80,29 @@ export class AccountScene extends Phaser.Scene {
     const { width } = this.scale;
     this.container.removeAll(true);
 
-    // Title pill. On a phone the Back button occupies the top-left, so
-    // centre the title in what is left rather than over the button.
+    // Delete this account (top-right). Apple asks that an app which makes
+    // accounts lets the player start deleting one inside it (guideline
+    // 5.1.1(v)). The button only opens a panel that says what would go and
+    // asks for the account's secret number; see DeleteAccountPanel.
+    const session = getSession();
+    let deleteLeft = width;
+    if (session) {
+      const deleteButton = createChromeButton(this, width - SAFE_MARGIN, SAFE_MARGIN, 'Delete this account', () => {
+        AudioManager.getInstance().playSfx('button_click');
+        openDeleteAccountPanel(this, () => this.scene.start('MainMenuScene'));
+      }, {
+        width: 0, fontSize: TYPE.caption, tone: 'danger',
+        anchor: { x: 'right', y: 'top' },
+      });
+      this.container.add(deleteButton);
+      deleteLeft = deleteButton.x - deleteButton.width / 2;
+    }
+
+    // Title pill. The Back button occupies the top-left and the delete
+    // button the top-right, so on a narrow screen centre the title in what
+    // is left between them rather than over either.
     const backRight = SAFE_MARGIN + 58 + 58;
-    const titleX = width < 500 ? (backRight + width) / 2 : width / 2;
+    const titleX = width < 700 ? (backRight + deleteLeft) / 2 : width / 2;
     const title = createChromeTitle(this, titleX, TITLE_CY, 'My A.R.C.', {
       icon: 'icon-badge',
       iconSize: 22,

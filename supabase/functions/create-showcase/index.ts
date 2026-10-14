@@ -18,10 +18,12 @@ Deno.serve(async (req) => {
     if (!session) return jsonResponse({ error: 'Not authenticated' }, 401);
     const userId = session.userId;
 
-    // Get user profile (only safe fields — no PII beyond username/avatar)
+    // The player as anyone may see them: the display name from the word
+    // lists and the avatar. Never the name they typed, which is their
+    // login, because a showcase is public.
     const { data: user, error: userErr } = await supabase
       .from('users')
-      .select('username, avatar_emoji, avatar_bg_colour')
+      .select('display_name, avatar_emoji, avatar_bg_colour')
       .eq('id', userId)
       .single();
 
@@ -58,7 +60,7 @@ Deno.serve(async (req) => {
     );
 
     const snapshot = {
-      username: user.username,
+      displayName: user.display_name,
       avatarEmoji: user.avatar_emoji,
       avatarBgColour: user.avatar_bg_colour,
       level: gameState?.level ?? 1,
