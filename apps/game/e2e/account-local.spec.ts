@@ -1,5 +1,5 @@
 import { test, expect, type Page, type FrameLocator, type BrowserContext } from '@playwright/test';
-import { waitForGameReady, waitForScene } from './helpers';
+import { waitForGameReady, waitForScene, installSession, type ArcSession } from './helpers';
 
 /**
  * The account flows end to end, on a LOCAL Supabase stack only.
@@ -7,10 +7,12 @@ import { waitForGameReady, waitForScene } from './helpers';
  * A child signs up with a ready-made secret name, signs in again on the
  * same device, finds the clue for her number, signs in on a new device by
  * typing her secret name in other capitals (131A, hub 96), and deletes
- * the account. Every step goes through the real screens, the real Edge
- * Functions and the real database, which is why this never runs against
- * production: nobody makes accounts there (a court order means a police
- * notification for each one).
+ * the account. Then two players become friends, one removes the other from
+ * the friends screen (146A), and they add each other again. Every step goes
+ * through the real Edge Functions and the real database, and every step a
+ * child takes goes through the real screens, which is why this never runs
+ * against production: nobody makes accounts there (a court order means a
+ * police notification for each one).
  *
  * Skipped unless ARC_E2E_LOCAL_STACK=1. To run it:
  *   1. `supabase start` in a workdir that is NOT linked to a project, with
@@ -19,14 +21,24 @@ import { waitForGameReady, waitForScene } from './helpers';
  *      the local stack's (env overrides beat apps/game/.env.local);
  *   3. ARC_E2E_LOCAL_STACK=1 ARC_E2E_BASE_URL=http://127.0.0.1:<port> \
  *        ARC_BROWSER_CHANNEL=chrome pnpm exec playwright test e2e/account-local.spec.ts
+ *   The friends steps also call the local functions and read the local
+ *   database directly, so they need the stack's address and its two keys
+ *   (`supabase status -o env`): ARC_E2E_SUPABASE_URL (default
+ *   http://127.0.0.1:54321), ARC_E2E_SUPABASE_ANON_KEY and
+ *   ARC_E2E_SUPABASE_SERVICE_KEY.
  *
  * Any request to a hosted Supabase project (*.supabase.co) is blocked and
  * fails the run, so a dev server pointed at production cannot make an
- * account by accident.
+ * account by accident. The test's own calls go only to an address on this
+ * machine: any other ARC_E2E_SUPABASE_URL stops the run before it starts.
  */
 
 const LOCAL = process.env.ARC_E2E_LOCAL_STACK === '1';
 const PIN = '4821';
+const API = new URL(process.env.ARC_E2E_SUPABASE_URL ?? 'http://127.0.0.1:54321');
+if (LOCAL && !['127.0.0.1', 'localhost', '[::1]'].includes(API.hostname)) {
+  throw new Error(`ARC_E2E_SUPABASE_URL must be a local stack on this machine, not ${API.hostname}`);
+}
 
 test.describe.configure({ mode: 'serial', timeout: 120_000 });
 test.skip(!LOCAL, 'needs a local Supabase stack: set ARC_E2E_LOCAL_STACK=1 (see the comment at the top)');
@@ -44,7 +56,7 @@ async function guard(page: Page): Promise<{ hosted: string[]; local: string[] }>
   );
   page.on('request', (req) => {
     const u = new URL(req.url());
-    if ((u.hostname === '127.0.0.1' || u.hostname === 'localhost') && u.port === '54321') seen.local.push(u.pathname);
+    if ((u.hostname === '127.0.0.1' || u.hostname === 'localhost') && u.port === API.port) seen.local.push(u.pathname);
   });
   // The game's music decodes to hundreds of megabytes and nothing here listens.
   await page.route(/\/assets\/audio\/.*\.(mp3|ogg|wav)(\?.*)?$/, (route) => route.abort());
@@ -266,4 +278,180 @@ test('deletes the account from the account screen, and the name signs in no more
   await fresh.close();
   await newDevice!.close();
   newDevice = null;
+});
+
+// ── Friends: remove a friend (146A) ──────────────────────────────────────
+//
+// Two players make accounts and become friends through the local functions,
+// as their devices would. Everything a child does after that is on the
+// friends screen: open it, choose Remove on a card, choose Keep, then Remove
+// for real. The gift checks read the local database with its service key.
+
+const ANON = process.env.ARC_E2E_SUPABASE_ANON_KEY ?? '';
+const SERVICE = process.env.ARC_E2E_SUPABASE_SERVICE_KEY ?? '';
+
+type Player = ArcSession & { displayName: string };
+const pair: { a: Player | null; b: Player | null } = { a: null, b: null };
+/** A's gift to Bo, never claimed; Bo's gift to A, claimed before the removal. */
+const gifts = { waiting: '', claimed: '' };
+const devices: { a: BrowserContext | null; b: BrowserContext | null } = { a: null, b: null };
+let removedAt = '';
+/** What each device's guard saw; hosted Supabase must stay empty. */
+const watched: Array<{ hosted: string[]; local: string[] }> = [];
+
+/** One of the local Edge Functions, as the game calls it. */
+async function call(name: string, body: Record<string, unknown>, token?: string): Promise<{ status: number; json: Record<string, unknown> }> {
+  const res = await fetch(`${API.origin}/functions/v1/${name}`, {
+    method: 'POST',
+    headers: {
+      apikey: ANON,
+      Authorization: `Bearer ${ANON}`,
+      'Content-Type': 'application/json',
+      ...(token ? { 'x-arc-session': token } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, json: (await res.json().catch(() => ({}))) as Record<string, unknown> };
+}
+
+/** Rows from the local database, read past the rules with the service key. */
+async function rows(table: string, query: string): Promise<Array<Record<string, unknown>>> {
+  const res = await fetch(`${API.origin}/rest/v1/${table}?${query}`, {
+    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` },
+  });
+  expect(res.status, `${table}?${query}`).toBe(200);
+  return (await res.json()) as Array<Record<string, unknown>>;
+}
+
+async function newPlayer(): Promise<Player> {
+  const tail = Array.from({ length: 8 }, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('');
+  const r = await call('signup', { username: `Fern${tail}`, pin: PIN, avatarEmoji: '🦊', avatarBgColour: '#ffd0a0' });
+  expect(r.status, JSON.stringify(r.json)).toBe(200);
+  return r.json.session as Player;
+}
+
+/** The friends screen, on a device where this player is signed in. */
+async function openFriends(device: BrowserContext, who: Player): Promise<{ page: Page; friends: FrameLocator }> {
+  const page = device.pages()[0] ?? await device.newPage();
+  if (!page.url().startsWith('http')) {
+    watched.push(await guard(page));
+    await installSession(page, who);
+    await page.goto('/');
+    await waitForGameReady(page, 60_000);
+  } else {
+    // Back from the friends screen to the menu, as a child would.
+    await screen(page, 'friends').locator('#back-btn').click();
+  }
+  await screen(page, 'menu').locator('#friends-btn').click({ timeout: 30_000 });
+  return { page, friends: screen(page, 'friends') };
+}
+
+/** A friend's card, found by the name on it. */
+const card = (friends: FrameLocator, who: Player) => friends.getByRole('group', { name: who.displayName, exact: true });
+
+/** The words of an element, without the zero-width breaks in a display name. */
+async function words(loc: ReturnType<FrameLocator['locator']>): Promise<string> {
+  return ((await loc.textContent()) ?? '').replace(/​/g, '').trim();
+}
+
+test.describe('friends: remove a friend (146A)', () => {
+  test.skip(LOCAL && (!ANON || !SERVICE), 'set ARC_E2E_SUPABASE_ANON_KEY and ARC_E2E_SUPABASE_SERVICE_KEY to the local stack\'s keys');
+
+  test('two players become friends by code, and each sees the other on the friends screen', async ({ browser }) => {
+    pair.a = await newPlayer();
+    pair.b = await newPlayer();
+    const { a, b } = pair as { a: Player; b: Player };
+    expect((await call('add-friend', { joinCode: b.joinCode }, a.token)).status).toBe(200);
+
+    // A gift each way before the removal: A's waits in Bo's inbox, and Bo's
+    // to A is claimed.
+    const waiting = await call('send-gift', { toUserId: b.userId, giftType: 'toy', messagePresetCode: 'hello' }, a.token);
+    expect(waiting.status, JSON.stringify(waiting.json)).toBe(200);
+    gifts.waiting = (waiting.json.gift as { id: string }).id;
+    const toA = await call('send-gift', { toUserId: a.userId, giftType: 'treat_bundle', messagePresetCode: 'hello' }, b.token);
+    gifts.claimed = (toA.json.gift as { id: string }).id;
+    expect((await call('claim-gift', { giftId: gifts.claimed }, a.token)).status).toBe(200);
+
+    devices.a = await browser.newContext();
+    devices.b = await browser.newContext();
+    const onA = await openFriends(devices.a, a);
+    await expect(card(onA.friends, b)).toBeVisible({ timeout: 20_000 });
+    const onB = await openFriends(devices.b, b);
+    await expect(card(onB.friends, a)).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('one removes the other: Keep keeps them, Remove removes them for both', async () => {
+    const { a, b } = pair as { a: Player; b: Player };
+    const { friends } = await openFriends(devices.a!, a);
+    const bo = card(friends, b);
+    await expect(bo).toBeVisible({ timeout: 20_000 });
+
+    // The question, with Keep ready to press.
+    await bo.getByRole('button', { name: `Remove ${b.displayName} from your friends` }).click();
+    await expect(friends.locator('.confirm-question')).toBeVisible();
+    expect(await words(friends.locator('.confirm-question'))).toBe(`Remove ${b.displayName} from your friends?`);
+    const keep = bo.getByRole('button', { name: 'Keep', exact: true });
+    await expect(keep).toBeFocused();
+    await keep.click();
+    await expect(friends.locator('.confirm-question')).toHaveCount(0);
+    await expect(bo.getByRole('button', { name: `Remove ${b.displayName} from your friends` })).toBeVisible();
+
+    // And again, this time Remove.
+    await bo.getByRole('button', { name: `Remove ${b.displayName} from your friends` }).click();
+    removedAt = new Date(Date.now() - 5_000).toISOString();
+    await bo.getByRole('button', { name: 'Remove', exact: true }).click();
+    await expect(bo).toHaveCount(0, { timeout: 20_000 });
+    await expect(friends.locator('.friends-empty-line1')).toHaveText('No friends here yet!');
+
+    // Bo opens his friends screen again, and A has gone from it too.
+    const onB = await openFriends(devices.b!, b);
+    await expect(onB.friends.locator('.friends-empty-line1')).toHaveText('No friends here yet!', { timeout: 20_000 });
+    await expect(card(onB.friends, a)).toHaveCount(0);
+  });
+
+  test('the gift waiting for Bo went with the friendship; the claimed one stayed', async () => {
+    const { a, b } = pair as { a: Player; b: Player };
+    // Bo cannot claim it: it is not there.
+    const claim = await call('claim-gift', { giftId: gifts.waiting }, b.token);
+    expect(claim.status).toBe(404);
+    expect(await rows('gifts', `id=eq.${gifts.waiting}&select=id`)).toEqual([]);
+    // Bo's gift to A was in A's game already, and its row is the record of it.
+    const [kept] = await rows('gifts', `id=eq.${gifts.claimed}&select=from_user,to_user,claimed_at`);
+    expect(kept).toMatchObject({ from_user: b.userId, to_user: a.userId });
+    expect(kept.claimed_at).not.toBeNull();
+    // Nor can a gift go now.
+    const late = await call('send-gift', { toUserId: b.userId, giftType: 'toy', messagePresetCode: 'hello' }, a.token);
+    expect(late.status).toBe(403);
+    // One log line, in counts: no id, no name, no code.
+    const log = await rows('audit_log', `action=eq.friend_removed&created_at=gte.${encodeURIComponent(removedAt)}&select=user_id,target_id,metadata`);
+    expect(log).toEqual([{ user_id: null, target_id: null, metadata: { removed: { friendships: 2, gifts_unclaimed: 1 } } }]);
+    // Removing again is harmless, and says the same.
+    const again = await call('remove-friend', { friendId: b.userId }, a.token);
+    expect(again).toEqual({ status: 200, json: { removed: true } });
+  });
+
+  test('they can add each other again, and both screens show it', async () => {
+    const { a, b } = pair as { a: Player; b: Player };
+    // This time Bo types A's code.
+    expect((await call('add-friend', { joinCode: a.joinCode }, b.token)).status).toBe(200);
+    const onA = await openFriends(devices.a!, a);
+    await expect(card(onA.friends, b)).toBeVisible({ timeout: 20_000 });
+    const onB = await openFriends(devices.b!, b);
+    await expect(card(onB.friends, a)).toBeVisible({ timeout: 20_000 });
+    // And gifts go between them again.
+    expect((await call('send-gift', { toUserId: b.userId, giftType: 'toy', messagePresetCode: 'hello' }, a.token)).status).toBe(200);
+
+    // Done: both accounts go, by the same path a child uses, and with them
+    // the friendship and the gift.
+    for (const p of [a, b]) expect((await call('delete-account', { pin: PIN }, p.token)).status).toBe(200);
+    expect(await rows('friendships', `user_id=in.(${a.userId},${b.userId})&select=user_id`)).toEqual([]);
+    await devices.a!.close();
+    await devices.b!.close();
+    devices.a = devices.b = null;
+    // Nothing went to a hosted project, and the screens used the local one.
+    expect(watched.flatMap((w) => w.hosted)).toEqual([]);
+    const local = watched.flatMap((w) => w.local);
+    expect(local.filter((path) => path.endsWith('/functions/v1/get-friends')).length).toBeGreaterThanOrEqual(5);
+    expect(local.filter((path) => path.endsWith('/functions/v1/remove-friend'))).toHaveLength(1);
+  });
 });
