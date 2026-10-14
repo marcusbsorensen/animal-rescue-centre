@@ -134,6 +134,9 @@ What the running game does now, against the spec above:
 - **Name pill**: Marnie honey-amber, every guest soft blue, dashed border kept, in a darker tone of each so it
   shows on the paler fill.
 - **Name highlights**: animal names deep green, person names deep amber (both at least 4.5:1 on the box).
+  Since 121A the hand-over's own four lines say no animal's name (so each can be recorded once and fit every
+  animal), which leaves "Marnie", in amber, as the one name in them; the green stays in the runner for any
+  conversation that does name an animal.
 - **Choices** (demo only): reply pills sit on the far side of the speaker, above the box, so the speaker is
   never covered.
 - **Resize**: a window resize no longer restarts GameScene while the conversation is up (the restart destroyed
@@ -144,4 +147,21 @@ What the running game does now, against the spec above:
 
 Checked by `e2e/dialogue-demo.spec.ts` (the dev demo, at 844x390 and 1024x768) and
 `e2e/adoption-handover.spec.ts` (one real adoption at each size).
+
+### Update 2026-10-14 (later): the two screens either side of the conversation, on a phone held sideways (124A)
+
+The match picker before the conversation and the ceremony after it were laid out for a tablet and broke on a
+sideways phone (cards collapsed to a strip at 844x390; the ceremony's two buttons pinned over its scroll text).
+Both are now laid out for the screen they are on:
+
+- **Picker** (`ui/adoption-match-layout.ts`, drawn by `AdoptionMatchScene`): *columns* on a tablet held sideways
+  (three tall cards under the animal), *rows* on a sideways phone (a rail down the left with the question, the
+  animal and "Not yet", and the three families as wide rows), *stack* in a narrow window. Every card is a 48px
+  or larger tap target; every piece of text is fitted to its box, shrinking towards 14px and only then trimming.
+- **Ceremony** (`public/admin/adoption.html`): on any landscape screen, two columns (the plaque on the left; the
+  gifts, "WAVE THEM OFF!" and "Not yet" on the right), drawn in from the height on a phone, so it fits 667x375
+  with the longest names the game has and needs no scrolling or pinning.
+
+Checked at 667x375, 844x390, 852x393, 932x430, 1024x768 and 1180x820 by `e2e/adoption-handover.spec.ts`: nothing
+overlaps, nothing is cut off, and every tap target is 44px or more.
 

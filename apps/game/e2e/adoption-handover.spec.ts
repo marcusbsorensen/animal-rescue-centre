@@ -383,3 +383,309 @@ test.describe('recorded voice lines', () => {
     expect(await playing(page)).toEqual([]);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The match picker and the ceremony on every landscape screen (124A)
+//
+// The picker was one column sized for a tablet: at 844x390 its cards collapsed
+// to a strip with their text printed across each other, and the ceremony's two
+// buttons were pinned over its scroll text. These checks are on what is drawn,
+// read back from the running game: no two things overlap, nothing runs off the
+// screen or is cut at its top, and every tap target is 44px or more.
+//
+// The sizes are the sideways phones the game ships on (667x375 iPhone SE,
+// 844x390 iPhone 13, 852x393 iPhone 15, 932x430 iPhone Pro Max) and the two
+// iPads it must keep right (1024x768, 1180x820).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LANDSCAPE_SIZES = [
+  { width: 667, height: 375, mode: 'rows' },
+  { width: 844, height: 390, mode: 'rows' },
+  { width: 852, height: 393, mode: 'rows' },
+  { width: 932, height: 430, mode: 'rows' },
+  { width: 1024, height: 768, mode: 'columns' },
+  { width: 1180, height: 820, mode: 'columns' },
+] as const;
+
+/** 44px: Apple's minimum for a touch target, and a little under the game's own MIN_TAP of 48. */
+const MIN_TAP_PX = 44;
+
+/** Animals whose offers differ (different species take different households, with different blurbs and names). */
+const PICKER_ANIMALS = [
+  { ...ANIMAL, id: 'e2e-barnaby', name: 'Barnaby', species: 'dog', variant: 'beagle' },
+  { ...ANIMAL, id: 'e2e-clementine', name: 'Clementine', species: 'bunny', variant: 'lop' },
+  { ...ANIMAL, id: 'e2e-kiwi', name: 'Kiwi', species: 'parrot', variant: 'budgie' },
+  { ...ANIMAL, id: 'e2e-noodle', name: 'Noodle', species: 'snake', variant: 'corn' },
+  // The seeded cat goes last and is left open: the test then picks a family from her offer and plays on to the ceremony.
+  ANIMAL,
+];
+
+interface PickerSnapshot {
+  viewport: { w: number; h: number };
+  layout: {
+    mode: string;
+    header: Rect; polaroid: Rect; notYet: Rect;
+    cards: Array<{ rect: Rect; portrait: Rect; sticker: Rect; name: Rect; text: Rect }>;
+  };
+  texts: Array<{ name: string; text: string; font: number; x: number; y: number; w: number; h: number }>;
+  hits: Array<{ name: string; x: number; y: number; w: number; h: number }>;
+}
+
+/** What the picker actually drew: every Text's bounds and every tap target's, plus the layout it was drawn from. */
+async function pickerSnapshot(page: Page): Promise<PickerSnapshot> {
+  return page.evaluate(() => {
+    const g = (window as unknown as { __PHASER_GAME__: PhaserGame }).__PHASER_GAME__;
+    type Obj = {
+      type: string; name: string; text?: string; style?: { fontSize: string };
+      input?: { enabled: boolean };
+      getBounds: () => { x: number; y: number; width: number; height: number };
+    };
+    const sc = g.scene.getScene('AdoptionMatchScene') as unknown as {
+      scale: { width: number; height: number };
+      container: { list: Obj[]; getData: (k: string) => unknown };
+    };
+    const list = sc.container.list;
+    const texts = list.filter((o) => o.type === 'Text').map((o) => {
+      const b = o.getBounds();
+      return { name: o.name, text: o.text ?? '', font: Number.parseFloat(o.style?.fontSize ?? '0'), x: b.x, y: b.y, w: b.width, h: b.height };
+    });
+    const hits = list.filter((o) => o.type === 'Rectangle' && o.input?.enabled).map((o) => {
+      const b = o.getBounds();
+      return { name: o.name, x: b.x, y: b.y, w: b.width, h: b.height };
+    });
+    return { viewport: { w: sc.scale.width, h: sc.scale.height }, layout: sc.container.getData('layout') as never, texts, hits };
+  });
+}
+
+const rectOf = (o: { x: number; y: number; w: number; h: number }): Rect => ({ x: o.x, y: o.y, w: o.w, h: o.h });
+const overlapDepth = (a: Rect, b: Rect): number =>
+  Math.min(a.x + a.w - b.x, b.x + b.w - a.x, a.y + a.h - b.y, b.y + b.h - a.y);
+const inside = (inner: Rect, outer: Rect, tol: number): boolean =>
+  inner.x >= outer.x - tol && inner.y >= outer.y - tol &&
+  inner.x + inner.w <= outer.x + outer.w + tol && inner.y + inner.h <= outer.y + outer.h + tol;
+
+/** Every check on one drawing of the picker. Returns the smallest type it used. */
+function checkPicker(s: PickerSnapshot, size: { width: number; height: number }, label: string): number {
+  const screen: Rect = { x: 0, y: 0, w: size.width, h: size.height };
+  expect(s.viewport, `${label}: the scene is the size of the screen`).toEqual({ w: size.width, h: size.height });
+  const L = s.layout;
+
+  // ── Tap targets: the cards and the way out ──
+  expect(s.hits.length, `${label}: one tap target per card, and the way out`).toBe(L.cards.length + 1);
+  for (const h of s.hits) {
+    expect(h.w, `${label}: ${h.name} is wide enough to tap`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+    expect(h.h, `${label}: ${h.name} is tall enough to tap`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+    expect(inside(rectOf(h), screen, 0.5), `${label}: ${h.name} is on the screen`).toBe(true);
+  }
+  for (let a = 0; a < s.hits.length; a++) {
+    for (let b = a + 1; b < s.hits.length; b++) {
+      expect(overlapDepth(rectOf(s.hits[a]), rectOf(s.hits[b])), `${label}: ${s.hits[a].name} and ${s.hits[b].name} are apart`).toBeLessThanOrEqual(-8);
+    }
+  }
+  // What was drawn is what the layout said.
+  L.cards.forEach((c, i) => {
+    const hit = s.hits.find((h) => h.name === `picker-card-hit:${i}`)!;
+    expect(hit, `${label}: card ${i} has a tap target`).toBeDefined();
+    expect(Math.abs(hit.x - c.rect.x) + Math.abs(hit.y - c.rect.y) + Math.abs(hit.w - c.rect.w) + Math.abs(hit.h - c.rect.h)).toBeLessThan(2);
+  });
+
+  // ── The big blocks: header, animal, cards, the way out ──
+  const blocks: Array<[string, Rect]> = [['header', L.header], ['animal', L.polaroid], ['way out', L.notYet], ...L.cards.map((c, i) => [`card ${i}`, c.rect] as [string, Rect])];
+  for (const [n, r] of blocks) expect(inside(r, screen, 0.5), `${label}: ${n} is on the screen`).toBe(true);
+  for (let a = 0; a < blocks.length; a++) {
+    for (let b = a + 1; b < blocks.length; b++) {
+      expect(overlapDepth(blocks[a][1], blocks[b][1]), `${label}: ${blocks[a][0]} and ${blocks[b][0]} do not touch`).toBeLessThanOrEqual(0);
+    }
+  }
+
+  // ── Text: on the screen, in its own box, clear of every other piece ──
+  const ownerOf = (name: string): Rect | null => {
+    const card = name.match(/^picker-card-[a-z]+:(\d+)/);
+    if (card) return L.cards[Number(card[1])].rect;
+    if (name === 'picker-title' || name === 'picker-subtitle') return L.header;
+    if (name.startsWith('picker-animal')) return L.polaroid;
+    if (name === 'picker-notyet-label') return L.notYet;
+    return null;
+  };
+  for (const t of s.texts) {
+    expect(inside(rectOf(t), screen, 0.5), `${label}: "${t.text}" is on the screen`).toBe(true);
+    const owner = ownerOf(t.name);
+    if (owner) expect(inside(rectOf(t), owner, 1), `${label}: "${t.text}" stays inside its box`).toBe(true);
+    expect(t.font, `${label}: "${t.text}" is not drawn below 14px`).toBeGreaterThanOrEqual(14);
+  }
+  for (let a = 0; a < s.texts.length; a++) {
+    for (let b = a + 1; b < s.texts.length; b++) {
+      expect(
+        overlapDepth(rectOf(s.texts[a]), rectOf(s.texts[b])),
+        `${label}: "${s.texts[a].text}" and "${s.texts[b].text}" do not run over each other`,
+      ).toBeLessThanOrEqual(2);
+    }
+  }
+  L.cards.forEach((c, i) => {
+    for (const t of s.texts.filter((x) => new RegExp(`^picker-card-(name|blurb|reason):${i}`).test(x.name))) {
+      expect(overlapDepth(rectOf(t), c.portrait), `${label}: card ${i}: "${t.text}" is clear of the portrait`).toBeLessThanOrEqual(0);
+    }
+    const pill = s.texts.find((x) => x.name === `picker-card-sticker:${i}`)!;
+    expect(inside(rectOf(pill), c.sticker, 1), `${label}: card ${i}'s pill holds its words`).toBe(true);
+    // A card says who they are and what they offer.
+    expect(s.texts.some((x) => x.name === `picker-card-name:${i}`), `${label}: card ${i} has a name`).toBe(true);
+    expect(s.texts.some((x) => x.name === `picker-card-blurb:${i}`), `${label}: card ${i} has a blurb`).toBe(true);
+  });
+  return Math.min(...s.texts.map((t) => t.font));
+}
+
+/** Everything the ceremony page is made of, measured in its own document. Run in the iframe. */
+function ceremonyProbe() {
+  const q = (sel: string) => document.querySelector<HTMLElement>(sel)!;
+  const rect = (el: Element) => { const b = el.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height }; };
+  const parts = (): Record<string, HTMLElement> => ({
+    title: q('#adopt-title'), subtitle: q('#adopt-subtitle'),
+    animal: document.querySelectorAll<HTMLElement>('.portrait-frame')[0],
+    connector: q('.meet-connector'),
+    family: document.querySelectorAll<HTMLElement>('.portrait-frame')[1],
+    scroll: q('.scroll-card'), gifts: q('.gifts-panel'), wave: q('#wave-btn'), notYet: q('#not-yet-btn'),
+  });
+  const measure = () => Object.fromEntries(Object.entries(parts()).map(([k, el]) => [k, rect(el)]));
+  // The plaque, the scroll, the gifts and the button are each tilted a degree or two, which
+  // swells their bounding boxes. Measure once as drawn, and once laid out flat.
+  const tilted = measure();
+  const flatten = document.createElement('style');
+  flatten.textContent = '*{transform:none!important;animation:none!important}';
+  document.head.appendChild(flatten);
+  const flat = measure();
+  const plaque = rect(q('.adopt-plaque'));
+  flatten.remove();
+  const adopt = q('.adopt');
+  return {
+    viewport: { w: innerWidth, h: innerHeight },
+    tilted, flat, plaque,
+    scrollable: adopt.scrollHeight - adopt.clientHeight,
+    tapTargets: { wave: [q('#wave-btn').offsetWidth, q('#wave-btn').offsetHeight], notYet: [q('#not-yet-btn').offsetWidth, q('#not-yet-btn').offsetHeight] },
+    // A label wider than its button is text running out of it.
+    labelsFit: { wave: q('#wave-btn').scrollWidth <= q('#wave-btn').clientWidth + 1, notYet: q('#not-yet-btn').scrollWidth <= q('#not-yet-btn').clientWidth + 1 },
+    scrollTextFits: q('.scroll-card').scrollHeight <= q('.scroll-card').clientHeight + 1,
+    title: q('#adopt-title').textContent, subtitle: q('#adopt-subtitle').textContent,
+  };
+}
+
+function checkCeremony(c: ReturnType<typeof ceremonyProbe>, size: { width: number; height: number }, label: string): void {
+  const screen: Rect = { x: 0, y: 0, w: size.width, h: size.height };
+  expect(c.viewport, `${label}: the page is the size of the screen`).toEqual({ w: size.width, h: size.height });
+
+  // Nothing is cut off at the top, the sides or the bottom, and there is nothing to scroll to.
+  for (const [name, r] of Object.entries(c.tilted)) {
+    expect(inside(r, screen, 0.5), `${label}: ${name} is wholly on the screen (top ${r.y.toFixed(1)}, bottom ${(r.y + r.h).toFixed(1)} of ${size.height})`).toBe(true);
+  }
+  expect(inside(c.plaque, screen, 12), `${label}: the plaque is on the screen`).toBe(true);
+  expect(c.scrollable, `${label}: the screen has nothing hidden below it`).toBeLessThanOrEqual(1);
+
+  // Nothing overlaps anything: laid out flat, no two of its parts touch...
+  const names = Object.keys(c.flat);
+  for (let a = 0; a < names.length; a++) {
+    for (let b = a + 1; b < names.length; b++) {
+      expect(overlapDepth(c.flat[names[a]], c.flat[names[b]]), `${label}: ${names[a]} and ${names[b]} do not touch`).toBeLessThanOrEqual(0.5);
+    }
+  }
+  // ...and with the tilts put back, none runs more than 4px into another.
+  for (let a = 0; a < names.length; a++) {
+    for (let b = a + 1; b < names.length; b++) {
+      expect(overlapDepth(c.tilted[names[a]], c.tilted[names[b]]), `${label}: tilted, ${names[a]} and ${names[b]}`).toBeLessThanOrEqual(4);
+    }
+  }
+  // The story is inside its plaque.
+  for (const part of ['title', 'subtitle', 'animal', 'connector', 'family', 'scroll']) {
+    expect(inside(c.flat[part], c.plaque, 14), `${label}: ${part} is inside the plaque`).toBe(true);
+  }
+
+  // The two buttons are big enough to tap, and say their words inside themselves.
+  for (const [name, [w, h]] of Object.entries(c.tapTargets)) {
+    expect(w, `${label}: ${name} is wide enough to tap`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+    expect(h, `${label}: ${name} is tall enough to tap`).toBeGreaterThanOrEqual(MIN_TAP_PX);
+  }
+  expect(c.labelsFit, `${label}: the labels stay inside their buttons`).toEqual({ wave: true, notYet: true });
+  expect(c.scrollTextFits, `${label}: the scroll holds all its words`).toBe(true);
+}
+
+for (const size of LANDSCAPE_SIZES) {
+  test(`the picker and the ceremony hold together at ${size.width}x${size.height}: nothing overlaps, nothing is cut off, every tap is 44px`, async ({ page }) => {
+    test.setTimeout(240_000);
+    await bootShelter(page, size);
+
+    // ── The picker, for animals whose offers differ ──
+    let smallest = Infinity;
+    const offers: string[] = [];
+    for (const [i, animal] of PICKER_ANIMALS.entries()) {
+      await page.evaluate((a) => {
+        const g = (window as unknown as { __PHASER_GAME__: PhaserGame }).__PHASER_GAME__;
+        const gs = g.scene.getScene('GameScene') as { openAdoptionMatchOverlay: (a: unknown) => void; store: { animals: unknown[] } };
+        gs.store.animals = [a];
+        gs.openAdoptionMatchOverlay(a);
+      }, animal);
+      await waitForScene(page, 'AdoptionMatchScene');
+      await page.waitForTimeout(1100);
+      const snap = await pickerSnapshot(page);
+      expect(snap.layout.mode, `${animal.species}: the arrangement for ${size.width}x${size.height}`).toBe(size.mode);
+      // Three families on offer, or fewer when fewer households take that species (two take a bunny).
+      expect(snap.layout.cards.length, `${animal.species}: families on offer`).toBeGreaterThanOrEqual(1);
+      expect(snap.layout.cards.length, `${animal.species}: families on offer`).toBeLessThanOrEqual(3);
+      offers.push(`${animal.species}:${snap.layout.cards.length}`);
+      smallest = Math.min(smallest, checkPicker(snap, size, `${animal.species} at ${size.width}x${size.height}`));
+      if (i === 1) await shoot(page, '01-picker-bunny', size);
+      if (i === PICKER_ANIMALS.length - 1) await shoot(page, '01-picker', size);
+      if (i < PICKER_ANIMALS.length - 1) {
+        // Back out the way a child would: "Not yet".
+        const way = snap.hits.find((h) => h.name === 'picker-notyet-hit')!;
+        await page.mouse.click(way.x + way.w / 2, way.y + way.h / 2);
+        await page.waitForFunction(() => {
+          const g = (window as unknown as { __PHASER_GAME__: PhaserGame }).__PHASER_GAME__;
+          return !g.scene.scenes.some((sc) => sc.sys.settings.active && sc.sys.settings.key === 'AdoptionMatchScene');
+        }, null, { timeout: 5_000 });
+        await page.waitForTimeout(300);
+      }
+    }
+    console.log(`[picker ${size.width}x${size.height}] families offered ${offers.join(' ')}; smallest type on any card: ${smallest}px`);
+
+    // ── Pick a family, listen to the conversation, and come to the ceremony ──
+    await tapFirstCard(page);
+    for (let beat = 0; beat < 4; beat++) {
+      const s = await waitForBeat(page, beat);
+      await page.mouse.click(s.box.x + s.box.w / 2, s.box.y + 30);
+    }
+    const frame = page.frameLocator('iframe[aria-label="A.R.C. adoption"]');
+    await expect(frame.locator('#wave-btn')).toBeVisible({ timeout: 15_000 });
+    await page.waitForTimeout(1500);
+    await shoot(page, '03-ceremony', size);
+
+    const adoptionFrame = page.frames().find((f) => f.url().includes('/admin/adoption.html'))!;
+    checkCeremony(await adoptionFrame.evaluate(ceremonyProbe), size, `the ceremony at ${size.width}x${size.height}`);
+
+    // "WAVE THEM OFF!" is where the picture says it is: tapping its middle commits the adoption.
+    const wave = await frame.locator('#wave-btn').boundingBox();
+    await page.mouse.click(wave!.x + wave!.width / 2, wave!.y + wave!.height / 2);
+    await page.waitForFunction(() => !document.querySelector('iframe[aria-label="A.R.C. adoption"]'), null, { timeout: 10_000 });
+  });
+}
+
+test.describe('the ceremony with the longest words the game has', () => {
+  // The longest household name (26 letters), the longest animal name (10), and a long child's name.
+  const WORDS = {
+    animalName: 'Clementine', animalSpriteSrc: '/assets/animals/bunny-sheltered.png',
+    householdName: "Sunnybrook Children's Home", householdAvatarSrc: '/admin/scene-assets/cast/26-aisha-childrens-home.png',
+    playerName: 'Maximilian-Alexander',
+  };
+
+  test('still fits, with nothing hidden, on every landscape screen', async ({ page }) => {
+    test.setTimeout(120_000);
+    for (const size of LANDSCAPE_SIZES) {
+      await page.setViewportSize(size);
+      await page.goto('/admin/adoption.html?embed=1');
+      await page.evaluate((payload) => window.postMessage({ source: 'arc-game-host', type: 'init', payload }, '*'), WORDS);
+      await expect(page.locator('#adopt-title')).toHaveText('A forever home for Clementine');
+      await page.waitForTimeout(900);
+      await shoot(page, '03-ceremony-longest', size);
+      const probe = await page.evaluate(ceremonyProbe);
+      expect(probe.subtitle).toContain("Sunnybrook Children's Home");
+      checkCeremony(probe, size, `the ceremony, longest words, at ${size.width}x${size.height}`);
+    }
+  });
+});
