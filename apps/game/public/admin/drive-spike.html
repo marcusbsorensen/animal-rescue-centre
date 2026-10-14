@@ -47,8 +47,9 @@
      page need to be designed so they don't look like just space holders in a
      wireframe"): road-sign badges, a white plate with a black edge. There is
      no gear or speed chip, as the dashboard's gear window and speedometer
-     show them. The lane chip is a blue sign, and the road chip takes the
-     colours of that road's real signs (data-road, set by updateHud()). The
+     show them. The lane chip is a blue sign (not shown where the road has no
+     lanes), and the road chip takes the colours of that road's real signs
+     (data-road, set by updateHud()). The
      warning chip follows it only while the gear does not suit the road: a
      red warning triangle and what that costs ("slow down", "dust!",
      "beeping"), data-state 'fast' red on white, 'slow' on yellow. Each chip
@@ -1223,8 +1224,8 @@ function drawGuide() {
   // ditches and ponds were painted (Marcus, 2026-10-14), and the edge keeps it
   // legible on a pale track.
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.globalAlpha = dashboard.GUIDE.edgeAlpha; ctx.strokeStyle = dashboard.GUIDE.edge; ctx.lineWidth = 1.25; ctx.stroke();
-  ctx.globalAlpha = 0.92; ctx.strokeStyle = dashboard.GUIDE.line; ctx.lineWidth = 0.85; ctx.stroke();
+  ctx.globalAlpha = dashboard.GUIDE.edgeAlpha; ctx.strokeStyle = dashboard.GUIDE.edge; ctx.lineWidth = dashboard.GUIDE.edgeW; ctx.stroke();
+  ctx.globalAlpha = dashboard.GUIDE.lineAlpha; ctx.strokeStyle = dashboard.GUIDE.line; ctx.lineWidth = dashboard.GUIDE.lineW; ctx.stroke();
   ctx.globalAlpha = 1;
 }
 
@@ -1423,14 +1424,19 @@ function setChip(k, text, state = '') {
   if (state !== e.state) { e.state = state; if (state) e.c.dataset.state = state; else delete e.c.dataset.state; }
 }
 
+const NO_LANES = new Set(['track', 'path', 'crossing']);   // the roads with no lanes
 function updateHud(win) {
   updateTrip();
   giveWay(win);
   const verdict = gearVerdict(car.road, car.cw, car.gear, car.v);
-  const lane = car.laneWant === 0 ? (car.peek && car.laneT > 0.02 ? 'looking' : 'left lane')
+  // Where the road has no lanes (a cycle path, a farm track) there is no lane
+  // to be in, so the lane chip is not shown and the road chip stands alone
+  // (Marcus, 2026-10-14). laneOffset() takes the same roads for laneless.
+  const lane = NO_LANES.has(car.road) ? ''
+    : car.laneWant === 0 ? (car.peek && car.laneT > 0.02 ? 'looking' : 'left lane')
     : bigRoadAt(car.s) || (car.cw?.kind === 'divided' && car.cw.lanes >= 2) ? 'fast lane' : 'overtaking';
   setChip('lane', lane);
-  chipIcon(chipEl.lane.c, lane === 'left lane' ? 'lane-left' : lane === 'looking' ? 'lane-look' : 'lane-right');
+  if (lane) chipIcon(chipEl.lane.c, lane === 'left lane' ? 'lane-left' : lane === 'looking' ? 'lane-look' : 'lane-right');
   const cls = car.road === 'trunk' && car.cw && car.cw.kind !== 'dual' ? 'secondary' : car.road;
   if (chipEl.road.c.dataset.road !== cls) chipEl.road.c.dataset.road = cls;
   setChip('road', roadNameFor(car.road, car.cw));

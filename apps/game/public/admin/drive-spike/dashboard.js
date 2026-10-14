@@ -233,8 +233,13 @@ const INK = '#2e1108';                   // the painting's outline brown
  *  real ditches and ponds blue). A saturated yellow gold, further from the
  *  beige of the dust and the farm tracks and the amber of the animals' glow
  *  than an orange one, and with a dark brown edge, which is what lets it read
- *  on a pale track where gold on sand has no contrast of its own. */
-export const GUIDE = { line: '#f4c20d', edge: '#3a2606', edgeAlpha: 0.72 };
+ *  on a pale track where gold on sand has no contrast of its own.
+ *  Marcus, 2026-10-14 (79A): the line did not stand out from village lanes,
+ *  tarmac and houses, so the edge is widened and darkened and the gold drawn
+ *  at full strength. lineW and edgeW are metres across the road view (the
+ *  GPS draws the same ratio in px); the aim is that the larger of gold-against-
+ *  ground and edge-against-ground is at least 3:1 along the whole of a route. */
+export const GUIDE = { line: '#f4c20d', edge: '#1c1104', edgeAlpha: 0.95, lineW: 0.85, edgeW: 1.5, lineAlpha: 1 };
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 const FONT = '"Arial Rounded MT Bold", "Nunito", system-ui, sans-serif';
 
@@ -1020,7 +1025,7 @@ function drawGps(g, L, s) {
     g.strokeStyle = 'rgba(120,110,100,.55)'; g.lineWidth = 2.4 / ppm; g.stroke();
     g.beginPath(); g.moveTo(s.x, s.y);
     for (let j = i; j < pts.length; j++) g.lineTo(pts[j].x, pts[j].y);
-    g.globalAlpha = GUIDE.edgeAlpha; g.strokeStyle = GUIDE.edge; g.lineWidth = 4.6 / ppm; g.stroke();
+    g.globalAlpha = GUIDE.edgeAlpha; g.strokeStyle = GUIDE.edge; g.lineWidth = 3 * GUIDE.edgeW / GUIDE.lineW / ppm; g.stroke();
     g.globalAlpha = 1; g.strokeStyle = GUIDE.line; g.lineWidth = 3 / ppm; g.stroke();
     const end = pts[pts.length - 1];
     circle(g, end.x, end.y, 4.2 / ppm);

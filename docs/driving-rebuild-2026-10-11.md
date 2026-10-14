@@ -56,6 +56,24 @@ the beige of the dust and the sand-coloured farm tracks and from the amber
 glow of the crossing animals than an orange one; the edge is what makes it
 read on a pale track. Defined once, as `GUIDE` in `drive-spike/dashboard.js`.
 
+*The edge, widened and darkened (Marcus, 2026-10-14, 79A).* The line did not
+stand out from village lanes, tarmac and houses (gold against the ground was
+about 1.8:1 there, and the edge about 2.2:1). The edge is now a near-black brown,
+`#1c1104` at 95%, 1.5 m wide round the 0.85 m line (it was `#3a2606` at 72%,
+1.25 m), and the gold is drawn at full strength (it was 92%); the gold itself,
+`#f4c20d`, is unchanged. The GPS's route and the switch's face take the same
+edge (`GUIDE.edge`, `edgeW`, `lineW`), so "your way" still reads as one line.
+Target: at every point along the route, the larger of gold-against-ground and
+edge-against-ground is at least 3:1 (WCAG contrast of the colours read from the
+canvas, the ground read with the guide switched off, so it is the real ground
+and not a guess). Measured along Henry's whole route, moorland to Pinebark
+Medical (7986 m, 159 stops, every road class on the map), and Trikey's, Hog
+Hospital to Bramble Farm (1511 m, 59 stops): the worst place was 2.29:1 for
+Henry (a farm track, 800 m in) and 2.64:1 for Trikey (a track, 275 m in) before,
+and is now 3.28:1 for Henry (the dual carriageway, 2050 m) and 3.49:1 for
+Trikey (a track, 450 m). Winter, autumn and spring on Henry's route are no
+lower than 3.28:1. Contact sheet: `docs/img/strip-labels/contact.jpg`.
+
 ## Why top-down, and why that is not a compromise
 
 The reference is low-poly 3D, so rotating the world is free. Ours is painted
@@ -279,7 +297,10 @@ placeholders. Three directions for each were built behind URL parameters
   triangle.
 - **73A:** no gear or speed chip, as the dashboard's gear window and
   speedometer already show them. The lane and road chips stay, and the quiet
-  `dev` chip.
+  `dev` chip. Where the road has no lanes (a cycle path, a farm track, a
+  track, a path, and Trikey's crossing, which `laneOffset()` also takes as
+  laneless) the lane chip is not shown and the road chip stands alone (Marcus,
+  2026-10-14); it read "left lane" there.
 
 The other looks, and `?strip=` and `?chips=`, are gone. The wrong-gear
 warning is its own plate after the road chip (a red triangle and what it
@@ -298,6 +319,78 @@ being far from the left edge. So the page gives the strip each animal's box
 strip over one (rail, destination tag, next tag) goes to a tenth of its
 strength until the animal has gone by. It comes back only once the animal's
 glow is 10 px clear, so a breathing glow does not make it flicker.
+
+**Strip name labels, and the strip as a map (Marcus, 2026-10-14).** Marcus:
+"Constrain the strip name labels so they never protrude that far toward the
+right, one word per line as we have vertical space spare but not horizontal
+space to be generous with."
+- Each sight's or destination's label sets one word to a line with the distance
+  on a line of its own below, and is as wide as its longest word and no wider
+  (`width: max-content` over blocks that do not wrap). An ampersand stays with
+  the word after it ("& Fishy"). Of the 64 names the strip can show (every
+  sight, every destination, the pair "Car Wash Wahoo! & Fishy Bones" and the
+  two corners, "Crossroads" and "The corner"), the longest word is
+  "Chartmeadow", 89.6 px at 390 x 844, which makes "Chartmeadow School" the
+  widest label at 104 px, its right edge at 143 px of 390. The tallest is the
+  pair, five lines at 90 px.
+- Taller labels must not collide. The next sight's tag still sits level with its
+  disc, but where that would put it over the destination's tag (the last sight
+  before the destination) it sits just below that tag, 6 px clear, its pointer
+  on its disc where that is within reach, and it never goes below the foot of
+  the strip. Where the strip is too short for both, the destination's tag, the
+  grown-up's, stays and the next sight's is left out. The nearer sight is the
+  one labelled, always: only the next sight has a tag.
+- The ghosting over animals on the verge is unchanged, and covers the taller
+  tags and the rail with its marks: each goes to 10% while an animal is within
+  3 px, and back once it is 10 px clear.
+
+The rail is drawn as a military strip map (80A and 81A, Marcus, 2026-10-14). The
+route is one line, read upward the way the van travels:
+- *A turn* (80A): the line bends into a small arrow pointing off to the side she
+  turns to, square for a right angle and leaning forward for a gentler turn, and
+  after a small gap (one line width) the line carries on straight above it. The
+  arrowhead is 2.5 line widths long, the line 3 px.
+- *A roundabout* (81A): a small ring on the line, the exit arm leaving it at the
+  angle she actually exits by, measured from the way she entered (straight on is
+  up), with an arrowhead, as UK roundabout signs draw it; then a gap, and the
+  line again.
+- Only turns and roundabouts (80A): no stubs for the side roads she passes, and
+  an ordinary bend in a road is not a turn. A turn is a junction (three or more
+  roads meet) where the route's heading changes by 30 degrees or more, 20 m
+  before to 20 m after; junctions less than 20 m apart along the route (the
+  corners the route makes round Trikey's lights) are taken as one, and a jog
+  that comes back is no turn. The road data (`birchie-graph.json`) has no
+  `junction=roundabout` tag, so roundabouts are found from the geometry: a
+  closed loop of roads (trunk to residential, not paths) of at most 160 m round,
+  round enough (4 pi area over perimeter squared, at least 0.45) with three or
+  more roads leaving it, which the route enters by one road and leaves by
+  another. That finds two on Henry's map (one by bay-chapel, 119 m round, and
+  one on the arc to bay-chapel road, 141 m) and only the 141 m one on Trikey's
+  (the other has a trunk road in it, which she does not use); they should be
+  checked against the real roads, as the data cannot confirm them.
+- The rail is as wide as its discs need, and as the arrows for a left turn need
+  from the line in the middle: 31 px at 390 x 844 (it was 30), 39 at 1280 x 800.
+- Collisions. A mark never sits under a sight's disc (the sight is what she looks
+  for), nor off either end of the line: it moves up to 5 px along the rail
+  (less than the length of its own arrow) to clear one, and if it cannot it is
+  left out. Where two marks would crowd each other (their arrows and the gap
+  closer than a line width) the nearer junction wins: the next she will meet
+  first, then the one she has just passed; the other comes back when the nearer
+  is behind her. One exception: a roundabout is never left out for a turn. On
+  this map every roundabout has a turn within about a hundred metres, which on
+  the rail is the same pixels, and the van's own icon hides a mark that close
+  ahead, so strictly nearer-wins would never show a roundabout (checked over
+  200 of Henry's routes and 120 of Trikey's, in steps of 25 m). Marks and the
+  labels cannot meet, as the arrows stay inside the rail. At the start of a
+  drive 55% of Henry's turns and roundabouts are drawn (473 junctions over 117
+  routes) and 47% of Trikey's (141 over 37), the rest being under a sight's disc
+  or crowded by a nearer one; the marks ahead of the van come back as it passes.
+  Worth a look if more is wanted: smaller discs for the sights that are not next,
+  or a wider nudge.
+- The 10% ghosting applies to the marks as they are part of the rail.
+
+Screenshots of all of this, and the gold line and the lane chip, are in
+`docs/img/strip-labels/contact.jpg`.
 
 **Small animals cross the small lanes.** Marcus's idea, and the reason the
 camera comes in close on them: hedgehogs, rabbits, pheasants and the like

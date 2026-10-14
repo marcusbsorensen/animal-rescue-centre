@@ -24,9 +24,21 @@
 // the road match: as the van's icon passes the church's disc, the van passes
 // the church's sign, and its disc dims.
 //
+// The rail is a military strip map (Marcus, 2026-10-14, 80A and 81A): the
+// route as one line, read upward the way the van travels. Where she turns, the
+// line bends into a small arrow pointing off to the side she turns to, and
+// after a very small gap the line carries on straight above it. Where she
+// goes round a roundabout, a small ring on the line with the exit arm leaving
+// at the angle she actually exits by, as UK roundabout signs draw it, then a
+// gap and the line again. Only turns and roundabouts: no stubs for the side
+// roads she passes, and an ordinary bend in a road is not a turn (junctions()).
+// The tags set one word to a line (Marcus, 2026-10-14), so the longest word
+// and not the longest name sets how far they reach towards the right.
+//
 // Animals wait on the verge on her side, which is where the tags sit. The page
 // gives the strip their boxes (u.animals), and any part of it over one goes
-// nearly clear until the animal has gone by: she sees it whole.
+// nearly clear until the animal has gone by: she sees it whole, the rail with
+// its marks, and the tags.
 //
 // Contract with drive-spike.html:
 //   create(wrap)                 builds the strip in #wrap, returns T
@@ -68,6 +80,14 @@ const END_CLEAR_M = 30;          // a sight this near the start or the end is th
 const INK = '#33241a';           // the painted world's outline (crossings.js)
 const CREAM = '#fffaf0';
 const GHOST_PAD = 3, GHOST_OUT = 10;   // px round a part that an animal must reach to ghost it, and clear of to bring it back
+const TURN_MIN = 30 * Math.PI / 180;   // a junction is a turn when the route's heading changes by this much or more
+const RING_MAX_M = 160, RING_ROUND = 0.45, RING_ARMS = 3;   // a roundabout, found from the road's geometry: a small closed loop of roads, round enough, with three or more roads leaving it
+const CORNER_GAP_M = 20;               // junction nodes closer along the route than this are one corner
+const RING_ROADS = new Set(['trunk', 'secondary', 'tertiary', 'unclassified', 'residential']);   // the classes a roundabout is made of
+// A mark may sit a few px off its place on the rail (less than the length of its own arrow) to clear a sight's disc or another mark.
+const NUDGES = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5];
+const TAG_GAP = 6;                     // px between the destination's tag and the next sight's, when they would meet
+const SVGNS = 'http://www.w3.org/2000/svg';
 
 // --------------------------------------------------------------------- DOM
 
@@ -80,9 +100,12 @@ const CSS = `
 #trip .hPanel { position: absolute; inset: 0; border-radius: 0 12px 12px 0; background: rgba(20,24,30,.48);
   -webkit-backdrop-filter: blur(6px) saturate(1.2); backdrop-filter: blur(6px) saturate(1.2);
   box-shadow: inset -1px 0 0 rgba(255,255,255,.14); }
-#trip .hRail { position: absolute; left: calc(var(--w) / 2 - 1.5px); width: 3px; border-radius: 2px;
-  background: rgba(255,255,255,.38); }
-#trip .hDone { position: absolute; left: 0; right: 0; bottom: 0; height: 0; border-radius: 2px; background: #f4c04e; }
+/* The rail is two drawings of the one route, laid over each other: the line
+   to come in translucent white, and the same in gold, cut off at the van. */
+#trip .hRail { position: absolute; left: 0; width: var(--w); }
+#trip .hRail svg { position: absolute; left: 0; top: 0; overflow: visible; }
+#trip .rBase { color: #fff; opacity: .5; }
+#trip .rDone { color: #f4c04e; }
 #trip .tVan { position: absolute; left: 50%; bottom: 0; width: var(--van); margin-left: calc(var(--van) / -2);
   filter: drop-shadow(0 0 1px rgba(0,0,0,.7)) drop-shadow(0 1px 2px rgba(0,0,0,.45)); z-index: 3; }
 #trip .hMark, #trip .hDest { position: absolute; left: calc(var(--w) / 2 - var(--disc) / 2);
@@ -91,13 +114,15 @@ const CSS = `
 #trip .hMark img, #trip .hDest img { display: block; width: 100%; height: 100%; border-radius: 50%; }
 #trip .hMark.passed { opacity: .45; transform: scale(.7); }
 #trip .hMark.next { transform: scale(1.25); box-shadow: 0 0 0 2px #f4c04e, 0 1px 4px rgba(0,0,0,.5); }
-#trip .hTag { position: absolute; display: flex; align-items: center; gap: 6px; white-space: nowrap;
-  line-height: 1.1; padding: 3px 9px 4px; border-radius: 9px; background: rgba(20,24,30,.58);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: opacity .3s; }
-#trip .hTxt { display: flex; flex-direction: column; }
+/* A tag sets one word to a line and the distance on a line of its own below,
+   so it is as wide as its longest word and no wider. */
+#trip .hTag { position: absolute; width: max-content; line-height: 1.12; padding: 3px 7px 4px; border-radius: 9px;
+  background: rgba(20,24,30,.58); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: opacity .3s; }
+#trip .hTxt, #trip .hName { display: block; }
 #trip .hName { font-size: 12.5px; }
-#trip .hLeft { font-size: 10.5px; font-weight: 700; opacity: .85; font-variant-numeric: tabular-nums; }
-#trip .nTag::before { content: ""; position: absolute; left: -5px; top: calc(50% - 5px);
+#trip .hW, #trip .hLeft { display: block; white-space: nowrap; }
+#trip .hLeft { margin-top: 1px; font-size: 10.5px; font-weight: 700; opacity: .85; font-variant-numeric: tabular-nums; }
+#trip .nTag::before { content: ""; position: absolute; left: -5px; top: var(--car, calc(50% - 5px));
   border: 5px solid transparent; border-left: 0; border-right-color: rgba(20,24,30,.58); }
 #trip.arrived .dTag .hLeft { color: #f4c04e; opacity: 1; }
 
@@ -118,6 +143,35 @@ function el(tag, attrs = {}, kids = []) {
   return e;
 }
 
+/** An SVG element with attributes. */
+function sv(tag, attrs = {}) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  return e;
+}
+
+/** One drawing of the route: its line, the roundabouts' rings and the
+ *  arrowheads, in the colour the drawing is given (currentColor). */
+function railDrawing(cls) {
+  const svg = sv('svg', { class: cls, 'aria-hidden': 'true' });
+  const line = sv('path', { fill: 'none', stroke: 'currentColor', 'stroke-linejoin': 'round' });
+  const ring = sv('path', { fill: 'none', stroke: 'currentColor' });
+  const head = sv('path', { fill: 'currentColor' });
+  svg.append(line, ring, head);
+  return { svg, line, ring, head };
+}
+
+/** A name set one word to a line. An ampersand stays with the word after it
+ *  ("& Fishy"), as it is not a word. */
+export function setWords(node, name) {
+  const words = [];
+  for (const w of name.split(' ')) {
+    if (words.length && words[words.length - 1] === '&') words[words.length - 1] = '& ' + w;
+    else words.push(w);
+  }
+  node.replaceChildren(...words.flatMap((w, i) => (i ? [' ', el('span', { class: 'hW' }, [w])] : [el('span', { class: 'hW' }, [w])])));
+}
+
 export function create(wrap) {
   if (!document.getElementById('tripStripCss')) {
     const st = el('style', { id: 'tripStripCss' });
@@ -125,14 +179,14 @@ export function create(wrap) {
     document.head.appendChild(st);
   }
   const T = {
-    data: null, degree: null, degreeOf: null, marks: [], signs: [], total: 1,
+    data: null, degree: null, degreeOf: null, rings: null, ringsOf: null, marks: [], signs: [], junctions: [], total: 1,
     geo: null, at: null, key: '', vanY: null, text: null, arrived: false, vanAspect: 2,
-    next: undefined, nextAt: null, nextText: null, shown: null, ghost: '',
+    next: undefined, nextAt: null, nextText: null, shown: null, ghost: '', np: -1, shownMarks: 0, fits: true,
   };
   const tag = (cls, kids) => el('div', { class: 'hTag ' + cls }, kids);
-  T.done = el('div', { class: 'hDone' });
+  T.rails = [railDrawing('rBase'), railDrawing('rDone')];
   T.van = el('img', { class: 'tVan', alt: '' });
-  T.road = el('div', { class: 'hRail' }, [T.done, T.van]);
+  T.road = el('div', { class: 'hRail' }, [T.rails[0].svg, T.rails[1].svg, T.van]);
   T.marksEl = el('div', { class: 'hMarks' });
   T.destDisc = el('div', { class: 'hDest' }, [el('img', { alt: '', src: glyphURL('finish') })]);
   T.name = el('span', { class: 'hName' }, ['—']);
@@ -144,6 +198,8 @@ export function create(wrap) {
   T.el = el('div', { id: 'trip', class: 'hidden', role: 'img', 'aria-label': 'on the way' },
     [el('div', { class: 'hPanel' }), T.road, T.marksEl, T.destDisc, T.destTag, T.nextTag]);
   wrap.appendChild(T.el);
+  // The tags' heights depend on the font, which may arrive after the first drawing.
+  document.fonts?.ready.then(() => { T.next = undefined; });
   return T;
 }
 
@@ -196,12 +252,7 @@ function pick(cands, length, gapK) {
  *  more roads meet), and a corner where the route turns off at a junction
  *  of three (the heading 20 m either side differs by more than 50 degrees). */
 function corners(T, r, length) {
-  const g = r.graph;
-  if (T.degreeOf !== g) {
-    T.degree = new Uint8Array(g.nodes.length);
-    for (const [i, j] of g.edges) if (i >= 0 && j >= 0) { T.degree[i]++; T.degree[j]++; }
-    T.degreeOf = g;
-  }
+  degrees(T, r.graph);
   const out = [];
   for (let k = 1; k < r.route.length - 1; k++) {
     const n = r.nodes[k], p = r.route[k];
@@ -248,13 +299,219 @@ export function choose(T, r) {
   return got.sort((a, b) => a.s - b.s);
 }
 
+/** How many roads meet at each node of the graph, once per graph. */
+function degrees(T, g) {
+  if (T.degreeOf !== g) {
+    T.degree = new Uint8Array(g.nodes.length);
+    for (const [i, j] of g.edges) if (i >= 0 && j >= 0) { T.degree[i]++; T.degree[j]++; }
+    T.degreeOf = g;
+  }
+  return T.degree;
+}
+
+// ------------------------------------------------- turns and roundabouts
+
+/** The map's roundabouts. The road data has no junction=roundabout tag (the
+ *  graph is a skeleton of the real roads), so they are found from its
+ *  geometry: a small closed loop of roads (at most RING_MAX_M round), round
+ *  enough (4 pi area / perimeter squared, 1 for a circle), with at least
+ *  RING_ARMS roads leaving it. Once per graph. */
+function findRings(T, r) {
+  const g = r.graph;
+  if (T.ringsOf === g) return T.rings;
+  const adj = g.nodes.map(() => []);
+  for (const [i, j, cls] of g.edges) {
+    if (i < 0 || j < 0 || i === j || !RING_ROADS.has(cls)) continue;   // a loop of cycle path is not one
+    if (!adj[i].includes(j)) adj[i].push(j);
+    if (!adj[j].includes(i)) adj[j].push(i);
+  }
+  const xy = g.nodes.map(([fx, fy]) => r.toWorld(fx, fy));
+  const dist = (a, b) => Math.hypot(xy[a].x - xy[b].x, xy[a].y - xy[b].y);
+  const out = [], seen = new Set();
+  const close = (path, perimeter) => {
+    const key = path.slice().sort((a, b) => a - b).join(',');
+    if (seen.has(key)) return;
+    seen.add(key);
+    let area = 0;
+    for (let i = 0; i < path.length; i++) {
+      const a = xy[path[i]], b = xy[path[(i + 1) % path.length]];
+      area += a.x * b.y - b.x * a.y;
+    }
+    const round = 4 * Math.PI * Math.abs(area) / 2 / (perimeter * perimeter);
+    const arms = path.reduce((c, v) => c + adj[v].filter(w => !path.includes(w)).length, 0);
+    if (round >= RING_ROUND && arms >= RING_ARMS) out.push({ nodes: new Set(path), round, perimeter });
+  };
+  const walk = (start, path, per) => {
+    const cur = path[path.length - 1];
+    for (const nb of adj[cur]) {
+      if (nb === start) {
+        if (path.length >= 3 && per + dist(cur, start) <= RING_MAX_M) close(path, per + dist(cur, start));
+      } else if (nb > start && path.length < 8 && !path.includes(nb) && per + dist(cur, nb) < RING_MAX_M) {
+        path.push(nb); walk(start, path, per + dist(cur, nb)); path.pop();
+      }
+    }
+  };
+  for (let s = 0; s < adj.length; s++) if (adj[s].length >= 2) walk(s, [s], 0);
+  T.rings = out; T.ringsOf = g;
+  return out;
+}
+
+/** The turns and roundabouts of this drive, in the order she meets them
+ *  (Marcus, 2026-10-14, 80A and 81A). Nothing else: a side road she passes
+ *  straight by is no mark, and a road's own bends are not turns.
+ *  - a turn is a junction (three or more roads meet) where the route's heading
+ *    changes by TURN_MIN or more, 20 m before to 20 m after (junctions less
+ *    than CORNER_GAP_M apart are taken as one corner). side -1 left, +1
+ *    right; ang is the heading change in radians.
+ *  - a roundabout is a ring (findRings) the route enters by one road and
+ *    leaves by another; ang is the exit's heading against the entry's, so 0 is
+ *    straight on, as a roundabout sign draws it. */
+export function junctions(T, r, length) {
+  const deg = degrees(T, r.graph), P = r.route, N = r.nodes;
+  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+  const head = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+  const far = s => s < END_CLEAR_M * 2 || s > length - END_CLEAR_M * 2;
+  const out = [], inRing = new Set();
+  for (const ring of findRings(T, r)) {
+    for (let k = 1; k < P.length - 1; k++) {
+      if (!ring.nodes.has(N[k])) continue;
+      const a = k;
+      let b = k;
+      while (b + 1 < P.length && ring.nodes.has(N[b + 1])) b++;
+      k = b;
+      if (b >= P.length - 1 || new Set(N.slice(a, b + 1)).size < 2) continue;
+      const s = (P[a].s + P[b].s) / 2;
+      if (far(s)) continue;
+      const ang = wrap(head(P[b], P[b + 1]) - head(P[a - 1], P[a]));
+      out.push({ id: 'round-' + a, kind: 'round', s, side: ang < 0 ? -1 : 1, ang });
+      for (let i = a; i <= b; i++) inRing.add(i);
+    }
+  }
+  const at = [];   // the junction nodes on the route, in order
+  for (let k = 1; k < P.length - 1; k++) if (deg[N[k]] >= 3 && !inRing.has(k) && !far(P[k].s)) at.push(k);
+  // Junction nodes only a few metres apart (the points the route makes round a
+  // pair of lights, say) are one corner, taken together: its heading 20 m
+  // before the first to 20 m after the last.
+  for (let i = 0; i < at.length;) {
+    let j = i;
+    while (j + 1 < at.length && P[at[j + 1]].s - P[at[j]].s < CORNER_GAP_M) j++;
+    const first = P[at[i]], last = P[at[j]];
+    const a = r.atDistance(Math.max(0, first.s - 20)), b = r.atDistance(Math.min(length, last.s + 20));
+    const turn = wrap(head(last, b) - head(a, first));
+    if (Math.abs(turn) >= TURN_MIN) out.push({ id: 'turn-' + at[i], kind: 'turn', s: (first.s + last.s) / 2, side: turn < 0 ? -1 : 1, ang: turn });
+    i = j + 1;
+  }
+  return out.sort((a, b) => a.s - b.s);
+}
+
+/** One mark's drawing, in px about the point (0, 0) that the line reaches
+ *  from below. line(x, y) is the rest of the line's stroke from there (for a
+ *  turn, the bend and its stem; for a roundabout, the exit arm), ring(x, y)
+ *  the roundabout's ring, head(x, y) the arrowhead, which is 2.5 line widths
+ *  long (Marcus, 2026-10-14). up is how far above (0, 0) the mark reaches
+ *  before the line carries on, with its small gap; dn how far below; foot
+ *  where the line from below ends. lw is the line's width in px. */
+export function markShape(j, lw) {
+  const u = lw / 3, gap = lw, hl = 2.5 * lw, hw = 1.1 * lw;
+  const f = v => +v.toFixed(2);
+  // An arm leaving along (dx, dy) from r0 out, a stem and then the arrowhead.
+  const arm = (dx, dy, r0, stem) => {
+    const k = r0 + stem, nx = -dy, ny = dx, e = lw / 2;
+    const E = [dx * k, dy * k], tip = [dx * (k + hl), dy * (k + hl)];
+    return {
+      from: [dx * r0, dy * r0], E, tip,
+      a: [E[0] + nx * hw, E[1] + ny * hw], b: [E[0] - nx * hw, E[1] - ny * hw],
+      edge: [[E[0] + nx * e, E[1] + ny * e], [E[0] - nx * e, E[1] - ny * e]],
+    };
+  };
+  const heads = (A, ox, oy) => `M${f(ox + A.tip[0])} ${f(oy + A.tip[1])}L${f(ox + A.a[0])} ${f(oy + A.a[1])}L${f(ox + A.b[0])} ${f(oy + A.b[1])}Z`;
+  if (j.kind === 'turn') {
+    // The line bends into the arrow, pointing off to the side she turns to:
+    // square to the road for a right angle, leaning forward for a gentler turn.
+    const phi = Math.min(Math.PI / 2, Math.max(Math.PI / 4, Math.abs(j.ang)));
+    const dx = j.side * Math.sin(phi), dy = -Math.cos(phi), r = 3.5 * u;
+    const A = arm(dx, dy, r, u);
+    const ys = [A.tip[1], A.a[1], A.b[1], A.edge[0][1], A.edge[1][1]];
+    return {
+      up: -Math.min(...ys) + gap, dn: r, foot: r,
+      line: (ox, oy) => `Q${f(ox)} ${f(oy)} ${f(ox + dx * r)} ${f(oy + dy * r)}L${f(ox + A.E[0])} ${f(oy + A.E[1])}`,
+      ring: () => '', head: (ox, oy) => heads(A, ox, oy),
+    };
+  }
+  // A roundabout: a small ring on the line, and the exit arm at the angle she
+  // takes it by, up being 0 and right positive.
+  const rc = 3 * u, rw = 2 * u, th = Math.max(-2.4, Math.min(2.4, j.ang));
+  const A = arm(Math.sin(th), -Math.cos(th), rc, 1.5 * u);
+  const ys = [A.tip[1], A.a[1], A.b[1], A.edge[0][1], A.edge[1][1], -rc - rw / 2];
+  return {
+    up: -Math.min(...ys) + gap, dn: Math.max(rc + rw / 2, ...ys), foot: rc,
+    line: (ox, oy) => `M${f(ox + A.from[0])} ${f(oy + A.from[1])}L${f(ox + A.E[0])} ${f(oy + A.E[1])}`,
+    ring: (ox, oy) => `M${f(ox - rc)} ${f(oy)}a${f(rc)} ${f(rc)} 0 1 0 ${f(2 * rc)} 0a${f(rc)} ${f(rc)} 0 1 0 ${f(-2 * rc)} 0`,
+    head: (ox, oy) => heads(A, ox, oy),
+  };
+}
+
+/** Whether mark j, drawn with its middle at road-local y, is on the line and
+ *  clear of every sight's disc (its ring and a little over, for the next
+ *  sight's bigger one). */
+function clearOfDiscs(T, j, y) {
+  const G = T.geo;
+  return y - j.up >= 0 && y + j.dn <= G.len
+    && T.marks.every(m => { const my = m.y - G.roadTop; return !(y - (j.up - G.lw) < my + G.discR && y + j.dn > my - G.discR); });
+}
+
+/** The rail's line with its marks, drawn in both of its drawings. Marks that
+ *  would crowd each other are not all drawn: the nearer junction to the van
+ *  wins, the next she will meet first, then the one she has just passed. A
+ *  mark that is left out comes back when the ones that crowded it are behind
+ *  her. np is how many marks she has passed.
+ *
+ *  One exception to nearer-wins: a roundabout is never left out for a turn.
+ *  On the Birchie map each roundabout has a turn within about a hundred
+ *  metres (at a drive's scale on the rail, the same pixels) and the van's own
+ *  icon covers a mark that close ahead, so the nearer would always win and no
+ *  roundabout would ever be seen. The turn is the lesser mark: it returns
+ *  when the roundabout is behind her. Roundabouts and turns each still go
+ *  by nearer-wins among themselves. */
+export function drawRail(T, np) {
+  const G = T.geo, f = v => +v.toFixed(2), cx = G.w / 2, J = T.junctions;
+  const order = [];
+  for (let k = np; k < J.length; k++) order.push(J[k]);
+  for (let k = np - 1; k >= 0; k--) order.push(J[k]);
+  order.sort((a, b) => (a.kind === 'round' ? 0 : 1) - (b.kind === 'round' ? 0 : 1));   // stable: nearer-first within each kind
+  const kept = [];
+  for (const j of order) {
+    for (const d of NUDGES) {
+      const y = j.y + d;
+      if (!clearOfDiscs(T, j, y)) continue;
+      if (kept.every(q => y - j.up - G.lw >= q.at + q.dn || q.at - q.up - G.lw >= y + j.dn)) { j.at = y; kept.push(j); break; }
+    }
+  }
+  kept.sort((a, b) => b.at - a.at);
+  for (const j of J) j.shown = false;
+  for (const j of kept) j.shown = true;
+  let line = `M${f(cx)} ${f(G.len)}`, ring = '', head = '';
+  for (const j of kept) {
+    line += `L${f(cx)} ${f(j.at + j.foot)}${j.shape.line(cx, j.at)}M${f(cx)} ${f(j.at - j.up)}`;
+    ring += j.shape.ring(cx, j.at);
+    head += j.shape.head(cx, j.at);
+  }
+  line += `L${f(cx)} 0`;
+  T.shownMarks = kept.length;
+  for (const R of T.rails) {
+    R.line.setAttribute('d', line); R.ring.setAttribute('d', ring); R.head.setAttribute('d', head);
+  }
+}
+
 export function setRoute(T, r) {
   T.total = Math.max(1, r.total);
+  const length = r.route.length > 1 ? r.route[r.route.length - 1].s : 0;
   T.marks = r.route.length > 1 ? choose(T, r) : [];
-  T.name.textContent = r.nameOf(r.dest) ?? r.dest;
+  T.junctions = r.route.length > 1 ? junctions(T, r, length) : [];
+  setWords(T.name, r.nameOf(r.dest) ?? r.dest);
   T.el.classList.remove('arrived');
   T.arrived = false;
-  T.text = null; T.vanY = null; T.next = undefined; T.nextText = null; T.shown = null;
+  T.text = null; T.vanY = null; T.next = undefined; T.nextText = null; T.shown = null; T.np = -1;
   T.signs = signsFor(T, r);
   T.marksEl.replaceChildren(...T.marks.map(m => {
     // A pair shares one disc on the strip, as it shares one post.
@@ -264,7 +521,7 @@ export function setRoute(T, r) {
     return m.el;
   }));
   T.key = '';
-  window.__trip = T;   // which sights this drive shows, for a test
+  window.__trip = T;   // which sights and marks this drive shows, for a test
 }
 
 /** The signs stand on her side of the road, just past the kerb, and point
@@ -279,11 +536,15 @@ function signsFor(T, r) {
 
 // ------------------------------------------------------------------ layout
 
-/** The rail's width and its discs, a little bigger held sideways, where
- *  there is room. */
+/** The rail's width, its discs and its line, a little bigger held sideways,
+ *  where there is room. The rail is as wide as its discs need, and no wider
+ *  than the arrows for a left turn need: an arrow reaches 12 line-widths / 3
+ *  from the line (a bend, a short stem and the head), and the line is in the
+ *  middle, so the arrow must clear the screen's edge. */
 function sizes(w, h) {
   const disc = w > h ? Math.max(20, Math.min(26, Math.round(h / 34))) : 18;
-  return { w: disc + 12, disc, van: Math.round(disc * 0.7) };
+  const lw = Math.max(3, Math.round(disc / 6)), u = lw / 3;
+  return { w: Math.max(disc + 12, Math.ceil(2 * (12 * u + 3.5))), disc, van: Math.round(disc * 0.7), lw };
 }
 
 export function layout(T, g) {
@@ -311,8 +572,12 @@ export function layout(T, g) {
   const roadTop = 5 + destD + 6, roadBottom = H - 8;
   const len = Math.max(40, roadBottom - roadTop);
   Object.assign(T.road.style, { top: roadTop + 'px', height: len + 'px' });
+  for (const R of T.rails) {
+    R.svg.setAttribute('width', S.w); R.svg.setAttribute('height', len);
+    R.line.setAttribute('stroke-width', S.lw); R.ring.setAttribute('stroke-width', +(S.lw * 2 / 3).toFixed(2));
+  }
   const vanH = S.van * T.vanAspect;
-  T.geo = { len, vanH, roadTop, w: S.w, destD };
+  T.geo = { len, vanH, roadTop, w: S.w, destD, lw: S.lw };
   // Where it is in #wrap, and where the canvas is, for keeping clear of animals.
   T.at = { x, y: top, w: S.w, h: H, left: g.left, top: g.top, dest: { x: S.w + 5, y: 3 } };
   const run = Math.max(0, len - vanH);
@@ -320,6 +585,18 @@ export function layout(T, g) {
     m.y = roadTop + len - (vanH / 2 + run * Math.min(1, m.s / T.total));
     m.el.style.top = (m.y - S.disc / 2) + 'px';
   }
+  // The turns and roundabouts, on the line at their places. One that would be
+  // under a sight's disc (its ring, and a little over for the next sight's
+  // bigger one) or off either end of the line moves a few px to clear it, and
+  // if it cannot is left out: the sight is what she looks for.
+  T.geo.discR = S.disc / 2 + 3.5;
+  for (const j of T.junctions) {
+    j.shape = markShape(j, S.lw);
+    j.up = j.shape.up; j.dn = j.shape.dn; j.foot = j.shape.foot;
+    j.y = len - (vanH / 2 + run * Math.min(1, j.s / T.total));
+    j.blocked = !NUDGES.some(d => clearOfDiscs(T, j, j.y + d));   // no place within reach of its own
+  }
+  T.np = -1;   // draw the rail again
   // The destination's name beside its disc.
   Object.assign(T.destTag.style, { left: T.at.dest.x + 'px', top: T.at.dest.y + 'px' });
   T.next = undefined;   // re-place the next sight's tag
@@ -334,6 +611,22 @@ function distanceText(m) {
   return (m >= 100 ? Math.round(m / 10) * 10 : Math.round(m)) + ' m';
 }
 
+/** The next sight's tag, level with its disc, one word to a line. Never over
+ *  the destination's tag: where the two would meet (the last sight before the
+ *  destination) it sits just below that one, its pointer still on its disc
+ *  where that is within reach, and never below the foot of the strip. Where
+ *  the strip is too short for both, the nearer, the next sight, is left out
+ *  (T.fits) and the destination's tag, which is the grown-up's, stays. */
+function placeNext(T) {
+  const n = T.next, A = T.at, h = T.nextTag.offsetHeight;
+  const below = A.dest.y + T.destTag.offsetHeight + TAG_GAP, ceil = A.h - h - 2;
+  const y = Math.max(below, Math.min(n.y - h / 2, ceil));
+  T.fits = below <= ceil + 0.5;
+  T.nextAt = { x: T.geo.w + 8, y };
+  Object.assign(T.nextTag.style, { left: T.nextAt.x + 'px', top: y + 'px' });
+  T.nextTag.style.setProperty('--car', Math.max(4, Math.min(h - 14, n.y - y - 5)) + 'px');
+}
+
 export function update(T, u) {
   if (!T.geo) return;
   const G = T.geo;
@@ -343,8 +636,12 @@ export function update(T, u) {
   if (y !== T.vanY) {
     T.vanY = y;
     T.van.style.transform = `translateY(${-y}px)`;
-    T.done.style.height = (y + G.vanH / 2) + 'px';
+    // The gold drawing of the line shows as far as the van's middle.
+    T.rails[1].svg.style.clipPath = `inset(${+(G.len - y - G.vanH / 2).toFixed(1)}px 0 0 0)`;
   }
+  let np = 0;
+  while (np < T.junctions.length && u.s >= T.junctions[np].s) np++;
+  if (np !== T.np) { T.np = np; drawRail(T, np); }
   let next = null;
   for (const m of T.marks) {
     const passed = u.s >= m.s;
@@ -352,19 +649,17 @@ export function update(T, u) {
     const state = passed ? 'passed' : m === next ? 'next' : '';
     if (state !== m.state) { m.el.className = 'hMark ' + state; m.state = state; }
   }
-  if (next !== T.next) {
+  const moved = next !== T.next;
+  if (moved) {
     T.next = next;
-    if (next) {
-      T.nextName.textContent = next.also ? next.name + ' & ' + next.also.name : next.name;
-      // Level with its disc, but never over the destination's name.
-      T.nextAt = { x: G.w + 8, y: Math.max(G.destD + 22, next.y - 16) };
-      Object.assign(T.nextTag.style, { left: T.nextAt.x + 'px', top: T.nextAt.y + 'px' });
-    }
+    T.nextText = null;
+    if (next) setWords(T.nextName, next.also ? next.name + ' & ' + next.also.name : next.name);
   }
   const togo = next ? next.s - u.s : 0;
   const nextText = next ? distanceText(togo) : '';
   if (nextText !== T.nextText) { T.nextText = nextText; T.nextLeft.textContent = next ? 'in ' + nextText : ''; }
-  const show = !!next && !u.arrived;
+  if (moved && next) placeNext(T);
+  const show = !!next && !u.arrived && T.fits !== false;
   if (show !== T.shown) { T.shown = show; T.nextTag.classList.toggle('none', !show); }
   const text = u.arrived ? 'here' : distanceText(Math.max(0, T.total - u.s));
   if (text !== T.text) {
