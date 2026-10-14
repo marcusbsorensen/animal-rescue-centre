@@ -58,6 +58,10 @@ const PAGE_URLS: Record<AuthPage, string> = {
 };
 
 let activeFrame: HTMLIFrameElement | null = null;
+/** True once the mounted page has loaded and can hear a message. */
+let activeFrameLoaded = false;
+/** Messages for the mounted page sent before it had loaded. */
+let pendingPosts: Array<{ type: string; payload?: unknown }> = [];
 let activeListener: ((e: MessageEvent) => void) | null = null;
 
 /** Send a message from parent → iframe (used for init + error feedback). */
@@ -68,8 +72,15 @@ function postToFrame(type: string, payload?: unknown): void {
 
 /** Public version — host scenes can post to whichever auth iframe is
  *  currently mounted. Used by ForgotPinScene to push the kid's
- *  freshly-fetched PIN-hint after the iframe is up. */
+ *  freshly-fetched PIN-hint. A message sent before the page has loaded
+ *  waits for it: posted earlier, it would reach the blank document the
+ *  iframe starts with, and be lost. */
 export function postToActiveFrame(type: string, payload?: unknown): void {
+  if (!activeFrame) return;
+  if (!activeFrameLoaded) {
+    pendingPosts.push({ type, payload });
+    return;
+  }
   postToFrame(type, payload);
 }
 
@@ -96,6 +107,8 @@ export function mountAuth(
   frame.setAttribute('aria-label', `A.R.C. ${page} screen`);
   document.body.appendChild(frame);
   activeFrame = frame;
+  activeFrameLoaded = false;
+  pendingPosts = [];
 
   // After iframe loads, send any per-page init data it needs.
   frame.addEventListener('load', () => {
@@ -128,6 +141,13 @@ export function mountAuth(
     // Always sync the current music-on state so the speaker emoji
     // starts in the right 🔊/🔇 position regardless of page.
     postToFrame('music-state', { enabled: AudioManager.getInstance().isMusicOn() });
+    // Then anything a scene sent while the page was still loading.
+    if (activeFrame === frame) {
+      activeFrameLoaded = true;
+      const queued = pendingPosts;
+      pendingPosts = [];
+      for (const m of queued) postToFrame(m.type, m.payload);
+    }
   });
 
   activeListener = async (e: MessageEvent) => {
@@ -231,6 +251,8 @@ export function unmountAuth(): void {
     window.removeEventListener('message', activeListener);
     activeListener = null;
   }
+  pendingPosts = [];
+  activeFrameLoaded = false;
   if (activeFrame) {
     activeFrame.remove();
     activeFrame = null;

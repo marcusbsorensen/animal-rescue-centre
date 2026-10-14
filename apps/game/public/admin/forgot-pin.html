@@ -1359,6 +1359,11 @@
     `;
     transitionTo(html, {
       afterMount: () => {
+        // The card goes in 280ms after this was called, from words picked
+        // then. A clue that arrived in between (a quick server answers
+        // within that) would be painted over with "No clue saved", so the
+        // card is filled again from the clue as it is now.
+        setHint(pinHint);
         document.getElementById('i-remember')?.addEventListener('click', () => {
           send('recovery-hint-resolved', { username: snapshot.username });
         });
