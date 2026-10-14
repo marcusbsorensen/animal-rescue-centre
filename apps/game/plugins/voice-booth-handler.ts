@@ -80,7 +80,6 @@ export interface KeptInfo {
   ext: string;
   text: string;
   textHash: string;
-  textVersion: string;
   by: string;
   consent: boolean;
   keptAt: string;
@@ -260,7 +259,7 @@ export function createVoiceBoothHandler(options: VoiceBoothOptions) {
       return;
     }
 
-    // ── POST /__voice/keep  {speaker, line, file, text, textVersion, by, consent} ──
+    // ── POST /__voice/keep  {speaker, line, file, text, by, consent} ──
     if (route === '/keep' && method === 'POST') {
       let data: Record<string, unknown>;
       try {
@@ -300,7 +299,6 @@ export function createVoiceBoothHandler(options: VoiceBoothOptions) {
         ext,
         text,
         textHash: sha1(text),
-        textVersion: String(data.textVersion ?? ''),
         by: String(data.by ?? '').slice(0, 80),
         consent: true,
         keptAt: new Date().toISOString(),

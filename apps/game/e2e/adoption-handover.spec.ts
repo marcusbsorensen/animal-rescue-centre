@@ -237,8 +237,17 @@ test(`plays one real adoption at ${size.width}x${size.height}: match, hand-over,
   }
   expect(seen.map((s) => s.side)).toEqual(['left', 'right', 'left', 'right']);
   expect(seen.map((s) => s.role)).toEqual(['warden', 'guest', 'warden', 'guest']);
-  expect(seen[0].text).toContain('Pumpkin');
-  expect(seen[3].words.some((w) => w.kind === 'person' && w.text.includes('Marnie'))).toBe(true);
+  // The four lines of 121A: no animal's name anywhere in them, the same words
+  // that are recorded, and Marnie, the one name, drawn as a person.
+  expect(seen.map((s) => s.text)).toEqual([
+    'Meet our little friend! This one has been hoping for the perfect home.',
+    "Hello, little one! We've come all this way to meet you.",
+    "Look after them for us, won't you?",
+    'Thank you, Marnie! We promise to love them forever.',
+  ]);
+  expect(seen.some((s) => s.text.includes('Pumpkin'))).toBe(false);
+  expect(seen.flatMap((s) => s.words).some((w) => w.kind === 'animal')).toBe(false);
+  expect(seen[3].words.filter((w) => w.kind === 'person').map((w) => w.text.replace(/[^A-Za-z]/g, ''))).toEqual(['Marnie']);
 
   // ── Ceremony: the painted overlay ──
   const frame = page.frameLocator('iframe[aria-label="A.R.C. adoption"]');

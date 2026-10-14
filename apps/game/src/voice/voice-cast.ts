@@ -43,6 +43,9 @@ export const VOICE_NOTES: Readonly<Record<string, string>> = {
   '16-tata': 'Capable, warm and steady, a farmer, fond of her dog Rufus.',
 };
 
+/** Marnie's picture; the households' own pictures come from the roster (`avatarSrc`). */
+export const WARDEN_PORTRAIT = '/admin/scene-assets/cast/warden-marnie.png';
+
 /** The shape of public/admin/voice-script.json, which the voice booth reads. */
 export interface VoiceScriptFile {
   /** What generated the file; do not edit by hand. */
@@ -51,16 +54,15 @@ export interface VoiceScriptFile {
     id: string;
     name: string;
     role: 'warden' | 'guest';
+    /** The speaker's painted portrait (a path under public/), so the booth shows who is who. */
+    portrait: string;
     voiceNote: string;
     lines: Array<{
       lineId: string;
       n: number;
       expression: string;
-      /** The text the game shows now. `{animal}` stands for the animal's name. */
+      /** The words the game shows and the words to record: the same, exactly. */
       text: string;
-      /** The name-free draft (option A in the voice plan). */
-      textNameFree: string;
-      usesAnimalName: boolean;
     }>;
   }>;
 }
@@ -75,14 +77,15 @@ export function buildVoiceScriptFile(): VoiceScriptFile {
       id,
       name: mine[0].speakerName,
       role: mine[0].role,
+      portrait: id === WARDEN_SPEAKER.id
+        ? WARDEN_PORTRAIT
+        : (ADOPTER_HOUSEHOLD_DEFS.find((h) => h.householdId === id)?.avatarSrc ?? ''),
       voiceNote: VOICE_NOTES[id] ?? '',
       lines: mine.map((l) => ({
         lineId: l.lineId,
         n: l.n,
         expression: l.expression,
         text: l.text,
-        textNameFree: l.textNameFree,
-        usesAnimalName: l.usesAnimalName,
       })),
     };
   });

@@ -64,7 +64,6 @@ async function keep(over: Record<string, unknown> = {}) {
       line: 'handover-warden-1',
       file: 'handover-warden-1__take1.webm',
       text: 'Meet our little friend! This one has been hoping for the perfect home.',
-      textVersion: 'name-free',
       by: 'Test voice',
       consent: true,
       ...over,
@@ -175,7 +174,6 @@ describe('voice booth endpoint', () => {
       speakerId: 'warden',
       file: 'handover-warden-1.webm',
       takeFile: 'handover-warden-1__take1.webm',
-      textVersion: 'name-free',
       by: 'Test voice',
       consent: true,
     });

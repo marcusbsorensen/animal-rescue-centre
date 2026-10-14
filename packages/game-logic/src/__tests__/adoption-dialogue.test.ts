@@ -45,12 +45,36 @@ describe('buildHandoverDialogue', () => {
     expect(seq.beats[3].speakerId).toBe(priya.householdId);
   });
 
-  it('names the animal in every beat and highlights it', () => {
-    const seq = buildHandoverDialogue(makeAnimal({ name: 'Pumpkin' }), priya);
-    for (const beat of seq.beats) {
-      expect(beat.text).toContain('Pumpkin');
-      expect(beat.highlights).toContain('Pumpkin');
+  it('says the four lines it was given, exactly (121A)', () => {
+    const seq = buildHandoverDialogue(makeAnimal(), priya);
+    expect(seq.beats.map((b) => b.text)).toEqual([
+      'Meet our little friend! This one has been hoping for the perfect home.',
+      "Hello, little one! We've come all this way to meet you.",
+      "Look after them for us, won't you?",
+      'Thank you, Marnie! We promise to love them forever.',
+    ]);
+  });
+
+  it('never says the animal\'s name, so one recording of each line fits every animal (121A)', () => {
+    // Names from every species the game rehomes, including ones that are also
+    // ordinary words and ones that are short.
+    const names = ['Pumpkin', 'Clementine', 'Daisy', 'Biscuit', 'Pepper', 'Sky', 'Bear', 'Pip', 'Sage', 'Rio', 'Noodle', 'Ziggy'];
+    const reference = buildHandoverDialogue(makeAnimal({ name: names[0] }), priya).beats.map((b) => b.text);
+    for (const name of names) {
+      const seq = buildHandoverDialogue(makeAnimal({ name }), priya);
+      // The words do not depend on the animal at all...
+      expect(seq.beats.map((b) => b.text), name).toEqual(reference);
+      // ...so the name is not in any of them, and nothing is drawn green for it.
+      for (const beat of seq.beats) {
+        expect(beat.text.toLowerCase().split(/[^a-z']+/), `${name} in "${beat.text}"`).not.toContain(name.toLowerCase());
+        expect(beat.highlights ?? [], `${name} highlighted`).toEqual([]);
+      }
     }
+  });
+
+  it('is the same for every household, apart from who says it', () => {
+    const texts = (h: (typeof ADOPTER_HOUSEHOLD_DEFS)[number]) => buildHandoverDialogue(makeAnimal(), h).beats.map((b) => b.text);
+    for (const h of ADOPTER_HOUSEHOLD_DEFS) expect(texts(h)).toEqual(texts(priya));
   });
 
   it('marks the warden as the warden and everyone else as a guest', () => {
@@ -65,17 +89,28 @@ describe('buildHandoverDialogue', () => {
     expect(roleOf({ speakerId: '01-priya', role: 'warden' })).toBe('warden');
   });
 
-  it('colours a person named in the text as a person, not an animal', () => {
-    const seq = buildHandoverDialogue(makeAnimal(), priya);
-    const thanks = seq.beats[3];
-    expect(thanks.text).toContain(WARDEN_SPEAKER.name);
-    expect(thanks.people).toEqual([WARDEN_SPEAKER.name]);
-    // Every person named is really in the text, and none is also an animal.
-    for (const beat of seq.beats) {
-      for (const p of beat.people ?? []) {
-        expect(beat.text).toContain(p);
-        expect(beat.highlights ?? []).not.toContain(p);
+  it('colours a person named in the text as a person, so Marnie keeps her amber', () => {
+    for (const h of ADOPTER_HOUSEHOLD_DEFS) {
+      const seq = buildHandoverDialogue(makeAnimal(), h);
+      const thanks = seq.beats[3];
+      expect(thanks.text, h.householdId).toContain(WARDEN_SPEAKER.name);
+      expect(thanks.people, h.householdId).toEqual([WARDEN_SPEAKER.name]);
+      // Every person named is really in the text, and none is also an animal.
+      for (const beat of seq.beats) {
+        for (const p of beat.people ?? []) {
+          expect(beat.text).toContain(p);
+          expect(beat.highlights ?? []).not.toContain(p);
+        }
       }
+    }
+  });
+
+  it('names no person in a text without listing them, so no name goes uncoloured', () => {
+    // Every capitalised word that is not the first word of a sentence is a name.
+    const seq = buildHandoverDialogue(makeAnimal(), priya);
+    for (const beat of seq.beats) {
+      const names = [...beat.text.matchAll(/(?<![.!?]\s)(?<!^)\b[A-Z][a-z]+/g)].map((m) => m[0]);
+      for (const n of names) expect(beat.people ?? [], `"${n}" in "${beat.text}"`).toContain(n);
     }
   });
 
@@ -86,8 +121,7 @@ describe('buildHandoverDialogue', () => {
   });
 
   it('keeps each line short enough for a child (<= 120 chars, <= 2 sentences)', () => {
-    // The longest animal name in the pool, to be fair to the worst case.
-    const seq = buildHandoverDialogue(makeAnimal({ name: 'Clementine' }), priya);
+    const seq = buildHandoverDialogue(makeAnimal(), priya);
     for (const beat of seq.beats) {
       expect(beat.text.length).toBeLessThanOrEqual(120);
       expect(beat.text.split(/[.!?]/).filter((s) => s.trim().length > 0).length).toBeLessThanOrEqual(2);
@@ -128,31 +162,31 @@ describe('handoverVoiceScript', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('uses the same ids and text the game builds, so recordings cannot drift from the screen', () => {
-    const seq = buildHandoverDialogue(makeAnimal({ name: 'Pumpkin' }), priya);
-    for (const beat of seq.beats) {
-      const entry = script.find((l) => l.lineId === beat.lineId);
-      expect(entry, beat.lineId).toBeDefined();
-      expect(entry!.text.split('{animal}').join('Pumpkin')).toBe(beat.text);
-      expect(entry!.speakerName).toBe(beat.speaker);
-      expect(entry!.role).toBe(beat.role);
+  it('uses the same ids and text the game builds, word for word, so recordings cannot drift from the screen', () => {
+    // Every household, not just one: each records its own two lines.
+    for (const h of ADOPTER_HOUSEHOLD_DEFS) {
+      const seq = buildHandoverDialogue(makeAnimal({ name: 'Pumpkin' }), h);
+      for (const beat of seq.beats) {
+        const entry = script.find((l) => l.lineId === beat.lineId);
+        expect(entry, beat.lineId).toBeDefined();
+        expect(entry!.text).toBe(beat.text);
+        expect(entry!.speakerName).toBe(beat.speaker);
+        expect(entry!.role).toBe(beat.role);
+        expect(entry!.expression).toBe(beat.expression);
+      }
     }
   });
 
-  it('flags the lines that need the animal name, which are all of them today', () => {
-    expect(HANDOVER_LINES.every((l) => l.template.includes('{animal}'))).toBe(true);
-    expect(script.every((l) => l.usesAnimalName)).toBe(true);
-  });
-
-  it('drafts a name-free version of every line, short enough for a child, with no name in it', () => {
+  it('has the lines to record in the script, every one of them whole: no template, no animal name', () => {
     for (const l of script) {
-      expect(l.textNameFree.length, l.lineId).toBeGreaterThan(10);
-      expect(l.textNameFree, l.lineId).not.toContain('{animal}');
-      expect(l.textNameFree.length, l.lineId).toBeLessThanOrEqual(120);
-      expect(l.textNameFree.split(/[.!?]/).filter((s) => s.trim().length > 0).length, l.lineId).toBeLessThanOrEqual(2);
+      expect(l.text, l.lineId).not.toMatch(/[{}]/);
+      expect(l.text.length, l.lineId).toBeGreaterThan(10);
+      expect(l.text.length, l.lineId).toBeLessThanOrEqual(120);
+      expect(l.text.split(/[.!?]/).filter((s) => s.trim().length > 0).length, l.lineId).toBeLessThanOrEqual(2);
     }
-    // The warden's name is fixed, so a line may say it: it can be recorded.
-    expect(script.find((l) => l.lineId === 'handover-01-priya-4')!.textNameFree).toContain('Marnie');
+    expect(HANDOVER_LINES.map((l) => l.text)).toEqual(script.filter((l) => l.speakerId === WARDEN_SPEAKER.id || l.speakerId === ADOPTER_HOUSEHOLD_DEFS[0].householdId).sort((a, b) => a.n - b.n).map((l) => l.text));
+    // The warden's name is fixed, so a line may say it and be recorded.
+    expect(script.find((l) => l.lineId === 'handover-01-priya-4')!.text).toContain('Marnie');
   });
 
   it('builds ids the way handoverLineId does', () => {

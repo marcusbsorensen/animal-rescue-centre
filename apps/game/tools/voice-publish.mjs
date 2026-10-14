@@ -10,11 +10,11 @@
  * Writes apps/game/public/assets/voice/<lineId>.mp3                 (committed; this is what ships)
  *
  * A take ships only when the words that were recorded are the words the game
- * shows for that line. The text on screen has to match what is heard, because
- * children read along. So a take recorded against the name-free draft waits
- * until the game's own text is changed to the draft (option A in
- * docs/voice-recording-plan-2026-10-14.md), and a take whose line has since been
- * reworded is held back too. Nothing is guessed: it says what it did and why.
+ * shows for that line (the script's `text`, which is also what the booth shows
+ * and what `buildHandoverDialogue` puts on screen). Children read along, so the
+ * text on screen has to be what is heard. A take recorded against words that
+ * have since been changed is held back; so is a take with no agreement on it.
+ * Nothing is guessed: it says what it did and why.
  *
  * Format: mono, 44.1 kHz, MP3 at 96 kbps (the game's other voice clips are MP3,
  * which every browser and the iOS web view play), silence trimmed from both
@@ -46,9 +46,9 @@ export function planPublish(script, kept, existing = []) {
     } else if (k.consent !== true) {
       held.push({ lineId: k.lineId, reason: 'the speaker has not agreed (no consent on the take)' });
     } else if (gameText.get(k.lineId).includes('{animal}')) {
-      held.push({ lineId: k.lineId, reason: 'the game still shows the animal\'s name in this line, which cannot be recorded' });
+      held.push({ lineId: k.lineId, reason: 'the line has the animal\'s name in it, which cannot be recorded' });
     } else if (gameText.get(k.lineId) !== k.text) {
-      held.push({ lineId: k.lineId, reason: 'the words recorded are not the words the game shows' });
+      held.push({ lineId: k.lineId, reason: 'the words recorded are not the words the game shows (the line was reworded since); record it again' });
     } else {
       publish.push(k);
     }

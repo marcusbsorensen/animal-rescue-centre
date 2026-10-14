@@ -104,14 +104,20 @@ export class DialogueDemoScene extends Phaser.Scene {
     const beats = seq.beats.map((b, i): DialogueBeat => {
       if (i !== 2) return b;
       const base: DialogueBeat = guestChoice ? { ...seq.beats[1], expression: 'neutral' } : b;
-      return {
+      const choice: DialogueBeat = {
         ...base,
-        text: guestChoice ? 'Shall we take Pumpkin home?' : 'Ready to take Pumpkin home?',
+        // The hand-over's own lines say no animal's name; this demo-only beat does,
+        // so the runner's green animal-name highlight can still be seen.
+        highlights: [DEMO_ANIMAL.name],
+        text: guestChoice ? `Shall we take ${DEMO_ANIMAL.name} home?` : `Ready to take ${DEMO_ANIMAL.name} home?`,
         choices: [
           { id: 'yes', label: 'Yes — off you go, together!' },
           { id: 'cuddle', label: 'One last cuddle first' },
         ],
       };
+      // These are not words anyone has recorded, so no recording may play under them.
+      delete choice.lineId;
+      return choice;
     });
     return { ...seq, beats };
   }

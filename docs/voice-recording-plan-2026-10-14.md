@@ -1,45 +1,37 @@
 # Voice recording plan: the adoption hand-over
 
-> Status: plan, 2026-10-14. Marcus decided (115B) that the voices are human,
-> recorded by Marcus and friends, with no outside voice service or API.
-> This document is the plan for recording them. The runner side is built
-> (a line plays its file when one exists and is silent when it does not); the
-> recordings and the name decision below are not.
+> Status: decided, 2026-10-14. Marcus decided (115B) that the voices are human, recorded by Marcus and friends,
+> with no outside voice service or API; then (121A) that the hand-over lines say no animal's name, so every line
+> can be recorded whole; and (122B) that all 29 households and Marnie are recorded, 60 lines. The runner, the
+> booth, the publish tool and the name-free lines are built and agree with each other. The recordings are not
+> made yet.
 >
 > Related: [`adoption-dialogue-presentation-2026-05-19.md`](adoption-dialogue-presentation-2026-05-19.md)
 > (the design), [`plan-adoption-dialogue-2026-07-04.md`](plan-adoption-dialogue-2026-07-04.md)
 > (the runner).
 
-## Decisions for Marcus
+## Decisions made
 
-**1. The names. Which of these do we record?** (The reasoning is under "The hard part: names".)
+**1. The names: option A, name-free lines (121A).** Every hand-over line is worded so it does not say the
+animal's name, and the same words go on screen. All 60 lines are recorded whole, and what children hear is
+exactly what they read. The animal's name stays on the match picker, the ceremony and the toasts. (The reasoning
+is under "Why the lines say no name".)
 
-- **A. Name-free lines (recommended).** Every hand-over line is reworded so it does not say the animal's
-  name, and the same words go on screen. All 60 lines can be recorded whole, and what children hear is exactly
-  what they read. The animal's name stays in the picker, the ceremony and the toasts.
-- **B. A few recorded names for common animals.** Marnie records the names of the animals that turn up most,
-  and her lines say them. Covers about 30 per cent of animals for 20 names; the other 70 per cent still
-  need name-free lines, so this is A plus extra work.
-- **C. Voice only Marnie.** Only the warden is heard; every family stays text. Least to record (her two
-  lines), but her lines have the animal's name in them too, so she needs name-free lines as well.
+Not chosen: **B**, a few recorded names for common animals (about 30 per cent of animals for 20 names, and the
+other 70 per cent still need name-free lines, so it is A plus extra work), and **C**, Marnie alone (her lines
+had the animal's name in them too, so she needed name-free lines as well).
 
-**2. How many voices in the first round?**
-
-- **A. Marnie and eight households (recommended).** Marnie, then Priya, Nova, Jan, Lei, Finn, Babcia, the
-  Odenkirks and Marcus & Rhubarb & Gosia. Between them they take all five species the game rehomes (cat, dog,
-  bunny, parrot, snake). Marnie is heard in every hand-over; a family is heard when the child picks one of the
-  eight, and a family with no recording stays text, which is how the game behaves now.
-- **B. All 30 voices at once.** 60 lines; roughly two hours of recording across the cast.
-- **C. Marnie only.** Her two lines; about fifteen minutes.
-
-Nothing for any option is built yet. Choosing A in question 1 is one small change in game code (below).
+**2. The voices: option B, all 30 at once (122B).** Marnie and all 29 households, 60 lines, roughly two hours
+of recording across the cast. Marnie is heard in every hand-over; a household is heard when the child picks it.
+A household with no recording yet stays text, which is how the game behaves for any line that has no file, so
+the cast can be recorded in any order.
 
 ## The cast
 
 One warden and 29 households, two lines each: **60 lines**. Every household that adopts speaks twice (beats 2
 and 4); Marnie speaks twice (beats 1 and 3). The voice notes come from the roster's own blurbs and steer a
 performance; they never ask anyone for a voice or an accent they do not have. A warm, clear natural voice
-beats a character voice.
+beats a character voice. The voice booth shows each speaker's portrait and voice note on their row.
 
 - One voice is enough for a household of two or more people.
 - A friend can voice several households if they sound different from one another.
@@ -85,36 +77,37 @@ beats a character voice.
 Every household says the same two lines, so they are printed once here. Each line has a stable id:
 `handover-<speaker>-<beat>`, for example `handover-warden-1` and `handover-01-priya-2`. The ids are the file
 names, the same in the voice booth, in `public/admin/voice-script.json` and in the game, and a test keeps
-all three in step with `packages/game-logic/src/adoption-dialogue.ts`.
+all three, and the words in the next two tables, in step with `packages/game-logic/src/adoption-dialogue.ts`.
 
-`{animal}` stands for the animal's name, which the game fills in. It is the problem the next section is about.
+**The text on screen is exactly what is recorded.** There is one text per line: the game shows it, the booth
+shows it, and it is what is said. Children read along while they listen.
 
 ### Marnie (left, the warden)
 
-| Line id | Beat | Pose | What the game shows now | Draft with no name (option A) |
-|---------|------|------|-------------------------|-------------------------------|
-| `handover-warden-1` | 1 | neutral | This is {animal}. {animal} has been hoping for the perfect home. | Meet our little friend! This one has been hoping for the perfect home. |
-| `handover-warden-3` | 3 | happy | Look after {animal} for us, won't you? | Look after them for us, won't you? |
+| Line id | Beat | Pose | What is shown and said |
+|---------|------|------|------------------------|
+| `handover-warden-1` | 1 | neutral | Meet our little friend! This one has been hoping for the perfect home. |
+| `handover-warden-3` | 3 | happy | Look after them for us, won't you? |
 
 ### Every household (right)
 
-| Line id pattern | Beat | Pose | What the game shows now | Draft with no name (option A) |
-|-----------------|------|------|-------------------------|-------------------------------|
-| `handover-<household>-2` | 2 | neutral | Hello little {animal}! We've come all this way to meet you. | Hello, little one! We've come all this way to meet you. |
-| `handover-<household>-4` | 4 | greeting | Thank you, Marnie! We'll love {animal} forever. | Thank you, Marnie! We promise to love them forever. |
+| Line id pattern | Beat | Pose | What is shown and said |
+|-----------------|------|------|------------------------|
+| `handover-<household>-2` | 2 | neutral | Hello, little one! We've come all this way to meet you. |
+| `handover-<household>-4` | 4 | greeting | Thank you, Marnie! We promise to love them forever. |
 
 The household ids are in the cast table above, for instance `handover-24-perera-fernando-4`. "Marnie" is a
-fixed name, so a household can say it and be recorded saying it.
+fixed name, so a household says it and is recorded saying it; the game draws it in amber, as it draws any
+person's name in a conversation. Nothing else in the four lines is a name.
 
-The drafts are a suggestion, written to be said aloud and to stay short for an eight-year-old. Change any
-wording before recording; the only rule is that the recording and the screen carry the same words.
+The wording is written to be said aloud and to stay short for an eight- or nine-year-old. If a line is
+reworded later, the takes already recorded for it are held back by the publish tool (it says so) and the booth
+marks them "not the words the game shows", so a recording can never play under words it does not say.
 
-## The hard part: names
+## Why the lines say no name
 
-Children read along while they listen, so **the text on screen has to be exactly what is heard**. Today every
-one of the four lines says the animal's name, and a recording cannot say every name.
-
-What is true about the names:
+Children read along while they listen, so the text on screen has to be exactly what is heard. A recording
+cannot say every name:
 
 - The name is picked from a fixed list per species, with no free text (spec section 3). The five species that
   get adopted have 20 names each, which comes to **90 different names** because some are shared (Biscuit, Bramble,
@@ -127,29 +120,13 @@ What is true about the names:
 - Stitching a name between two recorded halves of a sentence is audible as a seam, and a name said inside a
   sentence needs to be said in that sentence's tune.
 
-The three options as questions of effort and honesty:
+Name-free lines are the one option where the whole conversation is voiced and the screen always matches the
+audio, for 60 short lines. The price is that the hand-over text stops saying "Pumpkin": the name is on the
+picker and the ceremony either side of it, and the green animal-name highlight no longer appears in this
+conversation (it stays in the runner for other ones).
 
-| | A. Name-free lines | B. A few recorded names | C. Only Marnie |
-|---|---|---|---|
-| Lines to record | 60 | 60 plus 20 to 90 names | 2 (plus 90 names if she says them) |
-| Does what is heard match the text on every animal | Yes | Only for the recorded names; the rest need name-free text too, so the screen has two versions of each line | Yes, if her lines are name-free |
-| Does the animal's name stay in the conversation | No (it stays on the picker, ceremony and toasts) | Sometimes | Only in Marnie's name lines |
-| Who is heard | Marnie and the family | Marnie, sometimes the family | Marnie |
-| Extra work in the game | Change four line templates and a test | Per-name audio lookup, stitching, two text versions | Smallest |
-| Cost of changing your mind later | Low: a name line for Marnie can be added on top | High | Low |
-
-**Recommendation: A.** It is the only option where the whole conversation is voiced and the screen always
-matches the audio, and it costs 60 short lines. It also keeps the door open: if the animal's name matters
-in Marnie's mouth, add one extra Marnie line ("Meet ...!") with the 90 names recorded once in her voice
-(roughly 45 minutes), and nothing already recorded changes. The price of A is that the hand-over text stops
-saying "Pumpkin": the name is on the picker and the ceremony either side of it, and the green animal-name
-highlight no longer appears in this conversation (it stays in the runner for other ones).
-
-If you choose A, the change in code is: make the four `HANDOVER_LINES` templates in
-`packages/game-logic/src/adoption-dialogue.ts` equal to their `nameFree` drafts (or your own wording), refresh
-`public/admin/voice-script.json` (the command is in the test), and publish. Until then a take recorded against
-a draft is kept but not shipped, because the game would still be showing different words. The publish tool says
-so for each take.
+The door stays open: if the animal's name matters in Marnie's mouth, add one extra Marnie line ("Meet ...!") with
+the 90 names recorded once in her voice (roughly 45 minutes), and nothing already recorded changes.
 
 ## File format and names
 
@@ -192,7 +169,8 @@ Open `http://localhost:5173/admin/voice-booth.html` on the computer running the 
 
 1. Say who is speaking and tick the box: the speaker has agreed to the consent line below. Nothing records
    until both are done.
-2. Pick the words to record (the name-free draft is the default).
+2. Each speaker's picture and voice note are on their row: Marnie first, then the 29 households. Open one to
+   see its two lines, printed exactly as the game shows them. Say the words as printed.
 3. For each line: **Record**, speak, **Stop**. It is saved as a take at once. Record two or three. Play
    each back with its **Take N** button. Choose the best and press **Keep this take**.
 4. **Import a recording** attaches a file instead: a Voice Memos export, a WAV from a recorder.
@@ -201,10 +179,12 @@ Open `http://localhost:5173/admin/voice-booth.html` on the computer running the 
 
 When there are kept takes: `node apps/game/tools/voice-publish.mjs` (add `--dry-run` to see first). It
 converts each take that matches the game's words, tells you which it held back and why, and writes the MP3s
-into `public/assets/voice/`. Commit those.
+into `public/assets/voice/`. Commit those. A take recorded against words that have since been changed is held
+back, and the booth says "not the words the game shows" on that line.
 
-**Saving needs the dev server to be restarted once.** The endpoint is a Vite plugin, and a plugin only
-loads when the dev server starts. Until then the page opens and records, but says "Saving is off".
+**Saving needs a dev server that was started with the plugin.** The endpoint is a Vite plugin registered in
+`vite.config.ts`, and a plugin only loads when the dev server starts. A server started before that says
+"Saving is off" on the page: it records and plays back, but keeps nothing until the server is restarted.
 
 **On an iPad.** As the dev server is started now it listens on this computer only (`localhost`), so an iPad
 cannot reach it. Two things have to change: start it with `--host`, and serve it over https, because a browser
@@ -250,7 +230,6 @@ asks to be removed, delete their kept takes and published MP3s; the next release
 
 | | |
 |---|---|
-| Built | The runner plays a recorded line and stays silent without one; stops on advance, SKIP and sound-off. The asset loader's lookup. The voice booth page. The dev endpoint, kept out of production builds. The publish tool. The script file. A test that the plan, the script and the game's lines agree. |
-| Waiting on you | Question 1 (names) and question 2 (how many voices). |
-| Waiting on a dev-server restart | Registering the booth's endpoint in `vite.config.ts`. It is on its own branch (`claude/voice-booth-wiring`) so that the running dev server is not restarted under anyone; merging it restarts the server. |
-| Not built | Any of the name options. Any recordings. A separate service-worker cache for voice clips (in the wiring branch). |
+| Built | The runner plays a recorded line and stays silent without one; stops on advance, SKIP and sound-off. The asset loader's lookup. The voice booth page, listing Marnie and all 29 households with their portraits and voice notes (60 lines). The dev endpoint, registered in `vite.config.ts` and kept out of production builds. The publish tool. The script file. The four name-free lines, in the game, the script and this plan, with a test that all three agree word for word. |
+| Waiting on you | Recording: two hours or so across the cast (about ten to twelve distinct voices). |
+| Not built | Any recordings. An extra Marnie "Meet ..." line with recorded names, which this decision leaves out. |

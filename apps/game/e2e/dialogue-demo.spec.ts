@@ -246,11 +246,23 @@ for (const vp of VIEWPORTS) {
 
     test('colours animal names green and person names amber, in the pixels', async ({ page }) => {
       await openDemo(page);
-      // Beat 1: the animal's name, twice.
+      // The hand-over's own lines say no animal's name (121A), so nothing in
+      // them is green: beat 1 has no animal word at all.
       let s = await snapshot(page);
+      expect(s.words.filter((w) => w.kind === 'animal'), 'beat 1 has no animal name').toEqual([]);
+      expect(s.words.filter((w) => w.kind === 'person'), 'beat 1 names no person').toEqual([]);
+      await advance(page);
+      s = await snapshot(page);
+      expect(s.words.filter((w) => w.kind !== null), 'beat 2 has no name at all').toEqual([]);
+
+      // Beat 3 is the demo's own choice beat, which does name the animal, so the
+      // runner's green is still judged where it is used.
+      await advance(page);
+      s = await snapshot(page);
+      expect(s.beat).toBe(2);
       let png = await page.screenshot();
       const animals = s.words.filter((w) => w.kind === 'animal');
-      expect(animals.map((w) => w.text.replace(/[^A-Za-z]/g, ''))).toEqual(['Pumpkin', 'Pumpkin']);
+      expect(animals.map((w) => w.text.replace(/[^A-Za-z]/g, ''))).toEqual(['Pumpkin']);
       for (const w of animals) {
         expect(w.colour).toBe('#2d6b1f');
         expect(await countNear(page, png, w.rect, GREEN, 30), `"${w.text}" green pixels`).toBeGreaterThan(40);
@@ -259,9 +271,7 @@ for (const vp of VIEWPORTS) {
       const plain = s.words.find((w) => w.kind === null)!;
       expect(await countNear(page, png, plain.rect, GREEN, 30), 'a plain word has no green').toBeLessThan(6);
 
-      // Beat 4: a person (Marnie, thanked by the guest) and an animal.
-      await advance(page);
-      await advance(page);
+      // Beat 4: a person (Marnie, thanked by the guest), amber, and no animal.
       await advance(page);
       s = await snapshot(page);
       expect(s.beat).toBe(3);
@@ -270,9 +280,8 @@ for (const vp of VIEWPORTS) {
       expect(person.text).toContain('Marnie');
       expect(person.colour).toBe('#8f5a00');
       expect(await countNear(page, png, person.rect, DEEP_AMBER, 30), 'Marnie in amber').toBeGreaterThan(40);
-      const animal = s.words.find((w) => w.kind === 'animal')!;
-      expect(await countNear(page, png, animal.rect, GREEN, 30), 'Pumpkin in green').toBeGreaterThan(40);
-      expect(await countNear(page, png, animal.rect, DEEP_AMBER, 30), 'Pumpkin is not amber').toBeLessThan(6);
+      expect(await countNear(page, png, person.rect, GREEN, 30), 'Marnie is not green').toBeLessThan(6);
+      expect(s.words.filter((w) => w.kind === 'animal'), 'beat 4 has no animal name').toEqual([]);
     });
 
     test('lays a pale mist over the world, not a dark dim', async ({ page }) => {

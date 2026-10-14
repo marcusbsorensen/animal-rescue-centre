@@ -84,64 +84,56 @@ export function roleOf(beat: Pick<DialogueBeat, 'role' | 'speakerId'>): Dialogue
 
 // ── The hand-over script ────────────────────────────────────────
 
-/** Token in a line template that stands for the animal's name. */
-export const ANIMAL_TOKEN = '{animal}';
-
 interface HandoverLine {
   /** 1-based position in the conversation; part of the line id. */
   n: number;
   who: 'warden' | 'household';
   expression: DialogueExpression;
-  /** Text with `{animal}` where the animal's name goes. */
-  template: string;
   /**
-   * The same line with no name in it, drafted for option A of the voice plan
-   * (docs/voice-recording-plan-2026-10-14.md): a line a person can record in
-   * full, so what is heard is exactly what is read. A draft only; the game
-   * shows `template` until Marcus chooses.
+   * What is shown and what is recorded: one text, word for word. Children read
+   * along while they listen, so the screen carries exactly the words that are
+   * heard. No line says the animal's name (a recording cannot say ninety of
+   * them); the name stays on the match picker, the ceremony and the toasts.
    */
-  nameFree: string;
-  /** Person names that appear in the template as plain text (not tokens). */
+  text: string;
+  /** Person names that appear in the text; the runner draws them amber. */
   people?: string[];
 }
 
 /**
- * The four lines of every hand-over. One list feeds the game (through
- * `buildHandoverDialogue`) and the voice recording script (through
- * `handoverVoiceScript`), so what is recorded cannot drift from what is shown.
+ * The four lines of every hand-over (Marcus, 2026-10-14, 121A). One list feeds
+ * the game (through `buildHandoverDialogue`) and the voice recording script
+ * (through `handoverVoiceScript`), so what is recorded cannot drift from what
+ * is shown.
  *
  * The adopters thank the warden by name. "Marnie" is fixed, so a recording can
- * say it; the animal's name is not, which is the open question in
- * docs/voice-recording-plan-2026-10-14.md.
+ * say it; each household records its own lines, so a household's own name could
+ * be said too. The animal's name could not (docs/voice-recording-plan-2026-10-14.md).
  */
 export const HANDOVER_LINES: readonly HandoverLine[] = [
   {
     n: 1,
     who: 'warden',
     expression: 'neutral',
-    template: `This is ${ANIMAL_TOKEN}. ${ANIMAL_TOKEN} has been hoping for the perfect home.`,
-    nameFree: 'Meet our little friend! This one has been hoping for the perfect home.',
+    text: 'Meet our little friend! This one has been hoping for the perfect home.',
   },
   {
     n: 2,
     who: 'household',
     expression: 'neutral',
-    template: `Hello little ${ANIMAL_TOKEN}! We've come all this way to meet you.`,
-    nameFree: "Hello, little one! We've come all this way to meet you.",
+    text: "Hello, little one! We've come all this way to meet you.",
   },
   {
     n: 3,
     who: 'warden',
     expression: 'happy',
-    template: `Look after ${ANIMAL_TOKEN} for us, won't you?`,
-    nameFree: "Look after them for us, won't you?",
+    text: "Look after them for us, won't you?",
   },
   {
     n: 4,
     who: 'household',
     expression: 'greeting',
-    template: `Thank you, ${WARDEN_SPEAKER.name}! We'll love ${ANIMAL_TOKEN} forever.`,
-    nameFree: `Thank you, ${WARDEN_SPEAKER.name}! We promise to love them forever.`,
+    text: `Thank you, ${WARDEN_SPEAKER.name}! We promise to love them forever.`,
     people: [WARDEN_SPEAKER.name],
   },
 ];
@@ -151,13 +143,11 @@ export function handoverLineId(speakerId: string, n: number): string {
   return `handover-${speakerId}-${n}`;
 }
 
-function fill(template: string, animalName: string): string {
-  return template.split(ANIMAL_TOKEN).join(animalName);
-}
-
 /**
  * Build the hand-over conversation for a matched (animal, applicant): a short
  * back-and-forth between the warden (left) and the adopting family (right).
+ * The words are the same for every animal, so the one recording of each line
+ * fits whoever is being adopted; the animal only gives the sequence its id.
  *
  * Returns an EMPTY sequence when the applicant is missing, so a caller can
  * safely fall through to the ceremony without a dialogue if anything is off
@@ -171,7 +161,6 @@ export function buildHandoverDialogue(
     return { id: `handover-${animal.id}-none`, beats: [] };
   }
 
-  const name = animal.name;
   const beats = HANDOVER_LINES.map((line): DialogueBeat => {
     const warden = line.who === 'warden';
     const speakerId = warden ? WARDEN_SPEAKER.id : applicant.householdId;
@@ -181,8 +170,7 @@ export function buildHandoverDialogue(
       side: warden ? 'left' : 'right',
       role: warden ? 'warden' : 'guest',
       expression: line.expression,
-      text: fill(line.template, name),
-      highlights: [name],
+      text: line.text,
       ...(line.people ? { people: [...line.people] } : {}),
       lineId: handoverLineId(speakerId, line.n),
     };
@@ -200,12 +188,8 @@ export interface VoiceLine {
   role: DialogueRole;
   n: number;
   expression: DialogueExpression;
-  /** The text the game shows now, with `{animal}` where the animal's name goes. */
+  /** The words the game shows and the words to record: the same, exactly. */
   text: string;
-  /** True when the line has the animal's name in it, so it cannot be recorded whole. */
-  usesAnimalName: boolean;
-  /** The draft of the line with no name in it (option A), which can be recorded whole. */
-  textNameFree: string;
 }
 
 /**
@@ -230,9 +214,7 @@ export function handoverVoiceScript(
         role: s.who === 'warden' ? 'warden' : 'guest',
         n: line.n,
         expression: line.expression,
-        text: line.template,
-        usesAnimalName: line.template.includes(ANIMAL_TOKEN),
-        textNameFree: line.nameFree,
+        text: line.text,
       });
     }
   }

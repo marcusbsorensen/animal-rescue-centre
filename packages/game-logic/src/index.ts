@@ -427,7 +427,6 @@ export {
   buildHandoverDialogue,
   WARDEN_SPEAKER,
   HANDOVER_LINES,
-  ANIMAL_TOKEN,
   handoverLineId,
   handoverVoiceScript,
   roleOf,

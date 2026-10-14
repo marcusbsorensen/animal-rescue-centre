@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AddressInfo } from 'node:net';
 import { createVoiceBoothHandler } from '../plugins/voice-booth-handler';
+import { planPublish } from '../tools/voice-publish.mjs';
 
 /**
  * The voice booth page, driven in a real browser against the real save
@@ -66,11 +67,32 @@ test('records, plays back, retakes and keeps a line, and refuses what it should'
   await page.goto(`${base}/admin/voice-booth.html`);
   await expect(page.locator('#server-banner')).toContainText('Saving is on');
 
-  // Marnie first, every household after her; two lines each.
+  // Marnie first, every household after her (122B); two lines each.
   const speakers = page.locator('details.speaker');
   expect(await speakers.count()).toBe(30);
   expect(await page.locator('.line').count()).toBe(60);
   await expect(speakers.first().locator('.who')).toHaveText('Marnie');
+  await expect(page.locator('#progress')).toContainText('0 of 60 lines kept');
+
+  // Each of them shows their painted portrait and their voice note. A picture
+  // that failed to load has no width, so this also catches a path that is wrong.
+  const rows = await speakers.evaluateAll((els) => els.map((el) => {
+    const img = el.querySelector<HTMLImageElement>('summary .face img');
+    return {
+      id: (el as HTMLElement).dataset.speaker,
+      who: el.querySelector('.who')?.textContent ?? '',
+      portrait: img ? { loaded: img.complete && img.naturalWidth > 0, shown: img.getBoundingClientRect().width >= 48 } : null,
+      note: el.querySelector('.note')?.textContent ?? '',
+    };
+  }));
+  expect(rows.map((r) => r.id).slice(0, 3)).toEqual(['warden', '01-priya', '02-jan']);
+  for (const r of rows) {
+    expect(r.portrait, `${r.who} has a portrait`).not.toBeNull();
+    expect(r.portrait!.loaded, `${r.who}'s portrait loaded`).toBe(true);
+    expect(r.portrait!.shown, `${r.who}'s portrait is big enough to see`).toBe(true);
+    expect(r.note.length, `${r.who} has a voice note`).toBeGreaterThan(20);
+  }
+  expect(new Set(rows.map((r) => r.who)).size, 'thirty different names').toBe(30);
 
   const line = page.locator('.line').first();
   await expect(line.locator('.lineid')).toContainText('handover-warden-1');
@@ -81,12 +103,9 @@ test('records, plays back, retakes and keeps a line, and refuses what it should'
   await page.check('#consent');
   await expect(line.locator('button.rec')).toBeEnabled();
 
-  // A line that needs the animal's name cannot be recorded.
-  await page.selectOption('#version', 'current');
-  await expect(line.locator('button.rec')).toBeDisabled();
-  await expect(line.locator('.state')).toContainText("animal's name");
-  await page.selectOption('#version', 'name-free');
-  await expect(line.locator('button.rec')).toBeEnabled();
+  // The words on the page are the words the game shows: no name in them.
+  await expect(line.locator('.text')).toHaveText('Meet our little friend! This one has been hoping for the perfect home.');
+  await expect(page.locator('#version')).toHaveCount(0);
 
   // Two takes.
   for (let n = 1; n <= 2; n++) {
@@ -109,13 +128,22 @@ test('records, plays back, retakes and keeps a line, and refuses what it should'
   const sidecar = JSON.parse(fs.readFileSync(path.join(takes, 'keep/handover-warden-1.json'), 'utf8'));
   expect(sidecar).toMatchObject({
     lineId: 'handover-warden-1', speakerId: 'warden', takeFile: 'handover-warden-1__take2.webm',
-    by: 'Test Speaker', consent: true, textVersion: 'name-free',
+    by: 'Test Speaker', consent: true,
   });
   expect(sidecar.text).toBe('Meet our little friend! This one has been hoping for the perfect home.');
   expect(fs.existsSync(path.join(takes, 'keep/handover-warden-1.webm'))).toBe(true);
 
-  // The game does not show those words yet, and the page says so.
-  await expect(line.locator('.state')).toContainText('will not ship until the game text is changed');
+  // They are the words the game shows, the page says it will ship, and the
+  // publish tool agrees: the take a person just kept is accepted as it stands.
+  await expect(line.locator('.state')).toContainText('matches what the game shows');
+  const script = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'admin/voice-script.json'), 'utf8'));
+  const plan = planPublish(script, [sidecar]);
+  expect(plan.held).toEqual([]);
+  expect(plan.publish.map((k: { lineId: string }) => k.lineId)).toEqual(['handover-warden-1']);
+
+  // A household's thanks says "Marnie", in amber, as the game draws it.
+  await expect(page.locator('[data-line="handover-01-priya-4"] .text')).toHaveText('Thank you, Marnie! We promise to love them forever.');
+  await expect(page.locator('[data-line="handover-01-priya-4"] .text .person')).toHaveText('Marnie');
   await expect(page.locator('#progress')).toContainText('1 of 60 lines kept');
 
   // Progress survives a reload, because it lives on the server.

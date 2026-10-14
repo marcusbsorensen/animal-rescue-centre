@@ -58,7 +58,9 @@
   button.quiet { border-color: var(--line); font-weight: 600; }
   @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(179, 38, 30, .25); } }
   details.speaker { background: var(--card); border: 2px solid var(--line); border-radius: 14px; margin: 12px 0; }
-  details.speaker > summary { cursor: pointer; padding: 14px; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; min-height: 48px; }
+  details.speaker > summary { cursor: pointer; padding: 10px 14px; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; min-height: 48px; }
+  .face { flex: none; width: 64px; height: 64px; border-radius: 12px; background: var(--amber-bg); border: 2px solid var(--line); overflow: hidden; display: block; }
+  .face img { display: block; width: 100%; height: 100%; object-fit: contain; }
   details.speaker > summary::-webkit-details-marker { display: none; }
   .who { font-size: 18px; font-weight: 800; }
   .role { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
@@ -69,12 +71,10 @@
   .line { border-top: 2px solid var(--line); padding: 14px; }
   .lineid { font: 12px ui-monospace, Menlo, monospace; color: var(--ink-soft); }
   .text { font-size: 20px; font-weight: 600; margin: 4px 0 10px; }
-  .text .ph { background: var(--amber-bg); border: 1px dashed var(--amber); border-radius: 6px; padding: 0 4px; }
   .text .person { color: #8f5a00; }
   .state { font-size: 14px; margin-top: 8px; }
   .state.ships { color: var(--green-dark); font-weight: 700; }
   .state.waits { color: var(--amber); font-weight: 600; }
-  .state.blocked { color: var(--red); font-weight: 600; }
   .takes { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
   .take { display: inline-flex; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
   .take.sel { border-color: var(--blue); background: var(--blue-bg); }
@@ -112,19 +112,14 @@
       <span id="consent-text"></span>
     </label>
     <div class="row" style="margin-top:12px">
-      <label for="version">Words to record</label>
-      <select id="version" aria-describedby="version-help">
-        <option value="name-free">Name-free draft (option A in the voice plan)</option>
-        <option value="current">What the game shows now (has the animal's name)</option>
-      </select>
-      <label for="filter" style="margin-left:8px">Show</label>
+      <label for="filter">Show</label>
       <select id="filter">
         <option value="all">every line</option>
         <option value="todo">lines still to do</option>
       </select>
       <button id="next" class="quiet" type="button">Next line to do</button>
     </div>
-    <p id="version-help" class="hint">A recording has to match the words on screen, so a line that needs the animal's name cannot be recorded. The draft says the same thing without it.</p>
+    <p class="hint">Say the words exactly as they are printed: the game shows these same words on screen while the recording plays, and children read along.</p>
   </section>
 
   <section class="panel" aria-label="Progress">
@@ -157,7 +152,6 @@
     script: null,
     status: { takes: {}, kept: {} },
     serverOk: false,
-    version: store.get('version', 'name-free'),
     filter: 'all',
     by: store.get('by', ''),
     consent: false,
@@ -211,19 +205,13 @@
   }
 
   // ── Script ──────────────────────────────────────────────────
-  function textFor(line) {
-    return state.version === 'name-free' ? line.textNameFree : line.text;
-  }
-  function needsName(line) { return textFor(line).includes('{animal}'); }
-
+  // The words to say are the words the game shows: one text per line.
   function fillText(node, line) {
     node.textContent = '';
-    const text = textFor(line);
-    const parts = text.split(/(\{animal\}|Marnie)/);
-    for (const p of parts) {
+    // A person's name is amber on screen in the game, and here.
+    for (const p of line.text.split(/(Marnie)/)) {
       if (!p) continue;
-      if (p === '{animal}') node.appendChild(el('span', 'ph', "[the animal's name]"));
-      else if (p === 'Marnie') node.appendChild(el('span', 'person', p));
+      if (p === 'Marnie') node.appendChild(el('span', 'person', p));
       else node.appendChild(document.createTextNode(p));
     }
   }
@@ -236,6 +224,16 @@
       d.dataset.speaker = sp.id;
       if (i === 0) d.open = true;
       const sum = el('summary');
+      if (sp.portrait) {
+        const face = el('span', 'face');
+        const img = el('img');
+        img.src = sp.portrait;
+        img.alt = '';
+        img.width = 64;
+        img.height = 64;
+        face.appendChild(img);
+        sum.appendChild(face);
+      }
       sum.appendChild(el('span', 'who', sp.name));
       sum.appendChild(el('span', 'role ' + sp.role, sp.role === 'warden' ? 'the warden' : 'a family'));
       const count = el('span', 'count', '');
@@ -295,13 +293,12 @@
     const p = lineEls[line.lineId];
     if (!p) return;
     fillText(p.text, line);
-    const blocked = needsName(line);
     const recording = state.rec && state.rec.lineId === line.lineId;
     const anotherRecording = state.rec && !recording;
     p.rec.textContent = recording ? 'Stop' : (takesFor(line.lineId).length ? 'Record another take' : 'Record');
     p.rec.classList.toggle('live', !!recording);
-    p.rec.disabled = blocked || !!anotherRecording || !state.consent || !state.by.trim();
-    p.import.disabled = blocked || !!anotherRecording || !state.consent || !state.by.trim();
+    p.rec.disabled = !!anotherRecording || !state.consent || !state.by.trim();
+    p.import.disabled = !!anotherRecording || !state.consent || !state.by.trim();
     p.meter.classList.toggle('on', !!recording);
 
     const kept = state.status.kept[line.lineId];
@@ -324,18 +321,15 @@
     }
 
     const sel = takes.find((t) => t.key === state.selected[line.lineId]);
-    p.keep.disabled = !sel || sel.kind !== 'saved' || blocked || !state.consent || !state.by.trim() || !state.serverOk;
+    p.keep.disabled = !sel || sel.kind !== 'saved' || !state.consent || !state.by.trim() || !state.serverOk;
     p.unkeep.hidden = !kept;
 
     let msg = '', cls = 'state';
-    if (blocked) {
-      msg = "This version of the line has the animal's name in it, which cannot be recorded. Choose the name-free draft above.";
-      cls += ' blocked';
-    } else if (kept && kept.text === line.text) {
+    if (kept && kept.text === line.text) {
       msg = 'Kept, and it matches what the game shows. It will ship when published.';
       cls += ' ships';
     } else if (kept) {
-      msg = 'Kept, but the game still shows different words. It will not ship until the game text is changed to match (voice plan, option A).';
+      msg = 'Kept, but these are not the words the game shows now: the line was reworded after this take. It will not ship. Record it again.';
       cls += ' waits';
     } else if (!state.consent || !state.by.trim()) {
       msg = 'Say who is speaking and tick the box above first.';
@@ -498,7 +492,7 @@
       await api('/keep', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          speaker: sp.id, line: line.lineId, file, text: textFor(line), textVersion: state.version,
+          speaker: sp.id, line: line.lineId, file, text: line.text,
           by: state.by.trim(), consent: state.consent,
         }),
       });
@@ -529,16 +523,14 @@
   function wireControls() {
     $('consent-text').textContent = CONSENT;
     $('by').value = state.by;
-    $('version').value = state.version;
     $('by').addEventListener('input', () => { state.by = $('by').value; store.set('by', state.by); updateAll(); });
     // The agreement is not remembered between visits: each session asks again.
     $('consent').addEventListener('change', () => { state.consent = $('consent').checked; updateAll(); });
-    $('version').addEventListener('change', () => { state.version = $('version').value; store.set('version', state.version); updateAll(); });
     $('filter').addEventListener('change', () => { state.filter = $('filter').value; updateAll(); });
     $('next').addEventListener('click', () => {
       for (const sp of state.script.speakers) {
         for (const line of sp.lines) {
-          if (!state.status.kept[line.lineId] && !needsName(line)) {
+          if (!state.status.kept[line.lineId]) {
             const d = document.querySelector('details[data-speaker="' + sp.id + '"]');
             d.open = true;
             lineEls[line.lineId].root.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { planPublish, ffmpegArgs } from '../voice-publish.mjs';
+
+const REAL_SCRIPT = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, '../../public/admin/voice-script.json'), 'utf8'),
+) as { speakers: Array<{ id: string; lines: Array<{ lineId: string; text: string }> }> };
 
 const script = {
   speakers: [
@@ -54,6 +60,31 @@ describe('planPublish', () => {
   it('reports published files that no longer have a kept take', () => {
     const plan = planPublish(script, [kept()], ['handover-warden-1', 'handover-01-priya-2']);
     expect(plan.orphans).toEqual(['handover-01-priya-2']);
+  });
+});
+
+describe('planPublish against the real script (121A)', () => {
+  const lines = REAL_SCRIPT.speakers.flatMap((sp) => sp.lines);
+
+  it('publishes a take recorded against each of the 60 final lines, the words as the booth saves them', () => {
+    expect(lines).toHaveLength(60);
+    const takes = lines.map((l) => ({ lineId: l.lineId, file: `${l.lineId}.webm`, text: l.text, consent: true }));
+    const plan = planPublish(REAL_SCRIPT, takes);
+    expect(plan.held).toEqual([]);
+    expect(plan.publish).toHaveLength(60);
+  });
+
+  it('holds back a take recorded against anything else, one word out', () => {
+    const l = lines[0];
+    const plan = planPublish(REAL_SCRIPT, [
+      { lineId: l.lineId, file: `${l.lineId}.webm`, text: l.text.replace('little friend', 'friend'), consent: true },
+    ]);
+    expect(plan.publish).toEqual([]);
+    expect(plan.held[0].reason).toContain('not the words the game shows');
+  });
+
+  it('no longer holds anything back for the animal\'s name, because no line has it', () => {
+    expect(lines.filter((l) => l.text.includes('{animal}'))).toEqual([]);
   });
 });
 
