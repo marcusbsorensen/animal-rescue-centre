@@ -2,9 +2,9 @@
 
 **A draft for Marcus to review. It is not legal advice.** Each claim that this repository's code or the sourced research does not confirm is an open item: bold, in square brackets, starting with the word check. A search for that opening bracket with the word check lists every open item. Section numbers follow the FlagFans DPIA (`flagfans/docs/legal/dpia-young-explorers.md`, the ICO template in seven steps), so the hub's rows in `interfulgent-hub/docs/dpia-arc-hub-rows.md` can be applied by number.
 
-Written 14 October 2026 against branch `claude/privacy-jobs`, built on `claude/crate-loading` (934557f). Nothing on that line is merged or deployed. Production Supabase has migrations up to 00016; 00017 to 00019 are not applied.
+Written 14 October 2026 against branch `claude/privacy-jobs`, built on `claude/crate-loading` (934557f). Nothing on that line is merged or deployed. Production Supabase has migrations up to 00016; 00017 to 00020 are not applied.
 
-Updated the same day with research the first draft missed: the Supabase region, Interfulgent's own encrypted backups of ARC's database, and 20i's answers to FlagFans' support tickets #497585008 and #497653007. Updated again with Marcus's answers 147A (an account goes 3 years after it was last used) and 148B (all his 20i hosting is on one account and one virtual server). The sources are named where each fact is used.
+Updated the same day with research the first draft missed: the Supabase region, Interfulgent's own encrypted backups of ARC's database, and 20i's answers to FlagFans' support tickets #497585008 and #497653007. Updated again with Marcus's answers 147A (an account goes 3 years after it was last used) and 148B (all his 20i hosting is on one account and one virtual server). Updated again with answer 151A (migration 00020 switches the retention jobs on) and with the Supabase plan, its backups and its log retention, read from the Supabase dashboard and Supabase's website on 14 October 2026. The sources are named where each fact is used.
 
 ## Step 1: Why a DPIA
 
@@ -22,7 +22,7 @@ Legitimate interests (UK GDPR Art 6(1)(f)) for all three purposes: running the g
 
 ### 2.2 What is held
 
-#### On the server (Supabase), after migrations 00001 to 00019
+#### On the server (Supabase), after migrations 00001 to 00020
 
 | Table | What it holds | Notes |
 |---|---|---|
@@ -40,6 +40,7 @@ Legitimate interests (UK GDPR Art 6(1)(f)) for all three purposes: running the g
 | `username_pending_review` | Candidate pool names for the admin page | No child data |
 | `depot_sessions`, `supply_run_records`, `depot_inventory_ledger` | Depot and supply-run history per account | Nothing in this repository writes them **[check: empty in production]** |
 | `calendar_events` | Game calendar | No personal data |
+| `cron.job`, `cron.job_run_details` | pg_cron's own tables (00020): the four retention jobs, and a line for each run with its time, result and message | No personal data: the jobs' messages hold counts, never an id or a name (00019). pg_cron keeps the run lines until someone deletes them, about 1,500 a year |
 
 The public key can read only `users.id`, `display_name`, `avatar_emoji` and `avatar_bg_colour` (00016). It cannot call `delete_account`, the rate-limit functions, the sign-in-name functions or the retention jobs: each is revoked from it, and tests check that. Marcus's admin page (`apps/admin`) reads every table with the service-role key and is built only for his own computer (`ARC_ADMIN_LOCAL_BUILD=1`; the build refuses otherwise) **[check: never deployed]**.
 
@@ -65,7 +66,7 @@ The job's log shows ARC's dump and its upload both succeeding on 12, 13 and 14 O
 
 Until 9 October 2026 a copy of the nightly dumps also went to Dropbox (a personal plan with no data processing contract); the job stopped writing there on 9 October. The FlagFans DPIA records 34 age-encrypted files left in the Dropbox folder, which nothing rotates or removes. **[check: whether any of those 34 files hold ARC dumps. If they do, a deletion cannot reach them and they have no end date]**
 
-#### Retention (43A as changed by 147A, 44B, 45A, 46B), built in migration 00019
+#### Retention (43A as changed by 147A, 44B, 45A, 46B), built in migration 00019 and switched on by 00020 (151A)
 
 | What | Kept until | Job |
 |---|---|---|
@@ -75,16 +76,19 @@ Until 9 October 2026 a copy of the nightly dumps also went to Dropbox (a persona
 | A showcase and its snapshot | 30 days after the link stopped working (a link works 7 days) | `arc_retention_showcases` |
 | A sign-in token | 90 days after it was made; then it no longer works. The row goes when the same player signs in again, or with the account | No job of its own **[check: decide whether expired tokens need one]** |
 | The copy on a device | Until the app is deleted, the site's data is cleared, or the account is deleted in the game on that device | None: the device's |
-| Supabase backups and function logs | Supabase's schedule | **[check: the plan, the backup retention and the log retention. None is recorded in any repository, ticket or note; read them from the Supabase dashboard]** |
+| Supabase backups | None. The `arc` project is on the Free plan, and the dashboard's Backups page says the Free plan does not include project backups (read 14 October 2026). Supabase's backup guide (https://supabase.com/docs/guides/platform/backups) recommends that free projects export with `supabase db dump`, which Interfulgent's nightly job does (above) | None |
+| Supabase API and database logs | 1 day (Free plan; https://supabase.com/pricing, read 14 October 2026) | Supabase's |
+| Supabase auth audit logs | 1 hour (Free plan; the same page) | Supabase's |
+| Supabase Edge Function logs | **[check: Supabase publishes no retention for Edge Function logs on its pricing page; ask Supabase, or read it from the dashboard's logs]** | Supabase's |
 | Interfulgent's nightly dump of ARC's database, on Marcus's Mac | The newest 7 daily, 4 weekly (Sundays) and 12 monthly (the 1st) copies, then deleted | `interfulgent-backup`, 03:30 nightly |
 | The same dump at Backblaze B2 (Amsterdam), encrypted | Locked for 8 days (daily copies), 29 days (Sundays) or 366 days (the 1st) from upload. Nobody can shorten or remove a compliance lock, Backblaze included. The job deletes a folder once it is out of the rotation and its lock has expired | `interfulgent-backup`, after each dump |
 | 20i's web-server access and error logs for the game's site (full internet address and browser description) | Server logs 12 weeks; CDN logs 7 days. 20i's answer (ticket #497653007, 9 October 2026), which applies to ARC because all of Marcus's 20i hosting is on one account and one virtual server (148B). 20i cannot shorten them (see 2.6) | 20i: a server setting 20i does not change |
 
 "Last used" is the later of the last sign-in (`users.last_seen_at`, moved by signup, login and save-game) and the last request made with one of the account's tokens (`sessions.last_used_at`); an account with neither counts from when it was made. As a token lasts 90 days, an account goes 3 years after the last sign-in at the earliest, and up to 90 days after that. Marcus decided on 14 October 2026 (147A) that the rule is "3 years after the account was last used", which is what migration 00019 does. **The privacy notice must say "last used", not "last sign-in".** The hub's page now says "3 years after the last sign-in" (`interfulgent-hub/content/support/arc/privacy.md:86`; see finding 14).
 
-Each job deletes one bounded batch per daily run, oldest first, and is safe to run twice or twice at once. Tests: `packages/edge-functions/src/__tests__/retention-db.test.ts` (each limit a day either side) and the retention section of `packages/game-logic/src/__tests__/privacy-audit.test.ts`. The jobs are not scheduled until Marcus switches them on (section 7.1).
+Each job deletes one bounded batch per daily run, oldest first, and is safe to run twice or twice at once. Tests: `packages/edge-functions/src/__tests__/retention-db.test.ts` (each limit a day either side) and the retention section of `packages/game-logic/src/__tests__/privacy-audit.test.ts`. Migration 00020 enables pg_cron and schedules the four jobs, daily from 03:10 UTC, when it is pushed (151A; the order is in section 7.1). Pushing it again, or running `select arc_retention_schedule();` again, still leaves four jobs. Checked on a local Supabase stack on 14 October 2026 with pg_cron 1.6.4, the version production lists: after `supabase db reset` the four jobs were scheduled, run as `postgres`; the dry run and one run of each job agreed (1 account, 1 log entry, 1 counter, 1 showcase); a second run deleted nothing; and pg_cron itself ran the rate-limit job successfully.
 
-**Deletion and the backups.** `delete_account`, the in-game button and the retention jobs change the live database only. A deleted account stays in every nightly dump taken before the deletion until that dump expires: at most 366 days after the dump was made, because no lock is set longer than that. The Backblaze lock cannot be shortened or removed early by anyone. The copies are encrypted, and the key is held by Marcus alone. A restore from any of them would bring a deleted account back (risk R-bak1, section 5).
+**Deletion and the backups.** `delete_account`, the in-game button and the retention jobs change the live database only. The Free plan includes no project backups (2.2, above), so Interfulgent's nightly dumps are the only backups of the database. A deleted account stays in every nightly dump taken before the deletion until that dump expires: at most 366 days after the dump was made, because no lock is set longer than that. The Backblaze lock cannot be shortened or removed early by anyone. The copies are encrypted, and the key is held by Marcus alone. A restore from any of them would bring a deleted account back (risk R-bak1, section 5).
 
 **[check: why 3 years and 2 years. Recorded so far: the hub's question 43 recommended 3 years because UK GDPR Art 5(1)(e) asks for no longer than needed and FlagFans deletes unused child profiles after 3 years, and Marcus chose it (43A). Question 44 recommended 12 months for the activity log; Marcus chose 2 years (44B) and no reason is written down. Sources: `interfulgent-hub/docs/privacy-arc-dashlit-questions.md` lines 110 to 128; `privacy-arc-dashlit-notes.md` lines 148 and 149]** FlagFans records its reasons in its section 2.2.1; this DPIA should record Marcus's in the same way.
 
@@ -102,7 +106,7 @@ The players are children, most of them 8 or 9, who play on a family iPad, a phon
 
 | Supplier | What it handles | Where | Safeguard |
 |---|---|---|---|
-| Supabase | Every server table in 2.2, sign-in tokens, its own backups, Edge Function logs. The source of Interfulgent's nightly dump | Central EU (Frankfurt). Source: the `supabase projects list` output of 28 August 2026 and 31 August 2026 (project `arc`, created 12 April 2026), kept in two ARC session transcripts (see below the table) | Frankfurt is in the EEA, which UK adequacy regulations cover. Supabase Inc. is a US company: the UK Addendum to the EU standard contractual clauses in its DPA **[check: the accepted DPA is on file. None is in any repository]** |
+| Supabase | Every server table in 2.2, sign-in tokens, and its API, database, auth and Edge Function logs (kept as in 2.2). The source of Interfulgent's nightly dump. Project `arc` in the A.R.C. Game organisation, on the Free plan, which includes no project backups and pauses a project after 1 week of inactivity (risk R-avail1) | Central EU (Frankfurt), `eu-central-1`. Source: the Supabase dashboard, read 14 October 2026; before that, the `supabase projects list` output of 28 August 2026 and 31 August 2026 (project `arc`, created 12 April 2026), kept in two ARC session transcripts (see below the table) | Frankfurt is in the EEA, which UK adequacy regulations cover. Supabase Inc. is a US company: the UK Addendum to the EU standard contractual clauses in its DPA **[check: the accepted DPA is on file. None is in any repository]** |
 | Backblaze (Backblaze, Inc., a US company) | Interfulgent's nightly dump of ARC's database, encrypted with `age` on Marcus's Mac before upload. Ciphertext only: Backblaze holds no key | EU Central (Amsterdam), a private bucket with Object Lock | The EU, which UK adequacy regulations cover. Backblaze's UK DPA applies to organisation accounts on acceptance of its terms; Interfulgent's account was opened on 8 October 2026. Filed: `flagfans/docs/legal/backblaze-dpa-uk-2026-10-08.pdf` and `backblaze-terms-of-service-2026-10-08.pdf` |
 | Marcus's Mac (not a supplier) | The local copy of the nightly dump, and the key that opens every copy | `~/Backups/Interfulgent`, mode 700, no cloud sync | FileVault; the key is also in his password manager and printed offline |
 | 20i | The game's files at `play.arcgame.app` and the website at `arcgame.app`; the internet address and browser description of each device that loads them (web-server logs). No accounts or saved games | UK: 20i's London zone, in Kao Data's colocation facility in Harlow, Essex; backups at ServerChoice, Stevenage. 20i gave this for FlagFans' package (ticket #497585008). Marcus confirmed on 14 October 2026 (148B) that all his 20i hosting, FlagFans and ARC included, is on one 20i account and one virtual server, so it applies to ARC (ARC's package is `981c98df9aeca87b`; the hub's handover of 9 October 2026 also records the shared server as London) | UK company; no transfer. 20i's DPA is its published agreement (https://www.20i.com/us/legal/gdpr-data-processing-agreement). Annex 2 (security measures) is filed at `flagfans/docs/legal/20i-gdpr-annex.pdf`, received 6 October 2026 **[check: a dated copy of the DPA on file. Only Annex 2 is filed]** |
@@ -186,6 +190,7 @@ A child needs her sign-in name and PIN. On the new address the big PLAY sign ope
 | R-ret2 | An account a child still means to use is deleted after 3 years without warning | Remote | Significant | Medium |
 | R-move1 | On the new address a child makes a second account instead of signing in, or loses an offline change | Possible | Minimal | Low |
 | R-bak1 | A deleted account stays in Interfulgent's locked, encrypted nightly copies for up to 366 days and cannot be removed early. A restore would bring it back, and anyone who obtained the private key and a copy could read PIN hashes and older accounts' typed sign-in names | Remote | Significant | Medium |
+| R-avail1 | On the Free plan Supabase pauses a project after 1 week of inactivity (https://supabase.com/pricing, read 14 October 2026). While `arc` is paused, no child can sign in, load her shelter or save, and the retention jobs do not run | Possible | Minimal | Low |
 
 **[check: the scores; these are suggestions.]**
 
@@ -197,6 +202,7 @@ A child needs her sign-in name and PIN. On the new address the big PLAY sign ope
 | R-ret2 | 3 years counts from the last use, not only the last sign-in. A child's own play keeps the account. No contact is held to warn anyone, which the privacy page says | Accepted **[check]** | |
 | R-move1 | The moved page tells the child to choose "I already have an account" and to have her name and number ready | Reduced | Low |
 | R-bak1 | Each copy is encrypted with `age` on Marcus's Mac before it leaves, so Backblaze holds ciphertext and no key. The bucket is private, in the EU, with Object Lock: no lock is set longer than 366 days, so no copy outlives a year. The local folder is mode 700 with FileVault, and the key is in his password manager and printed offline. The notice tells the reader the copies exist and when they expire (4.6). The lock cannot be shortened, so the residue is accepted and disclosed | Reduced | Low **[check: Marcus accepts the residue, and the restore rule in 4.6]** |
+| R-avail1 | Each device keeps its own copy of the shelter (2.2). Once the project runs again, the retention jobs clear any backlog in batches (00019). Nothing watches for a pause | Accepted **[check: what Supabase counts as activity, and whether the nightly dump or the daily jobs count; how Marcus would notice a pause and restore the project; or a paid plan]** | |
 
 ## Step 7: Sign-off
 
@@ -204,15 +210,16 @@ A child needs her sign-in name and PIN. On the new address the big PLAY sign ope
 
 None of these has been run against production.
 
-1. **Dry run of the push.** From a checkout of the merged commit, run `supabase db push --dry-run`. It should list exactly 00017, 00018 and 00019, or only 00019 if the other two are already applied.
-2. **Push.** `supabase db push`. 00019 deletes nothing as it runs; it adds functions and two indexes. Then follow 00017 and 00018's own function deploys.
-3. **Dry run of the jobs.** In the SQL editor, run `select arc_retention_preview();`. It counts what each job would delete and changes nothing. Production's accounts and log entries are all younger than their limits, so expect 0 for both. Expect a number for rate limits, and for any showcase that expired over 30 days ago.
-4. **One run by hand.** `select arc_retention_run();`. The counts should match step 3.
-5. **Enable pg_cron.** Dashboard > Database > Extensions > `pg_cron` **[check: the place in the current dashboard; it may be under Integrations > Cron]**.
-6. **Schedule.** `select arc_retention_schedule();`. It returns four lines, daily from 03:10 UTC. Running it again changes nothing.
-7. **Check the next day.** Run `select j.jobname, d.status, d.start_time from cron.job_run_details d join cron.job j using (jobid) where j.jobname like 'arc-retention-%' order by d.start_time desc limit 8;`. All four should show `succeeded`.
+pg_cron 1.6.4 is available on the project and not yet installed (the dashboard, 14 October 2026). Migration 00020 installs it and schedules the jobs, so nothing is switched on in the dashboard. Supabase's dashboard shows the result under Integrations > Cron (https://supabase.com/docs/guides/cron/install).
 
-To switch the jobs off, run `select arc_retention_unschedule();`. Without pg_cron, a daily call to `rpc/arc_retention_run` with the service-role key would do the same; nothing for that is built.
+1. **Dry run of the push.** From a checkout of the merged commit, run `supabase db push --dry-run`. It should list 00017 to 00020, or 00019 and 00020 if the other two are already applied, and any later migration merged with them.
+2. **Push, during the day.** `supabase db push`. 00019 and 00020 delete nothing as they run: 00019 adds functions and two indexes, and 00020 installs pg_cron and schedules the four jobs. The first scheduled run is at 03:10 UTC, so push early enough to finish steps 3 to 5 before then. Then follow 00017 and 00018's own function deploys.
+3. **Check the schedule.** In the SQL editor, run `select jobname, schedule, username from cron.job where jobname like 'arc-retention-%' order by jobid;`. Expect four jobs, at 03:10, 03:15, 03:20 and 03:25 UTC, run as `postgres`.
+4. **Dry run of the jobs.** `select arc_retention_preview();`. It counts what each job would delete and changes nothing. Production's accounts and log entries are all younger than their limits, so expect 0 for both. Expect a number for rate limits, and for any showcase that expired over 30 days ago.
+5. **One run by hand.** `select arc_retention_run();`. The counts should match step 4.
+6. **Check the next day.** Run `select j.jobname, d.status, d.start_time from cron.job_run_details d join cron.job j using (jobid) where j.jobname like 'arc-retention-%' order by d.start_time desc limit 8;`. All four should show `succeeded`.
+
+To switch the jobs off, run `select arc_retention_unschedule();`, and `select arc_retention_schedule();` puts them back. Disabling the extension also removes them: Supabase's docs say it permanently deletes all jobs. Without pg_cron, a daily call to `rpc/arc_retention_run` with the service-role key would do the same work; nothing for that is built.
 
 ### 7.3 Declaration
 

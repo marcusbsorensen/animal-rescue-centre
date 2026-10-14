@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { PGliteInterface } from '@electric-sql/pglite';
-import { migratedDatabase, asRole } from '../support/postgres';
+import { migratedDatabase, asRole, runMigration } from '../support/postgres';
 
 /**
  * The retention jobs (migrations/00019_retention_jobs.sql) against a real
@@ -461,5 +461,19 @@ describe('every job', () => {
       .rejects.toThrow(/pg_cron is not enabled.*Database > Extensions > pg_cron.*Nothing was scheduled/);
     const { rows } = await db.query<{ n: number }>(`select arc_retention_unschedule() as n`);
     expect(rows[0].n).toBe(0);
+  });
+
+  it('00020 skips where pg_cron is not available, and runs again without error', async () => {
+    // A Supabase stack has pg_cron, and there 00020 schedules the four jobs
+    // (run on a local stack, 14 October 2026). PGlite has none, so 00020
+    // has already run here and done nothing.
+    const { rows: available } = await db.query(`select 1 from pg_available_extensions where name = 'pg_cron'`);
+    expect(available).toHaveLength(0);
+    await runMigration(db, '00020_schedule_retention.sql');
+    const { rows } = await db.query<{ ext: number; schema: number }>(
+      `select (select count(*) from pg_extension where extname = 'pg_cron')::int as ext,
+              (select count(*) from pg_namespace where nspname = 'cron')::int as schema`,
+    );
+    expect(rows[0]).toEqual({ ext: 0, schema: 0 });
   });
 });
