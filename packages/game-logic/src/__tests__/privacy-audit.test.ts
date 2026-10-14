@@ -496,3 +496,61 @@ describe('Privacy Audit: what the public key can read', () => {
     expect(read('apps/game/src/lib/auth.ts')).not.toMatch(/from\('users'\)/);
   });
 });
+
+describe('Privacy Audit: how long things are kept (43A, 44B, 45A, 46B)', () => {
+  // The privacy page states these periods, and docs/legal/dpia-arc.md
+  // repeats them. A change here is a change to both, so it fails until
+  // the page and the DPIA are looked at too.
+  // packages/edge-functions/src/__tests__/retention-db.test.ts runs the
+  // jobs against a real Postgres.
+  let sql: string;
+  const body = (name: string): string => {
+    const start = sql.lastIndexOf(`create or replace function ${name}(`);
+    expect(start, name).toBeGreaterThan(-1);
+    return sql.slice(start, sql.indexOf('$$;', start));
+  };
+
+  beforeAll(() => {
+    sql = migrations().map((m) => m.sql).join('\n');
+  });
+
+  it('an account goes 3 years after it was last used, through delete_account', () => {
+    const fn = body('arc_retention_accounts');
+    expect(fn).toContain("now() - interval '3 years'");
+    expect(fn).toContain('coalesce(u.last_seen_at, u.created_at)');
+    expect(fn).toContain('s.last_used_at >=');
+    // Every row of the child's goes the way an in-game deletion takes it,
+    // not by a cascade that leaves the log and the counters behind.
+    expect(fn).toContain('perform delete_account(v_id)');
+    expect(fn).not.toMatch(/delete from users/);
+  });
+
+  it('an activity-log entry goes 2 years after it was made', () => {
+    expect(body('arc_retention_audit_log')).toContain("created_at < now() - interval '2 years'");
+  });
+
+  it('a rate-limit counter goes 1 day after its window closed', () => {
+    expect(body('arc_retention_rate_limits')).toContain("reset_at < now() - interval '1 day'");
+  });
+
+  it('a showcase goes 30 days after its link stopped working', () => {
+    expect(body('arc_retention_showcases')).toContain("expires_at < now() - interval '30 days'");
+  });
+
+  it('the dry run uses the same periods', () => {
+    const fn = body('arc_retention_preview');
+    for (const period of ["interval '3 years'", "interval '2 years'", "interval '1 day'", "interval '30 days'"]) {
+      expect(fn).toContain(period);
+    }
+  });
+
+  it('the public key can call none of them', () => {
+    for (const fn of [
+      'arc_retention_accounts(int)', 'arc_retention_audit_log(int)', 'arc_retention_rate_limits(int)',
+      'arc_retention_showcases(int)', 'arc_retention_preview()', 'arc_retention_run()',
+      'arc_retention_schedule()', 'arc_retention_unschedule()',
+    ]) {
+      expect(sql, fn).toContain(`revoke execute on function ${fn} from public, anon, authenticated`);
+    }
+  });
+});
