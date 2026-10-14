@@ -134,11 +134,13 @@ each tier is the previous board plus one animal's run.
 | **4** | L8–9 | fox + hedgehog + raccoon + skunk | the skunk's run; a second gate on each run |
 | **5** | L10+ | all four | rush hour: a third gate where a run is long enough |
 
-Shapes each run can be dealt (they have to fit beside the others, so
-they are fewer than when each animal had the board to itself):
-fox straight / z-west / approach-north; hedgehog straight / z-east /
-approach-north / over-the-top (only when the fox's pen is in col 4);
-raccoon and skunk straight up their own columns (7 and 8).
+Shapes each run can be dealt (a shape is dealt only where it fits beside
+the runs already laid): fox straight / z-west / z-east / approach-north;
+hedgehog straight / z-east / approach-north / over-the-top (only when the
+fox's pen is in col 4); raccoon straight / z-west / approach-north; skunk
+straight / z-west / z-west-high. Where two runs have to cross (118A) the tile
+is a fixed bridge: the newer run goes over, a tap does nothing, and the first
+one she meets is at tier 3.
 
 `openTunnelOverlay` in `GameScene.ts` picks the tier from the
 player's current level (L1–3 → 1, L4–5 → 2, L6–7 → 3, L8–9 → 4,

@@ -327,6 +327,31 @@ be discoverable via in-habitat hatches at higher tiers for variety.
   its side) the page offers a magnifier; zoomed, a tile is 48px, dragging
   pans (over 10px of movement; a pan never turns a tile), and "Send the
   animals!" zooms back out.
+- **A crossing where two runs meet (118A).** The fox, raccoon and skunk own
+  adjacent columns 6, 7 and 8, so 110A had to drop the fox's z-east shape and
+  every bend of the raccoon and skunk. A crossing is a bridge tile where two
+  runs pass straight through at right angles, the newer run over the older.
+  It is fixed and never turns (a tap does nothing, as on a goal tile), it is
+  only ever built on a plain straight of both runs (never an end, corner,
+  connector, dome, or a gate the board already has), and it is no longer dealt
+  as a decoy, so every bridge she sees is two runs meeting. It is drawn in
+  code in the page's own corridor style: a planked wooden deck with a rail down
+  each side over a passage that goes into a dark mouth and out of another; an
+  animal on the run beneath fades into the mouth and out of the far side, one
+  on the run above walks over the planks in plain view. The shapes are back:
+  fox straight / z-west / z-east / approach-north, raccoon straight / z-west /
+  approach-north, skunk straight / z-west / z-west-high (the way round when the
+  fox has taken col 8). Each is dealt only where it fits beside the runs already
+  laid, so tier N is still tier N-1 plus a branch.
+- **Arrivals wait for the tunnel (119A).** While the tunnel is open, an
+  arrival, a visitor or a badge that would mount over it waits in a queue and
+  is shown, one at a time and in the order it came, once she closes the tunnel
+  with Done or Close. She never loses a puzzle to a plaque.
+- **"Tap!" until her first gate (120A).** The label over a shut gate shows only
+  until she has opened her first gate in the app session; after that the gates'
+  pulsing rings are the only hint. (Session means the app session, not each
+  opening of the tunnel: it is kept in sessionStorage, so it lasts as long as
+  the tab or the iPad app's web view, and a new launch shows the labels again.)
 
 ## Implementation backlog (high level)
 
