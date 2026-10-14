@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A.R.C. Animal Rescue Centre</title>
+<meta name="description" content="A.R.C. is a gentle game where children aged 8 to 9 run their own animal rescue centre.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/scene.css">
+<style>
+/* Direction 3: the map. The game's painted Birchie map and its strip-map
+   route line are the site's spine. Sections are stops on one gold route;
+   the dividers between them are the strip map's own marks (a turn: the line
+   bends into a small arrow, a gap, then carries on; a roundabout: a small
+   ring with its exit arm). Confident sat-nav styling, not picture-book. */
+:root {
+  --title: 'Fredoka', system-ui, sans-serif;
+  --body: 'Nunito', system-ui, sans-serif;
+  --paper: #f7f1e3;
+  --paper-2: #efe6d0;
+  --ink: #1d3140;       /* navy ink: text and panels */
+  --ink-2: #3c4f5c;
+  --gold: #e3a90f;      /* the route: the GPS's deeper gold */
+  --gold-soft: #f4c20d;
+  --verge: #9fc27d;
+  --spine-x: 96px;
+  --pad: 24px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 18px; line-height: 1.6; }
+img { max-width: 100%; }
+a { color: var(--ink); font-weight: 700; text-decoration-color: var(--gold); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; box-shadow: 0 0 0 6px var(--gold-soft); border-radius: 8px; }
+.panel :focus-visible, .safety :focus-visible, footer :focus-visible { outline: 3px solid #fff; outline-offset: 4px; box-shadow: none; }
+h1, h2, h3 { font-family: var(--title); line-height: 1.12; margin: 0; }
+
+/* ---------- hero: the map ---------- */
+.hero { position: relative; min-height: 640px; display: grid; grid-template-columns: minmax(380px, 470px) 1fr; overflow: hidden; background: var(--paper-2); }
+.hero .mapbox { position: absolute; inset: 0 0 0 300px; }
+.hero .mapbox > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hero .mapbox::after { /* paper fade where the panel meets the map */
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 220px;
+  background: linear-gradient(90deg, var(--paper-2), rgba(239,230,208,0));
+}
+.panel {
+  position: relative; z-index: 2; margin: 28px 0 28px 28px; padding: 30px 32px 32px;
+  background: var(--ink); color: #f7f1e3; border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(20,30,40,.35);
+  display: flex; flex-direction: column; align-self: center;
+}
+.panel .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+.panel .brand img { height: 46px; width: auto; background: var(--paper); border-radius: 10px; padding: 5px 9px; }
+.panel .brand span { font-weight: 700; font-size: 16px; color: #d6dde2; line-height: 1.3; }
+.panel h1 { font-weight: 600; font-size: clamp(32px, 3.4vw, 42px); color: #fff; text-wrap: balance; }
+.panel p { color: #d6dde2; margin: 14px 0 0; }
+.play {
+  margin-top: 26px; display: flex; align-items: center; justify-content: center; gap: 12px;
+  background: var(--gold-soft); color: #1d2a33; text-decoration: none;
+  font-weight: 800; font-size: 28px; padding: 16px 22px; border-radius: 14px;
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,.14);
+}
+.play:hover { background: #ffd23a; }
+.play svg { width: 30px; height: 30px; }
+.kids { font-size: 16px; font-weight: 700; color: #d6dde2; margin: 10px 0 0; text-align: center; }
+.store-line { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.18); font-size: 16px; color: #d6dde2; }
+.store-line svg { width: 22px; height: 22px; flex: none; }
+.store-line strong { color: #fff; }
+.legend {
+  position: absolute; z-index: 2; right: 20px; bottom: 20px; background: rgba(247,241,227,.95);
+  border-radius: 12px; padding: 10px 14px; font-size: 16px; color: var(--ink); box-shadow: 0 6px 16px rgba(0,0,0,.2);
+  display: flex; align-items: center; gap: 10px;
+}
+.legend svg { width: 34px; height: 14px; }
+
+/* ---------- the route spine ---------- */
+.route { position: relative; padding: 70px var(--pad) 40px; max-width: 1200px; margin: 0 auto; }
+.route::before { /* the line itself */
+  content: ''; position: absolute; left: calc(var(--pad) + var(--spine-x)); top: 0; bottom: 0; width: 6px; margin-left: -3px;
+  background: var(--gold); border-radius: 3px; opacity: .9;
+}
+.stop { position: relative; padding-left: calc(var(--spine-x) + 54px); margin-bottom: 30px; }
+.stop-mark { /* the stop's disc on the line */
+  position: absolute; left: var(--spine-x); top: 4px; width: 46px; height: 46px; margin-left: -23px;
+  border-radius: 50%; background: var(--ink); color: #fff; border: 4px solid var(--gold);
+  display: grid; place-items: center; font-family: var(--title); font-weight: 600; font-size: 20px;
+}
+.stop-label { font-weight: 800; font-size: 16px; letter-spacing: .08em; text-transform: uppercase; color: #6a4a00; }
+.stop h2 { font-weight: 600; font-size: clamp(30px, 3.4vw, 40px); margin: 4px 0 18px; text-wrap: balance; }
+.stop .intro { max-width: 40em; color: var(--ink-2); margin: -6px 0 22px; }
+.divider { position: relative; height: 96px; }
+.divider svg { position: absolute; left: var(--spine-x); top: 0; width: 80px; height: 96px; margin-left: -40px; overflow: visible; }
+.divider .tag { position: absolute; left: calc(var(--spine-x) + 54px); top: 34px; font-size: 16px; font-weight: 700; color: var(--ink-2); }
+
+/* roadside scene: a verge, a kerb and a road; animals stand on the verge */
+.roadside { position: relative; height: 230px; border-radius: 16px; overflow: hidden; isolation: isolate; margin-bottom: 24px;
+  background:
+    linear-gradient(180deg, #e9f0dc 0, #e9f0dc 40%, var(--verge) 40%, #94b972 70%, #b9b3a2 70%, #b9b3a2 72%, #5d6670 72%, #575f69 100%);
+}
+.roadside::after { /* centre line dashes */
+  content: ''; position: absolute; left: 0; right: 0; bottom: 30px; height: 4px; z-index: -1;
+  background: repeating-linear-gradient(90deg, #f3efe4 0 34px, transparent 34px 64px);
+}
+.roadside .stand { position: absolute; z-index: 1; }
+.roadside .van { position: absolute; right: 6%; bottom: 10px; width: 250px; z-index: 2; }
+.roadside .van::after { left: 6%; right: 6%; bottom: -3px; height: 14px; }
+
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.item { background: #fffdf7; border: 1px solid #e3d8bd; border-radius: 14px; padding: 20px 22px; }
+.item h3 { font-weight: 600; font-size: 21px; display: flex; align-items: center; gap: 10px; }
+.item h3 .n { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--gold-soft); font-size: 16px; display: grid; place-items: center; }
+.item p { margin: 8px 0 0; color: var(--ink-2); }
+
+.two { display: grid; grid-template-columns: 1.2fr 1fr; gap: 28px; align-items: center; }
+.cottage { position: relative; border-radius: 16px; overflow: visible; }
+.cottage img.scene-img { display: block; width: 100%; height: auto; border-radius: 16px; box-shadow: 0 10px 24px rgba(30,30,20,.18); }
+.cottage .stand { position: absolute; }
+.quote { font-weight: 700; font-size: 21px; border-left: 4px solid var(--gold); padding-left: 16px; margin: 18px 0; }
+.facts-row { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 18px; }
+.pill { font-weight: 700; font-size: 16px; padding: 6px 12px; border-radius: 999px; background: var(--paper-2); border: 1px solid #ddcfae; }
+
+.safety { background: var(--ink); color: #eef1f3; border-radius: 20px; padding: 34px 34px 30px; }
+.safety h3 { color: #fff; font-weight: 600; font-size: 22px; margin-bottom: 12px; }
+.safety .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.safety ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.safety li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; }
+.safety li .ic { width: 28px; height: 28px; border-radius: 50%; background: var(--gold-soft); color: var(--ink); font-weight: 800; display: grid; place-items: center; margin-top: 1px; }
+.safety li .ic.q { background: #fff1a8; }
+.safety .check { margin-left: 4px; }
+.safety a.btn { color: var(--ink); }
+.btn { display: inline-block; margin-top: 22px; padding: 12px 22px; border-radius: 12px; background: var(--gold-soft); color: var(--ink); text-decoration: none; font-weight: 800; }
+.btn.outline { background: transparent; border: 2px solid var(--ink); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.card { background: #fffdf7; border: 1px solid #e3d8bd; border-radius: 16px; padding: 26px 26px 28px; position: relative; }
+.card h3 { font-weight: 600; font-size: 26px; margin-bottom: 8px; }
+.card p { margin: 0; color: var(--ink-2); }
+.card .ground { position: relative; height: 96px; margin: -6px -26px 16px; border-bottom: 1px solid #e3d8bd;
+  background: linear-gradient(180deg, transparent 0 62%, #dfe9cd 62%, #cfe0b7 100%); }
+.card .ground .stand { position: absolute; bottom: 10px; }
+
+.destination { position: relative; padding: 40px var(--pad) 0; max-width: 1200px; margin: 0 auto; }
+.destination .flag { position: absolute; left: calc(var(--pad) + var(--spine-x)); top: 0; width: 40px; height: 40px; margin-left: -20px; }
+footer { background: var(--ink); color: #d6dde2; font-size: 16px; padding: 30px 24px 36px; margin-top: 50px; }
+footer .in { max-width: 1152px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; align-items: center; }
+footer nav { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+footer a { color: #fff; text-decoration-color: var(--gold-soft); }
+
+@media (max-width: 980px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+  .two, .pair, .safety .cols { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  :root { --spine-x: 26px; --pad: 16px; }
+  body { font-size: 17px; }
+  .hero { display: flex; flex-direction: column; min-height: 0; }
+  .hero .mapbox { order: -1; }
+  .rs-wide { display: none; }
+  .roadside .rs-fox { left: 3% !important; width: 84px !important; }
+  .roadside .rs-hog { left: 40% !important; width: 66px !important; }
+  .roadside .rs-20 { left: 29% !important; width: 32px !important; bottom: 58px !important; }
+  .hero .mapbox { position: relative; inset: auto; height: 300px; }
+  .hero .mapbox::after { display: none; }
+  .legend { display: none; }
+  .panel { margin: -24px 16px 0; padding: 24px 20px 24px; }
+  .route { padding: 50px var(--pad) 30px; }
+  .stop { padding-left: calc(var(--spine-x) + 36px); }
+  .stop-mark { width: 38px; height: 38px; margin-left: -19px; font-size: 18px; }
+  .divider { height: 80px; }
+  .divider .tag { left: calc(var(--spine-x) + 36px); top: 26px; }
+  .grid { grid-template-columns: 1fr; }
+  .roadside { height: 200px; margin-left: -6px; }
+  .roadside .van { width: 150px; right: 2%; }
+  .safety { padding: 24px 18px; }
+
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="hero">
+  <div class="panel">
+    <div class="brand">
+      <img src="../assets/img/logo.webp" width="511" height="160" alt="A.R.C.">
+      <span>Animal Rescue Centre<br>A game for 8 and 9 year olds</span>
+    </div>
+    <h1>A gentle game where children run their own animal rescue centre.</h1>
+    <p>Rescue scared animals, care for them and find them homes, driving the rescue van safely on roads that feel like home.</p>
+    <a class="play" data-play href="https://play.arcgame.app">
+      <svg viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="14" fill="#1d2a33"/><path d="M12 9l10 6-10 6z" fill="#f4c20d"/></svg>
+      PLAY
+    </a>
+    <p class="kids">Children: press PLAY to start the game.</p>
+    <div class="store-line"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M16.4 12.6c0-2.5 2-3.6 2.1-3.7-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.3.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.8-1-2.8-4.2zM14 5.2c.7-.8 1.2-2 1-3.2-1 .1-2.2.7-3 1.5-.6.7-1.2 1.9-1 3.1 1.1.1 2.3-.6 3-1.4z"/></svg><span><strong>iPhone app coming soon</strong> to the App Store.</span></div>
+  </div>
+  <div class="mapbox">
+    <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMaxYMid slice" role="img" aria-labelledby="map-t">
+      <title id="map-t">The painted Birchie map from the game: a seafront with beach huts, a row of cottages, gardens and fields, with a gold route line up a side road and along the main road, and the rescue van on its way</title>
+      <image href="../assets/img/map-birchie.webp" x="0" y="0" width="1600" height="1000"/>
+      <!-- the route, read upward the way the van travels: up the side road, right at the junction, along the main road -->
+      <path d="M792 1010 L792 700" fill="none" stroke="#e3a90f" stroke-width="16" stroke-linecap="round" opacity=".9"/>
+      <path d="M792 700 L792 672 L840 672" fill="none" stroke="#e3a90f" stroke-width="16" stroke-linejoin="round" opacity=".9"/>
+      <path d="M836 650 L876 672 L836 694 Z" fill="#e3a90f" opacity=".95"/>
+      <path d="M900 640 C 1030 600, 1150 520, 1290 470 S 1500 395, 1610 365" fill="none" stroke="#e3a90f" stroke-width="16" stroke-linecap="round" opacity=".9"/>
+      <g transform="translate(1100 548) rotate(-110) scale(.62)">
+        <ellipse cx="0" cy="6" rx="46" ry="90" fill="rgba(30,20,10,.28)"/>
+        <image href="../assets/img/van-topdown.webp" x="-49" y="-100" width="98" height="200"/>
+      </g>
+      <circle cx="792" cy="975" r="20" fill="#1d3140" stroke="#e3a90f" stroke-width="7"/>
+    </svg>
+    <div class="legend"><svg viewBox="0 0 34 14" aria-hidden="true"><path d="M2 7h22" stroke="#e3a90f" stroke-width="5" stroke-linecap="round"/><path d="M22 1l10 6-10 6z" fill="#e3a90f"/></svg>Your way, as the game draws it</div>
+  </div>
+</header>
+
+<main id="main" class="route">
+  <section class="stop" id="do" aria-labelledby="do-h">
+    <span class="stop-mark" aria-hidden="true">1</span>
+    <div class="stop-label">Stop 1</div>
+    <h2 id="do-h">What children do in A.R.C.</h2>
+    <p class="intro">Every job is about looking after someone. Nothing is ever hurt, and nothing is ever rushed.</p>
+    <div class="roadside">
+      <span class="stand rs-fox" style="left:4%;bottom:62px;width:104px"><img class="animal" style="--ink:#3e3428" src="../assets/img/fox-scared.webp" width="360" height="353" alt="A frightened fox cub waiting on the verge"></span>
+      <span class="stand rs-wide" style="left:19%;bottom:66px;width:56px"><img src="../assets/img/sign-hedgehog.webp" width="260" height="233" alt="A hedgehog warning road sign"></span>
+      <span class="stand rs-hog" style="left:28%;bottom:60px;width:92px"><img class="animal" style="--ink:#4a2a1c" src="../assets/img/hedgehog.webp" width="360" height="223" alt="A hedgehog on the verge"></span>
+      <span class="stand rs-wide" style="left:44%;bottom:62px;width:100px"><img class="animal" style="--ink:#3f2c27" src="../assets/img/dog-collie.webp" width="360" height="300" alt="A border collie trotting along the verge"></span>
+      <span class="stand rs-20" style="left:60%;bottom:64px;width:44px"><img src="../assets/img/sign-20.webp" width="188" height="260" alt="A 20 miles per hour speed limit sign"></span>
+      <span class="stand van"><img src="../assets/img/van-henry.webp" width="700" height="347" alt="Henry, the A.R.C. rescue van, driving along the road"></span>
+    </div>
+    <div class="grid">
+      <article class="item"><h3><span class="n" aria-hidden="true">1</span>Rescue scared animals</h3><p>A phone call says an animal needs help. Children drive out, choose the right travel crate and bring it back gently.</p></article>
+      <article class="item"><h3><span class="n" aria-hidden="true">2</span>Feed, heal and walk them</h3><p>Animals get hungry, tired, grubby and bored. Children feed, groom, play with and walk them, and take poorly ones to the vet.</p></article>
+      <article class="item"><h3><span class="n" aria-hidden="true">3</span>Find them forever homes</h3><p>When an animal is ready, families who want that kind of pet come to the adoption office. Children choose a home and say goodbye at the hand-over.</p></article>
+      <article class="item"><h3><span class="n" aria-hidden="true">4</span>Drive the van safely</h3><p>The van runs on real-feeling local roads. Children pick a sensible gear for the road, keep left and overtake only where it is allowed. Rush, and the speed camera flashes. No one is ever hurt: the van brakes itself.</p></article>
+      <article class="item"><h3><span class="n" aria-hidden="true">5</span>Learn real animal care</h3><p>The kitchen game teaches the right food for each animal: hay and greens for rabbits, seeds for parrots, meaty food for hedgehogs, never bread and milk. New species bring "Did you know?" facts.</p></article>
+      <article class="item"><h3><span class="n" aria-hidden="true">6</span>Grow the centre</h3><p>Cats and dogs first; then foxes and rabbits, bats and parrots, snakes and hedgehogs. More room, apprentices and new places on the map as the centre grows.</p></article>
+    </div>
+  </section>
+
+  <div class="divider" aria-hidden="true">
+    <!-- a roundabout, as the strip map draws one: a small ring, the exit arm at the angle the van leaves by -->
+    <svg viewBox="-40 0 80 96"><rect x="-6" y="-2" width="12" height="100" fill="#f7f1e3"/><path d="M0 0 V30" stroke="#e3a90f" stroke-width="6" stroke-linecap="round"/><circle cx="0" cy="46" r="13" fill="none" stroke="#e3a90f" stroke-width="6"/><path d="M9 37 L24 22" stroke="#e3a90f" stroke-width="6" stroke-linecap="round"/><path d="M19 15 L31 15 L31 27 Z" fill="#e3a90f"/><path d="M0 66 V96" stroke="#e3a90f" stroke-width="6" stroke-linecap="round"/></svg>
+    <span class="tag">At the roundabout, second exit: who made it</span>
+  </div>
+
+  <section class="stop" id="who" aria-labelledby="who-h">
+    <span class="stop-mark" aria-hidden="true">2</span>
+    <div class="stop-label">Stop 2</div>
+    <h2 id="who-h">Who made it</h2>
+    <div class="two">
+      <div>
+        <p style="margin-top:0">A.R.C. was <strong>Lily's idea when she was 7</strong>. Her dad builds it with Claude Code, an AI coding tool, and Lily is still on the team.</p>
+        <p class="quote">She is the "red hat tester": her job is trying to break Daddy and Claude's code.</p>
+        <div class="facts-row"><span class="pill">Idea and testing: Lily</span><span class="pill">Built by her dad and Claude Code</span><span class="pill">Published by Interfulgent Limited</span></div>
+      </div>
+      <div class="cottage">
+        <img class="scene-img" src="../assets/img/arc-cottage.webp" width="720" height="720" alt="The A.R.C. cottage from the game, with a golden puppy at the gate and a rabbit in the flowers" style="aspect-ratio: 16/10; object-fit: cover; object-position: 50% 70%;">
+        <span class="stand" style="left:-10px;bottom:-14px;width:120px"><img class="animal" style="--ink:#432e23" src="../assets/img/dog-beagle.webp" width="354" height="360" alt="A beagle bowing down to play in front of the picture"></span>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider" aria-hidden="true">
+    <!-- a turn: the line bends into a small arrow, a gap, then carries on above -->
+    <svg viewBox="-40 0 80 96"><rect x="-6" y="-2" width="12" height="100" fill="#f7f1e3"/><path d="M0 0 V40 H18" fill="none" stroke="#e3a90f" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/><path d="M16 32 L30 40 L16 48 Z" fill="#e3a90f"/><path d="M0 52 V96" stroke="#e3a90f" stroke-width="6" stroke-linecap="round"/></svg>
+    <span class="tag">Turn right for grown-ups</span>
+  </div>
+
+  <section class="stop" id="safety" aria-labelledby="safety-h">
+    <span class="stop-mark" aria-hidden="true">3</span>
+    <div class="stop-label">Stop 3 · For grown-ups</div>
+    <h2 id="safety-h">Safety and privacy</h2>
+    <div class="safety">
+      <div class="cols">
+        <div>
+          <h3>How accounts work</h3>
+          <ul>
+            <li><span class="ic q" aria-hidden="true">?</span><span>Children sign in with a secret name and a 4-digit PIN.<span class="check">[check]</span></span></li>
+            <li><span class="ic q" aria-hidden="true">?</span><span>A.R.C. holds no email address.<span class="check">[check]</span></span></li>
+            <li><span class="ic q" aria-hidden="true">?</span><span>Accounts are deleted after 3 years without a sign-in.<span class="check">[check]</span></span></li>
+          </ul>
+        </div>
+        <div>
+          <h3>What A.R.C. never does</h3>
+          <ul>
+            <li><span class="ic" aria-hidden="true">✓</span><span>No adverts.</span></li>
+            <li><span class="ic" aria-hidden="true">✓</span><span>No tracking, no analytics and no cookies.</span></li>
+            <li><span class="ic" aria-hidden="true">✓</span><span>No in-app purchases. Coins are pretend.</span></li>
+            <li><span class="ic" aria-hidden="true">✓</span><span>No chat. Gifts between friends carry ready-made messages only.</span></li>
+          </ul>
+        </div>
+      </div>
+      <a class="btn" href="https://support.interfulgent.com/arc/privacy">Read the privacy notice</a>
+    </div>
+  </section>
+
+  <div class="divider" aria-hidden="true">
+    <svg viewBox="-40 0 80 96"><rect x="-6" y="-2" width="12" height="100" fill="#f7f1e3"/><path d="M0 0 V30" stroke="#e3a90f" stroke-width="6" stroke-linecap="round"/><circle cx="0" cy="46" r="13" fill="none" stroke="#e3a90f" stroke-width="6"/><path d="M0 33 V18" stroke="#e3a90f" stroke-width="0"/><path d="M-13 46 L-28 46" stroke="#e3a90f" stroke-width="6" stroke-linecap="round"/><path d="M-26 38 L-38 46 L-26 54 Z" fill="#e3a90f"/><path d="M0 66 V96" stroke="#e3a90f" stroke-width="6" stroke-linecap="round"/></svg>
+    <span class="tag">Third exit: help, and the app</span>
+  </div>
+
+  <section class="stop" id="help" aria-labelledby="help-h">
+    <span class="stop-mark" aria-hidden="true">4</span>
+    <div class="stop-label">Stop 4</div>
+    <h2 id="help-h">Help, reports and the app</h2>
+    <div class="pair">
+      <article class="card">
+        <div class="ground"><span class="stand" style="left:26px;width:96px"><img class="animal" style="--ink:#78502d" src="../assets/img/dog-terrier-scared.webp" width="360" height="303" alt="A worried terrier puppy"></span></div>
+        <h3>Help and reports</h3>
+        <p>Need help or found a bug? Or did something worry you, such as an unkind name, a showcase or a friend your child doesn't know? Tell us.</p>
+        <a class="btn" href="https://support.interfulgent.com/arc/">Get help or make a report</a>
+      </article>
+      <article class="card">
+        <div class="ground"><span class="stand" style="left:26px;width:76px"><img class="animal" style="--ink:#442522" src="../assets/img/cat-ginger.webp" width="315" height="360" alt="A ginger kitten"></span><span class="stand" style="left:116px;width:84px"><img class="animal" style="--ink:#854c22" src="../assets/img/bunny-lop.webp" width="360" height="240" alt="A lop-eared rabbit"></span></div>
+        <h3>The app</h3>
+        <p>A.R.C. for iPhone is being tested now and is coming soon to the App Store. Until then, play in a web browser.</p>
+        <a class="btn outline" data-play href="https://play.arcgame.app">Play in the browser</a>
+      </article>
+    </div>
+  </section>
+</main>
+
+<div class="destination" aria-hidden="true">
+  <svg class="flag" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#1d3140" stroke="#e3a90f" stroke-width="5"/><path d="M15 29V11l12 4-12 4" fill="#f4c20d" stroke="#f4c20d" stroke-width="1.5" stroke-linejoin="round"/></svg>
+</div>
+<footer>
+  <div class="in">
+    <p style="margin:0">© 2026 Interfulgent Limited. Made in Kent.</p>
+    <nav aria-label="Footer">
+      <a href="https://support.interfulgent.com/arc/privacy">Privacy</a>
+      <a href="https://support.interfulgent.com/arc/">Help and support</a>
+      <a data-play href="https://play.arcgame.app">Play A.R.C.</a>
+    </nav>
+  </div>
+</footer>
+<script src="../assets/config.js"></script>
+</body>
+</html>

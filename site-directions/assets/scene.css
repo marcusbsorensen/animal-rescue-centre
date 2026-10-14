@@ -1,0 +1,35 @@
+/* Shared scene rules for all three directions.
+   An animal always stands on something: a 1px outline in its own darkest fur
+   colour (--ink, from scripts/sign-animal-ink.py's analysis) and a contact
+   shadow, the same recipe as apps/game/public/admin/_signpost-physics.css. */
+.animal {
+  --ink: #4a3626;
+  display: block;
+  height: auto;
+  filter:
+    drop-shadow(1px 0 0 var(--ink)) drop-shadow(-1px 0 0 var(--ink))
+    drop-shadow(0 1px 0 var(--ink)) drop-shadow(0 -1px 0 var(--ink))
+    drop-shadow(0 2px 2px rgba(35, 20, 8, 0.42));
+}
+/* .stand wraps an animal and paints the soft oval it stands on. */
+.stand { position: relative; display: inline-block; line-height: 0; }
+.stand > img { display: block; width: 100%; height: auto; }
+.stand::after {
+  content: ''; position: absolute; z-index: -1;
+  left: 8%; right: 8%; bottom: -5px; height: 14px;
+  background: radial-gradient(closest-side, rgba(35, 20, 8, 0.38), rgba(35, 20, 8, 0.16) 60%, transparent);
+}
+.stand.lifted::after { display: none; }
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+.check {
+  display: inline-block; font-weight: 800; font-size: 16px; line-height: 1.2;
+  padding: 1px 7px; border-radius: 6px; vertical-align: 1px;
+  background: #fff1a8; color: #5a3b00; border: 1.5px dashed #a46b00;
+}
+.skip { position: absolute; left: 12px; top: -60px; z-index: 100; padding: 10px 16px;
+  background: #fff; color: #1d2b22; font-weight: 800; border-radius: 8px; }
+.skip:focus { top: 12px; }
+html { font-family: 'Nunito', system-ui, sans-serif; }

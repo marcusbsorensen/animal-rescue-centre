@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A.R.C. Animal Rescue Centre</title>
+<meta name="description" content="A.R.C. is a gentle game where children aged 8 to 9 run their own animal rescue centre.">
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/scene.css">
+<style>
+/* Direction 2: calm and clean. Generous white space, soft greens and warm
+   honey, the painted animals as cut-outs standing on ground shadows, and
+   crisp section cards. Every animal stands on a floor: a card's little
+   stage, the hill in the hero, the grass under the bench. */
+:root {
+  --title: 'Fredoka', system-ui, sans-serif;
+  --body: 'Nunito', system-ui, sans-serif;
+  --bg: #fbf8f1;
+  --text: #26332b;
+  --muted: #4a5a50;
+  --green-900: #1f4a2c;
+  --green-700: #2f6b3c;
+  --green-100: #e7f0e1;
+  --green-50: #f2f7ee;
+  --honey: #f2b84b;
+  --honey-100: #fcefd2;
+  --line: #e4ddcc;
+  --radius: 22px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--body); font-size: 18px; line-height: 1.6; }
+img { max-width: 100%; }
+a { color: var(--green-700); font-weight: 700; }
+:focus-visible { outline: 3px solid var(--green-900); outline-offset: 3px; box-shadow: 0 0 0 6px #fff; border-radius: 10px; }
+.wrap { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+h1, h2, h3 { font-family: var(--title); color: var(--green-900); line-height: 1.15; margin: 0; }
+h1 { font-weight: 600; font-size: clamp(36px, 5vw, 56px); letter-spacing: -.01em; text-wrap: balance; }
+h2 { font-weight: 600; font-size: clamp(30px, 3.6vw, 40px); text-wrap: balance; }
+h3 { font-weight: 600; font-size: 22px; }
+.eyebrow { display: inline-block; font-weight: 800; font-size: 16px; letter-spacing: .06em; text-transform: uppercase; color: var(--green-700); margin-bottom: 12px; }
+.lede { font-size: 20px; color: var(--muted); max-width: 34em; }
+
+/* header */
+.top { position: sticky; top: 0; z-index: 10; background: rgba(251,248,241,.94); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 24px; height: 72px; }
+.top .logo { height: 44px; width: auto; }
+.top nav { display: flex; gap: 22px; margin-left: auto; }
+.top nav a { color: var(--text); text-decoration: none; font-weight: 700; font-size: 17px; }
+.top nav a:hover { color: var(--green-700); text-decoration: underline; }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; font-weight: 800; border-radius: 999px; }
+.btn-play { background: var(--honey); color: #3b2604; font-size: 18px; padding: 10px 22px; box-shadow: inset 0 -3px 0 rgba(0,0,0,.12); }
+.btn-play:hover { background: #f5c565; }
+.btn-play.big { font-size: 28px; padding: 18px 38px 18px 30px; box-shadow: inset 0 -4px 0 rgba(0,0,0,.14), 0 10px 24px rgba(194,132,24,.28); }
+.btn-play svg { width: 30px; height: 30px; }
+.btn-quiet { background: var(--green-700); color: #fff; font-size: 18px; padding: 12px 24px; }
+.btn-quiet:hover { background: var(--green-900); }
+.store {
+  display: inline-flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 12px;
+  border: 1.5px solid #1d1d1f; color: #1d1d1f; font-weight: 700; font-size: 16px; line-height: 1.2; background: #fff;
+}
+.store small { display: block; font-weight: 600; font-size: 16px; color: var(--muted); }
+.store svg { width: 24px; height: 24px; }
+
+/* hero */
+.hero { padding: 64px 0 40px; }
+.hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+.hero .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 20px; margin: 30px 0 18px; }
+.kids-note { font-weight: 700; color: var(--muted); font-size: 16px; margin: 0; }
+.grownups { display: inline-block; margin-top: 22px; font-size: 18px; }
+.hill { position: relative; aspect-ratio: 1 / .92; isolation: isolate; }
+.hill::before { /* the soft green ground everything stands on */
+  content: ''; position: absolute; left: 2%; right: 2%; bottom: 4%; height: 34%; z-index: -2;
+  background: radial-gradient(ellipse at 50% 40%, #cfe2bf 0%, #bcd6a8 55%, #a9c992 100%);
+  border-radius: 50%;
+}
+.hill::after { /* honey sun behind */
+  content: ''; position: absolute; right: 8%; top: 4%; width: 46%; aspect-ratio: 1; z-index: -3;
+  background: radial-gradient(circle, var(--honey-100) 0%, rgba(252,239,210,0) 70%);
+}
+.hill .oak { position: absolute; left: 20%; bottom: 20%; width: 62%; }
+.hill .oak::after { left: 12%; right: 12%; bottom: -4px; height: 22px; }
+.hill .dog { position: absolute; left: 4%; bottom: 10%; width: 36%; }
+.hill .bunny { position: absolute; right: 6%; bottom: 13%; width: 26%; }
+.hill .hedgehog { position: absolute; left: 47%; bottom: 7%; width: 19%; }
+
+/* sections */
+section { padding: 72px 0; }
+.section-head { max-width: 44em; margin-bottom: 36px; }
+.section-head p { color: var(--muted); font-size: 19px; margin: 12px 0 0; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.card {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02), 0 10px 30px rgba(60,50,20,.06);
+}
+.card .stage { /* a little floor for the animal to stand on */
+  position: relative; height: 170px; isolation: isolate;
+  background: linear-gradient(180deg, var(--green-50) 0%, var(--green-50) 72%, #dbe9cf 72%, #d1e3c3 100%);
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 18px;
+}
+.card .stage.honey { background: linear-gradient(180deg, var(--honey-100) 0%, var(--honey-100) 72%, #f3dcae 72%, #eed29c 100%); }
+.card .stage .stand { height: 120px; }
+.card .stage .stand img { height: 100%; width: auto; }
+.card .body { padding: 22px 24px 26px; }
+.card p { margin: 8px 0 0; color: var(--muted); }
+
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+.made { background: #fff; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.made p { margin: 14px 0 0; }
+.made .quote { font-family: var(--body); font-weight: 700; font-size: 21px; color: var(--green-900); border-left: 4px solid var(--honey); padding-left: 16px; margin: 20px 0 0; }
+.garden-corner { position: relative; height: 300px; isolation: isolate; }
+.garden-corner::before { content: ''; position: absolute; left: 0; right: 0; bottom: 18px; height: 70px; z-index: -1; border-radius: 50%; background: radial-gradient(ellipse, #cfe2bf, #bcd6a8 60%, rgba(188,214,168,0) 72%); }
+.garden-corner .bench { position: absolute; left: 22%; bottom: 46px; width: 52%; }
+.garden-corner .cat { position: absolute; left: 37%; bottom: 110px; width: 22%; }
+.garden-corner .beagle { position: absolute; left: 6%; bottom: 34px; width: 26%; }
+.garden-corner .collie { position: absolute; right: 2%; bottom: 36px; width: 30%; }
+.made-by { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.chip { background: var(--green-100); color: var(--green-900); font-weight: 700; font-size: 16px; padding: 6px 14px; border-radius: 999px; }
+
+.safety-panel { background: var(--green-100); border-radius: 32px; padding: 48px; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 28px; }
+.fact { background: #fff; border-radius: 16px; padding: 18px 20px; display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; }
+.fact .ic { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--green-700); color: #fff; font-weight: 800; }
+.fact .ic.q { background: #8f5c00; }
+.fact strong { display: block; color: var(--green-900); font-size: 18px; }
+.fact span.t { color: var(--muted); }
+.safety-panel .foot { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin-top: 28px; }
+
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.pair .card .body { padding: 30px 30px 32px; }
+.pair .card h2 { font-size: 30px; }
+.pair .card .btn, .pair .card .store { margin-top: 20px; }
+.van-card .stage { height: 190px; }
+.van-card .stage .stand { height: 140px; }
+
+footer { border-top: 1px solid var(--line); padding: 36px 0 44px; font-size: 16px; color: var(--muted); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 32px; align-items: center; justify-content: space-between; }
+footer nav { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+
+@media (max-width: 900px) {
+  .hero .wrap, .split { grid-template-columns: 1fr; gap: 28px; }
+  .cards { grid-template-columns: 1fr 1fr; }
+  .facts, .pair { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  body { font-size: 17px; }
+  .wrap { padding: 0 16px; }
+  .top nav { display: none; }
+  .top .wrap { justify-content: space-between; height: 64px; }
+  .top .logo { height: 38px; }
+  .hero { padding: 32px 0 16px; }
+  .cards { grid-template-columns: 1fr; }
+  section { padding: 52px 0; }
+  .safety-panel { padding: 28px 18px; border-radius: 24px; }
+  .btn-play.big { width: 100%; }
+  .garden-corner { height: 230px; }
+  .garden-corner .cat { bottom: 92px; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="wrap">
+    <a href="#"><img class="logo" src="../assets/img/logo.webp" width="511" height="160" alt="A.R.C. Animal Rescue Centre, home"></a>
+    <nav aria-label="Main">
+      <a href="#do">What children do</a>
+      <a href="#made">Who made it</a>
+      <a href="#safety">Safety</a>
+      <a href="#help">Help</a>
+    </nav>
+    <a class="btn btn-play" data-play href="https://play.arcgame.app">Play</a>
+  </div>
+</header>
+
+<main id="main">
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow">A game for 8 and 9 year olds</span>
+        <h1>A gentle game where children run their own animal rescue centre.</h1>
+        <p class="lede">Rescue scared animals, care for them, find them loving homes, and learn to drive the rescue van safely. Calm, kind, and made with children's privacy first.</p>
+        <div class="actions">
+          <a class="btn btn-play big" data-play href="https://play.arcgame.app">
+            <svg viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="14" fill="#3b2604"/><path d="M12 9l10 6-10 6z" fill="#f2b84b"/></svg>
+            Play A.R.C.
+          </a>
+          <span class="store"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#1d1d1f" d="M16.4 12.6c0-2.5 2-3.6 2.1-3.7-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.3.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.8-1-2.8-4.2zM14 5.2c.7-.8 1.2-2 1-3.2-1 .1-2.2.7-3 1.5-.6.7-1.2 1.9-1 3.1 1.1.1 2.3-.6 3-1.4z"/></svg><span>iPhone app<small>Coming soon</small></span></span>
+        </div>
+        <p class="kids-note">Children: the yellow button starts the game.</p>
+        <a class="grownups" href="#safety">For grown-ups: how A.R.C. keeps children safe</a>
+      </div>
+      <div class="hill">
+        <span class="stand oak"><img src="../assets/img/oak.webp" width="620" height="640" alt="A big oak tree with a rope swing"></span>
+        <span class="stand dog"><img class="animal" style="--ink:#875520" src="../assets/img/dog-golden.webp" width="360" height="303" alt="A golden retriever puppy trotting on the grass"></span>
+        <span class="stand hedgehog"><img class="animal" style="--ink:#4a2a1c" src="../assets/img/hedgehog.webp" width="360" height="223" alt="A hedgehog walking under the tree"></span>
+        <span class="stand bunny"><img class="animal" style="--ink:#854c22" src="../assets/img/bunny-lop.webp" width="360" height="240" alt="A lop-eared rabbit nibbling grass"></span>
+      </div>
+    </div>
+  </div>
+
+  <section id="do" aria-labelledby="do-h">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">What children do</span>
+        <h2 id="do-h">Six things your child will be doing</h2>
+        <p>Every task is about looking after someone. Nothing is ever hurt, and nothing is ever rushed.</p>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <div class="stage"><span class="stand"><img class="animal" style="--ink:#3e3428" src="../assets/img/fox-scared.webp" width="360" height="353" alt="A frightened fox cub"></span></div>
+          <div class="body"><h3>Rescue scared animals</h3><p>A phone call says an animal needs help. Children drive out, choose the right travel crate and bring it back gently.</p></div>
+        </article>
+        <article class="card">
+          <div class="stage honey"><span class="stand"><img class="animal" style="--ink:#442522" src="../assets/img/cat-ginger.webp" width="315" height="360" alt="A ginger kitten crouching to play"></span></div>
+          <div class="body"><h3>Feed, heal and walk them</h3><p>Animals get hungry, tired, grubby and bored. Children feed, groom, play with and walk them, and take poorly ones to the vet.</p></div>
+        </article>
+        <article class="card">
+          <div class="stage"><span class="stand"><img src="../assets/img/family-priya.webp" width="264" height="420" alt="Priya, one of the families hoping to adopt, in her wheelchair"></span><span class="stand" style="height:76px;margin-left:-6px"><img class="animal" style="--ink:#3f2c27" src="../assets/img/dog-collie.webp" width="360" height="300" alt="A border collie trotting beside her"></span></div>
+          <div class="body"><h3>Find them forever homes</h3><p>When an animal is ready, families who want that kind of pet come to the adoption office. Children choose a home and say goodbye at the hand-over.</p></div>
+        </article>
+        <article class="card">
+          <div class="stage honey"><span class="stand" style="height:96px"><img src="../assets/img/van-henry.webp" width="700" height="347" alt="Henry, the A.R.C. rescue van"></span></div>
+          <div class="body"><h3>Drive the van safely</h3><p>The van runs on real-feeling local roads. Children pick a sensible gear for the road, keep left and overtake only where it is allowed. Rush, and the speed camera flashes. No one is ever hurt: the van brakes itself.</p></div>
+        </article>
+        <article class="card">
+          <div class="stage"><span class="stand" style="height:86px"><img class="animal" style="--ink:#4a2a1c" src="../assets/img/hedgehog.webp" width="360" height="223" alt="A hedgehog"></span></div>
+          <div class="body"><h3>Learn real animal care</h3><p>The kitchen game teaches the right food for each animal: hay and greens for rabbits, seeds for parrots, meaty food for hedgehogs, never bread and milk. New species bring "Did you know?" facts.</p></div>
+        </article>
+        <article class="card">
+          <div class="stage honey"><span class="stand" style="height:110px"><img class="animal" style="--ink:#402926" src="../assets/img/bunny-dutch.webp" width="360" height="341" alt="A black and white rabbit"></span><span class="stand" style="height:96px"><img class="animal" style="--ink:#4a2b1c" src="../assets/img/duck.webp" width="360" height="333" alt="A duck"></span></div>
+          <div class="body"><h3>Grow the centre</h3><p>Cats and dogs first; then foxes and rabbits, bats and parrots, snakes and hedgehogs. More room, apprentices and new places on the map as the centre grows.</p></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="made" class="made" aria-labelledby="made-h">
+    <div class="wrap split">
+      <div>
+        <span class="eyebrow">Who made it</span>
+        <h2 id="made-h">Lily's idea, built with her dad</h2>
+        <p>A.R.C. was Lily's idea when she was 7. Her dad builds it with Claude Code, an AI coding tool, and Lily is still on the team.</p>
+        <p class="quote">She is our "red hat tester": her job is trying to break Daddy and Claude's code.</p>
+        <div class="made-by"><span class="chip">Idea and testing: Lily</span><span class="chip">Built by her dad and Claude Code</span><span class="chip">Published by Interfulgent Limited</span></div>
+      </div>
+      <div class="garden-corner">
+        <span class="stand lifted bench"><img src="../assets/img/bench.webp" width="214" height="123" alt="A wooden garden bench"></span>
+        <span class="stand lifted cat"><img class="animal" style="--ink:#4a341c" src="../assets/img/cat-calico-sleeping.webp" width="360" height="261" alt="A calico cat asleep on the bench"></span>
+        <span class="stand beagle"><img class="animal" style="--ink:#432e23" src="../assets/img/dog-beagle.webp" width="354" height="360" alt="A beagle bowing down to play"></span>
+        <span class="stand collie"><img class="animal" style="--ink:#3d2d29" src="../assets/img/cat-tuxedo.webp" width="296" height="360" alt="A black and white cat walking past"></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="safety" aria-labelledby="safety-h">
+    <div class="wrap">
+      <div class="safety-panel">
+        <span class="eyebrow">For grown-ups</span>
+        <h2 id="safety-h">Safety and privacy</h2>
+        <p class="lede" style="margin-top:12px">A.R.C. is built to know as little about your child as it can.</p>
+        <div class="facts">
+          <div class="fact"><span class="ic q" aria-hidden="true">?</span><div><strong>A secret name and a PIN <span class="check">[check]</span></strong><span class="t">Children sign in with a made-up name and a 4-digit PIN.</span></div></div>
+          <div class="fact"><span class="ic q" aria-hidden="true">?</span><div><strong>No email address held <span class="check">[check]</span></strong><span class="t">A.R.C. does not ask for or keep an email address.</span></div></div>
+          <div class="fact"><span class="ic q" aria-hidden="true">?</span><div><strong>Deleted after 3 years <span class="check">[check]</span></strong><span class="t">Accounts with no sign-in for 3 years are deleted.</span></div></div>
+          <div class="fact"><span class="ic" aria-hidden="true">✓</span><div><strong>No adverts</strong><span class="t">Not now, not ever.</span></div></div>
+          <div class="fact"><span class="ic" aria-hidden="true">✓</span><div><strong>No tracking</strong><span class="t">No analytics and no cookies.</span></div></div>
+          <div class="fact"><span class="ic" aria-hidden="true">✓</span><div><strong>No in-app purchases</strong><span class="t">Coins are pretend and can't be bought. Gifts between friends carry ready-made messages only; there is no chat.</span></div></div>
+        </div>
+        <div class="foot">
+          <a class="btn btn-quiet" href="https://support.interfulgent.com/arc/privacy">Read the privacy notice</a>
+          <span style="color:var(--muted)">Exactly what is stored, and why.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="help" style="padding-top:0" aria-label="Help and the app">
+    <div class="wrap pair">
+      <article class="card">
+        <div class="stage"><span class="stand" style="height:120px"><img class="animal" style="--ink:#78502d" src="../assets/img/dog-terrier-scared.webp" width="360" height="303" alt="A worried terrier puppy"></span></div>
+        <div class="body">
+          <h2>Help and reports</h2>
+          <p>Need help or found a bug? Or did something worry you, such as an unkind name, a showcase or a friend your child doesn't know? Tell us.</p>
+          <a class="btn btn-quiet" href="https://support.interfulgent.com/arc/">Get help or make a report</a>
+        </div>
+      </article>
+      <article class="card van-card">
+        <div class="stage honey"><span class="stand" style="height:110px"><img src="../assets/img/van-henry.webp" width="700" height="347" alt="Henry, the A.R.C. rescue van, parked"></span></div>
+        <div class="body">
+          <h2>The app</h2>
+          <p>A.R.C. for iPhone is being tested now and is coming soon to the App Store. Until then, play in a web browser.</p>
+          <span class="store"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#1d1d1f" d="M16.4 12.6c0-2.5 2-3.6 2.1-3.7-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.3.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.8-1-2.8-4.2zM14 5.2c.7-.8 1.2-2 1-3.2-1 .1-2.2.7-3 1.5-.6.7-1.2 1.9-1 3.1 1.1.1 2.3-.6 3-1.4z"/></svg><span>App Store<small>Coming soon</small></span></span>
+        </div>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p style="margin:0">© 2026 Interfulgent Limited. Made in Kent.</p>
+    <nav aria-label="Footer">
+      <a href="https://support.interfulgent.com/arc/privacy">Privacy</a>
+      <a href="https://support.interfulgent.com/arc/">Help and support</a>
+      <a data-play href="https://play.arcgame.app">Play A.R.C.</a>
+    </nav>
+  </div>
+</footer>
+<script src="../assets/config.js"></script>
+</body>
+</html>
