@@ -165,3 +165,7 @@ Both are now laid out for the screen they are on:
 Checked at 667x375, 844x390, 852x393, 932x430, 1024x768 and 1180x820 by `e2e/adoption-handover.spec.ts`: nothing
 overlaps, nothing is cut off, and every tap target is 44px or more.
 
+The conversation's own SKIP is the same: still the reference's small pill at the box's bottom right, but 44px tall
+(88-96px wide) and its own tap target, with the phone's dialogue box 8px taller (120) so two lines of copy end above it.
+`e2e/dialogue-demo.spec.ts` checks it at those six sizes on every beat.
+

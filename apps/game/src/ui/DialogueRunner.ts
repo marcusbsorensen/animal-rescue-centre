@@ -494,7 +494,7 @@ function drawSkip(
   root.add(g);
   const label = scene.add
     .text(r.x + r.w / 2, r.y + r.h / 2, 'SKIP ›', {
-      fontSize: `${r.h >= 34 ? 16 : 15}px`,
+      fontSize: '16px',
       fontFamily: FONTS.title,
       fontStyle: 'bold',
       color: DIALOGUE_COLOURS.skipInk,

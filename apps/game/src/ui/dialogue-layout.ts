@@ -60,6 +60,8 @@ export const PORTRAIT_SHARE = 0.6;
  * does, and gives up a little height rather than fill the screen.
  */
 export const PORTRAIT_MAX_WIDTH_SHARE = 0.75;
+/** The least height and width of the SKIP pill, which is also its tap target. */
+export const SKIP_MIN = 44;
 
 const MARGIN = 14;
 /** How far the portrait runs behind the top of the box, hiding the cut edge. */
@@ -83,7 +85,8 @@ export function computeLayout(i: LayoutInput): DialogueLayout {
   const usable = right - left;
 
   // ── Box ──
-  const boxH = tall ? 136 : 112;
+  // A phone's box is 120 tall so that two lines of copy end above the SKIP pill, which is 44px tall.
+  const boxH = tall ? 136 : 120;
   const bottomGap = tall ? 24 : 16;
   const boxW = Math.min(usable, BOX_MAX_W);
   const box: Rect = {
@@ -98,8 +101,10 @@ export function computeLayout(i: LayoutInput): DialogueLayout {
   const body = { x: box.x + boxPad, y: box.y + (tall ? 24 : 20), w: box.w - boxPad * 2 };
 
   // ── SKIP, bottom-right inside the box ──
-  const skipW = tall ? 80 : 72;
-  const skipH = tall ? 34 : 30;
+  // Still a small pill, as in the reference, but never under SKIP_MIN: a seven-year-old's thumb
+  // has to find it, and it is the only way out of a conversation. The pill is its own tap target.
+  const skipW = tall ? 96 : 88;
+  const skipH = SKIP_MIN;
   const skip: Rect = {
     x: box.x + box.w - 14 - skipW,
     y: box.y + box.h - 8 - skipH,
@@ -123,7 +128,8 @@ export function computeLayout(i: LayoutInput): DialogueLayout {
 
   // ── Choices: on the far side of the speaker, stacked above the box ──
   const choices: Rect[] = [];
-  const choiceH = tall ? 58 : 52;
+  // 48 on a phone: three of them still fit above the 120px box on a 325px-tall screen, and 48 is MIN_TAP.
+  const choiceH = tall ? 58 : 48;
   if (i.choiceCount > 0) {
     // The pills line up with the box's far end. If the speaker is big enough
     // to leave less than a readable pill's width there, they run out past the

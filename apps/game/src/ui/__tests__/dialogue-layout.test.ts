@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeLayout, rectsOverlap, PORTRAIT_MAX_WIDTH_SHARE, type Rect } from '../dialogue-layout';
+import { computeLayout, rectsOverlap, PORTRAIT_MAX_WIDTH_SHARE, SKIP_MIN, type Rect } from '../dialogue-layout';
 
 /**
  * The speaker must never be covered. On a sideways phone (844x390) the two
@@ -9,10 +9,14 @@ import { computeLayout, rectsOverlap, PORTRAIT_MAX_WIDTH_SHARE, type Rect } from
  */
 
 const VIEWPORTS = [
+  { name: 'phone SE 667x375', w: 667, h: 375 },
   { name: 'phone 844x390', w: 844, h: 390 },
+  { name: 'phone 852x393', w: 852, h: 393 },
+  { name: 'phone Pro Max 932x430', w: 932, h: 430 },
   { name: 'phone app 874x402', w: 874, h: 402 },
   { name: 'web clip 812x325', w: 812, h: 325 },
   { name: 'tablet 1024x768', w: 1024, h: 768 },
+  { name: 'tablet Air 1180x820', w: 1180, h: 820 },
   { name: 'desktop 1280x800', w: 1280, h: 800 },
   { name: 'big tablet 1366x1024', w: 1366, h: 1024 },
 ];
@@ -100,6 +104,24 @@ describe('dialogue layout', () => {
       expect(l.skip.y + l.skip.h).toBeLessThanOrEqual(l.box.y + l.box.h);
       // Two lines of body copy end above the SKIP pill.
       expect(l.body.y + l.bodyLine * 2).toBeLessThanOrEqual(l.skip.y + 2);
+    }
+  });
+
+  it('makes SKIP a pill at least 44px tall and wide, at the box\'s bottom right, and its own tap target', () => {
+    for (const vp of VIEWPORTS) {
+      for (const side of ['left', 'right'] as const) {
+        const l = computeLayout({ width: vp.w, height: vp.h, side, portraitAspect: 0.8, choiceCount: 0 });
+        expect(l.skip.h, `${vp.name} SKIP height`).toBeGreaterThanOrEqual(SKIP_MIN);
+        expect(l.skip.w, `${vp.name} SKIP width`).toBeGreaterThanOrEqual(SKIP_MIN);
+        // Still a small pill: wider than tall, not much taller than the thumb that taps it.
+        expect(l.skip.w, vp.name).toBeLessThanOrEqual(l.skip.h * 2.5);
+        // At the box's bottom right, inside it.
+        expect(l.skip.x + l.skip.w, vp.name).toBeLessThanOrEqual(l.box.x + l.box.w);
+        expect(l.box.x + l.box.w - (l.skip.x + l.skip.w), vp.name).toBeLessThanOrEqual(20);
+        expect(l.box.y + l.box.h - (l.skip.y + l.skip.h), vp.name).toBeLessThanOrEqual(12);
+        // The portrait does not stand over it, on either side.
+        expect(rectsOverlap(l.skip, l.portrait) && l.skip.y < l.portrait.y + l.portrait.h - 10, `${vp.name} ${side}: the speaker over SKIP`).toBe(false);
+      }
     }
   });
 

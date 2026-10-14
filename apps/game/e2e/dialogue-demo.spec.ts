@@ -317,6 +317,69 @@ for (const vp of VIEWPORTS) {
   });
 }
 
+// The only way out of a conversation is SKIP, and a seven-year-old has to find it with a thumb.
+// It is still the reference's small pill at the box's bottom right, but at least 44px tall, and the
+// pill is its own tap target. Checked at the six sizes the game ships on, on all four beats
+// (beat 3 is the demo's reply-pill beat), against the words and the reply pills on screen.
+const SKIP_SIZES = [
+  { width: 667, height: 375 },
+  { width: 844, height: 390 },
+  { width: 852, height: 393 },
+  { width: 932, height: 430 },
+  { width: 1024, height: 768 },
+  { width: 1180, height: 820 },
+];
+const SKIP_BLUE = 0x2e6b8a;
+
+for (const size of SKIP_SIZES) {
+  test.describe(`SKIP at ${size.width}x${size.height}`, () => {
+    test.use({ viewport: size, deviceScaleFactor: 1 });
+
+    test('is a pill at least 44px tall at the box\'s bottom right, clear of every word, and tapping its top edge skips', async ({ page }) => {
+      await openDemo(page);
+      for (let beat = 0; beat < 4; beat++) {
+        const s = await snapshot(page);
+        const label = `beat ${beat + 1}`;
+        // At least 44px each way; still a pill (wider than tall, not a block).
+        expect(s.skip.h, `${label} height`).toBeGreaterThanOrEqual(44);
+        expect(s.skip.w, `${label} width`).toBeGreaterThanOrEqual(44);
+        expect(s.skip.w, `${label} is a pill, not a block`).toBeLessThanOrEqual(s.skip.h * 2.5);
+        expect(s.skip.w, `${label} is wider than tall`).toBeGreaterThan(s.skip.h);
+        // At the bottom right, inside the box, on the screen.
+        expect(s.skip.x, label).toBeGreaterThanOrEqual(s.box.x);
+        expect(s.skip.x + s.skip.w, label).toBeLessThanOrEqual(s.box.x + s.box.w);
+        expect(s.skip.y + s.skip.h, label).toBeLessThanOrEqual(s.box.y + s.box.h);
+        expect(s.box.x + s.box.w - (s.skip.x + s.skip.w), `${label} sits at the right end`).toBeLessThanOrEqual(20);
+        expect(s.box.y + s.box.h - (s.skip.y + s.skip.h), `${label} sits at the bottom`).toBeLessThanOrEqual(12);
+        expect(s.skip.y + s.skip.h, `${label} on the screen`).toBeLessThanOrEqual(size.height);
+        // Nothing the child reads, and nothing else they tap, is under it.
+        for (const w of s.words) expect(overlaps(w.rect, s.skip), `${label}: "${w.text}" runs under SKIP`).toBe(false);
+        for (const c of s.choices) expect(overlaps(c, s.skip), `${label}: a reply pill over SKIP`).toBe(false);
+        expect(overlaps(s.namePill, s.skip), `${label}: the name pill over SKIP`).toBe(false);
+        expect(overlaps(s.portrait, s.skip), `${label}: the speaker over SKIP`).toBe(false);
+        // It is painted where the layout says, and the painted pill is the whole 44px.
+        const png = await page.screenshot();
+        const [top, bottom] = await pixelsAt(page, png, [
+          [s.skip.x + s.skip.w * 0.3, s.skip.y + 4],
+          [s.skip.x + s.skip.w * 0.3, s.skip.y + s.skip.h - 5],
+        ]);
+        expect(near(top, SKIP_BLUE, 14), `${label}: the pill is painted at its top edge (${top})`).toBe(true);
+        expect(near(bottom, SKIP_BLUE, 14), `${label}: the pill is painted at its bottom edge (${bottom})`).toBe(true);
+        if (beat < 3) await advance(page);
+      }
+
+      // The whole pill is the tap target: its top edge, not only its middle, skips the conversation.
+      const s = await snapshot(page);
+      await page.mouse.click(s.skip.x + s.skip.w / 2, s.skip.y + 2);
+      await page.waitForFunction(() => {
+        const g = (window as unknown as { __PHASER_GAME__: { scene: { getScene: (k: string) => { children: { getByName: (n: string) => unknown } } } } }).__PHASER_GAME__;
+        const sc = g.scene.getScene('DialogueDemoScene');
+        return !sc.children.getByName('dialogue-root') && !!sc.children.getByName('demo-complete');
+      }, null, { timeout: 5_000 });
+    });
+  });
+}
+
 test.describe('dialogue portraits at 1024x768', () => {
   test.use({ viewport: { width: 1024, height: 768 }, deviceScaleFactor: 1 });
 
