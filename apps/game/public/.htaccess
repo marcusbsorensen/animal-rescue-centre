@@ -1,0 +1,97 @@
+# A.R.C. web game on 20i, at https://play.arcgame.app (139A). A static Vite build, nothing else.
+#
+# Vite copies this file from apps/game/public/ into dist/, and
+# tools/deploy-arcgame.sh checks that it arrived. Checked against Apache 2.4
+# on 2026-10-14 (tools/test-arcgame-htaccess.sh).
+#
+# No SPA rewrite on purpose: the game is one page (index.html) plus a set of
+# real files (admin/*.html overlays, data/*.json, assets/). A missing file is a
+# real 404, not index.html, so a mistyped art path shows up as a 404 in the
+# network panel instead of a game that quietly loads HTML as an image.
+
+# --- Basics -----------------------------------------------------------------
+
+# No directory listings. A folder with no index answers 403.
+Options -Indexes
+
+# index.html wins even if a stray index.php (20i's placeholder) is ever there.
+DirectoryIndex index.html
+
+ErrorDocument 404 /404.html
+
+# --- Hostname ---------------------------------------------------------------
+# The game lives at https://play.arcgame.app and nowhere else: its service worker,
+# saves and sign-in belong to that one origin. arcgame.app is the website, and
+# its own .htaccess (tools/site-holding/) handles arcgame.co.uk and www.
+#
+# The rule below only catches the game's files being asked for under one of
+# our OTHER names, which happens if the play folder sits inside public_html
+# (arcgame.app/play/...). It sends the request to the real address, path and
+# query kept. Any other name (20i's temporary address, localhost) is left
+# alone, so the game can still be looked at before the name is live.
+#
+# HTTP to HTTPS is left to 20i's "Force HTTPS" switch (My20i > the package >
+# SSL), not done here: behind 20i's proxy Apache may not see the original
+# scheme, and a %{HTTPS} test could loop forever. The redirect goes to https://
+# so a visitor lands on the secure address in one hop.
+#
+# When this folder is inside public_html, the site's .htaccess above it also
+# applies. Its rewrite rules are replaced by the ones here (mod_rewrite does
+# not inherit by default) and are tied to the arcgame.app host anyway, so the
+# two cannot loop.
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+RewriteCond %{HTTP_HOST} ^(?:www\.)?(?:arcgame\.app|arcgame\.co\.uk)(?::\d+)?$ [NC,OR]
+RewriteCond %{HTTP_HOST} ^www\.play\.arcgame\.app(?::\d+)?$ [NC]
+RewriteRule ^(.*)$ https://play.arcgame.app/$1 [R=301,L]
+</IfModule>
+
+# --- Types ------------------------------------------------------------------
+# Older mime.types files lack some of these. Declaring them is harmless where
+# the host already knows them.
+
+<IfModule mod_mime.c>
+AddType application/manifest+json .webmanifest
+AddType audio/mpeg .mp3
+AddType image/webp .webp
+AddType font/woff2 .woff2
+</IfModule>
+
+# --- Compression ------------------------------------------------------------
+
+<IfModule mod_deflate.c>
+AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/manifest+json image/svg+xml
+</IfModule>
+
+# --- Caching ----------------------------------------------------------------
+# Three tiers, all written as top-level "Header ... expr=" lines on purpose.
+# mod_headers applies lines of one level in the order written, so a later
+# "set" replaces an earlier one and "setIfEmpty" only fills a gap. (A rule
+# inside <FilesMatch> is merged AFTER the top-level lines whatever its place in
+# the file, which made "no-cache" beat "immutable" in testing.)
+#
+#  1. Pages, data, scripts and styles: "no-cache". The browser keeps a copy
+#     but asks the server first (a 304 when nothing changed). This covers
+#     index.html, sw.js, manifest.webmanifest and asset-manifest.json, which
+#     change on every deploy, and the unhashed admin/*.html overlays and their
+#     CSS, which the service worker revalidates in the background.
+#  2. Vite's hashed bundles in /assets/ (name-HASH.ext, eight characters of
+#     hash, directly in /assets/): a new build gets a new name, so they never
+#     change. A year, immutable. This line comes after tier 1 so it wins.
+#  3. Everything else (art, audio, fonts, icons) keeps its name when it is
+#     edited, so it may not be immutable. An hour, then a revalidation.
+#     /assets/animals/..., /assets/ui/... and the rest of the sub-folders
+#     are NOT hashed and land here.
+#
+# Tier 1 tests the file name on disk (so "/" counts as index.html), tier 2 the
+# URL path.
+
+<IfModule mod_headers.c>
+Header set Cache-Control "no-cache" "expr=%{REQUEST_FILENAME} =~ m#\.(?:html?|json|webmanifest|css|m?js)$#"
+
+Header set Cache-Control "public, max-age=31536000, immutable" "expr=%{REQUEST_URI} =~ m#^/assets/[^/]+-[A-Za-z0-9_-]{8}\.[A-Za-z0-9]+$#"
+
+Header setIfEmpty Cache-Control "public, max-age=3600"
+</IfModule>
