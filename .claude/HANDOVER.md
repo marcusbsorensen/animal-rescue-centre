@@ -28,8 +28,7 @@ running out of credits, and the work moves to his personal account.
    at **arcgame.app**, and the "we've moved" page on Vercel.
 
 ## Branches
-- **`claude/crate-loading`** is at 2f08951 (pushed), plus the 00020 commit if it
-  landed (see Production). Merged into it:
+- **`claude/crate-loading`** is at fb2e7d5 (pushed). It includes 00020, a5cc981. Merged into it:
   - the account branches (child-data-gaps, account-deletion PR #24,
     ready-made-names);
   - **131A**, typed-name sign-in on a new device;
