@@ -740,6 +740,140 @@ needs better animated artwork)". How each works (what runs the gauge down,
 what sends a van to the workshop, when a wash is due, Spark charging rather
 than fuelling, Trikey needing neither) is still to be asked.
 
+## Trees: woods, hedgerows and crowns over the lanes (107A, 108A)
+
+Marcus, 2026-10-14: "Can we get more tree canopies and so forth on the
+driving screens? As for example, the screen that says deep forest
+essentially just looks like a road with some grass next to it." It did: the
+last 400 m to Deep Forest ran between two fields.
+
+**107A. Trees come from three sources.** `drive-spike/scenery.js` places them
+all at load, seeded by position, so a place has the same trees on every drive.
+
+1. *The real woods and scrub.* `nature.json`'s woods and scrub (until now only
+   `crossings.js` read them) are wood ground now, as the map's woodland is,
+   and both are filled with crowns on a 4.6 m jittered lattice of mixed sizes
+   (one in five a tall tree standing over the rest; about one in seven an
+   evergreen). Scrub is low bushes in thickets with grassy gaps and the odd
+   tree, in the hedges' own colours.
+2. *The real single trees and tree rows.* A fresh Overpass extract (OSM base
+   2026-10-14T12:14:06Z, ODbL) has only 42 trees and 4 rows, so
+   `tools/osm-trees.py` embeds it in full, projects it exactly as
+   `osm-nature.py` does, and writes `assets/driving/trees.json` (compact, in
+   `nature.json`'s style). They are placed first, so nothing made up stands
+   where a real tree does. *Hedgerow standards*: along every run of hedge
+   beside a lane, an oak or ash every 26-60 m, every 18-32 m within 70 m of a
+   wood, standing in the hedge; fewer along the field hedges.
+3. *The game's own woods.* Round each wooded place (the `WOODED` table,
+   matched by id in `landmarks.json`): Deep Forest 400 m along its roads and
+   up to 95 m deep each side, Woodland 300 m and 60 m, Wilderwood 260 m and
+   50 m, the little wood 150 m and 32 m, and Pinebark (a vet named for pine
+   bark) 150 m and 22 m, mostly pines. The band is deepest at the place,
+   thins to nothing at the reach, and its far edge wanders. It is laid as
+   wood ground in 8 m pieces, each kept off water, buildings, gardens,
+   churchyards, farmyards and the town (a piece that would run into one is
+   made shallower or left out), and the wood lattice fills it; no house is
+   generated in it and no field hedge runs through it. Deep Forest is a third
+   evergreen, so its winter is not all bare. Only `WOODED` names the places,
+   by their game ids; nothing new is shown to her.
+
+On the counts (`window.__scenery`): 42,900 trees against 31,300, of which
+109 are the real trees and rows, 628 hedgerow standards, 1,480 scrub bushes,
+2,550 crowns that reach over a road, and 517 pieces of game wood. Loading
+takes no longer (about 0.8 s here).
+
+**How they are drawn.** Every crown is painted on its own, lowest first, so
+the tall ones stand over the rest: a dark outline round its lobes, its
+colour (each tree a shade lighter or darker than its neighbour), the side
+away from the sun in shade, the side towards it washed light, and small
+leaf clumps; before it, a soft shade on the crowns below it on the far side
+from the sun, which is what makes the dark gaps of a wood. Every tree casts
+the crown-swept shadow it did before, all of a tile's laid down at the
+spike's one shadow alpha, so overlaps do not double. Seasons follow the
+existing palette: spring fresh with a little blossom (less in woods than in
+gardens), summer deep, autumn warm with thinning crowns and fallen leaves,
+winter bare limbs and twigs over a haze, with the evergreens still green
+(fir crowns from above, two stars of whorls). Scrub takes the hedges'
+colours, with hawthorn flower in spring and berries in autumn.
+
+**108A. Crowns reach over wooded lanes.** A tree in a wood, a hedge or a
+real tree may reach over a lane by `OVER_M` (unclassified 3.2 m, tertiary
+3 m, residential 2.6 m, track 2.2 m, secondary 1.4 m), its trunk at least
+1.3 m off the edge, and along every lane through a wood a row of edge trees
+is planted to do it. The A28 stays open to the sky: no crown comes nearer it
+than before (`VERGE_M` off its edge). Those crowns are drawn over the road,
+the traffic and the van (`scenery.drawCanopy`, called after `drawVan`); the
+rest of the trees stay under the traffic, as before.
+
+*The fade rule.* Nothing she needs is hidden. The crowns over a road are
+faded round the van, every vehicle, every animal waiting or crossing
+(`crossings.animals()`'s boxes), the gold guide line for its 90 m ahead and
+every fingerpost (its foot and boards): each is a line through world points
+with its own width (a body's width plus 0.6-0.7 m; the guide line's dark
+edge plus 0.4 m), and the canopy keeps 12% at most over it (`OVER_KEEP`),
+rising smoothly to full over 1.4 m in nine steps. It is all in world metres
+from positions that move smoothly, so it holds still and never flickers.
+The A28's traffic at Trikey's crossings is not faded round, because no crown
+reaches over the A28.
+
+**Tiles.** Phones must stay smooth, so no crown is painted in a frame. The
+trees are painted into 20 m square tiles, once per season, at the screen's
+own resolution (pixels per metre times the pixel ratio, in steps of 4, at
+most 32 px/m), two layers each: the low one (every shadow, and the crowns
+that stay off the road) laid down in `drawObjects`, and the over one, which
+`drawCanopy` lays into a layer at CSS resolution, fades and lays down. Each
+layer is cropped to what it covers. The tiles under the screen are painted
+when first needed and the ring just beyond it in spare time (3 ms a frame at
+most); what is kept is capped at about 40 MB, least recently used first,
+never one on or next to the screen (on a 2x phone in Deep Forest, 12 tiles
+and 37 MB). A tree deep in a wood (more than 30 m
+from a road) is not stood up in the look-ahead window, which shows only the
+wood's edge anyway, so that window costs what it did.
+
+**Draw cost.** Measured in the page (`window.__drawMs`, the last 240
+frames' `draw()`, median) on the cloud machine, in headless Chromium, before
+and after, at five places. The machine has no GPU, so Chromium paints the
+canvas on the CPU and every tile laid down is a full software resample;
+on a phone the canvas is painted on the GPU, where laying down a cached
+tile is close to free and painting paths is what costs. The first figure is
+`draw()` alone; the second (with `window.__flushDraw`) makes the canvas
+paint before the time is taken, so it includes the painting.
+
+| ms, median | 390x844 before | after | 1280x800 before | after |
+|---|---|---|---|---|
+| Deep Forest approach | 2.2 / 42.8 | 11.4 / 73.9 | 2.5 / 24.4 | 16.8 / 59.9 |
+| Woodland approach | 2.8 / 48.5 | 10.1 / 64.0 | 3.9 / 36.1 | 17.4 / 51.8 |
+| B-road with hedgerow trees | 4.6 / 46.0 | 11.6 / 69.1 | 14.9 / 65.0 | 13.2 / 54.3 |
+| dual carriageway | 3.9 / 42.6 | 2.5 / 47.9 | 5.9 / 42.9 | 3.7 / 46.1 |
+| town | 2.8 / 43.1 | 2.9 / 42.0 | 3.3 / 33.4 | 3.1 / 30.6 |
+
+Where the trees were already there (the B-road at 1280x800) the tiles are
+cheaper than painting the crowns each frame was; in the woods there are now
+hundreds more crowns on the screen than the fields had, and on this CPU
+that costs 8-14 ms of `draw()` and 15-35 ms of painting. The look-ahead
+window costs what it did: 2.6 and 1.5 ms median after, against 1.5 and
+2.0 ms before, on the lane to Woodland and the B-road (the earlier
+measurement was about 1.3 ms). It has not yet been measured on a phone.
+That is the first thing to do with it (Safari's timeline on an iPhone, the
+Deep Forest approach); if it drops frames, the over layer is the part to
+make cheaper (it is the only full-screen layer added).
+
+**What did not come out well.**
+- The game's woods are laid along the roads in straight-sided pieces, so
+  where one stops at a building or a garden the wood floor can end in a
+  straight edge.
+- The deer still cross only at the real woods (`crossings.js` reads
+  `nature.json`), not at the game's own: Deep Forest has no deer of its own.
+- A fingerpost's fade is worked out from its boards' size in the page; it is
+  near enough, not exact.
+- The cost above is the CPU's. Not measured on a phone.
+
+Screenshots: `docs/img/tree-canopy/contact.jpg`. For a test the page has
+`window.__go(from, to, s)` (a drive between two places, set down s metres
+along it), `window.__drawMs` and `window.__flushDraw` (above),
+`window.__treeTiles()` (tiles painted and kept, MB, this frame's costs) and
+`window.__canopyAt(x, y, r)` (crowns over the road within r of a point).
+
 ## Still open
 
 - Fuel, workshop and car wash: the rules above, and the inflatable man's
