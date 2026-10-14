@@ -83,7 +83,12 @@
     container-type: size;
     container-name: adopt;
   }
-  .adopt::before {
+  /* The painted garden and its wash sit in a layer of their own, clipped: the
+     garden is scaled up 4% to hide its edges, and left in .adopt itself that
+     extra 4% counted as scrollable height, so the screen could be dragged up
+     a few pixels with nothing under it. */
+  .backdrop { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .backdrop::before {
     content: ''; position: absolute; inset: 0;
     background-image: url('/assets/bg/garden-lawn-summer-morning.png');
     background-size: cover; background-position: center;
@@ -91,7 +96,7 @@
     transform: scale(1.04);
     z-index: 0;
   }
-  .adopt::after {
+  .backdrop::after {
     content: ''; position: absolute; inset: 0;
     background:
       radial-gradient(ellipse at 50% 25%, rgba(255, 230, 240, 0.30) 0%, transparent 60%),
@@ -112,6 +117,7 @@
   }
 
   /* ── Ambient: drifting petals + sparkles ── */
+  .ambient { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 3; }
   .petal, .sparkle {
     position: absolute;
     line-height: 1;
@@ -591,7 +597,77 @@
     .portrait-frame { max-width: clamp(110px, 32cqw, 160px); }
     .meet-connector { min-width: clamp(44px, 12cqw, 70px); }
     .gift-label { font-size: clamp(var(--fs-floor), 1.6cqh, 16px); }
-  }  /* Vertical scroll on desktop + iPad L — content stack is taller than
+  }
+
+  /* ── Landscape: the story on the left, the gifts and the two buttons on the right ──
+     The ceremony was one tall column: 825px of it in a 375px-tall phone, 1000px
+     in an iPad. "WAVE THEM OFF!" and "Not yet" were pinned over the bottom of the
+     screen by _short-landscape.css, so on every landscape size they sat on top of
+     the scroll text and the gifts, and what was under them could not be read.
+     Held sideways there is width to spare and no height, so the plaque (the title,
+     the two portraits, the scroll) takes the left and the gifts and the buttons the
+     right. Everything is on the screen at once, nothing is pinned over anything,
+     and nothing has to be scrolled to. A portrait screen keeps the one column.
+
+     The grid's first and last rows are 1fr, so the right column stays together in
+     the middle however tall the plaque is. The pinning and the padding that made
+     room for it (_short-landscape.css, which loads after this block) are undone
+     with selectors that outrank it. */
+  @container adopt (min-aspect-ratio: 6/5) {
+    html .adopt .adopt-inner {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      grid-template-rows: 1fr auto auto auto 1fr;
+      column-gap: clamp(12px, 2.4cqw, 28px);
+      row-gap: clamp(8px, 1.6cqh, 16px);
+      align-items: center;
+      justify-items: center;
+      padding: clamp(10px, 2.4cqh, 24px) clamp(16px, 3cqw, 40px);
+    }
+    .adopt-plaque { grid-column: 1; grid-row: 1 / -1; width: 100%; max-width: 660px; }
+    /* Both pictures the same width. (As flex-basis 0 with a 4:3 box, the family's picture and the animal's came out different sizes.) */
+    .adopt .portrait-frame { flex: 0 1 clamp(120px, 24cqw, 260px); max-width: none; min-width: 0; }
+    .gifts-panel { grid-column: 2; grid-row: 2; width: 100%; max-width: 440px; }
+    .adopt .wave-wrap { grid-column: 2; grid-row: 3; width: 100%; max-width: 440px; position: static; }
+    .adopt .secondary-row { grid-column: 2; grid-row: 4; position: static; }
+  }
+
+  /* A phone held sideways: the same two columns, with every vertical gap and size
+     drawn in from the height, so the plaque fits 375px. */
+  @container adopt (min-aspect-ratio: 6/5) and (max-height: 560px) {
+    /* Prefixed with .adopt so they outrank _short-landscape.css, which loads after this
+       block and, for every screen, sets the pills to one line and the buttons to its own sizes. */
+    html .adopt .adopt-inner { padding-block: clamp(6px, 1.8cqh, 12px); }
+    .adopt .adopt-plaque { padding: clamp(8px, 2.2cqh, 12px) clamp(12px, 2.4cqw, 20px) clamp(10px, 2.6cqh, 14px); }
+    .adopt .adopt-plaque::before, .adopt .adopt-plaque::after { top: 6px; }
+    .adopt .adopt-title { font-size: clamp(22px, 5.8cqh, 30px); margin-bottom: 2px; }
+    .adopt .adopt-subtitle { font-size: clamp(16px, 4.4cqh, 20px); line-height: 1.15; margin-bottom: clamp(4px, 1.4cqh, 8px); }
+    .adopt .portrait-row { padding: 0 0 clamp(2px, 0.8cqh, 6px); gap: clamp(4px, 1cqw, 10px); }
+    /* Both pictures the same size: a fixed share of the height, 4:3. */
+    .adopt .portrait-frame { flex: 0 1 clamp(96px, 29cqh, 200px); max-width: none; min-width: 0; }
+    .adopt .meet-connector { min-width: clamp(44px, 9cqw, 90px); }
+    /* The animal fills its frame's height (its picture has its own margin), so it is not dwarfed by the family beside it. */
+    .adopt .portrait-frame:not(.portrait-family) { padding: 0 6% 2%; }
+    .adopt .portrait-frame:not(.portrait-family) .portrait-animal { height: 100%; }
+    /* The scroll is tilted, so its corners swing a few pixels: leave more than that above it. */
+    .adopt .scroll-card {
+      margin-top: clamp(8px, 1.8cqh, 12px);
+      padding: clamp(8px, 2cqh, 14px) clamp(12px, 2.4cqw, 20px) clamp(18px, 4.6cqh, 28px);
+      font-size: clamp(16px, 4.2cqh, 21px);
+      line-height: 1.22;
+    }
+    .adopt .scroll-card .scroll-sign { margin-top: 2px; font-size: clamp(16px, 3.2cqh, 20px); }
+    .adopt .gifts-panel { padding: clamp(6px, 1.6cqh, 12px) clamp(10px, 2cqw, 18px); gap: clamp(4px, 1cqh, 8px); }
+    .adopt .gift-disc { width: clamp(44px, 9cqh, 56px); height: clamp(44px, 9cqh, 56px); }
+    .adopt .gift-label { max-width: none; }
+    .adopt .btn-primary { padding: clamp(10px, 3.2cqh, 18px) clamp(10px, 2cqw, 20px); font-size: clamp(18px, 4.8cqh, 24px); gap: clamp(4px, 1cqw, 10px); }
+    .adopt .btn-primary .flower-flank { font-size: clamp(22px, 5.4cqh, 32px); }
+    /* The sentence wraps inside the column rather than running off the screen. */
+    .adopt .secondary-row { width: 100%; max-width: 440px; }
+    .adopt .link-btn { max-width: 100%; white-space: normal; text-align: center; line-height: 1.15; padding: 6px clamp(12px, 2.4cqw, 20px); font-size: clamp(17px, 3.6cqh, 20px); }
+  }
+
+  /* Vertical scroll on desktop + iPad L — content stack is taller than
      the device's viewport on these landscape sizes; allow the user to
      scroll to see the bottom (grass tuft, bunny, fox, credits). */
   .device[data-size="desktop"] .welcome,
@@ -672,19 +748,27 @@
   <div class="device" id="device" data-size="ipad-p">
     <div class="adopt">
 
-      <!-- Drifting cherry-blossom petals -->
-      <span class="petal petal-1" aria-hidden="true">🌸</span>
-      <span class="petal petal-2" aria-hidden="true">🌸</span>
-      <span class="petal petal-3" aria-hidden="true">🌸</span>
-      <span class="petal petal-4" aria-hidden="true">🌸</span>
+      <div class="backdrop" aria-hidden="true"></div>
 
-      <!-- Sparkles rising from below -->
-      <span class="sparkle sparkle-1" aria-hidden="true">✨</span>
-      <span class="sparkle sparkle-2" aria-hidden="true">✨</span>
-      <span class="sparkle sparkle-3" aria-hidden="true">✨</span>
-      <span class="sparkle sparkle-4" aria-hidden="true">✨</span>
-      <span class="sparkle sparkle-5" aria-hidden="true">✨</span>
-      <span class="sparkle sparkle-6" aria-hidden="true">✨</span>
+      <!-- The drifting petals and rising sparkles animate well outside the screen.
+           They live in a clipping layer of their own: left loose, their travel
+           counted as scrollable height and the iframe could be dragged up by a
+           few pixels, with nothing under it. -->
+      <div class="ambient" aria-hidden="true">
+        <!-- Drifting cherry-blossom petals -->
+        <span class="petal petal-1" aria-hidden="true">🌸</span>
+        <span class="petal petal-2" aria-hidden="true">🌸</span>
+        <span class="petal petal-3" aria-hidden="true">🌸</span>
+        <span class="petal petal-4" aria-hidden="true">🌸</span>
+
+        <!-- Sparkles rising from below -->
+        <span class="sparkle sparkle-1" aria-hidden="true">✨</span>
+        <span class="sparkle sparkle-2" aria-hidden="true">✨</span>
+        <span class="sparkle sparkle-3" aria-hidden="true">✨</span>
+        <span class="sparkle sparkle-4" aria-hidden="true">✨</span>
+        <span class="sparkle sparkle-5" aria-hidden="true">✨</span>
+        <span class="sparkle sparkle-6" aria-hidden="true">✨</span>
+      </div>
 
       <div class="adopt-inner">
 
@@ -754,7 +838,7 @@
         </div>
 
         <div class="secondary-row">
-          <button class="link-btn" id="not-yet-btn" type="button">← Not yet, let me hug her first</button>
+          <button class="link-btn" id="not-yet-btn" type="button">← Not yet, let me hug them first</button>
         </div>
 
       </div>
