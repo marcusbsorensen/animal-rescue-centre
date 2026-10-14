@@ -90,7 +90,8 @@
     background-image: url('/assets/bg/garden-lawn-summer-evening.png');
     background-size: cover; background-position: center;
     filter: saturate(1.25) brightness(1.05) contrast(1.03);
-    transform: scale(1.04);
+    /* not scaled up: a scaled box counts as scrollable overflow (9-21px of scroll), and
+       this backdrop is not blurred, so it has no edge to hide. */
     z-index: 0;
   }
   /* Soft golden-hour haze — adds depth without dimming. */
@@ -205,21 +206,9 @@
   .farewell-plaque::before { left: 12px; }
   .farewell-plaque::after  { right: 12px; }
 
-  .farewell-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(26px, 4.4cqh, 38px);
-    letter-spacing: 0.02em;
-    text-align: center;
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
-    line-height: 1.1;
-    margin-bottom: clamp(4px, 0.8cqh, 8px);
-  }
+  /* The title's style (white on a darker plank, larger) is shared by every story board
+     and lives in _story-title.css; only the space under it is set here. */
+  .farewell-title { margin-bottom: clamp(4px, 0.8cqh, 8px); }
   .farewell-subtitle {
     font-family: 'Caveat', 'Kalam', cursive;
     font-style: italic;
@@ -519,7 +508,6 @@
   /* Narrow layout — iPhone */
   @container rewild (max-width: 420px) {
     .rewild-inner { gap: clamp(6px, 1.2cqh, 10px); padding: 10px; }
-    .farewell-title { font-size: clamp(22px, 3.8cqh, 28px); }
     .portrait-frame { max-width: clamp(180px, 56cqw, 240px); }
   }  /* Vertical scroll on desktop + iPad L — content stack is taller than
      the device's viewport on these landscape sizes; allow the user to
@@ -572,6 +560,13 @@
     overflow: visible !important;
   }
 
+  /* The two pinned buttons (_short-landscape.css parks "WAVE THEM OFF!" at 66px
+     and "Not yet" at 18px, flush) are 12px apart, as two touch targets should
+     be: flush, the release plank's slight tilt put its corners 3-7px into the
+     other button's box. The end of the scroll leaves room for the 12px. */
+  .rewild-inner > .release-wrap { bottom: 78px; }
+  .rewild .rewild-inner:has(> .release-wrap) { padding-bottom: 132px; }
+
   /* Touch targets: 36x36 audio buttons and 32px-tall text links are below
      the 48px floor the rest of the game uses. Children aim less precisely
      than adults, and a control that needs three attempts teaches them the
@@ -584,6 +579,7 @@
   }
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 

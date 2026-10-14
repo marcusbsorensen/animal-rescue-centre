@@ -90,6 +90,7 @@
     overflow: hidden;
     container-type: size;     /* enables @container queries on size */
     container-name: welcome;
+    background: #2a2018;
   }
   /* Background scene — a room the conflict is happening in, blurred so the
      modal plaque in front is the reading priority. Dark wash dims the room
@@ -99,7 +100,8 @@
     background-image: url('/assets/bg/bg-room-dog.png');
     background-size: cover; background-position: center;
     filter: blur(3px) saturate(0.85) brightness(0.85);
-    transform: scale(1.05);   /* hide blur edge */
+    /* not scaled up to hide the blurred edge: a scaled box counts as scrollable overflow
+       (9-21px of scroll); the edge fades into the root's dark ground instead. */
     z-index: 0;
   }
   .welcome::after {
@@ -169,18 +171,8 @@
     flex: 0 0 auto;
   }
   .paths-header-text { flex: 1 1 0; min-width: 0; }
-  .paths-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(20px, 3.4cqh, 28px);
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
-    line-height: 1.1;
-  }
+  /* The title's style (white on a darker plank, larger) is shared by every story board
+     and lives in _story-title.css. */
   .paths-subtitle {
     font-family: var(--sign-font);
     font-size: clamp(var(--fs-floor), 1.9cqh, 16px);
@@ -1249,6 +1241,7 @@
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
 <link rel="stylesheet" href="/admin/_signpost-physics.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
