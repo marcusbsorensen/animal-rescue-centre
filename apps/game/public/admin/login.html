@@ -1308,7 +1308,10 @@
       padding-bottom: clamp(48px, 8cqh, 86px);
     }
     body.stage-pin-active .grass-clump {
-      transform: translateY(clamp(-8px, -1.2cqh, -4px));
+      /* translateX(-50%) is what centres the tuft (left: 50%); this rule used to
+         say translateY alone, which replaces it, so the tuft's left edge sat on
+         the stake's centre line and it hung half a tuft to the right. */
+      transform: translateX(-50%) translateY(clamp(-8px, -1.2cqh, -4px));
     }
     body.stage-pin-active .welcome-content {
       padding-top: clamp(40px, 7cqh, 64px);

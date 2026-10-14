@@ -318,7 +318,9 @@
     max-width: 100%;
     align-items: center;
     position: relative;
-    z-index: 2;   /* above the post */
+    /* 9 as on the other sign screens: _short-landscape.css raises the board to
+       7, and a stack at 2 went behind it with the plank's bird. */
+    z-index: 9;   /* above the post and the board */
   }
   .intro { z-index: 2; }   /* also above the post */
 
@@ -1026,6 +1028,7 @@
     min-height: 48px;
   }
 </style>
+<link rel="stylesheet" href="/admin/_short-landscape.css">
 <link rel="stylesheet" href="/admin/_signpost-physics.css">
 </head>
 <body>
