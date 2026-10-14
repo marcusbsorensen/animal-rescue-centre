@@ -124,6 +124,16 @@ describe('tunnel.html mirrors tunnel.ts', () => {
     }
   });
 
+  it('the page shows "Tap!" over a shut gate only until she has opened her first gate in the session (120A)', () => {
+    // labels are built behind the session flag, and the flag is set (and kept in sessionStorage) when a tap opens a gate
+    expect(html).toMatch(/if \(gateOpenedBefore\) continue;[^\n]*\n\s*const t = puzzle\.tiles\[[^\n]*\n\s*if \(t\.type !== 'gate' \|\| t\.open !== false\) continue;/);
+    expect(html).toMatch(/puzzle\.tiles\[i\] = toggleGate\(t\);\s*\n\s*if \(puzzle\.tiles\[i\]\.open !== false\) rememberGateOpened\(\);/);
+    expect(html).toContain("sessionStorage.getItem(GATE_SEEN_KEY)");
+    expect(html).toContain("sessionStorage.setItem(GATE_SEEN_KEY, '1')");
+    // the ring on a shut gate does not depend on the flag
+    expect(html).toMatch(/\.tile\.tile-gate\.shut \{\s*\n\s*animation: gate-pulse-ring/);
+  });
+
   it('the page\'s domes stand where the package says', () => {
     expect(page.DOME_CELLS.map((c) => ({ x: c.x, y: c.y }))).toEqual(TUNNEL_DOME_CELLS.map((c) => ({ x: c.x, y: c.y })));
   });

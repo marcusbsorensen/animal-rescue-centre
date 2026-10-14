@@ -1926,6 +1926,7 @@
     gateLayer.replaceChildren();
     for (let y = 0; y < puzzle.height; y++) {
       for (let x = 0; x < puzzle.width; x++) {
+        if (gateOpenedBefore) continue;   // she knows what a gate does: the rings are enough (120A)
         const t = puzzle.tiles[y * puzzle.width + x];
         if (t.type !== 'gate' || t.open !== false) continue;
         const m = document.createElement('div');
@@ -2054,6 +2055,22 @@
     applyZoom(false);
   }
 
+  // ── "Tap!" labels (120A) ──────────────────────────────────────
+  // The label above a shut gate teaches that a gate is a thing to tap. At tiers
+  // 4 and 5 there are 8 to 10 of them and they crowd the board, and once she
+  // has opened a gate she knows. So they show only until she has opened her
+  // first gate in a SESSION, meaning the app session: the tunnel is a new page
+  // every time it is opened, so this is kept in sessionStorage (it lasts as
+  // long as the tab or the iPad app's web view, and a new launch starts over).
+  // The pulsing ring on every shut gate stays either way.
+  const GATE_SEEN_KEY = 'arc_tunnel_gate_opened';
+  let gateOpenedBefore = false;
+  try { gateOpenedBefore = sessionStorage.getItem(GATE_SEEN_KEY) === '1'; } catch (_) { /* no storage: the labels go on until she opens one here */ }
+  function rememberGateOpened() {
+    gateOpenedBefore = true;
+    try { sessionStorage.setItem(GATE_SEEN_KEY, '1'); } catch (_) { /* kept in memory for this page */ }
+  }
+
   // ── Zoom ──────────────────────────────────────────────────────
   // On a phone on its side the whole board makes tiles 25-29px. When they are
   // under ZOOM_BELOW the page offers a magnifier (the footer slot) and a tap on
@@ -2178,8 +2195,10 @@
     }
     unlockAudio();
     tryStartMusic();
-    if (t.type === 'gate') puzzle.tiles[i] = toggleGate(t);
-    else puzzle.tiles[i] = rotateTile(t);
+    if (t.type === 'gate') {
+      puzzle.tiles[i] = toggleGate(t);
+      if (puzzle.tiles[i].open !== false) rememberGateOpened();
+    } else puzzle.tiles[i] = rotateTile(t);
     renderGrid();
   }
 
