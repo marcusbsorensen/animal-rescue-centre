@@ -8,7 +8,7 @@ vi.mock('../supabase', () => ({
   isSupabaseConfigured: () => true,
 }));
 
-const { offerSignInNames, signup, SignupError } = await import('../auth');
+const { offerSignInNames, signup, login, getRememberedUsernames, SignupError } = await import('../auth');
 
 /**
  * The name screen offers ready-made sign-in names, which come from the
@@ -60,5 +60,29 @@ describe('ready-made sign-in names', () => {
     expect(err).toBeInstanceOf(SignupError);
     expect((err as InstanceType<typeof SignupError>).message).toBe('Someone just took that name. Pick another!');
     expect((err as InstanceType<typeof SignupError>).suggestions).toEqual(['RocketKite', 'TulipDrum', 'FigBoat']);
+  });
+});
+
+/**
+ * Signing in by typing the secret name (131A, hub 96): the name goes to
+ * the server without the spaces a keyboard adds, in the capitals she
+ * typed (the server ignores them), and the device then remembers the
+ * name as it was made, not as she typed it.
+ */
+describe('signing in with a typed name', () => {
+  beforeEach(() => {
+    invoke.mockReset();
+    localStorage.clear();
+  });
+
+  it('sends the name without spaces either side, and remembers it as the server has it', async () => {
+    invoke.mockResolvedValue({
+      data: { session: { userId: 'u1', username: 'PebbleKite', displayName: 'MossyOtter', avatarEmoji: '🦊', avatarBgColour: '#ffd0a0', joinCode: 'FOX-428', token: 't' } },
+      error: null,
+    });
+    const session = await login({ username: '  pebblekite ', pin: '4821' });
+    expect(invoke).toHaveBeenCalledWith('login', { body: { username: 'pebblekite', pin: '4821' } });
+    expect(session.username).toBe('PebbleKite');
+    expect(getRememberedUsernames()).toEqual(['PebbleKite']);
   });
 });

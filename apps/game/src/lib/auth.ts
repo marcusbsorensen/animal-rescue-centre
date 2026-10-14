@@ -144,8 +144,11 @@ export async function signup(data: SignupData): Promise<AuthSession> {
  * Log in an existing player via the Edge Function.
  */
 export async function login(data: LoginData): Promise<AuthSession> {
+  // A typed name may carry a space from the keyboard. Capitals are left
+  // as typed: the server ignores them, and answers with the name as it
+  // was made, which is the one this device remembers.
   const { data: result, error } = await supabase.functions.invoke('login', {
-    body: data,
+    body: { ...data, username: data.username.trim() },
   });
 
   if (error) {

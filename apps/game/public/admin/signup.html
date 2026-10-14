@@ -2419,18 +2419,11 @@ Remember it to sign in!</div>
         if (stage === 'pin') clearPin();
       }
     }
-    // Contextual greeting — when the kid arrives here from login's
-    // "Not here? Type your name" plank, show a friendly note above
-    // the title so they know the journey makes sense.
     if (m.type === 'name-checked') onNameChecked(m.payload);
     if (m.type === 'sign-in-names') onSignInNames(m.payload);
-    // Only sent when there were chips to not be among. A device with no
-    // saved accounts sends no reason at all, because "couldn't find you
-    // in the list" is a strange thing to tell a child who has not typed
-    // anything and never had a list.
-    if (m.type === 'init' && m.payload?.reason === 'not-in-chips') {
-      showContextNote("Couldn't find you in the list — let's make a new account!");
-    }
+    // Login's "Not here? Type your name" used to land here with a
+    // 'not-in-chips' note. It signs her in now (131A), and "New? Make
+    // an account" is the way here.
   });
   function showContextNote(text) {
     const titleRow = document.querySelector('#stage-select .sign-title-row');

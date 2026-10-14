@@ -26,7 +26,6 @@ export type AuthAction =
   | 'logout'
   | 'back-to-menu'
   | 'back-to-welcome'
-  | 'type-name'                   // login → "Not here? Type your name" → signup with context
   | 'forgot-pin'                  // login → "Forgot your secret code?" → recovery flow
   | 'recruit-apprentice'
   | 'auth-success-existing'      // login() resolved
@@ -105,10 +104,8 @@ export function mountAuth(
       postToFrame('init', { usernames });
     }
     if (page === 'signup' && context?.reason) {
-      // Pass the "why we're here" reason to the signup iframe so it can
-      // show contextual greeting (e.g. "Couldn't find you in the list —
-      // let's make a new account!" when a kid taps "Not here? Type
-      // your name" on login).
+      // Pass the "why we're here" reason to the signup iframe, for a
+      // page that has a note to show for it.
       postToFrame('init', { reason: context.reason });
     }
     if (page === 'menu' && context?.session) {
@@ -143,7 +140,7 @@ export function mountAuth(
         msg.type === 'signup' || msg.type === 'back-to-welcome' ||
         msg.type === 'friends' || msg.type === 'logout' ||
         msg.type === 'back-to-menu' ||
-        msg.type === 'type-name' || msg.type === 'forgot-pin' ||
+        msg.type === 'forgot-pin' ||
         msg.type === 'intro-complete' || msg.type === 'set-skip-intro' ||
         msg.type === 'intro-climactic-sfx') {
       handlers.onAction(msg.type as AuthAction, undefined, msg.payload);

@@ -21,10 +21,10 @@ export class SignupScene extends Phaser.Scene {
   private container!: Phaser.GameObjects.Container;
   private errorText!: Phaser.GameObjects.Text;
 
-  /** Optional context from the previous scene — used to pass through
-   *  reasons like "not-in-chips" when the kid arrives here from the
-   *  login screen's "Not here? Type your name" plank, so the signup
-   *  iframe can show a contextual greeting. */
+  /** Optional context from the previous scene: a reason the signup
+   *  iframe may show a note for. Login's "Not here? Type your name" no
+   *  longer comes here (it signs her in, 131A), so nothing sends one
+   *  today. */
   private initData: { reason?: string } = {};
 
   constructor() {
