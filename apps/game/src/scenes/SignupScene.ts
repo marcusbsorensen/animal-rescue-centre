@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { COLOURS, FONTS, AVATAR_EMOJIS, AVATAR_BG_COLOURS, TYPE, TITLE_CY, PAGE_MARGIN } from '../ui/constants';
 import { createChromeButton, createTextButton, createChromeTitle, createAmbientParticles, createChromePlate } from '../ui/UIButton';
-import { getAvailableUsernames, signup } from '../lib/auth';
+import { offerSignInNames, signup } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
 
@@ -136,7 +136,7 @@ export class SignupScene extends Phaser.Scene {
         // Demo mode — use placeholder names
         this.usernameOptions = ['BrambleFox', 'CloverPaws', 'MoonBunny'];
       } else {
-        this.usernameOptions = await getAvailableUsernames(3);
+        this.usernameOptions = await offerSignInNames();
       }
     } catch {
       this.usernameOptions = ['BrambleFox', 'CloverPaws', 'MoonBunny'];
@@ -477,6 +477,8 @@ export class SignupScene extends Phaser.Scene {
         pin: this.pin,
         avatarEmoji: this.selectedEmoji,
         avatarBgColour: this.selectedBgColour,
+        // The canvas picker offers pool names only: claim it as one.
+        readyMadeName: true,
       });
 
       // Success — go to game

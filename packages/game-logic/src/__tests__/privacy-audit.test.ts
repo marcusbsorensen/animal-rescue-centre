@@ -254,11 +254,14 @@ describe('Privacy Audit: no parent email', () => {
 });
 
 describe('Privacy Audit: player names', () => {
-  // The child types a name at signup. It is their login, and it used to be
-  // what friends, the gift inbox, the friends board and a public showcase
-  // showed too. Since 2026-10-12 other players see a display name instead,
-  // made from two word lists (packages/game-logic/src/display-names.ts):
-  // MossyOtter, or MossyOtter7 when that one is taken.
+  // The child used to type a name at signup. It was their login, and it
+  // used to be what friends, the gift inbox, the friends board and a
+  // public showcase showed too. Since 2026-10-12 other players see a
+  // display name instead, made from two word lists
+  // (packages/game-logic/src/display-names.ts): MossyOtter, or MossyOtter7
+  // when that one is taken. Since 2026-10-14 the login is a ready-made
+  // name too (packages/game-logic/src/sign-in-names.ts): PebbleKite,
+  // picked from three the server offers, never typed.
   let signup: string;
   let allSql: string;
 
@@ -267,11 +270,24 @@ describe('Privacy Audit: player names', () => {
     allSql = migrations().map((m) => m.sql).join('\n');
   });
 
-  it('the typed name is the login: 2 to 18 letters past a short blocklist', () => {
+  it('the login is picked from ready-made names: the signup page has no box to type one', () => {
+    const page = read('apps/game/public/admin/signup.html');
+    expect(page).not.toMatch(/<input[^>]*type="text"/);
+    expect(page).toContain("send('need-names')");
+    expect(page).toMatch(/send\('signup-complete', \{[^}]*readyMadeName: true/);
+    // The server claims a ready-made name before making the account.
+    expect(signup).toContain('claimSignInName(supabase, trimmedUsername)');
+  });
+
+  it('a typed login from an older build is still 2 to 18 letters past a short blocklist', () => {
     expect(signup).toContain('trimmedUsername.length < 2 || trimmedUsername.length > 18');
     expect(signup).toMatch(/const blocklist = \[/);
-    expect(read('apps/game/public/admin/signup.html')).toMatch(/<input[^>]*class="name-field"/);
     expect(read('supabase/functions/login/index.ts')).toMatch(/\.eq\('username', username\)/);
+  });
+
+  it('a taken name gets ready-made suggestions, never ones made from the typed name', () => {
+    expect(signup).not.toMatch(/suggestAvailableUsernames|\$\{base\}/);
+    expect(signup).toContain('suggestions: existingUser ? await offerSignInNames(supabase, 3) : []');
   });
 
   it('every account has a display name, which the database holds to the word lists', () => {
@@ -296,7 +312,7 @@ describe('Privacy Audit: player names', () => {
 
   it('signup shows the child the name other players see, and sends it', () => {
     const page = read('apps/game/public/admin/signup.html');
-    expect(page).toContain('Other players see you as');
+    expect(page).toContain('Friends see this name');
     expect(page).toMatch(/send\('signup-complete', \{[^}]*displayName/);
     // The host passes on only a pair from the lists.
     expect(read('apps/game/src/auth-overlay/AuthOverlay.ts')).toMatch(/isDisplayNameBase\(raw\.displayName\)/);
@@ -432,11 +448,27 @@ describe('Privacy Audit: what the public key can read', () => {
       .toEqual(['avatar_bg_colour', 'avatar_emoji', 'display_name', 'id']);
   });
 
-  it('it sees unclaimed suggested names only, never who claimed one', () => {
-    expect(sql.lastIndexOf('drop policy if exists "username_pool_read"'))
-      .toBeGreaterThan(sql.lastIndexOf('create policy "username_pool_read"'));
-    expect(sql).toMatch(/create policy "username_pool_read_unclaimed" on username_pool\s+for select using \(claimed_at is null\)/);
-    expect(sql).toMatch(/grant select \(username, claimed_at\) on table username_pool to anon, authenticated/);
+  it('it reads nothing from the pool of sign-in names', () => {
+    // 00016 let it read unclaimed names. 00017 takes that back: the names
+    // are made from public word lists, so the free ones would show, by
+    // what is missing, every child's sign-in name.
+    expect(sql.lastIndexOf('drop policy if exists "username_pool_read_unclaimed"'))
+      .toBeGreaterThan(sql.lastIndexOf('create policy "username_pool_read_unclaimed"'));
+    const lastGrant = sql.lastIndexOf('grant select (username, claimed_at) on table username_pool');
+    expect(sql.lastIndexOf('revoke all on table username_pool from anon, authenticated'))
+      .toBeGreaterThan(lastGrant);
+    expect(read('apps/game/src/lib/auth.ts')).not.toMatch(/from\('username_pool'\)/);
+  });
+
+  it('only the Edge Functions may offer, claim or refill sign-in names', () => {
+    for (const fn of [
+      'arc_refill_username_pool(int)',
+      'arc_offer_sign_in_names(int)',
+      'arc_claim_sign_in_name(text)',
+    ]) {
+      expect(sql).toContain(`revoke execute on function ${fn} from public, anon, authenticated`);
+      expect(sql).toContain(`grant execute on function ${fn} to service_role`);
+    }
   });
 
   it('the game no longer searches sign-in names with it', () => {
