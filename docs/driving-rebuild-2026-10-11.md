@@ -353,21 +353,17 @@ route is one line, read upward the way the van travels:
 - *A roundabout* (81A): a small ring on the line, the exit arm leaving it at the
   angle she actually exits by, measured from the way she entered (straight on is
   up), with an arrowhead, as UK roundabout signs draw it; then a gap, and the
-  line again.
+  line again. A double mini-roundabout is two small rings close together on the
+  line (a line width apart), the arm leaving the upper, as the UK sign draws it.
+  Only a real roundabout is drawn (96A, below).
 - Only turns and roundabouts (80A): no stubs for the side roads she passes, and
   an ordinary bend in a road is not a turn. A turn is a junction (three or more
   roads meet) where the route's heading changes by 30 degrees or more, 20 m
   before to 20 m after; junctions less than 20 m apart along the route (the
   corners the route makes round Trikey's lights) are taken as one, and a jog
-  that comes back is no turn. The road data (`birchie-graph.json`) has no
-  `junction=roundabout` tag, so roundabouts are found from the geometry: a
-  closed loop of roads (trunk to residential, not paths) of at most 160 m round,
-  round enough (4 pi area over perimeter squared, at least 0.45) with three or
-  more roads leaving it, which the route enters by one road and leaves by
-  another. That finds two on Henry's map (one by bay-chapel, 119 m round, and
-  one on the arc to bay-chapel road, 141 m) and only the 141 m one on Trikey's
-  (the other has a trunk road in it, which she does not use); they should be
-  checked against the real roads, as the data cannot confirm them.
+  that comes back is no turn. A roundabout is not found from the road graph's
+  shape: it is a real one, from OpenStreetMap (96A, below). A turn at a
+  roundabout is the roundabout's exit, and no turn mark of its own.
 - The rail is as wide as its discs need, and as the arrows for a left turn need
   from the line in the middle: 31 px at 390 x 844 (it was 30), 39 at 1280 x 800.
 - Collisions. A mark never sits under a sight's disc (the sight is what she looks
@@ -376,21 +372,112 @@ route is one line, read upward the way the van travels:
   left out. Where two marks would crowd each other (their arrows and the gap
   closer than a line width) the nearer junction wins: the next she will meet
   first, then the one she has just passed; the other comes back when the nearer
-  is behind her. One exception: a roundabout is never left out for a turn. On
-  this map every roundabout has a turn within about a hundred metres, which on
-  the rail is the same pixels, and the van's own icon hides a mark that close
-  ahead, so strictly nearer-wins would never show a roundabout (checked over
-  200 of Henry's routes and 120 of Trikey's, in steps of 25 m). Marks and the
-  labels cannot meet, as the arrows stay inside the rail. At the start of a
-  drive 55% of Henry's turns and roundabouts are drawn (473 junctions over 117
-  routes) and 47% of Trikey's (141 over 37), the rest being under a sight's disc
-  or crowded by a nearer one; the marks ahead of the van come back as it passes.
-  Worth a look if more is wanted: smaller discs for the sights that are not next,
-  or a wider nudge.
+  is behind her. One exception (94A, which Marcus confirmed): a roundabout is
+  never left out for a turn. On this map every roundabout had a turn within
+  about a hundred metres, which on the rail is the same pixels, and the van's
+  own icon hides a mark that close ahead, so strictly nearer-wins would never
+  show a roundabout (checked over 200 of Henry's routes and 120 of Trikey's, in
+  steps of 25 m). Marks and the labels cannot meet, as the arrows stay inside
+  the rail. A roundabout may also move further than a turn, up to 28 px, to
+  clear a sight's disc (96A, below). How many marks are drawn is under 95A,
+  below; the marks ahead of the van come back as it passes.
 - The 10% ghosting applies to the marks as they are part of the rail.
 
+**Smaller discs for the sights that are not next (95A).** Marcus, 2026-10-14. At
+the start of a drive about half of the turns and roundabouts were drawn, and a
+good share of the rest were under a sight's disc, so a sight that is not the
+next one is now drawn at 0.75 of the disc (13.5 px at 390 x 844, it was 18),
+keeping its white ring; the next sight's disc is as it was (1.25 times the disc,
+gold ring). A mark clears a sight's disc by that disc's own size, so which marks
+are drawn changes when the next sight changes as well as when she passes a mark
+(`SMALL_DISC` in `trip-strip.js`). Measured at the start of every drive that
+"new route" can give, at 390 x 844: 202 of Henry's (852 marks) and 44 of
+Trikey's (172), as the 55% and 47% were (marks drawn over marks there are):
+
+| | Henry | Trikey |
+|---|---|---|
+| Before 95A and 96A (geometry detector, old discs) | 54.0% (460 of 852) | 48.8% (84 of 172) |
+| With the real roundabouts (96A), old discs | 62.8% (536 of 854) | 54.2% (104 of 192) |
+| And the smaller discs, 0.75 (95A) | 65.8% (562 of 854) | 58.9% (113 of 192) |
+| For the record, discs at 0.85 and at 0.65 | 64.8% and 66.7% | 58.3% and 59.4% |
+
+Most of the rise is the real roundabouts, which are drawn on every route through
+them (84 and 18) where the geometry detector's were rarely seen. The turns alone,
+Henry: 454 of 824 (55.1%) before, 478 of 770 (62.1%) now; Trikey: 80 of 162
+(49.4%) before, 95 of 174 (54.6%) now. The discs were less of the cause than
+thought: a mark is 11 to 13 px tall with its arrow and gap, so it needs a clear
+band that tall beside each sight's disc, and a smaller disc only trims the
+disc's half of that. Taking a quarter off the discs wins three to five points,
+and a further tenth off wins one more. What stays out is the 212 of Henry's 854
+(25%) and 72 of Trikey's 192 (38%) with no clear band within 5 px of their
+place, and the 80 of Henry's and 7 of Trikey's that a nearer mark took. Drawing more would take a wider nudge for turns (a
+mark further from its place), which has not been done.
+
+**Real roundabouts only (96A).** Marcus, 2026-10-14. The strip first found
+roundabouts from the road graph's shape (a small closed loop of roads, round
+enough, with three or more roads leaving it), because `birchie-graph.json` has
+no `junction=roundabout` tag, and they were never checked against the real
+roads. Now they are, with a fresh Overpass export (OSM base 2026-10-14T10:43:12Z,
+ODbL, gitignored: `manus-output/birchie-osm/roundabouts/birchington-roundabouts.json`;
+its query is in `tools/osm-roundabouts.py`). The map has no `junction=roundabout`
+way at all. It has four `highway=mini_roundabout` nodes and three
+`junction=circular` ways:
+
+- *The geometry detector's two were not roundabouts*, and not the circular loops
+  either. One was a triangle of three small roads by Birchington station (Station
+  Approach and its neighbours; graph nodes 358, 359, 524; 141 m round; 51.3774 N,
+  1.3018 E), the other the triangle of the A28 (Canterbury Road), George V
+  Avenue and a service road at the Margate end of the map (nodes 736, 800, 810;
+  119 m round; 51.3810 N, 1.3593 E). The nearest real roundabout to them is
+  about 520 m and 330 m away.
+- *The three `junction=circular` ways are loops, not roundabouts*, and are not
+  drawn: 30890501, the Broadley Avenue loop (residential, 65 m round, one way
+  round a green), 147963811 (a 53 m private service-road circle, 5 mph) and
+  889383024 (a 24 m driveway circle). No one gives way on them.
+  `roundabouts.json` keeps them as `notRoundabouts`, so they are not found again.
+- *The four mini-roundabouts* are what `tools/osm-roundabouts.py` writes to
+  `assets/driving/roundabouts.json` (small; an ODbL source line in it; positions
+  projected as `osm-nature.py` does). The strip snaps each, at run time and for
+  whichever graph the van drives, to the nearest node of the graph if within
+  20 m, and otherwise leaves it out; any node at the same spot counts too
+  (Trikey's graph splits the A28's junctions by side). Two minis within 25 m are
+  one double mini-roundabout, drawn as two small rings close together, with the
+  arm leaving the upper.
+
+| OSM node | Where | Graph node | Snap | Nearest junction (3+ roads) | On a drive? |
+|---|---|---|---|---|---|
+| 1610678576 (51.37390, 1.30704) | The Square, Birchington (Canterbury Road, Park Lane, Station Road) | 480 (4 roads) | 0.2 m | 480, 0.2 m | Henry 84 of 202, Trikey 18 of 44 |
+| 303467654 (51.37367, 1.31069) | Park Road, Farrar Road, Cornford Road | 157 (2 roads) | 0.2 m | 824, 92.6 m | no drive |
+| 5617220766 (51.37794, 1.35888) and 29028903 (51.37804, 1.35897), 12.6 m apart: the double | the Margate edge of the map, by Maynard Avenue and Westfield Road | 73 (2 roads) | 0.1 m and 12.6 m (6.3 m from their middle, where it is drawn) | 736, 335 m and 324 m | no drive |
+
+- The graph is a skeleton: at two of the three the node carries only the main
+  road through, so "nearest junction" (three roads or more) would put the
+  roundabout 92 m or 330 m from the real one. The strip snaps to the nearest
+  node of any degree within 20 m instead.
+- Only The Square is ever seen. The other two are on dead-end spurs that no
+  drive between the 15 places passes (the nearest drive is 91 m and 700 m from
+  them for Henry, 240 m and 1.3 km for Trikey), so they were checked on made-up
+  routes through the node. The drives through The Square are those between the
+  town side (the A.R.C., the vet, the village hall, bramble-farm, cove-harbour,
+  goose-end-farm) and the rest; Henry's exits are 36, 45, 98 and 127 degrees
+  either way, Trikey's 39 and -101 (the heading 20 m after against the heading
+  20 m before, as for a turn).
+- *The Poppy Clock*, a rank-1 sight, stands 30 m from The Square's roundabout,
+  so it is a sight on every drive through it and its disc covers the
+  roundabout's place. So a roundabout may move up to 28 px (a turn, 5) to stand
+  just clear of a sight's disc, and then it is drawn on every drive through The
+  Square, all 84 and 18; without that none of the 84 was drawn at the start of
+  a drive.
+  This costs position: the ring can sit up to a disc and a mark (about 22 px)
+  from its place on the rail, 330 m on a six-kilometre drive. The other choice
+  is to leave the roundabout out when a sight is on it.
+- The geometry detector is gone (`findRings` and its loop, roundness and road
+  constants), not kept as a fallback.
+
 Screenshots of all of this, and the gold line and the lane chip, are in
-`docs/img/strip-labels/contact.jpg`.
+`docs/img/strip-labels/contact.jpg`; of the real roundabouts as the van
+approaches, and the smaller discs before and after, in
+`docs/img/strip-roundabouts/contact.jpg`.
 
 **Small animals cross the small lanes.** Marcus's idea, and the reason the
 camera comes in close on them: hedgehogs, rabbits, pheasants and the like
