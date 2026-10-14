@@ -31,7 +31,9 @@
 // stands in, with the same gait and glow. The glow is a soft halo about
 // twice the animal's width (Marcus, 2026-10-12, 32A). Marcus, 2026-10-13: each
 // stands with its feet on a soft shadow sized to it, and the glow is light
-// on the road round that shadow, thin enough to see the tarmac through.
+// on the road round that shadow, thin enough to see the tarmac through. Marcus,
+// 2026-10-14, 93B: the glow is a soft gold edge with a faint darker line just
+// outside it, so it reads on pale ground (frost, sand, straw) as well as tarmac.
 //
 // Where. Every small-road edge of the graph is a candidate, and a hash of its
 // midpoint's position decides whether it has a crossing, so a place has the
@@ -288,11 +290,6 @@ const WOBBLE_M = 0.12, FOLLOW_WOBBLE_M = 0.1;
  *  on the road under its feet, about twice as wide as the animal (Marcus,
  *  2026-10-12, 32A). */
 const GLOW_RX = 1.0, GLOW_RY = 0.38;
-/** What the glow is made of (Marcus, 2026-10-13: "too bright, needs more
- *  translucency... not so opaque it looks like sand on the road"): warm light
- *  laid on the road with the screen blend, which brightens the tarmac and
- *  leaves its grain showing, at this share of full strength. */
-const GLOW_BLEND = 'screen', GLOW_PEAK = 0.9;
 /** The shadow each painted animal stands on, from its painting's feet: as long
  *  as the feet are far apart, a little more (SHADOW_LEN), never less than
  *  SHADOW_MIN of its width, as deep as SHADOW_DEPTH of that, and the feet
@@ -1186,59 +1183,15 @@ function measure(e, img) {
   e.baked = out;
 }
 
-/** The glow, baked once at full strength: warm gold in the middle, easing
- *  out through amber to nothing in a long soft fall with no ring in it. It
- *  is drawn at GLOW_PEAK of this, squashed to an ellipse. */
-let GLOW = null;
-function glowSprite() {
-  if (GLOW || typeof document === 'undefined') return GLOW;
-  const n = 128, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
-  const g = cv.getContext('2d'), gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
-  gr.addColorStop(0, 'rgba(255,192,76,1)');
-  gr.addColorStop(0.4, 'rgba(255,192,76,.95)');
-  gr.addColorStop(0.62, 'rgba(250,180,64,.68)');
-  gr.addColorStop(0.82, 'rgba(244,164,52,.28)');
-  gr.addColorStop(1, 'rgba(240,150,44,0)');
-  g.fillStyle = gr; g.fillRect(0, 0, n, n);
-  return (GLOW = cv);
-}
-
-/** TEMPORARY (Marcus, 2026-10-14, 78A): three glows to choose between, behind
- *  ?glow=ring, ?glow=deep and ?glow=edge; anything else is the glow as it was.
- *  Remove the two Marcus does not pick, and setGlow, which only the screenshot
- *  harness uses. Each is a few layers drawn into the glow's own box (so the
- *  drawn body crossings.check measures is the same): a screen layer, which is
- *  warm light on a dark ground and does nothing on a pale one; a colour layer,
- *  which turns any ground gold at the ground's own lightness, so it shows on
- *  pale ground without muddying a dark one; and, for the ring, a faint
- *  multiply layer to deepen the line, and for the edge a faint dark line
- *  outside the gold. Size and strength still come from glowSwell, haloOf and
- *  glowAlpha, so under reduced motion every one of them holds still. */
+/** The glow (Marcus, 2026-10-14, 93B): a soft gold edge with a faint darker
+ *  line just outside it, round a thin gold fill, baked once at full strength
+ *  into the glow's own box and drawn at the animal's glowSwell and glowAlpha.
+ *  Three layers, because no one blend shows on every ground. The screen layer
+ *  is warm light on a dark ground and does nothing on a pale one. The colour
+ *  layer turns any ground gold at its own lightness, so the edge shows on
+ *  pale ground (the frosted verge, sand and straw) without muddying a dark
+ *  one. The dark line, laid over both, outlines the edge on pale ground. */
 const GLOW_BOX_W = 256, GLOW_BOX_H = Math.round(GLOW_BOX_W * GLOW_RY / GLOW_RX);
-const GLOW_DEFS = {
-  // A thin ring of gold light round the shadow; the ground shows clearly through the middle.
-  ring: () => [
-    { blend: 'screen', peak: 1, sprite: bakeGlow([bandPaint(100, 30, 8, 16, '255,196,64', 1, 3)]) },
-    { blend: 'color', peak: 0.6, sprite: bakeGlow([bandPaint(100, 30, 8, 16, '255,184,40', 1, 3)]) },
-    { blend: 'multiply', peak: 0.4, sprite: bakeGlow([bandPaint(100, 30, 6, 14, '255,176,40', 1, 2)]) },
-  ],
-  // A deeper, more saturated gold at about half the strength.
-  deep: () => [
-    { blend: 'screen', peak: 0.45, sprite: bakeGlow([discPaint([[0, '255,184,40', 1], [0.4, '255,180,36', 0.95], [0.62, '254,166,28', 0.68], [0.82, '248,146,20', 0.28], [1, '240,128,14', 0]])]) },
-    { blend: 'color', peak: 0.55, sprite: bakeGlow([discPaint([[0, '255,186,30', 1], [0.45, '255,186,30', 0.9], [0.7, '255,186,30', 0.5], [1, '255,186,30', 0]])]) },
-  ],
-  // A soft gold edge with a faint darker line outside it, so it reads on pale ground too.
-  edge: () => [
-    { blend: 'screen', peak: 1, sprite: bakeGlow([discPaint([[0, '255,200,90', 0.1], [0.55, '255,200,90', 0.14], [0.8, '255,204,96', 0.62], [0.93, '255,204,96', 0.26], [1, '255,204,96', 0]])]) },
-    { blend: 'color', peak: 0.8, sprite: bakeGlow([discPaint([[0, '255,184,50', 0.1], [0.55, '255,184,50', 0.14], [0.8, '255,184,50', 0.62], [0.93, '255,184,50', 0.26], [1, '255,184,50', 0]])]) },
-    { blend: 'source-over', peak: 0.6, sprite: bakeGlow([bandPaint(122, 42, 2.6, 3, '84,56,22', 0.7)]) },
-  ],
-};
-const GLOW_Q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('glow') : null;
-let glowMode = GLOW_Q && Object.hasOwn(GLOW_DEFS, GLOW_Q) ? GLOW_Q : 'current';
-const GLOW_SETS = {};
-/** The harness's switch: change the glow without reloading. */
-export function setGlow(mode) { glowMode = Object.hasOwn(GLOW_DEFS, mode) ? mode : 'current'; return glowMode; }
 
 /** A disc that fades out through the stops [r, 'R,G,B', alpha], in the box's own shape. */
 function discPaint(stops) {
@@ -1250,8 +1203,8 @@ function discPaint(stops) {
   };
 }
 /** A soft band all round the box: an ellipse `rx` by `ry` px, stroked `lw` px
- *  wide and blurred by `blur`, so it is light with no edge. The line itself is
- *  drawn off the sprite and only its blur lands on it. */
+ *  wide and blurred by `blur`. The line itself is drawn off the sprite and
+ *  only its blur lands on it. */
 function bandPaint(rx, ry, lw, blur, rgb, a, passes = 1) {
   return (g, w, h) => {
     g.shadowColor = `rgba(${rgb},${a})`; g.shadowBlur = blur; g.shadowOffsetX = 2 * w;
@@ -1259,17 +1212,20 @@ function bandPaint(rx, ry, lw, blur, rgb, a, passes = 1) {
     for (let i = 0; i < passes; i++) { g.beginPath(); g.ellipse(w / 2 - 2 * w, h / 2, rx, ry, 0, 0, TAU); g.stroke(); }
   };
 }
-function bakeGlow(paints) {
+function bakeGlow(paint) {
   const cv = document.createElement('canvas'); cv.width = GLOW_BOX_W; cv.height = GLOW_BOX_H;
-  const g = cv.getContext('2d');
-  for (const paint of paints) { g.save(); paint(g, GLOW_BOX_W, GLOW_BOX_H); g.restore(); }
+  paint(cv.getContext('2d'), GLOW_BOX_W, GLOW_BOX_H);
   return cv;
 }
-/** The layers of the glow in use, baked once each. */
+/** The glow's layers, each drawn at its peak of the animal's strength. */
+let GLOW = null;
 function glowLayers() {
-  if (typeof document === 'undefined') return null;
-  if (glowMode === 'current') return GLOW_SETS.current ??= [{ blend: GLOW_BLEND, peak: GLOW_PEAK, sprite: glowSprite() }];
-  return GLOW_SETS[glowMode] ??= GLOW_DEFS[glowMode]();
+  if (GLOW || typeof document === 'undefined') return GLOW;
+  return (GLOW = [
+    { blend: 'screen', peak: 1, sprite: bakeGlow(discPaint([[0, '255,200,90', 0.1], [0.55, '255,200,90', 0.14], [0.8, '255,204,96', 0.62], [0.93, '255,204,96', 0.26], [1, '255,204,96', 0]])) },
+    { blend: 'color', peak: 0.8, sprite: bakeGlow(discPaint([[0, '255,184,50', 0.1], [0.55, '255,184,50', 0.14], [0.8, '255,184,50', 0.62], [0.93, '255,184,50', 0.26], [1, '255,184,50', 0]])) },
+    { blend: 'source-over', peak: 0.6, sprite: bakeGlow(bandPaint(122, 42, 2.6, 3, '84,56,22', 0.7)) },
+  ]);
 }
 
 // ------------------------------------------------------------------ drawing

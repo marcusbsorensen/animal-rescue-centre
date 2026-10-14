@@ -352,8 +352,15 @@ stops itself, as it does for traffic. Never an accident.
   long as the feet are far apart, a little more), its hooves, paws or feet on
   the shadow's upper middle, and kept on the ground in a hop, a little smaller
   and paler; the deer's bound is lower (0.3 m). The glow (32A: about twice the
-  animal's width, pulsing with the gait) is now light laid on the road with
-  the `screen` blend, round the shadow, thin enough to see the tarmac through.
+  animal's width, pulsing with the gait) was light laid on the road with the
+  `screen` blend, round the shadow, which does nothing on pale ground (the
+  frosted winter verge, sand and straw tracks). Marcus, 2026-10-14 (93B),
+  chose the edge glow from three: a soft gold edge with a faint darker outer
+  line, chosen because it reads on pale ground. A screen layer lights dark
+  ground, a colour layer turns any ground gold at its own lightness, and the
+  dark line outlines the edge on pale ground. The footprint is the same as
+  before, so `crossings.check.mjs` measures the same body, and it holds still
+  under reduced motion. The other two, a thin ring and a deeper gold, are gone.
 - Ducklings follow their mother across in a loose single file, never
   abreast.
 - The van stops about a van length short of a crossing animal (39A), so it
