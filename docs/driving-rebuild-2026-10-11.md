@@ -378,9 +378,10 @@ route is one line, read upward the way the van travels:
   own icon hides a mark that close ahead, so strictly nearer-wins would never
   show a roundabout (checked over 200 of Henry's routes and 120 of Trikey's, in
   steps of 25 m). Marks and the labels cannot meet, as the arrows stay inside
-  the rail. A roundabout may also move further than a turn, up to 28 px, to
-  clear a sight's disc (96A, below). How many marks are drawn is under 95A,
-  below; the marks ahead of the van come back as it passes.
+  the rail. A roundabout with a sight within 40 m of it is drawn round that
+  sight's disc, where the sight is (100A, below). How many marks are drawn is
+  under 95A, below, and the turns hidden at the start are left (101A); the marks
+  ahead of the van come back as it passes.
 - The 10% ghosting applies to the marks as they are part of the rail.
 
 **Smaller discs for the sights that are not next (95A).** Marcus, 2026-10-14. At
@@ -397,21 +398,20 @@ Trikey's (172), as the 55% and 47% were (marks drawn over marks there are):
 | | Henry | Trikey |
 |---|---|---|
 | Before 95A and 96A (geometry detector, old discs) | 54.0% (460 of 852) | 48.8% (84 of 172) |
-| With the real roundabouts (96A), old discs | 62.8% (536 of 854) | 54.2% (104 of 192) |
-| And the smaller discs, 0.75 (95A) | 65.8% (562 of 854) | 58.9% (113 of 192) |
-| For the record, discs at 0.85 and at 0.65 | 64.8% and 66.7% | 58.3% and 59.4% |
+| With the real roundabouts (96A, 100A), old discs | 63.8% (545 of 854) | 54.2% (104 of 192) |
+| And the smaller discs, 0.75 (95A) | 66.6% (569 of 854) | 58.3% (112 of 192) |
 
 Most of the rise is the real roundabouts, which are drawn on every route through
 them (84 and 18) where the geometry detector's were rarely seen. The turns alone,
-Henry: 454 of 824 (55.1%) before, 478 of 770 (62.1%) now; Trikey: 80 of 162
-(49.4%) before, 95 of 174 (54.6%) now. The discs were less of the cause than
+Henry: 454 of 824 (55.1%) before, 485 of 770 (63.0%) now; Trikey: 80 of 162
+(49.4%) before, 94 of 174 (54.0%) now. The discs were less of the cause than
 thought: a mark is 11 to 13 px tall with its arrow and gap, so it needs a clear
 band that tall beside each sight's disc, and a smaller disc only trims the
-disc's half of that. Taking a quarter off the discs wins three to five points,
-and a further tenth off wins one more. What stays out is the 212 of Henry's 854
-(25%) and 72 of Trikey's 192 (38%) with no clear band within 5 px of their
-place, and the 80 of Henry's and 7 of Trikey's that a nearer mark took. Drawing more would take a wider nudge for turns (a
-mark further from its place), which has not been done.
+disc's half of that. Taking a quarter off the discs wins three to four points
+(Henry 63.8% to 66.6%, Trikey 54.2% to 58.3%). What stays out is the 212 of
+Henry's 854 (25%) and 72 of Trikey's 192 (38%) with no clear band within 5 px of
+their place, and the 73 of Henry's and 8 of Trikey's that a nearer mark took.
+Drawing more would take a wider nudge for turns, which Marcus has left (101A).
 
 **Real roundabouts only (96A).** Marcus, 2026-10-14. The strip first found
 roundabouts from the road graph's shape (a small closed loop of roads, round
@@ -463,20 +463,54 @@ way at all. It has four `highway=mini_roundabout` nodes and three
   either way, Trikey's 39 and -101 (the heading 20 m after against the heading
   20 m before, as for a turn).
 - *The Poppy Clock*, a rank-1 sight, stands 30 m from The Square's roundabout,
-  so it is a sight on every drive through it and its disc covers the
-  roundabout's place. So a roundabout may move up to 28 px (a turn, 5) to stand
-  just clear of a sight's disc, and then it is drawn on every drive through The
-  Square, all 84 and 18; without that none of the 84 was drawn at the start of
-  a drive.
-  This costs position: the ring can sit up to a disc and a mark (about 22 px)
-  from its place on the rail, 330 m on a six-kilometre drive. The other choice
-  is to leave the roundabout out when a sight is on it.
+  so it is a sight on every drive through it (all 84 and 18), and its disc
+  stands where the roundabout is: see 100A, below. My first answer, moving the
+  ring up to 28 px clear of the disc, is replaced by it.
 - The geometry detector is gone (`findRings` and its loop, roundness and road
   constants), not kept as a fallback.
 
+**A sight at a roundabout stands in its ring (100A).** Marcus, 2026-10-14. A
+sight within 40 m of a roundabout (`AT_ROUND_M`, metres on the map) is the
+roundabout's island, as the Poppy Clock is in the real Square: its disc is drawn
+inside the ring, at the sight's own place, the ring is sized round the disc, and
+the exit arm leaves the ring as usual. The first answer to the clock covering
+the ring (moving the ring up to 28 px away) is gone; a roundabout with no sight
+near it keeps the 5 px nudge a turn has.
+- The sight is the nearest to the roundabout, one to a roundabout, and distance
+  is on the map, not along the route (on Trikey's drive from wilderwood to the
+  A.R.C. the road reaches the clock 93 m before it reaches the roundabout, and
+  the ring is at the clock). The roundabout then takes that sight's place on the
+  rail, so the two are passed together. All 84 of Henry's drives and 18 of
+  Trikey's through The Square have it.
+- The ring follows the disc as it is drawn: the next sight's large disc (1.25
+  times, gold ring) has a ring of radius 15.75 px at 390 x 844 (to the middle of
+  its line, 2 px thick, 1 px clear of the disc), a sight that is not next
+  9.9 px, a passed one 9.4. `markShape(j, lw, ringR)` draws it; the rail is drawn
+  again when the next sight changes. A double mini-roundabout with a sight has
+  the big ring round the disc and its second ring, small, just below. A ring that
+  would not fit on the rail (a sight within a ring's reach of either end), or
+  would meet another roundabout, is left out and the sight keeps a plain disc.
+- Where no real sight is near the other two roundabouts, the rule was tried on
+  a made-up church 21 m from the Park Road mini-roundabout and a made-up shop
+  20 m from the double, on made-up routes through their nodes (`contact.jpg`).
+- *The cost is width.* The rail is as wide as the biggest ring (the next sight's)
+  and its arm need, so on a drive through a roundabout with a sight it is 38 to
+  42 px when the arm leaves to the right or ahead and 51 or 52 px when it leaves
+  sharply to the left (the arm of a 98 degree left exit reaches 24 px to the left
+  of the line), against 31 px with no ring. Of Henry's 84 drives through The
+  Square 17 are 51 or 52 px wide and 67 are 38 to 42; of Trikey's 18, 9 and 9. If
+  that is too wide, the way to narrow it is a smaller disc for the next sight
+  while it stands in a ring (estimated, not built: at the small disc's size the
+  rail stays 31 px for an arm to the right and about 41 px for a sharp left one).
+
+**The hidden turns stay hidden (101A).** Marcus, 2026-10-14: no change to the
+turn marks still hidden at the start of a drive (285 of Henry's 770 turns, 37%,
+and 80 of Trikey's 174, 46%, over every drive), and the 5 px nudge for a turn
+stays as it is.
+
 Screenshots of all of this, and the gold line and the lane chip, are in
-`docs/img/strip-labels/contact.jpg`; of the real roundabouts as the van
-approaches, and the smaller discs before and after, in
+`docs/img/strip-labels/contact.jpg`; of the real roundabouts, with the sight in
+the ring, as the van approaches, and the smaller discs before and after, in
 `docs/img/strip-roundabouts/contact.jpg`.
 
 **Small animals cross the small lanes.** Marcus's idea, and the reason the
