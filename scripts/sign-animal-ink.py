@@ -44,9 +44,23 @@ HOW THE COLOUR IS CHOSEN (Marcus, 2026-10-14, 115A/116A)
      near-black). Saturation is capped at 45%, because HSL saturation of a very
      dark colour is exaggerated and would otherwise lift into a vivid tone.
 
+  5. A VISIBLE LINE (Marcus, 2026-10-14, 125A). A ginger or golden animal's darkest
+     fur is nearly the colour of the rest of its fur, so an outline of that colour
+     reads as a soft edge, not a line. Every chosen ink is therefore darkened by one
+     fixed step, INK_DARKEN: its HSL lightness is multiplied by it (0.65 = a third
+     darker), before step 4's floor and cap are applied, so each animal keeps its own
+     hue and saturation and the line shows. Chosen by eye at 0.6, 0.65 and 0.7 on
+     all 14 on-screen animals: 0.65 (the sleeping ginger cat #cf7236 -> #884a21, the
+     golden dog #af6c27 -> #714619, the lop #915a2f -> #5f3b1e) shows on every fur
+     and feather; 0.7 showed the ginger cats' line least, 0.6 made the browns heavy.
+     The animals that were already at the floor (black cat, macaw, Dutch rabbit) do
+     not change. Change INK_DARKEN, or try a step with `--darken 0.6`, and rerun
+     with --write.
+
 USAGE
   python3 scripts/sign-animal-ink.py            # print the table, change nothing
   python3 scripts/sign-animal-ink.py --write    # rewrite the table in the CSS
+  python3 scripts/sign-animal-ink.py --darken 0.6  # try another INK_DARKEN step
   python3 scripts/sign-animal-ink.py --debug DIR  # also save, per animal, the sprite
                                                   # with the pixels the ink was taken
                                                   # from painted magenta (review aid)
@@ -76,6 +90,7 @@ WORK = 256            # analyse at most this many px on the long side
 OPEN_FRAC = 0.004     # opening radius as a fraction of the long side: 1px at 256 (lines <= 2px go)
 MIN_REGION = 0.015    # a region this share of the opaque area is fur or feathers (an eye is up to ~1.1%)
 MIN_TOTAL = 0.015     # the level counts once its fur regions add up to this share
+INK_DARKEN = 0.65     # every chosen ink's HSL lightness is multiplied by this, so the line shows (125A)
 L_FLOOR = 0.20        # HSL lightness floor: no outline is ever near-black
 S_CAP = 0.45
 S_NEUTRAL = 0.12
@@ -140,6 +155,13 @@ def hls(rgb):
     return h, l, s
 
 
+def darken(rgb, step):
+    """Multiply the colour's HSL lightness by `step`: the same hue and saturation, a deeper tone."""
+    h, l, s = hls(rgb)
+    r, g, b = colorsys.hls_to_rgb(h, l * step, s)
+    return (r * 255, g * 255, b * 255)
+
+
 def lift(rgb, body):
     """Raise a too-dark colour to L_FLOOR, keeping its hue (or the body colour's if it is grey)."""
     h, l, s = hls(rgb)
@@ -153,7 +175,7 @@ def lift(rgb, body):
     return (r * 255, g * 255, b * 255), True
 
 
-def analyse(path, debug_dir=None):
+def analyse(path, debug_dir=None, step=INK_DARKEN):
     im = Image.open(path).convert('RGBA')
     if max(im.size) > WORK:
         f = WORK / max(im.size)
@@ -213,14 +235,14 @@ def analyse(path, debug_dir=None):
         L = hls(cent[j])[1]
         if 0.2 < L < 0.85 and shares[j] > best:
             best, body = shares[j], cent[j]
-    final, lifted = lift(raw, body)
+    final, lifted = lift(darken(raw, step), body)
 
     if debug_dir:
         os.makedirs(debug_dir, exist_ok=True)
         dbg = a.copy()
         dbg[keep, 0], dbg[keep, 1], dbg[keep, 2], dbg[keep, 3] = 255, 0, 200, 255
         Image.fromarray(dbg).save(os.path.join(debug_dir, os.path.basename(path)))
-    return {'raw': tuple(raw), 'ink': tuple(final), 'lifted': lifted, 'share': float(keep.sum()) / max(area, 1),
+    return {'raw': tuple(raw), 'dark': tuple(darken(raw, step)), 'ink': tuple(final), 'lifted': lifted, 'share': float(keep.sum()) / max(area, 1),
             'r': r, 'scale': scale}
 
 
@@ -270,10 +292,11 @@ def discover():
 def main():
     write = '--write' in sys.argv
     debug = sys.argv[sys.argv.index('--debug') + 1] if '--debug' in sys.argv else None
+    step = float(sys.argv[sys.argv.index('--darken') + 1]) if '--darken' in sys.argv else INK_DARKEN
     lines = []
     report = []
     for path, needs_edge in discover():
-        r = analyse(path, debug)
+        r = analyse(path, debug, step)
         name = os.path.splitext(os.path.basename(path))[0]
         top, bottom = extent(path)
         edge = ' --edge-y: %.3f; --top-y: %.3f;' % (bottom, top) if needs_edge else ''
