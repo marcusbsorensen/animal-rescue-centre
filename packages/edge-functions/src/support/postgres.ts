@@ -57,6 +57,31 @@ async function migrate(): Promise<PGlite> {
 }
 
 /**
+ * A fresh database with the migrations up to and including `lastFile`
+ * applied, and none after it: for testing what a migration does to rows
+ * that were there before it ran. Not cached.
+ */
+export async function databaseThrough(lastFile: string): Promise<PGlite> {
+  const files = migrationFiles();
+  if (!files.includes(lastFile)) throw new Error(`no migration ${lastFile}`);
+  const db = new PGlite({ extensions: { pgcrypto } });
+  await db.exec(SUPABASE_PRELUDE);
+  for (const file of files.slice(0, files.indexOf(lastFile) + 1)) {
+    await runMigration(db, file);
+  }
+  return db;
+}
+
+/** Run one migration file, as `supabase db push` would. */
+export async function runMigration(db: PGliteInterface, file: string): Promise<void> {
+  try {
+    await db.exec(fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf-8'));
+  } catch (err) {
+    throw new Error(`${file} failed: ${(err as Error).message}`);
+  }
+}
+
+/**
  * A fresh database with every migration applied. The migrations run once
  * per test file; each call after that is a copy of the result.
  */

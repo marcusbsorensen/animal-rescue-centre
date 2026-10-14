@@ -5,6 +5,7 @@ import { createSession } from '../_shared/session.ts';
 import { isPinHintCode } from '../_shared/pin-hints.ts';
 import { isDisplayNameBase, randomDisplayName, freeDisplayName } from '../_shared/display-names.ts';
 import { offerSignInNames, claimSignInName, releaseSignInName } from '../_shared/sign-in-names.ts';
+import { loginKey } from '../_shared/login-name.ts';
 import {
   checkRateLimit,
   peekRateLimit,
@@ -165,8 +166,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Pre-check: is this username already claimed by another user?
-    // The unique constraint on users.username handles the race, but
+    // Pre-check: is this username already claimed by another user, in
+    // any capitals? A sign-in name ignores capitals (00018), so Lily and
+    // lily are one name and only one account may hold it. The unique
+    // index on users.username_lower handles the race, but
     // we surface a friendlier error early — and offer 3 ready-made names
     // from the pool, so the child can pick one instead of typing again.
     // Suggestions are never built from the name that was typed: that
@@ -175,7 +178,7 @@ Deno.serve(async (req) => {
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
-      .eq('username', trimmedUsername)
+      .eq('username_lower', loginKey(trimmedUsername))
       .maybeSingle();
     if (isCheck) {
       // 200 either way: "taken" is an answer, not a failure, and the

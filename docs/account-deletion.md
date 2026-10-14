@@ -28,7 +28,7 @@ Every step happens inside the game. Nothing uses a browser `confirm()`. The PIN 
 | `showcase_links` | every showcase and its snapshot |
 | `depot_sessions`, `supply_run_records`, `depot_inventory_ledger` | depot and supply-run history |
 | `audit_log` | the account's own rows (the `signup` row holds the typed name), and other players' rows that name it by id (`target_id`), by join code (`friend_added`) or as a gift's sender (`gift_claimed`) |
-| `rate_limits` | `login:<name>` and `hint:<name>` as typed (spaces either side allowed), and every key holding the user id: `gift:`, `gift-pair:` both ways, `delete-account:` |
+| `rate_limits` | `login:<name>` and `hint:<name>` in any capitals (in small letters since 00018, as typed before it; spaces either side allowed), and every key holding the user id: `gift:`, `gift-pair:` both ways, `delete-account:` |
 
 On the device (`apps/game/src/lib/delete-account.ts`), the game removes the session (`arc_session`), the name from the "who's playing" list (`arc_remembered_usernames`), the signup draft (`arc-signup-draft`), the in-memory save tracking, and the account's three IndexedDB records (`arc-save`: live, rejected, base).
 
@@ -84,7 +84,7 @@ select id, display_name from users where username = '<test name>';
 -- after deleting in the app, all must return 0
 select count(*) from users where id = '<id>';
 select count(*) from audit_log where user_id = '<id>' or target_id = '<id>' or metadata::text like '%<id>%';
-select count(*) from rate_limits where key like '%<id>%' or key in ('login:<test name>', 'hint:<test name>');
+select count(*) from rate_limits where key like '%<id>%' or lower(key) in (lower('login:<test name>'), lower('hint:<test name>'));
 select count(*) from sessions where user_id = '<id>';
 -- and one new line with counts only
 select created_at, metadata from audit_log where action = 'account_deleted' order by created_at desc limit 1;

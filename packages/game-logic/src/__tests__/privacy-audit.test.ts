@@ -126,6 +126,8 @@ describe('Privacy Audit: schema after every migration', () => {
   it('users holds these columns and no others', () => {
     // username is typed by the child (see "player names" below).
     // pin_hint (00004, free text) is gone: 00010 blanked it, 00011 drops it.
+    // username_lower (00018) is username in small letters, made by the
+    // database: the same name, not a second piece of data about the child.
     expect([...schema.get('users')!].sort()).toEqual([
       'avatar_bg_colour',
       'avatar_emoji',
@@ -138,6 +140,7 @@ describe('Privacy Audit: schema after every migration', () => {
       'pin_hash',
       'pin_hint_code',
       'username',
+      'username_lower',
     ]);
   });
 
@@ -282,7 +285,25 @@ describe('Privacy Audit: player names', () => {
   it('a typed login from an older build is still 2 to 18 letters past a short blocklist', () => {
     expect(signup).toContain('trimmedUsername.length < 2 || trimmedUsername.length > 18');
     expect(signup).toMatch(/const blocklist = \[/);
-    expect(read('supabase/functions/login/index.ts')).toMatch(/\.eq\('username', username\)/);
+    expect(read('supabase/functions/login/index.ts')).toMatch(/\.eq\('username_lower', key\)/);
+  });
+
+  it('a sign-in name ignores capitals, and each name is held once in any capitals', () => {
+    // Hub 96, Marcus 2026-10-14: "do NOT make them case sensitive".
+    expect(allSql).toMatch(/add column if not exists username_lower text\s+generated always as \(lower\(username\)\) stored/);
+    expect(allSql).toMatch(/create unique index if not exists users_username_lower_key on users \(username_lower\)/);
+    expect(allSql).toMatch(/create unique index if not exists username_pool_username_lower_key\s+on username_pool \(lower\(username\)\)/);
+    // Every lookup by name, and every per-name rate limit, is in small letters.
+    for (const fn of ['login', 'get-pin-hint']) {
+      const src = read(`supabase/functions/${fn}/index.ts`);
+      expect(src, fn).not.toMatch(/\.eq\('username',/);
+      expect(src, fn).toContain("from '../_shared/login-name.ts'");
+    }
+    // signup's taken check; its one exact match left is on the pool, by
+    // the name the pool itself offered.
+    expect(signup).toContain(".eq('username_lower', loginKey(trimmedUsername))");
+    expect(read('supabase/functions/login/index.ts')).toContain('`login:${key}`');
+    expect(read('supabase/functions/get-pin-hint/index.ts')).toContain('`hint:${key}`');
   });
 
   it('a taken name gets ready-made suggestions, never ones made from the typed name', () => {

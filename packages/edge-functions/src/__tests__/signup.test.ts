@@ -198,18 +198,30 @@ describe('signup: ready-made sign-in names', () => {
     claim?: boolean;
     takenName?: string;
     insertFails?: boolean;
+    /** The insert loses a race for the name to another signup. */
+    insertNameClash?: boolean;
     offersAllowed?: boolean;
   } = {}): FakeSupabase {
     return useFakeSupabase(new FakeSupabase(
       (q: Query) => {
         if (q.table === 'users' && q.op === 'insert') {
+          if (opts.insertNameClash) {
+            return {
+              data: null,
+              error: {
+                code: '23505',
+                message: 'duplicate key value violates unique constraint "users_username_lower_key"',
+              },
+            };
+          }
           return opts.insertFails
             ? { data: null, error: { code: 'XX000', message: 'boom' } }
             : { data: NEW_USER, error: null };
         }
         if (
           opts.takenName && q.table === 'users' && q.op === 'select' && q.shape === 'maybeSingle'
-          && q.filters.some((f) => f.column === 'username' && f.value === opts.takenName)
+          // Looked up in small letters (00018), as the database matches it.
+          && q.filters.some((f) => f.column === 'username_lower' && f.value === opts.takenName!.toLowerCase())
         ) {
           return { data: { id: 'someone-else' }, error: null };
         }
@@ -313,5 +325,29 @@ describe('signup: ready-made sign-in names', () => {
     for (const s of [...(check.suggestions as string[]), ...(body.suggestions as string[])]) {
       expect(s.toLowerCase()).not.toContain('lily');
     }
+  });
+
+  it('counts a name as taken in any capitals: lily and LILY are Lily', async () => {
+    db = poolDatabase({ takenName: 'Lily' });
+    for (const username of ['lily', 'LILY', ' lIlY ']) {
+      const check = await json(await handler(post({ username, checkOnly: true })));
+      expect(check.available, username).toBe(false);
+      const res = await handler(post(signupBody({ username })));
+      expect(res.status, username).toBe(400);
+    }
+    expect(db.on('users', 'insert')).toHaveLength(0);
+  });
+
+  it('says a name is taken when another signup gets it, in other capitals, first', async () => {
+    db = poolDatabase({ insertNameClash: true });
+    const res = await handler(post(signupBody({ username: 'PebbleKite', readyMadeName: true })));
+    expect(res.status).toBe(400);
+    const body = await json(res);
+    expect(body.error).toMatch(/taken/);
+    expect(body.suggestions).toEqual(OFFERED);
+    // It did not loop trying other display names: the clash was the login.
+    expect(db.on('users', 'insert')).toHaveLength(1);
+    // The claimed name goes back in the pool.
+    expect(db.on('username_pool', 'update')).toHaveLength(1);
   });
 });

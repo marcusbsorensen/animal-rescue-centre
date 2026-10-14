@@ -20,6 +20,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { checkRateLimit, addressKey } from '../_shared/rate-limit.ts';
 import { pinHintText } from '../_shared/pin-hints.ts';
+import { loginKey } from '../_shared/login-name.ts';
 
 Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
@@ -30,8 +31,10 @@ Deno.serve(async (req) => {
     if (!username || typeof username !== 'string') {
       return jsonResponse({ error: 'Username is required' }, 400);
     }
-    const trimmed = username.trim();
-    if (trimmed.length < 2 || trimmed.length > 18) {
+    // In small letters, as login matches it (00018): the clue for
+    // PebbleKite is found from pebblekite too.
+    const key = loginKey(username);
+    if (key.length < 2 || key.length > 18) {
       return jsonResponse({ error: 'Invalid username' }, 400);
     }
 
@@ -45,7 +48,7 @@ Deno.serve(async (req) => {
     // often, and a brute-force enumerator should hit a wall quickly.
     // Every lookup counts here, unlike login: there is no "correct"
     // outcome that would prove the caller was the account's owner.
-    const rl = await checkRateLimit(supabase, `hint:${trimmed}`, 5, 30 * 60 * 1000);
+    const rl = await checkRateLimit(supabase, `hint:${key}`, 5, 30 * 60 * 1000);
     if (!rl.allowed) {
       const retryMinutes = Math.ceil(rl.retryAfterMs / 60_000);
       return jsonResponse(
@@ -76,7 +79,7 @@ Deno.serve(async (req) => {
     const { data: user, error } = await supabase
       .from('users')
       .select('pin_hint_code, is_active')
-      .eq('username', trimmed)
+      .eq('username_lower', key)
       .maybeSingle();
 
     // Don't reveal whether the account exists — uniform 404 either way.

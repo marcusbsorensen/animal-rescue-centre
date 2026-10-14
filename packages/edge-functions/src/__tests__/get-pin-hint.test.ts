@@ -44,4 +44,18 @@ describe('get-pin-hint', () => {
     expect(res.status).toBe(429);
     expect(db.on('users')).toHaveLength(0);
   });
+
+  it('finds the clue whatever capitals the name is typed in, on one budget', async () => {
+    const keys = new Set<string>();
+    for (const username of ['bramble', 'BRAMBLE', ' Bramble ']) {
+      const db = useFakeSupabase(new FakeSupabase((q) =>
+        q.table === 'users' ? { data: { pin_hint_code: 'birthday', is_active: true }, error: null } : undefined,
+      ));
+      const res = await handler(post({ username }));
+      expect((await json(res)).found, username).toBe(true);
+      expect(db.on('users')[0].filters).toEqual([{ kind: 'eq', column: 'username_lower', value: 'bramble' }]);
+      for (const k of db.rateLimitKeys()) if (k.startsWith('hint:')) keys.add(k);
+    }
+    expect([...keys]).toEqual(['hint:bramble']);
+  });
 });

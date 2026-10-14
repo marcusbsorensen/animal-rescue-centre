@@ -61,4 +61,34 @@ describe('login', () => {
     expect(res.status).toBe(404);
     expect(db.rpcs.map((r) => r.fn)).toContain('bump_rate_limit');
   });
+
+  it('finds the account whatever capitals the name is typed in', async () => {
+    for (const username of ['bramble', 'BRAMBLE', 'bRaMbLe', ' Bramble ']) {
+      const db = useFakeSupabase(withAccount());
+      const res = await handler(post({ username, pin: '4821' }));
+      expect(res.status, username).toBe(200);
+      // Looked up by the name in small letters (00018), never as typed.
+      const lookup = db.on('users', 'select')[0];
+      expect(lookup.filters).toEqual([{ kind: 'eq', column: 'username_lower', value: 'bramble' }]);
+      // The session carries the name as it was made, for the device to remember.
+      expect(((await json(res)).session as Record<string, unknown>).username).toBe('Bramble');
+    }
+  });
+
+  it('gives one budget of tries to a name, whatever its capitals', async () => {
+    const keys = new Set<string>();
+    for (const username of ['Bramble', 'bramble', 'BRAMBLE']) {
+      const db = useFakeSupabase(withAccount());
+      await handler(post({ username, pin: '0000' }));
+      for (const k of db.rateLimitKeys()) if (k.startsWith('login:')) keys.add(k);
+    }
+    expect([...keys]).toEqual(['login:bramble']);
+  });
+
+  it('refuses a name that is only spaces', async () => {
+    const db = useFakeSupabase(new FakeSupabase());
+    const res = await handler(post({ username: '   ', pin: '1234' }));
+    expect(res.status).toBe(400);
+    expect(db.queries).toHaveLength(0);
+  });
 });
