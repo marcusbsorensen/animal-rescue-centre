@@ -132,7 +132,7 @@ export class FriendsScene extends Phaser.Scene {
           createChromePlate(this, width / 2, y, width - PAGE_MARGIN * 2, 44)
         );
         const row = this.add.text(width / 2, y,
-          `${friend.avatarEmoji}  ${friend.username}`, {
+          `${friend.avatarEmoji}  ${friend.displayName}`, {
           fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.text,
           padding: { x: 16, y: 8 },
         }).setOrigin(0.5);

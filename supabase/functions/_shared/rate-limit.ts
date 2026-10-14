@@ -119,7 +119,52 @@ export async function bumpRateLimit(
 }
 
 /**
- * The caller's address, as the edge saw it.
+ * The caller's address as a rate-limit key: an HMAC-SHA-256 of the
+ * address, in hex, keyed with the `RATE_LIMIT_ADDRESS_KEY` function
+ * secret. Use it as `login-ip:${key}` and so on.
+ *
+ * The address itself is never stored. Rows in `rate_limits` used to be
+ * `login-ip:<address>`, and since nothing sweeps the table on a timer,
+ * a child's address stayed there after its window closed. A keyed hash
+ * still lets one address be counted, and cannot be turned back into the
+ * address without the secret (a plain hash could: there are only four
+ * billion IPv4 addresses to try).
+ *
+ * Returns null when the request has no address, or when the secret is
+ * missing or shorter than 32 characters. Callers then skip the address
+ * limit, as they already did with no address header: the per-name and
+ * per-account limits still apply, and a missing secret should not take
+ * every login down. Marcus sets the secret once, from his own machine:
+ *   openssl rand -hex 32
+ *   supabase secrets set RATE_LIMIT_ADDRESS_KEY=<that value>
+ * Changing it later only restarts every address window.
+ */
+export async function addressKey(req: Request): Promise<string | null> {
+  const ip = clientIp(req);
+  if (!ip) {
+    console.error('no client IP header; address limit skipped');
+    return null;
+  }
+  const secret = Deno.env.get('RATE_LIMIT_ADDRESS_KEY');
+  if (!secret || secret.length < 32) {
+    console.error('RATE_LIMIT_ADDRESS_KEY is not set; address limit skipped');
+    return null;
+  }
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(ip)));
+  return Array.from(mac, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * The caller's address, as the edge saw it. Only `addressKey` should
+ * call this: an address must not reach the database.
  *
  * Supabase sits behind Cloudflare, which sets `cf-connecting-ip` itself
  * and refuses at the edge — 403, before any function runs — when a
@@ -133,7 +178,7 @@ export async function bumpRateLimit(
  * these header names should not take every login in the game down with
  * it.
  */
-export function clientIp(req: Request): string | null {
+function clientIp(req: Request): string | null {
   const ip =
     req.headers.get('cf-connecting-ip') ?? req.headers.get('x-real-ip');
   const trimmed = ip?.trim();

@@ -5,7 +5,7 @@ import { getAvailableUsernames, signup } from '../lib/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { mountAuth, unmountAuth } from '../auth-overlay/AuthOverlay';
 
-type SignupStep = 'username' | 'avatar' | 'pin' | 'parent';
+type SignupStep = 'username' | 'avatar' | 'pin';
 
 export class SignupScene extends Phaser.Scene {
   private _lastWidth = 0;
@@ -443,60 +443,13 @@ export class SignupScene extends Phaser.Scene {
       }
       // PINs match — proceed
       if (this.keyboardListener) this.input.keyboard?.off('keydown', this.keyboardListener);
-      this.showParentStep();
+      this.doSignup();
     }
-  }
-
-  // ── Step 4: Parent Gate ────────────────────────────────────────
-
-  private showParentStep(): void {
-    this.step = 'parent';
-    this.clearContainer();
-    const { width, height } = this.scale;
-
-    this.container.add(
-      createChromeTitle(this, width / 2, TITLE_CY, 'Almost there!', { fontSize: TYPE.heading })
-    );
-
-    this.container.add(
-      this.add.text(width / 2, 110, 'Ask a grown-up to read this:', {
-        fontSize: TYPE.lead, fontFamily: FONTS.body, color: COLOURS.textLight,
-      }).setOrigin(0.5)
-    );
-
-    this.container.add(
-      this.add.text(width / 2, 170,
-        'We only use a parent email if you ever\nwant to delete this account.\nYou can skip this step.', {
-        fontSize: TYPE.caption, fontFamily: FONTS.body, color: COLOURS.textLight,
-        align: 'center',
-      }).setOrigin(0.5)
-    );
-
-    // Skip button (prominent — skipping is fine)
-    this.container.add(
-      createChromeButton(this, width / 2, height / 2 + 20, 'Skip — start playing!', () => {
-        this.doSignup();
-      }, { width: 320, variant: 'filled' })
-    );
-
-    // "Enter email" option (secondary)
-    this.container.add(
-      createTextButton(this, width / 2, height / 2 + 80,
-        'A grown-up wants to add their email →', () => {
-        // For now, just proceed without email
-        // Full email input UI would use DOM overlay — Phase 1 enhancement
-        this.doSignup();
-      })
-    );
-
-    this.container.add(
-      createTextButton(this, width / 2, height - 80, '← Back', () => this.showPinStep())
-    );
   }
 
   // ── Submit ─────────────────────────────────────────────────────
 
-  private async doSignup(parentEmail?: string): Promise<void> {
+  private async doSignup(): Promise<void> {
     this.clearContainer();
     const { width, height } = this.scale;
 
@@ -524,7 +477,6 @@ export class SignupScene extends Phaser.Scene {
         pin: this.pin,
         avatarEmoji: this.selectedEmoji,
         avatarBgColour: this.selectedBgColour,
-        parentEmailHash: parentEmail,
       });
 
       // Success — go to game

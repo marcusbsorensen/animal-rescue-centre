@@ -135,6 +135,12 @@ importers:
         specifier: ^3.0.0
         version: 3.2.4(@types/node@25.6.0)(jsdom@29.0.2)(terser@5.46.1)(tsx@4.21.0)
 
+  packages/edge-functions:
+    devDependencies:
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@25.6.0)(jsdom@29.0.2)(terser@5.46.1)(tsx@4.21.0)
+
   packages/game-logic:
     dependencies:
       '@arc/shared-types':

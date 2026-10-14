@@ -5,11 +5,14 @@ export interface SignupData {
   pin: string;
   avatarEmoji: string;
   avatarBgColour: string;
-  /** PIN-recovery hint set during signup (Tier 2 of the forgot-PIN flow).
-   *  Stored on the user row; surfaced when the kid passes 2/3 of the
-   *  recovery questions. See docs/forgot-pin-recovery.md. */
-  pinHint?: string;
-  parentEmailHash?: string;
+  /** The clue picked for the PIN at signup: a code from the fixed list in
+   *  `@arc/game-logic` (`PIN_HINT_CHOICES`), never typed text. Shown back
+   *  on the forgot-PIN screen. See docs/forgot-pin-recovery.md. */
+  pinHintCode?: string;
+  /** The name other players see, as shown on the signup page: a pair
+   *  from the word lists in `@arc/game-logic` (`isDisplayNameBase`), with
+   *  no number. The server adds a number if that pair is taken. */
+  displayName?: string;
 }
 
 export interface LoginData {
@@ -19,7 +22,11 @@ export interface LoginData {
 
 export interface AuthSession {
   userId: string;
+  /** The name typed at signup: the login, shown only to this player. */
   username: string;
+  /** The name other players see (MossyOtter7). Missing from a session
+   *  saved by a build from before display names. */
+  displayName?: string;
   avatarEmoji: string;
   avatarBgColour: string;
   joinCode: string;
@@ -151,10 +158,10 @@ export async function login(data: LoginData): Promise<AuthSession> {
 }
 
 /**
- * Fetch the saved PIN-hint for a username. Used by the forgot-PIN
- * recovery flow when the kid passes 2/3 of the challenge questions
- * (see docs/forgot-pin-recovery.md). Returns `null` if the account
- * has no hint or is unknown.
+ * Fetch the words of the clue a player picked for their PIN (for example
+ * "A birthday"). Used by the forgot-PIN recovery flow (see
+ * docs/forgot-pin-recovery.md). Returns `null` if the account has no
+ * clue or is unknown.
  *
  * The endpoint is rate-limited server-side (5 lookups per username
  * per 30 minutes) and returns a uniform shape whether the account

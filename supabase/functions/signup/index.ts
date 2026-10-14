@@ -1,12 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { hashPin, hashEmail, generateToken, generateJoinCode } from '../_shared/crypto.ts';
+import { hashPin, generateToken, generateJoinCode } from '../_shared/crypto.ts';
 import { createSession } from '../_shared/session.ts';
+import { isPinHintCode } from '../_shared/pin-hints.ts';
+import { isDisplayNameBase, randomDisplayName, freeDisplayName } from '../_shared/display-names.ts';
 import {
   checkRateLimit,
   peekRateLimit,
   bumpRateLimit,
-  clientIp,
+  addressKey,
 } from '../_shared/rate-limit.ts';
 
 Deno.serve(async (req) => {
@@ -14,16 +16,20 @@ Deno.serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
-    const { username, pin, avatarEmoji, avatarBgColour, parentEmail, pinHint, checkOnly } =
+    // Fields are read by name, so anything else in the body is never
+    // touched. Older builds may still send a parent's email address (no
+    // screen ever asked for one) or a typed `pinHint`; neither is read or
+    // kept.
+    const { username, pin, avatarEmoji, avatarBgColour, pinHintCode, displayName, checkOnly } =
       await req.json();
 
     // `checkOnly` answers "is this name free?" and creates nothing.
     //
     // It exists so the name screen can say "that one is taken" while the
-    // child is still standing on it. Without it the refusal arrives five
-    // screens later — after they have chosen a PIN, confirmed it,
-    // written a hint and answered a question about the hint — and all of
-    // that work is thrown away by the check further down this file.
+    // child is still standing on it. Without it the refusal arrives
+    // three screens later — after they have chosen a PIN, confirmed it
+    // and picked a clue — and all of that work is thrown away by the
+    // check further down this file.
     //
     // It gives away nothing this function did not already give away at
     // the end of the flow, and it spends an attempt from the same
@@ -61,22 +67,21 @@ Deno.serve(async (req) => {
     if (!isCheck && (!avatarEmoji || !avatarBgColour)) {
       return jsonResponse({ error: 'Avatar emoji and background colour are required' }, 400);
     }
-    // Hint is optional (back-compat with older signup payloads). If
-    // present, it must be a string of reasonable length; we don't
-    // re-run the leak-detection rules server-side because that runs
-    // client-side already and the kid has already gut-checked it.
+    // The clue for the PIN is a code from a fixed list
+    // (_shared/pin-hints.ts), never typed text. It used to be free text
+    // of up to 100 characters, stored as typed, which let a child write
+    // anything about themselves into it.
     //
-    // Cap bumped 60 → 100 chars 2026-05-02 — Lily's "Danish numbers
-    // (the language no-one speaks here)" was 73 chars and had to be
-    // truncated to 49 on her account. 100 gives room for one full
-    // sentence of context + parenthesis without feeling cramped.
-    let cleanHint: string | null = null;
-    if (typeof pinHint === 'string') {
-      const t = pinHint.trim();
-      if (t.length > 100) {
-        return jsonResponse({ error: 'Hint is too long' }, 400);
+    // Optional, as the hint always was. A `pinHint` string from an app
+    // build that still has the typing box is not read at all: the
+    // account is made without a clue, so those children can still sign
+    // up and nothing they typed is kept.
+    let hintCode: string | null = null;
+    if (pinHintCode !== undefined && pinHintCode !== null) {
+      if (!isPinHintCode(pinHintCode)) {
+        return jsonResponse({ error: 'Pick one of the clues' }, 400);
       }
-      if (t.length >= 4) cleanHint = t;
+      hintCode = pinHintCode;
     }
 
     // Service role client for writes
@@ -102,11 +107,13 @@ Deno.serve(async (req) => {
     // household and nowhere near useful to a flood.
     //
     // Both come before any database read: the cost starts there.
-    const ip = clientIp(req);
-    const createKey = ip ? `signup-create-ip:${ip}` : null;
-    if (ip && createKey) {
+    //
+    // Keyed by a hash of the address, never the address (addressKey).
+    const addr = await addressKey(req);
+    const createKey = addr ? `signup-create-ip:${addr}` : null;
+    if (addr && createKey) {
       const attempts = await checkRateLimit(
-        supabase, `signup-ip:${ip}`, 60, 15 * 60 * 1000,
+        supabase, `signup-ip:${addr}`, 60, 15 * 60 * 1000,
       );
       if (!attempts.allowed) {
         const retryMinutes = Math.ceil(attempts.retryAfterMs / 60_000);
@@ -128,8 +135,6 @@ Deno.serve(async (req) => {
           429,
         );
       }
-    } else {
-      console.error('no client IP header; address limits skipped');
     }
 
     // Pre-check: is this username already claimed by another user?
@@ -168,12 +173,6 @@ Deno.serve(async (req) => {
     // Hash PIN
     const pinHash = await hashPin(pin);
 
-    // Hash parent email if provided
-    let parentEmailHash: string | null = null;
-    if (parentEmail && typeof parentEmail === 'string' && parentEmail.includes('@')) {
-      parentEmailHash = await hashEmail(parentEmail);
-    }
-
     // Generate join code (retry if collision)
     let joinCode = generateJoinCode();
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -186,21 +185,39 @@ Deno.serve(async (req) => {
       joinCode = generateJoinCode();
     }
 
-    // Create user
-    const { data: user, error: userErr } = await supabase
+    // The name other players see. The signup page shows the child a pair
+    // from the word lists ("Other players see you as MossyOtter") and
+    // sends it back; only a pair from the lists, with no number, is taken
+    // from the app. Anything else (an older build that sends none, or a
+    // name that is not from the lists) gets a pair picked here, because
+    // the child has no box to correct it in. A number is added here, and
+    // only when the pair is taken. The typed `username` stays the login.
+    const wanted = isDisplayNameBase(displayName) ? displayName : randomDisplayName();
+    let chosenDisplayName = await freeDisplayName(supabase, wanted);
+
+    // Create user. The unique index on display_name settles a race with
+    // another signup between the check above and this insert: lose it,
+    // and the account is made with another free name.
+    const insertUser = (name: string) => supabase
       .from('users')
       .insert({
         username: trimmedUsername,
+        display_name: name,
         pin_hash: pinHash,
-        pin_hint: cleanHint,
+        pin_hint_code: hintCode,
         avatar_emoji: avatarEmoji,
         avatar_bg_colour: avatarBgColour,
-        parent_email_hash: parentEmailHash,
         join_code: joinCode,
         last_seen_at: new Date().toISOString(),
       })
-      .select('id, username, avatar_emoji, avatar_bg_colour, join_code')
+      .select('id, username, display_name, avatar_emoji, avatar_bg_colour, join_code')
       .single();
+
+    let { data: user, error: userErr } = await insertUser(chosenDisplayName);
+    for (let attempt = 0; attempt < 3 && isDisplayNameClash(userErr); attempt++) {
+      chosenDisplayName = await freeDisplayName(supabase, randomDisplayName());
+      ({ data: user, error: userErr } = await insertUser(chosenDisplayName));
+    }
 
     if (userErr) {
       console.error('User creation failed:', userErr);
@@ -250,6 +267,7 @@ Deno.serve(async (req) => {
       session: {
         userId: user.id,
         username: user.username,
+        displayName: user.display_name ?? chosenDisplayName,
         avatarEmoji: user.avatar_emoji,
         avatarBgColour: user.avatar_bg_colour,
         joinCode: user.join_code,
@@ -308,6 +326,12 @@ async function suggestAvailableUsernames(
   // Return the first 3 that aren't claimed.
   const free = uniq.filter((c) => !claimedSet.has(c)).slice(0, 3);
   return free;
+}
+
+/** A unique-key failure on the display name, rather than on the login. */
+function isDisplayNameClash(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; details?: string } | null;
+  return e?.code === '23505' && `${e.message ?? ''} ${e.details ?? ''}`.includes('display_name');
 }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
