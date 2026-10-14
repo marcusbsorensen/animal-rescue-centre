@@ -7,6 +7,15 @@ import {
   type AdoptionStoreLike,
 } from '@arc/game-logic';
 import { FONTS, TEXT_RESOLUTION, MIN_FONT, TYPE } from '../ui/constants';
+import { readSafeAreaInsets } from '../ui/safe-area';
+import {
+  computePickerLayout,
+  MIN_TEXT,
+  type CardPlan,
+  type PickerLayout,
+  type Rect,
+} from '../ui/adoption-match-layout';
+import { fitText } from '../ui/fit-text';
 import { createAnimalSprite } from '../ui/sprites';
 import { AudioManager } from '../audio/AudioManager';
 
@@ -62,6 +71,12 @@ const TIER_COLOURS: Record<MatchTier, { bg: number; ink: string }> = {
   good: { bg: 0xe3b04b, ink: '#3a2a10' },
   maybe: { bg: 0xc9a369, ink: '#3a2a14' },
 };
+/**
+ * The animal's art is a square canvas with a margin of nothing round it (the
+ * animal fills 62-100% of it), so the box it is drawn in is a little bigger
+ * than the room it has: the animal itself fills the polaroid, as it always did.
+ */
+const ART_BOX = 1.15;
 const TIER_LABEL: Record<MatchTier, string> = {
   great: 'Great match',
   good: 'Good match',
@@ -199,6 +214,22 @@ export class AdoptionMatchScene extends Phaser.Scene {
     this.container.removeAll(true);
     const { width, height } = this.scale;
 
+    // Where everything goes: one pure function of the screen's size, the number
+    // of families on offer and the notch (see ui/adoption-match-layout.ts). The
+    // scene draws inside those boxes and fits every piece of text to its box.
+    const insets = readSafeAreaInsets();
+    const layout = computePickerLayout({
+      width,
+      height,
+      count: this.scored.length,
+      safeLeft: insets.left,
+      safeRight: insets.right,
+      safeTop: insets.top,
+      safeBottom: insets.bottom,
+    });
+    // Published for the Playwright checks (e2e/adoption-handover.spec.ts).
+    this.container.setData('layout', layout);
+
     // ── Painted background ─────────────────────────────────────
     const bg = this.add.graphics();
     bg.fillStyle(CREAM, 1);
@@ -211,284 +242,287 @@ export class AdoptionMatchScene extends Phaser.Scene {
     bg.fillCircle(width * 0.15, height * 0.95, Math.max(width, height) * 0.5);
     this.container.add(bg);
 
-    // ── Header plaque ──────────────────────────────────────────
-    const headerY = Math.max(56, height * 0.09);
-    this.renderHeader(width, headerY);
+    this.renderHeader(layout);
+    this.renderAnimalPolaroid(layout);
 
-    // ── Animal polaroid ────────────────────────────────────────
-    const polaroidY = headerY + 92;
-    this.renderAnimalPolaroid(width / 2, polaroidY);
+    if (this.scored.length === 0) {
+      this.renderEmptyState(layout.empty);
+    } else {
+      // The cards come before the way out: the last interactive rectangle added is "not yet".
+      this.scored.forEach((s, i) => this.renderCard(layout.cards[i], s, i));
+    }
 
-    // ── Cards row ──────────────────────────────────────────────
-    const cardsTop = polaroidY + 130;
-    const cardsBottom = height - 84;
-    this.renderCards(width, cardsTop, cardsBottom - cardsTop);
-
-    // ── "Not yet" pill, bottom-centre ──────────────────────────
-    this.renderNotYet(width / 2, height - 38);
+    this.renderNotYet(layout);
   }
 
-  private renderHeader(width: number, y: number): void {
-    // Plaque rectangle (rounded, painted-wood feel via tinted gradient).
-    const plaqueW = Math.min(width - 48, 640);
-    const plaqueH = 76;
-    const x = width / 2 - plaqueW / 2;
+  /** Add a Text to the scene's container, named so the checks can find it. */
+  private addText(
+    name: string,
+    x: number,
+    y: number,
+    content: string,
+    style: Phaser.Types.GameObjects.Text.TextStyle,
+    origin: [number, number] = [0, 0],
+  ): Phaser.GameObjects.Text {
+    const t = this.add.text(x, y, content, { resolution: TEXT_RESOLUTION, ...style })
+      .setOrigin(origin[0], origin[1])
+      .setName(name);
+    this.container.add(t);
+    return t;
+  }
 
+  private renderHeader(layout: PickerLayout): void {
+    const r = layout.header;
     const shadow = this.add.graphics();
     shadow.fillStyle(0x000000, 0.18);
-    shadow.fillRoundedRect(x + 3, y - plaqueH / 2 + 5, plaqueW, plaqueH, 14);
+    shadow.fillRoundedRect(r.x + 3, r.y + 5, r.w, r.h, 14);
     this.container.add(shadow);
 
     const plaque = this.add.graphics();
     plaque.fillStyle(TRELLIS_BROWN, 1);
-    plaque.fillRoundedRect(x, y - plaqueH / 2, plaqueW, plaqueH, 14);
+    plaque.fillRoundedRect(r.x, r.y, r.w, r.h, 14);
     plaque.lineStyle(3, 0x5e431f, 1);
-    plaque.strokeRoundedRect(x, y - plaqueH / 2, plaqueW, plaqueH, 14);
+    plaque.strokeRoundedRect(r.x, r.y, r.w, r.h, 14);
     this.container.add(plaque);
 
     // Honey sash
-    const sash = this.add.graphics();
-    sash.fillStyle(HONEY, 1);
-    sash.fillRoundedRect(x + 8, y - plaqueH / 2 + 8, plaqueW - 16, plaqueH - 16, 8);
-    this.container.add(sash);
+    const sash = { x: r.x + 8, y: r.y + 8, w: r.w - 16, h: r.h - 16 };
+    const sashG = this.add.graphics();
+    sashG.fillStyle(HONEY, 1);
+    sashG.fillRoundedRect(sash.x, sash.y, sash.w, sash.h, 8);
+    this.container.add(sashG);
 
-    this.container.add(
-      this.add.text(width / 2, y - 12, 'Adoption Office', {
-        fontSize: TYPE.title,
-        fontFamily: FONTS.title,
-        fontStyle: 'bold',
-        color: '#3a2010',
-        resolution: TEXT_RESOLUTION,
-      }).setOrigin(0.5),
-    );
-    this.container.add(
-      this.add.text(width / 2, y + 16,
-        `Who feels like the right home for ${this.animal.name}?`, {
-          fontSize: TYPE.caption,
-          fontFamily: FONTS.body,
-          fontStyle: 'italic',
-          color: '#3a2618',
-          resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5),
-    );
+    const cx = sash.x + sash.w / 2;
+    const innerW = sash.w - 16;
+    const title = this.addText('picker-title', cx, sash.y, 'Adoption Office', {
+      fontSize: `${layout.titleFont}px`,
+      fontFamily: FONTS.title,
+      fontStyle: 'bold',
+      color: '#3a2010',
+      align: 'center',
+    }, [0.5, 0]);
+    fitText(title, { w: innerW, h: sash.h }, { maxLines: layout.titleLines });
+
+    const sub = this.addText('picker-subtitle', cx, sash.y,
+      `Who feels like the right home for ${this.animal.name}?`, {
+        fontSize: `${layout.subtitleFont}px`,
+        fontFamily: FONTS.body,
+        fontStyle: 'italic',
+        color: '#3a2618',
+        align: 'center',
+      }, [0.5, 0]);
+    fitText(sub, { w: innerW, h: Math.max(18, sash.h - 8 - title.height - 2) }, { maxLines: layout.subtitleLines });
+
+    // The pair sits in the middle of the sash.
+    const total = title.height + 2 + sub.height;
+    const top = sash.y + Math.max(0, (sash.h - total) / 2);
+    title.setY(top);
+    sub.setY(top + title.height + 2);
   }
 
-  private renderAnimalPolaroid(cx: number, cy: number): void {
-    const w = 200, h = 110;
+  private renderAnimalPolaroid(layout: PickerLayout): void {
+    const r = layout.polaroid;
+    if (r.h <= 0) return;
     const shadow = this.add.graphics();
     shadow.fillStyle(0x000000, 0.18);
-    shadow.fillRoundedRect(cx - w / 2 + 4, cy - h / 2 + 6, w, h, 8);
+    shadow.fillRoundedRect(r.x + 4, r.y + 6, r.w, r.h, 8);
     this.container.add(shadow);
 
     const card = this.add.graphics();
     card.fillStyle(0xffffff, 1);
-    card.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, 6);
+    card.fillRoundedRect(r.x, r.y, r.w, r.h, 6);
     card.lineStyle(2, 0xe6d8bf, 1);
-    card.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, 6);
+    card.strokeRoundedRect(r.x, r.y, r.w, r.h, 6);
     this.container.add(card);
 
-    // Solo: a polaroid of one animal. A portrait in a frame is not a row.
-    const sprite = createAnimalSprite(this, cx - 50, cy - 4, this.animal, {
-      width: 172, height: 168, scale: 'fill',
-    });
-    this.container.add(sprite);
-
-    // Hand-lettered name + species
-    this.container.add(
-      this.add.text(cx + 10, cy - 26, this.animal.name, {
-        fontSize: TYPE.lead,
-        fontFamily: FONTS.title,
-        fontStyle: 'bold',
-        color: '#3a2618',
-        resolution: TEXT_RESOLUTION,
-      }).setOrigin(0, 0.5),
-    );
-    this.container.add(
-      this.add.text(cx + 10, cy - 4, this.animal.species, {
-        fontSize: `${MIN_FONT.small}px`,
-        fontFamily: FONTS.body,
-        color: '#6b3a18',
-        fontStyle: 'italic',
-        resolution: TEXT_RESOLUTION,
-      }).setOrigin(0, 0.5),
-    );
     const bondPct = Math.round(this.animal.bondLevel ?? 0);
-    this.container.add(
-      this.add.text(cx + 10, cy + 18, `Bond ${bondPct}%`, {
-        fontSize: `${MIN_FONT.small}px`,
-        fontFamily: FONTS.body,
-        fontStyle: 'bold',
-        color: '#2e6b3a',
-        resolution: TEXT_RESOLUTION,
-      }).setOrigin(0, 0.5),
-    );
-  }
+    const nameStyle = {
+      fontSize: TYPE.lead,
+      fontFamily: FONTS.title,
+      fontStyle: 'bold',
+      color: '#3a2618',
+    };
 
-  private renderCards(width: number, top: number, available: number): void {
-    if (this.scored.length === 0) {
-      this.renderEmptyState(width / 2, top + available / 2);
-      return;
-    }
-
-    const sidePad = 24;
-    const gap = 16;
-    const n = this.scored.length;
-    // Stack vertically on narrow viewports — keeps cards big enough to
-    // tap with chubby fingers; otherwise lay out horizontally.
-    const horizontal = width >= 720 && n > 1;
-
-    if (horizontal) {
-      const cardW = (width - sidePad * 2 - gap * (n - 1)) / n;
-      const cardH = Math.min(available - 8, 320);
-      this.scored.forEach((s, i) => {
-        const x = sidePad + i * (cardW + gap) + cardW / 2;
-        const y = top + cardH / 2;
-        this.renderCard(s, x, y, cardW, cardH);
+    if (layout.polaroidStyle === 'wide') {
+      // The animal on the left, its words on the right.
+      const room = r.h - 16;
+      const box = room * ART_BOX;
+      // Solo: a polaroid of one animal. A portrait in a frame is not a row.
+      this.container.add(createAnimalSprite(this, r.x + 8 + room / 2, r.y + r.h / 2, this.animal, {
+        width: box, height: box, scale: 'fill',
+      }));
+      const tx = r.x + 8 + room + 8;
+      const tw = r.x + r.w - 10 - tx;
+      const name = this.addText('picker-animal-name', tx, r.y, this.animal.name, nameStyle);
+      fitText(name, { w: tw, h: 34 }, { maxLines: 1 });
+      const species = this.addText('picker-animal-species', tx, r.y, this.animal.species, {
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#6b3a18', fontStyle: 'italic',
       });
+      fitText(species, { w: tw, h: 26 }, { maxLines: 1 });
+      const bond = this.addText('picker-animal-bond', tx, r.y, `Bond ${bondPct}%`, {
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold', color: '#2e6b3a',
+      });
+      fitText(bond, { w: tw, h: 26 }, { maxLines: 1 });
+      const total = name.height + species.height + bond.height;
+      const top = r.y + Math.max(4, (r.h - total) / 2);
+      name.setY(top);
+      species.setY(top + name.height);
+      bond.setY(top + name.height + species.height);
     } else {
-      const cardW = Math.min(width - sidePad * 2, 460);
-      const rows = n;
-      const cardH = Math.max(96, Math.min((available - gap * (rows - 1)) / rows, 150));
-      this.scored.forEach((s, i) => {
-        const x = width / 2;
-        const y = top + cardH / 2 + i * (cardH + gap);
-        this.renderCard(s, x, y, cardW, cardH);
-      });
+      // The animal above its words, centred: the rail of a phone held sideways.
+      const cx = r.x + r.w / 2;
+      const textH = 34 + 26;
+      const room = Math.max(40, Math.min(96, r.h - textH - 16));
+      const box = room * ART_BOX;
+      this.container.add(createAnimalSprite(this, cx, r.y + 8 + room / 2, this.animal, {
+        width: box, height: box, scale: 'fill',
+      }));
+      const name = this.addText('picker-animal-name', cx, r.y + 8 + room, this.animal.name, nameStyle, [0.5, 0]);
+      fitText(name, { w: r.w - 16, h: 34 }, { maxLines: 1 });
+      const meta = this.addText('picker-animal-bond', cx, name.y + name.height, `${this.animal.species} · Bond ${bondPct}%`, {
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, fontStyle: 'bold', color: '#2e6b3a',
+      }, [0.5, 0]);
+      fitText(meta, { w: r.w - 16, h: 26 }, { maxLines: 1 });
     }
   }
 
-  private renderEmptyState(cx: number, cy: number): void {
+  private renderEmptyState(r: Rect): void {
+    const cx = r.x + r.w / 2;
+    const cy = r.y + r.h / 2;
     this.container.add(
       this.add.text(cx, cy - 24, '🏠', { fontSize: '48px', fontFamily: FONTS.body, resolution: TEXT_RESOLUTION })
         .setOrigin(0.5),
     );
-    this.container.add(
-      this.add.text(cx, cy + 24,
-        `No families looking for a ${this.animal.species} this week.`, {
-          fontSize: TYPE.caption,
-          fontFamily: FONTS.body,
-          color: '#6b3a18',
-          fontStyle: 'italic',
-          align: 'center',
-          wordWrap: { width: 360 },
-          resolution: TEXT_RESOLUTION,
-        }).setOrigin(0.5),
-    );
-    this.container.add(
-      this.add.text(cx, cy + 70, 'Try again in a few days.', {
-        fontSize: `${MIN_FONT.small}px`,
+    const msg = this.addText('picker-empty', cx, cy + 20,
+      `No families looking for a ${this.animal.species} this week.`, {
+        fontSize: TYPE.caption,
         fontFamily: FONTS.body,
-        color: '#888',
-        resolution: TEXT_RESOLUTION,
-      }).setOrigin(0.5),
-    );
+        color: '#6b3a18',
+        fontStyle: 'italic',
+        align: 'center',
+      }, [0.5, 0]);
+    fitText(msg, { w: Math.min(r.w, 360), h: 60 }, { maxLines: 3 });
+    this.addText('picker-empty-hint', cx, msg.y + msg.height + 6, 'Try again in a few days.', {
+      fontSize: `${MIN_FONT.small}px`,
+      fontFamily: FONTS.body,
+      color: '#6b5a4a',
+      align: 'center',
+    }, [0.5, 0]);
   }
 
-  private renderCard(s: ScoredApplicant, cx: number, cy: number, w: number, h: number): void {
+  private renderCard(plan: CardPlan, s: ScoredApplicant, index: number): void {
     const tierCol = TIER_COLOURS[s.tier];
+    const r = plan.rect;
+    const tag = (part: string): string => `picker-card-${part}:${index}`;
 
     // Drop shadow
     const shadow = this.add.graphics();
     shadow.fillStyle(0x000000, 0.20);
-    shadow.fillRoundedRect(cx - w / 2 + 3, cy - h / 2 + 6, w, h, 14);
+    shadow.fillRoundedRect(r.x + 3, r.y + 6, r.w, r.h, 14);
     this.container.add(shadow);
 
     // Card paper
     const card = this.add.graphics();
-    card.fillStyle(PAPER, 1);
-    card.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, 14);
-    card.lineStyle(2, 0x8a5a2a, 1);
-    card.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, 14);
+    const paint = (fill: number, edge: number, edgeW: number): void => {
+      card.clear();
+      card.fillStyle(fill, 1);
+      card.fillRoundedRect(r.x, r.y, r.w, r.h, 14);
+      card.lineStyle(edgeW, edge, 1);
+      card.strokeRoundedRect(r.x, r.y, r.w, r.h, 14);
+    };
+    paint(PAPER, 0x8a5a2a, 2);
     this.container.add(card);
 
-    // Match-tier sticker — top-right
-    const stickerW = 96, stickerH = 26;
-    const stickerX = cx + w / 2 - stickerW / 2 - 10;
-    const stickerY = cy - h / 2 + stickerH / 2 + 8;
+    // Portrait
+    this.renderPortrait(s.applicant, plan.portrait);
+
+    // Match-tier sticker
+    const st = plan.sticker;
     const sticker = this.add.graphics();
     sticker.fillStyle(tierCol.bg, 1);
-    sticker.fillRoundedRect(stickerX - stickerW / 2, stickerY - stickerH / 2, stickerW, stickerH, 13);
+    sticker.fillRoundedRect(st.x, st.y, st.w, st.h, st.h / 2);
     sticker.lineStyle(2, 0x000000, 0.18);
-    sticker.strokeRoundedRect(stickerX - stickerW / 2, stickerY - stickerH / 2, stickerW, stickerH, 13);
+    sticker.strokeRoundedRect(st.x, st.y, st.w, st.h, st.h / 2);
     this.container.add(sticker);
-    this.container.add(
-      this.add.text(stickerX, stickerY, TIER_LABEL[s.tier], {
-        fontSize: `${MIN_FONT.small}px`,
-        fontFamily: FONTS.title,
-        fontStyle: 'bold',
-        color: tierCol.ink,
-        resolution: TEXT_RESOLUTION,
-      }).setOrigin(0.5),
-    );
+    const stickerText = this.addText(tag('sticker'), st.x + st.w / 2, st.y + st.h / 2, TIER_LABEL[s.tier], {
+      fontSize: `${MIN_FONT.small}px`,
+      fontFamily: FONTS.title,
+      fontStyle: 'bold',
+      color: tierCol.ink,
+    }, [0.5, 0.5]);
+    fitText(stickerText, { w: st.w - 8, h: st.h }, { maxLines: 1 });
 
-    // Portrait — square thumb on the left.
-    const portraitSize = Math.min(h - 24, 110);
-    const portraitX = cx - w / 2 + portraitSize / 2 + 12;
-    const portraitY = cy;
-    this.renderPortrait(s.applicant, portraitX, portraitY, portraitSize);
+    // Name
+    const centred = plan.align === 'center';
+    const nameX = centred ? plan.name.x + plan.name.w / 2 : plan.name.x;
+    const name = this.addText(tag('name'), nameX, plan.name.y, s.applicant.name, {
+      fontSize: `${plan.nameFont}px`,
+      fontFamily: FONTS.title,
+      fontStyle: 'bold',
+      color: '#3a2010',
+      align: plan.align,
+    }, [centred ? 0.5 : 0, 0]);
+    fitText(name, { w: plan.name.w, h: plan.nameLines * (plan.nameFont + 8) }, { maxLines: plan.nameLines });
 
-    // Name + blurb — to the right of the portrait, above the sticker.
-    const textX = portraitX + portraitSize / 2 + 14;
-    const textW = (cx + w / 2) - textX - 16;
+    // Blurb and reasons flow down the text column, below the name (and the pill, when it shares the name's line).
+    const colBottom = plan.text.y + plan.text.h;
+    let flowY = name.y + name.height + 2;
+    if (plan.stickerInline) flowY = Math.max(flowY, plan.sticker.y + plan.sticker.h + 2);
 
-    this.container.add(
-      this.add.text(textX, cy - h / 2 + 16, s.applicant.name, {
-        fontSize: TYPE.body,
-        fontFamily: FONTS.title,
-        fontStyle: 'bold',
-        color: '#3a2010',
-        resolution: TEXT_RESOLUTION,
-        wordWrap: { width: textW - stickerW - 4 },
-      }).setOrigin(0, 0),
-    );
-
-    this.container.add(
-      this.add.text(textX, cy - 8, s.applicant.blurb, {
-        fontSize: '12.5px',
-        fontFamily: FONTS.body,
-        color: '#4a2e14',
-        fontStyle: 'italic',
-        wordWrap: { width: textW },
-        resolution: TEXT_RESOLUTION,
-      }).setOrigin(0, 0.5),
-    );
-
-    // Reasons — small bullet stack at the bottom.
-    const reasonY = cy + h / 2 - 12 - Math.min(s.reasons.length, 2) * 14;
-    s.reasons.slice(0, 2).forEach((r, i) => {
-      this.container.add(
-        this.add.text(textX, reasonY + i * 14, `• ${r}`, {
-          fontSize: '11.5px',
+    // Measure the reasons first, so the blurb is fitted to what they leave.
+    const reasonTexts: Phaser.GameObjects.Text[] = [];
+    let reasonsH = 0;
+    if (plan.reasons) {
+      s.reasons.slice(0, 2).forEach((reason, j) => {
+        const t = this.addText(`picker-card-reason:${index}:${j}`, centred ? nameX : plan.text.x, 0, `• ${reason}`, {
+          fontSize: `${plan.reasonFont}px`,
           fontFamily: FONTS.body,
           color: '#2e6b3a',
-          resolution: TEXT_RESOLUTION,
-          wordWrap: { width: textW },
-        }).setOrigin(0, 0),
-      );
-    });
+          align: plan.align,
+        }, [centred ? 0.5 : 0, 0]);
+        fitText(t, { w: plan.text.w, h: 44 }, { maxLines: 2 });
+        reasonTexts.push(t);
+        reasonsH += t.height;
+      });
+    }
+    const MIN_BLURB_H = 3 * (MIN_TEXT + 5);
+    let blurbRoom = colBottom - flowY - (reasonsH ? reasonsH + 6 : 0);
+    if (reasonsH && blurbRoom < MIN_BLURB_H) {
+      // Not enough left for the blurb with the reasons under it: the blurb comes first.
+      reasonTexts.forEach((t) => t.destroy());
+      reasonTexts.length = 0;
+      reasonsH = 0;
+      blurbRoom = colBottom - flowY;
+    }
+    const blurb = this.addText(tag('blurb'), centred ? nameX : plan.text.x, flowY, s.applicant.blurb, {
+      fontSize: `${plan.blurbFont}px`,
+      fontFamily: FONTS.body,
+      color: '#4a2e14',
+      fontStyle: 'italic',
+      align: plan.align,
+    }, [centred ? 0.5 : 0, 0]);
+    fitText(blurb, { w: plan.text.w, h: Math.max(0, blurbRoom) });
+    let reasonY = blurb.y + blurb.height + 6;
+    for (const t of reasonTexts) {
+      t.setY(reasonY);
+      reasonY += t.height;
+    }
 
     // Hit area — the whole card.
-    const hit = this.add.rectangle(cx, cy, w, h, 0x000000, 0)
-      .setInteractive({ useHandCursor: true });
-    hit.on('pointerover', () => {
-      card.clear();
-      card.fillStyle(0xffeec8, 1);
-      card.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, 14);
-      card.lineStyle(3, HONEY, 1);
-      card.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, 14);
-    });
-    hit.on('pointerout', () => {
-      card.clear();
-      card.fillStyle(PAPER, 1);
-      card.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, 14);
-      card.lineStyle(2, 0x8a5a2a, 1);
-      card.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, 14);
-    });
+    const hit = this.add.rectangle(r.x + r.w / 2, r.y + r.h / 2, r.w, r.h, 0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+      .setName(tag('hit'));
+    hit.on('pointerover', () => paint(0xffeec8, HONEY, 3));
+    hit.on('pointerout', () => paint(PAPER, 0x8a5a2a, 2));
     hit.on('pointerdown', () => this.pickApplicant(s.applicant));
     this.container.add(hit);
   }
 
-  private renderPortrait(applicant: Applicant, cx: number, cy: number, size: number): void {
+  /** The household's portrait in a honey frame, `frame` being the frame's square. */
+  private renderPortrait(applicant: Applicant, frameRect: Rect): void {
+    const size = frameRect.w;
+    const cx = frameRect.x + size / 2;
+    const cy = frameRect.y + size / 2;
     // Honey-rim frame.
     const frame = this.add.graphics();
     frame.fillStyle(HONEY_DARK, 1);
@@ -536,31 +570,34 @@ export class AdoptionMatchScene extends Phaser.Scene {
     }
   }
 
-  private renderNotYet(cx: number, cy: number): void {
-    const w = 240, h = 44;
+  private renderNotYet(layout: PickerLayout): void {
+    const r = layout.notYet;
+    const cx = r.x + r.w / 2;
+    const cy = r.y + r.h / 2;
     const shadow = this.add.graphics();
     shadow.fillStyle(0x000000, 0.22);
-    shadow.fillRoundedRect(cx - w / 2 + 2, cy - h / 2 + 4, w, h, h / 2);
+    shadow.fillRoundedRect(r.x + 2, r.y + 4, r.w, r.h, r.h / 2);
     this.container.add(shadow);
 
     const pill = this.add.graphics();
     pill.fillStyle(SAGE_GREEN, 1);
-    pill.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, h / 2);
+    pill.fillRoundedRect(r.x, r.y, r.w, r.h, r.h / 2);
     pill.lineStyle(2.5, SAGE_DARK, 1);
-    pill.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, h / 2);
+    pill.strokeRoundedRect(r.x, r.y, r.w, r.h, r.h / 2);
     this.container.add(pill);
 
-    const label = this.add.text(cx, cy, '← Not yet, let me hug them first', {
-      fontSize: TYPE.caption,
+    const label = this.addText('picker-notyet-label', cx, cy, layout.notYetLabel, {
+      fontSize: `${layout.notYetFont}px`,
       fontFamily: FONTS.title,
       fontStyle: 'bold',
       color: '#fffbe8',
-      resolution: TEXT_RESOLUTION,
-    }).setOrigin(0.5);
-    this.container.add(label);
+      align: 'center',
+    }, [0.5, 0.5]);
+    fitText(label, { w: r.w - r.h, h: r.h - 8 }, { maxLines: layout.notYetLines });
 
-    const hit = this.add.rectangle(cx, cy, w, h, 0x000000, 0)
-      .setInteractive({ useHandCursor: true });
+    const hit = this.add.rectangle(cx, cy, r.w, r.h, 0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+      .setName('picker-notyet-hit');
     hit.on('pointerover', () => label.setScale(1.04));
     hit.on('pointerout', () => label.setScale(1));
     hit.on('pointerdown', () => this.cancel());
