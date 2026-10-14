@@ -92,6 +92,7 @@ import {
   tunnelDayKey,
   tunnelPaidDigsLeft,
   recordTunnelDig,
+  recordTunnelWin,
   TUNNEL_PAID_DIGS_PER_DAY,
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId, CrateGrid, MapDestinationDef } from '@arc/game-logic';
@@ -2101,7 +2102,10 @@ export class GameScene extends Phaser.Scene {
    *   - tunnel-complete → bump every rescued animal's happiness/bond
    *     (payload.animalsRescued is an array of species strings), save, and
    *     tell the page what each one gained (`complete-result`) so the win
-   *     card can say so. The overlay STAYS UP: the child closes it with
+   *     card can say so. Only the first TUNNEL_REWARDED_WINS_PER_DAY wins of
+   *     the UTC day give anything; after that the win still plays and the
+   *     result says `capped`, so the card says the animals enjoyed the play
+   *     and shows no numbers. The overlay STAYS UP: the child closes it with
    *     "Done", and "Play again" works inside it.
    *   - tunnel-cancel   → dismiss with no side effects
    *   - tunnel-override-reroll → a re-dig ("Re-dig tunnels" or "Play again").
@@ -2143,14 +2147,31 @@ export class GameScene extends Phaser.Scene {
           // and bump it. If a species hasn't arrived yet (e.g. kid is at
           // L4 but no hedgehog yet), it is reported as missing, not skipped
           // silently, so the card can say nobody gained anything for it.
-          const rescued = (payload as { animalsRescued?: string[] } | undefined)?.animalsRescued
-            ?? ['fox'];
-          const gains: Array<{ name: string; species: string; happiness: number; bond: number }> = [];
+          const rescued = (payload as { animalsRescued?: string[] } | undefined)
+            ?.animalsRescued ?? ['fox'];
+          const found: Array<{ idx: number; species: string }> = [];
           const missing: string[] = [];
           for (const species of rescued) {
-            const animal = this.store.animals.find((a) => a.species === (species as Species));
-            if (!animal) { missing.push(species); continue; }
-            const idx = this.store.animals.findIndex((a) => a.id === animal.id);
+            const idx = this.store.animals.findIndex((a) => a.species === (species as Species));
+            if (idx < 0) { missing.push(species); continue; }
+            found.push({ idx, species });
+          }
+          // Happiness and bond are given for the first TUNNEL_REWARDED_WINS_PER_DAY
+          // wins of the UTC day (the day the daily seed and the paid digs use).
+          // A win that finds nobody at the centre is not counted: it gave
+          // nothing, so it should not use one up. After the cap the win is
+          // still a win and the card says the animals enjoyed the play,
+          // without numbers, so `capped` is sent and the gains are not.
+          const win = found.length > 0
+            ? recordTunnelWin(this.store.tunnelWins, tunnelDayKey(new Date()))
+            : null;
+          if (win) this.store.tunnelWins = win.wins;
+          const gains: Array<{ name: string; species: string; happiness: number; bond: number }> = [];
+          const played: Array<{ name: string; species: string }> = [];
+          for (const { idx, species } of found) {
+            const animal = this.store.animals[idx];
+            played.push({ name: animal.name, species });
+            if (!win?.rewarded) continue;
             const current = typeof animal.happiness === 'number' ? animal.happiness : 0;
             const happiness = Math.min(100, current + 8);
             const bondLevel = Math.min(100, animal.bondLevel + 3);
@@ -2165,8 +2186,12 @@ export class GameScene extends Phaser.Scene {
               bond: Math.round(bondLevel - animal.bondLevel),
             });
           }
-          if (gains.length > 0) this.saveState();
-          postToInGame('complete-result', { gains, missing });
+          if (win) this.saveState();
+          if (win && !win.rewarded) {
+            postToInGame('complete-result', { gains: [], missing: [], capped: true, played });
+          } else {
+            postToInGame('complete-result', { gains, missing });
+          }
           return;
         }
         if (action === 'tunnel-override-reroll') {

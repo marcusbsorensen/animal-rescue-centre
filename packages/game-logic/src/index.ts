@@ -491,6 +491,16 @@ export {
 } from './tunnel-digs';
 export type { TunnelDigs, DigOutcome as TunnelDigOutcome } from './tunnel-digs';
 
+export {
+  REWARDED_WINS_PER_DAY as TUNNEL_REWARDED_WINS_PER_DAY,
+  normaliseTunnelWins,
+  rewardedWinsToday as tunnelRewardedWinsToday,
+  rewardedWinsLeft as tunnelRewardedWinsLeft,
+  recordWin as recordTunnelWin,
+  mergeTunnelWins,
+} from './tunnel-wins';
+export type { TunnelWins, WinOutcome as TunnelWinOutcome } from './tunnel-wins';
+
 export { mergeSaveState } from './merge-save';
 export type { MergeResult, MergeLevels } from './merge-save';
 

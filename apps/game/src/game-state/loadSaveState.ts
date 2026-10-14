@@ -18,6 +18,7 @@ import {
   startRealDay,
   normalisePlayedDays,
   normaliseTunnelDigs,
+  normaliseTunnelWins,
   relationshipsFromSiblingIds,
   createTimeProgress,
   generateDailyWeather,
@@ -312,6 +313,7 @@ function applySavedState(
   if (Array.isArray(saved.playedDays)) store.playedDays = normalisePlayedDays(saved.playedDays);
   // Absent from a save written before the tunnel paid by the day: keep what the store has.
   if ('tunnelDigs' in saved) store.tunnelDigs = normaliseTunnelDigs(saved.tunnelDigs);
+  if ('tunnelWins' in saved) store.tunnelWins = normaliseTunnelWins(saved.tunnelWins);
   if (saved.sickAnimals && typeof saved.sickAnimals === 'object') {
     store.sickAnimals = new Map(Object.entries(saved.sickAnimals as Record<string, IllnessDef>));
   }
@@ -506,6 +508,7 @@ function snapshot(store: GameStateStore): Record<string, unknown> {
     walksWithoutIncident: store.walksWithoutIncident,
     playedDays: store.playedDays,
     tunnelDigs: store.tunnelDigs,
+    tunnelWins: store.tunnelWins,
     sickAnimals: Object.fromEntries(store.sickAnimals),
     calendar: store.calendar,
     depot: store.depot,

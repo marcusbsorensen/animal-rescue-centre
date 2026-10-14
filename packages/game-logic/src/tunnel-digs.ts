@@ -58,8 +58,11 @@ export function tunnelDailySeed(now: Date): number {
   return (now.getUTCFullYear() * 10000 + (now.getUTCMonth() + 1) * 100 + now.getUTCDate()) >>> 0;
 }
 
-/** True for a real calendar day written YYYY-MM-DD ("2026-02-30" is not one). */
-function isDayKey(value: unknown): value is string {
+/**
+ * True for a real calendar day written YYYY-MM-DD ("2026-02-30" is not one).
+ * Shared with tunnel-wins, which keeps its own count against the same day.
+ */
+export function isTunnelDayKey(value: unknown): value is string {
   if (typeof value !== 'string' || !DAY_KEY.test(value)) return false;
   const [y, m, d] = value.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10) === value;
@@ -73,7 +76,7 @@ function isDayKey(value: unknown): value is string {
 export function normaliseTunnelDigs(value: unknown): TunnelDigs | null {
   if (!value || typeof value !== 'object') return null;
   const { day, paid } = value as Record<string, unknown>;
-  if (!isDayKey(day)) return null;
+  if (!isTunnelDayKey(day)) return null;
   if (typeof paid !== 'number' || !Number.isFinite(paid)) return null;
   return { day, paid: Math.max(0, Math.floor(paid)) };
 }

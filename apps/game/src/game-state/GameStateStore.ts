@@ -9,7 +9,7 @@ import type {
   TimeProgress,
   GardenWeather,
 } from '@arc/shared-types';
-import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward, CharmId, CharmUnlockEvent, CollectionCall, RewildedEntry, TunnelDigs } from '@arc/game-logic';
+import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward, CharmId, CharmUnlockEvent, CollectionCall, RewildedEntry, TunnelDigs, TunnelWins } from '@arc/game-logic';
 
 /**
  * GameStateStore — a plain container holding all mutable game state.
@@ -80,6 +80,15 @@ export class GameStateStore {
    * first dig, and on a save from before it was recorded.
    */
   tunnelDigs: TunnelDigs | null = null;
+
+  /**
+   * How many of the garden tunnel's wins have raised the animals' happiness
+   * and bond, and on which UTC day. Three a day, the same day and limit as
+   * the coins above; later wins still play and just do not add to the
+   * animals. See packages/game-logic tunnel-wins.ts. `null` until the first
+   * win, and on a save from before it was recorded.
+   */
+  tunnelWins: TunnelWins | null = null;
 
   /**
    * Gifts sent and claimed, as the server counts them (`rescue_stats`). The
