@@ -400,6 +400,37 @@
   .link-btn::after  { right: clamp(8px, 1.4cqw, 12px); }
   .link-btn:hover { transform: translateY(-2px) rotate(-1.5deg); }
 
+  /* A phone held sideways. The "Not yet" footer is pinned to the foot of the
+     screen while the families scroll under it, and a card here was 346-393px
+     tall (its 4:3 portrait the card's full width) against 286-330px of screen
+     above the footer: no card could ever be seen whole, the bottom of each
+     (the family's name and blurb) always under the footer, with any number of
+     families. The portrait goes beside the words, so a card is a third of the
+     screen and scrolls wholly clear of the footer. One column where two would
+     squeeze the words into a strip. */
+  @container office (max-height: 520px) {
+    .cards-grid { grid-template-columns: 1fr; }
+    .h-card {
+      display: grid;
+      grid-template-columns: clamp(104px, 34cqh, 150px) minmax(0, 1fr);
+      grid-template-areas: "pic name" "pic blurb";
+      grid-template-rows: auto 1fr;
+      column-gap: clamp(10px, 2cqw, 16px);
+      row-gap: 2px;
+      align-items: start;
+    }
+    .h-portrait { grid-area: pic; align-self: center; }
+    /* A portrait that failed to load keeps its emoji; its description, a
+       sentence in a box this small, would be cut off, and the family's name
+       and blurb are beside it. */
+    .h-portrait-fallback > :not(.ff-emoji) { display: none; }
+    .h-name { grid-area: name; margin-top: 0; padding-right: 22px; }
+    .h-blurb { grid-area: blurb; }
+  }
+  @container office (max-height: 520px) and (min-width: 800px) {
+    .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
   /* Narrow layout — iPhone */
   @container office (max-width: 420px) {
     .office-inner { gap: clamp(8px, 1.4cqh, 12px); padding: 10px; }
