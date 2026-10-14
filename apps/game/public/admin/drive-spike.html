@@ -1216,7 +1216,9 @@ function drawRoads(cx, cy, radius) {
   }
 }
 
-/** The guide line's points, world metres: the route ahead in her lane. */
+/** The guide line's points, world metres: the route ahead in her lane, each
+ *  with the kind of surface it lies on (road-paint.js's: main, worn, old or
+ *  track), which is what tints the line. */
 function guidePoints() {
   const ahead = 90, out = [];
   for (let d = 0; d <= ahead; d += 4) {
@@ -1224,7 +1226,7 @@ function guidePoints() {
     const nx = Math.cos(p.h + Math.PI / 2), ny = Math.sin(p.h + Math.PI / 2);
     const lane = car.laneWant === 1 || (car.peek && car.peekSafe && car.laneT > 0.02) ? 1 : 0;
     const off = d < 12 ? car.lane : laneOffset(lane, car.s + d);
-    out.push([p.x + nx * off, p.y + ny * off]);
+    out.push([p.x + nx * off, p.y + ny * off, roadPaint.surfaceFor(classAtS(Math.min(routeLen, car.s + d)))]);
   }
   return out;
 }
@@ -1244,7 +1246,7 @@ function canopyHoles(view, camX, camY, pos) {
     if ((fp.x - view.cx) ** 2 + (fp.y - view.cy) ** 2 < r2) body(fp.x, fp.y, fp.h, fp.L, fp.W, 0.7);
   }
   if (xing) for (const a of crossings.animals(xing, camH ?? pos.h)) body(a.x, a.y, a.h, a.len, a.wid, 0.6);
-  if (showGuide) holes.push({ pts: guidePoints(), w: dashboard.GUIDE.edgeW + 0.4 });
+  if (showGuide) holes.push({ pts: guidePoints(), w: dashboard.GUIDE.lineW + 0.4 });
   // A fingerpost: from its foot up through its boards, which stand above
   // it on the screen (trip-strip.js drawSigns lays them out in CSS px).
   for (const g of strip.signs ?? []) {
@@ -1260,15 +1262,23 @@ function canopyHoles(view, camX, camY, pos) {
 /** The line Lily's game draws from the car's nose along the route ahead. Ours
  *  is the route we already compute for the GPS, drawn instead of spoken. */
 function drawGuide() {
-  ctx.beginPath();
-  guidePoints().forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-  // Gold with a dark edge (dashboard.GUIDE): blue read as water once the real
-  // ditches and ponds were painted (Marcus, 2026-10-14), and the edge keeps it
-  // legible on a pale track.
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.globalAlpha = dashboard.GUIDE.edgeAlpha; ctx.strokeStyle = dashboard.GUIDE.edge; ctx.lineWidth = dashboard.GUIDE.edgeW; ctx.stroke();
-  ctx.globalAlpha = dashboard.GUIDE.lineAlpha; ctx.strokeStyle = dashboard.GUIDE.line; ctx.lineWidth = dashboard.GUIDE.lineW; ctx.stroke();
-  ctx.globalAlpha = 1;
+  const pts = guidePoints(), n = pts.length, G = dashboard.GUIDE;
+  // A hint, not a painted line (Marcus, 2026-10-14): one soft translucent gold
+  // band, no edge, tinted for the surface under it. Each run of one surface
+  // is a single stroke (so the alpha never doubles where it bends) with butt
+  // ends that meet at the shared point.
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'round'; ctx.lineWidth = G.lineW;
+  for (let a = 0; a < n - 1;) {
+    const surf = pts[a][2];
+    let b = a + 1;
+    while (b < n && pts[b][2] === surf) b++;
+    const [colour, alpha] = G.tint[surf] ?? G.tint.old;
+    ctx.beginPath();
+    for (let k = a; k <= Math.min(b, n - 1); k++) (k === a ? ctx.moveTo : ctx.lineTo).call(ctx, pts[k][0], pts[k][1]);
+    ctx.globalAlpha = alpha; ctx.strokeStyle = colour; ctx.stroke();
+    a = b;
+  }
+  ctx.globalAlpha = 1; ctx.lineCap = 'round';   // as it was left for what draws next
 }
 
 /** While she pokes out to look (37A): a small round sign by the centre

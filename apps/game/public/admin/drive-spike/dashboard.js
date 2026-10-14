@@ -227,19 +227,32 @@ const GEAR_WIN = { port: 44, land: 42 };   // the gear number's window, wide
 
 const INK = '#2e1108';                   // the painting's outline brown
 
-/** The guide line's colours, one for "your way" everywhere it is drawn: the
- *  road view's line (the page), the GPS's route and the switch's face.
+/** The guide line's colours, one gold for "your way" everywhere it is drawn:
+ *  the road view's line (the page), the GPS's route and the switch's face.
  *  Marcus, 2026-10-14: gold, as the blue now reads as water (69A painted the
- *  real ditches and ponds blue). A saturated yellow gold, further from the
+ *  real ditches and ponds blue); a saturated yellow gold, further from the
  *  beige of the dust and the farm tracks and the amber of the animals' glow
- *  than an orange one, and with a dark brown edge, which is what lets it read
- *  on a pale track where gold on sand has no contrast of its own.
- *  Marcus, 2026-10-14 (79A): the line did not stand out from village lanes,
- *  tarmac and houses, so the edge is widened and darkened and the gold drawn
- *  at full strength. lineW and edgeW are metres across the road view (the
- *  GPS draws the same ratio in px); the aim is that the larger of gold-against-
- *  ground and edge-against-ground is at least 3:1 along the whole of a route. */
-export const GUIDE = { line: '#f4c20d', edge: '#1c1104', edgeAlpha: 0.95, lineW: 0.85, edgeW: 1.5, lineAlpha: 1 };
+ *  than an orange one.
+ *  Marcus, 2026-10-14, after 79A (which gave it a dark edge): "way too
+ *  imposing on the screen ... looks like a kind of single or double yellow
+ *  line that prohibits parking ... it definitely shouldn't have those black
+ *  outlines ... more transparent ... just a hint". So on the road it is one
+ *  soft translucent band, no edge: `lineW` metres across, at the alpha and
+ *  colour of the surface under it (`tint`, by road-paint.js's surfaceFor():
+ *  a little lighter on dark tarmac, deeper and warmer on a pale earth
+ *  track), so it stays just visible on each. The GPS is a small pale map, so
+ *  its route takes the deeper gold at a higher alpha (`map`, `mapW` px);
+ *  the switch's face keeps `line`. */
+export const GUIDE = {
+  line: '#f4c20d', lineW: 1.3,
+  tint: {
+    main: ['#ffd84a', 0.46],    // the A28 and the B roads' dark, new tarmac
+    worn: ['#fbcb2c', 0.44],    // tertiary lanes
+    old: ['#f6c60f', 0.42],     // village lanes and estate roads: greyer, paler
+    track: ['#d98a00', 0.5],    // a farm track's pale earth
+  },
+  map: '#e0a000', mapAlpha: 0.85, mapW: 3,
+};
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 const FONT = '"Arial Rounded MT Bold", "Nunito", system-ui, sans-serif';
 
@@ -1025,8 +1038,8 @@ function drawGps(g, L, s) {
     g.strokeStyle = 'rgba(120,110,100,.55)'; g.lineWidth = 2.4 / ppm; g.stroke();
     g.beginPath(); g.moveTo(s.x, s.y);
     for (let j = i; j < pts.length; j++) g.lineTo(pts[j].x, pts[j].y);
-    g.globalAlpha = GUIDE.edgeAlpha; g.strokeStyle = GUIDE.edge; g.lineWidth = 3 * GUIDE.edgeW / GUIDE.lineW / ppm; g.stroke();
-    g.globalAlpha = 1; g.strokeStyle = GUIDE.line; g.lineWidth = 3 / ppm; g.stroke();
+    g.globalAlpha = GUIDE.mapAlpha; g.strokeStyle = GUIDE.map; g.lineWidth = GUIDE.mapW / ppm; g.stroke();
+    g.globalAlpha = 1;
     const end = pts[pts.length - 1];
     circle(g, end.x, end.y, 4.2 / ppm);
     g.fillStyle = '#8c3044'; g.fill(); g.lineWidth = 1.3 / ppm; g.strokeStyle = '#fffcf6'; g.stroke();
@@ -1277,7 +1290,6 @@ function drawGuideSwitch(g, G, on) {
     g.beginPath(); g.moveTo(cx, foot - fr * 0.08); g.lineTo(cx, headBase + 1); g.stroke();
     g.beginPath(); g.moveTo(cx, headTop); g.lineTo(cx - hh, headBase); g.lineTo(cx + hh, headBase); g.closePath();
     g.fillStyle = GUIDE.line; g.fill();
-    g.lineWidth = 1; g.strokeStyle = GUIDE.edge; g.stroke();
   } else {
     g.strokeStyle = '#f2ead8'; g.lineWidth = Math.max(1.4, fr * 0.1); g.setLineDash([fr * 0.2, fr * 0.22]);
     g.beginPath(); g.moveTo(cx, foot - fr * 0.06); g.lineTo(cx, top + fr * 0.06); g.stroke();

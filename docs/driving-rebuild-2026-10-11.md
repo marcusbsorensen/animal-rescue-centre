@@ -48,15 +48,46 @@ older one finds it babyish. Marcus's idea, and it is better than the
 reference. The route it draws is the one the GPS already computes. The switch
 is on the driving screen itself, a brass knob on the dashboard beside the GPS,
 on by default and remembered on the device (Marcus, 2026-10-11: the game has
-no settings screen). Its colour is gold, with a dark brown edge, on the road,
-on the GPS's route and on the switch's face, so "your way" is one colour
-(Marcus, 2026-10-14: the blue had begun to read as water, since 69A painted
-the real ditches and ponds blue). It is a saturated yellow gold, further from
-the beige of the dust and the sand-coloured farm tracks and from the amber
-glow of the crossing animals than an orange one; the edge is what makes it
-read on a pale track. Defined once, as `GUIDE` in `drive-spike/dashboard.js`.
+no settings screen). Its colour is gold on the road, on the GPS's route and
+on the switch's face, so "your way" is one colour (Marcus, 2026-10-14: the
+blue had begun to read as water, since 69A painted the real ditches and ponds
+blue). It is a saturated yellow gold, further from the beige of the dust and
+the sand-coloured farm tracks and from the amber glow of the crossing animals
+than an orange one. On the road it is a soft translucent hint, tinted for the
+surface (below, which supersedes the dark edge and 79A). Defined once, as
+`GUIDE` in `drive-spike/dashboard.js`.
 
-*The edge, widened and darkened (Marcus, 2026-10-14, 79A).* The line did not
+*A hint, not a painted line (Marcus, 2026-10-14, supersedes 79A).* Of the
+dark-edged line below: "way too imposing on the screen and looks like a kind
+of single or double yellow line that prohibits parking. So it's okay for it to
+be more subtle and we can always adjust the colour and tint of it slightly
+depending on the road surface. But it definitely shouldn't have those black
+outlines. And it should be more transparent than that. It's just a hint." The
+dark edge is gone everywhere: `GUIDE.edge`, `edgeAlpha`, `edgeW` and
+`lineAlpha` no longer exist, nor does the outline on the switch's arrow. On the
+road the line is now one soft band, a single stroke 1.3 m across (it was 0.85 m
+of gold in a 1.5 m edge) at 42-50% opacity by surface. Where the road changes
+surface within the 90 m ahead, each run is its own stroke with butt ends that
+meet at a shared point, so the alpha never doubles at a bend or a join. The
+tint follows `roadPaint.surfaceFor()`, the family the road is painted in:
+
+| surface | roads | colour, opacity |
+|---|---|---|
+| main (dark new tarmac) | the A28, secondary | `#ffd84a`, 46% (a little lighter) |
+| worn | tertiary | `#fbcb2c`, 44% |
+| old (greyer, paler) | village lanes, estate roads, crossings | `#f6c60f`, 42% |
+| track (pale earth) | farm tracks | `#d98a00`, 50% (deeper, warmer) |
+
+The GPS's route is a small pale map, so it keeps a stronger line: one 3 px
+stroke of the deeper gold `#e0a000` at 85%, with no edge. The switch's arrow is
+the plain gold. The canopy still fades over the line (the hole is the band's
+width plus 0.4 m). Screenshots at 390x844 of the line on tarmac, a village
+lane, a farm track, beside a ditch and under canopy, and the mini-map, before
+and after, were checked by eye in autumn and summer; the pale summer track is the
+case the deeper gold is for.
+
+*The edge, widened and darkened (Marcus, 2026-10-14, 79A; replaced by the
+paragraph above, kept for the record).* The line did not
 stand out from village lanes, tarmac and houses (gold against the ground was
 about 1.8:1 there, and the edge about 2.2:1). The edge is now a near-black brown,
 `#1c1104` at 95%, 1.5 m wide round the 0.85 m line (it was `#3a2606` at 72%,
@@ -809,8 +840,8 @@ rest of the trees stay under the traffic, as before.
 faded round the van, every vehicle, every animal waiting or crossing
 (`crossings.animals()`'s boxes), the gold guide line for its 90 m ahead and
 every fingerpost (its foot and boards): each is a line through world points
-with its own width (a body's width plus 0.6-0.7 m; the guide line's dark
-edge plus 0.4 m), and the canopy keeps 12% at most over it (`OVER_KEEP`),
+with its own width (a body's width plus 0.6-0.7 m; the guide line's band
+plus 0.4 m, so 1.7 m), and the canopy keeps 12% at most over it (`OVER_KEEP`),
 rising smoothly to full over 1.4 m in nine steps. It is all in world metres
 from positions that move smoothly, so it holds still and never flickers.
 The A28's traffic at Trikey's crossings is not faded round, because no crown
