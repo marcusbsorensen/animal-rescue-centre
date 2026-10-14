@@ -207,21 +207,9 @@
   .adopt-plaque::before { left: 12px; }
   .adopt-plaque::after  { right: 12px; }
 
-  .adopt-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(26px, 4.4cqh, 38px);
-    letter-spacing: 0.02em;
-    text-align: center;
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
-    line-height: 1.1;
-    margin-bottom: clamp(4px, 0.8cqh, 8px);
-  }
+  /* The title's style (white on a darker plank, larger) is shared by every story board
+     and lives in _story-title.css; only the space under it is set here. */
+  .adopt-title { margin-bottom: clamp(4px, 0.8cqh, 8px); }
   .adopt-subtitle {
     font-family: 'Caveat', 'Kalam', cursive;
     font-style: italic;
@@ -593,7 +581,6 @@
   /* Narrow layout — iPhone */
   @container adopt (max-width: 420px) {
     .adopt-inner { gap: clamp(6px, 1.2cqh, 10px); padding: 10px; }
-    .adopt-title { font-size: clamp(22px, 3.8cqh, 28px); }
     .portrait-frame { max-width: clamp(110px, 32cqw, 160px); }
     .meet-connector { min-width: clamp(44px, 12cqw, 70px); }
     .gift-label { font-size: clamp(var(--fs-floor), 1.6cqh, 16px); }
@@ -640,7 +627,7 @@
     html .adopt .adopt-inner { padding-block: clamp(6px, 1.8cqh, 12px); }
     .adopt .adopt-plaque { padding: clamp(8px, 2.2cqh, 12px) clamp(12px, 2.4cqw, 20px) clamp(10px, 2.6cqh, 14px); }
     .adopt .adopt-plaque::before, .adopt .adopt-plaque::after { top: 6px; }
-    .adopt .adopt-title { font-size: clamp(22px, 5.8cqh, 30px); margin-bottom: 2px; }
+    .adopt .adopt-title { margin-bottom: 2px; }
     .adopt .adopt-subtitle { font-size: clamp(16px, 4.4cqh, 20px); line-height: 1.15; margin-bottom: clamp(4px, 1.4cqh, 8px); }
     .adopt .portrait-row { padding: 0 0 clamp(2px, 0.8cqh, 6px); gap: clamp(4px, 1cqw, 10px); }
     /* Both pictures the same size: a fixed share of the height, 4:3. */
@@ -665,6 +652,18 @@
     /* The sentence wraps inside the column rather than running off the screen. */
     .adopt .secondary-row { width: 100%; max-width: 440px; }
     .adopt .link-btn { max-width: 100%; white-space: normal; text-align: center; line-height: 1.15; padding: 6px clamp(12px, 2.4cqw, 20px); font-size: clamp(17px, 3.6cqh, 20px); }
+  }
+
+  /* The smallest sideways phone (667px wide). The title is 27px there (_story-title.css) and
+     29 letters of it are ~405px, so it takes two lines in the plaque's 329px, which the plaque
+     had no height for: 32px of scroll. The plaque takes a little more of the width (1.8 parts in
+     2.8 instead of 1.5 in 2.5, with 10px at the sides and between the columns), so the subtitle
+     and the scroll take fewer lines, and the title's plank and the scroll sit a little closer to
+     their neighbours. The gifts and the buttons keep 228px. */
+  @container adopt (min-aspect-ratio: 6/5) and (max-width: 700px) {
+    html .adopt .adopt-inner { grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); column-gap: 10px; padding-inline: 10px; }
+    .adopt .adopt-title { line-height: 1; padding-block: 0.04em 0.08em; }
+    .adopt .scroll-card { margin-top: 6px; padding-bottom: 12px; }
   }
 
   /* Vertical scroll on desktop + iPad L — content stack is taller than
@@ -730,6 +729,7 @@
   }
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 

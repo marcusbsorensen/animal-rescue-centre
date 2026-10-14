@@ -4,8 +4,9 @@
  * Linked by every story screen, after its own <style>, so it wins on document
  * order (the same arrangement as `_signpost-physics.css` and
  * `_short-landscape.css`): conflict, vet, arrival, visitor, rewilding, badge,
- * paths and adopters. The ceremony page and the adoption office carry the old
- * gold title until they join the list (selectors at the foot of the rule).
+ * paths, adopters, the adoption ceremony and the adoption office (ten). A page that
+ * sizes its title with a more specific selector (the ceremony's landscape
+ * phone rules) leaves the size to this sheet.
  *
  * Marcus, 2026-10-14 (125A): "the title on the wooden board is not contrasty
  * enough perhaps because of the drop-shadow. Can we make that title white,
@@ -13,7 +14,7 @@
  * for kids to rapidly read, accompanying the picture of the matching animal(s),
  * and then they will have recognition through repetition of what the buttons
  * mean." And, choosing 126A, the same on visitor, rewilding, badge, paths and
- * adopters.
+ * adopters, and then on the adoption ceremony and the adoption office.
  *
  * One style for every story board, here and nowhere else (each page's own
  * copy of the old title, a gold gradient with a 2px dark stroke and a soft
@@ -31,8 +32,10 @@
  * THE WOOD BEHIND IT. White on the boards' own honey wood (#c49464 down to
  * #8b5822) measures 2.6-3.4:1 on the pixels behind the letters, whatever the
  * shadow, so the title sits on a darker plank of the same wood: 7.1-8.3:1 on
- * those pixels (WCAG contrast; 4.5:1 is the aim), measured on all eight screens
- * at 667x375, 844x390, 852x393, 932x430, 1024x768 and 1180x820. The two screens whose title
+ * those pixels (WCAG contrast; 4.5:1 is the aim), measured on all ten screens
+ * at 667x375, 844x390, 852x393, 932x430, 1024x768 and 1180x820: 5th percentile
+ * 7.4 or better, and 4.6 at the worst single pixel (the ceremony's plank at
+ * 667x375, which is trimmed to fit). The two screens whose title
  * heads a row, beside a portrait or the Back button (paths, adopters), set it
  * at the left of that row instead of the middle of the board.
  */
@@ -42,7 +45,9 @@
 .farewell-title,
 .badge-title,
 .paths-title,
-.adopters-title {
+.adopters-title,
+.adopt-title,
+.banner-title {
   font-family: var(--sign-title-font);
   font-weight: 700;
   font-size: clamp(26px, min(7.2cqh, 8cqw), 36px);
@@ -70,7 +75,8 @@
 
 /* a title that heads a row, by a portrait or a button: at the row's left, not centred */
 .paths-title,
-.adopters-title {
+.adopters-title,
+.banner-title {
   margin-inline: 0;
   text-align: left;
 }

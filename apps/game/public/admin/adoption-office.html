@@ -194,19 +194,8 @@
     gap: clamp(2px, 0.4cqh, 4px);
     min-width: 0;
   }
-  .banner-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    font-size: clamp(20px, 3.6cqh, 30px);
-    letter-spacing: 0.02em;
-    line-height: 1.1;
-    background: linear-gradient(180deg, #ffe08a 0%, #f5b63a 55%, #c78c1a 100%);
-    -webkit-background-clip: text; background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(45, 25, 8, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(45,25,8,0.5));
-  }
+  /* The title's style (white on a darker plank, larger) is shared by every story board
+     and lives in _story-title.css; here it sits at the left of the banner, by the animal. */
   .banner-subtitle {
     font-family: 'Caveat', 'Kalam', cursive;
     font-style: italic;
@@ -415,7 +404,6 @@
   /* Narrow layout — iPhone */
   @container office (max-width: 420px) {
     .office-inner { gap: clamp(8px, 1.4cqh, 12px); padding: 10px; }
-    .banner-title { font-size: clamp(18px, 3cqh, 22px); }
     .h-name { font-size: clamp(var(--fs-floor), 2.2cqh, 17px); }
   }
 
@@ -457,6 +445,7 @@
   }
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
