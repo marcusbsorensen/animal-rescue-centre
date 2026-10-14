@@ -29,7 +29,9 @@
 // hops and pauses, a hedgehog shuffles, stops, sniffs and shuffles again, a
 // fox bounds. Where the painting does not exist yet, the old top-down shape
 // stands in, with the same gait and glow. The glow is a soft halo about
-// twice the animal's width (Marcus, 2026-10-12, 32A).
+// twice the animal's width (Marcus, 2026-10-12, 32A). Marcus, 2026-10-13: each
+// stands with its feet on a soft shadow sized to it, and the glow is light
+// on the road round that shadow, thin enough to see the tarmac through.
 //
 // Where. Every small-road edge of the graph is a candidate, and a hash of its
 // midpoint's position decides whether it has a crossing, so a place has the
@@ -272,7 +274,7 @@ const GAIT = {
   hedgehog: { type: 'shuffle', speed: 1.1, stride: 0.75, move: 0.55 },
   rabbit:   { type: 'hop', speed: 1.7, stride: 1.05, move: 0.42, lift: 0.42, squash: 0.2, pitch: 0.22 },
   fox:      { type: 'hop', speed: 3.0, stride: 1.9, move: 0.82, lift: 0.3, squash: 0.08, pitch: 0.14 },
-  deer:     { type: 'hop', speed: 4.2, stride: 3.6, move: 0.86, lift: 0.75, squash: 0.08, pitch: 0.2, most: 3 },
+  deer:     { type: 'hop', speed: 4.2, stride: 3.6, move: 0.86, lift: 0.3, squash: 0.08, pitch: 0.2, most: 3 },
   pheasant: { type: 'strut', speed: 1.3, stride: 1.3, move: 0.45, run: 2.2 },
   duck:     { type: 'waddle', speed: 1.0, rock: 0.13, hz: 2.0 },
   duckling: { type: 'waddle', speed: 1.0, rock: 0.17, hz: 3.1 },
@@ -286,6 +288,18 @@ const WOBBLE_M = 0.12, FOLLOW_WOBBLE_M = 0.1;
  *  on the road under its feet, about twice as wide as the animal (Marcus,
  *  2026-10-12, 32A). */
 const GLOW_RX = 1.0, GLOW_RY = 0.38;
+/** What the glow is made of (Marcus, 2026-10-13: "too bright, needs more
+ *  translucency... not so opaque it looks like sand on the road"): warm light
+ *  laid on the road with the screen blend, which brightens the tarmac and
+ *  leaves its grain showing, at this share of full strength. */
+const GLOW_BLEND = 'screen', GLOW_PEAK = 0.9;
+/** The shadow each painted animal stands on, from its painting's feet: as long
+ *  as the feet are far apart, a little more (SHADOW_LEN), never less than
+ *  SHADOW_MIN of its width, as deep as SHADOW_DEPTH of that, and the feet
+ *  stand SHADOW_SEAT of the shadow's half depth above its middle. In the air
+ *  it keeps to the ground, a little smaller and paler. */
+const SHADOW_LEN = 1.25, SHADOW_MIN = 0.62, SHADOW_DEPTH = 0.16, SHADOW_SEAT = 0.45;
+const SHADOW_AIR_M = 0.28, SHADOW_AIR_SMALL = 0.18, SHADOW_AIR_PALE = 0.3;
 
 // ------------------------------------------------------------ deterministic
 
@@ -1122,6 +1136,7 @@ function fitOf(a, e) {
 
 /** The extra edge, so a painted animal parts from the tarmac: a warm dark
  *  hairline, about half a css px at the lane zoom, under its own line. */
+const FOOT_BAND = 0.07;
 const HAIR_INK = '#2e2016';
 const SPRITE_PPM = 80;
 const HAIR_PX = 1.4, PAD_PX = 3;
@@ -1137,12 +1152,21 @@ function measure(e, img) {
   g.drawImage(img, 0, 0);
   const px = g.getImageData(0, 0, W, H).data;
   let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  const low = new Int16Array(W).fill(-1);       // each column's lowest painted row
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (px[(y * W + x) * 4 + 3] < 24) continue;
     if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    low[x] = y;
   }
   if (x1 < 0) throw new Error('empty');
   Object.assign(e, { bx: x0, by: y0, bw: x1 - x0 + 1, bh: y1 - y0 + 1 });
+  // Where it stands: the columns whose lowest row is within FOOT_BAND of the
+  // painting's lowest are its feet (a foot lifted mid-step is further up and
+  // left out). drop is how far the feet's mean row is above the lowest, and
+  // fa to fb the feet's reach along the painting, both as shares of it.
+  let nf = 0, sum = 0, fa = x1, fb = x0;
+  for (let x = x0; x <= x1; x++) if (low[x] >= y1 - FOOT_BAND * e.bh) { nf++; sum += low[x]; if (x < fa) fa = x; fb = x; }
+  Object.assign(e, { drop: (y1 - sum / nf) / e.bh, fa: (fa - x0) / e.bw, fb: (fb + 1 - x0) / e.bw });
   const fit = fitOf({ kind: e.kind }, e);
   const dw = Math.round(fit.w * SPRITE_PPM), dh = Math.round(fit.h * SPRITE_PPM);
   const cw = dw + 2 * PAD_PX, ch = dh + 2 * PAD_PX;
@@ -1162,20 +1186,19 @@ function measure(e, img) {
   e.baked = out;
 }
 
-/** The glow, baked once: a soft halo, warm and bright in the middle and
- *  feathering out through amber to nothing, with no ring in it; the amber
- *  still reads on a snowy verge. Drawn squashed to an ellipse. */
+/** The glow, baked once at full strength: warm gold in the middle, easing
+ *  out through amber to nothing in a long soft fall with no ring in it. It
+ *  is drawn at GLOW_PEAK of this, squashed to an ellipse. */
 let GLOW = null;
 function glowSprite() {
   if (GLOW || typeof document === 'undefined') return GLOW;
   const n = 128, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
   const g = cv.getContext('2d'), gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
-  gr.addColorStop(0, 'rgba(255,226,144,.92)');
-  gr.addColorStop(0.35, 'rgba(255,212,118,.84)');
-  gr.addColorStop(0.6, 'rgba(250,186,92,.64)');
-  gr.addColorStop(0.8, 'rgba(242,162,66,.36)');
-  gr.addColorStop(0.92, 'rgba(238,150,58,.13)');
-  gr.addColorStop(1, 'rgba(238,150,58,0)');
+  gr.addColorStop(0, 'rgba(255,192,76,1)');
+  gr.addColorStop(0.4, 'rgba(255,192,76,.95)');
+  gr.addColorStop(0.62, 'rgba(250,180,64,.68)');
+  gr.addColorStop(0.82, 'rgba(244,164,52,.28)');
+  gr.addColorStop(1, 'rgba(240,150,44,0)');
   g.fillStyle = gr; g.fillRect(0, 0, n, n);
   return (GLOW = cv);
 }
@@ -1236,39 +1259,67 @@ export function draw(ctx, xing, view) {
     if ((c.x - view.cx) ** 2 + (c.y - view.cy) ** 2 > r2) continue;
     const shown = [];
     for (const a of c.party) if (a.alpha > 0) shown.push([a, pose(c, a, xing.t, view.camH)]);
-    for (const [a, p] of shown) drawGround(ctx, a, p, view);
+    for (const [a, p] of shown) drawGlow(ctx, a, p, view);
+    for (const [a, p] of shown) drawShadow(ctx, a, p, view);
     shown.sort((A, B) => B[1].up - A[1].up);
     for (const [a, p] of shown) drawBody(ctx, a, p, view);
   }
 }
 
-/** The glow and the shadow on the road under an animal. */
-function drawGround(ctx, a, p, view) {
+/** The glow: warm light on the road round the animal. Every glow goes down
+ *  before any shadow, so no glow lightens a shadow. */
+function drawGlow(ctx, a, p, view) {
   const glow = glowSprite();
-  const k = glowAlpha(p.V) * p.fade * a.alpha;
-  if (glow && k > 0.01) {
-    ctx.save();
-    ctx.translate(p.fx, p.fy);
-    ctx.rotate(p.art ? view.camH + Math.PI / 2 : p.h);
-    ctx.globalAlpha = k;
-    ctx.drawImage(glow, -p.gx, -p.gy, 2 * p.gx, 2 * p.gy);
-    ctx.restore();
-  }
-  // The shadow (Marcus, 2026-10-12: "so it doesn't look like they are
-  // floating"). Two parts, both on the road under the feet, never lifted
-  // with a hop: a short soft cast shadow from the feet along the world's
-  // sun, as the hedges' and the vans' fall, and a small darker contact
-  // shadow where it stands. In the air the contact shadow shrinks and
-  // pales, so the gap under a hopping rabbit or a bounding deer shows.
+  const k = GLOW_PEAK * glowAlpha(p.V) * p.fade * a.alpha;
+  if (!glow || k < 0.01) return;
+  ctx.save();
+  ctx.translate(p.fx, p.fy);
+  ctx.rotate(p.art ? view.camH + Math.PI / 2 : p.h);
+  ctx.globalCompositeOperation = GLOW_BLEND;
+  ctx.globalAlpha = k;
+  ctx.drawImage(glow, -p.gx, -p.gy, 2 * p.gx, 2 * p.gy);
+  ctx.restore();
+}
+
+/** The shadow on the road under an animal's feet (Marcus, 2026-10-12: "so it
+ *  doesn't look like they are floating"; 2026-10-13: bigger, in proportion
+ *  to the animal, and the feet touching it). A painted animal's is one soft
+ *  ellipse, sized and seated from where its painting's feet are (measure),
+ *  square to the screen like the painting. It stays on the ground when the
+ *  animal hops, a little smaller and paler, so the gap under it shows but
+ *  never as a different animal's shadow. */
+function drawShadow(ctx, a, p, view) {
   const shade = contactSprite();
   if (!shade) return;
+  const e = p.art;
+  if (e) {
+    if (e.fb === undefined) return;     // still loading
+    const u = Math.min(1, Math.max(0, p.V.lift) / (SHADOW_AIR_M * p.w));
+    const len = Math.max(SHADOW_LEN * (e.fb - e.fa), SHADOW_MIN) * p.w * (1 - SHADOW_AIR_SMALL * u);
+    const ry = len * SHADOW_DEPTH;
+    const ox = p.dir * ((e.fa + e.fb) / 2 - 0.5) * p.w;
+    const oy = SHADOW_SEAT * ry - e.drop * p.h;
+    // Never wider than the glow it sits in (smaller on the verge, where the glow is).
+    const rx = Math.min(len / 2, p.gx - Math.abs(ox));
+    if (rx <= 0) return;
+    ctx.save();
+    ctx.translate(p.fx, p.fy);
+    ctx.rotate(view.camH + Math.PI / 2);
+    ctx.globalAlpha = a.alpha * (1 - SHADOW_AIR_PALE * u);
+    ctx.drawImage(shade, ox - rx, oy - ry, 2 * rx, 2 * ry);
+    ctx.restore();
+    return;
+  }
+  // The stand-in, top down: a short soft cast shadow from the feet along the
+  // world's sun, as the hedges' and the vans' fall, and a small darker
+  // contact shadow where it stands; in the air the contact shadow shrinks and
+  // pales.
   const air = Math.max(0, p.V.lift);
   const sh = 1 / (1 + 3 * air), dark = a.alpha * (0.25 + 0.75 / (1 + 6 * air));
   const sl = Math.hypot(view.sun.x, view.sun.y), ux = view.sun.x / sl, uy = view.sun.y / sl;
   // How far the cast shadow reaches: a little of the animal's height.
-  const tall = p.art ? p.h : TOPDOWN[a.kind].hgt;
-  const reach = sl * tall * CAST_SHARE;
-  const wide = p.art ? p.w * 0.36 : TOPDOWN[a.kind].dw * 0.42;
+  const reach = sl * TOPDOWN[a.kind].hgt * CAST_SHARE;
+  const wide = TOPDOWN[a.kind].dw * 0.42;
   ctx.save();
   ctx.translate(p.fx + ux * reach / 2, p.fy + uy * reach / 2);
   ctx.rotate(Math.atan2(uy, ux));
@@ -1277,34 +1328,26 @@ function drawGround(ctx, a, p, view) {
   ctx.restore();
   ctx.save();
   ctx.translate(p.fx, p.fy);
-  if (p.art) {
-    // Square to the screen like the painting, flat along its feet.
-    ctx.rotate(view.camH + Math.PI / 2);
-    const rx = p.w * 0.46 * sh, ry = p.w * 0.12 * sh;
-    ctx.globalAlpha = dark;
-    ctx.drawImage(shade, -rx, -ry * 0.7, 2 * rx, 2 * ry);
-  } else {
-    const sp = TOPDOWN[a.kind];
-    ctx.rotate(p.h);
-    const rx = sp.dl * 0.42 * sh, ry = sp.dw * 0.38 * sh;
-    ctx.globalAlpha = dark;
-    ctx.drawImage(shade, -rx, -ry, 2 * rx, 2 * ry);
-  }
+  const sp = TOPDOWN[a.kind];
+  ctx.rotate(p.h);
+  const rx = sp.dl * 0.42 * sh, ry = sp.dw * 0.38 * sh;
+  ctx.globalAlpha = dark;
+  ctx.drawImage(shade, -rx, -ry, 2 * rx, 2 * ry);
   ctx.restore();
 }
 
 /** The shadow's soft disc, baked once: dark in the middle where the animal
  *  touches the road, feathered to nothing at the rim; drawn squashed. The
- *  colour is the scenery's shadow, a little deeper. */
+ *  colour is the scenery's shadow (rgb 40,46,38), deeper where it touches. */
 const CAST_SHARE = 0.45;
 let SHADE = null;
 function contactSprite() {
   if (SHADE || typeof document === 'undefined') return SHADE;
   const n = 64, cv = document.createElement('canvas'); cv.width = n; cv.height = n;
   const g = cv.getContext('2d'), gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
-  gr.addColorStop(0, 'rgba(30,34,28,.62)');
-  gr.addColorStop(0.45, 'rgba(30,34,28,.48)');
-  gr.addColorStop(0.75, 'rgba(34,40,32,.2)');
+  gr.addColorStop(0, 'rgba(40,46,38,.66)');
+  gr.addColorStop(0.45, 'rgba(40,46,38,.52)');
+  gr.addColorStop(0.75, 'rgba(40,46,38,.22)');
   gr.addColorStop(1, 'rgba(40,46,38,0)');
   g.fillStyle = gr; g.fillRect(0, 0, n, n);
   return (SHADE = cv);

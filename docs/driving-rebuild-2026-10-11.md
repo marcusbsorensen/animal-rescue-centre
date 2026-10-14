@@ -325,7 +325,15 @@ stops itself, as it does for traffic. Never an accident.
 - On the A28's divided stretch her right-hand lane is hers to use; it was
   being refused near every bend as if it were the oncoming lane.
 - Each animal's shadow sits under its feet, with a small dark spot where it
-  touches the road; a hopping rabbit leaves it behind on the road.
+  touches the road; a hopping rabbit leaves it behind on the road. Marcus,
+  2026-10-13: the golden glow was too bright and sandy, and the deer floated
+  above a small shadow. Each painted animal now stands on one soft shadow
+  sized from its painting's feet (found from the picture's alpha: about as
+  long as the feet are far apart, a little more), its hooves, paws or feet on
+  the shadow's upper middle, and kept on the ground in a hop, a little smaller
+  and paler; the deer's bound is lower (0.3 m). The glow (32A: about twice the
+  animal's width, pulsing with the gait) is now light laid on the road with
+  the `screen` blend, round the shadow, thin enough to see the tarmac through.
 - Ducklings follow their mother across in a loose single file, never
   abreast.
 - The van stops about a van length short of a crossing animal (39A), so it
