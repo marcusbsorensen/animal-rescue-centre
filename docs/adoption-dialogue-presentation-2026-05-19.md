@@ -118,3 +118,30 @@ portraits**, waist-up, painted. That's the big cost. Options:
   faster to ship.
 - How long should a hand-over conversation be? Reference beats are
   ~4–6 lines. Suggest 3–4 for ARC to keep it snappy for an 8-year-old.
+
+## Update 2026-10-14: how it landed
+
+Marcus decided the polish (113A), kept Marnie as the warden (114A) and chose voices recorded by people (115B).
+What the running game does now, against the spec above:
+
+- **Portrait**: waist-up, 60% of the screen's height (the unit test allows 55-65%), standing on the end of the
+  dialogue box on the speaker's side with its lower edge behind the box's top edge, so no cut edge shows.
+  Full-figure adopters are cropped by a per-picture table, `tools/build-dialogue-framing.py` ->
+  `apps/game/src/ui/dialogue-framing.ts`. Priya's crop ends at her chair's arm rests: the chair's back and
+  handles show and the wheels are not sliced through. Groups with their arms out can be up to twice as wide as
+  tall, so a portrait is held to three quarters of the screen's width and gives up a little height instead.
+- **Backdrop**: a pale mist wash (a canvas texture drawn once, thicker at the top), not a dark dim.
+- **Name pill**: Marnie honey-amber, every guest soft blue, dashed border kept, in a darker tone of each so it
+  shows on the paler fill.
+- **Name highlights**: animal names deep green, person names deep amber (both at least 4.5:1 on the box).
+- **Choices** (demo only): reply pills sit on the far side of the speaker, above the box, so the speaker is
+  never covered.
+- **Resize**: a window resize no longer restarts GameScene while the conversation is up (the restart destroyed
+  the dialogue and dropped the adoption); the dialogue lays itself out again and the scene catches up when
+  the ceremony closes.
+- **Voice**: a beat plays its recording when one has shipped and stays silent when not.
+  See [`voice-recording-plan-2026-10-14.md`](voice-recording-plan-2026-10-14.md).
+
+Checked by `e2e/dialogue-demo.spec.ts` (the dev demo, at 844x390 and 1024x768) and
+`e2e/adoption-handover.spec.ts` (one real adoption at each size).
+
