@@ -340,11 +340,16 @@ describe('Privacy Audit: player names', () => {
   });
 
   it('the game shows other players by display name, and never asks for their login', () => {
-    for (const file of ['apps/game/src/lib/friends.ts', 'apps/game/src/lib/gifts.ts']) {
+    // The friends list comes from get-friends (146A), which reads the
+    // display name; the game reads gifts and the board itself.
+    for (const file of ['supabase/functions/get-friends/index.ts', 'apps/game/src/lib/gifts.ts']) {
       const src = read(file);
       expect(src, file).toContain('display_name');
       expect(src, file).not.toMatch(/\busername\b/);
     }
+    const friendsLib = read('apps/game/src/lib/friends.ts');
+    expect(friendsLib).toContain("invoke('get-friends'");
+    expect(friendsLib).not.toMatch(/\busername\b/);
     for (const file of ['apps/game/src/scenes/SocialScene.ts', 'apps/game/src/scenes/FriendsScene.ts']) {
       expect(read(file), file).not.toMatch(/\.username\b|fromUsername/);
     }
