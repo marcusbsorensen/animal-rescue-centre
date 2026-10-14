@@ -37,6 +37,9 @@
  * - **Days played** (playedDays): union. It is a set of days rather than a
  *   counter, because two devices that both open the game on one Tuesday
  *   would each add one and a counter would count Tuesday twice.
+ * - **Tunnel digs** (tunnelDigs): the later day wins, and on one day the
+ *   larger count. A day's paid re-digs are a small allowance, not a total to
+ *   add up; the coins they paid are merged by the economy's own rule.
  * - **Economy**: additive from base, floored at zero. A child who earned
  *   40 coins on the iPad and spent 60 on the phone should end up down 20,
  *   not up 40 or down 60 depending on which device saved last. Floored
@@ -64,6 +67,7 @@
  */
 
 import { mergePlayedDays } from './real-day';
+import { mergeTunnelDigs } from './tunnel-digs';
 
 type Save = Record<string, unknown>;
 
@@ -178,6 +182,8 @@ export function mergeSaveState(
       out[key] = unionByValue(mv, tv);
     } else if (key === 'playedDays') {
       out[key] = mergePlayedDays(mv, tv);
+    } else if (key === 'tunnelDigs') {
+      out[key] = mergeTunnelDigs(mv, tv);
     } else if (key === 'lastGrantCheckAt') {
       out[key] = Math.max(num(mv), num(tv)) || undefined;
     } else {

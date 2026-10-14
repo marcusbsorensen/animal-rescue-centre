@@ -9,7 +9,7 @@ import type {
   TimeProgress,
   GardenWeather,
 } from '@arc/shared-types';
-import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward, CharmId, CharmUnlockEvent, CollectionCall, RewildedEntry } from '@arc/game-logic';
+import type { IllnessDef, Conflict, ApprenticeEntry, ApprenticeUnlocks, GardenReturnEntry, GrantAward, CharmId, CharmUnlockEvent, CollectionCall, RewildedEntry, TunnelDigs } from '@arc/game-logic';
 
 /**
  * GameStateStore — a plain container holding all mutable game state.
@@ -72,6 +72,14 @@ export class GameStateStore {
    * Starts empty on a save from before it was recorded.
    */
   playedDays: string[] = [];
+
+  /**
+   * How many of the garden tunnel's coin-paying re-digs have been used, and
+   * on which UTC day (the day the tunnel's daily seed is made from). Three
+   * pay a day; see packages/game-logic tunnel-digs.ts. `null` until the
+   * first dig, and on a save from before it was recorded.
+   */
+  tunnelDigs: TunnelDigs | null = null;
 
   /**
    * Gifts sent and claimed, as the server counts them (`rescue_stats`). The

@@ -381,3 +381,41 @@ describe('generateTier5Puzzle (multi-animal)', () => {
     }
   });
 });
+
+describe('goal tiles', () => {
+  const GENERATORS = [
+    [1, generateTier1Puzzle, applyTier1Solution],
+    [2, generateTier2Puzzle, applyTier2Solution],
+    [3, generateTier3Puzzle, applyTier3Solution],
+    [4, generateTier4Puzzle, applyTier4Solution],
+    [5, generateTier5Puzzle, applyTier5Solution],
+  ] as const;
+
+  it('are fixed in every tier, so tapping the sticker cannot turn them', () => {
+    for (const [, gen] of GENERATORS) {
+      for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 42, 20261014]) {
+        const ends = gen(seed).tiles.filter((x) => x.type === 'habitat-endpoint' && x.endpointRole === 'end');
+        expect(ends.length).toBeGreaterThan(0);
+        for (const e of ends) {
+          expect(e.fixed).toBe(true);
+          expect(rotateTile(e).rotation).toBe(e.rotation);
+        }
+      }
+    }
+  });
+
+  it('cannot break a solved route when tapped', () => {
+    for (const [, gen, solve] of GENERATORS) {
+      for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 42, 20261014]) {
+        const solved = solve(gen(seed));
+        expect(isPuzzleSolved(solved)).toBe(true);
+        const tapped = {
+          ...solved,
+          tiles: solved.tiles.map((x) =>
+            x.type === 'habitat-endpoint' && x.endpointRole === 'end' ? rotateTile(x) : x),
+        };
+        expect(isPuzzleSolved(tapped)).toBe(true);
+      }
+    }
+  });
+});

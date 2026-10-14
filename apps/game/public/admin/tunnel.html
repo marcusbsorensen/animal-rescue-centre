@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>A.R.C. — Garden Tunnels</title>
+<link rel="icon" href="data:,"/>
 <script>
   // Iframe-context detection — flips html.iframed before first paint
   // so the design-preview chrome (vp-bar) is hidden in-game even if
@@ -69,6 +70,12 @@
     position: relative;
     transition: width 0.3s, height 0.3s;
     flex-shrink: 0;
+    /* A container query cannot restyle the container it asks about, and the
+       short-landscape layout below has to restyle .tunnel-scene itself. So the
+       frame around it is the thing asked. Same size as the scene (both are
+       100% of it in the game), so the numbers are the scene's. */
+    container-type: size;
+    container-name: tunnelframe;
   }
   .device[data-size="iphone"]    { width: 390px;  height: 844px; }
   .device[data-size="ipad-p"]    { width: 768px;  height: 1024px; }
@@ -125,7 +132,7 @@
      sit shoulder to shoulder at the top right. The group is right-anchored, so
      the extra width grows leftward into the header rather than pushing
      "Close ×" toward the edge. */
-  .header-buttons { display: flex; gap: 12px; }
+  .header-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
   .icon-btn {
     background: linear-gradient(180deg, #fff8e3 0%, #f4dba0 100%);
     border: 2px solid #8a5a2a; border-radius: 10px;
@@ -133,6 +140,7 @@
     font-family: var(--sign-font); font-weight: 700;
     font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
     padding: clamp(4px, 0.6cqh, 6px) clamp(8px, 1.4cqw, 12px);
+    white-space: nowrap;  /* "Close ×" was breaking onto two lines on a phone */
     cursor: pointer;
     box-shadow: 0 2px 0 rgba(120, 80, 30, 0.4);
     transition: transform 0.08s;
@@ -263,35 +271,49 @@
                           inset 0 0 14px 4px rgba(255, 220, 140, 0.6); }
   }
   @keyframes gate-tap-bob {
-    0%, 100% { transform: translate(-50%, 0); opacity: 1; }
-    50%      { transform: translate(-50%, -3px); opacity: 0.85; }
+    0%, 100% { transform: translate(-50%, -100%); }
+    50%      { transform: translate(-50%, calc(-100% - 3px)); }
   }
   .tile.tile-gate.shut {
     animation: gate-pulse-ring 1200ms ease-in-out infinite;
     z-index: 4; /* lift the ring above neighbouring tile edges */
   }
-  /* Tap-me label above each closed gate. Painted-feel sticker
-     style. Disappears once the gate is open or the board is locked. */
-  .tile.tile-gate.shut::before {
-    content: '👆 tap';
+  /* Tap-me label above each closed gate. It was a ::before on the tile, and
+     .tile is overflow:hidden, so a label sitting 22px ABOVE the tile was cut
+     off and never showed. It is now its own element on a layer over the grid
+     (built in renderGrid), so nothing clips it. 16px type, painted-sticker
+     style, a little pointer toward the gate. Gone once the gate is open or the
+     board is locked. */
+  .gate-label-layer {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 9;
+  }
+  .gate-label {
     position: absolute;
-    left: 50%; top: -22px;
-    transform: translate(-50%, 0);
+    transform: translate(-50%, -100%);
     background: #ff8a3d;
     color: #fffbe8;
     font-family: 'Fredoka', sans-serif;
     font-weight: 700;
     font-size: var(--fs-floor);
-    padding: 2px 8px;
+    line-height: 1.2;
+    padding: 2px 10px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    pointer-events: none;
     white-space: nowrap;
     animation: gate-tap-bob 900ms ease-in-out infinite;
-    z-index: 5;
+  }
+  .gate-label::after {
+    content: '';
+    position: absolute; left: 50%; bottom: -6px;
+    margin-left: -6px;
+    border: 6px solid transparent;
+    border-bottom: 0;
+    border-top-color: #ff8a3d;
   }
   body.locked .tile.tile-gate { animation: none; }
-  body.locked .tile.tile-gate.shut::before { display: none; }
+  body.locked .gate-label-layer { display: none; }
 
   /* QUICK! pause-time bonus button — bright orange, only one use
      per game. Disabled by default; enabled while an animal is mid-
@@ -300,9 +322,13 @@
     background: linear-gradient(180deg, #ff8a3d, #d84d10);
     color: #fffbe8;
     box-shadow: 0 3px 0 #8b3408, 0 6px 12px rgba(216, 77, 16, 0.35);
-    display: none;
+    /* Hidden, not display:none. When it appeared on the first hop it added a
+       line to the footer, the board's box shrank by up to 28px mid-run, and
+       .grid-wrap clipped the top and bottom rows. Keeping its place in the
+       layout means the footer is the same height before, during and after. */
+    visibility: hidden;
   }
-  body.locked.animating .btn-big.quick-fix:not(.used) { display: inline-block; }
+  body.locked.animating .btn-big.quick-fix:not(.used) { visibility: visible; }
   .btn-big.quick-fix:disabled, .btn-big.quick-fix.used {
     opacity: 0.45;
     cursor: not-allowed;
@@ -661,7 +687,101 @@
     font-size: clamp(16px, 2.4cqh, 20px);
     margin-bottom: 14px;
   }
-  .result-buttons { display: flex; gap: 8px; justify-content: center; }
+  /* 12px between adjacent tap targets, as .header-buttons and .tunnel-footer
+     already have (it was 8). Wraps rather than squeezing on a narrow card. */
+  .result-buttons { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .result-buttons .btn-big { flex: 1 1 140px; }
+
+  /* The win card's tick-stamp: the design doc's "tick-stamp + a satisfying
+     chime". It thuds onto the card a moment after the card appears. */
+  .result-stamp {
+    width: clamp(56px, 11cqh, 84px); height: clamp(56px, 11cqh, 84px);
+    margin: 0 auto 6px;
+    display: none;
+    transform: rotate(-8deg);
+  }
+  .result-card.win .result-stamp { display: block; animation: stamp-thud 520ms cubic-bezier(.2,.9,.3,1.2) 120ms both; }
+  .result-stamp svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.25)); }
+  @keyframes stamp-thud {
+    0%   { transform: scale(2.6) rotate(-24deg); opacity: 0; }
+    60%  { transform: scale(0.92) rotate(-6deg); opacity: 1; }
+    100% { transform: scale(1) rotate(-8deg); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .result-card.win .result-stamp { animation: none; }
+  }
+  .result-msg { white-space: pre-line; }
+
+  /* A short word from the page about what a re-dig paid. Shown for a few
+     seconds over the top of the board; the host's own toast is drawn on the
+     game canvas, which this page covers. */
+  .dig-toast {
+    position: absolute; left: 50%; top: 0;
+    transform: translateX(-50%);
+    max-width: min(92%, 420px);
+    background: rgba(74, 46, 20, 0.94);
+    color: #fffbe8;
+    font-family: 'Fredoka', sans-serif; font-weight: 600;
+    font-size: var(--fs-floor); line-height: 1.3;
+    text-align: center;
+    padding: 8px 14px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 40;
+    pointer-events: none;
+    opacity: 0; transition: opacity 250ms ease;
+  }
+  .dig-toast.show { opacity: 1; }
+
+
+  /* ── Narrow (a phone upright): title row, then the buttons row ─────────────
+     Beside three buttons (~240px) the title got a ~100px column, and the
+     subtitle wrapped to six or more lines, taking the height the board needed. */
+  @container tunnelframe (max-width: 520px) {
+    .tunnel-header { flex-wrap: wrap; row-gap: 6px; }
+    .tunnel-header > div:first-child { flex: 1 1 100%; }
+    .header-buttons { margin-left: auto; }
+  }
+
+  /* ── Short landscape (a phone on its side) ────────────────────────────────
+     The board is 13 rows. Stacked under a header and over a footer, a 360-390px
+     tall screen left it ~180px: the tile floor (28px) then made the grid taller
+     than its box and .grid-wrap (overflow:hidden) cut rows off both ends, so
+     starts and exits were out of reach. Here the header and buttons move to a
+     panel beside the board and the board takes the full height. The subtitle
+     is dropped (the Ready card says it); the buttons keep a 48px floor.
+     Keyed on the scene's own size, and kept to this file: the shared
+     _short-landscape.css has its own rules for the other screens. */
+  @container tunnelframe (max-height: 520px) and (min-width: 560px) {
+    .tunnel-scene {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(236px, 36%);
+      grid-template-rows: auto auto 1fr;
+      grid-template-areas: "board head" "board foot" "board .";
+      column-gap: 16px;
+      align-content: start;
+    }
+    .grid-wrap { grid-area: board; padding: 0; }
+    .tunnel-header {
+      grid-area: head;
+      flex-direction: column; align-items: stretch; justify-content: flex-start;
+      gap: 8px; padding: 0 0 8px;
+    }
+    .tunnel-subtitle { display: none; }
+    .tunnel-title { font-size: 20px; }
+    .header-buttons { flex-wrap: wrap; }
+    .tunnel-footer {
+      grid-area: foot;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      padding: 0;
+      align-self: start;
+    }
+    .tunnel-footer .btn-big {
+      max-width: none; min-height: 48px; flex: none;
+      padding-left: 8px; padding-right: 8px;   /* "Re-dig tunnels" fits one line in half the panel */
+    }
+    #btn-submit, #btn-quick { grid-column: 1 / -1; }
+  }
 
   .placeholder {
     flex: 1;
@@ -733,7 +853,7 @@
         <button class="btn-big" id="btn-submit">Send the animals!</button>
         <button class="btn-big secondary" id="btn-reset">Reset</button>
         <button class="btn-big tertiary" id="btn-reroll">Re-dig tunnels</button>
-        <button class="btn-big quick-fix" id="btn-quick" disabled>QUICK! ⏸ fix the tunnel</button>
+        <button class="btn-big quick-fix" id="btn-quick" disabled>QUICK! ⏸ fix it</button>
       </div>
 
       <!-- Ready? startup overlay — shown on every page load. Music
@@ -753,10 +873,19 @@
         </div>
       </div>
 
+      <div class="dig-toast" id="dig-toast" role="status" aria-live="polite"></div>
+
       <div class="result-overlay" id="result-overlay">
-        <div class="result-card">
-          <div class="result-title" id="result-title">Hooray!</div>
-          <div class="result-msg" id="result-msg">The fox got home!</div>
+        <div class="result-card" id="result-card">
+          <div class="result-stamp" id="result-stamp" aria-hidden="true">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="50" r="44" fill="#3a8528" stroke="#1f4d12" stroke-width="5"/>
+              <circle cx="50" cy="50" r="36" fill="none" stroke="#fffbe8" stroke-width="2.5" stroke-dasharray="3 4"/>
+              <path d="M28 52 L44 68 L73 34" fill="none" stroke="#fffbe8" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="result-title" id="result-title">Tunnels connected!</div>
+          <div class="result-msg" id="result-msg">The animals are out playing in the garden.</div>
           <div class="result-buttons">
             <button class="btn-big" id="result-done">Done — back to centre</button>
             <button class="btn-big secondary" id="result-again">Play again</button>
@@ -986,7 +1115,7 @@
       if (exit.y === 2) set(exit.x, 1, { type: 'straight', rotation: randR() });
     }
     const fEndR = trunkTemplate === 'approach-north' ? 2 : (exit.y === 1 ? 3 : 2);
-    set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: fEndR, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
+    set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: fEndR, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['fox'] };
   }
@@ -1062,7 +1191,7 @@
       set(1, 3, { type: 'straight', rotation: randR() });
       hRot = 2;
     }
-    set(1, hexit.y, { type: 'habitat-endpoint', rotation: hRot, fixed: false, endpointFor: 'hedgehog', endpointRole: 'end' });
+    set(1, hexit.y, { type: 'habitat-endpoint', rotation: hRot, fixed: true, endpointFor: 'hedgehog', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['hedgehog'] };
   }
@@ -1114,7 +1243,7 @@
       set(7, 6, { type: 'corner', rotation: 0, fixed: true });
       if (rexit.y === 4) set(7, 5, { type: 'straight', rotation: randR() });
     }
-    set(7, rexit.y, { type: 'habitat-endpoint', rotation: rEndR, fixed: false, endpointFor: 'raccoon', endpointRole: 'end' });
+    set(7, rexit.y, { type: 'habitat-endpoint', rotation: rEndR, fixed: true, endpointFor: 'raccoon', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['raccoon'] };
   }
@@ -1154,7 +1283,7 @@
       set(8, 6, { type: 'corner', rotation: 0, fixed: true });
       for (let y = sexit.y + 1; y <= 5; y++) set(8, y, { type: 'straight', rotation: randR() });
     }
-    set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'skunk', endpointRole: 'end' });
+    set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: true, endpointFor: 'skunk', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.9);
     return { width: W, height: H, tiles, animals: ['skunk'] };
   }
@@ -1182,14 +1311,14 @@
     const fexit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
     for (let x = fexit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
     if (fexit.y === 2) set(fexit.x, 1, { type: 'corner', rotation: 2, fixed: true });
-    set(fexit.x, fexit.y, { type: 'habitat-endpoint', rotation: fexit.y === 1 ? 3 : 2, fixed: false, endpointFor: 'fox', endpointRole: 'end' });
+    set(fexit.x, fexit.y, { type: 'habitat-endpoint', rotation: fexit.y === 1 ? 3 : 2, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
     // HEDGEHOG
     set(0, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'hedgehog', endpointRole: 'start' });
     set(1, 10, { type: 'corner', rotation: 0, fixed: true });
     const hexit = [{x:1,y:4},{x:1,y:5}][Math.floor(rng() * 2)];
     for (let y = hexit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
     set(1, 7, { type: 'gate', rotation: 0, open: false });
-    set(1, hexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'hedgehog', endpointRole: 'end' });
+    set(1, hexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: true, endpointFor: 'hedgehog', endpointRole: 'end' });
     // RACCOON
     set(5, 11, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'raccoon', endpointRole: 'start' });
     set(6, 11, { type: 'straight', rotation: 1, fixed: true });
@@ -1197,7 +1326,7 @@
     const rexit = [{x:7,y:4},{x:7,y:5}][Math.floor(rng() * 2)];
     for (let y = rexit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
     set(7, 7, { type: 'gate', rotation: 0, open: false });
-    set(7, rexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'raccoon', endpointRole: 'end' });
+    set(7, rexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: true, endpointFor: 'raccoon', endpointRole: 'end' });
     // SKUNK
     set(5, 12, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'skunk', endpointRole: 'start' });
     set(6, 12, { type: 'straight', rotation: 1, fixed: true });
@@ -1206,7 +1335,7 @@
     const sexit = [{x:8,y:1},{x:8,y:2}][Math.floor(rng() * 2)];
     for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
     set(8, 7, { type: 'gate', rotation: 0, open: false });
-    set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: false, endpointFor: 'skunk', endpointRole: 'end' });
+    set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: true, endpointFor: 'skunk', endpointRole: 'end' });
     fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
     return { width: W, height: H, tiles, animals: ['fox', 'hedgehog', 'raccoon', 'skunk'] };
   }
@@ -1313,14 +1442,13 @@
       // (out from the circle), END arrow points AGAINST it (toward
       // the circle). The arrow needs to be visible UNDER the
       // sticker so it sits low on the stub at y=92 not 86.
-      const arrowGlyph = tile.endpointRole === 'start' ? '↓' : '↑';
-      const arrow = svgEl('text', {
-        x: 50, y: 92, 'text-anchor': 'middle',
-        'font-family': 'Fredoka, sans-serif', 'font-size': 18, 'font-weight': 700,
-        fill: '#3a2410',
-      });
-      arrow.textContent = arrowGlyph;
-      g.appendChild(arrow);
+      // A solid triangle, not text: an 18-unit glyph in a 100-unit tile was
+      // ~7px on screen. This is a shape, so there is no type size to fall
+      // short of 16px, and it reads at any tile size.
+      const arrowPts = tile.endpointRole === 'start' ? '36,74 64,74 50,96' : '36,96 64,96 50,74';
+      g.appendChild(svgEl('polygon', {
+        points: arrowPts, fill: '#3a2410', stroke: '#fff5d8', 'stroke-width': 2, 'stroke-linejoin': 'round',
+      }));
     } else if (tile.type === 'viewing-dome') {
       drawCorridor('M 35 0 L 65 0 L 65 100 L 35 100 Z');
       // Wrap the dome glyph in a group with a class so CSS can hide
@@ -1355,7 +1483,12 @@
     // the wrap on narrow viewports (overflowing into header + footer).
     const maxByWidth  = Math.floor((wrapRect.width  - 12) / puzzle.width);
     const maxByHeight = Math.floor((wrapRect.height - 12) / puzzle.height);
-    const tileSize = Math.max(28, Math.min(maxByWidth, maxByHeight));
+    // The floor used to be 28. On a short screen the honest size was ~25 (13
+    // rows in ~340px), so the floor made the grid taller than its box and
+    // .grid-wrap clipped whole rows off both ends: starts and exits the child
+    // could not reach. A smaller tile that fits is better than a larger one
+    // that is cut off; 16 only guards against a zero-height box on first paint.
+    const tileSize = Math.max(16, Math.min(maxByWidth, maxByHeight));
     lastTileSize = tileSize;
     grid.style.gridTemplateColumns = `repeat(${puzzle.width}, ${tileSize}px)`;
     grid.style.gridTemplateRows    = `repeat(${puzzle.height}, ${tileSize}px)`;
@@ -1552,6 +1685,43 @@
     }
     wrap.appendChild(stickerLayer);
 
+    // Gate labels — "Tap!" above every shut gate, on their own layer so the
+    // tile's overflow:hidden cannot clip them (see .gate-label).
+    let gateLayer = document.getElementById('gate-label-layer');
+    if (!gateLayer) {
+      gateLayer = document.createElement('div');
+      gateLayer.id = 'gate-label-layer';
+      gateLayer.className = 'gate-label-layer';
+    }
+    gateLayer.replaceChildren();
+    for (let y = 0; y < puzzle.height; y++) {
+      for (let x = 0; x < puzzle.width; x++) {
+        const t = puzzle.tiles[y * puzzle.width + x];
+        if (t.type !== 'gate' || t.open !== false) continue;
+        const m = document.createElement('div');
+        m.className = 'gate-label';
+        m.textContent = 'Tap!';
+        m.style.left = (gridLeft + 6 + x * tileSize + tileSize / 2) + 'px';
+        m.style.top  = (gridTop  + 6 + y * tileSize - 2) + 'px';
+        gateLayer.appendChild(m);
+      }
+    }
+    wrap.appendChild(gateLayer);
+    // Neighbouring gates (tier 5 has three side by side) are narrower than
+    // their labels, so the labels would print over each other. Raise a label
+    // one step whenever it would overlap one already placed, left to right.
+    {
+      const placed = [];
+      [...gateLayer.children].sort((a, b) => parseFloat(a.style.left) - parseFloat(b.style.left)).forEach((m) => {
+        const w = m.offsetWidth, h = m.offsetHeight;
+        const cx = parseFloat(m.style.left), baseTop = parseFloat(m.style.top);
+        let level = 0;
+        while (placed.some((p) => p.level === level && Math.abs(p.cx - cx) < (p.w + w) / 2 + 4)) level++;
+        placed.push({ cx, w, level });
+        m.style.top = (baseTop - level * (h + 8)) + 'px';
+      });
+    }
+
     // Debug exit-point overlay — enable with ?show-exits=1 in the
     // URL. Renders a coloured ring at every HABITAT_EXITS position
     // so the kid (or designer) can check the catalogue lines up
@@ -1645,6 +1815,11 @@
     const i = y * puzzle.width + x;
     const t = puzzle.tiles[i];
     if (t.type === 'empty' || t.fixed) return;
+    // Belt and braces: a habitat tile is never turned by a tap, even if a host
+    // hands over a puzzle that forgot to mark it fixed. Tapping the goal
+    // sticker used to rotate the hidden stub and break a finished route.
+    if (t.type === 'habitat-endpoint') return;
+    unlockAudio();
     tryStartMusic();
     if (t.type === 'gate') puzzle.tiles[i] = toggleGate(t);
     else puzzle.tiles[i] = rotateTile(t);
@@ -1652,6 +1827,7 @@
   }
 
   function onSubmit() {
+    unlockAudio();
     tryStartMusic();
     // Lock the board — every tile picks up the same darker tint
     // that fixed tiles wear, signalling the puzzle is set.
@@ -1726,8 +1902,30 @@
       try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
       catch (_) { return null; }
     }
+    // Safari / WKWebView (the iPad app) start a context suspended, and one
+    // made outside a tap stays that way until resume() is called — so the
+    // win and "oh dear" sounds played to nobody. Ask every time; it is a no-op
+    // once running.
+    if (_audioCtx.state === 'suspended') {
+      try { const p = _audioCtx.resume(); if (p && p.catch) p.catch(() => {}); } catch (_) { /* ignore */ }
+    }
     return _audioCtx;
   }
+  // Called from inside a tap (Ready, a tile, Send): this is the one place iOS
+  // lets a context be unlocked. A one-sample silent buffer finishes the job.
+  let _audioUnlocked = false;
+  function unlockAudio() {
+    const ctx = audioCtx();
+    if (!ctx || _audioUnlocked) return;
+    try {
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.connect(ctx.destination); src.start(0);
+      if (ctx.state === 'running') _audioUnlocked = true;
+    } catch (_) { /* ignore */ }
+  }
+  document.addEventListener('pointerdown', unlockAudio, true);
+  document.addEventListener('touchend', unlockAudio, true);
   function tone(freq, durMs, type = 'sine', startGain = 0.18) {
     const ctx = audioCtx();
     if (!ctx) return;
@@ -1745,6 +1943,12 @@
   // Cheery 3-note ascending arpeggio when an animal makes it home.
   function playSuccessChime() {
     [523, 659, 784].forEach((f, i) => setTimeout(() => tone(f, 240, 'triangle', 0.18), i * 90));
+  }
+  // A short jaunty fanfare when the win card lands (design doc: "a satisfying
+  // chime" / "a brief jaunty fanfare"): a rising run, then a held chord.
+  function playWinFanfare() {
+    [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 220, 'triangle', 0.16), i * 110));
+    setTimeout(() => { tone(784, 520, 'triangle', 0.12); tone(1047, 520, 'triangle', 0.12); tone(1319, 520, 'sine', 0.08); }, 520);
   }
   // Soft descending two-note 'oh dear' when an animal gets stuck.
   function playMishap() {
@@ -1967,21 +2171,85 @@
     showResult(allReached);
   }
 
+  // What the host last told us about the paid re-digs (null = no host, i.e. this
+  // page is open on its own, so nothing about coins is claimed).
+  let hostDigsLeft = null;
+  let hostDigsPerDay = 3;
+
+  function digLabels() {
+    // Plain words on the buttons when a dig will pay nothing.
+    const noCoins = hostDigsLeft !== null && hostDigsLeft <= 0;
+    const re = document.getElementById('btn-reroll');
+    if (re) re.textContent = noCoins ? 'Re-dig tunnels (no coins)' : 'Re-dig tunnels';
+    const again = document.getElementById('result-again');
+    if (again) again.textContent = noCoins ? 'Play again (no coins)' : 'Play again';
+  }
+
+  let _toastTimer = 0;
+  function showDigNote(text) {
+    const el = document.getElementById('dig-toast');
+    const wrap = document.getElementById('grid-wrap');
+    const scene = document.getElementById('scene');
+    if (!el) return;
+    el.textContent = text;
+    if (wrap && scene) {
+      const w = wrap.getBoundingClientRect(), sc = scene.getBoundingClientRect();
+      el.style.top = Math.max(0, w.top - sc.top + 8) + 'px';
+      el.style.left = (w.left - sc.left + w.width / 2) + 'px';
+    }
+    el.classList.add('show');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => el.classList.remove('show'), 4500);
+  }
+
+  function noteForDig(p) {
+    const n = hostDigsPerDay;
+    if (p && p.paid) {
+      const left = p.left | 0;
+      return 'New tunnels dug. +' + (p.coins | 0) + ' coins! ' +
+        (left > 0 ? left + ' more paid ' + (left === 1 ? 'dig' : 'digs') + ' today.' : 'That was the last paid dig today.');
+    }
+    return 'New tunnels dug. No coins this time: only ' + n + ' digs a day pay, and today\'s are used up.';
+  }
+
+  // The words on the win card for what each animal gained. The host knows (it
+  // is the one that applies the gain); until it says, the card makes no claim.
+  function winMessage(gains, missing) {
+    const lines = [];
+    for (const g of gains || []) {
+      const bits = [];
+      const hap = Math.round(g.happiness), bond = Math.round(g.bond);  // whole numbers, whatever the host sends
+      if (hap > 0) bits.push(hap + ' happiness');
+      if (bond > 0) bits.push(bond + ' bond');
+      lines.push(bits.length
+        ? g.name + ' is out playing in the garden and gained ' + bits.join(' and ') + '.'
+        : g.name + ' is out playing in the garden, and is already as happy as can be.');
+    }
+    for (const sp of missing || []) {
+      lines.push('No ' + sp + ' has arrived at the centre yet, so nobody gained anything for that tunnel.');
+    }
+    return lines.join('\n');
+  }
+
   function showResult(win) {
     const overlay = document.getElementById('result-overlay');
+    const card = document.getElementById('result-card');
     const title = document.getElementById('result-title');
     const msg = document.getElementById('result-msg');
     const done  = document.getElementById('result-done');
     const again = document.getElementById('result-again');
     const retry = document.getElementById('result-retry');
+    card.classList.toggle('win', !!win);
     if (win) {
-      title.textContent = 'Hooray!';
-      msg.textContent = 'The animals are out playing in the garden — happiness +!';
+      title.textContent = 'Tunnels connected!';
+      msg.textContent = 'The animals are out playing in the garden.';
       done.style.display = '';
       again.style.display = '';
       retry.style.display = 'none';
+      digLabels();
       // Soften the music so kid clearly hears the run is over.
       if (music && !musicMuted) music.volume = 0.15;
+      playWinFanfare();
     } else {
       title.textContent = 'So close!';
       msg.textContent = 'One of the animals got a bit lost — try again?';
@@ -1991,9 +2259,10 @@
     }
     overlay.classList.add('show');
     if (win) {
-      // The painted overlay was already faded BACK IN during the
-      // animation (so the kid sees the animal arrive in its
-      // habitat above ground). Just notify the host.
+      // Report the win and its reward to the host straight away. The card
+      // STAYS UP: the host no longer closes the page on this message, and
+      // the child leaves with "Done" (or goes again with "Play again").
+      // The host answers with `complete-result`, which fills in the words.
       window.parent?.postMessage({
         source: 'arc-tunnel',
         type: 'tunnel-complete',
@@ -2050,19 +2319,27 @@
   // After the intro, the kid can toggle the overlay back on for
   // spatial reference.
   document.body.classList.add('overlay-on', 'intro-stage-1');
-  setTimeout(() => {
-    document.body.classList.remove('intro-stage-1');
-  }, 1500);
-  setTimeout(() => {
-    const og = document.getElementById('overground-overlay');
-    if (og) og.classList.add('hidden');
-    document.body.classList.remove('overlay-on');
-    const btn = document.getElementById('btn-overlay');
-    if (btn) {
-      btn.classList.remove('is-on');
-      btn.textContent = '🏠 hidden';
-    }
-  }, 3000);
+  // The intro used to start here, at page load, and ran to its end behind the
+  // "Ready to dig?" scrim before the child had finished reading it, so nobody
+  // saw it. It now starts on the Ready tap.
+  let _introStarted = false;
+  function startIntro() {
+    if (_introStarted) return;
+    _introStarted = true;
+    setTimeout(() => {
+      document.body.classList.remove('intro-stage-1');
+    }, 1500);
+    setTimeout(() => {
+      const og = document.getElementById('overground-overlay');
+      if (og) og.classList.add('hidden');
+      document.body.classList.remove('overlay-on');
+      const btn = document.getElementById('btn-overlay');
+      if (btn) {
+        btn.classList.remove('is-on');
+        btn.textContent = '🏠 hidden';
+      }
+    }, 3000);
+  }
   document.getElementById('btn-overlay').addEventListener('click', (e) => {
     const og = document.getElementById('overground-overlay');
     const btn = e.currentTarget;
@@ -2140,7 +2417,9 @@
   // the scrim. The puzzle's intro-stage-1/2 sequence then runs.
   const readyOverlay = document.getElementById('ready-overlay');
   document.getElementById('btn-ready')?.addEventListener('click', () => {
+    unlockAudio();
     tryStartMusic();
+    startIntro();
     readyOverlay?.classList.add('gone');
     setTimeout(() => readyOverlay?.remove(), 500);
   });
@@ -2160,6 +2439,8 @@
         const k = _seasonKeyFromRaw(payload.season);
         if (k) _currentSeason = k;
       }
+      if (typeof payload.digsLeft === 'number') { hostDigsLeft = payload.digsLeft; digLabels(); }
+      if (typeof payload.digsPerDay === 'number') hostDigsPerDay = payload.digsPerDay;
       if (payload.puzzle) {
         puzzle = payload.puzzle;
         originalPuzzle = JSON.parse(JSON.stringify(puzzle));
@@ -2168,6 +2449,20 @@
         const seed = typeof payload.seed === 'number' ? payload.seed : (Date.now() >>> 0);
         loadFromSeed(seed);
       }
+    }
+    // A win has been applied: say what each animal gained.
+    if (m.type === 'complete-result' && m.payload && typeof m.payload === 'object') {
+      const card = document.getElementById('result-card');
+      if (card && card.classList.contains('win')) {
+        const text = winMessage(m.payload.gains, m.payload.missing);
+        if (text) document.getElementById('result-msg').textContent = text;
+      }
+    }
+    // A re-dig ("Re-dig tunnels" or "Play again") has been counted: say plainly
+    // whether it paid, and put "(no coins)" on the buttons once it stops.
+    if (m.type === 'dig-result' && m.payload && typeof m.payload === 'object') {
+      if (typeof m.payload.left === 'number') { hostDigsLeft = m.payload.left; digLabels(); }
+      showDigNote(noteForDig(m.payload));
     }
     // Forward subsequent season updates from the host (long-running
     // session crossing a season boundary). Triggers a re-render.

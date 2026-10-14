@@ -478,6 +478,19 @@ export type {
   SolveResult as TunnelSolveResult,
 } from './tunnel';
 
+export {
+  PAID_DIGS_PER_DAY as TUNNEL_PAID_DIGS_PER_DAY,
+  DIG_COINS as TUNNEL_DIG_COINS,
+  tunnelDayKey,
+  tunnelDailySeed,
+  normaliseTunnelDigs,
+  paidDigsToday as tunnelPaidDigsToday,
+  paidDigsLeft as tunnelPaidDigsLeft,
+  recordDig as recordTunnelDig,
+  mergeTunnelDigs,
+} from './tunnel-digs';
+export type { TunnelDigs, DigOutcome as TunnelDigOutcome } from './tunnel-digs';
+
 export { mergeSaveState } from './merge-save';
 export type { MergeResult, MergeLevels } from './merge-save';
 

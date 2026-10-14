@@ -99,6 +99,17 @@ function postToFrame(type: string, payload?: unknown, hostSource?: string): void
   );
 }
 
+/**
+ * Say something to the page that is mounted now, after the first `init`.
+ * The tunnel uses it to tell the page what a win or a re-dig earned, so
+ * the page can say so in plain words (a toast drawn on the game canvas is
+ * hidden behind the iframe while the page is up). A no-op when nothing is
+ * mounted.
+ */
+export function postToInGame(type: string, payload?: unknown): void {
+  postToFrame(type, payload);
+}
+
 export interface MountInGameOptions {
   /**
    * Override the postMessage source name used when the host posts to

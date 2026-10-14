@@ -253,10 +253,11 @@ function solveOne(puzzle: TunnelPuzzle, animal: Animal): SolveResult {
     if (!tile) return { reached: false, path, reason: 'dead-end' };
 
     // Endpoint check — we've arrived. Endpoint must be open on the
-    // side we entered from (kid spins the END tile to face their
-    // approach). This means a wrongly-rotated final tile breaks
-    // the path — fixes the 'fox got there anyway' bug where a happy
-    // accident through decoys would otherwise let it through.
+    // side we entered from. The END tile is fixed (the child cannot
+    // turn it), so this only fails when the pipe that reaches it
+    // approaches from the wrong side — which also fixes the 'fox got
+    // there anyway' bug where a happy accident through decoys would
+    // otherwise let it through.
     if (tile.type === 'habitat-endpoint') {
       path.push({ x, y });
       const sides = tileSides(tile);
@@ -578,8 +579,9 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
     }
   }
 
-  // Fox pen entry — ROTATABLE so kid can spin to match their
-  // approach. Default rotation matches the canonical approach side:
+  // Fox pen entry — FIXED, like every other endpoint: tapping the goal
+  // sticker must not be able to break a finished route. Its rotation is
+  // the canonical approach side:
   //   y=1 + non-approach-north: from E → r=3 (E-open)
   //   y=2 + non-approach-north: from N → r=2 (N-open)
   //   approach-north (any y):   from N → r=2 (N-open)
@@ -587,7 +589,7 @@ export function generateTier1Puzzle(seed: number): TunnelPuzzle {
   if (trunkTemplate === 'approach-north') foxEndRotation = 2;
   else foxEndRotation = (foxExit.y === 1 ? 3 : 2) as Rotation;
   set(foxExit.x, foxExit.y, {
-    type: 'habitat-endpoint', rotation: foxEndRotation, fixed: false,
+    type: 'habitat-endpoint', rotation: foxEndRotation, fixed: true,
     endpointFor: 'fox', endpointRole: 'end',
   });
 
@@ -786,7 +788,7 @@ export function generateTier2Puzzle(seed: number): TunnelPuzzle {
   }
 
   set(1, hedgeExit.y, {
-    type: 'habitat-endpoint', rotation: hedgeEndRotation, fixed: false,
+    type: 'habitat-endpoint', rotation: hedgeEndRotation, fixed: true,
     endpointFor: 'hedgehog', endpointRole: 'end',
   });
 
@@ -887,7 +889,7 @@ export function generateTier3Puzzle(seed: number): TunnelPuzzle {
     raccoonEndRotation = 0; // S-open
   }
   set(7, raccoonExit.y, {
-    type: 'habitat-endpoint', rotation: raccoonEndRotation, fixed: false,
+    type: 'habitat-endpoint', rotation: raccoonEndRotation, fixed: true,
     endpointFor: 'raccoon', endpointRole: 'end',
   });
 
@@ -966,7 +968,7 @@ export function generateTier4Puzzle(seed: number): TunnelPuzzle {
     }
   }
   set(8, skunkExit.y, {
-    type: 'habitat-endpoint', rotation: 0, fixed: false,
+    type: 'habitat-endpoint', rotation: 0, fixed: true,
     endpointFor: 'skunk', endpointRole: 'end',
   });
 
@@ -1055,7 +1057,7 @@ export function generateTier5Puzzle(seed: number): TunnelPuzzle {
   if (foxExit.y === 2) set(foxExit.x, 1, { type: 'corner', rotation: 2, fixed: true });
   set(foxExit.x, foxExit.y, {
     type: 'habitat-endpoint', rotation: (foxExit.y === 1 ? 3 : 2) as Rotation,
-    fixed: false, endpointFor: 'fox', endpointRole: 'end',
+    fixed: true, endpointFor: 'fox', endpointRole: 'end',
   });
 
   // HEDGEHOG
@@ -1066,7 +1068,7 @@ export function generateTier5Puzzle(seed: number): TunnelPuzzle {
   for (let y = hedgeExit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
   set(1, 7, { type: 'gate', rotation: 0, open: false });
   set(1, hedgeExit.y, {
-    type: 'habitat-endpoint', rotation: 0, fixed: false,
+    type: 'habitat-endpoint', rotation: 0, fixed: true,
     endpointFor: 'hedgehog', endpointRole: 'end',
   });
 
@@ -1078,7 +1080,7 @@ export function generateTier5Puzzle(seed: number): TunnelPuzzle {
   for (let y = raccoonExit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
   set(7, 7, { type: 'gate', rotation: 0, open: false });
   set(7, raccoonExit.y, {
-    type: 'habitat-endpoint', rotation: 0, fixed: false,
+    type: 'habitat-endpoint', rotation: 0, fixed: true,
     endpointFor: 'raccoon', endpointRole: 'end',
   });
 
@@ -1092,7 +1094,7 @@ export function generateTier5Puzzle(seed: number): TunnelPuzzle {
   for (let y = skunkExit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
   set(8, 7, { type: 'gate', rotation: 0, open: false });
   set(8, skunkExit.y, {
-    type: 'habitat-endpoint', rotation: 0, fixed: false,
+    type: 'habitat-endpoint', rotation: 0, fixed: true,
     endpointFor: 'skunk', endpointRole: 'end',
   });
 

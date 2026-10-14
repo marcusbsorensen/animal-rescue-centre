@@ -88,9 +88,14 @@ import {
   offerableCalls,
   pendingCall,
   unlockedCollectionDestinations,
+  tunnelDailySeed,
+  tunnelDayKey,
+  tunnelPaidDigsLeft,
+  recordTunnelDig,
+  TUNNEL_PAID_DIGS_PER_DAY,
 } from '@arc/game-logic';
 import type { Conflict, ResolutionDef, VisitorEntry, IllnessDef, CharmUnlockEvent, CharmId, CrateGrid, MapDestinationDef } from '@arc/game-logic';
-import { mountInGame, unmountInGame } from '../game-overlay/InGameOverlay';
+import { mountInGame, unmountInGame, postToInGame } from '../game-overlay/InGameOverlay';
 import { carriesAnimalsFor, driveTypeFor } from '../driving/drive-state';
 import { getSession } from '../lib/auth';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
@@ -2093,11 +2098,17 @@ export class GameScene extends Phaser.Scene {
    *
    * Routing of iframe → host messages:
    *   - tunnel-complete → bump every rescued animal's happiness/bond
-   *     (payload.animalsRescued is an array of species strings)
+   *     (payload.animalsRescued is an array of species strings), save, and
+   *     tell the page what each one gained (`complete-result`) so the win
+   *     card can say so. The overlay STAYS UP: the child closes it with
+   *     "Done", and "Play again" works inside it.
    *   - tunnel-cancel   → dismiss with no side effects
-   *   - tunnel-override-reroll → grant +10 coins (centre-infrastructure
-   *     reward; intentionally NOT a happiness boost — the kid only
-   *     earns animal-care rewards by completing the tunnel).
+   *   - tunnel-override-reroll → a re-dig ("Re-dig tunnels" or "Play again").
+   *     The first TUNNEL_PAID_DIGS_PER_DAY of the UTC day pay coins
+   *     (centre-infrastructure reward, intentionally NOT a happiness boost);
+   *     later ones play normally and pay nothing. The page is told which
+   *     (`dig-result`) because a toast drawn on the canvas would be hidden
+   *     behind the iframe.
    */
   public openTunnelOverlay(): void {
     // Pick tier from player level (per level-progression doc).
@@ -2108,9 +2119,9 @@ export class GameScene extends Phaser.Scene {
       level >= 6  ? 3 :
       level >= 4  ? 2 : 1;
 
-    // Daily seed (UTC) so the puzzle stays put across same-day reloads.
-    const today = new Date();
-    const dailySeed = (today.getUTCFullYear() * 10000 + (today.getUTCMonth() + 1) * 100 + today.getUTCDate()) >>> 0;
+    // Daily seed (UTC) so the puzzle stays put across same-day reloads. The
+    // paid-dig allowance turns over on the same UTC day.
+    const dailySeed = tunnelDailySeed(new Date());
 
     // Pass current season so the iframe picks the matching seasonal soil
     // pool (spring/summer/autumn/winter). Without this, the tunnel falls
@@ -2129,52 +2140,60 @@ export class GameScene extends Phaser.Scene {
           // ['fox','hedgehog','raccoon','skunk'] for tier 5). For each
           // species, find the FIRST animal of that species in the shelter
           // and bump it. If a species hasn't arrived yet (e.g. kid is at
-          // L4 but no hedgehog yet), silently skip it.
+          // L4 but no hedgehog yet), it is reported as missing, not skipped
+          // silently, so the card can say nobody gained anything for it.
           const rescued = (payload as { animalsRescued?: string[] } | undefined)?.animalsRescued
             ?? ['fox'];
-          const namesBumped: string[] = [];
+          const gains: Array<{ name: string; species: string; happiness: number; bond: number }> = [];
+          const missing: string[] = [];
           for (const species of rescued) {
             const animal = this.store.animals.find((a) => a.species === (species as Species));
-            if (!animal) continue;
+            if (!animal) { missing.push(species); continue; }
             const idx = this.store.animals.findIndex((a) => a.id === animal.id);
             const current = typeof animal.happiness === 'number' ? animal.happiness : 0;
-            this.store.animals[idx] = {
-              ...animal,
-              happiness: Math.min(100, current + 8),
-              bondLevel: Math.min(100, animal.bondLevel + 3),
-            };
-            namesBumped.push(animal.name);
+            const happiness = Math.min(100, current + 8);
+            const bondLevel = Math.min(100, animal.bondLevel + 3);
+            this.store.animals[idx] = { ...animal, happiness, bondLevel };
+            gains.push({
+              name: animal.name,
+              species,
+              // Whole numbers for the card: happiness is a float that the
+              // needs tick nudges all the time, so the raw difference reads
+              // "1.4999999999999716".
+              happiness: Math.round(happiness - current),
+              bond: Math.round(bondLevel - animal.bondLevel),
+            });
           }
-          if (namesBumped.length === 1) {
-            this.saveState();
-            showToast(this, `${namesBumped[0]} had a great run through the tunnel! +happiness`);
-          } else if (namesBumped.length > 1) {
-            this.saveState();
-            const list = namesBumped.length === 2
-              ? namesBumped.join(' and ')
-              : `${namesBumped.slice(0, -1).join(', ')} and ${namesBumped[namesBumped.length - 1]}`;
-            showToast(this, `${list} all had a great run! +happiness for all`);
-          } else {
-            showToast(this, 'You built the tunnels — animals arrive soon!');
-          }
-          unmount();
+          if (gains.length > 0) this.saveState();
+          postToInGame('complete-result', { gains, missing });
           return;
         }
         if (action === 'tunnel-override-reroll') {
-          // "Re-dig tunnels" override: small centre-infrastructure
-          // reward (NOT animal happiness — that only comes from
-          // completion). +10 coins as per design doc decision #2.
+          // "Re-dig tunnels" and "Play again" both land here. Pay the first
+          // few of the UTC day (design doc decision #2: centre
+          // infrastructure, NOT animal happiness); the rest are free.
+          const dig = recordTunnelDig(this.store.tunnelDigs, tunnelDayKey(new Date()));
+          this.store.tunnelDigs = dig.digs;
           const econ = this.store.economy as Economy | undefined;
-          if (econ) {
-            econ.coins = (econ.coins ?? 0) + 10;
-            this.saveState();
-            showToast(this, '+10 coins for rebuilding the tunnels');
+          if (dig.paid && econ) {
+            econ.coins = (econ.coins ?? 0) + dig.coins;
           }
+          this.saveState();
+          postToInGame('dig-result', {
+            paid: dig.paid && !!econ,
+            coins: dig.paid && econ ? dig.coins : 0,
+            left: dig.left,
+          });
           // The iframe stays mounted (it re-rolled itself); no unmount.
           return;
         }
       },
-    }, { seed: dailySeed, season }, { query: { tier: String(tier), season } });
+    }, {
+      seed: dailySeed,
+      season,
+      digsLeft: tunnelPaidDigsLeft(this.store.tunnelDigs, tunnelDayKey(new Date())),
+      digsPerDay: TUNNEL_PAID_DIGS_PER_DAY,
+    }, { query: { tier: String(tier), season } });
     this.events.once('shutdown', unmountInGame);
   }
 
