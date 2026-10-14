@@ -5,17 +5,16 @@ import assetManifestPlugin from './plugins/asset-manifest';
 import devReviewAssetsPlugin from './plugins/dev-review-assets';
 import voiceBoothPlugin from './plugins/voice-booth';
 import pruneDevOnlyPlugin from './plugins/prune-dev-only';
-import artCachePlugin, { ART_CACHE_PREFIX, CLEANUP_FILE, artCacheName } from './plugins/art-cache';
+import cacheNamesPlugin, { ART, CLEANUP_FILE, VOICE, cacheNames, devCacheNames } from './plugins/cache-names';
 
 export default defineConfig(({ command }) => {
-  // The art cache is named after a hash of the art in it (plugins/art-cache.ts), so a release
-  // that changes a sprite starts a fresh cache and one that does not keeps the old one.
-  // Hashing about 100 MB takes a second: only a real build needs it.
+  // The art and voice caches are named after a hash of the files in them (plugins/cache-names.ts),
+  // so a release that changes a sprite or a voice line starts a fresh cache for it and one that
+  // does not keeps the old one. Hashing about 100 MB takes a second: only a real build needs it.
   const publicDir = fileURLToPath(new URL('./public', import.meta.url));
-  const artCache = command === 'build' ? artCacheName(publicDir) : `${ART_CACHE_PREFIX}-dev`;
+  const names = command === 'build' ? cacheNames(publicDir) : devCacheNames();
 
   return {
-
     plugins: [
       assetManifestPlugin(),
       devReviewAssetsPlugin(),
@@ -24,7 +23,7 @@ export default defineConfig(({ command }) => {
       voiceBoothPlugin(),
       // Build only: leaves the dev-only pages (plugins/prune-list.mjs) out of the output.
       pruneDevOnlyPlugin(),
-      artCachePlugin(artCache),
+      cacheNamesPlugin(names),
       VitePWA({
         registerType: 'autoUpdate',
         manifest: {
@@ -77,7 +76,7 @@ export default defineConfig(({ command }) => {
           // anything the player has already seen still works offline.
           globPatterns: ['**/*.{js,css,html,woff2}', 'icons/*.png', 'favicon.svg'],
           globIgnores: ['admin/**', 'mockups/**', CLEANUP_FILE],
-          // Runs on activate and deletes the art caches of earlier releases (plugins/art-cache.ts).
+          // Runs on activate and deletes the art and voice caches of earlier releases (plugins/cache-names.ts).
           importScripts: [CLEANUP_FILE],
           maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
           runtimeCaching: [
@@ -86,11 +85,11 @@ export default defineConfig(({ command }) => {
               // named after a hash of the art files' contents: cache-first within a
               // release, and a release that changes art starts a fresh cache and
               // the cleanup script removes the old one. The extensions here are the
-              // ones plugins/art-cache.ts hashes; change both together.
+              // ones plugins/cache-names.ts hashes (ART); change both together.
               urlPattern: /\/assets\/.*\.(?:png|jpg|jpeg|webp|svg)$/,
               handler: 'CacheFirst',
               options: {
-                cacheName: artCache,
+                cacheName: names[ART.prefix],
                 expiration: { maxEntries: 1200, maxAgeSeconds: 60 * 60 * 24 * 60 },
                 cacheableResponse: { statuses: [0, 200] },
               },
@@ -99,10 +98,13 @@ export default defineConfig(({ command }) => {
               // Recorded voice lines (assets/voice/<line id>.mp3). Their own cache,
               // listed before the general audio one so it matches first: a hundred
               // clips in the 80-entry audio cache would push the music out.
+              // Named after a hash of the voice files, like the art (cache-names.ts,
+              // VOICE): a re-recorded line keeps its file name, so without this a
+              // returning player would hear the old take for up to 60 days.
               urlPattern: /\/assets\/voice\/.*\.mp3$/,
               handler: 'CacheFirst',
               options: {
-                cacheName: 'arc-voice',
+                cacheName: names[VOICE.prefix],
                 expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 60 },
                 cacheableResponse: { statuses: [0, 200] },
               },

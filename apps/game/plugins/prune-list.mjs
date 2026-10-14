@@ -31,6 +31,23 @@
 export const DEV_ONLY = [
   'mockups/',                       // design references, referenced by nothing
 
+  // assets/samples/: ten early style samples (two 1280-wide backgrounds, sprites, a
+  // button), 2.5 MB. Not copies of the real art: the game's bg-kitchen.png and the
+  // rest live in assets/bg/, assets/food/ and so on. Nothing loads them. The asset
+  // manifest skips the folder by name, so AssetLoader never asks for it, and no page,
+  // script, tool or doc names it.
+  'assets/samples/',
+  //
+  // assets/reference/ is NOT listed, on purpose. It is 50 character reference
+  // sheets (illustrations, not photographs; 2.3 MB) that the game never loads
+  // (also skipped by the asset manifest). But the Manus route in
+  // docs/sprite-brief-2026-08-29.md links them by public URL
+  // (/assets/reference/<file>-reference.png) as the character lock for a variant,
+  // and a brief that cites a file the site does not serve "silently gets no
+  // reference at all". To prune them, move that route's references somewhere
+  // else first, then add 'assets/reference/' here; the test already proves the
+  // game cannot reach the folder.
+
   // Art review galleries and sprite sheets.
   'admin/animal-scale-review.html',
   'admin/arc-tier1-review.html',
@@ -79,7 +96,7 @@ export const WEB_ONLY = [
   'sw.js',                          // service workers do not run on capacitor://
   'workbox-*.js',
   'registerSW.js',
-  'sw-art-cleanup.js',              // imported by sw.js (plugins/art-cache.ts)
+  'sw-cache-cleanup.js',            // imported by sw.js (plugins/cache-names.ts)
 ];
 
 /** rsync --exclude patterns, anchored at the root of the transfer. */

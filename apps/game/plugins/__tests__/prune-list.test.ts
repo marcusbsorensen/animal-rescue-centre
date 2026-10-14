@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
+import assetManifestPlugin from '../asset-manifest';
 import pruneDevOnlyPlugin from '../prune-dev-only';
 import { DEV_ONLY, WEB_ONLY, rsyncExcludes } from '../prune-list.mjs';
 import { BOOTH_FILES } from '../voice-booth';
@@ -148,6 +149,60 @@ describe('the prune list against the real source', () => {
     for (const e of WEB_ONLY) expect(DEV_ONLY).not.toContain(e);
     expect(WEB_ONLY).toContain('404.html');
     expect(WEB_ONLY).toContain('.htaccess');
+  });
+});
+
+describe('assets/reference/ and assets/samples/ (140A follow-up)', () => {
+  const folders = ['assets/reference/', 'assets/samples/'];
+
+  /** The list of art the game loads at run time: what the asset manifest plugin emits for public/assets. */
+  function manifestFor(pubDir: string): string[] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const plugin = assetManifestPlugin() as any;
+    plugin.configResolved({ publicDir: pubDir });
+    let source = '[]';
+    plugin.generateBundle.call({ emitFile: (f: { source: string }) => (source = f.source) });
+    return JSON.parse(source);
+  }
+
+  it('hold files, so the checks below are about something', () => {
+    for (const f of folders) {
+      expect([...walk(path.join(publicDir, f))].length, f).toBeGreaterThan(0);
+    }
+  });
+
+  it('are not named by any code, page, script or stylesheet the game reaches', () => {
+    const reached = [...reachable].filter((f) => folders.some((d) => f.startsWith(d)));
+    expect(reached).toEqual([]);
+  });
+
+  it('are not in the manifest AssetLoader loads from (the game never asks for them)', () => {
+    const manifest = manifestFor(publicDir);
+    expect(manifest.length).toBeGreaterThan(500); // the real list, so an empty one cannot pass
+    expect(manifest.filter((f) => folders.some((d) => f.startsWith(d)))).toEqual([]);
+  });
+
+  it('are not loaded by name anywhere in the game source or the pages it loads', () => {
+    // An exact path, not "assets/reference" (which also matches admin/scene-assets/reference/,
+    // a different folder that the game does use).
+    const exact = /(^|[^-\w])assets\/(?:reference|samples)\//;
+    const offenders: string[] = [];
+    const scan = (file: string) => {
+      const text = stripLine(stripBlock(fs.readFileSync(file, 'utf8')));
+      if (exact.test(text)) offenders.push(path.relative(gameDir, file));
+    };
+    for (const f of walk(path.join(gameDir, 'src'))) {
+      if (f.endsWith('.ts') && !f.includes(`${path.sep}__tests__${path.sep}`) && !f.endsWith('.test.ts')) scan(f);
+    }
+    for (const f of reachable) {
+      if (/\.(html|js|css|json)$/.test(f)) scan(path.join(publicDir, f));
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('assets/samples/ is on the prune list, so it stays out of the web build and the iOS build', () => {
+    expect(DEV_ONLY).toContain('assets/samples/');
+    expect(isListed('assets/samples/bg-corridor.png')).toBe(true);
   });
 });
 

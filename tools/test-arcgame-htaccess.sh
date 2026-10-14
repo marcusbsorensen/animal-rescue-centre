@@ -176,7 +176,7 @@ for d in /assets/ /assets/animals/ /admin/ /fonts/ /data/; do
 done
 
 echo "THE GAME: dev-only pages are not in the build"
-for f in /admin/cockpit.html /admin/cast-gallery.html /admin/anchors.html /admin/drive-spike.html /admin/drive-spike/lights.js /admin/voice-booth.html /mockups/menus.html; do
+for f in /admin/cockpit.html /admin/cast-gallery.html /admin/anchors.html /admin/drive-spike.html /admin/drive-spike/lights.js /admin/voice-booth.html /mockups/menus.html /assets/samples/bg-corridor.png /assets/samples/cat-happy.png; do
   get "$GAME" "$f" ; expect "$f : not served" 404 "$(status)"
 done
 for f in /admin/menu.html /admin/tunnel.html /admin/login.html /admin/signup.html /admin/map.html /admin/drive-overlay.html; do
@@ -184,7 +184,7 @@ for f in /admin/menu.html /admin/tunnel.html /admin/login.html /admin/signup.htm
 done
 
 echo "THE GAME: caching, pages and data revalidate"
-for f in / /index.html /sw.js /sw-art-cleanup.js /manifest.webmanifest /asset-manifest.json /404.html; do
+for f in / /index.html /sw.js /sw-cache-cleanup.js /manifest.webmanifest /asset-manifest.json /404.html; do
   get "$GAME" "$f"; expect "$f : cache-control" "no-cache" "$(header cache-control)"
 done
 wb="$(cd "$DIST" && ls workbox-*.js | head -1)"
