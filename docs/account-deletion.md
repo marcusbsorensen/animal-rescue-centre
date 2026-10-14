@@ -55,7 +55,7 @@ On the device (`apps/game/src/lib/delete-account.ts`), the game removes the sess
 
 - **`showcase_links`**: the `using (true)` read rule and the unused insert and update rules are gone, and `anon`/`authenticated` have no rights on the table. Showcases are read only through `get-showcase`, one token at a time.
 - **`users`**: `anon`/`authenticated` may select `id, display_name, avatar_emoji, avatar_bg_colour` and nothing else. The typed sign-in name, PIN hash, PIN clue and join code are unreadable with the key, even if Supabase's own sign-in were switched on and the `users_read_*` rules matched. The typed name reaches only its own player, through login and signup.
-- **`username_pool`**: only unclaimed names are readable (`username`, `claimed_at`), never `claimed_by`.
+- **`username_pool`**: only unclaimed names are readable (`username`, `claimed_at`), never `claimed_by`. Migration 00017 (branch `claude/ready-made-names`) later takes this away too: once sign-in names are ready-made pairs from public word lists, the free names would show which ones are children's logins.
 - `searchUsername` in `lib/auth.ts`, which read `users.username` with the key for a hidden fallback screen, is removed.
 
 Not done here: DPIA open item 8's suggestion to move the friends, gift-inbox and friends-board reads into Edge Functions. Those reads still use the key under rules tied to `auth.uid()`, so today they return nothing to ARC's own sessions. Before this branch they did the same.

@@ -74,6 +74,14 @@ export {
   splitDisplayName,
 } from './display-names';
 export {
+  SIGN_IN_NAME_FIRSTS,
+  SIGN_IN_NAME_SECONDS,
+  SIGN_IN_NAME_MAX_PAIR_LENGTH,
+  SIGN_IN_NAME_MAX_LENGTH,
+  signInNamePairs,
+  isSignInNamePair,
+} from './sign-in-names';
+export {
   buildRecoveryQuestions,
   scoreRecovery,
 } from './forgot-pin';
