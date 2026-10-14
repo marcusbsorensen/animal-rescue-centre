@@ -4,27 +4,32 @@
 // close we are to our destination". Then, playing it: "the trip strip needs
 // to be vertical instead of horizontal, and it needs some milestones / sights
 // from along the way as landmarks for the kids to orient themselves on the
-// journey".
+// journey". Marcus, 2026-10-13: "much too intrusive on the screen and there is
+// wasted space on the left hand side ... more translucent, more compact, and a
+// little bit less like small children's fairy tale drawings ... this is for
+// eight, nine-year-olds" (71A, of three directions).
 //
-// So the strip is a little road up the left edge of the road view: where she
-// set off at the bottom, the destination's flag and name at the top, and the
-// van's own icon climbing it as she drives, because the van drives up the
-// screen and up is onward. Beside it, at their places along the journey, the
-// sights she will pass: a church, the station, the car wash where the tube
-// man waves, a farm. They come from the real map (landmarks.json, read from
-// OpenStreetMap), so the strip's order is the road's order. Each one also has
-// a painted fingerpost at the roadside in the world, on her side of the road,
-// pointing to the side the sight is on and naming it, so the strip and the
-// road match: as the van's icon passes the church's icon, the van passes the
-// church's sign, and its icon pops. The distance still to go is written
-// small under the destination's name for the grown-up.
+// So the strip is a slim rail of frosted glass flush with the left edge of the
+// road view: where she set off at the bottom, the destination's disc at the
+// top, and the van's own icon climbing it as she drives, because the van drives
+// up the screen and up is onward. On it, at their places along the journey, the
+// sights she will pass, each a flat pictogram on a disc coloured by what kind
+// of place it is, as a map's key or a sat-nav does: a church, the station, the
+// car wash, a farm. They come from the real map (landmarks.json, read from
+// OpenStreetMap), so the strip's order is the road's order. Beside the rail
+// are two tags: the destination's name with the distance still to go (small,
+// for the grown-up), and the next sight's with how far it is. Each sight also
+// has a painted fingerpost at the roadside in the world, on her side of the
+// road, pointing to the side the sight is on and naming it, so the strip and
+// the road match: as the van's icon passes the church's disc, the van passes
+// the church's sign, and its disc dims.
+//
+// Animals wait on the verge on her side, which is where the tags sit. The page
+// gives the strip their boxes (u.animals), and any part of it over one goes
+// nearly clear until the animal has gone by: she sees it whole.
 //
 // Contract with drive-spike.html:
-//   create(wrap, look)           builds the strip in #wrap, returns T. look is
-//                                the page's ?strip=: 'a', 'b' or 'c' for the
-//                                three directions Marcus is choosing between
-//                                (see "The compact strips" below), anything
-//                                else the strip as it is
+//   create(wrap)                 builds the strip in #wrap, returns T
 //   load(T)                      fetches landmarks.json; without it there are
 //                                no sights and the strip still works
 //   setVan(T, src)               the van's own top-down picture, pointing up
@@ -41,15 +46,17 @@
 //                                bottom of the chips, look the look-ahead
 //                                window's outside when fully open (canvas px)
 //                                or null. Cheap to call every frame.
-//   update(T, u)                 u = { s, arrived, reduce }. Every frame;
-//                                writes only what changed.
+//   update(T, u)                 u = { s, arrived, animals }. Every frame;
+//                                writes only what changed. animals: boxes
+//                                {x0, y0, x1, y1} in the canvas's px, one for
+//                                each animal on the screen.
 //   drawSigns(ctx, T, view)      the fingerposts, under the world transform
 //                                (view as scenery.js documents it)
 //
 // Which sights a drive shows: of those within their reach of the road (the
 // data's metres; a tower is seen from further than a school) and not at the
 // start or the destination, the best ranked and nearest, at most six and no
-// two closer along the road than a ninth of the drive, so their icons never
+// two closer along the road than a ninth of the drive, so their discs never
 // touch. A drive with fewer than three looks again a little further out and
 // closer together, and then counts the corners where it turns at a junction
 // ("Crossroads", "The corner"), which is how a child gives directions in open
@@ -60,78 +67,58 @@ const MAX_MARKS = 6, MIN_MARKS = 3;
 const END_CLEAR_M = 30;          // a sight this near the start or the end is the place itself
 const INK = '#33241a';           // the painted world's outline (crossings.js)
 const CREAM = '#fffaf0';
+const GHOST_PAD = 3, GHOST_OUT = 10;   // px round a part that an animal must reach to ghost it, and clear of to bring it back
 
 // --------------------------------------------------------------------- DOM
 
+// Translucent parts are dark tinted glass, so the white on them reads over
+// pale grass and dark tarmac alike.
 const CSS = `
-#trip { position: absolute; left: 0; top: 0; width: 62px; height: 300px; pointer-events: none; z-index: 1;
-  color: #3a3226; --icon: 22px; --road: 10px; --van: 14px; }
+#trip { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 1; color: #fff;
+  font-weight: 800; --disc: 18px; --van: 12px; --w: 30px; }
 #trip.hidden { visibility: hidden; }
-#trip .tPanel { position: absolute; inset: 0; border-radius: 14px; background: rgba(255,252,246,.86);
-  box-shadow: 0 2px 6px rgba(0,0,0,.18); transition: background-color .4s, box-shadow .4s; }
-#trip .tHead { position: absolute; left: 0; top: 0; width: max-content; display: flex; align-items: flex-start; gap: 2px;
-  padding: 5px 10px 5px 0; border-radius: 14px; background: rgba(255,252,246,.95);
-  box-shadow: 0 2px 6px rgba(0,0,0,.14); transition: background-color .4s, box-shadow .4s; }
-#trip .tFlag { flex: none; width: 20px; height: 28px; transform-origin: 3.5px 27px; }
-#trip .tLabel { display: flex; flex-direction: column; line-height: 1.1; padding-top: 2px; max-width: 100px; }
-#trip .tName { font-size: 13px; font-weight: 800; }
-#trip .tLeft { font-size: 10.5px; font-weight: 700; color: #7a6a52; }
-#trip .tRoad { position: absolute; left: calc(50% - var(--road) / 2); width: var(--road); border-radius: 5px;
-  background: #6c6f6b; box-shadow: inset 0 0 0 1px rgba(46,17,8,.25); }
-#trip .tRoad::after { content: ""; position: absolute; left: calc(50% - .5px); top: 6px; bottom: 6px; width: 1px;
-  background: repeating-linear-gradient(180deg, #f7f2e4 0 5px, transparent 5px 10px); }
-#trip .tDone { position: absolute; left: 0; right: 0; bottom: 0; height: 0; border-radius: 0 0 5px 5px;
-  background: rgba(255,252,246,.55); }
-#trip .tStart { position: absolute; left: 50%; bottom: -4px; width: 12px; height: 12px; margin-left: -6px;
-  border-radius: 50%; background: #e8dcc0; box-shadow: inset 0 0 0 1.5px ${INK}; }
+#trip .hPanel { position: absolute; inset: 0; border-radius: 0 12px 12px 0; background: rgba(20,24,30,.48);
+  -webkit-backdrop-filter: blur(6px) saturate(1.2); backdrop-filter: blur(6px) saturate(1.2);
+  box-shadow: inset -1px 0 0 rgba(255,255,255,.14); }
+#trip .hRail { position: absolute; left: calc(var(--w) / 2 - 1.5px); width: 3px; border-radius: 2px;
+  background: rgba(255,255,255,.38); }
+#trip .hDone { position: absolute; left: 0; right: 0; bottom: 0; height: 0; border-radius: 2px; background: #f4c04e; }
 #trip .tVan { position: absolute; left: 50%; bottom: 0; width: var(--van); margin-left: calc(var(--van) / -2);
-  filter: drop-shadow(0 1px 1px rgba(46,17,8,.45)); z-index: 2; }
-#trip .tMark { position: absolute; width: var(--icon); height: var(--icon); }
-#trip .tMark img { display: block; width: 100%; height: 100%; transition: opacity .4s; }
-#trip .tMark.pair { height: calc(var(--icon) * 1.6); }
-#trip .tMark.pair img { width: 80%; height: 50%; margin: 0 auto; }
-#trip .tMark.passed img { opacity: .5; }
-#trip .tMark.next img { filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 3px #e9b93c); }
-#trip .tMark.pop img { animation: tPop .5s ease-out; }
-#trip.arrived .tPanel, #trip.arrived .tHead { background: rgba(255,240,196,.97);
-  box-shadow: 0 0 0 2px #e6cf9f, 0 2px 10px rgba(214,160,40,.45); }
-#trip.arrived .tFlag { animation: tWave .5s ease-in-out 4 alternate; }
-#trip .tSparks { position: absolute; left: 12px; top: 9px; width: 0; height: 0; }
-#trip .spark { position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; color: #e0a92e;
-  font-size: 11px; line-height: 10px; opacity: 0; }
-#trip.arrived .spark { animation: tSpark 1.3s ease-out forwards; }
-#trip.arrived .spark:nth-child(2) { animation-delay: .15s; }
-#trip.arrived .spark:nth-child(3) { animation-delay: .3s; }
-@keyframes tWave { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
-@keyframes tSpark { 0% { opacity: 0; transform: translate(0, 0) scale(.4); }
-  30% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.1); } }
-@keyframes tPop { 0% { transform: scale(1); } 35% { transform: scale(1.35); } 100% { transform: scale(1); } }
+  filter: drop-shadow(0 0 1px rgba(0,0,0,.7)) drop-shadow(0 1px 2px rgba(0,0,0,.45)); z-index: 3; }
+#trip .hMark, #trip .hDest { position: absolute; left: calc(var(--w) / 2 - var(--disc) / 2);
+  width: var(--disc); height: var(--disc); border-radius: 50%; z-index: 2;
+  box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0,0,0,.45); transition: opacity .3s, transform .3s; }
+#trip .hMark img, #trip .hDest img { display: block; width: 100%; height: 100%; border-radius: 50%; }
+#trip .hMark.passed { opacity: .45; transform: scale(.7); }
+#trip .hMark.next { transform: scale(1.25); box-shadow: 0 0 0 2px #f4c04e, 0 1px 4px rgba(0,0,0,.5); }
+#trip .hTag { position: absolute; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  line-height: 1.1; padding: 3px 9px 4px; border-radius: 9px; background: rgba(20,24,30,.58);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: opacity .3s; }
+#trip .hTxt { display: flex; flex-direction: column; }
+#trip .hName { font-size: 12.5px; }
+#trip .hLeft { font-size: 10.5px; font-weight: 700; opacity: .85; font-variant-numeric: tabular-nums; }
+#trip .nTag::before { content: ""; position: absolute; left: -5px; top: calc(50% - 5px);
+  border: 5px solid transparent; border-left: 0; border-right-color: rgba(20,24,30,.58); }
+#trip.arrived .dTag .hLeft { color: #f4c04e; opacity: 1; }
+
+/* Over an animal waiting on the verge, a part of the strip is all but gone. */
+#trip .hPanel, #trip .hRail, #trip .hMarks, #trip .hDest { transition: opacity .25s; }
+#trip.gRail .hPanel, #trip.gRail .hRail, #trip.gRail .hMarks, #trip.gRail .hDest { opacity: .1; }
+#trip.gDest .dTag, #trip.gNext .nTag { opacity: .1; }
+#trip .nTag.none { opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
-  #trip.arrived .tFlag, #trip .tMark.pop img { animation: none; }
-  #trip.arrived .spark { animation: none; opacity: 1; transform: translate(var(--dx), var(--dy)); }
-  #trip .tPanel, #trip .tHead, #trip .tMark img { transition: none; }
+  #trip .hMark, #trip .hTag, #trip .hPanel, #trip .hRail, #trip .hMarks, #trip .hDest { transition: none; }
 }`;
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
 /** An element with attributes and children, built without parsing markup. */
-function el(tag, attrs = {}, kids = [], ns = null) {
-  const e = ns ? document.createElementNS(ns, tag) : document.createElement(tag);
+function el(tag, attrs = {}, kids = []) {
+  const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
   for (const k of kids) e.append(k);
   return e;
 }
 
-function flag() {
-  const s = (tag, a) => el(tag, a, [], SVG_NS);
-  return el('svg', { class: 'tFlag', viewBox: '0 0 18 26', 'aria-hidden': 'true' }, [
-    s('rect', { x: 2, y: 2, width: 2.2, height: 23, rx: 1.1, fill: '#6b4a2b' }),
-    s('path', { d: 'M4 3 L16.5 7.2 L4 11.6 Z', fill: '#8c3044', stroke: '#fffcf6', 'stroke-width': 1.2, 'stroke-linejoin': 'round' }),
-    s('circle', { cx: 3.1, cy: 2.4, r: 1.7, fill: '#e0b94e' }),
-  ], SVG_NS);
-}
-
-export function create(wrap, look) {
-  if (LOOKS.includes(look)) return createHud(wrap, look);
+export function create(wrap) {
   if (!document.getElementById('tripStripCss')) {
     const st = el('style', { id: 'tripStripCss' });
     st.textContent = CSS;
@@ -139,19 +126,23 @@ export function create(wrap, look) {
   }
   const T = {
     data: null, degree: null, degreeOf: null, marks: [], signs: [], total: 1,
-    geo: null, key: '', vanY: null, text: null, arrived: false, vanAspect: 2,
+    geo: null, at: null, key: '', vanY: null, text: null, arrived: false, vanAspect: 2,
+    next: undefined, nextAt: null, nextText: null, shown: null, ghost: '',
   };
-  T.done = el('div', { class: 'tDone' });
-  T.marksEl = el('div', { class: 'tMarks' });
+  const tag = (cls, kids) => el('div', { class: 'hTag ' + cls }, kids);
+  T.done = el('div', { class: 'hDone' });
   T.van = el('img', { class: 'tVan', alt: '' });
-  T.road = el('div', { class: 'tRoad' }, [T.done, el('div', { class: 'tStart' }), T.van]);
-  T.name = el('span', { class: 'tName' }, ['—']);
-  T.left = el('span', { class: 'tLeft' });
-  const spark = (dx, dy) => el('span', { class: 'spark', style: `--dx:${dx}px;--dy:${dy}px` }, ['✦']);
-  T.head = el('div', { class: 'tHead' }, [flag(), el('div', { class: 'tLabel' }, [T.name, T.left]),
-    el('span', { class: 'tSparks', 'aria-hidden': 'true' }, [spark(-12, -9), spark(11, -8), spark(-4, 13)])]);
+  T.road = el('div', { class: 'hRail' }, [T.done, T.van]);
+  T.marksEl = el('div', { class: 'hMarks' });
+  T.destDisc = el('div', { class: 'hDest' }, [el('img', { alt: '', src: glyphURL('finish') })]);
+  T.name = el('span', { class: 'hName' }, ['—']);
+  T.left = el('span', { class: 'hLeft' });
+  T.destTag = tag('dTag', [el('span', { class: 'hTxt' }, [T.name, T.left])]);
+  T.nextName = el('span', { class: 'hName' });
+  T.nextLeft = el('span', { class: 'hLeft' });
+  T.nextTag = tag('nTag none', [el('span', { class: 'hTxt' }, [T.nextName, T.nextLeft])]);
   T.el = el('div', { id: 'trip', class: 'hidden', role: 'img', 'aria-label': 'on the way' },
-    [el('div', { class: 'tPanel' }), T.road, T.marksEl, T.head]);
+    [el('div', { class: 'hPanel' }), T.road, T.marksEl, T.destDisc, T.destTag, T.nextTag]);
   wrap.appendChild(T.el);
   return T;
 }
@@ -260,17 +251,15 @@ export function choose(T, r) {
 export function setRoute(T, r) {
   T.total = Math.max(1, r.total);
   T.marks = r.route.length > 1 ? choose(T, r) : [];
-  if (T.look) { setRouteHud(T, r); return; }
   T.name.textContent = r.nameOf(r.dest) ?? r.dest;
   T.el.classList.remove('arrived');
   T.arrived = false;
-  T.text = null; T.vanY = null;
+  T.text = null; T.vanY = null; T.next = undefined; T.nextText = null; T.shown = null;
   T.signs = signsFor(T, r);
   T.marksEl.replaceChildren(...T.marks.map(m => {
-    // A pair stands one above the other, the one she passes first lower.
-    const both = m.also ? [m, m.also].sort((a, b) => b.s - a.s) : [m];
-    m.el = el('div', { class: 'tMark' + (m.also ? ' pair' : ''), title: both.map(b => b.name).join(' and ') },
-      both.map(b => el('img', { alt: '', src: iconURL(b.kind) })));
+    // A pair shares one disc on the strip, as it shares one post.
+    m.el = el('div', { class: 'hMark', title: [m, m.also].filter(Boolean).map(b => b.name).join(' and ') },
+      [el('img', { alt: '', src: glyphURL(m.kind) })]);
     m.state = '';
     return m.el;
   }));
@@ -290,47 +279,50 @@ function signsFor(T, r) {
 
 // ------------------------------------------------------------------ layout
 
-/** Upright the strip is narrow, so it never crowds the road; held sideways
- *  there is room, and it grows with the screen's height. */
+/** The rail's width and its discs, a little bigger held sideways, where
+ *  there is room. */
 function sizes(w, h) {
-  const icon = w > h ? Math.max(22, Math.min(32, Math.round(h / 25))) : 20;
-  const road = Math.round(icon * 0.46);
-  return { icon, road, van: Math.round(icon * 0.72), width: icon * 2 + road + 10 };
+  const disc = w > h ? Math.max(20, Math.min(26, Math.round(h / 34))) : 18;
+  return { w: disc + 12, disc, van: Math.round(disc * 0.7) };
 }
 
 export function layout(T, g) {
-  if (T.look) { layoutHud(T, g); return; }
   const S = sizes(g.w, g.h);
-  const x = g.left + 8;
-  // Below the chips, and below the look-ahead window wherever it would open
-  // over the strip or its labels (across the whole top, held upright).
+  // Flush with the road view's edge, below the chips, and below the
+  // look-ahead window wherever it would open over the strip or its tags
+  // (across the whole top, held upright).
+  const x = g.left;
   let top = g.clearTop + 8;
-  if (g.look && g.look.x < x - g.left + S.width + 160) top = Math.max(top, g.top + g.look.y + g.look.h + 8);
+  if (g.look && g.look.x < S.w + 160) top = Math.max(top, g.top + g.look.y + g.look.h + 8);
   const bottom = g.top + g.roadH - 10;
-  const key = [x, top, bottom, S.icon, T.vanAspect].map(v => Math.round(v * 10)).join(',');
+  const key = [x, g.top, top, bottom, S.w, S.disc, T.vanAspect].map(v => Math.round(v * 10)).join(',');
   if (key === T.key) return;
   T.key = key;
-  const H = Math.max(120, bottom - top);
-  Object.assign(T.el.style, { left: x + 'px', top: top + 'px', width: S.width + 'px', height: H + 'px' });
-  T.el.style.setProperty('--icon', S.icon + 'px');
-  T.el.style.setProperty('--road', S.road + 'px');
+  const H = Math.max(110, bottom - top);
+  Object.assign(T.el.style, { left: x + 'px', top: top + 'px', width: S.w + 'px', height: H + 'px' });
+  T.el.style.setProperty('--w', S.w + 'px');
+  T.el.style.setProperty('--disc', S.disc + 'px');
   T.el.style.setProperty('--van', S.van + 'px');
-  // The flag's pole stands on the end of the road, its name beside it.
-  T.head.style.paddingLeft = (S.width / 2 - 3.4) + 'px';
-  // The road runs from under the flag's foot to just above the bottom.
-  const roadTop = 30, roadBottom = H - 12, len = Math.max(40, roadBottom - roadTop);
+  // The destination's disc at the top, the rail from under it to the bottom.
+  const destD = S.disc + 4;
+  T.destDisc.style.width = T.destDisc.style.height = destD + 'px';
+  T.destDisc.style.left = (S.w / 2 - destD / 2) + 'px';
+  T.destDisc.style.top = '5px';
+  const roadTop = 5 + destD + 6, roadBottom = H - 8;
+  const len = Math.max(40, roadBottom - roadTop);
   Object.assign(T.road.style, { top: roadTop + 'px', height: len + 'px' });
   const vanH = S.van * T.vanAspect;
-  T.geo = { len, vanH };
-  // Each sight's icon level with the van icon's middle when the van is at it,
-  // on the side of the road it is on.
+  T.geo = { len, vanH, roadTop, w: S.w, destD };
+  // Where it is in #wrap, and where the canvas is, for keeping clear of animals.
+  T.at = { x, y: top, w: S.w, h: H, left: g.left, top: g.top, dest: { x: S.w + 5, y: 3 } };
   const run = Math.max(0, len - vanH);
   for (const m of T.marks) {
-    const y = roadTop + len - (vanH / 2 + run * Math.min(1, m.s / T.total));
-    const left = m.side < 0 ? 3 : S.width - S.icon - 3;
-    const h = m.also ? S.icon * 1.6 : S.icon;
-    Object.assign(m.el.style, { left: left + 'px', top: (y - h / 2) + 'px' });
+    m.y = roadTop + len - (vanH / 2 + run * Math.min(1, m.s / T.total));
+    m.el.style.top = (m.y - S.disc / 2) + 'px';
   }
+  // The destination's name beside its disc.
+  Object.assign(T.destTag.style, { left: T.at.dest.x + 'px', top: T.at.dest.y + 'px' });
+  T.next = undefined;   // re-place the next sight's tag
   T.vanY = null;
   T.el.classList.remove('hidden');
 }
@@ -343,222 +335,6 @@ function distanceText(m) {
 }
 
 export function update(T, u) {
-  if (T.look) { updateHud(T, u); return; }
-  if (!T.geo) return;
-  const p = Math.min(1, u.s / T.total);
-  const run = Math.max(0, T.geo.len - T.geo.vanH);
-  const y = Math.round(p * run * 2) / 2;
-  if (y !== T.vanY) {
-    T.vanY = y;
-    T.van.style.transform = `translateY(${-y}px)`;
-    T.done.style.height = (y + T.geo.vanH / 2) + 'px';
-  }
-  let next = null;
-  for (const m of T.marks) {
-    const passed = u.s >= m.s;
-    if (!passed && !next) next = m;
-    const state = [passed && 'passed', m === next && 'next'].filter(Boolean).join(' ');
-    if (state !== m.state) {
-      // Passing it: a small pop, as the van passes its sign.
-      const pop = passed && m.state !== '' && !m.state.includes('passed') && !u.reduce;
-      m.el.className = 'tMark ' + state + (m.also ? ' pair' : '') + (pop ? ' pop' : '');
-      m.state = state;
-    }
-  }
-  const text = u.arrived ? 'here' : distanceText(Math.max(0, T.total - u.s));
-  if (text !== T.text) {
-    T.text = text;
-    T.left.textContent = text;
-    T.el.setAttribute('aria-label', u.arrived ? 'arrived at ' + T.name.textContent
-      : T.name.textContent + ', ' + text + ' to go' + (next ? ', next ' + next.name : ''));
-  }
-  if (u.arrived && !T.arrived) { T.arrived = true; T.el.classList.add('arrived'); }
-}
-
-// ------------------------------------------------------- the compact strips
-//
-// Marcus, 2026-10-13: "much too intrusive on the screen and there is wasted
-// space on the left hand side ... more translucent, more compact, and a
-// little bit less like small children's fairy tale drawings ... this is for
-// eight, nine-year-olds." Three directions for him to choose between, by
-// ?strip=, the strip above staying until he picks:
-//   a  a slim frosted rail flush with the left edge, the whole drive, with
-//      the destination and the next sight named in tags beside it
-//   b  no panel at all: a thin outlined line floating over the verge with
-//      ringed markers on it, its two names in haloed text
-//   c  a short capsule at the top left that holds the whole drive, and grows
-//      a card naming the next sight only while it is near
-// All three use the same sights (choose()) and signs, and draw each sight as
-// a flat pictogram on a disc coloured by what kind of place it is, as a
-// map's key or a sat-nav does, instead of the painted icons. Translucent
-// panels are dark tinted glass, so the white on them reads over pale grass
-// and dark tarmac alike; the line in b carries its own dark outline.
-
-const LOOKS = ['a', 'b', 'c'];
-const NEAR_M = 300;   // c: the card opens when the next sight is this close
-
-const HUD_CSS = `
-#trip.hud { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 1; color: #fff;
-  font-weight: 800; --disc: 18px; --van: 12px; --w: 30px; }
-#trip.hud.hidden { visibility: hidden; }
-#trip.hud .hPanel { position: absolute; inset: 0; }
-#trip.hud .hRail { position: absolute; left: calc(var(--w) / 2 - 1.5px); width: 3px; border-radius: 2px;
-  background: rgba(255,255,255,.38); }
-#trip.hud .hDone { position: absolute; left: 0; right: 0; bottom: 0; height: 0; border-radius: 2px; background: #f4c04e; }
-#trip.hud .tVan { position: absolute; left: 50%; bottom: 0; width: var(--van); margin-left: calc(var(--van) / -2);
-  filter: drop-shadow(0 0 1px rgba(0,0,0,.7)) drop-shadow(0 1px 2px rgba(0,0,0,.45)); z-index: 3; }
-#trip.hud .hMark, #trip.hud .hDest { position: absolute; left: calc(var(--w) / 2 - var(--disc) / 2);
-  width: var(--disc); height: var(--disc); border-radius: 50%; z-index: 2;
-  box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0,0,0,.45); transition: opacity .3s, transform .3s; }
-#trip.hud .hMark img, #trip.hud .hDest img { display: block; width: 100%; height: 100%; border-radius: 50%; }
-#trip.hud .hMark.passed { opacity: .45; transform: scale(.7); }
-#trip.hud .hMark.next { transform: scale(1.25); box-shadow: 0 0 0 2px #f4c04e, 0 1px 4px rgba(0,0,0,.5); }
-#trip.hud .hTag { position: absolute; display: flex; align-items: center; gap: 6px; white-space: nowrap;
-  line-height: 1.1; transition: opacity .3s; }
-#trip.hud .hTag .hTxt { display: flex; flex-direction: column; }
-#trip.hud .hName { font-size: 12.5px; }
-#trip.hud .hLeft { font-size: 10.5px; font-weight: 700; opacity: .85; font-variant-numeric: tabular-nums; }
-#trip.hud .hBar { display: none; }
-#trip.hud .nTag img { display: none; }
-#trip.hud .nTag.none { opacity: 0; }
-#trip.hud.arrived .dTag .hLeft { color: #f4c04e; opacity: 1; }
-
-/* a: the frosted rail. */
-#trip.la .hPanel { border-radius: 0 12px 12px 0; background: rgba(20,24,30,.48);
-  -webkit-backdrop-filter: blur(6px) saturate(1.2); backdrop-filter: blur(6px) saturate(1.2);
-  box-shadow: inset -1px 0 0 rgba(255,255,255,.14); }
-#trip.la .hTag { padding: 3px 9px 4px; border-radius: 9px; background: rgba(20,24,30,.58);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-#trip.la .nTag::before { content: ""; position: absolute; left: -5px; top: calc(50% - 5px);
-  border: 5px solid transparent; border-left: 0; border-right-color: rgba(20,24,30,.58); }
-
-/* b: no panel; everything carries its own outline. */
-#trip.lb .hRail { width: 4px; left: calc(var(--w) / 2 - 2px); background: rgba(255,255,255,.9);
-  box-shadow: 0 0 0 1.5px rgba(16,20,26,.6), 0 1px 4px rgba(0,0,0,.35); }
-#trip.lb .hDone { background: #f4c04e; }
-#trip.lb .hTag { text-shadow: 1px 0 1px #14161b, -1px 0 1px #14161b, 0 1px 1px #14161b, 0 -1px 1px #14161b,
-  0 0 4px rgba(10,12,16,.9), 0 1px 8px rgba(10,12,16,.6); }
-#trip.lb .hName { font-size: 13px; }
-#trip.lb .hMark:not(.next):not(.passed) { transform: scale(.85); }
-
-/* c: the capsule, and the card it grows. */
-#trip.lc { --disc: 8px; }
-#trip.lc .hPanel { border-radius: 999px; background: rgba(20,24,30,.5);
-  -webkit-backdrop-filter: blur(6px) saturate(1.2); backdrop-filter: blur(6px) saturate(1.2);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
-#trip.lc .hMark { box-shadow: 0 0 0 1.5px #fff; background: rgba(20,24,30,.9); }
-#trip.lc .hMark img { display: none; }
-#trip.lc .hMark.next { background: #f4c04e; box-shadow: 0 0 0 1.5px #fff; transform: scale(1.3); }
-#trip.lc .hDest { width: 20px; height: 20px; left: calc(var(--w) / 2 - 10px); }
-#trip.lc .hTag { padding: 3px 9px 4px; border-radius: 9px; background: rgba(20,24,30,.58);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-#trip.lc .nTag { padding: 5px 10px 6px 5px; border-radius: 14px; transform-origin: 0 50%;
-  transition: opacity .25s, transform .25s; }
-#trip.lc .nTag img { display: block; width: 30px; height: 30px; border-radius: 50%; box-shadow: 0 0 0 1.5px #fff; }
-#trip.lc .nTag .hName { font-size: 13.5px; }
-#trip.lc .nTag .hBar { display: block; height: 3px; margin-top: 3px; border-radius: 2px; background: rgba(255,255,255,.25); }
-#trip.lc .nTag .hBar i { display: block; height: 100%; border-radius: 2px; background: #f4c04e; transform-origin: 0 0; }
-#trip.lc .nTag.none { opacity: 0; transform: scale(.6, .9); }
-@media (prefers-reduced-motion: reduce) {
-  #trip.hud .hMark, #trip.hud .hTag, #trip.lc .nTag { transition: none; }
-}`;
-
-function createHud(wrap, look) {
-  if (!document.getElementById('tripHudCss')) {
-    const st = el('style', { id: 'tripHudCss' });
-    st.textContent = HUD_CSS;
-    document.head.appendChild(st);
-  }
-  const T = {
-    look, data: null, degree: null, degreeOf: null, marks: [], signs: [], total: 1,
-    geo: null, key: '', vanY: null, text: null, arrived: false, vanAspect: 2, next: undefined, nextText: null,
-    near: null, bar: null,
-  };
-  const tag = (cls, kids) => el('div', { class: 'hTag ' + cls }, kids);
-  T.done = el('div', { class: 'hDone' });
-  T.van = el('img', { class: 'tVan', alt: '' });
-  T.road = el('div', { class: 'hRail' }, [T.done, T.van]);
-  T.marksEl = el('div', { class: 'hMarks' });
-  T.destDisc = el('div', { class: 'hDest' }, [el('img', { alt: '', src: glyphURL('finish') })]);
-  T.name = el('span', { class: 'hName' }, ['—']);
-  T.left = el('span', { class: 'hLeft' });
-  T.destTag = tag('dTag', [el('span', { class: 'hTxt' }, [T.name, T.left])]);
-  T.nextImg = el('img', { alt: '' });
-  T.nextName = el('span', { class: 'hName' });
-  T.nextLeft = el('span', { class: 'hLeft' });
-  T.barFill = el('i');
-  T.nextTag = tag('nTag none', [T.nextImg, el('span', { class: 'hTxt' }, [T.nextName, T.nextLeft, el('span', { class: 'hBar' }, [T.barFill])])]);
-  T.el = el('div', { id: 'trip', class: 'hud l' + look + ' hidden', role: 'img', 'aria-label': 'on the way' },
-    [el('div', { class: 'hPanel' }), T.road, T.marksEl, T.destDisc, T.destTag, T.nextTag]);
-  wrap.appendChild(T.el);
-  return T;
-}
-
-function setRouteHud(T, r) {
-  T.name.textContent = r.nameOf(r.dest) ?? r.dest;
-  T.el.classList.remove('arrived');
-  T.arrived = false;
-  T.text = null; T.vanY = null; T.next = undefined; T.nextText = null; T.near = null; T.bar = null;
-  T.signs = signsFor(T, r);
-  T.marksEl.replaceChildren(...T.marks.map(m => {
-    // A pair shares one disc on the strip, as it shares one post.
-    m.el = el('div', { class: 'hMark', title: [m, m.also].filter(Boolean).map(b => b.name).join(' and ') },
-      [el('img', { alt: '', src: glyphURL(m.kind) })]);
-    m.state = '';
-    return m.el;
-  }));
-  T.key = '';
-  window.__trip = T;
-}
-
-/** Each direction's sizes: a little bigger held sideways, where there is room. */
-function hudSizes(look, w, h) {
-  const land = w > h;
-  if (look === 'c') return { w: land ? 30 : 26, disc: 8, van: land ? 14 : 12 };
-  const disc = land ? Math.max(20, Math.min(26, Math.round(h / 34))) : 18;
-  return { w: disc + 12, disc, van: Math.round(disc * 0.7) };
-}
-
-function layoutHud(T, g) {
-  const S = hudSizes(T.look, g.w, g.h);
-  // a hugs the edge; b floats just in from it; c sits under the chips.
-  const x = g.left + (T.look === 'a' ? 0 : T.look === 'b' ? 4 : 8);
-  let top = g.clearTop + 8;
-  if (g.look && g.look.x < x - g.left + S.w + 160) top = Math.max(top, g.top + g.look.y + g.look.h + 8);
-  let bottom = g.top + g.roadH - 10;
-  if (T.look === 'c') bottom = Math.min(bottom, top + Math.max(140, Math.min(230, g.roadH * 0.3)));
-  const key = [T.look, x, top, bottom, S.w, S.disc, T.vanAspect].map(v => typeof v === 'number' ? Math.round(v * 10) : v).join(',');
-  if (key === T.key) return;
-  T.key = key;
-  const H = Math.max(110, bottom - top);
-  Object.assign(T.el.style, { left: x + 'px', top: top + 'px', width: S.w + 'px', height: H + 'px' });
-  T.el.style.setProperty('--w', S.w + 'px');
-  T.el.style.setProperty('--disc', S.disc + 'px');
-  T.el.style.setProperty('--van', S.van + 'px');
-  // The destination's disc at the top, the rail from under it to the bottom.
-  const destD = T.look === 'c' ? 20 : S.disc + 4;
-  T.destDisc.style.width = T.destDisc.style.height = destD + 'px';
-  T.destDisc.style.left = (S.w / 2 - destD / 2) + 'px';
-  T.destDisc.style.top = (T.look === 'b' ? 0 : 5) + 'px';
-  const roadTop = (T.look === 'b' ? 0 : 5) + destD + 6, roadBottom = H - (T.look === 'c' ? 12 : 8);
-  const len = Math.max(40, roadBottom - roadTop);
-  Object.assign(T.road.style, { top: roadTop + 'px', height: len + 'px' });
-  const vanH = S.van * T.vanAspect;
-  T.geo = { len, vanH, roadTop, w: S.w, destD };
-  const run = Math.max(0, len - vanH);
-  for (const m of T.marks) {
-    m.y = roadTop + len - (vanH / 2 + run * Math.min(1, m.s / T.total));
-    m.el.style.top = (m.y - S.disc / 2) + 'px';
-  }
-  // The destination's name beside its disc.
-  const tagX = S.w + (T.look === 'b' ? 2 : 5);
-  Object.assign(T.destTag.style, { left: tagX + 'px', top: (T.look === 'b' ? -2 : 3) + 'px' });
-  T.next = undefined;   // re-place the next sight's tag
-  T.vanY = null;
-  T.el.classList.remove('hidden');
-}
-
-function updateHud(T, u) {
   if (!T.geo) return;
   const G = T.geo;
   const p = Math.min(1, u.s / T.total);
@@ -580,24 +356,16 @@ function updateHud(T, u) {
     T.next = next;
     if (next) {
       T.nextName.textContent = next.also ? next.name + ' & ' + next.also.name : next.name;
-      T.nextImg.src = glyphURL(next.kind);
       // Level with its disc, but never over the destination's name.
-      const tagX = G.w + (T.look === 'b' ? 2 : T.look === 'c' ? 6 : 8);
-      const h = T.look === 'c' ? 44 : 32;
-      const yy = Math.max(G.destD + 22, next.y - h / 2);
-      Object.assign(T.nextTag.style, { left: tagX + 'px', top: yy + 'px' });
+      T.nextAt = { x: G.w + 8, y: Math.max(G.destD + 22, next.y - 16) };
+      Object.assign(T.nextTag.style, { left: T.nextAt.x + 'px', top: T.nextAt.y + 'px' });
     }
   }
   const togo = next ? next.s - u.s : 0;
   const nextText = next ? distanceText(togo) : '';
   if (nextText !== T.nextText) { T.nextText = nextText; T.nextLeft.textContent = next ? 'in ' + nextText : ''; }
-  // a and b always name the next sight; c only while it is near.
-  const show = !!next && !u.arrived && (T.look !== 'c' || togo <= NEAR_M);
-  if (show !== T.near) { T.near = show; T.nextTag.classList.toggle('none', !show); }
-  if (T.look === 'c' && show) {
-    const bar = Math.round((1 - togo / NEAR_M) * 50) / 50;
-    if (bar !== T.bar) { T.bar = bar; T.barFill.style.transform = `scaleX(${Math.max(0.02, bar)})`; }
-  }
+  const show = !!next && !u.arrived;
+  if (show !== T.shown) { T.shown = show; T.nextTag.classList.toggle('none', !show); }
   const text = u.arrived ? 'here' : distanceText(Math.max(0, T.total - u.s));
   if (text !== T.text) {
     T.text = text;
@@ -606,6 +374,33 @@ function updateHud(T, u) {
       : T.name.textContent + ', ' + text + ' to go' + (next ? ', next ' + next.name : ''));
   }
   if (u.arrived && !T.arrived) { T.arrived = true; T.el.classList.add('arrived'); }
+  keepClear(T, u.animals);
+}
+
+/** Any part of the strip over an animal goes all but clear (gRail, gDest,
+ *  gNext), so the animal waiting on the verge is seen whole. The parts are
+ *  the rail, the destination's tag and the next sight's, each padded a little,
+ *  against each animal's box (its glow too); the tags' sizes are read only while there is an
+ *  animal on the screen, which is seldom. */
+function keepClear(T, animals) {
+  let ghost = '';
+  if (animals && animals.length && T.at) {
+    const A = T.at, parts = [['gRail', A.x, A.y, A.w, A.h]];
+    parts.push(['gDest', A.x + A.dest.x, A.y + A.dest.y, T.destTag.offsetWidth, T.destTag.offsetHeight]);
+    if (T.shown && T.nextAt) parts.push(['gNext', A.x + T.nextAt.x, A.y + T.nextAt.y, T.nextTag.offsetWidth, T.nextTag.offsetHeight]);
+    for (const [cls, x, y, w, h] of parts) {
+      // A glow breathes, so a part already ghosted comes back only once well clear.
+      const pad = T.ghost.includes(cls) ? GHOST_OUT : GHOST_PAD;
+      const hit = animals.some(a => a.x0 + A.left < x + w + pad && a.x1 + A.left > x - pad
+        && a.y0 + A.top < y + h + pad && a.y1 + A.top > y - pad);
+      if (hit) ghost += ' ' + cls;
+    }
+  }
+  if (ghost !== T.ghost) {
+    T.ghost = ghost;
+    T.el.classList.remove('gRail', 'gDest', 'gNext');
+    for (const c of ghost.split(' ')) if (c) T.el.classList.add(c);
+  }
 }
 
 // --------------------------------------------------------------- pictograms
@@ -883,23 +678,9 @@ function signBoard(kind, name, side) {
 
 // ------------------------------------------------------------------ icons
 
-const ICON_CACHE = new Map();
-/** A kind's icon as an image URL for the strip, painted once at 4x. */
-function iconURL(kind) {
-  const key = kind;
-  if (!ICON_CACHE.has(key)) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 96;
-    const g = c.getContext('2d');
-    g.scale(4, 4);
-    paintIcon(g, kind);
-    ICON_CACHE.set(key, c.toDataURL());
-  }
-  return ICON_CACHE.get(key);
-}
-
-/** Each kind, painted in a 24 x 24 box in the world's style: soft fills and
- *  a thin dark outline, shapes a child names on sight. */
+/** Each kind, painted in a 24 x 24 box in the world's style, for its
+ *  fingerpost's board: soft fills and a thin dark outline, shapes a child
+ *  names on sight. */
 export function paintIcon(g, kind) {
   g.lineJoin = 'round'; g.lineCap = 'round'; g.lineWidth = 1.3; g.strokeStyle = INK;
   const P = (pts, fill) => {

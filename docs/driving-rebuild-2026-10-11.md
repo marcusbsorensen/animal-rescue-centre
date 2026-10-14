@@ -48,7 +48,13 @@ older one finds it babyish. Marcus's idea, and it is better than the
 reference. The route it draws is the one the GPS already computes. The switch
 is on the driving screen itself, a brass knob on the dashboard beside the GPS,
 on by default and remembered on the device (Marcus, 2026-10-11: the game has
-no settings screen).
+no settings screen). Its colour is gold, with a dark brown edge, on the road,
+on the GPS's route and on the switch's face, so "your way" is one colour
+(Marcus, 2026-10-14: the blue had begun to read as water, since 69A painted
+the real ditches and ponds blue). It is a saturated yellow gold, further from
+the beige of the dust and the sand-coloured farm tracks and from the amber
+glow of the crossing animals than an orange one; the edge is what makes it
+read on a pale track. Defined once, as `GUIDE` in `drive-spike/dashboard.js`.
 
 ## Why top-down, and why that is not a compromise
 
@@ -256,28 +262,42 @@ styled as the vehicle's own cockpit dashboard. Park and Reverse are gone. In
 landscape the van sits lower and the camera pulls back. Every vehicle is drawn
 at its true width relative to Henry. Supply runs are the delivery race.
 
-**The trip strip and the chips, three ways each (2026-10-13; Marcus is
-choosing).** The trip strip (`drive-spike/trip-strip.js`, Lily 2026-10-12) is
-the drive up the left edge of the road view: the destination at the top, the
-van climbing, the sights on the way from `landmarks.json`, each matched by a
-fingerpost at the roadside. Marcus found it too intrusive, wasting the left
-column, and too picture-book for 8 to 9 year olds; and the chips at the top
-looked like wireframe placeholders. Three directions for each are behind URL
-parameters, the current look staying the default until he picks
-(screenshots and contact sheets in `docs/img/strip-and-chips/`):
-- `?strip=a` a slim frosted rail flush with the left edge; `?strip=b` no
-  panel, a thin outlined line over the verge with haloed names; `?strip=c` a
-  short capsule at the top left that grows a card for the next sight only
-  when it is within 300 m. All three draw the sights as flat pictograms on
-  discs coloured by kind (transport, old buildings, shops and fun, the
-  countryside), name the destination and the next sight, and show the
-  distance to go.
-- `?chips=a` brass plates on walnut, as the dashboard's fittings; `?chips=b`
-  road-sign badges, the road chip in the colours of that road's signs, a red
-  warning triangle when the gear is wrong; `?chips=c` one bar of tinted
-  glass with a small label over each value. The gear and speed chips repeat
-  the dashboard's gear window and speedometer; whether to keep them is
-  Marcus's call.
+**The trip strip and the chips (2026-10-13, decided).** The trip strip
+(`drive-spike/trip-strip.js`, Lily 2026-10-12) is the drive up the left edge
+of the road view: the destination at the top, the van climbing, the sights on
+the way from `landmarks.json`, each matched by a fingerpost at the roadside.
+Marcus found it too intrusive, wasting the left column, and too picture-book
+for 8 to 9 year olds; and the chips at the top looked like wireframe
+placeholders. Three directions for each were built behind URL parameters
+(screenshots of the chosen ones and both contact sheets are in
+`docs/img/strip-and-chips/`). Marcus chose:
+- **71A:** the slim frosted rail flush with the left edge is the trip strip.
+  Sights are flat pictograms on discs coloured by kind, with a tag for the
+  destination (and the distance to go) and one for the next sight.
+- **72B:** the road-sign badges are the chips. The road chip takes the
+  colours of that road's real signs, and a wrong gear shows a red warning
+  triangle.
+- **73A:** no gear or speed chip, as the dashboard's gear window and
+  speedometer already show them. The lane and road chips stay, and the quiet
+  `dev` chip.
+
+The other looks, and `?strip=` and `?chips=`, are gone. The wrong-gear
+warning is its own plate after the road chip (a red triangle and what it
+costs: "slow down", "dust!", "beeping"), so the road chip keeps its road's
+colours and nothing else in the row moves when it comes and goes; the gear
+knob on the dashboard still pulses only when the gear does not suit the road
+(33A). The handbrake is shown by the dashboard's lever, not a chip.
+
+*Animals waiting on the verge.* At 390x844 the rail itself stays clear of an
+animal waiting on her side of the road, but its tags do not: the
+destination's tag sat over a fox and a hedgehog (in play-tests of both vans)
+while the van was 9 to 11 m short of them, and the next sight's tag sits
+wherever its sight is on the rail. At 1280x800 nothing reaches them, the verge
+being far from the left edge. So the page gives the strip each animal's box
+(`crossings.animals()`, through the world's transform) and any part of the
+strip over one (rail, destination tag, next tag) goes to a tenth of its
+strength until the animal has gone by. It comes back only once the animal's
+glow is 10 px clear, so a breathing glow does not make it flicker.
 
 **Small animals cross the small lanes.** Marcus's idea, and the reason the
 camera comes in close on them: hedgehogs, rabbits, pheasants and the like

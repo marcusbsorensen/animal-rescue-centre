@@ -226,6 +226,15 @@ const TARGET = 58;   // every control's touch area is at least this wide and tal
 const GEAR_WIN = { port: 44, land: 42 };   // the gear number's window, wide
 
 const INK = '#2e1108';                   // the painting's outline brown
+
+/** The guide line's colours, one for "your way" everywhere it is drawn: the
+ *  road view's line (the page), the GPS's route and the switch's face.
+ *  Marcus, 2026-10-14: gold, as the blue now reads as water (69A painted the
+ *  real ditches and ponds blue). A saturated yellow gold, further from the
+ *  beige of the dust and the farm tracks and the amber of the animals' glow
+ *  than an orange one, and with a dark brown edge, which is what lets it read
+ *  on a pale track where gold on sand has no contrast of its own. */
+export const GUIDE = { line: '#f4c20d', edge: '#3a2606', edgeAlpha: 0.72 };
 const TAU = Math.PI * 2, DEG = Math.PI / 180;
 const FONT = '"Arial Rounded MT Bold", "Nunito", system-ui, sans-serif';
 
@@ -1000,7 +1009,7 @@ function drawGps(g, L, s) {
       }
     }
   }
-  // The route: driven part faded, the rest in the guide line's blue.
+  // The route: driven part faded, the rest in the guide line's gold.
   const pts = s.route || [];
   let i = 1;
   while (i < pts.length - 1 && pts[i].s < s.s) i++;
@@ -1011,8 +1020,8 @@ function drawGps(g, L, s) {
     g.strokeStyle = 'rgba(120,110,100,.55)'; g.lineWidth = 2.4 / ppm; g.stroke();
     g.beginPath(); g.moveTo(s.x, s.y);
     for (let j = i; j < pts.length; j++) g.lineTo(pts[j].x, pts[j].y);
-    g.strokeStyle = 'rgba(46,17,8,.5)'; g.lineWidth = 4.4 / ppm; g.stroke();
-    g.strokeStyle = '#4a7ad6'; g.lineWidth = 3 / ppm; g.stroke();
+    g.globalAlpha = GUIDE.edgeAlpha; g.strokeStyle = GUIDE.edge; g.lineWidth = 4.6 / ppm; g.stroke();
+    g.globalAlpha = 1; g.strokeStyle = GUIDE.line; g.lineWidth = 3 / ppm; g.stroke();
     const end = pts[pts.length - 1];
     circle(g, end.x, end.y, 4.2 / ppm);
     g.fillStyle = '#8c3044'; g.fill(); g.lineWidth = 1.3 / ppm; g.strokeStyle = '#fffcf6'; g.stroke();
@@ -1245,7 +1254,7 @@ function drawGearWindow(g, W, d, gear, over, now, reduce, round) {
 }
 
 /** The guide line's switch: the same knob with a little road on its face.
- *  Lit, the road carries the line in the guide's blue, ending in an arrow,
+ *  Lit, the road carries the line in the guide's gold, ending in an arrow,
  *  as the road view does; unlit, the road is plain with its dashed centre,
  *  so what the switch does can be read off the knob without words. */
 function drawGuideSwitch(g, G, on) {
@@ -1259,11 +1268,11 @@ function drawGuideSwitch(g, G, on) {
   g.lineCap = 'round'; g.lineJoin = 'round';
   if (on) {
     const lw = Math.max(1.8, fr * 0.16), headTop = cy - fr * 0.9, headBase = cy - fr * 0.36, hh = fr * 0.34;
-    g.strokeStyle = '#78a9ff'; g.lineWidth = lw;
+    g.strokeStyle = GUIDE.line; g.lineWidth = lw;
     g.beginPath(); g.moveTo(cx, foot - fr * 0.08); g.lineTo(cx, headBase + 1); g.stroke();
     g.beginPath(); g.moveTo(cx, headTop); g.lineTo(cx - hh, headBase); g.lineTo(cx + hh, headBase); g.closePath();
-    g.fillStyle = '#78a9ff'; g.fill();
-    g.lineWidth = 1; g.strokeStyle = '#1f3f87'; g.stroke();
+    g.fillStyle = GUIDE.line; g.fill();
+    g.lineWidth = 1; g.strokeStyle = GUIDE.edge; g.stroke();
   } else {
     g.strokeStyle = '#f2ead8'; g.lineWidth = Math.max(1.4, fr * 0.1); g.setLineDash([fr * 0.2, fr * 0.22]);
     g.beginPath(); g.moveTo(cx, foot - fr * 0.06); g.lineTo(cx, top + fr * 0.06); g.stroke();
