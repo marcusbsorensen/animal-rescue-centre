@@ -74,3 +74,8 @@ __pycache__/
 # /tmp/style.json as the place for it; this catches the run that lands in root.
 animal-style-audit.json
 style.json
+
+# Voice booth: raw takes and the chosen takes before they are published.
+# Chosen takes ship as apps/game/public/assets/voice/*.mp3, which is committed.
+# Friends' names and consent notes live here too, and the repo is public.
+apps/game/voice-takes/

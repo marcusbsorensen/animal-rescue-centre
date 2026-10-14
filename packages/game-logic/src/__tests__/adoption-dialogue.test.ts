@@ -144,6 +144,17 @@ describe('handoverVoiceScript', () => {
     expect(script.every((l) => l.usesAnimalName)).toBe(true);
   });
 
+  it('drafts a name-free version of every line, short enough for a child, with no name in it', () => {
+    for (const l of script) {
+      expect(l.textNameFree.length, l.lineId).toBeGreaterThan(10);
+      expect(l.textNameFree, l.lineId).not.toContain('{animal}');
+      expect(l.textNameFree.length, l.lineId).toBeLessThanOrEqual(120);
+      expect(l.textNameFree.split(/[.!?]/).filter((s) => s.trim().length > 0).length, l.lineId).toBeLessThanOrEqual(2);
+    }
+    // The warden's name is fixed, so a line may say it: it can be recorded.
+    expect(script.find((l) => l.lineId === 'handover-01-priya-4')!.textNameFree).toContain('Marnie');
+  });
+
   it('builds ids the way handoverLineId does', () => {
     expect(handoverLineId('warden', 1)).toBe('handover-warden-1');
     expect(handoverLineId('16-tata', 4)).toBe('handover-16-tata-4');

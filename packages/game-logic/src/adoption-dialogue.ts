@@ -94,6 +94,13 @@ interface HandoverLine {
   expression: DialogueExpression;
   /** Text with `{animal}` where the animal's name goes. */
   template: string;
+  /**
+   * The same line with no name in it, drafted for option A of the voice plan
+   * (docs/voice-recording-plan-2026-10-14.md): a line a person can record in
+   * full, so what is heard is exactly what is read. A draft only; the game
+   * shows `template` until Marcus chooses.
+   */
+  nameFree: string;
   /** Person names that appear in the template as plain text (not tokens). */
   people?: string[];
 }
@@ -113,24 +120,28 @@ export const HANDOVER_LINES: readonly HandoverLine[] = [
     who: 'warden',
     expression: 'neutral',
     template: `This is ${ANIMAL_TOKEN}. ${ANIMAL_TOKEN} has been hoping for the perfect home.`,
+    nameFree: 'Meet our little friend! This one has been hoping for the perfect home.',
   },
   {
     n: 2,
     who: 'household',
     expression: 'neutral',
     template: `Hello little ${ANIMAL_TOKEN}! We've come all this way to meet you.`,
+    nameFree: "Hello, little one! We've come all this way to meet you.",
   },
   {
     n: 3,
     who: 'warden',
     expression: 'happy',
     template: `Look after ${ANIMAL_TOKEN} for us, won't you?`,
+    nameFree: "Look after them for us, won't you?",
   },
   {
     n: 4,
     who: 'household',
     expression: 'greeting',
     template: `Thank you, ${WARDEN_SPEAKER.name}! We'll love ${ANIMAL_TOKEN} forever.`,
+    nameFree: `Thank you, ${WARDEN_SPEAKER.name}! We promise to love them forever.`,
     people: [WARDEN_SPEAKER.name],
   },
 ];
@@ -189,10 +200,12 @@ export interface VoiceLine {
   role: DialogueRole;
   n: number;
   expression: DialogueExpression;
-  /** The text to say, with `{animal}` where the animal's name would go. */
+  /** The text the game shows now, with `{animal}` where the animal's name goes. */
   text: string;
   /** True when the line has the animal's name in it, so it cannot be recorded whole. */
   usesAnimalName: boolean;
+  /** The draft of the line with no name in it (option A), which can be recorded whole. */
+  textNameFree: string;
 }
 
 /**
@@ -219,6 +232,7 @@ export function handoverVoiceScript(
         expression: line.expression,
         text: line.template,
         usesAnimalName: line.template.includes(ANIMAL_TOKEN),
+        textNameFree: line.nameFree,
       });
     }
   }
