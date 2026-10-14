@@ -50,6 +50,9 @@ function extOf(filePath: string): string {
   return dot === -1 ? '' : filePath.slice(dot + 1).toLowerCase();
 }
 
+/** Where recorded voice lines live, relative to the public root. */
+const VOICE_DIR = 'assets/voice/';
+
 // Used to classify animal filenames: a 2-token name like `cat-sheltered`
 // is a species-level fallback; a 3-token name like `cat-ginger-sleeping`
 // is a per-variant sprite.
@@ -66,6 +69,8 @@ export class AssetLoader {
   private static instance: AssetLoader;
   private manifest: string[] = [];
   private parsedEntries: ManifestEntry[] = [];
+  /** Recorded voice lines that shipped (`assets/voice/<lineId>.mp3`). Never loaded at boot. */
+  private voiceFiles = new Set<string>();
 
   // Essential-tier progress (the one surfaced on the loading screen)
   private _essentialComplete = false;
@@ -104,6 +109,11 @@ export class AssetLoader {
     try {
       const resp = await fetch('/asset-manifest.json');
       const raw: string[] = await resp.json();
+      // Recorded lines are loaded by the dialogue, a conversation at a time,
+      // not by the boot queue: there will be a hundred of them and a child
+      // hears a handful. Note which ones exist so the dialogue can tell a
+      // recorded line from a silent one without asking the server.
+      this.voiceFiles = new Set(raw.filter((filePath) => filePath.startsWith(VOICE_DIR)));
       // Keep only files Phaser can actually load as a texture or sound.
       // The manifest also lists data files (cockpit-slots-henry.json,
       // l1-pack index.json, arc-l1-assets.json …) — without this filter
@@ -111,13 +121,27 @@ export class AssetLoader {
       // file as an image, so Phaser tried to decode JSON as a PNG and
       // logged "Failed to process file: image <key>" four times on
       // every page load.
-      this.manifest = raw.filter((filePath) => LOADABLE_EXT.has(extOf(filePath)));
+      this.manifest = raw.filter(
+        (filePath) => LOADABLE_EXT.has(extOf(filePath)) && !filePath.startsWith(VOICE_DIR),
+      );
       this.parsedEntries = this.manifest.map((filePath) => this.parseEntry(filePath));
     } catch {
       console.warn('[AssetLoader] Could not load asset manifest — falling back to empty');
       this.manifest = [];
       this.parsedEntries = [];
+      this.voiceFiles = new Set();
     }
+  }
+
+  /**
+   * The URL of the recorded line `lineId`, or undefined when no recording has
+   * shipped for it (so the line is simply silent). Lines are named by their
+   * stable id: `handover-01-priya-2` is `/assets/voice/handover-01-priya-2.mp3`.
+   */
+  voiceUrl(lineId: string | undefined): string | undefined {
+    if (!lineId) return undefined;
+    const file = `${VOICE_DIR}${lineId}.mp3`;
+    return this.voiceFiles.has(file) ? `/${file}` : undefined;
   }
 
   /** Tier 1: Load logo + icon assets (fast — small PNGs). */

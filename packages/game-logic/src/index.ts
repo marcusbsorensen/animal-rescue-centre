@@ -423,13 +423,23 @@ export type {
   ExitCopy,
 } from './exits';
 
-export { buildHandoverDialogue, WARDEN_SPEAKER } from './adoption-dialogue';
+export {
+  buildHandoverDialogue,
+  WARDEN_SPEAKER,
+  HANDOVER_LINES,
+  ANIMAL_TOKEN,
+  handoverLineId,
+  handoverVoiceScript,
+  roleOf,
+} from './adoption-dialogue';
 export type {
   DialogueBeat,
   DialogueSequence,
   DialogueExpression,
   DialogueSide,
+  DialogueRole,
   DialogueChoice,
+  VoiceLine,
 } from './adoption-dialogue';
 
 export * from './crate-stacking';

@@ -102,7 +102,8 @@ import { getSession } from '../lib/auth';
 import { evaluateBadges, BADGE_DEFINITIONS } from '@arc/badges';
 import { showToast } from '../ui/ErrorOverlay';
 import { registerSickAnimals } from '../ui/sprites';
-import { runDialogue, type DialoguePortrait } from '../ui/DialogueRunner';
+import { runDialogue, type DialoguePortrait, type DialogueVoice } from '../ui/DialogueRunner';
+import { portraitCropFor } from '../ui/dialogue-framing';
 import { buildDecoratePanel, getDecorationEmoji, getDecorationLabel } from '../ui/DecoratePanel';
 import { GameStateStore, loadGameState, saveGameState } from '../game-state';
 import {
@@ -421,10 +422,15 @@ export class GameScene extends Phaser.Scene {
       this.spawnNewAnimal();
     }
 
-    // Viewport resize handling
+    // Viewport resize handling. (A restart ends any conversation, so it starts clear.)
+    this.handoverActive = false;
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
       const w = gameSize.width;
       const h = gameSize.height;
+      // A restart would tear the hand-over conversation down mid-sentence and
+      // the adoption with it. The dialogue lays itself out again on a resize;
+      // the scene catches up when the adoption is over (restartIfResized).
+      if (this.handoverActive) return;
       if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
         this._lastWidth = w;
         this._lastHeight = h;
@@ -1721,6 +1727,20 @@ export class GameScene extends Phaser.Scene {
    * failure (feature off, missing applicant, empty sequence) falls straight
    * through to `then()` — a dialogue bug must never strand an adoption.
    */
+  /** True while the hand-over conversation is on screen; see the resize handler. */
+  private handoverActive = false;
+
+  /** Restart the scene if the window changed size while a conversation held the restart back. */
+  private restartIfResized(): void {
+    const w = this.scale.width;
+    const h = this.scale.height;
+    if (Math.abs(w - this._lastWidth) > 50 || Math.abs(h - this._lastHeight) > 50) {
+      this._lastWidth = w;
+      this._lastHeight = h;
+      this.scene.restart();
+    }
+  }
+
   private playAdoptionHandover(animal: Animal, householdId: string, then: () => void): void {
     if (!ADOPTION_DIALOGUE_ENABLED) { then(); return; }
     const applicant = getEligibleApplicants(animal, this.store)
@@ -1732,38 +1752,68 @@ export class GameScene extends Phaser.Scene {
     // the adopter (right) uses the greeting variant when warm, else the
     // neutral portrait (already cached by AdoptionMatchScene), else a
     // painted-initials chip. The greeting file lives under variants/ and is
-    // derived from the (corrected) neutral avatarSrc.
+    // derived from the (corrected) neutral avatarSrc. Every portrait carries
+    // its waist-up crop (tools/build-dialogue-framing.py), because the
+    // catalogue shots are full-figure.
     const neutralKey = `cast:${householdId}`;
     const greetingUrl = applicant.avatarSrc.replace(
       /\/([^/]+)\.png$/,
       '/variants/$1-greeting.png',
     );
+    const wardenUrl = '/admin/scene-assets/cast/warden-marnie.png';
+    const wardenHappyUrl = '/admin/scene-assets/cast/warden-marnie-happy.png';
     const resolvePortrait = (beat: { speakerId: string; expression: string }): DialoguePortrait => {
       if (beat.speakerId === WARDEN_SPEAKER.id) {
         const wardenHappy = beat.expression === 'happy' || beat.expression === 'greeting';
         return wardenHappy
           ? {
               key: 'cast:warden:happy',
-              url: '/admin/scene-assets/cast/warden-marnie-happy.png',
+              url: wardenHappyUrl,
               altKey: 'cast:warden',
               fallbackName: WARDEN_SPEAKER.name,
+              crop: portraitCropFor(wardenHappyUrl),
             }
           : {
               key: 'cast:warden',
-              url: '/admin/scene-assets/cast/warden-marnie.png',
+              url: wardenUrl,
               fallbackName: WARDEN_SPEAKER.name,
+              crop: portraitCropFor(wardenUrl),
             };
       }
       const wantsGreeting = beat.expression === 'greeting' || beat.expression === 'happy';
       return wantsGreeting
-        ? { key: `${neutralKey}:greeting`, url: greetingUrl, altKey: neutralKey, fallbackName: applicant.name }
-        : { key: neutralKey, url: applicant.avatarSrc, fallbackName: applicant.name };
+        ? {
+            key: `${neutralKey}:greeting`,
+            url: greetingUrl,
+            altKey: neutralKey,
+            fallbackName: applicant.name,
+            crop: portraitCropFor(greetingUrl),
+          }
+        : {
+            key: neutralKey,
+            url: applicant.avatarSrc,
+            fallbackName: applicant.name,
+            crop: portraitCropFor(applicant.avatarSrc),
+          };
     };
 
-    try {
-      runDialogue(this, sequence, { onComplete: then, resolvePortrait });
-    } catch {
+    // A recorded line plays when one has shipped for it and the child has not
+    // turned sound effects off; every other line is silent.
+    const resolveVoice = (beat: { lineId?: string }): DialogueVoice | undefined => {
+      if (!AudioManager.getInstance().isSfxOn()) return undefined;
+      const url = AssetLoader.getInstance().voiceUrl(beat.lineId);
+      return url && beat.lineId ? { key: `voice:${beat.lineId}`, url } : undefined;
+    };
+
+    const done = () => {
+      this.handoverActive = false;
       then();
+    };
+    this.handoverActive = true;
+    try {
+      runDialogue(this, sequence, { onComplete: done, resolvePortrait, resolveVoice });
+    } catch {
+      done();
     }
   }
 
@@ -1782,10 +1832,11 @@ export class GameScene extends Phaser.Scene {
 
     const unmount = mountInGame('adoption', {
       onAction: (action) => {
-        if (action === 'adoption-cancel') { unmount(); return; }
+        if (action === 'adoption-cancel') { unmount(); this.restartIfResized(); return; }
         if (action === 'adoption-confirm') {
           this.commitAdoption(animal, householdId);
           unmount();
+          this.restartIfResized();
           return;
         }
       },
