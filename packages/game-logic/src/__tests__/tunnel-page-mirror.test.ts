@@ -10,8 +10,11 @@ import {
   solveTunnels,
   rotateTile,
   toggleGate,
+  tileSides,
+  tunnelShapes,
   TUNNEL_DOME_CELLS,
   type TunnelPuzzle,
+  type TunnelTile,
 } from '../tunnel';
 
 /**
@@ -30,7 +33,7 @@ const to = html.indexOf('// Tier picker');
 if (from < 0 || to < from) throw new Error('could not find the page\'s tunnel logic in tunnel.html');
 
 const page = runInNewContext(
-  `${html.slice(from, to)}\n({ generateTier1, generateTier2, generateTier3, generateTier4, generateTier5, solvePuzzle, DOME_CELLS })`,
+  `${html.slice(from, to)}\n({ generateTier1, generateTier2, generateTier3, generateTier4, generateTier5, solvePuzzle, rotateTile, tileSides, DOME_CELLS })`,
 ) as {
   generateTier1: (s: number) => TunnelPuzzle;
   generateTier2: (s: number) => TunnelPuzzle;
@@ -38,6 +41,8 @@ const page = runInNewContext(
   generateTier4: (s: number) => TunnelPuzzle;
   generateTier5: (s: number) => TunnelPuzzle;
   solvePuzzle: (p: TunnelPuzzle) => Record<string, { reached: boolean; reason?: string }>;
+  rotateTile: (t: TunnelTile) => TunnelTile;
+  tileSides: (t: TunnelTile) => ReturnType<typeof tileSides>;
   DOME_CELLS: Array<{ x: number; y: number }>;
 };
 
@@ -62,6 +67,60 @@ describe('tunnel.html mirrors tunnel.ts', () => {
   it.each(PAIRS)('tier %i: the page makes the same board as the package, on every seed', (_tier, gen, pageGen) => {
     for (const seed of SEEDS) {
       if (norm(gen(seed)) !== norm(pageGen(seed))) throw new Error(`seed ${seed}: the page's board differs from tunnel.ts`);
+    }
+  });
+
+  it('the page deals the same crossings: the same bridges, fixed, on the same cells', () => {
+    let bridges = 0;
+    for (const [, gen, pageGen] of PAIRS) {
+      for (const seed of SEEDS.filter((_, i) => i % 4 === 0)) {
+        const mine = gen(seed).tiles.map((t, k) => (t.type === 'bridge' ? `${k}:${t.rotation}:${!!t.fixed}` : '')).filter(Boolean);
+        const theirs = pageGen(seed).tiles.map((t, k) => (t.type === 'bridge' ? `${k}:${t.rotation}:${!!t.fixed}` : '')).filter(Boolean);
+        expect(theirs).toEqual(mine);
+        bridges += mine.length;
+      }
+    }
+    expect(bridges).toBeGreaterThan(0);
+  });
+
+  it('the page and the package turn every kind of tile the same way, and neither turns a bridge', () => {
+    const types: TunnelTile['type'][] = ['empty', 'straight', 'corner', 't-junction', 'cross', 'bridge', 'gate', 'habitat-endpoint', 'viewing-dome'];
+    for (const type of types) {
+      for (const fixed of [false, true]) {
+        for (const rotation of [0, 1, 2, 3] as const) {
+          const t: TunnelTile = { type, rotation, fixed, open: type === 'gate' ? false : undefined };
+          expect(page.rotateTile({ ...t })).toEqual(rotateTile({ ...t }));
+          expect(page.tileSides({ ...t })).toEqual(tileSides({ ...t }));
+          if (type === 'bridge') expect(page.rotateTile({ ...t }).rotation).toBe(rotation);
+        }
+      }
+    }
+  });
+
+  it('the page ignores a tap on a crossing, the way it ignores a goal tile', () => {
+    // the click handler's list of tiles that do nothing when tapped
+    const tap = html.slice(html.indexOf('function onTileClick'), html.indexOf('function onSubmit'));
+    expect(tap).toMatch(/t\.type === 'habitat-endpoint'[^\n]*t\.type === 'bridge'/);
+  });
+
+  it('the page draws the crossing as a bridge: planks and rails over a dark-mouthed passage', () => {
+    const at0 = html.indexOf('// The crossing of two runs');
+    const art = html.slice(at0, html.indexOf("tile.type === 'gate'", at0));
+    expect(at0).toBeGreaterThan(0);
+    expect(art).toContain('plank deck');
+    expect(art).toContain('rail');
+    expect(art).toContain('dark mouths');
+  });
+
+  it('the page deals a bridge for every seed the package does, and the shapes agree with the package\'s own', () => {
+    // a dealt shape is a fact about the seed: spot-check the page's tier-5 board against tunnelShapes
+    for (const seed of SEEDS.filter((_, i) => i % 29 === 0)) {
+      const s = tunnelShapes(seed);
+      const board = page.generateTier5(seed);
+      const at = (x: number, y: number) => board.tiles[y * board.width + x];
+      expect(at(8, 7).type === 'corner' && !!at(8, 7).fixed).toBe(s.fox === 'z-east');
+      expect(at(4, 7).type === 'corner' && !!at(4, 7).fixed).toBe(s.fox === 'z-west');
+      expect(at(5, 3).type === 'corner' && !!at(5, 3).fixed).toBe(s.skunk === 'z-west-high');
     }
   });
 

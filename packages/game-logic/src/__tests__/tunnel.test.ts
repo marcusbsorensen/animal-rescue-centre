@@ -18,6 +18,7 @@ import {
   applySolution,
   HABITAT_EXITS,
   TUNNEL_DOME_CELLS,
+  tunnelShapes,
   type Animal,
   type TunnelTile,
   type TunnelPuzzle,
@@ -236,6 +237,53 @@ describe('bridge — independent NS / EW channels', () => {
   });
 });
 
+describe('bridge — the crossing of two runs', () => {
+  const start = (animal: Animal, rotation: 0 | 1 | 2 | 3): TunnelTile => ({
+    type: 'habitat-endpoint', rotation, fixed: true, endpointFor: animal, endpointRole: 'start',
+  });
+  const end = (animal: Animal, rotation: 0 | 1 | 2 | 3): TunnelTile => ({
+    type: 'habitat-endpoint', rotation, fixed: true, endpointFor: animal, endpointRole: 'end',
+  });
+  const e = t('empty');
+
+  // 3×3: the fox goes west→east along the middle row, the hedgehog north→south down the middle column, over one bridge.
+  //   .  Hs .
+  //   Fs BR Fe
+  //   .  He .
+  const board = (bridge: TunnelTile): TunnelPuzzle => gridPuzzle([
+    [e, start('hedgehog', 0), e],
+    [start('fox', 3), bridge, end('fox', 1)],
+    [e, end('hedgehog', 2), e],
+  ], ['fox', 'hedgehog']);
+
+  it('lets two animals cross it at right angles, each coming out the far side', () => {
+    for (const rotation of [0, 1] as const) {
+      const r = solveTunnels(board({ type: 'bridge', rotation, fixed: true }));
+      expect(r.fox.reached).toBe(true);
+      expect(r.hedgehog.reached).toBe(true);
+    }
+  });
+
+  it('puts both runs through the same cell on their way', () => {
+    const r = solveTunnels(board({ type: 'bridge', rotation: 0, fixed: true }));
+    expect(r.fox.path).toContainEqual({ x: 1, y: 1 });
+    expect(r.hedgehog.path).toContainEqual({ x: 1, y: 1 });
+  });
+
+  it('never turns: a tap does nothing, fixed or not', () => {
+    for (const fixed of [true, false]) {
+      const b: TunnelTile = { type: 'bridge', rotation: 1, fixed };
+      expect(rotateTile(b)).toEqual(b);
+    }
+  });
+
+  it('keeps a finished board finished when it is tapped', () => {
+    const solved = board({ type: 'bridge', rotation: 0, fixed: true });
+    const tapped = { ...solved, tiles: solved.tiles.map((x) => (x.type === 'bridge' ? rotateTile(x) : x)) };
+    expect(isPuzzleSolved(tapped)).toBe(true);
+  });
+});
+
 describe('isPuzzleSolved', () => {
   it('returns true only when ALL animals reach their own endpoint', () => {
     const start: TunnelTile = {
@@ -277,6 +325,14 @@ for (let s = 1; s <= 1500; s++) SEEDS.push(s);
 for (let m = 1; m <= 12; m++) for (let d = 1; d <= 31; d++) SEEDS.push(2026 * 10000 + m * 100 + d);
 
 const at = (p: TunnelPuzzle, x: number, y: number) => p.tiles[y * p.width + x];
+/** The axis a path passes along at a cell ('ns' or 'ew'), or 'turn' where it bends (or ends). */
+const axisAt = (path: Array<{ x: number; y: number }>, c: { x: number; y: number }): 'ns' | 'ew' | 'turn' => {
+  const i = path.findIndex((q) => q.x === c.x && q.y === c.y);
+  if (i <= 0 || i >= path.length - 1) return 'turn';
+  if (path[i - 1].x === path[i + 1].x) return 'ns';
+  if (path[i - 1].y === path[i + 1].y) return 'ew';
+  return 'turn';
+};
 const sig = (p: TunnelPuzzle) => p.tiles.map((x) => `${x.type}:${x.rotation}:${x.open ?? ''}:${x.fixed ? 'f' : ''}`);
 
 describe('the garden network: which animals join at which tier', () => {
@@ -361,15 +417,23 @@ describe('the garden network: one board that grows', () => {
     }
   });
 
-  it('no two animals share a cell on their solved runs', () => {
+  it('no two animals share a cell on their solved runs except at a crossing', () => {
     for (const [, gen, solve] of TIERS) {
       for (const seed of SEEDS.filter((_, i) => i % 3 === 0)) {
-        const res = solveTunnels(solve(gen(seed)));
+        const p = gen(seed);
+        const res = solveTunnels(solve(p));
         const owner = new Map<string, string>();
         for (const a of Object.keys(res)) {
           for (const c of res[a].path ?? []) {
             const k = `${c.x},${c.y}`;
-            expect(owner.get(k) ?? a).toBe(a);
+            const other = owner.get(k);
+            if (other !== undefined && other !== a) {
+              // the only way two runs may meet: a fixed bridge both pass straight through, at right angles
+              const tile = at(p, c.x, c.y);
+              expect(tile.type).toBe('bridge');
+              expect(tile.fixed).toBe(true);
+              expect(axisAt(res[a].path!, c)).not.toBe(axisAt(res[other].path!, c));
+            }
             owner.set(k, a);
           }
         }
@@ -377,28 +441,177 @@ describe('the garden network: one board that grows', () => {
     }
   });
 
-  it('deals each animal\'s shapes, and only the ones that fit beside the others', () => {
-    const shapes: Record<string, Set<string>> = { fox: new Set(), hedgehog: new Set() };
-    for (const seed of SEEDS.slice(0, 400)) {
+  it('deals every shape of every animal, the ones dropped in 110A included', () => {
+    const dealt: Record<Animal, Set<string>> = { fox: new Set(), hedgehog: new Set(), raccoon: new Set(), skunk: new Set() };
+    for (const seed of SEEDS) {
+      const s = tunnelShapes(seed);
+      for (const a of Object.keys(dealt) as Animal[]) dealt[a].add(s[a]);
+    }
+    expect([...dealt.fox].sort()).toEqual(['approach-north', 'straight', 'z-east', 'z-west']);
+    expect([...dealt.hedgehog].sort()).toEqual(['approach-north', 'over-the-top', 'straight', 'z-east']);
+    expect([...dealt.raccoon].sort()).toEqual(['approach-north', 'straight', 'z-west']);
+    expect([...dealt.skunk].sort()).toEqual(['straight', 'z-west', 'z-west-high']);
+  });
+
+  it('a bend is dealt often enough to be met: fox z-east, a raccoon bend, a skunk bend', () => {
+    let foxEast = 0, raccoonBend = 0, skunkBend = 0;
+    for (const seed of SEEDS) {
+      const s = tunnelShapes(seed);
+      if (s.fox === 'z-east') foxEast++;
+      if (s.raccoon !== 'straight') raccoonBend++;
+      if (s.skunk !== 'straight') skunkBend++;
+    }
+    expect(foxEast / SEEDS.length).toBeGreaterThan(0.1);
+    expect(raccoonBend / SEEDS.length).toBeGreaterThan(0.3);
+    expect(skunkBend / SEEDS.length).toBeGreaterThan(0.2);
+  });
+
+  it('a shape follows the seed alone, whatever the tier, and matches the run it draws', () => {
+    for (const seed of SEEDS.filter((_, i) => i % 11 === 0)) {
+      const s = tunnelShapes(seed);
+      const res = solveTunnels(applySolution(generateTier5Puzzle(seed)));
+      const fox = res.fox.path!;
+      expect(fox.some((c) => c.x === 8 && c.y === 5)).toBe(s.fox === 'z-east');
+      expect(fox.some((c) => c.x === 4 && c.y === 5)).toBe(s.fox === 'z-west');
+      expect(fox.some((c) => c.y === 0)).toBe(s.fox === 'approach-north');
+      const rac = res.raccoon.path!;
+      expect(rac.some((c) => c.x === 5 && c.y <= 10)).toBe(s.raccoon !== 'straight');
+      const sk = res.skunk.path!;
+      expect(sk.some((c) => c.x === 5 && c.y <= 10)).toBe(s.skunk !== 'straight');
+      expect(sk.some((c) => c.x === 5 && c.y === 3)).toBe(s.skunk === 'z-west-high');
+      // the hedgehog stays in cols 0-3 and the fox out of cols 7 (but for the jog east)
+      for (const c of res.hedgehog.path!) expect(c.x).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it('the loop over the top of the hedgehog is only dealt where it clears the fox\'s pen', () => {
+    for (const seed of SEEDS) {
+      if (tunnelShapes(seed).hedgehog !== 'over-the-top') continue;
+      const res = solveTunnels(applySolution(generateTier5Puzzle(seed)));
+      expect(res.fox.path![res.fox.path!.length - 1].x).toBe(4);
+    }
+  });
+});
+
+describe('the garden network: crossings', () => {
+  const crossingsOnBoard = (p: TunnelPuzzle) => p.tiles
+    .map((x, k) => ({ x, cell: { x: k % p.width, y: Math.floor(k / p.width) } }))
+    .filter((e) => e.x.type === 'bridge');
+
+  it('a bridge is only ever a crossing: fixed, and never a decoy', () => {
+    for (const [, gen] of TIERS) {
+      for (const seed of SEEDS.filter((_, i) => i % 3 === 0)) {
+        for (const { x } of crossingsOnBoard(gen(seed))) expect(x.fixed).toBe(true);
+      }
+    }
+  });
+
+  it('every bridge on a board is the cell two solved runs share, and every shared cell is a bridge', () => {
+    for (const [, gen, solve] of TIERS) {
+      for (const seed of SEEDS.filter((_, i) => i % 3 === 0)) {
+        const p = gen(seed);
+        const res = solveTunnels(solve(p));
+        const counts = new Map<string, number>();
+        for (const a of Object.keys(res)) for (const c of res[a].path ?? []) counts.set(`${c.x},${c.y}`, (counts.get(`${c.x},${c.y}`) ?? 0) + 1);
+        const shared = [...counts].filter(([, n]) => n > 1).map(([k]) => k).sort();
+        const bridges = crossingsOnBoard(p).map((e) => `${e.cell.x},${e.cell.y}`).sort();
+        expect(bridges).toEqual(shared);
+        for (const k of shared) expect(counts.get(k)).toBe(2);
+      }
+    }
+  });
+
+  it('a crossing is where both runs go straight, never on an end, a corner, a connector or a dome', () => {
+    for (const seed of SEEDS.filter((_, i) => i % 3 === 0)) {
       const p = generateTier5Puzzle(seed);
       const res = solveTunnels(applySolution(p));
-      const fox = res.fox.path!;
-      shapes.fox.add(fox.some((c) => c.x === 4 && c.y === 5) ? 'z-west' : fox.some((c) => c.y === 0) ? 'approach-north' : 'straight');
-      const h = res.hedgehog.path!;
-      shapes.hedgehog.add(h.some((c) => c.y === 1 && c.x === 3) ? 'over-the-top'
-        : h.some((c) => c.y === 4 && c.x === 2) ? 'approach-north'
-          : h.some((c) => c.x === 3) ? 'z-east' : 'straight');
-      // the loop that climbs into the fox's pen rows is only dealt when the fox's pen is in col 4
-      if (shapes.hedgehog.has('over-the-top') && h.some((c) => c.y === 1 && c.x === 3)) {
-        const foxEnd = fox[fox.length - 1];
-        expect(foxEnd.x).toBe(4);
+      for (const { cell } of crossingsOnBoard(p)) {
+        const on = Object.keys(res).filter((a) => res[a].path!.some((c) => c.x === cell.x && c.y === cell.y));
+        expect(on).toHaveLength(2);
+        const [a1, a2] = on.map((a) => axisAt(res[a].path!, cell));
+        expect([a1, a2].sort()).toEqual(['ew', 'ns']);
+        expect(TUNNEL_DOME_CELLS).not.toContainEqual(cell);
+        // not a fixed connector out of the building: those are col 5-8, rows 11-12
+        expect(cell.y).toBeLessThanOrEqual(10);
       }
-      // nobody runs through col 7-8 but the raccoon and the skunk
-      for (const c of fox) expect(c.x).toBeLessThanOrEqual(6);
-      for (const c of h) expect(c.x).toBeLessThanOrEqual(3);
     }
-    expect([...shapes.fox].sort()).toEqual(['approach-north', 'straight', 'z-west']);
-    expect([...shapes.hedgehog].sort()).toEqual(['approach-north', 'over-the-top', 'straight', 'z-east']);
+  });
+
+  it('the newer run is the one on top: the bridge is drawn with that run\'s axis uppermost', () => {
+    const order: Animal[] = ['fox', 'hedgehog', 'raccoon', 'skunk'];
+    for (const seed of SEEDS.filter((_, i) => i % 3 === 0)) {
+      const p = generateTier5Puzzle(seed);
+      const res = solveTunnels(applySolution(p));
+      for (const { x, cell } of crossingsOnBoard(p)) {
+        const on = (Object.keys(res) as Animal[])
+          .filter((a) => res[a].path!.some((c) => c.x === cell.x && c.y === cell.y))
+          .sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        const newer = on[1];
+        const along = axisAt(res[newer].path!, cell);
+        expect(x.rotation).toBe(along === 'ns' ? 0 : 1);
+      }
+    }
+  });
+
+  it('tapping a crossing does nothing, and cannot break a finished board', () => {
+    for (const [, gen, solve] of TIERS) {
+      for (const seed of SEEDS.filter((_, i) => i % 17 === 0)) {
+        const solved = solve(gen(seed));
+        const tapped = { ...solved, tiles: solved.tiles.map((x) => (x.type === 'bridge' ? rotateTile(x) : x)) };
+        expect(tapped.tiles).toEqual(solved.tiles);
+        expect(isPuzzleSolved(tapped)).toBe(true);
+      }
+    }
+  });
+
+  it('is first met at tier 3 (the raccoon\'s run) and grows only by the runs that join', () => {
+    const count = (gen: (s: number) => TunnelPuzzle, seed: number) => crossingsOnBoard(gen(seed)).length;
+    let sawTier3 = false;
+    for (const seed of SEEDS) {
+      expect(count(generateTier1Puzzle, seed)).toBe(0);
+      expect(count(generateTier2Puzzle, seed)).toBe(0);
+      const c3 = count(generateTier3Puzzle, seed), c4 = count(generateTier4Puzzle, seed);
+      expect(c4).toBeGreaterThanOrEqual(c3);
+      expect(count(generateTier5Puzzle, seed)).toBe(c4);
+      if (c3 > 0) sawTier3 = true;
+    }
+    expect(sawTier3).toBe(true);
+  });
+
+  it('a gate is never moved by a later run: tier N keeps the gates of tier N-1 where they were', () => {
+    for (const seed of SEEDS.filter((_, i) => i % 3 === 0)) {
+      for (let i = 1; i < TIERS.length; i++) {
+        const prev = TIERS[i - 1][1](seed);
+        const next = TIERS[i][1](seed);
+        prev.tiles.forEach((g, k) => {
+          if (g.type === 'gate') expect(`${next.tiles[k].type}:${next.tiles[k].rotation}`).toBe(`gate:${g.rotation}`);
+        });
+      }
+    }
+  });
+
+  it('tier N keeps every straight the child can turn exactly as tier N-1 dealt it, except where a crossing replaces one', () => {
+    for (const seed of SEEDS.filter((_, i) => i % 7 === 0)) {
+      for (let i = 1; i < TIERS.length; i++) {
+        const prev = TIERS[i - 1][1](seed);
+        const next = TIERS[i][1](seed);
+        // the straights of the runs already on the board (a decoy straight is displaced by a new branch, and should be)
+        const onRun = new Set<string>();
+        for (const a of Object.values(solveTunnels(TIERS[i - 1][2](prev)))) for (const c of a.path ?? []) onRun.add(`${c.x},${c.y}`);
+        prev.tiles.forEach((p, k) => {
+          if (p.type !== 'straight' || p.fixed || !onRun.has(`${k % prev.width},${Math.floor(k / prev.width)}`)) return;
+          if (next.tiles[k].type === 'bridge' || next.tiles[k].type === 'gate' || next.tiles[k].type === 'viewing-dome') return;
+          expect(`${next.tiles[k].type}:${next.tiles[k].rotation}`).toBe(`straight:${p.rotation}`);
+        });
+      }
+    }
+  });
+
+  it('deals no bridge as a decoy: an empty board cell never becomes one', () => {
+    for (const seed of SEEDS.filter((_, i) => i % 5 === 0)) {
+      const p = generateTier1Puzzle(seed);
+      expect(p.tiles.some((x) => x.type === 'bridge')).toBe(false);
+    }
   });
 });
 
