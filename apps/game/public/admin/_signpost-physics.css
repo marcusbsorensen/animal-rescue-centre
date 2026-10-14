@@ -194,15 +194,27 @@
  * each element works together like a scene from reality, and not
  * disparate pieces of interface".
  *
- * THE OUTLINE is the vehicles' (drive-spike/vehicle-look.js): a warm
- * near-black ink (`INK`, #2b2520) in a band round the silhouette, with the
- * shadow cast from the outlined silhouette rather than from the bare art.
- * There it is a distance transform on a canvas; here it is four hard
- * drop-shadows, one a side, chained — each shadows the result of the one
- * before, so the four together are a square dilation of the sprite by one
- * weight. One weight, `--animal-ink-w`, for every animal on every screen
- * (the vehicles thin in proportion below 2m; these are all one size class,
- * the bee being the one that is small, and it takes the same ink).
+ * THE OUTLINE is a band round the silhouette with the shadow cast from the
+ * outlined silhouette rather than from the bare art (the vehicles'
+ * treatment, drive-spike/vehicle-look.js). There it is a distance
+ * transform on a canvas; here it is four hard drop-shadows, one a side,
+ * chained — each shadows the result of the one before, so the four
+ * together are a square dilation of the sprite by one weight. One weight,
+ * `--animal-ink-w`, for every animal on every screen.
+ *
+ * Its colour is the animal's own: Marcus, 2026-10-14, on the first cut
+ * (one near-black #2b2520 at 1.75px on all of them): "way too dark and
+ * they shouldn't all be black, because that doesn't match the styling of
+ * the images around ... it needs to be the darkest colour that is within
+ * that animal's palette ... not as thick". `--animal-ink` is that colour, set per
+ * image in the table at the end of this file: the mean of the darkest
+ * k-means cluster (k=12) of the painting's opaque pixels (alpha >= 230)
+ * that holds at least 1.2% of them, so a stray pixel or a pair of pupils
+ * is not the line colour. A ginger cat's is a brown (#774426), a Siamese's
+ * a dark umber, the bee's a warm grey-brown; the animals whose own darkest
+ * is true black (black patches, black feathers) keep a near-black, which is
+ * their painted line. One pixel wide, because the painted line work round
+ * them is about that, and the shadow's soft edge does the rest.
  *
  * THE FEET. Every animal's art has empty canvas under it, so `bottom: 0`
  * on the image puts the animal floating by however much that canvas is,
@@ -219,24 +231,30 @@
  * foot, so they hold wherever the layout puts those.
  */
 :root {
-  --animal-ink: #2b2520;
-  --animal-ink-w: 1.75px;
-  --animal-outline:
-    drop-shadow(var(--animal-ink-w) 0 0 var(--animal-ink))
-    drop-shadow(calc(var(--animal-ink-w) * -1) 0 0 var(--animal-ink))
-    drop-shadow(0 var(--animal-ink-w) 0 var(--animal-ink))
-    drop-shadow(0 calc(var(--animal-ink-w) * -1) 0 var(--animal-ink));
+  --animal-ink-w: 1px;
   /* Soft, close and low: the contact shadow on the wood or the grass. */
   --animal-contact: drop-shadow(0 2px 2px rgba(35, 20, 8, 0.42));
 }
 
+/* --animal-outline is declared on the animal and not on :root: it reads
+   `--animal-ink`, and a var() in a custom property is resolved where the property is
+   declared, so on :root every animal would get the fallback. The fallback is a
+   warm dark brown for a sprite that is not in the table below. */
 .intro-cat,
 .play-parrot,
 .ground-bunny,
 .bee-flyer,
 .conflict-anim {
+  --animal-outline:
+    drop-shadow(var(--animal-ink-w) 0 0 var(--animal-ink, #4a3626))
+    drop-shadow(calc(var(--animal-ink-w) * -1) 0 0 var(--animal-ink, #4a3626))
+    drop-shadow(0 var(--animal-ink-w) 0 var(--animal-ink, #4a3626))
+    drop-shadow(0 calc(var(--animal-ink-w) * -1) 0 var(--animal-ink, #4a3626));
   filter: var(--animal-outline) var(--animal-contact);
 }
+
+/* Each animal's own `--animal-ink` (and, for the story plaques' sprites, `--edge-y`)
+   is in the table at the end of this file. */
 
 /* The cat lies on the board's top edge: its belly on the board's padding edge,
    which is the board's border-width (2-3px) below the outer edge, so it is
@@ -304,25 +322,24 @@
    (z 6 against their 9), so for part of every loop it flew behind a plank. */
 .bee-flyer { z-index: 12; }
 
-/* On a phone held sideways the grass is behind the buttons — the stack is as
-   tall as the screen allows and the tuft only shows below it as a strip of
-   blades — so a rabbit "in the grass" was behind a pill: 54px of rabbit, 39 of
-   them under the "I already have an account" button, and what showed was a
-   black-and-white smudge. It stands on the lawn at the left of the sign
-   instead, on the line the posts end on, turned to face them. The left
-   offset is the stake's own centre minus half the screen (the stake is
-   centred), so it lands at the edge of the lawn at any width without a
-   reference to the viewport that the layout does not already hold. */
+/* On a phone held sideways the stack is as tall as the screen allows, so the
+   tuft used to show only as a strip of blades behind the pills, and a rabbit
+   "in the grass" was behind one: 54px of rabbit, 39 of them under the "I
+   already have an account" button, a black-and-white smudge. The first fix put
+   it on the lawn at the screen's left edge, on nothing the picture draws (the
+   menu has no lawn at all), and Marcus (109B) wanted it back in its tuft:
+   "give up a little height for a strip of ground, so it can sit in the tuft
+   again". `_short-landscape.css` gives the stake that strip (`--rabbit-h` of
+   ground under the buttons, paid for by lifting the stack into the empty
+   corner above the sign), and the rabbit sits in it, just left of the tuft's
+   middle between the posts, facing right as it does on every other size. It is
+   only as tall as the strip, and hops within it, so it is never behind a pill. */
 @container (max-height: 520px) {
   .ground-bunny {
-    left: calc(50% - 50cqw + clamp(10px, 2.5cqw, 28px));
-    /* Paws well above the stake's foot line, or they stand on the credits:
-       "Designed by Lily" sits in the corner this rabbit is in, and on the
-       screens where the stack runs lowest the stake's foot is below the
-       credits' top edge. */
-    bottom: clamp(14px, 4.6cqh, 24px);
-    height: clamp(40px, 11cqh, 56px);
-    animation-name: bunnyHopGroundedFlip;
+    left: calc(50% - clamp(42px, 7cqw, 66px));
+    bottom: 1px;
+    height: var(--rabbit-h, 34px);
+    animation-name: bunnyHopTuft;
   }
   /* The bee works the lawn beside the rabbit instead of the stake's foot,
      where the stack leaves no ground: flown there it crossed the pills, and
@@ -344,12 +361,13 @@
   92%  { transform: translate(-4px, -14px) rotate(6deg); }
   100% { transform: translate(0,    -12px) rotate(-4deg); }
 }
-@keyframes bunnyHopGroundedFlip {
-  0%, 55%, 100% { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(4deg) scaleX(-1); }
-  62%           { transform: translateY(calc((1 - var(--edge-y)) * 100% - 14px)) rotate(6deg) scaleX(-1); }
-  69%           { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(4deg) scaleX(-1); }
-  76%           { transform: translateY(calc((1 - var(--edge-y)) * 100% - 14px)) rotate(6deg) scaleX(-1); }
-  83%           { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(4deg) scaleX(-1); }
+/* The strip is the rabbit's height and a few px: a hop is a hop of that size. */
+@keyframes bunnyHopTuft {
+  0%, 55%, 100% { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-4deg); }
+  62%           { transform: translateY(calc((1 - var(--edge-y)) * 100% - 4px)) rotate(-6deg); }
+  69%           { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-4deg); }
+  76%           { transform: translateY(calc((1 - var(--edge-y)) * 100% - 4px)) rotate(-6deg); }
+  83%           { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-4deg); }
 }
 
 /* Tablets held sideways: the same problem as the phone, a little less of it.
@@ -367,3 +385,236 @@
     height: clamp(54px, 9cqh, 84px);
   }
 }
+
+/* ── 8. The animals on the story plaques (conflict.html, vet.html) ───
+ *
+ * Marcus, 2026-10-14: "I'm not entirely clear on the one that's showing
+ * animal conflict, why they are somehow contained on a panel but also
+ * hanging halfway off it. How does that make sense?"
+ *
+ * It did not. On a landscape phone `_short-landscape.css` caps `.conflict-scene`
+ * at 38% of the plaque, which is narrower than the two animals and the ball
+ * it holds, and a flex row centres its overflow: at 844x390 the dog stood 54px
+ * (half of its width) past the plaque's left edge, at 667x375 39px past the
+ * edge of the screen, and the cat half over the other side of the column. The
+ * vet's sick cat overhung its column by 23px each side. An animal half on a
+ * panel and half off it is neither in the picture nor in the room.
+ *
+ * Two answers, and a TEMPORARY SWITCH between them until Marcus picks one:
+ * `?scene=a` (the default) or `?scene=b` on the page's address, which the
+ * browser then remembers (the script after the links in conflict.html and
+ * vet.html puts it on <html data-scene>). Whichever loses, its rules and
+ * that script go.
+ *
+ *   A  The animals are in the plaque's PICTURE: a framed scene (wall, floor)
+ *      set into the board, the animals standing on its floor, the whole of
+ *      them inside it and clipped to its frame.
+ *   B  The animals are in the ROOM: they stand on the floor beside the
+ *      plaque (below it on a portrait screen), clear of it, with a shadow on
+ *      the ground and no frame. They do not tilt or drop in with the board.
+ *
+ * Both anchor the feet the way section 7 does, by `--edge-y`, the fraction
+ * of the painting at which the body ends (measured from its alpha; the
+ * table at the end of this file has it for the vet's sprites, which vary
+ * from 0.69 to 0.94 of the box).
+ */
+.conflict-plaque {
+  --toy: clamp(38px, 6cqh, 56px);
+  /* Each animal's height: the page's own, but never so tall that the two of
+     them and the ball are wider than the picture (portrait phones: 16cqh is
+     135px at 390x844, and the dog stood 9px out of the frame). The width the
+     picture has is the plaque's `min(92%, 440px)` less its padding, the
+     frame's border and padding, the ball and the gaps. */
+  --ch: min(clamp(100px, 16cqh, 150px),
+            calc((min(92cqw, 440px) - 2 * clamp(18px, 3cqw, 28px) - 2 * clamp(14px, 2.4cqw, 22px) - 6px - var(--toy) - 24px) / 2));
+  --scene-w: calc(var(--ch) * 2 + var(--toy) + 28px);   /* the scene's width, for B */
+  --b-gap: 10px;
+}
+.conflict-plaque:has(.vet-scene-wrap) {
+  --ch: clamp(110px, 18cqh, 160px);
+  --scene-w: calc(var(--ch) + 28px);
+}
+@container (max-height: 520px) {
+  .conflict-plaque { --ch: clamp(68px, 22cqh, 96px); --toy: clamp(30px, 8cqh, 40px); }
+  .conflict-plaque:has(.vet-scene-wrap) { --ch: clamp(84px, 28cqh, 120px); }
+}
+:where(.conflict-anim) { --edge-y: 0.85; }
+.conflict-anim {
+  height: var(--ch);
+  /* Feet where the scene's floor is, whatever the painting's empty canvas. */
+  margin-bottom: calc((var(--edge-y) - 1) * var(--ch));
+}
+.conflict-toy { font-size: var(--toy); margin-bottom: 2px; }
+
+/* A: the framed picture. The frame is `.conflict-scene`, so it is clipped to
+   it; the padding keeps the animals' lean (rotate, a 2px shuffle) off the
+   edge, and the floor is the lowest part of the picture. */
+.conflict-scene {
+  --floor: clamp(14px, 2.8cqh, 22px);
+  position: relative;
+  overflow: hidden;
+  align-items: flex-end;
+  gap: clamp(2px, 1cqw, 8px);
+  padding: clamp(12px, 2.6cqh, 20px) clamp(14px, 2.4cqw, 22px) calc(var(--floor) * 0.5);
+  border: 3px solid #5a3a18;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg,
+      transparent calc(100% - var(--floor)),
+      #6b4820 calc(100% - var(--floor)), #6b4820 calc(100% - var(--floor) + 2px),
+      #b07a40 calc(100% - var(--floor) + 2px), #8b5822 100%),
+    linear-gradient(180deg, #fbefd0 0%, #f0dba9 100%);
+  box-shadow:
+    inset 0 3px 8px rgba(40, 20, 5, 0.4),
+    0 1px 0 rgba(255, 240, 210, 0.3);
+}
+/* The vet's 🤒 floats 6px above the sick animal's head and bobs 6px higher
+   (`thermometerFloat`), so its picture has that much more sky. */
+.conflict-scene:has(.vet-scene-wrap) { padding-top: clamp(22px, 4.8cqh, 30px); }
+@container (max-height: 520px) {
+  /* The column is the picture's width, not 38% of the plaque. */
+  .conflict-scene { width: max-content; max-width: none; justify-self: center; }
+}
+
+/* B: the animals leave the plaque. */
+html[data-scene="b"] .conflict-scene {
+  position: absolute;
+  overflow: visible;
+  width: max-content;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  /* The plaque is tilted 0.8deg and drops in; the animals stand upright. */
+  transform: rotate(0.8deg);
+}
+/* The ground under them: a flat soft shadow, wider than the two of them. */
+html[data-scene="b"] .conflict-scene::after {
+  content: '';
+  position: absolute;
+  left: -4%; right: -4%;
+  bottom: -5px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(25, 14, 6, 0.42) 0%, rgba(25, 14, 6, 0) 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+@container (orientation: landscape) {
+  /* Beside the plaque, on its left, feet level with its foot; the plaque
+     centres in what is left of the screen. */
+  html[data-scene="b"] .conflict-plaque {
+    left: calc(var(--scene-w) + var(--b-gap) * 2);
+    width: min(calc(100% - var(--scene-w) - var(--b-gap) * 6), 440px);
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "title" "sub" "choices";
+    grid-template-rows: auto auto 1fr;
+  }
+  html[data-scene="b"] .conflict-scene {
+    right: calc(100% + var(--b-gap));
+    bottom: 6px;
+  }
+}
+@container (orientation: landscape) and (max-height: 520px) {
+  /* A landscape phone's plaque is the wide one (720px) and keeps that. */
+  html[data-scene="b"] .conflict-plaque {
+    width: min(calc(100% - var(--scene-w) - var(--b-gap) * 6), 720px);
+  }
+}
+@container (orientation: portrait) {
+  /* Below it, on the floor, in the room's lower part; the plaque rises to
+     leave them the room. */
+  html[data-scene="b"] .conflict-plaque { bottom: calc(var(--ch) + 24px); }
+  html[data-scene="b"] .conflict-scene {
+    top: calc(100% + var(--b-gap));
+    left: 0; right: 0;
+    width: auto;
+    justify-content: center;
+  }
+}
+
+/* ── The per-animal table ────────────────────────────────────────────
+ * Generated: each PNG's opaque pixels (alpha >= 230) -> k-means (k=12, RGB)
+ * -> the darkest cluster holding >= 1.2% of them -> its mean colour is `--animal-ink`;
+ * `--edge-y` is the bottom of the painted body (alpha > 40) as a fraction of
+ * the image height. Re-run it when the art changes or an animal is added.
+ * Fallback for a sprite not listed: a warm dark brown (section 7).
+ */
+/* the animals the sign screens draw */
+[src$="/cat-ginger-sleeping.png"] { --animal-ink: #774426; }
+[src$="/cat-black-sleeping.png"] { --animal-ink: #0c0e12; }
+[src$="/cat-siamese-sleeping.png"] { --animal-ink: #4e2110; }
+[src$="/parrot-macaw-nobranch.png"] { --animal-ink: #100e15; }
+[src$="/parrot-grey-sheltered.png"] { --animal-ink: #070505; }
+[src$="/parrot-cockatiel-sheltered.png"] { --animal-ink: #0c0806; }
+[src$="/bunny-dutch-sheltered.png"] { --animal-ink: #0c0605; }
+[src$="/bunny-lop-sheltered.png"] { --animal-ink: #090402; }
+[src$="/bunny-rex-sheltered.png"] { --animal-ink: #0a0503; }
+[src$="/bee-flying.png"] { --animal-ink: #473630; }
+[src$="/dog-golden-growling.png"] { --animal-ink: #080503; --edge-y: 0.885; }
+[src$="/cat-ginger-growling.png"] { --animal-ink: #72411f; --edge-y: 0.850; }
+[src$="/cat-ginger-sick.png"] { --animal-ink: #6b3817; --edge-y: 0.738; }
+/* vet.html swaps in the sick sprite of whichever animal is ill (any species; the
+   -grumpy sprite it falls back to exists only where a -sick one does) */
+[src$="/bat-brown-sick.png"] { --animal-ink: #070402; --edge-y: 0.699; }
+[src$="/bat-fruit-sick.png"] { --animal-ink: #080401; --edge-y: 0.684; }
+[src$="/bat-longeared-sick.png"] { --animal-ink: #070403; --edge-y: 0.945; }
+[src$="/bat-pipistrelle-sick.png"] { --animal-ink: #090402; --edge-y: 0.691; }
+[src$="/bat-sick.png"] { --animal-ink: #060302; --edge-y: 0.896; }
+[src$="/bat-white-sick.png"] { --animal-ink: #0b0706; --edge-y: 0.674; }
+[src$="/bunny-angora-sick.png"] { --animal-ink: #080403; --edge-y: 0.801; }
+[src$="/bunny-arctic-sick.png"] { --animal-ink: #080403; --edge-y: 0.820; }
+[src$="/bunny-dutch-sick.png"] { --animal-ink: #0a0505; --edge-y: 0.715; }
+[src$="/bunny-lionhead-sick.png"] { --animal-ink: #050301; --edge-y: 0.900; }
+[src$="/bunny-lop-sick.png"] { --animal-ink: #090402; --edge-y: 0.730; }
+[src$="/bunny-rex-sick.png"] { --animal-ink: #080301; --edge-y: 0.773; }
+[src$="/bunny-sick.png"] { --animal-ink: #0c0908; --edge-y: 0.924; }
+[src$="/bunny-spotted-sick.png"] { --animal-ink: #090605; --edge-y: 0.748; }
+[src$="/cat-black-sick.png"] { --animal-ink: #0c0d0f; --edge-y: 0.730; }
+[src$="/cat-calico-sick.png"] { --animal-ink: #3f3932; --edge-y: 0.814; }
+[src$="/cat-grey-sick.png"] { --animal-ink: #3e3940; --edge-y: 0.773; }
+[src$="/cat-siamese-sick.png"] { --animal-ink: #261812; --edge-y: 0.799; }
+[src$="/cat-sick.png"] { --animal-ink: #91562f; --edge-y: 0.895; }
+[src$="/cat-tortie-sick.png"] { --animal-ink: #2b2020; --edge-y: 0.969; }
+[src$="/cat-tuxedo-sick.png"] { --animal-ink: #171413; --edge-y: 0.842; }
+[src$="/cat-white-sick.png"] { --animal-ink: #b09482; --edge-y: 0.930; }
+[src$="/dog-beagle-sick.png"] { --animal-ink: #060302; --edge-y: 0.699; }
+[src$="/dog-chocolate-sick.png"] { --animal-ink: #040201; --edge-y: 0.764; }
+[src$="/dog-collie-sick.png"] { --animal-ink: #060403; --edge-y: 0.693; }
+[src$="/dog-dalmatian-sick.png"] { --animal-ink: #090504; --edge-y: 0.699; }
+[src$="/dog-golden-sick.png"] { --animal-ink: #080301; --edge-y: 0.705; }
+[src$="/dog-husky-sick.png"] { --animal-ink: #050302; --edge-y: 0.850; }
+[src$="/dog-pug-sick.png"] { --animal-ink: #050302; --edge-y: 0.805; }
+[src$="/dog-sick.png"] { --animal-ink: #85462b; --edge-y: 0.914; }
+[src$="/dog-terrier-sick.png"] { --animal-ink: #0d0907; --edge-y: 0.828; }
+[src$="/fox-arctic-sick.png"] { --animal-ink: #040303; --edge-y: 0.777; }
+[src$="/fox-cross-sick.png"] { --animal-ink: #070302; --edge-y: 0.748; }
+[src$="/fox-fennec-sick.png"] { --animal-ink: #080403; --edge-y: 0.900; }
+[src$="/fox-marble-sick.png"] { --animal-ink: #090706; --edge-y: 0.730; }
+[src$="/fox-red-sick.png"] { --animal-ink: #060402; --edge-y: 0.736; }
+[src$="/fox-sick.png"] { --animal-ink: #0a0402; --edge-y: 0.928; }
+[src$="/fox-silver-sick.png"] { --animal-ink: #070303; --edge-y: 0.734; }
+[src$="/hedgehog-albino-sick.png"] { --animal-ink: #0c0606; --edge-y: 0.797; }
+[src$="/hedgehog-blonde-sick.png"] { --animal-ink: #0e0805; --edge-y: 0.807; }
+[src$="/hedgehog-brown-sick.png"] { --animal-ink: #0a0201; --edge-y: 0.818; }
+[src$="/hedgehog-chocolate-sick.png"] { --animal-ink: #0a0301; --edge-y: 0.797; }
+[src$="/hedgehog-pinto-sick.png"] { --animal-ink: #090402; --edge-y: 0.805; }
+[src$="/hedgehog-salt-and-pepper-sick.png"] { --animal-ink: #050505; --edge-y: 0.811; }
+[src$="/hedgehog-sick.png"] { --animal-ink: #070201; --edge-y: 0.814; }
+[src$="/parrot-budgie-sick.png"] { --animal-ink: #0e0f08; --edge-y: 0.951; }
+[src$="/parrot-cockatiel-sick.png"] { --animal-ink: #070605; --edge-y: 0.879; }
+[src$="/parrot-grey-sick.png"] { --animal-ink: #100b0a; --edge-y: 0.973; }
+[src$="/parrot-lovebird-sick.png"] { --animal-ink: #040402; --edge-y: 0.973; }
+[src$="/parrot-macaw-sick.png"] { --animal-ink: #0a0c0d; --edge-y: 0.936; }
+[src$="/parrot-sick.png"] { --animal-ink: #42322f; --edge-y: 0.977; }
+[src$="/raccoon-sick.png"] { --animal-ink: #080706; --edge-y: 0.723; }
+[src$="/skunk-sick.png"] { --animal-ink: #040303; --edge-y: 0.908; }
+[src$="/snake-corn-sick.png"] { --animal-ink: #0f0704; --edge-y: 0.863; }
+[src$="/snake-garter-sick.png"] { --animal-ink: #060604; --edge-y: 0.732; }
+[src$="/snake-hognose-sick.png"] { --animal-ink: #0f0a07; --edge-y: 0.906; }
+[src$="/snake-king-sick.png"] { --animal-ink: #100907; --edge-y: 0.893; }
+[src$="/snake-python-sick.png"] { --animal-ink: #0c0604; --edge-y: 0.912; }
+[src$="/snake-sick.png"] { --animal-ink: #030301; --edge-y: 0.951; }

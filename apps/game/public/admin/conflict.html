@@ -1017,6 +1017,23 @@
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
 <link rel="stylesheet" href="/admin/_signpost-physics.css">
+<script>
+  /* TEMPORARY A/B switch for the animals on the story plaques, until Marcus
+     picks (see _signpost-physics.css section 8). ?scene=a is the default:
+     the animals are in the plaque's framed picture. ?scene=b: they stand in
+     the room, beside the plaque. The choice is remembered by this browser, so
+     it can be set once here and seen in the game's overlay. Delete this
+     script and the losing CSS afterwards. */
+  (function () {
+    var s = 'a';
+    try {
+      var m = /[?&]scene=([ab])(?:&|$)/i.exec(location.search);
+      if (m) { s = m[1].toLowerCase(); localStorage.setItem('arc-scene', s); }
+      else if (localStorage.getItem('arc-scene') === 'b') { s = 'b'; }
+    } catch (e) { /* storage blocked: A */ }
+    document.documentElement.setAttribute('data-scene', s);
+  })();
+</script>
 </head>
 <body>
 
