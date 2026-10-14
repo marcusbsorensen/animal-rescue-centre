@@ -244,7 +244,8 @@
 .play-parrot,
 .ground-bunny,
 .bee-flyer,
-.conflict-anim {
+.conflict-anim,
+.arrival-anim {
   --animal-outline:
     drop-shadow(var(--animal-ink-w) 0 0 var(--animal-ink, #4a3626))
     drop-shadow(calc(var(--animal-ink-w) * -1) 0 0 var(--animal-ink, #4a3626))
@@ -386,235 +387,333 @@
   }
 }
 
-/* ── 8. The animals on the story plaques (conflict.html, vet.html) ───
+/* ── 7b. The sign's list is as wide as its words ─────────────────────
+ * welcome.html and welcome-new.html set the three steps in a block as wide as
+ * the board, left-aligned under a centred logo: at 1024x768 the words ended
+ * 160-190px short of the board's right edge (blank space on the right of the
+ * sign). The list is as wide as its longest line and centred, so the blank is
+ * shared by both sides and the sign is as wide as its widest content.
+ */
+.intro ol { width: fit-content; max-width: 100%; margin-inline: auto; }
+
+/* ── 8. The animal a story plaque is about stands in the room ────────
+ * (conflict.html, vet.html, arrival.html)
  *
  * Marcus, 2026-10-14: "I'm not entirely clear on the one that's showing
  * animal conflict, why they are somehow contained on a panel but also
- * hanging halfway off it. How does that make sense?"
+ * hanging halfway off it" and then, choosing the room over the picture
+ * (117B): "make sure the animals are correctly sized and placed (not in a
+ * vignette on the sign) for the background, as they are too small now
+ * despite being the main feature for the kids".
  *
- * It did not. On a landscape phone `_short-landscape.css` caps `.conflict-scene`
- * at 38% of the plaque, which is narrower than the two animals and the ball
- * it holds, and a flex row centres its overflow: at 844x390 the dog stood 54px
- * (half of its width) past the plaque's left edge, at 667x375 39px past the
- * edge of the screen, and the cat half over the other side of the column. The
- * vet's sick cat overhung its column by 23px each side. An animal half on a
- * panel and half off it is neither in the picture nor in the room.
+ * Each of these screens is a room (a dimmed, blurred photograph) with a
+ * plaque in front of it. The animal is the subject, so it is IN the room:
+ * it stands on the floor with a shadow under it, outside the plaque and in
+ * front of nothing, at the scale the room is drawn at. The plaque keeps the
+ * words and the choices and is only as wide as they are.
  *
- * Two answers, and a TEMPORARY SWITCH between them until Marcus picks one:
- * `?scene=a` (the default) or `?scene=b` on the page's address, which the
- * browser then remembers (the script after the links in conflict.html and
- * vet.html puts it on <html data-scene>). Whichever loses, its rules and
- * that script go.
+ * SCALE. The photograph is `background-size: cover`, so one pixel of it is
+ * `--room` css pixels, whatever the screen: max(width / photo width,
+ * height / photo height). An animal is drawn `--k` photo pixels tall, so it
+ * is the same fraction of the room's furniture on every screen: the dog room's
+ * patchwork bed is ~290 photo px across and the golden puppy's body 150 (about
+ * half a bed), the sick cat 176 long, a cat on a dog's bed; the arrival room is
+ * a 1280px photograph with a ~450px bed, so the bunny's box is 300 of its
+ * pixels. Where the screen cannot hold that (a narrow phone, two animals and a
+ * ball) the width or the height caps it, so it is as big as the room will bear.
  *
- *   A  The animals are in the plaque's PICTURE: a framed scene (wall, floor)
- *      set into the board, the animals standing on its floor, the whole of
- *      them inside it and clipped to its frame.
- *   B  The animals are in the ROOM: they stand on the floor beside the
- *      plaque (below it on a portrait screen), clear of it, with a shadow on
- *      the ground and no frame. They do not tilt or drop in with the board.
- *
- * Both anchor the feet the way section 7 does, by `--edge-y`, the fraction
- * of the painting at which the body ends (measured from its alpha; the
- * table at the end of this file has it for the vet's sprites, which vary
- * from 0.69 to 0.94 of the box).
+ * PLACE. The floor in the photograph starts at the skirting a little over
+ * halfway down, so the animals stand near the foot of the screen, at the depth
+ * of the beds' near edges or a little nearer, and so a little larger than the
+ * furniture behind them. On a landscape phone
+ * (no room under the plaque) they stand beside it, on its left, and the plaque
+ * centres in the rest; everywhere else they stand below it. Their feet are
+ * put on the floor by `--edge-y` (the fraction of the painting at which the
+ * body ends; the table at the end of this file has it for every sprite these
+ * screens can show), and the soft ellipse under each is the floor taking
+ * their weight. The stage that holds them clips only the painting's empty
+ * canvas under the feet, so the screen cannot scroll to reach it.
  */
-.conflict-plaque {
-  --toy: clamp(38px, 6cqh, 56px);
-  /* Each animal's height: the page's own, but never so tall that the two of
-     them and the ball are wider than the picture (portrait phones: 16cqh is
-     135px at 390x844, and the dog stood 9px out of the frame). The width the
-     picture has is the plaque's `min(92%, 440px)` less its padding, the
-     frame's border and padding, the ball and the gaps. */
-  --ch: min(clamp(100px, 16cqh, 150px),
-            calc((min(92cqw, 440px) - 2 * clamp(18px, 3cqw, 28px) - 2 * clamp(14px, 2.4cqw, 22px) - 6px - var(--toy) - 24px) / 2));
-  --scene-w: calc(var(--ch) * 2 + var(--toy) + 28px);   /* the scene's width, for B */
-  --b-gap: 10px;
+.welcome-inner:has(.conflict-scene, .arrival-scene) {
+  --room-w: 800;     /* the backdrop photograph's size, in its own pixels */
+  --room-h: 446;
+  --room: max(100cqw / var(--room-w), 100cqh / var(--room-h));   /* css px per photo px */
+  --k: 158;          /* an animal's box, in photo pixels */
+  --stage-fr: 2.34;  /* the stage's width / the box: two animals, the ball, the gaps */
+  --stage-share: 0.5;  /* of the screen's width, for a landscape phone */
+  --plaque-est: 48cqh; /* the plaque's height (its type scales with the screen's), for the room left under it */
+  --hcap: min(40cqh, 100cqh - 110px - var(--plaque-est));   /* below the plaque */
+  --hcap-land: 46cqh;  /* of its height, beside it */
+  --ch: min(calc(var(--room) * var(--k)), var(--ch-cap));
+  --ch-cap: max(80px, min((100cqw - 52px) / var(--stage-fr), var(--hcap)));
+  --toy: clamp(26px, calc(var(--ch) * 0.24), 64px);
+  --ground: calc(var(--ch) * 0.09 + 6px);
+  --stage-w: calc(var(--stage-fr) * var(--ch) + 28px);
+  --stage-h: calc(var(--ch) + 30px);
 }
-.conflict-plaque:has(.vet-scene-wrap) {
-  --ch: clamp(110px, 18cqh, 160px);
-  --scene-w: calc(var(--ch) + 28px);
-}
-@container (max-height: 520px) {
-  .conflict-plaque { --ch: clamp(68px, 22cqh, 96px); --toy: clamp(30px, 8cqh, 40px); }
-  .conflict-plaque:has(.vet-scene-wrap) { --ch: clamp(84px, 28cqh, 120px); }
-}
-:where(.conflict-anim) { --edge-y: 0.85; }
-.conflict-anim {
-  height: var(--ch);
-  /* Feet where the scene's floor is, whatever the painting's empty canvas. */
-  margin-bottom: calc((var(--edge-y) - 1) * var(--ch));
-}
-.conflict-toy { font-size: var(--toy); margin-bottom: 2px; }
+/* The backdrop's blurred edge fades into this (dark, like the wash over it)
+   rather than into the page's cream, and it is not scaled up to hide that
+   edge: a scaled box counts as scrollable overflow, 9-21px of scroll here. */
+.welcome:has(.conflict-scene, .arrival-scene) { background: #2a2018; }
+.welcome:has(.conflict-scene, .arrival-scene)::before { transform: none; }
+.welcome-inner:has(.arrival-scene) { --room-w: 1280; --room-h: 720; }
+/* One animal, so a little larger and the stage is just its width. */
+.welcome-inner:has(.vet-scene-wrap) { --k: 215; --stage-fr: 1; --stage-share: 0.4; --hcap-land: 60cqh; --plaque-est: 54cqh; }
+.welcome-inner:has(.arrival-scene) { --k: 300; --stage-fr: 1; --stage-share: 0.4; --hcap-land: 60cqh; --plaque-est: 60cqh; }
 
-/* A: the framed picture. The frame is `.conflict-scene`, so it is clipped to
-   it; the padding keeps the animals' lean (rotate, a 2px shuffle) off the
-   edge, and the floor is the lowest part of the picture. */
-.conflict-scene {
-  --floor: clamp(14px, 2.8cqh, 22px);
-  position: relative;
-  overflow: hidden;
-  align-items: flex-end;
-  gap: clamp(2px, 1cqw, 8px);
-  padding: clamp(12px, 2.6cqh, 20px) clamp(14px, 2.4cqw, 22px) calc(var(--floor) * 0.5);
-  border: 3px solid #5a3a18;
-  border-radius: 10px;
-  background:
-    linear-gradient(180deg,
-      transparent calc(100% - var(--floor)),
-      #6b4820 calc(100% - var(--floor)), #6b4820 calc(100% - var(--floor) + 2px),
-      #b07a40 calc(100% - var(--floor) + 2px), #8b5822 100%),
-    linear-gradient(180deg, #fbefd0 0%, #f0dba9 100%);
-  box-shadow:
-    inset 0 3px 8px rgba(40, 20, 5, 0.4),
-    0 1px 0 rgba(255, 240, 210, 0.3);
-}
-/* The vet's 🤒 floats 6px above the sick animal's head and bobs 6px higher
-   (`thermometerFloat`), so its picture has that much more sky. */
-.conflict-scene:has(.vet-scene-wrap) { padding-top: clamp(22px, 4.8cqh, 30px); }
-@container (max-height: 520px) {
-  /* The column is the picture's width, not 38% of the plaque. */
-  .conflict-scene { width: max-content; max-width: none; justify-self: center; }
-}
-
-/* B: the animals leave the plaque. */
-html[data-scene="b"] .conflict-scene {
+.conflict-scene,
+.arrival-scene {
   position: absolute;
-  overflow: visible;
+  z-index: 21;                 /* in front of the plaque's shadow */
+  left: 50%; bottom: 4px;
+  transform: translateX(-50%);
+  grid-area: auto;             /* not a cell of the plaque's grid any more */
+  align-self: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
   width: max-content;
   max-width: none;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  /* The plaque is tilted 0.8deg and drops in; the animals stand upright. */
-  transform: rotate(0.8deg);
-}
-/* The ground under them: a flat soft shadow, wider than the two of them. */
-html[data-scene="b"] .conflict-scene::after {
-  content: '';
-  position: absolute;
-  left: -4%; right: -4%;
-  bottom: -5px;
-  height: 11px;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(25, 14, 6, 0.42) 0%, rgba(25, 14, 6, 0) 70%);
-  z-index: -1;
+  margin: 0;
+  gap: calc(var(--ch) * 0.04);
+  padding: calc(var(--ch) * 0.08 + 14px) 14px var(--ground);
+  overflow: hidden;
   pointer-events: none;
+  /* The floor's shadow under each animal: a flat ellipse centred on its feet. */
+  background:
+    radial-gradient(closest-side, rgba(22, 12, 5, 0.5), rgba(22, 12, 5, 0))
+      no-repeat left calc(14px + var(--ch) * 0.07) bottom calc(var(--ground) - var(--ch) * 0.05) / calc(var(--ch) * 0.86) calc(var(--ch) * 0.1),
+    radial-gradient(closest-side, rgba(22, 12, 5, 0.5), rgba(22, 12, 5, 0))
+      no-repeat left calc(14px + var(--ch) * 1.27 + var(--toy)) bottom calc(var(--ground) - var(--ch) * 0.045) / calc(var(--ch) * 0.66) calc(var(--ch) * 0.09);
 }
-@container (orientation: landscape) {
-  /* Beside the plaque, on its left, feet level with its foot; the plaque
-     centres in what is left of the screen. */
-  html[data-scene="b"] .conflict-plaque {
-    left: calc(var(--scene-w) + var(--b-gap) * 2);
-    width: min(calc(100% - var(--scene-w) - var(--b-gap) * 6), 440px);
+.conflict-scene:has(.vet-scene-wrap),
+.arrival-scene {
+  background:
+    radial-gradient(closest-side, rgba(22, 12, 5, 0.5), rgba(22, 12, 5, 0))
+      no-repeat left calc(14px + var(--ch) * 0.1) bottom calc(var(--ground) - var(--ch) * 0.05) / calc(var(--ch) * 0.82) calc(var(--ch) * 0.1);
+}
+/* The 🤒 floats 6px above the sick animal's head and bobs 6px higher. */
+.conflict-scene:has(.vet-scene-wrap) { padding-top: calc(var(--ch) * 0.2 + 20px); }
+
+:where(.conflict-anim, .arrival-anim) { --edge-y: 0.85; }
+.conflict-anim,
+.arrival-anim {
+  height: var(--ch);
+  max-height: none;            /* _short-landscape.css capped these at 150px */
+  width: auto;
+  /* Feet on the floor, whatever the painting's empty canvas under them. */
+  margin-bottom: calc((var(--edge-y) - 1) * var(--ch));
+}
+.conflict-toy { font-size: var(--toy); line-height: 1; margin-bottom: calc(var(--toy) * -0.1); }
+/* The sick animal's 🤒 hovers just above its head, which is `--top-y` of the way
+   down its painting, so the painting's empty canvas above it is pulled away. */
+.vet-sick-anim { margin-top: calc(var(--top-y, 0.28) * var(--ch) * -1); }
+.vet-scene-wrap::before { font-size: clamp(28px, calc(var(--ch) * 0.2), 56px); top: -1em; }
+
+/* The plaque is only as wide as its words and choices. Its subtitle wraps at
+   about 21em instead of setting the width. */
+.conflict-plaque,
+.arrival-plaque {
+  width: fit-content;
+  max-width: min(92%, 460px);
+  align-self: center;          /* as tall as its content, centred in what it has */
+}
+/* arrival.html pins its audio button to the top-right with `position: absolute`;
+   the landscape sheet's `.top-strip { position: relative }` (for paths) undid that
+   and pushed the button 20px off the left edge of the screen. */
+.welcome-inner:has(.arrival-plaque) > .top-strip {
+  position: absolute;
+  top: clamp(10px, 2cqh, 18px);
+  right: clamp(12px, 3cqw, 24px);
+  z-index: 25;
+}
+/* The corner badge hangs on the plaque's top-left corner (arrival's always did;
+   conflict's and vet's were top-right, over the audio button on a landscape
+   phone), and the title starts below it. */
+.conflict-flag { right: auto; left: -14px; }
+.conflict-plaque { padding-top: max(clamp(18px, 3cqh, 28px), calc(clamp(42px, 6.5cqh, 56px) - 10px)); }
+.arrival-plaque { padding-top: max(clamp(18px, 3cqh, 28px), calc(clamp(52px, 8cqh, 72px) - 12px)); }
+.conflict-subtitle,
+.arrival-subtitle { max-width: 21em; margin-inline: auto; }
+/* A pill's emoji and words sit together in the middle of it, not against its
+   left edge with the rest of it blank: 150-340px of blank to the right of the
+   words on a wide pill. */
+.conflict-choices .choice-pill,
+.arrival-choices .choice-pill {
+  grid-template-columns: auto auto;
+  justify-content: center;
+}
+
+/* Below the plaque (portrait, and a tablet held sideways): it rises to leave
+   them the floor, and starts below the audio button. */
+.conflict-plaque,
+.arrival-plaque { top: 70px; bottom: calc(var(--stage-h) + 10px); }
+
+/* A landscape phone: no room under the plaque, so the animals stand on its
+   left, in the foot of the screen, and the plaque centres in the rest, clear of
+   the audio button above it. */
+@container (orientation: landscape) and (max-height: 520px) {
+  .welcome-inner:has(.conflict-scene, .arrival-scene) {
+    --ch-cap: max(80px, min((var(--stage-share) * 100cqw - 28px) / var(--stage-fr), var(--hcap-land)));
+  }
+  .conflict-scene,
+  .arrival-scene { left: 12px; transform: none; }
+  .conflict-plaque,
+  .arrival-plaque {
+    top: 66px;
+    bottom: 6px;
+    left: calc(12px + var(--stage-w) + 8px);
+    right: 12px;
     max-width: none;
+    padding-top: clamp(18px, 3cqh, 28px);
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "title" "sub" "choices";
     grid-template-rows: auto auto 1fr;
   }
-  html[data-scene="b"] .conflict-scene {
-    right: calc(100% + var(--b-gap));
-    bottom: 6px;
-  }
-}
-@container (orientation: landscape) and (max-height: 520px) {
-  /* A landscape phone's plaque is the wide one (720px) and keeps that. */
-  html[data-scene="b"] .conflict-plaque {
-    width: min(calc(100% - var(--scene-w) - var(--b-gap) * 6), 720px);
-  }
-}
-@container (orientation: portrait) {
-  /* Below it, on the floor, in the room's lower part; the plaque rises to
-     leave them the room. */
-  html[data-scene="b"] .conflict-plaque { bottom: calc(var(--ch) + 24px); }
-  html[data-scene="b"] .conflict-scene {
-    top: calc(100% + var(--b-gap));
-    left: 0; right: 0;
-    width: auto;
-    justify-content: center;
-  }
+  /* A smaller badge, so the plaque need not make room for a big one. */
+  .conflict-flag { width: 36px; height: 36px; top: -14px; left: -12px; font-size: 22px; }
+  .arrival-flag { width: 40px; height: 40px; top: -16px; left: -12px; font-size: 24px; }
 }
 
 /* ── The per-animal table ────────────────────────────────────────────
- * Generated: each PNG's opaque pixels (alpha >= 230) -> k-means (k=12, RGB)
- * -> the darkest cluster holding >= 1.2% of them -> its mean colour is `--animal-ink`;
- * `--edge-y` is the bottom of the painted body (alpha > 40) as a fraction of
- * the image height. Re-run it when the art changes or an animal is added.
- * Fallback for a sprite not listed: a warm dark brown (section 7).
+ * Generated by scripts/sign-animal-ink.py (`--write`); do not edit by hand.
+ * `--animal-ink` is each animal's own darkest fur or feather colour, lifted to a
+ * deep tone where it is near-black (no outline is ever pure black); `--edge-y`
+ * is the bottom of the painted body as a fraction of the image height. Re-run it
+ * when the art changes or an animal is added. Fallback for a sprite not listed:
+ * a warm dark brown (section 7).
  */
-/* the animals the sign screens draw */
-[src$="/cat-ginger-sleeping.png"] { --animal-ink: #774426; }
-[src$="/cat-black-sleeping.png"] { --animal-ink: #0c0e12; }
-[src$="/cat-siamese-sleeping.png"] { --animal-ink: #4e2110; }
-[src$="/parrot-macaw-nobranch.png"] { --animal-ink: #100e15; }
-[src$="/parrot-grey-sheltered.png"] { --animal-ink: #070505; }
-[src$="/parrot-cockatiel-sheltered.png"] { --animal-ink: #0c0806; }
-[src$="/bunny-dutch-sheltered.png"] { --animal-ink: #0c0605; }
-[src$="/bunny-lop-sheltered.png"] { --animal-ink: #090402; }
-[src$="/bunny-rex-sheltered.png"] { --animal-ink: #0a0503; }
-[src$="/bee-flying.png"] { --animal-ink: #473630; }
-[src$="/dog-golden-growling.png"] { --animal-ink: #080503; --edge-y: 0.885; }
-[src$="/cat-ginger-growling.png"] { --animal-ink: #72411f; --edge-y: 0.850; }
-[src$="/cat-ginger-sick.png"] { --animal-ink: #6b3817; --edge-y: 0.738; }
-/* vet.html swaps in the sick sprite of whichever animal is ill (any species; the
-   -grumpy sprite it falls back to exists only where a -sick one does) */
-[src$="/bat-brown-sick.png"] { --animal-ink: #070402; --edge-y: 0.699; }
-[src$="/bat-fruit-sick.png"] { --animal-ink: #080401; --edge-y: 0.684; }
-[src$="/bat-longeared-sick.png"] { --animal-ink: #070403; --edge-y: 0.945; }
-[src$="/bat-pipistrelle-sick.png"] { --animal-ink: #090402; --edge-y: 0.691; }
-[src$="/bat-sick.png"] { --animal-ink: #060302; --edge-y: 0.896; }
-[src$="/bat-white-sick.png"] { --animal-ink: #0b0706; --edge-y: 0.674; }
-[src$="/bunny-angora-sick.png"] { --animal-ink: #080403; --edge-y: 0.801; }
-[src$="/bunny-arctic-sick.png"] { --animal-ink: #080403; --edge-y: 0.820; }
-[src$="/bunny-dutch-sick.png"] { --animal-ink: #0a0505; --edge-y: 0.715; }
-[src$="/bunny-lionhead-sick.png"] { --animal-ink: #050301; --edge-y: 0.900; }
-[src$="/bunny-lop-sick.png"] { --animal-ink: #090402; --edge-y: 0.730; }
-[src$="/bunny-rex-sick.png"] { --animal-ink: #080301; --edge-y: 0.773; }
-[src$="/bunny-sick.png"] { --animal-ink: #0c0908; --edge-y: 0.924; }
-[src$="/bunny-spotted-sick.png"] { --animal-ink: #090605; --edge-y: 0.748; }
-[src$="/cat-black-sick.png"] { --animal-ink: #0c0d0f; --edge-y: 0.730; }
-[src$="/cat-calico-sick.png"] { --animal-ink: #3f3932; --edge-y: 0.814; }
-[src$="/cat-grey-sick.png"] { --animal-ink: #3e3940; --edge-y: 0.773; }
-[src$="/cat-siamese-sick.png"] { --animal-ink: #261812; --edge-y: 0.799; }
-[src$="/cat-sick.png"] { --animal-ink: #91562f; --edge-y: 0.895; }
-[src$="/cat-tortie-sick.png"] { --animal-ink: #2b2020; --edge-y: 0.969; }
-[src$="/cat-tuxedo-sick.png"] { --animal-ink: #171413; --edge-y: 0.842; }
-[src$="/cat-white-sick.png"] { --animal-ink: #b09482; --edge-y: 0.930; }
-[src$="/dog-beagle-sick.png"] { --animal-ink: #060302; --edge-y: 0.699; }
-[src$="/dog-chocolate-sick.png"] { --animal-ink: #040201; --edge-y: 0.764; }
-[src$="/dog-collie-sick.png"] { --animal-ink: #060403; --edge-y: 0.693; }
-[src$="/dog-dalmatian-sick.png"] { --animal-ink: #090504; --edge-y: 0.699; }
-[src$="/dog-golden-sick.png"] { --animal-ink: #080301; --edge-y: 0.705; }
-[src$="/dog-husky-sick.png"] { --animal-ink: #050302; --edge-y: 0.850; }
-[src$="/dog-pug-sick.png"] { --animal-ink: #050302; --edge-y: 0.805; }
-[src$="/dog-sick.png"] { --animal-ink: #85462b; --edge-y: 0.914; }
-[src$="/dog-terrier-sick.png"] { --animal-ink: #0d0907; --edge-y: 0.828; }
-[src$="/fox-arctic-sick.png"] { --animal-ink: #040303; --edge-y: 0.777; }
-[src$="/fox-cross-sick.png"] { --animal-ink: #070302; --edge-y: 0.748; }
-[src$="/fox-fennec-sick.png"] { --animal-ink: #080403; --edge-y: 0.900; }
-[src$="/fox-marble-sick.png"] { --animal-ink: #090706; --edge-y: 0.730; }
-[src$="/fox-red-sick.png"] { --animal-ink: #060402; --edge-y: 0.736; }
-[src$="/fox-sick.png"] { --animal-ink: #0a0402; --edge-y: 0.928; }
-[src$="/fox-silver-sick.png"] { --animal-ink: #070303; --edge-y: 0.734; }
-[src$="/hedgehog-albino-sick.png"] { --animal-ink: #0c0606; --edge-y: 0.797; }
-[src$="/hedgehog-blonde-sick.png"] { --animal-ink: #0e0805; --edge-y: 0.807; }
-[src$="/hedgehog-brown-sick.png"] { --animal-ink: #0a0201; --edge-y: 0.818; }
-[src$="/hedgehog-chocolate-sick.png"] { --animal-ink: #0a0301; --edge-y: 0.797; }
-[src$="/hedgehog-pinto-sick.png"] { --animal-ink: #090402; --edge-y: 0.805; }
-[src$="/hedgehog-salt-and-pepper-sick.png"] { --animal-ink: #050505; --edge-y: 0.811; }
-[src$="/hedgehog-sick.png"] { --animal-ink: #070201; --edge-y: 0.814; }
-[src$="/parrot-budgie-sick.png"] { --animal-ink: #0e0f08; --edge-y: 0.951; }
-[src$="/parrot-cockatiel-sick.png"] { --animal-ink: #070605; --edge-y: 0.879; }
-[src$="/parrot-grey-sick.png"] { --animal-ink: #100b0a; --edge-y: 0.973; }
-[src$="/parrot-lovebird-sick.png"] { --animal-ink: #040402; --edge-y: 0.973; }
-[src$="/parrot-macaw-sick.png"] { --animal-ink: #0a0c0d; --edge-y: 0.936; }
-[src$="/parrot-sick.png"] { --animal-ink: #42322f; --edge-y: 0.977; }
-[src$="/raccoon-sick.png"] { --animal-ink: #080706; --edge-y: 0.723; }
-[src$="/skunk-sick.png"] { --animal-ink: #040303; --edge-y: 0.908; }
-[src$="/snake-corn-sick.png"] { --animal-ink: #0f0704; --edge-y: 0.863; }
-[src$="/snake-garter-sick.png"] { --animal-ink: #060604; --edge-y: 0.732; }
-[src$="/snake-hognose-sick.png"] { --animal-ink: #0f0a07; --edge-y: 0.906; }
-[src$="/snake-king-sick.png"] { --animal-ink: #100907; --edge-y: 0.893; }
-[src$="/snake-python-sick.png"] { --animal-ink: #0c0604; --edge-y: 0.912; }
-[src$="/snake-sick.png"] { --animal-ink: #030301; --edge-y: 0.951; }
+/* ink-table:begin */
+[src$="/bunny-lionhead-arriving.png"] { --animal-ink: #a05937; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/dog-golden-growling.png"] { --animal-ink: #af6c27; --edge-y: 0.885; --top-y: 0.115; }
+[src$="/cat-ginger-growling.png"] { --animal-ink: #d7793c; --edge-y: 0.850; --top-y: 0.213; }
+[src$="/cat-ginger-sleeping.png"] { --animal-ink: #cf7236; }
+[src$="/cat-black-sleeping.png"] { --animal-ink: #292e3d; }
+[src$="/parrot-grey-sheltered.png"] { --animal-ink: #383432; }
+[src$="/bunny-lop-sheltered.png"] { --animal-ink: #915a2f; }
+[src$="/bee-flying.png"] { --animal-ink: #42322e; }
+[src$="/parrot-macaw-nobranch.png"] { --animal-ink: #2c2b3b; }
+[src$="/bunny-dutch-sheltered.png"] { --animal-ink: #402926; }
+[src$="/cat-siamese-sleeping.png"] { --animal-ink: #573020; }
+[src$="/parrot-cockatiel-sheltered.png"] { --animal-ink: #8b817f; }
+[src$="/bunny-rex-sheltered.png"] { --animal-ink: #9e4b25; }
+[src$="/cat-ginger-sick.png"] { --animal-ink: #c96f34; --edge-y: 0.738; --top-y: 0.279; }
+[src$="/bat-brown-sick.png"] { --animal-ink: #77432a; --edge-y: 0.699; --top-y: 0.301; }
+[src$="/bat-fruit-sick.png"] { --animal-ink: #5b2b0e; --edge-y: 0.684; --top-y: 0.316; }
+[src$="/bat-longeared-sick.png"] { --animal-ink: #422c24; --edge-y: 0.945; --top-y: 0.055; }
+[src$="/bat-pipistrelle-sick.png"] { --animal-ink: #512a1d; --edge-y: 0.691; --top-y: 0.307; }
+[src$="/bat-sick.png"] { --animal-ink: #573a2e; --edge-y: 0.896; --top-y: 0.102; }
+[src$="/bat-white-sick.png"] { --animal-ink: #998f88; --edge-y: 0.674; --top-y: 0.326; }
+[src$="/bunny-angora-sick.png"] { --animal-ink: #584338; --edge-y: 0.801; --top-y: 0.197; }
+[src$="/bunny-arctic-sick.png"] { --animal-ink: #3b312b; --edge-y: 0.820; --top-y: 0.180; }
+[src$="/bunny-dutch-sick.png"] { --animal-ink: #432b23; --edge-y: 0.715; --top-y: 0.283; }
+[src$="/bunny-lionhead-sick.png"] { --animal-ink: #9e5333; --edge-y: 0.900; --top-y: 0.100; }
+[src$="/bunny-lop-sick.png"] { --animal-ink: #6b2e15; --edge-y: 0.730; --top-y: 0.270; }
+[src$="/bunny-rex-sick.png"] { --animal-ink: #903813; --edge-y: 0.773; --top-y: 0.225; }
+[src$="/bunny-sick.png"] { --animal-ink: #bf9595; --edge-y: 0.924; --top-y: 0.074; }
+[src$="/bunny-spotted-sick.png"] { --animal-ink: #432d23; --edge-y: 0.748; --top-y: 0.252; }
+[src$="/cat-black-sick.png"] { --animal-ink: #2a2c3c; --edge-y: 0.730; --top-y: 0.287; }
+[src$="/cat-calico-sick.png"] { --animal-ink: #4a341c; --edge-y: 0.814; --top-y: 0.348; }
+[src$="/cat-grey-sick.png"] { --animal-ink: #4d526a; --edge-y: 0.773; --top-y: 0.293; }
+[src$="/cat-siamese-sick.png"] { --animal-ink: #4c2a1e; --edge-y: 0.799; --top-y: 0.268; }
+[src$="/cat-sick.png"] { --animal-ink: #c0713b; --edge-y: 0.895; --top-y: 0.174; }
+[src$="/cat-tortie-sick.png"] { --animal-ink: #3b2b2b; --edge-y: 0.969; --top-y: 0.156; }
+[src$="/cat-tuxedo-sick.png"] { --animal-ink: #333036; --edge-y: 0.842; --top-y: 0.145; }
+[src$="/cat-white-sick.png"] { --animal-ink: #747977; --edge-y: 0.930; --top-y: 0.156; }
+[src$="/dog-beagle-sick.png"] { --animal-ink: #3f2e27; --edge-y: 0.699; --top-y: 0.301; }
+[src$="/dog-chocolate-sick.png"] { --animal-ink: #4a2a1c; --edge-y: 0.764; --top-y: 0.236; }
+[src$="/dog-collie-sick.png"] { --animal-ink: #37322f; --edge-y: 0.693; --top-y: 0.307; }
+[src$="/dog-dalmatian-sick.png"] { --animal-ink: #47271f; --edge-y: 0.699; --top-y: 0.299; }
+[src$="/dog-golden-sick.png"] { --animal-ink: #472e1f; --edge-y: 0.705; --top-y: 0.295; }
+[src$="/dog-husky-sick.png"] { --animal-ink: #534d4e; --edge-y: 0.850; --top-y: 0.150; }
+[src$="/dog-pug-sick.png"] { --animal-ink: #492c1d; --edge-y: 0.805; --top-y: 0.195; }
+[src$="/dog-sick.png"] { --animal-ink: #8c4b2f; --edge-y: 0.914; --top-y: 0.102; }
+[src$="/dog-terrier-sick.png"] { --animal-ink: #3a312c; --edge-y: 0.828; --top-y: 0.172; }
+[src$="/fox-arctic-sick.png"] { --animal-ink: #c5b9a8; --edge-y: 0.777; --top-y: 0.223; }
+[src$="/fox-cross-sick.png"] { --animal-ink: #3f2b27; --edge-y: 0.748; --top-y: 0.250; }
+[src$="/fox-fennec-sick.png"] { --animal-ink: #a78f6e; --edge-y: 0.900; --top-y: 0.100; }
+[src$="/fox-marble-sick.png"] { --animal-ink: #3c3835; --edge-y: 0.730; --top-y: 0.268; }
+[src$="/fox-red-sick.png"] { --animal-ink: #3d3329; --edge-y: 0.736; --top-y: 0.262; }
+[src$="/fox-sick.png"] { --animal-ink: #4a2a1c; --edge-y: 0.928; --top-y: 0.072; }
+[src$="/fox-silver-sick.png"] { --animal-ink: #3a2c31; --edge-y: 0.734; --top-y: 0.266; }
+[src$="/hedgehog-albino-sick.png"] { --animal-ink: #ecbfc0; --edge-y: 0.797; --top-y: 0.201; }
+[src$="/hedgehog-blonde-sick.png"] { --animal-ink: #c48b72; --edge-y: 0.807; --top-y: 0.193; }
+[src$="/hedgehog-brown-sick.png"] { --animal-ink: #792812; --edge-y: 0.818; --top-y: 0.182; }
+[src$="/hedgehog-chocolate-sick.png"] { --animal-ink: #4a2a1c; --edge-y: 0.797; --top-y: 0.205; }
+[src$="/hedgehog-pinto-sick.png"] { --animal-ink: #562113; --edge-y: 0.805; --top-y: 0.195; }
+[src$="/hedgehog-salt-and-pepper-sick.png"] { --animal-ink: #4a4646; --edge-y: 0.811; --top-y: 0.188; }
+[src$="/hedgehog-sick.png"] { --animal-ink: #73240f; --edge-y: 0.814; --top-y: 0.186; }
+[src$="/parrot-budgie-sick.png"] { --animal-ink: #294225; --edge-y: 0.951; --top-y: 0.049; }
+[src$="/parrot-cockatiel-sick.png"] { --animal-ink: #403b37; --edge-y: 0.879; --top-y: 0.121; }
+[src$="/parrot-grey-sick.png"] { --animal-ink: #8d2f28; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/parrot-lovebird-sick.png"] { --animal-ink: #214527; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/parrot-macaw-sick.png"] { --animal-ink: #1c404a; --edge-y: 0.936; --top-y: 0.064; }
+[src$="/parrot-sick.png"] { --animal-ink: #a72730; --edge-y: 0.977; --top-y: 0.023; }
+[src$="/raccoon-sick.png"] { --animal-ink: #3a312c; --edge-y: 0.723; --top-y: 0.277; }
+[src$="/skunk-sick.png"] { --animal-ink: #3a2e2c; --edge-y: 0.908; --top-y: 0.092; }
+[src$="/snake-corn-sick.png"] { --animal-ink: #a63322; --edge-y: 0.863; --top-y: 0.137; }
+[src$="/snake-garter-sick.png"] { --animal-ink: #4a4a33; --edge-y: 0.732; --top-y: 0.268; }
+[src$="/snake-hognose-sick.png"] { --animal-ink: #8d6848; --edge-y: 0.906; --top-y: 0.092; }
+[src$="/snake-king-sick.png"] { --animal-ink: #392e2d; --edge-y: 0.893; --top-y: 0.105; }
+[src$="/snake-python-sick.png"] { --animal-ink: #3b2f2b; --edge-y: 0.912; --top-y: 0.088; }
+[src$="/snake-sick.png"] { --animal-ink: #4d5220; --edge-y: 0.951; --top-y: 0.049; }
+[src$="/bat-arriving.png"] { --animal-ink: #6b4331; --edge-y: 0.906; --top-y: 0.172; }
+[src$="/bat-brown-arriving.png"] { --animal-ink: #562918; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bat-fruit-arriving.png"] { --animal-ink: #4a261c; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/bat-longeared-arriving.png"] { --animal-ink: #7b5f51; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bat-pipistrelle-arriving.png"] { --animal-ink: #48271e; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/bat-white-arriving.png"] { --animal-ink: #47291f; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bunny-angora-arriving.png"] { --animal-ink: #8f745e; --edge-y: 0.826; --top-y: 0.174; }
+[src$="/bunny-arctic-arriving.png"] { --animal-ink: #503329; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bunny-arriving.png"] { --animal-ink: #9a7459; --edge-y: 0.906; --top-y: 0.062; }
+[src$="/bunny-dutch-arriving.png"] { --animal-ink: #3b2b2c; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/bunny-lop-arriving.png"] { --animal-ink: #813c21; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bunny-rex-arriving.png"] { --animal-ink: #994827; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/bunny-spotted-arriving.png"] { --animal-ink: #4a221c; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/cat-arriving.png"] { --animal-ink: #79462a; --edge-y: 0.852; --top-y: 0.141; }
+[src$="/cat-black-arriving.png"] { --animal-ink: #2b2c3b; --edge-y: 0.934; --top-y: 0.074; }
+[src$="/cat-calico-arriving.png"] { --animal-ink: #423733; --edge-y: 0.865; --top-y: 0.135; }
+[src$="/cat-ginger-arriving.png"] { --animal-ink: #d6773a; --edge-y: 0.818; --top-y: 0.219; }
+[src$="/cat-grey-arriving.png"] { --animal-ink: #5a576d; --edge-y: 0.871; --top-y: 0.139; }
+[src$="/cat-siamese-arriving.png"] { --animal-ink: #4b2d25; --edge-y: 0.906; --top-y: 0.104; }
+[src$="/cat-tortie-arriving.png"] { --animal-ink: #3b2d2b; --edge-y: 0.914; --top-y: 0.092; }
+[src$="/cat-tuxedo-arriving.png"] { --animal-ink: #403835; --edge-y: 0.951; --top-y: 0.088; }
+[src$="/cat-white-arriving.png"] { --animal-ink: #ac7d59; --edge-y: 0.936; --top-y: 0.125; }
+[src$="/dog-arriving.png"] { --animal-ink: #6e4d36; --edge-y: 0.914; --top-y: 0.117; }
+[src$="/dog-beagle-arriving.png"] { --animal-ink: #3d2e29; --edge-y: 0.973; --top-y: 0.029; }
+[src$="/dog-chocolate-arriving.png"] { --animal-ink: #432d23; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/dog-collie-arriving.png"] { --animal-ink: #3a302c; --edge-y: 0.883; --top-y: 0.115; }
+[src$="/dog-dalmatian-arriving.png"] { --animal-ink: #39332d; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/dog-golden-arriving.png"] { --animal-ink: #7b4b20; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/dog-husky-arriving.png"] { --animal-ink: #564640; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/dog-pug-arriving.png"] { --animal-ink: #402e26; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/dog-terrier-arriving.png"] { --animal-ink: #482c1e; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/fox-arctic-arriving.png"] { --animal-ink: #4a2f1c; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/fox-arriving.png"] { --animal-ink: #764734; --edge-y: 1.000; --top-y: 0.000; }
+[src$="/fox-cross-arriving.png"] { --animal-ink: #4a221c; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/fox-fennec-arriving.png"] { --animal-ink: #a37143; --edge-y: 0.955; --top-y: 0.045; }
+[src$="/fox-marble-arriving.png"] { --animal-ink: #38302e; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/fox-red-arriving.png"] { --animal-ink: #423024; --edge-y: 0.955; --top-y: 0.043; }
+[src$="/fox-silver-arriving.png"] { --animal-ink: #412528; --edge-y: 0.879; --top-y: 0.121; }
+[src$="/hedgehog-albino-arriving.png"] { --animal-ink: #74030c; --edge-y: 0.871; --top-y: 0.129; }
+[src$="/hedgehog-arriving.png"] { --animal-ink: #712818; --edge-y: 0.967; --top-y: 0.033; }
+[src$="/hedgehog-blonde-arriving.png"] { --animal-ink: #d29e77; --edge-y: 0.887; --top-y: 0.113; }
+[src$="/hedgehog-brown-arriving.png"] { --animal-ink: #722817; --edge-y: 0.961; --top-y: 0.039; }
+[src$="/hedgehog-chocolate-arriving.png"] { --animal-ink: #4a281c; --edge-y: 0.924; --top-y: 0.076; }
+[src$="/hedgehog-pinto-arriving.png"] { --animal-ink: #6a2b11; --edge-y: 0.857; --top-y: 0.143; }
+[src$="/hedgehog-salt-and-pepper-arriving.png"] { --animal-ink: #3b3a3a; --edge-y: 0.906; --top-y: 0.092; }
+[src$="/parrot-arriving.png"] { --animal-ink: #a0322c; --edge-y: 0.898; --top-y: 0.102; }
+[src$="/parrot-budgie-arriving.png"] { --animal-ink: #422d24; --edge-y: 0.945; --top-y: 0.055; }
+[src$="/parrot-cockatiel-arriving.png"] { --animal-ink: #323135; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/parrot-grey-arriving.png"] { --animal-ink: #423547; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/parrot-lovebird-arriving.png"] { --animal-ink: #2a3c2d; --edge-y: 0.959; --top-y: 0.041; }
+[src$="/parrot-macaw-arriving.png"] { --animal-ink: #272d3f; --edge-y: 0.971; --top-y: 0.027; }
+[src$="/raccoon-arriving.png"] { --animal-ink: #403126; --edge-y: 0.854; --top-y: 0.146; }
+[src$="/skunk-arriving.png"] { --animal-ink: #422924; --edge-y: 0.957; --top-y: 0.041; }
+[src$="/snake-arriving.png"] { --animal-ink: #39352d; --edge-y: 0.836; --top-y: 0.162; }
+[src$="/snake-corn-arriving.png"] { --animal-ink: #963623; --edge-y: 0.963; --top-y: 0.035; }
+[src$="/snake-garter-arriving.png"] { --animal-ink: #343b2b; --edge-y: 0.885; --top-y: 0.113; }
+[src$="/snake-hognose-arriving.png"] { --animal-ink: #4a2c1c; --edge-y: 0.973; --top-y: 0.027; }
+[src$="/snake-king-arriving.png"] { --animal-ink: #4a3c1c; --edge-y: 0.867; --top-y: 0.133; }
+[src$="/snake-python-arriving.png"] { --animal-ink: #4a391c; --edge-y: 0.943; --top-y: 0.057; }
+/* ink-table:end */

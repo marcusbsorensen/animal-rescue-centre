@@ -646,16 +646,8 @@
   .memory-wall-photo + .memory-wall-empty { display: none; }
   .memory-wall.has-photo .memory-wall-empty { display: none; }
 
-  /* Step-1 sprite (smaller, no name yet) */
-  .first-arrival-step .arrival-anim-mini {
-    height: clamp(96px, 15cqh, 130px);
-    width: auto;
-    align-self: center;
-    filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));
-    animation: arrivalWobble 2.2s ease-in-out infinite;
-    transform-origin: bottom center;
-    margin-bottom: clamp(4px, 0.8cqh, 8px);
-  }
+  /* Step-1 sprite: the animal now stands in the room, so the copy on the plaque goes. */
+  .first-arrival-step .arrival-anim-mini { display: none; }
 
   /* Painted red drawing-pin sticker — borrowed from signup.html.
      Used to show validateAnimalName errors over the plaque. */
@@ -778,6 +770,7 @@
   }
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
+<link rel="stylesheet" href="/admin/_signpost-physics.css">
 </head>
 <body>
 
@@ -803,10 +796,6 @@
 
         <div class="arrival-plaque">
           <div class="arrival-flag">📮</div>
-          <div class="arrival-scene">
-            <img class="arrival-anim" id="arrivalAnim"
-                 src="/assets/animals/bunny-lionhead-arriving.png" alt="">
-          </div>
           <div class="arrival-title">A new arrival!</div>
           <div class="arrival-subtitle" id="arrivalSubtitle">
             Someone just dropped off a little bunny. They look a bit scared…
@@ -896,6 +885,13 @@
               <img class="memory-wall-photo" id="memoryWallPhoto" alt="">
             </div>
           </div>
+        </div>
+
+        <!-- The new arrival stands in the room, on its floor, not in a picture on
+             the plaque (see _signpost-physics.css section 8). -->
+        <div class="arrival-scene">
+          <img class="arrival-anim" id="arrivalAnim"
+               src="/assets/animals/bunny-lionhead-arriving.png" alt="">
         </div>
       </div>
     </div>
@@ -991,8 +987,8 @@
     document.querySelector('.arrival-title').textContent = 'A new friend!';
     document.getElementById('arrivalSubtitle').textContent =
       "This little one doesn't have a name yet. Let's give them one!";
-    // Hide the big arrival-scene sprite — step-name has its own mini sprite
-    document.querySelector('.arrival-scene').style.display = 'none';
+    // The animal stays where it stands, in the room (the .arrival-anim-mini
+    // copy the name step used to carry on the plaque is hidden in CSS).
     showStep(stepName);
     memoryWall.style.display = 'flex';
     // Sync the mini + photo sprites to whatever sprite the host gave us
