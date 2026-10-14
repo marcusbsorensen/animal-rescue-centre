@@ -137,6 +137,15 @@ describe('the tunnel is never replaced by something she did not ask for', () => 
     expect(waitingInGame()).toEqual([]);
   });
 
+  it('a screen removed from the page by anything but its handle does not leave the queue stuck behind it', () => {
+    mountInGame('tunnel', noop);
+    mountInGame('arrival', noop);
+    frames()[0].remove();                  // taken out by something else
+    mountInGame('map', noop);              // the next mount notices, shows the one that waited, and queues behind it
+    expect(pagesUp()).toEqual(['A.R.C. arrival']);
+    expect(waitingInGame()).toEqual(['map']);
+  });
+
   it('lets the tunnel be mounted again over itself (a fresh board), and still holds the arrival', () => {
     mountInGame('tunnel', noop);
     mountInGame('arrival', noop);

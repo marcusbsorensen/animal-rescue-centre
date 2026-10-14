@@ -168,6 +168,7 @@ export function mountInGame(
   initPayload?: Record<string, unknown>,
   options?: MountInGameOptions,
 ): () => void {
+  reapRemovedScreen();
   if (mustWait({ active: activePage, page, queued: waiting.length, chained: activeFromQueue })) {
     let close: (() => void) | undefined;
     const held = waiting.push(page, { page, handlers, initPayload, options, shown: (c) => { close = c; } });
@@ -227,6 +228,18 @@ function show(request: MountRequest, fromQueue: boolean): () => void {
     closeActive();
     showNextWaiting();
   };
+}
+
+/**
+ * A screen taken out of the page by anything but its own handle (a test
+ * harness, a devtools session) would otherwise leave the bridge believing it
+ * is still up, and everything behind it waiting for ever. If the one we think
+ * is up has gone, treat it as closed and let the next waiting take its turn.
+ */
+function reapRemovedScreen(): void {
+  if (!activeFrame || activeFrame.isConnected) return;
+  closeActive();
+  showNextWaiting();
 }
 
 /** Take the screen down, leaving whatever is waiting where it is. */
