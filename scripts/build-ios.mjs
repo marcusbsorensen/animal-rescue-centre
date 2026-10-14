@@ -15,15 +15,17 @@
  * the folder froze the boot splash with nine loader 404s and no menu.
  *
  * There ARE real dev-only pages in there — cockpit.html, cast-gallery,
- * the asset-review pages — and trimming those is worth doing before
- * submission, since undocumented internal screens invite an App Store
- * 2.3.1 "hidden features" rejection. But it needs a proper reference
- * audit per file, not a directory-level guess.
+ * the asset-review pages — and they are left out of EVERY build, this one
+ * and the web one, by the list in apps/game/plugins/prune-list.mjs
+ * (DEV_ONLY). That file is the one place to change it. It holds the
+ * reference audit's result, and plugins/__tests__/prune-list.test.ts keeps
+ * it honest.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { DEV_ONLY, WEB_ONLY, rsyncExcludes } from '../apps/game/plugins/prune-list.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const game = path.join(root, 'apps', 'game');
@@ -31,18 +33,11 @@ const dist = path.join(game, 'dist');
 const staged = path.join(game, 'dist-ios');
 
 /**
- * Web-only, and verified unreferenced by anything the game loads.
- * Every entry here was checked against src/ and public/admin/ first —
- * do the same before adding to it.
+ * DEV_ONLY is already out of dist (the build removes it), and is listed here
+ * too, so a dist built some other way is still pruned. WEB_ONLY belongs to a
+ * web host and stays in the web build.
  */
-const EXCLUDE = [
-  'mockups/',        // design references, referenced by nothing
-  '404.html',        // a native app has no 404 route
-  '.htaccess',       // the web host's Apache rules (apps/game/public/.htaccess); the app has no web server
-  'sw.js',           // service workers do not run on capacitor://
-  'workbox-*.js',
-  'registerSW.js',
-];
+const EXCLUDE = rsyncExcludes([...DEV_ONLY, ...WEB_ONLY]);
 
 const run = (cmd, args, cwd) =>
   execFileSync(cmd, args, { cwd, stdio: 'inherit', env: process.env });
