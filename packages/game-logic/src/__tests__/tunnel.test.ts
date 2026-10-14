@@ -15,7 +15,10 @@ import {
   applyTier4Solution,
   generateTier5Puzzle,
   applyTier5Solution,
+  applySolution,
   HABITAT_EXITS,
+  TUNNEL_DOME_CELLS,
+  type Animal,
   type TunnelTile,
   type TunnelPuzzle,
 } from '../tunnel';
@@ -252,147 +255,239 @@ describe('isPuzzleSolved', () => {
   });
 });
 
-describe('generateTier1Puzzle', () => {
-  it('is deterministic for the same seed', () => {
-    const a = generateTier1Puzzle(20260503);
-    const b = generateTier1Puzzle(20260503);
-    expect(a.tiles.map((t) => t.rotation)).toEqual(b.tiles.map((t) => t.rotation));
-  });
+// ── The garden network ────────────────────────────────────────
+//
+// One board that grows tier by tier (docs/garden-tunnel-minigame-2026-05-03.md):
+//   tier 1 fox · tier 2 + hedgehog · tier 3 + raccoon · tier 4 + skunk · tier 5 the same four.
 
-  it('produces a 9×13 fox-only puzzle', () => {
-    const p = generateTier1Puzzle(1);
-    expect(p.width).toBe(9);
-    expect(p.height).toBe(13);
-    expect(p.animals).toEqual(['fox']);
-  });
+const TIERS = [
+  [1, generateTier1Puzzle, applyTier1Solution, ['fox']],
+  [2, generateTier2Puzzle, applyTier2Solution, ['fox', 'hedgehog']],
+  [3, generateTier3Puzzle, applyTier3Solution, ['fox', 'hedgehog', 'raccoon']],
+  [4, generateTier4Puzzle, applyTier4Solution, ['fox', 'hedgehog', 'raccoon', 'skunk']],
+  [5, generateTier5Puzzle, applyTier5Solution, ['fox', 'hedgehog', 'raccoon', 'skunk']],
+] as const;
 
-  it('is solvable when the canonical solution is applied', () => {
-    for (const seed of [1, 2, 3, 42, 9999, 20260503]) {
-      const p = generateTier1Puzzle(seed);
-      const solved = applyTier1Solution(p);
-      expect(isPuzzleSolved(solved)).toBe(true);
+/** The gates each tier is dealt: none, then one on each run, a second on each, a third where a run is long enough. */
+const GATES_AT_TIER = { 1: 0, 2: 2, 3: 3, 4: 8, 5: 10 } as const;
+
+/** 1,500 seeds and every 2026 daily seed (the date as a number, as the page makes it). */
+const SEEDS: number[] = [];
+for (let s = 1; s <= 1500; s++) SEEDS.push(s);
+for (let m = 1; m <= 12; m++) for (let d = 1; d <= 31; d++) SEEDS.push(2026 * 10000 + m * 100 + d);
+
+const at = (p: TunnelPuzzle, x: number, y: number) => p.tiles[y * p.width + x];
+const sig = (p: TunnelPuzzle) => p.tiles.map((x) => `${x.type}:${x.rotation}:${x.open ?? ''}:${x.fixed ? 'f' : ''}`);
+
+describe('the garden network: which animals join at which tier', () => {
+  it.each(TIERS)('tier %i is a 9×13 board with the right animals', (_tier, gen, _solve, animals) => {
+    for (const seed of [1, 7, 42, 20261014]) {
+      const p = gen(seed);
+      expect(p.width).toBe(9);
+      expect(p.height).toBe(13);
+      expect(p.animals).toEqual([...animals]);
     }
   });
 
-  it('places fox start inside building (5, 10) and fox end at one of the catalogue exits', () => {
-    const p = generateTier1Puzzle(7);
-    const idx = (x: number, y: number) => y * p.width + x;
-    const startTile = p.tiles[idx(5, 10)];
-    expect(startTile.type).toBe('habitat-endpoint');
-    expect(startTile.endpointFor).toBe('fox');
-    expect(startTile.endpointRole).toBe('start');
-    // Fox end must land on one of the HABITAT_EXITS.fox positions
-    const endHits = HABITAT_EXITS.fox.filter((c) => {
-      const t = p.tiles[idx(c.x, c.y)];
-      return t.type === 'habitat-endpoint' && t.endpointFor === 'fox' && t.endpointRole === 'end';
-    });
-    expect(endHits.length).toBe(1);
+  it.each(TIERS)('tier %i is deterministic for the same seed', (_tier, gen) => {
+    expect(sig(gen(20260503))).toEqual(sig(gen(20260503)));
+    expect(sig(gen(1))).not.toEqual(sig(gen(2)));
   });
 
-  it('chooses different fox exits across seeds', () => {
-    const exitsSeen = new Set<string>();
+  it.each(TIERS)('tier %i has a start and a goal for every animal, all fixed', (_tier, gen, _solve, animals) => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 42, 20261014]) {
+      const p = gen(seed);
+      for (const a of animals) {
+        const starts = p.tiles.filter((x) => x.type === 'habitat-endpoint' && x.endpointFor === a && x.endpointRole === 'start');
+        const ends = p.tiles.filter((x) => x.type === 'habitat-endpoint' && x.endpointFor === a && x.endpointRole === 'end');
+        expect(starts).toHaveLength(1);
+        expect(ends).toHaveLength(1);
+        expect(starts[0].fixed).toBe(true);
+        expect(ends[0].fixed).toBe(true);
+      }
+    }
+  });
+
+  it('puts every start inside the building and every goal on the animal\'s own catalogue exit', () => {
+    const starts: Record<Animal, [number, number]> = { fox: [5, 10], hedgehog: [0, 10], raccoon: [5, 11], skunk: [5, 12] };
+    for (const seed of [1, 2, 3, 42, 20261014]) {
+      const p = generateTier5Puzzle(seed);
+      for (const a of p.animals) {
+        const [sx, sy] = starts[a];
+        expect(at(p, sx, sy)).toMatchObject({ type: 'habitat-endpoint', endpointFor: a, endpointRole: 'start' });
+        const hits = HABITAT_EXITS[a].filter((c) => {
+          const t = at(p, c.x, c.y);
+          return t.type === 'habitat-endpoint' && t.endpointFor === a && t.endpointRole === 'end';
+        });
+        expect(hits).toHaveLength(1);
+      }
+    }
+  });
+
+  it('chooses different exits across seeds', () => {
+    const seen = new Set<string>();
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 9999]) {
       const p = generateTier1Puzzle(seed);
-      const idx = (x: number, y: number) => y * p.width + x;
       for (const c of HABITAT_EXITS.fox) {
-        const t = p.tiles[idx(c.x, c.y)];
-        if (t.type === 'habitat-endpoint' && t.endpointFor === 'fox' && t.endpointRole === 'end') {
-          exitsSeen.add(`${c.x},${c.y}`);
+        const t = at(p, c.x, c.y);
+        if (t.type === 'habitat-endpoint' && t.endpointRole === 'end') seen.add(`${c.x},${c.y}`);
+      }
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('the garden network: one board that grows', () => {
+  it('tier N keeps every fixed piece of tier N-1 exactly where it was', () => {
+    for (const seed of SEEDS.filter((_, i) => i % 7 === 0)) {
+      for (let i = 1; i < TIERS.length; i++) {
+        const prev = TIERS[i - 1][1](seed);
+        const next = TIERS[i][1](seed);
+        prev.tiles.forEach((t, k) => {
+          if (t.fixed) expect(`${next.tiles[k].type}:${next.tiles[k].rotation}:${next.tiles[k].endpointFor ?? ''}`)
+            .toBe(`${t.type}:${t.rotation}:${t.endpointFor ?? ''}`);
+        });
+      }
+    }
+  });
+
+  it('tier N is the same fox as tier 1 and tier 2 the same hedgehog as tier 3: a run does not change with the tier', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 42, 20261014]) {
+      const routes = TIERS.map(([, gen, solve]) => solveTunnels(solve(gen(seed))));
+      for (const a of ['fox', 'hedgehog', 'raccoon', 'skunk'] as const) {
+        const paths = routes.filter((r) => r[a]).map((r) => JSON.stringify(r[a].path));
+        expect(new Set(paths).size).toBe(1);
+      }
+    }
+  });
+
+  it('no two animals share a cell on their solved runs', () => {
+    for (const [, gen, solve] of TIERS) {
+      for (const seed of SEEDS.filter((_, i) => i % 3 === 0)) {
+        const res = solveTunnels(solve(gen(seed)));
+        const owner = new Map<string, string>();
+        for (const a of Object.keys(res)) {
+          for (const c of res[a].path ?? []) {
+            const k = `${c.x},${c.y}`;
+            expect(owner.get(k) ?? a).toBe(a);
+            owner.set(k, a);
+          }
         }
       }
     }
-    expect(exitsSeen.size).toBeGreaterThanOrEqual(2); // sanity: not always the same exit
-  });
-});
-
-describe('generateTier2Puzzle (single hedgehog)', () => {
-  it('produces a 9×13 hedgehog-only puzzle', () => {
-    const p = generateTier2Puzzle(1);
-    expect(p.width).toBe(9);
-    expect(p.height).toBe(13);
-    expect(p.animals).toEqual(['hedgehog']);
   });
 
-  it('is deterministic for the same seed', () => {
-    const a = generateTier2Puzzle(99);
-    const b = generateTier2Puzzle(99);
-    expect(a.tiles.map((t) => `${t.type}:${t.rotation}:${t.open ?? ''}`))
-      .toEqual(b.tiles.map((t) => `${t.type}:${t.rotation}:${t.open ?? ''}`));
-  });
-
-  it('places hedgehog start at (0, 10) and end on col 1', () => {
-    const p = generateTier2Puzzle(7);
-    const idx = (x: number, y: number) => y * p.width + x;
-    const start = p.tiles[idx(0, 10)];
-    expect(start.type).toBe('habitat-endpoint');
-    expect(start.endpointFor).toBe('hedgehog');
-    expect(start.endpointRole).toBe('start');
-    const endHits = [{x:1,y:4},{x:1,y:5}].filter((c) => {
-      const t = p.tiles[idx(c.x, c.y)];
-      return t.type === 'habitat-endpoint' && t.endpointFor === 'hedgehog' && t.endpointRole === 'end';
-    });
-    expect(endHits.length).toBe(1);
-  });
-
-  it('includes one gate on the hedgehog trunk (default closed)', () => {
-    const p = generateTier2Puzzle(1);
-    const gates = p.tiles.filter((t) => t.type === 'gate');
-    expect(gates.length).toBe(1);
-    expect(gates[0].open).toBe(false);
-  });
-
-  it('is solvable when the canonical solution is applied', () => {
-    for (const seed of [1, 2, 3, 42, 9999, 20260503]) {
-      const p = generateTier2Puzzle(seed);
-      const solved = applyTier2Solution(p);
-      expect(isPuzzleSolved(solved)).toBe(true);
-    }
-  });
-});
-
-describe('generateTier3Puzzle (single raccoon)', () => {
-  it('produces a 9×13 raccoon-only puzzle, solvable', () => {
-    for (const seed of [1, 2, 3, 42, 9999, 20260503]) {
-      const p = generateTier3Puzzle(seed);
-      expect(p.animals).toEqual(['raccoon']);
-      expect(isPuzzleSolved(applyTier3Solution(p))).toBe(true);
-    }
-  });
-});
-
-describe('generateTier4Puzzle (single skunk)', () => {
-  it('produces a 9×13 skunk-only puzzle, solvable', () => {
-    for (const seed of [1, 2, 3, 42, 9999, 20260503]) {
-      const p = generateTier4Puzzle(seed);
-      expect(p.animals).toEqual(['skunk']);
-      expect(isPuzzleSolved(applyTier4Solution(p))).toBe(true);
-    }
-  });
-});
-
-describe('generateTier5Puzzle (multi-animal)', () => {
-  it('produces a 4-animal puzzle with 4 gates, solvable', () => {
-    for (const seed of [1, 2, 3, 42, 9999, 20260503]) {
+  it('deals each animal\'s shapes, and only the ones that fit beside the others', () => {
+    const shapes: Record<string, Set<string>> = { fox: new Set(), hedgehog: new Set() };
+    for (const seed of SEEDS.slice(0, 400)) {
       const p = generateTier5Puzzle(seed);
-      expect(p.animals).toEqual(['fox', 'hedgehog', 'raccoon', 'skunk']);
-      const gates = p.tiles.filter((t) => t.type === 'gate');
-      expect(gates.length).toBe(4);
-      expect(isPuzzleSolved(applyTier5Solution(p))).toBe(true);
+      const res = solveTunnels(applySolution(p));
+      const fox = res.fox.path!;
+      shapes.fox.add(fox.some((c) => c.x === 4 && c.y === 5) ? 'z-west' : fox.some((c) => c.y === 0) ? 'approach-north' : 'straight');
+      const h = res.hedgehog.path!;
+      shapes.hedgehog.add(h.some((c) => c.y === 1 && c.x === 3) ? 'over-the-top'
+        : h.some((c) => c.y === 4 && c.x === 2) ? 'approach-north'
+          : h.some((c) => c.x === 3) ? 'z-east' : 'straight');
+      // the loop that climbs into the fox's pen rows is only dealt when the fox's pen is in col 4
+      if (shapes.hedgehog.has('over-the-top') && h.some((c) => c.y === 1 && c.x === 3)) {
+        const foxEnd = fox[fox.length - 1];
+        expect(foxEnd.x).toBe(4);
+      }
+      // nobody runs through col 7-8 but the raccoon and the skunk
+      for (const c of fox) expect(c.x).toBeLessThanOrEqual(6);
+      for (const c of h) expect(c.x).toBeLessThanOrEqual(3);
+    }
+    expect([...shapes.fox].sort()).toEqual(['approach-north', 'straight', 'z-west']);
+    expect([...shapes.hedgehog].sort()).toEqual(['approach-north', 'over-the-top', 'straight', 'z-east']);
+  });
+});
+
+describe('the garden network: gates', () => {
+  it.each(TIERS)('tier %i carries the right number of gates, all closed', (tier, gen) => {
+    for (const seed of SEEDS.filter((_, i) => i % 5 === 0)) {
+      const gates = gen(seed).tiles.filter((x) => x.type === 'gate');
+      expect(gates).toHaveLength(GATES_AT_TIER[tier]);
+      for (const g of gates) expect(g.open).toBe(false);
+    }
+  });
+
+  it('a gate sits on a run, the right way round for the animal that passes it', () => {
+    for (const [, gen, solve] of TIERS) {
+      for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 42, 20261014]) {
+        const p = gen(seed);
+        const res = solveTunnels(solve(p));
+        p.tiles.forEach((g, k) => {
+          if (g.type !== 'gate') return;
+          const x = k % p.width, y = Math.floor(k / p.width);
+          const owner = Object.keys(res).find((a) => res[a].path?.some((c) => c.x === x && c.y === y));
+          expect(owner).toBeDefined();
+          // a closed gate stops its animal; open, it passes (tileSides of an open gate is a straight)
+          expect(tileSides({ ...g, open: true })).toEqual(tileSides({ type: 'straight', rotation: g.rotation }));
+        });
+      }
+    }
+  });
+
+  it('tier 1 has no gates; they arrive with the second run', () => {
+    expect(generateTier1Puzzle(5).tiles.some((x) => x.type === 'gate')).toBe(false);
+    expect(generateTier2Puzzle(5).tiles.some((x) => x.type === 'gate')).toBe(true);
+  });
+});
+
+describe('the garden network: solvable', () => {
+  it.each(TIERS)('tier %i is solved by the canonical solution on 1,500 seeds and every 2026 daily seed', (_tier, gen, solve) => {
+    expect(SEEDS.length).toBeGreaterThanOrEqual(1500 + 12 * 31);
+    for (const seed of SEEDS) {
+      const solved = solve(gen(seed));
+      if (!isPuzzleSolved(solved)) throw new Error(`seed ${seed} is not solved by its canonical solution`);
+    }
+  });
+
+  it.each(TIERS)('tier %i never starts solved', (_tier, gen) => {
+    for (const seed of SEEDS) {
+      if (isPuzzleSolved(gen(seed))) throw new Error(`seed ${seed} starts finished`);
+    }
+  });
+
+  it('the canonical solution leaves a board it does not recognise alone', () => {
+    const blank: TunnelPuzzle = { width: 3, height: 1, tiles: [t('empty'), t('empty'), t('empty')], animals: ['fox'] };
+    expect(applySolution(blank).tiles).toEqual(blank.tiles);
+  });
+});
+
+describe('the garden network: domes', () => {
+  it('stand on col 6, rows 2, 5 and 8: the painted central path', () => {
+    expect(TUNNEL_DOME_CELLS).toEqual([{ x: 6, y: 2 }, { x: 6, y: 5 }, { x: 6, y: 8 }]);
+  });
+
+  it.each(TIERS)('tier %i: a dome tile only ever sits on the painted path', (_tier, gen) => {
+    for (const seed of SEEDS.filter((_, i) => i % 3 === 0)) {
+      gen(seed).tiles.forEach((x, k) => {
+        if (x.type !== 'viewing-dome') return;
+        expect(TUNNEL_DOME_CELLS).toContainEqual({ x: k % 9, y: Math.floor(k / 9) });
+        expect(x.fixed).toBe(true);
+      });
+    }
+  });
+
+  it.each(TIERS)('tier %i: the fox passes under the domes its run meets, whatever shape it is dealt', (_tier, gen, solve) => {
+    for (const seed of SEEDS.filter((_, i) => i % 3 === 0)) {
+      const p = gen(seed);
+      const fox = solveTunnels(solve(p)).fox.path!;
+      for (const d of TUNNEL_DOME_CELLS) {
+        const under = fox.some((c) => c.x === d.x && c.y === d.y);
+        expect(at(p, d.x, d.y).type === 'viewing-dome').toBe(under);
+      }
+      // the lowest and the highest dome are on every shape of the fox's run
+      expect(at(p, 6, 8).type).toBe('viewing-dome');
+      expect(at(p, 6, 2).type).toBe('viewing-dome');
     }
   });
 });
 
 describe('goal tiles', () => {
-  const GENERATORS = [
-    [1, generateTier1Puzzle, applyTier1Solution],
-    [2, generateTier2Puzzle, applyTier2Solution],
-    [3, generateTier3Puzzle, applyTier3Solution],
-    [4, generateTier4Puzzle, applyTier4Solution],
-    [5, generateTier5Puzzle, applyTier5Solution],
-  ] as const;
-
   it('are fixed in every tier, so tapping the sticker cannot turn them', () => {
-    for (const [, gen] of GENERATORS) {
+    for (const [, gen] of TIERS) {
       for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 42, 20261014]) {
         const ends = gen(seed).tiles.filter((x) => x.type === 'habitat-endpoint' && x.endpointRole === 'end');
         expect(ends.length).toBeGreaterThan(0);
@@ -405,7 +500,7 @@ describe('goal tiles', () => {
   });
 
   it('cannot break a solved route when tapped', () => {
-    for (const [, gen, solve] of GENERATORS) {
+    for (const [, gen, solve] of TIERS) {
       for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 42, 20261014]) {
         const solved = solve(gen(seed));
         expect(isPuzzleSolved(solved)).toBe(true);

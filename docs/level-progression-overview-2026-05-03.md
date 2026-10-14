@@ -38,7 +38,7 @@ Everything that's level-gated, side-by-side. Read down the column for what a pla
 | **PTV destinations** | A.R.C., Bramble Farm | (same) | ★ Moorland, Woodland | (same) | ★ Cove Harbour | (same) | ★ Sea Cliffs | ★ Deep Forest | ★ Wetlands | ★ Pinebark Medical |
 | **Supply Run depots** | Bramble Farm | (same) | (same) | (same) | ★ Cove Harbour | (same) | (same) | (same) | (same) | ★ Pinebark Medical |
 | **Charity grant: Wildlife Trust** | — | — | — | — | — | — | — | — | — | ★ qualifies (£40 if 5+ rewildings) |
-| **Tunnel mini-game** | ★ tier 1 (fox only) | tier 1 | tier 1 | ★ tier 2 (hedgehog only) | tier 2 | ★ tier 3 (raccoon only) | tier 3 | ★ tier 4 (skunk only) | tier 4 | ★ tier 5 (all 4 animals side-by-side) |
+| **Tunnel mini-game** | ★ tier 1 (fox) | tier 1 | tier 1 | ★ tier 2 (+ hedgehog) | tier 2 | ★ tier 3 (+ raccoon) | tier 3 | ★ tier 4 (+ skunk: all four) | tier 4 | ★ tier 5 (all four, rush hour) |
 
 ## Per-system detail
 
@@ -121,29 +121,37 @@ The Wildlife Trust grant qualifies at **L10 if the player has done ≥5 rewildin
 ### Tunnel mini-game (5-tier pipe-rotation puzzle)
 
 A pipe-rotation puzzle where the kid rebuilds the underground
-tunnel network so animals can be let out to play. Tiers 1–4 are
-each a SINGLE-animal puzzle that gradually introduces new path
-shapes; tier 5 is the multi-animal coordination tier where all
-four trunks are placed side-by-side at simpler topologies.
+tunnel network so animals can be let out to play. It is ONE network
+that grows tier by tier, the way the aboveground site grows ("same
+shape, finer detail", docs/garden-tunnel-minigame-2026-05-03.md):
+each tier is the previous board plus one animal's run.
 
-| Tier | Levels | Animal | Templates |
+| Tier | Levels | Animals on the board | What joins |
 |---|---|---|---|
-| **1** | L1–3 | fox | straight, z-east, z-west, approach-north (4) |
-| **2** | L4–5 | hedgehog | straight, z-east, approach-north, over-the-top (4) |
-| **3** | L6–7 | raccoon | straight, z-west, approach-north (3) |
-| **4** | L8–9 | skunk | straight, z-west (2) |
-| **5** | L10+ | fox + hedgehog + raccoon + skunk | all four trunks side-by-side at simpler topologies |
+| **1** | L1–3 | fox | the intro: one run, no gates |
+| **2** | L4–5 | fox + hedgehog | the hedgehog's run; gates arrive (one on each run) |
+| **3** | L6–7 | fox + hedgehog + raccoon | the raccoon's run |
+| **4** | L8–9 | fox + hedgehog + raccoon + skunk | the skunk's run; a second gate on each run |
+| **5** | L10+ | all four | rush hour: a third gate where a run is long enough |
+
+Shapes each run can be dealt (they have to fit beside the others, so
+they are fewer than when each animal had the board to itself):
+fox straight / z-west / approach-north; hedgehog straight / z-east /
+approach-north / over-the-top (only when the fox's pen is in col 4);
+raccoon and skunk straight up their own columns (7 and 8).
 
 `openTunnelOverlay` in `GameScene.ts` picks the tier from the
 player's current level (L1–3 → 1, L4–5 → 2, L6–7 → 3, L8–9 → 4,
 L10+ → 5) and passes it via `?tier=N` to the iframe, whose
 `urlTier` parser routes to the matching `generateTierN` function.
+The win rewards every animal on the board that has arrived at the
+centre (the first three wins of the UTC day; see `tunnel-wins.ts`).
 
 Layout MIRRORS the aboveground site geometry — each animal's
 trunk runs UP from the building's tunnel-mouth at the south end,
-turning west/east at the top to its pen. Single-animal tiers
-re-use one trunk slot with template variation; tier 5 lights up
-all four trunks at once.
+turning west/east at the top to its pen. The glass viewing domes of
+the site map stand on the painted central path (col 6, rows 2, 5, 8)
+and are drawn from those cells whatever the tunnel beneath does.
 
 Each successful run = animals let out to play (feeds the existing
 happiness/bond loop). Failed routes = "fox got lost — try again?"
@@ -162,18 +170,17 @@ Source files:
 - `apps/game/public/admin/tunnel.html` — painted iframe page
 - `apps/game/src/scenes/TunnelScene.ts` + `GameScene.openTunnelOverlay()` — scene wiring
 
-Implementation status (2026-05-06):
+Implementation status (2026-10-14):
 - All 5 tier generators are LIVE in `tunnel.ts` and the iframe
-  mirror. Test the layout via URL param: `?tier=1` … `?tier=5`.
-- Tiers 1–4 are single-animal: each picks one of its templates per
-  daily seed and renders just that animal's trunk + decoy padding
-  (so the puzzle reads as a real puzzle, not a single line).
-- Tier 5 places all four trunks side-by-side at simpler topologies
-  for the multi-animal coordination beat.
+  mirror (`tunnel.html`; `tunnel-page-mirror.test.ts` compares the two
+  cell by cell over 1,872 seeds in every tier). Test the layout via URL param: `?tier=1` … `?tier=5`.
+- Every run is built from the seed alone, so for one seed tier N is
+  tier N-1 plus a branch (same fox, same hedgehog, same decoys on the
+  same cells). The 2026-05-06 "single animal per tier" restructure
+  (c4f5cab) is reverted: Marcus 110A.
 - The animation pipeline (`runAnimalAnimations` in `tunnel.html`)
-  iterates `puzzle.animals` sequentially in tiers 1–4 (one animal)
-  and across all four in tier 5. Future: parallel firing + collision
-  detection for the rush-hour feel.
+  iterates `puzzle.animals` sequentially. Future: parallel firing +
+  collision detection for the rush-hour feel.
 
 ### Charm system (PTV mirror customisation)
 

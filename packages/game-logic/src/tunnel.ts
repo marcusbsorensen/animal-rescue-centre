@@ -359,7 +359,7 @@ export const HABITAT_EXITS: Record<Animal, ReadonlyArray<{ x: number; y: number 
   ],
 };
 
-// ── Tier 1 puzzle generator ───────────────────────────────────
+// ── The garden network: one board that grows tier by tier ─────
 
 /**
  * Mulberry32 — small deterministic PRNG. Same seed → same sequence.
@@ -380,877 +380,392 @@ function emptyTile(): TunnelTile {
 }
 
 /**
- * Pad EMPTY cells in a rectangular zone with random rotatable
- * pieces ("decoys") so the kid sees more tunnel pieces on the
- * board than the required path strictly needs. Adds proper puzzle
- * to the rotation work — kid has to figure out which pieces matter
- * and which are red herrings, AND can rotate decoys to create
- * alternative routes if they want to (Marcus 2026-05-05).
+ * THE DESIGN (docs/garden-tunnel-minigame-2026-05-03.md): the tunnel is ONE
+ * network that mirrors the aboveground site, and it grows the way the site
+ * grows. Difficulty is not a different shape per tier; it is the same board
+ * with more of it live:
  *
- * Won't overwrite non-empty cells (so existing trunk + endpoints
- * are preserved).
+ *   tier 1  fox                         the intro: one run, no gates
+ *   tier 2  fox + hedgehog              a second run, and gates arrive
+ *   tier 3  fox + hedgehog + raccoon    a third run
+ *   tier 4  all four (skunk joins)      four runs, a second gate on each
+ *   tier 5  all four, rush hour         a third gate where a run is long enough
  *
- * `density` 0..1 — fraction of empty cells in the zone that get
- * a decoy. 0.55 leaves visible breathing room.
+ * Each run is built from the seed alone, whatever the tier, so for one seed
+ * tier N is tier N-1 plus a branch: same fox, same hedgehog, and the decoys
+ * (below) sit on the same cells. That is what "built by inheritance" means
+ * here, and it is checked in the tests.
+ *
+ * Why the runs are the shapes they are. The fox owns col 6, the raccoon col
+ * 7, the skunk col 8: three adjacent columns. A fox that jogged east, or a
+ * raccoon or skunk that jogged west, would have to cross another animal's
+ * run, and a crossing is a bridge the board does not teach until later. So
+ * the fox keeps straight, z-west and approach-north (z-east needs cols 7-8),
+ * the hedgehog keeps all four of its shapes (it has cols 1-3 to itself), and
+ * the raccoon and skunk run straight up their own column. The hedgehog's
+ * over-the-top loop climbs into the fox's pen rows, so it is only dealt when
+ * the fox's pen is in col 4, out of its way.
  */
-function fillWithDecoyTiles(
-  tiles: TunnelTile[],
-  W: number,
-  zone: { x0: number; y0: number; x1: number; y1: number },
+
+/**
+ * Where the glass viewing domes of the site map stand: col 6, rows 2, 5 and
+ * 8, the painted central path. They are a fact about the map above the
+ * tunnels, not about wherever a run happens to go, so the page draws them
+ * from here and not from the tiles. A run that passes under one has a fixed
+ * `viewing-dome` tile there; one that jogs away leaves it over plain soil.
+ */
+export const TUNNEL_DOME_CELLS: ReadonlyArray<{ x: number; y: number }> = [
+  { x: 6, y: 2 }, { x: 6, y: 5 }, { x: 6, y: 8 },
+];
+
+const NET_W = 9;
+const NET_H = 13;
+
+type Dir = 'n' | 'e' | 's' | 'w';
+type Cell = [number, number];
+
+/** One animal's run: start endpoint first, end endpoint last, tunnel pieces between. */
+interface Route {
+  animal: Animal;
+  path: Cell[];
+  /** Straights this many cells after the start are factory-fixed (the connector out of the building). */
+  fixedLead: number;
+  /** Gate candidates by gate level (1 from tier 2, 2 from tier 4, 3 at tier 5): the first that is a rotatable straight on the run. */
+  gates: Cell[][];
+}
+
+function dirBetween(a: Cell, b: Cell): Dir {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  if (dx > 0) return 'e';
+  if (dx < 0) return 'w';
+  return dy > 0 ? 's' : 'n';
+}
+
+/** An endpoint opens one side: r0 south, r1 west, r2 north, r3 east. */
+const ENDPOINT_ROTATION: Record<Dir, Rotation> = { s: 0, w: 1, n: 2, e: 3 };
+
+/** A corner's rotation from the two sides it joins: r0 N+W, r1 N+E, r2 S+E, r3 S+W. */
+function cornerRotation(a: Dir, b: Dir): Rotation {
+  const has = (d: Dir) => a === d || b === d;
+  if (has('n') && has('w')) return 0;
+  if (has('n') && has('e')) return 1;
+  if (has('s') && has('e')) return 2;
+  return 3;
+}
+
+/** Cells (x, y0) to (x, y1) inclusive, in either direction. */
+function colRun(x: number, y0: number, y1: number): Cell[] {
+  const out: Cell[] = [];
+  const step = y1 >= y0 ? 1 : -1;
+  for (let y = y0; y !== y1 + step; y += step) out.push([x, y]);
+  return out;
+}
+
+/** Cells (x0, y) to (x1, y) inclusive, in either direction. */
+function rowRun(y: number, x0: number, x1: number): Cell[] {
+  const out: Cell[] = [];
+  const step = x1 >= x0 ? 1 : -1;
+  for (let x = x0; x !== x1 + step; x += step) out.push([x, y]);
+  return out;
+}
+
+const FOX_SHAPES = ['straight', 'z-west', 'z-west', 'approach-north', 'approach-north'] as const;
+const HEDGEHOG_SHAPES = ['straight', 'z-east', 'z-east', 'approach-north', 'approach-north', 'over-the-top', 'over-the-top'] as const;
+
+/**
+ * Fox: building mouth (5, 10), corner (6, 10), then col 6 north to the pen.
+ *   straight        straight up, west along row 1
+ *   z-west          jogs west at row 7, climbs col 4, back east at row 4
+ *   approach-north  climbs to row 0, west along row 0, down into the pen
+ */
+function foxRoute(rng: () => number): { route: Route; exitX: number } {
+  const shape = FOX_SHAPES[Math.floor(rng() * FOX_SHAPES.length)];
+  const exit = HABITAT_EXITS.fox[Math.floor(rng() * HABITAT_EXITS.fox.length)];
+  const path: Cell[] = [[5, 10]];
+  const row = shape === 'approach-north' ? 0 : 1;
+  if (shape === 'z-west') {
+    path.push(...colRun(6, 10, 8), [6, 7], [5, 7], [4, 7], ...colRun(4, 6, 4), [5, 4], [6, 4], ...colRun(6, 3, 1));
+  } else {
+    path.push(...colRun(6, 10, row));
+  }
+  path.push(...rowRun(row, 5, exit.x));
+  for (let y = row + 1; y <= exit.y; y++) path.push([exit.x, y]);
+  return {
+    route: {
+      animal: 'fox',
+      path,
+      fixedLead: 0,
+      gates: [[[6, 7], [5, 7]], [[6, 9]], [[6, 4], [5, 4]]],
+    },
+    exitX: exit.x,
+  };
+}
+
+/**
+ * Hedgehog: building mouth (0, 10), corner (1, 10), then col 1 north.
+ *   straight        straight up to the pen
+ *   z-east          jogs east at row 7, climbs col 3, back west at row 5
+ *   approach-north  jogs east at row 6, climbs col 3 past the pen, back
+ *                   west along row 4 and down into it
+ *   over-the-top    the wide loop: up col 3 to row 1, west, down col 1
+ *                   (only dealt when the fox's pen is in col 4)
+ */
+function hedgehogRoute(rng: () => number, foxExitX: number): Route {
+  const shapes = HEDGEHOG_SHAPES.filter((s) => s !== 'over-the-top' || foxExitX === 4);
+  const shape = shapes[Math.floor(rng() * shapes.length)];
+  const exitY = shape === 'approach-north' ? 5
+    : shape === 'over-the-top' ? 4
+      : HABITAT_EXITS.hedgehog.filter((e) => e.x === 1)[Math.floor(rng() * 2)].y;
+  const path: Cell[] = [[0, 10]];
+  if (shape === 'straight') {
+    path.push(...colRun(1, 10, exitY));
+  } else if (shape === 'z-east') {
+    path.push(...colRun(1, 10, 7), [2, 7], [3, 7], [3, 6], [3, 5], [2, 5], [1, 5]);
+    if (exitY === 4) path.push([1, 4]);
+  } else if (shape === 'approach-north') {
+    path.push(...colRun(1, 10, 6), [2, 6], [3, 6], [3, 5], [3, 4], [2, 4], [1, 4], [1, 5]);
+  } else {
+    path.push(...colRun(1, 10, 6), [2, 6], [3, 6], ...colRun(3, 5, 1), [2, 1], [1, 1], [1, 2], [1, 3], [1, 4]);
+  }
+  return {
+    animal: 'hedgehog',
+    path,
+    fixedLead: 0,
+    gates: [[[1, 7], [1, 8]], [[1, 9]], []],
+  };
+}
+
+/** Raccoon: mouth (5, 11), a fixed connector east, then straight up col 7. */
+function raccoonRoute(rng: () => number): Route {
+  const exit = HABITAT_EXITS.raccoon[Math.floor(rng() * HABITAT_EXITS.raccoon.length)];
+  return {
+    animal: 'raccoon',
+    path: [[5, 11], [6, 11], [7, 11], ...colRun(7, 10, exit.y)],
+    fixedLead: 1,
+    gates: [[[7, 7]], [[7, 9]], []],
+  };
+}
+
+/** Skunk: mouth (5, 12), two fixed connectors east, then straight up col 8. */
+function skunkRoute(rng: () => number): Route {
+  const col8 = HABITAT_EXITS.skunk.filter((e) => e.x === 8);
+  const exit = col8[Math.floor(rng() * col8.length)];
+  return {
+    animal: 'skunk',
+    path: [[5, 12], [6, 12], [7, 12], [8, 12], ...colRun(8, 11, exit.y)],
+    fixedLead: 2,
+    gates: [[[8, 7]], [[8, 9]], [[8, 4]]],
+  };
+}
+
+/**
+ * Lay one run on the board. Corners are fixed (the shape of the run is the
+ * given), connectors out of the building are fixed, every other straight
+ * starts at a random rotation for the child to turn, and the two endpoints
+ * are fixed so a tap on the sticker cannot break a finished route. Gates
+ * (closed) then replace the rotatable straights named for each gate level.
+ */
+function layRoute(
+  set: (x: number, y: number, t: TunnelTile) => void,
+  route: Route,
   rng: () => number,
-  density = 0.55,
-): void {
-  // Weighted bag: more straights and corners than fancy pieces so
-  // the puzzle stays approachable. Bridges add the over/under
-  // 'crossing' choice the kid uses for advanced routing.
+  gateLevels: number,
+): Array<{ i: number; horizontal: boolean }> {
+  const cells = route.path;
+  const last = cells.length - 1;
+  const rotatable: Array<{ i: number; horizontal: boolean }> = [];
+  for (let i = 0; i <= last; i++) {
+    const [x, y] = cells[i];
+    if (i === 0 || i === last) {
+      const toward = dirBetween(cells[i], cells[i === 0 ? 1 : i - 1]);
+      set(x, y, {
+        type: 'habitat-endpoint', rotation: ENDPOINT_ROTATION[toward], fixed: true,
+        endpointFor: route.animal, endpointRole: i === 0 ? 'start' : 'end',
+      });
+      continue;
+    }
+    const back = dirBetween(cells[i], cells[i - 1]);
+    const fwd = dirBetween(cells[i], cells[i + 1]);
+    if (back !== OPPOSITE[fwd]) {
+      set(x, y, { type: 'corner', rotation: cornerRotation(back, fwd), fixed: true });
+      continue;
+    }
+    const horizontal = fwd === 'e' || fwd === 'w';
+    if (i <= route.fixedLead) {
+      set(x, y, { type: 'straight', rotation: horizontal ? 1 : 0, fixed: true });
+    } else {
+      set(x, y, { type: 'straight', rotation: Math.floor(rng() * 4) as Rotation });
+      rotatable.push({ i, horizontal });
+    }
+  }
+  for (let g = 0; g < gateLevels; g++) {
+    for (const [gx, gy] of route.gates[g]) {
+      const hit = rotatable.find((r) => cells[r.i][0] === gx && cells[r.i][1] === gy);
+      if (!hit) continue;
+      set(gx, gy, { type: 'gate', rotation: hit.horizontal ? 1 : 0, open: false });
+      break;
+    }
+  }
+  return rotatable;
+}
+
+/**
+ * Pad EMPTY cells with random rotatable pieces ("decoys") so the kid sees
+ * more tunnel pieces than the runs strictly need: she has to work out which
+ * matter and which are red herrings, and may rotate decoys into alternative
+ * routes if she likes (Marcus 2026-05-05). Each cell decides for itself from
+ * the seed and its own index, not from a running sequence, so the same cell
+ * holds the same decoy in every tier and a new branch only displaces the ones
+ * it stands on.
+ *
+ * `density` 0..1 is the fraction of empty cells that get one.
+ */
+function fillDecoys(tiles: TunnelTile[], seed: number, density: number): void {
+  // Weighted bag: more straights and corners than fancy pieces so the puzzle
+  // stays approachable. Bridges add the over/under crossing.
   const decoyTypes: TileType[] = [
     'straight', 'straight', 'straight',
-    'corner',   'corner',   'corner',
+    'corner', 'corner', 'corner',
     't-junction', 't-junction',
     'bridge',
   ];
-  const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
-  for (let y = zone.y0; y <= zone.y1; y++) {
-    for (let x = zone.x0; x <= zone.x1; x++) {
-      const i = y * W + x;
-      if (tiles[i].type !== 'empty') continue;
-      if (rng() > density) continue;
-      const type = decoyTypes[Math.floor(rng() * decoyTypes.length)];
-      tiles[i] = { type, rotation: randR() };
-    }
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i].type !== 'empty') continue;
+    const r = mulberry32((Math.imul(seed >>> 0, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca6b)) >>> 0);
+    if (r() > density) continue;
+    const type = decoyTypes[Math.floor(r() * decoyTypes.length)];
+    tiles[i] = { type, rotation: Math.floor(r() * 4) as Rotation };
   }
 }
 
-/**
- * Build the canonical tier-1 9×9 puzzle, then randomise each player-
- * rotatable tile's rotation using `seed`. Layout (per tile-inventory
- * doc §3 tier 1):
- *
- *  - Trunk in column 6 (0-indexed) — vertical straights row 2..8
- *  - Tunnel mouth at (6, 8) — habitat-endpoint, fox start, exits N
- *  - Corner at (6, 1) (fixed) — connects trunk going N to fox-branch
- *    going W. ┘ shape (N+W).
- *  - Fox branch row 1 columns 1..5 = horizontal straights
- *  - Fox endpoint at (0, 1) — habitat-endpoint, fox end, exits E
- *  - Cosmetic viewing dome at (6, 3) (fixed, non-rotatable, on trunk)
- *
- * The player rotates the 5 trunk straights + 5 branch straights so
- * they connect. The corner at (6,1) is fixed.
- */
+/** The board for a tier: the fox's run, then each animal that has joined by then. */
+function buildNetwork(tier: number, seed: number): TunnelPuzzle {
+  const tiles: TunnelTile[] = [];
+  for (let i = 0; i < NET_W * NET_H; i++) tiles.push(emptyTile());
+  const set = (x: number, y: number, t: TunnelTile) => { tiles[y * NET_W + x] = t; };
+  const at = (c: Cell) => tiles[c[1] * NET_W + c[0]];
+  const gateLevels = tier >= 5 ? 3 : tier >= 4 ? 2 : tier >= 2 ? 1 : 0;
+  const animals: Animal[] = ['fox'];
+
+  const rngFox = mulberry32(seed);
+  const fox = foxRoute(rngFox);
+  const foxTurns = layRoute(set, fox.route, rngFox, gateLevels);
+  if (tier >= 2) {
+    const rng = mulberry32((seed * 31 + 17) >>> 0);
+    layRoute(set, hedgehogRoute(rng, fox.exitX), rng, gateLevels);
+    animals.push('hedgehog');
+  }
+  if (tier >= 3) {
+    const rng = mulberry32((seed * 53 + 31) >>> 0);
+    layRoute(set, raccoonRoute(rng), rng, gateLevels);
+    animals.push('raccoon');
+  }
+  if (tier >= 4) {
+    const rng = mulberry32((seed * 97 + 13) >>> 0);
+    layRoute(set, skunkRoute(rng), rng, gateLevels);
+    animals.push('skunk');
+  }
+
+  // Where the fox's run passes under a glass dome of the site map, the tile
+  // is the dome: fixed, and the fox is seen through the glass as it goes by.
+  const foxCells = new Set(fox.route.path.map((c) => c[0] + ',' + c[1]));
+  for (const d of TUNNEL_DOME_CELLS) {
+    const t = at([d.x, d.y]);
+    if (foxCells.has(d.x + ',' + d.y) && t.type === 'straight' && !t.fixed) {
+      set(d.x, d.y, { type: 'viewing-dome', rotation: 0, fixed: true });
+    }
+  }
+
+  // A run whose straights all landed the right way round by luck would start
+  // finished (about 1 board in 250 at tier 1, where there are no gates to
+  // close): turn the first one so there is always something to do.
+  if (gateLevels === 0) {
+    const turnable = foxTurns.filter((r) => {
+      const t = at(fox.route.path[r.i]);
+      return t.type === 'straight' && !t.fixed;
+    });
+    const aligned = (r: { i: number; horizontal: boolean }) => (at(fox.route.path[r.i]).rotation % 2 === 1) === r.horizontal;
+    if (turnable.length > 0 && turnable.every(aligned)) {
+      const [cx, cy] = fox.route.path[turnable[0].i];
+      set(cx, cy, { ...at([cx, cy]), rotation: ((at([cx, cy]).rotation + 1) % 4) as Rotation });
+    }
+  }
+
+  fillDecoys(tiles, seed, tier >= 4 ? 0.9 : 0.85);
+  return { width: NET_W, height: NET_H, tiles, animals };
+}
+
+/** Tier 1 — the intro: the fox's run alone, no gates. */
 export function generateTier1Puzzle(seed: number): TunnelPuzzle {
-  // Grid is 9 cols × 13 rows. The bottom 11 rows correspond to the
-  // aboveground site map (anchored bottom). Top 2 rows are EXTRA
-  // soil that extends ABOVE the site map — kid sees the soil
-  // "wrap around" the site, reinforcing that the tunnels are
-  // contained underground (Marcus 2026-05-04).
-  //
-  // Tunnel network shifts up by 3 rows from the previous layout so
-  // 3 rows of building footprint sit BELOW the start tile, allowing
-  // the painted ARC building to render fully opaque underneath.
-  const W = 9, H = 13;
-  const tiles: TunnelTile[] = [];
-  for (let i = 0; i < W * H; i++) tiles.push(emptyTile());
-
-  const set = (x: number, y: number, t: TunnelTile) => {
-    tiles[y * W + x] = t;
-  };
-
-  const rng = mulberry32(seed);
-  const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
-
-  // Trunk runs UP col 6 (= 2/3 across) from the building tunnel-mouth
-  // at (6, 9), aligning with the painted central gravel path on the
-  // overlay (which sits at 60-66% of overlay width = col 5.5-6 of
-  // the 9-col grid). Corner at the top (6, 0) turns west into the
-  // fox branch. The painted ARC building sits in the bottom-LEFT of
-  // the soil (cols -0.5 to 4.5), clear of the trunk column
-  // (Marcus 2026-05-04).
-
-  // Building tunnel mouth at (5, 10) — INSIDE the building footprint
-  // (cols 0-5). Opens east (r=3) so the fox emerges from the house
-  // going east into the trunk. A fixed corner just outside the
-  // building at (6, 10) turns the path from west to north,
-  // visually anchoring the tunnel as "coming out of the house".
-  // Same pattern will apply to every habitat in higher tiers
-  // (Marcus 2026-05-04).
-  set(5, 10, {
-    type: 'habitat-endpoint', rotation: 3, fixed: true,
-    endpointFor: 'fox', endpointRole: 'start',
-  });
-
-  // Building-side corner at (6, 10) — fixed ┘ shape (N+W open).
-  // Receives fox from west (from building), redirects north up trunk.
-  set(6, 10, { type: 'corner', rotation: 0, fixed: true });
-
-  // Trunk straights at (6, y) for y=2..9 — player rotates to vertical.
-  // Trunk topology — pick from a small library of shapes per seed
-  // so each daily puzzle has a different solution path geometry
-  // (Marcus 2026-05-06: 'we can have a whole host of simple to
-  // intricate tunnel solutions with detours, bends').
-  //   'straight' — direct vertical trunk (the historical default)
-  //   'z-east'   — trunk jogs east via col 7-8 mid-way
-  // More templates (z-west, big-u, bridge-cross, approach-north)
-  // will land in subsequent passes.
-  const TIER1_TEMPLATES = ['straight', 'z-east', 'z-east', 'z-west', 'z-west', 'approach-north', 'approach-north'] as const;
-  const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
-
-  // Pick fox exit FIRST so we can constrain by template if needed.
-  // approach-north only supports row-1 exits (the path comes south
-  // into the endpoint via row 0, so a row-2 exit needs an extra
-  // straight at (foxExit.x, 1) — handled below).
-  const foxExits = HABITAT_EXITS.fox;
-  const foxExit = foxExits[Math.floor(rng() * foxExits.length)];
-
-  if (trunkTemplate === 'straight') {
-    for (let y = 2; y <= 9; y++) {
-      set(6, y, { type: 'straight', rotation: randR() });
-    }
-    // Three viewing domes along the trunk, evenly spaced.
-    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-  } else if (trunkTemplate === 'z-east') {
-    // z-east: trunk jogs east at row 7 over to col 8, climbs col 8
-    // to row 4, then jogs back west to col 6 to reach the top corner.
-    set(6, 9, { type: 'straight', rotation: randR() });
-    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 7, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    set(7, 7, { type: 'straight', rotation: randR() });
-    set(8, 7, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
-    set(8, 6, { type: 'straight', rotation: randR() });
-    set(8, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(8, 4, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
-    set(7, 4, { type: 'straight', rotation: randR() });
-    set(6, 4, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
-    set(6, 3, { type: 'straight', rotation: randR() });
-    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-  } else if (trunkTemplate === 'z-west') {
-    // z-west: mirror of z-east — trunk jogs WEST at row 7 over to
-    // col 4, climbs col 4 to row 4, then jogs back east to col 6.
-    set(6, 9, { type: 'straight', rotation: randR() });
-    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 7, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
-    set(5, 7, { type: 'straight', rotation: randR() });
-    set(4, 7, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
-    set(4, 6, { type: 'straight', rotation: randR() });
-    set(4, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(4, 4, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    set(5, 4, { type: 'straight', rotation: randR() });
-    set(6, 4, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
-    set(6, 3, { type: 'straight', rotation: randR() });
-    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-  } else {
-    // approach-north: trunk continues UP past row 1 to row 0, west
-    // along row 0 to (foxExit.x, 0), then south into the endpoint
-    // from above. Row 1 is just a vertical pass-through (no top
-    // corner, no west-bound branch).
-    for (let y = 1; y <= 9; y++) {
-      set(6, y, { type: 'straight', rotation: randR() });
-    }
-    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-  }
-
-  // Top corner + branch — only for non-approach-north templates.
-  if (trunkTemplate !== 'approach-north') {
-    set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-    // Branch — horizontal straights along row 1 from (foxExit.x+1)
-    // to col 5 inclusive.
-    for (let x = foxExit.x + 1; x <= 5; x++) {
-      set(x, 1, { type: 'straight', rotation: randR() });
-    }
-    if (foxExit.y === 2) {
-      set(foxExit.x, 1, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    }
-  } else {
-    // approach-north top: trunk col 6 climbs to row 0 via a fixed
-    // ┐ S+W corner that turns west; row 0 horizontals westward;
-    // ┌ S+E corner at (foxExit.x, 0) turns south into the endpoint.
-    set(6, 0, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
-    for (let x = foxExit.x + 1; x <= 5; x++) {
-      set(x, 0, { type: 'straight', rotation: randR() });
-    }
-    set(foxExit.x, 0, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    if (foxExit.y === 2) {
-      // Path enters endpoint from north past row 1 — need a vertical
-      // straight at (foxExit.x, 1) to bridge.
-      set(foxExit.x, 1, { type: 'straight', rotation: randR() });
-    }
-  }
-
-  // Fox pen entry — FIXED, like every other endpoint: tapping the goal
-  // sticker must not be able to break a finished route. Its rotation is
-  // the canonical approach side:
-  //   y=1 + non-approach-north: from E → r=3 (E-open)
-  //   y=2 + non-approach-north: from N → r=2 (N-open)
-  //   approach-north (any y):   from N → r=2 (N-open)
-  let foxEndRotation: Rotation;
-  if (trunkTemplate === 'approach-north') foxEndRotation = 2;
-  else foxEndRotation = (foxExit.y === 1 ? 3 : 2) as Rotation;
-  set(foxExit.x, foxExit.y, {
-    type: 'habitat-endpoint', rotation: foxEndRotation, fixed: true,
-    endpointFor: 'fox', endpointRole: 'end',
-  });
-
-  // Pad with decoy tiles so the puzzle isn't just "rotate every
-  // straight to vertical". Decoy zone covers the area around the
-  // fox network (cols 1-7, rows 2-9).
-  fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-
-  return { width: W, height: H, tiles, animals: ['fox'] };
+  return buildNetwork(1, seed);
 }
 
-/**
- * Apply the canonical solution to a tier-1 puzzle (straighten every
- * straight to align with its corridor). Useful for tests + the
- * "give me the answer" debug path.
- */
-export function applyTier1Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
-  const tiles = puzzle.tiles.map((t) => ({ ...t }));
-  const idx = (x: number, y: number) => y * puzzle.width + x;
-  // Vertical-straight rotation 0; horizontal rotation 1. The solver
-  // is rotation-agnostic across templates — we just rotate every
-  // straight on the trunk col(s) to vertical and the branch row to
-  // horizontal. The z-east template adds straights on col 7+8 +
-  // horizontal jog cells at (7, 4) + (7, 7); we cover them all.
-  const verticalSets = [
-    { x: 6, y0: 1, y1: 9 }, // col 6 trunk — y=1 included for approach-north template
-    { x: 8, y0: 6, y1: 6 }, // z-east col 8 vertical run
-    { x: 4, y0: 6, y1: 6 }, // z-west col 4 vertical run
-  ];
-  for (const v of verticalSets) {
-    for (let y = v.y0; y <= v.y1; y++) {
-      const t = tiles[idx(v.x, y)];
-      if (t.type === 'straight') t.rotation = 0;
-    }
-  }
-  // Horizontal jog straights — z-east at col 7, z-west at col 5.
-  for (const c of [
-    { x: 7, y: 4 }, { x: 7, y: 7 }, // z-east jogs
-    { x: 5, y: 4 }, { x: 5, y: 7 }, // z-west jogs
-  ]) {
-    const t = tiles[idx(c.x, c.y)];
-    if (t.type === 'straight') t.rotation = 1;
-  }
-  // Detect template by checking (6, 1) — for non-approach-north it's
-  // the top corner; for approach-north it's a vertical straight.
-  // approach-north never places the row-1 west branch.
-  const isApproachNorth = tiles[idx(6, 1)].type !== 'corner';
-  if (isApproachNorth) {
-    // Row 0 horizontal jog (only the connector straights, not decoys).
-    // Connector straights live BETWEEN the (6, 0) ┐ corner and the
-    // (foxExit.x, 0) ┌ corner. Find both corners, rotate everything
-    // between them to horizontal.
-    let cornerWestX = -1;
-    for (let x = 5; x >= 0; x--) {
-      const t = tiles[idx(x, 0)];
-      if (t.type === 'corner' && t.fixed) { cornerWestX = x; break; }
-    }
-    if (cornerWestX >= 0) {
-      for (let x = cornerWestX + 1; x <= 5; x++) {
-        const t = tiles[idx(x, 0)];
-        if (t.type === 'straight') t.rotation = 1;
-      }
-      // y=2 bridge: vertical straight at (cornerWestX, 1).
-      const bridge = tiles[idx(cornerWestX, 1)];
-      if (bridge.type === 'straight') bridge.rotation = 0;
-    }
-  } else {
-    // Branch row 1 horizontal — the regular west-bound branch.
-    for (let x = 1; x <= 5; x++) {
-      const t = tiles[idx(x, 1)];
-      if (t.type === 'straight') t.rotation = 1;
-    }
-  }
-  return { ...puzzle, tiles };
-}
-
-// ── Tier 2 puzzle generator ───────────────────────────────────
-
-/**
- * Tier 2 — SINGLE-ANIMAL hedgehog puzzle (Marcus 2026-05-06 design
- * pivot: tiers 1-4 are one animal each, tier 5+ is multi-animal
- * coordination).
- *
- * Layout (9×13):
- *  - Fox network: identical to tier 1 (col-6 trunk, branch on row 1)
- *  - Hedgehog network: NEW second trunk on col 1
- *      - Hedgehog start (0, 10) inside building, opens east
- *      - Building corner (1, 10) ┘ N+W (fixed) — turns north
- *      - Trunk straights (1, hedgeExit.y+1)..(1, 9)
- *      - Hedgehog endpoint at (1, hedgeExit.y) — y=4 or 5
- *  - Gates: ONE gate per trunk (default closed). Kid must:
- *      a) rotate every straight along both trunks
- *      b) toggle BOTH gates open before submitting
- *
- * Gates are placed at trunk row 7 (between mid-dome and bottom area)
- * for the fox trunk and at row 7 of the hedgehog trunk.
- */
+/** Tier 2 — the hedgehog's run joins the fox's, and gates arrive (one on each run). */
 export function generateTier2Puzzle(seed: number): TunnelPuzzle {
-  const W = 9, H = 13;
-  const tiles: TunnelTile[] = [];
-  for (let i = 0; i < W * H; i++) tiles.push(emptyTile());
-  const set = (x: number, y: number, t: TunnelTile) => { tiles[y * W + x] = t; };
-  const rng = mulberry32(seed);
-  const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
-
-  // Single-animal: just hedgehog. Start at (0, 10), trunk col 1.
-  set(0, 10, {
-    type: 'habitat-endpoint', rotation: 3, fixed: true,
-    endpointFor: 'hedgehog', endpointRole: 'start',
-  });
-  set(1, 10, { type: 'corner', rotation: 0, fixed: true });
-
-  // Template + exit chosen jointly — some templates only work with
-  // one of the two exit rows.
-  //   'straight'        — direct vertical trunk (either row 4 or 5)
-  //   'z-east'          — east jog mid-trunk (either row)
-  //   'approach-north'  — trunk climbs past the endpoint, east jog,
-  //                       comes back DOWN col 1 into endpoint from N
-  //                       (only y=5 — needs row 4 free for re-entry)
-  //   'over-the-top'    — wide loop up to rows 1-3, east to col 3,
-  //                       back down col 1 (only y=4 — endpoint sits
-  //                       further down, more room for the loop)
-  const HEDGE_TEMPLATES = ['straight', 'z-east', 'z-east', 'approach-north', 'approach-north', 'over-the-top', 'over-the-top'] as const;
-  const hedgeTemplate = HEDGE_TEMPLATES[Math.floor(rng() * HEDGE_TEMPLATES.length)];
-
-  const hedgeCol1Exits = HABITAT_EXITS.hedgehog.filter((e) => e.x === 1);
-  let hedgeExit: { x: number; y: number };
-  if (hedgeTemplate === 'approach-north') {
-    hedgeExit = { x: 1, y: 5 };
-  } else if (hedgeTemplate === 'over-the-top') {
-    hedgeExit = { x: 1, y: 4 };
-  } else {
-    hedgeExit = hedgeCol1Exits[Math.floor(rng() * hedgeCol1Exits.length)];
-  }
-  let hedgeEndRotation: Rotation;
-
-  if (hedgeTemplate === 'straight') {
-    for (let y = hedgeExit.y + 1; y <= 9; y++) {
-      set(1, y, { type: 'straight', rotation: randR() });
-    }
-    set(1, 7, { type: 'gate', rotation: 0, open: false });
-    hedgeEndRotation = 0;
-  } else if (hedgeTemplate === 'z-east') {
-    set(1, 9, { type: 'straight', rotation: randR() });
-    set(1, 8, { type: 'gate', rotation: 0, open: false });
-    set(1, 7, { type: 'corner', rotation: 2, fixed: true });
-    set(2, 7, { type: 'straight', rotation: randR() });
-    set(3, 7, { type: 'corner', rotation: 0, fixed: true });
-    set(3, 6, { type: 'straight', rotation: randR() });
-    set(3, 5, { type: 'corner', rotation: 3, fixed: true });
-    set(2, 5, { type: 'straight', rotation: randR() });
-    if (hedgeExit.y === 4) {
-      set(1, 5, { type: 'corner', rotation: 1, fixed: true });
-      hedgeEndRotation = 0;
-    } else {
-      hedgeEndRotation = 3;
-    }
-  } else if (hedgeTemplate === 'approach-north') {
-    // approach-north: trunk climbs col 1 from row 9 to row 6, jogs
-    // east to col 3, climbs col 3 to row 4, jogs back west on row 4
-    // to col 1, then enters the endpoint at (1, 5) from above (N).
-    // Endpoint is fixed at y=5 for this template.
-    set(1, 9, { type: 'straight', rotation: randR() });
-    set(1, 8, { type: 'gate', rotation: 0, open: false });
-    set(1, 7, { type: 'straight', rotation: randR() });
-    set(1, 6, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    set(2, 6, { type: 'straight', rotation: randR() });
-    set(3, 6, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
-    set(3, 5, { type: 'straight', rotation: randR() });
-    set(3, 4, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
-    set(2, 4, { type: 'straight', rotation: randR() });
-    set(1, 4, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    hedgeEndRotation = 2; // endpoint opens N
-  } else {
-    // over-the-top: wide loop, endpoint fixed at (1, 4).
-    // Trunk climbs col 1 from row 9 to row 6, turns east at row 6
-    // (avoiding endpoint at row 4), climbs col 3 from row 6 to row 1,
-    // jogs west on row 1 from col 3 to col 1, descends col 1 row 1
-    // back down to row 3, enters (1, 4) endpoint from N.
-    set(1, 9, { type: 'straight', rotation: randR() });
-    set(1, 8, { type: 'gate', rotation: 0, open: false });
-    set(1, 7, { type: 'straight', rotation: randR() });
-    set(1, 6, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    set(2, 6, { type: 'straight', rotation: randR() });
-    set(3, 6, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
-    set(3, 5, { type: 'straight', rotation: randR() });
-    set(3, 4, { type: 'straight', rotation: randR() });
-    set(3, 3, { type: 'straight', rotation: randR() });
-    set(3, 2, { type: 'straight', rotation: randR() });
-    set(3, 1, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
-    set(2, 1, { type: 'straight', rotation: randR() });
-    set(1, 1, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    set(1, 2, { type: 'straight', rotation: randR() });
-    set(1, 3, { type: 'straight', rotation: randR() });
-    hedgeEndRotation = 2; // endpoint opens N
-  }
-
-  set(1, hedgeExit.y, {
-    type: 'habitat-endpoint', rotation: hedgeEndRotation, fixed: true,
-    endpointFor: 'hedgehog', endpointRole: 'end',
-  });
-
-  // Decoy fill covers the rest of the grid (tier 1's fox area is
-  // free now, so decoys cover it).
-  fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-
-  return { width: W, height: H, tiles, animals: ['hedgehog'] };
+  return buildNetwork(2, seed);
 }
 
-// ── Tier 3 puzzle generator ───────────────────────────────────
-
-/**
- * Tier 3 — adds the RACCOON network to tier 2's fox + hedgehog.
- *
- * Raccoon enters the trunk system from the south of the building:
- *   - Start at (5, 11) inside building, opens east
- *   - Fixed horizontal straight at (6, 11) crossing east of building
- *   - Fixed ┘ corner at (7, 11) turning the path north
- *   - Trunk straights up col 7 from row (raccExit.y + 1) to row 10
- *   - Gate at (7, 7) (default closed) — kid stages opens
- *   - Endpoint at (7, raccExit.y) — y=4 or 5
- *
- * Animation runs animals SEQUENTIALLY (fox → hedgehog → raccoon),
- * giving kids the timing-window experience the design doc spec'd.
- */
+/** Tier 3 — the raccoon's run joins the other two. */
 export function generateTier3Puzzle(seed: number): TunnelPuzzle {
-  const W = 9, H = 13;
-  const tiles: TunnelTile[] = [];
-  for (let i = 0; i < W * H; i++) tiles.push(emptyTile());
-  const set = (x: number, y: number, t: TunnelTile) => { tiles[y * W + x] = t; };
-  const rng = mulberry32(seed);
-  const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
-
-  // Single-animal: just raccoon. Start (5, 11) inside building,
-  // routes east to col 7 trunk via fixed connector pieces.
-  set(5, 11, {
-    type: 'habitat-endpoint', rotation: 3, fixed: true,
-    endpointFor: 'raccoon', endpointRole: 'start',
-  });
-  set(6, 11, { type: 'straight', rotation: 1, fixed: true });
-  set(7, 11, { type: 'corner', rotation: 0, fixed: true });
-
-  const raccoonExits = HABITAT_EXITS.raccoon;
-
-  // Trunk template — 'straight' (direct vertical col 7),
-  // 'z-west' (jogs west via col 5-6 mid-trunk), or 'approach-north'
-  // (climbs past endpoint, west jog, descends col 7 into endpoint
-  // from above — only y=5 since y=4 leaves no headroom for the loop).
-  const RACCOON_TEMPLATES = ['straight', 'z-west', 'z-west', 'approach-north', 'approach-north'] as const;
-  const raccoonTemplate = RACCOON_TEMPLATES[Math.floor(rng() * RACCOON_TEMPLATES.length)];
-  let raccoonExit: { x: number; y: number };
-  if (raccoonTemplate === 'approach-north') {
-    raccoonExit = { x: 7, y: 5 };
-  } else {
-    raccoonExit = raccoonExits[Math.floor(rng() * raccoonExits.length)];
-  }
-  let raccoonEndRotation: Rotation;
-
-  if (raccoonTemplate === 'straight') {
-    for (let y = raccoonExit.y + 1; y <= 10; y++) {
-      set(7, y, { type: 'straight', rotation: randR() });
-    }
-    set(7, 7, { type: 'gate', rotation: 0, open: false });
-    raccoonEndRotation = 0; // S-open
-  } else if (raccoonTemplate === 'approach-north') {
-    // Climb col 7 from row 10 to row 6, jog west to col 5, climb to
-    // row 4, jog east back to col 7, descend into endpoint at (7, 5)
-    // from N. Endpoint fixed at (7, 5).
-    set(7, 10, { type: 'straight', rotation: randR() });
-    set(7, 9, { type: 'straight', rotation: randR() });
-    set(7, 8, { type: 'straight', rotation: randR() });
-    set(7, 7, { type: 'gate', rotation: 0, open: false });
-    set(7, 6, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
-    set(6, 6, { type: 'straight', rotation: randR() });
-    set(5, 6, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
-    set(5, 5, { type: 'straight', rotation: randR() });
-    set(5, 4, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    set(6, 4, { type: 'straight', rotation: randR() });
-    set(7, 4, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
-    raccoonEndRotation = 2; // endpoint opens N
-  } else {
-    // z-west jog at row 8 over to col 5, climbs to row 6, east back.
-    set(7, 10, { type: 'straight', rotation: randR() });
-    set(7, 9, { type: 'straight', rotation: randR() });
-    set(7, 8, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
-    set(6, 8, { type: 'straight', rotation: randR() });
-    set(5, 8, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
-    set(5, 7, { type: 'gate', rotation: 0, open: false });
-    set(5, 6, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    set(6, 6, { type: 'straight', rotation: randR() });
-    set(7, 6, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
-    if (raccoonExit.y === 4) {
-      // Need a vertical bridge straight at (7, 5) to bring the path
-      // up to (7, 4) endpoint.
-      set(7, 5, { type: 'straight', rotation: randR() });
-    }
-    raccoonEndRotation = 0; // S-open
-  }
-  set(7, raccoonExit.y, {
-    type: 'habitat-endpoint', rotation: raccoonEndRotation, fixed: true,
-    endpointFor: 'raccoon', endpointRole: 'end',
-  });
-
-  fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-
-  return { width: W, height: H, tiles, animals: ['raccoon'] };
+  return buildNetwork(3, seed);
 }
 
-// ── Tier 4 puzzle generator ───────────────────────────────────
-
-/**
- * Tier 4 — adds the SKUNK network. All four garden-habitat animals
- * (fox, hedgehog, raccoon, skunk) routing through their own trunks.
- *
- * Skunk layout:
- *  - Start at (5, 12) inside building bottom row, opens east
- *  - Three fixed horizontal connectors east at row 12 across to col 8
- *  - Fixed ┘ corner at (8, 12) turning north
- *  - Trunk straights up col 8 from (skunkExit.y + 1) to row 11
- *  - Gate at (8, 7) — same row as the other gates
- *  - Endpoint at (8, skunkExit.y) — y=1 or 2
- */
+/** Tier 4 — the skunk's run joins: all four, and a second gate on each run. */
 export function generateTier4Puzzle(seed: number): TunnelPuzzle {
-  const W = 9, H = 13;
-  const tiles: TunnelTile[] = [];
-  for (let i = 0; i < W * H; i++) tiles.push(emptyTile());
-  const set = (x: number, y: number, t: TunnelTile) => { tiles[y * W + x] = t; };
-  const rng = mulberry32(seed);
-  const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
-
-  // Single-animal: just skunk. Start (5, 12) bottom-of-building,
-  // routes east along row 12 to col 8 trunk via fixed connectors.
-  set(5, 12, {
-    type: 'habitat-endpoint', rotation: 3, fixed: true,
-    endpointFor: 'skunk', endpointRole: 'start',
-  });
-  set(6, 12, { type: 'straight', rotation: 1, fixed: true });
-  set(7, 12, { type: 'straight', rotation: 1, fixed: true });
-  set(8, 12, { type: 'corner', rotation: 0, fixed: true });
-
-  const skunkCol8 = HABITAT_EXITS.skunk.filter((e) => e.x === 8);
-  const skunkExit = skunkCol8[Math.floor(rng() * skunkCol8.length)];
-
-  // Trunk template — 'straight' (direct vertical col 8) or
-  // 'z-west' (jogs west via col 6 mid-trunk for variety).
-  const SKUNK_TEMPLATES = ['straight', 'z-west', 'z-west'] as const;
-  const skunkTemplate = SKUNK_TEMPLATES[Math.floor(rng() * SKUNK_TEMPLATES.length)];
-
-  if (skunkTemplate === 'straight') {
-    // Trunk straights up col 8 + 2 gates spaced apart for difficulty
-    // (single-animal tier 4 keeps a longer trunk to compensate for
-    // the simpler topology vs multi-animal coordination).
-    for (let y = skunkExit.y + 1; y <= 11; y++) {
-      set(8, y, { type: 'straight', rotation: randR() });
-    }
-    set(8, 7, { type: 'gate', rotation: 0, open: false });
-    if (tiles[10 * W + 8]?.type === 'straight') {
-      set(8, 10, { type: 'gate', rotation: 0, open: false });
-    }
-  } else {
-    // z-west: trunk climbs col 8 from row 11 to row 10, jogs west
-    // via col 7→col 6, climbs col 6 to row 6, jogs east back to col
-    // 8, then climbs col 8 from row 5 to skunkExit.y.
-    set(8, 11, { type: 'straight', rotation: randR() });
-    set(8, 10, { type: 'straight', rotation: randR() });
-    set(8, 9, { type: 'corner', rotation: 3, fixed: true }); // ┐ S+W
-    set(7, 9, { type: 'straight', rotation: randR() });
-    set(6, 9, { type: 'corner', rotation: 1, fixed: true }); // └ N+E
-    set(6, 8, { type: 'gate', rotation: 0, open: false });
-    set(6, 7, { type: 'straight', rotation: randR() });
-    set(6, 6, { type: 'corner', rotation: 2, fixed: true }); // ┌ S+E
-    set(7, 6, { type: 'straight', rotation: randR() });
-    set(8, 6, { type: 'corner', rotation: 0, fixed: true }); // ┘ N+W
-    for (let y = skunkExit.y + 1; y <= 5; y++) {
-      set(8, y, { type: 'straight', rotation: randR() });
-    }
-  }
-  set(8, skunkExit.y, {
-    type: 'habitat-endpoint', rotation: 0, fixed: true,
-    endpointFor: 'skunk', endpointRole: 'end',
-  });
-
-  fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.9);
-
-  return { width: W, height: H, tiles, animals: ['skunk'] };
+  return buildNetwork(4, seed);
 }
 
-/**
- * Apply the canonical tier-4 solution (single-skunk).
- */
-export function applyTier4Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
-  const tiles = puzzle.tiles.map((t) => ({ ...t }));
-  const idx = (x: number, y: number) => y * puzzle.width + x;
-  // Detect template via fixed corner at (8, 9): z-west places one
-  // there; straight does not.
-  const at89 = tiles[idx(8, 9)];
-  const isZwest = at89.type === 'corner' && at89.fixed === true;
-  if (isZwest) {
-    // Verticals: col 8 rows 10, 11 + rows 1..5; col 6 rows 7, 8.
-    for (let y = 1; y <= 5; y++) {
-      const t = tiles[idx(8, y)];
-      if (t.type === 'straight') t.rotation = 0;
-    }
-    for (const c of [{ x: 8, y: 10 }, { x: 8, y: 11 }, { x: 6, y: 7 }, { x: 6, y: 8 }]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 0;
-      if (t.type === 'gate') t.rotation = 0;
-    }
-    // Horizontals at (7, 9) and (7, 6).
-    for (const c of [{ x: 7, y: 9 }, { x: 7, y: 6 }]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 1;
-    }
-  } else {
-    // Skunk trunk on col 8 — vertical straights all the way up.
-    for (let y = 1; y <= 11; y++) {
-      const t = tiles[idx(8, y)];
-      if (t.type === 'straight') t.rotation = 0;
-    }
-  }
-  for (let i = 0; i < tiles.length; i++) {
-    if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
-  }
-  return { ...puzzle, tiles };
-}
-
-// ── Tier 5 puzzle generator ───────────────────────────────────
-
-/**
- * Tier 5 — MULTI-ANIMAL puzzle. The kid has flagged multiple animals
- * across different rooms as Ready To Go (Marcus 2026-05-06 design).
- * Places every animal's network in a single grid using simple
- * 'straight' templates per trunk + per-trunk gates.
- *
- * Each trunk uses the simplest topology so the puzzle stays
- * approachable across the four-animal coordination challenge:
- *   fox      col 6 trunk + branch row 1 (1 gate row 7)
- *   hedgehog col 1 trunk (1 gate row 7)
- *   raccoon  col 7 trunk via row-11 connector (1 gate row 7)
- *   skunk    col 8 trunk via row-12 connector (1 gate row 7)
- *
- * 4 gates total. Kid must rotate every straight on every trunk
- * AND open all 4 gates before submitting.
- */
+/** Tier 5 — rush hour: the whole network, with a third gate where a run is long enough. */
 export function generateTier5Puzzle(seed: number): TunnelPuzzle {
-  const W = 9, H = 13;
-  const tiles: TunnelTile[] = [];
-  for (let i = 0; i < W * H; i++) tiles.push(emptyTile());
-  const set = (x: number, y: number, t: TunnelTile) => { tiles[y * W + x] = t; };
-  const rng = mulberry32(seed);
-  const randR = (): Rotation => Math.floor(rng() * 4) as Rotation;
-
-  // FOX
-  set(5, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-  set(6, 10, { type: 'corner', rotation: 0, fixed: true });
-  for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
-  set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-  set(6, 7, { type: 'gate', rotation: 0, open: false });
-  set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-  const foxExits = HABITAT_EXITS.fox;
-  const foxExit = foxExits[Math.floor(rng() * foxExits.length)];
-  for (let x = foxExit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
-  if (foxExit.y === 2) set(foxExit.x, 1, { type: 'corner', rotation: 2, fixed: true });
-  set(foxExit.x, foxExit.y, {
-    type: 'habitat-endpoint', rotation: (foxExit.y === 1 ? 3 : 2) as Rotation,
-    fixed: true, endpointFor: 'fox', endpointRole: 'end',
-  });
-
-  // HEDGEHOG
-  set(0, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'hedgehog', endpointRole: 'start' });
-  set(1, 10, { type: 'corner', rotation: 0, fixed: true });
-  const hedgeCol1 = HABITAT_EXITS.hedgehog.filter((e) => e.x === 1);
-  const hedgeExit = hedgeCol1[Math.floor(rng() * hedgeCol1.length)];
-  for (let y = hedgeExit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
-  set(1, 7, { type: 'gate', rotation: 0, open: false });
-  set(1, hedgeExit.y, {
-    type: 'habitat-endpoint', rotation: 0, fixed: true,
-    endpointFor: 'hedgehog', endpointRole: 'end',
-  });
-
-  // RACCOON
-  set(5, 11, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'raccoon', endpointRole: 'start' });
-  set(6, 11, { type: 'straight', rotation: 1, fixed: true });
-  set(7, 11, { type: 'corner', rotation: 0, fixed: true });
-  const raccoonExit = HABITAT_EXITS.raccoon[Math.floor(rng() * HABITAT_EXITS.raccoon.length)];
-  for (let y = raccoonExit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
-  set(7, 7, { type: 'gate', rotation: 0, open: false });
-  set(7, raccoonExit.y, {
-    type: 'habitat-endpoint', rotation: 0, fixed: true,
-    endpointFor: 'raccoon', endpointRole: 'end',
-  });
-
-  // SKUNK
-  set(5, 12, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'skunk', endpointRole: 'start' });
-  set(6, 12, { type: 'straight', rotation: 1, fixed: true });
-  set(7, 12, { type: 'straight', rotation: 1, fixed: true });
-  set(8, 12, { type: 'corner', rotation: 0, fixed: true });
-  const skunkCol8 = HABITAT_EXITS.skunk.filter((e) => e.x === 8);
-  const skunkExit = skunkCol8[Math.floor(rng() * skunkCol8.length)];
-  for (let y = skunkExit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
-  set(8, 7, { type: 'gate', rotation: 0, open: false });
-  set(8, skunkExit.y, {
-    type: 'habitat-endpoint', rotation: 0, fixed: true,
-    endpointFor: 'skunk', endpointRole: 'end',
-  });
-
-  fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-
-  return { width: W, height: H, tiles, animals: ['fox', 'hedgehog', 'raccoon', 'skunk'] };
-}
-
-export function applyTier5Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
-  const tiles = puzzle.tiles.map((t) => ({ ...t }));
-  const idx = (x: number, y: number) => y * puzzle.width + x;
-  // Rotate ROTATABLE straights on cols 1, 6, 7, 8 to vertical, and
-  // row-1 rotatable straights to horizontal. Skip fixed straights —
-  // those are connector pieces (e.g. row-11/12 east-west chains for
-  // raccoon + skunk) that must keep their factory rotation.
-  for (const col of [1, 6, 7, 8]) {
-    for (let y = 1; y <= 11; y++) {
-      const t = tiles[idx(col, y)];
-      if (t.type === 'straight' && !t.fixed) t.rotation = 0;
-    }
-  }
-  for (let x = 1; x <= 5; x++) {
-    const t = tiles[idx(x, 1)];
-    if (t.type === 'straight' && !t.fixed) t.rotation = 1;
-  }
-  for (let i = 0; i < tiles.length; i++) {
-    if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
-  }
-  return { ...puzzle, tiles };
+  return buildNetwork(5, seed);
 }
 
 /**
- * Apply the canonical tier-3 solution (single-raccoon).
- * Detects template via (7, 8): corner = z-west, straight = straight.
+ * The canonical solution, for tests and a "give me the answer" path: walk
+ * each animal's run from its start, turn every rotatable straight and gate
+ * to the way the animal is travelling, open every gate. Corners, connectors
+ * and endpoints are fixed, so the walk has nothing to choose, and it does not
+ * care which shape the run was dealt. A board that is not one of ours (a
+ * decoy where a run should be) is left as it is.
  */
-export function applyTier3Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
+export function applySolution(puzzle: TunnelPuzzle): TunnelPuzzle {
   const tiles = puzzle.tiles.map((t) => ({ ...t }));
-  const idx = (x: number, y: number) => y * puzzle.width + x;
-  // Detect template via fixed corners (decoy-proof).
-  const at78 = tiles[idx(7, 8)];
-  const at76 = tiles[idx(7, 6)];
-  const isZwest = at78.type === 'corner' && at78.fixed === true;
-  const isApproachNorth = !isZwest && at76.type === 'corner' && at76.fixed === true;
-  if (isApproachNorth) {
-    // Verticals: col 7 rows 8, 9, 10; col 5 row 5.
-    for (const c of [
-      { x: 7, y: 10 }, { x: 7, y: 9 }, { x: 7, y: 8 }, { x: 5, y: 5 },
-    ]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 0;
+  for (const animal of puzzle.animals) {
+    const { start } = findEndpoints({ ...puzzle, tiles }, animal);
+    if (!start) continue;
+    const startSides = tileSides(tiles[start.y * puzzle.width + start.x]);
+    let exit = (['n', 'e', 's', 'w'] as const).find((d) => startSides[d]);
+    let x = start.x;
+    let y = start.y;
+    for (let step = 0; exit && step < puzzle.width * puzzle.height; step++) {
+      x += DELTA[exit].dx;
+      y += DELTA[exit].dy;
+      const enter = OPPOSITE[exit];
+      if (x < 0 || y < 0 || x >= puzzle.width || y >= puzzle.height) break;
+      const k = y * puzzle.width + x;
+      const t = tiles[k];
+      if (t.type === 'habitat-endpoint') break;
+      if (t.type === 'gate') {
+        tiles[k] = { ...t, open: true, rotation: enter === 'n' || enter === 's' ? 0 : 1 };
+        exit = OPPOSITE[enter];
+      } else if (t.type === 'straight' && !t.fixed) {
+        tiles[k] = { ...t, rotation: enter === 'n' || enter === 's' ? 0 : 1 };
+        exit = OPPOSITE[enter];
+      } else if (t.fixed && (t.type === 'corner' || t.type === 'straight' || t.type === 'viewing-dome')) {
+        const sides = tileSides(t);
+        if (!sides[enter]) break;
+        exit = (['n', 'e', 's', 'w'] as const).find((d) => sides[d] && d !== enter);
+      } else {
+        break;
+      }
     }
-    // Horizontals at (6, 6) and (6, 4).
-    for (const c of [{ x: 6, y: 6 }, { x: 6, y: 4 }]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 1;
-    }
-    for (let i = 0; i < tiles.length; i++) {
-      if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
-    }
-    return { ...puzzle, tiles };
-  }
-  if (isZwest) {
-    // Verticals: col 7 rows 9, 10, 5; col 5 rows 7. Horizontals at
-    // (6, 8) and (6, 6).
-    for (const c of [
-      { x: 7, y: 9 }, { x: 7, y: 10 }, { x: 7, y: 5 },
-    ]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 0;
-    }
-    for (const c of [{ x: 6, y: 8 }, { x: 6, y: 6 }]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 1;
-    }
-  } else {
-    for (let y = 1; y <= 10; y++) {
-      const t = tiles[idx(7, y)];
-      if (t.type === 'straight') t.rotation = 0;
-    }
-  }
-  for (let i = 0; i < tiles.length; i++) {
-    if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
   }
   return { ...puzzle, tiles };
 }
 
-/**
- * Apply the canonical tier-2 solution: straighten every straight and
- * open every gate. Useful for tests.
- */
-export function applyTier2Solution(puzzle: TunnelPuzzle): TunnelPuzzle {
-  const tiles = puzzle.tiles.map((t) => ({ ...t }));
-  const idx = (x: number, y: number) => y * puzzle.width + x;
-  // Detect template:
-  //   (1, 7) corner          → z-east
-  //   (1, 6) corner + (1, 1) corner → over-the-top
-  //   (1, 6) corner          → approach-north
-  //   else                   → straight
-  // Detection uses `fixed` to avoid false-positives from decoy tiles
-  // (decoys never have fixed:true).
-  const at17 = tiles[idx(1, 7)];
-  const at16 = tiles[idx(1, 6)];
-  const at11 = tiles[idx(1, 1)];
-  const isZeast = at17.type === 'corner' && at17.fixed === true;
-  const isOverTop = !isZeast
-    && at16.type === 'corner' && at16.fixed === true
-    && at11.type === 'corner' && at11.fixed === true;
-  const isApproachNorth = !isZeast && !isOverTop
-    && at16.type === 'corner' && at16.fixed === true;
-  if (isZeast) {
-    // z-east: col 1 + col 3 vertical, col 2 horizontal jogs.
-    for (const c of [{ x: 1, y: 9 }, { x: 3, y: 6 }]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 0;
-    }
-    for (const c of [{ x: 2, y: 7 }, { x: 2, y: 5 }]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 1;
-    }
-  } else if (isApproachNorth) {
-    // Verticals on col 1 (rows 7, 9) and col 3 (row 5).
-    for (const c of [
-      { x: 1, y: 9 }, { x: 1, y: 7 }, { x: 3, y: 5 },
-    ]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 0;
-    }
-    // Horizontals at (2, 6) and (2, 4).
-    for (const c of [{ x: 2, y: 6 }, { x: 2, y: 4 }]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 1;
-    }
-  } else if (isOverTop) {
-    // Verticals: col 1 rows 9, 7, 2, 3; col 3 rows 5, 4, 3, 2.
-    for (const c of [
-      { x: 1, y: 9 }, { x: 1, y: 7 }, { x: 1, y: 2 }, { x: 1, y: 3 },
-      { x: 3, y: 5 }, { x: 3, y: 4 }, { x: 3, y: 3 }, { x: 3, y: 2 },
-    ]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 0;
-    }
-    // Horizontals: (2, 6) and (2, 1).
-    for (const c of [{ x: 2, y: 6 }, { x: 2, y: 1 }]) {
-      const t = tiles[idx(c.x, c.y)];
-      if (t.type === 'straight') t.rotation = 1;
-    }
-  } else {
-    // straight: all col-1 trunk straights → vertical.
-    for (let y = 1; y <= 9; y++) {
-      const t = tiles[idx(1, y)];
-      if (t.type === 'straight') t.rotation = 0;
-    }
-  }
-  // Open every gate
-  for (let i = 0; i < tiles.length; i++) {
-    if (tiles[i].type === 'gate') tiles[i] = { ...tiles[i], open: true };
-  }
-  return { ...puzzle, tiles };
-}
+export const applyTier1Solution = applySolution;
+export const applyTier2Solution = applySolution;
+export const applyTier3Solution = applySolution;
+export const applyTier4Solution = applySolution;
+export const applyTier5Solution = applySolution;

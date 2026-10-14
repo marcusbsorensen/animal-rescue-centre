@@ -2085,12 +2085,13 @@ export class GameScene extends Phaser.Scene {
   /**
    * Garden-tunnel mini-game.
    *
-   * Tier picked from player level per docs/level-progression-overview:
+   * Tier picked from player level per docs/level-progression-overview. One
+   * network that grows, so each tier is the last one plus an animal:
    *   L1-3   → tier 1 (fox)
-   *   L4-5   → tier 2 (hedgehog)
-   *   L6-7   → tier 3 (raccoon)
-   *   L8-9   → tier 4 (skunk)
-   *   L10+   → tier 5 (multi-animal coordination)
+   *   L4-5   → tier 2 (+ hedgehog)
+   *   L6-7   → tier 3 (+ raccoon)
+   *   L8-9   → tier 4 (+ skunk: all four)
+   *   L10+   → tier 5 (all four, a third gate: rush hour)
    *
    * Daily-seed puzzle (host UTC date) so the same board persists
    * across same-day reloads. The iframe runs its own generator using

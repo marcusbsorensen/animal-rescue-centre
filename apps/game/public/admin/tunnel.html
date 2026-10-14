@@ -1027,318 +1027,232 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  // MIRROR of game-logic/src/tunnel.ts generateTier1Puzzle.
-  // 9 cols × 13 rows. Bottom 11 rows correspond to the
-  // aboveground site map; top 2 rows are extra soil that wraps
-  // above the site. Tunnel network shifted up 3 rows so 3 rows
-  // of building footprint sit below the start tile.
-  // Mirror of fillWithDecoyTiles in game-logic. Pads empty cells in
-  // a zone with random rotatable pieces (incl. bridges) so the kid
-  // sees more pieces than they strictly need on the path.
-  function fillWithDecoyTiles(tiles, W, zone, rng, density) {
-    const decoyTypes = ['straight','straight','straight','corner','corner','corner','t-junction','t-junction','bridge'];
-    const randR = () => Math.floor(rng() * 4);
-    for (let y = zone.y0; y <= zone.y1; y++) {
-      for (let x = zone.x0; x <= zone.x1; x++) {
-        const i = y * W + x;
-        if (tiles[i].type !== 'empty') continue;
-        if (rng() > density) continue;
-        const type = decoyTypes[Math.floor(rng() * decoyTypes.length)];
-        tiles[i] = { type, rotation: randR() };
+  // ── The garden network: one board that grows tier by tier ──────
+  // MIRROR of game-logic/src/tunnel.ts (read the long comment there). Tier 1
+  // is the fox's run; tier 2 adds the hedgehog (and gates), tier 3 the
+  // raccoon, tier 4 the skunk, tier 5 is the same four with a third gate.
+  // Every run is built from the seed alone, so for one seed tier N is tier
+  // N-1 plus a branch. Keep this identical to the TS (t0-mirror checks it).
+  const NET_W = 9, NET_H = 13;
+  // The glass domes of the site map: col 6, rows 2, 5, 8 (the painted central
+  // path). Drawn from here, not from whichever tiles a run uses.
+  const DOME_CELLS = [{ x: 6, y: 2 }, { x: 6, y: 5 }, { x: 6, y: 8 }];
+  const HABITAT_EXITS = {
+    fox: [
+      { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 },
+      { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 },
+    ],
+    skunk: [{ x: 7, y: 1 }, { x: 7, y: 2 }, { x: 8, y: 1 }, { x: 8, y: 2 }],
+    hedgehog: [
+      { x: 1, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 4 },
+      { x: 1, y: 5 }, { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
+    ],
+    raccoon: [{ x: 7, y: 4 }, { x: 7, y: 5 }],
+  };
+
+  function dirBetween(a, b) {
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    if (dx > 0) return 'e';
+    if (dx < 0) return 'w';
+    return dy > 0 ? 's' : 'n';
+  }
+  // An endpoint opens one side: r0 south, r1 west, r2 north, r3 east.
+  const ENDPOINT_ROTATION = { s: 0, w: 1, n: 2, e: 3 };
+  // A corner's rotation from the two sides it joins: r0 N+W, r1 N+E, r2 S+E, r3 S+W.
+  function cornerRotation(a, b) {
+    const has = (d) => a === d || b === d;
+    if (has('n') && has('w')) return 0;
+    if (has('n') && has('e')) return 1;
+    if (has('s') && has('e')) return 2;
+    return 3;
+  }
+  function colRun(x, y0, y1) {
+    const out = [];
+    const step = y1 >= y0 ? 1 : -1;
+    for (let y = y0; y !== y1 + step; y += step) out.push([x, y]);
+    return out;
+  }
+  function rowRun(y, x0, x1) {
+    const out = [];
+    const step = x1 >= x0 ? 1 : -1;
+    for (let x = x0; x !== x1 + step; x += step) out.push([x, y]);
+    return out;
+  }
+
+  const FOX_SHAPES = ['straight', 'z-west', 'z-west', 'approach-north', 'approach-north'];
+  const HEDGEHOG_SHAPES = ['straight', 'z-east', 'z-east', 'approach-north', 'approach-north', 'over-the-top', 'over-the-top'];
+
+  function foxRoute(rng) {
+    const shape = FOX_SHAPES[Math.floor(rng() * FOX_SHAPES.length)];
+    const exit = HABITAT_EXITS.fox[Math.floor(rng() * HABITAT_EXITS.fox.length)];
+    const path = [[5, 10]];
+    const row = shape === 'approach-north' ? 0 : 1;
+    if (shape === 'z-west') {
+      path.push(...colRun(6, 10, 8), [6, 7], [5, 7], [4, 7], ...colRun(4, 6, 4), [5, 4], [6, 4], ...colRun(6, 3, 1));
+    } else {
+      path.push(...colRun(6, 10, row));
+    }
+    path.push(...rowRun(row, 5, exit.x));
+    for (let y = row + 1; y <= exit.y; y++) path.push([exit.x, y]);
+    return {
+      route: { animal: 'fox', path, fixedLead: 0, gates: [[[6, 7], [5, 7]], [[6, 9]], [[6, 4], [5, 4]]] },
+      exitX: exit.x,
+    };
+  }
+
+  function hedgehogRoute(rng, foxExitX) {
+    const shapes = HEDGEHOG_SHAPES.filter((s) => s !== 'over-the-top' || foxExitX === 4);
+    const shape = shapes[Math.floor(rng() * shapes.length)];
+    const exitY = shape === 'approach-north' ? 5
+      : shape === 'over-the-top' ? 4
+        : HABITAT_EXITS.hedgehog.filter((e) => e.x === 1)[Math.floor(rng() * 2)].y;
+    const path = [[0, 10]];
+    if (shape === 'straight') {
+      path.push(...colRun(1, 10, exitY));
+    } else if (shape === 'z-east') {
+      path.push(...colRun(1, 10, 7), [2, 7], [3, 7], [3, 6], [3, 5], [2, 5], [1, 5]);
+      if (exitY === 4) path.push([1, 4]);
+    } else if (shape === 'approach-north') {
+      path.push(...colRun(1, 10, 6), [2, 6], [3, 6], [3, 5], [3, 4], [2, 4], [1, 4], [1, 5]);
+    } else {
+      path.push(...colRun(1, 10, 6), [2, 6], [3, 6], ...colRun(3, 5, 1), [2, 1], [1, 1], [1, 2], [1, 3], [1, 4]);
+    }
+    return { animal: 'hedgehog', path, fixedLead: 0, gates: [[[1, 7], [1, 8]], [[1, 9]], []] };
+  }
+
+  function raccoonRoute(rng) {
+    const exit = HABITAT_EXITS.raccoon[Math.floor(rng() * HABITAT_EXITS.raccoon.length)];
+    return {
+      animal: 'raccoon',
+      path: [[5, 11], [6, 11], [7, 11], ...colRun(7, 10, exit.y)],
+      fixedLead: 1,
+      gates: [[[7, 7]], [[7, 9]], []],
+    };
+  }
+
+  function skunkRoute(rng) {
+    const col8 = HABITAT_EXITS.skunk.filter((e) => e.x === 8);
+    const exit = col8[Math.floor(rng() * col8.length)];
+    return {
+      animal: 'skunk',
+      path: [[5, 12], [6, 12], [7, 12], [8, 12], ...colRun(8, 11, exit.y)],
+      fixedLead: 2,
+      gates: [[[8, 7]], [[8, 9]], [[8, 4]]],
+    };
+  }
+
+  // Lay one run: corners, building connectors and both endpoints fixed; every
+  // other straight starts at a random rotation; closed gates replace the
+  // rotatable straights named for each gate level.
+  function layRoute(set, route, rng, gateLevels) {
+    const cells = route.path;
+    const last = cells.length - 1;
+    const rotatable = [];
+    for (let i = 0; i <= last; i++) {
+      const [x, y] = cells[i];
+      if (i === 0 || i === last) {
+        const toward = dirBetween(cells[i], cells[i === 0 ? 1 : i - 1]);
+        set(x, y, {
+          type: 'habitat-endpoint', rotation: ENDPOINT_ROTATION[toward], fixed: true,
+          endpointFor: route.animal, endpointRole: i === 0 ? 'start' : 'end',
+        });
+        continue;
       }
-    }
-  }
-
-  function generateTier1(seed) {
-    const W = 9, H = 13;
-    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
-    const set = (x, y, t) => { tiles[y * W + x] = t; };
-    const rng = mulberry32(seed);
-    const randR = () => Math.floor(rng() * 4);
-    set(5, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-    set(6, 10, { type: 'corner', rotation: 0, fixed: true });
-    // Pick trunk topology — straight, z-east, z-west, or approach-north.
-    const TIER1_TEMPLATES = ['straight', 'z-east', 'z-east', 'z-west', 'z-west', 'approach-north', 'approach-north'];
-    const trunkTemplate = TIER1_TEMPLATES[Math.floor(rng() * TIER1_TEMPLATES.length)];
-    // Pick fox exit FIRST so we can place the approach-north corner.
-    const FOX_EXITS = [
-      {x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},
-      {x:1,y:2},{x:2,y:2},{x:3,y:2},{x:4,y:2},
-    ];
-    const exit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
-    if (trunkTemplate === 'straight') {
-      for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
-      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-    } else if (trunkTemplate === 'z-east') {
-      set(6, 9, { type: 'straight', rotation: randR() });
-      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 7, { type: 'corner', rotation: 2, fixed: true });
-      set(7, 7, { type: 'straight', rotation: randR() });
-      set(8, 7, { type: 'corner', rotation: 0, fixed: true });
-      set(8, 6, { type: 'straight', rotation: randR() });
-      set(8, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(8, 4, { type: 'corner', rotation: 3, fixed: true });
-      set(7, 4, { type: 'straight', rotation: randR() });
-      set(6, 4, { type: 'corner', rotation: 1, fixed: true });
-      set(6, 3, { type: 'straight', rotation: randR() });
-      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    } else if (trunkTemplate === 'z-west') {
-      set(6, 9, { type: 'straight', rotation: randR() });
-      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 7, { type: 'corner', rotation: 3, fixed: true });
-      set(5, 7, { type: 'straight', rotation: randR() });
-      set(4, 7, { type: 'corner', rotation: 1, fixed: true });
-      set(4, 6, { type: 'straight', rotation: randR() });
-      set(4, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(4, 4, { type: 'corner', rotation: 2, fixed: true });
-      set(5, 4, { type: 'straight', rotation: randR() });
-      set(6, 4, { type: 'corner', rotation: 0, fixed: true });
-      set(6, 3, { type: 'straight', rotation: randR() });
-      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    } else {
-      // approach-north — trunk runs all the way up col 6, west on row 0.
-      for (let y = 1; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
-      set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-      set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-    }
-    if (trunkTemplate !== 'approach-north') {
-      set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-      for (let x = exit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
-      if (exit.y === 2) set(exit.x, 1, { type: 'corner', rotation: 2, fixed: true });
-    } else {
-      set(6, 0, { type: 'corner', rotation: 3, fixed: true });
-      for (let x = exit.x + 1; x <= 5; x++) set(x, 0, { type: 'straight', rotation: randR() });
-      set(exit.x, 0, { type: 'corner', rotation: 2, fixed: true });
-      if (exit.y === 2) set(exit.x, 1, { type: 'straight', rotation: randR() });
-    }
-    const fEndR = trunkTemplate === 'approach-north' ? 2 : (exit.y === 1 ? 3 : 2);
-    set(exit.x, exit.y, { type: 'habitat-endpoint', rotation: fEndR, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-    return { width: W, height: H, tiles, animals: ['fox'] };
-  }
-
-  // MIRROR of game-logic generateTier2Puzzle. Adds the hedgehog
-  // network on col 1 + a gate on each trunk (default closed).
-  // Tier 2 — single hedgehog (mirror of game-logic).
-  function generateTier2(seed) {
-    const W = 9, H = 13;
-    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
-    const set = (x, y, t) => { tiles[y * W + x] = t; };
-    const rng = mulberry32(seed);
-    const randR = () => Math.floor(rng() * 4);
-    set(0, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'hedgehog', endpointRole: 'start' });
-    set(1, 10, { type: 'corner', rotation: 0, fixed: true });
-    const HEDGE_TEMPLATES = ['straight', 'z-east', 'z-east', 'approach-north', 'approach-north', 'over-the-top', 'over-the-top'];
-    const hedgeTemplate = HEDGE_TEMPLATES[Math.floor(rng() * HEDGE_TEMPLATES.length)];
-    const HEDGE_EXITS = [{x:1,y:4},{x:1,y:5}];
-    let hexit;
-    if (hedgeTemplate === 'approach-north') hexit = {x:1, y:5};
-    else if (hedgeTemplate === 'over-the-top') hexit = {x:1, y:4};
-    else hexit = HEDGE_EXITS[Math.floor(rng() * HEDGE_EXITS.length)];
-    let hRot;
-    if (hedgeTemplate === 'straight') {
-      for (let y = hexit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
-      set(1, 7, { type: 'gate', rotation: 0, open: false });
-      hRot = 0;
-    } else if (hedgeTemplate === 'z-east') {
-      set(1, 9, { type: 'straight', rotation: randR() });
-      set(1, 8, { type: 'gate', rotation: 0, open: false });
-      set(1, 7, { type: 'corner', rotation: 2, fixed: true });
-      set(2, 7, { type: 'straight', rotation: randR() });
-      set(3, 7, { type: 'corner', rotation: 0, fixed: true });
-      set(3, 6, { type: 'straight', rotation: randR() });
-      set(3, 5, { type: 'corner', rotation: 3, fixed: true });
-      set(2, 5, { type: 'straight', rotation: randR() });
-      if (hexit.y === 4) {
-        set(1, 5, { type: 'corner', rotation: 1, fixed: true });
-        hRot = 0;
+      const back = dirBetween(cells[i], cells[i - 1]);
+      const fwd = dirBetween(cells[i], cells[i + 1]);
+      if (back !== OPP[fwd]) {
+        set(x, y, { type: 'corner', rotation: cornerRotation(back, fwd), fixed: true });
+        continue;
+      }
+      const horizontal = fwd === 'e' || fwd === 'w';
+      if (i <= route.fixedLead) {
+        set(x, y, { type: 'straight', rotation: horizontal ? 1 : 0, fixed: true });
       } else {
-        hRot = 3;
+        set(x, y, { type: 'straight', rotation: Math.floor(rng() * 4) });
+        rotatable.push({ i, horizontal });
       }
-    } else if (hedgeTemplate === 'approach-north') {
-      // climbs col 1 to row 6, east jog to col 3, climbs col 3 to row
-      // 4, west jog back to col 1, into endpoint at (1, 5) from N.
-      set(1, 9, { type: 'straight', rotation: randR() });
-      set(1, 8, { type: 'gate', rotation: 0, open: false });
-      set(1, 7, { type: 'straight', rotation: randR() });
-      set(1, 6, { type: 'corner', rotation: 2, fixed: true });
-      set(2, 6, { type: 'straight', rotation: randR() });
-      set(3, 6, { type: 'corner', rotation: 0, fixed: true });
-      set(3, 5, { type: 'straight', rotation: randR() });
-      set(3, 4, { type: 'corner', rotation: 3, fixed: true });
-      set(2, 4, { type: 'straight', rotation: randR() });
-      set(1, 4, { type: 'corner', rotation: 2, fixed: true });
-      hRot = 2;
-    } else {
-      // over-the-top: wide loop through rows 1-3 around to (1, 4) endpoint.
-      set(1, 9, { type: 'straight', rotation: randR() });
-      set(1, 8, { type: 'gate', rotation: 0, open: false });
-      set(1, 7, { type: 'straight', rotation: randR() });
-      set(1, 6, { type: 'corner', rotation: 2, fixed: true });
-      set(2, 6, { type: 'straight', rotation: randR() });
-      set(3, 6, { type: 'corner', rotation: 0, fixed: true });
-      set(3, 5, { type: 'straight', rotation: randR() });
-      set(3, 4, { type: 'straight', rotation: randR() });
-      set(3, 3, { type: 'straight', rotation: randR() });
-      set(3, 2, { type: 'straight', rotation: randR() });
-      set(3, 1, { type: 'corner', rotation: 3, fixed: true });
-      set(2, 1, { type: 'straight', rotation: randR() });
-      set(1, 1, { type: 'corner', rotation: 2, fixed: true });
-      set(1, 2, { type: 'straight', rotation: randR() });
-      set(1, 3, { type: 'straight', rotation: randR() });
-      hRot = 2;
     }
-    set(1, hexit.y, { type: 'habitat-endpoint', rotation: hRot, fixed: true, endpointFor: 'hedgehog', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-    return { width: W, height: H, tiles, animals: ['hedgehog'] };
-  }
-
-  // Tier 3 — single raccoon.
-  function generateTier3(seed) {
-    const W = 9, H = 13;
-    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
-    const set = (x, y, t) => { tiles[y * W + x] = t; };
-    const rng = mulberry32(seed);
-    const randR = () => Math.floor(rng() * 4);
-    set(5, 11, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'raccoon', endpointRole: 'start' });
-    set(6, 11, { type: 'straight', rotation: 1, fixed: true });
-    set(7, 11, { type: 'corner', rotation: 0, fixed: true });
-    const RACCOON_EXITS = [{x:7,y:4},{x:7,y:5}];
-    const RACCOON_TEMPLATES = ['straight', 'z-west', 'z-west', 'approach-north', 'approach-north'];
-    const raccoonTemplate = RACCOON_TEMPLATES[Math.floor(rng() * RACCOON_TEMPLATES.length)];
-    let rexit;
-    if (raccoonTemplate === 'approach-north') rexit = {x:7, y:5};
-    else rexit = RACCOON_EXITS[Math.floor(rng() * RACCOON_EXITS.length)];
-    let rEndR = 0;
-    if (raccoonTemplate === 'straight') {
-      for (let y = rexit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
-      set(7, 7, { type: 'gate', rotation: 0, open: false });
-    } else if (raccoonTemplate === 'approach-north') {
-      // climb col 7 to row 6, west jog to col 5, climb to row 4, east
-      // jog back, into endpoint at (7, 5) from N.
-      set(7, 10, { type: 'straight', rotation: randR() });
-      set(7, 9, { type: 'straight', rotation: randR() });
-      set(7, 8, { type: 'straight', rotation: randR() });
-      set(7, 7, { type: 'gate', rotation: 0, open: false });
-      set(7, 6, { type: 'corner', rotation: 3, fixed: true });
-      set(6, 6, { type: 'straight', rotation: randR() });
-      set(5, 6, { type: 'corner', rotation: 1, fixed: true });
-      set(5, 5, { type: 'straight', rotation: randR() });
-      set(5, 4, { type: 'corner', rotation: 2, fixed: true });
-      set(6, 4, { type: 'straight', rotation: randR() });
-      set(7, 4, { type: 'corner', rotation: 3, fixed: true });
-      rEndR = 2;
-    } else {
-      set(7, 10, { type: 'straight', rotation: randR() });
-      set(7, 9, { type: 'straight', rotation: randR() });
-      set(7, 8, { type: 'corner', rotation: 3, fixed: true });
-      set(6, 8, { type: 'straight', rotation: randR() });
-      set(5, 8, { type: 'corner', rotation: 1, fixed: true });
-      set(5, 7, { type: 'gate', rotation: 0, open: false });
-      set(5, 6, { type: 'corner', rotation: 2, fixed: true });
-      set(6, 6, { type: 'straight', rotation: randR() });
-      set(7, 6, { type: 'corner', rotation: 0, fixed: true });
-      if (rexit.y === 4) set(7, 5, { type: 'straight', rotation: randR() });
-    }
-    set(7, rexit.y, { type: 'habitat-endpoint', rotation: rEndR, fixed: true, endpointFor: 'raccoon', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-    return { width: W, height: H, tiles, animals: ['raccoon'] };
-  }
-
-  // Tier 4 — single skunk.
-  function generateTier4(seed) {
-    const W = 9, H = 13;
-    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
-    const set = (x, y, t) => { tiles[y * W + x] = t; };
-    const rng = mulberry32(seed);
-    const randR = () => Math.floor(rng() * 4);
-    set(5, 12, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'skunk', endpointRole: 'start' });
-    set(6, 12, { type: 'straight', rotation: 1, fixed: true });
-    set(7, 12, { type: 'straight', rotation: 1, fixed: true });
-    set(8, 12, { type: 'corner', rotation: 0, fixed: true });
-    const SKUNK_EXITS = [{x:8,y:1},{x:8,y:2}];
-    const sexit = SKUNK_EXITS[Math.floor(rng() * SKUNK_EXITS.length)];
-    const SKUNK_TEMPLATES = ['straight', 'z-west', 'z-west'];
-    const skunkTemplate = SKUNK_TEMPLATES[Math.floor(rng() * SKUNK_TEMPLATES.length)];
-    if (skunkTemplate === 'straight') {
-      for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
-      set(8, 7, { type: 'gate', rotation: 0, open: false });
-      if (tiles[10 * W + 8]?.type === 'straight') {
-        set(8, 10, { type: 'gate', rotation: 0, open: false });
+    for (let g = 0; g < gateLevels; g++) {
+      for (const [gx, gy] of route.gates[g]) {
+        const hit = rotatable.find((r) => cells[r.i][0] === gx && cells[r.i][1] === gy);
+        if (!hit) continue;
+        set(gx, gy, { type: 'gate', rotation: hit.horizontal ? 1 : 0, open: false });
+        break;
       }
-    } else {
-      // z-west: trunk col 8 jogs west via col 6 mid-trunk.
-      set(8, 11, { type: 'straight', rotation: randR() });
-      set(8, 10, { type: 'straight', rotation: randR() });
-      set(8, 9, { type: 'corner', rotation: 3, fixed: true });
-      set(7, 9, { type: 'straight', rotation: randR() });
-      set(6, 9, { type: 'corner', rotation: 1, fixed: true });
-      set(6, 8, { type: 'gate', rotation: 0, open: false });
-      set(6, 7, { type: 'straight', rotation: randR() });
-      set(6, 6, { type: 'corner', rotation: 2, fixed: true });
-      set(7, 6, { type: 'straight', rotation: randR() });
-      set(8, 6, { type: 'corner', rotation: 0, fixed: true });
-      for (let y = sexit.y + 1; y <= 5; y++) set(8, y, { type: 'straight', rotation: randR() });
     }
-    set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: true, endpointFor: 'skunk', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.9);
-    return { width: W, height: H, tiles, animals: ['skunk'] };
+    return rotatable;
   }
 
-  // Tier 5 — multi-animal (4 species, 4 trunks, 4 gates).
-  function generateTier5(seed) {
-    const W = 9, H = 13;
-    const tiles = Array.from({ length: W * H }, () => ({ type: 'empty', rotation: 0 }));
-    const set = (x, y, t) => { tiles[y * W + x] = t; };
-    const rng = mulberry32(seed);
-    const randR = () => Math.floor(rng() * 4);
-    // FOX
-    set(5, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'fox', endpointRole: 'start' });
-    set(6, 10, { type: 'corner', rotation: 0, fixed: true });
-    for (let y = 2; y <= 9; y++) set(6, y, { type: 'straight', rotation: randR() });
-    set(6, 2, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 5, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 8, { type: 'viewing-dome', rotation: 0, fixed: true });
-    set(6, 7, { type: 'gate', rotation: 0, open: false });
-    set(6, 1, { type: 'corner', rotation: 3, fixed: true });
-    const FOX_EXITS = [
-      {x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},
-      {x:1,y:2},{x:2,y:2},{x:3,y:2},{x:4,y:2},
-    ];
-    const fexit = FOX_EXITS[Math.floor(rng() * FOX_EXITS.length)];
-    for (let x = fexit.x + 1; x <= 5; x++) set(x, 1, { type: 'straight', rotation: randR() });
-    if (fexit.y === 2) set(fexit.x, 1, { type: 'corner', rotation: 2, fixed: true });
-    set(fexit.x, fexit.y, { type: 'habitat-endpoint', rotation: fexit.y === 1 ? 3 : 2, fixed: true, endpointFor: 'fox', endpointRole: 'end' });
-    // HEDGEHOG
-    set(0, 10, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'hedgehog', endpointRole: 'start' });
-    set(1, 10, { type: 'corner', rotation: 0, fixed: true });
-    const hexit = [{x:1,y:4},{x:1,y:5}][Math.floor(rng() * 2)];
-    for (let y = hexit.y + 1; y <= 9; y++) set(1, y, { type: 'straight', rotation: randR() });
-    set(1, 7, { type: 'gate', rotation: 0, open: false });
-    set(1, hexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: true, endpointFor: 'hedgehog', endpointRole: 'end' });
-    // RACCOON
-    set(5, 11, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'raccoon', endpointRole: 'start' });
-    set(6, 11, { type: 'straight', rotation: 1, fixed: true });
-    set(7, 11, { type: 'corner', rotation: 0, fixed: true });
-    const rexit = [{x:7,y:4},{x:7,y:5}][Math.floor(rng() * 2)];
-    for (let y = rexit.y + 1; y <= 10; y++) set(7, y, { type: 'straight', rotation: randR() });
-    set(7, 7, { type: 'gate', rotation: 0, open: false });
-    set(7, rexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: true, endpointFor: 'raccoon', endpointRole: 'end' });
-    // SKUNK
-    set(5, 12, { type: 'habitat-endpoint', rotation: 3, fixed: true, endpointFor: 'skunk', endpointRole: 'start' });
-    set(6, 12, { type: 'straight', rotation: 1, fixed: true });
-    set(7, 12, { type: 'straight', rotation: 1, fixed: true });
-    set(8, 12, { type: 'corner', rotation: 0, fixed: true });
-    const sexit = [{x:8,y:1},{x:8,y:2}][Math.floor(rng() * 2)];
-    for (let y = sexit.y + 1; y <= 11; y++) set(8, y, { type: 'straight', rotation: randR() });
-    set(8, 7, { type: 'gate', rotation: 0, open: false });
-    set(8, sexit.y, { type: 'habitat-endpoint', rotation: 0, fixed: true, endpointFor: 'skunk', endpointRole: 'end' });
-    fillWithDecoyTiles(tiles, W, { x0: 0, y0: 0, x1: 8, y1: 12 }, rng, 0.85);
-    return { width: W, height: H, tiles, animals: ['fox', 'hedgehog', 'raccoon', 'skunk'] };
+  // Decoys: each empty cell decides from the seed and its own index, so the
+  // same cell holds the same decoy in every tier.
+  function fillDecoys(tiles, seed, density) {
+    const decoyTypes = ['straight', 'straight', 'straight', 'corner', 'corner', 'corner', 't-junction', 't-junction', 'bridge'];
+    for (let i = 0; i < tiles.length; i++) {
+      if (tiles[i].type !== 'empty') continue;
+      const r = mulberry32((Math.imul(seed >>> 0, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca6b)) >>> 0);
+      if (r() > density) continue;
+      const type = decoyTypes[Math.floor(r() * decoyTypes.length)];
+      tiles[i] = { type, rotation: Math.floor(r() * 4) };
+    }
   }
+
+  function buildNetwork(tier, seed) {
+    const tiles = [];
+    for (let i = 0; i < NET_W * NET_H; i++) tiles.push({ type: 'empty', rotation: 0 });
+    const set = (x, y, t) => { tiles[y * NET_W + x] = t; };
+    const at = (c) => tiles[c[1] * NET_W + c[0]];
+    const gateLevels = tier >= 5 ? 3 : tier >= 4 ? 2 : tier >= 2 ? 1 : 0;
+    const animals = ['fox'];
+
+    const rngFox = mulberry32(seed);
+    const fox = foxRoute(rngFox);
+    const foxTurns = layRoute(set, fox.route, rngFox, gateLevels);
+    if (tier >= 2) {
+      const rng = mulberry32((seed * 31 + 17) >>> 0);
+      layRoute(set, hedgehogRoute(rng, fox.exitX), rng, gateLevels);
+      animals.push('hedgehog');
+    }
+    if (tier >= 3) {
+      const rng = mulberry32((seed * 53 + 31) >>> 0);
+      layRoute(set, raccoonRoute(rng), rng, gateLevels);
+      animals.push('raccoon');
+    }
+    if (tier >= 4) {
+      const rng = mulberry32((seed * 97 + 13) >>> 0);
+      layRoute(set, skunkRoute(rng), rng, gateLevels);
+      animals.push('skunk');
+    }
+
+    // Where the fox's run passes under a glass dome, the tile is the dome.
+    const foxCells = new Set(fox.route.path.map((c) => c[0] + ',' + c[1]));
+    for (const d of DOME_CELLS) {
+      const t = at([d.x, d.y]);
+      if (foxCells.has(d.x + ',' + d.y) && t.type === 'straight' && !t.fixed) {
+        set(d.x, d.y, { type: 'viewing-dome', rotation: 0, fixed: true });
+      }
+    }
+
+    // Never start finished: if luck lined every straight up, turn the first.
+    if (gateLevels === 0) {
+      const turnable = foxTurns.filter((r) => {
+        const t = at(fox.route.path[r.i]);
+        return t.type === 'straight' && !t.fixed;
+      });
+      const aligned = (r) => (at(fox.route.path[r.i]).rotation % 2 === 1) === r.horizontal;
+      if (turnable.length > 0 && turnable.every(aligned)) {
+        const [cx, cy] = fox.route.path[turnable[0].i];
+        set(cx, cy, { ...at([cx, cy]), rotation: (at([cx, cy]).rotation + 1) % 4 });
+      }
+    }
+
+    fillDecoys(tiles, seed, tier >= 4 ? 0.9 : 0.85);
+    return { width: NET_W, height: NET_H, tiles, animals };
+  }
+  function generateTier1(seed) { return buildNetwork(1, seed); }
+  function generateTier2(seed) { return buildNetwork(2, seed); }
+  function generateTier3(seed) { return buildNetwork(3, seed); }
+  function generateTier4(seed) { return buildNetwork(4, seed); }
+  function generateTier5(seed) { return buildNetwork(5, seed); }
 
   // Tier picker — read ?tier=N from URL (default 1).
   const urlTier = parseInt(new URLSearchParams(location.search).get('tier') || '1', 10);
@@ -1631,25 +1545,28 @@
       domeLayer.className = 'dome-layer';
     }
     domeLayer.replaceChildren();
-    for (let y = 0; y < puzzle.height; y++) {
-      for (let x = 0; x < puzzle.width; x++) {
-        const t = puzzle.tiles[y * puzzle.width + x];
-        if (t.type !== 'viewing-dome') continue;
-        const m = document.createElement('div');
-        m.className = 'dome-marker';
-        const sz = Math.round(tileSize * 0.7);
-        m.style.width  = sz + 'px';
-        m.style.height = sz + 'px';
-        m.style.left = (gridLeft + 6 + x * tileSize + tileSize / 2) + 'px';
-        m.style.top  = (gridTop  + 6 + y * tileSize + tileSize / 2) + 'px';
-        m.innerHTML =
-          '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' +
-            '<circle cx="50" cy="50" r="42" fill="rgba(180,220,255,0.55)" ' +
-              'stroke="#3a2410" stroke-width="3.5"/>' +
-            '<ellipse cx="38" cy="38" rx="14" ry="9" fill="rgba(255,255,255,0.7)"/>' +
-          '</svg>';
-        domeLayer.appendChild(m);
-      }
+    // The glass domes of the site map stand on the painted central path (col 6,
+    // rows 2, 5, 8), so they are drawn from those cells whatever the tunnel
+    // beneath does: a run that jogs away from col 6 leaves its middle dome over
+    // plain soil, and the dome is still where the map says it is. Where a run
+    // does pass under one it is a fixed dome tile, and the fox is seen through
+    // the glass (this layer is above the animals and the glass is see-through).
+    for (const d of DOME_CELLS) {
+      if (d.x >= puzzle.width || d.y >= puzzle.height) continue;
+      const m = document.createElement('div');
+      m.className = 'dome-marker';
+      const sz = Math.round(tileSize * 0.7);
+      m.style.width  = sz + 'px';
+      m.style.height = sz + 'px';
+      m.style.left = (gridLeft + 6 + d.x * tileSize + tileSize / 2) + 'px';
+      m.style.top  = (gridTop  + 6 + d.y * tileSize + tileSize / 2) + 'px';
+      m.innerHTML =
+        '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' +
+          '<circle cx="50" cy="50" r="42" fill="rgba(180,220,255,0.55)" ' +
+            'stroke="#3a2410" stroke-width="3.5"/>' +
+          '<ellipse cx="38" cy="38" rx="14" ry="9" fill="rgba(255,255,255,0.7)"/>' +
+        '</svg>';
+      domeLayer.appendChild(m);
     }
     wrap.appendChild(domeLayer);
 
