@@ -304,6 +304,30 @@ central path (south end, where the building's staff area meets
 the path). Tap that painted hatch → tunnel grid overlay. May also
 be discoverable via in-habitat hatches at higher tiers for variety.
 
+### 7. Later decisions (Marcus, 2026-10-14)
+
+- **One network that grows (110A).** Tier 1 is the fox; tier 2 adds the
+  hedgehog; tier 3 the raccoon; tier 4 the skunk; tier 5 is the same four
+  with a third gate. Each tier is the previous board plus one run (the
+  2026-05-06 "one animal per tier" restructure is reverted).
+- **The site map at full strength (111A).** The overlay is not dimmed as a
+  whole: the building shows at 1.0, the garden patches at 0.45, the gravel
+  paths at 0.5.
+- **Domes on every tier, on the painted path (112A).** The glass domes of
+  the site map stand on col 6, rows 2, 5 and 8 whatever the tunnel beneath
+  does; the fox is seen through the glass where it passes under.
+- **Wins cheer the animals up three times a day (104A).** Happiness and bond
+  are given for at most three wins a UTC day (the day the daily seed and the
+  paid re-digs use). Later wins still play; the win card says the animals
+  enjoyed the play, without numbers.
+- **QUICK works during a run (102A).** It is on from "Send the animals!"
+  until pressed, pauses the animal for three seconds while the board is
+  open for turning tiles, then starts the run again with her fixes.
+- **Zoom where tiles are small (103A).** Under about 40px a tile (a phone on
+  its side) the page offers a magnifier; zoomed, a tile is 48px, dragging
+  pans (over 10px of movement; a pan never turns a tile), and "Send the
+  animals!" zooms back out.
+
 ## Implementation backlog (high level)
 
 - [ ] **Spec:** a fuller spec following the brainstorming flow —
