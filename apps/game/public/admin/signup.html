@@ -14,12 +14,7 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    /* Handwritten stack for sign text — matches the painted crayon logo.
-       Kalam everywhere, self-hosted. 'Chalkboard SE' used to lead this
-       stack and is a macOS-only face, so the Mac rendered these signs in
-       one hand and the iPad in another — and every Mac screenshot of a
-       sign screen misreported its own typeface.
-       chunkier fallback for the sign titles. */
+    /* The type is declared once, in /fonts/fonts.css: --headline-font (titles only) and --body-font (everything else a child reads). */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -271,7 +266,7 @@
     border: 2px solid #1d5c2a;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-family: var(--headline-font); font-weight: 700;
+    font-family: var(--body-font); font-weight: 800;
     font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.35),
                 inset 0 2px 3px rgba(255,255,255,0.2);
@@ -286,8 +281,7 @@
   .intro.shake .pin-dot { border-color: #c54838; background: rgba(197,72,56,0.3); }
 
   /* Painted red wooden-sticker error message — pops in when validation
-     fails. Tilts slightly, drop-shadow, Kalam handwritten font for
-     warmth. Auto-hides after a few seconds. */
+     fails. Tilts slightly, drop-shadow. Auto-hides after a few seconds. */
   .error-sticker {
     position: absolute;
     left: 50%;
@@ -302,7 +296,7 @@
       0 6px 16px rgba(0,0,0,0.35),
       inset 0 2px 0 rgba(255,255,255,0.25),
       inset 0 -2px 0 rgba(0,0,0,0.3);
-    font-family: 'Kalam', 'Caveat', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: 18px;
     line-height: 1.2;
@@ -397,8 +391,7 @@
     font-weight: 400;
     opacity: 0.85;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
-    font-family: 'Caveat', var(--sign-font);
-    font-style: italic;
+    font-family: var(--body-font);
   }
   .chip-name::after {
     /* Small line break between name and last-seen in the chip */
@@ -435,7 +428,7 @@
   }
   .key {
     position: relative;
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-weight: 900;
     font-size: clamp(26px, 4.4cqh, 38px);
     color: #2a1a08;
@@ -599,11 +592,11 @@
   .name-field:focus { border-color: #9a6528; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(231,168,74,0.4); }
 
   /* ── Stage C: PIN-hint capture ── */
-  /* Hint input — bigger painted-paper-tag (Caveat handwriting), 44px+
+  /* Hint input — bigger painted-paper-tag, 44px+
      min-height for finger-friendly tapping. */
   .hint-field {
     width: 100%;
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(22px, 3.4cqh, 30px);
     min-height: 56px;
@@ -632,7 +625,7 @@
     border-radius: 10px;
     box-shadow: 0 2px 3px rgba(0,0,0,0.2), inset 0 2px 3px rgba(0,0,0,0.08);
     transform: rotate(-1.2deg);
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(18px, 2.8cqh, 24px);
     color: #3a2618;
@@ -669,7 +662,7 @@
     margin-top: clamp(6px, 1.2cqh, 12px);
   }
   .name-suggestion-heading {
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     color: #fffbe8;
     text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
@@ -685,7 +678,7 @@
   }
   .name-sticker {
     position: relative;
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-weight: 900;
     font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
     color: #2a1a08;
@@ -789,7 +782,7 @@
     border-radius: 8px;
     padding: clamp(10px, 1.5cqh, 14px) clamp(14px, 2.2cqw, 18px);
     font-family: var(--body-font);
-    font-weight: 500;
+    font-weight: 600;
     font-size: clamp(var(--fs-floor), 2.2cqh, 18px);
     color: #3a2618;
     cursor: pointer;
@@ -940,7 +933,7 @@
   }
   .zzz-stack .zz {
     position: absolute;
-    font-family: 'Kalam', 'Caveat', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     color: #c88436;
     text-shadow: 1px 2px 0 rgba(255,255,255,0.7), 2px 3px 4px rgba(0,0,0,0.18);
@@ -1086,7 +1079,7 @@
   .btn-primary {
     width: 100%;
     padding: clamp(14px, 2.6cqh, 22px) clamp(24px, 4cqw, 32px);
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-size: clamp(24px, 4cqh, 36px); font-weight: 700;
     /* Cream paint text on weathered wood, with a dark shadow for depth */
     color: #fffbe8;
@@ -1366,10 +1359,9 @@
     /* Decorative — never block clicks to the underlying buttons. */
     pointer-events: none;
   }
-  /* Handwritten-scrawl credits — cursive green, designed to look like
-     a blade of grass at first glance and read as a signature on closer look. */
+  /* The credits in the corner: green, in the body face like everything else a child reads. */
   .credit-scrawl {
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
     color: #2f6a32;
@@ -2471,7 +2463,7 @@
       note = document.createElement('div');
       note.id = 'signup-context-note';
       note.style.cssText = [
-        'font-family: \'Caveat\', \'Kalam\', cursive',
+        'font-family: var(--body-font)',
         'font-size: clamp(14px, 2.2cqh, 18px)',
         'color: #fffbe8',
         'opacity: 0.92',

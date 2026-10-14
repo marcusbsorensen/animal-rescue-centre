@@ -144,7 +144,7 @@
     position: absolute;
     top: 18%;
     color: rgba(40, 28, 18, 0.55);
-    font-family: var(--headline-font);
+    font-family: var(--body-font);
     font-size: clamp(var(--fs-floor), 1.4cqh, 16px);
     letter-spacing: -2px;
     z-index: 2;
@@ -210,8 +210,7 @@
      and lives in _story-title.css; only the space under it is set here. */
   .farewell-title { margin-bottom: clamp(4px, 0.8cqh, 8px); }
   .farewell-subtitle {
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-style: italic;
+    font-family: var(--body-font);
     font-weight: 700;
     color: #fffbe8;
     font-size: clamp(18px, 2.6cqh, 24px);
@@ -274,7 +273,7 @@
     50%      { transform: translateY(-3px) rotate(1deg); }
   }
 
-  /* Scroll card — cream paper, rotated, handwritten Caveat text */
+  /* Scroll card — cream paper, rotated, body-face text */
   .scroll-card {
     position: relative;
     margin-top: clamp(8px, 1.4cqh, 14px);
@@ -290,8 +289,8 @@
       0 4px 10px rgba(0,0,0,0.35),
       inset 0 0 20px rgba(160,110,60,0.12);
     transform: rotate(-2.2deg);
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-weight: 500;
+    font-family: var(--body-font);
+    font-weight: 600;
     font-size: clamp(var(--fs-floor), 2.1cqh, 19px);
     line-height: 1.35;
     color: #4a2e14;
@@ -300,9 +299,8 @@
   .scroll-card .scroll-sign {
     display: block;
     margin-top: clamp(4px, 0.8cqh, 8px);
-    font-family: 'Caveat', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
-    font-style: italic;
     color: #6b3a18;
     font-size: clamp(16px, 2.3cqh, 21px);
   }
@@ -346,7 +344,7 @@
     filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.3));
   }
   .bond-label {
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(18px, 2.6cqh, 22px);
     color: #3a2618;
@@ -361,8 +359,7 @@
     text-shadow: 1px 1px 0 rgba(255,240,210,0.6);
   }
   .bond-visit {
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-style: italic;
+    font-family: var(--body-font);
     font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
     color: #6b4820;
     opacity: 0.92;
@@ -378,7 +375,7 @@
   .btn-primary {
     width: 100%;
     padding: clamp(14px, 2.6cqh, 22px) clamp(20px, 3.4cqw, 30px);
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-size: clamp(18px, 3cqh, 26px); font-weight: 700;
     color: #fffbe8;
     text-shadow: 2px 3px 0 rgba(0,0,0,0.5);

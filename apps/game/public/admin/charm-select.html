@@ -18,9 +18,10 @@
     --pink-sticker: #f7c8c8;
     --mint-sticker: #c8e6cf;
     --blue-sticker: #cbe1f7;
-    --headline: 'Fredoka', system-ui, sans-serif;
-    --body: 'Quicksand', system-ui, sans-serif;
-    --hand: 'Kalam', 'Gochi Hand', cursive;
+    /* the shared pair (fonts.css): --headline is for the two titles, --body for everything else, --hand is the body too */
+    --headline: var(--headline-font);
+    --body: var(--body-font);
+    --hand: var(--body-font);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
@@ -65,7 +66,7 @@
     border-radius: 14px;
     padding: 6px 14px;
     cursor: pointer; user-select: none;
-    font-family: var(--headline); font-weight: 500; font-size: var(--fs-floor);
+    font-family: var(--body); font-weight: 600; font-size: var(--fs-floor);
     color: var(--ink-soft);
   }
   .vehicle-tab.active {
@@ -174,7 +175,7 @@
     filter: drop-shadow(0 2px 2px rgba(0,0,0,0.12));
   }
   .charm-name {
-    font-family: var(--headline); font-weight: 600; font-size: var(--fs-floor);
+    font-family: var(--body); font-weight: 600; font-size: var(--fs-floor);
     color: var(--ink); line-height: 1.15;
   }
   .charm-card.locked .charm-name { color: var(--ink-soft); }

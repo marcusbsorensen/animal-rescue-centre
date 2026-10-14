@@ -199,8 +199,8 @@
   .intro::after  { top: clamp(6px, 1cqh, 9px); right: clamp(6px, 1cqh, 9px); }
 
   .sign-subtitle {
-    font-family: 'Quicksand', system-ui, sans-serif;
-    font-weight: 500;
+    font-family: var(--body-font);
+    font-weight: 600;
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.4);
     font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
@@ -231,7 +231,7 @@
 
   /* Question prompt */
   .q-prompt {
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-weight: 700;
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
@@ -368,7 +368,7 @@
     transform: rotate(-1.5deg);
     border: 1px solid rgba(0,0,0,0.08);
     color: #4a2e0a;
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(20px, 3cqh, 26px);
     line-height: 1.3;
@@ -393,7 +393,7 @@
     align-items: center; justify-content: center;
     gap: clamp(8px, 1.5cqw, 12px);
     cursor: pointer;
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(17px, 2.6cqh, 22px);
     color: #fffbe8;
@@ -658,7 +658,7 @@
   }
   .zzz-stack .zz {
     position: absolute;
-    font-family: 'Kalam', 'Caveat', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     color: #c88436;
     text-shadow: 1px 2px 0 rgba(255,255,255,0.7), 2px 3px 4px rgba(0,0,0,0.18);
@@ -717,7 +717,7 @@
     pointer-events: none;
   }
   .credit-scrawl {
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
     color: #2f6a32;

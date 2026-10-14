@@ -1,6 +1,7 @@
 /*
- * Self-hosted type: Nunito + Caveat for the game canvas, Fredoka +
- * Quicksand + Kalam + Gochi Hand for the DOM sign screens.
+ * Self-hosted type: Nunito (body) and Fredoka (titles) for the DOM screens,
+ * Nunito + Caveat (chalkboards) for the game canvas; Quicksand, Kalam and
+ * Gochi Hand are kept for the design mock-ups.
  *
  * These used to load from fonts.googleapis.com. That meant a
  * third-party request on every cold launch — which sends the device
@@ -19,31 +20,55 @@
  */
 
 /*
- * The DOM screens' type, declared once.
+ * The DOM screens' type, declared once: ONE DISPLAY FACE AND ONE BODY FACE.
  *
- * These four properties used to be copied into every screen's own `:root` —
- * 23 identical copies of the same four lines, which is what "the type scale
- * is declared once per screen" meant. The values agreed on the day they were
- * counted and nothing stopped them drifting: `tunnel.html` had already lost
- * `--sign-title-font` without anyone noticing, because a missing custom
- * property does not error, it just inherits or falls back.
+ *   --headline-font  Fredoka. Titles only: the board a story screen hangs
+ *                    on, a sign's title, a panel's heading. Short, large,
+ *                    set over a picture.
+ *   --body-font      Nunito. Everything else a child reads: the letter and
+ *                    the scroll, subtitles, buttons, labels, names, hints,
+ *                    credits, tabs, the numbers on a keypad.
+ *
+ * Nunito is the face the game canvas already reads in (`FONTS.body` in
+ * `src/ui/constants.ts`: the match picker, the hand-over conversation, every
+ * HUD), so a child who crosses from the canvas into a DOM screen and back,
+ * the way the adoption does three times, keeps the same hand under their
+ * eyes. It is also the one body face here with the weights the screens ask
+ * for (400, 600, 700, 800, 900): Quicksand stops at 600 and its 700 buttons
+ * were drawn by the browser, a synthetic bold.
+ *
+ * NO SCRIPT, CALLIGRAPHIC OR HANDWRITING FACE FOR ANYTHING A CHILD READS.
+ * Marcus, 2026-10-14, on the adoption panels: "too many mixed font faces ...
+ * the calligraphic one will be almost impossible for kids to read". They were
+ * five faces on the ceremony alone: Gochi Hand for the title, Caveat (a
+ * brush-script, at 72% of the x-height of the others) for the subtitle and the
+ * whole letter from the family, Kalam for a button, Quicksand for the gift
+ * labels. Kalam and Gochi Hand were "the hand that letters the painted signs",
+ * which is a reason to look like a sign and not a reason to be read by
+ * eight-year-olds at 16px. If a handwritten flavour is ever wanted, it is one
+ * short decorative word at a large size (a family's name signed under a
+ * picture), never a sentence, and it declares its own face on that one word.
+ *
+ * The two older names stay as aliases, because over a hundred declarations across the
+ * screens still say them, and a missing custom property does not error, it
+ * inherits (the way `tunnel.html` once lost `--sign-title-font` unnoticed):
+ *   --sign-title-font  = --headline-font. Use it on a TITLE and on nothing else.
+ *   --sign-font        = --body-font.
  *
  * This file is linked *before* each page's inline `<style>`, so a page that
- * still declares its own copy wins. That is deliberate — a screen with a
- * genuine reason to differ can still say so — but no shipping screen does.
+ * declares its own copy still wins. No shipping screen does, and
+ * `e2e/dom-type.spec.ts` now fails if one draws a face other than these two
+ * (the friend code's monospace is the one named exception).
  *
- * The handwritten pair is the diegetic register: Kalam and Gochi Hand are
- * the hand that letters the painted signs, the same decision as "painted is
- * diegetic only" on the canvas side. `Chalkboard SE` used to lead that stack
- * and is macOS-only, so the Mac and the iPad rendered the signs in two
- * different hands and every Mac screenshot of a sign misreported its own
- * typeface. All six faces here are self-hosted above.
+ * Kalam, Gochi Hand and Quicksand stay declared below because the design
+ * mock-ups (cockpit, map-v2-mockup and the review pages) still name them;
+ * no shipping screen draws in them. Caveat is the canvas's chalkboard face.
  */
 :root {
   --headline-font: 'Fredoka', system-ui, sans-serif;
-  --body-font: 'Quicksand', system-ui, sans-serif;
-  --sign-font: 'Kalam', 'Gochi Hand', var(--headline-font);
-  --sign-title-font: 'Gochi Hand', 'Kalam', var(--headline-font);
+  --body-font: 'Nunito', system-ui, -apple-system, sans-serif;
+  --sign-font: var(--body-font);
+  --sign-title-font: var(--headline-font);
 
   /*
    * The type floor — the smallest size any of these screens may draw at.
@@ -67,6 +92,16 @@
    */
   --fs-floor: 16px;
 }
+
+/*
+ * A form control does not inherit its parent's face: the browser draws a
+ * `<button>` in its own system font unless told otherwise (intro.html's
+ * "skip" came out in Arial). Every DOM screen is full of buttons and the
+ * names a child types, so they take the face of the screen around them. A
+ * page that styles its own button still wins; this is the lowest-specificity
+ * rule there is.
+ */
+button, input, select, textarea { font-family: inherit; }
 
 /* latin-ext */
 @font-face {

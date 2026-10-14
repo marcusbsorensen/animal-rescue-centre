@@ -105,3 +105,83 @@ test.describe('DOM screens keep the type floor', () => {
     });
   }
 });
+
+/**
+ * ONE DISPLAY FACE AND ONE BODY FACE, held on every DOM screen.
+ *
+ * Marcus, 2026-10-14, on the adoption panels: "too many mixed font faces ...
+ * the calligraphic one will be almost impossible for kids to read". The
+ * ceremony alone drew in five faces, and a brush-script for the whole letter
+ * from the family. The two faces are declared once in `public/fonts/fonts.css`
+ * (`--headline-font` Fredoka, for titles; `--body-font` Nunito, for everything
+ * else a child reads). This is the half that stops them drifting back: it
+ * resolves the face each visible text element actually draws in, the way the
+ * browser does (the first family in its stack that is loaded), and fails on
+ * any other, and on the display face anywhere a child has to press something
+ * or read a sentence.
+ *
+ * Named exception: the friend code, which is monospace on purpose so that a
+ * string a child copies to a friend is not misread (menu.html says why).
+ */
+const DISPLAY = 'Fredoka';
+const BODY = 'Nunito';
+/** The display face is for a title: a few words, never a control and never a paragraph. */
+const TITLE_MAX_CHARS = 60;
+
+interface FaceRun { sel: string; face: string; text: string; why: string }
+
+test.describe('DOM screens draw in the display face and the body face, and no other', () => {
+  test.use({ viewport: VIEWPORT });
+
+  for (const screen of SCREENS) {
+    test(`${screen} uses ${DISPLAY} for titles and ${BODY} for everything else`, async ({ page }) => {
+      await page.goto(`/admin/${screen}.html?embed=1`);
+      await page.waitForTimeout(250);
+      await page.evaluate(() => document.fonts.ready);
+
+      const bad: FaceRun[] = await page.evaluate(({ display, body, titleMax }) => {
+        const generic = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'ui-sans-serif',
+          'ui-serif', 'ui-monospace', 'ui-rounded', '-apple-system', 'emoji', 'math']);
+        const declared = new Set(Array.from(document.fonts).map((f) => f.family.replace(/["']/g, '')));
+        const resolve = (el: Element, text: string): string => {
+          const cs = getComputedStyle(el);
+          const families = cs.fontFamily.split(',').map((s) => s.trim().replace(/^["']|["']$/g, ''));
+          for (const fam of families) {
+            if (generic.has(fam)) return fam;
+            if (!declared.has(fam)) return fam;
+            if (document.fonts.check(`${cs.fontWeight} ${cs.fontSize} "${fam}"`, text.slice(0, 12))) return fam;
+          }
+          return families[families.length - 1] ?? '';
+        };
+        const out: FaceRun[] = [];
+        for (const el of Array.from(document.querySelectorAll('body *'))) {
+          if (el.children.length) continue;
+          if (el.closest('.vp-bar')) continue;
+          const text = (el.textContent ?? '').trim();
+          if (!text || !/\p{Letter}/u.test(text)) continue;
+          const anyEl = el as Element & { checkVisibility?: (o?: unknown) => boolean };
+          if (typeof anyEl.checkVisibility === 'function'
+            && !anyEl.checkVisibility({ contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true })) continue;
+          const face = resolve(el, text);
+          const cls = typeof el.className === 'string' && el.className.trim()
+            ? '.' + el.className.trim().split(/\s+/).join('.') : '';
+          const entry = { sel: el.tagName.toLowerCase() + cls, face, text: text.slice(0, 30) };
+          if (face === body) continue;
+          if (face === display) {
+            if (el.closest('button, a, input, select, textarea, [role="button"]')) out.push({ ...entry, why: 'the display face is for titles, and this is a control' });
+            else if (text.length > titleMax) out.push({ ...entry, why: `the display face is for titles, and this is ${text.length} characters` });
+            continue;
+          }
+          if (el.closest('.friend-code') && /monospace/.test(face)) continue;
+          out.push({ ...entry, why: `${face} is neither ${display} nor ${body}` });
+        }
+        return out;
+      }, { display: DISPLAY, body: BODY, titleMax: TITLE_MAX_CHARS });
+
+      expect(
+        bad,
+        bad.map((b) => `${b.sel} draws in ${b.face}: ${b.why} — ${JSON.stringify(b.text)}`).join('\n'),
+      ).toEqual([]);
+    });
+  }
+});

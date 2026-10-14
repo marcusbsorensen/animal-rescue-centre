@@ -307,7 +307,6 @@ export class AdoptionMatchScene extends Phaser.Scene {
       `Who feels like the right home for ${this.animal.name}?`, {
         fontSize: `${layout.subtitleFont}px`,
         fontFamily: FONTS.body,
-        fontStyle: 'italic',
         color: '#3a2618',
         align: 'center',
       }, [0.5, 0]);
@@ -356,7 +355,7 @@ export class AdoptionMatchScene extends Phaser.Scene {
       const name = this.addText('picker-animal-name', tx, r.y, this.animal.name, nameStyle);
       fitText(name, { w: tw, h: 34 }, { maxLines: 1 });
       const species = this.addText('picker-animal-species', tx, r.y, this.animal.species, {
-        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#6b3a18', fontStyle: 'italic',
+        fontSize: `${MIN_FONT.small}px`, fontFamily: FONTS.body, color: '#6b3a18',
       });
       fitText(species, { w: tw, h: 26 }, { maxLines: 1 });
       const bond = this.addText('picker-animal-bond', tx, r.y, `Bond ${bondPct}%`, {
@@ -398,7 +397,6 @@ export class AdoptionMatchScene extends Phaser.Scene {
         fontSize: TYPE.caption,
         fontFamily: FONTS.body,
         color: '#6b3a18',
-        fontStyle: 'italic',
         align: 'center',
       }, [0.5, 0]);
     fitText(msg, { w: Math.min(r.w, 360), h: 60 }, { maxLines: 3 });
@@ -498,7 +496,6 @@ export class AdoptionMatchScene extends Phaser.Scene {
       fontSize: `${plan.blurbFont}px`,
       fontFamily: FONTS.body,
       color: '#4a2e14',
-      fontStyle: 'italic',
       align: plan.align,
     }, [centred ? 0.5 : 0, 0]);
     fitText(blurb, { w: plan.text.w, h: Math.max(0, blurbRoom) });

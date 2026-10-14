@@ -14,12 +14,7 @@
     --trellis-brown: #7b5c3a;
     --ink: #3a3a3a;
     --ink-soft: #6b6b6b;
-    /* Handwritten stack for sign text — matches the painted crayon logo.
-       Kalam everywhere, self-hosted. 'Chalkboard SE' used to lead this
-       stack and is a macOS-only face, so the Mac rendered these signs in
-       one hand and the iPad in another — and every Mac screenshot of a
-       sign screen misreported its own typeface.
-       chunkier fallback for the sign titles. */
+    /* The type is declared once, in /fonts/fonts.css: --headline-font (titles only) and --body-font (everything else a child reads). */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #222; }
@@ -256,7 +251,7 @@
     border: 2px solid #1d5c2a;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-family: var(--headline-font); font-weight: 700;
+    font-family: var(--body-font); font-weight: 800;
     font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.35),
                 inset 0 2px 3px rgba(255,255,255,0.2);
@@ -413,7 +408,7 @@
     color: #fffbe8;
   }
   .menu-stat-num {
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(24px, 3.8cqh, 34px);
     line-height: 1;
@@ -534,7 +529,7 @@
   .btn-primary {
     width: 100%;
     padding: clamp(14px, 2.6cqh, 22px) clamp(24px, 4cqw, 32px);
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-size: clamp(24px, 4cqh, 36px); font-weight: 700;
     /* Cream paint text on weathered wood, with a dark shadow for depth */
     color: #fffbe8;
@@ -775,10 +770,9 @@
     gap: clamp(2px, 0.4cqh, 4px);
     position: relative; z-index: 5;
   }
-  /* Handwritten-scrawl credits — cursive green, designed to look like
-     a blade of grass at first glance and read as a signature on closer look. */
+  /* The credits in the corner: green, in the body face like everything else a child reads. */
   .credit-scrawl {
-    font-family: 'Caveat', 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 1.9cqh, 17px);
     color: #2f6a32;
@@ -896,8 +890,8 @@
     line-height: 1.1;
   }
   .friend-visit {
-    font-family: 'Quicksand', system-ui, sans-serif;
-    font-weight: 500;
+    font-family: var(--body-font);
+    font-weight: 600;
     letter-spacing: 0.15px;
     font-size: clamp(var(--fs-floor), 1.7cqh, 16px);
     color: #fffbe8;
@@ -923,7 +917,7 @@
     box-shadow: 0 2px 3px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.4);
   }
   .friend-medal-label {
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     font-weight: 600;
     letter-spacing: 0.3px;
     font-size: clamp(var(--fs-floor), 1.5cqh, 16px);
@@ -938,7 +932,7 @@
      pill consistent with the rest of the sign's palette. */
   .apprentice-chip {
     display: inline-flex; align-items: center; gap: 4px;
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     font-weight: 600;
     letter-spacing: 0.2px;
     font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
@@ -979,7 +973,7 @@
     color: var(--ink-soft);
   }
   .friends-empty-line1 {
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 2.6cqh, 20px);
     color: var(--ink);
@@ -1006,7 +1000,7 @@
     box-shadow:
       inset 0 -3px 0 rgba(123,92,58,0.18),
       2px 4px 6px rgba(0,0,0,0.18);
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     color: var(--ink);
     text-align: left;
     position: relative;
@@ -1036,12 +1030,12 @@
   }
   .invite-share-prefix {
     font-family: var(--body-font);
-    font-weight: 500;
+    font-weight: 600;
     font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
     color: var(--ink-soft);
   }
   .invite-share-code {
-    font-family: var(--sign-title-font);
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 2cqh, 17px);
     color: var(--trellis-brown);

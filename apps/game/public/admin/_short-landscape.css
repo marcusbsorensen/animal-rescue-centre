@@ -497,6 +497,14 @@
   }
   .choice-label { font-size: clamp(18px, 3.4cqh, 20px); }
   .choice-hint  { font-size: clamp(var(--fs-floor), 2.8cqh, 16px); }
+  /* The smallest sideways phone (667px). The hints are in the body face (Nunito, fonts.css), which
+     draws wider than the script they replaced, so on a 306px plaque "They'll sort it out on their
+     own" (217px) wrapped to two lines and the stack grew 12px past the bottom. The pills give up
+     a few pixels of side padding instead, and every hint keeps one line. */
+  @container (max-width: 700px) {
+    .choice-pill { padding-inline: 7px; column-gap: 8px; }
+    .conflict-plaque, .arrival-plaque { padding-inline: 8px; }
+  }
 
   /* tunnel's "Ready?" startup scrim: 260px of oversized deco art above a
      36px title above the button, which put "Ready!" past the bottom on every

@@ -104,15 +104,15 @@ export const FONTS = {
    *
    * `font-size-adjust: 0.49` is the fix on the DOM side and it works here
    * (tested: Caveat at 16px goes from 129.5px wide to 177.7 against
-   * Nunito's 175.3, i.e. within 1.4%). It is **not applied yet**: Caveat is
-   * on ~50 rules across 20 shipping screens and the correction widens every
-   * one of them by 37%, which is a layout decision rather than a sweep.
-   * Canvas text has no equivalent property, so the Phaser side would need
-   * the multiplier written out.
+   * Nunito's 175.3, i.e. within 1.4%). Canvas text has no equivalent
+   * property, so the Phaser side would need the multiplier written out.
    *
-   * Note also that several DOM stacks read `'Caveat', 'Kalam', cursive` —
-   * two faces 44% apart in apparent size, so which one loads decides how
-   * big the text looks.
+   * **No DOM screen draws in Caveat, Kalam or Gochi Hand any more** (2026-10-14,
+   * "the calligraphic one will be almost impossible for kids to read"): the
+   * DOM screens read in Nunito and title in Fredoka, declared once in
+   * `public/fonts/fonts.css` and held by `e2e/dom-type.spec.ts`. This stack is
+   * the canvas's chalkboards only (PlayScene, CorridorView), which are
+   * diegetic signage and not a letter a child has to read.
    */
   chalk: '"Caveat", "Patrick Hand", "Comic Sans MS", cursive',
   /**

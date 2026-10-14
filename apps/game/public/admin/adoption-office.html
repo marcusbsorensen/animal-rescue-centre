@@ -197,8 +197,7 @@
   /* The title's style (white on a darker plank, larger) is shared by every story board
      and lives in _story-title.css; here it sits at the left of the banner, by the animal. */
   .banner-subtitle {
-    font-family: 'Caveat', 'Kalam', cursive;
-    font-style: italic;
+    font-family: var(--body-font);
     font-weight: 700;
     color: #fffbe8;
     font-size: clamp(var(--fs-floor), 2.2cqh, 20px);
@@ -290,7 +289,7 @@
     align-items: center; justify-content: center;
     text-align: center;
     padding: 8% 10%;
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     font-weight: 600;
     color: #4a2e14;
     font-size: clamp(var(--fs-floor), 1.6cqh, 16px);
@@ -303,7 +302,7 @@
   }
 
   .h-name {
-    font-family: var(--headline-font);
+    font-family: var(--body-font);
     font-weight: 600;
     font-size: clamp(16px, 2.4cqh, 20px);
     color: #4a2e14;
@@ -312,7 +311,7 @@
   }
   .h-blurb {
     font-family: var(--body-font);
-    font-weight: 500;
+    font-weight: 600;
     font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
     color: var(--ink-soft);
     line-height: 1.35;
@@ -340,7 +339,7 @@
     border-radius: 14px;
     color: #4a2e14;
     font-family: var(--body-font);
-    font-weight: 500;
+    font-weight: 600;
     font-size: clamp(var(--fs-floor), 2cqh, 16px);
     line-height: 1.4;
   }

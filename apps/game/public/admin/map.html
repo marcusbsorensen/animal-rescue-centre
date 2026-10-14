@@ -36,7 +36,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     background: #2a2622;
     color: var(--cream-wash);
     overflow: hidden;
@@ -84,7 +84,7 @@
     box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.18);
     padding: 6px 18px;
     cursor: pointer; user-select: none;
-    font-family: 'Fredoka', sans-serif; font-weight: 500; font-size: var(--fs-floor);
+    font-family: var(--body-font); font-weight: 600; font-size: var(--fs-floor);
     color: var(--ink-soft);
   }
   .tab.active {
@@ -340,7 +340,7 @@
     border: 2px solid var(--honey-shadow);
     border-radius: 14px;
     padding: 3px 12px;
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700; font-size: var(--fs-floor);
     color: var(--ink);
     transform: translate(-50%, 0);
@@ -434,7 +434,7 @@
   #world-stage .dest-call {
     grid-area: call;
     justify-self: start;
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     color: var(--ink);
     background: #f3e7cf;
@@ -444,7 +444,7 @@
   }
   #world-stage .pin-place:hover .pin-disc { transform: scale(1.08); }
   #world-stage .pin-name {
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);
     color: var(--ink);
@@ -542,7 +542,7 @@
   }
   #world-stage .dest-title {
     grid-area: title;
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: clamp(var(--fs-floor), 4.6cqh, 21px);
     color: var(--ink);
@@ -562,7 +562,7 @@
     justify-content: flex-end;
   }
   #world-stage .dest-btn {
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);
     min-height: 44px;
@@ -584,7 +584,7 @@
   #world-stage .dest-locked {
     grid-area: action;
     margin-top: 10px;
-    font-family: 'Quicksand', system-ui, sans-serif;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);
     color: var(--trellis-brown);
@@ -648,7 +648,7 @@
     content: attr(data-future);
     position: absolute;
     bottom: 4px; right: 6px;
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-size: var(--fs-floor);
     color: rgba(58,58,58,0.55);
     background: rgba(255,249,239,0.7);
@@ -873,7 +873,7 @@
     bottom: 8%;
     writing-mode: sideways-lr;
     transform: translateX(-50%);
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);                     /* bumped from 11px for readability */
     color: var(--bay-line);
@@ -894,7 +894,7 @@
     bottom: 4%;
     writing-mode: sideways-lr;
     transform: translateX(-50%);
-    font-family: 'Kalam', cursive;
+    font-family: var(--body-font);
     font-weight: 700;
     font-size: var(--fs-floor);
     color: var(--bay-line);
@@ -984,7 +984,7 @@
     border: 1px solid rgba(123,92,58,0.4);
     border-radius: 10px;
     padding: 2px 8px;
-    font-family: 'Kalam', cursive; font-weight: 700; font-size: var(--fs-floor);
+    font-family: var(--body-font); font-weight: 700; font-size: var(--fs-floor);
     color: var(--ink);
     pointer-events: none;
     transform: translate(-50%, -50%);
@@ -1004,7 +1004,7 @@
     border: 2px solid var(--honey-shadow);
     border-radius: 18px;
     padding: 4px 16px;
-    font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 16px;
+    font-family: var(--headline-font); font-weight: 700; font-size: 16px;
     color: var(--ink);
     box-shadow: 2px 3px 0 rgba(0,0,0,0.15);
     z-index: 10;
@@ -1018,7 +1018,7 @@
     border-radius: 22px;
     padding: 6px 14px 6px 8px;
     cursor: pointer; user-select: none;
-    font-family: 'Kalam', cursive; font-weight: 700; font-size: var(--fs-floor);
+    font-family: var(--body-font); font-weight: 700; font-size: var(--fs-floor);
     color: var(--ink);
     box-shadow: 2px 3px 0 rgba(0,0,0,0.12);
     transform: rotate(-3deg);
@@ -1039,7 +1039,7 @@
     border: 2px solid var(--honey-shadow);
     border-radius: 18px;
     padding: 3px;
-    font-family: 'Quicksand', sans-serif;
+    font-family: var(--body-font);
     font-size: var(--fs-floor);
   }
   #arc-stage .season-strip button {
@@ -2399,7 +2399,7 @@
     if (_lastSeason) applySeasonToWorldSvg(_lastSeason);
   });
   window.addEventListener('resize', placePins);
-  // The pin names are set in Kalam, which may arrive after the pins are drawn and
+  // The pin names are set in the body face (Nunito), which may arrive after the pins are drawn and
   // changes how wide every name is: lay the text out again when it does.
   if (document.fonts) {
     document.fonts.addEventListener('loadingdone', () => {
