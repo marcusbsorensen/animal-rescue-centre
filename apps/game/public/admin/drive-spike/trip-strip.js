@@ -92,6 +92,8 @@ const SNAP_M = 20;                     // a real roundabout belongs to the graph
 const SAME_SPOT_M = 1.5;               // graph nodes this near the snapped one are the same spot (her graph splits the A28's junctions by side)
 const CORNER_GAP_M = 20;               // junction nodes closer along the route than this are one corner
 const SMALL_DISC = 0.75;               // a sight that is not next is drawn at this share of the disc (95A); the next sight's is 1.25 times the disc
+const RING_GLYPH = 0.8;                // the pictogram's share of a disc in a ring (0.66 elsewhere): the disc is small, and the pictogram still reads
+const RING_NEXT = 0.75;                // the next sight's disc while it stands in a roundabout ring (106A), so the ring and its arm keep the rail narrow
 const DOUBLE_GAP = 1;                  // px (at a line width of 3) between the two rings of a double mini-roundabout
 // A mark may sit a few px off its place on the rail (less than the length of its own arrow) to clear a sight's disc or another mark.
 const NUDGES = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5];
@@ -127,6 +129,7 @@ const CSS = `
 #trip .hMark { transform: scale(var(--small, .75)); }
 #trip .hMark.passed { opacity: .45; transform: scale(.7); }
 #trip .hMark.next { transform: scale(1.25); box-shadow: 0 0 0 2px #f4c04e, 0 1px 4px rgba(0,0,0,.5); }
+#trip .hMark.next.inRing { transform: scale(var(--ringnext, .75)); }
 /* A tag sets one word to a line and the distance on a line of its own below,
    so it is as wide as its longest word and no wider. */
 #trip .hTag { position: absolute; width: max-content; line-height: 1.12; padding: 3px 7px 4px; border-radius: 9px;
@@ -508,12 +511,12 @@ function clearOfDiscs(T, j, y) {
 }
 
 /** The radius of a ring round sight m's disc as it is drawn now (the next
- *  sight's is 1.25 times the disc with a gold ring, a passed one 0.7, any other
- *  SMALL_DISC; the white ring is part of the disc), to the middle of the ring's
- *  stroke and a third of a line width clear of the disc. */
+ *  sight's, in a ring, is RING_NEXT times the disc with a gold ring, 106A, a
+ *  passed one 0.7, any other SMALL_DISC; the white ring is part of the disc), to
+ *  the middle of the ring's stroke and a line width clear of the disc. */
 function ringAround(T, m, state = m === T.railNext ? 'next' : m.state) {
   const G = T.geo, u = G.lw / 3, D = G.disc / 2;
-  const seen = state === 'next' ? (D + 2) * 1.25 : state === 'passed' ? (D + 1.5) * 0.7 : (D + 1.5) * SMALL_DISC;
+  const seen = state === 'next' ? (D + 2) * RING_NEXT : state === 'passed' ? (D + 1.5) * 0.7 : (D + 1.5) * SMALL_DISC;
   return seen + 2 * u;
 }
 
@@ -554,6 +557,7 @@ export function drawRail(T, np) {
   kept.sort((a, b) => b.at - a.at);
   for (const j of J) j.shown = false;
   for (const j of kept) j.shown = true;
+  for (const m of T.marks) if (m.ring) m.el.classList.toggle('inRing', !!m.ring.shown);   // a disc in a drawn ring (106A)
   let line = `M${f(cx)} ${f(G.len)}`, ring = '', head = '';
   for (const j of kept) {
     line += `L${f(cx)} ${f(j.at + j.foot)}${j.shape.line(cx, j.at)}M${f(cx)} ${f(j.at - j.up)}`;
@@ -581,7 +585,7 @@ export function setRoute(T, r) {
   T.marksEl.replaceChildren(...T.marks.map(m => {
     // A pair shares one disc on the strip, as it shares one post.
     m.el = el('div', { class: 'hMark', title: [m, m.also].filter(Boolean).map(b => b.name).join(' and ') },
-      [el('img', { alt: '', src: glyphURL(m.kind) })]);
+      [el('img', { alt: '', src: glyphURL(m.kind, m.ring ? RING_GLYPH : undefined) })]);
     m.state = '';
     return m.el;
   }));
@@ -616,10 +620,10 @@ export function layout(T, g) {
   const S = sizes(g.w, g.h);
   // The rail is also as wide as the biggest ring round a sight's disc needs,
   // with its arm if that leaves to the left (the next sight's disc is the
-  // biggest it will be).
+  // biggest it will be, RING_NEXT of the disc while it stands in a ring).
   for (const j of T.junctions) {
     if (!j.sight) continue;
-    const next = markShape(j, S.lw, (S.disc / 2 + 2) * 1.25 + 2 * S.lw / 3);
+    const next = markShape(j, S.lw, (S.disc / 2 + 2) * RING_NEXT + 2 * S.lw / 3);
     S.w = Math.max(S.w, Math.ceil(2 * (next.left + 2)));
   }
   // Flush with the road view's edge, below the chips, and below the
@@ -668,6 +672,7 @@ export function layout(T, g) {
   T.geo.discNext = S.disc / 2 + 3.5;
   T.geo.discSmall = (S.disc / 2 + 1.5) * SMALL_DISC + 2;
   T.el.style.setProperty('--small', SMALL_DISC);
+  T.el.style.setProperty('--ringnext', RING_NEXT);
   for (const j of T.junctions) {
     j.shape = markShape(j, S.lw);
     j.up = j.shape.up; j.dn = j.shape.dn; j.foot = j.shape.foot;
@@ -721,7 +726,7 @@ export function update(T, u) {
     const passed = u.s >= m.s;
     if (!passed && !next) next = m;
     const state = passed ? 'passed' : m === next ? 'next' : '';
-    if (state !== m.state) { m.el.className = 'hMark ' + state; m.state = state; }
+    if (state !== m.state) { m.el.className = 'hMark ' + state + (m.ring?.shown ? ' inRing' : ''); m.state = state; }
   }
   let np = 0;
   while (np < T.junctions.length && u.s >= T.junctions[np].s) np++;
@@ -792,15 +797,18 @@ const GLYPH_COLOUR = {
 };
 
 const GLYPH_CACHE = new Map();
-/** A kind's pictogram on its disc, as an image URL, painted once at 64 px. */
-function glyphURL(kind) {
-  if (!GLYPH_CACHE.has(kind)) {
+/** A kind's pictogram on its disc, as an image URL, painted once at 64 px.
+ *  share is how much of the disc the pictogram's box takes: 0.66, and 0.8 for a
+ *  disc that is small in a roundabout's ring (106A), so it still reads. */
+export function glyphURL(kind, share = 0.66) {
+  const key = kind + share;
+  if (!GLYPH_CACHE.has(key)) {
     const N = 64, k = N / 24;
     const fg = document.createElement('canvas');
     fg.width = fg.height = N;
     const f = fg.getContext('2d');
     // The pictogram in a 24 box, shrunk into the disc's middle.
-    f.translate(N / 2, N / 2); f.scale(k * 0.66, k * 0.66); f.translate(-12, -12);
+    f.translate(N / 2, N / 2); f.scale(k * share, k * share); f.translate(-12, -12);
     f.fillStyle = f.strokeStyle = '#fff';
     f.lineJoin = 'round'; f.lineCap = 'round'; f.lineWidth = 2.4;
     paintGlyph(f, kind);
@@ -810,9 +818,9 @@ function glyphURL(kind) {
     g.fillStyle = GLYPH_COLOUR[kind] ?? '#55606e';
     g.beginPath(); g.arc(N / 2, N / 2, N / 2, 0, Math.PI * 2); g.fill();
     g.drawImage(fg, 0, 0);
-    GLYPH_CACHE.set(kind, c.toDataURL());
+    GLYPH_CACHE.set(key, c.toDataURL());
   }
-  return GLYPH_CACHE.get(kind);
+  return GLYPH_CACHE.get(key);
 }
 
 /** Each kind as one flat white shape in a 24 x 24 box, bold enough to read

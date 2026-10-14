@@ -398,19 +398,19 @@ Trikey's (172), as the 55% and 47% were (marks drawn over marks there are):
 | | Henry | Trikey |
 |---|---|---|
 | Before 95A and 96A (geometry detector, old discs) | 54.0% (460 of 852) | 48.8% (84 of 172) |
-| With the real roundabouts (96A, 100A), old discs | 63.8% (545 of 854) | 54.2% (104 of 192) |
-| And the smaller discs, 0.75 (95A) | 66.6% (569 of 854) | 58.3% (112 of 192) |
+| With the real roundabouts (96A, 100A, 106A), old discs | 64.2% (548 of 854) | 54.7% (105 of 192) |
+| And the smaller discs, 0.75 (95A) | 67.0% (572 of 854) | 58.9% (113 of 192) |
 
 Most of the rise is the real roundabouts, which are drawn on every route through
 them (84 and 18) where the geometry detector's were rarely seen. The turns alone,
-Henry: 454 of 824 (55.1%) before, 485 of 770 (63.0%) now; Trikey: 80 of 162
-(49.4%) before, 94 of 174 (54.0%) now. The discs were less of the cause than
+Henry: 454 of 824 (55.1%) before, 488 of 770 (63.4%) now; Trikey: 80 of 162
+(49.4%) before, 95 of 174 (54.6%) now. The discs were less of the cause than
 thought: a mark is 11 to 13 px tall with its arrow and gap, so it needs a clear
 band that tall beside each sight's disc, and a smaller disc only trims the
 disc's half of that. Taking a quarter off the discs wins three to four points
-(Henry 63.8% to 66.6%, Trikey 54.2% to 58.3%). What stays out is the 212 of
+(Henry 64.2% to 67.0%, Trikey 54.7% to 58.9%). What stays out is the 212 of
 Henry's 854 (25%) and 72 of Trikey's 192 (38%) with no clear band within 5 px of
-their place, and the 73 of Henry's and 8 of Trikey's that a nearer mark took.
+their place, and the 70 of Henry's and 7 of Trikey's that a nearer mark took.
 Drawing more would take a wider nudge for turns, which Marcus has left (101A).
 
 **Real roundabouts only (96A).** Marcus, 2026-10-14. The strip first found
@@ -482,10 +482,10 @@ near it keeps the 5 px nudge a turn has.
   the ring is at the clock). The roundabout then takes that sight's place on the
   rail, so the two are passed together. All 84 of Henry's drives and 18 of
   Trikey's through The Square have it.
-- The ring follows the disc as it is drawn: the next sight's large disc (1.25
-  times, gold ring) has a ring of radius 15.75 px at 390 x 844 (to the middle of
-  its line, 2 px thick, 1 px clear of the disc), a sight that is not next
-  9.9 px, a passed one 9.4. `markShape(j, lw, ringR)` draws it; the rail is drawn
+- The ring follows the disc as it is drawn, to the middle of its line (2 px
+  thick, 1 px clear of the disc), at 390 x 844: round the next sight's disc 10.25
+  px (the disc is small while it stands in a ring, 106A), round a sight that is
+  not next 9.9 px, round a passed one 9.4. `markShape(j, lw, ringR)` draws it; the rail is drawn
   again when the next sight changes. A double mini-roundabout with a sight has
   the big ring round the disc and its second ring, small, just below. A ring that
   would not fit on the rail (a sight within a ring's reach of either end), or
@@ -493,19 +493,28 @@ near it keeps the 5 px nudge a turn has.
 - Where no real sight is near the other two roundabouts, the rule was tried on
   a made-up church 21 m from the Park Road mini-roundabout and a made-up shop
   20 m from the double, on made-up routes through their nodes (`contact.jpg`).
-- *The cost is width.* The rail is as wide as the biggest ring (the next sight's)
-  and its arm need, so on a drive through a roundabout with a sight it is 38 to
-  42 px when the arm leaves to the right or ahead and 51 or 52 px when it leaves
-  sharply to the left (the arm of a 98 degree left exit reaches 24 px to the left
-  of the line), against 31 px with no ring. Of Henry's 84 drives through The
-  Square 17 are 51 or 52 px wide and 67 are 38 to 42; of Trikey's 18, 9 and 9. If
-  that is too wide, the way to narrow it is a smaller disc for the next sight
-  while it stands in a ring (estimated, not built: at the small disc's size the
-  rail stays 31 px for an arm to the right and about 41 px for a sharp left one).
+
+**The next sight's disc is small while it stands in a ring (106A).** Marcus,
+2026-10-14, after the width 100A cost. The next sight's large disc (1.25 times,
+gold ring) in a ring made the rail 38 to 42 px when the arm leaves to the right
+or ahead and 51 or 52 px for a sharp left exit (the arm of a 98 degree left exit
+reaches 24 px left of the line), against 31 px with no ring. So a sight that is
+the next one and stands in a ring that is drawn is drawn at 0.75 of the disc,
+the size of the sights that are not next, keeping its gold ring (`RING_NEXT`,
+the class `inRing`); the ring is round that. A next sight with no ring, or whose
+ring was left out for want of room, is large as before.
+- The pictogram of a disc in a ring is 0.8 of the disc where it was 0.66
+  (`RING_GLYPH`), so it reads at 13.5 px: all 29 kinds were drawn at 13.5 px at
+  three times the pixels and none touches the disc's edge.
+- The rail is 31 px for a right or straight-on exit and 41 px at most for a sharp
+  left one. Over every drive through The Square, Henry's 84: 31 px on 64, 34 px
+  on 3 (the 127 degree left exits), 41 px on 17 (the 98 degree left exits).
+  Trikey's 18: 31 px on 9 (exit 39 degrees right), 40 px on 9 (101 degrees
+  left). Before 106A they were 38 to 42 and 51 or 52 px.
 
 **The hidden turns stay hidden (101A).** Marcus, 2026-10-14: no change to the
-turn marks still hidden at the start of a drive (285 of Henry's 770 turns, 37%,
-and 80 of Trikey's 174, 46%, over every drive), and the 5 px nudge for a turn
+turn marks still hidden at the start of a drive (282 of Henry's 770 turns, 37%,
+and 79 of Trikey's 174, 45%, over every drive), and the 5 px nudge for a turn
 stays as it is.
 
 Screenshots of all of this, and the gold line and the lane chip, are in
