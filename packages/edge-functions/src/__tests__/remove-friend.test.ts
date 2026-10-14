@@ -4,7 +4,7 @@ import { loadFunction, useFakeSupabase, post, json, type Handler } from '../supp
 
 /**
  * remove-friend (146A): the session says whose friendship it is, and the
- * ending is one SQL function, `remove_friend` (00020), which
+ * ending is one SQL function, `remove_friend` (00021), which
  * remove-friend-db.test.ts runs against a real Postgres.
  */
 

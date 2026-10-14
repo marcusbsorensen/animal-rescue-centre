@@ -3,7 +3,7 @@ import type { PGliteInterface } from '@electric-sql/pglite';
 import { migratedDatabase, asRole, runMigration } from '../support/postgres';
 
 /**
- * `remove_friend` and the gift trigger (migrations/00020_remove_friend.sql)
+ * `remove_friend` and the gift trigger (migrations/00021_remove_friend.sql)
  * against a real Postgres with every migration applied (146A).
  *
  * Ada removes Bo. Bo is also friends with Cy, and nothing between Bo and
@@ -232,11 +232,11 @@ describe('a gift is between friends (the trigger)', () => {
   });
 });
 
-describe('00020 itself', () => {
+describe('00021 itself', () => {
   it('changes nothing when run a second time', async () => {
     await gift(ada, bo);
     const before = await everyRow();
-    await runMigration(db, '00020_remove_friend.sql');
+    await runMigration(db, '00021_remove_friend.sql');
     expect(await everyRow()).toEqual(before);
     const { rows } = await db.query(`select tgname from pg_trigger where tgrelid = 'gifts'::regclass and not tgisinternal`);
     expect(rows).toEqual([{ tgname: 'gifts_between_friends' }]);

@@ -9,7 +9,7 @@
  *     in the body is never read, so a player can only end their own
  *     friendships: one side of the pair is always the caller.
  *   - The ending itself is one SQL function, `remove_friend`
- *     (migrations/00020_remove_friend.sql): both rows of the friendship,
+ *     (migrations/00021_remove_friend.sql): both rows of the friendship,
  *     and the gifts between the two that nobody has claimed yet, in one
  *     transaction.
  *   - Asking again, or for someone who is not a friend, removes nothing
