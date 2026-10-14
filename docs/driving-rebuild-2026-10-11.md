@@ -884,10 +884,108 @@ hundreds more crowns on the screen than the fields had, and on this CPU
 that costs 8-14 ms of `draw()` and 15-35 ms of painting. The look-ahead
 window costs what it did: 2.6 and 1.5 ms median after, against 1.5 and
 2.0 ms before, on the lane to Woodland and the B-road (the earlier
-measurement was about 1.3 ms). It has not yet been measured on a phone.
-That is the first thing to do with it (Safari's timeline on an iPhone, the
-Deep Forest approach); if it drops frames, the over layer is the part to
-make cheaper (it is the only full-screen layer added).
+measurement was about 1.3 ms). That is the CPU's cost. The GPU's is next.
+
+**Draw cost on a GPU (Marcus's Mac, 2026-10-14).** The same five places, on
+real graphics hardware, so the canvas is painted by the GPU as it is on a
+phone. Headless Chrome 156 beta (Playwright 1.59.1, `channel: 'chrome'`, with
+`--ignore-gpu-blocklist --enable-gpu-rasterization`) on an Apple M4 Max; `chrome://gpu` reports Canvas, Compositing and Rasterization hardware
+accelerated, with Skia Graphite on Dawn/Metal, and WebGL's renderer string is
+`ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Max)`. Before is 1693146 (the
+branch's base), served by `python3 -m http.server` from a scratch worktree with
+the same `__drawMs` and `__go` hooks (and `__go`'s destination) added to its
+page; after is this branch on Vite. A fresh browser profile for each run (a
+cached page once gave the wrong route), one browser at a time under a 3 GB
+watchdog (peak 1.5 GB). Each place is 20 s of driving in second gear (13 m/s),
+the van left standing 3.5 s first so the tiles are painted, and only the
+frames while it moves (over 1 m/s) are counted, about a thousand. The
+guide line is on in both, so the after run also carries its new soft band.
+
+Four numbers, because a locked 60 Hz display hides the first. `rAF` is the
+gap between `requestAnimationFrame` callbacks: held at 16.7 ms it means 60 fps
+is kept, and it cannot say how much room there is. `draw()` is what the page
+spends issuing the frame; a GPU canvas only records there and paints later in
+its own process, so it is the JavaScript's cost and nothing of the painting. The
+GPU process's CPU time a frame (from `ps`, over the 20 s) is the painting's
+cost on the CPU side of the GPU. And the same with the main thread slowed 4x
+and 6x (Chrome's CPU throttle), which is what a phone's slower cores do to
+`draw()`. `window.__flushDraw` is not used here: on a GPU canvas its one-pixel
+read-back is a wait for the whole frame (it timed `draw()` at 19.5 ms before and
+30.8 ms after at Deep Forest), which is the stall, not the cost.
+
+390x844 (pixel ratio 2), vsync-locked:
+
+| place | rAF ms med / p95, before | after | draw() ms med / p95, before | after | frames over 20 ms of ~1000, before / after | GPU-process CPU ms a frame, before / after |
+|---|---|---|---|---|---|---|
+| Deep Forest approach | 16.7 / 16.7 | 16.7 / 16.8 | 0.4 / 0.6 | 0.5 / 0.7 | 3 / 2 | 2 / 2.4 |
+| Woodland approach | 16.7 / 16.7 | 16.7 / 16.7 | 0.5 / 0.6 | 0.5 / 0.6 | 2 / 3 | 2.2 / 2.2 |
+| B-road with hedgerow trees | 16.7 / 16.8 | 16.7 / 16.7 | 0.5 / 0.6 | 0.4 / 0.6 | 2 / 0 | 2.8 / 2.1 |
+| dual carriageway | 16.7 / 16.7 | 16.7 / 16.7 | 0.5 / 0.7 | 0.5 / 0.6 | 1 / 1 | 2.5 / 2.6 |
+| town | 16.7 / 16.7 | 16.7 / 16.8 | 0.5 / 0.7 | 0.6 / 0.7 | 2 / 2 | 2.1 / 2.5 |
+
+1280x800 (pixel ratio 2), vsync-locked:
+
+| place | rAF ms med / p95, before | after | draw() ms med / p95, before | after | frames over 20 ms of ~1000, before / after | GPU-process CPU ms a frame, before / after |
+|---|---|---|---|---|---|---|
+| Deep Forest approach | 16.7 / 16.8 | 16.7 / 16.7 | 0.6 / 0.8 | 1.2 / 1.4 | 0 / 0 | 2.7 / 3 |
+| Woodland approach | 16.7 / 16.7 | 16.7 / 16.8 | 0.7 / 0.9 | 1.2 / 1.4 | 0 / 0 | 3 / 3.3 |
+| B-road with hedgerow trees | 16.7 / 16.7 | 16.7 / 16.8 | 0.8 / 1 | 1.2 / 1.3 | 0 / 0 | 4.5 / 3.4 |
+| dual carriageway | 16.7 / 16.7 | 16.7 / 16.8 | 0.9 / 1 | 1.2 / 1.4 | 0 / 1 | 3.3 / 3.7 |
+| town | 16.7 / 16.7 | 16.7 / 16.8 | 0.9 / 1.1 | 1.1 / 1.3 | 0 / 1 | 3 / 2.9 |
+
+390x844 with the main thread slowed 4x (Chrome's own CPU throttle, about a mid-range phone), `draw()` ms, median / p95 / p99:
+
+| place | before | after | tile painting in a frame, after, p95 / max |
+|---|---|---|---|
+| Deep Forest approach | 2.1 / 2.7 / 4.1 | 2.5 / 4.3 / 7 | 0.8 / 7.9 |
+| Woodland approach | 2.2 / 2.9 / 4.9 | 2.4 / 3.4 / 6.6 | 0.5 / 6.2 |
+| B-road with hedgerow trees | 2.4 / 3 / 3.4 | 2.6 / 3.4 / 6.9 | 0.6 / 5.9 |
+| dual carriageway | 2.4 / 3.2 / 4.9 | 2.3 / 3.2 / 6 | 0.5 / 4 |
+| town | 2.6 / 3.3 / 4.6 | 2.7 / 3.4 / 5.7 | 0.3 / 3.5 |
+
+At 6x slower and in third gear (20 m/s), the three tree places, 15 s each:
+`draw()` median / p95 after 3.8 / 7.7, 4.2 / 7.4 and 4.2 / 6.8 ms, before 3 / 4.1,
+3.5 / 4.9 and 3.5 / 4.7 ms; the worst tile painted in a frame 6-9 ms; frames
+over 20 ms 8, 9 and 8 after against 8, 11 and 8 before; the rAF median and p95
+still 16.7 and 16.8 ms.
+
+The canopy's own share, by laying it k times a frame (`scenery.js` patched in
+the browser only, nothing on disk) at the Deep Forest approach, 390x844:
+`drawCanopy` costs 0.08 ms of `draw()` a pass, 0.15 ms of the GPU process's
+CPU time, and the Apple GPU's utilisation counter rose from 24% to 55% over 59
+extra passes, about 0.5% (0.09 ms of GPU time at 60 fps) each. 60 fps held (59,
+with three frames over 20 ms) at 120 passes a frame. Laying the low layer's
+tiles 60 times a frame moved `draw()` from 0.5 to 0.7 ms and the GPU process
+by 0.25 ms: they are a few textured quads and cost nothing worth the name.
+
+*What it says.* No place leaves 60 fps, before or after, at either size; the
+few frames over 20 ms (0-3 in a thousand) are in both builds, so they are not
+the canopy's. With the frame limiter off (`--disable-frame-rate-limit
+--disable-gpu-vsync`, 12 s a place), the rAF gap is the page's whole JavaScript
+cost of a frame: at 390x844 the median is 0.6-1.1 ms after against 0.6-1.7 ms
+before, and the p95 2.3-2.8 ms after against 2.3-3.3 ms before. On `draw()` the
+canopy adds 0-0.1 ms at 390x844 and 0.2-0.6 ms at 1280x800 (more crowns across a
+wider screen), and with the main thread 4x slower its p99 is 1-3.5 ms higher,
+7 ms at the worst place. The cost that made the cloud figures large, the CPU
+resampling every tile, does not exist on a GPU. So the thresholds for cutting
+the canopy (after-median over about 12 ms, or p95 over 16.7 ms, at 390x844) are
+not reached by any place, and **nothing was cut**: `scenery.js` is as it was.
+
+One cost is new and real: the first time a place is drawn, every tile under the
+screen is painted in one frame (the ring beyond it is painted in 3 ms a frame
+while driving). The first 40 frames after `__go` to a place show it as a
+single frame: worst `draw()` 12-16 ms after against 7-12 ms before at x1, and
+36-74 ms after against 28-48 ms before at 4x slower (Deep Forest 74 ms). It
+happens once, when a drive starts somewhere new.
+
+*Not a phone.* An M4 Max's GPU is many times a phone's, so these are bounds, not
+proof. What they bound is the canopy's share: a pass is about 0.1 ms of GPU
+time here and 0.08 ms of `draw()`, so a phone five to ten times slower pays 1-2
+ms of a 16.7 ms frame for it. Still to do: Safari's timeline on an iPhone at the
+Deep Forest approach. If it drops frames the levers, in order, are: batch the
+fade's strokes (nine per hole, today one `stroke()` each; holes of one width
+can share a path), lay the over layer at half the CSS resolution, and paint a
+new place's first tiles across a few frames instead of one.
 
 **What did not come out well.**
 - The game's woods are laid along the roads in straight-sided pieces, so
@@ -897,7 +995,7 @@ make cheaper (it is the only full-screen layer added).
   `nature.json`), not at the game's own: Deep Forest has no deer of its own.
 - A fingerpost's fade is worked out from its boards' size in the page; it is
   near enough, not exact.
-- The cost above is the CPU's. Not measured on a phone.
+- Measured on a GPU Mac and on the cloud CPU, not yet on a phone.
 
 Screenshots: `docs/img/tree-canopy/contact.jpg`. For a test the page has
 `window.__go(from, to, s)` (a drive between two places, set down s metres
