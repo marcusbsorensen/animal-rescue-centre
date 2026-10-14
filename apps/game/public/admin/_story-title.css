@@ -38,6 +38,14 @@
  * 667x375, which is trimmed to fit). The two screens whose title
  * heads a row, beside a portrait or the Back button (paths, adopters), set it
  * at the left of that row instead of the middle of the board.
+ *
+ * THE SIGN SCREENS (130A): welcome-new, login, signup, menu, friends,
+ * forgot-PIN and news link this sheet too, after `_signpost-physics.css`, and
+ * their `.sign-title` takes the same style. Each had its own copy of the old
+ * sign title (a green gradient clipped to the letters, a 2px dark stroke and a
+ * drop shadow, 20px on a phone); those are gone. The clip is reset below
+ * because a page's own block once set it: with `background-clip: text` still
+ * on, the plank would be cut down to the letters.
  */
 .conflict-title,
 .arrival-title,
@@ -47,7 +55,8 @@
 .paths-title,
 .adopters-title,
 .adopt-title,
-.banner-title {
+.banner-title,
+.sign-title {
   font-family: var(--sign-title-font);
   font-weight: 700;
   font-size: clamp(26px, min(7.2cqh, 8cqw), 36px);
@@ -67,6 +76,8 @@
   padding: 0.1em 0.5em 0.1em;
   border-radius: 10px;
   background: linear-gradient(180deg, #7a4e26 0%, #66401e 100%);
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
   box-shadow:
     inset 0 1px 0 rgba(255, 226, 170, 0.28),
     inset 0 -2px 0 rgba(0, 0, 0, 0.22),
@@ -76,7 +87,12 @@
 /* a title that heads a row, by a portrait or a button: at the row's left, not centred */
 .paths-title,
 .adopters-title,
-.banner-title {
+.banner-title,
+.player-greeting .sign-title {
   margin-inline: 0;
   text-align: left;
 }
+/* A sign title beside the crest in a title row is one of two flex items, and an
+   auto margin there would take the row's free space and push the crest to the
+   board's edge. The row centres the pair. */
+.sign-title-row > .sign-title { margin-inline: 0; }

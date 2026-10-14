@@ -148,29 +148,12 @@
     filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
   }
 
-  /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
+  /* The sign's title: white on a darker plank of the board's own wood, in the
+     display face. Its style is shared with every story board and lives in
+     _story-title.css (linked after this block); here only its place. */
   .sign-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    font-size: clamp(20px, 3.8cqh, 34px);
-    line-height: 1.05;
-    text-align: center;
-    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
-    margin-bottom: clamp(6px, 1.2cqh, 12px);
     position: relative;
-    /* Logo-matched green gradient: bright leaf → rich grass → deep pine */
-    background: linear-gradient(180deg,
-      #8cc63f 0%,
-      #5faa3a 28%,
-      #3d8c31 62%,
-      #2a6e26 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(8, 38, 11, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(8,38,11,0.55));
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
   }
 
   /* ── No more logo-bunny; bunny now sits at the base of the wooden stake ── */
@@ -612,8 +595,6 @@
     margin: 0 auto !important;
     width: auto !important;
   }
-  /* Hide the stylised parrot perch when the button is demoted. */
-  .btn-primary-wrap:has(.name-input-sign.demoted) .play-parrot { display: none; }
 
   /* ── Back sticker — bright yellow circle in the top-left of the
         sign, painted as a hand-stuck sticker. SVG inside is a curved
@@ -1233,12 +1214,12 @@
        tuft + animals get cut off below the viewport, leaving the dog
        floating mid-air with nothing under it. Hide all foreground
        decorations on iPhone for login (same as signup). They come
-       back on the welcome screen where the layout has room. */
+       back on the welcome screen where the layout has room.
+       (130A: the grass, the rabbit and the bee are back. With the two
+       small signs on one row there is room for them, and without the
+       grass the two posts ended in mid-air.) */
     .foreground-dog,
-    .foreground-fox,
-    .grass-clump,
-    .ground-bunny,
-    .bee-flyer {
+    .foreground-fox {
       display: none !important;
     }
     /* Three planks below the sign on iPhone (Type-Your-Name + Forgot
@@ -1257,7 +1238,6 @@
     }
     /* Welcome-back sign: tighten the title + subtitle so the chips
        start higher and the planks have room below. */
-    #stage-select .sign-title { font-size: clamp(22px, 3.6cqh, 28px); }
     #stage-select .sign-subtitle {
       font-size: clamp(var(--fs-floor), 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
@@ -1364,6 +1344,79 @@
     }
   }
 
+  /* A phone held sideways (130A): the line under the title goes beside it, so
+     the four pictures, the "Not here?" sign and the two signs on the posts fit
+     under a cat and a parrot of a size to be seen. The title stays first, at
+     the left after the back sticker; the line wraps beside it. */
+  @container welcome (max-height: 520px) {
+    #stage-select:not(.hidden) {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-areas: "title sub" "chips chips";
+      align-items: center;
+      column-gap: clamp(10px, 2cqw, 16px);
+      width: min(98%, 600px);
+    }
+    #stage-select > .sign-title-row {
+      grid-area: title;
+      justify-content: flex-start;
+      padding-left: clamp(36px, 6cqw, 52px);
+      margin: 0;
+    }
+    #stage-select > .sign-title-row > .sign-title { margin-bottom: 0; }
+    #stage-select > .sign-subtitle {
+      grid-area: sub;
+      text-align: left;
+      margin: 0;
+      line-height: 1.2;
+    }
+    #stage-select > .chips { grid-area: chips; margin-top: clamp(4px, 1.2cqh, 8px); }
+    /* A name and when it was last used on one line, so two rows of pictures
+       are the list's height and four names show whole, not one row and the
+       tops of the next. */
+    #stage-select .chip-text { flex-direction: row; align-items: baseline; gap: 8px; }
+    #stage-select .chip { padding-block: 3px; }
+    #stage-select .chip-avatar { width: 32px; height: 32px; font-size: 20px; }
+    /* At most four names are kept, two rows, and two rows now fit whole. */
+    #stage-select > .chips { max-height: none; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+    /* This sign carries the most (four names, a third sign under the board), so
+       the band over it is a little lower here, and so are its cat and parrot
+       (75 and 57px at 780x360, against 44 and 39 before 130A), and the strip
+       of ground and its rabbit. */
+    .welcome-inner:has(#stage-select:not(.hidden)) { --band: clamp(46px, 13cqh, 60px); }
+    .welcome-inner:has(#stage-select:not(.hidden)) .signs-on-stake { --rabbit-h: clamp(36px, 10cqh, 44px); }
+  }
+  /* A portrait phone: four names one under another, the "Not here?" sign and
+     the two signs on the posts leave the rabbit a slightly lower strip. */
+  @container welcome (max-width: 420px) {
+    .welcome-inner:has(#stage-select:not(.hidden)) .signs-on-stake { --rabbit-h: 48px; }
+  }
+  @container welcome (max-height: 520px) {
+    /* Typing a name: the box and NEXT → share a row. The note that a name was
+       not found shows in the place of the line it answers ("Type your secret
+       name"), on its own red, while it is there. */
+    #stage-type:not(.hidden) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "title title" "sub sub" "field next";
+      align-items: center;
+      column-gap: clamp(8px, 1.6cqw, 12px);
+    }
+    #stage-type > .sign-title-row { grid-area: title; }
+    #stage-type > .sign-subtitle,
+    #stage-type > .login-error-msg { grid-area: sub; }
+    #stage-type > .login-error-msg { margin: 0 auto; z-index: 1; }
+    #stage-type > .name-field-wrap { grid-area: field; }
+    #stage-type > .type-actions { grid-area: next; margin-top: 0; }
+    /* The secret number: the "not quite the right number" note goes under the
+       dots, in the column beside the keypad, instead of a row of its own
+       under both (27px, kept even while it is not showing). */
+    #stage-pin:not(.hidden) { grid-template-areas: "title pad" "sub pad" "dots pad" "err pad"; }
+    #stage-pin > .login-error-msg { grid-area: err; align-self: start; }
+    .welcome-inner:has(#stage-pin:not(.hidden)) { --band: clamp(46px, 13cqh, 60px); }
+    .welcome-inner:has(#stage-pin:not(.hidden)) .signs-on-stake { --rabbit-h: clamp(36px, 10cqh, 44px); }
+  }
+
 
   /* Embed mode stretches .device to the real viewport, so data-size no longer
      describes the space available and the desktop/ipad-l rule above never
@@ -1398,6 +1451,7 @@
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
 <link rel="stylesheet" href="/admin/_signpost-physics.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
@@ -1434,7 +1488,9 @@
                     <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
                   </svg>
                 </button>
-                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt=""><div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
+                <div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
                 <div class="sign-title-row">
                   <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
                   <div class="sign-title">Welcome back!</div>
@@ -1457,7 +1513,9 @@
                     <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
                   </svg>
                 </button>
-                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt=""><div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
+                <div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
                 <div class="sign-title-row">
                   <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
                   <div class="sign-title">Welcome back!</div>
@@ -1482,7 +1540,9 @@
                     <path d="M4 11 H14 a6 6 0 0 1 6 6 v0 a6 6 0 0 1 -6 6 H8"/>
                   </svg>
                 </button>
-                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt=""><div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
+                <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
+                <div class="zzz-stack" aria-hidden="true"><span class="zz zz1">Z</span><span class="zz zz2">Z</span><span class="zz zz3">Z</span></div>
                 <div class="sign-title-row">
                   <img class="sign-logo" src="/assets/logo/arc-logo-icon.png" alt="A.R.C.">
                   <div class="sign-title">Hi, Lily!</div>
@@ -1521,7 +1581,6 @@
                     <span class="play-label name-prompt" id="name-prompt-label">TYPE YOUR NAME</span>
                     <span class="paw paw-right">✏️</span>
                   </button>
-                  <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 </div>
                 <div class="secondary-row">
                   <!-- "Back to welcome" removed: this IS the welcome-back screen,

@@ -82,8 +82,11 @@
     2px 3px 5px rgba(0,0,0,0.35);
   z-index: 0;
 }
-.signs-on-stake::before { left: 22%; right: auto; }
-.signs-on-stake::after  { left: auto; right: 22%; }
+/* `--post-in` is how far in from the stake's edges the posts stand; the sign
+   row (section 9) reads it to keep every sign across a post. */
+.signs-on-stake { --post-k: 0.22; --post-in: calc(var(--post-k) * 100%); }
+.signs-on-stake::before { left: var(--post-in); right: auto; }
+.signs-on-stake::after  { left: auto; right: var(--post-in); }
 
 /* The posts have to land in the grass, because the grass is the only
  * ground these screens draw — outside the tuft there is nothing but the
@@ -95,8 +98,7 @@
  * do not share a `container-name`, and naming it excludes most of them.
  */
 @container (max-height: 520px) {
-  .signs-on-stake::before { left: 32%; }
-  .signs-on-stake::after  { right: 32%; }
+  .signs-on-stake { --post-k: 0.32; }
 }
 
 /* ── 4. The logo hangs on nothing ───────────────────────────────────
@@ -227,8 +229,9 @@
  * translate are of the element's own box, which is the point.
  *
  * Nothing below depends on the viewport: the cat is anchored to the
- * board's top edge, the bird to the plank's, the rabbit to the stake's
- * foot, so they hold wherever the layout puts those.
+ * board's top edge, the bird to the plank's (to the board's, beside the cat,
+ * on the seven screens of section 9), the rabbit to the stake's foot, so they
+ * hold wherever the layout puts those.
  */
 :root {
   --animal-ink-w: 1px;
@@ -362,6 +365,14 @@
   92%  { transform: translate(-4px, -14px) rotate(6deg); }
   100% { transform: translate(0,    -12px) rotate(-4deg); }
 }
+@keyframes beeBuzzGrass {
+  0%   { transform: translate(0,     -8px) rotate(-4deg); }
+  20%  { transform: translate(6px,    2px) rotate(12deg); }
+  40%  { transform: translate(16px, -10px) rotate(4deg); }
+  60%  { transform: translate(26px,   2px) rotate(-14deg); }
+  80%  { transform: translate(12px, -12px) rotate(-6deg); }
+  100% { transform: translate(0,     -8px) rotate(-4deg); }
+}
 /* The strip is the rabbit's height and a few px: a hop is a hop of that size. */
 @keyframes bunnyHopTuft {
   0%, 55%, 100% { transform: translateY(calc((1 - var(--edge-y)) * 100%)) rotate(-4deg); }
@@ -373,17 +384,22 @@
 
 /* Tablets held sideways: the same problem as the phone, a little less of it.
    The stake's foot is 44-70px here (see the tablet branch of
-   _short-landscape.css), the rabbit is 54-105px, and the "I already have an
-   account" pill, the START PLAYING! plank or the Invite pill is directly above
-   it, so the rabbit came out from behind it by its ears. Beside the stake
-   rather than under it: there is 170-270px of lawn on either side. */
+   _short-landscape.css), and a rabbit of 54-105px came out from behind the
+   signs over it by its ears. It was put beside the stake on the lawn, where the
+   credits are, and its paws were in "Designed by Lily age 8". Since 130A it is
+   in the tuft as on a phone, the height of the strip of ground under the signs. */
 @container (orientation: landscape) and (min-height: 521px) and (max-height: 900px) {
+  .signs-on-stake { --rabbit-h: clamp(48px, 7cqh, 64px); }
+  .signs-on-stake:has(> .ground-bunny),
+  body.stage-pin-active .signs-on-stake:has(> .ground-bunny) {
+    padding-bottom: calc(var(--rabbit-h) + 3px);
+  }
   .ground-bunny {
-    left: auto;
-    right: calc(100% + clamp(6px, 1.5cqw, 20px));
-    /* Above the credits in the corner, as on the phone. */
-    bottom: clamp(20px, 3.2cqh, 32px);
-    height: clamp(54px, 9cqh, 84px);
+    left: calc(50% - clamp(42px, 7cqw, 66px));
+    right: auto;
+    bottom: 1px;
+    height: var(--rabbit-h);
+    animation-name: bunnyHopTuft;
   }
 }
 
@@ -585,6 +601,314 @@
  * higher and the words under the title sit closer (section 8, the container
  * query at the end).
  */
+
+/* ── 9. One signpost: the board, two posts, small signs, three animals ─
+ * (welcome-new, login, signup, menu, friends, forgot-PIN, news)
+ *
+ * Marcus, 2026-10-14 (130A): Next and "I already have an account" on one row,
+ * as two small signs on the two posts, and the room that frees given to the
+ * animals, which were 26-32px of cat, parrot and rabbit on a phone held
+ * sideways.
+ *
+ * THE ROW. Where the primary sign has one sign beside it (signup's NEXT! and
+ * "I already have an account"), the two share a row: two columns either side
+ * of the board's centre line, each sign hugging the line, so the left sign is
+ * across the left post and the right sign across the right post at every width
+ * (the geometry check in e2e/sign-geometry.spec.ts holds each post inside its
+ * sign). The primary is a small sign there, as tall as a touch target rather
+ * than a 56px plank the width of the board.
+ *
+ * THE PARROT stands on the board's top edge with its claws over the wood, at
+ * the other end from the cat. On the plank under the board it stood in front
+ * of the board's lower edge, over whatever the board held there (the "s" of
+ * "Find forever homes", the hedgehog in the picker, the corner of the friends
+ * list), and a bigger bird would have covered more; above the board there is
+ * nothing to cover. Each board carries its own parrot in the markup, as it
+ * carries its own cat, so the bird leans with the board's tilt and goes where
+ * the board goes. The macaw's painting faces left; it is turned to face along
+ * the board.
+ *
+ * THE BAND above the board holds the cat and the parrot, and the STRIP of
+ * ground under the posts holds the rabbit. On a phone, either way up, the band
+ * is set (`--band`): the sound button comes out of the flow and keeps its
+ * place, the board starts `--band` down, and the cat and the parrot are sized
+ * from it. _short-landscape.css used to lift the stack 20-27px into that corner
+ * to pay for the rabbit's strip; the row pays for the strip now. The boards
+ * that carry the most (login's four names and its number pad, signup's clue)
+ * lower the band a little on a phone held sideways, in their own pages.
+ */
+.signs-on-stake {
+  --cat-h: clamp(92px, 13cqh, 132px);
+  --parrot-h: clamp(84px, 12cqh, 118px);
+}
+@container (max-height: 520px) {
+  /* The band is set rather than left to the top strip: the sound button comes
+     out of the flow (it keeps its place at the top right), and the board starts
+     `--band` down. The cat's painting is 59% animal from its back to its belly,
+     the macaw's 78% from its crown to its claws, so these are the largest that
+     stand in the band without leaving the top of the screen. */
+  .welcome-inner:has(.signs-on-stake) {
+    --band: clamp(54px, 16cqh, 72px);
+  }
+  .signs-on-stake {
+    --cat-h: calc(var(--band) * 1.5);
+    --parrot-h: calc(var(--band) * 1.22);
+    --rabbit-h: clamp(40px, 12cqh, 52px);
+  }
+  .welcome-inner:has(.signs-on-stake) > .top-strip {
+    position: absolute;
+    /* Out of its grid area too: an absolutely placed item with a grid area is
+       placed inside that area, 18px below where the area starts. */
+    grid-area: auto;
+    top: 18px; left: 0; right: 0;
+    z-index: 20;
+    pointer-events: none;
+  }
+  .welcome-inner:has(.signs-on-stake) > .top-strip > * { pointer-events: auto; }
+  /* The column is the screen's width, so the stake is its own width (94%, at
+     most 600px) on every sign screen rather than as wide as its widest sign. */
+  .welcome-content > .text-block { width: 100%; }
+  .welcome-inner:has(.signs-on-stake) > .welcome-content,
+  body.stage-pin-active .welcome-inner:has(.signs-on-stake) > .welcome-content {
+    padding-top: calc(var(--band) - 18px);
+  }
+}
+.signs-on-stake .intro > .intro-cat { height: var(--cat-h); }
+/* The same height of animal from paintings that fill their canvases
+   differently: the Siamese is 75% cat from ears to belly against the ginger's
+   59%, the cockatiel 85% bird from crest to claws against the macaw's 78%. */
+.signs-on-stake .intro > .intro-cat[src*="siamese"] { height: calc(var(--cat-h) * 0.78); }
+.signs-on-stake .intro > .play-parrot[src*="cockatiel"] { --parrot-scale: 0.9; }
+.signs-on-stake .intro > .play-parrot[src*="parrot-grey"] { --parrot-scale: 1.05; }
+.signs-on-stake .intro > .play-parrot {
+  position: absolute;
+  top: auto !important;
+  right: auto;
+  bottom: 100%;
+  left: var(--parrot-x, clamp(14px, 4cqw, 34px));
+  height: calc(var(--parrot-h) * var(--parrot-scale, 1));
+  width: auto;
+  z-index: 3;
+  pointer-events: none;
+  animation-name: parrotOnBoard;
+}
+.signs-on-stake .intro > .play-parrot[src*="parrot-macaw"] { --face: -1; }
+/* Its claws come over the front of the wood by 5-8px; the title starts that
+   much lower on a board with a parrot, so they are over wood and not words. */
+.intro:has(> .play-parrot) > :is(.sign-title-row, .sign-title):not(.sign-logo + *) { margin-top: 6px; }
+/* Clear of the back button that sits on the board's top-left corner. */
+.intro:has(> .back-sticker) { --parrot-x: clamp(44px, 7cqh, 62px); }
+.intro:has(> .back-tab, > .back-pill) { --parrot-x: clamp(100px, 14cqw, 124px); }
+@keyframes parrotOnBoard {
+  0%, 100% { transform: translateY(calc((1 - var(--edge-y)) * 100%)) scaleX(var(--face, 1)) rotate(-5deg); }
+  50%      { transform: translateY(calc((1 - var(--edge-y)) * 100%)) scaleX(var(--face, 1)) rotate(2deg); }
+}
+
+/* The row of two. */
+.cta-stack:has(> .btn-primary-wrap:not(.hidden)):has(> .secondary-row:not(.hidden) > :only-child) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: clamp(10px, 2cqw, 16px);
+  align-items: stretch;
+}
+.cta-stack:has(> .secondary-row:not(.hidden) > :only-child) > .btn-primary-wrap {
+  justify-self: end;
+  width: auto;
+  max-width: 100%;
+}
+/* Each of a row of two reaches from the centre line past its post by a hand's
+   breadth: (1 - 2k) of its half of the row, k the posts' inset. "Log out" alone
+   stopped 5px short of the right post's outer edge. */
+.cta-stack:has(> .secondary-row:not(.hidden) > :only-child) > .btn-primary-wrap,
+.cta-stack:has(> .btn-primary-wrap:not(.hidden)) > .secondary-row:has(> :only-child),
+.cta-stack > .secondary-row:has(> :nth-child(2):last-child) > .link-btn {
+  min-width: calc(100% * (1 - 2 * var(--post-k)) + 16px);
+}
+.cta-stack:has(> .btn-primary-wrap:not(.hidden)) > .secondary-row:has(> :only-child) > .link-btn { flex: 1 1 auto; }
+.cta-stack:has(> .btn-primary-wrap:not(.hidden)) > .secondary-row:has(> :only-child) {
+  justify-self: start;
+  display: flex;
+  position: relative;
+  bottom: auto;
+  max-width: 100%;
+}
+.cta-stack:has(> .secondary-row:not(.hidden) > :only-child) .btn-primary {
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+  padding: 2px clamp(16px, 2.6cqw, 24px);
+  font-size: clamp(20px, 5.4cqh, 26px);
+  gap: clamp(6px, 1cqw, 10px);
+}
+.cta-stack:has(> .secondary-row:not(.hidden) > :only-child) .btn-primary .paw {
+  font-size: clamp(18px, 5cqh, 26px);
+}
+.cta-stack:has(> .btn-primary-wrap:not(.hidden)) > .secondary-row > .link-btn:only-child {
+  min-height: 48px;
+  white-space: normal;
+  text-wrap: balance;
+  line-height: 1.15;
+}
+
+/* Two small signs under the primary (login's "Forgot your secret code?" and
+   "New? Make an account", menu's Friends and Log out) are the same row of two,
+   one on each post, at every size: on a portrait phone they were stacked down
+   the middle, a row each. Where a sign's words are wider than its half of the
+   row they take two lines. */
+.cta-stack > .secondary-row:has(> :nth-child(2):last-child) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: clamp(10px, 2cqw, 16px);
+  align-items: stretch;
+  width: 100%;
+}
+.cta-stack > .secondary-row:has(> :nth-child(2):last-child) > :first-child { justify-self: end; }
+.cta-stack > .secondary-row:has(> :nth-child(2):last-child) > :last-child { justify-self: start; }
+.cta-stack > .secondary-row:has(> :nth-child(2):last-child) > .link-btn {
+  max-width: 100%;
+  min-height: 48px;
+  white-space: normal;
+  text-wrap: balance;
+  line-height: 1.15;
+}
+
+/* A portrait phone. The primary sign's words on one line (START PLAYING! and
+   BACK TO GAME took two, at 34px between 52px paws: a 140px plank), and the
+   credits in two centred lines at the foot (in one row they were 9px wider than
+   a 390px screen, which cut both ends off). */
+@container (max-width: 420px) {
+  /* The band, as on a phone held sideways: the cat and the parrot stand in it,
+     the cat far enough from the right that it is not under the sound button. */
+  .welcome-inner:has(.signs-on-stake) { --band: clamp(80px, 10cqh, 96px); }
+  /* The rabbit in its strip of ground, as on a phone held sideways: login and
+     signup, which carry the most, hid the grass and the rabbit here, and their
+     posts ended in mid-air. */
+  .signs-on-stake { --rabbit-h: clamp(52px, 7cqh, 60px); }
+  /* The screens with room for it keep the bigger rabbit they had. */
+  .signs-on-stake:not(:has(> .intro[class*="stage-"])) { --rabbit-h: clamp(60px, 9.5cqh, 84px); }
+  .signs-on-stake:has(> .ground-bunny),
+  body.stage-pin-active .signs-on-stake:has(> .ground-bunny) {
+    padding-bottom: calc(var(--rabbit-h) + 3px);
+  }
+  .ground-bunny {
+    left: calc(50% - clamp(40px, 12cqw, 56px));
+    bottom: 1px;
+    height: var(--rabbit-h);
+    animation-name: bunnyHopTuft;
+  }
+  .welcome-inner:has(.signs-on-stake) > .top-strip {
+    position: absolute;
+    grid-area: auto;
+    top: 18px; left: 0; right: 0;
+    z-index: 20;
+    pointer-events: none;
+  }
+  .welcome-inner:has(.signs-on-stake) > .top-strip > * { pointer-events: auto; }
+  .welcome-inner:has(.signs-on-stake) > .welcome-content,
+  body.stage-pin-active .welcome-inner:has(.signs-on-stake) > .welcome-content {
+    padding-top: calc(var(--band) - 18px);
+    /* The two lines of credits at the foot, under the ground and not on it. */
+    padding-bottom: 52px;
+  }
+  .signs-on-stake .intro > .intro-cat { right: 36px !important; }
+  /* The signs run the screen's width here, so the bee keeps low, in the grass
+     at the foot of the left post, instead of crossing the left sign. */
+  .signs-on-stake > .bee-flyer {
+    width: 28px;
+    bottom: 2px;
+    animation-name: beeBuzzGrass;
+  }
+  /* welcome-new's picture of the centre was 236px of an 844px screen. */
+  .signs-on-stake .intro:has(.arc-snapshot-wrap) .arc-snapshot { max-height: clamp(130px, 19cqh, 180px); }
+  /* On the board's corner, not 3px off the screen's edge. */
+  .intro > .back-sticker { left: -4px; }
+  /* NEXT! in its half of the row. */
+  .cta-stack:has(> .secondary-row:not(.hidden) > :only-child) .btn-primary {
+    font-size: 22px;
+    padding-inline: 10px;
+    gap: 4px;
+  }
+  .cta-stack:has(> .secondary-row:not(.hidden) > :only-child) .btn-primary .paw { font-size: 20px; }
+  .signs-on-stake .btn-primary {
+    font-size: clamp(22px, 6.4cqw, 28px);
+    padding: clamp(8px, 1.4cqh, 12px) clamp(14px, 4cqw, 20px);
+  }
+  .signs-on-stake .btn-primary .paw { font-size: clamp(24px, 8cqw, 34px); }
+  .welcome-inner:has(.signs-on-stake) > .credits {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: clamp(2px, 0.5cqh, 6px);
+    height: auto;
+    padding: 0 8px;
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: center;
+    column-gap: 12px;
+    z-index: 8;
+  }
+  .welcome-inner:has(.signs-on-stake) > .credits > .credit-scrawl {
+    position: static;
+    white-space: nowrap;
+    transform: none;
+  }
+}
+
+/* A narrower phone held sideways (667px): the crest beside a title gives its
+   room to the title. With it, signup's "Pick a secret name" ran under "Show
+   another", the clue's title took two lines, and login's line beside its title
+   took three. */
+@container (max-height: 520px) and (max-width: 720px) {
+  .intro > .sign-title-row > .sign-logo { display: none; }
+}
+
+/* The lines under a title, in the body face at full strength: cream at 700
+   with the sign's dark shadow, as on the story boards. Login's was at 400 and
+   95%, and menu's "Welcome back," at 90%. */
+.signs-on-stake .intro .sign-subtitle,
+.signs-on-stake .intro .player-hello {
+  font-weight: 700;
+  opacity: 1;
+  text-shadow: 1px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* The board in front of the tuft. Where nothing hangs under it (forgot-PIN on a
+   tablet) the grass reached up over its last button. */
+.signs-on-stake > .intro { z-index: 7; }
+
+/* Clear of the sound button. The board starts `--band` down, above the bottom
+   of the button, so it is kept out of the button's column on both sides (it is
+   centred): 72px each side is the button, its margin and a gap. */
+@container (max-height: 520px) {
+  .signs-on-stake > .intro { max-width: min(98%, 600px, calc(100cqw - 144px)); }
+}
+
+/* The bee works the lawn at the left of the screen at every size, as it does on
+   a phone held sideways. Over the stake its loop crossed the signs: at 1024x768
+   it hid the N of NEXT!, the "Not here?" sign and Friends at rest. */
+.bee-flyer {
+  left: calc(50% - 50cqw + var(--bee-x, clamp(48px, 7cqw, 96px)));
+  bottom: clamp(24px, 7cqh, 44px);
+  animation-name: beeBuzzLawn;
+}
+/* A phone held sideways has 70-90px of lawn left of the signs at 667px. */
+@container (max-height: 520px) {
+  .bee-flyer { --bee-x: 14px; }
+}
+
+/* A sign on its own in its row is nailed across both posts, so it is as wide
+   as its words and at least as wide as the two posts and a hand's breadth of
+   wood either side; it was the stake's whole width (600px on a phone held
+   sideways, for "Continue!"). */
+.cta-stack:not(:has(> .secondary-row:not(.hidden) > :only-child)) > .btn-primary-wrap:not(:has(.demoted)),
+.cta-stack > .invite-share-panel {
+  width: fit-content;
+  min-width: min(100%, calc(100% - 2 * var(--post-in) + 56px));
+  max-width: 100%;
+  margin-inline: auto;
+}
+.cta-stack:not(:has(> .secondary-row:not(.hidden) > :only-child)) > .btn-primary-wrap:not(:has(.demoted)) > .btn-primary {
+  width: 100%;
+}
 
 /* ── The per-animal table ────────────────────────────────────────────
  * Generated by scripts/sign-animal-ink.py (`--write`); do not edit by hand.

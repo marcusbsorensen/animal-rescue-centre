@@ -134,29 +134,12 @@
   }
   .logo-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8cqh, 8px); }
 
-  /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
+  /* The sign's title: white on a darker plank of the board's own wood, in the
+     display face. Its style is shared with every story board and lives in
+     _story-title.css (linked after this block); here only its place. */
   .sign-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    font-size: clamp(20px, 3.8cqh, 34px);
-    line-height: 1.05;
-    text-align: center;
-    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
-    margin-bottom: clamp(6px, 1.2cqh, 12px);
     position: relative;
-    /* Logo-matched green gradient: bright leaf → rich grass → deep pine */
-    background: linear-gradient(180deg,
-      #8cc63f 0%,
-      #5faa3a 28%,
-      #3d8c31 62%,
-      #2a6e26 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(8, 38, 11, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(8,38,11,0.55));
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
   }
 
   /* ── No more logo-bunny; bunny now sits at the base of the wooden stake ── */
@@ -897,10 +880,23 @@
     font-size: clamp(22px, 3.4cqh, 30px);
   }
 
+  /* The list scrolls inside the board (130A): with four stories it was 200-600px
+     taller than the screen, so the BACK TO GAME sign, the posts and the ground
+     were all below the fold. The fade at its foot says there is more, as the
+     login screen's list of names does. `--news-list-h` is what the screen has
+     left once the band above the board, the title, the sign and the ground are
+     paid for (set per size below and in the landscape branch). */
   .news-list {
     display: flex; flex-direction: column;
     gap: clamp(6px, 1cqh, 10px);
     margin-top: clamp(4px, 0.8cqh, 8px);
+    max-height: var(--news-list-h, 40cqh);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding: 2px 4px 14px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent 100%);
   }
   /* Cream-paper card — same paper stock as the friend-code pill / name-input.
      Tightened vertical padding so 4 items fit more cleanly on iPhone. */
@@ -952,6 +948,37 @@
     cursor: pointer;
   }
   .news-more:hover { text-decoration: underline; }
+
+  .news-list { --news-list-h: max(140px, 100cqh - 585px); }
+  /* The title heads the board after the "← Menu" tab, which pokes out over the
+     board's corner; centred, a long title ran under it. */
+  .signs-on-stake .intro > .news-title {
+    /* below the cockatiel's tail, which hangs further over the wood than a
+       macaw's claws */
+    margin-top: 14px;
+    margin-left: clamp(80px, 11cqw, 100px);
+    margin-right: auto;
+    text-align: left;
+  }
+  .signs-on-stake > .intro:has(> .news-list) { width: min(98%, 600px); }
+  /* A portrait phone: the picture smaller, so the list has the room. */
+  @container welcome (max-width: 420px) {
+    .arc-snapshot.news-hero { max-height: clamp(110px, 16cqh, 150px); width: auto; }
+    /* room for "2 days ago" beside the headline */
+    .news-headline { padding-right: 92px; }
+    .news-list { --news-list-h: max(140px, 100cqh - 640px); }
+  }
+  /* A phone held sideways: the picture of the centre beside the list. */
+  @container welcome (max-height: 520px) {
+    .signs-on-stake .intro:has(> .news-list) {
+      grid-template-rows: auto 1fr;
+      grid-template-areas: "title title" "photo list";
+    }
+    .signs-on-stake .intro > .news-list {
+      grid-area: list;
+      --news-list-h: calc(100cqh - var(--band) - 170px);
+    }
+  }
 
   /* Narrow / iPhone: simplify — hide extras to avoid clutter */
   @container welcome (max-width: 420px) {
@@ -1023,6 +1050,7 @@
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
 <link rel="stylesheet" href="/admin/_signpost-physics.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
@@ -1057,6 +1085,7 @@
             <div class="signs-on-stake">
               <div class="intro">
                 <img class="intro-cat" src="/assets/animals/cat-siamese-sleeping.png" alt="">
+                <img class="play-parrot" src="/assets/animals/parrot-cockatiel-sheltered.png" alt="">
                 <button class="back-pill" id="back-pill" type="button">← Menu</button>
                 <div class="sign-title news-title">What's New at A.R.C.</div>
                 <div class="arc-snapshot-wrap">
@@ -1072,7 +1101,6 @@
                     <span class="play-label">BACK TO GAME</span>
                     <span class="paw paw-right">📬</span>
                   </button>
-                  <img class="play-parrot" src="/assets/animals/parrot-cockatiel-sheltered.png" alt="">
                 </div>
               </div>
 
@@ -1175,6 +1203,28 @@
       }
       list.appendChild(card);
     }
+    fitNewsList();
+  }
+
+  // The list scrolls inside the board (see .news-list): its height is what the
+  // screen has left once everything else is drawn, measured rather than
+  // guessed, so a title that takes two lines or a taller sign does not push the
+  // ground off the screen. The stylesheet's cap is the first guess this
+  // corrects.
+  function fitNewsList() {
+    const list = document.getElementById('news-list');
+    const scroller = document.querySelector('body.embed .device > *, html.iframed .device > *');
+    if (!list || !scroller) return;
+    list.style.maxHeight = '';
+    // A few passes: where the sign is centred on the screen (a tablet), taking
+    // n pixels off the list brings its foot up by only half of n.
+    for (let pass = 0; pass < 6; pass++) {
+      const over = scroller.scrollHeight - scroller.clientHeight;
+      if (over <= 0) break;
+      // offsetHeight, not the box on screen: the board is tilted, and a tilted
+      // box is reported taller than it is.
+      list.style.maxHeight = `${Math.max(96, list.offsetHeight - over - 1)}px`;
+    }
   }
   renderNews(NEWS_ITEMS);
 
@@ -1184,6 +1234,11 @@
   const params = new URLSearchParams(location.search);
   if (params.has('embed')) {
     document.body.classList.add('embed');
+    fitNewsList();
+    document.fonts?.ready.then(fitNewsList);
+    window.addEventListener('resize', fitNewsList);
+    window.addEventListener('load', fitNewsList);
+    for (const img of document.images) if (!img.complete) img.addEventListener('load', fitNewsList, { once: true });
     const send = (type) => {
       try { parent.postMessage({ source: 'arc-auth', type }, '*'); } catch (_) {}
     };

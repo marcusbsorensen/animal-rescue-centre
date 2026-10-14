@@ -144,29 +144,12 @@
     image-rendering: -webkit-optimize-contrast;
   }
 
-  /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
+  /* The sign's title: white on a darker plank of the board's own wood, in the
+     display face. Its style is shared with every story board and lives in
+     _story-title.css (linked after this block); here only its place. */
   .sign-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    font-size: clamp(20px, 3.8cqh, 34px);
-    line-height: 1.05;
-    text-align: center;
-    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
-    margin-bottom: clamp(6px, 1.2cqh, 12px);
     position: relative;
-    /* Logo-matched green gradient: bright leaf → rich grass → deep pine */
-    background: linear-gradient(180deg,
-      #8cc63f 0%,
-      #5faa3a 28%,
-      #3d8c31 62%,
-      #2a6e26 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(8, 38, 11, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(8,38,11,0.55));
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
   }
 
   /* ── No more logo-bunny; bunny now sits at the base of the wooden stake ── */
@@ -967,20 +950,24 @@
   }
 
   /* Friends-list empty state — shown when the kid has no friends yet. */
+  /* Cream on the wood with the sign's dark shadow, like every other line on
+     the board (130A). It was the page's dark grey ink at 400, on a mid-brown
+     board: the second line could not be read at all. */
   .friends-empty {
     text-align: center;
     padding: clamp(20px, 4cqh, 36px) clamp(12px, 3cqw, 24px);
-    color: var(--ink-soft);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
   }
   .friends-empty-line1 {
     font-family: var(--body-font);
-    font-weight: 700;
+    font-weight: 800;
     font-size: clamp(var(--fs-floor), 2.6cqh, 20px);
-    color: var(--ink);
     margin-bottom: clamp(4px, 0.8cqh, 8px);
   }
   .friends-empty-line2 {
     font-family: var(--body-font);
+    font-weight: 700;
     font-size: clamp(var(--fs-floor), 1.8cqh, 16px);
     line-height: 1.4;
   }
@@ -1244,6 +1231,7 @@
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
 <link rel="stylesheet" href="/admin/_signpost-physics.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
@@ -1278,6 +1266,7 @@
             <div class="signs-on-stake">
               <div class="intro">
                 <img class="intro-cat" src="/assets/animals/cat-black-sleeping.png" alt="">
+                <img class="play-parrot" src="/assets/animals/parrot-grey-sheltered.png" alt="">
                 <button class="back-tab" id="back-btn">← Menu</button>
                 <img class="sign-logo" src="/assets/logo/arc-logo-portrait.png" alt="A.R.C.">
                 <div class="sign-title">Your A.R.C. Friends</div>
@@ -1307,7 +1296,6 @@
                   </span>
                   <span class="invite-share-icon" aria-hidden="true">📋</span>
                 </button>
-                <img class="play-parrot" src="/assets/animals/parrot-grey-sheltered.png" alt="">
               </div>
 
               <!-- Bunny sitting on the ground at the foot of the garden post -->

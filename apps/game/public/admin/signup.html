@@ -159,29 +159,12 @@
     filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.18));
   }
 
-  /* ─── Sign title: "Animal Rescue Centre" painted on the wooden sign ─── */
+  /* The sign's title: white on a darker plank of the board's own wood, in the
+     display face. Its style is shared with every story board and lives in
+     _story-title.css (linked after this block); here only its place. */
   .sign-title {
-    font-family: var(--sign-title-font);
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    font-size: clamp(20px, 3.8cqh, 34px);
-    line-height: 1.05;
-    text-align: center;
-    padding: clamp(4px, 1cqh, 10px) 0 clamp(8px, 1.6cqh, 14px);
-    margin-bottom: clamp(6px, 1.2cqh, 12px);
     position: relative;
-    /* Logo-matched green gradient: bright leaf → rich grass → deep pine */
-    background: linear-gradient(180deg,
-      #8cc63f 0%,
-      #5faa3a 28%,
-      #3d8c31 62%,
-      #2a6e26 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-stroke: 2px rgba(8, 38, 11, 0.85);
-    paint-order: stroke fill;
-    filter: drop-shadow(1px 2px 0 rgba(8,38,11,0.55));
+    margin-bottom: clamp(6px, 1.2cqh, 12px);
   }
 
   /* ── No more logo-bunny; bunny now sits at the base of the wooden stake ── */
@@ -723,6 +706,29 @@
       font-size: clamp(15px, 4.6cqh, 20px);
       transform: none !important;
     }
+  }
+  @container welcome (max-height: 520px) {
+    /* The clue: six notes in three columns, two rows (three rows of two were
+       50px more than a phone held sideways has), and the band over this board
+       a little lower, as over login's four names. */
+    #stage-hint .clue-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    #stage-hint .clue-card { min-height: 48px; padding-block: 3px; }
+    #stage-hint .hint-actions-row { margin-top: clamp(6px, 1.6cqh, 10px); }
+    #stage-hint .hint-actions-row .link-btn { padding-block: 4px; min-height: 48px; }
+    .welcome-inner:has(#stage-hint:not(.hidden)) { --band: clamp(46px, 13cqh, 60px); }
+    .welcome-inner:has(#stage-hint:not(.hidden)) .signs-on-stake { --rabbit-h: clamp(36px, 10cqh, 44px); }
+    /* Friends see this name: the name and "Show another" share a row. */
+    #stage-name:not(.hidden) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "title title" "name another" "sub sub";
+      align-items: center;
+      column-gap: clamp(8px, 1.6cqw, 12px);
+    }
+    #stage-name > .sign-title-row { grid-area: title; }
+    #stage-name > .display-name-card { grid-area: name; margin-top: 0; }
+    #stage-name > .hint-actions-row { grid-area: another; margin-top: 0; }
+    #stage-name > .sign-subtitle { grid-area: sub; }
   }
 
   /* As wide as stage A's sign. Left to its own content the sign is
@@ -1425,12 +1431,12 @@
        device, or the dog floats orphaned in the gap above them.
        Hide all foreground decorations across every signup stage on
        iPhone so the form has clear vertical space. They come back on
-       the welcome and login screens where the layout is shorter. */
+       the welcome and login screens where the layout is shorter.
+       (130A: the grass, the rabbit and the bee are back. With NEXT! and
+       "I already have an account" on one row there is room for them, and
+       without the grass the two posts ended in mid-air.) */
     .foreground-dog,
-    .foreground-fox,
-    .grass-clump,
-    .ground-bunny,
-    .bee-flyer {
+    .foreground-fox {
       display: none !important;
     }
     /* Stage A: shrink the 8-emoji avatar picker so all 4 columns fit
@@ -1449,7 +1455,6 @@
     }
     /* Stage A: compress remaining elements so the secondary planks
        reach the bottom of the device without orphaning anything. */
-    #stage-select .sign-title { font-size: clamp(20px, 3.4cqh, 26px); }
     #stage-select .sign-subtitle {
       font-size: clamp(var(--fs-floor), 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
@@ -1457,7 +1462,6 @@
     /* Compress the PIN sign on iPhone — keypad keys + pin dots all
        smaller so the whole sign fits without overflowing into the
        OK button below. */
-    #stage-pin .sign-title { font-size: clamp(20px, 3.4cqh, 26px); }
     #stage-pin .sign-subtitle {
       font-size: clamp(var(--fs-floor), 2cqh, 16px);
       margin-bottom: clamp(4px, 0.8cqh, 8px);
@@ -1570,6 +1574,7 @@
 </style>
 <link rel="stylesheet" href="/admin/_short-landscape.css">
 <link rel="stylesheet" href="/admin/_signpost-physics.css">
+<link rel="stylesheet" href="/admin/_story-title.css">
 </head>
 <body>
 
@@ -1608,6 +1613,7 @@
                 </button>
                 <div class="error-sticker" id="error-sticker-select"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 <div class="zzz-stack" aria-hidden="true">
                   <span class="zz zz1">Z</span>
                   <span class="zz zz2">Z</span>
@@ -1649,6 +1655,7 @@
                 </button>
                 <div class="error-sticker" id="error-sticker-pin"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 <div class="zzz-stack" aria-hidden="true">
                   <span class="zz zz1">Z</span>
                   <span class="zz zz2">Z</span>
@@ -1693,6 +1700,7 @@
                 </button>
                 <div class="error-sticker" id="error-sticker-hint"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 <div class="zzz-stack" aria-hidden="true">
                   <span class="zz zz1">Z</span>
                   <span class="zz zz2">Z</span>
@@ -1723,6 +1731,7 @@
                 </button>
                 <div class="error-sticker" id="error-sticker-name"></div>
                 <img class="intro-cat" src="/assets/animals/cat-ginger-sleeping.png" alt="">
+                <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 <div class="zzz-stack" aria-hidden="true">
                   <span class="zz zz1">Z</span>
                   <span class="zz zz2">Z</span>
@@ -1747,7 +1756,6 @@ Remember it to sign in!</div>
                     <span class="play-label" id="primary-label">NEXT!</span>
                     <span class="paw paw-right">🐾</span>
                   </button>
-                  <img class="play-parrot" src="/admin/scene-assets/parrot-macaw-nobranch.png" alt="">
                 </div>
                 <div class="secondary-row">
                   <button class="link-btn plank-sage" id="have-account-btn">I already have an account</button>
