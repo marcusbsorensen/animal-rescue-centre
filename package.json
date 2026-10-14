@@ -17,7 +17,11 @@
     "wardrobe:anchors": "python3 tools/measure-wardrobe-anchors.py",
     "build:ios": "node scripts/build-ios.mjs",
     "ios": "pnpm build:ios && pnpm --filter @arc/game exec cap open ios",
-    "testflight": "node scripts/testflight.mjs"
+    "testflight": "node scripts/testflight.mjs",
+    "check:leaks": "node tools/leak-check.mjs",
+    "test:leaks": "node --test tools/leak-check.test.mjs",
+    "test:htaccess": "tools/test-arcgame-htaccess.sh",
+    "deploy:arcgame": "tools/deploy-arcgame.sh"
   },
   "engines": {
     "node": ">=20"

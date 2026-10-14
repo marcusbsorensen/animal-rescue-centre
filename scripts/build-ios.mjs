@@ -38,6 +38,7 @@ const staged = path.join(game, 'dist-ios');
 const EXCLUDE = [
   'mockups/',        // design references, referenced by nothing
   '404.html',        // a native app has no 404 route
+  '.htaccess',       // the web host's Apache rules (apps/game/public/.htaccess); the app has no web server
   'sw.js',           // service workers do not run on capacitor://
   'workbox-*.js',
   'registerSW.js',

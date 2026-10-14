@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<!--
+  The page that replaces the A.R.C. deployment on Vercel once the game lives at
+  arcgame.app. Marcus, 89A: keep it for about six months, then retire it.
+
+  NOT DEPLOYED. To ship it later, from a terminal, after arcgame.app is live:
+    cd tools/vercel-moved && vercel deploy --prod
+  against the existing A.R.C. project (vercel link first if the folder is not linked).
+  The vercel.json beside this file switches off the project's build and sends any
+  old path (/admin/menu.html, /assets/...) to this page. sw.js retires the old
+  game's service worker, so a player who had the game installed or cached sees this
+  page and not the old game.
+
+  Self-contained on purpose: Fredoka and Nunito are copied from the game's own
+  fonts (apps/game/public/fonts), nothing is fetched from anyone else, and there is no script.
+  Reading level: short sentences, words an 8-year-old uses.
+-->
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A.R.C. has moved to arcgame.app</title>
+<meta name="description" content="A.R.C. Animal Rescue Centre has a new home at arcgame.app.">
+<link rel="canonical" href="https://arcgame.app/">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="preload" href="/fonts/fredoka-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  /* The same two faces as the game: Fredoka for the title, Nunito for the rest. */
+  @font-face {
+    font-family: 'Fredoka';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url(/fonts/fredoka-latin.woff2) format('woff2');
+  }
+  @font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url(/fonts/nunito-latin.woff2) format('woff2');
+  }
+  @font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url(/fonts/nunito-latin.woff2) format('woff2');
+  }
+
+  :root {
+    --bg: #fef9ef;
+    --ink: #3a2e20;
+    --ink-soft: #5c4a36;       /* 7.6:1 on the cream: small print stays readable */
+    --green: #2f6b22;          /* white on this is 7.3:1 */
+    --green-lit: #3d8a2e;
+    --wood: #a56f3a;
+    --wood-dark: #7a4f27;
+    --wood-light: #c58f55;
+    --shadow: rgba(90, 60, 20, 0.16);
+    --headline-font: 'Fredoka', system-ui, sans-serif;
+    --body-font: 'Nunito', system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: var(--body-font);
+    font-weight: 700;
+    color: var(--ink);
+    background-image:
+      radial-gradient(circle at 15% 15%, #f5ead5 0%, transparent 32%),
+      radial-gradient(circle at 85% 80%, #f5ead5 0%, transparent 32%),
+      linear-gradient(180deg, #fff4df 0%, #fef9ef 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  main {
+    width: 100%;
+    max-width: 640px;
+    text-align: center;
+  }
+  .sign { display: block; width: min(300px, 60vw); height: auto; margin: 0 auto 8px; }
+  h1 {
+    margin: 0 0 12px;
+    font-family: var(--headline-font);
+    font-weight: 600;
+    font-size: clamp(40px, 9vw, 68px);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+  .lede {
+    margin: 0 auto 28px;
+    max-width: 30em;
+    font-size: clamp(20px, 3.6vw, 26px);
+    line-height: 1.45;
+  }
+  .go {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: 76px;
+    padding: 14px 36px;
+    border-radius: 999px;
+    background: var(--green);
+    color: #fff;
+    font-family: var(--body-font);
+    font-weight: 800;
+    font-size: clamp(26px, 5.2vw, 36px);
+    text-decoration: none;
+    box-shadow: 0 6px 0 #1f4a16, 0 12px 24px var(--shadow);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .go:hover { background: var(--green-lit); }
+  .go:active { transform: translateY(4px); box-shadow: 0 2px 0 #1f4a16, 0 6px 12px var(--shadow); }
+  .go:focus-visible { outline: 5px solid var(--ink); outline-offset: 4px; }
+  .go svg { width: 1.1em; height: 1.1em; flex: none; }
+  .address {
+    margin: 18px 0 0;
+    font-size: clamp(20px, 3.6vw, 26px);
+  }
+  .step {
+    margin: 36px auto 0;
+    max-width: 30em;
+    font-size: clamp(18px, 3vw, 22px);
+    line-height: 1.5;
+  }
+  .grownups {
+    margin: 28px auto 0;
+    padding-top: 20px;
+    max-width: 34em;
+    border-top: 3px dotted var(--wood-light);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+  .grownups a { color: var(--green); text-underline-offset: 3px; }
+  .grownups a:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+  /* A phone held sideways: the sign beside the words, so the button is on the first screen. */
+  @media (max-height: 520px) and (min-width: 600px) {
+    body { padding: 12px 24px; }
+    main {
+      max-width: 780px;
+      display: grid;
+      grid-template-columns: 190px 1fr;
+      column-gap: 32px;
+      align-content: center;
+      justify-items: start;
+      text-align: left;
+    }
+    .sign { grid-column: 1; grid-row: 1 / span 6; width: 190px; margin: 24px 0 0; align-self: start; }
+    main > :not(.sign) { grid-column: 2; }
+    h1 { margin-bottom: 6px; font-size: 44px; }
+    .lede { margin: 0 0 14px; font-size: 20px; }
+    .go { min-height: 64px; padding: 10px 30px; font-size: 28px; }
+    .address { margin-top: 10px; font-size: 20px; }
+    .step { margin: 10px 0 0; font-size: 18px; }
+    .grownups { margin: 14px 0 0; padding-top: 12px; }
+  }
+  /* A short, narrow window: keep the sign small. */
+  @media (max-height: 520px) and (max-width: 599px) {
+    .sign { width: 140px; margin-bottom: 0; }
+    .lede { margin-bottom: 18px; }
+    .step { margin-top: 24px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .go { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <!-- A wooden sign, like the ones in the game. Decorative: the words below say it all. -->
+  <svg class="sign" viewBox="0 0 300 190" role="img" aria-hidden="true" focusable="false">
+    <rect x="136" y="60" width="28" height="126" rx="6" fill="#7a4f27"/>
+    <rect x="136" y="60" width="9" height="126" rx="4" fill="#9b6934"/>
+    <path d="M24 34 H238 L276 76 L238 118 H24 Z" fill="#a56f3a" stroke="#5e3b1c" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M36 50 H230 M36 102 H230" stroke="#c58f55" stroke-width="4" stroke-linecap="round" opacity=".7"/>
+    <g fill="#fef9ef">
+      <ellipse cx="86" cy="78" rx="11" ry="9"/>
+      <circle cx="68" cy="60" r="5.5"/><circle cx="82" cy="52" r="5.5"/><circle cx="97" cy="52" r="5.5"/><circle cx="108" cy="61" r="5.5"/>
+    </g>
+    <path d="M142 76 H214 M192 56 L214 76 L192 96" fill="none" stroke="#fef9ef" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="150" cy="188" rx="46" ry="5" fill="#3a2e20" opacity=".12"/>
+  </svg>
+
+  <h1>We've moved!</h1>
+  <p class="lede">A.R.C. has a new home. Tap the big green button to go there.</p>
+
+  <a class="go" href="https://arcgame.app/">
+    Go to A.R.C.
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12h15M13 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </a>
+  <p class="address">arcgame.app</p>
+
+  <p class="step">When you get there, sign in with your secret name and your PIN.</p>
+
+  <p class="grownups">
+    For grown-ups: the game now lives at <a href="https://arcgame.app/">arcgame.app</a>.
+    This old address will stop working in spring 2027, so please change any
+    bookmark or home-screen icon. Players sign in at the new address with the same secret name and PIN.
+    Questions? <a href="https://support.interfulgent.com/arc/">support.interfulgent.com/arc</a>
+  </p>
+</main>
+</body>
+</html>
