@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>A.R.C. voice booth</title>
+<!--
+  Voice booth: record the adoption hand-over lines with a laptop or iPad mic.
+
+  Development only. This page and its script (voice-script.json) live in
+  public/ so a dev server serves them with no configuration, and the voice-booth
+  Vite plugin (apps/game/plugins/voice-booth.ts) removes both from every
+  production build. Saving goes through that plugin's /__voice endpoint into
+  apps/game/voice-takes/ (gitignored). See docs/voice-recording-plan-2026-10-14.md.
+
+  Open:  http://localhost:5173/admin/voice-booth.html
+-->
+<style>
+  :root {
+    --ink: #3a2e22; --ink-soft: #6b5a4a; --paper: #fef9ef; --card: #ffffff;
+    --line: #e6d9c6; --green: #3d8a2e; --green-dark: #2d6b1f; --amber: #b8741a;
+    --amber-bg: #fff1d6; --red: #b3261e; --red-bg: #fde7e4; --blue: #2e6b8a; --blue-bg: #e3f1f8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) 48px env(safe-area-inset-left); }
+  header { position: sticky; top: 0; z-index: 5; background: var(--paper); border-bottom: 2px solid var(--line);
+    padding: 12px 16px; }
+  h1 { margin: 0 0 2px; font-size: 22px; }
+  .sub { margin: 0; color: var(--ink-soft); font-size: 14px; }
+  main { max-width: 900px; margin: 0 auto; padding: 0 16px; }
+  .banner { margin: 12px 0; padding: 12px 14px; border-radius: 12px; border: 2px solid; font-size: 15px; }
+  .banner.off { background: var(--red-bg); border-color: var(--red); }
+  .banner.warn { background: var(--amber-bg); border-color: var(--amber); }
+  .banner.ok { background: #e6f4e2; border-color: var(--green); }
+  .banner[hidden] { display: none; }
+  .panel { background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 14px; margin: 12px 0; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  label { font-weight: 600; }
+  input[type=text], select { font: inherit; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--line);
+    background: #fff; min-height: 44px; }
+  input[type=text] { flex: 1 1 220px; }
+  select, input[type=text] { max-width: 100%; min-width: 0; }
+  .consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; font-size: 15px; }
+  .consent input { width: 24px; height: 24px; margin-top: 2px; flex: none; }
+  .progress { font-weight: 700; }
+  .bar { height: 10px; border-radius: 6px; background: var(--line); overflow: hidden; margin-top: 6px; }
+  .bar > i { display: block; height: 100%; background: var(--green); width: 0; transition: width .2s; }
+  button { font: inherit; font-weight: 700; min-height: 44px; padding: 8px 16px; border-radius: 12px;
+    border: 2px solid var(--ink); background: #fff; color: var(--ink); cursor: pointer; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.rec { background: var(--red); color: #fff; border-color: var(--red); }
+  button.rec.live { animation: pulse 1s infinite; }
+  button.keep { background: var(--green); color: #fff; border-color: var(--green-dark); }
+  button.quiet { border-color: var(--line); font-weight: 600; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(179, 38, 30, .25); } }
+  details.speaker { background: var(--card); border: 2px solid var(--line); border-radius: 14px; margin: 12px 0; }
+  details.speaker > summary { cursor: pointer; padding: 14px; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; min-height: 48px; }
+  details.speaker > summary::-webkit-details-marker { display: none; }
+  .who { font-size: 18px; font-weight: 800; }
+  .role { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
+  .role.warden { background: #f6dfa8; } .role.guest { background: var(--blue-bg); color: var(--blue); }
+  .count { margin-left: auto; font-weight: 700; color: var(--ink-soft); }
+  .count.done { color: var(--green-dark); }
+  .note { padding: 0 14px 6px; color: var(--ink-soft); font-style: italic; }
+  .line { border-top: 2px solid var(--line); padding: 14px; }
+  .lineid { font: 12px ui-monospace, Menlo, monospace; color: var(--ink-soft); }
+  .text { font-size: 20px; font-weight: 600; margin: 4px 0 10px; }
+  .text .ph { background: var(--amber-bg); border: 1px dashed var(--amber); border-radius: 6px; padding: 0 4px; }
+  .text .person { color: #8f5a00; }
+  .state { font-size: 14px; margin-top: 8px; }
+  .state.ships { color: var(--green-dark); font-weight: 700; }
+  .state.waits { color: var(--amber); font-weight: 600; }
+  .state.blocked { color: var(--red); font-weight: 600; }
+  .takes { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+  .take { display: inline-flex; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+  .take.sel { border-color: var(--blue); background: var(--blue-bg); }
+  .take.kept { border-color: var(--green); }
+  .take button { border: 0; border-radius: 0; min-height: 40px; padding: 6px 12px; background: transparent; }
+  .take button + button { border-left: 2px solid var(--line); font-weight: 600; }
+  .meter { height: 12px; width: 160px; border-radius: 6px; background: var(--line); overflow: hidden; display: none; }
+  .meter.on { display: inline-block; }
+  .meter > i { display: block; height: 100%; width: 0; background: var(--green); }
+  .meter.hot > i { background: var(--red); }
+  .hint { color: var(--ink-soft); font-size: 14px; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: #fff;
+    padding: 12px 18px; border-radius: 12px; max-width: 90vw; z-index: 20; font-weight: 600; }
+  .toast[hidden] { display: none; }
+  input[type=file] { display: none; }
+  @media (max-width: 560px) { .text { font-size: 18px; } .count { margin-left: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>A.R.C. voice booth</h1>
+  <p class="sub">Record the adoption hand-over lines. Three takes each, then keep the best.</p>
+</header>
+<main>
+  <div id="server-banner" class="banner off" hidden></div>
+  <div id="mic-banner" class="banner warn" hidden></div>
+
+  <section class="panel" aria-label="Who is speaking">
+    <div class="row">
+      <label for="by">Who is speaking?</label>
+      <input id="by" type="text" autocomplete="off" placeholder="Your name, or the friend's name (stays on this computer)">
+    </div>
+    <label class="consent" for="consent">
+      <input id="consent" type="checkbox">
+      <span id="consent-text"></span>
+    </label>
+    <div class="row" style="margin-top:12px">
+      <label for="version">Words to record</label>
+      <select id="version" aria-describedby="version-help">
+        <option value="name-free">Name-free draft (option A in the voice plan)</option>
+        <option value="current">What the game shows now (has the animal's name)</option>
+      </select>
+      <label for="filter" style="margin-left:8px">Show</label>
+      <select id="filter">
+        <option value="all">every line</option>
+        <option value="todo">lines still to do</option>
+      </select>
+      <button id="next" class="quiet" type="button">Next line to do</button>
+    </div>
+    <p id="version-help" class="hint">A recording has to match the words on screen, so a line that needs the animal's name cannot be recorded. The draft says the same thing without it.</p>
+  </section>
+
+  <section class="panel" aria-label="Progress">
+    <div class="progress" id="progress">Loading the script…</div>
+    <div class="bar"><i id="bar"></i></div>
+  </section>
+
+  <div id="speakers"></div>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+'use strict';
+(() => {
+  const CONSENT = "I'm happy for my recorded voice to be used in the A.R.C. game for children. I understand anyone who plays the game will hear it, and that I can ask for it to be taken out of future versions. I'm not agreeing to my voice being used to train or imitate voices with AI. (If I am under 18, my parent or guardian has agreed too.)";
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+  const store = {
+    get(k, d) { try { return localStorage.getItem('arc-voice-' + k) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('arc-voice-' + k, v); } catch { /* private mode */ } },
+  };
+
+  const state = {
+    script: null,
+    status: { takes: {}, kept: {} },
+    serverOk: false,
+    version: store.get('version', 'name-free'),
+    filter: 'all',
+    by: store.get('by', ''),
+    consent: false,
+    selected: {},   // lineId -> take file (or local id)
+    local: {},      // lineId -> [{ id, blob, url }]  takes that exist only in this page
+    rec: null,      // the recording in progress
+    audio: null,    // the take playing back
+  };
+  const lineEls = {};   // lineId -> { root, ...parts }
+
+  let toastTimer = 0;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 5000);
+  }
+
+  // ── Server ──────────────────────────────────────────────────
+  async function api(path, opts) {
+    const res = await fetch('/__voice' + path, opts);
+    let data = null;
+    try { data = await res.json(); } catch { /* not json */ }
+    if (!res.ok) throw new Error((data && data.error) || ('HTTP ' + res.status));
+    return data;
+  }
+
+  async function pingServer() {
+    const banner = $('server-banner');
+    try {
+      const r = await fetch('/__voice/ping');
+      const ct = r.headers.get('content-type') || '';
+      state.serverOk = r.ok && ct.includes('json');
+    } catch { state.serverOk = false; }
+    if (state.serverOk) {
+      banner.className = 'banner ok';
+      banner.textContent = 'Saving is on. Takes go to apps/game/voice-takes/ on the computer running the dev server.';
+      banner.hidden = false;
+      await refreshStatus();
+    } else {
+      banner.className = 'banner off';
+      banner.textContent = 'Saving is off: this dev server does not have the voice booth endpoint yet. You can record and play back, but nothing is kept. Restart the dev server after the voice-booth plugin is in vite.config.ts (see the voice plan).';
+      banner.hidden = false;
+    }
+    updateAll();
+  }
+
+  async function refreshStatus() {
+    try { state.status = await api('/status'); } catch { /* keep the old one */ }
+  }
+
+  // ── Script ──────────────────────────────────────────────────
+  function textFor(line) {
+    return state.version === 'name-free' ? line.textNameFree : line.text;
+  }
+  function needsName(line) { return textFor(line).includes('{animal}'); }
+
+  function fillText(node, line) {
+    node.textContent = '';
+    const text = textFor(line);
+    const parts = text.split(/(\{animal\}|Marnie)/);
+    for (const p of parts) {
+      if (!p) continue;
+      if (p === '{animal}') node.appendChild(el('span', 'ph', "[the animal's name]"));
+      else if (p === 'Marnie') node.appendChild(el('span', 'person', p));
+      else node.appendChild(document.createTextNode(p));
+    }
+  }
+
+  function buildSpeakers() {
+    const host = $('speakers');
+    host.textContent = '';
+    state.script.speakers.forEach((sp, i) => {
+      const d = el('details', 'speaker');
+      d.dataset.speaker = sp.id;
+      if (i === 0) d.open = true;
+      const sum = el('summary');
+      sum.appendChild(el('span', 'who', sp.name));
+      sum.appendChild(el('span', 'role ' + sp.role, sp.role === 'warden' ? 'the warden' : 'a family'));
+      const count = el('span', 'count', '');
+      count.dataset.count = sp.id;
+      sum.appendChild(count);
+      d.appendChild(sum);
+      if (sp.voiceNote) d.appendChild(el('div', 'note', sp.voiceNote));
+      for (const line of sp.lines) d.appendChild(buildLine(sp, line));
+      host.appendChild(d);
+    });
+  }
+
+  function buildLine(sp, line) {
+    const root = el('div', 'line');
+    root.dataset.line = line.lineId;
+    const parts = { root };
+    parts.id = el('div', 'lineid', line.lineId + '  ·  beat ' + line.n + '  ·  ' + line.expression);
+    parts.text = el('div', 'text');
+    parts.controls = el('div', 'row');
+    parts.rec = el('button', 'rec', 'Record');
+    parts.rec.type = 'button';
+    parts.meter = el('span', 'meter');
+    parts.meter.appendChild(el('i'));
+    parts.import = el('button', 'quiet', 'Import a recording');
+    parts.import.type = 'button';
+    parts.file = el('input');
+    parts.file.type = 'file';
+    parts.file.accept = 'audio/*,.m4a,.wav,.mp3,.webm,.ogg,.aac,.flac,.aif,.aiff';
+    parts.takes = el('div', 'takes');
+    parts.actions = el('div', 'row');
+    parts.keep = el('button', 'keep', 'Keep this take');
+    parts.keep.type = 'button';
+    parts.unkeep = el('button', 'quiet', 'Un-keep');
+    parts.unkeep.type = 'button';
+    parts.state = el('div', 'state');
+    parts.controls.append(parts.rec, parts.meter, parts.import, parts.file);
+    parts.actions.append(parts.keep, parts.unkeep);
+    root.append(parts.id, parts.text, parts.controls, parts.takes, parts.actions, parts.state);
+
+    parts.rec.addEventListener('click', () => toggleRecording(sp, line));
+    parts.import.addEventListener('click', () => parts.file.click());
+    parts.file.addEventListener('change', () => { if (parts.file.files[0]) importFile(sp, line, parts.file.files[0]); parts.file.value = ''; });
+    parts.keep.addEventListener('click', () => keepTake(sp, line));
+    parts.unkeep.addEventListener('click', () => unkeep(line));
+    lineEls[line.lineId] = parts;
+    return root;
+  }
+
+  // ── Display ─────────────────────────────────────────────────
+  function takesFor(lineId) {
+    const saved = (state.status.takes[lineId] || []).map((t) => ({ kind: 'saved', key: t.file, n: t.n, file: t.file }));
+    const local = (state.local[lineId] || []).map((t, i) => ({ kind: 'local', key: t.id, n: 'draft ' + (i + 1), local: t }));
+    return saved.concat(local);
+  }
+
+  function updateLine(sp, line) {
+    const p = lineEls[line.lineId];
+    if (!p) return;
+    fillText(p.text, line);
+    const blocked = needsName(line);
+    const recording = state.rec && state.rec.lineId === line.lineId;
+    const anotherRecording = state.rec && !recording;
+    p.rec.textContent = recording ? 'Stop' : (takesFor(line.lineId).length ? 'Record another take' : 'Record');
+    p.rec.classList.toggle('live', !!recording);
+    p.rec.disabled = blocked || !!anotherRecording || !state.consent || !state.by.trim();
+    p.import.disabled = blocked || !!anotherRecording || !state.consent || !state.by.trim();
+    p.meter.classList.toggle('on', !!recording);
+
+    const kept = state.status.kept[line.lineId];
+    const takes = takesFor(line.lineId);
+    p.takes.textContent = '';
+    for (const t of takes) {
+      const chip = el('span', 'take');
+      if (state.selected[line.lineId] === t.key) chip.classList.add('sel');
+      if (kept && kept.takeFile === t.key) chip.classList.add('kept');
+      const play = el('button', '', (kept && kept.takeFile === t.key ? '✓ ' : '') + 'Take ' + t.n + ' ▶');
+      play.type = 'button';
+      play.setAttribute('aria-label', 'Play take ' + t.n + ' of ' + line.lineId);
+      play.addEventListener('click', () => { state.selected[line.lineId] = t.key; playTake(sp, line, t); updateLine(sp, line); });
+      const del = el('button', '', 'Delete');
+      del.type = 'button';
+      del.setAttribute('aria-label', 'Delete take ' + t.n + ' of ' + line.lineId);
+      del.addEventListener('click', () => deleteTake(sp, line, t));
+      chip.append(play, del);
+      p.takes.appendChild(chip);
+    }
+
+    const sel = takes.find((t) => t.key === state.selected[line.lineId]);
+    p.keep.disabled = !sel || sel.kind !== 'saved' || blocked || !state.consent || !state.by.trim() || !state.serverOk;
+    p.unkeep.hidden = !kept;
+
+    let msg = '', cls = 'state';
+    if (blocked) {
+      msg = "This version of the line has the animal's name in it, which cannot be recorded. Choose the name-free draft above.";
+      cls += ' blocked';
+    } else if (kept && kept.text === line.text) {
+      msg = 'Kept, and it matches what the game shows. It will ship when published.';
+      cls += ' ships';
+    } else if (kept) {
+      msg = 'Kept, but the game still shows different words. It will not ship until the game text is changed to match (voice plan, option A).';
+      cls += ' waits';
+    } else if (!state.consent || !state.by.trim()) {
+      msg = 'Say who is speaking and tick the box above first.';
+    } else if (!state.serverOk && takes.length) {
+      msg = 'Saving is off, so these drafts live only on this page.';
+      cls += ' waits';
+    }
+    p.state.className = cls;
+    p.state.textContent = msg;
+  }
+
+  function updateAll() {
+    if (!state.script) return;
+    let done = 0, shipping = 0;
+    for (const sp of state.script.speakers) {
+      let mine = 0;
+      for (const line of sp.lines) {
+        if (state.status.kept[line.lineId]) { mine += 1; done += 1; if (state.status.kept[line.lineId].text === line.text) shipping += 1; }
+        updateLine(sp, line);
+        const row = lineEls[line.lineId].root;
+        row.hidden = state.filter === 'todo' && !!state.status.kept[line.lineId];
+      }
+      const c = document.querySelector('[data-count="' + sp.id + '"]');
+      c.textContent = mine + ' of ' + sp.lines.length + ' kept';
+      c.classList.toggle('done', mine === sp.lines.length);
+    }
+    const all = state.script.speakers.reduce((n, s) => n + s.lines.length, 0);
+    $('progress').textContent = done + ' of ' + all + ' lines kept' + (shipping ? ' · ' + shipping + ' match the game text' : '');
+    $('bar').style.width = (all ? (100 * done / all) : 0) + '%';
+  }
+
+  // ── Recording ───────────────────────────────────────────────
+  function pickMime() {
+    const wanted = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg;codecs=opus'];
+    if (!window.MediaRecorder) return '';
+    return wanted.find((m) => MediaRecorder.isTypeSupported(m)) || '';
+  }
+
+  async function toggleRecording(sp, line) {
+    if (state.rec) { stopRecording(); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+      $('mic-banner').textContent = 'This page cannot use the microphone here. Recording needs localhost or https; over plain http on the local network, record in the Voice Memos app and use "Import a recording" instead.';
+      $('mic-banner').hidden = false;
+      return;
+    }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+    } catch (e) {
+      $('mic-banner').textContent = 'The microphone is blocked: ' + (e && e.message ? e.message : e) + ' Allow it for this site in the browser, then try again.';
+      $('mic-banner').hidden = false;
+      return;
+    }
+    $('mic-banner').hidden = true;
+    const mimeType = pickMime();
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    const chunks = [];
+    recorder.addEventListener('dataavailable', (e) => { if (e.data && e.data.size) chunks.push(e.data); });
+    const rec = { lineId: line.lineId, speaker: sp, line, recorder, stream, chunks, ctx: null, raf: 0 };
+    state.rec = rec;
+    recorder.addEventListener('stop', () => finishRecording(rec, mimeType || recorder.mimeType));
+    startMeter(rec);
+    recorder.start();
+    updateAll();
+  }
+
+  function stopRecording() {
+    const rec = state.rec;
+    if (!rec) return;
+    try { rec.recorder.stop(); } catch { /* already stopped */ }
+    rec.stream.getTracks().forEach((t) => t.stop());
+    cancelAnimationFrame(rec.raf);
+    if (rec.ctx) rec.ctx.close().catch(() => {});
+    const m = lineEls[rec.lineId].meter;
+    m.classList.remove('hot');
+    m.firstChild.style.width = '0';
+  }
+
+  function startMeter(rec) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    rec.ctx = new AC();
+    const src = rec.ctx.createMediaStreamSource(rec.stream);
+    const an = rec.ctx.createAnalyser();
+    an.fftSize = 1024;
+    src.connect(an);
+    const buf = new Float32Array(an.fftSize);
+    const m = lineEls[rec.lineId].meter;
+    const tick = () => {
+      an.getFloatTimeDomainData(buf);
+      let peak = 0, sum = 0;
+      for (const v of buf) { const a = Math.abs(v); if (a > peak) peak = a; sum += v * v; }
+      const rms = Math.sqrt(sum / buf.length);
+      m.firstChild.style.width = Math.min(100, Math.round(rms * 400)) + '%';
+      m.classList.toggle('hot', peak > 0.97);
+      rec.raf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  async function finishRecording(rec, mimeType) {
+    state.rec = null;
+    const type = (mimeType || 'audio/webm').split(';')[0];
+    const blob = new Blob(rec.chunks, { type });
+    await addTake(rec.speaker, rec.line, blob, type);
+  }
+
+  async function addTake(sp, line, blob, type) {
+    if (blob.size < 64) { toast('That recording was empty. Is the microphone on?'); updateAll(); return; }
+    if (state.serverOk) {
+      try {
+        const info = await api('/take?speaker=' + encodeURIComponent(sp.id) + '&line=' + encodeURIComponent(line.lineId), {
+          method: 'POST', headers: { 'Content-Type': type }, body: blob,
+        });
+        await refreshStatus();
+        state.selected[line.lineId] = info.file;
+        toast('Saved take ' + info.n + '.');
+      } catch (e) {
+        toast('Could not save: ' + e.message);
+        addLocal(line, blob);
+      }
+    } else {
+      addLocal(line, blob);
+    }
+    updateAll();
+  }
+
+  function addLocal(line, blob) {
+    const list = (state.local[line.lineId] = state.local[line.lineId] || []);
+    const id = 'local-' + Date.now() + '-' + list.length;
+    list.push({ id, blob, url: URL.createObjectURL(blob) });
+    state.selected[line.lineId] = id;
+  }
+
+  const TYPE_BY_EXT = { m4a: 'audio/mp4', wav: 'audio/wav', mp3: 'audio/mpeg', webm: 'audio/webm', ogg: 'audio/ogg', aac: 'audio/aac', flac: 'audio/flac', aif: 'audio/aiff', aiff: 'audio/aiff' };
+  async function importFile(sp, line, file) {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const type = file.type && file.type.startsWith('audio/') ? file.type : TYPE_BY_EXT[ext];
+    if (!type) { toast('I can read m4a, wav, mp3, webm, ogg, aac, flac and aiff files. Voice Memos can share as m4a.'); return; }
+    await addTake(sp, line, file, type);
+  }
+
+  // ── Playback, keep, delete ──────────────────────────────────
+  function playTake(sp, line, t) {
+    if (state.audio) { state.audio.pause(); state.audio = null; }
+    const src = t.kind === 'saved'
+      ? '/__voice/take?speaker=' + encodeURIComponent(sp.id) + '&file=' + encodeURIComponent(t.file) + '&t=' + Date.now()
+      : t.local.url;
+    const a = new Audio(src);
+    state.audio = a;
+    a.play().catch((e) => toast('Could not play that: ' + e.message));
+  }
+
+  async function keepTake(sp, line) {
+    const file = state.selected[line.lineId];
+    if (!file || file.startsWith('local-')) return;
+    try {
+      await api('/keep', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          speaker: sp.id, line: line.lineId, file, text: textFor(line), textVersion: state.version,
+          by: state.by.trim(), consent: state.consent,
+        }),
+      });
+      await refreshStatus();
+      toast('Kept.');
+    } catch (e) { toast('Could not keep it: ' + e.message); }
+    updateAll();
+  }
+
+  async function unkeep(line) {
+    try { await api('/keep?line=' + encodeURIComponent(line.lineId), { method: 'DELETE' }); await refreshStatus(); }
+    catch (e) { toast(e.message); }
+    updateAll();
+  }
+
+  async function deleteTake(sp, line, t) {
+    if (t.kind === 'local') {
+      state.local[line.lineId] = (state.local[line.lineId] || []).filter((x) => x.id !== t.key);
+    } else {
+      try { await api('/take?speaker=' + encodeURIComponent(sp.id) + '&file=' + encodeURIComponent(t.file), { method: 'DELETE' }); await refreshStatus(); }
+      catch (e) { toast(e.message); }
+    }
+    if (state.selected[line.lineId] === t.key) delete state.selected[line.lineId];
+    updateAll();
+  }
+
+  // ── Page controls ───────────────────────────────────────────
+  function wireControls() {
+    $('consent-text').textContent = CONSENT;
+    $('by').value = state.by;
+    $('version').value = state.version;
+    $('by').addEventListener('input', () => { state.by = $('by').value; store.set('by', state.by); updateAll(); });
+    // The agreement is not remembered between visits: each session asks again.
+    $('consent').addEventListener('change', () => { state.consent = $('consent').checked; updateAll(); });
+    $('version').addEventListener('change', () => { state.version = $('version').value; store.set('version', state.version); updateAll(); });
+    $('filter').addEventListener('change', () => { state.filter = $('filter').value; updateAll(); });
+    $('next').addEventListener('click', () => {
+      for (const sp of state.script.speakers) {
+        for (const line of sp.lines) {
+          if (!state.status.kept[line.lineId] && !needsName(line)) {
+            const d = document.querySelector('details[data-speaker="' + sp.id + '"]');
+            d.open = true;
+            lineEls[line.lineId].root.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+          }
+        }
+      }
+      toast('Every line has a kept take.');
+    });
+    window.addEventListener('beforeunload', (e) => { if (state.rec) { e.preventDefault(); e.returnValue = ''; } });
+  }
+
+  async function main() {
+    wireControls();
+    try {
+      const res = await fetch('/admin/voice-script.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      state.script = await res.json();
+    } catch (e) {
+      $('progress').textContent = 'Could not load the script (' + e.message + '). This page only works on a dev server.';
+      return;
+    }
+    buildSpeakers();
+    updateAll();
+    await pingServer();
+  }
+  main();
+})();
+</script>
+</body>
+</html>
