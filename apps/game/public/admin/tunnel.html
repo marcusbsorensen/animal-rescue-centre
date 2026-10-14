@@ -270,9 +270,11 @@
     50%      { box-shadow: 0 0 0 4px rgba(255, 138, 61, 0.85),
                           inset 0 0 14px 4px rgba(255, 220, 140, 0.6); }
   }
+  /* scale(var(--inv-zoom)) keeps the label its own size when the board is
+     zoomed in (the stage sets --inv-zoom to 1 / the zoom): 16px stays 16px. */
   @keyframes gate-tap-bob {
-    0%, 100% { transform: translate(-50%, -100%); }
-    50%      { transform: translate(-50%, calc(-100% - 3px)); }
+    0%, 100% { transform: translate(-50%, -100%) scale(var(--inv-zoom, 1)); }
+    50%      { transform: translate(-50%, calc(-100% - 3px)) scale(var(--inv-zoom, 1)); }
   }
   .tile.tile-gate.shut {
     animation: gate-pulse-ring 1200ms ease-in-out infinite;
@@ -291,7 +293,8 @@
   }
   .gate-label {
     position: absolute;
-    transform: translate(-50%, -100%);
+    transform: translate(-50%, -100%) scale(var(--inv-zoom, 1));
+    transform-origin: 50% 100%;
     background: #ff8a3d;
     color: #fffbe8;
     font-family: 'Fredoka', sans-serif;
@@ -315,9 +318,12 @@
   body.locked .tile.tile-gate { animation: none; }
   body.locked .gate-label-layer { display: none; }
 
-  /* QUICK! pause-time bonus button — bright orange, only one use
-     per game. Disabled by default; enabled while an animal is mid-
-     animation (body.locked.animating). */
+  /* QUICK! pause-time bonus button — bright orange, one use per run. It is
+     enabled by script (setQuick) from the moment the animals are sent until it
+     is pressed. Before this it carried a `disabled` attribute that nothing
+     removed, so it showed faded all run and, enabled by hand, looked like it
+     could not be pressed. Now it pulses while it is on offer, and while the
+     board is open for fixing it says so and the board wears an orange edge. */
   .btn-big.quick-fix {
     background: linear-gradient(180deg, #ff8a3d, #d84d10);
     color: #fffbe8;
@@ -328,34 +334,38 @@
        layout means the footer is the same height before, during and after. */
     visibility: hidden;
   }
-  body.locked.animating .btn-big.quick-fix:not(.used) { visibility: visible; }
+  @keyframes quick-ready {
+    0%, 100% { box-shadow: 0 3px 0 #8b3408, 0 6px 12px rgba(216, 77, 16, 0.35), 0 0 0 0 rgba(255, 138, 61, 0); }
+    50%      { box-shadow: 0 3px 0 #8b3408, 0 6px 12px rgba(216, 77, 16, 0.35), 0 0 0 6px rgba(255, 138, 61, 0.55); }
+  }
+  body.locked.animating .btn-big.quick-fix:not(.used):not(:disabled) {
+    visibility: visible;
+    animation: quick-ready 1100ms ease-in-out infinite;
+  }
   .btn-big.quick-fix:disabled, .btn-big.quick-fix.used {
     opacity: 0.45;
     cursor: not-allowed;
     box-shadow: none;
   }
-  /* During a QUICK pause, the board is unlocked for tile rotation
-     and a banner pulses across the top of the grid. */
+  /* While the board is open for fixing the button stays at full strength (it
+     is pressed, not faded), and the board has an orange edge. */
+  body.quick-paused .btn-big.quick-fix {
+    visibility: visible; opacity: 1; animation: none; cursor: default;
+    box-shadow: 0 3px 0 #8b3408, 0 0 0 4px rgba(255, 200, 100, 0.95);
+  }
+  body.quick-paused .tunnel-grid {
+    box-shadow:
+      0 0 0 4px #ff8a3d,
+      inset 0 4px 12px rgba(0,0,0,0.4),
+      0 4px 12px rgba(0,0,0,0.3);
+  }
+  /* During a QUICK pause, the board is unlocked for tile rotation: the tiles
+     that can turn take touches again and lose the "locked" tint. */
   body.quick-paused .tile:not(.empty):not(.fixed) {
     pointer-events: auto;
     cursor: pointer;
   }
-  .quick-banner {
-    position: absolute;
-    top: 8px; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(216, 77, 16, 0.92);
-    color: #fffbe8;
-    padding: 8px 16px;
-    border-radius: 12px;
-    font-family: 'Fredoka', sans-serif;
-    font-weight: 700;
-    font-size: var(--fs-floor);
-    z-index: 30;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    display: none;
-  }
-  body.quick-paused .quick-banner { display: block; }
+  body.quick-paused .tile:not(.empty):not(.fixed)::after { background: transparent; }
 
   /* Music toggle — same icon-btn style as overlay toggle. Off
      state grays out. */
@@ -657,6 +667,65 @@
   }
   .btn-big.tertiary:active { box-shadow: 0 1px 0 #5c4a38, 0 3px 6px rgba(0,0,0,0.25); }
 
+  /* Taps, not browser gestures: no double-tap-to-zoom stealing a quick second
+     tap on a tile or a button (a child turns a tile by tapping it twice). */
+  .btn-big, .icon-btn, .tile, .grid-wrap { touch-action: manipulation; }
+
+  /* ── The shared slot: the magnifier before the run, QUICK during it ───────
+     Two buttons in one grid cell. Only one is ever visible; both always take
+     the room, so the footer is the same height either way. */
+  .aux-slot { display: grid; flex: 1 1 120px; max-width: 220px; }
+  .aux-slot > .btn-big { grid-area: 1 / 1; width: 100%; max-width: none; flex: none; }
+
+  /* ── Zoom ─────────────────────────────────────────────────────────────────
+     Where the whole board makes tiles smaller than ~40px (a phone on its
+     side: 25-29px), the board can be zoomed so a tile is 48px. Everything on
+     the board sits in .zoom-stage and zoom and pan are one transform on it. */
+  .zoom-stage {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px;
+    transform-origin: 0 0;
+    transition: transform 280ms ease;
+    --inv-zoom: 1;
+  }
+  .zoom-stage.panning { transition: none; }
+  @media (prefers-reduced-motion: reduce) { .zoom-stage { transition: none; } }
+  body.zoomed .grid-wrap { touch-action: none; cursor: grab; }
+  .btn-big.zoom-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: linear-gradient(180deg, #4f9bb0 0%, #2d6c80 100%);
+    border-color: #1d4a59;
+    box-shadow: 0 3px 0 #1d4a59, 0 5px 10px rgba(0,0,0,0.25);
+    visibility: hidden;
+  }
+  .btn-big.zoom-btn:active { box-shadow: 0 1px 0 #1d4a59, 0 3px 6px rgba(0,0,0,0.25); }
+  body.can-zoom:not(.locked) .btn-big.zoom-btn { visibility: visible; }
+  body.zoomed .btn-big.zoom-btn {
+    background: linear-gradient(180deg, #d8a04a 0%, #a87028 100%);
+    border-color: #6b4a18;
+    box-shadow: 0 3px 0 #6b4a18, 0 5px 10px rgba(0,0,0,0.25);
+  }
+  .zoom-ico { width: 1.5em; height: 1.5em; flex: none; }
+  body.zoomed .zoom-ico .plus-v { display: none; }
+  .zoom-hint {
+    position: absolute; left: 50%; bottom: 10px;
+    transform: translateX(-50%);
+    max-width: 92%;
+    background: rgba(74, 46, 20, 0.94);
+    color: #fffbe8;
+    font-family: 'Fredoka', sans-serif; font-weight: 600;
+    font-size: var(--fs-floor); line-height: 1.3;
+    text-align: center;
+    padding: 8px 14px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 35;
+    pointer-events: none;
+    opacity: 0; transition: opacity 250ms ease;
+  }
+  .zoom-hint.show { opacity: 1; }
+
   .result-overlay {
     position: absolute; inset: 0;
     background: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.7) 100%);
@@ -780,7 +849,7 @@
       max-width: none; min-height: 48px; flex: none;
       padding-left: 8px; padding-right: 8px;   /* "Re-dig tunnels" fits one line in half the panel */
     }
-    #btn-submit, #btn-quick { grid-column: 1 / -1; }
+    #btn-submit, .aux-slot { grid-column: 1 / -1; }
   }
 
   .placeholder {
@@ -831,7 +900,11 @@
       </div>
 
       <div class="grid-wrap" id="grid-wrap">
-        <div class="quick-banner">⏸ QUICK! Tap a tile to fix…</div>
+        <!-- Said for a few seconds when the board is zoomed in. -->
+        <div class="zoom-hint" id="zoom-hint" role="status" aria-live="polite">Drag to look around. Tap a tile to turn it.</div>
+        <!-- Everything on the board lives in this stage, so zooming and
+             panning are one transform on one element. -->
+        <div class="zoom-stage" id="zoom-stage">
         <div class="placeholder">Building the tunnels…</div>
         <!-- Aboveground overlay — embeds the LIVE arc-frame from
              map.html (with overlay-mode chrome stripped). Same
@@ -847,13 +920,29 @@
                   frameborder="0"
                   scrolling="no"></iframe>
         </div>
+        </div>
       </div>
 
       <div class="tunnel-footer">
         <button class="btn-big" id="btn-submit">Send the animals!</button>
         <button class="btn-big secondary" id="btn-reset">Reset</button>
         <button class="btn-big tertiary" id="btn-reroll">Re-dig tunnels</button>
-        <button class="btn-big quick-fix" id="btn-quick" disabled>QUICK! ⏸ fix it</button>
+        <!-- One slot, two buttons that never show together: the magnifier
+             before the animals are sent (only where the tiles are small), QUICK
+             while they run. The slot keeps its place so the board never
+             changes size when one gives way to the other. -->
+        <div class="aux-slot">
+          <button class="btn-big zoom-btn" id="btn-zoom" type="button" aria-pressed="false">
+            <svg class="zoom-ico" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/>
+              <line x1="15.2" y1="15.2" x2="21.5" y2="21.5" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+              <line x1="6.8" y1="10" x2="13.2" y2="10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <line class="plus-v" x1="10" y1="6.8" x2="10" y2="13.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>
+            <span id="zoom-label">Zoom in</span>
+          </button>
+          <button class="btn-big quick-fix" id="btn-quick" type="button" disabled>QUICK! ⏸ fix it</button>
+        </div>
       </div>
 
       <!-- Ready? startup overlay — shown on every page load. Music
@@ -1386,9 +1475,14 @@
   function renderGrid() {
     if (!puzzle) return;
     const wrap = document.getElementById('grid-wrap');
+    const stage = document.getElementById('zoom-stage');
     // Preserve the overground overlay across re-renders (wipes destroy it).
     const overlay = document.getElementById('overground-overlay');
-    wrap.replaceChildren();
+    // And the animal, while a run is on: a tap during the QUICK pause redraws
+    // the board, and the sprite standing in the trail must still be standing
+    // there. Outside a run the trail goes with the redraw, as it always did.
+    const oldTrail = document.body.classList.contains('animating') ? stage.querySelector('.pawprint-trail') : null;
+    stage.replaceChildren();
     const grid = document.createElement('div');
     grid.className = 'tunnel-grid';
     const wrapRect = wrap.getBoundingClientRect();
@@ -1471,7 +1565,8 @@
         grid.appendChild(cell);
       }
     }
-    wrap.appendChild(grid);
+    stage.appendChild(grid);
+    if (oldTrail) grid.appendChild(oldTrail);
 
     // Decoration layer — sparse Manus-painted easter-eggs (bones,
     // worm, rock, boot, treasure) on a few empty tiles. At most ONE
@@ -1532,7 +1627,7 @@
       m.appendChild(img);
       decoLayer.appendChild(m);
     }
-    wrap.appendChild(decoLayer);
+    stage.appendChild(decoLayer);
 
     // Dome layer — separate stacking layer above the overground
     // overlay so glass-dome markers always pop on top of gardens
@@ -1568,7 +1663,7 @@
         '</svg>';
       domeLayer.appendChild(m);
     }
-    wrap.appendChild(domeLayer);
+    stage.appendChild(domeLayer);
 
     // Endpoint sticker layer — painted badges per animal type,
     // always upright above the rotated tile + overlay. Sits at
@@ -1600,7 +1695,7 @@
         stickerLayer.appendChild(m);
       }
     }
-    wrap.appendChild(stickerLayer);
+    stage.appendChild(stickerLayer);
 
     // Gate labels — "Tap!" above every shut gate, on their own layer so the
     // tile's overflow:hidden cannot clip them (see .gate-label).
@@ -1623,7 +1718,7 @@
         gateLayer.appendChild(m);
       }
     }
-    wrap.appendChild(gateLayer);
+    stage.appendChild(gateLayer);
     // Neighbouring gates (tier 5 has three side by side) are narrower than
     // their labels, so the labels would print over each other. Raise a label
     // one step whenever it would overlap one already placed, left to right.
@@ -1685,7 +1780,7 @@
           exitLayer.appendChild(m);
         }
       }
-      wrap.appendChild(exitLayer);
+      stage.appendChild(exitLayer);
     }
 
     // Size the overground overlay to MATCH the soil grid exactly.
@@ -1700,7 +1795,7 @@
     // elements (building, fox/skunk regions) are tile-pegged via
     // --site-tile and stay perfectly in sync with puzzle cells.
     if (overlay) {
-      wrap.appendChild(overlay);
+      stage.appendChild(overlay);
       const gridW = tileSize * puzzle.width + 12;
       const gridH = tileSize * puzzle.height + 12;
       // Nudge the entire painted overlay right by 1/12 of a tile
@@ -1726,16 +1821,142 @@
         );
       } catch (_) { /* iframe not loaded yet — fires again on next render */ }
     }
+
+    // Zoom: remember where the board sits (in the stage's own, unzoomed
+    // pixels), decide whether this size needs one, and put it back as it was.
+    layout = {
+      tileSize, boardX: gridLeft, boardY: gridTop,
+      boardW: tileSize * puzzle.width + 12, boardH: tileSize * puzzle.height + 12,
+      wrapW: wrapRect.width, wrapH: wrapRect.height,
+    };
+    canZoom = tileSize < ZOOM_BELOW;
+    if (!canZoom) zoomed = false;
+    zoomScale = canZoom ? Math.ceil((ZOOM_TILE / tileSize) * 100) / 100 : 1;
+    document.body.classList.toggle('can-zoom', canZoom);
+    applyZoom(false);
   }
+
+  // ── Zoom ──────────────────────────────────────────────────────
+  // On a phone on its side the whole board makes tiles 25-29px. When they are
+  // under ZOOM_BELOW the page offers a magnifier (the footer slot) and a tap on
+  // a tile that does nothing zooms in there; zoomed, a tile is ZOOM_TILE px.
+  // Dragging pans (more than PAN_SLOP px of movement, so a tap that wobbles is
+  // still a tap), a pan never turns a tile, and "Send the animals!" zooms back
+  // out so the whole run is in view.
+  const ZOOM_BELOW = 40;
+  const ZOOM_TILE = 48;
+  const PAN_SLOP = 10;
+  let zoomed = false, canZoom = false, zoomScale = 1, panX = 0, panY = 0;
+  let layout = null;
+  const stageEl = document.getElementById('zoom-stage');
+  const wrapEl = document.getElementById('grid-wrap');
+
+  // Keep the board covering the view: an edge may come in by at most M px.
+  function clampPan(x, y) {
+    if (!layout) return { x: 0, y: 0 };
+    const M = 8, k = zoomScale;
+    const axis = (p, b, len, view) => {
+      const lo = view - k * (b + len) - M, hi = M - k * b;
+      return lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, p));
+    };
+    return { x: axis(x, layout.boardX, layout.boardW, layout.wrapW), y: axis(y, layout.boardY, layout.boardH, layout.wrapH) };
+  }
+  function applyZoom(animate) {
+    if (!zoomed) { panX = 0; panY = 0; }
+    else { const c = clampPan(panX, panY); panX = c.x; panY = c.y; }
+    if (!animate) stageEl.style.transition = 'none';
+    stageEl.style.transform = zoomed ? 'translate(' + panX + 'px, ' + panY + 'px) scale(' + zoomScale + ')' : 'none';
+    stageEl.style.setProperty('--inv-zoom', zoomed ? String(1 / zoomScale) : '1');
+    if (!animate) { void stageEl.offsetWidth; stageEl.style.transition = ''; }
+    document.body.classList.toggle('zoomed', zoomed);
+    const btn = document.getElementById('btn-zoom');
+    if (btn) btn.setAttribute('aria-pressed', zoomed ? 'true' : 'false');
+    const label = document.getElementById('zoom-label');
+    if (label) label.textContent = zoomed ? 'Whole board' : 'Zoom in';
+  }
+  let _hintTimer = 0;
+  function hideZoomHint() {
+    clearTimeout(_hintTimer);
+    document.getElementById('zoom-hint')?.classList.remove('show');
+  }
+  function setZoom(on, focus) {
+    if (on && (!canZoom || !layout)) return;
+    zoomed = !!on;
+    if (zoomed) {
+      // Centre the view on the spot she tapped, or on the middle of the board.
+      const f = focus || { x: layout.boardX + layout.boardW / 2, y: layout.boardY + layout.boardH / 2 };
+      panX = layout.wrapW / 2 - zoomScale * f.x;
+      panY = layout.wrapH / 2 - zoomScale * f.y;
+      document.getElementById('zoom-hint')?.classList.add('show');
+      clearTimeout(_hintTimer);
+      _hintTimer = setTimeout(hideZoomHint, 4500);
+    } else {
+      hideZoomHint();
+    }
+    applyZoom(true);
+  }
+  document.getElementById('btn-zoom').addEventListener('click', () => setZoom(!zoomed));
+
+  // Drag to pan. A touch that has moved more than PAN_SLOP is a pan, and the
+  // click the browser sends when it ends is swallowed, so a pan never turns a
+  // tile. Under PAN_SLOP it is a tap and the tile under it turns as usual.
+  let pan = null, swallowClick = false, _swallowTimer = 0;
+  wrapEl.addEventListener('pointerdown', (e) => {
+    swallowClick = false;   // a new touch is a new gesture: its own click is its own
+    if (!zoomed || pan || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    pan = { id: e.pointerId, x0: e.clientX, y0: e.clientY, px0: panX, py0: panY, moved: false };
+  });
+  wrapEl.addEventListener('pointermove', (e) => {
+    if (!pan || e.pointerId !== pan.id) return;
+    if (!pan.moved) {
+      if (Math.hypot(e.clientX - pan.x0, e.clientY - pan.y0) <= PAN_SLOP) return;
+      // Start from where the finger is now, so the board does not jump by the slop.
+      pan.moved = true;
+      pan.x0 = e.clientX; pan.y0 = e.clientY; pan.px0 = panX; pan.py0 = panY;
+      stageEl.classList.add('panning');
+      hideZoomHint();
+      try { wrapEl.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+      return;
+    }
+    const c = clampPan(pan.px0 + (e.clientX - pan.x0), pan.py0 + (e.clientY - pan.y0));
+    panX = c.x; panY = c.y;
+    stageEl.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + zoomScale + ')';
+  });
+  function endPan(e) {
+    if (!pan || e.pointerId !== pan.id) return;
+    if (pan.moved) {
+      swallowClick = true;
+      clearTimeout(_swallowTimer);
+      // The click a mouse drag leaves behind comes straight after the release.
+      _swallowTimer = setTimeout(() => { swallowClick = false; }, 80);
+    }
+    stageEl.classList.remove('panning');
+    pan = null;
+  }
+  wrapEl.addEventListener('pointerup', endPan);
+  wrapEl.addEventListener('pointercancel', endPan);
+  wrapEl.addEventListener('click', (e) => {
+    if (swallowClick) { swallowClick = false; e.stopPropagation(); e.preventDefault(); }
+  }, true);
 
   function onTileClick(x, y) {
     const i = y * puzzle.width + x;
     const t = puzzle.tiles[i];
-    if (t.type === 'empty' || t.fixed) return;
-    // Belt and braces: a habitat tile is never turned by a tap, even if a host
-    // hands over a puzzle that forgot to mark it fixed. Tapping the goal
-    // sticker used to rotate the hidden stub and break a finished route.
-    if (t.type === 'habitat-endpoint') return;
+    // A tile that does nothing when tapped: empty soil, a fixed piece, a goal
+    // sticker (never turned by a tap, even if a host hands over a puzzle that
+    // forgot to mark it fixed: tapping it used to rotate the hidden stub and
+    // break a finished route), a cross. Where the whole board is too small to
+    // hit well, a tap on one of these zooms in on that spot instead; it cannot
+    // clash with turning a tile, because it only happens where nothing turns.
+    if (t.type === 'empty' || t.fixed || t.type === 'habitat-endpoint' || t.type === 'cross') {
+      if (canZoom && !zoomed && layout && !document.body.classList.contains('locked')) {
+        setZoom(true, {
+          x: layout.boardX + 6 + (x + 0.5) * layout.tileSize,
+          y: layout.boardY + 6 + (y + 0.5) * layout.tileSize,
+        });
+      }
+      return;
+    }
     unlockAudio();
     tryStartMusic();
     if (t.type === 'gate') puzzle.tiles[i] = toggleGate(t);
@@ -1749,32 +1970,52 @@
     // Lock the board — every tile picks up the same darker tint
     // that fixed tiles wear, signalling the puzzle is set.
     document.body.classList.add('locked', 'animating');
+    // Zoom back out: she watches the whole run, and QUICK is for fixing a tile
+    // in it, so the whole board is what she needs in front of her.
+    setZoom(false);
     quickFixUsed = false; // reset quick-fix availability per submit
-    document.getElementById('btn-quick')?.classList.remove('used');
+    clearTimeout(quickTimer);
+    document.body.classList.remove('quick-paused');
+    setQuick('ready');
     const result = solvePuzzle(puzzle);
     const allReached = puzzle.animals.every((a) => result[a]?.reached);
     runAnimalAnimations(result, allReached);
   }
 
-  // Activate the QUICK pause-time bonus. Pauses the animation loop
-  // for 3 seconds (animation generations + waitWhileQuickPaused
-  // handle the actual blocking) while the kid rotates a tile or two,
-  // then re-solves the puzzle and re-runs the animation from the
-  // top with the kid's edits applied.
-  function onQuickFix() {
-    if (quickFixUsed) return;
-    quickFixUsed = true;
+  // QUICK! — one pause per run to fix a tile that is wrong. The button is on
+  // (and pulses) from the moment the animals are sent: setQuick('ready').
+  // Pressing it holds the animal where it is for QUICK_PAUSE_MS while the
+  // board is open for turning tiles (orange edge, "Fix it now!"); then the
+  // puzzle is solved again with her edits and the run starts over from the
+  // top. The button then gives way to the next run's.
+  const QUICK_LABEL = 'QUICK! ⏸ fix it';
+  const QUICK_PAUSE_MS = 3000;
+  let quickTimer = 0;
+  // 'off' (not in a run), 'ready' (on offer), 'pausing' (pressed, board open),
+  // 'used' (pressed, board closed again).
+  function setQuick(state) {
     const btn = document.getElementById('btn-quick');
-    if (btn) btn.classList.add('used');
-    quickPauseUntil = Date.now() + 3000;
-    document.body.classList.add('quick-paused');
-    setTimeout(() => {
-      document.body.classList.remove('quick-paused');
-      // Re-solve with the kid's edits and re-run the animation.
+    if (!btn) return;
+    btn.disabled = state !== 'ready';
+    btn.classList.toggle('used', state === 'pausing' || state === 'used');
+    btn.textContent = state === 'pausing' ? 'Fix it now!' : QUICK_LABEL;
+  }
+  function onQuickFix() {
+    const body = document.body;
+    if (quickFixUsed || !body.classList.contains('animating') || body.classList.contains('quick-paused')) return;
+    quickFixUsed = true;
+    setQuick('pausing');
+    quickPauseUntil = Date.now() + QUICK_PAUSE_MS;
+    body.classList.add('quick-paused');
+    clearTimeout(quickTimer);
+    quickTimer = setTimeout(() => {
+      body.classList.remove('quick-paused');
+      setQuick('used');
+      // Re-solve with her edits and re-run the animation.
       const r = solvePuzzle(puzzle);
       const allReached = puzzle.animals.every((a) => r[a]?.reached);
       runAnimalAnimations(r, allReached);
-    }, 3000);
+    }, QUICK_PAUSE_MS);
   }
 
   // Animal sprite paths per species. Each animal gets its own
@@ -2085,6 +2326,7 @@
     }
     if (aborted()) return;
     document.body.classList.remove('animating');
+    setQuick('off');
     showResult(allReached);
   }
 
@@ -2131,7 +2373,16 @@
 
   // The words on the win card for what each animal gained. The host knows (it
   // is the one that applies the gain); until it says, the card makes no claim.
-  function winMessage(gains, missing) {
+  function winMessage(gains, missing, capped, played) {
+    // Past the day's allowance (the host says `capped`): the win is still a
+    // win, the animals enjoyed the play, and nobody is shown a number.
+    if (capped) {
+      const names = (played || []).map((p) => p && p.name).filter(Boolean);
+      const who = names.length === 0 ? 'The animals'
+        : names.length === 1 ? names[0]
+          : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+      return who + ' enjoyed the play in the garden.\nMore wins today are just for fun. Tomorrow they cheer the animals up again.';
+    }
     const lines = [];
     for (const g of gains || []) {
       const bits = [];
@@ -2194,6 +2445,14 @@
     renderGrid();
   }
   function reset() {
+    // Unlock the board + abort any in-flight animation, fresh QUICK. Before
+    // the redraw, so the redraw does not keep a running animal on the board.
+    document.body.classList.remove('locked', 'animating', 'quick-paused');
+    animGeneration++;
+    quickFixUsed = false;
+    quickPauseUntil = 0;
+    clearTimeout(quickTimer);
+    setQuick('off');
     if (originalPuzzle) {
       puzzle = JSON.parse(JSON.stringify(originalPuzzle));
       renderGrid();
@@ -2201,19 +2460,16 @@
     // Restore overlay opacity (cleared by win reveal).
     const og = document.getElementById('overground-overlay');
     if (og) og.style.opacity = '';
-    // Unlock the board + abort any in-flight animation, fresh QUICK.
-    document.body.classList.remove('locked', 'animating', 'quick-paused');
-    animGeneration++;
-    quickFixUsed = false;
-    quickPauseUntil = 0;
-    document.getElementById('btn-quick')?.classList.remove('used');
   }
   function reroll() {
     document.body.classList.remove('locked', 'animating', 'quick-paused');
     animGeneration++;
     quickFixUsed = false;
     quickPauseUntil = 0;
-    document.getElementById('btn-quick')?.classList.remove('used');
+    clearTimeout(quickTimer);
+    setQuick('off');
+    // A new board is seen whole first.
+    zoomed = false;
     const newSeed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
     loadFromSeed(newSeed);
     window.parent?.postMessage({
@@ -2371,7 +2627,7 @@
     if (m.type === 'complete-result' && m.payload && typeof m.payload === 'object') {
       const card = document.getElementById('result-card');
       if (card && card.classList.contains('win')) {
-        const text = winMessage(m.payload.gains, m.payload.missing);
+        const text = winMessage(m.payload.gains, m.payload.missing, m.payload.capped === true, m.payload.played);
         if (text) document.getElementById('result-msg').textContent = text;
       }
     }
