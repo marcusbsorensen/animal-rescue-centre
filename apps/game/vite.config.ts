@@ -2,11 +2,15 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import assetManifestPlugin from './plugins/asset-manifest';
 import devReviewAssetsPlugin from './plugins/dev-review-assets';
+import voiceBoothPlugin from './plugins/voice-booth';
 
 export default defineConfig({
   plugins: [
     assetManifestPlugin(),
     devReviewAssetsPlugin(),
+    // Dev only: the voice booth's save endpoint (voice-takes/), and it takes the
+    // booth page out of every production build. See docs/voice-recording-plan-2026-10-14.md.
+    voiceBoothPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
@@ -68,6 +72,18 @@ export default defineConfig({
             options: {
               cacheName: 'arc-art',
               expiration: { maxEntries: 1200, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Recorded voice lines (assets/voice/<line id>.mp3). Their own cache,
+            // listed before the general audio one so it matches first: a hundred
+            // clips in the 80-entry audio cache would push the music out.
+            urlPattern: /\/assets\/voice\/.*\.mp3$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'arc-voice',
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 60 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
