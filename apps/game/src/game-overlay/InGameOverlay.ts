@@ -16,7 +16,15 @@
  * All in-game screens postMessage up when their primary actions fire.
  * This bridge accepts the union of those sources and forwards them to
  * the host scene's onAction handler.
+ *
+ * One screen at a time. Mounting a screen replaces the one that is up, EXCEPT
+ * that the garden tunnel (a puzzle she is part-way through) is never replaced
+ * by something she did not ask for: an arrival, a visitor or a badge that comes
+ * while it is open waits in a queue and is shown, in order, once she closes it
+ * (overlay-queue.ts has the rules; 119A).
  */
+
+import { OverlayQueue, mustWait } from './overlay-queue';
 
 export type InGamePage =
   | 'paths' | 'adopters' | 'adoption' | 'adoption-office' | 'rewilding'
@@ -90,6 +98,22 @@ const VALID_SOURCES = new Set([
 let activeFrame: HTMLIFrameElement | null = null;
 let activeListener: ((e: MessageEvent) => void) | null = null;
 let activeHostSource: string = 'arc-game-host';
+let activePage: InGamePage | null = null;
+/** True while the screen up was itself taken off the waiting list. */
+let activeFromQueue = false;
+
+/** Everything a mount needs, kept as it was asked for while it waits. */
+interface MountRequest {
+  page: InGamePage;
+  handlers: InGameOverlayHandlers;
+  initPayload?: Record<string, unknown>;
+  options?: MountInGameOptions;
+  /** Called with the request's close handle when its turn comes. */
+  shown?: (close: () => void) => void;
+}
+
+/** Screens that asked for the screen while the tunnel (or an earlier waiter) held it. */
+const waiting = new OverlayQueue<MountRequest>();
 
 function postToFrame(type: string, payload?: unknown, hostSource?: string): void {
   if (!activeFrame?.contentWindow) return;
@@ -132,13 +156,30 @@ export interface MountInGameOptions {
   query?: Record<string, string | undefined>;
 }
 
+/**
+ * Show a screen. Returns the handle that closes it: call it from the screen's
+ * own handler when it is done. If the tunnel is up (or other screens are
+ * already waiting) the screen waits its turn and the handle, until then,
+ * withdraws it.
+ */
 export function mountInGame(
   page: InGamePage,
   handlers: InGameOverlayHandlers,
   initPayload?: Record<string, unknown>,
   options?: MountInGameOptions,
 ): () => void {
-  unmountInGame();
+  if (mustWait({ active: activePage, page, queued: waiting.length, chained: activeFromQueue })) {
+    let close: (() => void) | undefined;
+    const held = waiting.push(page, { page, handlers, initPayload, options, shown: (c) => { close = c; } });
+    return () => { if (close) close(); else waiting.remove(held.id); };
+  }
+  return show({ page, handlers, initPayload, options }, false);
+}
+
+/** Put a screen up now, replacing whatever is showing. */
+function show(request: MountRequest, fromQueue: boolean): () => void {
+  const { page, handlers, initPayload, options } = request;
+  closeActive();
 
   let src = PAGE_URLS[page];
   if (options?.query) {
@@ -160,6 +201,8 @@ export function mountInGame(
   frame.setAttribute('aria-label', `A.R.C. ${page}`);
   document.body.appendChild(frame);
   activeFrame = frame;
+  activePage = page;
+  activeFromQueue = fromQueue;
   activeHostSource = options?.hostSource ?? 'arc-game-host';
 
   frame.addEventListener('load', () => {
@@ -176,10 +219,18 @@ export function mountInGame(
     handlers.onAction(msg.type as InGameAction, msg.payload);
   };
   window.addEventListener('message', activeListener);
-  return unmountInGame;
+
+  // Closing this screen shows the next one that was waiting for it. A handle
+  // that outlives its screen (it was replaced) does nothing.
+  return () => {
+    if (activeFrame !== frame) return;
+    closeActive();
+    showNextWaiting();
+  };
 }
 
-export function unmountInGame(): void {
+/** Take the screen down, leaving whatever is waiting where it is. */
+function closeActive(): void {
   if (activeListener) {
     window.removeEventListener('message', activeListener);
     activeListener = null;
@@ -189,4 +240,30 @@ export function unmountInGame(): void {
     activeFrame = null;
   }
   activeHostSource = 'arc-game-host';
+  activePage = null;
+  activeFromQueue = false;
+}
+
+/** The screen that has waited longest, if any, takes its turn. */
+function showNextWaiting(): void {
+  const next = waiting.shift();
+  if (!next) return;
+  const close = show(next.request, true);
+  next.request.shown?.(close);
+}
+
+/**
+ * Take down whatever is showing and forget everything waiting: the scene that
+ * asked for them has shut down, and the closures they carry belong to it.
+ * (Closing one screen from its own handler goes through the handle
+ * `mountInGame` returned, which also shows the next waiting.)
+ */
+export function unmountInGame(): void {
+  closeActive();
+  waiting.clear();
+}
+
+/** The pages waiting for the tunnel (or an earlier arrival) to be closed, in the order they will appear. */
+export function waitingInGame(): string[] {
+  return waiting.pages();
 }
