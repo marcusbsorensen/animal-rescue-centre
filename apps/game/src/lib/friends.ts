@@ -34,55 +34,55 @@ export async function addFriendByCode(joinCode: string): Promise<Friend> {
 }
 
 /**
- * Remove a friend (both directions).
+ * Remove a friend, for both players (146A). The function takes the caller
+ * from the session, ends both rows of the friendship and deletes the gifts
+ * between the two that nobody has claimed. Asking again is harmless.
+ *
+ * This used to delete the two rows itself, with the public key. The rules
+ * on `friendships` key on `auth.uid()`, which ARC's own sessions never
+ * set, so it deleted nothing and reported no error.
  */
 export async function removeFriend(friendId: string): Promise<void> {
   const session = getSession();
   if (!session) throw new Error('Not logged in');
 
-  const { error: err1 } = await supabase
-    .from('friendships')
-    .delete()
-    .eq('user_id', session.userId)
-    .eq('friend_id', friendId);
+  const { data, error } = await supabase.functions.invoke('remove-friend', {
+    body: { friendId },
+    headers: sessionHeaders(),
+  });
 
-  const { error: err2 } = await supabase
-    .from('friendships')
-    .delete()
-    .eq('user_id', friendId)
-    .eq('friend_id', session.userId);
-
-  if (err1 || err2) throw new Error('Failed to remove friend');
+  if (error) throw new Error(error.message ?? 'Failed to remove friend');
+  if (data?.error) throw new Error(data.error);
+  if (data?.removed !== true) throw new Error('Failed to remove friend');
 }
 
 /**
- * Get all friends for the current user.
+ * Get all friends for the current user, from the get-friends function.
+ *
+ * This used to read `friendships` with the public key, under the same
+ * `auth.uid()` rules, so it always came back empty (.claude/TRAPS.md).
  */
 export async function getFriends(): Promise<Friend[]> {
   const session = getSession();
   if (!session) throw new Error('Not logged in');
 
-  const { data, error } = await supabase
-    .from('friendships')
-    .select(`
-      friend:users!friendships_friend_id_fkey (
-        id, display_name, avatar_emoji, avatar_bg_colour
-      )
-    `)
-    .eq('user_id', session.userId);
-
-  if (error) throw new Error('Failed to fetch friends');
-
-  return (data ?? []).map((row) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const f = (row as any).friend as Record<string, string>;
-    return {
-      id: f.id,
-      displayName: f.display_name,
-      avatarEmoji: f.avatar_emoji,
-      avatarBgColour: f.avatar_bg_colour,
-    };
+  const { data, error } = await supabase.functions.invoke('get-friends', {
+    body: {},
+    headers: sessionHeaders(),
   });
+
+  if (error || data?.error || !Array.isArray(data?.friends)) {
+    throw new Error('Failed to fetch friends');
+  }
+
+  return (data.friends as Array<Record<string, unknown>>)
+    .filter((f) => typeof f.id === 'string')
+    .map((f) => ({
+      id: f.id as string,
+      displayName: typeof f.displayName === 'string' ? f.displayName : '',
+      avatarEmoji: typeof f.avatarEmoji === 'string' ? f.avatarEmoji : '🐾',
+      avatarBgColour: typeof f.avatarBgColour === 'string' ? f.avatarBgColour : '#ffd0a0',
+    }));
 }
 
 /**

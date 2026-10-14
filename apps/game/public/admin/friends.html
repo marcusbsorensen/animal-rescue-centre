@@ -820,6 +820,40 @@
     gap: clamp(5px, 0.9cqh, 8px);
     margin: clamp(6px, 1.2cqh, 10px) 0 clamp(4px, 0.8cqh, 8px);
   }
+  /* With friends on it the board is as wide as the screen allows, the same
+     with a short name as a long one and while a card asks its question;
+     sized by its words alone it was 310px on a phone and the cards hung off
+     it. The list then holds as many cards as fit without the screen
+     scrolling, and scrolls inside the board after that, as login's names do.
+     32% of the height leaves the invite and the grass where they were on
+     every size (they had 33-49% to spare; 24% on a phone held sideways, where
+     the empty board's words are 97px of a 360px screen). A card keeps its own
+     height in the list: one asking its question is taller, and squeezed to
+     the others' height its planks lay over the next card. */
+  .signs-on-stake > .intro:has(.friend-card) {
+    width: min(92cqw, 480px);
+    max-width: none;
+  }
+  .friends-list:has(.friend-card) {
+    max-height: 32cqh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  .friends-list > .friend-card { flex-shrink: 0; }
+  /* A phone held upright: the card is ~300px across, and its name gets
+     what the face, the medal and Remove leave. Each gives a few pixels so
+     the longest name is two lines (Curious / Dormouse99), not three. */
+  @container welcome (max-width: 420px) {
+    .friends-list .friend-card { gap: 6px; padding-left: 8px; padding-right: 8px; }
+    .friends-list .friend-avatar { width: 40px; height: 40px; font-size: 22px; }
+    .friends-list .friend-name { font-size: var(--fs-floor); }
+    .friends-list .remove-plank { padding: 4px 10px; }
+  }
+  @container (max-height: 520px) {
+    .friends-list:has(.friend-card) { max-height: 24cqh; }
+  }
   .friend-card {
     display: flex; align-items: center;
     gap: clamp(8px, 1.6cqw, 14px);
@@ -835,7 +869,7 @@
     transition: transform 0.1s, background 0.15s;
   }
   .friend-card:hover { background: rgba(254,249,239,0.25); }
-  .friend-card:active { transform: translateY(1px); }
+  .friend-card:not(:has(button:active)):active { transform: translateY(1px); }
   .friend-avatar-wrap {
     position: relative;
     flex: 0 0 auto;
@@ -871,6 +905,7 @@
     color: #fffbe8;
     text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
     line-height: 1.1;
+    overflow-wrap: anywhere;
   }
   .friend-visit {
     font-family: var(--body-font);
@@ -948,6 +983,113 @@
     background: linear-gradient(180deg, #bdb3a2 0%, #8f8676 100%);
     border-color: #6b6254;
   }
+
+  /* Remove a friend (146A). A small plank of plain, unpainted wood at the
+     right end of the card: quieter than Recruit's honey, so it is there when
+     wanted and not the first thing the eye lands on. The button is the 48px
+     hit area the rest of the game uses; the plank inside it is the size it
+     looks. */
+  .remove-btn {
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 48px; min-height: 48px;
+    margin-right: calc(-1 * clamp(4px, 0.8cqw, 8px));
+    padding: 0;
+    background: none; border: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+  .remove-plank {
+    font-family: var(--body-font);
+    font-weight: 700;
+    font-size: var(--fs-floor);
+    line-height: 1.2;
+    color: #fffbe8;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+    border: 2px solid #4a3a2a;
+    border-radius: 999px;
+    padding: 4px 12px;
+    background: linear-gradient(180deg, #a08c74 0%, #7e6b55 55%, #5f4f3e 100%);
+    box-shadow: 0 2px 3px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,240,210,0.2);
+    white-space: nowrap;
+  }
+  .remove-btn:active .remove-plank { transform: translateY(1px); }
+  .remove-btn:focus-visible { outline: none; }
+  .remove-btn:focus-visible .remove-plank { outline: 3px solid #fffbe8; outline-offset: 2px; }
+
+  /* The confirmation, on the card itself: the friend's face, the question
+     and two planks, so the board and the scene stay as they are. Keep is the
+     honey plank of the game's main signs and comes first; Remove is the
+     plain one again. */
+  .friend-card.confirming {
+    align-items: flex-start;
+    cursor: default;
+    background: rgba(58,34,14,0.32);
+    border-color: rgba(255,240,210,0.6);
+    padding-top: clamp(6px, 1cqh, 9px);
+    padding-bottom: clamp(6px, 1cqh, 9px);
+  }
+  .friend-card.confirming:hover { background: rgba(58,34,14,0.32); }
+  .friend-card.confirming:active { transform: none; }
+  /* The question beside its two planks where the card is wide enough (a
+     phone held sideways, where the card must stay short), and above them
+     where it is not. */
+  .confirm-body {
+    flex: 1 1 0; min-width: 0;
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: clamp(4px, 0.8cqh, 8px) clamp(8px, 1.6cqw, 12px);
+  }
+  .confirm-question {
+    font-family: var(--body-font);
+    font-weight: 800;
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
+    line-height: 1.25;
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.45);
+    overflow-wrap: anywhere;
+    flex: 1 1 8em; min-width: 0;
+  }
+  .confirm-row {
+    flex: 0 0 auto;
+    display: flex;
+    gap: clamp(8px, 1.4cqw, 12px);
+  }
+  .confirm-row button {
+    min-width: 88px; min-height: 48px;
+    padding: 4px 14px;
+    font-family: var(--body-font);
+    font-weight: 800;
+    font-size: clamp(var(--fs-floor), 2.2cqh, 19px);
+    color: #fffbe8;
+    text-shadow: 1px 2px 0 rgba(0,0,0,0.5);
+    border: 2px solid;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow:
+      inset 0 0 clamp(8px, 1.4cqh, 14px) rgba(0,0,0,0.2),
+      inset 0 1px 0 rgba(255,240,210,0.22),
+      0 3px 5px rgba(0,0,0,0.3);
+  }
+  .confirm-row button:active { transform: translateY(1px); }
+  .confirm-row button:focus-visible { outline: 3px solid #fffbe8; outline-offset: 2px; }
+  .confirm-row button[disabled] { opacity: 0.6; cursor: default; }
+  .keep-btn {
+    border-color: #7a4b15 !important;
+    background: linear-gradient(180deg, #e7a84a 0%, #c88436 55%, #a2651c 100%);
+  }
+  .confirm-remove-btn {
+    border-color: #4a3a2a !important;
+    background: linear-gradient(180deg, #a08c74 0%, #7e6b55 55%, #5f4f3e 100%);
+  }
+  .confirm-error {
+    flex: 1 0 100%;
+    font-family: var(--body-font);
+    font-weight: 700;
+    font-size: var(--fs-floor);
+    color: #ffe9c2;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.55);
+  }
+  .confirm-error:empty { display: none; }
 
   /* Friends-list empty state — shown when the kid has no friends yet. */
   /* Cream on the wood with the sign's dark shadow, like every other line on
@@ -1361,11 +1503,16 @@
 
   // Render friend cards with document.createElement + textContent only —
   // every string field comes from untrusted host payloads, so we never
-  // touch innerHTML. Click handler only fires in embed mode (closure).
-  function renderFriends(friends, onOpen, onRecruit) {
+  // touch innerHTML. Click handlers only fire in embed mode (closures).
+  //
+  // A card is a group, not a button: it holds Recruit and Remove, and a
+  // button inside a button is two controls a screen reader cannot tell
+  // apart. Tapping the card itself still sends 'open-friend'.
+  function renderFriends(friends, onOpen, onRecruit, onRemove) {
     const list = document.getElementById('friends-list');
     if (!list) return;
     list.textContent = '';  // clear
+    CONFIRMING = null;
     // Empty state — no friends yet.
     if (!friends || friends.length === 0) {
       const empty = document.createElement('div');
@@ -1381,134 +1528,271 @@
       list.appendChild(empty);
       return;
     }
-    for (const f of friends) {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'friend-card';
-
-      const avatarWrap = document.createElement('div');
-      avatarWrap.className = 'friend-avatar-wrap';
-      const avatar = document.createElement('span');
-      avatar.className = 'friend-avatar';
-      avatar.textContent = typeof f.emoji === 'string' ? f.emoji : '🐾';
-      if (typeof f.bg === 'string') avatar.style.background = f.bg;
-      avatarWrap.appendChild(avatar);
-      if (f.online) {
-        const dot = document.createElement('span');
-        dot.className = 'online-dot';
-        dot.setAttribute('aria-label', 'online');
-        avatarWrap.appendChild(dot);
-      }
-      card.appendChild(avatarWrap);
-
-      const info = document.createElement('div');
-      info.className = 'friend-info';
-      const nameEl = document.createElement('div');
-      nameEl.className = 'friend-name';
-      // The friend's display name from the word lists, never their login.
-      nameEl.textContent = typeof f.displayName === 'string' ? f.displayName : '';
-      info.appendChild(nameEl);
-
-      const visitEl = document.createElement('div');
-      visitEl.className = 'friend-visit';
-      visitEl.textContent = 'Last visit: ' + (typeof f.lastVisit === 'string' ? f.lastVisit : '—');
-      info.appendChild(visitEl);
-
-      // Apprentice-able hint — shown only on the three recruitable kids
-      // (Rhubarb / Amara / Kofi). Once they're recruited, we swap the
-      // chip copy to a quiet "⭐ Apprentice" confirmation instead.
-      if (typeof f.apprenticeId === 'string') {
-        const recruited = RECRUITED.has(f.apprenticeId);
-        const chip = document.createElement('div');
-        chip.className = 'apprentice-chip';
-        const star = document.createElement('span');
-        star.className = 'star';
-        star.textContent = '⭐';
-        chip.appendChild(star);
-        const chipText = document.createElement('span');
-        chipText.textContent = recruited ? 'Apprentice' : 'Apprentice-able';
-        chip.appendChild(chipText);
-        info.appendChild(chip);
-      }
-      card.appendChild(info);
-
-      // Recruit button — right-aligned, only for apprentice-able friends
-      // who haven't been recruited yet. Stops card click from also firing.
-      if (typeof f.apprenticeId === 'string' && !RECRUITED.has(f.apprenticeId)) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'recruit-btn';
-        btn.textContent = 'Recruit!';
-        btn.setAttribute('aria-label', 'Recruit ' + (f.displayName || '') + ' as an apprentice');
-        btn.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          if (typeof onRecruit === 'function') onRecruit(f.apprenticeId);
-        });
-        card.appendChild(btn);
-      }
-
-      // Single progressive bond medal on the right — 1..5 → Sprout..Champion.
-      const bondIdx = Math.max(1, Math.min(5, Number(f.bond) | 0)) - 1;
-      const level = BOND_LEVELS[bondIdx];
-      const medalWrap = document.createElement('div');
-      medalWrap.className = 'friend-medal-wrap';
-      const medal = document.createElement('span');
-      medal.className = 'friend-medal';
-      medal.setAttribute('aria-label', 'Bond: ' + level.label);
-      medal.textContent = level.emoji;
-      medalWrap.appendChild(medal);
-      const medalLabel = document.createElement('span');
-      medalLabel.className = 'friend-medal-label';
-      medalLabel.textContent = level.label;
-      medalWrap.appendChild(medalLabel);
-      card.appendChild(medalWrap);
-
-      if (typeof onOpen === 'function') {
-        card.addEventListener('click', () => onOpen(f.displayName));
-      }
-      list.appendChild(card);
-    }
+    for (const f of friends) list.appendChild(friendCard(f, onOpen, onRecruit, onRemove));
   }
 
-  // Always paint sample friends for the design-review preview.
-  renderFriends(SAMPLE_FRIENDS);
+  const nameOf = (f) => (typeof f.displayName === 'string' ? f.displayName : '');
+
+  // A display name is two words run together (CuriousDormouse99). On a
+  // narrow card it may break between the two, and nowhere else: a zero-width
+  // space marks the place, which keeps the name one run of text.
+  const nameWithBreaks = (name) => name.split(/(?=[A-Z])/).join('\u200B');
+
+  function friendAvatar(f) {
+    const avatarWrap = document.createElement('div');
+    avatarWrap.className = 'friend-avatar-wrap';
+    const avatar = document.createElement('span');
+    avatar.className = 'friend-avatar';
+    avatar.textContent = typeof f.emoji === 'string' ? f.emoji : '🐾';
+    if (typeof f.bg === 'string') avatar.style.background = f.bg;
+    avatarWrap.appendChild(avatar);
+    if (f.online) {
+      const dot = document.createElement('span');
+      dot.className = 'online-dot';
+      dot.setAttribute('aria-label', 'online');
+      avatarWrap.appendChild(dot);
+    }
+    return avatarWrap;
+  }
+
+  function friendCard(f, onOpen, onRecruit, onRemove) {
+    const card = document.createElement('div');
+    card.className = 'friend-card';
+    card.setAttribute('role', 'group');
+    card.setAttribute('aria-label', nameOf(f));
+    if (typeof f.id === 'string') card.dataset.friendId = f.id;
+
+    card.appendChild(friendAvatar(f));
+
+    const info = document.createElement('div');
+    info.className = 'friend-info';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'friend-name';
+    // The friend's display name from the word lists, never their login.
+    nameEl.textContent = nameWithBreaks(nameOf(f));
+    info.appendChild(nameEl);
+
+    const visitEl = document.createElement('div');
+    visitEl.className = 'friend-visit';
+    visitEl.textContent = 'Last visit: ' + (typeof f.lastVisit === 'string' ? f.lastVisit : '—');
+    info.appendChild(visitEl);
+
+    // Apprentice-able hint — shown only on the three recruitable kids
+    // (Rhubarb / Amara / Kofi). Once they're recruited, we swap the
+    // chip copy to a quiet "⭐ Apprentice" confirmation instead.
+    if (typeof f.apprenticeId === 'string') {
+      const recruited = RECRUITED.has(f.apprenticeId);
+      const chip = document.createElement('div');
+      chip.className = 'apprentice-chip';
+      const star = document.createElement('span');
+      star.className = 'star';
+      star.textContent = '⭐';
+      chip.appendChild(star);
+      const chipText = document.createElement('span');
+      chipText.textContent = recruited ? 'Apprentice' : 'Apprentice-able';
+      chip.appendChild(chipText);
+      info.appendChild(chip);
+    }
+    card.appendChild(info);
+
+    // Recruit button — right-aligned, only for apprentice-able friends
+    // who haven't been recruited yet. Stops card click from also firing.
+    if (typeof f.apprenticeId === 'string' && !RECRUITED.has(f.apprenticeId)) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'recruit-btn';
+      btn.textContent = 'Recruit!';
+      btn.setAttribute('aria-label', 'Recruit ' + nameOf(f) + ' as an apprentice');
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (typeof onRecruit === 'function') onRecruit(f.apprenticeId);
+      });
+      card.appendChild(btn);
+    }
+
+    // Single progressive bond medal on the right — 1..5 → Sprout..Champion.
+    const bondIdx = Math.max(1, Math.min(5, Number(f.bond) | 0)) - 1;
+    const level = BOND_LEVELS[bondIdx];
+    const medalWrap = document.createElement('div');
+    medalWrap.className = 'friend-medal-wrap';
+    const medal = document.createElement('span');
+    medal.className = 'friend-medal';
+    medal.setAttribute('aria-label', 'Bond: ' + level.label);
+    medal.textContent = level.emoji;
+    medalWrap.appendChild(medal);
+    const medalLabel = document.createElement('span');
+    medalLabel.className = 'friend-medal-label';
+    medalLabel.textContent = level.label;
+    medalWrap.appendChild(medalLabel);
+    card.appendChild(medalWrap);
+
+    // Remove (146A) — on a real friend only: one the server knows by id,
+    // not an apprentice. It asks first, on the card.
+    if (typeof onRemove === 'function' && typeof f.id === 'string' && typeof f.apprenticeId !== 'string') {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'remove-btn';
+      btn.setAttribute('aria-label', 'Remove ' + nameOf(f) + ' from your friends');
+      const plank = document.createElement('span');
+      plank.className = 'remove-plank';
+      plank.textContent = 'Remove';
+      btn.appendChild(plank);
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        askToRemove(card, f, onOpen, onRecruit, onRemove);
+      });
+      card.appendChild(btn);
+    }
+
+    if (typeof onOpen === 'function') {
+      card.addEventListener('click', () => {
+        if (!card.classList.contains('confirming')) onOpen(f.displayName);
+      });
+    }
+    return card;
+  }
+
+  // The card asking "Remove MossyOtter from your friends?". One at a time.
+  // Keep is the default: it has the focus, and Escape or a tap anywhere
+  // else on the screen is Keep too. Only the Remove plank removes.
+  let CONFIRMING = null;
+
+  function askToRemove(card, f, onOpen, onRecruit, onRemove) {
+    keepFriend(false);
+    card.classList.add('confirming');
+    card.textContent = '';
+    card.appendChild(friendAvatar(f));
+
+    const body = document.createElement('div');
+    body.className = 'confirm-body';
+    const question = document.createElement('div');
+    question.className = 'confirm-question';
+    question.id = 'confirm-question';
+    question.textContent = 'Remove ' + nameWithBreaks(nameOf(f)) + ' from your friends?';
+    body.appendChild(question);
+
+    const row = document.createElement('div');
+    row.className = 'confirm-row';
+    const keep = document.createElement('button');
+    keep.type = 'button';
+    keep.className = 'keep-btn';
+    keep.textContent = 'Keep';
+    keep.setAttribute('aria-describedby', 'confirm-question');
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'confirm-remove-btn';
+    remove.textContent = 'Remove';
+    remove.setAttribute('aria-describedby', 'confirm-question');
+    row.appendChild(keep);
+    row.appendChild(remove);
+    body.appendChild(row);
+
+    const error = document.createElement('div');
+    error.className = 'confirm-error';
+    error.setAttribute('role', 'status');
+    body.appendChild(error);
+    card.appendChild(body);
+
+    keep.addEventListener('click', (ev) => { ev.stopPropagation(); keepFriend(true); });
+    remove.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if (!CONFIRMING || CONFIRMING.waiting) return;
+      CONFIRMING.waiting = true;
+      keep.disabled = true;
+      remove.disabled = true;
+      card.setAttribute('aria-busy', 'true');
+      error.textContent = '';
+      onRemove(f.id);
+    });
+
+    CONFIRMING = {
+      card, f, keep, remove, error, waiting: false,
+      rebuild: () => friendCard(f, onOpen, onRecruit, onRemove),
+    };
+    keep.focus({ preventScroll: true });
+    card.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** Put the card back as it was. `refocus` when the child chose Keep. */
+  function keepFriend(refocus) {
+    if (!CONFIRMING || CONFIRMING.waiting) return;
+    const { card, rebuild } = CONFIRMING;
+    CONFIRMING = null;
+    const fresh = rebuild();
+    card.replaceWith(fresh);
+    if (refocus) fresh.querySelector('.remove-btn')?.focus({ preventScroll: true });
+  }
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && CONFIRMING) keepFriend(true);
+  });
+  document.addEventListener('pointerdown', (ev) => {
+    if (CONFIRMING && !CONFIRMING.card.contains(ev.target)) keepFriend(false);
+  });
+
+  // Design-review preview (no ?embed): paint the sample friends at once.
+  // In the game, the list waits for the host, which always sends one, so a
+  // child with friends never sees "No friends here yet!" while it loads.
+  const params = new URLSearchParams(location.search);
+  if (!params.has('embed')) renderFriends(SAMPLE_FRIENDS);
 
   // Embed mode — when loaded inside the game as an overlay, drop the
   // simulator chrome and have the device fill the viewport. Clicks on the
   // primary CTAs postMessage up to the host scene instead of being dead.
-  const params = new URLSearchParams(location.search);
   if (params.has('embed')) {
     document.body.classList.add('embed');
     const send = (type, payload) => {
       try { parent.postMessage({ source: 'arc-auth', type, payload }, '*'); } catch (_) {}
     };
-    // Handshake — parent sends the current friends payload. We only render
-    // safe fields via textContent so no sanitisation needed.
+    // The friends the host sent, or null until it has.
+    let FRIENDS = null;
+    const paint = () => {
+      if (!FRIENDS) return;
+      renderFriends(
+        FRIENDS,
+        (displayName) => send('open-friend', { displayName }),
+        (id) => send('recruit-apprentice', { id }),
+        (id) => send('remove-friend', { id }),
+      );
+    };
+    // Handshake — parent sends the join code and recruited apprentices
+    // ('init'), then the friends list ('friends') once it has loaded, and
+    // the answer to each removal. We only render safe fields via
+    // textContent so no sanitisation needed.
     window.addEventListener('message', (e) => {
       const m = e.data;
       if (m?.source !== 'arc-auth-host') return;
-      if (m.type === 'init' && m.payload) {
-        const p = m.payload;
+      const p = m.payload ?? {};
+      if (m.type === 'init') {
         const codeEl = document.getElementById('friend-code');
         if (codeEl && typeof p.joinCode === 'string') codeEl.textContent = p.joinCode;
         if (Array.isArray(p.recruited)) {
           RECRUITED = new Set(p.recruited.filter((x) => typeof x === 'string'));
         }
-        const list = Array.isArray(p.friends) ? p.friends : SAMPLE_FRIENDS;
-        renderFriends(
-          list,
-          (displayName) => send('open-friend', { displayName }),
-          (id) => send('recruit-apprentice', { id }),
-        );
+        if (Array.isArray(p.friends)) FRIENDS = p.friends.filter((f) => f && typeof f === 'object');
+        paint();
+      }
+      if (m.type === 'friends' && Array.isArray(p.friends)) {
+        FRIENDS = p.friends.filter((f) => f && typeof f === 'object');
+        paint();
+      }
+      // Gone for both players: off the list. The last one leaves the
+      // "No friends here yet!" board.
+      if (m.type === 'friend-removed' && typeof p.id === 'string' && FRIENDS) {
+        FRIENDS = FRIENDS.filter((f) => f.id !== p.id);
+        CONFIRMING = null;
+        paint();
+      }
+      // Still friends: the question stays, with Keep and Remove back.
+      if (m.type === 'friend-remove-failed' && CONFIRMING && CONFIRMING.f.id === p.id) {
+        CONFIRMING.waiting = false;
+        CONFIRMING.card.removeAttribute('aria-busy');
+        CONFIRMING.keep.disabled = false;
+        CONFIRMING.remove.disabled = false;
+        CONFIRMING.error.textContent = "That didn't work. Try again.";
+        CONFIRMING.keep.focus({ preventScroll: true });
       }
     });
-    // Wire sample-data clicks immediately so embed-mode preview is interactive
-    // even before the host posts an init payload.
-    renderFriends(
-      SAMPLE_FRIENDS,
-      (displayName) => send('open-friend', { displayName }),
-      (id) => send('recruit-apprentice', { id }),
-    );
 
     document.getElementById('back-btn')?.addEventListener('click', () => send('back-to-menu'));
     document.getElementById('invite-btn')?.addEventListener('click', () => send('invite-friend'));

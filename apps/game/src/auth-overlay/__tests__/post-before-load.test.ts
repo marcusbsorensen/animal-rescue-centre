@@ -8,6 +8,9 @@ vi.mock('../../lib/auth', () => ({
   login: vi.fn(), signup: vi.fn(), checkUsername: vi.fn(), offerSignInNames: vi.fn(),
   SignupError: class extends Error {}, getRememberedUsernames: () => [],
 }));
+// The friends screen's list and removal (146A); none of these pages ask.
+vi.mock('../../lib/friends', () => ({ getFriends: vi.fn(), removeFriend: vi.fn() }));
+vi.mock('../../lib/supabase', () => ({ isSupabaseConfigured: () => false }));
 
 const { mountAuth, unmountAuth, postToActiveFrame } = await import('../AuthOverlay');
 

@@ -56,6 +56,19 @@ const SIZES = [
 
 const NAMES = { source: 'arc-auth-host', type: 'sign-in-names', payload: { names: ['PebbleKite', 'AcornDrum', 'MoonSock'] } };
 
+/** The friends list as AuthOverlay sends it; CuriousDormouse99 is the longest display name there is. */
+const friendsMessage = (n: number) => JSON.stringify({
+  source: 'arc-auth-host', type: 'friends',
+  payload: {
+    friends: [
+      { id: '00000000-0000-4000-8000-000000000001', displayName: 'MossyOtter', emoji: '🦦', bg: '#d0f0c0' },
+      { id: '00000000-0000-4000-8000-000000000002', displayName: 'CuriousDormouse99', emoji: '🐭', bg: '#ffd0a0' },
+      { id: '00000000-0000-4000-8000-000000000003', displayName: 'SunnyBadger', emoji: '🦡', bg: '#c0d8f0' },
+      { id: '00000000-0000-4000-8000-000000000004', displayName: 'BreezyFawn', emoji: '🦌', bg: '#f0e0c0' },
+    ].slice(0, n),
+  },
+});
+
 interface Screen { id: string; page: string; setup?: string }
 const SCREENS: Screen[] = [
   { id: 'welcome-new', page: 'welcome-new' },
@@ -69,7 +82,13 @@ const SCREENS: Screen[] = [
   { id: 'signup, clue', page: 'signup', setup: `window.postMessage(${JSON.stringify(NAMES)}, '*'); setTimeout(() => setStage('hint'), 50)` },
   { id: 'signup, friends see this name', page: 'signup', setup: `window.postMessage(${JSON.stringify(NAMES)}, '*'); setTimeout(() => setStage('name'), 50)` },
   { id: 'menu', page: 'menu' },
-  { id: 'friends', page: 'friends' },
+  // The game always sends the list; an empty one is the "No friends here yet!" board.
+  { id: 'friends', page: 'friends', setup: `window.postMessage(${friendsMessage(0)}, '*')` },
+  { id: 'friends, with friends (146A)', page: 'friends', setup: `window.postMessage(${friendsMessage(4)}, '*')` },
+  {
+    id: 'friends, asking to remove one (146A)', page: 'friends',
+    setup: `window.postMessage(${friendsMessage(4)}, '*'); setTimeout(() => document.querySelectorAll('.friend-card .remove-btn')[1].click(), 50)`,
+  },
   { id: 'forgot-pin', page: 'forgot-pin', setup: `window.postMessage({source:'arc-auth-host',type:'init',payload:{hint:'A birthday'}}, '*')` },
   { id: 'news', page: 'news' },
 ];

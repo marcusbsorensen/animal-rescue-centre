@@ -57,6 +57,20 @@ const SCREENS = [
 interface SmallRun { sel: string; size: number; text: string }
 
 /**
+ * What the game sends a screen before a child sees it, where the screen is
+ * empty without it. The friends screen waits for its list (146A); this one
+ * has two friends and the card asking "Remove … from your friends?" open,
+ * so the cards, the Remove plank and the question are all measured.
+ */
+const SETUP: Partial<Record<(typeof SCREENS)[number], string>> = {
+  friends: `window.postMessage({ source: 'arc-auth-host', type: 'friends', payload: { friends: [
+    { id: '00000000-0000-4000-8000-000000000001', displayName: 'MossyOtter', emoji: '🦦', bg: '#d0f0c0' },
+    { id: '00000000-0000-4000-8000-000000000002', displayName: 'CuriousDormouse99', emoji: '🐭', bg: '#ffd0a0' },
+  ] } }, '*');
+  setTimeout(() => document.querySelectorAll('.friend-card .remove-btn')[1].click(), 50);`,
+};
+
+/**
  * The app's real WKWebView viewport on an iPhone 17 Pro, measured inside the
  * shipped app — and the short-landscape branch these screens' `@container`
  * rules key on, which is where the low floors actually bite. See TRAPS.md.
@@ -77,6 +91,7 @@ test.describe('DOM screens keep the type floor', () => {
       // short-landscape branch never applied. Every measurement taken that
       // way describes an iPad-portrait preview, not the phone.
       await page.goto(`/admin/${screen}.html?embed=1`);
+      if (SETUP[screen]) await page.evaluate(SETUP[screen]!);
       await page.waitForTimeout(250);
 
       const small: SmallRun[] = await page.evaluate((floor) => {
@@ -136,6 +151,7 @@ test.describe('DOM screens draw in the display face and the body face, and no ot
   for (const screen of SCREENS) {
     test(`${screen} uses ${DISPLAY} for titles and ${BODY} for everything else`, async ({ page }) => {
       await page.goto(`/admin/${screen}.html?embed=1`);
+      if (SETUP[screen]) await page.evaluate(SETUP[screen]!);
       await page.waitForTimeout(250);
       await page.evaluate(() => document.fonts.ready);
 
