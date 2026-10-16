@@ -65,24 +65,55 @@ describe('what one player is shown about another', () => {
     expect(selects.filter((s) => s.table === 'friendships')).toEqual([]);
   });
 
-  it('a gift says who sent it by display name', async () => {
-    rows.gifts = [{
-      id: 'g1', gift_type: 'toy', message_preset_code: 'hello', sent_at: '2026-10-12T10:00:00Z',
-      sender: { display_name: 'SunnyHare', avatar_emoji: '🐶' },
-    }];
+  it('a gift says who sent it by display name, from get-gifts', async () => {
+    invoke.mockResolvedValue({
+      data: { gifts: [{
+        id: 'g1', fromDisplayName: 'SunnyHare', fromAvatarEmoji: '🐶',
+        giftType: 'toy', messagePresetCode: 'hello', sentAt: '2026-10-12T10:00:00Z',
+      }] },
+      error: null,
+    });
     const [gift] = await getGiftInbox();
     expect(gift.fromDisplayName).toBe('SunnyHare');
     expect(gift).not.toHaveProperty('fromUsername');
+    const [name, options] = invoke.mock.calls[0];
+    expect(name).toBe('get-gifts');
+    expect(options.headers).toEqual({ 'x-arc-session': ME.token });
+    expect(options.body).toEqual({});
+    // The inbox was empty for every player while this was read with the
+    // public key: the rule on `gifts` is `to_user = auth.uid()`, and ARC's
+    // sessions are its own, so auth.uid() is null in the browser.
+    expect(selects.filter((s) => s.table === 'gifts')).toEqual([]);
     expect(asksForLogin()).toEqual([]);
   });
 
-  it('the friends board lists display names', async () => {
-    rows.friendships = [{ friend_id: 'u-2' }];
-    rows.rescue_stats = [{ user_id: 'u-2', total_rescued: 4, user: { display_name: 'MossyOtter', avatar_emoji: '🐰' } }];
-    rows.game_states = [{ user_id: 'u-2', level: 3 }];
+  it('the friends board lists display names, from get-leaderboard', async () => {
+    invoke.mockResolvedValue({
+      data: { board: [{ displayName: 'MossyOtter', avatarEmoji: '🐰', totalRescued: 4, level: 3 }] },
+      error: null,
+    });
     const [entry] = await getFriendLeaderboard();
     expect(entry.displayName).toBe('MossyOtter');
     expect(entry).not.toHaveProperty('username');
+    const [name, options] = invoke.mock.calls[0];
+    expect(name).toBe('get-leaderboard');
+    expect(options.headers).toEqual({ 'x-arc-session': ME.token });
+    expect(options.body).toEqual({});
+    // Three tables the public key could never read, for the same reason.
+    expect(selects.filter((s) => ['friendships', 'rescue_stats', 'game_states'].includes(s.table)))
+      .toEqual([]);
     expect(asksForLogin()).toEqual([]);
+  });
+
+  it('an empty answer is an empty board, not a crash', async () => {
+    // Every one of these shapes happened in practice while the reads were
+    // blind, and each was swallowed into an empty list rather than noticed.
+    for (const data of [undefined, null, {}, { error: 'nope' }, { board: null }]) {
+      invoke.mockResolvedValue({ data, error: null });
+      await expect(getFriendLeaderboard()).resolves.toEqual([]);
+      await expect(getGiftInbox()).resolves.toEqual([]);
+    }
+    invoke.mockResolvedValue({ data: null, error: new Error('offline') });
+    await expect(getGiftInbox()).resolves.toEqual([]);
   });
 });

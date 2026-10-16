@@ -622,14 +622,20 @@ checking the claim still holds.
 - **The social screens read their tables with the anon key, and every
   policy in `00002_rls_policies.sql` keys on `auth.uid()`, which this game
   never has.** `getFriends` (`lib/friends.ts`), `getGiftInbox` and
-  `getFriendLeaderboard` (`lib/gifts.ts`) therefore return nothing, as
-  `game_states` did before `load-game` existed. By the migrations a child
-  sees "Add friends first!", cannot reach `sendGift`, and has an empty
-  inbox, so `giver`, `generous` and `receiver` are wired to the server's
-  `rescue_stats` counts (`load-game`, `send-gift` and `claim-gift` now return
-  them) and still cannot rise until those three reads go through Edge
-  Functions. Not verified against the live project. The three functions
-  above also need deploying: committed is not deployed.
+  `getFriendLeaderboard` (`lib/gifts.ts`) therefore returned nothing, as
+  `game_states` did before `load-game` existed: a child saw "Add friends
+  first!", could not reach `sendGift`, and had an empty inbox, so `giver`,
+  `generous` and `receiver` could never rise.
+  **All three reads go through Edge Functions now** — `get-friends`
+  (2026-10-14), then `get-gifts` and `get-leaderboard` (2026-10-16, 154A) —
+  and the client calls them with the `x-arc-session` header, so the account
+  comes from the session and never from the body.
+  The trap itself stands for anything new: a direct `supabase.from()` read
+  of a table whose policy names `auth.uid()` is silently empty in this game,
+  and `lib/gifts.ts` swallowed the error, which is why sending worked and
+  receiving looked broken for months. Reach for an Edge Function first.
+  Not verified against the live project, and **none of these functions is
+  deployed: committed is not deployed.**
 - **Days played are a set of day keys (`GameStateStore.playedDays`), not two
   counters, and nothing trims it.** About 13 bytes a day, near 5 KB a
   year; the merge unions it, which a pair of counters could not do without
