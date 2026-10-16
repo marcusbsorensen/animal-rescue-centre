@@ -6,19 +6,25 @@ import { loadFunction, useFakeSupabase, setEnv, post, json, type Handler } from 
 import { migratedDatabase } from '../support/postgres';
 
 /**
- * add-friend counts every lookup against the account and against the
- * address, before it looks anyone up.
+ * add-friend counts MISSES ONLY, by account and by address.
  *
  * A join code is WORD-NNN: 20 words times 900 numbers, 18,000 codes. A
  * miss answers 404 and a hit makes the caller a friend of whoever holds
- * the code, so without a limit anyone could try them all. The address
- * limit is the defence; the account limit only tidies up.
+ * the code, so without a limit anyone could try them all.
+ *
+ * Both buckets are read (peeked) before the lookup and charged (bumped)
+ * only when the code turns out to be nobody's. A real code costs nothing:
+ * the address bucket is shared by everyone behind one connection, and a
+ * class of thirty children swapping real codes would otherwise lock each
+ * other out. Someone sweeping the code space misses almost every time, so
+ * 20 misses per 15 minutes still costs them about nine days for 18,000.
  *
  * No migration backs this: `rate_limits` and its functions (00007-00009)
  * take any key, and a new limit is a new key prefix. The second half runs
- * the real limiter in Postgres to prove the keys this function writes are
+ * the real limiter in Postgres, to prove the keys this function writes are
  * ones the table accepts (00012 refuses an `-ip:` key that is not a
- * 64-character hash, which would fail every request closed).
+ * 64-character hash, which would fail every request closed) and that the
+ * limit behaves as described.
  */
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -28,8 +34,9 @@ const IP = '203.0.113.7';
 const SECRET = 'test-only-address-key-0123456789abcdef0123456789abcdef';
 const hmac = (ip: string) => createHmac('sha256', SECRET).update(ip).digest('hex');
 
-const ME = '00000000-0000-4000-8000-0000000000a1';
-const FRIEND = '00000000-0000-4000-8000-0000000000b2';
+const accountId = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
+const ME = accountId(0xa1);
+const FRIEND = accountId(0xb2);
 const CODE = 'FOX-428';
 
 const MAX = 20;
@@ -44,8 +51,18 @@ function signIn(userId: string): { headers: Record<string, string> } {
   return { headers: { 'x-arc-session': token } };
 }
 
-/** The tables as a signed-in player sees them; `friendExists` is a real code. */
-function answers(opts: { friendExists?: boolean } = {}): Responder {
+/**
+ * What the tables hold. `friend` is who the code belongs to: a real
+ * player (`other`), the caller (`me`), or nobody. `alreadyFriends` says
+ * the caller has added that player before.
+ */
+interface World {
+  friend?: 'other' | 'me' | 'nobody';
+  alreadyFriends?: boolean;
+}
+
+function answers(world: World = {}): Responder {
+  const { friend = 'nobody', alreadyFriends = false } = world;
   return (q: Query) => {
     if (q.table === 'sessions' && q.op === 'select') {
       const token = q.filters.find((f) => f.column === 'token')?.value as string;
@@ -54,31 +71,42 @@ function answers(opts: { friendExists?: boolean } = {}): Responder {
         ? { data: { token, user_id: userId, expires_at: new Date(Date.now() + 3_600_000).toISOString() }, error: null }
         : { data: null, error: { message: 'no rows' } };
     }
-    if (q.table === 'users' && q.op === 'select' && opts.friendExists) {
+    if (q.table === 'users' && q.op === 'select' && friend !== 'nobody') {
+      // The fake answers whatever was asked for. Callers in these tests
+      // that mean to be "me" sign in as ME.
       return {
-        data: { id: FRIEND, display_name: 'MossyOtter', avatar_emoji: '🦊', avatar_bg_colour: '#ffd0a0' },
+        data: {
+          id: friend === 'me' ? ME : FRIEND,
+          display_name: 'MossyOtter', avatar_emoji: '🦊', avatar_bg_colour: '#ffd0a0',
+        },
         error: null,
       };
+    }
+    if (q.table === 'friendships' && q.op === 'select' && alreadyFriends) {
+      return { data: { user_id: ME }, error: null };
     }
     return undefined;
   };
 }
 
-/** A limiter that refuses every key `refuses` picks out, and allows the rest. */
-function refusing(refuses: (key: string) => boolean): RpcResponder {
+/** A limiter whose peek refuses every key `refuses` picks out. */
+function peekRefusing(refuses: (key: string) => boolean): RpcResponder {
   return (fn, args) =>
-    fn === 'check_rate_limit' && refuses(String(args.p_key))
+    fn === 'peek_rate_limit' && refuses(String(args.p_key))
       ? { data: [{ allowed: false, retry_after_ms: 540_000 }], error: null }
       : undefined;
 }
 
-const limitCalls = (db: FakeSupabase) => db.rpcs.filter((r) => r.fn === 'check_rate_limit');
+const peeks = (db: FakeSupabase) => db.rpcs.filter((r) => r.fn === 'peek_rate_limit').map((r) => r.args);
+const bumps = (db: FakeSupabase) => db.rpcs.filter((r) => r.fn === 'bump_rate_limit').map((r) => r.args);
+/** Every call to a rate-limit function, whichever it was. */
+const limiterCalls = (db: FakeSupabase) => db.rpcs.filter((r) => r.fn.endsWith('_rate_limit'));
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('add-friend: rate limits', () => {
+describe('add-friend: rate limits count misses only', () => {
   let handler: Handler;
 
   beforeAll(async () => {
@@ -89,88 +117,150 @@ describe('add-friend: rate limits', () => {
     setEnv({ RATE_LIMIT_ADDRESS_KEY: SECRET });
   });
 
-  it('spends one try from the account and one from the address, 20 per 15 minutes each', async () => {
-    const db = useFakeSupabase(new FakeSupabase(answers({ friendExists: true })));
-    const res = await handler(post({ joinCode: CODE }, { ip: IP, ...signIn(ME) }));
-    expect(res.status).toBe(200);
-    expect(limitCalls(db).map((r) => r.args)).toEqual([
-      { p_key: `add-friend:${ME}`, p_max: MAX, p_window_ms: WINDOW_MS },
-      { p_key: `add-friend-ip:${hmac(IP)}`, p_max: MAX, p_window_ms: WINDOW_MS },
+  /** ME, from IP, adds CODE. */
+  const tryCode = (opts: { ip?: string | null } = {}) =>
+    handler(post({ joinCode: CODE }, { ip: opts.ip === undefined ? IP : opts.ip, ...signIn(ME) }));
+
+  it('reads both buckets, 20 each, before it looks anyone up', async () => {
+    const db = useFakeSupabase(new FakeSupabase(answers({ friend: 'other' })));
+    await tryCode();
+    expect(peeks(db)).toEqual([
+      { p_key: `add-friend:${ME}`, p_max: MAX },
+      { p_key: `add-friend-ip:${hmac(IP)}`, p_max: MAX },
     ]);
   });
 
-  it('spends a try on a code nobody holds, so guessing costs as much as finding', async () => {
-    const db = useFakeSupabase(new FakeSupabase(answers({ friendExists: false })));
-    const res = await handler(post({ joinCode: CODE }, { ip: IP, ...signIn(ME) }));
-    expect(res.status).toBe(404);
-    expect(db.rateLimitKeys()).toEqual([`add-friend:${ME}`, `add-friend-ip:${hmac(IP)}`]);
+  it('charges neither bucket for a real code, and adds the friend', async () => {
+    const db = useFakeSupabase(new FakeSupabase(answers({ friend: 'other' })));
+    const res = await tryCode();
+    expect(res.status).toBe(200);
+    expect(db.on('friendships', 'insert')).toHaveLength(1);
+    expect(bumps(db)).toEqual([]);
+    expect(db.rpcs.map((r) => r.fn)).not.toContain('check_rate_limit');
   });
 
-  it('answers 429 too_many_tries once the account has used its tries, before any lookup', async () => {
+  it('charges neither bucket for the caller\'s own code', async () => {
+    const db = useFakeSupabase(new FakeSupabase(answers({ friend: 'me' })));
+    const res = await tryCode();
+    expect(res.status).toBe(400);
+    expect((await json(res)).code).toBe('own_code');
+    expect(bumps(db)).toEqual([]);
+  });
+
+  it('charges neither bucket for a friend who was added already', async () => {
+    const db = useFakeSupabase(new FakeSupabase(answers({ friend: 'other', alreadyFriends: true })));
+    const res = await tryCode();
+    expect(res.status).toBe(400);
+    expect((await json(res)).code).toBe('already_friends');
+    expect(bumps(db)).toEqual([]);
+  });
+
+  it('charges both buckets, 15 minutes each, for a code nobody holds', async () => {
+    const db = useFakeSupabase(new FakeSupabase(answers({ friend: 'nobody' })));
+    const res = await tryCode();
+    expect(res.status).toBe(404);
+    expect((await json(res)).code).toBe('not_found');
+    expect(bumps(db)).toEqual([
+      { p_key: `add-friend:${ME}`, p_window_ms: WINDOW_MS },
+      { p_key: `add-friend-ip:${hmac(IP)}`, p_window_ms: WINDOW_MS },
+    ]);
+  });
+
+  it('answers 429 too_many_tries when the account is already over, before any lookup', async () => {
     const db = useFakeSupabase(new FakeSupabase(
-      answers({ friendExists: true }),
-      refusing((k) => k.startsWith('add-friend:')),
+      answers({ friend: 'other' }),
+      peekRefusing((k) => k.startsWith('add-friend:')),
     ));
-    const res = await handler(post({ joinCode: CODE }, { ip: IP, ...signIn(ME) }));
+    const res = await tryCode();
     expect(res.status).toBe(429);
     expect(await json(res)).toEqual({ error: 'Too many tries', code: 'too_many_tries', retryAfterMs: 540_000 });
     expect(db.on('users')).toEqual([]);
     expect(db.on('friendships')).toEqual([]);
-    // The account is refused first, so it does not spend the household's
-    // address budget on tries it was never going to be let make.
-    expect(db.rateLimitKeys()).toEqual([`add-friend:${ME}`]);
+    expect(db.on('audit_log')).toEqual([]);
+    // Turned away costs nothing more: the window runs out on its own.
+    expect(bumps(db)).toEqual([]);
   });
 
-  it('answers 429 too_many_tries once the address has used its tries, and adds no friend', async () => {
+  it('answers 429 too_many_tries when the address is already over, before any lookup', async () => {
     const db = useFakeSupabase(new FakeSupabase(
-      answers({ friendExists: true }),
-      refusing((k) => k.startsWith('add-friend-ip:')),
+      answers({ friend: 'other' }),
+      peekRefusing((k) => k.startsWith('add-friend-ip:')),
     ));
     // The account is fresh and the code is a real one: only the address
     // says no, and the friendship must not be made.
-    const res = await handler(post({ joinCode: CODE }, { ip: IP, ...signIn(ME) }));
+    const res = await tryCode();
     expect(res.status).toBe(429);
     expect(await json(res)).toEqual({ error: 'Too many tries', code: 'too_many_tries', retryAfterMs: 540_000 });
     expect(db.on('users')).toEqual([]);
-    expect(db.on('friendships', 'insert')).toEqual([]);
+    expect(db.on('friendships')).toEqual([]);
     expect(db.on('audit_log')).toEqual([]);
+    expect(bumps(db)).toEqual([]);
   });
 
-  it('spends nothing on a request that is not a join code', async () => {
+  it('refuses, and looks nobody up, when the limiter cannot be read', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const db = useFakeSupabase(new FakeSupabase(
+      answers({ friend: 'other' }),
+      (fn) => (fn === 'peek_rate_limit' ? { data: null, error: { message: 'boom' } } : undefined),
+    ));
+    const res = await tryCode();
+    expect(res.status).toBe(429);
+    expect(db.on('users')).toEqual([]);
+    expect(db.on('friendships', 'insert')).toEqual([]);
+  });
+
+  it('touches the limiter not at all for a request that is not a join code', async () => {
     for (const joinCode of ['', 'FOX428', 'FOX-4281', 'F0X-428', 'FOX-42', 42, null]) {
-      const db = useFakeSupabase(new FakeSupabase(answers({ friendExists: true })));
+      const db = useFakeSupabase(new FakeSupabase(answers({ friend: 'nobody' })));
       const res = await handler(post({ joinCode }, { ip: IP, ...signIn(ME) }));
       expect(res.status, String(joinCode)).toBe(400);
-      expect(db.rateLimitKeys(), String(joinCode)).toEqual([]);
+      expect(limiterCalls(db), String(joinCode)).toEqual([]);
     }
   });
 
-  it('spends nothing for a caller with no session', async () => {
-    const db = useFakeSupabase(new FakeSupabase(answers({ friendExists: true })));
+  it('touches the limiter not at all for a caller with no session', async () => {
+    const db = useFakeSupabase(new FakeSupabase(answers({ friend: 'nobody' })));
     const res = await handler(post({ joinCode: CODE }, { ip: IP }));
     expect(res.status).toBe(401);
-    expect(db.rateLimitKeys()).toEqual([]);
+    expect(limiterCalls(db)).toEqual([]);
   });
 
   it('counts only the account when the request carries no address, and still answers', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const db = useFakeSupabase(new FakeSupabase(answers({ friendExists: true })));
-    const res = await handler(post({ joinCode: CODE }, { ip: null, ...signIn(ME) }));
-    expect(res.status).toBe(200);
-    expect(db.rateLimitKeys()).toEqual([`add-friend:${ME}`]);
+    const db = useFakeSupabase(new FakeSupabase(answers({ friend: 'nobody' })));
+    const res = await tryCode({ ip: null });
+    expect(res.status).toBe(404);
+    expect(peeks(db).map((a) => a.p_key)).toEqual([`add-friend:${ME}`]);
+    expect(bumps(db).map((a) => a.p_key)).toEqual([`add-friend:${ME}`]);
   });
 
   it('counts only the account when no address secret is set, and still answers', async () => {
     setEnv({});
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const db = useFakeSupabase(new FakeSupabase(answers({ friendExists: true })));
-    const res = await handler(post({ joinCode: CODE }, { ip: IP, ...signIn(ME) }));
-    expect(res.status).toBe(200);
-    expect(db.rateLimitKeys()).toEqual([`add-friend:${ME}`]);
+    const db = useFakeSupabase(new FakeSupabase(answers({ friend: 'nobody' })));
+    const res = await tryCode();
+    expect(res.status).toBe(404);
+    expect(peeks(db).map((a) => a.p_key)).toEqual([`add-friend:${ME}`]);
+    expect(bumps(db).map((a) => a.p_key)).toEqual([`add-friend:${ME}`]);
   });
 });
 
-/** `check_rate_limit` answered by the real function in Postgres. */
+const SQL: Record<string, { sql: string; params: (a: Record<string, unknown>) => unknown[] }> = {
+  check_rate_limit: {
+    sql: 'select * from check_rate_limit($1, $2, $3)',
+    params: (a) => [a.p_key, a.p_max, a.p_window_ms],
+  },
+  peek_rate_limit: {
+    sql: 'select * from peek_rate_limit($1, $2)',
+    params: (a) => [a.p_key, a.p_max],
+  },
+  bump_rate_limit: {
+    sql: 'select * from bump_rate_limit($1, $2)',
+    params: (a) => [a.p_key, a.p_window_ms],
+  },
+};
+
+/** The rate-limit functions answered by the real ones, in Postgres. */
 class LimiterOnPostgres extends FakeSupabase {
   constructor(private readonly pg: PGliteInterface, respond: Responder) {
     super(respond);
@@ -178,12 +268,10 @@ class LimiterOnPostgres extends FakeSupabase {
 
   override async rpc(fn: string, args: Record<string, unknown> = {}): Promise<Result> {
     this.rpcs.push({ fn, args });
-    if (fn !== 'check_rate_limit') return { data: null, error: null };
+    const call = SQL[fn];
+    if (!call) return { data: null, error: null };
     try {
-      const { rows } = await this.pg.query(
-        'select * from check_rate_limit($1, $2, $3)',
-        [args.p_key, args.p_max, args.p_window_ms],
-      );
+      const { rows } = await this.pg.query(call.sql, call.params(args));
       return { data: rows, error: null };
     } catch (err) {
       return { data: null, error: { message: (err as Error).message } };
@@ -202,28 +290,39 @@ describe('add-friend: rate limits against the real limiter', () => {
   beforeEach(async () => {
     setEnv({ RATE_LIMIT_ADDRESS_KEY: SECRET });
     pg = await migratedDatabase();
-    useFakeSupabase(new LimiterOnPostgres(pg, answers()));
+    use({ friend: 'nobody' });
   });
+
+  const use = (world: World) => useFakeSupabase(new LimiterOnPostgres(pg, answers(world)));
 
   const keysInTable = async () =>
     (await pg.query<{ key: string }>('select key from rate_limits')).rows.map((r) => r.key).sort();
 
+  /** `account` adds CODE from `ip`. */
+  const tryCode = (account: string, ip: string) =>
+    handler(post({ joinCode: CODE }, { ip, ...signIn(account) }));
+
   it('writes keys that rate_limits accepts, so the limiter does not fail closed', async () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const res = await handler(post({ joinCode: CODE }, { ip: IP, ...signIn(ME) }));
-    // 404: nobody holds the code, and the request got as far as the lookup.
+    const res = await tryCode(ME, IP);
+    // 404: nobody holds the code, so the miss was charged to both buckets.
     expect(res.status).toBe(404);
     expect(errors).not.toHaveBeenCalled();
-    expect(await keysInTable()).toEqual([`add-friend-ip:${hmac(IP)}`, `add-friend:${ME}`].sort());
+    const keys = await keysInTable();
+    expect(keys).toEqual([`add-friend-ip:${hmac(IP)}`, `add-friend:${ME}`].sort());
+    // 00012's rule, as written there.
+    for (const key of keys) {
+      expect(!/-ip:/.test(key) || /-ip:[0-9a-f]{64}$/.test(key), key).toBe(true);
+    }
+    expect(keys.join(' ')).not.toContain(IP);
   });
 
-  it('refuses the 21st try from one address, however many accounts it comes from', async () => {
+  it('allows 20 misses from one address and refuses the 21st, whatever accounts they come from', async () => {
     for (let n = 1; n <= MAX; n++) {
-      const account = `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
-      const res = await handler(post({ joinCode: CODE }, { ip: IP, ...signIn(account) }));
-      expect(res.status, `try ${n}`).toBe(404);
+      const res = await tryCode(accountId(n), IP);
+      expect(res.status, `miss ${n}`).toBe(404);
     }
-    const res = await handler(post({ joinCode: CODE }, { ip: IP, ...signIn(FRIEND) }));
+    const res = await tryCode(accountId(100), IP);
     expect(res.status).toBe(429);
     const body = await json(res);
     expect(body.code).toBe('too_many_tries');
@@ -231,19 +330,48 @@ describe('add-friend: rate limits against the real limiter', () => {
     expect(body.retryAfterMs).toBeLessThanOrEqual(WINDOW_MS);
 
     // Another address is untouched by it.
-    const elsewhere = await handler(post({ joinCode: CODE }, { ip: '198.51.100.9', ...signIn(FRIEND) }));
+    const elsewhere = await tryCode(accountId(100), '198.51.100.9');
     expect(elsewhere.status).toBe(404);
   });
 
-  it('refuses the 21st try from one account, however many addresses it comes from', async () => {
+  it('allows 20 misses from one account and refuses the 21st, whatever addresses they come from', async () => {
     const asMe = signIn(ME);
     for (let n = 1; n <= MAX; n++) {
       const res = await handler(post({ joinCode: CODE }, { ip: `192.0.2.${n}`, ...asMe }));
-      expect(res.status, `try ${n}`).toBe(404);
+      expect(res.status, `miss ${n}`).toBe(404);
     }
     const res = await handler(post({ joinCode: CODE }, { ip: '192.0.2.99', ...asMe }));
     expect(res.status).toBe(429);
     expect((await json(res)).code).toBe('too_many_tries');
+  });
+
+  it('is not touched by 30 children on one connection each adding a real code', async () => {
+    // The classroom: thirty children, one address, thirty real codes. That
+    // is more than the 20 the limit allows, and none of it is charged.
+    use({ friend: 'other' });
+    for (let n = 1; n <= 30; n++) {
+      const res = await tryCode(accountId(n), IP);
+      expect(res.status, `add ${n}`).toBe(200);
+    }
+    expect(await keysInTable()).toEqual([]);
+
+    // The address still has its whole budget: 20 misses, then the 21st.
+    use({ friend: 'nobody' });
+    for (let n = 1; n <= MAX; n++) {
+      const res = await tryCode(accountId(100 + n), IP);
+      expect(res.status, `miss ${n}`).toBe(404);
+    }
+    expect((await tryCode(accountId(200), IP)).status).toBe(429);
+  });
+
+  it('is not touched by one child adding 30 real codes either', async () => {
+    use({ friend: 'other' });
+    const asMe = signIn(ME);
+    for (let n = 1; n <= 30; n++) {
+      const res = await handler(post({ joinCode: CODE }, { ip: IP, ...asMe }));
+      expect(res.status, `add ${n}`).toBe(200);
+    }
+    expect(await keysInTable()).toEqual([]);
   });
 
   it('leaves no account key behind when the account is deleted', async () => {
@@ -252,7 +380,8 @@ describe('add-friend: rate limits against the real limiter', () => {
        values ('Ada', 'salt:hash', '🦊', '#ffd0a0', 'FOX-111') returning id`,
     );
     const ada = rows[0].id;
-    await handler(post({ joinCode: CODE }, { ip: IP, ...signIn(ada) }));
+    // A miss, which is what writes the key.
+    expect((await tryCode(ada, IP)).status).toBe(404);
     expect(await keysInTable()).toContain(`add-friend:${ada}`);
 
     await pg.query('select delete_account($1)', [ada]);
