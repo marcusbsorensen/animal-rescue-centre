@@ -12,9 +12,16 @@
  *   - parent → iframe: {type:'sign-in-names', payload:{names:string[]}}   (empty on failure)
  *   - iframe → parent: {type:'signup-complete', payload:{username,pin,avatarEmoji,avatarBgColour,hintCode?,displayName?,readyMadeName?}}
  *   - parent → iframe: {type:'auth-error', payload:{message, suggestions?}}   (on failure, iframe shakes+clears)
+ *
+ * The friends screen (146A):
+ *   - parent → iframe: {type:'friends', payload:{friends:[{id,displayName,emoji,bg}]}}   (once loaded; [] on failure)
+ *   - iframe → parent: {type:'remove-friend', payload:{id}}   (after the child chose Remove on the card)
+ *   - parent → iframe: {type:'friend-removed'|'friend-remove-failed', payload:{id}}
  */
 
 import { login, signup, checkUsername, offerSignInNames, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
+import { getFriends, removeFriend } from '../lib/friends';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { AudioManager } from '../audio/AudioManager';
 import { isPinHintCode, isDisplayNameBase } from '@arc/game-logic';
 
@@ -110,6 +117,9 @@ export function mountAuth(
   activeFrameLoaded = false;
   pendingPosts = [];
 
+  // The friends list, asked for while the page loads and sent once it has.
+  const friendsList = page === 'friends' ? friendsForScreen() : null;
+
   // After iframe loads, send any per-page init data it needs.
   frame.addEventListener('load', () => {
     if (page === 'login') {
@@ -128,6 +138,9 @@ export function mountAuth(
       postToFrame('init', {
         joinCode: context?.session?.joinCode,
         recruited: context?.recruited ?? [],
+      });
+      void friendsList?.then((friends) => {
+        if (activeFrame === frame) postToFrame('friends', { friends });
       });
     }
     if (page === 'intro' && context) {
@@ -170,6 +183,21 @@ export function mountAuth(
     // the host scene, which calls the game-logic recruit function.
     if (msg.type === 'recruit-apprentice') {
       handlers.onAction('recruit-apprentice', undefined, msg.payload);
+      return;
+    }
+    // Friends-page: the child chose Remove on a friend's card and then on
+    // the question. The answer goes back to the same page only: if the
+    // child has left it, there is nothing to update.
+    if (msg.type === 'remove-friend') {
+      const id = String((msg.payload as { id?: unknown })?.id ?? '');
+      let removed = false;
+      try {
+        await removeFriend(id);
+        removed = true;
+      } catch {
+        removed = false;
+      }
+      if (activeFrame === frame) postToFrame(removed ? 'friend-removed' : 'friend-remove-failed', { id });
       return;
     }
     // Speaker icon in the screen — toggle music, then echo the state
@@ -244,6 +272,18 @@ export function mountAuth(
   window.addEventListener('message', activeListener);
 
   return unmountAuth;
+}
+
+/** The friends screen's list, in the page's own shape. Empty when it can't
+ *  be had: the page then shows its "No friends here yet!" board. */
+async function friendsForScreen(): Promise<Array<{ id: string; displayName: string; emoji: string; bg: string }>> {
+  if (!isSupabaseConfigured()) return [];
+  try {
+    const friends = await getFriends();
+    return friends.map((f) => ({ id: f.id, displayName: f.displayName, emoji: f.avatarEmoji, bg: f.avatarBgColour }));
+  } catch {
+    return [];
+  }
 }
 
 export function unmountAuth(): void {

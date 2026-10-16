@@ -22,8 +22,9 @@ function builder(table: string) {
   return b;
 }
 
+const invoke = vi.fn();
 vi.mock('../supabase', () => ({
-  supabase: { functions: { invoke: vi.fn() }, from: (table: string) => builder(table) },
+  supabase: { functions: { invoke: (...args: unknown[]) => invoke(...args) }, from: (table: string) => builder(table) },
   isSupabaseConfigured: () => true,
 }));
 
@@ -42,15 +43,26 @@ describe('what one player is shown about another', () => {
   beforeEach(() => {
     selects.length = 0;
     rows = {};
+    invoke.mockReset();
     localStorage.clear();
     localStorage.setItem('arc_session', JSON.stringify(ME));
   });
 
-  it('a friend in the list is their display name', async () => {
-    rows.friendships = [{ friend: { id: 'u-2', display_name: 'MossyOtter', avatar_emoji: '🐰', avatar_bg_colour: '#d0f0c0' } }];
+  it('a friend in the list is their display name, from get-friends', async () => {
+    // The function answers with what another player may see; anything
+    // else it might carry is not passed on to the screens.
+    invoke.mockResolvedValue({
+      data: { friends: [{ id: 'u-2', displayName: 'MossyOtter', avatarEmoji: '🐰', avatarBgColour: '#d0f0c0', username: 'Amelia' }] },
+      error: null,
+    });
     const friends = await getFriends();
     expect(friends).toEqual([{ id: 'u-2', displayName: 'MossyOtter', avatarEmoji: '🐰', avatarBgColour: '#d0f0c0' }]);
-    expect(asksForLogin()).toEqual([]);
+    const [name, options] = invoke.mock.calls[0];
+    expect(name).toBe('get-friends');
+    expect(options.headers).toEqual({ 'x-arc-session': ME.token });
+    expect(options.body).toEqual({});
+    // Not read with the public key any more.
+    expect(selects.filter((s) => s.table === 'friendships')).toEqual([]);
   });
 
   it('a gift says who sent it by display name', async () => {
