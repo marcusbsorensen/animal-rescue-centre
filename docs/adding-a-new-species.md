@@ -235,7 +235,7 @@ HTML in `apps/game/public/admin/`:
 | `collar-anchors.html` | Already covered in §5 |
 | `anchors.html` | Sprite-position anchors (feet coordinates in room backgrounds) — add a species entry. |
 
-Open each at `https://animal-rescue-centre.vercel.app/admin/<page>.html` once
+Open each at `https://play.arcgame.app/admin/<page>.html` once
 deployed. If the PWA caches the old admin page, hard-refresh (⌘⇧R).
 
 ---
@@ -267,13 +267,14 @@ Typecheck will usually catch missing switch cases before tests run.
 pnpm --filter game build
 ```
 
-If the build succeeds, `git commit` and `git push origin main`. Vercel
-auto-deploys `main` — the stable alias is `animal-rescue-centre.vercel.app`
-(public, no auth). No CLI deploy needed.
+If the build succeeds, commit and push a branch for Marcus to merge. Nothing
+auto-deploys any more: the game is served from 20i at `play.arcgame.app` and
+goes out with `tools/deploy-arcgame.sh`, which only Marcus runs.
 
-Smoke-check after deploy:
+Smoke-check the admin pages locally, not on the live site — 140A prunes them
+from the web build, so they are not there to open:
 
-1. `https://animal-rescue-centre.vercel.app/admin/sprite-grid.html` — new species block, most cells green, known gaps flagged.
+1. `pnpm build:admin-local`, then `/admin/sprite-grid.html` — new species block, most cells green, known gaps flagged.
 2. `/admin/collar-anchors.html` — new species in the dropdown, anchor renders correctly over each variant.
 3. The game itself — reach the level where the new species unlocks and confirm arrivals, sheltering, and a conflict screen all render the right sprites.
 

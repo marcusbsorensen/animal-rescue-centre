@@ -20,30 +20,30 @@ If Manus cannot fetch these URLs, STOP and report back — do not
 generate from description alone.
 
 1. **Brushwork & palette**:
-   `https://animal-rescue-centre.vercel.app/admin/scene-assets/cast/30-two-houses.png`
+   `https://play.arcgame.app/admin/scene-assets/cast/30-two-houses.png`
    The canonical painted-watercolour treatment. Soft warm palette, visible
    brush texture, simple confident ink outlines. Julia-Donaldson /
    Raymond-Briggs / Aardman-adjacent. Match this style exactly.
 
 2. **In-game lawn garden**:
-   `https://animal-rescue-centre.vercel.app/assets/bg/garden-lawn-summer-morning.png`
+   `https://play.arcgame.app/assets/bg/garden-lawn-summer-morning.png`
    The kid sees this scene inside the game when she lets pets out. The
    Tier 1 lawn-garden ground tile must echo it — sunny lawn, white picket
    fence, painted tree, flowerbeds, bird bath.
 
 3. **In-game quiet garden**:
-   `https://animal-rescue-centre.vercel.app/assets/bg/garden-quiet-summer-afternoon.png`
+   `https://play.arcgame.app/assets/bg/garden-quiet-summer-afternoon.png`
    The other in-game garden — hedged nook, archway, ferns, log seating.
    Tier 1 quiet-garden tile echoes this.
 
 4. **Map composition reference**:
-   `https://animal-rescue-centre.vercel.app/admin/scene-assets/reference/birchie-style-direction/fantasy-kingdom.jpg`
+   `https://play.arcgame.app/admin/scene-assets/reference/birchie-style-direction/fantasy-kingdom.jpg`
    Note ONLY for hybrid-projection direction — see how each building is
    front-on while the ground is top-down. Use that convention. Do not
    match the rendering style itself (too video-game-clean for our target).
 
 5. **Modular stamp vocabulary**:
-   `https://animal-rescue-centre.vercel.app/admin/scene-assets/reference/birchie-style-direction/map-builder.jpg`
+   `https://play.arcgame.app/admin/scene-assets/reference/birchie-style-direction/map-builder.jpg`
    Direction reference for "buildings as discrete painted stamps with
    transparent backgrounds." Each cottage is its own little elevation
    painting on its own transparent canvas. Match the architecture of
