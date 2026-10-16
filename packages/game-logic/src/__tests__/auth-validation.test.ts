@@ -120,6 +120,25 @@ describe('the animals a join code can start with', () => {
     expect(animals.filter((a) => !/^[A-Z]{3,7}$/.test(a))).toEqual([]);
   });
 
+  it('is admitted by every copy of the pattern, not just this one', () => {
+    // The friends page and the overlay each normalise a typed code with
+    // their own regex, because one is in an iframe and the other is not.
+    // Three copies of a rule drift, and the drift shows up as a child
+    // being told a perfectly good code is wrong.
+    const longest = animals.reduce((a, b) => (b.length > a.length ? b : a), '');
+    for (const rel of [
+      'apps/game/public/admin/friends.html',
+      'apps/game/src/auth-overlay/AuthOverlay.ts',
+    ]) {
+      const copy = fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+      const pattern = copy.match(/\/\^\(\[A-Z\]\{(\d+),(\d+)\}\)/);
+      expect(pattern, `${rel} has no join-code pattern`).not.toBeNull();
+      const [, min, max] = pattern!;
+      expect(Number(min), rel).toBeLessThanOrEqual(3);
+      expect(Number(max), rel).toBeGreaterThanOrEqual(longest.length);
+    }
+  });
+
   it('avoids the animals that sound like another word a child would type', () => {
     // EWE/you, GNU/new, DOE/dough, BOAR/bore. A code is often read out to
     // a friend, and a homophone turns that into a code that does not work.
