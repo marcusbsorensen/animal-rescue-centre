@@ -12,12 +12,48 @@ export interface Friend {
 }
 
 /**
+ * Why a friend could not be added, in a word the screen can switch on.
+ *
+ * supabase-js turns any non-2xx into one generic "Edge Function returned a
+ * non-2xx status code" and leaves the real body in `error.context`. Without
+ * reading it, "that code is not ours", "that's your own code" and "you have
+ * tried too many times" all reach a child as the same sentence, and the
+ * sentence is about edge functions.
+ */
+export class FriendError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly retryAfterMs?: number,
+  ) {
+    super(message);
+    this.name = 'FriendError';
+  }
+}
+
+/** The JSON body behind a supabase-js function error, when there is one. */
+async function refusal(error: unknown): Promise<Record<string, unknown>> {
+  const context = (error as { context?: { json?: () => Promise<unknown> } })?.context;
+  if (!context || typeof context.json !== 'function') return {};
+  try {
+    const body = await context.json();
+    return body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+  } catch {
+    // A refusal with no JSON body (a gateway error, say) is still a refusal.
+    return {};
+  }
+}
+
+/**
  * Add a friend by their join code (e.g., "FOX-428").
  * Creates a mutual friendship via Edge Function.
+ *
+ * Throws a {@link FriendError} whose `code` names the reason, so the screen
+ * can say it in its own words rather than showing the server's English.
  */
 export async function addFriendByCode(joinCode: string): Promise<Friend> {
   const session = getSession();
-  if (!session) throw new Error('Not logged in');
+  if (!session) throw new FriendError('Not logged in', 'signed_out');
 
   // The function derives the caller from x-arc-session; it no longer
   // accepts a userId in the body. Overriding Authorization with our own
@@ -27,8 +63,21 @@ export async function addFriendByCode(joinCode: string): Promise<Friend> {
     headers: sessionHeaders(),
   });
 
-  if (error) throw new Error(error.message ?? 'Failed to add friend');
-  if (data.error) throw new Error(data.error);
+  if (error) {
+    const body = await refusal(error);
+    throw new FriendError(
+      typeof body.error === 'string' ? body.error : (error.message ?? 'Failed to add friend'),
+      typeof body.code === 'string' ? body.code : 'failed',
+      typeof body.retryAfterMs === 'number' ? body.retryAfterMs : undefined,
+    );
+  }
+  if (data?.error) {
+    throw new FriendError(
+      data.error,
+      typeof data.code === 'string' ? data.code : 'failed',
+      typeof data.retryAfterMs === 'number' ? data.retryAfterMs : undefined,
+    );
+  }
 
   return data.friend;
 }

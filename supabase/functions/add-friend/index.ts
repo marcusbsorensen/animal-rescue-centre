@@ -21,19 +21,19 @@ Deno.serve(async (req) => {
     // friends to any child's account.
     const session = await requireSession(req, supabase);
     if (!session) {
-      return jsonResponse({ error: 'Not authenticated' }, 401);
+      return jsonResponse({ error: 'Not authenticated', code: 'signed_out' }, 401);
     }
     const requestUserId = session.userId;
 
     if (!joinCode || typeof joinCode !== 'string') {
-      return jsonResponse({ error: 'Join code is required' }, 400);
+      return jsonResponse({ error: 'Join code is required', code: 'no_code' }, 400);
     }
 
     const normalised = joinCode.toUpperCase().trim();
 
     // Validate join code format (e.g., "FOX-428")
     if (!/^[A-Z]{3}-\d{3}$/.test(normalised)) {
-      return jsonResponse({ error: 'Invalid join code format' }, 400);
+      return jsonResponse({ error: 'Invalid join code format', code: 'bad_format' }, 400);
     }
 
     // Rate limits, spent before the lookup so a miss costs as much as a hit.
@@ -79,12 +79,12 @@ Deno.serve(async (req) => {
       .single();
 
     if (friendErr || !friend) {
-      return jsonResponse({ error: 'No player found with that code' }, 404);
+      return jsonResponse({ error: 'No player found with that code', code: 'not_found' }, 404);
     }
 
     // Can't friend yourself
     if (friend.id === requestUserId) {
-      return jsonResponse({ error: "That's your own code!" }, 400);
+      return jsonResponse({ error: "That's your own code!", code: 'own_code' }, 400);
     }
 
     // Check if already friends
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (existing) {
-      return jsonResponse({ error: 'Already friends!' }, 400);
+      return jsonResponse({ error: 'Already friends!', code: 'already_friends' }, 400);
     }
 
     // Create mutual friendship (two rows)
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
 
     if (insertErr) {
       console.error('Friendship insert error:', insertErr);
-      return jsonResponse({ error: 'Failed to add friend' }, 500);
+      return jsonResponse({ error: 'Failed to add friend', code: 'failed' }, 500);
     }
 
     // Audit log
@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error('Add friend error:', err);
-    return jsonResponse({ error: 'Internal server error' }, 500);
+    return jsonResponse({ error: 'Internal server error', code: 'failed' }, 500);
   }
 });
 
