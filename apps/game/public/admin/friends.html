@@ -813,8 +813,9 @@
     transform: translateY(-50%);
   }
   /* Friends list — stacked cards inside the sign. Compact: one row
-     = avatar-disc + (name / last-visit) + single bond medal. Row height
-     is clamped so the sign doesn't balloon when lots of friends are added. */
+     = avatar-disc + name (+ last visit and a bond medal once the host sends
+     them) + Remove. Row height is clamped so the sign doesn't balloon when
+     lots of friends are added. */
   .friends-list {
     display: flex; flex-direction: column;
     gap: clamp(5px, 0.9cqh, 8px);
@@ -1572,10 +1573,14 @@
     nameEl.textContent = nameWithBreaks(nameOf(f));
     info.appendChild(nameEl);
 
-    const visitEl = document.createElement('div');
-    visitEl.className = 'friend-visit';
-    visitEl.textContent = 'Last visit: ' + (typeof f.lastVisit === 'string' ? f.lastVisit : '—');
-    info.appendChild(visitEl);
+    // Last visit — only when the host sent one. None does yet, and a line
+    // that read "Last visit: —" on every card said something was missing.
+    if (typeof f.lastVisit === 'string' && f.lastVisit.trim() !== '') {
+      const visitEl = document.createElement('div');
+      visitEl.className = 'friend-visit';
+      visitEl.textContent = 'Last visit: ' + f.lastVisit;
+      info.appendChild(visitEl);
+    }
 
     // Apprentice-able hint — shown only on the three recruitable kids
     // (Rhubarb / Amara / Kofi). Once they're recruited, we swap the
@@ -1610,21 +1615,25 @@
       card.appendChild(btn);
     }
 
-    // Single progressive bond medal on the right — 1..5 → Sprout..Champion.
-    const bondIdx = Math.max(1, Math.min(5, Number(f.bond) | 0)) - 1;
-    const level = BOND_LEVELS[bondIdx];
-    const medalWrap = document.createElement('div');
-    medalWrap.className = 'friend-medal-wrap';
-    const medal = document.createElement('span');
-    medal.className = 'friend-medal';
-    medal.setAttribute('aria-label', 'Bond: ' + level.label);
-    medal.textContent = level.emoji;
-    medalWrap.appendChild(medal);
-    const medalLabel = document.createElement('span');
-    medalLabel.className = 'friend-medal-label';
-    medalLabel.textContent = level.label;
-    medalWrap.appendChild(medalLabel);
-    card.appendChild(medalWrap);
+    // Single progressive bond medal on the right — 1..5 → Sprout..Champion —
+    // only for a friend the host sent a bond for. None does yet: with the
+    // bond missing, the old arithmetic floored it to level 1 and every friend
+    // wore a Sprout, a level nobody had earned.
+    if (Number.isInteger(f.bond) && f.bond >= 1) {
+      const level = BOND_LEVELS[Math.min(5, f.bond) - 1];
+      const medalWrap = document.createElement('div');
+      medalWrap.className = 'friend-medal-wrap';
+      const medal = document.createElement('span');
+      medal.className = 'friend-medal';
+      medal.setAttribute('aria-label', 'Bond: ' + level.label);
+      medal.textContent = level.emoji;
+      medalWrap.appendChild(medal);
+      const medalLabel = document.createElement('span');
+      medalLabel.className = 'friend-medal-label';
+      medalLabel.textContent = level.label;
+      medalWrap.appendChild(medalLabel);
+      card.appendChild(medalWrap);
+    }
 
     // Remove (146A) — on a real friend only: one the server knows by id,
     // not an apprentice. It asks first, on the card.

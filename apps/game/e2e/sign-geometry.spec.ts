@@ -56,13 +56,19 @@ const SIZES = [
 
 const NAMES = { source: 'arc-auth-host', type: 'sign-in-names', payload: { names: ['PebbleKite', 'AcornDrum', 'MoonSock'] } };
 
-/** The friends list as AuthOverlay sends it; CuriousDormouse99 is the longest display name there is. */
+/**
+ * The friends list as AuthOverlay sends it; CuriousDormouse99 is the longest
+ * display name there is. The game sends no `lastVisit` or `bond` yet, and a
+ * card without them shows neither the line nor the medal. The longest name
+ * carries both here, the squeeze, so the card that has them is held to the
+ * same rules the day the game sends them.
+ */
 const friendsMessage = (n: number) => JSON.stringify({
   source: 'arc-auth-host', type: 'friends',
   payload: {
     friends: [
       { id: '00000000-0000-4000-8000-000000000001', displayName: 'MossyOtter', emoji: '🦦', bg: '#d0f0c0' },
-      { id: '00000000-0000-4000-8000-000000000002', displayName: 'CuriousDormouse99', emoji: '🐭', bg: '#ffd0a0' },
+      { id: '00000000-0000-4000-8000-000000000002', displayName: 'CuriousDormouse99', emoji: '🐭', bg: '#ffd0a0', lastVisit: 'Yesterday', bond: 5 },
       { id: '00000000-0000-4000-8000-000000000003', displayName: 'SunnyBadger', emoji: '🦡', bg: '#c0d8f0' },
       { id: '00000000-0000-4000-8000-000000000004', displayName: 'BreezyFawn', emoji: '🦌', bg: '#f0e0c0' },
     ].slice(0, n),

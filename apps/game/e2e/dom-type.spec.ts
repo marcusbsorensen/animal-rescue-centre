@@ -60,11 +60,14 @@ interface SmallRun { sel: string; size: number; text: string }
  * What the game sends a screen before a child sees it, where the screen is
  * empty without it. The friends screen waits for its list (146A); this one
  * has two friends and the card asking "Remove … from your friends?" open,
- * so the cards, the Remove plank and the question are all measured.
+ * so the cards, the Remove plank and the question are all measured. The game
+ * sends no `lastVisit` or `bond` yet, and a card without them shows neither;
+ * the first friend carries both, so the line and the medal's label, which
+ * appear the day the game sends them, are held to the floor too.
  */
 const SETUP: Partial<Record<(typeof SCREENS)[number], string>> = {
   friends: `window.postMessage({ source: 'arc-auth-host', type: 'friends', payload: { friends: [
-    { id: '00000000-0000-4000-8000-000000000001', displayName: 'MossyOtter', emoji: '🦦', bg: '#d0f0c0' },
+    { id: '00000000-0000-4000-8000-000000000001', displayName: 'MossyOtter', emoji: '🦦', bg: '#d0f0c0', lastVisit: 'Yesterday', bond: 5 },
     { id: '00000000-0000-4000-8000-000000000002', displayName: 'CuriousDormouse99', emoji: '🐭', bg: '#ffd0a0' },
   ] } }, '*');
   setTimeout(() => document.querySelectorAll('.friend-card .remove-btn')[1].click(), 50);`,
