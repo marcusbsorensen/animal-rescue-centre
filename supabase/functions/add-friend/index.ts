@@ -31,8 +31,10 @@ Deno.serve(async (req) => {
 
     const normalised = joinCode.toUpperCase().trim();
 
-    // Validate join code format (e.g., "FOX-428")
-    if (!/^[A-Z]{3}-\d{3}$/.test(normalised)) {
+    // Validate join code format (e.g. "FOX-428", "OTTER-317"). The animal
+    // is 3 to 7 letters since the word list grew on 2026-10-16; the shape
+    // is unchanged, so every code already in a child's hands still passes.
+    if (!/^[A-Z]{3,7}-\d{3}$/.test(normalised)) {
       return jsonResponse({ error: 'Invalid join code format', code: 'bad_format' }, 400);
     }
 

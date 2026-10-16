@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   validatePin,
   validateUsername,
@@ -62,11 +64,66 @@ describe('validateJoinCode', () => {
     expect(validateJoinCode('BAT-999')).toEqual({ valid: true });
   });
 
+  it('accepts the longer animals the word list grew in 2026-10', () => {
+    // The shape did not change, only how long the animal may be. A code
+    // minted before the list grew is still in a child's hands.
+    expect(validateJoinCode('OTTER-317')).toEqual({ valid: true });
+    expect(validateJoinCode('badger-902')).toEqual({ valid: true });
+    expect(validateJoinCode('PENGUIN-100')).toEqual({ valid: true });
+  });
+
   it('rejects invalid formats', () => {
     expect(validateJoinCode('FOX428')).toMatchObject({ valid: false });
     expect(validateJoinCode('FO-428')).toMatchObject({ valid: false });
     expect(validateJoinCode('FOXX-42')).toMatchObject({ valid: false });
+    expect(validateJoinCode('ELEPHANTS-428')).toMatchObject({ valid: false });
     expect(validateJoinCode('')).toMatchObject({ valid: false });
+  });
+});
+
+describe('the animals a join code can start with', () => {
+  /**
+   * The list lives in an Edge Function and the pattern that admits it
+   * lives here, in another package, so the two can drift apart without
+   * anything failing until a child cannot add a friend. This reads the
+   * list as the generator has it and holds the two together.
+   */
+  const ROOT = path.resolve(__dirname, '../../../..');
+  const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/_shared/crypto.ts'), 'utf-8');
+  const block = source.match(/const JOIN_CODE_ANIMALS = \[([\s\S]*?)\];/);
+  const animals = (block?.[1] ?? '').match(/'([A-Z]+)'/g)?.map((s) => s.slice(1, -1)) ?? [];
+
+  it('every one of them makes a code this validator accepts', () => {
+    expect(animals.length).toBeGreaterThan(0);
+    expect(animals.filter((a) => !validateJoinCode(`${a}-428`).valid)).toEqual([]);
+  });
+
+  it('holds at least 150 animals, so the code space is not a ceiling', () => {
+    // 20 animals gave 18,000 codes, and join_code is unique: that was the
+    // most accounts the game could ever have. 150 gives 135,000.
+    expect(animals.length).toBeGreaterThanOrEqual(150);
+    expect(animals.length * 900).toBeGreaterThanOrEqual(135_000);
+  });
+
+  it('has no duplicates, which would quietly shrink the space', () => {
+    expect(animals.length - new Set(animals).size).toBe(0);
+  });
+
+  it('keeps the first twenty, because those codes are already in use', () => {
+    expect(animals.slice(0, 20)).toEqual([
+      'FOX', 'OWL', 'BAT', 'CAT', 'DOG', 'BEE', 'ELK', 'RAM', 'YAK', 'COW',
+      'HEN', 'JAY', 'KOI', 'EMU', 'APE', 'BUG', 'FLY', 'PIG', 'RAT', 'COD',
+    ]);
+  });
+
+  it('is readable aloud: 3 to 7 letters, nothing else', () => {
+    expect(animals.filter((a) => !/^[A-Z]{3,7}$/.test(a))).toEqual([]);
+  });
+
+  it('avoids the animals that sound like another word a child would type', () => {
+    // EWE/you, GNU/new, DOE/dough, BOAR/bore. A code is often read out to
+    // a friend, and a homophone turns that into a code that does not work.
+    expect(animals.filter((a) => ['EWE', 'GNU', 'DOE', 'BOAR'].includes(a))).toEqual([]);
   });
 });
 

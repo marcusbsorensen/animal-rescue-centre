@@ -18,10 +18,20 @@ export function validateUsername(username: string): { valid: boolean; error?: st
   return { valid: true };
 }
 
+/**
+ * An animal and three digits. The animal was three letters until
+ * 2026-10-16, when the list grew to 150 animals of 3 to 7 letters so the
+ * code space could hold more than 18,000 accounts — see
+ * `JOIN_CODE_ANIMALS` in supabase/functions/_shared/crypto.ts for why and
+ * for the rules on adding more. Every code minted before that still
+ * matches, which is the point of leaving the shape alone.
+ */
+export const JOIN_CODE_PATTERN = /^[A-Z]{3,7}-\d{3}$/;
+
 export function validateJoinCode(code: string): { valid: boolean; error?: string } {
   if (!code || typeof code !== 'string') return { valid: false, error: 'Join code is required' };
   const normalised = code.toUpperCase().trim();
-  if (!/^[A-Z]{3}-\d{3}$/.test(normalised)) {
+  if (!JOIN_CODE_PATTERN.test(normalised)) {
     return { valid: false, error: 'Join code must be like FOX-428' };
   }
   return { valid: true };
