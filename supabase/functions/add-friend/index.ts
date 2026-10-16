@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { checkRateLimit, addressKey } from '../_shared/rate-limit.ts';
+import { peekRateLimit, bumpRateLimit, addressKey } from '../_shared/rate-limit.ts';
 import { requireSession } from '../_shared/session.ts';
 
 Deno.serve(async (req) => {
@@ -36,37 +36,46 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invalid join code format', code: 'bad_format' }, 400);
     }
 
-    // Rate limits, spent before the lookup so a miss costs as much as a hit.
+    // Rate limits, and they count MISSES ONLY — a code that turns out to be
+    // real costs nothing.
     //
     // A join code is a word and three digits (generateJoinCode in
     // _shared/crypto.ts): 20 words times 900 numbers, 18,000 codes in all.
-    // A miss here answers 404 and a hit adds the caller as a friend of
-    // whoever holds the code, so with no limit anyone with an account
-    // could try every code and become a friend of every child in the game.
-    // Format mistakes are refused above and never reach this point.
+    // A miss answers 404 and a hit adds the caller as a friend of whoever
+    // holds the code, so with no limit anyone with an account could try
+    // every code and become a friend of every child in the game. Format
+    // mistakes are refused above and never reach this point.
     //
-    // 20 per 15 minutes per account. Keyed by the user id, so
-    // delete_account clears it with the account (it removes any
-    // rate_limits key that holds the id: 00015, 00018).
-    const rl = await checkRateLimit(supabase, `add-friend:${requestUserId}`, 20, 15 * 60 * 1000);
-    if (!rl.allowed) return tooManyTries(rl.retryAfterMs);
-
-    // And 20 per 15 minutes per address. This is the real defence: every
-    // new account starts with a full budget of its own, so a limit per
-    // account only tidies up. One address at 20 tries per 15 minutes
-    // needs about nine days to sweep 18,000 codes (900 windows of 15
-    // minutes), which is slow enough for somebody to notice. A household
-    // shares the budget, which is why it is not lower.
+    // Counting only misses is what lets the limit be tight. Someone
+    // sweeping the code space misses almost every time, so 20 misses per
+    // 15 minutes still costs them about nine days (900 windows) to try
+    // 18,000 codes. A classroom swapping codes at break hits almost every
+    // time and never meets the limit at all — which matters, because a
+    // school shares one address and 30 children typing real codes would
+    // otherwise lock each other out. That is why peek and bump exist
+    // rather than one check: see 00008_rate_limit_peek.sql.
     //
-    // Keyed by a hash of the address, never the address (addressKey);
-    // 00012 refuses any `-ip:` key that is not 64 hex characters. With no
-    // address or no secret the key is null and only the account limit
-    // applies, as in send-gift.
+    // The account key holds the user id, so delete_account clears it with
+    // the account (00015, 00018). The address key is a hash, never the
+    // address (addressKey); 00012 refuses any `-ip:` key that is not 64
+    // hex characters. With no address or no secret the key is null and
+    // only the account limit applies, as in send-gift.
+    const accountKey = `add-friend:${requestUserId}`;
     const addr = await addressKey(req);
-    if (addr) {
-      const ipRl = await checkRateLimit(supabase, `add-friend-ip:${addr}`, 20, 15 * 60 * 1000);
+    const ipKey = addr ? `add-friend-ip:${addr}` : null;
+
+    const accountRl = await peekRateLimit(supabase, accountKey, 20);
+    if (!accountRl.allowed) return tooManyTries(accountRl.retryAfterMs);
+    if (ipKey) {
+      const ipRl = await peekRateLimit(supabase, ipKey, 20);
       if (!ipRl.allowed) return tooManyTries(ipRl.retryAfterMs);
     }
+
+    /** Charge a wrong guess to both buckets. A right one is free. */
+    const chargeMiss = async () => {
+      await bumpRateLimit(supabase, accountKey, 15 * 60 * 1000);
+      if (ipKey) await bumpRateLimit(supabase, ipKey, 15 * 60 * 1000);
+    };
 
     // Find the friend by join code. Only what a friend may see: the
     // display name from the word lists, never the name they typed, which
@@ -79,6 +88,8 @@ Deno.serve(async (req) => {
       .single();
 
     if (friendErr || !friend) {
+      // The only answer a guesser gets, so it is the only one that costs.
+      await chargeMiss();
       return jsonResponse({ error: 'No player found with that code', code: 'not_found' }, 404);
     }
 
