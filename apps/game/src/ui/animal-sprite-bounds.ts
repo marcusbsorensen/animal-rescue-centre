@@ -269,6 +269,8 @@ cat-white-sheltered 512 512 21 19 457 467
 cat-white-sick 512 512 41 79 378 397
 cat-white-sleeping 512 512 34 71 443 403
 cat-white-walking 512 512 41 41 421 430
+deer-doe-walking 512 512 15 14 482 484
+deer-walking 512 512 14 14 484 484
 dog-arriving 128 128 13 15 103 102
 dog-beagle-arriving 512 512 48 14 416 484
 dog-beagle-eating 512 512 20 14 472 484
@@ -359,6 +361,9 @@ dog-terrier-sick 512 512 14 88 484 337
 dog-terrier-sleeping 512 512 14 102 484 310
 dog-terrier-walking 512 512 14 46 484 420
 dog-walking 128 128 14 17 98 96
+drake-walking 512 512 14 30 484 452
+duck-walking 512 512 14 32 484 448
+duckling-walking 512 512 14 21 484 470
 fox-arctic-arriving 512 512 67 14 378 484
 fox-arctic-eating 512 512 19 14 474 484
 fox-arctic-growling 512 512 12 41 488 430
@@ -559,6 +564,9 @@ parrot-sheltered 128 128 11 14 109 111
 parrot-sick 128 128 18 3 93 122
 parrot-sleeping 128 128 29 12 87 103
 parrot-walking 128 128 6 14 119 103
+pheasant-hen-walking 512 512 14 63 484 385
+pheasant-walking 512 512 14 55 484 401
+rabbit-walking 512 512 14 30 484 452
 raccoon-arriving 512 512 14 75 484 362
 raccoon-eating 512 512 14 111 484 290
 raccoon-growling 512 512 14 78 484 356
