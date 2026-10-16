@@ -1179,6 +1179,149 @@
   }
   .invite-share-panel:active .invite-share-icon { opacity: 1; }
 
+  /* Add a friend by their code. The other half of "here is mine, type theirs":
+     a second slip of the same cream paper beside the one that holds the
+     player's own code, so the two read as one idea. A box to type in and a sage
+     plank to press, as login's "Type your secret name" is a cream field and a
+     sage Next. What it says back (no one has that code, you're already friends)
+     is written where its title is, in red, and the box's edge turns red too. */
+  .add-friend {
+    display: flex; flex-direction: column;
+    background: linear-gradient(180deg, #fff5dc 0%, #f5e3b0 100%);
+    border: 2px solid #d3bf94;
+    border-radius: clamp(14px, 2cqh, 18px);
+    padding: clamp(8px, 1.6cqh, 14px) clamp(12px, 2.5cqw, 18px);
+    box-shadow:
+      inset 0 -3px 0 rgba(123,92,58,0.18),
+      2px 4px 6px rgba(0,0,0,0.18);
+    position: relative;
+  }
+  .add-friend-row {
+    display: flex; align-items: center;
+    gap: clamp(6px, 1.2cqw, 10px);
+  }
+  /* 18px or more, so a phone does not zoom in when the box takes the keyboard.
+     Shown in capitals whatever is typed: a code is FOX-428 to the player, and
+     the page and the game both make fox428 the same. */
+  .add-friend-input {
+    /* Room for PENGUIN-902 (eleven characters, in capitals) before it grows;
+       the width is also what the slip is as wide as, where it is as wide as its
+       words (a phone held sideways). */
+    width: 8.4em;
+    flex: 1 1 auto; min-width: 0;
+    min-height: 48px;
+    font-family: var(--body-font);
+    font-weight: 700;
+    font-size: clamp(18px, 2.6cqh, 22px);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: center;
+    color: #3a2618;
+    background: #fffbe8;
+    border: 2px solid #7a4b15;
+    border-radius: 10px;
+    padding: 4px 8px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+    outline: none;
+  }
+  .add-friend-input::placeholder {
+    color: #7a6244;
+    opacity: 1;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .add-friend-input:focus {
+    border-color: #9a6528;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 0 0 3px rgba(231,168,74,0.4);
+  }
+  .add-friend-input[disabled] { opacity: 0.7; }
+  .add-friend .link-btn {
+    flex: 0 0 auto;
+    padding-inline: clamp(14px, 2cqw, 20px);
+  }
+  .add-friend .link-btn[disabled] { opacity: 0.55; filter: saturate(0.5); cursor: default; }
+  .add-friend .link-btn[disabled]:hover { transform: none; }
+  /* One line above the box, the height of the invite panel's own title and in
+     the same type. It says "Add a friend!", and says how it went in the same
+     place, so the paper never changes height: the board and the grass are
+     where they were whatever the answer is. */
+  .add-friend-title,
+  .add-friend-msg {
+    font-family: var(--body-font);
+    font-weight: 700;
+    font-size: clamp(var(--fs-floor), 2.4cqh, 20px);
+    line-height: 1.25;
+    margin-bottom: clamp(2px, 0.4cqh, 4px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .add-friend-title { color: var(--garden-green, #2E8B57); }
+  .add-friend-msg { color: #a8321f; }
+  .add-friend-msg.ok { color: #2a6a30; }
+  .add-friend-msg:empty { display: none; }
+  .add-friend:has(> .add-friend-msg:not(:empty)) > .add-friend-title { display: none; }
+  .add-friend-input[aria-invalid="true"] { border-color: #c54838; }
+  /* Sized as the invite panel is: as wide as its words, and at least across
+     both posts with a hand's breadth either side. */
+  .cta-stack > .add-friend {
+    width: fit-content;
+    min-width: min(100%, calc(100% - 2 * var(--post-in) + 56px));
+    max-width: 100%;
+    margin-inline: auto;
+  }
+  /* One above the other they are the same width, as two slips of paper cut
+     together would be, and no narrower than that minimum. */
+  .cta-stack:has(> .add-friend) > .invite-share-panel,
+  .cta-stack:has(> .add-friend) > .add-friend {
+    width: min(100%, 21rem);
+  }
+  /* Stacked, the box is another ~100px under the panel, and a phone held
+     upright (390x844) scrolled 24px with four friends on the board. The list
+     gives it up; it scrolls inside the board when it has more than fit. */
+  .signs-on-stake:has(> .cta-stack > .add-friend) .friends-list:has(.friend-card) {
+    max-height: calc(32cqh - 28px);
+  }
+  /* A phone held sideways has the room across but not the height: the two
+     slips go side by side, mine on the left post and theirs on the right, the
+     way menu's two small signs are, so the list above keeps its height. Each is
+     as wide as its words, which are longest for a code like PENGUIN-902 (an
+     animal of up to seven letters), and the pair is as wide as the two: at
+     667px that leaves the left slip clear of the bee's lawn at the left edge. */
+  @container (max-height: 520px) {
+    .cta-stack:has(> .add-friend) {
+      display: grid;
+      grid-template-columns: auto auto;
+      justify-content: center;
+      column-gap: clamp(8px, 1.6cqw, 12px);
+      align-items: stretch;
+    }
+    .cta-stack:has(> .add-friend) > .invite-share-panel,
+    .cta-stack:has(> .add-friend) > .add-friend {
+      width: auto; min-width: 0; max-width: none; margin-inline: 0;
+    }
+    /* The postbox goes: the two slips are one idea and only one of them had a
+       picture, and it is 34px of a line that has to hold "Your code:" and
+       eleven characters. */
+    .cta-stack:has(> .add-friend) > .invite-share-panel { gap: 6px; padding-inline: 12px; }
+    .cta-stack:has(> .add-friend) .invite-share-stamp { display: none; }
+    .add-friend { padding-inline: 10px; }
+    .add-friend .link-btn { padding-inline: 12px; }
+    /* Its title above a 48px box is taller than the invite panel; less paper
+       round it keeps the list above as much of its height as it can. The row
+       is 18px taller than it was with the invite panel alone, and the list is
+       what gives them up: it holds one card and the top of the next. */
+    .add-friend { padding-block: 4px; }
+    .signs-on-stake:has(> .cta-stack > .add-friend) .friends-list:has(.friend-card) {
+      max-height: calc(24cqh - 18px);
+    }
+    /* The board with no friends on it has no list to shorten: its air does. */
+    .signs-on-stake:has(> .cta-stack > .add-friend) .friends-empty {
+      padding-block: clamp(4px, 1cqh, 8px);
+    }
+  }
+
   /* (Old separate invite-btn / invite-code-pill styles below remain for
      any non-embed preview use — they no longer render in embed mode.) */
   /* Invite CTA uses .btn-primary, but we swap the paws for post emojis */
@@ -1439,6 +1582,22 @@
                   </span>
                   <span class="invite-share-icon" aria-hidden="true">📋</span>
                 </button>
+
+                <!-- Their code, typed here: the other half of the panel above.
+                     The page tidies what is typed (fox428 is FOX-428); the
+                     game asks the server and says how it went. -->
+                <form class="add-friend" id="add-friend-form" novalidate autocomplete="off">
+                  <p class="add-friend-title">Add a friend!</p>
+                  <p class="add-friend-msg" id="add-friend-msg" role="status" aria-live="polite"></p>
+                  <div class="add-friend-row">
+                    <input class="add-friend-input" id="add-friend-input" type="text" maxlength="16"
+                           placeholder="Friend's code" aria-label="Type your friend's code"
+                           aria-describedby="add-friend-msg"
+                           autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"
+                           enterkeyhint="go">
+                    <button class="link-btn plank-sage" id="add-friend-btn" type="submit">Add</button>
+                  </div>
+                </form>
               </div>
 
               <!-- Bunny sitting on the ground at the foot of the garden post -->
@@ -1523,7 +1682,7 @@
       line1.textContent = 'No friends here yet!';
       const line2 = document.createElement('div');
       line2.className = 'friends-empty-line2';
-      line2.textContent = 'Share your code below so a friend can join you.';
+      line2.textContent = 'Share your code below, or type a friend\'s code.';
       empty.appendChild(line1);
       empty.appendChild(line2);
       list.appendChild(empty);
@@ -1743,7 +1902,11 @@
   // In the game, the list waits for the host, which always sends one, so a
   // child with friends never sees "No friends here yet!" while it loads.
   const params = new URLSearchParams(location.search);
-  if (!params.has('embed')) renderFriends(SAMPLE_FRIENDS);
+  if (!params.has('embed')) {
+    renderFriends(SAMPLE_FRIENDS);
+    // There is no game to ask here, and a form with no handler reloads the page.
+    document.getElementById('add-friend-form')?.addEventListener('submit', (ev) => ev.preventDefault());
+  }
 
   // Embed mode — when loaded inside the game as an overlay, drop the
   // simulator chrome and have the device fill the viewport. Clicks on the
@@ -1755,6 +1918,68 @@
     };
     // The friends the host sent, or null until it has.
     let FRIENDS = null;
+
+    // Add a friend by their code: the box beside the player's own. The page
+    // makes what was typed a code (fox428, FOX 428 and fox-428 are FOX-428)
+    // and says so when it cannot; the host asks the server and answers with
+    // the friend, or with why not.
+    const addForm = document.getElementById('add-friend-form');
+    const addInput = document.getElementById('add-friend-input');
+    const addBtn = document.getElementById('add-friend-btn');
+    const addMsg = document.getElementById('add-friend-msg');
+    // The code being asked about while the host answers; null otherwise.
+    let ADDING = null;
+    // What a child reads, by the reason the host (or this page) gives.
+    const ADD_WORDS = {
+      empty: "Type your friend's code.",
+      'bad-code': 'A code is like OTTER-428.',
+      'own-code': "That's your own code!",
+      'not-found': 'No one has that code.',
+      'already-friends': "You're already friends!",
+      'too-many-tries': 'Too many tries. Wait a bit.',
+      failed: "That didn't work. Try again.",
+    };
+    // How it went, in the title's place. `kind` is 'ok' for good news; anything
+    // else is a reason it did not work, and marks the box as wrong.
+    const say = (text, kind) => {
+      addMsg.textContent = text || '';
+      addMsg.classList.toggle('ok', kind === 'ok');
+      if (text && kind !== 'ok') addInput.setAttribute('aria-invalid', 'true');
+      else addInput.removeAttribute('aria-invalid');
+    };
+    // The host has answered: the box and the plank work again.
+    const stopAdding = () => {
+      ADDING = null;
+      addInput.disabled = false;
+      addBtn.disabled = false;
+      addForm.removeAttribute('aria-busy');
+    };
+    // An animal's name (three to seven letters) then three numbers, however
+    // they were typed: "OTTER-428", or null when what was typed is not that.
+    const normaliseCode = (raw) => {
+      const m = /^([A-Z]{3,7})([0-9]{3})$/.exec(String(raw).toUpperCase().replace(/[^A-Z0-9]/g, ''));
+      return m ? m[1] + '-' + m[2] : null;
+    };
+    addForm.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      if (ADDING) return;
+      const typed = addInput.value;
+      const code = typed.trim() === '' ? null : normaliseCode(typed);
+      const problem = typed.trim() === '' ? 'empty' : (!code ? 'bad-code' : null);
+      if (problem) { say(ADD_WORDS[problem]); addInput.focus({ preventScroll: true }); return; }
+      addInput.value = code;
+      // Their own code is answered here: the page knows it, and the server need not be asked.
+      const own = normaliseCode(document.getElementById('friend-code')?.textContent || '');
+      if (own && code === own) { say(ADD_WORDS['own-code']); addInput.focus({ preventScroll: true }); addInput.select(); return; }
+      say('');
+      ADDING = code;
+      addInput.disabled = true;
+      addBtn.disabled = true;
+      addForm.setAttribute('aria-busy', 'true');
+      send('add-friend', { joinCode: code });
+    });
+    // A new try starts with the last answer gone.
+    addInput.addEventListener('input', () => { if (!ADDING) say(''); });
     const paint = () => {
       if (!FRIENDS) return;
       renderFriends(
@@ -1791,6 +2016,31 @@
         FRIENDS = FRIENDS.filter((f) => f.id !== p.id);
         CONFIRMING = null;
         paint();
+      }
+      // A friend added by code. The host sends the friend, and the list as
+      // the server now holds it when it could get that; the board shows the
+      // list (or the list it had, with the friend on the end, which is where
+      // the server puts a newer friend) and the new card is brought into view.
+      if (m.type === 'friend-added' && p.friend && typeof p.friend === 'object' && typeof p.friend.id === 'string') {
+        const base = Array.isArray(p.friends)
+          ? p.friends.filter((f) => f && typeof f === 'object')
+          : (FRIENDS || []);
+        FRIENDS = base.some((f) => f.id === p.friend.id) ? base : [...base, p.friend];
+        paint();
+        stopAdding();
+        // Done: an empty box, and the keyboard put away so the board shows.
+        addInput.value = '';
+        addInput.blur();
+        say('You have a new friend!', 'ok');
+        const fresh = Array.from(document.querySelectorAll('.friend-card')).find((c) => c.dataset.friendId === p.friend.id);
+        fresh?.scrollIntoView({ block: 'nearest' });
+      }
+      // Not added: the reason, in the words below. Nothing on the board changes.
+      if (m.type === 'friend-add-failed' && ADDING) {
+        stopAdding();
+        say(Object.prototype.hasOwnProperty.call(ADD_WORDS, p.reason) ? ADD_WORDS[p.reason] : ADD_WORDS.failed);
+        addInput.focus({ preventScroll: true });
+        addInput.select();
       }
       // Still friends: the question stays, with Keep and Remove back.
       if (m.type === 'friend-remove-failed' && CONFIRMING && CONFIRMING.f.id === p.id) {

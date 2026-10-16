@@ -204,3 +204,42 @@ test.describe('DOM screens draw in the display face and the body face, and no ot
     });
   }
 });
+
+/**
+ * THE FRIENDS CODE BOX. The box a child types a friend's code in is a
+ * control, not text a script can read, so the two walks above never see its
+ * type: this one does. 18px or more, so a phone does not zoom in when the box
+ * takes the keyboard, in the body face like everything else a child reads;
+ * and what the box says back, which appears only after an answer, at the floor.
+ */
+test.describe('the friends code box', () => {
+  test.use({ viewport: VIEWPORT });
+
+  test('is typed in at 18px or more in the body face, and answers at the floor', async ({ page }) => {
+    await page.goto('/admin/friends.html?embed=1');
+    await page.evaluate(() => document.fonts.ready);
+    const seen = await page.evaluate(() => {
+      const face = (el: Element) => getComputedStyle(el).fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '');
+      const size = (el: Element) => Number.parseFloat(getComputedStyle(el).fontSize);
+      const input = document.getElementById('add-friend-input') as HTMLInputElement;
+      const title = document.querySelector('.add-friend-title')!;
+      // A child types a code, and the game says there is no such player.
+      input.value = 'cat111';
+      (document.getElementById('add-friend-btn') as HTMLButtonElement).click();
+      window.postMessage({ source: 'arc-auth-host', type: 'friend-add-failed', payload: { reason: 'too-many-tries' } }, '*');
+      return { input: { face: face(input), size: size(input) }, title: { face: face(title), size: size(title) } };
+    });
+    await page.waitForTimeout(100);
+    const answer = await page.evaluate(() => {
+      const msg = document.getElementById('add-friend-msg')!;
+      return { text: msg.textContent, face: getComputedStyle(msg).fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, ''), size: Number.parseFloat(getComputedStyle(msg).fontSize) };
+    });
+    expect(seen.input.face).toBe(BODY);
+    expect(seen.input.size).toBeGreaterThanOrEqual(18);
+    expect(seen.title.face).toBe(BODY);
+    expect(seen.title.size).toBeGreaterThanOrEqual(FLOOR);
+    expect(answer.text).toBe('Too many tries. Wait a bit.');
+    expect(answer.face).toBe(BODY);
+    expect(answer.size).toBeGreaterThanOrEqual(FLOOR);
+  });
+});

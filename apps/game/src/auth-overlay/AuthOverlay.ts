@@ -17,10 +17,16 @@
  *   - parent → iframe: {type:'friends', payload:{friends:[{id,displayName,emoji,bg}]}}   (once loaded; [] on failure)
  *   - iframe → parent: {type:'remove-friend', payload:{id}}   (after the child chose Remove on the card)
  *   - parent → iframe: {type:'friend-removed'|'friend-remove-failed', payload:{id}}
+ *   - iframe → parent: {type:'add-friend', payload:{joinCode}}   (a code typed in the box, as FOX-428)
+ *   - parent → iframe: {type:'friend-added', payload:{friend:{id,displayName,emoji,bg}, friends?:[...]}}
+ *       (`friends` is the list as the server now holds it, when it could be had)
+ *   - parent → iframe: {type:'friend-add-failed', payload:{reason}}
+ *       (reason: not-found | own-code | already-friends | too-many-tries | bad-code | failed;
+ *        the page has the words for each)
  */
 
 import { login, signup, checkUsername, offerSignInNames, SignupError, getRememberedUsernames, type AuthSession } from '../lib/auth';
-import { getFriends, removeFriend } from '../lib/friends';
+import { addFriendByCode, FriendError, getFriends, removeFriend, type Friend } from '../lib/friends';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { AudioManager } from '../audio/AudioManager';
 import { isPinHintCode, isDisplayNameBase } from '@arc/game-logic';
@@ -200,6 +206,31 @@ export function mountAuth(
       if (activeFrame === frame) postToFrame(removed ? 'friend-removed' : 'friend-remove-failed', { id });
       return;
     }
+    // Friends-page: the child typed a friend's code and chose Add. The answer
+    // goes back to the same page only, as with Remove. What is not three to
+    // seven letters and three numbers is not sent: the server would refuse it,
+    // and the page can say so without the round trip.
+    if (msg.type === 'add-friend') {
+      const joinCode = joinCodeFrom((msg.payload as { joinCode?: unknown })?.joinCode);
+      if (!joinCode) {
+        if (activeFrame === frame) postToFrame('friend-add-failed', { reason: 'bad-code' });
+        return;
+      }
+      let friend: Friend;
+      try {
+        friend = await addFriendByCode(joinCode);
+      } catch (err) {
+        if (activeFrame === frame) postToFrame('friend-add-failed', { reason: addFailure(err) });
+        return;
+      }
+      // The list as it now stands, so the board is the server's; without it
+      // (the call failed) the page puts the new friend on the end of its own.
+      const friends = await friendsOnScreen();
+      if (activeFrame === frame) {
+        postToFrame('friend-added', { friend: screenFriend(friend), ...(friends ? { friends } : {}) });
+      }
+      return;
+    }
     // Speaker icon in the screen — toggle music, then echo the state
     // back so the icon flips between 🔊 and 🔇. This runs inside the
     // user-activation bubble of the click, so the AudioContext is
@@ -274,15 +305,52 @@ export function mountAuth(
   return unmountAuth;
 }
 
-/** The friends screen's list, in the page's own shape. Empty when it can't
- *  be had: the page then shows its "No friends here yet!" board. */
-async function friendsForScreen(): Promise<Array<{ id: string; displayName: string; emoji: string; bg: string }>> {
-  if (!isSupabaseConfigured()) return [];
+type ScreenFriend = { id: string; displayName: string; emoji: string; bg: string };
+
+/** A friend in the page's own shape. */
+function screenFriend(f: Friend): ScreenFriend {
+  return { id: f.id, displayName: f.displayName, emoji: f.avatarEmoji, bg: f.avatarBgColour };
+}
+
+/** The friends screen's list, in the page's own shape, or null when it can't
+ *  be had. */
+async function friendsOnScreen(): Promise<ScreenFriend[] | null> {
+  if (!isSupabaseConfigured()) return null;
   try {
-    const friends = await getFriends();
-    return friends.map((f) => ({ id: f.id, displayName: f.displayName, emoji: f.avatarEmoji, bg: f.avatarBgColour }));
+    return (await getFriends()).map(screenFriend);
   } catch {
-    return [];
+    return null;
+  }
+}
+
+/** The friends screen's list. Empty when it can't be had: the page then shows
+ *  its "No friends here yet!" board. */
+async function friendsForScreen(): Promise<ScreenFriend[]> {
+  return (await friendsOnScreen()) ?? [];
+}
+
+/** What a child typed in the code box as the code the server takes (OTTER-428),
+ *  or null. The page tidies it first; this is the same again for a page that
+ *  did not (otter428, OTTER 428), so what is sent is always in the server's shape. */
+function joinCodeFrom(raw: unknown): string | null {
+  const m = /^([A-Z]{3,7})([0-9]{3})$/.exec(String(raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
+  return m ? `${m[1]}-${m[2]}` : null;
+}
+
+type AddFailure = 'not-found' | 'own-code' | 'already-friends' | 'too-many-tries' | 'bad-code' | 'failed';
+
+/** Why a friend was not added, as the reason the page has words for. The
+ *  server's own sentences are English for a developer and never shown. Anything
+ *  that is not a FriendError, or has a code this does not know, is `failed`. */
+function addFailure(err: unknown): AddFailure {
+  switch (err instanceof FriendError ? err.code : 'failed') {
+    case 'not_found': return 'not-found';
+    case 'own_code': return 'own-code';
+    case 'already_friends': return 'already-friends';
+    case 'too_many_tries': return 'too-many-tries';
+    case 'bad_format':
+    case 'no_code': return 'bad-code';
+    default: return 'failed';
   }
 }
 

@@ -75,6 +75,14 @@ const friendsMessage = (n: number) => JSON.stringify({
   },
 });
 
+/** Runs in the page: a child types a code in the box and chooses Add. */
+const typeCode = (code: string): string =>
+  `document.getElementById('add-friend-input').value = ${JSON.stringify(code)}; document.getElementById('add-friend-btn').click()`;
+
+/** Runs in the page: the game answers. */
+const hostSays = (type: string, payload: unknown): string =>
+  `window.postMessage(${JSON.stringify({ source: 'arc-auth-host', type, payload })}, '*')`;
+
 interface Screen { id: string; page: string; setup?: string }
 const SCREENS: Screen[] = [
   { id: 'welcome-new', page: 'welcome-new' },
@@ -94,6 +102,22 @@ const SCREENS: Screen[] = [
   {
     id: 'friends, asking to remove one (146A)', page: 'friends',
     setup: `window.postMessage(${friendsMessage(4)}, '*'); setTimeout(() => document.querySelectorAll('.friend-card .remove-btn')[1].click(), 50)`,
+  },
+  // The code box. Each answer is written where the box's title is, so the
+  // paper is the height it was and the screen still does not scroll: the longest
+  // one, a refusal the game gave, a code that is not a code on the empty board,
+  // and a friend just added.
+  {
+    id: 'friends, too many tries', page: 'friends',
+    setup: `window.postMessage(${friendsMessage(4)}, '*'); setTimeout(() => { ${typeCode('cat111')}; ${hostSays('friend-add-failed', { reason: 'too-many-tries' })} }, 50)`,
+  },
+  {
+    id: 'friends, a code that is not a code', page: 'friends',
+    setup: `window.postMessage(${friendsMessage(0)}, '*'); setTimeout(() => { ${typeCode('hello')} }, 50)`,
+  },
+  {
+    id: 'friends, a friend just added', page: 'friends',
+    setup: `window.postMessage(${friendsMessage(4)}, '*'); setTimeout(() => { ${typeCode('cat111')}; ${hostSays('friend-added', { friend: { id: '00000000-0000-4000-8000-000000000005', displayName: 'QuietHeron', emoji: '🦢', bg: '#e0d0f0' } })} }, 50)`,
   },
   { id: 'forgot-pin', page: 'forgot-pin', setup: `window.postMessage({source:'arc-auth-host',type:'init',payload:{hint:'A birthday'}}, '*')` },
   { id: 'news', page: 'news' },
@@ -322,8 +346,21 @@ async function measure(ink: Record<string, string>): Promise<string[]> {
       across(seconds[0], L, 'left');
       across(seconds[1], R, 'right');
     }
+    // The friends screen's two slips of paper: the player's own code and the box
+    // for a friend's. On a phone held sideways they are a row of two, one on each
+    // post (the height is not there to stack them); anywhere else each is across
+    // both, as a sign alone in its row is.
     const panel = cta.querySelector(':scope > .invite-share-panel');
-    if (panel && visible(panel)) { across(panel, L, 'left'); across(panel, R, 'right'); }
+    const add = cta.querySelector(':scope > .add-friend');
+    if (panel && visible(panel)) {
+      if (add && visible(add) && add.getBoundingClientRect().top < panel.getBoundingClientRect().bottom - 1) {
+        across(panel, L, 'left');
+        across(add, R, 'right');
+      } else {
+        across(panel, L, 'left'); across(panel, R, 'right');
+        if (add && visible(add)) { across(add, L, 'left'); across(add, R, 'right'); }
+      }
+    }
   }
 
   // 8. The title: white, the display face, the larger size, on its plank.
