@@ -93,6 +93,17 @@ const CASES: Array<{
         ? { data: { token: 'a'.repeat(64), user_id: 'me', expires_at: new Date(Date.now() + 3_600_000).toISOString() }, error: null }
         : undefined),
   },
+  {
+    name: 'add-friend',
+    load: () => import('../../../../supabase/functions/add-friend/index.ts'),
+    body: { joinCode: 'FOX-428' },
+    headers: { 'x-arc-session': 'a'.repeat(64) },
+    prefixes: ['add-friend-ip:'],
+    db: () => new FakeSupabase((q) =>
+      q.table === 'sessions' && q.op === 'select'
+        ? { data: { token: 'a'.repeat(64), user_id: 'me', expires_at: new Date(Date.now() + 3_600_000).toISOString() }, error: null }
+        : undefined),
+  },
 ];
 
 describe.each(CASES)('$name: address limits', ({ load, body, headers, prefixes, db }) => {

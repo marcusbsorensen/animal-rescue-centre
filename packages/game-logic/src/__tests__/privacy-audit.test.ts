@@ -192,7 +192,7 @@ describe('Privacy Audit: schema after every migration', () => {
 });
 
 describe('Privacy Audit: IP addresses', () => {
-  const FUNCTIONS = ['signup', 'login', 'get-pin-hint', 'send-gift'];
+  const FUNCTIONS = ['signup', 'login', 'get-pin-hint', 'send-gift', 'add-friend'];
 
   it('no function puts a raw address into a rate-limit key', () => {
     for (const fn of FUNCTIONS) {
@@ -340,9 +340,15 @@ describe('Privacy Audit: player names', () => {
   });
 
   it('the game shows other players by display name, and never asks for their login', () => {
-    // The friends list comes from get-friends (146A), which reads the
-    // display name; the game reads gifts and the board itself.
-    for (const file of ['supabase/functions/get-friends/index.ts', 'apps/game/src/lib/gifts.ts']) {
+    // The friends list, the gift inbox and the board are each read by a
+    // function with the service role (get-friends 146A; get-gifts and
+    // get-leaderboard), and each selects the display name. The game only
+    // asks them, so its own side has no login to leak.
+    for (const file of [
+      'supabase/functions/get-friends/index.ts',
+      'supabase/functions/get-gifts/index.ts',
+      'supabase/functions/get-leaderboard/index.ts',
+    ]) {
       const src = read(file);
       expect(src, file).toContain('display_name');
       expect(src, file).not.toMatch(/\busername\b/);
@@ -350,6 +356,10 @@ describe('Privacy Audit: player names', () => {
     const friendsLib = read('apps/game/src/lib/friends.ts');
     expect(friendsLib).toContain("invoke('get-friends'");
     expect(friendsLib).not.toMatch(/\busername\b/);
+    const giftsLib = read('apps/game/src/lib/gifts.ts');
+    expect(giftsLib).toContain("invoke('get-gifts'");
+    expect(giftsLib).toContain("invoke('get-leaderboard'");
+    expect(giftsLib).not.toMatch(/\busername\b/);
     for (const file of ['apps/game/src/scenes/SocialScene.ts', 'apps/game/src/scenes/FriendsScene.ts']) {
       expect(read(file), file).not.toMatch(/\.username\b|fromUsername/);
     }
