@@ -324,8 +324,18 @@ async function rows(table: string, query: string): Promise<Array<Record<string, 
 }
 
 async function newPlayer(): Promise<Player> {
-  const tail = Array.from({ length: 8 }, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('');
-  const r = await call('signup', { username: `Fern${tail}`, pin: PIN, avatarEmoji: '🦊', avatarBgColour: '#ffd0a0' });
+  // The name has to come off the list: signup refuses a typed one, because
+  // arcgame.app tells parents that players pick a name from a list and the
+  // server now holds to that. So ask for three and take one, which is what
+  // the name screen does.
+  const offer = await call('signup', { offerNames: true });
+  expect(offer.status, JSON.stringify(offer.json)).toBe(200);
+  const [name] = offer.json.names as string[];
+  expect(name, 'the pool offered no names — is it seeded?').toBeTruthy();
+
+  const r = await call('signup', {
+    username: name, readyMadeName: true, pin: PIN, avatarEmoji: '🦊', avatarBgColour: '#ffd0a0',
+  });
   expect(r.status, JSON.stringify(r.json)).toBe(200);
   return r.json.session as Player;
 }
@@ -365,10 +375,10 @@ test.describe('friends: remove a friend (146A)', () => {
 
     // A gift each way before the removal: A's waits in Bo's inbox, and Bo's
     // to A is claimed.
-    const waiting = await call('send-gift', { toUserId: b.userId, giftType: 'toy', messagePresetCode: 'hello' }, a.token);
+    const waiting = await call('send-gift', { toUserId: b.userId, giftType: 'toy', messagePresetCode: 'hi' }, a.token);
     expect(waiting.status, JSON.stringify(waiting.json)).toBe(200);
     gifts.waiting = (waiting.json.gift as { id: string }).id;
-    const toA = await call('send-gift', { toUserId: a.userId, giftType: 'treat_bundle', messagePresetCode: 'hello' }, b.token);
+    const toA = await call('send-gift', { toUserId: a.userId, giftType: 'treat_bundle', messagePresetCode: 'hi' }, b.token);
     gifts.claimed = (toA.json.gift as { id: string }).id;
     expect((await call('claim-gift', { giftId: gifts.claimed }, a.token)).status).toBe(200);
 
@@ -420,7 +430,7 @@ test.describe('friends: remove a friend (146A)', () => {
     expect(kept).toMatchObject({ from_user: b.userId, to_user: a.userId });
     expect(kept.claimed_at).not.toBeNull();
     // Nor can a gift go now.
-    const late = await call('send-gift', { toUserId: b.userId, giftType: 'toy', messagePresetCode: 'hello' }, a.token);
+    const late = await call('send-gift', { toUserId: b.userId, giftType: 'toy', messagePresetCode: 'hi' }, a.token);
     expect(late.status).toBe(403);
     // One log line, in counts: no id, no name, no code.
     const log = await rows('audit_log', `action=eq.friend_removed&created_at=gte.${encodeURIComponent(removedAt)}&select=user_id,target_id,metadata`);
@@ -439,7 +449,7 @@ test.describe('friends: remove a friend (146A)', () => {
     const onB = await openFriends(devices.b!, b);
     await expect(card(onB.friends, a)).toBeVisible({ timeout: 20_000 });
     // And gifts go between them again.
-    expect((await call('send-gift', { toUserId: b.userId, giftType: 'toy', messagePresetCode: 'hello' }, a.token)).status).toBe(200);
+    expect((await call('send-gift', { toUserId: b.userId, giftType: 'toy', messagePresetCode: 'hi' }, a.token)).status).toBe(200);
 
     // Done: both accounts go, by the same path a child uses, and with them
     // the friendship and the gift.
